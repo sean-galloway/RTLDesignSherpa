@@ -7,7 +7,7 @@
 import bridge_stream_mon_axil_pkg::*;
 
 module host_adapter #(
-    parameter NUM_SLAVES = 8,
+    parameter NUM_SLAVES = 10,
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AW = 2,
@@ -339,6 +339,8 @@ module host_adapter #(
     // Slave 5 (dma_axil): 0x00080000 - 0x00080FFF
     // Slave 6 (slave_err): 0x00090000 - 0x00090FFF
     // Slave 7 (slave_tally): 0x000C0000 - 0x000FFFFF
+    // Slave 8 (stream_tally_cfg): 0x000A0000 - 0x000A0FFF
+    // Slave 9 (slave_tally_cfg): 0x000B0000 - 0x000B0FFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
@@ -367,6 +369,12 @@ module host_adapter #(
         else if (fub_axi_awaddr >= 32'h000C0000 && fub_axi_awaddr <= 32'h000FFFFF) begin
             comb_slave_select_aw[7] = 1'b1;  // slave_tally
         end
+        else if (fub_axi_awaddr >= 32'h000A0000 && fub_axi_awaddr <= 32'h000A0FFF) begin
+            comb_slave_select_aw[8] = 1'b1;  // stream_tally_cfg
+        end
+        else if (fub_axi_awaddr >= 32'h000B0000 && fub_axi_awaddr <= 32'h000B0FFF) begin
+            comb_slave_select_aw[9] = 1'b1;  // slave_tally_cfg
+        end
     end
 
     // Bridge ID for write channel (constant - tied to BRIDGE_ID parameter)
@@ -382,6 +390,8 @@ module host_adapter #(
     // Slave 5 (dma_axil): 0x00080000 - 0x00080FFF
     // Slave 6 (slave_err): 0x00090000 - 0x00090FFF
     // Slave 7 (slave_tally): 0x000C0000 - 0x000FFFFF
+    // Slave 8 (stream_tally_cfg): 0x000A0000 - 0x000A0FFF
+    // Slave 9 (slave_tally_cfg): 0x000B0000 - 0x000B0FFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
@@ -410,6 +420,12 @@ module host_adapter #(
         else if (fub_axi_araddr >= 32'h000C0000 && fub_axi_araddr <= 32'h000FFFFF) begin
             comb_slave_select_ar[7] = 1'b1;  // slave_tally
         end
+        else if (fub_axi_araddr >= 32'h000A0000 && fub_axi_araddr <= 32'h000A0FFF) begin
+            comb_slave_select_ar[8] = 1'b1;  // stream_tally_cfg
+        end
+        else if (fub_axi_araddr >= 32'h000B0000 && fub_axi_araddr <= 32'h000B0FFF) begin
+            comb_slave_select_ar[9] = 1'b1;  // slave_tally_cfg
+        end
     end
 
     // Bridge ID for read channel (constant - tied to BRIDGE_ID parameter)
@@ -428,11 +444,11 @@ module host_adapter #(
     logic ar_path_active_32b;
     assign ar_path_active_32b = comb_slave_select_ar[0] | comb_slave_select_ar[1] | comb_slave_select_ar[3] | comb_slave_select_ar[5] | comb_slave_select_ar[6];
     logic aw_path_active_64b;
-    assign aw_path_active_64b = comb_slave_select_aw[4] | comb_slave_select_aw[7];
+    assign aw_path_active_64b = comb_slave_select_aw[4] | comb_slave_select_aw[7] | comb_slave_select_aw[8] | comb_slave_select_aw[9];
     logic w_path_active_64b;
-    assign w_path_active_64b = w_slave_select[4] | w_slave_select[7];
+    assign w_path_active_64b = w_slave_select[4] | w_slave_select[7] | w_slave_select[8] | w_slave_select[9];
     logic ar_path_active_64b;
-    assign ar_path_active_64b = comb_slave_select_ar[4] | comb_slave_select_ar[7];
+    assign ar_path_active_64b = comb_slave_select_ar[4] | comb_slave_select_ar[7] | comb_slave_select_ar[8] | comb_slave_select_ar[9];
     logic aw_path_active_256b;
     assign aw_path_active_256b = comb_slave_select_aw[2];
     logic w_path_active_256b;
@@ -870,28 +886,34 @@ module host_adapter #(
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            8'b00000001: begin  // Slave 0 (32b)
+            10'b0000000001: begin  // Slave 0 (32b)
                 fub_axi_awready = host_32b_awready;
             end
-            8'b00000010: begin  // Slave 1 (32b)
+            10'b0000000010: begin  // Slave 1 (32b)
                 fub_axi_awready = host_32b_awready;
             end
-            8'b00001000: begin  // Slave 3 (32b)
+            10'b0000001000: begin  // Slave 3 (32b)
                 fub_axi_awready = host_32b_awready;
             end
-            8'b00100000: begin  // Slave 5 (32b)
+            10'b0000100000: begin  // Slave 5 (32b)
                 fub_axi_awready = host_32b_awready;
             end
-            8'b01000000: begin  // Slave 6 (32b)
+            10'b0001000000: begin  // Slave 6 (32b)
                 fub_axi_awready = host_32b_awready;
             end
-            8'b00010000: begin  // Slave 4 (64b)
+            10'b0000010000: begin  // Slave 4 (64b)
                 fub_axi_awready = conv_64b_awready;
             end
-            8'b10000000: begin  // Slave 7 (64b)
+            10'b0010000000: begin  // Slave 7 (64b)
                 fub_axi_awready = conv_64b_awready;
             end
-            8'b00000100: begin  // Slave 2 (256b)
+            10'b0100000000: begin  // Slave 8 (64b)
+                fub_axi_awready = conv_64b_awready;
+            end
+            10'b1000000000: begin  // Slave 9 (64b)
+                fub_axi_awready = conv_64b_awready;
+            end
+            10'b0000000100: begin  // Slave 2 (256b)
                 fub_axi_awready = conv_256b_awready;
             end
             default: begin
@@ -904,28 +926,34 @@ module host_adapter #(
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            8'b00000001: begin  // Slave 0 (32b)
+            10'b0000000001: begin  // Slave 0 (32b)
                 fub_axi_wready = host_32b_wready;
             end
-            8'b00000010: begin  // Slave 1 (32b)
+            10'b0000000010: begin  // Slave 1 (32b)
                 fub_axi_wready = host_32b_wready;
             end
-            8'b00001000: begin  // Slave 3 (32b)
+            10'b0000001000: begin  // Slave 3 (32b)
                 fub_axi_wready = host_32b_wready;
             end
-            8'b00100000: begin  // Slave 5 (32b)
+            10'b0000100000: begin  // Slave 5 (32b)
                 fub_axi_wready = host_32b_wready;
             end
-            8'b01000000: begin  // Slave 6 (32b)
+            10'b0001000000: begin  // Slave 6 (32b)
                 fub_axi_wready = host_32b_wready;
             end
-            8'b00010000: begin  // Slave 4 (64b)
+            10'b0000010000: begin  // Slave 4 (64b)
                 fub_axi_wready = conv_64b_wready;
             end
-            8'b10000000: begin  // Slave 7 (64b)
+            10'b0010000000: begin  // Slave 7 (64b)
                 fub_axi_wready = conv_64b_wready;
             end
-            8'b00000100: begin  // Slave 2 (256b)
+            10'b0100000000: begin  // Slave 8 (64b)
+                fub_axi_wready = conv_64b_wready;
+            end
+            10'b1000000000: begin  // Slave 9 (64b)
+                fub_axi_wready = conv_64b_wready;
+            end
+            10'b0000000100: begin  // Slave 2 (256b)
                 fub_axi_wready = conv_256b_wready;
             end
             default: begin
@@ -941,42 +969,52 @@ module host_adapter #(
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            8'b00000001: begin  // Slave 0 (32b)
+            10'b0000000001: begin  // Slave 0 (32b)
                 fub_axi_bid = host_32b_b.id;
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
-            8'b00000010: begin  // Slave 1 (32b)
+            10'b0000000010: begin  // Slave 1 (32b)
                 fub_axi_bid = host_32b_b.id;
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
-            8'b00001000: begin  // Slave 3 (32b)
+            10'b0000001000: begin  // Slave 3 (32b)
                 fub_axi_bid = host_32b_b.id;
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
-            8'b00100000: begin  // Slave 5 (32b)
+            10'b0000100000: begin  // Slave 5 (32b)
                 fub_axi_bid = host_32b_b.id;
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
-            8'b01000000: begin  // Slave 6 (32b)
+            10'b0001000000: begin  // Slave 6 (32b)
                 fub_axi_bid = host_32b_b.id;
                 fub_axi_bresp = host_32b_b.resp;
                 fub_axi_bvalid = host_32b_bvalid;
             end
-            8'b00010000: begin  // Slave 4 (64b)
+            10'b0000010000: begin  // Slave 4 (64b)
                 fub_axi_bid = conv_64b_bid;
                 fub_axi_bresp = conv_64b_bresp;
                 fub_axi_bvalid = conv_64b_bvalid;
             end
-            8'b10000000: begin  // Slave 7 (64b)
+            10'b0010000000: begin  // Slave 7 (64b)
                 fub_axi_bid = conv_64b_bid;
                 fub_axi_bresp = conv_64b_bresp;
                 fub_axi_bvalid = conv_64b_bvalid;
             end
-            8'b00000100: begin  // Slave 2 (256b)
+            10'b0100000000: begin  // Slave 8 (64b)
+                fub_axi_bid = conv_64b_bid;
+                fub_axi_bresp = conv_64b_bresp;
+                fub_axi_bvalid = conv_64b_bvalid;
+            end
+            10'b1000000000: begin  // Slave 9 (64b)
+                fub_axi_bid = conv_64b_bid;
+                fub_axi_bresp = conv_64b_bresp;
+                fub_axi_bvalid = conv_64b_bvalid;
+            end
+            10'b0000000100: begin  // Slave 2 (256b)
                 fub_axi_bid = conv_256b_bid;
                 fub_axi_bresp = conv_256b_bresp;
                 fub_axi_bvalid = conv_256b_bvalid;
@@ -991,28 +1029,34 @@ module host_adapter #(
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            8'b00000001: begin  // Slave 0 (32b)
+            10'b0000000001: begin  // Slave 0 (32b)
                 fub_axi_arready = host_32b_arready;
             end
-            8'b00000010: begin  // Slave 1 (32b)
+            10'b0000000010: begin  // Slave 1 (32b)
                 fub_axi_arready = host_32b_arready;
             end
-            8'b00001000: begin  // Slave 3 (32b)
+            10'b0000001000: begin  // Slave 3 (32b)
                 fub_axi_arready = host_32b_arready;
             end
-            8'b00100000: begin  // Slave 5 (32b)
+            10'b0000100000: begin  // Slave 5 (32b)
                 fub_axi_arready = host_32b_arready;
             end
-            8'b01000000: begin  // Slave 6 (32b)
+            10'b0001000000: begin  // Slave 6 (32b)
                 fub_axi_arready = host_32b_arready;
             end
-            8'b00010000: begin  // Slave 4 (64b)
+            10'b0000010000: begin  // Slave 4 (64b)
                 fub_axi_arready = conv_64b_arready;
             end
-            8'b10000000: begin  // Slave 7 (64b)
+            10'b0010000000: begin  // Slave 7 (64b)
                 fub_axi_arready = conv_64b_arready;
             end
-            8'b00000100: begin  // Slave 2 (256b)
+            10'b0100000000: begin  // Slave 8 (64b)
+                fub_axi_arready = conv_64b_arready;
+            end
+            10'b1000000000: begin  // Slave 9 (64b)
+                fub_axi_arready = conv_64b_arready;
+            end
+            10'b0000000100: begin  // Slave 2 (256b)
                 fub_axi_arready = conv_256b_arready;
             end
             default: begin
@@ -1030,56 +1074,70 @@ module host_adapter #(
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            8'b00000001: begin  // Slave 0 (32b)
+            10'b0000000001: begin  // Slave 0 (32b)
                 fub_axi_rid = host_32b_r.id;
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
-            8'b00000010: begin  // Slave 1 (32b)
+            10'b0000000010: begin  // Slave 1 (32b)
                 fub_axi_rid = host_32b_r.id;
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
-            8'b00001000: begin  // Slave 3 (32b)
+            10'b0000001000: begin  // Slave 3 (32b)
                 fub_axi_rid = host_32b_r.id;
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
-            8'b00100000: begin  // Slave 5 (32b)
+            10'b0000100000: begin  // Slave 5 (32b)
                 fub_axi_rid = host_32b_r.id;
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
-            8'b01000000: begin  // Slave 6 (32b)
+            10'b0001000000: begin  // Slave 6 (32b)
                 fub_axi_rid = host_32b_r.id;
                 fub_axi_rdata = host_32b_r.data;
                 fub_axi_rresp = host_32b_r.resp;
                 fub_axi_rlast = host_32b_r.last;
                 fub_axi_rvalid = host_32b_rvalid;
             end
-            8'b00010000: begin  // Slave 4 (64b)
+            10'b0000010000: begin  // Slave 4 (64b)
                 fub_axi_rid = conv_64b_rid;
                 fub_axi_rdata = conv_64b_rdata;
                 fub_axi_rresp = conv_64b_rresp;
                 fub_axi_rlast = conv_64b_rlast;
                 fub_axi_rvalid = conv_64b_rvalid;
             end
-            8'b10000000: begin  // Slave 7 (64b)
+            10'b0010000000: begin  // Slave 7 (64b)
                 fub_axi_rid = conv_64b_rid;
                 fub_axi_rdata = conv_64b_rdata;
                 fub_axi_rresp = conv_64b_rresp;
                 fub_axi_rlast = conv_64b_rlast;
                 fub_axi_rvalid = conv_64b_rvalid;
             end
-            8'b00000100: begin  // Slave 2 (256b)
+            10'b0100000000: begin  // Slave 8 (64b)
+                fub_axi_rid = conv_64b_rid;
+                fub_axi_rdata = conv_64b_rdata;
+                fub_axi_rresp = conv_64b_rresp;
+                fub_axi_rlast = conv_64b_rlast;
+                fub_axi_rvalid = conv_64b_rvalid;
+            end
+            10'b1000000000: begin  // Slave 9 (64b)
+                fub_axi_rid = conv_64b_rid;
+                fub_axi_rdata = conv_64b_rdata;
+                fub_axi_rresp = conv_64b_rresp;
+                fub_axi_rlast = conv_64b_rlast;
+                fub_axi_rvalid = conv_64b_rvalid;
+            end
+            10'b0000000100: begin  // Slave 2 (256b)
                 fub_axi_rid = conv_256b_rid;
                 fub_axi_rdata = conv_256b_rdata;
                 fub_axi_rresp = conv_256b_rresp;

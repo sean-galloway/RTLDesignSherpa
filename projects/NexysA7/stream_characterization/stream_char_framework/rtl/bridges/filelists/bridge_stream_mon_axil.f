@@ -14,9 +14,11 @@ $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/br
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_mon_axil/harness_csr_adapter.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_mon_axil/slave_err_adapter.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_mon_axil/slave_tally_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_mon_axil/slave_tally_cfg_adapter.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_mon_axil/stream_apb_adapter.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_mon_axil/stream_err_adapter.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_mon_axil/stream_tally_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_mon_axil/stream_tally_cfg_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 #

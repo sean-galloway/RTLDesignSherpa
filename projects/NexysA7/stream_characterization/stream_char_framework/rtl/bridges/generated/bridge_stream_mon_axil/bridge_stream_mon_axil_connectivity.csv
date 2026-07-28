@@ -1,5 +1,5 @@
-master\slave,stream_apb,harness_csr,desc_ram,stream_err,stream_tally,dma_axil,slave_err,slave_tally
-host,1,1,1,1,1,1,1,1
-stream_desc,0,0,1,0,0,0,0,0
-monbus_wr,0,0,0,0,1,0,0,0
-slave_monbus_wr,0,0,0,0,0,0,0,1
+master\slave,stream_apb,harness_csr,desc_ram,stream_err,stream_tally,dma_axil,slave_err,slave_tally,stream_tally_cfg,slave_tally_cfg
+host,1,1,1,1,1,1,1,1,1,1
+stream_desc,0,0,1,0,0,0,0,0,0,0
+monbus_wr,0,0,0,0,1,0,0,0,0,0
+slave_monbus_wr,0,0,0,0,0,0,0,1,0,0

@@ -179,3 +179,31 @@ data_width  = 64
 user_width  = 0
 base_addr   = "0x000C0000"
 addr_range  = "0x00040000"     # 256 KB  (ends 0xF_FFFF)
+
+# Dedicated host config/readback ports for the two tally memories
+# (monbus_tally_axil cfg_s_axil): R = read bins, W = load the profile legal-set
+# CAM (0x200 + idx*4) / clear (0x100). Record ingest stays on stream_tally /
+# slave_tally above; these keep host config off the sweeping record stream.
+[[bridge.slaves]]
+name        = "stream_tally_cfg"
+prefix      = "stream_tally_cfg_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 64
+user_width  = 0
+base_addr   = "0x000A0000"
+addr_range  = "0x00001000"     # 4 KB
+
+[[bridge.slaves]]
+name        = "slave_tally_cfg"
+prefix      = "slave_tally_cfg_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 64
+user_width  = 0
+base_addr   = "0x000B0000"
+addr_range  = "0x00001000"     # 4 KB

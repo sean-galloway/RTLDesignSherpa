@@ -41,7 +41,11 @@ module bridge_stream_mon_axil_mon #(
     parameter bit USE_MONITOR_slave_err_wr = 1'b1,
     parameter bit USE_MONITOR_slave_err_rd = 1'b1,
     parameter bit USE_MONITOR_slave_tally_wr = 1'b1,
-    parameter bit USE_MONITOR_slave_tally_rd = 1'b1
+    parameter bit USE_MONITOR_slave_tally_rd = 1'b1,
+    parameter bit USE_MONITOR_stream_tally_cfg_wr = 1'b1,
+    parameter bit USE_MONITOR_stream_tally_cfg_rd = 1'b1,
+    parameter bit USE_MONITOR_slave_tally_cfg_wr = 1'b1,
+    parameter bit USE_MONITOR_slave_tally_cfg_rd = 1'b1
     // Global overrides (mutually exclusive; both 0 = use per-port)
    ,parameter bit USE_ALL_MONITORS = 1'b0
    ,parameter bit USE_NO_MONITORS  = 1'b0
@@ -362,6 +366,50 @@ module bridge_stream_mon_axil_mon #(
     input  logic                  slave_tally_axi_rvalid,
     output logic                  slave_tally_axi_rready,
 
+    // Slave 8: stream_tally_cfg
+    // AXI4-Lite Slave: stream_tally_cfg
+    output logic [31:0] stream_tally_cfg_axi_awaddr,
+    output logic [2:0]            stream_tally_cfg_axi_awprot,
+    output logic                  stream_tally_cfg_axi_awvalid,
+    input  logic                  stream_tally_cfg_axi_awready,
+    output logic [63:0] stream_tally_cfg_axi_wdata,
+    output logic [7:0] stream_tally_cfg_axi_wstrb,
+    output logic                  stream_tally_cfg_axi_wvalid,
+    input  logic                  stream_tally_cfg_axi_wready,
+    input  logic [1:0]            stream_tally_cfg_axi_bresp,
+    input  logic                  stream_tally_cfg_axi_bvalid,
+    output logic                  stream_tally_cfg_axi_bready,
+    output logic [31:0] stream_tally_cfg_axi_araddr,
+    output logic [2:0]            stream_tally_cfg_axi_arprot,
+    output logic                  stream_tally_cfg_axi_arvalid,
+    input  logic                  stream_tally_cfg_axi_arready,
+    input  logic [63:0] stream_tally_cfg_axi_rdata,
+    input  logic [1:0]            stream_tally_cfg_axi_rresp,
+    input  logic                  stream_tally_cfg_axi_rvalid,
+    output logic                  stream_tally_cfg_axi_rready,
+
+    // Slave 9: slave_tally_cfg
+    // AXI4-Lite Slave: slave_tally_cfg
+    output logic [31:0] slave_tally_cfg_axi_awaddr,
+    output logic [2:0]            slave_tally_cfg_axi_awprot,
+    output logic                  slave_tally_cfg_axi_awvalid,
+    input  logic                  slave_tally_cfg_axi_awready,
+    output logic [63:0] slave_tally_cfg_axi_wdata,
+    output logic [7:0] slave_tally_cfg_axi_wstrb,
+    output logic                  slave_tally_cfg_axi_wvalid,
+    input  logic                  slave_tally_cfg_axi_wready,
+    input  logic [1:0]            slave_tally_cfg_axi_bresp,
+    input  logic                  slave_tally_cfg_axi_bvalid,
+    output logic                  slave_tally_cfg_axi_bready,
+    output logic [31:0] slave_tally_cfg_axi_araddr,
+    output logic [2:0]            slave_tally_cfg_axi_arprot,
+    output logic                  slave_tally_cfg_axi_arvalid,
+    input  logic                  slave_tally_cfg_axi_arready,
+    input  logic [63:0] slave_tally_cfg_axi_rdata,
+    input  logic [1:0]            slave_tally_cfg_axi_rresp,
+    input  logic                  slave_tally_cfg_axi_rvalid,
+    output logic                  slave_tally_cfg_axi_rready,
+
     // ============================================================
     // Monitor cfg subsystem AXIL slave (regblock-backed, 90.3)
     // ============================================================
@@ -415,7 +463,7 @@ module bridge_stream_mon_axil_mon #(
     output logic        mon_irq_out
 );
 
-    localparam NUM_SLAVES = 8;
+    localparam NUM_SLAVES = 10;
 
     // ============================================================
     // Effective per-wrapper USE_MONITOR (after global override)
@@ -444,6 +492,10 @@ module bridge_stream_mon_axil_mon #(
     localparam bit EFF_USE_MON_slave_err_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_slave_err_rd;
     localparam bit EFF_USE_MON_slave_tally_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_slave_tally_wr;
     localparam bit EFF_USE_MON_slave_tally_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_slave_tally_rd;
+    localparam bit EFF_USE_MON_stream_tally_cfg_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_stream_tally_cfg_wr;
+    localparam bit EFF_USE_MON_stream_tally_cfg_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_stream_tally_cfg_rd;
+    localparam bit EFF_USE_MON_slave_tally_cfg_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_slave_tally_cfg_wr;
+    localparam bit EFF_USE_MON_slave_tally_cfg_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_slave_tally_cfg_rd;
 
     // host Adapter outputs
     logic [NUM_SLAVES-1:0] host_slave_select_aw;
@@ -982,6 +1034,110 @@ module bridge_stream_mon_axil_mon #(
     logic [BRIDGE_ID_WIDTH-1:0] slave_tally_axi_rid_bridge_id;
     logic                       slave_tally_axi_rid_valid;
 
+    // stream_tally_cfg (AXIL, 64b AXI4 interface)
+    logic [7:0]            xbar_stream_tally_cfg_axi_awid;
+    logic [31:0]               xbar_stream_tally_cfg_axi_awaddr;
+    logic [7:0]                xbar_stream_tally_cfg_axi_awlen;
+    logic [2:0]                xbar_stream_tally_cfg_axi_awsize;
+    logic [1:0]                xbar_stream_tally_cfg_axi_awburst;
+    logic                      xbar_stream_tally_cfg_axi_awlock;
+    logic [3:0]                xbar_stream_tally_cfg_axi_awcache;
+    logic [2:0]                xbar_stream_tally_cfg_axi_awprot;
+    logic [3:0]                xbar_stream_tally_cfg_axi_awqos;
+    logic [3:0]                xbar_stream_tally_cfg_axi_awregion;
+    logic                      xbar_stream_tally_cfg_axi_awuser;
+    logic                      xbar_stream_tally_cfg_axi_awvalid;
+    logic                      xbar_stream_tally_cfg_axi_awready;
+    logic [63:0] xbar_stream_tally_cfg_axi_wdata;
+    logic [7:0] xbar_stream_tally_cfg_axi_wstrb;
+    logic                      xbar_stream_tally_cfg_axi_wlast;
+    logic                      xbar_stream_tally_cfg_axi_wuser;
+    logic                      xbar_stream_tally_cfg_axi_wvalid;
+    logic                      xbar_stream_tally_cfg_axi_wready;
+    logic [7:0]            xbar_stream_tally_cfg_axi_bid;
+    logic [1:0]                xbar_stream_tally_cfg_axi_bresp;
+    logic                      xbar_stream_tally_cfg_axi_buser;
+    logic                      xbar_stream_tally_cfg_axi_bvalid;
+    logic                      xbar_stream_tally_cfg_axi_bready;
+    logic [7:0]            xbar_stream_tally_cfg_axi_arid;
+    logic [31:0]               xbar_stream_tally_cfg_axi_araddr;
+    logic [7:0]                xbar_stream_tally_cfg_axi_arlen;
+    logic [2:0]                xbar_stream_tally_cfg_axi_arsize;
+    logic [1:0]                xbar_stream_tally_cfg_axi_arburst;
+    logic                      xbar_stream_tally_cfg_axi_arlock;
+    logic [3:0]                xbar_stream_tally_cfg_axi_arcache;
+    logic [2:0]                xbar_stream_tally_cfg_axi_arprot;
+    logic [3:0]                xbar_stream_tally_cfg_axi_arqos;
+    logic [3:0]                xbar_stream_tally_cfg_axi_arregion;
+    logic                      xbar_stream_tally_cfg_axi_aruser;
+    logic                      xbar_stream_tally_cfg_axi_arvalid;
+    logic                      xbar_stream_tally_cfg_axi_arready;
+    logic [7:0]            xbar_stream_tally_cfg_axi_rid;
+    logic [63:0] xbar_stream_tally_cfg_axi_rdata;
+    logic [1:0]                xbar_stream_tally_cfg_axi_rresp;
+    logic                      xbar_stream_tally_cfg_axi_rlast;
+    logic                      xbar_stream_tally_cfg_axi_ruser;
+    logic                      xbar_stream_tally_cfg_axi_rvalid;
+    logic                      xbar_stream_tally_cfg_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] stream_tally_cfg_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] stream_tally_cfg_axi_bid_bridge_id;
+    logic                       stream_tally_cfg_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] stream_tally_cfg_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] stream_tally_cfg_axi_rid_bridge_id;
+    logic                       stream_tally_cfg_axi_rid_valid;
+
+    // slave_tally_cfg (AXIL, 64b AXI4 interface)
+    logic [7:0]            xbar_slave_tally_cfg_axi_awid;
+    logic [31:0]               xbar_slave_tally_cfg_axi_awaddr;
+    logic [7:0]                xbar_slave_tally_cfg_axi_awlen;
+    logic [2:0]                xbar_slave_tally_cfg_axi_awsize;
+    logic [1:0]                xbar_slave_tally_cfg_axi_awburst;
+    logic                      xbar_slave_tally_cfg_axi_awlock;
+    logic [3:0]                xbar_slave_tally_cfg_axi_awcache;
+    logic [2:0]                xbar_slave_tally_cfg_axi_awprot;
+    logic [3:0]                xbar_slave_tally_cfg_axi_awqos;
+    logic [3:0]                xbar_slave_tally_cfg_axi_awregion;
+    logic                      xbar_slave_tally_cfg_axi_awuser;
+    logic                      xbar_slave_tally_cfg_axi_awvalid;
+    logic                      xbar_slave_tally_cfg_axi_awready;
+    logic [63:0] xbar_slave_tally_cfg_axi_wdata;
+    logic [7:0] xbar_slave_tally_cfg_axi_wstrb;
+    logic                      xbar_slave_tally_cfg_axi_wlast;
+    logic                      xbar_slave_tally_cfg_axi_wuser;
+    logic                      xbar_slave_tally_cfg_axi_wvalid;
+    logic                      xbar_slave_tally_cfg_axi_wready;
+    logic [7:0]            xbar_slave_tally_cfg_axi_bid;
+    logic [1:0]                xbar_slave_tally_cfg_axi_bresp;
+    logic                      xbar_slave_tally_cfg_axi_buser;
+    logic                      xbar_slave_tally_cfg_axi_bvalid;
+    logic                      xbar_slave_tally_cfg_axi_bready;
+    logic [7:0]            xbar_slave_tally_cfg_axi_arid;
+    logic [31:0]               xbar_slave_tally_cfg_axi_araddr;
+    logic [7:0]                xbar_slave_tally_cfg_axi_arlen;
+    logic [2:0]                xbar_slave_tally_cfg_axi_arsize;
+    logic [1:0]                xbar_slave_tally_cfg_axi_arburst;
+    logic                      xbar_slave_tally_cfg_axi_arlock;
+    logic [3:0]                xbar_slave_tally_cfg_axi_arcache;
+    logic [2:0]                xbar_slave_tally_cfg_axi_arprot;
+    logic [3:0]                xbar_slave_tally_cfg_axi_arqos;
+    logic [3:0]                xbar_slave_tally_cfg_axi_arregion;
+    logic                      xbar_slave_tally_cfg_axi_aruser;
+    logic                      xbar_slave_tally_cfg_axi_arvalid;
+    logic                      xbar_slave_tally_cfg_axi_arready;
+    logic [7:0]            xbar_slave_tally_cfg_axi_rid;
+    logic [63:0] xbar_slave_tally_cfg_axi_rdata;
+    logic [1:0]                xbar_slave_tally_cfg_axi_rresp;
+    logic                      xbar_slave_tally_cfg_axi_rlast;
+    logic                      xbar_slave_tally_cfg_axi_ruser;
+    logic                      xbar_slave_tally_cfg_axi_rvalid;
+    logic                      xbar_slave_tally_cfg_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] slave_tally_cfg_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] slave_tally_cfg_axi_bid_bridge_id;
+    logic                       slave_tally_cfg_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] slave_tally_cfg_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] slave_tally_cfg_axi_rid_bridge_id;
+    logic                       slave_tally_cfg_axi_rid_valid;
+
     // ============================================================
     // Per-wrapper monbus streams (adapter -> arbiter input)
     // ============================================================
@@ -1084,6 +1240,22 @@ module bridge_stream_mon_axil_mon #(
     logic                                  monbus_slave_tally_7_rd_ready;
     monitor_common_pkg::monitor_packet_t   monbus_slave_tally_7_rd_packet;
     monitor_common_pkg::monbus_timestamp_t monbus_slave_tally_7_rd_timestamp;
+    logic                                  monbus_stream_tally_cfg_8_wr_valid;
+    logic                                  monbus_stream_tally_cfg_8_wr_ready;
+    monitor_common_pkg::monitor_packet_t   monbus_stream_tally_cfg_8_wr_packet;
+    monitor_common_pkg::monbus_timestamp_t monbus_stream_tally_cfg_8_wr_timestamp;
+    logic                                  monbus_stream_tally_cfg_8_rd_valid;
+    logic                                  monbus_stream_tally_cfg_8_rd_ready;
+    monitor_common_pkg::monitor_packet_t   monbus_stream_tally_cfg_8_rd_packet;
+    monitor_common_pkg::monbus_timestamp_t monbus_stream_tally_cfg_8_rd_timestamp;
+    logic                                  monbus_slave_tally_cfg_9_wr_valid;
+    logic                                  monbus_slave_tally_cfg_9_wr_ready;
+    monitor_common_pkg::monitor_packet_t   monbus_slave_tally_cfg_9_wr_packet;
+    monitor_common_pkg::monbus_timestamp_t monbus_slave_tally_cfg_9_wr_timestamp;
+    logic                                  monbus_slave_tally_cfg_9_rd_valid;
+    logic                                  monbus_slave_tally_cfg_9_rd_ready;
+    monitor_common_pkg::monitor_packet_t   monbus_slave_tally_cfg_9_rd_packet;
+    monitor_common_pkg::monbus_timestamp_t monbus_slave_tally_cfg_9_rd_timestamp;
 
     // Arbiter output (-> monbus_axil_group input)
     logic                                  mon_arb_monbus_valid;
@@ -1574,6 +1746,86 @@ module bridge_stream_mon_axil_mon #(
     logic [15:0] cfg_slave_tally_7_rd_axi_perf_mask;
     logic [15:0] cfg_slave_tally_7_rd_axi_addr_mask;
     logic [15:0] cfg_slave_tally_7_rd_axi_debug_mask;
+
+    // cfg nets for slave stream_tally_cfg (idx 8, wr)
+    logic         cfg_stream_tally_cfg_8_wr_monitor_enable;
+    logic         cfg_stream_tally_cfg_8_wr_error_enable;
+    logic         cfg_stream_tally_cfg_8_wr_timeout_enable;
+    logic         cfg_stream_tally_cfg_8_wr_perf_enable;
+    logic         cfg_stream_tally_cfg_8_wr_compl_enable;
+    logic         cfg_stream_tally_cfg_8_wr_threshold_enable;
+    logic         cfg_stream_tally_cfg_8_wr_debug_enable;
+    logic [15:0] cfg_stream_tally_cfg_8_wr_timeout_cycles;
+    logic [31:0] cfg_stream_tally_cfg_8_wr_latency_threshold;
+    logic [15:0] cfg_stream_tally_cfg_8_wr_axi_pkt_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_wr_axi_err_select;
+    logic [15:0] cfg_stream_tally_cfg_8_wr_axi_error_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_wr_axi_timeout_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_wr_axi_compl_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_wr_axi_thresh_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_wr_axi_perf_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_wr_axi_addr_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_wr_axi_debug_mask;
+
+    // cfg nets for slave stream_tally_cfg (idx 8, rd)
+    logic         cfg_stream_tally_cfg_8_rd_monitor_enable;
+    logic         cfg_stream_tally_cfg_8_rd_error_enable;
+    logic         cfg_stream_tally_cfg_8_rd_timeout_enable;
+    logic         cfg_stream_tally_cfg_8_rd_perf_enable;
+    logic         cfg_stream_tally_cfg_8_rd_compl_enable;
+    logic         cfg_stream_tally_cfg_8_rd_threshold_enable;
+    logic         cfg_stream_tally_cfg_8_rd_debug_enable;
+    logic [15:0] cfg_stream_tally_cfg_8_rd_timeout_cycles;
+    logic [31:0] cfg_stream_tally_cfg_8_rd_latency_threshold;
+    logic [15:0] cfg_stream_tally_cfg_8_rd_axi_pkt_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_rd_axi_err_select;
+    logic [15:0] cfg_stream_tally_cfg_8_rd_axi_error_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_rd_axi_timeout_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_rd_axi_compl_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_rd_axi_thresh_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_rd_axi_perf_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_rd_axi_addr_mask;
+    logic [15:0] cfg_stream_tally_cfg_8_rd_axi_debug_mask;
+
+    // cfg nets for slave slave_tally_cfg (idx 9, wr)
+    logic         cfg_slave_tally_cfg_9_wr_monitor_enable;
+    logic         cfg_slave_tally_cfg_9_wr_error_enable;
+    logic         cfg_slave_tally_cfg_9_wr_timeout_enable;
+    logic         cfg_slave_tally_cfg_9_wr_perf_enable;
+    logic         cfg_slave_tally_cfg_9_wr_compl_enable;
+    logic         cfg_slave_tally_cfg_9_wr_threshold_enable;
+    logic         cfg_slave_tally_cfg_9_wr_debug_enable;
+    logic [15:0] cfg_slave_tally_cfg_9_wr_timeout_cycles;
+    logic [31:0] cfg_slave_tally_cfg_9_wr_latency_threshold;
+    logic [15:0] cfg_slave_tally_cfg_9_wr_axi_pkt_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_wr_axi_err_select;
+    logic [15:0] cfg_slave_tally_cfg_9_wr_axi_error_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_wr_axi_timeout_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_wr_axi_compl_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_wr_axi_thresh_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_wr_axi_perf_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_wr_axi_addr_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_wr_axi_debug_mask;
+
+    // cfg nets for slave slave_tally_cfg (idx 9, rd)
+    logic         cfg_slave_tally_cfg_9_rd_monitor_enable;
+    logic         cfg_slave_tally_cfg_9_rd_error_enable;
+    logic         cfg_slave_tally_cfg_9_rd_timeout_enable;
+    logic         cfg_slave_tally_cfg_9_rd_perf_enable;
+    logic         cfg_slave_tally_cfg_9_rd_compl_enable;
+    logic         cfg_slave_tally_cfg_9_rd_threshold_enable;
+    logic         cfg_slave_tally_cfg_9_rd_debug_enable;
+    logic [15:0] cfg_slave_tally_cfg_9_rd_timeout_cycles;
+    logic [31:0] cfg_slave_tally_cfg_9_rd_latency_threshold;
+    logic [15:0] cfg_slave_tally_cfg_9_rd_axi_pkt_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_rd_axi_err_select;
+    logic [15:0] cfg_slave_tally_cfg_9_rd_axi_error_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_rd_axi_timeout_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_rd_axi_compl_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_rd_axi_thresh_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_rd_axi_perf_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_rd_axi_addr_mask;
+    logic [15:0] cfg_slave_tally_cfg_9_rd_axi_debug_mask;
 
     // cfg_mon_group_* nets
     logic [31:0] cfg_mon_group_base_addr;
@@ -2697,7 +2949,113 @@ module bridge_stream_mon_axil_mon #(
 
         .slave_tally_axi_bridge_id_ar(slave_tally_axi_bridge_id_ar),
         .slave_tally_axi_rid_bridge_id(slave_tally_axi_rid_bridge_id),
-        .slave_tally_axi_rid_valid(slave_tally_axi_rid_valid)
+        .slave_tally_axi_rid_valid(slave_tally_axi_rid_valid),
+
+        // Slave 8: stream_tally_cfg
+        .stream_tally_cfg_axi_awid(xbar_stream_tally_cfg_axi_awid),
+        .stream_tally_cfg_axi_awaddr(xbar_stream_tally_cfg_axi_awaddr),
+        .stream_tally_cfg_axi_awlen(xbar_stream_tally_cfg_axi_awlen),
+        .stream_tally_cfg_axi_awsize(xbar_stream_tally_cfg_axi_awsize),
+        .stream_tally_cfg_axi_awburst(xbar_stream_tally_cfg_axi_awburst),
+        .stream_tally_cfg_axi_awlock(xbar_stream_tally_cfg_axi_awlock),
+        .stream_tally_cfg_axi_awcache(xbar_stream_tally_cfg_axi_awcache),
+        .stream_tally_cfg_axi_awprot(xbar_stream_tally_cfg_axi_awprot),
+        .stream_tally_cfg_axi_awqos(xbar_stream_tally_cfg_axi_awqos),
+        .stream_tally_cfg_axi_awregion(xbar_stream_tally_cfg_axi_awregion),
+        .stream_tally_cfg_axi_awuser(xbar_stream_tally_cfg_axi_awuser),
+        .stream_tally_cfg_axi_awvalid(xbar_stream_tally_cfg_axi_awvalid),
+        .stream_tally_cfg_axi_awready(xbar_stream_tally_cfg_axi_awready),
+        .stream_tally_cfg_axi_wdata(xbar_stream_tally_cfg_axi_wdata),
+        .stream_tally_cfg_axi_wstrb(xbar_stream_tally_cfg_axi_wstrb),
+        .stream_tally_cfg_axi_wlast(xbar_stream_tally_cfg_axi_wlast),
+        .stream_tally_cfg_axi_wuser(xbar_stream_tally_cfg_axi_wuser),
+        .stream_tally_cfg_axi_wvalid(xbar_stream_tally_cfg_axi_wvalid),
+        .stream_tally_cfg_axi_wready(xbar_stream_tally_cfg_axi_wready),
+        .stream_tally_cfg_axi_bid(xbar_stream_tally_cfg_axi_bid),
+        .stream_tally_cfg_axi_bresp(xbar_stream_tally_cfg_axi_bresp),
+        .stream_tally_cfg_axi_buser(xbar_stream_tally_cfg_axi_buser),
+        .stream_tally_cfg_axi_bvalid(xbar_stream_tally_cfg_axi_bvalid),
+        .stream_tally_cfg_axi_bready(xbar_stream_tally_cfg_axi_bready),
+        .stream_tally_cfg_axi_arid(xbar_stream_tally_cfg_axi_arid),
+        .stream_tally_cfg_axi_araddr(xbar_stream_tally_cfg_axi_araddr),
+        .stream_tally_cfg_axi_arlen(xbar_stream_tally_cfg_axi_arlen),
+        .stream_tally_cfg_axi_arsize(xbar_stream_tally_cfg_axi_arsize),
+        .stream_tally_cfg_axi_arburst(xbar_stream_tally_cfg_axi_arburst),
+        .stream_tally_cfg_axi_arlock(xbar_stream_tally_cfg_axi_arlock),
+        .stream_tally_cfg_axi_arcache(xbar_stream_tally_cfg_axi_arcache),
+        .stream_tally_cfg_axi_arprot(xbar_stream_tally_cfg_axi_arprot),
+        .stream_tally_cfg_axi_arqos(xbar_stream_tally_cfg_axi_arqos),
+        .stream_tally_cfg_axi_arregion(xbar_stream_tally_cfg_axi_arregion),
+        .stream_tally_cfg_axi_aruser(xbar_stream_tally_cfg_axi_aruser),
+        .stream_tally_cfg_axi_arvalid(xbar_stream_tally_cfg_axi_arvalid),
+        .stream_tally_cfg_axi_arready(xbar_stream_tally_cfg_axi_arready),
+        .stream_tally_cfg_axi_rid(xbar_stream_tally_cfg_axi_rid),
+        .stream_tally_cfg_axi_rdata(xbar_stream_tally_cfg_axi_rdata),
+        .stream_tally_cfg_axi_rresp(xbar_stream_tally_cfg_axi_rresp),
+        .stream_tally_cfg_axi_rlast(xbar_stream_tally_cfg_axi_rlast),
+        .stream_tally_cfg_axi_ruser(xbar_stream_tally_cfg_axi_ruser),
+        .stream_tally_cfg_axi_rvalid(xbar_stream_tally_cfg_axi_rvalid),
+        .stream_tally_cfg_axi_rready(xbar_stream_tally_cfg_axi_rready),
+        .stream_tally_cfg_axi_bridge_id_aw(stream_tally_cfg_axi_bridge_id_aw),
+        .stream_tally_cfg_axi_bid_bridge_id(stream_tally_cfg_axi_bid_bridge_id),
+        .stream_tally_cfg_axi_bid_valid(stream_tally_cfg_axi_bid_valid),
+
+        .stream_tally_cfg_axi_bridge_id_ar(stream_tally_cfg_axi_bridge_id_ar),
+        .stream_tally_cfg_axi_rid_bridge_id(stream_tally_cfg_axi_rid_bridge_id),
+        .stream_tally_cfg_axi_rid_valid(stream_tally_cfg_axi_rid_valid),
+
+        // Slave 9: slave_tally_cfg
+        .slave_tally_cfg_axi_awid(xbar_slave_tally_cfg_axi_awid),
+        .slave_tally_cfg_axi_awaddr(xbar_slave_tally_cfg_axi_awaddr),
+        .slave_tally_cfg_axi_awlen(xbar_slave_tally_cfg_axi_awlen),
+        .slave_tally_cfg_axi_awsize(xbar_slave_tally_cfg_axi_awsize),
+        .slave_tally_cfg_axi_awburst(xbar_slave_tally_cfg_axi_awburst),
+        .slave_tally_cfg_axi_awlock(xbar_slave_tally_cfg_axi_awlock),
+        .slave_tally_cfg_axi_awcache(xbar_slave_tally_cfg_axi_awcache),
+        .slave_tally_cfg_axi_awprot(xbar_slave_tally_cfg_axi_awprot),
+        .slave_tally_cfg_axi_awqos(xbar_slave_tally_cfg_axi_awqos),
+        .slave_tally_cfg_axi_awregion(xbar_slave_tally_cfg_axi_awregion),
+        .slave_tally_cfg_axi_awuser(xbar_slave_tally_cfg_axi_awuser),
+        .slave_tally_cfg_axi_awvalid(xbar_slave_tally_cfg_axi_awvalid),
+        .slave_tally_cfg_axi_awready(xbar_slave_tally_cfg_axi_awready),
+        .slave_tally_cfg_axi_wdata(xbar_slave_tally_cfg_axi_wdata),
+        .slave_tally_cfg_axi_wstrb(xbar_slave_tally_cfg_axi_wstrb),
+        .slave_tally_cfg_axi_wlast(xbar_slave_tally_cfg_axi_wlast),
+        .slave_tally_cfg_axi_wuser(xbar_slave_tally_cfg_axi_wuser),
+        .slave_tally_cfg_axi_wvalid(xbar_slave_tally_cfg_axi_wvalid),
+        .slave_tally_cfg_axi_wready(xbar_slave_tally_cfg_axi_wready),
+        .slave_tally_cfg_axi_bid(xbar_slave_tally_cfg_axi_bid),
+        .slave_tally_cfg_axi_bresp(xbar_slave_tally_cfg_axi_bresp),
+        .slave_tally_cfg_axi_buser(xbar_slave_tally_cfg_axi_buser),
+        .slave_tally_cfg_axi_bvalid(xbar_slave_tally_cfg_axi_bvalid),
+        .slave_tally_cfg_axi_bready(xbar_slave_tally_cfg_axi_bready),
+        .slave_tally_cfg_axi_arid(xbar_slave_tally_cfg_axi_arid),
+        .slave_tally_cfg_axi_araddr(xbar_slave_tally_cfg_axi_araddr),
+        .slave_tally_cfg_axi_arlen(xbar_slave_tally_cfg_axi_arlen),
+        .slave_tally_cfg_axi_arsize(xbar_slave_tally_cfg_axi_arsize),
+        .slave_tally_cfg_axi_arburst(xbar_slave_tally_cfg_axi_arburst),
+        .slave_tally_cfg_axi_arlock(xbar_slave_tally_cfg_axi_arlock),
+        .slave_tally_cfg_axi_arcache(xbar_slave_tally_cfg_axi_arcache),
+        .slave_tally_cfg_axi_arprot(xbar_slave_tally_cfg_axi_arprot),
+        .slave_tally_cfg_axi_arqos(xbar_slave_tally_cfg_axi_arqos),
+        .slave_tally_cfg_axi_arregion(xbar_slave_tally_cfg_axi_arregion),
+        .slave_tally_cfg_axi_aruser(xbar_slave_tally_cfg_axi_aruser),
+        .slave_tally_cfg_axi_arvalid(xbar_slave_tally_cfg_axi_arvalid),
+        .slave_tally_cfg_axi_arready(xbar_slave_tally_cfg_axi_arready),
+        .slave_tally_cfg_axi_rid(xbar_slave_tally_cfg_axi_rid),
+        .slave_tally_cfg_axi_rdata(xbar_slave_tally_cfg_axi_rdata),
+        .slave_tally_cfg_axi_rresp(xbar_slave_tally_cfg_axi_rresp),
+        .slave_tally_cfg_axi_rlast(xbar_slave_tally_cfg_axi_rlast),
+        .slave_tally_cfg_axi_ruser(xbar_slave_tally_cfg_axi_ruser),
+        .slave_tally_cfg_axi_rvalid(xbar_slave_tally_cfg_axi_rvalid),
+        .slave_tally_cfg_axi_rready(xbar_slave_tally_cfg_axi_rready),
+        .slave_tally_cfg_axi_bridge_id_aw(slave_tally_cfg_axi_bridge_id_aw),
+        .slave_tally_cfg_axi_bid_bridge_id(slave_tally_cfg_axi_bid_bridge_id),
+        .slave_tally_cfg_axi_bid_valid(slave_tally_cfg_axi_bid_valid),
+
+        .slave_tally_cfg_axi_bridge_id_ar(slave_tally_cfg_axi_bridge_id_ar),
+        .slave_tally_cfg_axi_rid_bridge_id(slave_tally_cfg_axi_rid_bridge_id),
+        .slave_tally_cfg_axi_rid_valid(slave_tally_cfg_axi_rid_valid)
     );
 
     // ================================================================
@@ -3771,6 +4129,268 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_axi_debug_mask(cfg_slave_tally_7_rd_axi_debug_mask)
     );
 
+    // stream_tally_cfg adapter (AXIL, crossbar → external slave)
+    stream_tally_cfg_adapter #(
+        .USE_MONITOR_WR(EFF_USE_MON_stream_tally_cfg_wr),
+        .USE_MONITOR_RD(EFF_USE_MON_stream_tally_cfg_rd)
+    ) u_stream_tally_cfg_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_stream_tally_cfg_axi_*)
+        .xbar_stream_tally_cfg_axi_awid(xbar_stream_tally_cfg_axi_awid),
+        .xbar_stream_tally_cfg_axi_awaddr(xbar_stream_tally_cfg_axi_awaddr),
+        .xbar_stream_tally_cfg_axi_awlen(xbar_stream_tally_cfg_axi_awlen),
+        .xbar_stream_tally_cfg_axi_awsize(xbar_stream_tally_cfg_axi_awsize),
+        .xbar_stream_tally_cfg_axi_awburst(xbar_stream_tally_cfg_axi_awburst),
+        .xbar_stream_tally_cfg_axi_awlock(xbar_stream_tally_cfg_axi_awlock),
+        .xbar_stream_tally_cfg_axi_awcache(xbar_stream_tally_cfg_axi_awcache),
+        .xbar_stream_tally_cfg_axi_awprot(xbar_stream_tally_cfg_axi_awprot),
+        .xbar_stream_tally_cfg_axi_awqos(xbar_stream_tally_cfg_axi_awqos),
+        .xbar_stream_tally_cfg_axi_awregion(xbar_stream_tally_cfg_axi_awregion),
+        .xbar_stream_tally_cfg_axi_awuser(xbar_stream_tally_cfg_axi_awuser),
+        .xbar_stream_tally_cfg_axi_awvalid(xbar_stream_tally_cfg_axi_awvalid),
+        .xbar_stream_tally_cfg_axi_awready(xbar_stream_tally_cfg_axi_awready),
+        .xbar_stream_tally_cfg_axi_wdata(xbar_stream_tally_cfg_axi_wdata),
+        .xbar_stream_tally_cfg_axi_wstrb(xbar_stream_tally_cfg_axi_wstrb),
+        .xbar_stream_tally_cfg_axi_wlast(xbar_stream_tally_cfg_axi_wlast),
+        .xbar_stream_tally_cfg_axi_wuser(xbar_stream_tally_cfg_axi_wuser),
+        .xbar_stream_tally_cfg_axi_wvalid(xbar_stream_tally_cfg_axi_wvalid),
+        .xbar_stream_tally_cfg_axi_wready(xbar_stream_tally_cfg_axi_wready),
+        .xbar_stream_tally_cfg_axi_bid(xbar_stream_tally_cfg_axi_bid),
+        .xbar_stream_tally_cfg_axi_bresp(xbar_stream_tally_cfg_axi_bresp),
+        .xbar_stream_tally_cfg_axi_buser(xbar_stream_tally_cfg_axi_buser),
+        .xbar_stream_tally_cfg_axi_bvalid(xbar_stream_tally_cfg_axi_bvalid),
+        .xbar_stream_tally_cfg_axi_bready(xbar_stream_tally_cfg_axi_bready),
+        .xbar_stream_tally_cfg_axi_arid(xbar_stream_tally_cfg_axi_arid),
+        .xbar_stream_tally_cfg_axi_araddr(xbar_stream_tally_cfg_axi_araddr),
+        .xbar_stream_tally_cfg_axi_arlen(xbar_stream_tally_cfg_axi_arlen),
+        .xbar_stream_tally_cfg_axi_arsize(xbar_stream_tally_cfg_axi_arsize),
+        .xbar_stream_tally_cfg_axi_arburst(xbar_stream_tally_cfg_axi_arburst),
+        .xbar_stream_tally_cfg_axi_arlock(xbar_stream_tally_cfg_axi_arlock),
+        .xbar_stream_tally_cfg_axi_arcache(xbar_stream_tally_cfg_axi_arcache),
+        .xbar_stream_tally_cfg_axi_arprot(xbar_stream_tally_cfg_axi_arprot),
+        .xbar_stream_tally_cfg_axi_arqos(xbar_stream_tally_cfg_axi_arqos),
+        .xbar_stream_tally_cfg_axi_arregion(xbar_stream_tally_cfg_axi_arregion),
+        .xbar_stream_tally_cfg_axi_aruser(xbar_stream_tally_cfg_axi_aruser),
+        .xbar_stream_tally_cfg_axi_arvalid(xbar_stream_tally_cfg_axi_arvalid),
+        .xbar_stream_tally_cfg_axi_arready(xbar_stream_tally_cfg_axi_arready),
+        .xbar_stream_tally_cfg_axi_rid(xbar_stream_tally_cfg_axi_rid),
+        .xbar_stream_tally_cfg_axi_rdata(xbar_stream_tally_cfg_axi_rdata),
+        .xbar_stream_tally_cfg_axi_rresp(xbar_stream_tally_cfg_axi_rresp),
+        .xbar_stream_tally_cfg_axi_rlast(xbar_stream_tally_cfg_axi_rlast),
+        .xbar_stream_tally_cfg_axi_ruser(xbar_stream_tally_cfg_axi_ruser),
+        .xbar_stream_tally_cfg_axi_rvalid(xbar_stream_tally_cfg_axi_rvalid),
+        .xbar_stream_tally_cfg_axi_rready(xbar_stream_tally_cfg_axi_rready),
+
+        // External AXI4-Lite interface (stream_tally_cfg_axi_*)
+        .stream_tally_cfg_axi_awaddr(stream_tally_cfg_axi_awaddr),
+        .stream_tally_cfg_axi_awprot(stream_tally_cfg_axi_awprot),
+        .stream_tally_cfg_axi_awvalid(stream_tally_cfg_axi_awvalid),
+        .stream_tally_cfg_axi_awready(stream_tally_cfg_axi_awready),
+        .stream_tally_cfg_axi_wdata(stream_tally_cfg_axi_wdata),
+        .stream_tally_cfg_axi_wstrb(stream_tally_cfg_axi_wstrb),
+        .stream_tally_cfg_axi_wvalid(stream_tally_cfg_axi_wvalid),
+        .stream_tally_cfg_axi_wready(stream_tally_cfg_axi_wready),
+        .stream_tally_cfg_axi_bresp(stream_tally_cfg_axi_bresp),
+        .stream_tally_cfg_axi_bvalid(stream_tally_cfg_axi_bvalid),
+        .stream_tally_cfg_axi_bready(stream_tally_cfg_axi_bready),
+        .stream_tally_cfg_axi_araddr(stream_tally_cfg_axi_araddr),
+        .stream_tally_cfg_axi_arprot(stream_tally_cfg_axi_arprot),
+        .stream_tally_cfg_axi_arvalid(stream_tally_cfg_axi_arvalid),
+        .stream_tally_cfg_axi_arready(stream_tally_cfg_axi_arready),
+        .stream_tally_cfg_axi_rdata(stream_tally_cfg_axi_rdata),
+        .stream_tally_cfg_axi_rresp(stream_tally_cfg_axi_rresp),
+        .stream_tally_cfg_axi_rvalid(stream_tally_cfg_axi_rvalid),
+        .stream_tally_cfg_axi_rready(stream_tally_cfg_axi_rready),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(stream_tally_cfg_axi_bridge_id_aw),
+        .bid_bridge_id(stream_tally_cfg_axi_bid_bridge_id),
+        .bid_valid(stream_tally_cfg_axi_bid_valid),
+        .xbar_bridge_id_ar(stream_tally_cfg_axi_bridge_id_ar),
+        .rid_bridge_id(stream_tally_cfg_axi_rid_bridge_id),
+        .rid_valid(stream_tally_cfg_axi_rid_valid),
+
+        // Monitor side-band
+        .i_mon_time(mon_time_w),
+        .monbus_wr_valid(monbus_stream_tally_cfg_8_wr_valid),
+        .monbus_wr_ready(monbus_stream_tally_cfg_8_wr_ready),
+        .monbus_wr_packet(monbus_stream_tally_cfg_8_wr_packet),
+        .monbus_wr_timestamp(monbus_stream_tally_cfg_8_wr_timestamp),
+        .cfg_wr_monitor_enable(cfg_stream_tally_cfg_8_wr_monitor_enable),
+        .cfg_wr_error_enable(cfg_stream_tally_cfg_8_wr_error_enable),
+        .cfg_wr_timeout_enable(cfg_stream_tally_cfg_8_wr_timeout_enable),
+        .cfg_wr_perf_enable(cfg_stream_tally_cfg_8_wr_perf_enable),
+        .cfg_wr_compl_enable(cfg_stream_tally_cfg_8_wr_compl_enable),
+        .cfg_wr_threshold_enable(cfg_stream_tally_cfg_8_wr_threshold_enable),
+        .cfg_wr_debug_enable(cfg_stream_tally_cfg_8_wr_debug_enable),
+        .cfg_wr_timeout_cycles(cfg_stream_tally_cfg_8_wr_timeout_cycles),
+        .cfg_wr_latency_threshold(cfg_stream_tally_cfg_8_wr_latency_threshold),
+        .cfg_wr_axi_pkt_mask(cfg_stream_tally_cfg_8_wr_axi_pkt_mask),
+        .cfg_wr_axi_err_select(cfg_stream_tally_cfg_8_wr_axi_err_select),
+        .cfg_wr_axi_error_mask(cfg_stream_tally_cfg_8_wr_axi_error_mask),
+        .cfg_wr_axi_timeout_mask(cfg_stream_tally_cfg_8_wr_axi_timeout_mask),
+        .cfg_wr_axi_compl_mask(cfg_stream_tally_cfg_8_wr_axi_compl_mask),
+        .cfg_wr_axi_thresh_mask(cfg_stream_tally_cfg_8_wr_axi_thresh_mask),
+        .cfg_wr_axi_perf_mask(cfg_stream_tally_cfg_8_wr_axi_perf_mask),
+        .cfg_wr_axi_addr_mask(cfg_stream_tally_cfg_8_wr_axi_addr_mask),
+        .cfg_wr_axi_debug_mask(cfg_stream_tally_cfg_8_wr_axi_debug_mask),
+        .monbus_rd_valid(monbus_stream_tally_cfg_8_rd_valid),
+        .monbus_rd_ready(monbus_stream_tally_cfg_8_rd_ready),
+        .monbus_rd_packet(monbus_stream_tally_cfg_8_rd_packet),
+        .monbus_rd_timestamp(monbus_stream_tally_cfg_8_rd_timestamp),
+        .cfg_rd_monitor_enable(cfg_stream_tally_cfg_8_rd_monitor_enable),
+        .cfg_rd_error_enable(cfg_stream_tally_cfg_8_rd_error_enable),
+        .cfg_rd_timeout_enable(cfg_stream_tally_cfg_8_rd_timeout_enable),
+        .cfg_rd_perf_enable(cfg_stream_tally_cfg_8_rd_perf_enable),
+        .cfg_rd_compl_enable(cfg_stream_tally_cfg_8_rd_compl_enable),
+        .cfg_rd_threshold_enable(cfg_stream_tally_cfg_8_rd_threshold_enable),
+        .cfg_rd_debug_enable(cfg_stream_tally_cfg_8_rd_debug_enable),
+        .cfg_rd_timeout_cycles(cfg_stream_tally_cfg_8_rd_timeout_cycles),
+        .cfg_rd_latency_threshold(cfg_stream_tally_cfg_8_rd_latency_threshold),
+        .cfg_rd_axi_pkt_mask(cfg_stream_tally_cfg_8_rd_axi_pkt_mask),
+        .cfg_rd_axi_err_select(cfg_stream_tally_cfg_8_rd_axi_err_select),
+        .cfg_rd_axi_error_mask(cfg_stream_tally_cfg_8_rd_axi_error_mask),
+        .cfg_rd_axi_timeout_mask(cfg_stream_tally_cfg_8_rd_axi_timeout_mask),
+        .cfg_rd_axi_compl_mask(cfg_stream_tally_cfg_8_rd_axi_compl_mask),
+        .cfg_rd_axi_thresh_mask(cfg_stream_tally_cfg_8_rd_axi_thresh_mask),
+        .cfg_rd_axi_perf_mask(cfg_stream_tally_cfg_8_rd_axi_perf_mask),
+        .cfg_rd_axi_addr_mask(cfg_stream_tally_cfg_8_rd_axi_addr_mask),
+        .cfg_rd_axi_debug_mask(cfg_stream_tally_cfg_8_rd_axi_debug_mask)
+    );
+
+    // slave_tally_cfg adapter (AXIL, crossbar → external slave)
+    slave_tally_cfg_adapter #(
+        .USE_MONITOR_WR(EFF_USE_MON_slave_tally_cfg_wr),
+        .USE_MONITOR_RD(EFF_USE_MON_slave_tally_cfg_rd)
+    ) u_slave_tally_cfg_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_slave_tally_cfg_axi_*)
+        .xbar_slave_tally_cfg_axi_awid(xbar_slave_tally_cfg_axi_awid),
+        .xbar_slave_tally_cfg_axi_awaddr(xbar_slave_tally_cfg_axi_awaddr),
+        .xbar_slave_tally_cfg_axi_awlen(xbar_slave_tally_cfg_axi_awlen),
+        .xbar_slave_tally_cfg_axi_awsize(xbar_slave_tally_cfg_axi_awsize),
+        .xbar_slave_tally_cfg_axi_awburst(xbar_slave_tally_cfg_axi_awburst),
+        .xbar_slave_tally_cfg_axi_awlock(xbar_slave_tally_cfg_axi_awlock),
+        .xbar_slave_tally_cfg_axi_awcache(xbar_slave_tally_cfg_axi_awcache),
+        .xbar_slave_tally_cfg_axi_awprot(xbar_slave_tally_cfg_axi_awprot),
+        .xbar_slave_tally_cfg_axi_awqos(xbar_slave_tally_cfg_axi_awqos),
+        .xbar_slave_tally_cfg_axi_awregion(xbar_slave_tally_cfg_axi_awregion),
+        .xbar_slave_tally_cfg_axi_awuser(xbar_slave_tally_cfg_axi_awuser),
+        .xbar_slave_tally_cfg_axi_awvalid(xbar_slave_tally_cfg_axi_awvalid),
+        .xbar_slave_tally_cfg_axi_awready(xbar_slave_tally_cfg_axi_awready),
+        .xbar_slave_tally_cfg_axi_wdata(xbar_slave_tally_cfg_axi_wdata),
+        .xbar_slave_tally_cfg_axi_wstrb(xbar_slave_tally_cfg_axi_wstrb),
+        .xbar_slave_tally_cfg_axi_wlast(xbar_slave_tally_cfg_axi_wlast),
+        .xbar_slave_tally_cfg_axi_wuser(xbar_slave_tally_cfg_axi_wuser),
+        .xbar_slave_tally_cfg_axi_wvalid(xbar_slave_tally_cfg_axi_wvalid),
+        .xbar_slave_tally_cfg_axi_wready(xbar_slave_tally_cfg_axi_wready),
+        .xbar_slave_tally_cfg_axi_bid(xbar_slave_tally_cfg_axi_bid),
+        .xbar_slave_tally_cfg_axi_bresp(xbar_slave_tally_cfg_axi_bresp),
+        .xbar_slave_tally_cfg_axi_buser(xbar_slave_tally_cfg_axi_buser),
+        .xbar_slave_tally_cfg_axi_bvalid(xbar_slave_tally_cfg_axi_bvalid),
+        .xbar_slave_tally_cfg_axi_bready(xbar_slave_tally_cfg_axi_bready),
+        .xbar_slave_tally_cfg_axi_arid(xbar_slave_tally_cfg_axi_arid),
+        .xbar_slave_tally_cfg_axi_araddr(xbar_slave_tally_cfg_axi_araddr),
+        .xbar_slave_tally_cfg_axi_arlen(xbar_slave_tally_cfg_axi_arlen),
+        .xbar_slave_tally_cfg_axi_arsize(xbar_slave_tally_cfg_axi_arsize),
+        .xbar_slave_tally_cfg_axi_arburst(xbar_slave_tally_cfg_axi_arburst),
+        .xbar_slave_tally_cfg_axi_arlock(xbar_slave_tally_cfg_axi_arlock),
+        .xbar_slave_tally_cfg_axi_arcache(xbar_slave_tally_cfg_axi_arcache),
+        .xbar_slave_tally_cfg_axi_arprot(xbar_slave_tally_cfg_axi_arprot),
+        .xbar_slave_tally_cfg_axi_arqos(xbar_slave_tally_cfg_axi_arqos),
+        .xbar_slave_tally_cfg_axi_arregion(xbar_slave_tally_cfg_axi_arregion),
+        .xbar_slave_tally_cfg_axi_aruser(xbar_slave_tally_cfg_axi_aruser),
+        .xbar_slave_tally_cfg_axi_arvalid(xbar_slave_tally_cfg_axi_arvalid),
+        .xbar_slave_tally_cfg_axi_arready(xbar_slave_tally_cfg_axi_arready),
+        .xbar_slave_tally_cfg_axi_rid(xbar_slave_tally_cfg_axi_rid),
+        .xbar_slave_tally_cfg_axi_rdata(xbar_slave_tally_cfg_axi_rdata),
+        .xbar_slave_tally_cfg_axi_rresp(xbar_slave_tally_cfg_axi_rresp),
+        .xbar_slave_tally_cfg_axi_rlast(xbar_slave_tally_cfg_axi_rlast),
+        .xbar_slave_tally_cfg_axi_ruser(xbar_slave_tally_cfg_axi_ruser),
+        .xbar_slave_tally_cfg_axi_rvalid(xbar_slave_tally_cfg_axi_rvalid),
+        .xbar_slave_tally_cfg_axi_rready(xbar_slave_tally_cfg_axi_rready),
+
+        // External AXI4-Lite interface (slave_tally_cfg_axi_*)
+        .slave_tally_cfg_axi_awaddr(slave_tally_cfg_axi_awaddr),
+        .slave_tally_cfg_axi_awprot(slave_tally_cfg_axi_awprot),
+        .slave_tally_cfg_axi_awvalid(slave_tally_cfg_axi_awvalid),
+        .slave_tally_cfg_axi_awready(slave_tally_cfg_axi_awready),
+        .slave_tally_cfg_axi_wdata(slave_tally_cfg_axi_wdata),
+        .slave_tally_cfg_axi_wstrb(slave_tally_cfg_axi_wstrb),
+        .slave_tally_cfg_axi_wvalid(slave_tally_cfg_axi_wvalid),
+        .slave_tally_cfg_axi_wready(slave_tally_cfg_axi_wready),
+        .slave_tally_cfg_axi_bresp(slave_tally_cfg_axi_bresp),
+        .slave_tally_cfg_axi_bvalid(slave_tally_cfg_axi_bvalid),
+        .slave_tally_cfg_axi_bready(slave_tally_cfg_axi_bready),
+        .slave_tally_cfg_axi_araddr(slave_tally_cfg_axi_araddr),
+        .slave_tally_cfg_axi_arprot(slave_tally_cfg_axi_arprot),
+        .slave_tally_cfg_axi_arvalid(slave_tally_cfg_axi_arvalid),
+        .slave_tally_cfg_axi_arready(slave_tally_cfg_axi_arready),
+        .slave_tally_cfg_axi_rdata(slave_tally_cfg_axi_rdata),
+        .slave_tally_cfg_axi_rresp(slave_tally_cfg_axi_rresp),
+        .slave_tally_cfg_axi_rvalid(slave_tally_cfg_axi_rvalid),
+        .slave_tally_cfg_axi_rready(slave_tally_cfg_axi_rready),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(slave_tally_cfg_axi_bridge_id_aw),
+        .bid_bridge_id(slave_tally_cfg_axi_bid_bridge_id),
+        .bid_valid(slave_tally_cfg_axi_bid_valid),
+        .xbar_bridge_id_ar(slave_tally_cfg_axi_bridge_id_ar),
+        .rid_bridge_id(slave_tally_cfg_axi_rid_bridge_id),
+        .rid_valid(slave_tally_cfg_axi_rid_valid),
+
+        // Monitor side-band
+        .i_mon_time(mon_time_w),
+        .monbus_wr_valid(monbus_slave_tally_cfg_9_wr_valid),
+        .monbus_wr_ready(monbus_slave_tally_cfg_9_wr_ready),
+        .monbus_wr_packet(monbus_slave_tally_cfg_9_wr_packet),
+        .monbus_wr_timestamp(monbus_slave_tally_cfg_9_wr_timestamp),
+        .cfg_wr_monitor_enable(cfg_slave_tally_cfg_9_wr_monitor_enable),
+        .cfg_wr_error_enable(cfg_slave_tally_cfg_9_wr_error_enable),
+        .cfg_wr_timeout_enable(cfg_slave_tally_cfg_9_wr_timeout_enable),
+        .cfg_wr_perf_enable(cfg_slave_tally_cfg_9_wr_perf_enable),
+        .cfg_wr_compl_enable(cfg_slave_tally_cfg_9_wr_compl_enable),
+        .cfg_wr_threshold_enable(cfg_slave_tally_cfg_9_wr_threshold_enable),
+        .cfg_wr_debug_enable(cfg_slave_tally_cfg_9_wr_debug_enable),
+        .cfg_wr_timeout_cycles(cfg_slave_tally_cfg_9_wr_timeout_cycles),
+        .cfg_wr_latency_threshold(cfg_slave_tally_cfg_9_wr_latency_threshold),
+        .cfg_wr_axi_pkt_mask(cfg_slave_tally_cfg_9_wr_axi_pkt_mask),
+        .cfg_wr_axi_err_select(cfg_slave_tally_cfg_9_wr_axi_err_select),
+        .cfg_wr_axi_error_mask(cfg_slave_tally_cfg_9_wr_axi_error_mask),
+        .cfg_wr_axi_timeout_mask(cfg_slave_tally_cfg_9_wr_axi_timeout_mask),
+        .cfg_wr_axi_compl_mask(cfg_slave_tally_cfg_9_wr_axi_compl_mask),
+        .cfg_wr_axi_thresh_mask(cfg_slave_tally_cfg_9_wr_axi_thresh_mask),
+        .cfg_wr_axi_perf_mask(cfg_slave_tally_cfg_9_wr_axi_perf_mask),
+        .cfg_wr_axi_addr_mask(cfg_slave_tally_cfg_9_wr_axi_addr_mask),
+        .cfg_wr_axi_debug_mask(cfg_slave_tally_cfg_9_wr_axi_debug_mask),
+        .monbus_rd_valid(monbus_slave_tally_cfg_9_rd_valid),
+        .monbus_rd_ready(monbus_slave_tally_cfg_9_rd_ready),
+        .monbus_rd_packet(monbus_slave_tally_cfg_9_rd_packet),
+        .monbus_rd_timestamp(monbus_slave_tally_cfg_9_rd_timestamp),
+        .cfg_rd_monitor_enable(cfg_slave_tally_cfg_9_rd_monitor_enable),
+        .cfg_rd_error_enable(cfg_slave_tally_cfg_9_rd_error_enable),
+        .cfg_rd_timeout_enable(cfg_slave_tally_cfg_9_rd_timeout_enable),
+        .cfg_rd_perf_enable(cfg_slave_tally_cfg_9_rd_perf_enable),
+        .cfg_rd_compl_enable(cfg_slave_tally_cfg_9_rd_compl_enable),
+        .cfg_rd_threshold_enable(cfg_slave_tally_cfg_9_rd_threshold_enable),
+        .cfg_rd_debug_enable(cfg_slave_tally_cfg_9_rd_debug_enable),
+        .cfg_rd_timeout_cycles(cfg_slave_tally_cfg_9_rd_timeout_cycles),
+        .cfg_rd_latency_threshold(cfg_slave_tally_cfg_9_rd_latency_threshold),
+        .cfg_rd_axi_pkt_mask(cfg_slave_tally_cfg_9_rd_axi_pkt_mask),
+        .cfg_rd_axi_err_select(cfg_slave_tally_cfg_9_rd_axi_err_select),
+        .cfg_rd_axi_error_mask(cfg_slave_tally_cfg_9_rd_axi_error_mask),
+        .cfg_rd_axi_timeout_mask(cfg_slave_tally_cfg_9_rd_axi_timeout_mask),
+        .cfg_rd_axi_compl_mask(cfg_slave_tally_cfg_9_rd_axi_compl_mask),
+        .cfg_rd_axi_thresh_mask(cfg_slave_tally_cfg_9_rd_axi_thresh_mask),
+        .cfg_rd_axi_perf_mask(cfg_slave_tally_cfg_9_rd_axi_perf_mask),
+        .cfg_rd_axi_addr_mask(cfg_slave_tally_cfg_9_rd_axi_addr_mask),
+        .cfg_rd_axi_debug_mask(cfg_slave_tally_cfg_9_rd_axi_debug_mask)
+    );
+
 
     // ============================================================
     // Monitor cfg subsystem -- regblock + hwif_out fan-out (90.3)
@@ -4258,6 +4878,82 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_slave_tally_7_rd_axi_addr_mask = hwif_out.SLAVE_TALLY_7_RD_MASKS_D.axi_addr_mask.value;
     assign cfg_slave_tally_7_rd_axi_debug_mask = hwif_out.SLAVE_TALLY_7_RD_MASKS_E.axi_debug_mask.value;
 
+    assign cfg_stream_tally_cfg_8_wr_monitor_enable = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.value;
+    assign cfg_stream_tally_cfg_8_wr_error_enable = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.value;
+    assign cfg_stream_tally_cfg_8_wr_timeout_enable = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.value;
+    assign cfg_stream_tally_cfg_8_wr_perf_enable = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.value;
+    assign cfg_stream_tally_cfg_8_wr_compl_enable = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.value;
+    assign cfg_stream_tally_cfg_8_wr_threshold_enable = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.value;
+    assign cfg_stream_tally_cfg_8_wr_debug_enable = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.value;
+    assign cfg_stream_tally_cfg_8_wr_timeout_cycles = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.value;
+    assign cfg_stream_tally_cfg_8_wr_latency_threshold = hwif_out.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.value;
+    assign cfg_stream_tally_cfg_8_wr_axi_pkt_mask = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_stream_tally_cfg_8_wr_axi_err_select = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.value;
+    assign cfg_stream_tally_cfg_8_wr_axi_error_mask = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_stream_tally_cfg_8_wr_axi_timeout_mask = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_stream_tally_cfg_8_wr_axi_compl_mask = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_stream_tally_cfg_8_wr_axi_thresh_mask = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_stream_tally_cfg_8_wr_axi_perf_mask = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_stream_tally_cfg_8_wr_axi_addr_mask = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_stream_tally_cfg_8_wr_axi_debug_mask = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_stream_tally_cfg_8_rd_monitor_enable = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.value;
+    assign cfg_stream_tally_cfg_8_rd_error_enable = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.value;
+    assign cfg_stream_tally_cfg_8_rd_timeout_enable = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.value;
+    assign cfg_stream_tally_cfg_8_rd_perf_enable = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.value;
+    assign cfg_stream_tally_cfg_8_rd_compl_enable = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.value;
+    assign cfg_stream_tally_cfg_8_rd_threshold_enable = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.value;
+    assign cfg_stream_tally_cfg_8_rd_debug_enable = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.value;
+    assign cfg_stream_tally_cfg_8_rd_timeout_cycles = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_tally_cfg_8_rd_latency_threshold = hwif_out.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.value;
+    assign cfg_stream_tally_cfg_8_rd_axi_pkt_mask = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_stream_tally_cfg_8_rd_axi_err_select = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.value;
+    assign cfg_stream_tally_cfg_8_rd_axi_error_mask = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_stream_tally_cfg_8_rd_axi_timeout_mask = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_stream_tally_cfg_8_rd_axi_compl_mask = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_stream_tally_cfg_8_rd_axi_thresh_mask = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_stream_tally_cfg_8_rd_axi_perf_mask = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_stream_tally_cfg_8_rd_axi_addr_mask = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_stream_tally_cfg_8_rd_axi_debug_mask = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_slave_tally_cfg_9_wr_monitor_enable = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.value;
+    assign cfg_slave_tally_cfg_9_wr_error_enable = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.value;
+    assign cfg_slave_tally_cfg_9_wr_timeout_enable = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.value;
+    assign cfg_slave_tally_cfg_9_wr_perf_enable = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.value;
+    assign cfg_slave_tally_cfg_9_wr_compl_enable = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.value;
+    assign cfg_slave_tally_cfg_9_wr_threshold_enable = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.value;
+    assign cfg_slave_tally_cfg_9_wr_debug_enable = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.value;
+    assign cfg_slave_tally_cfg_9_wr_timeout_cycles = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.value;
+    assign cfg_slave_tally_cfg_9_wr_latency_threshold = hwif_out.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.value;
+    assign cfg_slave_tally_cfg_9_wr_axi_pkt_mask = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_slave_tally_cfg_9_wr_axi_err_select = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.value;
+    assign cfg_slave_tally_cfg_9_wr_axi_error_mask = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_slave_tally_cfg_9_wr_axi_timeout_mask = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_slave_tally_cfg_9_wr_axi_compl_mask = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_slave_tally_cfg_9_wr_axi_thresh_mask = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_slave_tally_cfg_9_wr_axi_perf_mask = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_slave_tally_cfg_9_wr_axi_addr_mask = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_slave_tally_cfg_9_wr_axi_debug_mask = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_slave_tally_cfg_9_rd_monitor_enable = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.value;
+    assign cfg_slave_tally_cfg_9_rd_error_enable = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.value;
+    assign cfg_slave_tally_cfg_9_rd_timeout_enable = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.value;
+    assign cfg_slave_tally_cfg_9_rd_perf_enable = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.value;
+    assign cfg_slave_tally_cfg_9_rd_compl_enable = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.value;
+    assign cfg_slave_tally_cfg_9_rd_threshold_enable = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.value;
+    assign cfg_slave_tally_cfg_9_rd_debug_enable = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.value;
+    assign cfg_slave_tally_cfg_9_rd_timeout_cycles = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.value;
+    assign cfg_slave_tally_cfg_9_rd_latency_threshold = hwif_out.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.value;
+    assign cfg_slave_tally_cfg_9_rd_axi_pkt_mask = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_slave_tally_cfg_9_rd_axi_err_select = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.value;
+    assign cfg_slave_tally_cfg_9_rd_axi_error_mask = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_slave_tally_cfg_9_rd_axi_timeout_mask = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_slave_tally_cfg_9_rd_axi_compl_mask = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_slave_tally_cfg_9_rd_axi_thresh_mask = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_slave_tally_cfg_9_rd_axi_perf_mask = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_slave_tally_cfg_9_rd_axi_addr_mask = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_slave_tally_cfg_9_rd_axi_debug_mask = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.value;
+
     // Fan out regblock outputs to mon_group cfg nets
     assign cfg_mon_group_base_addr = hwif_out.MON_GROUP_BASE_ADDR.base_addr.value;
     assign cfg_mon_group_limit_addr = hwif_out.MON_GROUP_LIMIT_ADDR.limit_addr.value;
@@ -4290,12 +4986,12 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_mon_group_compress_en = hwif_out.MON_GROUP_COMPRESS_EN.compress_en.value;
 
     // ============================================================
-    // Monitor aggregator -- 24 client(s) -> arbiter -> axil_group
+    // Monitor aggregator -- 28 client(s) -> arbiter -> axil_group
     // ============================================================
-    logic                                  mon_arb_monbus_valid_in     [24];
-    logic                                  mon_arb_monbus_ready_in     [24];
-    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [24];
-    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [24];
+    logic                                  mon_arb_monbus_valid_in     [28];
+    logic                                  mon_arb_monbus_ready_in     [28];
+    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [28];
+    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [28];
     assign mon_arb_monbus_valid_in[0]     = monbus_host_0_wr_valid;
     assign monbus_host_0_wr_ready = mon_arb_monbus_ready_in[0];
     assign mon_arb_monbus_packet_in[0]    = monbus_host_0_wr_packet;
@@ -4392,9 +5088,25 @@ module bridge_stream_mon_axil_mon #(
     assign monbus_slave_tally_7_rd_ready = mon_arb_monbus_ready_in[23];
     assign mon_arb_monbus_packet_in[23]    = monbus_slave_tally_7_rd_packet;
     assign mon_arb_monbus_timestamp_in[23] = monbus_slave_tally_7_rd_timestamp;
+    assign mon_arb_monbus_valid_in[24]     = monbus_stream_tally_cfg_8_wr_valid;
+    assign monbus_stream_tally_cfg_8_wr_ready = mon_arb_monbus_ready_in[24];
+    assign mon_arb_monbus_packet_in[24]    = monbus_stream_tally_cfg_8_wr_packet;
+    assign mon_arb_monbus_timestamp_in[24] = monbus_stream_tally_cfg_8_wr_timestamp;
+    assign mon_arb_monbus_valid_in[25]     = monbus_stream_tally_cfg_8_rd_valid;
+    assign monbus_stream_tally_cfg_8_rd_ready = mon_arb_monbus_ready_in[25];
+    assign mon_arb_monbus_packet_in[25]    = monbus_stream_tally_cfg_8_rd_packet;
+    assign mon_arb_monbus_timestamp_in[25] = monbus_stream_tally_cfg_8_rd_timestamp;
+    assign mon_arb_monbus_valid_in[26]     = monbus_slave_tally_cfg_9_wr_valid;
+    assign monbus_slave_tally_cfg_9_wr_ready = mon_arb_monbus_ready_in[26];
+    assign mon_arb_monbus_packet_in[26]    = monbus_slave_tally_cfg_9_wr_packet;
+    assign mon_arb_monbus_timestamp_in[26] = monbus_slave_tally_cfg_9_wr_timestamp;
+    assign mon_arb_monbus_valid_in[27]     = monbus_slave_tally_cfg_9_rd_valid;
+    assign monbus_slave_tally_cfg_9_rd_ready = mon_arb_monbus_ready_in[27];
+    assign mon_arb_monbus_packet_in[27]    = monbus_slave_tally_cfg_9_rd_packet;
+    assign mon_arb_monbus_timestamp_in[27] = monbus_slave_tally_cfg_9_rd_timestamp;
 
     monbus_arbiter #(
-        .CLIENTS            (24),
+        .CLIENTS            (28),
         .INPUT_SKID_ENABLE  (1),
         .OUTPUT_SKID_ENABLE (1),
         .INPUT_SKID_DEPTH   (2),

@@ -5,7 +5,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
 
     localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_DATA_WIDTH = 32;
     localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_MIN_ADDR_WIDTH = 10;
-    localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_SIZE = 'h300;
+    localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_SIZE = 'h370;
 
     typedef struct {
         logic value;
@@ -2896,6 +2896,450 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_7_RD_MASKS_E__out_t;
 
     typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__monitor_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__error_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__timeout_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__perf_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__compl_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__threshold_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__debug_enable__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__timeout_cycles__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__monitor_enable__out_t monitor_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__error_enable__out_t error_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__timeout_enable__out_t timeout_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__perf_enable__out_t perf_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__compl_enable__out_t compl_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__threshold_enable__out_t threshold_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__timeout_cycles__out_t timeout_cycles;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_LATENCY__latency_threshold__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_LATENCY__latency_threshold__out_t latency_threshold;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_LATENCY__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_A__axi_pkt_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_A__axi_err_select__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_A__axi_pkt_mask__out_t axi_pkt_mask;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_A__axi_err_select__out_t axi_err_select;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_A__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_B__axi_error_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_B__axi_timeout_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_B__axi_error_mask__out_t axi_error_mask;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_B__axi_timeout_mask__out_t axi_timeout_mask;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_B__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_C__axi_compl_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_C__axi_thresh_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_C__axi_compl_mask__out_t axi_compl_mask;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_C__axi_thresh_mask__out_t axi_thresh_mask;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_C__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_D__axi_perf_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_D__axi_addr_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_D__axi_perf_mask__out_t axi_perf_mask;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_D__axi_addr_mask__out_t axi_addr_mask;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_D__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_E__axi_debug_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_E__axi_debug_mask__out_t axi_debug_mask;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_E__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__monitor_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__error_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__timeout_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__perf_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__compl_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__threshold_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__debug_enable__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__timeout_cycles__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__monitor_enable__out_t monitor_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__error_enable__out_t error_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__timeout_enable__out_t timeout_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__perf_enable__out_t perf_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__compl_enable__out_t compl_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__threshold_enable__out_t threshold_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__timeout_cycles__out_t timeout_cycles;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_LATENCY__latency_threshold__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_LATENCY__latency_threshold__out_t latency_threshold;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_LATENCY__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_A__axi_pkt_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_A__axi_err_select__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_A__axi_pkt_mask__out_t axi_pkt_mask;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_A__axi_err_select__out_t axi_err_select;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_A__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_B__axi_error_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_B__axi_timeout_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_B__axi_error_mask__out_t axi_error_mask;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_B__axi_timeout_mask__out_t axi_timeout_mask;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_B__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_C__axi_compl_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_C__axi_thresh_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_C__axi_compl_mask__out_t axi_compl_mask;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_C__axi_thresh_mask__out_t axi_thresh_mask;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_C__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_D__axi_perf_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_D__axi_addr_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_D__axi_perf_mask__out_t axi_perf_mask;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_D__axi_addr_mask__out_t axi_addr_mask;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_D__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_E__axi_debug_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_E__axi_debug_mask__out_t axi_debug_mask;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_E__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__monitor_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__error_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__timeout_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__perf_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__compl_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__threshold_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__debug_enable__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__timeout_cycles__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__monitor_enable__out_t monitor_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__error_enable__out_t error_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__timeout_enable__out_t timeout_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__perf_enable__out_t perf_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__compl_enable__out_t compl_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__threshold_enable__out_t threshold_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__timeout_cycles__out_t timeout_cycles;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_LATENCY__latency_threshold__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_LATENCY__latency_threshold__out_t latency_threshold;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_LATENCY__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_A__axi_pkt_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_A__axi_err_select__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_A__axi_pkt_mask__out_t axi_pkt_mask;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_A__axi_err_select__out_t axi_err_select;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_A__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_B__axi_error_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_B__axi_timeout_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_B__axi_error_mask__out_t axi_error_mask;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_B__axi_timeout_mask__out_t axi_timeout_mask;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_B__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_C__axi_compl_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_C__axi_thresh_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_C__axi_compl_mask__out_t axi_compl_mask;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_C__axi_thresh_mask__out_t axi_thresh_mask;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_C__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_D__axi_perf_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_D__axi_addr_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_D__axi_perf_mask__out_t axi_perf_mask;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_D__axi_addr_mask__out_t axi_addr_mask;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_D__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_E__axi_debug_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_E__axi_debug_mask__out_t axi_debug_mask;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_E__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__monitor_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__error_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__timeout_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__perf_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__compl_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__threshold_enable__out_t;
+
+    typedef struct {
+        logic value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__debug_enable__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__timeout_cycles__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__monitor_enable__out_t monitor_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__error_enable__out_t error_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__timeout_enable__out_t timeout_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__perf_enable__out_t perf_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__compl_enable__out_t compl_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__threshold_enable__out_t threshold_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__timeout_cycles__out_t timeout_cycles;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_LATENCY__latency_threshold__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_LATENCY__latency_threshold__out_t latency_threshold;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_LATENCY__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_A__axi_pkt_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_A__axi_err_select__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_A__axi_pkt_mask__out_t axi_pkt_mask;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_A__axi_err_select__out_t axi_err_select;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_A__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_B__axi_error_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_B__axi_timeout_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_B__axi_error_mask__out_t axi_error_mask;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_B__axi_timeout_mask__out_t axi_timeout_mask;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_B__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_C__axi_compl_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_C__axi_thresh_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_C__axi_compl_mask__out_t axi_compl_mask;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_C__axi_thresh_mask__out_t axi_thresh_mask;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_C__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_D__axi_perf_mask__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_D__axi_addr_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_D__axi_perf_mask__out_t axi_perf_mask;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_D__axi_addr_mask__out_t axi_addr_mask;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_D__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_E__axi_debug_mask__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_E__axi_debug_mask__out_t axi_debug_mask;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_E__out_t;
+
+    typedef struct {
         logic [31:0] value;
     } bridge_stream_mon_axil_mon_cfg__MON_GROUP_BASE_ADDR__base_addr__out_t;
 
@@ -3265,6 +3709,34 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_7_RD_MASKS_C__out_t SLAVE_TALLY_7_RD_MASKS_C;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_7_RD_MASKS_D__out_t SLAVE_TALLY_7_RD_MASKS_D;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_7_RD_MASKS_E__out_t SLAVE_TALLY_7_RD_MASKS_E;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_CTRL__out_t STREAM_TALLY_CFG_8_WR_CTRL;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_LATENCY__out_t STREAM_TALLY_CFG_8_WR_LATENCY;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_A__out_t STREAM_TALLY_CFG_8_WR_MASKS_A;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_B__out_t STREAM_TALLY_CFG_8_WR_MASKS_B;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_C__out_t STREAM_TALLY_CFG_8_WR_MASKS_C;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_D__out_t STREAM_TALLY_CFG_8_WR_MASKS_D;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_WR_MASKS_E__out_t STREAM_TALLY_CFG_8_WR_MASKS_E;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_CTRL__out_t STREAM_TALLY_CFG_8_RD_CTRL;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_LATENCY__out_t STREAM_TALLY_CFG_8_RD_LATENCY;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_A__out_t STREAM_TALLY_CFG_8_RD_MASKS_A;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_B__out_t STREAM_TALLY_CFG_8_RD_MASKS_B;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_C__out_t STREAM_TALLY_CFG_8_RD_MASKS_C;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_D__out_t STREAM_TALLY_CFG_8_RD_MASKS_D;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_8_RD_MASKS_E__out_t STREAM_TALLY_CFG_8_RD_MASKS_E;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_CTRL__out_t SLAVE_TALLY_CFG_9_WR_CTRL;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_LATENCY__out_t SLAVE_TALLY_CFG_9_WR_LATENCY;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_A__out_t SLAVE_TALLY_CFG_9_WR_MASKS_A;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_B__out_t SLAVE_TALLY_CFG_9_WR_MASKS_B;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_C__out_t SLAVE_TALLY_CFG_9_WR_MASKS_C;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_D__out_t SLAVE_TALLY_CFG_9_WR_MASKS_D;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_WR_MASKS_E__out_t SLAVE_TALLY_CFG_9_WR_MASKS_E;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_CTRL__out_t SLAVE_TALLY_CFG_9_RD_CTRL;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_LATENCY__out_t SLAVE_TALLY_CFG_9_RD_LATENCY;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_A__out_t SLAVE_TALLY_CFG_9_RD_MASKS_A;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_B__out_t SLAVE_TALLY_CFG_9_RD_MASKS_B;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_C__out_t SLAVE_TALLY_CFG_9_RD_MASKS_C;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_D__out_t SLAVE_TALLY_CFG_9_RD_MASKS_D;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_9_RD_MASKS_E__out_t SLAVE_TALLY_CFG_9_RD_MASKS_E;
         bridge_stream_mon_axil_mon_cfg__MON_GROUP_BASE_ADDR__out_t MON_GROUP_BASE_ADDR;
         bridge_stream_mon_axil_mon_cfg__MON_GROUP_LIMIT_ADDR__out_t MON_GROUP_LIMIT_ADDR;
         bridge_stream_mon_axil_mon_cfg__MON_GROUP_PACK_0__out_t MON_GROUP_PACK_0;

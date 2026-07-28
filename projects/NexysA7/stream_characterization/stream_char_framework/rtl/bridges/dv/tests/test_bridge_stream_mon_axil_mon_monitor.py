@@ -26,7 +26,7 @@ from TBClasses.shared.utilities import get_paths
 from projects.NexysA7.stream_characterization.stream_char_framework.rtl.bridges.dv.tbclasses.bridge_stream_mon_axil_mon_tb import BridgeStreamMonAxilMonTB
 from monitor_stress_common import run_comprehensive, run_monitor_sim
 
-CFG_PREFIXES = ['host_0_rd', 'host_0_wr', 'stream_desc_1_rd', 'stream_desc_1_wr', 'monbus_wr_2_rd', 'monbus_wr_2_wr', 'slave_monbus_wr_3_rd', 'slave_monbus_wr_3_wr', 'stream_apb_0_rd', 'stream_apb_0_wr', 'harness_csr_1_rd', 'harness_csr_1_wr', 'desc_ram_2_rd', 'desc_ram_2_wr', 'stream_err_3_rd', 'stream_err_3_wr', 'stream_tally_4_rd', 'stream_tally_4_wr', 'dma_axil_5_rd', 'dma_axil_5_wr', 'slave_err_6_rd', 'slave_err_6_wr', 'slave_tally_7_rd', 'slave_tally_7_wr']
+CFG_PREFIXES = ['host_0_rd', 'host_0_wr', 'stream_desc_1_rd', 'stream_desc_1_wr', 'monbus_wr_2_rd', 'monbus_wr_2_wr', 'slave_monbus_wr_3_rd', 'slave_monbus_wr_3_wr', 'stream_apb_0_rd', 'stream_apb_0_wr', 'harness_csr_1_rd', 'harness_csr_1_wr', 'desc_ram_2_rd', 'desc_ram_2_wr', 'stream_err_3_rd', 'stream_err_3_wr', 'stream_tally_4_rd', 'stream_tally_4_wr', 'dma_axil_5_rd', 'dma_axil_5_wr', 'slave_err_6_rd', 'slave_err_6_wr', 'slave_tally_7_rd', 'slave_tally_7_wr', 'stream_tally_cfg_8_rd', 'stream_tally_cfg_8_wr', 'slave_tally_cfg_9_rd', 'slave_tally_cfg_9_wr']
 BLOCK_READY_PATH = "u_host_adapter.u_timing_wrapper_rd"
 REACHABLE_SLAVES = [2]
 HAS_COMPL = True

@@ -77,7 +77,13 @@ module stream_mon_harness #(
     // 0 = omit the per-channel completion/error MonBus emitters (descriptor_
     // engine/scheduler) for FPGA area. stream_char_top sets this 0 on the board
     // build; cosim leaves it 1 so the compression-trace tests keep working.
-    parameter bit GEN_MON                = 1'b1
+    parameter bit GEN_MON                = 1'b1,
+    // Agent-resolved profile tally for BOTH tally memories. 0 = the legacy
+    // 16-bit {protocol,pkt_type,event_code} matrix (default, keeps existing
+    // tests). 1 = load a legal set over each tally's cfg AXIL slave; bins
+    // become dense per-agent indices + an UNEXPECTED bin.
+    parameter int MON_TALLY_PROFILE_MODE = 0,
+    parameter int MON_N_PROFILE          = 64
 ) (
     input  logic            aclk,
     input  logic            aresetn,
@@ -279,6 +285,17 @@ module stream_mon_harness #(
     logic [1:0]  s4_bresp, s4_rresp;
     logic s4_awvalid, s4_awready, s4_wvalid, s4_wready, s4_bvalid, s4_bready;
     logic s4_arvalid, s4_arready, s4_rvalid, s4_rready;
+
+    // Dedicated host cfg/readback ports for the two tally memories
+    // (stream_tally_cfg @0xA0000 -> sc0, slave_tally_cfg @0xB0000 -> sc1).
+    logic [31:0] sc0_awaddr, sc0_araddr; logic [63:0] sc0_wdata, sc0_rdata;
+    logic [7:0]  sc0_wstrb; logic [2:0] sc0_awprot, sc0_arprot; logic [1:0] sc0_bresp, sc0_rresp;
+    logic sc0_awvalid, sc0_awready, sc0_wvalid, sc0_wready, sc0_bvalid, sc0_bready;
+    logic sc0_arvalid, sc0_arready, sc0_rvalid, sc0_rready;
+    logic [31:0] sc1_awaddr, sc1_araddr; logic [63:0] sc1_wdata, sc1_rdata;
+    logic [7:0]  sc1_wstrb; logic [2:0] sc1_awprot, sc1_arprot; logic [1:0] sc1_bresp, sc1_rresp;
+    logic sc1_awvalid, sc1_awready, sc1_wvalid, sc1_wready, sc1_bvalid, sc1_bready;
+    logic sc1_arvalid, sc1_arready, sc1_rvalid, sc1_rready;
 
     // ---- APB output to STREAM (driven directly by bridge.stream_apb_*) -----
     // Bridge emits 32-bit PADDR; STREAM APB takes APB_ADDR_WIDTH (12 bits).
@@ -602,7 +619,30 @@ module stream_mon_harness #(
         .slave_tally_axi_araddr  (s6_araddr),  .slave_tally_axi_arprot  (s6_arprot),
         .slave_tally_axi_arvalid (s6_arvalid), .slave_tally_axi_arready (s6_arready),
         .slave_tally_axi_rdata   (s6_rdata),   .slave_tally_axi_rresp   (s6_rresp),
-        .slave_tally_axi_rvalid  (s6_rvalid),  .slave_tally_axi_rready  (s6_rready)
+        .slave_tally_axi_rvalid  (s6_rvalid),  .slave_tally_axi_rready  (s6_rready),
+
+        // Dedicated host cfg/readback ports (AXIL subset; AXI4 extras open).
+        .stream_tally_cfg_axi_awaddr (sc0_awaddr), .stream_tally_cfg_axi_awprot (sc0_awprot),
+        .stream_tally_cfg_axi_awvalid(sc0_awvalid),.stream_tally_cfg_axi_awready(sc0_awready),
+        .stream_tally_cfg_axi_wdata  (sc0_wdata),  .stream_tally_cfg_axi_wstrb  (sc0_wstrb),
+        .stream_tally_cfg_axi_wvalid (sc0_wvalid), .stream_tally_cfg_axi_wready (sc0_wready),
+        .stream_tally_cfg_axi_bresp  (sc0_bresp),  .stream_tally_cfg_axi_bvalid (sc0_bvalid),
+        .stream_tally_cfg_axi_bready (sc0_bready),
+        .stream_tally_cfg_axi_araddr (sc0_araddr), .stream_tally_cfg_axi_arprot (sc0_arprot),
+        .stream_tally_cfg_axi_arvalid(sc0_arvalid),.stream_tally_cfg_axi_arready(sc0_arready),
+        .stream_tally_cfg_axi_rdata  (sc0_rdata),  .stream_tally_cfg_axi_rresp  (sc0_rresp),
+        .stream_tally_cfg_axi_rvalid (sc0_rvalid), .stream_tally_cfg_axi_rready (sc0_rready),
+
+        .slave_tally_cfg_axi_awaddr  (sc1_awaddr), .slave_tally_cfg_axi_awprot  (sc1_awprot),
+        .slave_tally_cfg_axi_awvalid (sc1_awvalid),.slave_tally_cfg_axi_awready (sc1_awready),
+        .slave_tally_cfg_axi_wdata   (sc1_wdata),  .slave_tally_cfg_axi_wstrb   (sc1_wstrb),
+        .slave_tally_cfg_axi_wvalid  (sc1_wvalid), .slave_tally_cfg_axi_wready  (sc1_wready),
+        .slave_tally_cfg_axi_bresp   (sc1_bresp),  .slave_tally_cfg_axi_bvalid  (sc1_bvalid),
+        .slave_tally_cfg_axi_bready  (sc1_bready),
+        .slave_tally_cfg_axi_araddr  (sc1_araddr), .slave_tally_cfg_axi_arprot  (sc1_arprot),
+        .slave_tally_cfg_axi_arvalid (sc1_arvalid),.slave_tally_cfg_axi_arready (sc1_arready),
+        .slave_tally_cfg_axi_rdata   (sc1_rdata),  .slave_tally_cfg_axi_rresp   (sc1_rresp),
+        .slave_tally_cfg_axi_rvalid  (sc1_rvalid), .slave_tally_cfg_axi_rready  (sc1_rready)
     );
 
 
@@ -1287,13 +1327,19 @@ module stream_mon_harness #(
     // same window. Control shares the CSR freeze/clear used by the slave tally.
     logic w_stream_tally_flush_busy;
     logic w_tally_flush;                 // auto-flush pulse shared by both tally SRAMs (assigned below)
+    // Profile-tally sizing: 16-bit direct matrix, or clog2(N+1) dense bins.
+    localparam int MON_TALLY_ADDR_BITS =
+        (MON_TALLY_PROFILE_MODE != 0) ? $clog2(MON_N_PROFILE + 1) : 16;
     monbus_tally_axil #(
         .ADDR_WIDTH       (32),
         .DATA_WIDTH       (64),
         .TALLY_CACHE_DEPTH(32),
-        .TALLY_ADDR_BITS  (16)          // full 16-bit; its own AXIL region (0x40000)
+        .TALLY_ADDR_BITS  (MON_TALLY_ADDR_BITS),
+        .PROFILE_MODE     (MON_TALLY_PROFILE_MODE),
+        .N_PROFILE        (MON_N_PROFILE)
     ) u_debug_sram (
         .aclk(aclk), .aresetn(unit_aresetn),
+        // Record ingest (write): monbus group RAW records @ 0x40000.
         .s_axil_awaddr  (s4_awaddr),  .s_axil_awprot  (s4_awprot),
         .s_axil_awvalid (s4_awvalid), .s_axil_awready (s4_awready),
         .s_axil_wdata   (s4_wdata),   .s_axil_wstrb   (s4_wstrb),
@@ -1304,6 +1350,17 @@ module stream_mon_harness #(
         .s_axil_arvalid (s4_arvalid), .s_axil_arready (s4_arready),
         .s_axil_rdata   (s4_rdata),   .s_axil_rresp   (s4_rresp),
         .s_axil_rvalid  (s4_rvalid),  .s_axil_rready  (s4_rready),
+        // Dedicated host cfg/readback @ 0xA0000 (read bins, load profile CAM).
+        .cfg_awaddr  (sc0_awaddr),  .cfg_awprot  (sc0_awprot),
+        .cfg_awvalid (sc0_awvalid), .cfg_awready (sc0_awready),
+        .cfg_wdata   (sc0_wdata),   .cfg_wstrb   (sc0_wstrb),
+        .cfg_wvalid  (sc0_wvalid),  .cfg_wready  (sc0_wready),
+        .cfg_bresp   (sc0_bresp),   .cfg_bvalid  (sc0_bvalid),
+        .cfg_bready  (sc0_bready),
+        .cfg_araddr  (sc0_araddr),  .cfg_arprot  (sc0_arprot),
+        .cfg_arvalid (sc0_arvalid), .cfg_arready (sc0_arready),
+        .cfg_rdata   (sc0_rdata),   .cfg_rresp   (sc0_rresp),
+        .cfg_rvalid  (sc0_rvalid),  .cfg_rready  (sc0_rready),
         .tally_freeze    (csr_freeze),    .tally_flush    (w_tally_flush),
         .tally_flush_busy(w_stream_tally_flush_busy), .tally_clear(csr_clear_pulse)
     );
@@ -1312,9 +1369,12 @@ module stream_mon_harness #(
     // written by slave_monbus_wr (dma_slave_monitors' group), read by host.
     logic w_slave_tally_flush_busy;
     monbus_tally_axil #(
-        .ADDR_WIDTH(32), .DATA_WIDTH(64), .TALLY_CACHE_DEPTH(32), .TALLY_ADDR_BITS(16)
+        .ADDR_WIDTH(32), .DATA_WIDTH(64), .TALLY_CACHE_DEPTH(32),
+        .TALLY_ADDR_BITS(MON_TALLY_ADDR_BITS),
+        .PROFILE_MODE(MON_TALLY_PROFILE_MODE), .N_PROFILE(MON_N_PROFILE)
     ) u_slave_tally (
         .aclk(aclk), .aresetn(unit_aresetn),
+        // Record ingest (write): dma_slave_monitors group @ 0xC0000.
         .s_axil_awaddr(s6_awaddr),  .s_axil_awprot(s6_awprot),
         .s_axil_awvalid(s6_awvalid), .s_axil_awready(s6_awready),
         .s_axil_wdata(s6_wdata),    .s_axil_wstrb(s6_wstrb),
@@ -1324,6 +1384,16 @@ module stream_mon_harness #(
         .s_axil_arvalid(s6_arvalid), .s_axil_arready(s6_arready),
         .s_axil_rdata(s6_rdata),    .s_axil_rresp(s6_rresp),
         .s_axil_rvalid(s6_rvalid),  .s_axil_rready(s6_rready),
+        // Dedicated host cfg/readback @ 0xB0000.
+        .cfg_awaddr(sc1_awaddr),  .cfg_awprot(sc1_awprot),
+        .cfg_awvalid(sc1_awvalid), .cfg_awready(sc1_awready),
+        .cfg_wdata(sc1_wdata),    .cfg_wstrb(sc1_wstrb),
+        .cfg_wvalid(sc1_wvalid),  .cfg_wready(sc1_wready),
+        .cfg_bresp(sc1_bresp),    .cfg_bvalid(sc1_bvalid), .cfg_bready(sc1_bready),
+        .cfg_araddr(sc1_araddr),  .cfg_arprot(sc1_arprot),
+        .cfg_arvalid(sc1_arvalid), .cfg_arready(sc1_arready),
+        .cfg_rdata(sc1_rdata),    .cfg_rresp(sc1_rresp),
+        .cfg_rvalid(sc1_rvalid),  .cfg_rready(sc1_rready),
         .tally_freeze(csr_freeze),  .tally_flush(w_tally_flush),
         .tally_flush_busy(w_slave_tally_flush_busy), .tally_clear(csr_clear_pulse)
     );

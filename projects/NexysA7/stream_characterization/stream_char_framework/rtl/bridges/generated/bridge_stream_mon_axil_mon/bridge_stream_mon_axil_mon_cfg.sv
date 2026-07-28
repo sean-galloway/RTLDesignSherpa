@@ -402,6 +402,34 @@ module bridge_stream_mon_axil_mon_cfg (
         logic SLAVE_TALLY_7_RD_MASKS_C;
         logic SLAVE_TALLY_7_RD_MASKS_D;
         logic SLAVE_TALLY_7_RD_MASKS_E;
+        logic STREAM_TALLY_CFG_8_WR_CTRL;
+        logic STREAM_TALLY_CFG_8_WR_LATENCY;
+        logic STREAM_TALLY_CFG_8_WR_MASKS_A;
+        logic STREAM_TALLY_CFG_8_WR_MASKS_B;
+        logic STREAM_TALLY_CFG_8_WR_MASKS_C;
+        logic STREAM_TALLY_CFG_8_WR_MASKS_D;
+        logic STREAM_TALLY_CFG_8_WR_MASKS_E;
+        logic STREAM_TALLY_CFG_8_RD_CTRL;
+        logic STREAM_TALLY_CFG_8_RD_LATENCY;
+        logic STREAM_TALLY_CFG_8_RD_MASKS_A;
+        logic STREAM_TALLY_CFG_8_RD_MASKS_B;
+        logic STREAM_TALLY_CFG_8_RD_MASKS_C;
+        logic STREAM_TALLY_CFG_8_RD_MASKS_D;
+        logic STREAM_TALLY_CFG_8_RD_MASKS_E;
+        logic SLAVE_TALLY_CFG_9_WR_CTRL;
+        logic SLAVE_TALLY_CFG_9_WR_LATENCY;
+        logic SLAVE_TALLY_CFG_9_WR_MASKS_A;
+        logic SLAVE_TALLY_CFG_9_WR_MASKS_B;
+        logic SLAVE_TALLY_CFG_9_WR_MASKS_C;
+        logic SLAVE_TALLY_CFG_9_WR_MASKS_D;
+        logic SLAVE_TALLY_CFG_9_WR_MASKS_E;
+        logic SLAVE_TALLY_CFG_9_RD_CTRL;
+        logic SLAVE_TALLY_CFG_9_RD_LATENCY;
+        logic SLAVE_TALLY_CFG_9_RD_MASKS_A;
+        logic SLAVE_TALLY_CFG_9_RD_MASKS_B;
+        logic SLAVE_TALLY_CFG_9_RD_MASKS_C;
+        logic SLAVE_TALLY_CFG_9_RD_MASKS_D;
+        logic SLAVE_TALLY_CFG_9_RD_MASKS_E;
         logic MON_GROUP_BASE_ADDR;
         logic MON_GROUP_LIMIT_ADDR;
         logic MON_GROUP_PACK_0;
@@ -602,22 +630,50 @@ module bridge_stream_mon_axil_mon_cfg (
         decoded_reg_strb.SLAVE_TALLY_7_RD_MASKS_C = cpuif_req_masked & (cpuif_addr == 10'h2b4);
         decoded_reg_strb.SLAVE_TALLY_7_RD_MASKS_D = cpuif_req_masked & (cpuif_addr == 10'h2b8);
         decoded_reg_strb.SLAVE_TALLY_7_RD_MASKS_E = cpuif_req_masked & (cpuif_addr == 10'h2bc);
-        decoded_reg_strb.MON_GROUP_BASE_ADDR = cpuif_req_masked & (cpuif_addr == 10'h2c0);
-        decoded_reg_strb.MON_GROUP_LIMIT_ADDR = cpuif_req_masked & (cpuif_addr == 10'h2c4);
-        decoded_reg_strb.MON_GROUP_PACK_0 = cpuif_req_masked & (cpuif_addr == 10'h2c8);
-        decoded_reg_strb.MON_GROUP_PACK_1 = cpuif_req_masked & (cpuif_addr == 10'h2cc);
-        decoded_reg_strb.MON_GROUP_PACK_2 = cpuif_req_masked & (cpuif_addr == 10'h2d0);
-        decoded_reg_strb.MON_GROUP_PACK_3 = cpuif_req_masked & (cpuif_addr == 10'h2d4);
-        decoded_reg_strb.MON_GROUP_PACK_4 = cpuif_req_masked & (cpuif_addr == 10'h2d8);
-        decoded_reg_strb.MON_GROUP_PACK_5 = cpuif_req_masked & (cpuif_addr == 10'h2dc);
-        decoded_reg_strb.MON_GROUP_PACK_6 = cpuif_req_masked & (cpuif_addr == 10'h2e0);
-        decoded_reg_strb.MON_GROUP_PACK_7 = cpuif_req_masked & (cpuif_addr == 10'h2e4);
-        decoded_reg_strb.MON_GROUP_PACK_8 = cpuif_req_masked & (cpuif_addr == 10'h2e8);
-        decoded_reg_strb.MON_GROUP_PACK_9 = cpuif_req_masked & (cpuif_addr == 10'h2ec);
-        decoded_reg_strb.MON_GROUP_PACK_10 = cpuif_req_masked & (cpuif_addr == 10'h2f0);
-        decoded_reg_strb.MON_GROUP_PACK_11 = cpuif_req_masked & (cpuif_addr == 10'h2f4);
-        decoded_reg_strb.MON_GROUP_PACK_12 = cpuif_req_masked & (cpuif_addr == 10'h2f8);
-        decoded_reg_strb.MON_GROUP_COMPRESS_EN = cpuif_req_masked & (cpuif_addr == 10'h2fc);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL = cpuif_req_masked & (cpuif_addr == 10'h2c0);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_WR_LATENCY = cpuif_req_masked & (cpuif_addr == 10'h2c4);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_A = cpuif_req_masked & (cpuif_addr == 10'h2c8);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_B = cpuif_req_masked & (cpuif_addr == 10'h2cc);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_C = cpuif_req_masked & (cpuif_addr == 10'h2d0);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_D = cpuif_req_masked & (cpuif_addr == 10'h2d4);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_E = cpuif_req_masked & (cpuif_addr == 10'h2d8);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL = cpuif_req_masked & (cpuif_addr == 10'h2dc);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_RD_LATENCY = cpuif_req_masked & (cpuif_addr == 10'h2e0);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_A = cpuif_req_masked & (cpuif_addr == 10'h2e4);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_B = cpuif_req_masked & (cpuif_addr == 10'h2e8);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_C = cpuif_req_masked & (cpuif_addr == 10'h2ec);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_D = cpuif_req_masked & (cpuif_addr == 10'h2f0);
+        decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_E = cpuif_req_masked & (cpuif_addr == 10'h2f4);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL = cpuif_req_masked & (cpuif_addr == 10'h2f8);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_LATENCY = cpuif_req_masked & (cpuif_addr == 10'h2fc);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_A = cpuif_req_masked & (cpuif_addr == 10'h300);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_B = cpuif_req_masked & (cpuif_addr == 10'h304);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_C = cpuif_req_masked & (cpuif_addr == 10'h308);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_D = cpuif_req_masked & (cpuif_addr == 10'h30c);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_E = cpuif_req_masked & (cpuif_addr == 10'h310);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL = cpuif_req_masked & (cpuif_addr == 10'h314);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_LATENCY = cpuif_req_masked & (cpuif_addr == 10'h318);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_A = cpuif_req_masked & (cpuif_addr == 10'h31c);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_B = cpuif_req_masked & (cpuif_addr == 10'h320);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_C = cpuif_req_masked & (cpuif_addr == 10'h324);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_D = cpuif_req_masked & (cpuif_addr == 10'h328);
+        decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_E = cpuif_req_masked & (cpuif_addr == 10'h32c);
+        decoded_reg_strb.MON_GROUP_BASE_ADDR = cpuif_req_masked & (cpuif_addr == 10'h330);
+        decoded_reg_strb.MON_GROUP_LIMIT_ADDR = cpuif_req_masked & (cpuif_addr == 10'h334);
+        decoded_reg_strb.MON_GROUP_PACK_0 = cpuif_req_masked & (cpuif_addr == 10'h338);
+        decoded_reg_strb.MON_GROUP_PACK_1 = cpuif_req_masked & (cpuif_addr == 10'h33c);
+        decoded_reg_strb.MON_GROUP_PACK_2 = cpuif_req_masked & (cpuif_addr == 10'h340);
+        decoded_reg_strb.MON_GROUP_PACK_3 = cpuif_req_masked & (cpuif_addr == 10'h344);
+        decoded_reg_strb.MON_GROUP_PACK_4 = cpuif_req_masked & (cpuif_addr == 10'h348);
+        decoded_reg_strb.MON_GROUP_PACK_5 = cpuif_req_masked & (cpuif_addr == 10'h34c);
+        decoded_reg_strb.MON_GROUP_PACK_6 = cpuif_req_masked & (cpuif_addr == 10'h350);
+        decoded_reg_strb.MON_GROUP_PACK_7 = cpuif_req_masked & (cpuif_addr == 10'h354);
+        decoded_reg_strb.MON_GROUP_PACK_8 = cpuif_req_masked & (cpuif_addr == 10'h358);
+        decoded_reg_strb.MON_GROUP_PACK_9 = cpuif_req_masked & (cpuif_addr == 10'h35c);
+        decoded_reg_strb.MON_GROUP_PACK_10 = cpuif_req_masked & (cpuif_addr == 10'h360);
+        decoded_reg_strb.MON_GROUP_PACK_11 = cpuif_req_masked & (cpuif_addr == 10'h364);
+        decoded_reg_strb.MON_GROUP_PACK_12 = cpuif_req_masked & (cpuif_addr == 10'h368);
+        decoded_reg_strb.MON_GROUP_COMPRESS_EN = cpuif_req_masked & (cpuif_addr == 10'h36c);
     end
 
     // Pass down signals to next stage
@@ -2872,6 +2928,350 @@ module bridge_stream_mon_axil_mon_cfg (
         } SLAVE_TALLY_7_RD_MASKS_E;
         struct {
             struct {
+                logic next;
+                logic load_next;
+            } monitor_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } error_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } timeout_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } perf_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } compl_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } threshold_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } debug_enable;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } timeout_cycles;
+        } STREAM_TALLY_CFG_8_WR_CTRL;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } latency_threshold;
+        } STREAM_TALLY_CFG_8_WR_LATENCY;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_pkt_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_err_select;
+        } STREAM_TALLY_CFG_8_WR_MASKS_A;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_error_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_timeout_mask;
+        } STREAM_TALLY_CFG_8_WR_MASKS_B;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_compl_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_thresh_mask;
+        } STREAM_TALLY_CFG_8_WR_MASKS_C;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_perf_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_addr_mask;
+        } STREAM_TALLY_CFG_8_WR_MASKS_D;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_debug_mask;
+        } STREAM_TALLY_CFG_8_WR_MASKS_E;
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } monitor_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } error_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } timeout_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } perf_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } compl_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } threshold_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } debug_enable;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } timeout_cycles;
+        } STREAM_TALLY_CFG_8_RD_CTRL;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } latency_threshold;
+        } STREAM_TALLY_CFG_8_RD_LATENCY;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_pkt_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_err_select;
+        } STREAM_TALLY_CFG_8_RD_MASKS_A;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_error_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_timeout_mask;
+        } STREAM_TALLY_CFG_8_RD_MASKS_B;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_compl_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_thresh_mask;
+        } STREAM_TALLY_CFG_8_RD_MASKS_C;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_perf_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_addr_mask;
+        } STREAM_TALLY_CFG_8_RD_MASKS_D;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_debug_mask;
+        } STREAM_TALLY_CFG_8_RD_MASKS_E;
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } monitor_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } error_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } timeout_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } perf_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } compl_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } threshold_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } debug_enable;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } timeout_cycles;
+        } SLAVE_TALLY_CFG_9_WR_CTRL;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } latency_threshold;
+        } SLAVE_TALLY_CFG_9_WR_LATENCY;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_pkt_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_err_select;
+        } SLAVE_TALLY_CFG_9_WR_MASKS_A;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_error_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_timeout_mask;
+        } SLAVE_TALLY_CFG_9_WR_MASKS_B;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_compl_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_thresh_mask;
+        } SLAVE_TALLY_CFG_9_WR_MASKS_C;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_perf_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_addr_mask;
+        } SLAVE_TALLY_CFG_9_WR_MASKS_D;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_debug_mask;
+        } SLAVE_TALLY_CFG_9_WR_MASKS_E;
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } monitor_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } error_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } timeout_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } perf_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } compl_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } threshold_enable;
+            struct {
+                logic next;
+                logic load_next;
+            } debug_enable;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } timeout_cycles;
+        } SLAVE_TALLY_CFG_9_RD_CTRL;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } latency_threshold;
+        } SLAVE_TALLY_CFG_9_RD_LATENCY;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_pkt_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_err_select;
+        } SLAVE_TALLY_CFG_9_RD_MASKS_A;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_error_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_timeout_mask;
+        } SLAVE_TALLY_CFG_9_RD_MASKS_B;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_compl_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_thresh_mask;
+        } SLAVE_TALLY_CFG_9_RD_MASKS_C;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_perf_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_addr_mask;
+        } SLAVE_TALLY_CFG_9_RD_MASKS_D;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } axi_debug_mask;
+        } SLAVE_TALLY_CFG_9_RD_MASKS_E;
+        struct {
+            struct {
                 logic [31:0] next;
                 logic load_next;
             } base_addr;
@@ -4790,6 +5190,278 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic [15:0] value;
             } axi_debug_mask;
         } SLAVE_TALLY_7_RD_MASKS_E;
+        struct {
+            struct {
+                logic value;
+            } monitor_enable;
+            struct {
+                logic value;
+            } error_enable;
+            struct {
+                logic value;
+            } timeout_enable;
+            struct {
+                logic value;
+            } perf_enable;
+            struct {
+                logic value;
+            } compl_enable;
+            struct {
+                logic value;
+            } threshold_enable;
+            struct {
+                logic value;
+            } debug_enable;
+            struct {
+                logic [15:0] value;
+            } timeout_cycles;
+        } STREAM_TALLY_CFG_8_WR_CTRL;
+        struct {
+            struct {
+                logic [31:0] value;
+            } latency_threshold;
+        } STREAM_TALLY_CFG_8_WR_LATENCY;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_pkt_mask;
+            struct {
+                logic [15:0] value;
+            } axi_err_select;
+        } STREAM_TALLY_CFG_8_WR_MASKS_A;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_error_mask;
+            struct {
+                logic [15:0] value;
+            } axi_timeout_mask;
+        } STREAM_TALLY_CFG_8_WR_MASKS_B;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_compl_mask;
+            struct {
+                logic [15:0] value;
+            } axi_thresh_mask;
+        } STREAM_TALLY_CFG_8_WR_MASKS_C;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_perf_mask;
+            struct {
+                logic [15:0] value;
+            } axi_addr_mask;
+        } STREAM_TALLY_CFG_8_WR_MASKS_D;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_debug_mask;
+        } STREAM_TALLY_CFG_8_WR_MASKS_E;
+        struct {
+            struct {
+                logic value;
+            } monitor_enable;
+            struct {
+                logic value;
+            } error_enable;
+            struct {
+                logic value;
+            } timeout_enable;
+            struct {
+                logic value;
+            } perf_enable;
+            struct {
+                logic value;
+            } compl_enable;
+            struct {
+                logic value;
+            } threshold_enable;
+            struct {
+                logic value;
+            } debug_enable;
+            struct {
+                logic [15:0] value;
+            } timeout_cycles;
+        } STREAM_TALLY_CFG_8_RD_CTRL;
+        struct {
+            struct {
+                logic [31:0] value;
+            } latency_threshold;
+        } STREAM_TALLY_CFG_8_RD_LATENCY;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_pkt_mask;
+            struct {
+                logic [15:0] value;
+            } axi_err_select;
+        } STREAM_TALLY_CFG_8_RD_MASKS_A;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_error_mask;
+            struct {
+                logic [15:0] value;
+            } axi_timeout_mask;
+        } STREAM_TALLY_CFG_8_RD_MASKS_B;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_compl_mask;
+            struct {
+                logic [15:0] value;
+            } axi_thresh_mask;
+        } STREAM_TALLY_CFG_8_RD_MASKS_C;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_perf_mask;
+            struct {
+                logic [15:0] value;
+            } axi_addr_mask;
+        } STREAM_TALLY_CFG_8_RD_MASKS_D;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_debug_mask;
+        } STREAM_TALLY_CFG_8_RD_MASKS_E;
+        struct {
+            struct {
+                logic value;
+            } monitor_enable;
+            struct {
+                logic value;
+            } error_enable;
+            struct {
+                logic value;
+            } timeout_enable;
+            struct {
+                logic value;
+            } perf_enable;
+            struct {
+                logic value;
+            } compl_enable;
+            struct {
+                logic value;
+            } threshold_enable;
+            struct {
+                logic value;
+            } debug_enable;
+            struct {
+                logic [15:0] value;
+            } timeout_cycles;
+        } SLAVE_TALLY_CFG_9_WR_CTRL;
+        struct {
+            struct {
+                logic [31:0] value;
+            } latency_threshold;
+        } SLAVE_TALLY_CFG_9_WR_LATENCY;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_pkt_mask;
+            struct {
+                logic [15:0] value;
+            } axi_err_select;
+        } SLAVE_TALLY_CFG_9_WR_MASKS_A;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_error_mask;
+            struct {
+                logic [15:0] value;
+            } axi_timeout_mask;
+        } SLAVE_TALLY_CFG_9_WR_MASKS_B;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_compl_mask;
+            struct {
+                logic [15:0] value;
+            } axi_thresh_mask;
+        } SLAVE_TALLY_CFG_9_WR_MASKS_C;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_perf_mask;
+            struct {
+                logic [15:0] value;
+            } axi_addr_mask;
+        } SLAVE_TALLY_CFG_9_WR_MASKS_D;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_debug_mask;
+        } SLAVE_TALLY_CFG_9_WR_MASKS_E;
+        struct {
+            struct {
+                logic value;
+            } monitor_enable;
+            struct {
+                logic value;
+            } error_enable;
+            struct {
+                logic value;
+            } timeout_enable;
+            struct {
+                logic value;
+            } perf_enable;
+            struct {
+                logic value;
+            } compl_enable;
+            struct {
+                logic value;
+            } threshold_enable;
+            struct {
+                logic value;
+            } debug_enable;
+            struct {
+                logic [15:0] value;
+            } timeout_cycles;
+        } SLAVE_TALLY_CFG_9_RD_CTRL;
+        struct {
+            struct {
+                logic [31:0] value;
+            } latency_threshold;
+        } SLAVE_TALLY_CFG_9_RD_LATENCY;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_pkt_mask;
+            struct {
+                logic [15:0] value;
+            } axi_err_select;
+        } SLAVE_TALLY_CFG_9_RD_MASKS_A;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_error_mask;
+            struct {
+                logic [15:0] value;
+            } axi_timeout_mask;
+        } SLAVE_TALLY_CFG_9_RD_MASKS_B;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_compl_mask;
+            struct {
+                logic [15:0] value;
+            } axi_thresh_mask;
+        } SLAVE_TALLY_CFG_9_RD_MASKS_C;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_perf_mask;
+            struct {
+                logic [15:0] value;
+            } axi_addr_mask;
+        } SLAVE_TALLY_CFG_9_RD_MASKS_D;
+        struct {
+            struct {
+                logic [15:0] value;
+            } axi_debug_mask;
+        } SLAVE_TALLY_CFG_9_RD_MASKS_E;
         struct {
             struct {
                 logic [31:0] value;
@@ -15768,6 +16440,1662 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.SLAVE_TALLY_7_RD_MASKS_E.axi_debug_mask.value = field_storage.SLAVE_TALLY_7_RD_MASKS_E.axi_debug_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.value <= 1'h1;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.value <= field_combo.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.value = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_CTRL.error_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.value <= 1'h1;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.value <= field_combo.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.value = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.value <= field_combo.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.value = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.value <= field_combo.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.value = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.value <= field_combo.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.value = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.value <= field_combo.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.value = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.value <= field_combo.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.value = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.value <= 16'h400;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.value <= field_combo.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.value = field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_LATENCY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.value <= 32'h200;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.value <= field_combo.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.value = field_storage.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_A && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.value <= field_combo.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.value = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_A && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.value <= field_combo.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.value = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_B && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.value <= field_combo.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.value = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_B && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.value <= field_combo.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.value = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_C && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.value <= field_combo.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.value = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_C && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.value <= field_combo.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.value = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_D && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.value <= field_combo.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.value = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_D && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.value <= field_combo.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.value = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_E && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.value <= field_combo.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.value = field_storage.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.value <= 1'h1;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.value <= field_combo.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.value = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_CTRL.error_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.value <= 1'h1;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.value <= field_combo.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.value = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.value <= field_combo.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.value = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.value <= field_combo.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.value = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.value <= field_combo.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.value = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.value <= field_combo.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.value = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.value <= field_combo.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.value = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.value <= 16'h400;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.value <= field_combo.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.value = field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_LATENCY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.value <= 32'h200;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.value <= field_combo.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.value = field_storage.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_A && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.value <= field_combo.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.value = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_A && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.value <= field_combo.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.value = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_B && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.value <= field_combo.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.value = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_B && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.value <= field_combo.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.value = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_C && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.value <= field_combo.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.value = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_C && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.value <= field_combo.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.value = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_D && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.value <= field_combo.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.value = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_D && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.value <= field_combo.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.value = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_E && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.next = next_c;
+        field_combo.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.load_next) begin
+                field_storage.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.value <= field_combo.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.value = field_storage.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.value <= 1'h1;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.value <= field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.value = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.value <= 1'h1;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.value <= field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.value = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.value <= field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.value = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.value <= field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.value = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.value <= field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.value = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.value <= field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.value = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.value <= field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.value = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.value <= 16'h400;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.value <= field_combo.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.value = field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_LATENCY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.value <= 32'h200;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.value <= field_combo.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.value = field_storage.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_A && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.value <= field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.value = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_A && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.value <= field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.value = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_B && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.value <= field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.value = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_B && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.value <= field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.value = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_C && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.value <= field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.value = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_C && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.value <= field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.value = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_D && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.value <= field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.value = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_D && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.value <= field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.value = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_E && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.value <= field_combo.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.value = field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.value <= 1'h1;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.value <= field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.value = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.value <= 1'h1;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.value <= field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.value = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.value <= field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.value = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.value <= field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.value = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.value <= field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.value = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.value <= field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.value = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.value <= 1'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.value <= field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.value = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.value <= 16'h400;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.value <= field_combo.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.value = field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_LATENCY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.value <= 32'h200;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.value <= field_combo.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.value = field_storage.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_A && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.value <= field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.value = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_A && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.value <= field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.value = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_B && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.value <= field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.value = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_B && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.value <= field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.value = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_C && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.value <= field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.value = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_C && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.value <= field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.value = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_D && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.value <= field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.value = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_D && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.value <= field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.value = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_E && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.value <= 16'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.value <= field_combo.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.value = field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.value;
     // Field: bridge_stream_mon_axil_mon_cfg.MON_GROUP_BASE_ADDR.base_addr
     always_comb begin
         automatic logic [31:0] next_c;
@@ -16452,7 +18780,7 @@ module bridge_stream_mon_axil_mon_cfg (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[192];
+    logic [31:0] readback_array[220];
     assign readback_array[0][0:0] = (decoded_reg_strb.HOST_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_WR_CTRL.monitor_enable.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.HOST_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_WR_CTRL.error_enable.value : '0;
     assign readback_array[0][2:2] = (decoded_reg_strb.HOST_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_WR_CTRL.timeout_enable.value : '0;
@@ -16981,36 +19309,116 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[174][31:16] = (decoded_reg_strb.SLAVE_TALLY_7_RD_MASKS_D && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_7_RD_MASKS_D.axi_addr_mask.value : '0;
     assign readback_array[175][15:0] = (decoded_reg_strb.SLAVE_TALLY_7_RD_MASKS_E && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_7_RD_MASKS_E.axi_debug_mask.value : '0;
     assign readback_array[175][31:16] = '0;
-    assign readback_array[176][31:0] = (decoded_reg_strb.MON_GROUP_BASE_ADDR && !decoded_req_is_wr) ? field_storage.MON_GROUP_BASE_ADDR.base_addr.value : '0;
-    assign readback_array[177][31:0] = (decoded_reg_strb.MON_GROUP_LIMIT_ADDR && !decoded_req_is_wr) ? field_storage.MON_GROUP_LIMIT_ADDR.limit_addr.value : '0;
-    assign readback_array[178][15:0] = (decoded_reg_strb.MON_GROUP_PACK_0 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_0.flush_watermark.value : '0;
-    assign readback_array[178][31:16] = (decoded_reg_strb.MON_GROUP_PACK_0 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_0.axi_pkt_mask.value : '0;
-    assign readback_array[179][15:0] = (decoded_reg_strb.MON_GROUP_PACK_1 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_1.axi_err_select.value : '0;
-    assign readback_array[179][31:16] = (decoded_reg_strb.MON_GROUP_PACK_1 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_1.axi_error_mask.value : '0;
-    assign readback_array[180][15:0] = (decoded_reg_strb.MON_GROUP_PACK_2 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_2.axi_timeout_mask.value : '0;
-    assign readback_array[180][31:16] = (decoded_reg_strb.MON_GROUP_PACK_2 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_2.axi_compl_mask.value : '0;
-    assign readback_array[181][15:0] = (decoded_reg_strb.MON_GROUP_PACK_3 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_3.axi_thresh_mask.value : '0;
-    assign readback_array[181][31:16] = (decoded_reg_strb.MON_GROUP_PACK_3 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_3.axi_perf_mask.value : '0;
-    assign readback_array[182][15:0] = (decoded_reg_strb.MON_GROUP_PACK_4 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_4.axi_addr_mask.value : '0;
-    assign readback_array[182][31:16] = (decoded_reg_strb.MON_GROUP_PACK_4 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_4.axi_debug_mask.value : '0;
-    assign readback_array[183][15:0] = (decoded_reg_strb.MON_GROUP_PACK_5 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_5.axis_pkt_mask.value : '0;
-    assign readback_array[183][31:16] = (decoded_reg_strb.MON_GROUP_PACK_5 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_5.axis_err_select.value : '0;
-    assign readback_array[184][15:0] = (decoded_reg_strb.MON_GROUP_PACK_6 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_6.axis_error_mask.value : '0;
-    assign readback_array[184][31:16] = (decoded_reg_strb.MON_GROUP_PACK_6 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_6.axis_timeout_mask.value : '0;
-    assign readback_array[185][15:0] = (decoded_reg_strb.MON_GROUP_PACK_7 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_7.axis_compl_mask.value : '0;
-    assign readback_array[185][31:16] = (decoded_reg_strb.MON_GROUP_PACK_7 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_7.axis_credit_mask.value : '0;
-    assign readback_array[186][15:0] = (decoded_reg_strb.MON_GROUP_PACK_8 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_8.axis_channel_mask.value : '0;
-    assign readback_array[186][31:16] = (decoded_reg_strb.MON_GROUP_PACK_8 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_8.axis_stream_mask.value : '0;
-    assign readback_array[187][15:0] = (decoded_reg_strb.MON_GROUP_PACK_9 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_9.core_pkt_mask.value : '0;
-    assign readback_array[187][31:16] = (decoded_reg_strb.MON_GROUP_PACK_9 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_9.core_err_select.value : '0;
-    assign readback_array[188][15:0] = (decoded_reg_strb.MON_GROUP_PACK_10 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_10.core_error_mask.value : '0;
-    assign readback_array[188][31:16] = (decoded_reg_strb.MON_GROUP_PACK_10 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_10.core_timeout_mask.value : '0;
-    assign readback_array[189][15:0] = (decoded_reg_strb.MON_GROUP_PACK_11 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_11.core_compl_mask.value : '0;
-    assign readback_array[189][31:16] = (decoded_reg_strb.MON_GROUP_PACK_11 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_11.core_thresh_mask.value : '0;
-    assign readback_array[190][15:0] = (decoded_reg_strb.MON_GROUP_PACK_12 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_12.core_perf_mask.value : '0;
-    assign readback_array[190][31:16] = (decoded_reg_strb.MON_GROUP_PACK_12 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_12.core_debug_mask.value : '0;
-    assign readback_array[191][0:0] = (decoded_reg_strb.MON_GROUP_COMPRESS_EN && !decoded_req_is_wr) ? field_storage.MON_GROUP_COMPRESS_EN.compress_en.value : '0;
-    assign readback_array[191][31:1] = '0;
+    assign readback_array[176][0:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_CTRL.monitor_enable.value : '0;
+    assign readback_array[176][1:1] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_CTRL.error_enable.value : '0;
+    assign readback_array[176][2:2] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_enable.value : '0;
+    assign readback_array[176][3:3] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_CTRL.perf_enable.value : '0;
+    assign readback_array[176][4:4] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_CTRL.compl_enable.value : '0;
+    assign readback_array[176][5:5] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.value : '0;
+    assign readback_array[176][6:6] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.value : '0;
+    assign readback_array[176][15:7] = '0;
+    assign readback_array[176][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.value : '0;
+    assign readback_array[177][31:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.value : '0;
+    assign readback_array[178][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.value : '0;
+    assign readback_array[178][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.value : '0;
+    assign readback_array[179][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_B && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_error_mask.value : '0;
+    assign readback_array[179][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_B && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_MASKS_B.axi_timeout_mask.value : '0;
+    assign readback_array[180][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_C && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_compl_mask.value : '0;
+    assign readback_array[180][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_C && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_MASKS_C.axi_thresh_mask.value : '0;
+    assign readback_array[181][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_D && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_perf_mask.value : '0;
+    assign readback_array[181][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_D && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_MASKS_D.axi_addr_mask.value : '0;
+    assign readback_array[182][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_WR_MASKS_E && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_WR_MASKS_E.axi_debug_mask.value : '0;
+    assign readback_array[182][31:16] = '0;
+    assign readback_array[183][0:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_CTRL.monitor_enable.value : '0;
+    assign readback_array[183][1:1] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_CTRL.error_enable.value : '0;
+    assign readback_array[183][2:2] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_enable.value : '0;
+    assign readback_array[183][3:3] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_CTRL.perf_enable.value : '0;
+    assign readback_array[183][4:4] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_CTRL.compl_enable.value : '0;
+    assign readback_array[183][5:5] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.value : '0;
+    assign readback_array[183][6:6] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.value : '0;
+    assign readback_array[183][15:7] = '0;
+    assign readback_array[183][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.value : '0;
+    assign readback_array[184][31:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.value : '0;
+    assign readback_array[185][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.value : '0;
+    assign readback_array[185][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.value : '0;
+    assign readback_array[186][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_B && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_error_mask.value : '0;
+    assign readback_array[186][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_B && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_MASKS_B.axi_timeout_mask.value : '0;
+    assign readback_array[187][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_C && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_compl_mask.value : '0;
+    assign readback_array[187][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_C && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_MASKS_C.axi_thresh_mask.value : '0;
+    assign readback_array[188][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_D && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_perf_mask.value : '0;
+    assign readback_array[188][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_D && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_MASKS_D.axi_addr_mask.value : '0;
+    assign readback_array[189][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_8_RD_MASKS_E && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_8_RD_MASKS_E.axi_debug_mask.value : '0;
+    assign readback_array[189][31:16] = '0;
+    assign readback_array[190][0:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.monitor_enable.value : '0;
+    assign readback_array[190][1:1] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.error_enable.value : '0;
+    assign readback_array[190][2:2] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_enable.value : '0;
+    assign readback_array[190][3:3] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.perf_enable.value : '0;
+    assign readback_array[190][4:4] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.compl_enable.value : '0;
+    assign readback_array[190][5:5] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.value : '0;
+    assign readback_array[190][6:6] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.value : '0;
+    assign readback_array[190][15:7] = '0;
+    assign readback_array[190][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.value : '0;
+    assign readback_array[191][31:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_LATENCY && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.value : '0;
+    assign readback_array[192][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.value : '0;
+    assign readback_array[192][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.value : '0;
+    assign readback_array[193][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_B && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_error_mask.value : '0;
+    assign readback_array[193][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_B && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_B.axi_timeout_mask.value : '0;
+    assign readback_array[194][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_C && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_compl_mask.value : '0;
+    assign readback_array[194][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_C && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_C.axi_thresh_mask.value : '0;
+    assign readback_array[195][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_D && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_perf_mask.value : '0;
+    assign readback_array[195][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_D && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_D.axi_addr_mask.value : '0;
+    assign readback_array[196][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_WR_MASKS_E && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_WR_MASKS_E.axi_debug_mask.value : '0;
+    assign readback_array[196][31:16] = '0;
+    assign readback_array[197][0:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.monitor_enable.value : '0;
+    assign readback_array[197][1:1] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.error_enable.value : '0;
+    assign readback_array[197][2:2] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_enable.value : '0;
+    assign readback_array[197][3:3] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.perf_enable.value : '0;
+    assign readback_array[197][4:4] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.compl_enable.value : '0;
+    assign readback_array[197][5:5] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.value : '0;
+    assign readback_array[197][6:6] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.value : '0;
+    assign readback_array[197][15:7] = '0;
+    assign readback_array[197][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.value : '0;
+    assign readback_array[198][31:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_LATENCY && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.value : '0;
+    assign readback_array[199][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.value : '0;
+    assign readback_array[199][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.value : '0;
+    assign readback_array[200][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_B && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_error_mask.value : '0;
+    assign readback_array[200][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_B && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_B.axi_timeout_mask.value : '0;
+    assign readback_array[201][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_C && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_compl_mask.value : '0;
+    assign readback_array[201][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_C && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_C.axi_thresh_mask.value : '0;
+    assign readback_array[202][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_D && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_perf_mask.value : '0;
+    assign readback_array[202][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_D && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_D.axi_addr_mask.value : '0;
+    assign readback_array[203][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_9_RD_MASKS_E && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_9_RD_MASKS_E.axi_debug_mask.value : '0;
+    assign readback_array[203][31:16] = '0;
+    assign readback_array[204][31:0] = (decoded_reg_strb.MON_GROUP_BASE_ADDR && !decoded_req_is_wr) ? field_storage.MON_GROUP_BASE_ADDR.base_addr.value : '0;
+    assign readback_array[205][31:0] = (decoded_reg_strb.MON_GROUP_LIMIT_ADDR && !decoded_req_is_wr) ? field_storage.MON_GROUP_LIMIT_ADDR.limit_addr.value : '0;
+    assign readback_array[206][15:0] = (decoded_reg_strb.MON_GROUP_PACK_0 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_0.flush_watermark.value : '0;
+    assign readback_array[206][31:16] = (decoded_reg_strb.MON_GROUP_PACK_0 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_0.axi_pkt_mask.value : '0;
+    assign readback_array[207][15:0] = (decoded_reg_strb.MON_GROUP_PACK_1 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_1.axi_err_select.value : '0;
+    assign readback_array[207][31:16] = (decoded_reg_strb.MON_GROUP_PACK_1 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_1.axi_error_mask.value : '0;
+    assign readback_array[208][15:0] = (decoded_reg_strb.MON_GROUP_PACK_2 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_2.axi_timeout_mask.value : '0;
+    assign readback_array[208][31:16] = (decoded_reg_strb.MON_GROUP_PACK_2 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_2.axi_compl_mask.value : '0;
+    assign readback_array[209][15:0] = (decoded_reg_strb.MON_GROUP_PACK_3 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_3.axi_thresh_mask.value : '0;
+    assign readback_array[209][31:16] = (decoded_reg_strb.MON_GROUP_PACK_3 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_3.axi_perf_mask.value : '0;
+    assign readback_array[210][15:0] = (decoded_reg_strb.MON_GROUP_PACK_4 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_4.axi_addr_mask.value : '0;
+    assign readback_array[210][31:16] = (decoded_reg_strb.MON_GROUP_PACK_4 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_4.axi_debug_mask.value : '0;
+    assign readback_array[211][15:0] = (decoded_reg_strb.MON_GROUP_PACK_5 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_5.axis_pkt_mask.value : '0;
+    assign readback_array[211][31:16] = (decoded_reg_strb.MON_GROUP_PACK_5 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_5.axis_err_select.value : '0;
+    assign readback_array[212][15:0] = (decoded_reg_strb.MON_GROUP_PACK_6 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_6.axis_error_mask.value : '0;
+    assign readback_array[212][31:16] = (decoded_reg_strb.MON_GROUP_PACK_6 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_6.axis_timeout_mask.value : '0;
+    assign readback_array[213][15:0] = (decoded_reg_strb.MON_GROUP_PACK_7 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_7.axis_compl_mask.value : '0;
+    assign readback_array[213][31:16] = (decoded_reg_strb.MON_GROUP_PACK_7 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_7.axis_credit_mask.value : '0;
+    assign readback_array[214][15:0] = (decoded_reg_strb.MON_GROUP_PACK_8 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_8.axis_channel_mask.value : '0;
+    assign readback_array[214][31:16] = (decoded_reg_strb.MON_GROUP_PACK_8 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_8.axis_stream_mask.value : '0;
+    assign readback_array[215][15:0] = (decoded_reg_strb.MON_GROUP_PACK_9 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_9.core_pkt_mask.value : '0;
+    assign readback_array[215][31:16] = (decoded_reg_strb.MON_GROUP_PACK_9 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_9.core_err_select.value : '0;
+    assign readback_array[216][15:0] = (decoded_reg_strb.MON_GROUP_PACK_10 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_10.core_error_mask.value : '0;
+    assign readback_array[216][31:16] = (decoded_reg_strb.MON_GROUP_PACK_10 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_10.core_timeout_mask.value : '0;
+    assign readback_array[217][15:0] = (decoded_reg_strb.MON_GROUP_PACK_11 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_11.core_compl_mask.value : '0;
+    assign readback_array[217][31:16] = (decoded_reg_strb.MON_GROUP_PACK_11 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_11.core_thresh_mask.value : '0;
+    assign readback_array[218][15:0] = (decoded_reg_strb.MON_GROUP_PACK_12 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_12.core_perf_mask.value : '0;
+    assign readback_array[218][31:16] = (decoded_reg_strb.MON_GROUP_PACK_12 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_12.core_debug_mask.value : '0;
+    assign readback_array[219][0:0] = (decoded_reg_strb.MON_GROUP_COMPRESS_EN && !decoded_req_is_wr) ? field_storage.MON_GROUP_COMPRESS_EN.compress_en.value : '0;
+    assign readback_array[219][31:1] = '0;
 
     // Reduce the array
     always_comb begin
@@ -17018,7 +19426,7 @@ module bridge_stream_mon_axil_mon_cfg (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<192; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<220; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

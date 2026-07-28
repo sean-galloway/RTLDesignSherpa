@@ -7,7 +7,7 @@
 import bridge_stream_mon_axil_mon_pkg::*;
 
 module monbus_wr_adapter #(
-    parameter NUM_SLAVES = 8,
+    parameter NUM_SLAVES = 10,
     parameter BRIDGE_ID = 2,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AW = 2,
@@ -679,7 +679,7 @@ module monbus_wr_adapter #(
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            8'b00010000: begin  // Slave 4 (64b)
+            10'b0000010000: begin  // Slave 4 (64b)
                 fub_axi_awready = monbus_wr_64b_awready;
             end
             default: begin
@@ -692,7 +692,7 @@ module monbus_wr_adapter #(
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            8'b00010000: begin  // Slave 4 (64b)
+            10'b0000010000: begin  // Slave 4 (64b)
                 fub_axi_wready = monbus_wr_64b_wready;
             end
             default: begin
@@ -708,7 +708,7 @@ module monbus_wr_adapter #(
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            8'b00010000: begin  // Slave 4 (64b)
+            10'b0000010000: begin  // Slave 4 (64b)
                 fub_axi_bid = monbus_wr_64b_b.id;
                 fub_axi_bresp = monbus_wr_64b_b.resp;
                 fub_axi_bvalid = monbus_wr_64b_bvalid;
@@ -723,7 +723,7 @@ module monbus_wr_adapter #(
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            8'b00010000: begin  // Slave 4 (64b)
+            10'b0000010000: begin  // Slave 4 (64b)
                 fub_axi_arready = monbus_wr_64b_arready;
             end
             default: begin
@@ -741,7 +741,7 @@ module monbus_wr_adapter #(
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            8'b00010000: begin  // Slave 4 (64b)
+            10'b0000010000: begin  // Slave 4 (64b)
                 fub_axi_rid = monbus_wr_64b_r.id;
                 fub_axi_rdata = monbus_wr_64b_r.data;
                 fub_axi_rresp = monbus_wr_64b_r.resp;

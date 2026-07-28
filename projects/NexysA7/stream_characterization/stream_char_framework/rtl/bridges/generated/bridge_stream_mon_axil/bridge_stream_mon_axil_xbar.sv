@@ -594,13 +594,129 @@ module bridge_stream_mon_axil_xbar (
     input  logic         slave_tally_axi_rlast,
     input  logic         slave_tally_axi_ruser,
     input  logic         slave_tally_axi_rvalid,
-    output  logic         slave_tally_axi_rready
+    output  logic         slave_tally_axi_rready,
+
+    // Slave 8: stream_tally_cfg
+    output logic [BRIDGE_ID_WIDTH-1:0] stream_tally_cfg_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] stream_tally_cfg_axi_bid_bridge_id,
+    input  logic                       stream_tally_cfg_axi_bid_valid,
+
+    output logic [BRIDGE_ID_WIDTH-1:0] stream_tally_cfg_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] stream_tally_cfg_axi_rid_bridge_id,
+    input  logic                       stream_tally_cfg_axi_rid_valid,
+
+    output  logic [7:0]  stream_tally_cfg_axi_awid,
+    output  logic [31:0]  stream_tally_cfg_axi_awaddr,
+    output  logic [7:0]  stream_tally_cfg_axi_awlen,
+    output  logic [2:0]  stream_tally_cfg_axi_awsize,
+    output  logic [1:0]  stream_tally_cfg_axi_awburst,
+    output  logic         stream_tally_cfg_axi_awlock,
+    output  logic [3:0]  stream_tally_cfg_axi_awcache,
+    output  logic [2:0]  stream_tally_cfg_axi_awprot,
+    output  logic [3:0]  stream_tally_cfg_axi_awqos,
+    output  logic [3:0]  stream_tally_cfg_axi_awregion,
+    output  logic         stream_tally_cfg_axi_awuser,
+    output  logic         stream_tally_cfg_axi_awvalid,
+    input  logic         stream_tally_cfg_axi_awready,
+
+    output  logic [63:0]  stream_tally_cfg_axi_wdata,
+    output  logic [7:0]  stream_tally_cfg_axi_wstrb,
+    output  logic         stream_tally_cfg_axi_wlast,
+    output  logic         stream_tally_cfg_axi_wuser,
+    output  logic         stream_tally_cfg_axi_wvalid,
+    input  logic         stream_tally_cfg_axi_wready,
+
+    input  logic [7:0]  stream_tally_cfg_axi_bid,
+    input  logic [1:0]  stream_tally_cfg_axi_bresp,
+    input  logic         stream_tally_cfg_axi_buser,
+    input  logic         stream_tally_cfg_axi_bvalid,
+    output  logic         stream_tally_cfg_axi_bready,
+
+    output  logic [7:0]  stream_tally_cfg_axi_arid,
+    output  logic [31:0]  stream_tally_cfg_axi_araddr,
+    output  logic [7:0]  stream_tally_cfg_axi_arlen,
+    output  logic [2:0]  stream_tally_cfg_axi_arsize,
+    output  logic [1:0]  stream_tally_cfg_axi_arburst,
+    output  logic         stream_tally_cfg_axi_arlock,
+    output  logic [3:0]  stream_tally_cfg_axi_arcache,
+    output  logic [2:0]  stream_tally_cfg_axi_arprot,
+    output  logic [3:0]  stream_tally_cfg_axi_arqos,
+    output  logic [3:0]  stream_tally_cfg_axi_arregion,
+    output  logic         stream_tally_cfg_axi_aruser,
+    output  logic         stream_tally_cfg_axi_arvalid,
+    input  logic         stream_tally_cfg_axi_arready,
+
+    input  logic [7:0]  stream_tally_cfg_axi_rid,
+    input  logic [63:0]  stream_tally_cfg_axi_rdata,
+    input  logic [1:0]  stream_tally_cfg_axi_rresp,
+    input  logic         stream_tally_cfg_axi_rlast,
+    input  logic         stream_tally_cfg_axi_ruser,
+    input  logic         stream_tally_cfg_axi_rvalid,
+    output  logic         stream_tally_cfg_axi_rready,
+
+    // Slave 9: slave_tally_cfg
+    output logic [BRIDGE_ID_WIDTH-1:0] slave_tally_cfg_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] slave_tally_cfg_axi_bid_bridge_id,
+    input  logic                       slave_tally_cfg_axi_bid_valid,
+
+    output logic [BRIDGE_ID_WIDTH-1:0] slave_tally_cfg_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] slave_tally_cfg_axi_rid_bridge_id,
+    input  logic                       slave_tally_cfg_axi_rid_valid,
+
+    output  logic [7:0]  slave_tally_cfg_axi_awid,
+    output  logic [31:0]  slave_tally_cfg_axi_awaddr,
+    output  logic [7:0]  slave_tally_cfg_axi_awlen,
+    output  logic [2:0]  slave_tally_cfg_axi_awsize,
+    output  logic [1:0]  slave_tally_cfg_axi_awburst,
+    output  logic         slave_tally_cfg_axi_awlock,
+    output  logic [3:0]  slave_tally_cfg_axi_awcache,
+    output  logic [2:0]  slave_tally_cfg_axi_awprot,
+    output  logic [3:0]  slave_tally_cfg_axi_awqos,
+    output  logic [3:0]  slave_tally_cfg_axi_awregion,
+    output  logic         slave_tally_cfg_axi_awuser,
+    output  logic         slave_tally_cfg_axi_awvalid,
+    input  logic         slave_tally_cfg_axi_awready,
+
+    output  logic [63:0]  slave_tally_cfg_axi_wdata,
+    output  logic [7:0]  slave_tally_cfg_axi_wstrb,
+    output  logic         slave_tally_cfg_axi_wlast,
+    output  logic         slave_tally_cfg_axi_wuser,
+    output  logic         slave_tally_cfg_axi_wvalid,
+    input  logic         slave_tally_cfg_axi_wready,
+
+    input  logic [7:0]  slave_tally_cfg_axi_bid,
+    input  logic [1:0]  slave_tally_cfg_axi_bresp,
+    input  logic         slave_tally_cfg_axi_buser,
+    input  logic         slave_tally_cfg_axi_bvalid,
+    output  logic         slave_tally_cfg_axi_bready,
+
+    output  logic [7:0]  slave_tally_cfg_axi_arid,
+    output  logic [31:0]  slave_tally_cfg_axi_araddr,
+    output  logic [7:0]  slave_tally_cfg_axi_arlen,
+    output  logic [2:0]  slave_tally_cfg_axi_arsize,
+    output  logic [1:0]  slave_tally_cfg_axi_arburst,
+    output  logic         slave_tally_cfg_axi_arlock,
+    output  logic [3:0]  slave_tally_cfg_axi_arcache,
+    output  logic [2:0]  slave_tally_cfg_axi_arprot,
+    output  logic [3:0]  slave_tally_cfg_axi_arqos,
+    output  logic [3:0]  slave_tally_cfg_axi_arregion,
+    output  logic         slave_tally_cfg_axi_aruser,
+    output  logic         slave_tally_cfg_axi_arvalid,
+    input  logic         slave_tally_cfg_axi_arready,
+
+    input  logic [7:0]  slave_tally_cfg_axi_rid,
+    input  logic [63:0]  slave_tally_cfg_axi_rdata,
+    input  logic [1:0]  slave_tally_cfg_axi_rresp,
+    input  logic         slave_tally_cfg_axi_rlast,
+    input  logic         slave_tally_cfg_axi_ruser,
+    input  logic         slave_tally_cfg_axi_rvalid,
+    output  logic         slave_tally_cfg_axi_rready
 );
 
     // ================================================================
     // Crossbar Routing
     // ================================================================
-    localparam NUM_SLAVES = 8;
+    localparam NUM_SLAVES = 10;
 
     // ================================================================
     // Slave 0: stream_apb (32b)
@@ -1358,6 +1474,158 @@ module bridge_stream_mon_axil_xbar (
 
 
     // ================================================================
+    // Slave 8: stream_tally_cfg (64b)
+    // ================================================================
+    // Single master: host → stream_tally_cfg
+    // Master width: 32b, Slave width: 64b
+    // Using 64b path from adapter
+
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_64b_aw_to_stream_tally_cfg = ((host_64b_aw.addr >= 32'h000a0000) && (host_64b_aw.addr <= 32'h000a0fff));
+    assign stream_tally_cfg_axi_awid     = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.id : '0;
+    assign stream_tally_cfg_axi_awaddr   = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.addr : '0;
+    assign stream_tally_cfg_axi_awlen    = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.len : '0;
+    assign stream_tally_cfg_axi_awsize   = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.size : '0;
+    assign stream_tally_cfg_axi_awburst  = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.burst : '0;
+    assign stream_tally_cfg_axi_awlock   = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.lock : '0;
+    assign stream_tally_cfg_axi_awcache  = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.cache : '0;
+    assign stream_tally_cfg_axi_awprot   = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.prot : '0;
+    assign stream_tally_cfg_axi_awvalid  = host_64b_aw_to_stream_tally_cfg && host_64b_awvalid;
+
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic host_64b_w_to_stream_tally_cfg;
+    logic [3:0] host_64b_aw_to_stream_tally_cfg_w_wptr, host_64b_aw_to_stream_tally_cfg_w_rptr;
+    logic host_64b_aw_to_stream_tally_cfg_w_mem [16];
+    logic host_64b_aw_to_stream_tally_cfg_w_push, host_64b_aw_to_stream_tally_cfg_w_pop;
+    assign host_64b_aw_to_stream_tally_cfg_w_push = host_64b_awvalid && host_64b_awready && host_64b_aw_to_stream_tally_cfg;
+    assign host_64b_aw_to_stream_tally_cfg_w_pop  = host_64b_wvalid && host_64b_wready && host_64b_w.last && host_64b_w_to_stream_tally_cfg;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_64b_aw_to_stream_tally_cfg_w_wptr <= '0;
+            host_64b_aw_to_stream_tally_cfg_w_rptr <= '0;
+        end else begin
+            if (host_64b_aw_to_stream_tally_cfg_w_push) begin
+                host_64b_aw_to_stream_tally_cfg_w_mem[host_64b_aw_to_stream_tally_cfg_w_wptr] <= 1'b1;
+                host_64b_aw_to_stream_tally_cfg_w_wptr <= host_64b_aw_to_stream_tally_cfg_w_wptr + 1'b1;
+            end
+            if (host_64b_aw_to_stream_tally_cfg_w_pop) begin
+                host_64b_aw_to_stream_tally_cfg_w_rptr <= host_64b_aw_to_stream_tally_cfg_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign host_64b_w_to_stream_tally_cfg = (host_64b_aw_to_stream_tally_cfg_w_wptr != host_64b_aw_to_stream_tally_cfg_w_rptr) ? host_64b_aw_to_stream_tally_cfg_w_mem[host_64b_aw_to_stream_tally_cfg_w_rptr] : 1'b0;
+
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign stream_tally_cfg_axi_wdata  = host_64b_w_to_stream_tally_cfg ? host_64b_w.data : '0;
+    assign stream_tally_cfg_axi_wstrb  = host_64b_w_to_stream_tally_cfg ? host_64b_w.strb : '0;
+    assign stream_tally_cfg_axi_wlast  = host_64b_w_to_stream_tally_cfg ? host_64b_w.last : '0;
+    assign stream_tally_cfg_axi_wvalid = host_64b_w_to_stream_tally_cfg && host_64b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign stream_tally_cfg_axi_bready = ((stream_tally_cfg_axi_bid_bridge_id == 0) && stream_tally_cfg_axi_bid_valid) ? host_64b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign stream_tally_cfg_axi_bridge_id_aw = host_64b_aw_to_stream_tally_cfg ? host_bridge_id_aw : '0;
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_64b_ar_to_stream_tally_cfg = ((host_64b_ar.addr >= 32'h000a0000) && (host_64b_ar.addr <= 32'h000a0fff));
+    assign stream_tally_cfg_axi_arid     = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.id : '0;
+    assign stream_tally_cfg_axi_araddr   = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.addr : '0;
+    assign stream_tally_cfg_axi_arlen    = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.len : '0;
+    assign stream_tally_cfg_axi_arsize   = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.size : '0;
+    assign stream_tally_cfg_axi_arburst  = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.burst : '0;
+    assign stream_tally_cfg_axi_arlock   = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.lock : '0;
+    assign stream_tally_cfg_axi_arcache  = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.cache : '0;
+    assign stream_tally_cfg_axi_arprot   = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.prot : '0;
+    assign stream_tally_cfg_axi_arvalid  = host_64b_ar_to_stream_tally_cfg && host_64b_arvalid;
+
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign stream_tally_cfg_axi_rready = ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid) ? host_64b_rready : '0;
+
+    // Bridge ID (master → slave)
+    assign stream_tally_cfg_axi_bridge_id_ar = host_64b_ar_to_stream_tally_cfg ? host_bridge_id_ar : '0;
+
+
+    // ================================================================
+    // Slave 9: slave_tally_cfg (64b)
+    // ================================================================
+    // Single master: host → slave_tally_cfg
+    // Master width: 32b, Slave width: 64b
+    // Using 64b path from adapter
+
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_64b_aw_to_slave_tally_cfg = ((host_64b_aw.addr >= 32'h000b0000) && (host_64b_aw.addr <= 32'h000b0fff));
+    assign slave_tally_cfg_axi_awid     = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.id : '0;
+    assign slave_tally_cfg_axi_awaddr   = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.addr : '0;
+    assign slave_tally_cfg_axi_awlen    = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.len : '0;
+    assign slave_tally_cfg_axi_awsize   = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.size : '0;
+    assign slave_tally_cfg_axi_awburst  = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.burst : '0;
+    assign slave_tally_cfg_axi_awlock   = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.lock : '0;
+    assign slave_tally_cfg_axi_awcache  = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.cache : '0;
+    assign slave_tally_cfg_axi_awprot   = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.prot : '0;
+    assign slave_tally_cfg_axi_awvalid  = host_64b_aw_to_slave_tally_cfg && host_64b_awvalid;
+
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic host_64b_w_to_slave_tally_cfg;
+    logic [3:0] host_64b_aw_to_slave_tally_cfg_w_wptr, host_64b_aw_to_slave_tally_cfg_w_rptr;
+    logic host_64b_aw_to_slave_tally_cfg_w_mem [16];
+    logic host_64b_aw_to_slave_tally_cfg_w_push, host_64b_aw_to_slave_tally_cfg_w_pop;
+    assign host_64b_aw_to_slave_tally_cfg_w_push = host_64b_awvalid && host_64b_awready && host_64b_aw_to_slave_tally_cfg;
+    assign host_64b_aw_to_slave_tally_cfg_w_pop  = host_64b_wvalid && host_64b_wready && host_64b_w.last && host_64b_w_to_slave_tally_cfg;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_64b_aw_to_slave_tally_cfg_w_wptr <= '0;
+            host_64b_aw_to_slave_tally_cfg_w_rptr <= '0;
+        end else begin
+            if (host_64b_aw_to_slave_tally_cfg_w_push) begin
+                host_64b_aw_to_slave_tally_cfg_w_mem[host_64b_aw_to_slave_tally_cfg_w_wptr] <= 1'b1;
+                host_64b_aw_to_slave_tally_cfg_w_wptr <= host_64b_aw_to_slave_tally_cfg_w_wptr + 1'b1;
+            end
+            if (host_64b_aw_to_slave_tally_cfg_w_pop) begin
+                host_64b_aw_to_slave_tally_cfg_w_rptr <= host_64b_aw_to_slave_tally_cfg_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign host_64b_w_to_slave_tally_cfg = (host_64b_aw_to_slave_tally_cfg_w_wptr != host_64b_aw_to_slave_tally_cfg_w_rptr) ? host_64b_aw_to_slave_tally_cfg_w_mem[host_64b_aw_to_slave_tally_cfg_w_rptr] : 1'b0;
+
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign slave_tally_cfg_axi_wdata  = host_64b_w_to_slave_tally_cfg ? host_64b_w.data : '0;
+    assign slave_tally_cfg_axi_wstrb  = host_64b_w_to_slave_tally_cfg ? host_64b_w.strb : '0;
+    assign slave_tally_cfg_axi_wlast  = host_64b_w_to_slave_tally_cfg ? host_64b_w.last : '0;
+    assign slave_tally_cfg_axi_wvalid = host_64b_w_to_slave_tally_cfg && host_64b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign slave_tally_cfg_axi_bready = ((slave_tally_cfg_axi_bid_bridge_id == 0) && slave_tally_cfg_axi_bid_valid) ? host_64b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign slave_tally_cfg_axi_bridge_id_aw = host_64b_aw_to_slave_tally_cfg ? host_bridge_id_aw : '0;
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_64b_ar_to_slave_tally_cfg = ((host_64b_ar.addr >= 32'h000b0000) && (host_64b_ar.addr <= 32'h000b0fff));
+    assign slave_tally_cfg_axi_arid     = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.id : '0;
+    assign slave_tally_cfg_axi_araddr   = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.addr : '0;
+    assign slave_tally_cfg_axi_arlen    = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.len : '0;
+    assign slave_tally_cfg_axi_arsize   = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.size : '0;
+    assign slave_tally_cfg_axi_arburst  = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.burst : '0;
+    assign slave_tally_cfg_axi_arlock   = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.lock : '0;
+    assign slave_tally_cfg_axi_arcache  = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.cache : '0;
+    assign slave_tally_cfg_axi_arprot   = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.prot : '0;
+    assign slave_tally_cfg_axi_arvalid  = host_64b_ar_to_slave_tally_cfg && host_64b_arvalid;
+
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign slave_tally_cfg_axi_rready = ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid) ? host_64b_rready : '0;
+
+    // Bridge ID (master → slave)
+    assign slave_tally_cfg_axi_bridge_id_ar = host_64b_ar_to_slave_tally_cfg ? host_bridge_id_ar : '0;
+
+
+    // ================================================================
     // Response MUXes (OR together all slave responses)
     // ================================================================
 
@@ -1443,47 +1711,69 @@ module bridge_stream_mon_axil_xbar (
     // Master: host, Width path: 64b
     assign host_64b_awready = 
         (host_64b_aw_to_stream_tally ? stream_tally_axi_awready : '0) |
-        (host_64b_aw_to_slave_tally ? slave_tally_axi_awready : '0);
+        (host_64b_aw_to_slave_tally ? slave_tally_axi_awready : '0) |
+        (host_64b_aw_to_stream_tally_cfg ? stream_tally_cfg_axi_awready : '0) |
+        (host_64b_aw_to_slave_tally_cfg ? slave_tally_cfg_axi_awready : '0);
 
     assign host_64b_wready = 
         (host_64b_w_to_stream_tally ? stream_tally_axi_wready : '0) |
-        (host_64b_w_to_slave_tally ? slave_tally_axi_wready : '0);
+        (host_64b_w_to_slave_tally ? slave_tally_axi_wready : '0) |
+        (host_64b_w_to_stream_tally_cfg ? stream_tally_cfg_axi_wready : '0) |
+        (host_64b_w_to_slave_tally_cfg ? slave_tally_cfg_axi_wready : '0);
 
     assign host_64b_b.id = 
         ((stream_tally_axi_bid_bridge_id == 0) && stream_tally_axi_bid_valid ? stream_tally_axi_bid : '0) |
-        ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid ? slave_tally_axi_bid : '0);
+        ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid ? slave_tally_axi_bid : '0) |
+        ((stream_tally_cfg_axi_bid_bridge_id == 0) && stream_tally_cfg_axi_bid_valid ? stream_tally_cfg_axi_bid : '0) |
+        ((slave_tally_cfg_axi_bid_bridge_id == 0) && slave_tally_cfg_axi_bid_valid ? slave_tally_cfg_axi_bid : '0);
 
     assign host_64b_b.resp = 
         ((stream_tally_axi_bid_bridge_id == 0) && stream_tally_axi_bid_valid ? stream_tally_axi_bresp : '0) |
-        ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid ? slave_tally_axi_bresp : '0);
+        ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid ? slave_tally_axi_bresp : '0) |
+        ((stream_tally_cfg_axi_bid_bridge_id == 0) && stream_tally_cfg_axi_bid_valid ? stream_tally_cfg_axi_bresp : '0) |
+        ((slave_tally_cfg_axi_bid_bridge_id == 0) && slave_tally_cfg_axi_bid_valid ? slave_tally_cfg_axi_bresp : '0);
 
     assign host_64b_bvalid = 
         ((stream_tally_axi_bid_bridge_id == 0) && stream_tally_axi_bid_valid ? stream_tally_axi_bvalid : '0) |
-        ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid ? slave_tally_axi_bvalid : '0);
+        ((slave_tally_axi_bid_bridge_id == 0) && slave_tally_axi_bid_valid ? slave_tally_axi_bvalid : '0) |
+        ((stream_tally_cfg_axi_bid_bridge_id == 0) && stream_tally_cfg_axi_bid_valid ? stream_tally_cfg_axi_bvalid : '0) |
+        ((slave_tally_cfg_axi_bid_bridge_id == 0) && slave_tally_cfg_axi_bid_valid ? slave_tally_cfg_axi_bvalid : '0);
 
     assign host_64b_arready = 
         (host_64b_ar_to_stream_tally ? stream_tally_axi_arready : '0) |
-        (host_64b_ar_to_slave_tally ? slave_tally_axi_arready : '0);
+        (host_64b_ar_to_slave_tally ? slave_tally_axi_arready : '0) |
+        (host_64b_ar_to_stream_tally_cfg ? stream_tally_cfg_axi_arready : '0) |
+        (host_64b_ar_to_slave_tally_cfg ? slave_tally_cfg_axi_arready : '0);
 
     assign host_64b_r.id = 
         ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid ? stream_tally_axi_rid : '0) |
-        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rid : '0);
+        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rid : '0) |
+        ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid ? stream_tally_cfg_axi_rid : '0) |
+        ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid ? slave_tally_cfg_axi_rid : '0);
 
     assign host_64b_r.data = 
         ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid ? stream_tally_axi_rdata : 64'b0) |
-        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rdata : 64'b0);
+        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rdata : 64'b0) |
+        ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid ? stream_tally_cfg_axi_rdata : 64'b0) |
+        ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid ? slave_tally_cfg_axi_rdata : 64'b0);
 
     assign host_64b_r.resp = 
         ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid ? stream_tally_axi_rresp : '0) |
-        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rresp : '0);
+        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rresp : '0) |
+        ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid ? stream_tally_cfg_axi_rresp : '0) |
+        ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid ? slave_tally_cfg_axi_rresp : '0);
 
     assign host_64b_r.last = 
         ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid ? stream_tally_axi_rlast : '0) |
-        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rlast : '0);
+        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rlast : '0) |
+        ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid ? stream_tally_cfg_axi_rlast : '0) |
+        ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid ? slave_tally_cfg_axi_rlast : '0);
 
     assign host_64b_rvalid = 
         ((stream_tally_axi_rid_bridge_id == 0) && stream_tally_axi_rid_valid ? stream_tally_axi_rvalid : '0) |
-        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rvalid : '0);
+        ((slave_tally_axi_rid_bridge_id == 0) && slave_tally_axi_rid_valid ? slave_tally_axi_rvalid : '0) |
+        ((stream_tally_cfg_axi_rid_bridge_id == 0) && stream_tally_cfg_axi_rid_valid ? stream_tally_cfg_axi_rvalid : '0) |
+        ((slave_tally_cfg_axi_rid_bridge_id == 0) && slave_tally_cfg_axi_rid_valid ? slave_tally_cfg_axi_rvalid : '0);
 
 
     // Master: host, Width path: 256b

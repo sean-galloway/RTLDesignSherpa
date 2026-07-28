@@ -1322,6 +1322,206 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     } SLAVE_TALLY_7_RD_MASKS_E;
 
     // ----------------------------------------------------------------
+    // stream_tally_cfg_8 WR direction
+    // ----------------------------------------------------------------
+    reg {
+        name = "stream_tally_cfg_8 WR CTRL";
+        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        field { reset = 1'h1; } monitor_enable[0:0];
+        field { reset = 1'h1; } error_enable[1:1];
+        field { reset = 1'h0; } timeout_enable[2:2];
+        field { reset = 1'h0; } perf_enable[3:3];
+        field { reset = 1'h0; } compl_enable[4:4];
+        field { reset = 1'h0; } threshold_enable[5:5];
+        field { reset = 1'h0; } debug_enable[6:6];
+        field { reset = 16'h0400; } timeout_cycles[31:16];
+    } STREAM_TALLY_CFG_8_WR_CTRL;
+
+    reg {
+        name = "stream_tally_cfg_8 WR LATENCY";
+        field { reset = 32'h00000200; } latency_threshold[31:0];
+    } STREAM_TALLY_CFG_8_WR_LATENCY;
+
+    reg {
+        name = "stream_tally_cfg_8 WR MASKS_A";
+        field { reset = 16'h0000; } axi_pkt_mask[15:0];
+        field { reset = 16'h0000; } axi_err_select[31:16];
+    } STREAM_TALLY_CFG_8_WR_MASKS_A;
+
+    reg {
+        name = "stream_tally_cfg_8 WR MASKS_B";
+        field { reset = 16'h0000; } axi_error_mask[15:0];
+        field { reset = 16'h0000; } axi_timeout_mask[31:16];
+    } STREAM_TALLY_CFG_8_WR_MASKS_B;
+
+    reg {
+        name = "stream_tally_cfg_8 WR MASKS_C";
+        field { reset = 16'h0000; } axi_compl_mask[15:0];
+        field { reset = 16'h0000; } axi_thresh_mask[31:16];
+    } STREAM_TALLY_CFG_8_WR_MASKS_C;
+
+    reg {
+        name = "stream_tally_cfg_8 WR MASKS_D";
+        field { reset = 16'h0000; } axi_perf_mask[15:0];
+        field { reset = 16'h0000; } axi_addr_mask[31:16];
+    } STREAM_TALLY_CFG_8_WR_MASKS_D;
+
+    reg {
+        name = "stream_tally_cfg_8 WR MASKS_E";
+        field { reset = 16'h0000; } axi_debug_mask[15:0];
+    } STREAM_TALLY_CFG_8_WR_MASKS_E;
+
+    // ----------------------------------------------------------------
+    // stream_tally_cfg_8 RD direction
+    // ----------------------------------------------------------------
+    reg {
+        name = "stream_tally_cfg_8 RD CTRL";
+        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        field { reset = 1'h1; } monitor_enable[0:0];
+        field { reset = 1'h1; } error_enable[1:1];
+        field { reset = 1'h0; } timeout_enable[2:2];
+        field { reset = 1'h0; } perf_enable[3:3];
+        field { reset = 1'h0; } compl_enable[4:4];
+        field { reset = 1'h0; } threshold_enable[5:5];
+        field { reset = 1'h0; } debug_enable[6:6];
+        field { reset = 16'h0400; } timeout_cycles[31:16];
+    } STREAM_TALLY_CFG_8_RD_CTRL;
+
+    reg {
+        name = "stream_tally_cfg_8 RD LATENCY";
+        field { reset = 32'h00000200; } latency_threshold[31:0];
+    } STREAM_TALLY_CFG_8_RD_LATENCY;
+
+    reg {
+        name = "stream_tally_cfg_8 RD MASKS_A";
+        field { reset = 16'h0000; } axi_pkt_mask[15:0];
+        field { reset = 16'h0000; } axi_err_select[31:16];
+    } STREAM_TALLY_CFG_8_RD_MASKS_A;
+
+    reg {
+        name = "stream_tally_cfg_8 RD MASKS_B";
+        field { reset = 16'h0000; } axi_error_mask[15:0];
+        field { reset = 16'h0000; } axi_timeout_mask[31:16];
+    } STREAM_TALLY_CFG_8_RD_MASKS_B;
+
+    reg {
+        name = "stream_tally_cfg_8 RD MASKS_C";
+        field { reset = 16'h0000; } axi_compl_mask[15:0];
+        field { reset = 16'h0000; } axi_thresh_mask[31:16];
+    } STREAM_TALLY_CFG_8_RD_MASKS_C;
+
+    reg {
+        name = "stream_tally_cfg_8 RD MASKS_D";
+        field { reset = 16'h0000; } axi_perf_mask[15:0];
+        field { reset = 16'h0000; } axi_addr_mask[31:16];
+    } STREAM_TALLY_CFG_8_RD_MASKS_D;
+
+    reg {
+        name = "stream_tally_cfg_8 RD MASKS_E";
+        field { reset = 16'h0000; } axi_debug_mask[15:0];
+    } STREAM_TALLY_CFG_8_RD_MASKS_E;
+
+    // ----------------------------------------------------------------
+    // slave_tally_cfg_9 WR direction
+    // ----------------------------------------------------------------
+    reg {
+        name = "slave_tally_cfg_9 WR CTRL";
+        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        field { reset = 1'h1; } monitor_enable[0:0];
+        field { reset = 1'h1; } error_enable[1:1];
+        field { reset = 1'h0; } timeout_enable[2:2];
+        field { reset = 1'h0; } perf_enable[3:3];
+        field { reset = 1'h0; } compl_enable[4:4];
+        field { reset = 1'h0; } threshold_enable[5:5];
+        field { reset = 1'h0; } debug_enable[6:6];
+        field { reset = 16'h0400; } timeout_cycles[31:16];
+    } SLAVE_TALLY_CFG_9_WR_CTRL;
+
+    reg {
+        name = "slave_tally_cfg_9 WR LATENCY";
+        field { reset = 32'h00000200; } latency_threshold[31:0];
+    } SLAVE_TALLY_CFG_9_WR_LATENCY;
+
+    reg {
+        name = "slave_tally_cfg_9 WR MASKS_A";
+        field { reset = 16'h0000; } axi_pkt_mask[15:0];
+        field { reset = 16'h0000; } axi_err_select[31:16];
+    } SLAVE_TALLY_CFG_9_WR_MASKS_A;
+
+    reg {
+        name = "slave_tally_cfg_9 WR MASKS_B";
+        field { reset = 16'h0000; } axi_error_mask[15:0];
+        field { reset = 16'h0000; } axi_timeout_mask[31:16];
+    } SLAVE_TALLY_CFG_9_WR_MASKS_B;
+
+    reg {
+        name = "slave_tally_cfg_9 WR MASKS_C";
+        field { reset = 16'h0000; } axi_compl_mask[15:0];
+        field { reset = 16'h0000; } axi_thresh_mask[31:16];
+    } SLAVE_TALLY_CFG_9_WR_MASKS_C;
+
+    reg {
+        name = "slave_tally_cfg_9 WR MASKS_D";
+        field { reset = 16'h0000; } axi_perf_mask[15:0];
+        field { reset = 16'h0000; } axi_addr_mask[31:16];
+    } SLAVE_TALLY_CFG_9_WR_MASKS_D;
+
+    reg {
+        name = "slave_tally_cfg_9 WR MASKS_E";
+        field { reset = 16'h0000; } axi_debug_mask[15:0];
+    } SLAVE_TALLY_CFG_9_WR_MASKS_E;
+
+    // ----------------------------------------------------------------
+    // slave_tally_cfg_9 RD direction
+    // ----------------------------------------------------------------
+    reg {
+        name = "slave_tally_cfg_9 RD CTRL";
+        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        field { reset = 1'h1; } monitor_enable[0:0];
+        field { reset = 1'h1; } error_enable[1:1];
+        field { reset = 1'h0; } timeout_enable[2:2];
+        field { reset = 1'h0; } perf_enable[3:3];
+        field { reset = 1'h0; } compl_enable[4:4];
+        field { reset = 1'h0; } threshold_enable[5:5];
+        field { reset = 1'h0; } debug_enable[6:6];
+        field { reset = 16'h0400; } timeout_cycles[31:16];
+    } SLAVE_TALLY_CFG_9_RD_CTRL;
+
+    reg {
+        name = "slave_tally_cfg_9 RD LATENCY";
+        field { reset = 32'h00000200; } latency_threshold[31:0];
+    } SLAVE_TALLY_CFG_9_RD_LATENCY;
+
+    reg {
+        name = "slave_tally_cfg_9 RD MASKS_A";
+        field { reset = 16'h0000; } axi_pkt_mask[15:0];
+        field { reset = 16'h0000; } axi_err_select[31:16];
+    } SLAVE_TALLY_CFG_9_RD_MASKS_A;
+
+    reg {
+        name = "slave_tally_cfg_9 RD MASKS_B";
+        field { reset = 16'h0000; } axi_error_mask[15:0];
+        field { reset = 16'h0000; } axi_timeout_mask[31:16];
+    } SLAVE_TALLY_CFG_9_RD_MASKS_B;
+
+    reg {
+        name = "slave_tally_cfg_9 RD MASKS_C";
+        field { reset = 16'h0000; } axi_compl_mask[15:0];
+        field { reset = 16'h0000; } axi_thresh_mask[31:16];
+    } SLAVE_TALLY_CFG_9_RD_MASKS_C;
+
+    reg {
+        name = "slave_tally_cfg_9 RD MASKS_D";
+        field { reset = 16'h0000; } axi_perf_mask[15:0];
+        field { reset = 16'h0000; } axi_addr_mask[31:16];
+    } SLAVE_TALLY_CFG_9_RD_MASKS_D;
+
+    reg {
+        name = "slave_tally_cfg_9 RD MASKS_E";
+        field { reset = 16'h0000; } axi_debug_mask[15:0];
+    } SLAVE_TALLY_CFG_9_RD_MASKS_E;
+
+    // ----------------------------------------------------------------
     // Group cfg — shared across all monitors at the monbus_axil_group.
     // Emitted from the bridge generator's _MON_GROUP_CFG tuple: 32-bit
     // fields each get their own MON_GROUP_<NAME> register; 16-bit

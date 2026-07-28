@@ -7,7 +7,7 @@
 import bridge_stream_mon_axil_pkg::*;
 
 module stream_desc_adapter #(
-    parameter NUM_SLAVES = 8,
+    parameter NUM_SLAVES = 10,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AW = 2,
@@ -500,7 +500,7 @@ module stream_desc_adapter #(
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            8'b00000100: begin  // Slave 2 (256b)
+            10'b0000000100: begin  // Slave 2 (256b)
                 fub_axi_awready = stream_desc_256b_awready;
             end
             default: begin
@@ -513,7 +513,7 @@ module stream_desc_adapter #(
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            8'b00000100: begin  // Slave 2 (256b)
+            10'b0000000100: begin  // Slave 2 (256b)
                 fub_axi_wready = stream_desc_256b_wready;
             end
             default: begin
@@ -529,7 +529,7 @@ module stream_desc_adapter #(
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            8'b00000100: begin  // Slave 2 (256b)
+            10'b0000000100: begin  // Slave 2 (256b)
                 fub_axi_bid = stream_desc_256b_b.id;
                 fub_axi_bresp = stream_desc_256b_b.resp;
                 fub_axi_bvalid = stream_desc_256b_bvalid;
@@ -544,7 +544,7 @@ module stream_desc_adapter #(
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            8'b00000100: begin  // Slave 2 (256b)
+            10'b0000000100: begin  // Slave 2 (256b)
                 fub_axi_arready = stream_desc_256b_arready;
             end
             default: begin
@@ -562,7 +562,7 @@ module stream_desc_adapter #(
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            8'b00000100: begin  // Slave 2 (256b)
+            10'b0000000100: begin  // Slave 2 (256b)
                 fub_axi_rid = stream_desc_256b_r.id;
                 fub_axi_rdata = stream_desc_256b_r.data;
                 fub_axi_rresp = stream_desc_256b_r.resp;
