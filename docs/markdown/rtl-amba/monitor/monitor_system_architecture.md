@@ -69,13 +69,33 @@ system already handles it.
 
 ---
 
-## The packet is hierarchical in three independent ways
+## Two coordinate systems and a topology
 
-This is the property that makes one 128-bit word serve a whole SoC, and it is
-worth being explicit about because none of the three hierarchies is obvious from
-the field list.
+This is the property that makes one 128-bit word serve a whole SoC, and none of
+it is obvious from the field list.
 
-### 1. Classification: what happened
+**Read the first two as coordinate systems, not as a tree with a fixed root.**
+The packet carries a classification (*what happened*) and an identity (*who it
+happened to*), and the two are orthogonal. Neither is the base. It is entirely
+reasonable to organise by `protocol` and treat identity as an attribute of the
+event -- and equally reasonable to organise by `unit_id` and treat the
+classification as an attribute of the block. Which one is the major key is the
+consumer's decision, and the packet is indifferent.
+
+Today's *hardware* consumers happen to be classification-major: the filter masks
+are per-protocol then per-type (`cfg_axi_pkt_mask`, `cfg_axis_error_mask`, ...),
+and `monbus_pkt_tally` addresses its histogram with
+`{protocol, pkt_type, event_code}` directly. That is an implementation choice of
+those two blocks, not a property of the format -- **nothing in the monitor
+hardware filters or indexes on `unit_id` or `agent_id` at all.** A unit-major
+consumer ("show me everything subsystem 9 did, whatever protocol") is just as
+legitimate, needs no change to the packet, and is what a software decoder
+typically wants; `get_unit_id()` and `get_agent_id()` exist for exactly that.
+
+If a future block wants to filter or bin by identity, the packet already carries
+what it needs. Only the consumer is missing.
+
+### Coordinate A -- classification: what happened
 
 ```
 protocol  (4b, 16 slots)   AXI / AXIS / APB / ARB / CORE
@@ -93,7 +113,7 @@ This is what lets the filter be three-level (drop a whole type, then individual
 codes within a type you are keeping) and what lets the histogram bin on the
 whole tuple without knowing what any of it means.
 
-### 2. Identity: who it happened to
+### Coordinate B -- identity: who it happened to
 
 ```
 unit_id    (8b)   which subsystem
@@ -101,13 +121,17 @@ unit_id    (8b)   which subsystem
        └─ channel_id (9b)   which channel, or which AXI transaction ID
 ```
 
+Note this nests the same way the classification does, and to the same depth --
+three levels, each narrowing the one above. That symmetry is why either can
+serve as the major key without the other becoming awkward.
+
 `UNIT_ID` and `AGENT_ID` are elaboration parameters on the monitor, so identity
 is assigned structurally at integration time, not discovered at runtime. Two
 instances of the same wrapper differ only by parameter. A consumer can aggregate
 at any level -- all errors in a subsystem, or one channel of one instance --
 without the producers knowing which grouping anyone intends.
 
-### 3. Topology: how packets reach the capture point
+### Topology -- how packets reach the capture point
 
 `monbus_arbiter` takes `CLIENTS` monbus inputs and produces **one monbus
 output of exactly the same shape**. That is the whole trick: an arbiter's output
