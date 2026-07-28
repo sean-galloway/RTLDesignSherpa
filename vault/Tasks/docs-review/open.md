@@ -347,7 +347,12 @@ of starting each area, not optional prep):
    TOOL-008). Already in place for cdc/common/math/amba/integ_*; CHECK when
    each new area starts — projects/components areas will need them added.
 2. Rebuild the WHOLE bundle from the current tree (rule 1), then regenerate
-   the area's `_meta` unit immediately — the bundler deletes it.
+   the area's `_meta` unit immediately — the bundler deletes it. Then run
+   `bin/review/augment_golden_deps.py` on the area's PART units (never the
+   `_meta` unit — its RTL.sv is an inventory): doc-referenced but
+   non-instantiated modules (reset_sync class) join the bundle as GOLDEN
+   ground truth — evidence for claims docs make about them, never finding
+   targets (Sean, 2026-07-28; the reset_sync REFUTED-a-real-finding case).
 3. qc round for the area, serial, large max_tokens (rules 2-4).
 4. Adjudicate the round's findings with `bin/review/verify_findings.py`,
    then human-triage what the verifier does not REFUTE.

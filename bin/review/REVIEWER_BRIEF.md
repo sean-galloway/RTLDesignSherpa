@@ -117,6 +117,12 @@ Reporting them again wastes the human triage that follows you.
 - **Generated or derivative files.** Wrapper RTL and register maps are
   generated from configs; docs describing the generator's output are correct
   when they match the GENERATOR, even if a specific generated instance differs.
+- **GOLDEN-banner sections in RTL.sv.** Everything after a `GOLDEN
+  DEPENDENCIES` banner is independently reviewed ground truth included ONLY so
+  you can verify claims the docs make ABOUT those modules (interfaces,
+  parameter names, behaviour in doc examples). Never file a finding on a
+  golden module's own implementation; a finding that the doc misdescribes the
+  golden module, however, is exactly what they are there for.
 
 ## Output format
 
