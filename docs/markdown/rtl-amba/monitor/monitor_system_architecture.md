@@ -134,6 +134,33 @@ Note that the timestamp rides beside the packet through every level, and
 each hop -- so depth in the tree does not risk pairing a packet with the wrong
 time.
 
+**The shape of the tree is arbitrary, and it is expected to change.** Nothing in
+the packet, the transport or any consumer encodes how many levels there are,
+which leaf hangs off which branch, or how wide each merge is. It is an
+integration choice: re-parent a block, add a level, collapse two levels into one
+wider `CLIENTS`, and every downstream stage behaves identically. That freedom is
+the point of the input/output symmetry -- the tree can be re-drawn to match
+floorplan or timing without touching a line of monitor logic.
+
+Two consequences follow, and both are contracts rather than advice:
+
+- **Arrival order across producers means nothing.** Each level merges with
+  `arbiter_round_robin` in ACK mode, so the interleaving you observe is a
+  product of arbitration phase, backpressure and tree shape -- all three of
+  which can change. **Order packets by their timestamp, never by the order they
+  came out of the pipe.** A consumer that infers causality from arrival order is
+  reading an artifact of the topology it was captured on, and will silently
+  disagree with itself when the tree is re-drawn.
+- **Per-producer order IS preserved.** A single producer's packets stay in the
+  order it emitted them, at every level, because arbitration reorders *between*
+  clients and never *within* one. So "this agent's events, in sequence" is
+  reliable; "these two agents' events, interleaved" is not.
+
+What the tree does guarantee is fairness and no loss: round-robin prevents a
+chatty leaf from starving a quiet one, and the grant-hold contract (the grant
+retires only on `grant && valid && ready`) means backpressure delays packets
+rather than dropping them. Depth costs latency, never data.
+
 ---
 
 ## Adaptability: what is deliberately left open
