@@ -38,9 +38,14 @@ module stream_mon_genesys2_top #(
     // Harness clock = 1200 MHz VCO / CLKOUT0_DIVIDE.
     //   12 -> 100 MHz, 15 -> 80 MHz, 20 -> 60 MHz.
     parameter int CLKOUT0_DIVIDE = 12,
-    // Owner-specified geometry for the monitor validation campaign.
-    parameter int NUM_CHANNELS     = 4,
+    // Monitor coverage campaign geometry. 8 channels now that the engine wedge
+    // is fixed; the Kintex-7 325T has the BRAM/LUT headroom the A7 lacked.
+    parameter int NUM_CHANNELS     = 8,
     parameter int USE_AXI_MONITORS = 1,
+    // Agent-resolved profile tally: the host loads a legal set over each tally's
+    // cfg AXIL slave; bins become dense per-agent indices + an UNEXPECTED bin.
+    parameter int MON_TALLY_PROFILE_MODE = 1,
+    parameter int MON_N_PROFILE          = 64,
     parameter int UART_BAUD        = 115_200
 ) (
     input  logic       sysclk_p,      // 200 MHz LVDS (+)
@@ -150,7 +155,10 @@ module stream_mon_genesys2_top #(
         .GEN_MON               (1'b0),
         // TASK-101 extended addressing on, same as the A7 bitstream, so this
         // build runs both legacy contiguous and extended descriptors.
-        .USE_ROW_COL_MAJOR_ADDRESSING (1)
+        .USE_ROW_COL_MAJOR_ADDRESSING (1),
+        // Agent-resolved profile tally (both tally memories).
+        .MON_TALLY_PROFILE_MODE (MON_TALLY_PROFILE_MODE),
+        .MON_N_PROFILE          (MON_N_PROFILE)
     ) u_harness (
         .aclk            (aclk),
         .aresetn         (aresetn),

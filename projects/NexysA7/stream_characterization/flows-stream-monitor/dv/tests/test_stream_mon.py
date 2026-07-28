@@ -287,6 +287,12 @@ def _run_stream_mon(request, profile=False):
         'USE_MON': use_mon,
         'PROFILE_MODE': '1' if profile else '0',
     }
+    if profile:
+        # Monitors-on sim + the extra CAM-load/sweep UART traffic overruns the
+        # default 30-min real-time safety wall before the dense-bin sweep; give
+        # it room (this is a slow integration sim — real-time on the board).
+        extra_env['TB_MAX_DURATION_MIN'] = '90'
+        extra_env['SIM_TIMEOUT_MS'] = '250'
     # WAVES support — follows the repo-standard pattern (test_stream_char.py):
     # --trace-fst in compile_args + waves= + sim_args + plus_args=['--trace'].
     # The +trace plusarg is what actually opens the dump at runtime.
