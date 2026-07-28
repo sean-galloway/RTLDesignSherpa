@@ -145,43 +145,32 @@ module monbus_pkt_tally #(
 
     generate
         if (PROFILE_MODE != 0) begin : g_profile
-            // Legal-set: N_PROFILE entries of {valid, key}. Valid is a packed
-            // vector (single-shot reset -> no BLKLOOPINIT); keys are gated by
-            // valid so they need no reset. Loaded/cleared over the CSR port; a
-            // miss maps to the single UNEXPECTED bin at index N_PROFILE.
+            // Legal-set match CAM (own module). A hit returns the entry's dense
+            // index -> the tally bin; a miss routes to UNEXPECTED (index
+            // N_PROFILE) and is flagged for the first-event latch.
             localparam int UNEXPECTED_BIN = N_PROFILE;
-            logic [N_PROFILE-1:0]  r_prof_valid;
-            logic [PROF_KEY_W-1:0] r_prof_key [N_PROFILE];
-
-            `ALWAYS_FF_RST(clk, rst_n,
-                if (`RST_ASSERTED(rst_n)) begin
-                    r_prof_valid <= '0;
-                end else if (profile_clear) begin
-                    r_prof_valid <= '0;
-                end else if (profile_we) begin
-                    r_prof_valid[profile_waddr] <= profile_wvalid;
-                    r_prof_key  [profile_waddr] <= profile_wkey;
-                end
-            )
-
-            // Parallel exact-match of the incoming tuple against the legal set.
             logic [PROF_KEY_W-1:0] w_in_key;
             assign w_in_key = {w_agent_id, w_protocol, w_pkt_type, w_event_code};
-            logic [N_PROFILE-1:0] w_match;
-            always_comb begin
-                for (int i = 0; i < N_PROFILE; i++)
-                    w_match[i] = r_prof_valid[i] && (r_prof_key[i] == w_in_key);
-            end
-            // Priority-encode to a dense index (host loads unique tuples, so at
-            // most one matches; low index wins if a duplicate is ever loaded).
+
             logic                  w_hit;
             logic [PROF_IDX_W-1:0] w_hit_idx;
-            always_comb begin
-                w_hit     = 1'b0;
-                w_hit_idx = '0;
-                for (int i = N_PROFILE-1; i >= 0; i--)
-                    if (w_match[i]) begin w_hit = 1'b1; w_hit_idx = PROF_IDX_W'(i); end
-            end
+
+            monbus_legal_cam #(
+                .N_ENTRIES (N_PROFILE),
+                .KEY_WIDTH (PROF_KEY_W)
+            ) u_legal_cam (
+                .clk        (clk),
+                .rst_n      (rst_n),
+                .load_clear (profile_clear),
+                .load_we    (profile_we),
+                .load_addr  (profile_waddr),
+                .load_valid (profile_wvalid),
+                .load_key   (profile_wkey),
+                .lookup_key (w_in_key),
+                .lookup_hit (w_hit),
+                .lookup_idx (w_hit_idx)
+            );
+
             assign w_bin_addr  = w_hit ? ADDR_BITS'(w_hit_idx) : ADDR_BITS'(UNEXPECTED_BIN);
             assign w_prof_miss = !w_hit;
         end else begin : g_direct
