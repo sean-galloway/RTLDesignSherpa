@@ -24,6 +24,11 @@ module axi4_to_apb_shim #(
     parameter int SIDE_DEPTH        = 4,
     parameter int APB_CMD_DEPTH     = 4,
     parameter int APB_RSP_DEPTH     = 4,
+    // Pointer encoding for the two APB-side CDC FIFOs: 0 = Gray (power-of-2
+    // derived depth only), 1 = Johnson (any depth, DEPTH-bit pointers). Gray
+    // by default; Johnson is opt-in. The derived depths floor at 4, so
+    // APB_CMD_DEPTH/APB_RSP_DEPTH of 1-4 all build under Gray.
+    parameter int USE_JOHNSON       = 0,
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
@@ -313,6 +318,7 @@ module axi4_to_apb_shim #(
     gaxi_fifo_async #(
         .DATA_WIDTH   (APBCmdWidth),
         .DEPTH        (CDC_CMD_DEPTH),
+        .USE_JOHNSON  (USE_JOHNSON),
         .N_FLOP_CROSS (2)
     ) u_cmd_cdc_fifo (
         .axi_wr_aclk    (aclk),
@@ -332,6 +338,7 @@ module axi4_to_apb_shim #(
     gaxi_fifo_async #(
         .DATA_WIDTH   (APBRspWidth),
         .DEPTH        (CDC_RSP_DEPTH),
+        .USE_JOHNSON  (USE_JOHNSON),
         .N_FLOP_CROSS (2)
     ) u_rsp_cdc_fifo (
         .axi_wr_aclk    (pclk),

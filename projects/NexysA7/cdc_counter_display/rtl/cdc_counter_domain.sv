@@ -60,6 +60,9 @@ module cdc_counter_domain #(
     parameter int  STRETCH_CYCLES_MANUAL   = 1,
 
     parameter int FIFO_DEPTH         = 16,  // mode 2: depth of the value-passing FIFO
+    // Pointer encoding for that FIFO: 0 = Gray (power-of-2 FIFO_DEPTH only),
+    // 1 = Johnson (any depth, FIFO_DEPTH-bit pointers). Gray by default.
+    parameter int USE_JOHNSON        = 0,
     parameter int HANDSHAKE_INTERVAL = 256  // modes 3/4: ctr_clk cycles between snapshots
 ) (
     // ----------------------------------------------------------------
@@ -388,9 +391,10 @@ module cdc_counter_domain #(
     assign w_fifo_read = !w_fifo_empty;
 
     fifo_async #(
-        .REGISTERED (1),
-        .DATA_WIDTH (VAL_WIDTH),
-        .DEPTH      (FIFO_DEPTH)
+        .REGISTERED  (1),
+        .DATA_WIDTH  (VAL_WIDTH),
+        .DEPTH       (FIFO_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON)
     ) u_fifo (
         .wr_clk           (ctr_clk),
         .wr_rst_n         (ctr_rstn),

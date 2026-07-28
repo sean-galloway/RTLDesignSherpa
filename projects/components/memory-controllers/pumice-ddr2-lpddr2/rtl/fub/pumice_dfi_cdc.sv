@@ -28,11 +28,18 @@ module pumice_dfi_cdc #(
     parameter int CMD_DW       = 32,   // {op,rank,bank,row,col,ap} packed
     parameter int WD_DW        = 72,   // {data,strb,last}
     parameter int RD_DW        = 66,   // {data,resp,last}
-    parameter int CMD_DEPTH    = 8,    // even
-    parameter int WD_DEPTH     = 16,   // even
-    parameter int RD_DEPTH     = 16,   // even
-    parameter int TOK_DEPTH    = 4,    // even
-    parameter int N_FLOP_CROSS = 2
+    // Depths are powers of two, which is what the default Gray pointer
+    // encoding requires ("even" was stale language from fifo_async_div2).
+    parameter int CMD_DEPTH    = 8,
+    parameter int WD_DEPTH     = 16,
+    parameter int RD_DEPTH     = 16,
+    parameter int TOK_DEPTH    = 4,
+    parameter int N_FLOP_CROSS = 2,
+    // Async-FIFO pointer encoding for all five CDC FIFOs below: 0 = Gray
+    // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
+    // Gray by default -- Johnson is opt-in because its pointers cost DEPTH
+    // bits in both domains and every synchronizer stage.
+    parameter int USE_JOHNSON  = 0
 ) (
     //=========================================================================
     // Controller domain (aclk)
@@ -83,7 +90,7 @@ module pumice_dfi_cdc #(
 
     // ---- cmd : ctl -> phy ---------------------------------------------------
     gaxi_fifo_async #(
-        .DATA_WIDTH(CMD_DW), .DEPTH(CMD_DEPTH), .N_FLOP_CROSS(N_FLOP_CROSS)
+        .DATA_WIDTH(CMD_DW), .DEPTH(CMD_DEPTH), .USE_JOHNSON(USE_JOHNSON), .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_cmd_fifo (
         .axi_wr_aclk(ctl_clk), .axi_wr_aresetn(ctl_rstn),
         .axi_rd_aclk(dfi_clk), .axi_rd_aresetn(dfi_rstn),
@@ -93,7 +100,7 @@ module pumice_dfi_cdc #(
 
     // ---- wrdata : ctl -> phy ------------------------------------------------
     gaxi_fifo_async #(
-        .DATA_WIDTH(WD_DW), .DEPTH(WD_DEPTH), .N_FLOP_CROSS(N_FLOP_CROSS)
+        .DATA_WIDTH(WD_DW), .DEPTH(WD_DEPTH), .USE_JOHNSON(USE_JOHNSON), .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_wd_fifo (
         .axi_wr_aclk(ctl_clk), .axi_wr_aresetn(ctl_rstn),
         .axi_rd_aclk(dfi_clk), .axi_rd_aresetn(dfi_rstn),
@@ -103,7 +110,7 @@ module pumice_dfi_cdc #(
 
     // ---- rddata : phy -> ctl ------------------------------------------------
     gaxi_fifo_async #(
-        .DATA_WIDTH(RD_DW), .DEPTH(RD_DEPTH), .N_FLOP_CROSS(N_FLOP_CROSS)
+        .DATA_WIDTH(RD_DW), .DEPTH(RD_DEPTH), .USE_JOHNSON(USE_JOHNSON), .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_rd_fifo (
         .axi_wr_aclk(dfi_clk), .axi_wr_aresetn(dfi_rstn),
         .axi_rd_aclk(ctl_clk), .axi_rd_aresetn(ctl_rstn),
@@ -121,7 +128,7 @@ module pumice_dfi_cdc #(
 
     logic w_istok_valid;
     gaxi_fifo_async #(
-        .DATA_WIDTH(1), .DEPTH(TOK_DEPTH), .N_FLOP_CROSS(N_FLOP_CROSS)
+        .DATA_WIDTH(1), .DEPTH(TOK_DEPTH), .USE_JOHNSON(USE_JOHNSON), .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_istart_tok (
         .axi_wr_aclk(ctl_clk), .axi_wr_aresetn(ctl_rstn),
         .axi_rd_aclk(dfi_clk), .axi_rd_aresetn(dfi_rstn),
@@ -143,7 +150,7 @@ module pumice_dfi_cdc #(
 
     logic w_icmptok_valid;
     gaxi_fifo_async #(
-        .DATA_WIDTH(1), .DEPTH(TOK_DEPTH), .N_FLOP_CROSS(N_FLOP_CROSS)
+        .DATA_WIDTH(1), .DEPTH(TOK_DEPTH), .USE_JOHNSON(USE_JOHNSON), .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_icmp_tok (
         .axi_wr_aclk(dfi_clk), .axi_wr_aresetn(dfi_rstn),
         .axi_rd_aclk(ctl_clk), .axi_rd_aresetn(ctl_rstn),
