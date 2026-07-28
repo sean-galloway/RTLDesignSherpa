@@ -115,7 +115,7 @@ a reset synchronizer whose deassertion is gated differently on each side.
 |---|---|---|---|
 | Transfer state | Parity (toggle) -- **relative** | Level -- **absolute** | Pointer position -- **absolute** |
 | Idle has a value? | No | Yes (`req=0`) | Yes (pointers equal) |
-| One-sided reset from **idle** | **Fabricates a transfer** | Nothing happens | Read-side reset: reads empty. **Write-side reset: fabricates occupancy** |
+| One-sided reset from **idle** | **Fabricates a transfer** | Nothing happens | Read-side reset: **replays consumed entries** (benign only if pointers never moved). **Write-side reset: fabricates occupancy** |
 | One-sided reset **mid-transfer** | Duplicate or lost transfer | Duplicate or dropped transfer | Entry may be re-read or dropped |
 
 : How pointer encoding determines reset behavior
@@ -242,9 +242,15 @@ There is no parity state to invert, so the FIFO cannot fabricate the way a
 2-phase handshake does -- but "one-sided reset is safe" is too strong, and the
 asymmetry matters before you rely on it.
 
-**A read-side reset from idle is benign.** `rd_ptr` clears to 0, and the read
-side compares it against a write pointer it will also see as 0 once the crossing
-settles. Reads empty.
+**A read-side reset is benign only when the pointers have never moved.**
+`rd_ptr` clears to 0, and the read domain's copy of the write pointer
+(`wr_ptr_gray_cross_inst`) is cleared with it -- but that copy is a LIVE
+synchronizer, and within `N_FLOP_CROSS` rd clocks it re-samples the write
+side's untouched pointer. If the link has seen traffic -- even fully consumed
+traffic, both pointers resting at some K -- the settled state is `rd_ptr = 0`
+against `wr_ptr_sync = K`: the read side believes the FIFO holds K entries,
+and the K words it already consumed are **replayed**. Empty-flag "idle" is
+not enough; the pointers must be at zero.
 
 **A write-side reset from idle is not.** The read domain's copy of the write
 pointer (`wr_ptr_gray_cross_inst` in `fifo_async.sv`) is reset by **`rd_rst_n`,
@@ -911,7 +917,9 @@ most of its time reporting stale fullness and stalls a writer that could have
 proceeded. Use depth >= 4.
 
 **4. Open-loop transfer before the previous one is sampled.** Without an ack the
-first transfer is silently lost. Minimum spacing `SYNC_STAGES + 1` destination
+NEW transfer is silently dropped -- the capture guard (`src_valid && !src_busy`)
+ignores a pulse that arrives while the previous one is still crossing, and the
+first transfer completes. Minimum spacing `SYNC_STAGES + 1` destination
 clocks.
 
 **5. Choosing 2-phase for speed without checking the reset domains.** See

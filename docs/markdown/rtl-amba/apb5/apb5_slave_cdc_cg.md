@@ -247,7 +247,7 @@ apb5_slave_cdc_cg #(
 ### Power and Latency Trade-offs
 
 Wake-up is **registered, not combinational**. Activity is registered once (AXI4,
-AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before reaching
+AXI5, AXI4-Lite, AXI4-Stream, APB) or twice (APB5, AXI5-Stream) before reaching
 the ICG enable, which is combinational. A pclk-domain trigger (PSEL or PENABLE)
 passes through this wrapper's `r_wakeup` and then through the flop inside
 `amba_clock_gate_ctrl`, so APB5 is a two-stage family and the first usable gated

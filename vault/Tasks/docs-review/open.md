@@ -376,3 +376,27 @@ verifier REFUTED this one on absent-file grounds — VERIFIER_BRIEF rule 4 now
 makes absent-cited-file an automatic UNCERTAIN), johnson2bin "emptying from
 the left" vs its own "from the right" (RTL confirms right). All fixed. No RTL
 changes in either round.
+
+**cdc (round_3, 2026-07-28) — first golden-deps round.** 5 findings, ALL 5
+real (0 FP; verifier: 2 UPHELD, 2 UNCERTAIN, 1 REFUTED — human triage upheld
+all five):
+
+- cdc.md read-side-reset "benign, reads empty" — the crossed write-pointer
+  copy is a LIVE synchronizer; after any traffic it re-samples gray(K) and the
+  K consumed entries are REPLAYED. Rewrote the paragraph + summary-table row
+  (the same claim the old backlog fixed on the apb5 pages; cdc.md still had
+  it).
+- cdc.md mistake #4: "the first transfer is silently lost" — inverted; the
+  `src_valid && !src_busy` guard drops the NEW pulse, the first completes.
+- fifo_async.md "Multi-stage sync: Reduces MTBF exponentially" — inverted
+  (raises MTBF); same claim fixed in TestTutorial/gaxi_multi_field_integration.
+- apb_slave_cdc_cg.md `*_cg_idle` scenario unreachable: APB holds PSEL until
+  PREADY, and PREADY waits for the response, so a stalled backend keeps
+  pclk_user_valid high — idle never asserts mid-stall. Note rewritten.
+- apb5_slave_cdc_cg.md "twice (APB, APB5, AXI5-Stream)" — wrong for APB:
+  apb_slave_cdc_cg has no wrapper r_wakeup (single stage); apb5 does (two).
+
+The REFUTED one (last above) was the absent-evidence failure again:
+apb_slave_cdc_cg.sv was golden in part_01 but the finding was in part_02.
+`augment_golden_deps.py` now unions refs across ALL units given (and is
+idempotent — re-runs replace the golden section instead of appending).

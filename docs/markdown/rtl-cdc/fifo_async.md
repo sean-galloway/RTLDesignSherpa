@@ -203,7 +203,7 @@ assign rd_empty = (!w_rdom_ptr_xor_for_empty &&
 
 ### Metastability Protection
 - **Gray code transitions**: Single bit changes only
-- **Multi-stage sync**: Reduces MTBF exponentially
+- **Multi-stage sync**: Reduces metastability failure probability exponentially (raises MTBF)
 - **Setup/hold margins**: Proper timing constraints essential
 
 ## Use Cases

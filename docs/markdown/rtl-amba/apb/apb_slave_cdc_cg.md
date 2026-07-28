@@ -99,13 +99,16 @@ In addition to all [apb_slave_cdc](./apb_slave_cdc.md) ports:
 > has no occupancy input at all -- its whole idle logic is
 > `r_wakeup <= user_valid || axi_valid;` and `assign idle = ~r_wakeup`. So idle
 > asserts one cycle after the activity terms drop, whatever the CDC FIFOs hold.
-> Concretely: with the backend stalled and commands sitting unread in the cmd
-> FIFO, every `pclk`-side valid is low, so `pclk_cg_idle` reads 1 against a
-> non-empty FIFO. The same holds on the `aclk` side for an unconsumed response.
+> On this wrapper the activity terms mostly hide occupancy anyway: APB holds
+> `s_apb_PSEL` until `PREADY`, and this slave asserts `PREADY` only when the
+> response returns, so a stalled backend keeps `pclk_user_valid` high and
+> `pclk_cg_idle` low for the whole stall; an unconsumed response likewise
+> holds `w_rsp_valid`/`rsp_valid` high. Do not read that as "idle implies
+> empty" -- it does not, here or anywhere: idle is "nothing has been handed to
+> me recently", the input to the gating countdown.
 >
-> Use it as what it is -- "nothing has been handed to me recently", the input to
-> the gating countdown. **Do not use it as a safe-to-reset or safe-to-power-down
-> qualifier**; that requires an emptiness check this signal does not perform.
+> **Do not use it as a safe-to-reset or safe-to-power-down qualifier**; that
+> requires an emptiness check this signal does not perform.
 
 
 ---

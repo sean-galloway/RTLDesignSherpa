@@ -319,7 +319,7 @@ gaxi_fifo_async_multi #(
 ```
 
 **Critical CDC Parameters:**
-- **N_FLOP_CROSS=2:** Typical for most designs (reduces MTBF)
+- **N_FLOP_CROSS=2:** Typical for most designs (raises MTBF)
 - **N_FLOP_CROSS=3:** Use for very high-speed or critical paths
 - **DEPTH:** Must be power of 2 for Gray code pointers
 

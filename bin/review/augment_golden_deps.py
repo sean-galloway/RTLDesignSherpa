@@ -48,7 +48,18 @@ def sv_index():
     return idx
 
 
-def augment(unit, idx):
+def collect_refs(doctext, idx):
+    # module refs appear as `name.sv`, as bare backticked `name`, and as
+    # instantiations in doc examples (reset_sync #(...) u_inst (). Keep only
+    # what resolves to an actual RTL file.
+    return sorted((set(re.findall(r"\b([a-z_][a-z0-9_]{2,})\.sv\b", doctext)) |
+                   set(re.findall(r"`([a-z_][a-z0-9_]{2,})`", doctext)) |
+                   set(re.findall(r"^\s{0,8}([a-z_][a-z0-9_]{2,})\s*(?:#\s*\(|[A-Za-z_]\w*\s*\()",
+                                  doctext, re.M)))
+                  & set(idx.keys()))
+
+
+def augment(unit, refs, idx):
     docs = os.path.join(unit, "DOCS.md")
     rtl = os.path.join(unit, "RTL.sv")
     if not os.path.exists(docs) or not os.path.exists(rtl):
@@ -58,15 +69,6 @@ def augment(unit, idx):
     if "GOLDEN DEPENDENCIES" in body:
         body = body[:body.index("\n// " + "=" * 76 + "\n// GOLDEN DEPENDENCIES")]
     present = set(re.findall(r"^module\s+(\w+)", body, re.M))
-    doctext = open(docs, encoding="utf-8", errors="replace").read()
-    # module refs appear as `name.sv`, as bare backticked `name`, and as
-    # instantiations in doc examples (reset_sync #(...) u_inst (). Keep only
-    # what resolves to an actual RTL file.
-    refs = sorted((set(re.findall(r"\b([a-z_][a-z0-9_]{2,})\.sv\b", doctext)) |
-                   set(re.findall(r"`([a-z_][a-z0-9_]{2,})`", doctext)) |
-                   set(re.findall(r"^\s{0,8}([a-z_][a-z0-9_]{2,})\s*(?:#\s*\(|[A-Za-z_]\w*\s*\()",
-                                  doctext, re.M)))
-                  & set(idx.keys()))
     added = []
     chunks = []
     for stem in refs:
@@ -79,8 +81,11 @@ def augment(unit, idx):
     if not added:
         print(f"{os.path.basename(unit):20s}  closure already complete")
         return
-    with open(rtl, "a") as f:
-        f.write(BANNER + "".join(chunks))
+    # Re-augmenting an already-augmented unit must REPLACE the old golden
+    # section, not append a second one (the strip above only truncated the
+    # in-memory body; write it back, don't append to the file).
+    with open(rtl, "w") as f:
+        f.write(body + BANNER + "".join(chunks))
     print(f"{os.path.basename(unit):20s}  +{len(added)} golden: "
           + ", ".join(os.path.basename(a) for a in added))
 
@@ -89,8 +94,17 @@ def main():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     idx = sv_index()
+    # Refs are the UNION across all units given: a finding in part_02 may turn
+    # on a module only part_01's docs name explicitly (round_3's "twice (APB,
+    # ...)" finding needed apb_slave_cdc_cg.sv, absent from part_02's bundle).
+    refs = []
     for unit in sys.argv[1:]:
-        augment(unit, idx)
+        docs = os.path.join(unit, "DOCS.md")
+        if os.path.exists(docs):
+            refs += collect_refs(open(docs, encoding="utf-8", errors="replace").read(), idx)
+    refs = sorted(set(refs))
+    for unit in sys.argv[1:]:
+        augment(unit, refs, idx)
 
 
 if __name__ == "__main__":
