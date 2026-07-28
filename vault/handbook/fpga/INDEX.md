@@ -1,15 +1,17 @@
 ---
 title: FPGA notes
-summary: Board process - build flows, timing triage, harness, board handling.
+summary: Board process - common infra, then board/component specifics.
 ---
 
 # FPGA
 
-- [[build-flows]] - Vivado batch flow, board switches, bitstream naming
-- [[timing-closure]] - the triage order when timing fails
-- [[timing-triage-tool]] - bin/vivado_timing_failures.py (bucketizes fails)
-- [[uart-harness]] - one host program against sim and silicon
-- [[boards]] - JTAG serials, UART chips, the gotchas that eat an afternoon
+## Common infrastructure
+
+Board-agnostic method and shared code -- the canonical patterns every flow
+reuses -- live in one place:
+
+- [cmn-infra/](cmn-infra/INDEX.md) - [[uart-harness]], the [[host-stack]] py
+  plumbing, [[build-flows]], [[timing-closure]], [[timing-triage-tool]], [[boards]]
 
 ## Boards / components
 

@@ -8,8 +8,9 @@ summary: Inventory of the flows-stream-bridge/host runner suite (sim + silicon).
 The host-side runner suite for the STREAM characterization flows lives in
 `projects/NexysA7/stream_characterization/flows-stream-bridge/host/`. Every tool
 drives harness CSRs over the UART byte protocol and runs unchanged against the
-cocotb sim transport or the real serial port -- the method is [[uart-harness]];
-all register access is [[registers-by-name]] (never hardcoded offsets). The
+cocotb sim transport or the real serial port -- the method is [[uart-harness]]
+on the shared [[host-stack]]; all register access is [[registers-by-name]] (never
+hardcoded offsets). The
 monitor coverage flow ([[monitor-board-coverage]]) reuses these same modules and
 adds only its profile-CAM load + dense-bin sweep on top.
 
