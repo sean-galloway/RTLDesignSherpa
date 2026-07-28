@@ -25,8 +25,9 @@ export STREAM_ROOT      := $(REPO_ROOT)/projects/components/dmas/stream
 export CONVERTERS_ROOT  := $(REPO_ROOT)/projects/components/converters
 export MISC_ROOT        := $(REPO_ROOT)/projects/components/misc
 
-# Coverage-build geometry (passed to the top as Vivado generics).
-export STREAM_NUM_CHANNELS    ?= 8
+# Coverage-build geometry (passed to the top as Vivado generics). 4 channels:
+# 8ch + monitors + profile tallies overflows LUTs on the 325T; 4 fits wide.
+export STREAM_NUM_CHANNELS    ?= 4
 export MON_TALLY_PROFILE_MODE ?= 1
 export MON_N_PROFILE          ?= 64
 

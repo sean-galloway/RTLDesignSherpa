@@ -38,9 +38,11 @@ module stream_mon_genesys2_top #(
     // Harness clock = 1200 MHz VCO / CLKOUT0_DIVIDE.
     //   12 -> 100 MHz, 15 -> 80 MHz, 20 -> 60 MHz.
     parameter int CLKOUT0_DIVIDE = 12,
-    // Monitor coverage campaign geometry. 8 channels now that the engine wedge
-    // is fixed; the Kintex-7 325T has the BRAM/LUT headroom the A7 lacked.
-    parameter int NUM_CHANNELS     = 8,
+    // Monitor coverage campaign geometry. 4 channels: 8ch + in-core monitors +
+    // profile tallies is LUT-bound on the xc7k325t (~103%, placement fails);
+    // 4 channels fits with wide margin. (The engine wedge is fixed, so 8ch is
+    // functionally fine -- it just doesn't fit this board with monitors on.)
+    parameter int NUM_CHANNELS     = 4,
     parameter int USE_AXI_MONITORS = 1,
     // Agent-resolved profile tally: the host loads a legal set over each tally's
     // cfg AXIL slave; bins become dense per-agent indices + an UNEXPECTED bin.
