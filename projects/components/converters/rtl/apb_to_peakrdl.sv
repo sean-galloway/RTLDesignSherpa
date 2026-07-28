@@ -32,6 +32,10 @@ module apb_to_peakrdl #(
     parameter int STRB_WIDTH = DATA_WIDTH / 8,
     // CDC command/response FIFO depth (>=2)
     parameter int CDC_DEPTH  = 2,
+    // Async-FIFO pointer encoding, forwarded to the CDC block below:
+    // 0 = Gray (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit
+    // pointers). Gray by default -- Johnson is opt-in.
+    parameter int USE_JOHNSON = 0,
     parameter bit USE_2_PHASE_CDC = 1'b1
 ) (
     // Register/core clock domain (drives the cpuif master)
@@ -84,7 +88,8 @@ module apb_to_peakrdl #(
         .STRB_WIDTH      (STRB_WIDTH),
         .PROT_WIDTH      (PROT_WIDTH),
         .DEPTH           (CDC_DEPTH),
-        .USE_2_PHASE_CDC (USE_2_PHASE_CDC)
+        .USE_2_PHASE_CDC (USE_2_PHASE_CDC),
+        .USE_JOHNSON     (USE_JOHNSON)
     ) u_apb_cdc (
         .aclk        (aclk),
         .aresetn     (aresetn),

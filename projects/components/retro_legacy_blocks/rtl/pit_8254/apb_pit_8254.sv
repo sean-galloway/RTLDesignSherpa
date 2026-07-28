@@ -35,7 +35,11 @@
 
 module apb_pit_8254 #(
     parameter int NUM_COUNTERS = 3,
-    parameter bit CDC_ENABLE   = 0      // Enable clock domain crossing
+    parameter bit CDC_ENABLE   = 0, // Enable clock domain crossing
+    // Async-FIFO pointer encoding, forwarded to the CDC block: 0 = Gray
+    // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
+    // Gray by default -- Johnson is opt-in.
+    parameter int USE_JOHNSON = 0
 ) (
     //========================================================================
     // Clock and Reset - Dual Domain
@@ -94,7 +98,8 @@ module apb_pit_8254 #(
                 .DATA_WIDTH(32),
                 .STRB_WIDTH(4),
                 .PROT_WIDTH(3),
-                .DEPTH(2)
+                .DEPTH(2),
+                .USE_JOHNSON (USE_JOHNSON)
             ) u_apb_slave_cdc (
                 // APB Clock Domain
                 .pclk                 (pclk),

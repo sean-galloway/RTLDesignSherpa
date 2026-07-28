@@ -18,6 +18,11 @@ import sys
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
 sys.path.insert(0, repo_root)
 sys.path.insert(0, os.path.join(repo_root, 'bin'))
+# This directory too: the _mon tests do `from monitor_stress_common import ...`,
+# a sibling module. pytest only prepends a test file's own directory when it is
+# invoked from inside it, so collecting from the repo root used to fail with
+# ModuleNotFoundError on all six _mon tests.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import pytest
 from cov_utils.conftest_base import configure, sessionfinish, ignore_collect

@@ -64,6 +64,11 @@ class Axi4ToApbShim:
         apb_cmd_depth: int = 4,
         apb_rsp_depth: int = 4,
         axi_user_width: int = 1,
+        # Async-FIFO pointer encoding on the shim's two APB-side CDC FIFOs.
+        # 0 = Gray (power-of-2 derived depth only), 1 = Johnson (any depth,
+        # DEPTH-bit pointers). Gray by default -- see
+        # vault/handbook/design/cdc.md; Johnson is opt-in everywhere.
+        use_johnson: int = 0,
     ):
         assert has_write or has_read, "shim must carry at least one channel"
         self.instance_name = instance_name
@@ -72,6 +77,7 @@ class Axi4ToApbShim:
         self.axi_data_width = axi_data_width
         self.apb_data_width = apb_data_width
         self.axi_user_width = axi_user_width
+        self.use_johnson = use_johnson
         self.has_write = has_write
         self.has_read = has_read
 
@@ -86,6 +92,7 @@ class Axi4ToApbShim:
             f"parameter int SIDE_DEPTH       = {side_depth}, "
             f"parameter int APB_CMD_DEPTH    = {apb_cmd_depth}, "
             f"parameter int APB_RSP_DEPTH    = {apb_rsp_depth}, "
+            f"parameter int USE_JOHNSON      = {use_johnson}, "
             f"parameter int AXI_ID_WIDTH     = {id_width}, "
             f"parameter int AXI_ADDR_WIDTH   = {addr_width}, "
             f"parameter int AXI_DATA_WIDTH   = {axi_data_width}, "

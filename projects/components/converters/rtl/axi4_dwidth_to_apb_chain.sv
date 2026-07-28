@@ -49,7 +49,11 @@ module axi4_dwidth_to_apb_chain #(
 
     // Calculated
     localparam int S_STRB_WIDTH   = S_AXI_DATA_WIDTH / 8,
-    localparam int APB_STRB_WIDTH = APB_DATA_WIDTH / 8
+    localparam int APB_STRB_WIDTH = APB_DATA_WIDTH / 8,
+    // Async-FIFO pointer encoding, forwarded to the CDC block: 0 = Gray
+    // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
+    // Gray by default -- Johnson is opt-in.
+    parameter int USE_JOHNSON = 0
 ) (
     // Clock and Reset (single clock test config: pclk = aclk, presetn = aresetn)
     input  logic                          aclk,
@@ -208,7 +212,8 @@ module axi4_dwidth_to_apb_chain #(
         .AXI_DATA_WIDTH   (APB_DATA_WIDTH),
         .AXI_USER_WIDTH   (AXI_USER_WIDTH),
         .APB_ADDR_WIDTH   (APB_ADDR_WIDTH),
-        .APB_DATA_WIDTH   (APB_DATA_WIDTH)
+        .APB_DATA_WIDTH   (APB_DATA_WIDTH),
+        .USE_JOHNSON (USE_JOHNSON)
     ) u_axi2apb (
         .aclk             (aclk),
         .aresetn          (aresetn),

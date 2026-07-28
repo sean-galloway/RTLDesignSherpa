@@ -69,7 +69,11 @@
 // This is intentional - both modules are in same clock domain.
 module apb_ioapic #(
     parameter int NUM_IRQS = 24,       // Number of IRQ inputs (typically 24)
-    parameter int CDC_ENABLE = 0       // 0=same clock (apb_slave), 1=different clocks (apb_slave_cdc)
+    parameter int CDC_ENABLE = 0, // 0=same clock (apb_slave), 1=different clocks (apb_slave_cdc)
+    // Async-FIFO pointer encoding, forwarded to the CDC block: 0 = Gray
+    // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
+    // Gray by default -- Johnson is opt-in.
+    parameter int USE_JOHNSON = 0
 )(
     // ========================================================================
     // Clock and Reset - Dual Domain
@@ -160,7 +164,8 @@ module apb_ioapic #(
                 .DATA_WIDTH(32),
                 .STRB_WIDTH(4),
                 .PROT_WIDTH(3),
-                .DEPTH     (2)
+                .DEPTH     (2),
+                .USE_JOHNSON (USE_JOHNSON)
             ) u_apb_slave_cdc (
                 // APB Clock Domain
                 .pclk                 (pclk),

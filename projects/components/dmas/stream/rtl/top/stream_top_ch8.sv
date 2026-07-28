@@ -99,6 +99,10 @@ module stream_top_ch8 #(
     parameter bit DESC_MON_ENABLE_COMPL_LOGIC     = 1'b1,
     parameter bit DESC_MON_ENABLE_THRESHOLD_LOGIC = 1'b1,
     parameter bit DESC_MON_ENABLE_PERF_LOGIC      = 1'b1,
+    // Async-FIFO pointer encoding, forwarded to the CDC block below:
+    // 0 = Gray (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit
+    // pointers). Gray by default -- Johnson is opt-in.
+    parameter int USE_JOHNSON = 0,
     parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b1
 ) (
     //-------------------------------------------------------------------------
@@ -696,7 +700,8 @@ module stream_top_ch8 #(
             // Clock Domain Crossing version for async clocks
             apb_slave_cdc #(
                 .ADDR_WIDTH(APB_ADDR_WIDTH),
-                .DATA_WIDTH(APB_DATA_WIDTH)
+                .DATA_WIDTH(APB_DATA_WIDTH),
+                .USE_JOHNSON (USE_JOHNSON)
             ) u_apb_slave_cdc (
                 .aclk                   (aclk),
                 .aresetn                (aresetn),

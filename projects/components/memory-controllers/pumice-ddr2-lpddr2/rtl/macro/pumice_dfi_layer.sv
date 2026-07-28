@@ -49,6 +49,10 @@ module pumice_dfi_layer
     parameter int WD_FIFO_DEPTH  = 16,
     parameter int RD_FIFO_DEPTH  = 16,
     parameter int N_FLOP_CROSS   = 2,
+    // Async-FIFO pointer encoding, forwarded to pumice_dfi_cdc: 0 = Gray
+    // (power-of-2 depths only), 1 = Johnson (any depth, DEPTH-bit pointers).
+    // Gray by default -- Johnson is opt-in.
+    parameter int USE_JOHNSON    = 0,
 
     // ---- derived DFI geometry ----
     parameter int DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE,
@@ -194,7 +198,7 @@ module pumice_dfi_layer
     pumice_dfi_cdc #(
         .CMD_DW(CMD_DW), .WD_DW(WD_DW), .RD_DW(RD_DW),
         .CMD_DEPTH(CMD_FIFO_DEPTH), .WD_DEPTH(WD_FIFO_DEPTH), .RD_DEPTH(RD_FIFO_DEPTH),
-        .N_FLOP_CROSS(N_FLOP_CROSS)
+        .N_FLOP_CROSS(N_FLOP_CROSS), .USE_JOHNSON(USE_JOHNSON)
     ) u_cdc (
         .ctl_clk(ctl_clk), .ctl_rstn(ctl_rstn),
         .cmd_valid_i(cmd_valid_i), .cmd_ready_o(cmd_ready_o), .cmd_data_i(cmd_data_i),

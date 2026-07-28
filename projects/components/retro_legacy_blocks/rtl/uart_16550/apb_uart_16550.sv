@@ -34,7 +34,11 @@ module apb_uart_16550 #(
 
     // CDC Parameters
     parameter int CDC_ENABLE   = 0,              // 1=async clocks, 0=same clock
-    parameter int SKID_DEPTH   = 2               // CDC skid buffer depth
+    parameter int SKID_DEPTH   = 2, // CDC skid buffer depth
+    // Async-FIFO pointer encoding, forwarded to the CDC block: 0 = Gray
+    // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
+    // Gray by default -- Johnson is opt-in.
+    parameter int USE_JOHNSON = 0
 ) (
     // APB Clock and Reset
     input  logic                        pclk,
@@ -128,7 +132,8 @@ module apb_uart_16550 #(
             apb_slave_cdc #(
                 .ADDR_WIDTH (APB_ADDR_WIDTH),
                 .DATA_WIDTH (APB_DATA_WIDTH),
-                .DEPTH      (SKID_DEPTH)
+                .DEPTH      (SKID_DEPTH),
+                .USE_JOHNSON (USE_JOHNSON)
             ) u_apb_slave_cdc (
                 // APB clock domain
                 .pclk           (pclk),
