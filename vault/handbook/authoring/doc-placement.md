@@ -53,10 +53,11 @@ the next session reads. This note is the authority on where each kind goes.
 
 5. **A file the tooling *reads* is an artifact, not documentation - leave it.**
    `bin/review/REVIEWER_BRIEF.md` and `docs/kimi_humanization_style_guide.md`
-   are loaded verbatim as prompts; the raw `docs/review/kimi/**` critiques are
-   evidence and are regenerated, never hand-edited. These stay where the code
-   expects them even though they look like docs. Check whether something is
-   *read by code* before "tidying" it.
+   are loaded verbatim as prompts; a review round's raw critiques are evidence
+   and are regenerated, never hand-edited (they live off-repo under
+   `~/rtl-doc-review/results/` since the 2026-07-28 reset). These stay where
+   the code expects them even though they look like docs. Check whether
+   something is *read by code* before "tidying" it.
 
 ## Every book directory has an index and an overview
 

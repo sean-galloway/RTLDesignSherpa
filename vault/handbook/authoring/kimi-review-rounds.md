@@ -225,9 +225,11 @@ it -- in `env_python`, a `.env`, a script, or any tracked file.
     #          -H "Authorization: Bearer $KEY"` should print 200
 
 **Everything off-repo.** The bundle and the raw results live OUTSIDE the working
-tree (e.g. `~/rtl-doc-review/{bundle,results}`) -- confirm with
-`git ls-files --error-unmatch` before pointing anything there. The raw run is
-not committed; only the curated critiques land in `docs/review/kimi/round_N/`.
+tree (`~/rtl-doc-review/{books,results}`) -- confirm with
+`git ls-files --error-unmatch` before pointing anything there. Since the
+2026-07-28 reset the raw run is not vendored into the repo at all (the old
+`docs/review/kimi/` practice ended with the reset); curated summaries live in
+the vault task pages instead.
 
 The three commands, serial, correctness before voice:
 
@@ -331,52 +333,25 @@ and verified, and only then does the next area or the humanize pass start.
 
 ## State
 
-Critiques are vendored into `docs/review/kimi/round_N/` (532 KB). The
-`_bundle_snapshot/` inputs (11 MB) stay out - they are regenerable from git at
-the reviewed commit. `bin/review/index_findings.py` flattens every critique
-into `docs/review/kimi/FINDINGS.md`: per-round counts, the most-implicated
-files, and a checkbox per finding.
+**2026-07-28: the corpus was RESET (Sean).** All prior rounds are archived to
+`~/rtl-doc-review/archive-pre-reset-2026-07-28/` and removed from the tree;
+the vendored proxy corpus (`docs/review/kimi/`) survives only in git history.
+The trigger: seven cdc rounds in two days (k3 rounds 4-10: 13, 16, 12, 10, 5,
+8, 7 findings) without converging - the area was being re-litigated, not
+closed, and every round was paying full re-review cost on an area whose fixes
+were being integrated between rounds. Backlog integration (DOCREV-001) is
+dropped with it; fresh per-area rounds under the tightened REVIEWER_BRIEF
+(witness requirement) and second-model adjudication (`verify_findings.py`)
+replace it, in the order cdc, common, math, amba, projects/components
+(DOCREV-013). Round numbering restarts at round_1 in the fresh results dir;
+the pre-reset rounds cited in the rules above are the archived corpus.
 
-**Round numbers are per-results-directory, and there are now TWO.** The original
-proxy corpus (`kimi-k2` via litellm) is vendored in `docs/review/kimi/round_N/`.
-The direct-mode `kimi-k3` runs start their own numbering under
-`<results>/qc-kimi-k3/round_N/`. So "round_2" is ambiguous unless you say which
-- they are different corpora over different areas at different commits. Always
-qualify: *proxy round_2* vs *k3 round_2*.
+The historical FP-rate baseline for the adjudication validation (DOCREV-012)
+is the archived cdc series above. Pre-reset integration status tables live in
+the git history of this note.
 
-Proxy corpus (`docs/review/kimi/`):
-
-| Round | Units | Findings | CONFIRMED | Integrated? |
-|---|---|---|---|---|
-| round_1 | 8 | 68 | 58 | pre-reorg, superseded by round_2 |
-| round_2 | 22 | 196 | 167 | **no** - 1 of 102 implicated files touched since |
-| round_3 | 6 (monitor) | 75 | 70 | **no** - 0 of 31 touched since |
-
-Direct kimi-k3 corpus (`<results>/qc-kimi-k3/`):
-
-| Round | Units | Findings | CONFIRMED | Integrated? |
-|---|---|---|---|---|
-| round_1 | 2 of 6 (shutdown) | 14 | 13 | abandoned - bundle moved under it, superseded |
-| round_2 | 6 (common) | 32 | 27 | **yes**, 2026-07-25 - 21 of 22 implicated files touched; the 22nd is a rejected false positive |
-
-**As of 2026-07-23 the five round_2 `common_part_*` units are fully integrated**
-(all doc fixes plus the RTL defects they surfaced — arbiter_round_robin_simple
-starvation, clock_pulse sizing, clock_gate_ctrl port ref, pwm repeat off-by-one;
-see vault/Tasks/docs-review DOCREV-001 and vault/Tasks/common COMMON-012/COMMON-013). The
-round_2 AMBA/monitor, math, shared and protocol units, and all of round_3, are
-still un-integrated. Spot check against the RTL rather than commit dates:
-`axi4_master_rd_mon_cg.md` still documents five clock-gating parameters that do
-not exist (the RTL has only `CG_IDLE_COUNT_WIDTH`, gated at runtime by
-`cfg_cg_enable`/`cfg_cg_idle_count`).
-
-Beware the false positive that makes this look done: `92fbd051 docs(amba/monitor):
-reconcile all monitor documentation with the RTL` landed 06:55 on 2026-07-22 and
-reads like an integration pass. round_3 was sent at 13:06 **the same day** - it
-reviewed the post-reconcile docs and still returned 70 confirmed defects. A
-reconcile commit is not evidence that a round was applied; check the findings.
-
-Retro-legacy (RLB) doc review was a separate effort with its own issue numbers
-(#53, #59) and is not part of this corpus - no round contains RLB content.
+`bin/review/index_findings.py` flattens a round's critiques into per-round
+counts, the most-implicated files, and a checkbox per finding.
 
 Two critique layouts exist (`[CONFIRMED] title` with indented fields, and
 `### F1` headings with bulleted fields). The indexer parses both; a parser that

@@ -5,21 +5,23 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 
 | State | Count |
 |---|---|
-| [active](active.md) | 1 |
-| [open](open.md) | 9 |
+| [active](active.md) | 0 |
+| [open](open.md) | 10 |
 | [closed](closed.md) | 1 |
-| [dropped](dropped.md) | 0 |
+| [dropped](dropped.md) | 1 |
 
-## Active
+## Corpus reset — 2026-07-28
 
-- **DOCREV-001** — integrate the Kimi accuracy findings, area by area.
-  **common, cdc, and math are DONE** (2026-07-23) and verified by measurement against the
-  tree, across all three rounds — including the `rtl/common` findings that hide
-  inside the `cdc_part_01` unit, because the bundles were assembled by topic,
-  not by directory. Remaining: shared, monitor (round_3, 70 CONFIRMED —
-  the largest block), apb/apb5, axi*, axis*, and the AMBA half of cdc. Per-area
-  checklist is at the top of the task. Some findings are RTL defects, not doc
-  bugs — triage each.
+Every prior round is cleared (Sean). Seven cdc rounds in two days (k3 rounds
+4-10) had not converged; the backlog was being re-litigated, not closed.
+Archive: `~/rtl-doc-review/archive-pre-reset-2026-07-28/`; the vendored
+proxy corpus (`docs/review/kimi/`) survives in git history. **DOCREV-001 is
+dropped** (its landed common/cdc/math integrations stay in the tree; the
+un-integrated remainder is abandoned in favour of fresh rounds). Fresh
+per-area rounds run under the tightened brief + second-model adjudication —
+see **DOCREV-013** for the area order (cdc, common, math, amba,
+projects/components, then assess fpga) and the per-area startup checklist
+(four-line Makefiles first).
 
 ## Recently closed
 
@@ -47,5 +49,9 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 - **DOCREV-010** — every docs/markdown book needs index.md + overview.md.
 - **DOCREV-011** — fix ALL broken links, whenever they were introduced.
 - **DOCREV-012** — validate the second-model finding adjudication
-  (`verify_findings.py`, Claude refute-by-default) on the next cdc qc round;
+  (`verify_findings.py`, Claude refute-by-default) on the fresh cdc qc round;
   on success write handbook rule 10.
+- **DOCREV-013** — fresh per-area qc rounds under the adjudication pipeline.
+  Order: cdc, common, math, amba (decomposed later), projects/components
+  (decomposed later), then assess fpga. Per-area startup: four-line Makefiles
+  (rtl/make/area.mk + make/tests.mk) before anything else.

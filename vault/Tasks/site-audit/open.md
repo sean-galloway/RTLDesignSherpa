@@ -64,9 +64,13 @@ TB quality, coverage metrics, formal — per area:
 
 - Parts 2-3 subsume **DOCREV-009** (which itself absorbed DOCREV-008); when
   this task goes active, cut DOCREV-009's block here rather than running both.
-- Inherits DOCREV-009's gates: do not start the docs parts until the
-  DOCREV-001 area integrations are done and the README rollout (DOCREV-007)
-  has settled the md set. Off-workstation critique rounds need DOCREV-005.
+- Inherits DOCREV-009's gates, UPDATED 2026-07-28 for the corpus reset:
+  DOCREV-001 is dropped; the docs parts proceed area by area via DOCREV-013's
+  fresh rounds (order: cdc, common, math, amba, projects/components, then
+  assess fpga), each area starting with the four-line-Makefile check
+  (`rtl/make/area.mk` + `make/tests.mk` leaves). The README rollout
+  (DOCREV-007) settling the md set still gates humanization.
+  Off-workstation critique rounds need DOCREV-005.
 - Sequencing per the master Tasks INDEX: rtl/ areas before projects/.
 
 ### Done looks like

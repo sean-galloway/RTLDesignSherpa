@@ -79,9 +79,9 @@ headers pointed at each area's `overview.md`).
 
 ### Notes before starting
 
-- **Do NOT rewrite `docs/review/kimi/**`.** Its 4 broken links are inside
-  critique artifacts, which are evidence of what a reviewer saw at a commit and
-  are regenerated, never hand-edited ([[doc-placement]] rule 5).
+- **`docs/review/kimi/**` was removed in the 2026-07-28 corpus reset** — its
+  4 broken links went with it (they were inside critique artifacts, which are
+  evidence and were never to be hand-edited anyway, [[doc-placement]] rule 5).
 - **Dangling `[[wikilinks]]` in `vault/` are not broken links.** The handbook
   convention is that a `[[name]]` with no note yet marks something worth
   writing. 36 distinct ones exist; leave them.
@@ -193,21 +193,16 @@ for already exists there; the bundler still emits `RTL.sv` per unit, which
 humanize mode simply does not send.
 
 ## DOCREV-004 — Back up or retire the off-repo review collateral
-**Status:** open 2026-07-23
+**Status:** open 2026-07-23 — **updated 2026-07-28 for the corpus reset**
 
-`/mnt/data/github/rtl-doc-review/` is untracked on a single disk. The critiques
-have been vendored into `docs/review/kimi/` and the process into the handbook,
-so what remains there is:
-
-- `books/` + `results/*/round_N/_bundle_snapshot/` (~22 MB) — regenerable from
-  git at the reviewed commit, so arguably disposable.
-- `bin/dispatch_review.py`, `send_kimi_round.py`, `redispatch_big.py` —
-  superseded by `bin/review/run_batch.py` (which folds in the 131072 rung that
-  `redispatch_big` existed to provide manually). Retire once a round has been
-  run successfully through the new path.
-
-Decide: delete, or move under a tracked location. Do not leave it as the only
-copy of anything.
+The pre-reset collateral now lives at
+`~/rtl-doc-review/archive-pre-reset-2026-07-28/` (untracked, one disk): the
+old results tree (proxy corpus inputs + k3 rounds 1-10) and the run logs.
+That archive is the FP-rate baseline for DOCREV-012 and the only copy of the
+old critiques outside git history. Decide: keep, prune, or delete once the
+reset corpus has its own track record. The active pipeline's collateral
+(`~/rtl-doc-review/books/`, fresh `results/`) is regenerable or current work
+product; same rule — do not leave anything as the only copy on one disk.
 
 ## DOCREV-005 — Enable Kimi from the cloud (key + egress)
 **Status:** open 2026-07-23 — prerequisite for running any new round off the workstation
@@ -229,9 +224,9 @@ outside the repo have to be arranged before a cloud round can run:
       routes to, but no live direct call has been made to verify Moonshot takes
       it unprefixed. `GET /v1/models` with the real key lists the valid ids.
 
-**Not a blocker for the backlog.** DOCREV-001 is 339 findings of already-paid-for
-text sitting in `docs/review/kimi/`; none of it needs an API call. This gates
-only *new* rounds (DOCREV-003).
+**Not a blocker on the workstation.** Direct-mode rounds run fine here (the
+reset cdc round is the proof case); this gates only rounds run from a cloud
+sandbox.
 
 ---
 
@@ -322,14 +317,22 @@ un-corrected doc (the voice pass is prose-only and must not be handed known-wron
 content to "improve"). Run it section by section so a bad section is contained,
 not smeared across one giant round.
 
-**Gate:** do not start until common ✅, cdc ✅, math ✅, shared, apb/axi*, and
-monitor (round_3, 70 CONFIRMED) are all integrated, AND the README rollout
-(DOCREV-007) is done so the md set is stable. Needs Kimi enablement (DOCREV-005)
-off-workstation.
+**Gate:** do not start until the DOCREV-013 per-area rounds (cdc, common,
+math, amba, projects/components) are done, AND the README rollout
+(DOCREV-007) is done so the md set is stable. Needs Kimi enablement
+(DOCREV-005) off-workstation. (Pre-2026-07-28 this gate listed the old
+backlog areas; the corpus reset replaced backlog integration with the
+DOCREV-013 fresh rounds.)
 ## DOCREV-012 — Validate the finding-adjudication pass (second model) on the next cdc qc round
 **Status:** open 2026-07-28
 **Priority:** P2
 **Owner:** TBD
+
+**2026-07-28 corpus reset:** the "next cdc qc round" is now the FRESH cdc
+round (round_1 of the reset corpus) — the first area under DOCREV-013. The
+previous cdc rounds whose FP rate is the comparison baseline live in
+`~/rtl-doc-review/archive-pre-reset-2026-07-28/results/qc-kimi-k3/round_{4..10}/`
+(13, 16, 12, 10, 5, 8, 7 findings respectively).
 
 False positives are currently filtered by hand at triage -- the expensive
 place. Two mitigations landed 2026-07-28:
@@ -355,3 +358,36 @@ aggressive -- tune before trusting it.
 **On success:** write the lesson into [[kimi-review-rounds]] as rule 10
 (witness requirement + second-model adjudication), per the house rule that
 method lives in the handbook, not beside the tool.
+## DOCREV-013 — Fresh per-area qc rounds under the adjudication pipeline
+**Status:** open 2026-07-28
+**Priority:** P1
+**Owner:** TBD
+
+The corpus reset (2026-07-28) cleared every prior round; this task is the
+replacement for backlog integration (DOCREV-001, dropped). Each area gets a
+fresh qc round under the tightened REVIEWER_BRIEF, adjudicated by
+`verify_findings.py` (DOCREV-012 validates that pass on cdc, the first area).
+
+**Area order (Sean, 2026-07-28):** cdc, common, math, amba (broken down
+further when we get there), projects/components (also broken down when we
+get there). After those, assess whether the fpga-specific areas need it.
+
+**Per-area startup checklist** (Sean, 2026-07-28 — the Makefile step is part
+of starting each area, not optional prep):
+
+1. **Four-line Makefiles.** The RTL area gets the four-line Makefile
+   delegating to `rtl/make/area.mk` (lint/etc. over
+   `filelists/$(AREA)_all.f`); the val area gets the four-line Makefile
+   delegating to `make/tests.mk` (clean-all + glob-discovered test running,
+   TOOL-008). Already in place for cdc/common/math/amba/integ_*; CHECK when
+   each new area starts — projects/components areas will need them added.
+2. Rebuild the WHOLE bundle from the current tree (rule 1), then regenerate
+   the area's `_meta` unit immediately — the bundler deletes it.
+3. qc round for the area, serial, large max_tokens (rules 2-4).
+4. Adjudicate the round's findings with `bin/review/verify_findings.py`,
+   then human-triage what the verifier does not REFUTE.
+5. Integrate; re-round until near-empty — the near-empty round is the
+   evidence. Humanize only after correctness is clean.
+
+One area at a time, to completion — the multitasking failure (nothing gets
+fixed while a second area runs) is documented in [[kimi-review-rounds]].
