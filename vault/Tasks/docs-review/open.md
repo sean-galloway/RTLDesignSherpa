@@ -359,6 +359,20 @@ of starting each area, not optional prep):
 5. Integrate; re-round until near-empty — the near-empty round is the
    evidence. Humanize only after correctness is clean.
 
+**Stopping rule (Sean, 2026-07-28): impact, not emptiness.** "Near-empty or
+nothing-but-FPs" stays the aspiration, but an area STOPS when the current
+round produces nothing trap-class (a claim a user could trust into a design
+bug); remaining nit-class stragglers are the AUDIT-001 closing pass's job.
+Rationale: three reset-corpus cdc rounds produced 12 real findings with 0
+FP and rising subtlety, and amba is ~10x cdc's size — a strict near-empty
+rule per area does not terminate. cdc round_4 is its final round under this
+policy: triage and fix what it finds, then cdc is DONE.
+
+**After correctness, per area (Sean, 2026-07-28):** (a) humanize the area's
+docs ([[humanization-voice]]; correctness first, always); (b) audit the
+area's TESTS in a similar fashion — details to be scoped when cdc gets
+there (folds into AUDIT-001 part 4).
+
 One area at a time, to completion — the multitasking failure (nothing gets
 fixed while a second area runs) is documented in [[kimi-review-rounds]].
 
