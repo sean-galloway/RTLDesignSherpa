@@ -48,7 +48,7 @@ with no capture-bandwidth limit — unlike the
 SRAM depth.
 
 The intended home is the Genesys 2 monitor board-validation build; see
-`vault/handbook/fpga/monitor-board-coverage.md`.
+`vault/handbook/fpga/Genesys2/stream-mon/monitor-board-coverage.md`.
 
 ---
 

@@ -11,7 +11,7 @@
 //          index (used directly as the tally bin), a miss is reported so the
 //          caller can route it to a single UNEXPECTED bin.
 //
-// Documentation: vault/handbook/fpga/monitor-board-coverage.md
+// Documentation: vault/handbook/fpga/Genesys2/stream-mon/monitor-board-coverage.md
 // Subsystem: amba
 //
 // Author: sean galloway

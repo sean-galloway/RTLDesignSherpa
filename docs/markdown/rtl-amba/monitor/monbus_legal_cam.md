@@ -99,7 +99,7 @@ the CAM is CSR-loadable at runtime.
 | [`monbus_pkt_tally`](monbus_pkt_tally.md) | The sole consumer; instantiates this in `PROFILE_MODE`. |
 | [`monbus_cam`](monbus_cam.md) | The tally's separate LRU write-combining cache (unrelated role). |
 
-Coverage design and the on-board scenario flow: `vault/handbook/fpga/monitor-board-coverage.md`.
+Coverage design and the on-board scenario flow: `vault/handbook/fpga/Genesys2/stream-mon/monitor-board-coverage.md`.
 
 ---
 

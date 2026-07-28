@@ -136,7 +136,7 @@ python3 host/characterize.py --port /dev/ttyUSB1
 
 `BOARD=genesys2` builds `stream_char_genesys2_top` for the Digilent Genesys 2
 (Kintex-7 XC7K325T-2FFG900C) — the coverage/rate-matching bitstream from
-`vault/handbook/fpga/monitor-board-coverage.md`:
+`vault/handbook/fpga/Genesys2/stream-mon/monitor-board-coverage.md`:
 
 - 4 STREAM channels (chosen config; 8-channel builds are also supported),
   `USE_AXI_MONITORS=1` so the rd/wr AXI monitors are on

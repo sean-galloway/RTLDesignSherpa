@@ -60,7 +60,7 @@ combined stream+slave analysis keys unambiguously by agent id - keep them there.
 ## Scenario sequence (run after bring-up)
 
 The executable board sequence list (12-32 runs, rate-matched, multi-channel) is
-[[monitor-coverage-testplan]].
+[[testplan]].
 
 
 Each scenario is self-contained: **program CSRs -> tiny DMA -> FREEZE_TRACE ->

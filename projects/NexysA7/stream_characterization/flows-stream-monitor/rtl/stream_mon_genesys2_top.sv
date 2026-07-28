@@ -5,7 +5,7 @@
 // Purpose: Genesys 2 (Kintex-7 XC7K325T-2) board top for the STREAM
 //          characterization harness -- the monitor board-validation
 //          coverage/rate-matching build (see
-//          vault/handbook/fpga/monitor-board-coverage.md).
+//          vault/handbook/fpga/Genesys2/stream-mon/monitor-board-coverage.md).
 //
 // Differences vs the Nexys A7 top (stream_char_top.sv):
 //   - Board clocking: the Genesys 2 provides a 200 MHz LVDS system clock, so

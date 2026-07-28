@@ -13,7 +13,7 @@ have actually been OBSERVED being emitted in pre-si, vs everything defined.
 
 This is the sign-off artifact for the board-validation gate ("test all the
 different types and make sure they happen" -- see
-vault/handbook/fpga/monitor-board-coverage.md).
+vault/handbook/fpga/Genesys2/stream-mon/monitor-board-coverage.md).
 The NONE rows are the work list: each either gets a provoking test or a
 documented unreachable/reserved rationale.
 
