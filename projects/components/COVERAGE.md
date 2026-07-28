@@ -199,7 +199,7 @@ projects/components/{component}/
 │
 └── docs/
     └── coverage/
-        └── COVERAGE_METHODOLOGY.md    # Documentation (LOCAL)
+        └── vault/handbook/dv/coverage.md    # Documentation (LOCAL)
 ```
 
 ### Why This Separation Matters
@@ -245,7 +245,7 @@ cp projects/components/dmas/stream/bin/generate_coverage_report.py \
    projects/components/{component}/bin/
 
 # Copy documentation template
-cp projects/components/dmas/stream/dv/COVERAGE_METHODOLOGY.md \
+cp vault/handbook/dv/coverage.md \
    projects/components/{component}/dv/
 ```
 
@@ -1223,4 +1223,4 @@ See STREAM component for complete reference:
 - **Top tests:** `projects/components/dmas/stream/dv/tests/top/test_stream_top.py`
 - **FUB conftest:** `projects/components/dmas/stream/dv/tests/fub/conftest.py`
 - **Makefile:** `projects/components/dmas/stream/dv/tests/Makefile`
-- **Methodology doc:** `projects/components/dmas/stream/dv/COVERAGE_METHODOLOGY.md`
+- **Methodology doc:** `vault/handbook/dv/coverage.md`

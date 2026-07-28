@@ -185,11 +185,17 @@ module dma_slave_monitors
     logic [AXI_ID_WIDTH-1:0]   i_bid;    logic [1:0]               i_bresp;
     logic [AXI_USER_WIDTH-1:0] i_buser;  logic                     i_bvalid, i_bready;
 
+    // Agent-id reservation (keep in sync with stream_core's map): STREAM owns
+    // agents 8 (desc-AXI), 9 (rd), 10 (wr), 16-23 (desc engines), 48-55
+    // (schedulers). These test-slave monitors use 0x0001/0x0002 -- a reserved
+    // band BELOW STREAM's range that must never overlap it, so a combined
+    // stream+slave tally analysis keys unambiguously by agent id.
+
     // ---- Read-side slave monitor (independent cfg_rd_*) --------------------
     axi4_slave_rd_mon #(
         .AXI_ID_WIDTH(AXI_ID_WIDTH), .AXI_ADDR_WIDTH(AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH(AXI_DATA_WIDTH), .AXI_USER_WIDTH(AXI_USER_WIDTH),
-        .MAX_TRANSACTIONS(MAX_TRANSACTIONS), .UNIT_ID(8'h10), .AGENT_ID(16'h0001)
+        .MAX_TRANSACTIONS(MAX_TRANSACTIONS), .UNIT_ID(8'h10), .AGENT_ID(16'h0001)  // reserved slave band (< STREAM's 8)
     ) u_rd_mon (
         .aclk(aclk), .aresetn(aresetn), .cam_clear(cam_clear),
         .s_axi_arid(s_axi_arid), .s_axi_araddr(s_axi_araddr),

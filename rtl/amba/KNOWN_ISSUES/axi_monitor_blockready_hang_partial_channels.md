@@ -68,8 +68,8 @@ and the 100-seed deliberately-undersized `test_stream_core_mon_backpressure`
 sweep.
 
 Note: a separate 8-channel STREAM **engine-side** wedge (params 7/9/11 of
-the multi-channel stress family) remains open and is NOT a monitor issue —
-tracked in the STREAM project area.
+the multi-channel stress family) was later fixed and is NOT a monitor issue.
+8-channel STREAM builds are supported; there is no channel-count boundary.
 
 The original write-up is retained below for history.
 

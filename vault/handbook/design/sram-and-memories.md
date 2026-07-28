@@ -14,5 +14,12 @@ summary: No reset ports on SRAMs; ram_style attributes; [DEPTH] syntax.
   comment variant beside it. Small FIFOs: distributed.
 - Array syntax `[DEPTH]`, never `[0:DEPTH-1]`.
 - FIFO depths: power of 2 ([[cdc]] for why async cares even more).
+- A datapath buffer sized too shallow for concurrent read+write at wide data
+  widths corrupts data *silently* - it is not a stall, it is a mismatch. STREAM
+  case: a uniform 4 KB buffer meant `fifo_depth=64` at 512-bit, which produced
+  data-mismatch errors (the read fill and write drain collided); the fix was to
+  scale depth with width and hold a minimum safe depth (128 entries at 512-bit).
+  Size buffers by `depth = target_bytes / (data_width/8)` but floor the depth,
+  don't floor the byte size.
 
 Authority: /GLOBAL_REQUIREMENTS.md sections 1.2-1.4.

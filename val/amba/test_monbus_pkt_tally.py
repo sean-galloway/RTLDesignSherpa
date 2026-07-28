@@ -9,7 +9,7 @@
 #
 # Documentation: rtl/amba/monitor/monbus_pkt_tally.sv (header)
 #                projects/NexysA7/stream_characterization/
-#                MONITOR_BOARD_VALIDATION_PLAN.md
+#                vault/handbook/fpga/monitor-board-coverage.md
 # Subsystem: tests
 #
 # Author: sean galloway

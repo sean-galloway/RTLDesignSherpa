@@ -5,7 +5,7 @@
 // Purpose: Genesys 2 (Kintex-7 XC7K325T-2) board top for the STREAM
 //          characterization harness -- the monitor board-validation
 //          coverage/rate-matching build (see
-//          ../../MONITOR_BOARD_VALIDATION_PLAN.md).
+//          vault/handbook/fpga/monitor-board-coverage.md).
 //
 // Differences vs the Nexys A7 top (stream_char_top.sv):
 //   - Board clocking: the Genesys 2 provides a 200 MHz LVDS system clock, so
@@ -14,8 +14,8 @@
 //     clock is 1200 / CLKOUT0_DIVIDE (12 -> 100 MHz, 15 -> 80 MHz,
 //     20 -> 60 MHz). FPGA_CLK_HZ for the UART divisor / heartbeat / timer is
 //     derived from the same parameter so it can never disagree.
-//   - NUM_CHANNELS = 4 (owner: 2-4 channels is the interesting config; HARD
-//     boundary at <= 4 until the known 8-channel engine wedge is root-caused).
+//   - NUM_CHANNELS = 4 (owner: 2-4 channels is the interesting config;
+//     8-channel builds are also supported).
 //   - USE_AXI_MONITORS = 1: the in-core rd/wr AXI monitors are BUILT on this
 //     bitstream. Their CAM tables size at stream_core's parametric default
 //     (RD/WR_MON_MAX_TRANS = NUM_CHANNELS * AR/AW_MAX_OUTSTANDING + 4 = 36

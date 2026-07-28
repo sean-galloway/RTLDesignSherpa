@@ -91,7 +91,7 @@ class MonbusSlave(GAXISlave):
         # Opt-in packet-type coverage recorder (MONBUS_COVERAGE=1).
         #
         # Feeds the pre-board packet-type coverage matrix (see
-        # projects/NexysA7/stream_characterization/MONITOR_BOARD_VALIDATION_PLAN.md):
+        # vault/handbook/fpga/monitor-board-coverage.md):
         # every decoded (protocol, pkt_type, event_code) tuple observed by this
         # slave is appended as one JSONL line, tagged with the test name, at
         # test end (atexit -- cocotb has no reliable per-test teardown here).

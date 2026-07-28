@@ -9,4 +9,5 @@ summary: Board process - build flows, timing triage, harness, board handling.
 - [[timing-closure]] - the triage order when timing fails
 - [[timing-triage-tool]] - bin/vivado_timing_failures.py (bucketizes fails)
 - [[uart-harness]] - one host program against sim and silicon
+- [[monitor-board-coverage]] - see every packet type from every agent via a config-defined dense tally
 - [[boards]] - JTAG serials, UART chips, the gotchas that eat an afternoon

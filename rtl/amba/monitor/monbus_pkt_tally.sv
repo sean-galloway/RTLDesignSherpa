@@ -50,7 +50,7 @@
 // offending packet, not just a count.
 //
 // Documentation: projects/NexysA7/stream_characterization/
-//                MONITOR_BOARD_VALIDATION_PLAN.md
+//                vault/handbook/fpga/monitor-board-coverage.md
 // Subsystem: amba
 // Author: sean galloway
 

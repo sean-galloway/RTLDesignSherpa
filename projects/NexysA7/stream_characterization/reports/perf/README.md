@@ -113,7 +113,7 @@ saturating past ~4 channels at the shared backing memory.
 
 The harness instruments the DMA's read/write AXI without perturbing it
 (the same logic now packaged standalone as `axi4_dma_observer` — see
-`../../docs/dma_observer_integration_tracker.md`):
+`DMA_UTILIZATION_MEASUREMENT.md`):
 
 - **`axi_bus_meter` × 2** (read R-channel, write W-channel): pure
   `valid`/`ready` snoop, classifies every cycle as productive /

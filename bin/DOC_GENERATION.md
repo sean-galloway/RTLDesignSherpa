@@ -2,7 +2,7 @@
 
 How to author and render a styled, chapterized DOCX/PDF (specs, reports, and
 per-project guides) with `bin/md_to_docx.py`. This is the *mechanics* reference;
-`projects/NexysA7/stream_characterization/docs/DOC_STYLE.md` is the *policy*
+`vault/handbook/authoring/doc-pipeline.md` is the *policy*
 (what must be styled vs. left as plain Markdown).
 
 Read this before standing up a new document unit so you don't re-derive the

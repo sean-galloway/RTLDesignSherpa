@@ -136,10 +136,10 @@ python3 host/characterize.py --port /dev/ttyUSB1
 
 `BOARD=genesys2` builds `stream_char_genesys2_top` for the Digilent Genesys 2
 (Kintex-7 XC7K325T-2FFG900C) — the coverage/rate-matching bitstream from
-`../MONITOR_BOARD_VALIDATION_PLAN.md`:
+`vault/handbook/fpga/monitor-board-coverage.md`:
 
-- 4 STREAM channels (HARD boundary at <= 4 until the 8-channel engine wedge
-  is root-caused), `USE_AXI_MONITORS=1` so the rd/wr AXI monitors are on
+- 4 STREAM channels (chosen config; 8-channel builds are also supported),
+  `USE_AXI_MONITORS=1` so the rd/wr AXI monitors are on
   silicon with their CAMs at stream_core's parametric default
   (`RD/WR_MON_MAX_TRANS = NUM_CHANNELS * AR/AW_MAX_OUTSTANDING + 4` = 36).
 - Board clocking: 200 MHz LVDS sysclk -> MMCM -> harness clock

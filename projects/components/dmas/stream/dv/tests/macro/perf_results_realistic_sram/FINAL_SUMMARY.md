@@ -228,7 +228,7 @@ Optimal SRAM size depends on:
 ## Documentation Updates
 
 **Files Created/Updated:**
-1. `SRAM_SIZING.md` - Theory and calculations
+1. `vault/handbook/design/sram-and-memories.md` - Theory and calculations
 2. `REALISTIC_SRAM_ANALYSIS.md` - Detailed testing analysis (20KB)
 3. `FINAL_SUMMARY.md` - This document (executive summary)
 4. `test_stream_core.py` - Updated with validated SRAM depths

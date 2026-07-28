@@ -160,7 +160,6 @@ suppressing emission, use `cfg_axi_pkt_mask` (drop mask, 1 = drop, in
 - ✅ Multi-channel saturation wedge FIXED (`cb29e226`)
 - ✅ Runtime-disable leak / same-cycle AW+W / wrapper API / AXI5 W wiring FIXED (`95c9490a`)
 - ✅ val/amba regression fully green (679 passed / 0 failed); monitor formal 10/10
-- ⚠️ Open (non-monitor): 8-channel STREAM engine wedge (params 7/9/11 family)
 - ⚠️ Open (framework): axil4 monitor TB drain-window race — seeds pinned; proper fix in RDS-DV
 
 **Always check:** `rtl/amba/KNOWN_ISSUES/` before diagnosing bugs
@@ -772,7 +771,7 @@ verilator --lint-only rtl/amba/monitor/axi_monitor_base.sv
 2. ⚠️ **Configuration critical** - Never all packet types together
 3. 🐛 **Check known issues** - Before diagnosing bugs
 4. 🔗 **Complete integration** - Monitor + config + downstream handling
-5. ✅ **Test awareness** - val/amba fully green as of `95c9490a`; open items are non-monitor (STREAM 8ch engine wedge) or framework (axil4 TB drain race)
+5. ✅ **Test awareness** - val/amba fully green as of `95c9490a`; only open item is framework (axil4 TB drain race)
 
 ---
 
