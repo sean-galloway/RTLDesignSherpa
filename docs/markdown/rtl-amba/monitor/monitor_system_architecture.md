@@ -69,6 +69,104 @@ system already handles it.
 
 ---
 
+## The packet is hierarchical in three independent ways
+
+This is the property that makes one 128-bit word serve a whole SoC, and it is
+worth being explicit about because none of the three hierarchies is obvious from
+the field list.
+
+### 1. Classification: what happened
+
+```
+protocol  (4b, 16 slots)   AXI / AXIS / APB / ARB / CORE
+  └─ packet_type (4b)      error / timeout / completion / threshold / perf / debug / ...
+       └─ event_code (8b)  ARB_ERR_STARVATION, AXI_PERFWIN_BP_CYCLES, ...
+```
+
+Each level narrows the one above, and **each level is independently useful**. A
+consumer that only understands `packet_type` can still sort errors from
+performance samples in a stream containing protocols it has never heard of. One
+that understands `protocol` too can route AXI traffic to an AXI decoder and pass
+the rest through untouched. Only the innermost level requires knowing the block.
+
+This is what lets the filter be three-level (drop a whole type, then individual
+codes within a type you are keeping) and what lets the histogram bin on the
+whole tuple without knowing what any of it means.
+
+### 2. Identity: who it happened to
+
+```
+unit_id    (8b)   which subsystem
+  └─ agent_id  (16b)   which instance within it
+       └─ channel_id (9b)   which channel, or which AXI transaction ID
+```
+
+`UNIT_ID` and `AGENT_ID` are elaboration parameters on the monitor, so identity
+is assigned structurally at integration time, not discovered at runtime. Two
+instances of the same wrapper differ only by parameter. A consumer can aggregate
+at any level -- all errors in a subsystem, or one channel of one instance --
+without the producers knowing which grouping anyone intends.
+
+### 3. Topology: how packets reach the capture point
+
+`monbus_arbiter` takes `CLIENTS` monbus inputs and produces **one monbus
+output of exactly the same shape**. That is the whole trick: an arbiter's output
+is a valid arbiter input, so aggregation nests to any depth without a special
+"root" or "leaf" module.
+
+STREAM builds a real three-level tree this way -- one arbiter per level, each
+merging the level below:
+
+| Level | Module | `CLIENTS` |
+|---|---|---|
+| leaf | `scheduler_group` | 2 |
+| middle | `scheduler_group_array` | `NUM_CHANNELS + 1` |
+| root | `stream_core` | 3 |
+
+Each level collapses its children onto one stream, and the packet is unchanged
+by the trip -- `agent_id` still says which leaf produced it. Only the root
+attaches to a `monbus_*_group` and off-chip transport. Adding a channel changes
+one `CLIENTS` parameter; it does not change the packet, the transport, or any
+consumer.
+
+Note that the timestamp rides beside the packet through every level, and
+`monbus_arbiter` carries the 192-bit `(packet, timestamp)` pair atomically at
+each hop -- so depth in the tree does not risk pairing a packet with the wrong
+time.
+
+---
+
+## Adaptability: what is deliberately left open
+
+The format is locked, which is what makes bit-exact tooling possible. It is not,
+however, full:
+
+| Space | Used | Free |
+|---|---|---|
+| `protocol` | 5 (AXI, AXIS, APB, ARB, CORE) | 11 slots |
+| `packet_type` | 13 | `0xA`, `0xB`, `0xC` reserved |
+| `event_code` | per `{protocol, packet_type}` | 8 bits *per pair* |
+| reserved bits | none | `[123:109]`, 15 bits of forward-compat slack |
+| `event_data` | payload | 64 bits, fits a full address |
+
+The `event_code` row is the important one. Because the code is scoped by the
+`{protocol, packet_type}` pair rather than global, a new protocol gets a fresh
+256-value space for each packet type it uses. Extension does not compete with
+existing assignments, so nobody has to coordinate a global registry.
+
+`PROTOCOL_CORE` exists as the general-purpose slot for blocks that are not a bus
+protocol -- reach for it before spending one of the 11 free `protocol` values.
+Spend a protocol slot only when the block is a *family* worth separating in
+filters and coverage reports.
+
+The 15 reserved bits are genuine slack, not padding to a round number: they sit
+between `packet_type` and `protocol`, so a future field can be added without
+moving either the type tag at the top or the 64-bit payload at the bottom, and
+without changing the width. Existing decoders that mask on the documented fields
+keep working.
+
+---
+
 ## Architecture
 
 ```
