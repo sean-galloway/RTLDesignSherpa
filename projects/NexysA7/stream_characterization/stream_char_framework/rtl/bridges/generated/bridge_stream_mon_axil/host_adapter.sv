@@ -339,8 +339,8 @@ module host_adapter #(
     // Slave 5 (dma_axil): 0x00080000 - 0x00080FFF
     // Slave 6 (slave_err): 0x00090000 - 0x00090FFF
     // Slave 7 (slave_tally): 0x000C0000 - 0x000FFFFF
-    // Slave 8 (stream_tally_cfg): 0x000A0000 - 0x000A0FFF
-    // Slave 9 (slave_tally_cfg): 0x000B0000 - 0x000B0FFF
+    // Slave 8 (stream_tally_cfg): 0x00100000 - 0x0013FFFF
+    // Slave 9 (slave_tally_cfg): 0x00140000 - 0x0017FFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
@@ -369,10 +369,10 @@ module host_adapter #(
         else if (fub_axi_awaddr >= 32'h000C0000 && fub_axi_awaddr <= 32'h000FFFFF) begin
             comb_slave_select_aw[7] = 1'b1;  // slave_tally
         end
-        else if (fub_axi_awaddr >= 32'h000A0000 && fub_axi_awaddr <= 32'h000A0FFF) begin
+        else if (fub_axi_awaddr >= 32'h00100000 && fub_axi_awaddr <= 32'h0013FFFF) begin
             comb_slave_select_aw[8] = 1'b1;  // stream_tally_cfg
         end
-        else if (fub_axi_awaddr >= 32'h000B0000 && fub_axi_awaddr <= 32'h000B0FFF) begin
+        else if (fub_axi_awaddr >= 32'h00140000 && fub_axi_awaddr <= 32'h0017FFFF) begin
             comb_slave_select_aw[9] = 1'b1;  // slave_tally_cfg
         end
     end
@@ -390,8 +390,8 @@ module host_adapter #(
     // Slave 5 (dma_axil): 0x00080000 - 0x00080FFF
     // Slave 6 (slave_err): 0x00090000 - 0x00090FFF
     // Slave 7 (slave_tally): 0x000C0000 - 0x000FFFFF
-    // Slave 8 (stream_tally_cfg): 0x000A0000 - 0x000A0FFF
-    // Slave 9 (slave_tally_cfg): 0x000B0000 - 0x000B0FFF
+    // Slave 8 (stream_tally_cfg): 0x00100000 - 0x0013FFFF
+    // Slave 9 (slave_tally_cfg): 0x00140000 - 0x0017FFFF
     // ================================================================
     logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
@@ -420,10 +420,10 @@ module host_adapter #(
         else if (fub_axi_araddr >= 32'h000C0000 && fub_axi_araddr <= 32'h000FFFFF) begin
             comb_slave_select_ar[7] = 1'b1;  // slave_tally
         end
-        else if (fub_axi_araddr >= 32'h000A0000 && fub_axi_araddr <= 32'h000A0FFF) begin
+        else if (fub_axi_araddr >= 32'h00100000 && fub_axi_araddr <= 32'h0013FFFF) begin
             comb_slave_select_ar[8] = 1'b1;  // stream_tally_cfg
         end
-        else if (fub_axi_araddr >= 32'h000B0000 && fub_axi_araddr <= 32'h000B0FFF) begin
+        else if (fub_axi_araddr >= 32'h00140000 && fub_axi_araddr <= 32'h0017FFFF) begin
             comb_slave_select_ar[9] = 1'b1;  // slave_tally_cfg
         end
     end

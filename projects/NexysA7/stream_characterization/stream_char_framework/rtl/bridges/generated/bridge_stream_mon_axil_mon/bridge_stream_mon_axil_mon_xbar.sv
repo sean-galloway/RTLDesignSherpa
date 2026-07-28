@@ -1481,7 +1481,7 @@ module bridge_stream_mon_axil_mon_xbar (
     // Using 64b path from adapter
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_64b_aw_to_stream_tally_cfg = ((host_64b_aw.addr >= 32'h000a0000) && (host_64b_aw.addr <= 32'h000a0fff));
+    wire host_64b_aw_to_stream_tally_cfg = ((host_64b_aw.addr >= 32'h00100000) && (host_64b_aw.addr <= 32'h0013ffff));
     assign stream_tally_cfg_axi_awid     = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.id : '0;
     assign stream_tally_cfg_axi_awaddr   = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.addr : '0;
     assign stream_tally_cfg_axi_awlen    = host_64b_aw_to_stream_tally_cfg ? host_64b_aw.len : '0;
@@ -1530,7 +1530,7 @@ module bridge_stream_mon_axil_mon_xbar (
     assign stream_tally_cfg_axi_bridge_id_aw = host_64b_aw_to_stream_tally_cfg ? host_bridge_id_aw : '0;
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_64b_ar_to_stream_tally_cfg = ((host_64b_ar.addr >= 32'h000a0000) && (host_64b_ar.addr <= 32'h000a0fff));
+    wire host_64b_ar_to_stream_tally_cfg = ((host_64b_ar.addr >= 32'h00100000) && (host_64b_ar.addr <= 32'h0013ffff));
     assign stream_tally_cfg_axi_arid     = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.id : '0;
     assign stream_tally_cfg_axi_araddr   = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.addr : '0;
     assign stream_tally_cfg_axi_arlen    = host_64b_ar_to_stream_tally_cfg ? host_64b_ar.len : '0;
@@ -1557,7 +1557,7 @@ module bridge_stream_mon_axil_mon_xbar (
     // Using 64b path from adapter
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_64b_aw_to_slave_tally_cfg = ((host_64b_aw.addr >= 32'h000b0000) && (host_64b_aw.addr <= 32'h000b0fff));
+    wire host_64b_aw_to_slave_tally_cfg = ((host_64b_aw.addr >= 32'h00140000) && (host_64b_aw.addr <= 32'h0017ffff));
     assign slave_tally_cfg_axi_awid     = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.id : '0;
     assign slave_tally_cfg_axi_awaddr   = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.addr : '0;
     assign slave_tally_cfg_axi_awlen    = host_64b_aw_to_slave_tally_cfg ? host_64b_aw.len : '0;
@@ -1606,7 +1606,7 @@ module bridge_stream_mon_axil_mon_xbar (
     assign slave_tally_cfg_axi_bridge_id_aw = host_64b_aw_to_slave_tally_cfg ? host_bridge_id_aw : '0;
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_64b_ar_to_slave_tally_cfg = ((host_64b_ar.addr >= 32'h000b0000) && (host_64b_ar.addr <= 32'h000b0fff));
+    wire host_64b_ar_to_slave_tally_cfg = ((host_64b_ar.addr >= 32'h00140000) && (host_64b_ar.addr <= 32'h0017ffff));
     assign slave_tally_cfg_axi_arid     = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.id : '0;
     assign slave_tally_cfg_axi_araddr   = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.addr : '0;
     assign slave_tally_cfg_axi_arlen    = host_64b_ar_to_slave_tally_cfg ? host_64b_ar.len : '0;

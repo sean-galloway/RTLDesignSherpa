@@ -37,9 +37,41 @@ def _load_stream_char_tb():
     _spec.loader.exec_module(_m)
     return _m
 
-STREAM_TALLY_BASE = 0x0004_0000       # stream tally (bridge slave stream_tally)
-SLAVE_TALLY_BASE  = 0x000C_0000       # slave  tally (bridge slave slave_tally)
+# Host bin-reads + profile-CAM load now go through each tally's dedicated cfg
+# AXIL slave (record ingest stays on stream_tally@0x40000 / slave_tally@0xC0000).
+STREAM_TALLY_BASE = 0x0010_0000       # stream_tally_cfg (read bins, write config)
+SLAVE_TALLY_BASE  = 0x0014_0000       # slave_tally_cfg
 BIN_COMPLETION0 = 0x0100              # {AXI, COMPLETION, evcode 0}
+
+# cfg-slave config write windows (offsets within a *_tally_cfg slave):
+PROFILE_CLEAR_OFF = 0x0100            # any write clears the legal-set CAM
+PROFILE_ENTRY_OFF = 0x0200            # + idx*4: load dense-bin idx with a key
+MON_N_PROFILE     = 64               # legal-set size (matches MON_N_PROFILE)
+
+
+def profile_key(agent, protocol, pkt_type, event_code):
+    """Legal-set key: {agent[15:0],proto[3:0],type[3:0],event[7:0]} (mirrors RTL)."""
+    return (((agent & 0xFFFF) << 16) | ((protocol & 0xF) << 12)
+            | ((pkt_type & 0xF) << 8) | (event_code & 0xFF))
+
+
+# STREAM legal set for profile mode: rd/wr datapath AddrMatch (agent 9/10, AXI,
+# type 8 AddrMatch, event 0x01 = AXI_ADDR_RANGE_MATCH) + scheduler/desc CORE
+# completions. Dense bin index = position in this list.
+STREAM_PROFILE = [
+    (9,  0, 8, 0x01),   # 0: rd datapath AddrMatch
+    (10, 0, 8, 0x01),   # 1: wr datapath AddrMatch
+    (48, 4, 1, 0x01),   # 2: scheduler DESC_COMPLETE
+    (16, 4, 1, 0x40),   # 3: descriptor-engine DESCRIPTOR_LOADED
+]
+
+
+async def profile_load(tb, base, legal):
+    """Clear + load a legal set into a tally's CAM over its cfg AXIL slave."""
+    await tb.uart_write(base + PROFILE_CLEAR_OFF, 0)
+    for idx, (ag, pr, ty, ec) in enumerate(legal):
+        await tb.uart_write(base + PROFILE_ENTRY_OFF + idx * 4,
+                            profile_key(ag, pr, ty, ec))
 
 
 async def _sweep_tally(tb, base, label, dut):
@@ -133,6 +165,14 @@ async def cocotb_test_stream_mon(dut):
     # passes the per-type drop mask; allow_addr_match clears MASK3.ADDR_MASK so it
     # also passes the event-code stage. Without these the STREAM group filters out
     # everything the (perf-only) in-core monitors emit.
+    # Profile mode: load the STREAM legal set into the tally CAM over its cfg
+    # AXIL slave (persists across the DMA's soft-reset; the CAM resets only on
+    # aresetn / an explicit clear).
+    profile_mode = os.environ.get('PROFILE_MODE', '0') == '1'
+    if profile_mode:
+        await profile_load(tb, STREAM_TALLY_BASE, STREAM_PROFILE)
+        dut._log.info(f"[profile] loaded {len(STREAM_PROFILE)} legal tuples into STREAM tally CAM")
+
     ok = await tb.run_dma_test(
         num_channels=1, descriptors_per_channel=1, transfer_bytes=256,
         timeout_clocks=200_000, mon_err_cfg=0, compress_en=False,
@@ -143,6 +183,26 @@ async def cocotb_test_stream_mon(dut):
     # Snapshot the tally (freeze auto-flushes the cache into the count SRAM).
     await tb.uart_write(CSR_CTRL, compose("CTRL", FREEZE_TRACE=1))
     await tb.wait_clocks(tb.clk_name, 50)
+
+    # Profile mode: bins are dense per-agent indices, not {type,event}. Sweep
+    # the loaded dense bins + the UNEXPECTED bin and prove per-agent resolution
+    # (rd=agent 9 at bin 0, wr=agent 10 at bin 1 both fired their AddrMatch).
+    if profile_mode:
+        UNEXPECTED = MON_N_PROFILE
+        dense = {}
+        for b in list(range(len(STREAM_PROFILE))) + [UNEXPECTED]:
+            v = await tb.uart_read(STREAM_TALLY_BASE + b * 4)
+            if v:
+                dense[b] = v
+        rd_hits = dense.get(0, 0)   # agent 9  rd datapath AddrMatch
+        wr_hits = dense.get(1, 0)   # agent 10 wr datapath AddrMatch
+        dut._log.info(f"[profile] STREAM dense bins={dense} "
+                      f"rd(agent9)={rd_hits} wr(agent10)={wr_hits} "
+                      f"UNEXPECTED={dense.get(UNEXPECTED, 0)}")
+        assert rd_hits > 0 and wr_hits > 0, (
+            f"per-agent AddrMatch not resolved in the profile tally: "
+            f"rd(bin0)={rd_hits} wr(bin1)={wr_hits} (CAM load or agent binning failed)")
+        return
 
     # Read BOTH tally SRAMs over the same UART (distinct address spaces).
     stream_bins = await _sweep_tally(tb, STREAM_TALLY_BASE, "STREAM", dut)
@@ -181,7 +241,7 @@ SIM_FPGA_CLK_HZ = 100_000_000
 SIM_UART_BAUD   = 12_500_000
 
 
-def test_stream_mon(request):
+def _run_stream_mon(request, profile=False):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'stream_mon': 'projects/NexysA7/stream_characterization/flows-stream-monitor',
     })
@@ -200,7 +260,10 @@ def test_stream_mon(request):
 
     perf_dv_tests = os.path.join(repo_root, 'projects/NexysA7/stream_characterization/flows-stream-bridge/dv')
     perf_host     = os.path.join(repo_root, 'projects/NexysA7/stream_characterization/flows-stream-bridge/host')
-    test_name = "test_stream_mon"
+    # Profile mode forces the in-core monitors on and builds both tallies in
+    # agent-resolved profile mode; direct mode keeps the legacy 16-bit matrix.
+    use_mon  = '1' if profile else os.environ.get('USE_MON', '0')
+    test_name = "test_stream_mon_profile" if profile else "test_stream_mon"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -208,16 +271,21 @@ def test_stream_mon(request):
 
     rtl_parameters = {
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ), 'UART_BAUD': str(SIM_UART_BAUD),
-        'USE_AXI_MONITORS': os.environ.get('USE_MON', '0'),  # OFF for fast isolation
+        'USE_AXI_MONITORS': use_mon,
         'DATA_WIDTH': '128', 'ADDR_WIDTH': '32',
         'SRAM_DEPTH': '512', 'AR_MAX_OUTSTANDING': '16', 'AW_MAX_OUTSTANDING': '16',
         'RESP_DELAY_R_CAPACITY': '512', 'RESP_DELAY_B_CAPACITY': '512',
     }
+    if profile:
+        rtl_parameters['MON_TALLY_PROFILE_MODE'] = '1'
+        rtl_parameters['MON_N_PROFILE'] = str(MON_N_PROFILE)
     extra_env = {
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ), 'UART_BAUD': str(SIM_UART_BAUD),
         'DUT': dut_name, 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{test_name}.xml'),
         'SEED': str(random.randint(0, 100000)),
+        'USE_MON': use_mon,
+        'PROFILE_MODE': '1' if profile else '0',
     }
     # WAVES support — follows the repo-standard pattern (test_stream_char.py):
     # --trace-fst in compile_args + waves= + sim_args + plus_args=['--trace'].
@@ -245,3 +313,14 @@ def test_stream_mon(request):
         sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
         plus_args=['--trace'] if enable_waves else [],
     )
+
+
+def test_stream_mon(request):
+    """Direct 16-bit tally: bins by {protocol,pkt_type,event_code}."""
+    _run_stream_mon(request, profile=False)
+
+
+def test_stream_mon_profile(request):
+    """Agent-resolved profile tally: load the legal set over the cfg AXIL slave,
+    then prove per-agent AddrMatch (rd=9, wr=10) lands in distinct dense bins."""
+    _run_stream_mon(request, profile=True)

@@ -181,7 +181,7 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
         f"Slave 7 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 8 (stream_tally_cfg)
-    test_addr = 0x000a0100
+    test_addr = 0x00100100
     # Non-pattern data: upper byte 0xDE so it can't be confused with any
     # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
     # the slave ID). Lower byte tags the (master, slave) pair for debug.
@@ -195,7 +195,7 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
         f"Slave 8 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 9 (slave_tally_cfg)
-    test_addr = 0x000b0100
+    test_addr = 0x00140100
     # Non-pattern data: upper byte 0xDE so it can't be confused with any
     # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
     # the slave ID). Lower byte tags the (master, slave) pair for debug.
@@ -339,7 +339,7 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
     # Master 0 → Slave 8 (stream_tally_cfg)
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
-    test_addr = 0x000a0100
+    test_addr = 0x00100100
     expected = tb.slave_mem_read(8, test_addr, master_idx=0)
     tb.log.info(f"  R slave=8 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(0, test_addr)
@@ -349,7 +349,7 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
     # Master 0 → Slave 9 (slave_tally_cfg)
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
-    test_addr = 0x000b0100
+    test_addr = 0x00140100
     expected = tb.slave_mem_read(9, test_addr, master_idx=0)
     tb.log.info(f"  R slave=9 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(0, test_addr)
@@ -637,7 +637,7 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
                     f"M0→S7 data mismatch at "
                     f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
                     f"got 0x{got:08x}, expected 0x{d:08x}")
-    # Slave 8 (stream_tally_cfg): 0x000a0000-0x000a0fff
+    # Slave 8 (stream_tally_cfg): 0x00100000-0x0013ffff
     pages_0_8 = tb.slave_probe_pages(8, mode=mode)
     in_page_0_8 = tb.page_probe_offsets(8, master_idx=0)
     tb.log.info(f"  slave 8: {len(pages_0_8)} pages x 3 probes/page")
@@ -662,7 +662,7 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
                     f"M0→S8 data mismatch at "
                     f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
                     f"got 0x{got:08x}, expected 0x{d:08x}")
-    # Slave 9 (slave_tally_cfg): 0x000b0000-0x000b0fff
+    # Slave 9 (slave_tally_cfg): 0x00140000-0x0017ffff
     pages_0_9 = tb.slave_probe_pages(9, mode=mode)
     in_page_0_9 = tb.page_probe_offsets(9, master_idx=0)
     tb.log.info(f"  slave 9: {len(pages_0_9)} pages x 3 probes/page")

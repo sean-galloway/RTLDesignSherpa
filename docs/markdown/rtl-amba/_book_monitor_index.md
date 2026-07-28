@@ -31,6 +31,7 @@
 - [Monitor Bus Group — AXIL Slave-Read / AXIL Master-Write](monitor/monbus_axil_axil_group.md)
 - [Monitor Bus LRU CAM](monitor/monbus_cam.md)
 - [Monitor Bus LRU CAM (Pipelined)](monitor/monbus_cam_pipe.md)
+- [Monitor Bus Legal-Set CAM](monitor/monbus_legal_cam.md)
 - [Monitor Bus Compressor](monitor/monbus_compressor.md)
 - [MonBus Group Core](monitor/monbus_group_core.md)
 - [Monitor Bus Group Family](monitor/monbus_group.md)

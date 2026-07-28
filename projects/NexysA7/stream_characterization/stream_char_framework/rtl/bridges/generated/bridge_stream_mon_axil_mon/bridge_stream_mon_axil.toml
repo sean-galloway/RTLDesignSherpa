@@ -184,6 +184,8 @@ addr_range  = "0x00040000"     # 256 KB  (ends 0xF_FFFF)
 # (monbus_tally_axil cfg_s_axil): R = read bins, W = load the profile legal-set
 # CAM (0x200 + idx*4) / clear (0x100). Record ingest stays on stream_tally /
 # slave_tally above; these keep host config off the sweeping record stream.
+# 256 KB each so the host can read the full 16-bit bin space in direct mode
+# (profile mode uses only the low ~512 B of dense bins + the 0x200 cfg window).
 [[bridge.slaves]]
 name        = "stream_tally_cfg"
 prefix      = "stream_tally_cfg_axi_"
@@ -193,8 +195,8 @@ id_width    = 8
 addr_width  = 32
 data_width  = 64
 user_width  = 0
-base_addr   = "0x000A0000"
-addr_range  = "0x00001000"     # 4 KB
+base_addr   = "0x00100000"
+addr_range  = "0x00040000"     # 256 KB  (ends 0x13_FFFF)
 
 [[bridge.slaves]]
 name        = "slave_tally_cfg"
@@ -205,5 +207,5 @@ id_width    = 8
 addr_width  = 32
 data_width  = 64
 user_width  = 0
-base_addr   = "0x000B0000"
-addr_range  = "0x00001000"     # 4 KB
+base_addr   = "0x00140000"
+addr_range  = "0x00040000"     # 256 KB  (ends 0x17_FFFF)

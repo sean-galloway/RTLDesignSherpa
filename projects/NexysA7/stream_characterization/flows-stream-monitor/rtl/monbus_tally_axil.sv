@@ -166,28 +166,41 @@ module monbus_tally_axil
     assign w_pkt_ts    = r_ts;
 
     // ------------------------------------------------------------------------
-    // cfg_s_axil WRITE: config. AW+W accepted together; addr decodes the op.
+    // cfg_s_axil WRITE: config. AW and W accepted INDEPENDENTLY (the bridge may
+    // present AW then wait for awready before W -- coupling them deadlocks). The
+    // write fires once both have landed; addr decodes the op:
     //   0x100      -> PROFILE_CLEAR   (invalidate all CAM entries)
     //   0x200+i*4  -> PROFILE_ENTRY i (wdata = legal key, valid = 1)
     // ------------------------------------------------------------------------
     logic                    r_cfg_bvalid;
+    logic                    r_aw_done, r_w_done;
+    logic [ADDR_WIDTH-1:0]   r_cfg_awaddr;
+    logic [DATA_WIDTH-1:0]   r_cfg_wdata;
     logic                    w_cfg_wr;
-    assign w_cfg_wr    = cfg_awvalid & cfg_wvalid & ~r_cfg_bvalid;
-    assign cfg_awready = w_cfg_wr;
-    assign cfg_wready  = w_cfg_wr;
+    assign cfg_awready = ~r_aw_done;                 // accept a new AW when idle
+    assign cfg_wready  = ~r_w_done;                  // accept a new W  when idle
+    assign w_cfg_wr    = r_aw_done & r_w_done & ~r_cfg_bvalid;
 
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_cfg_bvalid <= 1'b0;
-        else if (w_cfg_wr)          r_cfg_bvalid <= 1'b1;
-        else if (cfg_bready)        r_cfg_bvalid <= 1'b0;
+        if (`RST_ASSERTED(aresetn)) begin
+            r_aw_done <= 1'b0; r_w_done <= 1'b0; r_cfg_bvalid <= 1'b0;
+        end else begin
+            if (cfg_awvalid & cfg_awready) begin r_cfg_awaddr <= cfg_awaddr; r_aw_done <= 1'b1; end
+            if (cfg_wvalid  & cfg_wready)  begin r_cfg_wdata  <= cfg_wdata;  r_w_done  <= 1'b1; end
+            if (w_cfg_wr) begin
+                r_aw_done <= 1'b0; r_w_done <= 1'b0; r_cfg_bvalid <= 1'b1;
+            end else if (cfg_bready & r_cfg_bvalid) begin
+                r_cfg_bvalid <= 1'b0;
+            end
+        end
     )
     assign cfg_bvalid = r_cfg_bvalid;
     assign cfg_bresp  = 2'b00;
 
-    // Decode (byte-offset windows within the cfg slave).
+    // Decode the latched write address (byte-offset windows in the cfg slave).
     logic w_cfg_is_profile, w_cfg_is_clear;
-    assign w_cfg_is_profile = (cfg_awaddr[13:8] == 6'h02);   // 0x200-0x2FF
-    assign w_cfg_is_clear   = (cfg_awaddr[13:8] == 6'h01);   // 0x100-0x1FF
+    assign w_cfg_is_profile = (r_cfg_awaddr[13:8] == 6'h02);   // 0x200-0x2FF
+    assign w_cfg_is_clear   = (r_cfg_awaddr[13:8] == 6'h01);   // 0x100-0x1FF
 
     logic                    w_profile_clear;
     logic                    w_profile_we;
@@ -196,9 +209,9 @@ module monbus_tally_axil
     logic [PROF_KEY_W-1:0]   w_profile_wkey;
     assign w_profile_clear  = w_cfg_wr & w_cfg_is_clear;
     assign w_profile_we     = w_cfg_wr & w_cfg_is_profile;
-    assign w_profile_waddr  = cfg_awaddr[PROF_IDX_W+1:2];
+    assign w_profile_waddr  = r_cfg_awaddr[PROF_IDX_W+1:2];
     assign w_profile_wvalid = 1'b1;
-    assign w_profile_wkey   = cfg_wdata[PROF_KEY_W-1:0];
+    assign w_profile_wkey   = r_cfg_wdata[PROF_KEY_W-1:0];
 
     // ------------------------------------------------------------------------
     // cfg_s_axil READ: araddr>>2 selects a bin; rdata returns the count.

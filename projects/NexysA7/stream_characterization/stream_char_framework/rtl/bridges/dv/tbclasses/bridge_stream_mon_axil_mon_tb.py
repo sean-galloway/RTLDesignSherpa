@@ -95,8 +95,8 @@ class BridgeStreamMonAxilMonTB(TBBase):
             5: ('axil', 0x00080000, 0x00001000, 32),  # dma_axil
             6: ('axil', 0x00090000, 0x00001000, 32),  # slave_err
             7: ('axil', 0x000c0000, 0x00040000, 64),  # slave_tally
-            8: ('axil', 0x000a0000, 0x00001000, 64),  # stream_tally_cfg
-            9: ('axil', 0x000b0000, 0x00001000, 64),  # slave_tally_cfg
+            8: ('axil', 0x00100000, 0x00040000, 64),  # stream_tally_cfg
+            9: ('axil', 0x00140000, 0x00040000, 64),  # slave_tally_cfg
         }
 
         # Per-master data width (in bits). Used by master_read/write helpers
@@ -652,7 +652,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
         # whatever ARADDR / AWADDR the bridge forwards (after burst
         # decomposition by axi4_to_axil4 shims, if any).
         bytes_per_line = 64 // 8
-        addr_range = 0x00001000
+        addr_range = 0x00040000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
         mem_bytes = min(addr_range, self.SLAVE_MEM_CAP_BYTES)
         preset = self._build_preset(8, addr_range, 64)
@@ -670,7 +670,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[8],
-            base_addr=0x000a0000,
+            base_addr=0x00100000,
         )
         self.slave_wr[8] = AXIL4SlaveWrite(
             self.dut, self.clock,
@@ -680,7 +680,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[8],
-            base_addr=0x000a0000,
+            base_addr=0x00100000,
         )
     def _setup_slave_9_slave_tally_cfg(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 9: slave_tally_cfg (protocol: axil)"""
@@ -689,7 +689,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
         # whatever ARADDR / AWADDR the bridge forwards (after burst
         # decomposition by axi4_to_axil4 shims, if any).
         bytes_per_line = 64 // 8
-        addr_range = 0x00001000
+        addr_range = 0x00040000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
         mem_bytes = min(addr_range, self.SLAVE_MEM_CAP_BYTES)
         preset = self._build_preset(9, addr_range, 64)
@@ -707,7 +707,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[9],
-            base_addr=0x000b0000,
+            base_addr=0x00140000,
         )
         self.slave_wr[9] = AXIL4SlaveWrite(
             self.dut, self.clock,
@@ -717,7 +717,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[9],
-            base_addr=0x000b0000,
+            base_addr=0x00140000,
         )
 
     # ----------------------------------------------------------------------

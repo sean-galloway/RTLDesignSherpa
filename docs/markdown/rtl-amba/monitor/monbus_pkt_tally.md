@@ -166,8 +166,37 @@ module monbus_pkt_tally #(
 | `COUNT_WIDTH` | Saturating bin-count width | 32 | ≥ 1; sizes the SRAM word and cache payload |
 | `CACHE_DEPTH` | LRU cache entries | 32 | Passed straight to `monbus_cam.DEPTH` |
 | `NUM_LATCH` | First-event capture slots | 4 | ≥ 1 |
-| `ADDR_BITS` | Bin address width | 16 | ≤ 16; 16 = whole tuple, direct-mapped |
+| `ADDR_BITS` | Bin address width | 16 | ≤ 16 for direct mode; `≥ clog2(N_PROFILE+1)` in profile mode |
 | `SRAM_DEPTH` | Derived count-SRAM depth | `1<<ADDR_BITS` | Do not override |
+| `PROFILE_MODE` | 0 = direct-mapped; 1 = agent-resolved profile mode | 0 | See below |
+| `N_PROFILE` | Legal-set entries (dense bins) in profile mode | 64 | Dense bins `0..N-1`; `N` = UNEXPECTED |
+
+---
+
+## Profile Mode
+
+By default the bin address is the low `ADDR_BITS` of the 16-bit message identity
+`{protocol, pkt_type, event_code}` — a direct-mapped matrix. That matrix cannot
+answer *"did every agent fire?"* (`agent_id` is not in the key) and is ~99% empty
+(only ~245 of the 20,480 `protocol×type×event` cells are ever legal).
+
+`PROFILE_MODE = 1` replaces the direct map with a **CSR-loaded legal set**. A
+[`monbus_legal_cam`](monbus_legal_cam.md) holds up to `N_PROFILE` legal
+`{agent, protocol, pkt_type, event_code}` keys; an incoming packet is matched to
+the entry's **dense bin index** (a hit) or routed to the single **UNEXPECTED
+bin** at index `N_PROFILE` (a miss, also captured by the first-event latch). This
+makes per-agent coverage a first-class count, and turns any out-of-profile
+message — a wrong event code, an untracked agent, a protocol a unit should not
+speak — into a swept spec-violation signal.
+
+The legal set is loaded/cleared over the profile-load port
+(`profile_clear` / `profile_we` / `profile_waddr` / `profile_wvalid` /
+`profile_wkey`); the host can reprogram slices per run when the full legal set
+exceeds `N_PROFILE`. `PROFILE_MODE = 0` is bit-for-bit the original behaviour —
+the only datapath change is how the bin address is computed.
+
+Coverage gate: every expected dense bin `> 0` (all agents/types fired) **and**
+`UNEXPECTED == 0` (nothing rogue slipped through).
 
 ---
 
@@ -204,7 +233,8 @@ The bank is cleared by `i_clear`.
 | Block | Role |
 |-------|------|
 | [`monbus_cam`](monbus_cam.md) | The 32-entry LRU cache front. Its payload is repurposed from `last_event_data` to a partial count; the `evict_*` / `dump_*` / `soft_clear` ports were added additively for this consumer (the compressor path is untouched). |
-| `monitor_common_pkg` | The locked 128-bit packet field map (`pkt_type[127:124]`, `protocol[108:105]`, `event_code[104:97]`). |
+| [`monbus_legal_cam`](monbus_legal_cam.md) | Profile mode only: the CSR-loaded legal-set match CAM that maps `{agent, protocol, pkt_type, event_code}` to a dense bin index (hit) or a miss (UNEXPECTED). |
+| `monitor_common_pkg` | The locked 128-bit packet field map (`pkt_type[127:124]`, `protocol[108:105]`, `event_code[104:97]`, `agent_id[87:72]`). |
 | synchronous single-port SRAM | The backing count matrix. |
 
 ---
