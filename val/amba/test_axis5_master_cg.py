@@ -169,7 +169,7 @@ def test_axis5_master_cg(request, skid_depth, data_width, enable_wakeup, enable_
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_SKID_DEPTH': str(skid_depth),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_ENABLE_WAKEUP': str(enable_wakeup),

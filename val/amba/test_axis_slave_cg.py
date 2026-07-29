@@ -336,7 +336,7 @@ def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width,
         'TEST_DEST_WIDTH': str(dest_width),
         'TEST_USER_WIDTH': str(user_width),
         'CG_IDLE_COUNT_WIDTH': '8',  # Default width for idle count
-        'SEED': str(random.randint(1, 1000000)),
+        'SEED': os.environ.get('SEED', str(random.randint(1, 1000000))),
         'AXIS_COMPLIANCE_CHECK': '1',
     }
 

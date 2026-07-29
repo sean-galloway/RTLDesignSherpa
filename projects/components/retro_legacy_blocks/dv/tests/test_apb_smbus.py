@@ -230,7 +230,7 @@ def test_smbus(request, cdc_enable, test_level, description):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
     }
 

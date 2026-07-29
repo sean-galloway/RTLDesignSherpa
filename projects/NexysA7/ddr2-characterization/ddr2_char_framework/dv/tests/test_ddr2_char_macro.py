@@ -523,7 +523,7 @@ def test_ddr2_char_macro(request, test_type):
         "DUT": dut_name,
         "TEST_TYPE": test_type,
         "MEM_TYPE": "DDR2",
-        "SEED": str(random.randint(0, 100000)),
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),
@@ -641,7 +641,7 @@ def test_ddr2_char_macro_pacing_sweep(request, wr_gap, rd_gap):
         "MEM_TYPE": "DDR2",
         "WR_GAP": str(wr_gap),
         "RD_GAP": str(rd_gap),
-        "SEED": str(random.randint(0, 100000)),
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),
@@ -754,7 +754,7 @@ def test_ddr2_char_macro_ooo_pacing_schmoo(
         "OOO_WR_GAP":         str(wr_gap),
         "OOO_RD_GAP":         str(rd_gap),
         "OOO_RD_START_DELAY": str(rd_start_delay),
-        "SEED": str(random.randint(0, 100000)),
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),

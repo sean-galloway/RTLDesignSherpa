@@ -157,7 +157,7 @@ def test_axi4_slave_wr_crc_check(request, test_type, data_width, id_width,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
 
     simulator = os.environ.get('SIM', 'verilator').lower()

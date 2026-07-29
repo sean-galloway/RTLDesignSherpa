@@ -228,7 +228,7 @@ def test_axi_skid_buffer_multi_sigmap(request, addr_width, ctrl_width, data_widt
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000))
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000)))
     }
 
     # Add test parameters

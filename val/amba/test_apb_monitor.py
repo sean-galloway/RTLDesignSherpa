@@ -574,7 +574,7 @@ def test_apb_monitor():
     # Environment
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_AW': str(aw),
         'TEST_DW': str(dw),
         'TEST_UNIT_ID': str(unit_id),
@@ -795,7 +795,7 @@ def test_apb_monitor_addr_range():
 
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_AW': str(aw),
         'TEST_DW': str(dw),
         'TEST_UNIT_ID': str(unit_id),

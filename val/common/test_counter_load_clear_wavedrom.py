@@ -487,7 +487,7 @@ def test_counter_load_clear_wavedrom(request, max_value):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_MAX_VALUE': str(max_value),
         'WAVEDROM_SHOW_STATUS': '1',
         'ENABLE_WAVEDROM': '1'

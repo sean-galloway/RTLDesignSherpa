@@ -317,7 +317,7 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
 
@@ -456,7 +456,7 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
 

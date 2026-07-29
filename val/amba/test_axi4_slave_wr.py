@@ -483,7 +483,7 @@ def test_axi4_slave_write(stub, id_width, addr_width, data_width, user_width, aw
         'TEST_USER_WIDTH': str(user_width),
         'TEST_CLK_PERIOD': '10',  # 10ns = 100MHz
         'TIMEOUT_CYCLES': str(timeout_ms // 10),  # Convert to cycles
-        'SEED': str(random.randint(1, 999999)),
+        'SEED': os.environ.get('SEED', str(random.randint(1, 999999))),
 
         # Buffer depth parameters
         'TEST_AW_DEPTH': str(aw_depth),

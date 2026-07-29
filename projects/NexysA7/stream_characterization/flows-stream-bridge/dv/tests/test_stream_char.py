@@ -562,7 +562,7 @@ def test_stream_char(request, test_type, test_level):
         'LOG_PATH':         log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED':             str(random.randint(0, 100000)),
+        'SEED':             os.environ.get('SEED', str(random.randint(0, 100000))),
         # DMA test parameters: 2 descriptors/ch x 8KB = 16KB moved per channel
         'DMA_DESC_PER_CH':  '2',
         'DMA_XFER_BYTES':   '8192',
@@ -678,7 +678,7 @@ def test_stream_char_ext_suite(request):
         'LOG_PATH':         log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED':             str(random.randint(0, 100000)),
+        'SEED':             os.environ.get('SEED', str(random.randint(0, 100000))),
     }
     simulator = os.environ.get('SIM', 'verilator').lower()
     create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
@@ -910,7 +910,7 @@ def test_stream_char_ext_char(request):
         'LOG_PATH':         log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED':             str(random.randint(0, 100000)),
+        'SEED':             os.environ.get('SEED', str(random.randint(0, 100000))),
     }
     simulator = os.environ.get('SIM', 'verilator').lower()
     create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)

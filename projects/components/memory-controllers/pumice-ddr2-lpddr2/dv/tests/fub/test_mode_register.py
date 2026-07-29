@@ -201,7 +201,7 @@ def test_mode_register(request, test_type, num_ranks):
         "TEST_TYPE": test_type,
         "NUM_RANKS": str(num_ranks),
         "MAX_MR_IDX": "17",
-        "SEED": str(random.randint(0, 100000)),
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),

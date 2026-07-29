@@ -1097,7 +1097,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',  # Changed from DEBUG to reduce noise
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000))
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000)))
     }
 
     # Add test parameters; these are passed to the environment, but not the RTL
@@ -1211,7 +1211,7 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'ENABLE_WAVEDROM': '1',  # Enable WaveDrom!
         'TEST_ADDR_WIDTH': str(addr_width),
         'TEST_DATA_WIDTH': str(data_width),

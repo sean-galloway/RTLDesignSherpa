@@ -290,7 +290,7 @@ def _run_stream_mon(request, profile=False):
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ), 'UART_BAUD': str(SIM_UART_BAUD),
         'DUT': dut_name, 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{test_name}.xml'),
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'USE_MON': use_mon,
         'PROFILE_MODE': '1' if profile else '0',
     }

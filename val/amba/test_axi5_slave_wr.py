@@ -442,7 +442,7 @@ def test_axi5_slave_wr(request, stub, id_width, addr_width, data_width, user_wid
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
         'TEST_STUB': str(stub),

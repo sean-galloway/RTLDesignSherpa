@@ -497,7 +497,7 @@ def test_counter_freq_invariant_wavedrom(request, counter_width):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_COUNTER_WIDTH': str(counter_width),
         'WAVEDROM_SHOW_STATUS': '1',
         'ENABLE_WAVEDROM': '1'

@@ -366,7 +366,7 @@ def test_counter_bin_load(request, width, max_value, test_id):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
 
     # Add coverage compile args if COVERAGE=1

@@ -589,7 +589,7 @@ def test_scheduler(request, test_type, channel_id, num_channels, addr_width, dat
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
         'TEST_DEBUG': '0',
     }
@@ -702,7 +702,7 @@ def test_scheduler_extended(request):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': 'basic',
         'TEST_DEBUG': '0',
     }

@@ -404,7 +404,7 @@ def test_fifo_sync_wavedrom(request, data_width, depth, clk_period):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_DEPTH': str(depth),
         'TEST_CLK_WR': str(clk_period),

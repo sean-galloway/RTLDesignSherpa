@@ -192,7 +192,7 @@ def test_pumice_mem_cmd_scheduler(request):
     }
     extra_env = {
         "DUT": dut_name, "LOG_PATH": log_path, "COCOTB_LOG_LEVEL": "INFO",
-        "COCOTB_RESULTS_FILE": results_path, "SEED": str(random.randint(0, 100000)),
+        "COCOTB_RESULTS_FILE": results_path, "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
     }
     extra_env.update(params)
     # Command-history scoreboard: generate-gated INSIDE the scheduler

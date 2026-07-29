@@ -315,7 +315,7 @@ def test_axi_monitor_addr_check():
         'LOG_PATH':         log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'TEST_CLK_PERIOD':  '10',
-        'SEED':             str(random.randint(0, 100000)),
+        'SEED':             os.environ.get('SEED', str(random.randint(0, 100000))),
     }
 
     compile_args = [

@@ -276,7 +276,7 @@ def test_cdc_2_phase_handshake(request, params):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
-        'SEED': str(random.randint(0, 1000000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
         'TEST_LEVEL': test_level,
         'SUPER_DEBUG': 'false',
         'TEST_ADDR_WIDTH': '32',

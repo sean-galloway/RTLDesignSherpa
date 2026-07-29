@@ -206,7 +206,7 @@ def test_arbiter_round_robin_simple(request, clients):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000))
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000)))
     }
 
     # Add coverage compile args if COVERAGE=1

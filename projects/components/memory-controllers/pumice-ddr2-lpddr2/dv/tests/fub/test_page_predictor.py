@@ -175,7 +175,7 @@ def test_page_predictor(request, test_type):
         "NUM_RANKS":  "1",
         "NUM_BANKS":  "8",
         "ROW_WIDTH":  "14",
-        "SEED": str(random.randint(0, 100000)),
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),

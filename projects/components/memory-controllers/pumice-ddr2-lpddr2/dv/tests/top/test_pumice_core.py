@@ -212,7 +212,7 @@ def test_pumice_core(request):
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
-                 "SEED": str(random.randint(0, 100000))}
+                 "SEED": os.environ.get('SEED', str(random.randint(0, 100000)))}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_pumice_core",

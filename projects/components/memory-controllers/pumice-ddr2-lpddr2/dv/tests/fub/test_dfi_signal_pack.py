@@ -176,7 +176,7 @@ def test_dfi_signal_pack(request, test_type, dfi_rate, num_ranks):
         "LOG_PATH":          log_path,
         "COCOTB_LOG_LEVEL":  "INFO",
         "COCOTB_RESULTS_FILE": results_path,
-        "SEED":              str(random.randint(0, 100000)),
+        "SEED":              os.environ.get('SEED', str(random.randint(0, 100000))),
         "TEST_TYPE":         test_type,
         "TEST_LEVEL":        _TEST_LEVEL.lower(),
         "NUM_RANKS":         str(num_ranks),

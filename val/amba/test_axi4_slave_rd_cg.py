@@ -447,7 +447,7 @@ def test_axi4_slave_read_cg(id_width, addr_width, data_width, user_width, ar_dep
         'TEST_LEVEL': test_level,
         'CG_TEST_MODE': cg_test_mode,
         'CG_IDLE_COUNT_WIDTH': '8',  # Default width for idle count
-        'SEED': str(random.randint(1, 1000000)),
+        'SEED': os.environ.get('SEED', str(random.randint(1, 1000000))),
         'AXI4_COMPLIANCE_CHECK': '1',
     }
 

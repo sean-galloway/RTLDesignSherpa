@@ -389,7 +389,7 @@ def test_axi4_master_pat_crc_pair(request, test_type):
     extra_env = {
         "DUT": dut_name,
         "TEST_TYPE": test_type,
-        "SEED": str(random.randint(0, 100000)),
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
         "TEST_LEVEL": os.environ.get("TEST_LEVEL", "FUNC"),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":

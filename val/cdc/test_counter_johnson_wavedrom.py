@@ -565,7 +565,7 @@ def test_counter_johnson_wavedrom(request):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_WIDTH': str(width),
         'TEST_DEBUG': '1'
     }

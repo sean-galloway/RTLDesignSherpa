@@ -230,7 +230,7 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
 
     # VCD waveform generation support via WAVES environment variable

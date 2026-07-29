@@ -385,7 +385,7 @@ def test_axi4_master_rd_crc_check(request, test_type, slave_profile):
         "SLAVE_PROFILE": slave_profile,
         "AXI_DATA_WIDTH": "64",
         "AXI_ID_WIDTH":   "8",
-        "SEED": str(random.randint(0, 100000)),
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
         "TEST_LEVEL": os.environ.get("TEST_LEVEL", "FUNC"),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":

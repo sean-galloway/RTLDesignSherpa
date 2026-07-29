@@ -382,7 +382,7 @@ def test_cam_tag(request, n, depth):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000))
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000)))
     }
 
     # Add parameter values to environment variables

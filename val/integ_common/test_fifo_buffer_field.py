@@ -286,7 +286,7 @@ def test_fifo_buffer_field(request, addr_width, ctrl_width, data_width, depth, w
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms)  # Dynamic timeout
     }

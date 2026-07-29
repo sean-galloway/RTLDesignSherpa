@@ -544,7 +544,7 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_TEST_TIMEOUT': str(timeout_map[stress_level] * 1000),
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_IW': str(iw),
         'TEST_AW': str(aw),
         'TEST_IS_READ': '1' if is_read else '0',

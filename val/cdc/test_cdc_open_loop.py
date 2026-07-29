@@ -245,7 +245,7 @@ def test_cdc_open_loop(request, params):
         'COCOTB_LOG_LEVEL'    : 'INFO',
         'COCOTB_RESULTS_FILE' : results_path,
         'COCOTB_TEST_TIMEOUT' : str(timeout_ms),
-        'SEED'                : str(random.randint(0, 1_000_000)),
+        'SEED'                : os.environ.get('SEED', str(random.randint(0, 1_000_000))),
         'TEST_LEVEL'          : test_level,
         # TB-class env contract
         'TEST_DATA_WIDTH'     : str(data_width),

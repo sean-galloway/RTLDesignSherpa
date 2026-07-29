@@ -342,7 +342,7 @@ def test_axi4_slave_wr_mon(id_width, addr_width, data_width, user_width, wstrb_w
         'TEST_ADDR_WIDTH': str(addr_width),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_STUB': '0',  # Not stub - real RTL
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_CLK_PERIOD': '10',
     }
 

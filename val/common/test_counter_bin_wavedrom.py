@@ -454,7 +454,7 @@ def test_counter_bin_wavedrom(request, width, max_val):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_WIDTH': str(width),
         'TEST_MAX': str(max_val),
         'WAVEDROM_SHOW_STATUS': '1',

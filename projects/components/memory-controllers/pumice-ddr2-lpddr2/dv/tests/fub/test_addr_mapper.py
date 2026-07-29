@@ -174,7 +174,7 @@ def test_addr_mapper(request, test_type):
         "ROW_WIDTH":         "14",
         "COL_WIDTH":         "10",
         "BYTE_OFFSET_WIDTH": "3",
-        "SEED": str(random.randint(0, 100000)),
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
         "TEST_LEVEL": os.environ.get("TEST_LEVEL", "FUNC"),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":

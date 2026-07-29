@@ -557,7 +557,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': 'wavedrom',  # Special level for wavedrom
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
         'ENABLE_WAVEDROM': '1',  # Enable WaveDrom generation!
@@ -764,7 +764,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms)  # Dynamic timeout
     }

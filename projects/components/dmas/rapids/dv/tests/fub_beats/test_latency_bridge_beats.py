@@ -156,7 +156,7 @@ def test_beats_latency_bridge(request, test_type, data_width, timing_profile):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
     if timing_profile != 'default':
         extra_env['GAXI_TIMING_PROFILE'] = timing_profile

@@ -159,7 +159,7 @@ def test_global_timers(request, test_type):
     extra_env = {
         "DUT": dut_name,
         "TEST_TYPE": test_type,
-        "SEED": str(random.randint(0, 100000)),
+        "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
         "COCOTB_LOG_LEVEL": "INFO",
         "COCOTB_RESULTS_FILE":
             os.path.join(log_dir, f"results_{test_name}.xml"),

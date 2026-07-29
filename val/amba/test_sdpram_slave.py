@@ -444,7 +444,7 @@ def test_sdpram_slave(request, wr_protocol, rd_protocol, data_width, mem_depth):
         "DUT_RD_PROTOCOL":  rd_protocol,
         "LOG_PATH":         str(log_path),
         "COCOTB_LOG_LEVEL": "INFO",
-        "SEED":             str(random.randint(0, 100000)),
+        "SEED":             os.environ.get('SEED', str(random.randint(0, 100000))),
     }
 
     parameters = {

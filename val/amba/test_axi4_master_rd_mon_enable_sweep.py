@@ -347,7 +347,7 @@ def test_axi4_master_rd_mon_enable_sweep(
         "TEST_ADDR_WIDTH":    str(addr_width),
         "TEST_DATA_WIDTH":    str(data_width),
         "TEST_STUB":          "0",
-        "SEED":               str(random.randint(0, 100000)),
+        "SEED":               os.environ.get('SEED', str(random.randint(0, 100000))),
         "TEST_CLK_PERIOD":    "10",
         "TEST_EN_ERROR":      str(enables["error"]),
         "TEST_EN_TIMEOUT":    str(enables["timeout"]),

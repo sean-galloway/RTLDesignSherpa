@@ -664,7 +664,7 @@ def test_debounce(request, num_buttons, debounce_delay, pressed_state, test_leve
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
         'TEST_NUM_BUTTONS': str(num_buttons),
         'TEST_DEBOUNCE_DELAY': str(debounce_delay),
