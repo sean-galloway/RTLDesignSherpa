@@ -160,18 +160,22 @@ math_compressor_4to2 u_comp1 (
     .ow_cout(cout1)
 );
 
-// Second compressor: bits [7:4] + cout from first compressor
+// Second compressor: bits [7:4], cin tied low.
+// cout1 is a NEXT-COLUMN carry (weight 2, independent of cin per the port
+// table): feeding it into this column's cin (weight 1) loses a bit of
+// column mass -- with col_bits=8'hFF the chained version totals 7, not 8.
 math_compressor_4to2 u_comp2 (
     .i_x1(col_bits[4]), .i_x2(col_bits[5]),
     .i_x3(col_bits[6]), .i_x4(col_bits[7]),
-    .i_cin(cout1),  // Chain cout to cin
+    .i_cin(1'b0),
     .ow_sum(sum2),
     .ow_carry(carry2),
     .ow_cout(cout2)
 );
 
 // Results: sum1, sum2 stay in this column
-// carry1, carry2, cout2 go to next column
+// carry1, cout1, carry2, cout2 ALL go to the next column (every compressor
+// output except sum has weight 2)
 ```
 
 ### In Dadda Tree Multiplier
