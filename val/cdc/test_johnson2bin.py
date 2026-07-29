@@ -111,8 +111,11 @@ class GrayJ2BinTB(TBBase):
         self.binary = self.dut.binary
 
     async def setup_clock(self):
-        """Setup clock"""
-        cocotb.start_soon(Clock(self.clk, self.clock_period, units="ns").start())
+        """Setup clock (idempotent: one driver per sim -- repeated calls from
+        each subtest must not stack a second Clock on the same signal)"""
+        if not getattr(self, '_clk_started', False):
+            cocotb.start_soon(Clock(self.clk, self.clock_period, units="ns").start())
+            self._clk_started = True
         await Timer(1, units='ns')
 
     async def reset_dut(self):

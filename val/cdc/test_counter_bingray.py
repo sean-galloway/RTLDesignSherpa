@@ -131,8 +131,11 @@ class CounterBinGrayTB(TBBase):
             self.log.debug(f"First 16 Gray values: {[hex(x) for x in self.expected_gray_sequence[:16]]}{self.get_time_ns_str()}")
 
     async def setup_clock(self):
-        """Setup clock"""
-        cocotb.start_soon(Clock(self.clk, self.clock_period, units="ns").start())
+        """Setup clock (idempotent: one driver per sim -- repeated calls from
+        each subtest must not stack a second Clock on the same signal)"""
+        if not getattr(self, '_clk_started', False):
+            cocotb.start_soon(Clock(self.clk, self.clock_period, units="ns").start())
+            self._clk_started = True
         await Timer(1, units='ns')
         self.log.debug(f"Clock setup complete{self.get_time_ns_str()}")
 
