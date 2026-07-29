@@ -88,3 +88,26 @@ owning area; stop by the impact rule. One area at a time, same as docs.
 
 Related: [[test-runner]], [[tb-structure]], [[bfm-usage]],
 [[seeds-and-determinism]], [[kimi-review-rounds]], [[coverage]].
+
+## Adjudication lessons from round_1 (2026-07-29)
+
+- **The verifier never saw the tests.** `verify_findings.py`'s evidence glob
+  was `*.md`/`*.sv` only; testqc units are `.py`. 39/51 first-pass UNCERTAIN.
+  Fixed, plus quote-bearing-first ordering (a huge golden FRAMEWORK.py head
+  must not starve the cited file), plus a mechanical TEST SKELETON
+  (generate_params / parametrize / run() / reset-method signatures) in every
+  testqc verdict -- the deciding code sits far from the header docstring a
+  finding's Says: quote usually cites.
+- **Concatenated blobs conflate files.** TESTS.py is many test files behind
+  `# FILE:` banners; a grep hit's line number does not say WHICH file it is
+  in. The verifier REFUTED a true finding (test_cdc_2_phase_handshake has no
+  REG_LEVEL) because the hit belonged to bin2gray. Identifier ground truth
+  must report the source file (nearest preceding banner), not the blob line.
+- **The contract must be IN the evidence.** Findings cite "Clause N" of
+  TEST_REVIEWER_BRIEF.md, which was not in the pack; two verdicts REFUTED
+  what they should have called UNCERTAIN (rule 4). Include the brief's
+  contract clauses in the verifier's evidence for testqc rounds.
+- Verdict quality after fixes: 14 UPHELD, 8 REFUTED (1 wrong, above), 29
+  UNCERTAIN routed to human triage -- the verifier settles mechanical
+  classes (SEED, level presence) and punts semantics, which is the right
+  division.

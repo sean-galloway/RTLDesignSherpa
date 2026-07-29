@@ -84,22 +84,31 @@ def _norm(s):
 def evidence_for(round_dir, unit, finding):
     """Doc + RTL excerpts the finding cites, from the bundle snapshot first."""
     snap = os.path.join(round_dir, "_bundle_snapshot", unit)
+    m = re.search(r'Says:\s*"(.+?)"', finding.get("raw", ""), re.S)
+    quote = _norm(m.group(1))[:200].strip() if m else ""
     chunks, budget = [], EVIDENCE_CAP
-    for src in sorted(glob.glob(os.path.join(snap, "*.md")) +
-                      glob.glob(os.path.join(snap, "*.sv"))):
+    files = sorted(glob.glob(os.path.join(snap, "*.md")) +
+                   glob.glob(os.path.join(snap, "*.sv")) +
+                   glob.glob(os.path.join(snap, "*.py")))
+    # Quote-bearing files first: the head-of-FRAMEWORK.py (golden, huge) must
+    # not starve the test file the finding actually cites.
+    def located(src):
+        body = _norm(open(src, encoding="utf-8", errors="replace").read())
+        i = body.index(quote[:60]) if quote and quote[:60] in body else -1
+        return body, i
+    loaded = []
+    for src in files:
+        body, i = located(src)
+        loaded.append((src, body, i))
+    loaded.sort(key=lambda t: t[2] < 0)  # located first
+    for src, nbody, i in loaded:
         if budget <= 0:
             break
-        nbody = _norm(open(src, encoding="utf-8", errors="replace").read())
-        quote = ""
-        m = re.search(r'Says:\s*"(.+?)"', finding.get("raw", ""), re.S)
-        if m:
-            quote = _norm(m.group(1))[:200].strip()
-        if quote and quote[:60] in nbody:
-            i = nbody.index(quote[:60])
+        if i >= 0:
             lo, hi = max(0, i - WINDOW), min(len(nbody), i + len(quote) + WINDOW)
             excerpt = nbody[lo:hi]
         else:
-            excerpt = nbody[:budget]
+            excerpt = nbody[:min(budget, 1_500)]
         excerpt = excerpt[:budget]
         budget -= len(excerpt)
         chunks.append(f"--- {os.path.basename(src)} ({os.path.getsize(src)} bytes) ---\n{excerpt}")
@@ -156,6 +165,38 @@ def finding_blocks(text, n):
         return [text] * n
     return [text[marks[k]:marks[k + 1] if k + 1 < n else len(text)]
             for k in range(n)]
+
+
+def test_skeleton(snap):
+    """The structural parts of a test unit that contract findings turn on.
+
+    Test files are tens of kB and the deciding code (the parameter generator,
+    the run() call, the parametrize decorator, the TB contract methods) sits
+    far from the header docstring a finding's Says: quote usually cites, so a
+    quote-centered window misses it -- the second UNCERTAIN wave. Extract the
+    known locations mechanically for any unit that has .py files."""
+    out, budget = [], 8_000
+    for src in sorted(glob.glob(os.path.join(snap, "*.py"))):
+        if budget <= 0:
+            break
+        body = open(src, encoding="utf-8", errors="replace").read()
+        hits = []
+        for m in re.finditer(r"^(@pytest\.mark\.parametrize.*|def (generate\w*params\w*)\(.*|"
+                             r"def (setup_clocks_and_reset|assert_reset|deassert_reset|reset_dut)\(.*|"
+                             r"\s*run\(\s*$)", body, re.M):
+            start = m.start()
+            # take the decorator line alone; functions/call get a body slice
+            span = 1_600 if not m.group(0).startswith("@") else 200
+            hits.append(body[start:start + span])
+        if hits:
+            chunk = (f"--- {os.path.basename(src)}: params/parametrize/run/reset-methods ---\n"
+                     + "\n#   [...]\n".join(hits))
+            chunk = chunk[:budget]
+            budget -= len(chunk)
+            out.append(chunk)
+    if not out:
+        return ""
+    return "## Test skeleton (generate_params / parametrize / run() / reset methods)\n\n" + "\n\n".join(out)
 
 
 def identifier_truth(round_dir, unit, finding):
@@ -256,6 +297,7 @@ def main():
                     f"## The finding as written\n\n{f['raw'].strip()[:4000]}\n\n"
                     f"Files cited: {', '.join(f['files']) or '(none)'}\n\n"
                     f"## Evidence\n\n{evidence}\n\n"
+                    f"{test_skeleton(os.path.join(a.round_dir, '_bundle_snapshot', f['unit']))}\n\n"
                     f"{identifier_truth(a.round_dir, f['unit'], f)}")
             try:
                 msgs = [{"role": "user", "content": user}]

@@ -412,3 +412,15 @@ bundle, built BEFORE round_4's fixes -- the apply reverted all five. They
 were re-applied by hand (the humanizer incidentally fixed the johnson shift
 direction itself). The humanize bundle is now ALWAYS rebuilt after the last
 correctness integration.
+
+**cdc TEST audit (round_1, 2026-07-29).** 51 findings over 8 units; verdicts
+14 UPHELD / 8 REFUTED / 29 UNCERTAIN after three evidence fixes (see
+[[test-review]] lessons). Integrated so far: SEED env honored in 179
+wrappers (commit 86c91bfc). Remaining batches: (3) REG_LEVEL grids missing
+on ~7 cdc tests + 2 docstring/grid mismatches; (4) silent-pass findings
+(scoreboard-never-fails, log-only errors, fitted golden, driver
+self-filter, reset-read-never-compared) -- the highest-value class, each
+needs per-test care; (5) smalls: filelist includes discarded by 3 tests,
+Clock stacked per subtest. REFUTED set: 1 wrong (2_phase REG_LEVEL, blob
+conflation -- real), 1 defensible (bingray wavedrom HAS TEST_LEVEL), rest
+correct.
