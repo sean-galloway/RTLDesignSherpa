@@ -98,25 +98,27 @@ CITES = [
     (WR_ENG, 784, "else if (m_axi_wvalid && m_axi_wready && m_axi_wlast"),
     (WR_ENG, 941, "m_axi_bready = 1'b1"),
     (WR_ENG, 951, "if (m_axi_bvalid && m_axi_bready && (m_axi_bresp != 2'b00))"),
-    (SCHED, 816, "w_read_complete = (r_read_beats_remaining == 32'h0)"),
-    (SCHED, 886, "w_write_issued   = (r_write_beats_remaining == 32'h0)"),
-    (SCHED, 891, "w_write_complete = (r_write_beats_to_commit == 32'h0)"),
-    (SCHED, 893, "w_transfer_complete = w_read_complete && w_write_issued"),
-    (SCHED, 911, "w_rd_prefetch_en = cfg_rd_prefetch_enable && !w_is_ext"),
-    (SCHED, 916, "w_rd_peek   = w_rd_prefetch_en && w_state_xfer_data"),
-    (SCHED, 926, "w_wr_advance = w_rd_prefetch_en && w_state_xfer_data"),
-    (SCHED, 947, "w_sched_rd_completing_this_cycle = sched_rd_done_strobe"),
-    (SCHED, 962, "sched_rd_valid = (r_current_state == CH_XFER_DATA)"),
-    (SCHED, 988, "sched_wr_valid = (r_current_state == CH_XFER_DATA)"),
-    (SCHED, 510, "if (w_wr_advance) begin"),
-    (SCHED, 512, "end else if (w_transfer_complete && !r_rd_ahead) begin"),
-    (SCHED, 527, "if (r_descriptor.next_descriptor_ptr != 32'h0"),
-    (SCHED, 529, "end else if (w_write_complete) begin"),
-    (SCHED, 1064, "descriptor_ready = (r_current_state == CH_IDLE)"),
-    (SCHED, 1102, "if (sched_wr_done_strobe || sched_wr_commit_strobe)"),
-    (SCHED, 1147, "w_timeout_expired = cfg_sched_timeout_enable"),
-    (SCHED, 1152, "w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0)"),
-    (SCHED, 1157, "w_hard_error = descriptor_error || sched_rd_error"),
+    (SCHED, 829, "w_read_complete = (r_read_beats_remaining == 32'h0)"),
+    (SCHED, 899, "w_write_issued   = (r_write_beats_remaining == 32'h0)"),
+    (SCHED, 904, "w_write_complete = (r_write_beats_to_commit == 32'h0)"),
+    (SCHED, 906, "w_transfer_complete = w_read_complete && w_write_issued"),
+    (SCHED, 924, "w_rd_prefetch_en = cfg_rd_prefetch_enable && !w_is_ext"),
+    (SCHED, 929, "w_rd_peek   = w_rd_prefetch_en && w_state_xfer_data"),
+    (SCHED, 939, "w_wr_advance = w_rd_prefetch_en && w_state_xfer_data"),
+    (SCHED, 960, "w_sched_rd_completing_this_cycle = sched_rd_done_strobe"),
+    (SCHED, 975, "sched_rd_valid = (r_current_state == CH_XFER_DATA)"),
+    (SCHED, 1001, "sched_wr_valid = (r_current_state == CH_XFER_DATA)"),
+    (SCHED, 270, "w_is_ext = r_is_ext"),
+    (SCHED, 317, "w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d && w_is_ext"),
+    (SCHED, 523, "if (w_wr_advance) begin"),
+    (SCHED, 525, "end else if (w_transfer_complete && !r_rd_ahead) begin"),
+    (SCHED, 540, "if (r_descriptor.next_descriptor_ptr != 32'h0"),
+    (SCHED, 542, "end else if (w_write_complete) begin"),
+    (SCHED, 1077, "descriptor_ready = (r_current_state == CH_IDLE)"),
+    (SCHED, 1115, "if (sched_wr_done_strobe || sched_wr_commit_strobe)"),
+    (SCHED, 1160, "w_timeout_expired = cfg_sched_timeout_enable"),
+    (SCHED, 1165, "w_timeout_escalate = (cfg_sched_timeout_limit != 8'd0)"),
+    (SCHED, 1170, "w_hard_error = descriptor_error || sched_rd_error"),
     (DESC_ENG, 333, "w_apb_skid_valid_in = apb_valid && !r_channel_reset_active"),
     (DESC_ENG, 449, "w_next_addr_valid = (w_next_addr_extended >= cfg_addr0_base"),
     (DESC_ENG, 454, "w_chain_condition = (w_next_addr != '0) && !w_desc_last"),
@@ -139,11 +141,11 @@ CITES = [
     (DRAIN, 142, "rd_ready = !r_rd_empty"),
     (DRAIN, 145, "data_available = w_count"),
     (CORE, 73, "parameter int RD_MON_MAX_TRANS = NUM_CHANNELS * AR_MAX_OUTSTANDING + 4"),
-    (CORE, 660, "int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable"),
-    (CORE, 715, "int_cfg_rdeng_mon_enable = 1'b0"),
-    (RD_MON, 477, "fub_axi_arready = w_core_fub_axi_arready &"),
-    (WR_MON, 482, "fub_axi_awready = w_core_fub_axi_awready &"),
-    (MON_BASE, 483, "block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)"),
+    (CORE, 699, "int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable"),
+    (CORE, 754, "int_cfg_rdeng_mon_enable = 1'b0"),
+    (RD_MON, 479, "fub_axi_arready = w_core_fub_axi_arready &"),
+    (WR_MON, 484, "fub_axi_awready = w_core_fub_axi_awready &"),
+    (MON_BASE, 489, "block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)"),
     (MON_PKG, 115, "return (max_transactions >= 16) ? 2 : 0"),
 ]
 
@@ -523,7 +525,7 @@ def build_apb_csr_contract(wb):
          "Gates CH_IDLE -> CH_FETCH_DESC only: a descriptor already in "
          "flight is NOT stopped by dropping enable.",
          "IDLE exit requires descriptor_valid && cfg_channel_enable",
-         f"{SCHED}:471"),
+         f"{SCHED}:484"),
         ("Channel ctrl", "cfg_channel_reset", "NC", "in", "regfile",
          "Registered internally; forces the scheduler FSM to CH_IDLE with "
          "top priority, clears beat counters and r_rd_ahead; descriptor "
@@ -531,7 +533,7 @@ def build_apb_csr_contract(wb):
          "from sticky CH_ERROR.",
          "reset active |=> FSM==CH_IDLE next cycle; sticky errors clear on "
          "CH_IDLE entry",
-         f"{SCHED}:454-456, :797-802"),
+         f"{SCHED}:467-469, :810-815"),
         ("Timeout", "cfg_sched_timeout_cycles / _enable / _limit",
          "32/1/8", "in", "regfile",
          "Soft write-progress watchdog: counter runs while sched_wr_valid "
@@ -541,7 +543,7 @@ def build_apb_csr_contract(wb):
          "CH_ERROR. Any write progress clears the strikes.",
          "bare timeout window never wedges the channel; escalation only "
          "at strikes >= limit",
-         f"{SCHED}:1102-1110, :1147-1153. Size cycles to the workload: an "
+         f"{SCHED}:1115-1123, :1160-1166. Size cycles to the workload: an "
          "undersized 1000-cycle default falsely timed out 8-channel "
          "contention (top multi_channel hang, fixed by programming the "
          "timeout via APB)."),
@@ -553,7 +555,7 @@ def build_apb_csr_contract(wb):
          "original lockstep FSM verbatim.",
          "r_rd_ahead <= 1 descriptor; disabled => w_rd_peek==w_wr_advance"
          "==0",
-         f"{SCHED}:911-927"),
+         f"{SCHED}:924-940"),
         ("Prefetch", "cfg_prefetch_enable / cfg_fifo_threshold", "1/4",
          "in", "regfile",
          "Descriptor-engine chain throttle: bounds fetched-but-unconsumed "
@@ -587,7 +589,7 @@ def build_apb_csr_contract(wb):
          "never stalls the datapath: the ready gate ORs in "
          "~cfg_monitor_enable.",
          "USE_AXI_MONITORS=0 or cfg off => zero datapath interference",
-         f"{CORE}:660/:715; {RD_MON}:477-478"),
+         f"{CORE}:699/:754; {RD_MON}:479-480"),
     ]
     contract_sheet(
         wb, "APB-CSR config",
@@ -608,7 +610,7 @@ def build_monbus_contract(wb):
          "loses the packet at the emitter register.",
          "downstream MUST provide a FIFO (or be always-ready); "
          "mon_valid is never held for backpressure at the source",
-         f"{SCHED}:1186-1317 (emitter). Standard integration: gaxi FIFO "
+         f"{SCHED}:1199-1330 (emitter). Standard integration: gaxi FIFO "
          "or monbus_group SRAM behind the port."),
         ("MonBus", "mon_ready", "1", "in", "consumer",
          "Consumer flow control into the group arbiter. Sustained "
@@ -623,20 +625,20 @@ def build_monbus_contract(wb):
          "per-descriptor MonBus parity holds with prefetch on or off "
          "(the w_wr_advance path emits the completion the lockstep "
          "CH_COMPLETE path would have)",
-         f"{SCHED}:1234-1248"),
+         f"{SCHED}:1247-1261"),
         ("MonBus", "mon_timestamp / i_mon_time", "64", "out/in",
          "arbiter / core",
          "Free-running monitor time broadcast; SAMPLED at packet emission "
          "and carried side-band (not inside the 128-bit packet). Held "
          "stable between pulses.",
          "timestamp corresponds to the emit cycle of the packet beside it",
-         f"{SCHED}:1209"),
+         f"{SCHED}:1222"),
         ("MonBus", "(CH_ERROR one-shot)", "-", "-", "scheduler",
          "CH_ERROR is sticky; the error packet is emitted ONCE per visit "
          "(r_error_pkt_sent latch, cleared on CH_IDLE). Without it the "
          "emitter would flood the trace every cycle.",
          "at most one STREAM_EVENT_ERROR packet per CH_ERROR entry",
-         f"{SCHED}:1296-1309"),
+         f"{SCHED}:1309-1322"),
         ("MonBus", "(decode discipline)", "-", "-", "DV",
          "Testbenches decode packets via the shared TBClasses.monbus "
          "parser only - never inline bit-shift decodes.",
@@ -869,7 +871,7 @@ def build_scheduler_kmaps(wb):
          "ADVANCE is issue-based, final channel-done is commit-based."])
 
     km.kmap(
-        "sched_rd_valid  (channel read kick)", f"{SCHED}:962-965",
+        "sched_rd_valid  (channel read kick)", f"{SCHED}:975-978",
         "sched_rd_valid = (state==CH_XFER_DATA) && !w_read_complete && "
         "!w_sched_rd_completing_this_cycle && !w_rd_need_base",
         ["state_xfer", "rd_done", "completing_now", "rd_need_base"],
@@ -881,7 +883,7 @@ def build_scheduler_kmaps(wb):
         "TASK-101 runs.")
 
     km.kmap(
-        "sched_wr_valid  (channel write kick)", f"{SCHED}:988-992",
+        "sched_wr_valid  (channel write kick)", f"{SCHED}:1001-1005",
         "sched_wr_valid = (state==CH_XFER_DATA) && "
         "(r_write_beats_remaining != 0) && !w_write_complete && "
         "!w_sched_wr_completing_this_cycle && !w_wr_need_base",
@@ -900,8 +902,24 @@ def build_scheduler_kmaps(wb):
         "cover, not a functional path.")
 
     km.kmap(
+        "w_addrgen_start  (run-base generator start; EXT only)",
+        f"{SCHED}:317",
+        "w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d && w_is_ext",
+        ["state_fetch_desc", "entry_edge", "is_ext"],
+        lambda s, e, x: s and e and x,
+        "Single 1-cell at (1,1,1). The is_ext term is the TASK-059 FIX: without "
+        "it a LEGACY descriptor also pulses start, running stream_run_addr_gen "
+        "with its own base and STALE r_descriptor_ext strides. The generator's "
+        "run-base FIFO has no flush (gaxi_fifo_sync clears only on rst_n) and "
+        "legacy never consumes bases, so those bogus bases are consumed by the "
+        "NEXT chained strided/transpose descriptor -> reads the wrong source and "
+        "writes into the previous descriptor's region (silent corruption). A "
+        "contiguous EXT descriptor hides it (single-run generation emits zero "
+        "bases). See known_issues/resolved/extended_chained_transpose.md.")
+
+    km.kmap(
         "w_transfer_complete  (per-descriptor advance gate)",
-        f"{SCHED}:893",
+        f"{SCHED}:906",
         "w_transfer_complete = w_read_complete && w_write_issued   "
         "[ISSUE-based on purpose: chained descriptors stream while "
         "their writes commit in the background]",
@@ -912,7 +930,7 @@ def build_scheduler_kmaps(wb):
         "regression that motivated the issue/commit split.")
 
     km.kmap(
-        "CH_XFER_DATA exit decision", f"{SCHED}:510-514",
+        "CH_XFER_DATA exit decision", f"{SCHED}:523-527",
         "if (w_wr_advance) stay-XFER (in-place descriptor advance) ; "
         "else if (w_transfer_complete && !r_rd_ahead) -> CH_COMPLETE ; "
         "else hold",
@@ -926,7 +944,7 @@ def build_scheduler_kmaps(wb):
         values={})
 
     km.kmap(
-        "CH_COMPLETE exit decision", f"{SCHED}:527-531",
+        "CH_COMPLETE exit decision", f"{SCHED}:540-544",
         "if (next_ptr != 0 && !last) -> CH_NEXT_DESC (advance NOW, "
         "issue-based) ; else if (w_write_complete) -> CH_IDLE ; else hold",
         ["chained", "write_complete"],
@@ -938,7 +956,7 @@ def build_scheduler_kmaps(wb):
         values={})
 
     km.kmap(
-        "w_rd_peek  (read-ahead loads next descriptor)", f"{SCHED}:916-918",
+        "w_rd_peek  (read-ahead loads next descriptor)", f"{SCHED}:929-931",
         "w_rd_peek = w_rd_prefetch_en && w_state_xfer_data && !r_rd_ahead "
         "&& (r_read_beats_remaining==0) && !w_write_issued && "
         "w_desc_chained && descriptor_valid   [head_ok = w_desc_chained "
@@ -954,7 +972,7 @@ def build_scheduler_kmaps(wb):
 
     km.kmap(
         "w_wr_advance  (in-place descriptor advance + FIFO pop)",
-        f"{SCHED}:926-927",
+        f"{SCHED}:939-940",
         "w_wr_advance = w_rd_prefetch_en && w_state_xfer_data && "
         "w_write_issued && w_desc_chained && descriptor_valid",
         ["prefetch_en", "state_xfer", "write_issued", "chained",
@@ -966,7 +984,7 @@ def build_scheduler_kmaps(wb):
         "whole map to 0 (lockstep A/B on one bitstream).")
 
     km.kmap(
-        "descriptor_ready  (FIFO pop)", f"{SCHED}:1064-1066",
+        "descriptor_ready  (FIFO pop)", f"{SCHED}:1077-1079",
         "descriptor_ready = (state==CH_IDLE) || (state==CH_NEXT_DESC) || "
         "w_wr_advance",
         ["state_idle", "state_next_desc", "wr_advance"],
@@ -977,7 +995,7 @@ def build_scheduler_kmaps(wb):
         "(1,1,x) cells are unreachable cover.")
 
     km.kmap(
-        "w_hard_error  (fatal -> sticky CH_ERROR)", f"{SCHED}:1157-1158",
+        "w_hard_error  (fatal -> sticky CH_ERROR)", f"{SCHED}:1170-1171",
         "w_hard_error = descriptor_error || sched_rd_error || "
         "sched_wr_error || r_read_error_sticky || r_write_error_sticky   "
         "[rd_any = live|sticky, wr_any = live|sticky]",
@@ -989,7 +1007,7 @@ def build_scheduler_kmaps(wb):
 
     km.table(
         "r_timeout_counter next-value (priority order)",
-        f"{SCHED}:1102-1110",
+        f"{SCHED}:1115-1123",
         ["condition (first match wins)", "next", "meaning"],
         [("sched_wr_done_strobe || sched_wr_commit_strobe", "0",
           "ANY write progress (AW issue OR B commit) re-arms - commits "
@@ -1007,7 +1025,7 @@ def build_scheduler_kmaps(wb):
              "CH_IDLE.")
 
     km.table(
-        "FSM transition priority", f"{SCHED}:451-465",
+        "FSM transition priority", f"{SCHED}:464-478",
         ["#", "condition", "action"],
         [(1, "r_channel_reset_active", "-> CH_IDLE (overrides all)"),
          (2, "w_hard_error || w_timeout_escalate", "-> CH_ERROR (sticky)"),
@@ -1231,7 +1249,7 @@ def build_core_monitor_kmaps(wb):
          "saturation-recovery contract guarantees it un-throttles."])
 
     km.kmap(
-        "fub_axi_arready gate  (read datapath)", f"{RD_MON}:477-478",
+        "fub_axi_arready gate  (read datapath)", f"{RD_MON}:479-480",
         "fub_axi_arready = w_core_fub_axi_arready & (w_block_ready | "
         "~cfg_monitor_enable)   [identical shape for AW: "
         f"{WR_MON}:482-483]",

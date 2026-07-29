@@ -11,6 +11,12 @@ maintain a `*_signal_contracts.xlsx`: contract sheets per interface
 and Karnaugh maps for the key combinational decisions.
 
 - Methodology (canonical): bin/SIGNAL_CONTRACTS_KMAPS.md.
+- Placement (ONE per block, in the component's docs/): the generator lives at
+  `projects/components/<component>/docs/gen_signal_contracts_kmaps.py` and emits
+  `<component>_signal_contracts.xlsx` beside it. Before writing a new one, check
+  whether the component already has one and UPDATE it in place - never add a
+  parallel copy or a `signal_contracts/` subdir (a second copy rots; the copy
+  nobody regenerates is the one the next session reads).
 - Maps are COMPUTED from a Python mirror of the verbatim RTL expression,
   file:line cited; a citation registry greps every quote on every run and
   fails on drift. The xlsx is a build artifact - never hand-edit.

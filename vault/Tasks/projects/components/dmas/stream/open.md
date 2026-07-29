@@ -5,13 +5,22 @@
 ### TASK-058: Signal contracts + K-maps for the significant STREAM signals (prove-by-construction)
 
 **Priority:** High
-**Status:** [ ] Open (2026-07-29)
+**Status:** [~] In progress (2026-07-29) — the canonical workbook already existed
+(`projects/components/dmas/stream/docs/gen_signal_contracts_kmaps.py` ->
+`stream_signal_contracts.xlsx`); this session brought it CURRENT: added the
+`w_addrgen_start` decider K-map (the TASK-059 fix) + `w_is_ext` contract, fixed
+the citation drift my scheduler edit caused (24 `CITES` line refs) so
+`verify_citations` is green again, and recorded the explicit placement rule in
+the canonical note [[signal-contracts-and-kmaps]] (component `docs/`, one per
+block, update-in-place — the gap that nearly caused a duplicate). Remaining: the
+run-base-generator flush-on-start (invariant **I10** below) and optional formal
+SVA of the stated invariants.
 
-**Goal:** Author explicit **signal contracts** and **Karnaugh maps** for all of
-the significant control/handshake signals in STREAM — **especially in the read
-and write engines** (`axi_read_engine.sv`, `axi_write_engine.sv`) and the
-scheduler / descriptor-engine / SRAM-controller handshakes — so the design is
-provably correct **by construction** rather than only by directed test.
+**Goal:** Maintain explicit **signal contracts** and **Karnaugh maps** for the
+significant control/handshake signals in STREAM — **especially in the read and
+write engines** (`axi_read_engine.sv`, `axi_write_engine.sv`) and the scheduler /
+descriptor-engine / SRAM-controller handshakes — so the design is provably
+correct **by construction** rather than only by directed test.
 
 **Why:** STREAM has already produced several *interaction* bugs that a per-signal
 contract would have forbidden up front, not caught after the fact — the
