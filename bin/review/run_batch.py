@@ -49,15 +49,18 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 BRIEFS = {
     "qc": os.path.join(HERE, "REVIEWER_BRIEF.md"),
+    "testqc": os.path.join(HERE, "TEST_REVIEWER_BRIEF.md"),
     "humanize": os.path.join(REPO, "docs", "kimi_humanization_style_guide.md"),
 }
 
 
 def discover(books, mode, only, skip):
-    """A unit is a directory holding DOCS.md (plus RTL.sv when mode needs it)."""
+    """A unit is a directory holding DOCS.md (plus RTL.sv when mode needs it).
+    testqc units hold MANIFEST.md + TESTS.py instead (build_test_review_bundle)."""
     units = []
-    for docs in sorted(glob.glob(f"{books}/**/DOCS.md", recursive=True)):
-        d = os.path.dirname(docs)
+    marker = "MANIFEST.md" if mode == "testqc" else "DOCS.md"
+    for mark in sorted(glob.glob(f"{books}/**/{marker}", recursive=True)):
+        d = os.path.dirname(mark)
         if mode == "qc" and not os.path.exists(f"{d}/RTL.sv"):
             continue
         name = os.path.relpath(d, books).replace("/parts/", "_").replace("/", "_")
@@ -70,6 +73,18 @@ def discover(books, mode, only, skip):
 
 
 def build_prompt(mode, unit, unit_dir):
+    if mode == "testqc":
+        parts = [f"# Test-audit unit: {unit}\n"]
+        for fname, label in [("MANIFEST.md", "Manifest (test -> chains -> filelist)"),
+                             ("TESTS.py", "Test files (audit target)"),
+                             ("TB.py", "Shared TB classes (audit target)"),
+                             ("FRAMEWORK.py", "Framework components (GOLDEN)"),
+                             ("RTL_IFACES.sv", "RTL interface headers")]:
+            p = f"{unit_dir}/{fname}"
+            if os.path.exists(p):
+                parts.append(f"\n## {label}\n\n```\n{open(p).read()}\n```\n")
+        return "\n".join(parts)
+
     docs = open(f"{unit_dir}/DOCS.md").read()
     if mode == "humanize":
         return (f"# Rewrite unit: {unit}\n\n"
@@ -121,7 +136,7 @@ def pick_round(base, resume):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["qc", "humanize"])
+    ap.add_argument("mode", choices=["qc", "testqc", "humanize"])
     ap.add_argument("--books", required=True, help="bundle root (dirs with DOCS.md)")
     ap.add_argument("--results", required=True, help="results root")
     ap.add_argument("--only", nargs="*", default=[], help="name-prefix allowlist")
