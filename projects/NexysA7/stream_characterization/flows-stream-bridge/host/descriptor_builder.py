@@ -290,6 +290,52 @@ class DescriptorBuilder:
             writes.append((self._host_addr(idx1, w), val))
         return writes
 
+    def build_ext_chain(self, channel: int,
+                        descriptors: List[dict]) -> List[Tuple[int, int]]:
+        """Chain N EXTENDED descriptors on one channel (single kick walks them all
+        via next_ptr). Each extended descriptor occupies TWO desc slots
+        (chunk0 + chunk1), so descriptor k lives at slots [2k, 2k+1] (chunk0 at
+        the even slot) and its next_ptr targets slot 2*(k+1); the last has
+        next_ptr=0. Needs 2*N <= MAX_DESC_PER_CH (16 -> up to 8 per channel).
+
+        `descriptors` is a list of dicts: {'transfer_bytes', 'rd', 'wr'} where
+        rd/wr = {s0, s1, inner, w0=0, w1=0} (same as build_ext). Words come from
+        the shared component format so sim and board are byte-identical. Kick with
+        kick_address(channel) (points at slot 0).
+
+        WARNING: chaining a STRIDED extended (transpose) descriptor is currently
+        BROKEN in RTL -- see known_issues/active/extended_chained_transpose.md
+        (TASK-059). Chained ext-CONTIGUOUS works. This builder exists to drive the
+        chained case (incl. reproducing that bug on silicon); expect wrong data
+        for chained strided descriptors until the RTL is fixed.
+        """
+        n = len(descriptors)
+        if 2 * n > MAX_DESC_PER_CH:
+            raise ValueError(
+                f"{n} extended descriptors need {2*n} slots > MAX_DESC_PER_CH="
+                f"{MAX_DESC_PER_CH} on channel {channel}")
+
+        writes: List[Tuple[int, int]] = []
+        for k, d in enumerate(descriptors):
+            slot0 = 2 * k
+            idx0 = self._desc_index(channel, slot0)
+            idx1 = self._desc_index(channel, slot0 + 1)
+            is_last = (k == n - 1)
+            next_ptr = 0 if is_last else self._axi4_addr(
+                self._desc_index(channel, 2 * (k + 1)))
+
+            beats = self.beats_for_bytes(d['transfer_bytes'])
+            src = self.src_base + k * d['transfer_bytes']
+            dst = self.dst_base + k * d['transfer_bytes']
+            words = DescriptorPacketBuilder.build_extended_words(
+                src, dst, beats, d['rd'], d['wr'],
+                channel_id=channel, next_ptr=next_ptr, last=is_last)
+            for w, val in enumerate(words[0:8]):
+                writes.append((self._host_addr(idx0, w), val))
+            for w, val in enumerate(words[8:16]):
+                writes.append((self._host_addr(idx1, w), val))
+        return writes
+
     # -----------------------------------------------------------------
     # Build a full multi-channel test
     # -----------------------------------------------------------------

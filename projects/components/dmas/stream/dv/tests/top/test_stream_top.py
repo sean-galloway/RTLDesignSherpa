@@ -494,12 +494,34 @@ async def cocotb_test_stream_top_extended(dut):
             _beat_multiset(tb, tb.dst_memory_model, tb.dst_mem_base, td, beats)), \
         "extended transpose did not move every beat exactly once"
 
-    # THE required checks across BOTH channels: both formats fetched, and every
+    # --- channel 2: extended -> extended CHAIN (both contiguous) --------------
+    # Exercises the chain walk RESUMING after a 2-slot extended fetch -- the path
+    # the char flow's build_ext_chain() drives. Contiguous mode works chained.
+    ch = 2
+    bs, bd = tb.src_mem_base + ch * 0x400000, tb.dst_mem_base + ch * 0x400000
+    db = tb.desc_mem_base + ch * 0x10000
+    e0s, e0d = bs + 0 * 0x10000, bd + 0 * 0x10000
+    e1s, e1d = bs + 1 * 0x10000, bd + 1 * 0x10000
+    _fill_src(tb, e0s, 0x4, beats)
+    _fill_src(tb, e1s, 0x5, beats)
+    tb.write_ext_descriptor(addr=db + 0x00, src_addr=e0s, dst_addr=e0d, beats=beats,
+                            rd=contig, wr=contig, channel_id=ch,
+                            next_ptr=db + 0x40, last=False)   # chunk0@0x00, chunk1@0x20
+    tb.write_ext_descriptor(addr=db + 0x40, src_addr=e1s, dst_addr=e1d, beats=beats,
+                            rd=contig, wr=contig, channel_id=ch,
+                            next_ptr=0, last=True)            # chunk0@0x40, chunk1@0x60
+    await tb.kick_off_channel(ch, db)
+    await tb.wait_for_channel_idle(ch, timeout_us=600)
+    assert tb.verify_transfer(e0s, e0d, beats), "ext->ext chain: first descriptor mismatch"
+    assert tb.verify_transfer(e1s, e1d, beats), "ext->ext chain: second descriptor mismatch"
+
+    # THE required checks across ALL channels: both formats fetched, and every
     # engine rd/wr cycle matches the programmed descriptors.
     tb.assert_descriptors_fetched()
     tb.assert_engine_matches_descriptors()
     tb.log.info("\n=== MIXED legacy+extended verified: legacy->ext-contig chain + "
-                "transpose datapath (fetch + rd/wr scoreboard + data/permutation) ===")
+                "transpose datapath + ext->ext chain "
+                "(fetch + rd/wr scoreboard + data/permutation) ===")
 
 
 @cocotb.test(timeout_time=50000, timeout_unit="us")
