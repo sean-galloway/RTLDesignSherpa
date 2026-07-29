@@ -31,6 +31,7 @@ durable lesson, it goes in the **note**, and the skill keeps pointing at it.
 | [rds-dv-randomization](../../.claude/skills/rds-dv-randomization/SKILL.md) | [[randomization]] | The named FlexConfigGen delay profiles; randomized traffic ≠ fairness proof |
 | [regressions](../../.claude/skills/regressions/SKILL.md) | [[running-regressions]] | `make clean-all && make run-all-{gate,func,full}-parallel`, never a bare pytest |
 | [review-rounds](../../.claude/skills/review-rounds/SKILL.md) | [[kimi-review-rounds]] | External doc-review rounds: bundles, dispatch, triage, humanization pass |
+| [test-review](../../.claude/skills/test-review/SKILL.md) | [[test-review]] | Auditing test collateral with the review pipeline: grab list, bundle layout, checklist |
 | [tasks](../../.claude/skills/tasks/SKILL.md) | [/vault/Tasks/INDEX.md](../Tasks/INDEX.md) | Where TODOs live — the `/vault/Tasks/<area>/` lifecycle pages |
 | [uart-harness](../../.claude/skills/uart-harness/SKILL.md) | [[uart-harness]] | One host program running identically against cocotb sim and the FPGA |
 
