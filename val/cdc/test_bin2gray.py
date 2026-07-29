@@ -393,19 +393,18 @@ async def bin2gray_test(dut):
     return passed
 
 def generate_params():
-    """Generate test parameters"""
-    widths = [4, 8, 16, 32]
-    test_levels = ['full']
+    """Generate test parameters based on REG_LEVEL.
 
-    valid_params = []
-    for width, test_level in product(widths, test_levels):
-        valid_params.append((width, test_level))
-
-    # For debugging, uncomment one of these:
-    # return [(4, 'full')]  # Single test
-    # return [(8, 'func'), (16, 'func')]  # Specific configurations
-
-    return valid_params
+    REG_LEVEL=GATE: 2 tests (smoke: smallest + largest width, gate depth)
+    REG_LEVEL=FUNC: 4 tests (width coverage at gate depth) -- default
+    REG_LEVEL=FULL: 12 tests (all widths x all depths)
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return [(4, 'gate'), (32, 'gate')]
+    if reg_level == 'FULL':
+        return [(w, l) for w in [4, 8, 16, 32] for l in ['gate', 'func', 'full']]
+    return [(w, 'gate') for w in [4, 8, 16, 32]]
 
 params = generate_params()
 
