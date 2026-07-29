@@ -19,7 +19,7 @@ All validation collateral descends from one cocotb-based source per layer:
 |---|---|---|
 | Test files | `val/<area>/test_*.py` (this repo) | the audit TARGET |
 | Shared TB classes | `bin/TBClasses/**` (this repo) | audit target (they hold the scenario generators the tests include) |
-| Framework | `$RDS_DV_REPO` (default `/home/seang/github/RTLDesignSherpa-DV`), `src/CocoTBFramework/**` | GOLDEN evidence - reviewed in its own repo, never a finding target |
+| Framework | `$RDS_DV_REPO` (default `/home/seang/github/RTLDesignSherpa-DV`), `src/CocoTBFramework/**` | GOLDEN evidence - reviewed in its own repo, never a finding target. The local clone is a **recent download for convenience only** (Sean, 2026-07-28): read it, never edit it, and read no meaning into its git state - it is not the working copy. |
 | RTL under test | the test's filelist (`rtl/<area>/filelists/*.f`) | ground truth for port/param claims |
 | The contract | `make/tests.mk`, handbook [[test-runner]], [[tb-structure]] | what "correct" means; the reviewer checks against it |
 
