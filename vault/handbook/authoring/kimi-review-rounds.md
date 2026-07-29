@@ -373,6 +373,16 @@ Two failure shapes this ordering prevents, both seen on this repo:
 multitasking -- one area's correctness round runs to completion, gets integrated
 and verified, and only then does the next area or the humanize pass start.
 
+**The humanize bundle is rebuilt AFTER the last correctness integration, not
+carried over from the qc round.** Rule 1 applies to voice passes too, and it
+bites in a specific direction here: the humanizer rewrites every page, so a
+bundle built before the last integration makes the applier CLOBBER that
+integration's fixes with pre-fix prose. *Case: the 2026-07-28 cdc humanize ran
+from the round_4 qc bundle -- built before round_4's five fixes were applied --
+and reverted every one of them on apply. The re-application was only cheap
+because the fixes were small and listed. Rebuild the bundle between the last
+correctness fix and the humanize send, every time.*
+
 ## State
 
 **2026-07-28: the corpus was RESET (Sean).** All prior rounds are archived to

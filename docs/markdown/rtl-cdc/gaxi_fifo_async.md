@@ -21,29 +21,24 @@
 
 <!-- End Header -->
 
-# GAXI Asynchronous FIFO
-
-**Module:** `gaxi_fifo_async.sv`
-**Location:** `rtl/cdc/`
-**Status:** ✅ Production Ready
-
----
+# GAXI asynchronous FIFO (`gaxi_fifo_async.sv`)
 
 ## Overview
 
-The GAXI asynchronous FIFO moves data safely between independent clock domains. Gray code pointers and multi-flop synchronizers keep metastability out of the datapath and get your data across intact.
+`gaxi_fifo_async` (in `rtl/cdc/`, production ready) moves GAXI data safely
+between independent clock domains. Gray code pointers and multi-flop
+synchronizers keep metastability out of the datapath and get your data across
+intact.
 
-### Key Features
+What you get:
 
-- ✅ **Clock Domain Crossing:** Safe transfer between independent clocks
-- ✅ **Gray Code Pointers:** Prevents multi-bit synchronization issues
-- ✅ **Configurable CDC Stages:** 2-4 flop synchronizers (3 recommended; 4 for ultra-critical systems)
-- ✅ **Arbitrary Clock Ratios:** Works with any write:read clock ratio
-- ✅ **Two Read Modes:** Mux or Flop mode
+- ✅ **Clock domain crossing:** safe transfer between independent clocks
+- ✅ **Gray code pointers:** no multi-bit synchronization hazards
+- ✅ **Configurable CDC stages:** 2-4 flop synchronizers (3 recommended; 4 for ultra-critical systems)
+- ✅ **Arbitrary clock ratios:** works with any write:read clock ratio
+- ✅ **Two read modes:** mux or flop mode
 
----
-
-## Module Interface
+## Module declaration
 
 ```systemverilog
 module gaxi_fifo_async #(
@@ -72,8 +67,6 @@ module gaxi_fifo_async #(
 );
 ```
 
----
-
 ## Parameters
 
 | Parameter | Default | Description |
@@ -87,6 +80,8 @@ module gaxi_fifo_async #(
 | `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
 | `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
 
+: gaxi_fifo_async parameters
+
 **⚠️ Important:** Set `N_FLOP_CROSS=3` for production designs to ensure metastability protection.
 
 The RTL also declares five derived parameters after these -- `DW`, `D`, `AW`,
@@ -97,11 +92,49 @@ it: override `DW` alone and the ports widen while the memory stays narrow, and
 the FIFO silently drops the upper bits of every entry. Set `DATA_WIDTH`, not
 `DW`.
 
----
+## Ports
 
-## Functional Description
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `axi_wr_aclk` | input | 1 | Write domain clock |
+| `axi_wr_aresetn` | input | 1 | Write domain active-low reset |
+| `wr_valid` | input | 1 | Write valid |
+| `wr_ready` | output | 1 | Write ready (not full) |
+| `wr_data` | input | DW | Write data |
+| `axi_rd_aclk` | input | 1 | Read domain clock |
+| `axi_rd_aresetn` | input | 1 | Read domain active-low reset |
+| `rd_ready` | input | 1 | Read ready |
+| `rd_valid` | output | 1 | Read valid (not empty) |
+| `rd_data` | output | DW | Read data |
 
-### Clock Domain Crossing Architecture
+: gaxi_fifo_async ports
+
+## Theory of operation
+
+### Why Gray code?
+
+Gray code ensures only one bit changes at a time during pointer updates:
+
+```
+Binary: 011 → 100  (3 bits change - hazard!)
+Gray:   010 → 110  (1 bit changes - safe!)
+```
+
+This prevents glitches during synchronization across clock domains.
+
+### Dependencies
+
+- `counter_bin.sv` - Binary counters
+- `counter_johnson.sv` - Johnson (twisted-ring) counters, used when `USE_JOHNSON=1`.
+  Johnson code is NOT Gray code -- it is a distinct encoding that happens to share
+  the single-bit-change property needed for CDC. Both change exactly one bit per
+  increment, including the wrap.
+- `glitch_free_n_dff_arn.sv` - Multi-flop synchronizers
+- `johnson2bin.sv` - Johnson-to-binary conversion (**combinational**; its `clk`/`rst_n` ports are declared but unused), used when `USE_JOHNSON=1`
+- `counter_bingray.sv` / `gray2bin.sv` - Gray pointer path (combinational decode), used when `USE_JOHNSON=0`
+- `fifo_control.sv` - Full/empty flag generation
+
+## Implementation
 
 ```mermaid
 flowchart TB
@@ -140,34 +173,13 @@ flowchart TB
     sync --> wrsync
 ```
 
-### Why Gray Code?
+Each domain keeps its own binary pointer for arithmetic, converts it to Gray
+for the crossing, and decodes the synchronized remote pointer for flag
+generation.
 
-Gray code ensures only one bit changes at a time during pointer updates:
+## Design examples
 
-```
-Binary: 011 → 100  (3 bits change - hazard!)
-Gray:   010 → 110  (1 bit changes - safe!)
-```
-
-This prevents glitches during synchronization across clock domains.
-
-### Dependencies
-
-- `counter_bin.sv` - Binary counters
-- `counter_johnson.sv` - Johnson (twisted-ring) counters, used when `USE_JOHNSON=1`.
-  Johnson code is NOT Gray code -- it is a distinct encoding that happens to share
-  the single-bit-change property needed for CDC. Both change exactly one bit per
-  increment, including the wrap.
-- `glitch_free_n_dff_arn.sv` - Multi-flop synchronizers
-- `johnson2bin.sv` - Johnson-to-binary conversion (**combinational**; its `clk`/`rst_n` ports are declared but unused), used when `USE_JOHNSON=1`
-- `counter_bingray.sv` / `gray2bin.sv` - Gray pointer path (combinational decode), used when `USE_JOHNSON=0`
-- `fifo_control.sv` - Full/empty flag generation
-
----
-
-## Usage Examples
-
-### Example 1: Basic CDC FIFO
+### Example 1: basic CDC FIFO
 
 ```systemverilog
 gaxi_fifo_async #(
@@ -192,7 +204,7 @@ gaxi_fifo_async #(
 );
 ```
 
-### Example 2: High-Speed to Low-Speed CDC
+### Example 2: high-speed to low-speed CDC
 
 ```systemverilog
 // Fast writer (250 MHz) → Slow reader (62.5 MHz)
@@ -217,9 +229,7 @@ gaxi_fifo_async #(
 );
 ```
 
----
-
-## Timing Characteristics
+## Timing characteristics
 
 | Clock Ratio (wr:rd) | Latency | Notes |
 |---------------------|---------|-------|
@@ -228,15 +238,15 @@ gaxi_fifo_async #(
 | 1:2 (slow→fast) | 3-5 cycles | Read-side samples faster |
 | Any ratio | 3-7 cycles | Depends on synchronizer stages + clock relationship |
 
-**Latency Formula:** `~(2 × N_FLOP_CROSS) + 1` in slower clock domain cycles
+: gaxi_fifo_async latency by clock ratio
 
----
+**Latency formula:** `~(2 × N_FLOP_CROSS) + 1` in slower clock domain cycles.
 
-## Design Considerations
+## Design considerations
 
-### Depth Sizing for Clock Ratio
+### Depth sizing for clock ratio
 
-When write clock >> read clock, size FIFO to handle burst accumulation:
+When write clock >> read clock, size the FIFO to handle burst accumulation:
 
 ```
 Required Depth >= Burst Size x (1 - Read Freq / Write Freq) x Safety Margin
@@ -248,9 +258,9 @@ Example:
 → Depth >= 16 x (1 - 25/100) x 1.5 = 18 entries
 ```
 
-### Reset Synchronization
+### Reset synchronization
 
-**Critical:** Both clock domains must have properly synchronized resets!
+**Critical:** both clock domains must have properly synchronized resets!
 
 ```systemverilog
 // Separate reset synchronizers for each domain
@@ -267,7 +277,7 @@ reset_sync u_rd_rst_sync (
 );
 ```
 
-### Metastability Protection
+### Metastability protection
 
 `N_FLOP_CROSS` sets the synchronizer depth, and MTBF rises steeply with it.
 
@@ -277,6 +287,8 @@ reset_sync u_rd_rst_sync (
 | 3 | **Production standard** |
 | 4 | Ultra-critical systems |
 
+: Synchronizer stage guidance
+
 This page deliberately gives no MTBF figures. Real MTBF depends on the flop's
 metastability time constant and resolution window, the two clock frequencies and
 the data toggle rate -- none of which a module page can know. A second table
@@ -285,11 +297,9 @@ here also drifted from the one in
 2 stages at "hours" where this page said "years". One source per fact: that page
 owns the discussion.
 
-**Recommendation:** Always use `N_FLOP_CROSS=3` in production.
+**Recommendation:** always use `N_FLOP_CROSS=3` in production.
 
----
-
-## Error Checking
+## Error checking
 
 The RTL contains **no** assertions and no runtime `$display` checks. What is
 there is a single empty read-domain block:
@@ -305,9 +315,35 @@ There is no write-domain equivalent. Overflow is prevented structurally by the
 If you need overflow/underflow telemetry in simulation, add it in the testbench.
 `fifo_async.md` states the same for its module.
 
----
+## Common mistakes
 
-## Testing
+### 1. Metastability
+
+**Symptom:** random data corruption, simulation/hardware mismatch.
+
+**Fix:** increase `N_FLOP_CROSS` to 3 or 4.
+
+### 2. Pointer synchronization failure
+
+**Symptom:** FIFO full/empty signals incorrect.
+
+**Debug:**
+
+1. Verify the clocks are truly independent (no PLL relationship violations)
+2. Check reset synchronization — both domains must reset properly
+3. Verify the Gray code conversion logic
+
+### 3. Underflow/overflow
+
+**Symptom:** data loss or corruption.
+
+**Debug:**
+
+1. Check `DEPTH` is sufficient for the clock ratio
+2. Verify flow control is respected in both domains
+3. Monitor pointer values in both domains
+
+## Verification
 
 ```bash
 # Async FIFO tests with various clock ratios
@@ -317,55 +353,29 @@ pytest val/cdc/test_gaxi_buffer_async.py -v
 pytest val/cdc/test_gaxi_buffer_async.py -k "wr10_rd12" -v  # 10ns : 12ns
 ```
 
-Test matrix includes:
+The test matrix covers:
+
 - Same clocks (1:1)
 - 1.2x ratio (10ns : 12ns)
 - 2x ratio (10ns : 20ns)
 - 2.5x ratio (8ns : 20ns)
 
----
-
-## Common Issues
-
-### Issue 1: Metastability
-
-**Symptom:** Random data corruption, simulation/hardware mismatch
-
-**Solution:** Increase `N_FLOP_CROSS` to 3 or 4
-
-### Issue 2: Pointer Synchronization Failure
-
-**Symptom:** FIFO full/empty signals incorrect
-
-**Debug:**
-1. Verify clocks are truly independent (no PLL relationship violations)
-2. Check reset synchronization - both domains must reset properly
-3. Verify Gray code conversion logic
-
-### Issue 3: Underflow/Overflow
-
-**Symptom:** Data loss or corruption
-
-**Debug:**
-1. Check DEPTH is sufficient for clock ratio
-2. Verify flow control respected in both domains
-3. Monitor pointer values in both domains
-
----
-
-## Related Modules
+## Related modules
 
 - [gaxi_fifo_sync](../rtl-amba/gaxi/gaxi_fifo_sync.md) - Single clock domain version
 - [gaxi_skid_buffer_async](gaxi_skid_buffer_async.md) - Async skid buffer
 - [GAXI Index](index.md) - Overview
-
----
 
 ## References
 
 - **Clifford Cummings:** "Simulation and Synthesis Techniques for Asynchronous FIFO Design" (Sunburst Design)
 - **Source:** `rtl/cdc/gaxi_fifo_async.sv`
 - **Tests:** `val/cdc/test_gaxi_buffer_async.py`
+
+## Navigation
+
+- **[← Back to CDC Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**
 
 ---
 

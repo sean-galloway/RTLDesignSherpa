@@ -21,12 +21,18 @@
 
 <!-- End Header -->
 
-# Clock Pulse Generator - Comprehensive Documentation
+# Clock Pulse Generator
+
+---
 
 ## Overview
-The `clock_pulse` module is a periodic pulse generator with a configurable period. It emits a single-cycle pulse every WIDTH clock cycles — the part you reach for whenever something in the system needs to happen on a schedule: timing generation, heartbeat signals, sampling triggers, periodic events of any kind.
 
-## Module Declaration
+The `clock_pulse` module is a periodic pulse generator with a configurable period: it emits a single-cycle pulse every WIDTH clock cycles. It's the part you reach for whenever something in the system needs to happen on a schedule — timing generation, heartbeat signals, sampling triggers, periodic events of any kind.
+
+---
+
+## Module Interface
+
 ```systemverilog
 module clock_pulse #(
     parameter int WIDTH = 10  // PERIOD in clock cycles (the pulse itself is
@@ -38,9 +44,12 @@ module clock_pulse #(
 );
 ```
 
+---
+
 ## Parameters
 
 ### WIDTH
+
 - **Type**: `int`
 - **Default**: `10`
 - **Description**: Period of the pulse generation in clock cycles
@@ -50,22 +59,29 @@ module clock_pulse #(
 - **Pulse Width**: Always exactly 1 clock cycle
 - **Duty Cycle**: 1/WIDTH (e.g., 10% for WIDTH=10)
 
+---
+
 ## Ports
 
 ### Inputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `clk` | 1 | `logic` | System clock input |
-| `rst_n` | 1 | `logic` | Active-low asynchronous reset |
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `clk` | 1 | Input | System clock input |
+| `rst_n` | 1 | Input | Active-low asynchronous reset |
 
 ### Outputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `pulse` | 1 | `logic` | Periodic pulse output |
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `pulse` | 1 | Output | Periodic pulse output |
+
+---
 
 ## Architecture and Implementation
 
 ### Internal Counter
+
 ```systemverilog
 // WIDTH is the PERIOD; the counter only needs to hold 0..WIDTH-1, i.e.
 // $clog2(WIDTH) bits (NOT WIDTH bits).
@@ -79,6 +95,7 @@ assign w_width_minus_one = CW'(WIDTH - 1);
 ```
 
 ### Core Logic
+
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -96,6 +113,7 @@ end
 ```
 
 ### Operation Principles
+
 1. **Counter**: Free-running counter from 0 to WIDTH-1
 2. **Pulse Generation**: `pulse` is **registered** — `pulse <= (r_counter ==
    WIDTH-1)` — so it asserts on the cycle **after** the counter reaches WIDTH-1,
@@ -107,6 +125,7 @@ end
 That second point is the one people get wrong, so let's be blunt about it: the registered comparison means `pulse` never coincides with the terminal count. It lands one cycle later, on the wrapped-to-zero count. Every timing diagram below follows from that.
 
 ### Timing Characteristics
+
 - **Period**: WIDTH clock cycles
 - **Frequency**: f_clk / WIDTH
 - **Pulse Width**: 1 clock cycle
@@ -115,18 +134,24 @@ That second point is the one people get wrong, so let's be blunt about it: the r
   **after** `r_counter == WIDTH-1` — that is, during the `r_counter == 0` cycle
   of each period, not on the WIDTH-1 count itself.
 
+---
+
 ## Timing Diagrams
 
 ### Basic Operation (WIDTH=4)
+
 Watch where `pulse` actually lands — high during the `< 0 >` cell that immediately follows `< 3 >`, one cycle after the counter hit WIDTH-1. That's the registered comparison at work:
+
 ```
 Clock:    _|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_
 Counter:  < 0 >< 1 >< 2 >< 3 >< 0 >< 1 >< 2 >< 3 >< 0 >
 Pulse:    ____________________|‾‾‾|______________|‾‾‾|
 ```
+
 (The first `< 0 >` is the post-reset state, where `pulse` is still low.)
 
 ### Reset Behavior
+
 ```
 Clock:    |‾‾__|‾‾__|‾‾__|‾‾__|‾‾__|‾‾__|‾‾__|‾‾__|‾‾__|‾‾__
 Reset_n:  ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|___|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -138,13 +163,14 @@ Two things worth seeing here, both consequences of the pulse being registered
 (`pulse <= (r_counter == w_width_minus_one)`):
 
 - **The pulse that reset swallows.** The counter reaches 3 in the fourth cell,
-  so a pulse would normally appear in the fifth -- but reset is asserted exactly
+  so a pulse would normally appear in the fifth — but reset is asserted exactly
   there, and reset forces `pulse <= 0`. That pulse never happens.
 - **Recovery costs a full period.** After reset releases, the counter restarts
-  from 0 and the first pulse appears in the cell *after* it next reaches 3 --
+  from 0 and the first pulse appears in the cell *after* it next reaches 3 —
   the final cell above, not the one where the counter reads 3.
 
 ### Different WIDTH Values
+
 | WIDTH | Period | Duty Cycle | Use Case |
 |-------|--------|------------|----------|
 | 2 | 2 cycles | 50% | Clock divider |
@@ -153,9 +179,12 @@ Two things worth seeing here, both consequences of the pulse being registered
 | 100 | 100 cycles | 1% | Heartbeat |
 | 1000 | 1000 cycles | 0.1% | Slow events |
 
+---
+
 ## Design Examples and Applications
 
 ### 1. Heartbeat and Status Indicators
+
 ```systemverilog
 module system_heartbeat #(
     parameter int CLOCK_FREQ_HZ = 100_000_000,  // 100MHz
@@ -207,6 +236,7 @@ endmodule
 ```
 
 ### 2. Sampling and Data Acquisition
+
 ```systemverilog
 module data_sampler #(
     parameter int SAMPLE_RATE_KHZ = 48,
@@ -266,6 +296,7 @@ endmodule
 ```
 
 ### 3. Communication Protocol Timing
+
 ```systemverilog
 module uart_baud_generator #(
     parameter int CLOCK_FREQ_HZ = 100_000_000,
@@ -310,6 +341,7 @@ endmodule
 ```
 
 ### 4. Memory Refresh Controller
+
 ```systemverilog
 module dram_refresh_controller #(
     parameter int REFRESH_PERIOD_US = 64_000,  // 64 ms for the WHOLE array
@@ -369,6 +401,7 @@ endmodule
 ```
 
 ### 5. Multi-Rate Pulse Generation
+
 ```systemverilog
 module multi_rate_pulse_generator (
     input  logic       clk,
@@ -451,6 +484,7 @@ endmodule
 ```
 
 ### 6. Test Pattern Generation
+
 ```systemverilog
 module test_pattern_generator (
     input  logic       clk,
@@ -510,9 +544,12 @@ module test_pattern_generator (
 endmodule
 ```
 
+---
+
 ## Advanced Features and Variations
 
 ### 1. Enable-Controlled Pulse Generator
+
 ```systemverilog
 module pulse_generator_with_enable #(
     parameter int WIDTH = 10
@@ -551,6 +588,7 @@ endmodule
 ```
 
 ### 2. Variable Width Pulse Generator
+
 ```systemverilog
 module variable_pulse_generator #(
     parameter int MAX_WIDTH = 65536
@@ -601,6 +639,7 @@ endmodule
 ```
 
 ### 3. Multi-Phase Pulse Generator
+
 ```systemverilog
 module multi_phase_pulse_generator #(
     parameter int WIDTH = 12,
@@ -655,6 +694,7 @@ endmodule
 ```
 
 ### 4. Burst Pulse Generator
+
 ```systemverilog
 module burst_pulse_generator #(
     parameter int BURST_LENGTH = 8,
@@ -743,9 +783,12 @@ module burst_pulse_generator #(
 endmodule
 ```
 
+---
+
 ## Verification and Testing
 
 ### Comprehensive Test Bench
+
 ```systemverilog
 module tb_clock_pulse;
 
@@ -902,6 +945,7 @@ endmodule
 ```
 
 ### Coverage Model
+
 ```systemverilog
 covergroup clock_pulse_cg @(posedge clk);
     
@@ -938,6 +982,7 @@ endcovergroup
 ```
 
 ### Formal Properties
+
 ```systemverilog
 module clock_pulse_properties;
 
@@ -987,9 +1032,12 @@ module clock_pulse_properties;
 endmodule
 ```
 
+---
+
 ## Synthesis Considerations
 
 ### Resource Utilization
+
 | WIDTH | Counter Bits | LUTs | FFs | Max Freq |
 |-------|--------------|------|-----|----------|
 | 8 | 3 | 8 | 4 | 500MHz |
@@ -998,6 +1046,7 @@ endmodule
 | 1024 | 10 | 28 | 11 | 350MHz |
 
 ### Timing Optimization
+
 ```systemverilog
 // For high-frequency applications, pipeline the comparison (WIDTH >= 2).
 // IMPORTANT: because the registered compare_result ALSO gates the counter
@@ -1037,6 +1086,8 @@ module clock_pulse_pipelined #(
 endmodule
 ```
 
+---
+
 ## Common Applications Summary
 
 1. **Timing References**: System heartbeats, watchdog timers
@@ -1046,6 +1097,8 @@ endmodule
 5. **Test Equipment**: Pattern generation, stimulus timing
 6. **Power Management**: Activity monitoring, timeout generation
 7. **Display Systems**: Refresh rates, sync generation
+
+---
 
 ## Design Guidelines
 
@@ -1058,6 +1111,8 @@ endmodule
 7. **Document Timing**: Clearly specify pulse rates and relationships
 
 That's the whole module. It's a small thing, but precise periodic timing shows up in nearly every design you'll ever ship — get this one right once, parameterize it well, and reuse it forever.
+
+---
 
 ## Navigation
 

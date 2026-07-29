@@ -24,12 +24,12 @@
 
 # rtl-cdc Modules Index
 
-This is the catalogue for `rtl/cdc/`. If you want orientation—which technique
-to reach for, and why—start at [overview.md](overview.md).
+This is the catalogue for `rtl/cdc/`. If what you want is orientation—which
+technique to reach for, and why—start at [overview.md](overview.md) first.
 
-**12 modules** in `rtl/cdc/`, and every one of them exists to get data across a
-clock boundary. The count comes from `ls rtl/cdc/*.sv`—regenerate it rather
-than hand-editing.
+**12 modules** live in `rtl/cdc/`, and every one of them exists to get data
+across a clock boundary. The count comes from `ls rtl/cdc/*.sv`—regenerate it
+rather than hand-editing.
 
 ## Module Categories
 
@@ -41,12 +41,12 @@ than hand-editing.
 
 ### Synchronizer and Handshakes
 
-These four share one reference page instead of getting a page each, because
-choosing between them is a single decision:
+These four share one reference page instead of a page each, because choosing
+between them is a single decision:
 
 - **[cdc_synchronizer](cdc.md#cdc_synchronizer)** - N-stage flop synchronizer for a
   quasi-static value or a single flag
-- **[cdc_open_loop](cdc.md#cdc_open_loop)** - source holds data and valid; no
+- **[cdc_open_loop](cdc.md#cdc_open_loop)** - the source holds data and valid; no
   acknowledge comes back
 - **[cdc_2_phase_handshake](cdc.md#cdc_2_phase_handshake)** - toggle (NRZ)
   valid/ready handshake. Read [Reset Considerations](cdc.md#reset-considerations)
@@ -78,7 +78,7 @@ existed:
 ## Related
 
 The modules these depend on stay in their own areas and get pulled in by `-f`
-include—they're not copied here:
+include—nothing is copied here:
 
 - [`glitch_free_n_dff_arn`](../rtl-common/glitch_free_n_dff_arn.md),
   [`fifo_control`](../rtl-common/fifo_control.md),

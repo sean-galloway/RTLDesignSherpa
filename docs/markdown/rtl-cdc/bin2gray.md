@@ -21,12 +21,29 @@
 
 <!-- End Header -->
 
-# Binary to Gray Code Converter
+# Binary-to-Gray converter (`bin2gray.sv`)
 
 ## Overview
-The `bin2gray` module is a purely combinational binary-to-Gray converter. Gray code — reflected binary code, unit distance code, same thing — is a binary numeral system where two successive values differ in only one bit. That one-bit property is what reduces glitches and metastability in digital systems, which is why Gray code turns up everywhere in asynchronous design and clock domain crossings.
 
-## Module Declaration
+`bin2gray` is a purely combinational binary-to-Gray converter. Gray code —
+reflected binary code, unit-distance code, same thing — is a binary numeral
+system where two successive values differ in exactly one bit. That one-bit
+property is what reduces glitches and metastability exposure when a value moves
+between asynchronous domains, which is why Gray code turns up everywhere in
+clock domain crossing work.
+
+Where it earns its keep:
+
+- **Asynchronous FIFOs** — pointer comparisons that can't afford metastability
+- **Clock domain crossing** — safe multi-bit signal transfer
+- **Position encoders** — mechanical/optical encoder interfaces
+- **Memory address generation** — reduces EMI and power spikes
+- **Test pattern generation** — controlled single-bit transitions
+- **Error detection** — single-bit error detection schemes
+- **ADC/DAC interfaces** — fewer glitches in conversion systems
+
+## Module declaration
+
 ```systemverilog
 module bin2gray #(
     parameter int WIDTH = 4
@@ -38,34 +55,32 @@ module bin2gray #(
 
 ## Parameters
 
-### WIDTH
-- **Type**: `int`
-- **Default**: `4`
-- **Description**: Bit width of both input and output
-- **Range**: Any positive integer ≥ 1
-- **Common Values**: 4, 8, 16, 32 for address counters and data buses
-- **Impact**: Determines the number of XOR gates required
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 4 | Bit width of both input and output (`int`, any positive integer ≥ 1; common values 4, 8, 16, 32 for address counters and data buses). Determines the number of XOR gates required. |
+
+: bin2gray parameters
 
 ## Ports
 
-### Inputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `binary` | WIDTH | `wire` | Input binary value |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `binary` | input | WIDTH | Input binary value |
+| `gray` | output | WIDTH | Output Gray code value |
 
-### Outputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `gray` | WIDTH | `wire` | Output Gray code value |
+: bin2gray ports
 
-## Gray Code Theory
+## Theory of operation
 
-### Mathematical Definition
+### Mathematical definition
+
 The conversion follows one simple relationship:
+
 - **MSB**: `gray[WIDTH-1] = binary[WIDTH-1]` (MSB unchanged)
 - **Other bits**: `gray[i] = binary[i] ⊕ binary[i+1]` for i = 0 to WIDTH-2
 
-### Why Gray Code?
+### Why Gray code?
+
 That one-bit property buys you four things:
 
 1. **Single Bit Transitions**: Adjacent values differ by exactly one bit
@@ -73,7 +88,9 @@ That one-bit property buys you four things:
 3. **Metastability Prevention**: Safer for asynchronous clock domain crossings
 4. **Mechanical Encoders**: Natural for optical/magnetic position encoders
 
-### Gray Code Sequence Examples
+### Gray code sequences
+
+Walk the tables and watch the "changed bit" column — one bit, every time.
 
 #### 2-bit Gray Code
 | Decimal | Binary | Gray | Transition |
@@ -107,9 +124,10 @@ That one-bit property buys you four things:
 | 6 | 0110 | 0101 | 14 | 1110 | 1001 |
 | 7 | 0111 | 0100 | 15 | 1111 | 1000 |
 
-## Implementation Analysis
+## Implementation
 
-### Core Logic
+### Core logic
+
 ```systemverilog
 genvar i;
 generate
@@ -121,14 +139,11 @@ endgenerate
 assign gray[WIDTH-1] = binary[WIDTH-1];
 ```
 
-### Logic Structure
-What the RTL builds is a bank of XOR gates:
-- **Lower bits**: Each gray bit is XOR of current and next binary bits
-- **MSB**: Directly assigned from binary MSB
-- **Propagation**: Single level of logic (all XORs in parallel)
+What the RTL builds is a bank of XOR gates: each lower Gray bit is the XOR of
+the current and next binary bits, the MSB comes straight across, and everything
+evaluates in parallel — a single level of logic.
 
-### Gate-Level Implementation
-For WIDTH = 4:
+For WIDTH = 4, gate level:
 
 ```mermaid
 flowchart LR
@@ -144,13 +159,14 @@ flowchart LR
     xor0 --> g0["gray[0]"]
 ```
 
-### Timing Characteristics
-- **Propagation Delay**: Single XOR gate delay (typically 0.1-0.3ns in modern processes)
-- **Critical Path**: Through one XOR gate only
-- **Fan-out**: Each binary bit drives at most 2 XOR gates
-- **Scalability**: Constant delay regardless of WIDTH
+### Timing characteristics
 
-## Design Examples and Applications
+One XOR gate of delay — typically 0.1-0.3ns in modern processes — and that's
+the whole critical path. Each binary bit drives at most 2 XOR gates, and the
+delay is constant regardless of WIDTH. This module will never be your timing
+problem.
+
+## Design examples
 
 > **One rule governs every example below.** `bin2gray` is combinational. If its
 > output is going to be sampled by another clock -- a FIFO pointer, a status
@@ -166,7 +182,8 @@ flowchart LR
 > register comes with it. When the thing you are building is a FIFO pointer,
 > use [`counter_bingray`](counter_bingray.md) instead of assembling it yourself.
 
-### 1. Asynchronous FIFO Pointer
+### Example 1: asynchronous FIFO pointer
+
 ```systemverilog
 module async_fifo_ptr #(
     parameter int ADDR_WIDTH = 4
@@ -220,7 +237,8 @@ endmodule
 > show the *shape*, including the register that makes it safe. Reach for the
 > library module.
 
-### 2. Clock Domain Crossing Counter
+### Example 2: clock domain crossing counter
+
 ```systemverilog
 module cross_domain_counter #(
     parameter int WIDTH = 8
@@ -287,7 +305,8 @@ module cross_domain_counter #(
 endmodule
 ```
 
-### 3. Rotary Encoder Interface
+### Example 3: rotary encoder interface
+
 ```systemverilog
 module rotary_encoder_interface #(
     parameter int POSITION_WIDTH = 12
@@ -344,7 +363,8 @@ module rotary_encoder_interface #(
 endmodule
 ```
 
-### 4. Address Scrambling for Memory Testing
+### Example 4: address scrambling for memory testing
+
 ```systemverilog
 module memory_address_scrambler #(
     parameter int ADDR_WIDTH = 16
@@ -367,7 +387,7 @@ module memory_address_scrambler #(
 endmodule
 ```
 
-### 5. Multi-Bit Synchronizer with Gray Code
+### Example 5: multi-bit synchronizer with Gray code
 
 > **Prefer the library module.** The example below is written out in full to show
 > the mechanism, but production code should instantiate
@@ -436,9 +456,10 @@ module gray_code_synchronizer #(
 endmodule
 ```
 
-## Companion Gray-to-Binary Converter
+## Companion converter: gray2bin
 
-### Implementation
+You'll almost always need the trip back. The inverse conversion:
+
 ```systemverilog
 module gray2bin #(
     parameter int WIDTH = 4
@@ -470,7 +491,7 @@ endmodule
 | 0011 | 0010 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕1=1, bin[0]=1⊕1=0 |
 | 0010 | 0011 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕1=1, bin[0]=1⊕0=1 |
 
-## Advanced Implementations
+## Advanced implementations
 
 ### 1. Parameterized Converter with Validation
 ```systemverilog
@@ -596,7 +617,7 @@ module bidirectional_gray_converter #(
 endmodule
 ```
 
-## Verification and Testing
+## Verification
 
 ### Comprehensive Test Bench
 ```systemverilog
@@ -763,9 +784,16 @@ covergroup bin2gray_cg;
 endcovergroup
 ```
 
-## Synthesis Optimization
+### Test files
 
-### Resource Utilization
+- `val/cdc/test_bin2gray.py` — functional verification
+
+```bash
+pytest val/cdc/test_bin2gray.py -v
+```
+
+## Synthesis and performance
+
 Typical FPGA resource usage, by width:
 
 | WIDTH | LUTs | Delay (ns) | Max Freq (MHz) |
@@ -775,7 +803,11 @@ Typical FPGA resource usage, by width:
 | 16 | 15 | 0.3 | 600+ |
 | 32 | 31 | 0.4 | 500+ |
 
-### Timing Optimization
+: bin2gray resource usage by width (typical FPGA)
+
+If this block ever lands on a critical path — it shouldn't, but designs surprise
+you — register the output:
+
 ```systemverilog
 // For critical timing paths, add pipeline register
 module bin2gray_registered #(
@@ -806,7 +838,9 @@ module bin2gray_registered #(
 endmodule
 ```
 
-### Power Optimization
+And if the block sits in a power-sensitive path, gate the clock of the
+registered version:
+
 ```systemverilog
 // Clock gating for power savings
 module bin2gray_gated #(
@@ -839,25 +873,23 @@ module bin2gray_gated #(
 endmodule
 ```
 
-## Common Applications Summary
+## Design considerations
 
-### 1. **Asynchronous FIFOs**: Prevent metastability in pointer comparisons
-### 2. **Clock Domain Crossing**: Safe multi-bit signal transfer
-### 3. **Position Encoders**: Mechanical/optical encoder interfaces  
-### 4. **Memory Address Generation**: Reduce EMI and power spikes
-### 5. **Test Pattern Generation**: Controlled single-bit transitions
-### 6. **Error Detection**: Single-bit error detection schemes
-### 7. **ADC/DAC Interfaces**: Reduce glitches in conversion systems
+- **Always use Gray for async boundaries** — it's the baseline tool for safe
+  asynchronous transfer of a multi-bit count.
+- **Timing is a non-issue**: purely combinational, no setup/hold concerns of
+  its own.
+- **Verify the single-bit property**: adjacent values must differ by exactly
+  one bit. Check it in simulation, not by eye.
+- **Plan for the trip back**: you usually need `gray2bin` on the other side.
+- **Check the width**: enough bits for the application range, no more.
 
-## Design Guidelines
-
-### 1. **Always Use for Async Boundaries**: Gray code is essential for safe asynchronous transfers
-### 2. **Consider Timing**: Purely combinational - no setup/hold concerns
-### 3. **Verify Single-Bit Property**: Always verify adjacent values differ by one bit
-### 4. **Plan for Back-Conversion**: Usually need Gray-to-Binary converter too
-### 5. **Check Width Requirements**: Ensure sufficient bits for application range
-
-The binary-to-Gray converter is one of those fundamental building blocks — simple, combinational, dependable. For asynchronous interfaces and glitch-free operation it's close to indispensable. Respect the two rules from the multi-bit synchronizer example above — register the Gray value in the source domain, and make sure it only ever increments by one — and this module will never be the source of your bug.
+The binary-to-Gray converter is one of those fundamental building blocks —
+simple, combinational, dependable. For asynchronous interfaces and glitch-free
+operation it's close to indispensable. Respect the two rules from the multi-bit
+synchronizer example above — register the Gray value in the source domain, and
+make sure it only ever increments by one — and this module will never be the
+source of your bug.
 
 ## Navigation
 

@@ -150,8 +150,13 @@ wrapper rather than by editing the owner's guide.
 RTL) and its prompt carries an explicit preservation instruction. That covers
 the mechanism; it does not cover the proof.
 
-**Still to do — the tag-survival test.** Send a SMALL test bundle and verify
-nothing structural is lost. Do not run across the corpus first: the docs are the
+**Tag-survival test (2026-07-28, reset corpus): PASSED on cdc_meta** --
+humanize round_1 returned the unit with structure fully intact (12/12
+headings, 14/14 table rows, 41/41 links, 26/26 html tags, length ratio
+1.02). cdc_meta has no code fences or captions, so the fence/caption classes
+are verified by the same structural diff on the FULL cdc area round before
+applying (apply_humanize refuses dramatic shortening as a second guard).
+Do not run across the corpus first: the docs are the
 source for the PDF book pipeline, so a prose rewrite that drops markup silently
 breaks book generation, and that will not be obvious from reading the prose.
 
@@ -443,3 +448,14 @@ for round_5 — the residual risk is accepted and falls to the AUDIT-001
 closing pass. Four reset-corpus rounds: 3+4+5+5 = 17 real findings, 1 FP,
 0 RTL changes. Next per the plan: humanize cdc, then the test audit
 ([[test-review]]).
+
+**cdc humanized (2026-07-28, humanize round_3).** All 17 pages of the cdc
+review area (12 rtl-cdc pages + glitch_free_n_dff_arn + clock_pulse + the
+four apb/apb5 cdc wrappers) rewritten in voice with the unify-structure
+prompt; applied after tag-survival passed (0 links/anchors/captions lost in
+all 3 units; length ratios 0.97-1.08; 0 broken links after apply).
+**Process lesson, now in the handbook:** the round ran from the round_4 qc
+bundle, built BEFORE round_4's fixes -- the apply reverted all five. They
+were re-applied by hand (the humanizer incidentally fixed the johnson shift
+direction itself). The humanize bundle is now ALWAYS rebuilt after the last
+correctness integration.

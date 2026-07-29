@@ -29,24 +29,24 @@
 
 If a module's job is getting data safely across a clock boundary, it lives
 here: the synchronizer, the handshakes, the asynchronous FIFOs, and the Gray
-and Johnson coders that exist to make those crossings safe. The blocks these modules
-*depend on*—`fifo_control`, `counter_bin`, `glitch_free_n_dff_arn`, and the
-bit-search trio behind `johnson2bin`—stay in `rtl/common`, because they serve
-FIFOs and bit-search in general, not just crossings.
+and Johnson coders that exist to make those crossings safe. The blocks these
+modules *depend on*—`fifo_control`, `counter_bin`, `glitch_free_n_dff_arn`,
+and the bit-search trio behind `johnson2bin`—stay in `rtl/common`, because
+they serve FIFOs and bit-search in general, not just crossings.
 
 **Full catalogue:** [index.md](index.md)
 
 ## Start here
 
-[Clock Domain Crossing (cdc.md)](cdc.md) is the single reference for choosing
-and using a technique. It covers the decision guide, the reset behavior that
-separates the techniques, and every building block. The per-module pages that
-used to exist for `cdc_primer`, `cdc_synchronizer`, `cdc_open_loop`,
-`cdc_2_phase_handshake` and `cdc_4_phase_handshake` got merged into it—their
-content is now sections of that one document.
+Read [Clock Domain Crossing (cdc.md)](cdc.md) first—it's the single reference
+for choosing and using a technique. It covers the decision guide, the reset
+behavior that separates the techniques, and every building block. The
+per-module pages that used to exist for `cdc_primer`, `cdc_synchronizer`,
+`cdc_open_loop`, `cdc_2_phase_handshake` and `cdc_4_phase_handshake` got
+merged into it—their content is now sections of that one document.
 
 | Jump to | Covers |
-|---------|--------|
+|---|---|
 | [Choosing a technique](cdc.md#choosing-a-technique) | Decision tree and quick-reference table |
 | [Reset Considerations](cdc.md#reset-considerations) | Why encoding decides reset safety; the 2-phase hazard, with waveforms and silicon evidence |
 | [cdc_synchronizer](cdc.md#cdc_synchronizer) | N-stage synchronizer for quasi-static signals |
@@ -85,7 +85,7 @@ many flops you can afford:
 
 ## Navigation
 
-- [Catalogue of every module in this area](index.md)
-- [Back to the documentation index](../index.md)
-- [rtl-common](../rtl-common/index.md) — the shared building blocks these use
-- [rtl-amba](../rtl-amba/index.md) — the protocol layers that consume them
+- **[Catalogue of every module in this area](index.md)**
+- **[Back to the documentation index](../index.md)**
+- **[rtl-common](../rtl-common/index.md)** — the shared building blocks these use
+- **[rtl-amba](../rtl-amba/index.md)** — the protocol layers that consume them

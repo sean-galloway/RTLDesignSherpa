@@ -319,7 +319,7 @@ If any box is unchecked, choose a level-encoded or pointer-encoded crossing.
 |--------|--------|-------|
 | Move both domains onto a common reset | Low | Best when the split was accidental |
 | Swap to `cdc_4_phase_handshake` | Low | Pin-compatible; level encoding self-recovers |
-| Swap to `gaxi_fifo_async` | Medium | Absolute pointers, local-reset robustness, adds buffering |
+| Swap to `gaxi_fifo_async` | Medium | Absolute pointers, tolerant of local resets, adds buffering |
 
 : Options for recovering a design using 2-phase across independent resets
 
@@ -342,10 +342,10 @@ module cdc_synchronizer #(
 );
 ```
 
-| Parameter | Default | Range | Description |
-|-----------|---------|-------|-------------|
-| `WIDTH` | 1 | 1+ | Number of bits to synchronize |
-| `FLOP_COUNT` | 3 | 2-5 | Synchronizer chain depth |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 1 | Number of bits to synchronize (1+) |
+| `FLOP_COUNT` | 3 | Synchronizer chain depth (2-5) |
 
 : cdc_synchronizer parameters
 
@@ -422,11 +422,11 @@ instead of four.
 > module.** It is pin-compatible with the 4-phase variant but not behaviorally
 > equivalent under independent resets.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `DATA_WIDTH` | int | 8 | Width of the data bus (1+) |
-| `SYNC_STAGES` | int | 3 | Synchronizer depth for req/ack (2 or 3) |
-| `TIMEOUT_CYCLES` | int | 0 | 0 = disabled; >0 asserts `src_timeout` after stall |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `DATA_WIDTH` | 8 | Width of the data bus (1+) |
+| `SYNC_STAGES` | 3 | Synchronizer depth for req/ack (2 or 3) |
+| `TIMEOUT_CYCLES` | 0 | 0 = disabled; >0 asserts `src_timeout` after stall |
 
 : cdc_2_phase_handshake parameters
 
@@ -483,12 +483,12 @@ Edge detection
 Level (RZ) closed-loop handshake: `req` rises, `ack` rises, `req` falls, `ack`
 falls. Slower than 2-phase, and tolerant of independent domain resets.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `DATA_WIDTH` | int | 8 | Width of the data bus (1 to 1024+) |
-| `SYNC_STAGES` | int | 3 | Synchronizer depth for req/ack (2 or 3) |
-| `TIMEOUT_CYCLES` | int | 0 | 0 = disabled; >0 asserts `src_timeout` after stall |
-| `FAST_PATH` | bit | 0 | 1 = destination fast-path when `dst_ready` already high |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `DATA_WIDTH` | 8 | Width of the data bus (1 to 1024+) |
+| `SYNC_STAGES` | 3 | Synchronizer depth for req/ack (2 or 3) |
+| `TIMEOUT_CYCLES` | 0 | 0 = disabled; >0 asserts `src_timeout` after stall |
+| `FAST_PATH` | 0 | `bit` type; 1 = destination fast-path when `dst_ready` already high |
 
 : cdc_4_phase_handshake parameters
 

@@ -21,12 +21,20 @@
 
 <!-- End Header -->
 
-# Johnson Counter Module
+# Johnson counter (`counter_johnson.sv`)
 
 ## Overview
-The `counter_johnson` module implements a Johnson counter — also called a twisted-ring counter or a switch-tail counter. It's a shift register with a twist: the inverted output of the last stage feeds back into the first, which gives you a sequence with 2×WIDTH unique states. You'll see these generating multi-phase clock signals, driving state machine control, and running sequential timing applications.
 
-## Module Declaration
+`counter_johnson` implements a Johnson counter — also called a twisted-ring
+counter or a switch-tail counter. It's a shift register with a twist: the
+inverted output of the last stage feeds back into the first, which gives you a
+sequence with 2×WIDTH unique states. You'll see these generating multi-phase
+clock signals, driving state machine control, and running sequential timing
+applications — and, in this library, serving as the non-power-of-2 FIFO pointer
+behind `USE_JOHNSON=1`.
+
+## Module declaration
+
 ```systemverilog
 module counter_johnson #(
     parameter int WIDTH = 4
@@ -40,49 +48,45 @@ module counter_johnson #(
 
 ## Parameters
 
-### WIDTH
-- **Type**: `int`
-- **Default**: `4`
-- **Description**: Number of stages in the Johnson counter
-- **Range**: `>= 2`. The shift expression is
-  `counter_gray <= {counter_gray[WIDTH-2:0], ~counter_gray[WIDTH-1]}`, whose
-  `[WIDTH-2:0]` part-select is reversed at `WIDTH=1` and fails elaboration.
-  A 1-stage Johnson counter has no use anyway, but the bound is real.
-- **States Generated**: 2×WIDTH unique states
-- **Impact**: Determines sequence length and number of output phases
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 4 | Number of stages in the Johnson counter (`int`, `>= 2`). Generates 2×WIDTH unique states; determines sequence length and number of output phases. |
+
+: counter_johnson parameters
+
+The `>= 2` bound is real, not a style preference. The shift expression is
+`counter_gray <= {counter_gray[WIDTH-2:0], ~counter_gray[WIDTH-1]}`, whose
+`[WIDTH-2:0]` part-select is reversed at `WIDTH=1` and fails elaboration.
+A 1-stage Johnson counter has no use anyway.
 
 ## Ports
 
-### Inputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `clk` | 1 | `logic` | System clock input |
-| `rst_n` | 1 | `logic` | Active-low asynchronous reset |
-| `enable` | 1 | `logic` | Counter enable control |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `clk` | input | 1 | System clock input |
+| `rst_n` | input | 1 | Active-low asynchronous reset |
+| `enable` | input | 1 | Counter enable control |
+| `counter_gray` | output | WIDTH | Johnson counter output register |
 
-### Outputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `counter_gray` | WIDTH | `logic` | Johnson counter output register |
+: counter_johnson ports
 
-## Theory of Operation
+## Theory of operation
 
-### Johnson Counter Principle
 A Johnson counter is a shift register with inverted feedback:
-- **Normal Operation**: Bits shift left (or right) each clock cycle
-- **Feedback**: The complement of the MSB feeds back to the LSB
-- **Sequence Length**: 2×WIDTH states before repeating
 
-### Mathematical Representation
-For a WIDTH-bit Johnson counter:
+- **Normal operation**: bits shift left (or right) each clock cycle
+- **Feedback**: the complement of the MSB feeds back to the LSB
+- **Sequence length**: 2×WIDTH states before repeating
+
+Mathematically, for a WIDTH-bit counter:
+
 ```
 Next_State[i] = Current_State[i-1]  for i = 1 to WIDTH-1
 Next_State[0] = ~Current_State[WIDTH-1]
 ```
 
-## Implementation Details
+And here is the entire implementation:
 
-### Core Logic
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) 
@@ -93,13 +97,10 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-### Operation Breakdown
-1. **Shift Operation**: `counter_gray[WIDTH-2:0]` → upper bits of next state (`next_state[WIDTH-1:1]`)
-2. **Feedback**: `~counter_gray[WIDTH-1]` → MSB complement becomes new LSB
-3. **Enable Control**: Only advance when `enable` is asserted
-4. **Reset**: All bits cleared on reset
+Four lines of actual logic: shift the low bits up, feed the inverted MSB into
+the LSB, hold when `enable` is low, clear on reset.
 
-## State Sequences
+### State sequences
 
 ### 4-bit Johnson Counter (WIDTH=4)
 | Step | counter_gray | Decimal | Description |
@@ -134,15 +135,15 @@ end
 | 3 | 10 | State D |
 | 4 | 00 | Back to A |
 
-## Unique Properties
+### NOT self-starting — reset is mandatory
 
-### NOT Self-Starting (requires reset)
 This RTL is a bare twisted-ring shift register
 (`counter_gray <= {counter_gray[WIDTH-2:0], ~counter_gray[WIDTH-1]}`) with **no
 state-correction logic**, so it is **not** self-starting:
-- **Valid States**: 2×WIDTH states in the normal sequence
-- **Invalid States**: (2^WIDTH - 2×WIDTH) states not in sequence
-- **Recovery**: **None.** The invalid states form their own closed cycle and
+
+- **Valid states**: 2×WIDTH states in the normal sequence
+- **Invalid states**: (2^WIDTH - 2×WIDTH) states not in sequence
+- **Recovery**: **none.** The invalid states form their own closed cycle and
   never converge to the valid sequence. For WIDTH=4 the 8 invalid states cycle
   `0010→0101→1011→0110→1101→1010→0100→1001→0010` forever; for WIDTH=3 the pair
   `010↔101` is a parasitic 2-cycle. **You must guarantee a clean reset** — after
@@ -150,21 +151,19 @@ state-correction logic**, so it is **not** self-starting:
   self-correction is required, add explicit decode/recovery logic (not present
   here).
 
-### Symmetrical Patterns
-The sequence has inherent symmetry:
-- **First Half**: Filling with '1's (0→1→11→111...)
-- **Second Half**: Filling with '0's (111→110→100→000...)
-- **Phase Shift**: Each bit represents a different phase
+### Symmetry
 
-### Single-Bit Transition Properties
+The sequence has inherent symmetry: the first half fills with '1's
+(0→1→11→111...), the second half flushes them back out with '0's
+(111→110→100→000...). Each bit effectively represents a different phase of the
+cycle.
+
+### Single-bit transitions — but Johnson is not Gray
 
 Johnson counter outputs share the one-bit-change property that makes Gray code
-safe to synchronize, but they are **not Gray code**:
-
-- **Adjacent Differences**: consecutive states differ by exactly **one** bit,
-  including the wrap from the last state back to state 0
-- **Predictable Transitions**: well-defined state progression
-- **Decode Simplicity**: easy to decode specific states
+safe to synchronize — consecutive states differ by exactly **one** bit,
+including the wrap from the last state back to state 0 — with predictable
+progression and easy state decode. But they are **not** Gray code:
 
 > **Johnson is not Gray code.** Johnson achieves single-bit transitions through
 > sequential shift-register operation; Gray code achieves them through a
@@ -176,9 +175,10 @@ safe to synchronize, but they are **not Gray code**:
 > - Do not substitute one for the other in general-purpose CDC. For an
 >   arbitrary binary value crossing domains, use Gray (`bin2gray`/`gray2bin`).
 
-## Design Examples
+## Design examples
 
-### 1. 4-Phase Clock Generator
+### Example 1: 4-phase clock generator
+
 ```systemverilog
 counter_johnson #(
     .WIDTH(4)
@@ -196,7 +196,8 @@ assign phase_2 = (phases == 4'b0111);  // Step 3
 assign phase_3 = (phases == 4'b1111);  // Step 4
 ```
 
-### 2. LED Chaser Effect
+### Example 2: LED chaser
+
 ```systemverilog
 counter_johnson #(
     .WIDTH(8)
@@ -211,7 +212,8 @@ counter_johnson #(
 assign leds[7:0] = led_pattern;
 ```
 
-### 3. State Machine Controller
+### Example 3: state machine controller
+
 ```systemverilog
 counter_johnson #(
     .WIDTH(3)
@@ -236,7 +238,8 @@ always_comb begin
 end
 ```
 
-### 4. Quadrature Signal Generation
+### Example 4: quadrature signal generation
+
 ```systemverilog
 // Generate quadrature encoder-like signals
 counter_johnson #(
@@ -253,43 +256,8 @@ assign quad_a = quad_state[0] ^ quad_state[1];
 assign quad_b = quad_state[1] ^ quad_state[2];
 ```
 
-## Advantages
+### Multi-phase clock for pipeline stages
 
-### 1. Simplicity
-- **Minimal Logic**: Just a shift register with inverted feedback
-- **No Decode Logic**: States can be used directly
-- **Self-Clocking**: No complex timing requirements
-
-### 2. Reliability
-- **Requires clean reset**: NOT self-starting — invalid states do not recover
-  on their own (see "NOT Self-Starting" above)
-- **Glitch-Free**: Only one bit changes per transition within the valid sequence
-
-### 3. Performance
-- **High Speed**: Simple logic allows high clock frequencies
-- **Low Power**: Minimal switching activity
-- **Predictable Timing**: Regular state progression
-
-### 4. Flexibility
-- **Scalable**: Any width supported
-- **Multiple Outputs**: Each bit provides different phase
-- **Easy Modification**: Simple parameter changes
-
-## Disadvantages
-
-### 1. Limited States
-- **Count Efficiency**: Only 2×WIDTH states vs 2^WIDTH for binary
-- **Sequence Constraint**: Fixed progression pattern
-- **No Random Access**: Must step through sequence
-
-### 2. Decode Complexity
-- **State Detection**: May need comparators for specific states
-- **Non-Binary**: Not directly compatible with binary logic
-- **Overlap Prevention**: Care needed to avoid state conflicts
-
-## Applications
-
-### Clock Generation
 ```systemverilog
 // Multi-phase clock for pipeline stages
 counter_johnson #(.WIDTH(4)) pipeline_phases (
@@ -305,7 +273,8 @@ assign clk_ph2 = master_clk & phase_vector[2];
 assign clk_ph3 = master_clk & phase_vector[3];
 ```
 
-### Sequential Control
+### Sequential control (memory refresh)
+
 ```systemverilog
 // Memory refresh controller
 counter_johnson #(.WIDTH(3)) refresh_ctrl (
@@ -321,7 +290,8 @@ assign refresh   = (refresh_phase == 3'b111);
 assign restore   = (refresh_phase == 3'b110);
 ```
 
-### Pattern Generation
+### Pattern generation for BIST
+
 ```systemverilog
 // Test pattern generator
 counter_johnson #(.WIDTH(8)) pattern_gen (
@@ -334,17 +304,37 @@ counter_johnson #(.WIDTH(8)) pattern_gen (
 assign test_data = test_pattern;
 ```
 
-## Verification Strategy
+## Design considerations
 
-### Functional Tests
-1. **Sequence Verification**: Check complete 2×WIDTH state cycle
-2. **Reset Behavior**: Verify initialization to all zeros
-3. **Enable Control**: Test hold behavior when disabled
-4. **Invalid-State Containment**: Confirm that forcing an invalid state stays
+**What it does well.** The logic is minimal — a shift register and an
+inverter — so states can be used directly with no decode logic and no complex
+timing requirements. It runs fast (400-600 MHz typical in modern FPGAs, limited
+by the shift-register timing), it's power-friendly because only one bit changes
+per cycle, and the progression is completely predictable. Any width works,
+every bit gives you a different phase, and the parameterization is trivial.
+
+**What it costs.** Count efficiency: 2×WIDTH states versus 2^WIDTH for a binary
+counter of the same flops. The progression is a fixed sequence — no random
+access, you step through it. Decoding specific states takes comparators, the
+output isn't binary-compatible without `johnson2bin`, and you need care to
+avoid state conflicts when overlapping decoded phases. And the big one, from
+the theory section: it is **not** self-starting, so a clean reset is a hard
+requirement and glitch-free operation is only guaranteed inside the valid
+sequence.
+
+## Verification
+
+### Functional tests
+
+1. **Sequence verification**: check the complete 2×WIDTH state cycle
+2. **Reset behavior**: verify initialization to all zeros
+3. **Enable control**: hold behavior when disabled
+4. **Invalid-state containment**: force an invalid state and confirm it stays
    trapped in the parasitic cycle (this counter does NOT auto-recover), so the
    design's reset strategy is the only guarantee of a valid state
 
-### Coverage Points
+### Coverage
+
 ```systemverilog
 covergroup johnson_cg @(posedge clk);
     cp_states: coverpoint counter_gray {
@@ -373,6 +363,7 @@ endgroup
 ```
 
 ### Assertions
+
 ```systemverilog
 // Verify valid state progression
 property johnson_sequence;
@@ -393,14 +384,24 @@ endproperty
 assert property (no_invalid_states);
 ```
 
-## Synthesis Considerations
+### Test files
 
-### Resource Utilization
-- **Flip-Flops**: WIDTH registers
-- **LUTs**: Minimal - just for shift and invert logic
-- **Routing**: Simple connections between adjacent stages
+- `val/cdc/test_counter_johnson.py` — full functional verification
+- `val/cdc/test_counter_johnson_wavedrom.py` — WaveDrom timing diagrams ⭐
 
-### Optimization
+```bash
+# Full functional test (basic/medium/full levels)
+pytest val/cdc/test_counter_johnson.py -v
+
+# WaveDrom waveform generation
+pytest val/cdc/test_counter_johnson_wavedrom.py -v
+```
+
+## Synthesis and performance
+
+Resources: WIDTH flip-flops, almost no LUTs (shift and invert only), and simple
+routing between adjacent stages. For extreme speeds, pipeline:
+
 ```systemverilog
 // For high-speed applications, consider pipeline stages
 logic [WIDTH-1:0] johnson_pipe;
@@ -409,24 +410,18 @@ always_ff @(posedge clk) begin
 end
 ```
 
-### Tool Attributes
+Keep the tool from swallowing the register into an SRL — the feedback path
+needs real flops:
+
 ```systemverilog
 (* SHREG_EXTRACT = "NO" *) logic [WIDTH-1:0] counter_gray; // Prevent SRL inference
 ```
 
-## Performance Characteristics
+Typical maximum frequency is 400-600 MHz in modern FPGAs, limited by the
+shift-register timing. Dynamic power is low — one bit changes per cycle — and
+`enable` gives you free clock gating.
 
-### Maximum Frequency
-- **Typical**: 400-600 MHz in modern FPGAs
-- **Limitation**: Shift register timing
-- **Optimization**: Pipeline for extreme speeds
-
-### Power Consumption
-- **Low Dynamic Power**: Only one bit changes per cycle
-- **Efficient**: Minimal logic switching
-- **Clock Gating**: Use enable for power savings
-
-## WaveDrom Visualization
+## WaveDrom visualization
 
 **WaveDrom timing diagrams for the Johnson counter are available.**
 
@@ -509,26 +504,12 @@ Johnson counters are the foundation of the `fifo_async` `USE_JOHNSON=1` CDC mech
 - `test_counter_bingray_wavedrom.py` - Binary-Gray counter (power-of-2 depths, logarithmic width)
 - `test_fifo_async_wavedrom.py` - Gray code in action (async FIFO)
 
-## Related Modules
-- `counter_ring`: Different shift register pattern
-- `counter_bingray`: Binary and Gray code counter
-- `counter`: Simple binary counter
+## Related modules
+
+- `counter_ring`: different shift register pattern
+- `counter_bingray`: binary and Gray code counter
+- `counter`: simple binary counter
 - Standard shift register implementations
-
-## Test and Verification
-
-**Comprehensive Test Suite:**
-- `val/cdc/test_counter_johnson.py` - Full functional verification
-- `val/cdc/test_counter_johnson_wavedrom.py` - WaveDrom timing diagrams ⭐
-
-**Run Tests:**
-```bash
-# Full functional test (basic/medium/full levels)
-pytest val/cdc/test_counter_johnson.py -v
-
-# WaveDrom waveform generation
-pytest val/cdc/test_counter_johnson_wavedrom.py -v
-```
 
 ## Navigation
 

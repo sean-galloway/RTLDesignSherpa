@@ -21,26 +21,37 @@
 
 <!-- End Header -->
 
-# Gray-to-Binary Converter (`gray2bin.sv`)
+# Gray-to-binary converter (`gray2bin.sv`)
 
-## Purpose
-Converts Gray code (reflected binary code) back to standard binary using XOR reduction. When a Gray pointer crosses into a domain that needs to do arithmetic on it, this is the module that turns it back into a number — asynchronous FIFO pointer comparison is the classic case, and it shows up in plenty of other CDC paths too.
+## Overview
+
+`gray2bin` converts Gray code (reflected binary code) back to standard binary
+using XOR reduction. When a Gray pointer crosses into a domain that needs to do
+arithmetic on it, this is the module that turns it back into a number —
+asynchronous FIFO pointer comparison is the classic case, and it shows up in
+plenty of other CDC paths too.
+
+## Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 4 | Data width in bits |
+
+: gray2bin parameters
 
 ## Ports
 
-### Input Ports
-- **`gray[WIDTH-1:0]`** - Gray code input
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `gray` | input | WIDTH | Gray code input |
+| `binary` | output | WIDTH | Binary code output |
 
-### Output Ports
-- **`binary[WIDTH-1:0]`** - Binary code output
+: gray2bin ports
 
-### Parameters
-- **`WIDTH`** - Data width in bits (default: 4)
+## Theory of operation
 
-## Gray Code Theory
-
-### What is Gray Code?
-Gray code (also called reflected binary code) is a binary numeral system where **only one bit changes** between consecutive values:
+Gray code is a binary numeral system where **only one bit changes** between
+consecutive values:
 
 ```
 Binary  Gray   Transitions
@@ -54,21 +65,24 @@ Binary  Gray   Transitions
 111  →  100    1 bit change
 ```
 
-### Why Gray Codes Matter for CDC
-- **Metastability protection**: Only one bit transition eliminates multi-bit race conditions
-- **Safe sampling**: Intermediate values during transition are still valid Gray codes
-- **FIFO pointers**: Essential for async FIFO full/empty detection
+That property is exactly what CDC needs:
 
-## Conversion Algorithm
+- **Metastability protection**: only one bit in transition means no multi-bit
+  race conditions
+- **Safe sampling**: intermediate values during a transition are still valid
+  Gray codes
+- **FIFO pointers**: essential for async FIFO full/empty detection
 
-### Mathematical Foundation
-For Gray-to-binary conversion, each binary bit is the XOR of all Gray bits from that position to the MSB:
+### Conversion algorithm
+
+Each binary bit is the XOR of all Gray bits from that position up to the MSB:
 
 ```
 binary[i] = gray[MSB] ⊕ gray[MSB-1] ⊕ ... ⊕ gray[i]
 ```
 
-### Implementation
+The RTL says the same thing with a shift and a reduction:
+
 ```systemverilog
 genvar i;
 generate
@@ -78,7 +92,8 @@ generate
 endgenerate
 ```
 
-### Bit-by-Bit Breakdown
+Bit by bit, for a 4-bit converter:
+
 ```systemverilog
 // For 4-bit example:
 assign binary[3] = gray[3];                           // MSB unchanged
@@ -87,7 +102,7 @@ assign binary[1] = gray[3] ^ gray[2] ^ gray[1];       // XOR from MSB down
 assign binary[0] = gray[3] ^ gray[2] ^ gray[1] ^ gray[0]; // XOR all bits
 ```
 
-## Functional Examples
+## Functional examples
 
 ### 4-Bit Conversion Table
 | Gray[3:0] | Binary[3:0] | Calculation |
@@ -113,27 +128,44 @@ binary[0] = gray[3] ^ gray[2] ^ gray[1] ^ gray[0] = 0 ^ 1 ^ 1 ^ 0 = 0
 Result: binary = 0100 (decimal 4)
 ```
 
-## Implementation Analysis
+## Implementation
 
-### XOR Reduction Technique
+The whole module is one line per bit:
+
 ```systemverilog
 assign binary[i] = ^(gray >> i);
 ```
 
-**How it works:**
-- `gray >> i`: Right-shift gray by i positions
-- `^(...)`: XOR-reduce all bits in the shifted value
-- **Effect**: XORs all bits from position i to MSB
+Read it as: shift `gray` right by `i`, then XOR-reduce whatever is left — which
+XORs together every bit from position `i` to the MSB. The generate loop makes
+it work for any WIDTH, synthesis tools recognize the pattern and optimize it,
+all bits compute in parallel, and the result maps onto XOR tree structures.
 
-### Generate Loop Benefits
-- **Parameterizable**: Works for any WIDTH
-- **Synthesis friendly**: Tools recognize and optimize pattern
-- **Parallel computation**: All bits calculated simultaneously
-- **Resource efficient**: Maps to XOR tree structures
+## Timing characteristics
 
-## Use Cases in Digital Design
+The delay is an XOR tree of depth `log2(WIDTH)` — typically 1-2 LUT delays for
+most widths, with the critical path running from the MSB input to the LSB
+output.
 
-### Asynchronous FIFO Pointers
+| WIDTH | XOR Levels | Typical Delay |
+|-------|------------|---------------|
+| 4     | 2          | 1 LUT delay   |
+| 8     | 3          | 2 LUT delays  |
+| 16    | 4          | 2 LUT delays  |
+| 32    | 5          | 3 LUT delays  |
+
+: gray2bin delay by width
+
+Modern synthesis tools need no help here: they recognize the XOR-reduction
+pattern, build balanced trees, and share XOR gates where possible.
+
+## Design examples
+
+### Asynchronous FIFO pointers
+
+Convert the synchronized Gray pointers back to binary so you can do arithmetic
+on them:
+
 ```systemverilog
 // Convert synchronized Gray pointers back to binary for comparison
 gray2bin #(.WIDTH(5)) wr_ptr_conv (
@@ -150,7 +182,8 @@ gray2bin #(.WIDTH(5)) rd_ptr_conv (
 assign occupancy = sync_wr_ptr_bin - sync_rd_ptr_bin;
 ```
 
-### Clock Domain Crossing Counters
+### Clock domain crossing counter
+
 ```systemverilog
 // Convert Gray counter back to binary for address generation
 gray2bin #(.WIDTH(AW)) addr_converter (
@@ -159,7 +192,8 @@ gray2bin #(.WIDTH(AW)) addr_converter (
 );
 ```
 
-### Position Encoding
+### Position encoding
+
 ```systemverilog
 // Convert Gray-encoded position to binary for processing
 gray2bin #(.WIDTH(8)) position_decoder (
@@ -168,39 +202,18 @@ gray2bin #(.WIDTH(8)) position_decoder (
 );
 ```
 
-## Timing Characteristics
+## Design considerations
 
-### Propagation Delay
-- **XOR tree depth**: `log2(WIDTH)` levels
-- **Typical delay**: 1-2 LUT delays for most widths
-- **Critical path**: From MSB input to LSB output
+**Width scaling.** `binary[i]` is the XOR of Gray bits `i..WIDTH-1`, so the
+unshared cost is `WIDTH*(WIDTH-1)/2` XOR gates -- quadratic in WIDTH, as the
+module header notes ("WIDTH * (WIDTH/2 average)"). Synthesis shares the common
+prefixes, so realised area lands between linear and quadratic; do not budget it
+as linear for wide converters. Delay grows with log(WIDTH), and the module
+works well up to 64+ bits.
 
-### Delay Analysis by Width
-| WIDTH | XOR Levels | Typical Delay |
-|-------|------------|---------------|
-| 4     | 2          | 1 LUT delay   |
-| 8     | 3          | 2 LUT delays  |
-| 16    | 4          | 2 LUT delays  |
-| 32    | 5          | 3 LUT delays  |
+**Input validation.** Gray codes have no invalid states — every input decodes
+to something. If you want to gate on the *source* of the Gray code instead:
 
-### Synthesis Optimization
-Modern synthesis tools need no help here:
-- **Recognize pattern**: Optimize XOR reduction automatically
-- **Balance trees**: Create balanced XOR structures
-- **Resource sharing**: Reuse XOR gates where possible
-
-## Design Considerations
-
-### Width Scaling
-- **Resource growth**: `binary[i]` is the XOR of Gray bits `i..WIDTH-1`, so the
-  unshared cost is `WIDTH*(WIDTH-1)/2` XOR gates -- quadratic in WIDTH, as the
-  module header notes ("WIDTH * (WIDTH/2 average)"). Synthesis shares the common
-  prefixes, so realised area lands between linear and quadratic; do not budget it
-  as linear for wide converters
-- **Logarithmic delay growth**: Delay scales with log(WIDTH)
-- **Practical limits**: Works well up to 64+ bits
-
-### Input Validation
 ```systemverilog
 // Gray codes have no invalid states - all inputs are valid
 // However, may want to validate source of Gray code
@@ -213,8 +226,9 @@ always_comb begin
 end
 ```
 
-### Pipeline Considerations
-If you're closing timing at very high speed, a pipeline stage is cheap insurance:
+**Pipelining.** If you're closing timing at very high speed, a pipeline stage
+is cheap insurance:
+
 ```systemverilog
 // Optional pipeline stage for timing closure
 always_ff @(posedge clk) begin
@@ -226,7 +240,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Verification Strategies
+## Verification
 
 ### Exhaustive Testing
 ```systemverilog
@@ -284,7 +298,15 @@ repeat (10000) begin
 end
 ```
 
-## Common Mistakes and Pitfalls
+### Test files
+
+- `val/cdc/test_gray2bin.py` — functional verification
+
+```bash
+pytest val/cdc/test_gray2bin.py -v
+```
+
+## Common mistakes
 
 ### Bit Order Confusion
 ```systemverilog
@@ -322,7 +344,8 @@ gray_in <= new_value;
 binary_out <= converted_value;
 ```
 
-## Related Modules
+## Related modules
+
 - **bin2gray**: Performs inverse conversion (binary to Gray)
 - **counter_bingray**: Combined binary/Gray counter
 - **fifo_async**: Uses Gray codes for CDC

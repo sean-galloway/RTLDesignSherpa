@@ -43,7 +43,7 @@ The APB Slave CDC (Clock Domain Crossing) module is a complete APB slave interfa
 - ✅ **Buffered Operation:** Integrated skid buffers for elastic storage
 
 **Protocol scope:** APB4 only. For APB5 signalling use `apb5_slave_cdc` from
-`rtl/amba/apb5/` -- see the [APB5 book](../apb5/apb5_slave_cdc.md).
+`rtl/amba/apb5/` — see the [APB5 book](../apb5/apb5_slave_cdc.md).
 
 ---
 
@@ -109,24 +109,26 @@ module apb_slave_cdc #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| ADDR_WIDTH | int | 32 | APB address bus width |
-| DATA_WIDTH | int | 32 | APB data bus width |
-| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
-| PROT_WIDTH | int | 3 | APB protection signal width |
-| DEPTH | int | 2 | Skid-buffer depth **in entries** inside the wrapped `apb_slave`; also the floor for the CDC FIFO depth |
-| USE_JOHNSON | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray (power-of-2 derived depth only), `1` Johnson (any depth, `DEPTH`-bit pointers). Gray by default -- Johnson is opt-in because its pointers cost `DEPTH` bits in both domains and every synchronizer stage. |
-| USE_2_PHASE_CDC | bit | 1 | **Deprecated and ignored.** Has no effect on the generated logic |
+| `ADDR_WIDTH` | int | 32 | APB address bus width |
+| `DATA_WIDTH` | int | 32 | APB data bus width |
+| `STRB_WIDTH` | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+| `PROT_WIDTH` | int | 3 | APB protection signal width |
+| `DEPTH` | int | 2 | Skid-buffer depth **in entries** inside the wrapped `apb_slave`; also the floor for the CDC FIFO depth |
+| `USE_JOHNSON` | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray (power-of-2 derived depth only), `1` Johnson (any depth, `DEPTH`-bit pointers). Gray by default — Johnson is opt-in because its pointers cost `DEPTH` bits in both domains and every synchronizer stage. |
+| `USE_2_PHASE_CDC` | bit | 1 | **Deprecated and ignored.** Has no effect on the generated logic |
 
 ---
 
 ## Clock Domains
 
 ### APB Domain (pclk)
+
 - APB slave interface signals
 - Typical frequency: 50-200 MHz
 - Used by APB master/interconnect
 
 ### AXI Domain (aclk)
+
 - Command and response interfaces
 - Can be faster or slower than pclk
 - Used by backend processing logic
@@ -150,17 +152,17 @@ Both are `gaxi_fifo_async` instances with:
 - **Pointer encoding:** absolute read/write pointers, Gray by default
   (`USE_JOHNSON = 0`); pass `USE_JOHNSON = 1` for Johnson
 - **Synchronizer depth:** `N_FLOP_CROSS = 2` (two-flop synchronizer per crossed pointer)
-- **FIFO depth:** `CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH` -- a floor of 4 entries
+- **FIFO depth:** `CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH` — a floor of 4 entries
   regardless of the `DEPTH` used for the internal skid buffers. **Under the
   default `USE_JOHNSON = 0` a power of two is required**, because Gray carries a
   generate-scope elaboration check
   (`(USE_JOHNSON == 0) && ((DEPTH & (DEPTH-1)) != 0)` -> `$error`). The check sees
   the DERIVED depth, so `DEPTH` of 1 or 3 floors to 4 and builds; it is a
-  non-power-of-2 `DEPTH` of 4 or more -- 5, 6, 7 -- that fails.
+  non-power-of-2 `DEPTH` of 4 or more — 5, 6, 7 — that fails.
 
   That constraint belongs to the encoding, not to this module. The module's own
   `USE_JOHNSON` parameter is forwarded to both FIFOs, so `USE_JOHNSON = 1` makes
-  5, 6 and 7 elaborate -- at `DEPTH`-bit pointers instead of Gray's
+  5, 6 and 7 elaborate — at `DEPTH`-bit pointers instead of Gray's
   `$clog2(DEPTH)+1`, in both domains and every synchronizer stage. Gray is the
   default so that cost is never paid by accident.
 
@@ -187,7 +189,7 @@ together. **A one-sided reset is not safe. Quiesce the bus first.**
 
 The local reset clears that domain's own pointer, but the crossed copy of the
 *remote* pointer is a live synchronizer (`glitch_free_n_dff_arn`, N=2) that keeps
-sampling the non-reset domain the moment reset deasserts -- it does not hold at
+sampling the non-reset domain the moment reset deasserts — it does not hold at
 zero. The reset side comes back with its own pointer at zero and the remote
 pointer at whatever the other side had reached: not an empty FIFO, a mismatched
 one.
@@ -197,7 +199,7 @@ Neither consequence is a clean discard:
 - **Consumed commands are re-presented.** Pulsing `aresetn` with an
   **already-consumed** command in the cmd FIFO rewinds the read pointer behind
   the write pointer, so the backend sees that command again after reset. It does
-  not time out -- it re-executes. An *unread* command is not at risk: its read
+  not time out — it re-executes. An *unread* command is not at risk: its read
   pointer is already behind the write pointer, so resetting it to 0 rewinds
   nothing and the entry is delivered exactly once.
 - **The response FIFO can fabricate responses.** The same rewind on the response
@@ -225,7 +227,7 @@ This was observed on the Nexys A7 `ddr2-char` board on 2026-07-19. Reading a
 single CSR eight times returned the previous register's value about three times
 before settling, while the non-CDC harness window was stable. The two mitigations
 now in place are the gray-pointer FIFOs described above and the orphan-response
-guard in `apb_slave` -- see [apb_slave.md](apb_slave.md).
+guard in `apb_slave` — see [apb_slave.md](apb_slave.md).
 
 ### Timing Constraints
 
@@ -236,6 +238,53 @@ Standard practice applies:
   (`set_clock_groups -asynchronous`).
 - Do not over-constrain the pointer synchronizer paths; the gray encoding
   tolerates a one-bit-at-a-time skew by construction.
+
+---
+
+## Usage Example
+
+```systemverilog
+apb_slave_cdc #(
+    .ADDR_WIDTH(32),
+    .DATA_WIDTH(32),
+    .DEPTH(2)
+) u_apb_cdc (
+    // APB clock domain
+    .pclk         (apb_clk),
+    .presetn      (apb_resetn),
+
+    // AXI clock domain
+    .aclk         (axi_clk),
+    .aresetn      (axi_resetn),
+
+    // APB slave interface (pclk domain)
+    .s_apb_PSEL     (apb_psel),
+    .s_apb_PENABLE  (apb_penable),
+    .s_apb_PREADY   (apb_pready),
+    .s_apb_PADDR    (apb_paddr),
+    .s_apb_PWRITE   (apb_pwrite),
+    .s_apb_PWDATA   (apb_pwdata),
+    .s_apb_PSTRB    (apb_pstrb),
+    .s_apb_PPROT    (apb_pprot),
+    .s_apb_PRDATA   (apb_prdata),
+    .s_apb_PSLVERR  (apb_pslverr),
+
+    // Command interface (aclk domain)
+    .cmd_valid      (cmd_valid),
+    .cmd_ready      (cmd_ready),
+    .cmd_pwrite     (cmd_pwrite),
+    .cmd_paddr      (cmd_paddr),
+    .cmd_pwdata     (cmd_pwdata),
+    .cmd_pstrb      (cmd_pstrb),
+    .cmd_pprot      (cmd_pprot),
+
+    // Response interface (aclk domain)
+    .rsp_valid      (rsp_valid),
+    .rsp_ready      (rsp_ready),
+    .rsp_prdata     (rsp_prdata),
+    .rsp_pslverr    (rsp_pslverr)
+);
+```
 
 ---
 
@@ -306,59 +355,17 @@ Shows APB read with response crossing back from aclk to pclk domain:
 
 ---
 
-## Usage Example
-
-```systemverilog
-apb_slave_cdc #(
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32),
-    .DEPTH(2)
-) u_apb_cdc (
-    // APB clock domain
-    .pclk         (apb_clk),
-    .presetn      (apb_resetn),
-
-    // AXI clock domain
-    .aclk         (axi_clk),
-    .aresetn      (axi_resetn),
-
-    // APB slave interface (pclk domain)
-    .s_apb_PSEL     (apb_psel),
-    .s_apb_PENABLE  (apb_penable),
-    .s_apb_PREADY   (apb_pready),
-    .s_apb_PADDR    (apb_paddr),
-    .s_apb_PWRITE   (apb_pwrite),
-    .s_apb_PWDATA   (apb_pwdata),
-    .s_apb_PSTRB    (apb_pstrb),
-    .s_apb_PPROT    (apb_pprot),
-    .s_apb_PRDATA   (apb_prdata),
-    .s_apb_PSLVERR  (apb_pslverr),
-
-    // Command interface (aclk domain)
-    .cmd_valid      (cmd_valid),
-    .cmd_ready      (cmd_ready),
-    .cmd_pwrite     (cmd_pwrite),
-    .cmd_paddr      (cmd_paddr),
-    .cmd_pwdata     (cmd_pwdata),
-    .cmd_pstrb      (cmd_pstrb),
-    .cmd_pprot      (cmd_pprot),
-
-    // Response interface (aclk domain)
-    .rsp_valid      (rsp_valid),
-    .rsp_ready      (rsp_ready),
-    .rsp_prdata     (rsp_prdata),
-    .rsp_pslverr    (rsp_pslverr)
-);
-```
-
----
-
-## References
+## Related Documentation
 
 - **APB Slave:** [apb_slave.md](apb_slave.md)
 - **Clock-Gated Variant:** [apb_slave_cdc_cg.md](apb_slave_cdc_cg.md)
 - **APB5 Equivalent:** [apb5_slave_cdc.md](../apb5/apb5_slave_cdc.md)
 - **CDC FIFO:** `rtl/cdc/gaxi_fifo_async.sv`
+
+---
+
+## References
+
 - **Source:** `rtl/amba/apb/apb_slave_cdc.sv`
 - **Tests:** `val/amba/test_apb_slave_cdc.py`
 - **WaveDrom Test:** `val/amba/test_apb_slave_cdc.py::test_apb_slave_cdc_wavedrom`

@@ -35,17 +35,17 @@ The APB5 Slave CDC + Clock-Gated module combines clock domain crossing with cloc
 
 ### Key Features
 
-- Full APB5 protocol support with all extensions
-- Asynchronous clock domain crossing (APB to backend)
-- Clock gating for power reduction during idle
-- All APB5 user signals (PAUSER, PWUSER, PRUSER, PBUSER)
-- PWAKEUP signal handling across domains
-- Optional parity support for data integrity
-- Automatic wake-up on transaction activity
+- ✅ Full APB5 protocol support with all extensions
+- ✅ Asynchronous clock domain crossing (APB to backend)
+- ✅ Clock gating for power reduction during idle
+- ✅ All APB5 user signals (PAUSER, PWUSER, PRUSER, PBUSER)
+- ✅ PWAKEUP signal handling across domains
+- ✅ Optional parity support for data integrity
+- ✅ Automatic wake-up on transaction activity
 
 ---
 
-## Module Architecture
+## Architecture
 
 ```mermaid
 flowchart TB
@@ -83,19 +83,19 @@ flowchart TB
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| ADDR_WIDTH | int | 32 | APB address bus width |
-| DATA_WIDTH | int | 32 | APB data bus width |
-| PROT_WIDTH | int | 3 | Protection signal width |
-| AUSER_WIDTH | int | 4 | Address user signal width |
-| WUSER_WIDTH | int | 4 | Write user signal width |
-| RUSER_WIDTH | int | 4 | Read user signal width |
-| BUSER_WIDTH | int | 4 | Response user signal width |
-| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
-| DEPTH | int | 2 | Skid-buffer depth of the wrapped slave; CDC FIFOs use `max(DEPTH, 4)` |
-| USE_JOHNSON | int | 0 (Gray) | Forwarded to `apb5_slave_cdc`: `0` Gray, `1` Johnson, `-1` auto. Newly reachable from this level -- it used to be unreachable, so a CG instance could not select the encoding at all. |
-| ENABLE_PARITY | bit | 0 | Enable parity generation and checking |
-| CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter (max idle = 2^N-1 cycles) |
-| USE_2_PHASE_CDC | bit | 1 | Deprecated and ignored -- retained for source compatibility |
+| `ADDR_WIDTH` | int | 32 | APB address bus width |
+| `DATA_WIDTH` | int | 32 | APB data bus width |
+| `PROT_WIDTH` | int | 3 | Protection signal width |
+| `AUSER_WIDTH` | int | 4 | Address user signal width |
+| `WUSER_WIDTH` | int | 4 | Write user signal width |
+| `RUSER_WIDTH` | int | 4 | Read user signal width |
+| `BUSER_WIDTH` | int | 4 | Response user signal width |
+| `STRB_WIDTH` | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+| `DEPTH` | int | 2 | Skid-buffer depth of the wrapped slave; CDC FIFOs use `max(DEPTH, 4)` |
+| `USE_JOHNSON` | int | 0 (Gray) | Forwarded to `apb5_slave_cdc`: `0` Gray, `1` Johnson, `-1` auto. Newly reachable from this level — it used to be unreachable, so a CG instance could not select the encoding at all. |
+| `ENABLE_PARITY` | bit | 0 | Enable parity generation and checking |
+| `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of idle counter (max idle = 2^N-1 cycles) |
+| `USE_2_PHASE_CDC` | bit | 1 | Deprecated and ignored — retained for source compatibility |
 
 As with [apb5_slave_cdc](apb5_slave_cdc.md), there is no `SYNC_STAGES`
 parameter: pointer synchronization is fixed at 2 flops inside the async FIFOs.
@@ -108,17 +108,17 @@ parameter: pointer synchronization is fixed at 2 flops inside the async FIFOs.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| pclk | 1 | Input | APB bus clock |
-| presetn | 1 | Input | APB reset (active low) |
-| aclk | 1 | Input | User/backend clock |
-| aresetn | 1 | Input | User reset (active low) |
+| `pclk` | 1 | Input | APB bus clock |
+| `presetn` | 1 | Input | APB reset (active low) |
+| `aclk` | 1 | Input | User/backend clock |
+| `aresetn` | 1 | Input | User reset (active low) |
 
 ### Clock Gating Configuration
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| cfg_cg_enable | 1 | Input | Enable clock gating |
-| cfg_cg_idle_count | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating |
+| `cfg_cg_enable` | 1 | Input | Enable clock gating |
+| `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating |
 
 ### APB5 Slave Interface
 
@@ -132,9 +132,9 @@ Same command/response interface as [apb5_slave_cdc](apb5_slave_cdc.md) - operate
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
-| apb_clock_gating | 1 | Output | Indicates clock is currently gated |
-| parity_error_wdata | 1 | Output | Write data parity error detected |
-| parity_error_ctrl | 1 | Output | Control signal parity error |
+| `apb_clock_gating` | 1 | Output | Indicates clock is currently gated |
+| `parity_error_wdata` | 1 | Output | Write data parity error detected |
+| `parity_error_ctrl` | 1 | Output | Control signal parity error |
 
 ---
 
@@ -295,7 +295,7 @@ flowchart TB
   does not synchronize either reset into the other domain
 - A one-sided reset is NOT safe: the crossed pointer copy is a live
   synchronizer, so the reset side returns with its own pointer at zero against a
-  remote pointer that kept advancing. Quiesce the bus first -- see [apb5_slave_cdc](apb5_slave_cdc.md) for the mechanism and for the
+  remote pointer that kept advancing. Quiesce the bus first — see [apb5_slave_cdc](apb5_slave_cdc.md) for the mechanism and for the
   in-flight transaction caveat
 
 ---

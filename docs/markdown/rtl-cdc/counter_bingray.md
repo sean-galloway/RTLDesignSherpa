@@ -21,12 +21,22 @@
 
 <!-- End Header -->
 
-# Binary-Gray Counter Module
+# Binary-Gray counter (`counter_bingray.sv`)
 
 ## Overview
-The `counter_bingray` module is a dual-output counter: you get the binary and the Gray representation of the same count, registered in parallel. Asynchronous FIFOs are the reason it exists — the Gray value is what crosses the clock boundary safely (one bit changes per increment, so metastability never gets a foothold), while the binary value stays home for the arithmetic.
 
-## Module Declaration
+`counter_bingray` is a dual-output counter: you get the binary and the Gray
+representation of the same count, registered in parallel. Asynchronous FIFOs
+are the reason it exists — the Gray value is what crosses the clock boundary
+safely (one bit changes per increment, so metastability never gets a foothold),
+while the binary value stays home for the arithmetic.
+
+You'll also see it used for clock-domain-crossing counters, position encoder
+interfaces, state machine counters that need glitch-free outputs, and memory
+address generation in dual-port systems.
+
+## Module declaration
+
 ```systemverilog
 module counter_bingray #(
     parameter int WIDTH = 4
@@ -42,55 +52,42 @@ module counter_bingray #(
 
 ## Parameters
 
-### WIDTH
-- **Type**: `int`
-- **Default**: `4`
-- **Description**: Bit width of both binary and Gray code outputs
-- **Range**: Any positive integer ≥ 1
-- **Impact**: Determines maximum count value (2^WIDTH - 1)
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 4 | Bit width of both binary and Gray code outputs (`int`, any positive integer ≥ 1). Determines maximum count value (2^WIDTH - 1). |
+
+: counter_bingray parameters
 
 ## Ports
 
-### Inputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `clk` | 1 | `logic` | System clock input |
-| `rst_n` | 1 | `logic` | Active-low asynchronous reset |
-| `enable` | 1 | `logic` | Counter enable control |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `clk` | input | 1 | System clock input |
+| `rst_n` | input | 1 | Active-low asynchronous reset |
+| `enable` | input | 1 | Counter enable control |
+| `counter_bin` | output | WIDTH | Binary counter output (registered) |
+| `counter_bin_next` | output | WIDTH | Next binary value (combinational) |
+| `counter_gray` | output | WIDTH | Gray code output (registered) |
 
-### Outputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `counter_bin` | WIDTH | `logic` | Binary counter output (registered) |
-| `counter_bin_next` | WIDTH | `logic` | Next binary value (combinational) |
-| `counter_gray` | WIDTH | `logic` | Gray code output (registered) |
+: counter_bingray ports
 
-## Architecture Details
+## Theory of operation
 
-### Internal Logic
-```systemverilog
-logic [WIDTH-1:0] w_counter_bin, w_counter_gray;
+Gray code (reflected binary code) guarantees adjacent values differ by exactly
+one bit. That buys you:
 
-assign w_counter_bin = enable ? (counter_bin + 1) : counter_bin;
-assign w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
-assign counter_bin_next = w_counter_bin;
-```
+1. **Metastability Prevention**: when crossing clock domains, only one bit
+   changes at a time
+2. **Glitch Elimination**: reduces intermediate states during transitions
+3. **Asynchronous Safety**: safe for use in asynchronous circuits
 
-### Gray Code Conversion
-The module implements the standard binary-to-Gray conversion:
+The conversion is the standard one:
+
 - **MSB**: `gray[WIDTH-1] = binary[WIDTH-1]`
 - **Other bits**: `gray[i] = binary[i] ^ binary[i+1]` for i = 0 to WIDTH-2
 
-## Gray Code Theory
+### Gray code sequence (4-bit)
 
-### Why Gray Code?
-Gray code (reflected binary code) guarantees adjacent values differ by exactly one bit. That buys you:
-
-1. **Metastability Prevention**: When crossing clock domains, only one bit changes at a time
-2. **Glitch Elimination**: Reduces intermediate states during transitions
-3. **Asynchronous Safety**: Safe for use in asynchronous circuits
-
-### Gray Code Sequence Example (4-bit)
 | Decimal | Binary | Gray | Changes |
 |---------|--------|------|---------|
 | 0 | 0000 | 0000 | - |
@@ -110,18 +107,22 @@ Gray code (reflected binary code) guarantees adjacent values differ by exactly o
 | 14 | 1110 | 1001 | bit 1 |
 | 15 | 1111 | 1000 | bit 0 |
 
-## Implementation Analysis
+## Implementation
 
-### Combinational Logic
+### Internal logic
+
 ```systemverilog
-// Next binary calculation
-w_counter_bin = enable ? (counter_bin + 1) : counter_bin;
+logic [WIDTH-1:0] w_counter_bin, w_counter_gray;
 
-// Gray code conversion  
-w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
+assign w_counter_bin = enable ? (counter_bin + 1) : counter_bin;
+assign w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
+assign counter_bin_next = w_counter_bin;
 ```
 
-### Sequential Logic
+The next binary value is a conditional increment; the Gray value is that next
+binary value XORed with itself shifted right by one. Both registers update from
+the same `always_ff`:
+
 ```systemverilog
 always_ff @(posedge clk, negedge rst_n) begin
     if (!rst_n) begin
@@ -134,23 +135,30 @@ always_ff @(posedge clk, negedge rst_n) begin
 end
 ```
 
-## Timing Characteristics
+Note what this buys you over a `bin2gray` plus a separate flop: the Gray output
+is registered from the *next-state* value in the same process, so the encoding
+transient never leaves the module.
 
-### Critical Paths
-1. **Binary Increment**: Standard binary addition timing
-2. **Gray Conversion**: a single XOR level -- `gray = bin ^ (bin >> 1)` gives
+## Timing characteristics
+
+Three paths matter:
+
+1. **Binary increment** — standard binary addition timing
+2. **Gray conversion** — a single XOR level: `gray = bin ^ (bin >> 1)` gives
    every output bit one 2-input XOR, so the delay is constant in WIDTH. (The
    log(WIDTH) XOR depth belongs to the *decode* direction, `gray2bin`.)
-3. **Combined Path**: Increment + conversion in same cycle
+3. **Combined path** — increment + conversion in the same cycle
 
-### Propagation Delays
-- **Clock-to-Q**: Standard flip-flop delay
-- **Combinational**: Depends on addition and XOR logic depth
-- **Setup Time**: Must account for longest combinational path
+Clock-to-Q is the standard flip-flop delay, the combinational piece depends on
+the adder and XOR depth, and your setup check has to absorb the longest of
+them.
 
-## Application: Asynchronous FIFO
+## Design examples
 
-### FIFO Pointer Implementation
+### Asynchronous FIFO pointers
+
+This is the canonical use — one counter per domain:
+
 ```systemverilog
 // Write domain counter
 counter_bingray #(.WIDTH(ADDR_WIDTH+1)) wr_counter (
@@ -173,7 +181,10 @@ counter_bingray #(.WIDTH(ADDR_WIDTH+1)) rd_counter (
 );
 ```
 
-### Cross-Domain Synchronization
+### Cross-domain synchronization
+
+The Gray pointers cross; the binary ones don't:
+
 ```systemverilog
 // Synchronize Gray code pointers across domains
 logic [ADDR_WIDTH:0] wr_gray_sync, rd_gray_sync;
@@ -201,7 +212,8 @@ glitch_free_n_dff_arn #(
 );
 ```
 
-### FIFO Status Generation
+### FIFO status generation
+
 ```systemverilog
 // FIFO empty: Gray pointers equal
 assign fifo_empty = (rd_gray == wr_gray_sync);
@@ -225,9 +237,8 @@ wire                  rd_msb_sync  = rd_bin_sync[ADDR_WIDTH];
 assign fifo_full = (wr_addr == rd_addr_sync) && (wr_msb != rd_msb_sync);
 ```
 
-## Advanced Features
+### Almost full/empty flags
 
-### Almost Full/Empty Flags
 ```systemverilog
 // Calculate occupancy using binary values. rd_bin_sync comes from the
 // gray2bin INSTANCE above -- there is no gray2bin function to call.
@@ -238,7 +249,9 @@ assign almost_full = (occupancy >= ALMOST_FULL_THRESH);
 assign almost_empty = (occupancy <= ALMOST_EMPTY_THRESH);
 ```
 
-### Gray-to-Binary Conversion Function
+If you ever need the decode as a function inside your own logic (rather than
+the module), this is the shape:
+
 ```systemverilog
 function automatic [WIDTH-1:0] gray2bin;
     input [WIDTH-1:0] gray;
@@ -252,9 +265,8 @@ function automatic [WIDTH-1:0] gray2bin;
 endfunction
 ```
 
-## Design Examples
+### Example: 8-bit asynchronous FIFO pointer
 
-### 1. 8-bit Asynchronous FIFO Pointer
 ```systemverilog
 parameter FIFO_DEPTH = 256;
 parameter ADDR_WIDTH = $clog2(FIFO_DEPTH);
@@ -272,7 +284,8 @@ counter_bingray #(
 );
 ```
 
-### 2. Clock Domain Crossing Counter
+### Example: clock domain crossing counter
+
 ```systemverilog
 // Source domain
 counter_bingray #(.WIDTH(8)) src_counter (
@@ -297,16 +310,18 @@ glitch_free_n_dff_arn #(
 );
 ```
 
-## Verification Strategy
+## Verification
 
-### Test Scenarios
-1. **Sequential Counting**: Verify both outputs increment correctly
-2. **Gray Code Properties**: Ensure single-bit changes between adjacent values
-3. **Reset Behavior**: Confirm both outputs reset to zero
-4. **Enable Control**: Test hold behavior when disabled
-5. **Rollover**: Verify proper wrap-around from maximum value
+### Test scenarios
 
-### Coverage Points
+1. **Sequential counting**: both outputs increment correctly
+2. **Gray code properties**: single-bit changes between adjacent values
+3. **Reset behavior**: both outputs reset to zero
+4. **Enable control**: hold behavior when disabled
+5. **Rollover**: clean wrap-around from maximum value
+
+### Coverage
+
 ```systemverilog
 covergroup counter_bingray_cg @(posedge clk);
     cp_binary: coverpoint counter_bin {
@@ -330,6 +345,7 @@ endgroup
 ```
 
 ### Assertions
+
 ```systemverilog
 // Verify Gray code has single bit changes
 property gray_single_bit_change;
@@ -349,14 +365,27 @@ endproperty
 assert property (bin_gray_relationship);
 ```
 
-## Synthesis Considerations
+### Test files
 
-### Resource Utilization
-- **Flip-Flops**: 2×WIDTH (separate for binary and Gray)
-- **LUTs**: Increment logic + XOR tree for Gray conversion
-- **Critical Path**: Through binary increment and Gray conversion
+- `val/cdc/test_counter_bingray.py` — full functional verification
+- `val/cdc/test_counter_bingray_wavedrom.py` — WaveDrom timing diagrams ⭐
 
-### Optimization Techniques
+```bash
+# Full functional test (basic/medium/full levels)
+pytest val/cdc/test_counter_bingray.py -v
+
+# WaveDrom waveform generation
+pytest val/cdc/test_counter_bingray_wavedrom.py -v
+```
+
+## Synthesis and performance
+
+Resource cost: 2×WIDTH flip-flops (binary and Gray registers are separate),
+plus the increment logic and the single-level XOR for the Gray conversion. The
+critical path runs through the binary increment and the Gray conversion in
+series. Expect 200-400 MHz in a modern FPGA as-is; pipeline the Gray conversion
+if you need more:
+
 ```systemverilog
 // Optional: Pipeline Gray conversion for high speed
 logic [WIDTH-1:0] counter_gray_pipe;
@@ -365,46 +394,32 @@ always_ff @(posedge clk) begin
 end
 ```
 
-### Tool-Specific Attributes
+Mark the Gray register as an async-crossing register so the placer keeps the
+sync chain tight:
+
 ```systemverilog
 (* ASYNC_REG = "TRUE" *) logic [WIDTH-1:0] counter_gray; // Xilinx
 // synthesis attribute ASYNC_REG of counter_gray is "TRUE"  // Altera/Intel
 ```
 
-## Performance Characteristics
+Dynamic power scales with switching activity; static is minimal. Gate the clock
+with `enable` if the counter sits idle for long stretches.
 
-### Maximum Frequency
-- **Typical**: 200-400 MHz in modern FPGAs
-- **Limitation**: Binary increment + Gray conversion logic depth
-- **Optimization**: Pipeline for higher frequencies
+## Common mistakes
 
-### Power Consumption
-- **Dynamic**: Proportional to switching activity
-- **Static**: Minimal for CMOS technology
-- **Optimization**: Clock gating when enable is inactive
+1. **Metastability** — the Gray value must go through a proper synchronizer in
+   the destination domain; the encoding alone doesn't sample for you.
+2. **Timing violations** — pipeline the Gray conversion if the increment+XOR
+   path doesn't close.
+3. **Incorrect FIFO status** — check the Gray-to-binary decode on the
+   synchronized pointer before blaming the flags.
+4. **Reset skew** — use proper reset synchronization in each domain.
 
-## Common Applications
-1. **Asynchronous FIFO Pointers**: Primary use case
-2. **Clock Domain Crossing Counters**: Safe multi-domain counting
-3. **Position Encoders**: Mechanical/optical encoder interfaces
-4. **State Machine Counters**: When glitch-free operation required
-5. **Memory Address Generation**: For dual-port memory systems
+For debug: assert the Gray properties in simulation, capture real transitions
+on a logic analyzer, run timing analysis on the crossing paths, and verify the
+synchronizer stage count against your MTBF target.
 
-## Troubleshooting Guide
-
-### Common Issues
-1. **Metastability**: Ensure proper synchronization of Gray values
-2. **Timing Violations**: Pipeline Gray conversion if needed
-3. **Incorrect FIFO Status**: Verify Gray-to-binary conversion
-4. **Reset Skew**: Use proper reset synchronization
-
-### Debug Techniques
-1. **Simulation**: Verify Gray code properties with assertions
-2. **Logic Analyzer**: Capture actual transitions in hardware
-3. **Timing Analysis**: Check setup/hold requirements
-4. **Cross-Domain Checks**: Verify synchronizer timing
-
-## WaveDrom Visualization
+## WaveDrom visualization
 
 **WaveDrom timing diagrams for the Binary-Gray counter are available.**
 
@@ -499,21 +514,6 @@ Binary-Gray counters are the foundation of the standard `fifo_async` module:
 
 - `test_counter_johnson_wavedrom.py` - Johnson counter (any depth, linear width)
 - `test_fifo_async_wavedrom.py` - BinGray counter in action (async FIFO, power-of-2)
-
-## Test and Verification
-
-**Comprehensive Test Suite:**
-- `val/cdc/test_counter_bingray.py` - Full functional verification
-- `val/cdc/test_counter_bingray_wavedrom.py` - WaveDrom timing diagrams ⭐
-
-**Run Tests:**
-```bash
-# Full functional test (basic/medium/full levels)
-pytest val/cdc/test_counter_bingray.py -v
-
-# WaveDrom waveform generation
-pytest val/cdc/test_counter_bingray_wavedrom.py -v
-```
 
 ## Navigation
 

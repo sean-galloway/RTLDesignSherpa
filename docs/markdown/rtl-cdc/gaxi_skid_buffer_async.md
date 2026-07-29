@@ -31,7 +31,7 @@
 
 ## Overview
 
-The GAXI asynchronous skid buffer is a wrapper: a synchronous skid buffer on the write side, an asynchronous FIFO behind it. You get the skid buffer's elastic buffering plus clock domain crossing in a single instantiation. Note that the skid buffer registers its handshake outputs -- there is no zero-latency bypass path; see Latency Components below.
+This module is a wrapper, and it owns that: a synchronous skid buffer on the write side, an asynchronous FIFO behind it. One instantiation buys you the skid buffer's elastic buffering plus a clock domain crossing. One thing to know before you build around it — the skid buffer registers its handshake outputs, so there is no zero-latency bypass path; see Latency Components below.
 
 ### Key Features
 
@@ -110,14 +110,14 @@ flowchart LR
 
 ## Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `MEM_STYLE` | `FIFO_AUTO` | Async FIFO storage: `FIFO_AUTO` / `FIFO_SRL` / `FIFO_BRAM` |
-| `REGISTERED` | 0 | Async FIFO read mode (0=mux, 1=flop) |
-| `DATA_WIDTH` | 32 | Data bus width |
-| `DEPTH` | 2 | Async FIFO depth (CDC stage) |
-| `USE_JOHNSON` | 0 | 0 = Gray pointers, power-of-2 `DEPTH` only; 1 = Johnson pointers, any `DEPTH` |
-| `N_FLOP_CROSS` | 2 | Synchronizer stages (3 recommended) |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `MEM_STYLE` | `fifo_mem_t` | `FIFO_AUTO` | Async FIFO storage: `FIFO_AUTO` / `FIFO_SRL` / `FIFO_BRAM` |
+| `REGISTERED` | `int` | 0 | Async FIFO read mode (0=mux, 1=flop) |
+| `DATA_WIDTH` | `int` | 32 | Data bus width |
+| `DEPTH` | `int` | 2 | Async FIFO depth (CDC stage) |
+| `USE_JOHNSON` | `int` | 0 | 0 = Gray pointers, power-of-2 `DEPTH` only; 1 = Johnson pointers, any `DEPTH` |
+| `N_FLOP_CROSS` | `int` | 2 | Synchronizer stages (3 recommended) |
 
 `USE_JOHNSON` reaches the async FIFO underneath and carries the same meaning it
 has there: it selects the pointer encoding, and with it the legal `DEPTH` values.
@@ -208,7 +208,7 @@ the data. There is no zero-latency bypass path.
 
 ---
 
-## Design Considerations
+## Design Notes
 
 ### When to Use This Module
 
@@ -263,7 +263,7 @@ Combines resources of both sub-modules:
 | **Total (DEPTH=8)** | **~10×DW + 44** | **~170** |
 
 The skid row does not scale with `DEPTH`. The wrapper never overrides the skid
-buffer's depth, so its storage is `r_data[2]` -- two words -- whatever `DEPTH`
+buffer's depth, so its storage is `r_data[2]` — two words — whatever `DEPTH`
 you pass. Only the FIFO row moves.
 
 ---
@@ -306,7 +306,7 @@ pytest val/cdc/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
 
 **Explanation:**
 - Total latency = skid buffer (1 write clock) + async FIFO CDC (3-5 cycles)
-- Minimum 4-6 cycles even when empty -- see the latency table above, which is
+- Minimum 4-6 cycles even when empty — see the latency table above, which is
   where this number comes from
 - There is no zero-latency bypass: `gaxi_skid_buffer` registers its handshake
   outputs, so the skid hop always costs a write clock
@@ -314,7 +314,7 @@ pytest val/cdc/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
 
 ---
 
-## Related Modules
+## Related Documentation
 
 - [gaxi_skid_buffer](../rtl-amba/gaxi/gaxi_skid_buffer.md) - Synchronous version
 - [gaxi_fifo_async](gaxi_fifo_async.md) - Async FIFO without skid buffer
@@ -334,3 +334,10 @@ pytest val/cdc/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
 
 **Version:** 1.0
 **Last Updated:** 2025-10-06
+
+---
+
+## Navigation
+
+- **[← Back to GAXI Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

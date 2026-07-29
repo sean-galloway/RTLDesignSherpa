@@ -21,47 +21,53 @@
 
 <!-- End Header -->
 
-# Asynchronous FIFO - Power of 2 (`fifo_async.sv`)
+# Asynchronous FIFO (`fifo_async.sv`)
 
-## Purpose
-An asynchronous FIFO for crossing data safely between different clock domains. **Restricted to power-of-2 depths only** — that restriction comes from the Gray code pointer implementation, and `USE_JOHNSON=1` is the supported way around it.
+## Overview
+
+An asynchronous FIFO for crossing data safely between different clock domains.
+**Restricted to power-of-2 depths only** — that restriction comes from the Gray
+code pointer implementation, and `USE_JOHNSON=1` is the supported way around
+it.
+
+## Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `MEM_STYLE` | — | Memory implementation (`FIFO_AUTO`/SRL/BRAM). The BRAM branch registers the read path (registered read even when `REGISTERED=0`). |
+| `REGISTERED` | — | 0 = mux mode, 1 = flop mode for read output |
+| `DATA_WIDTH` | 8 | Width of data |
+| `DEPTH` | 16 | FIFO depth. Power-of-2 with the default binary Gray pointers; set **`USE_JOHNSON=1`** for **non-power-of-2** depths (Johnson-coded pointers via `counter_johnson`/`johnson2bin`). |
+| `USE_JOHNSON` | 0 | 0 = binary Gray pointers (power-of-2 depth), 1 = Johnson pointers (arbitrary depth). This is the supported route to non-power-of-2 depth (the old `fifo_async_div2` module was retired). |
+| `N_FLOP_CROSS` | 2 | Number of synchronizer stages |
+| `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
+| `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
+
+: fifo_async parameters
 
 ## Ports
 
-### Write Domain
-- **`wr_clk`** - Write domain clock
-- **`wr_rst_n`** - Write domain active-low reset
-- **`write`** - Write enable signal
-- **`wr_data[DATA_WIDTH-1:0]`** - Data to write
-- **`wr_full`** - Write domain full flag
-- **`wr_almost_full`** - Write domain almost full flag
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `wr_clk` | input | 1 | Write domain clock |
+| `wr_rst_n` | input | 1 | Write domain active-low reset |
+| `write` | input | 1 | Write enable signal |
+| `wr_data` | input | DATA_WIDTH | Data to write |
+| `wr_full` | output | 1 | Write domain full flag |
+| `wr_almost_full` | output | 1 | Write domain almost full flag |
+| `rd_clk` | input | 1 | Read domain clock |
+| `rd_rst_n` | input | 1 | Read domain active-low reset |
+| `read` | input | 1 | Read enable signal |
+| `rd_data` | output | DATA_WIDTH | Data read from FIFO |
+| `rd_empty` | output | 1 | Read domain empty flag |
+| `rd_almost_empty` | output | 1 | Read domain almost empty flag |
 
-### Read Domain
-- **`rd_clk`** - Read domain clock  
-- **`rd_rst_n`** - Read domain active-low reset
-- **`read`** - Read enable signal
-- **`rd_data[DATA_WIDTH-1:0]`** - Data read from FIFO
-- **`rd_empty`** - Read domain empty flag
-- **`rd_almost_empty`** - Read domain almost empty flag
+: fifo_async ports
 
-### Parameters
-- **`MEM_STYLE`** - Memory implementation (`FIFO_AUTO`/SRL/BRAM). The BRAM
-  branch registers the read path (registered read even when `REGISTERED=0`).
-- **`REGISTERED`** - 0=mux mode, 1=flop mode for read output
-- **`DATA_WIDTH`** - Width of data (default: 8)
-- **`DEPTH`** - FIFO depth. Power-of-2 with the default binary Gray pointers;
-  set **`USE_JOHNSON=1`** for **non-power-of-2** depths (Johnson-coded pointers
-  via `counter_johnson`/`johnson2bin`). (default: 16)
-- **`USE_JOHNSON`** - 0=binary Gray pointers (power-of-2 depth), 1=Johnson
-  pointers (arbitrary depth). This is the supported route to non-power-of-2
-  depth (the old `fifo_async_div2` module was retired).
-- **`N_FLOP_CROSS`** - Number of synchronizer stages (default: 2)
-- **`ALMOST_WR_MARGIN`** - Almost full threshold (default: 1)
-- **`ALMOST_RD_MARGIN`** - Almost empty threshold (default: 1)
+## Implementation
 
-## Architecture Overview
+### Clock domain crossing strategy
 
-### Clock Domain Crossing Strategy
 The FIFO uses **Gray code pointers** for safe clock domain crossing:
 
 ```mermaid
@@ -76,24 +82,22 @@ flowchart LR
     end
 ```
 
-### Core Components
+### Core components
+
 1. **Binary-Gray counters** (`counter_bingray`) for pointer generation
 2. **Multi-stage synchronizers** (`glitch_free_n_dff_arn`) for CDC
 3. **Gray-to-binary converters** (`gray2bin`) for pointer comparison
 4. **Shared memory array** accessible from both domains
 5. **FIFO control logic** for status flag generation
 
-## Implementation Deep Dive
+### Gray code pointer system
 
-### Gray Code Pointer System
-
-#### Why Gray Codes?
 Gray codes ensure **only one bit changes** per increment:
+
 - **Binary**: 011 → 100 (3 bits change simultaneously)
 - **Gray**: 010 → 110 (only 1 bit changes)
-- **Benefit**: Eliminates metastability from multi-bit transitions
+- **Benefit**: eliminates metastability from multi-bit transitions
 
-#### Pointer Architecture
 ```systemverilog
 // Write domain Gray counter
 counter_bingray #(.WIDTH(AW + 1)) wr_ptr_counter_gray (
@@ -106,14 +110,11 @@ counter_bingray #(.WIDTH(AW + 1)) wr_ptr_counter_gray (
 );
 ```
 
-#### Pointer Width Calculation
-- **Address width**: `AW = $clog2(DEPTH)`
-- **Pointer width**: `AW + 1` (extra bit for wrap detection)
-- **Example**: DEPTH=16 → AW=4, Pointer=5 bits
+Pointer width: `AW = $clog2(DEPTH)` address bits, plus one extra bit for wrap
+detection — so DEPTH=16 gives AW=4 and a 5-bit pointer.
 
-### Clock Domain Crossing
+### Clock domain crossing
 
-#### Synchronizer Chains
 ```systemverilog
 // Cross read pointer to write domain
 glitch_free_n_dff_arn #(
@@ -127,14 +128,11 @@ glitch_free_n_dff_arn #(
 );
 ```
 
-#### Multi-Stage Synchronization
-- **Default stages**: 2 flip-flops (N_FLOP_CROSS=2)
-- **MTBF improvement**: Each stage reduces metastability probability
-- **Latency trade-off**: More stages = better MTBF but higher latency
+The default is 2 flip-flops per crossing (`N_FLOP_CROSS=2`). Each additional
+stage improves MTBF at the cost of latency — the classic trade.
 
-### Memory Organization
+### Memory organization
 
-#### Dual-Port Memory
 ```systemverilog
 logic [DW-1:0] mem[DEPTH];  // Memory array -- sized by DEPTH, not by
                            // 1<<AW: with USE_JOHNSON=1 and a
@@ -151,14 +149,11 @@ end
 assign w_rd_data = mem[r_rd_addr];
 ```
 
-#### Address Generation
-- **Write address**: `r_wr_addr = r_wr_ptr_bin[AW-1:0]`
-- **Read address**: `r_rd_addr = r_rd_ptr_bin[AW-1:0]`
-- **Truncation**: Uses only lower bits for memory indexing
+Addresses come from the binary pointers, truncated to the low bits:
+`r_wr_addr = r_wr_ptr_bin[AW-1:0]` and `r_rd_addr = r_rd_ptr_bin[AW-1:0]`.
 
-### Full/Empty Detection
+### Full/empty detection
 
-#### Full Detection Logic
 ```systemverilog
 // In write domain
 assign wr_full = (w_wdom_ptr_xor && 
@@ -168,92 +163,97 @@ assign wr_full = (w_wdom_ptr_xor &&
 assign w_wdom_ptr_xor = wr_ptr_bin[AW] ^ wdom_rd_ptr_bin[AW];
 ```
 
-#### Empty Detection Logic
 ```systemverilog
 // In read domain
 assign rd_empty = (!w_rdom_ptr_xor_for_empty &&
                   (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]));
 ```
 
-#### Full/Empty Algorithm
-- **Full condition**: MSBs differ AND LSBs equal (write caught up after wrap)
-- **Empty condition**: All bits equal (pointers at same location)
-- **MSB significance**: Indicates which pointer has wrapped around
+The algorithm in words: **full** is MSBs differ AND LSBs equal (the write
+pointer has wrapped and caught the read pointer); **empty** is all bits equal
+(pointers at the same location). The MSB is the wrap bit — it records which
+pointer has lapped.
 
-## Power-of-2 Requirement
+## The power-of-2 requirement
 
-### Why Power-of-2 Only?
-1. **Gray code properties**: Natural binary-Gray relationship
-2. **Wraparound behavior**: Clean modulo-2^n arithmetic  
-3. **Address truncation**: Simple bit slicing for memory addressing
-4. **Pointer comparison**: Efficient full/empty detection
+Why power-of-2 only, with Gray pointers:
 
-### Limitation Impact
+1. **Gray code properties**: natural binary-Gray relationship
+2. **Wraparound behavior**: clean modulo-2^n arithmetic
+3. **Address truncation**: simple bit slicing for memory addressing
+4. **Pointer comparison**: efficient full/empty detection
+
 ```systemverilog
 // Valid depths: 2, 4, 8, 16, 32, 64, 128, 256, ...
 // Invalid depths: 3, 5, 6, 7, 9, 10, 12, 15, ...
 ```
 
-## Timing Considerations
+## Timing considerations
 
-### Clock Domain Crossing Latency
-- **Pointer propagation**: 2-3 clock cycles (depending on N_FLOP_CROSS)
-- **Status flag delay**: Flags reflect state with synchronizer latency
-- **Conservative design**: Prevents overflow/underflow despite delay
+- **Pointer propagation**: 2-3 clock cycles (depending on `N_FLOP_CROSS`)
+- **Status flag delay**: flags reflect state with synchronizer latency
+- **Conservative design**: prevents overflow/underflow despite the delay
 
-### Metastability Protection
-- **Gray code transitions**: Single bit changes only
-- **Multi-stage sync**: Reduces metastability failure probability exponentially (raises MTBF)
-- **Setup/hold margins**: Proper timing constraints essential
+Metastability protection comes from the usual pair: Gray code transitions
+(single bit changes only) and multi-stage synchronization, which reduces
+metastability failure probability exponentially (raises MTBF). Proper timing
+constraints on the crossing paths are essential — see the SDC section of the
+[CDC reference](cdc.md).
 
-## Use Cases
+## Design examples
 
-### Typical Applications
-- **Video processing**: Different pixel and memory clock domains
-- **Networking**: Packet buffers between different rate domains
-- **Audio systems**: Sample rate conversion buffers
+Typical applications:
+
+- **Video processing**: different pixel and memory clock domains
+- **Networking**: packet buffers between different rate domains
+- **Audio systems**: sample rate conversion buffers
 - **Microprocessor interfaces**: CPU and peripheral clock domains
 
-### When to Use vs. Alternatives
-- **Use async FIFO when**: Clock domains are truly independent
-- **Use sync FIFO when**: Single clock domain sufficient
-- **For non-power-of-2 depth**: use `fifo_async #(.USE_JOHNSON(1))` — the
+When to use what:
+
+- **Async FIFO** when the clock domains are truly independent
+- **Sync FIFO** when a single clock domain is sufficient
+- **Non-power-of-2 depth**: use `fifo_async #(.USE_JOHNSON(1))` — the
   standalone `fifo_async_div2` module was retired
 
-## Design Guidelines
+## Design considerations
 
-### Depth Sizing
+### Depth sizing
+
 ```systemverilog
 // Calculate minimum depth for burst handling
 // DEPTH ≥ burst_size + synchronizer_latency + margin
 parameter int MIN_DEPTH = 16;  // Typical minimum for async FIFOs
 ```
 
-### Clock Relationship
-- **Asynchronous clocks**: No phase relationship assumed
-- **Clock gating**: Avoid gating clocks used by FIFO
-- **Reset deassertion**: Ensure proper reset release sequencing
+### Clock relationship
 
-### Almost Full/Empty Settings
+- **Asynchronous clocks**: no phase relationship assumed
+- **Clock gating**: avoid gating clocks used by the FIFO
+- **Reset deassertion**: ensure proper reset release sequencing
+
+### Almost full/empty settings
+
 - **Almost full**: `DEPTH - ALMOST_WR_MARGIN`
-- **Almost empty**: `ALMOST_RD_MARGIN`  
-- **Guideline**: Set margins > synchronizer latency
+- **Almost empty**: `ALMOST_RD_MARGIN`
+- **Guideline**: set margins > synchronizer latency
 
-## Performance Characteristics
-- **Throughput**: Up to 1 operation per clock per domain
+## Synthesis and performance
+
+- **Throughput**: up to 1 operation per clock per domain
 - **Latency**: 0-1 cycles (depending on REGISTERED mode)
 - **CDC latency**: 2-3 cycles for status propagation
 - **Efficiency**: ~100% utilization possible
 
-## Error Detection Features
-**Note:** the current RTL has **no** runtime `$display` overflow/underflow
-checks. The `!wr_full` write guard is the
-only overflow protection. The one elaboration-time check that does exist is an
-`$error` for a non-power-of-2 `DEPTH` when Gray pointers are selected
-(`USE_JOHNSON=0`). Add assertions in your testbench if you need overflow
-telemetry.
+## Error checking
 
-## WaveDrom Visualization
+The current RTL has **no** runtime `$display` overflow/underflow checks. The
+`!wr_full` write guard is the only overflow protection. The one
+elaboration-time check that does exist is an `$error` for a non-power-of-2
+`DEPTH` when Gray pointers are selected (`USE_JOHNSON=0`). Add assertions in
+your testbench if you need overflow telemetry.
+
+## WaveDrom visualization
 
 **WaveDrom timing diagrams of the Gray code CDC mechanism are available.**
 
@@ -295,19 +295,11 @@ pytest val/cdc/test_fifo_async_wavedrom.py -v
 
 - `test_fifo_sync_wavedrom.py` - Synchronous FIFO (single clock, no CDC)
 
-## Related Modules
-- **USE_JOHNSON=1**: For non-power-of-2 depths, using Johnson counters (replaces the retired fifo_async_div2)
-- **fifo_sync**: For single clock domain applications
-- **counter_bingray**: Binary-Gray counter implementation
-- **glitch_free_n_dff_arn**: Multi-stage synchronizer
+## Verification
 
-## Test and Verification
+- `val/cdc/test_fifo_buffer_async.py` — full functional verification
+- `val/cdc/test_fifo_async_wavedrom.py` — WaveDrom timing diagrams
 
-**Comprehensive Test Suite:**
-- `val/cdc/test_fifo_buffer_async.py` - Full functional verification
-- `val/cdc/test_fifo_async_wavedrom.py` - WaveDrom timing diagrams
-
-**Run Tests:**
 ```bash
 # Full functional test (basic/medium/full levels)
 pytest val/cdc/test_fifo_buffer_async.py -v
@@ -315,6 +307,13 @@ pytest val/cdc/test_fifo_buffer_async.py -v
 # WaveDrom waveform generation
 pytest val/cdc/test_fifo_async_wavedrom.py -v
 ```
+
+## Related modules
+
+- **USE_JOHNSON=1**: for non-power-of-2 depths, using Johnson counters (replaces the retired fifo_async_div2)
+- **fifo_sync**: for single clock domain applications
+- **counter_bingray**: binary-Gray counter implementation
+- **glitch_free_n_dff_arn**: multi-stage synchronizer
 
 ## Navigation
 

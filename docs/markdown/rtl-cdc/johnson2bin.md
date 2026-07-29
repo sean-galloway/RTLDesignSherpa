@@ -21,28 +21,39 @@
 
 <!-- End Header -->
 
-# Johnson-to-Binary Converter (`johnson2bin.sv`)
+# Johnson-to-binary converter (`johnson2bin.sv`)
 
-## Purpose
-Converts Johnson counter codes to binary — the piece that makes asynchronous FIFOs with non-power-of-2 depths possible. Standard Gray-to-binary conversion won't do the job here; the Johnson sequence has its own structure, and decoding it takes position detection rather than XOR reduction.
+## Overview
+
+`johnson2bin` converts Johnson counter codes to binary — the piece that makes
+asynchronous FIFOs with non-power-of-2 depths possible. Standard Gray-to-binary
+conversion won't do the job here; the Johnson sequence has its own structure,
+and decoding it takes position detection rather than XOR reduction.
+
+## Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `JCW` | — | Johnson Counter Width (equals FIFO DEPTH) |
+| `WIDTH` | — | Binary output width (typically `$clog2(DEPTH) + 1`) |
+
+: johnson2bin parameters
 
 ## Ports
 
-### Input Ports
-- **`clk`** - Clock input. Declared but unused; the module is combinational.
-- **`rst_n`** - Active-low reset. Declared but unused; the module is combinational.
-- **`gray[JCW-1:0]`** - Johnson counter input (misleadingly named "gray")
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `clk` | input | 1 | Clock input. Declared but unused; the module is combinational. |
+| `rst_n` | input | 1 | Active-low reset. Declared but unused; the module is combinational. |
+| `gray` | input | JCW | Johnson counter input (misleadingly named "gray") |
+| `binary` | output | WIDTH | Binary output representing position in sequence |
 
-### Output Ports
-- **`binary[WIDTH-1:0]`** - Binary output representing position in sequence
+: johnson2bin ports
 
-### Parameters
-- **`JCW`** - Johnson Counter Width (equals FIFO DEPTH)
-- **`WIDTH`** - Binary output width (typically `$clog2(DEPTH) + 1`)
+## Theory of operation
 
-## Johnson Counter Sequence Review
+### The Johnson sequence
 
-### Johnson Counter Characteristics
 Johnson counters are **shift registers with inverted feedback**:
 
 ```
@@ -71,20 +82,22 @@ State 0:  000000  ← Cycle complete (12 states total)
 > MSB-fill convention, so check against `counter_johnson.sv` rather than against
 > a textbook.
 
+The properties that matter for decoding:
 
-### Key Properties
-- **Single bit transitions**: Only one bit changes per state
-- **Two phases**: 
-  - **First half** (0 to DEPTH-1): Filling with 1s from the **right** (ones
+- **Single bit transitions**: only one bit changes per state
+- **Two phases**:
+  - **First half** (0 to DEPTH-1): filling with 1s from the **right** (ones
     enter at bit 0 and march upward: 000000 → 000001 → 000011 → ...)
-  - **Second half** (DEPTH to 2×DEPTH-1): Emptying 1s from the **right**
+  - **Second half** (DEPTH to 2×DEPTH-1): emptying 1s from the **right**
     (111111 → 111110 → 111100 → ...)
-- **Wrap indicator**: MSB indicates which half of cycle
+- **Wrap indicator**: the MSB says which half of the cycle you're in
 
-## Conversion Algorithm
+## Implementation
 
-### Strategy Overview
-The conversion works by **position detection** of the transition between 1s and 0s:
+### The algorithm
+
+The conversion works by **position detection** — finding the transition between
+the 1s and the 0s:
 
 ```systemverilog
 if (w_all_zeroes || w_all_ones) begin
@@ -98,7 +111,8 @@ end else begin
 end
 ```
 
-### Position Detection Module
+Position detection itself is farmed out to a helper:
+
 ```systemverilog
 leading_one_trailing_one #(
     .WIDTH(JCW)
@@ -112,7 +126,32 @@ leading_one_trailing_one #(
 );
 ```
 
-## Detailed Conversion Examples
+### Three-part binary construction
+
+```systemverilog
+assign binary[WIDTH-1]   = gray[JCW-1];                 // MSB = wrap indicator
+assign binary[WIDTH-2:0] = w_binary[WIDTH-2:0];         // Lower bits = position
+```
+
+### Width calculations
+
+```systemverilog
+localparam int N = $clog2(JCW);                         // Address bits needed
+localparam int PAD_WIDTH = (WIDTH > N+1) ? WIDTH-N-1 : 0; // Padding if needed
+```
+
+### Why this algorithm works
+
+**First half (MSB = 0).** The pattern is `000...0111...1` — zeros followed by
+ones. The leading-one position tells you how far the fill has progressed:
+position = leading_one + 1, because we've filled (leading_one + 1) positions
+with 1s.
+
+**Second half (MSB = 1).** The pattern flips to `111...1000...0` — ones
+followed by zeros. We're emptying from the right, and the trailing-one position
+shows how far: position = trailing_one.
+
+## Worked conversions
 
 ### First Half Conversion (MSB = 0)
 ```
@@ -143,37 +182,11 @@ Johnson: 111111 → Binary: 4'b1000 (all ones: lower bits forced to 0, but the R
          FIFO full detection depends on this.)
 ```
 
-## Implementation Deep Dive
+## Use in asynchronous FIFO
 
-### Three-Part Binary Construction
-```systemverilog
-assign binary[WIDTH-1]   = gray[JCW-1];                 // MSB = wrap indicator
-assign binary[WIDTH-2:0] = w_binary[WIDTH-2:0];         // Lower bits = position
-```
+This is where the module actually lives — decoding the crossed pointer in
+`fifo_async.sv` (`USE_JOHNSON=1`):
 
-### Width Calculations
-```systemverilog
-localparam int N = $clog2(JCW);                         // Address bits needed
-localparam int PAD_WIDTH = (WIDTH > N+1) ? WIDTH-N-1 : 0; // Padding if needed
-```
-
-### Why This Algorithm Works
-
-#### First Half Logic (MSB = 0)
-- **Pattern**: `000...0111...1` (0s followed by 1s)
-- **Leading one**: Position of leftmost 1
-- **Conversion**: Position = leading_one + 1
-- **Reasoning**: We've filled (leading_one + 1) positions with 1s
-
-#### Second Half Logic (MSB = 1)
-- **Pattern**: `111...1000...0` (1s followed by 0s)  
-- **Trailing one**: Position of rightmost 1
-- **Conversion**: Position = trailing_one
-- **Reasoning**: We're emptying from the right, trailing_one shows how far
-
-## Use in Asynchronous FIFO
-
-### Context in FIFO Operation
 ```systemverilog
 // fifo_async.sv (USE_JOHNSON=1) usage:
 johnson2bin #(
@@ -201,7 +214,7 @@ nothing in this module samples them. Do not expect a cycle of latency -- the
 output follows `gray` combinationally, and long conversion paths must be
 registered by the caller.
 
-## Comparison with Standard Gray2Bin
+## Comparison with standard gray2bin
 
 | Aspect | Standard Gray2Bin | Johnson2Bin (johnson2bin) |
 |--------|-------------------|--------------------------|
@@ -212,17 +225,13 @@ registered by the caller.
 | **Width scaling** | Logarithmic | Linear with JCW |
 | **Use case** | Power-of-2 sequences | Any sequence length |
 
-## Performance Characteristics
+## Performance characteristics
 
-### Timing Analysis
-- **Critical path**: Through position detection logic
-- **Delay components**: 
-  - Leading/trailing one detection
-  - Binary arithmetic (addition)
-  - Output multiplexing
-- **Synthesis complexity**: Higher than standard Gray conversion
+The critical path runs through the position detection logic: leading/trailing
+one detection, a binary addition, and the output mux. Synthesis complexity is
+higher than a standard Gray conversion, and resources scale with JCW — the
+Johnson width, not its log:
 
-### Resource Utilization
 ```
 Resources scale with JCW (Johnson Counter Width):
 - Small FIFOs (JCW ≤ 16): Reasonable overhead
@@ -230,9 +239,9 @@ Resources scale with JCW (Johnson Counter Width):
 - Large FIFOs (JCW > 64): May become limiting factor
 ```
 
-## Design Considerations
+## Design considerations
 
-### When to Use Johnson vs. Gray
+### When to use Johnson vs. Gray
 ```systemverilog
 // Use Johnson counter approach when:
 parameter int DEPTH = 10;  // Non-power-of-2 required
@@ -245,7 +254,7 @@ parameter int DEPTH = 16;  // Efficiency more important
 parameter int DEPTH = 64;  // Large depth, resource conscious
 ```
 
-### Resource Planning
+### Resource planning
 ```systemverilog
 // Resource overhead estimation:
 // Standard Gray: ~log2(DEPTH) XOR gates
@@ -254,7 +263,7 @@ parameter int DEPTH = 64;  // Large depth, resource conscious
 // Break-even point typically around DEPTH = 16-32
 ```
 
-### Verification Challenges
+### Verification challenges
 ```systemverilog
 // More complex verification due to:
 // 1. Two-phase sequence behavior
@@ -263,9 +272,10 @@ parameter int DEPTH = 64;  // Large depth, resource conscious
 // 4. Wraparound boundary conditions
 ```
 
-## Error Conditions and Debug
+## Error conditions and debug
 
-### Invalid Johnson Sequences
+### Invalid Johnson sequences
+
 **Nothing checks them.** It is worth being blunt, because the `.valid(w_valid)`
 port on the helper reads like it does:
 
@@ -284,7 +294,8 @@ If you need that enforced, it has to come from somewhere else: the upstream
 `counter_johnson` produces only legal patterns by construction, which is why the
 decoder can assume them.
 
-### Debug Visibility
+### Debug visibility
+
 ```systemverilog
 // Monitor internal state for debugging:
 // - w_leading_one: Position of leftmost 1
@@ -294,33 +305,39 @@ decoder can assume them.
 // - w_valid: nonzero-input flag ONLY -- not a Johnson-pattern check
 ```
 
-### Common Issues
+### Common issues
+
 1. **Invalid sequences**: non-Johnson input decodes silently to a wrong pointer
 2. **Width mismatches**: JCW vs. actual Johnson counter width
-3. **Phase confusion**: Misunderstanding first vs. second half logic
-4. **Boundary conditions**: All-zeros and all-ones handling
+3. **Phase confusion**: misunderstanding first vs. second half logic
+4. **Boundary conditions**: all-zeros and all-ones handling
 
-## Related Modules
-- **counter_johnson**: Generates Johnson counter sequences
-- **leading_one_trailing_one**: Position detection helper
-- **fifo_async / gaxi_fifo_async (USE_JOHNSON=1)**: Primary users of this conversion
-- **gray2bin**: Standard Gray-to-binary for comparison
-- **fifo_control**: Uses converted binary values for status generation
+## Advanced topics
 
-## Advanced Topics
+### Hierarchical Johnson counters
 
-### Hierarchical Johnson Counters
 For very large depths, a hierarchical approach is worth considering:
+
 ```systemverilog
 // Break large Johnson counter into smaller segments
 // Use multiple johnson2bin instances with higher-level arbitration
 ```
 
-### Alternative Position Detection
+### Alternative position detection
+
 Other implementations detect position differently:
-- **Priority encoders**: Find first/last set bit
-- **Thermometer decoders**: Convert 1-hot positions
-- **LUT-based**: For small, fixed widths
+
+- **Priority encoders**: find first/last set bit
+- **Thermometer decoders**: convert 1-hot positions
+- **LUT-based**: for small, fixed widths
+
+## Related modules
+
+- **counter_johnson**: Generates Johnson counter sequences
+- **leading_one_trailing_one**: Position detection helper
+- **fifo_async / gaxi_fifo_async (USE_JOHNSON=1)**: Primary users of this conversion
+- **gray2bin**: Standard Gray-to-binary for comparison
+- **fifo_control**: Uses converted binary values for status generation
 
 ## Navigation
 
