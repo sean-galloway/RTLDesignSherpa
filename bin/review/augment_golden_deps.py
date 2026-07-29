@@ -48,15 +48,17 @@ def sv_index():
     return idx
 
 
-def collect_refs(doctext, idx):
-    # module refs appear as `name.sv`, as bare backticked `name`, and as
-    # instantiations in doc examples (reset_sync #(...) u_inst (). Keep only
-    # what resolves to an actual RTL file.
-    return sorted((set(re.findall(r"\b([a-z_][a-z0-9_]{2,})\.sv\b", doctext)) |
-                   set(re.findall(r"`([a-z_][a-z0-9_]{2,})`", doctext)) |
-                   set(re.findall(r"^\s{0,8}([a-z_][a-z0-9_]{2,})\s*(?:#\s*\(|[A-Za-z_]\w*\s*\()",
-                                  doctext, re.M)))
-                  & set(idx.keys()))
+def collect_refs(doctext):
+    # Interface-claim contexts: backticked `name` and doc-example
+    # instantiations (reset_sync #(...) u_inst (). These always join golden.
+    strong = (set(re.findall(r"`([a-z_][a-z0-9_]{2,})`", doctext)) |
+              set(re.findall(r"^\s{0,8}([a-z_][a-z0-9_]{2,})\s*(?:#\s*\(|[A-Za-z_]\w*\s*\()",
+                             doctext, re.M)))
+    # Bare `name.sv` mentions are mostly catalog/dependency-list references on
+    # big books (math: 120+ library modules listed in tables) -- honoring them
+    # dumps the whole library into every part. Only kept for small books.
+    sv_mentions = set(re.findall(r"\b([a-z_][a-z0-9_]{2,})\.sv\b", doctext))
+    return strong, sv_mentions
 
 
 def augment(unit, refs, idx):
@@ -97,12 +99,37 @@ def main():
     # Refs are the UNION across all units given: a finding in part_02 may turn
     # on a module only part_01's docs name explicitly (round_3's "twice (APB,
     # ...)" finding needed apb_slave_cdc_cg.sv, absent from part_02's bundle).
-    refs = []
+    strong, sv_mentions = set(), set()
     for unit in sys.argv[1:]:
         docs = os.path.join(unit, "DOCS.md")
         if os.path.exists(docs):
-            refs += collect_refs(open(docs, encoding="utf-8", errors="replace").read(), idx)
-    refs = sorted(set(refs))
+            s, v = collect_refs(open(docs, encoding="utf-8", errors="replace").read())
+            strong |= s
+            sv_mentions |= v
+    refs = strong | (sv_mentions if len(strong | sv_mentions) <= 25 else set())
+    refs = sorted(refs & set(idx.keys()))
+    # ...but a module already in SOME unit of the same book is not golden: the
+    # reviewer knows books are split into parts (the packaging-artifacts known
+    # FP class), and re-including the whole library in every part undoes the
+    # split (math: +140/part, mostly catalog cross-references). Golden is for
+    # modules OUTSIDE the book (reset_sync-class primitives).
+    book_modules = set()
+    for unit in sys.argv[1:]:
+        rtl = os.path.join(unit, "RTL.sv")
+        if os.path.exists(rtl):
+            book_modules |= set(re.findall(r"^module\s+(\w+)",
+                                           open(rtl, encoding="utf-8", errors="replace").read(), re.M))
+    refs = [r for r in refs if r not in book_modules]
+    # Catalog-scale referencing defeats the purpose: if a book name-drops
+    # more than MAX_GOLDEN distinct modules (math: 120+, every table cell
+    # backticked), golden would dump the library into every part and undo
+    # the size split. Skip entirely -- the _meta inventory unit is the
+    # existence/count ground truth for those books (Sean, 2026-07-29).
+    MAX_GOLDEN = 25
+    if len(refs) > MAX_GOLDEN:
+        print(f"SKIP all units: {len(refs)} golden candidates > {MAX_GOLDEN} "
+              f"(catalog-style book; the _meta unit carries the inventory)")
+        return
     for unit in sys.argv[1:]:
         augment(unit, refs, idx)
 

@@ -314,6 +314,13 @@ rule is the same and it is not optional: **regenerate every `_meta` unit
 immediately after every bundle rebuild, from the tree, never by editing the
 previous copy.**
 
+Golden deps scale-guard (2026-07-29): `augment_golden_deps.py` SKIPS a book
+whose doc references exceed 25 distinct modules. Catalog-style books (math:
+120+ backticked module mentions in tables) would otherwise get the whole
+library appended to every part, undoing the size split -- the `_meta`
+inventory unit is the existence/count ground truth for those, not source
+dumps. Golden is for reset_sync-class external primitives, small counts only.
+
 Build it from a script, not by hand -- a hand-maintained inventory is exactly
 what goes stale:
 
