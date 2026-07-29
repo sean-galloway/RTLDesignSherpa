@@ -424,3 +424,14 @@ needs per-test care; (5) smalls: filelist includes discarded by 3 tests,
 Clock stacked per subtest. REFUTED set: 1 wrong (2_phase REG_LEVEL, blob
 conflation -- real), 1 defensible (bingray wavedrom HAS TEST_LEVEL), rest
 correct.
+
+**math (round_1, 2026-07-29).** 20 findings (7+7+6 across 3 parts; meta had
+3), ALL real, 0 FP; verdicts 8 UPHELD / 12 UNCERTAIN / 0 REFUTED with human
+triage upholding every UNCERTAIN. Notable: carry_save multi-operand examples
+systematically violated the page's own carry-weight rule (fixed and
+SIM-VERIFIED against the RTL: 1+1+1+1→4, 7x255→1785, 3x200→600); addsub
+ALU_INC computed A not A+1; bf16 latency off by one both ends (RTL banner
+comment fixed too -- the only RTL touch, comment-only); BK diagram's black
+root is gray in the RTL; bf16 rounding is NOT 'RNE except at ties' (37.5%
+of inexact patterns round wrong -- owner decision filed as MATH-001 in the
+new vault/Tasks/math area). math needs round_2 under the impact rule.
