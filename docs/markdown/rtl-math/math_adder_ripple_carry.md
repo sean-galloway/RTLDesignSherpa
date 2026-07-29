@@ -387,10 +387,10 @@ MSB (Sum[7]): Depends on C[6] → 16 levels (slowest)
 - Speed is critical
 - Can afford 4× area
 
-**Use Kogge-Stone if:**
+**Use Han-Carlson if:**
 - N ≥ 32
-- Maximum speed required
-- Area budget allows 6× increase
+- Maximum speed required -- the library's Kogge-Stone-class option
+  (no Kogge-Stone module exists in the library)
 
 ### Width Selection Trade-offs
 

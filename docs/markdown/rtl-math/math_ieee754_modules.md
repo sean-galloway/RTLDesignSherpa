@@ -32,7 +32,7 @@ These modules implement complete IEEE 754-2008 compliant arithmetic for half-pre
 **Key Features:**
 - **Full IEEE 754-2008 compliance** - Proper subnormal handling, all rounding modes conceptually supported
 - **Complete special case handling** - Zero, infinity, NaN, subnormal
-- **Status flags** - Overflow, underflow, invalid, inexact
+- **Status flags** - Overflow, underflow, invalid
 - **Pipelined options** - Configurable pipeline stages for timing closure
 
 ## Module Summary

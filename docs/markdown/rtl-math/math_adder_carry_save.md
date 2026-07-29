@@ -182,9 +182,10 @@ math_adder_carry_save_nbit #(.N(N)) u_csa (
     .ow_carry(carry_vec)
 );
 
-// Add sum to (carry << 1) -- carry has weight 2^(i+1)
-logic [N:0] final_result;
-assign final_result = {1'b0, sum_vec} + {carry_vec, 1'b0};
+// Add sum to (carry << 1) -- carry has weight 2^(i+1).
+// Three N-bit operands sum to at most 3*(2^N - 1): that needs N+2 bits.
+logic [N+1:0] final_result;
+assign final_result = {2'b0, sum_vec} + {carry_vec, 1'b0};
 ```
 
 **Common mistake:** adding the vectors without shifting the carry. `Sum + 2xCarry = A + B + C` (the `Key Property` above) -- the factor of two IS a left shift by one. `sum_vec + carry_vec` is wrong; `sum_vec + (carry_vec << 1)` is correct.
@@ -251,8 +252,7 @@ end
 ```systemverilog
 logic [7:0] a, b, c, d;
 logic [7:0] sum1, carry1;
-logic [7:0] sum2, carry2;
-logic [9:0] final_result;
+logic [9:0] final_result;  // sum2/carry2 declared 9-bit below
 
 // Level 1: CSA reduces 4 numbers to 2 (actually 3)
 // CSA1: A + B + C → Sum1, Carry1
@@ -263,17 +263,20 @@ math_adder_carry_save_nbit #(.N(8)) u_csa1 (
 );
 
 // Level 2: CSA reduces 3 numbers to 2
-// CSA2: Sum1 + Carry1 + D → Sum2, Carry2
-math_adder_carry_save_nbit #(.N(8)) u_csa2 (
-    .i_a(sum1),
-    .i_b(carry1),
-    .i_c(d),
+// CSA2: Sum1 + (Carry1<<1) + D → Sum2, Carry2
+// carry1 has weight 2^(i+1): it enters the next level SHIFTED, so level 2
+// runs one bit wider.
+logic [8:0] sum2, carry2;
+math_adder_carry_save_nbit #(.N(9)) u_csa2 (
+    .i_a({1'b0, sum1}),
+    .i_b({carry1, 1'b0}),
+    .i_c({1'b0, d}),
     .ow_sum(sum2),
     .ow_carry(carry2)
 );
 
-// Final: Conventional adder
-assign final_result = {2'b0, sum2} + {2'b0, carry2};
+// Final: Conventional adder. 4 x 8-bit operands: max 4*255 = 1020 (10 bits).
+assign final_result = {1'b0, sum2} + {carry2, 1'b0};
 ```
 
 ### Adding 7 Numbers (Wallace Tree Structure)
@@ -294,32 +297,35 @@ math_adder_carry_save_nbit #(.N(8)) u_csa_l1_2 (
 );
 // n7 passes through
 
-// Level 2: 5 → 4 (one CSA)
-logic [7:0] l2_s1, l2_c1;
-math_adder_carry_save_nbit #(.N(8)) u_csa_l2_1 (
-    .i_a(l1_s1), .i_b(l1_c1), .i_c(l1_s2),
+// Carries have weight 2^(i+1): every carry enters the next level SHIFTED
+// left one, so each level runs one bit wider than the last.
+
+// Level 2: 5 → 4 (one CSA, 9 bits)
+logic [8:0] l2_s1, l2_c1;
+math_adder_carry_save_nbit #(.N(9)) u_csa_l2_1 (
+    .i_a({1'b0, l1_s1}), .i_b({l1_c1, 1'b0}), .i_c({1'b0, l1_s2}),
     .ow_sum(l2_s1), .ow_carry(l2_c1)
 );
 // l1_c2, n7 pass through
 
-// Level 3: 4 → 3 (one CSA)
-logic [7:0] l3_s1, l3_c1;
-math_adder_carry_save_nbit #(.N(8)) u_csa_l3_1 (
-    .i_a(l2_s1), .i_b(l2_c1), .i_c(l1_c2),
+// Level 3: 4 → 3 (one CSA, 10 bits)
+logic [9:0] l3_s1, l3_c1;
+math_adder_carry_save_nbit #(.N(10)) u_csa_l3_1 (
+    .i_a({1'b0, l2_s1}), .i_b({l2_c1, 1'b0}), .i_c({1'b0, l1_c2, 1'b0}),  // weight-2 value: shift left 1 like every carry
     .ow_sum(l3_s1), .ow_carry(l3_c1)
 );
 // n7 passes through
 
-// Level 4: 3 → 2 (one CSA)
-logic [7:0] l4_s1, l4_c1;
-math_adder_carry_save_nbit #(.N(8)) u_csa_l4_1 (
-    .i_a(l3_s1), .i_b(l3_c1), .i_c(n7),
+// Level 4: 3 → 2 (one CSA, 11 bits)
+logic [10:0] l4_s1, l4_c1;
+math_adder_carry_save_nbit #(.N(11)) u_csa_l4_1 (
+    .i_a({1'b0, l3_s1}), .i_b({l3_c1, 1'b0}), .i_c({3'b0, n7}),
     .ow_sum(l4_s1), .ow_carry(l4_c1)
 );
 
-// Final addition
-logic [9:0] final_result;
-assign final_result = {2'b0, l4_s1} + {2'b0, l4_c1};
+// Final addition. 7 x 8-bit operands: max 7*255 = 1785 (11 bits).
+logic [10:0] final_result;
+assign final_result = l4_s1 + {l4_c1, 1'b0};
 ```
 
 ### 8-bit×8-bit Multiplier Partial Product Reduction
@@ -392,15 +398,16 @@ math_adder_carry_save_nbit #(.N(16)) u_csa_pp_l1_1 (
 
 ### CSA Tree Design Guidelines
 
-**Number of Stages:**
-```
-N operands → ceil(log_1.5(N)) CSA stages + 1 final adder
-```
+**Number of Stages:** each CSA stage reduces the operand count to
+ceil(2N/3) (groups of three become pairs, remainders pass through); stages
+to reach 2 is roughly ceil(log_1.5(N/2)) -- and remainder effects add a
+stage at some sizes, so count the sequence, not just the bound.
 
 **Example:**
-- 3 operands: 1 CSA + 1 adder
-- 7 operands: 4 CSA + 1 adder
-- 15 operands: 6 CSA + 1 adder
+- 3 operands: 1 CSA + 1 adder (3 → 2)
+- 7 operands: 4 CSAs + 1 adder (7 → 5 → 4 → 3 → 2)
+- 15 operands: 6 CSAs + 1 adder (15 → 10 → 7 → 5 → 4 → 3 → 2;
+  ceil(log_1.5(15/2)) = 5 underestimates -- the passthroughs cost a stage)
 
 **Optimization:** Minimize final adder width by aligning partial products carefully.
 
@@ -413,7 +420,7 @@ After CSA tree reduction, choose final adder wisely:
 | ≤ 8 bits | Ripple carry (small, adequate) |
 | 8-16 bits | Carry lookahead |
 | 16-32 bits | Brent-Kung |
-| ≥ 32 bits | Kogge-Stone or pipelined |
+| ≥ 32 bits | Brent-Kung (to 64-bit) or Han-Carlson (to 72-bit); pipeline beyond |
 
 ## Common Pitfalls
 
@@ -464,9 +471,10 @@ logic [7:0] sum_vec, carry_vec;
 logic [7:0] result;  // TOO NARROW!
 assign result = sum_vec + carry_vec;  // May overflow!
 
-// RIGHT: Add extra bit for overflow
-logic [8:0] result;  // Width N+1
-assign result = {1'b0, sum_vec} + {1'b0, carry_vec};
+// RIGHT: carry shifts left one (weight 2^(i+1)), and the sum of three
+// 8-bit operands needs 10 bits, not 9 (3*255 = 765).
+logic [9:0] result;
+assign result = {2'b0, sum_vec} + {carry_vec, 1'b0};
 ```
 
 ## Related Modules

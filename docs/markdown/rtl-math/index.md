@@ -34,8 +34,8 @@ modules.
 
 
 > **Start here:** [**Math Library overview**](math_library.md) — the whole `math_*`
-> family organized by operation → methodology (Brent-Kung / Han-Carlson /
-> Kogge-Stone adders, Dadda / Wallace multipliers, IEEE-754 fp32/fp16/bf16/fp8
+> family organized by operation → methodology (Brent-Kung / Han-Carlson
+> adders, Dadda / Wallace multipliers, IEEE-754 fp32/fp16/bf16/fp8
 > operators, conversions, and activations), each with its research reference and
 > a link to the detailed doc below, plus the `bin/` code-generation automation.
 
@@ -48,8 +48,8 @@ modules.
   - Includes: `math_adder_carry_save.sv`, `math_adder_carry_save_nbit.sv`
 
 ### Advanced Adders
-- **[math_adder_brent_kung](math_adder_brent_kung.md)** - Brent-Kung parallel prefix adder family (8/16/32-bit)
-  - Includes: `math_adder_brent_kung_008.sv`, `math_adder_brent_kung_016.sv`, `math_adder_brent_kung_032.sv`
+- **[math_adder_brent_kung](math_adder_brent_kung.md)** - Brent-Kung parallel prefix adder family (8/16/32/64-bit)
+  - Includes: `math_adder_brent_kung_008.sv`, `math_adder_brent_kung_016.sv`, `math_adder_brent_kung_032.sv`, `math_adder_brent_kung_064.sv`
   - Sub-modules: `math_adder_brent_kung_pg.sv`, `math_adder_brent_kung_black.sv`, `math_adder_brent_kung_gray.sv`, `math_adder_brent_kung_bitwisepg.sv`, `math_adder_brent_kung_grouppg_*.sv`, `math_adder_brent_kung_sum.sv`
 - **[math_adder_han_carlson](math_adder_han_carlson.md)** - Han-Carlson hybrid parallel prefix adder family (16/22/32/44/48/72-bit)
   - Includes: `math_adder_han_carlson_016.sv`, `math_adder_han_carlson_022.sv`, `math_adder_han_carlson_032.sv`, `math_adder_han_carlson_044.sv`, `math_adder_han_carlson_048.sv`, `math_adder_han_carlson_072.sv`
@@ -119,7 +119,6 @@ modules.
 ### Compressors and Prefix Cells
 - **[math_compressor_4to2](math_compressor_4to2.md)** - 4:2 compressor for fast parallel reduction
 - **[mod_3_compress](../rtl-common/mod_3_compress.md)** - Combinational `X - (X mod 3)` carry-save rounding (monbus record packing)
-  - Includes: `math_compressor_4to2.sv`
 - **[math_prefix_cell](math_prefix_cell.md)** - Black cell for parallel prefix adders
   - Includes: `math_prefix_cell.sv`
 - **[math_prefix_cell_gray](math_prefix_cell_gray.md)** - Gray cell for parallel prefix adders (area-optimized)
