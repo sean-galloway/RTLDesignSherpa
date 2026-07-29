@@ -290,7 +290,8 @@ replacement for backlog integration (DOCREV-001, dropped). Each area gets a
 fresh qc round under the tightened REVIEWER_BRIEF, adjudicated by
 `verify_findings.py` (validated 2026-07-28 on cdc round_1, DOCREV-012).
 
-**Area order (Sean, 2026-07-28):** cdc, common, math, amba (broken down
+**Area order (Sean, 2026-07-28; math moved ahead of common 2026-07-29 --
+"easiest first"):** cdc DONE, then **math**, common, amba (broken down
 further when we get there), projects/components (also broken down when we
 get there). After those, assess whether the fpga-specific areas need it.
 
