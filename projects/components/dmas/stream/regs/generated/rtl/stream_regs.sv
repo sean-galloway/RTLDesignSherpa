@@ -66,6 +66,22 @@ module stream_regs (
     // Address Decode
     //--------------------------------------------------------------------------
     typedef struct {
+        logic CH0_CTRL_LOW;
+        logic CH0_CTRL_HIGH;
+        logic CH1_CTRL_LOW;
+        logic CH1_CTRL_HIGH;
+        logic CH2_CTRL_LOW;
+        logic CH2_CTRL_HIGH;
+        logic CH3_CTRL_LOW;
+        logic CH3_CTRL_HIGH;
+        logic CH4_CTRL_LOW;
+        logic CH4_CTRL_HIGH;
+        logic CH5_CTRL_LOW;
+        logic CH5_CTRL_HIGH;
+        logic CH6_CTRL_LOW;
+        logic CH6_CTRL_HIGH;
+        logic CH7_CTRL_LOW;
+        logic CH7_CTRL_HIGH;
         logic GLOBAL_CTRL;
         logic GLOBAL_STATUS;
         logic VERSION;
@@ -194,6 +210,22 @@ module stream_regs (
     logic [31:0] decoded_wr_biten;
 
     always_comb begin
+        decoded_reg_strb.CH0_CTRL_LOW = cpuif_req_masked & (cpuif_addr == 13'h0);
+        decoded_reg_strb.CH0_CTRL_HIGH = cpuif_req_masked & (cpuif_addr == 13'h4);
+        decoded_reg_strb.CH1_CTRL_LOW = cpuif_req_masked & (cpuif_addr == 13'h8);
+        decoded_reg_strb.CH1_CTRL_HIGH = cpuif_req_masked & (cpuif_addr == 13'hc);
+        decoded_reg_strb.CH2_CTRL_LOW = cpuif_req_masked & (cpuif_addr == 13'h10);
+        decoded_reg_strb.CH2_CTRL_HIGH = cpuif_req_masked & (cpuif_addr == 13'h14);
+        decoded_reg_strb.CH3_CTRL_LOW = cpuif_req_masked & (cpuif_addr == 13'h18);
+        decoded_reg_strb.CH3_CTRL_HIGH = cpuif_req_masked & (cpuif_addr == 13'h1c);
+        decoded_reg_strb.CH4_CTRL_LOW = cpuif_req_masked & (cpuif_addr == 13'h20);
+        decoded_reg_strb.CH4_CTRL_HIGH = cpuif_req_masked & (cpuif_addr == 13'h24);
+        decoded_reg_strb.CH5_CTRL_LOW = cpuif_req_masked & (cpuif_addr == 13'h28);
+        decoded_reg_strb.CH5_CTRL_HIGH = cpuif_req_masked & (cpuif_addr == 13'h2c);
+        decoded_reg_strb.CH6_CTRL_LOW = cpuif_req_masked & (cpuif_addr == 13'h30);
+        decoded_reg_strb.CH6_CTRL_HIGH = cpuif_req_masked & (cpuif_addr == 13'h34);
+        decoded_reg_strb.CH7_CTRL_LOW = cpuif_req_masked & (cpuif_addr == 13'h38);
+        decoded_reg_strb.CH7_CTRL_HIGH = cpuif_req_masked & (cpuif_addr == 13'h3c);
         decoded_reg_strb.GLOBAL_CTRL = cpuif_req_masked & (cpuif_addr == 13'h100);
         decoded_reg_strb.GLOBAL_STATUS = cpuif_req_masked & (cpuif_addr == 13'h104);
         decoded_reg_strb.VERSION = cpuif_req_masked & (cpuif_addr == 13'h108);
@@ -324,6 +356,102 @@ module stream_regs (
     // Field logic
     //--------------------------------------------------------------------------
     typedef struct {
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_LOW;
+        } CH0_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_HIGH;
+        } CH0_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_LOW;
+        } CH1_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_HIGH;
+        } CH1_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_LOW;
+        } CH2_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_HIGH;
+        } CH2_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_LOW;
+        } CH3_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_HIGH;
+        } CH3_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_LOW;
+        } CH4_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_HIGH;
+        } CH4_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_LOW;
+        } CH5_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_HIGH;
+        } CH5_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_LOW;
+        } CH6_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_HIGH;
+        } CH6_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_LOW;
+        } CH7_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] next;
+                logic load_next;
+            } DESC_ADDR_HIGH;
+        } CH7_CTRL_HIGH;
         struct {
             struct {
                 logic next;
@@ -896,6 +1024,86 @@ module stream_regs (
     typedef struct {
         struct {
             struct {
+                logic [31:0] value;
+            } DESC_ADDR_LOW;
+        } CH0_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_HIGH;
+        } CH0_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_LOW;
+        } CH1_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_HIGH;
+        } CH1_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_LOW;
+        } CH2_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_HIGH;
+        } CH2_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_LOW;
+        } CH3_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_HIGH;
+        } CH3_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_LOW;
+        } CH4_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_HIGH;
+        } CH4_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_LOW;
+        } CH5_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_HIGH;
+        } CH5_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_LOW;
+        } CH6_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_HIGH;
+        } CH6_CTRL_HIGH;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_LOW;
+        } CH7_CTRL_LOW;
+        struct {
+            struct {
+                logic [31:0] value;
+            } DESC_ADDR_HIGH;
+        } CH7_CTRL_HIGH;
+        struct {
+            struct {
                 logic value;
             } GLOBAL_EN;
             struct {
@@ -1354,6 +1562,358 @@ module stream_regs (
     } field_storage_t;
     field_storage_t field_storage;
 
+    // Field: stream_regs.CH0_CTRL_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH0_CTRL_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH0_CTRL_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH0_CTRL_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH0_CTRL_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.CH0_CTRL_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH0_CTRL_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.CH0_CTRL_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.CH0_CTRL_LOW.DESC_ADDR_LOW.value <= field_combo.CH0_CTRL_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH0_CTRL_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH0_CTRL_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH0_CTRL_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH0_CTRL_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH0_CTRL_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.CH0_CTRL_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH0_CTRL_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.CH0_CTRL_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.CH0_CTRL_HIGH.DESC_ADDR_HIGH.value <= field_combo.CH0_CTRL_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH1_CTRL_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH1_CTRL_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH1_CTRL_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH1_CTRL_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH1_CTRL_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.CH1_CTRL_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH1_CTRL_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.CH1_CTRL_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.CH1_CTRL_LOW.DESC_ADDR_LOW.value <= field_combo.CH1_CTRL_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH1_CTRL_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH1_CTRL_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH1_CTRL_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH1_CTRL_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH1_CTRL_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.CH1_CTRL_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH1_CTRL_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.CH1_CTRL_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.CH1_CTRL_HIGH.DESC_ADDR_HIGH.value <= field_combo.CH1_CTRL_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH2_CTRL_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH2_CTRL_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH2_CTRL_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH2_CTRL_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH2_CTRL_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.CH2_CTRL_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH2_CTRL_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.CH2_CTRL_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.CH2_CTRL_LOW.DESC_ADDR_LOW.value <= field_combo.CH2_CTRL_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH2_CTRL_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH2_CTRL_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH2_CTRL_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH2_CTRL_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH2_CTRL_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.CH2_CTRL_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH2_CTRL_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.CH2_CTRL_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.CH2_CTRL_HIGH.DESC_ADDR_HIGH.value <= field_combo.CH2_CTRL_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH3_CTRL_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH3_CTRL_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH3_CTRL_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH3_CTRL_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH3_CTRL_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.CH3_CTRL_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH3_CTRL_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.CH3_CTRL_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.CH3_CTRL_LOW.DESC_ADDR_LOW.value <= field_combo.CH3_CTRL_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH3_CTRL_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH3_CTRL_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH3_CTRL_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH3_CTRL_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH3_CTRL_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.CH3_CTRL_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH3_CTRL_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.CH3_CTRL_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.CH3_CTRL_HIGH.DESC_ADDR_HIGH.value <= field_combo.CH3_CTRL_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH4_CTRL_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH4_CTRL_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH4_CTRL_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH4_CTRL_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH4_CTRL_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.CH4_CTRL_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH4_CTRL_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.CH4_CTRL_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.CH4_CTRL_LOW.DESC_ADDR_LOW.value <= field_combo.CH4_CTRL_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH4_CTRL_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH4_CTRL_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH4_CTRL_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH4_CTRL_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH4_CTRL_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.CH4_CTRL_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH4_CTRL_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.CH4_CTRL_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.CH4_CTRL_HIGH.DESC_ADDR_HIGH.value <= field_combo.CH4_CTRL_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH5_CTRL_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH5_CTRL_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH5_CTRL_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH5_CTRL_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH5_CTRL_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.CH5_CTRL_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH5_CTRL_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.CH5_CTRL_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.CH5_CTRL_LOW.DESC_ADDR_LOW.value <= field_combo.CH5_CTRL_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH5_CTRL_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH5_CTRL_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH5_CTRL_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH5_CTRL_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH5_CTRL_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.CH5_CTRL_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH5_CTRL_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.CH5_CTRL_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.CH5_CTRL_HIGH.DESC_ADDR_HIGH.value <= field_combo.CH5_CTRL_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH6_CTRL_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH6_CTRL_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH6_CTRL_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH6_CTRL_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH6_CTRL_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.CH6_CTRL_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH6_CTRL_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.CH6_CTRL_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.CH6_CTRL_LOW.DESC_ADDR_LOW.value <= field_combo.CH6_CTRL_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH6_CTRL_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH6_CTRL_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH6_CTRL_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH6_CTRL_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH6_CTRL_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.CH6_CTRL_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH6_CTRL_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.CH6_CTRL_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.CH6_CTRL_HIGH.DESC_ADDR_HIGH.value <= field_combo.CH6_CTRL_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH7_CTRL_LOW.DESC_ADDR_LOW
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH7_CTRL_LOW.DESC_ADDR_LOW.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH7_CTRL_LOW && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH7_CTRL_LOW.DESC_ADDR_LOW.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH7_CTRL_LOW.DESC_ADDR_LOW.next = next_c;
+        field_combo.CH7_CTRL_LOW.DESC_ADDR_LOW.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH7_CTRL_LOW.DESC_ADDR_LOW.value <= 32'h0;
+        end else begin
+            if(field_combo.CH7_CTRL_LOW.DESC_ADDR_LOW.load_next) begin
+                field_storage.CH7_CTRL_LOW.DESC_ADDR_LOW.value <= field_combo.CH7_CTRL_LOW.DESC_ADDR_LOW.next;
+            end
+        end
+    end
+    // Field: stream_regs.CH7_CTRL_HIGH.DESC_ADDR_HIGH
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CH7_CTRL_HIGH.DESC_ADDR_HIGH.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CH7_CTRL_HIGH && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CH7_CTRL_HIGH.DESC_ADDR_HIGH.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.CH7_CTRL_HIGH.DESC_ADDR_HIGH.next = next_c;
+        field_combo.CH7_CTRL_HIGH.DESC_ADDR_HIGH.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CH7_CTRL_HIGH.DESC_ADDR_HIGH.value <= 32'h0;
+        end else begin
+            if(field_combo.CH7_CTRL_HIGH.DESC_ADDR_HIGH.load_next) begin
+                field_storage.CH7_CTRL_HIGH.DESC_ADDR_HIGH.value <= field_combo.CH7_CTRL_HIGH.DESC_ADDR_HIGH.next;
+            end
+        end
+    end
     // Field: stream_regs.GLOBAL_CTRL.GLOBAL_EN
     always_comb begin
         automatic logic [0:0] next_c;

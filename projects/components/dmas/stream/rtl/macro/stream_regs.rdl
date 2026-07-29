@@ -31,6 +31,31 @@ addrmap stream_regs {
     default alignment = 4;
 
     //=========================================================================
+    // Channel kick-off registers (0x000 - 0x03F) -- WRITE-ONLY.
+    // Writing the 64-bit descriptor address (LOW then HIGH) kicks the channel.
+    // These are DEFINED HERE (not hand-stuffed into the regmap) so DV/host
+    // resolve them by name and a regmap regen can never drop them. The actual
+    // write is decoded by cmdrsp_router (0x000-0x03F -> apbtodescr), so there is
+    // no PeakRDL storage/hwif effect (hw=na); they occupy the address map only.
+    //=========================================================================
+    reg { name="Ch0 kick LOW";  desc="Ch0 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH0_CTRL_LOW  @ 0x000;
+    reg { name="Ch0 kick HIGH"; desc="Ch0 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH0_CTRL_HIGH @ 0x004;
+    reg { name="Ch1 kick LOW";  desc="Ch1 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH1_CTRL_LOW  @ 0x008;
+    reg { name="Ch1 kick HIGH"; desc="Ch1 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH1_CTRL_HIGH @ 0x00C;
+    reg { name="Ch2 kick LOW";  desc="Ch2 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH2_CTRL_LOW  @ 0x010;
+    reg { name="Ch2 kick HIGH"; desc="Ch2 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH2_CTRL_HIGH @ 0x014;
+    reg { name="Ch3 kick LOW";  desc="Ch3 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH3_CTRL_LOW  @ 0x018;
+    reg { name="Ch3 kick HIGH"; desc="Ch3 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH3_CTRL_HIGH @ 0x01C;
+    reg { name="Ch4 kick LOW";  desc="Ch4 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH4_CTRL_LOW  @ 0x020;
+    reg { name="Ch4 kick HIGH"; desc="Ch4 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH4_CTRL_HIGH @ 0x024;
+    reg { name="Ch5 kick LOW";  desc="Ch5 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH5_CTRL_LOW  @ 0x028;
+    reg { name="Ch5 kick HIGH"; desc="Ch5 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH5_CTRL_HIGH @ 0x02C;
+    reg { name="Ch6 kick LOW";  desc="Ch6 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH6_CTRL_LOW  @ 0x030;
+    reg { name="Ch6 kick HIGH"; desc="Ch6 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH6_CTRL_HIGH @ 0x034;
+    reg { name="Ch7 kick LOW";  desc="Ch7 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH7_CTRL_LOW  @ 0x038;
+    reg { name="Ch7 kick HIGH"; desc="Ch7 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH7_CTRL_HIGH @ 0x03C;
+
+    //=========================================================================
     // Global Control and Status (0x100 - 0x11F)
     //=========================================================================
 

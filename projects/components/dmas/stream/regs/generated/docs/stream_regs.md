@@ -14,6 +14,22 @@ Don't override. Generated from: $root
 
 |Offset|     Identifier     |                 Name                 |
 |------|--------------------|--------------------------------------|
+|0x0000|    CH0_CTRL_LOW    |             Ch0 kick LOW             |
+|0x0004|    CH0_CTRL_HIGH   |             Ch0 kick HIGH            |
+|0x0008|    CH1_CTRL_LOW    |             Ch1 kick LOW             |
+|0x000C|    CH1_CTRL_HIGH   |             Ch1 kick HIGH            |
+|0x0010|    CH2_CTRL_LOW    |             Ch2 kick LOW             |
+|0x0014|    CH2_CTRL_HIGH   |             Ch2 kick HIGH            |
+|0x0018|    CH3_CTRL_LOW    |             Ch3 kick LOW             |
+|0x001C|    CH3_CTRL_HIGH   |             Ch3 kick HIGH            |
+|0x0020|    CH4_CTRL_LOW    |             Ch4 kick LOW             |
+|0x0024|    CH4_CTRL_HIGH   |             Ch4 kick HIGH            |
+|0x0028|    CH5_CTRL_LOW    |             Ch5 kick LOW             |
+|0x002C|    CH5_CTRL_HIGH   |             Ch5 kick HIGH            |
+|0x0030|    CH6_CTRL_LOW    |             Ch6 kick LOW             |
+|0x0034|    CH6_CTRL_HIGH   |             Ch6 kick HIGH            |
+|0x0038|    CH7_CTRL_LOW    |             Ch7 kick LOW             |
+|0x003C|    CH7_CTRL_HIGH   |             Ch7 kick HIGH            |
 |0x0100|     GLOBAL_CTRL    |        Global Control Register       |
 |0x0104|    GLOBAL_STATUS   |        Global Status Register        |
 |0x0108|       VERSION      |           Version Register           |
@@ -52,6 +68,198 @@ Don't override. Generated from: $root
 |0x037C|      HIST_DATA     |      Latency Histogram Bin Count     |
 |0x0380|     HIST_TOTAL     |    Latency Histogram Metric Total    |
 |0x1000|         MON        |       STREAM Monitor Registers       |
+
+### CH0_CTRL_LOW register
+
+- Absolute Address: 0x0
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Ch0 descriptor addr [31:0]  (write kicks)</p>
+
+|Bits|  Identifier |Access|Reset|Name|
+|----|-------------|------|-----|----|
+|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+
+### CH0_CTRL_HIGH register
+
+- Absolute Address: 0x4
+- Base Offset: 0x4
+- Size: 0x4
+
+<p>Ch0 descriptor addr [63:32] (write kicks)</p>
+
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+
+### CH1_CTRL_LOW register
+
+- Absolute Address: 0x8
+- Base Offset: 0x8
+- Size: 0x4
+
+<p>Ch1 descriptor addr [31:0]  (write kicks)</p>
+
+|Bits|  Identifier |Access|Reset|Name|
+|----|-------------|------|-----|----|
+|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+
+### CH1_CTRL_HIGH register
+
+- Absolute Address: 0xC
+- Base Offset: 0xC
+- Size: 0x4
+
+<p>Ch1 descriptor addr [63:32] (write kicks)</p>
+
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+
+### CH2_CTRL_LOW register
+
+- Absolute Address: 0x10
+- Base Offset: 0x10
+- Size: 0x4
+
+<p>Ch2 descriptor addr [31:0]  (write kicks)</p>
+
+|Bits|  Identifier |Access|Reset|Name|
+|----|-------------|------|-----|----|
+|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+
+### CH2_CTRL_HIGH register
+
+- Absolute Address: 0x14
+- Base Offset: 0x14
+- Size: 0x4
+
+<p>Ch2 descriptor addr [63:32] (write kicks)</p>
+
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+
+### CH3_CTRL_LOW register
+
+- Absolute Address: 0x18
+- Base Offset: 0x18
+- Size: 0x4
+
+<p>Ch3 descriptor addr [31:0]  (write kicks)</p>
+
+|Bits|  Identifier |Access|Reset|Name|
+|----|-------------|------|-----|----|
+|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+
+### CH3_CTRL_HIGH register
+
+- Absolute Address: 0x1C
+- Base Offset: 0x1C
+- Size: 0x4
+
+<p>Ch3 descriptor addr [63:32] (write kicks)</p>
+
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+
+### CH4_CTRL_LOW register
+
+- Absolute Address: 0x20
+- Base Offset: 0x20
+- Size: 0x4
+
+<p>Ch4 descriptor addr [31:0]  (write kicks)</p>
+
+|Bits|  Identifier |Access|Reset|Name|
+|----|-------------|------|-----|----|
+|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+
+### CH4_CTRL_HIGH register
+
+- Absolute Address: 0x24
+- Base Offset: 0x24
+- Size: 0x4
+
+<p>Ch4 descriptor addr [63:32] (write kicks)</p>
+
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+
+### CH5_CTRL_LOW register
+
+- Absolute Address: 0x28
+- Base Offset: 0x28
+- Size: 0x4
+
+<p>Ch5 descriptor addr [31:0]  (write kicks)</p>
+
+|Bits|  Identifier |Access|Reset|Name|
+|----|-------------|------|-----|----|
+|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+
+### CH5_CTRL_HIGH register
+
+- Absolute Address: 0x2C
+- Base Offset: 0x2C
+- Size: 0x4
+
+<p>Ch5 descriptor addr [63:32] (write kicks)</p>
+
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+
+### CH6_CTRL_LOW register
+
+- Absolute Address: 0x30
+- Base Offset: 0x30
+- Size: 0x4
+
+<p>Ch6 descriptor addr [31:0]  (write kicks)</p>
+
+|Bits|  Identifier |Access|Reset|Name|
+|----|-------------|------|-----|----|
+|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+
+### CH6_CTRL_HIGH register
+
+- Absolute Address: 0x34
+- Base Offset: 0x34
+- Size: 0x4
+
+<p>Ch6 descriptor addr [63:32] (write kicks)</p>
+
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+
+### CH7_CTRL_LOW register
+
+- Absolute Address: 0x38
+- Base Offset: 0x38
+- Size: 0x4
+
+<p>Ch7 descriptor addr [31:0]  (write kicks)</p>
+
+|Bits|  Identifier |Access|Reset|Name|
+|----|-------------|------|-----|----|
+|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+
+### CH7_CTRL_HIGH register
+
+- Absolute Address: 0x3C
+- Base Offset: 0x3C
+- Size: 0x4
+
+<p>Ch7 descriptor addr [63:32] (write kicks)</p>
+
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
 
 ### GLOBAL_CTRL register
 
