@@ -75,6 +75,20 @@ module math_subtractor_ripple_carry #(
 );
 ```
 
+### N-bit Full Subtractor (math_subtractor_full_nbit)
+
+```systemverilog
+module math_subtractor_full_nbit #(
+    parameter int N = 4
+) (
+    input  logic [N-1:0] i_a,     // Minuend
+    input  logic [N-1:0] i_b,     // Subtrahend
+    input  logic         i_b_in,  // Borrow input
+    output logic [N-1:0] ow_d,    // Difference
+    output logic         ow_b     // Borrow out
+);
+```
+
 ### N-bit Carry Lookahead Subtractor
 
 ```systemverilog
@@ -126,8 +140,20 @@ No parameters (fixed single-bit operation).
 
 ### N-bit Subtractor Ports
 
-The two N-bit subtractors do **not** share a port list -- check which one you
-are instantiating.
+The three N-bit subtractors do **not** share a port list -- check which one
+you are instantiating. `math_subtractor_full_nbit` shares NO port names with
+the other two (`i_b_in` vs `i_borrow_in`; `ow_d`/`ow_b` only, no
+`ow_difference`/`ow_carry_out` aliases).
+
+`math_subtractor_full_nbit`:
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_a | Input | N | Minuend vector |
+| i_b | Input | N | Subtrahend vector |
+| i_b_in | Input | 1 | Initial borrow input |
+| ow_d | Output | N | Difference vector (A - B - Bin) |
+| ow_b | Output | 1 | Final borrow out |
 
 `math_subtractor_ripple_carry`:
 

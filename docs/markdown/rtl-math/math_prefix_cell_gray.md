@@ -146,13 +146,15 @@ endgenerate
 // the powers of two. Positions 2, 4, 8 are exactly what the reverse tree
 // still has to fill.
 
-// Example: position 5 combines the span-2 group [5:4] with the complete
-// carry already available at position 3.
+// Example: position 5 combines the span-2 group [4:3] with the complete
+// carry already available at position 3. (Indices: ow_gg[k] is the carry
+// INTO bit k -- math_adder_brent_kung_sum drives ow_sum[k] = gg[k] ^ p[k+1],
+// so ow_gg[5] = G[4:-1], the carry into bit 5, not 6.)
 math_prefix_cell_gray u_bk_gray_5 (
-    .i_g_hi(w_g_2[5]),  // G[5:4] (span-2 group from forward tree level 1)
-    .i_p_hi(w_p_2[5]),  // P[5:4] (matching group propagate)
-    .i_g_lo(w_gg[3]),   // G[3:-1] (complete carry, already resolved)
-    .ow_g(w_gg[5])      // G[5:-1] (carry into position 6)
+    .i_g_hi(w_g_2[5]),  // G[4:3] (span-2 group from forward tree level 1)
+    .i_p_hi(w_p_2[5]),  // P[4:3] (matching group propagate)
+    .i_g_lo(w_gg[3]),   // G[2:-1] (complete carry into bit 3, already resolved)
+    .ow_g(w_gg[5])      // G[4:-1] (carry into bit 5)
 );
 ```
 

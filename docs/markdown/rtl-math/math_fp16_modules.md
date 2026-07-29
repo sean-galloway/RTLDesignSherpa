@@ -95,7 +95,7 @@ module math_fp16_{activation} (
 **FP16 to BF16:**
 - Mantissa truncation: 10 bits -> 7 bits (may lose precision)
 - Exponent mapping: bias 15 -> bias 127
-- May overflow if FP16 value > BF16 max normal
+- Cannot overflow: BF16 range (FP32-class) strictly contains FP16 range, so no FP16 value exceeds BF16 max normal
 
 **FP16 to FP32:**
 - Lossless conversion (FP32 can represent all FP16 values)

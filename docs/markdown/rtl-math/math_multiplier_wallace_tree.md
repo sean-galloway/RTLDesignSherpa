@@ -303,6 +303,7 @@ Take the layer count from the RTL, not from a formula.
 ```systemverilog
 logic [7:0] a, b;
 logic [15:0] product;
+logic [15:0] product_pipe;
 
 math_multiplier_wallace_tree_008 u_mult (
     .i_multiplier(a),
@@ -368,13 +369,17 @@ module dsp_multiply (
     // Pipeline register
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            product    <= '0;
-            valid_pipe <= 1'b0;
-            valid_out  <= 1'b0;
+            product_pipe <= '0;
+            product      <= '0;
+            valid_pipe   <= 1'b0;
+            valid_out    <= 1'b0;
         end else begin
-            product    <= product_comb;
-            valid_pipe <= valid_in;
-            valid_out  <= valid_pipe;
+            product_pipe <= product_comb;
+            product      <= product_pipe;  // 2 stages, like the valid chain --
+                                           // a 1-stage product with a 2-stage
+                                           // valid shows the NEXT input's result
+            valid_pipe   <= valid_in;
+            valid_out    <= valid_pipe;
         end
     end
 

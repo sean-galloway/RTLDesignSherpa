@@ -117,10 +117,12 @@ Stage 4: reduce to 2 (final for CPA)
 Initial height: 8 bits
   pp07, pp16, pp25, pp34, pp43, pp52, pp61, pp70
 
-Stage 1: Reduce 8 -> 6
-  4:2 compressor: (pp07, pp16, pp25, pp34, cin) -> sum1, carry1, cout1
-  Remaining: sum1, pp43, pp52, pp61, pp70 + carry1, cout1 from col 6
-  Height after: 6 (might be more with carries from col 6)
+Stage 1: Reduce 8 -> 2
+  TWO 4:2 compressors consume ALL 8 partial products:
+    u_c4to2_07_001: (pp07, pp16, pp25, pp34, cin=0) -> sum1, carry1, cout1
+    u_c4to2_07_002: (pp43, pp52, pp61, pp70, cin=0) -> sum2, carry2, cout2
+  Remaining: sum1, sum2 (this column) + carry1, cout1, carry2, cout2 (to col 8)
+  Height after: 2, plus what arrives from column 6
 
 Stage 2: Reduce to 4
   Continue with 4:2 and 3:2 compressors as needed
@@ -148,12 +150,8 @@ math_compressor_4to2 u_c4to2_07_000 (
     .ow_cout(w_c4to2_cout_07_000)
 );
 
-// Half adders for 2-input reduction
-math_adder_half u_ha_01_000 (
-    .i_a(w_pp_0_1), .i_b(w_pp_1_0),
-    .ow_sum(w_ha_sum_01_000),
-    .ow_carry(w_ha_carry_01_000)
-);
+// Column 1 has only two partial products: no half adder in this design --
+// w_pp_0_1 and w_pp_1_0 feed the final CPA directly (see the CPA section)
 
 // Full adders for 3-input reduction
 math_adder_full u_fa_02_000 (
