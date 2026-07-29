@@ -61,7 +61,7 @@ reviewed tree starts until the review is back and integrated.
 | [amba](amba/INDEX.md) | **migrated** | AXI/APB/AXIS, monitors, monbus | — |
 | [common](common/INDEX.md) | **migrated** | rtl/common building blocks | — |
 | [stream](projects/components/dmas/stream/INDEX.md) | **started** | dmas/stream DMA (nested to mirror repo path) | TASK-056 migrated from TODO_RFC_StageE; [TASKS.md](../../projects/components/dmas/stream/TASKS.md) (v1.0 complete) still to fold in |
-| rapids | pending | dmas/rapids DMA (beats) | [TASKS.md](../../projects/components/dmas/rapids/TASKS.md), rapids_beats_mas/TODO |
+| [rapids](projects/components/dmas/rapids/INDEX.md) | **started** | dmas/rapids DMA (beats, nested to mirror repo) | TASK-057 regmap hygiene (ported from STREAM); [TASKS.md](../../projects/components/dmas/rapids/TASKS.md) + rapids_beats_mas/TODO still to fold in |
 | [bridge](bridge/INDEX.md) | **started** | bridge crossbar generator | [TASKS.md](../../projects/components/bridge/TASKS.md) (still to fold in; area holds BRIDGE-001) |
 | delta | pending | delta component | [TASKS.md](../../projects/components/delta/TASKS.md) |
 | hive | pending | hive component | [TASKS.md](../../projects/components/hive/TASKS.md) |

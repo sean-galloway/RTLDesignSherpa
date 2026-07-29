@@ -223,6 +223,23 @@ class StreamCoreTB(TBBase):
         self.transfer_start_time = {}
         self.transfer_end_time = {}
 
+        # Descriptor-fetch proof (stream_top / APB mode). desc_fetch_addrs =
+        # every address the descriptor engine actually READ (m_axi_desc AR);
+        # kicked_desc_addrs = every descriptor address a kick-register write
+        # launched. assert_descriptors_fetched() proves the kick caused the
+        # fetch, not just that data happened to move.
+        self.desc_fetch_addrs = []
+        self.kicked_desc_addrs = {}
+
+        # Engine-vs-descriptor scoreboard: what the TB programmed per channel, and
+        # every data read/write cycle the engine actually issued (channel = AXI
+        # ID, m_axi_*id = {0, grant_id}). assert_engine_matches_descriptors()
+        # proves the engine's rd/wr cycles cover exactly each descriptor's
+        # src/dst for its length, on the right channel.
+        self.programmed_descriptors = {}   # {channel: [{'src','dst','length','addr'}]}
+        self.rd_cycles = []                # (channel, addr, beats)
+        self.wr_cycles = []                # (channel, addr, beats)
+
         # Interface monitoring - queues for captured transactions
         self.apb_transactions = []        # APB → Descriptor
         self.datard_requests = []         # Scheduler → Read Engine
@@ -394,6 +411,12 @@ class StreamCoreTB(TBBase):
         )
         self.desc_slave = self.desc_axi_slave['R']
 
+        # Descriptor-fetch proof: capture every AR the descriptor engine issues
+        # via the slave's AR MONITOR (already bound with prefix="m_axi_desc"),
+        # NOT raw signal poking -- see vault/handbook/dv/bfm-usage.md (always use
+        # the BFMs). add_callback is the framework-idiomatic hook.
+        self.desc_axi_slave['AR'].add_callback(self._on_desc_ar)
+
         # Data read AXI slave (parameterizable width)
         self.rd_axi_slave = create_axi4_slave_rd(
             dut=self.dut,
@@ -427,6 +450,12 @@ class StreamCoreTB(TBBase):
             base_addr=self.dst_mem_base  # ← FIX: Subtract base from AXI addresses
         )
         self.wr_slave = self.wr_axi_slave['W']
+
+        # Engine rd/wr cycle capture via the BFM AR/AW monitors (bound with the
+        # proper m_axi_rd / m_axi_wr prefixes) -- for the engine-vs-descriptor
+        # scoreboard. Not raw signals (vault/handbook/dv/bfm-usage.md).
+        self.rd_axi_slave['AR'].add_callback(self._on_rd_ar)
+        self.wr_axi_slave['AW'].add_callback(self._on_wr_aw)
 
         self.log.info("Initialized AXI slave responders with memory models")
 
@@ -820,18 +849,69 @@ class StreamCoreTB(TBBase):
         data_bytes = bytearray(packet.to_bytes(32, byteorder='little'))
         self.desc_memory_model.write(offset, data_bytes)
 
-        # Debug: Verify write by reading back
-        readback = self.desc_memory_model.read(offset, 32)
-        readback_packet = int.from_bytes(bytes(readback), byteorder='little')
+        # Record the EXPECTED read/write address set (contiguous, legacy format)
+        # so the scoreboard is format-agnostic -- an extended descriptor records a
+        # strided golden set the same way, and a mixed run just adds both.
+        bpb = self.data_bytes
+        self.programmed_descriptors.setdefault(channel_id, []).append({
+            'addr': addr, 'fmt': 'legacy',
+            'rd_addrs': {src_addr + i * bpb for i in range(length)},
+            'wr_addrs': {dst_addr + i * bpb for i in range(length)},
+            'rd_beats': length, 'wr_beats': length,
+        })
 
-        self.log.info(f"Wrote descriptor @ abs_addr=0x{addr:08x} (offset=0x{offset:08x}): "
-                    f"src=0x{src_addr:08x}, dst=0x{dst_addr:08x}, "
-                    f"len={length} beats, next=0x{next_ptr:08x}, "
-                    f"last={last}, ch={channel_id}")
-        self.log.debug(f"  Written packet: 0x{packet:064X}")
-        self.log.debug(f"  Readback packet: 0x{readback_packet:064X}")
-        if packet != readback_packet:
-            self.log.error(f"  MISMATCH! Write/read mismatch in descriptor memory!")
+    def write_ext_descriptor(self, addr, src_addr, dst_addr, beats, rd, wr,
+                             channel_id=0, next_ptr=0, last=True):
+        """Build + load one EXTENDED (row/col) descriptor -- two 256-bit slots at
+        addr and addr+32 -- using the SHARED component format
+        (DescriptorPacketBuilder.build_extended_words), and record its golden
+        rd/wr address sets for the scoreboard. rd/wr = {'s0','s1','inner','w0','w1'}.
+        Freely mixable with write_descriptor() in the same run."""
+        words = self.desc_builder.build_extended_words(
+            src_addr, dst_addr, beats, rd, wr,
+            channel_id=channel_id, next_ptr=next_ptr, last=last)
+        offset = addr - self.desc_mem_base
+        for ci in range(2):                          # chunk0 @ addr, chunk1 @ addr+32
+            packet = 0
+            for w, val in enumerate(words[ci * 8:(ci + 1) * 8]):
+                packet |= (val & 0xFFFFFFFF) << (32 * w)
+            self.desc_memory_model.write(offset + ci * 32,
+                                         bytearray(packet.to_bytes(32, byteorder='little')))
+        self.record_ext_descriptor(channel_id, addr, beats, src_addr, dst_addr, rd, wr)
+        self.log.info(f"ext descriptor @0x{addr:X} ch{channel_id}: beats={beats} "
+                      f"rd={rd} wr={wr}")
+
+    def record_ext_descriptor(self, channel_id, addr, length,
+                              rd_base, wr_base, rd, wr):
+        """Record the EXPECTED address sets for one EXTENDED (row/col) descriptor,
+        so the same scoreboard checks it. rd/wr = {'s0','s1','inner','w0','w1'}
+        (signed byte strides, index_0 extent, log2 wrap windows) -- the golden
+        mirrors dma_address_gen: addr = base + i0*s0 + i1*s1. The caller also loads
+        the extended descriptor into desc_memory (build_ext), same as legacy."""
+        bpb = self.data_bytes
+        self.programmed_descriptors.setdefault(channel_id, []).append({
+            'addr': addr, 'fmt': 'extended',
+            'rd_addrs': self._ext_addr_set(rd_base, length, bpb, **rd),
+            'wr_addrs': self._ext_addr_set(wr_base, length, bpb, **wr),
+            'rd_beats': length, 'wr_beats': length,
+        })
+
+    @staticmethod
+    def _ext_addr_set(base, total_beats, bpb, s0=0, s1=0, inner=1, w0=0, w1=0):
+        """Golden address set for one extended side (dma_address_gen):
+        addr = base + (i0*s0 & wrap0) + (i1*s1 & wrap1), i0 in [0,inner),
+        i1 in [0, total/inner). Signed strides; w0/w1 = log2 wrap sizes (0=off)."""
+        inner = max(1, inner)
+        n1 = max(1, total_beats // inner)
+        m0 = (1 << w0) - 1 if w0 else None
+        m1 = (1 << w1) - 1 if w1 else None
+        out = set()
+        for i1 in range(n1):
+            o1 = (i1 * s1) & m1 if m1 is not None else i1 * s1
+            for i0 in range(inner):
+                o0 = (i0 * s0) & m0 if m0 is not None else i0 * s0
+                out.add(base + o0 + o1)
+        return out
 
     def write_source_data(self, addr, data, num_bytes):
         """
@@ -1029,6 +1109,129 @@ class StreamCoreTB(TBBase):
     # Channel Control
     # =========================================================================
 
+    def _reg_addr(self, name):
+        """Absolute APB address of a register BY NAME via the peakrdl regmap
+        (self.reg_offsets, from stream_regmap.py). Raises if the name is absent
+        -- a regmap regression must fail loudly here, not silently pass."""
+        if name not in self.reg_offsets:
+            raise KeyError(f"register {name!r} not in stream_regmap.py "
+                           f"(regenerate via bin/peakrdl_generate.py)")
+        return self.reg_offsets[name]
+
+    def _txn_field(self, transaction, *names):
+        """First present field of an AXI transaction (packet attr or dict key)."""
+        for f in names:
+            v = getattr(transaction, f, None)
+            if v is None and isinstance(transaction, dict):
+                v = transaction.get(f)
+            if v is not None:
+                try:
+                    return int(v)
+                except (ValueError, TypeError):
+                    return None
+        return None
+
+    def _chan_of(self, transaction):
+        """Channel = low ID bits of an AXI transaction (m_axi_*id = {0,grant_id})."""
+        i = self._txn_field(transaction, 'id', 'arid', 'awid', 'rid', 'bid')
+        if i is None:
+            return None
+        cw = max(1, (self.num_channels - 1).bit_length())
+        return i & ((1 << cw) - 1)
+
+    def _on_rd_ar(self, transaction):
+        """Data-read AR: record (channel, addr, beats) for the scoreboard."""
+        ch = self._chan_of(transaction)
+        addr = self._txn_field(transaction, 'araddr', 'addr')
+        arlen = self._txn_field(transaction, 'arlen', 'len')
+        if ch is not None and addr is not None:
+            self.rd_cycles.append((ch, addr, (arlen + 1) if arlen is not None else 1))
+
+    def _on_wr_aw(self, transaction):
+        """Data-write AW: record (channel, addr, beats) for the scoreboard."""
+        ch = self._chan_of(transaction)
+        addr = self._txn_field(transaction, 'awaddr', 'addr')
+        awlen = self._txn_field(transaction, 'awlen', 'len')
+        if ch is not None and addr is not None:
+            self.wr_cycles.append((ch, addr, (awlen + 1) if awlen is not None else 1))
+
+    def assert_engine_matches_descriptors(self):
+        """MUST: the engine's actual read/write AXI cycles match the programmed
+        descriptors, per channel (channel = AXI ID). For every descriptor:
+          - the m_axi_rd cycles for that channel cover [src, src+length*bytes)
+          - the m_axi_wr cycles for that channel cover [dst, dst+length*bytes)
+          - total read beats == total write beats == the descriptor lengths
+        Catches mis-addressed / short / long / wrong-channel transfers that a
+        pure src-vs-dst data compare can miss."""
+        bpb = self.data_bytes
+        errors = []
+        for ch, descs in self.programmed_descriptors.items():
+            rd = [(a, n) for (c, a, n) in self.rd_cycles if c == ch]
+            wr = [(a, n) for (c, a, n) in self.wr_cycles if c == ch]
+            rd_addrs, wr_addrs = set(), set()
+            for a, n in rd:
+                rd_addrs.update(a + i * bpb for i in range(n))
+            for a, n in wr:
+                wr_addrs.update(a + i * bpb for i in range(n))
+            # Format-agnostic: each descriptor stored its EXPECTED address set at
+            # creation (contiguous for legacy, strided golden for extended), so a
+            # mixed run just checks the union.
+            for d in descs:
+                if not d['rd_addrs'] <= rd_addrs:
+                    miss = [hex(x) for x in sorted(d['rd_addrs'] - rd_addrs)[:4]]
+                    errors.append(f"ch{ch}: reads miss {d['fmt']} desc @0x{d['addr']:X} "
+                                  f"expected addrs (e.g. {miss})")
+                if not d['wr_addrs'] <= wr_addrs:
+                    miss = [hex(x) for x in sorted(d['wr_addrs'] - wr_addrs)[:4]]
+                    errors.append(f"ch{ch}: writes miss {d['fmt']} desc @0x{d['addr']:X} "
+                                  f"expected addrs (e.g. {miss})")
+            exp_rb = sum(d['rd_beats'] for d in descs)
+            exp_wb = sum(d['wr_beats'] for d in descs)
+            rb, wb = sum(n for _, n in rd), sum(n for _, n in wr)
+            if rb != exp_rb:
+                errors.append(f"ch{ch}: read beats {rb} != descriptor total {exp_rb}")
+            if wb != exp_wb:
+                errors.append(f"ch{ch}: write beats {wb} != descriptor total {exp_wb}")
+        if errors:
+            raise AssertionError("engine rd/wr cycles do NOT match descriptors:\n  " +
+                                 "\n  ".join(errors))
+        self.log.info(f"engine-vs-descriptor scoreboard: {len(self.programmed_descriptors)} "
+                      f"channel(s), {len(self.rd_cycles)} rd + {len(self.wr_cycles)} wr cycles "
+                      f"all match the programmed descriptors")
+
+    def _on_desc_ar(self, transaction):
+        """AR-monitor callback (framework BFM, prefix="m_axi_desc"): record the
+        address of every descriptor read the engine issues. Uses the BFM monitor,
+        not raw signals -- per vault/handbook/dv/bfm-usage.md."""
+        addr = None
+        for f in ('araddr', 'addr'):
+            addr = getattr(transaction, f, None)
+            if addr is not None:
+                break
+        if addr is None and isinstance(transaction, dict):
+            addr = transaction.get('araddr', transaction.get('addr'))
+        if addr is not None:
+            try:
+                self.desc_fetch_addrs.append(int(addr))
+            except (ValueError, TypeError):
+                pass
+
+    def assert_descriptors_fetched(self):
+        """MUST: every descriptor address launched by a kick-register write was
+        actually fetched by the descriptor engine (kick reg -> apbtodescr ->
+        descriptor engine). Independent of the datapath check -- a dead or
+        mis-decoded kick leaves the kicked descriptor un-fetched."""
+        fetched = set(self.desc_fetch_addrs)
+        missing = [(ch, a) for ch, addrs in self.kicked_desc_addrs.items()
+                   for a in addrs if a not in fetched]
+        if missing:
+            raise AssertionError(
+                "kick-register writes did NOT cause descriptor fetches: "
+                f"{[(ch, hex(a)) for ch, a in missing]}; observed desc fetches="
+                f"{sorted(hex(x) for x in fetched)}")
+        n = sum(len(v) for v in self.kicked_desc_addrs.values())
+        self.log.info(f"descriptor-fetch proof: all {n} kicked descriptors were fetched")
+
     async def kick_off_channel(self, channel, descriptor_addr):
         """
         Kick off a DMA transfer on specified channel.
@@ -1050,16 +1253,20 @@ class StreamCoreTB(TBBase):
 
         # Detect mode: APB (stream_top) or direct (stream_core)
         if self.apb_master is not None:
-            # APB mode (stream_top) - write descriptor address to CHx_CTRL registers
-            # 64-bit descriptor address split into two 32-bit registers
-            ctrl_low_addr = StreamRegisterMap.get_ch_ctrl_low_addr(channel)
-            ctrl_high_addr = StreamRegisterMap.get_ch_ctrl_high_addr(channel)
+            # APB mode (stream_top) - write descriptor address to CHx_CTRL regs.
+            # Resolve the kick registers BY NAME through the peakrdl regmap so a
+            # dropped/renamed CHx_CTRL fails HERE. The old hardcoded
+            # StreamRegisterMap.get_ch_ctrl_*_addr() constants deliberately
+            # bypassed the regmap -- that blind spot is what let a regmap
+            # regression pass the top tests while breaking the cosims.
+            ctrl_low_addr = self._reg_addr(f"CH{channel}_CTRL_LOW")
+            ctrl_high_addr = self._reg_addr(f"CH{channel}_CTRL_HIGH")
 
             desc_low = descriptor_addr & 0xFFFFFFFF
             desc_high = (descriptor_addr >> 32) & 0xFFFFFFFF
 
-            self.log.info(f"  Writing to APB addr 0x{ctrl_low_addr:03X} = 0x{desc_low:08X} (descriptor LOW)")
-            self.log.info(f"  Writing to APB addr 0x{ctrl_high_addr:03X} = 0x{desc_high:08X} (descriptor HIGH)")
+            self.log.info(f"  Writing (by name) APB 0x{ctrl_low_addr:03X} = 0x{desc_low:08X} (descriptor LOW)")
+            self.log.info(f"  Writing (by name) APB 0x{ctrl_high_addr:03X} = 0x{desc_high:08X} (descriptor HIGH)")
 
             # Write lower 32 bits
             await self.write_apb_register(ctrl_low_addr, desc_low)
@@ -1067,6 +1274,9 @@ class StreamCoreTB(TBBase):
             # Write upper 32 bits (triggers kick-off)
             await self.write_apb_register(ctrl_high_addr, desc_high)
 
+            # Remember what this kick launched so assert_descriptors_fetched()
+            # can prove the write actually caused a descriptor fetch.
+            self.kicked_desc_addrs.setdefault(channel, []).append(descriptor_addr)
             self.log.info(f"Kicked off channel {channel} via APB with descriptor @ 0x{descriptor_addr:016X}")
 
         else:

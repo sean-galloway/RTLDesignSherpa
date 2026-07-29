@@ -150,6 +150,20 @@ APB_DAXMON_MASK3        = A("DAXMON_MASK3")
 APB_RDMON_MASK3         = A("RDMON_MASK3")
 APB_WRMON_MASK3         = A("WRMON_MASK3")
 
+# Monbus GROUP master-write config. These WERE harness-driven cfg_mon_* ports;
+# they are now internal MON CSRs, so the HOST programs them by name like every
+# other stream config (the harness no longer drives them). Capture window =
+# debug_sram @ 0x40000; watermark 0 = flush every complete record.
+APB_MON_GROUP_BASE      = A("MON_GROUP_BASE_ADDR")
+APB_MON_GROUP_LIMIT     = A("MON_GROUP_LIMIT_ADDR")
+APB_MON_GROUP_WM        = A("MON_GROUP_FLUSH_WATERMARK")
+# Capture window = debug_sram @ 0x40000, sized by DEBUG_SRAM_WORDS. Every board
+# top sets DEBUG_SRAM_WORDS=4096 (16 KB), so the window is 0x40000..0x43FFF. This
+# is the safe value for BOTH flows: it matches the perf debug_sram exactly, and
+# the monitor tally counts records regardless of the write-address wrap.
+MON_GROUP_CAPTURE_BASE  = 0x0004_0000
+MON_GROUP_CAPTURE_LIMIT = 0x0004_3FFF   # 0x40000 + 4096*4 - 1
+
 # Descriptor AXI Monitor perf-window CSRs (RFC Stage E CSR route). RUN=1 opens
 # the window (rising edge clears counters); RUN=0 closes/freezes. PROD/BP/STARV/
 # IDLE sum to WINDOW_CYCLES.
@@ -988,6 +1002,13 @@ class StreamCharTB(TBBase):
                 en_val |= WRMON_COMPRESS_EN_BIT   # runtime compression on
             await self.uart_write(en_reg,       en_val)
             await self.uart_write(err_reg,      mon_err_cfg)
+
+        # 3a. Monbus group master-write window + flush watermark -- programmed by
+        # name here like the rest of the stream config (no longer harness-driven
+        # cfg_mon_* ports). Points the group's bulk-trace writes at debug_sram.
+        await self.uart_write(APB_MON_GROUP_BASE,  MON_GROUP_CAPTURE_BASE)
+        await self.uart_write(APB_MON_GROUP_LIMIT, MON_GROUP_CAPTURE_LIMIT)
+        await self.uart_write(APB_MON_GROUP_WM,    0)
 
         # 3b. Address-range CSRs, programmed AFTER the soft-reset so they survive
         # to DMA time (the whole point — see addr_range_writes note above).

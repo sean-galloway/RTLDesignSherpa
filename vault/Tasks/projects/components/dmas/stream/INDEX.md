@@ -15,7 +15,13 @@ to mirror the repo path). Lifecycle pages: [active](active.md) · [open](open.md
   `axi_bus_meter`): RTL + cosim complete; board bring-up pending.
 
 ## Open (not started)
-- _(none yet)_
+- **TASK-058** (High) — Signal contracts + K-maps for the significant STREAM
+  signals (especially the read/write engines) to prove the design correct by
+  construction.
+- **TASK-059** (High) — Fix the extended chained strided (transpose) descriptor
+  corruption (silent data bug; repro is the `xfail`
+  `test_stream_top_extended_chained_transpose`). See
+  [known_issues/active/extended_chained_transpose.md](../../../../../../projects/components/dmas/stream/known_issues/active/extended_chained_transpose.md).
 
 The component's old `TASKS.md` / `TODO_*.md` next to the code are being retired
 into this area per the one rule (no task files beside code).

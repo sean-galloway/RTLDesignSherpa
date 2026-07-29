@@ -75,6 +75,48 @@ class DescriptorPacketBuilder:
         # Final 512-bit packet = descriptor_256 + 0 in upper bits
         return descriptor_256
 
+    # ------------------------------------------------------------------
+    # Extended (TASK-101 row/col) descriptor format. THE single definition:
+    # both the component TB (write_ext_descriptor) and the FPGA char flow
+    # (descriptor_builder.build_ext) build from this -- the flows link here,
+    # never the reverse. Two 256-bit slots: chunk0 = legacy layout with
+    # desc_type=EXT, chunk1 = the dma_address_gen config.
+    # ------------------------------------------------------------------
+    DESC_TYPE_EXT = 1   # desc_type field (bits [210:208]) value for extended
+
+    @staticmethod
+    def build_extended_words(src_addr, dst_addr, beats, rd, wr, *,
+                             channel_id=0, next_ptr=0, last=True, gen_irq=True):
+        """16 x 32-bit words for one EXTENDED descriptor: chunk0[0:8] at
+        descriptor index idx, chunk1[8:16] at idx+1.
+
+        rd/wr = {'s0','s1','inner','w0'(=0),'w1'(=0)}: signed byte strides s0/s1,
+        index_0 extent 'inner', log2 wrap windows w0/w1 (0=off). Address model
+        (mirrored by StreamCoreTB._ext_addr_set and rtl dma_address_gen):
+        addr = base + i0*s0 + i1*s1, i0 in [0,inner), i1 in [0, beats/inner)."""
+        ctrl = (1                                  # [192] valid
+                | ((1 if gen_irq else 0) << 1)     # [193] irq
+                | ((1 if last else 0) << 2)        # [194] last
+                | ((channel_id & 0xF) << 4))       # [199:196] channel_id
+        chunk0 = [
+            src_addr & 0xFFFFFFFF, (src_addr >> 32) & 0xFFFFFFFF,
+            dst_addr & 0xFFFFFFFF, (dst_addr >> 32) & 0xFFFFFFFF,
+            beats & 0xFFFFFFFF,
+            next_ptr & 0xFFFFFFFF,
+            (ctrl | (DescriptorPacketBuilder.DESC_TYPE_EXT << 16)) & 0xFFFFFFFF,
+            0,
+        ]
+
+        def _dim(inner, w0, w1):   # inner[15:0] | wrap0[21:16] | wrap1[27:22]
+            return (inner & 0xFFFF) | ((w0 & 0x3F) << 16) | ((w1 & 0x3F) << 22)
+        u32 = lambda v: v & 0xFFFFFFFF
+        chunk1 = [
+            u32(rd['s0']), u32(rd['s1']), _dim(rd['inner'], rd.get('w0', 0), rd.get('w1', 0)),
+            u32(wr['s0']), u32(wr['s1']), _dim(wr['inner'], wr.get('w0', 0), wr.get('w1', 0)),
+            0, 0,
+        ]
+        return chunk0 + chunk1
+
     @staticmethod
     def extract_src_addr(packet):
         """Extract source address from descriptor packet."""

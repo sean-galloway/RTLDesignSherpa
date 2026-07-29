@@ -49,4 +49,6 @@ known_issues/
 
 ### Active
 
-(none)
+| Issue | Module | Severity | Summary |
+|-------|--------|----------|---------|
+| [Extended chained strided (transpose) descriptor corruption](active/extended_chained_transpose.md) | `descriptor_engine.sv` / `scheduler.sv` / `stream_run_addr_gen.sv` | High | With `USE_ROW_COL_MAJOR_ADDRESSING=1`, a strided/per-beat extended (transpose) descriptor reached via `next_ptr` chaining reads the wrong source, writes with holes, and corrupts the preceding descriptor. Directly-kicked transpose and chained ext-contiguous both pass; only chained + strided fails. Silent (no error raised). Repro: `test_stream_top_extended_chained_transpose` (xfail). |

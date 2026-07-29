@@ -43,6 +43,24 @@ Usage:
 from dataclasses import dataclass
 from typing import List, Tuple
 
+# The extended-descriptor byte format is OWNED by the STREAM component. This FPGA
+# char flow LINKS to it (never the reverse) so cocotb sim and the board build
+# byte-identical descriptors from ONE definition.
+try:
+    from projects.components.dmas.stream.dv.tbclasses.descriptor_packet_builder import (
+        DescriptorPacketBuilder,
+    )
+except ModuleNotFoundError:  # standalone host run: put repo root on the path
+    import os as _os
+    import sys as _sys
+    _root = _os.path.abspath(_os.path.join(_os.path.dirname(__file__),
+                                           *[_os.pardir] * 5))
+    if _root not in _sys.path:
+        _sys.path.insert(0, _root)
+    from projects.components.dmas.stream.dv.tbclasses.descriptor_packet_builder import (
+        DescriptorPacketBuilder,
+    )
+
 # Memory map (must match stream_char_harness)
 DESC_RAM_BASE       = 0x0002_0000
 HARNESS_CSR_BASE    = 0x0001_0000
@@ -244,8 +262,6 @@ class DescriptorBuilder:
     # Requires the DUT built with USE_ROW_COL_MAJOR_ADDRESSING=1. Identical bytes
     # in cocotb sim and on the FPGA (same builder, same UART/AXIL programming).
 
-    DESC_TYPE_EXT_WORD6 = 1 << 16   # desc_type=1 at descriptor bits [210:208]
-
     def build_ext(self, channel: int, transfer_bytes: int,
                   rd: dict, wr: dict, *, desc_idx: int = 0) -> List[Tuple[int, int]]:
         """Build AXIL writes for one extended descriptor (2 slots).
@@ -262,37 +278,15 @@ class DescriptorBuilder:
         src = self.src_base + desc_idx * transfer_bytes
         dst = self.dst_base + desc_idx * transfer_bytes
 
-        ctrl = CTRL_VALID | CTRL_LAST | CTRL_INTERRUPT | ((channel & 0xF) << 4)
-
-        # Chunk 0 — legacy layout with desc_type=EXT in word 6.
-        chunk0 = [
-            src & 0xFFFF_FFFF, (src >> 32) & 0xFFFF_FFFF,
-            dst & 0xFFFF_FFFF, (dst >> 32) & 0xFFFF_FFFF,
-            beats & 0xFFFF_FFFF,
-            0x0000_0000,                                   # next_ptr = 0 (single)
-            (ctrl | self.DESC_TYPE_EXT_WORD6) & 0xFFFF_FFFF,
-            0x0000_0000,
-        ]
-
-        def u32(v):
-            return v & 0xFFFF_FFFF
-
-        def dim_word(inner, w0, w1):   # inner[15:0] | wrap0[21:16] | wrap1[27:22]
-            return (inner & 0xFFFF) | ((w0 & 0x3F) << 16) | ((w1 & 0x3F) << 22)
-
-        # Chunk 1 — addr-gen cfg (descriptor_ext_packet layout).
-        chunk1 = [
-            u32(rd['s0']), u32(rd['s1']),
-            dim_word(rd['inner'], rd.get('w0', 0), rd.get('w1', 0)),
-            u32(wr['s0']), u32(wr['s1']),
-            dim_word(wr['inner'], wr.get('w0', 0), wr.get('w1', 0)),
-            0x0000_0000, 0x0000_0000,
-        ]
+        # 16 words (chunk0[0:8] @ idx0, chunk1[8:16] @ idx1) from the shared
+        # component format -- the flow consumes the component, not vice versa.
+        words = DescriptorPacketBuilder.build_extended_words(
+            src, dst, beats, rd, wr, channel_id=channel, next_ptr=0, last=True)
 
         writes: List[Tuple[int, int]] = []
-        for w, val in enumerate(chunk0):
+        for w, val in enumerate(words[0:8]):
             writes.append((self._host_addr(idx0, w), val))
-        for w, val in enumerate(chunk1):
+        for w, val in enumerate(words[8:16]):
             writes.append((self._host_addr(idx1, w), val))
         return writes
 

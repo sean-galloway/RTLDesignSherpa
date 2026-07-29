@@ -339,6 +339,15 @@ async def cocotb_test_stream_top_basic(dut):
             tb.log.error(f"Channel {channel} data verification FAILED")
             raise AssertionError(f"Channel {channel} data mismatch")
 
+        # MUST: prove the kick-register WRITE actually caused a descriptor FETCH
+        # (kick reg -> apbtodescr -> descriptor engine), not just that data moved.
+        # A dead/mis-decoded kick path leaves the kicked descriptor un-fetched.
+        tb.assert_descriptors_fetched()
+
+        # MUST: prove the engine's actual read/write AXI cycles match the
+        # descriptors, per channel (by AXI ID) -- right src/dst, right length.
+        tb.assert_engine_matches_descriptors()
+
         # Get performance stats
         stats = tb.get_performance_stats(channel)
         if stats:
@@ -395,6 +404,138 @@ async def cocotb_test_stream_top_basic(dut):
         tb.log.info(f"Coverage saved for {test_name}")
 
     tb.log.info("\n=== Test Complete - All channels verified ===")
+
+
+async def _ext_setup(dut):
+    """Common bring-up for the extended (USE_ROW_COL_MAJOR_ADDRESSING=1) tests:
+    APB config, enable, transfer-beats, descriptor range, scheduler timeout."""
+    num_channels = int(os.environ.get('NUM_CHANNELS', '8'))
+    tb = StreamCoreTB(
+        dut=dut, num_channels=num_channels, addr_width=64,
+        data_width=int(os.environ.get('DATA_WIDTH', '512')),
+        axi_id_width=int(os.environ.get('AXI_ID_WIDTH', '8')),
+        fifo_depth=int(os.environ.get('FIFO_DEPTH', '4096')),
+        apb_addr_width=12, apb_data_width=32,
+    )
+    await tb.setup_clocks_and_reset(rd_xfer_beats=16, wr_xfer_beats=16)
+    await tb.init_apb_master()
+    await tb.enable_global()
+    await tb.enable_channel_mask((1 << num_channels) - 1)
+    await tb.configure_transfer_beats(rd_xfer_beats=16, wr_xfer_beats=16)
+    await tb.configure_descriptor_address_range()
+    await tb.program_scheduler_timeout(
+        num_channels=num_channels, max_xfer_beats=256, profile='fast')
+    return tb
+
+
+def _fill_src(tb, src_addr, tag, beats):
+    """Distinct per-beat pattern (tag in high nibble) so a permutation is visible."""
+    bpb = tb.data_bytes
+    for beat in range(beats):
+        pat = ((tag << 4) | (beat & 0xF)) & 0xFF
+        data = int.from_bytes(bytes([pat] * bpb), byteorder='little')
+        tb.write_source_data(src_addr + beat * bpb, data, bpb)
+
+
+def _beat_multiset(tb, model, mem_base, region, beats):
+    """Sorted list of a region's beat-values (for the transpose permutation check)."""
+    bpb = tb.data_bytes
+    return sorted(bytes(model.read((region - mem_base) + b * bpb, bpb))
+                  for b in range(beats))
+
+
+@cocotb.test(timeout_time=50000, timeout_unit="us")
+async def cocotb_test_stream_top_extended(dut):
+    """MIXED legacy + extended (TASK-101 row/col) descriptors in ONE run,
+    covering the paths that are known-good:
+      - channel 0: legacy -> extended-contiguous CHAIN (both formats mixed in a
+        single descriptor chain; data-verified byte-for-byte + scoreboard)
+      - channel 1: extended TRANSPOSE, kicked directly (strided/per-beat write
+        datapath; permutation-verified + scoreboard)
+    Proves both formats are fetched and that every engine rd/wr AXI cycle matches
+    the programmed descriptors (format-agnostic scoreboard). The chained-transpose
+    corner is broken in RTL and covered separately (see the xfail test)."""
+    tb = await _ext_setup(dut)
+    bpb = tb.data_bytes
+    beats = 16
+
+    # --- channel 0: legacy -> extended-contiguous chain (both formats) --------
+    ch = 0
+    bs, bd = tb.src_mem_base + ch * 0x400000, tb.dst_mem_base + ch * 0x400000
+    db = tb.desc_mem_base + ch * 0x10000
+    s0s, s0d = bs + 0 * 0x10000, bd + 0 * 0x10000
+    s1s, s1d = bs + 1 * 0x10000, bd + 1 * 0x10000
+    _fill_src(tb, s0s, 0x1, beats)
+    _fill_src(tb, s1s, 0x2, beats)
+    tb.write_descriptor(addr=db + 0x00, src_addr=s0s, dst_addr=s0d, length=beats,
+                        next_ptr=db + 0x40, channel_id=ch, last=False, interrupt=False)
+    contig = {'s0': bpb, 's1': 0, 'inner': beats}       # index_0 walks all beats
+    tb.write_ext_descriptor(addr=db + 0x40, src_addr=s1s, dst_addr=s1d, beats=beats,
+                            rd=contig, wr=contig, channel_id=ch, next_ptr=0, last=True)
+    await tb.kick_off_channel(ch, db)
+    await tb.wait_for_channel_idle(ch, timeout_us=600)
+    assert tb.verify_transfer(s0s, s0d, beats), "legacy contiguous data mismatch"
+    assert tb.verify_transfer(s1s, s1d, beats), "extended contiguous data mismatch"
+
+    # --- channel 1: extended transpose, kicked directly -----------------------
+    ch = 1
+    bs, bd = tb.src_mem_base + ch * 0x400000, tb.dst_mem_base + ch * 0x400000
+    db = tb.desc_mem_base + ch * 0x10000
+    ts, td = bs + 0 * 0x10000, bd + 0 * 0x10000
+    _fill_src(tb, ts, 0x3, beats)
+    C = 4                                                # 4x4 grid = 16 beats
+    rd_t = {'s0': bpb,     's1': C * bpb, 'inner': C}    # row-major read (linear)
+    wr_t = {'s0': C * bpb, 's1': bpb,     'inner': C}    # column-major write
+    tb.write_ext_descriptor(addr=db + 0x00, src_addr=ts, dst_addr=td, beats=beats,
+                            rd=rd_t, wr=wr_t, channel_id=ch, next_ptr=0, last=True)
+    await tb.kick_off_channel(ch, db)
+    await tb.wait_for_channel_idle(ch, timeout_us=600)
+    assert (_beat_multiset(tb, tb.src_memory_model, tb.src_mem_base, ts, beats) ==
+            _beat_multiset(tb, tb.dst_memory_model, tb.dst_mem_base, td, beats)), \
+        "extended transpose did not move every beat exactly once"
+
+    # THE required checks across BOTH channels: both formats fetched, and every
+    # engine rd/wr cycle matches the programmed descriptors.
+    tb.assert_descriptors_fetched()
+    tb.assert_engine_matches_descriptors()
+    tb.log.info("\n=== MIXED legacy+extended verified: legacy->ext-contig chain + "
+                "transpose datapath (fetch + rd/wr scoreboard + data/permutation) ===")
+
+
+@cocotb.test(timeout_time=50000, timeout_unit="us")
+async def cocotb_test_stream_top_extended_chained_transpose(dut):
+    """KNOWN-FAILING corner: a strided/per-beat extended (transpose) descriptor
+    reached via next_ptr CHAINING is broken -- it reads the wrong source and
+    writes with holes, and also corrupts the preceding descriptor's last beat.
+    A directly-kicked transpose and a chained extended-CONTIGUOUS descriptor both
+    work; only chained + strided fails. Tracked in known_issues (STREAM extended
+    chained-transpose). This test asserts the CORRECT behaviour so it xfails until
+    the RTL is fixed (and xpasses -- flagging removal of the xfail -- once fixed)."""
+    tb = await _ext_setup(dut)
+    bpb = tb.data_bytes
+    beats = 16
+    ch = 0
+    bs, bd = tb.src_mem_base + ch * 0x400000, tb.dst_mem_base + ch * 0x400000
+    db = tb.desc_mem_base + ch * 0x10000
+    s0s, s0d = bs + 0 * 0x10000, bd + 0 * 0x10000
+    ts, td = bs + 2 * 0x10000, bd + 2 * 0x10000
+    _fill_src(tb, s0s, 0x1, beats)
+    _fill_src(tb, ts, 0x3, beats)
+    C = 4
+    rd_t = {'s0': bpb,     's1': C * bpb, 'inner': C}
+    wr_t = {'s0': C * bpb, 's1': bpb,     'inner': C}
+    tb.write_descriptor(addr=db + 0x00, src_addr=s0s, dst_addr=s0d, length=beats,
+                        next_ptr=db + 0x40, channel_id=ch, last=False, interrupt=False)
+    tb.write_ext_descriptor(addr=db + 0x40, src_addr=ts, dst_addr=td, beats=beats,
+                            rd=rd_t, wr=wr_t, channel_id=ch, next_ptr=0, last=True)
+    await tb.kick_off_channel(ch, db)
+    await tb.wait_for_channel_idle(ch, timeout_us=600)
+    assert tb.verify_transfer(s0s, s0d, beats), \
+        "preceding legacy descriptor corrupted by chained transpose"
+    assert (_beat_multiset(tb, tb.src_memory_model, tb.src_mem_base, ts, beats) ==
+            _beat_multiset(tb, tb.dst_memory_model, tb.dst_mem_base, td, beats)), \
+        "chained transpose did not move every beat exactly once"
+    tb.assert_engine_matches_descriptors()
 
 
 # ==============================================================================
@@ -533,6 +674,118 @@ def test_stream_top_basic(request, params):
         print(f"❌ Stream top test failed: {str(e)}")
         print(f"Logs: {log_path}")
         raise
+
+
+def _run_extended(testcase, name_suffix):
+    """Build stream_top_ch8 with USE_ROW_COL_MAJOR_ADDRESSING=1 and run one
+    extended-descriptor cocotb testcase (fixed config: 8ch, 512b)."""
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_stream_top': '../../../../rtl/stream_top',
+        'rtl_stream_macro': '../../../../rtl/stream_macro',
+        'rtl_stream_fub': '../../../../rtl/stream_fub',
+        'rtl_amba': '../../../../../rtl/amba',
+    })
+
+    dut_name = "stream_top_ch8"
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/dmas/stream/rtl/filelists/top/stream_top_ch8.f'
+    )
+
+    rtl_parameters = {
+        'NUM_CHANNELS': 8,
+        'DATA_WIDTH': 512,
+        'ADDR_WIDTH': 64,
+        'USE_ROW_COL_MAJOR_ADDRESSING': 1,   # ← enable the extended (row/col) path
+        'SRAM_DEPTH': 4096,
+        'APB_ADDR_WIDTH': 12,
+        'APB_DATA_WIDTH': 32,
+        'USE_AXI_MONITORS': 0,
+        'CDC_ENABLE': 0,
+    }
+
+    test_name_plus_params = f"test_{dut_name}_{name_suffix}"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        'NUM_CHANNELS': '8',
+        'DATA_WIDTH': '512',
+        'FIFO_DEPTH': '4096',
+        'AXI_ID_WIDTH': '8',
+        'APB_ADDR_WIDTH': '12',
+        'APB_DATA_WIDTH': '32',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+    }
+    extra_env.update(get_coverage_env(test_name_plus_params, sim_build=sim_build))
+
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps"]
+        sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
+    else:
+        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
+        sim_args = []
+
+    compile_args.extend([
+        "-Wno-WIDTH", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD", "-Wno-SELRANGE",
+        "-Wno-UNUSEDSIGNAL", "-Wno-UNDRIVEN", "-Wno-MULTIDRIVEN",
+    ])
+    compile_args.extend(get_coverage_compile_args())
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    from cocotb_test.simulator import run
+
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=dut_name,
+        module=module,
+        testcase=testcase,
+        parameters=rtl_parameters,
+        compile_args=compile_args,
+        sim_args=sim_args,
+        extra_env=extra_env,
+        sim_build=sim_build,
+        waves=enable_waves,
+        keep_files=True,
+        simulator='verilator',
+        plus_args=['--trace'] if enable_waves else [],
+    )
+    print(f"✓ Stream top {name_suffix} test completed! Logs: {log_path}")
+
+
+def test_stream_top_extended(request):
+    """Mixed legacy + extended descriptors (USE_ROW_COL_MAJOR_ADDRESSING=1,
+    TASK-101): legacy->ext-contiguous chain + directly-kicked transpose."""
+    _run_extended("cocotb_test_stream_top_extended", "extended_mixed")
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "STREAM extended chained-transpose bug: a strided/per-beat extended "
+    "descriptor reached via next_ptr chaining reads the wrong source, writes "
+    "with holes, and corrupts the preceding descriptor. See "
+    "projects/components/dmas/stream/known_issues/. Directly-kicked transpose "
+    "and chained ext-contiguous both pass."))
+def test_stream_top_extended_chained_transpose(request):
+    """xfail: chained + strided extended descriptor (known RTL bug). Asserts the
+    CORRECT behaviour, so it xpasses (loudly) once the RTL is fixed."""
+    _run_extended("cocotb_test_stream_top_extended_chained_transpose",
+                  "extended_chained_transpose")
 
 
 # ==============================================================================
