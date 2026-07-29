@@ -46,3 +46,16 @@ over all READMEs (DOCREV-007) - writing-in-voice is the floor, not an exemption.
 The no-emoji / no-LLM-ism / plain-declarative rules bind a README identically to
 a module page. Guide content that moves from a bloated README into
 `docs/markdown/` becomes bundle-able and picks up the normal pass too.
+
+## Unify formatting and structure as you go (Sean, 2026-07-28)
+
+The voice pass ALSO normalizes presentation across the area's pages: one
+heading style and hierarchy, one table style per table kind (parameter, port,
+latency), one section ordering per page kind -- the book should read as one
+document, not pages written years apart. **Worked examples are exempt:**
+step-by-step walkthroughs (waveform analyses, reset scenarios, numeric
+traces) keep their didactic structure; forcing those into the uniform mold
+destroys how they teach. Pipeline structure still survives byte-identical
+(captions, anchors, link targets) -- unification is cosmetic, never
+structural in the machine-readable sense. Carried in the run_batch.py
+humanize prompt wrapper, not the owner's style guide.
