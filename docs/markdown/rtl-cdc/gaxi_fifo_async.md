@@ -37,7 +37,7 @@ The GAXI asynchronous FIFO moves data safely between independent clock domains. 
 
 - ✅ **Clock Domain Crossing:** Safe transfer between independent clocks
 - ✅ **Gray Code Pointers:** Prevents multi-bit synchronization issues
-- ✅ **Configurable CDC Stages:** 2-3 flop synchronizers (3 recommended)
+- ✅ **Configurable CDC Stages:** 2-4 flop synchronizers (3 recommended; 4 for ultra-critical systems)
 - ✅ **Arbitrary Clock Ratios:** Works with any write:read clock ratio
 - ✅ **Two Read Modes:** Mux or Flop mode
 

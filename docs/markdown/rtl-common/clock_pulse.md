@@ -785,8 +785,10 @@ module tb_clock_pulse;
         begin
             $display("Testing basic pulse generation (WIDTH=%0d)...", WIDTH);
             
-            // Monitor for several pulse periods
-            repeat (WIDTH * 3) begin
+            // Monitor for several pulse periods. WIDTH*3 + 1 edges: `@(posedge clk)`
+            // resumes BEFORE the NBA update, so pulses are first visible at edges
+            // WIDTH+1, 2*WIDTH+1, 3*WIDTH+1 (see test_reset_behavior for the trace).
+            repeat (WIDTH * 3 + 1) begin
                 @(posedge clk);
                 cycle_count++;
                 if (pulse) pulse_count++;

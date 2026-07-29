@@ -414,3 +414,32 @@ The REFUTED one (last above) was the absent-evidence failure again:
 apb_slave_cdc_cg.sv was golden in part_01 but the finding was in part_02.
 `augment_golden_deps.py` now unions refs across ALL units given (and is
 idempotent — re-runs replace the golden section instead of appending).
+
+**cdc (round_4, 2026-07-28) — FINAL under the impact-stop policy.** 5
+findings, all real, 0 FP (verifier: 2 UPHELD, 3 UNCERTAIN, 0 REFUTED — rule
+4 is routing borderline cases to UNCERTAIN as designed; all three UNCERTAIN
+were real on triage):
+
+- cdc.md open-loop "minimum spacing SYNC_STAGES + 1 destination clocks" —
+  TRAP-class: at defaults (STRETCH_CYCLES=8, SYNC_STAGES=2) a 3-clock
+  spacing is silently swallowed by the capture guard; the real rule is
+  STRETCH_CYCLES source clocks. Both occurrences fixed (round_3's
+  first-vs-new fix had preserved the bad spacing claim).
+- counter_johnson.md shift direction backwards ("lower bits" — the slice
+  lands in next_state[WIDTH-1:1]).
+- gaxi_fifo_async.md Key Features "2-3 flop" vs its own "4 /
+  Ultra-critical" row and "3 or 4" advice (RTL range is 2-5).
+- cdc.md two stale line citations into cdc_2_phase_handshake.sv (:182 -> :261
+  for w_req_event; :250-251 -> :252-253 for the resets).
+- clock_pulse.md example testbench off-by-one vs its own NBA analysis:
+  pulses are visible at edges WIDTH+1, 2W+1, 3W+1, so WIDTH*3 edges catch
+  only 2 and the example $errors as written. Loop now runs WIDTH*3+1 edges
+  with a comment pointing at the NBA trace.
+
+**cdc is DONE (Sean, 2026-07-28):** round_4 was declared the final round up
+front; everything it found is fixed above. Honest footnote: it DID produce
+one trap-class finding, so a strict reading of the impact rule would argue
+for round_5 — the residual risk is accepted and falls to the AUDIT-001
+closing pass. Four reset-corpus rounds: 3+4+5+5 = 17 real findings, 1 FP,
+0 RTL changes. Next per the plan: humanize cdc, then the test audit
+([[test-review]]).

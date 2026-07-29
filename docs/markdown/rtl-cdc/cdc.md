@@ -125,7 +125,7 @@ receiver has no absolute reference -- it only knows whether the synchronized
 toggle differs from its previous sample:
 
 ```systemverilog
-assign w_req_event = w_req_sync ^ r_req_sync_d;   // cdc_2_phase_handshake.sv:182
+assign w_req_event = w_req_sync ^ r_req_sync_d;   // cdc_2_phase_handshake.sv:261
 ```
 
 That XOR is the entire protocol state. Each side resets its own flops:
@@ -135,7 +135,7 @@ That XOR is the entire protocol state. Each side resets its own flops:
 | `r_req_tog` | source | `rst_src_n` | `1'b0` (`:190`) |
 | `r_ack_sync`, `r_ack_sync_d` | source | `rst_src_n` | `1'b0` (`:173-174`) |
 | `r_ack_tog` | destination | `rst_dst_n` | `1'b0` |
-| `r_req_sync`, `r_req_sync_d` | destination | `rst_dst_n` | `1'b0` (`:250-251`) |
+| `r_req_sync`, `r_req_sync_d` | destination | `rst_dst_n` | `1'b0` (`:252-253`) |
 
 : 2-phase handshake reset domains per flop
 
@@ -407,8 +407,9 @@ data-carrying crossings -- at the cost of no backpressure.
 
 **The failure mode to watch:** sending a new transfer before the previous one is
 sampled. Without an acknowledge the source cannot know the destination latched
-the data. Respect `src_busy`, or space transfers by at least
-`SYNC_STAGES + 1` destination clocks.
+the data. Respect `src_busy`, or space transfers by at least `STRETCH_CYCLES`
+source clocks (the busy window; the sizing rule makes it >= `SYNC_STAGES + 1`
+destination clocks).
 
 ---
 
@@ -919,8 +920,8 @@ proceeded. Use depth >= 4.
 **4. Open-loop transfer before the previous one is sampled.** Without an ack the
 NEW transfer is silently dropped -- the capture guard (`src_valid && !src_busy`)
 ignores a pulse that arrives while the previous one is still crossing, and the
-first transfer completes. Minimum spacing `SYNC_STAGES + 1` destination
-clocks.
+first transfer completes. Minimum spacing `STRETCH_CYCLES` source clocks (the
+busy window; sized >= `SYNC_STAGES + 1` destination clocks).
 
 **5. Choosing 2-phase for speed without checking the reset domains.** See
 [Reset Considerations](#reset-considerations). This one has cost real silicon

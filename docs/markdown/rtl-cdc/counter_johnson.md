@@ -94,7 +94,7 @@ end
 ```
 
 ### Operation Breakdown
-1. **Shift Operation**: `counter_gray[WIDTH-2:0]` → lower bits of next state
+1. **Shift Operation**: `counter_gray[WIDTH-2:0]` → upper bits of next state (`next_state[WIDTH-1:1]`)
 2. **Feedback**: `~counter_gray[WIDTH-1]` → MSB complement becomes new LSB
 3. **Enable Control**: Only advance when `enable` is asserted
 4. **Reset**: All bits cleared on reset
