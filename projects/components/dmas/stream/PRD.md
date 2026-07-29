@@ -590,8 +590,7 @@ projects/components/dmas/stream/dv/tests/
 │   ├── test_perf_profiler.py
 │   └── test_stream_latency_bridge.py
 ├── macro/                      # Multi-block scenarios (stream_core, datapaths)
-├── top/                        # Top-level (stream_top_ch8) tests
-└── performance_tests/          # Performance regression tests
+└── top/                        # Top-level (stream_top_ch8) tests
 ```
 
 ### 11.2 Test Levels

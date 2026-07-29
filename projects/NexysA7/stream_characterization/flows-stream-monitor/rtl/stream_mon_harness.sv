@@ -2161,16 +2161,11 @@ module stream_mon_harness #(
         .mon_compressor_stat_event_data_ovf (mon_comp_event_data_ovf),
         .mon_compressor_stat_ed_delta_ovf   (mon_comp_ed_delta_ovf),
 
-        // Monitor capture region: point monbus_axil_group's master
-        // writes at debug_sram (0x0004_0000, 256 KB). Each record is
-        // 24 bytes (packet[63:0], packet[127:64], source_ts[63:0]);
-        // the 256 KB window therefore holds 262144/24 ~= 10923
-        // records before wrap.
-        .cfg_mon_base_addr  (32'h0004_0000),
-        .cfg_mon_limit_addr (32'h0004_0000 + 32'(DEBUG_SRAM_WORDS) * 32'h4 - 32'h1),
-        // Flush a bulk-trace burst once 24 beats (8 records) are buffered;
-        // FLUSH_TIMEOUT_CYCLES backstops a partial tail.
-        .cfg_mon_flush_watermark (16'd24),
+        // Monitor capture region + flush watermark are INTERNAL MON CSRs now
+        // (MON_GROUP_BASE_ADDR/LIMIT_ADDR/FLUSH_WATERMARK @ 0x1260/64/68). The
+        // RDL defaults (base 0x40000, limit 0x7FFFF, watermark 0 = flush every
+        // complete record) reproduce the old capture-at-debug_sram wiring, and
+        // the host reprograms them by name. No cfg_mon_* port here anymore.
 
         // Debug outputs (unconnected at top level)
         .debug_hwif_scheduler_idle  (obs_sched_idle),

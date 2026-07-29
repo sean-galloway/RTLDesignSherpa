@@ -5,9 +5,33 @@ summary: Verilator code coverage, functional bar, monbus packet-type matrix.
 
 # Coverage
 
-- Code coverage: Verilator --coverage via component flows (COVERAGE=1);
-  measure the RTL under test, not the TB. Rollout tracker: val/COVERAGE_TODO.md.
+- Code coverage: Verilator --coverage, measure the RTL under test, not the TB.
   Long-form methodology: docs/user-guides/rtl_coverage_guidelines.md.
+- How to run it (GENERIC, one implementation): the toggle and the report both
+  live in the base `make/tests.mk`, so every area that includes it (val/common,
+  val/amba, cdc, math, and each stream fub/macro/top) gets them with no
+  per-area/per-component replication:
+    - collect: `COVERAGE=1 make run-all-<gate|func|full>[-parallel]` -- injects
+      the `COVERAGE` env every area's conftest already reads (Verilator line
+      coverage). Off by default = byte-for-byte unchanged.
+    - report: `make coverage-report` -> `bin/cov_utils/merge_testlevel_coverage.py`
+      (recursive globs, so it works at a leaf area AND at a dispatcher that spans
+      sub-areas -> a merged component report). Output:
+      `coverage_reports/latest_coverage_report.md`.
+    - area-specific extras stay OUT of the base: e.g. STREAM's legal-set mode is
+      `COVERAGE=1 COVERAGE_LEGAL=1 make ...` (shell env), inert to val areas.
+  Do NOT re-add copied `coverage-*` run targets or per-Makefile `coverage-report`
+  targets -- that replication is exactly what the base file replaced.
+- One conftest implementation too: every area's `conftest.py` delegates coverage
+  collection + session-end aggregation to `bin/cov_utils/conftest_base.py`
+  (`configure` / `sessionfinish` / `ignore_collect`) + `conftest_coverage.py`
+  (`aggregate_verilator_coverage` for line, `aggregate_protocol_coverage`, and
+  `get_coverage_compile_args` re-exported for test wrappers). bridge, converters,
+  val/common|cdc|amba|math and stream fub/macro/top all use it; an area conftest
+  keeps ONLY its local bits (sys.path for its test-helper imports, area fixtures
+  like `test_level`). Do NOT paste an `_aggregate_coverage` /
+  `_generate_coverage_report` block into a conftest -- that per-area duplication
+  (stream was 3x274 lines, the val family 4x154) is what the shared base replaced.
 - Functional: >95 percent of the block contract, 100 percent pass rate.
 - Packet-type matrix (monitor board gate): MONBUS_COVERAGE=1 during val/amba
   records every decoded (protocol, pkt_type, event_code) tuple;

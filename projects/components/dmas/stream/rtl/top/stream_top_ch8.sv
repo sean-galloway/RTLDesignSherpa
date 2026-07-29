@@ -283,17 +283,11 @@ module stream_top_ch8 #(
     // Monitor capture region (used by monbus_axil_group's master writes when
     // USE_AXI_MONITORS=1). The SoC integrator points these at whatever
     // memory region collects the dumped packets -- in stream_char that's
-    // debug_sram at 0x0004_0000+. Defaults to {0,0} (writes pinned to
-    // address 0; effectively disables capture) so the existing tests
-    // that don't drive these ports still get the legacy behaviour.
-    // Ignored when USE_AXI_MONITORS=0.
-    input  logic [31:0]                             cfg_mon_base_addr,
-    input  logic [31:0]                             cfg_mon_limit_addr,
-    // Master-write flush watermark (beats): the monbus group fires a
-    // bulk-trace burst once this many beats are buffered (or on
-    // FLUSH_TIMEOUT_CYCLES). Config input like base/limit; default 0
-    // (implicit input default) means flush-eagerly per record.
-    input  logic [15:0]                             cfg_mon_flush_watermark,
+    // debug_sram at 0x0004_0000+. The monbus-group master-write config
+    // (base/limit/flush-watermark) is NO LONGER a top-level port: it is now
+    // internal MON CSRs (MON_GROUP_BASE_ADDR/LIMIT_ADDR/FLUSH_WATERMARK @
+    // 0x260/0x264/0x268) the host programs by name. Ignored when
+    // USE_AXI_MONITORS=0.
 
     //-------------------------------------------------------------------------
     // Debug Outputs - expose hwif_in values for testbench probing
@@ -2075,11 +2069,11 @@ module stream_top_ch8 #(
                 // whatever memory captures the dumped packets. Default
                 // is {0,0} via the implicit input default -- behaves
                 // the same as the previous hard-coded tie-off.
-                .cfg_base_addr      (cfg_mon_base_addr),
-                .cfg_limit_addr     (cfg_mon_limit_addr),
-                // Flush watermark (beats) -- driven from the top-level
-                // cfg input alongside base/limit (no hardcoded constant).
-                .cfg_flush_watermark (cfg_mon_flush_watermark),
+                // Master-write window + flush watermark are INTERNAL MON CSRs
+                // now (host programs by name), not top-level cfg ports.
+                .cfg_base_addr      (hwif_out.MON.MON_GROUP_BASE_ADDR.VALUE.value),
+                .cfg_limit_addr     (hwif_out.MON.MON_GROUP_LIMIT_ADDR.VALUE.value),
+                .cfg_flush_watermark (hwif_out.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.value),
                 // Runtime compression enable -- host-controllable via
                 // WRMON_ENABLE.COMPRESS_EN (1=compress, 0=raw 3-beat).
                 .cfg_compress_en     (hwif_out.MON.WRMON_ENABLE.COMPRESS_EN.value),

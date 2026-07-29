@@ -5,7 +5,7 @@ package stream_regs_pkg;
 
     localparam STREAM_REGS_DATA_WIDTH = 32;
     localparam STREAM_REGS_MIN_ADDR_WIDTH = 13;
-    localparam STREAM_REGS_SIZE = 'h1254;
+    localparam STREAM_REGS_SIZE = 'h126c;
 
     typedef struct {
         logic next;
@@ -1209,6 +1209,30 @@ package stream_regs_pkg;
     } stream_mon_regs__WRMON_ADDR_RANGE_CTRL__out_t;
 
     typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__MON_GROUP_BASE_ADDR__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__MON_GROUP_BASE_ADDR__VALUE__out_t VALUE;
+    } stream_mon_regs__MON_GROUP_BASE_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__MON_GROUP_LIMIT_ADDR__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__MON_GROUP_LIMIT_ADDR__VALUE__out_t VALUE;
+    } stream_mon_regs__MON_GROUP_LIMIT_ADDR__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } stream_mon_regs__MON_GROUP_FLUSH_WATERMARK__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__MON_GROUP_FLUSH_WATERMARK__VALUE__out_t VALUE;
+    } stream_mon_regs__MON_GROUP_FLUSH_WATERMARK__out_t;
+
+    typedef struct {
         stream_mon_regs__DAXMON_ENABLE__out_t DAXMON_ENABLE;
         stream_mon_regs__DAXMON_TIMEOUT__out_t DAXMON_TIMEOUT;
         stream_mon_regs__DAXMON_LATENCY_THRESH__out_t DAXMON_LATENCY_THRESH;
@@ -1254,6 +1278,9 @@ package stream_regs_pkg;
         stream_mon_regs__WRMON_ADDR_RANGE3_LOW__out_t WRMON_ADDR_RANGE3_LOW;
         stream_mon_regs__WRMON_ADDR_RANGE3_HIGH__out_t WRMON_ADDR_RANGE3_HIGH;
         stream_mon_regs__WRMON_ADDR_RANGE_CTRL__out_t WRMON_ADDR_RANGE_CTRL;
+        stream_mon_regs__MON_GROUP_BASE_ADDR__out_t MON_GROUP_BASE_ADDR;
+        stream_mon_regs__MON_GROUP_LIMIT_ADDR__out_t MON_GROUP_LIMIT_ADDR;
+        stream_mon_regs__MON_GROUP_FLUSH_WATERMARK__out_t MON_GROUP_FLUSH_WATERMARK;
     } stream_mon_regs__out_t;
 
     typedef struct {

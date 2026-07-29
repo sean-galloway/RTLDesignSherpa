@@ -185,9 +185,8 @@ projects/components/dmas/stream/
 │   └── tests/
 │       ├── fub/            # Individual block tests
 │       ├── macro/          # Multi-block tests
-│       ├── top/            # Top-level tests
-│       └── performance_tests/  # Performance regressions
-├── bin/                    # DMA model + coverage/report tooling
+│       └── top/            # Top-level tests
+├── bin/                    # coverage/report + regmap tooling
 ├── docs/
 │   ├── stream_has/         # HAS spec tree (+ built PDFs)
 │   └── stream_mas/         # MAS spec tree (+ built PDFs)

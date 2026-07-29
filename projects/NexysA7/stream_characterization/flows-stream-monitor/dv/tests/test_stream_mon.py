@@ -199,9 +199,16 @@ async def cocotb_test_stream_mon(dut):
         dut._log.info(f"[profile] STREAM dense bins={dense} "
                       f"rd(agent9)={rd_hits} wr(agent10)={wr_hits} "
                       f"UNEXPECTED={dense.get(UNEXPECTED, 0)}")
+        # Did the monbus groups even WRITE their m_axil masters? This isolates
+        # "no records emitted" (probe=0) from "emitted but not binned" (probe>0).
+        dut._log.info(f"[profile] m_axil awvalid rising-edges: "
+                      f"STREAM(mon)={_emit['stream_mon_awvalid']} "
+                      f"SLAVE(slmon)={_emit['slave_slmon_awvalid']}")
         assert rd_hits > 0 and wr_hits > 0, (
             f"per-agent AddrMatch not resolved in the profile tally: "
-            f"rd(bin0)={rd_hits} wr(bin1)={wr_hits} (CAM load or agent binning failed)")
+            f"rd(bin0)={rd_hits} wr(bin1)={wr_hits} (CAM load or agent binning failed); "
+            f"m_axil awvalid edges STREAM={_emit['stream_mon_awvalid']} "
+            f"SLAVE={_emit['slave_slmon_awvalid']}")
         return
 
     # Read BOTH tally SRAMs over the same UART (distinct address spaces).
@@ -307,8 +314,12 @@ def _run_stream_mon(request, profile=False):
         # unroll them (BLKLOOPINIT) — raise the unroll budget for the monitor
         # transaction tables (AMBA guide note).
         "--unroll-count", "4096", "--unroll-stmts", "20000",
-        "--trace-fst", "--trace-structs", "--trace-depth", "99",
     ]
+    # Tracing this whole harness every clock is ~1000x slower than the sim
+    # itself — build/emit the FST ONLY when WAVES=1. Without it the monitors-on
+    # profile sim runs in minutes, not the 30-min+ wall it hit before.
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
     run(
         python_search=[tests_dir, perf_dv_tests, perf_host],
         verilog_sources=verilog_sources, includes=includes,
@@ -316,7 +327,8 @@ def _run_stream_mon(request, profile=False):
         parameters=rtl_parameters, sim_build=sim_build, extra_env=extra_env,
         keep_files=True, compile_args=compile_args,
         waves=enable_waves,
-        sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
+        sim_args=(["--trace", "--trace-structs", "--trace-depth", "99"]
+                  if enable_waves else []),
         plus_args=['--trace'] if enable_waves else [],
     )
 

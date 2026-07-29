@@ -8,7 +8,7 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x1254
+- Size: 0x126C
 
 <p>Configuration and status registers for 8-channel STREAM DMA engine with full monitor control</p>
 
@@ -995,7 +995,7 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 - Absolute Address: 0x1000
 - Base Offset: 0x1000
-- Size: 0x254
+- Size: 0x26C
 
 <p>AXI monitor + perf registers (relocatable block, instantiated at 0x1000)</p>
 
@@ -1084,6 +1084,9 @@ acceptance cross-check against the perf-window burst counters.</p>
 | 0x248|  WRMON_ADDR_RANGE3_LOW  |                WR addr range3 low                |
 | 0x24C|  WRMON_ADDR_RANGE3_HIGH |                WR addr range3 high               |
 | 0x250|  WRMON_ADDR_RANGE_CTRL  |               WR addr range control              |
+| 0x260|   MON_GROUP_BASE_ADDR   |              Monbus group base addr              |
+| 0x264|   MON_GROUP_LIMIT_ADDR  |              Monbus group limit addr             |
+| 0x268|MON_GROUP_FLUSH_WATERMARK|             Monbus group flush wmark             |
 
 ### MON_FIFO_STATUS register
 
@@ -2677,3 +2680,39 @@ that 16-bit per-channel bucket wrapped during the window.</p>
 #### MISS_EN field
 
 <p>ERROR/miss path enable (drives cfg_error_enable)</p>
+
+### MON_GROUP_BASE_ADDR register
+
+- Absolute Address: 0x1260
+- Base Offset: 0x260
+- Size: 0x4
+
+<p>Master-write window inclusive low bound (monbus bulk-trace)</p>
+
+|Bits|Identifier|Access| Reset |Name|
+|----|----------|------|-------|----|
+|31:0|   VALUE  |  rw  |0x40000|  — |
+
+### MON_GROUP_LIMIT_ADDR register
+
+- Absolute Address: 0x1264
+- Base Offset: 0x264
+- Size: 0x4
+
+<p>Master-write window inclusive high bound (monbus bulk-trace)</p>
+
+|Bits|Identifier|Access| Reset |Name|
+|----|----------|------|-------|----|
+|31:0|   VALUE  |  rw  |0x7FFFF|  — |
+
+### MON_GROUP_FLUSH_WATERMARK register
+
+- Absolute Address: 0x1268
+- Base Offset: 0x268
+- Size: 0x4
+
+<p>Flush burst once this many beats buffered; 0 = flush every complete record</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|15:0|   VALUE  |  rw  | 0x0 |  — |

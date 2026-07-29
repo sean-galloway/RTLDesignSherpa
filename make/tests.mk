@@ -76,6 +76,19 @@ PYTEST_OPTS = $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_RERUNS) $(PYTEST_EXTR
 _xdist_parallel = -n $(JOBS) $(PYTEST_DIST)
 _xdist_serial   =
 
+# Coverage: a single opt-in toggle instead of a parallel family of coverage-*
+# targets in every area Makefile. `COVERAGE=1 make run-all-func` runs the SAME
+# run targets with the coverage env EVERY area's conftest already reads
+# (val/common, val/amba, cdc, math, stream -- all gate on os.environ['COVERAGE']).
+# Generic on purpose: only the universal COVERAGE flag is injected here. This
+# re-exports it for the `make ... COVERAGE=1` make-var form; the
+# `COVERAGE=1 make ...` shell-env form already reaches pytest on its own.
+# Area-specific extras (e.g. STREAM's COVERAGE_LEGAL legal-set mode) are NOT
+# baked in -- pass them as shell env: `COVERAGE=1 COVERAGE_LEGAL=1 make ...`.
+# Off by default, so unset leaves every invocation byte-for-byte unchanged.
+COVERAGE ?=
+_cov_env := $(if $(filter 1,$(COVERAGE)),COVERAGE=1 ,)
+
 # ------------------------------------------------------------------------------
 # R3: discover tests by globbing. Nothing is enumerated.
 # ------------------------------------------------------------------------------
@@ -140,7 +153,7 @@ _run_glob = files=$$(ls test_$(4).py 2>/dev/null); \
 	echo "=============================================================================="; \
 	echo "$(AREA): test_$(4).py -> $$n file(s)  REG_LEVEL=$(1)$(if $(2),  workers=$(JOBS),  serial)$(if $(3),  waves=on)"; \
 	echo "=============================================================================="; \
-	REG_LEVEL=$(1) $(3)$(PYTEST) $(PYTEST_OPTS) $(2) $$files
+	REG_LEVEL=$(1) $(_cov_env)$(3)$(PYTEST) $(PYTEST_OPTS) $(2) $$files
 
 # --- 'all' is explicit: an explicit rule always beats a pattern rule, so
 # --- run-all-* can never be captured by run-%-* (stem 'all' would glob nothing)
@@ -151,7 +164,7 @@ run-all-$(1)$(call _sfx,$(3))$(call _sfx,$(4)):
 	@echo "=============================================================================="
 	@echo "$(AREA): all ($(words $(ROOTS)) tests)  REG_LEVEL=$(_reg_$(1))$(if $(filter parallel,$(2)),  workers=$$(JOBS),  serial)$(if $(filter waves,$(4)),  waves=on)"
 	@echo "=============================================================================="
-	REG_LEVEL=$(_reg_$(1)) $(if $(filter waves,$(4)),WAVES=1 )$$(PYTEST) $$(PYTEST_OPTS) $$(_xdist_$(2)) $$(TESTS)
+	REG_LEVEL=$(_reg_$(1)) $$(_cov_env)$(if $(filter waves,$(4)),WAVES=1 )$$(PYTEST) $$(PYTEST_OPTS) $$(_xdist_$(2)) $$(TESTS)
 endef
 
 # --- everything else is ONE pattern rule per variant: 18 rules total, covering
@@ -232,6 +245,21 @@ clean-all: clean-logs clean-pycache clean-build clean-waves
 	@echo "$(AREA): all test artifacts cleaned"
 
 clean: clean-all
+
+# ------------------------------------------------------------------------------
+# Coverage report (generic). Merges THIS area's collected line + protocol
+# coverage (from `COVERAGE=1 make run-...` runs) into a Markdown report. The same
+# target works in every area that includes this file; run at a dispatcher level
+# it merges across sub-areas too (the merge globs are recursive). This replaces
+# the per-component coverage-report targets that used to be copied into each
+# Makefile.
+# ------------------------------------------------------------------------------
+RDS_ROOT       ?= $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel))
+COV_REPORT_DIR ?= coverage_reports
+.PHONY: coverage-report
+coverage-report:
+	@python3 $(RDS_ROOT)/bin/cov_utils/merge_testlevel_coverage.py $(COV_REPORT_DIR) $(AREA)
+	@echo "$(AREA): coverage report -> $(COV_REPORT_DIR)/latest_coverage_report.md"
 
 # ------------------------------------------------------------------------------
 # Introspection

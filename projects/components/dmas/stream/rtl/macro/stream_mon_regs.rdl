@@ -1195,4 +1195,16 @@ regfile stream_mon_regs {
         field { desc = "ERROR/miss path enable (drives cfg_error_enable)";  sw=rw; hw=r; } MISS_EN[6:6]  = 1'b0;
     } WRMON_ADDR_RANGE_CTRL @ 0x250;
 
+    // ------------------------------------------------------------------
+    // Monbus GROUP master-write (bulk-trace) configuration. These were
+    // previously top-level cfg_mon_* ports on stream_top_ch8 driven by
+    // integration constants; they are now INTERNAL CSRs the host programs
+    // by name (no stream config at the top level). Defaults preserve the
+    // prior harness wiring (base 0x40000, full 256 KB window) except the
+    // flush watermark, which defaults to 0 = flush every complete record
+    // immediately so a small coverage burst reaches the tally.
+    reg { name = "Monbus group base addr";  desc = "Master-write window inclusive low bound (monbus bulk-trace)";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0004_0000; } MON_GROUP_BASE_ADDR  @ 0x260;
+    reg { name = "Monbus group limit addr"; desc = "Master-write window inclusive high bound (monbus bulk-trace)"; field { sw=rw; hw=r; } VALUE[31:0] = 32'h0007_FFFF; } MON_GROUP_LIMIT_ADDR @ 0x264;
+    reg { name = "Monbus group flush wmark"; desc = "Flush burst once this many beats buffered; 0 = flush every complete record"; field { sw=rw; hw=r; } VALUE[15:0] = 16'h0000; } MON_GROUP_FLUSH_WATERMARK @ 0x268;
+
 };

@@ -117,11 +117,12 @@ async def cocotb_test_stream_top_monbus(dut):
     for reg in MON_PKT_MASK_REGS:
         await tb.write_reg(reg, 0x0)
 
-    # Program the group flush window (top-level inputs) so the master-write
-    # path actually flushes (default 0/0 window stalls the writer).
-    dut.cfg_mon_base_addr.value = MON_BASE
-    dut.cfg_mon_limit_addr.value = MON_LIMIT
-    dut.cfg_mon_flush_watermark.value = MON_WMARK
+    # Program the group flush window via the INTERNAL MON CSRs (no longer
+    # top-level cfg_mon_* ports): base/limit set the master-write window and
+    # the watermark controls flush eagerness.
+    await tb.write_reg('MON_GROUP_BASE_ADDR',       MON_BASE)
+    await tb.write_reg('MON_GROUP_LIMIT_ADDR',      MON_LIMIT)
+    await tb.write_reg('MON_GROUP_FLUSH_WATERMARK', MON_WMARK)
     await ClockCycles(dut.aclk, 5)
 
     # Attach the shared harness to the stream monbus group and consume the
@@ -323,7 +324,11 @@ def test_stream_top_monbus(request, timing_profile):
     compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps",
                     "-Wno-WIDTH", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
                     "-Wno-SELRANGE", "-Wno-UNUSEDSIGNAL", "-Wno-UNDRIVEN",
-                    "-Wno-MULTIDRIVEN"]
+                    "-Wno-MULTIDRIVEN",
+                    # Monitor transaction tables do delayed array assignment in
+                    # per-slot loops; Verilator must unroll them (BLKLOOPINIT) or
+                    # a clean build fails. Matches the AMBA-guide sim note.
+                    "--unroll-count", "4096", "--unroll-stmts", "20000"]
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
         compile_args = ["--trace", "--trace-structs", "--trace-depth", "99"] + compile_args

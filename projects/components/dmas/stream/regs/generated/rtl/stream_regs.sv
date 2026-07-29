@@ -182,6 +182,9 @@ module stream_regs (
             logic WRMON_ADDR_RANGE3_LOW;
             logic WRMON_ADDR_RANGE3_HIGH;
             logic WRMON_ADDR_RANGE_CTRL;
+            logic MON_GROUP_BASE_ADDR;
+            logic MON_GROUP_LIMIT_ADDR;
+            logic MON_GROUP_FLUSH_WATERMARK;
         } MON;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
@@ -306,6 +309,9 @@ module stream_regs (
         decoded_reg_strb.MON.WRMON_ADDR_RANGE3_LOW = cpuif_req_masked & (cpuif_addr == 13'h1248);
         decoded_reg_strb.MON.WRMON_ADDR_RANGE3_HIGH = cpuif_req_masked & (cpuif_addr == 13'h124c);
         decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL = cpuif_req_masked & (cpuif_addr == 13'h1250);
+        decoded_reg_strb.MON.MON_GROUP_BASE_ADDR = cpuif_req_masked & (cpuif_addr == 13'h1260);
+        decoded_reg_strb.MON.MON_GROUP_LIMIT_ADDR = cpuif_req_masked & (cpuif_addr == 13'h1264);
+        decoded_reg_strb.MON.MON_GROUP_FLUSH_WATERMARK = cpuif_req_masked & (cpuif_addr == 13'h1268);
     end
 
     // Pass down signals to next stage
@@ -865,6 +871,24 @@ module stream_regs (
                     logic load_next;
                 } MISS_EN;
             } WRMON_ADDR_RANGE_CTRL;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } MON_GROUP_BASE_ADDR;
+            struct {
+                struct {
+                    logic [31:0] next;
+                    logic load_next;
+                } VALUE;
+            } MON_GROUP_LIMIT_ADDR;
+            struct {
+                struct {
+                    logic [15:0] next;
+                    logic load_next;
+                } VALUE;
+            } MON_GROUP_FLUSH_WATERMARK;
         } MON;
     } field_combo_t;
     field_combo_t field_combo;
@@ -1311,6 +1335,21 @@ module stream_regs (
                     logic value;
                 } MISS_EN;
             } WRMON_ADDR_RANGE_CTRL;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } MON_GROUP_BASE_ADDR;
+            struct {
+                struct {
+                    logic [31:0] value;
+                } VALUE;
+            } MON_GROUP_LIMIT_ADDR;
+            struct {
+                struct {
+                    logic [15:0] value;
+                } VALUE;
+            } MON_GROUP_FLUSH_WATERMARK;
         } MON;
     } field_storage_t;
     field_storage_t field_storage;
@@ -3756,6 +3795,75 @@ module stream_regs (
         end
     end
     assign hwif_out.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value = field_storage.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value;
+    // Field: stream_regs.MON.MON_GROUP_BASE_ADDR.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.MON_GROUP_BASE_ADDR.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.MON_GROUP_BASE_ADDR && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.MON_GROUP_BASE_ADDR.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.MON_GROUP_BASE_ADDR.VALUE.next = next_c;
+        field_combo.MON.MON_GROUP_BASE_ADDR.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.MON_GROUP_BASE_ADDR.VALUE.value <= 32'h40000;
+        end else begin
+            if(field_combo.MON.MON_GROUP_BASE_ADDR.VALUE.load_next) begin
+                field_storage.MON.MON_GROUP_BASE_ADDR.VALUE.value <= field_combo.MON.MON_GROUP_BASE_ADDR.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.MON_GROUP_BASE_ADDR.VALUE.value = field_storage.MON.MON_GROUP_BASE_ADDR.VALUE.value;
+    // Field: stream_regs.MON.MON_GROUP_LIMIT_ADDR.VALUE
+    always_comb begin
+        automatic logic [31:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.MON_GROUP_LIMIT_ADDR.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.MON_GROUP_LIMIT_ADDR && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.MON_GROUP_LIMIT_ADDR.VALUE.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.MON_GROUP_LIMIT_ADDR.VALUE.next = next_c;
+        field_combo.MON.MON_GROUP_LIMIT_ADDR.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.MON_GROUP_LIMIT_ADDR.VALUE.value <= 32'h7ffff;
+        end else begin
+            if(field_combo.MON.MON_GROUP_LIMIT_ADDR.VALUE.load_next) begin
+                field_storage.MON.MON_GROUP_LIMIT_ADDR.VALUE.value <= field_combo.MON.MON_GROUP_LIMIT_ADDR.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.MON_GROUP_LIMIT_ADDR.VALUE.value = field_storage.MON.MON_GROUP_LIMIT_ADDR.VALUE.value;
+    // Field: stream_regs.MON.MON_GROUP_FLUSH_WATERMARK.VALUE
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.MON_GROUP_FLUSH_WATERMARK && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.next = next_c;
+        field_combo.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.value <= 16'h0;
+        end else begin
+            if(field_combo.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.load_next) begin
+                field_storage.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.value <= field_combo.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.next;
+            end
+        end
+    end
+    assign hwif_out.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.value = field_storage.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -3773,7 +3881,7 @@ module stream_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[120];
+    logic [31:0] readback_array[123];
     assign readback_array[0][0:0] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.GLOBAL_CTRL.GLOBAL_EN.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.GLOBAL_CTRL.GLOBAL_RST.value : '0;
     assign readback_array[0][31:2] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
@@ -3990,6 +4098,10 @@ module stream_regs (
     assign readback_array[119][5:5] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE_CTRL.MATCH_EN.value : '0;
     assign readback_array[119][6:6] = (decoded_reg_strb.MON.WRMON_ADDR_RANGE_CTRL && !decoded_req_is_wr) ? field_storage.MON.WRMON_ADDR_RANGE_CTRL.MISS_EN.value : '0;
     assign readback_array[119][31:7] = '0;
+    assign readback_array[120][31:0] = (decoded_reg_strb.MON.MON_GROUP_BASE_ADDR && !decoded_req_is_wr) ? field_storage.MON.MON_GROUP_BASE_ADDR.VALUE.value : '0;
+    assign readback_array[121][31:0] = (decoded_reg_strb.MON.MON_GROUP_LIMIT_ADDR && !decoded_req_is_wr) ? field_storage.MON.MON_GROUP_LIMIT_ADDR.VALUE.value : '0;
+    assign readback_array[122][15:0] = (decoded_reg_strb.MON.MON_GROUP_FLUSH_WATERMARK && !decoded_req_is_wr) ? field_storage.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.value : '0;
+    assign readback_array[122][31:16] = '0;
 
     // Reduce the array
     always_comb begin
@@ -3997,7 +4109,7 @@ module stream_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<120; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<123; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

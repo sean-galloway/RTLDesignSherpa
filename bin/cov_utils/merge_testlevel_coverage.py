@@ -24,8 +24,12 @@ from datetime import datetime
 def merge_protocol():
     merged = {'test_count': 0, 'tests': [], 'groups': {}}
     tp = tl = 0.0
-    for summ in sorted(glob.glob('*/coverage_data/per_test/*_summary.json')):
-        level = summ.split('/')[0]
+    # Recursive so this works at a leaf area (coverage_data/... directly) AND at
+    # a dispatcher level (fub/coverage_data/..., etc.). Level = the dir just
+    # above coverage_data, or '.' when the area IS the cwd.
+    for summ in sorted(glob.glob('**/coverage_data/per_test/*_summary.json', recursive=True)):
+        _p = summ.split('/'); _i = _p.index('coverage_data')
+        level = _p[_i - 1] if _i > 0 else '.'
         try:
             data = json.load(open(summ))
         except Exception:
@@ -54,7 +58,9 @@ def merge_protocol():
 
 def merge_line_coverage():
     """Merge every coverage.dat and compute per-RTL-file line coverage %."""
-    dats = glob.glob('*/local_sim_build/**/coverage.dat', recursive=True)
+    # Recursive: matches leaf-area local_sim_build/**/coverage.dat AND
+    # dispatcher-level <area>/local_sim_build/**/coverage.dat in one pass.
+    dats = glob.glob('**/local_sim_build/**/coverage.dat', recursive=True)
     per_file = {}   # rtl file -> (covered, total)
     overall_cov = overall_tot = 0
     if not dats:
