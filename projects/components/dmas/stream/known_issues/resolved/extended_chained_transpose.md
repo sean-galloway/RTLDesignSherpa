@@ -26,12 +26,48 @@
 ## A strided extended descriptor reached via `next_ptr` reads the wrong source, writes with holes, and corrupts the preceding descriptor
 
 **Severity**: High (silent data corruption)
-**Impact**: Wrong data movement, no error flag raised. Affects only builds with
+**Impact**: Wrong data movement, no error flag raised. Affected only builds with
 `USE_ROW_COL_MAJOR_ADDRESSING=1` (TASK-101 extended addressing) when a
 per-beat/strided extended descriptor is chained after another descriptor.
-**Status**: ACTIVE
+**Status**: RESOLVED (2026-07-29)
 **Discovery Date**: 2026-07-29 (found by the first STREAM top-level extended
 integration test, `cocotb_test_stream_top_extended_chained_transpose`)
+
+### Resolution
+
+Fixed in `scheduler.sv` by gating the run-base generator start pulse on
+`w_is_ext`:
+
+```systemverilog
+// before
+assign w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d;
+// after
+assign w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d && w_is_ext;
+```
+
+Root cause: `w_addrgen_start` fired for EVERY descriptor. For a LEGACY
+descriptor the generator ran with the legacy descriptor's own base and the
+STALE `r_descriptor_ext` strides (the ext FIFO entry is don't-care for legacy),
+producing bogus run-bases that it pushed into `stream_run_addr_gen`'s internal
+prefetch FIFO. A `gaxi_fifo_sync` has no flush (clears only on `rst_n`), and a
+legacy descriptor never consumes run-bases, so those bogus bases sat in the FIFO
+and the NEXT (chained) strided/transpose descriptor consumed them -- reading the
+previous descriptor's source and writing into its region. A contiguous extended
+descriptor hides this because a single-run generation emits ZERO bases; a
+per-beat (transpose) descriptor consumes one base per beat and surfaces it.
+Gating start on `w_is_ext` keeps legacy descriptors from ever touching the
+generator, so each EXT descriptor's run-base FIFO holds only its own bases.
+
+Verified by `test_stream_top_extended_chained_transpose` (now a passing
+regression) and `test_stream_top_extended`; fub scheduler 25/25 and the datapath
+macro tests confirm no legacy-path regression.
+
+**Residual (separate, latent):** an extended descriptor aborted mid-generation
+by channel reset can still leave bases in the generator FIFO (channel reset does
+not reach `stream_run_addr_gen`), which a later EXT descriptor would consume. A
+flush-on-start (e.g. `gaxi_drop_fifo_sync` `drop_all`) would close it; a first
+attempt regressed the working cases on a flush/read-timing interaction and was
+reverted. Tracked as a follow-up.
 
 ### Description
 

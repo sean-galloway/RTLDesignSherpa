@@ -36,38 +36,12 @@ turns these into things that are wrong *on paper* before they ship.
 consumers / valid window / invariants / reset) and K-maps for the combinational
 deciders, landed under the STREAM docs tree (HAS/MAS or a dedicated
 `signal_contracts/` area) and indexed. Cross-link each contract to the RTL line
-and to any known_issue it would have prevented. Feeds directly into closing
-TASK-059.
+and to any known_issue it would have prevented.
 
----
-
-### TASK-059: Fix STREAM extended chained strided (transpose) descriptor corruption
-
-**Priority:** High
-**Status:** [ ] Open (2026-07-29) — bug FOUND + characterised, fix not started.
-
-**Bug record:** `projects/components/dmas/stream/known_issues/active/extended_chained_transpose.md`
-
-**Symptom:** With `USE_ROW_COL_MAJOR_ADDRESSING=1`, a strided/per-beat extended
-(transpose) descriptor reached via `next_ptr` **chaining** reads the wrong
-source, writes with holes, and corrupts the **preceding** descriptor's
-last-touched beat. Silent — no error raised. A directly-kicked transpose and a
-chained extended-**contiguous** descriptor both pass; only *chained + strided*
-fails.
-
-**Repro (already committed):**
-`projects/components/dmas/stream/dv/tests/top/test_stream_top.py`
-- `test_stream_top_extended` — the known-good mix (legacy→ext-contig chain +
-  directly-kicked transpose), PASSES.
-- `test_stream_top_extended_chained_transpose` — `xfail(strict=True)`; will
-  **xpass** (failing the suite) the moment the RTL is fixed → drop the xfail then.
-
-**Suspected root cause:** extended `chunk1` (stride config) fetch/apply on the
-chained path aliasing with the descriptor engine's **prefetch** of the next
-descriptor while the current transfer is in flight. Prime suspects:
-`descriptor_engine.sv` (`w_want_ext` / `g_ext_fifo` + prefetch sequencing),
-`scheduler.sv` (`w_is_ext_in`), `stream_run_addr_gen.sv` config latching.
-
-**Approach:** best closed together with TASK-058 — write the signal contract for
-the extended chunk1 fetch + prefetch interaction first, which should localise the
-one-cycle/aliasing hazard, then fix and remove the xfail.
+**Related follow-up (from TASK-059's fix):** the run-base generator
+(`stream_run_addr_gen`) can still retain queued bases if an extended descriptor
+is aborted mid-generation by channel reset (channel reset does not reach that
+block). A flush-on-start (`gaxi_drop_fifo_sync` `drop_all`) would close it; a
+first attempt regressed the working cases on a flush/read-timing interaction and
+was reverted. Low-severity latent robustness item — a good candidate for the
+signal-contract treatment.

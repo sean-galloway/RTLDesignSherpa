@@ -526,13 +526,13 @@ async def cocotb_test_stream_top_extended(dut):
 
 @cocotb.test(timeout_time=50000, timeout_unit="us")
 async def cocotb_test_stream_top_extended_chained_transpose(dut):
-    """KNOWN-FAILING corner: a strided/per-beat extended (transpose) descriptor
-    reached via next_ptr CHAINING is broken -- it reads the wrong source and
-    writes with holes, and also corrupts the preceding descriptor's last beat.
-    A directly-kicked transpose and a chained extended-CONTIGUOUS descriptor both
-    work; only chained + strided fails. Tracked in known_issues (STREAM extended
-    chained-transpose). This test asserts the CORRECT behaviour so it xfails until
-    the RTL is fixed (and xpasses -- flagging removal of the xfail -- once fixed)."""
+    """Regression for TASK-059 (FIXED): a strided/per-beat extended (transpose)
+    descriptor reached via next_ptr CHAINING. It used to read the wrong source,
+    write with holes, and corrupt the preceding descriptor's last beat because a
+    legacy descriptor ran the run-base generator with stale ext config and left
+    bogus bases in the generator FIFO, which this descriptor then consumed. Fixed
+    by gating the generator `start` on w_is_ext in scheduler.sv. This asserts the
+    CORRECT behaviour."""
     tb = await _ext_setup(dut)
     bpb = tb.data_bytes
     beats = 16
@@ -797,15 +797,10 @@ def test_stream_top_extended(request):
     _run_extended("cocotb_test_stream_top_extended", "extended_mixed")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "STREAM extended chained-transpose bug: a strided/per-beat extended "
-    "descriptor reached via next_ptr chaining reads the wrong source, writes "
-    "with holes, and corrupts the preceding descriptor. See "
-    "projects/components/dmas/stream/known_issues/. Directly-kicked transpose "
-    "and chained ext-contiguous both pass."))
 def test_stream_top_extended_chained_transpose(request):
-    """xfail: chained + strided extended descriptor (known RTL bug). Asserts the
-    CORRECT behaviour, so it xpasses (loudly) once the RTL is fixed."""
+    """Regression for TASK-059 (FIXED): chained + strided extended (transpose)
+    descriptor. Was silent data corruption; fixed by gating the run-base
+    generator start on w_is_ext (scheduler.sv)."""
     _run_extended("cocotb_test_stream_top_extended_chained_transpose",
                   "extended_chained_transpose")
 

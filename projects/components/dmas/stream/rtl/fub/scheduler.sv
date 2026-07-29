@@ -299,9 +299,22 @@ module scheduler #(
     assign w_wr_base_ready = w_wr_need_base;
 
     // One-cycle start pulse to the run-base generators on entry to CH_FETCH_DESC.
+    // ONLY for EXT descriptors: a legacy descriptor uses its address directly and
+    // never consumes run bases, but starting the generator for it would run
+    // dma_address_gen with the legacy descriptor's own base and the STALE
+    // r_descriptor_ext strides, pushing bogus bases into the generator's internal
+    // FIFO (which has no flush -- gaxi_fifo_sync clears only on rst_n). Those
+    // stale bases would then be consumed by the NEXT (chained) EXT descriptor,
+    // making a chained strided/transpose descriptor read the wrong source and
+    // write into the previous descriptor's region. A contiguous EXT descriptor
+    // hides this because a single-run generation emits zero bases; a per-beat
+    // (transpose) descriptor consumes one base per beat and so surfaces it.
+    // Gating start on w_is_ext keeps legacy descriptors from ever touching the
+    // generator, so each EXT descriptor's run-base FIFO holds only its own bases.
+    // (STREAM known_issues extended_chained_transpose / TASK-059.)
     logic r_fetch_desc_d;
     logic w_addrgen_start;
-    assign w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d;
+    assign w_addrgen_start = w_state_fetch_desc && !r_fetch_desc_d && w_is_ext;
 
     // Per-direction addressing mode: stride_0 == beat_size -> contiguous inner
     // (run-contiguous bursts); stride_0 != beat_size -> per-beat 2-D (single-beat
