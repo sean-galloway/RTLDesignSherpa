@@ -279,8 +279,9 @@ module multi_alu (
                 ctrl = 1'b1;      // Subtract mode
             end
             ALU_INC: begin
-                b_mux = 8'b0;
-                ctrl = 1'b1;      // A + 0 + 1 = A + 1
+                b_mux = 8'd1;
+                ctrl = 1'b0;      // A + 1 + 0 = A + 1 -- with ctrl=1, i_c would
+                                  // invert B AND carry in, giving A + ~0 + 1 = A
             end
             ALU_DEC: begin
                 b_mux = 8'b1;

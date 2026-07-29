@@ -69,7 +69,7 @@ module math_bf16_adder #(
 | PIPE_STAGE_3 | 0 | Register after mantissa add/subtract |
 | PIPE_STAGE_4 | 0 | Register after normalization |
 
-**Latency Formula:** `1 + PIPE_STAGE_1 + PIPE_STAGE_2 + PIPE_STAGE_3 + PIPE_STAGE_4` cycles
+**Latency Formula:** `PIPE_STAGE_1 + PIPE_STAGE_2 + PIPE_STAGE_3 + PIPE_STAGE_4` cycles (each enabled stage is one register bank; all-disabled is combinational, same-cycle)
 
 ## Ports
 
@@ -317,7 +317,7 @@ math_bf16_adder #(
     .ow_overflow(overflow),
     .ow_underflow(underflow),
     .ow_invalid(invalid),
-    .ow_valid(out_valid)  // Valid 5 cycles after in_valid
+    .ow_valid(out_valid)  // Valid 4 cycles after in_valid, for ONE cycle
 );
 ```
 
@@ -360,10 +360,10 @@ end
 
 | Configuration | Latency | Use Case |
 |---------------|---------|----------|
-| [0,0,0,0] | 1 cycle | Area-constrained, low frequency |
+| [0,0,0,0] | 0 cycles (combinational) | Area-constrained, low frequency |
 | [1,0,0,0] | 2 cycles | Balance input timing |
 | [0,0,0,1] | 2 cycles | Balance output timing |
-| [1,1,1,1] | 5 cycles | Maximum frequency |
+| [1,1,1,1] | 4 cycles | Maximum frequency |
 
 ## Performance Characteristics
 
@@ -447,7 +447,7 @@ i_valid <= 1'b1;
 sum <= ow_result;  // Result not ready yet!
 
 // RIGHT: Account for latency
-// With [1,1,1,1] config, wait 5 cycles for result
+// With [1,1,1,1] config, wait 4 cycles for result (ow_valid pulses once; waiting 5 misses it)
 ```
 
 **Anti-Pattern 3:** Not handling special flags

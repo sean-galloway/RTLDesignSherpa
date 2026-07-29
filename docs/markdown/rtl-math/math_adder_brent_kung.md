@@ -232,13 +232,17 @@ Depth 3 (Forward):             [7:0]              [15:0]        (Black cells)
 
 Depth 4 (Forward):                    [15:0]      [31:16]       (Black cells)
 
-Depth 5 (Forward):                        [31:0]               (Black cell)
+Depth 5 (Reverse):                        [31:0]               (Gray cell --
+                                                              the root: no P
+                                                              needed further)
 
 Depth 6 (Reverse):         [2:0] [4:0] [6:0] ... (fill gaps)   (Gray cells)
 
 Depth 7 (Reverse):    [1:0] [3:0] [5:0] [7:0] ... (fill gaps)  (Gray cells)
 
-Depth 8 (Sum):      S0    S1    S2    S3    ...    S31         (XOR gates)
+Depth 8 (Reverse):  deepest gap-fill (e.g. [30:29])            (Gray cells)
+
+Depth 9 (Sum):      S0    S1    S2    S3    ...    S31         (XOR gates)
 ```
 
 **Key Features:**
@@ -247,7 +251,7 @@ Depth 8 (Sum):      S0    S1    S2    S3    ...    S31         (XOR gates)
 - **Prefix-network depth**: 2 x log2(N) - 2 cell levels
 - **Total depth**: 2 x log2(N) cell levels, adding the bitwise PG stage and the sum XOR stage
 - **Black cells**: Used in the forward tree (outputs both P and G)
-- **Gray cells**: Used throughout (outputs only G, saves area); the reverse tree is gray-only
+- **Gray cells**: Used where only G is needed further (outputs only G, saves area); the reverse tree -- including the [31:0] root -- is gray-only. The RTL confirms: the root instantiates `math_adder_brent_kung_gray`, not a black cell
 
 Measured from the generated prefix networks (`math_adder_brent_kung_grouppg_*.sv`):
 
