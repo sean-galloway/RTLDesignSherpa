@@ -272,7 +272,7 @@ into sticky (`ow_sticky_bit = guard | sticky`). The consumer
 (`math_bf16_multiplier`) then rounds up on `round_bit & (sticky_bit | lsb)` =
 `R & (G | S | LSB)`. Note this is NOT the textbook RNE decision `G & (R | S |
 LSB)`; see the rounding note in [math_bf16_multiplier.md](math_bf16_multiplier.md).
-Whether the divergence is intended is open (DOCREV-001).
+Whether the divergence is intended is an open owner decision (MATH-001).
 
 ## Auto-Generated Code
 

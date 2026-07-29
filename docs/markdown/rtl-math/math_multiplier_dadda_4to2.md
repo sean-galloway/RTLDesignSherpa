@@ -272,12 +272,12 @@ end
 
 | Metric | 3:2 CSA Dadda | 4:2 Compressor Dadda |
 |--------|---------------|----------------------|
-| Reduction stages | 4-5 | 3-4 |
-| Total adders/compressors | ~50 (est.) | 41 (measured: 39 c4:2 + 2 FA) |
+| Reduction stages | 4 (measured, 8x8) | 4 (measured, 8x8) |
+| Total adders/compressors | 42 (measured: 35 CSA + 7 half adders) | 41 (measured: 39 c4:2 + 2 FA) |
 | Logic depth | ~17-20 | ~13-15 |
 | Area (LUTs) | ~130 | ~130 |
 
-**Advantage:** 4:2 compressors reduce stage count by ~25% with similar area.
+**Advantage:** at 8x8 the 4:2 variant saves one cell (41 vs 42) at the SAME 4 stages -- the win is cell count and regularity, not stage count (an earlier ~25%-fewer-stages claim was measured at 4 vs 4 and removed).
 
 ### Design Optimization Priorities
 

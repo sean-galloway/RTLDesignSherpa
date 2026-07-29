@@ -173,10 +173,17 @@ wire w_a_is_normal = ~w_a_eff_zero & ~w_a_is_inf & ~w_a_is_nan;
 > **Rounding boolean, as implemented:** `w_round_up = w_round_bit &
 > (w_sticky_bit | w_lsb)`, where `math_bf16_mantissa_mult` folds the guard bit
 > into sticky (`ow_sticky_bit = guard | sticky`). That is `R & (G | S | LSB)`.
-> Textbook RNE is `G & (R | S | LSB)` -- a different decision bit. The two agree
-> on most inputs but diverge at exact-half cases; whether this is intended or an
-> RTL rounding defect is open (tracked in DOCREV-001). Do not treat "RNE" here
-> as a proof of tie-to-even.
+> Textbook RNE is `G & (R | S | LSB)` -- a different decision bit, and the
+> divergence is NOT confined to ties. The full (LSB, guard, round, sticky)
+> truth table: the two agree in 10 of 16 guard patterns and disagree in 6,
+> of which only ONE is an exact-half tie (`G=1, R=0, S=0, LSB=1`, where the
+> RTL fails to round to even). The other five are ordinary inexact cases --
+> `G=0, R=1, S=1` (0.375 ulp) and `G=0, R=1, S=0, LSB=1` (0.25 ulp) round UP
+> where RNE rounds down; `G=1, R=0, S=1` (0.625 ulp) rounds DOWN where RNE
+> rounds up. So 37.5% of inexact guard patterns round the wrong way; this is
+> not "RNE except at ties". Whether it is intended or an RTL rounding defect
+> is an open owner decision (MATH-001). Do not treat "RNE" here as a proof
+> of tie-to-even.
 
 
 ```systemverilog
