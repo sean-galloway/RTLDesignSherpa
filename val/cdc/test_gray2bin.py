@@ -518,7 +518,7 @@ def test_gray2bin(request, width, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters=parameters,
