@@ -32,7 +32,7 @@ The `math_bf16_multiplier` module implements full BF16 multiplication by integra
 **Key Features:**
 - **BF16 format** - Same exponent range as FP32, reduced mantissa precision
 - **IEEE 754 special cases** - Zero, infinity, NaN handling
-- **RNE rounding** - Round-to-Nearest-Even for unbiased results
+- **Rounding** - `R & (G | S | LSB)` -- NOT textbook RNE; see the rounding note (MATH-001)
 - **FTZ mode** - Flush-to-Zero for subnormal inputs and outputs
 - **Status flags** - Overflow, underflow, and invalid operation indicators
 
@@ -109,7 +109,7 @@ flowchart TB
             ea["Bias subtraction<br/>Overflow/underflow"]
         end
 
-        subgraph Round["Rounding (RNE)"]
+        subgraph Round["Rounding (see note: not RNE)"]
             rnd["Apply rounding<br/>Handle overflow"]
         end
 
@@ -141,7 +141,7 @@ flowchart TB
 3. **Sign Computation** - XOR of input signs
 4. **Mantissa Multiplication** - 8x8 Dadda tree with normalization
 5. **Exponent Addition** - Add exponents, subtract bias, adjust for normalization
-6. **RNE Rounding** - Apply Round-to-Nearest-Even to mantissa
+6. **Rounding** - Apply the implemented `R & (G | S | LSB)` rounding (NOT RNE -- see the note) to the mantissa
 7. **Result Assembly** - Select output based on special case priority
 
 ## Functionality

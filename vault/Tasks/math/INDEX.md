@@ -5,7 +5,7 @@ Math library (rtl/math, val/math, docs/markdown/rtl-math) work.
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 1 |
+| [open](open.md) | 2 |
 | [closed](closed.md) | 0 |
 | [dropped](dropped.md) | 0 |
 
@@ -13,3 +13,6 @@ Math library (rtl/math, val/math, docs/markdown/rtl-math) work.
 
 - **MATH-001** — decide whether the bf16 multiplier's non-RNE rounding is
   intended or an RTL defect (interface-affecting either way).
+- **MATH-002** — bf16_adder underflow can report as +infinity/overflow (wrap
+  bit shared by both flags; doc promises FTZ-to-zero). Sim-settle, then
+  fix RTL or doc.

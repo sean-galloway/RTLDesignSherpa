@@ -141,9 +141,9 @@ No parameters (fixed single-bit operation).
 ### N-bit Subtractor Ports
 
 The three N-bit subtractors do **not** share a port list -- check which one
-you are instantiating. `math_subtractor_full_nbit` shares NO port names with
-the other two (`i_b_in` vs `i_borrow_in`; `ow_d`/`ow_b` only, no
-`ow_difference`/`ow_carry_out` aliases).
+you are instantiating. `math_subtractor_full_nbit` shares only `i_a`/`i_b`
+with the other two: its borrow in is `i_b_in` (not `i_borrow_in`) and its
+outputs are `ow_d`/`ow_b` only (no `ow_difference`/`ow_carry_out` aliases).
 
 `math_subtractor_full_nbit`:
 

@@ -72,7 +72,7 @@ hardest: a mantissa-width change touches dozens of files at once.
 **One page covers many modules.** Width-parameterized instances carry a suffix
 (`_008`, `_016`, `_032`) and format variants carry a tag (`bf16`, `fp16`,
 `fp32`, `fp8_e4m3`, `fp8_e5m2`). A single methodology page documents all of its
-instances, which is why 27 module pages are enough for 171 modules — and why you should
+instances, which is why two dozen module pages are enough for 171 modules — and why you should
 look for the *methodology* page, not a page named after your exact file.
 
 ## Choosing an adder

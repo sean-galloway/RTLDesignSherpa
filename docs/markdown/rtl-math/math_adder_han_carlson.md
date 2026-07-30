@@ -33,14 +33,19 @@ The `math_adder_han_carlson` module family implements Han-Carlson parallel prefi
 by `bin/rtl_generators/ieee754/generate_all.py`; each width exists because a
 specific floating-point datapath needs it.
 
-| Width | Generated for |
-|-------|---------------|
-| 16 | FP16 exponent paths; final CPA of `math_multiplier_dadda_4to2_008` |
-| 22 | FP16 product CPA (11 x 11 = 22); final CPA of `math_multiplier_dadda_4to2_011` |
-| 32 | FP32 exponent paths (`math_ieee754_2008_fp32_adder`) |
-| 44 | FP16 FMA accumulator (`math_ieee754_2008_fp16_fma`) |
-| 48 | FP32 product CPA (24 x 24 = 48); BF16 FMA wide addition; final CPA of `math_multiplier_dadda_4to2_024` |
-| 72 | FP32 FMA accumulator (`math_ieee754_2008_fp32_fma`) |
+| Width | Generated for | Measured usage (rtl/ instantiation grep, 2026-07-30) |
+|-------|---------------|---------------|
+| 16 | final CPA of `math_multiplier_dadda_4to2_008` | exactly that |
+| 22 | FP16 product CPA (11 x 11 = 22); final CPA of `math_multiplier_dadda_4to2_011` | exactly that |
+| 32 | FP32 exponent paths | UNUSED: `math_ieee754_2008_fp32_adder` adds exponents behaviorally (assign, no prefix instance) |
+| 44 | FP16 FMA accumulator | UNUSED: `math_ieee754_2008_fp16_fma` accumulates behaviorally |
+| 48 | BF16 FMA wide addition; final CPA of `math_multiplier_dadda_4to2_024` | those two (no FP32-product-CPA user exists) |
+| 72 | FP32 FMA accumulator (`math_ieee754_2008_fp32_fma`) | exactly that |
+
+The exponent paths of the ieee754 adders are behavioral (`assign`), so the
+earlier "16: FP16 exponent paths / 32: FP32 exponent paths" entries were
+aspirational, not real -- see math_library.md's (correct) Core-operators
+table.
 
 : Han-Carlson widths present in rtl/math and what uses each
 
