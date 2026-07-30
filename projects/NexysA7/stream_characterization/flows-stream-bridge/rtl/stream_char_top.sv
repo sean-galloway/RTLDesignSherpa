@@ -41,13 +41,49 @@ module stream_char_top (
 );
 
     // =========================================================================
-    // Reset synchronization — async assert, sync deassert. ASYNC_REG tells
-    // Vivado to keep these flops adjacent and to annotate them for MTBF
-    // analysis. The false path to r_rst_meta's D input is set in the XDC.
+    // 100 MHz single-ended CLK100MHZ -> MMCM -> 70 MHz harness clock.
+    // The 100 MHz build does not close timing on the -1 xc7a100t (WNS -0.484 ns
+    // with STREAM's extended dma_address_gen always on -- see GEN below). Rather
+    // than gate the extended feature (it is hardcoded on), drop the harness clock
+    // to 70 MHz. VCO = 100 MHz * 7 = 700 MHz (inside the -1 Artix 600-1200 MHz
+    // range); 700 / 10 = 70 MHz. FPGA_CLK_HZ below MUST track this (UART divisor).
+    // =========================================================================
+    logic clk_unbuf, aclk, clkfb, clkfb_buf, mmcm_locked;
+
+    MMCME2_BASE #(
+        .BANDWIDTH         ("OPTIMIZED"),
+        .CLKIN1_PERIOD     (10.000),               // 100 MHz
+        .DIVCLK_DIVIDE     (1),
+        .CLKFBOUT_MULT_F   (7.000),                // VCO = 700 MHz
+        .CLKOUT0_DIVIDE_F  (10.000),               // 700 / 10 = 70 MHz
+        .CLKOUT0_DUTY_CYCLE(0.500),
+        .CLKOUT0_PHASE     (0.000),
+        .STARTUP_WAIT      ("FALSE")
+    ) u_mmcm (
+        .CLKIN1   (CLK100MHZ),
+        .CLKFBIN  (clkfb_buf),
+        .CLKFBOUT (clkfb),
+        .CLKFBOUTB(),
+        .CLKOUT0  (clk_unbuf),
+        .CLKOUT0B (), .CLKOUT1 (), .CLKOUT1B(), .CLKOUT2 (), .CLKOUT2B(),
+        .CLKOUT3  (), .CLKOUT3B(), .CLKOUT4 (), .CLKOUT5 (), .CLKOUT6 (),
+        .LOCKED   (mmcm_locked),
+        .RST      (1'b0),
+        .PWRDWN   (1'b0)
+    );
+    BUFG u_bufg_fb (.I(clkfb),     .O(clkfb_buf));
+    BUFG u_bufg_c0 (.I(clk_unbuf), .O(aclk));
+
+    // Reset synchronization -- async assert, sync deassert on aclk; held asserted
+    // until the MMCM locks (OR of the button and lock loss). ASYNC_REG keeps the
+    // two flops adjacent for MTBF; the false path to r_rst_meta is set in the XDC.
+    logic rst_n_raw;
+    assign rst_n_raw = CPU_RESETN & mmcm_locked;
+
     (* ASYNC_REG = "TRUE" *) logic r_rst_meta;
     (* ASYNC_REG = "TRUE" *) logic r_rst_sync;
-    always_ff @(posedge CLK100MHZ or negedge CPU_RESETN) begin
-        if (!CPU_RESETN) begin
+    always_ff @(posedge aclk or negedge rst_n_raw) begin
+        if (!rst_n_raw) begin
             r_rst_meta <= 1'b0;
             r_rst_sync <= 1'b0;
         end else begin
@@ -56,7 +92,6 @@ module stream_char_top (
         end
     end
 
-    wire aclk    = CLK100MHZ;
     wire aresetn = r_rst_sync;
 
     // =========================================================================
@@ -73,7 +108,7 @@ module stream_char_top (
     // which cfg package is in the filelist to change side-Q / delay-queue
     // sizing without editing this file.
     stream_char_harness #(
-        .FPGA_CLK_HZ           (100_000_000),
+        .FPGA_CLK_HZ           (70_000_000),
         .UART_BAUD             (115_200),
         .DATA_WIDTH            (128),
         .ADDR_WIDTH            (32),
@@ -162,7 +197,7 @@ module stream_char_top (
         : w_led_status_idle;
 
     led_status_driver #(
-        .FPGA_CLK_HZ  (100_000_000),
+        .FPGA_CLK_HZ  (70_000_000),
         .LED_UPDATE_HZ(200),
         .NUM_LEDS     (16),
         .SYNC_STAGES  (3)
@@ -183,7 +218,7 @@ module stream_char_top (
     assign w_seg_value = w_timer_pass ? 16'h0123 : 16'h9999;
 
     seven_seg_4digit #(
-        .FPGA_CLK_HZ(100_000_000),
+        .FPGA_CLK_HZ(70_000_000),
         .REFRESH_HZ (1000)
     ) u_seven_seg (
         .aclk    (aclk),

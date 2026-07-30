@@ -23,9 +23,11 @@ create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_
 ## C12 but labelled as the CPU_RESETN button at the top-right of the board.
 set_property -dict {PACKAGE_PIN C12 IOSTANDARD LVCMOS33} [get_ports CPU_RESETN]
 
-## Reset is asynchronous — don't waste timing effort on it.
+## Reset is asynchronous — don't waste timing effort on it. Port-based false path
+## (clock-agnostic) so it holds regardless of which clock captures it — the
+## harness clock is now the MMCM-derived 70 MHz output, not sys_clk_pin.
 set_input_delay -clock [get_clocks sys_clk_pin] 0.000 [get_ports CPU_RESETN]
-set_false_path -from [get_ports CPU_RESETN] -to [get_clocks sys_clk_pin]
+set_false_path -from [get_ports CPU_RESETN]
 
 ##==============================================================================
 ## USB UART (FTDI chip — FT2232HQ)
@@ -38,8 +40,8 @@ set_property -dict {PACKAGE_PIN D4 IOSTANDARD LVCMOS33} [get_ports UART_RXD_OUT]
 ## UART is async at 115.2 kbaud — timing is relaxed. Flag as async to sys_clk.
 set_input_delay  -clock [get_clocks sys_clk_pin] 0.000 [get_ports UART_TXD_IN]
 set_output_delay -clock [get_clocks sys_clk_pin] 0.000 [get_ports UART_RXD_OUT]
-set_false_path -from [get_ports UART_TXD_IN]  -to [get_clocks sys_clk_pin]
-set_false_path -from [get_clocks sys_clk_pin] -to [get_ports UART_RXD_OUT]
+set_false_path -from [get_ports UART_TXD_IN]
+set_false_path -to   [get_ports UART_RXD_OUT]
 
 ##==============================================================================
 ## LEDs (16 user LEDs)
@@ -64,6 +66,7 @@ set_property -dict {PACKAGE_PIN V11 IOSTANDARD LVCMOS33} [get_ports {LED[15]}]
 
 ## LED timing is human-visible; no input/output delay worth specifying.
 set_output_delay -clock [get_clocks sys_clk_pin] 0.000 [get_ports {LED[*]}]
+set_false_path -to [get_ports {LED[*]}]
 
 ##==============================================================================
 ## 7-segment displays (8 multiplexed digits; we drive only AN[3:0]).
@@ -142,7 +145,7 @@ create_generated_clock -name led_slow_clk \
 ##     The CDC handshake handles all real crossings; this prevents Vivado
 ##     from trying to time inter-clock paths it shouldn't.
 set_clock_groups -asynchronous \
-    -group [get_clocks sys_clk_pin] \
+    -group [get_clocks -of_objects [get_pins u_bufg_c0/O]] \
     -group [get_clocks led_slow_clk]
 
 ## (3) Bound the CDC datapath with set_max_delay -datapath_only. This is
