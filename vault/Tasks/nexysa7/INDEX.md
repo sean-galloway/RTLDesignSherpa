@@ -17,6 +17,9 @@ Convention: [Tasks](../INDEX.md). Related handbook:
 - **NEXYS-001** (Medium) — Consistent Makefiles across the stream-char /
   stream-perf (and sibling) characterization flows. First define what
   "consistent" means, then align them.
+- **NEXYS-002** (Medium) — Rehome `projects/NexysA7/` under
+  `projects/fpga-systems/`; split Genesys2-specific stream-perf/mon collateral
+  into `projects/fpga-systems/Genesys2/`; update all links/filelists/paths.
 
 ## Active (in progress)
 - _(none yet)_
