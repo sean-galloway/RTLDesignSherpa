@@ -235,8 +235,12 @@ class CDCOpenLoopTB(TBBase):
 
         dropped = len(sent_data) - len(recv_data)
         if len(recv_data) == 0 and len(sent_data) > 0:
-            # 100% loss — unusual; could be the design IS broken
-            self.log.warning(f"ALL {len(sent_data)} pulses dropped — very steep cliff")
+            # 100% loss is a FAILURE, per this method's own docstring: some
+            # drops are expected on a cliff config, but ALL pulses lost means
+            # the link is dead (dst_valid, sync chain, dst_data) -- that is
+            # broken, not steep. Warned-and-passed here for years (test audit).
+            self.log.error(f"ALL {len(sent_data)} pulses dropped -- link dead, not just steep")
+            return (False, dropped)
         return (True, dropped)
 
     # ------------------------------------------------------------------
