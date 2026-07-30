@@ -39,7 +39,31 @@ candidate contract:
   `make/` / `bin/`, mirroring the components `make/tests.mk` convergence.
 - `make clean-all` ALWAYS wipes generated + `local_sim_build` before a run
   (the CRITICAL RULE #0 regen discipline).
-- Consistent host-runner entry points (`run_characterization.py`, suites).
+
+**Unified board runner (the bigger half — stop writing a new runner per test):**
+Every board test currently re-implements connect + config + kick + poll + verify
+in its own `main()`, and `poc_coverage.py` bypasses the shared runner entirely
+(rolls its own bridge + config). Layer it once:
+
+1. **Common UART harness (host-stack, already exists — reuse, never reinvent):**
+   the transport + by-name register access -- `UARTAxiBridge`, `autodetect_port`
+   (ttyUSB numbering drifts), and CSR-by-name via `harness_addrs.H()` (harness
+   CSRs) / regmap `A()` (STREAM regs). See [[fpga/cmn-infra/host-stack]]. The
+   runner PLUGS INTO this; it must not own UART/AXIL or hardcode offsets.
+2. **Shared runner** on top: `CharacterizationRunner`'s core
+   (`configure_stream` / `clear_stats` / `setup_timer` / `kick_channels` /
+   `poll_completion`) -- one engine for every flow.
+3. **Plug-points**: a `workload` (legacy chain / mixed extended chain / error- or
+   packet-type-triggering traffic) and a `verify`/`coverage` step (TIMER beat +
+   CRC, perf-window read, or **monbus tally sweep for the packet tuples**), plus
+   a `loop` mode (one-shot / N-iter soak / scenario sequence).
+
+Then a new board test is a `{workload, verify, loop}` config, NOT a new program:
+`stream_ext_soak` = {mixed ext chains, TIMER+CRC, soak}; monitor coverage =
+{all-packet-type traffic, tally sweep, scenario sequence}; legacy char =
+{legacy chains, perf windows}. Kill the roll-your-own path in `poc_coverage`;
+fold `stream_ext_suite` / `stream_ext_soak` / `run_characterization` onto the
+shared runner.
 
 **Deliverable:** the agreed definition captured in
 [[fpga/cmn-infra/build-flows]], then the flow Makefiles converged to it (shared
