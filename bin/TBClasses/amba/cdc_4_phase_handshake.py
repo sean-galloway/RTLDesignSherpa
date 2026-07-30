@@ -404,6 +404,9 @@ class CDC4PhaseHandshakeTB(TBBase):
                 self.log.error(f"CDC timing violation: dst before src! Latency: {cdc_latency}ns")
                 self.cdc_violations += 1
                 self.timing_errors += 1
+                # This counter is the test's pass/fail gate; a violation the TB
+                # explicitly detects must not log-and-pass (test audit finding).
+                self.total_errors += 1
             elif cdc_latency > (self.TIMEOUT_CYCLES * max(self.clk_src_PERIOD_NS, self.clk_dst_PERIOD_NS)):
                 self.log.warning(f"CDC excessive latency: {cdc_latency}ns ({src_cycles:.1f} src cycles)")
 
