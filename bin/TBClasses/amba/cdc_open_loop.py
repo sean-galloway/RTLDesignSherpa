@@ -57,7 +57,7 @@ class CDCOpenLoopTB(TBBase):
         self.AUTO_STRETCH    = self.convert_to_int(os.environ.get('AUTO_STRETCH', '0'))
         self.SRC_CLK_HZ      = self.convert_to_int(os.environ.get('SRC_CLK_HZ', '25000000'))
         self.DST_CLK_HZ      = self.convert_to_int(os.environ.get('DST_CLK_HZ', '100000000'))
-        self.TEST_LEVEL      = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL      = os.environ.get('TEST_LEVEL', 'gate').lower()
 
         # Effective STRETCH (what the DUT actually uses).
         if self.AUTO_STRETCH:

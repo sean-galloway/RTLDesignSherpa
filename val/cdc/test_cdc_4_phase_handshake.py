@@ -187,9 +187,18 @@ def generate_cdc_test_params():
                 'test_level': test_level
             })
 
-    # For debugging: uncomment to limit scope
-    return [{'clk_src_period_ns': 30, 'clk_dst_period_ns': 10, 'test_level': 'full'}, {'clk_src_period_ns': 10, 'clk_dst_period_ns': 30, 'test_level': 'full'}]
-    # return params
+    # (the debug 2-case override that used to live here made the whole
+    # matrix above dead code -- removed in the test audit)
+
+    # REG_LEVEL selects how much of the matrix runs (default FUNC)
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return [{'clk_src_period_ns': 10, 'clk_dst_period_ns': 10, 'test_level': 'gate'},
+                {'clk_src_period_ns': 10, 'clk_dst_period_ns': 20, 'test_level': 'gate'},
+                {'clk_src_period_ns': 20, 'clk_dst_period_ns': 10, 'test_level': 'gate'}]
+    if reg_level == 'FUNC':
+        return [p for p in params if p['test_level'] == 'func']
+    return params
 
 
 @pytest.mark.parametrize("params", generate_cdc_test_params())

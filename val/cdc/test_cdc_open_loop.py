@@ -87,7 +87,7 @@ def generate_cdc_open_loop_test_params():
     params = []
 
     # ---- 1) Manual back-compat ----
-    manual_levels = ['basic', 'func']
+    manual_levels = ['gate', 'func']
     manual_cases = [
         # (src_period_ns, dst_period_ns, stretch_cycles, sync_stages)
         # Picked so STRETCH*src_period >= (SYNC+1)*dst_period in every case
@@ -114,7 +114,7 @@ def generate_cdc_open_loop_test_params():
             })
 
     # ---- 2) Auto sized correctly ----
-    auto_levels = ['basic', 'func', 'full']
+    auto_levels = ['gate', 'func', 'full']
     auto_cases = [
         # (src_period_ns, dst_period_ns) — SRC/DST_CLK_HZ derived from period
         (40, 10),   # 25 MHz -> 100 MHz   → STRETCH_EFF = 1
@@ -162,6 +162,13 @@ def generate_cdc_open_loop_test_params():
             'test_level'     : 'full',
         })
 
+    # REG_LEVEL selects how much of the matrix runs (default FUNC)
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return [p for p in params if p['test_level'] == 'gate'
+                and p['mode'] == 'auto' and p['src_period_ns'] in (10, 20)]
+    if reg_level == 'FUNC':
+        return [p for p in params if p['mode'] != 'cliff']
     return params
 
 
@@ -233,7 +240,7 @@ def test_cdc_open_loop(request, params):
     }
 
     # Per-level timeouts scaled by the slower clock period
-    base_timeout_ms = {'basic': 2000, 'func': 8000, 'full': 20000}
+    base_timeout_ms = {'gate': 2000, 'func': 8000, 'full': 20000}
     slow_factor = max(1.0, max(src_period, dst_period) / 10.0)
     timeout_ms = int(base_timeout_ms[test_level] * slow_factor)
 

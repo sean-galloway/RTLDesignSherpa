@@ -64,7 +64,7 @@ class CDC4PhaseHandshakeTB(TBBase):
         self.ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '32'))
         self.DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '32'))
         self.STRB_WIDTH = self.DATA_WIDTH // 8
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.clk_src_PERIOD_NS = self.convert_to_int(os.environ.get('clk_src_PERIOD_NS', '50'))
         self.clk_dst_PERIOD_NS = self.convert_to_int(os.environ.get('clk_dst_PERIOD_NS', '10'))
         self.super_debug = os.environ.get('SUPER_DEBUG', 'false').lower() == 'true'
@@ -164,10 +164,10 @@ class CDC4PhaseHandshakeTB(TBBase):
         self.dst_monitor.add_callback(self.dst_transaction_callback)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
             self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.TEST_LEVEL = 'gate'
 
         # Log comprehensive configuration
         self._log_configuration()
