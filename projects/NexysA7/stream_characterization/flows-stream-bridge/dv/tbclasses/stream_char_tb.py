@@ -867,6 +867,93 @@ class StreamCharTB(TBBase):
                       f"perf_nonzero={perf_ok} -> {out_path}")
         return ok and perf_ok
 
+    async def run_ext_chain_test(self, W: int = 4, H: int = 4, depth: int = 4) -> bool:
+        """TASK-059 aggressive regression: CHAIN `depth` strided/transpose extended
+        descriptors on one channel via next_ptr -- the pre-si failure shape. Before
+        the fix (run-base generator start not gated on w_is_ext), a chained strided
+        descriptor read the wrong source and DROPPED write beats ("holes").
+
+        Board-readable check: program CSR_TIMER_EXPECTED_BEATS to the chain's total
+        beats; the sink-side timer asserts done ONLY when write_beat_count reaches
+        it, so dropped beats -> never done -> caught over UART. Sim also asserts the
+        exact rd/wr slave beat counters. Requires USE_ROW_COL_MAJOR_ADDRESSING=1."""
+        from stream_device import Stream
+
+        await self._configure_stream_for_ext()
+        tb = self
+
+        class _Bridge:
+            def __init__(self):
+                self._w = cocotb.function(tb.uart_write)
+                self._r = cocotb.function(tb.uart_read)
+
+            def write(self, addr, val):
+                return bool(self._w(addr, val))
+
+            def read(self, addr):
+                return self._r(addr)
+
+        stream = Stream(_Bridge(), "stream0",
+                        regs_base=STREAM_APB_BASE, desc_ram_base=DESC_RAM_BASE,
+                        data_width=128)
+        bs = stream.desc.bytes_per_beat
+        beats_per_desc = W * H
+        xfer = beats_per_desc * bs
+        row_pitch = W * bs
+        channel = 0
+        expected_total = beats_per_desc * depth
+
+        # Transpose: contiguous (burst) read, column-major (strided, per-beat)
+        # write -- the strided side is what surfaces the bug. Chain it `depth` deep
+        # so every descriptor after the first is reached via next_ptr (the shape a
+        # single kicked transpose does NOT exercise).
+        rd = dict(s0=bs,        s1=row_pitch, inner=W)
+        wr = dict(s0=row_pitch, s1=bs,        inner=H)
+        descriptors = [dict(transfer_bytes=xfer, rd=rd, wr=wr) for _ in range(depth)]
+
+        # Sink-side expected-beat gate BEFORE the kick (board-readable completion).
+        await self.uart_write(CSR_TIMER_EXPECTED_BEATS, expected_total)
+
+        def program():
+            kick = stream.load_ext_chain(channel, descriptors)
+            stream.enable_channel(channel, True)
+            return kick
+
+        kick = await cocotb.external(program)()
+        self.log.info(f"ext_chain: depth={depth} {W}x{H} transpose chain, "
+                      f"expected_total={expected_total} beats, kick=0x{kick:08X}")
+
+        # Kick via the harness KICK_GO fast path (shadow addr + one go write).
+        await self.uart_write(kick_addr_csr(channel), kick)
+        await self.uart_write(CSR_KICK_GO, 1 << channel)
+
+        # Poll the sink-side timer for done (write_beat_count >= expected).
+        done = False
+        for _ in range(2000):
+            ts = await self.uart_read(CSR_TIMER_STATUS) or 0
+            if ts & 0x1:
+                done = True
+                break
+            await self.wait_clocks(self.clk_name, 100)
+
+        try:
+            wr_beats = int(self._dma_slaves().u_wr_crc_check.write_beat_count_total.value)
+            rd_beats = int(self._dma_slaves().u_rd_pattern_gen.read_beat_count_total.value)
+        except Exception:
+            wr_beats = rd_beats = -1
+
+        ok = done and (wr_beats == expected_total) and (rd_beats == expected_total)
+        self.log.info(f"ext_chain: done={done} rd_beats={rd_beats} wr_beats={wr_beats} "
+                      f"expected={expected_total}")
+        if ok:
+            self.log.info("ext_chain PASS: chained strided/transpose moved ALL beats "
+                          "(TASK-059 fix holds on the board flow)")
+        else:
+            self.log.error("ext_chain FAIL: chained strided descriptor dropped beats "
+                           "or never completed -- the TASK-059 pre-si signature")
+            self.errors += 1
+        return ok
+
     def _dma_slaves(self):
         """Handle to the axi4_dma_slaves instance (LFSR pattern-gen + CRC-check
         beat counters). Walks self.dma_slaves_path so the monitor harness, which

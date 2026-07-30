@@ -371,6 +371,21 @@ async def cocotb_test_stream_char(dut):
         ok &= await tb.run_ext_char_test(sizes, out)
         assert ok, "ext_char: sweep failed (mode/size did not complete, or perf read zero)"
 
+    elif test_type == 'ext_chain':
+        # TASK-059 regression, aggressive: CHAIN strided/transpose extended
+        # descriptors via next_ptr (the pre-si failure shape). The fix gates the
+        # run-base generator start on w_is_ext; before it, a chained strided
+        # descriptor read the wrong source and DROPPED write beats ("holes").
+        # Verified board-side via the sink-slave beat count (TIMER_EXPECTED_BEATS)
+        # + no CH_ERROR, and in sim via the exact rd/wr beat counters.
+        tb.log.info("=== TASK-059 aggressive chained-transpose regression ===")
+        ok = await tb.run_ping_test()
+        W = int(os.environ.get('EXT_W', '4'))
+        H = int(os.environ.get('EXT_H', '4'))
+        depth = int(os.environ.get('EXT_CHAIN_DEPTH', '4'))
+        ok &= await tb.run_ext_chain_test(W=W, H=H, depth=depth)
+        assert ok, "ext_chain: chained strided/transpose descriptor regression failed"
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -678,6 +693,87 @@ def test_stream_char_ext_suite(request):
         plus_args=['--trace'] if enable_waves else [],
     )
     print(f"PASS ext_suite! Logs: {log_path}")
+
+
+def test_stream_char_ext_chain(request):
+    """TASK-059 aggressive regression: build the char harness param=1 and CHAIN
+    strided/transpose extended descriptors via next_ptr (the pre-si failure
+    shape). Same RTL build as ext_suite (reuses its sim_build), TEST_TYPE only
+    differs. Verifies the sink slave saw ALL expected beats (no dropped "holes")
+    + no CH_ERROR."""
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
+        'stream_char': 'projects/NexysA7/stream_characterization/flows-stream-bridge',
+    })
+    dut_name = "stream_char_harness"
+
+    os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dmas/stream')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
+    os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/flows-stream-bridge')
+    os.environ['FRAMEWORK_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/stream_char_framework')
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root_path,
+        filelist_path='projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/filelists/stream_char_harness.f',
+    )
+
+    # Reuse the ext_suite build (identical RTL params; only TEST_TYPE differs) so
+    # this does not trigger a second ~11-min monitors-on elaboration.
+    test_name_plus_params = f"test_{dut_name}_ext_suite_rowcol"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+    log_path = os.path.join(log_dir, f'test_{dut_name}_ext_chain.log')
+    results_path = os.path.join(log_dir, f'results_test_{dut_name}_ext_chain.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    rtl_parameters = {
+        'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
+        'UART_BAUD':   str(SIM_UART_BAUD),
+        'USE_ROW_COL_MAJOR_ADDRESSING': '1',   # ← extended addressing enabled
+        **{k: str(v) for k, v in BASE_RTL_PARAMS.items()},
+    }
+    extra_env = {
+        'TEST_TYPE':        'ext_chain',
+        'FPGA_CLK_HZ':      str(SIM_FPGA_CLK_HZ),
+        'UART_BAUD':        str(SIM_UART_BAUD),
+        'TEST_LEVEL':       'gate',
+        'DUT':              dut_name,
+        'LOG_PATH':         log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED':             str(random.randint(0, 100000)),
+    }
+    simulator = os.environ.get('SIM', 'verilator').lower()
+    create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+    compile_args = [
+        "--trace-fst", "--trace-structs", "--trace-depth", "99",
+        "--public-flat-rw",
+        "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
+        "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
+        "--unroll-count", "4096", "--unroll-stmts", "20000",
+    ]
+    run(
+        python_search=[tests_dir],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=dut_name,
+        module=module,
+        testcase="cocotb_test_stream_char",
+        parameters=rtl_parameters,
+        sim_build=sim_build,
+        extra_env=extra_env,
+        simulator=simulator,
+        waves=enable_waves,
+        keep_files=True,
+        compile_args=compile_args,
+        sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
+        plus_args=['--trace'] if enable_waves else [],
+    )
+    print(f"PASS ext_chain! Logs: {log_path}")
 
 
 def test_stream_char_ext_char(request):

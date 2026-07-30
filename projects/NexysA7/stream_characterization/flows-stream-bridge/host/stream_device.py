@@ -94,6 +94,15 @@ class Stream(Device):
                                               desc_idx=desc_idx))
         return self.desc.kick_address(channel)
 
+    def load_ext_chain(self, channel: int, descriptors: list) -> int:
+        """Program a CHAIN of extended descriptors on one channel (single kick
+        walks them via next_ptr); return the kick address. Each descriptor dict =
+        {'transfer_bytes', 'rd', 'wr'} (rd/wr = {s0,s1,inner,w0=0,w1=0}). Requires
+        the DUT built with USE_ROW_COL_MAJOR_ADDRESSING=1. This is the pre-si
+        failure shape (chained strided/transpose -> TASK-059) now fixed in RTL."""
+        self._write_desc(self.desc.build_ext_chain(channel, descriptors))
+        return self.desc.kick_address(channel)
+
     # ----- kick off by name -------------------------------------------------
     def kick(self, channel: int, desc_addr: int) -> None:
         """Kick a channel by writing the descriptor address to CHx_CTRL.
