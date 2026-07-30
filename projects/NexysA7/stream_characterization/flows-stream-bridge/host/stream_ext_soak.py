@@ -34,9 +34,8 @@ for up in range(3, 9):
         sys.path.insert(0, cand)
         break
 
-from harness_addrs import autodetect_port
+from harness_addrs import H, autodetect_port
 from run_characterization import CharacterizationRunner
-from read_rw_perf import open_windows, close_windows, read_rw_perf
 
 
 def _shape(kind, W, H, bs):
@@ -52,12 +51,13 @@ def _shape(kind, W, H, bs):
 
 
 def run_soak(runner, *, channel=0, minutes=10.0, iters=None, seed=0x5EED,
-             max_depth=6, per_run_timeout_s=30.0, verify_beats=True):
+             max_depth=6, per_run_timeout_s=30.0, check_crc=True):
     import random
     rng = random.Random(seed)
     bs = runner.builder.bytes_per_beat
     runner.configure_stream([channel])
     bridge = runner.bridge
+    ch_bit = 1 << channel
 
     deadline = time.time() + minutes * 60.0
     it = 0
@@ -80,39 +80,34 @@ def run_soak(runner, *, channel=0, minutes=10.0, iters=None, seed=0x5EED,
         for addr, data in runner.builder.build_ext_chain(channel, descriptors):
             bridge.write(addr, data)
         runner.setup_timer(chain_bytes)
-        if verify_beats:
-            open_windows(bridge)          # RUN=1: the rd/wr monitors count beats
         runner.kick_channels({channel: runner.builder.kick_address(channel)})
         res = runner.poll_completion(timeout_s=per_run_timeout_s)
 
-        # EXPLICIT beat-count verification via the AXI monitors (the Genesys2
-        # build's purpose): the sink must have moved EXACTLY chain_beats -- a
-        # dropped beat ("hole") reads short, a runaway reads long. TIMER 'done'
-        # only proves >= expected; the monitor beat count proves ==.
-        rd_beats = wr_beats = None
-        beats_ok = True
-        if verify_beats:
-            close_windows(bridge)
-            perf = read_rw_perf(bridge)
-            rd_beats = perf['r'].beats
-            wr_beats = perf['w'].beats
-            beats_ok = (wr_beats == chain_beats) and (rd_beats == chain_beats)
+        # DMA-slave verification only (no monitors). The harness TIMER watches the
+        # crc_check SINK SLAVE's write-beat counter: done => it reached the
+        # programmed expected beats (a dropped "hole" never asserts done),
+        # timer_pass => it matched. CRC_MATCH is the crc_check slave's data check.
+        done  = bool(res.get('done'))
+        tpass = bool(res.get('timer_pass'))
+        err   = bool(res.get('error'))
+        crc_ok = True
+        if check_crc:
+            crc_ok = bool(bridge.read(H("CRC_MATCH")) & ch_bit)
 
-        ok = bool(res.get('done')) and not res.get('error') and beats_ok
+        ok = done and tpass and not err and crc_ok
         passed += int(ok)
         total_beats += chain_beats if ok else 0
-        tag = 'PASS' if ok else 'FAIL'
         print(f"soak[{it:04d}] depth={depth} {'+'.join(plan)} "
-              f"expect={chain_beats} rd_beats={rd_beats} wr_beats={wr_beats} "
-              f"done={res.get('done')} {tag}")
+              f"beats={chain_beats} done={done} pass={tpass} crc={crc_ok} "
+              f"{'PASS' if ok else 'FAIL'}")
         if not ok:
-            fails.append((it, plan, dict(res=res, rd=rd_beats, wr=wr_beats,
-                                         expect=chain_beats)))
+            fails.append((it, plan, dict(done=done, pass_=tpass, err=err,
+                                         crc=crc_ok, expect=chain_beats)))
             # keep soaking to gather the failure distribution, but flag loudly
         it += 1
 
     print(f"\nstream_ext_soak: {passed}/{it} chained runs PASS, "
-          f"{total_beats} beats moved (monitor-verified), {len(fails)} FAIL")
+          f"{total_beats} beats moved (slave beat+CRC verified), {len(fails)} FAIL")
     if fails:
         for i, plan, info in fails[:10]:
             print(f"  FAIL iter {i}: {'+'.join(plan)} -> {info}")
@@ -129,9 +124,9 @@ def main(argv=None):
     ap.add_argument("--iters", type=int, default=None, help="fixed iteration count")
     ap.add_argument("--seed", type=lambda s: int(s, 0), default=0x5EED)
     ap.add_argument("--max-depth", type=int, default=6)
-    ap.add_argument("--no-verify-beats", action="store_true",
-                    help="skip the monitor beat-count check (monitors-off builds, "
-                         "e.g. the Nexys bitstream); rely on TIMER done only")
+    ap.add_argument("--no-crc", action="store_true",
+                    help="skip the crc_check data check; rely on TIMER done+pass "
+                         "(the sink-slave beat count) only")
     args = ap.parse_args(argv)
 
     from uart_axi_bridge import UARTAxiBridge
@@ -143,7 +138,7 @@ def main(argv=None):
         runner = CharacterizationRunner(bridge)
         return run_soak(runner, channel=args.channel, minutes=args.minutes,
                         iters=args.iters, seed=args.seed, max_depth=args.max_depth,
-                        verify_beats=not args.no_verify_beats)
+                        check_crc=not args.no_crc)
 
 
 if __name__ == "__main__":
