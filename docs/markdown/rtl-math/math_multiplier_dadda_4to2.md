@@ -141,7 +141,7 @@ wire w_pp_0_1 = i_multiplier[0] & i_multiplicand[1];
 // ... 64 total
 
 // 4:2 Compressors for reduction
-math_compressor_4to2 u_c4to2_07_000 (
+math_compressor_4to2 u_c4to2_07_001 (
     .i_x1(w_pp_0_7), .i_x2(w_pp_1_6),
     .i_x3(w_pp_2_5), .i_x4(w_pp_3_4),
     .i_cin(1'b0),

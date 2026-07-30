@@ -42,7 +42,7 @@ them with counters and FIFOs made both harder to navigate. If a doc still says
 list of 171 files is not navigable, so that page organizes the library the way
 you would actually search it: by **operation**, and within each operation by
 **methodology** — the algorithm and the paper it comes from. Brent-Kung against
-Han-Carlson against Kogge-Stone for prefix addition; Dadda against Wallace for
+Brent-Kung against Han-Carlson for prefix addition (the library's Kogge-Stone-class option; no Kogge-Stone module exists); Dadda against Wallace for
 partial-product reduction. Each entry names its research reference and links to
 the per-methodology page.
 
@@ -72,7 +72,7 @@ hardest: a mantissa-width change touches dozens of files at once.
 **One page covers many modules.** Width-parameterized instances carry a suffix
 (`_008`, `_016`, `_032`) and format variants carry a tag (`bf16`, `fp16`,
 `fp32`, `fp8_e4m3`, `fp8_e5m2`). A single methodology page documents all of its
-instances, which is why 29 pages are enough for 171 modules — and why you should
+instances, which is why 27 module pages are enough for 171 modules — and why you should
 look for the *methodology* page, not a page named after your exact file.
 
 ## Choosing an adder
@@ -86,9 +86,9 @@ least well:
 | A balance at moderate width | `math_adder_brent_kung` | O(log n) depth with far fewer cells than Kogge-Stone |
 | Fastest at wide widths, area available | `math_adder_han_carlson` | Hybrid: Kogge-Stone-like depth, Brent-Kung-like wiring |
 | To sum three or more operands | `math_adder_carry_save` | Defers the carry chain; finish with one real adder |
-| A partial-product tree | `math_compressor_4to2` | The cell Dadda and Wallace trees are built from |
+| A partial-product tree | `math_compressor_4to2` | The cell the Wallace and 4:2-Dadda trees are built from (the 3:2 Dadda tree uses carry-save adders) |
 
-The prefix adders share `math_prefix_cell` and `math_prefix_cell_gray`; those
+The Han-Carlson adders are built from shared `math_prefix_cell` and `math_prefix_cell_gray` (Brent-Kung uses its own black/gray cells); those
 two pages explain the group-generate/propagate algebra that all of them use.
 
 ## Floating point
@@ -97,8 +97,9 @@ The four formats are the same pipeline in different widths — unpack, align,
 operate, normalize, round, repack — so the per-format pages
 ([bf16](math_bf16_adder.md), [fp16](math_fp16_modules.md),
 [fp32](math_fp32_modules.md), [fp8](math_fp8_modules.md)) are best read after
-one of them. Start with [bf16](math_bf16_adder.md): it has the fewest mantissa
-bits, so the worked examples stay short, and the
+one of them. Start with [bf16](math_bf16_adder.md): of the four full-size
+formats it has the fewest mantissa bits (7 -- only the fp8 formats have fewer),
+so the worked examples stay short, and the
 [extended set](math_bf16_extended.md) shows what a fully-built-out format looks
 like once conversions, comparisons and activations are added.
 

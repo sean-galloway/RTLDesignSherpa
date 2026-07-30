@@ -42,7 +42,7 @@ specific floating-point datapath needs it.
 | 48 | FP32 product CPA (24 x 24 = 48); BF16 FMA wide addition; final CPA of `math_multiplier_dadda_4to2_024` |
 | 72 | FP32 FMA accumulator (`math_ieee754_2008_fp32_fma`) |
 
-: Han-Carlson widths present in rtl/common and what uses each
+: Han-Carlson widths present in rtl/math and what uses each
 
 **Key Features:**
 - **O(log N + 1) depth** - Only one level more than Kogge-Stone
@@ -175,10 +175,10 @@ Stage 2:    *   |   |   |   *   |   |   |   *   |   |   |   *   |   |   |
             Even positions combine with step=2 (positions 2,4,6,8,10,12,14)
 
 Stage 3:    *   |   |   |   |   |   |   |   *   |   |   |   |   |   |   |
-            Even positions combine with step=4 (positions 4,8,12)
+            Even positions >= 4 combine (cells at 4,6,8,10,12,14)
 
 Stage 4:    *   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
-            Even positions combine with step=8 (positions 8)
+            Even positions >= 8 combine (cells at 8,10,12,14)
 
 Stage 5:    o   *   o   *   o   *   o   *   o   *   o   *   o   *   o   *
             Fill odd positions with gray cells (*)

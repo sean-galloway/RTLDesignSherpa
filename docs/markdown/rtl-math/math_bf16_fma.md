@@ -462,9 +462,11 @@ logic [31:0] fp32_accum;  // 23 mantissa bits
 // WRONG: Assuming result is always valid
 output_reg <= result;
 
-// RIGHT: Check status flags
+// RIGHT: Check status flags -- noting that 'invalid' means 0*inf or inf-inf
+// only; NaN INPUTS produce a qNaN result with invalid = 0, so test the
+// result for NaN separately if that matters to you
 if (invalid)
-    handle_nan();
+    handle_invalid_op();
 else if (overflow)
     handle_infinity();
 else

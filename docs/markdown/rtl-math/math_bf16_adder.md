@@ -361,8 +361,8 @@ end
 | Configuration | Latency | Use Case |
 |---------------|---------|----------|
 | [0,0,0,0] | 0 cycles (combinational) | Area-constrained, low frequency |
-| [1,0,0,0] | 2 cycles | Balance input timing |
-| [0,0,0,1] | 2 cycles | Balance output timing |
+| [1,0,0,0] | 1 cycle | Balance input timing |
+| [0,0,0,1] | 1 cycle | Balance output timing |
 | [1,1,1,1] | 4 cycles | Maximum frequency |
 
 ## Performance Characteristics

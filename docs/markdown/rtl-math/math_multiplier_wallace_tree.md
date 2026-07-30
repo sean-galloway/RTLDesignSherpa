@@ -303,7 +303,6 @@ Take the layer count from the RTL, not from a formula.
 ```systemverilog
 logic [7:0] a, b;
 logic [15:0] product;
-logic [15:0] product_pipe;
 
 math_multiplier_wallace_tree_008 u_mult (
     .i_multiplier(a),
@@ -357,6 +356,7 @@ module dsp_multiply (
 );
 
     logic [63:0] product_comb;
+    logic [63:0] product_pipe;
     logic        valid_pipe;
 
     // Wallace tree multiplier

@@ -143,8 +143,9 @@ endgenerate
 // Brent-Kung: the reverse tree uses gray cells to fill intermediate positions.
 // After the forward tree, the complete carries sit at positions 2^k - 1 --
 // with 0-based bit indexing that is 1, 3, 7, 15 for a 16-bit adder, NOT at
-// the powers of two. Positions 2, 4, 8 are exactly what the reverse tree
-// still has to fill.
+// the powers of two. The reverse tree fills the rest -- for 16-bit that is
+// eleven positions ({2,4,5,6,8,9,10,12,13,14,16} in
+// math_adder_brent_kung_grouppg_016.sv), not just {2,4,8}.
 
 // Example: position 5 combines the span-2 group [4:3] with the complete
 // carry already available at position 3. (Indices: ow_gg[k] is the carry

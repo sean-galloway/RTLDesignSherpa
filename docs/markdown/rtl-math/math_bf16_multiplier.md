@@ -271,7 +271,7 @@ always_ff @(posedge clk) begin
     else if (underflow)
         $display("Underflow: result is zero");
     else if (invalid)
-        $display("Invalid: 0 * inf or NaN input");
+        $display("Invalid: 0 * inf (NaN inputs give qNaN but do NOT assert invalid)");
 end
 ```
 
