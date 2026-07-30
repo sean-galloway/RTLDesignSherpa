@@ -562,6 +562,12 @@ def test_stream_char(request, test_type, test_level):
         "-Wno-WIDTHTRUNC",
         "-Wno-SELRANGE",       # descriptor_engine pre-existing slice warning
         "-Wno-UNOPTFLAT",      # dataint_crc combinational cascade (structural CRC)
+        # monitors-on builds size RD/WR_MON_MAX_TRANS = NUM_CHANNELS*AR_MAX+4
+        # (e.g. 4*16+4=68 > Verilator's default --unroll-count 64), so the
+        # per-slot trans-table/reporter loops fail BLKLOOPINIT without this.
+        # Same flags the sibling monitors-on sims use (test_stream_mon,
+        # test_stream_top_monbus, macro test_stream_core).
+        "--unroll-count", "4096", "--unroll-stmts", "20000",
     ]
 
     try:
@@ -651,6 +657,8 @@ def test_stream_char_ext_suite(request):
         "--public-flat-rw",
         "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
+        # deep monitor trans-table loops (RD_MON_MAX_TRANS>64) need unroll raised
+        "--unroll-count", "4096", "--unroll-stmts", "20000",
     ]
     run(
         python_search=[tests_dir],
@@ -735,6 +743,8 @@ def test_stream_char_ext_char(request):
         "--public-flat-rw",
         "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
+        # deep monitor trans-table loops (RD_MON_MAX_TRANS>64) need unroll raised
+        "--unroll-count", "4096", "--unroll-stmts", "20000",
     ]
     run(
         python_search=[tests_dir],
