@@ -34,8 +34,8 @@ for up in range(3, 9):
         sys.path.insert(0, cand)
         break
 
-from harness_addrs import H, autodetect_port
-from run_characterization import CharacterizationRunner
+from harness_addrs import H as harness_reg, autodetect_port  # 'H' alias: the soak
+from run_characterization import CharacterizationRunner       # loop uses H=tile height
 
 
 def _shape(kind, W, H, bs):
@@ -55,9 +55,9 @@ def run_soak(runner, *, channel=0, minutes=10.0, iters=None, seed=0x5EED,
     import random
     rng = random.Random(seed)
     bs = runner.builder.bytes_per_beat
-    runner.configure_stream([channel])
     bridge = runner.bridge
     ch_bit = 1 << channel
+    crc_addr = harness_reg("CRC_MATCH")   # resolve now; the loop shadows H with tile height
 
     deadline = time.time() + minutes * 60.0
     it = 0
@@ -76,7 +76,11 @@ def run_soak(runner, *, channel=0, minutes=10.0, iters=None, seed=0x5EED,
         chain_bytes = sum(d['transfer_bytes'] for d in descriptors)
         chain_beats = chain_bytes // bs
 
+        # Proven per-run order (run_characterization): clear_stats then
+        # (re)configure the stream -- clear_stats zeroes the counters AND drops
+        # the scheduler config, so configure_stream must follow it every run.
         runner.clear_stats()
+        runner.configure_stream([channel])
         for addr, data in runner.builder.build_ext_chain(channel, descriptors):
             bridge.write(addr, data)
         runner.setup_timer(chain_bytes)
@@ -87,12 +91,12 @@ def run_soak(runner, *, channel=0, minutes=10.0, iters=None, seed=0x5EED,
         # crc_check SINK SLAVE's write-beat counter: done => it reached the
         # programmed expected beats (a dropped "hole" never asserts done),
         # timer_pass => it matched. CRC_MATCH is the crc_check slave's data check.
-        done  = bool(res.get('done'))
-        tpass = bool(res.get('timer_pass'))
+        done  = bool(res.get('completed'))   # poll_completion key is 'completed'
+        tpass = bool(res.get('timer_pass'))  # timer fired done AND beat count matched
         err   = bool(res.get('error'))
         crc_ok = True
         if check_crc:
-            crc_ok = bool(bridge.read(H("CRC_MATCH")) & ch_bit)
+            crc_ok = bool(bridge.read(crc_addr) & ch_bit)
 
         ok = done and tpass and not err and crc_ok
         passed += int(ok)
