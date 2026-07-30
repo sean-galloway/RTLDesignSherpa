@@ -69,7 +69,7 @@ reviewed tree starts until the review is back and integrated.
 | [pumice](pumice/INDEX.md) | **migrated** | pumice DDR2/LPDDR2 controller | — |
 | [docs-review](docs-review/INDEX.md) | **migrated** | Kimi doc review + humanization | rtl-doc-review/REVIEW_TODOS.md (off-repo) |
 | memory-controllers | pending | ddr3 / ddr4 (pumice migrated above) | ddr3-lpddr3, ddr4-lpddr4 TASKS.md |
-| nexysa7 | pending | board campaigns | timing_characterization/TASKS.md, cdc_counter_display CDC_DEMO_TODO |
+| [nexysa7](nexysa7/INDEX.md) | **started** | board campaigns + characterization flows | NEXYS-001 (consistent flow Makefiles); timing_characterization/TASKS.md, cdc_counter_display CDC_DEMO_TODO still to fold in |
 | formal | pending | formal proof backlog | [formal/FORMAL_TODO.md](../../formal/FORMAL_TODO.md) |
 | coverage | pending | coverage backlog | [val/COVERAGE_TODO.md](../../val/COVERAGE_TODO.md) |
 | [tooling](tooling/INDEX.md) | **migrated** | repo tooling/scripts/process | [TOOLING_TODO.md](../../TOOLING_TODO.md) (historical backlog migrates via TOOL-001) |
