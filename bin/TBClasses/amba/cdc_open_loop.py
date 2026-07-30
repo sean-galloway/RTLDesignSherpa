@@ -57,6 +57,9 @@ class CDCOpenLoopTB(TBBase):
         self.AUTO_STRETCH    = self.convert_to_int(os.environ.get('AUTO_STRETCH', '0'))
         self.SRC_CLK_HZ      = self.convert_to_int(os.environ.get('SRC_CLK_HZ', '25000000'))
         self.DST_CLK_HZ      = self.convert_to_int(os.environ.get('DST_CLK_HZ', '100000000'))
+        # 1 = this config deterministically loses EVERYTHING on a healthy DUT
+        # (must be justified in the wrapper; default 0 = 100% loss is a failure)
+        self.EXPECT_TOTAL_LOSS = self.convert_to_int(os.environ.get('EXPECT_TOTAL_LOSS', '0'))
         self.TEST_LEVEL      = os.environ.get('TEST_LEVEL', 'gate').lower()
 
         # Effective STRETCH (what the DUT actually uses).
@@ -235,10 +238,16 @@ class CDCOpenLoopTB(TBBase):
 
         dropped = len(sent_data) - len(recv_data)
         if len(recv_data) == 0 and len(sent_data) > 0:
-            # 100% loss is a FAILURE, per this method's own docstring: some
-            # drops are expected on a cliff config, but ALL pulses lost means
-            # the link is dead (dst_valid, sync chain, dst_data) -- that is
-            # broken, not steep. Warned-and-passed here for years (test audit).
+            # 100% loss is a FAILURE unless the config has declared it the
+            # deterministic outcome (EXPECT_TOTAL_LOSS, e.g. the dst40 cliff
+            # case: measured 0/40 arrivals on a healthy DUT, phase-locked
+            # commensurate clocks). Some drops are expected on a cliff, but
+            # ALL pulses lost on an ordinary config means the link is dead
+            # (dst_valid, sync chain, dst_data) -- broken, not steep.
+            if self.EXPECT_TOTAL_LOSS:
+                self.log.warning(f"ALL {len(sent_data)} pulses dropped -- declared deterministic "
+                                 f"for this config (EXPECT_TOTAL_LOSS=1)")
+                return (True, dropped)
             self.log.error(f"ALL {len(sent_data)} pulses dropped -- link dead, not just steep")
             return (False, dropped)
         return (True, dropped)

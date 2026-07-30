@@ -145,11 +145,14 @@ def generate_cdc_open_loop_test_params():
     # DUT computes STRETCH from the *claimed* SRC_CLK_HZ (slow), but the
     # simulation drives a much faster src period.
     cliff_cases = [
-        # (real_src_period_ns, dst_period_ns, claimed_src_hz, claimed_dst_hz)
-        (10, 40, 10_000_000,  100_000_000),  # claim 10 MHz src, actually 100 MHz
-        (10, 25, 25_000_000,  100_000_000),  # claim 25 MHz src, actually 100 MHz
+        # (real_src_period_ns, dst_period_ns, claimed_src_hz, claimed_dst_hz, expect_total_loss)
+        # dst40 case measured 2026-07-30: 0/40 arrivals on a HEALTHY DUT across
+        # reruns (10 ns pulse vs 40 ns commensurate clocks, phase-locked) --
+        # total loss IS this config's deterministic outcome, so it declares it.
+        (10, 40, 10_000_000,  100_000_000, 1),  # claim 10 MHz src, actually 100 MHz
+        (10, 25, 25_000_000,  100_000_000, 0),  # claim 25 MHz src, actually 100 MHz
     ]
-    for (src_p, dst_p, claimed_src_hz, claimed_dst_hz) in cliff_cases:
+    for (src_p, dst_p, claimed_src_hz, claimed_dst_hz, expect_total_loss) in cliff_cases:
         params.append({
             'mode'           : 'cliff',
             'src_period_ns'  : src_p,
@@ -159,6 +162,7 @@ def generate_cdc_open_loop_test_params():
             'auto_stretch'   : 1,
             'src_clk_hz'     : claimed_src_hz,
             'dst_clk_hz'     : claimed_dst_hz,
+            'expect_total_loss': expect_total_loss,
             'test_level'     : 'full',
         })
 
@@ -263,6 +267,7 @@ def test_cdc_open_loop(request, params):
         'AUTO_STRETCH'        : str(auto_stretch),
         'SRC_CLK_HZ'          : str(src_clk_hz),
         'DST_CLK_HZ'          : str(dst_clk_hz),
+        'EXPECT_TOTAL_LOSS'   : str(params.get('expect_total_loss', 0)),
     }
 
     compile_args = [
