@@ -20,15 +20,12 @@ import pytest
 
 from svsherpa import (
     C,
-    Case,
-    Enum,
     GenFor,
     GenIf,
     If,
     Instance,
     Module,
     ModuleDoc,
-    Struct,
     ZERO,
     clog2,
 )

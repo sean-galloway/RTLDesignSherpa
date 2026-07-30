@@ -33,7 +33,7 @@ mixing styles inside one design is how reset bugs get in:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Sequence
 
 from .errors import SvError
@@ -250,9 +250,9 @@ class ContinuousAssign(Stmt):
         self.comment = comment
 
     def targets(self) -> list[str]:
-        from .stmt import _root_name
+        from .stmt import _target_names
 
-        return [_root_name(self.target)]
+        return _target_names(self.target)
 
     def emit(self, ctx: EmitCtx) -> list[str]:
         from .expr import check_assign_width, expr_warnings

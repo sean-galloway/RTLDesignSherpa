@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .errors import SvError, SvWarning, check_identifier
-from .expr import Expr, Fill, width_of
+from .expr import Expr, width_of
 from .header import ModuleDoc, doc_banner, spdx_header
 from .instance import Instance
 from .procs import AlwaysComb, AlwaysFF, AlwaysLatch, ContinuousAssign, ResetSpec

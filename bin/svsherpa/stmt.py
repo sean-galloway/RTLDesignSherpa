@@ -142,7 +142,7 @@ class Assignment(Stmt):
         self.value = lift(value)
 
     def targets(self) -> list[str]:
-        return [_root_name(self.target)]
+        return _target_names(self.target)
 
     def emit(self, ctx: EmitCtx) -> list[str]:
         from .expr import check_assign_width, expr_warnings
@@ -350,6 +350,19 @@ def _root_name(node: Expr) -> str:
             break
         current = nxt
     return current.render()
+
+
+def _target_names(node: Expr) -> list[str]:
+    """Every signal driven by an assignment target.
+
+    A concatenation target drives each of its parts, so ``{hi, lo} = bus``
+    registers both -- otherwise the driver check would miss a second driver on
+    ``hi``.
+    """
+    parts = getattr(node, "parts", None)
+    if parts is not None:
+        return [name for part in parts for name in _target_names(part)]
+    return [_root_name(node)]
 
 
 def assigned_names(body: Iterable[Stmt]) -> set[str]:

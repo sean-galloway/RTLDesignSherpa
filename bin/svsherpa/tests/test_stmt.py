@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from svsherpa import B, Block, C, Case, Comment, If, Logic, ZERO
+from svsherpa import B, Block, Case, Comment, If, Logic, ZERO
 from svsherpa.errors import SvError
 from svsherpa.stmt import EmitCtx
 

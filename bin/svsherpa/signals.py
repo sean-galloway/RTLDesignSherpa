@@ -33,11 +33,11 @@ one is a classic RTL bug, and here it is not expressible.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Sequence
 
 from .errors import SvError, check_identifier
-from .expr import P_ATOM, Expr, ExprLike, width_of
+from .expr import P_ATOM, Expr, width_of
 from .symint import SymInt
 
 # Port directions, spelled as SystemVerilog spells them.

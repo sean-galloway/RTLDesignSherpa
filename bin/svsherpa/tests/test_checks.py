@@ -242,3 +242,74 @@ def test_unknown_reset_style_is_rejected():
 
     with pytest.raises(SvError, match="unknown reset style"):
         ResetSpec(style="sideways")
+
+
+# --------------------------------------------------------- logical operand width
+def test_logical_and_on_a_vector_is_warned():
+    """`a && b` on 8-bit vectors silently means `(a!=0) && (b!=0)`."""
+    m = Module("logwidth")
+    a, b = m.input("a", 8), m.input("b", 8)
+    y = m.output("y")
+    m.assign(y, a.land(b))
+    warnings = [str(w) for w in m.check()]
+    assert any("expects 1" in w and "'a'" in w for w in warnings)
+
+
+def test_logical_not_on_a_vector_is_warned():
+    m = Module("lognot")
+    a = m.input("a", 8)
+    y = m.output("y")
+    m.assign(y, a.lnot())
+    assert any("expects 1" in str(w) for w in m.check())
+
+
+def test_reduction_first_is_clean():
+    """The correct spelling: reduce, then combine."""
+    m = Module("logclean")
+    a, b = m.input("a", 8), m.input("b", 8)
+    y = m.output("y")
+    m.assign(y, a.ror().land(b.ror()))
+    assert "logical-width" not in {w.kind for w in m.check()}
+
+
+def test_single_bit_logical_operands_are_clean():
+    m = Module("logbits")
+    a, b = m.input("a"), m.input("b")
+    y = m.output("y")
+    m.assign(y, a.land(b))
+    assert "logical-width" not in {w.kind for w in m.check()}
+
+
+# ------------------------------------------------------------------- lvalues
+def test_operator_result_cannot_be_assigned():
+    m = Module("badlvalue")
+    a, b = m.input("a", 8), m.input("b", 8)
+    with pytest.raises(SvError, match="not an lvalue"):
+        (a + b).set(C(0))
+
+
+def test_operator_result_cannot_be_bit_selected():
+    """`(a * b)[7:0]` is not legal SV; it must go via a signal."""
+    m = Module("badselect")
+    a, b = m.input("a", 8), m.input("b", 8)
+    with pytest.raises(SvError, match="only.*allows a select on a variable"):
+        _ = (a * b)[7:0]
+
+
+def test_bit_select_of_a_signal_is_assignable():
+    m = Module("bitassign")
+    out = m.output("out", 3)
+    c = m.input("c", 3)
+    stmt = out[2].set(c[2])
+    assert stmt.targets() == ["out"]
+
+
+def test_concat_of_lvalues_is_assignable():
+    """`{hi, lo} = value;` is legal SV and useful for splitting a bus."""
+    from svsherpa import Concat
+
+    m = Module("concatassign")
+    hi, lo = m.output("hi", 4), m.output("lo", 4)
+    src = m.input("src", 8)
+    stmt = Concat(hi, lo).set(src)
+    assert stmt.targets() == ["hi", "lo"]

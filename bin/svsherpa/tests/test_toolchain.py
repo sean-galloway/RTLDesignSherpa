@@ -42,7 +42,6 @@ from svsherpa import (
     ResetSpec,
     AlwaysComb,
     AlwaysFF,
-    Struct,
     ZERO,
     clog2,
     mux,
