@@ -36,6 +36,7 @@ for up in range(3, 9):
 
 from harness_addrs import autodetect_port
 from run_characterization import CharacterizationRunner
+from read_rw_perf import open_windows, close_windows, read_rw_perf
 
 
 def _shape(kind, W, H, bs):
@@ -51,11 +52,12 @@ def _shape(kind, W, H, bs):
 
 
 def run_soak(runner, *, channel=0, minutes=10.0, iters=None, seed=0x5EED,
-             max_depth=6, per_run_timeout_s=30.0):
+             max_depth=6, per_run_timeout_s=30.0, verify_beats=True):
     import random
     rng = random.Random(seed)
     bs = runner.builder.bytes_per_beat
     runner.configure_stream([channel])
+    bridge = runner.bridge
 
     deadline = time.time() + minutes * 60.0
     it = 0
@@ -76,27 +78,44 @@ def run_soak(runner, *, channel=0, minutes=10.0, iters=None, seed=0x5EED,
 
         runner.clear_stats()
         for addr, data in runner.builder.build_ext_chain(channel, descriptors):
-            runner.bridge.write(addr, data)
+            bridge.write(addr, data)
         runner.setup_timer(chain_bytes)
+        if verify_beats:
+            open_windows(bridge)          # RUN=1: the rd/wr monitors count beats
         runner.kick_channels({channel: runner.builder.kick_address(channel)})
         res = runner.poll_completion(timeout_s=per_run_timeout_s)
 
-        ok = bool(res.get('done')) and not res.get('error')
+        # EXPLICIT beat-count verification via the AXI monitors (the Genesys2
+        # build's purpose): the sink must have moved EXACTLY chain_beats -- a
+        # dropped beat ("hole") reads short, a runaway reads long. TIMER 'done'
+        # only proves >= expected; the monitor beat count proves ==.
+        rd_beats = wr_beats = None
+        beats_ok = True
+        if verify_beats:
+            close_windows(bridge)
+            perf = read_rw_perf(bridge)
+            rd_beats = perf['r'].beats
+            wr_beats = perf['w'].beats
+            beats_ok = (wr_beats == chain_beats) and (rd_beats == chain_beats)
+
+        ok = bool(res.get('done')) and not res.get('error') and beats_ok
         passed += int(ok)
         total_beats += chain_beats if ok else 0
         tag = 'PASS' if ok else 'FAIL'
         print(f"soak[{it:04d}] depth={depth} {'+'.join(plan)} "
-              f"beats={chain_beats} {tag} ({res})")
+              f"expect={chain_beats} rd_beats={rd_beats} wr_beats={wr_beats} "
+              f"done={res.get('done')} {tag}")
         if not ok:
-            fails.append((it, plan, res))
+            fails.append((it, plan, dict(res=res, rd=rd_beats, wr=wr_beats,
+                                         expect=chain_beats)))
             # keep soaking to gather the failure distribution, but flag loudly
         it += 1
 
     print(f"\nstream_ext_soak: {passed}/{it} chained runs PASS, "
-          f"{total_beats} beats moved, {len(fails)} FAIL")
+          f"{total_beats} beats moved (monitor-verified), {len(fails)} FAIL")
     if fails:
-        for i, plan, res in fails[:10]:
-            print(f"  FAIL iter {i}: {'+'.join(plan)} -> {res}")
+        for i, plan, info in fails[:10]:
+            print(f"  FAIL iter {i}: {'+'.join(plan)} -> {info}")
     return 0 if not fails else 1
 
 
@@ -110,6 +129,9 @@ def main(argv=None):
     ap.add_argument("--iters", type=int, default=None, help="fixed iteration count")
     ap.add_argument("--seed", type=lambda s: int(s, 0), default=0x5EED)
     ap.add_argument("--max-depth", type=int, default=6)
+    ap.add_argument("--no-verify-beats", action="store_true",
+                    help="skip the monitor beat-count check (monitors-off builds, "
+                         "e.g. the Nexys bitstream); rely on TIMER done only")
     args = ap.parse_args(argv)
 
     from uart_axi_bridge import UARTAxiBridge
@@ -120,7 +142,8 @@ def main(argv=None):
     with UARTAxiBridge(port, args.baud) as bridge:
         runner = CharacterizationRunner(bridge)
         return run_soak(runner, channel=args.channel, minutes=args.minutes,
-                        iters=args.iters, seed=args.seed, max_depth=args.max_depth)
+                        iters=args.iters, seed=args.seed, max_depth=args.max_depth,
+                        verify_beats=not args.no_verify_beats)
 
 
 if __name__ == "__main__":
