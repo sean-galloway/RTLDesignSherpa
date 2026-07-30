@@ -217,6 +217,12 @@ async def gaxi_async_test(dut):
         )
         tb.log.info("✓ Completed CDC stress test")
 
+    # The scoreboard's verdict decides the test, not the phase logs: every
+    # phase above returns total_errors == 0 but its return value is easy to
+    # discard (it was, for years). Assert here or a broken FIFO passes.
+    assert tb.total_errors == 0, (
+        f"Scoreboard recorded {tb.total_errors} error(s) across the "
+        f"incremental/sweep/back-to-back/stress phases -- see the log above")
     tb.log.info(f"✓ ALL {test_level.upper()} ASYNC TESTS PASSED!")
 
 
