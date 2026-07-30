@@ -386,6 +386,17 @@ async def cocotb_test_stream_char(dut):
         ok &= await tb.run_ext_chain_test(W=W, H=H, depth=depth)
         assert ok, "ext_chain: chained strided/transpose descriptor regression failed"
 
+    elif test_type == 'ext_chain_soak':
+        # TASK-059 aggressive SOAK: loop randomized MIXED chained strided/transpose
+        # descriptors (the pre-si failure shapes) at volume. Board-equivalent; scale
+        # EXT_SOAK_ITERS up for the 10-min hardware run.
+        tb.log.info("=== TASK-059 aggressive chained-transpose SOAK ===")
+        ok = await tb.run_ping_test()
+        iters = int(os.environ.get('EXT_SOAK_ITERS', '15'))
+        seed = int(os.environ.get('EXT_SOAK_SEED', '0x5EED'), 0)
+        ok &= await tb.run_ext_chain_soak(iterations=iters, seed=seed)
+        assert ok, "ext_chain_soak: a mixed chained run dropped beats / stalled"
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -398,9 +409,13 @@ async def cocotb_test_stream_char(dut):
 # Parameter generation
 # ==========================================================================
 
-# Simulation-fast UART baud (CLKS_PER_BIT = 100MHz / 12.5MHz = 8)
+# Simulation-fast UART baud. Push it as close to the 100 MHz sim clock as the
+# UART tolerates so sims aren't dominated by serial time. CLKS_PER_BIT=4 (25 MHz)
+# is the practical floor: uart_rx has a 2-flop rx synchronizer (~2-clock latency),
+# so the bit period must exceed that -- CLKS_PER_BIT=2 samples before the sync
+# settles. 4 halves the serial time vs the old 8 (12.5 MHz).
 SIM_FPGA_CLK_HZ = 100_000_000
-SIM_UART_BAUD   = 12_500_000
+SIM_UART_BAUD   = 25_000_000   # CLKS_PER_BIT = 100 MHz / 25 MHz = 4
 
 # RTL parameters for the harness
 BASE_RTL_PARAMS = {
@@ -774,6 +789,71 @@ def test_stream_char_ext_chain(request):
         plus_args=['--trace'] if enable_waves else [],
     )
     print(f"PASS ext_chain! Logs: {log_path}")
+
+
+def test_stream_char_ext_chain_soak(request):
+    """TASK-059 aggressive SOAK: build param=1 and loop randomized MIXED chained
+    strided/transpose descriptors. Reuses the ext_suite build; TEST_TYPE differs.
+    Scale via EXT_SOAK_ITERS (sim default 15; set high for a 10-min hardware run
+    through host/stream_ext_soak.py on the board)."""
+    module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
+        'stream_char': 'projects/NexysA7/stream_characterization/flows-stream-bridge',
+    })
+    dut_name = "stream_char_harness"
+    os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dmas/stream')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
+    os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/flows-stream-bridge')
+    os.environ['FRAMEWORK_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/stream_char_framework')
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root_path,
+        filelist_path='projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/filelists/stream_char_harness.f',
+    )
+    # Reuse the ext_suite build (identical RTL params; only TEST_TYPE differs).
+    test_name_plus_params = f"test_{dut_name}_ext_suite_rowcol"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+    log_path = os.path.join(log_dir, f'test_{dut_name}_ext_chain_soak.log')
+    results_path = os.path.join(log_dir, f'results_test_{dut_name}_ext_chain_soak.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    rtl_parameters = {
+        'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
+        'UART_BAUD':   str(SIM_UART_BAUD),
+        'USE_ROW_COL_MAJOR_ADDRESSING': '1',
+        **{k: str(v) for k, v in BASE_RTL_PARAMS.items()},
+    }
+    extra_env = {
+        'TEST_TYPE':        'ext_chain_soak',
+        'FPGA_CLK_HZ':      str(SIM_FPGA_CLK_HZ),
+        'UART_BAUD':        str(SIM_UART_BAUD),
+        'TEST_LEVEL':       'gate',
+        'DUT':              dut_name,
+        'LOG_PATH':         log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED':             str(random.randint(0, 100000)),
+        'EXT_SOAK_ITERS':   os.environ.get('EXT_SOAK_ITERS', '15'),
+    }
+    simulator = os.environ.get('SIM', 'verilator').lower()
+    create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+    compile_args = [
+        "--trace-fst", "--trace-structs", "--trace-depth", "99", "--public-flat-rw",
+        "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
+        "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
+        "--unroll-count", "4096", "--unroll-stmts", "20000",
+    ]
+    run(
+        python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module, testcase="cocotb_test_stream_char",
+        parameters=rtl_parameters, sim_build=sim_build, extra_env=extra_env,
+        simulator=simulator, waves=bool(int(os.environ.get('WAVES', '0'))),
+        keep_files=True, compile_args=compile_args,
+        sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
+    )
+    print(f"PASS ext_chain_soak! Logs: {log_path}")
 
 
 def test_stream_char_ext_char(request):

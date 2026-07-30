@@ -954,6 +954,101 @@ class StreamCharTB(TBBase):
             self.errors += 1
         return ok
 
+    async def run_ext_chain_soak(self, iterations: int = 20, seed: int = 0x5EED,
+                                 max_depth: int = 6) -> bool:
+        """Aggressive SOAK (TASK-059): loop `iterations` randomized MIXED chained
+        extended descriptors -- transpose (strided write), reverse-transpose
+        (strided read) and contiguous, at varied depth/tile-dims -- all chained
+        via next_ptr (the pre-si failure shape) on channel 0. Each chain must move
+        ALL its beats; a dropped beat ("hole") stalls the cumulative sink beat
+        count and fails the soak. Same host program shape that runs on the board.
+        Scale `iterations` (EXT_SOAK_ITERS) up for a 10-min hardware run."""
+        import random
+        from stream_device import Stream
+
+        await self._configure_stream_for_ext()
+        tb = self
+
+        class _Bridge:
+            def __init__(self):
+                self._w = cocotb.function(tb.uart_write)
+                self._r = cocotb.function(tb.uart_read)
+
+            def write(self, addr, val):
+                return bool(self._w(addr, val))
+
+            def read(self, addr):
+                return self._r(addr)
+
+        stream = Stream(_Bridge(), "stream0",
+                        regs_base=STREAM_APB_BASE, desc_ram_base=DESC_RAM_BASE,
+                        data_width=128)
+        bs = stream.desc.bytes_per_beat
+        rng = random.Random(seed)
+        channel = 0
+
+        def _shape(kind, W, H):
+            if kind == 'transpose':      # contiguous read, column-major write
+                return (dict(s0=bs,     s1=W * bs, inner=W),
+                        dict(s0=H * bs, s1=bs,     inner=H))
+            if kind == 'rtranspose':     # column-major read, contiguous write
+                return (dict(s0=H * bs, s1=bs,     inner=H),
+                        dict(s0=bs,     s1=W * bs, inner=W))
+            beats = W * H                # contiguous both sides
+            return (dict(s0=bs, s1=0, inner=beats), dict(s0=bs, s1=0, inner=beats))
+
+        cum_expected = 0
+        passed = 0
+        for it in range(iterations):
+            depth = rng.randint(2, max_depth)
+            descriptors = []
+            plan = []
+            for _k in range(depth):
+                kind = rng.choice(['transpose', 'rtranspose', 'contig'])
+                W = rng.choice([2, 4, 8])
+                H = rng.choice([2, 4, 8])
+                rd, wr = _shape(kind, W, H)
+                descriptors.append(dict(transfer_bytes=W * H * bs, rd=rd, wr=wr))
+                plan.append(f"{kind}{W}x{H}")
+            chain_beats = sum(d['transfer_bytes'] // bs for d in descriptors)
+            cum_expected += chain_beats
+            await self.uart_write(CSR_TIMER_EXPECTED_BEATS, cum_expected)
+
+            def program(_descs=descriptors):
+                kick = stream.load_ext_chain(channel, _descs)
+                stream.enable_channel(channel, True)
+                return kick
+            kick = await cocotb.external(program)()
+            await self.uart_write(kick_addr_csr(channel), kick)
+            await self.uart_write(CSR_KICK_GO, 1 << channel)
+
+            done = False
+            for _ in range(4000):
+                ts = await self.uart_read(CSR_TIMER_STATUS) or 0
+                if ts & 0x1:
+                    done = True
+                    break
+                await self.wait_clocks(self.clk_name, 100)
+            try:
+                wr = int(self._dma_slaves().u_wr_crc_check.write_beat_count_total.value)
+                rd = int(self._dma_slaves().u_rd_pattern_gen.read_beat_count_total.value)
+            except Exception:
+                wr = rd = -1
+            ok = done and (wr == cum_expected) and (rd == cum_expected)
+            passed += int(ok)
+            self.log.info(f"  soak[{it:03d}] depth={depth} {'+'.join(plan)} "
+                          f"chain_beats={chain_beats} cum={cum_expected} "
+                          f"done={done} rd={rd} wr={wr} {'PASS' if ok else 'FAIL'}")
+            if not ok:
+                self.log.error(f"  soak FAIL at iter {it}: dropped beats / stall "
+                               f"(cum_expected={cum_expected} rd={rd} wr={wr}) -- "
+                               f"the TASK-059 pre-si signature")
+                self.errors += 1
+                return False
+        self.log.info(f"ext_chain_soak: {passed}/{iterations} mixed chained runs PASS, "
+                      f"{cum_expected} total beats moved, 0 holes")
+        return passed == iterations
+
     def _dma_slaves(self):
         """Handle to the axi4_dma_slaves instance (LFSR pattern-gen + CRC-check
         beat counters). Walks self.dma_slaves_path so the monitor harness, which
