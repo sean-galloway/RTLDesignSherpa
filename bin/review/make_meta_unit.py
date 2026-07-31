@@ -22,6 +22,7 @@ Never edit a previous copy -- a hand-maintained inventory is what goes stale.
 """
 import argparse
 import glob
+import re
 import os
 import sys
 
@@ -40,6 +41,40 @@ def meta_pages(book, area):
     cands += sorted(glob.glob(f'{d}/_book_*_index.md'))
     cands += [f'{REPO}/rtl/{area}/CLAUDE.md', f'{REPO}/rtl/{area}/README.md']
     return [p for p in cands if os.path.isfile(p)]
+
+
+def port_block(sv_path):
+    """The `module ... );` header: parameters and ports, no body."""
+    src = open(sv_path, encoding='utf-8', errors='replace').read()
+    m = re.search(r'^module\s+\w+.*?^\s*\);', src, re.S | re.M)
+    return m.group(0) if m else None
+
+
+def instantiated_modules(doc_text, area):
+    """Modules the meta-docs show being INSTANTIATED, not merely mentioned.
+
+    A `_meta` unit's RTL.sv is an inventory, which settles existence and count
+    claims but says nothing about interfaces -- so a code example connecting
+    ports that do not exist reads as unverifiable and survives review. common
+    round_1 (2026-07-30) shipped four such patterns: counter_bin documented
+    with .i_clk/.o_count/.o_overflow against real clk/counter_bin_curr and no
+    overflow port at all, counter_freq_invariant as a timeout timer it is not,
+    plus wrong parameter names on arbiter_round_robin and dataint_crc. None
+    were findable from an inventory.
+
+    Matching `name #(` and `name u_inst (` keeps this to modules the docs tell
+    a reader to wire up, which is where interface claims are actionable.
+    """
+    names = set(re.findall(r'^\s*([a-z][a-z0-9_]{3,})\s*#?\s*\(', doc_text, re.M))
+    names |= set(re.findall(r'\b([a-z][a-z0-9_]{3,})\s+u_\w+\s*\(', doc_text))
+    out = {}
+    for n in sorted(names):
+        for cand in glob.glob(f'{REPO}/rtl/**/{n}.sv', recursive=True):
+            blk = port_block(cand)
+            if blk:
+                out[n] = (os.path.relpath(cand, REPO), blk)
+            break
+    return out
 
 
 def main():
@@ -79,6 +114,22 @@ def main():
                 '// "this module does not exist".',
                 '//']
         rtl += [f'//   {m}' for m in omods]
+
+    doc_text = '\n'.join(open(p, encoding='utf-8').read() for p in pages)
+    insts = instantiated_modules(doc_text, args.area)
+    if insts:
+        rtl += ['',
+                '// ' + '=' * 74,
+                '// INTERFACES OF THE MODULES THESE PAGES INSTANTIATE',
+                '//',
+                '// Parameter and port declarations only, no bodies. The inventory above',
+                '// settles existence; this settles whether a code example would compile.',
+                '// A doc that connects a port not declared here, or overrides a parameter',
+                '// by a name not declared here, is wrong.',
+                '// ' + '=' * 74,
+                '']
+        for name, (src, blk) in insts.items():
+            rtl += [f'// SOURCE FILE: {src}', blk, '']
     with open(f'{out}/RTL.sv', 'w', encoding='utf-8') as fh:
         fh.write('\n'.join(rtl) + '\n')
 
@@ -86,9 +137,11 @@ def main():
            '',
            f'{len(pages)} documentation files. These are the pages OUTSIDE the '
            f'`{args.area}` book bundle: the catalogue, the orientation, the '
-           'quickstart and the beside-code guidance. RTL.sv is a module '
-           'inventory, not source -- it is here to settle count and existence '
-           'claims.',
+           'quickstart and the beside-code guidance. RTL.sv carries a module '
+           'inventory for count and existence claims, plus the parameter and '
+           'port declarations of every module these pages show being '
+           'instantiated -- so code examples can be checked against real '
+           'interfaces.',
            '']
     for p in pages:
         rel = os.path.relpath(p, REPO)
@@ -101,6 +154,8 @@ def main():
     print(f'  {len(pages)} pages, {len(mods)} modules in inventory'
           + (f' (+{sum(len(inventory(o)) for o in args.also_list)} from '
              f'{", ".join(args.also_list)})' if args.also_list else ''))
+    print(f'  {len(insts)} instantiated-module interfaces: '
+          + ', '.join(insts) if insts else '  no instantiations found in the docs')
     for p in pages:
         print(f'    {os.path.relpath(p, REPO)}')
 
