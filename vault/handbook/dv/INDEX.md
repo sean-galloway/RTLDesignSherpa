@@ -12,7 +12,8 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[bfm-usage]] - use RDS-DV BFMs, never re-roll; the factory map + trap list
 - [[randomization]] - the 19 FlexConfigGen profiles; random traffic does NOT prove fairness
 - [[registers-by-name]] - PeakRDL regmaps; offsets are forbidden
-- [[seeds-and-determinism]] - pin seeds; corpus + exploration pattern
+- [[seeds-and-determinism]] - random seed per run, recorded and overridable;
+  there is no such thing as a failing seed
 - [[tb-structure]] - Pattern A/B, TB location, the three mandatory methods
 - [[test-runner]] - the Makefile/pytest/run() stack; REG_LEVEL vs TEST_LEVEL, build-dir uniqueness
 - [[test-review]] - auditing test collateral with the review pipeline: what to grab, bundle layout, checklist
