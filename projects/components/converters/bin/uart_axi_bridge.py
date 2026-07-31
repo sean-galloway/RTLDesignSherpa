@@ -6,9 +6,14 @@ Python interface for UART AXI Bridge on FPGA
 Provides a simple Python API to perform AXI transactions via UART
 """
 
-import serial
 import sys
 import time
+
+# NOTE: pyserial is imported lazily in __init__, not here. The W/R protocol is
+# transport-agnostic, so sim callers (channel=...), board-less unit tests, and
+# anything that only wants to IMPORT this module must not be forced to have
+# pyserial installed. Mirrors the same choice in
+# bin/TBClasses/harness/byte_channel.py.
 
 
 class UARTAxiBridge:
@@ -41,6 +46,7 @@ class UARTAxiBridge:
         if channel is not None:
             self.ser = channel
             return
+        import serial  # lazy: only the real-port path needs pyserial
         try:
             self.ser = serial.Serial(port, baudrate, timeout=timeout)
             time.sleep(0.1)  # Let UART stabilize
