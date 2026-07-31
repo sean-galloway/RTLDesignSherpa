@@ -21,8 +21,8 @@ document the controller's internals.
 
 | Source | Title |
 |--------|-------|
-| RTL Design Sherpa | `flows-ours-uart/host/ADDRESS_MAP.md` (bridge + CSR map) |
-| RTL Design Sherpa | `flows-ours-uart/bin/README_a7ddrphy.md` (PHY regen) |
+| RTL Design Sherpa | `build-perf/host/ADDRESS_MAP.md` (bridge + CSR map) |
+| RTL Design Sherpa | `build-perf/bin/README_a7ddrphy.md` (PHY regen) |
 | RTL Design Sherpa | `flows-litedram-uart/HARNESS_PLAN.md` (baseline flow) |
 | RTL Design Sherpa | `bin/TBClasses/harness/` (shared UART-char collateral) |
 | Micron | `MT47H64M16HR-25E` DDR2 SDRAM datasheet |

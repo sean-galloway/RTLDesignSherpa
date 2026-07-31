@@ -74,11 +74,11 @@ treated here as a black box.
 
 | Flow | Controller (DUT) | Purpose |
 |------|------------------|---------|
-| `flows-ours-uart/` | pumice DDR2 (black box) + a7ddrphy | Primary: UART-driven host + Vivado build |
+| `build-perf/` | pumice DDR2 (black box) + a7ddrphy | Primary: UART-driven host + Vivado build |
 | `flows-litedram-uart/` | LiteDRAM `litedram_core` | Apples-to-apples baseline, same engines/host |
 | `ddr2_char_framework/` | — | Shared harness RTL + engines + cocotb DV |
 
-### Bring-up sequence (flows-ours-uart)
+### Bring-up sequence (build-perf)
 
 | Step | Command |
 |------|---------|

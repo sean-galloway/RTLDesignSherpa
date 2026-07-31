@@ -20,7 +20,7 @@ WHY THE EARLIER test_a7ddrphy_gear_mismatch THEORY WAS WRONG
 -----------------------------------------------------------
 That test blamed a GEAR-RATIO mismatch (controller DFI_RATE=2 vs PHY nphases=4,
 gathering only {p1,p0}=4 of 8 slots). But the board bitstream was built at
-DFI_RATE=4 (== nphases, gear MATCHED — see flows-ours-uart synth logs: "Parameter
+DFI_RATE=4 (== nphases, gear MATCHED — see build-perf synth logs: "Parameter
 DFI_RATE bound to ...0100" == 4) and STILL read exactly 2/4 wrong. So the bug is
 NOT the gear ratio; it is that a BL4 burst is SHORTER than a full BL8 DFI cycle
 regardless of gear. This module supersedes the gear theory: the failure survives

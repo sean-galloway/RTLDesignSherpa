@@ -197,7 +197,7 @@ kind = "board"
 rtl_roots = []
 filelist_dirs = [
     "projects/NexysA7/ddr2-characterization/ddr2_char_framework/dv/filelists",
-    "projects/NexysA7/ddr2-characterization/flows-ours-uart/rtl/filelists",
+    "projects/fpga-systems/NexysA7/pumice/build-perf/rtl/filelists",
     "projects/NexysA7/ddr2-characterization/flows-litedram-uart/rtl/filelists",
 ]
 

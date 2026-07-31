@@ -64,8 +64,8 @@ the two flows measuring identically and avoids a divergent copy.
   1->5 bridge is unneeded — litedram has no APB controller CSRs to reach).
 - `constraints/litedram_char.xdc` — CLK100MHZ (E3), CPU_RESETN (C12),
   UART_TXD_IN/RXD_OUT (C4/D4), LED/7seg, and the DDR2 `ddram_*` pins. Adapt from
-  `flows-ours-uart` XDC; `ddram_a` is 13-bit here (litedram core width).
-- `tcl/build_all.tcl`, `tcl/program_fpga.tcl`, `Makefile` — mirror flows-ours-uart;
+  `build-perf` XDC; `ddram_a` is 13-bit here (litedram core width).
+- `tcl/build_all.tcl`, `tcl/program_fpga.tcl`, `Makefile` — mirror build-perf;
   add `litedram_core.v` + the harness sources to the read_verilog list.
 
 ## Clock / reset / init / UART
@@ -73,7 +73,7 @@ the two flows measuring identically and avoids a divergent copy.
   `pll_locked`). Compute `CLKS_PER_BIT` for the user_clk freq (100 MHz -> 868 @
   115200, or lower baud).
 - The host waits on `harness_csr.i_init_done` (<= `litedram_core.init_done`) before
-  pulsing start — same sequencing as flows-ours-uart. No HW start-gate needed.
+  pulsing start — same sequencing as build-perf. No HW start-gate needed.
 - **UART gotcha:** litedram's `uart_rx/uart_tx` is its BIOS console. Tie
   `uart_rx=1'b1` (idle) and leave `uart_tx` open; the LiteX BIOS auto-runs `sdram
   init` without console input and asserts `init_done`. The board FTDI UART goes to
@@ -122,7 +122,7 @@ cocotb-drive the AXI user port if a pre-board smoke is wanted.
    real ddram pins, REMOVE the `ddram_*` lines from `litedram_char.xdc` and
    uncomment the `read_xdc .../litedram_core.xdc` line in `tcl/build_all.tcl`
    (keeps CLK/UART/LED/7seg here, ddram + PHY there — no double-constraint).
-3. Host variant: copy `flows-ours-uart/host/ddr2_char.py` + `pumice_master.py`,
+3. Host variant: copy `build-perf/host/ddr2_char.py` + `pumice_master.py`,
    drop the `set_controller_cfg` pumice-CSR writes (litedram self-configures),
    keep engine cfg + perf/timer bandwidth readout. `harness_csr` is at base 0
    (direct UART->CSR, no 1->5 bridge). Wire `make characterize` to it.

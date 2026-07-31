@@ -143,23 +143,23 @@ so adopting the file could not break a working build. Overlaps NEXYS-001.
 **Sequences:** consider `projects/fpga-systems/<board>/<component>/bin/` sequence areas
 for rapids/stream, mirroring `projects/fpga-systems/NexysA7/pumice/bin/`.
 
-**Pumice area scaffold (created 2026-07-30, empty):** the component shape is
-declared at `projects/fpga-systems/NexysA7/pumice/` — `rtl/` (flat, shared blocks),
-`dv/{tb,tbclasses,tests}` (tests those blocks), `bin/` (sequences, populated),
-and `build-perf/{rtl,dv,host,fpga}` for one harness build, with `fpga/`
-holding `tcl,constraints,bitstream,reports`. Siblings are `build-<variant>/`.
-See its README for the what-goes-where rules.
+**Pumice area (build-perf migrated 2026-07-31):** the component lives at
+`projects/fpga-systems/NexysA7/pumice/`. `bin/` (sequences) and `build-perf/`
+(the whole pumice-on-DDR2 harness) are POPULATED; the former
+`projects/NexysA7/ddr2-characterization/flows-ours-uart/` no longer exists.
+Verified at the new location: `make lint` clean (matches the pre-move baseline),
+`bin/filelist_registry.py --check` PASS, 27 sim tests still collect, host unit
+tests pass. NOT verified: anything needing Vivado or a board.
 
-The migration is a near-mechanical mapping from the existing tree:
-- `ddr2_char_framework/rtl/*`  -> `pumice/rtl/` (flat; keep `bridges/` as-is)
-- `ddr2_char_framework/dv/{tb,tbclasses,tests}` -> `pumice/dv/`
-- `flows-ours-uart/{rtl,rtl-vivado}` -> `pumice/build-perf/rtl/`
-- `flows-ours-uart/host` -> `pumice/build-perf/host/`
-- `flows-ours-uart/{tcl,constraints,bitstream,reports}` -> `pumice/build-perf/fpga/`
-- `flows-ours-uart/{rtl-vivado,bin}` -> `pumice/build-perf/{rtl-vivado,bin}`
-- `flows-ours-uart/{csv,plots,docs}` -> `pumice/build-perf/results/`
+Remaining moves:
+- `ddr2_char_framework/rtl/*` -> `pumice/rtl/` (flat; keep `bridges/` as-is).
+  Shared blocks; `build-perf/rtl/filelists/` currently `-f` includes them in
+  place, which is legal, so this is tidiness rather than breakage.
+- `ddr2_char_framework/dv/{tb,tbclasses,tests}` -> `pumice/dv/`, then repoint
+  `SIM_TESTS` in `build-perf/Makefile` from the framework path to
+  `$(SELF_DIR)/dv/tests`.
 - `flows-litedram-uart/{rtl,constraints,tcl}` -> `pumice/build-litedram/`
-  (`litedram_hp.yml`, `regen.sh`, `README.md`, `HARNESS_PLAN.md` at its root)
+  (`litedram_hp.yml`, `regen.sh`, `README.md`, `HARNESS_PLAN.md` at its root).
 
 **While moving litedram, two things to fix rather than carry over:**
 - `regen.sh` writes to `build_board/` + `build_sim/` at the flow root. Point it
@@ -169,13 +169,16 @@ The migration is a near-mechanical mapping from the existing tree:
 - `rtl/char_engine_harness.sv` is described as DUT-agnostic and is what makes
   the pumice-vs-LiteDRAM comparison apples-to-apples, yet it lives in the
   litedram flow. It belongs in `pumice/rtl/` (shared by both builds); check
-  whether `flows-ours-uart` has diverged its own copy of the same wiring before
+  whether build-perf has diverged its own copy of the same wiring before
   promoting it.
 
-Then fix: `*.f` filelists + `bin/filelists.toml`, `DDR2_CHAR_FRAMEWORK_ROOT`
-and `CHAR_ROOT`/`FLOW_ROOT` in `env_python` and the flow Makefile, tcl
-`project_root` derivations, `get_paths` in the moved dv tests, `pumice_env.py`'s
-`FLOW_HOST_REL`, and the handbook/vault links.
+Reference-fixing checklist, from doing the build-perf half (all five were real,
+the rest were comments): `bin/filelists.toml` filelist dir, the build's own `.f`
+flow-RTL lines, `ddr2_char_framework/dv/filelists/ddr2_char_uart_tb_top.f`,
+`_HOST` in `dv/tests/test_ddr2_char_{uart,char}.py`, and `pumice_env.py`.
+Also: the moved build needs `CONVERTERS_ROOT` exported by its Makefile (its
+filelist closure resolves `$CONVERTERS_ROOT`), and the tcl scripts now take
+`FPGA_PROJECT_ROOT` from the environment instead of guessing `script_dir/..`.
 
 **Parent directory: SETTLED (Sean, 2026-07-30).** New FPGA board areas live
 under `projects/fpga-systems/<board>/<component>/`, agreeing with NEXYS-002's

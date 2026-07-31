@@ -2,7 +2,7 @@
 # (real UART bridge + harness_csr + 1->N AXIL bridge + engines + pumice controller),
 # with the DFI wired to internal phy_dfi_* nets for the DFISlavePHY BFM.
 #
-# Mirrors flows-ours-uart/rtl/filelists/ddr2_char_harness.f but OMITS the FPGA
+# Mirrors build-perf/rtl/filelists/ddr2_char_harness.f but OMITS the FPGA
 # synthesis top (ddr2_char_top.sv) and the a7ddrphy stub / DFI->PHY adapter
 # (not simulatable in verilator), and adds this TB top.
 
@@ -23,6 +23,6 @@ $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/dfi_rd
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/harness_csr.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/led_status_driver.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/seven_seg_4digit.sv
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/flows-ours-uart/rtl/ddr2_char_harness.sv
+$REPO_ROOT/projects/fpga-systems/NexysA7/pumice/build-perf/rtl/ddr2_char_harness.sv
 
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/dv/tb/ddr2_char_uart_tb_top.sv

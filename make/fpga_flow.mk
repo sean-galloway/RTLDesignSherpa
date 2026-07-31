@@ -55,7 +55,10 @@ TCL_DIR    ?= $(FPGA_DIR)/tcl
 BITSTREAM  ?= $(FPGA_DIR)/bitstream/$(FLOW).bit
 ILA_BITSTREAM ?= $(FPGA_DIR)/bitstream/$(FLOW)_ila.bit
 REPORTS    ?= $(FPGA_DIR)/reports
-BUILD_DIR  ?= $(SELF_DIR)/build
+# Vivado creates its project under $project_root/build, and project_root is
+# FPGA_PROJECT_ROOT below -- so this must track FPGA_DIR or `make clean` would
+# miss the very directory the build wrote.
+BUILD_DIR  ?= $(FPGA_DIR)/build
 PROJECT    ?= $(BUILD_DIR)/vivado_project/$(FLOW).xpr
 
 # ---- Tools -----------------------------------------------------------------
@@ -64,16 +67,35 @@ VIVADO_BATCH ?= $(VIVADO) -mode batch -notrace
 PYTHON       ?= python3
 VERILATOR    ?= verilator
 
-# ---- Tcl script names (override the variable, not the rule) ----------------
-PROJECT_TCL ?= create_project.tcl
-SYNTH_TCL   ?= synth_only.tcl
-BUILD_TCL   ?= build_all.tcl
-ILA_TCL     ?= build_ila.tcl
+# ---- Tcl scripts: DISCOVERED, never enumerated -----------------------------
+# Every fpga/tcl/*.tcl becomes a `make tcl-<name>` target the moment it lands --
+# same discipline as make/tests.mk globbing test_*.py. There is no list to keep
+# in sync, so a new script is runnable without editing any Makefile.
+TCL_SCRIPTS := $(sort $(notdir $(wildcard $(TCL_DIR)/*.tcl)))
+TCL_NAMES   := $(basename $(TCL_SCRIPTS))
+# Helpers included BY other scripts, not run on their own.
+TCL_HELPERS ?= filelist_utils
+TCL_RUNNABLE := $(filter-out $(TCL_HELPERS),$(TCL_NAMES))
+
+# The four semantic targets map onto conventional script names when present.
+# Override the variable if a build names them differently; the rule never
+# changes, and a missing script fails with a readable message, not a Vivado one.
+PROJECT_TCL ?= $(if $(filter create_project,$(TCL_NAMES)),create_project.tcl,)
+SYNTH_TCL   ?= $(if $(filter synth_only,$(TCL_NAMES)),synth_only.tcl,)
+BUILD_TCL   ?= $(if $(filter build_all,$(TCL_NAMES)),build_all.tcl,)
+ILA_TCL     ?= $(if $(filter build_ila,$(TCL_NAMES)),build_ila.tcl,)
+
+# Vivado reads the layout from the environment rather than guessing it from
+# where the script sits, so moving a build does not silently relocate outputs.
+export FPGA_PROJECT_ROOT := $(FPGA_DIR)
 
 # ---- Host / sim entry points -----------------------------------------------
 BAUD      ?= 115200
 SEQ_DIR   ?=
-RUN_SCRIPT ?= $(firstword $(wildcard $(SEQ_DIR)/run_*.py))
+# run_*.py in the sequence area are DISCOVERED too: each becomes `make run-<name>`.
+RUN_SCRIPTS := $(sort $(wildcard $(SEQ_DIR)/run_*.py))
+RUN_NAMES   := $(patsubst run_%,%,$(basename $(notdir $(RUN_SCRIPTS))))
+RUN_SCRIPT  ?= $(firstword $(RUN_SCRIPTS))
 SEQUENCES ?=
 SIM_TESTS ?=
 SIM_ARGS  ?= -q
@@ -91,7 +113,41 @@ include $(RDS_ROOT)/make/fpga_board.mk
 
 .DEFAULT_GOAL := help
 .PHONY: help project synth bitstream bitstream-ila lint sim run seq-list \
-        utilization timing clean clean-all
+        utilization timing clean clean-all targets \
+        $(addprefix tcl-,$(TCL_RUNNABLE)) $(addprefix run-,$(RUN_NAMES))
+
+# Run any discovered tcl by name: `make tcl-capture_ila`.
+define _tcl_rule
+tcl-$(1):
+	@echo "[tcl] $(1).tcl"
+	cd $$(SELF_DIR) && $$(VIVADO_BATCH) -source $$(TCL_DIR)/$(1).tcl
+endef
+$(foreach t,$(TCL_RUNNABLE),$(eval $(call _tcl_rule,$(t))))
+
+# Run any discovered run_*.py by name: `make run-smoke`.
+define _run_rule
+run-$(1):
+	$$(PYTHON) $$(SEQ_DIR)/run_$(1).py --board $$(BOARD) --baud $$(BAUD) \
+	    $$(if $$(SEQUENCES),--sequences $$(SEQUENCES),)
+endef
+$(foreach r,$(RUN_NAMES),$(eval $(call _run_rule,$(r))))
+
+targets:            ## Show what was DISCOVERED on disk (tcl scripts, run scripts)
+	@echo "tcl scripts in $(TCL_DIR):"
+	@$(if $(TCL_RUNNABLE),for t in $(TCL_RUNNABLE); do echo "    make tcl-$$t"; done,echo "    (none)")
+	@echo "  helpers (sourced, not run): $(if $(TCL_HELPERS),$(TCL_HELPERS),none)"
+	@echo "run scripts in $(SEQ_DIR):"
+	@$(if $(RUN_NAMES),for r in $(RUN_NAMES); do echo "    make run-$$r"; done,echo "    (none)")
+	@echo "semantic targets -> script:"
+	@echo "    project       $(if $(PROJECT_TCL),$(PROJECT_TCL),MISSING)"
+	@echo "    synth         $(if $(SYNTH_TCL),$(SYNTH_TCL),MISSING)"
+	@echo "    bitstream     $(if $(BUILD_TCL),$(BUILD_TCL),MISSING)"
+	@echo "    bitstream-ila $(if $(ILA_TCL),$(ILA_TCL),MISSING)"
+
+# A semantic target whose script is absent should say so, not hand Vivado an
+# empty -source argument.
+_require_tcl = @[ -n "$(1)" ] || (echo "No $(2) script found in $(TCL_DIR) -- \
+	set $(3) or add one (make targets shows what was discovered)." && false)
 
 # ---- Help (generated from ## comments, so it cannot go stale) --------------
 help:               ## Show this message
@@ -113,16 +169,19 @@ lint:               ## verilator --lint-only of the whole harness (fast, pre-Viv
 	    $(LINT_DEFINES) $(LINT_WAIVERS)
 
 project:            ## Create the Vivado project (no build)
+	$(call _require_tcl,$(PROJECT_TCL),create_project,PROJECT_TCL)
 	@echo "[project] $(FLOW)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL_DIR)/$(PROJECT_TCL)
 
 synth:              ## Synthesis only + utilization + failing-path reports
+	$(call _require_tcl,$(SYNTH_TCL),synth,SYNTH_TCL)
 	@echo "[synth] $(FLOW) (skip place/route)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL_DIR)/$(SYNTH_TCL)
 	@$(MAKE) --no-print-directory utilization
 	@$(MAKE) --no-print-directory timing
 
 bitstream:          ## Full synth/impl/bitgen + all reports (10-30 min)
+	$(call _require_tcl,$(BUILD_TCL),build,BUILD_TCL)
 	@echo "[bitstream] $(FLOW) full flow"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL_DIR)/$(BUILD_TCL)
 	@echo ""
@@ -130,6 +189,7 @@ bitstream:          ## Full synth/impl/bitgen + all reports (10-30 min)
 	@echo "Reports:   $(REPORTS)"
 
 bitstream-ila:      ## Same design plus an ILA on the marked debug nets
+	$(call _require_tcl,$(ILA_TCL),ILA build,ILA_TCL)
 	@echo "[bitstream-ila] $(FLOW)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL_DIR)/$(ILA_TCL)
 	@echo ""

@@ -261,7 +261,7 @@ assign integrity_ok = (rd_actual_crc == wr_expected_crc) && !rd_data_error;
 ## Related Modules
 
 ### Used By
-- `projects/NexysA7/ddr2-characterization/flows-ours-uart/rtl/ddr2_char_harness.sv` — on-chip read checker
+- `projects/fpga-systems/NexysA7/pumice/build-perf/rtl/ddr2_char_harness.sv` — on-chip read checker
 - DDR2 characterization macro / harness CSR blocks under `projects/NexysA7/ddr2-characterization/`
 
 ### Uses

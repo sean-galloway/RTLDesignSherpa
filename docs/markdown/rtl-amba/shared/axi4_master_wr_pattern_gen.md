@@ -238,7 +238,7 @@ axi4_master_wr_pattern_gen #(
 ## Related Modules
 
 ### Used By
-- `projects/NexysA7/ddr2-characterization/flows-ours-uart/rtl/ddr2_char_harness.sv` — on-chip write driver
+- `projects/fpga-systems/NexysA7/pumice/build-perf/rtl/ddr2_char_harness.sv` — on-chip write driver
 - DDR2 characterization macro / harness CSR blocks under `projects/NexysA7/ddr2-characterization/`
 
 ### Uses

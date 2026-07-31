@@ -62,7 +62,7 @@ ddr2-characterization/                       ← this directory (umbrella)
 │   └── host/                                (TODO) plot_results.py, sweep
 │                                              runners, CSV ingest
 │
-└── flows-ours-uart/                         our DDR2 controller + UART-driven host
+└── build-perf/                         our DDR2 controller + UART-driven host
     ├── rtl/                                 char top + harness + a7ddrphy binding
     ├── tcl/                                 (TODO) Vivado build scripts
     ├── constraints/                         Nexys A7 XDC (board pins done, DDR2 TODO)
@@ -104,7 +104,7 @@ The harness mirrors `stream_characterization`'s pattern of "generate, drive, che
 | 3 | Nexys A7 hardware bring-up — UART-driven host walks the pattern-gen / CRC-check pair against real DDR2 | this directory | Future |
 | 4 | Workload characterization with this harness — pattern + CRC sweeps + perf counters → CSV → plots | this directory | Skeleton (directory + plan only) |
 
-Phase 4 is what `flows-ours-uart/` runs. The two pattern-gen engines share the controller's `s_axi` port; each has its own strided address generator programmed through `harness_csr` cfg regs (linear / 2D row-major / wrap / reverse via stride + wrap-mask fields). The CRC-check pair verifies data integrity end-to-end, and the AXI bus meters + latency histograms tapped inside `ddr2_char_macro` measure throughput / latency. CSVs land under `flows-ours-uart/csv/`; plots under `plots/`.
+Phase 4 is what `build-perf/` runs. The two pattern-gen engines share the controller's `s_axi` port; each has its own strided address generator programmed through `harness_csr` cfg regs (linear / 2D row-major / wrap / reverse via stride + wrap-mask fields). The CRC-check pair verifies data integrity end-to-end, and the AXI bus meters + latency histograms tapped inside `ddr2_char_macro` measure throughput / latency. CSVs land under `build-perf/csv/`; plots under `plots/`.
 
 Extended-endurance work (24-hour soak, thermal chamber) fits inside Phase 3/4 — no OS is running so the "real OS access patterns" story from the earlier VexRiscv plan is off the table on this board. If we want that, it moves to a bigger FPGA target that can host both our controller and Linux.
 
@@ -129,7 +129,7 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 ## Recommended Stack
 
 - **CPU:** none on the FPGA. The Nexys A7 100T can't fit our DDR2 controller + perf logic + a soft CPU with any timing margin. The host runs on an off-board machine and drives the harness over the FTDI UART. (VexRiscv + LiteX was the earlier plan; dropped after the CPU-vs-perf budget shookout.)
-- **Host:** Python driver against `harness_csr`'s register map, hitting the AXIL slaves through the UART→AXIL bridge (see `flows-ours-uart/host/`, TBD).
+- **Host:** Python driver against `harness_csr`'s register map, hitting the AXIL slaves through the UART→AXIL bridge (see `build-perf/host/`, TBD).
 - **Init UART:** the FTDI UART path under `projects/NexysA7/` is the entry point — same wiring as `stream_characterization` and `timing_characterization`.
 
 ---
@@ -153,4 +153,4 @@ Multi-rank (`NUM_RANKS ∈ {1, 2, 4}`) is not exercised on this board — the on
 - **2026-06-15** — Original DDR2 bring-up plan recorded under `projects/NexysA7/pumice-memory-controller/`. Validation methodology (DFI controller + LiteDRAM `a7ddrphy`), CPU choice (VexRiscv Linux on LiteX), and three-sub-phase hardware bring-up agreed. Resource budget fits comfortably (~36 % LUTs). No work started yet — DDR2 controller pre-RTL (HAS v0.2 + MAS v0.1 skeleton).
 - **2026-06-25** — Directory renamed `pumice-memory-controller/` → `ddr2-characterization/` to align with the `stream_characterization/` sibling and reflect the workload-characterization focus. Harness architecture recorded: reuse `dma_address_gen` + the stream `dataint_crc` + `axi_response_delay` + `harness_csr` + LED/7-seg drivers; author **two new master-side blocks** — `axi4_master_wr_pattern_gen` and `axi4_master_rd_crc_check` — by adapting stream's slave-side `axi4_slave_rd_pattern_gen` + `axi4_slave_wr_crc_check`. Initial flow: `flows-ours-vex/` only; `flows-litedram-vex/` lands later as baseline comparison.
 - **2026-07-04** — Bridge shrunk from 1×5 to 1×4: dropped `desc_ram`. The pattern-gen engines already have strided address generators built in (driven by `stride_0/1` + `wrap_mask_0/1` cfg regs at 0x100/0x180), so the descriptor-mode workload path the earlier plan reserved `desc_ram` for is redundant. If we later want a scripted / trace-replay workload class the engines can't express, re-add a fresh slave with the right shape rather than trying to repurpose a placeholder.
-- **2026-07-03** — Drop the soft-CPU story from the Nexys A7 target. XC7A100T doesn't have the LUT budget to fit our DDR2 controller + perf logic + VexRiscv+LiteX simultaneously with any timing margin. Flow renamed `flows-ours-vex/` → `flows-ours-uart/`; the host machine drives the harness through the FTDI UART instead. Resource budget rewritten around perf logic (`axi_bus_meter` + `axi_perf_latency_hist` on WR+RD, tapped inside `ddr2_char_macro`). Future flows follow the same naming: `flows-<controller>-uart/` for the on-Nexys builds; `flows-<controller>-vex/` reserved for larger FPGA targets where a CPU actually fits.
+- **2026-07-03** — Drop the soft-CPU story from the Nexys A7 target. XC7A100T doesn't have the LUT budget to fit our DDR2 controller + perf logic + VexRiscv+LiteX simultaneously with any timing margin. Flow renamed `flows-ours-vex/` → `build-perf/`; the host machine drives the harness through the FTDI UART instead. Resource budget rewritten around perf logic (`axi_bus_meter` + `axi_perf_latency_hist` on WR+RD, tapped inside `ddr2_char_macro`). Future flows follow the same naming: `flows-<controller>-uart/` for the on-Nexys builds; `flows-<controller>-vex/` reserved for larger FPGA targets where a CPU actually fits.

@@ -3,7 +3,7 @@
 #
 # *** SUPERSEDED (2026-07-15) — THE GEAR-RATIO THEORY BELOW IS WRONG. ***
 # The board bitstream was rebuilt at DFI_RATE=4 (== PHY nphases=4, gear MATCHED —
-# see flows-ours-uart synth logs "Parameter DFI_RATE bound to ...0100") and STILL
+# see build-perf synth logs "Parameter DFI_RATE bound to ...0100") and STILL
 # read exactly 2 of every 4 device-words wrong. So the failure is NOT a gear-ratio
 # mismatch. The real mechanism is that a BL4 read is SHORTER than a full BL8 DFI
 # cycle: it fills only its rd_phase-anchored phase-pair and the other phases hold

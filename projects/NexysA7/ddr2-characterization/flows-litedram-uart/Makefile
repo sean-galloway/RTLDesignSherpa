@@ -27,5 +27,5 @@ program:
 
 characterize:
 	@echo "[characterize] litedram host variant over $(UART) (see HARNESS_PLAN.md — "
-	@echo "  reuse flows-ours-uart/host with the pumice-CSR config calls removed;"
+	@echo "  reuse build-perf/host with the pumice-CSR config calls removed;"
 	@echo "  harness_csr is at base 0)."

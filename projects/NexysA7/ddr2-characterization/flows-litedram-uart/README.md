@@ -55,7 +55,7 @@ UART bridge ───▶ harness_csr    ▼                                │ i
                  axi_bus_meter + axi_perf_latency_hist  ◀── wait ─┘
 ```
 
-**Reused unchanged** from `flows-ours-uart`: the pattern gen + CRC check, the
+**Reused unchanged** from `build-perf`: the pattern gen + CRC check, the
 perf collateral (`axi_bus_meter`, `axi_perf_latency_hist`), `harness_csr`
 (timer/perf/engine-cfg), the UART bridge, and the host `pumice_char` metrics/
 report layer (it measures from the AXI side, controller-agnostic). **Dropped vs

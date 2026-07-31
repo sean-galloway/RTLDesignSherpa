@@ -13,7 +13,12 @@ set project_dir  "build/vivado_project"
 set part_name    "xc7a100tcsg324-1"
 
 set script_dir   [file dirname [file normalize [info script]]]
-set project_root [file normalize "$script_dir/.."]
+# Project root: the Makefile exports FPGA_PROJECT_ROOT so the layout is
+# explicit rather than inferred from where this script happens to sit.
+# Falls back to the old script-relative guess for direct invocation.
+set project_root [expr {[info exists ::env(FPGA_PROJECT_ROOT)] \
+                        ? [file normalize $::env(FPGA_PROJECT_ROOT)] \
+                        : [file normalize "$script_dir/.."]}]
 
 # ----------------------------------------------------------------------------
 # Env-var sanity check

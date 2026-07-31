@@ -12,7 +12,12 @@
 #==============================================================================
 
 set script_dir   [file dirname [file normalize [info script]]]
-set project_root [file normalize "$script_dir/.."]
+# Project root: the Makefile exports FPGA_PROJECT_ROOT so the layout is
+# explicit rather than inferred from where this script happens to sit.
+# Falls back to the old script-relative guess for direct invocation.
+set project_root [expr {[info exists ::env(FPGA_PROJECT_ROOT)] \
+                        ? [file normalize $::env(FPGA_PROJECT_ROOT)] \
+                        : [file normalize "$script_dir/.."]}]
 set bit  "$project_root/bitstream/ddr2_char_ila.bit"
 set ltx  "$project_root/bitstream/ddr2_char_ila.ltx"
 set out  [expr {$argc >= 1 ? [lindex $argv 0] : "$project_root/reports/ila_capture.csv"}]

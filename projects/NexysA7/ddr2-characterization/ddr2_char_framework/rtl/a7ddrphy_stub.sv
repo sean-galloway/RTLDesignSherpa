@@ -6,8 +6,8 @@
 //          RTL simulator (cannot model the OSERDESE2 / ISERDESE2 /
 //          IDELAYE2 IOB serdes stack). The Vivado build swaps in the
 //          REAL generated body:
-//            flows-ours-uart/rtl-vivado/a7ddrphy/a7ddrphy_generated.v
-//          (regenerate via flows-ours-uart/bin/elaborate_a7ddrphy.py).
+//            build-perf/rtl-vivado/a7ddrphy/a7ddrphy_generated.v
+//          (regenerate via build-perf/bin/elaborate_a7ddrphy.py).
 //
 // The port list MUST match a7ddrphy_generated.v EXACTLY (names + widths)
 // so ddr2_char_top instantiates the same module for both sim and synth:

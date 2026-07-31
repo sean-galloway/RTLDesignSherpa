@@ -5,10 +5,10 @@ All commands assume the Python environment is sourced (sets `REPO_ROOT`,
 
 ```bash
 cd /path/to/RTLDesignSherpa && source env_python
-cd projects/NexysA7/ddr2-characterization/flows-ours-uart
+cd projects/fpga-systems/NexysA7/pumice/build-perf
 ```
 
-## `flows-ours-uart` make targets
+## `build-perf` make targets
 
 `UART ?= /dev/ttyUSB1`, `BAUD ?= 115200`, `VIVADO ?= vivado`.
 
@@ -30,14 +30,14 @@ cd projects/NexysA7/ddr2-characterization/flows-ours-uart
 | `make sim` / `sim-smoke` / `sim-simple` / `sim-level` | run the **same** host programs in cocotb sim |
 | `make clean` / `clean-all` | remove build artifacts |
 
-: flows-ours-uart make targets
+: build-perf make targets
 
 The other Makefiles: `flows-litedram-uart/Makefile` (`make regen` /
 `make bitstream` / `make program` for the LiteDRAM baseline) and
 `ddr2_char_framework/dv/tests/Makefile` (the cocotb macro suite: `make run`,
 `run-smoke`, `run-<shape>`, and parallel `run-{gate,func,full}-parallel`).
 
-## The host programs (`flows-ours-uart/host/`)
+## The host programs (`build-perf/host/`)
 
 The port defaults to `--port auto`, which probes every `/dev/ttyUSB*` and keeps
 the board that answers `BUILD_ID == 0x44445232` ("DDR2").

@@ -90,7 +90,7 @@ spine and byte-stream equivalence boundary are unchanged.
 
 ## Reference implementation
 
-`projects/NexysA7/ddr2-characterization/`: host `flows-ours-uart/host/`
+`projects/NexysA7/ddr2-characterization/`: host `build-perf/host/`
 (`ddr2_char.py`, `pumice_master.py`), sim
 `ddr2_char_framework/dv/tests/test_ddr2_char_uart.py` (tb_top +
 `make_uart_channel` + `cocotb.external`), RDL `ddr2_char_framework/rtl/harness_csr.rdl`.

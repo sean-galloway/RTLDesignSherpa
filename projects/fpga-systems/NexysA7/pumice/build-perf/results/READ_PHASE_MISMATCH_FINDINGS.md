@@ -14,7 +14,7 @@
 
 **Date:** 2026-07-14
 **Board:** Nexys A7 (xc7a100t), Micron MT47H64M16 x16 DDR2
-**Flow:** `flows-ours-uart` (pumice controller + generated a7ddrphy)
+**Flow:** `build-perf` (pumice controller + generated a7ddrphy)
 **Status:** Root cause confirmed by on-silicon ILA + side-by-side comparison with the proven-good LiteDRAM flow.
 
 ---
@@ -64,7 +64,7 @@ The corruption is a **device-word (16-bit) ordering/shift within the four device
 
 ## 3. Root cause — nphases=4 PHY driven as nphases=2
 
-The generated a7ddrphy is a **4-phase (nphases=4, 4:1)** PHY. From `flows-ours-uart/bin/README_a7ddrphy.md`:
+The generated a7ddrphy is a **4-phase (nphases=4, 4:1)** PHY. From `build-perf/bin/README_a7ddrphy.md`:
 
 > **DFI, 4-phase** (`dfi_p0..p3`): DDR2 is 4:1 on Artix-7 (nphases=4, DDR_clk = 4*sys). 32-bit wrdata/phase (`dfi_databits = 2*16` for the x16 part).
 > **Drive from our controller at `DFI_RATE=4` via the (4-phase) adapter.**
@@ -98,7 +98,7 @@ This is the **"broken hybrid"** documented earlier: *DFI_RATE must equal the PHY
 
 ## 4. Comparison table — OURS vs LiteDRAM (proven-good on this exact board)
 
-| Aspect | `flows-ours-uart` (fails reads) | `flows-litedram-uart` (memtest PASSES) |
+| Aspect | `build-perf` (fails reads) | `flows-litedram-uart` (memtest PASSES) |
 |---|---|---|
 | a7ddrphy phase count | nphases=4 (`dfi_p0..p3`, 32b/phase) | nphases=4 (`dfi_p0..p3`, 32b/phase) — same generator |
 | Controller DFI rate | **`DFI_RATE=2`** (`ddr2_char_top.sv`) | **nphases=4** (LiteDRAM core drives all 4 phases) |

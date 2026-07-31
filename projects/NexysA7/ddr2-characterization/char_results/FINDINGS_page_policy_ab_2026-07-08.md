@@ -2,7 +2,7 @@
 
 Nexys A7, MT47H64M16 x16, 100 MHz, harness UART /dev/ttyUSB2. **Runtime-policy
 bitstream** (rebuilt from commit b8faf9fe; routed WNS = +0.419 ns, all timing met).
-Host: `flows-ours-uart/host/compare_page_policy.py`. Board DFI cfg: t_phy_wrlat=0,
+Host: `build-perf/host/compare_page_policy.py`. Board DFI cfg: t_phy_wrlat=0,
 rddata_delay=8, rd_phase=0, t_rddata_en=6. Leveling clean (bitslip 0, tap 5, eye 0..11).
 
 ## Headline — the committed page-policy fix works on silicon

@@ -22,7 +22,7 @@ import sys
 import time
 
 _REPO = os.environ["REPO_ROOT"]
-_SELF = os.path.join(_REPO, "projects/NexysA7/ddr2-characterization/flows-ours-uart")
+_SELF = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/build-perf")
 sys.path.insert(0, os.path.join(_SELF, "host"))
 
 import ddr2_char as dc                      # noqa: E402

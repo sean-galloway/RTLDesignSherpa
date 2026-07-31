@@ -19,7 +19,7 @@ The project is organized as sibling "flows" plus a shared framework:
 
 | Flow | Controller (DUT) | What it is |
 |------|------------------|-----------|
-| `flows-ours-uart/` | pumice DDR2 (black box) + DFI + a7ddrphy | **Primary** flow: UART-driven host + Vivado build of the pumice harness on the Nexys A7. |
+| `build-perf/` | pumice DDR2 (black box) + DFI + a7ddrphy | **Primary** flow: UART-driven host + Vivado build of the pumice harness on the Nexys A7. |
 | `flows-litedram-uart/` | LiteDRAM `litedram_core` | Apples-to-apples baseline: LiteDRAM's own DDR2 controller (self-initializing, own PLL/PHY) driven by the **same** engines/taps/host. |
 | `ddr2_char_framework/` | — | Shared instrumentation: harness RTL, the engine wrapper (`ddr2_char_macro`), the 1→4 AXIL bridge, and the cocotb DV. |
 
@@ -44,7 +44,7 @@ over UART, no CPU). pumice is separate IP under
 
 ## Workload families
 
-The characterization sweeps four access-pattern families (`flows-ours-uart/host/pumice_char.py`):
+The characterization sweeps four access-pattern families (`build-perf/host/pumice_char.py`):
 
 | Family | Access | Purpose |
 |--------|--------|---------|

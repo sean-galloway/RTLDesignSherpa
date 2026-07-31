@@ -100,10 +100,22 @@ unchanged against silicon and sim. Sequences take an injected bus, never a port.
 
 ## Status
 
-Scaffold. The working collateral still lives at
-`projects/NexysA7/ddr2-characterization/` (`ddr2_char_framework/` maps onto
-`rtl/` + `dv/`; `flows-ours-uart/` maps onto `build-perf/`). That migration is
-NEXYS-003 in `vault/Tasks/nexysa7/open.md`; NEXYS-002 moves the rest of
-`projects/NexysA7/` under `projects/fpga-systems/` alongside it.
+**`build-perf` is live** -- the whole harness (rtl, rtl-vivado, fpga/tcl,
+fpga/constraints, host, bin) moved here from the former
+`projects/NexysA7/ddr2-characterization/flows-ours-uart/`, which no longer
+exists. It lints clean at this location, and `bin/filelist_registry.py --check`
+passes. `bin/` holds the sequences.
 
-Populated today: `bin/` (init, write_read, memtest, run_smoke.py).
+Two things have NOT moved yet, so they are still referenced in place:
+
+- `ddr2_char_framework/rtl/` (harness_csr, DFI shims, displays) -- the shared
+  blocks that belong in this area's `rtl/`. `build-perf/rtl/filelists/` `-f`
+  includes them where they sit, which is legal, so nothing is broken.
+- `ddr2_char_framework/dv/` -- the whole-harness sim. `build-perf` points
+  `SIM_TESTS` at it; `build-perf/dv/` stays scaffold until it moves.
+
+`build-litedram` is still scaffold. Both remaining migrations are NEXYS-003 in
+`vault/Tasks/nexysa7/open.md`; NEXYS-002 moves the rest of `projects/NexysA7/`
+under `projects/fpga-systems/`.
+
+Nothing here has been run against a board yet.

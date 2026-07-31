@@ -28,8 +28,8 @@ host transaction to the right slave via per-slave adapters.
 
 | File | Role |
 |------|------|
-| `flows-ours-uart/rtl/ddr2_char_top.sv` | FPGA pin-level top: wraps the harness, the flat-DFI→per-phase adapter, and the a7ddrphy black box; MMCM clock synthesis (sys / sys2x / sys4x / sys4x_dqs), IDELAYCTRL, DDR2 pads. |
-| `flows-ours-uart/rtl/ddr2_char_harness.sv` | Internal integration: `uart_axil_bridge` + `bridge_ddr2_char_axil` + `harness_csr` + `debug_sram` + `dfi_mon_ram` + `ddr2_char_macro` + char timer + LED / 7-seg. |
+| `build-perf/rtl/ddr2_char_top.sv` | FPGA pin-level top: wraps the harness, the flat-DFI→per-phase adapter, and the a7ddrphy black box; MMCM clock synthesis (sys / sys2x / sys4x / sys4x_dqs), IDELAYCTRL, DDR2 pads. |
+| `build-perf/rtl/ddr2_char_harness.sv` | Internal integration: `uart_axil_bridge` + `bridge_ddr2_char_axil` + `harness_csr` + `debug_sram` + `dfi_mon_ram` + `ddr2_char_macro` + char timer + LED / 7-seg. |
 | `ddr2_char_framework/rtl/ddr2_char_macro.sv` | Binds the two AXI4 engines to pumice's `s_axi`, and holds the perf taps (bus meters + latency histogram) on the internal AXI wires. |
 | `ddr2_char_framework/rtl/harness_csr.sv` | The AXIL CSR slave (Chapter 5). Hand-written (self-clearing pulses, latches, PHY passthrough). |
 | `ddr2_char_framework/rtl/dfi_v21_flat_to_a7ddrphy.sv` | Combinational adapter: pumice's phase-packed flat DFI v2.1 → a7ddrphy per-phase ports (`NPHASES = 4`). |
