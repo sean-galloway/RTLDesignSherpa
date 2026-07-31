@@ -20,11 +20,19 @@ and rationale) > code comments. On conflict, the requirement wins.
   board handling
 - [authoring/](authoring/INDEX.md) - documentation practice: review rounds,
   voice, generation pipeline
+- [agents/](agents/INDEX.md) - the five repo-resident agent roles: loadout,
+  write scope, and what ends the task
 
 ## Skills
 
 - [[skills]] - the reverse index: every `.claude/skills/` signpost and the
   handbook note it points at. Skills are signposts only; method lives in the note.
+
+## Agents
+
+- [agents/INDEX.md](agents/INDEX.md) - same signpost split as skills: the stub in
+  `.claude/agents/` is discoverable, the note here is the method. Roles are
+  scoped to this repo, never to `~/.claude/agents/`.
 
 ## House rules for the handbook itself
 
