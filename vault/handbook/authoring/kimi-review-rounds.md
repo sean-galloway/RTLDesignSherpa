@@ -120,6 +120,20 @@ Each one is here because ignoring it cost real work.
    incomplete work -- including a contradiction I created by correcting a latency
    table and leaving the Overview promising the opposite.
 
+   **The confirmation round is mostly auditing the INTEGRATOR, not the docs.**
+   Measured on the reset corpus: math round_2 had 2 of 12 findings that were my
+   own round_1 fixes (a `product_pipe` declared in the wrong example; two bf16
+   latency rows left at 2 cycles after the quoted row was corrected to 1), and
+   math round_3 had 2 of 6 (a Brent-Kung fill set missing position 11 -- my
+   transcription of round_2's enumeration; `math_subtractor` "shares NO port
+   names" overstated). Four of eighteen findings in two rounds whose whole job
+   was to confirm the previous one, and every one of them was a rule-6 failure:
+   fix the quoted line, miss the sibling. The cheap countermeasure is on the
+   FIX side, not the review side -- after every edit, read the changed region
+   back and assert the NEW text is present (an assertion that fails when a
+   `re.sub` no-ops), then grep the loose CONCEPT across the tree. A round costs
+   an hour of serial dispatch and full re-review; a read-back costs seconds.
+
 7. **Integration status is MEASURED, never inferred from commit history.**
    Before claiming a round is integrated, check the findings against the tree.
    Cheap first pass: for every file a round implicates, has it been committed
@@ -247,10 +261,51 @@ Each one is here because ignoring it cost real work.
     a wrongly-REFUTED finding costs a whole round to rediscover, and a
     wrongly-REFUTED *trap-class* finding ships.
 
+    That measurement is no longer a thing to remember. `verify_findings.py`
+    locates the quotes before it sends anything and prints the share, so
+    **`--dry-run` IS the pre-flight** -- it costs nothing but local file reads:
+
+        python3 bin/review/verify_findings.py --round <round_N> --dry-run
+        # per finding:  evidence: 4/4 quotes in 1 file(s)   or   <-- BLIND
+        # aggregate:    extractor 5/6 findings (83%) resolved to a located quote
+
+    Below ~80%, the locator is the defect and not the findings; fix it and
+    re-adjudicate rather than reading the verdicts. Each verdict block also
+    records the evidence it was decided on, so a BLIND verdict stays
+    identifiable in the file forever instead of only in the run log.
+
     Preserve the bad verdicts rather than deleting them (rule 3 covers verdicts
     too): round_8 keeps its pre-fix file as
     `verdicts-<model>.SUPERSEDED-evidence-bug.md` with a header saying why, so
     the before/after stays measurable.
+
+    **A REFUTED verdict is ADVISORY. It never drops a finding on its own.**
+    (2026-07-31, measured over the whole reset corpus.) The pass exists to
+    control the reviewer's false-positive rate, so compare the two rates
+    directly:
+
+    | | measured |
+    |---|---|
+    | reviewer FP rate | 2 FP in 72 findings (cdc 17 real/1 FP, math 38/0, common 17/1) |
+    | verifier REFUTED that were wrong | 4 of ~7 REFUTED verdicts issued |
+
+    The four: cdc round_2 `reset_sync` (absent-file, fixed by VERIFIER_BRIEF
+    rule 4), cdc round_3 `apb5_slave_cdc_cg` (golden module in a sibling unit,
+    fixed by unioning refs in `augment_golden_deps.py`), and common round_1
+    `shifter_barrel` modulo + `shifter_universal` WIDTH>=2, both confirmed
+    against the RTL afterwards. Every remaining verdict class is either UPHELD
+    (agrees with triage) or UNCERTAIN (routed to a human anyway) -- math
+    round_1 was 12 UNCERTAIN, and human triage upheld all twelve.
+
+    So the pass is not a filter and must not be operated as one. What it
+    actually buys, and what to keep it for: it settles MECHANICAL classes
+    cheaply (SEED present, REG_LEVEL present, identifier-appears-where), it
+    ranks the triage queue, and its UNCERTAIN reasons name the missing
+    evidence, which is how three separate evidence-pack bugs were found. Human
+    triage remains the decider on every semantic finding. Judge the tool by
+    whether its UPHELD/UNCERTAIN split saves triage time, not by how many
+    findings it removes -- on this corpus the honest answer is that it removes
+    none safely.
 
 ## Endpoint
 
@@ -371,6 +426,19 @@ and the area's beside-code `CLAUDE.md`/`README.md` into `DOCS.md`, and writes an
 this one's modules moved TO, and their inventories go in under their own
 heading.
 
+**An inventory settles existence; it says nothing about interfaces**, so the
+unit also appends the `module ... );` header -- parameters and ports, no
+bodies -- of every module the meta-docs show being INSTANTIATED (matched on
+`name #(` and `name u_inst (`, which keeps it to modules a reader is told to
+wire up). *Case: common round_1 flagged only the reset line in
+`rtl/common/CLAUDE.md`, because that was all an inventory could support. The
+same file documented `counter_bin` with `.i_clk`/`.o_count`/`.o_overflow`
+against a real `clk`/`counter_bin_curr` and no overflow port at all,
+`counter_freq_invariant` as a timeout timer when it is a microsecond tick
+generator, and wrong parameter names on `arbiter_round_robin` and
+`dataint_crc` -- four examples that cannot elaborate, found by hand afterwards,
+none findable from a list of filenames.*
+
 *Case: after the CDC modules moved out of `rtl/common`, a surviving
 `common_meta/RTL.sv` listed 56 modules against an actual 49 -- ground truth that
 was itself wrong, which would have produced count findings the reviewer could
@@ -384,11 +452,23 @@ different page set.)
 `REVIEWER_BRIEF.md` lists each book's doc and module counts, and a stale row
 primes the reviewer to hunt modules that were never missing. *Case: at the start
 of the common round it still claimed `common` had 57 docs / 56 modules -- the
-pre-split numbers, against a tree with 50 / 49.* Recompute the table from the
-freshly built bundle (`RTL.sv`'s `// N documented modules` header, which
-excludes the dependency closure and the GOLDEN section), and keep the line
-saying a multi-part book means the reviewer holds a SUBSET -- otherwise the
-correct table becomes the next source of phantom missing-module findings.
+pre-split numbers, against a tree with 50 / 49.*
+
+Do not recompute it by hand -- that is the same hand-maintained-inventory
+failure one level up. **`bin/review/update_brief_table.py`** regenerates the
+table between markers in the brief, from the built bundle, and `run_batch.py
+qc` REFUSES to dispatch when the table disagrees with the books it is about to
+send (`--allow-stale-table` overrides):
+
+    python3 bin/review/update_brief_table.py ~/rtl-doc-review/books           # rewrite
+    python3 bin/review/update_brief_table.py ~/rtl-doc-review/books --check   # exit 1 if stale
+
+Run it AFTER `augment_golden_deps.py`, because golden augmentation is what the
+reviewer actually receives -- common's part units grew from ~247k to ~356k
+tokens that way. `_meta` units are deliberately excluded: they are per-area and
+carry an inventory, not a book. The caption saying a multi-part book means the
+reviewer holds a SUBSET is regenerated with the table -- without it the correct
+table becomes the next source of phantom missing-module findings.
 
 ## The order: correctness until clean, then voice
 

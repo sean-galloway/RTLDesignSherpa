@@ -497,8 +497,10 @@ documented as a timeout timer with `CLK_FREQ_MHZ`/`TIMEOUT_MS`;
 `dataint_crc` treated `POLY`/`POLY_INIT`/`XOROUT` as parameters when they are
 input ports. All four rewritten against the RTL, plus 9 more stale occurrences
 swept from the same file. **The `_meta` unit could not have caught these — its
-`RTL.sv` is an inventory with no port information.** Open improvement: give
-`_meta` units the port declarations of every module their examples instantiate.
+`RTL.sv` is an inventory with no port information.** Closed at `b398f8ae`:
+`make_meta_unit.py` now appends the parameter/port header of every module the
+meta-docs instantiate (15 interfaces for common), so the confirmation round can
+check the corrected examples instead of taking them on trust.
 
 Two process fixes went in with the startup checklist and both are the same
 defect class the round hunts:
@@ -513,3 +515,31 @@ defect class the round hunts:
   `--also-list` records where moved modules went (common's inventory is 49
   plus the 183 now in `rtl/cdc` and `rtl/math`), so "the doc says X lives
   here" stays separable from "X does not exist".
+
+**Pipeline review — 2026-07-31.** Reading the whole process end to end before
+starting amba produced four changes, all recorded in [[kimi-review-rounds]]:
+
+- **The adjudication pass is demoted to advisory.** Measured over the reset
+  corpus, the reviewer's FP rate is 2 in 72 findings, while **4 of the ~7
+  REFUTED verdicts the verifier has issued were wrong** (cdc r2 reset_sync, cdc
+  r3 apb5 wrapper, common r1 shifter_barrel and shifter_universal). It is not a
+  filter and must not be run as one: a REFUTED never drops a finding by itself.
+  Its real value is settling mechanical classes, ranking the triage queue, and
+  naming missing evidence — three evidence-pack bugs were found that way. The
+  verdicts file now says so in its own header.
+- **The extractor measurement is tooled.** `verify_findings.py` locates quotes
+  before sending and prints the share, so `--dry-run` is the rule-10 pre-flight
+  and costs nothing; each verdict block records the evidence it was decided on,
+  so a BLIND verdict stays identifiable. Measured post-hoc on round_7 (math
+  round_3): 5/6 located, 1 blind.
+- **The brief's book table is generated and gated.**
+  `bin/review/update_brief_table.py` rewrites it from the built bundle;
+  `run_batch.py qc` refuses to dispatch against a stale one. Run it AFTER
+  golden augmentation — that is what the reviewer receives (common's parts:
+  ~247k -> ~356k tokens).
+- **Tool-convention false positives** (the `sync_pulse` Vivado `r_sync_reg[0]`
+  case) are now a named class in `REVIEWER_BRIEF.md`.
+
+Process debt noted while measuring: **math round_3 was integrated on human
+triage alone — step 4 was skipped**, no `verdicts-*.md` exists for round_7. The
+findings were all real so nothing was lost, but the step is unconditional.

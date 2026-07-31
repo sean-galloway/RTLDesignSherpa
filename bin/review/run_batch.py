@@ -43,6 +43,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kimi_client  # noqa: E402
+import update_brief_table  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -70,6 +71,32 @@ def discover(books, mode, only, skip):
             continue
         units.append((name, d))
     return units
+
+
+def brief_table_is_current(books):
+    """Does REVIEWER_BRIEF.md's book table match the bundle being sent?
+
+    The table is ground truth handed to the reviewer and rots like any other
+    doc: at the start of the common round it claimed 57 docs / 56 modules
+    against a tree with 50 / 49, which primes findings about modules that were
+    never missing. Nothing caught that but the findings it caused, so the
+    check runs on the send path -- the same reasoning as the endpoint
+    preflight below."""
+    try:
+        rows = update_brief_table.collect(books)
+        if not rows:
+            return True, "no book units found; table check skipped"
+        brief = open(update_brief_table.BRIEF, encoding="utf-8").read()
+        if update_brief_table.BEGIN not in brief or update_brief_table.END not in brief:
+            return False, "REVIEWER_BRIEF.md has no BOOK TABLE markers"
+        cur = brief[brief.index(update_brief_table.BEGIN):
+                    brief.index(update_brief_table.END) + len(update_brief_table.END)]
+        if cur.strip() == update_brief_table.render(rows).strip():
+            return True, f"book table current ({len(rows)} books)"
+        return False, ("book table is STALE against this bundle -- run "
+                       f"bin/review/update_brief_table.py {books}")
+    except Exception as e:  # noqa: BLE001
+        return True, f"table check skipped ({type(e).__name__}: {str(e)[:120]})"
 
 
 def build_prompt(mode, unit, unit_dir):
@@ -146,6 +173,9 @@ def main():
                     help="re-enter round_N and dispatch only its missing units")
     ap.add_argument("--dry-run", action="store_true",
                     help="list what would be sent, send nothing")
+    ap.add_argument("--allow-stale-table", action="store_true",
+                    help="send even when REVIEWER_BRIEF.md's book table "
+                         "disagrees with the bundle (qc only)")
     a = ap.parse_args()
 
     brief_path = BRIEFS[a.mode]
@@ -168,9 +198,15 @@ def main():
     if a.limit:
         pending = pending[:a.limit]
 
+    table_ok, table_msg = (True, "")
+    if a.mode == "qc":
+        table_ok, table_msg = brief_table_is_current(a.books)
+
     print(f"mode      {a.mode}")
     print(f"endpoint  {kimi_client.describe()}")
     print(f"brief     {os.path.relpath(brief_path, REPO)}")
+    if table_msg:
+        print(f"table     {table_msg}")
     print(f"round     {out}" + (f"  (resumed, {len(done)} already present)" if done else ""))
     print(f"units     {len(pending)} to send, {len(done)} skipped as complete")
     for name, _ in pending:
@@ -181,6 +217,10 @@ def main():
     if a.dry_run:
         print("\ndry run -- nothing sent")
         return 0
+
+    if not table_ok and not a.allow_stale_table:
+        sys.exit("refusing to send a qc round with a stale book table "
+                 "(--allow-stale-table overrides)")
 
     problems = kimi_client.preflight()
     if problems:

@@ -118,9 +118,18 @@ def locator_quotes(raw):
 
 
 def evidence_for(round_dir, unit, finding):
-    """Doc + RTL excerpts the finding cites, from the bundle snapshot first."""
+    """Doc + RTL excerpts the finding cites, from the bundle snapshot first.
+
+    Returns (text, stats). `stats` is what MEASURES the extractor: how many of
+    the finding's quoted spans were actually located. Everything this pass
+    claims rests on the verifier seeing the quoted text, so a silent locator
+    failure does not degrade the pass, it INVERTS it -- a head-of-file excerpt
+    reads as "the document does not say this". Callers report the located
+    share; a low one invalidates the verdicts file rather than merely
+    weakening it. See kimi-review-rounds rule 10."""
     snap = os.path.join(round_dir, "_bundle_snapshot", unit)
     quotes = locator_quotes(finding.get("raw", ""))
+    hit = set()
     chunks, budget = [], EVIDENCE_CAP
     files = sorted(glob.glob(os.path.join(snap, "*.md")) +
                    glob.glob(os.path.join(snap, "*.sv")) +
@@ -136,6 +145,7 @@ def evidence_for(round_dir, unit, finding):
                 i = body.find(key, start)
                 if i < 0:
                     break
+                hit.add(q)
                 spans.append((max(0, i - WINDOW), min(len(body), i + len(q) + WINDOW)))
                 start = i + 1
                 if len(spans) >= 6:
@@ -169,8 +179,11 @@ def evidence_for(round_dir, unit, finding):
         tag = "" if wins else "  [HEAD OF FILE ONLY -- no cited quote located here]"
         chunks.append(f"--- {os.path.basename(src)} "
                       f"({os.path.getsize(src)} bytes){tag} ---\n{excerpt}")
+    stats = {"quotes": len(quotes), "located": len(hit),
+             "files": sum(1 for _, _, w in loaded if w)}
     if not chunks:
-        return "(no bundle snapshot found; evidence unavailable -- verdict must be UNCERTAIN)"
+        return ("(no bundle snapshot found; evidence unavailable -- verdict must be UNCERTAIN)",
+                stats)
     if not any_located:
         # Loud, not silent: the old code degraded to file heads with no signal,
         # and the verifier read that as "the doc does not say this".
@@ -179,7 +192,7 @@ def evidence_for(round_dir, unit, finding):
                          "cited passage. Absence here is NOT evidence the claim is absent "
                          "from the document -- return UNCERTAIN unless you can settle the "
                          "finding some other way.")
-    return "\n\n".join(chunks)
+    return "\n\n".join(chunks), stats
 
 
 def call_claude(key, model, brief, messages, max_tokens=2048, timeout=600, retries=3):
@@ -338,9 +351,35 @@ def main():
     print(f"verifier  {model} @ api.anthropic.com")
     print(f"findings  {len(findings)} total, {len(done)} already adjudicated, "
           f"{len(pending)} to send")
+
+    # Measure the extractor BEFORE spending anything. Locating the quotes is
+    # local file work; the verdicts are only worth what this share is, so it is
+    # printed on every run and on --dry-run, which makes the dry run the
+    # pre-flight rule 10 asks for.
     for f in pending:
+        f["_ev"], f["_st"] = evidence_for(a.round_dir, f["unit"], f)
+        st = f["_st"]
         tag = " [NEEDS-RECOMPUTE]" if needs_recompute(f["title"]) else ""
-        print(f"   send   {f['unit']}: {f['title'][:70]}{tag}")
+        loc = (f"{st['located']}/{st['quotes']} quotes in {st['files']} file(s)"
+               if st["quotes"] else "NO QUOTES IN FINDING")
+        flag = "" if st["located"] else "  <-- BLIND"
+        print(f"   send   {f['unit']}: {f['title'][:60]}{tag}\n"
+              f"          evidence: {loc}{flag}")
+
+    blind = [f for f in pending if not f["_st"]["located"]]
+    if pending:
+        share = 100 * (len(pending) - len(blind)) / len(pending)
+        print(f"\nextractor {len(pending) - len(blind)}/{len(pending)} findings "
+              f"({share:.0f}%) resolved to a located quote")
+        if blind:
+            print("          BLIND findings get file heads, which read to the verifier "
+                  "as\n          'the doc does not say this' -- their verdicts are not "
+                  "evidence.")
+        if share < 80:
+            print("          LOW. Below ~80% the locator is the defect, not the "
+                  "findings.\n          Fix locator_quotes()/evidence_for() and "
+                  "re-adjudicate before\n          trusting this verdicts file "
+                  "(kimi-review-rounds rule 10).")
     if a.dry_run:
         print("\ndry run -- nothing sent")
         return 0
@@ -352,11 +391,20 @@ def main():
     counts = {"UPHELD": 0, "REFUTED": 0, "UNCERTAIN": 0, "UNPARSED": 0}
     with open(out_path, "a") as out:
         if not done:
-            out.write(f"# Verdicts -- {model} adjudicating {os.path.basename(a.round_dir)}\n\n")
+            out.write(f"# Verdicts -- {model} adjudicating {os.path.basename(a.round_dir)}\n\n"
+                      "**A REFUTED verdict is advisory and never drops a finding on its "
+                      "own.** Measured on the reset corpus, this pass refutes real findings "
+                      "at a rate comparable to the reviewer's own false-positive rate "
+                      "(cdc round_2 reset_sync, cdc round_3 apb5 wrapper, common round_1 "
+                      "shifter_barrel and shifter_universal). It earns its keep by ranking "
+                      "human triage and by settling mechanical classes, not by deciding.\n\n"
+                      "Each block records the evidence actually packed. A finding whose "
+                      "quotes did not locate was adjudicated against file heads: its verdict "
+                      "is not evidence either way.\n\n")
         for i, f in enumerate(pending, 1):
             fid = finding_id(f["unit"], f["title"])
             print(f"\n[{i}/{len(pending)}] {f['unit']}: {f['title'][:70]}", flush=True)
-            evidence = evidence_for(a.round_dir, f["unit"], f)
+            evidence = f["_ev"]
             user = (f"# Finding under adjudication (unit: {f['unit']}, "
                     f"severity: {f['severity']})\n\n{f['title']}\n\n"
                     f"## The finding as written\n\n{f['raw'].strip()[:4000]}\n\n"
@@ -389,13 +437,21 @@ def main():
             counts[verdict] = counts.get(verdict, 0) + 1
             recompute = "\nNOTE: NEEDS-RECOMPUTE -- settle the constant arithmetically, not by model." \
                 if needs_recompute(f["title"]) else ""
+            st = f["_st"]
+            ev = (f"{st['located']}/{st['quotes']} quotes located in {st['files']} file(s)"
+                  if st["located"] else
+                  "NO quote located -- adjudicated against file heads, verdict is not evidence")
             out.write(f"### {fid} [{verdict}] {f['title']}\n"
-                      f"- Unit: {f['unit']}  Severity: {f['severity']}{recompute}\n"
+                      f"- Unit: {f['unit']}  Severity: {f['severity']}\n"
+                      f"- Evidence: {ev}{recompute}\n"
                       f"```\n{txt.strip()}\n```\n\n")
             out.flush()
             print(f"      {verdict} (stop={stop})", flush=True)
 
     print(f"\nverdicts: {counts} -> {out_path}")
+    if counts["REFUTED"]:
+        print(f"          the {counts['REFUTED']} REFUTED are ADVISORY -- human-triage "
+              "each one.\n          This pass has refuted real findings in four rounds.")
     return 0
 
 

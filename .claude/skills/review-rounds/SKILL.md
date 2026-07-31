@@ -9,7 +9,12 @@ READ FIRST: vault/handbook/INDEX.md (the handbook is the repo's memory; this ski
 signpost). Canonical: vault/handbook/authoring/kimi-review-rounds.md - the seven rules,
 both round modes, and the endpoint config.
 
-Three that bite hardest when triaging findings:
+Four that bite hardest when triaging findings:
+- The second-model adjudication pass is ADVISORY. A REFUTED verdict never
+  drops a finding on its own -- 4 of the ~7 it has issued were wrong, against
+  a reviewer FP rate of 2 in 72. Measure the extractor first
+  (`verify_findings.py --dry-run` prints the located-quote share); a blind
+  verdict is not evidence in either direction.
 - A finding that reads like a doc nit can be a real RTL defect (and vice
   versa). Read the whole finding, not the headline; triage doc-fix vs RTL-fix
   per finding.
