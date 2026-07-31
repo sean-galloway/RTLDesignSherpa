@@ -47,6 +47,12 @@ class GlitchFreeNDffArnTB(TBBase):
         self.FLOP_COUNT = self.convert_to_int(os.environ.get('PARAM_FLOP_COUNT', '3'))
         self.WIDTH = self.convert_to_int(os.environ.get('PARAM_WIDTH', '4'))
 
+        # This TB drives random.randint values through the synchronizer. Seed
+        # the PRNG from SEED so a failing sequence can be replayed.
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.SEED)
+        self.log.info(f"Glitch-Free N-DFF TB seed: {self.SEED}")
+
         self.log.info(f"Glitch-Free N-DFF TB initialized: FLOP_COUNT={self.FLOP_COUNT}, WIDTH={self.WIDTH}")
 
     async def setup_clocks_and_reset(self):

@@ -497,7 +497,11 @@ def test_counter_freq_invariant_wavedrom(request, counter_width):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        # Wavedrom generators produce the wave JSON the docs embed, so their
+        # stimulus must be REPRODUCIBLE: a random seed per run means the
+        # committed diagram changes for no reason. Fixed default, still
+        # overridable with SEED=... for a one-off experiment.
+        'SEED': os.environ.get('SEED', '12345'),
         'TEST_COUNTER_WIDTH': str(counter_width),
         'WAVEDROM_SHOW_STATUS': '1',
         'ENABLE_WAVEDROM': '1'

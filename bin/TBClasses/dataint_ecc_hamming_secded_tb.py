@@ -47,6 +47,13 @@ class DataintEccHammingSecDedTB(TBBase):
         # Get parameters from environment
         self.WIDTH = self.convert_to_int(os.environ.get('PARAM_WIDTH', '8'))
 
+        # This TB picks its data patterns with random.randint. Seed the PRNG
+        # from SEED so a failure can be reproduced: an unseeded run cannot be
+        # replayed, and the failing pattern is gone with the process.
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.SEED)
+        self.log.info(f"ECC SECDED TB seed: {self.SEED}")
+
         # Calculate ECC parameters (must match RTL)
         import math
         self.PARITY_BITS = math.ceil(math.log2(self.WIDTH + math.ceil(math.log2(self.WIDTH + math.ceil(math.log2(self.WIDTH + 1)))) + 1))

@@ -487,7 +487,11 @@ def test_counter_load_clear_wavedrom(request, max_value):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        # Wavedrom generators produce the wave JSON the docs embed, so their
+        # stimulus must be REPRODUCIBLE: a random seed per run means the
+        # committed diagram changes for no reason. Fixed default, still
+        # overridable with SEED=... for a one-off experiment.
+        'SEED': os.environ.get('SEED', '12345'),
         'TEST_MAX_VALUE': str(max_value),
         'WAVEDROM_SHOW_STATUS': '1',
         'ENABLE_WAVEDROM': '1'

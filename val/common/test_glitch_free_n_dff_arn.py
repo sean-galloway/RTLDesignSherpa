@@ -38,6 +38,7 @@ Author: RTL Design Sherpa Project
 """
 
 import os
+import random
 import sys
 import pytest
 import cocotb
@@ -135,6 +136,7 @@ def test_glitch_free_n_dff_arn(request, flop_count, width, test_mode):
         'LOG_PATH': log_path,
         'PARAM_FLOP_COUNT': str(flop_count),
         'PARAM_WIDTH': str(width),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
 
     extra_args = [

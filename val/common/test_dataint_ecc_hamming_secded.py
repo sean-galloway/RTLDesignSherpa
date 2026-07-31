@@ -36,6 +36,7 @@ Author: RTL Design Sherpa Project
 """
 
 import os
+import random
 import sys
 import pytest
 import cocotb
@@ -194,6 +195,7 @@ endmodule
     extra_env = {
         'LOG_PATH': log_path,
         'PARAM_WIDTH': str(width),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
 
     extra_args = [
