@@ -435,3 +435,81 @@ comment fixed too -- the only RTL touch, comment-only); BK diagram's black
 root is gray in the RTL; bf16 rounding is NOT 'RNE except at ties' (37.5%
 of inexact patterns round wrong -- owner decision filed as MATH-001 in the
 new vault/Tasks/math area). math needs round_2 under the impact rule.
+
+**math (round_2, 2026-07-29).** 12 findings, integrated at `3a9564a9`. **Two
+were my own round_1 defects** -- the dsp `product_pipe` declared in the wrong
+example, and bf16 latency's two single-stage rows left at 2 cycles after the
+quoted row was fixed to 1. Both are rule-6 sweep-for-the-claim failures, in a
+round whose whole job was to confirm round_1. The rest: Kogge-Stone left in
+the overview's methodology framing (round_1 under-sweep), HC 16-bit figure
+stage-3/4 positions vs the RTL generate conditions, the dadda snippet naming a
+non-existent instance, bf16 examples implying a NaN input asserts
+`ow_invalid` (it asserts only on 0*inf / inf-inf), and an overview page count
+of 29 against 27 module pages.
+
+**math (round_3, 2026-07-29) -- FINAL under the impact rule.** 6 findings,
+integrated at `c78bb824`. Two were again mine from earlier rounds (the BK
+reverse-fill set missing position 11 -- my transcription of round_2's
+enumeration; `math_subtractor` "shares NO port names" overstated -- it shares
+`i_a`/`i_b`). One real class the earlier rounds missed: the han_carlson widths
+table was **aspirational** -- HC-032 and HC-044 have no users at all, since the
+ieee754 adders do exponents and accumulation behaviorally. The table now
+carries a measured-usage column. `math_bf16_adder`'s FTZ promise vs the RTL's
+wrap-bit overflow priority is filed as **MATH-002** (possible RTL defect).
+
+**math is DONE (2026-07-29):** three rounds, 20 -> 12 -> 6, 38 findings, all
+real, 0 FP, one RTL banner comment, two owner decisions (MATH-001/-002).
+Still owed per the per-area rule: humanize the math docs, then the math test
+audit. Next area per the plan: **common**.
+
+**common (round_1, 2026-07-30).** 5 units (4 parts + `common_meta`), sent as
+round_8 of the reset corpus. **18 findings; 17 real, 1 FP.** Verifier after the
+evidence fix below: 6 UPHELD / 4 REFUTED / 8 UNCERTAIN — and **2 of the 4
+REFUTED were wrong** (`shifter_barrel` modulo, `shifter_universal` WIDTH>=2,
+both confirmed against the RTL), so the rule-10 validation rule fired again.
+The single FP: `sync_pulse.md`'s Xilinx constraints target `r_sync_reg[0]`,
+which is Vivado's name for a registered vector, not a phantom register — the
+Intel SDC block correctly uses `r_sync[0]`. Tool-convention class, worth adding
+to the brief's known-FP list.
+
+**The `_meta` unit earned its place**: 6 of the 18 came from it, all in pages no
+part unit can see. **Two trap-class findings**, both in files a reader acts on:
+
+- `arbiter_round_robin_weighted.md`'s dynamic-weight example writes `4'd15`
+  into `r_qos_weights[7:0]`, zero-extending bits `[7:4]`, which sets client 1's
+  weight to 0 — and `w_valid_clients[j] = (client_weight[j] > 0)` makes that
+  client permanently ineligible. **The identical snippet was in the RTL header
+  comment** (`arbiter_round_robin_weighted.sv:228`), which is where the doc had
+  copied it from; fixed in both, per rule 6.
+- `rtl/common/CLAUDE.md` claimed "all modules use `i_rst_n` or `aresetn`".
+  Measured: **28 modules expose `rst_n`, 1 exposes `aresetn`, none expose
+  `i_rst_n`.** Its own five examples wrote `.i_rst_n(...)`, which cannot
+  elaborate.
+
+Pulling that thread found much more than the round did: **CLAUDE.md's whole
+"Common Integration Patterns" section documented modules that do not exist as
+described.** `counter_bin` is a FIFO-pointer counter (`clk`/`rst_n`/`enable`/
+`counter_bin_curr`/`counter_bin_next`, param `MAX`) with no overflow output,
+documented as `.i_clk`/`.o_count`/`.o_overflow` with `MAX_VALUE`;
+`counter_freq_invariant` is a microsecond tick generator (`freq_sel`/`tick`),
+documented as a timeout timer with `CLK_FREQ_MHZ`/`TIMEOUT_MS`;
+`arbiter_round_robin` used `.N`/`.REG_OUTPUT` for `CLIENTS`/`WAIT_GNT_ACK`; and
+`dataint_crc` treated `POLY`/`POLY_INIT`/`XOROUT` as parameters when they are
+input ports. All four rewritten against the RTL, plus 9 more stale occurrences
+swept from the same file. **The `_meta` unit could not have caught these — its
+`RTL.sv` is an inventory with no port information.** Open improvement: give
+`_meta` units the port declarations of every module their examples instantiate.
+
+Two process fixes went in with the startup checklist and both are the same
+defect class the round hunts:
+- The REVIEWER_BRIEF's own book table was stale -- it told the reviewer
+  `common` had 57 docs / 56 modules when the tree has 50 / 49 (the math and
+  cdc splits). Regenerated from the bundle for every book, with a note that a
+  multi-part book means the reviewer is holding a SUBSET, so a count gap is
+  not a missing module.
+- The `_meta` unit is now built by **`bin/review/make_meta_unit.py`**, not by
+  the inline snippet in [[kimi-review-rounds]] that got re-derived per area.
+  It picks up index/overview/quickstart/`_book_*_index`/`CLAUDE.md`, and
+  `--also-list` records where moved modules went (common's inventory is 49
+  plus the 183 now in `rtl/cdc` and `rtl/math`), so "the doc says X lives
+  here" stays separable from "X does not exist".

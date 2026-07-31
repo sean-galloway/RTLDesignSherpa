@@ -214,6 +214,44 @@ Each one is here because ignoring it cost real work.
     finding human triage confirms, the brief or the evidence pack is too
     weak - tune before trusting. DOCREV-012.
 
+    **The quote extractor is the whole pass.** Everything above assumes the
+    verifier can SEE the text the finding quotes. When location fails the packer
+    falls back to the head of each file, and a head-of-file excerpt reads to the
+    verifier exactly like "the document does not say this" - so a silent
+    extractor bug does not degrade the pass, it inverts it.
+
+    *Case: common round_1 (2026-07-30). `evidence_for()` matched
+    `Says:\s*"(.+?)"`, which only fires when the quote sits immediately after
+    `Says:`. Every round_8 finding labelled its source first
+    (`Says: quickstart.md: "..."`), and multi-witness findings put the decisive
+    quote under `Actually:`. Result: **10 of 18 findings adjudicated against the
+    first 1,500 characters of the file** - 9 came back UNCERTAIN and 1 REFUTED,
+    and that REFUTED one (CRC "250 vs ~300") was proven real minutes later by
+    importing `crc_parameters` and counting: exactly 250.* The verifier even
+    said so in its reason - "DOCS.md is truncated to its first ~1.2 KB" - which
+    is the tell to watch for.
+
+    Two fixes, both in `verify_findings.py`:
+
+    - `locator_quotes()` takes EVERY quoted span in the finding block, `Says:`
+      first, then `Actually:`, longest first, and the packer emits a merged
+      context window around each one that lands. 8/18 located -> 17/18.
+    - When nothing locates, the pack now says so in a banner instead of quietly
+      shipping file heads. Silent degradation was the actual defect; a loud
+      "absence here is NOT evidence" line routes the finding to UNCERTAIN
+      honestly.
+
+    **Measure the extractor before you trust a verdicts file**, on every round:
+    count how many findings resolve to a located quote. A verdicts file whose
+    UNCERTAIN share is suddenly high is the symptom. Re-adjudicating is cheap;
+    a wrongly-REFUTED finding costs a whole round to rediscover, and a
+    wrongly-REFUTED *trap-class* finding ships.
+
+    Preserve the bad verdicts rather than deleting them (rule 3 covers verdicts
+    too): round_8 keeps its pre-fix file as
+    `verdicts-<model>.SUPERSEDED-evidence-bug.md` with a header saying why, so
+    the before/after stays measurable.
+
 ## Endpoint
 
 The key is never in a script. Locally the chain is
@@ -322,30 +360,35 @@ inventory unit is the existence/count ground truth for those, not source
 dumps. Golden is for reset_sync-class external primitives, small counts only.
 
 Build it from a script, not by hand -- a hand-maintained inventory is exactly
-what goes stale:
+what goes stale. **`bin/review/make_meta_unit.py`** is that script:
 
-```python
-import os, glob
-B = os.path.expanduser('~/rtl-doc-review/books/<area>_meta'); os.makedirs(B, exist_ok=True)
-mods = sorted(os.path.basename(p) for p in glob.glob('rtl/<area>/*.sv'))
-rtl  = ["// <area> meta-docs -- ground truth is the module inventory, not full source.",
-        f"// Verify count/category/existence claims against rtl/<area>/*.sv ({len(mods)} modules):", ""]
-rtl += [f"//   {m}" for m in mods]
-open(f'{B}/RTL.sv', 'w').write("\n".join(rtl) + "\n")
+    python3 bin/review/make_meta_unit.py common ~/rtl-doc-review/books \
+        --also-list cdc math
 
-pages = ['docs/markdown/<book>/index.md', 'docs/markdown/<book>/overview.md']
-doc = ["# <book> meta-docs (index + overview)", ""]
-for p in pages:
-    doc += [f"<!-- SOURCE FILE: {p} -->", "", open(p, encoding='utf-8').read(), ""]
-open(f'{B}/DOCS.md', 'w').write("\n".join(doc))
-```
+It collects `index.md`, `overview.md`, `quickstart.md`, the `_book_*_index.md`
+and the area's beside-code `CLAUDE.md`/`README.md` into `DOCS.md`, and writes an
+`RTL.sv` that is a module INVENTORY, not source. `--also-list` names the areas
+this one's modules moved TO, and their inventories go in under their own
+heading.
 
 *Case: after the CDC modules moved out of `rtl/common`, a surviving
 `common_meta/RTL.sv` listed 56 modules against an actual 49 -- ground truth that
 was itself wrong, which would have produced count findings the reviewer could
-not get right either way.* When an area's modules have moved, say so in the
-`RTL.sv` header (list the new location's inventory too) so "doc claims X lives
-here" is separable from "X does not exist".
+not get right either way.* That is what `--also-list` is for: "doc claims X
+lives here" stays separable from "X does not exist". (Until 2026-07-30 this note
+carried the generator as an inline snippet to paste per area, which is the same
+copy-rots failure one level up -- each area re-derived it and picked up a
+different page set.)
+
+**The brief's own book table is ground truth too, and it rots the same way.**
+`REVIEWER_BRIEF.md` lists each book's doc and module counts, and a stale row
+primes the reviewer to hunt modules that were never missing. *Case: at the start
+of the common round it still claimed `common` had 57 docs / 56 modules -- the
+pre-split numbers, against a tree with 50 / 49.* Recompute the table from the
+freshly built bundle (`RTL.sv`'s `// N documented modules` header, which
+excludes the dependency closure and the GOLDEN section), and keep the line
+saying a multi-part book means the reviewer holds a SUBSET -- otherwise the
+correct table becomes the next source of phantom missing-module findings.
 
 ## The order: correctness until clean, then voice
 
