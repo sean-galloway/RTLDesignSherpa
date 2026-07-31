@@ -530,9 +530,15 @@ module math_bf16_adder #(
         end
     end
 
-    // Overflow/underflow detection
-    wire w_exp_overflow  = w_exp_adjusted[8] || (w_exp_adjusted[7:0] >= 8'hFF);
-    wire w_exp_underflow = w_exp_adjusted[8] || (w_exp_adjusted[7:0] == 8'h00);
+    // Overflow/underflow detection. Bit 8 of w_exp_adjusted is the SIGN of
+    // the exponent subtraction: it is set only when the normalization shift
+    // exceeds the exponent (negative, i.e. underflow) -- a positive result
+    // never wraps because the shift is bounded by the mantissa width. The
+    // shared form (bit8 || bound) asserted BOTH flags on underflow and the
+    // higher-priority overflow branch won, producing +inf on underflow
+    // (MATH-002, sim-verified 2026-07-31).
+    wire w_exp_overflow  = !w_exp_adjusted[8] && (w_exp_adjusted[7:0] >= 8'hFF);
+    wire w_exp_underflow =  w_exp_adjusted[8] || (w_exp_adjusted[7:0] == 8'h00);
 
     // =========================================================================
     // Pipeline Stage 4 (optional)

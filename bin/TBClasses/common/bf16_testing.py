@@ -1410,6 +1410,27 @@ class BF16AdderTB(TBBase):
         self.log.info(f'    Latency: {self.latency} cycles')
         self.log.info('-------------------------------------------')
 
+    async def underflow_ftz_test(self) -> list:
+        """Directed FTZ regression (MATH-002). A result whose normalized
+        exponent goes negative must flush to zero with ow_underflow -- never
+        +inf with ow_overflow. Guards the wrap-bit bug where bit 8 of the
+        exponent adjustment asserted BOTH flags and the higher-priority
+        overflow branch won."
+        """
+        failures = []
+        cases = [
+            (0x0081, 0x8080, "FTZ: 1.0078x2^-126 minus 1.0x2^-126 -> +0, underflow"),
+            (0x0083, 0x8080, "FTZ: 3-ulp subnormal result -> +0, underflow"),
+            (0x0080, 0x8081, "FTZ: negative subnormal result -> -0, underflow"),
+            (0x7F7F, 0x7F7F, "true overflow: max+max -> +inf, overflow only"),
+        ]
+        for a, b, desc in cases:
+            if not await self.test_single_add(a, b, desc):
+                failures.append(desc)
+        if not failures:
+            self.log.info("  underflow/overflow flag separation OK")
+        return failures
+
     async def run_comprehensive_tests(self) -> None:
         """Run comprehensive test suite based on test_level.
 
@@ -1426,6 +1447,9 @@ class BF16AdderTB(TBBase):
 
         # Always run special values (all levels including 'simple')
         failures.extend(await self.special_values_test())
+
+        # Directed FTZ/overflow flag-separation regression (MATH-002)
+        failures.extend(await self.underflow_ftz_test())
 
         if self.test_level in ['basic', 'medium', 'full']:
             # Corner cases: max/min normal, powers of 2
