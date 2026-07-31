@@ -516,6 +516,53 @@ defect class the round hunts:
   plus the 183 now in `rtl/cdc` and `rtl/math`), so "the doc says X lives
   here" stays separable from "X does not exist".
 
+**common (round_2, 2026-07-31).** 23 findings, all `finish=stop` (part_01
+escalated once and succeeded). Verifier: **11 UPHELD / 3 REFUTED / 9
+UNCERTAIN** — a far healthier spread than round_1's pre-fix 1/4/13, which is
+the evidence-packer fix working. **One REFUTED was wrong again** (credits
+initialize to the weight — the RTL resets `r_credit_counter[i] <= MTW'(1)`),
+making it three wrong REFUTEDs across two rounds. Treat the verifier as a
+filter, never an authority.
+
+**Three of the 23 were my own round_1 work**, which is rule 6's confirmation-
+round lesson landing on this area:
+- the Fibonacci "walks to zero and freezes" sentence I wrote is seed-dependent
+  (3 of 15 seeds reach zero; 12 enter a short cycle);
+- my "one module exposes `aresetn` (`icg`)" named the wrong module — `icg` has
+  no reset port at all, `clock_gate_ctrl` is the one;
+- the weighted-arbiter `request` vs `w_req_post` finding was UPHELD in round_1
+  and I did not fix it.
+
+The `_meta` interface change paid immediately: `quickstart.md` and `index.md`
+carried the same broken integration examples `CLAUDE.md` did, and round_1 could
+not see them. That class is now checked mechanically by
+**`bin/review/check_doc_instantiations.py`** (`5a9ab654`) — for every
+```systemverilog block, resolve the instantiated module and report parameter or
+port names it does not declare. Measured after integration:
+
+| area | undeclared names |
+|---|---|
+| rtl-common, rtl-cdc, rtl-integ-amba, projects, TestTutorial | 0 |
+| rtl-math | 4 |
+| **rtl-amba** | **161** |
+
+Run it at the START of each area's round — the amba number is the argument.
+Two parser traps are recorded in the tool's docstring; both were found by
+disbelieving its own output, and both would have made it cry wolf on correct
+docs (a direction keyword carrying across commas, and a paramless module's
+opening paren swallowing the port list).
+
+Also fixed: three malformed links (`](../index.md]`). The reviewer found one;
+the other two were invisible to the link checker, which needs a closing paren
+to match at all. Repo-wide sweep now 0.
+
+**Where common stands.** Two rounds, 41 findings, 2 FP. Round_2 produced no
+trap-class finding — the two in round_1 (the arbiter weight slice and the
+`i_rst_n` claim) have no round_2 counterpart — so under the impact rule common
+is a candidate to STOP. Against that: 3 of 23 were my own integration defects,
+and a third of round_2 was a class round_1 structurally could not see. A
+round_3 would mostly audit this integration.
+
 **Pipeline review — 2026-07-31.** Reading the whole process end to end before
 starting amba produced four changes, all recorded in [[kimi-review-rounds]]:
 
