@@ -162,7 +162,7 @@ logic [15:0] pool_inputs [8];
 logic [15:0] pool_max;
 
 math_bf16_max_tree_8 u_max_pool (
-    .i_values(pool_inputs),
+    .i_data(pool_inputs),
     .ow_max(pool_max)
 );
 ```
@@ -204,7 +204,7 @@ logic [15:0] scale_factor;  // Pre-computed scale
 math_bf16_scale_to_int8 u_quantize (
     .i_value(bf16_weight),
     .i_scale(scale_factor),
-    .ow_result(int8_weight),
+    .ow_int8(int8_weight),
     .ow_overflow(quant_overflow),
     .ow_underflow()
 );

@@ -129,12 +129,12 @@ logic [15:0] fp16_values [8];
 logic [15:0] max_value, min_value;
 
 math_fp16_max_tree_8 u_max (
-    .i_values(fp16_values),
+    .i_data(fp16_values),
     .ow_max(max_value)
 );
 
 math_fp16_min_tree_8 u_min (
-    .i_values(fp16_values),
+    .i_data(fp16_values),
     .ow_min(min_value)
 );
 ```
