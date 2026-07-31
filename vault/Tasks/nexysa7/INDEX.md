@@ -20,6 +20,10 @@ Convention: [Tasks](../INDEX.md). Related handbook:
 - **NEXYS-002** (Medium) — Rehome `projects/NexysA7/` under
   `projects/fpga-systems/`; split Genesys2-specific stream-perf/mon collateral
   into `projects/fpga-systems/Genesys2/`; update all links/filelists/paths.
+- **NEXYS-003** (Medium) — Migrate the remaining char flows onto the shared
+  `fpga/bin/` board/UART layer + global `make/fpga_flow.mk` (pumice done as the
+  proof); fill the `projects/fpga-systems/NexysA7/pumice/` scaffold. New board
+  areas sit under `projects/fpga-systems/`, agreeing with NEXYS-002.
 
 ## Active (in progress)
 - _(none yet)_

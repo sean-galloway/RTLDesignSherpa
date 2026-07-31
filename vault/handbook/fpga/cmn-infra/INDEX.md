@@ -12,7 +12,9 @@ the [FPGA area](../INDEX.md) "Boards / components").
 ## Canonical patterns
 - [[uart-harness]] - one host program against sim and silicon
 - [[host-stack]] - the shared py transport stack that pattern is built on
-  (SerialChannel -> UARTAxiBridge -> Device/DeviceBus, registers by name)
+  (board/port discovery -> UARTAxiBridge -> Device/DeviceBus, registers by name)
+- [[sequences]] - named, ordered, dependency-checked campaign steps
+  (fpga/bin/sequence.py); one init, N tests, transport injected
 
 ## Build + timing process
 - [[build-flows]] - Vivado batch flow, board switches, bitstream naming
@@ -20,4 +22,5 @@ the [FPGA area](../INDEX.md) "Boards / components").
 - [[timing-triage-tool]] - bin/vivado_timing_failures.py (bucketizes fails)
 
 ## Board handling
-- [[boards]] - JTAG serials, UART chips, the gotchas that eat an afternoon
+- [[boards]] - the fpga/bin/boards registry: JTAG serials, UART chips, the
+  gotchas that eat an afternoon

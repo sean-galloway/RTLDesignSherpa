@@ -7,6 +7,8 @@
 #   make synth       — synthesis only + utilization + failing-path reports
 #   make bitstream   — synth + impl + bitstream + all reports
 #   make program     — program the board with the current bitstream
+#   make ports       — list this board's UART ports (BOARD=nexys_a7_100t|genesys2)
+#   make board-info  — this board's part, JTAG serial, UART serial, gotchas
 #   make utilization — print the latest utilization report
 #   make timing      — print the latest timing summary
 #   make smoke       — run host smoke test against the programmed board
@@ -32,6 +34,8 @@ VIVADO ?= vivado
 VIVADO_BATCH = $(VIVADO) -mode batch -notrace
 
 TCL      := $(SELF_DIR)/tcl
+RDS_ROOT := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel))
+FLOW     := ddr2_char
 PROJECT  := $(SELF_DIR)/build/vivado_project/ddr2_char.xpr
 BITSTREAM:= $(SELF_DIR)/bitstream/ddr2_char.bit
 REPORTS  := $(SELF_DIR)/reports
@@ -50,7 +54,9 @@ help:
 	@echo "  make project      Create Vivado project (no build)"
 	@echo "  make synth        Synthesis + utilization + failing-path reports"
 	@echo "  make bitstream    Full synth/impl/bitgen + all reports"
-	@echo "  make program      Flash the Nexys A7 via JTAG"
+	@echo "  make program      Flash the board via JTAG (BOARD=$(BOARD))"
+	@echo "  make ports        Which ttyUSB is this board on right now?"
+	@echo "  make board-info   Part, JTAG serial, UART serial, gotchas"
 	@echo "  make utilization  cat utilization_impl.txt (falls back to synth)"
 	@echo "  make timing       cat timing_summary.txt"
 	@echo "  make smoke        Run host smoke test (UART=$(UART))"
@@ -106,9 +112,14 @@ bitstream-ila:
 	@echo "ILA bitstream: $(SELF_DIR)/bitstream/ddr2_char_ila.bit (+ .ltx probes)"
 
 # ---- Program board ---------------------------------------------------------
-program:
-	@[ -f $(BITSTREAM) ] || (echo "No bitstream found — run 'make bitstream' first." && false)
-	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/program_fpga.tcl
+# `program`, `ports`, `board-info` and `boards` come from the global
+# make/fpga_board.mk (board facts live in the fpga/bin registry, not in a
+# per-flow tcl). Override the target board with BOARD=genesys2.
+#
+# This flow keeps its own build recipes, so it includes the BOARD half only. A
+# build laid out the new way includes make/fpga_flow.mk instead and gets the
+# whole flow -- see projects/fpga-systems/NexysA7/pumice/build-perf/Makefile.
+include $(RDS_ROOT)/make/fpga_board.mk
 
 # ---- Host-side smoke / status ---------------------------------------------
 smoke:

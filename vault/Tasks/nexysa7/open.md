@@ -102,3 +102,86 @@ the handbook/vault links (`vault/handbook/fpga/NexysA7/...`,
 **Note:** likely rename/rehome this very Tasks area to
 `vault/Tasks/projects/fpga-systems/...` (mirror-the-repo-path convention) as part
 of the move; fold NEXYS-001 in with it.
+
+---
+
+### NEXYS-003: Migrate the remaining char flows onto the shared fpga/bin layer
+
+**Priority:** Medium
+**Status:** [ ] Open (2026-07-30)
+
+**Goal:** `fpga/bin/` now holds the common UART/board/sequence layer
+(`uart_link.py`, `board.py`, `boards/`, `sequence.py`, one `program_fpga.tcl`).
+The pumice DDR2 flow was migrated as the proof. Bring the other flows across.
+
+**Still duplicated (3 copies of the port scan):**
+- `stream_characterization/flows-stream-bridge/host/harness_addrs.py`
+  — `autodetect_port()` (SCRATCH round-trip probe)
+- `rapids_characterization/flows-rapids-beats/host/rapids_char_io.py`
+  — `autodetect_port()` (CSR_ID 'RAP1' probe)
+- `cdc_counter_display/host/cdc_demo.py`
+  — `autodetect_port()` (BUILD_ID 'CDC1' probe)
+
+Each becomes a thin wrapper over `uart_link.find_port(probe=...)`, exactly as
+`ddr2_char.autodetect_port` now is. New callers should prefer
+`Board.find_uart_port(probe=...)`, which also filters by USB serial.
+
+**Still duplicated (6 remaining copies of program_fpga.tcl):**
+`flows-litedram-uart`, `flows-rapids-beats`, `flows-stream-bridge`,
+`flows-stream-monitor`, `flows-vivado-mcdma`, `timing_characterization/fpga`.
+Each flow Makefile drops its inline `program:` recipe and instead sets
+`BITSTREAM` + `RDS_ROOT` and includes the global `make/fpga_flow.mk` (the
+[[test-runner]] `make/tests.mk` pattern, applied to board handling); the
+per-flow tcl is then deleted. Note `flows-stream-bridge` also switches bitstream
+name on `BOARD=genesys2` — fold that into the Makefile, not the tcl.
+
+**Then:** consider moving the Vivado build targets (`project`/`synth`/
+`bitstream`/`utilization`/`timing`) into `make/fpga_flow.mk` too — they are
+near-identical across all seven flows. Deliberately left out of the first pass
+so adopting the file could not break a working build. Overlaps NEXYS-001.
+
+**Sequences:** consider `projects/fpga-systems/<board>/<component>/bin/` sequence areas
+for rapids/stream, mirroring `projects/fpga-systems/NexysA7/pumice/bin/`.
+
+**Pumice area scaffold (created 2026-07-30, empty):** the component shape is
+declared at `projects/fpga-systems/NexysA7/pumice/` — `rtl/` (flat, shared blocks),
+`dv/{tb,tbclasses,tests}` (tests those blocks), `bin/` (sequences, populated),
+and `build-perf/{rtl,dv,host,fpga}` for one harness build, with `fpga/`
+holding `tcl,constraints,bitstream,reports`. Siblings are `build-<variant>/`.
+See its README for the what-goes-where rules.
+
+The migration is a near-mechanical mapping from the existing tree:
+- `ddr2_char_framework/rtl/*`  -> `pumice/rtl/` (flat; keep `bridges/` as-is)
+- `ddr2_char_framework/dv/{tb,tbclasses,tests}` -> `pumice/dv/`
+- `flows-ours-uart/{rtl,rtl-vivado}` -> `pumice/build-perf/rtl/`
+- `flows-ours-uart/host` -> `pumice/build-perf/host/`
+- `flows-ours-uart/{tcl,constraints,bitstream,reports}` -> `pumice/build-perf/fpga/`
+- `flows-ours-uart/{rtl-vivado,bin}` -> `pumice/build-perf/{rtl-vivado,bin}`
+- `flows-ours-uart/{csv,plots,docs}` -> `pumice/build-perf/results/`
+- `flows-litedram-uart/{rtl,constraints,tcl}` -> `pumice/build-litedram/`
+  (`litedram_hp.yml`, `regen.sh`, `README.md`, `HARNESS_PLAN.md` at its root)
+
+**While moving litedram, two things to fix rather than carry over:**
+- `regen.sh` writes to `build_board/` + `build_sim/` at the flow root. Point it
+  at `gen/board/` + `gen/sim/` (`--output-dir`) so generated cores sit in one
+  named subdirectory per CRITICAL RULE #0.1, and update the `.gitignore`
+  (already scaffolded as `gen/`).
+- `rtl/char_engine_harness.sv` is described as DUT-agnostic and is what makes
+  the pumice-vs-LiteDRAM comparison apples-to-apples, yet it lives in the
+  litedram flow. It belongs in `pumice/rtl/` (shared by both builds); check
+  whether `flows-ours-uart` has diverged its own copy of the same wiring before
+  promoting it.
+
+Then fix: `*.f` filelists + `bin/filelists.toml`, `DDR2_CHAR_FRAMEWORK_ROOT`
+and `CHAR_ROOT`/`FLOW_ROOT` in `env_python` and the flow Makefile, tcl
+`project_root` derivations, `get_paths` in the moved dv tests, `pumice_env.py`'s
+`FLOW_HOST_REL`, and the handbook/vault links.
+
+**Parent directory: SETTLED (Sean, 2026-07-30).** New FPGA board areas live
+under `projects/fpga-systems/<board>/<component>/`, agreeing with NEXYS-002's
+plan. The pumice area was created there. NEXYS-002's move of the existing
+`projects/NexysA7/` tree lands alongside it.
+
+**Unverified:** the migrated `make program` path and the pumice `run_smoke.py`
+board path have NOT been run against hardware (no board attached, and pyserial
+is not installed in the venv — `pip install pyserial` before board work).

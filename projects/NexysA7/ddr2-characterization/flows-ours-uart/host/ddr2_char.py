@@ -656,37 +656,54 @@ class DDR2CharDriver:
         return bool(self.regs.field("DBG_OVERFLOW", "overflow"))
 
 
+def _fpga_bin() -> str:
+    """The shared board/UART layer (fpga/bin), which is not on PYTHONPATH for
+    callers who run these host tools without sourcing env_python."""
+    root = os.environ.get("REPO_ROOT")
+    if root and os.path.isdir(os.path.join(root, "fpga", "bin")):
+        return os.path.join(root, "fpga", "bin")
+    here = os.path.dirname(os.path.abspath(__file__))
+    for _ in range(12):
+        cand = os.path.join(here, "fpga", "bin")
+        if os.path.isdir(cand):
+            return cand
+        here = os.path.dirname(here)
+    raise FileNotFoundError("fpga/bin not found; set REPO_ROOT")
+
+
+def harness_probe():
+    """Predicate that answers "is this link the pumice DDR2 char harness?".
+
+    Reads BUILD_ID by name (never a hardcoded offset) and compares it to the
+    'DDR2' magic. Exposed so board-aware callers can combine it with a
+    USB-serial filter -- `Board.find_uart_port(probe=harness_probe())` -- which
+    the bare port scan below cannot do.
+    """
+    def probe(link) -> bool:
+        return DDR2CharDriver(bridge=link.bridge()).build_id() == \
+            DDR2CharDriver.BUILD_ID_MAGIC
+    return probe
+
+
 def autodetect_port(baud: int = 115200, want: str = None) -> str:
     """Find the ttyUSB the pumice DDR2 char harness is on.
 
     The USB-UART re-enumerates across reboots/replugs, so never hardcode the
-    port. Probe each candidate by reading BUILD_ID; the board that answers with
-    the 'DDR2' magic (DDR2CharDriver.BUILD_ID_MAGIC) is ours. `want`: if the
-    caller passed --port explicitly (not 'auto'), try it first. Mirrors the
-    STREAM/RAPIDS/CDC char autodetect with the pumice identity register.
-    """
-    import glob
-    cands = []
-    if want and want != "auto":
-        cands.append(want)
-    cands += sorted(p for p in glob.glob("/dev/ttyUSB*") if p not in cands)
+    port. Thin wrapper over the shared `uart_link.find_port` probe loop (which
+    replaced four hand-rolled copies of this scan); the pumice-specific part is
+    only `harness_probe()`. Kept as a module-level function because the host
+    entrypoints (run_smoke, pumice_master, sweeps) all import it by this name.
 
-    for port in cands:
-        try:
-            d = DDR2CharDriver(port=port, baudrate=baud, timeout=0.4)
-            ok = d.build_id() == DDR2CharDriver.BUILD_ID_MAGIC
-            ser = getattr(d.bridge, "ser", None)
-            if ser is not None:
-                ser.close()
-            if ok:
-                print(f"[autodetect] pumice DDR2 char harness found on {port}")
-                return port
-        except Exception:
-            continue
-    raise SystemExit(
-        f"[autodetect] no pumice DDR2 char harness responded on any of: "
-        f"{cands or '(no /dev/ttyUSB* present)'}. "
-        f"Is the board powered and programmed with the pumice DDR2 bitstream?")
+    Prefer `Board.find_uart_port(probe=harness_probe())` in new code: it also
+    narrows to one board's ports by USB serial, which matters when the Nexys A7
+    and the Genesys 2 are both attached.
+    """
+    if _fpga_bin() not in sys.path:
+        sys.path.insert(0, _fpga_bin())
+    from uart_link import find_port  # noqa: E402
+
+    return find_port(probe=harness_probe(), want=want, baudrate=baud,
+                     label="pumice DDR2 char harness")
 
 
 # =============================================================================

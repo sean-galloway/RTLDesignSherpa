@@ -11,6 +11,11 @@ host program, sim and silicon. Every board/component host suite (e.g. the STREAM
 here in cmn-infra, not under a board.
 
 Layers, bottom up:
+- **Board + port discovery** -- `fpga/bin/` (`uart_link.py`, `board.py`,
+  `boards/`): which board, and which of its `ttyUSB`s runs the right bitstream.
+  `UartLink` satisfies the same `ByteChannel` protocol as `SerialChannel`, so it
+  drops straight into `UARTAxiBridge(channel=...)`. Before this existed each flow
+  grew its own `autodetect_port()` -- four near-identical copies. See [[boards]].
 - **Byte transport** -- `bin/TBClasses/harness/byte_channel.py`:
   `SerialChannel(port, baudrate)` is the real pyserial transport; the cocotb
   side swaps in a `cocotb.function` bridge. Same bytes either way.
@@ -23,6 +28,10 @@ Layers, bottom up:
   (`bus["stream"].SCHED_CONFIG.write_word(...)`). This is the [[registers-by-name]]
   guarantee that sim and board can't disagree about the address map. A flow's
   `build_*_bus(bridge)` factory composes each regmap as its own Device.
+- **Sequences** -- `fpga/bin/sequence.py`: an area's init + test steps, named and
+  ordered, with dependencies resolved before any traffic. The bus above is
+  *injected* into each step, which is what keeps the equivalence property.
+  See [[sequences]].
 
 Why it matters: a new campaign never re-implements transport or address decode.
 It injects `UARTAxiBridge(port=...)` (silicon) or the sim bridge, calls the
