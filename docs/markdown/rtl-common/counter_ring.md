@@ -44,7 +44,9 @@ module counter_ring #(
 - **Type**: `int`
 - **Default**: `4`
 - **Description**: Number of stages in the ring counter
-- **Range**: Any positive integer ≥ 1
+- **Range**: `>= 2`. At WIDTH=1 the rotate expression
+  `{ring_out[0], ring_out[WIDTH-1:1]}` becomes the illegal reversed
+  part-select `ring_out[0:1]` and the module does not elaborate.
 - **States Generated**: WIDTH unique states
 - **Pattern**: Single '1' bit rotates through WIDTH positions
 

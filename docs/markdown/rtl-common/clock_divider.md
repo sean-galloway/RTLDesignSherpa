@@ -444,4 +444,4 @@ wide-counter cases by several times. fmax figures remain unsourced estimates.
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md]**
+- **[← Back to Main Documentation Index](../index.md)**

@@ -192,8 +192,10 @@ Cycle | LFSR | Tap bits (4,1) | Feedback | Next LFSR
 The sequence runs the full period of 15 and returns to the seed, at which point
 `lfsr_done` asserts. Reset loads all zeros, and the `|r_lfsr` guard means the
 register cannot leave zero on its own — a `seed_load` is required to start it.
-Getting the taps wrong does not merely shorten the period: `[4,3]` on this
-module walks to zero and freezes there.
+Getting the taps wrong costs the full period, and how it fails depends on the
+seed: sweeping all 15 non-zero seeds at WIDTH=4 with `[4,3]`, three walk to zero
+and freeze under the `|r_lfsr` guard while the other twelve settle into a short
+cycle that never revisits the seed, so `lfsr_done` never asserts.
 
 ## Comparison with Galois LFSR
 
@@ -226,11 +228,13 @@ module walks to zero and freezes there.
 > **The tap numbers below are specific to this module's shift direction.** The
 > tap column published for Galois LFSRs -- and the table in the
 > `shifter_lfsr.sv` header, which is XNOR feedback with a *left* shift -- encodes
-> the same polynomials differently. Get it wrong and you don't merely shorten the
-> sequence: the register walks itself to zero, where the `|r_lfsr` guard freezes
-> it permanently. Measured on this RTL under Verilator: `WIDTH=4` with taps
-> `[4,3]` locks at zero after **one** step, while `[4,1]` runs the full period
-> of 15.
+> the same polynomials differently. Get it wrong and you lose the full period,
+> and the failure is quiet either way. Sweeping all 15 non-zero seeds on this
+> RTL at `WIDTH=4` with taps `[4,3]`: three seeds (including `4'b0001`, which
+> reaches zero in **one** step) walk to zero and freeze under the `|r_lfsr`
+> guard; the other twelve settle into a short cycle that never revisits the
+> seed, so `lfsr_done` never asserts. `[4,1]` runs the full period of 15 from
+> every seed.
 
 ### Common Primitive Polynomials
 

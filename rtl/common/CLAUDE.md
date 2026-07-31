@@ -122,8 +122,8 @@ cat val/common/test_counter_bin.py
 
 **Common RTL Status:** Active-low everywhere, but the port is named **`rst_n`**,
 not `i_rst_n`. Measured across `rtl/common/*.sv`: 28 modules expose `rst_n`, one
-exposes `aresetn` (`icg`), and **none** expose `i_rst_n`; the rest have no reset
-port. Write `.rst_n(...)` — an `i_rst_n` connection will not elaborate against
+exposes `aresetn` (`clock_gate_ctrl`), and **none** expose `i_rst_n`; the other
+20 have no reset port at all (`icg` among them). Write `.rst_n(...)` — an `i_rst_n` connection will not elaborate against
 these modules. The polarity requirement in `/GLOBAL_REQUIREMENTS.md` §1.1 is met; the
 `i_`-prefix naming is not, and reconciling the two is an open decision, not
 something to patch per-instantiation.
@@ -157,9 +157,12 @@ something to patch per-instantiation.
 | FIFO pointer / wrap counting | `counter_bin.sv` | WIDTH, MAX |
 | With load/clear | `counter_load_clear.sv` | WIDTH |
 | Microsecond time base | `counter_freq_invariant.sv` | COUNTER_WIDTH, MIN/MAX_FREQ_MHZ |
-| Gray code | `counter_bingray.sv` | WIDTH |
 | Ring/circular | `counter_ring.sv` | WIDTH |
-| Johnson | `counter_johnson.sv` | WIDTH |
+| Plain up-counter | `counter.sv` | WIDTH |
+| FIFO pointer with load | `counter_bin_load.sv` | WIDTH, MAX |
+
+`counter_bingray.sv` and `counter_johnson.sv` are **not** in `rtl/common/` --
+they moved to `rtl/cdc/`. `ls rtl/common/counter*.sv` returns the six above.
 
 ### Arbiter Selection Matrix
 
@@ -405,7 +408,8 @@ User: "I need to divide my 100MHz clock by 2"
 Clock dividers create derived clocks which can cause timing issues.
 
 If you must use divider:
-clock_divider #(.DIV_RATIO(2)) u_div (...);"
+clock_divider #(.N(1), .COUNTER_WIDTH(64), .PO_WIDTH(8)) u_div (...);
+The divisors are runtime inputs (pick-off selects), not a DIV_RATIO parameter."
 ```
 
 ---
@@ -513,14 +517,22 @@ Then provide table:
 **A:** Direct answer with code:
 ```systemverilog
 dataint_crc #(
-    .POLYNOMIAL(32'h04C11DB7),  // CRC-32 Ethernet
-    .WIDTH(32),
-    .INIT_VALUE(32'hFFFFFFFF),
-    .FINAL_XOR(32'hFFFFFFFF)
-) u_crc32 (...);
+    .DATA_WIDTH(32),
+    .CRC_WIDTH (32),
+    .REFIN     (1),
+    .REFOUT    (1)
+) u_crc32 (
+    .POLY     (32'h04C11DB7),   // CRC-32 Ethernet -- a PORT, not a parameter
+    .POLY_INIT(32'hFFFFFFFF),
+    .XOROUT   (32'hFFFFFFFF),
+    .clk, .rst_n, .load_crc_start, .load_from_cascade,
+    .cascade_sel, .data, .crc
+);
 ```
 
-"The dataint_crc module takes POLY/POLY_INIT/XOROUT as input ports; 250 configurations are validated in crc_testing.py."
+"The configuration is wired, not parameterized: POLY/POLY_INIT/XOROUT are input
+ports, so the CRC can be retuned at run time. 250 configurations are validated
+in crc_testing.py."
 
 ### Q: "I need a FIFO"
 

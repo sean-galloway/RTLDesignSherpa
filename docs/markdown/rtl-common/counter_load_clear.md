@@ -48,7 +48,8 @@ module counter_load_clear #(
 - **Type**: `int`
 - **Default**: `32'd32`
 - **Description**: Maximum possible count value
-- **Range**: Any positive 32-bit integer
+- **Range**: `2` to `2^32-1` (the RTL header states the same). MAX=1 gives
+  `$clog2(1) = 0`, so `loadval` and `count` would be zero-width.
 - **Usage**: Determines counter width and maximum loadable value
 - **Width Calculation**: Counter width = `$clog2(MAX)`
 
@@ -187,8 +188,12 @@ LoadVal   : ─────────< 3 >────────────
 Clear     : __________________________________|‾‾‾|_
 Increment : ________________|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|_
 Count     : ──< 0 >──< 0 >──< 0 >──< 1 >──< 2 >──< 3 >──< 0 >
-Done      : ___________________________|‾‾‾|_______
+Done      : ‾‾‾‾‾‾‾‾‾‾‾‾‾‾_____________|‾‾‾|_______
 ```
+
+`done` is combinational (`count == r_match_val`) and both reset to 0, so it
+is **high out of reset** and stays high until the load writes a non-zero
+match value. It is not a pulse that only appears at terminal count.
 
 ### Load During Count
 Load only writes `r_match_val`; it does **not** stall the count. With
@@ -474,4 +479,4 @@ end
 ## Navigation
 
 - **[← Back to rtl-common Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md]**
+- **[← Back to Main Documentation Index](../index.md)**

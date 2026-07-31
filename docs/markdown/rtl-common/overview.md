@@ -337,16 +337,16 @@ module arithmetic_unit #(
     math_adder_full_nbit #(
         .N(DATA_WIDTH)
     ) u_adder (
-        .a(operand_a), .b(operand_b), .cin(1'b0),
-        .sum(add_result), .cout(add_carry)
+        .i_a(operand_a), .i_b(operand_b), .i_c(1'b0),
+        .ow_sum(add_result), .ow_carry(add_carry)
     );
 
     // Subtraction using complement method
     math_subtractor_full_nbit #(
         .N(DATA_WIDTH)
     ) u_subtractor (
-        .a(operand_a), .b(operand_b), .bin(1'b0),
-        .diff(sub_result), .bout(sub_borrow)
+        .i_a(operand_a), .i_b(operand_b), .i_b_in(1'b0),
+        .ow_d(sub_result), .ow_b(sub_borrow)
     );
 
     // Result selection based on operation

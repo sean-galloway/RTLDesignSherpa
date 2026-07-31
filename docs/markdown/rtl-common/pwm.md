@@ -177,7 +177,10 @@ underflowing, since 0 means infinite.
 
 ### 3. Infinite Repeat Mode
 - `repeat_count = 0` enables continuous operation
-- PWM runs indefinitely until new start trigger
+- PWM runs indefinitely. A `start` pulse while RUNNING is **ignored** -- the FSM
+  leaves RUNNING only on `w_period_complete && w_all_repeats_done`, which never
+  fires in continuous mode -- so a running channel cannot be restarted or
+  stopped by `start`. Use reset, or a non-zero `repeat_count`, to end it.
 - Useful for continuous motor control or LED dimming
 
 ### 4. Simultaneous Multi-Channel Operation

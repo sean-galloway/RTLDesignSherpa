@@ -105,7 +105,10 @@ module arbiter_round_robin_weighted #(
 
 Weighted bandwidth allocation here runs on a credit system:
 
-1. **Credit Initialization**: Each client's credit counter is initialized to its weight value
+1. **Credit Initialization**: reset loads **1 credit** per client
+   (`r_credit_counter[i] <= MTW'(1)`), not the weight. Credits only become the
+   configured weights at the first global replenish, so the very first round
+   after reset is effectively unweighted
 2. **Grant Completion**: When a grant completes, the client's credit counter decrements
 3. **Credit Eligibility**: Only clients with non-zero credits are eligible for round-robin arbitration
 4. **Global Replenishment**: When no requesting clients have credits, all credits are reloaded
@@ -187,9 +190,11 @@ end
 ### Global Replenishment Logic
 
 ```systemverilog
-// Replenish when no requesting clients have credits
+// Replenish when no requesting clients have credits.
+// Note w_req_post, not request: w_req_post = block_arb ? '0 : request, so while
+// block_arb is high there are no requests to replenish for.
 assign w_global_replenish = (w_normal_operation && !w_pending_grants &&
-                             (|request) && !w_requesting_clients_with_credits);
+                             (|w_req_post) && !w_requesting_clients_with_credits);
 
 // On replenish: reload all credit counters to their weights
 if (w_global_replenish) begin
@@ -200,10 +205,11 @@ end
 ### Request Masking for Fairness
 
 ```systemverilog
-// Only pass eligible clients to round-robin arbiter
-assign w_requesting_eligible[i] = request[i] &&
+// Only pass eligible clients to round-robin arbiter. Again w_req_post, so a
+// blocked arbiter makes every client ineligible rather than merely ungranted.
+assign w_requesting_eligible[i] = w_req_post[i] &&
                                    ((w_has_crd[i]) ||
-                                    (w_global_replenish && client_weight[i] > 0));
+                                    (w_global_replenish && w_valid_clients[i]));
 
 // Apply masking for fairness among multiple eligible clients.
 // The two terms are OR'd, NOT selected by a ternary: the "eligible && !grant"

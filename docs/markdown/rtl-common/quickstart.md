@@ -108,14 +108,14 @@ cat val/common/test_counter_bin.py
 ```systemverilog
 // Example: Instantiate binary counter
 counter_bin #(
-    .WIDTH(16),
-    .MAX_VALUE(1000)
+    .WIDTH(11),          // 10 count bits + the wrap flag in the MSB
+    .MAX  (1000)
 ) u_my_counter (
-    .i_clk      (my_clk),
-    .i_rst_n    (my_rst_n),
-    .i_enable   (count_enable),
-    .o_count    (count_value),
-    .o_overflow (count_ovf)
+    .clk              (my_clk),
+    .rst_n            (my_rst_n),
+    .enable           (count_enable),
+    .counter_bin_curr (count_value),
+    .counter_bin_next (count_value_next)
 );
 ```
 
@@ -125,20 +125,22 @@ counter_bin #(
 
 ### Use Case 1: Simple Event Counter
 
-**Need:** Count events up to a maximum value
+**Need:** Count events, wrapping at a maximum
 
-**Module:** `counter_bin.sv`
+**Module:** `counter_bin.sv` — a FIFO-pointer counter. The low `WIDTH-1` bits
+count `0..MAX-1`; on wrap they clear and the MSB toggles, so a read/write
+pointer pair can tell full from empty. There is no overflow output.
 
 ```systemverilog
 counter_bin #(
-    .WIDTH(8),
-    .MAX_VALUE(255)
+    .WIDTH(9),           // 8 count bits + the wrap flag
+    .MAX  (255)
 ) u_event_counter (
-    .i_clk      (clk),
-    .i_rst_n    (rst_n),
-    .i_enable   (event_detected),
-    .o_count    (event_count),
-    .o_overflow (max_events_reached)
+    .clk              (clk),
+    .rst_n            (rst_n),
+    .enable           (event_detected),
+    .counter_bin_curr (event_count),
+    .counter_bin_next (event_count_next)
 );
 ```
 
@@ -146,22 +148,28 @@ counter_bin #(
 
 ### Use Case 2: Timeout Timer
 
-**Need:** Detect when an operation takes too long
+**Need:** A time base that stays correct when the clock frequency changes
 
-**Module:** `counter_freq_invariant.sv`
+**Module:** `counter_freq_invariant.sv` — a microsecond tick generator, not a
+timeout timer. It has no timeout parameter and no timeout output; build the
+timeout yourself by counting `tick`.
 
 ```systemverilog
 counter_freq_invariant #(
-    .CLK_FREQ_MHZ(100),      // 100 MHz clock
-    .TIMEOUT_MS(50),         // 50 ms timeout
-    .WIDTH(32)
-) u_timeout (
-    .i_clk      (clk),
-    .i_rst_n    (rst_n),
-    .i_enable   (operation_active),
-    .o_count    (timer_count),
-    .o_timeout  (timeout_occurred)
+    .COUNTER_WIDTH   (16),
+    .MIN_FREQ_MHZ    (5),
+    .MAX_FREQ_MHZ    (220),
+    .NUM_FREQ_ENTRIES(16)
+) u_us_tick (
+    .clk          (clk),
+    .rst_n        (rst_n),
+    .sync_reset_n (sync_clear_n),
+    .freq_sel     (freq_sel),      // Picks the prescaler for the actual clock
+    .o_counter    (microseconds),
+    .tick         (us_tick)        // One pulse per microsecond
 );
+
+// Timeout = count us_tick pulses and compare against your own threshold.
 ```
 
 ---
@@ -174,14 +182,18 @@ counter_freq_invariant #(
 
 ```systemverilog
 arbiter_round_robin #(
-    .N(4),              // 4 requesters
-    .REG_OUTPUT(1)      // Pipelined for timing
+    .CLIENTS     (4),   // 4 requesters -- N is the DERIVED $clog2(CLIENTS)
+    .WAIT_GNT_ACK(0)    // 1 = hold the grant until grant_ack
 ) u_bus_arbiter (
-    .i_clk      (clk),
-    .i_rst_n    (rst_n),
-    .i_request  (master_requests[3:0]),  // One bit per master
-    .o_grant    (master_grants[3:0]),    // One-hot grant
-    .o_valid    (grant_valid)
+    .clk        (clk),
+    .rst_n      (rst_n),
+    .block_arb  (1'b0),
+    .request    (master_requests[3:0]),  // One bit per master
+    .grant_ack  ('0),
+    .grant_valid(grant_valid),
+    .grant      (master_grants[3:0]),    // One-hot grant
+    .grant_id   (master_grant_idx),
+    .last_grant (last_grant)
 );
 ```
 
@@ -195,20 +207,25 @@ arbiter_round_robin #(
 
 ```systemverilog
 dataint_crc #(
-    .POLYNOMIAL(32'h04C11DB7),   // CRC-32 Ethernet polynomial
-    .WIDTH(32),
-    .INIT_VALUE(32'hFFFFFFFF),
-    .FINAL_XOR(32'hFFFFFFFF)
+    .DATA_WIDTH(32),
+    .CRC_WIDTH (32),
+    .REFIN     (1),
+    .REFOUT    (1)
 ) u_crc32 (
-    .i_clk      (clk),
-    .i_rst_n    (rst_n),
-    .i_data     (packet_data),
-    .i_valid    (data_valid),
-    .o_crc      (crc_result),
-    .o_valid    (crc_valid)
+    .POLY             (32'h04C11DB7),  // CRC-32 Ethernet -- a PORT, not a param
+    .POLY_INIT        (32'hFFFFFFFF),
+    .XOROUT           (32'hFFFFFFFF),
+    .clk              (clk),
+    .rst_n            (rst_n),
+    .load_crc_start   (crc_restart),
+    .load_from_cascade(data_valid),
+    .cascade_sel      (4'b1000),       // One-hot over DATA_WIDTH/8 bytes
+    .data             (packet_data),
+    .crc              (crc_result)
 );
 
-// 250 CRC standards are exercised by the test suite via parameter configuration
+// The polynomial, init and xorout are WIRED, so the CRC can be retuned at run
+// time. 250 configurations are exercised by the test suite.
 ```
 
 ---
@@ -333,7 +350,7 @@ When you integrate one of these modules into your design:
 - [ ] **Read module header** - Understand parameters and constraints
 - [ ] **Check parameter ranges** - Ensure your values are valid
 - [ ] **Review test** - See `val/common/test_{module}.py` for examples
-- [ ] **Match reset convention** - Use `i_rst_n` (active-low async)
+- [ ] **Match reset convention** - the port is `rst_n`, active-low async (`clock_gate_ctrl` uses `aresetn`); no rtl/common module exposes `i_rst_n`
 - [ ] **Verify port widths** - Match parameter-dependent widths
 - [ ] **Lint your design** - Run `verilator --lint-only` on top level
 - [ ] **Test integration** - Create simple testbench
@@ -403,7 +420,7 @@ These four show up in design reviews again and again. All of them are cheap to a
 **Wrong:**
 ```systemverilog
 counter_bin u_counter (
-    .i_rst_n(my_positive_reset),  // ERROR: Inverted!
+    .rst_n(my_positive_reset),  // ERROR: Inverted!
     // ...
 );
 ```
@@ -411,9 +428,9 @@ counter_bin u_counter (
 **Right:**
 ```systemverilog
 counter_bin u_counter (
-    .i_rst_n(~my_positive_reset),  // Invert if you have positive reset
+    .rst_n(~my_positive_reset),  // Invert if you have positive reset
     // OR better: use active-low reset throughout design
-    .i_rst_n(my_rst_n),
+    .rst_n(my_rst_n),
     // ...
 );
 ```
@@ -424,9 +441,9 @@ counter_bin u_counter (
 ```systemverilog
 counter_bin #(
     .WIDTH(16)
-    // Forgot MAX_VALUE - uses default 2^16-1
+    // Forgot MAX - uses the default of 10
 ) u_counter (
-    .o_count(count[7:0])  // ERROR: Width mismatch!
+    .counter_bin_curr(count[7:0])  // ERROR: Width mismatch!
 );
 ```
 
@@ -434,9 +451,9 @@ counter_bin #(
 ```systemverilog
 counter_bin #(
     .WIDTH(8),          // Match output width
-    .MAX_VALUE(200)
+    .MAX  (200)
 ) u_counter (
-    .o_count(count[7:0])  // Correct width
+    .counter_bin_curr(count[7:0])  // Correct width
 );
 ```
 
@@ -504,8 +521,7 @@ ls rtl/common/counter*.sv
 **Example:**
 ```systemverilog
 arbiter_round_robin #(
-    .N(16),
-    .REG_OUTPUT(1)  // Add output register for timing
+    .CLIENTS(16)        // N is derived ($clog2(CLIENTS)); do not override it
 ) u_arbiter (
     // ...
 );
@@ -519,10 +535,16 @@ arbiter_round_robin #(
 
 **Example:**
 ```systemverilog
-clock_gate_ctrl u_gate (
-    .i_clk      (clk),
-    .i_enable   (block_active),
-    .o_clk_gated(clk_gated)
+clock_gate_ctrl #(
+    .IDLE_CNTR_WIDTH(4)
+) u_gate (
+    .clk_in           (clk),
+    .aresetn          (aresetn),        // NOTE: this module uses aresetn
+    .cfg_cg_enable    (cg_enable),
+    .cfg_cg_idle_count(4'd8),           // Cycles idle before gating
+    .wakeup           (block_active),
+    .clk_out          (clk_gated),
+    .gating           (clk_is_gated)
 );
 
 // Use clk_gated for power-sensitive logic

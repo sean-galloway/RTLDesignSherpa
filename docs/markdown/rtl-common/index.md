@@ -199,8 +199,8 @@ one row.
 ### Building a Simple ALU
 ```systemverilog
 // Use multiple math modules for ALU operations
-math_adder_full_nbit #(.N(32)) u_add (.a(op_a), .b(op_b), .cin(1'b0), .sum(alu_sum), .cout(alu_cout));
-math_subtractor_full_nbit #(.N(32)) u_sub (.a(op_a), .b(op_b), .bin(1'b0), .diff(alu_diff), .bout(alu_bout));
+math_adder_full_nbit #(.N(32)) u_add (.i_a(op_a), .i_b(op_b), .i_c(1'b0), .ow_sum(alu_sum), .ow_carry(alu_cout));
+math_subtractor_full_nbit #(.N(32)) u_sub (.i_a(op_a), .i_b(op_b), .i_b_in(1'b0), .ow_d(alu_diff), .ow_b(alu_bout));
 ```
 
 ### Clock Domain Crossing
@@ -208,8 +208,8 @@ math_subtractor_full_nbit #(.N(32)) u_sub (.a(op_a), .b(op_b), .bin(1'b0), .diff
 // Combine async FIFO with reset synchronization
 // fifo_async now lives in rtl/cdc/ -- see the rtl-cdc book
 fifo_async #(.DATA_WIDTH(32), .DEPTH(16)) u_fifo (.wr_clk(clk_a), .rd_clk(clk_b), ...);
-reset_sync u_sync_a (.clk(clk_a), .rst_n_in(global_rst_n), .rst_n_out(rst_sync_a));
-reset_sync u_sync_b (.clk(clk_b), .rst_n_in(global_rst_n), .rst_n_out(rst_sync_b));
+reset_sync u_sync_a (.clk(clk_a), .rst_n(global_rst_n), .sync_rst_n(rst_sync_a));
+reset_sync u_sync_b (.clk(clk_b), .rst_n(global_rst_n), .sync_rst_n(rst_sync_b));
 ```
 
 ### Data Protection

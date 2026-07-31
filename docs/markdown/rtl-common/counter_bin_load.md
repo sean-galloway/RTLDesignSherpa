@@ -373,8 +373,8 @@ clk:      ‾|_|‾|_|‾|_|‾|_
 add_en:   ______|‾|_______
 add_val:  ------[3]-------
 curr:     0010  0010  0101
-next:     0010  0101  0110
-                 ↑ +3
+next:     0010  0101  0101
+                 ↑ +3   ↑ add_en low -> hold (next = curr)
 ```
 
 #### Load Operation (load=1, load_value=12):
@@ -385,8 +385,8 @@ clk:      ‾|_|‾|_|‾|_
 load:     ______|‾|___
 load_val: ------[C]---
 curr:     0011  0011  1100
-next:     0011  1100  1101
-                 ↑ direct load
+next:     0011  1100  1100
+                 ↑ load  ↑ load low -> hold (next = curr)
 ```
 
 ## Design Considerations
