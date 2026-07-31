@@ -145,7 +145,7 @@ class CDCOpenLoopTB(TBBase):
     # ------------------------------------------------------------------
     # Source driver — assert src_valid for one src_clk, respect src_busy
     # ------------------------------------------------------------------
-    async def send_one(self, data, wait_for_busy_clear=True):
+    async def send_one(self, data, wait_for_busy_clear=True, drive_during_busy=False):
         """Send one pulse. If wait_for_busy_clear is True, waits for
         src_busy to go low first AND for the dst sync chain to see
         the falling edge (no source-side drops, no merged pulses at
@@ -179,8 +179,18 @@ class CDCOpenLoopTB(TBBase):
             await RisingEdge(self.dut.clk_src)
             self.dut.src_valid.value = 0
         else:
-            # Drop — source thinks it was busy. Do NOT enqueue.
-            self.log.debug(f"src dropped value 0x{data:X} (busy)")
+            if drive_during_busy:
+                # Actually DRIVE the pulse during busy: exercises the DUT's
+                # capture guard (src_valid && !src_busy) instead of filtering
+                # it out in the driver. Not enqueued -- a correct DUT drops it.
+                self.dut.src_data.value = data & ((1 << self.DATA_WIDTH) - 1)
+                self.dut.src_valid.value = 1
+                await RisingEdge(self.dut.clk_src)
+                self.dut.src_valid.value = 0
+                self.log.debug(f"drove 0x{data:X} during busy (DUT must drop it)")
+            else:
+                # Drop — source thinks it was busy. Do NOT enqueue.
+                self.log.debug(f"src dropped value 0x{data:X} (busy)")
 
     # ------------------------------------------------------------------
     # Settle: wait long enough that any in-flight stretch + sync
@@ -332,6 +342,41 @@ class CDCOpenLoopTB(TBBase):
                                 "stretch may be more conservative than computed")
         return ok
 
+    async def run_busy_drop(self):
+        """Verification question 3 from the header: pulses asserted while
+        src_busy is high are dropped at the source -- the DUT's capture
+        guard must ignore them (no stretch restart, no data corruption).
+        Previously the driver WITHHELD these pulses, so the guard was never
+        exercised and the drop was attributed to the source, not the DUT
+        (test audit finding)."""
+        self.log.info("=== BUSY-DROP: legit pulse, then pulses during busy ===")
+        # One legitimate pulse; stretch starts, busy goes high for
+        # STRETCH_EFF src clocks. Busy drives must stay INSIDE that window:
+        # a valid held across the edge where the guard reopens is a legal
+        # new transfer, not a drop (that boundary race cost a debug round).
+        n_drives = max(0, self.STRETCH_EFF - 2)
+        if n_drives == 0:
+            self.log.info(f"  busy-drop: STRETCH_EFF={self.STRETCH_EFF} leaves no safe "
+                          f"busy window -- skipping drives")
+            return True
+        # One legitimate pulse; stretch starts, busy goes high.
+        await self.send_one(0xCAFE, wait_for_busy_clear=True)
+        for i in range(min(n_drives, 3)):
+            await self.send_one(0xBAD0 + i, wait_for_busy_clear=False,
+                                drive_during_busy=True)
+            await RisingEdge(self.dut.clk_src)
+        # A second legitimate pulse after the guard releases.
+        await self.send_one(0xFACE, wait_for_busy_clear=True)
+        await self.drain_settle()
+        # Only the two enqueued pulses may arrive; the busy-time drives must
+        # not appear (restart/corruption would surface as 0xBAD* data or a
+        # missing 0xCAFE).
+        if not self.verify_no_loss():
+            self.log.error("busy-drop: DUT did not cleanly ignore src_valid during busy")
+            return False
+        self.log.info("  ✓ busy-drop: guard ignored all busy-time valids")
+        return True
+
     async def run_all_for_level(self):
         """Pick phases based on TEST_LEVEL.
 
@@ -347,6 +392,7 @@ class CDCOpenLoopTB(TBBase):
 
         ok = True
         ok &= await self.run_basic()
+        ok &= await self.run_busy_drop()
         if self.TEST_LEVEL in ('func', 'full'):
             ok &= await self.run_walking_pattern()
             ok &= await self.run_back_to_back(count=30)
