@@ -66,10 +66,10 @@ rtl-common Library
 │   ├── Clock Management (ICG, Dividers)
 │   └── Reset Synchronization
 ├── Counters & Sequences
-│   ├── Binary & Gray Code Counters
+│   ├── Binary Counters (Gray/Johnson counters moved to rtl/cdc/)
 │   └── Specialized Counting
 ├── Data Conversion
-│   ├── Code Converters (Binary/Gray/BCD)
+│   ├── Code Converters (Binary→BCD; Gray/Johnson moved to rtl/cdc/)
 │   └── Display Decoders
 ├── Bit Operations
 │   ├── Bit Searching & Counting
@@ -161,8 +161,8 @@ Fundamental building blocks for timing, addressing, and control.
 
 #### Binary Counters
 - **Basic Counters**: Up/down counting with enable/reset
-- **Gray Code Counters**: Glitch-free counting for async interfaces
-- **Johnson Counters**: Shift-based sequence generation
+- **Gray and Johnson Counters**: `counter_bingray`, `counter_johnson` — these
+  moved to `rtl/cdc/`; see the [rtl-cdc book](../rtl-cdc/index.md)
 
 #### Specialized Counting
 - **Frequency-Invariant**: Clock-independent counting
@@ -179,9 +179,9 @@ Fundamental building blocks for timing, addressing, and control.
 Code conversion and display interfacing utilities.
 
 #### Number System Conversion
-- **Binary ↔ Gray**: Safe async counter interfacing
 - **Binary → BCD**: Decimal display conversion
-- **Johnson Gray**: Specialized counting applications
+- **Binary ↔ Gray, Johnson decode**: `bin2gray`, `gray2bin`, `johnson2bin` —
+  these moved to `rtl/cdc/`; see the [rtl-cdc book](../rtl-cdc/index.md)
 
 #### Encoding/Decoding
 - **Priority Encoders**: Multiple input to binary conversion
@@ -234,9 +234,10 @@ Shift-based operations and pseudorandom sequence generation.
 Buffering and storage solutions for data flow management.
 
 #### FIFO Implementations
-- **Synchronous FIFO**: Single clock domain buffering
-- **Asynchronous FIFO**: Clock domain crossing with Gray code pointers
-- **Specialized FIFOs**: Optimized for specific clock relationships
+- **Synchronous FIFO**: Single clock domain buffering (`fifo_sync`,
+  `fifo_control`)
+- **Asynchronous FIFO**: `fifo_async` moved to `rtl/cdc/`; production FIFOs live
+  in `rtl/amba/gaxi/`
 
 #### Associative Memory
 - **Content Addressable Memory (CAM)**: Tag matching and lookup
@@ -268,7 +269,7 @@ Specialized functions for specific application domains.
 - Consider shared resources for infrequently used functions
 
 #### Speed Optimization
-- Use parallel prefix adders (Kogge-Stone) for critical paths
+- Use parallel prefix adders (Brent-Kung, Han-Carlson) for critical paths
 - Implement pipelining in high-throughput applications
 - Utilize barrel shifters for single-cycle shift operations
 

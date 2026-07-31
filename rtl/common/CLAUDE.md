@@ -44,7 +44,7 @@
 All mandatory requirements are consolidated in the global requirements document:
 - **See:** `/GLOBAL_REQUIREMENTS.md` - Repository-wide mandatory requirements
 - **RTL Focus:** Reset convention, array syntax, search-before-create
-- **Already Compliant:** rtl/common/ already uses proper reset patterns
+- **Reset:** active-low throughout, but the port is `rst_n`, not `i_rst_n` (see Rule #3)
 
 This CLAUDE.md provides common RTL library guidance. Also review:
 - Root `/CLAUDE.md` - Repository-wide patterns
@@ -99,9 +99,9 @@ User: "I need a counter that counts up to 100"
 ✅ RIGHT Response:
 "Let me check existing counters first:
 [searches rtl/common/counter*.sv]
-Found counter_bin.sv which supports configurable MAX_VALUE!
-Here's how to use it:
-counter_bin #(.WIDTH(7), .MAX_VALUE(100)) u_cnt (...);
+Found counter_bin.sv - it wraps at MAX, with the MSB as a wrap flag:
+counter_bin #(.WIDTH(8), .MAX(100)) u_cnt (.clk, .rst_n, .enable,
+                                           .counter_bin_curr, .counter_bin_next);
 ```
 
 ### Rule #2: Verify Modules in Context
@@ -120,7 +120,13 @@ cat val/common/test_counter_bin.py
 
 **📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 1.1 for complete requirement
 
-**Common RTL Status:** ✅ Already compliant - all modules use `i_rst_n` or `aresetn` (active-low)
+**Common RTL Status:** Active-low everywhere, but the port is named **`rst_n`**,
+not `i_rst_n`. Measured across `rtl/common/*.sv`: 28 modules expose `rst_n`, one
+exposes `aresetn` (`icg`), and **none** expose `i_rst_n`; the rest have no reset
+port. Write `.rst_n(...)` — an `i_rst_n` connection will not elaborate against
+these modules. The polarity requirement in `/GLOBAL_REQUIREMENTS.md` §1.1 is met; the
+`i_`-prefix naming is not, and reconciling the two is an open decision, not
+something to patch per-instantiation.
 
 ---
 
@@ -131,9 +137,9 @@ cat val/common/test_counter_bin.py
 | User Request | First Check | Likely Solution |
 |--------------|-------------|-----------------|
 | "...a counter" | `ls rtl/common/counter*.sv` | `counter_bin.sv` (most cases) |
-| "...a timer/timeout" | `counter_freq_invariant.sv` | Time-based counter |
+| "...a timer/timeout" | `counter_freq_invariant.sv` | 1 us `tick`; build the timeout on it |
 | "...an arbiter" | `ls rtl/common/arbiter*.sv` | `arbiter_round_robin.sv` |
-| "...CRC calculation" | `dataint_crc.sv` | Supports ~300 standards |
+| "...CRC calculation" | `dataint_crc.sv` | 250 validated configurations |
 | "...error correction" | `dataint_ecc_hamming_*.sv` | SECDED ECC |
 | "...parity" | `dataint_parity.sv` | Even/odd parity |
 | "...clock divider" | `clock_divider.sv` | But warn: prefer PLL |
@@ -148,9 +154,9 @@ cat val/common/test_counter_bin.py
 
 | Requirement | Module | Parameters |
 |-------------|--------|------------|
-| Basic counting | `counter_bin.sv` | WIDTH, MAX_VALUE |
+| FIFO pointer / wrap counting | `counter_bin.sv` | WIDTH, MAX |
 | With load/clear | `counter_load_clear.sv` | WIDTH |
-| Time-based | `counter_freq_invariant.sv` | CLK_FREQ_MHZ, TIMEOUT_MS |
+| Microsecond time base | `counter_freq_invariant.sv` | COUNTER_WIDTH, MIN/MAX_FREQ_MHZ |
 | Gray code | `counter_bingray.sv` | WIDTH |
 | Ring/circular | `counter_ring.sv` | WIDTH |
 | Johnson | `counter_johnson.sv` | WIDTH |
@@ -172,55 +178,75 @@ cat val/common/test_counter_bin.py
 
 ```systemverilog
 counter_bin #(
-    .WIDTH(16),           // Bit width
-    .MAX_VALUE(1000)      // Max count before overflow
+    .WIDTH(5),            // Total width: MSB is the wrap flag, WIDTH-1 count bits
+    .MAX  (10)            // Count bits run 0..MAX-1, then the MSB toggles
 ) u_counter_instance_name (
-    .i_clk      (clock_signal),
-    .i_rst_n    (reset_n_signal),
-    .i_enable   (count_enable_signal),
-    .o_count    (count_output),
-    .o_overflow (overflow_flag)
+    .clk              (clock_signal),
+    .rst_n            (reset_n_signal),
+    .enable           (count_enable_signal),
+    .counter_bin_curr (count_output),
+    .counter_bin_next (count_next_output)
 );
 ```
 
+**This is a FIFO-pointer counter, not a plain event counter.** The lower
+`WIDTH-1` bits count `0..MAX-1`; on wrap they clear and the MSB **toggles**, so
+that a matching read/write pointer pair distinguishes full from empty. There is
+no overflow output — the MSB flip is the wrap signal, and `counter_bin_next`
+exposes the pre-registered value for the same-cycle comparisons FIFO control
+needs.
+
 **When to suggest:**
-- User needs event counting
-- State machine iteration counting
-- Frame/packet counting
+- FIFO / ring-buffer read and write pointers
+- Any wrap-at-MAX counter where full-vs-empty must be distinguishable
+- For plain event counting with a load or clear, prefer `counter_load_clear.sv`
 
 ### Pattern 2: Timeout Timer
 
 ```systemverilog
 counter_freq_invariant #(
-    .CLK_FREQ_MHZ(100),   // Match actual clock frequency
-    .TIMEOUT_MS(50),      // Desired timeout in milliseconds
-    .WIDTH(32)            // Usually 32-bit for time
-) u_timeout_timer (
-    .i_clk      (clk),
-    .i_rst_n    (rst_n),
-    .i_enable   (operation_active),
-    .o_count    (timer_value),
-    .o_timeout  (timeout_detected)
+    .COUNTER_WIDTH   (16),   // Width of the microsecond counter
+    .MIN_FREQ_MHZ    (5),    // Lowest supported clock
+    .MAX_FREQ_MHZ    (220),  // Highest supported clock
+    .NUM_FREQ_ENTRIES(16)    // Prescaler LUT entries
+) u_us_tick (
+    .clk          (clk),
+    .rst_n        (rst_n),
+    .sync_reset_n (sync_clear_n),   // Synchronous restart, separate from rst_n
+    .freq_sel     (freq_sel),       // Selects the prescaler LUT entry
+    .o_counter    (microseconds),   // Free-running microsecond count
+    .tick         (us_tick)         // One-cycle pulse per microsecond
 );
 ```
 
+**This is a microsecond time base, not a timeout timer.** It divides whatever
+clock it is given down to a 1 us `tick` using a prescaler chosen at runtime by
+`freq_sel`, so the same RTL keeps real-time meaning across clock frequencies —
+that is what "frequency invariant" means here. It has no timeout parameter and
+no timeout output.
+
 **When to suggest:**
-- User needs timeout detection
-- Protocol watchdog timers
-- Handshake timeout monitors
+- A time base that must stay correct when the clock frequency changes
+- Feeding a timeout counter you build on top of `tick` — set your own threshold
+  and compare against `o_counter`
+- For a self-contained timeout, count `tick` pulses in a `counter_load_clear.sv`
 
 ### Pattern 3: Multi-Master Arbitration
 
 ```systemverilog
 arbiter_round_robin #(
-    .N(4),              // Number of requesters
-    .REG_OUTPUT(1)      // 1=pipelined for timing, 0=combinational
+    .CLIENTS     (4),   // Number of requesters
+    .WAIT_GNT_ACK(0)    // 1 = hold the grant until grant_ack; 0 = single cycle
 ) u_arbiter (
-    .i_clk      (clk),
-    .i_rst_n    (rst_n),
-    .i_request  (req_vec[3:0]),    // One bit per requester
-    .o_grant    (grant_vec[3:0]),  // One-hot grant output
-    .o_valid    (grant_valid)
+    .clk        (clk),
+    .rst_n      (rst_n),
+    .block_arb  (1'b0),             // Hold arbitration off while high
+    .request    (req_vec[3:0]),     // One bit per requester
+    .grant_ack  ('0),               // Only meaningful when WAIT_GNT_ACK=1
+    .grant_valid(grant_valid),
+    .grant      (grant_vec[3:0]),   // One-hot grant
+    .grant_id   (grant_idx),        // $clog2(CLIENTS) bits
+    .last_grant (last_grant_vec)
 );
 ```
 
@@ -233,29 +259,43 @@ arbiter_round_robin #(
 
 ```systemverilog
 dataint_crc #(
-    .POLYNOMIAL(32'h04C11DB7),   // CRC-32 Ethernet
-    .WIDTH(32),
-    .INIT_VALUE(32'hFFFFFFFF),   // Standard CRC-32
-    .FINAL_XOR(32'hFFFFFFFF)     // Standard CRC-32
+    .DATA_WIDTH(32),             // Must be CHUNKS x 8
+    .CRC_WIDTH (32),
+    .REFIN     (1),              // Reflect input bytes
+    .REFOUT    (1)               // Reflect the output
 ) u_crc (
-    .i_clk      (clk),
-    .i_rst_n    (rst_n),
-    .i_data     (data_byte),
-    .i_valid    (data_valid),
-    .o_crc      (crc_result),
-    .o_valid    (crc_valid)
+    .POLY             (32'h04C11DB7),   // CRC-32 Ethernet -- a PORT, not a param
+    .POLY_INIT        (32'hFFFFFFFF),
+    .XOROUT           (32'hFFFFFFFF),
+    .clk              (clk),
+    .rst_n            (rst_n),
+    .load_crc_start   (crc_restart),    // Reload POLY_INIT
+    .load_from_cascade(data_valid),     // Absorb `data` this cycle
+    .cascade_sel      (4'b1000),        // One-hot: how many of the 4 bytes are live
+    .data             (data_word),
+    .crc              (crc_result)
 );
 ```
+
+**The configuration is wired, not parameterized.** `POLY`, `POLY_INIT` and
+`XOROUT` are input ports, so a design can retune the CRC at run time; only the
+widths and the reflect flags are parameters. `cascade_sel` is one-hot over
+`CHUNKS = DATA_WIDTH/8` and selects how many bytes of `data` participate, which
+is what makes trailing partial words work. There is no output-valid — `crc` is
+the running value.
 
 **When to suggest:**
 - User needs CRC for communication protocol
 - Data integrity checking
 - Packet validation
 
-**Common CRC Standards:**
-- CRC-32 (Ethernet): `POLYNOMIAL=32'h04C11DB7`
-- CRC-16-CCITT: `POLYNOMIAL=16'h1021`
-- CRC-8: `POLYNOMIAL=8'h07`
+**Common CRC Standards** (drive these onto `POLY`):
+- CRC-32 (Ethernet): `POLY=32'h04C11DB7`
+- CRC-16-CCITT: `POLY=16'h1021`
+- CRC-8: `POLY=8'h07`
+
+The 250 validated configurations are the `crc_parameters` table in
+`bin/TBClasses/common/crc_testing.py`, which drives `val/common/test_dataint_crc.py`.
 
 ### Pattern 5: Clock Domain Crossing (CDC)
 
@@ -304,7 +344,7 @@ module my_counter #(parameter MAX=100) ..."
 
 ✅ RIGHT:
 "Use existing counter_bin.sv:
-counter_bin #(.WIDTH($clog2(N+1)), .MAX_VALUE(N)) u_cnt (...);"
+counter_bin #(.WIDTH($clog2(N+1)+1), .MAX(N)) u_cnt (...);"
 ```
 
 ### ❌ Anti-Pattern 2: Wrong Reset Polarity
@@ -341,13 +381,13 @@ glitch_free_n_dff_arn #(.FLOP_COUNT(3), .WIDTH(WIDTH)) u_sync (
 ```systemverilog
 ❌ WRONG (User's code):
 counter_bin #(.WIDTH(16)) u_cnt (
-    .o_count(count[7:0])  // WIDTH mismatch!
+    .counter_bin_curr(count[7:0])  // WIDTH mismatch!
 );
 
 ✅ CORRECTED:
 "Counter WIDTH parameter (16) doesn't match output width (8). Fix:
 counter_bin #(.WIDTH(8)) u_cnt (
-    .o_count(count[7:0])
+    .counter_bin_curr(count[7:0])
 );
 "
 ```
@@ -421,14 +461,14 @@ cat val/common/test_module_name.py
 ```systemverilog
 // Instantiate counter
 counter_bin #(
-    .WIDTH(8),
-    .MAX_VALUE(200)
+    .WIDTH(9),          // 8 count bits + wrap flag
+    .MAX  (200)
 ) u_event_counter (
-    .i_clk      (clk),
-    .i_rst_n    (rst_n),
-    .i_enable   (event_valid),
-    .o_count    (event_count),
-    .o_overflow (max_reached)
+    .clk              (clk),
+    .rst_n            (rst_n),
+    .enable           (event_valid),
+    .counter_bin_curr (event_count),
+    .counter_bin_next (event_count_next)
 );
 
 // Test: pytest val/common/test_counter_bin.py -v
@@ -480,7 +520,7 @@ dataint_crc #(
 ) u_crc32 (...);
 ```
 
-"The dataint_crc module supports ~300 CRC standards via parameters."
+"The dataint_crc module takes POLY/POLY_INIT/XOROUT as input ports; 250 configurations are validated in crc_testing.py."
 
 ### Q: "I need a FIFO"
 
@@ -536,17 +576,17 @@ Otherwise, adapt existing modules with parameters."
 // Module: counter_bin
 // Description: Binary up counter with configurable maximum value
 // Parameters:
-//   - WIDTH: Counter bit width (range: 1-64, default: 8)
-//   - MAX_VALUE: Maximum count before overflow (range: 1 to 2^WIDTH-1, default: 2^WIDTH-1)
+//   - WIDTH: Total width; MSB is the wrap flag, WIDTH-1 count bits (default: 5)
+//   - MAX: Count bits run 0..MAX-1, then clear and toggle the MSB (default: 10)
 // Ports:
-//   - i_clk: Clock input
-//   - i_rst_n: Active-low asynchronous reset
-//   - i_enable: Count enable (active-high)
-//   - o_count: Current count value [WIDTH-1:0]
-//   - o_overflow: Overflow flag (asserted when count == MAX_VALUE)
+//   - clk: Clock input
+//   - rst_n: Active-low asynchronous reset
+//   - enable: Count enable (active-high)
+//   - counter_bin_curr: Registered count [WIDTH-1:0]
+//   - counter_bin_next: Combinational next count [WIDTH-1:0]
 // Notes:
-//   - Overflows and wraps to 0 when count reaches MAX_VALUE
-//   - Can be used as modulo counter by setting MAX_VALUE
+//   - FIFO-pointer semantics: the MSB toggle is what separates full from empty
+//   - There is no overflow output; compare the MSBs of a pointer pair instead
 //   - Enable input gates counting operation
 ```
 
@@ -609,15 +649,15 @@ async def test_my_integration(dut):
     """Test description"""
 
     # Start clock
-    clock = Clock(dut.i_clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
-    dut.i_rst_n.value = 0
-    await RisingEdge(dut.i_clk)
-    await RisingEdge(dut.i_clk)
-    dut.i_rst_n.value = 1
-    await RisingEdge(dut.i_clk)
+    dut.rst_n.value = 0
+    await RisingEdge(dut.clk)
+    await RisingEdge(dut.clk)
+    dut.rst_n.value = 1
+    await RisingEdge(dut.clk)
 
     # Test logic
     # ...

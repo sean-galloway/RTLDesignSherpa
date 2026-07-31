@@ -57,7 +57,7 @@ Here's the browse-oriented view of what's in each category:
 | Arbiters | arbiter_round_robin, arbiter_round_robin_weighted, arbiter_priority_encoder |
 | FIFOs | fifo_sync, fifo_control  (`fifo_async` moved to `rtl/cdc/`) |
 | CAM | cam_tag |
-| Miscellaneous | pwm, sort, bin_to_bcd, reverse_vector, mod_3_compress |
+| Miscellaneous | pwm, sort, mod_3_compress |
 
 Arithmetic (`math_*`) split out into [`rtl/math/`](../rtl-math/index.md); its
 docs are the [rtl-math](../rtl-math/index.md) book.
@@ -612,7 +612,7 @@ grep -r "module_name" rtl/
 2. Use consistent naming (`category_function.sv`)
 3. Add comprehensive header comments
 4. Create a test in `val/common/`
-5. Update this README if you're adding a new category
+5. Update this quickstart and the count table in index.md if you add a category
 
 ### Contribute
 

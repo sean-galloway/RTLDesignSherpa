@@ -130,9 +130,10 @@ dataint_crc_xor_shift #(.CRC_WIDTH(16)) crc_stage (
 ### Cascaded for Multiple Bits
 Chain as many instances as you have bits to process:
 ```systemverilog
-// Process 8 bits
+// Process 8 bits. Do NOT also `assign stage[0] = initial_crc;` -- stage[0] is
+// driven by the i==0 instance below, and a second continuous driver on the same
+// wire is an elaboration error (X contention in simulation).
 wire [CRC_WIDTH-1:0] stage[0:7];
-assign stage[0] = initial_crc;
 
 genvar i;
 generate

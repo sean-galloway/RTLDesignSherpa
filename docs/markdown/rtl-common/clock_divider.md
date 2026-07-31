@@ -434,7 +434,8 @@ listed 8/10/12, which did not scale with the mux width and understated the
 wide-counter cases by several times. fmax figures remain unsourced estimates.
 
 ## Related Modules
-- `counter_bin.sv` - Simple binary counter (used internally)
+- `counter_bin.sv` - Simple binary counter (related, not instantiated here —
+  `clock_divider` keeps its own `r_divider_counters` array)
 - `counter_freq_invariant.sv` - Time-based counter with 1MHz tick
 - `counter_load_clear.sv` - Arbitrary division ratios (not power-of-2)
 - `clock_pulse.sv` - Configurable pulse generator

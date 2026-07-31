@@ -429,7 +429,6 @@ localparam int PTR_WIDTH = $clog2(FIFO_DEPTH) + 1;  // +1 for MSB
 
 **MAX Selection:**
 - Set MAX equal to FIFO depth
-- MAX must be power of 2 for efficient address decoding
 - MAX must fit in WIDTH-1 bits
 
 ### Critical Paths

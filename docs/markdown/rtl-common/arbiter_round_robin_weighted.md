@@ -308,15 +308,22 @@ arbiter_round_robin_weighted #(
 
 ### Dynamic Weight Adjustment
 
+Slice exactly one client's field. Client `j` owns bits
+`[(j+1)*MAX_LEVELS_WIDTH-1 : j*MAX_LEVELS_WIDTH]`, so with `MAX_LEVELS=16`
+(4-bit weights) client 0 is `[3:0]` and client 1 is `[7:4]`. Writing a 4-bit
+value into a wider slice zero-extends across the neighbour: `r_qos_weights[7:0]
+<= 4'd15` sets client 1's weight to 0, and `w_valid_clients[j] =
+(client_weight[j] > 0)` means a zero-weight client is never granted again.
+
 ```systemverilog
 // Adjust weights based on priority events
 logic [NUM_CLIENTS*WEIGHT_W-1:0] r_qos_weights;
 
 always_ff @(posedge clk) begin
     if (high_priority_event) begin
-        r_qos_weights[7:0] <= 4'd15;  // Boost Client 0 weight
+        r_qos_weights[3:0] <= 4'd15;  // Boost Client 0 weight
     end else if (normal_priority) begin
-        r_qos_weights[7:0] <= 4'd4;   // Reset Client 0 weight
+        r_qos_weights[3:0] <= 4'd4;   // Reset Client 0 weight
     end
 end
 

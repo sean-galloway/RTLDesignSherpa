@@ -177,7 +177,7 @@ one row.
 
 1. **Arithmetic**: adders, multipliers and dividers aren't in this library
    anymore — they moved to `rtl/math/`. For the speed/area trade-off between
-   parallel-prefix (Brent-Kung, Kogge-Stone) and ripple-carry implementations,
+   parallel-prefix (Brent-Kung, Han-Carlson) and ripple-carry implementations,
    see the [rtl-math](../rtl-math/index.md) book.
 2. **Area Constrained**: prefer the simpler variant where one exists (for
    example `arbiter_round_robin_simple` over the weighted arbiter)

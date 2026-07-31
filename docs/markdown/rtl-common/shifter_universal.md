@@ -40,7 +40,9 @@ you reach for.
 ## Port Description
 
 ### Parameters
-- **WIDTH**: Width of the shift register (default: 4)
+- **WIDTH**: Width of the shift register (default: 4). **Must be >= 2** — at
+  WIDTH=1 the shift expressions become illegal part-selects
+  (`o_pdata[WIDTH-1:1]` -> `[0:1]`, `o_pdata[WIDTH-2:0]` -> `[-1:0]`).
 
 ### Inputs
 | Port | Width | Description |

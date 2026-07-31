@@ -74,7 +74,12 @@ The 3-bit `ctrl` signal determines the shift operation:
 logic [$clog2(WIDTH)-1:0] shift_amount_mod;
 assign shift_amount_mod = shift_amount[$clog2(WIDTH)-1:0];
 ```
-The shift amount is automatically reduced modulo WIDTH to prevent out-of-bounds operations.
+`shift_amount_mod` reduces the amount modulo WIDTH, but **only the wrap and
+arithmetic-shift paths use it**. The two non-wrap paths (`ctrl=3'b001` logical
+right, `ctrl=3'b100` logical left) shift by the raw `shift_amount`, guarded only
+by `shift_amount_mod == 0`. With WIDTH=8 that means `shift_amount=8` returns the
+data unshifted (the guard fires) and `shift_amount=9` returns 0 — neither is the
+modulo-reduced result. Drive `shift_amount < WIDTH` on the non-wrap paths.
 
 ### Wrap-Around Implementation
 ```systemverilog

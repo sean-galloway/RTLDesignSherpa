@@ -222,10 +222,13 @@
 //       .grant_id   (grant_idx)
 //   );
 //
-//   // Dynamic weight adjustment example
+//   // Dynamic weight adjustment example. Slice ONE client's field: client j
+//   // owns [(j+1)*MTW-1 : j*MTW], so with MAX_LEVELS=16 client 0 is [3:0].
+//   // Writing 4 bits into a wider slice zero-extends over the neighbour, and a
+//   // zero weight makes that client permanently ineligible (w_valid_clients).
 //   always_ff @(posedge clk) begin
 //       if (high_priority_event) begin
-//           qos_weights[7:0] <= 4'd15;  // Boost Client 0 weight
+//           qos_weights[3:0] <= 4'd15;  // Boost Client 0 weight
 //       end
 //   end
 //

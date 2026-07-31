@@ -167,24 +167,33 @@ all zeros and relies on seed loading for proper initialization.
 
 ### Configuration
 - WIDTH = 4
-- Polynomial: x⁴ + x³ + 1 (taps at positions 4,3)
-- Seed: 4'b0001
+- Polynomial: x⁴ + x³ + 1, which **this module encodes as taps `[4,1]`** — see
+  the tap-direction note under "Polynomial Examples" below
+- Seed: 4'b1001
 
 ### Sequence Generation
-```
-Cycle | LFSR | Tap Bits | Feedback | Next LFSR
-------|------|----------|----------|----------
-0     | 0001 | 00       | 0        | 0000 (shift right)
-1     | 0000 | 00       | 0        | 0000 (locked - need seed)
 
-After seed reload with 4'b1001:
-0     | 1001 | 10       | 1^0=1    | 1100
-1     | 1100 | 11       | 1^1=0    | 0110  
-2     | 0110 | 01       | 0^1=1    | 1011
-3     | 1011 | 10       | 1^0=1    | 1101
-4     | 1101 | 11       | 1^1=0    | 0110
+Tap position `p` selects bit `p-1`, feedback is the XOR of the tapped bits, and
+the register shifts right with the feedback entering the MSB
+(`{w_feedback, r_lfsr[WIDTH-1:1]}`):
+
+```
+Cycle | LFSR | Tap bits (4,1) | Feedback | Next LFSR
+------|------|----------------|----------|----------
+0     | 1001 | 1,1            | 1^1=0    | 0100
+1     | 0100 | 0,0            | 0^0=0    | 0010
+2     | 0010 | 0,0            | 0^0=0    | 0001
+3     | 0001 | 0,1            | 0^1=1    | 1000
+4     | 1000 | 1,0            | 1^0=1    | 1100
+5     | 1100 | 1,0            | 1^0=1    | 1110
 ...
 ```
+
+The sequence runs the full period of 15 and returns to the seed, at which point
+`lfsr_done` asserts. Reset loads all zeros, and the `|r_lfsr` guard means the
+register cannot leave zero on its own — a `seed_load` is required to start it.
+Getting the taps wrong does not merely shorten the period: `[4,3]` on this
+module walks to zero and freezes there.
 
 ## Comparison with Galois LFSR
 
