@@ -416,8 +416,18 @@ class GrayJ2BinTB(TBBase):
             self.rst_n.value = 0
             await RisingEdge(self.clk)
 
-            # Check that output is predictable during reset (usually 0)
+            # johnson2bin is combinational -- its clk/rst_n ports are
+            # declared but unused (see the module doc), so reset must NOT
+            # change the decode of the current input. reset_output was read
+            # into a variable and never compared for years (test audit).
             reset_output = int(self.binary.value)
+            reset_expected = self.grayj_to_binary_reference(gray_val)
+            if reset_output != reset_expected:
+                self.log.error(f"Reset changed the combinational decode: "
+                               f"gray=0x{gray_val:X} -> {reset_output} "
+                               f"(expected {reset_expected})")
+                failed_count += 1
+                all_passed = False
 
             # Release reset
             self.rst_n.value = 1
