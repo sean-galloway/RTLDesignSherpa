@@ -17,23 +17,28 @@ Each directory under `books/` is one self-contained review unit:
   matching module was found. Some are legitimately not module pages (guides,
   overviews). Others may document modules that were never written. Check.
 
-| book | title | docs | modules | approx size |
-|------|-------|------|---------|-------------|
-| `axis4` | RTL AMBA AXI4-Stream | 6 | 4 | ~10k |
-| `axil4` | RTL AMBA AXI4-Lite | 10 | 8 | ~13k |
-| `axis5` | RTL AMBA AXI5-Stream | 5 | 4 | ~13k |
-| `apb5` | RTL AMBA APB5 | 9 | 8 | ~18k |
-| `apb` | RTL AMBA APB4 | 11 | 8 | ~24k |
-| `axi5` | RTL AMBA AXI5 | 9 | 8 | ~30k |
-| `cdc` | RTL Clock Domain Crossing | 11 | 10 | ~34k |
-| `axi4` | RTL AMBA AXI4 | 19 | 16 | ~40k |
-| `shared` | RTL AMBA Shared Infrastructure | 38 | 32 | ~111k |
-| `math` | RTL Math Library | 28 | 31 | ~123k |
-| `common` | RTL Common Library | 57 | 56 | ~133k |
-| `monitor` | RTL AMBA Monitor Subsystem | 59 | 57 | ~190k |
+| book | title | docs | documented modules | approx size | parts |
+|------|-------|------|--------------------|-------------|-------|
+| `integ_common` | RTL Integration Examples - Common | 3 | 2 | ~16k | 1 |
+| `axis4` | RTL AMBA AXI4-Stream | 6 | 4 | ~29k | 1 |
+| `axis5` | RTL AMBA AXI5-Stream | 5 | 4 | ~36k | 1 |
+| `integ_amba` | RTL Integration Examples - AMBA | 3 | 2 | ~44k | 1 |
+| `apb5` | RTL AMBA APB5 | 10 | 9 | ~95k | 1 |
+| `apb` | RTL AMBA APB4 | 12 | 12 | ~133k | 2 |
+| `cdc` | RTL Clock Domain Crossing | 15 | 22 | ~209k | 2 |
+| `axil4` | RTL AMBA AXI4-Lite | 18 | 16 | ~239k | 2 |
+| `common` | RTL Common Library | 50 | 49 | ~247k | 4 |
+| `axi5` | RTL AMBA AXI5 | 17 | 16 | ~381k | 3 |
+| `monitor` | RTL AMBA Monitor Subsystem | 36 | 34 | ~385k | 4 |
+| `axi4` | RTL AMBA AXI4 | 27 | 24 | ~391k | 3 |
+| `shared` | RTL AMBA Shared Infrastructure | 38 | 32 | ~411k | 4 |
+| `math` | RTL Math Library | 27 | 38 | ~425k | 3 |
 
-Review one book per session. `monitor`, `common`, `shared` and `math` are large;
-split them if you need to.
+Counts are per whole book and are recomputed from the bundle at rebuild time
+(`documented modules` is the figure in each `RTL.sv` header, excluding the
+dependency closure and any GOLDEN section). A book with more than one part is
+already split for you: **you are reviewing ONE part**, so its scope is a subset
+of the row above. Do not infer a missing module from these numbers.
 
 ## What we want
 

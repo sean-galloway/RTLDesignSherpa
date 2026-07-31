@@ -81,39 +81,104 @@ def _norm(s):
     return " ".join(re.sub(r"[`*]", "", s).split())
 
 
+def locator_quotes(raw):
+    """Every quoted span a finding cites, best locator first.
+
+    A finding's witness is not always one quote sitting immediately after
+    `Says:`. Reviewers label the source first (`Says: quickstart.md: "..."`),
+    quote several passages that must be read together (a claim in one file and
+    the sibling page that contradicts it), and put the decisive RTL line under
+    `Actually:` rather than `Says:`.
+
+    An anchored `Says:\\s*"(.+?)"` finds none of those. When it fails the caller
+    silently falls back to the head of each file, so the verifier adjudicates a
+    book title instead of the cited text -- and refutes real findings for
+    "unverified wording". Whole common round_1 (18/18 findings) was adjudicated
+    that way before this was caught; see kimi-review-rounds rule 10.
+
+    So: take the quoted spans from the whole finding block, Says: first, and let
+    the caller try each. Longest first within a field -- a short quote like
+    "registered" matches everywhere and anchors nothing.
+    """
+    fields, out = [], []
+    for name in ("Says", "Actually", "Impact"):
+        m = re.search(rf"{name}:\s*(.*?)(?=\n\s*(?:File|Says|Actually|Impact):|\Z)",
+                      raw, re.S)
+        if m:
+            fields.append(m.group(1))
+    for field in fields or [raw]:
+        spans = [_norm(q).strip() for q in re.findall(r'"([^"]{12,400})"', field)]
+        out += sorted({q for q in spans if len(q) >= 20}, key=len, reverse=True)
+    seen, uniq = set(), []
+    for q in out:
+        if q not in seen:
+            seen.add(q)
+            uniq.append(q)
+    return uniq
+
+
 def evidence_for(round_dir, unit, finding):
     """Doc + RTL excerpts the finding cites, from the bundle snapshot first."""
     snap = os.path.join(round_dir, "_bundle_snapshot", unit)
-    m = re.search(r'Says:\s*"(.+?)"', finding.get("raw", ""), re.S)
-    quote = _norm(m.group(1))[:200].strip() if m else ""
+    quotes = locator_quotes(finding.get("raw", ""))
     chunks, budget = [], EVIDENCE_CAP
     files = sorted(glob.glob(os.path.join(snap, "*.md")) +
                    glob.glob(os.path.join(snap, "*.sv")) +
                    glob.glob(os.path.join(snap, "*.py")))
-    # Quote-bearing files first: the head-of-FRAMEWORK.py (golden, huge) must
-    # not starve the test file the finding actually cites.
-    def located(src):
-        body = _norm(open(src, encoding="utf-8", errors="replace").read())
-        i = body.index(quote[:60]) if quote and quote[:60] in body else -1
-        return body, i
+
+    def windows(body):
+        """Merged context windows around every quote that locates in `body`."""
+        spans = []
+        for q in quotes:
+            key = q[:60]
+            start = 0
+            while key:
+                i = body.find(key, start)
+                if i < 0:
+                    break
+                spans.append((max(0, i - WINDOW), min(len(body), i + len(q) + WINDOW)))
+                start = i + 1
+                if len(spans) >= 6:
+                    break
+        if not spans:
+            return []
+        spans.sort()
+        merged = [spans[0]]
+        for lo, hi in spans[1:]:
+            if lo <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], hi))
+            else:
+                merged.append((lo, hi))
+        return merged
+
     loaded = []
     for src in files:
-        body, i = located(src)
-        loaded.append((src, body, i))
-    loaded.sort(key=lambda t: t[2] < 0)  # located first
-    for src, nbody, i in loaded:
+        body = _norm(open(src, encoding="utf-8", errors="replace").read())
+        loaded.append((src, body, windows(body)))
+    loaded.sort(key=lambda t: not t[2])  # files carrying a located quote first
+    any_located = any(w for _, _, w in loaded)
+    for src, nbody, wins in loaded:
         if budget <= 0:
             break
-        if i >= 0:
-            lo, hi = max(0, i - WINDOW), min(len(nbody), i + len(quote) + WINDOW)
-            excerpt = nbody[lo:hi]
+        if wins:
+            excerpt = "\n  [...]\n".join(nbody[lo:hi] for lo, hi in wins)
         else:
             excerpt = nbody[:min(budget, 1_500)]
         excerpt = excerpt[:budget]
         budget -= len(excerpt)
-        chunks.append(f"--- {os.path.basename(src)} ({os.path.getsize(src)} bytes) ---\n{excerpt}")
+        tag = "" if wins else "  [HEAD OF FILE ONLY -- no cited quote located here]"
+        chunks.append(f"--- {os.path.basename(src)} "
+                      f"({os.path.getsize(src)} bytes){tag} ---\n{excerpt}")
     if not chunks:
         return "(no bundle snapshot found; evidence unavailable -- verdict must be UNCERTAIN)"
+    if not any_located:
+        # Loud, not silent: the old code degraded to file heads with no signal,
+        # and the verifier read that as "the doc does not say this".
+        chunks.insert(0, "!! NONE of this finding's quoted text could be located in the "
+                         "bundle snapshot. What follows is the HEAD of each file, NOT the "
+                         "cited passage. Absence here is NOT evidence the claim is absent "
+                         "from the document -- return UNCERTAIN unless you can settle the "
+                         "finding some other way.")
     return "\n\n".join(chunks)
 
 
