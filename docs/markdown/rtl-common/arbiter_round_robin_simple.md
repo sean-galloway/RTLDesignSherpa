@@ -21,7 +21,9 @@
 
 <!-- End Header -->
 
-# arbiter_round_robin_simple
+**[← Back to Main Index](../index.md)** | **[rtl-common Index](index.md)**
+
+# Simple Round-Robin Arbiter
 
 A generic rotating-priority arbiter that gives you fair arbitration among multiple requesting agents using masking/rotation — no if/case ladders in the priority path.
 
@@ -88,6 +90,12 @@ The arbiter implements a rotating priority scheme using the following approach:
 - **Single-Cycle Response**: Combinational grant generation with registered state update
 - **Scalable**: Parameterizable for any number of agents (N >= 1)
 
+### Reset Behavior
+
+- **Power-on Reset**: `r_last_grant` initialized to N-1, causing first arbitration to start from agent 0
+- **Active Reset**: All state registers cleared, grant outputs become invalid
+- **Reset Release**: Next arbitration cycle begins with agent 0 having highest priority
+
 ## Implementation Details
 
 ### Rotation Logic
@@ -137,19 +145,13 @@ always_comb begin
 end
 ```
 
-## Timing Characteristics
+## Timing and Performance
 
 | Characteristic | Value |
 |----------------|-------|
 | Setup Time | 1 clock cycle for state update |
 | Response Time | Combinational (0 cycles) |
 | Reset Recovery | 1 clock cycle |
-
-## Reset Behavior
-
-- **Power-on Reset**: `r_last_grant` initialized to N-1, causing first arbitration to start from agent 0
-- **Active Reset**: All state registers cleared, grant outputs become invalid
-- **Reset Release**: Next arbitration cycle begins with agent 0 having highest priority
 
 ## Usage Examples
 
@@ -214,14 +216,14 @@ lowest set bit, and `Grant` rotates it back to the original bit positions.
 - **Request Requirement**: At least one request must be active for meaningful arbitration
 - **Power Consumption**: Rotational logic may consume more power than simpler priority schemes
 
-## Synthesis Considerations
+### Synthesis Considerations
 
 - **Area**: Scales approximately as O(N log N) due to rotation logic
 - **Timing**: Critical path through rotation and bit isolation logic
 - **Power**: Barrel shifter logic may have higher switching activity
 - **Optimization**: Consider using dedicated arbiter primitives for large N
 
-## Verification Notes
+## Verification
 
 - **Reset Testing**: Verify proper initialization and first-grant behavior
 - **Fairness Testing**: Confirm round-robin sequence over multiple cycles

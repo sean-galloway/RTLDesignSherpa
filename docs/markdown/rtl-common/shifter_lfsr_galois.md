@@ -38,13 +38,16 @@ usually why you're reaching for it.
 - Configurable tap positions and polynomial
 - Seed loading and cycle detection
 
-## Port Description
+## Parameters
 
-### Parameters
-- **WIDTH**: Width of the LFSR register (default: 8)
-- **TAP_INDEX_WIDTH**: Width of each tap index (default: 12)
-- **TAP_COUNT**: Number of feedback taps (default: 4)
-- **TIW**: Shorthand for TAP_INDEX_WIDTH
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | — | 8 | Width of the LFSR register |
+| `TAP_INDEX_WIDTH` | — | 12 | Width of each tap index |
+| `TAP_COUNT` | — | 4 | Number of feedback taps |
+| `TIW` | — | — | Shorthand for TAP_INDEX_WIDTH |
+
+## Ports
 
 ### Inputs
 | Port | Width | Description |
@@ -132,6 +135,27 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
+## Timing Example (4-bit Galois LFSR)
+
+### Configuration
+- WIDTH = 4
+- Polynomial: x⁴ + x³ + 1 (taps at positions 4,3)
+- Seed: 4'b1001
+
+### Sequence Generation
+Galois right-shift: shift right by 1; if the shifted-out LSB was 1, XOR the tap
+mask `4'b1100` (bits 3 and 2 — positions 4,3, 1-indexed) into the shifted value.
+```
+Cycle | LFSR | LSB | after >>1 | XOR 1100? | Next LFSR
+------|------|-----|-----------|-----------|----------
+0     | 1001 | 1   | 0100      | yes       | 1000
+1     | 1000 | 0   | 0100      | no        | 0100
+2     | 0100 | 0   | 0010      | no        | 0010
+3     | 0010 | 0   | 0001      | no        | 0001
+4     | 0001 | 1   | 0000      | yes       | 1100
+...
+```
+
 ## Special Implementation Notes
 
 ### 1. Reset to All Ones
@@ -173,25 +197,30 @@ Explicit bounds checking prevents out-of-range array access and handles unused t
 The basic operation is a right shift, but with XOR gates inserted at tap
 positions that conditionally invert bits based on the LSB feedback.
 
-## Timing Example (4-bit Galois LFSR)
+## Applications
 
-### Configuration
-- WIDTH = 4
-- Polynomial: x⁴ + x³ + 1 (taps at positions 4,3)
-- Seed: 4'b1001
-
-### Sequence Generation
-Galois right-shift: shift right by 1; if the shifted-out LSB was 1, XOR the tap
-mask `4'b1100` (bits 3 and 2 — positions 4,3, 1-indexed) into the shifted value.
+### High-Speed Systems
+```systemverilog
+// Use Galois LFSR for high-frequency applications
+// Clock rates > 500MHz where timing is critical
 ```
-Cycle | LFSR | LSB | after >>1 | XOR 1100? | Next LFSR
-------|------|-----|-----------|-----------|----------
-0     | 1001 | 1   | 0100      | yes       | 1000
-1     | 1000 | 0   | 0100      | no        | 0100
-2     | 0100 | 0   | 0010      | no        | 0010
-3     | 0010 | 0   | 0001      | no        | 0001
-4     | 0001 | 1   | 0000      | yes       | 1100
-...
+
+### Communications
+```systemverilog
+// Spread spectrum systems requiring fast sequence generation
+// Real-time scrambling/descrambling applications
+```
+
+### Cryptography
+```systemverilog
+// Stream cipher implementations
+// Key sequence generation
+```
+
+### Testing
+```systemverilog
+// High-speed BIST pattern generation
+// Fast pseudo-random test vectors
 ```
 
 ## Performance Characteristics
@@ -256,32 +285,6 @@ period 2^n - 1. The full 168-width table is in the module's RTL header
 - **Area**: May require more logic gates for many taps
 - **Debug**: Harder to trace intermediate states
 - **Understanding**: Less intuitive than classical Fibonacci
-
-## Applications
-
-### High-Speed Systems
-```systemverilog
-// Use Galois LFSR for high-frequency applications
-// Clock rates > 500MHz where timing is critical
-```
-
-### Communications
-```systemverilog
-// Spread spectrum systems requiring fast sequence generation
-// Real-time scrambling/descrambling applications
-```
-
-### Cryptography
-```systemverilog
-// Stream cipher implementations
-// Key sequence generation
-```
-
-### Testing
-```systemverilog
-// High-speed BIST pattern generation
-// Fast pseudo-random test vectors
-```
 
 ## When to Choose Galois over Fibonacci
 

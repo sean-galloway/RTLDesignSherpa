@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# Ring Counter Module
+# Ring Counter
 
 ## Overview
+
 The `counter_ring` module is the classic ring counter: a single '1' bit circulating through a shift register. The result is a one-hot encoded sequence — exactly what you want for sequential enable signals, walking LED patterns, or multi-phase operations where precisely one stage may be active at a time.
 
 ## Module Declaration
+
 ```systemverilog
 module counter_ring #(
     parameter int WIDTH = 4
@@ -40,33 +42,35 @@ module counter_ring #(
 
 ## Parameters
 
-### WIDTH
-- **Type**: `int`
-- **Default**: `4`
-- **Description**: Number of stages in the ring counter
-- **Range**: `>= 2`. At WIDTH=1 the rotate expression
-  `{ring_out[0], ring_out[WIDTH-1:1]}` becomes the illegal reversed
-  part-select `ring_out[0:1]` and the module does not elaborate.
-- **States Generated**: WIDTH unique states
-- **Pattern**: Single '1' bit rotates through WIDTH positions
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | `int` | `4` | Number of stages in the ring counter |
+
+`WIDTH` must be `>= 2`. At WIDTH=1 the rotate expression
+`{ring_out[0], ring_out[WIDTH-1:1]}` becomes the illegal reversed
+part-select `ring_out[0:1]` and the module does not elaborate. The counter
+generates WIDTH unique states, with a single '1' bit rotating through WIDTH positions.
 
 ## Ports
 
 ### Inputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `clk` | 1 | `wire` | System clock input |
-| `rst_n` | 1 | `wire` | Active-low asynchronous reset |
-| `enable` | 1 | `wire` | Counter enable control |
+
+| Port | Width | Description |
+|------|-------|-------------|
+| `clk` | 1 | System clock input |
+| `rst_n` | 1 | Active-low asynchronous reset |
+| `enable` | 1 | Counter enable control |
 
 ### Outputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `ring_out` | WIDTH | `reg` | Ring counter output (one-hot encoded) |
 
-## Theory of Operation
+| Port | Width | Description |
+|------|-------|-------------|
+| `ring_out` | WIDTH | Ring counter output (one-hot encoded) |
+
+## Architecture and Implementation
 
 ### Ring Counter Principle
+
 A ring counter is just a circular shift register:
 - **Initialization**: Single '1' bit in LSB position
 - **Operation**: The '1' bit rotates right each clock cycle
@@ -74,17 +78,19 @@ A ring counter is just a circular shift register:
 - **States**: WIDTH unique one-hot states
 
 ### Mathematical Representation
+
 For each clock cycle when enabled (`ring_out <= {ring_out[0], ring_out[WIDTH-1:1]}`):
+
 ```
 ring_out[i] = ring_out[i+1]  for i = 0 to WIDTH-2
 ring_out[WIDTH-1] = ring_out[0]
 ```
+
 From reset `0001` this gives `0001 -> 1000 -> 0100 -> 0010 -> 0001`, matching
 the state tables below.
 
-## Implementation Details
-
 ### Core Logic
+
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -97,6 +103,7 @@ end
 ```
 
 ### Operation Breakdown
+
 1. **Reset State**: `ring_out = 'b1` (only LSB set)
 2. **Rotation**: `{ring_out[0], ring_out[WIDTH-1:1]}`
    - LSB becomes new MSB
@@ -107,6 +114,7 @@ end
 ## State Sequences
 
 ### 4-bit Ring Counter (WIDTH=4)
+
 | Step | ring_out | Binary | One-Hot Position |
 |------|----------|--------|------------------|
 | 0 | 0001 | Reset state | Position 0 active |
@@ -116,6 +124,7 @@ end
 | 4 | 0001 | After 4 clocks | Back to start |
 
 ### 3-bit Ring Counter (WIDTH=3)
+
 | Step | ring_out | Active Stage |
 |------|----------|--------------|
 | 0 | 001 | Stage 0 |
@@ -124,6 +133,7 @@ end
 | 3 | 001 | Stage 0 (repeat) |
 
 ### 8-bit Ring Counter Example
+
 ```
 Step 0: 00000001 (Stage 0)
 Step 1: 10000000 (Stage 7)  
@@ -136,9 +146,10 @@ Step 7: 00000010 (Stage 1)
 Step 8: 00000001 (Stage 0) - Cycle repeats
 ```
 
-## Design Examples
+## Usage Examples
 
 ### 1. Sequential Enable Generator
+
 ```systemverilog
 counter_ring #(
     .WIDTH(4)
@@ -165,6 +176,7 @@ end
 ```
 
 ### 2. LED Chaser Display
+
 ```systemverilog
 // Create walking LED pattern
 counter_ring #(
@@ -192,6 +204,7 @@ end
 ```
 
 ### 3. Memory Bank Sequencer
+
 ```systemverilog
 counter_ring #(
     .WIDTH(4)
@@ -233,6 +246,7 @@ end
 ```
 
 ### 4. State Machine Controller
+
 ```systemverilog
 // Simple state machine using ring counter
 counter_ring #(
@@ -265,6 +279,7 @@ end
 ```
 
 ### 5. Clock Domain Multiplexer
+
 ```systemverilog
 // Sequentially select different clock domains
 counter_ring #(
@@ -291,6 +306,7 @@ end
 ## Properties and Characteristics
 
 ### One-Hot Encoding
+
 Ring counters hand you one-hot encoding for free:
 - **Exactly One Bit Set**: Always exactly one bit is '1'
 - **Unique States**: Each state is distinctly different
@@ -298,12 +314,13 @@ Ring counters hand you one-hot encoding for free:
 - **Glitch-Free**: Clean transitions between states
 
 ### Self-Correcting Behavior
+
 An honest word about self-correction — ring counters mostly don't:
 - **All Zeros**: Will remain stuck (not self-correcting)
 - **Multiple Ones**: Will maintain multiple bits indefinitely
 - **Single One**: Will operate correctly
 
-If an upset can land you in an illegal state, see the self-correcting variant under Advanced Usage below.
+If an upset can land you in an illegal state, see the self-correcting variant under Advanced Variants.
 
 ### Comparison with Other Counters
 
@@ -314,9 +331,10 @@ If an upset can land you in an illegal state, see the self-correcting variant un
 | Johnson | 2×N | Moderate | No | Low |
 | Ring | N | None | Yes | Medium |
 
-## Advanced Usage
+## Advanced Variants
 
 ### 1. Self-Correcting Ring Counter
+
 ```systemverilog
 // Add error correction for stuck states
 logic error_detected;
@@ -333,6 +351,7 @@ end
 ```
 
 ### 2. Bidirectional Ring Counter
+
 ```systemverilog
 logic direction;  // 0 = right, 1 = left
 
@@ -351,6 +370,7 @@ end
 ```
 
 ### 3. Programmable Ring Counter
+
 ```systemverilog
 logic [WIDTH-1:0] init_pattern;
 logic load_pattern;
@@ -366,9 +386,24 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Verification Strategy
+## Performance Characteristics
+
+### Maximum Frequency
+
+- **Typical**: 400-600 MHz in modern FPGAs
+- **Limitation**: Shift register timing
+- **Advantage**: Very simple logic path
+
+### Power Consumption
+
+- **Dynamic**: Proportional to switching frequency
+- **Optimization**: Higher switching than binary counters
+- **Trade-off**: Simplicity vs. power efficiency
+
+## Verification
 
 ### Test Scenarios
+
 1. **Reset Behavior**: Verify initialization to single '1' bit
 2. **Rotation Sequence**: Check complete WIDTH-step cycle
 3. **Enable Control**: Test hold behavior when disabled
@@ -376,6 +411,7 @@ end
 5. **Cycle Completion**: Verify return to initial state
 
 ### Coverage Model
+
 ```systemverilog
 covergroup ring_cg @(posedge clk);
     cp_ring_state: coverpoint ring_out {
@@ -402,6 +438,7 @@ endgroup
 ```
 
 ### Assertions
+
 ```systemverilog
 // Exactly one bit should be set (except during reset)
 property one_hot_property;
@@ -429,11 +466,13 @@ assert property (rotation_property);
 ## Synthesis Considerations
 
 ### Resource Utilization
+
 - **Flip-Flops**: WIDTH registers
 - **LUTs**: Minimal - just shift logic
 - **Routing**: Simple interconnections
 
 ### Optimization Tips
+
 ```systemverilog
 // Use SRL (Shift Register LUT) inference when appropriate
 (* SRL_STYLE = "register" *) reg [WIDTH-1:0] ring_out;
@@ -442,25 +481,17 @@ assert property (rotation_property);
 ```
 
 ### Timing Considerations
+
 - **Clock Skew**: Ensure clean clock distribution
 - **Setup/Hold**: Standard flip-flop requirements
 - **Routing Delay**: Minimal due to simple structure
 
-## Performance Characteristics
+## Design Considerations
 
-### Maximum Frequency
-- **Typical**: 400-600 MHz in modern FPGAs
-- **Limitation**: Shift register timing
-- **Advantage**: Very simple logic path
+### Common Pitfalls
 
-### Power Consumption
-- **Dynamic**: Proportional to switching frequency
-- **Optimization**: Higher switching than binary counters
-- **Trade-off**: Simplicity vs. power efficiency
+**1. Invalid Initial States**
 
-## Common Pitfalls
-
-### 1. Invalid Initial States
 ```systemverilog
 // Problem: Multiple bits set
 ring_out <= 4'b1001;  // Invalid - two bits set
@@ -469,7 +500,8 @@ ring_out <= 4'b1001;  // Invalid - two bits set
 ring_out <= 4'b0001;  // Valid - exactly one bit
 ```
 
-### 2. Stuck at Zero
+**2. Stuck at Zero**
+
 ```systemverilog
 // Problem: All zeros state
 if (ring_out == 'b0) begin
@@ -477,7 +509,8 @@ if (ring_out == 'b0) begin
 end
 ```
 
-### 3. Width Mismatch
+**3. Width Mismatch**
+
 ```systemverilog
 // Problem: Initialization doesn't match width
 parameter WIDTH = 8;
@@ -488,8 +521,9 @@ ring_out <= 'b1;      // Correct - sized automatically
 ```
 
 ## Related Modules
-- `counter_johnson`: Twisted-ring counter with 2×WIDTH states
-- `counter_bingray`: Binary/Gray counter for different applications
+
+- **counter_johnson** - Twisted-ring counter with 2×WIDTH states
+- **counter_bingray** - Binary/Gray counter for different applications
 - Standard shift register implementations
 - One-hot state machines
 

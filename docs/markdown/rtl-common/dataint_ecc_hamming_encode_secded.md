@@ -21,10 +21,10 @@
 
 <!-- End Header -->
 
-# dataint_ecc_hamming_encode_secded Module Documentation
+# dataint_ecc_hamming_encode_secded (`dataint_ecc_hamming_encode_secded.sv`)
 
 ## Purpose
-The `dataint_ecc_hamming_encode_secded` module is the encoder half of a SECDED Hamming scheme (Single Error Correction, Double Error Detection). It generates the check bits that let the far end detect up to 2-bit errors and correct single-bit errors in the data.
+The encoder half of a SECDED Hamming scheme (Single Error Correction, Double Error Detection). It generates the check bits that let the far end detect up to 2-bit errors and correct single-bit errors in the data.
 
 ## Module Declaration
 ```systemverilog
@@ -158,6 +158,26 @@ w_data_with_parity[TotalWidth-1] = ^w_data_with_parity[TotalWidth-2:0];
 ### Debug Support
 Note that `DEBUG` is a **no-op** in this module: the RTL never references it outside its parameter declaration, so there's no debug output to be had. The parameter is reserved for future use.
 
+## Error Correction Capabilities
+
+### Single Error Correction
+- Can correct any single-bit error in the encoded data
+- Uses the Hamming parity bits to locate the error
+- The decoder flips the bad bit
+
+### Double Error Detection
+- The SECDED bit is what spots double-bit errors
+- Can't fix them, but it flags them
+- No silent data corruption
+
+### Error Detection Matrix
+| Error Type | Detection | Correction |
+|------------|-----------|------------|
+| No Error | ✓ | N/A |
+| Single Bit Error | ✓ | ✓ |
+| Double Bit Error | ✓ | ✗ |
+| Triple+ Bit Error | Partial | ✗ |
+
 ## Example Configurations
 
 ### 4-bit Data (Common Example)
@@ -178,7 +198,7 @@ Note that `DEBUG` is a **no-op** in this module: the RTL never references it out
 - SECDED bit: 1 (position 21)
 - Total width: 22 bits
 
-## Usage Example
+## Usage Examples
 
 ### Basic Encoding
 ```systemverilog
@@ -203,26 +223,6 @@ dataint_ecc_hamming_encode_secded #(
     .encoded_data(encoded_output)
 );
 ```
-
-## Error Correction Capabilities
-
-### Single Error Correction
-- Can correct any single-bit error in the encoded data
-- Uses the Hamming parity bits to locate the error
-- The decoder flips the bad bit
-
-### Double Error Detection
-- The SECDED bit is what spots double-bit errors
-- Can't fix them, but it flags them
-- No silent data corruption
-
-### Error Detection Matrix
-| Error Type | Detection | Correction |
-|------------|-----------|------------|
-| No Error | ✓ | N/A |
-| Single Bit Error | ✓ | ✓ |
-| Double Bit Error | ✓ | ✗ |
-| Triple+ Bit Error | Partial | ✗ |
 
 ## Applications
 - Memory systems (ECC RAM)

@@ -36,10 +36,13 @@ pass-through, all selected by a 3-bit control signal.
 - Wrap-around (rotation) capabilities
 - Purely combinational logic for maximum speed
 
-## Port Description
+## Parameters
 
-### Parameters
-- **WIDTH**: Width of the data bus (default: 8)
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | — | 8 | Width of the data bus |
+
+## Ports
 
 ### Inputs
 | Port | Width | Description |
@@ -132,30 +135,6 @@ always_comb begin
 end
 ```
 
-## Special Implementation Notes
-
-### 1. Combinational Design
-- All operations complete in zero clock cycles
-- No state machines or sequential logic
-- Suitable for high-frequency operations
-
-### 2. Arithmetic Right Shift
-The arithmetic shift uses SystemVerilog's `>>>` operator with a `$signed()` cast,
-so sign extension behaves correctly for two's complement numbers.
-
-### 3. Zero Shift Optimization
-The explicit `shift_amount_mod == 0` checks short-circuit the most common case —
-no shift at all — and skip the unnecessary computation.
-
-### 4. Double-Width Concatenation
-The `{data, data}` concatenation is the oldest trick in the book: paste the data
-next to itself and a rotation becomes a plain slice out of a 2×-wide window. Any
-rotation amount, same cost.
-
-### 5. Generate Block Optimization
-The generate block pre-computes every possible rotation at compile time, so
-runtime is just a lookup. You spend a little area, you get back maximum speed.
-
 ## Timing Examples
 
 ### 8-bit Examples (WIDTH=8)
@@ -190,6 +169,38 @@ Input:  data = 8'b11010110, shift_amount = 3, ctrl = 3'b110
 Output: 8'b10110110  (bits wrap around)
 ```
 
+## Special Implementation Notes
+
+### 1. Combinational Design
+- All operations complete in zero clock cycles
+- No state machines or sequential logic
+- Suitable for high-frequency operations
+
+### 2. Arithmetic Right Shift
+The arithmetic shift uses SystemVerilog's `>>>` operator with a `$signed()` cast,
+so sign extension behaves correctly for two's complement numbers.
+
+### 3. Zero Shift Optimization
+The explicit `shift_amount_mod == 0` checks short-circuit the most common case —
+no shift at all — and skip the unnecessary computation.
+
+### 4. Double-Width Concatenation
+The `{data, data}` concatenation is the oldest trick in the book: paste the data
+next to itself and a rotation becomes a plain slice out of a 2×-wide window. Any
+rotation amount, same cost.
+
+### 5. Generate Block Optimization
+The generate block pre-computes every possible rotation at compile time, so
+runtime is just a lookup. You spend a little area, you get back maximum speed.
+
+## Applications
+- ALU implementations
+- Cryptographic operations
+- Signal processing
+- Bit manipulation engines
+- Network packet processing
+- Data alignment circuits
+
 ## Resource Utilization
 
 ### Area Considerations
@@ -201,14 +212,6 @@ Output: 8'b10110110  (bits wrap around)
 - **Propagation Delay**: Constant regardless of shift amount
 - **Critical Path**: Through lookup array and final output mux
 - **Frequency**: Limited by combinational delay, not shift complexity
-
-## Applications
-- ALU implementations
-- Cryptographic operations
-- Signal processing
-- Bit manipulation engines
-- Network packet processing
-- Data alignment circuits
 
 ## Navigation
 

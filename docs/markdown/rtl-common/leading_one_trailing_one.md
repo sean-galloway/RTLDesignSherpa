@@ -21,38 +21,33 @@
 
 <!-- End Header -->
 
-# Leading One Trailing One Module
+# leading_one_trailing_one (`leading_one_trailing_one.sv`)
 
 ## Purpose
-The `leading_one_trailing_one` module finds both ends of your set bits at once: the position of the most significant bit (leading one) and the least significant bit (trailing one) in an input data vector. You get index outputs, one-hot vector representations of both positions, and status flags for the edge cases.
+Finds both ends of your set bits at once: the position of the most significant bit (leading one) and the least significant bit (trailing one) in an input data vector. You get index outputs, one-hot vector representations of both positions, and status flags for the edge cases.
 
-## Key Features
 - Finds the highest set bit position (leading one)
 - Finds the lowest set bit position (trailing one) 
 - Provides one-hot vector outputs for both positions
 - Includes validity and edge case detection
 - Parameterizable width with automatic index sizing
 
-## Port Description
+## Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 8 | Width of input data vector — the module's only parameter |
 
-### Parameters
-- **WIDTH**: Width of input data vector (default: 8) — the module's only parameter
-
-### Inputs
-| Port | Width | Description |
-|------|-------|-------------|
-| `data` | WIDTH | Input data vector to analyze |
-
-### Outputs
-| Port | Width | Description |
-|------|-------|-------------|
-| `leadingone` | $clog2(WIDTH) | Index of the most significant set bit |
-| `leadingone_vector` | WIDTH | One-hot vector with leading one position marked |
-| `trailingone` | $clog2(WIDTH) | Index of the least significant set bit |
-| `trailingone_vector` | WIDTH | One-hot vector with trailing one position marked |
-| `all_zeroes` | 1 | High when input data is all zeros |
-| `all_ones` | 1 | High when input data is all ones |
-| `valid` | 1 | High when input data contains at least one set bit |
+## Ports
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `data` | Input | WIDTH | Input data vector to analyze |
+| `leadingone` | Output | $clog2(WIDTH) | Index of the most significant set bit |
+| `leadingone_vector` | Output | WIDTH | One-hot vector with leading one position marked |
+| `trailingone` | Output | $clog2(WIDTH) | Index of the least significant set bit |
+| `trailingone_vector` | Output | WIDTH | One-hot vector with trailing one position marked |
+| `all_zeroes` | Output | 1 | High when input data is all zeros |
+| `all_ones` | Output | 1 | High when input data is all ones |
+| `valid` | Output | 1 | High when input data contains at least one set bit |
 
 ## Implementation Details
 

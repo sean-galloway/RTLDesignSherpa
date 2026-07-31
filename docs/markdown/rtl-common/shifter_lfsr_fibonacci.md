@@ -34,13 +34,16 @@ The `shifter_lfsr_fibonacci` module is a Fibonacci Linear Feedback Shift Registe
 - Non-zero state enforcement
 - Parameterizable width and tap configuration
 
-## Port Description
+## Parameters
 
-### Parameters
-- **WIDTH**: Width of the LFSR register (default: 8)
-- **TAP_INDEX_WIDTH**: Width of each tap index (default: 12)
-- **TAP_COUNT**: Number of feedback taps (default: 4)
-- **TIW**: Shorthand for TAP_INDEX_WIDTH
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | — | 8 | Width of the LFSR register |
+| `TAP_INDEX_WIDTH` | — | 12 | Width of each tap index |
+| `TAP_COUNT` | — | 4 | Number of feedback taps |
+| `TIW` | — | — | Shorthand for TAP_INDEX_WIDTH |
+
+## Ports
 
 ### Inputs
 | Port | Width | Description |
@@ -130,39 +133,6 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Special Implementation Notes
-
-### 1. XOR vs XNOR Feedback
-- **Fibonacci LFSR**: Uses XOR (`^`) for feedback calculation
-- **Standard LFSR**: Uses XNOR (`~^`) for feedback calculation
-- Both produce maximal-length sequences with appropriate polynomials
-
-### 2. Non-Zero State Protection
-```systemverilog
-end else if (|r_lfsr) begin // Only shift if we have non-zero value
-```
-This guard stops the LFSR from shifting when it's sitting at all zeros — a state
-it could never leave on its own. The sequence would lock at zero permanently.
-
-### 3. Right-Shift Architecture
-```systemverilog
-r_lfsr <= {w_feedback, r_lfsr[WIDTH-1:1]};
-```
-- Feedback enters at MSB position
-- Data shifts right (towards LSB)
-- LSB data is discarded each cycle
-
-### 4. Polynomial Compatibility
-Your tap positions need to correspond to a primitive polynomial appropriate for
-Fibonacci LFSR implementation. The polynomial form is:
-```
-P(x) = x^n + x^(tap1) + x^(tap2) + ... + x^(tapk) + 1
-```
-
-### 5. Reset to All Zeros
-Unlike some LFSR implementations that reset to all ones, this module resets to
-all zeros and relies on seed loading for proper initialization.
-
 ## Timing Example (4-bit Fibonacci LFSR)
 
 ### Configuration
@@ -197,6 +167,47 @@ seed: sweeping all 15 non-zero seeds at WIDTH=4 with `[4,3]`, three walk to zero
 and freeze under the `|r_lfsr` guard while the other twelve settle into a short
 cycle that never revisits the seed, so `lfsr_done` never asserts.
 
+## Special Implementation Notes
+
+### 1. XOR vs XNOR Feedback
+- **Fibonacci LFSR**: Uses XOR (`^`) for feedback calculation
+- **Standard LFSR**: Uses XNOR (`~^`) for feedback calculation
+- Both produce maximal-length sequences with appropriate polynomials
+
+### 2. Non-Zero State Protection
+```systemverilog
+end else if (|r_lfsr) begin // Only shift if we have non-zero value
+```
+This guard stops the LFSR from shifting when it's sitting at all zeros — a state
+it could never leave on its own. The sequence would lock at zero permanently.
+
+### 3. Right-Shift Architecture
+```systemverilog
+r_lfsr <= {w_feedback, r_lfsr[WIDTH-1:1]};
+```
+- Feedback enters at MSB position
+- Data shifts right (towards LSB)
+- LSB data is discarded each cycle
+
+### 4. Polynomial Compatibility
+Your tap positions need to correspond to a primitive polynomial appropriate for
+Fibonacci LFSR implementation. The polynomial form is:
+```
+P(x) = x^n + x^(tap1) + x^(tap2) + ... + x^(tapk) + 1
+```
+
+### 5. Reset to All Zeros
+Unlike some LFSR implementations that reset to all ones, this module resets to
+all zeros and relies on seed loading for proper initialization.
+
+## Applications
+- Pseudo-random sequence generation (identical to Galois LFSR output)
+- CRC calculation (with appropriate polynomial)
+- Data scrambling and encryption
+- Test pattern generation
+- Spread spectrum communications
+- Error detection and correction
+
 ## Comparison with Galois LFSR
 
 ### Advantages of Fibonacci LFSR
@@ -214,14 +225,6 @@ cycle that never revisits the seed, so `lfsr_done` never asserts.
 - **Few Taps**: When polynomial has only 2-3 taps
 - **Area Constraints**: When minimizing XOR gate count is critical
 - **Legacy Compatibility**: When interfacing with existing Fibonacci LFSR systems
-
-## Applications
-- Pseudo-random sequence generation (identical to Galois LFSR output)
-- CRC calculation (with appropriate polynomial)
-- Data scrambling and encryption
-- Test pattern generation
-- Spread spectrum communications
-- Error detection and correction
 
 ## Polynomial Examples for Fibonacci LFSR
 

@@ -21,6 +21,8 @@
 
 <!-- End Header -->
 
+**[← Back to Main Index](../index.md)** | **[rtl-common Index](index.md)**
+
 # Single-Client Arbiter
 
 **Module:** `arbiter_single_client.sv`
@@ -42,11 +44,9 @@
 - **Optional ack mode:** `WAIT_GNT_ACK = 0` falls back to a simple registered request-to-grant with no ack hold
 - **Trivial decode:** `grant` is a one-hot of width 1 (equal to `grant_valid`); `grant_id` is always 0
 
-## Module Purpose
+### Use Cases
 
 The module provides a drop-in single-client arbiter so that a design parameterized down to one channel behaves identically to the same design with two or more channels. Rather than special-casing the `NUM_CHANNELS == 1` build with a passthrough, the datapath instantiates `arbiter_single_client` and gets the identical grant/ack sequencing the general arbiter would have produced for one requester.
-
-**Use Cases:**
 
 - Single-channel builds of a datapath that is otherwise parameterized for N channels
 - AXI read/write engines that require the registered, ack-held grant handshake for correct burst sequencing
@@ -61,32 +61,27 @@ The module provides a drop-in single-client arbiter so that a design parameteriz
 |-----------|------|---------|-------------|
 | `WAIT_GNT_ACK` | int | 1 | `1` = registered grant is held until `grant_ack` is received (round-robin ACK lifecycle). `0` = simple registered request-to-grant with no ack hold. |
 
-## Port Groups
+## Ports
 
-### Clock and Reset
+### Inputs
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `clk` | Input | 1 | Clock |
-| `rst_n` | Input | 1 | Active-low asynchronous reset |
+| Port | Width | Description |
+|------|-------|-------------|
+| `clk` | 1 | Clock |
+| `rst_n` | 1 | Active-low asynchronous reset |
+| `block_arb` | 1 | Block arbitration; when high the request is masked and no grant is issued |
+| `request` | 1 | The single client's request |
+| `grant_ack` | 1 | The single client's grant acknowledgment (used only when `WAIT_GNT_ACK = 1`) |
 
-### Control
+### Outputs
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `block_arb` | Input | 1 | Block arbitration; when high the request is masked and no grant is issued |
-| `request` | Input | 1 | The single client's request |
-| `grant_ack` | Input | 1 | The single client's grant acknowledgment (used only when `WAIT_GNT_ACK = 1`) |
+| Port | Width | Description |
+|------|-------|-------------|
+| `grant_valid` | 1 | Grant valid (registered) |
+| `grant` | 1 | One-hot grant of width 1; equal to `grant_valid` |
+| `grant_id` | 1 | Granted client index; always `0` for a single client |
 
-### Grant Outputs
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `grant_valid` | Output | 1 | Grant valid (registered) |
-| `grant` | Output | 1 | One-hot grant of width 1; equal to `grant_valid` |
-| `grant_id` | Output | 1 | Granted client index; always `0` for a single client |
-
-## Functional Description
+## Functionality
 
 ### Request Qualification
 
@@ -98,7 +93,7 @@ assign w_req = request && !block_arb;
 
 A blocked arbiter behaves as if the client were not requesting at all.
 
-### Grant-Eligibility Logic (ACK mode)
+### Grant-Eligibility Logic (ACK Mode)
 
 When `WAIT_GNT_ACK = 1`, three combinational signals gate whether a new grant may be issued:
 
@@ -110,7 +105,7 @@ assign w_should_grant = w_req && w_can_grant;
 
 `r_pending_ack` records that a grant has been issued and is awaiting its acknowledgment. A new grant can only be launched when there is no pending ack, or when the ack for the current grant arrives this cycle.
 
-### Grant Lifecycle (ACK mode)
+### Grant Lifecycle (ACK Mode)
 
 The registered state machine is the single-client reduction of the `arbiter_round_robin` `WAIT_GNT_ACK` rules. Because there is only one client, `w_other_requests` is always 0, so the arbiter's Rule 4 (switch to another requester) never applies and Rule 3 simply clears:
 
@@ -142,7 +137,7 @@ assign grant_id = 1'b0;          // single client
 
 Because there is exactly one client, `grant` and `grant_valid` are identical, and `grant_id` is a constant 0.
 
-## Usage Example
+## Usage Examples
 
 ```systemverilog
 // Single-channel build: use arbiter_single_client where a >1-channel
@@ -161,7 +156,7 @@ arbiter_single_client #(
 );
 ```
 
-## Design Notes
+## Design Considerations
 
 - **Why not a combinational passthrough?** `grant = request` looks correct for one client but loses the registered, ack-held timing. The AXI read/write engines interpret the missing hold as an early grant drop and insert a bubble beat at every burst boundary. This module preserves the exact cycle-by-cycle behavior.
 - **`grant_id` degeneracy.** The general arbiter's `grant_id` is `$clog2(CLIENTS)` bits wide, which collapses to an illegal `[-1:0]` slice at `CLIENTS == 1`. Here `grant_id` is simply tied to `0`, sidestepping the elaboration problem.
@@ -185,19 +180,15 @@ arbiter_single_client #(
 - [arbiter_round_robin_weighted](arbiter_round_robin_weighted.md) - Weighted / QoS round-robin variant
 - [arbiter_priority_encoder](arbiter_priority_encoder.md) - Fixed-priority arbiter
 
-## References
-
-### Source Code
+### Source
 
 - `rtl/common/arbiter_single_client.sv`
 - `rtl/common/arbiter_round_robin.sv` (timing reference)
-
-### Documentation
-
 - `docs/markdown/rtl-common/index.md`
 
 **Last Updated:** 2026-07-15
 
 ## Navigation
 
-- [Back to rtl-common Index](index.md)
+- **[← Back to rtl-common Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

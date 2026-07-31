@@ -21,42 +21,28 @@
 
 <!-- End Header -->
 
-# Encoder Module (`encoder.sv`)
+# encoder (`encoder.sv`)
 
 ## Purpose
-Converts a one-hot N-bit input back into its binary index—the inverse of a decoder. Feed it a one-hot vector, get out the position of the asserted bit in binary.
+Converts a one-hot N-bit input back into its binary index — the inverse of a decoder. Feed it a one-hot vector, get out the position of the asserted bit in binary.
+
+## Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `N` | 8 | Width of one-hot input vector |
 
 ## Ports
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `decoded` | Input | N | One-hot input vector |
+| `data` | Output | $clog2(N) | Binary encoded output representing the position of the set bit |
 
-### Input Ports
-- **`decoded[N-1:0]`** - One-hot input vector
-
-### Output Ports
-- **`data[$clog2(N)-1:0]`** - Binary encoded output representing the position of the set bit
-
-### Parameters
-- **`N`** - Width of one-hot input vector (default: 8)
-
-## Implementation Details
-
-### Core Algorithm
-A combinational always block runs the priority search:
-
-```systemverilog
-always_comb begin
-    data = 0;  // Default output when no bits set
-    for (int i = 0; i < N; i++) begin
-        if (decoded[i]) data = $clog2(N)'(i);
-    end
-end
-```
+## Functionality
 
 ### Operation Principle
 - Scans the input vector from LSB to MSB
 - Outputs the binary representation of the highest indexed set bit
 - Which makes it a **priority encoder** when multiple bits are set (higher index wins)
-
-## Functional Behavior
 
 ### Truth Table Example (N=8, output width=3)
 | decoded[7:0] | data[2:0] | Notes |
@@ -78,7 +64,19 @@ end
 - **Combinational**: Immediate response to input changes
 - **Self-sizing**: Output width comes from `$clog2(N)`
 
-## Design Features
+## Implementation Details
+
+### Core Algorithm
+A combinational always block runs the priority search:
+
+```systemverilog
+always_comb begin
+    data = 0;  // Default output when no bits set
+    for (int i = 0; i < N; i++) begin
+        if (decoded[i]) data = $clog2(N)'(i);
+    end
+end
+```
 
 ### Automatic Width Calculation
 - **Output width**: `$clog2(N)` bits
@@ -91,37 +89,12 @@ The for-loop gives you priority for free:
 - So the highest-indexed set bit decides the final output
 - For invalid one-hot inputs, it quietly behaves as a priority encoder
 
-## Use Cases
-
-### Valid One-Hot Inputs
-- **Interrupt acknowledgment**: Convert interrupt vector to binary ID
-- **Resource arbitration**: Encode granted request to requester ID  
-- **State machine encoding**: Convert one-hot state to binary
-- **Position encoding**: Find position of active element
-
-### Priority Encoding Applications
-- **Multiple interrupt handling**: Encode highest priority interrupt
-- **Error reporting**: Report highest severity error condition
-- **Resource allocation**: Grant to highest priority requester
-
 ## Timing Characteristics
 - **Propagation delay**: Depends on input width and synthesis
 - **Critical path**: Runs through the for-loop comparisons
 - **Setup/hold**: None (purely combinational)
 
-## Design Considerations
-
-### Input Validation
-- **Assumes one-hot input** for standard encoder behavior
-- **Handles multiple bits** gracefully (acts as priority encoder)
-- **Zero input** produces zero output (whether that's what you want is up to you)
-
-### Synthesis Implications
-- **Resource usage**: Typically synthesizes to multiplexer logic
-- **Optimization**: Modern synthesizers chew through the for-loop just fine
-- **Scalability**: Performance degrades gradually as N grows
-
-## Common Usage Patterns
+## Usage Examples
 
 ### Interrupt Controller
 ```systemverilog
@@ -139,15 +112,40 @@ encoder #(.N(16)) grant_encoder (
 );
 ```
 
-## Related Modules
-- **Decoder**: Performs inverse operation (binary to one-hot)
-- **Priority Encoder with Enable**: Enhanced version with enable control
-- **Find First Set**: Similar functionality with different search order
+## Applications
+
+### Valid One-Hot Inputs
+- **Interrupt acknowledgment**: Convert interrupt vector to binary ID
+- **Resource arbitration**: Encode granted request to requester ID  
+- **State machine encoding**: Convert one-hot state to binary
+- **Position encoding**: Find position of active element
+
+### Priority Encoding Applications
+- **Multiple interrupt handling**: Encode highest priority interrupt
+- **Error reporting**: Report highest severity error condition
+- **Resource allocation**: Grant to highest priority requester
+
+## Design Considerations
+
+### Input Validation
+- **Assumes one-hot input** for standard encoder behavior
+- **Handles multiple bits** gracefully (acts as priority encoder)
+- **Zero input** produces zero output (whether that's what you want is up to you)
+
+### Synthesis Implications
+- **Resource usage**: Typically synthesizes to multiplexer logic
+- **Optimization**: Modern synthesizers chew through the for-loop just fine
+- **Scalability**: Performance degrades gradually as N grows
 
 ## Behavioral Notes
 - **For-loop order**: Creates LSB-to-MSB priority (higher index wins)
 - **Default assignment**: Ensures output has known value for all inputs
 - **Type casting**: `$clog2(N)'(i)` ensures proper bit width matching
+
+## Related Modules
+- **Decoder**: Performs inverse operation (binary to one-hot)
+- **Priority Encoder with Enable**: Enhanced version with enable control
+- **Find First Set**: Similar functionality with different search order
 
 ## Navigation
 

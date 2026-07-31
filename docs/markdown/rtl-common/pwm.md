@@ -21,12 +21,11 @@
 
 <!-- End Header -->
 
-# PWM (Pulse Width Modulation) Module
+# pwm (`pwm.sv`)
 
 ## Purpose
-The PWM module generates multiple independent pulse width modulation signals with configurable duty cycles, periods, and repeat counts. Each channel runs as its own state machine with precise timing control and completion detection.
+Generates multiple independent pulse width modulation signals with configurable duty cycles, periods, and repeat counts. Each channel runs as its own state machine with precise timing control and completion detection.
 
-## Key Features
 - Multiple independent PWM channels (parameterizable)
 - Individual duty cycle, period, and repeat count control per channel
 - Edge-triggered start control with automatic edge detection
@@ -34,28 +33,24 @@ The PWM module generates multiple independent pulse width modulation signals wit
 - Support for continuous operation (infinite repeat)
 - Precise timing with configurable counter width
 
-## Port Description
+## Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 8 | Bit width of counters and timing parameters |
+| `CHANNELS` | 4 | Number of independent PWM channels |
 
-### Parameters
-- **WIDTH**: Bit width of counters and timing parameters (default: 8)
-- **CHANNELS**: Number of independent PWM channels (default: 4)
-
-### Inputs
-| Port | Width | Description |
-|------|-------|-------------|
-| `clk` | 1 | System clock |
-| `rst_n` | 1 | Active-low asynchronous reset |
-| `sync_rst_n` | 1 | Active-low **synchronous** reset (functional — all state/counter/edge-detect blocks reset on `!sync_rst_n`). Must be driven; leaving it unconnected gives X in sim / spurious resets in hardware. |
-| `start` | CHANNELS | Start trigger for each channel (edge-triggered) |
-| `duty` | CHANNELS*WIDTH | Concatenated duty cycle values for all channels |
-| `period` | CHANNELS*WIDTH | Concatenated period values for all channels |
-| `repeat_count` | CHANNELS*WIDTH | Concatenated repeat counts (0 = infinite) |
-
-### Outputs
-| Port | Width | Description |
-|------|-------|-------------|
-| `done` | CHANNELS | Completion status for each channel |
-| `pwm_out` | CHANNELS | PWM output signals for each channels |
+## Ports
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `clk` | Input | 1 | System clock |
+| `rst_n` | Input | 1 | Active-low asynchronous reset |
+| `sync_rst_n` | Input | 1 | Active-low **synchronous** reset (functional — all state/counter/edge-detect blocks reset on `!sync_rst_n`). Must be driven; leaving it unconnected gives X in sim / spurious resets in hardware. |
+| `start` | Input | CHANNELS | Start trigger for each channel (edge-triggered) |
+| `duty` | Input | CHANNELS*WIDTH | Concatenated duty cycle values for all channels |
+| `period` | Input | CHANNELS*WIDTH | Concatenated period values for all channels |
+| `repeat_count` | Input | CHANNELS*WIDTH | Concatenated repeat counts (0 = infinite) |
+| `done` | Output | CHANNELS | Completion status for each channel |
+| `pwm_out` | Output | CHANNELS | PWM output signals for each channel |
 
 ## State Machine
 
@@ -157,7 +152,7 @@ assign w_all_repeats_done = (local_repeat == 0) ? 1'b0 :  // 0 means infinite
 
 The `- 1'b1` is load-bearing. The check fires in the same cycle that
 `r_repeat_value` increments at a period boundary, so a bare
-`>= local_repeat` emits `local_repeat + 1` periods -- one too many. With
+`>= local_repeat` emits `local_repeat + 1` periods — one too many. With
 `local_repeat = 1`: the corrected form is done at the first boundary
 (`0 >= 0`), while the bare form needs a second (`0 >= 1` false, then
 `1 >= 1`). The `local_repeat == 0` branch also keeps the `- 1` from
@@ -177,9 +172,9 @@ underflowing, since 0 means infinite.
 
 ### 3. Infinite Repeat Mode
 - `repeat_count = 0` enables continuous operation
-- PWM runs indefinitely. A `start` pulse while RUNNING is **ignored** -- the FSM
+- PWM runs indefinitely. A `start` pulse while RUNNING is **ignored** — the FSM
   leaves RUNNING only on `w_period_complete && w_all_repeats_done`, which never
-  fires in continuous mode -- so a running channel cannot be restarted or
+  fires in continuous mode — so a running channel cannot be restarted or
   stopped by `start`. Use reset, or a non-zero `repeat_count`, to end it.
 - Useful for continuous motor control or LED dimming
 

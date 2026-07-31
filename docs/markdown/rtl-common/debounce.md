@@ -21,26 +21,26 @@
 
 <!-- End Header -->
 
-# Debounce Module (`debounce.sv`)
+# debounce (`debounce.sv`)
 
 ## Purpose
 Kills mechanical switch bounce by sampling button inputs on a regular tick and refusing to believe a button until the same state shows up for several consecutive samples.
 
+## Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `N` | 4 | Number of buttons/input signals |
+| `DEBOUNCE_DELAY` | 4 | Number of consecutive stable samples required |
+| `PRESSED_STATE` | 1 | Logic level when button is pressed (1 for normally open, 0 for normally closed) |
+
 ## Ports
-
-### Input Ports
-- **`clk`** - System clock signal
-- **`rst_n`** - Active-low reset signal  
-- **`long_tick`** - ~10ms sampling tick signal (controls sampling rate)
-- **`button_in[N-1:0]`** - Raw button input signals to be debounced
-
-### Output Ports
-- **`button_out[N-1:0]`** - Debounced button output signals
-
-### Parameters
-- **`N`** - Number of buttons/input signals (default: 4)
-- **`DEBOUNCE_DELAY`** - Number of consecutive stable samples required (default: 4)
-- **`PRESSED_STATE`** - Logic level when button is pressed (default: 1; 1 for normally open, 0 for normally closed)
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `clk` | Input | 1 | System clock signal |
+| `rst_n` | Input | 1 | Active-low reset signal |
+| `long_tick` | Input | 1 | ~10ms sampling tick signal (controls sampling rate) |
+| `button_in` | Input | N | Raw button input signals to be debounced |
+| `button_out` | Output | N | Debounced button output signals |
 
 ## Implementation Details
 
@@ -64,21 +64,19 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-### Key Features
-
-#### Sampling Control
+### Sampling Control
 - Only samples inputs when `long_tick` fires
-- Over-sampling invites false triggering—this avoids it
+- Over-sampling invites false triggering — this avoids it
 - Typical `long_tick` period: ~10ms
 
-#### Button Type Support
+### Button Type Support
 - **Normally Open (NO)**: `PRESSED_STATE = 1`
   - Button reads '0' when not pressed, '1' when pressed
 - **Normally Closed (NC)**: `PRESSED_STATE = 0`  
   - Button reads '1' when not pressed, '0' when pressed
 - The input inversion handles NC buttons transparently
 
-#### Debounce Logic
+### Debounce Logic
 - Keeps `DEBOUNCE_DELAY` samples per button
 - The output only goes high when every sample in the shift register is '1'
 - Which means the button has to sit stable in the pressed state for the whole delay
@@ -92,7 +90,7 @@ always_comb begin
 end
 ```
 
-#### Output Registration
+### Output Registration
 - The final output is registered, so transitions come out clean and glitch-free
 - Resets to all zeros on system reset
 
@@ -113,7 +111,7 @@ end
 - **Asymmetric**: press is fully debounced; release propagates ~`DEBOUNCE_DELAY`×
   faster. Do NOT rely on symmetric debounce timing.
 
-## Use Cases
+## Applications
 - Mechanical pushbuttons and switches
 - Rotary encoder inputs (with the delay set appropriately)
 - Any digital input prone to contact bounce

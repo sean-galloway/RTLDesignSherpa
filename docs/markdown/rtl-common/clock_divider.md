@@ -21,14 +21,20 @@
 
 <!-- End Header -->
 
-# Clock Divider Module - Comprehensive Documentation
+**[← Back to Main Index](../index.md)** | **[rtl-common Index](index.md)**
 
-## Overview
-The `clock_divider` module generates multiple divided clock signals from a single input clock using configurable pick-off points from a shared master counter. Because every output taps the same counter, the divided clocks come out synchronized and phase-aligned — the behavior you need for multi-rate digital signal processing, communication systems, and power management applications.
+# Clock Divider
+
+Multiple divided clocks from one input clock, all tapped off a single shared counter so they come out phase-aligned.
 
 **⚠️ WARNING:** NOT recommended for functional clocks! Use PLL/MMCM/clock manager primitives instead. This module is intended for testbenches, debug outputs, and non-critical timing applications.
 
+## Overview
+
+The `clock_divider` module generates multiple divided clock signals from a single input clock using configurable pick-off points from a shared master counter. Because every output taps the same counter, the divided clocks come out synchronized and phase-aligned — the behavior you need for multi-rate digital signal processing, communication systems, and power management applications.
+
 ## Module Declaration
+
 ```systemverilog
 module clock_divider #(
     parameter int N             = 4,  // Number of output clocks
@@ -44,35 +50,14 @@ module clock_divider #(
 
 ## Parameters
 
-### N
-- **Type**: `int`
-- **Default**: `4`
-- **Description**: Number of independently configurable output clocks
-- **Range**: 1 to 16 (practical limit)
-- **Impact**: Determines number of output clock domains and resource usage (N registers + N muxes)
-
-### PO_WIDTH
-- **Type**: `int`
-- **Default**: `8`
-- **Description**: Bit width of each pick-off point configuration register
-- **Range**: 4 to 8 bits
-- **Constraints**: Must be > `$clog2(COUNTER_WIDTH)` to avoid truncation
-  - Equivalently: `PO_WIDTH >= $clog2(COUNTER_WIDTH + 1)`
-  - This ensures PO_WIDTH can hold the value COUNTER_WIDTH without truncation
-  - Examples: CW=16 needs PO≥5, CW=32 needs PO≥6, CW=64 needs PO≥7
-- **Trade-off**: Larger width allows finer counter bit selection but uses more configuration storage
-- **Typical**: PO_WIDTH=8 for COUNTER_WIDTH up to 128
-
-### COUNTER_WIDTH
-- **Type**: `int`
-- **Default**: `64`
-- **Description**: Bit width of the master binary counter
-- **Range**: 2 to 64 bits (practical range)
-- **Impact**: Determines maximum division ratio (2^COUNTER_WIDTH)
-- **Example**: WIDTH=16 → max division ratio = 65536
-- **Trade-off**: Larger counters enable slower frequencies but consume more resources
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| N | int | 4 | Number of independently configurable output clocks. Range: 1 to 16 (practical limit). Determines number of output clock domains and resource usage (N registers + N muxes). |
+| PO_WIDTH | int | 8 | Bit width of each pick-off point configuration register. Range: 4 to 8 bits. Must be > `$clog2(COUNTER_WIDTH)` to avoid truncation — equivalently `PO_WIDTH >= $clog2(COUNTER_WIDTH + 1)`, which ensures PO_WIDTH can hold the value COUNTER_WIDTH without truncation. Examples: CW=16 needs PO≥5, CW=32 needs PO≥6, CW=64 needs PO≥7. Larger width allows finer counter bit selection but uses more configuration storage. Typical: PO_WIDTH=8 for COUNTER_WIDTH up to 128. |
+| COUNTER_WIDTH | int | 64 | Bit width of the master binary counter. Range: 2 to 64 bits (practical range). Determines maximum division ratio (2^COUNTER_WIDTH). Example: WIDTH=16 → max division ratio = 65536. Larger counters enable slower frequencies but consume more resources. |
 
 ### Parameter Relationships
+
 - **Addressing Constraint**: `PO_WIDTH > $clog2(COUNTER_WIDTH)` (strictly
   greater — the RTL `$fatal`s at elaboration if `PO_WIDTH <= $clog2(COUNTER_WIDTH)`).
   E.g. `COUNTER_WIDTH=16` needs `PO_WIDTH ≥ 5`.
@@ -82,6 +67,7 @@ module clock_divider #(
 ## Ports
 
 ### Inputs
+
 | Port | Width | Type | Description |
 |------|-------|------|-------------|
 | `clk` | 1 | `logic` | Master input clock (source to be divided) |
@@ -95,19 +81,15 @@ Each po[i] (PO_WIDTH bits): Counter bit index to sample for output i
 ```
 
 ### Outputs
+
 | Port | Width | Type | Description |
 |------|-------|------|-------------|
 | `divided_clk` | N | `logic` | Divided clock outputs (registered) |
 
-## Architecture Details
-
-### Internal Signals
-```systemverilog
-logic [COUNTER_WIDTH-1:0] r_divider_counters;  // Free-running binary counter
-localparam int ADDR_WIDTH = $clog2(COUNTER_WIDTH);  // Address width
-```
+## Functionality
 
 ### Counter Operation
+
 - Free-running binary counter increments every input clock cycle
 - Wraps at 2^COUNTER_WIDTH (no overflow flag)
 - Each bit toggles at half the frequency of the previous bit
@@ -116,23 +98,24 @@ localparam int ADDR_WIDTH = $clog2(COUNTER_WIDTH);  // Address width
   - Bit N: clk/2^(N+1)
 
 ### Pickoff Point Selection
+
 - Each output `i` samples `counter[pickoff_points[i]]`
 - Division ratio = 2^(pickoff_point+1)
 - Example: pickoff=3 → samples counter[3] → divides by 16
 
 ### Out-of-Range Handling
+
 - If `pickoff_points[i] ≥ COUNTER_WIDTH`, clamps to `COUNTER_WIDTH-1` (MSB)
 - Prevents illegal bit indexing
 - MSB provides slowest possible division
 
 ### Output Registration
+
 - All `divided_clk` outputs are registered for glitch-free operation
 - Adds 1 cycle latency but prevents combinational glitches
 - Reset clears all outputs to 0 (low phase)
 
-## Operation Principles
-
-### Division Ratio Table (100MHz Input Clock)
+### Division Ratios (100MHz Input Clock)
 
 | pickoff_point | Counter Bit | Division Ratio | Output Freq | Period |
 |---------------|-------------|----------------|-------------|---------|
@@ -148,31 +131,68 @@ localparam int ADDR_WIDTH = $clog2(COUNTER_WIDTH);  // Address width
 | 23 | [23] | 16777216 | 6Hz | 168ms |
 
 ### Duty Cycle
+
 - All divided clocks have 50% duty cycle
 - Result of sampling counter bit (toggle behavior)
 - High for 2^(pickoff_point) input cycles
 - Low for 2^(pickoff_point) input cycles
 
-## Timing Characteristics
+## Implementation Details
+
+### Internal Signals
+
+```systemverilog
+logic [COUNTER_WIDTH-1:0] r_divider_counters;  // Free-running binary counter
+localparam int ADDR_WIDTH = $clog2(COUNTER_WIDTH);  // Address width
+```
+
+## Timing and Performance
 
 ### Latency
+
 - **Output Latency**: 1 cycle (registered output)
 - **Clock-to-Q**: Standard flip-flop delay
 - **Propagation**: Counter increment → mux → output register
 
 ### Phase Relationships
+
 - All divided clocks share same counter → phase-locked to each other
 - Divided clocks have phase offset relative to input clock
 - Phase offset depends on counter reset value (0)
 
 ### Jitter
+
 - Input clock jitter propagates to outputs
 - Additional quantization jitter: ±1 input clock cycle
 - For low-jitter clocks: Use dedicated PLL/clock synthesis
 
-## Design Examples
+### Maximum Frequency
 
-### Example 1: Four Debug Clocks
+- **Limiting Factor**: Counter width and mux depth
+- **Typical Performance**:
+  - COUNTER_WIDTH=16: ~500 MHz (modern FPGAs)
+  - COUNTER_WIDTH=32: ~400 MHz
+  - COUNTER_WIDTH=64: ~300 MHz
+
+### Resource Scaling
+
+| COUNTER_WIDTH | N Outputs | FFs | LUTs (mux, est.) | fmax (Est.) |
+|---------------|-----------|-----|------------------|-------------|
+| 16 | 4 | 20 | ~12 | 500 MHz |
+| 32 | 4 | 36 | ~28 | 400 MHz |
+| 64 | 4 | 68 | ~52 | 300 MHz |
+| 16 | 8 | 24 | ~24 | 500 MHz |
+
+FF counts are exact (COUNTER_WIDTH counter bits + N output registers). The LUT
+column is `N * ceil((COUNTER_WIDTH-1)/5)` for the pickoff muxes on a 6-LUT
+architecture, excluding the clamp comparators; earlier revisions of this table
+listed 8/10/12, which did not scale with the mux width and understated the
+wide-counter cases by several times. fmax figures remain unsourced estimates.
+
+## Usage Examples
+
+### Four Debug Clocks
+
 ```systemverilog
 // Generate clk/4, clk/16, clk/256, clk/65536
 logic [31:0] pickoff_cfg;
@@ -190,7 +210,8 @@ clock_divider #(
 );
 ```
 
-### Example 2: Baud Rate Generator (Approximate)
+### Baud Rate Generator (Approximate)
+
 ```systemverilog
 // For 9600 baud from 100MHz:
 // Ideal: 100MHz / 9600 ≈ 10417 (not power-of-2)
@@ -216,7 +237,8 @@ clock_divider #(
 
 **Note:** For precise baud rates (not power-of-2), use `counter_load_clear` instead.
 
-### Example 3: Runtime-Programmable Divider
+### Runtime-Programmable Divider
+
 ```systemverilog
 // APB-configurable clock divider
 logic [7:0] cfg_pickoff_0, cfg_pickoff_1;
@@ -238,7 +260,8 @@ clock_divider #(
 );
 ```
 
-### Example 4: Test Clock Generation
+### Test Clock Generation
+
 ```systemverilog
 // Generate 8 test clocks for debug
 clock_divider #(
@@ -253,9 +276,10 @@ clock_divider #(
 );
 ```
 
-## Advanced Usage
+## Design Considerations
 
 ### Changing Pickoff Points at Runtime
+
 ```systemverilog
 // To avoid glitches when changing pickoff configuration:
 // 1. Assert rst_n (reset)
@@ -317,9 +341,9 @@ downstream logic must tolerate the gap rather than assume a continuous clock.
 Treat these outputs as enables into a synchronous fabric, not as clocks driving
 a separate domain -- see the warning under Synthesis Considerations.
 
-## Synthesis Considerations
+### Synthesis Considerations
 
-### Resource Utilization
+**Resource Utilization:**
 - **Flip-Flops**: COUNTER_WIDTH (counter) + N (output registers)
 - **LUTs**: one COUNTER_WIDTH-to-1 mux per output (pickoff selection), plus a
   clamp comparator per output. On a 6-input LUT architecture a CW-to-1 bit mux
@@ -328,14 +352,14 @@ a separate domain -- see the warning under Synthesis Considerations.
 - **Example (N=4, COUNTER_WIDTH=16)**: ~20 FFs, ~12 LUTs for the muxes plus
   clamp logic. These are analytic estimates, not synthesis results.
 
-### Timing Optimization
+**Timing Optimization:**
 - **Critical Path**: Counter increment → mux → output register
 - **For high-frequency operation**:
   - Reduce COUNTER_WIDTH (if possible)
   - Pipeline counter output (add register stage)
   - Use dedicated clock resources (PLL/MMCM)
 
-### Power Optimization
+**Power Optimization:**
 - **Clock Gating**: Gate counter when no divided clocks needed
 - **Selective Outputs**: Only generate divided clocks actually used
 - **Example**:
@@ -349,9 +373,11 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Important Warnings
+### Important Warnings
 
-### ⚠️ NOT for Functional Clocks
+This is the part that bites people, so read it twice.
+
+#### ⚠️ NOT for Functional Clocks
 **Do NOT use for:**
 - Primary system clocks
 - Clocking synchronous logic
@@ -364,25 +390,26 @@ end
 - Phase-locked loops for low jitter
 - Precise frequency generation
 
-### ⚠️ Derived Clock Hazards
+#### ⚠️ Derived Clock Hazards
 Using `divided_clk` as a clock creates a **derived clock**:
 - Complicates timing analysis
 - STA tools may not properly constrain
 - Potential setup/hold violations
 - Clock domain crossing issues
 
-### ⚠️ Only Power-of-2 Divisions
+#### ⚠️ Only Power-of-2 Divisions
 - This module ONLY supports power-of-2 division ratios (2, 4, 8, 16, ...)
 - For arbitrary ratios (e.g., divide by 7, 100, 1000): Use `counter_load_clear`
 
-### ⚠️ Glitches During Configuration Changes
+#### ⚠️ Glitches During Configuration Changes
 - Changing `pickoff_points` at runtime can cause glitches
 - Always reset module when changing configuration
 - Do NOT change configuration while outputs are actively used
 
-## Verification Strategy
+## Verification
 
 ### Test Scenarios
+
 1. **Single Output**: N=1 with various pickoff points
 2. **Multiple Outputs**: N=4 with different divisions
 3. **Out-of-Range Clamping**: pickoff ≥ COUNTER_WIDTH
@@ -395,6 +422,7 @@ Using `divided_clk` as a clock creates a **derived clock**:
    - pickoff > COUNTER_WIDTH (clamping)
 
 ### Coverage Points
+
 ```systemverilog
 covergroup clock_divider_cg @(posedge clk);
     cp_pickoff_range: coverpoint pickoff_points[7:0] {
@@ -410,30 +438,8 @@ covergroup clock_divider_cg @(posedge clk);
 endgroup
 ```
 
-## Performance Characteristics
-
-### Maximum Frequency
-- **Limiting Factor**: Counter width and mux depth
-- **Typical Performance**:
-  - COUNTER_WIDTH=16: ~500 MHz (modern FPGAs)
-  - COUNTER_WIDTH=32: ~400 MHz
-  - COUNTER_WIDTH=64: ~300 MHz
-
-### Resource Scaling
-| COUNTER_WIDTH | N Outputs | FFs | LUTs (mux, est.) | fmax (Est.) |
-|---------------|-----------|-----|------------------|-------------|
-| 16 | 4 | 20 | ~12 | 500 MHz |
-| 32 | 4 | 36 | ~28 | 400 MHz |
-| 64 | 4 | 68 | ~52 | 300 MHz |
-| 16 | 8 | 24 | ~24 | 500 MHz |
-
-FF counts are exact (COUNTER_WIDTH counter bits + N output registers). The LUT
-column is `N * ceil((COUNTER_WIDTH-1)/5)` for the pickoff muxes on a 6-LUT
-architecture, excluding the clamp comparators; earlier revisions of this table
-listed 8/10/12, which did not scale with the mux width and understated the
-wide-counter cases by several times. fmax figures remain unsourced estimates.
-
 ## Related Modules
+
 - `counter_bin.sv` - Simple binary counter (related, not instantiated here —
   `clock_divider` keeps its own `r_divider_counters` array)
 - `counter_freq_invariant.sv` - Time-based counter with 1MHz tick

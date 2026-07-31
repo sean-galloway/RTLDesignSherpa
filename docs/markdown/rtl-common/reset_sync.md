@@ -34,9 +34,7 @@ The `reset_sync` module is a parameterized reset synchronizer with asynchronous 
 - Standard reset synchronizer topology
 - Clean reset release timing
 
-## Port Description
-
-### Parameters
+## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -62,6 +60,8 @@ sync_rst_n = OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h;
 The names stick around for compatibility, which means a `reset_sync` with
 `OUT_ACTIVE_LOW = 0` drives an active-**high** reset out of a port still called
 `sync_rst_n`. Check the parameter, not the name.
+
+## Ports
 
 ### Inputs
 | Port | Width | Description |

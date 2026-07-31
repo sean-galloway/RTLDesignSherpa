@@ -21,35 +21,26 @@
 
 <!-- End Header -->
 
-# Glitch-Free N-DFF Synchronizer (`glitch_free_n_dff_arn.sv`)
+# glitch_free_n_dff_arn (`glitch_free_n_dff_arn.sv`)
 
----
-
-## Overview
-
+## Purpose
 This is the synchronizer the rest of the CDC toolbox is built on: a parameterized multi-stage flip-flop chain for safe clock domain crossing (CDC). You set the stage count and the width; the configurable flip-flop stages knock down metastability risk while your data makes the jump between asynchronous clock domains intact.
-
----
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `FLOP_COUNT` | `int` | 3 | Number of synchronizer flip-flop stages |
-| `WIDTH` | `int` | 4 | Data width in bits |
-
----
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `int FLOP_COUNT` | 3 | Number of synchronizer flip-flop stages |
+| `int WIDTH` | 4 | Data width in bits |
 
 ## Ports
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `clk` | 1 | Input | Destination domain clock |
-| `rst_n` | 1 | Input | Destination domain active-low reset |
-| `d` | WIDTH | Input | Input data from source clock domain |
-| `q` | WIDTH | Output | Synchronized output data in destination domain |
-
----
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `clk` | Input | 1 | Destination domain clock |
+| `rst_n` | Input | 1 | Destination domain active-low reset |
+| `d` | Input | WIDTH | Input data from source clock domain |
+| `q` | Output | WIDTH | Synchronized output data in destination domain |
 
 ## Clock Domain Crossing Theory
 
@@ -70,8 +61,6 @@ Setup Violation?      ↑ Potential metastability
 - **Extended resolution**: Takes longer than a normal clock period to settle
 - **Propagation**: Can corrupt downstream logic
 - **System failure**: Can take the entire design down
-
----
 
 ## Multi-Stage Synchronizer Solution
 
@@ -100,8 +89,6 @@ flowchart LR
 3. **Stage 3+ (FFN)**: Further **increases** MTBF (Mean Time Between Failures) —
    each added stage gives metastability more time to resolve (see the ~1000×-per-
    stage table below)
-
----
 
 ## Implementation Details
 
@@ -140,8 +127,6 @@ end
   active-low), driven by the destination-domain reset
 - **Complete reset**: All stages reset to zero
 - **Nested replication**: `{FC{{DW{1'b0}}}}` creates FC copies of DW zeros
-
----
 
 ## MTBF (Mean Time Between Failures) Analysis
 
@@ -194,8 +179,6 @@ relative column for sizing and do not quote an absolute figure to anyone.
 - **3 stages**: Recommended for high-reliability systems  
 - **4+ stages**: Extreme reliability requirements (aerospace, medical)
 
----
-
 ## Latency vs. Reliability Trade-off
 
 ### Synchronizer Latency
@@ -216,8 +199,6 @@ glitch_free_n_dff_arn #(.FLOP_COUNT(3)) safe_sync (...);
 // 4-stage: 4 cycle latency, extreme MTBF
 glitch_free_n_dff_arn #(.FLOP_COUNT(4)) ultra_safe_sync (...);
 ```
-
----
 
 ## Usage Guidelines
 
@@ -251,8 +232,6 @@ glitch_free_n_dff_arn #(.WIDTH(8)) bad_sync (
     .q(sync_counter)       // May capture inconsistent values
 );
 ```
-
----
 
 ## Advanced Applications
 
@@ -294,8 +273,6 @@ glitch_free_n_dff_arn #(.FLOP_COUNT(2), .WIDTH(4)) status_sync (
 );
 ```
 
----
-
 ## Synthesis Considerations
 
 ### FPGA Implementation
@@ -321,8 +298,6 @@ set_max_delay -to [get_pins sync_inst/r_q_array[0]/D] 2.0
 // two separate declarations of r_q_array do not compile)
 (* ASYNC_REG = "TRUE", DONT_TOUCH = "TRUE" *) logic [FC-1:0][WIDTH-1:0] r_q_array;
 ```
-
----
 
 ## Verification Strategies
 
@@ -351,8 +326,6 @@ end
 - **Reset properties**: Reset behavior verification
 - **No X propagation**: Ensure no unknown values propagate
 
----
-
 ## Debug Features
 
 ### Waveform Analysis
@@ -374,16 +347,12 @@ endgenerate
 - **Metastability injection**: Can inject X values for testing
 - **Timing analysis**: Observe setup/hold violations
 
----
-
 ## Related Modules
 
 - **FIFO CDC modules**: Use this for pointer synchronization
 - **Reset synchronizers**: Specialized CDC for reset signals
 - **Handshake synchronizers**: For complex data CDC
 - **Pulse synchronizers**: For single-cycle pulse CDC
-
----
 
 ## Navigation
 

@@ -21,49 +21,29 @@
 
 <!-- End Header -->
 
-# Find First Set (`find_first_set.sv`)
+# find_first_set (`find_first_set.sv`)
 
 ## Purpose
-Finds the index of the least significant bit (LSB) that's set to '1' in the input vector—a priority encoder that plays favorites with the low bits.
+Finds the index of the least significant bit (LSB) that's set to '1' in the input vector — a priority encoder that plays favorites with the low bits.
+
+## Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 32 | Width of input data vector — the module's only parameter |
 
 ## Ports
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `data` | Input | WIDTH | Input data vector to search |
+| `index` | Output | $clog2(WIDTH) | Index of the first (lowest) set bit |
 
-### Input Ports
-- **`data[WIDTH-1:0]`** - Input data vector to search
-
-### Output Ports
-- **`index[$clog2(WIDTH)-1:0]`** - Index of the first (lowest) set bit
-
-### Parameters
-- **`WIDTH`** - Width of input data vector (default: 32) — the module's only parameter
-
-## Implementation Details
-
-### Core Algorithm
-```systemverilog
-localparam int N = $clog2(WIDTH);
-logic w_found;
-
-always_comb begin
-    index = {N{1'b0}}; // Default value if no bit is set
-    w_found = 1'b0;
-
-    for (int i = 0; i < WIDTH; i++) begin
-        if (data[i] && !w_found) begin
-            index = i[N-1:0]; // Ensure correct bit width
-            w_found = 1'b1;
-        end
-    end
-end
-```
+## Functionality
 
 ### Search Strategy
 - **Direction**: LSB to MSB (left to right, ascending index)
 - **Priority**: Lower indices have higher priority
 - **First match**: Stops at the first '1' bit encountered
 - **Found flag**: Prevents multiple assignments
-
-## Functional Behavior
 
 ### Truth Table Examples (WIDTH=8)
 
@@ -87,7 +67,25 @@ end
 - **Deterministic**: Same input always produces same output
 - **Combinational**: Immediate response to input changes
 
-## Design Features
+## Implementation Details
+
+### Core Algorithm
+```systemverilog
+localparam int N = $clog2(WIDTH);
+logic w_found;
+
+always_comb begin
+    index = {N{1'b0}}; // Default value if no bit is set
+    w_found = 1'b0;
+
+    for (int i = 0; i < WIDTH; i++) begin
+        if (data[i] && !w_found) begin
+            index = i[N-1:0]; // Ensure correct bit width
+            w_found = 1'b1;
+        end
+    end
+end
+```
 
 ### Width Parameterization
 - **Automatic sizing**: Output width calculated as `$clog2(WIDTH)`
@@ -114,7 +112,34 @@ index = i[N-1:0]; // Ensure correct bit width
 - **Type safety**: Explicit width matching keeps synthesis warnings away
 - **Truncation**: Safely handles loop variable width vs. output width
 
-## Use Cases
+## Timing Characteristics
+
+### Propagation Delay
+- **Best case**: 1 LUT delay (bit 0 set)
+- **Worst case**: Multiple LUT delays (higher bits set)
+- **Average case**: Depends on typical input patterns
+
+### Critical Path
+- **Path length**: Increases with WIDTH
+- **Optimization**: Modern synthesizers create efficient priority encoders
+- **Scaling**: Generally logarithmic complexity in hardware
+
+## Algorithm Comparison
+
+### vs. Find Last Set
+| Aspect | Find First Set | Find Last Set |
+|--------|----------------|---------------|
+| **Search direction** | LSB → MSB | MSB → LSB |
+| **Priority** | Lower index wins | Higher index wins |
+| **Use case** | Fair allocation | Priority allocation |
+
+### vs. Priority Encoder
+| Aspect | Find First Set | Priority Encoder |
+|--------|----------------|------------------|
+| **Priority direction** | LSB has priority | MSB has priority |
+| **Application** | Round-robin systems | Hierarchical systems |
+
+## Usage Examples
 
 ### Interrupt Processing
 ```systemverilog
@@ -156,52 +181,6 @@ find_first_set #(.WIDTH(32)) bit_scan (
 - Bit scanning operations
 - Pattern analysis and parsing
 
-## Timing Characteristics
-
-### Propagation Delay
-- **Best case**: 1 LUT delay (bit 0 set)
-- **Worst case**: Multiple LUT delays (higher bits set)
-- **Average case**: Depends on typical input patterns
-
-### Critical Path
-- **Path length**: Increases with WIDTH
-- **Optimization**: Modern synthesizers create efficient priority encoders
-- **Scaling**: Generally logarithmic complexity in hardware
-
-## Algorithm Comparison
-
-### vs. Find Last Set
-| Aspect | Find First Set | Find Last Set |
-|--------|----------------|---------------|
-| **Search direction** | LSB → MSB | MSB → LSB |
-| **Priority** | Lower index wins | Higher index wins |
-| **Use case** | Fair allocation | Priority allocation |
-
-### vs. Priority Encoder
-| Aspect | Find First Set | Priority Encoder |
-|--------|----------------|------------------|
-| **Priority direction** | LSB has priority | MSB has priority |
-| **Application** | Round-robin systems | Hierarchical systems |
-
-## Design Considerations
-
-### Input Validation
-- **All zeros**: Returns 0 (may need validation in application)
-- **Valid range**: All input patterns handled gracefully
-- **No error conditions**: Always produces a result
-
-### Performance Optimization
-- **Synthesis**: Let tools optimize the priority encoding
-- **Pipelining**: Consider registering for high-speed applications
-- **Parallel**: Can process multiple vectors simultaneously
-
-### Width Selection
-- **Power of 2**: Often most efficient for synthesis
-- **Arbitrary width**: Supported but may have overhead
-- **Large widths**: Consider hierarchical implementation
-
-## Common Usage Patterns
-
 ### Round-Robin Arbitration
 ```systemverilog
 // Mask off already-serviced requests
@@ -234,6 +213,23 @@ find_first_set #(.WIDTH(NUM_RULES)) rule_matcher (
     .index(matched_rule_id)
 );
 ```
+
+## Design Considerations
+
+### Input Validation
+- **All zeros**: Returns 0 (may need validation in application)
+- **Valid range**: All input patterns handled gracefully
+- **No error conditions**: Always produces a result
+
+### Performance Optimization
+- **Synthesis**: Let tools optimize the priority encoding
+- **Pipelining**: Consider registering for high-speed applications
+- **Parallel**: Can process multiple vectors simultaneously
+
+### Width Selection
+- **Power of 2**: Often most efficient for synthesis
+- **Arbitrary width**: Supported but may have overhead
+- **Large widths**: Consider hierarchical implementation
 
 ## Synthesis Considerations
 

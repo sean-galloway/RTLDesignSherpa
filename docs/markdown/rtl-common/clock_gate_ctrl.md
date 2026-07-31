@@ -21,12 +21,18 @@
 
 <!-- End Header -->
 
-# Clock Gate Controller - Comprehensive Documentation
+**[← Back to Main Index](../index.md)** | **[rtl-common Index](index.md)**
+
+# Clock Gate Controller
+
+Stops the clock automatically when a block goes idle — one of the cheapest dynamic-power wins available to you.
 
 ## Overview
+
 The `clock_gate_ctrl` module is a clock gating controller that stops the clock automatically when a circuit block goes idle, significantly reducing dynamic power consumption. You get a configurable idle timeout, immediate wake-up capability, and safe clock gating through integrated clock gate (ICG) cells.
 
 ## Module Declaration
+
 ```systemverilog
 module clock_gate_ctrl #(
     parameter int IDLE_CNTR_WIDTH = 4   // the ONLY overridable parameter
@@ -47,24 +53,20 @@ module clock_gate_ctrl #(
 
 ## Parameters
 
-### IDLE_CNTR_WIDTH
-- **Type**: `int`
-- **Default**: `4`
-- **Description**: Bit width of the idle timeout counter
-- **Range**: 2 to 16 bits (practical range)
-- **Impact**: Determines maximum idle timeout (2^IDLE_CNTR_WIDTH - 1 cycles)
-- **Power Trade-off**: Larger counters allow longer timeouts but consume more power
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| IDLE_CNTR_WIDTH | int | 4 | Bit width of the idle timeout counter. Range: 2 to 16 bits (practical range). Determines maximum idle timeout (2^IDLE_CNTR_WIDTH - 1 cycles). Power trade-off: larger counters allow longer timeouts but consume more power. This is the ONLY overridable parameter. |
 
-### N (derived — do NOT override)
-- **Type**: `localparam int` (declared in the module body, **not** a parameter)
-- **Value**: `IDLE_CNTR_WIDTH`
-- **Description**: Internal alias for the counter width, used in port/signal widths
-- **Usage**: Set only `IDLE_CNTR_WIDTH` when instantiating. `N` cannot be
-  overridden — `#(.N(8))` is an elaboration error.
+### Derived Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| N | IDLE_CNTR_WIDTH | Internal alias for the counter width, used in port/signal widths. Declared as a `localparam int` in the module body, **not** a parameter — set only `IDLE_CNTR_WIDTH` when instantiating. `N` cannot be overridden: `#(.N(8))` is an elaboration error. |
 
 ## Ports
 
 ### Inputs
+
 | Port | Width | Type | Description |
 |------|-------|------|-------------|
 | `clk_in` | 1 | `logic` | Input clock to be gated |
@@ -74,14 +76,16 @@ module clock_gate_ctrl #(
 | `wakeup` | 1 | `logic` | Immediate wake-up signal |
 
 ### Outputs
+
 | Port | Width | Type | Description |
 |------|-------|------|-------------|
 | `clk_out` | 1 | `logic` | Gated output clock |
 | `gating` | 1 | `logic` | Clock gating status indicator |
 
-## Clock Gating Theory
+## Functionality
 
 ### Why Clock Gating?
+
 Clock gating is one of the most effective power reduction techniques we have:
 - **Dynamic Power**: P = C × V² × f × α (α = switching activity)
 - **Clock Networks**: Typically consume 20-40% of total chip power
@@ -89,15 +93,36 @@ Clock gating is one of the most effective power reduction techniques we have:
 - **Area Overhead**: Minimal (< 5% for typical designs)
 
 ### Clock Gating Safety
+
 Proper clock gating requires:
 1. **Glitch-Free**: No spurious clock edges during gating transitions
 2. **Setup/Hold**: Adequate timing margins around gating decisions
 3. **Reset Handling**: Proper behavior during reset conditions
 4. **Tool Support**: Use of qualified ICG (Integrated Clock Gate) cells
 
-## Architecture and Implementation
+### State Machine Behavior
+
+The controller operates as a countdown timer with three states:
+
+1. **ACTIVE State**: Counter loaded with `cfg_cg_idle_count`
+2. **COUNTDOWN State**: Counter decrements each cycle when no activity
+3. **GATED State**: Counter at zero, clock is gated off
+
+### Timing Diagram
+
+```
+clk_in:          __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
+wakeup:          _______|‾‾‾|__________________________|‾‾‾|___
+cfg_cg_enable:   |‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|
+r_idle_counter:  <3><2><3><2><1><0><0><0><0><0><0><0><0><3><2>
+gating:          __________________|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|____
+clk_out:         __|‾|__|‾|__|‾|__|‾|__|___________________|‾|__|‾
+```
+
+## Implementation Details
 
 ### Idle Counter Logic
+
 ```systemverilog
 logic [N-1:0] r_idle_counter;
 
@@ -118,6 +143,7 @@ end
 ```
 
 ### Gating Control Logic
+
 ```systemverilog
 wire w_gate_enable = cfg_cg_enable && !wakeup && (r_idle_counter == 'h0);
 
@@ -131,26 +157,8 @@ icg u_icg (
 assign gating = w_gate_enable;
 ```
 
-### State Machine Behavior
-The controller operates as a countdown timer with three states:
+### The ICG Cell
 
-1. **ACTIVE State**: Counter loaded with `cfg_cg_idle_count`
-2. **COUNTDOWN State**: Counter decrements each cycle when no activity
-3. **GATED State**: Counter at zero, clock is gated off
-
-### Timing Diagram
-```
-clk_in:          __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
-wakeup:          _______|‾‾‾|__________________________|‾‾‾|___
-cfg_cg_enable:   |‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|
-r_idle_counter:  <3><2><3><2><1><0><0><0><0><0><0><0><0><3><2>
-gating:          __________________|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|____
-clk_out:         __|‾|__|‾|__|‾|__|‾|__|___________________|‾|__|‾
-```
-
-## ICG (Integrated Clock Gate) Cell
-
-### Standard ICG Interface
 ```systemverilog
 module icg (
     input  logic clk,    // Input clock
@@ -167,7 +175,8 @@ module icg (
 endmodule
 ```
 
-### ICG Implementation (Conceptual)
+A simplified conceptual implementation (the real thing is technology-specific):
+
 ```systemverilog
 // Simplified ICG implementation (technology-specific)
 module icg_generic (
@@ -190,9 +199,78 @@ module icg_generic (
 endmodule
 ```
 
-## Design Examples and Applications
+### Technology-Specific ICG Implementations
 
-### 1. CPU Core Clock Gating
+```systemverilog
+// Example for TSMC technology
+module icg_tsmc (
+    input  logic clk,
+    input  logic en,
+    output logic gclk
+);
+
+    // Technology-specific implementation
+    CKGTPBUF_X1M_A9TH u_icg (
+        .CK(clk),
+        .E(en),
+        .GCK(gclk)
+    );
+
+endmodule
+
+// Example for Intel/Altera technology
+module icg_intel (
+    input  logic clk,
+    input  logic en,
+    output logic gclk
+);
+
+    // Intel FPGA implementation
+    logic en_reg;
+    
+    always_ff @(negedge clk) begin
+        en_reg <= en;
+    end
+    
+    assign gclk = clk & en_reg;
+
+endmodule
+
+// Generic behavioral model
+module icg_behavioral (
+    input  logic clk,
+    input  logic en,
+    output logic gclk
+);
+
+    logic en_latch;
+    
+    // Latch enable on falling edge to prevent glitches
+    always_latch begin
+        if (!clk)
+            en_latch = en;
+    end
+    
+    // Gate the clock
+    assign gclk = clk & en_latch;
+
+endmodule
+```
+
+## Timing and Performance
+
+### Resource Utilization
+
+| Configuration | LUTs | FFs | ICG Cells | Area Overhead |
+|---------------|------|-----|-----------|---------------|
+| 4-bit counter | 8 | 4 | 1 | < 2% |
+| 8-bit counter | 15 | 8 | 1 | < 3% |
+| 16-bit counter | 30 | 16 | 1 | < 5% |
+
+## Usage Examples
+
+### CPU Core Clock Gating
+
 ```systemverilog
 module cpu_clock_gating (
     input  logic        clk_cpu,
@@ -251,7 +329,8 @@ module cpu_clock_gating (
 endmodule
 ```
 
-### 2. Peripheral Interface Clock Management
+### Peripheral Interface Clock Management
+
 ```systemverilog
 module peripheral_clock_manager (
     input  logic        clk_system,
@@ -329,7 +408,8 @@ module peripheral_clock_manager (
 endmodule
 ```
 
-### 3. Memory Subsystem Clock Gating
+### Memory Subsystem Clock Gating
+
 ```systemverilog
 module memory_clock_gating (
     input  logic        clk_memory,
@@ -411,7 +491,8 @@ module memory_clock_gating (
 endmodule
 ```
 
-### 4. Adaptive Clock Gating with Activity Monitoring
+### Adaptive Clock Gating with Activity Monitoring
+
 ```systemverilog
 module adaptive_clock_gating #(
     parameter int ACTIVITY_WINDOW = 256  // Activity monitoring window
@@ -492,7 +573,8 @@ module adaptive_clock_gating #(
 endmodule
 ```
 
-### 5. Hierarchical Clock Gating System
+### Hierarchical Clock Gating System
+
 ```systemverilog
 module hierarchical_clock_gating (
     input  logic        clk_root,
@@ -607,9 +689,10 @@ module hierarchical_clock_gating (
 endmodule
 ```
 
-## Advanced Features
+## Design Considerations
 
-### 1. Glitch-Free Clock Switching
+### Glitch-Free Clock Switching
+
 ```systemverilog
 module glitch_free_clock_gate (
     input  logic clk_in,
@@ -643,7 +726,8 @@ module glitch_free_clock_gate (
 endmodule
 ```
 
-### 2. Multi-Level Clock Gating
+### Multi-Level Clock Gating
+
 ```systemverilog
 module multi_level_clock_gate #(
     parameter int LEVELS = 3
@@ -683,9 +767,185 @@ module multi_level_clock_gate #(
 endmodule
 ```
 
-## Verification and Testing
+### Measuring Power Savings
 
-### Comprehensive Test Bench
+```systemverilog
+module power_analysis_wrapper (
+    input  logic        clk_in,
+    input  logic        rst_n,
+    input  logic        cfg_cg_enable,
+    input  logic [3:0]  cfg_cg_idle_count,
+    input  logic        wakeup,
+    output logic        clk_out,
+    output logic        gating,
+    output logic [15:0] power_savings_percent
+);
+
+    // Clock gate controller
+    clock_gate_ctrl #(4) cg_ctrl (
+        .clk_in(clk_in),
+        .aresetn(rst_n),
+        .cfg_cg_enable(cfg_cg_enable),
+        .cfg_cg_idle_count(cfg_cg_idle_count),
+        .wakeup(wakeup),
+        .clk_out(clk_out),
+        .gating(gating)
+    );
+    
+    // Power monitoring
+    logic [31:0] total_cycles;
+    logic [31:0] gated_cycles;
+    logic [31:0] ungated_cycles;
+    
+    always_ff @(posedge clk_in or negedge rst_n) begin
+        if (!rst_n) begin
+            total_cycles <= 0;
+            gated_cycles <= 0;
+            ungated_cycles <= 0;
+        end else begin
+            total_cycles <= total_cycles + 1;
+            if (gating)
+                gated_cycles <= gated_cycles + 1;
+            else
+                ungated_cycles <= ungated_cycles + 1;
+        end
+    end
+    
+    // Calculate power savings percentage
+    always_ff @(posedge clk_in) begin
+        if (total_cycles > 1000) begin // Avoid division by small numbers
+            power_savings_percent <= (gated_cycles * 100) / total_cycles;
+        end else begin
+            power_savings_percent <= 0;
+        end
+    end
+
+endmodule
+```
+
+### Synthesis Constraints
+
+```tcl
+# SDC constraints for clock gating
+create_clock -name clk_in -period 10.0 [get_ports clk_in]
+
+# Clock gating timing
+set_case_analysis 0 [get_pins u_icg/en]
+set_case_analysis 1 [get_pins u_icg/en]
+
+# Setup/hold for gating control
+set_input_delay -clock clk_in -max 2.0 [get_ports wakeup]
+set_input_delay -clock clk_in -min 0.5 [get_ports wakeup]
+
+# Clock gating cell timing
+set_clock_gating_check -setup 0.2 -hold 0.1 [get_pins u_icg/en]
+```
+
+```tcl
+# UPF power intent for clock gating
+create_power_domain PD_MAIN
+create_power_domain PD_GATED
+
+# Clock gating specification
+set_domain_supply_net PD_MAIN -primary_power_net VDD -primary_ground_net VSS
+set_domain_supply_net PD_GATED -primary_power_net VDD -primary_ground_net VSS
+
+# Clock gating control
+create_power_switch PS_GATED \
+    -domain PD_GATED \
+    -input_supply_port {vin VDD} \
+    -output_supply_port {vout VDD_GATED} \
+    -control_port {ctrl gating} \
+    -on_state {on vin {!ctrl}}
+```
+
+### Design Guidelines
+
+**Timeout selection:**
+
+```systemverilog
+// Guidelines for timeout values
+parameter TIMEOUT_GUIDELINES = {
+    "CPU cores: 4-16 cycles",
+    "Memory controllers: 8-32 cycles", 
+    "Peripherals: 16-64 cycles",
+    "Debug interfaces: 2-8 cycles",
+    "Always-on domains: Disable gating"
+};
+```
+
+**Activity signal design:**
+
+```systemverilog
+// Good activity signal examples
+logic cpu_active;
+assign cpu_active = instruction_fetch || 
+                   data_access || 
+                   interrupt_processing ||
+                   debug_access;
+
+// Avoid overly broad activity signals
+logic bad_activity;
+assign bad_activity = |all_system_signals; // Too broad
+
+// Avoid overly narrow activity signals  
+logic narrow_activity;
+assign narrow_activity = specific_register_write; // Too narrow
+```
+
+**Hierarchical gating strategy:**
+
+```
+System Level (Longest timeout)
+├── CPU Domain (Medium timeout)
+│   ├── ALU (Short timeout)
+│   ├── Cache (Medium timeout)
+│   └── Debug (Very short timeout)
+├── DSP Domain (Short timeout)
+├── Peripheral Domain (Long timeout)
+└── Memory Domain (Medium timeout)
+```
+
+**Verification checklist:**
+- [ ] Verify gating occurs after correct timeout
+- [ ] Verify immediate wakeup functionality
+- [ ] Test global enable/disable
+- [ ] Check reset behavior
+- [ ] Validate power savings measurements
+- [ ] Test all timeout configurations
+- [ ] Verify clock integrity (no glitches)
+- [ ] Check setup/hold timing margins
+
+### Common Applications
+
+1. **CPU Power Management**: Core, cache, and pipeline clock gating
+2. **Peripheral Controllers**: UART, SPI, I2C, timer clock gating
+3. **Memory Subsystems**: Controller, data path, refresh logic gating
+4. **Graphics/Video**: Pixel processing, display controller gating
+5. **Communication Blocks**: Baseband, RF, protocol stack gating
+6. **Test and Debug**: Scan chains, JTAG, debug interface gating
+7. **AI/ML Accelerators**: Compute engine, memory interface gating
+
+### Troubleshooting Guide
+
+**Common Issues:**
+1. **Clock Glitches**: Use qualified ICG cells, proper setup/hold margins
+2. **Timing Violations**: Ensure adequate timing margins for gating signals
+3. **Unexpected Gating**: Check activity signal connectivity and logic
+4. **Power Not Saved**: Verify clock tree reaches gated logic
+5. **Reset Issues**: Ensure proper reset sequencing and distribution
+
+**Debug Techniques:**
+1. **Simulation**: Monitor gating signals and clock activity
+2. **Power Analysis**: Use tools to measure actual power savings
+3. **Timing Analysis**: Check setup/hold violations on gating paths
+4. **Logic Analyzer**: Capture real-time gating behavior in hardware
+5. **Power Profiling**: Measure current consumption with/without gating
+
+## Verification
+
+### Test Bench
+
 ```systemverilog
 module tb_clock_gate_ctrl;
 
@@ -820,6 +1080,7 @@ endmodule
 ```
 
 ### Coverage Model
+
 ```systemverilog
 covergroup clock_gate_cg @(posedge clk_in);
     
@@ -857,6 +1118,7 @@ endcovergroup
 ```
 
 ### Formal Verification Properties
+
 ```systemverilog
 module clock_gate_properties;
 
@@ -896,245 +1158,6 @@ module clock_gate_properties;
 
 endmodule
 ```
-
-## Power Analysis and Optimization
-
-### Power Savings Calculation
-```systemverilog
-module power_analysis_wrapper (
-    input  logic        clk_in,
-    input  logic        rst_n,
-    input  logic        cfg_cg_enable,
-    input  logic [3:0]  cfg_cg_idle_count,
-    input  logic        wakeup,
-    output logic        clk_out,
-    output logic        gating,
-    output logic [15:0] power_savings_percent
-);
-
-    // Clock gate controller
-    clock_gate_ctrl #(4) cg_ctrl (
-        .clk_in(clk_in),
-        .aresetn(rst_n),
-        .cfg_cg_enable(cfg_cg_enable),
-        .cfg_cg_idle_count(cfg_cg_idle_count),
-        .wakeup(wakeup),
-        .clk_out(clk_out),
-        .gating(gating)
-    );
-    
-    // Power monitoring
-    logic [31:0] total_cycles;
-    logic [31:0] gated_cycles;
-    logic [31:0] ungated_cycles;
-    
-    always_ff @(posedge clk_in or negedge rst_n) begin
-        if (!rst_n) begin
-            total_cycles <= 0;
-            gated_cycles <= 0;
-            ungated_cycles <= 0;
-        end else begin
-            total_cycles <= total_cycles + 1;
-            if (gating)
-                gated_cycles <= gated_cycles + 1;
-            else
-                ungated_cycles <= ungated_cycles + 1;
-        end
-    end
-    
-    // Calculate power savings percentage
-    always_ff @(posedge clk_in) begin
-        if (total_cycles > 1000) begin // Avoid division by small numbers
-            power_savings_percent <= (gated_cycles * 100) / total_cycles;
-        end else begin
-            power_savings_percent <= 0;
-        end
-    end
-
-endmodule
-```
-
-### Technology-Specific ICG Implementation
-```systemverilog
-// Example for TSMC technology
-module icg_tsmc (
-    input  logic clk,
-    input  logic en,
-    output logic gclk
-);
-
-    // Technology-specific implementation
-    CKGTPBUF_X1M_A9TH u_icg (
-        .CK(clk),
-        .E(en),
-        .GCK(gclk)
-    );
-
-endmodule
-
-// Example for Intel/Altera technology
-module icg_intel (
-    input  logic clk,
-    input  logic en,
-    output logic gclk
-);
-
-    // Intel FPGA implementation
-    logic en_reg;
-    
-    always_ff @(negedge clk) begin
-        en_reg <= en;
-    end
-    
-    assign gclk = clk & en_reg;
-
-endmodule
-
-// Generic behavioral model
-module icg_behavioral (
-    input  logic clk,
-    input  logic en,
-    output logic gclk
-);
-
-    logic en_latch;
-    
-    // Latch enable on falling edge to prevent glitches
-    always_latch begin
-        if (!clk)
-            en_latch = en;
-    end
-    
-    // Gate the clock
-    assign gclk = clk & en_latch;
-
-endmodule
-```
-
-## Synthesis Considerations
-
-### Resource Utilization
-| Configuration | LUTs | FFs | ICG Cells | Area Overhead |
-|---------------|------|-----|-----------|---------------|
-| 4-bit counter | 8 | 4 | 1 | < 2% |
-| 8-bit counter | 15 | 8 | 1 | < 3% |
-| 16-bit counter | 30 | 16 | 1 | < 5% |
-
-### Timing Constraints
-```tcl
-# SDC constraints for clock gating
-create_clock -name clk_in -period 10.0 [get_ports clk_in]
-
-# Clock gating timing
-set_case_analysis 0 [get_pins u_icg/en]
-set_case_analysis 1 [get_pins u_icg/en]
-
-# Setup/hold for gating control
-set_input_delay -clock clk_in -max 2.0 [get_ports wakeup]
-set_input_delay -clock clk_in -min 0.5 [get_ports wakeup]
-
-# Clock gating cell timing
-set_clock_gating_check -setup 0.2 -hold 0.1 [get_pins u_icg/en]
-```
-
-### Power Intent (UPF)
-```tcl
-# UPF power intent for clock gating
-create_power_domain PD_MAIN
-create_power_domain PD_GATED
-
-# Clock gating specification
-set_domain_supply_net PD_MAIN -primary_power_net VDD -primary_ground_net VSS
-set_domain_supply_net PD_GATED -primary_power_net VDD -primary_ground_net VSS
-
-# Clock gating control
-create_power_switch PS_GATED \
-    -domain PD_GATED \
-    -input_supply_port {vin VDD} \
-    -output_supply_port {vout VDD_GATED} \
-    -control_port {ctrl gating} \
-    -on_state {on vin {!ctrl}}
-```
-
-## Design Guidelines and Best Practices
-
-### 1. Timeout Selection
-```systemverilog
-// Guidelines for timeout values
-parameter TIMEOUT_GUIDELINES = {
-    "CPU cores: 4-16 cycles",
-    "Memory controllers: 8-32 cycles", 
-    "Peripherals: 16-64 cycles",
-    "Debug interfaces: 2-8 cycles",
-    "Always-on domains: Disable gating"
-};
-```
-
-### 2. Activity Signal Design
-```systemverilog
-// Good activity signal examples
-logic cpu_active;
-assign cpu_active = instruction_fetch || 
-                   data_access || 
-                   interrupt_processing ||
-                   debug_access;
-
-// Avoid overly broad activity signals
-logic bad_activity;
-assign bad_activity = |all_system_signals; // Too broad
-
-// Avoid overly narrow activity signals  
-logic narrow_activity;
-assign narrow_activity = specific_register_write; // Too narrow
-```
-
-### 3. Hierarchical Gating Strategy
-```
-System Level (Longest timeout)
-├── CPU Domain (Medium timeout)
-│   ├── ALU (Short timeout)
-│   ├── Cache (Medium timeout)
-│   └── Debug (Very short timeout)
-├── DSP Domain (Short timeout)
-├── Peripheral Domain (Long timeout)
-└── Memory Domain (Medium timeout)
-```
-
-### 4. Verification Checklist
-- [ ] Verify gating occurs after correct timeout
-- [ ] Verify immediate wakeup functionality
-- [ ] Test global enable/disable
-- [ ] Check reset behavior
-- [ ] Validate power savings measurements
-- [ ] Test all timeout configurations
-- [ ] Verify clock integrity (no glitches)
-- [ ] Check setup/hold timing margins
-
-## Common Applications Summary
-
-1. **CPU Power Management**: Core, cache, and pipeline clock gating
-2. **Peripheral Controllers**: UART, SPI, I2C, timer clock gating
-3. **Memory Subsystems**: Controller, data path, refresh logic gating
-4. **Graphics/Video**: Pixel processing, display controller gating
-5. **Communication Blocks**: Baseband, RF, protocol stack gating
-6. **Test and Debug**: Scan chains, JTAG, debug interface gating
-7. **AI/ML Accelerators**: Compute engine, memory interface gating
-
-## Troubleshooting Guide
-
-### Common Issues
-1. **Clock Glitches**: Use qualified ICG cells, proper setup/hold margins
-2. **Timing Violations**: Ensure adequate timing margins for gating signals
-3. **Unexpected Gating**: Check activity signal connectivity and logic
-4. **Power Not Saved**: Verify clock tree reaches gated logic
-5. **Reset Issues**: Ensure proper reset sequencing and distribution
-
-### Debug Techniques
-1. **Simulation**: Monitor gating signals and clock activity
-2. **Power Analysis**: Use tools to measure actual power savings
-3. **Timing Analysis**: Check setup/hold violations on gating paths
-4. **Logic Analyzer**: Capture real-time gating behavior in hardware
-5. **Power Profiling**: Measure current consumption with/without gating
 
 Done right, the clock gate controller is essential power management: significant dynamic power reduction for minimal area overhead and design complexity. Getting it right means careful attention to timing, safety, and verification — that's what buys you reliable operation and the full power savings.
 

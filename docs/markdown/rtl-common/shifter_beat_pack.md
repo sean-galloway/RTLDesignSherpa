@@ -21,28 +21,17 @@
 
 <!-- End Header -->
 
-# Beat-Packing Shifter
+# Beat-Packing Shifter Module
 
 **Module:** `shifter_beat_pack.sv`
 **Location:** `rtl/common/`
 **Status:** Production Ready
 
-## Overview
+## Purpose
 
 `shifter_beat_pack` is a bit-granular packing/aligning shifter. It accepts fixed-width `CHUNK_BITS` entries on a push handshake, accumulates them in a multi-chunk staging register, and drains **configurable-width "beats"** out the low end on a pop handshake. The beat width is a runtime input (bytes minus one), so the same instance can emit different beat sizes across bursts.
 
 All of the shift/load/mux logic lives inside this one module so that callers — an aligner that needs to repack DFI cycles into DRAM beats, say — don't have to invent their own shift-and-compensate scheme. Push and pop can occur in the same cycle; the next-state logic applies the pop first and the push second, and a single non-blocking assignment commits the result, so no internal last-assignment race is possible.
-
-### Key Features
-
-- **Bit-granular staging:** A `DEPTH_CHUNKS × CHUNK_BITS` register packs chunks and drains beats at bit resolution
-- **Runtime beat width:** `cfg_beat_bytes_m1` selects the beat size (bytes − 1) per burst without re-elaboration
-- **Independent ingress / egress sizing:** Chunk width and beat cap are separate parameters
-- **Same-cycle push + pop:** Pop-then-push ordering with one NBA eliminates internal races
-- **Elaboration-time contract checks:** `$error` guards enforce `DEPTH_CHUNKS >= 2` and `MAX_BEAT_BITS < STORAGE_BITS`
-- **Status outputs:** `empty` and `count_bits_o` expose occupancy to the wrapper
-
-## Module Purpose
 
 This module exists for a problem that shows up constantly: repacking a stream of one fixed width into beats of another (often runtime-selected) width. Data arrives one whole chunk at a time and leaves as beats whose width is chosen at run time; the module holds the partial-beat residue between cycles and shifts it down as beats drain, so the caller sees clean valid/ready handshakes on both sides.
 
@@ -53,6 +42,15 @@ This module exists for a problem that shows up constantly: repacking a stream of
 - Any packer that must hold partial-beat residue while new fixed-width data lands
 
 **Key Benefit:** Centralizes the shift, load, and residue-compensation logic behind two simple handshakes, so callers get runtime-variable beat repacking without hand-rolling their own barrel shifter.
+
+## Key Features
+
+- **Bit-granular staging:** A `DEPTH_CHUNKS × CHUNK_BITS` register packs chunks and drains beats at bit resolution
+- **Runtime beat width:** `cfg_beat_bytes_m1` selects the beat size (bytes − 1) per burst without re-elaboration
+- **Independent ingress / egress sizing:** Chunk width and beat cap are separate parameters
+- **Same-cycle push + pop:** Pop-then-push ordering with one NBA eliminates internal races
+- **Elaboration-time contract checks:** `$error` guards enforce `DEPTH_CHUNKS >= 2` and `MAX_BEAT_BITS < STORAGE_BITS`
+- **Status outputs:** `empty` and `count_bits_o` expose occupancy to the wrapper
 
 ## Parameters
 
@@ -67,7 +65,7 @@ This module exists for a problem that shows up constantly: repacking a stream of
 | `COUNT_BITS` | int | `$clog2(STORAGE_BITS + 1)` | Derived (do not override): width of the bit-occupancy counter |
 | `IDX_BITS` | int | `$clog2(STORAGE_BITS)` | Derived (do not override): index width for `r_data` part-selects |
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -160,6 +158,14 @@ Two `$error` guards enforce the sizing rules that keep forward progress guarante
 
 Pick `CHUNK_BITS` and `MAX_BEAT_BYTES` so any runtime beat width fits in the `2N` (or deeper) storage, i.e. `cfg_beat_bytes × 8 <= DEPTH_CHUNKS × CHUNK_BITS`. Ingress chunk width and egress beat cap are independent, so callers can right-size both.
 
+## Design Notes
+
+- **Bit occupancy, not entry count.** `r_count` tracks bits, not entries, because chunks land whole but beats drain at a runtime-variable bit width.
+- **Pop-then-push ordering is deliberate.** Draining first frees the low bits so the incoming chunk lands at the correct post-pop position, which is what makes same-cycle push + pop safe.
+- **`pop_data` upper bits may be stale.** Only the low `(cfg_beat_bytes_m1+1)*8` bits are meaningful; the consumer must mask to the configured width.
+- **Depth vs. timing.** Increasing `DEPTH_CHUNKS` lets the packer absorb more data before draining but widens the pop-side barrel shifter, degrading timing.
+- **Reset macros.** The module uses the project `reset_defs.svh` `ALWAYS_FF_RST` / `RST_ASSERTED` macros for the registered state.
+
 ## Usage Example
 
 ```systemverilog
@@ -190,14 +196,6 @@ shifter_beat_pack #(
 );
 ```
 
-## Design Notes
-
-- **Bit occupancy, not entry count.** `r_count` tracks bits, not entries, because chunks land whole but beats drain at a runtime-variable bit width.
-- **Pop-then-push ordering is deliberate.** Draining first frees the low bits so the incoming chunk lands at the correct post-pop position, which is what makes same-cycle push + pop safe.
-- **`pop_data` upper bits may be stale.** Only the low `(cfg_beat_bytes_m1+1)*8` bits are meaningful; the consumer must mask to the configured width.
-- **Depth vs. timing.** Increasing `DEPTH_CHUNKS` lets the packer absorb more data before draining but widens the pop-side barrel shifter, degrading timing.
-- **Reset macros.** The module uses the project `reset_defs.svh` `ALWAYS_FF_RST` / `RST_ASSERTED` macros for the registered state.
-
 ## Related Modules
 
 ### Used By
@@ -226,4 +224,5 @@ shifter_beat_pack #(
 
 ## Navigation
 
-- [Back to rtl-common Index](index.md)
+- **[← Back to rtl-common Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

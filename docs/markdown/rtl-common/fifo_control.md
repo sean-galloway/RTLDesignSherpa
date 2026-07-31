@@ -21,38 +21,36 @@
 
 <!-- End Header -->
 
-# FIFO Control Logic (`fifo_control.sv`)
+# fifo_control (`fifo_control.sv`)
 
 ## Purpose
 This is the shared brain that generates full/empty status flags for both FIFO variants (sync and async, the latter with either pointer encoding). All the tricky pointer arithmetic and mode-aware timing lives here.
 
+## Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `ADDR_WIDTH` | 3 | Address width |
+| `DEPTH` | 16 | FIFO depth |
+| `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
+| `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
+| `REGISTERED` | 0 | Output mode: 0=mux, 1=flop |
+
 ## Ports
-
-### Clock and Reset
-- **`wr_clk`** - Write domain clock
-- **`wr_rst_n`** - Write domain active-low reset
-- **`rd_clk`** - Read domain clock
-- **`rd_rst_n`** - Read domain active-low reset
-
-### Pointer Inputs
-- **`wr_ptr_bin[ADDR_WIDTH:0]`** - Write pointer (binary, next value)
-- **`wdom_rd_ptr_bin[ADDR_WIDTH:0]`** - Read pointer synchronized to write domain
-- **`rd_ptr_bin[ADDR_WIDTH:0]`** - Read pointer (binary, next value)
-- **`rdom_wr_ptr_bin[ADDR_WIDTH:0]`** - Write pointer synchronized to read domain
-
-### Status Outputs
-- **`count[ADDR_WIDTH:0]`** - Current FIFO occupancy count
-- **`wr_full`** - Write domain full flag
-- **`wr_almost_full`** - Write domain almost full flag
-- **`rd_empty`** - Read domain empty flag
-- **`rd_almost_empty`** - Read domain almost empty flag
-
-### Parameters
-- **`ADDR_WIDTH`** - Address width (default: 3)
-- **`DEPTH`** - FIFO depth (default: 16)
-- **`ALMOST_WR_MARGIN`** - Almost full threshold (default: 1)
-- **`ALMOST_RD_MARGIN`** - Almost empty threshold (default: 1)
-- **`REGISTERED`** - Output mode: 0=mux, 1=flop (default: 0)
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `wr_clk` | Input | 1 | Write domain clock |
+| `wr_rst_n` | Input | 1 | Write domain active-low reset |
+| `rd_clk` | Input | 1 | Read domain clock |
+| `rd_rst_n` | Input | 1 | Read domain active-low reset |
+| `wr_ptr_bin` | Input | ADDR_WIDTH+1 | Write pointer (binary, next value) |
+| `wdom_rd_ptr_bin` | Input | ADDR_WIDTH+1 | Read pointer synchronized to write domain |
+| `rd_ptr_bin` | Input | ADDR_WIDTH+1 | Read pointer (binary, next value) |
+| `rdom_wr_ptr_bin` | Input | ADDR_WIDTH+1 | Write pointer synchronized to read domain |
+| `count` | Output | ADDR_WIDTH+1 | Current FIFO occupancy count |
+| `wr_full` | Output | 1 | Write domain full flag |
+| `wr_almost_full` | Output | 1 | Write domain almost full flag |
+| `rd_empty` | Output | 1 | Read domain empty flag |
+| `rd_almost_empty` | Output | 1 | Read domain almost empty flag |
 
 ## Architecture Overview
 
@@ -274,8 +272,8 @@ should give occupancy 16-14+2 = 4, but `AW'(16)` = 0 yields 0-14+2 (garbage).
 - **Safety margin**: Prevents overflow/underflow
 - **Synchronizer latency**: Built into the safety margins
 
-## Use Cases
-- **All FIFO variants**: Shared by `fifo_sync` and `fifo_async` (binary or Johnson pointers). The former `fifo_async_div2` is retired -- `fifo_async` with `USE_JOHNSON=1` replaces it.
+## Applications
+- **All FIFO variants**: Shared by `fifo_sync` and `fifo_async` (binary or Johnson pointers). The former `fifo_async_div2` is retired — `fifo_async` with `USE_JOHNSON=1` replaces it.
 - **Status monitoring**: Provides comprehensive FIFO state
 - **Flow control**: Enables back-pressure and rate matching
 - **Debug/verification**: The count output earns its keep during debug

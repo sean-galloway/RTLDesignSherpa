@@ -21,13 +21,10 @@
 
 <!-- End Header -->
 
-# icg
+# icg (`icg.sv`)
 
-An Integrated Clock Gating (ICG) module that provides controlled clock gating for power optimization in digital designs.
-
-## Overview
-
-The `icg` module is a latch-based clock gating cell that lets you selectively kill clock signals to cut dynamic power consumption. It's one of the fundamental power management moves in modern ASIC and FPGA designs, and for good reason.
+## Purpose
+An Integrated Clock Gating (ICG) cell: a latch-based clock gate that lets you selectively kill clock signals to cut dynamic power consumption. It's one of the fundamental power management moves in modern ASIC and FPGA designs, and for good reason.
 
 ## Module Declaration
 
@@ -39,20 +36,16 @@ module icg(
 );
 ```
 
+## Parameters
+This module has no parameters.
+
 ## Ports
 
-### Inputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| en | 1 | Enable signal - when high, allows clock to pass through |
-| clk | 1 | Input clock signal to be gated |
-
-### Outputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| gclk | 1 | Gated clock output - clk when en=1, low when en=0 |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `en` | Input | 1 | Enable signal - when high, allows clock to pass through |
+| `clk` | Input | 1 | Input clock signal to be gated |
+| `gclk` | Output | 1 | Gated clock output - clk when en=1, low when en=0 |
 
 ## Functionality
 
@@ -309,13 +302,13 @@ Main Clock → ICG → Local Clock Tree → Registers
 - **Isolation**: Properly isolate gated domains in multi-voltage designs
 - **Power Sequencing**: Coordinate with power management units
 
+The `icg` module is a fundamental building block of power-efficient digital design: significant power savings through controlled clock gating, without giving up design safety or functionality.
+
 ## Related Modules
 
 - `clock_gate_ctrl`: Enhanced clock gating controller with additional features
 - `clock_divider`: Clock frequency division functionality
 - `reset_sync`: Reset synchronization for gated clock domains
-
-The `icg` module is a fundamental building block of power-efficient digital design: significant power savings through controlled clock gating, without giving up design safety or functionality.
 
 ## Navigation
 

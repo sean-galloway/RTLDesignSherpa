@@ -25,24 +25,24 @@
 
 # rtl-common Library Overview
 
-The rtl-common library is a collection of fundamental digital design building blocks — parameterizable, synthesis-friendly RTL modules built to a consistent quality bar, ready to drop into a wide range of digital systems.
+The rtl-common library is a collection of fundamental digital design building blocks — parameterizable, synthesis-friendly RTL modules built to a consistent quality bar, ready to drop into a wide range of digital systems. Think of it as the parts bin you reach for first.
 
 ## Library Philosophy
 
 ### Design Principles
 
-The library is built on a handful of core principles:
+Everything here is built on a handful of core principles:
 
-**Modularity**: Each module does one specific function and composes easily with the others
-**Parameterizability**: Configurable width and functionality parameters for maximum reusability
-**Synthesis Friendly**: Optimized for modern synthesis tools with predictable area/timing results
-**Technology Independence**: Clean RTL that works across ASIC and FPGA technologies
-**Broad Coverage**: counters, FIFOs, arbiters, CDC, data integrity, and clock/reset control (arithmetic is its own library — [rtl-math](../rtl-math/index.md))
+- **Modularity**: Each module does one specific function and composes easily with the others
+- **Parameterizability**: Configurable width and functionality parameters for maximum reusability
+- **Synthesis Friendly**: Optimized for modern synthesis tools with predictable area/timing results
+- **Technology Independence**: Clean RTL that works across ASIC and FPGA technologies
+- **Broad Coverage**: counters, FIFOs, arbiters, CDC, data integrity, and clock/reset control (arithmetic is its own library — [rtl-math](../rtl-math/index.md))
 
 ### Quality Standards
 
 - **Lint Clean**: All modules pass rigorous RTL linting checks
-- **Simulation Verified**: Comprehensive testbenches validate functionality
+- **Simulation Verified**: Thorough testbenches validate functionality
 - **Synthesizable**: Written in standard SystemVerilog with no vendor primitives
 - **Documentation Complete**: Detailed documentation with usage examples
 
@@ -96,7 +96,7 @@ floating-point modules) is now its own subsystem and its own book:
 
 ### 2. Data Integrity and Error Management
 
-These blocks are critical for reliable data storage and transmission in modern digital systems.
+If data has to survive storage or transmission, these are the blocks that keep it honest.
 
 #### Cyclic Redundancy Check (CRC)
 - **Generic CRC Engine**: Configurable polynomial, width, and initialization
@@ -373,4 +373,9 @@ endmodule
 - **Tool Integration**: Enhanced synthesis and verification tool compatibility
 - **Standards Compliance**: Updates for evolving industry standards
 
-Taken together, the rtl-common library is a foundation for digital design: the building blocks you need to implement complex digital systems with confidence in their correctness, performance, and manufacturability.
+That's the rtl-common library in one paragraph: a foundation of building blocks you can drop into complex digital systems with confidence in their correctness, performance, and manufacturability.
+
+## Navigation
+
+- **[← Back to rtl-common Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

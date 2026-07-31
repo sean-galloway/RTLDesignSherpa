@@ -23,15 +23,11 @@
 
 # Clock Pulse Generator
 
----
-
 ## Overview
 
 The `clock_pulse` module is a periodic pulse generator with a configurable period: it emits a single-cycle pulse every WIDTH clock cycles. It's the part you reach for whenever something in the system needs to happen on a schedule — timing generation, heartbeat signals, sampling triggers, periodic events of any kind.
 
----
-
-## Module Interface
+## Module Declaration
 
 ```systemverilog
 module clock_pulse #(
@@ -44,39 +40,28 @@ module clock_pulse #(
 );
 ```
 
----
-
 ## Parameters
 
-### WIDTH
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | `int` | `10` | Period of the pulse generation in clock cycles |
 
-- **Type**: `int`
-- **Default**: `10`
-- **Description**: Period of the pulse generation in clock cycles
-- **Range**: 2 to 2^31-1. The parameter is declared `int`, which is 32-bit
-  SIGNED, so 2^32-1 is not representable
-- **Impact**: Determines pulse frequency (f_clk / WIDTH)
-- **Pulse Width**: Always exactly 1 clock cycle
-- **Duty Cycle**: 1/WIDTH (e.g., 10% for WIDTH=10)
-
----
+`WIDTH` can range from 2 to 2^31-1. The parameter is declared `int`, which is 32-bit SIGNED, so 2^32-1 is not representable. It sets the pulse frequency (f_clk / WIDTH). The pulse itself is always exactly 1 clock cycle wide, which makes the duty cycle 1/WIDTH — 10% for WIDTH=10.
 
 ## Ports
 
 ### Inputs
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `clk` | 1 | Input | System clock input |
-| `rst_n` | 1 | Input | Active-low asynchronous reset |
+| Port | Width | Description |
+|------|-------|-------------|
+| `clk` | 1 | System clock input |
+| `rst_n` | 1 | Active-low asynchronous reset |
 
 ### Outputs
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `pulse` | 1 | Output | Periodic pulse output |
-
----
+| Port | Width | Description |
+|------|-------|-------------|
+| `pulse` | 1 | Periodic pulse output |
 
 ## Architecture and Implementation
 
@@ -134,8 +119,6 @@ That second point is the one people get wrong, so let's be blunt about it: the r
   **after** `r_counter == WIDTH-1` — that is, during the `r_counter == 0` cycle
   of each period, not on the WIDTH-1 count itself.
 
----
-
 ## Timing Diagrams
 
 ### Basic Operation (WIDTH=4)
@@ -179,9 +162,7 @@ Two things worth seeing here, both consequences of the pulse being registered
 | 100 | 100 cycles | 1% | Heartbeat |
 | 1000 | 1000 cycles | 0.1% | Slow events |
 
----
-
-## Design Examples and Applications
+## Usage Examples
 
 ### 1. Heartbeat and Status Indicators
 
@@ -544,9 +525,7 @@ module test_pattern_generator (
 endmodule
 ```
 
----
-
-## Advanced Features and Variations
+## Advanced Variants
 
 ### 1. Enable-Controlled Pulse Generator
 
@@ -783,9 +762,7 @@ module burst_pulse_generator #(
 endmodule
 ```
 
----
-
-## Verification and Testing
+## Verification
 
 ### Comprehensive Test Bench
 
@@ -1032,9 +1009,7 @@ module clock_pulse_properties;
 endmodule
 ```
 
----
-
-## Synthesis Considerations
+## Performance Characteristics
 
 ### Resource Utilization
 
@@ -1044,6 +1019,8 @@ endmodule
 | 16 | 4 | 12 | 5 | 450MHz |
 | 32 | 5 | 18 | 6 | 400MHz |
 | 1024 | 10 | 28 | 11 | 350MHz |
+
+## Synthesis Considerations
 
 ### Timing Optimization
 
@@ -1086,21 +1063,7 @@ module clock_pulse_pipelined #(
 endmodule
 ```
 
----
-
-## Common Applications Summary
-
-1. **Timing References**: System heartbeats, watchdog timers
-2. **Sampling Systems**: ADC triggers, data acquisition timing
-3. **Communication**: Baud rate generation, protocol timing
-4. **Memory Systems**: Refresh timing, access scheduling
-5. **Test Equipment**: Pattern generation, stimulus timing
-6. **Power Management**: Activity monitoring, timeout generation
-7. **Display Systems**: Refresh rates, sync generation
-
----
-
-## Design Guidelines
+## Design Considerations
 
 1. **Choose Appropriate WIDTH**: Balance between resolution and resource usage
 2. **Consider Reset Timing**: Ensure clean startup behavior
@@ -1110,9 +1073,17 @@ endmodule
 6. **Use Enables**: Add enable signals for conditional operation
 7. **Document Timing**: Clearly specify pulse rates and relationships
 
-That's the whole module. It's a small thing, but precise periodic timing shows up in nearly every design you'll ever ship — get this one right once, parameterize it well, and reuse it forever.
+## Common Applications
 
----
+1. **Timing References**: System heartbeats, watchdog timers
+2. **Sampling Systems**: ADC triggers, data acquisition timing
+3. **Communication**: Baud rate generation, protocol timing
+4. **Memory Systems**: Refresh timing, access scheduling
+5. **Test Equipment**: Pattern generation, stimulus timing
+6. **Power Management**: Activity monitoring, timeout generation
+7. **Display Systems**: Refresh rates, sync generation
+
+That's the whole module. It's a small thing, but precise periodic timing shows up in nearly every design you'll ever ship — get this one right once, parameterize it well, and reuse it forever.
 
 ## Navigation
 

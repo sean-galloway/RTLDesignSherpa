@@ -33,13 +33,15 @@ about ordering.
 - Combinational bit reversal operation
 - Parameterizable vector width
 - Zero propagation delay (combinational logic only)
-- Simple and efficient implementation
 - No clock or reset required
 
-## Port Description
+## Parameters
 
-### Parameters
-- **WIDTH**: Width of the input/output vectors (default: 32)
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | — | 32 | Width of the input/output vectors |
+
+## Ports
 
 ### Inputs
 | Port | Width | Description |
@@ -123,25 +125,6 @@ position. What you get:
 Reverse twice and you're back where you started:
 ```systemverilog
 original_vector == reverse(reverse(original_vector))
-```
-
-## Synthesis Considerations
-
-### Hardware Implementation
-What synthesis actually builds:
-- Direct wire connections from input bits to output bits
-- No logic gates required (just routing)
-- Minimal area overhead
-- Excellent timing characteristics
-
-### Optimization
-```systemverilog
-// Synthesis tools will optimize this to simple wire assignments:
-assign vector_rev[WIDTH-1] = vector_in[0];
-assign vector_rev[WIDTH-2] = vector_in[1];
-// ...
-assign vector_rev[1] = vector_in[WIDTH-2];
-assign vector_rev[0] = vector_in[WIDTH-1];
 ```
 
 ## Applications
@@ -237,6 +220,64 @@ assign output_data = reverse_enable ?
 - **Memory**: None required
 - **Scalability**: Linear with WIDTH
 
+## Synthesis Considerations
+
+### Hardware Implementation
+What synthesis actually builds:
+- Direct wire connections from input bits to output bits
+- No logic gates required (just routing)
+- Minimal area overhead
+- Excellent timing characteristics
+
+### Optimization
+```systemverilog
+// Synthesis tools will optimize this to simple wire assignments:
+assign vector_rev[WIDTH-1] = vector_in[0];
+assign vector_rev[WIDTH-2] = vector_in[1];
+// ...
+assign vector_rev[1] = vector_in[WIDTH-2];
+assign vector_rev[0] = vector_in[WIDTH-1];
+```
+
+## Performance Metrics
+
+### Speed
+- **Combinational Delay**: < 1ns (typical)
+- **Maximum Frequency**: Limited by surrounding logic
+- **Throughput**: One operation per clock cycle (if clocked)
+
+### Area
+- **Gate Count**: 0 (wire-only implementation)
+- **Equivalent Gates**: WIDTH (for routing complexity)
+- **Memory Bits**: 0
+
+### Power
+- **Leakage**: Negligible
+- **Dynamic**: Proportional to toggle rate
+- **Peak Power**: During simultaneous bit transitions
+
+## Common Pitfalls and Solutions
+
+### Simulation Warnings
+```systemverilog
+// Use 'integer' instead of 'int' for compatibility
+for (integer i = 0; i < WIDTH; i++) begin
+```
+
+### Synthesis Issues
+```systemverilog
+// Ensure WIDTH is properly parameterized
+localparam int W = WIDTH;  // Local parameter for clarity
+```
+
+### Timing Closure
+```systemverilog
+// Add pipeline stage if needed for timing
+always_ff @(posedge clk) begin
+    vector_rev_reg <= vector_rev;
+end
+```
+
 ## Verification Considerations
 
 ### Test Cases
@@ -290,45 +331,6 @@ generate
         32: assign vector_rev = {vector_in[0], vector_in[1], ...};
     endcase
 endgenerate
-```
-
-## Performance Metrics
-
-### Speed
-- **Combinational Delay**: < 1ns (typical)
-- **Maximum Frequency**: Limited by surrounding logic
-- **Throughput**: One operation per clock cycle (if clocked)
-
-### Area
-- **Gate Count**: 0 (wire-only implementation)
-- **Equivalent Gates**: WIDTH (for routing complexity)
-- **Memory Bits**: 0
-
-### Power
-- **Leakage**: Negligible
-- **Dynamic**: Proportional to toggle rate
-- **Peak Power**: During simultaneous bit transitions
-
-## Common Pitfalls and Solutions
-
-### Simulation Warnings
-```systemverilog
-// Use 'integer' instead of 'int' for compatibility
-for (integer i = 0; i < WIDTH; i++) begin
-```
-
-### Synthesis Issues
-```systemverilog
-// Ensure WIDTH is properly parameterized
-localparam int W = WIDTH;  // Local parameter for clarity
-```
-
-### Timing Closure
-```systemverilog
-// Add pipeline stage if needed for timing
-always_ff @(posedge clk) begin
-    vector_rev_reg <= vector_rev;
-end
 ```
 
 ## Navigation

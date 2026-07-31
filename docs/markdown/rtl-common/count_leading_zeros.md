@@ -21,9 +21,10 @@
 
 <!-- End Header -->
 
-# Count Leading Zeros Module
+# Count Leading Zeros
 
 ## Overview
+
 The `count_leading_zeros` module counts how many consecutive zero bits sit at the beginning (MSB side) of a data word. This is fundamental computer arithmetic — you'll find it inside floating-point normalization, priority encoders, and half the bit-manipulation tricks in the book.
 
 The scan starts at `data[WIDTH-1]` and proceeds downward, stopping at the first set bit:
@@ -47,6 +48,7 @@ For the complementary count from the LSB upward, use
 > `count_trailing_zeros` instead of reversing the input.
 
 ## Module Declaration
+
 ```systemverilog
 module count_leading_zeros #(
     parameter int WIDTH = 32
@@ -58,37 +60,35 @@ module count_leading_zeros #(
 
 ## Parameters
 
-### WIDTH
-- **Type**: `int`
-- **Default**: `32`
-- **Description**: Bit width of the input data
-- **Range**: Any positive integer ≥ 1
-- **Common Values**: 8, 16, 32, 64 for standard data widths
-- **Impact**: Determines output width and algorithm complexity
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | `int` | `32` | Bit width of the input data |
 
-`WIDTH` is the only parameter.
+`WIDTH` can be any positive integer ≥ 1; 8, 16, 32, and 64 are the common values for standard data widths. It determines the output width and algorithm complexity, and it's the only parameter.
 
 ## Ports
 
 ### Inputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `data` | WIDTH | `logic` | Input data word to analyze |
+
+| Port | Width | Description |
+|------|-------|-------------|
+| `data` | WIDTH | Input data word to analyze |
 
 ### Outputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `clz` | `$clog2(WIDTH)+1` | `logic` | Count of leading zeros |
 
-### Output Width Explanation
-The output width `$clog2(WIDTH)+1` ensures it can represent all possible counts:
+| Port | Width | Description |
+|------|-------|-------------|
+| `clz` | `$clog2(WIDTH)+1` | Count of leading zeros |
+
+The output width `$clog2(WIDTH)+1` ensures the port can represent all possible counts:
 - **Range**: 0 to WIDTH (inclusive)
 - **Example**: For WIDTH=32, output is 6 bits (0-32 requires 6 bits)
 - **Special Case**: All zeros input produces CLZ = WIDTH
 
-## Algorithm Implementation
+## Architecture and Implementation
 
 ### Function-Based Approach
+
 ```systemverilog
 function automatic [$clog2(WIDTH):0] clz_func;
     input [WIDTH-1:0] input_data;
@@ -109,6 +109,7 @@ endfunction
 ```
 
 ### Bit Scanning Process
+
 The algorithm scans from MSB to LSB:
 1. **Initialize**: `clz_func = 0`, `found = 0`
 2. **Scan Loop**: For each bit position i from WIDTH-1 down to 0:
@@ -117,6 +118,7 @@ The algorithm scans from MSB to LSB:
 3. **Result**: Final count is the number of zeros above the highest set bit
 
 ### Why MSB-to-LSB Scanning?
+
 "Leading" refers to the bits that lead the word when it is written out, which is the
 MSB side. The loop therefore starts at `data[WIDTH-1]` and walks down:
 - **Bit Order**: `data[0]` is LSB, `data[WIDTH-1]` is MSB
@@ -132,6 +134,7 @@ zero counter - see the history note above.
 ## Examples and Truth Tables
 
 ### 8-bit Examples (WIDTH=8)
+
 The count is set by the **highest** set bit; bits below it never affect the result.
 
 | Input (data) | Binary | Highest set bit | Leading Zeros | CLZ Output |
@@ -151,6 +154,7 @@ The count is set by the **highest** set bit; bits below it never affect the resu
 | 8'b00110000 | 00110000 | Bit 5 | 2 | 2 |
 
 ### 32-bit Examples
+
 | Input | Hex | Leading Zeros | CLZ |
 |-------|-----|---------------|-----|
 | 32'h00000000 | 0x00000000 | 32 | 32 |
@@ -161,9 +165,10 @@ The count is set by the **highest** set bit; bits below it never affect the resu
 | 32'h80000000 | 0x80000000 | 0 | 0 |
 | 32'hFFFFFFFF | 0xFFFFFFFF | 0 | 0 |
 
-## Applications
+## Usage Examples
 
 ### 1. Floating-Point Normalization
+
 ```systemverilog
 // IEEE 754 floating-point normalization
 logic [31:0] mantissa_raw;
@@ -184,6 +189,7 @@ assign adjusted_exponent = raw_exponent - shift_amount;
 ```
 
 ### 2. Priority Encoder
+
 ```systemverilog
 // Find highest priority request
 logic [15:0] request_vector;
@@ -206,6 +212,7 @@ assign highest_priority = any_request ? (15 - leading_zeros) : 4'b0;
 ```
 
 ### 3. Bit Width Calculation
+
 ```systemverilog
 // Determine minimum bits needed to represent a number
 logic [31:0] number;
@@ -227,6 +234,7 @@ assign min_bits_needed = (number == 0) ? 1 : (32 - leading_zeros);
 ```
 
 ### 4. Log2 Calculation
+
 ```systemverilog
 // Calculate floor(log2(x)) for x > 0
 logic [31:0] input_value;
@@ -250,6 +258,7 @@ assign log2_result = valid ? (31 - leading_zeros) : 5'b0;
 ```
 
 ### 5. Data Compression - Run Length Encoding
+
 ```systemverilog
 // Count leading zeros for compression
 logic [63:0] data_block;
@@ -270,9 +279,10 @@ end else begin
 end
 ```
 
-## Advanced Implementations
+## Advanced Variants
 
 ### 1. Pipeline Version for High Speed
+
 ```systemverilog
 module count_leading_zeros_pipelined #(
     parameter int WIDTH = 32,
@@ -309,6 +319,7 @@ endmodule
 ```
 
 ### 2. Hierarchical Implementation
+
 ```systemverilog
 // Divide and conquer approach for large widths
 module count_leading_zeros_hierarchical #(
@@ -344,6 +355,7 @@ endmodule
 ```
 
 ### 3. LUT-Based Implementation (Small Widths)
+
 ```systemverilog
 // Optimized for small widths using a wildcard case statement.
 // casez is required so that '?' is treated as a don't-care.
@@ -372,9 +384,10 @@ end
 endmodule
 ```
 
-## Performance Analysis
+## Performance Characteristics
 
 ### Resource Utilization
+
 | WIDTH | LUTs (Typical) | Delay Levels | Max Frequency |
 |-------|----------------|--------------|---------------|
 | 8 | 15-20 | 3-4 | 500+ MHz |
@@ -383,19 +396,22 @@ endmodule
 | 64 | 120-150 | 6-7 | 250+ MHz |
 
 ### Timing Characteristics
+
 - **Combinational Delay**: O(log(WIDTH)) for tree implementations
 - **Critical Path**: Through the priority encoding logic
 - **Scalability**: Linear increase in logic for function implementation
 
-## Verification Strategy
+## Verification
 
 ### Test Scenarios
+
 1. **Boundary Cases**: All zeros, all ones, single bit patterns
 2. **Random Patterns**: Comprehensive random testing
 3. **Systematic Sweep**: Test all possible leading zero counts
 4. **Corner Cases**: Maximum width values, alternating patterns
 
 ### Coverage Model
+
 ```systemverilog
 covergroup clz_cg;
     cp_leading_zeros: coverpoint clz {
@@ -417,6 +433,7 @@ endgroup
 ```
 
 ### Assertions
+
 ```systemverilog
 // CLZ should never exceed WIDTH
 property clz_bounds;
@@ -446,9 +463,10 @@ assert property (msb_set_case);
 assert property (clz_correctness);
 ```
 
-## Synthesis Optimization
+## Synthesis Considerations
 
 ### Tool-Specific Attributes
+
 ```systemverilog
 // Xilinx: Prevent SRL inference for better timing
 (* SRL_STYLE = "register" *) logic [WIDTH-1:0] data_reg;
@@ -458,13 +476,15 @@ assert property (clz_correctness);
 ```
 
 ### Area vs. Speed Trade-offs
+
 ```systemverilog
 // For area optimization: Use iterative approach
 // For speed optimization: Use tree-based or LUT approach
 // For power optimization: Add enable signals and clock gating
 ```
 
-## Common Use Cases Summary
+## Common Applications
+
 1. **CPU/DSP Cores**: Instruction implementation (CLZ instruction)
 2. **Floating-Point Units**: Mantissa normalization
 3. **Network Processors**: Longest prefix matching
@@ -473,7 +493,8 @@ assert property (clz_correctness);
 6. **Graphics Processors**: Texture coordinate processing
 7. **Cryptographic Units**: Bit manipulation operations
 
-## Related Modules and Functions
+## Related Modules
+
 - **[count_trailing_zeros](count_trailing_zeros.md)** - the LSB-up counterpart. Use CLZ
   when you care about the magnitude of a value (normalization, log2, bit width); use
   CTZ when you care about alignment or the lowest pending request.

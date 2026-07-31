@@ -23,8 +23,6 @@
 
 # Binary Counter with Load and Variable Increment
 
-A FIFO-optimized binary counter with three tricks — standard increment, variable increment, and direct load — plus configurable wraparound behavior built for efficient FIFO pointer management.
-
 ## Overview
 
 The `counter_bin_load` module takes basic binary counting and adds three distinct operating modes: standard +1 increment, variable-amount increment, and direct load. It's built specifically for FIFO pointer management, where drop/flush operations need to jump the read pointer by arbitrary amounts. The wraparound is FIFO-style — at 2×MAX, with an MSB toggle for full/empty detection. If you've ever had to discard a burst of FIFO entries mid-stream, this is the counter that makes it painless.
@@ -99,7 +97,7 @@ module counter_bin_load #(
 | counter_bin_curr | WIDTH | Current counter value (registered output) |
 | counter_bin_next | WIDTH | Next counter value (combinational preview) |
 
-## Functionality
+## Architecture and Implementation
 
 ### Operation Priority
 
@@ -124,7 +122,7 @@ The module implements a three-level priority hierarchy:
 
 ### FIFO-Optimized Wraparound
 
-#### Standard Increment Mode (enable=1):
+**Standard Increment Mode (enable=1):**
 
 ```
 For MAX=8, WIDTH=4:
@@ -137,7 +135,7 @@ Binary:         0000 → 0001 → ... → 0111 → 1000 (MSB inverts, lower bits
 - This creates a 2×MAX count range: 0 to (2×MAX - 1)
 - MSB different between write/read pointers → FIFO full or empty
 
-#### Variable Increment Mode (add_enable=1):
+**Variable Increment Mode (add_enable=1):**
 
 ```
 Wraparound at 2×MAX:
@@ -163,8 +161,6 @@ assign empty = (wr_ptr[WIDTH-2:0] == rd_ptr[WIDTH-2:0]) &&
 - Normal operation: wr_ptr advances, MSBs eventually differ → full
 - After wraparound: rd_ptr catches up, MSBs match again → empty
 - The MSB does lap-counter duty for the circular buffer — it's how you tell "wrapped, so full" apart from "caught up, so empty."
-
-## Implementation Details
 
 ### Priority Logic
 
@@ -348,14 +344,16 @@ counter_bin_load #(
 
 ### Latency and Throughput
 
-- **Increment Latency**: 1 cycle (registered output)
-- **Next-Value Availability**: 0 cycles (combinational `counter_bin_next`)
-- **Throughput**: 1 operation per cycle
-- **Reset Recovery**: 1 cycle (asynchronous reset)
+| Property | Value |
+|----------|-------|
+| Increment latency | 1 cycle (registered output) |
+| Next-value availability | 0 cycles (combinational `counter_bin_next`) |
+| Throughput | 1 operation per cycle |
+| Reset recovery | 1 cycle (asynchronous reset) |
 
 ### Operation Timing Diagrams
 
-#### Standard Increment (enable=1):
+**Standard Increment (enable=1):**
 
 ```
 Cycle:    0    1    2    3    4    5    6    7    8    9
@@ -365,7 +363,7 @@ curr:     0000  0000  0001  0010  0011  0100  0101  0110
 next:     0000  0001  0010  0011  0100  0101  0110  0111
 ```
 
-#### Variable Increment (add_enable=1, add_value=3):
+**Variable Increment (add_enable=1, add_value=3):**
 
 ```
 Cycle:    0    1    2    3
@@ -377,7 +375,7 @@ next:     0010  0101  0101
                  ↑ +3   ↑ add_en low -> hold (next = curr)
 ```
 
-#### Load Operation (load=1, load_value=12):
+**Load Operation (load=1, load_value=12):**
 
 ```
 Cycle:    0    1    2
@@ -387,6 +385,44 @@ load_val: ------[C]---
 curr:     0011  0011  1100
 next:     0011  1100  1100
                  ↑ load  ↑ load low -> hold (next = curr)
+```
+
+## Performance Characteristics
+
+### Resource Utilization
+
+| Configuration | FFs | LUTs | Description |
+|--------------|-----|------|-------------|
+| WIDTH=4, MAX=8 | 4 | ~12 | Minimal (8-entry FIFO) |
+| WIDTH=5, MAX=16 | 5 | ~16 | Small (16-entry FIFO) |
+| WIDTH=9, MAX=256 | 9 | ~30 | Medium (256-entry FIFO) |
+| WIDTH=13, MAX=4096 | 13 | ~45 | Large (4K-entry FIFO) |
+
+**Area Scaling:** Approximately linear with WIDTH due to adder and comparator
+
+### Maximum Frequency
+
+- **Typical**: 300-500 MHz (modern FPGAs)
+- **Limiting Factor**: Add operation with wraparound detection
+- **Optimization**: Pipeline add path for >500 MHz
+
+## Verification
+
+Test suite location: `val/common/test_counter_bin_load.py`
+
+**Key Test Scenarios:**
+- Standard increment (enable=1)
+- Variable increment with various add_value
+- Load operation priority verification
+- Wraparound behavior at 2×MAX
+- MSB toggle at MAX-1 for standard increment
+- Full/empty condition verification
+- Priority hierarchy (load > add > enable)
+- Reset behavior
+
+**Test Command:**
+```bash
+pytest val/common/test_counter_bin_load.py -v
 ```
 
 ## Design Considerations
@@ -449,45 +485,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Performance Characteristics
-
-### Resource Utilization
-
-| Configuration | FFs | LUTs | Description |
-|--------------|-----|------|-------------|
-| WIDTH=4, MAX=8 | 4 | ~12 | Minimal (8-entry FIFO) |
-| WIDTH=5, MAX=16 | 5 | ~16 | Small (16-entry FIFO) |
-| WIDTH=9, MAX=256 | 9 | ~30 | Medium (256-entry FIFO) |
-| WIDTH=13, MAX=4096 | 13 | ~45 | Large (4K-entry FIFO) |
-
-**Area Scaling:** Approximately linear with WIDTH due to adder and comparator
-
-### Maximum Frequency
-
-- **Typical**: 300-500 MHz (modern FPGAs)
-- **Limiting Factor**: Add operation with wraparound detection
-- **Optimization**: Pipeline add path for >500 MHz
-
-## Verification Notes
-
-Test suite location: `val/common/test_counter_bin_load.py`
-
-**Key Test Scenarios:**
-- Standard increment (enable=1)
-- Variable increment with various add_value
-- Load operation priority verification
-- Wraparound behavior at 2×MAX
-- MSB toggle at MAX-1 for standard increment
-- Full/empty condition verification
-- Priority hierarchy (load > add > enable)
-- Reset behavior
-
-**Test Command:**
-```bash
-pytest val/common/test_counter_bin_load.py -v
-```
-
-## Common Pitfalls
+### Common Pitfalls
 
 ❌ **Anti-Pattern 1**: Incorrect WIDTH for FIFO depth
 

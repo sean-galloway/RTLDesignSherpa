@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# Sort Module RTL Documentation
+# Sort Module
 
 ## Purpose
 
@@ -30,7 +30,7 @@ sort algorithm, sorting arrays of configurable size in descending order. It's
 aimed at high-throughput work: new data accepted every clock cycle, with
 predictable latency equal to the number of elements being sorted.
 
-## Module Overview
+## Module Declaration
 
 ```systemverilog
 module sort #(
@@ -46,30 +46,30 @@ module sort #(
 );
 ```
 
-## Port Descriptions
+## Parameters
 
-### Input Ports
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `NUM_VALS` | int | 5 | Number of values in the array to be sorted. Determines pipeline depth. Range 2-16 (RTL header documents the supported range as 2 to 16). |
+| `SIZE` | int | 16 | Bit width of each individual value. All values must be unsigned integers. Range >= 1 (no upper bound enforced). |
 
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `clk` | 1 | Clock | System clock signal. All operations are synchronous to the rising edge. |
-| `rst_n` | 1 | Reset | Active-low asynchronous reset. Clears all pipeline stages while **asserted (low)**; normal operation is rst_n high. |
-| `data` | `NUM_VALS*SIZE` | Data | Packed input array. Elements are packed as `data[i*SIZE +: SIZE]` for element `i`. |
-| `valid_in` | 1 | Control | When asserted (high) for one cycle, starts the sorting process for the current `data` input. |
+## Ports
 
-### Output Ports
+### Inputs
 
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `sorted` | `NUM_VALS*SIZE` | Data | Packed output array sorted in descending order. Same packing format as input. |
-| `done` | 1 | Status | Asserted (high) when the sorting operation is complete and `sorted` output is valid. |
+| Port | Width | Description |
+|------|-------|-------------|
+| `clk` | 1 | System clock signal. All operations are synchronous to the rising edge. |
+| `rst_n` | 1 | Active-low asynchronous reset. Clears all pipeline stages while **asserted (low)**; normal operation is rst_n high. |
+| `data` | `NUM_VALS*SIZE` | Packed input array. Elements are packed as `data[i*SIZE +: SIZE]` for element `i`. |
+| `valid_in` | 1 | Control signal. When asserted (high) for one cycle, starts the sorting process for the current `data` input. |
 
-### Parameters
+### Outputs
 
-| Parameter | Default | Range | Description |
-|-----------|---------|-------|-------------|
-| `NUM_VALS` | 5 | 2-16 | Number of values in the array to be sorted. Determines pipeline depth. (RTL header documents the supported range as 2 to 16.) |
-| `SIZE` | 16 | >= 1 (no upper bound enforced) | Bit width of each individual value. All values must be unsigned integers. |
+| Port | Width | Description |
+|------|-------|-------------|
+| `sorted` | `NUM_VALS*SIZE` | Packed output array sorted in descending order. Same packing format as input. |
+| `done` | 1 | Status signal. Asserted (high) when the sorting operation is complete and `sorted` output is valid. |
 
 ## Data Format
 
@@ -304,7 +304,7 @@ done:     0      0      0      0      0      1
 - **Local Connectivity**: No long combinational paths across stages
 - **Inference-Friendly**: Uses standard SystemVerilog constructs for reliable synthesis
 
-### 4. Robust Data Handling
+### 4. Packed Data Handling
 
 - **Packed Buses**: Efficient use of bus resources
 - **Unpacked Internal Arrays**: Easy element-wise manipulation

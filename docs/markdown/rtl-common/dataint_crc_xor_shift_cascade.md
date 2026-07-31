@@ -21,10 +21,10 @@
 
 <!-- End Header -->
 
-# dataint_crc_xor_shift_cascade Module Documentation
+# dataint_crc_xor_shift_cascade (`dataint_crc_xor_shift_cascade.sv`)
 
 ## Purpose
-The `dataint_crc_xor_shift_cascade` module pushes 8 bits of data through a cascade of CRC calculation stages. It chains together 8 instances of `dataint_crc_xor_shift` to chew through a full byte of data in a single combinational operation.
+Eight instances of `dataint_crc_xor_shift`, chained back to back so a full byte of data gets chewed through in a single combinational operation. Byte in, updated CRC out — no clock involved.
 
 ## Module Declaration
 ```systemverilog
@@ -54,13 +54,13 @@ module dataint_crc_xor_shift_cascade #(
 ## Functionality
 
 ### Cascade Operation
-Eight CRC calculation stages, chained into a pipeline:
-1. **Stage 0**: Processes MSB of data byte with initial CRC state
-2. **Stages 1-6**: Each processes next data bit with previous stage output
-3. **Stage 7**: Processes LSB and produces final result
+Eight CRC calculation stages, chained end to end:
+1. **Stage 0**: Processes the MSB of the data byte against the initial CRC state
+2. **Stages 1-6**: Each processes the next data bit against the previous stage's output
+3. **Stage 7**: Processes the LSB and produces the final result
 
 ### Data Bit Ordering
-Data bits are processed from MSB to LSB:
+Data bits run MSB to LSB:
 - `data_input[7]` is processed first
 - `data_input[0]` is processed last
 - This matches typical serial transmission order
@@ -109,7 +109,7 @@ endgenerate
 
 ### Parallel Byte Processing
 - Processes 8 bits in one combinational operation
-- No clock required - purely combinational
+- No clock required — purely combinational
 - Suitable for high-speed applications
 
 ### Bit Order Handling
@@ -137,6 +137,19 @@ The critical path runs through all 8 stages:
 ```
 block_input → Stage0 → Stage1 → ... → Stage7 → block_output
 ```
+
+## Performance Optimization
+
+### Pipelining Considerations
+For high-frequency operation:
+- Consider adding pipeline registers between cascades
+- Balance latency vs. throughput requirements
+- May need to pipeline within the 8-stage cascade
+
+### Area Optimization
+- Each stage requires ~CRC_WIDTH XOR gates
+- Total area scales with CRC_WIDTH × 8
+- Consider time-multiplexed alternatives for area-critical applications
 
 ## Usage Examples
 
@@ -184,19 +197,6 @@ This module is used by `dataint_crc` for:
 - Multiple cascade instances handle wide data
 - Cascade selection allows intermediate results
 - Enables flexible data width support
-
-## Performance Optimization
-
-### Pipelining Considerations
-For high-frequency operation:
-- Consider adding pipeline registers between cascades
-- Balance latency vs. throughput requirements
-- May need to pipeline within the 8-stage cascade
-
-### Area Optimization
-- Each stage requires ~CRC_WIDTH XOR gates
-- Total area scales with CRC_WIDTH × 8
-- Consider time-multiplexed alternatives for area-critical applications
 
 ## Applications
 - High-speed packet processing

@@ -21,12 +21,12 @@
 
 <!-- End Header -->
 
-# Pulse Synchronizer for Clock Domain Crossing
+# Pulse Synchronizer Module
+
+## Purpose
 
 A safe pulse synchronizer that transfers single-cycle pulses between asynchronous
 clock domains using a toggle-based handshake with metastability filtering.
-
-## Overview
 
 The `sync_pulse` module provides metastability-safe pulse synchronization across
 clock domains. It converts a single-cycle pulse in the source clock domain into
@@ -57,8 +57,6 @@ module sync_pulse #(
 
 ## Parameters
 
-### User-Settable Parameters
-
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | SYNC_STAGES | int | 3 | Number of synchronizer stages for metastability filtering (range: 2-4) |
@@ -70,7 +68,7 @@ module sync_pulse #(
 
 ## Ports
 
-### Source Clock Domain Ports
+### Source Clock Domain
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -78,7 +76,7 @@ module sync_pulse #(
 | i_src_rst_n | Input | 1 | Source domain active-low asynchronous reset |
 | i_pulse | Input | 1 | Input pulse (must be single-cycle high) |
 
-### Destination Clock Domain Ports
+### Destination Clock Domain
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -400,51 +398,6 @@ set_false_path -from [get_clocks i_src_clk] -to [get_registers *r_sync[0]]
 set_instance_assignment -name SYNCHRONIZER_IDENTIFICATION "FORCED IF ASYNCHRONOUS" -to *r_sync*
 ```
 
-## Verification and Assertions
-
-### Formal Assertions (guarded by `` `ifdef FORMAL ``)
-
-The module carries these assertions, but both sit inside an `` `ifdef FORMAL ``
-block, so they do **not** compile into an ordinary simulation build. Define
-`FORMAL` (as the SymbiYosys flow does) if you want them to fire:
-
-```systemverilog
-// Assert: Input pulse is single-cycle
-property p_single_cycle_pulse;
-    @(posedge i_src_clk) disable iff (!i_src_rst_n)
-    i_pulse |=> !i_pulse;
-endproperty
-
-// Assert: Output pulse is single-cycle
-property p_output_single_cycle;
-    @(posedge i_dst_clk) disable iff (!i_dst_rst_n)
-    o_pulse |=> !o_pulse;
-endproperty
-```
-
-### Simulation Checks
-
-```systemverilog
-// Check input pulse width
-always @(posedge i_src_clk) begin
-    if (i_pulse) begin
-        @(posedge i_src_clk);
-        assert (!i_pulse) else $error("Input pulse must be single-cycle");
-    end
-end
-
-// Check minimum pulse spacing
-int last_pulse_time = 0;
-always @(posedge i_dst_clk) begin
-    if (o_pulse) begin
-        int time_diff = $time - last_pulse_time;
-        assert (time_diff >= 3*T_dst)
-            else $warning("Pulse spacing too close: %0d ns", time_diff);
-        last_pulse_time = $time;
-    end
-end
-```
-
 ## Performance Analysis
 
 ### Latency Breakdown
@@ -521,6 +474,51 @@ always @(posedge src_clk) begin
 end
 
 // RIGHT: Use handshake or async FIFO for data
+```
+
+## Verification and Assertions
+
+### Formal Assertions (guarded by `` `ifdef FORMAL ``)
+
+The module carries these assertions, but both sit inside an `` `ifdef FORMAL ``
+block, so they do **not** compile into an ordinary simulation build. Define
+`FORMAL` (as the SymbiYosys flow does) if you want them to fire:
+
+```systemverilog
+// Assert: Input pulse is single-cycle
+property p_single_cycle_pulse;
+    @(posedge i_src_clk) disable iff (!i_src_rst_n)
+    i_pulse |=> !i_pulse;
+endproperty
+
+// Assert: Output pulse is single-cycle
+property p_output_single_cycle;
+    @(posedge i_dst_clk) disable iff (!i_dst_rst_n)
+    o_pulse |=> !o_pulse;
+endproperty
+```
+
+### Simulation Checks
+
+```systemverilog
+// Check input pulse width
+always @(posedge i_src_clk) begin
+    if (i_pulse) begin
+        @(posedge i_src_clk);
+        assert (!i_pulse) else $error("Input pulse must be single-cycle");
+    end
+end
+
+// Check minimum pulse spacing
+int last_pulse_time = 0;
+always @(posedge i_dst_clk) begin
+    if (o_pulse) begin
+        int time_diff = $time - last_pulse_time;
+        assert (time_diff >= 3*T_dst)
+            else $warning("Pulse spacing too close: %0d ns", time_diff);
+        last_pulse_time = $time;
+    end
+end
 ```
 
 ## Related Modules

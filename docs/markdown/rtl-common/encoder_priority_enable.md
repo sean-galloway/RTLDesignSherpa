@@ -21,22 +21,48 @@
 
 <!-- End Header -->
 
-# Priority Encoder with Enable (`encoder_priority_enable.sv`)
+# encoder_priority_enable (`encoder_priority_enable.sv`)
 
 ## Purpose
 Encodes the highest priority (highest index) asserted bit in the input vector, with an enable control signal. Where the basic encoder gets its priority behavior as a side effect, this one searches MSB to LSB on purpose.
 
+## Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 8 | Input vector width |
+
 ## Ports
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `priority_in` | Input | WIDTH | Priority input vector (higher index = higher priority) |
+| `enable` | Input | 1 | Enable signal (active high) |
+| `encode` | Output | $clog2(WIDTH) | Binary encoded output of highest priority bit position |
 
-### Input Ports
-- **`priority_in[WIDTH-1:0]`** - Priority input vector (higher index = higher priority)
-- **`enable`** - Enable signal (active high)
+## Functionality
 
-### Output Ports
-- **`encode[$clog2(WIDTH)-1:0]`** - Binary encoded output of highest priority bit position
+### Operation Principle
+- **True priority encoding**: Searches from MSB (highest priority) to LSB
+- **Enable control**: Only runs when enable is asserted
+- **Found flag**: Blocks multiple assignments, so the highest priority wins
+- **Clean disable**: Outputs zero when disabled
 
-### Parameters
-- **`WIDTH`** - Input vector width (default: 8)
+### Priority Resolution Example (WIDTH=8)
+| priority_in[7:0] | enable | encode[2:0] | Notes |
+|------------------|--------|-------------|-------|
+| 00000001         | 1      | 000         | Only bit 0 set |
+| 10000001         | 1      | 111         | Bit 7 has highest priority |
+| 01010101         | 1      | 110         | Bit 6 is highest set |
+| 11111111         | 1      | 111         | Bit 7 wins among all |
+| 10000001         | 0      | 000         | Disabled - output zero |
+| 00000000         | 1      | 000         | No bits set |
+
+### Key Differences from Basic Encoder
+| Feature | Basic Encoder | Priority Encoder with Enable |
+|---------|---------------|------------------------------|
+| **Search Direction** | LSB to MSB | MSB to LSB |
+| **Priority** | Higher index overwrites | True highest priority |
+| **Enable Control** | None | Enable signal required |
+| **Found Flag** | Implicit | Explicit prevention of overwrites |
 
 ## Implementation Details
 
@@ -61,34 +87,6 @@ always_comb begin
 end
 ```
 
-### Operation Principle
-- **True priority encoding**: Searches from MSB (highest priority) to LSB
-- **Enable control**: Only runs when enable is asserted
-- **Found flag**: Blocks multiple assignments, so the highest priority wins
-- **Clean disable**: Outputs zero when disabled
-
-## Functional Behavior
-
-### Priority Resolution Example (WIDTH=8)
-| priority_in[7:0] | enable | encode[2:0] | Notes |
-|------------------|--------|-------------|-------|
-| 00000001         | 1      | 000         | Only bit 0 set |
-| 10000001         | 1      | 111         | Bit 7 has highest priority |
-| 01010101         | 1      | 110         | Bit 6 is highest set |
-| 11111111         | 1      | 111         | Bit 7 wins among all |
-| 10000001         | 0      | 000         | Disabled - output zero |
-| 00000000         | 1      | 000         | No bits set |
-
-### Key Differences from Basic Encoder
-| Feature | Basic Encoder | Priority Encoder with Enable |
-|---------|---------------|------------------------------|
-| **Search Direction** | LSB to MSB | MSB to LSB |
-| **Priority** | Higher index overwrites | True highest priority |
-| **Enable Control** | None | Enable signal required |
-| **Found Flag** | Implicit | Explicit prevention of overwrites |
-
-## Design Features
-
 ### True Priority Encoding
 - **MSB-first search**: `for (int i = WIDTH-1; i >= 0; i--)`
 - **Single assignment**: The found flag stops any overwrites
@@ -108,7 +106,13 @@ found = 1'b0;
 - Gives every signal path a defined value
 - Keeps the synthesizer from warning about incomplete assignments
 
-## Use Cases
+## Timing Characteristics
+- **Propagation delay**: Depends on WIDTH and synthesis optimization
+- **Critical path**: Through the priority resolution loop
+- **Enable response**: Immediate when enable changes
+- **Setup/hold**: None (purely combinational)
+
+## Usage Examples
 
 ### Interrupt Controllers
 ```systemverilog
@@ -137,30 +141,7 @@ encoder_priority_enable #(.WIDTH(4)) error_encoder (
 );
 ```
 
-## Timing Characteristics
-- **Propagation delay**: Depends on WIDTH and synthesis optimization
-- **Critical path**: Through the priority resolution loop
-- **Enable response**: Immediate when enable changes
-- **Setup/hold**: None (purely combinational)
-
-## Design Considerations
-
-### Priority Assignment
-- **Bit assignment**: Higher index = higher priority
-- **Planning**: Assign critical functions to higher-indexed bits
-- **Documentation**: Write the priority hierarchy down—you'll thank yourself
-
-### Performance Scaling
-- **Linear complexity**: Search time increases with WIDTH
-- **Synthesis optimization**: Modern tools optimize priority encoding well
-- **Resource usage**: Typically maps to priority encoder primitives
-
-### Enable Usage Patterns
-- **Power management**: Disable when priority encoding not needed
-- **Conditional operation**: Enable based on system state
-- **Test/debug**: Disable during certain test modes
-
-## Common Applications
+## Applications
 
 ### Multi-Level Interrupt Controllers
 - CPU interrupt prioritization
@@ -176,6 +157,23 @@ encoder_priority_enable #(.WIDTH(4)) error_encoder (
 - Exception priority resolution
 - Multi-source error reporting
 - Diagnostic priority encoding
+
+## Design Considerations
+
+### Priority Assignment
+- **Bit assignment**: Higher index = higher priority
+- **Planning**: Assign critical functions to higher-indexed bits
+- **Documentation**: Write the priority hierarchy down — you'll thank yourself
+
+### Performance Scaling
+- **Linear complexity**: Search time increases with WIDTH
+- **Synthesis optimization**: Modern tools optimize priority encoding well
+- **Resource usage**: Typically maps to priority encoder primitives
+
+### Enable Usage Patterns
+- **Power management**: Disable when priority encoding not needed
+- **Conditional operation**: Enable based on system state
+- **Test/debug**: Disable during certain test modes
 
 ## Synthesis Considerations
 - **Resource efficient**: Maps well to FPGA priority encoder resources

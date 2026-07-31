@@ -23,11 +23,9 @@
 
 # dataint_crc
 
-A generic Cyclic Redundancy Check (CRC) computation engine — configurable polynomials, data widths, and processing options, built for flexible, high-performance CRC calculation.
-
 ## Overview
 
-The `dataint_crc` module is a full CRC calculation engine for data integrity applications, communication protocols, and storage systems. It supports configurable polynomial widths, data widths, input/output reflection, and cascade processing for high-throughput applications.
+The `dataint_crc` module is a generic Cyclic Redundancy Check (CRC) computation engine — configurable polynomials, data widths, and processing options, built for flexible, high-performance CRC calculation. It's a full CRC calculation engine for data integrity applications, communication protocols, and storage systems, with support for configurable polynomial widths, data widths, input/output reflection, and cascade processing for high-throughput applications.
 
 ## Module Declaration
 
@@ -99,7 +97,7 @@ module dataint_crc #(
 |------|-------|-------------|
 | crc | CRC_WIDTH | Computed CRC value (registered) |
 
-## Functionality
+## Architecture and Implementation
 
 ### CRC Algorithm Implementation
 
@@ -116,8 +114,6 @@ The CRC calculation is parallel and runs through the following stages:
 - **Configurable Reflection**: Support for MSB-first and LSB-first bit ordering
 - **Cascade Architecture**: Enables partial CRC computation and continuation
 - **Standards Compliance**: Configurable for standard CRC algorithms (CRC-32, CRC-64, etc.)
-
-## Implementation Details
 
 ### Input Data Reflection
 
@@ -171,55 +167,6 @@ always_comb begin
         end
     end
 end
-```
-
-## CRC Standards Compatibility
-
-### Common CRC Configurations
-
-#### CRC-32 (IEEE 802.3)
-```systemverilog
-dataint_crc #(
-    .DATA_WIDTH(32),
-    .CRC_WIDTH(32),
-    .REFIN(1),
-    .REFOUT(1)
-) u_crc32 (
-    .POLY(32'h04C11DB7),
-    .POLY_INIT(32'hFFFFFFFF),
-    .XOROUT(32'hFFFFFFFF),
-    // ... other connections
-);
-```
-
-#### CRC-16 (CCITT)
-```systemverilog
-dataint_crc #(
-    .DATA_WIDTH(16),
-    .CRC_WIDTH(16),
-    .REFIN(0),
-    .REFOUT(0)
-) u_crc16 (
-    .POLY(16'h1021),
-    .POLY_INIT(16'hFFFF),
-    .XOROUT(16'h0000),
-    // ... other connections
-);
-```
-
-#### CRC-64 (ECMA-182)
-```systemverilog
-dataint_crc #(
-    .DATA_WIDTH(64),
-    .CRC_WIDTH(64),
-    .REFIN(0),                       // ECMA-182 is NOT reflected
-    .REFOUT(0)
-) u_crc64 (
-    .POLY(64'h42F0E1EBA9EA3693),
-    .POLY_INIT(64'h0000000000000000), // init 0
-    .XOROUT(64'h0000000000000000),    // xorout 0
-    // ... other connections
-);
 ```
 
 ## Usage Examples
@@ -317,9 +264,59 @@ generate
 endgenerate
 ```
 
+## CRC Standards Compatibility
+
+### CRC-32 (IEEE 802.3)
+
+```systemverilog
+dataint_crc #(
+    .DATA_WIDTH(32),
+    .CRC_WIDTH(32),
+    .REFIN(1),
+    .REFOUT(1)
+) u_crc32 (
+    .POLY(32'h04C11DB7),
+    .POLY_INIT(32'hFFFFFFFF),
+    .XOROUT(32'hFFFFFFFF),
+    // ... other connections
+);
+```
+
+### CRC-16 (CCITT)
+
+```systemverilog
+dataint_crc #(
+    .DATA_WIDTH(16),
+    .CRC_WIDTH(16),
+    .REFIN(0),
+    .REFOUT(0)
+) u_crc16 (
+    .POLY(16'h1021),
+    .POLY_INIT(16'hFFFF),
+    .XOROUT(16'h0000),
+    // ... other connections
+);
+```
+
+### CRC-64 (ECMA-182)
+
+```systemverilog
+dataint_crc #(
+    .DATA_WIDTH(64),
+    .CRC_WIDTH(64),
+    .REFIN(0),                       // ECMA-182 is NOT reflected
+    .REFOUT(0)
+) u_crc64 (
+    .POLY(64'h42F0E1EBA9EA3693),
+    .POLY_INIT(64'h0000000000000000), // init 0
+    .XOROUT(64'h0000000000000000),    // xorout 0
+    // ... other connections
+);
+```
+
 ## Performance Characteristics
 
-### Throughput Analysis
+### Throughput
 
 | Data Width | CRC Width | Max Frequency | Throughput |
 |------------|-----------|---------------|------------|
@@ -327,13 +324,21 @@ endgenerate
 | 64-bit | 32-bit | ~350 MHz | 22.4 Gbps |
 | 128-bit | 64-bit | ~300 MHz | 38.4 Gbps |
 
-### Latency Characteristics
+### Latency
 
-- **Pipeline Stages**: 2 cycles (input conditioning + CRC computation)
-- **Reset Recovery**: 1 cycle
-- **Cascade Selection**: 0 cycles (combinational)
+| Property | Value |
+|----------|-------|
+| Pipeline stages | 2 cycles (input conditioning + CRC computation) |
+| Reset recovery | 1 cycle |
+| Cascade selection | 0 cycles (combinational) |
 
-## Timing Considerations
+### Critical Paths
+
+1. **Cascade Chain**: Data flows through all cascade stages
+2. **Output Reflection**: Bit reversal for REFOUT
+3. **Register Setup**: Loading CRC state register
+
+## Verification
 
 ### Setup Requirements
 
@@ -349,11 +354,12 @@ cascade_timing: assert property (
 );
 ```
 
-### Critical Paths
+### Verification Notes
 
-1. **Cascade Chain**: Data flows through all cascade stages
-2. **Output Reflection**: Bit reversal for REFOUT
-3. **Register Setup**: Loading CRC state register
+- **Polynomial Validation**: Verify against known CRC test vectors
+- **Cascade Testing**: Test all cascade selection combinations
+- **Reflection Testing**: Verify bit ordering for REFIN/REFOUT modes
+- **Standards Compliance**: Validate against published CRC standards
 
 ## Design Considerations
 
@@ -368,21 +374,14 @@ cascade_timing: assert property (
 - **Clock Gating**: Gate unused cascade stages
 - **Data Gating**: Prevent unnecessary switching when not processing
 
-### Verification Notes
-
-- **Polynomial Validation**: Verify against known CRC test vectors
-- **Cascade Testing**: Test all cascade selection combinations
-- **Reflection Testing**: Verify bit ordering for REFIN/REFOUT modes
-- **Standards Compliance**: Validate against published CRC standards
+Between the configurable polynomial, the reflection options, and the cascade architecture, `dataint_crc` covers most of the CRC standards you'll meet in practice — set it up once per protocol and let it run.
 
 ## Related Modules
 
-- **dataint_crc_xor_shift_cascade**: Building block for cascade stages
-- **dataint_crc_xor_shift**: Simple XOR-shift CRC implementation
-- **dataint_checksum**: Alternative integrity checking method
-- **dataint_parity**: Simpler parity-based error detection
-
-Between the configurable polynomial, the reflection options, and the cascade architecture, `dataint_crc` covers most of the CRC standards you'll meet in practice — set it up once per protocol and let it run.
+- **dataint_crc_xor_shift_cascade** - Building block for cascade stages
+- **dataint_crc_xor_shift** - Simple XOR-shift CRC implementation
+- **dataint_checksum** - Alternative integrity checking method
+- **dataint_parity** - Simpler parity-based error detection
 
 ## Navigation
 

@@ -36,13 +36,16 @@ when the deterministic sequence has wrapped.
 - Enable control for conditional operation
 - Support for various LFSR widths and tap configurations
 
-## Port Description
+## Parameters
 
-### Parameters
-- **WIDTH**: Width of the LFSR register (default: 8)
-- **TAP_INDEX_WIDTH**: Width of each tap index (default: 12)
-- **TAP_COUNT**: Number of feedback taps (default: 4)
-- **TIW**: Shorthand for TAP_INDEX_WIDTH
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | — | 8 | Width of the LFSR register |
+| `TAP_INDEX_WIDTH` | — | 12 | Width of each tap index |
+| `TAP_COUNT` | — | 4 | Number of feedback taps |
+| `TIW` | — | — | Shorthand for TAP_INDEX_WIDTH |
+
+## Ports
 
 ### Inputs
 | Port | Width | Description |
@@ -105,29 +108,32 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## LFSR Polynomial Reference
+## Timing Diagrams
 
-The module supports various standard LFSR polynomials. Here are some common configurations:
+### Seed Loading and Operation
+```
+Clock:     ____╱‾╲____╱‾╲____╱‾╲____╱‾╲____╱‾╲____
+enable:    ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+seed_load: ________╱‾‾‾‾╲________________________
+seed_data: ========< SEED >========================
+lfsr_out:  00000000  SEED   VAL1   VAL2   VAL3
+lfsr_done: ________       __________________╱‾‾‾╲_
+```
 
-### Popular LFSR Polynomials (XNOR taps)
-| Width | Tap Positions | Max Period |
-|-------|---------------|------------|
-| 3 | [3,2] | 7 |
-| 4 | [4,3] | 15 |
-| 5 | [5,3] | 31 |
-| 8 | [8,6,5,4] | 255 |
-| 16 | [16,15,13,4] | 65535 |
-| 32 | [32,22,2,1] | 2³²-1 |
-
-### Example Tap Configuration for 8-bit LFSR
-```systemverilog
-// For WIDTH=8, polynomial x^8 + x^6 + x^5 + x^4 + 1
-// Taps at positions 8,6,5,4 (1-indexed)
-parameter TAP_COUNT = 4;
-parameter TIW = 4;  // 4 bits enough for tap positions up to 8
-
-// Concatenated tap positions: {8,6,5,4}
-wire [TAP_COUNT*TIW-1:0] taps = {4'd8, 4'd6, 4'd5, 4'd4};
+### Sequence Example (3-bit LFSR, taps=[3,2])
+Feedback is `~^(lfsr & taps)` (XNOR reduction) with `taps = 3'b110`, and the
+next state is `{lfsr[1:0], feedback}`. Full period is 7 (all states except the
+all-ones lockout):
+```
+Step | LFSR | lfsr & 110 | Feedback | Next
+-----|------|------------|----------|------
+0    | 001  | 000        | 1        | 011
+1    | 011  | 010        | 0        | 110
+2    | 110  | 110        | 1        | 101
+3    | 101  | 100        | 0        | 010
+4    | 010  | 010        | 0        | 100
+5    | 100  | 100        | 0        | 000
+6    | 000  | 000        | 1        | 001  (wraps to start; period 7)
 ```
 
 ## Special Implementation Notes
@@ -163,34 +169,6 @@ traditional right-shift LFSRs but with different bit ordering.
   `shifter_lfsr_fibonacci`, which carries an explicit `|r_lfsr` guard
 - Seed loading is therefore optional: it selects where in the sequence you
   start, but the reset state runs correctly without it
-
-## Timing Diagrams
-
-### Seed Loading and Operation
-```
-Clock:     ____╱‾╲____╱‾╲____╱‾╲____╱‾╲____╱‾╲____
-enable:    ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-seed_load: ________╱‾‾‾‾╲________________________
-seed_data: ========< SEED >========================
-lfsr_out:  00000000  SEED   VAL1   VAL2   VAL3
-lfsr_done: ________       __________________╱‾‾‾╲_
-```
-
-### Sequence Example (3-bit LFSR, taps=[3,2])
-Feedback is `~^(lfsr & taps)` (XNOR reduction) with `taps = 3'b110`, and the
-next state is `{lfsr[1:0], feedback}`. Full period is 7 (all states except the
-all-ones lockout):
-```
-Step | LFSR | lfsr & 110 | Feedback | Next
------|------|------------|----------|------
-0    | 001  | 000        | 1        | 011
-1    | 011  | 010        | 0        | 110
-2    | 110  | 110        | 1        | 101
-3    | 101  | 100        | 0        | 010
-4    | 010  | 010        | 0        | 100
-5    | 100  | 100        | 0        | 000
-6    | 000  | 000        | 1        | 001  (wraps to start; period 7)
-```
 
 ## Applications
 
@@ -228,6 +206,31 @@ scrambled_data = input_data ^ lfsr_out;
 - Spread spectrum communications
 - Test vector generation
 - Noise generation for audio applications
+
+## LFSR Polynomial Reference
+
+The module supports various standard LFSR polynomials. Here are some common configurations:
+
+### Popular LFSR Polynomials (XNOR taps)
+| Width | Tap Positions | Max Period |
+|-------|---------------|------------|
+| 3 | [3,2] | 7 |
+| 4 | [4,3] | 15 |
+| 5 | [5,3] | 31 |
+| 8 | [8,6,5,4] | 255 |
+| 16 | [16,15,13,4] | 65535 |
+| 32 | [32,22,2,1] | 2³²-1 |
+
+### Example Tap Configuration for 8-bit LFSR
+```systemverilog
+// For WIDTH=8, polynomial x^8 + x^6 + x^5 + x^4 + 1
+// Taps at positions 8,6,5,4 (1-indexed)
+parameter TAP_COUNT = 4;
+parameter TIW = 4;  // 4 bits enough for tap positions up to 8
+
+// Concatenated tap positions: {8,6,5,4}
+wire [TAP_COUNT*TIW-1:0] taps = {4'd8, 4'd6, 4'd5, 4'd4};
+```
 
 ## Navigation
 

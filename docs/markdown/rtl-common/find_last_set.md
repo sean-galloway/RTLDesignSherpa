@@ -21,49 +21,29 @@
 
 <!-- End Header -->
 
-# Find Last Set (`find_last_set.sv`)
+# find_last_set (`find_last_set.sv`)
 
 ## Purpose
-Finds the index of the most significant bit (MSB) that's set to '1' in the input vector—the mirror image of find_first_set, favoring the higher-indexed bits.
+Finds the index of the most significant bit (MSB) that's set to '1' in the input vector — the mirror image of find_first_set, favoring the higher-indexed bits.
+
+## Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 32 | Width of input data vector — the module's only parameter |
 
 ## Ports
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `data` | Input | WIDTH | Input data vector to search |
+| `index` | Output | $clog2(WIDTH) | Index of the last (highest) set bit |
 
-### Input Ports
-- **`data[WIDTH-1:0]`** - Input data vector to search
-
-### Output Ports
-- **`index[$clog2(WIDTH)-1:0]`** - Index of the last (highest) set bit
-
-### Parameters
-- **`WIDTH`** - Width of input data vector (default: 32) — the module's only parameter
-
-## Implementation Details
-
-### Core Algorithm
-```systemverilog
-localparam int N = $clog2(WIDTH);
-logic w_found;
-
-always_comb begin
-    index = {N{1'b0}}; // Default value if no bit is set
-    w_found = 1'b0;
-
-    for (int i = WIDTH - 1; i >= 0; i--) begin
-        if (data[i] && !w_found) begin
-            index = i[N-1:0]; // Ensure correct bit width
-            w_found = 1'b1;
-        end
-    end
-end
-```
+## Functionality
 
 ### Search Strategy
 - **Direction**: MSB to LSB (right to left, descending index)
 - **Priority**: Higher indices have higher priority
 - **First match**: Stops at the first '1' bit encountered from the MSB
 - **Found flag**: Prevents multiple assignments
-
-## Functional Behavior
 
 ### Truth Table Examples (WIDTH=8)
 
@@ -87,7 +67,25 @@ end
 - **Deterministic**: Same input always produces same output
 - **Combinational**: Immediate response to input changes
 
-## Design Features
+## Implementation Details
+
+### Core Algorithm
+```systemverilog
+localparam int N = $clog2(WIDTH);
+logic w_found;
+
+always_comb begin
+    index = {N{1'b0}}; // Default value if no bit is set
+    w_found = 1'b0;
+
+    for (int i = WIDTH - 1; i >= 0; i--) begin
+        if (data[i] && !w_found) begin
+            index = i[N-1:0]; // Ensure correct bit width
+            w_found = 1'b1;
+        end
+    end
+end
+```
 
 ### Reverse Loop Implementation
 ```systemverilog
@@ -115,7 +113,44 @@ end
 - **Single assignment**: Prevents overwriting the highest found bit
 - **Priority enforcement**: Only the first match (highest index) is captured
 
-## Use Cases
+## Timing Characteristics
+
+### Propagation Delay
+- **Best case**: 1 LUT delay (MSB set)
+- **Worst case**: Multiple LUT delays (LSB only set)
+- **Average case**: Depends on typical bit patterns
+
+### Critical Path Analysis
+```
+MSB check → MSB-1 check → ... → LSB check → Output
+```
+- **Path length**: Linear with WIDTH in the worst case
+- **Typical case**: Shorter path when higher bits are set
+- **Optimization**: Synthesis tools create efficient implementations
+
+## Algorithm Comparison
+
+### Find Last Set vs. Find First Set
+
+| Aspect | Find Last Set | Find First Set |
+|--------|---------------|----------------|
+| **Search Direction** | MSB → LSB | LSB → MSB |
+| **Priority** | Higher index wins | Lower index wins |
+| **Loop Direction** | `i--` (decrementing) | `i++` (incrementing) |
+| **Use Case** | Priority systems | Fair allocation |
+| **Default Output** | 0 (same) | 0 (same) |
+
+### Typical Use Case Patterns
+
+| Application Type | Preferred Algorithm |
+|------------------|-------------------|
+| **Interrupt Controllers** | Find Last Set (priority) |
+| **Round-Robin Arbiters** | Find First Set (fairness) |
+| **Error Reporting** | Find Last Set (severity) |
+| **Resource Allocation** | Find First Set (efficiency) |
+| **Bit Manipulation** | Either (depends on need) |
+
+## Usage Examples
 
 ### Interrupt Priority Handling
 ```systemverilog
@@ -157,70 +192,6 @@ find_last_set #(.WIDTH(16)) cache_priority (
 ```
 - Select highest priority cache line for replacement
 - LRU policy implementation
-
-## Timing Characteristics
-
-### Propagation Delay
-- **Best case**: 1 LUT delay (MSB set)
-- **Worst case**: Multiple LUT delays (LSB only set)
-- **Average case**: Depends on typical bit patterns
-
-### Critical Path Analysis
-```
-MSB check → MSB-1 check → ... → LSB check → Output
-```
-- **Path length**: Linear with WIDTH in the worst case
-- **Typical case**: Shorter path when higher bits are set
-- **Optimization**: Synthesis tools create efficient implementations
-
-## Algorithm Comparison
-
-### Find Last Set vs. Find First Set
-
-| Aspect | Find Last Set | Find First Set |
-|--------|---------------|----------------|
-| **Search Direction** | MSB → LSB | LSB → MSB |
-| **Priority** | Higher index wins | Lower index wins |
-| **Loop Direction** | `i--` (decrementing) | `i++` (incrementing) |
-| **Use Case** | Priority systems | Fair allocation |
-| **Default Output** | 0 (same) | 0 (same) |
-
-### Typical Use Case Patterns
-
-| Application Type | Preferred Algorithm |
-|------------------|-------------------|
-| **Interrupt Controllers** | Find Last Set (priority) |
-| **Round-Robin Arbiters** | Find First Set (fairness) |
-| **Error Reporting** | Find Last Set (severity) |
-| **Resource Allocation** | Find First Set (efficiency) |
-| **Bit Manipulation** | Either (depends on need) |
-
-## Design Considerations
-
-### Zero Input Handling
-Both modules return 0 for zero input:
-```systemverilog
-// data = 8'b00000000
-// Both find_first_set and find_last_set return 3'b000
-```
-**Application consideration**: May need explicit zero detection:
-```systemverilog
-assign valid_result = |data;  // OR-reduce to detect any bits set
-assign result_index = valid_result ? index : INVALID_INDEX;
-```
-
-### Performance Scaling
-- **Small WIDTH (<16)**: Excellent performance
-- **Medium WIDTH (16-64)**: Good performance, may need pipelining
-- **Large WIDTH (>64)**: Consider hierarchical implementation
-
-### Synthesis Optimization
-Modern synthesis tools recognize these patterns:
-- **Priority encoder primitives**: Often map to dedicated hardware
-- **LUT optimization**: Efficient resource utilization
-- **Timing optimization**: Automatic critical path optimization
-
-## Advanced Usage Patterns
 
 ### Hierarchical Priority Encoding
 ```systemverilog
@@ -266,6 +237,31 @@ find_last_set #(.WIDTH(MAX_WIDTH)) variable_fls (
 // Adjust result for actual width
 assign adjusted_index = (raw_index >= actual_width) ? 0 : raw_index;
 ```
+
+## Design Considerations
+
+### Zero Input Handling
+Both modules return 0 for zero input:
+```systemverilog
+// data = 8'b00000000
+// Both find_first_set and find_last_set return 3'b000
+```
+**Application consideration**: May need explicit zero detection:
+```systemverilog
+assign valid_result = |data;  // OR-reduce to detect any bits set
+assign result_index = valid_result ? index : INVALID_INDEX;
+```
+
+### Performance Scaling
+- **Small WIDTH (<16)**: Excellent performance
+- **Medium WIDTH (16-64)**: Good performance, may need pipelining
+- **Large WIDTH (>64)**: Consider hierarchical implementation
+
+### Synthesis Optimization
+Modern synthesis tools recognize these patterns:
+- **Priority encoder primitives**: Often map to dedicated hardware
+- **LUT optimization**: Efficient resource utilization
+- **Timing optimization**: Automatic critical path optimization
 
 ## Verification Strategies
 

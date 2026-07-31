@@ -21,10 +21,10 @@
 
 <!-- End Header -->
 
-# dataint_parity Module Documentation
+# dataint_parity (`dataint_parity.sv`)
 
 ## Purpose
-The `dataint_parity` module is a generic parity generator and checker in one. It computes parity bits over data chunks and verifies incoming parity against them, supporting both even and odd schemes across as many data segments as you carve your bus into.
+A generic parity generator and checker in one. It computes parity bits over data chunks and verifies incoming parity against them, supporting both even and odd schemes across as many data segments as you carve your bus into.
 
 ## Module Declaration
 ```systemverilog
@@ -113,7 +113,7 @@ For each chunk:
    - Odd parity: invert it
 
 ### Error Detection
-Error checking is just a compare—calculated against expected:
+Error checking is just a compare — calculated against expected:
 ```systemverilog
 assign parity_err[i] = (calculated_parity != parity_in[i]);
 ```
@@ -152,6 +152,22 @@ Chunk 1: data_in[13:7]   (7 bits)  → parity[1], parity_err[1]
 Chunk 2: data_in[20:14]  (7 bits)  → parity[2], parity_err[2]
 Chunk 3: data_in[29:21]  (9 bits)  → parity[3], parity_err[3]
 ```
+
+## Performance Characteristics
+
+### Timing
+- **Combinational Logic**: Zero clock delay
+- **Critical Path**: XOR tree depth ≈ log₂(ChunkSize)
+- **Propagation Delay**: Minimal for typical chunk sizes
+
+### Area
+- **Linear Scaling**: Area grows with CHUNKS and WIDTH
+- **Efficient Implementation**: Just XOR trees
+- **Low Overhead**: Very little logic per chunk
+
+### Power
+- **Low Power**: Simple combinational logic
+- **Activity Dependent**: Power tracks the data switching
 
 ## Usage Examples
 
@@ -211,22 +227,6 @@ always_comb begin
 end
 ```
 
-## Performance Characteristics
-
-### Timing
-- **Combinational Logic**: Zero clock delay
-- **Critical Path**: XOR tree depth ≈ log₂(ChunkSize)
-- **Propagation Delay**: Minimal for typical chunk sizes
-
-### Area
-- **Linear Scaling**: Area grows with CHUNKS and WIDTH
-- **Efficient Implementation**: Just XOR trees
-- **Low Overhead**: Very little logic per chunk
-
-### Power
-- **Low Power**: Simple combinational logic
-- **Activity Dependent**: Power tracks the data switching
-
 ## Applications
 
 ### Error Detection
@@ -247,6 +247,12 @@ end
 - Interface protection
 - Debug and validation tools
 
+### Related Applications
+- **ECC Systems**: Building block for Hamming codes
+- **Network Protocols**: Ethernet, UART parity
+- **Memory Systems**: DRAM/SRAM parity protection
+- **Communication**: RS-232, SPI, I2C error detection
+
 ## Design Considerations
 
 ### Chunk Size Selection
@@ -263,12 +269,6 @@ end
 - **Alignment**: Think about data bus alignment
 - **Extra Bits**: Handle remainder bits sensibly
 - **Performance**: Balance chunk count against granularity
-
-## Related Applications
-- **ECC Systems**: Building block for Hamming codes
-- **Network Protocols**: Ethernet, UART parity
-- **Memory Systems**: DRAM/SRAM parity protection
-- **Communication**: RS-232, SPI, I2C error detection
 
 ## Navigation
 

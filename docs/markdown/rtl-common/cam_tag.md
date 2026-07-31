@@ -21,44 +21,97 @@
 
 <!-- End Header -->
 
-# CAM Tag Module
+**[← Back to Main Index](../index.md)** | **[rtl-common Index](index.md)**
 
-## Purpose
+# CAM Tag
+
+Associative tag storage: you find entries by content, not by address.
+
+## Overview
+
 The `cam_tag` module implements a Content Addressable Memory (CAM) for tag storage and lookup. Lookups are associative — you find data by content, not by address — which is exactly what cache implementations, translation lookaside buffers (TLBs), and routing tables need.
 
 ## Parameters
-- `ENABLE`: Enable/disable CAM functionality (default: 1)
-- `N`: Width of each tag in bits (default: 8)
-- `DEPTH`: Number of tag entries in the CAM (default: 16)
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| ENABLE | int | 1 | Enable/disable CAM functionality |
+| N | int | 8 | Width of each tag in bits |
+| DEPTH | int | 16 | Number of tag entries in the CAM |
 
 ## Ports
 
 ### Inputs
-- `clk`: System clock
-- `rst_n`: Active-low asynchronous reset
-- `tag_in_status[N-1:0]`: Tag to search for (lookup operation)
-- `mark_valid`: Signal to add a new valid tag
-- `tag_in_valid[N-1:0]`: Tag value to mark as valid
-- `mark_invalid`: Signal to invalidate an existing tag
-- `tag_in_invalid[N-1:0]`: Tag value to mark as invalid
+
+| Port | Width | Description |
+|------|-------|-------------|
+| clk | 1 | System clock |
+| rst_n | 1 | Active-low asynchronous reset |
+| tag_in_status | N | Tag to search for (lookup operation) |
+| mark_valid | 1 | Signal to add a new valid tag |
+| tag_in_valid | N | Tag value to mark as valid |
+| mark_invalid | 1 | Signal to invalidate an existing tag |
+| tag_in_invalid | N | Tag value to mark as invalid |
 
 ### Outputs
-- `tags_empty`: Indicates when CAM contains no valid entries
-- `tags_full`: Indicates when CAM is completely full
-- `tag_status`: Result of lookup operation (1 if tag found, 0 if not found)
 
-## Key Internal Structures
+| Port | Width | Description |
+|------|-------|-------------|
+| tags_empty | 1 | Indicates when CAM contains no valid entries |
+| tags_full | 1 | Indicates when CAM is completely full |
+| tag_status | 1 | Result of lookup operation (1 if tag found, 0 if not found) |
+
+## Functionality
+
+### Tag Lookup
+
+Continuously compares `tag_in_status` against all valid entries:
+- Returns 1 if tag found among valid entries
+- Returns 0 if tag not found or entry is invalid
+
+### Tag Insertion
+
+When `mark_valid` is asserted and CAM is not full:
+1. Store `tag_in_valid` at `w_next_valid_loc`
+2. Set corresponding valid bit
+3. Only occurs when `ENABLE != 0`
+
+### Tag Invalidation
+
+When `mark_invalid` is asserted and matching tag found:
+1. Clear the tag value at matching location
+2. Clear corresponding valid bit
+
+### Enable Control
+
+When `ENABLE = 0`:
+- Tag insertion is disabled
+- Tag lookup and invalidation still function
+- Useful for disabling CAM without losing existing data
+
+### Allocation Strategy
+
+- **First Available**: Uses the **lowest-indexed** free location (see the search
+  below). Functional behavior is correct either way; only the index order matters
+  when matching allocations to waveforms.
+- **Replacement**: No automatic replacement policy (must manually invalidate)
+- **Overflow Protection**: Prevents insertion when full
+
+## Implementation Details
 
 ### Storage Arrays
+
 ```systemverilog
 logic [N-1:0]     r_tag_array [0:DEPTH-1];  // Tag storage array
 logic [DEPTH-1:0] r_valid;                  // Valid bit for each entry
 ```
 
 ### Search Logic
+
 Three parallel search operations run side by side:
 
 #### 1. Next Available Location Search
+
 ```systemverilog
 always_comb begin
     w_next_valid_loc = -1;
@@ -73,6 +126,7 @@ end
 - Returns -1 if no free locations available
 
 #### 2. Valid Tag Match Search
+
 ```systemverilog
 always_comb begin
     w_match_loc = -1;
@@ -85,6 +139,7 @@ end
 - Returns index of matching entry or -1 if no match
 
 #### 3. Invalid Tag Match Search
+
 ```systemverilog
 always_comb begin
     w_match_invalid_loc = -1;
@@ -96,27 +151,8 @@ end
 - Used for invalidation operations
 - Finds valid entries that match the invalidation tag
 
-## Operations
+### State Management
 
-### Tag Insertion
-When `mark_valid` is asserted and CAM is not full:
-1. Store `tag_in_valid` at `w_next_valid_loc`
-2. Set corresponding valid bit
-3. Only occurs when `ENABLE != 0`
-
-### Tag Invalidation
-When `mark_invalid` is asserted and matching tag found:
-1. Clear the tag value at matching location
-2. Clear corresponding valid bit
-
-### Tag Lookup
-Continuously compares `tag_in_status` against all valid entries:
-- Returns 1 if tag found among valid entries
-- Returns 0 if tag not found or entry is invalid
-
-## State Management
-
-### Update Logic
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -137,26 +173,15 @@ end
 ```
 
 ### Status Signals
+
 - `tags_empty = ~|r_valid`: NOR of all valid bits
 - `tags_full = &r_valid`: AND of all valid bits
 - `tag_status`: Result of tag lookup operation
 
-## Special Features
+## Design Considerations
 
-### Enable Control
-When `ENABLE = 0`:
-- Tag insertion is disabled
-- Tag lookup and invalidation still function
-- Useful for disabling CAM without losing existing data
+### Usage Considerations
 
-### Allocation Strategy
-- **First Available**: Uses the **lowest-indexed** free location (see the search
-  above). Functional behavior is correct either way; only the index order matters
-  when matching allocations to waveforms.
-- **Replacement**: No automatic replacement policy (must manually invalidate)
-- **Overflow Protection**: Prevents insertion when full
-
-## Usage Considerations
 - **Timing**: All lookups are combinational (single cycle)
 - **Capacity**: Monitor `tags_full` before insertions
 - **Conflicts**: No protection against duplicate tag insertion

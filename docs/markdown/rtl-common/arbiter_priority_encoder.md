@@ -21,13 +21,15 @@
 
 <!-- End Header -->
 
+**[← Back to Main Index](../index.md)** | **[rtl-common Index](index.md)**
+
 # Priority Encoder Arbiter
 
 A high-speed combinational priority encoder built for arbitration. Priority is fixed: lower-indexed clients always have higher priority.
 
 ## Overview
 
-The `arbiter_priority_encoder` module gives you single-cycle priority encoding, with optimized implementations for the common client counts (4, 8, 16, 32) built on fully unrolled casez logic. For other client counts, it falls back to a synthesizable loop-based approach. The module supports dual request inputs (masked and unmasked) for use in sophisticated arbitration schemes.
+The `arbiter_priority_encoder` module gives you single-cycle priority encoding, with optimized implementations for the common client counts (4, 8, 16, 32) built on fully unrolled casez logic. For other client counts, it falls back to a synthesizable loop-based approach. You also get dual request inputs (masked and unmasked) for use in more elaborate arbitration schemes — the round-robin arbiter in this library is built on exactly that trick.
 
 ## Module Declaration
 
@@ -52,7 +54,7 @@ module arbiter_priority_encoder #(
 |-----------|------|---------|-------------|
 | CLIENTS | int | 4 | Number of requesting clients (range: 2-1024) |
 
-### Derived Parameter (Defaulted from CLIENTS)
+### Derived Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -105,6 +107,27 @@ The module evaluates requests in priority order:
 - **No clock or reset**: Outputs update immediately with input changes
 - **Single-cycle response**: Winner determined in one combinational path
 
+### Fixed Priority vs Round-Robin
+
+Worth knowing what you're signing up for when you pick fixed priority:
+
+| Aspect | Fixed Priority | Round-Robin |
+|--------|---------------|-------------|
+| **Fairness** | No (low-indexed clients favored) | Yes (all clients equal) |
+| **Latency** | Deterministic for high-priority | Variable |
+| **Starvation** | Possible for low-priority | Prevented |
+| **Simplicity** | Very simple (this module) | More complex |
+| **Best Use** | Interrupt handling, critical tasks | Data paths, fair scheduling |
+
+### Priority Inversion
+
+**Issue**: High-priority client blocked by low-priority client holding resource
+
+**Mitigation Strategies:**
+1. **Priority Inheritance**: Temporarily boost blocked client's priority
+2. **Resource Preemption**: Force low-priority client to release resource
+3. **Priority Ceiling**: Limit maximum priority of resource holders
+
 ## Implementation Details
 
 ### Optimized Implementations
@@ -152,7 +175,7 @@ assign w_priority_requests = any_masked_requests ?
                               requests_unmasked;
 ```
 
-## Performance Characteristics
+## Timing and Performance
 
 ### Timing
 
@@ -273,6 +296,45 @@ always_comb begin
 end
 ```
 
+## Example Priority Scenarios
+
+### Scenario 1: Single Requester (Client 2)
+```
+requests_unmasked = 8'b0000_0100
+any_masked_requests = 0
+
+→ winner = 3'd2
+→ winner_valid = 1
+```
+
+### Scenario 2: Multiple Requesters (Clients 0, 2, 5)
+```
+requests_unmasked = 8'b0010_0101
+any_masked_requests = 0
+
+→ winner = 3'd0  (lowest index wins)
+→ winner_valid = 1
+```
+
+### Scenario 3: Masked Priority (Clients 3, 6 masked)
+```
+requests_masked   = 8'b0100_1000
+requests_unmasked = 8'b0110_1101
+any_masked_requests = 1
+
+→ winner = 3'd3  (from masked, index 3 < 6)
+→ winner_valid = 1
+```
+
+### Scenario 4: No Requests
+```
+requests_unmasked = 8'b0000_0000
+any_masked_requests = 0
+
+→ winner = 3'd0 (don't care)
+→ winner_valid = 0
+```
+
 ## Design Considerations
 
 ### When to Use
@@ -315,83 +377,9 @@ end
 - Generic implementation uses priority loop (more logic levels)
 - For CLIENTS > 32, consider hierarchical structure
 
-## Priority Arbitration Theory
+### Common Pitfalls
 
-### Fixed Priority vs Round-Robin
-
-| Aspect | Fixed Priority | Round-Robin |
-|--------|---------------|-------------|
-| **Fairness** | No (low-indexed clients favored) | Yes (all clients equal) |
-| **Latency** | Deterministic for high-priority | Variable |
-| **Starvation** | Possible for low-priority | Prevented |
-| **Simplicity** | Very simple (this module) | More complex |
-| **Best Use** | Interrupt handling, critical tasks | Data paths, fair scheduling |
-
-### Priority Inversion
-
-**Issue**: High-priority client blocked by low-priority client holding resource
-
-**Mitigation Strategies:**
-1. **Priority Inheritance**: Temporarily boost blocked client's priority
-2. **Resource Preemption**: Force low-priority client to release resource
-3. **Priority Ceiling**: Limit maximum priority of resource holders
-
-## Example Priority Scenarios
-
-### Scenario 1: Single Requester (Client 2)
-```
-requests_unmasked = 8'b0000_0100
-any_masked_requests = 0
-
-→ winner = 3'd2
-→ winner_valid = 1
-```
-
-### Scenario 2: Multiple Requesters (Clients 0, 2, 5)
-```
-requests_unmasked = 8'b0010_0101
-any_masked_requests = 0
-
-→ winner = 3'd0  (lowest index wins)
-→ winner_valid = 1
-```
-
-### Scenario 3: Masked Priority (Clients 3, 6 masked)
-```
-requests_masked   = 8'b0100_1000
-requests_unmasked = 8'b0110_1101
-any_masked_requests = 1
-
-→ winner = 3'd3  (from masked, index 3 < 6)
-→ winner_valid = 1
-```
-
-### Scenario 4: No Requests
-```
-requests_unmasked = 8'b0000_0000
-any_masked_requests = 0
-
-→ winner = 3'd0 (don't care)
-→ winner_valid = 0
-```
-
-## Verification Notes
-
-From the comprehensive test suite (`val/common/test_arbiter_priority_encoder.py`):
-
-- **Coverage**: 95%
-- **Key Test Scenarios**:
-  - Priority order verification (all bit patterns)
-  - Masked vs unmasked selection
-  - No requests (winner_valid = 0)
-  - All clients requesting simultaneously
-  - Single client at a time
-  - Power-of-2 sizes (4, 8, 16, 32)
-  - Non-power-of-2 sizes (5, 12)
-
-**Test Command**: `pytest val/common/test_arbiter_priority_encoder.py -v`
-
-## Common Pitfalls
+Here's the part that bites people:
 
 ❌ **Anti-Pattern 1**: Assuming fairness
 ```systemverilog
@@ -413,6 +401,22 @@ if (winner_valid && winner == 2'd0) ...
 // WRONG: Trying to implement round-robin with priority encoder alone
 // Use arbiter_round_robin.sv instead
 ```
+
+## Verification
+
+From the test suite (`val/common/test_arbiter_priority_encoder.py`):
+
+- **Coverage**: 95%
+- **Key Test Scenarios**:
+  - Priority order verification (all bit patterns)
+  - Masked vs unmasked selection
+  - No requests (winner_valid = 0)
+  - All clients requesting simultaneously
+  - Single client at a time
+  - Power-of-2 sizes (4, 8, 16, 32)
+  - Non-power-of-2 sizes (5, 12)
+
+**Test Command**: `pytest val/common/test_arbiter_priority_encoder.py -v`
 
 ## Related Modules
 

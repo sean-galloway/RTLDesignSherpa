@@ -21,23 +21,21 @@
 
 <!-- End Header -->
 
-# Hex to 7-Segment Display (`hex_to_7seg.sv`)
+# hex_to_7seg (`hex_to_7seg.sv`)
 
 ## Purpose
-Converts 4-bit hexadecimal values (0-F) to 7-segment display patterns for common anode displays—the thing you reach for when you want human-readable output for debugging, user interfaces, and embedded systems.
+Converts 4-bit hexadecimal values (0-F) to 7-segment display patterns for common anode displays — the thing you reach for when you want human-readable output for debugging, user interfaces, and embedded systems.
+
+## Parameters
+This module has no parameters — fixed functionality for standard 7-segment displays.
 
 ## Ports
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `hex` | Input | 4 | 4-bit hexadecimal input (0x0 to 0xF) |
+| `seg` | Output | 7 | 7-segment display pattern |
 
-### Input Ports
-- **`hex[3:0]`** - 4-bit hexadecimal input (0x0 to 0xF)
-
-### Output Ports
-- **`seg[6:0]`** - 7-segment display pattern
-
-### Parameters
-None - fixed functionality for standard 7-segment displays.
-
-## 7-Segment Display Layout
+## Functionality
 
 ### Segment Naming Convention
 ```
@@ -55,9 +53,9 @@ None - fixed functionality for standard 7-segment displays.
 - **Common Anode**: 0 = segment ON, 1 = segment OFF
 - **Active Low**: LED segments illuminate when driven low
 
-## Character Patterns
+### Character Patterns
 
-### Complete Truth Table
+#### Complete Truth Table
 | Hex | Display | seg[6:0] | Segments ON | Pattern |
 |-----|---------|----------|-------------|---------|
 | 0x0 | **0** | 1000000 | abcdef | Classic 0 |
@@ -77,7 +75,7 @@ None - fixed functionality for standard 7-segment displays.
 | 0xE | **E** | 0000110 | afged | Letter E |
 | 0xF | **F** | 0001110 | afge | Letter F |
 
-### Visual Representation
+#### Visual Representation
 ```
  ###   #   ###  ###  # #  ###  ###  ###  ###  ### 
 #   # # #     #    # # #  #    #      # #   # #   #
@@ -157,7 +155,19 @@ Controller → [Resistor] → LED Segment → Common Anode (+V)
 ```
 Typical resistor values: 220Ω - 1kΩ depending on LED specifications.
 
-## Use Cases and Applications
+## Timing Characteristics
+
+### Propagation Delay
+- **Combinational logic**: Case statement maps to LUT
+- **Typical delay**: 1 LUT delay (sub-nanosecond)
+- **No clock dependency**: Immediate response to input changes
+
+### Display Update Rate
+- **Electronic response**: Immediate (propagation delay)
+- **Visual response**: Limited by LED rise/fall times (~microseconds)
+- **Human perception**: >30Hz refresh rate for flicker-free display
+
+## Usage Examples
 
 ### Debug Displays
 ```systemverilog
@@ -194,18 +204,6 @@ hex_to_7seg error_display (
     .seg(error_segments)
 );
 ```
-
-## Timing Characteristics
-
-### Propagation Delay
-- **Combinational logic**: Case statement maps to LUT
-- **Typical delay**: 1 LUT delay (sub-nanosecond)
-- **No clock dependency**: Immediate response to input changes
-
-### Display Update Rate
-- **Electronic response**: Immediate (propagation delay)
-- **Visual response**: Limited by LED rise/fall times (~microseconds)
-- **Human perception**: >30Hz refresh rate for flicker-free display
 
 ## Design Variations
 

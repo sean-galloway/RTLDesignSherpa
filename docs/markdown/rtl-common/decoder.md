@@ -21,22 +21,43 @@
 
 <!-- End Header -->
 
-# Decoder Module (`decoder.sv`)
+# decoder (`decoder.sv`)
 
 ## Purpose
-Converts an M-bit binary encoded input to a one-hot N-bit output where N = 2^M. Standard binary-to-one-hot decoding—nothing exotic.
+Converts an M-bit binary encoded input to a one-hot N-bit output where N = 2^M. Standard binary-to-one-hot decoding — nothing exotic.
+
+## Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `M` | 4 | Width of binary input |
+| `N` | 2^M = 16 | Width of one-hot output |
 
 ## Ports
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `encoded` | Input | M | Binary encoded input value |
+| `data` | Output | N | One-hot decoded output vector |
 
-### Input Ports
-- **`encoded[M-1:0]`** - Binary encoded input value
+## Functionality
 
-### Output Ports  
-- **`data[N-1:0]`** - One-hot decoded output vector
+### Operation Principle
+- Each output bit maps to one possible input value
+- Only one output bit is high at any time (that's the one-hot part)
+- Output bit `i` is high when the `encoded` input equals `i`
 
-### Parameters
-- **`M`** - Width of binary input (default: 4)
-- **`N`** - Width of one-hot output (default: 2^M = 16)
+### Truth Table Example (M=2, N=4)
+| encoded[1:0] | data[3] | data[2] | data[1] | data[0] |
+|--------------|---------|---------|---------|---------|
+| 00           | 0       | 0       | 0       | 1       |
+| 01           | 0       | 0       | 1       | 0       |
+| 10           | 0       | 1       | 0       | 0       |
+| 11           | 1       | 0       | 0       | 0       |
+
+### Key Characteristics
+- **Combinational logic**: No clock dependency, immediate response
+- **One-hot output**: Exactly one bit high for valid inputs
+- **Complete decoding**: All possible input combinations decoded
+- **No default initialization**: because `N = 2^M` covers every input value, exactly one output is high at all times — the outputs are never all-zero, and the RTL contains no default assignment
 
 ## Implementation Details
 
@@ -52,29 +73,6 @@ generate
 endgenerate
 ```
 
-### Operation Principle
-- Each output bit maps to one possible input value
-- Only one output bit is high at any time (that's the one-hot part)
-- Output bit `i` is high when the `encoded` input equals `i`
-
-## Functional Behavior
-
-### Truth Table Example (M=2, N=4)
-| encoded[1:0] | data[3] | data[2] | data[1] | data[0] |
-|--------------|---------|---------|---------|---------|
-| 00           | 0       | 0       | 0       | 1       |
-| 01           | 0       | 0       | 1       | 0       |
-| 10           | 0       | 1       | 0       | 0       |
-| 11           | 1       | 0       | 0       | 0       |
-
-### Key Characteristics
-- **Combinational logic**: No clock dependency, immediate response
-- **One-hot output**: Exactly one bit high for valid inputs
-- **Complete decoding**: All possible input combinations decoded
-- **No default initialization**: because `N = 2^M` covers every input value, exactly one output is high at all times -- the outputs are never all-zero, and the RTL contains no default assignment
-
-## Design Features
-
 ### Parameterization
 - **Scalable width**: M sets the input width
 - **Automatic sizing**: N falls out as 2^M
@@ -85,14 +83,12 @@ endgenerate
 - **Propagation delay**: Single LUT delay in most FPGA architectures  
 - **Fan-out**: Each input bit feeds multiple output comparisons
 
-## Use Cases
-- **Address decoding**: Memory or register select signals
-- **State machine outputs**: Decode binary state to control signals
-- **Multiplexer control**: Generate select signals for data routing
-- **Interrupt controllers**: Decode interrupt vectors
-- **Bus decoding**: Generate chip select signals
+## Timing Characteristics
+- **Propagation delay**: Typically 1 LUT delay
+- **Setup/hold**: None (purely combinational)
+- **Output changes**: Follow the inputs immediately
 
-## Common Applications
+## Usage Examples
 
 ### Memory Address Decoding
 ```systemverilog
@@ -110,15 +106,12 @@ decoder #(.M(3), .N(8)) state_decoder (
 );
 ```
 
-## Timing Characteristics
-- **Propagation delay**: Typically 1 LUT delay
-- **Setup/hold**: None (purely combinational)
-- **Output changes**: Follow the inputs immediately
-
-## Related Modules
-- **Encoder**: Performs inverse operation (one-hot to binary)
-- **Priority Encoder**: Handles multiple simultaneous inputs
-- **Multiplexer**: Often used together for data routing
+## Applications
+- **Address decoding**: Memory or register select signals
+- **State machine outputs**: Decode binary state to control signals
+- **Multiplexer control**: Generate select signals for data routing
+- **Interrupt controllers**: Decode interrupt vectors
+- **Bus decoding**: Generate chip select signals
 
 ## Design Notes
 - No error checking for invalid inputs (though all combinations are valid)
@@ -126,6 +119,11 @@ decoder #(.M(3), .N(8)) state_decoder (
   so all outputs are defined at all times (no separate initialization needed —
   and none exists in the RTL)
 - The generate loop structure scales efficiently to any required size
+
+## Related Modules
+- **Encoder**: Performs inverse operation (one-hot to binary)
+- **Priority Encoder**: Handles multiple simultaneous inputs
+- **Multiplexer**: Often used together for data routing
 
 ## Navigation
 

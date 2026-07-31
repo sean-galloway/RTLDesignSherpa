@@ -21,6 +21,8 @@
 
 <!-- End Header -->
 
+**[← Back to Main Index](../index.md)** | **[rtl-common Index](index.md)**
+
 # Weighted Round Robin Arbiter
 
 A credit-based weighted round-robin arbiter with Quality of Service (QoS) support. Clients get bandwidth proportional to their weights, and no client can starve.
@@ -66,17 +68,17 @@ module arbiter_round_robin_weighted #(
 | CLIENTS | int | 4 | Number of requesting clients (range: 2-32) |
 | WAIT_GNT_ACK | int | 0 | Enable ACK protocol (0=No-ACK, 1=ACK required) |
 
-### Derived Localparam (Computed Internally)
+### Derived Parameters
 
-| Localparam | Computation | Description |
-|------------|-------------|-------------|
+| Parameter | Default | Description |
+|-----------|---------|-------------|
 | MAX_LEVELS_WIDTH | $clog2(MAX_LEVELS) | Credit counter width in bits |
 | N | $clog2(CLIENTS) | Client ID width in bits |
 | C | CLIENTS | Convenience alias for port widths |
 | MTW | MAX_LEVELS_WIDTH | Convenience alias for weight width |
 | CXMTW | CLIENTS * MAX_LEVELS_WIDTH | Total packed weight array width |
 
-**Note:** MAX_LEVELS_WIDTH, N, C, MTW, and CXMTW are computed internally and cannot be overridden by users.
+**Note:** MAX_LEVELS_WIDTH, N, C, MTW, and CXMTW are localparams computed internally and cannot be overridden by users.
 
 ## Ports
 
@@ -139,6 +141,33 @@ For weights [4, 2, 1, 1] with all clients requesting continuously:
 Consecutive per-client grants only occur once a client is the **sole** eligible
 requester (e.g., others have exhausted their credits), at which point the
 `w_mask_last_client` term lets it keep the resource.
+
+### Zero-Weight Client Handling
+
+Clients with `max_thresh = 0` are effectively disabled:
+- Never accumulate credits
+- Never participate in arbitration
+- Credit counters remain at zero
+
+### ACK Protocol Support
+
+When `WAIT_GNT_ACK = 1`:
+- Grant remains asserted until `grant_ack` received
+- Credit decrement waits for ACK
+- Weight change FSM waits for pending ACKs
+- Enables pipelined/posted transaction masters
+
+When `WAIT_GNT_ACK = 0`:
+- Grant completes immediately (1 cycle)
+- Credit decrements same cycle as grant
+- Optimal for simple masters (no pipeline)
+
+### Starvation Prevention
+
+The arbiter guarantees starvation-free operation:
+- All non-zero weight clients eventually served
+- Maximum starvation time: Sum of all other clients' weights
+- Global replenishment ensures fairness
 
 ## Dynamic Weight Changes
 
@@ -248,34 +277,42 @@ arbiter_round_robin #(
 );
 ```
 
-## Special Features
+## Timing and Performance
 
-### Zero-Weight Client Handling
+### Latency and Throughput
 
-Clients with `max_thresh = 0` are effectively disabled:
-- Never accumulate credits
-- Never participate in arbitration
-- Credit counters remain at zero
+- **Latency**: 1 cycle in steady state. Credit calculation, eligibility masking
+  and the round-robin decision are all combinational (`request` ->
+  `w_req_post` -> `w_requesting_eligible` -> `w_mask_req`); the only register
+  stage is the base arbiter's `grant <= w_next_grant`. Measured on this RTL: a
+  request sampled at edge N produces `grant_valid` at edge N+1. Two exceptions
+  add cycles -- the first grant after reset waits for the weight FSM to
+  initialise (measured at 7 cycles for a 4-client, all-weights-4 configuration),
+  and a global replenish inserts a one-cycle bubble.
+- **Throughput**: 1 grant per cycle (maximum)
+- **Grant Hold**: No-ACK=1 cycle, ACK=Until grant_ack asserted
+- **Weight Update**: 5-15 cycles (FSM: BLOCK→DRAIN→UPDATE→STABILIZE)
+- **Reset**: Asynchronous (all credits→1, weights→default)
 
-### ACK Protocol Support
+### Critical Paths
 
-When `WAIT_GNT_ACK = 1`:
-- Grant remains asserted until `grant_ack` received
-- Credit decrement waits for ACK
-- Weight change FSM waits for pending ACKs
-- Enables pipelined/posted transaction masters
+1. **Credit Comparison**: Credit counter → eligibility logic
+2. **Request Filtering**: Eligible clients → masked requests
+3. **Round-Robin**: Base arbiter selection logic
 
-When `WAIT_GNT_ACK = 0`:
-- Grant completes immediately (1 cycle)
-- Credit decrements same cycle as grant
-- Optimal for simple masters (no pipeline)
+### Resource Utilization
 
-### Starvation Prevention
+| CLIENTS | MAX_LEVELS | FFs (Est.) | LUTs (Est.) |
+|---------|------------|------------|-------------|
+| 4 | 16 | ~40 | ~50 |
+| 8 | 16 | ~70 | ~90 |
+| 4 | 32 | ~45 | ~55 |
+| 8 | 32 | ~80 | ~110 |
 
-The arbiter guarantees starvation-free operation:
-- All non-zero weight clients eventually served
-- Maximum starvation time: Sum of all other clients' weights
-- Global replenishment ensures fairness
+### Maximum Frequency
+
+- **Typical**: 300-500 MHz (modern FPGAs)
+- **Limiting Factor**: Credit comparison and request filtering logic
 
 ## Usage Examples
 
@@ -371,29 +408,6 @@ arbiter_round_robin_weighted #(
 );
 ```
 
-## Timing Characteristics
-
-### Latency and Throughput
-
-- **Latency**: 1 cycle in steady state. Credit calculation, eligibility masking
-  and the round-robin decision are all combinational (`request` ->
-  `w_req_post` -> `w_requesting_eligible` -> `w_mask_req`); the only register
-  stage is the base arbiter's `grant <= w_next_grant`. Measured on this RTL: a
-  request sampled at edge N produces `grant_valid` at edge N+1. Two exceptions
-  add cycles -- the first grant after reset waits for the weight FSM to
-  initialise (measured at 7 cycles for a 4-client, all-weights-4 configuration),
-  and a global replenish inserts a one-cycle bubble.
-- **Throughput**: 1 grant per cycle (maximum)
-- **Grant Hold**: No-ACK=1 cycle, ACK=Until grant_ack asserted
-- **Weight Update**: 5-15 cycles (FSM: BLOCK→DRAIN→UPDATE→STABILIZE)
-- **Reset**: Asynchronous (all credits→1, weights→default)
-
-### Critical Paths
-
-1. **Credit Comparison**: Credit counter → eligibility logic
-2. **Request Filtering**: Eligible clients → masked requests
-3. **Round-Robin**: Base arbiter selection logic
-
 ## Design Considerations
 
 ### When to Use Each Mode
@@ -424,25 +438,9 @@ arbiter_round_robin_weighted #(
 - ✅ **Safe**: FSM ensures atomic updates without race conditions
 - ✅ **Timeout**: 15-cycle timeout prevents lockup
 
-## Performance Characteristics
+## Verification
 
-### Resource Utilization
-
-| CLIENTS | MAX_LEVELS | FFs (Est.) | LUTs (Est.) |
-|---------|------------|------------|-------------|
-| 4 | 16 | ~40 | ~50 |
-| 8 | 16 | ~70 | ~90 |
-| 4 | 32 | ~45 | ~55 |
-| 8 | 32 | ~80 | ~110 |
-
-### Maximum Frequency
-
-- **Typical**: 300-500 MHz (modern FPGAs)
-- **Limiting Factor**: Credit comparison and request filtering logic
-
-## Verification Notes
-
-From the comprehensive test suite (`val/common/test_arbiter_round_robin_weighted.py`):
+From the test suite (`val/common/test_arbiter_round_robin_weighted.py`):
 
 - **Coverage**: 94%
 - **Key Test Scenarios**:

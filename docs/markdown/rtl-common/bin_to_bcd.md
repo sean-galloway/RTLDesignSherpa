@@ -21,12 +21,18 @@
 
 <!-- End Header -->
 
-# Binary to BCD Converter - Comprehensive Documentation
+**[← Back to Main Index](../index.md)** | **[rtl-common Index](index.md)**
+
+# Binary to BCD Converter
+
+Binary in, decimal out — the module you need the moment a number has to end up on a display.
 
 ## Overview
+
 The `bin_to_bcd` module converts binary numbers to Binary Coded Decimal (BCD) format using the Double-Dabble algorithm (also known as the Add-3-Then-Shift algorithm). It's a fundamental operation in digital systems for displaying numeric values on seven-segment displays, LCD panels, and other decimal-based output devices.
 
 ## Module Declaration
+
 ```systemverilog
 module bin_to_bcd #(
     parameter int WIDTH  = 8,
@@ -43,23 +49,13 @@ module bin_to_bcd #(
 
 ## Parameters
 
-### WIDTH
-- **Type**: `int`
-- **Default**: `8`
-- **Description**: Bit width of the input binary number
-- **Range**: 1 to 32 (practical range)
-- **Impact**: Determines conversion complexity and timing
-- **Sizing Rule**: For n-bit binary input, maximum decimal value is 2^n - 1
-
-### DIGITS
-- **Type**: `int`
-- **Default**: `3`
-- **Description**: Number of BCD digits in the output
-- **Range**: Must be sufficient for maximum input value
-- **Calculation**: `DIGITS ≥ ceil(log10(2^WIDTH))`
-- **Output Width**: `DIGITS × 4` bits (4 bits per BCD digit)
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| WIDTH | int | 8 | Bit width of the input binary number. Range: 1 to 32 (practical range). Determines conversion complexity and timing. Sizing rule: for n-bit binary input, maximum decimal value is 2^n - 1. |
+| DIGITS | int | 3 | Number of BCD digits in the output. Must be sufficient for the maximum input value: `DIGITS ≥ ceil(log10(2^WIDTH))`. Output width is `DIGITS × 4` bits (4 bits per BCD digit). |
 
 ### Parameter Relationship Table
+
 | WIDTH | Max Binary Value | Max Decimal | Min DIGITS Required | BCD Width |
 |-------|------------------|-------------|-------------------|-----------|
 | 4 | 15 | 15 | 2 | 8 bits |
@@ -73,6 +69,7 @@ module bin_to_bcd #(
 ## Ports
 
 ### Inputs
+
 | Port | Width | Type | Description |
 |------|-------|------|-------------|
 | `clk` | 1 | `logic` | System clock |
@@ -81,14 +78,16 @@ module bin_to_bcd #(
 | `binary` | WIDTH | `logic` | Binary number to convert |
 
 ### Outputs
+
 | Port | Width | Type | Description |
 |------|-------|------|-------------|
 | `bcd` | DIGITS×4 | `logic` | BCD result (packed format) |
 | `done` | 1 | `logic` | Conversion complete flag |
 
-## Double-Dabble Algorithm Theory
+## Functionality
 
-### Algorithm Principle
+### The Double-Dabble Algorithm
+
 The Double-Dabble algorithm converts binary to BCD through iterative shifting and adjustment:
 
 1. **Initialize**: BCD accumulator = 0, binary shift register = input value
@@ -98,21 +97,22 @@ The Double-Dabble algorithm converts binary to BCD through iterative shifting an
 5. **Result**: BCD accumulator contains the decimal equivalent
 
 ### Why Add 3?
+
 The "add 3" step exists to prevent BCD overflow during shifting:
 - **BCD Range**: Each digit must stay within 0-9 (4 bits)
 - **Problem**: Shifting a BCD digit ≥ 5 creates values > 9
 - **Solution**: Adding 3 before shifting ensures proper BCD after shift
 
 ### Mathematical Proof
+
 For BCD digit D where D ≥ 5:
 - Before shift: D + 3
 - After shift: 2(D + 3) = 2D + 6
 - For D = 5: 2(5) + 6 = 16 = 0x10 (BCD: 1,6 - carry generated)
 - For D = 9: 2(9) + 6 = 24 = 0x18 (BCD: 2,4 - carry generated)
 
-## FSM Implementation
+### State Machine
 
-### State Definitions
 ```systemverilog
 typedef enum logic [5:0] {
     IDLE     = 6'b000001,  // Wait for start signal
@@ -125,6 +125,7 @@ typedef enum logic [5:0] {
 ```
 
 ### State Transition Diagram
+
 ```
     IDLE ──start──→ SHIFT
      ↑                ↓
@@ -142,7 +143,7 @@ BCD_DONE            CK_S_IDX
      └─────────────────────→   SHIFT
 ```
 
-### Detailed State Descriptions
+### State Descriptions
 
 #### IDLE State
 - **Function**: Wait for start signal
@@ -202,6 +203,7 @@ BCD_DONE            CK_S_IDX
 ## Implementation Details
 
 ### Register Definitions
+
 ```systemverilog
 // FSM state register
 fsm_state_t r_fsm_main;
@@ -225,6 +227,7 @@ logic r_dv;
 ```
 
 ### Core Processing Logic
+
 ```systemverilog
 // Extract current BCD digit being processed
 logic [3:0] w_bcd_digit;
@@ -304,45 +307,8 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Timing Analysis
+### BCD Format and Encoding
 
-### Conversion Latency
-The total conversion time depends on the input width and number of digits:
-
-**Formula**: `Latency ≈ (WIDTH-1) × (2×DIGITS + 2) + 3` clock cycles
-(measured from the cycle `start` is accepted to the cycle `done` asserts).
-
-The per-bit cost is dominated by the add-3 phase: each shift is followed by a
-full `ADD → CK_D_IDX` pass over **every** digit, so each bit position costs
-`2×DIGITS` cycles there in addition to its `SHIFT` and `CK_S_IDX` cycles. The
-`CK_S_IDX` and `CK_D_IDX` states are distinct clock cycles, not free.
-
-### Latency Breakdown
-- **SHIFT + CK_S_IDX**: 2 cycles per input bit → `2 × WIDTH` cycles.
-- **ADD + CK_D_IDX**: `2 × DIGITS` cycles after each shift **except the last**
-  (the final bit skips the add phase and goes straight to `BCD_DONE`) →
-  `(WIDTH-1) × 2 × DIGITS` cycles.
-- **Completion**: 1 cycle for BCD_DONE state.
-- **Total**: `(WIDTH-1) × (2×DIGITS + 2) + 3` cycles.
-
-### Latency Examples
-| WIDTH | DIGITS | Total Cycles | @ 100MHz | @ 50MHz |
-|-------|--------|--------------|----------|---------|
-| 4 | 2 | 3×6 + 3 = 21 | 210ns | 420ns |
-| 8 | 3 | 7×8 + 3 = 59 | 590ns | 1.18μs |
-| 12 | 4 | 11×10 + 3 = 113 | 1.13μs | 2.26μs |
-| 16 | 5 | 15×12 + 3 = 183 | 1.83μs | 3.66μs |
-| 20 | 7 | 19×16 + 3 = 307 | 3.07μs | 6.14μs |
-
-### Pipeline Considerations
-The conversion is inherently sequential, making pipelining challenging:
-- **Data Dependency**: Each iteration depends on previous results
-- **State-Based**: FSM prevents overlapping conversions
-- **Optimization**: Consider parallel converters for high throughput
-
-## BCD Format and Encoding
-
-### BCD Digit Encoding
 Each BCD digit uses 4 bits to represent decimal values 0-9:
 
 | Decimal | BCD (4-bit) | Hex |
@@ -359,7 +325,6 @@ Each BCD digit uses 4 bits to represent decimal values 0-9:
 | 9 | 1001 | 0x9 |
 | Invalid | 1010-1111 | 0xA-0xF |
 
-### Packed BCD Format
 The output `bcd` uses packed BCD format where multiple digits are concatenated:
 
 ```systemverilog
@@ -371,7 +336,8 @@ The output `bcd` uses packed BCD format where multiple digits are concatenated:
 // Example: decimal 123 → bcd = 12'h123
 ```
 
-### BCD Digit Extraction
+Extracting individual digits from the packed vector:
+
 ```systemverilog
 // Extract individual digits from packed BCD
 logic [3:0] ones, tens, hundreds;
@@ -387,6 +353,62 @@ assign ascii_ones     = 8'h30 + ones;     // Add ASCII '0'
 assign ascii_tens     = 8'h30 + tens;
 assign ascii_hundreds = 8'h30 + hundreds;
 ```
+
+## Timing and Performance
+
+### Conversion Latency
+
+The total conversion time depends on the input width and number of digits:
+
+**Formula**: `Latency ≈ (WIDTH-1) × (2×DIGITS + 2) + 3` clock cycles
+(measured from the cycle `start` is accepted to the cycle `done` asserts).
+
+The per-bit cost is dominated by the add-3 phase: each shift is followed by a
+full `ADD → CK_D_IDX` pass over **every** digit, so each bit position costs
+`2×DIGITS` cycles there in addition to its `SHIFT` and `CK_S_IDX` cycles. The
+`CK_S_IDX` and `CK_D_IDX` states are distinct clock cycles, not free.
+
+### Latency Breakdown
+
+- **SHIFT + CK_S_IDX**: 2 cycles per input bit → `2 × WIDTH` cycles.
+- **ADD + CK_D_IDX**: `2 × DIGITS` cycles after each shift **except the last**
+  (the final bit skips the add phase and goes straight to `BCD_DONE`) →
+  `(WIDTH-1) × 2 × DIGITS` cycles.
+- **Completion**: 1 cycle for BCD_DONE state.
+- **Total**: `(WIDTH-1) × (2×DIGITS + 2) + 3` cycles.
+
+### Latency Examples
+
+| WIDTH | DIGITS | Total Cycles | @ 100MHz | @ 50MHz |
+|-------|--------|--------------|----------|---------|
+| 4 | 2 | 3×6 + 3 = 21 | 210ns | 420ns |
+| 8 | 3 | 7×8 + 3 = 59 | 590ns | 1.18μs |
+| 12 | 4 | 11×10 + 3 = 113 | 1.13μs | 2.26μs |
+| 16 | 5 | 15×12 + 3 = 183 | 1.83μs | 3.66μs |
+| 20 | 7 | 19×16 + 3 = 307 | 3.07μs | 6.14μs |
+
+### Pipeline Considerations
+
+The conversion is inherently sequential, making pipelining challenging:
+- **Data Dependency**: Each iteration depends on previous results
+- **State-Based**: FSM prevents overlapping conversions
+- **Optimization**: Consider parallel converters for high throughput
+
+### Synthesis Results (Typical FPGA)
+
+| Configuration | LUTs | FFs | BRAM | Max Freq | Notes |
+|---------------|------|-----|------|----------|-------|
+| 8-bit, 3-digit | 85 | 45 | 0 | 250 MHz | Basic config |
+| 12-bit, 4-digit | 145 | 65 | 0 | 220 MHz | Medium size |
+| 16-bit, 5-digit | 220 | 85 | 0 | 200 MHz | Larger design |
+| 20-bit, 7-digit | 350 | 125 | 0 | 180 MHz | Complex design |
+
+### Power Consumption
+
+- **Dynamic Power**: Proportional to conversion frequency
+- **Static Power**: Minimal (standard CMOS)
+- **Optimization**: Clock gating during IDLE state
+- **Trade-off**: Performance vs. power efficiency
 
 ## Worked Examples
 
@@ -447,9 +469,10 @@ digits (`ADD → CK_D_IDX` per digit) before the next shift. The final bit
 **Result**: BCD = 8'b00001001 = 09₁₆ = 9₁₀ ✓ (21 cycles, matching
 `(WIDTH-1)×(2×DIGITS+2)+3 = 3×6+3 = 21`).
 
-## Design Examples and Applications
+## Usage Examples
 
-### 1. Seven-Segment Display Driver
+### Seven-Segment Display Driver
+
 ```systemverilog
 module display_controller #(
     parameter int WIDTH = 8
@@ -518,7 +541,8 @@ module seven_seg_decoder (
 endmodule
 ```
 
-### 2. LCD/UART Decimal Display
+### LCD/UART Decimal Display
+
 ```systemverilog
 module decimal_uart_tx #(
     parameter int WIDTH = 16,
@@ -608,7 +632,8 @@ module decimal_uart_tx #(
 endmodule
 ```
 
-### 3. Multi-Channel BCD Converter
+### Multi-Channel BCD Converter
+
 ```systemverilog
 module multi_channel_bcd #(
     parameter int CHANNELS = 4,
@@ -690,9 +715,12 @@ module multi_channel_bcd #(
 endmodule
 ```
 
-## Optimization Techniques
+## Design Considerations
 
-### 1. Early Termination Optimization
+### Optimization Techniques
+
+#### Early Termination Optimization
+
 ```systemverilog
 // Optimize for small numbers by detecting leading zeros
 logic [WIDTH-1:0] leading_zero_mask;
@@ -720,7 +748,8 @@ always_ff @(posedge clk) begin
 end
 ```
 
-### 2. Parallel Digit Processing
+#### Parallel Digit Processing
+
 ```systemverilog
 // Process all digits in parallel during ADD state
 logic [3:0] digit_array [DIGITS];
@@ -749,7 +778,8 @@ always_ff @(posedge clk) begin
 end
 ```
 
-### 3. Pipelined Implementation
+#### Pipelined Implementation
+
 ```systemverilog
 // Multi-stage pipeline for high throughput
 module bin_to_bcd_pipelined #(
@@ -784,9 +814,166 @@ module bin_to_bcd_pipelined #(
 endmodule
 ```
 
-## Verification and Testing
+### Common Design Patterns
 
-### Comprehensive Test Strategy
+#### Pattern 1: Auto-Converting Display Interface
+
+```systemverilog
+module auto_display_interface #(
+    parameter int WIDTH = 10
+) (
+    input  logic [WIDTH-1:0] sensor_data,
+    input  logic             data_valid,
+    output logic [6:0]       display_segments[4],
+    output logic             display_valid
+);
+
+    // Auto-trigger conversion on new data
+    logic prev_data_valid;
+    logic start_conversion;
+    
+    always_ff @(posedge clk) begin
+        prev_data_valid <= data_valid;
+    end
+    
+    assign start_conversion = data_valid && !prev_data_valid;
+    
+    // BCD converter and display driver
+    // ... (implementation similar to previous examples)
+
+endmodule
+```
+
+#### Pattern 2: Buffered Converter with FIFO
+
+```systemverilog
+module buffered_bcd_converter #(
+    parameter int WIDTH = 12,
+    parameter int DIGITS = 4,
+    parameter int BUFFER_DEPTH = 8
+) (
+    input  logic             clk,
+    input  logic             rst_n,
+    input  logic [WIDTH-1:0] binary_in,
+    input  logic             write_enable,
+    output logic [DIGITS*4-1:0] bcd_out,
+    output logic             bcd_valid,
+    output logic             buffer_full,
+    output logic             buffer_empty
+);
+
+    // Input FIFO
+    logic [WIDTH-1:0] fifo_data_out;
+    logic fifo_read_enable, fifo_empty_int;
+    
+    sync_fifo #(
+        .WIDTH(WIDTH),
+        .DEPTH(BUFFER_DEPTH)
+    ) input_buffer (
+        .clk(clk),
+        .rst_n(rst_n),
+        .write_data(binary_in),
+        .write_enable(write_enable),
+        .read_data(fifo_data_out),
+        .read_enable(fifo_read_enable),
+        .full(buffer_full),
+        .empty(fifo_empty_int)
+    );
+    
+    // BCD converter control
+    logic conversion_idle;
+    
+    assign fifo_read_enable = !fifo_empty_int && conversion_idle;
+    assign buffer_empty = fifo_empty_int;
+    
+    // BCD converter instance
+    bin_to_bcd #(
+        .WIDTH(WIDTH),
+        .DIGITS(DIGITS)
+    ) converter (
+        .clk(clk),
+        .rst_n(rst_n),
+        .start(fifo_read_enable),
+        .binary(fifo_data_out),
+        .bcd(bcd_out),
+        .done(bcd_valid)
+    );
+    
+    // Track converter state
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            conversion_idle <= 1;
+        end else begin
+            if (fifo_read_enable) begin
+                conversion_idle <= 0;
+            end else if (bcd_valid) begin
+                conversion_idle <= 1;
+            end
+        end
+    end
+
+endmodule
+```
+
+### Troubleshooting Guide
+
+#### Issue 1: Incorrect BCD Output
+**Symptoms**: Output doesn't match expected decimal value
+**Causes**:
+- Insufficient DIGITS parameter
+- Width mismatch between binary input and internal registers
+- BCD digit corruption during processing
+
+**Debug Steps**:
+```systemverilog
+// Add internal signal monitoring
+always_ff @(posedge clk) begin
+    if (dut.r_fsm_main == ADD && dut.w_bcd_digit > 4) begin
+        $display("ADD operation: digit=%d, new_value=%d", 
+                 dut.w_bcd_digit, dut.w_bcd_digit + 3);
+    end
+end
+```
+
+#### Issue 2: Conversion Never Completes
+**Symptoms**: `done` signal never asserts
+**Causes**:
+- FSM stuck in loop
+- Incorrect loop termination condition
+- Clock or reset issues
+
+**Debug Steps**:
+```systemverilog
+// Monitor FSM state transitions
+always_ff @(posedge clk) begin
+    $display("State: %s, Loop: %d, Digit: %d", 
+             dut.r_fsm_main.name(), dut.r_loop_count, dut.r_digit_index);
+end
+```
+
+#### Issue 3: Timing Violations
+**Symptoms**: Synthesis reports timing failures
+**Causes**:
+- Long combinational paths in ADD logic
+- High fan-out on BCD register
+- Insufficient pipeline stages
+
+**Solutions**:
+```systemverilog
+// Add pipeline registers
+logic [DIGITS*4-1:0] bcd_pipe;
+always_ff @(posedge clk) begin
+    bcd_pipe <= r_bcd;
+end
+
+// Use parallel digit processing
+// (Shown in optimization section)
+```
+
+## Verification
+
+### Test Strategy
+
 ```systemverilog
 module tb_bin_to_bcd;
 
@@ -884,6 +1071,7 @@ endmodule
 ```
 
 ### Coverage Model
+
 ```systemverilog
 covergroup bcd_conversion_cg;
     
@@ -926,6 +1114,7 @@ endcovergroup
 ```
 
 ### Formal Verification Properties
+
 ```systemverilog
 // Properties for formal verification
 module bin_to_bcd_properties #(
@@ -976,178 +1165,6 @@ module bin_to_bcd_properties #(
     assert property (conversion_correctness);
 
 endmodule
-```
-
-## Performance and Resource Analysis
-
-### Synthesis Results (Typical FPGA)
-| Configuration | LUTs | FFs | BRAM | Max Freq | Notes |
-|---------------|------|-----|------|----------|-------|
-| 8-bit, 3-digit | 85 | 45 | 0 | 250 MHz | Basic config |
-| 12-bit, 4-digit | 145 | 65 | 0 | 220 MHz | Medium size |
-| 16-bit, 5-digit | 220 | 85 | 0 | 200 MHz | Larger design |
-| 20-bit, 7-digit | 350 | 125 | 0 | 180 MHz | Complex design |
-
-### Power Consumption Analysis
-- **Dynamic Power**: Proportional to conversion frequency
-- **Static Power**: Minimal (standard CMOS)
-- **Optimization**: Clock gating during IDLE state
-- **Trade-off**: Performance vs. power efficiency
-
-## Common Design Patterns
-
-### Pattern 1: Auto-Converting Display Interface
-```systemverilog
-module auto_display_interface #(
-    parameter int WIDTH = 10
-) (
-    input  logic [WIDTH-1:0] sensor_data,
-    input  logic             data_valid,
-    output logic [6:0]       display_segments[4],
-    output logic             display_valid
-);
-
-    // Auto-trigger conversion on new data
-    logic prev_data_valid;
-    logic start_conversion;
-    
-    always_ff @(posedge clk) begin
-        prev_data_valid <= data_valid;
-    end
-    
-    assign start_conversion = data_valid && !prev_data_valid;
-    
-    // BCD converter and display driver
-    // ... (implementation similar to previous examples)
-
-endmodule
-```
-
-### Pattern 2: Buffered Converter with FIFO
-```systemverilog
-module buffered_bcd_converter #(
-    parameter int WIDTH = 12,
-    parameter int DIGITS = 4,
-    parameter int BUFFER_DEPTH = 8
-) (
-    input  logic             clk,
-    input  logic             rst_n,
-    input  logic [WIDTH-1:0] binary_in,
-    input  logic             write_enable,
-    output logic [DIGITS*4-1:0] bcd_out,
-    output logic             bcd_valid,
-    output logic             buffer_full,
-    output logic             buffer_empty
-);
-
-    // Input FIFO
-    logic [WIDTH-1:0] fifo_data_out;
-    logic fifo_read_enable, fifo_empty_int;
-    
-    sync_fifo #(
-        .WIDTH(WIDTH),
-        .DEPTH(BUFFER_DEPTH)
-    ) input_buffer (
-        .clk(clk),
-        .rst_n(rst_n),
-        .write_data(binary_in),
-        .write_enable(write_enable),
-        .read_data(fifo_data_out),
-        .read_enable(fifo_read_enable),
-        .full(buffer_full),
-        .empty(fifo_empty_int)
-    );
-    
-    // BCD converter control
-    logic conversion_idle;
-    
-    assign fifo_read_enable = !fifo_empty_int && conversion_idle;
-    assign buffer_empty = fifo_empty_int;
-    
-    // BCD converter instance
-    bin_to_bcd #(
-        .WIDTH(WIDTH),
-        .DIGITS(DIGITS)
-    ) converter (
-        .clk(clk),
-        .rst_n(rst_n),
-        .start(fifo_read_enable),
-        .binary(fifo_data_out),
-        .bcd(bcd_out),
-        .done(bcd_valid)
-    );
-    
-    // Track converter state
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            conversion_idle <= 1;
-        end else begin
-            if (fifo_read_enable) begin
-                conversion_idle <= 0;
-            end else if (bcd_valid) begin
-                conversion_idle <= 1;
-            end
-        end
-    end
-
-endmodule
-```
-
-## Troubleshooting Guide
-
-### Common Issues and Solutions
-
-#### Issue 1: Incorrect BCD Output
-**Symptoms**: Output doesn't match expected decimal value
-**Causes**:
-- Insufficient DIGITS parameter
-- Width mismatch between binary input and internal registers
-- BCD digit corruption during processing
-
-**Debug Steps**:
-```systemverilog
-// Add internal signal monitoring
-always_ff @(posedge clk) begin
-    if (dut.r_fsm_main == ADD && dut.w_bcd_digit > 4) begin
-        $display("ADD operation: digit=%d, new_value=%d", 
-                 dut.w_bcd_digit, dut.w_bcd_digit + 3);
-    end
-end
-```
-
-#### Issue 2: Conversion Never Completes
-**Symptoms**: `done` signal never asserts
-**Causes**:
-- FSM stuck in loop
-- Incorrect loop termination condition
-- Clock or reset issues
-
-**Debug Steps**:
-```systemverilog
-// Monitor FSM state transitions
-always_ff @(posedge clk) begin
-    $display("State: %s, Loop: %d, Digit: %d", 
-             dut.r_fsm_main.name(), dut.r_loop_count, dut.r_digit_index);
-end
-```
-
-#### Issue 3: Timing Violations
-**Symptoms**: Synthesis reports timing failures
-**Causes**:
-- Long combinational paths in ADD logic
-- High fan-out on BCD register
-- Insufficient pipeline stages
-
-**Solutions**:
-```systemverilog
-// Add pipeline registers
-logic [DIGITS*4-1:0] bcd_pipe;
-always_ff @(posedge clk) begin
-    bcd_pipe <= r_bcd;
-end
-
-// Use parallel digit processing
-// (Shown in optimization section)
 ```
 
 That covers the Binary to BCD converter end to end — algorithm, implementation, verification, and optimization. Double-Dabble is sequential by nature, but it gives you reliable, predictable conversion for a wide range of digital display applications.

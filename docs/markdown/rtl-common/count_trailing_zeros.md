@@ -21,9 +21,10 @@
 
 <!-- End Header -->
 
-# Count Trailing Zeros Module
+# Count Trailing Zeros
 
 ## Overview
+
 The `count_trailing_zeros` module counts how many consecutive zero bits sit at the end (LSB side) of a data word. It's the mirror image of `count_leading_zeros`, and it's the natural primitive for alignment checks, lowest-set-bit extraction, and picking the least significant pending request out of a vector.
 
 The scan starts at `data[0]` and proceeds upward, stopping at the first set bit:
@@ -50,6 +51,7 @@ Never emulate one by bit-reversing the input to the other. Both modules exist; p
 the right one costs no extra logic and keeps intent visible in the netlist.
 
 ## Module Declaration
+
 ```systemverilog
 module count_trailing_zeros #(
     parameter int WIDTH = 32
@@ -61,37 +63,35 @@ module count_trailing_zeros #(
 
 ## Parameters
 
-### WIDTH
-- **Type**: `int`
-- **Default**: `32`
-- **Description**: Bit width of the input data
-- **Range**: Any positive integer >= 1
-- **Common Values**: 8, 16, 32, 64 for standard data widths
-- **Impact**: Determines output width and algorithm complexity
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | `int` | `32` | Bit width of the input data |
 
-`WIDTH` is the only parameter.
+`WIDTH` can be any positive integer >= 1; 8, 16, 32, and 64 are the common values for standard data widths. It determines the output width and algorithm complexity, and it's the only parameter.
 
 ## Ports
 
 ### Inputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `data` | WIDTH | `logic` | Input data word to analyze |
+
+| Port | Width | Description |
+|------|-------|-------------|
+| `data` | WIDTH | Input data word to analyze |
 
 ### Outputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `ctz` | `$clog2(WIDTH)+1` | `logic` | Count of trailing zeros |
 
-### Output Width Explanation
-The output width `$clog2(WIDTH)+1` ensures it can represent all possible counts:
+| Port | Width | Description |
+|------|-------|-------------|
+| `ctz` | `$clog2(WIDTH)+1` | Count of trailing zeros |
+
+The output width `$clog2(WIDTH)+1` ensures the port can represent all possible counts:
 - **Range**: 0 to WIDTH (inclusive)
 - **Example**: For WIDTH=32, output is 6 bits (0-32 requires 6 bits)
 - **Special Case**: All zeros input produces CTZ = WIDTH
 
-## Algorithm Implementation
+## Architecture and Implementation
 
 ### Function-Based Approach
+
 ```systemverilog
 function automatic [$clog2(WIDTH):0] ctz_func;
     input [WIDTH-1:0] input_data;
@@ -112,6 +112,7 @@ endfunction
 ```
 
 ### Bit Scanning Process
+
 The algorithm scans from LSB to MSB:
 1. **Initialize**: `ctz_func = 0`, `found = 0`
 2. **Scan Loop**: For each bit position i from 0 to WIDTH-1:
@@ -120,6 +121,7 @@ The algorithm scans from LSB to MSB:
 3. **Result**: Final count is the number of zeros below the lowest set bit
 
 ### Why LSB-to-MSB Scanning?
+
 "Trailing" refers to the bits that trail the word when it is written out, which is the
 LSB side. The loop therefore starts at `data[0]` and walks up:
 - **Bit Order**: `data[0]` is LSB, `data[WIDTH-1]` is MSB
@@ -130,6 +132,7 @@ LSB side. The loop therefore starts at `data[0]` and walks up:
 ## Examples and Truth Tables
 
 ### 8-bit Examples (WIDTH=8)
+
 The count is set by the **lowest** set bit; bits above it never affect the result.
 
 | Input (data) | Binary | Lowest set bit | Trailing Zeros | CTZ Output |
@@ -148,6 +151,7 @@ The count is set by the **lowest** set bit; bits above it never affect the resul
 | 8'b00110000 | 00110000 | Bit 4 | 4 | 4 |
 
 ### 32-bit Examples
+
 | Input | Hex | Trailing Zeros | CTZ |
 |-------|-----|----------------|-----|
 | 32'h00000000 | 0x00000000 | 32 | 32 |
@@ -159,6 +163,7 @@ The count is set by the **lowest** set bit; bits above it never affect the resul
 | 32'hFFFFFFFF | 0xFFFFFFFF | 0 | 0 |
 
 ### Relationship to CLZ
+
 For a single-bit input `data == (1 << k)`, the two modules are complementary:
 
 ```
@@ -172,9 +177,10 @@ independent, because CLZ is decided by the highest set bit and CTZ by the lowest
 example `8'b00110000` gives `clz = 2` and `ctz = 4`, which sum to 6, not 7. Worth
 remembering before you write a check that assumes the identity holds for arbitrary data.
 
-## Applications
+## Usage Examples
 
 ### 1. Address Alignment Detection
+
 ```systemverilog
 // Determine the largest power-of-two boundary an address is aligned to
 logic [31:0] address;
@@ -192,6 +198,7 @@ count_trailing_zeros #(.WIDTH(32)) align_ctz (
 ```
 
 ### 2. Maximum Burst Size for a DMA Transfer
+
 ```systemverilog
 // A burst may not cross its natural alignment boundary, so the alignment of the
 // start address caps the burst size.
@@ -209,6 +216,7 @@ assign max_burst_log2 = (addr_align > 6'd12) ? 6'd12 : addr_align;
 ```
 
 ### 3. Lowest-Index Request Arbitration
+
 ```systemverilog
 // Fixed priority arbiter favouring the lowest requester index
 logic [15:0] request_vector;
@@ -230,6 +238,7 @@ assign granted_index = any_request ? trailing_zeros[3:0] : 4'b0;
 ```
 
 ### 4. Isolating and Clearing the Lowest Set Bit
+
 ```systemverilog
 // Iterate over set bits one at a time (software-style "x & -x" in hardware)
 logic [31:0] pending;
@@ -247,6 +256,7 @@ assign pending_next    = pending & ~lowest_bit_mask;    // clears it
 ```
 
 ### 5. Power-of-Two Detection
+
 ```systemverilog
 // A non-zero value is a power of two exactly when its only set bit is the lowest one
 logic [31:0] value;
@@ -265,9 +275,10 @@ assign is_power_of_two = (value != 0) && (value == (32'd1 << value_ctz));
 // value = 0    -> false by the explicit guard
 ```
 
-## Advanced Implementations
+## Advanced Variants
 
 ### 1. Hierarchical Implementation
+
 ```systemverilog
 // Divide and conquer approach for large widths
 module count_trailing_zeros_hierarchical #(
@@ -303,6 +314,7 @@ endmodule
 ```
 
 ### 2. LUT-Based Implementation (Small Widths)
+
 ```systemverilog
 // Optimized for small widths using a wildcard case statement.
 // casez is required so that '?' is treated as a don't-care.
@@ -331,6 +343,7 @@ endmodule
 ```
 
 ### 3. Mask-Based Implementation
+
 ```systemverilog
 // Isolate the lowest set bit, then one-hot encode its position.
 // Often maps well to carry-chain logic on FPGAs.
@@ -340,9 +353,10 @@ assign w_lowest_one = data & (~data + 1'b1);
 // w_lowest_one is one-hot (or all zero), so a plain one-hot encoder yields ctz
 ```
 
-## Performance Analysis
+## Performance Characteristics
 
 ### Resource Utilization
+
 | WIDTH | LUTs (Typical) | Delay Levels | Max Frequency |
 |-------|----------------|--------------|---------------|
 | 8 | 15-20 | 3-4 | 500+ MHz |
@@ -351,13 +365,15 @@ assign w_lowest_one = data & (~data + 1'b1);
 | 64 | 120-150 | 6-7 | 250+ MHz |
 
 ### Timing Characteristics
+
 - **Combinational Delay**: O(log(WIDTH)) for tree implementations
 - **Critical Path**: Through the priority encoding logic
 - **Scalability**: Linear increase in logic for the function implementation
 
-## Verification Strategy
+## Verification
 
 ### Test Scenarios
+
 1. **Boundary Cases**: All zeros, all ones, single bit patterns
 2. **Random Patterns**: Comprehensive random testing
 3. **Systematic Sweep**: Test all possible trailing zero counts
@@ -366,6 +382,7 @@ assign w_lowest_one = data & (~data + 1'b1);
    `count_leading_zeros`
 
 ### Coverage Model
+
 ```systemverilog
 covergroup ctz_cg;
     cp_trailing_zeros: coverpoint ctz {
@@ -388,6 +405,7 @@ endgroup
 ```
 
 ### Assertions
+
 ```systemverilog
 // CTZ should never exceed WIDTH
 property ctz_bounds;
@@ -423,16 +441,18 @@ assert property (ctz_correctness);
 assert property (ctz_isolates_lowest);
 ```
 
-## Synthesis Optimization
+## Synthesis Considerations
 
 ### Area vs. Speed Trade-offs
+
 ```systemverilog
 // For area optimization: Use the iterative function approach
 // For speed optimization: Use the hierarchical or LUT approach
 // For power optimization: Add enable signals and clock gating
 ```
 
-## Common Use Cases Summary
+## Common Applications
+
 1. **CPU/DSP Cores**: Instruction implementation (CTZ / FFS instruction)
 2. **Memory Controllers**: Address alignment and burst-size derivation
 3. **DMA Engines**: Legal transfer size given a start address
@@ -440,7 +460,8 @@ assert property (ctz_isolates_lowest);
 5. **Allocators**: Free-list and bitmap scanning
 6. **Interrupt Controllers**: Lowest pending interrupt vector
 
-## Related Modules and Functions
+## Related Modules
+
 - **[count_leading_zeros](count_leading_zeros.md)** - the MSB-down counterpart. See the
   selection table at the top of this page before choosing between them.
 - Population count (number of '1' bits)

@@ -37,12 +37,13 @@ you reach for.
 - Synchronous operation with asynchronous reset
 - Configurable width
 
-## Port Description
+## Parameters
 
-### Parameters
-- **WIDTH**: Width of the shift register (default: 4). **Must be >= 2** — at
-  WIDTH=1 the shift expressions become illegal part-selects
-  (`o_pdata[WIDTH-1:1]` -> `[0:1]`, `o_pdata[WIDTH-2:0]` -> `[-1:0]`).
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | — | 4 | Width of the shift register. **Must be >= 2** — at WIDTH=1 the shift expressions become illegal part-selects (`o_pdata[WIDTH-1:1]` -> `[0:1]`, `o_pdata[WIDTH-2:0]` -> `[-1:0]`). |
+
+## Ports
 
 ### Inputs
 | Port | Width | Description |
@@ -153,29 +154,6 @@ end
 - **Serial Outputs**: Both remain low (no shift occurring)
 - **Use Case**: Initialization, data injection
 
-## Special Implementation Notes
-
-### 1. Bidirectional Serial Interface
-The module provides separate serial inputs and outputs for both directions:
-- **Left side**: `i_sdata_lt` (input), `o_sdata_lt` (output)
-- **Right side**: `i_sdata_rt` (input), `o_sdata_rt` (output)
-
-That's what lets you chain multiple shifters or hook into bidirectional serial systems.
-
-### 2. Clean Serial Output Management
-Serial outputs are explicitly driven to zero when not actively shifting in that
-direction — no glitches, no ambiguous states.
-
-### 3. Asynchronous Reset
-Reset immediately clears all outputs to zero, providing deterministic startup conditions.
-
-### 4. Combinational/Sequential Separation
-The design cleanly separates:
-- **Combinational logic**: Calculates next state
-- **Sequential logic**: Registers the state on clock edge
-
-That split improves timing predictability and synthesis results.
-
 ## Timing Diagrams
 
 ### Right Shift Operation Example (WIDTH=4)
@@ -204,6 +182,29 @@ i_sdata_lt:---- 1    0    1
 o_pdata:   1010 0101 1010 0101
 o_sdata_lt:---- 1    0    1
 ```
+
+## Special Implementation Notes
+
+### 1. Bidirectional Serial Interface
+The module provides separate serial inputs and outputs for both directions:
+- **Left side**: `i_sdata_lt` (input), `o_sdata_lt` (output)
+- **Right side**: `i_sdata_rt` (input), `o_sdata_rt` (output)
+
+That's what lets you chain multiple shifters or hook into bidirectional serial systems.
+
+### 2. Clean Serial Output Management
+Serial outputs are explicitly driven to zero when not actively shifting in that
+direction — no glitches, no ambiguous states.
+
+### 3. Asynchronous Reset
+Reset immediately clears all outputs to zero, providing deterministic startup conditions.
+
+### 4. Combinational/Sequential Separation
+The design cleanly separates:
+- **Combinational logic**: Calculates next state
+- **Sequential logic**: Registers the state on clock edge
+
+That split improves timing predictability and synthesis results.
 
 ## Applications
 

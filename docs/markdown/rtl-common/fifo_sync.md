@@ -21,42 +21,43 @@
 
 <!-- End Header -->
 
-# Synchronous FIFO (`fifo_sync.sv`)
+# fifo_sync (`fifo_sync.sv`)
 
 ## Purpose
 A synchronous First-In-First-Out buffer for when everything lives in a single clock domain. Depth, data width, and output modes are all configurable, and you get the full set of status signals.
 
+## Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `MEM_STYLE` | — | Memory implementation (`FIFO_AUTO`/SRL/BRAM) — see note below |
+| `REGISTERED` | — | Output mode: 0=mux mode (combinational), 1=flop mode (registered) |
+| `DATA_WIDTH` | 4 | Width of data bus |
+| `DEPTH` | 4 | FIFO depth in words |
+| `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
+| `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
+
+**`MEM_STYLE` details:** In this module every branch honours `REGISTERED`: with
+`REGISTERED=0` the BRAM branch gives a *combinational* read
+(`always_comb w_rd_data = mem[r_rd_addr]`), not a registered one. Note that
+`fifo_async` differs here — its BRAM branch is unconditionally registered — so
+do not carry that assumption across. **Caveat:** `MEM_STYLE=FIFO_BRAM` with
+`REGISTERED=0` asks for an asynchronous read from a block RAM, which real BRAM
+cannot do; synthesis will ignore the `ram_style`/`ramstyle` attribute and map
+to LUTRAM instead. Use `REGISTERED=1` when you actually want block RAM.
+
 ## Ports
-
-### Input Ports
-- **`clk`** - System clock
-- **`rst_n`** - Active-low reset
-- **`write`** - Write enable signal
-- **`wr_data[DATA_WIDTH-1:0]`** - Data to write into FIFO
-- **`read`** - Read enable signal
-
-### Output Ports
-- **`wr_full`** - Write domain full flag
-- **`wr_almost_full`** - Write domain almost full flag
-- **`rd_data[DATA_WIDTH-1:0]`** - Data read from FIFO
-- **`rd_empty`** - Read domain empty flag
-- **`rd_almost_empty`** - Read domain almost empty flag
-
-### Parameters
-- **`MEM_STYLE`** - Memory implementation (`FIFO_AUTO`/SRL/BRAM). In this module
-  every branch honours `REGISTERED`: with `REGISTERED=0` the BRAM branch gives a
-  *combinational* read (`always_comb w_rd_data = mem[r_rd_addr]`), not a
-  registered one. Note that `fifo_async` differs here -- its BRAM branch is
-  unconditionally registered -- so do not carry that assumption across.
-  **Caveat:** `MEM_STYLE=FIFO_BRAM` with `REGISTERED=0` asks for an
-  asynchronous read from a block RAM, which real BRAM cannot do; synthesis will
-  ignore the `ram_style`/`ramstyle` attribute and map to LUTRAM instead. Use
-  `REGISTERED=1` when you actually want block RAM.
-- **`REGISTERED`** - Output mode: 0=mux mode (combinational), 1=flop mode (registered)
-- **`DATA_WIDTH`** - Width of data bus (default: 4)
-- **`DEPTH`** - FIFO depth in words (default: 4)
-- **`ALMOST_WR_MARGIN`** - Almost full threshold (default: 1)
-- **`ALMOST_RD_MARGIN`** - Almost empty threshold (default: 1)
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `clk` | Input | 1 | System clock |
+| `rst_n` | Input | 1 | Active-low reset |
+| `write` | Input | 1 | Write enable signal |
+| `wr_data` | Input | DATA_WIDTH | Data to write into FIFO |
+| `read` | Input | 1 | Read enable signal |
+| `wr_full` | Output | 1 | Write domain full flag |
+| `wr_almost_full` | Output | 1 | Write domain almost full flag |
+| `rd_data` | Output | DATA_WIDTH | Data read from FIFO |
+| `rd_empty` | Output | 1 | Read domain empty flag |
+| `rd_almost_empty` | Output | 1 | Read domain almost empty flag |
 
 ## Architecture Overview
 
@@ -267,11 +268,6 @@ pytest val/common/test_fifo_sync_wavedrom.py -v
 
 - `test_fifo_async_wavedrom.py` - Gray code CDC (power-of-2 depths)
 
-## Related Modules
-- **fifo_async**: For clock domain crossing applications
-- **fifo_control**: Shared status flag generation logic
-- **counter_bin**: Binary counter implementation
-
 ## Test and Verification
 
 **Comprehensive Test Suite:**
@@ -286,6 +282,11 @@ pytest val/common/test_fifo_buffer.py -v
 # WaveDrom waveform generation
 pytest val/common/test_fifo_sync_wavedrom.py -v
 ```
+
+## Related Modules
+- **fifo_async**: For clock domain crossing applications
+- **fifo_control**: Shared status flag generation logic
+- **counter_bin**: Binary counter implementation
 
 ## Navigation
 

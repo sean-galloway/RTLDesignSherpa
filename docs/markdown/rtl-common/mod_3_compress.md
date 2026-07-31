@@ -21,29 +21,24 @@
 
 <!-- End Header -->
 
-# Modulo-3 Compressor
+# mod_3_compress (`mod_3_compress.sv`)
 
-**Module:** `mod_3_compress.sv`
 **Location:** `rtl/common/`
 **Status:** Production Ready
 
-## Overview
+## Purpose
 
-`mod_3_compress` is a purely combinational block that computes `d_in mod 3` for a 16-bit operand, returning the 2-bit remainder (0..2). It's built in the same carry-save-compressor style as `div_by_15_ceil_32compress.sv`—a 3:2 compressor tree feeding a final carry-propagate add and a small fold—but it emits only the remainder, which is exactly what the monbus burst-writer needs to round a beat count **down** to a whole number of 3-beat records: `rounded = X - (X mod 3)`.
+`mod_3_compress` is a purely combinational block that computes `d_in mod 3` for a 16-bit operand, returning the 2-bit remainder (0..2). It's built in the same carry-save-compressor style as `div_by_15_ceil_32compress.sv` — a 3:2 compressor tree feeding a final carry-propagate add and a small fold — but it emits only the remainder, which is exactly what the monbus burst-writer needs to round a beat count **down** to a whole number of 3-beat records: `rounded = X - (X mod 3)`.
 
-There's no `*` or `/` operator anywhere, so it infers no DSP block and no iterative divider—just a shallow tree of carry-save adders and a couple of small adds.
+There's no `*` or `/` operator anywhere, so it infers no DSP block and no iterative divider — just a shallow tree of carry-save adders and a couple of small adds.
 
-### Key Features
+The monbus compressor packs monitor packets into fixed 3-beat records. Working out how many whole records a beat count covers means computing `X - (X mod 3)`, which means you need the remainder `X mod 3`. This module produces that remainder combinationally without a divider, so the burst-writer can round the count down in a single cycle of logic.
 
 - **Combinational, single-cycle:** No clock, no state; pure logic from `d_in` to `rem_out`
 - **No multiply / divide:** Avoids inferred DSP and iterative dividers
 - **Carry-save tree:** Eight base-4 digits reduced with 3:2 compressors instead of a ripple-add chain
 - **Remainder only:** Returns just `d_in mod 3` (0..2), the quantity the monbus record rounding needs
 - **Shared style:** Same construction as `div_by_15_ceil_32compress.sv`, reusing `math_adder_carry_save_nbit`
-
-## Module Purpose
-
-The monbus compressor packs monitor packets into fixed 3-beat records. Working out how many whole records a beat count covers means computing `X - (X mod 3)`, which means you need the remainder `X mod 3`. This module produces that remainder combinationally without a divider, so the burst-writer can round the count down in a single cycle of logic.
 
 **Use Cases:**
 
@@ -59,16 +54,14 @@ This module has no parameters. The operand width is fixed at 16 bits and the res
 
 *(Internally, `localparam int BITS = 6` sizes the carry-save datapath so the weight-2 carry left-shifts have headroom.)*
 
-## Port Groups
-
-### Data
+## Ports
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `d_in` | Input | 16 | Operand whose remainder mod 3 is computed |
 | `rem_out` | Output | 2 | `d_in mod 3`, in the range 0..2 |
 
-## Functional Description
+## Functionality
 
 ### Base-4 Digit-Sum Method
 
@@ -111,7 +104,7 @@ assign rem_out = 2'((w_fold >= 4'd6) ? (w_fold - 4'd6)
 
 The two-branch subtract handles `w_fold` values up to 7 (subtract 6, subtract 3, or pass through), yielding the exact remainder 0, 1, or 2.
 
-## Usage Example
+## Usage Examples
 
 ```systemverilog
 // Round a beat count down to a whole number of 3-beat monbus records.

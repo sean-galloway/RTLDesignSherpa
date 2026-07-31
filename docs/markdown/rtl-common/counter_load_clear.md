@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# Counter Load Clear Module
+# Counter with Load and Clear
 
 ## Overview
+
 The `counter_load_clear` module is a counter with a loadable terminal count and a clear — the workhorse you reach for when a plain counter isn't quite enough. You get precise control over counting behavior through configurable match values, which makes it a natural fit for timing applications, protocol implementations, and configurable delay generation.
 
 ## Module Declaration
+
 ```systemverilog
 module counter_load_clear #(
     parameter int MAX = 32'd32
@@ -44,42 +46,45 @@ module counter_load_clear #(
 
 ## Parameters
 
-### MAX
-- **Type**: `int`
-- **Default**: `32'd32`
-- **Description**: Maximum possible count value
-- **Range**: `2` to `2^32-1` (the RTL header states the same). MAX=1 gives
-  `$clog2(1) = 0`, so `loadval` and `count` would be zero-width.
-- **Usage**: Determines counter width and maximum loadable value
-- **Width Calculation**: Counter width = `$clog2(MAX)`
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `MAX` | `int` | `32'd32` | Maximum possible count value |
+
+`MAX` ranges from `2` to `2^32-1` (the RTL header states the same). MAX=1 gives
+`$clog2(1) = 0`, so `loadval` and `count` would be zero-width. The parameter
+determines the counter width and the maximum loadable value: counter width = `$clog2(MAX)`.
 
 ## Ports
 
 ### Inputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `clk` | 1 | `logic` | System clock |
-| `rst_n` | 1 | `logic` | Active-low asynchronous reset |
-| `clear` | 1 | `logic` | Synchronous clear (highest priority) |
-| `increment` | 1 | `logic` | Enable counter increment |
-| `load` | 1 | `logic` | Load new match value |
-| `loadval` | `$clog2(MAX)` | `logic` | New terminal count value |
+
+| Port | Width | Description |
+|------|-------|-------------|
+| `clk` | 1 | System clock |
+| `rst_n` | 1 | Active-low asynchronous reset |
+| `clear` | 1 | Synchronous clear (highest priority) |
+| `increment` | 1 | Enable counter increment |
+| `load` | 1 | Load new match value |
+| `loadval` | `$clog2(MAX)` | New terminal count value |
 
 ### Outputs
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `count` | `$clog2(MAX)` | `logic` | Current counter value |
-| `done` | 1 | `logic` | Terminal count reached flag |
 
-## Architecture Details
+| Port | Width | Description |
+|------|-------|-------------|
+| `count` | `$clog2(MAX)` | Current counter value |
+| `done` | 1 | Terminal count reached flag |
+
+## Architecture and Implementation
 
 ### Internal Registers
+
 ```systemverilog
 logic [$clog2(MAX)-1:0] count;        // Current count value
 logic [$clog2(MAX)-1:0] r_match_val;  // Terminal count register
 ```
 
 ### Priority Logic
+
 Control is priority-based, and the order matters:
 
 1. **Asynchronous Reset** (Highest Priority)
@@ -98,9 +103,8 @@ Control is priority-based, and the order matters:
    - Advances counter or wraps to 0 at terminal count
    - Only when `increment` is asserted
 
-## Implementation Details
-
 ### Main Control Logic
+
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -121,13 +125,56 @@ end
 ```
 
 ### Done Signal Generation
+
 ```systemverilog
 assign done = (count == r_match_val);
 ```
 
-## Operation Modes
+## Timing Diagrams
+
+### Basic Operation
+
+```
+Clock     : __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
+Reset_n   : _____|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+Load      : __________|‾‾‾|_________________________
+LoadVal   : ─────────< 3 >─────────────────────────
+Clear     : __________________________________|‾‾‾|_
+Increment : ________________|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|_
+Count     : ──< 0 >──< 0 >──< 0 >──< 1 >──< 2 >──< 3 >──< 0 >
+Done      : ‾‾‾‾‾‾‾‾‾‾‾‾‾‾_____________|‾‾‾|_______
+```
+
+`done` is combinational (`count == r_match_val`) and both reset to 0, so it
+is **high out of reset** and stays high until the load writes a non-zero
+match value. It is not a pulse that only appears at terminal count.
+
+### Load During Count
+
+Load only writes `r_match_val`; it does **not** stall the count. With
+`increment` held high, `count` advances every cycle (including the load cycle).
+Here `load` asserts while `count == 2`, so `r_match_val` becomes 5 starting the
+next cycle — before `count` reaches the old match value 3 — so the counter never
+wraps at 3 and instead runs to the new match 5:
+
+```
+Clock     : __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
+Load      : ___________|‾‾‾|___________________
+LoadVal   : ──────────< 5 >────────────────────
+Increment : |‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|
+Count     : < 0 >< 1 >< 2 >< 3 >< 4 >< 5 >< 0 >
+r_match   : < 3 >< 3 >< 3 >< 5 >< 5 >< 5 >< 5 >
+Done      : ________________________|‾‾‾|______
+```
+
+(If `load` had instead arrived after `count` already reached 3, the counter
+would have wrapped at 3 first — the outcome depends on load timing relative to
+the old match value.)
+
+## Usage Examples
 
 ### 1. Basic Counting Mode
+
 ```systemverilog
 // Simple timer: count to 100
 counter_load_clear #(.MAX(1000)) timer (
@@ -143,6 +190,7 @@ counter_load_clear #(.MAX(1000)) timer (
 ```
 
 ### 2. Configurable Delay Mode
+
 ```systemverilog
 // Variable delay generator
 logic [7:0] delay_setting;
@@ -161,6 +209,7 @@ counter_load_clear #(.MAX(256)) delay_gen (
 ```
 
 ### 3. Retriggerable Timer Mode
+
 ```systemverilog
 // Watchdog timer that resets on activity
 logic activity_detected, timeout;
@@ -177,46 +226,10 @@ counter_load_clear #(.MAX(10000)) watchdog (
 );
 ```
 
-## Timing Diagrams
-
-### Basic Operation
-```
-Clock     : __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
-Reset_n   : _____|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-Load      : __________|‾‾‾|_________________________
-LoadVal   : ─────────< 3 >─────────────────────────
-Clear     : __________________________________|‾‾‾|_
-Increment : ________________|‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|_
-Count     : ──< 0 >──< 0 >──< 0 >──< 1 >──< 2 >──< 3 >──< 0 >
-Done      : ‾‾‾‾‾‾‾‾‾‾‾‾‾‾_____________|‾‾‾|_______
-```
-
-`done` is combinational (`count == r_match_val`) and both reset to 0, so it
-is **high out of reset** and stays high until the load writes a non-zero
-match value. It is not a pulse that only appears at terminal count.
-
-### Load During Count
-Load only writes `r_match_val`; it does **not** stall the count. With
-`increment` held high, `count` advances every cycle (including the load cycle).
-Here `load` asserts while `count == 2`, so `r_match_val` becomes 5 starting the
-next cycle — before `count` reaches the old match value 3 — so the counter never
-wraps at 3 and instead runs to the new match 5:
-```
-Clock     : __|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__|‾|__
-Load      : ___________|‾‾‾|___________________
-LoadVal   : ──────────< 5 >────────────────────
-Increment : |‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾|
-Count     : < 0 >< 1 >< 2 >< 3 >< 4 >< 5 >< 0 >
-r_match   : < 3 >< 3 >< 3 >< 5 >< 5 >< 5 >< 5 >
-Done      : ________________________|‾‾‾|______
-```
-(If `load` had instead arrived after `count` already reached 3, the counter
-would have wrapped at 3 first — the outcome depends on load timing relative to
-the old match value.)
-
-## Advanced Usage Examples
+## Advanced Variants
 
 ### 1. Dual-Rate Timer
+
 ```systemverilog
 // Timer with fast/slow modes
 logic fast_mode;
@@ -239,6 +252,7 @@ counter_load_clear #(.MAX(65536)) dual_timer (
 ```
 
 ### 2. PWM Generator
+
 ```systemverilog
 // Simple PWM with configurable duty cycle
 logic [7:0] duty_cycle;  // 0-255
@@ -259,6 +273,7 @@ assign pwm_out = (pwm_count < duty_cycle);
 ```
 
 ### 3. Burst Generator
+
 ```systemverilog
 // Generate bursts of N pulses
 logic [7:0] burst_length;
@@ -289,6 +304,7 @@ end
 ```
 
 ### 4. Communication Timeout
+
 ```systemverilog
 // UART receive timeout
 logic rx_active, rx_timeout, char_received;
@@ -309,6 +325,7 @@ counter_load_clear #(.MAX(2048)) rx_timer (
 ## Design Patterns
 
 ### Pattern 1: Auto-Reloading Timer
+
 ```systemverilog
 wire auto_reload = timer_done;
 counter_load_clear timer (
@@ -321,6 +338,7 @@ counter_load_clear timer (
 ```
 
 ### Pattern 2: Conditional Counting
+
 ```systemverilog
 wire count_enable = condition_met && !paused;
 counter_load_clear conditional_timer (
@@ -330,6 +348,7 @@ counter_load_clear conditional_timer (
 ```
 
 ### Pattern 3: Dynamic Period Adjustment
+
 ```systemverilog
 logic period_changed;
 wire reload_needed = timer_done || period_changed;
@@ -342,9 +361,24 @@ counter_load_clear adaptive_timer (
 );
 ```
 
-## Verification Strategy
+## Performance Characteristics
+
+### Maximum Frequency
+
+- **Typical**: 300-500 MHz in modern FPGAs
+- **Critical Path**: Increment + comparison logic
+- **Optimization**: Consider pipelining for extreme speeds
+
+### Latency
+
+- **Load Operation**: 1 cycle to update match value
+- **Clear Operation**: 1 cycle to reset count
+- **Done Signal**: Combinational (0 cycles)
+
+## Verification
 
 ### Test Scenarios
+
 1. **Basic Counting**: Verify normal increment operation
 2. **Terminal Count**: Test done signal generation
 3. **Load Operation**: Verify match value updates
@@ -354,6 +388,7 @@ counter_load_clear adaptive_timer (
 7. **Reset Behavior**: Async reset during various operations
 
 ### Coverage Model
+
 ```systemverilog
 covergroup load_clear_cg @(posedge clk);
     cp_count: coverpoint count {
@@ -389,6 +424,7 @@ endgroup
 ```
 
 ### Assertions
+
 ```systemverilog
 // Count stays within the match value ONLY for the load-then-count pattern.
 // This property does NOT hold in general: if a smaller match is loaded while
@@ -429,11 +465,13 @@ assert property (load_updates_match);
 ## Synthesis Considerations
 
 ### Resource Usage
+
 - **Flip-Flops**: `$clog2(MAX)` for count + `$clog2(MAX)` for match = `2 × $clog2(MAX)`
 - **LUTs**: Increment logic, comparator, and control logic
 - **Typical**: 15-25 LUTs for 16-bit counter
 
 ### Timing Optimization
+
 ```systemverilog
 // For high-speed operation, pipeline the comparison
 logic done_pipe;
@@ -443,6 +481,7 @@ end
 ```
 
 ### Parameter Validation
+
 ```systemverilog
 initial begin
     assert (MAX > 0) else $error("MAX must be positive");
@@ -450,19 +489,8 @@ initial begin
 end
 ```
 
-## Performance Characteristics
-
-### Maximum Frequency
-- **Typical**: 300-500 MHz in modern FPGAs
-- **Critical Path**: Increment + comparison logic
-- **Optimization**: Consider pipelining for extreme speeds
-
-### Latency
-- **Load Operation**: 1 cycle to update match value
-- **Clear Operation**: 1 cycle to reset count
-- **Done Signal**: Combinational (0 cycles)
-
 ## Common Applications
+
 1. **Timer Modules**: Configurable timing generation
 2. **Protocol Engines**: Timeout and retry mechanisms
 3. **PWM Controllers**: Variable duty cycle generation
@@ -472,8 +500,9 @@ end
 7. **Test Pattern Generators**: Configurable test sequences
 
 ## Related Modules
-- `counter`: Basic counter without load/clear
-- `counter_freq_invariant`: Uses this module for prescaling
+
+- **counter** - Basic counter without load/clear
+- **counter_freq_invariant** - Uses this module for prescaling
 - Standard timer and PWM controller implementations
 
 ## Navigation
