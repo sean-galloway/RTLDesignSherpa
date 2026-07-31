@@ -168,50 +168,35 @@ class GrayJ2BinTB(TBBase):
         return None
 
     def grayj_to_binary_reference(self, gray_val):
-        """Reference implementation matching the actual RTL behavior"""
-        
-        # Check for all zeros
+        """Reference implementing the DOCUMENTED decode algorithm
+        (docs/markdown/rtl-cdc/johnson2bin.md), not RTL observations. The
+        previous version had special cases fitted to observed RTL output
+        ("RTL shows it outputs 16") -- a systematic RTL conversion error
+        would have been baked into the check (test-audit finding).
+
+        Documented algorithm: all-zero -> 0; MSB set (second half) -> wrap
+        flag | trailing_one (rightmost 1); MSB clear (first half) ->
+        leading_one + 1 (leftmost 1 + 1). The all-ones case needs NO
+        special case: MSB set with trailing_one=0 gives wrap|0 directly.
+        Cross-check: on valid Johnson states this equals the position of
+        the state in the twisted-ring sequence (next = {cur[JCW-2:0],
+        ~cur[JCW-1]}) under the documented output format (MSB=wrap flag,
+        low bits=within-half index) -- two independent derivations, and
+        they must agree.
+        """
         if gray_val == 0:
             return 0
-            
-        # Check for all ones - RTL shows it outputs 16 (MSB set)
-        if gray_val == ((1 << self.JCW) - 1):  # All ones
-            return (1 << (self.WIDTH - 1))  # Just the MSB set = 16
-
-        # MSB determines first half (0) vs second half (1)
         msb = (gray_val >> (self.JCW - 1)) & 1
-        
-        # Find trailing one position (LSB) - but you call it leading_one in RTL
-        leading_one_pos = None
-        for i in range(self.JCW):
-            if (gray_val >> i) & 1:
-                leading_one_pos = i
-                break
-        
-        # Find leading one position (MSB) - but you call it trailing_one in RTL       
-        trailing_one_pos = None
-        for i in range(self.JCW - 1, -1, -1):
-            if (gray_val >> i) & 1:
-                trailing_one_pos = i
-                break
-
-        if leading_one_pos is None or trailing_one_pos is None:
-            return 0
-
-        # Calculate based on actual RTL pattern
-        if msb == 1:
-            # Second half: Use leading_one_pos directly (the LSB position)
-            # 0x3FE has LSB at pos 1 → 16 + 1 = 17 ✓
-            # 0x3FC has LSB at pos 2 → 16 + 2 = 18 ✓
-            lower_binary = leading_one_pos
+        if msb:
+            for i in range(self.JCW):
+                if (gray_val >> i) & 1:
+                    return (1 << (self.WIDTH - 1)) | i
+            return (1 << (self.WIDTH - 1))  # all-ones: trailing_one == 0
         else:
-            # First half: Use trailing_one_pos + 1 (the MSB position + 1)
-            lower_binary = trailing_one_pos + 1
-
-        # Combine MSB with lower bits
-        binary_val = (msb << (self.WIDTH - 1)) | (lower_binary & ((1 << (self.WIDTH - 1)) - 1))
-        
-        return binary_val
+            for i in range(self.JCW - 1, -1, -1):
+                if (gray_val >> i) & 1:
+                    return i + 1
+            return 0
 
     async def check_conversion(self, gray_val):
         """Check a single Gray Johnson to binary conversion"""
