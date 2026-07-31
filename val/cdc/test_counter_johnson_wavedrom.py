@@ -192,6 +192,8 @@ class CounterJohnsonWaveDromTB(TBBase):
         cocotb.start_soon(Clock(self.clk, self.clock_period, units="ns").start())
         await Timer(1, units='ns')
 
+    scenario_errors = 0
+
     async def reset_dut(self):
         """Reset the DUT"""
         self.enable.value = 0
@@ -237,6 +239,7 @@ class CounterJohnsonWaveDromTB(TBBase):
 
             if actual != expected:
                 self.log.error(f"Cycle {cycle}: Expected 0b{expected:0{self.WIDTH}b}, got 0b{actual:0{self.WIDTH}b}{self.get_time_ns_str()}")
+                self.scenario_errors += 1
             else:
                 self.log.debug(f"Cycle {cycle}: 0b{actual:0{self.WIDTH}b}{self.get_time_ns_str()}")
 
@@ -270,7 +273,11 @@ class CounterJohnsonWaveDromTB(TBBase):
         await self.reset_dut()
         await self.wait_cycles(2)
 
-        # Enable and count
+        # Enable and count. Drive enable right after an edge so it settles
+        # a full cycle before the first sampled edge -- driving it just
+        # before the edge raced the DUT and produced a spurious cycle-0
+        # 'Hamming distance = 0' error on every run (test-audit finding).
+        await RisingEdge(self.clk)
         self.enable.value = 1
         prev_value = int(self.counter_gray.value)
 
@@ -283,6 +290,7 @@ class CounterJohnsonWaveDromTB(TBBase):
 
             if hamming_dist != 1:
                 self.log.error(f"Cycle {cycle}: Hamming distance = {hamming_dist} (SHOULD BE 1!){self.get_time_ns_str()}")
+                self.scenario_errors += 1
             else:
                 changed_bit = (prev_value ^ curr_value).bit_length() - 1
                 self.log.debug(f"Cycle {cycle}: 0b{prev_value:0{self.WIDTH}b} → 0b{curr_value:0{self.WIDTH}b}, bit[{changed_bit}] changed{self.get_time_ns_str()}")
@@ -325,6 +333,7 @@ class CounterJohnsonWaveDromTB(TBBase):
         held_value = int(self.counter_gray.value)
         if held_value != stored_value:
             self.log.error(f"State changed during disable: 0b{stored_value:0{self.WIDTH}b} → 0b{held_value:0{self.WIDTH}b}{self.get_time_ns_str()}")
+            self.scenario_errors += 1
 
         # Re-enable and continue
         self.log.info(f"Re-enabling from 0b{held_value:0{self.WIDTH}b}{self.get_time_ns_str()}")
@@ -369,6 +378,7 @@ class CounterJohnsonWaveDromTB(TBBase):
         reset_value = int(self.counter_gray.value)
         if reset_value != 0:
             self.log.error(f"Reset failed: got 0b{reset_value:0{self.WIDTH}b}, expected 0000{self.get_time_ns_str()}")
+            self.scenario_errors += 1
 
         await RisingEdge(self.clk)
         self.rst_n.value = 1
@@ -411,6 +421,11 @@ class CounterJohnsonWaveDromTB(TBBase):
         await self.wait_cycles(10)
 
         self.log.info(f"✓ All Johnson Counter WaveDrom scenarios generated{self.get_time_ns_str()}")
+        # The scenarios' checks used to only log.error -- the test could not
+        # fail on wrong DUT behaviour (test-audit finding). Waveforms for the
+        # docs must not come from a misbehaving DUT either.
+        assert tb.scenario_errors == 0, \
+            f"{tb.scenario_errors} scenario check(s) failed -- see the log above"
 
 @cocotb.test(timeout_time=10000, timeout_unit="us")
 async def counter_johnson_wavedrom_test(dut):
