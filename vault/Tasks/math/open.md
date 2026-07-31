@@ -45,9 +45,21 @@ bit 8 sets, asserting BOTH flags. The result-select chain tests the
 overflow branch FIRST, so an underflowing result comes out as +infinity
 with ow_overflow instead of zero with ow_underflow.
 
-**To settle:** write a directed sim case that drives the exponent negative
-(e.g. smallest-normal minus a few ulp), observe whether the DUT emits
-+inf/ow_overflow (bug) or zero/ow_underflow (doc). If bug: distinguish the
-flags (bit 8 with sign context, or compare against the true bounds), fix,
-mutation-check. If the behavior is intended: rewrite the doc's FTZ promises
-to match. Either way the doc and RTL must end up agreeing.
+**Sim-settled 2026-07-31: the bug is REAL.** Directed case
+(all PIPE_STAGEs=1): `0x0081 - 0x0080` (result ~2^-133, deep subnormal,
+should FTZ to zero with ow_underflow) produces **0x7f80 (+inf), ow_overflow
+= 1, ow_underflow = 0**; same for `0x0083 - 0x0080`. Sanity 1.0+1.0=2.0
+passes. The wrap mechanism is confirmed: bit 8 of w_exp_adjusted is exactly
+the negative sign of the exponent subtraction, so
+
+    w_exp_overflow  = !w_exp_adjusted[8] && (w_exp_adjusted[7:0] >= 8'hFF);
+    w_exp_underflow =  w_exp_adjusted[8] || (w_exp_adjusted[7:0] == 8'h00);
+
+separates the flags (bit 8 cannot mean positive overflow here: shift is
+bounded by the mantissa width, so a positive exp_l-shift never wraps).
+
+**Remaining decision (Sean):** fix the RTL per the sketch above
+(mutation-check with the same directed case), or declare inf-on-underflow
+intended and rewrite the doc's FTZ promises. The doc currently reads as the
+spec, and +inf on underflow is indefensible arithmetic -- the expected call
+is fix-RTL, but it is your module.
