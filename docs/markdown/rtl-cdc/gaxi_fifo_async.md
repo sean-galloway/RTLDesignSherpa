@@ -32,11 +32,11 @@ intact.
 
 What you get:
 
-- ✅ **Clock domain crossing:** safe transfer between independent clocks
-- ✅ **Gray code pointers:** no multi-bit synchronization hazards
-- ✅ **Configurable CDC stages:** 2-4 flop synchronizers (3 recommended; 4 for ultra-critical systems)
-- ✅ **Arbitrary clock ratios:** works with any write:read clock ratio
-- ✅ **Two read modes:** mux or flop mode
+- **Clock domain crossing:** safe transfer between independent clocks
+- **Gray code pointers:** no multi-bit synchronization hazards
+- **Configurable CDC stages:** 2-4 flop synchronizers (3 recommended; 4 for ultra-critical systems)
+- **Arbitrary clock ratios:** works with any write:read clock ratio
+- **Two read modes:** mux or flop mode
 
 ## Module declaration
 
@@ -82,7 +82,7 @@ module gaxi_fifo_async #(
 
 : gaxi_fifo_async parameters
 
-**⚠️ Important:** Set `N_FLOP_CROSS=3` for production designs to ensure metastability protection.
+**️ Important:** Set `N_FLOP_CROSS=3` for production designs to ensure metastability protection.
 
 The RTL also declares five derived parameters after these -- `DW`, `D`, `AW`,
 `JCW`, `N`. They are aliases (`DW = DATA_WIDTH`, `AW = $clog2(DEPTH)`,

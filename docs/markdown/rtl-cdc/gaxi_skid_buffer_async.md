@@ -25,7 +25,7 @@
 
 **Module:** `gaxi_skid_buffer_async.sv`
 **Location:** `rtl/cdc/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -35,11 +35,11 @@ This module is a wrapper, and it owns that: a synchronous skid buffer on the wri
 
 ### Key Features
 
-- ✅ **CDC Capability:** Safe clock domain crossing
-- ✅ **Elastic Buffering:** Combines skid buffer + async FIFO
-- ✅ **Write-Side Buffering:** Skid buffer in write domain prevents stalls
-- ✅ **Configurable CDC:** Adjustable synchronizer stages
-- ✅ **Dual Clock Domains:** Independent write/read clocks
+- **CDC Capability:** Safe clock domain crossing
+- **Elastic Buffering:** Combines skid buffer + async FIFO
+- **Write-Side Buffering:** Skid buffer in write domain prevents stalls
+- **Configurable CDC:** Adjustable synchronizer stages
+- **Dual Clock Domains:** Independent write/read clocks
 
 ---
 

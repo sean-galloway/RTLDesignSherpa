@@ -387,7 +387,7 @@ assert property (no_invalid_states);
 ### Test files
 
 - `val/cdc/test_counter_johnson.py` — full functional verification
-- `val/cdc/test_counter_johnson_wavedrom.py` — WaveDrom timing diagrams ⭐
+- `val/cdc/test_counter_johnson_wavedrom.py` — WaveDrom timing diagrams 
 
 ```bash
 # Full functional test (basic/medium/full levels)
@@ -438,7 +438,7 @@ Complete 2×WIDTH state cycle (8 states for WIDTH=4):
 - Walking zeros: 1111 → 1110 → 1100 → 1000 → 0000
 - Demonstrates predictable sequential progression
 
-### Scenario 2: Single-Bit Transitions (CDC Safety) ⭐ **KEY FEATURE**
+### Scenario 2: Single-Bit Transitions (CDC Safety) **KEY FEATURE**
 
 ![Johnson Single-Bit Transitions](../assets/WAVES/counter_johnson/johnson_counter_single_bit_transitions.png)
 

@@ -368,7 +368,7 @@ assert property (bin_gray_relationship);
 ### Test files
 
 - `val/cdc/test_counter_bingray.py` — full functional verification
-- `val/cdc/test_counter_bingray_wavedrom.py` — WaveDrom timing diagrams ⭐
+- `val/cdc/test_counter_bingray_wavedrom.py` — WaveDrom timing diagrams 
 
 ```bash
 # Full functional test (basic/medium/full levels)
@@ -437,7 +437,7 @@ Side-by-side comparison of both outputs:
 - Shows full cycle demonstrating encoding differences
 - Illustrates why Gray code is CDC-safe
 
-### Scenario 2: Single-Bit Transitions (CDC Safety) ⭐ **KEY FEATURE**
+### Scenario 2: Single-Bit Transitions (CDC Safety) **KEY FEATURE**
 
 ![BinGray Single-Bit Transitions](../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.png)
 
