@@ -6,7 +6,7 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 9 |
+| [open](open.md) | 10 |
 | [closed](closed.md) | 2 |
 | [dropped](dropped.md) | 1 |
 
@@ -51,6 +51,9 @@ projects/components, then assess fpga) and the per-area startup checklist
   new rounds only; the 339-finding backlog needs no API call.
 - **DOCREV-010** — every docs/markdown book needs index.md + overview.md.
 - **DOCREV-011** — fix ALL broken links, whenever they were introduced.
+- **DOCREV-014** — 110 files under `docs/markdown/` carry emoji, against a rule
+  that exists because they break PDF generation. The humanizer is one source;
+  `check_tag_survival.py` now blocks that inflow.
 - **DOCREV-013** — fresh per-area qc rounds under the adjudication pipeline.
   Order: cdc, common, math, amba (decomposed later), projects/components
   (decomposed later), then assess fpga. Per-area startup: four-line Makefiles

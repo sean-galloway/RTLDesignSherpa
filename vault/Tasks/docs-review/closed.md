@@ -114,6 +114,25 @@ method lives in the handbook, not beside the tool.
 ## DOCREV-002 — Humanizer structural-preservation preamble + tag-survival test
 **Status:** closed 2026-07-28 — tag-survival passed on the live cdc humanize round (0 links/anchors/captions lost in all 3 units; length ratios 0.97-1.08; apply_humanize length guard as second line). The structural preamble ships in run_batch.py's humanize prompt (including the unify-structure rule), and the fence/caption classes were verified on the real content before apply. DOCREV-003 unblocked.
 
+**Addendum 2026-07-31 — the check is now a script, and the ad-hoc pass had a
+hole.** `bin/review/check_tag_survival.py` does the comparison mechanically
+(dropped pages, lost link targets, lost anchors, lost captions, unbalanced
+fences, emoji, length ratio, heading drift) against the round's own
+`_bundle_snapshot`. Re-running it over the already-applied cdc humanize round_3
+found a class the hand check did not look for: **`apb5_slave_cdc.md` and
+`apb5_slave_cdc_cg.md` had checkmark emoji INTRODUCED by the voice pass** (6 and
+7 respectively), which the no-emoji rule exists to prevent because they break
+the LaTeX path. Links, anchors and captions were indeed clean, exactly as
+recorded — the pass was checked for what it was known to break.
+
+The dropped-page class is why the script leads with it: `apply_humanize`
+splits on `<!-- SOURCE FILE: ... -->` banners, so a banner the humanizer eats
+folds that page into the previous one and it is never written. Nothing before
+this compared the output's page set against the input's.
+
+Gate order is now: `check_tag_survival.py` (refuse on FATAL) -> `apply_humanize
+--dry-run` -> apply.
+
 The owner-authored humanizer (`docs/kimi_humanization_style_guide.md`) governs
 VOICE only; it says nothing about preserving Markdown structure. The final-round
 brief must be the guide PLUS a structural-preservation preamble, written as a

@@ -27,9 +27,29 @@ you asked for a draft.
 
 The docs carry structure the downstream pipeline depends on - caption encoding
 for LoF/LoT/LoW, page-path comments, book anchors ([[doc-pipeline]]). A voice
-pass can eat those without saying anything. Diff a rewritten unit against its
-snapshot in `_bundle_snapshot/` and confirm the tags are still there before
-accepting the round.
+pass can eat those without saying anything. **`bin/review/check_tag_survival.py`
+is the gate**; run it before `apply_humanize`, on every round:
+
+    python3 bin/review/check_tag_survival.py --results <humanize round dir>
+
+It diffs each rewritten page against the round's own `_bundle_snapshot`. FATAL
+(do not apply): a dropped page, a lost link target or anchor, a lost caption
+line, unbalanced code fences, an emoji introduced. WARN (judgement): heading
+drift and length ratios outside 0.85-1.20, both of which the unify-structure
+instruction produces legitimately.
+
+**The dropped-page class is the one that hides.** `apply_humanize` splits the
+returned blob on `<!-- SOURCE FILE: ... -->` banners, so a banner the humanizer
+eats folds that page into the previous one: the page is silently never written,
+the round reports success, and the book loses a chapter. Comparing the output's
+page set against the input's is the only thing that catches it.
+
+*Case: the check was done by hand for the 2026-07-28 cdc round and recorded as
+clean - correctly, for links, anchors and captions, which is what it looked at.
+Re-running the script over that same applied round found checkmark emoji
+INTRODUCED into `apb5_slave_cdc.md` and `apb5_slave_cdc_cg.md`. A hand check
+finds the classes you already know about; that is the argument for the script,
+not for a more careful hand check.*
 
 ## No emojis
 
