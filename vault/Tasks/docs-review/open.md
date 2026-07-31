@@ -94,6 +94,37 @@ headers pointed at each area's `overview.md`).
 
 ---
 
+## DOCREV-014 — emoji sweep: 110 files under docs/markdown carry them
+**Status:** open 2026-07-31
+**Priority:** P2
+
+The no-emoji rule ([[humanization-voice]], CLAUDE.md, the style guide's
+banlist) exists because emojis break the LaTeX path in PDF generation and read
+as unprofessional in a formal spec. **Measured 2026-07-31: 110 files under
+`docs/markdown/` contain at least one pictograph** (status markers dominate:
+white-heavy-check-mark, warning sign, cross mark, direct-hit).
+
+    grep -rlP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]' docs/markdown/ | wc -l
+
+Per-area at time of measurement: rtl-common 10, and the rest spread across
+rtl-amba (the bulk), Scripts, TestTutorial and rtl-cdc.
+
+Two things make this more than tidying:
+
+- **The humanizer INTRODUCES them.** The cdc humanize round put checkmarks into
+  `apb5_slave_cdc.md` and `apb5_slave_cdc_cg.md`, which is how a rule that
+  predates the round gets violated by the pass meant to polish the prose.
+  `bin/review/check_tag_survival.py` now makes that FATAL before apply, so the
+  inflow is stopped; this task is the backlog it leaves.
+- **Arrows are NOT in scope.** The first version of the checker swept
+  U+2190-U+21FF and flagged 15 pages of legitimate state-transition and
+  navigation arrows. Any sweep here must keep the same narrow class
+  (pictographs only) or it will "fix" correct documentation.
+
+Do it per area as that area is humanized, not as one repo-wide sed: a status
+marker usually wants replacing with words ("verified", "not supported"), not
+deleting, and that is a per-line judgement.
+
 ## DOCREV-010 — every docs/markdown book needs index.md + overview.md
 **Status:** open 2026-07-25 (Sean)
 **Priority:** P2
@@ -624,3 +655,11 @@ starting amba produced four changes, all recorded in [[kimi-review-rounds]]:
 Process debt noted while measuring: **math round_3 was integrated on human
 triage alone — step 4 was skipped**, no `verdicts-*.md` exists for round_7. The
 findings were all real so nothing was lost, but the step is unconditional.
+
+### DV-TODO (P3, low): test_fifo_async_wavedrom hand-drives the read side
+
+`val/cdc/test_fifo_async_wavedrom.py` drives `dut.read` directly in all three
+scenarios instead of going through the FIFOSlave BFM (test-audit round_1,
+clause 5). Parked 2026-07-31 (Sean: low priority): it is a wavedrom
+doc-asset generator, so the hand-driving IS the scenario content, and a BFM
+rewrite buys little. Revisit only if the FIFO's read protocol changes.
