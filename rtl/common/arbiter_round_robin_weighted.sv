@@ -105,7 +105,10 @@
 // Behavior:
 //------------------------------------------------------------------------------
 //   Credit-Based Weighting:
-//   - Each client has credit counter initialized to its weight value
+//   - Reset loads ONE credit per client, not the weight (see the reset branch
+//     of r_credit_counter). Credits first take the weight values at the
+//     WEIGHT_STABILIZE load or the first global replenish, so the round
+//     immediately after reset is effectively unweighted.
 //   - Grant completion decrements credit counter:
 //     - No-ACK mode: Decrement when grant issued (same cycle)
 //     - ACK mode: Decrement when grant_ack received (delayed)
@@ -241,7 +244,10 @@
 //       .clk        (clk),
 //       .rst_n      (rst_n),
 //       .block_arb  (bus_busy),
-//       .max_thresh ({4'd3, 4'd5}),  // Weights [5, 3]
+//       .max_thresh ({3'd3, 3'd5}),  // Weights [5, 3] -- MAX_LEVELS=8 makes
+//                                    // each field $clog2(8)=3 bits wide, so
+//                                    // 4-bit literals here would truncate to
+//                                    // [5, 6]
 //       .request    (m_req),
 //       .grant_ack  (m_done),        // Master completion signal
 //       .grant_valid(m_grant_vld),

@@ -40,7 +40,7 @@ Kills mechanical switch bounce by sampling button inputs on a regular tick and r
 ### Parameters
 - **`N`** - Number of buttons/input signals (default: 4)
 - **`DEBOUNCE_DELAY`** - Number of consecutive stable samples required (default: 4)
-- **`PRESSED_STATE`** - Logic level when button is pressed (1 for normally open, 0 for normally closed)
+- **`PRESSED_STATE`** - Logic level when button is pressed (default: 1; 1 for normally open, 0 for normally closed)
 
 ## Implementation Details
 

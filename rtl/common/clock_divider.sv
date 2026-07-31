@@ -236,7 +236,8 @@
 //------------------------------------------------------------------------------
 // Related Modules:
 //------------------------------------------------------------------------------
-//   - counter_bin.sv - Simple binary counter (used internally here)
+//   - counter_bin.sv - Simple binary counter (related; NOT instantiated here --
+//     this module keeps its own r_divider_counters)
 //   - counter_freq_invariant.sv - Time-based counter with 1MHz tick
 //   - clock_pulse.sv - Configurable pulse generator
 //   - clock_gate_ctrl.sv - Clock gating for power management

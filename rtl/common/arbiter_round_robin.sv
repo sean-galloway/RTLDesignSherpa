@@ -224,7 +224,8 @@
 //   - In ACK mode, testbench MUST provide timely ACK or arbiter will stall
 //   - block_arb has immediate effect - use for flow control or debugging
 //   - Priority encoder uses "find-first-set" - lower indices win ties
-//   - Mask algorithm: After client N wins, mask = ~((1 << N) - 1)
+//   - Mask algorithm: After client i wins, mask = ~((1 << (i+1)) - 1) -- the
+//     mask keeps clients ABOVE i, so the winner cannot immediately re-win
 //   - **Synthesis:** Infers efficient priority encoder and minimal state registers
 //   - **Area:** O(CLIENTS) for priority logic, O(log2(CLIENTS)) for state
 //   - **Timing:** Single-cycle grant path, critical path through priority encoder

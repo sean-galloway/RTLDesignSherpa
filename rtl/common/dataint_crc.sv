@@ -95,7 +95,13 @@
 //   Latency:        2 cycles (cascade computation + output register)
 //   Throughput:     CHUNKS bytes per cycle
 //   Clock-to-Q:     Registered output (1 FF delay)
-//   Reset:          Asynchronous (immediate to POLY_INIT)
+//   Reset:          Asynchronous. The accumulator r_crc_value resets to
+//                   POLY_INIT; the `crc` OUTPUT register resets to 0, not to
+//                   POLY_INIT. On load_crc_start the output takes the raw seed
+//                   POLY_INIT, while every other cycle it takes the
+//                   conditioned value reflect(r_crc_value) ^ XOROUT -- so for
+//                   REFOUT=1 or XOROUT != 0 that one cycle is in a different
+//                   format from steady state.
 //
 //------------------------------------------------------------------------------
 // Behavior:

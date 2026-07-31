@@ -82,8 +82,13 @@
 //   Do NOT copy the table from shifter_lfsr.sv (XNOR, left-shift) or use the
 //   tap column published for Galois LFSRs -- the same polynomial needs different
 //   tap positions here, and a wrong set does not merely shorten the sequence:
-//   it drives the register to 0, where the `|r_lfsr` guard freezes it forever.
-//   Measured: WIDTH=4 taps [4,3] locks at zero in ONE step; taps [4,1] runs 15.
+//   it costs the full period, and the failure is quiet either way.
+//   Measured by sweeping all 15 non-zero seeds at WIDTH=4 with taps [4,3]:
+//   three seeds (including 4'b0001, which gets there in ONE step) walk to 0 and
+//   freeze under the `|r_lfsr` guard; the other twelve settle into a short
+//   cycle that never revisits the seed, so lfsr_done never asserts. Taps [4,1]
+//   run the full period of 15 from every seed. The outcome is seed-dependent --
+//   do not expect the zero-lock from every wrong tap set.
 //
 //   The polynomials are the standard primitive set (same source as the table in
 //   shifter_lfsr.sv). Only the tap ENCODING differs. This module's feedback is

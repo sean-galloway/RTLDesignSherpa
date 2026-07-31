@@ -32,7 +32,10 @@
 //     Type: int
 //     Range: 0 or 1
 //     Default: 1
-//     Constraints: 0 = CAM disabled (always empty), 1 = CAM functional
+//     Constraints: 0 = INSERTION disabled, 1 = CAM functional. ENABLE gates
+//                  only the mark_valid path: entries already stored stay
+//                  stored, and lookup and invalidation keep working. It does
+//                  not empty the CAM.
 //
 //   N:
 //     Description: Tag width in bits

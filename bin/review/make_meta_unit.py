@@ -29,17 +29,52 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+EXCLUDE = ('/testcode/', '/includes/', '/OLD/', '/dv/')
+
+
 def inventory(area):
-    """Module basenames under rtl/<area>/, sorted. Empty if the area is gone."""
-    return sorted(os.path.basename(p) for p in glob.glob(f'{REPO}/rtl/{area}/*.sv'))
+    """(subdir, module) under rtl/<area>/, sorted. Empty if the area is gone.
+
+    Recursive, because an area is not always a flat directory: rtl/amba holds
+    its 133 modules in per-protocol subdirectories and a flat glob finds none
+    of them -- which reads as "the area is gone" and aborts. `subdir` is ''
+    for a flat area (common, cdc, math), so their inventories are unchanged.
+    Include files and testcode are not modules and stay out, the same
+    exclusions the bundler applies."""
+    root = f'{REPO}/rtl/{area}'
+    out = []
+    for p in sorted(glob.glob(f'{root}/**/*.sv', recursive=True)):
+        if any(x in p for x in EXCLUDE):
+            continue
+        out.append((os.path.dirname(os.path.relpath(p, root)), os.path.basename(p)))
+    return sorted(out)
+
+
+def render_inventory(area, mods):
+    """Inventory lines, grouped by subdirectory when the area has any."""
+    if not any(sub for sub, _ in mods):
+        return [f'//   {m}' for _, m in mods]
+    lines, cur = [], None
+    for sub, m in mods:
+        if sub != cur:
+            cur = sub
+            lines += ['//', f'//   rtl/{area}/{sub or "."}/']
+        lines.append(f'//     {m}')
+    return lines
 
 
 def meta_pages(book, area):
-    """The meta-docs, in reading order. Only the ones that exist."""
+    """The meta-docs, in reading order. Only the ones that exist.
+
+    Everything beside the area's code counts, not just CLAUDE.md/README.md --
+    a standalone guide parked in the RTL tree (rtl/amba's
+    VERIFICATION_ARCHITECTURE.md) is the page most likely to describe a
+    structure that has since changed, and nothing else in the pipeline reads
+    it."""
     d = f'{REPO}/docs/markdown/{book}'
     cands = [f'{d}/index.md', f'{d}/overview.md', f'{d}/quickstart.md']
     cands += sorted(glob.glob(f'{d}/_book_*_index.md'))
-    cands += [f'{REPO}/rtl/{area}/CLAUDE.md', f'{REPO}/rtl/{area}/README.md']
+    cands += sorted(glob.glob(f'{REPO}/rtl/{area}/*.md'))
     return [p for p in cands if os.path.isfile(p)]
 
 
@@ -105,7 +140,7 @@ def main():
            '// These pages make count, category and existence claims about the area.',
            f'// Verify them against this list: rtl/{args.area}/ holds {len(mods)} modules.',
            '//']
-    rtl += [f'//   {m}' for m in mods]
+    rtl += render_inventory(args.area, mods)
     for other in args.also_list:
         omods = inventory(other)
         rtl += ['//',
@@ -113,7 +148,7 @@ def main():
                 f'// Listed so "the doc says this lives in {args.area}" is separable from',
                 '// "this module does not exist".',
                 '//']
-        rtl += [f'//   {m}' for m in omods]
+        rtl += render_inventory(other, omods)
 
     doc_text = '\n'.join(open(p, encoding='utf-8').read() for p in pages)
     insts = instantiated_modules(doc_text, args.area)

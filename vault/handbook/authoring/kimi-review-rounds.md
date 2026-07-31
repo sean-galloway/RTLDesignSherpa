@@ -284,18 +284,27 @@ Each one is here because ignoring it cost real work.
     control the reviewer's false-positive rate, so compare the two rates
     directly:
 
-    | | measured |
+    | | measured over rounds 1-9 |
     |---|---|
-    | reviewer FP rate | 2 FP in 72 findings (cdc 17 real/1 FP, math 38/0, common 17/1) |
-    | verifier REFUTED that were wrong | 4 of ~7 REFUTED verdicts issued |
+    | reviewer FP rate | **3 FP in 97 findings** (cdc 17 real/1 FP, math 38/0, common 39/2) |
+    | verifier REFUTED that were wrong | **7 of the 11 REFUTED verdicts issued** (91 findings adjudicated) |
 
-    The four: cdc round_2 `reset_sync` (absent-file, fixed by VERIFIER_BRIEF
+    The seven: cdc round_2 `reset_sync` (absent-file, fixed by VERIFIER_BRIEF
     rule 4), cdc round_3 `apb5_slave_cdc_cg` (golden module in a sibling unit,
-    fixed by unioning refs in `augment_golden_deps.py`), and common round_1
-    `shifter_barrel` modulo + `shifter_universal` WIDTH>=2, both confirmed
-    against the RTL afterwards. Every remaining verdict class is either UPHELD
-    (agrees with triage) or UNCERTAIN (routed to a human anyway) -- math
-    round_1 was 12 UNCERTAIN, and human triage upheld all twelve.
+    fixed by unioning refs in `augment_golden_deps.py`), math round_2's single
+    REFUTED (that round had 0 FP, so it was wrong by construction), common
+    round_1 `shifter_barrel` modulo + `shifter_universal` WIDTH>=2, and common
+    round_2 twice: weighted-arbiter credit initialization (the reset branch
+    loads `MTW'(1)`, not the weight) and the Galois zero-seed lockout -- where
+    the verifier's own reason admitted the module's source was not in the
+    evidence, which its brief rule 4 makes an automatic UNCERTAIN. Every
+    remaining verdict class is either UPHELD (agrees with triage) or UNCERTAIN
+    (routed to a human anyway) -- math round_1 was 12 UNCERTAIN, and human
+    triage upheld all twelve.
+
+    So the verifier is wrong on the verdict that costs something more often
+    than the reviewer is wrong at all: 64% of REFUTED against a 3% FP rate.
+    A REFUTED is a hint about where to look first, nothing more.
 
     So the pass is not a filter and must not be operated as one. What it
     actually buys, and what to keep it for: it settles MECHANICAL classes

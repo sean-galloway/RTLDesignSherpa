@@ -563,6 +563,40 @@ is a candidate to STOP. Against that: 3 of 23 were my own integration defects,
 and a third of round_2 was a class round_1 structurally could not see. A
 round_3 would mostly audit this integration.
 
+**common round_2 leftovers, swept 2026-07-31** (second pass over the same
+critiques; the integration above covered the doc pages it opened, these were in
+files it did not):
+
+- **The Galois zero-seed lockout was the wrongly-REFUTED finding, and it
+  shipped.** `shifter_lfsr_galois.sv` has no `|r_lfsr` guard, so a loaded
+  `seed_data = 0` parks the register at zero permanently AND parks `lfsr_done`
+  high forever (it is the equality `lfsr_out == seed_data`). The verifier's own
+  reason said the module's source was not in its evidence — which its brief
+  rule 4 makes an automatic UNCERTAIN, not a REFUTED. Documented now. This is
+  exactly the cost rule 10 predicts: a wrongly-REFUTED finding is only found by
+  the next round, unless someone re-reads the critique.
+- `debounce.md` never gave `PRESSED_STATE`'s default (1 = normally open).
+- **Five RTL header comments** the reviewer filed under POSSIBLE RTL BUGS, all
+  rule-6 sources the doc pages were copied from: `arbiter_round_robin`'s mask
+  formula (`~((1 << N) - 1)` where the code computes `~((1 << (i+1)) - 1)`),
+  `clock_divider` claiming `counter_bin` is "used internally" when it
+  instantiates nothing, `cam_tag`'s `ENABLE = 0` described as "always empty"
+  when it gates insertion only, `arbiter_round_robin_weighted`'s
+  `.max_thresh({4'd3, 4'd5})` under `MAX_LEVELS(8)` (3-bit fields, so it
+  truncates to weights [5, 6] rather than the commented [5, 3]) and its
+  "credit counter initialized to its weight value", and `dataint_crc`'s
+  "Reset: Asynchronous (immediate to POLY_INIT)" when the `crc` output register
+  resets to 0. Swept repo-wide: these were the only occurrences, and every
+  other "used internally" claim checked out.
+- Two RTL corners filed rather than fixed: **COMMON-014** (`fifo_control`
+  defaults `ADDR_WIDTH=3`/`DEPTH=16` violate its own `DEPTH == 2^ADDR_WIDTH`
+  constraint; latent, both parents override) and **COMMON-015**
+  (`shifter_beat_pack` truncates an over-wide runtime `cfg_beat_bytes_m1` to 0
+  in `COUNT_BITS'(w_beat_bits)`, giving silent corruption instead of a stall).
+
+Verified: `make -C rtl/common lint` passes all 49 files,
+`check_doc_instantiations.py` is 0 across rtl-common's 53 files.
+
 **Pipeline review — 2026-07-31.** Reading the whole process end to end before
 starting amba produced four changes, all recorded in [[kimi-review-rounds]]:
 

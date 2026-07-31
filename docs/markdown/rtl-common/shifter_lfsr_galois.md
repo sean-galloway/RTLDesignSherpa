@@ -141,6 +141,15 @@ r_lfsr <= {WIDTH{1'b1}};  // initialization to all 1's
 Where the Fibonacci version resets to all zeros, this one resets to all ones —
 a valid non-zero state, so it can run immediately.
 
+**A zero seed locks this module, and nothing stops you loading one.** Unlike
+`shifter_lfsr_fibonacci.sv`, which shifts only while `|r_lfsr` holds, this
+module has no zero guard: with `r_lfsr = 0` the feedback bit `r_lfsr[0]` is 0,
+no taps are applied, and `next_lfsr = {1'b0, r_lfsr[WIDTH-1:1]}` is zero again.
+The register stays at zero for good — and because `lfsr_done` is the equality
+`lfsr_out == seed_data`, a zero seed also parks `lfsr_done` high forever
+instead of pulsing once per period. Drive `seed_data` non-zero on `seed_load`;
+the reset value is safe, only a loaded seed can do this.
+
 ### 2. Combinational Next State Logic
 The next LFSR state is calculated combinationally in the `always_comb` block,
 then registered in the `always_ff` block. Clean separation: timing concerns stay
@@ -211,7 +220,10 @@ For a polynomial P(x) = x^n + x^a + x^b + ... + 1:
   numbers you pass in are not interchangeable**. This module XORs the mask into
   the post-shift value, so taps are the exponents; `shifter_lfsr_fibonacci.sv`
   XORs the tapped bits into the MSB, which shifts the encoding to `[a+1, b+1, 1]`.
-  Passing Galois taps to the Fibonacci module drives it to zero, where it locks.
+  Passing Galois taps to the Fibonacci module costs the full period, but what
+  you see depends on the seed: measured at `WIDTH=4` with taps `[4,3]`, three
+  of the 15 non-zero seeds walk to zero and freeze there, and the other twelve
+  settle into a short cycle that never revisits the seed.
 - Different sequences produced but same mathematical properties
 
 ### Example Polynomials
