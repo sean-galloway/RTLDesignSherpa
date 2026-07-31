@@ -503,14 +503,17 @@ ls rtl/common/counter*.sv
 Then provide table:
 | Module | Use Case |
 |--------|----------|
-| counter_bin.sv | General purpose, most common |
-| counter_load_clear.sv | With load/clear control |
-| counter_freq_invariant.sv | Time-based (ms/us) |
-| counter_bingray.sv | Gray code for CDC |
-| counter_ring.sv | Circular/sequential |
-| counter_johnson.sv | 2N states with N FFs |
+| counter.sv | Plain up-counter |
+| counter_load_clear.sv | Count to a runtime match value, with load/clear |
+| counter_bin.sv | FIFO/ring pointer -- wraps at MAX, MSB toggles |
+| counter_bin_load.sv | FIFO pointer plus load and variable increment |
+| counter_freq_invariant.sv | Microsecond `tick` time base |
+| counter_ring.sv | Circular/sequential (WIDTH >= 2) |
 
-"For basic counting to a max value, use **counter_bin.sv**"
+`counter_bingray.sv` and `counter_johnson.sv` are in `rtl/cdc/`, not here.
+
+"For plain counting to a value, use **counter_load_clear.sv**; counter_bin.sv is
+a FIFO-pointer counter whose MSB is a wrap flag, not a count bit."
 
 ### Q: "How do I calculate CRC-32?"
 
