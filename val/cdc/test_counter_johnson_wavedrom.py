@@ -39,7 +39,7 @@ import sys
 import random
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, Timer, ClockCycles
+from cocotb.triggers import RisingEdge, Timer, ClockCycles, ReadOnly
 from cocotb_test.simulator import run
 import pytest
 
@@ -283,6 +283,7 @@ class CounterJohnsonWaveDromTB(TBBase):
 
         for cycle in range(self.SEQUENCE_LENGTH):
             await RisingEdge(self.clk)
+            await ReadOnly()  # let the edge's NBA updates settle before reading
             curr_value = int(self.counter_gray.value)
 
             # Calculate Hamming distance
@@ -322,6 +323,7 @@ class CounterJohnsonWaveDromTB(TBBase):
         # Count a few cycles
         self.enable.value = 1
         await self.wait_cycles(4)
+        await Timer(1, 'ns')  # settle NBA updates, stay writeable (ReadOnly blocks the disable below)
 
         # Hold state (disable)
         stored_value = int(self.counter_gray.value)
@@ -373,6 +375,7 @@ class CounterJohnsonWaveDromTB(TBBase):
         self.log.info(f"Applying reset at 0b{pre_reset_value:0{self.WIDTH}b}{self.get_time_ns_str()}")
         self.rst_n.value = 0
         await RisingEdge(self.clk)
+        await Timer(1, 'ns')  # let the reset's NBA update land (ReadOnly blocks rst_n write below)
 
         # Check immediate reset
         reset_value = int(self.counter_gray.value)
@@ -421,11 +424,6 @@ class CounterJohnsonWaveDromTB(TBBase):
         await self.wait_cycles(10)
 
         self.log.info(f"✓ All Johnson Counter WaveDrom scenarios generated{self.get_time_ns_str()}")
-        # The scenarios' checks used to only log.error -- the test could not
-        # fail on wrong DUT behaviour (test-audit finding). Waveforms for the
-        # docs must not come from a misbehaving DUT either.
-        assert tb.scenario_errors == 0, \
-            f"{tb.scenario_errors} scenario check(s) failed -- see the log above"
 
 @cocotb.test(timeout_time=10000, timeout_unit="us")
 async def counter_johnson_wavedrom_test(dut):
@@ -520,6 +518,12 @@ async def counter_johnson_wavedrom_test(dut):
                     tb.log.warning(f"  No solution generated for {output_filename}")
 
         tb.log.info("\n🎉 JOHNSON COUNTER WAVEDROM GENERATION COMPLETE! 🎉")
+
+        # The scenarios' checks used to only log.error -- the test could not
+        # fail on wrong DUT behaviour (test-audit finding). Waveforms for the
+        # docs must not come from a misbehaving DUT either.
+        assert tb.scenario_errors == 0, \
+            f"{tb.scenario_errors} scenario check(s) failed -- see the log above"
         tb.log.info(f"Generated {len(scenarios)} waveform files in: {output_dir}")
 
     finally:
