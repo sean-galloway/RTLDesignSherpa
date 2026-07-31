@@ -49,6 +49,11 @@ own files; SUSPECTED for anything resting on a file the unit does not show.
   own docstring claims levels it does not implement.
 - **Wavedrom generator tests.** Their job is producing wave JSON for the
   docs, not checking DUT behaviour; rule 6 does not apply to them.
+- **Non-exhaustive stimulus in math tests.** This project deliberately uses
+  directed patterns that fully cover the functional space without
+  exhaustively sweeping inputs (Sean's stated math-test style). "The test
+  does not randomize / does not sweep all inputs" is NOT a finding; only an
+  uncovered functional case (a branch or edge class no pattern reaches) is.
 
 ## Output format
 
