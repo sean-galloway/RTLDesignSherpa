@@ -429,7 +429,7 @@ pytest val/common/test_counter_bin_load.py -v
 
 ### When to Use counter_bin_load
 
-✅ **Appropriate Use Cases:**
+**Appropriate Use Cases:**
 - FIFO read/write pointers with drop/flush
 - Circular buffer management with skip operations
 - Packet queue pointers with bulk discard
@@ -487,7 +487,7 @@ end
 
 ### Common Pitfalls
 
-❌ **Anti-Pattern 1**: Incorrect WIDTH for FIFO depth
+**Anti-Pattern 1**: Incorrect WIDTH for FIFO depth
 
 ```systemverilog
 // WRONG: WIDTH = $clog2(FIFO_DEPTH)
@@ -499,7 +499,7 @@ localparam int WIDTH = $clog2(16) + 1;  // = 5 bits
 // Lower 4 bits = address, MSB = full/empty indicator
 ```
 
-❌ **Anti-Pattern 2**: Ignoring operation priority
+**Anti-Pattern 2**: Ignoring operation priority
 
 ```systemverilog
 // WRONG: Trying to increment while load is active
@@ -512,7 +512,7 @@ load <= drop_all;
 enable <= rd_en & !drop_all;  // Mutually exclusive
 ```
 
-❌ **Anti-Pattern 3**: add_value exceeds 2×MAX
+**Anti-Pattern 3**: add_value exceeds 2×MAX
 
 ```systemverilog
 // WRONG: add_value larger than valid range
@@ -523,7 +523,7 @@ enable <= rd_en & !drop_all;  // Mutually exclusive
 assert property (@(posedge clk) add_enable |-> add_value < 2*MAX);
 ```
 
-❌ **Anti-Pattern 4**: Using wrong bits for memory address
+**Anti-Pattern 4**: Using wrong bits for memory address
 
 ```systemverilog
 // WRONG: Using full counter including MSB

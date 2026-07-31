@@ -339,7 +339,7 @@ any_masked_requests = 0
 
 ### When to Use
 
-✅ **Appropriate Use Cases:**
+**Appropriate Use Cases:**
 - Fixed-priority arbitration systems
 - Interrupt controllers
 - Bus arbitration with priority levels
@@ -381,13 +381,13 @@ end
 
 Here's the part that bites people:
 
-❌ **Anti-Pattern 1**: Assuming fairness
+**Anti-Pattern 1**: Assuming fairness
 ```systemverilog
 // WRONG: Fixed priority is NOT fair
 // Client 0 will always win if requesting
 ```
 
-❌ **Anti-Pattern 2**: Ignoring winner_valid
+**Anti-Pattern 2**: Ignoring winner_valid
 ```systemverilog
 // WRONG: Using winner when no requests
 if (winner == 2'd0) ...  // Ambiguous: valid client 0 or no requests?
@@ -396,7 +396,7 @@ if (winner == 2'd0) ...  // Ambiguous: valid client 0 or no requests?
 if (winner_valid && winner == 2'd0) ...
 ```
 
-❌ **Anti-Pattern 3**: Mixing priority schemes
+**Anti-Pattern 3**: Mixing priority schemes
 ```systemverilog
 // WRONG: Trying to implement round-robin with priority encoder alone
 // Use arbiter_round_robin.sv instead

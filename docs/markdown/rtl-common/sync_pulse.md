@@ -304,14 +304,14 @@ sync_pulse #(
 
 ### When to Use sync_pulse
 
-✅ **Appropriate Use Cases:**
+**Appropriate Use Cases:**
 - Single-cycle pulse events (interrupts, triggers, strobes)
 - Event counters across clock domains
 - Handshake acknowledgments
 - Sporadic control signals (button presses, sensor events)
 - Timeout/watchdog pulses
 
-❌ **Inappropriate Use Cases:**
+**Inappropriate Use Cases:**
 - High-frequency continuous pulses (use async FIFO)
 - Data buses (use handshake or FIFO)
 - Multi-bit values (use `glitch_free_n_dff_arn` with Gray code)
@@ -426,7 +426,7 @@ diagram above shows `o_pulse` aligned with `r_sync[2]`, consistent with this.
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1**: Multi-cycle input pulses
+**Anti-Pattern 1**: Multi-cycle input pulses
 ```systemverilog
 // WRONG: Input pulse held for multiple cycles
 i_pulse <= 1'b1;
@@ -441,7 +441,7 @@ i_pulse <= 1'b1;
 i_pulse <= 1'b0;
 ```
 
-❌ **Anti-Pattern 2**: Pulses too close together
+**Anti-Pattern 2**: Pulses too close together
 ```systemverilog
 // WRONG: Back-to-back pulses in source domain
 forever begin
@@ -462,7 +462,7 @@ forever begin
 end
 ```
 
-❌ **Anti-Pattern 3**: Using for data transfer
+**Anti-Pattern 3**: Using for data transfer
 ```systemverilog
 // WRONG: Trying to transfer data with pulse
 logic [7:0] data_to_sync;

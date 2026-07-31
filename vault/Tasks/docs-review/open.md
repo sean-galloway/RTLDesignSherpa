@@ -125,6 +125,25 @@ Do it per area as that area is humanized, not as one repo-wide sed: a status
 marker usually wants replacing with words ("verified", "not supported"), not
 deleting, and that is a per-line judgement.
 
+**rtl-common: DONE 2026-07-31** (except `quickstart.md`, swept with the
+`_meta` unit). 65 glyphs across 9 pages. What the per-line judgement bought,
+and why a blanket delete would have been wrong:
+
+- `✅`/`❌` leading a bullet or a heading carried nothing the words did not
+  already say ("Appropriate Use Cases", "Anti-Pattern 1") -- deleted.
+- **`⚠️` in the same list did NOT.** `arbiter_round_robin_weighted.md` listed
+  three `✅` fits and one `⚠️` caveat under one mode; deleting all four glyphs
+  turns the caveat into a fourth reason to use it. Those became `Caveat: ...`.
+- `✓`/`✗` in a capability table became `Yes`/`No`, which reads better than the
+  glyphs did and survives the PDF path.
+- Trailing `✓` on a worked-example result became `(correct)` or fell away with
+  the sentence rewritten.
+
+**The humanize pass removes none of them.** Measured on this area: 56 glyphs
+before the voice pass, the same 56 after, in the same 10 files. The humanizer
+treats them as content, so this backlog cannot be closed by humanizing -- it is
+hand work per area, and `check_tag_survival.py` only stops NEW ones arriving.
+
 ## DOCREV-010 — every docs/markdown book needs index.md + overview.md
 **Status:** open 2026-07-25 (Sean)
 **Priority:** P2

@@ -129,7 +129,7 @@ Pass 5 (Odd):  Compare (0,1), (2,3), (4,X)
               [8, 9] → [9, 8] (swap)
               [5, 3] → [5, 3] (no swap)
               [1, X] → [1, X] (no comparison)
-Final:        [9, 8, 5, 3, 1] ✓ Sorted!
+Final:        [9, 8, 5, 3, 1] -- sorted
 ```
 
 ### Algorithm Comparison
@@ -142,11 +142,11 @@ registers"). Do not read O(1) as the hardware area.
 
 | Algorithm | Time Complexity | Space (SW) | HW Area (this style) | Hardware Efficiency | Pipeline Stages | Best Use Case |
 |-----------|----------------|------------|----------------------|-------------------|----------------|---------------|
-| **Odd-Even Sort** | O(n²) | O(1) | **O(n²)** | ⭐⭐⭐⭐⭐ Excellent | n | Small arrays, predictable timing |
-| Bubble Sort | O(n²) | O(1) | O(n²) | ⭐⭐ Poor | Variable | Sequential processors only |
-| Bitonic Sort | O(n log²n) | O(1) | O(n log²n) | ⭐⭐⭐⭐ Very Good | log²n | Power-of-2 sizes, larger arrays |
-| Merge Sort | O(n log n) | O(n) | O(n log n) | ⭐⭐⭐ Good | log n | Large arrays, general purpose |
-| Insertion Sort | O(n²) | O(1) | O(n²) | ⭐⭐⭐ Good | Variable | Nearly sorted data |
+| **Odd-Even Sort** | O(n²) | O(1) | **O(n²)** | Excellent | n | Small arrays, predictable timing |
+| Bubble Sort | O(n²) | O(1) | O(n²) | Poor | Variable | Sequential processors only |
+| Bitonic Sort | O(n log²n) | O(1) | O(n log²n) | Very Good | log²n | Power-of-2 sizes, larger arrays |
+| Merge Sort | O(n log n) | O(n) | O(n log n) | Good | log n | Large arrays, general purpose |
+| Insertion Sort | O(n²) | O(1) | O(n²) | Good | Variable | Nearly sorted data |
 
 **Why Odd-Even Sort for Hardware?**
 

@@ -27,7 +27,7 @@
 
 Multiple divided clocks from one input clock, all tapped off a single shared counter so they come out phase-aligned.
 
-**⚠️ WARNING:** NOT recommended for functional clocks! Use PLL/MMCM/clock manager primitives instead. This module is intended for testbenches, debug outputs, and non-critical timing applications.
+**WARNING:** NOT recommended for functional clocks! Use PLL/MMCM/clock manager primitives instead. This module is intended for testbenches, debug outputs, and non-critical timing applications.
 
 ## Overview
 
@@ -377,7 +377,7 @@ end
 
 This is the part that bites people, so read it twice.
 
-#### ⚠️ NOT for Functional Clocks
+#### NOT for Functional Clocks
 **Do NOT use for:**
 - Primary system clocks
 - Clocking synchronous logic
@@ -390,18 +390,18 @@ This is the part that bites people, so read it twice.
 - Phase-locked loops for low jitter
 - Precise frequency generation
 
-#### ⚠️ Derived Clock Hazards
+#### Derived Clock Hazards
 Using `divided_clk` as a clock creates a **derived clock**:
 - Complicates timing analysis
 - STA tools may not properly constrain
 - Potential setup/hold violations
 - Clock domain crossing issues
 
-#### ⚠️ Only Power-of-2 Divisions
+#### Only Power-of-2 Divisions
 - This module ONLY supports power-of-2 division ratios (2, 4, 8, 16, ...)
 - For arbitrary ratios (e.g., divide by 7, 100, 1000): Use `counter_load_clear`
 
-#### ⚠️ Glitches During Configuration Changes
+#### Glitches During Configuration Changes
 - Changing `pickoff_points` at runtime can cause glitches
 - Always reset module when changing configuration
 - Do NOT change configuration while outputs are actively used

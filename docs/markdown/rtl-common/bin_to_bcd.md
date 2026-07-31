@@ -434,7 +434,7 @@ the FSM (`CK_S_IDX` jumps straight to `BCD_DONE` when `loop_count == WIDTH-1`).
 | 7 | 0 | 0000 0111 1000 (0,7,8) | tens 7≥5 +3, ones 8≥5 +3 | 0000 1010 1011 (0,A,B) |
 | 8 | 0 | 0001 0101 0110 (1,5,6) | *(skipped — last bit)* | 0001 0101 0110 (1,5,6) |
 
-**Final Result**: BCD = 0001_0101_0110 = 4'h1, 4'h5, 4'h6 = 156 decimal ✓
+**Final Result**: BCD = 0001_0101_0110 = 4'h1, 4'h5, 4'h6 = 156 decimal
 
 Note how the intermediate `(0,A,B)` = (0,10,11) at iteration 7 is exactly what
 the double-dabble algorithm relies on: the final shift carries those values up
@@ -466,7 +466,7 @@ digits (`ADD → CK_D_IDX` per digit) before the next shift. The final bit
 | 20 | CK_S_IDX | 00001001 | 0000 | loop 3 = WIDTH-1 → BCD_DONE |
 | 21 | BCD_DONE | 00001001 | 0000 | done asserted, result 09 |
 
-**Result**: BCD = 8'b00001001 = 09₁₆ = 9₁₀ ✓ (21 cycles, matching
+**Result**: BCD = 8'b00001001 = 09₁₆ = 9₁₀ (correct; 21 cycles, matching
 `(WIDTH-1)×(2×DIGITS+2)+3 = 3×6+3 = 21`).
 
 ## Usage Examples

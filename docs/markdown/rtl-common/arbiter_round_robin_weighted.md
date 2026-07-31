@@ -413,16 +413,16 @@ arbiter_round_robin_weighted #(
 ### When to Use Each Mode
 
 **No-ACK Mode (WAIT_GNT_ACK=0):**
-- ✅ Simple masters without pipelining
-- ✅ Combinational logic masters
-- ✅ Maximum throughput (1 grant/cycle)
-- ⚠️ Grant completes same cycle (no hold)
+- Simple masters without pipelining
+- Combinational logic masters
+- Maximum throughput (1 grant/cycle)
+- Caveat: Grant completes same cycle (no hold)
 
 **ACK Mode (WAIT_GNT_ACK=1):**
-- ✅ Pipelined masters (e.g., AXI)
-- ✅ Posted transaction buses
-- ✅ Multi-cycle operations
-- ⚠️ Reduced throughput (grant held until ACK)
+- Pipelined masters (e.g., AXI)
+- Posted transaction buses
+- Multi-cycle operations
+- Caveat: Reduced throughput (grant held until ACK)
 
 ### Weight Selection Guidelines
 
@@ -433,10 +433,10 @@ arbiter_round_robin_weighted #(
 
 ### Dynamic Weight Change Best Practices
 
-- **⚠️ DO NOT** change weights every cycle (causes FSM thrashing)
-- ✅ **Recommended**: Change weights on policy updates (millisecond timescale)
-- ✅ **Safe**: FSM ensures atomic updates without race conditions
-- ✅ **Timeout**: 15-cycle timeout prevents lockup
+- **DO NOT** change weights every cycle (causes FSM thrashing)
+- **Recommended**: Change weights on policy updates (millisecond timescale)
+- **Safe**: FSM ensures atomic updates without race conditions
+- **Timeout**: 15-cycle timeout prevents lockup
 
 ## Verification
 

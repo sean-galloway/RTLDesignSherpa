@@ -436,10 +436,10 @@ Test coverage for the reset_sync module lives in:
 - **Test Runner**: `val/common/test_reset_sync.py`
 
 ### Test Scenarios
-✅ **Basic Reset Synchronization** - Verifies N-cycle synchronization delay
-✅ **Immediate Reset Assertion** - Verifies asynchronous assertion behavior
-✅ **Multiple Reset Cycles** - Tests repeated reset/release sequences
-✅ **Reset Glitch Filtering** - Validates recovery from short reset pulses
+**Basic Reset Synchronization** - Verifies N-cycle synchronization delay
+**Immediate Reset Assertion** - Verifies asynchronous assertion behavior
+**Multiple Reset Cycles** - Tests repeated reset/release sequences
+**Reset Glitch Filtering** - Validates recovery from short reset pulses
 
 ### Running Tests
 ```bash
@@ -455,10 +455,10 @@ pytest val/common/test_reset_sync.py -v -s
 
 ### Test Results
 All 4 parameter configurations passing (100% success rate):
-- N=2 (min) - ✅ PASSED
-- N=3 (typical) - ✅ PASSED
-- N=4 (safe) - ✅ PASSED
-- N=5 (max) - ✅ PASSED
+- N=2 (min) - PASSED
+- N=3 (typical) - PASSED
+- N=4 (safe) - PASSED
+- N=5 (max) - PASSED
 
 **Bug Discovery**: the test suite caught a critical RTL bug on the initial run —
 an inverted reset polarity. Exactly the kind of bug that sails through a smoke

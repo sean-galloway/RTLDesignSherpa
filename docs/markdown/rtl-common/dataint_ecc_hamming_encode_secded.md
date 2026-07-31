@@ -173,10 +173,10 @@ Note that `DEBUG` is a **no-op** in this module: the RTL never references it out
 ### Error Detection Matrix
 | Error Type | Detection | Correction |
 |------------|-----------|------------|
-| No Error | ✓ | N/A |
-| Single Bit Error | ✓ | ✓ |
-| Double Bit Error | ✓ | ✗ |
-| Triple+ Bit Error | Partial | ✗ |
+| No Error | Yes | N/A |
+| Single Bit Error | Yes | Yes |
+| Double Bit Error | Yes | No |
+| Triple+ Bit Error | Partial | No |
 
 ## Example Configurations
 
