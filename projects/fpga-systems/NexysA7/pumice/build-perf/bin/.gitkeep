@@ -1,0 +1,1 @@
+# Build-side tooling for this build (PHY elaboration/generation helpers). Host DRIVERS go in ../host/; test SEQUENCES go in ../../bin/.

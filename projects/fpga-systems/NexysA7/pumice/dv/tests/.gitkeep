@@ -1,0 +1,1 @@
+# cocotb/pytest tests for ../../rtl/ blocks only. Whole-harness sims belong to a build's dv/.

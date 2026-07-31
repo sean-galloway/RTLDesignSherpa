@@ -1,0 +1,1 @@
+# Sim of the whole harness. Runs the same host program as silicon via an injected cocotb channel.

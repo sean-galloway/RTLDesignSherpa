@@ -1,0 +1,1 @@
+# Pumice board-level RTL, flat. Blocks shared by every build (harness_csr, dfi delay/stub shims, display drivers). Whole-harness tops belong in a build's rtl/, not here.

@@ -1,0 +1,1 @@
+# Whole-harness RTL for the LiteDRAM comparison build: the board top wiring litedram_core to the DUT-agnostic char engine harness.

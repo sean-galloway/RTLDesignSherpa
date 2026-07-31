@@ -1,0 +1,1 @@
+# Vivado batch scripts for this build. NOT program_fpga.tcl - board programming is make/fpga_flow.mk.
