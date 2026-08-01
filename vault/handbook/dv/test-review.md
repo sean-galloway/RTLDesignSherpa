@@ -63,27 +63,31 @@ interface headers are enough for "does the test drive real ports".
    parameter counts) AND TEST_LEVEL depth gating inside the TB (gate < func <
    full actual work). Either missing = finding.
 
-   **Grep for the mechanism, not the string.** `REG_LEVEL` read only to
-   decorate the test name passes a naive scan and selects nothing; that was
-   the state of 8 val/common tests. The check is whether the parameter
-   generator BRANCHES on it:
+   **Check the mechanism, not the string, and do it with a parser.**
+   `REG_LEVEL` read only to decorate the test name passes a naive grep and
+   selects nothing; that was the state of 8 val/common tests. Use the tool:
 
-       # a generator that branches, vs one that merely mentions REG_LEVEL
-       def has_grid(src):
-           gen = re.search(r'def generate\w*param\w*\(.*?\)(.*?)(?=\n@|\ndef |\Z)',
-                           src, re.S | re.I)
-           body = gen.group(1) if gen else ''
-           return 'REG_LEVEL' in body and ('GATE' in body or 'FULL' in body)
+       python3 bin/review/check_test_levels.py val/<area>
 
-   Note `param`, not `params`. The first version required "params" and so
-   missed `generate_test_parameters`, reporting a fully compliant test
-   (`counter_freq_invariant`, which branches 3/6/9 on REG_LEVEL) as broken. A
-   scan that emits false findings gets ignored, which is worse than no scan --
-   check a couple of its hits by hand before acting on the count.
+   It walks the AST, so any function that reads REG_LEVEL and branches on a
+   level literal counts as a grid whatever it is named, and it searches for
+   TEST_LEVEL across the test file plus its resolved TBClasses imports.
 
-   and whether TEST_LEVEL appears anywhere in the TB chain (test file plus its
-   resolved TBClasses imports), not just in the wrapper. Snapshot 2026-07-28, REG_LEVEL/TEST_LEVEL presence: cdc 6/13,
-   10/13; common 42/48, 32/48; math 119/119, 119/119; amba 55/117, 68/117.
+   *Three regex versions of this check were written before the parser, and
+   each produced a different set of false positives on the same area -- one
+   required a generator named `generate_*params*` and missed
+   `generate_test_parameters`; the next missed `get_cam_params`; a third used
+   a fixed character window and missed grids whose REG_LEVEL read sits far
+   from the level literal. The count moved 24 -> 16 -> 6 -> 4 and some
+   "findings" were compliant tests every time. A scan that cries wolf gets
+   ignored.*
+
+   Per-area state by the AST scan: **common 48/48 compliant (2026-08-01)**.
+   cdc, math and amba have not been re-measured with the parser -- the older
+   grep-based snapshot (2026-07-28) read cdc 6/13 and 10/13, common 42/48 and
+   32/48, math 119/119, amba 55/117 and 68/117, and the common figures in it
+   were wrong in both directions, so treat the rest as unmeasured until the
+   tool is run on them.
 2. **Structure.** TB class in the right place ([[tb-structure]]); the three
    mandatory methods (setup_clocks_and_reset / assert_reset /
    deassert_reset); Pattern A vs B never mixed; pytest function name embeds

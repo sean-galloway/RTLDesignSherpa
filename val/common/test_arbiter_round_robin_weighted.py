@@ -63,7 +63,7 @@ async def arbiter_round_robin_weighted_test(dut):
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Phase 2: Basic Weighted Arbitration @ {time_ns}ns ===")
         tb.log.info("=== Scenario ARB-03: Basic weighted arbitration ===")
-        await tb.run_basic_arbitration_test(400 * tb.DEPTH)
+        await tb.run_basic_arbitration_test(400 * tb.LEVEL_MULT)
         await tb.handle_test_transition_ack_cleanup()
 
         # Phase 3: Weight-specific tests

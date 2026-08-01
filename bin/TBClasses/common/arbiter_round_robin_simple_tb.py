@@ -54,7 +54,7 @@ class ArbiterRoundRobinSimpleTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         if self.TEST_LEVEL not in ('gate', 'func', 'full'):
             self.TEST_LEVEL = 'gate'
-        self.DEPTH = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+        self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
 
 
         # Clock and reset signals
@@ -268,7 +268,7 @@ class ArbiterRoundRobinSimpleTB(TBBase):
         initial_grants = initial_stats.get('total_grants', 0)
 
         # Run fairness test
-        test_cycles = 750 * self.DEPTH
+        test_cycles = 750 * self.LEVEL_MULT
         await self.wait_clocks('clk', test_cycles)
 
         # Check results

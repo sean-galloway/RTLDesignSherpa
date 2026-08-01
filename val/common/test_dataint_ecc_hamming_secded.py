@@ -193,6 +193,8 @@ endmodule
     }
 
     extra_env = {
+
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', reg_level.lower()),
         'LOG_PATH': log_path,
         'PARAM_WIDTH': str(width),
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),

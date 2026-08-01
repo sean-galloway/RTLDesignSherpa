@@ -349,6 +349,17 @@ async def counter_bin_wavedrom_test(dut):
         (tb.scenario_enable_control, "counter_bin_enable_control.json"),
         (tb.scenario_full_cycle, "counter_bin_full_cycle.json"),
     ]
+    # TEST_LEVEL for a wavedrom generator gates HOW MANY scenarios are
+    # produced, never the content of any one of them: the committed JSON for a
+    # given scenario must be byte-identical at every level, or the diagrams in
+    # the docs would depend on how the suite was invoked. gate emits the first
+    # two as a smoke check; func and full emit the complete set, so the normal
+    # regeneration path (default REG_LEVEL=FUNC) always writes every diagram.
+    _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+    if _lvl not in ('gate', 'func', 'full'):
+        _lvl = 'gate'
+    if _lvl == 'gate':
+        scenarios = scenarios[:2]
 
     try:
         for scenario_method, output_filename in scenarios:
@@ -416,9 +427,19 @@ async def counter_bin_wavedrom_test(dut):
             await tb.wave_solver.stop_sampling()
         await tb.wait_clocks('clk', 10)
 
-@pytest.mark.parametrize("width, max_val", [
-    (4, 8),   # 4-bit counter, wrap at 8
-])
+def _wavedrom_grid(gate, func, full):
+    """REG_LEVEL grid for a wavedrom generator.
+
+    These produce the wave JSON the docs embed rather than a pass/fail check,
+    so the depth rule sits differently for them -- but a diagram set still has
+    a cheap and a comprehensive form, so the grid is not optional
+    ([[test-runner]]: both mechanisms are a hard requirement).
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    return {'GATE': gate, 'FULL': full}.get(reg_level, func)
+
+@pytest.mark.parametrize("width, max_val", _wavedrom_grid([(4, 8)], [(4, 8), (5, 16)],
+                                                  [(4, 8), (5, 16), (6, 32)]))
 def test_counter_bin_wavedrom(request, width, max_val):
     """Pytest wrapper for counter_bin WaveDrom generation."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({

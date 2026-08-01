@@ -51,7 +51,7 @@ class ArbiterRoundRobinTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         if self.TEST_LEVEL not in ('gate', 'func', 'full'):
             self.TEST_LEVEL = 'gate'
-        self.DEPTH = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+        self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
 
         # Initialize random generator
         random.seed(self.SEED)
@@ -628,7 +628,7 @@ class ArbiterRoundRobinTB(TBBase):
                     f"stats_grants={initial_grants_from_stats}, cycle_grants={initial_cycle_grants}")
 
         # Run fairness test
-        test_cycles = 1000 * self.DEPTH
+        test_cycles = 1000 * self.LEVEL_MULT
         await self.wait_clocks('clk', test_cycles)
 
         # Get final counts using all available methods

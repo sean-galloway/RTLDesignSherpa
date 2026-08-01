@@ -45,6 +45,15 @@ class GlitchFreeNDffArnTB(TBBase):
 
         # Get parameters from environment
         self.FLOP_COUNT = self.convert_to_int(os.environ.get('PARAM_FLOP_COUNT', '3'))
+
+        # Per-test depth. REG_LEVEL picks how many parameter combinations run;
+        # TEST_LEVEL decides how hard each one works. This TB had no depth
+        # mechanism, so `full` cost exactly what `gate` did.
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'gate'
+        self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+
         self.WIDTH = self.convert_to_int(os.environ.get('PARAM_WIDTH', '4'))
 
         # This TB drives random.randint values through the synchronizer. Seed
@@ -232,7 +241,7 @@ class GlitchFreeNDffArnTB(TBBase):
         await self.wait_clocks('clk', self.FLOP_COUNT + 5)
 
         # Output should remain stable
-        for _ in range(10):
+        for _ in range(10 * self.LEVEL_MULT):
             await RisingEdge(self.dut.clk)
             output = int(self.dut.q.value)
             if output != test_val:

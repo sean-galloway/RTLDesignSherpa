@@ -45,6 +45,15 @@ class ResetSyncTB(TBBase):
         # Get test parameters
         self.N = self.convert_to_int(os.environ.get('PARAM_N', '3'))
 
+        # Per-test depth. REG_LEVEL picks how many parameter combinations run;
+        # TEST_LEVEL decides how hard each one works. This TB had no depth
+        # mechanism, so `full` cost exactly what `gate` did.
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'gate'
+        self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+
+
         self.log.info(f"Reset Sync TB initialized with N={self.N}")
 
     async def reset_dut(self):
@@ -143,7 +152,7 @@ class ResetSyncTB(TBBase):
             assert self.dut.sync_rst_n.value == 1, f"Cycle {cycle}: sync_rst_n should be 1 after sync"
 
             # Hold for a few clocks
-            for _ in range(5):
+            for _ in range(5 * self.LEVEL_MULT):
                 await RisingEdge(self.dut.clk)
                 await Timer(1, units='ns')  # Allow combinational output to settle
                 assert self.dut.sync_rst_n.value == 1, f"Cycle {cycle}: sync_rst_n should remain 1"

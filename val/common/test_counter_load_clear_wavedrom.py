@@ -383,6 +383,17 @@ async def counter_load_clear_wavedrom_test(dut):
         (tb.scenario_dynamic_match, "counter_load_clear_dynamic_match.json"),
         (tb.scenario_wraparound, "counter_load_clear_wraparound.json"),
     ]
+    # TEST_LEVEL for a wavedrom generator gates HOW MANY scenarios are
+    # produced, never the content of any one of them: the committed JSON for a
+    # given scenario must be byte-identical at every level, or the diagrams in
+    # the docs would depend on how the suite was invoked. gate emits the first
+    # two as a smoke check; func and full emit the complete set, so the normal
+    # regeneration path (default REG_LEVEL=FUNC) always writes every diagram.
+    _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+    if _lvl not in ('gate', 'func', 'full'):
+        _lvl = 'gate'
+    if _lvl == 'gate':
+        scenarios = scenarios[:2]
 
     try:
         for scenario_method, output_filename in scenarios:
@@ -451,9 +462,19 @@ async def counter_load_clear_wavedrom_test(dut):
             await tb.wave_solver.stop_sampling()
         await tb.wait_clocks('clk', 10)
 
-@pytest.mark.parametrize("max_value", [
-    16,   # 4-bit counter, multiple wraparounds
-])
+def _wavedrom_grid(gate, func, full):
+    """REG_LEVEL grid for a wavedrom generator.
+
+    These produce the wave JSON the docs embed rather than a pass/fail check,
+    so the depth rule sits differently for them -- but a diagram set still has
+    a cheap and a comprehensive form, so the grid is not optional
+    (test-runner.md: both mechanisms are a hard requirement).
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    return {'GATE': gate, 'FULL': full}.get(reg_level, func)
+
+@pytest.mark.parametrize("max_value",
+                         _wavedrom_grid([16], [16, 32], [8, 16, 32, 64]))
 def test_counter_load_clear_wavedrom(request, max_value):
     """Pytest wrapper for counter_load_clear WaveDrom generation."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({

@@ -47,6 +47,15 @@ class DataintEccHammingSecDedTB(TBBase):
         # Get parameters from environment
         self.WIDTH = self.convert_to_int(os.environ.get('PARAM_WIDTH', '8'))
 
+        # Per-test depth. REG_LEVEL picks how many parameter combinations run;
+        # TEST_LEVEL decides how hard each one works. This TB had no depth
+        # mechanism, so `full` cost exactly what `gate` did.
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'gate'
+        self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+
+
         # This TB picks its data patterns with random.randint. Seed the PRNG
         # from SEED so a failure can be reproduced: an unseeded run cannot be
         # replayed, and the failing pattern is gone with the process.
@@ -131,7 +140,7 @@ class DataintEccHammingSecDedTB(TBBase):
         ]
 
         # Add random patterns
-        for _ in range(5):
+        for _ in range(5 * self.LEVEL_MULT):
             test_patterns.append(random.randint(0, (1 << self.WIDTH) - 1))
 
         for data in test_patterns:

@@ -68,7 +68,8 @@ async def cocotb_glitch_free_n_dff_test(dut):
 
 def generate_test_params():
     """Generate test parameter combinations"""
-    return [
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    all_configs = [
         # (FLOP_COUNT, WIDTH, test_mode)
         (2, 1, 'minimal'),      # Minimal 2-FF sync for single bit
         (3, 4, 'standard'),     # Standard 3-stage for nibble
@@ -76,6 +77,11 @@ def generate_test_params():
         (3, 16, 'word'),        # Standard sync for word
         (5, 32, 'safe'),        # Extra-safe 5-stage for double-word
     ]
+    if reg_level == 'GATE':
+        return [all_configs[1]]
+    if reg_level == 'FULL':
+        return all_configs
+    return [all_configs[1], all_configs[2], all_configs[4]]
 
 # ===========================================================================
 # PYTEST WRAPPER FUNCTIONS
@@ -133,6 +139,8 @@ def test_glitch_free_n_dff_arn(request, flop_count, width, test_mode):
     }
 
     extra_env = {
+
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', reg_level.lower()),
         'LOG_PATH': log_path,
         'PARAM_FLOP_COUNT': str(flop_count),
         'PARAM_WIDTH': str(width),

@@ -59,6 +59,15 @@ class ClockGateCtrlTB(TBBase):
         self.N = self.convert_to_int(os.environ.get('PARAM_N', '4'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '0'))
 
+        # Per-test depth. REG_LEVEL picks how many parameter combinations run;
+        # TEST_LEVEL decides how hard each one works. This test had no depth
+        # mechanism, so `full` cost exactly what `gate` did.
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'gate'
+        self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+
+
         # Initialize random generator
         random.seed(self.SEED)
 
@@ -315,7 +324,7 @@ class ClockGateCtrlTB(TBBase):
         ]
         
         # Add some random values
-        for _ in range(3):
+        for _ in range(3 * self.LEVEL_MULT):
             test_values.append(self.get_random_idle_count())
 
         for count in test_values:
@@ -384,7 +393,7 @@ class ClockGateCtrlTB(TBBase):
         self.dut.cfg_cg_idle_count.value = timeout_value
 
         # Test wakeup assertions with random offsets
-        for _ in range(8):  # Test multiple random scenarios
+        for _ in range(8 * self.LEVEL_MULT):  # Test multiple random scenarios
             offset = self.get_random_wake_offset()
             time_ns = get_sim_time('ns')
             msg = f"Testing wakeup at timeout {offset:+d} cycles @ {time_ns}ns"
@@ -725,6 +734,7 @@ def test_clock_gate_ctrl(request, counter_width):
 
     # Environment variables
     extra_env = {
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', reg_level.lower()),
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',

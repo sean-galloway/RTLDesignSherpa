@@ -44,12 +44,18 @@ async def reset_sync_test(dut):
 def generate_test_params():
     """Generate test parameter combinations"""
     # Test with different synchronization depths
-    return [
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    all_configs = [
         (2, 'min'),      # Minimum practical depth
         (3, 'typical'),  # Standard depth
         (4, 'safe'),     # Conservative depth
         (5, 'max'),      # Maximum tested depth
     ]
+    if reg_level == 'GATE':
+        return [all_configs[1]]
+    if reg_level == 'FULL':
+        return all_configs
+    return [all_configs[1], all_configs[2]]
 
 @pytest.mark.parametrize("n, test_mode", generate_test_params())
 def test_reset_sync(n, test_mode):
@@ -94,6 +100,8 @@ def test_reset_sync(n, test_mode):
     }
 
     extra_env = {
+
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', reg_level.lower()),
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',

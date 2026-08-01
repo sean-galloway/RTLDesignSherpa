@@ -304,6 +304,18 @@ class FifoSyncWaveDromTB(FifoBufferTB):
         await self.scenario_back_to_back()
         await self.wait_clocks(self.wr_clk_name, 10)
 
+        # TEST_LEVEL gates HOW MANY scenarios are produced, never the content
+        # of any one: the committed JSON for a scenario must be byte-identical
+        # at every level or the docs' diagrams would depend on how the suite
+        # was invoked. gate stops here as a smoke check; func and full emit the
+        # complete set, so the normal regeneration path always writes them all.
+        _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if _lvl not in ('gate', 'func', 'full'):
+            _lvl = 'gate'
+        if _lvl == 'gate':
+            self.log.info("TEST_LEVEL=gate: emitted 2 of 4 scenarios (smoke)")
+            return
+
         await self.scenario_simultaneous_write_read()
         await self.wait_clocks(self.wr_clk_name, 10)
 
@@ -358,9 +370,20 @@ async def fifo_sync_wavedrom_test(dut):
             await tb.wave_solver.stop_sampling()
         await tb.wait_clocks('clk', 10)
 
-@pytest.mark.parametrize("data_width, depth, clk_period", [
-    (8, 8, 10),   # Power-of-2 depth, single clock
-])
+def _wavedrom_grid(gate, func, full):
+    """REG_LEVEL grid for a wavedrom generator.
+
+    These produce the wave JSON the docs embed rather than a pass/fail check,
+    so the depth rule sits differently for them -- but a diagram set still has
+    a cheap and a comprehensive form, so the grid is not optional
+    (test-runner.md: both mechanisms are a hard requirement).
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    return {'GATE': gate, 'FULL': full}.get(reg_level, func)
+
+@pytest.mark.parametrize("data_width, depth, clk_period",
+                         _wavedrom_grid([(8, 8, 10)], [(8, 8, 10), (16, 16, 10)],
+                                        [(8, 8, 10), (16, 16, 10), (32, 8, 10)]))
 def test_fifo_sync_wavedrom(request, data_width, depth, clk_period):
     """Pytest wrapper for synchronous FIFO WaveDrom generation."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({

@@ -75,7 +75,20 @@ class SimpleLFSRTB(TBBase):
         
         # Get test parameters
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '8'))
-        self.COUNT = self.convert_to_int(os.environ.get('TEST_COUNT', '100'))
+        self.COUNT = self.convert_to_int(
+            os.environ.get('TEST_COUNT', str(50 * {'gate': 1, 'func': 2, 'full': 5}[
+                os.environ.get('TEST_LEVEL', 'gate').lower()
+                if os.environ.get('TEST_LEVEL', 'gate').lower() in ('gate', 'func', 'full')
+                else 'gate'])))
+
+        # Per-test depth. REG_LEVEL picks how many parameter combinations run;
+        # TEST_LEVEL decides how hard each one works. This test had no depth
+        # mechanism, so `full` cost exactly what `gate` did.
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'gate'
+        self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+
         
         # Get LFSR configuration
         if self.WIDTH in lfsr_params:

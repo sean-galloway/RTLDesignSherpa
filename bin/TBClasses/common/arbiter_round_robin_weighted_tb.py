@@ -61,7 +61,7 @@ class WeightedRoundRobinTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         if self.TEST_LEVEL not in ('gate', 'func', 'full'):
             self.TEST_LEVEL = 'gate'
-        self.DEPTH = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+        self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
 
         self.MAX_LEVELS_WIDTH = int(self.MAX_LEVELS_WIDTH)
 

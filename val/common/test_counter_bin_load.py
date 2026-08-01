@@ -57,6 +57,19 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 # CocoTB Test Functions
 ##############################################################################
 
+def _level_mult():
+    """Depth multiplier from TEST_LEVEL.
+
+    REG_LEVEL already decides how many parameter combinations run; this is the
+    other half of the requirement -- how hard each one works. Module-level
+    because the cocotb tests that need it are separate functions.
+    """
+    lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+    if lvl not in ('gate', 'func', 'full'):
+        lvl = 'gate'
+    return {'gate': 1, 'func': 2, 'full': 5}[lvl]
+
+
 @cocotb.test()
 async def cocotb_basic_counting(dut):
     """Test basic counting from 0 to MAX-1."""
@@ -255,7 +268,7 @@ async def cocotb_hold_when_disabled(dut):
 
     # Disable and wait several cycles
     dut.enable.value = 0
-    for _ in range(10):
+    for _ in range(10 * _level_mult()):
         await RisingEdge(dut.clk)
         curr = int(dut.counter_bin_curr.value)
         assert curr == test_value, f"Counter changed while disabled: got {curr}, expected {test_value}"

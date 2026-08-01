@@ -52,7 +52,7 @@ class ArbiterPriorityEncoderTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         if self.TEST_LEVEL not in ('gate', 'func', 'full'):
             self.TEST_LEVEL = 'gate'
-        self.DEPTH = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+        self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
 
         self.log.info(
             f"ArbiterPriorityEncoderTB initialized: CLIENTS={self.CLIENTS}, "
@@ -227,7 +227,7 @@ class ArbiterPriorityEncoderTB(TBBase):
         # sample at the cheaper levels so gate stays a smoke test. Pattern 0
         # and the all-ones pattern are always covered by the stride landing on
         # 0 and by the explicit checks elsewhere.
-        _stride = {1: 8, 2: 3, 5: 1}[self.DEPTH]
+        _stride = {1: 8, 2: 3, 5: 1}[self.LEVEL_MULT]
         for requests in range(0, 1 << self.CLIENTS, _stride):
             self.set_inputs(0, requests, 0)
             winner, winner_valid = await self.get_outputs()

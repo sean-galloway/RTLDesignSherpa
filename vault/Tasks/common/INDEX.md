@@ -6,7 +6,7 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 10 | accepted, not started |
+| [open.md](open.md) | 11 | accepted, not started |
 | [closed.md](closed.md) | 6 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
@@ -21,6 +21,11 @@ integration support.
   AMBA TASK-026.
 - **COMMON-011** — `counter.sv` tick not gated during reset. Low severity, but
   the edge-case test is disabled with `if False:` — a silent test.
+- **COMMON-017** — `arbiter_round_robin` round-robin violation at CLIENTS=32
+  ("expected client 24, got 3"), reproducible across four func runs with
+  different seeds. The func suite is RED on it. Undetermined whether the RTL
+  mis-selects or the compliance model mis-models at that width; do not relax
+  the assertion to clear it.
 - **COMMON-016** — arbiter ACK mode: 105 unexpected ACKs per run, and the
   compliance model was being consumed only to raise its timeout. Now asserted
   on errors; the warnings need diagnosing before they become errors.

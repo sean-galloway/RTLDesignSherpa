@@ -61,7 +61,7 @@ async def arbiter_round_robin_test(dut):
         # Phase 2: Basic arbitration test with flex randomizer patterns
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Starting basic arbitration test @ {time_ns}ns ===")
-        await tb.run_basic_arbitration_test(400 * tb.DEPTH)
+        await tb.run_basic_arbitration_test(400 * tb.LEVEL_MULT)
         await tb.handle_test_transition_ack_cleanup()
 
         # Phase 3: Advanced pattern tests

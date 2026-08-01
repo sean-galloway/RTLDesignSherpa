@@ -72,6 +72,45 @@ Proposed fix — either gate the output combinationally:
 
 or register it (adds a cycle of latency). Re-enable the test with the fix.
 
+## COMMON-017 — arbiter_round_robin: round-robin violation at CLIENTS=32
+**Status:** open 2026-08-01 — **val/common func suite is RED on this one config**
+**Priority:** P1 (a fairness/ordering defect in a widely instantiated block)
+
+    ArbiterCompliance(RR_Monitor_compliance): Round-robin violation:
+    Expected client 24, got 3 @ 25065.0ns
+
+`test_arbiter_round_robin[32-0]` (CLIENTS=32, WAIT_GNT_ACK=0). **Reproducible:
+one failure in each of four consecutive func runs**, under different random
+seeds each time, so it is not a seed artifact. GATE does not see it because
+GATE only runs 4 clients.
+
+**This was always happening; nothing was reading it.** The compliance model
+computes the expected round-robin winner for every grant and had been logging
+this as an ERROR into a void -- `check_monitor_errors()` only looked at a
+TB-local list. It surfaced the moment that function started asserting on the
+verdict (COMMON-016). Two changes had to land before this was visible: random
+seeds per run, and reading the checker.
+
+Not yet determined, and the reason this is filed rather than fixed:
+
+- **RTL defect** -- the mask/priority rotation mis-selects at 32 clients. The
+  block has previous form here: COMMON-012 was a wrong-direction rotation that
+  starved two of four clients while the test reported "fairness: 0.500" and
+  passed.
+- **Compliance-model limitation** -- `RoundRobinMaskState` may not model the
+  masked-priority selection correctly at large client counts, in which case
+  the expected winner is wrong, not the grant.
+
+Settle it by hand: dump the request vector, `last_grant`, and the mask at
+25065 ns, compute the masked find-first-set by hand, and compare against both
+the RTL's `w_win_mask_decode` and the model's `get_expected_winner()`. One
+timestamp, one comparison.
+
+**Do not "fix" this by relaxing the assertion.** If the model is wrong, fix the
+model; if the RTL is wrong, that is a real bug in a block instantiated across
+amba. Suppressing it returns the arbiter to the state where a documented
+starvation bug shipped green.
+
 ## COMMON-016 — arbiter ACK mode: 105 unexpected ACKs, and the compliance model was muted
 **Status:** open 2026-07-31 — surfaced by test-audit round_1 triage, P2
 **Owner:** TBD
