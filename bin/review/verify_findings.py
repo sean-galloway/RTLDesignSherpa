@@ -106,8 +106,31 @@ def locator_quotes(raw):
                       raw, re.S)
         if m:
             fields.append(m.group(1))
+    # Three quoting conventions, because the two briefs produce different prose.
+    # The doc brief demands `Says: "<exact quote>"`; the TEST brief asks for
+    # "what the test does", and its findings cite CODE -- in backticks
+    # (`random.randint(0, self.MAX_DATA)`) or as Python literals with single
+    # quotes ('SEED': str(0x414347)). Extracting only double-quoted spans left
+    # 35 of 71 testqc findings with no locator at all, which is a 51% located
+    # rate and a verdicts file not worth reading (rule 10).
+    QUOTED = (r'"([^"]{12,400})"',      # "..."
+              r'`([^`\n]{12,400})`',    # `...`
+              r"'([^'\n]{12,200})'")    # '...'
     for field in fields or [raw]:
-        spans = [_norm(q).strip() for q in re.findall(r'"([^"]{12,400})"', field)]
+        spans = []
+        for pat in QUOTED:
+            for q in re.findall(pat, field):
+                q = _norm(q).strip()
+                spans.append(q)
+                # An ELLIPSIZED quote cannot substring-match: reviewers write
+                # `run(..., verilog_sources=x, includes=[], ...)` and "gate
+                # (1-2 min) ... func ... full". Add the longest literal segment
+                # so the window still lands somewhere real.
+                if "..." in q or "…" in q:
+                    parts = [p.strip(" ,") for p in re.split(r'\.\.\.|…', q)]
+                    longest = max(parts, key=len, default="")
+                    if len(longest) >= 20:
+                        spans.append(longest)
         out += sorted({q for q in spans if len(q) >= 20}, key=len, reverse=True)
     seen, uniq = set(), []
     for q in out:
@@ -277,6 +300,33 @@ def test_skeleton(snap):
     return "## Test skeleton (generate_params / parametrize / run() / reset methods)\n\n" + "\n\n".join(out)
 
 
+def contract_clauses(snap):
+    """The test contract, for testqc units only.
+
+    testqc findings are written against TEST_REVIEWER_BRIEF.md and cite it --
+    "Contract clause 4", "Sources from a filelist" -- so a verifier without the
+    brief is adjudicating half a claim, and REFUTES for lack of the standard
+    rather than returning UNCERTAIN. Two verdicts went that way in the cdc
+    testqc round; the lesson was written into the handbook and never wired in,
+    which is why it recurred here (11 of 71 findings quoted the contract or an
+    ellipsized excerpt and located nothing).
+
+    Doc units are untouched: their ground truth is RTL.sv, already in the pack.
+    """
+    if not glob.glob(os.path.join(snap, "*.py")):
+        return ""
+    path = os.path.join(HERE, "TEST_REVIEWER_BRIEF.md")
+    if not os.path.exists(path):
+        return ""
+    text = open(path, encoding="utf-8").read()
+    m = re.search(r"^##\s*The contract.*?(?=^##\s)", text, re.S | re.M)
+    body = m.group(0) if m else text[:4000]
+    return ("## The test contract this finding is judged against\n\n"
+            "This is the standard the reviewer was given. A finding that cites a\n"
+            "clause is quoting THIS, not the test file -- do not REFUTE it for\n"
+            "'quote not found in the evidence'.\n\n" + body.strip())
+
+
 def identifier_truth(round_dir, unit, finding):
     """Grep ground truth for the backticked identifiers a finding names.
 
@@ -366,15 +416,26 @@ def main():
         print(f"   send   {f['unit']}: {f['title'][:60]}{tag}\n"
               f"          evidence: {loc}{flag}")
 
-    blind = [f for f in pending if not f["_st"]["located"]]
+    # Three outcomes, not two. A finding that quotes NOTHING is usually an
+    # absence claim ("no TEST_LEVEL mechanism", "no TB class at all") -- there
+    # is no code to quote, so a missing locator is correct and the pack leans
+    # on the test skeleton and identifier grep instead. Counting those as
+    # extractor failures buries the real ones: on this round it read 51% when
+    # the true locator failure was 11 of 67 quote-bearing findings.
+    located = [f for f in pending if f["_st"]["located"]]
+    failed = [f for f in pending if f["_st"]["quotes"] and not f["_st"]["located"]]
+    quoteless = [f for f in pending if not f["_st"]["quotes"]]
     if pending:
-        share = 100 * (len(pending) - len(blind)) / len(pending)
-        print(f"\nextractor {len(pending) - len(blind)}/{len(pending)} findings "
-              f"({share:.0f}%) resolved to a located quote")
-        if blind:
-            print("          BLIND findings get file heads, which read to the verifier "
-                  "as\n          'the doc does not say this' -- their verdicts are not "
-                  "evidence.")
+        denom = len(located) + len(failed)
+        share = 100 * len(located) / denom if denom else 100
+        print(f"\nextractor {len(located)}/{denom} quote-bearing findings "
+              f"({share:.0f}%) located"
+              + (f"; {len(quoteless)} cite no quote (absence-class, expected)"
+                 if quoteless else ""))
+        if failed:
+            print(f"          {len(failed)} finding(s) QUOTE something that did not "
+                  "locate -- those get\n          file heads, which read to the "
+                  "verifier as 'the doc does not say this'.")
         if share < 80:
             print("          LOW. Below ~80% the locator is the defect, not the "
                   "findings.\n          Fix locator_quotes()/evidence_for() and "
@@ -411,6 +472,7 @@ def main():
                     f"Files cited: {', '.join(f['files']) or '(none)'}\n\n"
                     f"## Evidence\n\n{evidence}\n\n"
                     f"{test_skeleton(os.path.join(a.round_dir, '_bundle_snapshot', f['unit']))}\n\n"
+                    f"{contract_clauses(os.path.join(a.round_dir, '_bundle_snapshot', f['unit']))}\n\n"
                     f"{identifier_truth(a.round_dir, f['unit'], f)}")
             try:
                 msgs = [{"role": "user", "content": user}]
