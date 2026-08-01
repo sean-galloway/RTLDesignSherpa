@@ -219,7 +219,7 @@ def test_math_adder_han_carlson(request, params):
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    seed = random.randint(0, 100000)
+    seed = int(os.environ.get('SEED', str(random.randint(0, 100000))))
 
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.fst",

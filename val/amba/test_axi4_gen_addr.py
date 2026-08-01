@@ -657,7 +657,7 @@ def test_axi_gen_addr(request, params):
     rtl_parameters = {k.upper(): str(v) for k, v in parameters.items()}
 
     # Prepare environment variables
-    seed = random.randint(0, 100000)
+    seed = int(os.environ.get('SEED', str(random.randint(0, 100000))))
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',  # Enable tracing

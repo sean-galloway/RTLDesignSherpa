@@ -105,7 +105,7 @@ def test_math_subtractor_ripple_carry(request, n):
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # Set up environment variables
-    seed = random.randint(0, 100000)
+    seed = int(os.environ.get('SEED', str(random.randint(0, 100000))))
     test_level = os.environ.get('TEST_LEVEL', 'gate').lower()  # Can be gate, func, or full
 
     extra_env = {

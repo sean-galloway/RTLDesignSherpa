@@ -694,7 +694,7 @@ def test_shifter_barrel(request, params):
     }
 
     # Prepare environment variables
-    seed = random.randint(0, 100000)
+    seed = int(os.environ.get('SEED', str(random.randint(0, 100000))))
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',  # Enable tracing

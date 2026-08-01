@@ -258,7 +258,7 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
     print("="*80)
 
     # Random seed
-    seed = random.randint(0, 100000)
+    seed = int(os.environ.get('SEED', str(random.randint(0, 100000))))
 
     # Compile-time parameters (no DEPTH parameter - regslice is fixed 1-deep)
     parameters = {
