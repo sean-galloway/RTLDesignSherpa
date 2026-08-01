@@ -702,7 +702,7 @@ def test_shifter_barrel(request, params):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(0x414347),  # str(seed),
+        'SEED': str(seed),
         'TEST_LEVEL': params['test_level'],
         'TEST_WIDTH': str(params['WIDTH'])
     }

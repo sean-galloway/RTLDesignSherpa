@@ -251,7 +251,7 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',  # Balanced logging for weight complexity
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(4347), # str(random.randint(0, 100000))
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
 
     # Add coverage compile args if COVERAGE=1

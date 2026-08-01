@@ -576,7 +576,7 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(0x414347),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': params['test_level'],
         'TEST_WIDTH': str(params['WIDTH'])
     }

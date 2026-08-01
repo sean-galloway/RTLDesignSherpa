@@ -158,7 +158,7 @@ def test_dataint_crc(request, params):
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(0x414347),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': params['test_level'],
         'PARAM_POLY': params['poly'],
         'PARAM_POLY_INIT': params['poly_init'],
