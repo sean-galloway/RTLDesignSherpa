@@ -25,7 +25,19 @@ The unit contains:
 2. **Structure.** TB class implements setup_clocks_and_reset / assert_reset /
    deassert_reset. Pytest function name embeds the exact module name.
 3. **Sources from a filelist**, never a hand-listed array.
-4. **Seeds recorded** -- SEED taken from the environment and logged.
+4. **Seeds: random per run, recorded, overridable.** The wrapper passes
+   `os.environ.get('SEED', str(random.randint(0, 100000)))` and the TB reads
+   SEED, calls `random.seed(...)` and logs it. New traffic every run is the
+   point -- it is what finds defects a frozen trajectory never reaches -- and
+   the recorded seed is what makes a failure replayable. **A fixed default is
+   a finding, except for wavedrom generators**, whose output is the wave JSON
+   the docs embed and must not churn.
+
+   The real defect has two shapes, and the second is the one to hunt:
+   - a TB that calls `random.randint` with nothing ever calling `random.seed`;
+   - **a wrapper that passes a SEED nobody consumes**, which reads as
+     compliant. Check for `random.seed(` in the TB, not for `SEED` in the
+     wrapper.
 5. **Framework usage** -- protocol driving goes through framework BFMs /
    monitors / factories, not hand-rolled protocol FSMs in the test.
 6. **It actually checks.** Assertions or a scoreboard on DUT outputs. A
@@ -49,6 +61,19 @@ own files; SUSPECTED for anything resting on a file the unit does not show.
   own docstring claims levels it does not implement.
 - **Wavedrom generator tests.** Their job is producing wave JSON for the
   docs, not checking DUT behaviour; rule 6 does not apply to them.
+- **Seed findings against tests that do not randomize.** Roughly one in ten of
+  these tests is fully directed and draws from no PRNG at all; there is nothing
+  to seed and a missing SEED is correct. Likewise an RTL seed VALUE is not a
+  PRNG seed -- `seed = 0x01` handed to an LFSR's `seed_data` port is stimulus,
+  not determinism. Both classes were mis-flagged by a naive scan before you got
+  here; check that the test actually calls `random.` for stimulus first.
+- **"There is no such thing as a failing seed."** Do not recommend pinning a
+  seed, building a known-failing-seed corpus, or re-running a fixed seed set to
+  stabilise a suite. A varying failure count across runs is random traffic
+  finding real defects, and freezing it converts a bug detector into a silent
+  pass. If a test found a bug through random traffic, the correct artifact is a
+  DIRECTED test reproducing that scenario by construction -- a locked seed
+  reproduces nothing once the RTL, BFM or delay profile changes.
 - **Non-exhaustive stimulus in math tests.** This project deliberately uses
   directed patterns that fully cover the functional space without
   exhaustively sweeping inputs (Sean's stated math-test style). "The test
