@@ -19,6 +19,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import uart_link                                        # noqa: E402
+import board                                            # noqa: E402
 from board import Board, BoardSpec                      # noqa: E402
 from boards import get_board, list_boards               # noqa: E402
 from uart_link import UartPort, find_port               # noqa: E402
@@ -245,11 +246,21 @@ def test_legacy_per_flow_override_still_honoured(monkeypatch):
 
 
 def test_program_uses_the_single_shared_tcl(tmp_path):
+    """Every board programs through ONE tcl, not a per-flow copy.
+
+    Asserted by identity -- the script sits in the shared layer beside
+    board.py -- rather than by a hardcoded path. The previous version pinned
+    the literal string "fpga/bin/program_fpga.tcl" and failed the moment the
+    layer moved, which told us nothing about whether the property still held.
+    """
     bit = tmp_path / "x.bit"
     bit.write_bytes(b"\x00")
     cmd = get_board("nexys_a7_100t").program_command(str(bit))
-    assert cmd[-1].endswith("fpga/bin/program_fpga.tcl")
-    assert os.path.isfile(cmd[-1])
+    tcl = cmd[-1]
+    shared_layer = os.path.dirname(os.path.abspath(board.__file__))
+    assert os.path.basename(tcl) == "program_fpga.tcl"
+    assert os.path.dirname(os.path.abspath(tcl)) == shared_layer
+    assert os.path.isfile(tcl)
 
 
 def test_program_fails_fast_on_missing_bitstream():

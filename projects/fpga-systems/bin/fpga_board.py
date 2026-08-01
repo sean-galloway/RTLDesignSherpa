@@ -3,10 +3,10 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 """CLI over the board registry -- what Makefiles and shells call.
 
-    python3 fpga/bin/fpga_board.py list
-    python3 fpga/bin/fpga_board.py info    --board nexys_a7_100t
-    python3 fpga/bin/fpga_board.py ports   --board nexys_a7_100t
-    python3 fpga/bin/fpga_board.py program --board nexys_a7_100t --bitstream x.bit
+    python3 projects/fpga-systems/bin/fpga_board.py list
+    python3 projects/fpga-systems/bin/fpga_board.py info    --board nexys_a7_100t
+    python3 projects/fpga-systems/bin/fpga_board.py ports   --board nexys_a7_100t
+    python3 projects/fpga-systems/bin/fpga_board.py program --board nexys_a7_100t --bitstream x.bit
 
 `program` is the replacement for each flow's `vivado -source tcl/program_fpga.tcl`
 recipe: the board facts come from the registry, so a flow's Makefile no longer

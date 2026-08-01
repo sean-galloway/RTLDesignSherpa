@@ -92,10 +92,34 @@ export FPGA_PROJECT_ROOT := $(FPGA_DIR)
 # ---- Host / sim entry points -----------------------------------------------
 BAUD      ?= 115200
 SEQ_DIR   ?=
-# run_*.py in the sequence area are DISCOVERED too: each becomes `make run-<name>`.
+
+# Naming convention, discovered rather than enumerated. Nothing here is a list
+# to maintain: drop a file in and its target exists. The prefix declares what a
+# file IS, so role is visible in `ls` and discovery is a plain glob.
+#
+#   SEQ_DIR/run_*.py    -> make run-<name>    a runner (drives a whole plan)
+#   SEQ_DIR/seq_*.py    -> make seq-<name>    one sequence, run through a runner
+#   HOST_DIR/host_*.py  -> make host-<name>   a standalone host program
+#   HOST_DIR/test_*.py  -> pytest, via SIM_TESTS -- never a make target here
+#   HOST_DIR/<other>.py -> a library: imported by the above, never run directly
+#
+# run_*.py in the sequence area: each becomes `make run-<name>`.
 RUN_SCRIPTS := $(sort $(wildcard $(SEQ_DIR)/run_*.py))
 RUN_NAMES   := $(patsubst run_%,%,$(basename $(notdir $(RUN_SCRIPTS))))
 RUN_SCRIPT  ?= $(firstword $(RUN_SCRIPTS))
+
+# seq_*.py are the individual sequences the runner can be asked for by name.
+SEQ_SCRIPTS := $(sort $(wildcard $(SEQ_DIR)/seq_*.py))
+SEQ_NAMES   := $(patsubst seq_%,%,$(basename $(notdir $(SEQ_SCRIPTS))))
+
+# Host programs: the build's own tools (bring-up, sweeps, captures). The host_
+# prefix is what makes a file a program, so a driver or regmap sitting in the
+# same directory is excluded by name rather than by inspection -- and a reader
+# can tell which is which without opening either.
+HOST_DIR ?= $(if $(wildcard $(SELF_DIR)/host),$(SELF_DIR)/host,)
+HOST_PROGRAMS := $(sort $(wildcard $(HOST_DIR)/host_*.py))
+HOST_NAMES    := $(patsubst host_%,%,$(basename $(notdir $(HOST_PROGRAMS))))
+
 SEQUENCES ?=
 SIM_TESTS ?=
 SIM_ARGS  ?= -q
@@ -114,7 +138,8 @@ include $(RDS_ROOT)/make/fpga_board.mk
 .DEFAULT_GOAL := help
 .PHONY: help project synth bitstream bitstream-ila lint sim run seq-list \
         utilization timing clean clean-all targets \
-        $(addprefix tcl-,$(TCL_RUNNABLE)) $(addprefix run-,$(RUN_NAMES))
+        $(addprefix tcl-,$(TCL_RUNNABLE)) $(addprefix run-,$(RUN_NAMES)) \
+        $(addprefix seq-,$(SEQ_NAMES)) $(addprefix host-,$(HOST_NAMES))
 
 # Run any discovered tcl by name: `make tcl-capture_ila`.
 define _tcl_rule
@@ -132,12 +157,37 @@ run-$(1):
 endef
 $(foreach r,$(RUN_NAMES),$(eval $(call _run_rule,$(r))))
 
-targets:            ## Show what was DISCOVERED on disk (tcl scripts, run scripts)
+# Run ONE discovered sequence by name: `make seq-memtest`. Goes through the
+# runner rather than executing the module, so dependencies (`requires`) are
+# still resolved -- running a test sequence without its init would otherwise
+# fail somewhere deep instead of being refused up front.
+define _seq_rule
+seq-$(1):
+	@[ -n "$$(RUN_SCRIPT)" ] || \
+	    (echo "No run_*.py in SEQ_DIR=$$(SEQ_DIR) to run sequence '$(1)'" && false)
+	$$(PYTHON) $$(RUN_SCRIPT) --board $$(BOARD) --baud $$(BAUD) --sequences $(1)
+endef
+$(foreach s,$(SEQ_NAMES),$(eval $(call _seq_rule,$(s))))
+
+# Run any discovered host program by name: `make host-bringup_joint_probe`.
+# ARGS passes through, since these take flow-specific options.
+ARGS ?=
+define _host_rule
+host-$(1):
+	$$(PYTHON) $$(HOST_DIR)/host_$(1).py $$(ARGS)
+endef
+$(foreach h,$(HOST_NAMES),$(eval $(call _host_rule,$(h))))
+
+targets:            ## Show what was DISCOVERED on disk (tcl, runners, sequences, host tools)
 	@echo "tcl scripts in $(TCL_DIR):"
 	@$(if $(TCL_RUNNABLE),for t in $(TCL_RUNNABLE); do echo "    make tcl-$$t"; done,echo "    (none)")
 	@echo "  helpers (sourced, not run): $(if $(TCL_HELPERS),$(TCL_HELPERS),none)"
-	@echo "run scripts in $(SEQ_DIR):"
+	@echo "runners in $(SEQ_DIR):"
 	@$(if $(RUN_NAMES),for r in $(RUN_NAMES); do echo "    make run-$$r"; done,echo "    (none)")
+	@echo "sequences in $(SEQ_DIR):"
+	@$(if $(SEQ_NAMES),for s in $(SEQ_NAMES); do echo "    make seq-$$s"; done,echo "    (none)")
+	@echo "host programs in $(if $(HOST_DIR),$(HOST_DIR),<no host/ dir>):"
+	@$(if $(HOST_NAMES),for h in $(HOST_NAMES); do echo "    make host-$$h"; done,echo "    (none)")
 	@echo "semantic targets -> script:"
 	@echo "    project       $(if $(PROJECT_TCL),$(PROJECT_TCL),MISSING)"
 	@echo "    synth         $(if $(SYNTH_TCL),$(SYNTH_TCL),MISSING)"

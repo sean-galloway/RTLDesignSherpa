@@ -12,10 +12,10 @@
 #
 # Provides:  program  ports  board-info  boards
 #
-# Board facts come from the registry in fpga/bin/boards/, never from a per-flow
-# tcl. Seven flows each carried a near-identical program_fpga.tcl with a
-# hardcoded JTAG serial and its own env-var name to override it; that is what
-# this replaces. Switch board with BOARD=genesys2 (or export FPGA_BOARD).
+# Board facts come from the registry in projects/fpga-systems/bin/boards/, never
+# from a per-flow tcl. Seven flows each carried a near-identical program_fpga.tcl
+# with a hardcoded JTAG serial and its own env-var name to override it; that is
+# what this replaces. Switch board with BOARD=genesys2 (or export FPGA_BOARD).
 #
 # Handbook: [[fpga/cmn-infra/boards]]
 # ==============================================================================
@@ -26,8 +26,14 @@ endif
 
 RDS_ROOT ?= $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel))
 
-FPGA_BIN       := $(RDS_ROOT)/fpga/bin
+# The shared FPGA layer. Overridable so a checkout that relocates it does not
+# need this file edited; the error below names it when it is not where we look.
+FPGA_BIN       ?= $(RDS_ROOT)/projects/fpga-systems/bin
 FPGA_BOARD_CLI := $(FPGA_BIN)/fpga_board.py
+
+ifeq ($(wildcard $(FPGA_BOARD_CLI)),)
+$(error Shared FPGA layer not found at $(FPGA_BIN) -- set FPGA_BIN or REPO_ROOT)
+endif
 
 # Target board. `nexys_a7_100t` is this lab's default; the registry knows the
 # rest (make boards). FPGA_BOARD is honoured so a shell-wide export works.

@@ -17,21 +17,57 @@ from __future__ import annotations
 import os
 import sys
 
-# Sequence area -> repo root is five levels up
-# (projects/fpga-systems/NexysA7/pumice/bin -> repo root).
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _AREA = os.path.dirname(_HERE)
-_FALLBACK_ROOT = os.path.abspath(os.path.join(_HERE, "..", "..", "..", "..", ".."))
 
-FPGA_BIN_REL = "fpga/bin"
+# The shared layer's location relative to the repo root, and the file that
+# proves a candidate directory really is it.
+FPGA_BIN_REL = os.path.join("projects", "fpga-systems", "bin")
+FPGA_BIN_MARKER = "uart_link.py"
 DEFAULT_BUILD = "perf"
 
 
-def repo_root() -> str:
+def _is_shared_layer(path: str) -> bool:
+    return os.path.isfile(os.path.join(path, FPGA_BIN_MARKER))
+
+
+def fpga_bin() -> str:
+    """Locate the shared board/UART layer.
+
+    Found by searching UPWARD for the marker file rather than by counting
+    directory levels. The previous version counted five levels to the repo
+    root; when the shared layer moved from `fpga/bin` to
+    `projects/fpga-systems/bin`, every such count in the tree broke at once.
+    A search costs nothing and survives the next move.
+    """
     env = os.environ.get("REPO_ROOT")
-    if env and os.path.isdir(os.path.join(env, "fpga", "bin")):
+    if env:
+        cand = os.path.join(env, FPGA_BIN_REL)
+        if _is_shared_layer(cand):
+            return cand
+    here = _HERE
+    for _ in range(12):
+        cand = os.path.join(here, FPGA_BIN_REL)
+        if _is_shared_layer(cand):
+            return cand
+        parent = os.path.dirname(here)
+        if parent == here:          # reached filesystem root
+            break
+        here = parent
+    raise FileNotFoundError(
+        f"shared FPGA layer not found (looking for {FPGA_BIN_REL}/"
+        f"{FPGA_BIN_MARKER}); set REPO_ROOT to the repository root"
+    )
+
+
+def repo_root() -> str:
+    """The repository root, derived from wherever the shared layer was found."""
+    env = os.environ.get("REPO_ROOT")
+    if env and _is_shared_layer(os.path.join(env, FPGA_BIN_REL)):
         return env
-    return _FALLBACK_ROOT
+    # fpga_bin() -> .../projects/fpga-systems/bin; the root is three up.
+    layer = fpga_bin()
+    return os.path.dirname(os.path.dirname(os.path.dirname(layer)))
 
 
 def flow_host_dir(build: str | None = None) -> str:
@@ -41,12 +77,17 @@ def flow_host_dir(build: str | None = None) -> str:
 
 
 def setup_paths() -> None:
-    """Put the shared fpga/bin layer and the pumice flow host on sys.path.
+    """Put the flow-local layers on sys.path.
 
     Idempotent, so every sequence module can call it at import time without
     caring who else already did.
+
+    Scope is deliberately narrow: the shared FPGA layer, this build's host
+    drivers, and the sequence area itself. Repo-wide packages -- `TBClasses`
+    and friends -- come from `env_python`, which owns PYTHONPATH. Adding them
+    here would give the repo two path authorities that could disagree.
     """
-    for path in (os.path.join(repo_root(), FPGA_BIN_REL), flow_host_dir(), _HERE):
+    for path in (fpga_bin(), flow_host_dir(), _HERE):
         if os.path.isdir(path) and path not in sys.path:
             sys.path.insert(0, path)
 

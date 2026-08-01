@@ -105,12 +105,12 @@ of the move; fold NEXYS-001 in with it.
 
 ---
 
-### NEXYS-003: Migrate the remaining char flows onto the shared fpga/bin layer
+### NEXYS-003: Migrate the remaining char flows onto the shared projects/fpga-systems/bin layer
 
 **Priority:** Medium
 **Status:** [ ] Open (2026-07-30)
 
-**Goal:** `fpga/bin/` now holds the common UART/board/sequence layer
+**Goal:** `projects/fpga-systems/bin/` now holds the common UART/board/sequence layer
 (`uart_link.py`, `board.py`, `boards/`, `sequence.py`, one `program_fpga.tcl`).
 The pumice DDR2 flow was migrated as the proof. Bring the other flows across.
 

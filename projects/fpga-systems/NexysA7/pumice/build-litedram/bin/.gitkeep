@@ -1,0 +1,2 @@
+Build-specific generators and tools live here (build-perf/bin holds the
+a7ddrphy elaboration scripts). Host programs do NOT: those are host/host_*.py.

@@ -3,7 +3,7 @@ title: Test sequences
 summary: Named, ordered, dependency-checked campaign steps - one init, N tests.
 ---
 
-# Sequences (fpga/bin/sequence.py)
+# Sequences (projects/fpga-systems/bin/sequence.py)
 
 A campaign is an **init sequence** followed by one or more **test sequences**.
 Each is a named `Sequence` in the area's own `bin/`; a `run_<test>.py` composes

@@ -52,15 +52,19 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-# Pull in the repo's shared UART client.
-_REPO_ROOT = os.environ.get("REPO_ROOT")
-if not _REPO_ROOT:
-    raise RuntimeError(
-        "REPO_ROOT is not set. Source RTLDesignSherpa/env_python before "
-        "importing this module."
-    )
-sys.path.insert(0, os.path.join(_REPO_ROOT, "projects/components/converters/bin"))
+# Pull in the repo's shared UART client. Path setup is delegated to
+# `pumice_env`, which locates every layer by searching for a marker file --
+# so this module imports whether or not `env_python` has been sourced, and it
+# does not name the bridge's directory. It used to demand REPO_ROOT and insert
+# `projects/components/converters/bin` by hand; the bridge has since moved into
+# the shared FPGA layer, and a hardcoded path would now point at nothing.
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "bin")))
+import pumice_env  # noqa: F401,E402  (import side effect: sys.path setup)
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_REPO_ROOT = pumice_env.repo_root()
+
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 from TBClasses.harness.device import Device  # noqa: E402  (harness as its own named device)
 from pumice_device import Pumice  # noqa: E402  (controller as its own named device)
@@ -657,18 +661,21 @@ class DDR2CharDriver:
 
 
 def _fpga_bin() -> str:
-    """The shared board/UART layer (fpga/bin), which is not on PYTHONPATH for
-    callers who run these host tools without sourcing env_python."""
-    root = os.environ.get("REPO_ROOT")
-    if root and os.path.isdir(os.path.join(root, "fpga", "bin")):
-        return os.path.join(root, "fpga", "bin")
+    """The shared board/UART layer, for callers who run these host tools
+    without sourcing env_python.
+
+    Delegates to `pumice_env.fpga_bin()` rather than repeating the search. This
+    file used to carry its own copy keyed on the literal path `fpga/bin`; when
+    the layer moved, the copy broke independently of the original, which is the
+    whole argument against a second implementation.
+    """
     here = os.path.dirname(os.path.abspath(__file__))
-    for _ in range(12):
-        cand = os.path.join(here, "fpga", "bin")
-        if os.path.isdir(cand):
-            return cand
-        here = os.path.dirname(here)
-    raise FileNotFoundError("fpga/bin not found; set REPO_ROOT")
+    seq_bin = os.path.abspath(os.path.join(here, "..", "..", "bin"))
+    if seq_bin not in sys.path:
+        sys.path.insert(0, seq_bin)
+    import pumice_env  # noqa: E402  (also sets up sys.path as a side effect)
+
+    return pumice_env.fpga_bin()
 
 
 def harness_probe():
