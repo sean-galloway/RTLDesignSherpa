@@ -23,17 +23,17 @@
 
 # Basic Multiplier Building Blocks
 
-Fundamental multiplication primitives including basic multiplier cells and array-based carry-save multipliers. These modules provide simple multiplication implementations suitable for educational purposes and as building blocks for more complex multiplier architectures.
+The fundamental multiplication primitives: a basic single-bit multiplier cell and an array-based carry-save multiplier. Simple implementations, suited to educational purposes and as building blocks for more complex multiplier architectures.
 
 ## Overview
 
-This document covers the basic multiplier components:
+Two modules live here:
 - **math_multiplier_basic_cell** - Single-bit multiplier cell with partial product accumulation
 - **math_multiplier_carry_save** - Array-based N×N multiplier using carry-save addition
 
 These modules demonstrate fundamental multiplication concepts and serve as reference implementations. For production designs, consider using optimized Wallace or Dadda tree multipliers.
 
-**Key Characteristics:**
+**Key Features:**
 - **Structural implementation** - Explicit cell-by-cell construction
 - **Educational value** - Clear demonstration of multiplication algorithm
 - **Array-based** - Regular structure, easy to understand
@@ -81,7 +81,7 @@ No parameters (single-bit cell).
 
 ## Ports
 
-### Basic Multiplier Cell Ports
+### Basic Multiplier Cell
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -92,7 +92,7 @@ No parameters (single-bit cell).
 | ow_c | Output | 1 | Carry output (to cell above) |
 | ow_p | Output | 1 | Partial sum output (to cell on the right) |
 
-### Carry-Save Array Multiplier Ports
+### Carry-Save Array Multiplier
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -439,18 +439,18 @@ i_multiplier[N-1] → PP[N-1][0] → row N-1 accumulation → final addition →
 
 ### Advantages
 
-✅ **Simple structure** - Regular array, easy to understand
-✅ **Parameterizable** - Generic width support via parameter
-✅ **Educational value** - Clearly demonstrates multiplication algorithm
-✅ **Moderate area** - Reasonable gate count for small widths
-✅ **Purely combinational** - No state, easy to integrate
+- **Simple structure** - Regular array, easy to understand
+- **Parameterizable** - Generic width support via parameter
+- **Educational value** - Clearly demonstrates multiplication algorithm
+- **Moderate area** - Reasonable gate count for small widths
+- **Purely combinational** - No state, easy to integrate
 
 ### Limitations
 
-⚠️ **Slow for large widths** - O(N) depth vs O(log N) for trees
-⚠️ **Poor scaling** - Area grows as N², delay as N
-⚠️ **Not optimal** - Better alternatives exist (Dadda, Wallace)
-⚠️ **Unsigned only** - Requires sign handling for signed operands
+- **Slow for large widths** - O(N) depth vs O(log N) for trees
+- **Poor scaling** - Area grows as N², delay as N
+- **Not optimal** - Better alternatives exist (Dadda, Wallace)
+- **Unsigned only** - Requires sign handling for signed operands
 
 ### Basic Cell Design Notes
 
@@ -516,7 +516,7 @@ end
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1: Using for high-speed designs**
+**Anti-Pattern 1: Using for high-speed designs**
 
 ```systemverilog
 // WRONG: Array multiplier too slow for 200 MHz with 16-bit
@@ -527,7 +527,7 @@ math_multiplier_carry_save #(.N(16)) u_mult (...);
 math_multiplier_dadda_tree_016 u_mult (...);
 ```
 
-❌ **Anti-Pattern 2: Not considering behavioral alternative**
+**Anti-Pattern 2: Not considering behavioral alternative**
 
 ```systemverilog
 // MANUAL: Explicit array instantiation
@@ -543,7 +543,7 @@ assign p = a * b;  // Synthesis may produce better result!
 - Explicit: Educational, specific structure needed, debugging
 - Behavioral: Production code, synthesis tool optimization
 
-❌ **Anti-Pattern 3: Expecting signed multiplication**
+**Anti-Pattern 3: Expecting signed multiplication**
 
 ```systemverilog
 // WRONG: Signed operands misinterpreted
@@ -555,7 +555,7 @@ math_multiplier_carry_save #(.N(8)) u_mult (...);
 // (See signed multiplication techniques)
 ```
 
-❌ **Anti-Pattern 4: Ignoring width limits**
+**Anti-Pattern 4: Ignoring width limits**
 
 ```systemverilog
 // CAREFUL: 32×32 array multiplier is very large and slow

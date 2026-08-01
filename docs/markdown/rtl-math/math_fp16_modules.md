@@ -27,7 +27,7 @@ IEEE 754 half-precision (FP16) floating-point modules for activation functions, 
 
 ## Overview
 
-FP16 (16-bit floating-point) provides higher precision than BF16 with a different exponent/mantissa trade-off. These modules complement the BF16 library for applications requiring greater precision in the fractional range.
+FP16 (16-bit floating-point) trades the exponent/mantissa split the other way from BF16 — more mantissa, less exponent — so you get higher precision over a smaller range. These modules complement the BF16 library for applications requiring greater precision in the fractional range.
 
 **FP16 Format:**
 ```
@@ -62,6 +62,8 @@ Precision: ~0.1% (3-4 decimal digits)
 | `math_fp16_softmax_8` | softmax(x[7:0]) | 8-input softmax |
 
 #### Interface
+
+Every activation function in this group uses the same two-port pattern:
 
 ```systemverilog
 module math_fp16_{activation} (
@@ -168,5 +170,5 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 
 ## Navigation
 
-- **[Back to Math Index](index.md)**
-- **[Back to Main Documentation Index](../index.md)**
+- **[← Back to Math Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

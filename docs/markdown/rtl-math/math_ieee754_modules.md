@@ -27,7 +27,7 @@ Full IEEE 754-2008 compliant floating-point arithmetic modules for FP16 and FP32
 
 ## Overview
 
-These modules implement complete IEEE 754-2008 compliant arithmetic for half-precision (FP16) and single-precision (FP32) floating-point operations. Unlike the simplified BF16/FP8 modules which use Flush-to-Zero, these provide proper subnormal handling and full IEEE compliance.
+These modules implement complete IEEE 754-2008 compliant arithmetic for half-precision (FP16) and single-precision (FP32) floating-point operations. Unlike the simplified BF16/FP8 modules, which use Flush-to-Zero, these handle subnormals properly and give you full IEEE compliance.
 
 **Key Features:**
 - **Full IEEE 754-2008 compliance** - Proper subnormal handling, all rounding modes conceptually supported
@@ -280,5 +280,5 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 
 ## Navigation
 
-- **[Back to Math Index](index.md)**
-- **[Back to Main Documentation Index](../index.md)**
+- **[← Back to Math Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

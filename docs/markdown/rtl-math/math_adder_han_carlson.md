@@ -23,11 +23,11 @@
 
 # Han-Carlson Parallel Prefix Adder
 
-A hybrid parallel prefix adder that combines the low wiring complexity of Brent-Kung with near-Kogge-Stone speed, providing an optimal balance of area, wire routing, and logic depth for advanced process nodes.
+A hybrid parallel prefix adder that combines the low wiring complexity of Brent-Kung with near-Kogge-Stone speed — a well-chosen balance of area, wire routing, and logic depth for advanced process nodes.
 
 ## Overview
 
-The `math_adder_han_carlson` module family implements Han-Carlson parallel prefix adders. Han-Carlson is a "sparsity-2" architecture that computes prefix operations only on even bit positions in intermediate stages, then fills in odd positions in a final stage using area-efficient gray cells.
+The `math_adder_han_carlson` module family implements Han-Carlson parallel prefix adders. Han-Carlson is a "sparsity-2" architecture: it computes prefix operations only on even bit positions in the intermediate stages, then fills in the odd positions in a final stage using area-efficient gray cells.
 
 **Available widths:** 16, 22, 32, 44, 48 and 72 bits. All six are auto-generated
 by `bin/rtl_generators/ieee754/generate_all.py`; each width exists because a
@@ -44,8 +44,8 @@ specific floating-point datapath needs it.
 
 The exponent paths of the ieee754 adders are behavioral (`assign`), so the
 earlier "16: FP16 exponent paths / 32: FP32 exponent paths" entries were
-aspirational, not real -- see math_library.md's (correct) Core-operators
-table.
+aspirational, not real — see math_library.md's (correct) Core-operators
+table. Widths on paper are not widths in silicon; the grep doesn't lie.
 
 : Han-Carlson widths present in rtl/math and what uses each
 
@@ -56,7 +56,7 @@ table.
 - **Reduced wiring** - 4 tracks vs 8 for Kogge-Stone (16-bit)
 - **Optimal for** multiplier final CPA and FMA wide addition
 
-## Module Hierarchy
+### Module Hierarchy
 
 **Top-Level Modules:**
 - `math_adder_han_carlson_016.sv` - 16-bit adder
@@ -107,7 +107,7 @@ module math_adder_han_carlson_048 #(
 | N | int | matches the variant | Adder width (fixed per variant) |
 
 **Note:** `N` defaults to the width in the module name (`_016` defaults to 16,
-`_072` to 72) and must not be overridden -- the prefix network is generated for
+`_072` to 72) and must not be overridden — the prefix network is generated for
 that exact width. Pick the variant that matches your width instead.
 
 ## Ports
@@ -120,7 +120,7 @@ that exact width. Pick the variant that matches your width instead.
 | ow_sum | Output | N | Sum result (A + B + Cin) |
 | ow_cout | Output | 1 | Carry output |
 
-## Algorithm
+## Functionality
 
 ### Han-Carlson Structure
 
@@ -213,40 +213,10 @@ implemented here.
 - 2x fewer wiring tracks than Kogge-Stone (4 vs 8)
 - Constant fanout of 2 (important for advanced nodes)
 
-Note that Brent-Kung is both smaller *and*, in this library, only one level
-deeper than Han-Carlson at N=16. Han-Carlson's advantage is in wiring tracks and
-fanout regularity, and it widens as N grows -- not in cell count at this width.
-
-## Timing Characteristics
-
-### 16-bit Adder
-
-| Metric | Value |
-|--------|-------|
-| Logic Levels | 5 prefix stages + sum XOR |
-| Prefix Cells | 32 (24 black + 8 gray) |
-| Critical Path | cin -> Stage 1 -> Stage 5 -> sum[15] |
-
-### 48-bit Adder
-
-| Metric | Value |
-|--------|-------|
-| Logic Levels | 7 prefix stages + sum XOR |
-| Prefix Cells | 136 (112 black + 24 gray) |
-| Critical Path | cin -> Stage 1 -> Stage 7 -> sum[47] |
-
-### Depth Formula
-
-For N-bit Han-Carlson:
-- **Prefix-tree depth** = ceil(log2(N)) + 1 stages
-- **Total depth** = prefix tree + 1 sum stage = ceil(log2(N)) + 2 stages
-- **16-bit:** prefix = 4 + 1 = 5, total = 6 stages (5 prefix + 1 sum)
-- **48-bit:** prefix = 6 + 1 = 7, total = 8 stages (7 prefix + 1 sum)
-
-The `+2` is **total** depth, not prefix depth -- the sparsity-2 Han-Carlson
-prefix network is `log2(N) + 1` deep, and the final sum stage adds one more.
-Quoting `+2` without saying which is being counted invites an off-by-one when
-comparing against the Harris taxonomy, which tabulates prefix depth.
+One honest caveat: Brent-Kung is both smaller *and*, in this library, only one
+level deeper than Han-Carlson at N=16. Han-Carlson's advantage is in wiring
+tracks and fanout regularity, and it widens as N grows — not in cell count at
+this width.
 
 ## Usage Examples
 
@@ -319,6 +289,38 @@ math_adder_han_carlson_048 u_wide_add (
 );
 ```
 
+## Timing Characteristics
+
+### 16-bit Adder
+
+| Metric | Value |
+|--------|-------|
+| Logic Levels | 5 prefix stages + sum XOR |
+| Prefix Cells | 32 (24 black + 8 gray) |
+| Critical Path | cin -> Stage 1 -> Stage 5 -> sum[15] |
+
+### 48-bit Adder
+
+| Metric | Value |
+|--------|-------|
+| Logic Levels | 7 prefix stages + sum XOR |
+| Prefix Cells | 136 (112 black + 24 gray) |
+| Critical Path | cin -> Stage 1 -> Stage 7 -> sum[47] |
+
+### Depth Formula
+
+For N-bit Han-Carlson:
+- **Prefix-tree depth** = ceil(log2(N)) + 1 stages
+- **Total depth** = prefix tree + 1 sum stage = ceil(log2(N)) + 2 stages
+- **16-bit:** prefix = 4 + 1 = 5, total = 6 stages (5 prefix + 1 sum)
+- **48-bit:** prefix = 6 + 1 = 7, total = 8 stages (7 prefix + 1 sum)
+
+The `+2` is **total** depth, not prefix depth — the sparsity-2 Han-Carlson
+prefix network is `log2(N) + 1` deep, and the final sum stage adds one more.
+Quoting `+2` without saying which is being counted invites an off-by-one when
+comparing against the Harris taxonomy, which tabulates prefix depth. Say which
+number you're quoting.
+
 ## Performance Characteristics
 
 ### Resource Utilization
@@ -386,7 +388,8 @@ variants; running it will not reproduce the current file set.
 
 ## Common Pitfalls
 
-**Anti-Pattern 1:** Expecting parameterizable width
+**Anti-Pattern 1**: Expecting parameterizable width
+
 ```systemverilog
 // WRONG: N is fixed per variant
 math_adder_han_carlson_016 #(.N(24)) u_add (...);  // Won't work!
@@ -399,7 +402,8 @@ math_adder_han_carlson_048 u_add (
 );
 ```
 
-**Anti-Pattern 2:** Ignoring that outputs are combinational
+**Anti-Pattern 2**: Ignoring that outputs are combinational
+
 ```systemverilog
 // Remember: outputs are purely combinational
 // Add pipeline registers if needed for timing closure

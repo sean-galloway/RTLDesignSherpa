@@ -23,11 +23,11 @@
 
 # Carry-Save Adder
 
-Single-bit and N-bit carry-save adder modules for high-speed multi-operand addition, implementing 3:2 compression with constant-depth parallel operation. These modules are fundamental building blocks for fast multipliers and multi-operand addition trees.
+Single-bit and N-bit carry-save adders for high-speed multi-operand addition — 3:2 compression with constant-depth parallel operation. These are the fundamental building blocks of fast multipliers and multi-operand addition trees.
 
 ## Overview
 
-Carry-save adders (CSAs) perform parallel addition of three operands in a single level of logic by keeping the sum and carry outputs separate (not chaining carries between bits). This enables:
+Carry-save adders (CSAs) add three operands in a single level of logic by keeping the sum and carry outputs separate — no carry chaining between bits. That buys you:
 - **Constant depth**: O(1) logic depth regardless of bit width
 - **3:2 compression**: Reduce 3 numbers to 2 in one stage
 - **Multiplier trees**: Essential for Wallace and Dadda tree multipliers
@@ -84,7 +84,7 @@ No parameters (fixed single-bit operation).
 
 ## Ports
 
-### Single-bit CSA Ports
+### Single-bit CSA
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -94,7 +94,7 @@ No parameters (fixed single-bit operation).
 | ow_sum | Output | 1 | Sum output bit |
 | ow_carry | Output | 1 | Carry output bit |
 
-### N-bit CSA Ports
+### N-bit CSA
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -172,7 +172,7 @@ endgenerate
 
 ### Final Addition Step
 
-To get the actual sum, add sum to carry shifted left by one -- the carry from bit i has weight 2^(i+1) (`Key Property` above: Sum + 2xCarry = A + B + C):
+To get the actual sum, add sum to carry shifted left by one — the carry from bit i has weight 2^(i+1) (`Key Property` above: Sum + 2xCarry = A + B + C):
 
 ```systemverilog
 // CSA produces two vectors
@@ -188,32 +188,7 @@ logic [N+1:0] final_result;
 assign final_result = {2'b0, sum_vec} + {carry_vec, 1'b0};
 ```
 
-**Common mistake:** adding the vectors without shifting the carry. `Sum + 2xCarry = A + B + C` (the `Key Property` above) -- the factor of two IS a left shift by one. `sum_vec + carry_vec` is wrong; `sum_vec + (carry_vec << 1)` is correct.
-
-## Timing Characteristics
-
-### Propagation Delays
-
-| Module | Logic Levels | Typical Delay (ns) |
-|--------|--------------|-------------------|
-| Single-bit CSA | 2 | ~0.4 |
-| N-bit CSA | 2 | ~0.4 (independent of N!) |
-
-**Key Advantage:** Delay is constant regardless of bit width!
-
-**Critical Path:**
-```
-i_a/i_b/i_c → ow_sum    (2 XOR gates)
-i_a/i_b/i_c → ow_carry  (2 gates: AND + OR)
-```
-
-**Comparison:**
-| Adder Type | N-bit Delay |
-|------------|-------------|
-| **CSA** | **O(1)** - constant |
-| Ripple Carry | O(N) - linear |
-| Carry Lookahead | O(N) - linear (simplified) |
-| Parallel Prefix | O(log N) |
+**Common mistake:** adding the vectors without shifting the carry. `Sum + 2xCarry = A + B + C` (the `Key Property` above) — the factor of two IS a left shift by one. `sum_vec + carry_vec` is wrong; `sum_vec + (carry_vec << 1)` is correct. I've debugged this exact bug in someone else's multiplier at least twice.
 
 ## Usage Examples
 
@@ -349,6 +324,31 @@ math_adder_carry_save_nbit #(.N(16)) u_csa_pp_l1_1 (
 // Final: Fast adder for last two vectors
 ```
 
+## Timing Characteristics
+
+### Propagation Delays
+
+| Module | Logic Levels | Typical Delay (ns) |
+|--------|--------------|-------------------|
+| Single-bit CSA | 2 | ~0.4 |
+| N-bit CSA | 2 | ~0.4 (independent of N!) |
+
+**Key Advantage:** Delay is constant regardless of bit width. That's the whole point of the architecture.
+
+**Critical Path:**
+```
+i_a/i_b/i_c → ow_sum    (2 XOR gates)
+i_a/i_b/i_c → ow_carry  (2 gates: AND + OR)
+```
+
+**Comparison:**
+| Adder Type | N-bit Delay |
+|------------|-------------|
+| **CSA** | **O(1)** - constant |
+| Ripple Carry | O(N) - linear |
+| Carry Lookahead | O(N) - linear (simplified) |
+| Parallel Prefix | O(log N) |
+
 ## Performance Characteristics
 
 ### Resource Utilization
@@ -382,7 +382,7 @@ math_adder_carry_save_nbit #(.N(16)) u_csa_pp_l1_1 (
 
 ### When to Use Carry-Save Adders
 
-✅ **Ideal Use Cases:**
+**Ideal Use Cases:**
 - **Multipliers**: Wallace tree, Dadda tree
 - **Multi-operand addition**: Add 3+ numbers
 - **DSP applications**: MAC units, filters
@@ -391,7 +391,7 @@ math_adder_carry_save_nbit #(.N(16)) u_csa_pp_l1_1 (
 
 ### When NOT to Use CSA
 
-❌ **Inappropriate Use Cases:**
+**Inappropriate Use Cases:**
 - **Two-operand addition**: Use conventional adder (simpler)
 - **Final result needed immediately**: CSA requires additional adder stage
 - **Single addition**: No benefit over regular adder
@@ -400,20 +400,20 @@ math_adder_carry_save_nbit #(.N(16)) u_csa_pp_l1_1 (
 
 **Number of Stages:** each CSA stage reduces the operand count to
 ceil(2N/3) (groups of three become pairs, remainders pass through); stages
-to reach 2 is roughly ceil(log_1.5(N/2)) -- and remainder effects add a
+to reach 2 is roughly ceil(log_1.5(N/2)) — and remainder effects add a
 stage at some sizes, so count the sequence, not just the bound.
 
 **Example:**
 - 3 operands: 1 CSA + 1 adder (3 → 2)
 - 7 operands: 4 CSAs + 1 adder (7 → 5 → 4 → 3 → 2)
 - 15 operands: 6 CSAs + 1 adder (15 → 10 → 7 → 5 → 4 → 3 → 2;
-  ceil(log_1.5(15/2)) = 5 underestimates -- the passthroughs cost a stage)
+  ceil(log_1.5(15/2)) = 5 underestimates — the passthroughs cost a stage)
 
 **Optimization:** Minimize final adder width by aligning partial products carefully.
 
 ### Final Adder Selection
 
-After CSA tree reduction, choose final adder wisely:
+After CSA tree reduction, choose the final adder wisely — it sits on the critical path of every multiplier you'll build:
 
 | Width | Best Final Adder |
 |-------|-----------------|
@@ -424,7 +424,7 @@ After CSA tree reduction, choose final adder wisely:
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1**: Reducing without shifting the carry
+**Anti-Pattern 1**: Reducing without shifting the carry
 
 ```systemverilog
 // WRONG: carry has weight 2^(i+1), so this drops a factor of two
@@ -434,7 +434,7 @@ assign final_result = sum_vec + carry_vec;  // INCORRECT!
 assign final_result = sum_vec + {carry_vec, 1'b0};
 ```
 
-❌ **Anti-Pattern 2**: Using CSA for two-operand addition
+**Anti-Pattern 2**: Using CSA for two-operand addition
 
 ```systemverilog
 // WRONG: Overkill for simple addition
@@ -448,7 +448,7 @@ assign result = sum_vec + carry_vec;  // Extra adder stage!
 assign result = a + b;  // Simpler, same result
 ```
 
-❌ **Anti-Pattern 3**: Ignoring final addition
+**Anti-Pattern 3**: Ignoring final addition
 
 ```systemverilog
 // WRONG: CSA outputs are NOT the final result!
@@ -462,7 +462,7 @@ math_adder_carry_save_nbit u_csa (
 assign final_result = ow_sum + {ow_carry, 1'b0};
 ```
 
-❌ **Anti-Pattern 4**: Incorrect width for final addition
+**Anti-Pattern 4**: Incorrect width for final addition
 
 ```systemverilog
 // WRONG: Overflow possible

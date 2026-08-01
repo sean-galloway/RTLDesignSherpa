@@ -23,16 +23,16 @@
 
 # Basic Adder Building Blocks
 
-Fundamental single-bit and multi-bit adder primitives (half adder, full adder, and N-bit full adder array) that serve as building blocks for more complex arithmetic circuits.
+Everything in this library eventually bottoms out here: the half adder, the full adder, and an N-bit array of full adders. Single-bit and multi-bit primitives that the more complex arithmetic circuits are built from.
 
 ## Overview
 
-This document covers the three basic adder modules that form the foundation of all adder architectures:
+Three modules form the foundation of every adder architecture in the library:
 - **math_adder_half** - Single-bit half adder (2 inputs: A, B)
 - **math_adder_full** - Single-bit full adder (3 inputs: A, B, Cin)
 - **math_adder_full_nbit** - N-bit array of full adders (identical to ripple carry adder)
 
-These modules are used as building blocks in ripple carry adders, carry-save adders, multipliers, and other arithmetic circuits.
+You'll find them inside ripple carry adders, carry-save adders, multipliers, and just about every other arithmetic circuit here.
 
 ## Module Declarations
 
@@ -95,40 +95,40 @@ module math_adder_full_nbit #(
 
 ## Ports
 
-### Half Adder Ports
+### Half Adder
 
-| Port | Width | Description |
-|------|-------|-------------|
-| i_a | 1 | Input A |
-| i_b | 1 | Input B |
-| ow_sum | 1 | Sum output (A ^ B) |
-| ow_carry | 1 | Carry output (A & B) |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_a | Input | 1 | Input A |
+| i_b | Input | 1 | Input B |
+| ow_sum | Output | 1 | Sum output (A ^ B) |
+| ow_carry | Output | 1 | Carry output (A & B) |
 
-### Full Adder Ports
+### Full Adder
 
-| Port | Width | Description |
-|------|-------|-------------|
-| i_a | 1 | Input A |
-| i_b | 1 | Input B |
-| i_c | 1 | Carry input |
-| ow_sum | 1 | Sum output (A ^ B ^ Cin) |
-| ow_carry | 1 | Carry output |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_a | Input | 1 | Input A |
+| i_b | Input | 1 | Input B |
+| i_c | Input | 1 | Carry input |
+| ow_sum | Output | 1 | Sum output (A ^ B ^ Cin) |
+| ow_carry | Output | 1 | Carry output |
 
-### N-bit Full Adder Ports
+### N-bit Full Adder Array
 
-| Port | Width | Description |
-|------|-------|-------------|
-| i_a | N | Operand A |
-| i_b | N | Operand B |
-| i_c | 1 | Initial carry input |
-| ow_sum | N | Sum output (A + B + Cin) |
-| ow_carry | 1 | Final carry output |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_a | Input | N | Operand A |
+| i_b | Input | N | Operand B |
+| i_c | Input | 1 | Initial carry input |
+| ow_sum | Output | N | Sum output (A + B + Cin) |
+| ow_carry | Output | 1 | Final carry output |
 
 ## Functionality
 
 ### Half Adder
 
-The half adder adds two single-bit inputs without carry input:
+The half adder adds two single-bit inputs without a carry input:
 
 **Logic Equations:**
 ```
@@ -380,26 +380,26 @@ i_c → FA[0].Cout → FA[1].Cout → ... → FA[N-1].Cout → ow_carry
 | Full Adder | 2 | Optimized to 2 LUTs on modern FPGAs |
 | N-bit Array | ~2N | N full adders |
 
-**FPGA Note:** Modern FPGAs (Xilinx, Intel) have dedicated carry chain logic that implements full adders very efficiently, often faster than generic LUT logic.
+**FPGA Note:** Modern FPGAs (Xilinx, Intel) have dedicated carry chain logic that implements full adders very efficiently — often faster than generic LUT logic.
 
 ### When to Use Each Module
 
 **Half Adder:**
-- ✅ First bit of addition chain (no carry input)
-- ✅ Parity generation
-- ✅ Educational/demonstration purposes
-- ❌ Rarely used standalone in production designs
+- First bit of addition chain (no carry input)
+- Parity generation
+- Educational/demonstration purposes
+- Rarely used standalone in production designs
 
 **Full Adder:**
-- ✅ Building block for custom arithmetic circuits
-- ✅ Carry-save adder stages
-- ✅ Multiplier partial product reduction
-- ✅ When instantiating adder arrays manually
+- Building block for custom arithmetic circuits
+- Carry-save adder stages
+- Multiplier partial product reduction
+- When instantiating adder arrays manually
 
 **N-bit Array:**
-- ✅ Quick multi-bit adder for small widths (N ≤ 8)
-- ✅ When ripple carry is acceptable
-- ❌ For N > 8, consider carry lookahead or parallel prefix
+- Quick multi-bit adder for small widths (N ≤ 8)
+- When ripple carry is acceptable
+- For N > 8, consider carry lookahead or parallel prefix
 
 ## Design Considerations
 
@@ -448,7 +448,7 @@ Modern FPGAs have dedicated adder resources:
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1**: Using half adder where full adder needed
+**Anti-Pattern 1**: Using half adder where full adder needed
 
 ```systemverilog
 // WRONG: Half adder can't accept carry input
@@ -464,7 +464,7 @@ math_adder_full fa0 (
 );
 ```
 
-❌ **Anti-Pattern 2**: Over-engineering simple additions
+**Anti-Pattern 2**: Over-engineering simple additions
 
 ```systemverilog
 // WRONG: Manual full adder chain for simple addition
@@ -480,7 +480,7 @@ endgenerate
 assign sum = a + b;
 ```
 
-❌ **Anti-Pattern 3**: Ignoring synthesis capabilities
+**Anti-Pattern 3**: Ignoring synthesis capabilities
 
 ```systemverilog
 // Behavioral code synthesizes to optimal adder anyway:
@@ -492,7 +492,7 @@ assign sum = a + b;
 // - Educational/demonstration purpose
 ```
 
-❌ **Anti-Pattern 4**: Incorrect carry chain connection
+**Anti-Pattern 4**: Incorrect carry chain connection
 
 ```systemverilog
 // WRONG: Carry not properly chained

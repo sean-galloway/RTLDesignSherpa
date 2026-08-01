@@ -23,11 +23,11 @@
 
 # BF16 Exponent Adder
 
-An exponent computation module for BF16 multiplication that handles bias subtraction, normalization adjustment, overflow/underflow detection, and special value identification.
+The exponent computation module for BF16 multiplication — it handles bias subtraction, normalization adjustment, overflow/underflow detection, and special value identification.
 
 ## Overview
 
-The `math_bf16_exponent_adder` module computes the result exponent for BF16 multiplication using the formula: `exp_result = exp_a + exp_b - bias + norm_adjust`. It uses extended precision arithmetic to detect overflow and underflow conditions before they occur.
+The `math_bf16_exponent_adder` module computes the result exponent for BF16 multiplication using the formula: `exp_result = exp_a + exp_b - bias + norm_adjust`. It uses extended precision arithmetic to detect overflow and underflow conditions before they occur — which is exactly where you want to detect them.
 
 **Key Features:**
 - **Bias-compensated addition** - Handles 127 bias subtraction
@@ -57,31 +57,24 @@ module math_bf16_exponent_adder(
 
 ## Ports
 
-### Inputs
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_exp_a | Input | 8 | Biased exponent of operand A |
+| i_exp_b | Input | 8 | Biased exponent of operand B |
+| i_norm_adjust | Input | 1 | +1 adjustment when mantissa product >= 2.0 |
+| ow_exp_out | Output | 8 | Result exponent (saturated on overflow/underflow) |
+| ow_overflow | Output | 1 | 1 if result exponent > 254 (infinity) |
+| ow_underflow | Output | 1 | 1 if result exponent <= 0 (zero) |
+| ow_a_is_zero | Output | 1 | 1 if exp_a == 0 (caller checks mantissa) |
+| ow_b_is_zero | Output | 1 | 1 if exp_b == 0 (caller checks mantissa) |
+| ow_a_is_inf | Output | 1 | 1 if exp_a == 255 (caller checks mantissa for NaN) |
+| ow_b_is_inf | Output | 1 | 1 if exp_b == 255 (caller checks mantissa for NaN) |
+| ow_a_is_nan | Output | 1 | Same as ow_a_is_inf (actual NaN needs mantissa != 0) |
+| ow_b_is_nan | Output | 1 | Same as ow_b_is_inf (actual NaN needs mantissa != 0) |
 
-| Port | Width | Description |
-|------|-------|-------------|
-| i_exp_a | 8 | Biased exponent of operand A |
-| i_exp_b | 8 | Biased exponent of operand B |
-| i_norm_adjust | 1 | +1 adjustment when mantissa product >= 2.0 |
+## Functionality
 
-### Outputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| ow_exp_out | 8 | Result exponent (saturated on overflow/underflow) |
-| ow_overflow | 1 | 1 if result exponent > 254 (infinity) |
-| ow_underflow | 1 | 1 if result exponent <= 0 (zero) |
-| ow_a_is_zero | 1 | 1 if exp_a == 0 (caller checks mantissa) |
-| ow_b_is_zero | 1 | 1 if exp_b == 0 (caller checks mantissa) |
-| ow_a_is_inf | 1 | 1 if exp_a == 255 (caller checks mantissa for NaN) |
-| ow_b_is_inf | 1 | 1 if exp_b == 255 (caller checks mantissa for NaN) |
-| ow_a_is_nan | 1 | Same as ow_a_is_inf (actual NaN needs mantissa != 0) |
-| ow_b_is_nan | 1 | Same as ow_b_is_inf (actual NaN needs mantissa != 0) |
-
-## BF16 Exponent Background
-
-### BF16 Format
+### BF16 Exponent Background
 
 ```
 BF16: [15]=sign, [14:7]=exponent (8 bits, bias=127), [6:0]=mantissa (7 bits)
@@ -106,8 +99,6 @@ If mantissa product >= 2.0, normalize by right-shifting mantissa and adding 1 to
 Biased result exponent = exp_a + exp_b - 127 + norm_adjust
 ```
 
-## Functionality
-
 ### Special Case Detection
 
 ```systemverilog
@@ -124,7 +115,7 @@ assign ow_a_is_nan = (i_exp_a == 8'hFF);
 assign ow_b_is_nan = (i_exp_b == 8'hFF);
 ```
 
-**Note:** The module reports exp==255 as both "inf" and "nan" - the caller must check the mantissa to distinguish.
+**Note:** The module reports exp==255 as both "inf" and "nan" — the caller must check the mantissa to distinguish.
 
 ### Extended Precision Arithmetic
 
@@ -159,7 +150,7 @@ assign ow_overflow  = w_overflow_raw & ~w_either_special;
 assign ow_underflow = w_underflow_raw & ~w_either_special;
 ```
 
-**Key insight:** Must check underflow BEFORE overflow because negative values (underflow) appear as large positive values in unsigned arithmetic.
+**Key insight:** Check underflow BEFORE overflow. Negative values (underflow) appear as large positive values in unsigned arithmetic, so an overflow check alone will misfire on them.
 
 ### Result Saturation
 
@@ -259,14 +250,14 @@ wire w_final_overflow = w_exp_overflow | (w_exp_final == 8'hFF);
 | Special case flags | ~4 |
 | **Total** | ~35-40 LUTs |
 
+## Design Considerations
+
 ### Design Optimization Priorities
 
 This module is optimized with the following priorities:
 1. **Area** - Simple 10-bit arithmetic instead of full-width operations
 2. **Wire complexity** - Minimal signal routing
 3. **Logic depth** - Parallel overflow/underflow detection
-
-## Design Considerations
 
 ### Why Override Flags for Special Cases?
 
@@ -291,7 +282,7 @@ The module checks underflow BEFORE overflow because:
 1. Negative results (e.g., -25) appear as large positive values (e.g., 999) in unsigned math
 2. Without underflow check first, -25 would incorrectly trigger overflow
 
-## Auto-Generated Code
+### Auto-Generated Code
 
 This module is auto-generated by Python scripts:
 - **Generator:** `bin/rtl_generators/bf16/bf16_exponent_adder.py`

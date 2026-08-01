@@ -23,11 +23,11 @@
 
 # BF16 Extended Modules
 
-Extended BF16 (Brain Float 16) modules for AI/ML accelerators, including activation functions, mathematical operations, comparison/selection, and format conversions.
+The extended BF16 (Brain Float 16) module set for AI/ML accelerators: activation functions, mathematical operations, comparison/selection, and format conversions.
 
 ## Overview
 
-Beyond the core BF16 arithmetic (adder, multiplier, FMA), this library provides a comprehensive set of modules for neural network inference and training. All modules follow IEEE 754-like conventions with Flush-to-Zero (FTZ) for subnormals.
+The core BF16 arithmetic (adder, multiplier, FMA) only gets you multiply-accumulate. Everything else a neural network needs lives here — a comprehensive set of modules for inference and training. All modules follow IEEE 754-like conventions with Flush-to-Zero (FTZ) for subnormals.
 
 **Key Features:**
 - **Piecewise linear approximations** for transcendental functions
@@ -40,7 +40,7 @@ Beyond the core BF16 arithmetic (adder, multiplier, FMA), this library provides 
 
 ### Activation Functions
 
-Standard neural network activation functions with BF16 inputs and outputs.
+The standard neural network activation functions, BF16 in and BF16 out.
 
 | Module | Function | Description |
 |--------|----------|-------------|
@@ -52,7 +52,9 @@ Standard neural network activation functions with BF16 inputs and outputs.
 | `math_bf16_silu` | x * sigmoid(x) | Sigmoid Linear Unit (Swish) |
 | `math_bf16_softmax_8` | exp(xi)/sum(exp(xj)) | 8-input softmax normalization |
 
-#### Common Interface Pattern
+#### Interface
+
+Every activation function in this group uses the same two-port pattern:
 
 ```systemverilog
 module math_bf16_{activation} (
@@ -79,7 +81,7 @@ math_bf16_sigmoid u_sigmoid (
 
 ### Mathematical Operations
 
-Extended math operations for neural network computations.
+The extended math operations for neural network computations.
 
 | Module | Function | Description |
 |--------|----------|-------------|
@@ -181,7 +183,9 @@ Convert between BF16 and other floating-point formats.
 | `math_int_to_bf16` | INT -> BF16 | Integer to float conversion |
 | `math_bf16_scale_to_int8` | BF16 -> INT8 | Quantization with scaling |
 
-#### Conversion Interface Pattern
+#### Interface
+
+The converters all follow the same shape — value in, converted value out, plus the three status flags:
 
 ```systemverilog
 module math_bf16_to_{format} (
@@ -212,7 +216,7 @@ math_bf16_scale_to_int8 u_quantize (
 
 ## Special Value Handling
 
-All modules follow consistent special value handling:
+Special values behave the same way across every module:
 
 | Input | ReLU | Sigmoid | Max/Min | Converters |
 |-------|------|---------|---------|------------|
@@ -237,11 +241,11 @@ Sigmoid approximation regions:
   x >= 4:      sigmoid(x) = 1
 ```
 
-This provides ~1-2% accuracy while maintaining single-cycle latency.
+That buys you ~1-2% accuracy while maintaining single-cycle latency.
 
 ### LUT-Based Operations
 
-For higher accuracy (exp2, log2, reciprocal), LUT + linear interpolation is used:
+When you need higher accuracy (exp2, log2, reciprocal), the implementation switches to LUT + linear interpolation:
 
 ```systemverilog
 // LUT stores function values at regular intervals
@@ -275,5 +279,5 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 
 ## Navigation
 
-- **[Back to Math Index](index.md)**
-- **[Back to Main Documentation Index](../index.md)**
+- **[← Back to Math Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

@@ -23,11 +23,11 @@
 
 # BF16 Mantissa Multiplier
 
-A specialized mantissa multiplier for BF16 (Brain Float 16) format that handles implied leading 1, normalization detection, and rounding bit extraction for IEEE 754-compliant floating-point multiplication.
+A mantissa multiplier specialized for BF16 (Brain Float 16): it handles the implied leading 1, detects when normalization is needed, and extracts the rounding bits for IEEE 754-compliant floating-point multiplication.
 
 ## Overview
 
-The `math_bf16_mantissa_mult` module wraps an 8x8 Dadda multiplier with BF16-specific logic for handling the implicit leading bit, detecting when normalization is needed, and extracting guard/round/sticky bits for Round-to-Nearest-Even (RNE) rounding.
+The `math_bf16_mantissa_mult` module wraps an 8x8 Dadda multiplier with the BF16-specific logic — implicit leading-bit handling, normalization detection, and guard/round/sticky extraction for Round-to-Nearest-Even (RNE) rounding.
 
 **Key Features:**
 - **8x8 unsigned multiply** - 7-bit mantissa + 1 implied bit
@@ -54,26 +54,19 @@ module math_bf16_mantissa_mult(
 
 ## Ports
 
-### Inputs
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_mant_a | Input | 7 | Explicit mantissa of operand A (bits [6:0] of BF16) |
+| i_mant_b | Input | 7 | Explicit mantissa of operand B (bits [6:0] of BF16) |
+| i_a_is_normal | Input | 1 | 1 if A is normalized (has implied leading 1) |
+| i_b_is_normal | Input | 1 | 1 if B is normalized (has implied leading 1) |
+| ow_product | Output | 16 | Full 16-bit raw product from 8x8 multiply |
+| ow_needs_norm | Output | 1 | 1 if product >= 2.0 (MSB of product is 1) |
+| ow_mant_out | Output | 7 | Pre-rounded 7-bit mantissa result |
+| ow_round_bit | Output | 1 | Round bit for RNE rounding |
+| ow_sticky_bit | Output | 1 | Sticky bit for RNE rounding |
 
-| Port | Width | Description |
-|------|-------|-------------|
-| i_mant_a | 7 | Explicit mantissa of operand A (bits [6:0] of BF16) |
-| i_mant_b | 7 | Explicit mantissa of operand B (bits [6:0] of BF16) |
-| i_a_is_normal | 1 | 1 if A is normalized (has implied leading 1) |
-| i_b_is_normal | 1 | 1 if B is normalized (has implied leading 1) |
-
-### Outputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| ow_product | 16 | Full 16-bit raw product from 8x8 multiply |
-| ow_needs_norm | 1 | 1 if product >= 2.0 (MSB of product is 1) |
-| ow_mant_out | 7 | Pre-rounded 7-bit mantissa result |
-| ow_round_bit | 1 | Round bit for RNE rounding |
-| ow_sticky_bit | 1 | Sticky bit for RNE rounding |
-
-## BF16 Format Background
+## BF16 Format
 
 ### BF16 Structure
 
@@ -107,7 +100,7 @@ wire [7:0] w_mant_a_ext = {i_a_is_normal, i_mant_a};
 wire [7:0] w_mant_b_ext = {i_b_is_normal, i_mant_b};
 ```
 
-For normal numbers, this creates `1.mantissa`. For zeros/subnormals (FTZ mode), creates `0.mantissa` which effectively treats them as zero.
+For normal numbers, this creates `1.mantissa`. For zeros/subnormals (FTZ mode), it creates `0.mantissa`, which effectively treats them as zero.
 
 ### 8x8 Multiplication
 

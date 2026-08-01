@@ -23,13 +23,13 @@
 
 # Add/Subtract Unit
 
-A unified N-bit add/subtract unit using two's complement arithmetic, efficiently implementing both addition and subtraction with a single control signal and shared hardware.
+A unified N-bit add/subtract unit built on two's complement arithmetic — both operations, one control signal, shared hardware.
 
 ## Overview
 
-The `math_addsub_full_nbit` module implements a combined adder/subtractor that performs either A + B or A - B based on a control signal. It uses two's complement arithmetic for subtraction (A - B = A + (~B) + 1), efficiently sharing the adder hardware for both operations.
+The `math_addsub_full_nbit` module is a combined adder/subtractor that performs either A + B or A - B based on a control signal. Subtraction uses two's complement (A - B = A + (~B) + 1), so the adder hardware serves both operations.
 
-**Key Feature:** Single arithmetic unit handles both operations using XOR gates and a control signal, minimizing hardware compared to separate adder and subtractor modules.
+**Key Feature:** One arithmetic unit handles both operations using XOR gates and a control signal — noticeably less hardware than separate adder and subtractor modules.
 
 ## Module Declaration
 
@@ -341,16 +341,16 @@ i_b[0] → XOR → FA[0] → FA[1] → ... → FA[7] → ow_carry
 | **Add/Sub Unit** | **1.1×** | **Add and Sub** |
 | Adder only (manual control) | 1.0× | Add and Sub (external invert) |
 
-**Advantage:** ~10% area overhead vs adder-only, but integrated control simplifies system design.
+**Advantage:** ~10% area overhead vs adder-only, but integrated control simplifies system design. That's a trade I'll take every time in control logic.
 
 ## Design Considerations
 
 ### Advantages
 
-✅ **Hardware efficiency**: Single unit for both operations
-✅ **Simple control**: One bit selects operation
-✅ **Standard practice**: Common in ALU designs
-✅ **No separate subtractor**: Reuses adder logic
+**Hardware efficiency**: Single unit for both operations
+**Simple control**: One bit selects operation
+**Standard practice**: Common in ALU designs
+**No separate subtractor**: Reuses adder logic
 
 ### When to Use This Module
 
@@ -385,7 +385,7 @@ i_b[0] → XOR → FA[0] → FA[1] → ... → FA[7] → ow_carry
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1**: Misinterpreting carry output
+**Anti-Pattern 1**: Misinterpreting carry output
 
 ```systemverilog
 // WRONG: Carry means different things for add vs subtract!
@@ -399,7 +399,7 @@ assign overflow_underflow = (i_c == 0) ? carry :  // overflow (add)
                                          ~carry;  // underflow (sub)
 ```
 
-❌ **Anti-Pattern 2**: Using for signed arithmetic without overflow detection
+**Anti-Pattern 2**: Using for signed arithmetic without overflow detection
 
 ```systemverilog
 // WRONG: Missing signed overflow detection
@@ -413,7 +413,7 @@ assign signed_overflow = (i_a[N-1] == i_b[N-1]) &&
                          (ow_sum[N-1] != i_a[N-1]);
 ```
 
-❌ **Anti-Pattern 3**: Forgetting XOR overhead
+**Anti-Pattern 3**: Forgetting XOR overhead
 
 ```systemverilog
 // Be aware: XOR stage adds one logic level

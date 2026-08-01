@@ -27,7 +27,7 @@ An area-optimized 8x8 unsigned multiplier using Dadda reduction with 4:2 compres
 
 ## Overview
 
-The `math_multiplier_dadda_4to2_008` module implements an 8-bit unsigned multiplier optimized for BF16 mantissa multiplication. It uses 4:2 compressors instead of 3:2 carry-save adders (CSAs), enabling faster column height reduction with fewer stages.
+The `math_multiplier_dadda_4to2_008` module implements an 8-bit unsigned multiplier optimized for BF16 mantissa multiplication. It uses 4:2 compressors instead of 3:2 carry-save adders (CSAs), which reduces column height faster and takes fewer stages.
 
 **Key Features:**
 - **8x8 unsigned multiply** - 16-bit product output
@@ -170,22 +170,6 @@ math_adder_han_carlson_016 u_final_cpa (
 );
 ```
 
-## Timing Characteristics
-
-| Metric | Value |
-|--------|-------|
-| Partial Product Gen | 1 gate level (AND) |
-| Dadda Reduction | ~4 stages of 4:2 compressors |
-| Final CPA | 5-6 levels (Han-Carlson 16-bit) |
-| **Total Depth** | ~13-15 gate levels |
-
-### Critical Path
-
-```
-i_multiplier[7] -> pp_7_7 -> Stage 1 4:2 -> Stage 2 4:2 ->
-Stage 3 4:2 -> Stage 4 HA/FA -> CPA -> ow_product[15]
-```
-
 ## Usage Examples
 
 ### Basic 8x8 Multiplication
@@ -251,6 +235,22 @@ math_multiplier_dadda_4to2_008 u_mult (
 always_ff @(posedge clk) begin
     product_reg <= product_comb;
 end
+```
+
+## Timing Characteristics
+
+| Metric | Value |
+|--------|-------|
+| Partial Product Gen | 1 gate level (AND) |
+| Dadda Reduction | ~4 stages of 4:2 compressors |
+| Final CPA | 5-6 levels (Han-Carlson 16-bit) |
+| **Total Depth** | ~13-15 gate levels |
+
+### Critical Path
+
+```
+i_multiplier[7] -> pp_7_7 -> Stage 1 4:2 -> Stage 2 4:2 ->
+Stage 3 4:2 -> Stage 4 HA/FA -> CPA -> ow_product[15]
 ```
 
 ## Performance Characteristics

@@ -23,11 +23,11 @@
 
 # 4:2 Compressor
 
-A 4:2 compressor (also called a 5:3 counter) that reduces 5 input bits to 3 output bits, providing faster column height reduction than traditional 3:2 compressors in multiplier trees.
+A 4:2 compressor (also called a 5:3 counter) that reduces 5 input bits to 3 output bits, giving you faster column height reduction than traditional 3:2 compressors in multiplier trees.
 
 ## Overview
 
-The `math_compressor_4to2` module implements a 4:2 compressor using two cascaded full adders. It accepts 4 primary inputs plus a carry-in, producing a sum, carry, and carry-out. The key advantage is that the carry-out (`ow_cout`) is independent of the carry-in (`i_cin`), enabling efficient chaining within multiplier reduction trees.
+The `math_compressor_4to2` module implements a 4:2 compressor using two cascaded full adders. It accepts 4 primary inputs plus a carry-in, producing a sum, carry, and carry-out. The property you're really buying is that the carry-out (`ow_cout`) is independent of the carry-in (`i_cin`) — that's what enables efficient chaining within multiplier reduction trees.
 
 **Key Features:**
 - **5 inputs to 3 outputs** - More efficient column reduction than 3:2 compressors
@@ -114,17 +114,6 @@ ow_cout = (i_x1 & i_x2) | (i_x2 & i_x3) | (i_x1 & i_x3);
 
 This allows multiple 4:2 compressors to be chained with their cout signals forming independent carry chains, reducing the critical path compared to implementations where all carries depend on cin.
 
-## Timing Characteristics
-
-| Metric | Value | Description |
-|--------|-------|-------------|
-| Logic Depth | 4 gates | 2 full adders in series |
-| Cin to Sum | 2 XOR gates | Through FA2 only |
-| Cin to Carry | 1 XOR + 1 AND-OR | Through FA2 only |
-| X1-X3 to Cout | 1 AND-OR | Through FA1 only |
-
-**Critical Path:** X1/X2/X3 -> FA1 sum -> FA2 sum = 4 XOR gate delays
-
 ## Usage Examples
 
 ### Single Compressor
@@ -195,6 +184,17 @@ math_compressor_4to2 u_dadda_comp (
 
 // pp4 passes through to next stage if column height allows
 ```
+
+## Timing Characteristics
+
+| Metric | Value | Description |
+|--------|-------|-------------|
+| Logic Depth | 4 gates | 2 full adders in series |
+| Cin to Sum | 2 XOR gates | Through FA2 only |
+| Cin to Carry | 1 XOR + 1 AND-OR | Through FA2 only |
+| X1-X3 to Cout | 1 AND-OR | Through FA1 only |
+
+**Critical Path:** X1/X2/X3 -> FA1 sum -> FA2 sum = 4 XOR gate delays
 
 ## Performance Characteristics
 

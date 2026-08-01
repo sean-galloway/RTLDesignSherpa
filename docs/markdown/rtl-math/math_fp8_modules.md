@@ -27,7 +27,7 @@
 
 ## Overview
 
-FP8 formats provide extreme memory efficiency for neural network accelerators. Two variants are supported:
+FP8 is about extreme memory efficiency for neural network accelerators. Two variants are supported:
 - **E4M3** - Higher precision, smaller range (inference-optimized)
 - **E5M2** - Lower precision, larger range (training-friendly)
 
@@ -275,5 +275,5 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 
 ## Navigation
 
-- **[Back to Math Index](index.md)**
-- **[Back to Main Documentation Index](../index.md)**
+- **[← Back to Math Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

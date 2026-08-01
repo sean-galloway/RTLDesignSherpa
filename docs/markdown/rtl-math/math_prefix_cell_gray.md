@@ -23,11 +23,11 @@
 
 # Prefix Cell Gray
 
-An area-optimized parallel prefix network building block that computes only the group generate (G) signal, used in reverse tree stages and final carry computation where the propagate signal is not needed.
+An area-optimized parallel prefix building block that computes only the group generate (G) signal. It earns its keep in reverse tree stages and final carry computation—anywhere the propagate signal isn't needed downstream.
 
 ## Overview
 
-The `math_prefix_cell_gray` module (also known as a "gray cell") is a reduced-area variant of the prefix cell that outputs only the group generate signal. Since the final carry computation only needs G (not P), gray cells save ~33% area in stages where propagate signals are not required downstream.
+The `math_prefix_cell_gray` module (the "gray cell") is the reduced-area sibling of the prefix cell, and it outputs only the group generate. The final carry computation needs G, not P, so gray cells save ~33% area in stages where propagate signals aren't required downstream.
 
 **Key Features:**
 - **Outputs G only** - Optimized for carry-only computation
@@ -54,7 +54,7 @@ module math_prefix_cell_gray (
 | i_g_lo | Input | 1 | Generate signal from lower bit position |
 | ow_g | Output | 1 | Combined group generate (the carry into position i+1) |
 
-**Note:** `i_p_lo` is not needed because it's only used to compute the group propagate, which this cell doesn't output.
+**Note:** `i_p_lo` isn't needed here—it would only feed the group propagate computation, and this cell doesn't output one.
 
 ## Functionality
 
@@ -64,7 +64,7 @@ module math_prefix_cell_gray (
 assign ow_g = i_g_hi | (i_p_hi & i_g_lo);
 ```
 
-This computes the group generate signal:
+That's the group generate:
 - **G[i:j]** = G[i:k] OR (P[i:k] AND G[k-1:j])
 
 **Interpretation:** A carry is generated for the combined range [i:j] if:
@@ -77,7 +77,7 @@ In parallel prefix adders, the final computation is:
 - **Sum[i]** = P[i] XOR C[i-1]
 - **C[i]** = G[i:-1] (group generate from bit i down to carry-in)
 
-The sum computation uses the **original** single-bit propagate P[i], not the group propagate. Therefore, once we've computed all the carries (group generates), we no longer need the group propagates.
+The sum computation uses the **original** single-bit propagate P[i], not the group propagate. So once we've computed all the carries (group generates), the group propagates have no consumers left.
 
 ### Visual Comparison
 
@@ -103,14 +103,6 @@ flowchart LR
         nop["(no P output)"]
     end
 ```
-
-## Timing Characteristics
-
-| Metric | Value | Description |
-|--------|-------|-------------|
-| Logic Depth | 2 gates | 1 AND + 1 OR |
-| Critical Path | AND-OR | i_g_lo -> ow_g |
-| Gate Count | 2 | 1 AND + 1 OR |
 
 ## Usage Examples
 
@@ -161,11 +153,11 @@ math_prefix_cell_gray u_bk_gray_5 (
 
 This mirrors `gray_block_5_3` in `math_adder_brent_kung_grouppg_008.sv`, which
 wires `G_5_4`/`P_5_4` against `ow_gg[3]`. Many gray cells in the Brent-Kung
-reverse tree pair a *group* generate/propagate with an already-complete carry --
-but the library's Brent-Kung fill level also uses single-bit gray cells:
+reverse tree pair a *group* generate/propagate with an already-complete carry—but
+the library's Brent-Kung fill level also uses single-bit gray cells:
 `math_adder_brent_kung_grouppg_016.sv` contains `gray_block_1_0`,
 `gray_block_2_1`, `gray_block_4_3`, ... which take a single-bit `G[i:i]` against
-the completed carry below. So the single-bit pattern is not exclusive to
+the completed carry below. So the single-bit pattern isn't exclusive to
 Han-Carlson; Brent-Kung uses it in its fill-in stage too.
 
 ### Computing Final Sum
@@ -186,6 +178,14 @@ endgenerate
 // Carry out is the final group generate
 assign cout = g_final[N-1];
 ```
+
+## Timing Characteristics
+
+| Metric | Value | Description |
+|--------|-------|-------------|
+| Logic Depth | 2 gates | 1 AND + 1 OR |
+| Critical Path | AND-OR | i_g_lo -> ow_g |
+| Gate Count | 2 | 1 AND + 1 OR |
 
 ## Performance Characteristics
 
@@ -210,7 +210,7 @@ assign cout = g_final[N-1];
 
 ### Area Savings in Adder
 
-For an N-bit adder, the number of gray cells vs black cells affects total area:
+For an N-bit adder, the mix of gray cells versus black cells sets the total area.
 
 The two 16-bit rows below are counted from this library's own RTL, not estimated.
 Kogge-Stone is a textbook reference figure; there is no Kogge-Stone adder in this

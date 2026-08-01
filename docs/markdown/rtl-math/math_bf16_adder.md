@@ -62,12 +62,12 @@ module math_bf16_adder #(
 
 ## Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| PIPE_STAGE_1 | 0 | Register after exponent compare and operand swap |
-| PIPE_STAGE_2 | 0 | Register after mantissa alignment |
-| PIPE_STAGE_3 | 0 | Register after mantissa add/subtract |
-| PIPE_STAGE_4 | 0 | Register after normalization |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| PIPE_STAGE_1 | int | 0 | Register after exponent compare and operand swap |
+| PIPE_STAGE_2 | int | 0 | Register after mantissa alignment |
+| PIPE_STAGE_3 | int | 0 | Register after mantissa add/subtract |
+| PIPE_STAGE_4 | int | 0 | Register after normalization |
 
 **Latency Formula:** `PIPE_STAGE_1 + PIPE_STAGE_2 + PIPE_STAGE_3 + PIPE_STAGE_4` cycles (each enabled stage is one register bank; all-disabled is combinational, same-cycle)
 
@@ -86,7 +86,9 @@ module math_bf16_adder #(
 | ow_invalid | Output | 1 | 1 if operation was invalid (inf - inf) |
 | ow_valid | Output | 1 | Output result is valid |
 
-## BF16 Format
+## Functionality
+
+### BF16 Format
 
 ```
 BF16: [15]=sign, [14:7]=exponent (8 bits, bias=127), [6:0]=mantissa (7 bits)
@@ -99,9 +101,7 @@ Special values:
   NaN:   0x7FC0 (exp=255, mant!=0, canonical quiet NaN)
 ```
 
-## Architecture
-
-### Block Diagram
+### Architecture
 
 ```
                     +-----------------------------------------------------+
@@ -184,8 +184,6 @@ Special values:
    - Apply RNE rounding using guard/round/sticky bits
    - Handle rounding overflow
    - Select result based on special case priority
-
-## Functionality
 
 ### Exponent Comparison and Swap
 
@@ -356,7 +354,9 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Pipeline Latency Configurations
+## Timing Characteristics
+
+### Pipeline Latency Configurations
 
 | Configuration | Latency | Use Case |
 |---------------|---------|----------|
@@ -364,6 +364,17 @@ end
 | [1,0,0,0] | 1 cycle | Balance input timing |
 | [0,0,0,1] | 1 cycle | Balance output timing |
 | [1,1,1,1] | 4 cycles | Maximum frequency |
+
+### Logic Depth by Stage
+
+| Stage | Logic Depth |
+|-------|-------------|
+| Exponent compare | ~3 gates |
+| Alignment shift | ~4 gates (log2) |
+| Mantissa add | ~5 gates |
+| CLZ + normalize | ~6 gates |
+| Rounding | ~3 gates |
+| **Total (comb)** | ~20-25 gates |
 
 ## Performance Characteristics
 
@@ -380,17 +391,6 @@ end
 | Pipeline regs (per stage) | ~50 |
 | **Total (comb)** | ~230 LUTs |
 | **Total (4-stage)** | ~430 LUTs |
-
-### Timing Characteristics
-
-| Stage | Logic Depth |
-|-------|-------------|
-| Exponent compare | ~3 gates |
-| Alignment shift | ~4 gates (log2) |
-| Mantissa add | ~5 gates |
-| CLZ + normalize | ~6 gates |
-| Rounding | ~3 gates |
-| **Total (comb)** | ~20-25 gates |
 
 ## Design Considerations
 
@@ -419,15 +419,10 @@ The sign of zero follows IEEE 754:
 
 Only Round-to-Nearest-Even (RNE) is supported. This is standard for BF16 in AI applications.
 
-## Dependencies
-
-This module instantiates:
-- **shifter_barrel** - Used for alignment shifting and normalization
-- **count_leading_zeros** - Used for determining normalization shift amount
-
 ## Common Pitfalls
 
-**Anti-Pattern 1:** Ignoring valid signals
+**Anti-Pattern 1**: Ignoring valid signals
+
 ```systemverilog
 // WRONG: Capturing result without checking valid
 result <= ow_result;  // May capture invalid data during pipeline fill
@@ -437,7 +432,8 @@ if (ow_valid)
     result <= ow_result;
 ```
 
-**Anti-Pattern 2:** Forgetting pipeline latency
+**Anti-Pattern 2**: Forgetting pipeline latency
+
 ```systemverilog
 // WRONG: Expecting immediate result with pipeline
 i_a <= operand_a;
@@ -450,7 +446,8 @@ sum <= ow_result;  // Result not ready yet!
 // With [1,1,1,1] config, wait 4 cycles for result (ow_valid pulses once; waiting 5 misses it)
 ```
 
-**Anti-Pattern 3:** Not handling special flags
+**Anti-Pattern 3**: Not handling special flags
+
 ```systemverilog
 // WRONG: Using result without checking flags
 accumulator <= accumulator + ow_result;  // May be NaN or infinity!
@@ -467,6 +464,8 @@ if (ow_valid && !ow_invalid && !ow_overflow)
 - **shifter_barrel** - Used internally for mantissa alignment
 - **count_leading_zeros** - Used internally for normalization
 
+This module instantiates **shifter_barrel** (alignment shifting and normalization) and **count_leading_zeros** (determining the normalization shift amount).
+
 ## References
 
 - Google Brain Float (BF16) specification
@@ -477,5 +476,5 @@ if (ow_valid && !ow_invalid && !ow_overflow)
 
 ## Navigation
 
-- **[<- Back to Math Index](index.md)**
-- **[<- Back to Main Documentation Index](../index.md)**
+- **[← Back to Math Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

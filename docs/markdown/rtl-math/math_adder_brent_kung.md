@@ -23,17 +23,15 @@
 
 # Brent-Kung Parallel Prefix Adder
 
-A family of high-performance parallel prefix adders using the Brent-Kung algorithm, providing O(log N) depth with minimal area overhead through asymmetric tree structure and area-efficient gray cells.
+A family of high-performance parallel prefix adders built on the Brent-Kung algorithm — O(log N) depth with minimal area overhead, achieved through an asymmetric tree structure and area-efficient gray cells.
 
 ## Overview
 
-The `math_adder_brent_kung` module family implements the Brent-Kung parallel prefix addition algorithm, which achieves O(log N) critical path depth while minimizing hardware area compared to other parallel prefix adders like Kogge-Stone. The Brent-Kung algorithm uses an asymmetric tree structure: a forward tree to compute intermediate results, followed by a reverse tree using area-efficient "gray" cells that only propagate generate signals.
+The `math_adder_brent_kung` module family implements the Brent-Kung parallel prefix addition algorithm, which achieves O(log N) critical path depth while minimizing hardware area compared to other parallel prefix adders like Kogge-Stone. The trick is the asymmetric tree: a forward tree computes intermediate results, then a reverse tree fills in the carries using area-efficient "gray" cells that only propagate generate signals.
 
 Available widths: **8-bit**, **16-bit**, **32-bit**, **64-bit**
 
-## Module Hierarchy
-
-The Brent-Kung adder family consists of:
+### Module Hierarchy
 
 **Top-Level Modules (User-Facing):**
 - `math_adder_brent_kung_008.sv` - 8-bit adder
@@ -49,7 +47,7 @@ The Brent-Kung adder family consists of:
 - `math_adder_brent_kung_grouppg_008/016/032/064.sv` - Width-specific prefix networks
 - `math_adder_brent_kung_sum.sv` - Final sum calculation
 
-## Top-Level Module Declaration
+## Module Declaration
 
 ```systemverilog
 module math_adder_brent_kung_032 #(
@@ -67,8 +65,6 @@ module math_adder_brent_kung_032 #(
 
 ## Parameters
 
-### User-Settable Parameters
-
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | N | int | 32 | Adder width in bits (8, 16, 32 or 64) |
@@ -79,26 +75,19 @@ module math_adder_brent_kung_032 #(
 - **32-bit**: Set N=32 in `math_adder_brent_kung_032`
 - **64-bit**: Set N=64 in `math_adder_brent_kung_064`
 
-**Why Fixed Widths?** The parallel prefix network structure is width-specific and optimized for each size during design. Generic parameterization would require runtime generation of the tree structure.
+**Why Fixed Widths?** The parallel prefix network structure is width-specific and optimized for each size during design. Generic parameterization would require runtime generation of the tree structure — not something a parameter can express.
 
 ## Ports
 
-### Inputs
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_a | Input | N | Operand A (addend) |
+| i_b | Input | N | Operand B (addend) |
+| i_c | Input | 1 | Carry input (0 for addition, 1 for +1 increment) |
+| ow_sum | Output | N | Sum output (A + B + Cin) |
+| ow_carry | Output | 1 | Carry output (overflow) |
 
-| Port | Width | Description |
-|------|-------|-------------|
-| i_a | N | Operand A (addend) |
-| i_b | N | Operand B (addend) |
-| i_c | 1 | Carry input (0 for addition, 1 for +1 increment) |
-
-### Outputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| ow_sum | N | Sum output (A + B + Cin) |
-| ow_carry | 1 | Carry output (overflow) |
-
-## Algorithm Overview
+## Functionality
 
 ### Parallel Prefix Addition Theory
 
@@ -150,8 +139,6 @@ Carry_out = G[N-1]  (final group generate)
 ```
 
 **Hardware**: Array of XOR gates (1 level of logic)
-
-## Architecture Details
 
 ### Three-Stage Pipeline
 
@@ -251,7 +238,7 @@ Depth 9 (Sum):      S0    S1    S2    S3    ...    S31         (XOR gates)
 - **Prefix-network depth**: 2 x log2(N) - 2 cell levels
 - **Total depth**: 2 x log2(N) cell levels, adding the bitwise PG stage and the sum XOR stage
 - **Black cells**: Used in the forward tree (outputs both P and G)
-- **Gray cells**: Used where only G is needed further (outputs only G, saves area); the reverse tree -- including the [31:0] root -- is gray-only. The RTL confirms: the root instantiates `math_adder_brent_kung_gray`, not a black cell
+- **Gray cells**: Used where only G is needed further (outputs only G, saves area); the reverse tree — including the [31:0] root — is gray-only. The RTL confirms: the root instantiates `math_adder_brent_kung_gray`, not a black cell
 
 Measured from the generated prefix networks (`math_adder_brent_kung_grouppg_*.sv`):
 
@@ -264,63 +251,9 @@ Measured from the generated prefix networks (`math_adder_brent_kung_grouppg_*.sv
 
 : Brent-Kung prefix network depth and cell counts, counted from the RTL
 
-Black cells follow `N - log2(N) - 1` and gray cells `N`. Count them yourself with
+Black cells follow `N - log2(N) - 1` and gray cells `N`. Don't take my word for
+it — count them yourself with
 `grep -c math_adder_brent_kung_black rtl/math/math_adder_brent_kung_grouppg_032.sv`.
-
-## Timing Characteristics
-
-### Combinational Delay Analysis
-
-Logic levels below are cell levels counted from the RTL. The delay and frequency
-columns are rough estimates only -- no synthesis run backs them, and they will
-move substantially with technology, constraints and effort level.
-
-| Width | Logic Levels | Est. Delay (ns) | Est. Max Frequency |
-|-------|--------------|-----------------|--------------------|
-| 8-bit | 6 | ~2.0 | ~500 MHz |
-| 16-bit | 8 | ~2.5 | ~400 MHz |
-| 32-bit | 10 | ~3.0 | ~333 MHz |
-| 64-bit | 12 | ~3.5 | ~285 MHz |
-
-: Brent-Kung timing, logic levels measured and delays estimated
-
-**Logic Level Breakdown (32-bit):**
-1. Bitwise PG: 1 level (AND/XOR)
-2. Forward tree: 4 levels (levels containing black cells)
-3. Reverse tree: 4 levels (gray cells only)
-4. Sum calculation: 1 level (XOR)
-5. **Total**: 10 levels
-
-**Comparison to Other Adders:**
-
-| Adder Type | Logic Depth | Area | Best Use Case |
-|------------|-------------|------|---------------|
-| Ripple Carry | O(N) | Minimal | Low-speed, area-critical |
-| Carry Lookahead | O(log N) | Medium | Moderate speed |
-| **Brent-Kung** | **O(log N)** | **Medium** | **Balanced speed/area** |
-| Kogge-Stone | O(log N) | Maximum | Maximum speed (datapath) |
-
-### Critical Paths
-
-1. **Forward Tree Path**: i_a/i_b -> PG -> black cells (prefix levels 1-4) -> Group G
-2. **Reverse Tree Path**: Group G -> gray cells (prefix levels 5-8) -> Final G
-3. **Sum Path**: Final G → XOR with P → ow_sum
-
-**Optimization Tip**: Pipeline between stages for >1 GHz operation:
-```systemverilog
-// Pipeline registers (example for 2-stage pipeline)
-logic [N-1:0] r_p_stage1, r_g_stage1;
-logic [N-1:0] r_sum;
-
-always_ff @(posedge clk) begin
-    // Stage 1: PG generation + first half of prefix tree
-    r_p_stage1 <= ow_p;
-    r_g_stage1 <= partial_gg;  // Intermediate prefix result
-
-    // Stage 2: Second half of prefix tree + sum
-    r_sum <= ow_sum;
-end
-```
 
 ## Usage Examples
 
@@ -449,6 +382,61 @@ initial begin
 end
 ```
 
+## Timing Characteristics
+
+### Combinational Delay Analysis
+
+Logic levels below are cell levels counted from the RTL. The delay and frequency
+columns are rough estimates only — no synthesis run backs them, and they will
+move substantially with technology, constraints and effort level.
+
+| Width | Logic Levels | Est. Delay (ns) | Est. Max Frequency |
+|-------|--------------|-----------------|--------------------|
+| 8-bit | 6 | ~2.0 | ~500 MHz |
+| 16-bit | 8 | ~2.5 | ~400 MHz |
+| 32-bit | 10 | ~3.0 | ~333 MHz |
+| 64-bit | 12 | ~3.5 | ~285 MHz |
+
+: Brent-Kung timing, logic levels measured and delays estimated
+
+**Logic Level Breakdown (32-bit):**
+1. Bitwise PG: 1 level (AND/XOR)
+2. Forward tree: 4 levels (levels containing black cells)
+3. Reverse tree: 4 levels (gray cells only)
+4. Sum calculation: 1 level (XOR)
+5. **Total**: 10 levels
+
+**Comparison to Other Adders:**
+
+| Adder Type | Logic Depth | Area | Best Use Case |
+|------------|-------------|------|---------------|
+| Ripple Carry | O(N) | Minimal | Low-speed, area-critical |
+| Carry Lookahead | O(log N) | Medium | Moderate speed |
+| **Brent-Kung** | **O(log N)** | **Medium** | **Balanced speed/area** |
+| Kogge-Stone | O(log N) | Maximum | Maximum speed (datapath) |
+
+### Critical Paths
+
+1. **Forward Tree Path**: i_a/i_b -> PG -> black cells (prefix levels 1-4) -> Group G
+2. **Reverse Tree Path**: Group G -> gray cells (prefix levels 5-8) -> Final G
+3. **Sum Path**: Final G → XOR with P → ow_sum
+
+**Optimization Tip**: Pipeline between stages for >1 GHz operation:
+```systemverilog
+// Pipeline registers (example for 2-stage pipeline)
+logic [N-1:0] r_p_stage1, r_g_stage1;
+logic [N-1:0] r_sum;
+
+always_ff @(posedge clk) begin
+    // Stage 1: PG generation + first half of prefix tree
+    r_p_stage1 <= ow_p;
+    r_g_stage1 <= partial_gg;  // Intermediate prefix result
+
+    // Stage 2: Second half of prefix tree + sum
+    r_sum <= ow_sum;
+end
+```
+
 ## Performance Characteristics
 
 ### Resource Utilization
@@ -487,10 +475,10 @@ derived from them, not synthesis results.
 | Kogge-Stone | 8.0× (fastest) | 7.0× (largest) | O(log N) |
 
 **When to Use Brent-Kung:**
-- ✅ **Balanced designs**: Need good speed without excessive area
-- ✅ **Mid-range frequency**: 200-500 MHz targets
-- ✅ **FPGA implementations**: LUT utilization matters
-- ✅ **Multiple adders**: Area budget shared across many units
+- **Balanced designs**: Need good speed without excessive area
+- **Mid-range frequency**: 200-500 MHz targets
+- **FPGA implementations**: LUT utilization matters
+- **Multiple adders**: Area budget shared across many units
 
 **When to Use Alternatives:**
 - Use **Ripple Carry** for: Low-speed, area-critical (e.g., control logic)
@@ -534,7 +522,7 @@ derived from them, not synthesis results.
 
 ### Verification Strategy
 
-Test suite location: `val/math/test_math_adder_brent_kung.py` -- one parameterized
+Test suite location: `val/math/test_math_adder_brent_kung.py` — one parameterized
 test covering every width, not one file per width.
 
 **Key Test Scenarios:**
@@ -561,7 +549,7 @@ by a direct adder test.
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1**: Using wrong width variant
+**Anti-Pattern 1**: Using wrong width variant
 
 ```systemverilog
 // WRONG: Trying to parameterize to 24-bit
@@ -578,7 +566,7 @@ math_adder_brent_kung_032 #(.N(32)) u_add (
 logic [23:0] sum = sum_32[23:0];  // Truncate
 ```
 
-❌ **Anti-Pattern 2**: Ignoring carry output for signed arithmetic
+**Anti-Pattern 2**: Ignoring carry output for signed arithmetic
 
 ```systemverilog
 // WRONG: Using carry for signed overflow
@@ -593,7 +581,7 @@ assign overflow = (a_signed[31] == b_signed[31]) &&
                   (sum[31] != a_signed[31]);
 ```
 
-❌ **Anti-Pattern 3**: Expecting registered outputs
+**Anti-Pattern 3**: Expecting registered outputs
 
 ```systemverilog
 // WRONG: Assuming outputs are registered
@@ -608,7 +596,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-❌ **Anti-Pattern 4**: Chaining without considering timing
+**Anti-Pattern 4**: Chaining without considering timing
 
 ```systemverilog
 // WRONG: Long chain of adders in one cycle

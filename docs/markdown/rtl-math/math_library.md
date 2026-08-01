@@ -31,25 +31,11 @@
 
 ## Overview
 
-The `rtl/math/` family is a ~170-module arithmetic library covering
-integer add/subtract/multiply and IEEE-754-style floating-point (bf16, fp16,
-fp32, fp8) arithmetic, comparison, conversion, and machine-learning activation
-functions. The great majority of these modules are **code-generated** by the
-Python framework under `bin/rtl_generators/`, so the library is best understood
-by **operation** and, within each operation, by the **methodology** (algorithm)
-used — rather than as a flat list of 170 files.
+`rtl/math/` is a ~170-module arithmetic library: integer add/subtract/multiply, IEEE-754-style floating-point (bf16, fp16, fp32, fp8) arithmetic, comparison, conversion, and machine-learning activation functions. Almost all of it is **code-generated** by the Python framework under `bin/rtl_generators/` — and that tells you how to read it. Don't approach this as a flat list of 170 files; you'll drown. Read it by **operation** and, within each operation, by the **methodology** (algorithm) that implements it.
 
-This document is the organizing map: each operation lists its methodologies, the
-research each is based on, the module name pattern, and a link to the detailed
-per-methodology doc. The floating-point cores are themselves built from the
-integer methodologies below (Dadda
-trees for mantissa multiplies), so the two halves of the library share a
-foundation.
+This document is the organizing map. Each operation lists its methodologies, the research each is based on, the module name pattern, and a link to the detailed per-methodology doc. The floating-point cores are themselves built from the integer methodologies below — Dadda trees for the mantissa multiplies — so the two halves of the library share a foundation.
 
-**Naming convention:** width-parameterized generated instances carry the width
-suffix (`_008`, `_016`, `_032`, …) and/or the format tag (`bf16`, `fp16`,
-`fp32`, `fp8_e4m3`, `fp8_e5m2`, `ieee754_2008_*`). One methodology doc covers all
-of its width/format instances.
+**Naming convention:** width-parameterized generated instances carry the width suffix (`_008`, `_016`, `_032`, …) and/or the format tag (`bf16`, `fp16`, `fp32`, `fp8_e4m3`, `fp8_e5m2`, `ieee754_2008_*`). One methodology doc covers all of its width/format instances.
 
 ---
 
@@ -67,10 +53,10 @@ of its width/format instances.
 | Add/subtract | `math_addsub_full_nbit` | Two's-complement add/sub select | [math_addsub.md](math_addsub.md) |
 
 **Parallel-prefix trade-off:** all three prefix adders compute the carry
-network in O(log n) depth but differ in the area/wiring/fan-out balance —
-Brent-Kung minimizes cells/wiring (more depth), Kogge-Stone minimizes depth
-(most wiring), and Han-Carlson is the middle ground (a Kogge-Stone/Brent-Kung
-hybrid). See the [prefix-cell](math_prefix_cell.md) and
+network in O(log n) depth — what differs is where each spends its area, wiring,
+and fan-out budget. Brent-Kung minimizes cells/wiring (more depth), Kogge-Stone
+minimizes depth (most wiring), and Han-Carlson is the middle ground (a
+Kogge-Stone/Brent-Kung hybrid). See the [prefix-cell](math_prefix_cell.md) and
 [gray-cell](math_prefix_cell_gray.md) docs for the shared generate/propagate
 building blocks.
 
@@ -89,22 +75,23 @@ building blocks.
 | **Wallace tree** | `math_multiplier_wallace_tree_{008,016,032}`, `math_multiplier_wallace_tree_csa_{008,016,032}` | Wallace, C.S. (1964), "A Suggestion for a Fast Multiplier," *IEEE Trans. Electronic Computers* EC-13(1):14-17 | [math_multiplier_wallace_tree.md](math_multiplier_wallace_tree.md) |
 
 **Dadda vs Wallace:** both reduce the partial-product matrix to two rows in
-O(log n) depth before a final carry-propagate add, but Dadda uses the *minimum*
-number of (3:2) counters that still meets the height schedule (fewer gates,
-slightly more wiring), while Wallace reduces as early/greedily as possible. The
-`_csa` Wallace variant reduces with explicit carry-save adders. The `4to2`
-variants use 4:2 compressors (see [math_compressor_4to2.md](math_compressor_4to2.md))
-and are the building block the floating-point mantissa multipliers reuse.
+O(log n) depth before a final carry-propagate add. The difference is the
+reduction schedule: Dadda uses the *minimum* number of (3:2) counters that
+still meets the height schedule (fewer gates, slightly more wiring), while
+Wallace reduces as early and greedily as possible. The `_csa` Wallace variant
+reduces with explicit carry-save adders. The `4to2` variants use 4:2
+compressors (see [math_compressor_4to2.md](math_compressor_4to2.md)) and are
+the building block the floating-point mantissa multipliers reuse.
 
 ---
 
 ## Floating-Point Arithmetic
 
-IEEE-754-2008 single (fp32) and half (fp16) plus the ML-oriented narrow formats
-bfloat16 (bf16) and 8-bit (fp8 `e4m3` / `e5m2`). Each format's core operators are
-assembled from the integer methodologies above: the **exponent path** uses a
-a behavioral 10-bit adder (not a prefix-adder instance) and the **mantissa
-multiply** uses a Dadda 4:2 tree.
+IEEE-754-2008 single (fp32) and half (fp16), plus the ML-oriented narrow
+formats bfloat16 (bf16) and 8-bit (fp8 `e4m3` / `e5m2`). Each format's core
+operators are assembled from the integer methodologies above: the **exponent
+path** uses a behavioral 10-bit adder (not a prefix-adder instance) and the
+**mantissa multiply** uses a Dadda 4:2 tree.
 
 ### Formats
 
@@ -141,9 +128,10 @@ Detailed per-format coverage: [math_fp16_modules.md](math_fp16_modules.md),
 ### Conversion
 
 `math_{src}_to_{dst}` — all bidirectional conversions among bf16 / fp16 / fp32 /
-fp8_e4m3 / fp8_e5m2, plus integer bridges (`math_bf16_to_int`, `math_int_to_bf16`,
-`math_bf16_scale_to_int8`). Each does exponent re-bias + mantissa round/truncate
-with correct saturation/subnormal handling for the destination format.
+fp8_e4m3 / fp8_e5m2, plus the integer bridges (`math_bf16_to_int`,
+`math_int_to_bf16`, `math_bf16_scale_to_int8`). Each does exponent re-bias plus
+mantissa round/truncate with correct saturation and subnormal handling for the
+destination format.
 
 ### Comparison & range
 
@@ -154,8 +142,8 @@ ordering), pairwise and 8-wide reduction trees, and clamp-to-range.
 ### Activation functions (ML)
 
 `math_*_{relu, leaky_relu, gelu, silu, sigmoid, tanh, softmax_8}` plus the
-transcendental helpers `math_bf16_{exp2, log2, log2_scale}`. These implement the
-standard neural-network activations directly in each low-precision format
+transcendental helpers `math_bf16_{exp2, log2, log2_scale}`. These implement
+the standard neural-network activations directly in each low-precision format
 (piecewise / polynomial / LUT approximations sized to the format's mantissa),
 so an accelerator can keep activations in bf16/fp8 without promoting to fp32.
 
@@ -163,8 +151,8 @@ so an accelerator can keep activations in bf16/fp8 without promoting to fp32.
 
 ## Generation Automation (`bin/`)
 
-Almost every module above is emitted by a Python code-generator, so the RTL is
-regenerated rather than hand-edited. Two entry points:
+Almost every module above is emitted by a Python code-generator — the RTL is
+regenerated, not hand-edited. Two entry points:
 
 ### Integer arithmetic — `bin/math_generate.py`
 
@@ -175,9 +163,9 @@ python bin/math_generate.py --type <brent_kung|dadda|wallace_fa|wallace_csa> \
 ```
 
 `bin/math_generate.sh` is the batch driver that sweeps the standard widths
-(e.g. Brent-Kung at 8/16/32) into `math_outputs/`. The `--type` values map to the
-methodologies: `brent_kung` (prefix adder), `dadda` / `wallace_fa` / `wallace_csa`
-(the three multiplier reduction schemes). The emitters live in
+(e.g. Brent-Kung at 8/16/32) into `math_outputs/`. The `--type` values map to
+the methodologies: `brent_kung` (prefix adder), `dadda` / `wallace_fa` /
+`wallace_csa` (the three multiplier reduction schemes). The emitters live in
 `bin/rtl_generators/utils` (`write_bk` / `write_dadda` / `write_wallace`) and
 `bin/rtl_generators/{adders,multipliers}/`.
 
@@ -207,11 +195,12 @@ activation / comparison / conversion families are emitted by
 
 ### Regeneration rule
 
-These are generated files. Per the repo's Critical Rule #0, when a **generator**
-changes you must delete and regenerate **all** affected outputs (not a single
-width/format) and re-run the tests, because widths/cells share interfaces and a
-partial regen creates silent interface mismatches. Do not hand-edit a
-`math_*.sv` that a generator owns — change the generator and regenerate.
+These are generated files, and the repo's Critical Rule #0 is not negotiable.
+When a **generator** changes, you delete and regenerate **all** affected
+outputs — not a single width or format — and re-run the tests. Widths and cells
+share interfaces, so a partial regen buys you silent interface mismatches that
+surface three modules downstream. And never hand-edit a `math_*.sv` that a
+generator owns. Change the generator, regenerate, move on.
 
 ---
 

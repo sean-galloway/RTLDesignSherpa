@@ -31,11 +31,11 @@
 > `math_adder_han_carlson`.
 
 
-A parameterized carry lookahead adder supporting arbitrary bit widths with O(N) depth using generate and propagate logic to reduce carry propagation delay compared to ripple carry adders.
+A parameterized carry lookahead adder supporting arbitrary bit widths with O(N) depth, using generate and propagate logic to cut carry propagation delay compared to ripple carry adders.
 
 ## Overview
 
-The `math_adder_pg_chain` module implements a carry lookahead adder (CLA) with parameterizable width. While not a true parallel-prefix lookahead (which would have O(log N) depth), this implementation uses propagate (P) and generate (G) signals to compute carries more efficiently than a simple ripple-carry adder. It provides a good balance between speed and area for small to medium width additions (4-16 bits).
+The `math_adder_pg_chain` module implements a carry lookahead adder (CLA) with parameterizable width. It's not a true parallel-prefix lookahead (which would have O(log N) depth), but it uses propagate (P) and generate (G) signals to compute carries more efficiently than a simple ripple-carry adder. Think of it as a good middle shelf: a sensible balance between speed and area for small to medium width additions (4-16 bits).
 
 ## Module Declaration
 
@@ -53,34 +53,25 @@ module math_adder_pg_chain #(
 
 ## Parameters
 
-### User-Settable Parameters
-
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | N | int | 4 | Adder width in bits (range: 1-64, typical: 4-16) |
 
 **Width Guidelines:**
 - **Typical**: 4, 8, 16 bits (good speed/area balance)
-- **Minimum**: 1 bit (degenerates to a single full adder -- it has a carry input, which a half adder lacks)
+- **Minimum**: 1 bit (degenerates to a single full adder — it has a carry input, which a half adder lacks)
 - **Maximum**: 64 bits (practical synthesis limit, but consider parallel prefix for >16 bits)
 
 
 ## Ports
 
-### Inputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| i_a | N | Operand A (addend) |
-| i_b | N | Operand B (addend) |
-| i_c | 1 | Carry input (0 for addition, 1 for +1 increment) |
-
-### Outputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| ow_sum | N | Sum output (A + B + Cin) |
-| ow_carry | 1 | Carry output (overflow) |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_a | Input | N | Operand A (addend) |
+| i_b | Input | N | Operand B (addend) |
+| i_c | Input | 1 | Carry input (0 for addition, 1 for +1 increment) |
+| ow_sum | Output | N | Sum output (A + B + Cin) |
+| ow_carry | Output | 1 | Carry output (overflow) |
 
 ## Functionality
 
@@ -143,30 +134,6 @@ end
 // Final carry out
 ow_carry = w_c[N];
 ```
-
-### Timing Analysis
-
-**Logic Depth:**
-- **P/G generation**: 1 level (AND/XOR)
-- **Carry chain**: N levels (each carry depends on previous)
-- **Sum calculation**: 1 level (XOR)
-- **Total**: N + 2 levels
-
-**Critical Path:**
-```
-i_a/i_b → P[0]/G[0] → C[1] → C[2] → ... → C[N-1] → C[N] → Sum[N-1]
-```
-
-### Comparison to Other Adders
-
-| Adder Type | Logic Depth | Area | Best Use Case |
-|------------|-------------|------|---------------|
-| Ripple Carry | O(N) | Minimal | N ≤ 4, area-critical |
-| **CLA (this)** | **O(N)** | **Small** | **4 ≤ N ≤ 16, balanced** |
-| Brent-Kung | O(log N) | Medium | N ≥ 16, speed-critical |
-| Kogge-Stone | O(log N) | Large | N ≥ 32, max speed |
-
-**Note:** True carry lookahead adders (with group generate/propagate) can achieve O(log N) depth but require more complex logic. This implementation is a hybrid approach optimized for simplicity and area.
 
 ## Usage Examples
 
@@ -333,6 +300,19 @@ assign loop_done = (loop_counter == 8'd99);
 
 ## Timing Characteristics
 
+### Timing Analysis
+
+**Logic Depth:**
+- **P/G generation**: 1 level (AND/XOR)
+- **Carry chain**: N levels (each carry depends on previous)
+- **Sum calculation**: 1 level (XOR)
+- **Total**: N + 2 levels
+
+**Critical Path:**
+```
+i_a/i_b → P[0]/G[0] → C[1] → C[2] → ... → C[N-1] → C[N] → Sum[N-1]
+```
+
 ### Combinational Delay Analysis
 
 | Width | Logic Levels | Typical Delay (ns) @ 1.0V | Max Frequency |
@@ -369,7 +349,7 @@ i_a[i]/i_b[i] → P[i] → ow_sum[i]  (depends on C[i] from carry chain)
 | 16-bit | 3.0× | 0.35× |
 | 32-bit | 5.7× | 0.19× |
 
-**Observation:** Delay scales linearly with width → Consider parallel prefix adders (Brent-Kung, Kogge-Stone) for N > 16.
+**Observation:** Delay scales linearly with width. For N > 16, that's your cue to reach for a parallel prefix adder (Brent-Kung, Kogge-Stone).
 
 ## Performance Characteristics
 
@@ -388,6 +368,17 @@ i_a[i]/i_b[i] → P[i] → ow_sum[i]  (depends on C[i] from carry chain)
 - Sum calculation: 8 × 1 gate = 8 LUTs (XOR)
 - **Total**: ~24 LUTs (may optimize to fewer)
 
+### Comparison to Other Adders
+
+| Adder Type | Logic Depth | Area | Best Use Case |
+|------------|-------------|------|---------------|
+| Ripple Carry | O(N) | Minimal | N ≤ 4, area-critical |
+| **CLA (this)** | **O(N)** | **Small** | **4 ≤ N ≤ 16, balanced** |
+| Brent-Kung | O(log N) | Medium | N ≥ 16, speed-critical |
+| Kogge-Stone | O(log N) | Large | N ≥ 32, max speed |
+
+**Note:** True carry lookahead adders (with group generate/propagate) can achieve O(log N) depth but require more complex logic. This implementation is a hybrid approach optimized for simplicity and area.
+
 ### Speed vs Area Trade-offs
 
 | Adder Architecture | Relative Speed | Relative Area | Best Width Range |
@@ -401,7 +392,7 @@ i_a[i]/i_b[i] → P[i] → ow_sum[i]  (depends on C[i] from carry chain)
 
 ### When to Use This Adder
 
-✅ **Appropriate Use Cases:**
+**Appropriate Use Cases:**
 - Small to medium width additions (4-16 bits)
 - Area-constrained designs with moderate speed requirements
 - ALU components in simple processors
@@ -409,7 +400,7 @@ i_a[i]/i_b[i] → P[i] → ow_sum[i]  (depends on C[i] from carry chain)
 - Simple calculators or counters
 - FPGA designs with limited LUT budget
 
-❌ **Consider Alternatives When:**
+**Consider Alternatives When:**
 - **N > 16**: Use Brent-Kung or Kogge-Stone for better speed
 - **N ≤ 4**: Use ripple carry for minimal area
 - **Critical datapath**: Use parallel prefix adders (Brent-Kung/Kogge-Stone)
@@ -462,9 +453,9 @@ The module includes a Verilator pragma:
 /* verilator lint_on UNOPTFLAT */
 ```
 
-**Reason:** Carry chain creates combinational loops that Verilator warns about but are intentional for CLA operation.
+**Reason:** The carry chain creates combinational loops that Verilator warns about but are intentional for CLA operation.
 
-## Verification Strategy
+### Verification Strategy
 
 Test suite location: `val/math/test_math_adder_pg_chain.py`
 
@@ -483,7 +474,7 @@ pytest val/math/test_math_adder_pg_chain.py -v
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1**: Using for very wide additions without pipelining
+**Anti-Pattern 1**: Using for very wide additions without pipelining
 
 ```systemverilog
 // WRONG: 64-bit addition with CLA (poor performance)
@@ -495,7 +486,7 @@ math_adder_brent_kung_032 u_add_low (...)  // Lower 32 bits
 math_adder_brent_kung_032 u_add_high (...)  // Upper 32 bits
 ```
 
-❌ **Anti-Pattern 2**: Expecting registered outputs
+**Anti-Pattern 2**: Expecting registered outputs
 
 ```systemverilog
 // WRONG: Assuming outputs are registered
@@ -510,7 +501,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-❌ **Anti-Pattern 3**: Chaining adders without pipelining
+**Anti-Pattern 3**: Chaining adders without pipelining
 
 ```systemverilog
 // WRONG: Long chain without pipeline
@@ -530,7 +521,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-❌ **Anti-Pattern 4**: Ignoring synthesis warnings
+**Anti-Pattern 4**: Ignoring synthesis warnings
 
 ```verilog
 // Synthesis warning: "Combinational loop detected"

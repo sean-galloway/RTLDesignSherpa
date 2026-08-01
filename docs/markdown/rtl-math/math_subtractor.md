@@ -23,7 +23,7 @@
 
 # Binary Subtractors
 
-A family of binary subtractor modules (half, full, ripple, and carry lookahead) for computing A - B using direct subtraction logic. Modern designs typically use adders with two's complement instead, but these modules are useful for educational purposes and specific applications.
+A family of binary subtractor modules—half, full, ripple, and carry lookahead—that compute A - B with dedicated subtraction logic. Modern designs typically subtract with an adder and two's complement instead, but these modules remain useful for educational purposes and specific applications.
 
 ## Overview
 
@@ -34,7 +34,7 @@ This document covers the complete subtractor module family:
 - **math_subtractor_ripple_carry** - N-bit ripple borrow subtractor (equivalent)
 - **math_subtractor_carry_lookahead** - N-bit subtractor with lookahead logic
 
-**Modern Alternative:** Most designs use adders for subtraction via two's complement: `A - B = A + (~B) + 1`. This approach reuses existing adder hardware.
+**Modern Alternative:** Most designs subtract with an adder via two's complement: `A - B = A + (~B) + 1`. Same result, and it reuses adder hardware you already have.
 
 ## Module Declarations
 
@@ -140,8 +140,8 @@ No parameters (fixed single-bit operation).
 
 ### N-bit Subtractor Ports
 
-The three N-bit subtractors do **not** share a port list -- check which one
-you are instantiating. `math_subtractor_full_nbit` shares only `i_a`/`i_b`
+The three N-bit subtractors do **not** share a port list—check which one
+you're instantiating. `math_subtractor_full_nbit` shares only `i_a`/`i_b`
 with the other two: its borrow in is `i_b_in` (not `i_borrow_in`) and its
 outputs are `ow_d`/`ow_b` only (no `ow_difference`/`ow_carry_out` aliases).
 
@@ -165,7 +165,7 @@ outputs are `ow_d`/`ow_b` only (no `ow_difference`/`ow_carry_out` aliases).
 | ow_difference | Output | N | Difference vector (A - B - Bin) |
 | ow_carry_out | Output | 1 | Final borrow out (carry out) |
 
-`math_subtractor_carry_lookahead` -- same inputs, but every output is exposed
+`math_subtractor_carry_lookahead`—same inputs, but every output is exposed
 twice under two names (`assign ow_d = ow_difference; assign ow_b = ow_borrow_out;`):
 
 | Port | Direction | Width | Description |
@@ -182,7 +182,7 @@ twice under two names (`assign ow_d = ow_difference; assign ow_b = ow_borrow_out
 
 ### Half Subtractor
 
-Subtracts one bit from another without borrow input:
+Subtracts one bit from another, with no borrow input:
 
 **Logic Equations:**
 ```
@@ -206,7 +206,7 @@ assign o_b = ~i_a & i_b;        // Borrow when A < B
 
 ### Full Subtractor
 
-Subtracts two bits with borrow input:
+Subtracts two bits with a borrow input:
 
 **Logic Equations:**
 ```
@@ -235,7 +235,7 @@ assign ow_b = (~i_a & i_b) | (~(i_a ^ i_b) & i_b_in);
 
 ### N-bit Ripple Borrow Subtractor
 
-Chains N full subtractors with borrow propagating from LSB to MSB:
+Chains N full subtractors, borrow propagating from LSB to MSB:
 
 ```
 Bit 0:   FS(A[0], B[0], Bin)     → D[0], B[0]
@@ -365,7 +365,7 @@ logic [15:0] diff_16 = {diff_high, diff_low};
 | Ripple (N-bit) | 2N | ~0.4N |
 | CLA (N-bit) | O(N) | Similar to ripple (simplified) |
 
-**Note:** Subtractors have same timing as equivalent adders.
+**Note:** Subtractors have the same timing as the equivalent adders.
 
 ## Performance Characteristics
 
@@ -395,10 +395,10 @@ logic [15:0] diff_16 = {diff_high, diff_low};
 **Modern:** Almost all designs use adders with two's complement:
 
 **Advantages:**
-- ✅ Hardware reuse (one adder for both add/subtract)
-- ✅ Smaller area (no duplicate logic)
-- ✅ Standard practice (easier to understand/maintain)
-- ✅ ALU simplicity (single arithmetic unit)
+- Hardware reuse (one adder for both add/subtract)
+- Smaller area (no duplicate logic)
+- Standard practice (easier to understand/maintain)
+- ALU simplicity (single arithmetic unit)
 
 **When to Use Direct Subtractors:**
 - Educational/demonstration purposes
@@ -439,7 +439,7 @@ endmodule
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1**: Using subtractors instead of adders
+**Anti-Pattern 1**: Using subtractors instead of adders
 
 ```systemverilog
 // DISCOURAGED: Separate adder and subtractor
@@ -455,7 +455,7 @@ math_adder_ripple_carry u_alu (
 );
 ```
 
-❌ **Anti-Pattern 2**: Ignoring borrow for underflow detection
+**Anti-Pattern 2**: Ignoring borrow for underflow detection
 
 ```systemverilog
 // WRONG: Ignoring borrow output
@@ -474,7 +474,7 @@ math_subtractor_ripple_carry u_sub (
 );
 ```
 
-❌ **Anti-Pattern 3**: Incorrect borrow interpretation
+**Anti-Pattern 3**: Incorrect borrow interpretation
 
 ```systemverilog
 // WRONG: Borrow means A < B, not A > B

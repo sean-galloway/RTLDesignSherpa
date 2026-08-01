@@ -23,7 +23,7 @@
 
 # BF16 Fused Multiply-Add (FMA)
 
-A BF16 Fused Multiply-Add unit with FP32 accumulator, designed for AI training workloads where maintaining precision during accumulation is critical.
+A BF16 Fused Multiply-Add unit with an FP32 accumulator, built for AI training workloads where holding precision through accumulation is critical.
 
 ## Overview
 
@@ -421,7 +421,7 @@ AI training requires maintaining precision during gradient accumulation:
 
 ### Fusion Benefits
 
-Fused operation provides better accuracy than separate multiply-then-add:
+A fused operation is more accurate than separate multiply-then-add:
 - **Unfused:** `temp = A * B` (rounded), `result = temp + C` (rounded) - 2 rounding errors
 - **Fused:** `result = A * B + C` (single rounding) - 1 rounding error
 - Extra precision is maintained throughout the pipeline

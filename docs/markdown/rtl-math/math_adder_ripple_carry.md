@@ -23,11 +23,11 @@
 
 # Ripple Carry Adder
 
-A parameterized N-bit ripple carry adder built from a chain of full adders, providing minimal area at the cost of O(N) propagation delay. This is the simplest and most area-efficient multi-bit adder architecture.
+A parameterized N-bit ripple carry adder built from a chain of full adders — minimal area at the cost of O(N) propagation delay. This is the simplest and most area-efficient multi-bit adder architecture you'll find here.
 
 ## Overview
 
-The `math_adder_ripple_carry` module implements the classic ripple carry adder where carry propagates sequentially from LSB to MSB through a chain of full adders. While this results in O(N) delay (slowest among adder architectures), it offers the smallest area and simplest implementation, making it ideal for low-speed, area-critical applications.
+The `math_adder_ripple_carry` module implements the classic ripple carry adder, where the carry propagates sequentially from LSB to MSB through a chain of full adders. That gives you O(N) delay — the slowest of the adder architectures — but the smallest area and the simplest implementation. For low-speed, area-critical work, that's often the right trade.
 
 ## Module Declaration
 
@@ -47,8 +47,6 @@ module math_adder_ripple_carry #(
 
 ## Parameters
 
-### User-Settable Parameters
-
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | N | int | 4 | Adder width in bits (range: 1-64, typical: 2-8) |
@@ -61,20 +59,13 @@ module math_adder_ripple_carry #(
 
 ## Ports
 
-### Inputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| i_a | N | Operand A (addend) |
-| i_b | N | Operand B (addend) |
-| i_c | 1 | Carry input (0 for addition, 1 for +1 increment) |
-
-### Outputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| ow_sum | N | Sum output (A + B + Cin) |
-| ow_carry | 1 | Carry output (final carry from MSB) |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_a | Input | N | Operand A (addend) |
+| i_b | Input | N | Operand B (addend) |
+| i_c | Input | 1 | Carry input (0 for addition, 1 for +1 increment) |
+| ow_sum | Output | N | Sum output (A + B + Cin) |
+| ow_carry | Output | 1 | Carry output (final carry from MSB) |
 
 ## Functionality
 
@@ -144,31 +135,6 @@ endgenerate
 // Final carry out
 assign ow_carry = w_c[N-1];
 ```
-
-### Timing Analysis
-
-**Logic Depth:**
-- **Per bit**: 2 levels (XOR for sum + Carry logic)
-- **Carry chain**: N × 2 levels (sequential dependency)
-- **Total**: 2N levels
-
-**Critical Path (Carry Propagation):**
-```
-i_c → FA[0].Cout → FA[1].Cout → ... → FA[N-1].Cout → ow_carry
-```
-
-**Why It's Slow:** The critical path traverses all N full adders sequentially. Each full adder adds 2 gate delays, resulting in total delay proportional to N.
-
-### Comparison to Other Adders
-
-| Adder Type | Logic Depth | Area (relative) | Speed (relative) | Best Use Case |
-|------------|-------------|-----------------|------------------|---------------|
-| **Ripple Carry** | **O(N)** | **1.0× (min)** | **1.0× (slowest)** | **N ≤ 8, area-critical** |
-| Carry Lookahead | O(N) | 1.2× | 1.5× | 4 ≤ N ≤ 16 |
-| Brent-Kung | O(log N) | 4.0× | 4.0× | 16 ≤ N ≤ 32 |
-| Kogge-Stone | O(log N) | 6.0× | 6.0× | N ≥ 32, critical path |
-
-**Key Advantage:** Smallest possible adder area - only N full adders, no additional logic.
 
 ## Usage Examples
 
@@ -295,6 +261,20 @@ math_adder_ripple_carry #(.N(8)) u_alu (
 
 ## Timing Characteristics
 
+### Timing Analysis
+
+**Logic Depth:**
+- **Per bit**: 2 levels (XOR for sum + Carry logic)
+- **Carry chain**: N × 2 levels (sequential dependency)
+- **Total**: 2N levels
+
+**Critical Path (Carry Propagation):**
+```
+i_c → FA[0].Cout → FA[1].Cout → ... → FA[N-1].Cout → ow_carry
+```
+
+**Why It's Slow:** The critical path traverses all N full adders sequentially. Each full adder adds 2 gate delays, so total delay grows linearly with N. No way around that in this topology.
+
 ### Combinational Delay Analysis
 
 | Width | Logic Levels | Typical Delay (ns) @ 1.0V | Max Frequency |
@@ -335,7 +315,7 @@ MSB (Sum[7]): Depends on C[6] → 16 levels (slowest)
 | 16-bit | 4.0× | 0.25× |
 | 32-bit | 8.0× | 0.125× |
 
-**Why Linear Scaling is Bad:** For wide adders, delay becomes prohibitive. Consider faster architectures for N > 8.
+**Why Linear Scaling is Bad:** For wide adders, delay becomes prohibitive. Use a faster architecture for N > 8.
 
 ## Performance Characteristics
 
@@ -352,7 +332,18 @@ MSB (Sum[7]): Depends on C[6] → 16 levels (slowest)
 - 8 full adders: 8 × 2 gates = 16 LUTs (XOR + Carry logic)
 - **Total**: ~16 LUTs (absolute minimum for 8-bit adder)
 
-**Why It's Smallest:** No additional logic beyond full adders - just direct carry chain.
+**Why It's Smallest:** No additional logic beyond full adders — just a direct carry chain.
+
+### Comparison to Other Adders
+
+| Adder Type | Logic Depth | Area (relative) | Speed (relative) | Best Use Case |
+|------------|-------------|-----------------|------------------|---------------|
+| **Ripple Carry** | **O(N)** | **1.0× (min)** | **1.0× (slowest)** | **N ≤ 8, area-critical** |
+| Carry Lookahead | O(N) | 1.2× | 1.5× | 4 ≤ N ≤ 16 |
+| Brent-Kung | O(log N) | 4.0× | 4.0× | 16 ≤ N ≤ 32 |
+| Kogge-Stone | O(log N) | 6.0× | 6.0× | N ≥ 32, critical path |
+
+**Key Advantage:** Smallest possible adder area — only N full adders, no additional logic.
 
 ### Comparison: Area vs Speed
 
@@ -366,7 +357,7 @@ MSB (Sum[7]): Depends on C[6] → 16 levels (slowest)
 
 ### When to Use Ripple Carry Adder
 
-✅ **Ideal Use Cases:**
+**Ideal Use Cases:**
 - Width ≤ 8 bits
 - Area is critical constraint
 - Speed is not critical (< 100 MHz)
@@ -389,7 +380,7 @@ MSB (Sum[7]): Depends on C[6] → 16 levels (slowest)
 
 **Use Han-Carlson if:**
 - N ≥ 32
-- Maximum speed required -- the library's Kogge-Stone-class option
+- Maximum speed required — the library's Kogge-Stone-class option
   (no Kogge-Stone module exists in the library)
 
 ### Width Selection Trade-offs
@@ -433,7 +424,7 @@ MSB (Sum[7]): Depends on C[6] → 16 levels (slowest)
    end
    ```
 
-## Verification Strategy
+### Verification Strategy
 
 Test suite location: `val/math/test_math_adder_ripple_carry.py`
 
@@ -452,7 +443,7 @@ pytest val/math/test_math_adder_ripple_carry.py -v
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1**: Using for wide additions
+**Anti-Pattern 1**: Using for wide additions
 
 ```systemverilog
 // WRONG: 64-bit ripple carry (extremely slow!)
@@ -464,7 +455,7 @@ math_adder_brent_kung_032 u_add_low (...);   // Lower 32 bits
 math_adder_brent_kung_032 u_add_high (...);  // Upper 32 bits
 ```
 
-❌ **Anti-Pattern 2**: In critical timing paths
+**Anti-Pattern 2**: In critical timing paths
 
 ```systemverilog
 // WRONG: Ripple adder in critical datapath
@@ -475,7 +466,7 @@ end
 // RIGHT: Use faster adder or pipeline
 ```
 
-❌ **Anti-Pattern 3**: Ignoring FPGA carry chains
+**Anti-Pattern 3**: Ignoring FPGA carry chains
 
 ```systemverilog
 // WRONG: Custom carry logic that doesn't infer carry chain
@@ -485,7 +476,7 @@ end
 // Synthesis tools will map to fast carry primitives
 ```
 
-❌ **Anti-Pattern 4**: Chaining multiple adders
+**Anti-Pattern 4**: Chaining multiple adders
 
 ```systemverilog
 // WRONG: Cascading multiple ripple adders in one cycle

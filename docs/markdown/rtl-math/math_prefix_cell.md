@@ -23,11 +23,11 @@
 
 # Prefix Cell (Black Cell)
 
-A parallel prefix network building block that combines generate (G) and propagate (P) signals from adjacent bit groups, used in high-performance adders like Kogge-Stone, Brent-Kung, and Han-Carlson.
+The parallel prefix building block that combines generate (G) and propagate (P) signals from adjacent bit groups—the cell at the heart of high-performance adders like Kogge-Stone, Brent-Kung, and Han-Carlson.
 
 ## Overview
 
-The `math_prefix_cell` module (also known as a "black cell") implements the fundamental prefix operation for parallel prefix adders. It combines the generate and propagate signals from a higher bit position with those from a lower bit position, computing the group generate and group propagate for the combined range.
+The `math_prefix_cell` module (the "black cell") implements the fundamental prefix operation for parallel prefix adders. It takes the generate and propagate signals from a higher bit position and a lower one, and computes the group generate and group propagate for the combined range.
 
 **Key Features:**
 - **Outputs both G and P** - Full prefix cell for forward tree stages
@@ -60,7 +60,7 @@ module math_prefix_cell (
 
 ### Parallel Prefix Theory
 
-In parallel prefix adders, carries are computed using generate (G) and propagate (P) signals:
+In parallel prefix adders, carries are computed from generate (G) and propagate (P) signals:
 
 **Bit-level definitions:**
 - **Generate:** G[i] = A[i] AND B[i] - Carry generated at position i
@@ -70,7 +70,7 @@ In parallel prefix adders, carries are computed using generate (G) and propagate
 - **G[i:j]** = G[i:k] OR (P[i:k] AND G[k-1:j])
 - **P[i:j]** = P[i:k] AND P[k-1:j]
 
-This cell computes these group-level signals by combining two adjacent ranges.
+This cell computes those group-level signals by combining two adjacent ranges.
 
 ### Implementation
 
@@ -104,14 +104,6 @@ After Stage 2 (prefix cells combining pairs of pairs):
   G[3:0] = G[3:2] | (P[3:2] & G[1:0])  // Does range [3:0] generate?
   P[3:0] = P[3:2] & P[1:0]             // Does range [3:0] propagate?
 ```
-
-## Timing Characteristics
-
-| Metric | Value | Description |
-|--------|-------|-------------|
-| Logic Depth | 2 gates | 1 AND + 1 OR (for G), 1 AND (for P) |
-| Critical Path | AND-OR | i_p_hi/i_g_lo -> ow_g |
-| Gate Count | 3 | 2 AND gates + 1 OR gate |
 
 ## Usage Examples
 
@@ -163,6 +155,14 @@ generate
     end
 endgenerate
 ```
+
+## Timing Characteristics
+
+| Metric | Value | Description |
+|--------|-------|-------------|
+| Logic Depth | 2 gates | 1 AND + 1 OR (for G), 1 AND (for P) |
+| Critical Path | AND-OR | i_p_hi/i_g_lo -> ow_g |
+| Gate Count | 3 | 2 AND gates + 1 OR gate |
 
 ## Performance Characteristics
 

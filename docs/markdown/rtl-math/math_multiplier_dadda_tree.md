@@ -548,18 +548,18 @@ substantially fewer compressor cells than Wallace.
 
 ### Advantages
 
-✅ **Smallest fast multiplier** - 17-31% fewer adder cells than Wallace at the same reduction depth, with an identical final adder
-✅ **Optimized structure** - Mathematically proven reduction schedule
-✅ **Fewer cells to synthesize** - same stage count as Wallace, less hardware in each stage
-✅ **Pure combinational** - Easy to pipeline where needed
-✅ **Scalable** - Algorithm extends to any bit width
+- **Smallest fast multiplier** - 17-31% fewer adder cells than Wallace at the same reduction depth, with an identical final adder
+- **Optimized structure** - Mathematically proven reduction schedule
+- **Fewer cells to synthesize** - same stage count as Wallace, less hardware in each stage
+- **Pure combinational** - Easy to pipeline where needed
+- **Scalable** - Algorithm extends to any bit width
 
 ### Limitations
 
-⚠️ **Complex design** - Reduction schedule requires calculation
-⚠️ **Unsigned only** - Requires sign handling for signed operands
-⚠️ **Fixed width** - Not parameterizable (instantiate specific variant)
-⚠️ **Irregular structure** - Not as regular as array multipliers
+- **Complex design** - Reduction schedule requires calculation
+- **Unsigned only** - Requires sign handling for signed operands
+- **Fixed width** - Not parameterizable (instantiate specific variant)
+- **Irregular structure** - Not as regular as array multipliers
 
 ### When to Use Dadda Tree
 
@@ -645,7 +645,7 @@ Split Dadda tree into pipeline stages based on reduction schedule.
 
 ## Common Pitfalls
 
-❌ **Anti-Pattern 1: Expecting width parameterization**
+**Anti-Pattern 1: Expecting width parameterization**
 
 ```systemverilog
 // WRONG: N parameter is fixed
@@ -655,7 +655,7 @@ math_multiplier_dadda_tree_008 #(.N(10)) u_mult (...);  // Won't work!
 math_multiplier_dadda_tree_016 u_mult (...);  // Use 16-bit
 ```
 
-❌ **Anti-Pattern 2: Using for signed without conversion**
+**Anti-Pattern 2: Using for signed without conversion**
 
 ```systemverilog
 // WRONG: Signed inputs treated as unsigned
@@ -671,7 +671,7 @@ math_multiplier_dadda_tree_008 u_mult (
 // (See "Signed Multiplication" section)
 ```
 
-❌ **Anti-Pattern 3: Adding a redundant external adder**
+**Anti-Pattern 3: Adding a redundant external adder**
 
 ```systemverilog
 // WRONG: ow_product is already the final summed product.
@@ -686,7 +686,7 @@ math_multiplier_dadda_tree_008 u_mult (..., .ow_product(final_product));
 These modules contain their own final carry-propagate adder. They do not expose
 separate sum and carry vectors.
 
-❌ **Anti-Pattern 4: Ignoring timing at high frequencies**
+**Anti-Pattern 4: Ignoring timing at high frequencies**
 
 ```systemverilog
 // WRONG: 32×32 Dadda at 400 MHz without pipeline
@@ -738,4 +738,4 @@ This matches the generated RTL, whose stage comments read
 ## Navigation
 
 - **[← Back to Math Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- **[← Back to Main Documentation Index](../index.md]**

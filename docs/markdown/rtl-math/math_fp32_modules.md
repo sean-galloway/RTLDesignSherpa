@@ -27,7 +27,7 @@ IEEE 754 single-precision (FP32) floating-point modules for activation functions
 
 ## Overview
 
-FP32 (32-bit floating-point) provides full single-precision IEEE 754 representation. These modules support activation functions, comparisons, and downconversion to smaller formats.
+FP32 (32-bit floating-point) is the full single-precision IEEE 754 representation. These modules cover activation functions, comparisons, and downconversion to the smaller formats.
 
 **FP32 Format:**
 ```
@@ -54,6 +54,8 @@ Precision: ~0.00001% (7 decimal digits)
 | `math_fp32_softmax_8` | softmax(x[7:0]) | 8-input softmax |
 
 #### Interface
+
+Every activation function in this group uses the same two-port pattern:
 
 ```systemverilog
 module math_fp32_{activation} (
@@ -176,5 +178,5 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 
 ## Navigation
 
-- **[Back to Math Index](index.md)**
-- **[Back to Main Documentation Index](../index.md)**
+- **[← Back to Math Index](index.md)**
+- **[← Back to Main Documentation Index](../index.md)**
