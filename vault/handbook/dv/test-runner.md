@@ -39,6 +39,39 @@ Only three sanctioned variations exist, each for a stated reason:
 plus an explicit `rm -rf logs local_sim_build sim_build`) but removes the same
 set. Do not read the shorter target as a weaker clean.
 
+## Both levels are a HARD REQUIREMENT (Sean, 2026-08-01)
+
+**Every test offers gate, func and full, through BOTH mechanisms.** Not a
+convention, not a target - a requirement, on the same footing as the filelist
+rule. A test missing either mechanism is incomplete and is a finding at review:
+
+1. **`REG_LEVEL` must SELECT THE GRID.** The parameter generator branches on it
+   and returns different numbers of combinations. Reading `REG_LEVEL` only to
+   decorate the test name does not count - that is the shape half these tests
+   were in, and it reads as compliant to anything that greps for the string.
+2. **`TEST_LEVEL` must GATE THE DEPTH.** The TB reads it and does measurably
+   more work at func than gate, and more again at full. A `full` tier that is
+   `func` re-labelled is the same defect wearing a different hat.
+
+The two are independent, and passing one is not passing the other. Measured on
+`val/common` at 2026-08-01, when this was written down: **24 of 48 tests were
+missing at least one** - 8 had depth gating with a grid that ignored
+`REG_LEVEL`, 7 had a grid with no depth gating, and 9 had neither.
+
+Why it is worth being strict about: the levels are the only thing that lets a
+regression be run at three useful costs. A missing grid means the "quick" gate
+run is the full sweep, so nobody runs it; a missing depth gate means the full
+run buys nothing over gate, so the expensive tier is theatre. Both failures are
+invisible until someone measures, because the test still passes either way.
+
+The only exemption is a wavedrom generator whose artifact is committed wave
+JSON rather than a pass/fail check - and even those take the grid, because a
+diagram set still has a cheap and a comprehensive form.
+
+Check an area with the mechanical scan in [[test-review]]; it greps for a
+generator that branches on `REG_LEVEL` and for `TEST_LEVEL` anywhere in the TB
+chain, which is what catches the name-decoration case.
+
 ## REG_LEVEL and TEST_LEVEL are different knobs
 
 They are constantly confused because both take a level name.

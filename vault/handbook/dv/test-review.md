@@ -58,10 +58,25 @@ interface headers are enough for "does the test drive real ports".
 
 ## The audit checklist (per test)
 
-1. **Three levels, both mechanisms.** REG_LEVEL grid in the pytest wrapper
-   (GATE/FUNC/FULL produce different parameter counts) AND TEST_LEVEL depth
-   gating inside the TB (gate < func < full actual work). Either missing =
-   finding. Snapshot 2026-07-28, REG_LEVEL/TEST_LEVEL presence: cdc 6/13,
+1. **Three levels, both mechanisms -- HARD REQUIREMENT** ([[test-runner]]).
+   REG_LEVEL grid in the pytest wrapper (GATE/FUNC/FULL produce different
+   parameter counts) AND TEST_LEVEL depth gating inside the TB (gate < func <
+   full actual work). Either missing = finding.
+
+   **Grep for the mechanism, not the string.** `REG_LEVEL` read only to
+   decorate the test name passes a naive scan and selects nothing; that was
+   the state of 8 val/common tests. The check is whether the parameter
+   generator BRANCHES on it:
+
+       # a generator that branches, vs one that merely mentions REG_LEVEL
+       def has_grid(src):
+           gen = re.search(r'def generate\w*params\w*\(.*?\)(.*?)(?=\n@|\ndef |\Z)',
+                           src, re.S | re.I)
+           body = gen.group(1) if gen else ''
+           return 'REG_LEVEL' in body and ('GATE' in body or 'FULL' in body)
+
+   and whether TEST_LEVEL appears anywhere in the TB chain (test file plus its
+   resolved TBClasses imports), not just in the wrapper. Snapshot 2026-07-28, REG_LEVEL/TEST_LEVEL presence: cdc 6/13,
    10/13; common 42/48, 32/48; math 119/119, 119/119; amba 55/117, 68/117.
 2. **Structure.** TB class in the right place ([[tb-structure]]); the three
    mandatory methods (setup_clocks_and_reset / assert_reset /
