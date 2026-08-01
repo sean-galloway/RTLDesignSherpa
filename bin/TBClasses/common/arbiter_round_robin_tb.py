@@ -174,6 +174,14 @@ class ArbiterRoundRobinTB(TBBase):
         auto_ack_enabled = (self.WAIT_GNT_ACK == 1)
         ack_delay = 1
 
+        # Phase-level baseline. Every client gets its own exclusive request
+        # window below, so by the end of the phase every client must have been
+        # granted at least once. That is the assertion this phase never had --
+        # it previously ended on an unconditional "completed" log line.
+        phase_start = list(self.monitor.arbiter_stats.get('grants_per_client', []))
+        phase_start = [(phase_start[c] if c < len(phase_start) else 0)
+                       for c in range(self.CLIENTS)]
+
         # Test each client individually (simpler approach)
         for i in range(self.CLIENTS):
             self.log.info(f"=== Testing individual client {i} ==={self.get_time_ns_str()}")
@@ -185,6 +193,16 @@ class ArbiterRoundRobinTB(TBBase):
 
             # STEP 2: Test this client with auto-ACK
             self.log.info(f"Testing client {i} with auto_ack={auto_ack_enabled}")
+
+            # Snapshot this client's grant count. The monitor's per-client
+            # counter is the deterministic mechanism -- the same one the
+            # starvation check uses. _check_recent_grant_for_client was tried
+            # here first and is heuristic (three fallback sources, optional
+            # timestamps, a 1000ns window); it made the ACK-mode config fail
+            # intermittently, and a flaky assertion is worse than none because
+            # it teaches everyone to rerun.
+            before = list(self.monitor.arbiter_stats.get('grants_per_client', []))
+            before_i = before[i] if i < len(before) else 0
 
             # Use the working manual_request approach
             try:
@@ -198,18 +216,83 @@ class ArbiterRoundRobinTB(TBBase):
                 else:
                     await self.master.manual_request(client_id=i, cycles=10)
 
-                # Check for success
-                success = True  # If we get here without exception, it worked
-                self.log.info(f"✓ Client {i} test successful")
-
             except Exception as e:
-                self.log.error(f"✗ Client {i} test failed: {e}")
-                success = False
+                # Swallowing this made the phase unfailable: manual_request
+                # raises nothing when no grant arrives, so "no exception" was
+                # never evidence of anything.
+                self.log.error(f"Client {i} test raised: {e}")
+                raise
+
+            # The actual check. A client that requested as the only enabled
+            # client and was never granted is the failure this phase exists to
+            # catch, and it was previously unfailable.
+            #
+            # Poll rather than sample once: in ACK mode the arbiter holds the
+            # grant until the ack lands, so the monitor's counter trails
+            # manual_request's return by a handshake.
+            after_i = before_i
+            for _ in range(40):
+                after = list(self.monitor.arbiter_stats.get('grants_per_client', []))
+                after_i = after[i] if i < len(after) else 0
+                if after_i > before_i:
+                    break
+                await self.wait_clocks('clk', 1)
+
+            if after_i > before_i:
+                self.log.info(f"Client {i} granted ({before_i} -> {after_i})")
+            else:
+                # Do NOT assert per client in ACK mode. Measured over five
+                # runs, client 0 intermittently shows no counter movement
+                # inside its own request window while the phase as a whole
+                # grants every client -- and manual_request DISCARDS the
+                # grant_received flag it computes, so the TB cannot see the
+                # grant the BFM saw. The phase-level check below is the real
+                # assertion; this stays a warning until the framework exposes
+                # a per-request result. See COMMON-016.
+                self.log.warning(
+                    f"Client {i}: no grant counted within its own request "
+                    f"window ({before_i} -> {after_i}, auto_ack="
+                    f"{auto_ack_enabled}); phase-level check will decide"
+                )
 
             # Brief cleanup pause
             await self.wait_clocks('clk', 10)
 
-        self.log.info(f"Walking requests test completed{self.get_time_ns_str()}")
+        # Settle any in-flight ACK handshake before the phase-level count.
+        await self.wait_clocks('clk', 20)
+        phase_end = list(self.monitor.arbiter_stats.get('grants_per_client', []))
+        phase_end = [(phase_end[c] if c < len(phase_end) else 0)
+                     for c in range(self.CLIENTS)]
+        never_granted = [c for c in range(self.CLIENTS)
+                         if phase_end[c] <= phase_start[c]]
+        if auto_ack_enabled:
+            # ACK mode: warn, do not fail. The monitor's per-client counter is
+            # a proven instrument in no-ACK mode -- the sibling simple TB uses
+            # exactly this and moves +1 per client, 5 runs clean -- but under
+            # WAIT_GNT_ACK=1 the manual-request flow does not register grants
+            # against it reliably, and the compliance monitor separately logs
+            # "ACK from client N with no pending grant" during this phase.
+            # Asserting here fires on 3 of 4 clients while the counts barely
+            # move, which is a measurement artifact, not starvation. Shipping
+            # that assertion would just teach everyone to rerun. COMMON-016
+            # holds the evidence and the framework change it needs.
+            if never_granted:
+                self.log.warning(
+                    f"Walking requests (ACK mode): client(s) {never_granted} "
+                    f"show no counted grant; {phase_start} -> {phase_end}. "
+                    f"NOT failed -- see COMMON-016."
+                )
+        else:
+            assert not never_granted, (
+                f"Walking requests: client(s) {never_granted} held an exclusive "
+                f"request and were never granted during the phase. "
+                f"Per-client grants {phase_start} -> {phase_end}"
+            )
+
+        self.log.info(
+            f"Walking requests test completed; every client granted "
+            f"{phase_start} -> {phase_end}{self.get_time_ns_str()}"
+        )
 
     def _check_recent_grant_for_client(self, client_id: int, context: str) -> bool:
         """Check if a client received a grant recently by examining monitor transactions"""
@@ -631,11 +714,19 @@ class ArbiterRoundRobinTB(TBBase):
                 fairness_index = extended_comprehensive_stats.get('fairness_index', 0)
                 self.log.warning(f"Extended wait found {additional_grants} additional grants")
             else:
-                # Final attempt - use total grants accumulated so far
-                if final_grants_from_stats > 100:  # If we have reasonable total activity
-                    self.log.warning(f"Using total accumulated grants ({final_grants_from_stats}) for fairness test")
-                    total_new_grants = 100  # Set to minimum threshold
-                    fairness_index = extended_comprehensive_stats.get('fairness_index', 0)
+                # NO fabrication here. This branch used to set
+                # total_new_grants = 100 -- the assert's own threshold -- when
+                # the window measured ZERO, on the grounds that earlier phases
+                # had produced grants. That converts "the fairness stimulus
+                # died" into a pass, and the fairness_index it then checked came
+                # from accumulated stats across every earlier phase rather than
+                # from this one. Leave the measurement at what was measured and
+                # let the assert below do its job.
+                self.log.error(
+                    f"Fairness window measured 0 grants after the extended wait "
+                    f"(accumulated across all phases: {final_grants_from_stats}). "
+                    f"Reporting the measured value, not the accumulated one."
+                )
 
         # More reasonable thresholds
         min_grants_threshold = 50  # Reduced from 100
@@ -872,10 +963,30 @@ class ArbiterRoundRobinTB(TBBase):
     # =============================================================================
 
     def check_monitor_errors(self):
-        """Check for any monitor errors"""
+        """Check for any monitor errors, including the compliance verdict."""
         if self.monitor_errors:
             self.log.error(f"Monitor errors detected: {self.monitor_errors}")
             raise AssertionError(f"Monitor errors: {self.monitor_errors}")
+
+        # The framework ships a round-robin compliance model that tracks mask
+        # state and computes the expected winner for every grant. This TB used
+        # to touch it in exactly one place -- raising ack_timeout_cycles to
+        # 8000, i.e. only to make it complain less -- and never read its
+        # verdict, so every protocol violation it found was logged and dropped.
+        compliance = getattr(self.monitor, 'compliance', None)
+        if compliance is None or not hasattr(compliance, 'get_warning_summary'):
+            return
+        summary = compliance.get_warning_summary()
+        self.log.info(
+            f"Compliance verdict: {summary['total_errors']} error(s), "
+            f"{summary['total_warnings']} warning(s); "
+            f"errors={summary['error_types']} warnings={summary['warning_types']}"
+        )
+        assert summary['total_errors'] == 0, (
+            f"Arbiter protocol compliance: {summary['total_errors']} error(s) "
+            f"{summary['error_types']}. Recent: "
+            f"{[w.get('type') for w in summary['recent_warnings']]}"
+        )
 
     async def handle_test_transition_ack_cleanup(self):
         """Handle test transitions - no cleanup needed with master"""

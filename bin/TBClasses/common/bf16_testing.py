@@ -28,6 +28,7 @@ from typing import List, Tuple, Dict, Any, Optional
 
 from cocotb.triggers import Timer
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.common.fp_testing import FPUtils, BF16
 
 
 class BF16Utils:
@@ -35,6 +36,16 @@ class BF16Utils:
 
     # BF16 format: [15]=sign, [14:7]=exponent (8 bits), [6:0]=mantissa (7 bits)
     # Bias = 127
+
+    @staticmethod
+    def float_to_bf16_rne(f: float) -> int:
+        """Convert Python float to BF16 with round-to-nearest-even.
+
+        The adder RTL implements textbook RNE (G & (R | S | LSB)), so its
+        reference must be exact -- the truncating float_to_bf16 plus a 1-ULP
+        tolerance made the rounding property uncheckable (test-audit
+        finding). Delegates to FPUtils.convert_float (exact RNE)."""
+        return FPUtils.convert_float(f, BF16)
 
     @staticmethod
     def float_to_bf16(f: float) -> int:
@@ -914,8 +925,10 @@ class BF16AdderTB(TBBase):
             sign = 1 if result_float < 0 else 0
             return sign << 15, False, True, False
 
-        # Convert to BF16 with RNE rounding
-        result_bf16 = BF16Utils.float_to_bf16(result_float)
+        # Convert to BF16 with RNE rounding (the adder RTL does textbook RNE,
+        # so the reference must too -- truncation + 1-ULP tolerance made the
+        # property uncheckable, test-audit finding)
+        result_bf16 = BF16Utils.float_to_bf16_rne(result_float)
 
         return result_bf16, overflow, underflow, False
 

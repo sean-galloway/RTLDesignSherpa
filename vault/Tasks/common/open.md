@@ -72,6 +72,54 @@ Proposed fix — either gate the output combinationally:
 
 or register it (adds a cycle of latency). Re-enable the test with the fix.
 
+## COMMON-016 — arbiter ACK mode: 105 unexpected ACKs, and the compliance model was muted
+**Status:** open 2026-07-31 — surfaced by test-audit round_1 triage, P2
+**Owner:** TBD
+
+Three connected things, found while making `test_walking_requests` capable of
+failing.
+
+**1. The compliance model was consumed only to silence it.** The framework
+ships `ArbiterCompliance` (`components/shared/arbiter_compliance.py`), which
+tracks round-robin mask state and computes `get_expected_winner()` per grant.
+`arbiter_round_robin_tb.py` referenced it in exactly one place —
+
+    if hasattr(self.monitor, 'compliance'):
+        self.monitor.compliance.ack_timeout_cycles = 8000  # Increased from 1000
+
+— raising its timeout so it would complain less, and never once read
+`get_warning_summary()` or `get_comprehensive_analysis()`. Every violation it
+found was logged at WARNING and dropped. `check_monitor_errors()` now asserts
+on `total_errors`, and the simple TB does not wire compliance in at all (open).
+
+**2. Reading it immediately produced a real number.** With the verdict logged:
+
+| config | errors | warnings |
+|---|---|---|
+| `WAIT_GNT_ACK=0` | 0 | 0 |
+| `WAIT_GNT_ACK=1` | 0 | **105 `unexpected_ack`** |
+
+105 acks arriving with no pending grant, in one gate-level run. Classified as
+warnings so the new assertion (errors only) stays green — deliberately, until
+someone decides whether the BFM's auto-ack flow or the RTL's ack handling is
+wrong. **Do not reclassify these to errors before diagnosing them**; that just
+turns the suite red without adding information.
+
+**3. It probably explains the unfailable walking phase.** `manual_request()`
+computes `grant_received` and DISCARDS it (logs at debug, returns None), so a
+TB cannot learn whether the request it just drove was granted —
+`check_manual_request_success()` only samples the grant signal *after*
+`manual_request` has deasserted, which is always too late. The available proxy
+is the monitor's `arbiter_stats['grants_per_client']`, and that works: in
+no-ACK mode it moves exactly +1 per client (simple TB, 5 runs clean, now
+asserted per client). In ACK mode it does not move reliably — which is what
+105 unpaired acks would do to transaction counting. So the per-client assertion
+is scoped to no-ACK mode and ACK mode warns, with the reasoning in the code.
+
+**What would close this:** have `manual_request()` return `grant_received` (a
+framework change in the DV repo, not this one), diagnose the unexpected acks,
+then assert per client in both modes and drop the scoping.
+
 ## COMMON-014 — fifo_control default parameters contradict its own constraint
 **Status:** open 2026-07-31 — surfaced by qc round_2 (common part_03), P3 latent
 

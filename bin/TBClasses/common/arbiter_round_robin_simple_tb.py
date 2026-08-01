@@ -218,14 +218,27 @@ class ArbiterRoundRobinSimpleTB(TBBase):
             # Test this client without ACK
             self.log.info(f"Testing client {i} (no ACK)")
 
+            # Snapshot this client's grant count so the request can be checked
+            # against what the DUT actually did, not against "no exception was
+            # raised" -- manual_request raises nothing when no grant arrives.
+            before = list(self.monitor.arbiter_stats.get('grants_per_client', []))
+            before_i = before[i] if i < len(before) else 0
+
             try:
                 await self.master.manual_request(client_id=i, cycles=10)
-                success = True
-                self.log.info(f"✓ Client {i} test successful")
-
             except Exception as e:
-                self.log.error(f"✗ Client {i} test failed: {e}")
-                success = False
+                self.log.error(f"Client {i} request raised: {e}")
+                raise
+
+            after = list(self.monitor.arbiter_stats.get('grants_per_client', []))
+            after_i = after[i] if i < len(after) else 0
+            assert after_i > before_i, (
+                f"Walking requests: client {i} was the only enabled client and "
+                f"held its request for 10 cycles, but its grant count did not "
+                f"move ({before_i} -> {after_i}). Per-client grants: "
+                f"{after[:self.CLIENTS]}"
+            )
+            self.log.info(f"Client {i} granted ({before_i} -> {after_i})")
 
             # Brief cleanup pause
             await self.wait_clocks('clk', 10)
