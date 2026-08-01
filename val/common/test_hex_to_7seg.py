@@ -470,8 +470,14 @@ async def hex_to_7seg_test(dut):
 
 def generate_params():
     """Generate test parameters"""
-    # Only test level varies for this module (fixed 4-bit input)
-    test_levels = ['full']
+    # Fixed 4-bit input, so the grid varies only in depth.
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        test_levels = ['gate']
+    elif reg_level == 'FULL':
+        test_levels = ['gate', 'func', 'full']
+    else:
+        test_levels = ['func']
 
     valid_params = []
     for test_level in test_levels:

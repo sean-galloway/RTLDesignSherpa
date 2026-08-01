@@ -492,8 +492,13 @@ def generate_params():
     """
     Generate test parameters. Modify this function to limit test scope for debugging.
     """
-    widths = [8, 16, 32, 64]  # Different vector widths
-    test_levels = ['full']  # Test levels
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        widths, test_levels = [8], ['gate']
+    elif reg_level == 'FULL':
+        widths, test_levels = [8, 16, 32, 64], ['gate', 'func', 'full']
+    else:
+        widths, test_levels = [8, 32], ['func']
 
     valid_params = []
     for width, test_level in product(widths, test_levels):

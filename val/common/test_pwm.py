@@ -834,9 +834,13 @@ def generate_params():
     """
     Generate test parameters. Modify this function to limit test scope for debugging.
     """
-    widths = [8, 12, 16]        # Different counter widths
-    channels_list = [1, 2, 4]   # Different channel counts
-    test_levels = ['full']      # Test levels
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        widths, channels_list, test_levels = [8], [1], ['gate']
+    elif reg_level == 'FULL':
+        widths, channels_list, test_levels = [8, 12, 16], [1, 2, 4], ['full']
+    else:
+        widths, channels_list, test_levels = [8, 16], [2], ['func']
 
     valid_params = []
     for width, channels, test_level in product(widths, channels_list, test_levels):

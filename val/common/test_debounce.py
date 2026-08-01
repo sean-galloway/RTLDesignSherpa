@@ -587,10 +587,16 @@ def generate_params():
     """
     Generate test parameters. Modify this function to limit test scope for debugging.
     """
-    num_buttons_list = [1, 2, 4]     # Different button counts
-    debounce_delays = [2, 4, 8]      # Different debounce delays
-    pressed_states = [0, 1]          # NC and NO buttons
-    test_levels = ['full']           # Test levels
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        num_buttons_list, debounce_delays, pressed_states, test_levels = \
+            [4], [4], [1], ['gate']
+    elif reg_level == 'FULL':
+        num_buttons_list, debounce_delays, pressed_states, test_levels = \
+            [1, 2, 4], [2, 4, 8], [0, 1], ['full']
+    else:
+        num_buttons_list, debounce_delays, pressed_states, test_levels = \
+            [2, 4], [4], [0, 1], ['func']
 
     valid_params = []
     for num_buttons, debounce_delay, pressed_state, test_level in product(

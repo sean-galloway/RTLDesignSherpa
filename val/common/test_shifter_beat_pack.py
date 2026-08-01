@@ -386,9 +386,14 @@ _GATE = _matrix(_ALL_TYPES, _COMBOS_GATE, _PROFILES_GATE)
 _FUNC = _matrix(_ALL_TYPES, _COMBOS_FUNC, _PROFILES_FUNC)
 _FULL = _matrix(_ALL_TYPES, _COMBOS_FULL, _PROFILES_FULL)
 
-_TEST_LEVEL = os.environ.get('TEST_LEVEL', 'FUNC').upper()
+# The GRID comes from REG_LEVEL; TEST_LEVEL is the per-test depth knob and
+# selecting the matrix with it meant `TEST_LEVEL=full` silently expanded the
+# parameter sweep as well as the depth, while REG_LEVEL did nothing at all.
+_REG_LEVEL = os.environ.get('REG_LEVEL', 'FUNC').upper()
 _PARAMS = {'GATE': _GATE, 'FUNC': _FUNC, 'FULL': _FULL}.get(
-    _TEST_LEVEL, _FUNC)
+    _REG_LEVEL, _FUNC)
+# Depth defaults to the matching level, still overridable on its own.
+_TEST_LEVEL = os.environ.get('TEST_LEVEL', _REG_LEVEL).upper()
 
 
 @pytest.mark.parametrize(

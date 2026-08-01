@@ -70,10 +70,16 @@ interface headers are enough for "does the test drive real ports".
 
        # a generator that branches, vs one that merely mentions REG_LEVEL
        def has_grid(src):
-           gen = re.search(r'def generate\w*params\w*\(.*?\)(.*?)(?=\n@|\ndef |\Z)',
+           gen = re.search(r'def generate\w*param\w*\(.*?\)(.*?)(?=\n@|\ndef |\Z)',
                            src, re.S | re.I)
            body = gen.group(1) if gen else ''
            return 'REG_LEVEL' in body and ('GATE' in body or 'FULL' in body)
+
+   Note `param`, not `params`. The first version required "params" and so
+   missed `generate_test_parameters`, reporting a fully compliant test
+   (`counter_freq_invariant`, which branches 3/6/9 on REG_LEVEL) as broken. A
+   scan that emits false findings gets ignored, which is worse than no scan --
+   check a couple of its hits by hand before acting on the count.
 
    and whether TEST_LEVEL appears anywhere in the TB chain (test file plus its
    resolved TBClasses imports), not just in the wrapper. Snapshot 2026-07-28, REG_LEVEL/TEST_LEVEL presence: cdc 6/13,

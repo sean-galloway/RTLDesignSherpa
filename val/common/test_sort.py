@@ -594,9 +594,13 @@ def generate_params():
     """
     Generate test parameters. Modify this function to limit test scope for debugging.
     """
-    num_vals_list = [16, 32, 64]    # Different numbers of values to sort
-    sizes = [8, 16, 32]             # Different value sizes
-    test_levels = ['full']          # Test levels
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        num_vals_list, sizes, test_levels = [16], [8], ['gate']
+    elif reg_level == 'FULL':
+        num_vals_list, sizes, test_levels = [16, 32, 64], [8, 16, 32], ['full']
+    else:
+        num_vals_list, sizes, test_levels = [16, 32], [16], ['func']
 
     valid_params = []
     for num_vals, size, test_level in product(num_vals_list, sizes, test_levels):
