@@ -255,6 +255,43 @@ class DDR2CharDriver:
     def build_id(self) -> int:
         return self.regs.read("BUILD_ID")
 
+    def build_info(self) -> Dict[str, int]:
+        """What this bitstream actually IS, read from the board.
+
+        BUILD_ID says only that the harness is a DDR2 one. Everything a host
+        needs in order to drive it correctly -- DFI rate, gear ratio, JEDEC
+        burst length, geometry, data widths -- used to be supplied out of band:
+        by environment variable in sim, by assumption on silicon. When the
+        assumption was wrong the read path returned garbage, which looks like a
+        timing bug rather than a configuration mismatch.
+
+        These are elaboration-time constants driven from the harness's own
+        parameters, so they cannot drift from the hardware. Reading them turns
+        "is this the bitstream I think it is" into a comparison.
+        """
+        return {
+            "build_id":          self.regs.read("BUILD_ID"),
+            "version":           self.regs.read("BUILD_VERSION"),
+            "dfi_rate":          self.regs.field("BUILD_CONFIG", "dfi_rate"),
+            "gear_ratio":        self.regs.field("BUILD_CONFIG", "gear_ratio"),
+            "dram_bl":           self.regs.field("BUILD_CONFIG", "dram_bl"),
+            "row_width":         self.regs.field("BUILD_CONFIG", "row_width"),
+            "bank_width":        self.regs.field("BUILD_CONFIG", "bank_width"),
+            "axi_data_width":    self.regs.field("BUILD_DATA_CFG", "axi_data_width"),
+            "dram_beat_width":   self.regs.field("BUILD_DATA_CFG", "dram_beat_width"),
+            "dram_device_width": self.regs.field("BUILD_DATA_CFG", "dram_device_width"),
+        }
+
+    def describe_build(self) -> str:
+        """One-line summary of what is on the board, for logs and failures."""
+        b = self.build_info()
+        tag = "".join(chr((b["build_id"] >> s) & 0xFF) for s in (24, 16, 8, 0))
+        return (f"{tag} v{b['version']} "
+                f"dfi_rate={b['dfi_rate']} gear={b['gear_ratio']} "
+                f"bl={b['dram_bl']} row={b['row_width']} bank={b['bank_width']} "
+                f"axi={b['axi_data_width']}b beat={b['dram_beat_width']}b "
+                f"dev={b['dram_device_width']}b")
+
     def scratch(self, val: Optional[int] = None) -> int:
         """Ping test — write then read back if `val` supplied."""
         if val is not None:

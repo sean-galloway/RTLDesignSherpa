@@ -82,6 +82,9 @@ module ddr2_char_harness
     // Threaded from ddr2_char_top rather than inherited from the
     // ddr2_char_macro default so the ceiling is at least visible at the top.
     parameter int DRAM_BL             = 4,
+    // Bumped whenever a functional change ships. Readable at 0x1EC so a host
+    // can tell WHICH build is on the board, not merely that it is a DDR2 one.
+    parameter int BUILD_VERSION       = 1,
     // Legal-AxLEN quantum forwarded to the engines (= AXI beats per DRAM burst).
     // 1 = unconstrained (default); ddr2_char_top sets the board value.
     parameter int BURST_LEN_MULTIPLE  = 1,
@@ -423,7 +426,19 @@ module ddr2_char_harness
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),
         .STRIDE_WIDTH    (STRIDE_WIDTH),
         .TXN_COUNT_WIDTH (TXN_COUNT_WIDTH),
-        .BURST_LEN_WIDTH (BURST_LEN_WIDTH)
+        .BURST_LEN_WIDTH (BURST_LEN_WIDTH),
+
+        // Build identity, readable at 0x1EC/0x1F0/0x1F4. Driven from THIS
+        // module's parameters so what the host reads is what was compiled --
+        // the value cannot drift from the hardware describing it.
+        .BUILD_VERSION     (BUILD_VERSION),
+        .CFG_DFI_RATE      (DFI_RATE),
+        .CFG_DRAM_BL       (DRAM_BL),
+        .CFG_ROW_WIDTH     (ROW_WIDTH),
+        .CFG_BANK_WIDTH    (DFI_BANK_BUS_W),
+        .CFG_AXI_DATA_W    (AXI_DATA_WIDTH),
+        .CFG_DRAM_BEAT_W   (DRAM_BEAT_WIDTH),
+        .CFG_DRAM_DEVICE_W (DRAM_DEVICE_WIDTH)
     ) u_harness_csr (
         .aclk    (aclk),
         .aresetn (unit_aresetn),

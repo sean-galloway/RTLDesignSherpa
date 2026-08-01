@@ -116,6 +116,23 @@
 //   0x1E4  OBS_HIST_COUNT    R   count of the selected bin
 //   0x1E8  OBS_HIST_TOTAL    R   total transactions on the selected metric
 //
+// -- Build identity (read-only, elaboration-time constants) --------------
+//   BUILD_ID above names the harness FAMILY and nothing more. Which build is
+//   loaded, and the geometry it was compiled for, had to be supplied out of
+//   band: by env var in sim (TEST_DFI_RATE / TEST_DRAM_BL), by assumption on
+//   silicon. A wrong assumption showed up as a read path returning garbage,
+//   not as a mismatch anyone could see. These make it a comparison.
+//
+//   0x1EC  BUILD_VERSION     R   functional build number, bumped per build
+//   0x1F0  BUILD_CONFIG      R   [3:0]   dfi_rate
+//                                [7:4]   gear_ratio = $clog2(dfi_rate)
+//                                [15:8]  dram_bl (JEDEC MR0 burst length)
+//                                [21:16] row_width
+//                                [25:22] bank_width (DFI bank bus width)
+//   0x1F4  BUILD_DATA_CFG    R   [15:0]  axi_data_width, bits
+//                                [23:16] dram_beat_width, bits
+//                                [31:24] dram_device_width, bits
+//
 // Any address not listed reads as 0 and ignores writes.
 
 `timescale 1ns / 1ps
@@ -132,6 +149,26 @@ module harness_csr
     parameter int TXN_COUNT_WIDTH  = 16,
     parameter int BURST_LEN_WIDTH  = 8,
     parameter logic [31:0] BUILD_ID = 32'h4444_5232,  // "DDR2"
+
+    // ---- Build identity / configuration, readable by the host -------------
+    // BUILD_ID says only WHICH HARNESS this is. It cannot say which build of
+    // it is loaded, so a host had to be TOLD the geometry out of band -- the
+    // sim passes TEST_DFI_RATE / TEST_DRAM_BL by environment variable, and on
+    // silicon it was simply assumed. When the assumption was wrong the symptom
+    // was a read path that returned garbage, not a mismatch anyone could see.
+    //
+    // These two registers close that: the values are the ones the bitstream
+    // was COMPILED with, so the host can ask the board what it is talking to
+    // instead of guessing. Wrong-bitstream becomes a comparison, not a debug
+    // session.
+    parameter int BUILD_VERSION      = 1,   // bump per functional build
+    parameter int CFG_DFI_RATE       = 2,   // DFI phases per controller cycle
+    parameter int CFG_DRAM_BL        = 4,   // JEDEC burst length (MR0)
+    parameter int CFG_ROW_WIDTH      = 13,
+    parameter int CFG_BANK_WIDTH     = 3,
+    parameter int CFG_AXI_DATA_W     = 64,
+    parameter int CFG_DRAM_BEAT_W    = 64,  // pumice DRAM beat, bits
+    parameter int CFG_DRAM_DEVICE_W  = 64,  // physical device width, bits
 
     parameter int SKID_DEPTH_AW = 2,
     parameter int SKID_DEPTH_W  = 2,
@@ -751,6 +788,24 @@ module harness_csr
                             9'h1E8: r_rdata <= r_obs_hist_sel[0]
                                                 ? i_obs_wr_hist_total
                                                 : i_obs_rd_hist_total;
+
+                            // Build identity. Constant, elaboration-time: what
+                            // the host reads is what this bitstream was built
+                            // with, so it cannot drift from the hardware.
+                            9'h1EC: r_rdata <= 32'(BUILD_VERSION);
+                            9'h1F0: r_rdata <= {
+                                                  6'd0,                     // [31:26]
+                                                  4'(CFG_BANK_WIDTH),       // [25:22]
+                                                  6'(CFG_ROW_WIDTH),        // [21:16]
+                                                  8'(CFG_DRAM_BL),          // [15:8]
+                                                  4'($clog2(CFG_DFI_RATE)), // [7:4] gear
+                                                  4'(CFG_DFI_RATE)          // [3:0]
+                                               };
+                            9'h1F4: r_rdata <= {
+                                                  8'(CFG_DRAM_DEVICE_W),    // [31:24]
+                                                  8'(CFG_DRAM_BEAT_W),      // [23:16]
+                                                  16'(CFG_AXI_DATA_W)       // [15:0]
+                                               };
 
                             default: r_rdata <= 32'h0;
                         endcase

@@ -30,6 +30,25 @@ class Init(Sequence):
                 f"wrong bitstream: BUILD_ID 0x{build:08X} != "
                 f"0x{drv.BUILD_ID_MAGIC:08X} -- reprogram the board")
 
+        # Say what we are actually talking to. BUILD_ID only proves the family;
+        # the geometry below is what every later step depends on, and it used to
+        # be assumed rather than read. Logged unconditionally so a failing run
+        # records the configuration it failed under.
+        ctx.say(f"[init] board: {drv.describe_build()}")
+
+        # An expectation is optional -- but when the caller states one, a
+        # mismatch is a hard stop. Continuing would characterize a build nobody
+        # meant to measure, and the numbers would look plausible.
+        expect = ctx.param("expect_build")
+        if expect is not None:
+            actual = drv.build_info()
+            wrong = {k: (v, actual[k]) for k, v in expect.items()
+                     if k in actual and actual[k] != v}
+            if wrong:
+                detail = ", ".join(f"{k}: want {w}, board has {g}"
+                                   for k, (w, g) in sorted(wrong.items()))
+                raise RuntimeError(f"bitstream does not match expectation -- {detail}")
+
         # DFI timing is a property of the PHY underneath, not of the sequence.
         # Exposed as params rather than hardcoded so the SAME sequence can be
         # pointed at a different backend -- an unconfigurable sequence is one

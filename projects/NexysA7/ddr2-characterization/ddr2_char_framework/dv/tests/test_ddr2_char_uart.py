@@ -475,6 +475,10 @@ async def cocotb_test_uart_sequences(dut):
                 "t_rddata_en": 4,
                 "burst_len": 8,
                 "txn_count": 8,
+                # Read the build identity off the DUT and compare. This is the
+                # check that used to be impossible: the geometry was assumed,
+                # and a wrong assumption showed up as a garbage read path.
+                "expect_build": {"dfi_rate": DFI_RATE, "dram_bl": DRAM_BL},
             },
             log=dut._log.info,
         )

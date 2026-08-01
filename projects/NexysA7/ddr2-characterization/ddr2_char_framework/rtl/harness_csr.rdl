@@ -212,4 +212,35 @@ addrmap harness_csr {
     } OBS_HIST_SEL @ 0x1E0;
     word_ro_t OBS_HIST_COUNT @ 0x1E4;
     word_ro_t OBS_HIST_TOTAL @ 0x1E8;
+
+    //=========================================================================
+    // Build identity (0x1EC..0x1F4) -- read-only elaboration-time constants
+    //
+    // BUILD_ID names the harness FAMILY and nothing more. Which build is on the
+    // board, and the geometry it was compiled for, had to be supplied out of
+    // band: by env var in sim (TEST_DFI_RATE / TEST_DRAM_BL), by assumption on
+    // silicon. A wrong assumption surfaced as a read path returning garbage
+    // rather than as a mismatch anyone could see. These make it a comparison.
+    //
+    // Driven from the harness's own parameters, so the reported value cannot
+    // drift from the hardware it describes.
+    //=========================================================================
+    reg { desc = "Functional build number, bumped per build";
+        field { sw = r; hw = w; } value[31:0] = 1; } BUILD_VERSION @ 0x1EC;
+
+    reg {
+        desc = "Compile-time DRAM/DFI geometry";
+        field { sw = r; hw = w; } dfi_rate[3:0]    = 2;
+        field { sw = r; hw = w; } gear_ratio[7:4]  = 1;   // $clog2(dfi_rate)
+        field { sw = r; hw = w; } dram_bl[15:8]    = 4;   // JEDEC MR0
+        field { sw = r; hw = w; } row_width[21:16] = 13;
+        field { sw = r; hw = w; } bank_width[25:22] = 3;
+    } BUILD_CONFIG @ 0x1F0;
+
+    reg {
+        desc = "Compile-time data widths, bits";
+        field { sw = r; hw = w; } axi_data_width[15:0]     = 64;
+        field { sw = r; hw = w; } dram_beat_width[23:16]   = 64;
+        field { sw = r; hw = w; } dram_device_width[31:24] = 64;
+    } BUILD_DATA_CFG @ 0x1F4;
 };
