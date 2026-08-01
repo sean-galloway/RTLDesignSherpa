@@ -54,6 +54,15 @@ class WeightedRoundRobinTB(TBBase):
             self.MAX_LEVELS_WIDTH = (self.MAX_LEVELS - 1).bit_length()
 
         self.SEED = self.convert_to_int(os.environ.get('SEED', '0'))
+
+        # Per-test depth. REG_LEVEL picks how many parameter combinations run;
+        # TEST_LEVEL decides how hard each one works. This TB had no depth
+        # mechanism, so `full` cost exactly what `gate` did.
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'gate'
+        self.DEPTH = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+
         self.MAX_LEVELS_WIDTH = int(self.MAX_LEVELS_WIDTH)
 
         # Initialize random generator

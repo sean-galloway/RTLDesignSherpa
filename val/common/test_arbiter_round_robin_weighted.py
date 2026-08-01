@@ -63,7 +63,7 @@ async def arbiter_round_robin_weighted_test(dut):
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Phase 2: Basic Weighted Arbitration @ {time_ns}ns ===")
         tb.log.info("=== Scenario ARB-03: Basic weighted arbitration ===")
-        await tb.run_basic_arbitration_test(800)
+        await tb.run_basic_arbitration_test(400 * tb.DEPTH)
         await tb.handle_test_transition_ack_cleanup()
 
         # Phase 3: Weight-specific tests
@@ -245,6 +245,7 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
 
     # Environment variables
     extra_env = {
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', reg_level.lower()),
         'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,

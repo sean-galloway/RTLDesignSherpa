@@ -48,6 +48,15 @@ class ArbiterRoundRobinSimpleTB(TBBase):
         # Initialize random generator
         random.seed(self.SEED)
 
+        # Per-test depth. REG_LEVEL picks how many parameter combinations run;
+        # TEST_LEVEL decides how hard each one works. This TB had no depth
+        # mechanism, so `full` cost exactly what `gate` did.
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'gate'
+        self.DEPTH = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+
+
         # Clock and reset signals
         self.clock = self.dut.clk
         self.reset_n = self.dut.rst_n
@@ -259,7 +268,7 @@ class ArbiterRoundRobinSimpleTB(TBBase):
         initial_grants = initial_stats.get('total_grants', 0)
 
         # Run fairness test
-        test_cycles = 1500
+        test_cycles = 750 * self.DEPTH
         await self.wait_clocks('clk', test_cycles)
 
         # Check results

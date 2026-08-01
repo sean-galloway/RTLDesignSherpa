@@ -46,7 +46,17 @@ class ArbiterPriorityEncoderTB(TBBase):
         # Get parameters from environment
         self.CLIENTS = self.convert_to_int(os.environ.get('PARAM_CLIENTS', '4'))
 
-        self.log.info(f"ArbiterPriorityEncoderTB initialized: CLIENTS={self.CLIENTS}")
+        # Per-test depth. REG_LEVEL picks how many parameter combinations run;
+        # TEST_LEVEL decides how hard each one works. This TB had no depth
+        # mechanism, so `full` cost exactly what `gate` did.
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'gate'
+        self.DEPTH = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+
+        self.log.info(
+            f"ArbiterPriorityEncoderTB initialized: CLIENTS={self.CLIENTS}, "
+            f"TEST_LEVEL={self.TEST_LEVEL}")
 
     async def setup_clocks_and_reset(self):
         """Setup - no clock needed for combinational logic"""
@@ -213,7 +223,12 @@ class ArbiterPriorityEncoderTB(TBBase):
         self.log.info(f"=== Test: All {2**self.CLIENTS} Request Combinations ===")
 
         all_passed = True
-        for requests in range(1 << self.CLIENTS):
+        # Exhaustive over all 2^CLIENTS request patterns at full; a strided
+        # sample at the cheaper levels so gate stays a smoke test. Pattern 0
+        # and the all-ones pattern are always covered by the stride landing on
+        # 0 and by the explicit checks elsewhere.
+        _stride = {1: 8, 2: 3, 5: 1}[self.DEPTH]
+        for requests in range(0, 1 << self.CLIENTS, _stride):
             self.set_inputs(0, requests, 0)
             winner, winner_valid = await self.get_outputs()
 

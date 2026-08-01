@@ -142,6 +142,8 @@ def test_arbiter_priority_encoder(request, clients, test_mode):
     }
 
     extra_env = {
+
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', reg_level.lower()),
         'LOG_PATH': log_path,
         'PARAM_CLIENTS': str(clients),
     }

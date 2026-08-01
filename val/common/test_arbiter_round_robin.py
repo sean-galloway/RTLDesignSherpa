@@ -61,7 +61,7 @@ async def arbiter_round_robin_test(dut):
         # Phase 2: Basic arbitration test with flex randomizer patterns
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Starting basic arbitration test @ {time_ns}ns ===")
-        await tb.run_basic_arbitration_test(800)
+        await tb.run_basic_arbitration_test(400 * tb.DEPTH)
         await tb.handle_test_transition_ack_cleanup()
 
         # Phase 3: Advanced pattern tests
@@ -211,6 +211,7 @@ def test_arbiter_round_robin(request, clients, wait_ack):
 
     # Environment variables
     extra_env = {
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', reg_level.lower()),
         'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,

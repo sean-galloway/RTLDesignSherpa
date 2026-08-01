@@ -1007,10 +1007,11 @@ class BF16AdderTB(TBBase):
         elif result == exp_result:
             passed = True
         elif allow_ulp_tolerance:
-            # Allow 1 ULP difference for normal values due to rounding differences
-            ulp_diff = abs((result & 0x7FFF) - (exp_result & 0x7FFF))
-            sign_match = (result >> 15) == (exp_result >> 15)
-            passed = sign_match and ulp_diff <= 1
+            # The reference is exact RNE now, so normal results must match
+            # EXACTLY: a 1-ULP tolerance absorbs precisely the rounding
+            # deviation it exists to check (test-audit finding). Other
+            # deviation sources are handled case-by-case, not with a blanket.
+            passed = False
         else:
             passed = False
 

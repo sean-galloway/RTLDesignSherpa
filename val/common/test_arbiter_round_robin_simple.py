@@ -200,6 +200,7 @@ def test_arbiter_round_robin_simple(request, clients):
 
     # Environment variables
     extra_env = {
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', reg_level.lower()),
         'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
