@@ -43,18 +43,20 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from apply_humanize import split_units  # noqa: E402
+from check_emoji import is_emoji  # noqa: E402
 
 LINK = re.compile(r'\]\(([^)\s]+?)(?:\s+"[^"]*")?\)')
 ANCHOR = re.compile(r'<a\s+(?:name|id)="([^"]+)"')
 CAPTION = re.compile(r'^:\s+\S', re.M)          # LoF/LoT/LoW caption encoding
 HEADING = re.compile(r'^#{1,6}\s+\S', re.M)
 FENCE = re.compile(r'^```', re.M)
-# Pictographs only. Arrows (U+2190-U+21FF) are deliberately NOT here: technical
-# prose uses them for state transitions and navigation, and the first version of
-# this check flagged 15 pages of legitimate `->` arrows as emoji. Box-drawing
-# characters in ASCII waveforms are excluded for the same reason. What is left
-# is the status-marker class the style guide actually bans (✅ ⚠ ❌ 🎯).
-EMOJI = re.compile('[\U0001F300-\U0001FAFF☀-➿⬀-⯿️]')
+# The emoji class lives in check_emoji.py -- ONE definition, because the first
+# version of this check and the grep that verified its sweep carried two
+# different ones, and a verification sharing the sweep's blind spot agrees with
+# itself. See that module for what is in, what is deliberately out (arrows, box
+# drawing, math), and why.
+def _emoji(s):
+    return [ch for ch in s if is_emoji(ch)]
 
 RATIO_LO, RATIO_HI = 0.85, 1.20
 
@@ -109,7 +111,7 @@ def check_unit(out_path: Path, snap_path: Path, verbose: bool) -> tuple[int, int
                                   "(LoF/LoT/LoW entries)"))
         if ca["fences"] % 2:
             msgs.append(("FATAL", f"unbalanced code fences ({ca['fences']})"))
-        emo_a, emo_b = EMOJI.findall(a), EMOJI.findall(b)
+        emo_a, emo_b = _emoji(a), _emoji(b)
         if len(emo_a) > len(emo_b):
             msgs.append(("FATAL", f"{len(emo_a) - len(emo_b)} emoji INTRODUCED "
                                   f"({''.join(sorted(set(emo_a))[:5])}) -- breaks the LaTeX path"))

@@ -23,11 +23,11 @@
 
 # reset_sync - Known RTL Issues
 
-## ✅ RESOLVED: Inverted Reset Polarity in Always Block
+## RESOLVED: Inverted Reset Polarity in Always Block
 
 **Severity**: High
 **Impact**: Reset synchronizer non-functional - output stuck low
-**Status**: ✅ FIXED
+**Status**: FIXED
 **Discovery Date**: 2025-10-14
 **Resolution Date**: 2025-10-14
 
@@ -45,7 +45,7 @@ The reset synchronizer module `reset_sync.sv` had inverted reset polarity logic 
 ```systemverilog
 // WRONG: Inverted reset polarity logic
 always_ff @(posedge clk or negedge rst_n) begin
-    if (rst_n) begin  // ❌ WRONG: This checks if reset is HIGH (not asserted)
+    if (rst_n) begin  // WRONG: This checks if reset is HIGH (not asserted)
         sync_chain <= '0;
     end else begin
         sync_chain <= {sync_chain[N-2:0], async_rst_in};
@@ -69,15 +69,15 @@ end
 - `rst_n = 1` (reset deasserted) → Condition `if (rst_n)` is TRUE → Sets chain to 0 → Output stuck low
 
 **Should have been:**
-- `rst_n = 0` (reset asserted) → Condition `if (!rst_n)` is TRUE → Sets chain to 0 ✅
-- `rst_n = 1` (reset deasserted) → Condition `if (!rst_n)` is FALSE → Shifts chain ✅
+- `rst_n = 0` (reset asserted) → Condition `if (!rst_n)` is TRUE → Sets chain to 0
+- `rst_n = 1` (reset deasserted) → Condition `if (!rst_n)` is FALSE → Shifts chain
 
 ### Fix Applied
 
 ```systemverilog
-// ✅ FIXED: Correct active-low reset polarity
+// FIXED: Correct active-low reset polarity
 always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin  // ✅ CORRECT: Active-low reset check
+    if (!rst_n) begin  // CORRECT: Active-low reset check
         sync_chain <= '0;
     end else begin
         sync_chain <= {sync_chain[N-2:0], async_rst_in};
@@ -92,10 +92,10 @@ end
 **Test Created**: `val/common/test_reset_sync.py`
 
 **Test Coverage:**
-1. ✅ Basic synchronization (4 test configs: N=2,3,4,5)
-2. ✅ Immediate reset assertion behavior
-3. ✅ Multiple cycle reset hold
-4. ✅ Glitch filtering on async input
+1. Basic synchronization (4 test configs: N=2,3,4,5)
+2. Immediate reset assertion behavior
+3. Multiple cycle reset hold
+4. Glitch filtering on async input
 
 **Results:**
 ```bash
@@ -108,20 +108,20 @@ test_reset_sync.py::test_reset_sync[5-max]      PASSED
 ```
 
 **Verification Steps:**
-1. ✅ Applied fix to `reset_sync.sv:16`
-2. ✅ Created comprehensive test suite
-3. ✅ All 4 test configurations passing
-4. ✅ Verified synchronizer chain progresses correctly
-5. ✅ Verified proper glitch filtering (N clock cycles)
-6. ✅ Updated documentation in `docs/markdown/rtl-common/reset_sync.md`
+1. Applied fix to `reset_sync.sv:16`
+2. Created comprehensive test suite
+3. All 4 test configurations passing
+4. Verified synchronizer chain progresses correctly
+5. Verified proper glitch filtering (N clock cycles)
+6. Updated documentation in `docs/markdown/rtl-common/reset_sync.md`
 
 ### Related Files
 
-- ✅ `rtl/common/reset_sync.sv` (fix applied line 16)
-- ✅ `val/common/test_reset_sync.py` (new test file created)
-- ✅ `bin/TBClasses/reset_sync_tb.py` (new testbench class)
-- ✅ `docs/markdown/rtl-common/reset_sync.md` (updated)
-- ✅ `rtl/common/TASKS.md` (task completed, progress tracked)
+- `rtl/common/reset_sync.sv` (fix applied line 16)
+- `val/common/test_reset_sync.py` (new test file created)
+- `bin/TBClasses/reset_sync_tb.py` (new testbench class)
+- `docs/markdown/rtl-common/reset_sync.md` (updated)
+- `rtl/common/TASKS.md` (task completed, progress tracked)
 
 ### Lessons Learned
 
@@ -133,14 +133,14 @@ test_reset_sync.py::test_reset_sync[5-max]      PASSED
 ### Prevention
 
 **Code Review Checklist:**
-- ✅ Asynchronous reset blocks use `if (!rst_n)` for active-low convention
-- ✅ Sensitivity list includes `negedge rst_n` for active-low async reset
-- ✅ Reset behavior validated with comprehensive tests
-- ✅ All reset synchronizers tested for proper propagation
+- Asynchronous reset blocks use `if (!rst_n)` for active-low convention
+- Sensitivity list includes `negedge rst_n` for active-low async reset
+- Reset behavior validated with comprehensive tests
+- All reset synchronizers tested for proper propagation
 
 ---
 
 **Fixed By**: Claude Code (AI Assistant)
 **Verification**: pytest test suite
 **Commit**: ec6f36e (2025-10-14)
-**Status**: ✅ Production-Ready - All tests passing
+**Status**: Production-Ready - All tests passing

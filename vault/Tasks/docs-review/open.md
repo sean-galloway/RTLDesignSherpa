@@ -94,32 +94,65 @@ headers pointed at each area's `overview.md`).
 
 ---
 
-## DOCREV-014 — emoji sweep: 110 files under docs/markdown carry them
-**Status:** open 2026-07-31
+## DOCREV-014 — emoji sweep: 4512 glyphs across 252 tracked .md files
+**Status:** open 2026-07-31; scope and figures corrected the same day
 **Priority:** P2
 
 The no-emoji rule ([[humanization-voice]], CLAUDE.md, the style guide's
 banlist) exists because emojis break the LaTeX path in PDF generation and read
-as unprofessional in a formal spec. **Measured 2026-07-31: 110 files under
-`docs/markdown/` contain at least one pictograph** (status markers dominate:
-white-heavy-check-mark, warning sign, cross mark, direct-hit).
+as unprofessional in a formal spec.
 
-    grep -rlP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]' docs/markdown/ | wc -l
+**Measured 2026-07-31 over every git-tracked `.md`: 4512 glyphs in 252 of 1310
+files.** Use the tool, not a grep -- `bin/review/check_emoji.py` is the single
+definition of the class and the reason the first two figures were wrong:
 
-Per-area at time of measurement: rtl-common 10, and the rest spread across
-rtl-amba (the bulk), Scripts, TestTutorial and rtl-cdc.
+    python3 bin/review/check_emoji.py --all --summary
+    python3 bin/review/check_emoji.py docs/markdown/rtl-amba rtl/amba
 
-Two things make this more than tidying:
+| area | files | glyphs |
+|---|---|---|
+| `projects/` | 118 | 2621 |
+| `docs/markdown/rtl-amba` | 71 | 613 |
+| `vault/` | 12 | 397 |
+| `rtl/` beside-code | 8 | 226 |
+| repo root | 5 | 215 |
+| `docs/markdown/rtl-math` | 10 | 111 |
+| `docs/markdown/TestTutorial` | 6 | 83 |
+| `bin/` | 5 | 57 |
+| everything else | ~16 | ~180 |
+| `docs/markdown/rtl-common` | 1 | 8 (quickstart, with the meta apply) |
+
+Dominant glyphs: check mark 2724, cross mark 424, VARIATION SELECTOR-16 196,
+warning sign 161, clipboard 153, open book 143, the traffic-light circles 191
+combined.
+
+**Two earlier figures in this task were wrong, and the way they were wrong is
+the point.** It first said "110 files under `docs/markdown/`". Both the scope
+and the character class were too narrow:
+
+- **Scope.** Every count was globbed from `docs/markdown/`, so beside-code
+  `CLAUDE.md`/`README.md` were never in the denominator -- `rtl/common/CLAUDE.md`
+  alone holds 33. The voice rules bind those files too.
+- **Class.** The sweep and the grep that verified it used the same
+  `[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]`, which omits U+2B00-U+2BFF and
+  U+FE0F. A verification sharing the sweep's blind spot agrees with itself: 47
+  stars, 21 black stars and 196 variation selectors were invisible to both.
+
+Three things make this more than tidying:
 
 - **The humanizer INTRODUCES them.** The cdc humanize round put checkmarks into
   `apb5_slave_cdc.md` and `apb5_slave_cdc_cg.md`, which is how a rule that
   predates the round gets violated by the pass meant to polish the prose.
   `bin/review/check_tag_survival.py` now makes that FATAL before apply, so the
   inflow is stopped; this task is the backlog it leaves.
-- **Arrows are NOT in scope.** The first version of the checker swept
-  U+2190-U+21FF and flagged 15 pages of legitimate state-transition and
-  navigation arrows. Any sweep here must keep the same narrow class
-  (pictographs only) or it will "fix" correct documentation.
+- **Arrows are NOT in scope, and neither is the rest of the technical
+  typography.** The first version of the checker swept U+2190-U+21FF and
+  flagged 15 pages of legitimate state-transition and navigation arrows.
+  Measured across 54 rtl-common files, the non-ASCII that MUST survive: 713
+  OVERLINE (waveform diagrams), 191 arrows, 178 box-drawing, 174 em dashes,
+  160 middle dots (the doc header separator), plus math operators, Greek, and
+  super/subscripts. `check_emoji.py` records these exclusions with the reason;
+  do not widen the class without reading them.
 
 Do it per area as that area is humanized, not as one repo-wide sed: a status
 marker usually wants replacing with words ("verified", "not supported"), not
@@ -139,10 +172,17 @@ and why a blanket delete would have been wrong:
 - Trailing `✓` on a worked-example result became `(correct)` or fell away with
   the sentence rewritten.
 
-**The humanize pass removes none of them.** Measured on this area: 56 glyphs
-before the voice pass, the same 56 after, in the same 10 files. The humanizer
-treats them as content, so this backlog cannot be closed by humanizing -- it is
-hand work per area, and `check_tag_survival.py` only stops NEW ones arriving.
+**The humanize pass is INCONSISTENT about them -- do not rely on it either
+way.** Measured across the same round: the four module-page units kept all 56
+glyphs (56 before, 56 after, same 10 files), while the `_meta` unit removed
+most of its own (`quickstart.md` 8 -> 0, `rtl/common/CLAUDE.md` 33 -> 12). Same
+model, same brief, same round. So the backlog cannot be closed by humanizing,
+and a page cannot be assumed clean because it was humanized -- measure after
+every apply. `check_tag_survival.py` only stops NEW ones arriving.
+
+**Final for the area: 0 across all 55 files** (`docs/markdown/rtl-common` +
+`rtl/common` recursively), verified with `check_emoji.py` rather than the grep
+that produced the original undercount.
 
 ## DOCREV-010 — every docs/markdown book needs index.md + overview.md
 **Status:** open 2026-07-25 (Sean)

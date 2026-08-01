@@ -32,12 +32,12 @@
 ## Quick Context
 
 **What:** Reusable technology-agnostic building blocks (counters, arbiters, CRC, CDC, etc.); math primitives now live in `rtl/math/`
-**Status:** ✅ Stable, mature baseline - production ready
+**Status:** Stable, mature baseline - production ready
 **Your Role:** Help users integrate existing modules, rarely create new ones
 
 ---
 
-## 📖 Global Requirements Reference
+## Global Requirements Reference
 
 **IMPORTANT: Review `/GLOBAL_REQUIREMENTS.md` for mandatory RTL standards**
 
@@ -56,7 +56,7 @@ This CLAUDE.md provides common RTL library guidance. Also review:
 
 ### Rule #0: Verification Architecture (MANDATORY)
 
-**📖 See:** `/GLOBAL_REQUIREMENTS.md` Sections 2.1, 2.3, 2.4 for complete requirements
+**See:** `/GLOBAL_REQUIREMENTS.md` Sections 2.1, 2.3, 2.4 for complete requirements
 
 **Common RTL Three-Layer Pattern:**
 1. **TB:** `bin/TBClasses/common/{module}_tb.py`
@@ -65,7 +65,7 @@ This CLAUDE.md provides common RTL library guidance. Also review:
 
 **Common RTL typically uses queue access** - counters, arbiters, and similar blocks are simple control paths.
 
-**📖 Complete Guide:** `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`
+**Complete Guide:** `docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`
 
 ---
 
@@ -93,10 +93,10 @@ ls rtl/common/dataint*.sv    # Find CRC/ECC/parity
 ```
 User: "I need a counter that counts up to 100"
 
-❌ WRONG Response:
+WRONG Response:
 "Let me create a counter module for you..."
 
-✅ RIGHT Response:
+RIGHT Response:
 "Let me check existing counters first:
 [searches rtl/common/counter*.sv]
 Found counter_bin.sv - it wraps at MAX, with the MSB as a wrap flag:
@@ -118,7 +118,7 @@ cat val/common/test_counter_bin.py
 
 ### Rule #3: Reset Convention (MANDATORY)
 
-**📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 1.1 for complete requirement
+**See:** `/GLOBAL_REQUIREMENTS.md` Section 1.1 for complete requirement
 
 **Common RTL Status:** Active-low everywhere, but the port is named **`rst_n`**,
 not `i_rst_n`. Measured across `rtl/common/*.sv`: 28 modules expose `rst_n`, one
@@ -135,7 +135,7 @@ something to patch per-instantiation.
 ### When User Says: "I need..."
 
 | User Request | First Check | Likely Solution |
-|--------------|-------------|-----------------|
+|---|---|---|
 | "...a counter" | `ls rtl/common/counter*.sv` | `counter_bin.sv` (most cases) |
 | "...a timer/timeout" | `counter_freq_invariant.sv` | 1 us `tick`; build the timeout on it |
 | "...an arbiter" | `ls rtl/common/arbiter*.sv` | `arbiter_round_robin.sv` |
@@ -153,7 +153,7 @@ something to patch per-instantiation.
 ### Counter Selection Matrix
 
 | Requirement | Module | Parameters |
-|-------------|--------|------------|
+|---|---|---|
 | FIFO pointer / wrap counting | `counter_bin.sv` | WIDTH, MAX |
 | With load/clear | `counter_load_clear.sv` | WIDTH |
 | Microsecond time base | `counter_freq_invariant.sv` | COUNTER_WIDTH, MIN/MAX_FREQ_MHZ |
@@ -167,7 +167,7 @@ they moved to `rtl/cdc/`. `ls rtl/common/counter*.sv` returns the six above.
 ### Arbiter Selection Matrix
 
 | Requirement | Module | Notes |
-|-------------|--------|-------|
+|---|---|---|
 | Fair arbitration | `arbiter_round_robin.sv` | Most versatile, pipelinable |
 | Weighted QoS | `arbiter_round_robin_weighted.sv` | Assign weights |
 | Fixed priority | `arbiter_priority_encoder.sv` | Lowest index wins |
@@ -330,48 +330,48 @@ sync_pulse u_sync_pulse (
 - Async signals entering design
 - Multi-clock system integration
 
-**⚠️ WARNING:** Always emphasize proper CDC! This is critical for correctness.
+**Warning:** always emphasize proper CDC. This is critical for correctness.
 
 ---
 
 ## Anti-Patterns to Catch and Correct
 
-### ❌ Anti-Pattern 1: Creating New Counter
+### Anti-Pattern 1: Creating New Counter
 
 ```
 User: "Create a module that counts from 0 to N"
 
-❌ WRONG:
+WRONG:
 "Here's a new counter module:
 module my_counter #(parameter MAX=100) ..."
 
-✅ RIGHT:
+RIGHT:
 "Use existing counter_bin.sv:
 counter_bin #(.WIDTH($clog2(N+1)+1), .MAX(N)) u_cnt (...);"
 ```
 
-### ❌ Anti-Pattern 2: Wrong Reset Polarity
+### Anti-Pattern 2: Wrong Reset Polarity
 
 ```systemverilog
-❌ WRONG (User's code):
+WRONG (User's code):
 always_ff @(posedge clk or posedge rst) begin
     if (rst) r_state <= 0;
 
-✅ CORRECTED:
+CORRECTED:
 "This design uses active-low reset. Change to:
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) r_state <= 0;
 "
 ```
 
-### ❌ Anti-Pattern 3: Unsafe CDC
+### Anti-Pattern 3: Unsafe CDC
 
 ```systemverilog
-❌ WRONG (User's code):
+WRONG (User's code):
 always_ff @(posedge clk_b)
     r_data <= signal_from_clk_a;  // METASTABILITY!
 
-✅ CORRECTED:
+CORRECTED:
 "This crosses clock domains unsafely. Use synchronizer:
 glitch_free_n_dff_arn #(.FLOP_COUNT(3), .WIDTH(WIDTH)) u_sync (
     .clk(clk_b), .rst_n(rst_b_n), .d(signal_from_clk_a), .q(r_data)
@@ -379,15 +379,15 @@ glitch_free_n_dff_arn #(.FLOP_COUNT(3), .WIDTH(WIDTH)) u_sync (
 "
 ```
 
-### ❌ Anti-Pattern 4: Parameter Width Mismatch
+### Anti-Pattern 4: Parameter Width Mismatch
 
 ```systemverilog
-❌ WRONG (User's code):
+WRONG (User's code):
 counter_bin #(.WIDTH(16)) u_cnt (
     .counter_bin_curr(count[7:0])  // WIDTH mismatch!
 );
 
-✅ CORRECTED:
+CORRECTED:
 "Counter WIDTH parameter (16) doesn't match output width (8). Fix:
 counter_bin #(.WIDTH(8)) u_cnt (
     .counter_bin_curr(count[7:0])
@@ -395,15 +395,15 @@ counter_bin #(.WIDTH(8)) u_cnt (
 "
 ```
 
-### ❌ Anti-Pattern 5: Reinventing Clock Divider
+### Anti-Pattern 5: Reinventing Clock Divider
 
 ```
 User: "I need to divide my 100MHz clock by 2"
 
-❌ WRONG:
+WRONG:
 "Create a clock divider with a toggle FF..."
 
-✅ RIGHT:
+RIGHT:
 "Use clock_divider.sv, BUT better: use PLL/clock manager if available.
 Clock dividers create derived clocks which can cause timing issues.
 
@@ -502,7 +502,7 @@ ls rtl/common/counter*.sv
 
 Then provide table:
 | Module | Use Case |
-|--------|----------|
+|---|---|
 | counter.sv | Plain up-counter |
 | counter_load_clear.sv | Count to a runtime match value, with load/clear |
 | counter_bin.sv | FIFO/ring pointer -- wraps at MAX, MSB toggles |
@@ -560,12 +560,12 @@ sync_pulse u_sync_pulse (
 );
 ```
 
-"⚠️ **CRITICAL:** Never cross clock domains without proper synchronization!"
+"**Critical:** never cross clock domains without proper synchronization."
 
 ### Q: "Can I create a new module in rtl/common/?"
 
 **A:** Set clear expectations:
-"✅ **Only if:**
+"**Only if:**
 1. Searched thoroughly and no existing module works
 2. Documented why existing modules insufficient
 3. Follows naming convention: {category}_{function}.sv
@@ -694,7 +694,10 @@ async def test_my_integration(dut):
 ### Timing Optimization
 
 **Suggest when user has timing issues:**
-- Enable pipelining: `REG_OUTPUT=1` on arbiters
+- **Not** `REG_OUTPUT` on the arbiters — no arbiter in `rtl/common` declares
+  such a parameter (`arbiter_round_robin` takes `CLIENTS`/`WAIT_GNT_ACK`/`N`,
+  `arbiter_round_robin_weighted` adds `MAX_LEVELS`), and their grant outputs
+  are already registered in an `always_ff`. There is nothing to enable.
 - Break long combinational paths
 - Check critical paths with static timing analysis
 
@@ -744,11 +747,11 @@ verilator --lint-only rtl/common/module.sv
 
 ## Remember
 
-1. 🔍 **Search first** - dozens of modules already exist (plus `rtl/math/` for arithmetic)
-2. ✅ **Verify in tests** - Check val/common/test_*.py for API
-3. 🔄 **Reuse patterns** - Look at rtl/amba/ and projects/components/ usage
-4. 📝 **Document decisions** - Why existing modules don't fit
-5. ⚠️ **Safety critical** - CDC, reset polarity, parameter widths
+1. **Search first** - dozens of modules already exist (plus `rtl/math/` for arithmetic)
+2. **Verify in tests** - Check val/common/test_*.py for API
+3. **Reuse patterns** - Look at rtl/amba/ and projects/components/ usage
+4. **Document decisions** - Why existing modules don't fit
+5. **Safety critical** - CDC, reset polarity, parameter widths
 
 ---
 

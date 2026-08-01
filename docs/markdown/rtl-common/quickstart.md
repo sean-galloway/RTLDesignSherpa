@@ -31,13 +31,13 @@
 
 ## Overview
 
-The Common RTL Library is **49 reusable building blocks** for FPGA and ASIC designs. Every module is technology-agnostic, fully parameterizable, and verified with comprehensive CocoTB test suites.
+The Common RTL Library is **49 reusable building blocks** for FPGA and ASIC designs. Every module is technology-agnostic, fully parameterizable, and verified with comprehensive CocoTB test suites. This guide is the fast path in.
 
 **Quick Stats:**
 - **49 modules** across 10 categories (arithmetic split out to `rtl/math/`, clock-crossing to `rtl/cdc/`)
-- 🔧 **Technology agnostic** (FPGA/ASIC portable)
-- 📖 **Well documented** (inline + external docs)
-- 🧪 **Every module has a CocoTB test** under `val/common/`
+- **Technology agnostic** (FPGA/ASIC portable)
+- **Well documented** (inline + external docs)
+- **Every module has a CocoTB test** under `val/common/`
 
 ---
 
@@ -47,7 +47,7 @@ Counts live in one place — the [count table in index.md](index.md#module-count
 Here's the browse-oriented view of what's in each category:
 
 | Category | Examples |
-|----------|----------|
+|---|---|
 | Clock/Reset/CDC | clock_divider, clock_gate_ctrl, clock_pulse, glitch_free_n_dff_arn |
 | Counters | counter, counter_bin, counter_bin_load, counter_freq_invariant, counter_load_clear, counter_ring |
 | Data Integrity | dataint_crc, dataint_ecc_hamming, dataint_parity, dataint_checksum |
@@ -303,7 +303,7 @@ sync_pulse u_pulse_sync (
 ### "I need a counter..."
 
 | Requirement | Module | Notes |
-|-------------|--------|-------|
+|---|---|---|
 | Simple up counter | `counter_bin.sv` | Most common choice |
 | With load/clear | `counter_load_clear.sv` | Explicit control |
 | Time-based timeout | `counter_freq_invariant.sv` | Frequency-independent |
@@ -314,7 +314,7 @@ sync_pulse u_pulse_sync (
 ### "I need an arbiter..."
 
 | Requirement | Module | Notes |
-|-------------|--------|-------|
+|---|---|---|
 | Fair round-robin | `arbiter_round_robin.sv` | Most versatile |
 | Weighted QoS | `arbiter_round_robin_weighted.sv` | Assign priorities |
 | Fixed priority | `arbiter_priority_encoder.sv` | Lowest index wins |
@@ -323,14 +323,14 @@ sync_pulse u_pulse_sync (
 ### "I need CRC..."
 
 | Standard | Module | Configuration |
-|----------|--------|---------------|
+|---|---|---|
 | Any CRC standard | `dataint_crc.sv` | Set POLYNOMIAL parameter |
 | CRC-32 (Ethernet) | `dataint_crc.sv` | POLYNOMIAL=32'h04C11DB7 |
 | CRC-16-CCITT | `dataint_crc.sv` | POLYNOMIAL=16'h1021 |
 | CRC-8 | `dataint_crc.sv` | POLYNOMIAL=8'h07 |
 | Custom | `dataint_crc_xor_shift.sv` | Build custom |
 
-**📄 The validated CRC configurations (250 standards) are the `crc_parameters` table in `bin/TBClasses/common/crc_testing.py`, which drives `val/common/test_dataint_crc.py`.**
+**The validated CRC configurations (250 standards) are the `crc_parameters` table in `bin/TBClasses/common/crc_testing.py`, which drives `val/common/test_dataint_crc.py`.**
 
 ### "I need a FIFO..."
 
@@ -415,7 +415,7 @@ gtkwave val/common/GTKW/counter_bin.gtkw
 
 These four show up in design reviews again and again. All of them are cheap to avoid once you know what to look for.
 
-### ❌ Pitfall 1: Wrong Reset Polarity
+### Pitfall 1: Wrong Reset Polarity
 
 **Wrong:**
 ```systemverilog
@@ -435,7 +435,7 @@ counter_bin u_counter (
 );
 ```
 
-### ❌ Pitfall 2: Parameter Mismatch
+### Pitfall 2: Parameter Mismatch
 
 **Wrong:**
 ```systemverilog
@@ -457,7 +457,7 @@ counter_bin #(
 );
 ```
 
-### ❌ Pitfall 3: Clock Domain Crossing Without Sync
+### Pitfall 3: Clock Domain Crossing Without Sync
 
 **Wrong:**
 ```systemverilog
@@ -477,7 +477,7 @@ cdc_synchronizer #(.WIDTH(8), .FLOP_COUNT(3)) u_sync (
 );
 ```
 
-### ❌ Pitfall 4: Creating New Module Without Searching
+### Pitfall 4: Creating New Module Without Searching
 
 **Wrong:**
 ```systemverilog
@@ -508,7 +508,6 @@ ls rtl/common/counter*.sv
 
 **Large area (more features):**
 - Use full-featured modules
-- Enable pipelining (REG_OUTPUT=1) for timing
 - Use RAM-based FIFOs for large buffers
 
 ### Timing Optimization

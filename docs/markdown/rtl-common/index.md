@@ -23,7 +23,7 @@
 
 # rtl-common Modules Index
 
-This directory holds the documentation for the common RTL modules library — the fundamental building blocks for digital design, covering arithmetic operations, data integrity functions, control logic, and specialized utilities.
+This directory documents the common RTL module library — the fundamental building blocks for digital design, covering arithmetic operations, data integrity functions, control logic, and specialized utilities.
 
 ## Overview
 
