@@ -31,11 +31,15 @@ class Init(Sequence):
                 f"0x{drv.BUILD_ID_MAGIC:08X} -- reprogram the board")
 
         # DFI timing is a property of the PHY underneath, not of the sequence.
-        # On silicon that is the a7ddrphy and the defaults hold; against the
-        # cocotb DFI loopback the read path is shorter, so t_rddata_en differs.
-        # Exposed as params rather than hardcoded so the SAME sequence runs in
-        # both places -- an unconfigurable sequence is one that only runs where
-        # its author happened to be standing.
+        # Exposed as params rather than hardcoded so the SAME sequence can be
+        # pointed at a different backend -- an unconfigurable sequence is one
+        # that only runs where its author happened to be standing.
+        #
+        # The param that currently earns this is `leveling`: against the cocotb
+        # DFI loopback it never converges, so the sim run hangs unless it is
+        # turned off. The timing values below are passed through for the same
+        # reason in principle, but no measurement yet shows the loopback caring
+        # what they are -- do not read the plumbing as evidence that it does.
         test = SimpleTest(
             drv,
             base_addr=ctx.param("base_addr", 0x0),
