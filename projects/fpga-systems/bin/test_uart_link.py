@@ -289,3 +289,41 @@ def test_custom_board_from_spec_needs_no_subclass(monkeypatch):
     monkeypatch.setattr("board.list_uart_ports",
                         lambda *a, **k: [UartPort("/dev/ttyACM0", usb_serial="ABC123")])
     assert [p.device for p in b.find_uart_ports()] == ["/dev/ttyACM0"]
+
+
+# ---------------------------------------------------------------------------
+# FPGA_JTAG_SERIAL must reach port discovery, not just programming
+# ---------------------------------------------------------------------------
+
+def test_jtag_serial_override_reaches_uart_discovery(monkeypatch):
+    """A board whose real serial differs from the registry must still be found.
+
+    The override used to reach `program` but not `find_uart_ports`, which read
+    the spec's static serial. The symptom was a board that programmed fine and
+    then reported "no UART ports found" quoting the very serial the user had
+    just overridden.
+    """
+    other = [UartPort("/dev/ttyUSB0", usb_serial="210384B2FB17")]
+    import board as board_mod
+    monkeypatch.setattr(board_mod, "list_uart_ports", lambda *a, **k: list(other))
+
+    b = get_board("nexys_a7_100t")
+    assert b.find_uart_ports() == []            # registry serial: no match
+
+    monkeypatch.setenv("FPGA_JTAG_SERIAL", "210384B2FB17")
+    assert [p.device for p in b.find_uart_ports()] == ["/dev/ttyUSB0"]
+
+
+def test_override_does_not_hijack_a_board_with_its_own_uart_serial(monkeypatch):
+    """Genesys 2's UART is a separate FT232R, so the JTAG override is irrelevant
+    to it -- overriding JTAG must not make it start matching the wrong port."""
+    ports = [
+        UartPort("/dev/ttyUSB0", usb_serial="210384B2FB17"),
+        UartPort("/dev/ttyUSB1", usb_serial="AU05X8RM"),
+    ]
+    import board as board_mod
+    monkeypatch.setattr(board_mod, "list_uart_ports", lambda *a, **k: list(ports))
+    monkeypatch.setenv("FPGA_JTAG_SERIAL", "210384B2FB17")
+
+    devs = [p.device for p in get_board("genesys2").find_uart_ports()]
+    assert devs == ["/dev/ttyUSB1"]
