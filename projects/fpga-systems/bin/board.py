@@ -105,7 +105,14 @@ class Board:
         whereas an empty list would look like "board not attached".
         """
         ports = list_uart_ports(self.SPEC.uart_glob)
-        want = self.SPEC.uart_usb_serial
+        # Use the env-AWARE serial. `SPEC.uart_usb_serial` falls back to the
+        # spec's static jtag_serial, so an FPGA_JTAG_SERIAL override reached
+        # programming but not port discovery: on a board whose serial differs
+        # from the registry, `make program` worked and `make run` then reported
+        # "no UART ports found" quoting the registry value the user had just
+        # overridden. A board with its own uart_serial (Genesys 2's separate
+        # FT232R) still wins, because that is not the JTAG serial at all.
+        want = self.SPEC.uart_serial or self.jtag_serial
         if not want:
             return ports
         matched = [p for p in ports if p.matches_serial(want)]
