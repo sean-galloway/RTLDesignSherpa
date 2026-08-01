@@ -45,8 +45,11 @@ _HOST = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/"
                             "build-perf/host")
 _TBC = os.path.join(_REPO, "projects/NexysA7/ddr2-characterization/"
                            "ddr2_char_framework/dv/tbclasses")
+# The pumice sequence area. Its seq_*.py are what `make run` drives on silicon;
+# cocotb_test_uart_sequences below runs the SAME files against the sim.
+_SEQ = os.path.join(_REPO, "projects/fpga-systems/NexysA7/pumice/bin")
 _BRIDGE = os.path.join(_REPO, "projects/components/converters/bin")
-for _p in (_HOST, _TBC, _BRIDGE):
+for _p in (_HOST, _TBC, _BRIDGE, _SEQ):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -438,6 +441,51 @@ async def cocotb_test_uart_simple(dut):
                     f"act=0x{res.actual:08X} mismatched={res.mismatched}")
 
 
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_uart_sequences(dut):
+    """Run the pumice SEQUENCES -- unmodified -- against the sim.
+
+    uart_simple proves one authored-once *program* (SimpleTest) is portable.
+    This proves the layer above it: the `seq_*.py` files that `make run` drives
+    on the board, executed here through the same SequenceRunner, with the same
+    dependency resolution. `board=None` is the sim case the context was designed
+    for; the transport is the cocotb UART, and no sequence knows the difference.
+
+    `leveling=False` is the load-bearing param, and it is the reason seq_init
+    had to become configurable at all: leveling against the loopback never
+    converges, and with it enabled this test hangs rather than failing. A
+    sequence that could not be told to skip it would only ever run on silicon.
+
+    The DFI timing values below match uart_simple's known-good pair. Mutating
+    t_rddata_en to 6, or to 99, does NOT fail this test -- with leveling off
+    nothing in the loopback read path depends on it. They are passed for
+    parity with uart_simple, not because they are proven necessary here.
+    """
+    drv, chan, _dfi, _mem = await _bringup(dut)
+
+    def prog():
+        from sequence import SequenceContext, SequenceRunner
+
+        ctx = SequenceContext(
+            bus=drv,
+            board=None,                     # sim: no board, same sequences
+            params={
+                "leveling": False,          # loopback needs none
+                "t_phy_wrlat": 4,           # matches the known-good sim config
+                "t_rddata_en": 4,
+                "burst_len": 8,
+                "txn_count": 8,
+            },
+            log=dut._log.info,
+        )
+        runner = SequenceRunner(ctx=ctx).discover(_SEQ)
+        return runner.run(["init", "write_read"])
+
+    report = await cocotb.external(prog)()
+    dut._log.info("sequence run:\n%s", report.summary())
+    assert report.ok, f"pumice sequences failed in sim:\n{report.summary()}"
+
+
 @cocotb.test(timeout_time=400, timeout_unit="ms")
 async def cocotb_test_uart_sweep(dut):
     """Short BOTH-ORDERINGS functional smoke over the COMMON harness. Runs a
@@ -595,6 +643,10 @@ def test_ddr2_char_uart_smoke(request):
 
 def test_ddr2_char_uart_simple(request):
     _run("cocotb_test_uart_simple")
+
+
+def test_ddr2_char_uart_sequences(request):
+    _run("cocotb_test_uart_sequences")
 
 
 
