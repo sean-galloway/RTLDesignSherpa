@@ -8,7 +8,7 @@ completion, and reports CRC / cycles / perf. Intended as the first thing
 you run after flashing a fresh bitstream.
 
 Usage:
-    python3 run_smoke.py --port /dev/ttyUSB1 [--txn 1024] [--blen 8]
+    python3 host_ddr2_smoke.py --port /dev/ttyUSB1 [--txn 1024] [--blen 8]
 
 Expected pass condition:
     * BUILD_ID matches
@@ -100,7 +100,7 @@ def main() -> int:
     d.set_controller_cap(cap_lookahead_max=4, cap_synth_mask=0xF)
     # Read-capture leveling: realign the captured DFI read data to the late
     # dfi_rddata_valid. This is the knob the design-requirements DFI/PHY table
-    # calls "dfi_rddata_delay"; run_smoke previously never programmed it, so the
+    # calls "dfi_rddata_delay"; host_ddr2_smoke previously never programmed it, so the
     # read path ran at the reset default and every read mis-captured. Sweep with
     # sweep_rddata_delay.py if the board eye moves.
     d.set_dfi_rddata_delay(args.rddata_delay)

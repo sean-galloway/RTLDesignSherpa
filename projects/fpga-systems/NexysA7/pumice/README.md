@@ -96,7 +96,7 @@ collateral; sequences (what to do with them) are not, because they must run
 unchanged against silicon and sim. Sequences take an injected bus, never a port.
 
 **No `program_fpga.tcl` under `fpga/tcl/`.** Board programming is the global
-`make/fpga_flow.mk` plus the `fpga/bin/boards/` registry.
+`make/fpga_flow.mk` plus the `projects/fpga-systems/bin/boards/` registry.
 
 ## Status
 

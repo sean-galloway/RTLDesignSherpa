@@ -208,37 +208,22 @@ class UartLink:
         return f"UartLink({self.port!r}, baudrate={self.baudrate})"
 
 
-def _converters_bin() -> str:
-    """Directory holding `uart_axi_bridge.py`.
-
-    The bridge lives with the converter RTL it talks to
-    (`projects/components/converters/bin`), which is not on PYTHONPATH. Every
-    host tool used to re-derive this by hand -- via `$REPO_ROOT` or a 12-deep
-    parent walk. Derived here once instead, from this file's own location, so it
-    works with or without the environment being sourced.
-    """
-    env = os.environ.get("REPO_ROOT")
-    if env:
-        cand = os.path.join(env, "projects/components/converters/bin")
-        if os.path.isdir(cand):
-            return cand
-    # fpga/bin/uart_link.py -> repo root is two levels up.
-    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    return os.path.join(root, "projects/components/converters/bin")
-
-
 def open_bridge(port: Optional[str] = None, baudrate: int = DEFAULT_BAUD,
                 timeout: float = 1.0, channel=None):
     """Build a `UARTAxiBridge` over a port (or an injected channel).
 
-    One place that knows where the bridge module lives; callers just ask for a
-    bridge. Passing `channel=` (a `UartLink`, or a cocotb channel) keeps the
+    The bridge is a sibling module in this directory, so there is no path
+    derivation left to get wrong. It used to live with the converter RTL it
+    talks to, and every host tool re-derived that location by hand -- via
+    `$REPO_ROOT` or a parent walk whose depth broke the moment this layer moved.
+
+    Passing `channel=` (a `UartLink`, or a cocotb channel) keeps the
     sim/silicon equivalence boundary exactly where it was.
     """
     import sys
-    bin_dir = _converters_bin()
-    if bin_dir not in sys.path:
-        sys.path.insert(0, bin_dir)
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
     from uart_axi_bridge import UARTAxiBridge  # noqa: E402
     if channel is not None:
         return UARTAxiBridge(channel=channel)

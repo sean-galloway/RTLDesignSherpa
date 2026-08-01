@@ -5,7 +5,7 @@ summary: The board registry - JTAG serials, UART chips, and the gotchas that eat
 
 # Board handling (this lab)
 
-**The registry is the source of truth: `fpga/bin/boards/`.** One file per board,
+**The registry is the source of truth: `projects/fpga-systems/bin/boards/`.** One file per board,
 holding the part, the JTAG serial, and how its UART is reached. Nothing else in
 the tree should name a JTAG serial again -- seven copies of `program_fpga.tcl`
 each hardcoded one, plus its own env-var name to override it.
@@ -18,7 +18,7 @@ b.find_uart_port(probe=...)         # ...and which runs the right bitstream
 b.program("bitstream/ddr2_char.bit")
 ```
 
-CLI: `python3 fpga/bin/fpga_board.py {list,info,ports,program}`.
+CLI: `python3 projects/fpga-systems/bin/fpga_board.py {list,info,ports,program}`.
 
 **Flow Makefiles do not call that CLI directly** -- they include the global make
 infra (`make/fpga_flow.mk` for the whole flow, or `make/fpga_board.mk` for the

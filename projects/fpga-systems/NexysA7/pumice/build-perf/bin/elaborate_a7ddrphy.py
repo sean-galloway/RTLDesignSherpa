@@ -18,6 +18,7 @@ Run inside the litex venv:
     python3 elaborate_a7ddrphy.py --out <dir>/a7ddrphy_generated.v
 """
 
+import os
 import argparse
 import sys
 
@@ -134,9 +135,27 @@ def dump_csr_map(top, path=None):
         print(f"wrote {path}")
 
 
+def _default_out() -> str:
+    """Where generated vendor RTL belongs, derived from this file's location.
+
+    bin/ -> the build root -> rtl-vivado/a7ddrphy/. Independent of cwd, so the
+    output lands in the same place whether this is run from the build root, from
+    bin/, or from the repo root.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    build_root = os.path.dirname(here)
+    return os.path.join(build_root, "rtl-vivado", "a7ddrphy",
+                        "a7ddrphy_generated.v")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default="a7ddrphy_generated.v")
+    # Anchored to the build root, not the cwd. A bare relative default put the
+    # output wherever the script happened to be run from -- which is how
+    # build-perf ended up with a nested rtl-vivado/rtl-vivado/a7ddrphy/.
+    ap.add_argument("--out", default=_default_out(),
+                    help="output .v path (default: <build>/rtl-vivado/a7ddrphy/"
+                         "a7ddrphy_generated.v, regardless of cwd)")
     ap.add_argument("--dump-csr-map", action="store_true",
                     help="print the calibration CSR bus map and exit")
     ap.add_argument("--csr-map-out", default=None,
