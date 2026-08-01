@@ -30,10 +30,19 @@ class Init(Sequence):
                 f"wrong bitstream: BUILD_ID 0x{build:08X} != "
                 f"0x{drv.BUILD_ID_MAGIC:08X} -- reprogram the board")
 
+        # DFI timing is a property of the PHY underneath, not of the sequence.
+        # On silicon that is the a7ddrphy and the defaults hold; against the
+        # cocotb DFI loopback the read path is shorter, so t_rddata_en differs.
+        # Exposed as params rather than hardcoded so the SAME sequence runs in
+        # both places -- an unconfigurable sequence is one that only runs where
+        # its author happened to be standing.
         test = SimpleTest(
             drv,
             base_addr=ctx.param("base_addr", 0x0),
             level_cache=ctx.param("level_cache"),
+            **{k: ctx.param(k) for k in
+               ("t_phy_wrlat", "t_rddata_en", "rddata_delay", "rd_phase")
+               if ctx.param(k) is not None},
         )
         test.init(do_leveling=ctx.param("leveling", True))
 
