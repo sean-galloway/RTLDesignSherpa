@@ -623,8 +623,18 @@ class ShifterLFSRGaloisTB(TBBase):
 
         cycles = max_cycles[self.TEST_LEVEL]
 
-        # Run the LFSR
-        result = await self.run_lfsr(cycles, False)
+        # Verify against the reference mirror while we run. This used to be
+        # run_lfsr(cycles, False): with verification OFF and the cycle budget
+        # below the LFSR period, the sub-test checked nothing. run_lfsr only
+        # verifies when an expected sequence is PASSED IN -- verify_sequence
+        # alone is a no-op.
+        expected_sequence = self.simulate_galois_lfsr(seed, taps, cycles)
+        result = await self.run_lfsr(cycles, True, expected_sequence)
+        if not result.get('all_match', True):
+            self.log.error(
+                f"LFSR sequence diverges from the reference mirror within "
+                f"{cycles} cycles")
+            return False
 
         # Check if we've seen any repeated values
         values_seen = {}  # Use a dict to store value->cycle mapping
@@ -676,8 +686,31 @@ class ShifterLFSRGaloisTB(TBBase):
             # Still consider this a pass if we found any repeat
             return True
         else:
-            # We didn't run enough cycles to see a repeat
-            self.log.warning(f"No repeats detected in {cycles} cycles{self.get_time_ns_str()}")
+            # Not enough cycles to see the seed come round -- expected when the
+            # budget is below the period. Still check the negative: done may
+            # only assert on a return to the seed, so an early done is a real
+            # defect that this branch used to sail past.
+            self.log.info(
+                f"No seed reappearance in {cycles} cycles (period is "
+                f"{2**self.WIDTH - 1}); checking that done stayed low"
+                f"{self.get_time_ns_str()}")
+            # done firing right at the period boundary is correct, not a
+            # defect: lfsr_done is the equality lfsr_out == seed_data, so a
+            # maximal-length 8-bit LFSR legitimately asserts it around cycle
+            # 255, and the recorded value list can miss that sample by one or
+            # two (the mirror drops the first calculated value to match the
+            # hardware). A first cut of this check failed on exactly that --
+            # done at 253 against a period of 255. What is NOT legitimate is
+            # done asserting EARLY, which would mean the LFSR revisited its
+            # seed before completing a period, i.e. a short cycle.
+            expected_period = 2 ** self.WIDTH - 1
+            if result['done_detected'] and result['done_at_cycle'] < expected_period - 2:
+                self.log.error(
+                    f"lfsr_done asserted at cycle {result['done_at_cycle']}, "
+                    f"well before the maximal period of {expected_period} "
+                    f"(seed 0x{seed:x}): the sequence is in a short cycle"
+                    f"{self.get_time_ns_str()}")
+                return False
 
         return True
 

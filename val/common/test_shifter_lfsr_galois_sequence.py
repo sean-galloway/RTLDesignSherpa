@@ -170,6 +170,30 @@ class SimpleLFSRTB(TBBase):
         self.log.info(f"Generated {len(values)} values and saved to output.txt")
         return values
 
+    def reference_values(self, count):
+        """Software Galois LFSR mirroring rtl/common/shifter_lfsr_galois.sv.
+
+        Right shift, and when the shifted-out LSB is 1, XOR a 1 into each tap
+        position of the shifted value. Mirrors the same convention as
+        ShifterLFSRGaloisTB.simulate_galois_lfsr: advance twice before the
+        first value the RTL presents, because the load consumes a cycle.
+        """
+        mask = (1 << self.WIDTH) - 1
+        lfsr = self.config['seed'] & mask
+        if lfsr == 0:
+            lfsr = mask
+        valid_taps = [t for t in self.config['taps'] if 0 < t <= self.WIDTH]
+        out = []
+        for _ in range(count + 2):
+            lsb = lfsr & 1
+            nxt = lfsr >> 1
+            if lsb:
+                for tap in valid_taps:
+                    nxt ^= (1 << (tap - 1))
+            lfsr = nxt & mask
+            out.append(lfsr)
+        return out[1:count + 1]
+
 @cocotb.test(timeout_time=10000, timeout_unit="us")
 async def simple_generate_test(dut):
     """Simple test to generate LFSR values"""
@@ -181,9 +205,26 @@ async def simple_generate_test(dut):
     # Generate values
     values = await tb.generate_values()
     
-    # Simple assertion to ensure we got the right count
+    # Count first -- tautological on its own (the loop appends exactly COUNT
+    # times), but it guards the comparison below against a short read.
     expected_count = tb.COUNT
     assert len(values) == expected_count, f"Expected {expected_count} values, got {len(values)}"
+
+    # The real check. Until this existed the test generated a hex list, wrote
+    # it to a file nobody reads, and asserted only that it had generated as
+    # many values as it had been asked to generate -- so any LFSR output at
+    # all, including a stuck-at-zero register, passed.
+    expected = tb.reference_values(expected_count)
+    mismatches = [(i, v, e) for i, (v, e) in enumerate(zip(values, expected)) if v != e]
+    if mismatches:
+        for i, v, e in mismatches[:8]:
+            tb.log.error(f"LFSR mismatch at index {i}: actual=0x{v:x} expected=0x{e:x}")
+    assert not mismatches, (
+        f"{len(mismatches)}/{expected_count} generated values disagree with the "
+        f"Galois reference (seed=0x{tb.config['seed']:x}, taps={tb.config['taps']}); "
+        f"first: index {mismatches[0][0]} actual=0x{mismatches[0][1]:x} "
+        f"expected=0x{mismatches[0][2]:x}")
+    tb.log.info(f"All {expected_count} values match the Galois reference")
 
 def generate_test_params():
     """

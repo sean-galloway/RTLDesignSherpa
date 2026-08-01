@@ -145,25 +145,41 @@ async def fifo_test(dut):
     # Run comprehensive sweep for func and full levels
     if run_comprehensive_sweep:
         tb.log.info("Running comprehensive randomizer sweep...")
-        await tb.comprehensive_randomizer_sweep(packets_per_config=comprehensive_packets)
-        tb.log.info("✓ Completed comprehensive sweep")
+        # The sweep CATCHES simple_incremental_loops' assertion per config,
+        # counts it, and returns failures == 0. Ignoring that return was the
+        # only thing standing between a failing randomizer profile and a green
+        # run.
+        sweep_ok = await tb.comprehensive_randomizer_sweep(
+            packets_per_config=comprehensive_packets)
+        assert sweep_ok, (
+            "Comprehensive randomizer sweep: at least one profile failed "
+            f"(total_errors={tb.total_errors})")
+        tb.log.info("Completed comprehensive sweep")
 
     # Always run back-to-back test (essential for FIFO validation)
     tb.log.info("Running back-to-back test...")
-    await tb.back_to_back_test(count=packet_counts['back_to_back'])
-    tb.log.info("✓ Completed back-to-back test")
+    b2b_ok = await tb.back_to_back_test(count=packet_counts['back_to_back'])
+    assert b2b_ok, (
+        f"Back-to-back test found {tb.total_errors} error(s)")
+    tb.log.info("Completed back-to-back test")
 
     # Run stress test for func and full levels
     if run_stress_test:
         tb.log.info("Running stress test...")
         stress_config = 'fifo_stress' if 'fifo_stress' in config_names else 'stress'
-        await tb.stress_test_with_random_patterns(
+        stress_ok = await tb.stress_test_with_random_patterns(
             count=packet_counts['stress_test'],
             delay_key=stress_config
         )
-        tb.log.info("✓ Completed stress test")
+        assert stress_ok, (
+            f"Stress test found {tb.total_errors} error(s)")
+        tb.log.info("Completed stress test")
 
-    tb.log.info(f"✓ ALL {test_level.upper()} TESTS PASSED!")
+    # Final backstop: every phase above returns a verdict, and all three used
+    # to be discarded before this line declared victory unconditionally.
+    assert tb.total_errors == 0, (
+        f"{tb.total_errors} error(s) accumulated across the run")
+    tb.log.info(f"ALL {test_level.upper()} TESTS PASSED")
 
 def generate_params():
     """

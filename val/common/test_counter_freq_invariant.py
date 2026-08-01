@@ -256,7 +256,17 @@ class CounterFreqInvariantTB(TBBase):
     def verify_tick_signal(self, tick_events, expected_div):
         """Check that tick interval matches expected_div."""
         if len(tick_events) < 2:
-            return True  # not enough data — pass silently
+            # Used to `return True  # not enough data - pass silently`, which
+            # is the exact shape of an unfailable check: a prescaler that never
+            # ticks produces zero events and was reported as verified. The
+            # monitor window is div*10 cycles (capped at 15000) and div maxes
+            # out around MAX_FREQ_MHZ, so a healthy entry yields roughly ten
+            # ticks. Fewer than two means the tick did not run.
+            self.log.error(
+                f"Tick verification impossible: {len(tick_events)} tick event(s) "
+                f"observed for expected_div={expected_div}; a working prescaler "
+                f"should produce about 10 in this window")
+            return False
         intervals = [tick_events[i] - tick_events[i - 1]
                       for i in range(1, len(tick_events))]
         avg = sum(intervals) / len(intervals)
@@ -379,8 +389,16 @@ class CounterFreqInvariantTB(TBBase):
                 else:
                     self.log.info(f"freq_sel={sel} PASSED")
             else:
-                self.log.warning(
-                    f"freq_sel={sel}: insufficient data ({len(cc)} changes)")
+                # Insufficient data is a FAILED entry, not a skipped one. The
+                # module docstring promises this sweep "verifies that prescaler
+                # tick intervals match the expected division factor for every
+                # LUT entry"; leaving all_ok alone here meant a dead entry --
+                # counter never increments -- was counted as PASS.
+                all_ok = False
+                self.log.error(
+                    f"freq_sel={sel} FAILED: insufficient data ({len(cc)} counter "
+                    f"changes in {monitor_cycles} cycles, div={div}); the counter "
+                    f"is not running for this LUT entry")
 
         self.log.info(f"Frequency sweep: {'PASS' if all_ok else 'FAIL'}")
         return all_ok
