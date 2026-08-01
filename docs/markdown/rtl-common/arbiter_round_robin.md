@@ -76,6 +76,27 @@ The algorithm ensures fairness by:
 
 Assert `block_arb` and all requests are masked to zero — arbitration is effectively disabled.
 
+**A blocked interval RESETS the rotation.** This is the part that surprises
+people. `r_last_valid` follows `grant_valid` every cycle, and a block produces
+no grants, so `r_last_valid` falls to 0 and the mask select drops to its third
+branch:
+
+```systemverilog
+assign w_curr_mask_decode = grant_valid  ? w_win_mask_decode[grant_id]        :
+                            r_last_valid ? w_win_mask_decode[r_last_grant_id] :
+                                           CLIENTS'(1);
+```
+
+`CLIENTS'(1)` masks off everything except client 0, so **the first grant after
+`block_arb` releases goes to the lowest-numbered requester, not to the client
+that was next in line.** Traced on a 32-client instance: block released at
+25060 ns, and the next two grants went to clients 0 and 3 while the pre-block
+rotation had reached the high teens.
+
+If you need fairness to survive a blocked interval, `block_arb` is the wrong
+tool — gate the requests upstream instead, so the arbiter keeps seeing a valid
+grant history.
+
 ### Grant Acknowledgment Support
 
 When `WAIT_GNT_ACK = 1`, the arbiter waits for the granted client to acknowledge receipt before updating internal state and moving to the next client.

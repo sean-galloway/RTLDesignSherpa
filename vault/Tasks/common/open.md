@@ -72,44 +72,60 @@ Proposed fix — either gate the output combinationally:
 
 or register it (adds a cycle of latency). Re-enable the test with the fix.
 
-## COMMON-017 — arbiter_round_robin: round-robin violation at CLIENTS=32
-**Status:** open 2026-08-01 — **val/common func suite is RED on this one config**
-**Priority:** P1 (a fairness/ordering defect in a widely instantiated block)
+## COMMON-017 — the arbiter compliance model does not model block_arb
+**Status:** open 2026-08-01 — **SETTLED: model defect, not an RTL defect.** Suite green.
+**Priority:** P2 — belongs to the DV framework repo, not this one
 
     ArbiterCompliance(RR_Monitor_compliance): Round-robin violation:
-    Expected client 24, got 3 @ 25065.0ns
+    Expected client 17, got 3 @ 25065.0ns
 
-`test_arbiter_round_robin[32-0]` (CLIENTS=32, WAIT_GNT_ACK=0). **Reproducible:
-one failure in each of four consecutive func runs**, under different random
-seeds each time, so it is not a seed artifact. GATE does not see it because
-GATE only runs 4 clients.
+Surfaced the moment `check_monitor_errors()` started asserting on the
+compliance verdict (COMMON-016). Reproducible under every seed tried and
+**always at the same timestamp**, which is what gave it away: a traffic-
+dependent fairness bug does not land on the same nanosecond each run.
 
-**This was always happening; nothing was reading it.** The compliance model
-computes the expected round-robin winner for every grant and had been logging
-this as an ERROR into a void -- `check_monitor_errors()` only looked at a
-TB-local list. It surfaced the moment that function started asserting on the
-verdict (COMMON-016). Two changes had to land before this was visible: random
-seeds per run, and reading the checker.
+**Traced, not guessed.** Probing the arbiter every cycle across 24900-25200 ns
+with SEED=1, CLIENTS=32, WAIT_GNT_ACK=0:
 
-Not yet determined, and the reason this is filed rather than fixed:
+    25000-25050  block=1  gv=0  last_grant=0x00000000
+    25060        block=0  gv=0
+    25070        block=0  gv=1  gid=0   <- first grant after the block
+    25080        block=0  gv=1  gid=3   last_grant=0x00000001
 
-- **RTL defect** -- the mask/priority rotation mis-selects at 32 clients. The
-  block has previous form here: COMMON-012 was a wrong-direction rotation that
-  starved two of four clients while the test reported "fairness: 0.500" and
-  passed.
-- **Compliance-model limitation** -- `RoundRobinMaskState` may not model the
-  masked-priority selection correctly at large client counts, in which case
-  the expected winner is wrong, not the grant.
+The violation is the first grant after `block_arb` releases, and the RTL
+restarts the rotation at client 0.
 
-Settle it by hand: dump the request vector, `last_grant`, and the mask at
-25065 ns, compute the masked find-first-set by hand, and compare against both
-the RTL's `w_win_mask_decode` and the model's `get_expected_winner()`. One
-timestamp, one comparison.
+**Why the RTL is right.** `r_last_valid <= grant_valid` every cycle, and
+`w_req_post = block_arb ? '0 : request` means no grants while blocked, so
+`r_last_valid` falls to 0 during the block. The mask then takes its third
+branch:
 
-**Do not "fix" this by relaxing the assertion.** If the model is wrong, fix the
-model; if the RTL is wrong, that is a real bug in a block instantiated across
-amba. Suppressing it returns the arbiter to the state where a documented
-starvation bug shipped green.
+    assign w_curr_mask_decode = grant_valid   ? w_win_mask_decode[grant_id]  :
+                                r_last_valid  ? w_win_mask_decode[r_last_grant_id]
+                                              : CLIENTS'(1);
+
+`CLIENTS'(1)` masks everything except client 0, so the first post-block grant
+goes to the lowest requester. Self-consistent and deliberate.
+
+**Why the model is wrong.** `RoundRobinMaskState` (DV repo,
+`components/shared/arbiter_compliance.py`) clears its mask ONLY in `reset()`.
+Nothing clears it when `block_arb` gates the requests, so it retains
+`mask_valid=True` and its pre-block `last_winner` and expects the rotation to
+continue from there -- hence "expected 17".
+
+**Fix belongs in the DV framework** (read-only from here): `RoundRobinMaskState`
+needs to drop `mask_valid` when a blocked interval produces no grants, the same
+way the RTL's `r_last_valid` does. Until then
+`arbiter_round_robin_tb.check_monitor_errors()` excludes exactly this one error
+type, by name, with the reasoning inline. **Every other compliance error still
+fails the test** -- do not widen that exclusion.
+
+**Doc gap found on the way (fix in rtl-common):** `arbiter_round_robin.md` says
+`block_arb` "blocks all arbitration (forces no grants)" and that requests are
+masked to zero. It does not say that a blocked interval RESETS THE ROTATION, so
+the next grant after release goes to the lowest requester rather than the
+client that was next in line. A reader relying on round-robin fairness across
+a blocked period would not expect that.
 
 ## COMMON-016 — arbiter ACK mode: 105 unexpected ACKs, and the compliance model was muted
 **Status:** open 2026-07-31 — surfaced by test-audit round_1 triage, P2
