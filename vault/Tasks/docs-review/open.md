@@ -687,6 +687,61 @@ files it did not):
 Verified: `make -C rtl/common lint` passes all 49 files,
 `check_doc_instantiations.py` is 0 across rtl-common's 53 files.
 
+**common HUMANIZED — 2026-07-31, humanize round_4.** All 55 pages (4 part units
++ `common_meta`), bundle rebuilt after the last correctness commit so the cdc
+revert-on-apply trap could not recur. `check_tag_survival.py` gated it and
+earned its place on the first real use: `dataint_checksum.md` came back with
+`](../index.md]`, the malformed-link class swept to zero that morning,
+reintroduced by the voice pass and **invisible to a link checker** (which needs
+a closing paren to match at all). It registered only as a link target missing
+from the parsed set. 0 pages dropped across both applies.
+
+Three things measured during the apply that change how the next area is run:
+
+- **The humanizer is inconsistent about emoji.** Same round, same brief: the
+  four module-page units kept all 56 glyphs, the `_meta` unit removed most of
+  its own (`quickstart` 8 -> 0, `CLAUDE.md` 33 -> 12). Never assume either way.
+- **A prose-only defect class exists that no checker catches.**
+  `check_doc_instantiations.py` reads ```systemverilog blocks, so round_2's
+  `REG_OUTPUT` phantom survived in two prose bullets ("Enable pipelining
+  (REG_OUTPUT=1) for timing") after the instantiation examples were fixed. No
+  arbiter declares it and `arbiter_round_robin`'s grants are already registered
+  -- fiction twice. Sweep the CLAIM in prose, not just the code fences.
+- **Correctness content must be verified BEFORE apply, not after.** Done here
+  by grepping the round output for each fix; the reset tally, counter_bin's real
+  ports and the galois zero-seed paragraph all survived, and `debounce`'s
+  PRESSED_STATE default came back improved (bullet list -> parameter table with
+  a real Default column).
+
+**common emoji: 0 across all 55 files.** See DOCREV-014 for the two scoping
+gaps this exposed (beside-code docs were never in any denominator; a
+`rtl/common/*.md` glob misses `known_issues/` entirely) and for the corrected
+repo-wide figure.
+
+**common TEST AUDIT — round_1 dispatched 2026-07-31.** 48 tests -> 13 units at
+`~/rtl-test-review/common`, `testqc-kimi-k3/round_1`. Bundle rebuilt after the
+seed fixes so the reviewer sees the current TBs. Mechanical baseline measured
+BEFORE sending, so triage can tell new findings from known state:
+
+| class | val/common |
+|---|---|
+| no REG_LEVEL grid | 6 of 48 |
+| no TEST_LEVEL gating | 16 of 48 |
+| randomize with nothing seeding | 0 (was 2, fixed) |
+| hand-listed sources, no filelist | 6 of 48 (4 are wavedrom) |
+
+REG_LEVEL and TEST_LEVEL match the 2026-07-28 snapshot exactly (42/48, 32/48),
+so nothing has drifted there since.
+
+**Process hazard, recorded because it nearly cost a round:** the doc bundle root
+`~/rtl-doc-review/books` is SHARED and `build_review_bundle.py` is `rm -rf` by
+design. A second agent rebuilt it mid-round, which deleted the hand-built
+`common_meta` and killed unit 5 of the humanize round. No damage -- the four
+part snapshots proved byte-identical to the rebuild, so what was sent matched
+what the gate compared against, and the regenerated `common_meta` was identical
+to its snapshot before resuming. Two agents cannot share one bundle root; give
+each its own, or serialise.
+
 **Pipeline review — 2026-07-31.** Reading the whole process end to end before
 starting amba produced four changes, all recorded in [[kimi-review-rounds]]:
 
