@@ -338,6 +338,13 @@ async def fifo_async_wavedrom_test(dut):
         (tb.scenario_gray_code_sync, "fifo_async_gray_code_sync.json"),
         (tb.scenario_power_of_2_depth, "fifo_async_power_of_2_depth.json"),
     ]
+    # TEST_LEVEL gates HOW MANY scenarios are emitted, never the content of
+    # any one of them. gate emits the first two as a smoke check.
+    _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+    if _lvl not in ('gate', 'func', 'full'):
+        _lvl = 'gate'
+    if _lvl == 'gate':
+        scenarios = scenarios[:2]
 
     try:
         for scenario_method, output_filename in scenarios:
@@ -406,9 +413,19 @@ async def fifo_async_wavedrom_test(dut):
             await tb.wave_solver.stop_sampling()
         await tb.wait_clocks('wr_clk', 10)
 
-@pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period", [
-    (8, 8, 10, 12),   # Power-of-2 depth, different clocks
-])
+def _wavedrom_grid(gate, func, full):
+    """REG_LEVEL grid for a wavedrom generator. Content of a given diagram is
+    identical at every level; only how many scenarios run varies, so the
+    committed JSON never depends on how the suite was invoked."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    return {'GATE': gate, 'FULL': full}.get(reg_level, func)
+
+
+@pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period",
+                         _wavedrom_grid([(8, 8, 10, 12)],
+                                        [(8, 8, 10, 12), (16, 16, 10, 12)],
+                                        [(8, 8, 10, 12), (16, 16, 10, 12),
+                                         (32, 8, 10, 20)]))
 def test_fifo_async_wavedrom(request, data_width, depth, wr_clk_period, rd_clk_period):
     """Pytest wrapper for fifo_async WaveDrom generation."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({

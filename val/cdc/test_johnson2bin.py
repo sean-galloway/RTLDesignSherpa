@@ -587,7 +587,13 @@ def generate_params():
         (20, 6),  # 20-bit Johnson counter -> 8-bit binary
     ]
 
-    test_levels = ['full']
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        param_combinations, test_levels = param_combinations[:1], ['gate']
+    elif reg_level == 'FULL':
+        test_levels = ['gate', 'func', 'full']
+    else:
+        param_combinations, test_levels = param_combinations[:2], ['func']
 
     valid_params = []
     for (jcw, width), test_level in product(param_combinations, test_levels):

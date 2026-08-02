@@ -311,6 +311,22 @@ class BF16FMASystematicTB(TBBase):
         # Full test would be len(bf16)^2 * len(fp32) combinations
         # Use smaller lists for a and b
         bf16_core = [(n, v) for n, v in bf16_values if 'ulp' not in n]
+
+        # Depth. The level used to be the literal string 'systematic', passed
+        # into TEST_LEVEL and never read, so gate and full cost the same full
+        # cross-product. Stride the boundary lists instead: every value at
+        # full, every second at func, every fourth at gate. Striding the
+        # power-of-2 boundary set keeps both ends and the exponent extremes,
+        # which is where this test earns its keep.
+        _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if _lvl not in ('gate', 'func', 'full'):
+            _lvl = 'gate'
+        _stride = {'gate': 4, 'func': 2, 'full': 1}[_lvl]
+        if _stride > 1:
+            bf16_core = bf16_core[::_stride]
+            fp32_values = fp32_values[::_stride]
+        self.log.info(f"TEST_LEVEL={_lvl}: stride={_stride}, "
+                      f"{len(bf16_core)} bf16 x {len(fp32_values)} fp32")
         self.log.info(f"BF16 core values (no ULP variants): {len(bf16_core)}")
 
         total_combinations = len(bf16_core) * len(bf16_core) * len(fp32_values)
@@ -383,7 +399,12 @@ async def bf16_fma_systematic_test(dut):
 
 def get_test_params():
     """Generate test parameters."""
-    return [{'test_level': 'systematic'}]
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return [{'test_level': 'gate'}]
+    if reg_level == 'FULL':
+        return [{'test_level': 'gate'}, {'test_level': 'func'}, {'test_level': 'full'}]
+    return [{'test_level': 'func'}]
 
 @pytest.mark.parametrize("params", get_test_params())
 def test_math_bf16_fma_systematic(request, params):

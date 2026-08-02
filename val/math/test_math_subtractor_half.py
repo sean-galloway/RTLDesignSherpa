@@ -52,7 +52,20 @@ async def subtractor_test(dut):
     # Run the specific half subtractor test
     await tb.half_subtractor_test()
 
-def test_math_subtractor_half(request):
+def _level_grid():
+    """REG_LEVEL grid. These modules have no parameters to sweep (fixed-width
+    combinational primitives), so the grid is the set of depths that run --
+    the same shape hex_to_7seg uses in val/common."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return ['gate']
+    if reg_level == 'FULL':
+        return ['gate', 'func', 'full']
+    return ['func']
+
+
+@pytest.mark.parametrize("test_level", _level_grid())
+def test_math_subtractor_half(request, test_level):
     """PyTest function to run the cocotb test."""
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -80,7 +93,7 @@ def test_math_subtractor_half(request):
         test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
 
     # Define simulation build and log paths
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params + f'_{test_level}')
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 

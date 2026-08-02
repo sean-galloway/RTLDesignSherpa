@@ -481,6 +481,15 @@ async def counter_bingray_wavedrom_test(dut):
         (tb.scenario_lookahead_signal, "bingray_counter_lookahead.json"),
         (tb.scenario_enable_and_reset, "bingray_counter_enable_reset.json"),
     ]
+    # TEST_LEVEL gates HOW MANY scenarios are emitted, never the content of
+    # any one of them. gate emits the first two as a smoke check; func and
+    # full emit the complete set, so the normal regeneration path always
+    # writes every diagram.
+    _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+    if _lvl not in ('gate', 'func', 'full'):
+        _lvl = 'gate'
+    if _lvl == 'gate':
+        scenarios = scenarios[:2]
 
     try:
         for scenario_method, output_filename in scenarios:
@@ -557,7 +566,16 @@ async def counter_bingray_wavedrom_test(dut):
     tb.log.info(f"✓ Binary-Gray Counter WaveDrom test PASSED{tb.get_time_ns_str()}")
     return True
 
-def test_counter_bingray_wavedrom(request):
+def _wavedrom_grid(gate, func, full):
+    """REG_LEVEL grid for a wavedrom generator. Content of a given diagram is
+    identical at every level; only how many scenarios run varies, so the
+    committed JSON never depends on how the suite was invoked."""
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    return {'GATE': gate, 'FULL': full}.get(reg_level, func)
+
+
+@pytest.mark.parametrize("wave_cfg", _wavedrom_grid([0], [0, 1], [0, 1, 2]))
+def test_counter_bingray_wavedrom(request, wave_cfg):
     """
     Pytest entry point for Binary-Gray Counter WaveDrom test
 
@@ -586,7 +604,7 @@ def test_counter_bingray_wavedrom(request):
     test_name = f"test_counter_bingray_wavedrom_w{width}"
 
     # Directories
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name + f'_w{wave_cfg}')
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
