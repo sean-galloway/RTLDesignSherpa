@@ -127,6 +127,26 @@ class ArbiterRoundRobinTB(TBBase):
             # Wait for clock to stabilize
             await ClockCycles(self.dut.clk, 2)
 
+    # ---- contract lifecycle (/GLOBAL_REQUIREMENTS.md 2.2) ----------------
+    # These three are mandatory on every TB. This class previously inherited
+    # TBBase's stubs, which only log "should be overridden" and drive nothing,
+    # so the contract was nominally satisfied and functionally absent. They
+    # delegate to the reset path this TB already used, so behaviour is
+    # unchanged -- the point is that the lifecycle is now real and callable.
+
+    async def assert_reset(self):
+        """Assert reset."""
+        self.dut.rst_n.value = 0
+
+    async def deassert_reset(self):
+        """Release reset."""
+        self.dut.rst_n.value = 1
+
+    async def setup_clocks_and_reset(self):
+        """Start the clock and drive the full reset sequence."""
+        await self.start_clock('clk', 10, 'ns')
+        await self.reset_dut()
+
     async def reset_dut(self):
         """Reset the DUT and start components"""
         # Apply reset

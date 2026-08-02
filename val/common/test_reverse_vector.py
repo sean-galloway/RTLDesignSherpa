@@ -91,6 +91,24 @@ class ReverseVectorTB(TBBase):
         self.test_results = []
         self.test_failures = []
 
+    # ---- contract lifecycle (/GLOBAL_REQUIREMENTS.md 2.2) ----------------
+    # Mandatory on every TB. This class inherited TBBase's stubs, which
+    # only log "should be overridden" and drive nothing -- nominally
+    # compliant, functionally absent. Wraps the reset path this TB
+    # already used, so behaviour is unchanged.
+
+    async def assert_reset(self):
+        """No reset: this DUT is combinational."""
+        return
+
+    async def deassert_reset(self):
+        """No reset: this DUT is combinational."""
+        return
+
+    async def setup_clocks_and_reset(self):
+        """Combinational DUT: no clock or reset to set up."""
+        return
+
     def _setup_signals(self):
         """Setup signal mappings"""
         self.vector_in = self.dut.vector_in

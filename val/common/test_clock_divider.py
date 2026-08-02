@@ -97,6 +97,28 @@ class ClockDividerTB(TBBase):
         self.test_results = []
         self.test_failures = []
 
+    # ---- contract lifecycle (/GLOBAL_REQUIREMENTS.md 2.2) ----------------
+    # Mandatory on every TB. This class inherited TBBase's stubs, which
+    # only log "should be overridden" and drive nothing -- nominally
+    # compliant, functionally absent. Wraps the reset path this TB
+    # already used, so behaviour is unchanged.
+
+    async def assert_reset(self):
+        """Assert reset."""
+        self.dut.rst_n.value = 0
+
+    async def deassert_reset(self):
+        """Release reset."""
+        self.dut.rst_n.value = 1
+
+    async def setup_clocks_and_reset(self):
+        """Start the clock and drive the full reset sequence."""
+        await self.start_clock('clk', 10, 'ns')
+        await self.assert_reset()
+        await self.wait_clocks('clk', 5)
+        await self.deassert_reset()
+        await self.wait_clocks('clk', 5)
+
     def _setup_signals(self):
         """Setup signal mappings"""
         self.clk = self.dut.clk

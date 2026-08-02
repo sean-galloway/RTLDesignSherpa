@@ -158,6 +158,18 @@ class FifoBufferTB(TBBase):
         self.log.info(f"FifoBufferTB initialized with mode={self.TEST_MODE}, "
                         f"data_width={self.DW}, depth={self.TEST_DEPTH}")
 
+    # ---- contract lifecycle (/GLOBAL_REQUIREMENTS.md 2.2) ----------------
+    # Mandatory on every TB. This class inherited TBBase's stubs, which
+    # only log "should be overridden" and drive nothing -- nominally
+    # compliant, functionally absent. Wraps the reset path this TB
+    # already used, so behaviour is unchanged.
+
+    async def setup_clocks_and_reset(self):
+        """Drive the reset sequence. The caller starts the clock:
+        this TB never names one itself."""
+        await self.assert_reset()
+        await self.deassert_reset()
+
     def _create_robust_randomizer_manager(self):
         """Create FlexConfigGen manager that returns FlexRandomizer instances directly"""
 

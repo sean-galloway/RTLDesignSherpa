@@ -110,6 +110,25 @@ class ClockGateCtrlTB(TBBase):
         self.log.info(f"SEED={self.SEED}")
         self.log.info(f"Max count value: {self.max_count}")
 
+    # ---- contract lifecycle (/GLOBAL_REQUIREMENTS.md 2.2) ----------------
+    # Mandatory on every TB. This class inherited TBBase's stubs, which
+    # only log "should be overridden" and drive nothing -- nominally
+    # compliant, functionally absent. Wraps the reset path this TB
+    # already used, so behaviour is unchanged.
+
+    async def assert_reset(self):
+        """Assert reset."""
+        self.dut.aresetn.value = 0
+
+    async def deassert_reset(self):
+        """Release reset."""
+        self.dut.aresetn.value = 1
+
+    async def setup_clocks_and_reset(self):
+        """Start the clock and drive the full reset sequence."""
+        await self.start_clock('clk_in', 10, 'ns')
+        await self.reset_dut()
+
     def get_random_idle_count(self):
         """Get a randomized idle count value"""
         values = self.randomizer.next()

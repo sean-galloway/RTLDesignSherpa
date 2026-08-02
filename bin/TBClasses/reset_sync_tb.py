@@ -56,6 +56,24 @@ class ResetSyncTB(TBBase):
 
         self.log.info(f"Reset Sync TB initialized with N={self.N}")
 
+    # ---- contract lifecycle (/GLOBAL_REQUIREMENTS.md 2.2) ----------------
+    # Mandatory on every TB. This class inherited TBBase's stubs, which
+    # only log "should be overridden" and drive nothing -- nominally
+    # compliant, functionally absent. Wraps the reset path this TB
+    # already used, so behaviour is unchanged.
+
+    async def assert_reset(self):
+        """Assert reset."""
+        self.dut.rst_n.value = 0
+
+    async def deassert_reset(self):
+        """Release reset."""
+        self.dut.rst_n.value = 1
+
+    async def setup_clocks_and_reset(self):
+        """Start the clock and drive the full reset sequence."""
+        await self.reset_dut()
+
     async def reset_dut(self):
         """Apply reset to DUT"""
         self.dut.rst_n.value = 0

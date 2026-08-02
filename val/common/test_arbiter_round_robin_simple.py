@@ -46,10 +46,8 @@ async def arbiter_round_robin_simple_test(dut):
     tb.log.info(f'Simple round robin test starting with seed {seed}')
 
     # Start the clock
-    await tb.start_clock('clk', 10, 'ns')
-
-    # Reset the DUT
-    await tb.reset_dut()
+    # One call: starts the clock and drives the reset sequence.
+    await tb.setup_clocks_and_reset()
 
     try:
         # Phase 1: Basic functionality tests
