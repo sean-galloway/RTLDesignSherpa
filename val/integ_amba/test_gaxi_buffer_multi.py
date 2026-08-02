@@ -192,6 +192,11 @@ def generate_params():
     modes = ['skid', 'fifo_mux'] # fifo_flop not supported in RTL
     # modes = ['fifo_mux']
 
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return [(4, 7, 8, 2, 'skid')]
+    if reg_level == 'FULL':
+        return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
     return [(4, 7, 8, 2, 'skid'), (6, 3, 8, 2, 'fifo_mux')]
     # return list(product(addr_widths, ctrl_widths, data_widths, depths, modes))
 
@@ -199,6 +204,7 @@ params = generate_params()
 
 @pytest.mark.parametrize("addr_width, ctrl_width, data_width, depth, mode", params)
 def test_axi_buffer_multi(request, addr_width, ctrl_width, data_width, depth, mode):
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     # Get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths(
         {
@@ -261,6 +267,7 @@ def test_axi_buffer_multi(request, addr_width, ctrl_width, data_width, depth, mo
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', reg_level.lower()),
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000)))
     }
 

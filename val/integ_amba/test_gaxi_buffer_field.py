@@ -96,19 +96,21 @@ def generate_field_params():
     data_widths = [8, 16, 24, 32]
     depths = [2, 4, 6, 8]
     modes = ['skid', 'fifo_mux', 'fifo_flop']
-    test_levels = ['full'] # ['gate', 'func', 'full']
-    
-    # For debugging/quick testing, return a smaller subset:
-    debug_mode = True
-    if debug_mode:
-        return [
-            ( 4, 3,  8, 2, 'skid',      'full'),
-            ( 8, 5, 16, 4, 'fifo_mux',  'full'),
-            (12, 6,  8, 4, 'fifo_flop', 'full'),
-        ]
-    
-    # Full parameter sweep for comprehensive testing:
-    return list(product(addr_widths, ctrl_widths, data_widths, depths, modes, test_levels))
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+
+    # This used to be a `debug_mode = True` short-circuit returning three
+    # hardcoded configs at 'full' and never reaching the sweep below -- so
+    # REG_LEVEL selected nothing and there was no cheap run.
+    if reg_level == 'GATE':
+        return [(4, 3, 8, 2, 'skid', 'gate')]
+    if reg_level == 'FULL':
+        return list(product(addr_widths, ctrl_widths, data_widths, depths,
+                            modes, ['full']))
+    return [
+        ( 4, 3,  8, 2, 'skid',      'func'),
+        ( 8, 5, 16, 4, 'fifo_mux',  'func'),
+        (12, 6,  8, 4, 'fifo_flop', 'func'),
+    ]
 
 
 @pytest.mark.parametrize("addr_width, ctrl_width, data_width, depth, mode, test_level", generate_field_params())
