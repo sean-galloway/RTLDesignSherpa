@@ -61,6 +61,13 @@ own files; SUSPECTED for anything resting on a file the unit does not show.
   own docstring claims levels it does not implement.
 - **Wavedrom generator tests.** Their job is producing wave JSON for the
   docs, not checking DUT behaviour; rule 6 does not apply to them.
+- **`handle == int` without `.value`.** cocotb's `NonHierarchyObject.__eq__`
+  compares against `self.value` when the other operand is not a SimHandle, so
+  `assert dut.tags_empty == 1` reads the signal and works exactly as written.
+  It is not an identity comparison and the check is not inert. Reporting this
+  cost a real triage cycle on `cam_testing.py`, where all seven assertions were
+  correct. `.value` is more explicit and fine to prefer in new code, but its
+  absence is not a finding.
 - **Seed findings against tests that do not randomize.** Roughly one in ten of
   these tests is fully directed and draws from no PRNG at all; there is nothing
   to seed and a missing SEED is correct. Likewise an RTL seed VALUE is not a
