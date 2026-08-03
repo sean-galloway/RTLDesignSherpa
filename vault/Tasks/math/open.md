@@ -48,7 +48,7 @@ hand-list) is broadly unimplemented in rtl/math:
 
 ## MATH-004 — levels are decorative: TEST_LEVEL exported but never gates depth; FULL == FUNC grids
 **Status:** open 2026-07-31 (math test-audit round_1, 59 findings in the class)
-**Priority:** P2 — per-TB design work, not mechanical
+**Priority:** P1 — HARD REQUIREMENT (Sean 2026-08-03): every test must have working gate/func/full
 **Owner:** TBD
 
 Math tests have REG_LEVEL grids on paper (119/119) but the audit finds the
