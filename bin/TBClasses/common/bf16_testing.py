@@ -4453,12 +4453,15 @@ class BF16GoldschmidtDivTB(TBBase):
                 # Both zero (possibly different signs) - OK
                 passed = True
             else:
-                # RTL returned zero, expected non-zero
-                # Goldschmidt's intermediate reciprocal can underflow for very large divisors
-                # Accept zero when expected is small (exponent < 120)
-                exp_exponent = (exp_result >> 7) & 0xFF
-                if exp_exponent < 120:
-                    # Small expected value that could underflow in intermediate steps
+                # RTL returned zero, expected a NORMAL quotient. The only
+                # legitimate cause is intermediate reciprocal underflow in
+                # the Goldschmidt iteration, which happens when the DIVISOR
+                # is huge (1/d drops below bf16 min normal). The old window
+                # accepted any expected quotient with exponent < 120 -- i.e.
+                # any quotient below 2^-7, so 1.0/200.0 = 0.005 (a perfectly
+                # normal result) passed as zero (test-audit finding).
+                b_exponent = (b_bf16 >> 7) & 0xFF
+                if b_exponent >= 252:
                     passed = True
                 else:
                     passed = False
