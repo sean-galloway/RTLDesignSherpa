@@ -158,8 +158,12 @@ class AdderTB(TBBase):
                 self.dut.i_b.value = b
                 self.dut.i_c.value = c_in
             except AttributeError as e:
-                self.log.warning(f"Error setting inputs: {e}")
-                continue
+                # A missing port is a TEST DEFECT, not a skip: the loop used
+                # to warn-and-continue, ending 0/0 and passing with zero
+                # checks executed (test-audit finding).
+                self.log.error(f"INTERFACE ERROR setting inputs: {e}")
+                self.fail_count += 1
+                raise
 
             # Wait for combinational logic to settle
             await self.wait_time(1, 'ns')
@@ -169,8 +173,9 @@ class AdderTB(TBBase):
                 ow_sum = int(self.dut.ow_sum.value)
                 ow_carry = int(self.dut.ow_carry.value)
             except AttributeError as e:
-                self.log.warning(f"Error reading outputs: {e}")
-                continue
+                self.log.error(f"INTERFACE ERROR reading outputs: {e}")
+                self.fail_count += 1
+                raise
 
             # Calculate expected values
             expected_sum = (a + b + c_in) & self.mask
@@ -198,6 +203,8 @@ class AdderTB(TBBase):
                 self.pass_count += 1
 
             self.test_count += 1
+
+        assert self.test_count > 0, "main_loop ran zero checks -- interface or grid defect"
 
         # Print test summary
         self.log.info(f"Test Summary: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
@@ -256,7 +263,15 @@ class AdderTB(TBBase):
         msg = f'{count=}'
         self.log.debug(msg)
 
-        c_list = [0, 1]
+        # i_c is an N-bit OPERAND in a CSA, not a 1-bit carry-in: [0, 1]
+        # alone leaves every bit >= 1 constant-0 and half of every full-adder
+        # cell's truth table unreachable (test-audit finding). Directed
+        # patterns: zero, all-ones, one-hot per bit, alternating x2 -- full
+        # coverage of the c=1 row at every bit, per the math directed-style.
+        c_list = ([0, self.mask] +
+                  [1 << i for i in range(self.N)] +
+                  [sum(1 << i for i in range(0, self.N, 2)),
+                   sum(1 << i for i in range(1, self.N, 2))])
 
         # Determine test strategy based on bit width
         # Only use Cartesian product for very small widths (N <= 4, max 512 tests)
@@ -295,8 +310,12 @@ class AdderTB(TBBase):
                 self.dut.i_b.value = b
                 self.dut.i_c.value = c_in
             except AttributeError as e:
-                self.log.warning(f"Error setting inputs: {e}")
-                continue
+                # A missing port is a TEST DEFECT, not a skip: the loop used
+                # to warn-and-continue, ending 0/0 and passing with zero
+                # checks executed (test-audit finding).
+                self.log.error(f"INTERFACE ERROR setting inputs: {e}")
+                self.fail_count += 1
+                raise
 
             # Wait for combinational logic to settle
             await self.wait_time(1, 'ns')
