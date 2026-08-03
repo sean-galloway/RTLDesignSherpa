@@ -1,0 +1,290 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2026 sean galloway
+#
+# Module: CounterBinWaveDromTB
+# Purpose: Testbench for counter_bin_wavedrom
+# Subsystem: framework
+#
+# Extracted from val/common/test_counter_bin_wavedrom.py so the runner holds only the parameter grid and the
+# cocotb_test.run() call ([[tb-structure]]).
+
+import os
+import random
+from cocotb.triggers import RisingEdge, Timer, ClockCycles
+from TBClasses.shared.tbbase import TBBase
+from CocoTBFramework.components.wavedrom.constraint_solver import (
+    TemporalConstraintSolver, ClockEdge, TemporalConstraint, TemporalEvent,
+    SignalTransition, TemporalRelation
+)
+from CocoTBFramework.components.wavedrom.wavejson_gen import WaveJSONGenerator
+from CocoTBFramework.components.shared.field_config import FieldConfig
+
+
+class CounterBinWaveDromTB(TBBase):
+    """Extended testbench for Binary Counter with WaveDrom visualization support
+
+    Inherits from TBBase and adds WaveDrom capture capabilities to demonstrate:
+    - Binary counting sequence
+    - FIFO-optimized MSB inversion on wraparound
+    - Enable control for hold operation
+    - Current vs next counter outputs
+    """
+
+    def __init__(self, dut):
+        super().__init__(dut)
+
+        # Get test parameters
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '4'))
+        self.MAX = self.convert_to_int(os.environ.get('TEST_MAX', '8'))
+        self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
+
+        random.seed(self.SEED)
+
+        self.log.info(f"Counter Bin WaveDrom TB initialized{self.get_time_ns_str()}")
+        self.log.info(f"WIDTH={self.WIDTH}, MAX={self.MAX}{self.get_time_ns_str()}")
+
+        # Signal mappings
+        self.clk = self.dut.clk
+        self.rst_n = self.dut.rst_n
+        self.enable = self.dut.enable
+        self.counter_bin_curr = self.dut.counter_bin_curr
+        self.counter_bin_next = self.dut.counter_bin_next
+
+        # Clock configuration
+        self.clock_period = 10  # 10ns = 100MHz
+
+        # WaveDrom infrastructure
+        self.wave_generator = None
+        self.wave_solver = None
+
+        # Calculate expected sequence
+        self._calculate_expected_sequence()
+
+    def _calculate_expected_sequence(self):
+        """Calculate the expected counter_bin sequence with MSB inversion"""
+        self.expected_sequence = []
+
+        # First half: MSB=0, count 0 to MAX-1
+        for i in range(self.MAX):
+            self.expected_sequence.append(i)
+
+        # Wraparound: MSB inverts, lower bits clear to 0
+        msb_inverted = 1 << (self.WIDTH - 1)
+
+        # Second half: MSB=1, count 0 to MAX-1
+        for i in range(self.MAX):
+            self.expected_sequence.append(msb_inverted | i)
+
+        # Full cycle length
+        self.full_cycle_length = len(self.expected_sequence)
+
+        self.log.info(f"Expected sequence length: {self.full_cycle_length}{self.get_time_ns_str()}")
+        if self.DEBUG:
+            self.log.info(f"Expected sequence: {[hex(x) for x in self.expected_sequence]}{self.get_time_ns_str()}")
+
+    async def setup_clocks_and_reset(self):
+        """Start clock and perform reset"""
+        # Start clock
+        await self.start_clock('clk', self.clock_period, 'ns')
+
+        # Assert reset
+        await self.assert_reset()
+        await self.wait_clocks('clk', 5)
+
+        # Deassert reset
+        await self.deassert_reset()
+        await self.wait_clocks('clk', 2)
+
+    async def assert_reset(self):
+        """Assert reset signal"""
+        self.rst_n.value = 0
+        self.enable.value = 0
+
+    async def deassert_reset(self):
+        """Deassert reset signal"""
+        self.rst_n.value = 1
+        self.enable.value = 0
+
+    def setup_wavedrom(self):
+        """Set up WaveDrom system for counter_bin waveform capture"""
+        try:
+            self.log.info("Setting up WaveDrom for Counter Bin...")
+
+            # Create field configuration
+            self.field_config_wave = FieldConfig.from_dict(
+                field_dict={
+                    'counter_bin_curr': {'bits': self.WIDTH, 'default': 0},
+                    'counter_bin_next': {'bits': self.WIDTH, 'default': 0},
+                },
+                lsb_first=True
+            )
+
+            # Create WaveJSON generator
+            self.wave_generator = WaveJSONGenerator(debug_level=2)
+
+            # WAVEDROM REQUIREMENT v1.2: Signal grouping MANDATORY
+            # Group 1: Clocks and Resets (ALWAYS FIRST)
+            clock_signals = ['clk', 'rst_n']
+            self.wave_generator.add_interface_group("Clocks & Reset", clock_signals)
+
+            # Group 2: Control
+            control_signals = ['enable']
+            self.wave_generator.add_interface_group("Control", control_signals)
+
+            # Group 3: Counter Outputs
+            counter_signals = ['counter_bin_curr', 'counter_bin_next']
+            self.wave_generator.add_interface_group("Counter Outputs", counter_signals)
+
+            # Create temporal constraint solver
+            self.wave_solver = TemporalConstraintSolver(
+                dut=self.dut,
+                log=self.log,
+                debug_level=2,
+                wavejson_generator=self.wave_generator,
+                default_field_config=self.field_config_wave
+            )
+
+            # Add clock group
+            self.wave_solver.add_clock_group(
+                name="clk",
+                clock_signal=self.clk,
+                edge=ClockEdge.RISING,
+                sample_delay_ns=0.1,
+                field_config=self.field_config_wave
+            )
+
+            # Define signal mappings
+            counter_signals = {
+                'clk': 'clk',
+                'rst_n': 'rst_n',
+                'enable': 'enable',
+                'counter_bin_curr': 'counter_bin_curr',
+                'counter_bin_next': 'counter_bin_next',
+            }
+
+            self.wave_solver.add_interface("counter", counter_signals, field_config=self.field_config_wave)
+
+            # Add dummy constraint to trigger waveform generation
+            enable_constraint = TemporalConstraint(
+                name="counter_bin_capture",
+                events=[
+                    TemporalEvent("enable_high", SignalTransition("counter_enable", 0, 1))
+                ],
+                temporal_relation=TemporalRelation.SEQUENCE,
+                max_window_size=100,
+                required=False,
+                max_matches=10,
+                clock_group="clk",
+                signals_to_show=['counter_clk', 'counter_rst_n', 'counter_enable',
+                                'counter_counter_bin_curr', 'counter_counter_bin_next']
+            )
+            enable_constraint.skip_boundary_detection = True
+            self.wave_solver.add_constraint(enable_constraint)
+
+            self.log.info("✓ WaveDrom setup complete for Counter Bin")
+
+        except Exception as e:
+            self.log.error(f"Failed to setup WaveDrom: {e}")
+            import traceback
+            traceback.print_exc()
+            self.wave_solver = None
+            self.wave_generator = None
+
+    async def scenario_basic_counting(self):
+        """
+        SCENARIO 1: Basic counting sequence
+
+        Demonstrates standard binary counter operation from 0 to MAX-1.
+        """
+        self.log.info("=== Scenario 1: Basic Counting (0 to MAX-1) ===")
+
+        await self.wait_clocks('clk', 3)
+
+        # Enable counter and count to MAX-1
+        self.enable.value = 1
+        for i in range(self.MAX):
+            await RisingEdge(self.clk)
+            curr_val = int(self.counter_bin_curr.value)
+            self.log.info(f"Count: {curr_val}{self.get_time_ns_str()}")
+
+        self.enable.value = 0
+        await self.wait_clocks('clk', 3)
+
+        self.log.info("✓ Scenario 1 complete")
+
+    async def scenario_msb_wraparound(self):
+        """
+        SCENARIO 2: MSB inversion wraparound
+
+        Demonstrates the FIFO-optimized behavior where MSB inverts and lower bits clear.
+        """
+        self.log.info("=== Scenario 2: MSB Inversion Wraparound ===")
+
+        await self.wait_clocks('clk', 3)
+
+        # Count through wraparound to show MSB inversion
+        self.enable.value = 1
+        for i in range(self.MAX + 3):  # Go past wraparound
+            await RisingEdge(self.clk)
+            curr_val = int(self.counter_bin_curr.value)
+            next_val = int(self.counter_bin_next.value)
+            msb_curr = (curr_val >> (self.WIDTH - 1)) & 1
+            lower_curr = curr_val & ((1 << (self.WIDTH - 1)) - 1)
+            self.log.info(f"Count: {curr_val:#x} (MSB={msb_curr}, Lower={lower_curr:#x}), Next={next_val:#x}{self.get_time_ns_str()}")
+
+        self.enable.value = 0
+        await self.wait_clocks('clk', 3)
+
+        self.log.info("✓ Scenario 2 complete")
+
+    async def scenario_enable_control(self):
+        """
+        SCENARIO 3: Enable control demonstration
+
+        Shows how enable signal gates the counting operation.
+        """
+        self.log.info("=== Scenario 3: Enable Control ===")
+
+        await self.wait_clocks('clk', 3)
+
+        # Count with enable toggling
+        for cycle in range(8):
+            # Enable for 2 cycles
+            self.enable.value = 1
+            await RisingEdge(self.clk)
+            await RisingEdge(self.clk)
+
+            # Disable for 2 cycles (counter should hold)
+            self.enable.value = 0
+            await RisingEdge(self.clk)
+            await RisingEdge(self.clk)
+
+        self.enable.value = 0
+        await self.wait_clocks('clk', 3)
+
+        self.log.info("✓ Scenario 3 complete")
+
+    async def scenario_full_cycle(self):
+        """
+        SCENARIO 4: Full cycle demonstration
+
+        Shows complete cycle through both MSB states (0→MAX-1→wraparound→MAX-1→wraparound).
+        """
+        self.log.info("=== Scenario 4: Full Cycle (Both MSB States) ===")
+
+        await self.wait_clocks('clk', 3)
+
+        # Count through full cycle
+        self.enable.value = 1
+        for i in range(self.full_cycle_length + 2):
+            await RisingEdge(self.clk)
+            curr_val = int(self.counter_bin_curr.value)
+            msb = (curr_val >> (self.WIDTH - 1)) & 1
+            lower = curr_val & ((1 << (self.WIDTH - 1)) - 1)
+            self.log.info(f"Cycle {i}: {curr_val:#x} (MSB={msb}, Lower={lower}){self.get_time_ns_str()}")
+
+        self.enable.value = 0
+        await self.wait_clocks('clk', 3)
+
+        self.log.info("✓ Scenario 4 complete")
