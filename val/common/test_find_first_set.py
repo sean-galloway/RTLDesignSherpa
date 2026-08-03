@@ -187,7 +187,7 @@ def test_find_first_set(request, width, test_level):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,  # from the filelist; was [] and dropped +incdir
             toplevel=toplevel,
             module=module,
             parameters=parameters,

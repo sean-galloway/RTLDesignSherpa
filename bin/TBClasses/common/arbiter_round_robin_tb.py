@@ -819,13 +819,16 @@ class ArbiterRoundRobinTB(TBBase):
         """Test bursty traffic patterns with reliable profiles"""
         self.log.info(f"Starting bursty traffic pattern test{self.get_time_ns_str()}")
 
-        # Use existing fast/slow profiles instead of creating new ones
-        # Apply different patterns to clients
+        # Mixed fast/slow profiles are what makes this phase "bursty". Both
+        # branches used to set 'fast', so every client got an identical
+        # profile and the phase was a duplicate of test_rapid_request_changes
+        # -- burst behaviour was never exercised and the >50-grant assert
+        # could not notice.
         for client_id in range(self.CLIENTS):
             if client_id < 2:
                 self.master.set_client_profile(client_id, 'fast')
             else:
-                self.master.set_client_profile(client_id, 'fast')
+                self.master.set_client_profile(client_id, 'slow')
             self.master.enable_client(client_id)
 
         self.master.set_ack_profile('random')

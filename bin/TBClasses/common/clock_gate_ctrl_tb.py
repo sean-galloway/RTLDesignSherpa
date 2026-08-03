@@ -32,7 +32,15 @@ class ClockGateCtrlTB(TBBase):
         super().__init__(dut)
 
         # Get test parameters
-        self.N = self.convert_to_int(os.environ.get('PARAM_N', '4'))
+        # The RTL parameter is IDLE_CNTR_WIDTH and the wrapper exports it as
+        # PARAM_IDLE_CNTR_WIDTH. This read used to ask for PARAM_N, which is
+        # never set, so it silently took the default 4 and derived
+        # max_count = 2**4-1 = 15 for every configuration -- the width in the
+        # parameter grid had no effect on what the TB checked against.
+        # PARAM_N stays as a fallback so a caller that still exports it works.
+        self.N = self.convert_to_int(
+            os.environ.get('PARAM_IDLE_CNTR_WIDTH',
+                           os.environ.get('PARAM_N', '4')))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '0'))
 
         # Per-test depth. REG_LEVEL picks how many parameter combinations run;
