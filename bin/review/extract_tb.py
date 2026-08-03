@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import builtins
 import os
 import re
 import sys
@@ -72,6 +73,56 @@ def bound_names(stmt: ast.stmt) -> set[str]:
     return out
 
 
+def unresolved(mod_src: str) -> list[str]:
+    """Names the extracted module loads but never binds.
+
+    The real post-condition. Import selection is a heuristic -- an import used
+    only inside a method, a name that arrives from a helper class, a module
+    that was imported locally in the original -- so rather than trust it, parse
+    the result and check every Load resolves. Cheaper than a simulation, and it
+    catches exactly the class of break that a syntax check does not.
+    """
+    tree = ast.parse(mod_src)
+    bound = set(dir(builtins)) | {'self'}
+    for n in tree.body:
+        if isinstance(n, ast.Import):
+            for a in n.names: bound.add((a.asname or a.name).split('.')[0])
+        elif isinstance(n, ast.ImportFrom):
+            for a in n.names: bound.add(a.asname or a.name)
+        elif isinstance(n, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            bound.add(n.name)
+        elif isinstance(n, ast.Assign):
+            for t in n.targets:
+                if isinstance(t, ast.Name): bound.add(t.id)
+    local = set()
+    for n in ast.walk(tree):
+        # Lambda counts: `lambda p: p & 0x7f` binds p, and omitting it made
+        # the check report a clean extraction as broken.
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            local |= {a.arg for a in n.args.args + n.args.kwonlyargs
+                      + getattr(n.args, 'posonlyargs', [])}
+            if n.args.vararg: local.add(n.args.vararg.arg)
+            if n.args.kwarg: local.add(n.args.kwarg.arg)
+        if isinstance(n, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
+            for t in ast.walk(n):
+                if isinstance(t, ast.Name) and isinstance(t.ctx, ast.Store): local.add(t.id)
+        if isinstance(n, ast.For):
+            for t in ast.walk(n.target):
+                if isinstance(t, ast.Name): local.add(t.id)
+        if isinstance(n, ast.comprehension):
+            for t in ast.walk(n.target):
+                if isinstance(t, ast.Name): local.add(t.id)
+        if isinstance(n, ast.ExceptHandler) and n.name: local.add(n.name)
+        if isinstance(n, ast.withitem) and n.optional_vars:
+            for t in ast.walk(n.optional_vars):
+                if isinstance(t, ast.Name): local.add(t.id)
+        if isinstance(n, (ast.Import, ast.ImportFrom)):
+            for a in n.names: local.add((a.asname or a.name).split('.')[0])
+    used = {n.id for n in ast.walk(tree)
+            if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+    return sorted(used - bound - local)
+
+
 def extract(path: str, apply: bool) -> int:
     src = open(path, encoding='utf-8').read()
     tree = ast.parse(src)
@@ -99,6 +150,14 @@ def extract(path: str, apply: bool) -> int:
                    for t in n.targets if isinstance(t, ast.Name)}
     module_defs |= {n.name for n in tree.body
                     if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    # Helper CLASSES count too. Missing this shipped two broken extractions:
+    # test_apb_master defines APBGAXIScoreboard in the runner (its import is
+    # commented out -- "use the improved version below"), and
+    # test_monitor_trans_cam defines TransCamConfig/_TransCamModel. The TB
+    # moved, the helper did not, and the failure was a NameError at run time
+    # rather than anything a parse would catch.
+    module_defs |= {n.name for n in tree.body
+                    if isinstance(n, ast.ClassDef) and n is not cls}
     leaked = (used & module_defs)
     if leaked:
         print(f"  {path}: class references module-level {sorted(leaked)} -- "
@@ -123,6 +182,12 @@ def extract(path: str, apply: bool) -> int:
     else:
         m2 = re.search(r'^(import|from) .*$', runner, re.M)
         runner = runner[:m2.end() + 1] + imp_line + runner[m2.end() + 1:]
+
+    missing = unresolved(new_mod)
+    if missing:
+        print(f"  {path}: extracted module would not resolve {missing[:5]} -- "
+              f"not extracting")
+        return 1
 
     print(f"  {os.path.basename(path):42} -> {out_path}  ({cls.name}, "
           f"{len(needed)} imports, {cls.end_lineno - cls.lineno + 1} lines)")

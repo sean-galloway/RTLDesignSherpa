@@ -27,51 +27,11 @@ from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.amba.axis5_slave_cg_tb import AXIS5SlaveCGBasicTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
-class AXIS5SlaveCGBasicTB(TBBase):
-    """Basic AXIS5 slave clock-gated testbench."""
-
-    def __init__(self, dut):
-        TBBase.__init__(self, dut)
-        self.SKID_DEPTH = self.convert_to_int(os.environ.get('TEST_SKID_DEPTH', '4'))
-        self.DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '32'))
-        self.ENABLE_WAKEUP = self.convert_to_int(os.environ.get('TEST_ENABLE_WAKEUP', '1')) == 1
-        self.ENABLE_PARITY = self.convert_to_int(os.environ.get('TEST_ENABLE_PARITY', '0')) == 1
-        self.STRB_WIDTH = self.DATA_WIDTH // 8
-
-        self.log.info("="*60)
-        self.log.info(" AXIS5 Slave CG Testbench Configuration")
-        self.log.info("-"*60)
-        self.log.info(f" SKID_DEPTH:    {self.SKID_DEPTH}")
-        self.log.info(f" DATA_WIDTH:    {self.DATA_WIDTH}")
-        self.log.info(f" ENABLE_WAKEUP: {self.ENABLE_WAKEUP}")
-        self.log.info(f" ENABLE_PARITY: {self.ENABLE_PARITY}")
-        self.log.info("="*60)
-
-    async def assert_reset(self):
-        """Assert reset."""
-        self.dut.aresetn.value = 0
-        await self.wait_clocks('aclk', 5)
-
-    async def deassert_reset(self):
-        """Deassert reset."""
-        self.dut.aresetn.value = 1
-        await self.wait_clocks('aclk', 5)
-
-    async def setup_clocks_and_reset(self):
-        """Setup clocks and reset sequence."""
-        await self.start_clock('aclk', 10, 'ns')
-        await self.assert_reset()
-        await self.deassert_reset()
-
-    async def enable_clock_gating(self, enable=True):
-        """Enable or disable clock gating."""
-        self.dut.i_cg_enable.value = 1 if enable else 0
-        await RisingEdge(self.dut.aclk)
-        self.log.info(f"Clock gating {'enabled' if enable else 'disabled'}")
 
 
 @cocotb.test(timeout_time=100, timeout_unit="us")

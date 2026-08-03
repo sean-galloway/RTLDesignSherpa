@@ -30,83 +30,11 @@ from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.amba.apb5_master_tb import APB5MasterBasicTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
-class APB5MasterBasicTB(TBBase):
-    """Basic APB5 master testbench for RTL verification."""
-
-    def __init__(self, dut):
-        TBBase.__init__(self, dut)
-        self.ADDR_WIDTH = self.convert_to_int(os.environ.get('TEST_ADDR_WIDTH', '12'))
-        self.DATA_WIDTH = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '32'))
-        self.STRB_WIDTH = self.DATA_WIDTH // 8
-        self.AUSER_WIDTH = self.convert_to_int(os.environ.get('TEST_AUSER_WIDTH', '4'))
-        self.WUSER_WIDTH = self.convert_to_int(os.environ.get('TEST_WUSER_WIDTH', '4'))
-        self.RUSER_WIDTH = self.convert_to_int(os.environ.get('TEST_RUSER_WIDTH', '4'))
-        self.BUSER_WIDTH = self.convert_to_int(os.environ.get('TEST_BUSER_WIDTH', '4'))
-
-        self.log.info("="*60)
-        self.log.info(" APB5 Master Testbench Configuration")
-        self.log.info("-"*60)
-        self.log.info(f" ADDR_WIDTH:  {self.ADDR_WIDTH}")
-        self.log.info(f" DATA_WIDTH:  {self.DATA_WIDTH}")
-        self.log.info(f" AUSER_WIDTH: {self.AUSER_WIDTH}")
-        self.log.info(f" WUSER_WIDTH: {self.WUSER_WIDTH}")
-        self.log.info(f" RUSER_WIDTH: {self.RUSER_WIDTH}")
-        self.log.info(f" BUSER_WIDTH: {self.BUSER_WIDTH}")
-        self.log.info("="*60)
-
-    async def assert_reset(self):
-        """Assert reset."""
-        self.dut.presetn.value = 0
-        await self.wait_clocks('pclk', 5)
-        self.log.info("Reset asserted")
-
-    async def deassert_reset(self):
-        """Deassert reset."""
-        self.dut.presetn.value = 1
-        await self.wait_clocks('pclk', 5)
-        self.log.info("Reset deasserted")
-
-    async def setup_clocks_and_reset(self):
-        """Setup clocks and reset sequence."""
-        await self.start_clock('pclk', 10, 'ns')
-        await self.assert_reset()
-        await self.deassert_reset()
-
-    async def drive_command(self, pwrite, paddr, pwdata=0, pstrb=0xF, pauser=0, pwuser=0):
-        """Drive a command through the command interface."""
-        # Wait for ready
-        while not self.dut.cmd_ready.value:
-            await RisingEdge(self.dut.pclk)
-
-        # Drive command
-        self.dut.cmd_valid.value = 1
-        self.dut.cmd_pwrite.value = pwrite
-        self.dut.cmd_paddr.value = paddr
-        self.dut.cmd_pwdata.value = pwdata
-        self.dut.cmd_pstrb.value = pstrb
-        if hasattr(self.dut, 'cmd_pauser'):
-            self.dut.cmd_pauser.value = pauser
-        if hasattr(self.dut, 'cmd_pwuser'):
-            self.dut.cmd_pwuser.value = pwuser
-
-        await RisingEdge(self.dut.pclk)
-        self.dut.cmd_valid.value = 0
-
-        self.log.info(f"Command sent: {'WRITE' if pwrite else 'READ'} "
-                     f"addr=0x{paddr:04X} data=0x{pwdata:08X}")
-
-    async def wait_for_transaction(self, timeout_cycles=100):
-        """Wait for APB transaction to complete."""
-        for _ in range(timeout_cycles):
-            await RisingEdge(self.dut.pclk)
-            if hasattr(self.dut, 'm_apb_PENABLE') and self.dut.m_apb_PENABLE.value:
-                if hasattr(self.dut, 'm_apb_PREADY') and self.dut.m_apb_PREADY.value:
-                    return True
-        return False
 
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
