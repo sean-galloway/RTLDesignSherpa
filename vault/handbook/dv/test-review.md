@@ -88,10 +88,12 @@ interface headers are enough for "does the test drive real ports".
    32/48, math 119/119, amba 55/117 and 68/117, and the common figures in it
    were wrong in both directions, so treat the rest as unmeasured until the
    tool is run on them.
-2. **Structure.** TB class in the right place ([[tb-structure]]); the three
-   mandatory methods (setup_clocks_and_reset / assert_reset /
-   deassert_reset); Pattern A vs B never mixed; pytest function name embeds
-   the exact module name.
+2. **Structure -- TB separation is a HARD REQUIREMENT (Sean, 2026-08-03).**
+   The TB class lives OUT of the test runner (bin/TBClasses/ for shared,
+   project dv/tbclasses/ for project-specific); the runner is a thin
+   include + parameter grid. Also: the three mandatory methods
+   (setup_clocks_and_reset / assert_reset / deassert_reset); Pattern A vs B
+   never mixed; pytest function name embeds the exact module name.
 3. **Sources from the filelist**, never a hand-listed array.
 4. **Seeds recorded** - SEED captured from env and logged
    ([[seeds-and-determinism]]).
