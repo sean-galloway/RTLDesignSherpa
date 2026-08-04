@@ -1079,7 +1079,11 @@ class FPClampTB(FPBaseTB):
         result = int(self.dut.ow_result.value)
         expected = self.compute_expected(x, min_val, max_val)
 
-        return self.check_result(result, expected, desc)
+        # Clamp is a bit-exact select (x / min / max passthrough) -- no
+        # arithmetic, no rounding, so no tolerance is justifiable. A 1-ULP
+        # window masks exactly the comparison-boundary bugs a clamp exists
+        # to get right (test-audit finding).
+        return self.check_result(result, expected, desc, allow_ulp=False)
 
     async def run_comprehensive_tests(self):
         """Run all test categories."""

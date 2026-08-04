@@ -9,30 +9,17 @@ from cocotb.triggers import Timer
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, get_repo_root
+from TBClasses.common.mod_3_compress_tb import Mod3CompressTB
 
 repo_root = get_repo_root()
 
 
 @cocotb.test()
 async def mod_3_compress_test(dut):
-    """Check rem_out == d_in % 3 across the 16-bit input space.
-
-    TEST_LEVEL sets the stride: full is exhaustive (all 65536), func samples
-    every 8th value and gate every 64th. The module is purely combinational,
-    so a strided sweep still exercises every carry-save path -- what it gives
-    up is exhaustiveness, which is exactly what the level knob is for.
-    """
-    _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
-    if _lvl not in ('gate', 'func', 'full'):
-        _lvl = 'gate'
-    _stride = {'gate': 64, 'func': 8, 'full': 1}[_lvl]
-    dut._log.info(f"mod_3_compress: TEST_LEVEL={_lvl}, stride={_stride}")
-    for d in range(0, 1 << 16, _stride):
-        dut.d_in.value = d
-        await Timer(1, units="ns")
-        got = int(dut.rem_out.value)
-        exp = d % 3
-        assert got == exp, f"d_in={d}: rem_out={got}, expected {exp}"
+    """Check rem_out == d_in % 3 across the 16-bit input space."""
+    tb = Mod3CompressTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.sweep()
 
 
 def _mod3_grid():

@@ -51,44 +51,20 @@ from cocotb_test.simulator import run
 
 # Import path utilities
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.common.counter_bin_load_tb import CounterBinLoadTB
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 ##############################################################################
 # CocoTB Test Functions
 ##############################################################################
 
-def _level_mult():
-    """Depth multiplier from TEST_LEVEL.
-
-    REG_LEVEL already decides how many parameter combinations run; this is the
-    other half of the requirement -- how hard each one works. Module-level
-    because the cocotb tests that need it are separate functions.
-    """
-    lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
-    if lvl not in ('gate', 'func', 'full'):
-        lvl = 'gate'
-    return {'gate': 1, 'func': 2, 'full': 5}[lvl]
-
-
 @cocotb.test()
 async def cocotb_basic_counting(dut):
     """Test basic counting from 0 to MAX-1."""
     # Get parameters
-    WIDTH = int(dut.WIDTH.value)
-    MAX = int(dut.MAX.value)
-
-    # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-
-    # Reset
-    dut.rst_n.value = 0
-    dut.enable.value = 0
-    dut.load.value = 0
-    dut.load_value.value = 0
-    await ClockCycles(dut.clk, 5)
-    dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 2)
+    tb = CounterBinLoadTB(dut)
+    await tb.setup_clocks_and_reset()
+    WIDTH, MAX = tb.WIDTH, tb.MAX
 
     # Enable counting
     dut.enable.value = 1
@@ -104,21 +80,9 @@ async def cocotb_basic_counting(dut):
 @cocotb.test()
 async def cocotb_fifo_wraparound(dut):
     """Test FIFO-style wraparound (MSB toggle, lower bits clear)."""
-    WIDTH = int(dut.WIDTH.value)
-    MAX = int(dut.MAX.value)
-
-    # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-
-    # Reset
-    dut.rst_n.value = 0
-    dut.enable.value = 0
-    dut.load.value = 0
-    dut.load_value.value = 0
-    await ClockCycles(dut.clk, 5)
-    dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 2)
+    tb = CounterBinLoadTB(dut)
+    await tb.setup_clocks_and_reset()
+    WIDTH, MAX = tb.WIDTH, tb.MAX
 
     # Enable counting
     dut.enable.value = 1
@@ -164,21 +128,9 @@ async def cocotb_fifo_wraparound(dut):
 @cocotb.test()
 async def cocotb_load_operation(dut):
     """Test load operation to directly set counter value."""
-    WIDTH = int(dut.WIDTH.value)
-    MAX = int(dut.MAX.value)
-
-    # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-
-    # Reset
-    dut.rst_n.value = 0
-    dut.enable.value = 0
-    dut.load.value = 0
-    dut.load_value.value = 0
-    await ClockCycles(dut.clk, 5)
-    dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 2)
+    tb = CounterBinLoadTB(dut)
+    await tb.setup_clocks_and_reset()
+    WIDTH, MAX = tb.WIDTH, tb.MAX
 
     # Test load various values (within WIDTH range)
     test_values = [5, MAX-3, 0, MAX-1]
@@ -200,21 +152,9 @@ async def cocotb_load_operation(dut):
 @cocotb.test()
 async def cocotb_load_priority(dut):
     """Test that load takes priority over enable."""
-    WIDTH = int(dut.WIDTH.value)
-    MAX = int(dut.MAX.value)
-
-    # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-
-    # Reset
-    dut.rst_n.value = 0
-    dut.enable.value = 0
-    dut.load.value = 0
-    dut.load_value.value = 0
-    await ClockCycles(dut.clk, 5)
-    dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 2)
+    tb = CounterBinLoadTB(dut)
+    await tb.setup_clocks_and_reset()
+    WIDTH, MAX = tb.WIDTH, tb.MAX
 
     # Set counter to known value
     load_val1 = min(10, MAX-2)  # Ensure value fits in WIDTH
@@ -242,21 +182,9 @@ async def cocotb_load_priority(dut):
 @cocotb.test()
 async def cocotb_hold_when_disabled(dut):
     """Test that counter holds value when enable=0."""
-    WIDTH = int(dut.WIDTH.value)
-    MAX = int(dut.MAX.value)
-
-    # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-
-    # Reset
-    dut.rst_n.value = 0
-    dut.enable.value = 0
-    dut.load.value = 0
-    dut.load_value.value = 0
-    await ClockCycles(dut.clk, 5)
-    dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 2)
+    tb = CounterBinLoadTB(dut)
+    await tb.setup_clocks_and_reset()
+    WIDTH, MAX = tb.WIDTH, tb.MAX
 
     # Load a value that fits in WIDTH bits
     # Use a safe value: min of (MAX-1, 2^WIDTH-1, 15) to ensure it fits
@@ -268,7 +196,7 @@ async def cocotb_hold_when_disabled(dut):
 
     # Disable and wait several cycles
     dut.enable.value = 0
-    for _ in range(10 * _level_mult()):
+    for _ in range(10 * tb.LEVEL_MULT):
         await RisingEdge(dut.clk)
         curr = int(dut.counter_bin_curr.value)
         assert curr == test_value, f"Counter changed while disabled: got {curr}, expected {test_value}"
