@@ -6,7 +6,7 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 10 | accepted, not started |
+| [open.md](open.md) | 11 | accepted, not started |
 | [closed.md](closed.md) | 7 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 

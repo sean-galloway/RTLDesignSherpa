@@ -474,10 +474,48 @@ class ArbiterRoundRobinSimpleTB(TBBase):
     # =============================================================================
 
     def check_monitor_errors(self):
-        """Check for any monitor errors"""
+        """Check for any monitor errors, including the compliance verdict."""
         if self.monitor_errors:
             self.log.error(f"Monitor errors detected: {self.monitor_errors}")
             raise AssertionError(f"Monitor errors: {self.monitor_errors}")
+
+        # This TB did not consult the compliance model at all (COMMON-016), so
+        # the round-robin checker ran every cycle and its verdict went nowhere.
+        # The sibling round-robin TB asserts on it; so does this one now.
+        compliance = getattr(self.monitor, 'compliance', None)
+        if compliance is None or not hasattr(compliance, 'get_warning_summary'):
+            return
+        summary = compliance.get_warning_summary()
+        self.log.info(
+            f"Compliance verdict: {summary['total_errors']} error(s), "
+            f"{summary['total_warnings']} warning(s); "
+            f"errors={summary['error_types']} warnings={summary['warning_types']}")
+
+        # round_robin_violation is NOT asserted on here, and the reason is NOT
+        # COMMON-017: that one is about block_arb, and this arbiter has no
+        # block_arb input at all. Wiring the verdict in for the first time
+        # surfaced ~150-180 violations per gate run on a DUT whose starvation
+        # check passes and whose fairness index is fine -- so the model and the
+        # RTL disagree about grant ORDER while the RTL is demonstrably fair.
+        # arbiter_round_robin_simple rotates (shift so last_grant+1 lands at
+        # bit 0) where RoundRobinMaskState masks; the two should be equivalent,
+        # which is exactly why the disagreement needs explaining rather than
+        # suppressing. Tracked as COMMON-018 -- do not promote this to an
+        # assertion until it is understood, and do not quietly widen it.
+        MODEL_DEFECTS = {'round_robin_violation'}
+        real = {k: v for k, v in summary['error_types'].items()
+                if k not in MODEL_DEFECTS}
+        excluded = {k: v for k, v in summary['error_types'].items()
+                    if k in MODEL_DEFECTS}
+        if excluded:
+            self.log.warning(
+                f"UNEXPLAINED compliance errors, not asserted on (COMMON-018): "
+                f"{excluded}. The RTL passes its starvation and fairness "
+                f"checks; the model disagrees about order.")
+        assert not real, (
+            f"Arbiter protocol compliance: {sum(real.values())} error(s) "
+            f"{real}. Recent: "
+            f"{[w.get('type') for w in summary['recent_warnings']]}")
 
     async def handle_test_transition(self):
         """Handle test transitions"""

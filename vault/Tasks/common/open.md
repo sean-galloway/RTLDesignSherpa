@@ -32,6 +32,40 @@ the `[exempt]` ledger, not a hole:
    uncovered" on a 57-module area is expected and still worth checking.
 
 
+## COMMON-018 — simple arbiter: ~176 round-robin violations the model cannot explain
+**Status:** open 2026-08-04 — surfaced by wiring the compliance verdict into the
+simple TB (COMMON-016). NOT asserted on; logged loudly instead.
+**Priority:** P2
+
+`arbiter_round_robin_simple` has **no `block_arb` input**, so COMMON-017's
+explanation (the model keeping its mask across a blocked interval) cannot
+apply. Wiring `check_monitor_errors()` to read the verdict for the first time
+reports **144-176 `round_robin_violation` errors per gate run** on a DUT that
+simultaneously:
+
+- passes its starvation check (every enabled client granted at least once),
+- reports a fairness index above the 0.7 bar,
+- passes every functional assertion in the suite.
+
+So the model and the RTL disagree about grant ORDER while the RTL is
+demonstrably fair. One of them is wrong about the algorithm and it is not
+obvious which.
+
+The candidate: the RTL **rotates** -- `w_shift_amount = last_grant + 1 (mod N)`,
+rotating the request window so agent last_grant+1 lands at bit 0 -- while
+`RoundRobinMaskState` **masks**, `mask = ~((1 << (winner+1)) - 1)` with an
+unmasked fallback. Those two formulations are usually equivalent, which is
+exactly why a systematic disagreement needs explaining rather than suppressing.
+
+**Settle it** by dumping, for a handful of violations: the request vector,
+`r_last_grant`, the model's `current_mask`/`last_winner`, the expected winner
+and the actual grant. One timestamp is probably enough to tell whether the
+model or the RTL has the wrong next-agent.
+
+**Do not** promote this to an assertion until it is understood, and do not
+widen the exclusion to hide other error types with it -- consuming a checker
+only to silence it is what COMMON-016 was about.
+
 ## COMMON-003 — Create integration examples
 **Status:** open — not started (migrated from rtl/common/TASKS.md, P2)
 
@@ -152,6 +186,33 @@ is scoped to no-ACK mode and ACK mode warns, with the reasoning in the code.
 **What would close this:** have `manual_request()` return `grant_received` (a
 framework change in the DV repo, not this one), diagnose the unexpected acks,
 then assert per client in both modes and drop the scoping.
+
+**Diagnosed 2026-08-04 — it is the MODEL, and the fix is in the framework.**
+The 105 (110-166 depending on seed) `unexpected_ack` warnings all land inside
+the fairness phase -- the first phase where several clients ack concurrently --
+and never in the single-client walking phase. Distinct timestamps, no two at the
+same instant, all four clients.
+
+The mechanism is in `process_ack_received`:
+
+    for i in range(self.clients):
+        if ack_vector & (1 << i):        # the WHOLE current vector
+            matching = [t for t, c in self.pending_acks.items() if c == i]
+            if not matching: warn('unexpected_ack')
+
+`ack_detected` fires on any CHANGE of the ack vector
+(`ack_vec != prev and ack_vec != 0`), and the handler then iterates every set
+bit of the current vector. When client B's ack asserts while client A's is
+still held, that edge re-presents A's already-retired bit and A is reported as
+an unexpected ack. The BFM is behaving correctly: `_generate_ack` holds each
+ack for its `ack_duration` cycles.
+
+**Fix (DV framework repo, read-only from here):** process only newly-asserted
+bits -- `new_acks = ack_vector & ~prev_ack_vector` -- rather than the whole
+vector. `prev_ack_vector` is already carried in the monitor's signal state.
+
+Local part done: the simple TB now reads the compliance verdict too (it
+previously ignored it entirely), which immediately surfaced COMMON-018.
 
 ## COMMON-014 — fifo_control default parameters contradict its own constraint
 **Status:** open 2026-07-31 — surfaced by qc round_2 (common part_03), P3 latent
