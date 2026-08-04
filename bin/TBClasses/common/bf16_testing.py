@@ -4440,6 +4440,13 @@ class BF16GoldschmidtDivTB(TBBase):
             await self.wait_time(1, 'ns')
 
         result = int(self.dut.ow_quotient.value)
+        # The DUT exposes flags the reference already computes expectations
+        # for; never sampling them meant broken flag logic could not fail
+        # (test-audit finding).
+        valid = int(self.dut.ow_valid.value)
+        div_by_zero = int(self.dut.ow_div_by_zero.value)
+        is_inf = int(self.dut.ow_is_inf.value)
+        is_nan = int(self.dut.ow_is_nan.value)
         self.dut.i_valid.value = 0
 
         exp_result, exp_div_zero, exp_inf, exp_nan = self._compute_expected_div(a_bf16, b_bf16)
@@ -4473,6 +4480,20 @@ class BF16GoldschmidtDivTB(TBBase):
             ulp_diff = abs((result & 0x7FFF) - (exp_result & 0x7FFF))
             sign_match = (result >> 15) == (exp_result >> 15)
             passed = sign_match and ulp_diff <= self.ulp_tolerance
+
+        # Flags must match the reference's expectations
+        if div_by_zero != exp_div_zero:
+            self.log.error(f"FAIL {desc}: ow_div_by_zero={div_by_zero}, expected {exp_div_zero}")
+            passed = False
+        if is_inf != exp_inf:
+            self.log.error(f"FAIL {desc}: ow_is_inf={is_inf}, expected {exp_inf}")
+            passed = False
+        if is_nan != exp_nan:
+            self.log.error(f"FAIL {desc}: ow_is_nan={is_nan}, expected {exp_nan}")
+            passed = False
+        if self.pipelined and not valid:
+            self.log.error(f"FAIL {desc}: ow_valid not asserted")
+            passed = False
 
         if passed:
             self.pass_count += 1
