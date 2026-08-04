@@ -31,6 +31,7 @@ the `[exempt]` ledger, not a hole:
    `declared - covered - exempt` is empty, so "55 covered" alongside "0
    uncovered" on a 57-module area is expected and still worth checking.
 
+
 ## COMMON-003 — Create integration examples
 **Status:** open — not started (migrated from rtl/common/TASKS.md, P2)
 
@@ -48,29 +49,6 @@ Deliverables: 5 standalone designs, a test for each, documentation explaining
 the design choices, and a README index. Success = all compile cleanly, all
 tests pass, docs complete.
 
-## COMMON-011 — ISSUE-001: counter.sv tick not gated during reset
-**Status:** open — known issue, P3 (edge case only). Discovered 2025-10-23.
-
-`rtl/common/counter.sv` assigns `tick` combinationally without suppressing it
-under reset:
-
-    assign tick = (r_count == MAX[$clog2(MAX+1)-1:0]);
-
-If reset asserts on the exact cycle where `r_count == MAX`, `tick` asserts for
-one cycle while the module is in reset.
-
-Impact is low and the workaround is for consumers to qualify `tick` with
-`!rst_n`. The reason it stays on the list is the test debt: the edge-case test
-in `val/common/test_counter.py` (~line 335) is **disabled with `if False:`** and
-a TODO referencing this issue. A disabled test is a silent one.
-
-Repro: `cd val/common && REG_LEVEL=FULL pytest test_counter.py::test_counter[32-full] -v`
-
-Proposed fix — either gate the output combinationally:
-
-    assign tick = (!rst_n) ? 1'b0 : (r_count == MAX[$clog2(MAX+1)-1:0]);
-
-or register it (adds a cycle of latency). Re-enable the test with the fix.
 
 ## COMMON-017 — the arbiter compliance model does not model block_arb
 **Status:** open 2026-08-01 — **SETTLED: model defect, not an RTL defect.** Suite green.

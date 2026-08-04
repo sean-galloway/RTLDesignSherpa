@@ -6,8 +6,8 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 11 | accepted, not started |
-| [closed.md](closed.md) | 6 | done (kept for history) |
+| [open.md](open.md) | 10 | accepted, not started |
+| [closed.md](closed.md) | 7 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
@@ -19,8 +19,6 @@ integration support.
 - **COMMON-010** — every module MUST have a filelist + registry entry. Coverage
   is already good; the gap is that **nothing enforces it**. Shared gate with
   AMBA TASK-026.
-- **COMMON-011** — `counter.sv` tick not gated during reset. Low severity, but
-  the edge-case test is disabled with `if False:` — a silent test.
 - **COMMON-017** — SETTLED: the arbiter compliance model does not model
   `block_arb`, so it reports a false round-robin violation on the first grant
   after a block. The RTL is correct (`r_last_valid` drops, mask falls back to

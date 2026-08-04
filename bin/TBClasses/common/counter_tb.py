@@ -300,25 +300,32 @@ class CounterTB(TBBase):
             if not all_passed:
                 break
 
-        # Test reset during tick
-        # TODO: SKIPPED - Known issue: tick signal not gated by reset in counter.sv
-        # See rtl/common/TASKS.md for details
-        # This edge case test is temporarily disabled until RTL is fixed
-        if False:  # Skip this test - known issue
+        # Test reset during tick. Disabled with `if False:` from 2025 until
+        # COMMON-011; tick is a registered output now.
+        #
+        # Sampling uses wait_clocks, never a bare RisingEdge: the framework's
+        # wait_clocks always delays past the edge before returning, so the
+        # value read is the settled one. Sampling inside that window reads the
+        # pre-edge value and reports a tick that has already gone -- which is
+        # what an earlier version of this check tripped on.
+        if True:
             await self.reset_dut()
 
             # Wait until just before tick
             for i in range(expected_cycles - 1):
-                await RisingEdge(self.clk)
+                await self.wait_clocks('clk', 1)
 
-            # Reset during the cycle that should produce tick
+            # Assert reset on the cycle that would have produced tick.
             self.rst_n.value = 0
-            await RisingEdge(self.clk)
+            await self.wait_clocks('clk', 1)
 
-            # Tick should not occur
-            if self.tick.value == 1:
-                self.log.error("Tick occurred during reset")
-                all_passed = False
+            # tick must stay low for as long as reset is held.
+            for _ in range(3):
+                if self.tick.value == 1:
+                    self.log.error("Tick occurred during reset")
+                    all_passed = False
+                    break
+                await self.wait_clocks('clk', 1)
 
             self.rst_n.value = 1
             await RisingEdge(self.clk)
@@ -331,8 +338,7 @@ class CounterTB(TBBase):
                     all_passed = False
             except TimeoutError:
                 all_passed = False
-        else:
-            self.log.info("Skipping reset-during-tick edge case (known issue, see TASKS.md)")
+
 
         # Store result
         result = {

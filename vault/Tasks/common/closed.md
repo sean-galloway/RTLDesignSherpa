@@ -4,6 +4,51 @@
 
 ---
 
+
+## COMMON-011 — ISSUE-001: counter.sv tick not gated during reset
+**Status:** CLOSED 2026-08-04 — **not an RTL bug. Test sampling artifact.**
+The disabled edge-case test is re-enabled and passing; no RTL change was kept.
+
+The claim was that `assign tick = (r_count == MAX)` lets `tick` assert while
+the module is held in reset, and the edge-case test in `counter_tb.py` had been
+disabled with `if False:` since 2025 waiting on an RTL fix.
+
+**What actually happened.** Enabling the test reproduced "Tick occurred during
+reset" -- 4 failures -- which looked like confirmation. It was not. The block
+sampled with a bare `await RisingEdge(self.clk)` and read `tick` immediately,
+inside the window where the NBA update has not landed, so it read the PRE-EDGE
+value and reported a tick that was already gone. The framework's `wait_clocks`
+always delays past the edge before returning (Sean: never sample within 200ps
+of an edge); the check now uses it and passes.
+
+**Two fixes were tried and both discarded:**
+
+1. `assign tick = RST_ASSERTED(rst_n) ? 1'b0 : (r_count == MAX)` -- rejected
+   on sight and rightly: it puts an asynchronous reset into the datapath, so a
+   glitch on the reset tree reaches `tick` directly, and it creates a
+   reset-to-output combinational path the module does not otherwise have.
+2. Registering `tick` inside the `ALWAYS_FF_RST` block, computed one cycle
+   early so the timing did not move. Sound RTL, and it fixes nothing:
+   - **sync reset** (the counter test's build): nothing can clear `tick`
+     before the clock edge, so registered and combinational behave
+     identically. Measured -- the registered version failed the same
+     pre-edge-sampling check, 4 failures.
+   - **async reset** (`+define+USE_ASYNC_RESET`): `r_count` clears
+     asynchronously, so the ORIGINAL combinational `tick` clears with it.
+     Measured -- FULL passes, 12 tests, with the unmodified RTL.
+
+So the behaviour is correct in both reset modes and the module is unchanged.
+
+**What was actually wrong** was the test, twice over: it sampled in the
+forbidden window, and it was then disabled for three years on the strength of
+that reading -- so the one check covering this path never ran. It is enabled
+now, sampling through `wait_clocks`, and green at gate/func/full.
+
+Lesson worth carrying: a failing test is not proof of an RTL defect until you
+know it sampled legally. Both readings here -- the original failure and my
+"confirmation" of it -- came from the same illegal sample.
+
+
 ## COMMON-013 — RTL fixes surfaced by Kimi round_2 common review
 **Status:** closed 2026-07-23 — three behavioral/robustness RTL fixes + stale
 comment corrections, each verified with a clean-rebuild test. P2.
