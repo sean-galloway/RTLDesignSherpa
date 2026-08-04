@@ -5,6 +5,72 @@
 ---
 
 
+## COMMON-015 — shifter_beat_pack: runtime cfg wider than COUNT_BITS corrupts occupancy
+**Status:** open 2026-07-31 — surfaced by qc round_2 (common part_04), P3 misuse corner
+
+`rtl/common/shifter_beat_pack.sv` casts the runtime beat width down to the
+occupancy width in two places:
+
+    assign pop_valid = (r_count >= COUNT_BITS'(w_beat_bits)) && (r_count != '0);
+    v_count = v_count - COUNT_BITS'(w_beat_bits);
+
+`w_beat_bits` is `BEAT_BITS_W` (CFG_BITS+4) bits; `COUNT_BITS` is
+`$clog2(STORAGE_BITS+1)`. At the defaults (STORAGE_BITS=256, COUNT_BITS=9,
+CFG_BITS=8) a runtime `cfg_beat_bytes_m1 >= 63` encodes a beat >= 512 bits,
+which truncates to **0**: `pop_valid` degenerates to `(r_count != 0)`, the pop
+shifts `v_data >> 512` (zeroing the data) and subtracts 0 from the count, so
+the packer asserts `pop_valid` forever against corrupted accounting. Values
+between `STORAGE_BITS` and `2^COUNT_BITS - 1` (e.g. a 264-bit beat) instead
+stall `pop_valid` permanently.
+
+The elaboration guard only checks the STATIC `MAX_BEAT_BITS < STORAGE_BITS`;
+nothing checks the runtime value. Misuse-only — the docs do tell callers that
+any runtime beat width must fit the storage — but the failure mode is silent
+data corruption rather than a clean stall, so a saturating compare or a runtime
+assertion is worth the gate.
+
+**CLOSED 2026-08-04.** The occupancy comparison happens in the wider of the
+two domains now, so an over-wide runtime cfg_beat_bytes_m1 produces a clean
+stall instead of silent data corruption. The subtraction keeps its cast and is
+safe by construction: a pop only fires when the wide compare passed, so
+w_beat_bits <= r_count <= 2**COUNT_BITS-1 and the cast is exact. Verified:
+lint passes, shifter_beat_pack 3/12/165 at gate/func/full.
+
+## COMMON-014 — fifo_control default parameters contradict its own constraint
+**Status:** open 2026-07-31 — surfaced by qc round_2 (common part_03), P3 latent
+
+`rtl/common/fifo_control.sv` declares `ADDR_WIDTH = 3` and `DEPTH = 16` as
+defaults, while its own header states "DEPTH must equal 2^ADDR_WIDTH (power of
+2 depths only)". 2^3 = 8, so the defaults violate the documented contract:
+
+- pointers are 4 bits, addressing 8 slots;
+- `(AW+1)'(D)` = `4'(16)` = 0 — the exact truncation the module's comments warn
+  about;
+- `AFT = DEPTH - ALMOST_WR_MARGIN = 15` is unreachable at max occupancy 8, so
+  `wr_almost_full` can never assert.
+
+Latent, not live: both parents override consistently (`fifo_sync` passes
+`AW = $clog2(DEPTH)`, and `rtl/cdc/fifo_async` likewise). A standalone
+default instantiation silently degrades to depth-8 with dead almost-full logic.
+
+Second, smaller point from the same finding: the header constraint is stricter
+than the logic. Via `counter_bin`'s MAX wrap the control equations hold for any
+`DEPTH <= 2^ADDR_WIDTH`, which is how `fifo_sync` supports non-power-of-2
+depths — so the constraint text overstates the restriction it needs.
+
+Decide: make the defaults self-consistent (e.g. `DEPTH = 8`, or derive
+`ADDR_WIDTH = $clog2(DEPTH)`), and relax the header constraint to
+`DEPTH <= 2^ADDR_WIDTH`. Owner call — changing a default is visible to any
+direct instantiator.
+
+**CLOSED 2026-08-04.** DEPTH now defaults to 8 against ADDR_WIDTH 3, so the
+module's shipped defaults satisfy its own rule. The header constraint is
+corrected in all three places it appeared: the real rule is
+`DEPTH <= 2^ADDR_WIDTH` and DEPTH need not be a power of two, because the
+pointer arithmetic wraps via counter_bin's MAX -- which is exactly how
+fifo_sync supports non-power-of-2 depths. Verified: lint passes, fifo_buffer
+and integ_common green, common gate 75 / func 208.
+
 ## COMMON-011 — ISSUE-001: counter.sv tick not gated during reset
 **Status:** CLOSED 2026-08-04 — **not an RTL bug. Test sampling artifact.**
 The disabled edge-case test is re-enabled and passing; no RTL change was kept.
