@@ -128,7 +128,21 @@ module shifter_beat_pack #(
     assign empty      = (r_count == '0);
     // Room for another whole chunk: post-push count would be <= storage.
     assign push_ready = (r_count <= COUNT_BITS'(STORAGE_BITS - CHUNK_BITS));
-    assign pop_valid  = (r_count >= COUNT_BITS'(w_beat_bits))
+    // COMMON-015: compare in the WIDER domain. This used to be
+    //     (r_count >= COUNT_BITS'(w_beat_bits))
+    // and a runtime cfg_beat_bytes_m1 encoding a beat wider than
+    // 2**COUNT_BITS-1 truncated to 0 -- pop_valid degenerated to
+    // (r_count != 0), the pop shifted v_data by the true (huge) width and
+    // subtracted 0 from the count, so the packer asserted pop_valid forever
+    // against corrupted accounting. Silent data corruption, where a stall
+    // would have been obvious. Widening the comparison turns that misuse into
+    // a clean stall: an over-wide beat simply never satisfies pop_valid.
+    localparam int CMP_W = (BEAT_BITS_W > COUNT_BITS) ? BEAT_BITS_W : COUNT_BITS;
+    logic [CMP_W-1:0] w_count_cmp, w_beat_cmp;
+    assign w_count_cmp = CMP_W'(r_count);
+    assign w_beat_cmp  = CMP_W'(w_beat_bits);
+
+    assign pop_valid  = (w_count_cmp >= w_beat_cmp)
                      && (r_count != '0);
 
     // Low MAX_BEAT_BITS of r_data. MAX_BEAT_BITS < STORAGE_BITS
@@ -154,6 +168,9 @@ module shifter_beat_pack #(
         // 1. Pop — drain the low w_beat_bits, shift storage down.
         if (pop_valid && pop_ready) begin
             v_data  = v_data >> w_beat_bits;
+            // Safe by construction now: the pop only fires when the wide
+            // compare above passed, so w_beat_bits <= r_count <=
+            // 2**COUNT_BITS-1 and this cast is exact.
             v_count = v_count - COUNT_BITS'(w_beat_bits);
         end
 

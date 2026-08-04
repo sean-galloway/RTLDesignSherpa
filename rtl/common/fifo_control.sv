@@ -32,14 +32,18 @@
 //     Type: int
 //     Range: 1 to 16
 //     Default: 3
-//     Constraints: DEPTH must equal 2^ADDR_WIDTH (power of 2 depths only)
+//     Constraints: DEPTH <= 2^ADDR_WIDTH. The pointer arithmetic wraps via
+//                  counter_bin's MAX, so a non-power-of-2 DEPTH is fine as
+//                  long as the address space can hold it -- which is how
+//                  fifo_sync supports non-power-of-2 depths. The old text
+//                  said DEPTH must EQUAL 2^ADDR_WIDTH, which overstated it.
 //
 //   DEPTH:
 //     Description: FIFO depth (number of entries)
 //     Type: int
 //     Range: 2 to 65536
-//     Default: 16
-//     Constraints: Must be power of 2, must equal 2^ADDR_WIDTH
+//     Default: 8
+//     Constraints: DEPTH <= 2^ADDR_WIDTH (need not be a power of 2)
 //
 //   ALMOST_WR_MARGIN:
 //     Description: Almost-full threshold (entries from full)
@@ -96,8 +100,15 @@
 
 `include "reset_defs.svh"
 module fifo_control #(
+    // DEPTH defaulted to 16 against ADDR_WIDTH 3 (COMMON-014), i.e. the
+    // module shipped defaults that broke its own DEPTH <= 2^ADDR_WIDTH
+    // rule: pointers addressed 8 slots, (AW+1)'(D) truncated 16 to 0,
+    // and AFT = 15 was unreachable at a max occupancy of 8, so
+    // wr_almost_full could never assert. Every in-tree instantiation
+    // passes both explicitly, so this only ever bit a standalone
+    // default instantiation -- silently.
     parameter int ADDR_WIDTH = 3,
-    parameter int DEPTH = 16,
+    parameter int DEPTH = 8,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
     parameter int REGISTERED = 0  // 0 = mux mode, 1 = flop mode
