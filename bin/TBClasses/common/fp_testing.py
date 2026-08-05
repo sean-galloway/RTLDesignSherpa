@@ -1359,7 +1359,7 @@ class FPSigmoidTB(FPBaseTB):
     - NaN: propagate
     - |x| >= 4 (saturated): 0 or 1
     - |x| < 0.25 (near_zero): 0.5
-    - Medium range: 0.375 (negative) or 0.625 (positive)
+    - Medium range: 0.375 (negative) or 0.75 (positive)
     """
 
     def __init__(self, dut, fmt: FPFormat):
@@ -1410,14 +1410,14 @@ class FPSigmoidTB(FPBaseTB):
         elif near_zero:
             return HALF
         else:
-            # Medium range: 0.375 (negative) or 0.625 (positive)
-            # 0.375 = 0.5 - 0.125 = 2^-1 - 2^-3, approx as exp=bias-2 with mant
-            # 0.625 = 0.5 + 0.125 = 2^-1 + 2^-3, approx as exp=bias-1 with mant
+            # Medium range: 0.375 (negative) or 0.75 (positive)
+            # 0.375 = 1.5 x 2^-2, exp=bias-2 with mantissa MSB set
+            # 0.75  = 1.5 x 2^-1, exp=bias-1 with mantissa MSB set
             half_mant = 1 << (self.fmt.mant_bits - 1)  # 0.5 in mantissa field
             if sign:
                 return self._make_value(0, bias - 2, half_mant)  # ~0.375
             else:
-                return self._make_value(0, bias - 1, half_mant)  # ~0.625
+                return self._make_value(0, bias - 1, half_mant)  # 0.75
 
     async def test_single(self, x: int, desc: str = "") -> bool:
         self.dut.i_a.value = x

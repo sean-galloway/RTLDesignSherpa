@@ -80,8 +80,8 @@ always_comb begin
             r_result = {1'b0, 8'd125, 7'd64};  // ~0.375
         end else begin
             // Positive: result in (0.5, 1)
-            // Approximate: 0.5 + 0.125 = 0.625 for moderate positive
-            r_result = {1'b0, 8'd126, 7'd64};  // ~0.625
+            // Approximate: 1.5 x 2^-1 = 0.75 for moderate positive
+            r_result = {1'b0, 8'd126, 7'd64};  // 0.75
         end
     end
 end
