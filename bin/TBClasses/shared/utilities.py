@@ -83,7 +83,10 @@ def create_view_cmd(log_dir, log_path, sim_build, module, test_name):
         if "VCS" in os.environ:
             cmd_file.write(f"cd {sim_build} && verdi -ssf {module}.fsdb\n")
         else:
-            cmd_file.write(f"cd {sim_build} && gtkwave {mod_new}.fst\n")
+            # Every wrapper sets TRACE_FILE={sim_build}/dump.fst -- the old
+            # {module}.fst pointed at a file that never exists (test-audit
+            # finding, math round_1).
+            cmd_file.write(f"cd {sim_build} && gtkwave dump.fst\n")
 
         cmd_file.write(f"# To view logs: cat {log_path}\n")
 
