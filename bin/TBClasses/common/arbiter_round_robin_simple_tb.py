@@ -76,7 +76,11 @@ class ArbiterRoundRobinSimpleTB(TBBase):
             clients=self.CLIENTS,
             ack_mode=False,  # Never ACK mode
             log=self.log,
-            clock_period_ns=10
+            clock_period_ns=10,
+            # This arbiter drives grant combinationally off request, so the
+            # compliance check must be paired with the CURRENT request vector,
+            # not the previous one (COMMON-018).
+            registered_grant=False
         )
 
         # Initialize the arbiter master (no ACK mode)
@@ -283,9 +287,15 @@ class ArbiterRoundRobinSimpleTB(TBBase):
             self.master.set_client_profile(client_id, 'default')
             self.master.enable_client(client_id)
 
-        # Record initial state
+        # Record initial state. Per-client counts too: the monitor's
+        # fairness_index is cumulative over the whole run, and this phase runs
+        # last, right after test_single_client_saturation grants one client
+        # almost exclusively. Scoring this window on that total measures the
+        # saturation phase instead ([[measure-over-the-window]]).
         initial_stats = self.monitor.get_comprehensive_stats()
         initial_grants = initial_stats.get('total_grants', 0)
+        initial_grants_per_client = list(
+            self.monitor.arbiter_stats.get('grants_per_client', []))
 
         # Run fairness test
         test_cycles = 750 * self.LEVEL_MULT
@@ -295,13 +305,23 @@ class ArbiterRoundRobinSimpleTB(TBBase):
         final_stats = self.monitor.get_comprehensive_stats()
         final_grants = final_stats.get('total_grants', 0)
         total_grants = final_grants - initial_grants
-        fairness_index = final_stats.get('fairness_index', 0)
 
-        if fairness_index == 0:
-            try:
-                fairness_index = self.monitor.get_fairness_index()
-            except:
-                fairness_index = 0
+        # Jain's fairness index over THIS window's per-client grant deltas.
+        final_grants_per_client = list(
+            self.monitor.arbiter_stats.get('grants_per_client', []))
+        window = [b - a for a, b in zip(initial_grants_per_client,
+                                        final_grants_per_client)]
+        if window and sum(window) > 0:
+            n = len(window)
+            fairness_index = (sum(window) ** 2) / (n * sum(x * x for x in window))
+            self.log.info(f"Fairness window per-client grants: {window}")
+        else:
+            fairness_index = final_stats.get('fairness_index', 0)
+            if fairness_index == 0:
+                try:
+                    fairness_index = self.monitor.get_fairness_index()
+                except Exception:
+                    fairness_index = 0
 
         self.log.info(f"Fairness test: {total_grants} grants, fairness index: {fairness_index:.3f}{self.get_time_ns_str()}")
 
@@ -491,30 +511,13 @@ class ArbiterRoundRobinSimpleTB(TBBase):
             f"{summary['total_warnings']} warning(s); "
             f"errors={summary['error_types']} warnings={summary['warning_types']}")
 
-        # round_robin_violation is NOT asserted on here, and the reason is NOT
-        # COMMON-017: that one is about block_arb, and this arbiter has no
-        # block_arb input at all. Wiring the verdict in for the first time
-        # surfaced ~150-180 violations per gate run on a DUT whose starvation
-        # check passes and whose fairness index is fine -- so the model and the
-        # RTL disagree about grant ORDER while the RTL is demonstrably fair.
-        # arbiter_round_robin_simple rotates (shift so last_grant+1 lands at
-        # bit 0) where RoundRobinMaskState masks; the two should be equivalent,
-        # which is exactly why the disagreement needs explaining rather than
-        # suppressing. Tracked as COMMON-018 -- do not promote this to an
-        # assertion until it is understood, and do not quietly widen it.
-        MODEL_DEFECTS = {'round_robin_violation'}
-        real = {k: v for k, v in summary['error_types'].items()
-                if k not in MODEL_DEFECTS}
-        excluded = {k: v for k, v in summary['error_types'].items()
-                    if k in MODEL_DEFECTS}
-        if excluded:
-            self.log.warning(
-                f"UNEXPLAINED compliance errors, not asserted on (COMMON-018): "
-                f"{excluded}. The RTL passes its starvation and fairness "
-                f"checks; the model disagrees about order.")
-        assert not real, (
-            f"Arbiter protocol compliance: {sum(real.values())} error(s) "
-            f"{real}. Recent: "
+        # Every compliance error fails the test. The unexplained
+        # round_robin_violations that appeared when this verdict was first read
+        # (COMMON-018) were the monitor pairing this cycle's grant with last
+        # cycle's requests; with registered_grant=False they are gone.
+        assert summary['total_errors'] == 0, (
+            f"Arbiter protocol compliance: {summary['total_errors']} error(s) "
+            f"{summary['error_types']}. Recent: "
             f"{[w.get('type') for w in summary['recent_warnings']]}")
 
     async def handle_test_transition(self):
@@ -538,10 +541,13 @@ class ArbiterRoundRobinSimpleTB(TBBase):
             self.log.info(f"Master statistics: {master_stats}")
             self.log.info(f"Monitor errors: {len(self.monitor_errors)}")
 
-            # Basic validation
+            # Basic validation. The cumulative fairness index is reported,
+            # not gated: it spans the whole run, which includes deliberately
+            # unfair stimulus (single-client saturation, walking requests). The
+            # fairness check that does assert is in test_fairness, over its own
+            # window ([[measure-over-the-window]]).
             success = (
                 total_grants > 0 and
-                fairness > 0.2 and
                 len(self.monitor_errors) == 0
             )
 

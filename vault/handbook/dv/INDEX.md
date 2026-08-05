@@ -11,6 +11,10 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[rds-dv-axes]] - BFM / sequence / randomization are ORTHOGONAL; where the RDS-DV docs live
 - [[bfm-usage]] - use RDS-DV BFMs, never re-roll; the factory map + trap list
 - [[randomization]] - the 19 FlexConfigGen profiles; random traffic does NOT prove fairness
+- [[arbiter-compliance-model]] - it advances during REPLAY, not live; the three
+  defects that made a correct arbiter look broken; never quiet it by name
+- [[measure-over-the-window]] - phase assertions read that phase's deltas; a
+  cumulative metric scores whatever ran before it
 - [[registers-by-name]] - PeakRDL regmaps; offsets are forbidden
 - [[seeds-and-determinism]] - random seed per run, recorded and overridable;
   there is no such thing as a failing seed

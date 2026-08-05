@@ -6,8 +6,8 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 9 | accepted, not started |
-| [closed.md](closed.md) | 9 | done (kept for history) |
+| [open.md](open.md) | 7 | accepted, not started |
+| [closed.md](closed.md) | 12 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
@@ -19,16 +19,13 @@ integration support.
 - **COMMON-010** — every module MUST have a filelist + registry entry. Coverage
   is already good; the gap is that **nothing enforces it**. Shared gate with
   AMBA TASK-026.
-- **COMMON-017** — SETTLED: the arbiter compliance model does not model
-  `block_arb`, so it reports a false round-robin violation on the first grant
-  after a block. The RTL is correct (`r_last_valid` drops, mask falls back to
-  client 0). Fix belongs in the DV framework; one error type is excluded by
-  name meanwhile.
-- **COMMON-016/017/018** — three arbiter compliance-model issues; 016 and 017
-  need a fix in the DV framework repo, 018 is undiagnosed. See open.md.
-- **COMMON-016** — arbiter ACK mode: 105 unexpected ACKs per run, and the
-  compliance model was being consumed only to raise its timeout. Now asserted
-  on errors; the warnings need diagnosing before they become errors.
+- **COMMON-016/017/018** — CLOSED 2026-08-05, fixed in the DV framework
+  (`registered_grant`, the `r_last_valid` mirror in the compliance replay, and
+  queued in-order ACKs). Both arbiter TBs now assert on the compliance verdict
+  with no exclusions. See closed.md.
+- **COMMON-019** — what is left of them: the ACK-mode compliance path loses a
+  grant (~3 runs in 8 on `[4-1]`) and miscounts ACKs during single-client
+  saturation. ACK mode logs its verdict but does not assert yet.
 - **COMMON-003** — integration examples (P2).
 - **COMMON-006/007/008/009** — deferred enhancements (P3). COMMON-009 (BCH) is
   the only place BCH is tracked; the docs-only `components/bch/` placeholder was
