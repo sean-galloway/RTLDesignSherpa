@@ -32,39 +32,54 @@ the `[exempt]` ledger, not a hole:
    uncovered" on a 57-module area is expected and still worth checking.
 
 
-## COMMON-018 — simple arbiter: ~176 round-robin violations the model cannot explain
-**Status:** open 2026-08-04 — surfaced by wiring the compliance verdict into the
-simple TB (COMMON-016). NOT asserted on; logged loudly instead.
-**Priority:** P2
+## COMMON-018 — simple arbiter "violations" are a monitor sampling bug
+**Status:** open 2026-08-04 — **ROOT CAUSED. RTL is correct; the fix is in the
+DV framework.** Not asserted on locally; logged as unexplained-by-design.
+**Priority:** P2 (framework repo)
 
-`arbiter_round_robin_simple` has **no `block_arb` input**, so COMMON-017's
-explanation (the model keeping its mask across a blocked interval) cannot
-apply. Wiring `check_monitor_errors()` to read the verdict for the first time
-reports **144-176 `round_robin_violation` errors per gate run** on a DUT that
-simultaneously:
+`arbiter_monitor.py:796` feeds the compliance check the WRONG request vector:
 
-- passes its starvation check (every enabled client granted at least once),
-- reports a fairness index above the 0.7 bar,
-- passes every functional assertion in the suite.
+    self.compliance.queue_transaction(
+        transaction,
+        active_requests=signal_state.prev_req_vector,   # <-- previous cycle
+        ...)
 
-So the model and the RTL disagree about grant ORDER while the RTL is
-demonstrably fair. One of them is wrong about the algorithm and it is not
-obvious which.
+while the struct's own comment (line 33) defines `req_vector` as "Request
+vector from clients (current at time of grant)". So the checker compares THIS
+cycle's grant against LAST cycle's requests.
 
-The candidate: the RTL **rotates** -- `w_shift_amount = last_grant + 1 (mod N)`,
-rotating the request window so agent last_grant+1 lands at bit 0 -- while
-`RoundRobinMaskState` **masks**, `mask = ~((1 << (winner+1)) - 1)` with an
-unmasked fallback. Those two formulations are usually equivalent, which is
-exactly why a systematic disagreement needs explaining rather than suppressing.
+**Why that is fatal for this DUT and not for its sibling.**
+`arbiter_round_robin_simple` drives `grant` combinationally --
+`rotate(lowest_set(rotate(request)))` -- so the grant is a SUBSET of the
+current request vector by construction. Pair it with the previous vector and
+any change in requests between cycles produces a "violation".
+`arbiter_round_robin` registers its grant, so `prev_req_vector` is the vector
+that produced it and the check mostly lines up -- which is why that TB reports
+only the block_arb issue (COMMON-017) and this one reported 144-176.
 
-**Settle it** by dumping, for a handful of violations: the request vector,
-`r_last_grant`, the model's `current_mask`/`last_winner`, the expected winner
-and the actual grant. One timestamp is probably enough to tell whether the
-model or the RTL has the wrong next-agent.
+**The evidence that settles it.** Dumping the model state at each violation:
 
-**Do not** promote this to an assertion until it is understood, and do not
-widen the exclusion to hide other error types with it -- consuming a checker
-only to silence it is what COMMON-016 was about.
+    t=25885 req=0x8 (only client 3) expected=3 actual=2
+    t=25895 req=0x4 (only client 2) expected=2 actual=3
+    t=25915 req=0x2 (only client 1) expected=1 actual=2
+    t=25945 req=0x1 (only client 0) expected=0 actual=2
+
+In every case the granted client is **not in the recorded request vector at
+all**. This RTL cannot grant a non-requesting client -- grant is a subset of
+request by construction -- so the pairing is what is wrong, not the arbitration.
+Nothing about masking-versus-rotation is involved; that earlier hypothesis was
+wrong.
+
+**Fix (DV framework):** pass `signal_state.req_vector` for a combinational-grant
+arbiter. Since both kinds share this monitor, the honest fix is to make the
+vector choice explicit -- the monitor already knows `ack_mode`, and a
+`registered_grant` flag would let it pick -- rather than hardcoding `prev_`.
+
+**Local state:** the simple TB reads the compliance verdict (COMMON-016) and
+logs `round_robin_violation` without asserting on it, with a pointer here. Do
+not promote it to an assertion until the framework is fixed, and do not widen
+the exclusion to other error types.
+
 
 ## COMMON-003 — Create integration examples
 **Status:** open — not started (migrated from rtl/common/TASKS.md, P2)

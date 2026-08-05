@@ -81,7 +81,7 @@ def generate_test_params():
 
     REG_LEVEL=GATE: 1 test (4-bit)
     REG_LEVEL=FUNC: 2 tests (4, 8-bit) - default
-    REG_LEVEL=FULL: 2 tests (same as FUNC)
+    REG_LEVEL=FULL: 3 tests (4, 6, 8-bit counters)
 
     Returns:
         List of counter widths
@@ -90,8 +90,15 @@ def generate_test_params():
 
     if reg_level == 'GATE':
         return [4]
-    else:  # FUNC or FULL (same for this test)
-        return [4, 8]
+    if reg_level == 'FULL':
+        # FULL used to return the same [4, 8] as FUNC -- the docstring said so
+        # outright -- which made the most expensive level a relabelling of the
+        # middle one. It sweeps the counter width properly now; TEST_LEVEL adds
+        # the per-test depth on top. 12-bit was tried and dropped: max_count
+        # is 2**N-1, so a 12-bit counter costs 4095 cycles per timeout
+        # scenario and pushed FULL past ten minutes on its own.
+        return [4, 6, 8]
+    return [4, 8]
 
 @pytest.mark.parametrize("counter_width", generate_test_params())
 def test_clock_gate_ctrl(request, counter_width):

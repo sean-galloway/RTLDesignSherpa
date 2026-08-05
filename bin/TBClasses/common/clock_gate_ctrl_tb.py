@@ -100,10 +100,6 @@ class ClockGateCtrlTB(TBBase):
     # compliant, functionally absent. Wraps the reset path this TB
     # already used, so behaviour is unchanged.
 
-    async def assert_reset(self):
-        """Assert reset."""
-        self.dut.aresetn.value = 0
-
     async def deassert_reset(self):
         """Release reset."""
         self.dut.aresetn.value = 1
@@ -148,8 +144,14 @@ class ClockGateCtrlTB(TBBase):
         values = self.randomizer.next()
         return values['test_pattern']
 
-    def assert_reset(self):
-        """Reset the DUT to known state"""
+    async def assert_reset(self):
+        """Assert reset and park the config inputs (contract method).
+
+        This is the class's ONE assert_reset. A second, async copy was briefly
+        added above for the contract and was silently shadowed by this one --
+        Python keeps the last definition, so the earlier method never existed
+        at run time.
+        """
         self.reset_n.value = 0
         self.dut.cfg_cg_enable.value = 0
         self.dut.cfg_cg_idle_count.value = self.max_count
@@ -162,7 +164,7 @@ class ClockGateCtrlTB(TBBase):
         self.log.debug('Starting reset_dut')
 
         # Reset DUT control signals
-        self.assert_reset()
+        await self.assert_reset()
 
         # Hold reset for random number of cycles
         reset_cycles = self.get_random_wait_cycles()
@@ -555,6 +557,11 @@ class ClockGateCtrlTB(TBBase):
             self.dut.cfg_cg_enable.value = int(enable_state)
             self.dut.cfg_cg_idle_count.value = idle_count
             
+            # Idle cycles accumulated since the last wakeup in this
+            # iteration; the counter reloads on wakeup.
+            idle_run = 0
+            seen_wake = False   # counter has reloaded to THIS idle_count
+
             # Random sequence of wake assertions
             wake_sequence_length = random.randint(3, 8)
             for wake_step in range(wake_sequence_length):
@@ -564,17 +571,58 @@ class ClockGateCtrlTB(TBBase):
                 wait_time = self.get_random_wait_cycles()
                 await self.wait_clocks('clk_in', wait_time)
                 
-                # Verify clock state based on configuration
+                # Verify clock state based on configuration.
+                #
+                # This branch used to check NOTHING on the gating-enabled path:
+                # wake=1 assigned expected_enabled and never read it, and wake=0
+                # only logged clk_out "for simplicity". So CLK-07 -- the one
+                # scenario that randomizes cfg_cg_enable=1 with random wake
+                # sequences -- asserted nothing about the DUT on the only path
+                # that gates. The RTL contract is small enough to check exactly:
+                #
+                #   gating = cfg_cg_enable && !wakeup && (idle_counter == 0)
+                #
+                # and the counter reloads on every wakeup. So with gating
+                # enabled: wake=1 must clear `gating` outright, and wake=0 must
+                # assert it once the reloaded counter has had idle_count cycles
+                # to drain. Only the unambiguous sides are asserted -- a wait
+                # shorter than the reload window must NOT be gated, a wait
+                # comfortably past it must be -- leaving the boundary cycle
+                # itself alone rather than fighting an off-by-one.
                 if enable_state:
-                    # When clock gating is enabled, behavior depends on wake and counter
+                    gating_now = int(self.dut.gating.value)
                     if wake_state:
-                        expected_enabled = True
+                        # History-independent: gating is combinational on
+                        # !wakeup, so an asserted wakeup must clear it outright.
+                        idle_run = 0
+                        seen_wake = True
+                        assert gating_now == 0, (
+                            f"Stress iter {iteration}, step {wake_step}: wakeup is "
+                            f"asserted with cfg_cg_enable=1, so gating must be 0, "
+                            f"read {gating_now}")
                     else:
-                        # Clock state depends on whether counter has expired
-                        # For simplicity in stress test, just log the state
-                        current_clk = int(self.dut.clk_out.value)
-                        self.log.debug(f"Iteration {iteration}, step {wake_step}: "
-                                     f"wake={wake_state}, clk_out={current_clk}")
+                        # The counter only drains while idle, and reloads to
+                        # cfg_cg_idle_count on any wakeup, so once the idle run
+                        # exceeds idle_count it has certainly reached zero --
+                        # whatever it held beforehand. The other direction is NOT
+                        # asserted: the counter carries state across steps and
+                        # iterations, so a short wait proves nothing about it.
+                        # A first cut asserted that too and failed exactly there.
+                        idle_run += wait_time
+                        # Only sound once a wakeup has reloaded the counter to
+                        # THIS iteration's idle_count. Without that the counter
+                        # still holds whatever the previous iteration left --
+                        # cfg_cg_idle_count only takes effect on a reload -- so
+                        # a small idle_count proves nothing yet. That is exactly
+                        # what the first version got wrong: idle_count=0 with no
+                        # preceding wakeup, counter still draining from ~50.
+                        if seen_wake and idle_run > idle_count + 2:
+                            assert gating_now == 1, (
+                                f"Stress iter {iteration}, step {wake_step}: "
+                                f"{idle_run} idle cycles since the last wakeup "
+                                f"with idle_count={idle_count}, so the counter "
+                                f"has drained and gating must be 1, read "
+                                f"{gating_now}")
                 else:
                     # When clock gating is disabled, clock should always be enabled
                     expected_enabled = True
