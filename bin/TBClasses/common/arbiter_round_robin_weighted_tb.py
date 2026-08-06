@@ -18,6 +18,7 @@ Proper Weighted Round Robin Testbench with Clean Weight Testing Methodology
 Follows the correct process: idle -> set weights -> enable all -> run -> disable -> validate
 """
 
+import math
 import os
 import random
 import cocotb
@@ -485,10 +486,23 @@ class WeightedRoundRobinTB(TBBase):
                 compliant = (final_grants[i] == 0)
                 error_pct = 0.0 if compliant else 100.0
             else:
-                # Non-zero weight case - check within tolerance
+                # Non-zero weight case. A relative-error test alone is not
+                # meaningful for a client with a tiny share: at 32 clients the
+                # geometric scenario gives client 2 an expected 0.9% of ~1009
+                # grants, i.e. ~9 grants, where the Poisson sigma is +/-3 and
+                # a two-grant swing reads as 18.6% error. That failed the
+                # scenario on arrival against a correct arbiter.
+                #
+                # So allow whichever is larger: the relative tolerance, or a
+                # 3-sigma counting band on the expected COUNT. A client that
+                # should get ~35 grants and gets none is still caught (35 >
+                # 3*sqrt(35) = 17.7); noise on a 9-grant expectation is not.
                 relative_error = error / expected if expected > 0 else 0
                 error_pct = relative_error * 100
-                compliant = (relative_error <= tolerance)
+                exp_count = expected * total_grants
+                act_count = final_grants[i]
+                allowed = max(tolerance * exp_count, 3.0 * math.sqrt(exp_count))
+                compliant = abs(act_count - exp_count) <= allowed
 
             compliance_results.append({
                 'client': i,
@@ -568,7 +582,6 @@ class WeightedRoundRobinTB(TBBase):
 
         # Overall test results
         pass_rate = passed_scenarios / total_scenarios
-        min_pass_rate = 0.8  # Require 80% of scenarios to pass
 
         self.log.info("=== WEIGHTED FAIRNESS TEST SUMMARY ===")
         self.log.info(f"Scenarios passed: {passed_scenarios}/{total_scenarios} ({pass_rate:.1%})")
@@ -580,8 +593,26 @@ class WeightedRoundRobinTB(TBBase):
                 status = "PASS" if result['overall_compliant'] else "FAIL"
                 self.log.info(f"  {result['scenario_name']}: {status} ({result['compliant_clients']}/{self.CLIENTS} clients)")
 
-        assert pass_rate >= min_pass_rate, f"Insufficient scenario pass rate: {pass_rate:.1%} < {min_pass_rate:.1%}"
-        self.log.info(f"✓ Weighted fairness test PASSED with {pass_rate:.1%} success rate")
+        # EVERY scenario must pass. These are directed checks, not samples: the
+        # zero-weight scenario asserts `final_grants[i] == 0` exactly, and a
+        # failure is an RTL verdict rather than noise. The old
+        # `pass_rate >= 0.8` over 7 scenarios meant 6/7 = 85.7% passed, so any
+        # single directed scenario -- zero-weight clients being granted,
+        # geometric progression catching a weight-packing overflow -- could
+        # fail in every configuration and the suite stayed green. The per
+        # scenario "✗" was logged and the assertion never saw it.
+        #
+        # This is the second time a statistical threshold has been applied to
+        # directed checks here; the first was min_fairness_threshold = 0.3 on a
+        # 4-client arbiter, which passed with two clients starved
+        # ([[measure-over-the-window]]).
+        failed = [r['scenario_name'] for r in test_results
+                  if not r.get('overall_compliant')]
+        assert not failed, (
+            f"{len(failed)} of {total_scenarios} weighted scenario(s) failed: "
+            f"{failed}. Each is a directed check -- there is no pass-rate "
+            f"tolerance for these.")
+        self.log.info(f"✓ Weighted fairness test PASSED: {passed_scenarios}/{total_scenarios} scenarios")
 
     # =============================================================================
     # BASIC TESTS - SAME AS RR EXCEPT SIMPLE WEIGHT SETUP
@@ -658,12 +689,17 @@ class WeightedRoundRobinTB(TBBase):
 
             self.master.set_ack_profile('immediate')
 
-            # Run briefly to verify basic operation
+            # Run briefly to verify basic operation. Snapshot first: the
+            # counter is cumulative, so a bare `> 0` after the run passes on
+            # grants earned by earlier thresholds in this very loop.
+            before = sum(self.monitor.arbiter_stats['grants_per_client'])
             await self.wait_clocks('clk', 200)
 
             # Check that grants are being issued
-            current_grants = sum(self.monitor.arbiter_stats['grants_per_client'])
-            assert current_grants > 0, f"No grants issued with {description}"
+            current_grants = sum(self.monitor.arbiter_stats['grants_per_client']) - before
+            assert current_grants > 0, (
+                f"No grants issued in 200 cycles with {description} "
+                f"(cumulative before={before})")
 
             # Idle for next test
             await self.master.drain_and_idle(idle_cycles=20)
@@ -911,6 +947,26 @@ class WeightedRoundRobinTB(TBBase):
             self.log.error(f"Monitor errors detected: {self.monitor_errors}")
             raise AssertionError(f"Monitor errors: {self.monitor_errors}")
 
+        # Read the compliance verdict. This TB touched the model in exactly one
+        # place -- raising ack_timeout_cycles to 8000, i.e. only to make it
+        # complain less -- and never asked what it found, which is the same
+        # shape as COMMON-016 in the non-weighted TB.
+        compliance = getattr(self.monitor, 'compliance', None)
+        if compliance is None or not hasattr(compliance, 'get_warning_summary'):
+            return
+        summary = compliance.get_warning_summary()
+        self.log.info(
+            f"Compliance verdict: {summary['total_errors']} error(s), "
+            f"{summary['total_warnings']} warning(s); "
+            f"errors={summary['error_types']} warnings={summary['warning_types']}")
+        errs = [w for w in compliance.protocol_warnings
+                if w.get('severity') == 'error']
+        assert summary['total_errors'] == 0, (
+            f"Arbiter protocol compliance: {summary['total_errors']} error(s) "
+            f"{summary['error_types']}\n" + "\n".join(
+                f"  @{w.get('timestamp')}ns {w.get('type')}: {w.get('message')} "
+                f"details={w.get('details')}" for w in errs[:10]))
+
     def generate_final_report(self):
         """Generate final test report"""
         try:
@@ -1079,6 +1135,14 @@ class WeightedRoundRobinTB(TBBase):
 
         # Change weights during operation
         new_weights = list(reversed(weights))
+        # Snapshot BEFORE the change. grants_per_client is cumulative for the
+        # whole run, so summing it after the fact answers "has this arbiter
+        # ever granted anything", which by this phase is guaranteed -- the
+        # saturation phase alone puts ~500 grants in there, and even the 100
+        # cycles of traffic just above would satisfy it. The question this
+        # phase asks is whether the arbiter keeps granting ACROSS a mid-flight
+        # weight change, and only a window can answer that.
+        before = sum(self.monitor.arbiter_stats['grants_per_client'])
         self.master.set_weights(new_weights)
         await ClockCycles(self.dut.clk, 15)
 
@@ -1086,8 +1150,10 @@ class WeightedRoundRobinTB(TBBase):
         await self.wait_clocks('clk', 200)
 
         # Check system is still functional
-        recent_grants = sum(self.monitor.arbiter_stats['grants_per_client'])
-        assert recent_grants > 0, "No grants after weight change during operation"
+        recent_grants = sum(self.monitor.arbiter_stats['grants_per_client']) - before
+        assert recent_grants > 0, (
+            f"No grants in the {215} cycles after the mid-operation weight "
+            f"change (cumulative before={before})")
 
         self.log.info(f"ACK mode edge cases test passed{self.get_time_ns_str()}")
 
