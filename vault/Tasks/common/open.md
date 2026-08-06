@@ -81,6 +81,37 @@ above visible in the first place.
 
 ---
 
+## COMMON-020 — the fifo_sync wavedrom generator produces no wave JSON
+**Status:** open 2026-08-06 — found by the common test-audit round
+**Priority:** P3 — no consumer is broken today
+
+`val/common/test_fifo_sync_wavedrom.py` exists to emit timing diagrams. Its
+`setup_wavedrom()` builds the `WaveJSONGenerator` and the interface groups, but
+nothing ever calls `TemporalConstraintSolver.add_constraint()` — the only
+registration path that reaches `_solve_temporal_constraint()` ->
+`_create_solution_result()` -> `save_wavejson()`. The sampling loop iterates an
+empty constraint set, no window is captured, and the run ends with
+
+    WaveDrom Results: 0 solutions
+
+then logged "GENERATION COMPLETE" and passed. The missing
+`solve_and_generate()` call is now in place (its working sibling
+`test_counter_bin_wavedrom` has one) and the celebration is replaced by a
+warning, but the constraints themselves still have to be written.
+
+**Why it is not asserted:** `docs/markdown/rtl-common/fifo_sync.md` tells the
+reader to run the test rather than embedding committed JSON, so no doc is
+missing a diagram today. A red test for an artifact nobody consumes trains
+people to ignore red.
+
+**Work:** port the constraint registration from the working reference,
+`val/amba`'s gaxi fifo wavedrom test (which does emit JSON — see
+`val/amba/local_sim_build/test_gw2_gaxi_fifo_sync_flop_wavedrom/*.json`), then
+assert `len(results['solutions']) > 0` so the generator can never silently emit
+nothing again.
+
+---
+
 ## COMMON-003 — Create integration examples
 **Status:** open — not started (migrated from rtl/common/TASKS.md, P2)
 

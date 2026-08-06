@@ -718,8 +718,26 @@ gaps this exposed (beside-code docs were never in any denominator; a
 `rtl/common/*.md` glob misses `known_issues/` entirely) and for the corrected
 repo-wide figure.
 
-**common TEST AUDIT — round_1 dispatched 2026-07-31.** 48 tests -> 13 units at
-`~/rtl-test-review/common`, `testqc-kimi-k3/round_1`. Bundle rebuilt after the
+**common TEST AUDIT — bundle built 2026-07-31, NEVER DISPATCHED. Corrected
+2026-08-05.** The line here used to read "round_1 dispatched"; it was not. The
+evidence: `testqc-kimi-k3/round_1` holds cdc only (8 units) and `round_2` holds
+math — there is no `common_*.md` in either, and no `_bundle_snapshot` entry for
+common, which is written at dispatch time. There is a `testqc_cdc_r1.log` and a
+`testqc_math_r1.log` and never was a common one. What actually happened is what
+the rest of this block describes: 48 tests -> 13 units were BUILT at
+`~/rtl-test-review/common` and the mechanical baseline was measured. The send
+never followed.
+
+Everything the 2026-08-01..05 work fixed in the common test collateral — the
+three-level grids, the TB/runner separation, the seeds, the arbiter and
+clock_gate defects — therefore came from that mechanical baseline plus local
+auditing, **not** from an external reviewer. Common's test collateral had never
+been externally reviewed at all.
+
+Dispatched for real 2026-08-05 as `testqc-kimi-k3/round_3` (round numbering in
+that results tree is global across areas: cdc=1, math=2), against a bundle
+rebuilt the same day — necessary, since 93 of the 98 files in the corpus had
+changed since the July build, 37 of them newly created. Bundle rebuilt after the
 seed fixes so the reviewer sees the current TBs. Mechanical baseline measured
 BEFORE sending, so triage can tell new findings from known state:
 
@@ -777,3 +795,57 @@ scenarios instead of going through the FIFOSlave BFM (test-audit round_1,
 clause 5). Parked 2026-07-31 (Sean: low priority): it is a wavedrom
 doc-asset generator, so the hand-driving IS the scenario content, and a BFM
 rewrite buys little. Revisit only if the FIFO's read protocol changes.
+
+**common TEST AUDIT round_3 — dispatched and integrated 2026-08-06.** The area's
+FIRST external test review (see the correction above: the July round was built
+and never sent). 13 units, `testqc-kimi-k3/round_3`, against a bundle rebuilt
+that day — necessary, since 93 of the 98 files in the corpus had changed since
+July, 37 of them newly created.
+
+**35 findings: 30 CONFIRMED, 5 SUSPECTED. Adjudication: 25 UPHELD, 9 UNCERTAIN,
+1 REFUTED.** Extractor located 33/35 quotes (94%), one BLIND. Every finding
+triaged; none dropped on a verdict alone.
+
+**The round's headline was a tool that lied.** `check_test_levels.py` decided
+the depth half with `'TEST_LEVEL' in <test text + TB text>` — a substring
+search satisfied by the name in a comment — and reported common **48 of 48
+compliant**. The true figure was **32 of 48**: seven wrappers never exported
+TEST_LEVEL, eight pinned `test_levels = ['full']` in all three REG_LEVEL
+branches, and one exported a varying value to a TB that never read it. The
+reviewer found them one file at a time; the tool had certified every one, and
+its green line had been quoted for four days. Rewritten to check EXPORTED,
+VARYING and CONSUMED on the AST — its 16 then matched the reviewer's list
+exactly, arrived at independently.
+
+Defect classes found, all fixed:
+
+| class | n | note |
+|---|---|---|
+| dead depth mechanism | 16 | incl. cam_tag's LEVEL_MULT, written days earlier against a variable nothing exported |
+| silent pass / cannot fail | 6 | weighted 80% pass-rate over DIRECTED scenarios; two assertions on cumulative counters; a wavedrom generator emitting zero JSON while logging "COMPLETE" |
+| duplicate method definitions | 5 | CamTB and CRCTB each defined the async contract pair twice, shadowed by sync versions defined later |
+| hand-listed sources | 6 | converted to filelists |
+| naming / crash / seed | 4 | VENDOR=XILINX crashed the wrapper outright |
+
+**Two lessons worth carrying to the next area.**
+
+*Wiring a dead mechanism surfaces real failures.* Exporting TEST_LEVEL for the
+first time broke all four wavedrom wrappers with `NameError` — their
+`reg_level` lives in a module-level helper, not the test function. Checking
+that the definition preceded the use by LINE NUMBER said it was fine; they are
+different scopes.
+
+*A parser and a reviewer catch different things, and both are needed.* An AST
+scan for duplicate method definitions found `CamTB.main_loop` defined twice,
+which the reviewer missed; the reviewer found every semantic gap the parser
+could not express. Where they overlapped they agreed exactly.
+
+**The single REFUTED verdict was wrong** — the fourth on record. It refuted
+"weighted FULL is GATE re-labelled"; `LEVEL_MULT` genuinely had one call site
+and the seven weight scenarios genuinely ran at a fixed `target_grants=1000`
+at every level. Rule 10 (a REFUTED never drops a finding by itself) paid for
+itself again.
+
+Left open: COMMON-020 (wavedrom constraints, P3, no consumer broken today).
+Verification after integration: gate 75/75, func 208/208, full 925/925.
+
