@@ -9,6 +9,8 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 -f $REPO_ROOT/rtl/math/filelists/math_adder_full.f
 -f $REPO_ROOT/rtl/math/filelists/math_compressor_4to2.f
+-f $REPO_ROOT/rtl/math/filelists/math_prefix_cell.f
+-f $REPO_ROOT/rtl/math/filelists/math_prefix_cell_gray.f
 -f $REPO_ROOT/rtl/math/filelists/math_adder_han_carlson_016.f
 -f $REPO_ROOT/rtl/math/filelists/math_multiplier_dadda_4to2_008.f
 -f $REPO_ROOT/rtl/math/filelists/math_adder_han_carlson_048.f

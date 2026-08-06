@@ -27,7 +27,7 @@ import glob
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-INST_RE = re.compile(r"^\s{0,8}([a-z_][a-z0-9_]{2,})\s*(?:#\s*\(|[A-Za-z_]\w*\s*\()", re.M)
+INST_RE = re.compile(r"^\s{0,16}([a-z_][a-z0-9_]{2,})\s*(?:#\s*\(|\w[\w\[\]:]*\s*\()", re.M)
 KW = {'module', 'if', 'else', 'for', 'case', 'begin', 'end', 'always', 'always_ff',
       'always_comb', 'always_latch', 'assign', 'logic', 'wire', 'generate', 'endgenerate',
       'endmodule', 'initial', 'function', 'task', 'posedge', 'negedge', 'input', 'output',

@@ -7,4 +7,6 @@
 # Header files with macros (MUST be compiled first)
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
+-f $REPO_ROOT/rtl/math/filelists/math_prefix_cell.f
+-f $REPO_ROOT/rtl/math/filelists/math_prefix_cell_gray.f
 $REPO_ROOT/rtl/math/math_adder_han_carlson_016.sv
