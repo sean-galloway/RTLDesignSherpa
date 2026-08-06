@@ -114,15 +114,36 @@ def write_part(d, manifest, tests, tb, fw, ifaces):
 
 
 def main():
-    area = sys.argv[1]
-    out_root = sys.argv[2] if len(sys.argv) > 2 else os.path.expanduser("~/rtl-test-review")
+    # build_test_review_bundle.py <area> [out_root] [--tests LISTFILE]
+    #
+    # --tests restricts the bundle to the test basenames in LISTFILE, one per
+    # line. A re-round after integrating findings only needs to cover what the
+    # fixes touched -- re-auditing files byte-identical to ones just reviewed
+    # clean costs a unit each and finds nothing. Compute the list from the
+    # diff, and include a test whose TB CHAIN changed even when the runner
+    # itself did not: the TB holds the scenario generators, so a test can be
+    # entirely rewritten underneath an untouched wrapper.
+    argv = list(sys.argv[1:])
+    only = None
+    if "--tests" in argv:
+        i = argv.index("--tests")
+        only = {l.strip() for l in open(argv[i + 1], encoding="utf-8") if l.strip()}
+        del argv[i:i + 2]
+    area = argv[0]
+    out_root = argv[1] if len(argv) > 1 else os.path.expanduser("~/rtl-test-review")
     tests = sorted(
         os.path.join(REPO, "val", area, f)
         for f in os.listdir(os.path.join(REPO, "val", area))
-        if re.match(r"test_.*\.py$", f)
+        if re.match(r"test_.*\.py$", f) and (only is None or f in only)
     )
     if not tests:
-        sys.exit(f"no test_*.py under val/{area}")
+        sys.exit(f"no test_*.py under val/{area}" +
+                 (f" matching --tests ({len(only)} names)" if only else ""))
+    if only:
+        missing = only - {os.path.basename(t) for t in tests}
+        if missing:
+            sys.exit(f"--tests names not found under val/{area}: {sorted(missing)}")
+        print(f"scoped to {len(tests)} of the area's tests")
 
     entries = []  # (rel, tp, tbc, fwc, fls)
     units, cur, cur_size = [], [], 0
