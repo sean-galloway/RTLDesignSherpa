@@ -37,12 +37,14 @@ class CamTB(TBBase):
     # already used, so behaviour is unchanged.
 
     async def assert_reset(self):
-        """Assert reset."""
+        """Assert reset and park the interface."""
         self.dut.rst_n.value = 0
+        self.clear_interface()
 
     async def deassert_reset(self):
         """Release reset."""
         self.dut.rst_n.value = 1
+        self.log.info("Reset complete.")
 
     async def setup_clocks_and_reset(self):
         """Start the clock and drive the full reset sequence."""
@@ -52,28 +54,12 @@ class CamTB(TBBase):
         await self.deassert_reset()
         await self.wait_clocks('clk', 5)
 
-    async def main_loop(self):
-        self.log.info("Main Test")
-        tag_list = [random.randint(0x00, self.max_val) for _ in range(self.DEPTH)]
-        self.log.info(f'{tag_list=}')
-        for tag in tag_list:
-            await self.mark_one_valid(tag)
-        self.check_not_empty()
-        self.check_full()
-        random.shuffle(tag_list)
-        tag = tag_list.pop()
-        await self.mark_one_invalid(tag)
-        self.check_not_empty()
-        self.check_not_full()
-        await self.mark_one_valid(tag)
-        self.check_full()
-        tag_list.append(tag)
-        for tag in tag_list:
-            await self.mark_one_invalid(tag)
-        self.clear_interface()
-        await self.wait_clocks('clk', 1)
-        self.check_empty()
-        self.check_not_full()
+    # NOTE: a second main_loop used to sit here, generating tags with
+    # random.randint -- which can repeat, so a CAM of DEPTH slots was not
+    # necessarily filled and check_full() could fail spuriously. It was
+    # superseded by the unique-tag version below, but left in place: Python
+    # keeps the LAST definition, so it never ran. Deleted rather than kept
+    # as documentation of a bug.
 
     async def main_loop(self):
         self.log.info("Main Test")
@@ -140,14 +126,11 @@ class CamTB(TBBase):
         self.dut.mark_invalid.value = 0
 
 
-    def assert_reset(self):
-        self.dut.rst_n.value = 0
-        self.clear_interface()
-
-
-    def deassert_reset(self):
-        self.dut.rst_n.value = 1
-        self.log.info("Reset complete.")
+    # NOTE: sync assert_reset/deassert_reset used to be redefined here, after
+    # the async pair above. Python keeps the LAST definition, so the async
+    # contract methods were dead and setup_clocks_and_reset -- which awaits
+    # them -- would have raised "object NoneType can't be used in 'await'" the
+    # moment anything called it. Merged upward; this is the only definition.
 
 
     def check_empty(self):

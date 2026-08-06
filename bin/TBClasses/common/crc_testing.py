@@ -87,12 +87,14 @@ class CRCTB(TBBase):
     # already used, so behaviour is unchanged.
 
     async def assert_reset(self):
-        """Assert reset."""
+        """Assert reset and park the interface."""
         self.dut.rst_n.value = 0
+        self.clear_interface()
 
     async def deassert_reset(self):
         """Release reset."""
         self.dut.rst_n.value = 1
+        self.log.info("Reset complete.")
 
     async def setup_clocks_and_reset(self):
         """Start the clock and drive the full reset sequence."""
@@ -112,14 +114,11 @@ class CRCTB(TBBase):
         self.dut.XOROUT.value = self.xor_output
 
 
-    def assert_reset(self):
-        self.dut.rst_n.value = 0
-        self.clear_interface()
-
-
-    def deassert_reset(self):
-        self.dut.rst_n.value = 1
-        self.log.info("Reset complete.")
+    # NOTE: sync assert_reset/deassert_reset used to be redefined here, after
+    # the async pair above. Python keeps the LAST definition, so the async
+    # contract methods were dead and setup_clocks_and_reset -- which awaits
+    # them -- would have raised "object NoneType can't be used in 'await'".
+    # Merged upward; this is the only definition.
 
 
     @staticmethod

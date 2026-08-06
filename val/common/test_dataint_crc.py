@@ -41,10 +41,15 @@ async def crc_basic_test(dut):
     tb.print_settings()
     tb.generate_test_data()
 
+    # The lifecycle methods are async (the contract trio in
+    # /GLOBAL_REQUIREMENTS.md 2.2). They used to exist twice in CRCTB -- an
+    # async pair shadowed by a sync pair defined later -- so these calls were
+    # reaching the sync ones. Calling an async method without await returns a
+    # coroutine and drives nothing, which is a silent no-reset.
     await tb.start_clock('clk', 10, 'ns')
-    tb.assert_reset()
+    await tb.assert_reset()
     await tb.wait_clocks('clk', 10)
-    tb.deassert_reset()
+    await tb.deassert_reset()
     await tb.wait_clocks('clk', 10)
     await tb.main_loop()
 
