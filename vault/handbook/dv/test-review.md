@@ -82,7 +82,30 @@ interface headers are enough for "does the test drive real ports".
    "findings" were compliant tests every time. A scan that cries wolf gets
    ignored.*
 
-   Per-area state by the AST scan: **common 48/48 compliant (2026-08-01)**.
+   **That AST scan was itself wrong, and its green line was quoted for four
+   days (2026-08-05).** It checked the depth half with `'TEST_LEVEL' in <test
+   text + TB text>` -- a substring search, satisfied by the name appearing in a
+   comment. It reported **common 48/48 compliant** while SIXTEEN tests had a
+   depth mechanism that could not move: seven wrappers never put TEST_LEVEL in
+   `extra_env` at all, eight pinned `test_levels = ['full']` in all three
+   REG_LEVEL branches, and `test_dataint_crc` exported a varying value to a TB
+   that never read it. The external test round found them one file at a time;
+   the tool had certified every one.
+
+   The lesson is the same one three regex versions taught, one level up:
+   **presence is not wiring.** The rewrite moved from "is the string there" to
+   "is the name read" and stopped, when the question is whether the value is
+   EXPORTED by the wrapper, VARIES across levels, and is CONSUMED by the TB.
+   The tool now checks all three on the AST and reports which one failed.
+
+   Two calibration notes from fixing it, both false-positive sources:
+   scanning the whole module for level literals passes every pinned test (they
+   all mention some level somewhere), while reading only the assignment to
+   `test_level(s)` fails a compliant lookup-table form
+   (`test_level_map.get(reg_level, 'gate')` holds just the default). One level
+   of indirection through referenced names is what distinguishes them.
+
+   Per-area state, corrected: **common 32 of 48 (2026-08-05)**.
    cdc, math and amba have not been re-measured with the parser -- the older
    grep-based snapshot (2026-07-28) read cdc 6/13 and 10/13, common 42/48 and
    32/48, math 119/119, amba 55/117 and 68/117, and the common figures in it
