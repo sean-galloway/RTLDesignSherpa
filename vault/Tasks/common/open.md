@@ -35,6 +35,11 @@ the `[exempt]` ledger, not a hole:
 ## COMMON-019 — ACK-mode arbiter compliance: the model loses a grant
 **Status:** open 2026-08-05 — split out of COMMON-016/017. Not asserted on.
 **Priority:** P2 — belongs to the DV framework repo (RTLDesignSherpa-DV)
+**Upstream:** [RTLDesignSherpa-DV#50](https://github.com/sean-galloway/RTLDesignSherpa-DV/issues/50)
+— full write-up and suggested fix also in that repo's
+`docs/internal/arbiter-ack-mode-compliance.md`. The fix lands there, not here;
+this entry tracks the local consequence (ACK mode logs its verdict instead of
+asserting on it).
 
 Two residuals in `ArbiterCompliance`'s ACK path (`WAIT_GNT_ACK=1` only; the
 no-ACK path is clean and fully asserted on).
