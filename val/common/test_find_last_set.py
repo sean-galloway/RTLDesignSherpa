@@ -89,7 +89,10 @@ def generate_params():
         # FULL: All widths
         widths = [8, 16, 32, 64]
 
-    test_levels = ['full']
+    # Depth follows the grid. This used to read ['full'] unconditionally, so
+    # GATE ran full-depth work on a one-width grid and the tiers were
+    # decorative ([[test-runner]]: both mechanisms, and both have to move).
+    test_levels = [{'GATE': 'gate', 'FUNC': 'func'}.get(reg_level, 'full')]
 
     valid_params = []
     for width, test_level in product(widths, test_levels):

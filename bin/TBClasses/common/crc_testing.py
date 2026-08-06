@@ -32,7 +32,7 @@ class CRCTB(TBBase):
     Returns:
         None
     """
-    def __init__(self, dut, rnd_count):
+    def __init__(self, dut, rnd_count=None):
         """Initialize the CRCTesting class.
 
         This method initializes the CRCTesting class by setting up the necessary parameters for testing CRC functionality.
@@ -57,7 +57,16 @@ class CRCTB(TBBase):
         self.reflected_input = self.convert_to_int(os.environ.get('PARAM_REFIN', '0'))
         self.reflected_output = self.convert_to_int(os.environ.get('PARAM_REFOUT', '0'))
         self.xor_output = self.convert_to_int(os.environ.get('PARAM_XOROUT', '0')) & int(mask, 16)
-        self.rnd_count = rnd_count
+        # TEST_LEVEL gates the depth ([[test-runner]]). The wrapper exported it
+        # and nothing here read it, so gate/func/full all ran the same 100
+        # random values; an explicit rnd_count still wins for a caller that
+        # wants one.
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'gate'
+        self.rnd_count = (rnd_count if rnd_count is not None
+                          else {'gate': 20, 'func': 100, 'full': 400}[self.TEST_LEVEL])
+        self.log.info(f"CRCTB: TEST_LEVEL={self.TEST_LEVEL}, rnd_count={self.rnd_count}")
         self.test_values = []
         self.test_data = []
         self.cfg = Configuration(

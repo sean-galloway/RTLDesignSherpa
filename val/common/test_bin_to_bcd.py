@@ -92,11 +92,11 @@ def generate_params():
     if reg_level == 'GATE':
         # GATE: Minimal - just 8-bit
         param_combinations = [(8, 3)]
-        test_levels = ['full']
+        test_levels = ['gate']
     elif reg_level == 'FUNC':
         # FUNC: Small and medium widths
         param_combinations = [(8, 3), (12, 4)]
-        test_levels = ['full']
+        test_levels = ['func']
     else:  # FULL
         # FULL: All widths
         test_levels = ['full']

@@ -301,6 +301,11 @@ def test_counter_bin_load(request, width, max_value, test_id):
 
     # Environment variables
     extra_env = {
+        # Depth knob. Without this the TB reads TEST_LEVEL's default on every
+        # run, so its gate/func/full branches are unreachable no matter what
+        # REG_LEVEL selects ([[test-runner]]: both mechanisms are required,
+        # and a mechanism nothing exports is not one).
+        'TEST_LEVEL': reg_level.lower(),
         'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,

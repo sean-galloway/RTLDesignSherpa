@@ -213,6 +213,11 @@ def test_counter_load_clear_wavedrom(request, max_value):
     }
 
     extra_env = {
+        # Depth knob. Without this the TB reads TEST_LEVEL's default on every
+        # run, so its gate/func/full branches are unreachable no matter what
+        # REG_LEVEL selects ([[test-runner]]: both mechanisms are required,
+        # and a mechanism nothing exports is not one).
+        'TEST_LEVEL': os.environ.get('REG_LEVEL', 'FUNC').lower(),
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',

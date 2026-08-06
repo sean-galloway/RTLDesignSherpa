@@ -29,7 +29,10 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def crc_basic_test(dut):
     """ Test the CRC calculation for a basic input Across 250 Configurations"""
-    tb = CRCTB(dut, 100)
+    # rnd_count is CRCTB's depth knob; TEST_LEVEL scales it. It was pinned at
+    # 100 regardless of level, which is what made the exported TEST_LEVEL dead
+    # on arrival -- the TB had no reader for it.
+    tb = CRCTB(dut)
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
     random.seed(seed)
@@ -92,7 +95,9 @@ def generate_test_params():
             'refin': entry[5],
             'refout': entry[6],
             'xorout': entry[7],
-            'test_level': 'gate'
+            # Depth follows the grid. This was 'gate' for every entry at every
+            # REG_LEVEL, so FULL ran 250 algorithms at smoke depth.
+            'test_level': {'GATE': 'gate', 'FUNC': 'func'}.get(reg_level, 'full')
         } for entry in selected
     ]
 
