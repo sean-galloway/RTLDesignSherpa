@@ -176,8 +176,14 @@ def _wavedrom_grid(gate, func, full):
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     return {'GATE': gate, 'FULL': full}.get(reg_level, func)
 
+# MAX=8 is NOT a legal member of this grid. loadval is [$clog2(MAX)-1:0], so
+# MAX=8 gives a 3-bit port, and scenario_clear_operation loads a match value of
+# 8 -- which needs 4 bits, i.e. MAX >= 16. It also has no meaning there: a
+# counter that wraps at 8 can never reach a match of 8. Adding it produced
+# "OverflowError: Int value (8) out of range for assignment of 3-bit signal",
+# and only at FULL, where nothing else in the area runs that width.
 @pytest.mark.parametrize("max_value",
-                         _wavedrom_grid([16], [16, 32], [8, 16, 32, 64]))
+                         _wavedrom_grid([16], [16, 32], [16, 32, 64]))
 def test_counter_load_clear_wavedrom(request, max_value):
     """Pytest wrapper for counter_load_clear WaveDrom generation."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({

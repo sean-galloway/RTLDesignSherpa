@@ -47,6 +47,17 @@ class CounterLoadClearWaveDromTB(TBBase):
         self.log.info(f"Counter Load Clear WaveDrom TB initialized{self.get_time_ns_str()}")
         self.log.info(f"MAX_VALUE={self.MAX_VALUE}, COUNT_WIDTH={self.COUNT_WIDTH}{self.get_time_ns_str()}")
 
+        # The scenarios load a fixed match value of 8 (scenario_clear_operation),
+        # which needs a 4-bit loadval -- so MAX must be at least 16. Say that
+        # here rather than let cocotb raise "Int value (8) out of range for
+        # assignment of 3-bit signal" from inside a scenario, which points at
+        # the assignment instead of at the grid entry that caused it.
+        if self.MAX_VALUE < 16:
+            raise ValueError(
+                f"counter_load_clear wavedrom scenarios need MAX >= 16 "
+                f"(loadval is $clog2(MAX) bits and the scenarios load 8); "
+                f"got MAX={self.MAX_VALUE}")
+
         # Signal mappings
         self.clk = self.dut.clk
         self.rst_n = self.dut.rst_n

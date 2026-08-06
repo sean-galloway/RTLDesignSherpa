@@ -79,3 +79,35 @@ Per area: regressions green, formal green or gap-listed, docs measured
 against the tree with a near-empty findings round, docs humanized, coverage
 numbers on file with gaps triaged to tasks. The near-empty round is the
 evidence — not the absence of looking.
+
+### Evidence on file
+
+**common — Part 1 regressions, 2026-08-05.** `make clean-all` first, then all
+three levels via the area Makefile (never bare pytest):
+
+| level | collected | result |
+|---|---|---|
+| gate | 75 | 75 passed |
+| func | 208 | 208 passed |
+| full | 925 | 925 passed |
+
+No skips, no deselects, no xfails, and the pass count equals the collected
+count at every level — so nothing is quietly not running. Checked per FILE as
+well as in total: all 48 `test_*.py` collect at least one test at each of the
+three levels. (Beware the obvious way to count that: a `test_[a-z_]*\.py`
+pattern over pytest's node IDs also matches `con`**`test_base.py`** in the log
+lines and reports 49.)
+
+The full level was worth running on its own account — it caught
+`test_counter_load_clear_wavedrom[8]`, dead since the grids were added:
+`loadval` is `[$clog2(MAX)-1:0]`, so `MAX=8` is a 3-bit port while
+`scenario_clear_operation` loads a match value of 8. It raised
+`OverflowError: Int value (8) out of range for assignment of 3-bit signal`, and
+only at FULL, where nothing else in the area runs that width. `MAX=8` is
+meaningless for that diagram anyway — a counter that wraps at 8 can never match
+8. Grid is now `[16, 32, 64]` and the TB refuses `MAX < 16` with a message that
+names the grid entry instead of the assignment.
+
+Still outstanding for common: Part 4 coverage (never measured), the formal gaps
+(53/58 pass, 4 prove-only, 1 error — `counter_freq_invariant`, yosys parse),
+and a test-audit round_2 (round_1's fixes rewrote much of what it reviewed).
