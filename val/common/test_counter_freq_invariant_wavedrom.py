@@ -49,6 +49,7 @@ import pytest
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.common.counter_freq_invariant_wavedrom_tb import CounterFreqInvariantWaveDromTB
 from TBClasses.shared.utilities import get_wavejson_dir, get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import WaveDrom components
 from CocoTBFramework.components.wavedrom.constraint_solver import (
@@ -186,10 +187,12 @@ def test_counter_freq_invariant_wavedrom(request, counter_width):
     dut_name = "counter_freq_invariant"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
-    ]
+    # Sources come from the filelist, never a hand-listed array: the array
+    # here omitted the include dirs and reset_defs.svh the filelist carries,
+    # and a dependency added to the module is invisible to it ([[filelists]]).
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/counter_freq_invariant.f')
 
     cw_str = TBBase.format_dec(counter_width, 3)
     test_name_plus_params = f"test_{dut_name}_wavedrom_cw{cw_str}"
@@ -249,7 +252,7 @@ def test_counter_freq_invariant_wavedrom(request, counter_width):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,

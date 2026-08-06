@@ -102,7 +102,7 @@ def generate_test_params():
         ]
 
 @pytest.mark.parametrize("params", generate_test_params())
-def test_simple_lfsr_generate(request, params):
+def test_shifter_lfsr_galois_sequence(request, params):
     """Parameterized test for different LFSR widths"""
     # Get paths
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba_includes': 'rtl/amba/includes'})

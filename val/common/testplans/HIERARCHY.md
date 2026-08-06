@@ -108,7 +108,7 @@ These modules instantiate Level 0 primitives.
 ### FIFO Control
 | Module | Uses | Test File |
 |--------|------|-----------|
-| fifo_control.sv | counter_bin | test_fifo_buffer.py |
+| fifo_control.sv | counter_bin | test_fifo_sync.py |
 
 ---
 
@@ -117,8 +117,8 @@ These modules instantiate Level 0 primitives.
 ### FIFOs
 | Module | Uses | Test File |
 |--------|------|-----------|
-| fifo_sync.sv | fifo_control | test_fifo_buffer.py |
-| fifo_async.sv | fifo_control, counter_bingray, sync | test_fifo_buffer_async.py |
+| fifo_sync.sv | fifo_control | test_fifo_sync.py |
+| fifo_async.sv | fifo_control, counter_bingray, sync | (no test -- test_fifo_buffer_async.py was retired) |
 
 ### Arbiters
 | Module | Uses | Test File |

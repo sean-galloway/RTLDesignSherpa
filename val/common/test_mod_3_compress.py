@@ -9,6 +9,7 @@ from cocotb.triggers import Timer
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, get_repo_root
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.common.mod_3_compress_tb import Mod3CompressTB
 
 repo_root = get_repo_root()
@@ -40,13 +41,16 @@ def test_mod_3_compress(request, test_level):
         'rtl_math': 'rtl/math',
     })
     dut_name = "mod_3_compress"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_math'], "math_adder_carry_save_nbit.sv"),
-        os.path.join(rtl_dict['rtl_common'], "mod_3_compress.sv"),
-    ]
+    # Sources come from the filelist, never a hand-listed array: the array
+    # here omitted the include dirs and reset_defs.svh the filelist carries,
+    # and a dependency added to the module is invisible to it ([[filelists]]).
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/mod_3_compress.f')
     run(
         python_search=[tests_dir],
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=dut_name,
         module=os.path.splitext(os.path.basename(__file__))[0],
         sim_build=os.path.join(log_dir, f"sim_build_{dut_name}_{test_level}"),

@@ -276,7 +276,7 @@ class ArbiterRoundRobinTB(TBBase):
                 # grant_received flag it computes, so the TB cannot see the
                 # grant the BFM saw. The phase-level check below is the real
                 # assertion; this stays a warning until the framework exposes
-                # a per-request result. See COMMON-016.
+                # a per-request result. See COMMON-019.
                 self.log.warning(
                     f"Client {i}: no grant counted within its own request "
                     f"window ({before_i} -> {after_i}, auto_ack="
@@ -302,13 +302,13 @@ class ArbiterRoundRobinTB(TBBase):
             # "ACK from client N with no pending grant" during this phase.
             # Asserting here fires on 3 of 4 clients while the counts barely
             # move, which is a measurement artifact, not starvation. Shipping
-            # that assertion would just teach everyone to rerun. COMMON-016
+            # that assertion would just teach everyone to rerun. COMMON-019
             # holds the evidence and the framework change it needs.
             if never_granted:
                 self.log.warning(
                     f"Walking requests (ACK mode): client(s) {never_granted} "
                     f"show no counted grant; {phase_start} -> {phase_end}. "
-                    f"NOT failed -- see COMMON-016."
+                    f"NOT failed -- see COMMON-019."
                 )
         else:
             assert not never_granted, (

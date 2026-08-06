@@ -555,9 +555,17 @@ class WeightedRoundRobinTB(TBBase):
 
             try:
                 # Run the proper weight test
+                # Depth follows TEST_LEVEL. This was a fixed 1000 at every
+                # level, and LEVEL_MULT had exactly ONE use in this TB -- the
+                # wrapper's basic-arbitration duration, a phase whose only
+                # assertion is activity. So every checking phase ran identically
+                # at gate, func and full: "full" was gate re-labelled
+                # ([[test-runner]] clause 7). More grants also tighten the
+                # counting band the distribution check now uses, so depth buys
+                # real sensitivity here rather than just runtime.
                 result = await self.run_proper_weight_test(
                     scenario=scenario,
-                    target_grants=1000,  # Collect 1000 grants for good statistics
+                    target_grants={'gate': 500, 'func': 1000, 'full': 2500}[self.TEST_LEVEL],
                     tolerance=0.15       # 15% tolerance
                 )
 

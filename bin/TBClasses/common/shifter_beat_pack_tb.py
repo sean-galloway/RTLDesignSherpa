@@ -48,6 +48,11 @@ class ShifterBeatPackTB(TBBase):
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.SEED)
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        # Record it. The wrapper picks a fresh random SEED every run, so a
+        # failure is only reproducible if the value reaches the log --
+        # otherwise "rerun with SEED=<n>" has no n ([[seeds-and-determinism]]).
+        self.log.info(f"shifter_beat_pack: SEED={self.SEED}, "
+                      f"TEST_LEVEL={self.TEST_LEVEL}")
 
         self.CHUNK_BITS     = self.convert_to_int(
             os.environ.get('CHUNK_BITS', '128'))

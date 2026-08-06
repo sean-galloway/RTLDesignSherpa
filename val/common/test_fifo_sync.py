@@ -4,7 +4,7 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_fifo_buffer
+# Module: test_fifo_sync
 # Purpose: FIFO Buffer Test with Parameterized Test Levels
 #
 # Documentation: PRD.md
@@ -221,7 +221,7 @@ def generate_params():
 params = generate_params()
 
 @pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period, registered, test_level", params)
-def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, registered, test_level):
+def test_fifo_sync(request, data_width, depth, wr_clk_period, rd_clk_period, registered, test_level):
     """
     Parameterized FIFO buffer test with configurable test levels.
 
@@ -320,15 +320,19 @@ def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, r
     else:
         vendor_flag = None  # no vendor flags at all
 
-    # Add coverage compile args if COVERAGE=1
-    if vendor_flag:
-        extra_args.append(vendor_flag)
-
     extra_args = [
         '--trace-fst',
         '--trace-structs',
         '-Wno-TIMESCALEMOD',
     ]
+
+    # Append AFTER the list exists. This used to run before the assignment
+    # above, so any VENDOR=XILINX/INTEL run died with "local variable
+    # 'extra_args' referenced before assignment" -- and had it survived, the
+    # assignment on the next line discarded the flag anyway. Nothing in CI
+    # sets VENDOR, which is why it sat here.
+    if vendor_flag:
+        extra_args.append(vendor_flag)
 
     sim_args = ['--trace'] if enable_waves else []
 

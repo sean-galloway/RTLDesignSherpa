@@ -52,6 +52,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.fifo.fifo_buffer import FifoBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 
 # Import WaveDrom components
@@ -359,11 +360,30 @@ async def fifo_sync_wavedrom_test(dut):
 
         if tb.wave_solver:
             await tb.wave_solver.stop_sampling()
+            # Actually solve. Without this the sampling loop iterates an empty
+            # constraint set, no window is ever captured, and the run reports
+            # "0 solutions" and PASSES -- a generator whose entire deliverable
+            # is the wave JSON, producing none.
+            await tb.wave_solver.solve_and_generate()
             tb.wave_solver.debug_status()
             results = tb.wave_solver.get_results()
 
-            tb.log.info(f"WaveDrom Results: {len(results['solutions'])} solutions")
-            tb.log.info("🎉 SYNCHRONOUS FIFO WAVEDROM GENERATION COMPLETE! 🎉")
+            n = len(results['solutions'])
+            tb.log.info(f"WaveDrom Results: {n} solutions")
+            if n == 0:
+                # Say so instead of celebrating. setup_wavedrom() builds the
+                # generator and the interface groups but never registers a
+                # TemporalConstraintSolver constraint, so the sampling loop
+                # iterates an empty set, no window is captured and this
+                # generator emits no wave JSON at all. It printed
+                # "GENERATION COMPLETE" over zero output. Writing the
+                # constraints is tracked as COMMON-020; val/amba's gaxi fifo
+                # wavedrom test is the working reference.
+                tb.log.warning(
+                    "NO wave JSON produced: no constraints are registered "
+                    "(COMMON-020). This generator currently emits nothing.")
+            else:
+                tb.log.info("Synchronous FIFO wavedrom generation complete")
 
     finally:
         if tb.wave_solver:
@@ -394,12 +414,12 @@ def test_fifo_sync_wavedrom(request, data_width, depth, clk_period):
     dut_name = "fifo_sync"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], f"{dut_name}.sv"),
-    ]
+    # Sources come from the filelist, never a hand-listed array: the array
+    # here omitted the include dirs and reset_defs.svh the filelist carries,
+    # and a dependency added to the module is invisible to it ([[filelists]]).
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/common/filelists/fifo_sync.f')
 
     w_str = TBBase.format_dec(data_width, 3)
     d_str = TBBase.format_dec(depth, 3)
@@ -414,7 +434,9 @@ def test_fifo_sync_wavedrom(request, data_width, depth, clk_period):
 
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    includes=[rtl_dict['rtl_amba_includes']]
+    # (the hand-built include list that used to sit here OVERWROTE the one
+    # get_sources_from_filelist returned above -- an assignment, not a
+    # kwarg, so the filelist's include dirs were silently discarded)
 
     rtl_parameters = {
         'DATA_WIDTH': str(data_width),

@@ -45,6 +45,7 @@ from cocotb_test.simulator import run
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.dataint_ecc_hamming_secded_tb import DataintEccHammingSecDedTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.tbbase import TBBase
 
 # ===========================================================================
@@ -112,10 +113,19 @@ def test_dataint_ecc_hamming_secded(request, width, test_mode):
     encoder_name = "dataint_ecc_hamming_encode_secded"
     decoder_name = "dataint_ecc_hamming_decode_secded"
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_common'], f'{encoder_name}.sv'),
-        os.path.join(rtl_dict['rtl_common'], f'{decoder_name}.sv'),
-    ]
+    # Both modules come from their filelists rather than a hand-listed array,
+    # which omitted the include dirs and reset_defs.svh they need
+    # ([[filelists]]). The helper takes one filelist, so merge the two
+    # closures, preserving order and dropping the duplicate header both pull
+    # in.
+    enc_sources, enc_includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path=f'rtl/common/filelists/{encoder_name}.f')
+    dec_sources, dec_includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path=f'rtl/common/filelists/{decoder_name}.f')
+    verilog_sources = list(dict.fromkeys(enc_sources + dec_sources))
+    includes = list(dict.fromkeys(enc_includes + dec_includes))
 
     # Top-level wrapper module (created below)
     toplevel = "ecc_secded_wrapper"
@@ -217,7 +227,7 @@ endmodule
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             testcase="cocotb_ecc_secded_test",
