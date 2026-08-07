@@ -19,7 +19,7 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DUT_RE = re.compile(r'^\s*dut_name\s*=\s*["\'](math_\w+)["\']', re.M)
-SOURCES_RE = re.compile(r"^\s*verilog_sources\s*=\s*\[\n(?:.*\n)*?\s*\]\n", re.M)
+SOURCES_RE = re.compile(r"^\s*verilog_sources\s*=\s*\[(?:\n(?:.*\n)*?\s*\]|[^\n]*\])\n", re.M)
 IMPORT_LINE = "from TBClasses.shared.filelist_utils import get_sources_from_filelist\n"
 
 

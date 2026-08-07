@@ -30,6 +30,7 @@ from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the BF16 testbench class
 from TBClasses.common.bf16_testing import BF16MultiplierTB
@@ -101,20 +102,10 @@ def test_math_bf16_multiplier(request, params):
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # BF16 multiplier depends on these modules (in dependency order):
-    verilog_sources = [
-        # Basic building blocks
-        os.path.join(rtl_dict['rtl_math'], "math_adder_half.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_full.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_compressor_4to2.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_prefix_cell.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_prefix_cell_gray.sv"),
-        # Generated BF16 modules
-        os.path.join(rtl_dict['rtl_math'], "math_adder_han_carlson_016.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_multiplier_dadda_4to2_008.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_bf16_mantissa_mult.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_bf16_exponent_adder.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_bf16_multiplier.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/math/filelists/math_bf16_multiplier.f'
+    )
 
     # Define simulation build and log paths
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -158,7 +149,7 @@ def test_math_bf16_multiplier(request, params):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters={},

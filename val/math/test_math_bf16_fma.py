@@ -34,6 +34,7 @@ from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the BF16 FMA testbench class
 from TBClasses.common.bf16_testing import BF16FMATB
@@ -105,20 +106,10 @@ def test_math_bf16_fma(request, params):
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # BF16 FMA depends on these modules (in dependency order):
-    verilog_sources = [
-        # Basic building blocks
-        os.path.join(rtl_dict['rtl_math'], "math_adder_half.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_full.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_compressor_4to2.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_prefix_cell.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_prefix_cell_gray.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "count_leading_zeros.sv"),
-        # Generated BF16/math modules
-        os.path.join(rtl_dict['rtl_math'], "math_adder_han_carlson_016.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_han_carlson_048.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_multiplier_dadda_4to2_008.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_bf16_fma.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/math/filelists/math_bf16_fma.f'
+    )
 
     # Define simulation build and log paths
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -162,7 +153,7 @@ def test_math_bf16_fma(request, params):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters={},

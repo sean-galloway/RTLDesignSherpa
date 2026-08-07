@@ -30,6 +30,7 @@ from cocotb.triggers import Timer
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.math.math_bf16_exponent_adder_tb import BF16ExponentAdderTB
 from TBClasses.shared.tbbase import TBBase
 
@@ -80,9 +81,10 @@ def test_math_bf16_exponent_adder(request, params):
         test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
 
     # BF16 exponent adder - standalone module
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_math'], "math_bf16_exponent_adder.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/math/filelists/math_bf16_exponent_adder.f'
+    )
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -123,7 +125,7 @@ def test_math_bf16_exponent_adder(request, params):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             sim_build=sim_build,

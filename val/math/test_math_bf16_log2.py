@@ -32,6 +32,7 @@ from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the testbench class
 from TBClasses.common.bf16_testing import BF16Log2TB
@@ -100,9 +101,10 @@ def test_math_bf16_log2(request, params):
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Log2 is standalone (no complex dependencies)
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_math'], "math_bf16_log2.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='rtl/math/filelists/math_bf16_log2.f'
+    )
 
     # RTL parameters
     rtl_parameters = {
@@ -155,7 +157,7 @@ def test_math_bf16_log2(request, params):
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,

@@ -25,6 +25,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the base MultiplierTB class
@@ -107,20 +108,13 @@ def test_math_multiplier_wallace_tree(request, params):
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_math'], "math_adder_half.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_full.sv"),
-        # Final carry-propagate adder: the reduction tree hands two rows to a
-        # Brent-Kung CPA whose width is the PRODUCT width, i.e. 2*N.
-        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_pg.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_black.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_gray.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_bitwisepg.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_sum.sv"),
-        os.path.join(rtl_dict['rtl_math'], f"math_adder_brent_kung_grouppg_{2*n:03d}.sv"),
-        os.path.join(rtl_dict['rtl_math'], f"math_adder_brent_kung_{2*n:03d}.sv"),
-        os.path.join(rtl_dict['rtl_math'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+
+        repo_root=repo_root,
+
+        filelist_path=f'rtl/math/filelists/{dut_name}.f'
+
+    )
 
     # Define simulation build and log paths
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -169,7 +163,7 @@ def test_math_multiplier_wallace_tree(request, params):
         run(
             python_search=[tests_dir],  # where to search for all the python test files
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters={'N': params['WIDTH']},

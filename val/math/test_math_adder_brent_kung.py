@@ -25,6 +25,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the base AdderTB class
@@ -74,15 +75,13 @@ def test_math_adder_brent_kung(request, n):
     dut_name = f"math_adder_brent_kung_{n:03d}"
     toplevel = dut_name
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_pg.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_black.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_gray.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_bitwisepg.sv"),
-        os.path.join(rtl_dict['rtl_math'], f"math_adder_brent_kung_grouppg_{n:03d}.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_brent_kung_sum.sv"),
-        os.path.join(rtl_dict['rtl_math'], f"{dut_name}.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+
+        repo_root=repo_root,
+
+        filelist_path=f'rtl/math/filelists/{dut_name}.f'
+
+    )
 
     # Define test parameters
     parameters = {'N': n}
@@ -147,7 +146,7 @@ def test_math_adder_brent_kung(request, n):
         run(
             python_search=[tests_dir],  # where to search for all the python test files
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters=parameters,

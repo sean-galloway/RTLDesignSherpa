@@ -156,7 +156,7 @@ def test_math_multiplier_carry_save(request, params):
         run(
             python_search=[tests_dir],  # where to search for all the python test files
             verilog_sources=verilog_sources,
-            includes=[],
+            includes=includes,
             toplevel=toplevel,
             module=module,
             parameters={'N': params['WIDTH']},

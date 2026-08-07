@@ -23,6 +23,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.common.fp_testing import (
     FPFMATB, FORMATS
 )
@@ -62,16 +63,13 @@ def test_math_fp8_e5m2_fma(request, params):
     if worker_id:
         test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_math'], "math_adder_half.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_adder_full.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_compressor_4to2.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_prefix_cell.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_prefix_cell_gray.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_fp8_e5m2_mantissa_mult.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_fp8_e5m2_exponent_adder.sv"),
-        os.path.join(rtl_dict['rtl_math'], "math_fp8_e5m2_fma.sv"),
-    ]
+    verilog_sources, includes = get_sources_from_filelist(
+
+        repo_root=repo_root,
+
+        filelist_path='rtl/math/filelists/math_fp8_e5m2_fma.f'
+
+    )
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -99,7 +97,7 @@ def test_math_fp8_e5m2_fma(request, params):
 
     sim_args = ['--trace'] if enable_waves else []
 
-    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=[],
+    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, parameters={}, sim_build=sim_build,
         extra_env=extra_env, extra_args=extra_args,
         plus_args=sim_args,
