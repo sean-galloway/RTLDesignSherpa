@@ -9,7 +9,7 @@
 #   make all            Generate all bridges from bridge_batch.csv
 #   make single         Generate single bridge (requires PORTS, CONN, NAME)
 #   make clean          Remove generated RTL
-#   make batch          Create default bridge_batch.csv
+#   make batch          Verify bridge_batch.csv exists (git-tracked)
 #
 # ==============================================================================
 
@@ -32,58 +32,6 @@ GENERATOR := $(BIN_DIR)/bridge_generator.py
 # Batch file
 BATCH_FILE := $(BIN_DIR)/bridge_batch.csv
 
-# Default batch file content
-define BATCH_CONTENT
-name,ports,connectivity,output_dir,expose_arbiter_signals
-# Bridge Batch Generation Configuration
-#
-# This file defines all bridges to be generated.
-# Lines starting with # are treated as comments.
-#
-# Columns:
-#   name               - Output module name (empty = auto-generated)
-#   ports              - Path to ports.csv configuration
-#   connectivity       - Path to connectivity.csv configuration
-#   output_dir         - Output directory for generated RTL
-#   expose_arbiter_signals - true/false for debug signals
-#
-# ==============================================================================
-# Test Bridges
-# ==============================================================================
-
-# 2x2 Basic Bridge
-bridge_2x2_basic,$(CSV_DIR)/test_2x2_ports.csv,$(CSV_DIR)/test_2x2_connectivity.csv,$(RTL_DIR),false
-
-# 4x4 Full Bridge
-bridge_4x4_full,$(CSV_DIR)/test_4x4_ports.csv,$(CSV_DIR)/test_4x4_connectivity.csv,$(RTL_DIR),false
-
-# 5x3 Channel-Specific Bridge
-bridge_5x3_channels,$(CSV_DIR)/test_5x3_channels_ports.csv,$(CSV_DIR)/test_5x3_channels_connectivity.csv,$(RTL_DIR),false
-
-# ==============================================================================
-# Minimal Test Bridges (Read/Write Only)
-# ==============================================================================
-
-# 1x2 Read-Only Bridge
-bridge_1x2_rd,$(CSV_DIR)/bridge_minimal_rd_1x2_ports.csv,$(CSV_DIR)/bridge_minimal_rd_1x2_connectivity.csv,$(RTL_DIR),false
-
-# 1x2 Write-Only Bridge
-bridge_1x2_wr,$(CSV_DIR)/bridge_minimal_wr_1x2_ports.csv,$(CSV_DIR)/bridge_minimal_wr_1x2_connectivity.csv,$(RTL_DIR),false
-
-# ==============================================================================
-# Example Bridges (For Documentation)
-# ==============================================================================
-
-# Example Bridge (Basic)
-# bridge_example,$(CSV_DIR)/example_ports.csv,$(CSV_DIR)/example_connectivity.csv,$(RTL_DIR),false
-
-# Example Bridge (Channel-Specific)
-# bridge_example_channels,$(CSV_DIR)/example_ports_channels.csv,$(CSV_DIR)/example_connectivity_channels.csv,$(RTL_DIR),false
-
-# Example Bridge (Out-of-Order)
-# bridge_example_ooo,$(CSV_DIR)/example_ports_ooo.csv,$(CSV_DIR)/example_connectivity.csv,$(RTL_DIR),true
-endef
-export BATCH_CONTENT
 
 .DEFAULT_GOAL := help
 
@@ -128,7 +76,7 @@ help:
 	@echo "  bridge_batch_example.csv - Example/template (for reference)"
 	@echo ""
 	@echo "Edit bridge_batch.csv to customize which bridges to generate."
-	@echo "Run 'make batch' to regenerate bridge_batch.csv with defaults."
+	@echo "bridge_batch.csv is git-tracked; restore with git if lost."
 	@echo "================================================================================"
 
 .PHONY: all
@@ -177,17 +125,17 @@ endif
 	@echo ""
 	@echo "✓ Single bridge generated successfully!"
 
+# bridge_batch.csv is a hand-curated, git-tracked manifest -- NOT a
+# generated artifact. Never overwrite it from a template; if missing,
+# restore it from git.
 .PHONY: batch
-batch:
-	@echo "Creating default bridge_batch.csv..."
-	@echo "$$BATCH_CONTENT" > $(BATCH_FILE)
-	@echo "✓ Created: $(BATCH_FILE)"
-	@echo ""
-	@echo "Edit this file to customize bridge generation, then run:"
-	@echo "  make all"
+batch: $(BATCH_FILE)
+	@echo "✓ Batch manifest present: $(BATCH_FILE)"
 
 $(BATCH_FILE):
-	@$(MAKE) batch
+	@echo "Batch manifest missing -- restoring from git..."
+	@git -C $(BIN_DIR) checkout -- $(notdir $(BATCH_FILE)) || \
+		(echo "ERROR: could not restore $(BATCH_FILE) from git." && exit 1)
 
 .PHONY: status
 status:
@@ -224,11 +172,8 @@ clean-all: clean
 	@echo "Removing old standalone bridge files..."
 	@cd $(RTL_DIR) && find . -maxdepth 1 -name "bridge_*.sv" ! -name "bridge_cam.sv" -type f -delete
 	@echo "✓ Old standalone bridge files removed (preserved bridge_cam.sv)"
-	@echo "Removing batch file..."
-	@rm -f $(BATCH_FILE)
-	@echo "✓ Batch file removed"
-	@echo ""
 	@echo "All generated files cleaned. Run 'make all' to regenerate."
+	@echo "(bridge_batch.csv is a git-tracked manifest and is never removed.)"
 
 .PHONY: test
 test:
