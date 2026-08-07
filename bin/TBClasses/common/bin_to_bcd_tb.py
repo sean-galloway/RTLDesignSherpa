@@ -77,6 +77,9 @@ class BinToBcdTB(TBBase):
     async def setup_clocks_and_reset(self):
         """Start the clock and drive the full reset sequence."""
         await self.start_clock('clk', 10, 'ns')
+        # Mark it, so a later setup_clock() from a sub-test does not stack a
+        # second driver on top of the one TBBase just started.
+        self._clock_started = True
         await self.reset_dut()
 
     def _setup_signals(self):
@@ -89,8 +92,21 @@ class BinToBcdTB(TBBase):
         self.done = self.dut.done
 
     async def setup_clock(self):
-        """Setup clock"""
-        cocotb.start_soon(Clock(self.clk, self.clock_period, units="ns").start())
+        """Start the clock once, however many sub-tests ask for it.
+
+        This used to start a new Clock coroutine on every call, and four
+        sub-tests call it -- so dut.clk had two independent drivers at GATE and
+        up to four at FULL, each scheduling its own edges on the same signal.
+        The contract path (setup_clocks_and_reset -> TBBase.start_clock) is
+        guarded, but bin_to_bcd_test calls run_all_tests() directly, so the
+        guarded path never ran and this was the only clock source.
+        """
+        if not getattr(self, '_clock_started', False):
+            cocotb.start_soon(Clock(self.clk, self.clock_period, units="ns").start())
+            self._clock_started = True
+        # The settle always happens, started here or not: callers use this as
+        # "clock running, one delta done". Returning early instead skipped it
+        # and failed every bin_to_bcd config.
         await Timer(1, units='ns')
 
     async def reset_dut(self):

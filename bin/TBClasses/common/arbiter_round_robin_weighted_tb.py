@@ -789,6 +789,14 @@ class WeightedRoundRobinTB(TBBase):
                 self.master.disable_client(client_id)
             await self.wait_clocks('clk', 10)
 
+            # Snapshot this client's grants before its window. manual_request
+            # returns normally when NO grant ever arrives -- it logs at debug
+            # and cleans up, it does not raise -- so the "successful" line
+            # below used to print regardless of what the arbiter did, and this
+            # phase asserted nothing about the property it names. A delta is
+            # sound in both modes: continuations can inflate the count, but
+            # "did this client get at least one grant" only needs > 0.
+            before = self.monitor.arbiter_stats['grants_per_client'][i]
             try:
                 if auto_ack_enabled:
                     await self.master.manual_request(
@@ -800,7 +808,13 @@ class WeightedRoundRobinTB(TBBase):
                 else:
                     await self.master.manual_request(client_id=i, cycles=10)
 
-                self.log.info(f"✓ Client {i} walking test successful")
+                granted = self.monitor.arbiter_stats['grants_per_client'][i] - before
+                assert granted > 0, (
+                    f"Client {i} was the ONLY requester for "
+                    f"{15 if auto_ack_enabled else 10} cycles and received no "
+                    f"grant (weights all 1, WAIT_GNT_ACK={self.WAIT_GNT_ACK})")
+                self.log.info(f"✓ Client {i} walking test successful "
+                              f"({granted} grant(s))")
 
             except Exception as e:
                 self.log.error(f"✗ Client {i} walking test failed: {e}")
