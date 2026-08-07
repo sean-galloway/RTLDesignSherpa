@@ -44,6 +44,7 @@ from TBClasses.shared.tbbase import TBBase
 from TBClasses.common.counter_freq_invariant_tb import CounterFreqInvariantTB
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from cov_utils.conftest_coverage import get_coverage_compile_args
 
 # ==========================================================================
 # Python-side LUT computation (must match RTL functions exactly)
@@ -201,6 +202,15 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz):
         '-Wno-TIMESCALEMOD',
         '-Wno-WIDTHTRUNC',
     ]
+
+
+    # Verilator --coverage flags when COVERAGE=1, else nothing. Without this
+
+    # the run produces no coverage.dat at all and `make coverage-report`
+
+    # silently reports 0.0% from 0 merged files.
+
+    extra_args.extend(get_coverage_compile_args())
 
     cmd_filename = create_view_cmd(
         log_dir, log_path, sim_build, module, test_name_plus_params)

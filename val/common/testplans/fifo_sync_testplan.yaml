@@ -198,3 +198,37 @@ notes: |
   - Data integrity across many operations
   
   Implied coverage is 100% - all functional scenarios verified.
+
+# ---------------------------------------------------------------
+# External test audit (Kimi testqc rounds 3-4, 2026-08-06/07).
+# The area's first external review of its test collateral, plus a
+# scoped re-round over what the fixes touched. A test plan records
+# what is INTENDED to be covered; the audit measured what is actually
+# CHECKED, and the gap was the story -- mechanisms that existed but
+# drove nothing, assertions that could not fail. A 'tested: true' row
+# is only as good as the assertion behind it.
+# ---------------------------------------------------------------
+external_audit:
+  rounds: [testqc-kimi-k3/round_3, testqc-kimi-k3/round_4]
+  status: all findings below are FIXED
+  findings:
+    - module: fifo_sync_wavedrom
+      round: r3
+      severity: CONFIRMED
+      finding: "fifo_sync wavedrom generator never registers a constraint -- zero wave JSON is produced and the run still passes"
+    - module: fifo_sync_wavedrom
+      round: r3
+      severity: CONFIRMED
+      finding: "Wavedrom scenarios poke dut.read directly while the FIFOSlave BFM autonomously drives the same port"
+    - module: fifo_sync_wavedrom
+      round: r3
+      severity: CONFIRMED
+      finding: "test_fifo_sync_wavedrom.py hand-lists verilog_sources instead of consuming a filelist"
+    - module: fifo_sync_wavedrom
+      round: r3
+      severity: SUSPECTED
+      finding: "Wavedrom wrapper never exports TEST_LEVEL, so default/documented runs emit only 2 of 4 scenarios"
+    - module: fifo_sync_wavedrom
+      round: r4
+      severity: CONFIRMED
+      finding: "fifo_sync wavedrom generator registers no constraints, emits zero wave JSON, and still exits PASS"

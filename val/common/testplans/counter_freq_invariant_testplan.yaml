@@ -202,3 +202,25 @@ notes: |
   handles invalid inputs by defaulting to 1GHz (1000 cycles).
 
   Implied coverage at FULL level: 97.6% (80/82 points)
+
+# ---------------------------------------------------------------
+# External test audit (Kimi testqc rounds 3-4, 2026-08-06/07).
+# The area's first external review of its test collateral, plus a
+# scoped re-round over what the fixes touched. A test plan records
+# what is INTENDED to be covered; the audit measured what is actually
+# CHECKED, and the gap was the story -- mechanisms that existed but
+# drove nothing, assertions that could not fail. A 'tested: true' row
+# is only as good as the assertion behind it.
+# ---------------------------------------------------------------
+external_audit:
+  rounds: [testqc-kimi-k3/round_3, testqc-kimi-k3/round_4]
+  status: all findings below are FIXED
+  findings:
+    - module: counter_freq_invariant_wavedrom
+      round: r3
+      severity: CONFIRMED
+      finding: "Wavedrom wrapper never passes TEST_LEVEL -- only the 2-scenario gate subset is ever generated"
+    - module: counter_freq_invariant_wavedrom
+      round: r3
+      severity: CONFIRMED
+      finding: "Wavedrom wrapper hand-lists verilog_sources instead of using a filelist"

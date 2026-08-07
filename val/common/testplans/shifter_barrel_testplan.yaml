@@ -170,3 +170,21 @@ notes: |
   - Walking patterns for toggle coverage
   
   Implied coverage is 100% - all functional combinations tested.
+
+# ---------------------------------------------------------------
+# External test audit (Kimi testqc rounds 3-4, 2026-08-06/07).
+# The area's first external review of its test collateral, plus a
+# scoped re-round over what the fixes touched. A test plan records
+# what is INTENDED to be covered; the audit measured what is actually
+# CHECKED, and the gap was the story -- mechanisms that existed but
+# drove nothing, assertions that could not fail. A 'tested: true' row
+# is only as good as the assertion behind it.
+# ---------------------------------------------------------------
+external_audit:
+  rounds: [testqc-kimi-k3/round_3, testqc-kimi-k3/round_4]
+  status: all findings below are FIXED
+  findings:
+    - module: shifter_barrel
+      round: r3
+      severity: SUSPECTED
+      finding: "test_shifter_barrel discards the include dirs it just read from the filelist"

@@ -2,7 +2,7 @@
 
 ## Module: rtl/common/fifo_async.sv
 ## Test File: val/common/test_fifo_buffer_async.py
-## Current Coverage: TBD (see note under Coverage)
+## Current Coverage: NO DATA in the 2026-08-07 run -- this module produced no line-coverage rows (see COVERAGE_REPORT.md)
 
 ## Module Overview
 

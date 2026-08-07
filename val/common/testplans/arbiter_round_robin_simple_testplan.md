@@ -2,7 +2,7 @@
 
 ## Module: rtl/common/arbiter_round_robin_simple.sv
 ## Test File: val/common/test_arbiter_round_robin_simple.py
-## Current Coverage: ~90% (GOOD)
+## Current Coverage: **100.0** (Verilator line, measured 2026-08-07)
 
 ## Module Overview
 

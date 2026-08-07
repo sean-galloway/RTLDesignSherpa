@@ -34,6 +34,7 @@ from TBClasses.common.arbiter_round_robin_simple_tb import ArbiterRoundRobinSimp
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from cov_utils.conftest_coverage import get_coverage_compile_args
 
 @cocotb.test(timeout_time=15, timeout_unit="ms")
 async def arbiter_round_robin_simple_test(dut):
@@ -214,6 +215,11 @@ def test_arbiter_round_robin_simple(request, clients):
         '--trace-structs',
         '-Wno-TIMESCALEMOD',
     ]
+
+    # Verilator --coverage flags when COVERAGE=1, else nothing. Without this
+    # the run produces no coverage.dat at all and `make coverage-report`
+    # silently reports 0.0% from 0 merged files.
+    extra_args.extend(get_coverage_compile_args())
 
     sim_args = ['--trace'] if enable_waves else []
 

@@ -24,6 +24,7 @@ from cocotb_test.simulator import run
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.common.crc_testing import CRCTB, crc_parameters
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -191,6 +192,11 @@ def test_dataint_crc(request, params):
         '-Wno-TIMESCALEMOD',
         '-Wno-UNOPTFLAT',
     ]
+
+    # Verilator --coverage flags when COVERAGE=1, else nothing. Without this
+    # the run produces no coverage.dat at all and `make coverage-report`
+    # silently reports 0.0% from 0 merged files.
+    extra_args.extend(get_coverage_compile_args())
 
     sim_args = ['--trace'] if enable_waves else []
 

@@ -28,6 +28,7 @@ from cocotb_test.simulator import run
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.reset_sync_tb import ResetSyncTB
 from TBClasses.shared.utilities import get_paths, get_wave_config
+from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
@@ -122,6 +123,11 @@ def test_reset_sync(n, test_mode):
         '-Wno-UNOPTFLAT',
         '-Wno-UNUSED',
     ]
+
+
+    # Verilator --coverage flags when COVERAGE=1, else nothing.
+
+    extra_args.extend(get_coverage_compile_args())
 
     try:
         run(

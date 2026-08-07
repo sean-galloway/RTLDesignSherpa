@@ -2,7 +2,7 @@
 
 ## Module: rtl/common/counter_ring.sv
 ## Test File: val/common/test_counter_ring.py
-## Current Coverage: ~85%
+## Current Coverage: NO DATA in the 2026-08-07 run -- this module produced no line-coverage rows (see COVERAGE_REPORT.md)
 
 ## Module Overview
 

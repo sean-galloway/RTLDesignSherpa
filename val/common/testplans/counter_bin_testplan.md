@@ -2,7 +2,7 @@
 
 ## Module: rtl/common/counter_bin.sv
 ## Test File: val/common/test_counter_bin.py
-## Current Coverage: ~95%
+## Current Coverage: NO DATA in the 2026-08-07 run -- this module produced no line-coverage rows (see COVERAGE_REPORT.md)
 
 ## Scenarios
 
@@ -42,3 +42,27 @@ COVERAGE=1 REG_LEVEL=FUNC pytest val/common/test_counter_bin.py -v
 # Run specific parameterization
 COVERAGE=1 pytest "val/common/test_counter_bin.py::test_counter_bin[8-128-medium]" -v
 ```
+
+<!-- ============================================================ -->
+
+## External test audit (Kimi rounds 3-4, 2026-08-06/07)
+
+The area's first external review of its test collateral, plus a scoped
+re-round over what the fixes touched. 42 findings across both rounds; every
+one triaged, none dropped on a verdict alone. All items below are FIXED unless
+marked otherwise.
+
+**What the rounds say about this plan's own claims.** A test plan records what
+is *intended* to be covered. The audit measured what is actually *checked*, and
+the gap was the story: mechanisms that existed but drove nothing, and
+assertions that could not fail. A "Tested: YES" row is only as good as the
+assertion behind it.
+
+### counter_bin_load
+
+- `r3` counter_bin_load wrapper never sets TEST_LEVEL; TB depth machinery is dead
+
+### counter_bin_wavedrom
+
+- `r3` TEST_LEVEL is never set by the wavedrom wrapper, so the default run emits only half the documented diagrams
+- `r3` Wavedrom wrapper hand-lists verilog_sources instead of using a filelist

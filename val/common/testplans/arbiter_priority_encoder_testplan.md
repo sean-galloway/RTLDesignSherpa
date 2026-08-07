@@ -2,7 +2,7 @@
 
 ## Module: rtl/common/arbiter_priority_encoder.sv
 ## Test File: val/common/test_arbiter_priority_encoder.py
-## Current Coverage: 100% (VERIFIED 2026-01-17)
+## Current Coverage: **97.6** (Verilator line, measured 2026-08-07)
 
 ## Module Overview
 

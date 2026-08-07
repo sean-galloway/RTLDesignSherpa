@@ -162,7 +162,7 @@ coverage_points:
     type: other
     covered: False
     hit_count: 0
-    content: "$timeformat(-9, 3, " ns", 10);"
+    content: '$timeformat(-9, 3, " ns", 10);'
 
   - line: 890
     type: other
@@ -179,7 +179,7 @@ coverage_points:
     type: other
     covered: False
     hit_count: 0
-    content: "$timeformat(-9, 3, " ns", 10);"
+    content: '$timeformat(-9, 3, " ns", 10);'
 
   - line: 897
     type: if_statement

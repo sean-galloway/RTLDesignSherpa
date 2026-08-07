@@ -23,6 +23,7 @@ from TBClasses.shared.tbbase import TBBase
 from TBClasses.common.shifter_beat_pack_tb import ShifterBeatPackTB
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from cov_utils.conftest_coverage import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.field_config import FieldConfig
 from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
@@ -218,6 +219,11 @@ def test_shifter_beat_pack(request, test_type, chunk_bits, max_beat_bytes,
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     extra_args = ['--trace-fst', '--trace-structs', '-Wno-TIMESCALEMOD']
+
+    # Verilator --coverage flags when COVERAGE=1, else nothing. Without this
+    # the run produces no coverage.dat at all and `make coverage-report`
+    # silently reports 0.0% from 0 merged files.
+    extra_args.extend(get_coverage_compile_args())
     sim_args   = ['--trace'] if enable_waves else []
 
     cmd_filename = create_view_cmd(

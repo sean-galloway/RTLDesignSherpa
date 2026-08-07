@@ -9,6 +9,7 @@ from cocotb.triggers import Timer
 from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, get_repo_root
+from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.common.mod_3_compress_tb import Mod3CompressTB
 
@@ -47,9 +48,14 @@ def test_mod_3_compress(request, test_level):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
         filelist_path='rtl/common/filelists/mod_3_compress.f')
+    # This wrapper passed no compile args at all, so it could never collect
+    # coverage even once COVERAGE=1 was honoured elsewhere.
+    extra_args = get_coverage_compile_args()
+
     run(
         python_search=[tests_dir],
         verilog_sources=verilog_sources,
+        extra_args=extra_args,
         includes=includes,
         toplevel=dut_name,
         module=os.path.splitext(os.path.basename(__file__))[0],

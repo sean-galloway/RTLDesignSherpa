@@ -50,6 +50,7 @@ import math
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.common.counter_load_clear_wavedrom_tb import CounterLoadClearWaveDromTB
 from TBClasses.shared.utilities import get_wavejson_dir, get_paths, create_view_cmd
+from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import WaveDrom components
@@ -241,6 +242,15 @@ def test_counter_load_clear_wavedrom(request, max_value):
         '--trace-structs',
         '-Wno-TIMESCALEMOD',
     ]
+
+
+    # Verilator --coverage flags when COVERAGE=1, else nothing. Without this
+
+    # the run produces no coverage.dat at all and `make coverage-report`
+
+    # silently reports 0.0% from 0 merged files.
+
+    extra_args.extend(get_coverage_compile_args())
 
     sim_args = ['--trace'] if enable_waves else []
 

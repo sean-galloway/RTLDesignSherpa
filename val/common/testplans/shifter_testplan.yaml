@@ -332,3 +332,37 @@ implied_coverage:
     Line 35 (o_sdata_lt port) is exercised but may not be counted by Verilator as executable code.
     All functional paths (hold, right shift, left shift, load) are fully verified.
     Serial I/O timing and data integrity comprehensively tested across multiple scenarios.
+
+# ---------------------------------------------------------------
+# External test audit (Kimi testqc rounds 3-4, 2026-08-06/07).
+# The area's first external review of its test collateral, plus a
+# scoped re-round over what the fixes touched. A test plan records
+# what is INTENDED to be covered; the audit measured what is actually
+# CHECKED, and the gap was the story -- mechanisms that existed but
+# drove nothing, assertions that could not fail. A 'tested: true' row
+# is only as good as the assertion behind it.
+# ---------------------------------------------------------------
+external_audit:
+  rounds: [testqc-kimi-k3/round_3, testqc-kimi-k3/round_4]
+  status: all findings below are FIXED
+  findings:
+    - module: shifter_beat_pack
+      round: r3
+      severity: CONFIRMED
+      finding: "shifter_beat_pack never records its random seed"
+    - module: shifter_lfsr
+      round: r3
+      severity: SUSPECTED
+      finding: "shifter_lfsr cycle-detection test degenerates to stimulus + warning + pass"
+    - module: shifter_lfsr_galois_sequence
+      round: r3
+      severity: CONFIRMED
+      finding: "TEST_LEVEL depth mechanism is dead: wrapper never passes it, TB never consumes it"
+    - module: shifter_lfsr_galois_sequence
+      round: r3
+      severity: CONFIRMED
+      finding: "Pytest function name does not embed the DUT module name"
+    - module: shifter_lfsr_galois_sequence
+      round: r4
+      severity: CONFIRMED
+      finding: "shifter_lfsr_galois_sequence: TEST_LEVEL is exported and read but drives nothing — the per-test depth mechanism is dead code"

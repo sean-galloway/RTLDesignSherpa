@@ -72,7 +72,7 @@ coverage_points:
     type: if_statement
     covered: False
     hit_count: 0
-    content: "if (DEBUG != 0) $display("bit_position for data bit %d is %d", k, bit_position);"
+    content: 'if (DEBUG != 0) $display("bit_position for data bit %d is %d", k, bit_position);'
 
   - line: 172
     type: other
@@ -114,7 +114,7 @@ coverage_points:
     type: other
     covered: True
     hit_count: 8305
-    content: "$display("get_covered_bits for parity bit %d is %b", parity_bit, get_covered_bit"
+    content: '$display("get_covered_bits for parity bit %d is %b", parity_bit, get_covered_bit'
 
   - line: 189
     type: signal_decl
@@ -162,7 +162,7 @@ coverage_points:
     type: if_statement
     covered: False
     hit_count: 0
-    content: "if (DEBUG != 0) $display("Calculate Parity Bits, parity bit position: %d", parit"
+    content: 'if (DEBUG != 0) $display("Calculate Parity Bits, parity bit position: %d", parit'
 
   - line: 205
     type: other
