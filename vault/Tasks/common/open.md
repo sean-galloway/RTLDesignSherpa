@@ -32,55 +32,6 @@ the `[exempt]` ledger, not a hole:
    uncovered" on a 57-module area is expected and still worth checking.
 
 
-## COMMON-019 — ACK-mode arbiter compliance: the model loses a grant
-**Status:** open 2026-08-05 — split out of COMMON-016/017. Not asserted on.
-**Priority:** P2 — belongs to the DV framework repo (RTLDesignSherpa-DV)
-**Upstream:** [RTLDesignSherpa-DV#50](https://github.com/sean-galloway/RTLDesignSherpa-DV/issues/50)
-— full write-up and suggested fix also in that repo's
-`docs/internal/arbiter-ack-mode-compliance.md`. The fix lands there, not here;
-this entry tracks the local consequence (ACK mode logs its verdict instead of
-asserting on it).
-
-Two residuals in `ArbiterCompliance`'s ACK path (`WAIT_GNT_ACK=1` only; the
-no-ACK path is clean and fully asserted on).
-
-**1. round_robin_violation, ~3 runs in 8** on `arbiter_round_robin[4-1]` at
-gate. The `r_last_valid` mirror from COMMON-017 is applied on this path too,
-which helped but did not close it. Every surviving violation has the same
-shape -- the RTL granted one client *further along* than the model expected:
-
-    expected 0, got 1: requests=0x3, mask=0x0,  last_winner_at_grant=3
-    expected 1, got 2: requests=0x7, mask=0xe,  last_winner_at_grant=0
-
-In both the RTL behaves as if its last winner were one grant ahead of the
-model's, i.e. the model missed a grant rather than the arbiter misrotating.
-Prime suspect is `is_new_grant` in `_check_round_robin_compliance_ack_mode`:
-it is derived from `pending_acks`, so a grant to a client that still owes an
-ACK is skipped entirely -- no check, no mask update.
-
-**2. unexpected_ack in the single-client saturation phase**, ~115-150 per run,
-on `c08_w1` and `c16_w1` at full only. Every one lands in that phase, where one
-client is granted repeatedly: more ACK edges are seen than grants are
-registered. `_process_ack_mode_grants` reports a `new_grant` on the rising edge
-and `grant_continuation` thereafter, and only the former registers a pending
-ACK. Warning severity, so nothing fails on it.
-
-**Work:**
-1. Make the ACK path register every grant it is handed (or make `is_new_grant`
-   read the transaction's own `transaction_type` instead of re-deriving it from
-   `pending_acks`), then re-measure over >=8 runs of `[4-1]`.
-2. Reconcile grant/ACK counting for held grants so saturation stops producing
-   `unexpected_ack`.
-3. When both are clean, drop the `WAIT_GNT_ACK == 1` early return in
-   `arbiter_round_robin_tb.check_monitor_errors()` so ACK mode asserts like
-   no-ACK does.
-
-**Do not** re-add a blanket exclusion to make this quiet: the ACK verdict is
-logged at WARNING with full details on every run, which is what made the shape
-above visible in the first place.
-
----
-
 ## COMMON-020 — the fifo_sync wavedrom generator produces no wave JSON
 **Status:** open 2026-08-06 — found by the common test-audit round
 **Priority:** P3 — no consumer is broken today

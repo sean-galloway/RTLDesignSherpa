@@ -6,8 +6,8 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 7 | accepted, not started |
-| [closed.md](closed.md) | 12 | done (kept for history) |
+| [open.md](open.md) | 6 | accepted, not started |
+| [closed.md](closed.md) | 13 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
@@ -23,9 +23,10 @@ integration support.
   (`registered_grant`, the `r_last_valid` mirror in the compliance replay, and
   queued in-order ACKs). Both arbiter TBs now assert on the compliance verdict
   with no exclusions. See closed.md.
-- **COMMON-019** — what is left of them: the ACK-mode compliance path loses a
-  grant (~3 runs in 8 on `[4-1]`) and miscounts ACKs during single-client
-  saturation. ACK mode logs its verdict but does not assert yet.
+- **COMMON-019** — CLOSED 2026-08-07 (RTLDesignSherpa-DV#50). An ACK-mode grant
+  handed between clients without `grant_valid` dropping never retired the old
+  owner, so the model's mask lagged one grant forever. ACK mode now asserts on
+  the compliance verdict.
 - **COMMON-003** — integration examples (P2).
 - **COMMON-006/007/008/009** — deferred enhancements (P3). COMMON-009 (BCH) is
   the only place BCH is tracked; the docs-only `components/bch/` placeholder was

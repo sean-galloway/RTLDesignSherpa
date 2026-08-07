@@ -1074,30 +1074,16 @@ class ArbiterRoundRobinTB(TBBase):
         # session so far has started by going back to get exactly that.
         errs = [w for w in compliance.protocol_warnings if w.get('severity') == 'error']
 
-        # No-ACK: every compliance error fails the test. The block_arb
-        # exclusion that used to sit here (COMMON-017) is gone -- the model now
-        # mirrors the RTL's r_last_valid and drops the priority mask after two
-        # grant-less cycles, so it no longer expects the rotation to continue
-        # across a blocked interval.
+        # EVERY compliance error fails the test, in both modes.
         #
-        # ACK mode (WAIT_GNT_ACK=1) is NOT asserted on yet. The same mirror is
-        # applied on that path, but the model's grant/ACK pairing still loses
-        # roughly one grant in a burst and reports 1-4 violations in about
-        # three runs of eight, always as "granted one client further along than
-        # expected" -- a model lag, not an RTL fault. Asserting here would buy
-        # a flaky test, not coverage. Tracked in RTLDesignSherpa-DV issue for
-        # the ACK-mode compliance path; the verdict is logged either way.
-        if self.WAIT_GNT_ACK == 1:
-            if summary['total_errors']:
-                self.log.warning(
-                    f"ACK-mode compliance reported {summary['total_errors']} "
-                    f"error(s) {summary['error_types']} -- not asserted, see the "
-                    f"ACK-mode note above")
-                for w in errs[:10]:
-                    self.log.warning(f"  @{w.get('timestamp')}ns {w.get('type')}: "
-                                     f"{w.get('message')} details={w.get('details')}")
-            return
-
+        # ACK mode used to be logged and not asserted (COMMON-019): the model
+        # reported 1-6 round_robin_violations in 7 of 8 runs plus 114-146
+        # unexpected_acks, all of them its own. The cause was a single monitor
+        # bug -- an ACK-mode grant handed from one client to the next without
+        # grant_valid dropping never retired the old owner, so that client's
+        # next grant was misclassified a continuation and skipped, leaving the
+        # model's mask one grant behind the RTL forever. Fixed upstream
+        # (RTLDesignSherpa-DV#50); both symptoms went to zero together.
         assert summary['total_errors'] == 0, (
             f"Arbiter protocol compliance: {summary['total_errors']} error(s) "
             f"{summary['error_types']}\n" + "\n".join(
