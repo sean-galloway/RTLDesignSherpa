@@ -20,6 +20,7 @@ Follows the correct process: idle -> set weights -> enable all -> run -> disable
 
 import math
 import os
+from collections import deque
 import random
 import cocotb
 from cocotb.utils import get_sim_time
@@ -433,6 +434,21 @@ class WeightedRoundRobinTB(TBBase):
 
         # Clear the transaction queue for clean measurement
         if hasattr(self.monitor, 'transactions'):
+            # ACK mode counts progress by filtering this deque for 'new_grant'
+            # (grants_per_client counts continuations too, so it over-counts
+            # there). The monitor declares deque(maxlen=1000), so that count
+            # SATURATES at 1000 -- a target above it can never be reached and
+            # the loop exits on its cycle cap instead, silently turning the
+            # grant-counted window into a fixed-duration one. Size the deque to
+            # the target before clearing it.
+            need = max(2 * target_grants, 2048)
+            if self.monitor.transactions.maxlen is not None and \
+                    self.monitor.transactions.maxlen < need:
+                self.monitor.transactions = deque(
+                    self.monitor.transactions, maxlen=need)
+                self.log.info(
+                    f"Grew the monitor transaction deque to {need} so a "
+                    f"{target_grants}-grant target is reachable in ACK mode")
             self.monitor.transactions.clear()
 
         self.log.debug("Monitor grant counters reset for clean weight test measurement")

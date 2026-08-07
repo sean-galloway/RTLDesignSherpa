@@ -74,6 +74,15 @@ class SimpleLFSRTB(TBBase):
             self.TEST_LEVEL = 'gate'
         self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
 
+        # Apply it. LEVEL_MULT used to be computed here and never referenced
+        # again, and the level-dependent default on COUNT above is unreachable
+        # because the wrapper always passes TEST_COUNT explicitly -- so
+        # TEST_LEVEL was exported, read, and had no observable effect on
+        # stimulus, checking or duration. Exported + read is not the same as
+        # DRIVES WORK, which is the third time this mechanism has looked wired
+        # while doing nothing.
+        self.COUNT *= self.LEVEL_MULT
+
         
         # Get LFSR configuration
         if self.WIDTH in lfsr_params:
