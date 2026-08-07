@@ -849,3 +849,56 @@ itself again.
 Left open: COMMON-020 (wavedrom constraints, P3, no consumer broken today).
 Verification after integration: gate 75/75, func 208/208, full 925/925.
 
+**common TEST AUDIT round_4 — 2026-08-06/07.** Re-round after integrating
+round_3, scoped with the new `build_test_review_bundle.py --tests` filter to
+the 22 tests whose runner OR TB chain changed: 9 units instead of 13. The list
+must be computed from the TB chain, not from changed test files — `cam_testing`
+and `crc_testing` were the two most heavily rewritten files and sit under
+wrappers that barely moved.
+
+**7 findings, against round_3's 35** — the shape a re-round should have.
+
+| disposition | n |
+|---|---|
+| known and tracked (COMMON-019 x2, COMMON-020) | 3 |
+| already fixed while the round was in flight | 1 |
+| genuinely new | 3 |
+
+**Two of the three new ones were defects I introduced integrating round_3**,
+which is the entire argument for re-rounding:
+
+- The ACK-mode grant target I scaled to 2500 for FULL is counted by filtering
+  `monitor.transactions` — a `deque(maxlen=1000)`. The count SATURATES, so the
+  target was unreachable and every ACK scenario exited on its 25,000-cycle
+  safety cap instead. Weighted full 252s -> 132s once it stopped burning
+  cycles against a cap it could never clear.
+- `shifter_lfsr_galois_sequence`'s depth mechanism was still dead after I
+  "fixed" it: I exported TEST_LEVEL to satisfy check_test_levels.py, the TB
+  read it, and nothing used the result — `LEVEL_MULT` computed and never
+  referenced, and the level-dependent default on COUNT unreachable because the
+  wrapper always passes TEST_COUNT.
+
+That second one is the same lesson a THIRD time. The check has gone *is the
+string present* -> *is the name read* -> *is it exported, varying and read*,
+and a mechanism still passed all three while driving no work. **Exported and
+read is not DRIVES WORK.** The next refinement worth making is a dead-store
+check: a name derived from TEST_LEVEL that is never subsequently referenced.
+
+Third new finding: the weighted walking test logged "✓ successful" for every
+client unconditionally, because `ArbiterMaster.manual_request` returns normally
+when no grant arrives. Now asserts the client's grant count moved;
+mutation-checked.
+
+**Blocked mid-round by a shared-infrastructure break from another agent.** An
+uncommitted edit to `bin/TBClasses/shared/tbbase.py` inserted a new method
+directly beneath `convert_to_int`'s `@staticmethod`, giving the new method a
+doubled decorator and stripping `convert_to_int`'s. 118 TB files call
+`self.convert_to_int`; every test in the repo raised
+`TypeError: takes 1 positional argument but 2 were given`. Repaired in place
+(their function untouched, decorator restored) and left UNCOMMITTED, since the
+file carries their in-flight work. **Two agents editing one shared file is the
+same hazard as the shared bundle root, and it cost longer here because the
+failure looked at first like my own change.**
+
+Verification: gate 75/75, func 208/208, full 925/925, no skips or reruns.
+
