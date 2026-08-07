@@ -8,7 +8,9 @@
 
 import bridge_1x2_wr_pkg::*;
 
-module bridge_1x2_wr_xbar (
+module bridge_1x2_wr_xbar #(
+    parameter int NUM_SLAVES = 2
+) (
     input  logic aclk,
     input  logic aresetn,
 
@@ -94,7 +96,6 @@ module bridge_1x2_wr_xbar (
     // ================================================================
     // Crossbar Routing
     // ================================================================
-    localparam NUM_SLAVES = 2;
 
     // ================================================================
     // Slave 0: ddr_wr (32b)

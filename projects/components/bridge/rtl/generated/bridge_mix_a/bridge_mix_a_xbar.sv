@@ -8,7 +8,9 @@
 
 import bridge_mix_a_pkg::*;
 
-module bridge_mix_a_xbar (
+module bridge_mix_a_xbar #(
+    parameter int NUM_SLAVES = 3
+) (
     input  logic aclk,
     input  logic aresetn,
 
@@ -250,7 +252,6 @@ module bridge_mix_a_xbar (
     // ================================================================
     // Crossbar Routing
     // ================================================================
-    localparam NUM_SLAVES = 3;
 
     // ================================================================
     // Slave 0: ddr (64b)

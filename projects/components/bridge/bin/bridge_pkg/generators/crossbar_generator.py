@@ -356,7 +356,7 @@ class CrossbarGenerator:
         lines.append("    // ================================================================")
         lines.append("    // Crossbar Routing")
         lines.append("    // ================================================================")
-        # NUM_SLAVES is now a parameter in the port list (see _generate_header):
+        # NUM_SLAVES is now a parameter in the port list (see _generate_module_declaration):
         # declaring it again here would shadow it, and declaring it ONLY here is
         # what made the port list reference a not-yet-elaborated name.
         lines.append("")

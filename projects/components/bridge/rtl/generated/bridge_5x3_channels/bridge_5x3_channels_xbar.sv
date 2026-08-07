@@ -8,7 +8,9 @@
 
 import bridge_5x3_channels_pkg::*;
 
-module bridge_5x3_channels_xbar (
+module bridge_5x3_channels_xbar #(
+    parameter int NUM_SLAVES = 3
+) (
     input  logic aclk,
     input  logic aresetn,
 
@@ -289,7 +291,6 @@ module bridge_5x3_channels_xbar (
     // ================================================================
     // Crossbar Routing
     // ================================================================
-    localparam NUM_SLAVES = 3;
 
     // ================================================================
     // Slave 0: sram_buffer (256b)

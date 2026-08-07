@@ -8,7 +8,9 @@
 
 import bridge_1x4_wr_pkg::*;
 
-module bridge_1x4_wr_xbar (
+module bridge_1x4_wr_xbar #(
+    parameter int NUM_SLAVES = 4
+) (
     input  logic aclk,
     input  logic aresetn,
 
@@ -178,7 +180,6 @@ module bridge_1x4_wr_xbar (
     // ================================================================
     // Crossbar Routing
     // ================================================================
-    localparam NUM_SLAVES = 4;
 
     // ================================================================
     // Slave 0: periph_wr (32b)

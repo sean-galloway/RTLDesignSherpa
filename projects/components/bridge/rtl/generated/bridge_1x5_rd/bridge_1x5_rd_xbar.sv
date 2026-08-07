@@ -8,7 +8,9 @@
 
 import bridge_1x5_rd_pkg::*;
 
-module bridge_1x5_rd_xbar (
+module bridge_1x5_rd_xbar #(
+    parameter int NUM_SLAVES = 5
+) (
     input  logic aclk,
     input  logic aresetn,
 
@@ -176,7 +178,6 @@ module bridge_1x5_rd_xbar (
     // ================================================================
     // Crossbar Routing
     // ================================================================
-    localparam NUM_SLAVES = 5;
 
     // ================================================================
     // Slave 0: periph_rd (32b)

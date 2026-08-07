@@ -8,7 +8,9 @@
 
 import bridge_1x3_rd_pkg::*;
 
-module bridge_1x3_rd_xbar (
+module bridge_1x3_rd_xbar #(
+    parameter int NUM_SLAVES = 3
+) (
     input  logic aclk,
     input  logic aresetn,
 
@@ -122,7 +124,6 @@ module bridge_1x3_rd_xbar (
     // ================================================================
     // Crossbar Routing
     // ================================================================
-    localparam NUM_SLAVES = 3;
 
     // ================================================================
     // Slave 0: periph_rd (32b)
