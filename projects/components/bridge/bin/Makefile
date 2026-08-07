@@ -177,7 +177,6 @@ clean-all: clean
 
 .PHONY: test
 test:
-	@echo "Testing bridge generator..."
-	@python3 $(GENERATOR) --help | head -20
-	@echo ""
-	@echo "✓ Generator script is functional"
+	@echo "Running bridge generator unit tests..."
+	@python3 -m pytest $(BIN_DIR)/tests -q
+	@echo "✓ Generator unit tests passed"
