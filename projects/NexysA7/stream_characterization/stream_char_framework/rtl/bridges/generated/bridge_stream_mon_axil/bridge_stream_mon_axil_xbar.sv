@@ -8,7 +8,9 @@
 
 import bridge_stream_mon_axil_pkg::*;
 
-module bridge_stream_mon_axil_xbar (
+module bridge_stream_mon_axil_xbar #(
+    parameter int NUM_SLAVES = 10
+) (
     input  logic aclk,
     input  logic aresetn,
 
@@ -716,7 +718,6 @@ module bridge_stream_mon_axil_xbar (
     // ================================================================
     // Crossbar Routing
     // ================================================================
-    localparam NUM_SLAVES = 10;
 
     // ================================================================
     // Slave 0: stream_apb (32b)

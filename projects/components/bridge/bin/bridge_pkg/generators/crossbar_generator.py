@@ -85,7 +85,20 @@ class CrossbarGenerator:
         """Generate module declaration with all ports."""
         lines = []
 
-        lines.append(f"module {self.bridge_name}_xbar (")
+        # NUM_SLAVES goes in the PARAMETER PORT LIST, not the module body.
+        #
+        # It is used by the port declarations immediately below
+        # ([NUM_SLAVES-1:0] on the slave-select vectors), and a body localparam
+        # is elaborated AFTER the port list. Verilator accepts the back
+        # reference; iverilog and other strict front ends reject it, and
+        # bin/check_sv_decl_order.py flags it on every generated xbar.
+        #
+        # A parameter port list is elaborated in order, so the ports can use it.
+        # The default is the generated slave count, so existing instantiations
+        # that pass no parameters are unaffected.
+        lines.append(f"module {self.bridge_name}_xbar #(")
+        lines.append(f"    parameter int NUM_SLAVES = {len(self.slaves)}")
+        lines.append(") (")
         lines.append("    input  logic aclk,")
         lines.append("    input  logic aresetn,")
         lines.append("")
@@ -343,7 +356,9 @@ class CrossbarGenerator:
         lines.append("    // ================================================================")
         lines.append("    // Crossbar Routing")
         lines.append("    // ================================================================")
-        lines.append(f"    localparam NUM_SLAVES = {len(self.slaves)};")
+        # NUM_SLAVES is now a parameter in the port list (see _generate_header):
+        # declaring it again here would shadow it, and declaring it ONLY here is
+        # what made the port list reference a not-yet-elaborated name.
         lines.append("")
 
         # Route to each slave
