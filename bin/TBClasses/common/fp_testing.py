@@ -592,7 +592,7 @@ class FPBaseTB(TBBase):
     def __init__(self, dut, fmt: FPFormat):
         TBBase.__init__(self, dut)
         self.fmt = fmt
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -1717,7 +1717,7 @@ class FPConversionTB(TBBase):
         TBBase.__init__(self, dut)
         self.src_fmt = src_fmt
         self.dst_fmt = dst_fmt
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 

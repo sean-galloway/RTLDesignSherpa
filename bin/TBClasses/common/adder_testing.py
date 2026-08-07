@@ -45,7 +45,7 @@ class AdderTB(TBBase):
         self.N = self.convert_to_int(os.environ.get('PARAM_N', '1'))
         self.max_val = 2**self.N
         self.mask = self.max_val - 1
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
 
         # Initialize the random generator

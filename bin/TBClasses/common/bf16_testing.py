@@ -172,7 +172,7 @@ class BF16MultiplierTB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -511,7 +511,7 @@ class BF16FMATB(TBBase):
         """Initialize the BF16 FMA testbench."""
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -837,7 +837,7 @@ class BF16AdderTB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -1558,7 +1558,7 @@ class BF16ComparatorTB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -1824,7 +1824,7 @@ class BF16ToIntTB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -2098,7 +2098,7 @@ class IntToBF16TB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -2396,7 +2396,7 @@ class BF16MaxTreeTB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -2661,7 +2661,7 @@ class BF16DividerTB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -3080,7 +3080,7 @@ class BF16ReciprocalTB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -3336,7 +3336,7 @@ class BF16ScaleToInt8TB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -3631,7 +3631,7 @@ class BF16Log2ScaleTB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -3878,7 +3878,7 @@ class BF16FastReciprocalTB(TBBase):
         """
         TBBase.__init__(self, dut)
 
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -4186,7 +4186,7 @@ class BF16NewtonRaphsonRecipTB(TBBase):
 
         self.iterations = iterations
         self.lut_depth = lut_depth
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -4341,7 +4341,7 @@ class BF16GoldschmidtDivTB(TBBase):
         self.iterations = iterations
         self.pipelined = pipelined
         self.lut_depth = lut_depth
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -4548,7 +4548,7 @@ class BF16Log2TB(TBBase):
         TBBase.__init__(self, dut)
 
         self.lut_depth = lut_depth
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 
@@ -4669,7 +4669,7 @@ class BF16Exp2TB(TBBase):
         TBBase.__init__(self, dut)
 
         self.lut_depth = lut_depth
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = self.normalize_test_level(os.environ.get('TEST_LEVEL', 'func'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.seed)
 

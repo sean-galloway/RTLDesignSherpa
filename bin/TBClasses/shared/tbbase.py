@@ -708,6 +708,17 @@ class TBBase:
         return f' @ {time_ns}ns'
 
     @staticmethod
+    def normalize_test_level(raw: str) -> str:
+        """Map the contract levels (gate/func/full from make/tests.mk REG_LEVEL
+        grids) onto the TB families' internal vocabularies. Wrappers pass
+        gate/func/full; the shared math TBs branch on basic/medium/full --
+        unmapped, 'func' matched nothing and the minimal suite ran (MATH-004).
+        """
+        return {'gate': 'basic', 'func': 'medium', 'full': 'full',
+                'basic': 'basic', 'medium': 'medium',
+                'simple': 'simple'}.get(raw.lower(), 'medium')
+
+    @staticmethod
     def convert_to_int(value):
         """Convert a value to an integer with hex string support"""
         if isinstance(value, int):
