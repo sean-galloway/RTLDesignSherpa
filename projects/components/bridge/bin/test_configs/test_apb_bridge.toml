@@ -20,6 +20,7 @@ channels = "rw"  # Full read/write channels
 name = "apb_periph"
 prefix = "apb_periph_"
 protocol = "apb"  # APB protocol slave
+channels = "rw"   # slaves must declare channels explicitly
 addr_width = 32
 data_width = 32  # APB is 32-bit (requires downsize converter)
 base_addr = "0x00000000"

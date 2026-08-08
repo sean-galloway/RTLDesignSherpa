@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 from .config import PortSpec, BridgeConfig, MonGroupConfig
 from .csv_parser import parse_connectivity_csv
+from .config_validator import ValidationError
 from .config_validator import validate_config, ValidationError
 
 # Try importing tomllib (Python 3.11+) or fallback to tomli
@@ -178,8 +179,11 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             )
         seen.add(v)
 
-    # Get defaults (for future interface module usage)
-    defaults = bridge_data.get('defaults')
+    # [bridge.defaults] is not implemented — warn instead of
+    # silently accepting a section that does nothing.
+    if bridge_data.get('defaults'):
+        print("  WARNING: [bridge.defaults] is not implemented — "
+              "section ignored")
 
     # Parse masters
     for m in bridge_data.get('masters', []):
@@ -188,17 +192,21 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         id_width = m.get('id_width', 0)
         addr_width = m['addr_width']
         data_width = m['data_width']
-        user_width = m.get('user_width', 1)
+        if m.get('user_width', 1) != 1:
+            print(f"  WARNING: user_width on '{port_name}' is not "
+                  f"implemented — value ignored")
         protocol = m.get('protocol', 'axi4')
         channels = m.get('channels', 'rw')
 
         # Interface config (store for Phase 2, don't use yet)
         interface_config = m.get('interface')
 
-        # Validate channels
+        # Invalid channels is a config error, not a warning — the old
+        # silent downgrade to 'rw' meant the validator never saw it.
         if channels not in ['rw', 'rd', 'wr']:
-            print(f"  WARNING: Invalid channels '{channels}' for {port_name}, defaulting to 'rw'")
-            channels = 'rw'
+            raise ValidationError(
+                f"Master '{port_name}': invalid channels '{channels}' "
+                f"(must be 'rw', 'rd', or 'wr')")
 
         port = PortSpec(
             port_name=port_name,
@@ -228,9 +236,14 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         id_width = s.get('id_width', 0)
         addr_width = s['addr_width']
         data_width = s['data_width']
-        user_width = s.get('user_width', 1)
+        if s.get('user_width', 1) != 1:
+            print(f"  WARNING: user_width on '{port_name}' is not "
+                  f"implemented — value ignored")
         protocol = s.get('protocol', 'axi4')
-        channels = s.get('channels', 'rw')
+        # No default: slaves MUST declare channels explicitly
+        # (validate_slave_channels_explicit enforces it — it was
+        # structurally unreachable while this defaulted to 'rw').
+        channels = s.get('channels', '')
         enable_ooo = s.get('enable_ooo', False)
 
         # Get address mapping from YAML (may be hex string or int)
@@ -251,10 +264,13 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         # Interface config (store for Phase 2, don't use yet)
         interface_config = s.get('interface')
 
-        # Validate channels
-        if channels not in ['rw', 'rd', 'wr']:
-            print(f"  WARNING: Invalid channels '{channels}' for {port_name}, defaulting to 'rw'")
-            channels = 'rw'
+        # Invalid (non-empty) channels is a config error; an EMPTY
+        # value flows through so validate_slave_channels_explicit can
+        # produce its self-documenting error.
+        if channels and channels not in ['rw', 'rd', 'wr']:
+            raise ValidationError(
+                f"Slave '{port_name}': invalid channels '{channels}' "
+                f"(must be 'rw', 'rd', or 'wr')")
 
         port = PortSpec(
             port_name=port_name,

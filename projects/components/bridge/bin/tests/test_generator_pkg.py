@@ -147,3 +147,73 @@ def test_generation_is_deterministic(tmp_path):
     assert outs[0].keys() == outs[1].keys()
     for name in outs[0]:
         assert outs[0][name] == outs[1][name], f"{name} not deterministic"
+
+
+# ---------------------------------------------------------------------
+# Correctness-batch regressions (hex parse, explicit channels,
+# invalid-channels rejection)
+# ---------------------------------------------------------------------
+
+
+def test_parse_csv_value_decimal_not_hex():
+    """All-digit values are DECIMAL. The old parser tried base-16
+    first, so '16' became 22 and '1000' became 4096 — silently."""
+    from bridge_pkg.csv_parser import parse_csv_value
+    assert parse_csv_value("16", "id_width") == 16
+    assert parse_csv_value("1000", "addr_range") == 1000
+    assert parse_csv_value("0x1000", "base_addr") == 0x1000
+    assert parse_csv_value("0X10", "base_addr") == 16
+    assert parse_csv_value("N/A", "x") is None
+    assert parse_csv_value("hello", "name") == "hello"
+
+
+def _write_min_toml(tmp_path, slave_extra="", master_extra=""):
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    toml.write_text(f"""
+[bridge]
+name = "b"
+variants = ["no"]
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rd"
+{master_extra}
+
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+{slave_extra}
+""")
+    conn.write_text("master,s0\nm0,1\n")
+    return str(toml), str(conn)
+
+
+def test_slave_without_channels_rejected(tmp_path):
+    """validate_slave_channels_explicit is finally reachable: the
+    loader no longer injects a 'rw' default for slaves."""
+    toml, conn = _write_min_toml(tmp_path)   # no channels on slave
+    with pytest.raises(ValidationError, match="channels"):
+        load_config(toml, conn)
+
+
+def test_slave_with_explicit_channels_accepted(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    cfg = load_config(toml, conn)
+    assert cfg.slaves[0].channels == "rd"
+
+
+def test_invalid_channels_is_error_not_silent_downgrade(tmp_path):
+    """Invalid channels used to WARN and default to 'rw'; now fatal."""
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "bogus"')
+    with pytest.raises(ValidationError, match="invalid channels"):
+        load_config(toml, conn)

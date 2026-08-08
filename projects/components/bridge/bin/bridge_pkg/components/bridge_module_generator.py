@@ -200,9 +200,14 @@ class BridgeModuleGenerator:
         # Collect unique ID width (use first master's)
         id_width = self.masters[0].id_width if self.masters else 4
 
-        # Use single global address width parameter (32 bits for simplicity)
-        # This prevents width mismatch issues across different ports
-        addr_width = 32
+        # One bridge-wide address width, taken from the CONFIG rather
+        # than hardcoded — a TOML with addr_width=64 used to validate
+        # cleanly and still get 32-bit address structs. Mixed values
+        # take the max so no port's address is truncated.
+        addr_width = max(
+            (p.addr_width for p in list(self.masters) + list(self.slaves)),
+            default=32,
+        )
 
         # Collect unique data widths from all masters and slaves
         # APB slave widths ARE needed for struct generation (master may connect via converter)

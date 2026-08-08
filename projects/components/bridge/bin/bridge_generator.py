@@ -40,7 +40,7 @@ import re
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
-from bridge_pkg import (BridgeConfig, parse_ports_csv, parse_connectivity_csv, load_config,
+from bridge_pkg import (BridgeConfig, load_config,
                         BridgeModuleGenerator, MasterConfig, SlaveInfo)
 
 
@@ -138,14 +138,12 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
             conn_path = connectivity_file if connectivity_file else None
             config = load_config(ports_file, conn_path)
         else:
-            # CSV format - use old parsers
-            masters, slaves = parse_ports_csv(ports_file)
-            connectivity = parse_connectivity_csv(connectivity_file, masters, slaves)
-            config = BridgeConfig(
-                masters=masters,
-                slaves=slaves,
-                connectivity=connectivity
-            )
+            # The legacy ports.csv path is gone: it constructed
+            # BridgeConfig directly and BYPASSED validate_config
+            # (no alignment/overlap/channel checks). TOML/YAML only.
+            print(f"  ERROR: Unsupported ports config format "
+                  f"'{ports_ext}' — use .toml/.yaml")
+            return False
 
         # Determine channel type
         channel_type = determine_channel_type(config.masters)
@@ -292,9 +290,9 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
         if ports_ext in ['.yaml', '.yml', '.toml']:
             config = load_config(ports_file, connectivity_file or None)
         else:
-            masters, slaves = parse_ports_csv(ports_file)
-            connectivity = parse_connectivity_csv(connectivity_file, masters, slaves)
-            config = BridgeConfig(masters=masters, slaves=slaves, connectivity=connectivity)
+            print(f"  ERROR: Unsupported ports config format "
+                  f"'{ports_ext}' — use .toml/.yaml")
+            return False
 
         channel_type = determine_channel_type(config.masters)
         tb_class_name = build_tb_class_name(bridge_name, channel_type)
@@ -488,22 +486,11 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
                 from bridge_pkg.config_loader import find_connectivity_csv
                 connectivity_file = find_connectivity_csv(ports_file)
         else:
-            # CSV format: Load ports and connectivity separately
-            print(f"\n  Using CSV configuration: {ports_file}")
-            if not os.path.exists(connectivity_file):
-                print(f"  ERROR: Connectivity file not found: {connectivity_file}")
-                return (False, None)
-
-            # Parse CSV files
-            masters, slaves = parse_ports_csv(ports_file)
-            connectivity = parse_connectivity_csv(connectivity_file, masters, slaves)
-
-            # Create bridge configuration
-            config = BridgeConfig(
-                masters=masters,
-                slaves=slaves,
-                connectivity=connectivity
-            )
+            # The legacy ports.csv path constructed BridgeConfig
+            # directly, bypassing validate_config. TOML/YAML only.
+            print(f"  ERROR: Unsupported ports config format "
+                  f"'{ports_ext}' — use .toml/.yaml")
+            return (False, None)
 
         # Compute the base bridge name. Each variant emits to a
         # directory <base_name><suffix>, where the "no" variant uses
@@ -1059,6 +1046,7 @@ Bulk Generation CSV Format:
 
         success_count = 0
         fail_count = 0
+        test_fail_count = 0
 
         for i, config in enumerate(configs, start=1):
             print(f"[{i}/{len(configs)}] Generating bridge: {config.get('name', 'auto-named')}")
@@ -1097,6 +1085,7 @@ Bulk Generation CSV Format:
                             )
                             if not mon_ok:
                                 print(f"  ⚠ Monitor test generation failed for {variant_name}")
+                                test_fail_count += 1
                             continue
                         print(f"  Generating tests for {variant_name}...")
                         test_success = generate_tests(
@@ -1110,16 +1099,18 @@ Bulk Generation CSV Format:
                         )
                         if not test_success:
                             print(f"  ⚠ Test generation failed for {variant_name}")
+                            test_fail_count += 1
             else:
                 fail_count += 1
 
             print("")
 
         print("="*70)
-        print(f"Bulk generation complete: {success_count} succeeded, {fail_count} failed")
+        print(f"Bulk generation complete: {success_count} succeeded, "
+              f"{fail_count} failed, {test_fail_count} test-gen failures")
         print("="*70)
 
-        if fail_count > 0:
+        if fail_count > 0 or test_fail_count > 0:
             sys.exit(1)
 
     else:

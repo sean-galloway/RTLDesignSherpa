@@ -33,7 +33,7 @@ Architecture:
 """
 
 from .config import PortSpec, BridgeConfig
-from .csv_parser import parse_ports_csv, parse_connectivity_csv
+from .csv_parser import parse_connectivity_csv
 from .config_loader import load_config
 from .config_validator import validate_config, ValidationError
 from .components.bridge_module_generator import BridgeModuleGenerator
