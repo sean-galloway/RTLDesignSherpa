@@ -234,6 +234,12 @@ filelist_dirs = ["val/amba/filelists"]
 # ---------------------------------------------------------------------------
 
 [exempt]
+
+# arbiter_single_client: verified one level up, in STREAM
+# (projects/components/dmas/stream/rtl/macro/scheduler_group_array.sv:434
+# is its only instantiation anywhere). No val/common test is wanted --
+# Sean, 2026-08-07 -- so it will never appear in this area's line-coverage
+# denominator, and that absence is a decision rather than a gap.
 gaxi_fifo_async_multi        = "multi-instance wrapper; no consumer yet"
 gaxi_fifo_sync_multi         = "multi-instance wrapper; no consumer yet"
 gaxi_skid_buffer_async_multi = "multi-instance wrapper; no consumer yet"

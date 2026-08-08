@@ -56,44 +56,78 @@ def merge_protocol():
     return merged
 
 
-def merge_line_coverage():
-    """Merge every coverage.dat and compute per-RTL-file line coverage %."""
-    # Recursive: matches leaf-area local_sim_build/**/coverage.dat AND
-    # dispatcher-level <area>/local_sim_build/**/coverage.dat in one pass.
+def _annotate_batch(dats, tmp, tag):
+    """Merge one batch of .dat files and return {basename: (covered, total)}."""
+    merged = os.path.join(tmp, f'merged_{tag}.dat')
+    try:
+        subprocess.run(['verilator_coverage', '--write', merged] + dats,
+                       capture_output=True, text=True, timeout=600)
+    except Exception:
+        return {}
+    if not os.path.exists(merged):
+        return {}
+    adir = os.path.join(tmp, f'annot_{tag}')
+    subprocess.run(['verilator_coverage', '--annotate', adir, merged],
+                   capture_output=True, text=True, timeout=600)
+    out = {}
+    # Recursive: verilator_coverage mirrors the source tree when the recorded
+    # paths have directories, so a flat glob can silently see nothing.
+    for sv in glob.glob(os.path.join(adir, '**', '*.sv'), recursive=True):
+        flags, tot = [], 0
+        for ln in open(sv, errors='replace').read().splitlines():
+            m = re.match(r'^([ %])0*(\d+)', ln)
+            if m:
+                tot += 1
+                flags.append(int(m.group(2)) > 0)
+        if tot:
+            out[os.path.basename(sv)] = flags
+    return out
+
+
+def merge_line_coverage(batch=20):
+    """Merge every coverage.dat and compute per-RTL-file line coverage %.
+
+    Merged in BATCHES rather than one call. A single
+    ``verilator_coverage --write`` over the whole set silently drops files:
+    val/common's 925 .dat files produced 42 annotated sources, while the same
+    data in smaller groups produced those PLUS counter_bin, counter, fifo_sync,
+    debounce, reverse_vector, dataint_parity and counter_ring -- eight modules
+    that have their own passing tests and were reported as having no coverage
+    at all. Merging counter_bin's 24 .dat files alone annotates it correctly;
+    adding the rest makes it disappear.
+
+    Per file, the batch with the MOST coverage points wins, and ties break on
+    the higher covered count. A file's point set is fixed by its
+    instrumentation, so the richest batch is the one where the file was
+    actually built rather than merely referenced.
+    """
     dats = glob.glob('**/local_sim_build/**/coverage.dat', recursive=True)
-    per_file = {}   # rtl file -> (covered, total)
-    overall_cov = overall_tot = 0
     if not dats:
         return {}, 0.0, 0
-    with tempfile.TemporaryDirectory() as ann:
-        merged_dat = os.path.join(ann, 'merged.dat')
-        # verilator_coverage --write accumulates matching points across .dat files
-        try:
-            subprocess.run(['verilator_coverage', '--write', merged_dat] + dats,
-                           capture_output=True, text=True, timeout=600)
-        except Exception:
-            merged_dat = None
-        src = merged_dat if merged_dat and os.path.exists(merged_dat) else None
-        if src is None:
-            return {}, 0.0, len(dats)
-        adir = os.path.join(ann, 'annot')
-        subprocess.run(['verilator_coverage', '--annotate', adir, src],
-                       capture_output=True, text=True, timeout=600)
-        for sv in glob.glob(os.path.join(adir, '*.sv')):
-            cov = tot = 0
-            lines = open(sv).read().splitlines()
-            for ln in lines:
-                m = re.match(r'^([ %])0*(\d+)', ln)   # coverage point line
-                if m:
-                    tot += 1
-                    if int(m.group(2)) > 0:
-                        cov += 1
-            if tot:
-                per_file[os.path.basename(sv)] = (cov, tot)
-                overall_cov += cov
-                overall_tot += tot
+    # Per-file, per-POINT union: a point is covered if ANY batch covered it.
+    # Picking a single "best" batch under-reports a module exercised by several
+    # tests, since no one batch sees every hit.
+    union = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        for i in range(0, len(dats), batch):
+            for name, flags in _annotate_batch(dats[i:i + batch], tmp, i // batch).items():
+                prev = union.get(name)
+                if prev is None or len(flags) > len(prev):
+                    merged_flags = list(flags)
+                    if prev:
+                        for k, v in enumerate(prev):
+                            if v:
+                                merged_flags[k] = True
+                    union[name] = merged_flags
+                else:
+                    for k, v in enumerate(flags):
+                        if v and k < len(prev):
+                            prev[k] = True
+    best = {n: (sum(f), len(f)) for n, f in union.items()}
+    overall_cov = sum(c for c, _ in best.values())
+    overall_tot = sum(t for _, t in best.values())
     pct = (overall_cov / overall_tot * 100) if overall_tot else 0.0
-    return per_file, pct, len(dats)
+    return best, pct, len(dats)
 
 
 def main():

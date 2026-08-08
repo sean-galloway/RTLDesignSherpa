@@ -59,7 +59,12 @@ def test_mod_3_compress(request, test_level):
         includes=includes,
         toplevel=dut_name,
         module=os.path.splitext(os.path.basename(__file__))[0],
-        sim_build=os.path.join(log_dir, f"sim_build_{dut_name}_{test_level}"),
+        # local_sim_build, like every other wrapper in this area. Under logs/
+        # the build escaped both `make clean-all` AND the coverage merge glob
+        # (**/local_sim_build/**/coverage.dat), so this module reported no
+        # coverage at all while its stale .dat files accumulated.
+        sim_build=os.path.join(tests_dir, "local_sim_build",
+                               f"{dut_name}_{test_level}"),
         extra_env={'TEST_LEVEL': test_level},
         timescale="1ns/1ps",
     )
