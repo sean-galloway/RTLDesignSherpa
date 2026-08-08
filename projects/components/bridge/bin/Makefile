@@ -53,7 +53,6 @@ help:
 	@echo "  CONN=<path>           Path to connectivity.csv (required)"
 	@echo "  NAME=<name>           Bridge name (optional, auto-generated if empty)"
 	@echo "  OUTPUT=<dir>          Output directory (default: $(RTL_DIR))"
-	@echo "  ARBITER=true/false    Expose arbiter signals (default: false)"
 	@echo ""
 	@echo "CLEAN TARGETS:"
 	@echo "  make clean            Remove generated bridge directories"
@@ -114,14 +113,12 @@ endif
 	@echo "  Connectivity: $(CONN)"
 	@echo "  Name: $(if $(NAME),$(NAME),auto-generated)"
 	@echo "  Output: $(if $(OUTPUT),$(OUTPUT),$(RTL_DIR))"
-	@echo "  Arbiter signals: $(if $(ARBITER),$(ARBITER),false)"
 	@echo "================================================================================"
 	@python3 $(GENERATOR) \
 		--ports $(PORTS) \
 		--connectivity $(CONN) \
 		$(if $(NAME),--name $(NAME),) \
-		--output-dir $(if $(OUTPUT),$(OUTPUT),$(RTL_DIR)) \
-		$(if $(filter true,$(ARBITER)),--expose-arbiter-signals,)
+		--output-dir $(if $(OUTPUT),$(OUTPUT),$(RTL_DIR))
 	@echo ""
 	@echo "✓ Single bridge generated successfully!"
 

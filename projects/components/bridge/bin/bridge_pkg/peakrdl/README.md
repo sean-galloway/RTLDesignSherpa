@@ -23,13 +23,14 @@
 
 # Bridge cfg subsystem — PeakRDL flow
 
-Status: **prototype** (task 90.1)
+Status: **historical prototype** (task 90.1)
 
-This directory will eventually hold the auto-generated `.rdl` for the
-bridge's monitor cfg space, plus the regblock SV that PeakRDL emits.
-For now it contains a hand-coded prototype for one adapter port so we
-can lock the schema style before extending it across all 9 adapters
-(see task 90.2).
+This directory holds the hand-written `.rdl` prototype from task 90.1,
+kept as the reference for the schema style. It is not part of the
+generation flow: RDL generation now lives in
+`bridge_pkg/generators/cfg_rdl_generator.py` +
+`bridge_pkg/jinja_templates/bridge_cfg.rdl.j2`, which emit the per-bridge
+`.rdl` into the bridge output directory alongside the generated SV.
 
 ## Prototype
 
@@ -45,28 +46,6 @@ peakrdl regblock bridge_cfg_proto.rdl --cpuif axi4-lite-flat -o /tmp/bridge_cfg_
 The emitted regblock exposes an AXIL slave (`s_axil_*`) and a typed
 `hwif_out` struct whose fields back the bridge's existing internal
 cfg nets.
-
-## Integration pattern (sketch)
-
-The bridge generator will, in 90.3, instantiate this regblock inside
-the bridge top and route its outputs to existing cfg nets:
-
-```sv
-bridge_cfg_proto u_bridge_cfg (
-    .clk            (aclk),
-    .rst            (~aresetn),
-    .s_axil_awvalid (s_cfg_axil_awvalid),
-    // ... other AXIL slave channels ...
-    .hwif_out       (cfg_hwif)
-);
-
-assign cfg_host_0_wr_monitor_enable = cfg_hwif.HOST_0_WR_CTRL.monitor_enable.value;
-assign cfg_host_0_wr_error_enable   = cfg_hwif.HOST_0_WR_CTRL.error_enable.value;
-// ... rest of the 351 cfg nets ...
-```
-
-After 90.3 the bridge's external port list drops the 351 `cfg_*`
-inputs and replaces them with a single AXIL slave port.
 
 ## Address map
 

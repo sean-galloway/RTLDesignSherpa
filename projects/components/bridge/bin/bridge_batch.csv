@@ -1,21 +1,21 @@
-name,ports,connectivity,output_dir,output_tb,output_test,expose_arbiter_signals
-bridge_1x2_rd,test_configs/bridge_1x2_rd_matched.toml,test_configs/bridge_1x2_rd_matched_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_1x2_wr,test_configs/bridge_1x2_wr_matched.toml,test_configs/bridge_1x2_wr_matched_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_1x3_rd,test_configs/bridge_1x3_rd_mixed.toml,test_configs/bridge_1x3_rd_mixed_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_1x3_wr,test_configs/bridge_1x3_wr_mixed.toml,test_configs/bridge_1x3_wr_mixed_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_1x4_rd,test_configs/bridge_1x4_rd_apb.toml,test_configs/bridge_1x4_rd_apb_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_1x4_wr,test_configs/bridge_1x4_wr_apb.toml,test_configs/bridge_1x4_wr_apb_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_1x5_rd,test_configs/bridge_1x5_rd_axil.toml,test_configs/bridge_1x5_rd_axil_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_1x5_wr,test_configs/bridge_1x5_wr_axil.toml,test_configs/bridge_1x5_wr_axil_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_2x2_rw,test_configs/bridge_2x2_rw.toml,test_configs/bridge_2x2_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_4x4_rw,test_configs/bridge_4x4_rw.toml,test_configs/bridge_4x4_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_5x3_channels,test_configs/bridge_5x3_channels.toml,test_configs/bridge_5x3_channels_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+name,ports,connectivity,output_dir,output_tb,output_test
+bridge_1x2_rd,test_configs/bridge_1x2_rd_matched.toml,test_configs/bridge_1x2_rd_matched_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_1x2_wr,test_configs/bridge_1x2_wr_matched.toml,test_configs/bridge_1x2_wr_matched_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_1x3_rd,test_configs/bridge_1x3_rd_mixed.toml,test_configs/bridge_1x3_rd_mixed_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_1x3_wr,test_configs/bridge_1x3_wr_mixed.toml,test_configs/bridge_1x3_wr_mixed_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_1x4_rd,test_configs/bridge_1x4_rd_apb.toml,test_configs/bridge_1x4_rd_apb_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_1x4_wr,test_configs/bridge_1x4_wr_apb.toml,test_configs/bridge_1x4_wr_apb_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_1x5_rd,test_configs/bridge_1x5_rd_axil.toml,test_configs/bridge_1x5_rd_axil_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_1x5_wr,test_configs/bridge_1x5_wr_axil.toml,test_configs/bridge_1x5_wr_axil_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_2x2_rw,test_configs/bridge_2x2_rw.toml,test_configs/bridge_2x2_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_4x4_rw,test_configs/bridge_4x4_rw.toml,test_configs/bridge_4x4_rw_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_5x3_channels,test_configs/bridge_5x3_channels.toml,test_configs/bridge_5x3_channels_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 # Monitor variants -- emit the *_mon bridges that consume the
 # monbus_<p1>_<p2>_group family. Kept in the batch so `make all`
 # regenerates every monbus-group consumer (CRITICAL RULE #0).
-bridge_1x2_rd_regblock,test_configs/bridge_1x2_rd_regblock.toml,test_configs/bridge_1x2_rd_regblock_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_mix_a,test_configs/bridge_mix_a.toml,test_configs/bridge_mix_a_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_mix_b,test_configs/bridge_mix_b.toml,test_configs/bridge_mix_b_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_mix_c,test_configs/bridge_mix_c.toml,test_configs/bridge_mix_c_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-bridge_mix_d,test_configs/bridge_mix_d.toml,test_configs/bridge_mix_d_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
-#bridge_example,test_configs/bridge_example.toml,test_configs/bridge_example_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests,false
+bridge_1x2_rd_regblock,test_configs/bridge_1x2_rd_regblock.toml,test_configs/bridge_1x2_rd_regblock_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_mix_a,test_configs/bridge_mix_a.toml,test_configs/bridge_mix_a_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_mix_b,test_configs/bridge_mix_b.toml,test_configs/bridge_mix_b_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_mix_c,test_configs/bridge_mix_c.toml,test_configs/bridge_mix_c_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_mix_d,test_configs/bridge_mix_d.toml,test_configs/bridge_mix_d_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+#bridge_example,test_configs/bridge_example.toml,test_configs/bridge_example_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests

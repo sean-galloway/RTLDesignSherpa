@@ -227,3 +227,70 @@ def test_invalid_channels_is_error_not_silent_downgrade(tmp_path):
     toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "bogus"')
     with pytest.raises(ValidationError, match="invalid channels"):
         load_config(toml, conn)
+
+
+# ---------------------------------------------------------------------
+# Dead-code sweep / helper-consolidation locks
+# ---------------------------------------------------------------------
+
+
+def test_width_utils_pure_functions():
+    """width_utils is the single source of truth for the width /
+    connectivity queries every generator must agree on. Pure: config
+    objects in, plain values out."""
+    from bridge_pkg.width_utils import (
+        get_connected_slave_widths,
+        get_masters_connecting_to_slave,
+    )
+    from bridge_pkg.generators.adapter_generator import MasterConfig, SlaveInfo
+
+    slaves = [
+        SlaveInfo("s0", "s0_", 0x0000_0000, 0x1000, 64, 32),
+        SlaveInfo("s1", "s1_", 0x0001_0000, 0x1000, 32, 32, protocol="apb"),
+        SlaveInfo("s2", "s2_", 0x0002_0000, 0x1000, 64, 32),
+    ]
+    m0 = MasterConfig("m0", "m0_", 64, 32, 4, "rd", [0, 1, 2])
+    m1 = MasterConfig("m1", "m1_", 32, 32, 4, "rd", [1])
+    masters = [m0, m1]
+
+    # Duplicate slave widths collapse; result is sorted and always uses
+    # slave.data_width (never the retired LCD-for-APB width).
+    assert get_connected_slave_widths(m0, slaves) == [32, 64]
+    assert get_connected_slave_widths(m1, slaves) == [32]
+
+    assert get_masters_connecting_to_slave(slaves[0], masters, slaves) == [m0]
+    assert get_masters_connecting_to_slave(slaves[1], masters, slaves) == [m0, m1]
+    # A slave object not in the list -> no masters, not an exception.
+    orphan = SlaveInfo("sx", "sx_", 0xF000_0000, 0x1000, 32, 32)
+    assert get_masters_connecting_to_slave(orphan, masters, slaves) == []
+
+
+def test_pre_consolidation_components_are_gone():
+    """The orphaned pre-consolidation components were deleted; the
+    package must no longer export them."""
+    with pytest.raises(ImportError):
+        from bridge_pkg.components import ArbiterComponent  # noqa: F401
+
+
+def test_parse_bulk_csv_tolerates_expose_column_absence_and_presence(tmp_path):
+    """The retired expose_arbiter_signals column must be ignored when
+    present (old manifests) and not required when absent (new ones)."""
+    from bridge_generator import parse_bulk_csv
+
+    without = tmp_path / "without.csv"
+    without.write_text(
+        "name,ports,connectivity,output_dir,output_tb,output_test\n"
+        "b1,p.toml,c.csv,out,tb,tst\n"
+    )
+    with_col = tmp_path / "with.csv"
+    with_col.write_text(
+        "name,ports,connectivity,output_dir,output_tb,output_test,"
+        "expose_arbiter_signals\n"
+        "b1,p.toml,c.csv,out,tb,tst,true\n"
+    )
+    for manifest in (without, with_col):
+        rows = parse_bulk_csv(str(manifest))
+        assert len(rows) == 1, f"{manifest.name}: row not parsed"
+        assert rows[0]["name"] == "b1"
+        assert rows[0]["ports"] == "p.toml"
+        assert "expose_arbiter" not in rows[0]

@@ -162,9 +162,6 @@ class BridgeConfig:
     crossbar_id_width: int = 0        # Master-side ID width
     crossbar_slave_id_width: int = 0  # Slave-side ID width (master ID + routing bits)
 
-    # Optional features
-    expose_arbiter_signals: bool = False
-
     # variants: explicit per-bridge build set driven by the TOML
     # `[bridge].variants` field. Allowed values per entry: "no" (no
     # monitor) emits the bare <bridge_name>, "mon" emits

@@ -9,23 +9,12 @@ Each slave adapter contains:
 - Final skid buffers before external slave interface
 """
 
-from dataclasses import dataclass
 from typing import List
 from ..signal_naming import SignalNaming, Direction, AXI4Channel, PortDirection, SignalInfo, AXI4_MASTER_SIGNALS
-
-
-@dataclass
-class SlaveInfo:
-    """Configuration for a slave port."""
-    name: str
-    prefix: str
-    base_addr: int
-    addr_range: int
-    data_width: int
-    addr_width: int
-    protocol: str = 'axi4'  # 'axi4', 'apb', or 'axil'
-    enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
-    use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
+# Single shared SlaveInfo dataclass (carries mon_enables) — the local
+# duplicate that used to live here diverged from the canonical one.
+from .adapter_generator import SlaveInfo
+from ..emit_utils import generate_monitor_ports
 
 
 class SlaveAdapterGenerator:
@@ -201,51 +190,12 @@ class SlaveAdapterGenerator:
 
     def _generate_monitor_ports(self) -> List[str]:
         """Per-wrapper monbus output + cfg input ports for this slave
-        adapter. Mirrors AdapterGenerator._generate_monitor_ports() so
-        the bridge top can wire master/slave adapters with the same
-        connector-naming scheme.
+        adapter.
 
-        After the 64->128-bit packet widening, every channel also gets a
-        64-bit `monbus_<chan>_timestamp` side-band output (paired with
-        the packet). A single shared `i_mon_time` input is declared once
-        per adapter (not per channel) because every wrapper instance
-        consumes the same free-running counter from monbus_axil_group's
-        `mon_time_out`."""
-        from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
-        from .adapter_generator import _MONITOR_CFG_WIDTHS
-
-        lines: List[str] = []
-        channels: List[str] = []
-        if self.channels in ("wr", "rw"):
-            channels.append("wr")
-        if self.channels in ("rd", "rw"):
-            channels.append("rd")
-
-        # Shared free-running monitor-time -- one input shared by every
-        # internal wrapper instance.
-        if channels:
-            lines.append("    // Shared free-running monitor-time (from monbus_axil_group.mon_time_out)")
-            lines.append("    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,")
-            lines.append("")
-
-        last_chan = channels[-1] if channels else None
-        for chan in channels:
-            lines.append(f"    // Monitor side-band: {chan} wrapper")
-            lines.append(f"    output logic                                  monbus_{chan}_valid,")
-            lines.append(f"    input  logic                                  monbus_{chan}_ready,")
-            lines.append(f"    output monitor_common_pkg::monitor_packet_t   monbus_{chan}_packet,")
-            lines.append(f"    output monitor_common_pkg::monbus_timestamp_t monbus_{chan}_timestamp,")
-            lines.append("")
-            for i, sig in enumerate(Axi4TimingWrapper.MONITOR_CFG_SIGNALS):
-                is_final_cfg = (chan == last_chan and i == len(Axi4TimingWrapper.MONITOR_CFG_SIGNALS) - 1)
-                width = _MONITOR_CFG_WIDTHS[sig]
-                width_decl = "       " if width == 1 else f"[{width-1}:0]"
-                base = sig[len("cfg_"):]
-                sep = "" if is_final_cfg else ","
-                lines.append(f"    input  logic {width_decl} cfg_{chan}_{base}{sep}")
-            if chan != last_chan:
-                lines.append("")
-        return lines
+        Delegates to emit_utils.generate_monitor_ports (shared with
+        AdapterGenerator) so the bridge top can wire master/slave
+        adapters with the same connector-naming scheme."""
+        return generate_monitor_ports(self.channels)
 
     def _generate_crossbar_interface_ports(self) -> List[str]:
         """

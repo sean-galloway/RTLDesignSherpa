@@ -17,6 +17,7 @@ from typing import List, Dict, Set
 from dataclasses import dataclass
 
 from bridge_pkg.generators.adapter_generator import MasterConfig, SlaveInfo
+from bridge_pkg.width_utils import get_connected_slave_widths, get_masters_connecting_to_slave
 from bridge_pkg.signal_naming import SignalNaming, Direction, AXI4Channel, AXI4_SLAVE_SIGNALS, AXI4_MASTER_SIGNALS
 
 
@@ -974,76 +975,22 @@ class CrossbarGenerator:
 
         return lines
 
-    def _calculate_lcd_width_for_apb(self, master: MasterConfig) -> int:
-        """
-        Calculate LCD (Lowest Common Denominator) width for APB slave connections.
-
-        Args:
-            master: Master to calculate LCD for
-
-        Returns:
-            LCD width in bits
-        """
-        apb_slave_indices = [idx for idx in master.slave_connections
-                             if self.slaves[idx].protocol == 'apb']
-
-        if not apb_slave_indices:
-            return master.data_width
-
-        # Find all masters connecting to these APB slaves
-        connecting_masters = []
-        seen_names = set()
-
-        for apb_idx in apb_slave_indices:
-            for m in self.masters:
-                if apb_idx in m.slave_connections and m.name not in seen_names:
-                    connecting_masters.append(m)
-                    seen_names.add(m.name)
-
-        if not connecting_masters:
-            return master.data_width
-
-        lcd_width = min(m.data_width for m in connecting_masters)
-        return lcd_width
-
     def _get_connected_slave_widths(self, master: MasterConfig) -> List[int]:
         """
         Get sorted list of unique ADAPTER OUTPUT widths for slaves this master connects to.
 
-        Always uses slave.data_width — must match the adapter generator's
-        choice (see AdapterGenerator._get_connected_slave_widths). The
-        previous LCD-for-APB path here disagreed with the adapter on
-        which suffix to emit, leaving the xbar referencing
-        cpu_master_32b_* while the adapter only produced cpu_master_64b_*.
+        Delegates to width_utils.get_connected_slave_widths — see its
+        docstring for why slave.data_width is always used (LCD bug history).
         """
-        widths = set()
-        for idx in master.slave_connections:
-            widths.add(self.slaves[idx].data_width)
-        return sorted(list(widths))
+        return get_connected_slave_widths(master, self.slaves)
 
     def _get_masters_connecting_to_slave(self, slave: SlaveInfo) -> List[MasterConfig]:
         """
         Get list of masters that connect to a specific slave.
 
-        Args:
-            slave: Slave to check connections for
-
-        Returns:
-            List of MasterConfig objects that have this slave in their connections
+        Delegates to width_utils.get_masters_connecting_to_slave.
         """
-        # Find slave index
-        try:
-            slave_idx = self.slaves.index(slave)
-        except ValueError:
-            return []
-
-        # Find all masters that connect to this slave
-        connecting_masters = []
-        for master in self.masters:
-            if slave_idx in master.slave_connections:
-                connecting_masters.append(master)
-
-        return connecting_masters
+        return get_masters_connecting_to_slave(slave, self.masters, self.slaves)
 
     def _determine_slave_interface_width(self, slave: SlaveInfo) -> tuple:
         """

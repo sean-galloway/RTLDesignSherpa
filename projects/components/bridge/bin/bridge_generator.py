@@ -446,7 +446,7 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
 # RTL Generation Functions
 # ==============================================================================
 
-def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl/generated", expose_arbiter=False):
+def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl/generated"):
     """Generate a single bridge from configuration files.
 
     Args:
@@ -454,7 +454,6 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
         connectivity_file: Path to connectivity.csv (optional for YAML, auto-detected)
         name: Optional output module name (auto-generated if None)
         output_dir: Output directory for generated RTL (default: ../rtl/generated)
-        expose_arbiter: Whether to expose arbiter grant signals (currently ignored in V2)
 
     Returns:
         tuple: (success: bool, emitted_variants: list of (name, is_mon)
@@ -923,9 +922,12 @@ def parse_bulk_csv(bulk_file):
     """Parse bulk generation CSV file.
 
     Unified CSV format (supports RTL + optional test generation):
-        name,ports,connectivity,output_dir,output_tb,output_test,expose_arbiter_signals
+        name,ports,connectivity,output_dir,output_tb,output_test
         # Lines starting with # are comments
-        bridge_name,path/to/ports.csv,path/to/conn.csv,../rtl,../dv/tbclasses,../dv/tests,false
+        bridge_name,path/to/ports.csv,path/to/conn.csv,../rtl,../dv/tbclasses,../dv/tests
+
+    Unknown extra columns (e.g. the retired expose_arbiter_signals) are
+    tolerated and ignored, so older manifests still parse.
 
     Args:
         bulk_file: Path to bulk CSV file
@@ -951,7 +953,6 @@ def parse_bulk_csv(bulk_file):
                 'output_dir': row.get('output_dir', '').strip() or '../rtl/generated',
                 'output_tb': row.get('output_tb', '').strip() or '../dv/tbclasses',
                 'output_test': row.get('output_test', '').strip() or '../dv/tests',
-                'expose_arbiter': row.get('expose_arbiter_signals', 'false').strip().lower() in ('true', '1', 'yes')
             }
 
             # Validate required fields
@@ -988,10 +989,10 @@ Configuration Files:
   connectivity.csv - Defines which masters connect to which slaves (partial connectivity)
 
 Bulk Generation CSV Format:
-  name,ports,connectivity,output_dir,expose_arbiter_signals
+  name,ports,connectivity,output_dir
   # Lines starting with # are comments
-  bridge_2x2_rw,test_configs/bridge_2x2_rw.yaml,,../rtl/generated,false
-  bridge_4x4_rw,test_configs/bridge_4x4_rw.yaml,,../rtl/generated,true
+  bridge_2x2_rw,test_configs/bridge_2x2_rw.yaml,,../rtl/generated
+  bridge_4x4_rw,test_configs/bridge_4x4_rw.yaml,,../rtl/generated
         """
     )
 
@@ -1009,9 +1010,6 @@ Bulk Generation CSV Format:
                        help="Output module name (default: auto-generated)")
     parser.add_argument("--output-dir", type=str, default="../rtl/generated",
                        help="Output directory for generated RTL (default: ../rtl/generated)")
-    parser.add_argument("--expose-arbiter-signals", action="store_true",
-                       help="Expose arbiter grant signals as outputs for testing/debugging")
-
     # Test generation arguments
     parser.add_argument("--generate-tests", action="store_true",
                        help="Also generate testbench classes and test files")
@@ -1059,7 +1057,6 @@ Bulk Generation CSV Format:
                 connectivity_file=config['connectivity'],
                 name=config['name'],
                 output_dir=config['output_dir'],
-                expose_arbiter=config['expose_arbiter']
             )
 
             if success:
@@ -1133,7 +1130,6 @@ Bulk Generation CSV Format:
             connectivity_file=args.connectivity,  # Can be None for YAML
             name=args.name,
             output_dir=args.output_dir,
-            expose_arbiter=args.expose_arbiter_signals
         )
 
         if not success:

@@ -14,7 +14,8 @@ Date: 2025-11-03
 
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
-from ..components.apb_shim_adapter import ApbShimAdapter
+from ..width_utils import get_connected_slave_widths
+from ..emit_utils import generate_monitor_ports
 from ..signal_naming import SignalNaming, Direction, AXI4Channel, AXI4_MASTER_SIGNALS, PortDirection, SignalInfo
 
 
@@ -270,51 +271,11 @@ class AdapterGenerator:
 
     def _generate_monitor_ports(self) -> List[str]:
         """Per-wrapper monbus output + cfg input ports for this adapter.
-        Names use the adapter-local channel suffix (`_wr` / `_rd`) -- the
-        bridge top binds them to {port_name}_{port_idx}-prefixed nets so
-        each monbus stream and cfg group is uniquely identifiable.
 
-        After the 64->128-bit packet widening, every channel also gets a
-        64-bit `monbus_<chan>_timestamp` side-band output (paired with
-        the packet). A single shared `i_mon_time` input is declared once
-        per adapter (not per channel) because every wrapper instance
-        consumes the same free-running counter from monbus_axil_group's
-        `mon_time_out`."""
-        from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
-
-        lines: List[str] = []
-        channels: List[str] = []
-        if self.master.channels in ("wr", "rw"):
-            channels.append("wr")
-        if self.master.channels in ("rd", "rw"):
-            channels.append("rd")
-
-        # Shared free-running monitor-time -- one input shared by every
-        # internal wrapper instance. Always emit when monitoring is
-        # enabled, regardless of which channel(s) are present.
-        if channels:
-            lines.append("    // Shared free-running monitor-time (from monbus_axil_group.mon_time_out)")
-            lines.append("    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,")
-            lines.append("")
-
-        last_chan = channels[-1] if channels else None
-        for chan in channels:
-            lines.append(f"    // Monitor side-band: {chan} wrapper")
-            lines.append(f"    output logic                                  monbus_{chan}_valid,")
-            lines.append(f"    input  logic                                  monbus_{chan}_ready,")
-            lines.append(f"    output monitor_common_pkg::monitor_packet_t   monbus_{chan}_packet,")
-            lines.append(f"    output monitor_common_pkg::monbus_timestamp_t monbus_{chan}_timestamp,")
-            lines.append("")
-            for i, sig in enumerate(Axi4TimingWrapper.MONITOR_CFG_SIGNALS):
-                is_final_cfg = (chan == last_chan and i == len(Axi4TimingWrapper.MONITOR_CFG_SIGNALS) - 1)
-                width = _MONITOR_CFG_WIDTHS[sig]
-                width_decl = "       " if width == 1 else f"[{width-1}:0]"
-                base = sig[len("cfg_"):]
-                sep = "" if is_final_cfg else ","
-                lines.append(f"    input  logic {width_decl} cfg_{chan}_{base}{sep}")
-            if chan != last_chan:
-                lines.append("")
-        return lines
+        Delegates to emit_utils.generate_monitor_ports (shared with
+        SlaveAdapterGenerator) — see its docstring for the naming scheme
+        and i_mon_time rationale."""
+        return generate_monitor_ports(self.master.channels)
 
     def _generate_external_ports(self) -> List[str]:
         """
@@ -761,77 +722,10 @@ class AdapterGenerator:
         """
         Get unique adapter output widths for slaves this master connects to.
 
-        Always uses the slave's data_width — the bridge has one width
-        parameter per slave, regardless of protocol. The adapter handles
-        any width conversion locally for that slave; the crossbar only
-        sees the slave's data_width on the wire.
-
-        Earlier versions used a "LCD width" for APB slaves (min of master
-        widths connecting to the same APB), which left the adapter and
-        crossbar disagreeing on the suffix to use — adapter emitted
-        cpu_master_64b_*, crossbar referenced cpu_master_32b_*. Dropping
-        the LCD path means both sides read slave.data_width and
-        get the same answer.
+        Delegates to width_utils.get_connected_slave_widths — see its
+        docstring for why slave.data_width is always used (LCD bug history).
         """
-        widths = set()
-        for idx in self.master.slave_connections:
-            widths.add(self.slaves[idx].data_width)
-        return sorted(list(widths))
-
-    def _get_masters_connecting_to_apb_slaves(self) -> List[MasterConfig]:
-        """
-        Get all masters (including this one) that connect to the same APB slaves.
-
-        This is used for LCD (Lowest Common Denominator) width calculation:
-        When multiple masters with different widths connect to the same APB slaves,
-        we need to find the minimum width among them.
-
-        Returns:
-            List of MasterConfig objects that connect to same APB slaves as this master
-        """
-        # Find APB slaves this master connects to
-        apb_slave_indices = [idx for idx in self.master.slave_connections
-                             if self.slaves[idx].protocol == 'apb']
-
-        if not apb_slave_indices:
-            return []  # This master doesn't connect to any APB slaves
-
-        # Find all masters that connect to ANY of these APB slaves
-        connecting_masters = []
-        seen_names = set()  # Track by name to avoid duplicates
-        for apb_idx in apb_slave_indices:
-            for master in self.all_masters:
-                if apb_idx in master.slave_connections and master.name not in seen_names:
-                    connecting_masters.append(master)
-                    seen_names.add(master.name)
-
-        return connecting_masters
-
-    def _calculate_lcd_width_for_apb(self) -> int:
-        """
-        Calculate LCD (Lowest Common Denominator) width for APB slave connections.
-
-        Returns the minimum data width among all masters connecting to the same
-        APB slaves. This width will be used as the adapter output width.
-
-        Returns:
-            LCD width in bits, or master's native width if no APB connections
-        """
-        masters_to_apb = self._get_masters_connecting_to_apb_slaves()
-
-        if not masters_to_apb:
-            # No APB connections - use master's native width
-            return self.master.data_width
-
-        # Find minimum width among all masters connecting to APB
-        lcd_width = min(m.data_width for m in masters_to_apb)
-
-        if lcd_width != self.master.data_width:
-            master_names = ', '.join(f"{m.name}({m.data_width}b)" for m in masters_to_apb)
-            print(f"INFO: Adapter '{self.master.name}' LCD width for APB: {lcd_width}b")
-            print(f"      Masters connecting to same APB slaves: {master_names}")
-
-        return lcd_width
+        return get_connected_slave_widths(self.master, self.slaves)
 
     def _generate_width_adaptation(self) -> List[str]:
         """

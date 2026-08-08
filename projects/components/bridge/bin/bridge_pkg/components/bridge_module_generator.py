@@ -23,6 +23,7 @@ from bridge_pkg.generators.slave_adapter_generator import SlaveAdapterGenerator
 from bridge_pkg.generators.crossbar_generator import CrossbarGenerator
 from bridge_pkg.signal_naming import SignalNaming, Direction, AXI4Channel, Protocol, AXI4_MASTER_SIGNALS, PortDirection, SignalInfo
 from bridge_pkg.components.axi4_timing_wrapper_component import Axi4TimingWrapper
+from bridge_pkg.width_utils import get_connected_slave_widths, get_masters_connecting_to_slave
 
 
 @dataclass
@@ -1469,88 +1470,22 @@ class BridgeModuleGenerator:
 
         return lines
 
-    def _calculate_lcd_width_for_apb(self, master: MasterConfig) -> int:
-        """
-        Calculate LCD (Lowest Common Denominator) width for APB slave connections.
-
-        Finds all masters connecting to the same APB slaves and returns the minimum
-        data width among them. This ensures all masters can communicate through the
-        same adapter output width.
-
-        Args:
-            master: Master to calculate LCD for
-
-        Returns:
-            LCD width in bits (minimum width among all masters connecting to same APB slaves)
-        """
-        # Get APB slaves this master connects to
-        apb_slave_indices = [idx for idx in master.slave_connections
-                             if self.slaves[idx].protocol == 'apb']
-
-        if not apb_slave_indices:
-            return master.data_width
-
-        # Find all masters that connect to ANY of these APB slaves
-        connecting_masters = []
-        seen_names = set()  # Track by name to avoid duplicates
-
-        for apb_idx in apb_slave_indices:
-            for m in self.masters:
-                if apb_idx in m.slave_connections and m.name not in seen_names:
-                    connecting_masters.append(m)
-                    seen_names.add(m.name)
-
-        if not connecting_masters:
-            return master.data_width
-
-        # Find minimum width among all masters connecting to APB
-        lcd_width = min(m.data_width for m in connecting_masters)
-
-        if lcd_width != master.data_width:
-            master_names = ', '.join(f"{m.name}({m.data_width}b)" for m in connecting_masters)
-            print(f"INFO: Master '{master.name}' LCD width for APB: {lcd_width}b")
-            print(f"      Masters connecting to same APB slaves: {master_names}")
-
-        return lcd_width
-
     def _get_connected_slave_widths(self, master: MasterConfig) -> List[int]:
         """
         Get sorted list of unique ADAPTER OUTPUT widths for slaves this master connects to.
 
-        Always uses slave.data_width — must match the adapter generator's
-        and crossbar generator's choice. The previous LCD-for-APB path
-        here disagreed with the regenerated adapter and crossbar (which
-        both now use slave.data_width), leaving the bridge top
-        instantiating the xbar with widths that don't exist as ports.
+        Delegates to width_utils.get_connected_slave_widths — see its
+        docstring for why slave.data_width is always used (LCD bug history).
         """
-        widths = set()
-        for idx in master.slave_connections:
-            widths.add(self.slaves[idx].data_width)
-        return sorted(list(widths))
+        return get_connected_slave_widths(master, self.slaves)
 
     def _get_masters_connecting_to_slave(self, slave: SlaveInfo) -> List[MasterConfig]:
         """
         Get list of masters that connect to a specific slave.
 
-        Args:
-            slave: Slave to check connections for
-
-        Returns:
-            List of MasterConfig objects that have this slave in their connections
+        Delegates to width_utils.get_masters_connecting_to_slave.
         """
-        # Find slave index
-        try:
-            slave_idx = self.slaves.index(slave)
-        except ValueError:
-            return []
-
-        # Find all masters that connect to this slave
-        connecting_masters = []
-        for master in self.masters:
-            if slave_idx in master.slave_connections:
-                connecting_masters.append(master)
-
-        return connecting_masters
+        return get_masters_connecting_to_slave(slave, self.masters, self.slaves)
 
     def _generate_adapter_instantiations(self, monitored: List[MonitoredWrapper] = None) -> List[str]:
         """
@@ -1965,166 +1900,6 @@ class BridgeModuleGenerator:
                           else None)
                 inst.set_use_monitor_params(eff_wr=eff_wr, eff_rd=eff_rd)
             lines.extend(inst.generate_lines())
-
-        return lines
-
-# Old implementation below - keeping for reference during migration
-def _generate_crossbar_routing_OLD(self) -> List[str]:
-        """
-        OLD IMPLEMENTATION - Inline crossbar routing (deprecated).
-
-        For now, simplified mux-based routing.
-        Future: Full crossbar with arbitration.
-        """
-        lines = []
-
-        lines.append("    // ================================================================")
-        lines.append("    // Crossbar routing (simplified)")
-        lines.append("    // TODO: Add arbitration for multi-master")
-        lines.append("    // ================================================================")
-        lines.append("")
-
-        # For now, only support single master (as in test script)
-        if len(self.masters) == 1:
-            master = self.masters[0]
-            suffix = f"{master.data_width}b"
-
-            # Route to each slave
-            for i, slave in enumerate(self.slaves):
-                lines.append(f"    // Slave {i}: {slave.name}")
-
-                if master.channels in ["wr", "rw"]:
-                    # AW channel
-                    lines.append(f"    assign {slave.name}_s_axi_awid     = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.id : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awaddr   = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.addr : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awlen    = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.len : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awsize   = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.size : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awburst  = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.burst : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awlock   = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.lock : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awcache  = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.cache : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awprot   = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.prot : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awqos    = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.qos : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awregion = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.region : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awuser   = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_aw.user : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_awvalid  = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_awvalid : '0;")
-                    lines.append("")
-
-                    # W channel
-                    lines.append(f"    assign {slave.name}_s_axi_wdata  = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_w.data : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_wstrb  = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_w.strb : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_wlast  = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_w.last : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_wuser  = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_w.user : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_wvalid = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_wvalid : '0;")
-                    lines.append("")
-
-                if master.channels in ["rd", "rw"]:
-                    # AR channel
-                    lines.append(f"    assign {slave.name}_s_axi_arid     = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.id : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_araddr   = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.addr : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_arlen    = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.len : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_arsize   = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.size : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_arburst  = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.burst : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_arlock   = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.lock : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_arcache  = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.cache : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_arprot   = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.prot : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_arqos    = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.qos : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_arregion = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.region : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_aruser   = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_ar.user : '0;")
-                    lines.append(f"    assign {slave.name}_s_axi_arvalid  = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_arvalid : '0;")
-                    lines.append("")
-
-            # Ready/response muxes
-            if master.channels in ["wr", "rw"]:
-                lines.append(f"    // AW/W ready muxes")
-                lines.append(f"    assign {master.name}_{suffix}_awready = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_aw[{i}] ? {slave.name}_s_axi_awready{suffix_str}")
-                lines.append("")
-
-                lines.append(f"    assign {master.name}_{suffix}_wready = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_aw[{i}] ? {slave.name}_s_axi_wready{suffix_str}")
-                lines.append("")
-
-                # B channel
-                lines.append("    // B channel responses")
-                lines.append(f"    assign {master.name}_{suffix}_b.id = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_aw[{i}] ? {slave.name}_s_axi_bid{suffix_str}")
-
-                lines.append(f"    assign {master.name}_{suffix}_b.resp = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_aw[{i}] ? {slave.name}_s_axi_bresp{suffix_str}")
-
-                lines.append(f"    assign {master.name}_{suffix}_b.user = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_aw[{i}] ? {slave.name}_s_axi_buser{suffix_str}")
-
-                lines.append(f"    assign {master.name}_{suffix}_bvalid = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_aw[{i}] ? {slave.name}_s_axi_bvalid{suffix_str}")
-                lines.append("")
-
-                # Bready distribution
-                for i, slave in enumerate(self.slaves):
-                    lines.append(f"    assign {slave.name}_s_axi_bready = {master.name}_slave_select_aw[{i}] ? {master.name}_{suffix}_bready : '0;")
-                lines.append("")
-
-            if master.channels in ["rd", "rw"]:
-                lines.append(f"    // AR ready mux")
-                lines.append(f"    assign {master.name}_{suffix}_arready = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_ar[{i}] ? {slave.name}_s_axi_arready{suffix_str}")
-                lines.append("")
-
-                # R channel
-                lines.append("    // R channel responses")
-                lines.append(f"    assign {master.name}_{suffix}_r.id = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_ar[{i}] ? {slave.name}_s_axi_rid{suffix_str}")
-
-                lines.append(f"    assign {master.name}_{suffix}_r.data = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_ar[{i}] ? {slave.name}_s_axi_rdata{suffix_str}")
-
-                lines.append(f"    assign {master.name}_{suffix}_r.resp = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_ar[{i}] ? {slave.name}_s_axi_rresp{suffix_str}")
-
-                lines.append(f"    assign {master.name}_{suffix}_r.last = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_ar[{i}] ? {slave.name}_s_axi_rlast{suffix_str}")
-
-                lines.append(f"    assign {master.name}_{suffix}_r.user = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_ar[{i}] ? {slave.name}_s_axi_ruser{suffix_str}")
-
-                lines.append(f"    assign {master.name}_{suffix}_rvalid = ")
-                for i, slave in enumerate(self.slaves):
-                    suffix_str = " : '0;" if i == len(self.slaves) - 1 else " :"
-                    lines.append(f"        {master.name}_slave_select_ar[{i}] ? {slave.name}_s_axi_rvalid{suffix_str}")
-                lines.append("")
-
-                # Rready distribution
-                for i, slave in enumerate(self.slaves):
-                    lines.append(f"    assign {slave.name}_s_axi_rready = {master.name}_slave_select_ar[{i}] ? {master.name}_{suffix}_rready : '0;")
-                lines.append("")
-
-        else:
-            lines.append("    // TODO: Multi-master crossbar with arbitration")
-            lines.append("")
 
         return lines
 

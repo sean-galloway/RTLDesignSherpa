@@ -4,11 +4,16 @@
 #
 # Bridge Components - Type-safe sub-module generators
 
-from .arbiter_component import ArbiterComponent
-from .address_decode_component import AddressDecodeComponent
-from .channel_mux_component import ChannelMuxComponent
-from .master_width_adapter import MasterWidthAdapter
-from .slave_width_adapter import SlaveWidthAdapter
-from .apb_shim_adapter import ApbShimAdapter
+from .axi4_timing_wrapper_component import Axi4TimingWrapper
+from .axi4_dwidth_converter_component import Axi4DwidthConverter
+from .axi4_to_apb_shim_component import Axi4ToApbShim
+from .axi4_to_axil_shim_component import Axi4ToAxilShim
+from .slave_adapter_instance_component import SlaveAdapterInstance
 
-__all__ = ['ArbiterComponent', 'AddressDecodeComponent', 'ChannelMuxComponent', 'MasterWidthAdapter', 'SlaveWidthAdapter', 'ApbShimAdapter']
+__all__ = [
+    'Axi4TimingWrapper',
+    'Axi4DwidthConverter',
+    'Axi4ToApbShim',
+    'Axi4ToAxilShim',
+    'SlaveAdapterInstance',
+]
