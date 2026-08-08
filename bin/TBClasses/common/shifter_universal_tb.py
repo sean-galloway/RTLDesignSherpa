@@ -10,6 +10,8 @@
 
 import os
 import random
+from cocotb.binary import BinaryValue
+
 from TBClasses.shared.tbbase import TBBase
 
 
@@ -518,6 +520,23 @@ class ShifterUniversalTB(TBBase):
             self.log.debug(f"After shift {i+1}: data=0x{current_data:x}")
 
         return all_passed
+
+    # NOTE: a test_undefined_select was written here on 2026-08-08 to reach the
+    # case statement's `default:` arm -- the module's only unreached statement
+    # block, which exists solely to hold state on an X select. It was REMOVED
+    # the same day, because it could not do what it claimed:
+    #
+    #   Verilator is a 2-state simulator. Driving BinaryValue('xx') onto a
+    #   2-bit select does not produce X inside the model; it resolves to a
+    #   defined value, so the `default:` arm stayed at zero hits while the test
+    #   passed -- it was silently exercising select=00, the HOLD case, and
+    #   asserting that state was held. A test that passes by testing something
+    #   other than what its name says is worse than no test.
+    #
+    # The arm is unreachable under this simulator by construction. Reaching it
+    # needs a 4-state simulator or a formal property, not another cocotb test.
+    # Recorded rather than chased: it is 4 lines of defensive code and the
+    # ceiling it imposes on this module's line coverage is understood.
 
     async def run_all_tests(self):
         """

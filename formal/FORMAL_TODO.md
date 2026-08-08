@@ -78,11 +78,51 @@
 
 ## Non-Passing Modules
 
+### counter_freq_invariant, re-diagnosed 2026-08-08
+
+The "Yosys SV syntax error at line 150" entry describes a problem that the
+sv2v flow already solves -- line 150 is `if (n <= 1) return lo;`, and the
+module's Makefile exists precisely because "Yosys can't parse SV function
+return statements". The checked-in `counter_freq_invariant_flat.v` is valid
+sv2v output and does contain the converted functions.
+
+**The real problem is staleness, and it is worse than a parse error.** The flat
+file was last regenerated 2026-04-17; `rtl/common/counter_freq_invariant.sv`
+changed 2026-07-25. Every proof run in between was run against a design that
+no longer existed -- a passing proof of the wrong RTL, which is a false
+assurance rather than a missing one.
+
+It stayed hidden because the Makefile's timestamp dependency cannot see it: the
+flat file is CHECKED INTO GIT, so a clone or checkout stamps it newer than its
+sources and `make` never rebuilds. Generated files under version control do not
+get to use mtime as their correctness signal.
+
+Two fixes landed in `formal/common/counter_freq_invariant/Makefile`:
+
+1. **`sv2v ... > $@` truncated the target before running.** A missing or
+   failing sv2v destroyed the checked-in file and left 0 bytes. Writes go to a
+   temp and `mv` on success now. This is not theoretical -- it happened on a
+   machine without the OSS CAD Suite, and the file had to be restored from git.
+2. **A `check-flat` target** that regenerates to a temp and DIFFS against the
+   committed file, failing if they differ. Content, not timestamps. Run it
+   before trusting any result from this harness, and ideally from CI.
+
+**Still to do, and it needs a machine with the toolchain:** regenerate the flat
+file from the current RTL, re-run prove and cover, and confirm the result. The
+same staleness question applies to every other checked-in `*_flat.v` in
+`formal/` -- this one was found by accident, and nothing has audited the rest.
+
+**Toolchain note (2026-08-08):** `sv2v`, `yosys` and `sby` are NOT installed on
+this workstation, and `/mnt/data/tools/oss-cad-suite` -- the location this
+document records under Infrastructure -- does not exist. Nothing under
+`formal/` can be run or verified here. That is a change from what this file
+asserts, and it is why the items above are recorded rather than closed.
+
 ### Prove Errors (9 modules)
 
 | Module | Area | Root Cause | Priority |
 |--------|------|------------|----------|
-| counter_freq_invariant | common | Yosys SV syntax error at line 150 | Fix |
+| counter_freq_invariant | common | **Re-diagnosed 2026-08-08, see below** | Fix |
 | math_bf16_exp2 | common | Too complex for BMC | Skip |
 | math_bf16_softmax_8 | common | Too complex for BMC | Skip |
 | math_fp16_softmax_8 | common | Too complex for BMC | Skip |

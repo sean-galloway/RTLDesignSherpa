@@ -103,30 +103,55 @@ FREQ_RANGES = [
 ]
 
 NUM_ENTRIES = 16
-STRATEGY = 0  # LINEAR
+# FREQ_STRATEGY is a GRID DIMENSION, not a constant. It was pinned at 0
+# (LINEAR) here, so pow2_freq() and the case arm that selects it were never
+# elaborated -- 9 uncovered statements and the module stuck at 71.1% line
+# coverage, identical at gate and full because no amount of depth reaches an
+# unbuilt configuration.
+STRATEGY_LINEAR = 0
+STRATEGY_POW2 = 1
 
 def generate_test_parameters():
     """
     Build (counter_width, min_mhz, max_mhz) tuples.
 
-    REG_LEVEL=GATE: 1 width  x 3 ranges =  3 tests
-    REG_LEVEL=FUNC: 2 widths x 3 ranges =  6 tests (default)
-    REG_LEVEL=FULL: 3 widths x 3 ranges =  9 tests
+    REG_LEVEL=GATE: 1 width  x 3 ranges x 1 strategy =  3 tests
+    REG_LEVEL=FUNC: 2 widths x 3 ranges x 2 strategies = 12 tests (default)
+    REG_LEVEL=FULL: 3 widths x 3 ranges x 2 strategies = 18 tests
+
+    GATE stays LINEAR-only to keep the smoke level fast; POW2 comes in from
+    FUNC up, which is where coverage is measured.
     """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     all_widths = [8, 16, 24]
     if reg_level == 'GATE':
         widths = [all_widths[0]]
+        strategies = [STRATEGY_LINEAR]
     elif reg_level == 'FUNC':
         widths = all_widths[:2]
+        strategies = [STRATEGY_LINEAR, STRATEGY_POW2]
     else:
         widths = all_widths
+        strategies = [STRATEGY_LINEAR, STRATEGY_POW2]
 
     params = []
     for cw in widths:
         for lo, hi in FREQ_RANGES:
-            params.append((cw, lo, hi))
+            for st in strategies:
+                params.append((cw, lo, hi, st, NUM_ENTRIES))
+
+    if reg_level == 'FULL':
+        # A single-entry LUT, once per strategy. SEL_WIDTH is explicitly
+        # written as (NUM_FREQ_ENTRIES > 1) ? $clog2(N) : 1, so this is a
+        # SUPPORTED degenerate configuration, and it is the only thing that
+        # reaches linear_freq's `if (n <= 1) return lo` guard. Two tests
+        # rather than a whole extra dimension -- the guard does not need
+        # sweeping, only reaching.
+        lo, hi = FREQ_RANGES[0]
+        for st in (STRATEGY_LINEAR, STRATEGY_POW2):
+            params.append((widths[0], lo, hi, st, 1))
+
     return params
 
 test_params = generate_test_parameters()
@@ -135,8 +160,8 @@ test_params = generate_test_parameters()
 # Pytest wrapper
 # ==========================================================================
 
-@pytest.mark.parametrize("counter_width, min_mhz, max_mhz", test_params)
-def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz):
+@pytest.mark.parametrize("counter_width, min_mhz, max_mhz, strategy, num_entries", test_params)
+def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz, strategy, num_entries):
     """Run the parametric counter_freq_invariant test."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn': 'rtl/common',
@@ -157,9 +182,13 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz):
 
     cw_str = TBBase.format_dec(counter_width, 3)
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
+    # The strategy MUST be in the name: without it the LINEAR and POW2 builds
+    # of the same width/range share one sim_build directory and one log, so the
+    # second silently reuses the first's compiled DUT.
     test_name_plus_params = (
         f"test_{dut_name}_cw{cw_str}_"
-        f"{min_mhz}to{max_mhz}mhz_{reg_level}"
+        f"{min_mhz}to{max_mhz}mhz_"
+        f"{'pow2' if strategy == STRATEGY_POW2 else 'linear'}_n{num_entries}_{reg_level}"
     )
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -172,8 +201,8 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz):
         "COUNTER_WIDTH":    str(counter_width),
         "MIN_FREQ_MHZ":     str(min_mhz),
         "MAX_FREQ_MHZ":     str(max_mhz),
-        "NUM_FREQ_ENTRIES": str(NUM_ENTRIES),
-        "FREQ_STRATEGY":    str(STRATEGY),
+        "NUM_FREQ_ENTRIES": str(num_entries),
+        "FREQ_STRATEGY":    str(strategy),
         "DEBUG_LUT":        "1",
     }
 
@@ -186,8 +215,8 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz):
         'TEST_COUNTER_WIDTH': str(counter_width),
         'TEST_MIN_FREQ_MHZ': str(min_mhz),
         'TEST_MAX_FREQ_MHZ': str(max_mhz),
-        'TEST_NUM_FREQ_ENTRIES': str(NUM_ENTRIES),
-        'TEST_FREQ_STRATEGY': str(STRATEGY),
+        'TEST_NUM_FREQ_ENTRIES': str(num_entries),
+        'TEST_FREQ_STRATEGY': str(strategy),
         'TEST_LEVEL': test_level,
         'DUT': dut_name,
         'LOG_PATH': log_path,

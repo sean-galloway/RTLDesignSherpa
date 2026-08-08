@@ -387,3 +387,19 @@ if __name__ == "__main__":
     Allow running tests directly: python test_counter_bin_load.py
     """
     pytest.main([__file__, "-v", "-s"])
+
+
+@cocotb.test()
+async def cocotb_variable_increment(dut):
+    """add_enable: variable increment, both wrap arms, and its priority.
+
+    The whole add_enable branch was dead until 2026-08-08 -- the test only ever
+    incremented by one, so add_value and the wrap-on-add path had zero
+    coverage while the module reported 67.9%.
+    """
+    tb = CounterBinLoadTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.test_variable_increment()
+    await tb.test_add_priority()
+    dut._log.info("✅ Variable increment test PASSED")
+

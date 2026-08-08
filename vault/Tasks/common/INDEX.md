@@ -6,8 +6,8 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 7 | accepted, not started |
-| [closed.md](closed.md) | 13 | done (kept for history) |
+| [open.md](open.md) | 6 | accepted, not started |
+| [closed.md](closed.md) | 14 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
