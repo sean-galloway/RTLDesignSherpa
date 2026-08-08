@@ -40,7 +40,7 @@
 - [Hex to 7-Segment Display (`hex_to_7seg.sv`)](hex_to_7seg.md)
 - [icg](icg.md)
 - [Leading One Trailing One Module](leading_one_trailing_one.md)
-- [Modulo-3 Compressor](mod_3_compress.md)
+
 - [PWM (Pulse Width Modulation) Module](pwm.md)
 - [Reset Synchronizer Module](reset_sync.md)
 - [Reverse Vector Module](reverse_vector.md)

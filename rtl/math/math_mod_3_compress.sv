@@ -4,7 +4,7 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: mod_3_compress
+// Module: math_mod_3_compress
 // Purpose: Combinational d_in mod 3 for a 16-bit operand, built in the same
 //          carry-save-compressor style as common/rtl/div_by_15_ceil_32compress.sv
 //          (3:2 compressor tree -> final carry-propagate add -> small fold),
@@ -19,14 +19,14 @@
 //          final fold + conditional subtract collapses the group sum to 0..2.
 //          No '*' / '/' operator -> no inferred DSP or iterative divider.
 //
-// Documentation: docs/markdown/rtl-common/index.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/index.md
+// Subsystem: math
 //
 // Author: sean galloway
 
 `timescale 1ns / 1ps
 
-module mod_3_compress (
+module math_mod_3_compress (
     input  logic [15:0] d_in,
     output logic [1:0]  rem_out   // d_in mod 3  (0..2)
 );
@@ -102,4 +102,4 @@ module mod_3_compress (
                       : (w_fold >= 4'd3) ? (w_fold - 4'd3)
                                          : w_fold);
 
-endmodule : mod_3_compress
+endmodule : math_mod_3_compress

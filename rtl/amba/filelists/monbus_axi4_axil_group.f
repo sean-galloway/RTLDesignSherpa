@@ -15,7 +15,7 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
 -f $REPO_ROOT/rtl/math/filelists/math_adder_carry_save_nbit.f
--f $REPO_ROOT/rtl/common/filelists/mod_3_compress.f
+-f $REPO_ROOT/rtl/math/filelists/math_mod_3_compress.f
 $REPO_ROOT/rtl/amba/monitor/monbus_cam_pipe.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_cam.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_compressor.sv

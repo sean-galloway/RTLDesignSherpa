@@ -116,7 +116,6 @@ $REPO_ROOT/rtl/common/sort.sv
 # Math - Floating Point (IEEE 754-2008)
 
 # Math - Modular
-$REPO_ROOT/rtl/common/mod_3_compress.sv
 
 # Math - Prefix Cells
 

@@ -132,7 +132,7 @@ need the exact file list.
 ### Compressors and prefix cells
 
 - **[math_compressor_4to2](math_compressor_4to2.md)** — 4:2 compressor for fast parallel reduction
-- **[mod_3_compress](../rtl-common/mod_3_compress.md)** — combinational `X - (X mod 3)` carry-save rounding (monbus record packing)
+- **[math_mod_3_compress](math_mod_3_compress.md)** — combinational `X - (X mod 3)` carry-save rounding (monbus record packing)
 - **[math_prefix_cell](math_prefix_cell.md)** — black cell for parallel prefix adders
   - Includes: `math_prefix_cell.sv`
 - **[math_prefix_cell_gray](math_prefix_cell_gray.md)** — gray cell for parallel prefix adders (area-optimized)

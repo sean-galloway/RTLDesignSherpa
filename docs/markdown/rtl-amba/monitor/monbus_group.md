@@ -349,13 +349,13 @@ hardware-confirmed symptom.
 ### mod-3 rounding (no `/3` operator)
 
 Rounding a beat count down to a whole record (`X − (X mod 3)`) is done
-by two `mod_3_compress` instances (`u_mod3_geo`, `u_mod3_fifo`) — a
+by two `math_mod_3_compress` instances (`u_mod3_geo`, `u_mod3_fifo`) — a
 carry-save-compressor implementation of `X mod 3` via base-4 digit
 sum (each 2-bit group has weight `4^k ≡ 1 mod 3`). No `*` or `/`
 operators, so Vivado neither infers a DSP48 (a combinational path
 through a far-placed DSP was catastrophic) nor a CARRY4 iterative
 divider — both used to blow timing. Exhaustively verified for all
-65 536 inputs (`val/common/test_mod_3_compress.py`).
+65 536 inputs (`val/math/test_math_mod_3_compress.py`).
 
 ### Final port behavior
 
@@ -399,8 +399,8 @@ dropped.
 | `monbus_compressor` (conditional) | Compressed-mode encoder; only when `USE_COMPRESSION=1` |
 | `monbus_halfbeat_packer` (conditional) | Pairs two 30-bit half-slots into one 64-bit beat downstream of the compressor; only when `HALF_BEAT_EN=1` (which itself requires `USE_COMPRESSION=1`) |
 | `monbus_cam_pipe` (transitive) | **Pipelined** 49-bit-key LRU CAM with per-template `last_ts`/`last_data`; replaces the unpipelined `monbus_cam` as the in-production CAM inside the compressor. See [`monbus_cam`](monbus_cam.md) for the deprecation note. |
-| `mod_3_compress` × 2 (`rtl/common/`) | Geometry / FIFO whole-record rounding (X − (X mod 3)) |
-| `math_adder_carry_save_nbit` (transitive) | 3:2 compressor primitive used by `mod_3_compress` |
+| `math_mod_3_compress` × 2 (`rtl/math/`) | Geometry / FIFO whole-record rounding (X − (X mod 3)) |
+| `math_adder_carry_save_nbit` (transitive) | 3:2 compressor primitive used by `math_mod_3_compress` |
 | `gaxi_skid_buffer` (inside compressor) | Input skid on the `(source_ts, packet)` feed; breaks the aggregator → CAM long route |
 
 ### Canonical filelist
@@ -412,7 +412,7 @@ tree so a new core dep lands in **one place**:
 rtl/amba/filelists/monbus_group.f
 ```
 
-It lists `math_adder_carry_save_nbit` + `mod_3_compress` + `monbus_cam` +
+It lists `math_adder_carry_save_nbit` + `math_mod_3_compress` + `monbus_cam` +
 `monbus_cam_pipe` + `monbus_compressor` + `monbus_halfbeat_packer` +
 `monbus_group_core`. All consumers (`val/amba`
 tests, RAPIDS / STREAM macro filelists) `-f`-include it rather than

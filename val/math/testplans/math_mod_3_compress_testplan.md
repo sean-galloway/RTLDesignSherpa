@@ -1,7 +1,7 @@
-# Test Plan: mod_3_compress
+# Test Plan: math_mod_3_compress
 
-## Module: rtl/common/mod_3_compress.sv
-## Test File: val/common/test_mod_3_compress.py
+## Module: rtl/math/math_mod_3_compress.sv
+## Test File: val/math/test_math_mod_3_compress.py
 ## Current Coverage: NO DATA in the 2026-08-07 run (see COVERAGE_REPORT.md)
 
 **This plan did not exist until 2026-08-07**, and the module was one of two

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
-# Module: Mod3CompressTB
-# Purpose: Testbench for mod_3_compress
+# Module: MathMod3CompressTB
+# Purpose: Testbench for math_mod_3_compress
 # Subsystem: framework
 #
-# Extracted from val/common/test_mod_3_compress.py, which had no TB class
+# Extracted from val/math/test_math_mod_3_compress.py, which had no TB class
 # ([[tb-structure]]).
 
 import os
@@ -15,8 +15,8 @@ from cocotb.triggers import Timer
 from TBClasses.shared.tbbase import TBBase
 
 
-class Mod3CompressTB(TBBase):
-    """Testbench for mod_3_compress: rem_out == d_in % 3.
+class MathMod3CompressTB(TBBase):
+    """Testbench for math_mod_3_compress: rem_out == d_in % 3.
 
     The DUT is purely combinational -- d_in in, rem_out out, no clock and no
     reset -- so the contract lifecycle methods are honest no-ops rather than
@@ -34,7 +34,7 @@ class Mod3CompressTB(TBBase):
         if self.TEST_LEVEL not in ('gate', 'func', 'full'):
             self.TEST_LEVEL = 'gate'
         self.stride = self.STRIDE[self.TEST_LEVEL]
-        self.log.info(f"Mod3CompressTB: TEST_LEVEL={self.TEST_LEVEL}, "
+        self.log.info(f"MathMod3CompressTB: TEST_LEVEL={self.TEST_LEVEL}, "
                       f"stride={self.stride}")
 
     async def assert_reset(self):
@@ -63,4 +63,4 @@ class Mod3CompressTB(TBBase):
             got = int(self.dut.rem_out.value)
             exp = d % 3
             assert got == exp, f"d_in={d}: rem_out={got}, expected {exp}"
-        self.log.info(f"mod_3_compress: {(1 << 16) // self.stride} values checked")
+        self.log.info(f"math_mod_3_compress: {(1 << 16) // self.stride} values checked")

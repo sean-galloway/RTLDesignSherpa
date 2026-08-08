@@ -24,7 +24,7 @@
 # Shared Infrastructure Documentation Status
 
 **Generated:** 2025-10-23
-**Last updated:** 2026-06-15 (timing-closure refresh: 3-stage burst-writer pipeline, 2-stage compressor, per-template `delta_ts`, runtime `cfg_compress_en`, mod_3_compress helper, new axi4_dma_observer doc)
+**Last updated:** 2026-06-15 (timing-closure refresh: 3-stage burst-writer pipeline, 2-stage compressor, per-template `delta_ts`, runtime `cfg_compress_en`, math_mod_3_compress helper, new axi4_dma_observer doc)
 **Location:** `/mnt/data/github/RTLDesignSherpa/docs/markdown/rtl-amba/shared/`
 
 ---
@@ -94,7 +94,7 @@
     - 2026-06-15 refresh: burst writer geometry is now a 3-stage
       registered pipeline with a fresh-FIFO cap applied combinationally
       at the WR_IDLE commit (necessary because the FIFO keeps filling
-      while WR_IDLE waits); mod-3 rounding moved to mod_3_compress
+      while WR_IDLE waits); mod-3 rounding moved to math_mod_3_compress
       (rtl/common/, carry-save-compressor idiom) so synthesis no longer
       infers a DSP48 or CARRY4 iterative divider for the /3 path;
       runtime cfg_compress_en input added (USE_COMPRESSION=1 elaborates
@@ -140,12 +140,12 @@
 
 ### New shared infrastructure (no dedicated page, covered above)
 
-- `rtl/common/mod_3_compress.sv` - carry-save-compressor `X mod 3`
+- `rtl/math/math_mod_3_compress.sv` - carry-save-compressor `X mod 3`
   for 16-bit operands; used by monbus_group_core's whole-record
   rounding. Covered in monbus_group.md "mod-3 rounding" section.
 - `rtl/amba/filelists/monbus_group.f` - canonical filelist enumerating
   the group core's dependency tree (math_adder_carry_save_nbit +
-  mod_3_compress + monbus_cam + monbus_compressor + monbus_group_core).
+  math_mod_3_compress + monbus_cam + monbus_compressor + monbus_group_core).
   All consumers `-f`-include it. Covered in monbus_group.md
   "Canonical filelist" subsection.
 

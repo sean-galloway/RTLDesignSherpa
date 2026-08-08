@@ -210,7 +210,7 @@ module monbus_group_core
     assign w_beats_per_unit = w_use_comp ? 16'd1 : 16'd3;
 
     // Round-to-whole-record (raw mode) = X - (X mod 3). The mod-3 comes from
-    // mod_3_compress instances (u_mod3_geo / u_mod3_fifo, below): the div15
+    // math_mod_3_compress instances (u_mod3_geo / u_mod3_fifo, below): the div15
     // carry-save-compressor idiom applied to the operation we actually need --
     // a base-4 digit sum reduced by 3:2 compressors. A few LUTs, not a wide
     // reciprocal-multiply tree by the compressor CAM.
@@ -947,11 +947,11 @@ module monbus_group_core
 
     // Compressor-style mod-3 instances (combinational); fed by the pipelined
     // s2_beats_planned and the registered r_fifo_beats.
-    mod_3_compress u_mod3_geo (
+    math_mod_3_compress u_mod3_geo (
         .d_in    (s2_beats_planned),
         .rem_out (w_geo_rem3)
     );
-    mod_3_compress u_mod3_fifo (
+    math_mod_3_compress u_mod3_fifo (
         .d_in    (r_fifo_beats),
         .rem_out (w_fifo_rem3)
     );

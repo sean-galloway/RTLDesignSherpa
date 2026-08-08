@@ -193,3 +193,4 @@ $REPO_ROOT/rtl/math/math_multiplier_dadda_4to2_011.sv
 $REPO_ROOT/rtl/math/math_multiplier_dadda_4to2_024.sv
 $REPO_ROOT/rtl/math/math_prefix_cell.sv
 $REPO_ROOT/rtl/math/math_prefix_cell_gray.sv
+$REPO_ROOT/rtl/math/math_mod_3_compress.sv

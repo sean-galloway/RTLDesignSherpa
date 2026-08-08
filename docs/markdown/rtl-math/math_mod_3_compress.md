@@ -21,14 +21,14 @@
 
 <!-- End Header -->
 
-# mod_3_compress (`mod_3_compress.sv`)
+# math_mod_3_compress (`math_mod_3_compress.sv`)
 
-**Location:** `rtl/common/`
+**Location:** `rtl/math/`
 **Status:** Production Ready
 
 ## Purpose
 
-`mod_3_compress` is a purely combinational block that computes `d_in mod 3` for a 16-bit operand, returning the 2-bit remainder (0..2). It's built in the same carry-save-compressor style as `div_by_15_ceil_32compress.sv` — a 3:2 compressor tree feeding a final carry-propagate add and a small fold — but it emits only the remainder, which is exactly what the monbus burst-writer needs to round a beat count **down** to a whole number of 3-beat records: `rounded = X - (X mod 3)`.
+`math_mod_3_compress` is a purely combinational block that computes `d_in mod 3` for a 16-bit operand, returning the 2-bit remainder (0..2). It's built in the same carry-save-compressor style as `div_by_15_ceil_32compress.sv` — a 3:2 compressor tree feeding a final carry-propagate add and a small fold — but it emits only the remainder, which is exactly what the monbus burst-writer needs to round a beat count **down** to a whole number of 3-beat records: `rounded = X - (X mod 3)`.
 
 There's no `*` or `/` operator anywhere, so it infers no DSP block and no iterative divider — just a shallow tree of carry-save adders and a couple of small adds.
 
@@ -112,7 +112,7 @@ logic [15:0] beat_count;
 logic [1:0]  beat_rem;
 logic [15:0] rounded_count;
 
-mod_3_compress u_mod3 (
+math_mod_3_compress u_mod3 (
     .d_in    (beat_count),
     .rem_out (beat_rem)
 );
@@ -147,7 +147,7 @@ assign rounded_count = beat_count - {14'b0, beat_rem};
 
 ### Source Code
 
-- `rtl/common/mod_3_compress.sv`
+- `rtl/math/math_mod_3_compress.sv`
 - `rtl/math/math_adder_carry_save.sv` (instantiated submodule)
 - `rtl/common/div_by_15_ceil_32compress.sv` (style reference)
 

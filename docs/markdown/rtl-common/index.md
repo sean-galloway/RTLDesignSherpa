@@ -142,7 +142,8 @@ modules: [fifo_sync_multi](../rtl-integ-common/fifo_sync_multi.md) and
 #### Signal Processing
 - **[pwm](pwm.md)** - Pulse Width Modulation generator
 - **[sort](sort.md)** - Hardware sorting implementation
-- **[mod_3_compress](mod_3_compress.md)** - Modulo-3 compressor
+<!-- mod_3_compress moved to rtl/math as math_mod_3_compress (2026-08-08);
+     see docs/markdown/rtl-math/math_mod_3_compress.md -->
 
 ## Quick Reference
 

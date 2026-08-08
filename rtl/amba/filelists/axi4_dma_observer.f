@@ -44,5 +44,5 @@ $REPO_ROOT/rtl/amba/monitor/monbus_arbiter.sv
 $REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
 $REPO_ROOT/rtl/amba/shared/axi_perf_latency_hist.sv
 -f $REPO_ROOT/rtl/math/filelists/math_adder_carry_save_nbit.f
--f $REPO_ROOT/rtl/common/filelists/mod_3_compress.f
+-f $REPO_ROOT/rtl/math/filelists/math_mod_3_compress.f
 $REPO_ROOT/rtl/amba/shared/axi4_dma_observer.sv

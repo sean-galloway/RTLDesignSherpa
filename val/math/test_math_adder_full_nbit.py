@@ -40,7 +40,8 @@ def get_width_params():
     elif reg_level == 'FUNC':
         return [4, 8]  # FUNC: Both widths (fast tests)
     else:  # FULL
-        return [4, 8]  # FULL: All widths
+        return [4, 8, 16, 32]  # FULL: wide coverage (was [4,8], identical to FUNC --
+                               # the re-labelled-level finding, math test audit)
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def adder_test(dut):

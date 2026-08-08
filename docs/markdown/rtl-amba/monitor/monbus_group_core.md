@@ -244,7 +244,7 @@ Only one path is active at a time; the two FIFO-write outputs are muxed by `w_us
 
 The write FIFO is flushed to memory as AXI4 bursts. A flush is triggered when either the FIFO occupancy reaches `cfg_flush_watermark` or `FLUSH_TIMEOUT_CYCLES` elapse since the last accepted W beat — and at least one whole record (`BEATS_PER_UNIT`, 3 in raw mode, 1 compressed) is available.
 
-Burst length is bounded by the minimum of FIFO occupancy, `MAX_BURST_BEATS`, distance to `cfg_limit_addr`, and distance to the next 4KB boundary, then rounded down to whole records. The address arithmetic is pipelined over 3 registered stages (the plan trails the stable `r_wr_addr`, which only moves in `WR_W`), keeping the wide window/4KB/round-to-record chain off the 100 MHz critical path. The fresh FIFO-occupancy cap is applied combinationally at commit so a stale count cannot short the burst. The mod-3 whole-record rounding uses `mod_3_compress` carry-save instances rather than a wide divider.
+Burst length is bounded by the minimum of FIFO occupancy, `MAX_BURST_BEATS`, distance to `cfg_limit_addr`, and distance to the next 4KB boundary, then rounded down to whole records. The address arithmetic is pipelined over 3 registered stages (the plan trails the stable `r_wr_addr`, which only moves in `WR_W`), keeping the wide window/4KB/round-to-record chain off the 100 MHz critical path. The fresh FIFO-occupancy cap is applied combinationally at commit so a stale count cannot short the burst. The mod-3 whole-record rounding uses `math_mod_3_compress` carry-save instances rather than a wide divider.
 
 The writer FSM (`WR_IDLE` → `WR_AW` → `WR_W` → `WR_B`) emits as many AW + N×W + B sub-bursts as needed to drain the planned beat count, advancing the address one 8-byte beat per accepted W. When the current window/4KB region cannot fit a whole record, the writer rewinds `r_wr_addr` to `cfg_base_addr` and re-settles the geometry pipeline.
 
@@ -333,7 +333,7 @@ The burst is always sized so its last byte stays at or below `cfg_limit_addr` an
 - **gaxi_skid_buffer.sv** — compressor input skid
 - **monbus_compressor.sv** — optional packet compressor (present when `USE_COMPRESSION==1`)
 - **monbus_halfbeat_packer.sv** — optional half-beat packer (`HALF_BEAT_EN==1`)
-- **mod_3_compress.sv** — carry-save mod-3 for whole-record rounding
+- **math_mod_3_compress.sv** (`rtl/math/`) — carry-save mod-3 for whole-record rounding
 - **monitor_common_pkg** — packet types, protocols, `monitor_packet_t`, `monbus_timestamp_t`
 
 ### See Also

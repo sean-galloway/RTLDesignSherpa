@@ -1,5 +1,5 @@
-# Filelist for mod_3_compress
-# Location: rtl/common/filelists/mod_3_compress.f
+# Filelist for math_mod_3_compress
+# Location: rtl/math/filelists/math_mod_3_compress.f
 #
 # Declares the complete compile closure for this component: packages,
 # dependencies and sub-blocks. Consumers -f include this file rather than
@@ -7,4 +7,4 @@
 
 -f $REPO_ROOT/rtl/math/filelists/math_adder_carry_save_nbit.f
 
-$REPO_ROOT/rtl/common/mod_3_compress.sv
+$REPO_ROOT/rtl/math/math_mod_3_compress.sv

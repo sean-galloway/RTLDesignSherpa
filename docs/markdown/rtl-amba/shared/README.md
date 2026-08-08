@@ -88,7 +88,7 @@ the matching fabric without spurious AXI4-only fields on AXIL sides.
 | **monbus_cam** | LRU CAM (reference) | Single-cycle reference design — same LRU semantics, superseded by `monbus_cam_pipe` in production | [monbus_cam.md](../monitor/monbus_cam.md) |
 
 The group family uses a small carry-save-compressor helper
-(`rtl/common/mod_3_compress.sv`) for whole-record `X − (X mod 3)`
+(`rtl/math/math_mod_3_compress.sv`) for whole-record `X − (X mod 3)`
 rounding. A single canonical filelist
 `rtl/amba/filelists/monbus_group.f` enumerates the core's dependency
 tree so a new core dep lands in one place; every consumer

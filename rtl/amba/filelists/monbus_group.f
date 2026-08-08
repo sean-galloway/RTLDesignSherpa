@@ -19,7 +19,7 @@
 
 # Whole-record rounding helper: compressor-style mod-3 + its 3:2 compressor.
 -f $REPO_ROOT/rtl/math/filelists/math_adder_carry_save_nbit.f
--f $REPO_ROOT/rtl/common/filelists/mod_3_compress.f
+-f $REPO_ROOT/rtl/math/filelists/math_mod_3_compress.f
 
 # Compressor (optional; selected by USE_COMPRESSION=1 + cfg_compress_en).
 $REPO_ROOT/rtl/amba/monitor/monbus_cam.sv
