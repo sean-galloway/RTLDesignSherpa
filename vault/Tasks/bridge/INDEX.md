@@ -7,15 +7,14 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 |---|---|
 | [active](active.md) | 0 |
 | [open](open.md) | 2 |
-| [closed](closed.md) | 0 |
+| [closed](closed.md) | 1 |
 | [dropped](dropped.md) | 0 |
 
 ## Open
 
-- **BRIDGE-001** — the generator emits `NUM_SLAVES` as a body localparam while
-  using it in the port list of the generated xbars. Verilator accepts; strict
-  front ends reject; the pre-commit declaration-order hook blocks. Fix in the
-  generator, then a FULL regeneration (rule #0).
+- **BRIDGE-003** — all six `*_mon_monitor` stress tests fail; verified
+  pre-existing at the branch base (not fallout from the BRIDGE-001 fixes).
+  Likely tied to the stream-mon AW/W decoupling WIP.
 - **BRIDGE-002** — AMBA5 bridge support: AXI5 ports on the AMBA4 fabric first
   (wrappers/BFMs/compliance already in-tree; gaps are AXI5<->AXI4 feature
   conversion and a `*_to_apb5` shim), native-AXI5 sideband and AWATOP
