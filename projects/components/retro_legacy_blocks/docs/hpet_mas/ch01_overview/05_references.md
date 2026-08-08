@@ -123,7 +123,7 @@
 **Clock Domain Crossing:**
 - `rtl/amba/cdc/cdc_4_phase_handshake.sv` - CDC handshake synchronizer (renamed from `cdc_handshake.sv`)
 - `rtl/amba/cdc/cdc_synchronizer.sv` - Multi-stage bit synchronizer (replaces the old `sync_2ff.sv`)
-- `rtl/common/sync_pulse.sv` - Pulse synchronizer
+- `rtl/cdc/sync_pulse.sv` - Pulse synchronizer
 
 **Common Utilities:**
 - Edge detection for write strobes is implemented inline in `rtl/hpet/hpet_config_regs.sv` (the old standalone `rtl/common/edge_detect.sv` module no longer exists)

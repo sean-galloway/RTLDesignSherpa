@@ -53,7 +53,6 @@ $REPO_ROOT/rtl/common/dataint_parity.sv
 
 # Debounce and Glitch-Free
 $REPO_ROOT/rtl/common/debounce.sv
-$REPO_ROOT/rtl/common/glitch_free_n_dff_arn.sv
 
 # Encoders/Decoders
 $REPO_ROOT/rtl/common/decoder.sv
@@ -86,7 +85,6 @@ $REPO_ROOT/rtl/common/pwm.sv
 
 # Reset and Synchronization
 $REPO_ROOT/rtl/common/reset_sync.sv
-$REPO_ROOT/rtl/common/sync_pulse.sv
 
 # Shifters
 $REPO_ROOT/rtl/common/reverse_vector.sv

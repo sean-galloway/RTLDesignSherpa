@@ -10,7 +10,7 @@ $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/include
 -f $REPO_ROOT/rtl/common/filelists/find_last_set.f
 -f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
 -f $REPO_ROOT/rtl/cdc/filelists/johnson2bin.f
--f $REPO_ROOT/rtl/common/filelists/glitch_free_n_dff_arn.f
+-f $REPO_ROOT/rtl/cdc/filelists/glitch_free_n_dff_arn.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 -f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
 # DFI datapath fubs

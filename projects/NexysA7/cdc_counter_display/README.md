@@ -428,7 +428,7 @@ module cdc_counter_display_top #(
 
 - `rtl/common/CLAUDE.md` - Common library guide
 - `docs/pdfs/RTL_CDC.pdf` - CDC library reference book (rendered from `docs/markdown/`)
-- `rtl/common/sync_pulse.sv` + `formal/common/sync_pulse/` - pulse synchronizer and its formal proofs
+- `rtl/cdc/sync_pulse.sv` + `formal/cdc/sync_pulse/` - pulse synchronizer and its formal proofs
 
 ---
 

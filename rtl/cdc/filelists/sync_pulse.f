@@ -1,5 +1,5 @@
 # Filelist for sync_pulse module
-# Location: rtl/common/filelists/sync_pulse.f
+# Location: rtl/cdc/filelists/sync_pulse.f
 
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
@@ -8,4 +8,4 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 # sync_pulse module
-$REPO_ROOT/rtl/common/sync_pulse.sv
+$REPO_ROOT/rtl/cdc/sync_pulse.sv

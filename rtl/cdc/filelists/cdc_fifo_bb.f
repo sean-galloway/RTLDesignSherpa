@@ -21,7 +21,7 @@
 # Shared control and sync -- owned by rtl/common, reached by -f include.
 # leading_one_trailing_one.f carries find_first_set and find_last_set itself.
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
--f $REPO_ROOT/rtl/common/filelists/glitch_free_n_dff_arn.f
+-f $REPO_ROOT/rtl/cdc/filelists/glitch_free_n_dff_arn.f
 -f $REPO_ROOT/rtl/common/filelists/leading_one_trailing_one.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 

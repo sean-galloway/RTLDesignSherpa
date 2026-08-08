@@ -40,7 +40,7 @@ icg.sv ../../../rtl/common/icg.sv
 clock_gate_ctrl.sv ../../../rtl/common/clock_gate_ctrl.sv
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
 counter_bin.sv ../../../rtl/common/counter_bin.sv
-glitch_free_n_dff_arn.sv ../../../rtl/common/glitch_free_n_dff_arn.sv
+glitch_free_n_dff_arn.sv ../../../rtl/cdc/glitch_free_n_dff_arn.sv
 find_first_set.sv ../../../rtl/common/find_first_set.sv
 find_last_set.sv ../../../rtl/common/find_last_set.sv
 leading_one_trailing_one.sv ../../../rtl/common/leading_one_trailing_one.sv

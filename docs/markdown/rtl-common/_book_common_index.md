@@ -36,7 +36,6 @@
 - [Synchronous FIFO (`fifo_sync.sv`)](fifo_sync.md)
 - [Find First Set (`find_first_set.sv`)](find_first_set.md)
 - [Find Last Set (`find_last_set.sv`)](find_last_set.md)
-- [Glitch-Free N-DFF Synchronizer (`glitch_free_n_dff_arn.sv`)](glitch_free_n_dff_arn.md)
 - [Hex to 7-Segment Display (`hex_to_7seg.sv`)](hex_to_7seg.md)
 - [icg](icg.md)
 - [Leading One Trailing One Module](leading_one_trailing_one.md)
@@ -51,4 +50,3 @@
 - [LFSR (Linear Feedback Shift Register) Module](shifter_lfsr.md)
 - [Universal Shifter Module](shifter_universal.md)
 - [Sort Module RTL Documentation](sort.md)
-- [Pulse Synchronizer for Clock Domain Crossing](sync_pulse.md)

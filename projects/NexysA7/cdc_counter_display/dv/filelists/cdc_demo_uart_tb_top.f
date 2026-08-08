@@ -11,8 +11,8 @@
 # common building blocks used by cdc_counter_domain (and its subdeps)
 -f $REPO_ROOT/rtl/cdc/filelists/bin2gray.f
 -f $REPO_ROOT/rtl/cdc/filelists/gray2bin.f
--f $REPO_ROOT/rtl/common/filelists/sync_pulse.f
--f $REPO_ROOT/rtl/common/filelists/glitch_free_n_dff_arn.f
+-f $REPO_ROOT/rtl/cdc/filelists/sync_pulse.f
+-f $REPO_ROOT/rtl/cdc/filelists/glitch_free_n_dff_arn.f
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
 -f $REPO_ROOT/rtl/cdc/filelists/counter_bingray.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f

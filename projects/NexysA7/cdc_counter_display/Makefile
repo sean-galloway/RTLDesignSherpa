@@ -76,7 +76,7 @@ lint:
 		rtl/cdc_counter_display_top.sv \
 		../../../rtl/common/clock_divider.sv \
 		../../../rtl/common/debounce.sv \
-		../../../rtl/common/sync_pulse.sv \
+		../../../rtl/cdc/sync_pulse.sv \
 		../../../rtl/common/hex_to_7seg.sv
 	@echo "Lint check completed."
 
@@ -155,14 +155,14 @@ lint-demo:
 		$(REPO_ROOT)/rtl/common/clock_divider.sv \
 		$(REPO_ROOT)/rtl/common/gray2bin.sv \
 		$(REPO_ROOT)/rtl/common/bin2gray.sv \
-		$(REPO_ROOT)/rtl/common/sync_pulse.sv \
+		$(REPO_ROOT)/rtl/cdc/sync_pulse.sv \
 		$(REPO_ROOT)/rtl/common/fifo_sync.sv \
 		$(REPO_ROOT)/rtl/common/fifo_async.sv \
 		$(REPO_ROOT)/rtl/common/fifo_control.sv \
 		$(REPO_ROOT)/rtl/common/counter_bin.sv \
 		$(REPO_ROOT)/rtl/common/counter_bin_load.sv \
 		$(REPO_ROOT)/rtl/common/counter_bingray.sv \
-		$(REPO_ROOT)/rtl/common/glitch_free_n_dff_arn.sv \
+		$(REPO_ROOT)/rtl/cdc/glitch_free_n_dff_arn.sv \
 		$(REPO_ROOT)/rtl/amba/cdc/cdc_open_loop.sv \
 		$(REPO_ROOT)/rtl/amba/cdc/cdc_2_phase_handshake.sv \
 		$(REPO_ROOT)/rtl/amba/cdc/cdc_4_phase_handshake.sv \

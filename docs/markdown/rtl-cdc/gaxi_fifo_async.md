@@ -293,7 +293,7 @@ This page deliberately gives no MTBF figures. Real MTBF depends on the flop's
 metastability time constant and resolution window, the two clock frequencies and
 the data toggle rate -- none of which a module page can know. A second table
 here also drifted from the one in
-[glitch_free_n_dff_arn](../rtl-common/glitch_free_n_dff_arn.md), which put
+[glitch_free_n_dff_arn](../rtl-cdc/glitch_free_n_dff_arn.md), which put
 2 stages at "hours" where this page said "years". One source per fact: that page
 owns the discussion.
 

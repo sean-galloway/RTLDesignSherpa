@@ -70,8 +70,8 @@ the three agree.
 
 #### Reset and Synchronization
 - **[reset_sync](reset_sync.md)** - Synchronous reset generation
-- **[glitch_free_n_dff_arn](glitch_free_n_dff_arn.md)** - Glitch-free N-bit D flip-flop with async reset
-- **[sync_pulse](sync_pulse.md)** - Pulse synchronizer for clock domain crossing
+<!-- glitch_free_n_dff_arn and sync_pulse moved to rtl/cdc (2026-08-08):
+     see docs/markdown/rtl-cdc/ -->
 - **[debounce](debounce.md)** - Input signal debouncing
 
 ### Counters and Sequences

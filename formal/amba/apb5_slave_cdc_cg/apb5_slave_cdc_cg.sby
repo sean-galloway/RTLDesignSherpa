@@ -42,7 +42,7 @@ includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
 icg.sv ../../../rtl/common/icg.sv
 counter_load_clear.sv ../../../rtl/common/counter_load_clear.sv
 clock_gate_ctrl.sv ../../../rtl/common/clock_gate_ctrl.sv
-glitch_free_n_dff_arn.sv ../../../rtl/common/glitch_free_n_dff_arn.sv
+glitch_free_n_dff_arn.sv ../../../rtl/cdc/glitch_free_n_dff_arn.sv
 cdc_synchronizer.sv ../../../rtl/cdc/cdc_synchronizer.sv
 amba_clock_gate_ctrl.sv ../../../rtl/amba/shared/amba_clock_gate_ctrl.sv
 gaxi_fifo_sync.sv ../../../rtl/amba/gaxi/gaxi_fifo_sync.sv

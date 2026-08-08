@@ -37,7 +37,7 @@ prep -top formal_apb5_slave_cdc
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
 includes/fifo_defs.svh ../../../rtl/amba/includes/fifo_defs.svh
 counter_load_clear.sv ../../../rtl/common/counter_load_clear.sv
-glitch_free_n_dff_arn.sv ../../../rtl/common/glitch_free_n_dff_arn.sv
+glitch_free_n_dff_arn.sv ../../../rtl/cdc/glitch_free_n_dff_arn.sv
 cdc_synchronizer.sv ../../../rtl/cdc/cdc_synchronizer.sv
 gaxi_fifo_sync.sv ../../../rtl/amba/gaxi/gaxi_fifo_sync.sv
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv

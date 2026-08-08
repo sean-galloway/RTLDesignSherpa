@@ -45,7 +45,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-from TBClasses.glitch_free_n_dff_arn_tb import GlitchFreeNDffArnTB
+from TBClasses.cdc.glitch_free_n_dff_arn_tb import GlitchFreeNDffArnTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.tbbase import TBBase
@@ -100,14 +100,14 @@ def test_glitch_free_n_dff_arn(request, flop_count, width, test_mode):
     - Data stability
     """
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_common': 'rtl/common'
+        'rtl_cdc': 'rtl/cdc'
     , 'rtl_amba_includes': 'rtl/amba/includes'})
 
     dut_name = "glitch_free_n_dff_arn"
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/glitch_free_n_dff_arn.f'
+        filelist_path='rtl/cdc/filelists/glitch_free_n_dff_arn.f'
     )
 
     # Format parameters for unique test name

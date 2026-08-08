@@ -48,7 +48,7 @@ Here's the browse-oriented view of what's in each category:
 
 | Category | Examples |
 |---|---|
-| Clock/Reset/CDC | clock_divider, clock_gate_ctrl, clock_pulse, glitch_free_n_dff_arn |
+| Clock/Reset | clock_divider, clock_gate_ctrl, clock_pulse |
 | Counters | counter, counter_bin, counter_bin_load, counter_freq_invariant, counter_load_clear, counter_ring |
 | Data Integrity | dataint_crc, dataint_ecc_hamming, dataint_parity, dataint_checksum |
 | Conversion & Encoding | bin_to_bcd, decoder, encoder, encoder_priority_enable, hex_to_7seg |
@@ -265,7 +265,7 @@ dataint_ecc_hamming_decode_secded #(
 
 **Need:** Safely cross a signal from one clock domain to another
 
-**Module:** `cdc_synchronizer.sv` in `rtl/cdc/` (for data) or `sync_pulse.sv`
+**Module:** `cdc_synchronizer.sv` (for data) or `sync_pulse.sv` -- both in `rtl/cdc/`
 in `rtl/common/` (for pulses). There is no `sync_2ff` module — earlier revisions
 of this guide named one, but it has never existed in the tree.
 

@@ -5,12 +5,16 @@
 # Purpose: Testbench for sync_pulse
 # Subsystem: framework
 #
-# sync_pulse had NO simulation test at all until 2026-08-07. It has a formal
-# harness (formal/common/sync_pulse) and no instantiations anywhere in the
-# tree -- the only references to it are comments in reset_sync.sv and
-# glitch_free_n_dff_arn.sv pointing readers at it. A library module that is
-# proven formally and never simulated is a reasonable state to be IN, but not
-# one to arrive at by accident.
+# sync_pulse had NO simulation test at all until 2026-08-07, despite being
+# LIVE: projects/NexysA7/cdc_counter_display/rtl/cdc_counter_domain.sv
+# instantiates it three times (u_load_sync, u_host_press_sync, u_alive_sync)
+# to carry pulses between the system and counter clock domains. It also has a
+# formal harness (formal/cdc/sync_pulse).
+#
+# CORRECTION (2026-08-08): this header first said the module had "no
+# instantiations anywhere in the tree". That was wrong -- the grep behind it
+# searched rtl/ only and never looked in projects/. A board design depends on
+# this synchroniser.
 
 import os
 import random

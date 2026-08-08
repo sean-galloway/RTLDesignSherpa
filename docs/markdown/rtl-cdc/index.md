@@ -44,6 +44,10 @@ rather than hand-editing.
 These four share one reference page instead of a page each, because choosing
 between them is a single decision:
 
+- **[glitch_free_n_dff_arn](glitch_free_n_dff_arn.md)** - the N-stage synchroniser
+  primitive the blocks below are built from (moved here from rtl/common 2026-08-08)
+- **[sync_pulse](sync_pulse.md)** - toggle-based pulse synchroniser: exactly one
+  destination pulse per source pulse, whatever the clock ratio
 - **[cdc_synchronizer](cdc.md#cdc_synchronizer)** - N-stage flop synchronizer for a
   quasi-static value or a single flag
 - **[cdc_open_loop](cdc.md#cdc_open_loop)** - the source holds data and valid; no
@@ -80,8 +84,7 @@ existed:
 The modules these depend on stay in their own areas and get pulled in by `-f`
 include—nothing is copied here:
 
-- [`glitch_free_n_dff_arn`](../rtl-common/glitch_free_n_dff_arn.md),
-  [`fifo_control`](../rtl-common/fifo_control.md),
+- [`fifo_control`](../rtl-common/fifo_control.md),
   [`counter_bin`](../rtl-common/counter_bin.md),
   [`find_first_set`](../rtl-common/find_first_set.md),
   [`find_last_set`](../rtl-common/find_last_set.md),

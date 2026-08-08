@@ -64,7 +64,7 @@ add_files -norecurse -fileset $src_fileset "$repo_root/rtl/common/clock_divider.
 add_files -norecurse -fileset $src_fileset "$repo_root/rtl/common/debounce.sv"
 
 ## Synchronizers
-add_files -norecurse -fileset $src_fileset "$repo_root/rtl/common/sync_pulse.sv"
+add_files -norecurse -fileset $src_fileset "$repo_root/rtl/cdc/sync_pulse.sv"
 
 ## Note: sync_pulse may depend on sync_2ff - check and add if needed
 if {[file exists "$repo_root/rtl/common/sync_2ff.sv"]} {

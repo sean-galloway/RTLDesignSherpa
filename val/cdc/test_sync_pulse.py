@@ -8,6 +8,9 @@
 # This module had no simulation test until 2026-08-07. It was found by the
 # first line-coverage measurement of val/common: sync_pulse.sv produced no
 # coverage rows, and unlike the other absentees it had no test to explain it.
+#
+# It is not a spare part: cdc_counter_display's cdc_counter_domain.sv
+# instantiates it three times to move pulses across clock domains.
 
 import os
 import random
@@ -16,7 +19,7 @@ import cocotb
 import pytest
 from cocotb_test.simulator import run
 
-from TBClasses.common.sync_pulse_tb import SyncPulseTB
+from TBClasses.cdc.sync_pulse_tb import SyncPulseTB
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd
@@ -59,14 +62,14 @@ def generate_params():
                          generate_params())
 def test_sync_pulse(request, sync_stages, src_period, dst_period, test_level):
     """Pytest wrapper for sync_pulse."""
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common'})
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cdc': 'rtl/cdc'})
 
     dut_name = "sync_pulse"
     toplevel = dut_name
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='rtl/common/filelists/sync_pulse.f')
+        filelist_path='rtl/cdc/filelists/sync_pulse.f')
 
     s_str = TBBase.format_dec(sync_stages, 1)
     sp_str = TBBase.format_dec(src_period, 2)

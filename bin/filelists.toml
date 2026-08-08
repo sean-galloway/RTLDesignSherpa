@@ -92,9 +92,11 @@ kind = "library"
 # Pulled out of rtl/common and rtl/amba (AMBA-CDC-REORG): everything whose job
 # is crossing a clock boundary lives here -- the handshakes, the synchronizer,
 # the async FIFOs, and the Gray/Johnson coders that exist to make those
-# crossings safe. Shared deps they merely USE (fifo_control, counter_bin,
-# glitch_free_n_dff_arn) deliberately stay in rtl/common and are reached by
-# -f include.
+# crossings safe. glitch_free_n_dff_arn and sync_pulse joined them 2026-08-08:
+# both are pure CDC primitives, and cdc modules already depended on the first,
+# so the area used to reach BACK into rtl/common for its own core building
+# block. Shared deps they merely USE (fifo_control, counter_bin) stay in their
+# owning areas and are reached by -f include.
 rtl_roots = ["rtl/cdc"]
 filelist_dirs = ["rtl/cdc/filelists"]
 

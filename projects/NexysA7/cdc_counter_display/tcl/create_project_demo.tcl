@@ -56,14 +56,14 @@ add_files -norecurse -fileset $src_fs [list \
     "$repo_root/rtl/common/clock_divider.sv" \
     "$repo_root/rtl/common/gray2bin.sv" \
     "$repo_root/rtl/common/bin2gray.sv" \
-    "$repo_root/rtl/common/sync_pulse.sv" \
+    "$repo_root/rtl/cdc/sync_pulse.sv" \
     "$repo_root/rtl/common/fifo_sync.sv" \
     "$repo_root/rtl/common/fifo_async.sv" \
     "$repo_root/rtl/common/fifo_control.sv" \
     "$repo_root/rtl/common/counter_bin.sv" \
     "$repo_root/rtl/common/counter_bin_load.sv" \
     "$repo_root/rtl/common/counter_bingray.sv" \
-    "$repo_root/rtl/common/glitch_free_n_dff_arn.sv" \
+    "$repo_root/rtl/cdc/glitch_free_n_dff_arn.sv" \
     "$repo_root/rtl/amba/cdc/cdc_synchronizer.sv" \
     "$repo_root/rtl/amba/cdc/cdc_open_loop.sv" \
     "$repo_root/rtl/amba/cdc/cdc_2_phase_handshake.sv" \
