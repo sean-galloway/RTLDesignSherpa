@@ -78,6 +78,48 @@
 
 ## Non-Passing Modules
 
+### Run list for a machine WITH the toolchain (added 2026-08-08)
+
+Everything below is blocked on `sv2v` / `yosys` / `sby`, which are not
+installed on the laptop. In order:
+
+1. **Audit every checked-in flat file for staleness, not just this one.**
+   `counter_freq_invariant_flat.v` was found three months out of date by
+   accident. Nothing has checked the rest, and the failure is silent -- a
+   proof passes against RTL that no longer exists.
+
+       for d in formal/*/*/; do
+         [ -f "$d/Makefile" ] || continue
+         git -C . log -1 --format="%ad %h" --date=short -- "$d"*_flat.v
+       done
+   Compare each against the mtime of the `.sv` sources its Makefile lists, or
+   better, regenerate and diff. The `check-flat` target added to
+   `formal/common/counter_freq_invariant/Makefile` is the pattern -- it
+   compares CONTENT, because these files are committed and `git checkout`
+   makes every mtime useless.
+
+2. **Regenerate and re-prove counter_freq_invariant.**
+
+       cd formal/common/counter_freq_invariant
+       make check-flat            # expected to FAIL first time -- 3 months stale
+       make counter_freq_invariant_flat.v
+       make prove cover
+
+   Note the RTL gained a `FREQ_STRATEGY` parameter and a `pow2_freq` function
+   since April, so the regenerated flat file will differ substantially. If the
+   proof fails after regeneration, that is a REAL result about the current
+   design and belongs in this file, not a tooling problem.
+
+3. **Close out the 4 prove-only modules** -- prove PASSes but the `.sby` has no
+   cover task, so nothing shows the properties are non-vacuous. Add cover
+   tasks; a property that passes because it is unreachable is the formal twin
+   of the silent-pass tests found in val/common this month.
+
+4. **Correct the Infrastructure section of this file.** It states the OSS CAD
+   Suite is installed at `/mnt/data/tools/oss-cad-suite`. That is not true of
+   the laptop, and the claim is what sent this investigation down the wrong
+   path to begin with. Record WHICH machine has it.
+
 ### counter_freq_invariant, re-diagnosed 2026-08-08
 
 The "Yosys SV syntax error at line 150" entry describes a problem that the
