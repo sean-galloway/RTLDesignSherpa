@@ -4,9 +4,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_mix_d_pkg::*;
 
-module trace_axil_adapter #(
+module trace_axil_adapter
+    import bridge_mix_d_pkg::*;
+#(
     parameter NUM_SLAVES = 3,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,

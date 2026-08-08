@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_mix_c_pkg::*;
 
-module cfg_regs_adapter #(
+module cfg_regs_adapter
+    import bridge_mix_c_pkg::*;
+#(
     parameter int ID_WIDTH = 4
 ) (
     input  logic aclk,

@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_4x4_rw_pkg::*;
 
-module bridge_4x4_rw_xbar #(
+module bridge_4x4_rw_xbar
+    import bridge_4x4_rw_pkg::*;
+#(
     parameter int NUM_SLAVES = 4
 ) (
     input  logic aclk,

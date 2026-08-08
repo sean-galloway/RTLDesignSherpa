@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_1x2_rd_regblock_mon_pkg::*;
 
-module bridge_1x2_rd_regblock_mon_xbar #(
+module bridge_1x2_rd_regblock_mon_xbar
+    import bridge_1x2_rd_regblock_mon_pkg::*;
+#(
     parameter int NUM_SLAVES = 2
 ) (
     input  logic aclk,

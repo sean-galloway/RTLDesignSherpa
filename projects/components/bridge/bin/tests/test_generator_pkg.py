@@ -109,8 +109,18 @@ def test_generation_smoke_is_decl_order_clean(tmp_path):
     xbar = tmp_path / "bridge_1x2_rd" / "bridge_1x2_rd_xbar.sv"
     assert xbar.exists(), "xbar not emitted"
     text = xbar.read_text()
-    assert "_xbar #(" in text and "parameter int NUM_SLAVES" in text, (
+    assert "parameter int NUM_SLAVES" in text, (
         "xbar lost the parameter-port-list form"
+    )
+    # Package import must be in the MODULE header (LRM-portable), not
+    # at $unit scope where strict front ends can't resolve ANSI-port
+    # references to package types and two bridges in one compilation
+    # unit collide.
+    assert "module bridge_1x2_rd_xbar\n    import bridge_1x2_rd_pkg::*;" in text, (
+        "xbar package import is not module-header scoped"
+    )
+    assert "\nimport bridge_1x2_rd_pkg" not in text, (
+        "xbar still has a $unit-scope package import"
     )
 
     sv_files = sorted((tmp_path / "bridge_1x2_rd").glob("*.sv"))

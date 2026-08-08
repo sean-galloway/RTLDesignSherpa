@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_1x5_rd_pkg::*;
 
-module hbm_rd_adapter #(
+module hbm_rd_adapter
+    import bridge_1x5_rd_pkg::*;
+#(
     parameter int ID_WIDTH = 4
 ) (
     input  logic aclk,

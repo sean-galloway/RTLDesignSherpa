@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_5x3_channels_pkg::*;
 
-module bridge_5x3_channels_xbar #(
+module bridge_5x3_channels_xbar
+    import bridge_5x3_channels_pkg::*;
+#(
     parameter int NUM_SLAVES = 3
 ) (
     input  logic aclk,

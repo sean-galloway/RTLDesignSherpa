@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_5x3_channels_pkg::*;
 
-module ddr_controller_adapter #(
+module ddr_controller_adapter
+    import bridge_5x3_channels_pkg::*;
+#(
     parameter int ID_WIDTH = 8
 ) (
     input  logic aclk,

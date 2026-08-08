@@ -77,7 +77,6 @@ class CrossbarGenerator:
             "",
             "`timescale 1ns / 1ps",
             "",
-            f"import {self.bridge_name}_pkg::*;",
             ""
         ]
 
@@ -96,7 +95,9 @@ class CrossbarGenerator:
         # A parameter port list is elaborated in order, so the ports can use it.
         # The default is the generated slave count, so existing instantiations
         # that pass no parameters are unaffected.
-        lines.append(f"module {self.bridge_name}_xbar #(")
+        lines.append(f"module {self.bridge_name}_xbar")
+        lines.append(f"    import {self.bridge_name}_pkg::*;")
+        lines.append("#(")
         lines.append(f"    parameter int NUM_SLAVES = {len(self.slaves)}")
         lines.append(") (")
         lines.append("    input  logic aclk,")

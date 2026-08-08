@@ -14,9 +14,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_1x2_rd_mon_pkg::*;
 
-module bridge_1x2_rd_mon #(
+module bridge_1x2_rd_mon
+    import bridge_1x2_rd_mon_pkg::*;
+#(
     // Per-wrapper USE_MONITOR knobs (TOML defaults; override at instantiation)
     parameter bit USE_MONITOR_cpu_rd_rd = 1'b1,
     parameter bit USE_MONITOR_ddr_rd_rd = 1'b1,

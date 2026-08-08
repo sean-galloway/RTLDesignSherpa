@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_mix_d_pkg::*;
 
-module ddr_adapter #(
+module ddr_adapter
+    import bridge_mix_d_pkg::*;
+#(
     parameter int ID_WIDTH = 4
 ) (
     input  logic aclk,

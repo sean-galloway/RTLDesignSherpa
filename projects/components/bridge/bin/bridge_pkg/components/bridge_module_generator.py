@@ -950,7 +950,6 @@ class BridgeModuleGenerator:
             "",
             "`timescale 1ns / 1ps",
             "",
-            f"import {self.bridge_name}_pkg::*;",
             ""
         ]
 
@@ -973,7 +972,9 @@ class BridgeModuleGenerator:
                         if self.enable_monitoring else [])
 
         if mon_wrappers:
-            lines.append(f"module {self.bridge_name} #(")
+            lines.append(f"module {self.bridge_name}")
+            lines.append(f"    import {self.bridge_name}_pkg::*;")
+            lines.append("#(")
             param_lines: List[str] = []
             param_lines.append("    // Per-wrapper USE_MONITOR knobs (TOML defaults; override at instantiation)")
             for w in mon_wrappers:
@@ -1005,7 +1006,9 @@ class BridgeModuleGenerator:
             lines.extend(param_lines)
             lines.append(") (")
         else:
-            lines.append(f"module {self.bridge_name} (")
+            lines.append(f"module {self.bridge_name}")
+            lines.append(f"    import {self.bridge_name}_pkg::*;")
+            lines.append("(")
 
         lines.append("    input  logic aclk,")
         lines.append("    input  logic aresetn,")

@@ -14,9 +14,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_1x3_rd_pkg::*;
 
-module bridge_1x3_rd (
+module bridge_1x3_rd
+    import bridge_1x3_rd_pkg::*;
+(
     input  logic aclk,
     input  logic aresetn,
 

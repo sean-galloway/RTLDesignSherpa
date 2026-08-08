@@ -14,9 +14,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_4x4_rw_pkg::*;
 
-module bridge_4x4_rw (
+module bridge_4x4_rw
+    import bridge_4x4_rw_pkg::*;
+(
     input  logic aclk,
     input  logic aresetn,
 

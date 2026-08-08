@@ -14,9 +14,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_mix_a_pkg::*;
 
-module bridge_mix_a (
+module bridge_mix_a
+    import bridge_mix_a_pkg::*;
+(
     input  logic aclk,
     input  logic aresetn,
 

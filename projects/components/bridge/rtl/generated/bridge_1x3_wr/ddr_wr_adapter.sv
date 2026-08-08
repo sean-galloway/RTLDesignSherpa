@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_1x3_wr_pkg::*;
 
-module ddr_wr_adapter #(
+module ddr_wr_adapter
+    import bridge_1x3_wr_pkg::*;
+#(
     parameter int ID_WIDTH = 4
 ) (
     input  logic aclk,

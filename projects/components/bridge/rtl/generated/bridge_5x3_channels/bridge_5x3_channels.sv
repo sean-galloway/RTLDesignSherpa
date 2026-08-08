@@ -14,9 +14,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_5x3_channels_pkg::*;
 
-module bridge_5x3_channels (
+module bridge_5x3_channels
+    import bridge_5x3_channels_pkg::*;
+(
     input  logic aclk,
     input  logic aresetn,
 

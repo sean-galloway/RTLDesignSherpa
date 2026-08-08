@@ -4,9 +4,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_1x2_rd_regblock_mon_pkg::*;
 
-module cpu_rd_adapter #(
+module cpu_rd_adapter
+    import bridge_1x2_rd_regblock_mon_pkg::*;
+#(
     parameter NUM_SLAVES = 2,
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,

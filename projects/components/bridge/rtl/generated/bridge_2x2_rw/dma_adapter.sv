@@ -4,9 +4,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_2x2_rw_pkg::*;
 
-module dma_adapter #(
+module dma_adapter
+    import bridge_2x2_rw_pkg::*;
+#(
     parameter NUM_SLAVES = 2,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,

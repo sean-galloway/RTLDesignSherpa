@@ -4,9 +4,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_5x3_channels_pkg::*;
 
-module stream_master_adapter #(
+module stream_master_adapter
+    import bridge_5x3_channels_pkg::*;
+#(
     parameter NUM_SLAVES = 3,
     parameter BRIDGE_ID = 3,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 3,

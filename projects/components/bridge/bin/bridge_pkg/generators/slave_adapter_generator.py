@@ -129,7 +129,6 @@ class SlaveAdapterGenerator:
             "",
             "`timescale 1ns / 1ps",
             "",
-            f"import {self.bridge_name}_pkg::*;",
             ""
         ]
 
@@ -155,7 +154,9 @@ class SlaveAdapterGenerator:
         # `.USE_MONITOR(...)` override references these parameters by
         # name so the bridge top can flip them at integration time
         # without regenerating.
-        lines.append(f"module {self.slave.name}_adapter #(")
+        lines.append(f"module {self.slave.name}_adapter")
+        lines.append(f"    import {self.bridge_name}_pkg::*;")
+        lines.append("#(")
         lines.append(f"    parameter int ID_WIDTH = {self.id_width}")
         if self.enable_monitoring:
             default_lit = "1'b1" if self.slave.use_monitor else "1'b0"

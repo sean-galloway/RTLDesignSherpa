@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_mix_c_mon_pkg::*;
 
-module ddr_adapter #(
+module ddr_adapter
+    import bridge_mix_c_mon_pkg::*;
+#(
     parameter int ID_WIDTH = 4
    ,parameter bit USE_MONITOR_WR = 1'b1
    ,parameter bit USE_MONITOR_RD = 1'b1

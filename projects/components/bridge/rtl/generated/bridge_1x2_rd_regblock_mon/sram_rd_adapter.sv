@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_1x2_rd_regblock_mon_pkg::*;
 
-module sram_rd_adapter #(
+module sram_rd_adapter
+    import bridge_1x2_rd_regblock_mon_pkg::*;
+#(
     parameter int ID_WIDTH = 4
    ,parameter bit USE_MONITOR_RD = 1'b1
 ) (

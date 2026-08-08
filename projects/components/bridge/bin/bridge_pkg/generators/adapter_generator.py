@@ -188,7 +188,6 @@ class AdapterGenerator:
             "",
             "`timescale 1ns / 1ps",
             "",
-            f"import {self.bridge_name}_pkg::*;",
             ""
         ]
 
@@ -198,7 +197,9 @@ class AdapterGenerator:
         module_name = self._get_module_name()
 
         # Module header with parameters
-        lines.append(f"module {module_name} #(")
+        lines.append(f"module {module_name}")
+        lines.append(f"    import {self.bridge_name}_pkg::*;")
+        lines.append("#(")
         lines.append(f"    parameter NUM_SLAVES = {self.num_slaves},")
 
         # Calculate BRIDGE_ID_WIDTH

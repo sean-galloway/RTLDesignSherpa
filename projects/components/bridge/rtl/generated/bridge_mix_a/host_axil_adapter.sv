@@ -4,9 +4,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_mix_a_pkg::*;
 
-module host_axil_adapter #(
+module host_axil_adapter
+    import bridge_mix_a_pkg::*;
+#(
     parameter NUM_SLAVES = 3,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,

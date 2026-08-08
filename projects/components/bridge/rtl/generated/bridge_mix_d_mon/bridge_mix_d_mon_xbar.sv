@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_mix_d_mon_pkg::*;
 
-module bridge_mix_d_mon_xbar #(
+module bridge_mix_d_mon_xbar
+    import bridge_mix_d_mon_pkg::*;
+#(
     parameter int NUM_SLAVES = 3
 ) (
     input  logic aclk,

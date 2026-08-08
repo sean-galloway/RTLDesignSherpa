@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_mix_a_pkg::*;
 
-module axil_periph_adapter #(
+module axil_periph_adapter
+    import bridge_mix_a_pkg::*;
+#(
     parameter int ID_WIDTH = 4
 ) (
     input  logic aclk,

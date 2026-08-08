@@ -14,9 +14,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_mix_a_mon_pkg::*;
 
-module bridge_mix_a_mon #(
+module bridge_mix_a_mon
+    import bridge_mix_a_mon_pkg::*;
+#(
     // Per-wrapper USE_MONITOR knobs (TOML defaults; override at instantiation)
     parameter bit USE_MONITOR_cpu_axi4_wr = 1'b1,
     parameter bit USE_MONITOR_cpu_axi4_rd = 1'b1,

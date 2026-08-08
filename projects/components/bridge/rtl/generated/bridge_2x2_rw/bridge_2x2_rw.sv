@@ -14,9 +14,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_2x2_rw_pkg::*;
 
-module bridge_2x2_rw (
+module bridge_2x2_rw
+    import bridge_2x2_rw_pkg::*;
+(
     input  logic aclk,
     input  logic aresetn,
 

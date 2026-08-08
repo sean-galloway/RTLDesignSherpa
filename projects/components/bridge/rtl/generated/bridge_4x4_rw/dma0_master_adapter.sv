@@ -4,9 +4,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_4x4_rw_pkg::*;
 
-module dma0_master_adapter #(
+module dma0_master_adapter
+    import bridge_4x4_rw_pkg::*;
+#(
     parameter NUM_SLAVES = 4,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,

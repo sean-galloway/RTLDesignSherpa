@@ -4,9 +4,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_2x2_rw_pkg::*;
 
-module cpu_adapter #(
+module cpu_adapter
+    import bridge_2x2_rw_pkg::*;
+#(
     parameter NUM_SLAVES = 2,
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,

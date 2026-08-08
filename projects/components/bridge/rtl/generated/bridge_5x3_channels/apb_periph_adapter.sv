@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_5x3_channels_pkg::*;
 
-module apb_periph_adapter #(
+module apb_periph_adapter
+    import bridge_5x3_channels_pkg::*;
+#(
     parameter int ID_WIDTH = 8
 ) (
     input  logic aclk,

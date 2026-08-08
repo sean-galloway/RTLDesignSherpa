@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_2x2_rw_pkg::*;
 
-module bridge_2x2_rw_xbar #(
+module bridge_2x2_rw_xbar
+    import bridge_2x2_rw_pkg::*;
+#(
     parameter int NUM_SLAVES = 2
 ) (
     input  logic aclk,
