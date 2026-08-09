@@ -44,11 +44,15 @@ The `gaxi_drop_fifo_sync` module is a synchronous FIFO with dynamic drop capabil
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `DATA_WIDTH` | int | 32 | Width of data bus in bits |
-| `DEPTH` | int | 16 | FIFO depth (must be power of 2) |
+| `MEM_STYLE` | fifo_mem_t | `FIFO_AUTO` | Memory inference hint: `FIFO_AUTO`, `FIFO_SRL` (distributed/MLAB), or `FIFO_BRAM` (block RAM). `FIFO_BRAM` forces a synchronous memory read, adding a cycle on top of `REGISTERED`. |
+| `DATA_WIDTH` | int | 4 | Width of data bus in bits |
+| `DEPTH` | int | 4 | FIFO depth (must be power of 2) |
 | `REGISTERED` | int | 0 | 0 = mux mode, 1 = registered output |
-| `ALMOST_WR_MARGIN` | int | 1 | Threshold for almost_full flag |
-| `ALMOST_RD_MARGIN` | int | 1 | Threshold for almost_empty flag |
+| `ALMOST_WR_MARGIN` | int | 1 | Almost-full margin (internal only — see below) |
+| `ALMOST_RD_MARGIN` | int | 1 | Almost-empty margin (internal only — see below) |
+
+> The `DATA_WIDTH`/`DEPTH` defaults are 4 and 4, not 32 and 16. They are sized
+> for a smoke test, so set both explicitly for anything real.
 
 ## Interface Signals
 
@@ -85,7 +89,7 @@ The `gaxi_drop_fifo_sync` module is a synchronous FIFO with dynamic drop capabil
 |--------|-----------|-------|-------------|
 | `drop_valid` | input | 1 | Drop request valid |
 | `drop_ready` | output | 1 | Drop operation complete |
-| `drop_count` | input | 8 | Number of entries to drop |
+| `drop_count` | input | $clog2(DEPTH)+1 | Number of entries to drop. 5 bits at DEPTH=16, 9 bits at DEPTH=256 — not a fixed 8. |
 | `drop_all` | input | 1 | Drop all entries (ignore count) |
 
 **Handshake**: Drop completes when `drop_valid && drop_ready` on rising edge of clock.
@@ -97,8 +101,12 @@ The `gaxi_drop_fifo_sync` module is a synchronous FIFO with dynamic drop capabil
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `count` | output | $clog2(DEPTH)+1 | Current number of entries in FIFO |
-| `almost_full` | output | 1 | High when `count >= (DEPTH - ALMOST_WR_MARGIN)` |
-| `almost_empty` | output | 1 | High when `count <= ALMOST_RD_MARGIN` |
+
+> **There are no `almost_full` / `almost_empty` ports.** The module's port list
+> ends at `drop_all`. `fifo_control` computes both flags, but they land on
+> internal wires (`r_wr_almost_full`, `r_rd_almost_empty`) that are not brought
+> out, so `ALMOST_WR_MARGIN` and `ALMOST_RD_MARGIN` have no observable effect.
+> Use `count` against your own threshold instead.
 
 ## Drop Operation Behavior
 
@@ -109,7 +117,15 @@ When `drop_valid=1` and `drop_all=0`, the FIFO removes `drop_count` oldest entri
 1. **Cycle 0**: Assert `drop_valid`, set `drop_count=N`
 2. **Cycle 1-2**: Drop operation in progress, `drop_ready=0`, I/O blocked
 3. **Cycle 3**: Drop complete, `drop_ready=1`
-4. **Result**: FIFO count decreases by min(N, current_count)
+4. **Result**: the read pointer advances by exactly `N`
+
+> **`drop_count` must not exceed `count`.** There is no clamp and no bounds
+> check — `counter_bin_load` adds `drop_count` to the read pointer
+> unconditionally. Dropping 5 from a FIFO holding 3 (DEPTH=16) leaves
+> `rd_ptr=5` ahead of `wr_ptr=3`, and `fifo_control` then computes a count of
+> 30 with `rd_empty` still low: the FIFO reports 30 entries of garbage and
+> hands back memory that was never written. The RTL header's "checked in
+> simulation" note refers to a check that does not exist.
 
 **I/O Blocking**: During drop operation (cycles 1-2):
 - `wr_ready = 0` (writes blocked)
@@ -221,9 +237,7 @@ gaxi_drop_fifo_sync #(
     .drop_ready  (),
     .drop_count  (8'h0),
     .drop_all    (1'b0),
-    .count       (fifo_count),
-    .almost_full (almost_full),
-    .almost_empty(almost_empty)
+    .count       (fifo_count)
 );
 
 // Write logic
@@ -232,7 +246,7 @@ always_ff @(posedge clk) begin
         wr_valid <= 1'b0;
     end else if (wr_valid && wr_ready) begin
         wr_valid <= 1'b0;  // Deassert after handshake
-    end else if (have_data_to_write && !almost_full) begin
+    end else if (have_data_to_write && (fifo_count < DEPTH - 1)) begin
         wr_valid <= 1'b1;
         wr_data  <= next_data;
     end

@@ -38,7 +38,7 @@ The GAXI synchronous FIFO provides elastic buffering for any depth (power of 2 r
 - ✅ **Arbitrary Depth:** Any depth supported (power of 2 optimal)
 - ✅ **Two Read Modes:** Mux mode (combinatorial) or Flop mode (registered)
 - ✅ **Counter-Based:** Binary counters with wrapping
-- ✅ **Almost Full/Empty:** Configurable thresholds
+- ✅ **Occupancy Count:** `count` output, `[AW:0]` wide
 - ✅ **Single Clock Domain:** Synchronous design
 
 ---
@@ -47,11 +47,15 @@ The GAXI synchronous FIFO provides elastic buffering for any depth (power of 2 r
 
 ```systemverilog
 module gaxi_fifo_sync #(
+    parameter fifo_mem_t MEM_STYLE = FIFO_AUTO,  // FIFO_AUTO | FIFO_SRL | FIFO_BRAM
     parameter int REGISTERED = 0,           // 0=mux mode, 1=flop mode
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
+    parameter int DW = DATA_WIDTH,
+    parameter int D  = DEPTH,
+    parameter int AW = $clog2(DEPTH)
 ) (
     input  logic            axi_aclk,
     input  logic            axi_aresetn,
@@ -71,11 +75,16 @@ module gaxi_fifo_sync #(
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
+| `MEM_STYLE` | `FIFO_AUTO` | Memory inference hint. `FIFO_SRL` targets distributed RAM / MLAB, `FIFO_BRAM` targets block RAM and forces a synchronous read regardless of `REGISTERED`. `FIFO_AUTO` lets the tool choose. |
 | `REGISTERED` | 0 | 0=mux mode (comb read), 1=flop mode (reg read) |
 | `DATA_WIDTH` | 4 | Data bus width |
 | `DEPTH` | 4 | FIFO depth (any value, power-of-2 optimal) |
-| `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
-| `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
+| `ALMOST_WR_MARGIN` | 1 | Almost-full margin — internal only, no port |
+| `ALMOST_RD_MARGIN` | 1 | Almost-empty margin — internal only, no port |
+
+> The almost-full/almost-empty flags are computed inside `fifo_control` but are
+> not brought out of `gaxi_fifo_sync`, so the two margins have no observable
+> effect. Compare `count` against your own threshold instead.
 
 ---
 

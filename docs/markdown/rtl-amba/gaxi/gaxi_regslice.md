@@ -235,7 +235,7 @@ gaxi_regslice #(.DATA_WIDTH(32)) u_stage3 (
 
 ### Latency Guarantee
 
-Unlike skid buffers which can have 0-cycle bypass, the register slice **always** introduces 1-cycle latency:
+The register slice introduces exactly 1 cycle of latency. So does `gaxi_skid_buffer` -- the two differ in depth and backpressure absorption, not in minimum latency:
 
 ```
 Cycle:   1      2      3      4      5
@@ -260,13 +260,13 @@ rd_data  ========[ A ]================
 
 | Feature | gaxi_regslice | gaxi_skid_buffer |
 |---------|---------------|------------------|
-| **Depth** | 1 entry | 1 entry (+ skid slot) |
-| **Latency** | **1 cycle (fixed)** | 0-1 cycle (variable) |
-| **Bypass Path** | ❌ No | ✅ Yes (when empty) |
+| **Depth** | 1 entry | DEPTH entries, one of {2, 4, 6, 8} |
+| **Latency** | **1 cycle (fixed)** | 1 cycle (fixed) |
+| **Bypass Path** | ❌ No | ❌ No |
 | **Throughput** | 1 beat/cycle | 1 beat/cycle |
-| **Use Case** | **Timing isolation** | **Low latency** |
-| **Registered Output** | ✅ Always | ⚠️ Only when filled |
-| **Timing Closure** | ✅ Better (no bypass) | ⚠️ Has combinatorial bypass |
+| **Use Case** | **Timing isolation** | **Backpressure absorption** |
+| **Registered Output** | ✅ Always | ✅ Always |
+| **Timing Closure** | ✅ Good | ✅ Good |
 
 **When to Choose:**
 - **gaxi_regslice:** Timing closure priority, need predictable latency
@@ -355,23 +355,23 @@ This enables easy experimentation:
 
 ### Assertions
 
-Built-in simulation checks (disabled in synthesis):
+The module contains exactly one check — an occupancy sanity check on a
+single-entry slice:
+
 ```systemverilog
-// Detect backpressure hot spots
-if (wr_valid && !wr_ready) ...
-
-// Detect invalid reads
-if (rd_ready && !rd_valid) ...
-
-// Sanity check
-if (count > 4'd1) $error(...)
+$error("[%m] count > 1 (=%0d) @ %0t", count, $time);
 ```
+
+There are no backpressure or invalid-read checks, and the file carries no
+`translate_off` / `synopsys` pragmas, so nothing here is synthesis-guarded.
+Backpressure and handshake legality are checked in verification, by the GAXI
+BFMs in `val/amba/test_gaxi_regslice.py`.
 
 ---
 
 ## Related Modules
 
-- [gaxi_skid_buffer](gaxi_skid_buffer.md) - Zero-latency bypass alternative
+- [gaxi_skid_buffer](gaxi_skid_buffer.md) - Same latency, deeper elastic storage
 - [gaxi_fifo_sync](gaxi_fifo_sync.md) - Multi-entry FIFO version
 - [gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md) - Clock domain crossing version
 - [GAXI Index](index.md) - Overview of all GAXI modules

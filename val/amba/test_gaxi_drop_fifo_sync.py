@@ -99,6 +99,15 @@ async def drop_during_io_blocked_cocotb(dut):
 
 
 @cocotb.test()
+async def streaming_read_cocotb(dut):
+    """CocoTB test: Back-to-back reads with rd_ready held high."""
+    tb = GaxiDropFifoSyncTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.test_streaming_read()
+    tb.log.info("✅ Streaming read test PASSED")
+
+
+@cocotb.test()
 async def wraparound_with_drop_cocotb(dut):
     """CocoTB test: Drop operation across FIFO wraparound boundary."""
     tb = GaxiDropFifoSyncTB(dut)

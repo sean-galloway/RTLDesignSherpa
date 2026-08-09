@@ -37,7 +37,7 @@ Struct-aware variant of **[gaxi_skid_buffer](gaxi_skid_buffer.md)** that accepts
 
 - ✅ **Type-Parameterized:** Accepts any SystemVerilog type (struct, union, enum, packed array)
 - ✅ **Automatic Width Calculation:** Uses `$bits()` to determine buffer width
-- ✅ **Zero-Latency Bypass:** Identical performance to base skid buffer
+- ✅ **Registered Output:** Identical latency to the base skid buffer (1 clock)
 - ✅ **Same Architecture:** Shift register with valid/ready flow control
 - ✅ **Debug Support:** Instance naming and transaction logging
 
@@ -234,7 +234,7 @@ gaxi_skid_buffer_struct #(
 The internal behavior is **identical** to **[gaxi_skid_buffer](gaxi_skid_buffer.md)**:
 
 1. **Shift Register:** Data stored in array, shifts on read
-2. **Zero-Latency Bypass:** Empty buffer passes data combinatorially
+2. **Registered Output:** `rd_data` is driven from a flop; minimum latency 1 clock
 3. **Valid/Ready Handshake:** Transfer occurs when `valid && ready`
 4. **Backpressure:** `wr_ready` deasserts when full
 

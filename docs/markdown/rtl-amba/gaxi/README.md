@@ -36,7 +36,7 @@ The GAXI subsystem provides a lightweight valid/ready handshake protocol for str
 ### Key Features
 
 - ✅ **Simple Handshake:** Valid/ready only - minimal overhead
-- ✅ **Elastic Buffering:** Skid buffers for zero-latency bypass
+- ✅ **Elastic Buffering:** Skid buffers absorb backpressure without stalling the producer
 - ✅ **Clock Domain Crossing:** Async variants with proper CDC
 - ✅ **Type-Safe Structs:** Struct-aware buffers for complex data
 - ✅ **Drop Capability:** Special FIFO variant with drop-by-count/drop-all
@@ -50,7 +50,7 @@ The GAXI subsystem provides a lightweight valid/ready handshake protocol for str
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **gaxi_skid_buffer** | Synchronous elastic buffer with zero-latency bypass | [gaxi_skid_buffer.md](gaxi_skid_buffer.md) | ✅ Documented |
+| **gaxi_skid_buffer** | Synchronous elastic buffer, registered output | [gaxi_skid_buffer.md](gaxi_skid_buffer.md) | ✅ Documented |
 | **gaxi_skid_buffer_struct** | Type-parameterized variant for complex structs | [gaxi_skid_buffer_struct.md](gaxi_skid_buffer_struct.md) | ✅ Documented |
 | **gaxi_skid_buffer_async** | Asynchronous elastic buffer for CDC | [gaxi_skid_buffer_async.md](../../rtl-cdc/gaxi_skid_buffer_async.md) | ✅ Documented |
 | **gaxi_skid_buffer_dbldrn** | Double-drain skid buffer variant | [gaxi_skid_buffer_dbldrn.md](gaxi_skid_buffer_dbldrn.md) | ✅ Documented |
@@ -95,7 +95,7 @@ individually; see the base module doc for the full behavior:
 - `rd_data[N:0]` - Data to sink
 
 **Optional Monitoring:**
-- `count[3:0]` - Current FIFO/buffer occupancy
+- `count` - Current occupancy. The skid buffers declare `[3:0]`; the FIFOs declare `[AW:0]` where `AW = $clog2(DEPTH)`, so a DEPTH=64 FIFO drives a 7-bit count.
 
 ### Handshake Rules
 
@@ -108,7 +108,7 @@ individually; see the base module doc for the full behavior:
 
 ## Quick Start
 
-### Basic Skid Buffer (Zero-Latency)
+### Basic Skid Buffer
 
 ```systemverilog
 gaxi_skid_buffer #(
@@ -162,10 +162,15 @@ gaxi_fifo_sync #(
 > **Two depth rules in this directory, and they are not a contradiction.**
 > The shallow skid buffers (`gaxi_skid_buffer`, `gaxi_skid_buffer_struct`,
 > `gaxi_skid_buffer_dbldrn`) store entries in a small unpacked array and accept
-> `DEPTH` in `{2, 4, 6, 8}`. The FIFOs (`gaxi_fifo_sync`, `gaxi_drop_fifo_sync`,
-> `gaxi_fifo_async`) address memory with a binary pointer and need a power of 2
-> -- except `gaxi_fifo_async` with `USE_JOHNSON=1`, where Johnson pointers allow
-> any depth (odd included). Check the module you are instantiating, not the directory.
+> `DEPTH` in `{2, 4, 6, 8}`. Among the FIFOs the rule differs per module:
+> `gaxi_drop_fifo_sync` needs a power of 2, because its drop path adds
+> `drop_count` to the read pointer and wraps at `2*MAX`, and the low `AW` bits
+> only name the right entry when `DEPTH` is a power of 2. `gaxi_fifo_sync`
+> increments by one through `counter_bin`, which wraps the low bits at `MAX-1`
+> and toggles the MSB, so it accepts any `DEPTH <= 2**AW` -- a power of 2 is
+> optimal, not required. `gaxi_fifo_async` needs a power of 2 except with
+> `USE_JOHNSON=1`, where Johnson pointers allow any depth (odd included).
+> Check the module you are instantiating, not the directory.
 
 
 ```systemverilog
@@ -243,8 +248,9 @@ gaxi_drop_fifo_sync #(
     .rd_data         (proc_data),
 
     // Drop control
-    .drop_count      (drop_n_packets),  // Drop N oldest entries
-    .drop_count_valid(drop_trigger),
+    .drop_valid      (drop_trigger),    // Request a drop (handshakes with drop_ready)
+    .drop_ready      (drop_ack),
+    .drop_count      (drop_n_packets),  // Drop N oldest entries; must be <= count
     .drop_all        (flush_fifo),      // Flush entire FIFO
 
     .count           (pkt_count)
@@ -499,7 +505,7 @@ gaxi_fifo_async #(
 ### Buffer vs FIFO Selection
 
 **Use Skid Buffer (gaxi_skid_buffer) When:**
-- ✅ Need zero-latency bypass
+- ✅ Need to absorb short backpressure bursts
 - ✅ Shallow depth (2-8 entries)
 - ✅ Timing closure only
 - ✅ Minimal area

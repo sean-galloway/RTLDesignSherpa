@@ -386,6 +386,57 @@ class GaxiDropFifoSyncTB(TBBase):
         assert dut_count == model_count, \
             f"Count mismatch: DUT={dut_count}, Model={model_count}"
 
+    async def test_streaming_read(self):
+        """Drain the FIFO with rd_ready held high, checking every beat.
+
+        read_entry() pulses rd_ready for a single cycle at a time, which is the
+        gentlest thing a consumer can do. A real consumer holds it, and that is
+        where read addressing goes wrong most visibly: the mux-mode defect
+        (rd_addr took the NEXT pointer, so asserting rd_ready re-pointed the
+        memory past the entry being accepted) turned a written A B C D into a
+        read-back C D 00 here, while the pulse-style path lost only one entry.
+
+        Read-data timing differs by mode, so the sampling point does too:
+          mux  (REGISTERED=0): rd_data is combinational -- the value latched is
+                               the one presented DURING the accepted cycle.
+          flop (REGISTERED=1): rd_data is registered -- the datum for a
+                               handshake arrives the cycle AFTER it.
+        """
+        self.dut._log.info("Testing streaming read (rd_ready held high)")
+
+        mask = (1 << self.data_width) - 1
+        count = max(2, min(self.depth - 1, 4 * self.LEVEL_MULT))
+        written = [(0x10 + i) & mask for i in range(count)]
+        for data in written:
+            await self.write_entry(data)
+        await self.wait_clocks(self.clk_name, 3)
+
+        got = []
+        self.dut.rd_ready.value = 1
+        await Timer(200, units='ps')
+        pending = False  # a handshake completed at the edge just crossed
+        for _ in range(len(written) * 4 + 20):
+            valid = int(self.dut.rd_valid.value) == 1
+            if self.registered == 0:
+                if valid:
+                    got.append(int(self.dut.rd_data.value))
+            elif pending:
+                got.append(int(self.dut.rd_data.value))
+            if len(got) >= len(written):
+                break
+            pending = valid
+            await RisingEdge(self.clk)
+            await Timer(200, units='ps')
+        self.dut.rd_ready.value = 0
+        await self.wait_clocks(self.clk_name, 2)
+
+        assert got == written, (
+            f"Streaming read mismatch (registered={self.registered}): "
+            f"got {[hex(v) for v in got]}, expected {[hex(v) for v in written]}")
+
+        # The model tracked these reads through the monitor; keep it in step.
+        self.sync_model_with_monitors()
+
     async def test_basic_fifo_operation(self):
         """Test basic FIFO write/read without drops."""
         self.dut._log.info("Testing basic FIFO operation")

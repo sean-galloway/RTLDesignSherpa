@@ -40,7 +40,7 @@ GAXI (Generic AXI) is a simplified valid/ready handshake protocol used for strea
 - **Simple Handshake:** `valid`/`ready` only - minimal overhead
 - **Elastic Buffering:** Skid buffers and FIFOs for timing closure
 - **Clock Domain Crossing:** Async variants with proper CDC
-- **Zero-Latency Bypass:** Skid buffer mode for low-latency paths
+- **Registered Outputs:** Skid buffers and FIFOs present data one clock after an accepted write
 - **Parameterized:** Configurable data width and depth
 
 ---
@@ -49,7 +49,7 @@ GAXI (Generic AXI) is a simplified valid/ready handshake protocol used for strea
 
 | Module | Purpose | Clock Domains | Key Features |
 |--------|---------|---------------|--------------|
-| [gaxi_skid_buffer.sv](gaxi_skid_buffer.md) | Elastic buffer with zero-latency bypass | Single | Depth 2-8, combinatorial read |
+| [gaxi_skid_buffer.sv](gaxi_skid_buffer.md) | Elastic buffer for backpressure absorption | Single | Depth 2-8, registered read |
 | [gaxi_fifo_sync.sv](gaxi_fifo_sync.md) | Synchronous FIFO | Single | Any depth, mux/flop modes |
 | [gaxi_fifo_async.sv](../../rtl-cdc/gaxi_fifo_async.md) | Asynchronous FIFO | Dual (wr/rd) | Gray code pointers, CDC-safe |
 | [gaxi_skid_buffer_async.sv](../../rtl-cdc/gaxi_skid_buffer_async.md) | Async elastic buffer | Dual (wr/rd) | Combines skid + async FIFO |
@@ -76,9 +76,13 @@ output logic [DW-1:0] rd_data,   // Data to sink
 
 **Optional Monitoring:**
 ```systemverilog
-output logic [3:0] count,     // Current FIFO occupancy
-output logic [3:0] rd_count,  // Read-side count (skid buffer)
+output logic [AW:0]   count,     // FIFOs: AW = $clog2(DEPTH), so 7 bits at DEPTH=64
+output logic [3:0]    rd_count,  // Skid buffers only: fixed 4 bits (DEPTH <= 8)
 ```
+
+The width differs by module family: the skid buffers declare a fixed `[3:0]`
+because their depth never exceeds 8, while the FIFOs scale `count` with depth.
+Size the receiving signal from the module you are instantiating.
 
 ### Handshake Rules
 
@@ -90,8 +94,8 @@ output logic [3:0] rd_count,  // Read-side count (skid buffer)
    - `ready` may go low to apply backpressure
    - `valid` must remain high until transfer completes
 
-3. **Zero-Latency (Skid Buffer):**
-   - When empty: `wr_data` appears at `rd_data` immediately
+3. **Elasticity (Skid Buffer):**
+   - A write accepted at cycle N appears at `rd_data` at cycle N+1
    - When nearly full: Elastic buffering prevents stalls
 
 ### Timing Diagrams
@@ -177,8 +181,8 @@ gaxi_fifo_async #(
 
 | Module | Empty Latency | Full Latency | Notes |
 |--------|---------------|--------------|-------|
-| gaxi_skid_buffer | 0 cycles | 1 cycle | Zero-latency bypass when empty |
-| gaxi_fifo_sync (mux) | 1 cycle | 1 cycle | Combinatorial read |
+| gaxi_skid_buffer | 1 cycle | 1 cycle | Registered storage and valid |
+| gaxi_fifo_sync (mux) | 1 cycle | 1 cycle | Combinatorial read off the current pointer |
 | gaxi_fifo_sync (flop) | 2 cycles | 2 cycles | Registered read |
 | gaxi_fifo_async | 3-5 cycles | 3-5 cycles | CDC synchronization overhead |
 

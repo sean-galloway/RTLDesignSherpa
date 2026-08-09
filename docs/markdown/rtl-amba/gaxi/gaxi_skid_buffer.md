@@ -31,11 +31,11 @@
 
 ## Overview
 
-The GAXI skid buffer is an elastic buffer that provides **zero-latency bypass** when empty while offering elastic buffering to prevent pipeline stalls. It combines the best of both worlds: low latency for the common case (empty) and elastic storage for handling backpressure.
+The GAXI skid buffer is an elastic buffer that decouples a producer from a consumer, absorbing backpressure so neither side has to stall the other. Storage is a shift register and the output is registered, so the minimum latency is one clock.
 
 ### Key Features
 
-- ✅ **Zero-Latency Bypass:** When empty, data appears at output immediately (0 cycles)
+- ✅ **Registered Output:** Data appears one clock after an accepted write
 - ✅ **Elastic Buffering:** Depth 2-8 entries prevent pipeline stalls
 - ✅ **Single Clock Domain:** Synchronous design for simplicity
 - ✅ **Parameterized:** Configurable data width and depth
@@ -131,19 +131,32 @@ The skid buffer operates in different modes based on occupancy:
 
 #### 1. Empty Mode (count = 0)
 
-**Zero-Latency Bypass:**
-- `wr_data` → `rd_data` **immediately** (combinatorial path)
-- `rd_valid` asserts same cycle as `wr_valid`
-- No buffering delay
+**One-Cycle Fill:**
+- A write accepted at cycle N appears on `rd_data` at cycle N+1
+- `rd_valid` asserts the cycle after `wr_valid` is accepted
+- There is no combinatorial `wr_data` → `rd_data` path
 
-![Zero-Latency Bypass](../../assets/WAVES/gaxi_skid_buffer/zero_latency_bypass_001.png)
+Both storage and valid are registered:
+
+```systemverilog
+assign rd_data = r_data[0];   // r_data written only inside ALWAYS_FF_RST
+rd_valid <= (r_data_count >= 2) ||
+            (r_data_count == 4'b0001 && (~w_rd_xfer || w_wr_xfer)) ||
+            (r_data_count == 4'b0000 && w_wr_xfer);
+```
+
+![Streaming read/write](../../assets/WAVES/gaxi_skid_buffer/zero_latency_bypass_001.png)
 
 **WaveJSON:** [zero_latency_bypass_001.json](../../assets/WAVES/gaxi_skid_buffer/zero_latency_bypass_001.json)
 
 **Key Observations:**
-- Write at cycle N → Read valid at cycle N
-- Data flows through with 0-cycle latency
+- Write at cycle N → read valid at cycle N+1
+- Minimum latency is 1 clock, not 0
 - `count` increments when write occurs without simultaneous read
+
+> The waveform file is still named `zero_latency_bypass` from the pre-refactor
+> design and captures a partially-filled buffer streaming, not an empty-buffer
+> bypass. The name is stale; the RTL it was captured from is current.
 
 #### 2. Partially Full Mode (0 < count < DEPTH)
 
@@ -227,7 +240,7 @@ rd_valid <= (count >= 2) ||
 
 | Condition | Latency | Cycles |
 |-----------|---------|--------|
-| Empty → Read | 0 | Immediate (combinatorial) |
+| Empty → Read | 1 | One clock (registered output) |
 | Write → Read (buffered) | 1 | One clock cycle |
 | Backpressure response | 1 | One clock after full |
 
@@ -245,11 +258,11 @@ rd_valid <= (count >= 2) ||
 
 ## Comprehensive Timing Examples
 
-### Scenario 1: Zero-Latency Bypass
+### Scenario 1: Streaming Read/Write
 
-Write to empty buffer shows immediate `rd_valid`:
+A partially-filled buffer streaming, with `rd_data` trailing `wr_data`:
 
-![Zero-Latency Bypass](../../assets/WAVES/gaxi_skid_buffer/zero_latency_bypass_001.png)
+![Streaming read/write](../../assets/WAVES/gaxi_skid_buffer/zero_latency_bypass_001.png)
 
 **WaveJSON:** [zero_latency_bypass_001.json](../../assets/WAVES/gaxi_skid_buffer/zero_latency_bypass_001.json)
 
@@ -388,11 +401,11 @@ end
 
 ### Timing Closure
 
-If zero-latency bypass creates timing violations:
+If the memory-to-output path creates timing violations:
 
 **Option 1:** Add pipeline stage after skid buffer
 ```systemverilog
-// Skid buffer (combinatorial read)
+// Skid buffer (registered read)
 gaxi_skid_buffer #(.DATA_WIDTH(32), .DEPTH(4)) u_skid (...);
 
 // Additional register stage
@@ -414,32 +427,25 @@ end
 |--------|---------|---------|---------|
 | Flops | 2×DW | 4×DW | 8×DW |
 | LUTs | ~40 | ~50 | ~70 |
-| Bypass Latency | 0 cycles | 0 cycles | 0 cycles |
+| Minimum Latency | 1 cycle | 1 cycle | 1 cycle |
 | Backpressure Tolerance | Low | Moderate | High |
 
 ---
 
 ## Error Checking
 
-The module includes assertion checks (simulation only):
+**The module contains no assertions.** The 2026-04-23 storage refactor removed
+the checks this section used to quote, and the quoted code would not have
+caught anything anyway — both `if` bodies were empty.
 
-```systemverilog
-// synopsys translate_off
-always @(posedge axi_aclk) begin
-    if ((wr_valid && !wr_ready) && (wr_xfer)) begin
-    end
-end
+Protocol violations are caught in verification instead, not by the RTL:
 
-always @(posedge axi_aclk) begin
-    if ((rd_ready && !rd_valid) && (rd_xfer)) begin
-    end
-end
-// synopsys translate_on
-```
+- `val/amba/test_gaxi_skid_buffer.py` drives the handshake through the GAXI
+  BFMs, which flag a transfer asserted against a deasserted `ready`
+- Occupancy is checked against a model on every beat
 
-**These checks help catch:**
-- Protocol violations (writes when not ready)
-- Invalid reads (reading when empty)
+If you want in-RTL checking, add it at the integration level where a failure
+can be tied to a specific producer or consumer.
 
 ---
 
@@ -475,9 +481,9 @@ cd val/amba && bash wd_cmd.sh
 
 ## Common Issues
 
-### Issue 1: Timing Violation on Bypass Path
+### Issue 1: Timing Violation on the Read Path
 
-**Symptom:** Setup time violation from `wr_data` to `rd_data`
+**Symptom:** Setup time violation into the consumer's capture flop
 
 **Solution:**
 ```systemverilog
