@@ -18,5 +18,5 @@ read -formal -sv formal_math_bf16_max_tree.sv
 prep -top formal_math_bf16_max_tree
 
 [files]
-math_bf16_max_tree.sv ../../../rtl/common/math_bf16_max_tree.sv
+math_bf16_max_tree.sv ../../../rtl/math/math_bf16_max_tree.sv
 formal_math_bf16_max_tree.sv

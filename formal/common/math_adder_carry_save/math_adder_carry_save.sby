@@ -18,5 +18,5 @@ read -formal -sv formal_math_adder_carry_save.sv
 prep -top formal_math_adder_carry_save
 
 [files]
-math_adder_carry_save.sv ../../../rtl/common/math_adder_carry_save.sv
+math_adder_carry_save.sv ../../../rtl/math/math_adder_carry_save.sv
 formal_math_adder_carry_save.sv

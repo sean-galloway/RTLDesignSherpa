@@ -20,7 +20,7 @@ read -formal -sv formal_math_fp8_e5m2_multiplier.sv
 prep -top formal_math_fp8_e5m2_multiplier
 
 [files]
-math_fp8_e5m2_exponent_adder.sv ../../../rtl/common/math_fp8_e5m2_exponent_adder.sv
-math_fp8_e5m2_mantissa_mult.sv ../../../rtl/common/math_fp8_e5m2_mantissa_mult.sv
-math_fp8_e5m2_multiplier.sv ../../../rtl/common/math_fp8_e5m2_multiplier.sv
+math_fp8_e5m2_exponent_adder.sv ../../../rtl/math/math_fp8_e5m2_exponent_adder.sv
+math_fp8_e5m2_mantissa_mult.sv ../../../rtl/math/math_fp8_e5m2_mantissa_mult.sv
+math_fp8_e5m2_multiplier.sv ../../../rtl/math/math_fp8_e5m2_multiplier.sv
 formal_math_fp8_e5m2_multiplier.sv

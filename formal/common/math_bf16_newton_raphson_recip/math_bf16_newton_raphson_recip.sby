@@ -31,18 +31,18 @@ read -formal -sv formal_math_bf16_newton_raphson_recip.sv
 prep -top formal_math_bf16_newton_raphson_recip
 
 [files]
-math_prefix_cell.sv ../../../rtl/common/math_prefix_cell.sv
-math_prefix_cell_gray.sv ../../../rtl/common/math_prefix_cell_gray.sv
-math_adder_full.sv ../../../rtl/common/math_adder_full.sv
-math_adder_han_carlson_016.sv ../../../rtl/common/math_adder_han_carlson_016.sv
-math_compressor_4to2.sv ../../../rtl/common/math_compressor_4to2.sv
-math_multiplier_dadda_4to2_008.sv ../../../rtl/common/math_multiplier_dadda_4to2_008.sv
-math_bf16_exponent_adder.sv ../../../rtl/common/math_bf16_exponent_adder.sv
-math_bf16_mantissa_mult.sv ../../../rtl/common/math_bf16_mantissa_mult.sv
-math_bf16_multiplier.sv ../../../rtl/common/math_bf16_multiplier.sv
+math_prefix_cell.sv ../../../rtl/math/math_prefix_cell.sv
+math_prefix_cell_gray.sv ../../../rtl/math/math_prefix_cell_gray.sv
+math_adder_full.sv ../../../rtl/math/math_adder_full.sv
+math_adder_han_carlson_016.sv ../../../rtl/math/math_adder_han_carlson_016.sv
+math_compressor_4to2.sv ../../../rtl/math/math_compressor_4to2.sv
+math_multiplier_dadda_4to2_008.sv ../../../rtl/math/math_multiplier_dadda_4to2_008.sv
+math_bf16_exponent_adder.sv ../../../rtl/math/math_bf16_exponent_adder.sv
+math_bf16_mantissa_mult.sv ../../../rtl/math/math_bf16_mantissa_mult.sv
+math_bf16_multiplier.sv ../../../rtl/math/math_bf16_multiplier.sv
 shifter_barrel.sv ../../../rtl/common/shifter_barrel.sv
 count_leading_zeros.sv ../../../rtl/common/count_leading_zeros.sv
-math_bf16_adder.sv ../../../rtl/common/math_bf16_adder.sv
-math_bf16_fast_reciprocal.sv ../../../rtl/common/math_bf16_fast_reciprocal.sv
-math_bf16_newton_raphson_recip.sv ../../../rtl/common/math_bf16_newton_raphson_recip.sv
+math_bf16_adder.sv ../../../rtl/math/math_bf16_adder.sv
+math_bf16_fast_reciprocal.sv ../../../rtl/math/math_bf16_fast_reciprocal.sv
+math_bf16_newton_raphson_recip.sv ../../../rtl/math/math_bf16_newton_raphson_recip.sv
 formal_math_bf16_newton_raphson_recip.sv

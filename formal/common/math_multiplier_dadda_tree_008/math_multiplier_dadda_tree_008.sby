@@ -28,15 +28,15 @@ read -formal -sv formal_math_multiplier_dadda_tree_008.sv
 prep -top formal_math_multiplier_dadda_tree_008
 
 [files]
-math_adder_half.sv ../../../rtl/common/math_adder_half.sv
-math_adder_full.sv ../../../rtl/common/math_adder_full.sv
-math_adder_carry_save.sv ../../../rtl/common/math_adder_carry_save.sv
-math_adder_brent_kung_pg.sv ../../../rtl/common/math_adder_brent_kung_pg.sv
-math_adder_brent_kung_black.sv ../../../rtl/common/math_adder_brent_kung_black.sv
-math_adder_brent_kung_gray.sv ../../../rtl/common/math_adder_brent_kung_gray.sv
-math_adder_brent_kung_bitwisepg.sv ../../../rtl/common/math_adder_brent_kung_bitwisepg.sv
-math_adder_brent_kung_sum.sv ../../../rtl/common/math_adder_brent_kung_sum.sv
-math_adder_brent_kung_grouppg_016.sv ../../../rtl/common/math_adder_brent_kung_grouppg_016.sv
-math_adder_brent_kung_016.sv ../../../rtl/common/math_adder_brent_kung_016.sv
-math_multiplier_dadda_tree_008.sv ../../../rtl/common/math_multiplier_dadda_tree_008.sv
+math_adder_half.sv ../../../rtl/math/math_adder_half.sv
+math_adder_full.sv ../../../rtl/math/math_adder_full.sv
+math_adder_carry_save.sv ../../../rtl/math/math_adder_carry_save.sv
+math_adder_brent_kung_pg.sv ../../../rtl/math/math_adder_brent_kung_pg.sv
+math_adder_brent_kung_black.sv ../../../rtl/math/math_adder_brent_kung_black.sv
+math_adder_brent_kung_gray.sv ../../../rtl/math/math_adder_brent_kung_gray.sv
+math_adder_brent_kung_bitwisepg.sv ../../../rtl/math/math_adder_brent_kung_bitwisepg.sv
+math_adder_brent_kung_sum.sv ../../../rtl/math/math_adder_brent_kung_sum.sv
+math_adder_brent_kung_grouppg_016.sv ../../../rtl/math/math_adder_brent_kung_grouppg_016.sv
+math_adder_brent_kung_016.sv ../../../rtl/math/math_adder_brent_kung_016.sv
+math_multiplier_dadda_tree_008.sv ../../../rtl/math/math_multiplier_dadda_tree_008.sv
 formal_math_multiplier_dadda_tree_008.sv

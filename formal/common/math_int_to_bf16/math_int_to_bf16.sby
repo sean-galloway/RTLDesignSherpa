@@ -20,5 +20,5 @@ prep -top formal_math_int_to_bf16
 
 [files]
 count_leading_zeros.sv ../../../rtl/common/count_leading_zeros.sv
-math_int_to_bf16.sv ../../../rtl/common/math_int_to_bf16.sv
+math_int_to_bf16.sv ../../../rtl/math/math_int_to_bf16.sv
 formal_math_int_to_bf16.sv

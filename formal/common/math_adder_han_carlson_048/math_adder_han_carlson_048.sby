@@ -20,7 +20,7 @@ read -formal -sv formal_math_adder_han_carlson_048.sv
 prep -top formal_math_adder_han_carlson_048
 
 [files]
-math_prefix_cell.sv ../../../rtl/common/math_prefix_cell.sv
-math_prefix_cell_gray.sv ../../../rtl/common/math_prefix_cell_gray.sv
-math_adder_han_carlson_048.sv ../../../rtl/common/math_adder_han_carlson_048.sv
+math_prefix_cell.sv ../../../rtl/math/math_prefix_cell.sv
+math_prefix_cell_gray.sv ../../../rtl/math/math_prefix_cell_gray.sv
+math_adder_han_carlson_048.sv ../../../rtl/math/math_adder_han_carlson_048.sv
 formal_math_adder_han_carlson_048.sv

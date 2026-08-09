@@ -18,5 +18,5 @@ read -formal -sv formal_math_bf16_min.sv
 prep -top formal_math_bf16_min
 
 [files]
-math_bf16_min.sv ../../../rtl/common/math_bf16_min.sv
+math_bf16_min.sv ../../../rtl/math/math_bf16_min.sv
 formal_math_bf16_min.sv

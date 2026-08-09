@@ -19,6 +19,6 @@ read -formal -sv formal_math_adder_ripple_carry.sv
 prep -top formal_math_adder_ripple_carry
 
 [files]
-math_adder_full.sv ../../../rtl/common/math_adder_full.sv
-math_adder_ripple_carry.sv ../../../rtl/common/math_adder_ripple_carry.sv
+math_adder_full.sv ../../../rtl/math/math_adder_full.sv
+math_adder_ripple_carry.sv ../../../rtl/math/math_adder_ripple_carry.sv
 formal_math_adder_ripple_carry.sv

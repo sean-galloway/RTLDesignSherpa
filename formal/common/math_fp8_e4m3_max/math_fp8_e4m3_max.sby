@@ -18,5 +18,5 @@ read -formal -sv formal_math_fp8_e4m3_max.sv
 prep -top formal_math_fp8_e4m3_max
 
 [files]
-math_fp8_e4m3_max.sv ../../../rtl/common/math_fp8_e4m3_max.sv
+math_fp8_e4m3_max.sv ../../../rtl/math/math_fp8_e4m3_max.sv
 formal_math_fp8_e4m3_max.sv

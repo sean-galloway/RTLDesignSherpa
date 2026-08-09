@@ -18,5 +18,5 @@ read -formal -sv formal_math_subtractor_carry_lookahead.sv
 prep -top formal_math_subtractor_carry_lookahead
 
 [files]
-math_subtractor_carry_lookahead.sv ../../../rtl/common/math_subtractor_carry_lookahead.sv
+math_subtractor_carry_lookahead.sv ../../../rtl/math/math_subtractor_carry_lookahead.sv
 formal_math_subtractor_carry_lookahead.sv

@@ -38,3 +38,26 @@ the formal checks remain. No harness exists yet (nothing under formal/
 matches). Write the formal harness per [[formal]] (sv2v/SBY flow,
 mutation rule, vacuity traps), fold the run into the formal backlog's
 coverage, and close by pointing at passing proofs.
+
+## MATH-006 — Re-run the full math formal suite after the path repair
+**Status:** open 2026-08-09 (found by the COMMON-021 formal audit)
+**Priority:** P2 — every math proof result predates the rtl/math split
+**Owner:** TBD
+
+All 147 `formal/common/math_*` `.sby` configs pointed at
+`../../../rtl/common/math_*.sv`, which moved to `rtl/math/` in the math
+split — the entire math formal suite was unrunnable (sby dies at file-copy,
+loudly, so no false passes; but every recorded PASS predates the split and
+has been unverifiable since). The paths were mechanically repaired
+2026-08-09 (all 147 verified resolving; see `formal/FORMAL_TODO.md`,
+"Same-day follow-on finding").
+
+Spot-verified prove+cover PASS: math_adder_brent_kung_008,
+math_multiplier_dadda_tree_008, math_bf16_adder, math_fp8_e4m3_fma,
+math_fp8_e5m2_fma (the fma pair also closed their prove-only rows — 5 covers
+reached each). The remaining ~142 need a full re-run to reconfirm against
+current RTL. Expect the 6 known BMC-intractable configs (softmax_8 x5,
+bf16_exp2) to still error — that is recorded, not a regression. Consider
+whether the suite should also MOVE to `formal/math/` to match the area
+split, and whether `make formal-common` in CI compiles the math subset at
+all today.

@@ -18,5 +18,5 @@ read -formal -sv formal_math_fp32_to_fp8_e5m2.sv
 prep -top formal_math_fp32_to_fp8_e5m2
 
 [files]
-math_fp32_to_fp8_e5m2.sv ../../../rtl/common/math_fp32_to_fp8_e5m2.sv
+math_fp32_to_fp8_e5m2.sv ../../../rtl/math/math_fp32_to_fp8_e5m2.sv
 formal_math_fp32_to_fp8_e5m2.sv

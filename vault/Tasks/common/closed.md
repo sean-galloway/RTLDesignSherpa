@@ -697,3 +697,49 @@ already done, which made the remaining work look larger than it was. Re-read
 the premise of a long-lived task before working it; the answer is sometimes
 that it is finished.
 
+
+---
+
+## COMMON-020 — the fifo_sync wavedrom generator produces no wave JSON
+**Status:** CLOSED 2026-08-09 (opened 2026-08-06 by the common test-audit round)
+**Priority:** P3 — no consumer was broken
+
+`val/common/test_fifo_sync_wavedrom.py` built the `WaveJSONGenerator` and the
+interface groups but never registered a `TemporalConstraintSolver` constraint,
+so the sampling loop iterated an empty set, captured nothing, printed
+"WaveDrom Results: 0 solutions" and PASSED — a generator whose entire
+deliverable is the wave JSON, emitting none.
+
+**CLOSED — the test now emits 4 diagrams per config and can no longer pass
+empty.** Port from the working reference (`test_gaxi_fifo_sync.py`'s wavedrom
+test) surfaced THREE stacked defects, each individually sufficient to produce
+zero JSON:
+
+1. **No constraints registered** (the known one). Fixed with 4
+   `TemporalConstraint`s keyed on distinct single-signal transitions —
+   first write, `wr_full` 0->1, `rd_empty` 0->1, `wr_almost_full` 0->1 — all
+   reachable at gate level, so one long sampling session captures all four.
+2. **Clock group named `"clk"`.** Every `TemporalConstraint` defaults to
+   `clock_group='default'` and the sampler silently skips constraints whose
+   group name does not match, so windows stayed at 0 cycles forever. The
+   group must be named `'default'`.
+3. **`add_interface()` prefixes bindings** (`fifo_write`, `fifo_clk`, ...) so
+   nothing lined up with the unprefixed names the generator groups and
+   constraints use. Replaced with direct unprefixed `add_signal_binding()`
+   calls, per the reference.
+
+Plus one testbench-interaction bug: `FifoBufferTB` starts an auto-consuming
+`FIFOSlave` whose randomizer drains the FIFO on its own schedule — with it
+alive the FIFO never fills, `wr_full`/`wr_almost_full` never assert, and the
+scenarios' manual `dut.read` pokes fight the BFM. The wavedrom test now kills
+`read_slave` after reset and owns the read pin (wavedrom stimulus must be
+deterministic anyway).
+
+Hardened both silent-pass doors: `assert len(results['solutions']) > 0`
+(zero solutions = failure, never a pass) and an assert that `setup_wavedrom()`
+actually produced a solver (its except clause nulls `wave_solver`, and every
+wavedrom step was guarded on it — a broken setup sailed through as a pass).
+
+Verified: GATE and FUNC grids pass, 4 wave JSONs per config
+(`fifo_sync_{write_empty,full_flag,empty_flag,almost_full}_001.json`), content
+inspected — real transitions, correct grouping.

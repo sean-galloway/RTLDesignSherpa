@@ -18,5 +18,5 @@ read -formal -sv formal_math_fp32_relu.sv
 prep -top formal_math_fp32_relu
 
 [files]
-math_fp32_relu.sv ../../../rtl/common/math_fp32_relu.sv
+math_fp32_relu.sv ../../../rtl/math/math_fp32_relu.sv
 formal_math_fp32_relu.sv

@@ -18,5 +18,5 @@ read -formal -sv formal_math_fp8_e5m2_tanh.sv
 prep -top formal_math_fp8_e5m2_tanh
 
 [files]
-math_fp8_e5m2_tanh.sv ../../../rtl/common/math_fp8_e5m2_tanh.sv
+math_fp8_e5m2_tanh.sv ../../../rtl/math/math_fp8_e5m2_tanh.sv
 formal_math_fp8_e5m2_tanh.sv
