@@ -15,10 +15,10 @@ in a worktree at the branch's base commit, so this is NOT fallout from
 the NUM_SLAVES / package-import / sweep work — 25/25 non-monitor tests
 pass with all of that landed.
 
-Likely related to the stream-mon AW/W decoupling WIP that was
-transferred with `--no-verify` (see BRIDGE-001's origin note). Needs
-its own diagnosis: start from one config's failure log under
-`dv/tests/logs/`.
+Owner note (2026-08-08): likely a COMMON issue in the monitor
+`block_ready` path — another agent is already working that block.
+Hold off on independent diagnosis here until that lands; then rerun
+the six stress tests before doing anything bridge-side.
 
 **Done looks like:** all six monitor stress tests green from clean
 builds on this branch (or a documented decision that the stress
