@@ -5,9 +5,9 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 
 | Page | Count | What |
 |---|---|---|
-| [active.md](active.md) | 1 | in progress right now |
+| [active.md](active.md) | 0 | in progress right now |
 | [open.md](open.md) | 5 | accepted, not started |
-| [closed.md](closed.md) | 16 | done (kept for history) |
+| [closed.md](closed.md) | 17 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
@@ -20,9 +20,11 @@ integration support.
   per config and asserts non-empty. Three stacked defects (no constraints,
   wrong clock-group name, prefixed bindings) + the auto-draining FIFOSlave;
   see closed.md.
-- **COMMON-021** — ACTIVE 2026-08-09: formal refresh for common — flat-file
-  staleness audit, counter_freq_invariant re-prove, cover closure for the
-  prove-only modules, icg cover fix. See formal/FORMAL_TODO.md.
+- **COMMON-021** — CLOSED 2026-08-09 (same day): formal refresh — audit found
+  only 7/48 flat files repo-wide are current (common's is); all "prove-only"
+  and icg cover gaps had already closed (verified fresh, all covers reached);
+  bonus: all 147 math .sby were path-broken since the math split, repaired
+  (full re-run = MATH-006). See closed.md + formal/FORMAL_TODO.md.
 - **COMMON-010** — CLOSED 2026-08-09. The gap was "nothing enforces it"; CI now
   hard-gates `--check` and `--audit`, and common carries zero exemptions.
 - **COMMON-016/017/018** — CLOSED 2026-08-05, fixed in the DV framework

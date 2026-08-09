@@ -126,9 +126,9 @@ installed on the laptop (they ARE on the workstation). In order:
    table was written (fifo_sync_multi_sigmap's in commit b861ce6f). cam_tag,
    counter and counter_bin re-run fresh 2026-08-09: prove PASS + cover PASS,
    every cover statement reached, zero unreached. fifo_sync_multi_sigmap's
-   prior outputs show the same; its fresh re-run (prove depth 25 / cover
-   depth 40, the slow one) was still in flight when this was written —
-   confirm against its logfiles. icg's cover ALSO passes now (cp_enabled
+   fresh re-run (prove depth 25 / cover depth 40, ~26 min of z3) completed
+   the same day: prove PASS + cover PASS, all 4 covers reached
+   (cp_write/cp_read/cp_full/cp_drain). icg's cover ALSO passes now (cp_enabled
    reached — the "unreachable" entry below is history). Note:
    fifo_sync_multi_sigmap's formal dir MOVED to `formal/integ_common/` with
    the July integ_common extraction; the leftover gitignored output debris
@@ -265,7 +265,7 @@ These have prove PASS but no cover task defined, or cover not yet run:
 | cam_tag | common | **RESOLVED 2026-08-09: cover task exists, PASS, 2 covers reached** |
 | counter | common | **RESOLVED 2026-08-09: cover task exists, PASS, 2 covers reached** |
 | counter_bin | common | **RESOLVED 2026-08-09: cover task exists, PASS, 3 covers reached** |
-| fifo_sync_multi_sigmap | integ_common | **RESOLVED 2026-08-09: dir moved to formal/integ_common/; cover task exists, prior outputs PASS, fresh re-run in flight** |
+| fifo_sync_multi_sigmap | integ_common | **RESOLVED 2026-08-09: dir moved to formal/integ_common/; fresh prove+cover PASS, all 4 covers reached** |
 | math_fp8_e4m3_fma | math | **RESOLVED 2026-08-09: path-fixed (rtl/math), prove+cover PASS, 5 covers reached** |
 | math_fp8_e5m2_fma | math | **RESOLVED 2026-08-09: path-fixed (rtl/math), prove+cover PASS, 5 covers reached** |
 | axi_monitor_base | amba | prove_boundary+prove_low8 PASS, no cover |
