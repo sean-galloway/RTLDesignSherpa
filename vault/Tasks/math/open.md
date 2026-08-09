@@ -26,3 +26,15 @@ integration, 2026-07-29); only the RTL question remains.
 If intended: close with a one-line rationale and mark the doc note 'documented
 behavior, not a bug'. If defect: fix RTL + the consuming modules, add a
 rounding-truth-table test to val/math.
+## MATH-005 — math_mod_3_compress needs its final formal checks
+**Status:** open 2026-08-08 (Sean: moved common→math and "through all reviews
+except the final formal checks")
+**Priority:** P2
+**Owner:** TBD
+
+`math_mod_3_compress.sv` moved from rtl/common to rtl/math (commit 3ccd1fcd,
+with filelist; registry PASS, no stale doc references). Reviews are done;
+the formal checks remain. No harness exists yet (nothing under formal/
+matches). Write the formal harness per [[formal]] (sv2v/SBY flow,
+mutation rule, vacuity traps), fold the run into the formal backlog's
+coverage, and close by pointing at passing proofs.
