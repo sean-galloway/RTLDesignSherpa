@@ -87,12 +87,15 @@ class HanCarlsonAdderTB(TBBase):
 
         if test_level == 'gate':
             num_random = 10
-        elif test_level == 'gate':
-            num_random = 100
         elif test_level == 'func':
             num_random = 500
-        else:  # full
+        elif test_level == 'full':
             num_random = 1000
+        else:
+            # Unknown level must not silently run the DEEPEST suite (the old
+            # else did exactly that); fall back to func and say so.
+            self.log.warning(f"Unknown test_level '{test_level}', using func")
+            num_random = 500
 
         # Edge case tests
         self.log.info("Testing edge cases...")

@@ -563,12 +563,42 @@ class TBBase:
             pass
 
     # Keep all existing methods with safety enhancements
+    # Clocks already driven in THIS simulation, keyed by signal path.
+    #
+    # Class-level on purpose. cocotb runs every @cocotb.test() in one simulator
+    # invocation, and the common pattern is for each of them to build a fresh
+    # TB and call setup_clocks_and_reset() -- so a per-instance flag guards
+    # nothing. Before this, start_clock() did an unconditional
+    # cocotb.start_soon(Clock(...).start()) and Clock coroutines never
+    # terminate: test_counter_bin_load's six tests left SIX unsynchronised
+    # drivers toggling one dut.clk, and nine test files repo-wide share the
+    # shape. Verilator resolves the pile-up rather than erroring, so it shows
+    # up as inexplicable timing, not as a failure.
+    _clocks_started: dict = {}
+
     async def start_clock(self, clk_name: str, freq: int = 10, units: str = 'ns'):
-        """Start clock with safety monitoring"""
+        """Start clock with safety monitoring. Idempotent per simulation."""
         with self.safe_operation(f"start_clock({clk_name})"):
-            self.log.debug(f"Starting clock {clk_name} with frequency {freq} {units}")
             clk_signal = getattr(self.dut, clk_name)
-            cocotb.start_soon(Clock(clk_signal, freq, units=units).start())
+            key = getattr(clk_signal, '_path', None) or f"{id(self.dut)}.{clk_name}"
+            prev = TBBase._clocks_started.get(key)
+            if prev is None:
+                self.log.debug(f"Starting clock {clk_name} with frequency {freq} {units}")
+                cocotb.start_soon(Clock(clk_signal, freq, units=units).start())
+                TBBase._clocks_started[key] = (freq, units)
+            elif prev != (freq, units):
+                # A real conflict: say so rather than silently keeping the
+                # first rate or stacking a second driver at the new one.
+                self.log.warning(
+                    f"start_clock({clk_name}) requested {freq}{units} but the "
+                    f"clock is already running at {prev[0]}{prev[1]}; keeping "
+                    f"the running rate. Restarting a clock at a new rate needs "
+                    f"a fresh simulation, not a second driver.")
+            else:
+                self.log.debug(f"Clock {clk_name} already running at {freq} {units}")
+            # The settle happens either way: callers use start_clock as
+            # "clock running, one delta done", and returning early without it
+            # broke every bin_to_bcd config when this guard was first tried.
             await Timer(100, units='ps')
             self.mark_progress(f"Clock {clk_name} started")
 
