@@ -74,13 +74,19 @@ class SlaveInfo:
     addr_range: int
     data_width: int
     addr_width: int  # Address width in bits
-    protocol: str = 'axi4'  # Protocol type: 'axi4' or 'apb'
+    protocol: str = 'axi4'  # Protocol type: 'axi4', 'axi5', 'apb', or 'axil'
     enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
     use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
     # Reporter sub-block enables (preset + add - remove resolved upstream).
     # Keys: error/timeout/compl/threshold/perf. Default all True keeps
     # legacy behaviour; bridge generator overrides per-port from TOML.
     mon_enables: Optional[Dict[str, bool]] = None
+    # AXI5 sideband features exposed on this port (protocol='axi5' only;
+    # A5-2 slice 1). Validated upstream to the interop set:
+    # nsaid/trace/mpam/mecid/unique. The features terminate/default at
+    # the adapter's axi5_master_* boundary wrapper -- the fabric side
+    # stays AXI4.
+    axi5_features: Optional[List[str]] = None
 
 
 @dataclass

@@ -618,6 +618,9 @@ def _emit_bridge_variant(
             enable_ooo=slave_spec.enable_ooo,
             use_monitor=getattr(slave_spec, 'use_monitor', True),
             mon_enables=slave_spec.get_mon_enables(config.mon_preset),
+            # AXI5 sideband features (A5-2 slice 1) -- validated upstream
+            # by validate_axi5 to the nsaid/trace/mpam/mecid/unique set.
+            axi5_features=list(getattr(slave_spec, 'axi5_features', []) or []),
         )
         slave_infos.append(slave_info)
 
@@ -828,6 +831,17 @@ def _emit_bridge_variant(
         filelist_lines.append("$REPO_ROOT/rtl/amba/axi5/axi5_slave_wr.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/axi5/axi5_slave_rd.sv")
 
+    # AXI5 slave ports (A5-2 slice 1): the slave adapter instantiates
+    # the axi5_master_* boundary wrappers instead of axi4_master_*.
+    # Same closure story as the axi5_slave_* wrappers above.
+    has_axi5_slave = any(s.protocol.lower() == 'axi5' for s in config.slaves)
+    if has_axi5_slave:
+        filelist_lines.append("")
+        filelist_lines.append("# AXI5 boundary wrappers (slaves with protocol=axi5).")
+        filelist_lines.append("# Dependency closure: gaxi_skid_buffer only (see gaxi filelist below).")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi5/axi5_master_wr.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi5/axi5_master_rd.sv")
+
     filelist_lines.append("")
     filelist_lines.append("# GAXI skid buffers (used by wrappers and converters)")
     filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f")
@@ -901,6 +915,10 @@ def _emit_bridge_variant(
             filelist_lines.append("# AXI5 _mon wrappers (masters with protocol=axi5)")
             filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr_mon.f")
             filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd_mon.f")
+        if has_axi5_slave:
+            filelist_lines.append("# AXI5 _mon wrappers (slaves with protocol=axi5)")
+            filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_master_wr_mon.f")
+            filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_master_rd_mon.f")
         # Monbus aggregator. The arbiter (+ its sync FIFO) is always
         # instantiated; the monbus_<p1>_<p2>_group family + its leaf skids
         # are only pulled in when the bridge owns an internal group

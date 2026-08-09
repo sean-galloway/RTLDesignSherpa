@@ -90,6 +90,36 @@ end-to-end belongs with the native-sideband work.
 Next: A5-2 (native AXI5 sideband through the fabric + AXI5 slaves),
 then A5-3 (atomics + APB5).
 
+**A5-2 design note (2026-08-09):** two slices.
+
+- *Slice 1 — AXI5 slave ports, interop mode:* LANDED 2026-08-09.
+  `axi5_master_{wr,rd}[_mon]` boundary wrappers on axi5-protocol
+  slave ports, same feature whitelist, sideband terminates at both
+  boundaries. Mixed-protocol fixture bridge_1x2_rd_axi5s (axi4 master,
+  one axi4 + one axi5 slave) in the manifest; 46 generator unit
+  tests; 19/19 bridges with the 18 pre-existing byte-identical; sims
+  green incl. the mon variant. Known benign dangle: the axi5 slave
+  adapter's xbar_*_arregion input (fabric has region, AXI5 doesn't).
+  Deferred with slice 2: wr-channel axi5-slave fixture (wr path
+  generated/compiled, not simulated).
+- *Slice 2 — native sideband pass-through:* per-bridge `_pkg` structs
+  gain feature fields as the UNION of features enabled on any AXI5
+  port (pure-AXI4 bridges get no fields -> byte-identical RTL, the
+  zero-drift invariant holds). Master adapters populate their enabled
+  fields, slave adapters extract theirs; sideband is drop-legal so
+  per-path behavior is automatically right.
+  **Constraint discovered:** per-beat sideband (wpoison, rtrace,
+  rpoison, MTE tags) cannot traverse the AXI4 dwidth-converter IP —
+  beats are re-framed. And per-transaction AW/AR sideband would need
+  a FIFO riding alongside a converter to stay transaction-aligned.
+  Policy: native pass-through ONLY on direct (width-matched,
+  AXI5-both-ends) paths; converter paths terminate sideband with a
+  generation-time warning. `poison` becomes legal ONLY when every
+  connected path carrying it is direct and poison-enabled both ends
+  (validator, connectivity-aware). `chunking` stays out (R-channel
+  re-framing through converters); `mte` deferred unless the per-beat
+  tag fields fall out of the same mechanism as poison.
+
 ## BRIDGE-002 — AMBA5 bridge support (AXI5 ports alongside AXI4)
 **Status:** open 2026-08-08
 **Priority:** P1
@@ -155,6 +185,36 @@ end-to-end belongs with the native-sideband work.
 
 Next: A5-2 (native AXI5 sideband through the fabric + AXI5 slaves),
 then A5-3 (atomics + APB5).
+
+**A5-2 design note (2026-08-09):** two slices.
+
+- *Slice 1 — AXI5 slave ports, interop mode:* LANDED 2026-08-09.
+  `axi5_master_{wr,rd}[_mon]` boundary wrappers on axi5-protocol
+  slave ports, same feature whitelist, sideband terminates at both
+  boundaries. Mixed-protocol fixture bridge_1x2_rd_axi5s (axi4 master,
+  one axi4 + one axi5 slave) in the manifest; 46 generator unit
+  tests; 19/19 bridges with the 18 pre-existing byte-identical; sims
+  green incl. the mon variant. Known benign dangle: the axi5 slave
+  adapter's xbar_*_arregion input (fabric has region, AXI5 doesn't).
+  Deferred with slice 2: wr-channel axi5-slave fixture (wr path
+  generated/compiled, not simulated).
+- *Slice 2 — native sideband pass-through:* per-bridge `_pkg` structs
+  gain feature fields as the UNION of features enabled on any AXI5
+  port (pure-AXI4 bridges get no fields -> byte-identical RTL, the
+  zero-drift invariant holds). Master adapters populate their enabled
+  fields, slave adapters extract theirs; sideband is drop-legal so
+  per-path behavior is automatically right.
+  **Constraint discovered:** per-beat sideband (wpoison, rtrace,
+  rpoison, MTE tags) cannot traverse the AXI4 dwidth-converter IP —
+  beats are re-framed. And per-transaction AW/AR sideband would need
+  a FIFO riding alongside a converter to stay transaction-aligned.
+  Policy: native pass-through ONLY on direct (width-matched,
+  AXI5-both-ends) paths; converter paths terminate sideband with a
+  generation-time warning. `poison` becomes legal ONLY when every
+  connected path carrying it is direct and poison-enabled both ends
+  (validator, connectivity-aware). `chunking` stays out (R-channel
+  re-framing through converters); `mte` deferred unless the per-beat
+  tag fields fall out of the same mechanism as poison.
 
 ## BRIDGE-001 — Generator emits NUM_SLAVES as a body localparam used in the port list
 **Status:** open 2026-07-28

@@ -271,10 +271,9 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         else:
             addr_range = addr_range_raw
 
-        # AXI5 feature list (A5-1). Same non-axi5 rejection as masters.
-        # AXI5 *slaves* themselves are rejected downstream by
-        # validate_axi5 (A5-1 supports AXI5 masters only) -- parse the
-        # field here so the validator sees the user's full intent.
+        # AXI5 feature list (A5-2 slice 1: AXI5 slaves in interop mode).
+        # Same non-axi5 rejection as masters; the feature whitelist is
+        # enforced downstream by validate_axi5.
         axi5_features = list(s.get('axi5_features', []))
         if axi5_features and protocol != 'axi5':
             raise ValidationError(

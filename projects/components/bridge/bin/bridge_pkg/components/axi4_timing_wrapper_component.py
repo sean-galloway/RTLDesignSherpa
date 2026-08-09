@@ -20,20 +20,24 @@ from rtl_generators.verilog.module import Module
 
 
 # ---------------------------------------------------------------------------
-# AXI5 feature tables (BRIDGE-002 phase A5-1).
+# AXI5 feature tables (BRIDGE-002 phases A5-1 / A5-2 slice 1).
 #
-# The axi5_slave_{wr,rd} modules declare every feature port
+# The axi5_{slave,master}_{wr,rd} modules declare every feature port
 # unconditionally; ENABLE_<FEATURE> parameters gate the logic. The
 # tables below mirror the SV declarations
-# (rtl/amba/axi5/axi5_slave_{wr,rd}.sv) so instantiation can bind every
+# (rtl/amba/axi5/axi5_{slave,master}_{wr,rd}.sv -- both families use
+# identical feature-port base names) so instantiation can bind every
 # pin: enabled-feature externals connect through, disabled-feature
 # external INPUTS tie to '0 and OUTPUTS get empty connectors; on the fub
 # (fabric) side every feature port terminates (outputs open, inputs '0)
 # because the fabric behind the wrapper is plain AXI4.
 #
-# Tuple format: (port_base_name, feature, ext_is_input)
-#   ext_is_input == True  -> s_axi_<name> is an input to the wrapper
-#                            (and fub_axi_<name> is an output).
+# Tuple format: (port_base_name, feature, req_direction)
+#   req_direction == True  -> the signal flows in the REQUEST direction
+#     (upstream master toward downstream slave). On axi5_slave_* that
+#     makes s_axi_<name> a wrapper INPUT (fub output); on axi5_master_*
+#     it makes m_axi_<name> a wrapper OUTPUT (fub input). b/r-side
+#     extras (req_direction=False) flow the other way.
 # ---------------------------------------------------------------------------
 
 # ENABLE_* parameter per feature. wr has no CHUNKING; rd has no ATOMIC.
@@ -95,12 +99,16 @@ _AXI5_RD_RESP_EXTRAS = (            # R-side (after rready)
     ('rtagmatch',  'mte',      False),
 )
 
-# External-surface declarations for the A5-1 sideband feature set, keyed
-# by AXI channel. Only enabled features' signals are exposed on the
-# bridge top / master adapter; the widths mirror the axi5_slave_* SV
+# External-surface declarations for the interop sideband feature set,
+# keyed by AXI channel. Only enabled features' signals are exposed on
+# the bridge top / per-port adapter; the widths mirror the axi5_* SV
 # parameter defaults (AXI_NSAID_WIDTH=4, AXI_MPAM_WIDTH=11,
-# AXI_MECID_WIDTH=16; trace/unique are scalars).
-# Tuple: (name, width_bits, feature, driven_by_external_master).
+# AXI_MECID_WIDTH=16; trace/unique are scalars -- identical across the
+# slave and master wrapper families).
+# Tuple: (name, width_bits, feature, req_direction). req_direction=True
+# means the signal flows master->slave: on an AXI5 MASTER port (bridge
+# is the slave) it is a bridge-top INPUT; on an AXI5 SLAVE port (bridge
+# is the master) it is a bridge-top OUTPUT.
 AXI5_SIDEBAND_EXT_SIGNALS = {
     'aw': (
         ('awnsaid',  4,  'nsaid',  True),
@@ -127,9 +135,11 @@ AXI5_SIDEBAND_EXT_SIGNALS = {
 
 
 def axi5_exposed_ext_signals(channel_key: str, features) -> List[tuple]:
-    """The (name, width, driven_by_external_master) triples an AXI5 port
-    with `features` enabled exposes on AXI channel `channel_key`
-    ('aw'/'w'/'b'/'ar'/'r'), in declaration order."""
+    """The (name, width, req_direction) triples an AXI5 port with
+    `features` enabled exposes on AXI channel `channel_key`
+    ('aw'/'w'/'b'/'ar'/'r'), in declaration order. req_direction=True
+    signals flow master->slave (bridge-top INPUT on an AXI5 master
+    port, bridge-top OUTPUT on an AXI5 slave port)."""
     feats = set(features or ())
     return [(name, width, ext_in)
             for name, width, feat, ext_in
@@ -148,8 +158,10 @@ class Axi4TimingWrapper:
     The `mon` flag swaps in the `_mon` variant.
 
     `protocol` (default 'axi4') picks the module family. With
-    protocol='axi5' (A5-1: side='slave' only -- the master-adapter
-    boundary), the instantiated module is axi5_slave_{wr,rd}[_mon]:
+    protocol='axi5', the instantiated module is
+    axi5_{slave,master}_{wr,rd}[_mon] -- side='slave' for the
+    master-adapter boundary (A5-1), side='master' for the slave-adapter
+    boundary (A5-2 slice 1). In both cases:
       - the base port set drops aw/arregion (AXI5 removed REGION),
       - every AXI5 feature port is bound: features named in
         `axi5_features` connect through on the external side, the rest
@@ -159,7 +171,7 @@ class Axi4TimingWrapper:
       - the fub (fabric) side terminates ALL feature ports -- the
         fabric behind the wrapper stays AXI4.
     The class name keeps its historical `Axi4` prefix; renaming is out
-    of scope for A5-1.
+    of scope for the A5 interop slices.
     """
 
     def __init__(
@@ -207,13 +219,14 @@ class Axi4TimingWrapper:
         # mon=True. Pass None to leave the SV defaults in place (all 1).
         mon_enables: Optional[dict] = None,
         # protocol -- module family selector: 'axi4' (default, unchanged
-        # behaviour) or 'axi5' (A5-1: axi5_slave_* boundary wrappers on
-        # master-adapter ports). See class docstring.
+        # behaviour) or 'axi5' (axi5_slave_* boundary wrappers on
+        # master-adapter ports (A5-1), axi5_master_* on slave-adapter
+        # ports (A5-2 slice 1)). See class docstring.
         protocol: str = 'axi4',
         # axi5_features -- feature names whose external signals connect
         # through (the rest tie off). Only meaningful when
         # protocol='axi5'. Upstream validation (validate_axi5) restricts
-        # this to the A5-1 sideband set.
+        # this to the interop sideband set.
         axi5_features: Optional[List[str]] = None,
     ):
         if side not in ('master', 'slave'):
@@ -223,10 +236,6 @@ class Axi4TimingWrapper:
         if protocol not in ('axi4', 'axi5'):
             raise ValueError(
                 f"protocol must be 'axi4' or 'axi5', got {protocol!r}")
-        if protocol == 'axi5' and side != 'slave':
-            raise ValueError(
-                "protocol='axi5' supports side='slave' only in A5-1 "
-                "(AXI5 masters on the bridge; AXI5 slaves land with A5-2)")
         if protocol != 'axi5' and axi5_features:
             raise ValueError(
                 "axi5_features passed but protocol is not 'axi5'")
@@ -323,12 +332,13 @@ class Axi4TimingWrapper:
         # Per-side, per-channel port name layouts. These mirror the SV
         # module declarations -- centralised so call sites can't typo.
         #
-        # AXI5 differences (axi5_slave_{wr,rd}.sv): the base set drops
-        # aw/arregion (AXI5 removed REGION), and every feature port is
-        # appended to its channel group so instantiation binds all pins.
-        # Feature-extra tuples carry (name, feature, ext_is_input); the
-        # connector-default helpers turn them into pass-through / tie-off
-        # connectors per side.
+        # AXI5 differences (axi5_{slave,master}_{wr,rd}.sv -- both
+        # families declare the same base + feature port names): the base
+        # set drops aw/arregion (AXI5 removed REGION), and every feature
+        # port is appended to its channel group so instantiation binds
+        # all pins. Feature-extra tuples carry (name, feature,
+        # req_direction); the connector-default helpers turn them into
+        # pass-through / tie-off connectors per side.
         is_axi5 = (protocol == 'axi5')
         if channel == 'wr':
             self._req1_ports = (
@@ -604,24 +614,37 @@ class Axi4TimingWrapper:
             d['ruser'] = "1'b0"
         # AXI5 feature ports terminate at the wrapper on the fabric side
         # regardless of enablement -- the fabric behind is plain AXI4.
-        # fub direction mirrors the external one: external inputs are fub
-        # OUTPUTS (leave open), external outputs are fub INPUTS (tie '0 --
-        # b/r-side extras like btrace/rtag are driven INTO the wrapper).
-        for name, _feat, ext_in in self._all_axi5_extras():
-            d[name] = "" if ext_in else "'0"
+        # Tie-off follows the wrapper's fub-port direction, which depends
+        # on `side`:
+        #   side='slave'  (axi5_slave_*, master adapter): req-direction
+        #     extras are fub OUTPUTS (leave open); b/r-side extras are
+        #     fub INPUTS driven INTO the wrapper (tie '0).
+        #   side='master' (axi5_master_*, slave adapter): req-direction
+        #     extras arrive FROM the fabric as fub INPUTS (tie '0 -- the
+        #     AXI4 fabric has nothing to drive them); b/r-side extras
+        #     are fub OUTPUTS (leave open).
+        for name, _feat, req_dir in self._all_axi5_extras():
+            fub_is_input = req_dir if self.side == 'master' else not req_dir
+            d[name] = "'0" if fub_is_input else ""
         return d
 
     def _external_default_connectors(self, connector_prefix: str) -> dict:
         # External-side connectors pass through with the prefix unless
         # callers override. Base signals need no special defaults; AXI5
         # feature signals of DISABLED features are not exposed on the
-        # enclosing module, so tie unexposed INPUTS to '0 and leave
-        # unexposed OUTPUTS with empty connectors (house style). Enabled
-        # features fall through to the prefix+base pass-through.
+        # enclosing module, so tie unexposed wrapper INPUTS to '0 and
+        # leave unexposed OUTPUTS with empty connectors (house style).
+        # Which extras are wrapper inputs depends on `side`:
+        #   side='slave'  (s_axi face): req-direction extras are inputs.
+        #   side='master' (m_axi face): b/r-side extras are inputs (they
+        #     come back FROM the external slave).
+        # Enabled features fall through to the prefix+base pass-through.
         d = {}
-        for name, feat, ext_in in self._all_axi5_extras():
+        for name, feat, req_dir in self._all_axi5_extras():
             if feat not in self.axi5_features:
-                d[name] = "'0" if ext_in else ""
+                ext_is_input = (req_dir if self.side == 'slave'
+                                else not req_dir)
+                d[name] = "'0" if ext_is_input else ""
         return d
 
     def _all_axi5_extras(self):

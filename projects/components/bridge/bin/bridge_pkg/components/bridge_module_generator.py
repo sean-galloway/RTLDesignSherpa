@@ -1301,8 +1301,21 @@ class BridgeModuleGenerator:
                 lines[-1] = lines[-1][:-1]
 
         else:
-            # AXI4 slave ports - use SignalNaming for complete signal information
-            lines.append(f"    // AXI4 Slave: {slave.name}")
+            # AXI4 / AXI5 slave ports - use SignalNaming for complete
+            # signal information.
+            #
+            # AXI5 slave (A5-2 slice 1): the surface is the AXI4 set
+            # MINUS aw/arregion (AXI5 removed REGION), PLUS the enabled
+            # sideband features' signals appended per channel.
+            # req-direction extras are bridge OUTPUTS toward the external
+            # slave; b/r-side extras are bridge INPUTS from it. Disabled
+            # features' signals are not exposed -- they tie/default at
+            # the adapter's axi5_master_* wrapper.
+            is_axi5 = (slave.protocol == 'axi5')
+            axi5_prefix = slave.prefix
+            if axi5_prefix and not axi5_prefix.endswith('_'):
+                axi5_prefix = axi5_prefix + '_'
+            lines.append(f"    // {'AXI5' if is_axi5 else 'AXI4'} Slave: {slave.name}")
 
             # Determine required channels based on masters connecting to this slave
             connecting_masters = self._get_masters_connecting_to_slave(slave)
@@ -1334,9 +1347,27 @@ class BridgeModuleGenerator:
                 first_channel = False
 
                 for sig_name, sig_info in channel_signals:
+                    # AXI5 has no REGION -- drop it from the base set.
+                    if is_axi5 and sig_info.name == 'region':
+                        continue
+
                     # Get complete signal declaration
                     declaration = sig_info.get_declaration(sig_name, width_values)
                     lines.append(f"    {declaration},")
+
+                # AXI5 sideband extras (enabled features only), mirroring
+                # SlaveAdapterGenerator._generate_axi4_external_ports.
+                if is_axi5:
+                    for name, width, req_dir in axi5_exposed_ext_signals(
+                            channel.value, slave.axi5_features):
+                        dir_str = 'output' if req_dir else 'input'
+                        sig_name = f"{axi5_prefix}{name}"
+                        if width > 1:
+                            lines.append(
+                                f"    {dir_str}  logic [{width-1}:0]  {sig_name},")
+                        else:
+                            lines.append(
+                                f"    {dir_str}  logic         {sig_name},")
 
             # Remove trailing comma from last signal
             if lines and lines[-1].endswith(','):
@@ -1919,6 +1950,10 @@ class BridgeModuleGenerator:
                 protocol=slave.protocol,
                 has_write=has_write,
                 has_read=has_read,
+                # AXI5 sideband features (A5-2 slice 1) -- the adapter's
+                # external face exposes only the enabled features'
+                # signals, so the instantiation must match.
+                axi5_features=getattr(slave, 'axi5_features', None),
             )
             inst.connect_clocks_and_resets()
             inst.connect_xbar_interface()

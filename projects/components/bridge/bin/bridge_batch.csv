@@ -1,6 +1,7 @@
 name,ports,connectivity,output_dir,output_tb,output_test
 bridge_1x2_rd,test_configs/bridge_1x2_rd_matched.toml,test_configs/bridge_1x2_rd_matched_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_1x2_rd_axi5,test_configs/bridge_1x2_rd_axi5.toml,test_configs/bridge_1x2_rd_axi5_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_1x2_rd_axi5s,test_configs/bridge_1x2_rd_axi5s.toml,test_configs/bridge_1x2_rd_axi5s_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_1x2_wr_axi5,test_configs/bridge_1x2_wr_axi5.toml,test_configs/bridge_1x2_wr_axi5_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_1x2_wr,test_configs/bridge_1x2_wr_matched.toml,test_configs/bridge_1x2_wr_matched_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_1x3_rd,test_configs/bridge_1x3_rd_mixed.toml,test_configs/bridge_1x3_rd_mixed_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
