@@ -272,3 +272,61 @@ module X" (`--find MODULE`). The test names the module, the registry returns the
 **Payoff, concretely:** had this existed, the CDC reorg would have moved 12 `.sv`
 + their `.f` + one toml area, and touched ZERO test files. It is the structural
 fix for the fragility [[filelists]] describes.
+
+## TOOLING-KMAP — make the K-map emitter produce proofs, not pictures
+**Status:** open 2026-08-06
+
+Audit of both `gen_signal_contracts_kmaps.py` (stream, pumice): the grids are
+Gray-ordered and computed from cited RTL -- genuinely good -- but they stop
+short of proving anything. `grep -ciE "implicant|minimal|quine|espresso"` finds
+nothing in either generator; every "cover" hit is prose inside a
+`CHECK BY INSPECTION` string. See [[signal-contracts-and-kmaps]] for the six
+criteria; the emitter satisfies two.
+
+Work, in the order that pays:
+
+1. **Axis derivation table.** `kmap()` takes `varnames` as bare strings. Take
+   `(name, expr, cite)` triples instead and emit them above the grid. An axis
+   that is itself a composite expression hides the logic the map claims to show.
+2. **Don't-care support.** Let `fn` return `None`/`X`; render as `X`, styled
+   distinctly, and require a `reason=` citation per unreachable region. Today
+   unreachable cells get a real 0/1 plus a prose aside -- which both hides bugs
+   and blocks legal grouping.
+3. **Sufficiency field.** A required `depends_only_on=` argument explaining why
+   the mapped function ignores every other input. Fail the run if it is empty.
+   Without it a paged map is a slice with no stated invariant.
+4. **Implicant derivation.** Quine-McCluskey is fine at <= 6 variables (our cap).
+   Emit the minimal sum-of-products, then DIFF it against the mirrored RTL
+   expression and label the result identical / RTL-redundant / RTL-differs.
+   The third case is the defect finder.
+5. **Promote to bin/.** Both generators carry a private copy of this machinery
+   (was /TOOLING_TODO.md item 1; that file's backlog folded into this area
+   2026-08-09 and the promotion now lives ONLY here). Do this AFTER 1-4 so
+   one implementation gets the improvements, not two.
+
+Acceptance: a workbook where every map states its axis equations, its
+sufficiency argument, its don't-cares with citations, and a derived-vs-RTL
+verdict.
+
+## TOOL-014 — Scripts book link rot + DOCUMENTATION_INDEX refresh
+**Status:** open 2026-08-09 (migrated from /TOOLING_TODO.md item 3, found
+2026-07-22 during the assets move; re-verified still broken at migration)
+**Priority:** P3
+
+`docs/markdown/Scripts` has pre-existing broken image/file links, untouched
+by the images_scripts_uml -> Scripts/assets move (all moved links verified
+at the time):
+- `wavedrom_troubleshooting.md` -> `assets/wavedrom/*.svg` — dir never
+  existed here (18 references, still broken 2026-08-09)
+- `cheat_sheet.md` -> `../rtl/_wavedrom_svg/*.svg` — dir gone
+- `generate_uml.md` -> `../../puml_img/CocoTBFramework*.png` — UML renders
+  gone; the tool lives in RDS-DV now, so the page may belong there entirely
+- `md_to_docx.md` -> diagram.json examples — illustrative snippets; possibly
+  fine as-is, mark as examples
+
+Triage each: repoint, regenerate, or prune when the Scripts book gets its
+pass (the docs-review area has "Scripts overview: write it" pending — do
+these together). Related: `docs/DOCUMENTATION_INDEX.md` still catalogs the
+pre-cleanup docs/ layout — refresh or retire it now that the handbook exists
+(owner flagged 2026-07-22; its TESTING.md entry was repointed to the
+handbook when /TESTING.md was retired 2026-08-09).

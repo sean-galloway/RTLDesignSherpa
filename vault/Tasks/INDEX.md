@@ -74,7 +74,7 @@ reviewed tree starts until the review is back and integrated.
 | [nexysa7](nexysa7/INDEX.md) | **started** | board campaigns + characterization flows | NEXYS-001 (consistent flow Makefiles); timing_characterization/TASKS.md, cdc_counter_display CDC_DEMO_TODO still to fold in |
 | formal | pending | formal proof backlog | [formal/FORMAL_TODO.md](../../formal/FORMAL_TODO.md) |
 | coverage | pending | coverage backlog | [val/COVERAGE_TODO.md](../../val/COVERAGE_TODO.md) |
-| [tooling](tooling/INDEX.md) | **migrated** | repo tooling/scripts/process | [TOOLING_TODO.md](../../TOOLING_TODO.md) (historical backlog migrates via TOOL-001) |
+| [tooling](tooling/INDEX.md) | **migrated** | repo tooling/scripts/process | TOOLING_TODO.md (folded in + deleted 2026-08-09: TOOL-013 closed, TOOL-014 open, kmap item into TOOLING-KMAP) |
 | [site-audit](site-audit/INDEX.md) | **native** | site-wide audit umbrella: RTL correct, docs match, humanized, verification covers it | — (new 2026-07-28; subsumes DOCREV-009, folds in coverage/formal backlogs) |
 
 `pending` rows still track work at the linked source file; they will migrate
