@@ -73,7 +73,7 @@ BRAM detail: 16× RAMB36 + 1× RAMB18.
 | `u_rd_axi_skid` | axi4_master_rd (datapath AXI master) | 632 | 636 | 0 |
 | `u_peakrdl_adapter` | peakrdl_to_cmdrsp (CSR read-mux + decode) | 558 | 81 | 0 |
 | `u_axi_read_engine` | axi_read_engine | 247 | 168 | 0 |
-| `g_apb_passthrough.u_apb_slave` | apb_slave | 236 | 207 | 0 |
+| `g_apb_passthrough.u_apb4_slave` | apb4_slave | 236 | 207 | 0 |
 
 The scheduler/descriptor groups (one per channel) dominate at ~8.1k LUTs / 5.3k FF;
 the bulk of the BRAM is the per-channel SRAM datapath inside `stream_core`. The

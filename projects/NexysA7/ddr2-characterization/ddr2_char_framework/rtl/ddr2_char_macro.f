@@ -15,10 +15,10 @@
 # / core / PeakRDL csr + the host<->core AXI dwidth converters.
 -f $REPO_ROOT/projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/filelists/top/pumice_top_geared.f
 
-# APB CSR window -> controller cpuif shim (apb_slave_cdc + peakrdl_to_cmdrsp).
+# APB CSR window -> controller cpuif shim (apb4_slave_cdc + peakrdl_to_cmdrsp).
 # counter_bin + fifo_control already come in via pumice_top_geared.f.
 #
-# apb_slave_cdc's CDC is a gray-pointer async FIFO (gaxi_fifo_async), not a
+# apb4_slave_cdc's CDC is a gray-pointer async FIFO (gaxi_fifo_async), not a
 # toggle handshake: the APB side (presetn) and core side (aresetn) are separate
 # reset domains here — CTRL.soft_reset pulses only the core side — and a
 # toggle-parity handshake desynchronizes under that, permanently offsetting the
@@ -33,8 +33,8 @@
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_open_loop.f
--f $REPO_ROOT/rtl/amba/filelists/apb_slave.f
--f $REPO_ROOT/rtl/amba/filelists/apb_slave_cdc.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_slave.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
 $REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
 $REPO_ROOT/projects/components/converters/rtl/apb_to_peakrdl.sv
 

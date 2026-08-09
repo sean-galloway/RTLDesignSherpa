@@ -87,12 +87,12 @@ module apb_pic_8259 (
     // APB Slave - Convert APB to CMD/RSP Interface
     //========================================================================
 
-    apb_slave #(
+    apb4_slave #(
         .ADDR_WIDTH(12),
         .DATA_WIDTH(32),
         .STRB_WIDTH(4),
         .PROT_WIDTH(3)
-    ) u_apb_slave (
+    ) u_apb4_slave (
         .pclk                 (pclk),
         .presetn              (presetn),
 

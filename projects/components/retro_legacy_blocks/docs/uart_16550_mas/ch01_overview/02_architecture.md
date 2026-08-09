@@ -33,7 +33,7 @@
 
 ```
 apb_uart_16550 (Top Level)
-+-- apb_slave
++-- apb4_slave
 |   +-- APB protocol handling
 |   +-- CMD/RSP interface conversion
 |
@@ -147,7 +147,7 @@ flowchart TD
 
 | Component | Flip-Flops | LUTs |
 |-----------|-----------|------|
-| apb_slave | ~20 | ~50 |
+| apb4_slave | ~20 | ~50 |
 | uart_regs | ~150 | ~100 |
 | baud_gen | ~20 | ~30 |
 | tx_engine + FIFO | ~200 | ~150 |

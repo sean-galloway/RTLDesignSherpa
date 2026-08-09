@@ -1,9 +1,9 @@
-apb_master_cg.sv
-apb_master.sv
-apb_monitor.sv
-apb_slave_cg.sv
-apb_slave_stub.sv
-apb_slave.sv
+apb4_master_cg.sv
+apb4_master.sv
+apb4_monitor.sv
+apb4_slave_cg.sv
+apb4_slave_stub.sv
+apb4_slave.sv
 axi4_dwidth_converter.sv
 axi4_dwidth_converter_wr.sv
 axi4_master_rd_mon_cg.sv

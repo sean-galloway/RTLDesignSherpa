@@ -127,7 +127,7 @@ class DDR2LPDDR2TopTB:
             beats_per_burst=self.dram_bl,
         )
 
-        self.apb_master: Optional[APBMaster] = None
+        self.apb4_master: Optional[APBMaster] = None
         self.axi_master_wr: Optional[AXI4MasterWrite] = None
         self.axi_master_rd: Optional[AXI4MasterRead] = None
         self.reg_map: Optional[RegisterMap] = None
@@ -470,12 +470,12 @@ class DDR2LPDDR2TopTB:
         )
         return self.reg_map
 
-    def init_apb_master(self) -> APBMaster:
-        self.apb_master = APBMaster(
+    def init_apb4_master(self) -> APBMaster:
+        self.apb4_master = APBMaster(
             entity=self.dut, title="DDR2 CSR APB", prefix="s_apb",
             clock=self.dut.pclk, bus_width=32, addr_width=12, log=self.log,
         )
-        return self.apb_master
+        return self.apb4_master
 
     def init_axi_masters(self) -> tuple[AXI4MasterWrite, AXI4MasterRead]:
         self.axi_master_wr = AXI4MasterWrite(
@@ -666,24 +666,24 @@ class DDR2LPDDR2TopTB:
         """
         if self.reg_map is None:
             self.init_register_map()
-        if self.apb_master is None:
-            raise RuntimeError("call init_apb_master() first")
+        if self.apb4_master is None:
+            raise RuntimeError("call init_apb4_master() first")
         offset = self.reg_map.registers[register][field]["offset"]
         lsb = int(offset.split(":")[-1])
         self.reg_map.write(register, field, value << lsb)
         cycles = self.reg_map.generate_apb_cycles()
         for c in cycles:
-            await self.apb_master.busy_send(c)
+            await self.apb4_master.busy_send(c)
             await RisingEdge(self.dut.pclk)
 
     async def apb_read_register(self, address: int) -> int:
-        if self.apb_master is None:
-            raise RuntimeError("call init_apb_master() first")
+        if self.apb4_master is None:
+            raise RuntimeError("call init_apb4_master() first")
         packet = APBPacket(
             pwrite=0, paddr=address, pwdata=0, pstrb=0xF, pprot=0,
             data_width=32, addr_width=12, strb_width=4,
         )
-        await self.apb_master.busy_send(packet)
+        await self.apb4_master.busy_send(packet)
         await RisingEdge(self.dut.pclk)
         return int(packet.fields.get("prdata", 0))
 

@@ -206,12 +206,12 @@ module apb_xbar_rlb_1to10 #(
     // ========================================================================
     // APB Slave - Convert master APB to cmd/rsp
     // ========================================================================
-    apb_slave #(
+    apb4_slave #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_slave (
+    ) u_apb4_slave (
         .pclk           (pclk),
         .presetn        (presetn),
         .s_apb_PSEL     (s_apb_PSEL),
@@ -375,12 +375,12 @@ module apb_xbar_rlb_1to10 #(
     // ========================================================================
 
     // Slave 0: HPET
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (12),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_hpet (
+    ) u_apb4_master_hpet (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (hpet_apb_PSEL),
@@ -407,12 +407,12 @@ module apb_xbar_rlb_1to10 #(
     );
 
     // Slave 1: 8259 PIC
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (12),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_pic (
+    ) u_apb4_master_pic (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (pic_apb_PSEL),
@@ -439,12 +439,12 @@ module apb_xbar_rlb_1to10 #(
     );
 
     // Slave 2: 8254 PIT
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (12),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_pit (
+    ) u_apb4_master_pit (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (pit_apb_PSEL),
@@ -471,12 +471,12 @@ module apb_xbar_rlb_1to10 #(
     );
 
     // Slave 3: RTC
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (12),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_rtc (
+    ) u_apb4_master_rtc (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (rtc_apb_PSEL),
@@ -503,12 +503,12 @@ module apb_xbar_rlb_1to10 #(
     );
 
     // Slave 4: SMBus
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (12),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_smbus (
+    ) u_apb4_master_smbus (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (smbus_apb_PSEL),
@@ -535,12 +535,12 @@ module apb_xbar_rlb_1to10 #(
     );
 
     // Slave 5: PM/ACPI
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (12),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_pm (
+    ) u_apb4_master_pm (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (pm_apb_PSEL),
@@ -567,12 +567,12 @@ module apb_xbar_rlb_1to10 #(
     );
 
     // Slave 6: IOAPIC
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (12),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_ioapic (
+    ) u_apb4_master_ioapic (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (ioapic_apb_PSEL),
@@ -599,12 +599,12 @@ module apb_xbar_rlb_1to10 #(
     );
 
     // Slave 7: GPIO
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (12),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_gpio (
+    ) u_apb4_master_gpio (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (gpio_apb_PSEL),
@@ -631,12 +631,12 @@ module apb_xbar_rlb_1to10 #(
     );
 
     // Slave 8: UART 16550
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (12),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_uart (
+    ) u_apb4_master_uart (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (uart_apb_PSEL),
@@ -663,12 +663,12 @@ module apb_xbar_rlb_1to10 #(
     );
 
     // Slave 9: Reserved
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (12),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_rsvd (
+    ) u_apb4_master_rsvd (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (rsvd_apb_PSEL),

@@ -357,7 +357,7 @@ module axi4_to_apb_shim #(
 
 
     // Instantiate the APB Master interface
-    apb_master_stub # (
+    apb4_master_stub # (
         .CMD_DEPTH        (APB_CMD_DEPTH),
         .RSP_DEPTH        (APB_RSP_DEPTH),
         .DATA_WIDTH       (APBDW),
@@ -365,7 +365,7 @@ module axi4_to_apb_shim #(
         .STRB_WIDTH       (APBSW),       // DATA_WIDTH / 8
         .CMD_PACKET_WIDTH (APBCmdWidth), // ADDR_WIDTH + DATA_WIDTH + STRB_WIDTH + 4
         .RESP_PACKET_WIDTH(APBRspWidth)  // DATA_WIDTH + 2
-    ) apb_master_inst     (
+    ) apb4_master_inst     (
         .pclk             (pclk),
         .presetn          (presetn),
         .m_apb_PSEL       (m_apb_PSEL),

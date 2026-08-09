@@ -81,7 +81,7 @@
 
 ```
 apb_hpet (Top Level)
-+-- apb_slave (OR apb_slave_cdc if CDC_ENABLE=1)
++-- apb4_slave (OR apb4_slave_cdc if CDC_ENABLE=1)
 |   +-- APB protocol handling
 |   +-- Read/write transaction management
 |   +-- Optional clock domain crossing

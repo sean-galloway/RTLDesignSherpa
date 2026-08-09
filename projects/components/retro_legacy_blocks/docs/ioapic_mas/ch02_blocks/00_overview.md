@@ -29,7 +29,7 @@ The APB IOAPIC consists of four primary blocks organized in a clean hierarchical
 
 ```
 apb_ioapic (Top Level)
-├── apb_slave or apb_slave_cdc (Bus Interface)
+├── apb4_slave or apb4_slave_cdc (Bus Interface)
 ├── ioapic_config_regs (Register Wrapper)
 │   ├── peakrdl_to_cmdrsp (Protocol Adapter)
 │   └── ioapic_regs (PeakRDL Generated)
@@ -45,7 +45,7 @@ apb_ioapic (Top Level)
 | **ioapic_regs** | ioapic_regs.sv | ~2500 | PeakRDL generated register block |
 | **ioapic_core** | ioapic_core.sv | ~290 | Interrupt routing, edge/level detection, arbitration |
 | **peakrdl_to_cmdrsp** | (external) | ~150 | CMD/RSP to PeakRDL passthrough adapter |
-| **apb_slave[_cdc]** | (external) | ~200 | APB protocol handler |
+| **apb4_slave[_cdc]** | (external) | ~200 | APB protocol handler |
 
 **Total Implementation:** ~900 lines of custom RTL + ~2700 lines generated/reused
 
@@ -87,7 +87,7 @@ apb_ioapic (Top Level)
 
 ```mermaid
 flowchart TD
-    A["APB Write Request"] --> B["apb_slave[_cdc]<br/>(APB protocol handling)"]
+    A["APB Write Request"] --> B["apb4_slave[_cdc]<br/>(APB protocol handling)"]
     B -->|"CMD interface"| C["peakrdl_to_cmdrsp<br/>(protocol adapter)"]
     C -->|"Passthrough interface"| D["ioapic_regs<br/>(register storage, indirect access)"]
     D -->|"hwif_out"| E["ioapic_config_regs<br/>(signal mapping)"]
@@ -101,7 +101,7 @@ flowchart TD
     A["ioapic_core<br/>(generates status)"] -->|"status_* signals"| B["ioapic_config_regs<br/>(signal mapping)"]
     B -->|"hwif_in"| C["ioapic_regs<br/>(register readback, indirect access)"]
     C -->|"RSP interface"| D["peakrdl_to_cmdrsp<br/>(protocol adapter)"]
-    D -->|"APB response"| E["apb_slave[_cdc]<br/>(APB protocol)"]
+    D -->|"APB response"| E["apb4_slave[_cdc]<br/>(APB protocol)"]
     E --> F["APB Read Data"]
 ```
 
@@ -132,20 +132,20 @@ flowchart TD
 
 **CDC_ENABLE=0 (Single Clock):**
 - All blocks run on `pclk`
-- apb_slave instantiated (no CDC)
+- apb4_slave instantiated (no CDC)
 - Simplest timing analysis
 
 **CDC_ENABLE=1 (Dual Clock):**
-- apb_slave_cdc runs on `pclk` (APB domain)
+- apb4_slave_cdc runs on `pclk` (APB domain)
 - config_regs runs on `ioapic_clk` (IOAPIC domain)
 - core runs on `ioapic_clk` (IOAPIC domain)
-- CDC handled by apb_slave_cdc module
+- CDC handled by apb4_slave_cdc module
 
 #### Module Dependencies
 
 **RLB Project Dependencies:**
 - `reset_defs.svh` - Reset macro definitions
-- `apb_slave.sv` or `apb_slave_cdc.sv` - APB protocol
+- `apb4_slave.sv` or `apb4_slave_cdc.sv` - APB protocol
 - `peakrdl_to_cmdrsp.sv` - Register adapter
 
 **Generated Files:**

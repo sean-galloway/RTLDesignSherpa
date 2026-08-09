@@ -90,7 +90,7 @@ class DescriptorEngineTB(TBBase):
         self.memory_model = None
 
         # GAXI Master BFM for APB interface
-        self.apb_master = None
+        self.apb4_master = None
 
         # Test tracking
         self.apb_requests_sent = 0
@@ -180,7 +180,7 @@ class DescriptorEngineTB(TBBase):
             ))
 
             self.log.info("Creating GAXI APB Master...")
-            self.apb_master = create_gaxi_master(
+            self.apb4_master = create_gaxi_master(
                 dut=self.dut,
                 title="APBMaster",
                 prefix="apb",
@@ -190,9 +190,9 @@ class DescriptorEngineTB(TBBase):
                 mode='skid',
                 multi_sig=True
             )
-            self.log.info(f"✓ GAXI APB Master initialized: {self.apb_master}")
+            self.log.info(f"✓ GAXI APB Master initialized: {self.apb4_master}")
 
-            if self.apb_master is None:
+            if self.apb4_master is None:
                 raise RuntimeError("GAXI APB Master creation returned None!")
 
             # Apply BFM timing profiles (env-driven). Defaults leave behavior
@@ -256,7 +256,7 @@ class DescriptorEngineTB(TBBase):
             self.log.warning(f"Unknown GAXI timing profile '{profile_name}', "
                              f"using 'backtoback'")
             profile_name = 'backtoback'
-        self.apb_master.randomizer = FlexRandomizer(
+        self.apb4_master.randomizer = FlexRandomizer(
             GAXI_RANDOMIZER_CONFIGS[profile_name]['master'])
         self.log.info(f"GAXI apb master timing profile: {profile_name}")
 
@@ -363,8 +363,8 @@ class DescriptorEngineTB(TBBase):
     async def send_apb_request(self, addr):
         """Send APB request to fetch descriptor at address."""
         # Field name is 'addr' (prefix 'apb' + 'addr' = 'apb_addr' signal)
-        packet = self.apb_master.create_packet(addr=addr)
-        await self.apb_master.send(packet)
+        packet = self.apb4_master.create_packet(addr=addr)
+        await self.apb4_master.send(packet)
         self.apb_requests_sent += 1
         self.log.info(f"APB request sent: addr=0x{addr:X}")
 

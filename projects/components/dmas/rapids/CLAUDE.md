@@ -144,7 +144,7 @@ def test_basic_flow(request, channel_id, ...):
 2. **Composition:** Scheduler TB + Descriptor TB → Integration TB
 3. **Discovery:** All RAPIDS code under `projects/components/dmas/rapids/`
 
-**📖 Complete Pattern:** `val/amba/test_apb_slave.py` lines 1251-1346 (reference example)
+**📖 Complete Pattern:** `val/amba/test_apb4_slave.py` lines 1251-1346 (reference example)
 
 **📖 Queue-Based Verification Pattern:** See `/GLOBAL_REQUIREMENTS.md` Section 2.4
 

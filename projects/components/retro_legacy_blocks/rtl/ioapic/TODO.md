@@ -66,7 +66,7 @@
 #### APB Wrapper
 - [ ] **apb_ioapic.sv** - APB top-level with CDC support
   - CDC_ENABLE parameter (0=single, 1=dual clock)
-  - Conditional apb_slave vs apb_slave_cdc
+  - Conditional apb4_slave vs apb4_slave_cdc
   - Instantiate ioapic_config_regs
   - Instantiate ioapic_core
   - Wire 24 IRQ inputs to core

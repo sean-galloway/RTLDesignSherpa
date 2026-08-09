@@ -756,7 +756,7 @@ Shared modules are tested indirectly through higher-level protocol modules:
 # Monitor infrastructure tested via monitor tests
 pytest val/amba/test_axi4_*_mon.py -v
 pytest val/amba/test_axil4_*_mon.py -v
-pytest val/amba/test_apb_monitor.py -v
+pytest val/amba/test_apb4_monitor.py -v
 
 # CDC tested via shims
 pytest projects/components/converters/dv/tests/test_axi2apb_shim.py -v

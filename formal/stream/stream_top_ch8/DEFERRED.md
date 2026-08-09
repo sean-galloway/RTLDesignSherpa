@@ -6,7 +6,7 @@
 
 stream_top_ch8 is the top-level STREAM wrapper (1648 lines) that integrates:
 
-1. **APB interface** -- apb_slave_cdc or apb_slave (conditional on CDC_ENABLE)
+1. **APB interface** -- apb4_slave_cdc or apb4_slave (conditional on CDC_ENABLE)
 2. **Command/Response routing** -- cmdrsp_router (address-based routing)
 3. **Descriptor kick-off** -- apbtodescr (channel kick-off, 0x000-0x03F)
 4. **PeakRDL registers** -- peakrdl_to_cmdrsp + stream_regs (PeakRDL-generated, 0x100-0x3FF)
@@ -26,8 +26,8 @@ stream_top_ch8 is the top-level STREAM wrapper (1648 lines) that integrates:
    `projects/components/converters/rtl/peakrdl_to_cmdrsp.sv`.
    Additional dependency from a different component area.
 
-3. **apb_slave_cdc.sv**: Clock-domain crossing module at
-   `rtl/amba/apb/apb_slave_cdc.sv`. Even with CDC_ENABLE=0, the generate
+3. **apb4_slave_cdc.sv**: Clock-domain crossing module at
+   `rtl/amba/apb4/apb4_slave_cdc.sv`. Even with CDC_ENABLE=0, the generate
    block still needs both modules available for sv2v.
 
 4. **stream_config_block.sv**: Register-to-config mapping at

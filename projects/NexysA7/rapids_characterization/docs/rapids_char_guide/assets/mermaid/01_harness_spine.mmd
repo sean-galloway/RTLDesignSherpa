@@ -2,7 +2,7 @@ flowchart LR
     USB[USB / FTDI]
     UART["uart_axil_bridge<br/>W/R ASCII to AXI4-Lite"]
     DEC{"region decode<br/>addr 19:16"}
-    APBM[apb_master]
+    APBM[apb4_master]
     DESC["descriptor RAM<br/>load / kick"]
     CSR["harness CSR<br/>gen / chk / mem / mon / obs"]
     subgraph HARN["rapids_char_harness"]

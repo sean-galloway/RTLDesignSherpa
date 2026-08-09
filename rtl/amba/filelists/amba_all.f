@@ -91,15 +91,15 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer_struct.sv
 # =============================================================================
 # APB - Advanced Peripheral Bus
 # =============================================================================
-$REPO_ROOT/rtl/amba/apb/apb_master.sv
-$REPO_ROOT/rtl/amba/apb/apb_master_cg.sv
-$REPO_ROOT/rtl/amba/apb/apb_master_stub.sv
-$REPO_ROOT/rtl/amba/apb/apb_monitor.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_cdc_cg.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_cg.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_stub.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_master.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_master_cg.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_master_stub.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_monitor.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_slave.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_slave_cdc.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_slave_cdc_cg.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_slave_cg.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_slave_stub.sv
 
 # =============================================================================
 # AXI4 - Advanced eXtensible Interface (Full)

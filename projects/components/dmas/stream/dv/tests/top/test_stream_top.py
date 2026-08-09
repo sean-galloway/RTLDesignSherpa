@@ -211,7 +211,7 @@ async def cocotb_test_stream_top_basic(dut):
 
 
     # Initialize APB master for stream_top configuration interface
-    await tb.init_apb_master()
+    await tb.init_apb4_master()
 
     # Read version register to verify APB connectivity (with debug probing)
     version = await tb.read_apb_register(0x108, debug_probe=True)  # VERSION register
@@ -418,7 +418,7 @@ async def _ext_setup(dut):
         apb_addr_width=12, apb_data_width=32,
     )
     await tb.setup_clocks_and_reset(rd_xfer_beats=16, wr_xfer_beats=16)
-    await tb.init_apb_master()
+    await tb.init_apb4_master()
     await tb.enable_global()
     await tb.enable_channel_mask((1 << num_channels) - 1)
     await tb.configure_transfer_beats(rd_xfer_beats=16, wr_xfer_beats=16)

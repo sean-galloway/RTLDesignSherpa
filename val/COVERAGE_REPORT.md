@@ -107,7 +107,7 @@ FSM coverage tracks whether all state machine states are exercised during testin
 
 | Module | States | Covered | Notes |
 |--------|--------|---------|-------|
-| apb_master | 3 | 3 | IDLE/SETUP/ACCESS |
+| apb4_master | 3 | 3 | IDLE/SETUP/ACCESS |
 | apb5_master | 3 | 3 | IDLE/SETUP/ACCESS (105/201 hits) |
 | apb5_slave | 3 | 3 | IDLE/SETUP/ACCESS |
 | axi_master_rd_splitter | 2 | 2 | IDLE/SPLIT |

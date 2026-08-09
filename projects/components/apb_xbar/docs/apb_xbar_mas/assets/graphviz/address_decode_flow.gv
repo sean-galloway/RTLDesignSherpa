@@ -37,7 +37,7 @@ digraph address_decode_flow {
     arb_decision [label="Arbitration Decision\n\nGrant to requesting master\n(if no conflict)", fillcolor=lightcyan];
 
     // Route to Slave
-    route_slave [label="Route to Slave 2\n\nvia apb_master[2]\n\nPSEL[2] = 1\nPADDR = 0x10023456", shape=doubleoctagon, fillcolor=pink];
+    route_slave [label="Route to Slave 2\n\nvia apb4_master[2]\n\nPSEL[2] = 1\nPADDR = 0x10023456", shape=doubleoctagon, fillcolor=pink];
 
     // Data Flow
     incoming -> calc_offset [label="1. Receive", style=bold];

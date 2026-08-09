@@ -113,7 +113,7 @@ Transaction request forwarded to Arbiter[2] (Slave 2's arbiter)
 
 **Step 5: Forward to Slave**
 
-After arbitration grant, transaction forwarded via apb_master[2] to physical Slave 2
+After arbitration grant, transaction forwarded via apb4_master[2] to physical Slave 2
 
 **Final Address Sent to Slave:** 0x10023456 (full address preserved)
 

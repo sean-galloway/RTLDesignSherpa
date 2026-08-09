@@ -44,9 +44,9 @@ to demonstrate -- and why the RTL currently does not build -- start at
 
 ## Related
 
-- [apb_monitor](../rtl-amba/apb/apb_monitor.md) - the observer both examples
+- [apb4_monitor](../rtl-amba/apb4/apb4_monitor.md) - the observer both examples
   attach; takes the `cmd_*`/`rsp_*` handshake, not raw APB
-- [apb_slave](../rtl-amba/apb/apb_slave.md), [apb_master](../rtl-amba/apb/apb_master.md)
+- [apb4_slave](../rtl-amba/apb4/apb4_slave.md), [apb4_master](../rtl-amba/apb4/apb4_master.md)
   - the bridges that translate the wire into that handshake
 - [arbiter_round_robin](../rtl-common/arbiter_round_robin.md) - fair arbitration
   over the per-port monitor buses

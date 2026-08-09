@@ -90,7 +90,7 @@ Following the same pattern as the HPET block in `projects/components/retro_legac
 
 3. **Create APB Config Wrapper**
    - Instantiate generated register block (similar to `apb_hpet.sv`)
-   - Add `apb_slave_cdc` wrapper if clock domain crossing needed
+   - Add `apb4_slave_cdc` wrapper if clock domain crossing needed
    - Wire register outputs to STREAM control signals
 
 ---
@@ -151,7 +151,7 @@ module apb_config (
     );
 
     // Optional: Add CDC wrapper if crossing clock domains
-    // (like HPET's apb_slave_cdc)
+    // (like HPET's apb4_slave_cdc)
 endmodule
 ```
 

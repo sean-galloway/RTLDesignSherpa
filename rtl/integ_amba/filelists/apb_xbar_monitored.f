@@ -10,7 +10,7 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
--f $REPO_ROOT/rtl/amba/filelists/apb_monitor.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_monitor.f
 -f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
 # apb_xbar_thin instantiates arbiter_round_robin_weighted but its own filelist
 # does not carry it, so it cannot be compiled from that list alone. Declared

@@ -113,12 +113,12 @@ class AXI4DWidthToAPBChainTB(TBBase):
         # APB slave responds on master-side of the shim. It uses pclk.
         # Use a non-zero ready/error randomizer light enough to keep the
         # test fast but not zero-cycle ready (which can mask shim bugs).
-        self.apb_slave_randomizer = FlexRandomizer({
+        self.apb4_slave_randomizer = FlexRandomizer({
             'ready': ([(0, 0), (1, 2)], [9, 1]),
             'error': ([(0, 0), (1, 1)], [10, 0]),
         })
 
-        self.apb_slave = create_apb_slave(
+        self.apb4_slave = create_apb_slave(
             dut,
             'APB Slave',
             'm_apb',
@@ -126,7 +126,7 @@ class AXI4DWidthToAPBChainTB(TBBase):
             registers=registers,
             addr_width=self.apb_addr_width,
             data_width=self.apb_data_width,
-            randomizer=self.apb_slave_randomizer,
+            randomizer=self.apb4_slave_randomizer,
             log=self.log,
         )
 

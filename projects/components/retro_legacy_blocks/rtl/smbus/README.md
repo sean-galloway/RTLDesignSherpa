@@ -70,7 +70,7 @@ Complete SMBus 2.0 controller implementation with master and slave modes, suppor
 ### Module Hierarchy
 ```
 apb_smbus (Top Level - To Be Implemented)
-├── apb_slave (APB4 protocol converter)
+├── apb4_slave (APB4 protocol converter)
 ├── smbus_config_regs (Register interface - To Be Generated)
 └── smbus_core (SMBus protocol engine)
     ├── smbus_pec (CRC-8 calculator) ✅
@@ -330,7 +330,7 @@ peakrdl generate smbus_regs.rdl -o ../smbus_config_regs.sv
 
 ### Phase 5: APB Wrapper
 - Create `apb_smbus.sv` following RTC pattern
-- Instantiate apb_slave, smbus_config_regs, smbus_core
+- Instantiate apb4_slave, smbus_config_regs, smbus_core
 - Wire up all interfaces
 - Add interrupt aggregation
 
@@ -350,7 +350,7 @@ peakrdl generate smbus_regs.rdl -o ../smbus_config_regs.sv
 ### Project References
 - **RTC Implementation:** `projects/components/retro_legacy_blocks/rtl/rtc/`
 - **FIFO Infrastructure:** `rtl/common/fifo_sync.sv`
-- **APB Infrastructure:** `rtl/amba/apb/apb_slave.sv`
+- **APB Infrastructure:** `rtl/amba/apb4/apb4_slave.sv`
 
 ### Related Tools
 - **PeakRDL:** Register definition and generation framework

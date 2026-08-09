@@ -46,7 +46,7 @@ The APB UART 16550 module has the following external interfaces:
 ### APB Slave Interface
 Complete APB protocol interface for register access.
 
-**See:** [01_apb_slave.md](01_apb_slave.md)
+**See:** [01_apb4_slave.md](01_apb4_slave.md)
 
 ### Serial Interface
 TXD and RXD serial data connections.
@@ -70,4 +70,4 @@ Clock and reset signal requirements.
 
 ---
 
-**Next:** [01_apb_slave.md](01_apb_slave.md) - APB Slave Interface
+**Next:** [01_apb4_slave.md](01_apb4_slave.md) - APB Slave Interface

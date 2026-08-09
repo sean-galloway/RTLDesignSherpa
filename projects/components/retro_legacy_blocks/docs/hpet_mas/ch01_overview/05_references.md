@@ -116,8 +116,8 @@
 #### Related RTL Components
 
 **APB Infrastructure:**
-- `rtl/amba/apb/apb_slave.sv` - Standard APB slave
-- `rtl/amba/apb/apb_slave_cdc.sv` - APB slave with clock domain crossing
+- `rtl/amba/apb4/apb4_slave.sv` - Standard APB slave
+- `rtl/amba/apb4/apb4_slave_cdc.sv` - APB slave with clock domain crossing
 - `projects/components/converters/rtl/peakrdl_to_cmdrsp.sv` - PeakRDL adapter
 
 **Clock Domain Crossing:**

@@ -55,10 +55,10 @@ When multiple masters compete for the same slave:
 
 | Component | Latency | Type |
 |-----------|---------|------|
-| apb_slave capture | 0-1 cycle | Registered |
+| apb4_slave capture | 0-1 cycle | Registered |
 | Address decode | 0 cycles | Combinational |
 | Arbitration | 0-1 cycle | Combinational + wait |
-| apb_master drive | 0-1 cycle | Registered |
+| apb4_master drive | 0-1 cycle | Registered |
 | **Typical Total** | **1-2 cycles** | From PSEL to slave PSEL |
 
 : Forward Path Latency
@@ -68,9 +68,9 @@ When multiple masters compete for the same slave:
 | Component | Latency | Type |
 |-----------|---------|------|
 | Slave response | Variable | PREADY timing |
-| apb_master capture | 0-1 cycle | Registered |
+| apb4_master capture | 0-1 cycle | Registered |
 | Response routing | 0 cycles | Combinational |
-| apb_slave drive | 0-1 cycle | Registered |
+| apb4_slave drive | 0-1 cycle | Registered |
 | **Typical Total** | **1-2 cycles** | From slave PREADY to master PREADY |
 
 : Response Path Latency

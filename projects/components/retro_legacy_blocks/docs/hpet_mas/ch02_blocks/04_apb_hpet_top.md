@@ -47,9 +47,9 @@ The `apb_hpet` module is the top-level system integration point that combines AP
 ```
 apb_hpet
 +-- APB Slave Interface (conditional generation)
-|   +-- apb_slave (CDC_ENABLE=0)
+|   +-- apb4_slave (CDC_ENABLE=0)
 |   |   +-- Synchronous APB protocol
-|   +-- apb_slave_cdc (CDC_ENABLE=1)
+|   +-- apb4_slave_cdc (CDC_ENABLE=1)
 |       +-- APB protocol (pclk domain)
 |       +-- CDC handshake (pclk ↔ hpet_clk)
 |
@@ -194,16 +194,16 @@ The top-level module uses a SystemVerilog `generate` block to conditionally inst
 
 ```systemverilog
 generate
-    if (CDC_ENABLE != 0) begin : g_apb_slave_cdc
+    if (CDC_ENABLE != 0) begin : g_apb4_slave_cdc
         // ... CDC variant instantiation ...
-    end else begin : g_apb_slave_no_cdc
+    end else begin : g_apb4_slave_no_cdc
         // Non-CDC version for same clock domain (pclk == hpet_clk)
-        apb_slave #(
+        apb4_slave #(
             .ADDR_WIDTH(12),
             .DATA_WIDTH(32),
             .STRB_WIDTH(4),
             .PROT_WIDTH(3)
-        ) u_apb_slave (
+        ) u_apb4_slave (
             // Single clock domain (use pclk for both APB and cmd/rsp)
             .pclk                 (pclk),
             .presetn              (presetn),
@@ -248,15 +248,15 @@ endgenerate
 
 ```systemverilog
 generate
-    if (CDC_ENABLE != 0) begin : g_apb_slave_cdc
+    if (CDC_ENABLE != 0) begin : g_apb4_slave_cdc
         // Clock Domain Crossing version for async clocks
-        apb_slave_cdc #(
+        apb4_slave_cdc #(
             .ADDR_WIDTH(12),
             .DATA_WIDTH(32),
             .STRB_WIDTH(4),
             .PROT_WIDTH(3),
             .DEPTH     (2)
-        ) u_apb_slave_cdc (
+        ) u_apb4_slave_cdc (
             // APB Clock Domain
             .pclk                 (pclk),
             .presetn              (presetn),
@@ -292,7 +292,7 @@ generate
             .rsp_prdata           (w_rsp_prdata),
             .rsp_pslverr          (w_rsp_pslverr)
         );
-    end else begin : g_apb_slave_no_cdc
+    end else begin : g_apb4_slave_no_cdc
         // ... non-CDC variant instantiation ...
     end
 endgenerate

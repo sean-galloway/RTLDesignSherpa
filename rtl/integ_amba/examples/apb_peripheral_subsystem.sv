@@ -221,7 +221,7 @@ module apb_peripheral_subsystem
     // =============================================================================
     // APB -> cmd/rsp tap
     // =============================================================================
-    // apb_monitor observes the TRANSLATED side of a bridge, never the wire: it
+    // apb4_monitor observes the TRANSLATED side of a bridge, never the wire: it
     // takes a cmd_valid/cmd_ready + rsp_valid/rsp_ready handshake. That is what
     // lets one monitor serve both APB4 and APB5 -- each bridge presents the same
     // shape regardless of the protocol on its pins.
@@ -265,7 +265,7 @@ module apb_peripheral_subsystem
     // Monitor 0: Register File
     // =============================================================================
 
-    apb_monitor #(
+    apb4_monitor #(
         .ADDR_WIDTH       (ADDR_WIDTH),
         .DATA_WIDTH       (DATA_WIDTH),
         .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
@@ -329,7 +329,7 @@ module apb_peripheral_subsystem
     // Monitor 1: Timer
     // =============================================================================
 
-    apb_monitor #(
+    apb4_monitor #(
         .ADDR_WIDTH       (ADDR_WIDTH),
         .DATA_WIDTH       (DATA_WIDTH),
         .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
@@ -393,7 +393,7 @@ module apb_peripheral_subsystem
     // Monitor 2: GPIO
     // =============================================================================
 
-    apb_monitor #(
+    apb4_monitor #(
         .ADDR_WIDTH       (ADDR_WIDTH),
         .DATA_WIDTH       (DATA_WIDTH),
         .MAX_TRANSACTIONS (MAX_TRANSACTIONS),

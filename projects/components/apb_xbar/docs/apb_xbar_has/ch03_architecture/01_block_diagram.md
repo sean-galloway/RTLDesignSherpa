@@ -35,7 +35,7 @@ The APB Crossbar consists of three main functional layers:
 
 ### Master-Side Protocol Conversion
 
-**Component:** `apb_slave[M]` instances (one per master)
+**Component:** `apb4_slave[M]` instances (one per master)
 
 Each APB slave instance:
 - Accepts incoming APB transactions from a master
@@ -62,7 +62,7 @@ The crossbar fabric:
 
 ### Slave-Side Protocol Conversion
 
-**Component:** `apb_master[N]` instances (one per slave)
+**Component:** `apb4_master[N]` instances (one per slave)
 
 Each APB master instance:
 - Accepts internal cmd/rsp from crossbar fabric
@@ -78,11 +78,11 @@ Each APB master instance:
 
 ```
 apb_xbar_MxN
-+-- apb_slave[0..M-1]          # Master-side conversion
++-- apb4_slave[0..M-1]          # Master-side conversion
 +-- addr_decode                 # Parallel address decode
 +-- arbiter[0..N-1]            # Per-slave round-robin
 +-- response_mux               # Response routing
-+-- apb_master[0..N-1]         # Slave-side conversion
++-- apb4_master[0..N-1]         # Slave-side conversion
 ```
 
 ## Data Path Width

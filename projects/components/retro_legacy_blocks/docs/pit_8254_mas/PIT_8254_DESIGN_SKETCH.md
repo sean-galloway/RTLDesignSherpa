@@ -74,7 +74,7 @@ The APB 8254 PIT provides a production-quality implementation of the Intel 8254 
 
 ```
 apb_pit_8254.sv              # Top-level wrapper (like apb_hpet.sv)
-├── apb_slave_cdc.sv         # CDC wrapper (conditional instantiation)
+├── apb4_slave_cdc.sv         # CDC wrapper (conditional instantiation)
 ├── pit_config_regs.sv       # Register wrapper (like hpet_config_regs.sv)
 │   ├── peakrdl_to_cmdrsp.sv # PeakRDL adapter
 │   └── pit_regs.sv          # PeakRDL generated (from pit_regs.rdl)
@@ -84,7 +84,7 @@ apb_pit_8254.sv              # Top-level wrapper (like apb_hpet.sv)
 ```
 
 **Reuses HPET Modules:**
-- `apb_slave_cdc.sv` - Identical to HPET
+- `apb4_slave_cdc.sv` - Identical to HPET
 - `peakrdl_to_cmdrsp.sv` - Identical to HPET
 - Edge detection, synchronizers - From common library
 
@@ -691,7 +691,7 @@ dv/tests/                    (flat layout, shared across blocks)
 
 ```python
 from TBClasses.shared.tbbase import TBBase
-from CocoTBFramework.components.apb.apb_master import APBMaster
+from CocoTBFramework.components.apb.apb4_master import APBMaster
 
 class PIT8254TB(TBBase):
     """Testbench for 8254 PIT peripheral"""
@@ -714,7 +714,7 @@ class PIT8254TB(TBBase):
         # Create APB master
         self.apb = APBMaster(
             dut=dut,
-            name="apb_master",
+            name="apb4_master",
             clk=self.pclk,
             paddr=dut.s_apb_PADDR,
             psel=dut.s_apb_PSEL,

@@ -10,7 +10,7 @@ test_file: projects/components/apb_xbar/dv/tests/test_apb_xbar_2to1.py
 
 # Module description:
 # 2-to-1 APB crossbar - 2 masters arbitrating access to 1 slave.
-# Uses apb_slave modules for each master and apb_master for slave.
+# Uses apb4_slave modules for each master and apb4_master for slave.
 # Round-robin arbiter ensures fair access between masters.
 
 parameters:
@@ -370,7 +370,7 @@ implied_coverage:
 
 notes: |
   2-to-1 APB Crossbar arbitrates 2 masters to 1 slave.
-  Architecture: 2x apb_slave -> round-robin arbiter -> apb_master
+  Architecture: 2x apb4_slave -> round-robin arbiter -> apb4_master
 
   Key features:
   - Round-robin arbitration (fair access)

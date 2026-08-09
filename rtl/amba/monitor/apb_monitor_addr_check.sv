@@ -18,7 +18,7 @@
  * APB Monitor — Address-Range Violation Checker
  *
  * Mirror of axi_monitor_addr_check for the APB monitor pipeline. Watches
- * the cmd_valid/cmd_ready handshake the apb_monitor already snoops and
+ * the cmd_valid/cmd_ready handshake the apb4_monitor already snoops and
  * emits a PktTypeError packet with event code APB_ERR_ADDR_RANGE (8'h08)
  * when an accepted command's paddr falls within any of N configured
  * [low, high] inclusive ranges.

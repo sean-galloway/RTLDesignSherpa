@@ -85,7 +85,7 @@ class SchedulerGroupBeatsTB(TBBase):
         # Test tracking
         self.apb_requests = 0
         # GAXI master for the APB descriptor-fetch kick (created end of setup)
-        self.apb_master = None
+        self.apb4_master = None
         self.descriptors_served = 0
         self.rd_commands_received = 0
         self.wr_commands_received = 0
@@ -136,7 +136,7 @@ class SchedulerGroupBeatsTB(TBBase):
         fc = FieldConfig()
         fc.add_field(FieldDefinition(name='addr', bits=addr_bits,
                                      format='hex', description='descriptor address'))
-        self.apb_master = create_gaxi_master(
+        self.apb4_master = create_gaxi_master(
             dut=self.dut, title='sg_apb', prefix='apb', clock=self.clk,
             field_config=fc, multi_sig=True, log=self.log)
         self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))
@@ -150,7 +150,7 @@ class SchedulerGroupBeatsTB(TBBase):
             self.log.warning(f"Unknown GAXI timing profile '{profile_name}', using 'backtoback'")
             profile_name = 'backtoback'
         cfg = GAXI_RANDOMIZER_CONFIGS[profile_name]
-        self.apb_master.randomizer = FlexRandomizer(cfg['master'])
+        self.apb4_master.randomizer = FlexRandomizer(cfg['master'])
         self.log.info(f"GAXI scheduler_group APB-kick timing profile: {profile_name}")
 
     async def assert_reset(self):
@@ -238,13 +238,13 @@ class SchedulerGroupBeatsTB(TBBase):
         """
         # Drive the APB kick through the GAXI master; the pipeline performs the
         # apb_valid/ready handshake honoring the active timing profile.
-        pkt = self.apb_master.create_packet(addr=addr)
-        await self.apb_master.send(pkt)
+        pkt = self.apb4_master.create_packet(addr=addr)
+        await self.apb4_master.send(pkt)
 
         # send() queues; wait for the handshake to complete.
         await self.wait_clocks(self.clk_name, 1)
         for _ in range(100):
-            if not self.apb_master.transfer_busy and len(self.apb_master.transmit_queue) == 0:
+            if not self.apb4_master.transfer_busy and len(self.apb4_master.transmit_queue) == 0:
                 self.apb_requests += 1
                 self.log.info(f"APB request sent: addr=0x{addr:X}")
                 return True

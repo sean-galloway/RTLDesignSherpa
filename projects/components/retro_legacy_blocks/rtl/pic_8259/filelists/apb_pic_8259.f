@@ -21,7 +21,7 @@
 # dependencies, and it silently rots when they change (missing reporter
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
--f $REPO_ROOT/rtl/amba/filelists/apb_slave.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_slave.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 

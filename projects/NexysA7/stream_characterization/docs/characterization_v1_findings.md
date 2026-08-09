@@ -90,7 +90,7 @@ engine is measurable on real silicon is that the monitor system is built in.
 | u_stream_regs | `stream_regs` | 822 | 643 | 0 | 0 | PeakRDL-generated STREAM CSR file |
 | u_peakrdl_adapter | `peakrdl_to_cmdrsp` | 1 121 | 84 | 0 | 0 | PeakRDL cmd/rsp adapter |
 | u_apbtodescr | `apbtodescr` | 402 | 39 | 0 | 0 | APB → descriptor-load shim |
-| u_apb_slave (passthrough) | `apb_slave` | 146 | 204 | 0 | 0 | APB slave for STREAM config |
+| u_apb4_slave (passthrough) | `apb4_slave` | 146 | 204 | 0 | 0 | APB slave for STREAM config |
 | **Subtotal (`u_stream`)** |  | **20 370** | **20 568** | **8.0** | **1** |  |
 | Of which **monitors**: u_desc_axi_monitor + monbus tree + monbus_axil_group + 8 × per-group monbus_aggregator | | ~**9 400** | ~**12 480** | 0 | 0 | **~46 % LUT / ~61 % FF of `u_stream`** |
 | Of which **DMA core**: scheduler + desc-engine ×8 + engines + sram_controller + skids + perf + CSR plumbing | | ~**11 000** | ~**8 100** | 8.0 | 1 |  |

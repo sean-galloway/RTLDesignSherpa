@@ -64,7 +64,7 @@ The HPET module is a fully parameterized, scalable timer peripheral with APB int
    - Instantiates HPET core
    - Manages clock domain selection based on `CDC_ENABLE`
 
-2. **`apb_slave.sv` / `apb_slave_cdc.sv`** (APB Interface)
+2. **`apb4_slave.sv` / `apb4_slave_cdc.sv`** (APB Interface)
    - Converts APB protocol to cmd/rsp interface
    - CDC version handles async clock crossing
 
@@ -177,14 +177,14 @@ To modify the register map:
 - **APB Interface**: Uses `pclk` and `presetn`
 - **Config Registers**: Uses `pclk` and `presetn`
 - **HPET Core**: Uses `pclk` and `presetn`
-- **APB Slave**: Instantiates `apb_slave` (no CDC)
+- **APB Slave**: Instantiates `apb4_slave` (no CDC)
 - **Use Case**: Simple single-clock systems, minimal latency
 
 #### CDC_ENABLE = 1 (Dual Clock Domain)
 - **APB Interface**: Uses `pclk` and `presetn` (low frequency)
 - **Config Registers**: Uses `hpet_clk` and `hpet_resetn` (high frequency)
 - **HPET Core**: Uses `hpet_clk` and `hpet_resetn` (high frequency)
-- **APB Slave**: Instantiates `apb_slave_cdc` (with handshake-based CDC)
+- **APB Slave**: Instantiates `apb4_slave_cdc` (with handshake-based CDC)
 - **Use Case**: High-precision timing with slow APB bus
 
 ### Configuration Examples

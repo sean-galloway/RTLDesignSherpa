@@ -382,7 +382,7 @@ implied_coverage:
 
 notes: |
   2-to-4 APB Crossbar is a full crossbar with 2 masters and 4 slaves.
-  Architecture: 2x apb_slave -> address decode + 4x arbiters -> 4x apb_master
+  Architecture: 2x apb4_slave -> address decode + 4x arbiters -> 4x apb4_master
 
   Key features:
   - Independent per-slave round-robin arbitration

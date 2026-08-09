@@ -24,8 +24,8 @@ digraph apb_ioapic {
         fontname="Arial Bold";
         
         // APB Slave (conditional)
-        subgraph cluster_apb_slave {
-            label="apb_slave[_cdc]\n(CDC_ENABLE selects)";
+        subgraph cluster_apb4_slave {
+            label="apb4_slave[_cdc]\n(CDC_ENABLE selects)";
             style=filled;
             fillcolor="lightblue";
             

@@ -124,7 +124,7 @@ verilator -E -f projects/components/retro_legacy_blocks/rtl/hpet/filelists/integ
 - **Contents:**
   - Includes `component/hpet_core.f`
   - Includes `component/hpet_config_regs.f`
-  - APB slave infrastructure (apb_slave.sv, apb_slave_cdc.sv)
+  - APB slave infrastructure (apb4_slave.sv, apb4_slave_cdc.sv)
   - PeakRDL adapter (peakrdl_to_cmdrsp.sv)
   - FIFOs and handshaking (gaxi_fifo_sync, cdc_handshake)
   - `apb_hpet.sv` - Top-level module
@@ -144,8 +144,8 @@ apb_hpet.f (integration)
 │   │   └── hpet_regs.sv (PeakRDL)
 │   └── hpet_config_regs.sv (wrapper)
 ├── APB infrastructure
-│   ├── apb_slave.sv
-│   ├── apb_slave_cdc.sv
+│   ├── apb4_slave.sv
+│   ├── apb4_slave_cdc.sv
 │   ├── peakrdl_to_cmdrsp.sv
 │   └── CDC/FIFO utilities
 └── apb_hpet.sv (top-level)

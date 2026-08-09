@@ -45,8 +45,8 @@ Resource usage scales approximately as:
 
 | Component | Scaling | Notes |
 |-----------|---------|-------|
-| apb_slave instances | M x base | Linear with masters |
-| apb_master instances | N x base | Linear with slaves |
+| apb4_slave instances | M x base | Linear with masters |
+| apb4_master instances | N x base | Linear with slaves |
 | Arbiters | N x log2(M) | Per slave, sized for masters |
 | Address decode | N | Comparators per slave |
 | Response mux | N x M | Full crosspoint for responses |

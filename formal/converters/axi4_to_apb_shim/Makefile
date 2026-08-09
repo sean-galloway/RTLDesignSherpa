@@ -12,8 +12,8 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/shared/axi_gen_addr.sv \
         $(REPO_ROOT)/rtl/amba/cdc/cdc_2_phase_handshake.sv \
         $(REPO_ROOT)/rtl/amba/cdc/cdc_4_phase_handshake.sv \
-        $(REPO_ROOT)/rtl/amba/apb/apb_master.sv \
-        $(REPO_ROOT)/rtl/amba/apb/apb_master_stub.sv \
+        $(REPO_ROOT)/rtl/amba/apb4/apb4_master.sv \
+        $(REPO_ROOT)/rtl/amba/apb4/apb4_master_stub.sv \
         $(REPO_ROOT)/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv \
         $(REPO_ROOT)/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv \
         $(REPO_ROOT)/rtl/amba/axi4/stubs/axi4_slave_stub.sv \

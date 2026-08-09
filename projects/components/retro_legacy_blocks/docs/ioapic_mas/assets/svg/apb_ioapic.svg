@@ -15,9 +15,9 @@
 <text text-anchor="middle" x="110" y="-1000.8" font-family="Arial Bold" font-size="14.00">apb_ioapic</text>
 </g>
 <g id="clust2" class="cluster">
-<title>cluster_apb_slave</title>
+<title>cluster_apb4_slave</title>
 <polygon fill="lightblue" stroke="black" points="27,-893 27,-985 194,-985 194,-893 27,-893"/>
-<text text-anchor="middle" x="110.5" y="-969.8" font-family="Arial Bold" font-size="14.00">apb_slave[_cdc]</text>
+<text text-anchor="middle" x="110.5" y="-969.8" font-family="Arial Bold" font-size="14.00">apb4_slave[_cdc]</text>
 <text text-anchor="middle" x="110.5" y="-954.8" font-family="Arial Bold" font-size="14.00">(CDC_ENABLE selects)</text>
 </g>
 <g id="clust3" class="cluster">

@@ -141,10 +141,10 @@ module formal_apb_xbar_1to4 #(
     // -------------------------------------------------------------------------
     // Property 4: Data integrity - when slave-side PSEL is active,
     // the PWRITE matches the master's original command direction.
-    // (The apb_master FSM preserves the command fields from the skid buffer.)
+    // (The apb4_master FSM preserves the command fields from the skid buffer.)
     // -------------------------------------------------------------------------
     // Note: multiple slave PSELs can be simultaneously active because
-    // independent apb_master FSMs have their own command skid buffers
+    // independent apb4_master FSMs have their own command skid buffers
     // and can each be processing queued commands in parallel.
 
     // -------------------------------------------------------------------------

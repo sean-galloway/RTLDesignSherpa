@@ -23,16 +23,16 @@
 
 # APB Crossbar Modules
 
-This directory contains APB crossbar modules generated using the proven `apb_slave` and `apb_master` architecture.
+This directory contains APB crossbar modules generated using the proven `apb4_slave` and `apb4_master` architecture.
 
 ## Architecture
 
 All crossbars follow a consistent design:
 
 ```
-Master Side:     apb_slave modules convert APB → cmd/rsp interface
+Master Side:     apb4_slave modules convert APB → cmd/rsp interface
 Internal:        Round-robin arbitration + address decoding
-Slave Side:      apb_master modules convert cmd/rsp → APB interface
+Slave Side:      apb4_master modules convert cmd/rsp → APB interface
 ```
 
 ### Key Features
@@ -40,7 +40,7 @@ Slave Side:      apb_master modules convert cmd/rsp → APB interface
 - **Independent arbitration per slave**: Each slave has its own round-robin arbiter
 - **Grant persistence**: Grants held from command acceptance through response completion
 - **Address decoding**: Automatic slave selection based on address ranges
-- **Proven architecture**: Uses production-tested apb_slave/apb_master modules
+- **Proven architecture**: Uses production-tested apb4_slave/apb4_master modules
 
 ## Available Modules
 
@@ -199,7 +199,7 @@ if M < 1 or M > 16:  # Change 16 to desired max
 
 - APB Specification: ARM IHI 0024C (AMBA APB Protocol v2.0)
 - Generator: `projects/components/apb_xbar/bin/apb_xbar_generator.py`
-- Base modules: `rtl/amba/apb/apb_slave.sv`, `rtl/amba/apb/apb_master.sv`
+- Base modules: `rtl/amba/apb4/apb4_slave.sv`, `rtl/amba/apb4/apb4_master.sv`
 - Tests: `dv/tests/test_apb_xbar_*.py`
 
 ---

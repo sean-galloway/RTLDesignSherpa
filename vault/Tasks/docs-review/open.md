@@ -452,14 +452,14 @@ all five):
   `src_valid && !src_busy` guard drops the NEW pulse, the first completes.
 - fifo_async.md "Multi-stage sync: Reduces MTBF exponentially" — inverted
   (raises MTBF); same claim fixed in TestTutorial/gaxi_multi_field_integration.
-- apb_slave_cdc_cg.md `*_cg_idle` scenario unreachable: APB holds PSEL until
+- apb4_slave_cdc_cg.md `*_cg_idle` scenario unreachable: APB holds PSEL until
   PREADY, and PREADY waits for the response, so a stalled backend keeps
   pclk_user_valid high — idle never asserts mid-stall. Note rewritten.
 - apb5_slave_cdc_cg.md "twice (APB, APB5, AXI5-Stream)" — wrong for APB:
-  apb_slave_cdc_cg has no wrapper r_wakeup (single stage); apb5 does (two).
+  apb4_slave_cdc_cg has no wrapper r_wakeup (single stage); apb5 does (two).
 
 The REFUTED one (last above) was the absent-evidence failure again:
-apb_slave_cdc_cg.sv was golden in part_01 but the finding was in part_02.
+apb4_slave_cdc_cg.sv was golden in part_01 but the finding was in part_02.
 `augment_golden_deps.py` now unions refs across ALL units given (and is
 idempotent — re-runs replace the golden section instead of appending).
 

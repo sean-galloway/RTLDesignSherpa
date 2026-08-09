@@ -3,7 +3,7 @@
 //
 // Formal proof for apb5_monitor -- monitor bus output properties + APB5 extensions
 //
-// NOTE: Same memory_map limitation as apb_monitor. Properties focus on
+// NOTE: Same memory_map limitation as apb4_monitor. Properties focus on
 // I/O-observable behavior rather than internal transaction table state.
 //
 // Properties verified:
@@ -94,7 +94,7 @@ module formal_apb5_monitor (
     // =========================================================================
     wire              monbus_valid;
     // apb5_monitor emits the standard 128-bit monitor_packet_t, same as
-    // apb_monitor.  Field map (monitor_package_spec.md):
+    // apb4_monitor.  Field map (monitor_package_spec.md):
     //   [127:124] packet_type  [123:109] reserved   [108:105] protocol
     //   [104: 97] event_code   [ 96: 88] channel_id [ 87: 72] agent_id
     //   [ 71: 64] unit_id      [ 63:  0] event_data

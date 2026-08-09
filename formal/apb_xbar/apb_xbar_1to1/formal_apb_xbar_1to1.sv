@@ -86,7 +86,7 @@ module formal_apb_xbar_1to1 #(
 
     // -------------------------------------------------------------------------
     // Property 1: Reset clears master-side outputs
-    // The apb_slave FSM initializes PREADY/PRDATA/PSLVERR to 0 on reset.
+    // The apb4_slave FSM initializes PREADY/PRDATA/PSLVERR to 0 on reset.
     // -------------------------------------------------------------------------
     always @(posedge clk) begin
         if (f_past_valid > 0 && $past(!rst_n)) begin
@@ -97,7 +97,7 @@ module formal_apb_xbar_1to1 #(
 
     // -------------------------------------------------------------------------
     // Property 2: Reset clears slave-side PSEL/PENABLE
-    // The apb_master FSM starts in IDLE with PSEL=0, PENABLE=0.
+    // The apb4_master FSM starts in IDLE with PSEL=0, PENABLE=0.
     // -------------------------------------------------------------------------
     always @(posedge clk) begin
         if (f_past_valid > 0 && $past(!rst_n)) begin

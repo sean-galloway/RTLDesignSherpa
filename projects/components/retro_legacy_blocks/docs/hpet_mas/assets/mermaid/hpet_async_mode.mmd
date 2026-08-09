@@ -1,7 +1,7 @@
 %%{init: {'theme': 'neutral'}}%%
 flowchart TB
     subgraph PCLK["APB Clock Domain (pclk)"]
-        APB["apb_slave_cdc<br/>(pclk side)"]
+        APB["apb4_slave_cdc<br/>(pclk side)"]
     end
 
     subgraph CDC["CDC Boundary"]
@@ -9,7 +9,7 @@ flowchart TB
     end
 
     subgraph HPET_CLK["HPET Clock Domain (hpet_clk)"]
-        APB_H["apb_slave_cdc<br/>(hpet_clk side)"]
+        APB_H["apb4_slave_cdc<br/>(hpet_clk side)"]
         CFG[hpet_config_regs]
         REGS[hpet_regs]
         CORE[hpet_core]

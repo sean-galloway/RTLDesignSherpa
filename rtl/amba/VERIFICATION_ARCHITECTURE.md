@@ -49,10 +49,10 @@ bin/TBClasses/
 │       └── axi_monitor_config_tb.py ← REUSABLE TB CLASS
 ├── apb/
 │   └── apb_tb.py                    ← REUSABLE TB CLASS
-├── apb_monitor/
-│   ├── apb_monitor_core_tb.py      ← REUSABLE TB CLASS
-│   ├── apb_monitor_scoreboard.py   ← REUSABLE SCOREBOARD
-│   └── apb_monitor_packets.py      ← REUSABLE PACKET TYPES
+├── apb4_monitor/
+│   ├── apb4_monitor_core_tb.py      ← REUSABLE TB CLASS
+│   ├── apb4_monitor_scoreboard.py   ← REUSABLE SCOREBOARD
+│   └── apb4_monitor_packets.py      ← REUSABLE PACKET TYPES
 ├── axis4/
 │   ├── axis_master_tb.py            ← REUSABLE TB CLASS
 │   └── axis_slave_tb.py             ← REUSABLE TB CLASS
@@ -62,7 +62,7 @@ bin/TBClasses/
 val/amba/
 ├── test_axi4_master_rd.py          ← TEST RUNNER ONLY
 ├── test_axi4_master_wr.py          ← TEST RUNNER ONLY
-├── test_apb_monitor.py             ← TEST RUNNER ONLY
+├── test_apb4_monitor.py             ← TEST RUNNER ONLY
 └── test_[your_module].py           ← YOUR TEST RUNNER GOES HERE
 ```
 
@@ -313,14 +313,14 @@ Before ANY test submission:
 
 - `bin/TBClasses/axi4/axi4_master_read_tb.py`
 - `bin/TBClasses/axi4/axi4_master_write_tb.py`
-- `bin/TBClasses/apb_monitor/apb_monitor_core_tb.py`
+- `bin/TBClasses/apb4_monitor/apb4_monitor_core_tb.py`
 - `bin/TBClasses/axi4/monitor/axi_monitor_config_tb.py`
 
 **Working test runners:**
 
 - `val/amba/test_axi4_master_rd.py`
 - `val/amba/test_axi4_master_rd_cg.py`
-- `val/amba/test_apb_monitor.py`
+- `val/amba/test_apb4_monitor.py`
 
 ---
 

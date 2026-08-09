@@ -94,7 +94,7 @@ include—nothing is copied here:
 - [`gaxi_skid_buffer`](../rtl-amba/gaxi/gaxi_skid_buffer.md) - [rtl-amba](../rtl-amba/index.md)
 
 The APB/APB5 CDC slaves that consume this area live with their protocol
-documentation: [apb_slave_cdc](../rtl-amba/apb/apb_slave_cdc.md),
+documentation: [apb4_slave_cdc](../rtl-amba/apb4/apb4_slave_cdc.md),
 [apb5_slave_cdc](../rtl-amba/apb5/apb5_slave_cdc.md).
 
 ## Navigation

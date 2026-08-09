@@ -51,7 +51,7 @@ The implementation uses the official APB crossbar generator:
 
 - **1-to-8 APB Crossbar** - Single master to 8 slaves
 - **Named Ports** - Descriptive port names for each legacy block
-- **Registered Architecture** - Uses apb_slave/apb_master converters for better timing
+- **Registered Architecture** - Uses apb4_slave/apb4_master converters for better timing
 - **4KB Address Ranges** - Each agent gets 4KB of address space (configurable)
 - **Subtractive Decode** - Catch-all agent for unmapped addresses
 - **Parameterizable Base Address** - Flexible memory mapping
@@ -200,7 +200,7 @@ The **subtractive agent** is the 8th slave that catches all addresses not mapped
 
 ### Timing
 
-The crossbar uses a **registered architecture** with apb_slave/apb_master converters:
+The crossbar uses a **registered architecture** with apb4_slave/apb4_master converters:
 - Better timing characteristics than pure combinational
 - Registered slave selection when command accepted
 - Improved synthesis timing closure
@@ -240,8 +240,8 @@ retro_legacy_blocks/rtl/apb_xbar/
 ### Dependencies
 
 The crossbar requires:
-- `rtl/amba/apb/apb_slave.sv` - APB slave protocol converter
-- `rtl/amba/apb/apb_master.sv` - APB master protocol converter
+- `rtl/amba/apb4/apb4_slave.sv` - APB slave protocol converter
+- `rtl/amba/apb4/apb4_master.sv` - APB master protocol converter
 - `rtl/amba/gaxi/gaxi_skid_buffer.sv` - Pipeline skid buffer
 - `rtl/amba/gaxi/gaxi_fifo_sync.sv` - Synchronous FIFO
 - `rtl/common/arbiter_*.sv` - Arbitration modules

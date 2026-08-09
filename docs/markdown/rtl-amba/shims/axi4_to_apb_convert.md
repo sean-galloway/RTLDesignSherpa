@@ -472,7 +472,7 @@ pytest "projects/components/converters/dv/tests/test_axi2apb_shim.py::test_width
 
 - **[axi4_to_apb_shim](axi4_to_apb_shim.md)** - Top-level shim (instantiates this module)
 - **[axi4_slave_stub](../axi4/axi4_slave_stub.md)** - Provides input packet format
-- **[apb_master_stub](../apb/apb_master_stub.md)** - Consumes output packet format
+- **[apb4_master_stub](../apb/apb4_master_stub.md)** - Consumes output packet format
 - **[axi_gen_addr](../shared/axi_gen_addr.md)** - Address generation utility
 - **[gaxi_fifo_sync](../gaxi/gaxi_fifo_sync.md)** - Side information FIFO
 

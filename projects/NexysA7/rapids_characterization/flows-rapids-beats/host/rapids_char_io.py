@@ -14,7 +14,7 @@
 # implements this exactly, so we do NOT re-implement byte framing here.
 #
 # Host word-address map (region = addr[19:16]), from rapids_char_top.sv header:
-#   0x0_0000  DUT-REG   : AXIL -> apb_master -> harness s_apb (addr[12:0]=APB byte)
+#   0x0_0000  DUT-REG   : AXIL -> apb4_master -> harness s_apb (addr[12:0]=APB byte)
 #   0x1_0000  DESC-LOAD : DESC_WORD[0..7] + DESC_ADDR + DESC_KICK + DESC_STATUS
 #   0x2_0000  HARNESS CSR: gen/chk/mem/mon control + status readback
 #

@@ -14,8 +14,8 @@ cover: smtbmc z3
 
 [script]
 read -formal -sv -Iincludes gaxi_skid_buffer.sv
-read -formal -sv -Iincludes apb_slave.sv
-read -formal -sv -Iincludes apb_master.sv
+read -formal -sv -Iincludes apb4_slave.sv
+read -formal -sv -Iincludes apb4_master.sv
 read -formal -sv -Iincludes arbiter_priority_encoder.sv
 read -formal -sv -Iincludes arbiter_round_robin.sv
 read -formal -sv -Iincludes apb_xbar_2to4.sv
@@ -24,8 +24,8 @@ prep -top formal_apb_xbar_2to4
 
 [files]
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
-apb_slave.sv ../../../rtl/amba/apb/apb_slave.sv
-apb_master.sv ../../../rtl/amba/apb/apb_master.sv
+apb4_slave.sv ../../../rtl/amba/apb4/apb4_slave.sv
+apb4_master.sv ../../../rtl/amba/apb4/apb4_master.sv
 arbiter_priority_encoder.sv ../../../rtl/common/arbiter_priority_encoder.sv
 arbiter_round_robin.sv ../../../rtl/common/arbiter_round_robin.sv
 apb_xbar_2to4.sv ../../../projects/components/apb_xbar/rtl/apb_xbar_2to4.sv

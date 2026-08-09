@@ -34,7 +34,7 @@
 //   | AXIL word-address map (host view; region = addr[19:16])             |
 //   +--------------+------------------------------------------------------+
 //   | 0x0_0000     | DUT-REG   : APB config/kick window into the DUT      |
-//   |              |             (apb_master cmd/rsp -> harness s_apb).    |
+//   |              |             (apb4_master cmd/rsp -> harness s_apb).    |
 //   |              |             addr[12:0] = APB byte address. Reaches    |
 //   |              |             SRC(0x0000)/SNK(0x1000) reg spaces +      |
 //   |              |             apbtodescr kick windows inside the DUT.   |
@@ -45,9 +45,9 @@
 //   | 0x2_0000     | HARNESS CSR: gen/chk/mem/mon control + status readback|
 //   +--------------+------------------------------------------------------+
 //
-// DUT-REG region (0x0_0000): AXIL read/write -> apb_master cmd/rsp -> s_apb.
+// DUT-REG region (0x0_0000): AXIL read/write -> apb4_master cmd/rsp -> s_apb.
 //   The AXIL slave FSM pushes one APB command per access and returns the APB
-//   read data / write response over AXIL. apb_master handles PSEL/PENABLE/
+//   read data / write response over AXIL. apb4_master handles PSEL/PENABLE/
 //   PREADY sequencing.
 //
 // DESC-LOAD region (0x1_0000), byte offsets:
@@ -397,7 +397,7 @@ module rapids_char_top #(
     logic                       desc_snk_bvalid;
 
     // =========================================================================
-    // apb_master : AXIL-slave FSM cmd/rsp  ->  harness s_apb
+    // apb4_master : AXIL-slave FSM cmd/rsp  ->  harness s_apb
     // =========================================================================
     logic                      apb_cmd_valid, apb_cmd_ready, apb_cmd_pwrite;
     logic [APB_ADDR_WIDTH-1:0] apb_cmd_paddr;
@@ -406,7 +406,7 @@ module rapids_char_top #(
     logic                      apb_rsp_valid, apb_rsp_ready, apb_rsp_pslverr;
     logic [APB_DATA_WIDTH-1:0] apb_rsp_prdata;
 
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (APB_ADDR_WIDTH),
         .DATA_WIDTH (APB_DATA_WIDTH)
     ) u_apb (
@@ -879,7 +879,7 @@ module rapids_char_top #(
         .aresetn (aresetn),
         .cam_clear(r_cam_clear),
 
-        // APB config/kick (from apb_master)
+        // APB config/kick (from apb4_master)
         .s_apb_paddr  (s_apb_paddr),
         .s_apb_psel   (s_apb_psel),
         .s_apb_penable(s_apb_penable),

@@ -60,7 +60,7 @@ This specification is organized into five chapters covering all aspects of the A
 **Location:** `ch03_interfaces/` *(planned, not yet written)*
 
 - 00_overview.md - Interface summary
-- 01_apb_slave.md - APB protocol specification
+- 01_apb4_slave.md - APB protocol specification
 - 02_interrupt.md - Interrupt output
 - 03_system.md - Clock and reset interface
 

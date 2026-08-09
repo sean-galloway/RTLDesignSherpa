@@ -123,7 +123,7 @@ def test_axi4_dwidth_to_apb_chain(request, params):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_converters': 'projects/components/converters/rtl',
         'rtl_amba_gaxi': 'rtl/amba/gaxi',
-        'rtl_amba_apb': 'rtl/amba/apb',
+        'rtl_amba_apb': 'rtl/amba/apb4',
         'rtl_amba_axi4': 'rtl/amba/axi4',
         'rtl_amba_shared': 'rtl/amba/shared',
         'rtl_amba_includes': 'rtl/amba/includes',

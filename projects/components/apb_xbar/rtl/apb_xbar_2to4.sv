@@ -16,7 +16,7 @@
 `timescale 1ns / 1ps
 
 // 2-to-4 APB crossbar with address decoding and arbitration
-// 2 masters to 4 slaves using apb_slave and apb_master modules
+// 2 masters to 4 slaves using apb4_slave and apb4_master modules
 //
 // Address Map (same for all masters):
 //   Slave 0: [0x10000000, 0x1000FFFF]
@@ -109,7 +109,7 @@ module apb_xbar_2to4 #(
     input  logic                  s3_apb_PREADY
 );
 
-    // Command/Response interfaces for master 0 apb_slave
+    // Command/Response interfaces for master 0 apb4_slave
     logic                  m0_cmd_valid;
     logic                  m0_cmd_ready;
     logic                  m0_cmd_pwrite;
@@ -122,7 +122,7 @@ module apb_xbar_2to4 #(
     logic [DATA_WIDTH-1:0] m0_rsp_prdata;
     logic                  m0_rsp_pslverr;
 
-    // Command/Response interfaces for master 1 apb_slave
+    // Command/Response interfaces for master 1 apb4_slave
     logic                  m1_cmd_valid;
     logic                  m1_cmd_ready;
     logic                  m1_cmd_pwrite;
@@ -135,7 +135,7 @@ module apb_xbar_2to4 #(
     logic [DATA_WIDTH-1:0] m1_rsp_prdata;
     logic                  m1_rsp_pslverr;
 
-    // Command/Response interfaces for slave apb_masters
+    // Command/Response interfaces for slave apb4_masters
     logic                  s0_cmd_valid, s1_cmd_valid, s2_cmd_valid, s3_cmd_valid;
     logic                  s0_cmd_ready, s1_cmd_ready, s2_cmd_ready, s3_cmd_ready;
     logic                  s0_cmd_pwrite, s1_cmd_pwrite, s2_cmd_pwrite, s3_cmd_pwrite;
@@ -149,12 +149,12 @@ module apb_xbar_2to4 #(
     logic                  s0_rsp_pslverr, s1_rsp_pslverr, s2_rsp_pslverr, s3_rsp_pslverr;
 
     // APB Slave 0 - converts master 0 APB to cmd/rsp
-    apb_slave #(
+    apb4_slave #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_slave_m0 (
+    ) u_apb4_slave_m0 (
         .pclk           (pclk),
         .presetn        (presetn),
         .s_apb_PSEL     (m0_apb_PSEL),
@@ -181,12 +181,12 @@ module apb_xbar_2to4 #(
     );
 
     // APB Slave 1 - converts master 1 APB to cmd/rsp
-    apb_slave #(
+    apb4_slave #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_slave_m1 (
+    ) u_apb4_slave_m1 (
         .pclk           (pclk),
         .presetn        (presetn),
         .s_apb_PSEL     (m1_apb_PSEL),
@@ -622,12 +622,12 @@ module apb_xbar_2to4 #(
     end
 
     // APB Master 0 - converts cmd/rsp to slave 0 APB
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_s0 (
+    ) u_apb4_master_s0 (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (s0_apb_PSEL),
@@ -654,12 +654,12 @@ module apb_xbar_2to4 #(
     );
 
     // APB Master 1 - converts cmd/rsp to slave 1 APB
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_s1 (
+    ) u_apb4_master_s1 (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (s1_apb_PSEL),
@@ -686,12 +686,12 @@ module apb_xbar_2to4 #(
     );
 
     // APB Master 2 - converts cmd/rsp to slave 2 APB
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_s2 (
+    ) u_apb4_master_s2 (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (s2_apb_PSEL),
@@ -718,12 +718,12 @@ module apb_xbar_2to4 #(
     );
 
     // APB Master 3 - converts cmd/rsp to slave 3 APB
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_s3 (
+    ) u_apb4_master_s3 (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (s3_apb_PSEL),

@@ -40,12 +40,12 @@ check.
 The APB family splits into two roles, and knowing which is which is the whole
 lesson:
 
-- **Bridges** -- [apb_master](../rtl-amba/apb/apb_master.md),
-  [apb_slave](../rtl-amba/apb/apb_slave.md) and their `_cg` / `_cdc` / `_stub`
+- **Bridges** -- [apb4_master](../rtl-amba/apb4/apb4_master.md),
+  [apb4_slave](../rtl-amba/apb4/apb4_slave.md) and their `_cg` / `_cdc` / `_stub`
   variants, plus the APB5 equivalents -- carry **both** sides: raw APB
   (`s_apb_PSEL`, `m_apb_PADDR`) on the wire, and a `cmd_*` / `rsp_*` handshake
   internally.
-- **Observers** -- [apb_monitor](../rtl-amba/apb/apb_monitor.md),
+- **Observers** -- [apb4_monitor](../rtl-amba/apb4/apb4_monitor.md),
   `apb5_monitor`, `apb_monitor_addr_check` -- take **only** the handshake. That
   is deliberate: it is what lets one monitor serve APB4 and APB5, because both
   bridges hand it the same shape.
@@ -54,8 +54,8 @@ So a monitor is a **sibling of a bridge, not a submodule of one** -- no bridge
 instantiates a monitor. You put a bridge on the wire and tap its handshake:
 
 ```
-raw APB ──> apb_slave ──cmd/rsp──> fabric
-                 └── tap cmd_*/rsp_* ──> apb_monitor ──> monbus
+raw APB ──> apb4_slave ──cmd/rsp──> fabric
+                 └── tap cmd_*/rsp_* ──> apb4_monitor ──> monbus
 ```
 
 Feeding raw APB pins straight into a monitor does not work, and was the defect

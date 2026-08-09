@@ -88,7 +88,7 @@ common situation, and it is not visible from the port list.
 | Config register update (CPU -> peripheral) | `cdc_open_loop` | Infrequent, no backpressure needed |
 | Interrupt signal (1 bit, pulse) | `sync_pulse` | Single-cycle event |
 | Status register read (slow -> fast) | `cdc_synchronizer` | Quasi-static level |
-| APB slave in different clock domain | `apb_slave_cdc` | Full protocol CDC |
+| APB slave in different clock domain | `apb4_slave_cdc` | Full protocol CDC |
 | Monitor packet crossing | `cdc_4_phase_handshake` | Occasional, needs flow control |
 | DMA data stream | `fifo_async` | High throughput, continuous |
 | AXI channel crossing | `gaxi_skid_buffer_async` | Pipelined, GAXI protocol |
@@ -289,7 +289,7 @@ producer on a released-and-settled indication.
 This is not theoretical. On the Nexys A7 DDR2 characterization board, an APB CDC
 using the 2-phase handshake had its core-side reset pulsed by `CTRL.soft_reset`
 while the APB side stayed up. One phantom transfer entered a slave FSM that pairs
-responses to requests positionally (`apb_slave.sv` returns whatever response sits
+responses to requests positionally (`apb4_slave.sv` returns whatever response sits
 at the head of its skid buffer), and **every register read from then on returned
 the previous register's value** -- lagged by ~3 transactions, permanently, until
 reprogramming. Writes were unaffected, so it presented as a readback bug rather
@@ -979,8 +979,8 @@ variant.
 
 : CDC module reference
 
-**Protocol-level CDC built on these blocks:** `apb_slave_cdc`,
-`apb_slave_cdc_cg`, `apb5_slave_cdc`, `apb5_slave_cdc_cg`,
+**Protocol-level CDC built on these blocks:** `apb4_slave_cdc`,
+`apb4_slave_cdc_cg`, `apb5_slave_cdc`, `apb5_slave_cdc_cg`,
 `gaxi_skid_buffer_async`, `axi4_to_apb_shim`.
 
 **Supporting primitives (rtl/cdc):** `bin2gray`, `gray2bin`, `johnson2bin`,

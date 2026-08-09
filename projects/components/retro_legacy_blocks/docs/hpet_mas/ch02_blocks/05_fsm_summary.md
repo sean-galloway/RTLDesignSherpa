@@ -31,8 +31,8 @@ The APB HPET component contains multiple state machines across different modules
 
 | Module | FSM Name | Type | States | Purpose |
 |--------|----------|------|--------|---------|
-| **apb_slave** | APB Protocol FSM | Explicit | 2-3 | APB handshake protocol |
-| **apb_slave_cdc** | CDC Handshake FSM | Explicit | 4 | Clock domain crossing protocol |
+| **apb4_slave** | APB Protocol FSM | Explicit | 2-3 | APB handshake protocol |
+| **apb4_slave_cdc** | CDC Handshake FSM | Explicit | 4 | Clock domain crossing protocol |
 | **hpet_core** | Per-Timer FSM | Conceptual | 5 | Timer operation and fire control |
 
 **Note:** The hpet_config_regs and hpet_regs modules use combinational and sequential logic without explicit state machines.
@@ -41,7 +41,7 @@ The APB HPET component contains multiple state machines across different modules
 
 ### 1. APB Slave Protocol FSM
 
-**Module:** `apb_slave.sv`
+**Module:** `apb4_slave.sv`
 **Clock Domain:** `pclk`
 **Implementation:** Explicit state register
 
@@ -99,7 +99,7 @@ Latency: 2 cycles (SETUP + ACCESS)
 
 ### 2. APB Slave CDC Handshake FSM
 
-**Module:** `apb_slave_cdc.sv`
+**Module:** `apb4_slave_cdc.sv`
 **Clock Domains:** `pclk` (APB side) and `aclk` (application side)
 **Implementation:** Dual FSMs with handshake synchronization
 

@@ -599,7 +599,7 @@ module cdc_handshake (
 			endcase
 	assign dst_data = r_dst_data;
 endmodule
-module apb_master (
+module apb4_master (
 	pclk,
 	presetn,
 	m_apb_PSEL,
@@ -757,7 +757,7 @@ module apb_master (
 	end
 	initial _sv2v_0 = 0;
 endmodule
-module apb_master_stub (
+module apb4_master_stub (
 	pclk,
 	presetn,
 	m_apb_PSEL,
@@ -818,12 +818,12 @@ module apb_master_stub (
 	wire [DW - 1:0] rsp_prdata;
 	wire rsp_pslverr;
 	assign rsp_data = {cmd_last, cmd_first, rsp_pslverr, rsp_prdata};
-	apb_master #(
+	apb4_master #(
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.DATA_WIDTH(DATA_WIDTH),
 		.CMD_DEPTH(CMD_DEPTH),
 		.RSP_DEPTH(RSP_DEPTH)
-	) u_apb_master(
+	) u_apb4_master(
 		.pclk(pclk),
 		.presetn(presetn),
 		.m_apb_PSEL(m_apb_PSEL),
@@ -2045,7 +2045,7 @@ module axi4_to_apb_shim (
 		.dst_ready(w_rsp_ready),
 		.dst_data(r_rsp_data)
 	);
-	apb_master_stub #(
+	apb4_master_stub #(
 		.CMD_DEPTH(APB_CMD_DEPTH),
 		.RSP_DEPTH(APB_RSP_DEPTH),
 		.DATA_WIDTH(APBDW),
@@ -2053,7 +2053,7 @@ module axi4_to_apb_shim (
 		.STRB_WIDTH(APBSW),
 		.CMD_PACKET_WIDTH(APBCmdWidth),
 		.RESP_PACKET_WIDTH(APBRspWidth)
-	) apb_master_inst(
+	) apb4_master_inst(
 		.pclk(pclk),
 		.presetn(presetn),
 		.m_apb_PSEL(m_apb_PSEL),

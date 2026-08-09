@@ -27,7 +27,7 @@ digraph hpet_architecture {
         fillcolor=lightyellow;
 
         // APB Slave
-        apb_slave [label="APB Slave\n(apb_slave.sv or\napb_slave_cdc.sv)\n\nProtocol conversion\nCDC if enabled", fillcolor=lightcyan];
+        apb4_slave [label="APB Slave\n(apb4_slave.sv or\napb4_slave_cdc.sv)\n\nProtocol conversion\nCDC if enabled", fillcolor=lightcyan];
         
         // Config Registers (PeakRDL)
         config_regs [label="Config Registers\n(hpet_config_regs.sv)\n\nPeakRDL wrapper\nEdge detection\nHWIF mapping", fillcolor=wheat];
@@ -48,8 +48,8 @@ digraph hpet_architecture {
     }
 
     // APB Data Flow (Blue)
-    apb_in -> apb_slave [label="APB\ntransactions", color=blue, style=bold];
-    apb_slave -> config_regs [label="cmd/rsp\ninterface", color=blue];
+    apb_in -> apb4_slave [label="APB\ntransactions", color=blue, style=bold];
+    apb4_slave -> config_regs [label="cmd/rsp\ninterface", color=blue];
     config_regs -> peakrdl_regs [label="APB\nread/write", color=blue];
     
     // Register to Core Interface (Green)
@@ -64,8 +64,8 @@ digraph hpet_architecture {
     clk_hpet [label="hpet_clk\nhpet_resetn", shape=ellipse, fillcolor=orange];
     
     // Both clocks to APB slave (front=pclk, back=hpet_clk)
-    clk_apb -> apb_slave [label="APB side\n(front)", color=blue, style=dashed];
-    clk_hpet -> apb_slave [label="Output side\n(back)", color=orange, style=dashed];
+    clk_apb -> apb4_slave [label="APB side\n(front)", color=blue, style=dashed];
+    clk_hpet -> apb4_slave [label="Output side\n(back)", color=orange, style=dashed];
     
     // Only hpet_clk to downstream blocks
     clk_hpet -> config_regs [label="HPET\nclock domain", color=orange, style=dashed];

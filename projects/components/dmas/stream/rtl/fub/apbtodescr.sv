@@ -72,7 +72,7 @@ module apbtodescr #(
     input  logic                        clk,
     input  logic                        rst_n,
 
-    // APB Slave CMD/RSP Interface (from PeakRDL apb_slave)
+    // APB Slave CMD/RSP Interface (from PeakRDL apb4_slave)
     // CMD: Master → Slave (write request)
     input  logic                        apb_cmd_valid,
     output logic                        apb_cmd_ready,

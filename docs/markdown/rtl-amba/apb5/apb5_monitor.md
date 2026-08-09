@@ -41,7 +41,7 @@ The APB5 Monitor provides comprehensive protocol monitoring for APB5 interfaces 
 - Transaction timeout detection
 - Performance latency measurement
 - Protocol violation detection
-- 128-bit monitor bus packet output with side-band timestamp (same format as `apb_monitor`)
+- 128-bit monitor bus packet output with side-band timestamp (same format as `apb4_monitor`)
 
 ### Not Implemented
 
@@ -196,7 +196,7 @@ merged onto the monitor bus at lower priority than the event FIFO.
 ### Monitor Bus Output
 
 The APB5 monitor emits the standard **128-bit `monitor_packet_t`** plus the 64-bit
-side-band `monbus_timestamp`, identical to `apb_monitor`. `i_mon_time` is the
+side-band `monbus_timestamp`, identical to `apb4_monitor`. `i_mon_time` is the
 free-running monitor-time broadcast from the `monbus_group` family; FIFO events
 sample it at emission, and address-range packets carry the timestamp latched by
 `apb_monitor_addr_check`.

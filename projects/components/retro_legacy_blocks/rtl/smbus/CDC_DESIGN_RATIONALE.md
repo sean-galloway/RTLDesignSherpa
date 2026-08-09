@@ -75,7 +75,7 @@ APB Clock (pclk) - e.g., 50 MHz (low freq, power saving)
         │
         └─→ APB Interface
                 │
-                └─→ apb_slave_cdc (CDC HERE!)
+                └─→ apb4_slave_cdc (CDC HERE!)
                         │
                         ▼
 Timer Clock (hpet_clk) - e.g., 14.318 MHz (precise timing)

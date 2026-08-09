@@ -928,7 +928,7 @@ class SlaveAdapterGenerator:
         else:
             shim.tie_off_axi_read_channel()
 
-        shim.connect_apb_master(prefix=self.slave.prefix)
+        shim.connect_apb4_master(prefix=self.slave.prefix)
 
         lines.append("    // AXI4-to-APB converter shim")
         lines.extend(shim.generate_lines())

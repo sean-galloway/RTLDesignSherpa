@@ -182,7 +182,7 @@ The generator creates a complete SystemVerilog module with:
 1. **Header with Address Map**
 ```systemverilog
 // 3-to-6 APB crossbar with address decoding and arbitration
-// 3 masters to 6 slaves using apb_slave and apb_master modules
+// 3 masters to 6 slaves using apb4_slave and apb4_master modules
 //
 // Address Map (same for all masters):
 //   Slave 0: [0x10000000, 0x1000FFFF]
@@ -212,21 +212,21 @@ module apb_xbar_3to6 #(
 
 3. **Internal Signal Declarations**
 ```systemverilog
-    // Command/Response interfaces for master 0-2 apb_slave
+    // Command/Response interfaces for master 0-2 apb4_slave
     logic m0_cmd_valid, m0_cmd_ready, m0_cmd_pwrite;
     logic [ADDR_WIDTH-1:0] m0_cmd_paddr;
     // ... (full cmd/rsp bus for each master)
 
-    // Command/Response interfaces for slave 0-5 apb_master
+    // Command/Response interfaces for slave 0-5 apb4_master
     logic s0_cmd_valid, s0_cmd_ready, s0_cmd_pwrite;
     logic [ADDR_WIDTH-1:0] s0_cmd_paddr;
     // ... (full cmd/rsp bus for each slave)
 ```
 
-4. **Master-Side apb_slave Instantiations**
+4. **Master-Side apb4_slave Instantiations**
 ```systemverilog
-    // Master 0 apb_slave
-    apb_slave #(
+    // Master 0 apb4_slave
+    apb4_slave #(
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) u_m0_slave (
@@ -242,7 +242,7 @@ module apb_xbar_3to6 #(
         // ... (full cmd/rsp connections)
     );
 
-    // Master 1, 2 apb_slave instances...
+    // Master 1, 2 apb4_slave instances...
 ```
 
 5. **Address Decode Logic**
@@ -296,10 +296,10 @@ module apb_xbar_3to6 #(
     end
 ```
 
-8. **Slave-Side apb_master Instantiations**
+8. **Slave-Side apb4_master Instantiations**
 ```systemverilog
-    // Slave 0 apb_master
-    apb_master #(
+    // Slave 0 apb4_master
+    apb4_master #(
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) u_s0_master (
@@ -315,7 +315,7 @@ module apb_xbar_3to6 #(
         // ... (full APB connections)
     );
 
-    // Slave 1-5 apb_master instances...
+    // Slave 1-5 apb4_master instances...
 ```
 
 9. **Module End**
@@ -369,7 +369,7 @@ for s in range(N):
 **6. Instantiate Master-Side Components**
 ```python
 for m in range(M):
-    # Generate apb_slave instance
+    # Generate apb4_slave instance
     # Connect APB interface to external master m
     # Connect cmd/rsp to internal buses
 ```
@@ -400,7 +400,7 @@ for s in range(N):
 **10. Instantiate Slave-Side Components**
 ```python
 for s in range(N):
-    # Generate apb_master instance
+    # Generate apb4_master instance
     # Connect cmd/rsp from internal buses
     # Connect APB interface to external slave s
 ```

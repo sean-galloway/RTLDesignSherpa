@@ -42,7 +42,7 @@ The external master initiates an APB write:
 
 ### Stage 2: Protocol Conversion (Master-Side)
 
-The `apb_slave` module converts to internal format:
+The `apb4_slave` module converts to internal format:
 1. Captures transaction parameters (address, data, write)
 2. Generates internal command
 3. Routes to address decode
@@ -63,7 +63,7 @@ If multiple masters target the same slave:
 
 ### Stage 5: Protocol Conversion (Slave-Side)
 
-The `apb_master` module generates APB transaction:
+The `apb4_master` module generates APB transaction:
 1. Asserts PSEL to selected slave
 2. Provides PADDR, PWRITE, PWDATA
 3. Asserts PENABLE next cycle
@@ -73,9 +73,9 @@ The `apb_master` module generates APB transaction:
 
 Response flows back to originating master:
 1. Slave asserts PREADY (with optional PSLVERR)
-2. `apb_master` captures response
-3. Response routed to correct `apb_slave`
-4. `apb_slave` asserts PREADY to original master
+2. `apb4_master` captures response
+3. Response routed to correct `apb4_slave`
+4. `apb4_slave` asserts PREADY to original master
 
 ## Read Transaction Flow
 

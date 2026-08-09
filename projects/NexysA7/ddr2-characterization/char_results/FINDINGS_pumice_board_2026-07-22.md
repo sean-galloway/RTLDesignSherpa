@@ -1,6 +1,6 @@
 # pumice board wrap-up findings — 2026-07-22
 
-Bitstream: rebuilt from the fixed RTL (apb_slave_cdc gray-FIFO CDC fix, deskew
+Bitstream: rebuilt from the fixed RTL (apb4_slave_cdc gray-FIFO CDC fix, deskew
 removal, arbiter refresh fix: w_ref_safe + mission tRFC + column guard).
 Timing MET: WNS +0.169 ns @ 66.67 MHz, 0 failing endpoints.
 Flow: `make wrapup` (program -> level -> soak gate -> char matrix), plus the

@@ -2,7 +2,7 @@
 
 ## Summary
 
-Same issue as `apb_slave_cg` -- the wakeup path has 2 cycles of register
+Same issue as `apb4_slave_cg` -- the wakeup path has 2 cycles of register
 delay before `amba_clock_gate_ctrl` ungates the clock:
 
 ```
@@ -16,5 +16,5 @@ the clock can remain gated for 1-2 cycles after the master asserts PSEL on
 the bus. APB wait states hide this from the master, but it violates the
 intuitive "no gating during bus activity" property.
 
-See `formal/amba/apb_slave_cg/KNOWN_BUG.md` for full details and recommended
+See `formal/amba/apb4_slave_cg/KNOWN_BUG.md` for full details and recommended
 fix (collapse the two wakeup registers).

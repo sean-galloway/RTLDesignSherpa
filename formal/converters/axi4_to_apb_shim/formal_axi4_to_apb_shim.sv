@@ -3,7 +3,7 @@
 //
 // Formal proof for axi4_to_apb_shim -- AXI4 to APB protocol shim
 // Instantiates axi4_slave_stub, axi4_to_apb_convert, CDC handshakes,
-// and apb_master_stub. Verifies reset behavior, AXI handshake protocol,
+// and apb4_master_stub. Verifies reset behavior, AXI handshake protocol,
 // APB protocol compliance, no transaction loss indicators.
 // Uses small parameters (IW=2, AW=8, DW=32, APB DW=32) for tractability.
 

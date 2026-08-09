@@ -326,10 +326,10 @@ my_regs u_regs (
 // APB Master → APB Slave Stub → peakrdl_to_cmdrsp → PeakRDL Register Block
 
 // APB slave stub (APB protocol → cmd/rsp)
-apb_slave_stub #(
+apb4_slave_stub #(
     .DATA_WIDTH(32),
     .ADDR_WIDTH(12)
-) u_apb_slave (
+) u_apb4_slave (
     .pclk(apb_clk),
     .presetn(apb_resetn),
 
@@ -490,8 +490,8 @@ gtkwave peakrdl.vcd
 
 ## Related Modules
 
-- **[apb_slave_stub](../apb/apb_slave_stub.md)** - APB → cmd/rsp conversion (upstream)
-- **[apb_master_stub](../apb/apb_master_stub.md)** - cmd/rsp → APB conversion
+- **[apb4_slave_stub](../apb/apb4_slave_stub.md)** - APB → cmd/rsp conversion (upstream)
+- **[apb4_master_stub](../apb/apb4_master_stub.md)** - cmd/rsp → APB conversion
 
 **External:**
 - PeakRDL: https://github.com/SystemRDL/PeakRDL

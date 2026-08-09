@@ -12,7 +12,7 @@
 //   Handles the hwif (hardware interface) signal mapping.
 //
 // Architecture:
-//   APB -> apb_slave -> CMD/RSP -> peakrdl_to_cmdrsp -> regblk_* -> uart_16550_regs (PeakRDL) -> hwif -> uart_16550_core
+//   APB -> apb4_slave -> CMD/RSP -> peakrdl_to_cmdrsp -> regblk_* -> uart_16550_regs (PeakRDL) -> hwif -> uart_16550_core
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
 // Created: 2025-11-29

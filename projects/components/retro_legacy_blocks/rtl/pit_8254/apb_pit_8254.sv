@@ -91,16 +91,16 @@ module apb_pit_8254 #(
     //========================================================================
 
     generate
-        if (CDC_ENABLE) begin : g_apb_slave_cdc
+        if (CDC_ENABLE) begin : g_apb4_slave_cdc
             // Clock Domain Crossing version for async clocks
-            apb_slave_cdc #(
+            apb4_slave_cdc #(
                 .ADDR_WIDTH(12),
                 .DATA_WIDTH(32),
                 .STRB_WIDTH(4),
                 .PROT_WIDTH(3),
                 .DEPTH(2),
                 .USE_JOHNSON (USE_JOHNSON)
-            ) u_apb_slave_cdc (
+            ) u_apb4_slave_cdc (
                 // APB Clock Domain
                 .pclk                 (pclk),
                 .presetn              (presetn),
@@ -136,14 +136,14 @@ module apb_pit_8254 #(
                 .rsp_prdata           (w_rsp_prdata),
                 .rsp_pslverr          (w_rsp_pslverr)
             );
-        end else begin : g_apb_slave_no_cdc
+        end else begin : g_apb4_slave_no_cdc
             // Non-CDC version for same clock domain (pclk == pit_clk)
-            apb_slave #(
+            apb4_slave #(
                 .ADDR_WIDTH(12),
                 .DATA_WIDTH(32),
                 .STRB_WIDTH(4),
                 .PROT_WIDTH(3)
-            ) u_apb_slave (
+            ) u_apb4_slave (
                 // Single clock domain (use pclk)
                 .pclk                 (pclk),
                 .presetn              (presetn),

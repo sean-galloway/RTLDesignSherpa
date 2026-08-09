@@ -28,7 +28,7 @@ the analog read path; it was three stacked measurement/config defects:
    into preserved fields (set_deskew after set_controller_cfg silently reverted
    wrlat/rden -> leveling swept at reset timing). pumice_device now NEVER rmws:
    shadowed full-word writes seeded from RDL resets, `invalidate_shadow()` on
-   soft_reset. (RTL CDC fix already landed in `apb_slave_cdc`; bitstreams in
+   soft_reset. (RTL CDC fix already landed in `apb4_slave_cdc`; bitstreams in
    `bitstream/` predate it — rebuild to retire the hazard on-silicon.)
 
 Residual intermittent row-sized (256-beat/2KB) read corruption, strongly

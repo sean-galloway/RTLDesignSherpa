@@ -1,7 +1,7 @@
 %%{init: {'theme': 'neutral'}}%%
 flowchart TB
     TOP[apb_rtc<br/>Top Level]
-    TOP --> APB[apb_slave]
+    TOP --> APB[apb4_slave]
 
     TOP --> CFG[rtc_config_regs<br/>Register Wrapper]
     CFG --> REGS["rtc_regs<br/>(PeakRDL)"]

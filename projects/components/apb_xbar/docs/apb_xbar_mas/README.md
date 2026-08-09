@@ -157,7 +157,7 @@ docs/apb_xbar_mas/
 3. **Slave-Side:** APB masters convert cmd/rsp → protocol
 
 **Why This Design?**
-- Reuses proven `apb_slave` and `apb_master` components
+- Reuses proven `apb4_slave` and `apb4_master` components
 - Clean separation of concerns
 - Scalable to any MxN configuration
 

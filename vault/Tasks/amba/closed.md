@@ -579,7 +579,7 @@ Complete final validation of AXI monitor tests following the event_reported feed
 **Priority:** P2
 **Status:** 🟢 Complete (2025-10-06)
 **Owner:** Claude AI
-**Task File:** `TASK-017-wavedrom_apb_monitors.md`
+**Task File:** `TASK-017-wavedrom_apb4_monitors.md`
 **Depends On:** TASK-021 (APB monitor must be functional first) ✅
 
 **Description:**
@@ -587,7 +587,7 @@ Add minimal WaveDrom timing diagram generation to APB monitor tests, following t
 
 **Completed Work:**
 - ✅ Created APB constraints file (bin/TBClasses/wavedrom_user/apb.py) with comprehensive protocol support
-- ✅ Added WaveDrom test functions to test_apb_master.py, test_apb_slave.py, test_apb_slave_cdc.py
+- ✅ Added WaveDrom test functions to test_apb4_master.py, test_apb4_slave.py, test_apb4_slave_cdc.py
 - ✅ Generated 17 WaveJSON files across 3 APB test types
 - ✅ Created documentation (docs/markdown/assets/WAVES/*/README.md)
 - ✅ All tests passing with WaveDrom generation enabled
@@ -596,7 +596,7 @@ Add minimal WaveDrom timing diagram generation to APB monitor tests, following t
 - ✅ APB Master: 3 waveforms (basic write, read, back-to-back)
 - ✅ APB Slave: 7 waveforms (write, read, back-to-back writes/reads, write-to-read, read-to-write, error)
 - ✅ APB Slave CDC: 7 waveforms (dual clock domain showing APB + GAXI interfaces)
-- ✅ Documentation: README.md files in docs/markdown/assets/WAVES/{apb_master,apb_slave,apb_slave_cdc}/
+- ✅ Documentation: README.md files in docs/markdown/assets/WAVES/{apb4_master,apb4_slave,apb4_slave_cdc}/
 
 **Success Criteria:**
 - ✅ 17 clean WaveJSON files generated (exceeded 3 minimum)
@@ -788,8 +788,8 @@ Survey the entire test suite to identify additional tests that would significant
 The APB monitor was believed to be non-functional, but verification testing revealed it is fully operational.
 
 **Investigation Completed:**
-- ✅ Tested APB monitor with `test_apb_monitor.py`
-- ✅ Reviewed APB monitor RTL architecture (`rtl/amba/apb/apb_monitor.sv`)
+- ✅ Tested APB monitor with `test_apb4_monitor.py`
+- ✅ Reviewed APB monitor RTL architecture (`rtl/amba/apb4/apb4_monitor.sv`)
 - ✅ Verified transaction tracking implementation
 - ✅ Confirmed packet generation logic working
 - ✅ Ran comprehensive APB transaction tests
@@ -846,7 +846,7 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
    - [ ] axi4_slave_rd_mon_cg.md
    - [ ] axi4_slave_wr_mon_cg.md
    - [ ] axil4_*_mon_cg.md (4 modules)
-   - [ ] apb_master_cg.md, apb_slave_cg.md, apb_slave_cdc_cg.md
+   - [ ] apb4_master_cg.md, apb4_slave_cg.md, apb4_slave_cdc_cg.md
    - **Approach:** Reference base module, document CG-specific parameters
 
 2. **Monitor Variants (Priority 1):**
@@ -857,7 +857,7 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
 3. **Stub Modules (Priority 2):**
    - [ ] axi4_master_stub.md, axi4_master_rd_stub.md, axi4_master_wr_stub.md
    - [ ] axi4_slave_rd_stub.md, axi4_slave_wr_stub.md
-   - [ ] apb_master_stub.md, apb_slave_stub.md
+   - [ ] apb4_master_stub.md, apb4_slave_stub.md
    - **Approach:** Explain stub purpose, testing usage
 
 4. **Shared Infrastructure (Priority 1):**
@@ -886,9 +886,9 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
    - [ ] Shims (axi4_to_apb) - Protocol conversion timing
 
 2. **Integrate Existing Waveforms (Priority 1):**
-   - ✅ apb_slave.md already includes waveforms (reference pattern)
-   - [ ] apb_slave_cdc.md - Add waveform references
-   - [ ] apb_master.md - Add waveform references
+   - ✅ apb4_slave.md already includes waveforms (reference pattern)
+   - [ ] apb4_slave_cdc.md - Add waveform references
+   - [ ] apb4_master.md - Add waveform references
    - [ ] axi4_master_rd_mon.md - Add waveform references
    - [ ] axi4_master_wr_mon.md - Add waveform references
    - [ ] axi4_slave_rd_mon.md - Add waveform references
@@ -900,12 +900,12 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
    - [ ] Create wavedrom tests for missing modules
    - [ ] Follow pattern: pytest test generates .json → Include in markdown
 
-**Integration Pattern (from apb_slave.md):**
+**Integration Pattern (from apb4_slave.md):**
 ```markdown
 ## Waveforms
 
-![APB Write](../../../assets/WAVES/apb_slave/apb_write_sequence_001.png)
-**WaveJSON:** [apb_write_sequence_001.json](../../../assets/WAVES/apb_slave/apb_write_sequence_001.json)
+![APB Write](../../../assets/WAVES/apb4_slave/apb_write_sequence_001.png)
+**WaveJSON:** [apb_write_sequence_001.json](../../../assets/WAVES/apb4_slave/apb_write_sequence_001.json)
 ```
 
 **Implementation Phases:**
@@ -987,8 +987,8 @@ module ...
 ```
 
 **Resources:**
-- **Waveform Pattern:** docs/markdown/rtl-amba/apb/apb_slave.md (reference)
-- **Test Pattern:** val/amba/test_apb_slave_wavedrom.py
+- **Waveform Pattern:** docs/markdown/rtl-amba/apb4/apb4_slave.md (reference)
+- **Test Pattern:** val/amba/test_apb4_slave_wavedrom.py
 - **Constraint Pattern:** bin/TBClasses/wavedrom_user/apb.py
 - **Existing Waveforms:** docs/markdown/assets/WAVES/
 

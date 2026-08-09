@@ -10,7 +10,7 @@ test_file: projects/components/apb_xbar/dv/tests/test_apb_xbar_1to4.py
 
 # Module description:
 # 1-to-4 APB crossbar - 1 master to 4 slaves with address decoding.
-# Uses apb_slave for master and 4x apb_master for slaves.
+# Uses apb4_slave for master and 4x apb4_master for slaves.
 # Address decode selects slave based on address range (64KB per slave).
 
 parameters:
@@ -321,7 +321,7 @@ implied_coverage:
 
 notes: |
   1-to-4 APB Crossbar connects 1 master to 4 slaves with address decoding.
-  Architecture: apb_slave -> address decoder -> 4x apb_master
+  Architecture: apb4_slave -> address decoder -> 4x apb4_master
 
   Key features:
   - Address decode (64KB per slave, fixed offsets)

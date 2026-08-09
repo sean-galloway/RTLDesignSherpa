@@ -281,7 +281,7 @@ sequenceDiagram
 ```
 stream_top_ch8 (Top-Level Wrapper)
 ├── APB Interface Path
-│   ├── apb_slave_cdc        (CDC_ENABLE=1: APB clock domain crossing)
+│   ├── apb4_slave_cdc        (CDC_ENABLE=1: APB clock domain crossing)
 │   └── cmdrsp_router        (Address-based routing)
 │       ├── apbtodescr       (0x000-0x03F: Channel kick-off routing)
 │       ├── perf_profiler    (0x040-0x0FF: Performance profiling)

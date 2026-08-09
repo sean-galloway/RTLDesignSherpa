@@ -355,7 +355,7 @@ notes: |
      - STATUS: UNTESTED - No standalone test
 
   2. axi4_to_apb_shim.sv - Wrapper module
-     - Instantiates convert + apb_master
+     - Instantiates convert + apb4_master
      - STATUS: MINIMALLY TESTED - Only basic scenarios
 
   VERILATOR COVERAGE: ~35% (only shim tested)

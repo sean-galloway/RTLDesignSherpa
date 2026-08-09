@@ -151,7 +151,7 @@ def extract(path: str, apply: bool) -> int:
     module_defs |= {n.name for n in tree.body
                     if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
     # Helper CLASSES count too. Missing this shipped two broken extractions:
-    # test_apb_master defines APBGAXIScoreboard in the runner (its import is
+    # test_apb4_master defines APBGAXIScoreboard in the runner (its import is
     # commented out -- "use the improved version below"), and
     # test_monitor_trans_cam defines TransCamConfig/_TransCamModel. The TB
     # moved, the helper did not, and the failure was a NameError at run time

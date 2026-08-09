@@ -271,7 +271,7 @@ from TBClasses.shared.tbbase import TBBase
 **Critical Files:**
 - `monitor/axi_monitor_base.sv` - Core monitor infrastructure
 - `monitor/axi4_*_mon.sv` - AXI4 master/slave read/write monitors
-- `apb/apb_monitor.sv` - APB protocol monitor
+- `apb/apb4_monitor.sv` - APB protocol monitor
 - `axis4/axis_master.sv`, `axis4/axis_slave.sv` - AXI-Stream interfaces
 
 **Documentation:** `docs/markdown/rtl-amba/index.md`, `rtl/amba/CLAUDE.md`, `rtl/amba/KNOWN_ISSUES/`
@@ -852,7 +852,7 @@ cat rtl/*/TASKS.md
 |----------|----------------|---------|
 | AXI4 | `axi4_master_rd_mon`, `axi4_master_wr_mon` | Master-side transaction monitoring |
 | AXI4 | `axi4_slave_rd_mon`, `axi4_slave_wr_mon` | Slave-side transaction monitoring |
-| APB | `apb_monitor` | APB protocol monitoring |
+| APB | `apb4_monitor` | APB protocol monitoring |
 | AXIS | `axis_master`, `axis_slave` | Stream interface monitoring |
 | Monitor Bus | `arbiter_*_monbus` | Monitor packet arbitration |
 

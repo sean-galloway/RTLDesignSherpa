@@ -10,7 +10,7 @@ test_file: projects/components/apb_xbar/dv/tests/test_apb_xbar_1to1.py
 
 # Module description:
 # 1-to-1 APB crossbar - Passthrough connecting 1 master to 1 slave.
-# Uses apb_slave to convert master APB to cmd/rsp, then apb_master to convert back.
+# Uses apb4_slave to convert master APB to cmd/rsp, then apb4_master to convert back.
 # Validates basic APB protocol conversion without arbitration complexity.
 
 parameters:
@@ -275,7 +275,7 @@ implied_coverage:
 
 notes: |
   1-to-1 APB Crossbar is a passthrough design connecting 1 master to 1 slave.
-  Architecture: apb_slave (protocol to cmd/rsp) -> apb_master (cmd/rsp to protocol)
+  Architecture: apb4_slave (protocol to cmd/rsp) -> apb4_master (cmd/rsp to protocol)
 
   Key features:
   - Validates APB protocol conversion chain

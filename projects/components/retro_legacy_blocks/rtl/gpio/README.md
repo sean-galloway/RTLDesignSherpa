@@ -41,7 +41,7 @@ FPGA-friendly General Purpose I/O controller with APB interface.
 ## Architecture
 
 ```
-APB → apb_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
+APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
     → gpio_regs (PeakRDL) → hwif → gpio_core
 ```
 
@@ -156,7 +156,7 @@ gpio/
 
 ## Dependencies
 
-- apb_slave.sv / apb_slave_cdc.sv
+- apb4_slave.sv / apb4_slave_cdc.sv
 - peakrdl_to_cmdrsp.sv
 - gaxi_skid_buffer.sv (for CDC)
 - cdc_handshake.sv (for CDC)

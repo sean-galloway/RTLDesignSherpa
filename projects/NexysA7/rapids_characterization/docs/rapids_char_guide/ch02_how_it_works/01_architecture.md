@@ -13,7 +13,7 @@ word address (`addr[19:16]`) into three regions:
 
 | Region | Base | Contents |
 |:------:|------|----------|
-| 0 — DUT-REG | 0x0_0000 | AXIL → `apb_master` → the DUT's APB (SRC @ 0x0000, SNK @ 0x1000) |
+| 0 — DUT-REG | 0x0_0000 | AXIL → `apb4_master` → the DUT's APB (SRC @ 0x0000, SNK @ 0x1000) |
 | 1 — DESC-LOAD | 0x1_0000 | 256-bit descriptor assembly + single-beat AXI4 write into descriptor RAM |
 | 2 — HARNESS CSR | 0x2_0000 | gen / chk / mem / mon / obs control + status readback |
 
@@ -26,7 +26,7 @@ The UART wire protocol is ASCII (`W <addr> <data>\n` / `R <addr>\n`), 115200
 
 | File | Role |
 |------|------|
-| `flows-rapids-beats/rtl/rapids_char_top.sv` | FPGA board top. Owns the host front-end: `uart_axil_bridge`, the region decode/router, `apb_master`, the DESC-LOAD path, the harness CSR register file, the atomic-launch kick sequencer, LEDs and 7-seg. All CSR/DESC offsets are `localparam`s here (the single source of truth for the host regmaps). |
+| `flows-rapids-beats/rtl/rapids_char_top.sv` | FPGA board top. Owns the host front-end: `uart_axil_bridge`, the region decode/router, `apb4_master`, the DESC-LOAD path, the harness CSR register file, the atomic-launch kick sequencer, LEDs and 7-seg. All CSR/DESC offsets are `localparam`s here (the single source of truth for the host regmaps). |
 | `flows-rapids-beats/rtl/rapids_char_harness.sv` | Synthesizable harness: instantiates the DUT `rapids_beats_top` plus the on-chip stimulus / checkers / memories. **This is the cocotb DUT top.** |
 | `flows-rapids-beats/rtl/rapids_char_genesys2_top.sv` | Genesys 2 wrapper (MMCM 200→100 MHz) around `rapids_char_top`, default 8 channels. |
 

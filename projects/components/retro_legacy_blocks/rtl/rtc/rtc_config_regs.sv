@@ -29,7 +29,7 @@ module rtc_config_regs
     input wire clk,
     input wire rst_n,  // Active-low reset
 
-    // Command/Response Interface (from apb_slave)
+    // Command/Response Interface (from apb4_slave)
     input  wire        cmd_valid,
     output wire        cmd_ready,
     input  wire        cmd_pwrite,

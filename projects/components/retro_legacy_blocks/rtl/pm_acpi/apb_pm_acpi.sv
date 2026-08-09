@@ -61,7 +61,7 @@
 // pm_acpi_config_regs uses async reset, peakrdl_to_cmdrsp uses sync reset.
 // This is intentional - both modules are in same clock domain.
 module apb_pm_acpi #(
-    parameter int CDC_ENABLE = 0, // 0=same clock (apb_slave), 1=different clocks (apb_slave_cdc)
+    parameter int CDC_ENABLE = 0, // 0=same clock (apb4_slave), 1=different clocks (apb4_slave_cdc)
     // Async-FIFO pointer encoding, forwarded to the CDC block: 0 = Gray
     // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
     // Gray by default -- Johnson is opt-in.
@@ -194,16 +194,16 @@ module apb_pm_acpi #(
     // APB Slave - CDC or Non-CDC based on parameter
     // ========================================================================
     generate
-        if (CDC_ENABLE != 0) begin : g_apb_slave_cdc
+        if (CDC_ENABLE != 0) begin : g_apb4_slave_cdc
             // Clock Domain Crossing version for async clocks
-            apb_slave_cdc #(
+            apb4_slave_cdc #(
                 .ADDR_WIDTH(12),
                 .DATA_WIDTH(32),
                 .STRB_WIDTH(4),
                 .PROT_WIDTH(3),
                 .DEPTH     (2),
                 .USE_JOHNSON (USE_JOHNSON)
-            ) u_apb_slave_cdc (
+            ) u_apb4_slave_cdc (
                 // APB Clock Domain
                 .pclk                 (pclk),
                 .presetn              (presetn),
@@ -239,14 +239,14 @@ module apb_pm_acpi #(
                 .rsp_prdata           (w_rsp_prdata),
                 .rsp_pslverr          (w_rsp_pslverr)
             );
-        end else begin : g_apb_slave_no_cdc
+        end else begin : g_apb4_slave_no_cdc
             // Non-CDC version for same clock domain (pclk == pm_clk)
-            apb_slave #(
+            apb4_slave #(
                 .ADDR_WIDTH(12),
                 .DATA_WIDTH(32),
                 .STRB_WIDTH(4),
                 .PROT_WIDTH(3)
-            ) u_apb_slave (
+            ) u_apb4_slave (
                 // Single clock domain (use pclk for both APB and cmd/rsp)
                 .pclk                 (pclk),
                 .presetn              (presetn),

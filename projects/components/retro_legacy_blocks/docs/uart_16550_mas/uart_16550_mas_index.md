@@ -58,7 +58,7 @@ This specification is organized into five chapters covering all aspects of the A
 **Location:** `ch03_interfaces/`
 
 - [00_overview.md](ch03_interfaces/00_overview.md) - Interface summary
-- [01_apb_slave.md](ch03_interfaces/01_apb_slave.md) - APB protocol specification
+- [01_apb4_slave.md](ch03_interfaces/01_apb4_slave.md) - APB protocol specification
 - [02_serial.md](ch03_interfaces/02_serial.md) - Serial TX/RX interface
 - [03_modem.md](ch03_interfaces/03_modem.md) - Modem control signals
 - [04_interrupt.md](ch03_interfaces/04_interrupt.md) - Interrupt output

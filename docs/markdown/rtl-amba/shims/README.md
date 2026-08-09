@@ -176,7 +176,7 @@ axi4_to_apb_shim #(
 Use PeakRDL adapter for register automation:
 
 ```
-APB Bus → apb_slave_stub → peakrdl_to_cmdrsp → PeakRDL Register Block
+APB Bus → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL Register Block
           (APB→cmd/rsp)     (cmd/rsp→cpuif)     (generated from .rdl)
 ```
 
@@ -288,7 +288,7 @@ axi4_to_apb_shim #(
 
 **Solution:**
 ```
-APB → apb_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
+APB → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 ```
 
 **Benefits:**

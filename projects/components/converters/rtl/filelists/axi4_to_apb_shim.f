@@ -25,9 +25,9 @@
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 -f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
 
-# APB infrastructure (apb_master_stub.f carries apb_master and its
+# APB infrastructure (apb4_master_stub.f carries apb4_master and its
 # counter_bin / fifo_control / gaxi dependencies)
--f $REPO_ROOT/rtl/amba/filelists/apb_master_stub.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_master_stub.f
 
 # AXI address generation
 -f $REPO_ROOT/rtl/amba/filelists/axi_gen_addr.f

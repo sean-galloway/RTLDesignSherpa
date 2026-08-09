@@ -56,10 +56,10 @@
 
 **CRITICAL NOTE (2025-11-30):**
 GPIO and UART_16550 RTL modules have PORT NAME MISMATCHES with the actual
-apb_slave.sv and peakrdl_to_cmdrsp.sv infrastructure modules.
+apb4_slave.sv and peakrdl_to_cmdrsp.sv infrastructure modules.
 
 **Issues:**
-1. apb_slave.sv uses `s_apb_PSEL` naming, RTL uses `psel`
+1. apb4_slave.sv uses `s_apb_PSEL` naming, RTL uses `psel`
 2. peakrdl_to_cmdrsp.sv uses `aclk`/`aresetn`, RTL uses `clk`/`rst_n`
 3. CMD/RSP port naming differs (e.g., `cmd_addr` vs `cmd_paddr`)
 
@@ -376,7 +376,7 @@ The Stream DMA provides:
 
 **Standard Pattern:**
 ```
-APB → apb_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →  
+APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →  
   → <module>_regs (PeakRDL) → hwif → <module>_core
 ```
 

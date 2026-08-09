@@ -235,6 +235,6 @@ env ENABLE_WAVEDROM=1 pytest "val/amba/test_axi4_master_rd_mon.py::test_axi4_mas
 
 ## References
 
-- APB wavedrom tests (working reference): `val/amba/test_apb_slave.py`
+- APB wavedrom tests (working reference): `val/amba/test_apb4_slave.py`
 - Constraint solver: `CocoTBFramework/components/wavedrom/constraint_solver.py`
 - WaveDrom requirements: `bin/TBClasses/wavedrom_user/WAVEDROM_REQUIREMENTS.md`

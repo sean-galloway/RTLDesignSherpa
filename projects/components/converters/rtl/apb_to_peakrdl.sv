@@ -8,7 +8,7 @@
 // Purpose: One-stop APB slave -> PeakRDL passthrough ("cpuif") adapter.
 //          Stitches the two existing converters:
 //
-//            APB (pclk) --apb_slave_cdc--> CMD/RSP (aclk) --peakrdl_to_cmdrsp--> cpuif
+//            APB (pclk) --apb4_slave_cdc--> CMD/RSP (aclk) --peakrdl_to_cmdrsp--> cpuif
 //
 //          so a design that exposes a PeakRDL passthrough register interface
 //          (regblk_* / s_cpuif_*) can be driven from a plain APB slave port.
@@ -22,7 +22,7 @@
 //          controller's cpuif without re-plumbing the converters each time.
 //
 // Documentation: projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
-//                rtl/amba/apb/apb_slave_cdc.sv
+//                rtl/amba/apb4/apb4_slave_cdc.sv
 `timescale 1ns / 1ps
 
 module apb_to_peakrdl #(
@@ -82,7 +82,7 @@ module apb_to_peakrdl #(
     logic [DATA_WIDTH-1:0]   rsp_prdata;
 
     // Stage 1: APB (pclk) -> CMD/RSP (aclk)
-    apb_slave_cdc #(
+    apb4_slave_cdc #(
         .ADDR_WIDTH      (ADDR_WIDTH),
         .DATA_WIDTH      (DATA_WIDTH),
         .STRB_WIDTH      (STRB_WIDTH),

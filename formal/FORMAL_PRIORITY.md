@@ -324,13 +324,13 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 
 | Module             | Priority | Status | Notes                                   |
 | ------------------ | -------- | ------ | --------------------------------------- |
-| apb_master         | 2        | PASSING | Prove APB setup/access phase sequencing |
-| apb_slave          | 2        | PASSING | Prove correct response timing           |
-| apb_monitor        | 2        | PASSING | Prove packet generation                 |
+| apb4_master         | 2        | PASSING | Prove APB setup/access phase sequencing |
+| apb4_slave          | 2        | PASSING | Prove correct response timing           |
+| apb4_monitor        | 2        | PASSING | Prove packet generation                 |
 | apb5_master        | 2        | PASSING | APB5 variant                            |
 | apb5_slave         | 2        | PASSING | APB5 variant                            |
 | apb5_monitor       | 2        | PASSING | APB5 variant                            |
-| apb_slave_cdc      | 2        | PASSING | CDC variant — prove safe crossing       |
+| apb4_slave_cdc      | 2        | PASSING | CDC variant — prove safe crossing       |
 | apb5_slave_cdc     | 2        | PASSING | APB5 CDC variant                        |
 | apb_*_cg / *_stub  | 0        |        | CG/stub variants                        |
 | apb5_*_cg / *_stub | 0        |        | CG/stub variants                        |

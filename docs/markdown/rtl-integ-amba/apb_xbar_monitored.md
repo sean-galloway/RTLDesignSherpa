@@ -108,8 +108,8 @@ which side of the fabric a packet came from.
 Traffic passes through `apb_xbar_thin` unchanged -- the crossbar is not modified
 by being monitored. Around it:
 
-- each master port's traffic is observed by an `apb_monitor` tagged `AGENT_ID_M_BASE + n`
-- each slave port's traffic is observed by an `apb_monitor` tagged `AGENT_ID_S_BASE + n`
+- each master port's traffic is observed by an `apb4_monitor` tagged `AGENT_ID_M_BASE + n`
+- each slave port's traffic is observed by an `apb4_monitor` tagged `AGENT_ID_S_BASE + n`
 - all seven monitor buses are merged by `arbiter_round_robin` onto one
   `monbus_packet` output
 
@@ -120,7 +120,7 @@ ports out of the monitor bus, or you lose the evidence that would explain it.
 ## How the monitors are attached
 
 `apb_xbar_thin` is raw APB on both sides, so each monitored port converts the
-bus phases into the handshake `apb_monitor` takes:
+bus phases into the handshake `apb4_monitor` takes:
 
 ```systemverilog
 assign m_xfer[mi] = xbar_m_psel[mi] && xbar_m_penable[mi] && xbar_m_pready[mi];
@@ -148,8 +148,8 @@ None, in `val/` or anywhere else. See the note on
 
 ## Related Modules
 
-- [apb_monitor](../rtl-amba/apb/apb_monitor.md) - one per monitored port
-- [apb_slave](../rtl-amba/apb/apb_slave.md) / [apb_master](../rtl-amba/apb/apb_master.md) - the bridges that produce the handshake
+- [apb4_monitor](../rtl-amba/apb4/apb4_monitor.md) - one per monitored port
+- [apb4_slave](../rtl-amba/apb4/apb4_slave.md) / [apb4_master](../rtl-amba/apb4/apb4_master.md) - the bridges that produce the handshake
 - [arbiter_round_robin](../rtl-common/arbiter_round_robin.md) - merges the monitor buses
 - [apb_peripheral_subsystem](apb_peripheral_subsystem.md) - the same pattern, smaller
 

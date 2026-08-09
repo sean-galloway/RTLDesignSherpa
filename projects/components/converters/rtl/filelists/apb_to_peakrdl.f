@@ -9,7 +9,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
 # Sub-blocks (consumers -f this file rather than hand-listing them)
--f $REPO_ROOT/rtl/amba/filelists/apb_slave_cdc.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
 -f $CONVERTERS_ROOT/rtl/filelists/peakrdl_to_cmdrsp.f
 
 $CONVERTERS_ROOT/rtl/apb_to_peakrdl.sv

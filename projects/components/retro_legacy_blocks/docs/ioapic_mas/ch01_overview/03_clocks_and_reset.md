@@ -42,7 +42,7 @@ The IOAPIC supports both single and dual clock domain operation via the `CDC_ENA
 
 **Clock Routing:**
 ```
-pclk ──┬──► apb_slave (APB protocol)
+pclk ──┬──► apb4_slave (APB protocol)
        ├──► ioapic_config_regs (registers)
        └──► ioapic_core (interrupt logic)
 ```
@@ -52,7 +52,7 @@ pclk ──┬──► apb_slave (APB protocol)
 **Configuration:**
 - APB interface uses `pclk`
 - IOAPIC logic uses `ioapic_clk` (independent)
-- `apb_slave_cdc` provides clock domain crossing
+- `apb4_slave_cdc` provides clock domain crossing
 - CMD/RSP signals cross domains via async FIFOs
 
 **Advantages:**
@@ -63,7 +63,7 @@ pclk ──┬──► apb_slave (APB protocol)
 
 **Clock Routing:**
 ```
-pclk ────► apb_slave_cdc (APB protocol) ──┐
+pclk ────► apb4_slave_cdc (APB protocol) ──┐
                                            │ CDC
 ioapic_clk ──┬─────────────────────────────┴─► ioapic_config_regs
              └────────────────────────────────► ioapic_core

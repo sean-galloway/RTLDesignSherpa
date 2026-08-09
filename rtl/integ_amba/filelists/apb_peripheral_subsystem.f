@@ -7,7 +7,7 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
--f $REPO_ROOT/rtl/amba/filelists/apb_monitor.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_monitor.f
 -f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
 
 $REPO_ROOT/rtl/integ_amba/examples/apb_peripheral_subsystem.sv

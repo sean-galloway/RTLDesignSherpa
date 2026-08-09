@@ -43,16 +43,16 @@
 <text text-anchor="middle" x="346" y="-905.92" font-family="Times,serif" font-size="14.00">(CPU)</text>
 <text text-anchor="middle" x="346" y="-874.92" font-family="Times,serif" font-size="14.00">PCLK domain</text>
 </g>
-<!-- apb_slave0 -->
+<!-- apb4_slave0 -->
 <g id="node3" class="node">
-<title>apb_slave0</title>
+<title>apb4_slave0</title>
 <path fill="lightcyan" stroke="black" d="M427.5,-756.81C427.5,-756.81 296.5,-756.81 296.5,-756.81 290.5,-756.81 284.5,-750.81 284.5,-744.81 284.5,-744.81 284.5,-714.81 284.5,-714.81 284.5,-708.81 290.5,-702.81 296.5,-702.81 296.5,-702.81 427.5,-702.81 427.5,-702.81 433.5,-702.81 439.5,-708.81 439.5,-714.81 439.5,-714.81 439.5,-744.81 439.5,-744.81 439.5,-750.81 433.5,-756.81 427.5,-756.81"/>
-<text text-anchor="middle" x="362" y="-741.61" font-family="Times,serif" font-size="14.00">apb_slave[0]</text>
+<text text-anchor="middle" x="362" y="-741.61" font-family="Times,serif" font-size="14.00">apb4_slave[0]</text>
 <text text-anchor="middle" x="362" y="-710.61" font-family="Times,serif" font-size="14.00">Protocol → cmd/rsp</text>
 </g>
-<!-- master0&#45;&gt;apb_slave0 -->
+<!-- master0&#45;&gt;apb4_slave0 -->
 <g id="edge1" class="edge">
-<title>master0&#45;&gt;apb_slave0</title>
+<title>master0&#45;&gt;apb4_slave0</title>
 <path fill="none" stroke="black" stroke-width="2" d="M351.28,-844.54C353.69,-819.02 356.46,-789.56 358.59,-767.02"/>
 <polygon fill="black" stroke="black" stroke-width="2" points="362.09,-767.15 359.54,-756.87 355.12,-766.5 362.09,-767.15"/>
 <text text-anchor="middle" x="376" y="-818.81" font-family="Times,serif" font-size="10.00">APB</text>
@@ -67,16 +67,16 @@
 <text text-anchor="middle" x="550" y="-905.92" font-family="Times,serif" font-size="14.00">(DMA)</text>
 <text text-anchor="middle" x="550" y="-874.92" font-family="Times,serif" font-size="14.00">PCLK domain</text>
 </g>
-<!-- apb_slave1 -->
+<!-- apb4_slave1 -->
 <g id="node4" class="node">
-<title>apb_slave1</title>
+<title>apb4_slave1</title>
 <path fill="lightcyan" stroke="black" d="M600.5,-756.81C600.5,-756.81 469.5,-756.81 469.5,-756.81 463.5,-756.81 457.5,-750.81 457.5,-744.81 457.5,-744.81 457.5,-714.81 457.5,-714.81 457.5,-708.81 463.5,-702.81 469.5,-702.81 469.5,-702.81 600.5,-702.81 600.5,-702.81 606.5,-702.81 612.5,-708.81 612.5,-714.81 612.5,-714.81 612.5,-744.81 612.5,-744.81 612.5,-750.81 606.5,-756.81 600.5,-756.81"/>
-<text text-anchor="middle" x="535" y="-741.61" font-family="Times,serif" font-size="14.00">apb_slave[1]</text>
+<text text-anchor="middle" x="535" y="-741.61" font-family="Times,serif" font-size="14.00">apb4_slave[1]</text>
 <text text-anchor="middle" x="535" y="-710.61" font-family="Times,serif" font-size="14.00">Protocol → cmd/rsp</text>
 </g>
-<!-- master1&#45;&gt;apb_slave1 -->
+<!-- master1&#45;&gt;apb4_slave1 -->
 <g id="edge2" class="edge">
-<title>master1&#45;&gt;apb_slave1</title>
+<title>master1&#45;&gt;apb4_slave1</title>
 <path fill="none" stroke="black" stroke-width="2" d="M545.05,-844.54C542.79,-819.02 540.19,-789.56 538.2,-767.02"/>
 <polygon fill="black" stroke="black" stroke-width="2" points="541.67,-766.52 537.3,-756.87 534.7,-767.14 541.67,-766.52"/>
 <text text-anchor="middle" x="564" y="-818.81" font-family="Times,serif" font-size="10.00">APB</text>
@@ -90,17 +90,17 @@
 <text text-anchor="middle" x="424" y="-513.11" font-family="Times,serif" font-size="14.00">Parallel decode</text>
 <text text-anchor="middle" x="424" y="-498.11" font-family="Times,serif" font-size="14.00">(BASE_ADDR + offset)</text>
 </g>
-<!-- apb_slave0&#45;&gt;addr_decode -->
+<!-- apb4_slave0&#45;&gt;addr_decode -->
 <g id="edge3" class="edge">
-<title>apb_slave0&#45;&gt;addr_decode</title>
+<title>apb4_slave0&#45;&gt;addr_decode</title>
 <path fill="none" stroke="blue" d="M345.73,-702.4C335.86,-682.93 326.64,-655.93 335,-632.81 341.65,-614.42 352.98,-596.97 365.37,-581.7"/>
 <polygon fill="blue" stroke="blue" points="368.16,-583.82 371.93,-573.92 362.81,-579.31 368.16,-583.82"/>
 <text text-anchor="middle" x="395" y="-646.81" font-family="Times,serif" font-size="10.00">cmd/rsp bus 0</text>
 <text text-anchor="middle" x="395" y="-635.81" font-family="Times,serif" font-size="10.00">(paddr, pwrite, pwdata)</text>
 </g>
-<!-- apb_slave1&#45;&gt;addr_decode -->
+<!-- apb4_slave1&#45;&gt;addr_decode -->
 <g id="edge4" class="edge">
-<title>apb_slave1&#45;&gt;addr_decode</title>
+<title>apb4_slave1&#45;&gt;addr_decode</title>
 <path fill="none" stroke="blue" d="M512.11,-702.59C500.91,-688.94 487.78,-671.63 478,-654.81 467.15,-636.14 457.33,-614.88 449.12,-595.07"/>
 <polygon fill="blue" stroke="blue" points="452.36,-593.74 445.35,-585.79 445.87,-596.37 452.36,-593.74"/>
 <text text-anchor="middle" x="538" y="-646.81" font-family="Times,serif" font-size="10.00">cmd/rsp bus 1</text>
@@ -166,58 +166,58 @@
 <polygon fill="black" stroke="black" points="619.42,-388.91 624.45,-379.58 614.7,-383.74 619.42,-388.91"/>
 <text text-anchor="middle" x="609.5" y="-429.81" font-family="Times,serif" font-size="10.00">Slave 3 requests</text>
 </g>
-<!-- apb_master0 -->
+<!-- apb4_master0 -->
 <g id="node11" class="node">
-<title>apb_master0</title>
+<title>apb4_master0</title>
 <path fill="lightcyan" stroke="black" d="M581.5,-201.13C581.5,-201.13 450.5,-201.13 450.5,-201.13 444.5,-201.13 438.5,-195.13 438.5,-189.13 438.5,-189.13 438.5,-159.13 438.5,-159.13 438.5,-153.13 444.5,-147.13 450.5,-147.13 450.5,-147.13 581.5,-147.13 581.5,-147.13 587.5,-147.13 593.5,-153.13 593.5,-159.13 593.5,-159.13 593.5,-189.13 593.5,-189.13 593.5,-195.13 587.5,-201.13 581.5,-201.13"/>
-<text text-anchor="middle" x="516" y="-185.93" font-family="Times,serif" font-size="14.00">apb_master[0]</text>
+<text text-anchor="middle" x="516" y="-185.93" font-family="Times,serif" font-size="14.00">apb4_master[0]</text>
 <text text-anchor="middle" x="516" y="-154.93" font-family="Times,serif" font-size="14.00">cmd/rsp → Protocol</text>
 </g>
-<!-- arb0&#45;&gt;apb_master0 -->
+<!-- arb0&#45;&gt;apb4_master0 -->
 <g id="edge9" class="edge">
-<title>arb0&#45;&gt;apb_master0</title>
+<title>arb0&#45;&gt;apb4_master0</title>
 <path fill="none" stroke="green" d="M159.83,-286.27C173.22,-276.26 188.1,-266.43 203,-259.13 274.93,-223.87 363.67,-201.85 428.27,-189.25"/>
 <polygon fill="green" stroke="green" points="429.26,-192.62 438.43,-187.3 427.95,-185.75 429.26,-192.62"/>
 <text text-anchor="middle" x="277" y="-243.13" font-family="Times,serif" font-size="10.00">Grant + cmd</text>
 </g>
-<!-- apb_master1 -->
+<!-- apb4_master1 -->
 <g id="node12" class="node">
-<title>apb_master1</title>
+<title>apb4_master1</title>
 <path fill="lightcyan" stroke="black" d="M754.5,-201.13C754.5,-201.13 623.5,-201.13 623.5,-201.13 617.5,-201.13 611.5,-195.13 611.5,-189.13 611.5,-189.13 611.5,-159.13 611.5,-159.13 611.5,-153.13 617.5,-147.13 623.5,-147.13 623.5,-147.13 754.5,-147.13 754.5,-147.13 760.5,-147.13 766.5,-153.13 766.5,-159.13 766.5,-159.13 766.5,-189.13 766.5,-189.13 766.5,-195.13 760.5,-201.13 754.5,-201.13"/>
-<text text-anchor="middle" x="689" y="-185.93" font-family="Times,serif" font-size="14.00">apb_master[1]</text>
+<text text-anchor="middle" x="689" y="-185.93" font-family="Times,serif" font-size="14.00">apb4_master[1]</text>
 <text text-anchor="middle" x="689" y="-154.93" font-family="Times,serif" font-size="14.00">cmd/rsp → Protocol</text>
 </g>
-<!-- arb1&#45;&gt;apb_master1 -->
+<!-- arb1&#45;&gt;apb4_master1 -->
 <g id="edge10" class="edge">
-<title>arb1&#45;&gt;apb_master1</title>
+<title>arb1&#45;&gt;apb4_master1</title>
 <path fill="none" stroke="green" d="M347.22,-284.91C360.62,-274.93 375.66,-265.46 391,-259.13 449.45,-235 469.25,-247.89 532,-240.13 563.52,-236.23 573.16,-242.98 603,-232.13 619.17,-226.25 635.32,-216.76 649.18,-207.19"/>
 <polygon fill="green" stroke="green" points="651.38,-209.91 657.49,-201.25 647.32,-204.21 651.38,-209.91"/>
 <text text-anchor="middle" x="565" y="-243.13" font-family="Times,serif" font-size="10.00">Grant + cmd</text>
 </g>
-<!-- apb_master2 -->
+<!-- apb4_master2 -->
 <g id="node13" class="node">
-<title>apb_master2</title>
+<title>apb4_master2</title>
 <path fill="lightcyan" stroke="black" d="M927.5,-201.13C927.5,-201.13 796.5,-201.13 796.5,-201.13 790.5,-201.13 784.5,-195.13 784.5,-189.13 784.5,-189.13 784.5,-159.13 784.5,-159.13 784.5,-153.13 790.5,-147.13 796.5,-147.13 796.5,-147.13 927.5,-147.13 927.5,-147.13 933.5,-147.13 939.5,-153.13 939.5,-159.13 939.5,-159.13 939.5,-189.13 939.5,-189.13 939.5,-195.13 933.5,-201.13 927.5,-201.13"/>
-<text text-anchor="middle" x="862" y="-185.93" font-family="Times,serif" font-size="14.00">apb_master[2]</text>
+<text text-anchor="middle" x="862" y="-185.93" font-family="Times,serif" font-size="14.00">apb4_master[2]</text>
 <text text-anchor="middle" x="862" y="-154.93" font-family="Times,serif" font-size="14.00">cmd/rsp → Protocol</text>
 </g>
-<!-- arb2&#45;&gt;apb_master2 -->
+<!-- arb2&#45;&gt;apb4_master2 -->
 <g id="edge11" class="edge">
-<title>arb2&#45;&gt;apb_master2</title>
+<title>arb2&#45;&gt;apb4_master2</title>
 <path fill="none" stroke="green" d="M535.23,-284.94C548.63,-274.95 563.67,-265.48 579,-259.13 660.65,-225.31 693.31,-263.32 776,-232.13 791.96,-226.11 807.95,-216.68 821.73,-207.21"/>
 <polygon fill="green" stroke="green" points="823.88,-209.98 830.01,-201.34 819.83,-204.27 823.88,-209.98"/>
 <text text-anchor="middle" x="781" y="-243.13" font-family="Times,serif" font-size="10.00">Grant + cmd</text>
 </g>
-<!-- apb_master3 -->
+<!-- apb4_master3 -->
 <g id="node14" class="node">
-<title>apb_master3</title>
+<title>apb4_master3</title>
 <path fill="lightcyan" stroke="black" d="M1100.5,-201.13C1100.5,-201.13 969.5,-201.13 969.5,-201.13 963.5,-201.13 957.5,-195.13 957.5,-189.13 957.5,-189.13 957.5,-159.13 957.5,-159.13 957.5,-153.13 963.5,-147.13 969.5,-147.13 969.5,-147.13 1100.5,-147.13 1100.5,-147.13 1106.5,-147.13 1112.5,-153.13 1112.5,-159.13 1112.5,-159.13 1112.5,-189.13 1112.5,-189.13 1112.5,-195.13 1106.5,-201.13 1100.5,-201.13"/>
-<text text-anchor="middle" x="1035" y="-185.93" font-family="Times,serif" font-size="14.00">apb_master[3]</text>
+<text text-anchor="middle" x="1035" y="-185.93" font-family="Times,serif" font-size="14.00">apb4_master[3]</text>
 <text text-anchor="middle" x="1035" y="-154.93" font-family="Times,serif" font-size="14.00">cmd/rsp → Protocol</text>
 </g>
-<!-- arb3&#45;&gt;apb_master3 -->
+<!-- arb3&#45;&gt;apb4_master3 -->
 <g id="edge12" class="edge">
-<title>arb3&#45;&gt;apb_master3</title>
+<title>arb3&#45;&gt;apb4_master3</title>
 <path fill="none" stroke="green" d="M723.64,-286.05C738.33,-275.45 755.01,-265.41 772,-259.13 811.74,-244.43 825.14,-257.71 867,-251.13 903.96,-245.32 914.64,-246.92 949,-232.13 964.12,-225.62 979.46,-216.44 992.92,-207.35"/>
 <polygon fill="green" stroke="green" points="995.25,-209.99 1001.47,-201.42 991.26,-204.24 995.25,-209.99"/>
 <text text-anchor="middle" x="960" y="-243.13" font-family="Times,serif" font-size="10.00">Grant + cmd</text>
@@ -230,25 +230,25 @@
 <text text-anchor="middle" x="693" y="-513.11" font-family="Times,serif" font-size="14.00">Registered paths</text>
 <text text-anchor="middle" x="693" y="-498.11" font-family="Times,serif" font-size="14.00">back to masters</text>
 </g>
-<!-- rsp_route&#45;&gt;apb_slave0 -->
+<!-- rsp_route&#45;&gt;apb4_slave0 -->
 <g id="edge17" class="edge">
-<title>rsp_route&#45;&gt;apb_slave0</title>
+<title>rsp_route&#45;&gt;apb4_slave0</title>
 <path fill="none" stroke="red" stroke-dasharray="5,2" d="M669.3,-559.35C642.85,-596.57 603.08,-651.84 598,-654.81 540.38,-688.42 511.75,-650.18 449,-672.81 433.05,-678.56 417.03,-687.68 403.16,-696.91"/>
 <polygon fill="red" stroke="red" points="401.09,-694.09 394.83,-702.64 405.05,-699.86 401.09,-694.09"/>
 <text text-anchor="middle" x="639" y="-646.81" font-family="Times,serif" font-size="10.00">Response</text>
 <text text-anchor="middle" x="639" y="-635.81" font-family="Times,serif" font-size="10.00">to M0</text>
 </g>
-<!-- rsp_route&#45;&gt;apb_slave1 -->
+<!-- rsp_route&#45;&gt;apb4_slave1 -->
 <g id="edge18" class="edge">
-<title>rsp_route&#45;&gt;apb_slave1</title>
+<title>rsp_route&#45;&gt;apb4_slave1</title>
 <path fill="none" stroke="red" stroke-dasharray="5,2" d="M695,-559.58C694.97,-587.56 690.82,-627.08 671,-654.81 665.91,-661.93 630.79,-680.96 597.52,-697.94"/>
 <polygon fill="red" stroke="red" points="595.54,-695.01 588.21,-702.66 598.71,-701.26 595.54,-695.01"/>
 <text text-anchor="middle" x="707" y="-646.81" font-family="Times,serif" font-size="10.00">Response</text>
 <text text-anchor="middle" x="707" y="-635.81" font-family="Times,serif" font-size="10.00">to M1</text>
 </g>
-<!-- apb_master0&#45;&gt;rsp_route -->
+<!-- apb4_master0&#45;&gt;rsp_route -->
 <g id="edge13" class="edge">
-<title>apb_master0&#45;&gt;rsp_route</title>
+<title>apb4_master0&#45;&gt;rsp_route</title>
 <path fill="none" stroke="red" d="M548.89,-201.41C564.46,-212.56 583.81,-224.68 603,-232.13 673.09,-259.33 721.26,-201.88 770,-259.13 793,-286.15 781.04,-385.08 770,-418.81 762.44,-441.91 747.64,-464.13 733.03,-482.13"/>
 <polygon fill="red" stroke="red" points="730.09,-480.18 726.35,-490.09 735.46,-484.68 730.09,-480.18"/>
 <text text-anchor="middle" x="807" y="-328.97" font-family="Times,serif" font-size="10.00">rsp bus 0</text>
@@ -262,17 +262,17 @@
 <text text-anchor="middle" x="398" y="-40.86" font-family="Times,serif" font-size="14.00">(UART)</text>
 <text text-anchor="middle" x="398" y="-25.86" font-family="Times,serif" font-size="14.00">@ BASE+0x0000</text>
 </g>
-<!-- apb_master0&#45;&gt;slave0 -->
+<!-- apb4_master0&#45;&gt;slave0 -->
 <g id="edge19" class="edge">
-<title>apb_master0&#45;&gt;slave0</title>
+<title>apb4_master0&#45;&gt;slave0</title>
 <path fill="none" stroke="black" stroke-width="2" d="M491.84,-147.01C478.5,-132.59 461.48,-114.19 445.59,-97.02"/>
 <polygon fill="black" stroke="black" stroke-width="2" points="447.75,-94.2 438.39,-89.23 442.62,-98.95 447.75,-94.2"/>
 <text text-anchor="middle" x="495" y="-121.13" font-family="Times,serif" font-size="10.00">APB</text>
 <text text-anchor="middle" x="495" y="-110.13" font-family="Times,serif" font-size="10.00">protocol</text>
 </g>
-<!-- apb_master1&#45;&gt;rsp_route -->
+<!-- apb4_master1&#45;&gt;rsp_route -->
 <g id="edge14" class="edge">
-<title>apb_master1&#45;&gt;rsp_route</title>
+<title>apb4_master1&#45;&gt;rsp_route</title>
 <path fill="none" stroke="red" d="M721.99,-201.17C737.57,-212.27 756.91,-224.41 776,-232.13 806.92,-244.62 830.39,-229.67 846,-259.13 879.23,-321.84 879.06,-356.01 846,-418.81 830.56,-448.13 802.82,-470.84 775.17,-487.52"/>
 <polygon fill="red" stroke="red" points="773.1,-484.67 766.21,-492.72 776.61,-490.73 773.1,-484.67"/>
 <text text-anchor="middle" x="894" y="-328.97" font-family="Times,serif" font-size="10.00">rsp bus 1</text>
@@ -286,17 +286,17 @@
 <text text-anchor="middle" x="647" y="-40.86" font-family="Times,serif" font-size="14.00">(GPIO)</text>
 <text text-anchor="middle" x="647" y="-25.86" font-family="Times,serif" font-size="14.00">@ BASE+0x10000</text>
 </g>
-<!-- apb_master1&#45;&gt;slave1 -->
+<!-- apb4_master1&#45;&gt;slave1 -->
 <g id="edge20" class="edge">
-<title>apb_master1&#45;&gt;slave1</title>
+<title>apb4_master1&#45;&gt;slave1</title>
 <path fill="none" stroke="black" stroke-width="2" d="M680.4,-147.01C675.83,-133.11 670.03,-115.51 664.55,-98.88"/>
 <polygon fill="black" stroke="black" stroke-width="2" points="667.83,-97.64 661.38,-89.23 661.18,-99.83 667.83,-97.64"/>
 <text text-anchor="middle" x="695" y="-121.13" font-family="Times,serif" font-size="10.00">APB</text>
 <text text-anchor="middle" x="695" y="-110.13" font-family="Times,serif" font-size="10.00">protocol</text>
 </g>
-<!-- apb_master2&#45;&gt;rsp_route -->
+<!-- apb4_master2&#45;&gt;rsp_route -->
 <g id="edge15" class="edge">
-<title>apb_master2&#45;&gt;rsp_route</title>
+<title>apb4_master2&#45;&gt;rsp_route</title>
 <path fill="none" stroke="red" d="M896.54,-201.33C911.95,-212.06 930.74,-223.87 949,-232.13 961.18,-237.64 969.9,-229.49 978,-240.13 1028.42,-306.34 977.6,-356.88 922,-418.81 883.65,-461.52 824.43,-488.04 775.82,-503.73"/>
 <polygon fill="red" stroke="red" points="774.75,-500.4 766.25,-506.73 776.84,-507.08 774.75,-500.4"/>
 <text text-anchor="middle" x="1022" y="-328.97" font-family="Times,serif" font-size="10.00">rsp bus 2</text>
@@ -310,17 +310,17 @@
 <text text-anchor="middle" x="903" y="-40.86" font-family="Times,serif" font-size="14.00">(Timer)</text>
 <text text-anchor="middle" x="903" y="-25.86" font-family="Times,serif" font-size="14.00">@ BASE+0x20000</text>
 </g>
-<!-- apb_master2&#45;&gt;slave2 -->
+<!-- apb4_master2&#45;&gt;slave2 -->
 <g id="edge21" class="edge">
-<title>apb_master2&#45;&gt;slave2</title>
+<title>apb4_master2&#45;&gt;slave2</title>
 <path fill="none" stroke="black" stroke-width="2" d="M870.4,-147.01C874.86,-133.11 880.52,-115.51 885.87,-98.88"/>
 <polygon fill="black" stroke="black" stroke-width="2" points="889.24,-99.82 888.96,-89.23 882.57,-97.68 889.24,-99.82"/>
 <text text-anchor="middle" x="903" y="-121.13" font-family="Times,serif" font-size="10.00">APB</text>
 <text text-anchor="middle" x="903" y="-110.13" font-family="Times,serif" font-size="10.00">protocol</text>
 </g>
-<!-- apb_master3&#45;&gt;rsp_route -->
+<!-- apb4_master3&#45;&gt;rsp_route -->
 <g id="edge16" class="edge">
-<title>apb_master3&#45;&gt;rsp_route</title>
+<title>apb4_master3&#45;&gt;rsp_route</title>
 <path fill="none" stroke="red" d="M1046.64,-201.36C1066.11,-249.7 1098.63,-353.82 1050,-418.81 1017.15,-462.71 870.91,-494.55 776.09,-511.03"/>
 <polygon fill="red" stroke="red" points="775.49,-507.58 766.22,-512.72 776.67,-514.48 775.49,-507.58"/>
 <text text-anchor="middle" x="1099" y="-328.97" font-family="Times,serif" font-size="10.00">rsp bus 3</text>
@@ -334,9 +334,9 @@
 <text text-anchor="middle" x="1159" y="-40.86" font-family="Times,serif" font-size="14.00">(SPI)</text>
 <text text-anchor="middle" x="1159" y="-25.86" font-family="Times,serif" font-size="14.00">@ BASE+0x30000</text>
 </g>
-<!-- apb_master3&#45;&gt;slave3 -->
+<!-- apb4_master3&#45;&gt;slave3 -->
 <g id="edge22" class="edge">
-<title>apb_master3&#45;&gt;slave3</title>
+<title>apb4_master3&#45;&gt;slave3</title>
 <path fill="none" stroke="black" stroke-width="2" d="M1060.39,-147.01C1074.53,-132.46 1092.62,-113.85 1109.44,-96.55"/>
 <polygon fill="black" stroke="black" stroke-width="2" points="1112.09,-98.84 1116.55,-89.23 1107.07,-93.96 1112.09,-98.84"/>
 <text text-anchor="middle" x="1118" y="-121.13" font-family="Times,serif" font-size="10.00">APB</text>

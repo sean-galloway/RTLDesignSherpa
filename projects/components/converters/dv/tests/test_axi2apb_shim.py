@@ -109,24 +109,24 @@ class Axi2ApbTB(TBBase):
         self.registers = 32 * self.strb_bits
 
         # Create APB components
-        self.apb_slave_randomizer = FlexRandomizer({
+        self.apb4_slave_randomizer = FlexRandomizer({
             'ready': ([(0, 0), (1, 5), (6, 10)], [5, 3, 1]),
             'error': ([(0, 0), (1, 1)], [10, 0])
         })
 
-        self.apb_monitor = create_apb_monitor(
+        self.apb4_monitor = create_apb_monitor(
             dut, 'APB Monitor', 'm_apb', dut.pclk,
             addr_width=self.APB_ADDR_WIDTH,
             data_width=self.APB_DATA_WIDTH,
             log=self.log
         )
 
-        self.apb_slave = create_apb_slave(
+        self.apb4_slave = create_apb_slave(
             dut, 'APB Slave', 'm_apb', dut.pclk,
             registers=[0] * (self.registers * self.APB_STRB_WIDTH),
             addr_width=self.APB_ADDR_WIDTH,
             data_width=self.APB_DATA_WIDTH,
-            randomizer=self.apb_slave_randomizer,
+            randomizer=self.apb4_slave_randomizer,
             log=self.log
         )
 
@@ -166,7 +166,7 @@ class Axi2ApbTB(TBBase):
         self.dut.aresetn.value = 0
         self.dut.presetn.value = 0
 
-        await self.apb_slave.reset_bus()
+        await self.apb4_slave.reset_bus()
 
         # Reset AXI4 components
         if hasattr(self.aw_master, 'reset_bus'):
@@ -521,7 +521,7 @@ class Axi2ApbTB(TBBase):
             'ready': ([(0, 0), (1, 1)], [9, 1]),
             'error': ([(0, 0), (1, 1)], [10, 0]),
         }
-        self.apb_slave.set_randomizer(FlexRandomizer(apb_slv_constraints))
+        self.apb4_slave.set_randomizer(FlexRandomizer(apb_slv_constraints))
 
         # Test with different timing profiles
         timing_profiles_to_test = [

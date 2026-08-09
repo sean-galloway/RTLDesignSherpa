@@ -1304,7 +1304,7 @@ class ComponentFactory:
         for name, (ifc_type, prefix, config) in interfaces.items():
             if ifc_type == 'axi_master':
                 component = cls.create_axi_master(dut, clock, prefix, config)
-            elif ifc_type == 'apb_master':
+            elif ifc_type == 'apb4_master':
                 component = cls.create_apb_master(dut, clock, prefix, config)
             elif ifc_type == 'axis_master':
                 component = cls.create_axis_master(dut, clock, prefix, config)
@@ -1328,7 +1328,7 @@ async def test_with_factory(dut):
     # Define system interfaces
     interfaces = {
         'mem': ('axi_master', 'm_axi_', {'data_width': 64}),
-        'cfg': ('apb_master', 'apb_', {'addr_width': 16}),
+        'cfg': ('apb4_master', 'apb_', {'addr_width': 16}),
         'stream': ('axis_master', 's_axis_', {'data_width': 32})
     }
 

@@ -91,7 +91,7 @@ def main():
     # Group by module name (first part before parameters)
     module_groups = defaultdict(list)
     for pattern, files in all_names.items():
-        # Extract module name (e.g., "apb_master" from "apb_master_aw{aw_str}_...")
+        # Extract module name (e.g., "apb4_master" from "apb4_master_aw{aw_str}_...")
         match = re.match(r'^([a-z0-9_]+?)_(?:aw|dw|i|sd|w|d|cl|wr|rd)', pattern)
         if match:
             module_name = match.group(1)

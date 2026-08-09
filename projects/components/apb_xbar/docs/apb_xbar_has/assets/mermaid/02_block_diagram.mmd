@@ -1,7 +1,7 @@
 flowchart TB
     subgraph Masters["Master Side (APB Slaves)"]
-        M0["apb_slave[0]<br/>Master 0"]
-        M1["apb_slave[1]<br/>Master 1"]
+        M0["apb4_slave[0]<br/>Master 0"]
+        M1["apb4_slave[1]<br/>Master 1"]
     end
 
     subgraph Fabric["Internal Crossbar Fabric"]
@@ -14,10 +14,10 @@ flowchart TB
     end
 
     subgraph Slaves["Slave Side (APB Masters)"]
-        S0["apb_master[0]<br/>Slave 0"]
-        S1["apb_master[1]<br/>Slave 1"]
-        S2["apb_master[2]<br/>Slave 2"]
-        S3["apb_master[3]<br/>Slave 3"]
+        S0["apb4_master[0]<br/>Slave 0"]
+        S1["apb4_master[1]<br/>Slave 1"]
+        S2["apb4_master[2]<br/>Slave 2"]
+        S3["apb4_master[3]<br/>Slave 3"]
     end
 
     M0 --> DECODE

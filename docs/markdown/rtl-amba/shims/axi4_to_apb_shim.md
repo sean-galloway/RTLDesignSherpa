@@ -212,7 +212,7 @@ axi4_to_apb_shim (this module)
 ├── cdc_handshake (response)
 │   └── APB → AXI clock domain crossing
 │
-└── apb_master_stub
+└── apb4_master_stub
     └── Provides APB master interface with buffering
 ```
 
@@ -223,7 +223,7 @@ axi4_to_apb_shim (this module)
 AXI Master → AW/W skid buffers (aclk)
           → axi4_to_apb_convert (burst decomposition, aclk)
           → cmd CDC handshake (aclk → pclk)
-          → apb_master_stub (APB protocol, pclk)
+          → apb4_master_stub (APB protocol, pclk)
           → APB Slave (pclk)
           → rsp CDC handshake (pclk → aclk)
           → B channel response (aclk)
@@ -234,7 +234,7 @@ AXI Master → AW/W skid buffers (aclk)
 AXI Master → AR skid buffer (aclk)
           → axi4_to_apb_convert (burst decomposition, aclk)
           → cmd CDC handshake (aclk → pclk)
-          → apb_master_stub (APB protocol, pclk)
+          → apb4_master_stub (APB protocol, pclk)
           → APB Slave (pclk)
           → rsp CDC handshake (pclk → aclk)
           → R channel response + data (aclk)
@@ -466,7 +466,7 @@ pytest "projects/components/converters/dv/tests/test_axi2apb_shim.py::test_axi2a
 - axi4_slave_stub: ~300 LUTs, ~200 FFs (skid buffers)
 - axi4_to_apb_convert: ~400 LUTs, ~300 FFs (FSMs, width logic)
 - 2× cdc_handshake: ~200 LUTs, ~150 FFs (synchronizers)
-- apb_master_stub: ~100 LUTs, ~100 FFs (APB protocol)
+- apb4_master_stub: ~100 LUTs, ~100 FFs (APB protocol)
 
 ### Timing Closure
 
@@ -492,7 +492,7 @@ set_max_delay -from [get_pins */cdc_handshake/src_*] \
 
 - **[axi4_to_apb_convert](axi4_to_apb_convert.md)** - Core conversion logic (instantiated internally)
 - **[axi4_slave_stub](../axi4/axi4_slave_stub.md)** - AXI slave interface wrapper
-- **[apb_master_stub](../apb/apb_master_stub.md)** - APB master interface wrapper
+- **[apb4_master_stub](../apb/apb4_master_stub.md)** - APB master interface wrapper
 - **[cdc_handshake](../../rtl-cdc/cdc.md#cdc_4_phase_handshake)** - Clock domain crossing handshake
 
 ---

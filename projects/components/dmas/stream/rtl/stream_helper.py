@@ -29,7 +29,7 @@ Usage:
 
     # Send to DUT via APB master
     for pkt in apb_cycles:
-        await apb_master.send(pkt)
+        await apb4_master.send(pkt)
 """
 
 import os

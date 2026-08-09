@@ -127,7 +127,7 @@ All diagrams referenced in the documentation are available in:
 ### Design Philosophy
 
 **Proven Building Blocks:**
-- Built from production-tested `apb_slave` and `apb_master` modules
+- Built from production-tested `apb4_slave` and `apb4_master` modules
 - No new protocol logic - pure composition
 - Each component independently verified
 

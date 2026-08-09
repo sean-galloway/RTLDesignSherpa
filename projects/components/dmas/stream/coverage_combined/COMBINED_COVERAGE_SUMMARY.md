@@ -50,7 +50,7 @@
 
 | Module | Covered | Total | Coverage | Category |
 |--------|---------|-------|----------|----------|
-| apb_slave.sv | 17 | 17 | 100.0% | other |
+| apb4_slave.sv | 17 | 17 | 100.0% | other |
 | apbtodescr.sv | 25 | 25 | 100.0% | FUB |
 | arbiter_priority_encoder.sv | 7 | 7 | 100.0% | common |
 | arbiter_round_robin.sv | 16 | 16 | 100.0% | common |

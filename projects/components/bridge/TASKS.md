@@ -1173,7 +1173,7 @@ pipeline_depth_mux: int = 4           # Deeper for throughput
 **Available Monitor Components:**
 - `axi4_master_rd_mon.sv`, `axi4_master_wr_mon.sv` - Master-side monitoring
 - `axi4_slave_rd_mon.sv`, `axi4_slave_wr_mon.sv` - Slave-side monitoring
-- `apb_monitor.sv` - APB protocol monitoring (if Bridge has APB converters)
+- `apb4_monitor.sv` - APB protocol monitoring (if Bridge has APB converters)
 **Implementation Options:**
 1. **Per-Port Monitors:** Optional monitor per master/slave interface
 2. **Internal Crossbar Monitors:** Monitor internal arbitration points
@@ -1230,7 +1230,7 @@ arbiter_rr_monbus #(.N(NUM_MONITORS)) u_mon_arbiter (
 - Enable: For development, debug, performance analysis builds
 **See Also:**
 - `rtl/amba/monitor/axi4_*_mon.sv` - AXI4 monitor modules
-- `rtl/amba/apb/apb_monitor.sv` - APB monitor
+- `rtl/amba/apb4/apb4_monitor.sv` - APB monitor
 - `docs/user-guides/AXI_Monitor_Configuration_Guide.md` (repo root) - Monitor configuration best practices
 - `rtl/amba/monitor/arbiter_rr_pwm_monbus.sv` - Monitor bus arbiter (rr/wrr PWM variants)
 

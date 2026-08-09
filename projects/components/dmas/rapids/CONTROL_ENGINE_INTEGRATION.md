@@ -213,7 +213,7 @@ STAGE E (register split) DONE + LINT-CLEAN:
 STAGE F (top rewrite) DONE + LINT-CLEAN (rapids_beats_top RC 0, 73 unique sources):
 - [x] APB_ADDR_WIDTH bumped 12 -> 13 (to reach 0x1000 for SNK; bit[12] = half select).
       s_apb_paddr now 13-bit; s_cpuif_addr driven directly.
-- [x] ONE apb_slave -> hand-written 3-way cmd demux: SRC-kick 0x000-0x03F (paddr[12:6]==0) ->
+- [x] ONE apb4_slave -> hand-written 3-way cmd demux: SRC-kick 0x000-0x03F (paddr[12:6]==0) ->
       u_kick_src (apbtodescr) -> core.src_apb_*; SNK-kick 0x1000-0x103F -> u_kick_snk ->
       core.snk_apb_*; everything else -> peakrdl_to_cmdrsp -> single rapids_regs. (cmdrsp_router dropped.)
 - [x] TWO rapids_config_block: u_cfg_src (hwif_out.SRC.*) -> core src_cfg_* + cfg_axi_rd_xfer_beats +
@@ -331,7 +331,7 @@ STAGE G step 4 (characterization harness) STARTED:
 STAGE G step 4 / task 55 (FPGA enablement) — BOARD RTL DONE + LINT-CLEAN:
 - [x] rapids_char_top.sv (NexysA7 pin-top) + rapids_char_top.xdc + flists/rapids_char_top.f, under
       projects/NexysA7/rapids_characterization/flows-rapids-beats/. Lint RC 0 (clean even w/o -Wno-fatal,
-      98 sources). uart_axil_bridge -> AXIL router: 0x0_0000 DUT-REG (apb_master -> harness s_apb ->
+      98 sources). uart_axil_bridge -> AXIL router: 0x0_0000 DUT-REG (apb4_master -> harness s_apb ->
       SRC/SNK reg spaces + kick windows); 0x1_0000 DESC-LOAD (8x32b -> 256b descriptor -> AXI4 write to
       desc_src/desc_snk host ports, half-select via data[0], DESC_KICK issues); 0x2_0000 CSR (cfg_gen_*/
       channel_mask/chk_cfg_*/rd|wr_crc_reset/cfg_mon_* + status readback, per-channel arrays via CH_SEL +

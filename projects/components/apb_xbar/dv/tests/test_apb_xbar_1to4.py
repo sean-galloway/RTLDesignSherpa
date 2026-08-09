@@ -19,7 +19,7 @@ Test for 1-to-4 APB Crossbar
 This test validates the address decoding functionality of apb_xbar_1to4,
 which routes a single master to four slaves based on address ranges.
 
-Purpose: Test address decode with apb_slave and apb_master modules.
+Purpose: Test address decode with apb4_slave and apb4_master modules.
 """
 
 import os

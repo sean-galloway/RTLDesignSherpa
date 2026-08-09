@@ -206,7 +206,7 @@ async def setup_stream_testbench(dut, rd_xfer_beats=16, wr_xfer_beats=16):
     )
 
     await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats, wr_xfer_beats=wr_xfer_beats)
-    await tb.init_apb_master()
+    await tb.init_apb4_master()
 
     # Basic initialization
     version = await tb.read_apb_register(0x108)  # VERSION register

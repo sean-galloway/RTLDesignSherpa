@@ -122,8 +122,8 @@ The APB PIT 8254 decodes only the lower 8 bits of `paddr`, providing a 256-byte 
 - **Valid Values:** 0 (single clock), 1 (dual clock with CDC)
 - **Purpose:** Selects between single-clock and dual-clock configuration
 - **Impact:**
-  - `CDC_ENABLE=0`: Uses `apb_slave`, ignores `pit_clk` and `pit_rst_n`
-  - `CDC_ENABLE=1`: Uses `apb_slave_cdc`, requires `pit_clk` and `pit_rst_n`
+  - `CDC_ENABLE=0`: Uses `apb4_slave`, ignores `pit_clk` and `pit_rst_n`
+  - `CDC_ENABLE=1`: Uses `apb4_slave_cdc`, requires `pit_clk` and `pit_rst_n`
 
 #### Clock Domain Configuration
 
@@ -132,7 +132,7 @@ The APB PIT 8254 decodes only the lower 8 bits of `paddr`, providing a 256-byte 
 **Connections:**
 ```systemverilog
 // All logic uses pclk
-apb_slave      uses: pclk, presetn
+apb4_slave      uses: pclk, presetn
 pit_config_regs uses: pclk, presetn
 pit_core       uses: pclk, presetn
 pit_counter[*] uses: pclk, presetn
@@ -151,7 +151,7 @@ pit_counter[*] uses: pclk, presetn
 **Connections:**
 ```systemverilog
 // APB interface uses pclk
-apb_slave_cdc uses: pclk for APB side, pit_clk for timer side
+apb4_slave_cdc uses: pclk for APB side, pit_clk for timer side
                     presetn for APB reset, pit_rst_n for timer reset
 
 // Timer logic uses pit_clk

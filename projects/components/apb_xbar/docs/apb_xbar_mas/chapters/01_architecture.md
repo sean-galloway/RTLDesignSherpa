@@ -31,7 +31,7 @@
 
 ## Overview
 
-The APB Crossbar is a parametric interconnect that connects M APB masters to N APB slaves with automatic address-based routing and per-slave round-robin arbitration. Built from proven `apb_slave` and `apb_master` components, the crossbar provides a clean, scalable solution for SoC peripheral interconnect.
+The APB Crossbar is a parametric interconnect that connects M APB masters to N APB slaves with automatic address-based routing and per-slave round-robin arbitration. Built from proven `apb4_slave` and `apb4_master` components, the crossbar provides a clean, scalable solution for SoC peripheral interconnect.
 
 **Key Features:**
 - Arbitrary MxN configuration (up to 16x16)
@@ -58,7 +58,7 @@ The figure shows 2 masters connected to 4 slaves via master-side protocol conver
 
 ### 1. Master-Side Protocol Conversion
 
-**Component:** `apb_slave[M]` instances (one per master)
+**Component:** `apb4_slave[M]` instances (one per master)
 
 **Purpose:** Convert incoming APB protocol transactions to internal cmd/rsp bus format
 
@@ -70,7 +70,7 @@ The figure shows 2 masters connected to 4 slaves via master-side protocol conver
 
 **Dataflow:**
 ```
-APB Master → apb_slave → cmd/rsp bus → Internal Crossbar Logic
+APB Master → apb4_slave → cmd/rsp bus → Internal Crossbar Logic
 ```
 
 ---
@@ -105,7 +105,7 @@ slave_index = offset[19:16]  // Upper 4 bits of 20-bit offset (64KB regions)
 
 ### 3. Slave-Side Protocol Conversion
 
-**Component:** `apb_master[N]` instances (one per slave)
+**Component:** `apb4_master[N]` instances (one per slave)
 
 **Purpose:** Convert internal cmd/rsp bus format back to APB protocol for slaves
 
@@ -117,7 +117,7 @@ slave_index = offset[19:16]  // Upper 4 bits of 20-bit offset (64KB regions)
 
 **Dataflow:**
 ```
-Internal Crossbar Logic → cmd/rsp bus → apb_master → APB Slave
+Internal Crossbar Logic → cmd/rsp bus → apb4_master → APB Slave
 ```
 
 ---
@@ -128,9 +128,9 @@ Internal Crossbar Logic → cmd/rsp bus → apb_master → APB Slave
 
 **Step-by-step:**
 
-1. **Master 0 → apb_slave[0]:**
+1. **Master 0 → apb4_slave[0]:**
    - CPU asserts PSEL, PADDR=0x10023456, PWRITE=1
-   - apb_slave[0] converts to cmd/rsp format
+   - apb4_slave[0] converts to cmd/rsp format
 
 2. **Address Decode:**
    - offset = 0x10023456 - 0x10000000 = 0x00023456
@@ -140,18 +140,18 @@ Internal Crossbar Logic → cmd/rsp bus → apb_master → APB Slave
 3. **Arbiter[2]:**
    - Check if Slave 2 is available
    - Grant to Master 0 (if no conflict)
-   - Route cmd to apb_master[2]
+   - Route cmd to apb4_master[2]
 
-4. **apb_master[2] → Slave 2:**
+4. **apb4_master[2] → Slave 2:**
    - Generate APB write transaction
    - Assert PSEL[2], PENABLE, PADDR, PWDATA
    - Wait for PREADY
 
 5. **Response Path:**
    - Slave 2 responds with PREADY, PSLVERR
-   - apb_master[2] captures response
-   - Response routed back to apb_slave[0]
-   - apb_slave[0] returns PREADY to CPU
+   - apb4_master[2] captures response
+   - Response routed back to apb4_slave[0]
+   - apb4_slave[0] returns PREADY to CPU
 
 **Total Latency:** Typically 2-3 cycles for uncontended access
 
@@ -196,7 +196,7 @@ Internal Crossbar Logic → cmd/rsp bus → apb_master → APB Slave
 ## Design Philosophy
 
 **Proven Components:**
-- Built from production-tested `apb_slave.sv` and `apb_master.sv`
+- Built from production-tested `apb4_slave.sv` and `apb4_master.sv`
 - No new protocol logic - pure composition
 - Each component independently verified
 

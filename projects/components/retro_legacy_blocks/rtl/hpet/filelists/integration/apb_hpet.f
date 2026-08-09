@@ -27,8 +27,8 @@ $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 
 # APB modules
--f $REPO_ROOT/rtl/amba/filelists/apb_slave.f
--f $REPO_ROOT/rtl/amba/filelists/apb_slave_cdc.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_slave.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
 
 # PeakRDL adapter (from converters component)
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f

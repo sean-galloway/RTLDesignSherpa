@@ -104,22 +104,22 @@ Three things happen here, and only the third is interesting:
 2. **Peripheral access.** Each peripheral completes the transaction and drives
    `pready` / `prdata` / `pslverr` back.
 3. **Monitoring.** Each peripheral's traffic is observed by its own
-   `apb_monitor`, tagged with that peripheral's `AGENT_ID`, and the three
+   `apb4_monitor`, tagged with that peripheral's `AGENT_ID`, and the three
    resulting monbus streams are merged by `arbiter_round_robin` onto the single
    `monbus_valid` / `monbus_packet` output.
 
 `cfg_error_enable` drives each monitor's `cfg_error_enable` and
 `cfg_slverr_enable`. `cfg_compl_enable` is wired to the monitor's
 `cfg_perf_enable`, so despite the name it enables PERFORMANCE packets, not
-completion packets -- `apb_monitor` has no completion-packet control. Enabling
+completion packets -- `apb4_monitor` has no completion-packet control. Enabling
 it on every peripheral at once produces considerably more monbus traffic than
 errors alone. Every other monitor knob (timeout, protocol, latency, throughput,
 debug, address-range checking) is tied off in this example to keep it readable;
-see [apb_monitor](../rtl-amba/apb/apb_monitor.md) for the full set.
+see [apb4_monitor](../rtl-amba/apb4/apb4_monitor.md) for the full set.
 
 ## How the monitors are attached
 
-Each peripheral's raw APB is converted to the handshake `apb_monitor` expects:
+Each peripheral's raw APB is converted to the handshake `apb4_monitor` expects:
 
 ```systemverilog
 assign regfile_xfer = regfile_psel && regfile_penable && regfile_pready;
@@ -142,8 +142,8 @@ it from rotting again.
 
 ## Related Modules
 
-- [apb_monitor](../rtl-amba/apb/apb_monitor.md) - the observer, one per peripheral
-- [apb_slave](../rtl-amba/apb/apb_slave.md) - the bridge that produces the handshake a monitor needs
+- [apb4_monitor](../rtl-amba/apb4/apb4_monitor.md) - the observer, one per peripheral
+- [apb4_slave](../rtl-amba/apb4/apb4_slave.md) - the bridge that produces the handshake a monitor needs
 - [arbiter_round_robin](../rtl-common/arbiter_round_robin.md) - merges the three monitor buses
 - [apb_xbar_monitored](apb_xbar_monitored.md) - the same idea at crossbar scale
 

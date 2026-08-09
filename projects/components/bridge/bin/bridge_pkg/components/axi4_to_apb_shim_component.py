@@ -41,7 +41,7 @@ class Axi4ToApbShim:
             rready_intercept='converter_rready',
             rlast_intercept='converter_rlast',
         )
-        shim.connect_apb_master(prefix='apb_periph_')
+        shim.connect_apb4_master(prefix='apb_periph_')
         for line in shim.generate_lines():
             ...
     """
@@ -248,7 +248,7 @@ class Axi4ToApbShim:
         ]
         self._sections.append(("AXI4 read channels (tied off — write-only bridge)", pairs))
 
-    def connect_apb_master(self, prefix: str) -> None:
+    def connect_apb4_master(self, prefix: str) -> None:
         """Wire the m_apb_* outputs to the external APB slave port.
         `prefix` is the slave's external prefix (e.g., 'apb_periph_'),
         and the shim's uppercase APB signal names are appended to it."""

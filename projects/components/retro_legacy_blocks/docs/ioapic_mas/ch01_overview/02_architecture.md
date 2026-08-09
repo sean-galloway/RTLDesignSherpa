@@ -33,8 +33,8 @@ The APB IOAPIC is organized as a hierarchical design with three primary layers:
 │                                                               │
 │  ┌────────────────────────┐                                 │
 │  │ APB Slave Interface    │ (APB Clock Domain: pclk)        │
-│  │ - apb_slave (CDC=0)    │                                 │
-│  │ - apb_slave_cdc (CDC=1)│                                 │
+│  │ - apb4_slave (CDC=0)    │                                 │
+│  │ - apb4_slave_cdc (CDC=1)│                                 │
 │  └────────┬───────────────┘                                 │
 │           │ CMD/RSP (with optional CDC)                       │
 │           ▼                                                   │
@@ -110,14 +110,14 @@ The design follows RLB architecture standards with clear functional separation:
 
 **Configuration Path (APB Write):**
 ```
-Software → APB Write → apb_slave[_cdc] → CMD → peakrdl_to_cmdrsp → 
+Software → APB Write → apb4_slave[_cdc] → CMD → peakrdl_to_cmdrsp → 
 → ioapic_regs → hwif_out → ioapic_config_regs mapping → ioapic_core config
 ```
 
 **Status Readback Path (APB Read):**
 ```
 ioapic_core status → ioapic_config_regs mapping → hwif_in → ioapic_regs → 
-→ peakrdl_to_cmdrsp → RSP → apb_slave[_cdc] → APB Read Data → Software
+→ peakrdl_to_cmdrsp → RSP → apb4_slave[_cdc] → APB Read Data → Software
 ```
 
 **Interrupt Delivery Path:**
@@ -175,7 +175,7 @@ The IOAPIC supports two clock domain configurations via CDC_ENABLE parameter:
 
 **Single Clock Domain (CDC_ENABLE=0 - Default):**
 ```
-pclk ────┬──► apb_slave ───► ioapic_config_regs ───► ioapic_core
+pclk ────┬──► apb4_slave ───► ioapic_config_regs ───► ioapic_core
          └──► Register domain
          └──► Core logic domain
 ```
@@ -186,7 +186,7 @@ pclk ────┬──► apb_slave ───► ioapic_config_regs ──�
 
 **Dual Clock Domain (CDC_ENABLE=1):**
 ```
-pclk ────► apb_slave_cdc ───┐
+pclk ────► apb4_slave_cdc ───┐
                              │ CDC Handshake
 ioapic_clk ──────────────┬──┴──► ioapic_config_regs ───► ioapic_core
                          └──────► Register domain

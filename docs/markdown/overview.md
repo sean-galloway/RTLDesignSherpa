@@ -174,17 +174,17 @@ module counter_bin #(
 Apply common building blocks to implement industry-standard protocols (**124 modules**):
 
 #### APB (Advanced Peripheral Bus)
-- **[APB Masters](../../rtl/amba/apb)** - Command/response interfaces with FIFO buffering
-- **[APB Slaves](../../rtl/amba/apb)** - Register interfaces with address decoding
+- **[APB Masters](../../rtl/amba/apb4)** - Command/response interfaces with FIFO buffering
+- **[APB Slaves](../../rtl/amba/apb4)** - Register interfaces with address decoding
 - **[APB Interconnect](../../rtl/integ_amba)** - Multi-master/multi-slave crossbar
-- **[APB Bridges](../../rtl/amba/apb)** - Protocol conversion, CDC
+- **[APB Bridges](../../rtl/amba/apb4)** - Protocol conversion, CDC
 
 **Example:** APB register slave demonstrates parameter-driven design
 ```systemverilog
-apb_slave #(
+apb4_slave #(
     .ADDR_WIDTH(12),
     .DATA_WIDTH(32)
-) u_apb_slave (
+) u_apb4_slave (
     .pclk, .presetn, .paddr, .psel, .penable, .pwrite,
     .pwdata, .pready, .prdata, .pslverr
 );
@@ -516,10 +516,10 @@ gtkwave val/common/local_sim_build/test_counter_bin/dump.vcd
 #### Level 2: Test APB Slave
 ```bash
 # Run APB slave tests
-pytest val/amba/test_apb_slave.py -v
+pytest val/amba/test_apb4_slave.py -v
 
 # Run only basic tests
-pytest val/amba/test_apb_slave.py -v -m basic
+pytest val/amba/test_apb4_slave.py -v -m basic
 ```
 
 #### Level 3: Test APB Crossbar Integration

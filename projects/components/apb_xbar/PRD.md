@@ -34,13 +34,13 @@
 
 ## 1. Executive Summary
 
-The **APB Crossbar** is a parametric APB interconnect generator that creates configurable MxN crossbar fabrics for connecting multiple APB masters to multiple APB slaves. Built using proven `apb_slave` and `apb_master` modules, the crossbar provides independent round-robin arbitration per slave and automatic address-based routing.
+The **APB Crossbar** is a parametric APB interconnect generator that creates configurable MxN crossbar fabrics for connecting multiple APB masters to multiple APB slaves. Built using proven `apb4_slave` and `apb4_master` modules, the crossbar provides independent round-robin arbitration per slave and automatic address-based routing.
 
 ### 1.1 Quick Stats
 
 - **Modules:** 5 pre-generated variants + generator for custom sizes
 - **Max Capacity:** Up to 16x16 (configurable)
-- **Architecture:** apb_slave → arbitration + decode → apb_master
+- **Architecture:** apb4_slave → arbitration + decode → apb4_master
 - **Status:** Production ready, all tests passing
 - **Generator:** Python-based parametric code generation
 
@@ -57,7 +57,7 @@ The **APB Crossbar** is a parametric APB interconnect generator that creates con
 ### 2.1 Architecture Philosophy
 
 **Proven Building Blocks:**
-- Uses `apb_slave.sv` and `apb_master.sv` from rtl/amba/apb
+- Uses `apb4_slave.sv` and `apb4_master.sv` from rtl/amba/apb4
 - Each module independently tested and production-proven
 - Crossbar = composition of proven components
 
@@ -92,7 +92,7 @@ APB Crossbar (M masters × N slaves)
 │                                                                  │
 │  Master-Side (APB slaves)                                        │
 │  ┌──────────────┐  ┌──────────────┐       ┌──────────────┐     │
-│  │ apb_slave[0] │  │ apb_slave[1] │  ...  │ apb_slave[M-1]│     │
+│  │ apb4_slave[0] │  │ apb4_slave[1] │  ...  │ apb4_slave[M-1]│     │
 │  │ (Master 0)   │  │ (Master 1)   │       │ (Master M-1)  │     │
 │  └──────┬───────┘  └──────┬───────┘       └──────┬────────┘     │
 │         │                  │                      │              │
@@ -115,7 +115,7 @@ APB Crossbar (M masters × N slaves)
 │         ┌──────────────────┴──────────────────────┐              │
 │         │                  │                      │              │
 │  ┌──────▼───────┐  ┌──────▼───────┐       ┌──────▼────────┐    │
-│  │ apb_master[0]│  │ apb_master[1]│  ...  │ apb_master[N-1]│    │
+│  │ apb4_master[0]│  │ apb4_master[1]│  ...  │ apb4_master[N-1]│    │
 │  │ (Slave 0)    │  │ (Slave 1)    │       │ (Slave N-1)    │    │
 │  └──────────────┘  └──────────────┘       └───────────────┘    │
 │                                                                  │
@@ -508,8 +508,8 @@ apb_xbar_2to4 #(
 
 ### 14.3 Related Components
 
-- `rtl/amba/apb/apb_slave.sv` - Master-side building block
-- `rtl/amba/apb/apb_master.sv` - Slave-side building block
+- `rtl/amba/apb4/apb4_slave.sv` - Master-side building block
+- `rtl/amba/apb4/apb4_master.sv` - Slave-side building block
 - `projects/components/apb_xbar/bin/apb_xbar_generator.py` - Main generator
 
 ---

@@ -16,7 +16,7 @@
 `timescale 1ns / 1ps
 
 // 1-to-1 APB crossbar with address decoding and arbitration
-// 1 master to 1 slave using apb_slave and apb_master modules
+// 1 master to 1 slave using apb4_slave and apb4_master modules
 //
 // Address Map (same for all masters):
 //   Slave 0: [0x10000000, 0x1000FFFF]
@@ -56,7 +56,7 @@ module apb_xbar_1to1 #(
     input  logic                  s0_apb_PREADY
 );
 
-    // Command/Response interfaces for master 0 apb_slave
+    // Command/Response interfaces for master 0 apb4_slave
     logic                  m0_cmd_valid;
     logic                  m0_cmd_ready;
     logic                  m0_cmd_pwrite;
@@ -69,7 +69,7 @@ module apb_xbar_1to1 #(
     logic [DATA_WIDTH-1:0] m0_rsp_prdata;
     logic                  m0_rsp_pslverr;
 
-    // Command/Response interfaces for slave apb_masters
+    // Command/Response interfaces for slave apb4_masters
     logic                  s0_cmd_valid;
     logic                  s0_cmd_ready;
     logic                  s0_cmd_pwrite;
@@ -83,12 +83,12 @@ module apb_xbar_1to1 #(
     logic                  s0_rsp_pslverr;
 
     // APB Slave 0 - converts master 0 APB to cmd/rsp
-    apb_slave #(
+    apb4_slave #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_slave_m0 (
+    ) u_apb4_slave_m0 (
         .pclk           (pclk),
         .presetn        (presetn),
         .s_apb_PSEL     (m0_apb_PSEL),
@@ -129,12 +129,12 @@ module apb_xbar_1to1 #(
     assign s0_rsp_ready = m0_rsp_ready;
 
     // APB Master 0 - converts cmd/rsp to slave 0 APB
-    apb_master #(
+    apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .PROT_WIDTH (3)
-    ) u_apb_master_s0 (
+    ) u_apb4_master_s0 (
         .pclk           (pclk),
         .presetn        (presetn),
         .m_apb_PSEL     (s0_apb_PSEL),

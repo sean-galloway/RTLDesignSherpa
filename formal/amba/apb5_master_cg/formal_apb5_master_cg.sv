@@ -3,7 +3,7 @@
 //
 // Formal proof for apb5_master_cg -- clock-gated APB5 master wrapper
 //
-// Properties verified (same envelope as apb_master_cg):
+// Properties verified (same envelope as apb4_master_cg):
 //   P1: Reset clears APB outputs and gating
 //   P2: PENABLE requires PSEL
 //   P3: ACCESS held until PREADY

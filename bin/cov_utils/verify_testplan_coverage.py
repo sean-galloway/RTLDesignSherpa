@@ -143,7 +143,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s val/amba/testplans/apb_slave_testplan.yaml coverage.dat
+  %(prog)s val/amba/testplans/apb4_slave_testplan.yaml coverage.dat
   %(prog)s --all val/amba/testplans/ val/amba/coverage_data/merged/
         """
     )

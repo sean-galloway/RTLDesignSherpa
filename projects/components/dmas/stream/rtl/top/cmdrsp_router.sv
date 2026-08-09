@@ -29,7 +29,7 @@ module cmdrsp_router #(
     input  logic                    clk,
     input  logic                    rst_n,
 
-    // CMD/RSP Slave (from apb_slave_cdc)
+    // CMD/RSP Slave (from apb4_slave_cdc)
     input  logic                    s_cmd_valid,
     output logic                    s_cmd_ready,
     input  logic                    s_cmd_pwrite,

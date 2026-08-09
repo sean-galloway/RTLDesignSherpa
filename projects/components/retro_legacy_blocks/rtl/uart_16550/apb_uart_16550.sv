@@ -16,7 +16,7 @@
 //   - Optional CDC for async pin domains
 //
 // Architecture (RLB Standard Pattern):
-//   APB -> apb_slave[_cdc] -> CMD/RSP -> peakrdl_to_cmdrsp ->
+//   APB -> apb4_slave[_cdc] -> CMD/RSP -> peakrdl_to_cmdrsp ->
 //     -> uart_16550_regs (PeakRDL) -> hwif -> uart_16550_core
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
@@ -129,12 +129,12 @@ module apb_uart_16550 #(
     // ========================================================================
     generate
         if (CDC_ENABLE) begin : gen_cdc
-            apb_slave_cdc #(
+            apb4_slave_cdc #(
                 .ADDR_WIDTH (APB_ADDR_WIDTH),
                 .DATA_WIDTH (APB_DATA_WIDTH),
                 .DEPTH      (SKID_DEPTH),
                 .USE_JOHNSON (USE_JOHNSON)
-            ) u_apb_slave_cdc (
+            ) u_apb4_slave_cdc (
                 // APB clock domain
                 .pclk           (pclk),
                 .presetn        (presetn),
@@ -166,10 +166,10 @@ module apb_uart_16550 #(
                 .rsp_pslverr    (w_rsp_pslverr)
             );
         end else begin : gen_no_cdc
-            apb_slave #(
+            apb4_slave #(
                 .ADDR_WIDTH (APB_ADDR_WIDTH),
                 .DATA_WIDTH (APB_DATA_WIDTH)
-            ) u_apb_slave (
+            ) u_apb4_slave (
                 .pclk           (pclk),
                 .presetn        (presetn),
                 // APB interface (s_apb_* naming)

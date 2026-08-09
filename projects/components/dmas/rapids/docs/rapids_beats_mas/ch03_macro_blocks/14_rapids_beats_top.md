@@ -47,7 +47,7 @@ and interrupt).
 ```
    s_apb_* (APB4 slave)
         |
-     apb_slave  (APB -> cmd/rsp)
+     apb4_slave  (APB -> cmd/rsp)
         |
    cmdrsp_router (address decode)
      |                         |

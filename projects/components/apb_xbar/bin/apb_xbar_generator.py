@@ -18,11 +18,11 @@
 APB Crossbar Generator
 
 Generates parameterized APB crossbars (M masters to N slaves) using the proven
-apb_slave and apb_master module architecture.
+apb4_slave and apb4_master module architecture.
 
 Architecture:
-- apb_slave modules on master side convert APB -> cmd/rsp
-- apb_master modules on slave side convert cmd/rsp -> APB
+- apb4_slave modules on master side convert APB -> cmd/rsp
+- apb4_master modules on slave side convert cmd/rsp -> APB
 - Independent round-robin arbitration per slave
 - Address decoding for slave selection
 - FIFOs for datapath isolation
@@ -86,7 +86,7 @@ def generate_apb_xbar(num_masters, num_slaves, base_addr=0x10000000,
     code = f"""`timescale 1ns / 1ps
 
 // {M}-to-{N} APB crossbar with address decoding and arbitration
-// {M} master{'s' if M > 1 else ''} to {N} slave{'s' if N > 1 else ''} using apb_slave and apb_master modules
+// {M} master{'s' if M > 1 else ''} to {N} slave{'s' if N > 1 else ''} using apb4_slave and apb4_master modules
 //
 // Address Map (same for all masters):
 """
@@ -143,9 +143,9 @@ module {module_name} #(
 
     code += ");\n\n"
 
-    # Generate master-side apb_slave cmd/rsp interfaces
+    # Generate master-side apb4_slave cmd/rsp interfaces
     for m in range(M):
-        code += f"    // Command/Response interfaces for master {m} apb_slave\n"
+        code += f"    // Command/Response interfaces for master {m} apb4_slave\n"
         code += f"    logic                  m{m}_cmd_valid;\n"
         code += f"    logic                  m{m}_cmd_ready;\n"
         code += f"    logic                  m{m}_cmd_pwrite;\n"
@@ -158,8 +158,8 @@ module {module_name} #(
         code += f"    logic [DATA_WIDTH-1:0] m{m}_rsp_prdata;\n"
         code += f"    logic                  m{m}_rsp_pslverr;\n\n"
 
-    # Generate slave-side apb_master cmd/rsp interfaces
-    code += "    // Command/Response interfaces for slave apb_masters\n"
+    # Generate slave-side apb4_master cmd/rsp interfaces
+    code += "    // Command/Response interfaces for slave apb4_masters\n"
     code += "    logic                  "
     for s in range(N):
         code += f"s{s}_cmd_valid"
@@ -215,15 +215,15 @@ module {module_name} #(
         code += f"s{s}_rsp_pslverr"
         code += ", " if s < N-1 else ";\n\n"
 
-    # Instantiate apb_slave modules for each master
+    # Instantiate apb4_slave modules for each master
     for m in range(M):
         code += f"    // APB Slave {m} - converts master {m} APB to cmd/rsp\n"
-        code += f"    apb_slave #(\n"
+        code += f"    apb4_slave #(\n"
         code += f"        .ADDR_WIDTH (ADDR_WIDTH),\n"
         code += f"        .DATA_WIDTH (DATA_WIDTH),\n"
         code += f"        .STRB_WIDTH (STRB_WIDTH),\n"
         code += f"        .PROT_WIDTH (3)\n"
-        code += f"    ) u_apb_slave_m{m} (\n"
+        code += f"    ) u_apb4_slave_m{m} (\n"
         code += f"        .pclk           (pclk),\n"
         code += f"        .presetn        (presetn),\n"
         code += f"        .s_apb_PSEL     (m{m}_apb_PSEL),\n"
@@ -467,15 +467,15 @@ module {module_name} #(
             code += "    assign m0_rsp_pslverr = s0_rsp_pslverr;\n"
             code += "    assign s0_rsp_ready = m0_rsp_ready;\n\n"
 
-    # Instantiate apb_master modules for each slave
+    # Instantiate apb4_master modules for each slave
     for s in range(N):
         code += f"    // APB Master {s} - converts cmd/rsp to slave {s} APB\n"
-        code += f"    apb_master #(\n"
+        code += f"    apb4_master #(\n"
         code += f"        .ADDR_WIDTH (ADDR_WIDTH),\n"
         code += f"        .DATA_WIDTH (DATA_WIDTH),\n"
         code += f"        .STRB_WIDTH (STRB_WIDTH),\n"
         code += f"        .PROT_WIDTH (3)\n"
-        code += f"    ) u_apb_master_s{s} (\n"
+        code += f"    ) u_apb4_master_s{s} (\n"
         code += f"        .pclk           (pclk),\n"
         code += f"        .presetn        (presetn),\n"
         code += f"        .m_apb_PSEL     (s{s}_apb_PSEL),\n"
@@ -513,10 +513,10 @@ def main():
         epilog="""
 Examples:
   Generate 2-to-4 crossbar:
-    %(prog)s --masters 2 --slaves 4 --output rtl/amba/apb/xbar/apb_xbar_2to4.sv
+    %(prog)s --masters 2 --slaves 4 --output rtl/amba/apb4/xbar/apb_xbar_2to4.sv
 
   Generate 1-to-1 passthrough:
-    %(prog)s --masters 1 --slaves 1 --output rtl/amba/apb/xbar/apb_xbar_1to1.sv
+    %(prog)s --masters 1 --slaves 1 --output rtl/amba/apb4/xbar/apb_xbar_1to1.sv
 
   Generate 4-to-8 crossbar with custom base address:
     %(prog)s --masters 4 --slaves 8 --base-addr 0x80000000 --output apb_xbar_4to8.sv

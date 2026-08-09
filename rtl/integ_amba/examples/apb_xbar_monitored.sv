@@ -142,7 +142,7 @@ module apb_xbar_monitored
     // Configuration Inputs
     // =============================================================================
     // cfg_compl_enable used to sit here. It was declared and never wired to
-    // anything, and apb_monitor has no completion-packet control -- the
+    // anything, and apb4_monitor has no completion-packet control -- the
     // closest thing is cfg_perf_enable, which this module already exposes.
     input logic cfg_error_enable,    // Enable error packet reporting
     input logic cfg_timeout_enable,  // Enable timeout detection
@@ -264,7 +264,7 @@ module apb_xbar_monitored
         else          mon_time <= mon_time + 1'b1;
     end
 
-    // APB -> cmd/rsp tap. apb_monitor watches the translated side of a bridge,
+    // APB -> cmd/rsp tap. apb4_monitor watches the translated side of a bridge,
     // never the wire; APB completes in the ACCESS phase with one outstanding
     // transaction, so command and response are accepted together on
     // psel && penable && pready. Pure observation -- nothing registered.
@@ -279,7 +279,7 @@ module apb_xbar_monitored
     genvar m;
     generate
         for (m = 0; m < NUM_MASTERS; m++) begin : gen_master_monitors
-            apb_monitor #(
+            apb4_monitor #(
                 .ADDR_WIDTH       (ADDR_WIDTH),
                 .DATA_WIDTH       (DATA_WIDTH),
                 .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
@@ -343,7 +343,7 @@ module apb_xbar_monitored
     genvar s;
     generate
         for (s = 0; s < NUM_SLAVES; s++) begin : gen_slave_monitors
-            apb_monitor #(
+            apb4_monitor #(
                 .ADDR_WIDTH       (ADDR_WIDTH),
                 .DATA_WIDTH       (DATA_WIDTH),
                 .MAX_TRANSACTIONS (MAX_TRANSACTIONS),

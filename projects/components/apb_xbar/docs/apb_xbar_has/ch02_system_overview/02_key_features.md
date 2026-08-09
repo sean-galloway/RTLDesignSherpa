@@ -62,7 +62,7 @@ slave_index = (PADDR - BASE_ADDR) >> 16
 
 ### F5: Proven Building Blocks
 
-- Built from production-tested `apb_slave.sv` and `apb_master.sv` modules
+- Built from production-tested `apb4_slave.sv` and `apb4_master.sv` modules
 - No new protocol logic - pure composition
 - Each component independently verified
 

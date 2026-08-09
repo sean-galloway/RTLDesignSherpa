@@ -443,8 +443,8 @@ class FIFOScoreboard:
 class APBScoreboard:
     """APB transaction verification using queue access"""
 
-    def __init__(self, apb_monitor):
-        self.apb_monitor = apb_monitor
+    def __init__(self, apb4_monitor):
+        self.apb4_monitor = apb4_monitor
         self.expected_transactions = []
 
     def expect_write(self, addr, data):
@@ -457,8 +457,8 @@ class APBScoreboard:
 
     def verify_transaction(self):
         """Verify APB transaction"""
-        if self.apb_monitor._recvQ:
-            txn = self.apb_monitor._recvQ.popleft()
+        if self.apb4_monitor._recvQ:
+            txn = self.apb4_monitor._recvQ.popleft()
             expected = self.expected_transactions.pop(0)
 
             return (txn.addr == expected['addr'] and
