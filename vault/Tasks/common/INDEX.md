@@ -6,9 +6,9 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 5 | accepted, not started |
+| [open.md](open.md) | 3 | accepted, not started |
 | [closed.md](closed.md) | 17 | done (kept for history) |
-| [dropped.md](dropped.md) | 0 | ended without completing |
+| [dropped.md](dropped.md) | 2 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
 module test coverage, no blocking issues. Activity is maintenance, coverage and
@@ -36,9 +36,11 @@ integration support.
   owner, so the model's mask lagged one grant forever. ACK mode now asserts on
   the compliance verdict.
 - **COMMON-003** — integration examples (P2).
-- **COMMON-006/007/008/009** — deferred enhancements (P3). COMMON-009 (BCH) is
-  the only place BCH is tracked; the docs-only `components/bch/` placeholder was
-  deleted 2026-07-23.
+- **COMMON-007/008** — deferred enhancements (P3): arbiter types, multi-byte
+  CRC. COMMON-006 (parameterized adders/multipliers) and COMMON-009
+  (BCH/Reed-Solomon) DROPPED 2026-08-09 — generation stays the approach for
+  the former; R/S, if it happens, is a future `projects/components/reed-solomon/`
+  component, not library work (see dropped.md).
 
 Practice and rationale live in the [handbook](../../handbook/INDEX.md);
 this directory tracks *work* only. `/GLOBAL_REQUIREMENTS.md` wins on conflict.
