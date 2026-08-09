@@ -24,16 +24,17 @@ Each directory under `books/` is one self-contained review unit:
 | `integ_common` | RTL Integration Examples - Common | 3 | 2 | ~16k | 1 |
 | `axis4` | RTL AMBA AXI4-Stream | 6 | 4 | ~29k | 1 |
 | `axis5` | RTL AMBA AXI5-Stream | 5 | 4 | ~36k | 1 |
+| `gaxi` | RTL AMBA GAXI Modules | 8 | 6 | ~41k | 1 |
 | `integ_amba` | RTL Integration Examples - AMBA | 3 | 2 | ~43k | 1 |
 | `apb5` | RTL AMBA APB5 | 10 | 9 | ~95k | 1 |
 | `apb` | RTL AMBA APB4 | 12 | 12 | ~134k | 2 |
-| `cdc` | RTL Clock Domain Crossing | 15 | 22 | ~209k | 2 |
-| `axil4` | RTL AMBA AXI4-Lite | 18 | 16 | ~239k | 2 |
-| `common` | RTL Common Library | 50 | 49 | ~357k | 4 |
-| `axi5` | RTL AMBA AXI5 | 17 | 16 | ~381k | 3 |
-| `monitor` | RTL AMBA Monitor Subsystem | 36 | 34 | ~385k | 4 |
-| `axi4` | RTL AMBA AXI4 | 27 | 24 | ~391k | 3 |
-| `shared` | RTL AMBA Shared Infrastructure | 38 | 32 | ~412k | 4 |
+| `cdc` | RTL Clock Domain Crossing | 16 | 23 | ~216k | 2 |
+| `common` | RTL Common Library | 47 | 46 | ~234k | 4 |
+| `axil4` | RTL AMBA AXI4-Lite | 18 | 16 | ~240k | 2 |
+| `shared` | RTL AMBA Shared Infrastructure | 29 | 24 | ~349k | 3 |
+| `axi5` | RTL AMBA AXI5 | 17 | 16 | ~382k | 3 |
+| `monitor` | RTL AMBA Monitor Subsystem | 36 | 34 | ~386k | 4 |
+| `axi4` | RTL AMBA AXI4 | 27 | 24 | ~392k | 3 |
 | `math` | RTL Math Library | 27 | 38 | ~425k | 3 |
 
 Counts are per whole book, regenerated from the built bundle (`documented modules` is the figure in each `RTL.sv` header, which excludes the dependency closure and any GOLDEN section). A book with more than one part is already split for you: **you are reviewing ONE part**, so its scope is a subset of the row above. Do not infer a missing module from these numbers.

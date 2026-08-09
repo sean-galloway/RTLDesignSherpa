@@ -2,15 +2,12 @@
 
 <!-- Auto-generated link index for PDF build. Regenerate via generate_rtl_pdfs.sh -->
 
-- [GAXI (Generic AXI) Modules](gaxi/README.md)
-- [GAXI Drop FIFO Sync](gaxi/gaxi_drop_fifo_sync.md)
-- [GAXI Asynchronous FIFO](../rtl-cdc/gaxi_fifo_async.md)
-- [GAXI Synchronous FIFO](gaxi/gaxi_fifo_sync.md)
-- [GAXI Register Slice](gaxi/gaxi_regslice.md)
-- [GAXI Skid Buffer](gaxi/gaxi_skid_buffer.md)
-- [GAXI Asynchronous Skid Buffer](../rtl-cdc/gaxi_skid_buffer_async.md)
-- [GAXI Skid Buffer (Double-Drain)](gaxi/gaxi_skid_buffer_dbldrn.md)
-- [gaxi_skid_buffer_struct](gaxi/gaxi_skid_buffer_struct.md)
+<!-- GAXI moved to its own book 2026-08-09: see _book_gaxi_index.md. The two
+     async variants (gaxi_fifo_async, gaxi_skid_buffer_async) live in rtl/cdc
+     and were listed HERE as well as in _book_cdc_index.md -- the same page in
+     two books, reviewed twice and humanized twice, with no way to tell which
+     copy a finding referred to. They belong to cdc. -->
+
 - [Shared Infrastructure Documentation Status](shared/DOCUMENTATION_STATUS.md)
 - [AMBA Shared Infrastructure](shared/README.md)
 - [AMBA Clock Gate Controller](shared/amba_clock_gate_ctrl.md)
