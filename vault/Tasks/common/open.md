@@ -4,34 +4,6 @@
 
 ---
 
-## COMMON-010 — Every module MUST have a filelist and a registry entry
-**Status:** open 2026-07-23
-
-**The rule** (authority: [[filelists]]): every module in `rtl/common/` has a
-filelist in `rtl/common/filelists/`, and the area is registered in
-`bin/filelists.toml`. A new module lands with its `.f` **in the same commit** —
-not "before the test lands". A module with no filelist has no consumers and is
-indistinguishable from dead code the next time someone audits.
-
-**Current state is good but unenforced.** `bin/filelist_registry.py --check`
-reports common at 57 modules / 55 covered / 0 uncovered. The 2-module gap is
-the `[exempt]` ledger, not a hole:
-
-- `fifo_sync_multi` — multi-instance wrapper; no consumer yet
-- `fifo_sync_multi_sigmap` — multi-instance wrapper; no consumer yet
-
-**Work:**
-1. Resolve the two exemptions: give each a filelist and a consumer, or drop the
-   module. "No consumer yet" is a debt entry, not a permanent state.
-2. Wire `--check` into a gate. **Nothing runs it today** — not the pre-commit
-   hook, not CI (the only workflow is `track-clones.yml`), not a Makefile
-   target. A MUST that nothing enforces is a wish. Shared with AMBA TASK-026;
-   do the gate once for both.
-3. When reading `--check` output, read all three numbers. It prints `PASS` when
-   `declared - covered - exempt` is empty, so "55 covered" alongside "0
-   uncovered" on a 57-module area is expected and still worth checking.
-
-
 ## COMMON-020 — the fifo_sync wavedrom generator produces no wave JSON
 **Status:** open 2026-08-06 — found by the common test-audit round
 **Priority:** P3 — no consumer is broken today

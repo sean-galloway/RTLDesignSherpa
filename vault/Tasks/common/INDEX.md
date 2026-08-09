@@ -7,7 +7,7 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
 | [open.md](open.md) | 6 | accepted, not started |
-| [closed.md](closed.md) | 14 | done (kept for history) |
+| [closed.md](closed.md) | 15 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
@@ -16,9 +16,8 @@ integration support.
 
 ## Open shortlist
 
-- **COMMON-010** — every module MUST have a filelist + registry entry. Coverage
-  is already good; the gap is that **nothing enforces it**. Shared gate with
-  AMBA TASK-026.
+- **COMMON-010** — CLOSED 2026-08-09. The gap was "nothing enforces it"; CI now
+  hard-gates `--check` and `--audit`, and common carries zero exemptions.
 - **COMMON-016/017/018** — CLOSED 2026-08-05, fixed in the DV framework
   (`registered_grant`, the `r_last_valid` mirror in the compliance replay, and
   queued in-order ACKs). Both arbiter TBs now assert on the compliance verdict
