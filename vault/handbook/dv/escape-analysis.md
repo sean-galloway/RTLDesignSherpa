@@ -87,6 +87,48 @@ counts periods.* It asserted that the thing **finished**, not that it did the
 drift from the code the moment either changes, and only a human (or a reviewer
 model) reading RTL and doc side by side will notice.
 
+### 6. `gaxi_drop_fifo_sync` - mux mode never presented the head entry
+
+The read address was the NEXT pointer in mux mode:
+
+```systemverilog
+assign r_rd_addr = (REGISTERED == 0) ? w_rd_ptr_selected[AW-1:0] : r_rd_ptr_bin[AW-1:0];
+```
+
+`counter_bin_load` drives `counter_bin_next = curr + 1` whenever its enable
+(`w_read = rd_valid && rd_ready`) is high, so asserting `rd_ready`
+combinationally re-pointed the memory at the entry AFTER the one being
+accepted. The head was never presented during its own handshake, and `rd_data`
+moved while the consumer was sampling it. Written `A1 B2 C3 D4`, a consumer
+holding `rd_ready` read back `C3 D4 00`. `gaxi_fifo_sync` has always used the
+current pointer unconditionally; the drop FIFO was the outlier. Every RTL
+instantiation in the repo uses `REGISTERED(0)`, so the broken mode was the only
+one anything ships.
+
+**Escape: the testbench returned its own model as the DUT's answer.**
+`read_entry()` ended with
+
+```python
+rd_data = self.fifo_model.pop(0)  # This is what was read
+...
+return True, rd_data
+```
+
+so the caller's `assert data == expected` compared the stimulus list against
+itself. It could not fail. `dut.rd_data` was never read anywhere in the
+testbench; the read monitor's packet was popped and discarded as mere evidence
+that *a* read had happened. Five cocotb tests, both modes, GATE through FULL,
+green throughout - against a FIFO that was handing back the wrong entry.
+
+This is the [[arbiter-compliance-model]] failure one layer down. There, a model
+nobody read its verdict from was wrong indefinitely. Here, a model that WAS
+read had been substituted for the DUT, so reading it proved nothing. **Ask of
+any data check: which side of the comparison came off a pin?**
+
+The count-only checks (`drop_by_count`, `drop_all`) stayed green under the
+mutation too - they assert on occupancy and never look at data, so a FIFO can
+lose, duplicate, or fabricate every entry and still satisfy them.
+
 ## The recurring shapes
 
 Worth checking any new test against directly:
@@ -97,6 +139,8 @@ Worth checking any new test against directly:
 | Threshold looser than the defect | Can this threshold fail the bug it names? Compute the metric for the broken case. |
 | Stimulus never reaches the corner | Does any profile actually saturate / back-pressure / fill? |
 | The checker is a stub | Has anyone read the checker's body, or just its name? |
+| Both sides are the model | Which side of this comparison came off a DUT pin? |
+| Counts checked, data not | Would this notice if every payload were wrong? |
 | Simulation-only signoff | What classes (area, LRM strictness, CDC) does simulation structurally not see? |
 | No instantiators | Who would notice if this library module were wrong? |
 | Comments | Nothing executes them. |

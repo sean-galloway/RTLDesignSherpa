@@ -339,9 +339,19 @@ module gaxi_drop_fifo_sync #(
     /////////////////////////////////////////////////////////////////////////
     // Get the write/read address to the memory
     assign r_wr_addr = r_wr_ptr_bin[AW-1:0];
-    // Mux mode (REGISTERED=0): Use next pointer for immediate combinational read
-    // Flop mode (REGISTERED!=0): Use current pointer, data will be registered next cycle
-    assign r_rd_addr = (REGISTERED == 0) ? w_rd_ptr_selected[AW-1:0] : r_rd_ptr_bin[AW-1:0];
+    // Always address memory with the CURRENT read pointer, in both modes -- the
+    // head entry is the one being presented, and the pointer that names it is
+    // the one that has not advanced yet.
+    //
+    // Mux mode used to select the NEXT pointer here, on the theory that a
+    // combinational read needs the lookahead. It does not: counter_bin_load
+    // drives counter_bin_next = curr + 1 whenever its enable (w_read =
+    // rd_valid && rd_ready) is high, so asserting rd_ready combinationally
+    // re-pointed the memory at the entry AFTER the one being accepted. The head
+    // was never presented during its own handshake, and rd_data moved while the
+    // consumer was sampling it. gaxi_fifo_sync has always used the current
+    // pointer unconditionally; the drop FIFO was the outlier.
+    assign r_rd_addr = r_rd_ptr_bin[AW-1:0];
 
     /////////////////////////////////////////////////////////////////////////
     // Memory implementation (scoped per MEM_STYLE)

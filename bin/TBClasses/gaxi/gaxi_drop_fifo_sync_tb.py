@@ -23,7 +23,7 @@ REFACTORED: Now uses GAXI BFMs (GAXIMaster, GAXIMonitor) for protocol handling
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, ClockCycles
+from cocotb.triggers import RisingEdge, ClockCycles, Timer
 from cocotb.types import LogicArray
 import random
 from typing import List, Tuple
@@ -218,10 +218,22 @@ class GaxiDropFifoSyncTB(TBBase):
             self.log.error(f"Read timeout - rd_valid never asserted")
             return False, 0
 
-        # Assert rd_ready to complete handshake
+        # Assert rd_ready, then capture what the DUT is actually presenting on
+        # rd_data. Sample off the edge, never within 200ps of one.
+        #
+        # Mux mode (REGISTERED=0): rd_data is combinational, so the value a
+        # consumer latches is the one present DURING the cycle rd_ready is
+        # high -- sample before the edge that completes the handshake.
+        # Flop mode (REGISTERED=1): rd_data is registered, so the head arrives
+        # one cycle after the handshake -- sample after that edge.
         self.dut.rd_ready.value = 1
+        await Timer(200, units='ps')
+        dut_data = int(self.dut.rd_data.value) if self.registered == 0 else None
         await RisingEdge(self.clk)
         self.dut.rd_ready.value = 0
+        if self.registered != 0:
+            await Timer(200, units='ps')
+            dut_data = int(self.dut.rd_data.value)
 
         self.read_count += 1
 
@@ -246,13 +258,16 @@ class GaxiDropFifoSyncTB(TBBase):
             pkt = self.wr_monitor._recvQ.popleft()
             self.fifo_model.append(pkt.data)
 
-        # Now process reads - capture data from MODEL (source of truth)
+        # Now process reads. The model says what SHOULD have come out; the DUT
+        # pin says what did. This used to return the model value, which made
+        # every caller's `assert data == expected` compare the stimulus list
+        # against itself -- a tautology that passed while mux mode was handing
+        # back the wrong entry entirely (rd_addr was the next pointer, so the
+        # head was never presented during its own handshake). Check the pin.
         if len(self.rd_monitor._recvQ) > 0:
             pkt = self.rd_monitor._recvQ.popleft()
-            # The monitor confirms a read happened, but data comes from model
-            # Get data from front of model (FIFO order) BEFORE removing
             if len(self.fifo_model) > 0:
-                rd_data = self.fifo_model.pop(0)  # This is what was read
+                expected = self.fifo_model.pop(0)
             else:
                 self.log.error(f"Read #{self.read_count}: Model empty but monitor has read")
                 return False, 0
@@ -260,7 +275,11 @@ class GaxiDropFifoSyncTB(TBBase):
             self.log.error(f"Read #{self.read_count}: Monitor queue empty after read")
             return False, 0
 
-        return True, rd_data
+        assert dut_data == expected, (
+            f"Read #{self.read_count}: DUT rd_data=0x{dut_data:X} but model "
+            f"expected 0x{expected:X} (registered={self.registered})")
+
+        return True, dut_data
 
     async def drop_entries(self, count: int, drop_all: bool = False):
         """Perform drop operation using manual control signals."""
