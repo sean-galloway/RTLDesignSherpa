@@ -75,9 +75,20 @@ tie/open termination at the AXI4 fabric, bridge_1x2_rd_axi5 fixture
 in the manifest (+_mon variant), 10 new unit tests (37 total), sim
 smoke green with the AXI4 BFM driving the base subset. axi5+mon is
 supported (monitor surface verified identical to axi4's).
-Remaining for A5-1 sign-off: a wr-channel fixture and an AXI5-BFM +
-compliance-checker driven test (currently AXI4 BFM, sideband held 0
-by Verilator defaults).
+**A5-1 SIGNED OFF (2026-08-09):** both remaining items landed —
+bridge_1x2_wr_axi5 fixture (wr emission path exercised: aw/w/b
+surface with awtrace/awunique/btrace, sims green) and
+test_bridge_1x2_rd_axi5_bfm5.py, a hand-written test driving the AXI5
+port with the real AXI5MasterRead BFM plus AXI5ComplianceChecker on
+the same prefix: 6 reads across both slaves data-correct, 708
+compliance checks, 0 violations, status PASSED. The BFM resolved the
+sideband pins (artrace/arunique) as optional signals on the DUT.
+Note for A5-2: the BFM issues trace-clear transactions by default
+(traced_transactions=0 in the report) — asserting sideband VALUES
+end-to-end belongs with the native-sideband work.
+
+Next: A5-2 (native AXI5 sideband through the fabric + AXI5 slaves),
+then A5-3 (atomics + APB5).
 
 ## BRIDGE-002 — AMBA5 bridge support (AXI5 ports alongside AXI4)
 **Status:** open 2026-08-08
@@ -130,9 +141,20 @@ tie/open termination at the AXI4 fabric, bridge_1x2_rd_axi5 fixture
 in the manifest (+_mon variant), 10 new unit tests (37 total), sim
 smoke green with the AXI4 BFM driving the base subset. axi5+mon is
 supported (monitor surface verified identical to axi4's).
-Remaining for A5-1 sign-off: a wr-channel fixture and an AXI5-BFM +
-compliance-checker driven test (currently AXI4 BFM, sideband held 0
-by Verilator defaults).
+**A5-1 SIGNED OFF (2026-08-09):** both remaining items landed —
+bridge_1x2_wr_axi5 fixture (wr emission path exercised: aw/w/b
+surface with awtrace/awunique/btrace, sims green) and
+test_bridge_1x2_rd_axi5_bfm5.py, a hand-written test driving the AXI5
+port with the real AXI5MasterRead BFM plus AXI5ComplianceChecker on
+the same prefix: 6 reads across both slaves data-correct, 708
+compliance checks, 0 violations, status PASSED. The BFM resolved the
+sideband pins (artrace/arunique) as optional signals on the DUT.
+Note for A5-2: the BFM issues trace-clear transactions by default
+(traced_transactions=0 in the report) — asserting sideband VALUES
+end-to-end belongs with the native-sideband work.
+
+Next: A5-2 (native AXI5 sideband through the fabric + AXI5 slaves),
+then A5-3 (atomics + APB5).
 
 ## BRIDGE-001 — Generator emits NUM_SLAVES as a body localparam used in the port list
 **Status:** open 2026-07-28
