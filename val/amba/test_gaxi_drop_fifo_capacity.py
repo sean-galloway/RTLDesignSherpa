@@ -48,6 +48,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../bin'))
 from TBClasses.gaxi.gaxi_drop_fifo_sync_tb import GaxiDropFifoSyncTB
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -172,6 +173,10 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.fst",
         'DUT': dut_name,
+        # Depth knob. Without this the TB reads TEST_LEVEL's default every run,
+        # so its gate/func/full branches are unreachable whatever REG_LEVEL
+        # selects ([[test-runner]]).
+        'TEST_LEVEL': os.environ.get('REG_LEVEL', 'FUNC').lower(),
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'WAVES': '1',
@@ -189,7 +194,10 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend([])
+    # Verilator --coverage flags when COVERAGE=1, else nothing. This was
+    # `compile_args.extend([])` -- an empty extend under a comment saying
+    # coverage was being added, so no coverage.dat was ever written.
+    compile_args.extend(get_coverage_compile_args())
 
     print(f"\n{'='*60}")
     print(f"Testing FIFO Capacity: depth={depth}")

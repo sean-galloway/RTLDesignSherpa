@@ -50,6 +50,17 @@ class GaxiBufferTB(TBBase):
         self.TEST_KIND = os.environ.get('TEST_KIND', 'sync')
         self.TEST_CLK_WR = self.convert_to_int(os.environ.get('TEST_CLK_WR', '10'))
         self.TEST_CLK_RD = self.convert_to_int(os.environ.get('TEST_CLK_RD', '10'))
+
+        # Honour the seed the wrapper chose. Four of the gaxi wrappers export a
+        # fresh random.randint(0, 100000) per run -- and this class never read
+        # it, then called random.seed(12345) inside
+        # stress_test_with_random_patterns, throwing it away. The "stress test
+        # with random patterns" ran identical patterns forever, on three tests,
+        # and a failure it found could not be replayed because no seed was
+        # recorded ([[seeds-and-determinism]]).
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.SEED)
+        self.log.info(f"GAXI buffer TB: SEED={self.SEED}")
         self.super_debug = False
 
         # Setup widths and limits
@@ -479,8 +490,9 @@ class GaxiBufferTB(TBBase):
             0xCCCCCCCC & self.MAX_DATA,  # 1100...
         ])
 
-        # Pattern 4: Random values
-        random.seed(12345)  # For reproducibility
+        # Pattern 4: Random values. NOT reseeded here -- the stream continues
+        # from the run's SEED, set once in __init__. Reseeding to a constant
+        # mid-test is what made this "random" section identical every run.
         for _ in range(count - len(patterns)):
             patterns.append(random.randint(0, self.MAX_DATA))
 

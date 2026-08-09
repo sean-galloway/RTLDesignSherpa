@@ -68,6 +68,20 @@ class GaxiDropFifoSyncTB(TBBase):
             self.depth = 16
             self.registered = 0
 
+        # Per-test depth. REG_LEVEL picks how many parameter combinations run;
+        # TEST_LEVEL decides how hard each one works. This TB had no depth knob
+        # at all, so REG_LEVEL was the only mechanism and every configuration
+        # did identical work ([[test-runner]]: both are required, and both have
+        # to move).
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        if self.TEST_LEVEL not in ('gate', 'func', 'full'):
+            self.TEST_LEVEL = 'gate'
+        self.LEVEL_MULT = {'gate': 1, 'func': 2, 'full': 5}[self.TEST_LEVEL]
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.SEED)
+        self.log.info(f"GaxiDropFifoSyncTB: TEST_LEVEL={self.TEST_LEVEL}, "
+                      f"LEVEL_MULT={self.LEVEL_MULT}, SEED={self.SEED}")
+
         # FIFO model for verification
         self.fifo_model: List[int] = []
         self.write_count = 0
@@ -357,18 +371,30 @@ class GaxiDropFifoSyncTB(TBBase):
         """Test basic FIFO write/read without drops."""
         self.dut._log.info("Testing basic FIFO operation")
 
-        test_data = [0xAA, 0xBB, 0xCC, 0xDD]
-        for data in test_data:
-            await self.write_entry(data)
+        # Depth scales the number of write/read ROUNDS, not the burst length.
+        # Scaling the burst instead put 20 entries into an 8-deep FIFO at full
+        # and the reads failed -- capacity is a hard constraint the depth knob
+        # has to respect, so more work means more passes, not a longer one.
+        base = [0xAA, 0xBB, 0xCC, 0xDD]
+        rounds = self.LEVEL_MULT
+        mask = (1 << self.data_width) - 1
+        burst = min(len(base), max(1, self.depth - 1))
 
-        self.verify_count()
+        for r in range(rounds):
+            test_data = [(base[i % len(base)] + r) & mask for i in range(burst)]
+            for data in test_data:
+                await self.write_entry(data)
 
-        for expected in test_data:
-            success, data = await self.read_entry()
-            assert success, "Read failed"
-            assert data == expected, f"Data mismatch: got {data:X}, expected {expected:X}"
+            self.verify_count()
 
-        self.verify_count()
+            for expected in test_data:
+                success, data = await self.read_entry()
+                assert success, f"Read failed on round {r + 1}/{rounds}"
+                assert data == expected, (
+                    f"Data mismatch on round {r + 1}/{rounds}: "
+                    f"got {data:X}, expected {expected:X}")
+
+            self.verify_count()
 
     async def test_drop_by_count(self):
         """Test dropping specific number of entries."""
@@ -432,8 +458,8 @@ class GaxiDropFifoSyncTB(TBBase):
 
         fill_amount = self.depth - 2
 
-        # Fill and drain multiple times
-        for cycle in range(2):
+        # Fill and drain multiple times: 2 at gate, 4 at func, 10 at full.
+        for cycle in range(2 * self.LEVEL_MULT):
             await self.fill_fifo(fill_amount)
             await self.wait_clocks(self.clk_name, 2)
 

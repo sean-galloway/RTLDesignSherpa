@@ -56,6 +56,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalRelation
 )
 from TBClasses.shared.utilities import get_wavejson_dir, get_paths
+from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -170,6 +171,14 @@ async def gaxi_drop_fifo_wavedrom_cocotb(dut):
     )
     wave_solver.add_constraint(c1)
 
+    # TEST_LEVEL gates HOW MANY diagrams are produced, never the content of any
+    # one: the committed JSON for a scenario must be byte-identical at every
+    # level or the docs' diagrams would depend on how the suite was invoked.
+    # gate emits the first two as a smoke check; func and full emit the
+    # complete set, so the normal regeneration path always writes them all.
+    _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+    _all_scenarios = _lvl in ('func', 'full')
+
     # Scenario 2: Drop by count
     c2 = TemporalConstraint(
         name="drop_by_count",
@@ -208,7 +217,8 @@ async def gaxi_drop_fifo_wavedrom_cocotb(dut):
             ['State', 'count', 'wr_xfer', 'rd_xfer']
         ]
     )
-    wave_solver.add_constraint(c3)
+    if _all_scenarios:
+        wave_solver.add_constraint(c3)
 
     # Scenario 4: Comprehensive (read + drop)
     c4 = TemporalConstraint(
@@ -228,7 +238,8 @@ async def gaxi_drop_fifo_wavedrom_cocotb(dut):
             ['State', 'count', 'wr_xfer', 'rd_xfer']
         ]
     )
-    wave_solver.add_constraint(c4)
+    if _all_scenarios:
+        wave_solver.add_constraint(c4)
 
     # Initialize signals
     dut.wr_valid.value = 0
@@ -386,7 +397,21 @@ async def run_basic_test(dut):
     dut._log.info("✓ Basic test passed")
 
 
-def test_gaxi_drop_fifo_wavedrom():
+def _wavedrom_grid(gate, func, full):
+    """REG_LEVEL grid for a wavedrom generator.
+
+    The diagrams are the deliverable here rather than a pass/fail check, but a
+    diagram set still has a cheap and a comprehensive form -- so the grid is
+    not optional ([[test-runner]]: both mechanisms are a hard requirement).
+    """
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    return {'GATE': gate, 'FULL': full}.get(reg_level, func)
+
+
+@pytest.mark.parametrize("data_width, depth",
+                         _wavedrom_grid([(8, 8)], [(8, 8), (32, 16)],
+                                        [(8, 8), (32, 16), (32, 8), (64, 16)]))
+def test_gaxi_drop_fifo_wavedrom(data_width, depth):
     """Pytest runner for WaveDrom test"""
 
     # Get worker ID for parallel execution isolation
@@ -398,9 +423,10 @@ def test_gaxi_drop_fifo_wavedrom():
         'rtl_amba_includes': 'rtl/amba/includes',
     })
 
-    # Test parameters - small FIFO for clear waveforms
-    data_width = 8
-    depth = 8
+    # data_width/depth now arrive as parameters from the REG_LEVEL grid. They
+    # were hardcoded to 8/8 here, which would have silently overridden every
+    # grid row and produced the same diagram set under four different test
+    # names.
     registered = 0  # Mux mode for simpler waveforms
 
     dut_name = "gaxi_drop_fifo_sync"
@@ -426,6 +452,8 @@ def test_gaxi_drop_fifo_wavedrom():
     }
 
     extra_env = {
+        # Depth knob: gates how many diagrams this run emits.
+        'TEST_LEVEL': os.environ.get('REG_LEVEL', 'FUNC').lower(),
         'TRACE_FILE': f"{sim_build}/dump.fst",
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -447,7 +475,10 @@ def test_gaxi_drop_fifo_wavedrom():
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend([])
+    # Verilator --coverage flags when COVERAGE=1, else nothing. This was
+    # `compile_args.extend([])` -- an empty extend under a comment saying
+    # coverage was being added, so no coverage.dat was ever written.
+    compile_args.extend(get_coverage_compile_args())
 
     print(f"\n{'='*60}")
     print(f"Testing GAXI Drop FIFO WaveDrom")

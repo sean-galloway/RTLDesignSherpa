@@ -54,6 +54,7 @@ from cocotb_test.simulator import run
 
 # Import path utilities
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -231,6 +232,10 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        # Depth knob. Without this the TB reads TEST_LEVEL's default every run,
+        # so its gate/func/full branches are unreachable whatever REG_LEVEL
+        # selects ([[test-runner]]).
+        'TEST_LEVEL': os.environ.get('REG_LEVEL', 'FUNC').lower(),
     }
 
     # VCD waveform generation support via WAVES environment variable
@@ -246,7 +251,10 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
 
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend([])
+    # Verilator --coverage flags when COVERAGE=1, else nothing. This was
+    # `compile_args.extend([])` -- an empty extend under a comment saying
+    # coverage was being added, so no coverage.dat was ever written.
+    compile_args.extend(get_coverage_compile_args())
 
 
     sim_args = [

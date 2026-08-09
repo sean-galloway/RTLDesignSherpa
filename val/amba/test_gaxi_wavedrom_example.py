@@ -59,6 +59,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalRelation
 )
 from TBClasses.shared.utilities import get_paths
+from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -218,6 +219,11 @@ async def gaxi_comprehensive_wavedrom_test(dut):
     )
     wave_solver.add_constraint(bypass_constraint)
 
+    # TEST_LEVEL gates HOW MANY diagrams are produced, never the content of any
+    # one -- committed JSON must not depend on how the suite was invoked.
+    _lvl = os.environ.get('TEST_LEVEL', 'gate').lower()
+    _all_scenarios = _lvl in ('func', 'full')
+
     # Scenario 2: Burst write until full (FIFO characteristic)
     burst_write_constraint = TemporalConstraint(
         name="burst_write_full",
@@ -262,7 +268,8 @@ async def gaxi_comprehensive_wavedrom_test(dut):
             ('rd_xfer', 'count', '->', 'rd-'),        # Read decrements (cancel)
         ]
     )
-    wave_solver.add_constraint(simultaneous_constraint)
+    if _all_scenarios:
+        wave_solver.add_constraint(simultaneous_constraint)
 
     # Scenario 4: Burst read until empty
     burst_read_constraint = TemporalConstraint(
@@ -284,7 +291,8 @@ async def gaxi_comprehensive_wavedrom_test(dut):
             ('rd_xfer', 'count', '->', 'drain'),    # Reads decrement count
         ]
     )
-    wave_solver.add_constraint(burst_read_constraint)
+    if _all_scenarios:
+        wave_solver.add_constraint(burst_read_constraint)
 
     # Scenario 5: Fill then drain pattern
     fill_drain_constraint = TemporalConstraint(
@@ -306,7 +314,8 @@ async def gaxi_comprehensive_wavedrom_test(dut):
             ('wr_data', 'rd_data', '->', 'buffered'),    # Data flow through buffer
         ]
     )
-    wave_solver.add_constraint(fill_drain_constraint)
+    if _all_scenarios:
+        wave_solver.add_constraint(fill_drain_constraint)
 
     # Scenario 6: Alternating read/write (continuous flow)
     alternating_constraint = TemporalConstraint(
@@ -328,7 +337,8 @@ async def gaxi_comprehensive_wavedrom_test(dut):
             ('wr_data', 'rd_data', '~>', 'flow'),  # Continuous data flow (curved)
         ]
     )
-    wave_solver.add_constraint(alternating_constraint)
+    if _all_scenarios:
+        wave_solver.add_constraint(alternating_constraint)
 
     dut._log.info(f"✓ GAXI wavedrom configured: 6 comprehensive scenarios, segmented capture mode")
     dut._log.info(f"  1. Zero-latency bypass (skid buffer)")
@@ -635,7 +645,18 @@ def generate_params():
         trim_modes = ['minimal', 'default', 'moderate']
         return [(w, d, t, True) for w in widths for d in depths for t in trim_modes]
     """
-    # Default: Test both with and without waveforms
+    # REG_LEVEL grid. These produce wave JSON the docs embed rather than a
+    # pass/fail check, so the depth rule sits differently for them -- but a
+    # diagram set still has a cheap and a comprehensive form, so the grid is
+    # not optional ([[test-runner]]: both mechanisms are a hard requirement).
+    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
+    if reg_level == 'GATE':
+        return [(32, 4, 'default', True)]
+    if reg_level == 'FULL':
+        return [(w, d, t, wd)
+                for w in (32, 64) for d in (4, 8)
+                for t in ('minimal', 'default', 'moderate')
+                for wd in (True,)] + [(32, 4, 'default', False)]
     return [
         (32, 4, 'default', True),    # With waveforms
         (32, 4, 'default', False),   # Without waveforms (faster)
@@ -712,6 +733,8 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
     os.makedirs(log_dir, exist_ok=True)
 
     extra_env = {
+        # Depth knob: gates how many diagrams this run emits.
+        'TEST_LEVEL': os.environ.get('REG_LEVEL', 'FUNC').lower(),
         'COCOTB_LOG_LEVEL': 'INFO',
         'TRIM_MODE': trim_mode,
         'ENABLE_WAVEDROM': '1' if enable_wavedrom else '0',
@@ -731,7 +754,10 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend([])
+    # Verilator --coverage flags when COVERAGE=1, else nothing. This was
+    # `compile_args.extend([])` -- an empty extend under a comment saying
+    # coverage was being added, so no coverage.dat was ever written.
+    compile_args.extend(get_coverage_compile_args())
 
     for param, value in parameters.items():
         compile_args.append(f'-G{param}={value}')

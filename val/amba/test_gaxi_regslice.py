@@ -53,6 +53,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -293,7 +294,10 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend([])
+    # Verilator --coverage flags when COVERAGE=1, else nothing. This was
+    # `compile_args.extend([])` -- an empty extend under a comment saying
+    # coverage was being added, so no coverage.dat was ever written.
+    compile_args.extend(get_coverage_compile_args())
 
     # Add include paths
     for inc in includes:
