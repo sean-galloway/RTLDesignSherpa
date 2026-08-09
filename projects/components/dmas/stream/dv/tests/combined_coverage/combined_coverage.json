@@ -26,7 +26,7 @@
       "line_pct": 38.333333333333336
     },
     {
-      "name": "test_apbtodescr_backpressure_single_aw32_dw32_nc08_gw0",
+      "name": "test_apb4todescr_backpressure_single_aw32_dw32_nc08_gw0",
       "environment": "fub",
       "protocol_pct": 5.88235294117647,
       "line_pct": 22.413793103448278
@@ -74,7 +74,7 @@
       "line_pct": 0.0
     },
     {
-      "name": "test_apbtodescr_basic_all_channels_aw32_dw32_nc08_gw0",
+      "name": "test_apb4todescr_basic_all_channels_aw32_dw32_nc08_gw0",
       "environment": "fub",
       "protocol_pct": 3.9215686274509802,
       "line_pct": 22.413793103448278
@@ -86,7 +86,7 @@
       "line_pct": 0.0
     },
     {
-      "name": "test_apbtodescr_backpressure_multiple_aw32_dw32_nc08_gw1",
+      "name": "test_apb4todescr_backpressure_multiple_aw32_dw32_nc08_gw1",
       "environment": "fub",
       "protocol_pct": 5.88235294117647,
       "line_pct": 22.413793103448278
@@ -122,13 +122,13 @@
       "line_pct": 0.0
     },
     {
-      "name": "test_apbtodescr_errors_aw32_dw32_nc08_gw1",
+      "name": "test_apb4todescr_errors_aw32_dw32_nc08_gw1",
       "environment": "fub",
       "protocol_pct": 5.88235294117647,
       "line_pct": 32.758620689655174
     },
     {
-      "name": "test_apbtodescr_rapid_fire_aw32_dw32_nc08_gw2",
+      "name": "test_apb4todescr_rapid_fire_aw32_dw32_nc08_gw2",
       "environment": "fub",
       "protocol_pct": 3.9215686274509802,
       "line_pct": 22.413793103448278

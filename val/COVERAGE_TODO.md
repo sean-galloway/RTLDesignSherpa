@@ -26,7 +26,7 @@ The root Makefile has unified coverage targets:
 | **rapids** | `coverage-full-report`, `coverage-report`, `clean-coverage` | Uses `bin/cov_utils/` | DONE |
 | **bridge** | `run-coverage`, `run-coverage-func`, `coverage-report`, `fresh-coverage`, `clean-coverage` | Uses shared `bin/cov_utils/conftest_coverage.py` | DONE |
 | **converters** | `run-coverage`, `run-coverage-parallel`, `coverage-report`, `fresh-coverage`, `clean-coverage` | Uses shared `bin/cov_utils/conftest_coverage.py` | DONE |
-| **apb_xbar** | - | - | TODO |
+| **apb4_xbar** | - | - | TODO |
 | **retro_legacy_blocks** | - | - | TODO |
 | **delta** | - | - | TODO (no tests yet) |
 | **hive** | - | - | TODO (no tests yet) |
@@ -123,7 +123,7 @@ def _aggregate_coverage():
 
 ## Priority Order (Remaining)
 
-1. **apb_xbar** - Has tests, moderate complexity
+1. **apb4_xbar** - Has tests, moderate complexity
 2. **retro_legacy_blocks** - Has tests
 3. **timing_characterization** - Has tests (45 tests)
 4. **val/common** - Large test suite, needs Makefile targets

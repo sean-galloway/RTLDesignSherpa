@@ -12,7 +12,7 @@
 <g id="clust1" class="cluster">
 <title>cluster_smbus</title>
 <path fill="none" stroke="black" d="M168.28,-118C168.28,-118 709.03,-118 709.03,-118 715.03,-118 721.03,-124 721.03,-130 721.03,-130 721.03,-239 721.03,-239 721.03,-245 715.03,-251 709.03,-251 709.03,-251 168.28,-251 168.28,-251 162.28,-251 156.28,-245 156.28,-239 156.28,-239 156.28,-130 156.28,-130 156.28,-124 162.28,-118 168.28,-118"/>
-<text text-anchor="middle" x="438.65" y="-235.8" font-family="Times,serif" font-size="14.00">apb_smbus</text>
+<text text-anchor="middle" x="438.65" y="-235.8" font-family="Times,serif" font-size="14.00">apb4_smbus</text>
 </g>
 <!-- apb_in -->
 <g id="node1" class="node">

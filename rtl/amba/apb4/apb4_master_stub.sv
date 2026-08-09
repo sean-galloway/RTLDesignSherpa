@@ -82,13 +82,13 @@ module apb4_master_stub #(
     // the LIVE cmd_data input and packed it into rsp_data alongside
     // rsp_prdata/rsp_pslverr. That's correct only when cmd_data is
     // still holding the same command whose response just arrived —
-    // which is rarely true when the upstream (axi4_to_apb_convert)
+    // which is rarely true when the upstream (axi4_to_apb4_convert)
     // pipelines commands ahead of responses. As soon as the cmd FIFO
     // inside apb4_master accepts cmd N+1, the user advances cmd_data
     // to cmd N+1; meanwhile cmd N's rsp_prdata is still draining out
     // of the rsp FIFO and gets paired with cmd N+1's first/last bits.
     //
-    // Symptom in the wider system: axi4_to_apb_convert's RSP_IDLE
+    // Symptom in the wider system: axi4_to_apb4_convert's RSP_IDLE
     // state waits for r_apb_rsp_pkt_first=1 to advance. Cmd N+1's
     // first=0 stomps over cmd N+1's response (which should have
     // had first=1 itself, but got cmd N+2's first=0 stamped on it,

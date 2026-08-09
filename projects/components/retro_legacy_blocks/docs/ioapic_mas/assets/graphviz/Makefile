@@ -11,7 +11,7 @@ SVG_DIR = ../svg
 
 # Source files
 DOT_SOURCES = delivery_fsm.dot
-GV_SOURCES = apb_ioapic.gv indirect_access.gv
+GV_SOURCES = apb4_ioapic.gv indirect_access.gv
 
 # Targets
 PNG_TARGETS = $(DOT_SOURCES:.dot=.png) $(GV_SOURCES:.gv=.png)

@@ -167,7 +167,7 @@ scatter. 2-stage pipelined, valid/ready. Already used this exact way in
 - [ ] Full linear regression green via `make run-full-parallel` in BOTH param modes.
 
 **Ripple / fan-out (the real cost — descriptor format):**
-`stream_pkg.sv` (descriptor_t + `desc_type` + extended half) → `apbtodescr.sv` →
+`stream_pkg.sv` (descriptor_t + `desc_type` + extended half) → `apb4todescr.sv` →
 `descriptor_engine.sv` (type detect + conditional 2nd-half fetch) → `scheduler.sv`
 (1-vs-2-chunk dequeue + addr-gen instances/queues) → PeakRDL register map + host
 descriptor programming → **every DV descriptor builder**. Keep additive
@@ -177,7 +177,7 @@ descriptor programming → **every DV descriptor builder**. Keep additive
 - `projects/components/dmas/stream/rtl/fub/scheduler.sv` (param, 2× addr-gen + queues, 1/2-chunk dequeue)
 - `projects/components/dmas/stream/rtl/fub/descriptor_engine.sv` (type detect, conditional 2nd-half fetch)
 - `projects/components/dmas/stream/rtl/includes/stream_pkg.sv` (`desc_type`, extended descriptor_t)
-- `projects/components/dmas/stream/rtl/fub/apbtodescr.sv`
+- `projects/components/dmas/stream/rtl/fub/apb4todescr.sv`
 - `projects/components/misc/rtl/dma_address_gen.sv` (reused as-is)
 - DV descriptor builders + register map/host (fan-out)
 

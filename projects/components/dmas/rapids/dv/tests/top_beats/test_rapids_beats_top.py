@@ -18,7 +18,7 @@ Datapath tests for rapids_beats_top (SPLIT core).
 
 Config is programmed BY NAME over the 13-bit APB register chain (two RegisterMap
 instances, SRC @ 0x0000 / SNK @ 0x1000); descriptors are kicked off through the
-per-half apbtodescr kick windows (SRC 0x000-0x03F, SNK 0x1000-0x103F). The
+per-half apb4todescr kick windows (SRC 0x000-0x03F, SNK 0x1000-0x103F). The
 merged MonBus stream is consumed by the always-present monbus_axil_axil_group,
 whose bulk-capture master (m_axil_mon_*) is backed by a trivial always-accept
 write responder in the TB.

@@ -117,7 +117,7 @@ ioapic_clk ──┬────────────────────
 **Reset Routing (CDC_ENABLE determines which reset is used):**
 
 ```systemverilog
-// In apb_ioapic.sv:
+// In apb4_ioapic.sv:
 assign config_regs_rst = (CDC_ENABLE[0]) ? ioapic_resetn : presetn;
 assign core_rst = (CDC_ENABLE[0]) ? ioapic_resetn : presetn;
 ```

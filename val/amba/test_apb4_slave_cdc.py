@@ -27,7 +27,7 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_packet import APBTransaction, APBPacket
 from CocoTBFramework.components.apb.apb_sequence import APBSequence
-from CocoTBFramework.components.apb.apb_factories import create_apb_master, create_apb_monitor
+from CocoTBFramework.components.apb.apb_factories import create_apb4_master, create_apb4_monitor
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
 from CocoTBFramework.components.gaxi.gaxi_command_handler import GAXICommandHandler
 from TBClasses.apb.apbgaxiconfig import APBGAXIConfig
@@ -52,7 +52,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
 )
 from TBClasses.wavedrom_user.apb import (
     get_apb_field_config,
-    create_apb_wavejson_generator,
+    create_apb4_wavejson_generator,
     setup_apb_constraints_with_boundaries
 )
 from TBClasses.wavedrom_user.gaxi import (
@@ -105,7 +105,7 @@ async def apb4_slave_cdc_wavedrom_test(dut):
     gaxi_field_config = get_gaxi_field_config(tb.DATA_WIDTH)
 
     # Create generator that can handle both protocols
-    wave_generator = create_apb_wavejson_generator(apb_field_config)
+    wave_generator = create_apb4_wavejson_generator(apb_field_config)
 
     wave_solver = TemporalConstraintSolver(
         dut=dut,
@@ -177,13 +177,13 @@ async def apb4_slave_cdc_wavedrom_test(dut):
 
     # Manually create comprehensive constraints with CDC-aware signal lists
     from TBClasses.wavedrom_user.apb import (
-        create_apb_write_sequence_constraint,
-        create_apb_read_sequence_constraint,
+        create_apb4_write_sequence_constraint,
+        create_apb4_read_sequence_constraint,
         APBConstraints
     )
 
     # 1. Basic write - with CDC signals
-    constraint_write = create_apb_write_sequence_constraint(
+    constraint_write = create_apb4_write_sequence_constraint(
         max_window=50, required=True, clock_group="default",
         field_config=apb_field_config, post_match_cycles=3
     )
@@ -191,7 +191,7 @@ async def apb4_slave_cdc_wavedrom_test(dut):
     wave_solver.add_constraint(constraint_write)
 
     # 2. Basic read - with CDC signals
-    constraint_read = create_apb_read_sequence_constraint(
+    constraint_read = create_apb4_read_sequence_constraint(
         max_window=50, required=True, clock_group="default",
         field_config=apb_field_config, post_match_cycles=3
     )

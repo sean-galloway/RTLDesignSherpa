@@ -487,57 +487,57 @@ coverage-report-converters:
 .PHONY: test-apb-xbar
 test-apb-xbar:
 	@echo "=== apb-xbar FUNC (parallel) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-apb-xbar-gate
 test-apb-xbar-gate:
 	@echo "=== apb-xbar GATE (parallel) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-apb-xbar-func
 test-apb-xbar-func:
 	@echo "=== apb-xbar FUNC (parallel) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-apb-xbar-full
 test-apb-xbar-full:
 	@echo "=== apb-xbar FULL (parallel) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-apb-xbar-gate-waves
 test-apb-xbar-gate-waves:
 	@echo "=== apb-xbar GATE (parallel + waves) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=GATE WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=GATE WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-apb-xbar-func-waves
 test-apb-xbar-func-waves:
 	@echo "=== apb-xbar FUNC (parallel + waves) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=FUNC WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=FUNC WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-apb-xbar-full-waves
 test-apb-xbar-full-waves:
 	@echo "=== apb-xbar FULL (parallel + waves) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=FULL WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=FULL WAVES=1 $(PYTEST) -v --tb=short -n 48 --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-apb-xbar-gate-serial
 test-apb-xbar-gate-serial:
 	@echo "=== apb-xbar GATE (serial) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=GATE $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-apb-xbar-func-serial
 test-apb-xbar-func-serial:
 	@echo "=== apb-xbar FUNC (serial) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=FUNC $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: test-apb-xbar-full-serial
 test-apb-xbar-full-serial:
 	@echo "=== apb-xbar FULL (serial) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=FULL $(PYTEST) -v --tb=short --reruns 3 --reruns-delay 1 test_*.py
 
 .PHONY: coverage-apb-xbar
 coverage-apb-xbar:
 	@echo "=== apb-xbar FUNC (parallel + coverage) ==="
-	@cd projects/components/apb_xbar/dv/tests && REG_LEVEL=FUNC COVERAGE=1 $(PYTEST) -v --tb=short -n 24 --reruns 5 --reruns-delay 2 test_*.py
+	@cd projects/components/apb4_xbar/dv/tests && REG_LEVEL=FUNC COVERAGE=1 $(PYTEST) -v --tb=short -n 24 --reruns 5 --reruns-delay 2 test_*.py
 
 # --- retro-legacy: Retro legacy blocks ---
 

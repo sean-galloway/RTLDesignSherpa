@@ -20,9 +20,9 @@ digraph hpet_architecture {
         apb_in [label="APB\nMaster\n\nPSEL\nPENABLE\nPADDR\nPWDATA", fillcolor=palegreen];
     }
 
-    // apb_hpet Top Level
+    // apb4_hpet Top Level
     subgraph cluster_top {
-        label="apb_hpet (Top Level)";
+        label="apb4_hpet (Top Level)";
         style=filled;
         fillcolor=lightyellow;
 

@@ -158,7 +158,7 @@ assign w_issue_axil4 = (r_aw_pending || s_awvalid) &&
 
 ### Figure 4.4: AXI4 to APB FSM
 
-![AXI4 to APB FSM](../assets/mermaid/axi4_to_apb_fsm.png)
+![AXI4 to APB FSM](../assets/mermaid/axi4_to_apb4_fsm.png)
 
 ### States
 

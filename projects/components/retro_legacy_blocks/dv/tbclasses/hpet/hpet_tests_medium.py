@@ -7,8 +7,8 @@
 # Module: HPETMediumTests
 # Purpose: HPET Medium Tests
 #
-# Documentation: projects/components/apb_hpet/PRD.md
-# Subsystem: apb_hpet
+# Documentation: projects/components/apb4_hpet/PRD.md
+# Subsystem: apb4_hpet
 #
 # Author: sean galloway
 # Created: 2025-10-18

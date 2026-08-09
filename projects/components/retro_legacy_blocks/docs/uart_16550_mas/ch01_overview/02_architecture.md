@@ -32,7 +32,7 @@
 ## Module Hierarchy
 
 ```
-apb_uart_16550 (Top Level)
+apb4_uart_16550 (Top Level)
 +-- apb4_slave
 |   +-- APB protocol handling
 |   +-- CMD/RSP interface conversion

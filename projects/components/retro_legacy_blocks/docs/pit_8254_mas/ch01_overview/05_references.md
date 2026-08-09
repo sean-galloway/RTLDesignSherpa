@@ -71,7 +71,7 @@
 #### RTL Implementation Files
 
 **Top-Level Module**
-- **File**: `rtl/pit_8254/apb_pit_8254.sv`
+- **File**: `rtl/pit_8254/apb4_pit_8254.sv`
 - **Description**: APB interface wrapper with optional clock domain crossing
 
 **Core Logic**
@@ -108,7 +108,7 @@
 - **Description**: Six basic tests covering register access, enable/disable, Mode 0, status
 
 **Test Runner**
-- **File**: `dv/tests/test_apb_pit_8254.py`
+- **File**: `dv/tests/test_apb4_pit_8254.py`
 - **Description**: Pytest test runner invoking CocoTB tests with parameterization
 
 **Configuration**
@@ -139,7 +139,7 @@
 - **Framework**: Python testing framework
 - **Purpose**: Test discovery, parameterization, and reporting
 - **Documentation**: https://pytest.org/
-- **Usage**: `pytest dv/tests/test_apb_pit_8254.py -v`
+- **Usage**: `pytest dv/tests/test_apb4_pit_8254.py -v`
 
 **cocotb-test**
 - **Framework**: pytest integration for CocoTB

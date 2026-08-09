@@ -98,7 +98,7 @@ graph TD
 | **[RAPIDS](../../projects/components/dmas/rapids)** | 🟡 In Progress | Advanced DMA with network interfaces |
 | **[Bridge](../../projects/components/bridge)** | ✅ Ready | AXI protocol bridges and converters |
 | **[Converters](../../projects/components/converters)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion |
-| **[APB Crossbar](../../projects/components/apb_xbar)** | ✅ Ready | M×N APB interconnect |
+| **[APB Crossbar](../../projects/components/apb4_xbar)** | ✅ Ready | M×N APB interconnect |
 | **[Retro Legacy](../../projects/components/retro_legacy_blocks)** | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
 | **[Delta](../../projects/components/delta)** | 📋 Planned | Network-on-Chip mesh |
 | **[HIVE](../../projects/components/hive)** | 📋 Planned | Distributed RISC-V control |
@@ -260,7 +260,7 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[APB Crossbar](../../projects/components/apb_xbar)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
+| **[APB Crossbar](../../projects/components/apb4_xbar)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
 | **[Bridge](../../projects/components/bridge)** | ✅ Ready | AXI4 protocol bridges, width converters, CDC |
 | **[Converters](../../projects/components/converters)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
@@ -439,7 +439,7 @@ rtldesignsherpa/
 │   │   ├── rapids/              # RAPIDS DMA engine
 │   │   ├── bridge/              # Protocol bridges
 │   │   ├── converters/          # UART-to-AXI4-Lite, etc.
-│   │   ├── apb_xbar/            # APB crossbar
+│   │   ├── apb4_xbar/            # APB crossbar
 │   │   ├── retro_legacy_blocks/ # 9 legacy peripherals
 │   │   ├── delta/               # Network-on-Chip (planned)
 │   │   ├── hive/                # RISC-V control (planned)
@@ -525,7 +525,7 @@ pytest val/amba/test_apb4_slave.py -v -m basic
 #### Level 3: Test APB Crossbar Integration
 ```bash
 # Run 2-to-4 crossbar test
-pytest projects/components/apb_xbar/dv/tests/test_apb_xbar_2to4.py -v -k "2to4"
+pytest projects/components/apb4_xbar/dv/tests/test_apb4_xbar_2to4.py -v -k "2to4"
 ```
 
 #### Level 4: Test Retro Legacy Block Component
@@ -534,7 +534,7 @@ pytest projects/components/apb_xbar/dv/tests/test_apb_xbar_2to4.py -v -k "2to4"
 pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
 
 # Run specific test
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ---

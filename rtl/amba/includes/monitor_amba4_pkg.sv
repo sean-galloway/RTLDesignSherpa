@@ -565,37 +565,37 @@ package monitor_amba4_pkg;
     endfunction
 
     // APB event code creation functions
-    function automatic unified_event_code_t create_apb_error_event(apb_error_code_t code);
+    function automatic unified_event_code_t create_apb4_error_event(apb_error_code_t code);
         unified_event_code_t result;
         result.apb_error = code;
         return result;
     endfunction
 
-    function automatic unified_event_code_t create_apb_timeout_event(apb_timeout_code_t code);
+    function automatic unified_event_code_t create_apb4_timeout_event(apb_timeout_code_t code);
         unified_event_code_t result;
         result.apb_timeout = code;
         return result;
     endfunction
 
-    function automatic unified_event_code_t create_apb_completion_event(apb_completion_code_t code);
+    function automatic unified_event_code_t create_apb4_completion_event(apb_completion_code_t code);
         unified_event_code_t result;
         result.apb_completion = code;
         return result;
     endfunction
 
-    function automatic unified_event_code_t create_apb_threshold_event(apb_threshold_code_t code);
+    function automatic unified_event_code_t create_apb4_threshold_event(apb_threshold_code_t code);
         unified_event_code_t result;
         result.apb_threshold = code;
         return result;
     endfunction
 
-    function automatic unified_event_code_t create_apb_performance_event(apb_performance_code_t code);
+    function automatic unified_event_code_t create_apb4_performance_event(apb_performance_code_t code);
         unified_event_code_t result;
         result.apb_performance = code;
         return result;
     endfunction
 
-    function automatic unified_event_code_t create_apb_debug_event(apb_debug_code_t code);
+    function automatic unified_event_code_t create_apb4_debug_event(apb_debug_code_t code);
         unified_event_code_t result;
         result.apb_debug = code;
         return result;

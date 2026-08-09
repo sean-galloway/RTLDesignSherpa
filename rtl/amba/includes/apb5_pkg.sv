@@ -26,7 +26,7 @@
 
 package apb5_pkg;
     // Import base APB package for shared constants
-    import apb_pkg::*;
+    import apb4_pkg::*;
 
     // =============================================================================
     // APB5 PARAMETERS
@@ -182,7 +182,7 @@ package apb5_pkg;
     // =============================================================================
 
     // Convert APB4 m2s to APB5 m2s (with default user signals)
-    function automatic apb5_m2s_t apb4_to_apb5_m2s(apb_m2s_t apb4);
+    function automatic apb5_m2s_t apb4_to_apb5_m2s(apb4_m2s_t apb4);
         apb5_m2s_t apb5;
         apb5.pwrite = apb4.pwrite;
         apb5.paddr  = apb4.paddr;
@@ -195,8 +195,8 @@ package apb5_pkg;
     endfunction
 
     // Convert APB5 m2s to APB4 m2s (drop user signals)
-    function automatic apb_m2s_t apb5_to_apb4_m2s(apb5_m2s_t apb5);
-        apb_m2s_t apb4;
+    function automatic apb4_m2s_t apb5_to_apb4_m2s(apb5_m2s_t apb5);
+        apb4_m2s_t apb4;
         apb4.pwrite = apb5.pwrite;
         apb4.paddr  = apb5.paddr;
         apb4.pwdata = apb5.pwdata;
@@ -206,7 +206,7 @@ package apb5_pkg;
     endfunction
 
     // Convert APB4 s2m to APB5 s2m (with default extensions)
-    function automatic apb5_s2m_t apb4_to_apb5_s2m(apb_s2m_t apb4);
+    function automatic apb5_s2m_t apb4_to_apb5_s2m(apb4_s2m_t apb4);
         apb5_s2m_t apb5;
         apb5.prdata  = apb4.prdata;
         apb5.pslverr = apb4.pslverr;
@@ -217,8 +217,8 @@ package apb5_pkg;
     endfunction
 
     // Convert APB5 s2m to APB4 s2m (drop extensions)
-    function automatic apb_s2m_t apb5_to_apb4_s2m(apb5_s2m_t apb5);
-        apb_s2m_t apb4;
+    function automatic apb4_s2m_t apb5_to_apb4_s2m(apb5_s2m_t apb5);
+        apb4_s2m_t apb4;
         apb4.prdata  = apb5.prdata;
         apb4.pslverr = apb5.pslverr;
         return apb4;

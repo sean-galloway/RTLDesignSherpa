@@ -43,7 +43,7 @@
 | Project | Status | RTL Files | Test Files | Priority | Completion |
 |---------|--------|-----------|------------|----------|------------|
 | **converters** | Production Ready | 7 | 7 | High | 100% |
-| **apb_xbar** | Production Ready | 12 | 4 | High | 100% |
+| **apb4_xbar** | Production Ready | 12 | 4 | High | 100% |
 | **stream** | Active Development | 22 | 15+ | High | 95% |
 | **bridge** | Active Development | 20+ | 10+ | High | 95% |
 | **rapids** | Active Development | 14 | 23 | High | 80% |
@@ -86,11 +86,11 @@
 
 ---
 
-### 2. APB Crossbar (apb_xbar) - APB Interconnect
+### 2. APB Crossbar (apb4_xbar) - APB Interconnect
 
 **Status:** ✅ Production Ready (all tests passing)
 **Version:** 1.0
-**Location:** `projects/components/apb_xbar/`
+**Location:** `projects/components/apb4_xbar/`
 
 **What it does:**
 - Connects M APB masters to N APB slaves with address decode and arbitration
@@ -444,7 +444,7 @@ Bridge (Memory Interconnect)
 
 **Tier 1 (Production Ready):**
 - ✅ converters - Production infrastructure
-- ✅ apb_xbar - Production interconnect
+- ✅ apb4_xbar - Production interconnect
 
 **Tier 2 (Active Development - Nearing Completion):**
 - 🟢 stream - Tutorial DMA (95% complete) - APB config + wrapper remaining
@@ -470,7 +470,7 @@ Bridge (Memory Interconnect)
 | Project | LUTs | BRAMs | DSPs | Notes |
 |---------|------|-------|------|-------|
 | **converters** | ~200 | 0 | 0 | Per converter instance |
-| **apb_xbar** | ~100/slave | 0 | 0 | 2x4 crossbar ~400 LUTs |
+| **apb4_xbar** | ~100/slave | 0 | 0 | 2x4 crossbar ~400 LUTs |
 | **stream** | ~3000 | 8 | 0 | Full DMA engine |
 | **bridge** | ~500/slave | TBD | 0 | Estimate for full crossbar |
 | **rapids** | ~5000 | 16 | 0 | Full accelerator |

@@ -22,8 +22,8 @@
 //     APB4 slave (s_apb_*)
 //       -> apb4_slave  (APB -> CMD/RSP, single clock domain: pclk = aclk)
 //       -> cmd demux (hand-written, 3-way):
-//            0x000-0x03F  -> apbtodescr (u_kick_src)  -> core.src_apb_*
-//            0x1000-0x103F-> apbtodescr (u_kick_snk)  -> core.snk_apb_*
+//            0x000-0x03F  -> apb4todescr (u_kick_src)  -> core.src_apb_*
+//            0x1000-0x103F-> apb4todescr (u_kick_snk)  -> core.snk_apb_*
 //            all others   -> peakrdl_to_cmdrsp -> rapids_regs
 //       -> rapids_config_block x2 (u_cfg_src <- hwif_out.SRC.*,
 //                                  u_cfg_snk <- hwif_out.SNK.*)
@@ -32,9 +32,9 @@
 //                                  bulk-capture master / IRQ)
 //
 //   APB address map (13-bit APB address; bit[12] selects SRC(0)/SNK(1)):
-//     0x0000-0x003F : SOURCE channel kick-off (apbtodescr u_kick_src)
+//     0x0000-0x003F : SOURCE channel kick-off (apb4todescr u_kick_src)
 //     0x0040-0x0FFF : SOURCE configuration registers (rapids_regs SRC)
-//     0x1000-0x103F : SINK   channel kick-off (apbtodescr u_kick_snk)
+//     0x1000-0x103F : SINK   channel kick-off (apb4todescr u_kick_snk)
 //     0x1040-0x1FFF : SINK   configuration registers (rapids_regs SNK)
 //
 //   NOTE on the single MonBus egress config: the two halves each emit their own
@@ -459,13 +459,13 @@ module rapids_beats_top #(
     assign peakrdl_rsp_ready = apb_rsp_ready;
 
     //=========================================================================
-    // SOURCE channel kick-off (apbtodescr) -> core.src_apb_*
+    // SOURCE channel kick-off (apb4todescr) -> core.src_apb_*
     //=========================================================================
     logic [NC-1:0]          src_apb_valid;
     logic [NC-1:0]          src_apb_ready;
     logic [NC-1:0][AW-1:0]  src_apb_addr;
 
-    apbtodescr #(
+    apb4todescr #(
         .ADDR_WIDTH      (APB_ADDR_WIDTH),
         .DATA_WIDTH      (APB_DATA_WIDTH),
         .NUM_CHANNELS    (NUM_CHANNELS),
@@ -489,13 +489,13 @@ module rapids_beats_top #(
     );
 
     //=========================================================================
-    // SINK channel kick-off (apbtodescr) -> core.snk_apb_*
+    // SINK channel kick-off (apb4todescr) -> core.snk_apb_*
     //=========================================================================
     logic [NC-1:0]          snk_apb_valid;
     logic [NC-1:0]          snk_apb_ready;
     logic [NC-1:0][AW-1:0]  snk_apb_addr;
 
-    apbtodescr #(
+    apb4todescr #(
         .ADDR_WIDTH      (APB_ADDR_WIDTH),
         .DATA_WIDTH      (APB_DATA_WIDTH),
         .NUM_CHANNELS    (NUM_CHANNELS),

@@ -69,7 +69,7 @@ Complete timer setup sequence: disable HPET, reset counter, configure comparator
 
 ### Figure 5.1: APB HPET Block Diagram
 
-![APB HPET Block Diagram](../assets/draw.io/apb_hpet_blocks.png)
+![APB HPET Block Diagram](../assets/draw.io/apb4_hpet_blocks.png)
 
 APB HPET top-level architecture showing APB interface, configuration registers, HPET core, and timer outputs.
 
@@ -673,7 +673,7 @@ void hpet_interrupt_handler(void) {
 
 ### Additional Diagrams
 
-- [Block Diagram](../assets/draw.io/apb_hpet_blocks.png) - Top-level architecture
+- [Block Diagram](../assets/draw.io/apb4_hpet_blocks.png) - Top-level architecture
 - [One-Shot Timer](../assets/graphviz/oneshot_timer.png) - One-shot mode operation
 - [Periodic Timer](../assets/graphviz/periodic_timer.png) - Periodic mode operation
 - [Software Init](../assets/graphviz/software_init.png) - Initialization sequence

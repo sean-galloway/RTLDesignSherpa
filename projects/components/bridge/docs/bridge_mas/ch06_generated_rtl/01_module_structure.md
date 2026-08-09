@@ -103,7 +103,7 @@ arbiter_ar u_s2_ar_arb (...);
 width_upsize_64_512 u_m0_s0_upsizer (...);
 
 // Protocol converters (as needed)
-axi4_to_apb u_s2_apb_conv (...);
+axi4_to_apb4 u_s2_apb_conv (...);
 
 // Response routing
 response_router u_resp_router (...);
@@ -223,7 +223,7 @@ bridge_{name}/
 ├── arbiter_aw.sv           - AW arbiter
 ├── arbiter_ar.sv           - AR arbiter
 ├── width_upsize_64_512.sv  - Width converter
-├── axi4_to_apb.sv          - Protocol converter
+├── axi4_to_apb4.sv          - Protocol converter
 └── response_router.sv      - Response routing
 ```
 

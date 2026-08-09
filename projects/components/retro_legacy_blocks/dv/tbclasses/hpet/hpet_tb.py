@@ -7,8 +7,8 @@
 # Module: HPETRegisterMap
 # Purpose: HPET (High Precision Event Timer) Testbench - Scalable Version
 #
-# Documentation: projects/components/apb_hpet/PRD.md
-# Subsystem: apb_hpet
+# Documentation: projects/components/apb4_hpet/PRD.md
+# Subsystem: apb4_hpet
 #
 # Author: sean galloway
 # Created: 2025-10-18
@@ -52,7 +52,7 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_packet import APBPacket
 from CocoTBFramework.components.apb.apb_components import APBMaster
-from CocoTBFramework.components.apb.apb_factories import create_apb_monitor
+from CocoTBFramework.components.apb.apb_factories import create_apb4_monitor
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
 
@@ -428,7 +428,7 @@ class HPETTB(TBBase):
 
         try:
             # APB Monitor for transaction tracking
-            self.apb4_monitor = create_apb_monitor(
+            self.apb4_monitor = create_apb4_monitor(
                 self.dut, 'HPET APB Monitor', 's_apb', self.dut.pclk,
                 addr_width=12, data_width=32,  # Fixed 12-bit addr, 32-bit data
                 log=self.log

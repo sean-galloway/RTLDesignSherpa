@@ -25,7 +25,7 @@ Features:
 - Interrupt monitoring
 
 Architecture:
-    APB Master → apb_pic_8259 → PIC Core
+    APB Master → apb4_pic_8259 → PIC Core
                      ↓
                   8 IRQ inputs
                      ↓

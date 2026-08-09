@@ -22,7 +22,7 @@ SHELL := /bin/bash
 
 # Active blocks (prove PASS today)
 MODULES := \
-	apbtodescr \
+	apb4todescr \
 	axi_read_engine \
 	axi_write_engine \
 	cmdrsp_router \

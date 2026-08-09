@@ -104,6 +104,6 @@ The PM timer is a 32-bit free-running counter that:
 
 The generated register files are used by:
 - `pm_acpi_config_regs.sv` - Maps hwif to pm_acpi_core interface
-- `apb_pm_acpi.sv` - Top-level APB wrapper
+- `apb4_pm_acpi.sv` - Top-level APB wrapper
 
 See parent directory README.md for complete integration details.

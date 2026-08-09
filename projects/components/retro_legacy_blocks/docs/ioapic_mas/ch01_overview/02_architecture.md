@@ -29,7 +29,7 @@ The APB IOAPIC is organized as a hierarchical design with three primary layers:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ apb_ioapic (Top Level)                                       │
+│ apb4_ioapic (Top Level)                                       │
 │                                                               │
 │  ┌────────────────────────┐                                 │
 │  │ APB Slave Interface    │ (APB Clock Domain: pclk)        │
@@ -77,7 +77,7 @@ The APB IOAPIC is organized as a hierarchical design with three primary layers:
 
 The design follows RLB architecture standards with clear functional separation:
 
-1. **apb_ioapic.sv** (Top Level)
+1. **apb4_ioapic.sv** (Top Level)
    - APB slave interface selection (CDC or non-CDC via parameter)
    - Clock domain routing based on CDC_ENABLE
    - Module instantiation and wiring
@@ -199,7 +199,7 @@ ioapic_clk ──────────────┬──┴──► ioapi
 
 **Clock Selection Logic:**
 ```systemverilog
-// In apb_ioapic.sv:
+// In apb4_ioapic.sv:
 .clk (CDC_ENABLE[0] ? ioapic_clk : pclk)
 ```
 
@@ -215,7 +215,7 @@ The IOAPIC uses standard RLB reset methodology:
 
 **Reset Routing:**
 ```systemverilog
-// In apb_ioapic.sv:
+// In apb4_ioapic.sv:
 .rst_n (CDC_ENABLE[0] ? ioapic_resetn : presetn)
 ```
 
@@ -262,7 +262,7 @@ The IOAPIC core implements a simple 3-state FSM for interrupt delivery:
 
 **Minimal Integration (Single CPU):**
 ```systemverilog
-apb_ioapic #(
+apb4_ioapic #(
     .NUM_IRQS    (24),
     .CDC_ENABLE  (0)   // Single clock domain
 ) u_ioapic (
@@ -285,7 +285,7 @@ apb_ioapic #(
 
 **Advanced Integration (Multi-CPU with CDC):**
 ```systemverilog
-apb_ioapic #(
+apb4_ioapic #(
     .NUM_IRQS    (24),
     .CDC_ENABLE  (1)   // Dual clock domain
 ) u_ioapic (

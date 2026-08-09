@@ -76,10 +76,10 @@ None available. The issue requires architectural changes to the RTL.
 
 #### Option 1: Add INTA Signal to APB Interface
 
-Add an INTA input signal to `apb_pic_8259`:
+Add an INTA input signal to `apb4_pic_8259`:
 
 ```systemverilog
-module apb_pic_8259 (
+module apb4_pic_8259 (
     // ... existing ports ...
     input  wire        inta,  // Interrupt acknowledge
     output wire [7:0]  int_vector  // Interrupt vector output

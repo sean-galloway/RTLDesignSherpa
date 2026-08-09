@@ -27,7 +27,7 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_sequence import APBSequence
 from CocoTBFramework.components.apb.apb_factories import \
-    create_apb_monitor, create_apb_scoreboard
+    create_apb4_monitor, create_apb4_scoreboard
 from CocoTBFramework.components.apb.apb_components import APBSlave
 from CocoTBFramework.components.gaxi.gaxi_factories import \
     create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
@@ -47,7 +47,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     SignalTransition,
     TemporalRelation
 )
-from CocoTBFramework.components.wavedrom.wavejson_gen import create_apb_wavejson_generator
+from CocoTBFramework.components.wavedrom.wavejson_gen import create_apb4_wavejson_generator
 from CocoTBFramework.components.wavedrom.utility import get_apb_field_config
 from TBClasses.wavedrom_user.apb import setup_apb_constraints_with_boundaries
 
@@ -305,7 +305,7 @@ class APBMasterTB(TBBase):
         super_debug = False  # Reduce debug output
 
         # Configure APB components
-        self.apb4_monitor = create_apb_monitor(
+        self.apb4_monitor = create_apb4_monitor(
             dut,
             'APB Monitor',
             'm_apb',
@@ -333,7 +333,7 @@ class APBMasterTB(TBBase):
         self.apb4_slave.num_lines = self.num_line
 
         # Create APB scoreboard
-        self.apb_scoreboard = create_apb_scoreboard(
+        self.apb_scoreboard = create_apb4_scoreboard(
             'APB Scoreboard',
             addr_width=self.ADDR_WIDTH,
             data_width=self.DATA_WIDTH,
@@ -844,7 +844,7 @@ async def apb4_master_wavedrom_test(dut):
     addr_width = tb.ADDR_WIDTH
     data_width = tb.DATA_WIDTH
     field_config = get_apb_field_config(addr_width, data_width)
-    wave_generator = create_apb_wavejson_generator(field_config)
+    wave_generator = create_apb4_wavejson_generator(field_config)
 
     wave_solver = TemporalConstraintSolver(
         dut=dut,

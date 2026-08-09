@@ -80,7 +80,7 @@
 #### Module Hierarchy
 
 ```
-apb_hpet (Top Level)
+apb4_hpet (Top Level)
 +-- apb4_slave (OR apb4_slave_cdc if CDC_ENABLE=1)
 |   +-- APB protocol handling
 |   +-- Read/write transaction management
@@ -357,7 +357,7 @@ localparam int TIMER_REGS_START = 32'h100;  // Timer register base address
 
 **2-Timer "Intel-like" Configuration:**
 ```systemverilog
-apb_hpet #(
+apb4_hpet #(
     .NUM_TIMERS(2),
     .VENDOR_ID(16'h8086),   // Intel
     .REVISION_ID(16'h0001),
@@ -367,7 +367,7 @@ apb_hpet #(
 
 **3-Timer "AMD-like" Configuration:**
 ```systemverilog
-apb_hpet #(
+apb4_hpet #(
     .NUM_TIMERS(3),
     .VENDOR_ID(16'h1022),   // AMD
     .REVISION_ID(16'h0002),
@@ -377,7 +377,7 @@ apb_hpet #(
 
 **8-Timer Custom with CDC:**
 ```systemverilog
-apb_hpet #(
+apb4_hpet #(
     .NUM_TIMERS(8),
     .VENDOR_ID(16'hABCD),   // Custom vendor
     .REVISION_ID(16'h0010),

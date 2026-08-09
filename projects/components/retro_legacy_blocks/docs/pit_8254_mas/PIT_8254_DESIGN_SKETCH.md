@@ -73,7 +73,7 @@ The APB 8254 PIT provides a production-quality implementation of the Intel 8254 
 ### 1.2 Module Hierarchy
 
 ```
-apb_pit_8254.sv              # Top-level wrapper (like apb_hpet.sv)
+apb4_pit_8254.sv              # Top-level wrapper (like apb4_hpet.sv)
 ├── apb4_slave_cdc.sv         # CDC wrapper (conditional instantiation)
 ├── pit_config_regs.sv       # Register wrapper (like hpet_config_regs.sv)
 │   ├── peakrdl_to_cmdrsp.sv # PeakRDL adapter
@@ -656,7 +656,7 @@ dv/tbclasses/pit_8254/
 └── pit_8254_tests_full.py   # Full test suite
 
 dv/tests/                    (flat layout, shared across blocks)
-├── test_apb_pit_8254.py     # Test runner
+├── test_apb4_pit_8254.py     # Test runner
 └── conftest.py              # Pytest configuration (shared)
 ```
 
@@ -838,7 +838,7 @@ class PIT8254TB(TBBase):
 - Basic counting test (verify down-counting works)
 
 **Day 5: Top-Level Integration**
-- Implement apb_pit_8254.sv (copy apb_hpet.sv pattern)
+- Implement apb4_pit_8254.sv (copy apb4_hpet.sv pattern)
 - Add CDC support (parameter copy from HPET)
 - Create filelists
 - **Deliverable:** Mode 0 working end-to-end

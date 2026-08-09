@@ -116,7 +116,7 @@ assign int_output = (r_init_state == INIT_COMPLETE) &&
 
 VCD available at:
 ```
-/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_apb_pic_8259_test_pic_8259_basic/dump.vcd
+/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_apb4_pic_8259_test_pic_8259_basic/dump.vcd
 ```
 
 **Key signals to trace for IRQ3 test:**

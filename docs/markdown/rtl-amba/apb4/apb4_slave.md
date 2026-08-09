@@ -684,7 +684,7 @@ The CDC clock/reset ports are `pclk`/`presetn` (APB side) and `aclk`/`aresetn`
 - **apb4_master**: Complementary APB master implementation
 - **apb5_slave**: APB5 equivalent with `PWAKEUP`, `P*USER` and optional parity
 - **gaxi_skid_buffer**: Underlying buffering infrastructure
-- **apb_xbar_1to4 / apb_xbar_2to4**: Generated APB crossbars for multi-slave systems
+- **apb4_xbar_1to4 / apb4_xbar_2to4**: Generated APB crossbars for multi-slave systems
 
 The `apb4_slave` module provides a complete, high-performance solution for APB slave functionality with advanced buffering, full protocol compliance, and flexible backend integration capabilities.
 

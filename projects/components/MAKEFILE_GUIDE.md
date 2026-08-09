@@ -45,8 +45,8 @@ projects/components/{component}/
 |-----------|-------------|--------------|--------|
 | **stream** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
 | **rapids** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
-| **retro_legacy_blocks** (formerly apb_hpet) | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
-| **apb_xbar** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
+| **retro_legacy_blocks** (formerly apb4_hpet) | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
+| **apb4_xbar** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
 | **bridge** | ✅ REG_LEVEL + Parallel | ✅ Lint | Complete |
 
 ---
@@ -284,7 +284,7 @@ make test-stream          # Run STREAM tests
 make test-rapids          # Run RAPIDS tests
 make test-bridge          # Run Bridge tests
 make test-retro_legacy_blocks  # Run Retro Legacy Blocks (HPET, PIT, ...) tests
-make test-apb_xbar        # Run APB Crossbar tests
+make test-apb4_xbar        # Run APB Crossbar tests
 
 make lint-all             # Lint all RTL (root + projects)
 make lint-projects        # Lint all project RTL

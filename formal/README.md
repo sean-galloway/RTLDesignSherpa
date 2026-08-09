@@ -24,7 +24,7 @@ make -C formal formal
 formal/
 ├── common/                          Building block proofs (counters, arbiters, FIFOs)
 ├── amba/                            AMBA infrastructure (APB, AXI4 monitors, monbus)
-├── apb_xbar/                        APB crossbar proofs
+├── apb4_xbar/                        APB crossbar proofs
 ├── converters/                      Width/protocol converter proofs
 ├── bridge/                          Bridge AXI4 protocol verification
 │   └── axi4_protocol/               Uses SVA-AXI4-FVIP for protocol checking

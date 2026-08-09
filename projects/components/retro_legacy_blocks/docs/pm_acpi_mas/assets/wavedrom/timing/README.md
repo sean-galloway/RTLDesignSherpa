@@ -128,7 +128,7 @@ Only S0/S1/S3 are implemented; other encodings fall through to S0.
 
 ## References
 
-- **PM RTL:** `rtl/pm_acpi/apb_pm_acpi.sv`
+- **PM RTL:** `rtl/pm_acpi/apb4_pm_acpi.sv`
 - **PM Testbench:** `dv/tbclasses/pm_acpi/pm_acpi_tb.py`
 - **Constraint Class:** none yet for PM/ACPI (see `bin/TBClasses/wavedrom_user/hpet.py` and `apb.py` for examples)
 - **ACPI Spec:** Advanced Configuration and Power Interface Specification

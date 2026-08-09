@@ -26,7 +26,7 @@ Features:
 - Edge and level-triggered modes
 
 Architecture:
-    APB Master → apb_ioapic → IOAPIC Core
+    APB Master → apb4_ioapic → IOAPIC Core
                      ↓
                   24 IRQ inputs
                      ↓

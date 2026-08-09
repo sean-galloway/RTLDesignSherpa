@@ -58,7 +58,7 @@ Real-Time Clock with APB interface for system time-of-day tracking. Fully implem
 ## Files
 
 ### RTL Files
-- `apb_rtc.sv` - Top-level wrapper with APB4 interface
+- `apb4_rtc.sv` - Top-level wrapper with APB4 interface
 - `rtc_core.sv` - Core RTC logic with time counting and alarm
 - `rtc_config_regs.sv` - Register wrapper (PeakRDL integration)
 - `rtc_regs.sv` - PeakRDL generated registers (auto-generated)
@@ -66,7 +66,7 @@ Real-Time Clock with APB interface for system time-of-day tracking. Fully implem
 
 ### Configuration Files
 - `peakrdl/rtc_regs.rdl` - SystemRDL register specification
-- `filelists/apb_rtc.f` - Complete compilation filelist
+- `filelists/apb4_rtc.f` - Complete compilation filelist
 
 ### Helper Scripts
 - `rtc_helper.py` - Human-readable register programming helper
@@ -75,14 +75,14 @@ Real-Time Clock with APB interface for system time-of-day tracking. Fully implem
 ### Test Infrastructure
 - `../../dv/tbclasses/rtc/rtc_tb.py` - Main testbench class
 - `../../dv/tbclasses/rtc/rtc_tests_basic.py` - Basic test suite
-- `../../dv/tests/test_apb_rtc.py` - pytest test runner
+- `../../dv/tests/test_apb4_rtc.py` - pytest test runner
 
 ## Architecture
 
 The RTC follows the standard 3-layer architecture:
 
 ```
-Layer 1: apb_rtc.sv           (APB4 interface)
+Layer 1: apb4_rtc.sv           (APB4 interface)
          ↓
 Layer 2: rtc_config_regs.sv   (Register wrapper + edge detection)
          ↓
@@ -149,13 +149,13 @@ time = await tb.read_time()
 cd projects/components/retro_legacy_blocks/dv/tests
 
 # Run basic tests
-pytest test_apb_rtc.py -v -s
+pytest test_apb4_rtc.py -v -s
 
 # Run with waveforms
-WAVES=1 pytest test_apb_rtc.py -v -s
+WAVES=1 pytest test_apb4_rtc.py -v -s
 
 # Run specific test
-pytest test_apb_rtc.py::test_rtc_basic -v -s
+pytest test_apb4_rtc.py::test_rtc_basic -v -s
 ```
 
 ## Development Status

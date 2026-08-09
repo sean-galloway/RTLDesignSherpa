@@ -99,7 +99,7 @@ class CDC2PhaseHandshakeTB(TBBase):
         )
 
         # Define comprehensive field configuration for CDC handshake
-        self.field_config = self._create_apb_field_config()
+        self.field_config = self._create_apb4_field_config()
 
         # Create sophisticated randomizer configurations using FlexConfigGen
         self.randomizer_configs = self._create_cdc_randomizer_configs()
@@ -172,7 +172,7 @@ class CDC2PhaseHandshakeTB(TBBase):
         # Log comprehensive configuration
         self._log_configuration()
 
-    def _create_apb_field_config(self):
+    def _create_apb4_field_config(self):
         """Create comprehensive APB-like field configuration"""
         field_config = FieldConfig()
 

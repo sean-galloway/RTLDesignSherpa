@@ -32,7 +32,7 @@
 [treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[7].u_scheduler_group.
 [treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[0].
 [treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[0].u_channel_unit.
-[treeopen] stream_top_ch8.u_apbtodescr.
+[treeopen] stream_top_ch8.u_apb4todescr.
 [sst_width] 452
 [signals_width] 576
 [sst_expanded] 1
@@ -129,22 +129,22 @@ stream_top_ch8.u_cmdrsp_router.m0_rsp_prdata[31:0]
 @200
 -apb-to-descr
 @28
-stream_top_ch8.u_apbtodescr.apb_descriptor_kickoff_hit
+stream_top_ch8.u_apb4todescr.apb_descriptor_kickoff_hit
 @22
-stream_top_ch8.u_apbtodescr.desc_apb_valid[7:0]
-stream_top_ch8.u_apbtodescr.desc_apb_ready[7:0]
-stream_top_ch8.u_apbtodescr.desc_apb_addr[0][63:0]
-stream_top_ch8.u_apbtodescr.desc_apb_addr[1][63:0]
+stream_top_ch8.u_apb4todescr.desc_apb_valid[7:0]
+stream_top_ch8.u_apb4todescr.desc_apb_ready[7:0]
+stream_top_ch8.u_apb4todescr.desc_apb_addr[0][63:0]
+stream_top_ch8.u_apb4todescr.desc_apb_addr[1][63:0]
 @28
-stream_top_ch8.u_apbtodescr.apb_cmd_valid
-stream_top_ch8.u_apbtodescr.apb_cmd_ready
-stream_top_ch8.u_apbtodescr.addr_in_range
-stream_top_ch8.u_apbtodescr.apb_rsp_valid
-stream_top_ch8.u_apbtodescr.apb_rsp_ready
+stream_top_ch8.u_apb4todescr.apb_cmd_valid
+stream_top_ch8.u_apb4todescr.apb_cmd_ready
+stream_top_ch8.u_apb4todescr.addr_in_range
+stream_top_ch8.u_apb4todescr.apb_rsp_valid
+stream_top_ch8.u_apb4todescr.apb_rsp_ready
 @22
-stream_top_ch8.u_apbtodescr.apb_rsp_rdata[31:0]
+stream_top_ch8.u_apb4todescr.apb_rsp_rdata[31:0]
 @28
-stream_top_ch8.u_apbtodescr.apb_rsp_error
+stream_top_ch8.u_apb4todescr.apb_rsp_error
 @200
 -axi-rd-descriptor
 @28

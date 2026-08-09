@@ -44,82 +44,82 @@ This directory contains testplan YAML files for all 9 subsystems in the retro_le
 
 ## Testplan Files
 
-### 1. `apb_gpio_testplan.yaml`
+### 1. `apb4_gpio_testplan.yaml`
 - **Status:** Basic tests only (needs medium/full)
 - **Basic Tests:** 7/7 passing (100%)
 - **Coverage:** 64% overall (basic only)
-- **RTL:** `rtl/gpio/apb_gpio.sv` (5 modules)
-- **Test:** `dv/tests/test_apb_gpio.py`
+- **RTL:** `rtl/gpio/apb4_gpio.sv` (5 modules)
+- **Test:** `dv/tests/test_apb4_gpio.py`
 - **Missing:** Edge/level interrupts, mixed mode, CDC stress
 
-### 2. `apb_hpet_testplan.yaml` ✅ 100% COMPLETE
+### 2. `apb4_hpet_testplan.yaml` ✅ 100% COMPLETE
 - **Status:** ALL LEVELS IMPLEMENTED
 - **Basic Tests:** 7/7 passing (100%)
 - **Medium Tests:** 5/5 passing (100%)
 - **Full Tests:** 4/4 passing (100%)
 - **Coverage:** 100% overall
-- **RTL:** `rtl/hpet/apb_hpet.sv` (5 modules)
-- **Test:** `dv/tests/test_apb_hpet.py`
+- **RTL:** `rtl/hpet/apb4_hpet.sv` (5 modules)
+- **Test:** `dv/tests/test_apb4_hpet.py`
 - **Production Ready:** Reference implementation
 
-### 3. `apb_ioapic_testplan.yaml`
+### 3. `apb4_ioapic_testplan.yaml`
 - **Status:** Basic tests only (needs medium/full)
 - **Basic Tests:** 5/5 passing (100%)
 - **Coverage:** 45% overall (basic only)
-- **RTL:** `rtl/ioapic/apb_ioapic.sv` (5 modules)
-- **Test:** `dv/tests/test_apb_ioapic.py`
+- **RTL:** `rtl/ioapic/apb4_ioapic.sv` (5 modules)
+- **Test:** `dv/tests/test_apb4_ioapic.py`
 - **Missing:** Priority handling, edge/level, routing, stress
 
-### 4. `apb_pic_8259_testplan.yaml`
+### 4. `apb4_pic_8259_testplan.yaml`
 - **Status:** Basic tests only (needs medium/full)
 - **Basic Tests:** 5/5 passing (100%)
 - **Coverage:** 45% overall (basic only)
-- **RTL:** `rtl/pic_8259/apb_pic_8259.sv` (5 modules)
-- **Test:** `dv/tests/test_apb_pic_8259.py`
+- **RTL:** `rtl/pic_8259/apb4_pic_8259.sv` (5 modules)
+- **Test:** `dv/tests/test_apb4_pic_8259.py`
 - **Missing:** Multiple IRQs, specific EOI, edge/level, rotation, cascade
 
-### 5. `apb_pit_8254_testplan.yaml`
+### 5. `apb4_pit_8254_testplan.yaml`
 - **Status:** Basic tests only (needs medium/full)
 - **Basic Tests:** 5/5 passing (100%)
 - **Coverage:** 42% overall (basic only)
-- **RTL:** `rtl/pit_8254/apb_pit_8254.sv` (6 modules)
-- **Test:** `dv/tests/test_apb_pit_8254.py`
+- **RTL:** `rtl/pit_8254/apb4_pit_8254.sv` (6 modules)
+- **Test:** `dv/tests/test_apb4_pit_8254.py`
 - **Missing:** Modes 1/3/4/5, multiple counters, BCD counting
 
-### 6. `apb_pm_acpi_testplan.yaml` ✅ 100% COMPLETE
+### 6. `apb4_pm_acpi_testplan.yaml` ✅ 100% COMPLETE
 - **Status:** ALL LEVELS IMPLEMENTED
 - **Basic Tests:** 8/8 passing (100%)
 - **Medium Tests:** 5/5 passing (100%)
 - **Full Tests:** 3/3 passing (100%)
 - **Coverage:** 100% overall
-- **RTL:** `rtl/pm_acpi/apb_pm_acpi.sv` (5 modules)
-- **Test:** `dv/tests/test_apb_pm_acpi.py`
+- **RTL:** `rtl/pm_acpi/apb4_pm_acpi.sv` (5 modules)
+- **Test:** `dv/tests/test_apb4_pm_acpi.py`
 - **Production Ready:** Second block to achieve 100%
 
-### 7. `apb_rtc_testplan.yaml`
+### 7. `apb4_rtc_testplan.yaml`
 - **Status:** Basic tests only (needs medium/full)
 - **Basic Tests:** 5/5 passing (100%)
 - **Coverage:** 45% overall (basic only)
-- **RTL:** `rtl/rtc/apb_rtc.sv` (4 modules)
-- **Test:** `dv/tests/test_apb_rtc.py`
+- **RTL:** `rtl/rtc/apb4_rtc.sv` (4 modules)
+- **Test:** `dv/tests/test_apb4_rtc.py`
 - **Missing:** Alarm, date rollover, leap year, periodic interrupt, battery backup
 
-### 8. `apb_smbus_testplan.yaml`
+### 8. `apb4_smbus_testplan.yaml`
 - **Status:** Basic tests only (needs medium/full)
 - **Basic Tests:** 6/6 passing (100%)
 - **Coverage:** 40% overall (basic only)
-- **RTL:** `rtl/smbus/apb_smbus.sv` (7 modules)
-- **Test:** `dv/tests/test_apb_smbus.py`
+- **RTL:** `rtl/smbus/apb4_smbus.sv` (7 modules)
+- **Test:** `dv/tests/test_apb4_smbus.py`
 - **Missing:** Block transfers, PEC, FIFO, process call, multi-master
 
-### 9. `apb_uart_16550_testplan.yaml` ✅ 100% COMPLETE
+### 9. `apb4_uart_16550_testplan.yaml` ✅ 100% COMPLETE
 - **Status:** ALL LEVELS IMPLEMENTED
 - **Basic Tests:** 7/7 passing (100%)
 - **Medium Tests:** 7/7 passing (100%)
 - **Full Tests:** 5/5 passing (100%)
 - **Coverage:** 100% overall
-- **RTL:** `rtl/uart_16550/apb_uart_16550.sv` (5 modules)
-- **Test:** `dv/tests/test_apb_uart_16550.py`
+- **RTL:** `rtl/uart_16550/apb4_uart_16550.sv` (5 modules)
+- **Test:** `dv/tests/test_apb4_uart_16550.py`
 - **Production Ready:** Third block to achieve 100%
 
 ---

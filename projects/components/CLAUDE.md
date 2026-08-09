@@ -39,7 +39,7 @@
 - **STREAM** - Streaming datapath engine with AXI and SRAM control (`dmas/stream/`)
 - **RAPIDS** - Rapid AXI Programmable In-band Descriptor System (`dmas/rapids/`)
 - **Bridge** - Protocol bridges and converters
-- **Retro Legacy Blocks** - Legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...) in `retro_legacy_blocks/` (absorbed the old apb_hpet component)
+- **Retro Legacy Blocks** - Legacy PC peripherals (HPET, PIT 8254, PIC 8259, RTC, ...) in `retro_legacy_blocks/` (absorbed the old apb4_hpet component)
 
 **Complete Documentation:** See individual project CLAUDE.md and PRD.md files in each component directory
 

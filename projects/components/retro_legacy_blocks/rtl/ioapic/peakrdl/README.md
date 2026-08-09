@@ -129,7 +129,7 @@ The IOAPIC supports multiple delivery modes (bits [10:8] of REDIR_LO):
 
 The generated register files are used by:
 - `ioapic_config_regs.sv` - Maps hwif to ioapic_core interface with indirect access
-- `apb_ioapic.sv` - Top-level APB wrapper
+- `apb4_ioapic.sv` - Top-level APB wrapper
 
 See parent directory README.md for complete integration details.
 

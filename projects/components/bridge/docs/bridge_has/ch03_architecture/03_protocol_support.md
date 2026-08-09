@@ -83,7 +83,7 @@ The shim modules are located in `projects/components/converters/rtl/` and are in
 
 ### Figure 3.1: AXI4 to APB Conversion Sequence
 
-![AXI4 to APB Conversion](../assets/mermaid/axi4_to_apb_sequence.png)
+![AXI4 to APB Conversion](../assets/mermaid/axi4_to_apb4_sequence.png)
 
 ### Burst Handling
 

@@ -7,7 +7,7 @@ digraph pm_acpi_top {
     events_in [label="Event Inputs\n(PWRBTN, SLPBTN,\nRTC, GPE)", shape=ellipse, fillcolor=lightgreen];
 
     subgraph cluster_pm {
-        label="apb_pm_acpi";
+        label="apb4_pm_acpi";
         style=rounded;
 
         apb_if [label="APB\nInterface", fillcolor=lightyellow];

@@ -161,7 +161,7 @@ This pairing is essential when the upstream pipelines commands ahead of
 responses. Tapping `first`/`last` combinationally from the live `cmd_data` input
 instead -- as an earlier revision did -- pairs command N's response with command
 N+1's framing bits as soon as the internal command FIFO accepts N+1. In the
-AXI4-to-APB bridge that manifested as `axi4_to_apb_convert` never seeing
+AXI4-to-APB bridge that manifested as `axi4_to_apb4_convert` never seeing
 `first=1` again in `RSP_IDLE`, hanging the FSM and surfacing as a timeout on the
 master AXI4 R channel.
 

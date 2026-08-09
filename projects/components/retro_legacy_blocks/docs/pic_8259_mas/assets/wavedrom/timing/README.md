@@ -104,6 +104,6 @@ IRR/ISR/STATUS are dedicated read-only registers at 0x20/0x24/0x28.
 
 ## References
 
-- **PIC RTL:** `rtl/pic_8259/apb_pic_8259.sv`
+- **PIC RTL:** `rtl/pic_8259/apb4_pic_8259.sv`
 - **PIC Testbench:** `dv/tbclasses/pic_8259/pic_8259_tb.py`
 - **Constraint Class:** none yet for the PIC (see `bin/TBClasses/wavedrom_user/hpet.py` and `apb.py` for examples)

@@ -476,7 +476,7 @@ module mixed_amba_system (
     axi5_master_wr_mon u_cpu_wr_master (...);
 
     // Bridge to AMBA 4 subsystem
-    axi4_to_apb_convert u_bridge (
+    axi4_to_apb4_convert u_bridge (
         .s_axi  (cpu_axi),
         .m_apb  (periph_apb)
     );

@@ -10,7 +10,7 @@
 //   - Width adaptation
 //
 //   Slave Adapter contains:
-//   - Timing wrapper (axi4_master_wr/rd) or Protocol converter (axi4_to_apb/axil)
+//   - Timing wrapper (axi4_master_wr/rd) or Protocol converter (axi4_to_apb4/axil)
 
 `timescale 1ns / 1ps
 

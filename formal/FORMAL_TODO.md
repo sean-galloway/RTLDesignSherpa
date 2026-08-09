@@ -16,7 +16,7 @@
 | stream | 19 | 10 | 1 | 2 | 30 |
 | converters | 16 | 0 | 0 | 0 | 16 |
 | bridge | 1 | 0 | 0 | 0 | 1 |
-| apb_xbar | 5 | 0 | 0 | 0 | 5 |
+| apb4_xbar | 5 | 0 | 0 | 0 | 5 |
 | **Total** | **300** | **19** | **9** | **2** | **329** |
 
 **Notes:**
@@ -36,7 +36,7 @@
       does NOT have it — that unrecorded distinction is what mis-directed the
       2026-08-08 investigation. Verified present 2026-08-09.
 - [x] sv2v transpiler installed at /mnt/data/tools/sv2v (workstation, v0.0.13)
-- [x] Formal directory structure: formal/{common,amba,bridge,stream,converters,apb_xbar}/
+- [x] Formal directory structure: formal/{common,amba,bridge,stream,converters,apb4_xbar}/
 - [x] Per-module pattern: formal_*.sv (wrapper) + *.sby (config) + Makefile (for sv2v modules)
 - [x] Root Makefile targets: make formal, formal-common, formal-bridge, formal-quick
 - [x] .gitignore for sby output directories
@@ -161,7 +161,7 @@ proof run against those 36 files validated RTL that no longer exists.
   1-10 lines), 6 converters, 9 rapids (all the 1-line `fifo_control` depth
   drift), 11 stream (scheduler_group_array is 2353 insertions — heavily
   drifted).
-- **Regen FAILED (5):** `converters/axi4_to_apb_shim` (DEPS points at
+- **Regen FAILED (5):** `converters/axi4_to_apb4_shim` (DEPS points at
   `rtl/amba/cdc/cdc_2_phase_handshake.sv`, which moved — DEPS drift, fix with
   `tools/gen_formal_deps.py`), `stream/axi_read_engine`,
   `stream/axi_write_engine`, `stream/monbus_axil_group`, `stream/stream_core`
@@ -342,7 +342,7 @@ gaxi_skid_buffer_async_multi
 
 **FUB (11 PASS):** stream_alloc_ctrl, stream_drain_ctrl, stream_latency_bridge,
 axi_read_engine (prove), axi_write_engine (prove), descriptor_engine,
-scheduler (prove), sram_controller_unit, sram_controller, apbtodescr, perf_profiler
+scheduler (prove), sram_controller_unit, sram_controller, apb4todescr, perf_profiler
 
 **FUB_beats (7 PASS):** axi_read_engine_beats (prove), axi_write_engine_beats (prove),
 descriptor_engine_beats (prove), scheduler_beats (prove), alloc_ctrl_beats,
@@ -357,18 +357,18 @@ src_sram_controller_beats, src_sram_controller_unit_beats
 ### projects/components/converters/ -- 16 of 16 PASS
 
 axil4_to_axi4_rd, axil4_to_axi4_wr, axi4_to_axil4_rd, axi4_to_axil4_wr,
-axi4_dwidth_converter_rd, axi4_dwidth_converter_wr, axi4_to_apb_shim,
-axi4_to_apb_convert, axi_data_upsize, axi_data_dnsize, peakrdl_to_cmdrsp,
+axi4_dwidth_converter_rd, axi4_dwidth_converter_wr, axi4_to_apb4_shim,
+axi4_to_apb4_convert, axi_data_upsize, axi_data_dnsize, peakrdl_to_cmdrsp,
 uart_axil_bridge, uart_rx, uart_tx, axi4_to_axil4, axil4_to_axi4
 
 ### projects/components/bridge/ -- 1 of 1 PASS
 
 bridge_1x2_rd (address decode mutex, DDR/SRAM range, AXI handshake model)
 
-### projects/components/apb_xbar/ -- 5 of 5 PASS
+### projects/components/apb4_xbar/ -- 5 of 5 PASS
 
-apb_xbar_wrap_1x2, apb_xbar_wrap_1x3, apb_xbar_wrap_2x3,
-apb_xbar_wrap_3x3, apb_xbar_wrap_4x4
+apb4_xbar_wrap_1x2, apb4_xbar_wrap_1x3, apb4_xbar_wrap_2x3,
+apb4_xbar_wrap_3x3, apb4_xbar_wrap_4x4
 
 ---
 

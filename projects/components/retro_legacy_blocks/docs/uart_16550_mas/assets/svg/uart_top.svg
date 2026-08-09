@@ -12,7 +12,7 @@
 <g id="clust1" class="cluster">
 <title>cluster_uart</title>
 <path fill="none" stroke="black" d="M264.45,-104.08C264.45,-104.08 1077.82,-104.08 1077.82,-104.08 1083.82,-104.08 1089.82,-110.08 1089.82,-116.08 1089.82,-116.08 1089.82,-406.08 1089.82,-406.08 1089.82,-412.08 1083.82,-418.08 1077.82,-418.08 1077.82,-418.08 264.45,-418.08 264.45,-418.08 258.45,-418.08 252.45,-412.08 252.45,-406.08 252.45,-406.08 252.45,-116.08 252.45,-116.08 252.45,-110.08 258.45,-104.08 264.45,-104.08"/>
-<text text-anchor="middle" x="671.13" y="-402.88" font-family="Times,serif" font-size="14.00">apb_uart_16550</text>
+<text text-anchor="middle" x="671.13" y="-402.88" font-family="Times,serif" font-size="14.00">apb4_uart_16550</text>
 </g>
 <g id="clust2" class="cluster">
 <title>cluster_legend</title>

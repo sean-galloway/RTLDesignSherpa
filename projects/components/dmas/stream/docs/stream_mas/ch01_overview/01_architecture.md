@@ -283,7 +283,7 @@ stream_top_ch8 (Top-Level Wrapper)
 ├── APB Interface Path
 │   ├── apb4_slave_cdc        (CDC_ENABLE=1: APB clock domain crossing)
 │   └── cmdrsp_router        (Address-based routing)
-│       ├── apbtodescr       (0x000-0x03F: Channel kick-off routing)
+│       ├── apb4todescr       (0x000-0x03F: Channel kick-off routing)
 │       ├── perf_profiler    (0x040-0x0FF: Performance profiling)
 │       └── peakrdl_to_cmdrsp (0x100-0x3FF: APB → CMD/RSP conversion)
 │           └── stream_regs  (PeakRDL-generated register file)
@@ -368,7 +368,7 @@ graph TB
 
 **APB Address Map:**
 ```
-0x000-0x03F: Channel kick-off registers (apbtodescr routing)
+0x000-0x03F: Channel kick-off registers (apb4todescr routing)
 0x040-0x0FF: Performance profiler interface
 0x100-0x3FF: PeakRDL configuration registers
 ```

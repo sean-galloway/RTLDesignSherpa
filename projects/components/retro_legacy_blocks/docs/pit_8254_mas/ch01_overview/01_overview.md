@@ -29,7 +29,7 @@ The APB Programmable Interval Timer (PIT 8254) is an Intel 8254-compatible timer
 
 ### Figure 1.1: APB PIT 8254 Block Diagram
 
-![APB PIT 8254 Block Diagram](../assets/diagrams/apb_pit_8254_blocks.png)
+![APB PIT 8254 Block Diagram](../assets/diagrams/apb4_pit_8254_blocks.png)
 
 #### Timing Diagrams
 

@@ -36,7 +36,7 @@ from TBClasses.misc.monbus_components import (
     MonbusPktType, APBTimeoutCode
 )
 from .apb4_monitor_packets import (
-    APBMonitorEvent, create_apb_write_cmd, create_apb_ok_rsp
+    APBMonitorEvent, create_apb4_write_cmd, create_apb4_ok_rsp
 )
 
 
@@ -103,7 +103,7 @@ class APBTimeoutTest(APBMonitorCoreTB):
         self.log.info(f"Sending transaction with delayed ready to trigger timeout: addr=0x{addr:08X}")
 
         # Send command manually to control timing better
-        cmd = create_apb_write_cmd(addr, data, None, 0, self.AW, self.DW)
+        cmd = create_apb4_write_cmd(addr, data, None, 0, self.AW, self.DW)
 
         # This should trigger a timeout due to ready signal delays
         try:
@@ -113,7 +113,7 @@ class APBTimeoutTest(APBMonitorCoreTB):
             await Timer(500, units='ns')  # Wait for timeout
 
             # Now send response (might be too late)
-            rsp = create_apb_ok_rsp(0, self.DW)
+            rsp = create_apb4_ok_rsp(0, self.DW)
             await self.send_apb_response(rsp, txn_id)
 
         except Exception as e:

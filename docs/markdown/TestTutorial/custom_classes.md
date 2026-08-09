@@ -1248,7 +1248,7 @@ class ComponentFactory:
         )
 
     @staticmethod
-    def create_apb_master(dut, clock, prefix, config=None):
+    def create_apb4_master(dut, clock, prefix, config=None):
         """Create APB master."""
         from CocoTBFramework.components.apb.apb_components import APBMaster
 
@@ -1305,7 +1305,7 @@ class ComponentFactory:
             if ifc_type == 'axi_master':
                 component = cls.create_axi_master(dut, clock, prefix, config)
             elif ifc_type == 'apb4_master':
-                component = cls.create_apb_master(dut, clock, prefix, config)
+                component = cls.create_apb4_master(dut, clock, prefix, config)
             elif ifc_type == 'axis_master':
                 component = cls.create_axis_master(dut, clock, prefix, config)
             else:

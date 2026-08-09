@@ -79,7 +79,7 @@ host actually pokes during a characterization run.
 
 | Offset | Name                  | RW | Notes                                                              |
 | ------ | --------------------- | -- | ------------------------------------------------------------------ |
-| `0x000..0x03F` | per-ch kick (apbtodescr) | W  | 8-byte stride per channel (LOW@+0, HIGH@+4)                |
+| `0x000..0x03F` | per-ch kick (apb4todescr) | W  | 8-byte stride per channel (LOW@+0, HIGH@+4)                |
 | `0x100` | `GLOBAL_CTRL`         | RW | `[0]` GLOBAL_EN                                                    |
 | `0x104` | `GLOBAL_STATUS`       | R  | `[0]` GLOBAL_BUSY                                                  |
 | `0x120` | `CHANNEL_ENABLE`      | RW | per-channel enable bitmask                                         |

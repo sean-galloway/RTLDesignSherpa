@@ -26,7 +26,7 @@
 #### High-Level Block Diagram
 
 ```
-                                  apb_pit_8254 (Top Level)
+                                  apb4_pit_8254 (Top Level)
 ┌────────────────────────────────────────────────────────────────────────┐
 │                                                                        │
 │  ┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐  │
@@ -48,7 +48,7 @@
 #### Module Hierarchy
 
 ```
-apb_pit_8254
+apb4_pit_8254
 ├── apb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1)
 │   └── Converts APB protocol to cmd/rsp interface
 ├── pit_config_regs
@@ -65,7 +65,7 @@ apb_pit_8254
 
 Following the HPET design pattern, the PIT uses a clean three-layer architecture:
 
-**Layer 1: APB Interface (apb_pit_8254)**
+**Layer 1: APB Interface (apb4_pit_8254)**
 - Protocol conversion (APB → cmd/rsp)
 - Optional clock domain crossing
 - Top-level integration

@@ -450,7 +450,7 @@ Fix three critical bugs introduced by earlier optimizations that caused transact
 Implement AXI4-to-APB converter module to complete Phase 3 of CSV bridge generator.
 
 **Acceptance Criteria:**
-- [ ] Create axi4_to_apb_converter.sv module
+- [ ] Create axi4_to_apb4_converter.sv module
 - [ ] Implement AXI4 burst → APB sequential transaction splitting
 - [ ] Handle backpressure propagation (APB → AXI4 ARREADY/AWREADY)
 - [ ] Implement error mapping (PSLVERR → RRESP/BRESP)
@@ -464,7 +464,7 @@ Implement AXI4-to-APB converter module to complete Phase 3 of CSV bridge generat
 - APB BFM available in CocoTBFramework (✅)
 
 **Related Files:**
-- `rtl/converters/axi4_to_apb_converter.sv` (to be created)
+- `rtl/converters/axi4_to_apb4_converter.sv` (to be created)
 - `bin/bridge_csv_generator.py` (update converter instantiation)
 - `dv/tbclasses/apb_converter_tb.py` (to be created)
 
@@ -1383,7 +1383,7 @@ python3 bridge_generator.py --masters 4 --slaves 3 --output ../rtl/
 **Scenario:** AXI4 masters accessing legacy APB peripherals (UART, SPI, GPIO).
 **Solution:** Use **CSV bridge generator** with APB slaves (requires Phase 3):
 - Generator identifies protocol mismatch
-- Instantiates axi4_to_apb_converter automatically
+- Instantiates axi4_to_apb4_converter automatically
 - Maps AXI4 bursts to sequential APB transactions
 **Status:** Phase 3 pending (placeholders in place)
 

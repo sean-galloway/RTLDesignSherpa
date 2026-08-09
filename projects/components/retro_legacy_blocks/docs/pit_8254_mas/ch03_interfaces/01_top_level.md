@@ -26,7 +26,7 @@
 #### Module Declaration
 
 ```systemverilog
-module apb_pit_8254 #(
+module apb4_pit_8254 #(
     parameter int NUM_COUNTERS = 3,      // Number of counters (fixed at 3)
     parameter int CDC_ENABLE   = 0       // 0=single clock, 1=dual clock with CDC
 ) (
@@ -269,7 +269,7 @@ pslverr ───────────────┐   ┌──────
 **Single Clock Integration:**
 
 ```systemverilog
-apb_pit_8254 #(
+apb4_pit_8254 #(
     .NUM_COUNTERS(3),
     .CDC_ENABLE(0)
 ) u_pit (
@@ -299,7 +299,7 @@ apb_pit_8254 #(
 **Dual Clock Integration:**
 
 ```systemverilog
-apb_pit_8254 #(
+apb4_pit_8254 #(
     .NUM_COUNTERS(3),
     .CDC_ENABLE(1)
 ) u_pit (

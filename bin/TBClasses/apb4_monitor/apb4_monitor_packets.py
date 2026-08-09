@@ -39,9 +39,9 @@ from TBClasses.misc.monbus_components import (
     MonbusPacket, MonbusProtocol, MonbusPktType,
     APBErrorCode, APBTimeoutCode, APBCompletionCode,
     APBPerformanceCode, APBThresholdCode, APBDebugCode,
-    create_apb_error_event, create_apb_completion_event, 
-    create_apb_timeout_event, create_apb_performance_event,
-    create_apb_debug_event
+    create_apb4_error_event, create_apb4_completion_event, 
+    create_apb4_timeout_event, create_apb4_performance_event,
+    create_apb4_debug_event
 )
 
 # Import the APB-GAXI field configurations
@@ -492,7 +492,7 @@ class APBMonitorEvent:
 
 
 # Utility functions leveraging APBGAXIConfig
-def create_apb_write_cmd(addr: int, data: int, strb: int = None, prot: int = 0,
+def create_apb4_write_cmd(addr: int, data: int, strb: int = None, prot: int = 0,
                         addr_width: int = 32, data_width: int = 32) -> APBCommandPacket:
     """Create an APB write command packet using APBGAXIConfig"""
     if strb is None:
@@ -509,7 +509,7 @@ def create_apb_write_cmd(addr: int, data: int, strb: int = None, prot: int = 0,
     )
 
 
-def create_apb_read_cmd(addr: int, prot: int = 0,
+def create_apb4_read_cmd(addr: int, prot: int = 0,
                        addr_width: int = 32, data_width: int = 32) -> APBCommandPacket:
     """Create an APB read command packet using APBGAXIConfig"""
     return APBCommandPacket.create_with_config(
@@ -523,7 +523,7 @@ def create_apb_read_cmd(addr: int, prot: int = 0,
     )
 
 
-def create_apb_ok_rsp(data: int = 0, data_width: int = 32) -> APBResponsePacket:
+def create_apb4_ok_rsp(data: int = 0, data_width: int = 32) -> APBResponsePacket:
     """Create an APB OK response packet using APBGAXIConfig"""
     return APBResponsePacket.create_with_config(
         data_width=data_width,
@@ -532,7 +532,7 @@ def create_apb_ok_rsp(data: int = 0, data_width: int = 32) -> APBResponsePacket:
     )
 
 
-def create_apb_error_rsp(data: int = 0, data_width: int = 32) -> APBResponsePacket:
+def create_apb4_error_rsp(data: int = 0, data_width: int = 32) -> APBResponsePacket:
     """Create an APB error response packet using APBGAXIConfig"""
     return APBResponsePacket.create_with_config(
         data_width=data_width,
@@ -591,7 +591,7 @@ def format_packet_summary(packet) -> str:
         return f"UNKNOWN({type(packet).__name__})"
 
 
-def create_apb_transaction_from_packets(cmd: APBCommandPacket, rsp: APBResponsePacket = None,
+def create_apb4_transaction_from_packets(cmd: APBCommandPacket, rsp: APBResponsePacket = None,
                                        transaction_id: int = 0) -> APBTransaction:
     """Create an APB transaction from command and optional response packets"""
     txn = APBTransaction(

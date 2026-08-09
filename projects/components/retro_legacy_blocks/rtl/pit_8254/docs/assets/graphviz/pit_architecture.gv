@@ -20,9 +20,9 @@ digraph pit_architecture {
         apb_in [label="APB\nMaster\n\nPSEL\nPENABLE\nPADDR\nPWDATA", fillcolor=palegreen];
     }
 
-    // apb_pit_8254 Top Level
+    // apb4_pit_8254 Top Level
     subgraph cluster_top {
-        label="apb_pit_8254 (Top Level)";
+        label="apb4_pit_8254 (Top Level)";
         style=filled;
         fillcolor=lightyellow;
 

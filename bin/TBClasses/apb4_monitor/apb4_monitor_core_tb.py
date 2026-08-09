@@ -37,8 +37,8 @@ from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
 
 from TBClasses.monbus.monbus_slave import MonbusSlave
 from .apb4_monitor_packets import (
-    APBCommandPacket, APBResponsePacket, create_apb_write_cmd, create_apb_read_cmd,
-    create_apb_ok_rsp, create_apb_error_rsp, format_packet_summary
+    APBCommandPacket, APBResponsePacket, create_apb4_write_cmd, create_apb4_read_cmd,
+    create_apb4_ok_rsp, create_apb4_error_rsp, format_packet_summary
 )
 from .apb4_monitor_scoreboard import APBMonitorScoreboard, APBScoreboardConfig
 from TBClasses.apb.apbgaxiconfig import APBGAXIConfig
@@ -404,7 +404,7 @@ class APBMonitorCoreTB(TBBase):
             strb = (1 << self.SW) - 1
 
         # Send command
-        cmd = create_apb_write_cmd(addr, data, strb, 0, self.AW, self.DW)
+        cmd = create_apb4_write_cmd(addr, data, strb, 0, self.AW, self.DW)
         txn_id = await self.send_apb_command(cmd)
 
         # Wait before sending response
@@ -412,9 +412,9 @@ class APBMonitorCoreTB(TBBase):
 
         # Send response
         if expect_error:
-            rsp = create_apb_error_rsp(0, self.DW)
+            rsp = create_apb4_error_rsp(0, self.DW)
         else:
-            rsp = create_apb_ok_rsp(0, self.DW)
+            rsp = create_apb4_ok_rsp(0, self.DW)
 
         await self.send_apb_response(rsp, txn_id)
 
@@ -427,7 +427,7 @@ class APBMonitorCoreTB(TBBase):
             read_data = random.randint(0, (1 << self.DW) - 1)
 
         # Send command
-        cmd = create_apb_read_cmd(addr, 0, self.AW, self.DW)
+        cmd = create_apb4_read_cmd(addr, 0, self.AW, self.DW)
         txn_id = await self.send_apb_command(cmd)
 
         # Wait before sending response
@@ -435,9 +435,9 @@ class APBMonitorCoreTB(TBBase):
 
         # Send response
         if expect_error:
-            rsp = create_apb_error_rsp(read_data, self.DW)
+            rsp = create_apb4_error_rsp(read_data, self.DW)
         else:
-            rsp = create_apb_ok_rsp(read_data, self.DW)
+            rsp = create_apb4_ok_rsp(read_data, self.DW)
 
         await self.send_apb_response(rsp, txn_id)
 

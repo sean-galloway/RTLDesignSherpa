@@ -27,7 +27,7 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_packet import APBTransaction, APBPacket
 from CocoTBFramework.components.apb.apb_sequence import APBSequence
-from CocoTBFramework.components.apb.apb_factories import create_apb_master, create_apb_monitor
+from CocoTBFramework.components.apb.apb_factories import create_apb4_master, create_apb4_monitor
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
 from CocoTBFramework.components.gaxi.gaxi_command_handler import GAXICommandHandler
 from TBClasses.apb.apbgaxiconfig import APBGAXIConfig

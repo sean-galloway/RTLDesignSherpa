@@ -37,6 +37,6 @@
 - [SDPRAM Slave — AXIL Write / AXI4 Read](shared/sdpram_slave_axil_axi4.md)
 - [SDPRAM Slave — AXIL Write / AXIL Read](shared/sdpram_slave_axil_axil.md)
 - [AMBA Protocol Shims](shims/README.md)
-- [axi4_to_apb_convert](shims/axi4_to_apb_convert.md)
-- [axi4_to_apb_shim](shims/axi4_to_apb_shim.md)
+- [axi4_to_apb4_convert](shims/axi4_to_apb4_convert.md)
+- [axi4_to_apb4_shim](shims/axi4_to_apb4_shim.md)
 - [peakrdl_to_cmdrsp](shims/peakrdl_to_cmdrsp.md)

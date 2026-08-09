@@ -5,14 +5,14 @@
 // Enhanced with full monitor configuration fields
 //
 // Address Space Layout:
-//   0x000 - 0x03F: Channel kick-off registers (handled by apbtodescr.sv)
+//   0x000 - 0x03F: Channel kick-off registers (handled by apb4todescr.sv)
 //                  - 16 registers: CHx_CTRL_LOW + CHx_CTRL_HIGH for 8 channels
 //                  - 64-bit descriptor addresses split across LOW/HIGH pairs
 //   0x100 - 0x3FF: Control and status registers (this file)
 //
 // Notes:
 //   - Channel kick-off registers (CHx_CTRL) are NOT defined here
-//   - Those are routed directly to descriptor engines via apbtodescr.sv
+//   - Those are routed directly to descriptor engines via apb4todescr.sv
 //   - This file defines all other configuration and status registers
 //   - Includes full monitor mask and threshold registers
 //
@@ -35,7 +35,7 @@ addrmap stream_regs {
     // Writing the 64-bit descriptor address (LOW then HIGH) kicks the channel.
     // These are DEFINED HERE (not hand-stuffed into the regmap) so DV/host
     // resolve them by name and a regmap regen can never drop them. The actual
-    // write is decoded by cmdrsp_router (0x000-0x03F -> apbtodescr), so there is
+    // write is decoded by cmdrsp_router (0x000-0x03F -> apb4todescr), so there is
     // no PeakRDL storage/hwif effect (hw=na); they occupy the address map only.
     //=========================================================================
     reg { name="Ch0 kick LOW";  desc="Ch0 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH0_CTRL_LOW  @ 0x000;

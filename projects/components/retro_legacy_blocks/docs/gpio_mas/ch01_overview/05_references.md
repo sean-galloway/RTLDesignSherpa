@@ -26,7 +26,7 @@
 ## Internal Documentation
 
 ### RTL Source Files
-- `rtl/gpio/apb_gpio.sv` - Main GPIO module
+- `rtl/gpio/apb4_gpio.sv` - Main GPIO module
 - `rtl/gpio/gpio_regs.sv` - PeakRDL-generated register file
 - `rtl/gpio/peakrdl/gpio_regs.rdl` - Register description source
 

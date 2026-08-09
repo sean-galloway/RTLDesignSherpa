@@ -28,10 +28,10 @@
 **Status:** Production Ready (5/6 configurations at 100%)
 **Owner:** RTL Design Sherpa Project
 
-> Status (2026-07-22): The standalone `projects/components/apb_hpet/` component was absorbed
+> Status (2026-07-22): The standalone `projects/components/apb4_hpet/` component was absorbed
 > into `projects/components/retro_legacy_blocks/`. RTL now lives in `rtl/hpet/`, tests in
-> `dv/tests/test_apb_hpet.py`, and TB classes in `dv/tbclasses/hpet/` (the old
-> `bin/TBClasses/amba/apb_hpet/` framework location is gone). Paths below have been updated
+> `dv/tests/test_apb4_hpet.py`, and TB classes in `dv/tbclasses/hpet/` (the old
+> `bin/TBClasses/amba/apb4_hpet/` framework location is gone). Paths below have been updated
 > to the new locations; task history is otherwise preserved as written.
 
 ---
@@ -148,7 +148,7 @@ timeout = 100000  # 100us timeout - allow time for all 8 timers
 
 **Verification Steps:**
 1. Increase timeout in hpet_tests_full.py
-2. Run: `pytest "projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py::test_hpet[8-43981-16-0-full-8-timer custom]" -v`
+2. Run: `pytest "projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py::test_hpet[8-43981-16-0-full-8-timer custom]" -v`
 3. Verify: 12/12 tests pass (100%)
 4. Update: IMPLEMENTATION_STATUS.md with new results
 
@@ -534,13 +534,13 @@ TASK-001 (Fix Timer 2+ Firing) ────────────┐
 pytest projects/components/retro_legacy_blocks/dv/tests/ -v
 
 # Run specific configuration
-pytest "projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py::test_hpet[3-4130-2-0-full-3-timer AMD-like]" -v
+pytest "projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py::test_hpet[3-4130-2-0-full-3-timer AMD-like]" -v
 
 # Run 8-timer stress test (TASK-002)
-pytest "projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py::test_hpet[8-43981-16-0-full-8-timer custom]" -v
+pytest "projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py::test_hpet[8-43981-16-0-full-8-timer custom]" -v
 
 # Lint RTL
-verilator --lint-only projects/components/retro_legacy_blocks/rtl/hpet/apb_hpet.sv
+verilator --lint-only projects/components/retro_legacy_blocks/rtl/hpet/apb4_hpet.sv
 
 # View documentation
 cat projects/components/retro_legacy_blocks/PRD.md

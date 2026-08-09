@@ -4,7 +4,7 @@
 // Description: Routes CMD/RSP transactions based on address
 //
 // Routing Architecture:
-//   - Explicit decode: 0x000-0x03F → Descriptor kick-off (apbtodescr)
+//   - Explicit decode: 0x000-0x03F → Descriptor kick-off (apb4todescr)
 //   - Explicit decode: 0x040-0x0FF → Performance profiler (integrated)
 //   - Default route:   Everything else → Configuration registers (peakrdl_to_cmdrsp)
 //

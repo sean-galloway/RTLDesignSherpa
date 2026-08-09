@@ -27,7 +27,7 @@ Multi-channel self-check tests for rapids_char_harness.
 Config is programmed BY NAME over the 13-bit APB register chain (two RegisterMap
 instances, SRC @ 0x0000 / SNK @ 0x1000); descriptors are loaded into the on-chip
 descriptor RAM through its exposed host write port (256-bit AXI4 write master) and
-kicked off through the per-half apbtodescr kick windows.
+kicked off through the per-half apb4todescr kick windows.
 """
 
 import os

@@ -165,7 +165,7 @@ This specification is organized into five chapters covering all aspects of the A
 
 - **RTL Implementation:** `../../rtl/pit_8254/`
 - **Implementation Summary:** `../../rtl/pit_8254/IMPLEMENTATION_SUMMARY.md`
-- **Test Suite:** `../../dv/tests/test_apb_pit_8254.py`
+- **Test Suite:** `../../dv/tests/test_apb4_pit_8254.py`
 - **Testbench Classes:** `../../dv/tbclasses/pit_8254/`
 
 ---

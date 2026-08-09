@@ -8,7 +8,7 @@ stream_top_ch8 is the top-level STREAM wrapper (1648 lines) that integrates:
 
 1. **APB interface** -- apb4_slave_cdc or apb4_slave (conditional on CDC_ENABLE)
 2. **Command/Response routing** -- cmdrsp_router (address-based routing)
-3. **Descriptor kick-off** -- apbtodescr (channel kick-off, 0x000-0x03F)
+3. **Descriptor kick-off** -- apb4todescr (channel kick-off, 0x000-0x03F)
 4. **PeakRDL registers** -- peakrdl_to_cmdrsp + stream_regs (PeakRDL-generated, 0x100-0x3FF)
 5. **Register mapping** -- stream_config_block
 6. **DMA core** -- stream_core (conditionally monitors enabled/disabled)
@@ -54,7 +54,7 @@ verified (or have proofs in progress):
 
 - stream_core: formal/stream/stream_core/ (PROVED)
 - monbus_axil_group: formal/stream/monbus_axil_group/ (PROVED)
-- apbtodescr: formal/stream/apbtodescr/ (PROVED)
+- apb4todescr: formal/stream/apb4todescr/ (PROVED)
 - scheduler, descriptor_engine, etc.: All individually proved
 
 The top-level integration is best verified through simulation-based testing

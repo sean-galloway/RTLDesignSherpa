@@ -115,12 +115,12 @@ uart_16550/
 |-- peakrdl/
 |   `-- uart_16550_regs.rdl     # PeakRDL register definitions
 |-- filelists/
-|   `-- apb_uart_16550.f        # Simulation/synthesis filelist
+|   `-- apb4_uart_16550.f        # Simulation/synthesis filelist
 |-- uart_16550_regs_pkg.sv      # PeakRDL generated package
 |-- uart_16550_regs.sv          # PeakRDL generated registers
 |-- uart_16550_core.sv          # UART core (TX/RX/FIFOs)
 |-- uart_16550_config_regs.sv   # Register-to-core adapter
-|-- apb_uart_16550.sv           # APB wrapper (top level)
+|-- apb4_uart_16550.sv           # APB wrapper (top level)
 `-- README.md                   # This file
 ```
 
@@ -133,7 +133,7 @@ uart_16550/
 
 ## Test Plan
 
-Tests located in: `projects/components/retro_legacy_blocks/dv/tests/test_apb_uart_16550.py`
+Tests located in: `projects/components/retro_legacy_blocks/dv/tests/test_apb4_uart_16550.py`
 
 | Test Level | Description |
 |------------|-------------|

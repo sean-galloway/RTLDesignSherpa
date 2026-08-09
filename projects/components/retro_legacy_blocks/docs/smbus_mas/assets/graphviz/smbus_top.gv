@@ -7,7 +7,7 @@ digraph smbus_top {
     scl_sda [label="SCL/SDA\n(open-drain)", shape=ellipse, fillcolor=lightgreen];
 
     subgraph cluster_smbus {
-        label="apb_smbus";
+        label="apb4_smbus";
         style=rounded;
 
         apb_if [label="APB\nInterface", fillcolor=lightyellow];

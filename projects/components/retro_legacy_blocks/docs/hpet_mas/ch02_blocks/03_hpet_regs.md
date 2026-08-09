@@ -548,11 +548,11 @@ ls -l ../hpet_regs.sv ../hpet_regs_pkg.sv
 git diff ../hpet_regs.sv ../hpet_regs_pkg.sv
 
 # 5. Run tests to verify
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 **⚠️ Important:** Do not manually edit generated files! All changes must be made in `hpet_regs.rdl` and regenerated.
 
 ---
 
-**Next:** [Chapter 2.4 - apb_hpet (Top Level)](04_apb_hpet_top.md)
+**Next:** [Chapter 2.4 - apb4_hpet (Top Level)](04_apb4_hpet_top.md)

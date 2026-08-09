@@ -55,7 +55,7 @@ I/O APIC CSR model (register-based interface) for advanced interrupt routing.
 
 ## Files (To Be Created)
 
-- `apb_ioapic.sv` - Top-level wrapper with APB interface
+- `apb4_ioapic.sv` - Top-level wrapper with APB interface
 - `ioapic_core.sv` - Core IOAPIC logic
 - `ioapic_routing.sv` - Interrupt routing logic
 - `ioapic_arbiter.sv` - Priority arbitration logic

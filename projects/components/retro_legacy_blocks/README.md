@@ -66,7 +66,7 @@ This component contains production-quality implementations of legacy peripheral 
 retro_legacy_blocks/
 ├── rtl/                      # RTL organized by block
 │   └── hpet/                # HPET RTL files
-│       ├── apb_hpet.sv      # Top-level module
+│       ├── apb4_hpet.sv      # Top-level module
 │       ├── hpet_core.sv     # Timer core logic
 │       ├── hpet_config_regs.sv  # Register wrapper
 │       ├── hpet_regs*.sv    # PeakRDL generated registers
@@ -83,7 +83,7 @@ retro_legacy_blocks/
 │   │       └── hpet_tests_full.py
 │   ├── tests/              # Test runners (organized by block)
 │   │   └── hpet/           # HPET tests
-│   │       ├── test_apb_hpet.py
+│   │       ├── test_apb4_hpet.py
 │   │       └── conftest.py
 │   ├── components/         # Shared test components (if needed)
 │   └── scoreboards/        # Shared scoreboards (if needed)
@@ -162,7 +162,7 @@ When adding a new legacy block (e.g., GPIO):
    ```bash
    mkdir -p rtl/gpio
    cd rtl/gpio
-   # Add RTL files: apb_gpio.sv, gpio_core.sv, etc.
+   # Add RTL files: apb4_gpio.sv, gpio_core.sv, etc.
    ```
 
 2. **Create testbench classes:**
@@ -176,7 +176,7 @@ When adding a new legacy block (e.g., GPIO):
    ```bash
    # Test runners live flat in dv/tests/ (shared conftest.py)
    cd dv/tests
-   # Add: test_apb_gpio.py
+   # Add: test_apb4_gpio.py
    ```
 
 4. **Update documentation:**
@@ -211,7 +211,7 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tb imp
 **Example - HPET Integration:**
 
 ```systemverilog
-apb_hpet #(
+apb4_hpet #(
     .NUM_TIMERS(3),
     .VENDOR_ID(16'h8086),
     .REVISION_ID(16'h0001),
@@ -242,13 +242,13 @@ apb_hpet #(
 
 ```bash
 # Run all tests for a block (test runners are flat under dv/tests/)
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 # Run specific test level
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v -k "basic"
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v -k "basic"
 
 # With waveforms
-WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ---
@@ -278,10 +278,10 @@ WAVES=1 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py
 
 ```bash
 # Run all HPET tests
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 # Lint HPET RTL
-verilator --lint-only projects/components/retro_legacy_blocks/rtl/hpet/apb_hpet.sv
+verilator --lint-only projects/components/retro_legacy_blocks/rtl/hpet/apb4_hpet.sv
 
 # Generate HPET specification PDF
 cd projects/components/retro_legacy_blocks/docs

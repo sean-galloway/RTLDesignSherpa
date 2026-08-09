@@ -28,7 +28,7 @@ endif
 # Paths are relative to projects/components/ (some components live under a subdir,
 # e.g. dmas/ and memory-controllers/).  To add a component: 1) ensure its
 # dv/tests/Makefile exposes run-all-<gate|func|full>[-parallel], 2) add it here.
-COMPONENTS = apb_xbar \
+COMPONENTS = apb4_xbar \
              bridge \
              converters \
              dmas/rapids \
@@ -109,7 +109,7 @@ help:
 	@echo "  make lint-stream          Lint STREAM RTL"
 	@echo "  make lint-rapids          Lint RAPIDS RTL"
 	@echo "  make lint-bridge          Lint Bridge RTL"
-	@echo "  make lint-apb_xbar        Lint APB Crossbar RTL"
+	@echo "  make lint-apb4_xbar        Lint APB Crossbar RTL"
 	@echo "  make lint-converters      Lint Converters RTL"
 	@echo "  make lint-retro_legacy_blocks  Lint Retro Legacy Blocks RTL"
 	@echo ""

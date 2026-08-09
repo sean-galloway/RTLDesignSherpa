@@ -172,7 +172,7 @@ class StreamCoverageConfig(CoverageConfigBase):
         'sram_controller',
         'stream_latency_bridge',
         'perf_profiler',
-        'apbtodescr',
+        'apb4todescr',
         'stream_core',
         'datapath_rd_test',
         'datapath_wr_test',

@@ -37,7 +37,7 @@ from CocoTBFramework.components.wavedrom.utility import (
 # Required imports - no conditionals
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.wavedrom.wavejson_gen import (
-    WaveJSONGenerator, create_apb_wavejson_generator
+    WaveJSONGenerator, create_apb4_wavejson_generator
 )
 
 # Import APB packet for integration
@@ -80,7 +80,7 @@ def setup_apb_boundaries(wave_solver: TemporalConstraintSolver,
         if field_config and hasattr(wave_solver, 'configure_protocol_field_config'):
             wave_solver.configure_protocol_field_config("apb", field_config)
 
-def create_apb_signals_list() -> List[str]:
+def create_apb4_signals_list() -> List[str]:
     """
     Get APB signals for waveform display with clock, reset, and grouping.
 
@@ -96,7 +96,7 @@ def create_apb_signals_list() -> List[str]:
 
 # APB-specific constraint builder functions with improved sequences
 
-def create_apb_write_sequence_constraint(max_window: int = 25,  # Increased for completion
+def create_apb4_write_sequence_constraint(max_window: int = 25,  # Increased for completion
                                                  required: bool = True,
                                                  clock_group: str = "default",
                                                  field_config: Optional['FieldConfig'] = None,
@@ -122,7 +122,7 @@ def create_apb_write_sequence_constraint(max_window: int = 25,  # Increased for 
         max_window_size=max_window,
         required=required,
         clock_group=clock_group,
-        signals_to_show=create_apb_signals_list(),
+        signals_to_show=create_apb4_signals_list(),
         min_sequence_duration=3,  # Core APB sequence
         max_sequence_duration=15,  # Reduced from 20
         field_config=field_config,
@@ -135,7 +135,7 @@ def create_apb_write_sequence_constraint(max_window: int = 25,  # Increased for 
     return constraint
 
 
-def create_apb_read_sequence_constraint(max_window: int = 25,  # Increased for completion
+def create_apb4_read_sequence_constraint(max_window: int = 25,  # Increased for completion
                                                required: bool = True,
                                                clock_group: str = "default",
                                                field_config: Optional['FieldConfig'] = None,
@@ -161,7 +161,7 @@ def create_apb_read_sequence_constraint(max_window: int = 25,  # Increased for c
         max_window_size=max_window,
         required=required,
         clock_group=clock_group,
-        signals_to_show=create_apb_signals_list(),
+        signals_to_show=create_apb4_signals_list(),
         min_sequence_duration=3,  # Core APB sequence
         max_sequence_duration=15,  # Reduced from 20
         field_config=field_config,
@@ -174,7 +174,7 @@ def create_apb_read_sequence_constraint(max_window: int = 25,  # Increased for c
     return constraint
 
 
-def create_apb_complete_transaction_constraint(max_window: int = 30,  # Increased window
+def create_apb4_complete_transaction_constraint(max_window: int = 30,  # Increased window
                                                        required: bool = False,
                                                        clock_group: str = "default",
                                                        field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
@@ -199,7 +199,7 @@ def create_apb_complete_transaction_constraint(max_window: int = 30,  # Increase
         max_window_size=max_window,
         required=required,
         clock_group=clock_group,
-        signals_to_show=create_apb_signals_list(),
+        signals_to_show=create_apb4_signals_list(),
         min_sequence_duration=5,  # Increased for full sequence
         max_sequence_duration=25,
         field_config=field_config,
@@ -233,7 +233,7 @@ class APBConstraints:
                          clock_group: str = "default",
                          field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
         """APB write transaction with complete sequence"""
-        return create_apb_write_sequence_constraint(max_cycles, required, clock_group, field_config)
+        return create_apb4_write_sequence_constraint(max_cycles, required, clock_group, field_config)
 
     @staticmethod
     def read_transaction(max_cycles: int = 25,  # Increased
@@ -241,7 +241,7 @@ class APBConstraints:
                         clock_group: str = "default",
                         field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
         """APB read transaction with complete sequence"""
-        return create_apb_read_sequence_constraint(max_cycles, required, clock_group, field_config)
+        return create_apb4_read_sequence_constraint(max_cycles, required, clock_group, field_config)
 
     @staticmethod
     def complete_transaction(max_cycles: int = 30,  # Increased
@@ -249,7 +249,7 @@ class APBConstraints:
                            clock_group: str = "default",
                            field_config: Optional['FieldConfig'] = None) -> TemporalConstraint:
         """Complete APB transaction with full lifecycle"""
-        return create_apb_complete_transaction_constraint(max_cycles, required, clock_group, field_config)
+        return create_apb4_complete_transaction_constraint(max_cycles, required, clock_group, field_config)
 
     @staticmethod
     def write_completion(max_cycles: int = 20,
@@ -271,7 +271,7 @@ class APBConstraints:
             max_window_size=max_cycles,
             required=required,
             clock_group=clock_group,
-            signals_to_show=create_apb_signals_list(),
+            signals_to_show=create_apb4_signals_list(),
             field_config=field_config,
             protocol_hint="apb"
         )
@@ -296,7 +296,7 @@ class APBConstraints:
             max_window_size=max_cycles,
             required=required,
             clock_group=clock_group,
-            signals_to_show=create_apb_signals_list(),
+            signals_to_show=create_apb4_signals_list(),
             field_config=field_config,
             protocol_hint="apb"
         )
@@ -319,7 +319,7 @@ class APBConstraints:
             max_window_size=max_cycles,
             required=required,
             clock_group=clock_group,
-            signals_to_show=create_apb_signals_list(),
+            signals_to_show=create_apb4_signals_list(),
             max_matches=2,
             field_config=field_config,
             protocol_hint="apb"
@@ -343,7 +343,7 @@ class APBConstraints:
             max_window_size=max_cycles,
             required=required,
             clock_group=clock_group,
-            signals_to_show=create_apb_signals_list(),
+            signals_to_show=create_apb4_signals_list(),
             max_matches=2,
             field_config=field_config,
             protocol_hint="apb"
@@ -366,7 +366,7 @@ class APBConstraints:
             max_window_size=max_cycles,
             required=required,
             clock_group=clock_group,
-            signals_to_show=create_apb_signals_list(),
+            signals_to_show=create_apb4_signals_list(),
             field_config=field_config,
             protocol_hint="apb"
         )
@@ -393,7 +393,7 @@ class APBConstraints:
             max_window_size=max_cycles,
             required=required,
             clock_group=clock_group,
-            signals_to_show=create_apb_signals_list(),
+            signals_to_show=create_apb4_signals_list(),
             min_sequence_duration=4,
             field_config=field_config,
             protocol_hint="apb"
@@ -424,7 +424,7 @@ class APBConstraints:
             max_window_size=max_cycles,
             required=required,
             clock_group=clock_group,
-            signals_to_show=create_apb_signals_list(),
+            signals_to_show=create_apb4_signals_list(),
             min_sequence_duration=4,
             field_config=field_config,
             protocol_hint="apb"
@@ -455,7 +455,7 @@ class APBConstraints:
             max_window_size=max_cycles,
             required=required,
             clock_group=clock_group,
-            signals_to_show=create_apb_signals_list(),
+            signals_to_show=create_apb4_signals_list(),
             min_sequence_duration=4,
             field_config=field_config,
             protocol_hint="apb"
@@ -486,7 +486,7 @@ class APBConstraints:
             max_window_size=max_cycles,
             required=required,
             clock_group=clock_group,
-            signals_to_show=create_apb_signals_list(),
+            signals_to_show=create_apb4_signals_list(),
             min_sequence_duration=4,
             field_config=field_config,
             protocol_hint="apb"
@@ -514,7 +514,7 @@ class APBConstraints:
             max_window_size=max_cycles,
             required=required,
             clock_group=clock_group,
-            signals_to_show=create_apb_signals_list(),
+            signals_to_show=create_apb4_signals_list(),
             min_sequence_duration=3,
             max_sequence_duration=20,
             field_config=field_config,
@@ -798,8 +798,8 @@ def setup_apb_constraints_with_boundaries(wave_solver: TemporalConstraintSolver,
     # Add constraints based on preset
     if preset_name == "basic_rw":
         constraints = [
-            create_apb_write_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
-            create_apb_read_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles)
+            create_apb4_write_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+            create_apb4_read_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles)
         ]
         for constraint in constraints:
             wave_solver.add_constraint(constraint)
@@ -811,9 +811,9 @@ def setup_apb_constraints_with_boundaries(wave_solver: TemporalConstraintSolver,
         # write-to-read, read-to-write, and error
         constraints = [
             # 1. Basic write
-            create_apb_write_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+            create_apb4_write_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
             # 2. Basic read
-            create_apb_read_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+            create_apb4_read_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
             # 3. Back-to-back writes
             APBConstraints.back_to_back_writes(max_cycles=max_cycles+10, required=True, clock_group=clock_group, field_config=field_config, post_match_cycles=post_match_cycles),
             # 4. Back-to-back reads
@@ -843,8 +843,8 @@ def setup_apb_constraints_with_boundaries(wave_solver: TemporalConstraintSolver,
     elif preset_name == "timing":
         constraints = [
             # Main sequences with post-match extension
-            create_apb_write_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
-            create_apb_read_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+            create_apb4_write_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
+            create_apb4_read_sequence_constraint(max_cycles, True, clock_group, field_config, post_match_cycles),
 
             # Other timing constraints
             APBConstraints.setup_phase(max_cycles=max_cycles, required=False, clock_group=clock_group, field_config=field_config),
@@ -930,7 +930,7 @@ class APBWaveDromTemplate:
         )
 
         # Create wave generator
-        self.wave_generator = create_apb_wavejson_generator(
+        self.wave_generator = create_apb4_wavejson_generator(
             self.field_config,
             signal_prefix=signal_prefix
         )
@@ -996,13 +996,13 @@ class APBWaveDromTemplate:
 # Export classes and functions
 __all__ = [
     # Signal lists and utilities
-    'create_apb_signals_list',
+    'create_apb4_signals_list',
     'get_apb_boundary_pattern',
 
     # Constraint builders
-    'create_apb_write_sequence_constraint',
-    'create_apb_read_sequence_constraint',
-    'create_apb_complete_transaction_constraint',
+    'create_apb4_write_sequence_constraint',
+    'create_apb4_read_sequence_constraint',
+    'create_apb4_complete_transaction_constraint',
     'check_apb_protocol_compliance',
 
     # Boundary management

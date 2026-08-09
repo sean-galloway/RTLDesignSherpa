@@ -30,7 +30,7 @@ status. All registers are accessed through the single top-level APB slave
 (`s_apb_*`) and are implemented by the PeakRDL-generated `rapids_regs` register
 block. A single addrmap (one APB slave) contains a base regfile at 0x100-0x3FF
 and a nested monitor regfile (`rapids_mon_regs`) at 0x1000. Descriptor kick-off
-uses a separate address range (0x000-0x03F) routed to `apbtodescr`.
+uses a separate address range (0x000-0x03F) routed to `apb4todescr`.
 
 Because the monitor regfile lives at 0x1000, the APB address bus must be at
 least 13 bits wide.
@@ -39,7 +39,7 @@ least 13 bits wide.
 
 | Range | Target | Purpose |
 |-------|--------|---------|
-| 0x000-0x03F | `apbtodescr` | Per-channel descriptor kick-off |
+| 0x000-0x03F | `apb4todescr` | Per-channel descriptor kick-off |
 | 0x100-0x3FF | `rapids_regs` base regfile | Configuration and status |
 | 0x1000+ | `rapids_regs` monitor regfile | AXI-monitor config and performance |
 
@@ -208,10 +208,10 @@ Registers are global (not per-channel windows); per-channel fields are packed
 as bit lanes within a single 32-bit register (e.g. `CHANNEL_ENABLE.CH_EN[7:0]`,
 `CHANNEL_IDLE.CH_IDLE[7:0]`). The only per-channel array is `CH_STATE[0..7]` at
 0x150-0x16C (stride 0x4). Descriptor kick-off is a separate address range
-(0x000-0x03F) handled by `apbtodescr`, not part of the register regfile.
+(0x000-0x03F) handled by `apb4todescr`, not part of the register regfile.
 
 ```
-0x000 - 0x03F: Descriptor kick-off (apbtodescr)
+0x000 - 0x03F: Descriptor kick-off (apb4todescr)
 0x100 - 0x3FF: Base configuration / status registers
 0x1000+      : Monitor configuration / performance registers
 ```

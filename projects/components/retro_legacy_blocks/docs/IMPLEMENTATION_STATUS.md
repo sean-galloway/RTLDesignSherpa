@@ -23,10 +23,10 @@
 
 # PeakRDL HPET Integration - Final Status
 
-> Status (2026-07-22): Historical results file from the standalone apb_hpet component,
+> Status (2026-07-22): Historical results file from the standalone apb4_hpet component,
 > which was absorbed into retro_legacy_blocks. Paths below have been updated to the new
 > locations (RTL: `rtl/hpet/`, TB classes: `dv/tbclasses/hpet/`, test runner:
-> `dv/tests/test_apb_hpet.py`).
+> `dv/tests/test_apb4_hpet.py`).
 
 ## Milestone: COMPLETE ✅ (5/6 configs fully passing)
 
@@ -107,7 +107,7 @@
 ### RTL Changes:
 - `rtl/hpet/hpet_core.sv` - Per-timer data buses
 - `rtl/hpet/hpet_config_regs.sv` - Per-timer data routing
-- `rtl/hpet/apb_hpet.sv` - Signal declarations
+- `rtl/hpet/apb4_hpet.sv` - Signal declarations
 
 ### Test Changes:
 - `dv/tbclasses/hpet/hpet_tests_medium.py`
@@ -155,7 +155,7 @@ The All Timers Stress test likely has a similar short timeout that prevents Time
 ## Test Execution Summary
 
 ```
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 test_hpet[2-32902-1-0-full-2-timer Intel-like]      PASSED ✅
 test_hpet[3-4130-2-0-full-3-timer AMD-like]         PASSED ✅
@@ -170,7 +170,7 @@ Result: 5/6 PASS (83%), 1 minor timeout issue
 ## Git Status
 
 **Modified files ready to commit:**
-- RTL: hpet_core.sv, hpet_config_regs.sv, apb_hpet.sv
+- RTL: hpet_core.sv, hpet_config_regs.sv, apb4_hpet.sv
 - Tests: hpet_tests_medium.py (counter cleanup + timeout fixes), hpet_tests_full.py
 - Docs: KNOWN_ISSUES.md (can be updated or removed)
 

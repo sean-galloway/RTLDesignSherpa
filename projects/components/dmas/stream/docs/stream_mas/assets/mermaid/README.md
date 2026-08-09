@@ -79,8 +79,8 @@ The line number helps track which diagram came from which location in the origin
 
 | Diagram ID | Source Doc | Description |
 |------------|------------|-------------|
-| `02_apbtodescr_L020` | 02_apbtodescr.md:20 | APB to Descriptor block diagram |
-| `02_apbtodescr_L120` | 02_apbtodescr.md:120 | APB to Descriptor FSM |
+| `02_apb4todescr_L020` | 02_apb4todescr.md:20 | APB to Descriptor block diagram |
+| `02_apb4todescr_L120` | 02_apb4todescr.md:120 | APB to Descriptor FSM |
 | `02_scheduler_L035` | 02_scheduler.md:35 | Scheduler block diagram |
 | `02_scheduler_L301` | 02_scheduler.md:301 | Scheduler FSM state diagram |
 | `05_sram_controller_L038` | 05_sram_controller.md:38 | Multi-channel SRAM architecture |

@@ -111,7 +111,7 @@ irq_in[2]
 ### 1. Waveform Analysis (HIGHEST PRIORITY)
 VCD available at:
 ```
-/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_apb_ioapic_test_ioapic_basic/dump.vcd
+/mnt/data/github/rtldesignsherpa/projects/components/retro_legacy_blocks/dv/tests/local_sim_build/test_apb4_ioapic_test_ioapic_basic/dump.vcd
 ```
 
 Key signals to trace for IRQ2 test:
@@ -167,7 +167,7 @@ u_ioapic.u_core.cfg_trigger_mode[2] # Should be 0
 
 **Hypothesis E: Clock Domain Issue**
 - `ioapic_core` might be on wrong clock domain
-- Check `apb_ioapic.sv` clock routing with CDC_ENABLE=0
+- Check `apb4_ioapic.sv` clock routing with CDC_ENABLE=0
 - Both config_regs and core should be on `pclk` when CDC disabled
 
 ### 4. Quick Tests to Run

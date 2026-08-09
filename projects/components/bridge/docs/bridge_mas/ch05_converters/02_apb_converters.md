@@ -51,7 +51,7 @@ APB converters transform AXI4 transactions into APB protocol. This is necessary 
 
 ### Figure 5.3: AXI4 Write to APB Write
 
-![AXI4 to APB Write](../assets/mermaid/axi4_to_apb_write.png)
+![AXI4 to APB Write](../assets/mermaid/axi4_to_apb4_write.png)
 
 ### State Machine
 
@@ -105,7 +105,7 @@ end
 
 ### Figure 5.4: AXI4 Read to APB Read
 
-![AXI4 to APB Read](../assets/mermaid/axi4_to_apb_read.png)
+![AXI4 to APB Read](../assets/mermaid/axi4_to_apb4_read.png)
 
 ### Read State Machine
 

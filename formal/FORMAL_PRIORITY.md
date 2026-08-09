@@ -371,7 +371,7 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | Module              | Priority | Status | Notes                 |
 | ------------------- | -------- | ------ | --------------------- |
 | axi_pkg             | 0        |        | Type definitions only |
-| apb_pkg             | 0        |        | Type definitions only |
+| apb4_pkg             | 0        |        | Type definitions only |
 | apb5_pkg            | 0        |        | Type definitions only |
 | monitor_pkg         | 0        |        | Type definitions only |
 | monitor_amba4_pkg   | 0        |        | Type definitions only |

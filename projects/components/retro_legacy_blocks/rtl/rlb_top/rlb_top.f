@@ -31,38 +31,38 @@
 # ============================================================================
 # APB Crossbar (1-to-10 for RLB peripherals)
 # ============================================================================
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/apb_xbar/apb_xbar_rlb_1to10.sv
+$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/apb4_xbar/apb4_xbar_rlb_1to10.sv
 
 # ============================================================================
 # Peripheral Filelists (include all peripheral dependencies)
 # ============================================================================
 
 # HPET
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb_hpet.f
+-f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f
 
 # 8259 PIC
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/pic_8259/filelists/apb_pic_8259.f
+-f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/pic_8259/filelists/apb4_pic_8259.f
 
 # 8254 PIT
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/pit_8254/filelists/apb_pit_8254.f
+-f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/pit_8254/filelists/apb4_pit_8254.f
 
 # RTC
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/rtc/filelists/apb_rtc.f
+-f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/rtc/filelists/apb4_rtc.f
 
 # SMBus
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/smbus/filelists/apb_smbus.f
+-f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/smbus/filelists/apb4_smbus.f
 
 # PM/ACPI
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/pm_acpi/filelists/apb_pm_acpi.f
+-f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/pm_acpi/filelists/apb4_pm_acpi.f
 
 # IOAPIC
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/filelists/apb_ioapic.f
+-f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/ioapic/filelists/apb4_ioapic.f
 
 # GPIO
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/gpio/filelists/apb_gpio.f
+-f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/gpio/filelists/apb4_gpio.f
 
 # UART 16550
--f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/uart_16550/filelists/apb_uart_16550.f
+-f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/uart_16550/filelists/apb4_uart_16550.f
 
 # ============================================================================
 # Top-Level Integration

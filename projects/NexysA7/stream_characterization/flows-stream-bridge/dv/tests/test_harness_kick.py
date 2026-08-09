@@ -5,7 +5,7 @@
 The harness exposes STREAM's i_kick_burst_mask / i_kick_burst_addr ports as CSRs
 so the host can program N per-channel descriptor-address registers and then write
 a single go bit that fires all N kicks back-to-back in one aclk cycle, instead of
-serializing on the slow apbtodescr LOW/HIGH APB kick (a full UART round trip each).
+serializing on the slow apb4todescr LOW/HIGH APB kick (a full UART round trip each).
 
 These tests pin the CSR offset layout (which splits around the 0xC0 KICK_GO slot)
 and the program-addresses-then-go-bit write ordering against a recording mock
@@ -95,7 +95,7 @@ def test_batch_kick_go_bit_written_last_after_all_addresses():
 
 
 def test_batch_kick_truncates_to_32_bits():
-    """The shadow register is 32 bits (no separate HIGH word like apbtodescr)."""
+    """The shadow register is 32 bits (no separate HIGH word like apb4todescr)."""
     br = RecordingBridge()
     hk.batch_kick(br, {1: 0x9_ABCD_1234})
     assert (hk.kick_addr_csr(1), 0xABCD_1234) in br.writes
@@ -117,11 +117,11 @@ def test_batch_kick_raises_on_write_failure():
 
 
 # ---------------------------------------------------------------------------
-# Integration: the ext suite kicks via KICK_GO, not the slow apbtodescr path
+# Integration: the ext suite kicks via KICK_GO, not the slow apb4todescr path
 # ---------------------------------------------------------------------------
 def test_run_case_uses_kick_go_fast_path():
     """run_case must drive the harness KICK_GO fast path (a write to CSR_KICK_GO),
-    NOT the per-channel apbtodescr CHx_CTRL LOW/HIGH kick."""
+    NOT the per-channel apb4todescr CHx_CTRL LOW/HIGH kick."""
     br = RecordingBridge()
     s = Stream(br, "stream0", regs_base=0x0000_0000,
                desc_ram_base=0x0002_0000, data_width=128)
@@ -135,6 +135,6 @@ def test_run_case_uses_kick_go_fast_path():
     addrs = [w[0] for w in br.writes]
     assert hk.CSR_KICK_GO in addrs, "run_case did not use the KICK_GO fast path"
     assert (hk.CSR_KICK_GO, 0b1) in br.writes
-    # the slow apbtodescr kick register must NOT be used
+    # the slow apb4todescr kick register must NOT be used
     assert s.addr("CH0_CTRL_LOW") not in addrs
     assert s.addr("CH0_CTRL_HIGH") not in addrs

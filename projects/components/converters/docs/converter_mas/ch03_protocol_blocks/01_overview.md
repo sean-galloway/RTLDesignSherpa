@@ -51,7 +51,7 @@ Protocol converters enable communication between components using different comm
 
 | Module | Function | Status |
 |--------|----------|--------|
-| axi4_to_apb_convert | Full AXI4-to-APB bridge | Production |
+| axi4_to_apb4_convert | Full AXI4-to-APB bridge | Production |
 | peakrdl_to_cmdrsp | Register interface adapter | Production |
 | uart_axil_bridge | UART to AXI4-Lite | Planned |
 
@@ -118,7 +118,7 @@ Protocol converters enable communication between components using different comm
 |-----------|-------------|-----------|------|
 | axi4_to_axil4 | 0 cycles | 2N cycles | ~450 LUTs |
 | axil4_to_axi4 | 0 cycles | N/A | ~110 LUTs |
-| axi4_to_apb | 3-5 cycles | (3-5)N cycles | ~300 LUTs |
+| axi4_to_apb4 | 3-5 cycles | (3-5)N cycles | ~300 LUTs |
 
 : Table 3.5: Protocol Converter Performance
 

@@ -17,7 +17,7 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_packet import APBTransaction, APBPacket
 from CocoTBFramework.components.apb.apb_sequence import APBSequence
 from CocoTBFramework.components.apb.apb_factories import \
-    create_apb_master, create_apb_monitor, create_apb_scoreboard
+    create_apb4_master, create_apb4_monitor, create_apb4_scoreboard
 from CocoTBFramework.components.gaxi.gaxi_factories import \
     create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
 from CocoTBFramework.components.gaxi.gaxi_command_handler import GAXICommandHandler
@@ -33,7 +33,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalConstraintSolver, ClockEdge
 )
 from CocoTBFramework.components.wavedrom.wavejson_gen import (
-    WaveJSONGenerator, create_apb_wavejson_generator
+    WaveJSONGenerator, create_apb4_wavejson_generator
 )
 from CocoTBFramework.components.wavedrom.utility import (
     create_temporal_annotations_from_solution, create_wavejson_from_packet_and_signals,
@@ -81,7 +81,7 @@ class ComprehensiveAPBSlaveTB(TBBase):
     def _init_components(self):
         """Initialize all APB and GAXI components."""
         # APB components
-        self.apb4_monitor = create_apb_monitor(
+        self.apb4_monitor = create_apb4_monitor(
             self.dut,
             'APB Monitor',
             's_apb',
@@ -91,7 +91,7 @@ class ComprehensiveAPBSlaveTB(TBBase):
             log=self.log
         )
 
-        self.apb4_master = create_apb_master(
+        self.apb4_master = create_apb4_master(
             self.dut,
             'APB Master',
             's_apb',
@@ -103,7 +103,7 @@ class ComprehensiveAPBSlaveTB(TBBase):
         )
 
         # APB scoreboard
-        self.apb_scoreboard = create_apb_scoreboard(
+        self.apb_scoreboard = create_apb4_scoreboard(
             'APB Scoreboard',
             addr_width=self.ADDR_WIDTH,
             data_width=self.DATA_WIDTH,
@@ -188,7 +188,7 @@ class ComprehensiveAPBSlaveTB(TBBase):
                 strb_width=self.STRB_WIDTH
             )
 
-            self.wave_generator = create_apb_wavejson_generator(field_config=self.apb_field_config)
+            self.wave_generator = create_apb4_wavejson_generator(field_config=self.apb_field_config)
             if not self.wave_generator:
                 self.wave_generator = WaveJSONGenerator(debug_level=2)
                 apb_signals = [

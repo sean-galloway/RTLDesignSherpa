@@ -914,7 +914,7 @@ class BridgeModuleGenerator:
         # Slave adapter instantiations for ALL slaves. The adapter
         # module per-protocol wraps the timing isolator or protocol
         # converter AND the bridge_id-tracking FIFO -- the bridge top
-        # used to direct-instantiate axi4_to_apb_shim here, which left
+        # used to direct-instantiate axi4_to_apb4_shim here, which left
         # rid_*/bid_* undriven and broke APB responses end-to-end.
         lines.extend(self._generate_slave_adapter_instantiations(monitored))
 
@@ -947,7 +947,7 @@ class BridgeModuleGenerator:
             "//   - Width adaptation",
             "//",
             "//   Slave Adapter contains:",
-            "//   - Timing wrapper (axi4_master_wr/rd) or Protocol converter (axi4_to_apb/axil)",
+            "//   - Timing wrapper (axi4_master_wr/rd) or Protocol converter (axi4_to_apb4/axil)",
             "",
             "`timescale 1ns / 1ps",
             "",
@@ -1912,7 +1912,7 @@ class BridgeModuleGenerator:
         typed SlaveAdapterInstance component.
 
         The slave_adapter_generator emits protocol-aware adapter
-        modules (axi4 wrapper, axi4_to_apb_shim wrapper, or axi4_to_axil
+        modules (axi4 wrapper, axi4_to_apb4_shim wrapper, or axi4_to_axil
         shim wrapper). The bridge top needs to instantiate each with
         the matching port list -- the component keeps the bridge top
         and the adapter generator in lockstep so the two can't drift

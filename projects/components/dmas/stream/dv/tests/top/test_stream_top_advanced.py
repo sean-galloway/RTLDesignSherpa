@@ -363,7 +363,7 @@ async def cocotb_test_multi_channel_concurrent(dut):
         raise AssertionError("Multi-channel concurrent test failed - data mismatch")
 
     # MUST: prove each kick-register write actually fetched its descriptor
-    # (kick reg -> apbtodescr -> descriptor engine), not just that data moved.
+    # (kick reg -> apb4todescr -> descriptor engine), not just that data moved.
     tb.assert_descriptors_fetched()
 
     # Print performance summary

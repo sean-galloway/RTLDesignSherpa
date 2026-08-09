@@ -57,7 +57,7 @@ smbus_pec.sv              133 lines   ✅ Complete (CRC-8 calculator)
 smbus_core.sv             800 lines   🚧 40% (FSM skeletons, needs physical layer)
 simple_fifo.sv            100 lines   ✅ Complete (Repository wrapper)
 smbus_config_regs.sv      150 lines   🔧 Placeholder (needs PeakRDL generation)
-apb_smbus.sv              250 lines   ✅ Complete (Top-level integration)
+apb4_smbus.sv              250 lines   ✅ Complete (Top-level integration)
 ```
 
 ### Support Files ✅
@@ -65,7 +65,7 @@ apb_smbus.sv              250 lines   ✅ Complete (Top-level integration)
 smbus_helper.py           420 lines   ✅ Complete (Python API)
 README.md                 520 lines   ✅ Complete (Comprehensive docs)
 IMPLEMENTATION_STATUS.md  This file   ✅ Complete (Status tracking)
-filelists/apb_smbus.f     30 lines    ✅ Complete (Compilation list)
+filelists/apb4_smbus.f     30 lines    ✅ Complete (Compilation list)
 peakrdl/smbus_regs.rdl    550 lines   ✅ Complete (Register spec)
 peakrdl/README.md         Exists      ✅ Complete (PeakRDL docs)
 ```
@@ -192,7 +192,7 @@ dv/
 │   ├── smbus_monitor.py         # Protocol monitor
 │   └── smbus_tests_basic.py     # Basic test scenarios
 └── tests/smbus/
-    └── test_apb_smbus.py        # Cocotb test runner
+    └── test_apb4_smbus.py        # Cocotb test runner
 ```
 
 #### Test Scenarios to Implement:

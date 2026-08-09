@@ -46,7 +46,7 @@ The `projects/components/` directory contains demonstration components showcasin
 
 | Component | Type | Status | Purpose | Complexity |
 |-----------|------|--------|---------|------------|
-| **[apb_xbar](#apb_xbar)** | Generator | ✅ Complete | APB crossbar interconnect | Medium |
+| **[apb4_xbar](#apb4_xbar)** | Generator | ✅ Complete | APB crossbar interconnect | Medium |
 | **[bch](#bch)** | Error Correction | 📋 Planned | BCH encoder/decoder for storage | High |
 | **[bridge](#bridge)** | Generator | 🟢 95% Complete | AXI4 full crossbar generator | High |
 | **[converters](#converters)** | Converters | ✅ Complete | AXI4 data width converters | Medium |
@@ -62,7 +62,7 @@ The `projects/components/` directory contains demonstration components showcasin
 
 ## Component Details
 
-### apb_xbar
+### apb4_xbar
 
 **APB Crossbar Generator**
 
@@ -80,11 +80,11 @@ Python-based code generator producing parameterized APB crossbar RTL for connect
 - Comprehensive test coverage (100% passing)
 
 **Available Pre-Generated Modules:**
-- `apb_xbar_1to1.sv` - Passthrough/protocol conversion
-- `apb_xbar_2to1.sv` - Multi-master arbitration
-- `apb_xbar_1to4.sv` - Address decode for peripherals
-- `apb_xbar_2to4.sv` - Full crossbar (CPU + DMA)
-- `apb_xbar_thin.sv` - Minimal overhead variant
+- `apb4_xbar_1to1.sv` - Passthrough/protocol conversion
+- `apb4_xbar_2to1.sv` - Multi-master arbitration
+- `apb4_xbar_1to4.sv` - Address decode for peripherals
+- `apb4_xbar_2to4.sv` - Full crossbar (CPU + DMA)
+- `apb4_xbar_thin.sv` - Minimal overhead variant
 
 **Address Map:**
 - Slave 0: BASE_ADDR + 0x0000_0000 (64KB)
@@ -98,18 +98,18 @@ Python-based code generator producing parameterized APB crossbar RTL for connect
 - Address decode and arbitration
 
 **Resources:**
-- RTL: `rtl/apb_xbar_*.sv` (pre-generated)
+- RTL: `rtl/apb4_xbar_*.sv` (pre-generated)
 - Generator: `bin/generate_xbars.py`
-- Tests: `dv/tests/test_apb_xbar_*.py`
+- Tests: `dv/tests/test_apb4_xbar_*.py`
 - Documentation: `PRD.md`, `CLAUDE.md`
 
 **Generation Example:**
 ```bash
-cd apb_xbar/bin/
-python generate_xbars.py --masters 3 --slaves 6   # writes apb_xbar_3to6.sv next to the script
+cd apb4_xbar/bin/
+python generate_xbars.py --masters 3 --slaves 6   # writes apb4_xbar_3to6.sv next to the script
 ```
 
-**📖 See:** [`apb_xbar/PRD.md`](apb_xbar/PRD.md) for complete specification
+**📖 See:** [`apb4_xbar/PRD.md`](apb4_xbar/PRD.md) for complete specification
 
 ---
 
@@ -417,7 +417,7 @@ Single APB slave at `0x4000_0000` with internal 4KB window decode routing to all
 
 **Resources:**
 - RTL: `rtl/hpet/`, `rtl/pit_8254/`, `rtl/pic_8259/`, `rtl/rtc/`, `rtl/gpio/`, `rtl/ioapic/`, `rtl/smbus/`, `rtl/pm_acpi/`, `rtl/uart_16550/`, `rtl/rlb_top/`
-- Tests: `dv/tests/test_apb_hpet.py`, `dv/tests/test_apb_pit_8254.py`, `dv/tests/test_apb_*.py` (flat per-block test files)
+- Tests: `dv/tests/test_apb4_hpet.py`, `dv/tests/test_apb4_pit_8254.py`, `dv/tests/test_apb_*.py` (flat per-block test files)
 - Documentation: `PRD.md`, `CLAUDE.md`, per-block MAS trees in `docs/` (`hpet_mas/`, `pit_8254_mas/`, ... with built PDFs such as `HPET_MAS_v1.0.pdf`)
 - Status Tracking: `BLOCK_STATUS.md` - Master tracking for all 13 blocks
 
@@ -554,7 +554,7 @@ Collection of utility components and adapters that solve common integration prob
 
 | Component | APB | AXI4 | AXI4-Lite | AXI-Stream | Network | MonBus | Other |
 |-----------|-----|------|-----------|------------|---------|--------|-------|
-| **apb_xbar** | ✅ Crossbar | - | - | - | - | - | - |
+| **apb4_xbar** | ✅ Crossbar | - | - | - | - | - | - |
 | **bch** | - | - | - | ✅ M/S | - | - | ✅ Simple HS |
 | **bridge** | - | ✅ Crossbar | - | - | - | - | - |
 | **converters** | - | ✅ Converter | - | - | - | - | - |
@@ -570,7 +570,7 @@ Collection of utility components and adapters that solve common integration prob
 
 | Component | RTL Modules | Test Coverage | Primary Focus | Educational Value |
 |-----------|-------------|---------------|---------------|-------------------|
-| **apb_xbar** | 5 pre-gen + generator | 100% | Crossbar interconnect | High |
+| **apb4_xbar** | 5 pre-gen + generator | 100% | Crossbar interconnect | High |
 | **bch** | TBD | N/A | Error correction | High |
 | **bridge** | Generated | TBD | Code generation | High |
 | **converters** | 2 | 100% | Data width adaptation | Medium |
@@ -586,7 +586,7 @@ Collection of utility components and adapters that solve common integration prob
 
 | Component | LUTs | FFs | BRAM | Notes |
 |-----------|------|-----|------|-------|
-| **apb_xbar** | ~150-600 | ~200-500 | 0 | Depends on M×N size |
+| **apb4_xbar** | ~150-600 | ~200-500 | 0 | Depends on M×N size |
 | **bch** | ~35K | TBD | 2-4 | Encoder + Decoder estimates |
 | **bridge** | ~2,500 | ~3,000 | 0 | 4×4 @ 512-bit |
 | **converters** | ~200-400 | ~150-300 | 0 | Per converter, depends on width ratio |
@@ -604,7 +604,7 @@ Collection of utility components and adapters that solve common integration prob
 
 ```
 projects/components/
-├── apb_xbar/                    # APB Crossbar Generator
+├── apb4_xbar/                    # APB Crossbar Generator
 │   ├── rtl/                     # Pre-generated RTL
 │   ├── bin/                     # Python generator
 │   ├── dv/tests/                # CocoTB verification
@@ -690,7 +690,7 @@ projects/components/
 │   │   └── ioapic/              # 📋 I/O APIC (Planned)
 │   ├── dv/
 │   │   ├── tbclasses/           # Block-specific testbench classes
-│   │   └── tests/               # Flat per-block test files (test_apb_hpet.py, ...)
+│   │   └── tests/               # Flat per-block test files (test_apb4_hpet.py, ...)
 │   ├── docs/
 │   │   ├── hpet_mas/            # ✅ HPET complete specification (+ HPET_MAS_v1.0.pdf)
 │   │   └── {block}_mas/         # Per-block MAS trees (pit_8254_mas, pic_8259_mas, ...)
@@ -759,14 +759,14 @@ make run-hpet-full                # Comprehensive test
 
 # Run all 8254 PIT tests
 make run-pit
-pytest test_apb_pit_8254.py -v
+pytest test_apb4_pit_8254.py -v
 
 # Direct pytest invocation (from retro_legacy_blocks/dv/tests/)
-pytest test_apb_hpet.py -v        # All HPET tests
-pytest test_apb_pit_8254.py -v    # All PIT tests
+pytest test_apb4_hpet.py -v        # All HPET tests
+pytest test_apb4_pit_8254.py -v    # All PIT tests
 
 # Run with waveforms
-WAVES=1 pytest test_apb_hpet.py -v
+WAVES=1 pytest test_apb4_hpet.py -v
 gtkwave logs/{test_name}.vcd
 ```
 
@@ -879,7 +879,7 @@ All components follow the same workflow:
 **Beginner:**
 1. **retro_legacy_blocks (HPET/PIT)** - Simple peripherals with standard APB interface
 2. **stream** - Tutorial DMA with aligned addresses
-3. **apb_xbar** - Crossbar interconnect concepts
+3. **apb4_xbar** - Crossbar interconnect concepts
 4. **delta (flat)** - AXI-Stream crossbar basics
 
 **Intermediate:**
@@ -898,7 +898,7 @@ All components follow the same workflow:
 ### Key Concepts Taught
 
 **Interfaces and Protocols:**
-- APB (retro_legacy_blocks, apb_xbar, stream)
+- APB (retro_legacy_blocks, apb4_xbar, stream)
 - AXI4 (bridge, rapids, stream, converters)
 - AXI4-Lite (rapids)
 - AXI-Stream (delta, bch)
@@ -1043,7 +1043,7 @@ make help                        # Show all available targets
 
 **Recent Updates:**
 - **Miscellaneous (NEW):** Created utility component area for ROM/RAM wrappers and other reusable building blocks
-- **Retro Legacy Blocks:** Reorganized apb_hpet as mega-block with 13 total peripherals (2 complete: HPET, 8254 PIT)
+- **Retro Legacy Blocks:** Reorganized apb4_hpet as mega-block with 13 total peripherals (2 complete: HPET, 8254 PIT)
 - **STREAM:** Complete - all core blocks passing tests; kick-burst fast path + optional 2-D/transpose addressing added (on-board characterization pending)
 - **Bridge:** 95% complete with comprehensive test infrastructure
 - **BCH and HIVE:** Added as planned components with documentation structure

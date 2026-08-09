@@ -74,6 +74,6 @@ Shows UIP flag protocol for safe time reads. UIP asserts before time update begi
 
 ## References
 
-- **RTC RTL:** `rtl/rtc/apb_rtc.sv`
+- **RTC RTL:** `rtl/rtc/apb4_rtc.sv`
 - **RTC Testbench:** `dv/tbclasses/rtc/rtc_tb.py`
 - **Constraint Class:** none yet for the RTC (see `bin/TBClasses/wavedrom_user/hpet.py` and `apb.py` for examples)

@@ -85,7 +85,7 @@ def run_case(stream, channel: int, case: str, W: int, H: int,
     """Program + kick + wait for one case. Returns a result dict.
 
     Kicks via the harness KICK_GO fast path (program the CH_KICK_ADDR shadow
-    register, then one go-bit write) rather than the slow apbtodescr LOW/HIGH
+    register, then one go-bit write) rather than the slow apb4todescr LOW/HIGH
     APB kick, so a run starts on one aclk cycle with no per-kick UART stall.
     """
     kick = program_case(stream, channel, case, W, H)

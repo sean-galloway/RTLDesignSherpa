@@ -99,7 +99,7 @@ CocoTBFramework
     │   ├── amba_cg_ctrl.py
     │   ├── amba_random_configs.py
     │   ├── cdc_handshake.py
-    │   ├── apb_hpet
+    │   ├── apb4_hpet
     │   │   ├── hpet_tb.py
     │   │   ├── hpet_tests_basic.py
     │   │   ├── hpet_tests_full.py

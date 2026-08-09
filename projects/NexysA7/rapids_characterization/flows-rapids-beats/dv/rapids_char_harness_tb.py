@@ -38,7 +38,7 @@ on-chip. The TB drives ONLY the control surface:
   (b) DESCRIPTORS are loaded into the per-half descriptor RAM through the exposed
       host write port (desc_src_* / desc_snk_*, 256-bit AXI4 write master BFM);
       the DUT fetches them from the same byte address when kicked.
-  (c) KICK-OFF goes through the per-half apbtodescr kick windows (SRC 0x000, SNK
+  (c) KICK-OFF goes through the per-half apb4todescr kick windows (SRC 0x000, SNK
       0x1000); channel = paddr[5:3]; LOW/HIGH = paddr[2]; addr written LOW-HIGH.
   (d) AXIS gen / chk and the data-memory CRC engines are driven / read over their
       dedicated harness control/status ports.

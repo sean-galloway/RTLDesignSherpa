@@ -12,7 +12,7 @@ simulated UART.** The UART bridge and CSR router live only in the board top
 |--|---------|-----------|
 | Config | host `RegisterMap` over UART → APB | cocotb `RegisterMap` over the harness APB port |
 | Descriptors | host DESC-LOAD region → descriptor RAM | cocotb 256-bit AXI4 host-write port |
-| Kick | host `CSR_GO` atomic launch | cocotb per-half `apbtodescr` kick windows |
+| Kick | host `CSR_GO` atomic launch | cocotb per-half `apb4todescr` kick windows |
 | Data paths | all on-chip (harness gen/check/mem) | the same on-chip blocks, elaborated in Verilator |
 | Pass criterion | golden CRC match (host `rapids_char_golden.py`) | golden CRC match (checker CRC == expected) |
 

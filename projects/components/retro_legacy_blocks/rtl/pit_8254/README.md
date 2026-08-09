@@ -60,7 +60,7 @@ Follows HPET 3-layer architecture pattern with PeakRDL-generated registers.
 ### Module Hierarchy
 
 ```
-apb_pit_8254.sv         → APB wrapper, CDC support
+apb4_pit_8254.sv         → APB wrapper, CDC support
   ├── pit_config_regs.sv → Register wrapper, edge detection
   │     └── pit_regs.sv  → PeakRDL generated registers
   └── pit_core.sv        → 3-counter array, control decode
@@ -100,7 +100,7 @@ Following HPET pattern:
 ## Example Instantiation
 
 ```systemverilog
-apb_pit_8254 #(
+apb4_pit_8254 #(
     .NUM_COUNTERS(3),
     .CDC_ENABLE(0)
 ) u_pit (
@@ -123,7 +123,7 @@ apb_pit_8254 #(
 
 ## Files
 
-- ✅ `apb_pit_8254.sv` - Top-level APB wrapper
+- ✅ `apb4_pit_8254.sv` - Top-level APB wrapper
 - ✅ `pit_config_regs.sv` - Register wrapper with edge detection
 - ✅ `pit_core.sv` - 3-counter array
 - ✅ `pit_counter.sv` - Single counter (mode 0)

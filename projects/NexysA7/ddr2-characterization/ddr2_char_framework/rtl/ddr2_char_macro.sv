@@ -471,7 +471,7 @@ module ddr2_char_macro
     logic [APB_DATA_WIDTH-1:0]   ctrl_cpuif_rd_data;
     logic                        ctrl_cpuif_wr_ack, ctrl_cpuif_wr_err;
 
-    apb_to_peakrdl #(
+    apb4_to_peakrdl #(
         .ADDR_WIDTH (APB_ADDR_WIDTH),
         .DATA_WIDTH (APB_DATA_WIDTH),
         .PROT_WIDTH (APB_PROT_WIDTH)

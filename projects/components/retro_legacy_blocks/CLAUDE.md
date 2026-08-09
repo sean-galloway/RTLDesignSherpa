@@ -436,7 +436,7 @@ def pytest_configure(config):
 
 **Status:** ✅ Production Ready (5/6 configurations 100% passing)
 **RTL Location:** `rtl/hpet/`
-**Test Location:** `dv/tests/test_apb_hpet.py`
+**Test Location:** `dv/tests/test_apb4_hpet.py`
 
 ### Critical HPET Rules
 
@@ -549,7 +549,7 @@ Per-Timer Registers (i = 0 to NUM_TIMERS-1):
 **A: Each block has APB interface, example:**
 
 ```systemverilog
-apb_hpet #(
+apb4_hpet #(
     .NUM_TIMERS(3),
     .VENDOR_ID(16'h8086),
     .REVISION_ID(16'h0001),
@@ -651,7 +651,7 @@ logic [31:0] mem [1024];
 
 ```python
 ❌ WRONG: Embedded in test file
-# test_apb_gpio.py
+# test_apb4_gpio.py
 class GPIOTB:  # NOT REUSABLE!
     ...
 
@@ -660,7 +660,7 @@ class GPIOTB:  # NOT REUSABLE!
 class GPIOTB(TBBase):  # REUSABLE!
     ...
 
-# test_apb_gpio.py
+# test_apb4_gpio.py
 from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tb import GPIOTB
 ```
 
@@ -682,7 +682,7 @@ from projects.components.retro_legacy_blocks.dv.tbclasses.gpio.gpio_tb import GP
 
 ```bash
 # Run all HPET tests
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 # Run specific block tests (test runners are flat under dv/tests/)
 pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_{block}.py -v

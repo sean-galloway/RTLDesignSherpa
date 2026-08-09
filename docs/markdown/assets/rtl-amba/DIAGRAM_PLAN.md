@@ -164,7 +164,7 @@ Main AXI4 master/slave interfaces.
 | apb/apb4_slave_cdc.md | apb4_slave_cdc | High | [ ] Pending |
 | apb/apb4_monitor.md | apb4_monitor | Medium | [ ] Pending |
 | apb/apb_crossbar.md | apb_crossbar | High | [ ] Pending |
-| apb/apb_xbar.md | apb_xbar | High | [ ] Pending |
+| apb/apb4_xbar.md | apb4_xbar | High | [ ] Pending |
 | apb/apb4_master_cg.md | apb4_master_cg | Low | [ ] Pending |
 | apb/apb4_slave_cg.md | apb4_slave_cg | Low | [ ] Pending |
 | apb/apb4_slave_cdc_cg.md | apb4_slave_cdc_cg | Low | [ ] Pending |
@@ -185,8 +185,8 @@ Main AXI4 master/slave interfaces.
 
 | File | Module | Complexity | Status |
 |------|--------|------------|--------|
-| shims/axi4_to_apb_shim.md | axi4_to_apb_shim | High | [ ] Pending |
-| shims/axi4_to_apb_convert.md | axi4_to_apb_convert | High | [ ] Pending |
+| shims/axi4_to_apb4_shim.md | axi4_to_apb4_shim | High | [ ] Pending |
+| shims/axi4_to_apb4_convert.md | axi4_to_apb4_convert | High | [ ] Pending |
 | shims/peakrdl_to_cmdrsp.md | peakrdl_to_cmdrsp | Medium | [ ] Pending |
 | shims/README.md | (overview) | Low | [ ] Pending |
 

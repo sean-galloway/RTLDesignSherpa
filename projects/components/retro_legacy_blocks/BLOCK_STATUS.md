@@ -38,15 +38,15 @@
 
 | Block | Module Name | Priority | Status | RTL | Tests | Docs | Address |
 |-------|-------------|----------|--------|-----|-------|------|---------|
-| HPET | `apb_hpet` | High | ✅ Complete | ✅ | ✅ 5/6 100% | ✅ | 0x4000_0000-0x0FFF |
-| 8259 PIC | `apb_pic_8259` | High | 🔧 In Progress | 🔧 | 🔧 3/6 50% | ❌ | 0x4000_1000-0x1FFF |
-| 8254 PIT | `apb_pit_8254` | High | ✅ Complete | ✅ | ✅ 6/6 100% | ✅ | 0x4000_2000-0x2FFF |
-| RTC | `apb_rtc` | Medium | ✅ Complete | ✅ | ✅ 6/6 100% | ✅ | 0x4000_3000-0x3FFF |
-| SMBus | `apb_smbus` | Medium | 🔧 RTL Done | ✅ | ❌ | ❌ | 0x4000_4000-0x4FFF |
-| PM/ACPI | `apb_pm_acpi` | Medium | 🔧 RTL Done | ✅ | ❌ | ❌ | 0x4000_5000-0x5FFF |
-| IOAPIC | `apb_ioapic` | Medium | 🔧 In Progress | 🔧 | 🔧 3/6 50% | ❌ | 0x4000_6000-0x6FFF |
-| GPIO | `apb_gpio` | Medium | 📋 Future | ❌ | ❌ | ❌ | TBD |
-| UART | `apb_uart` | Medium | 📋 Future | ❌ | ❌ | ❌ | TBD |
+| HPET | `apb4_hpet` | High | ✅ Complete | ✅ | ✅ 5/6 100% | ✅ | 0x4000_0000-0x0FFF |
+| 8259 PIC | `apb4_pic_8259` | High | 🔧 In Progress | 🔧 | 🔧 3/6 50% | ❌ | 0x4000_1000-0x1FFF |
+| 8254 PIT | `apb4_pit_8254` | High | ✅ Complete | ✅ | ✅ 6/6 100% | ✅ | 0x4000_2000-0x2FFF |
+| RTC | `apb4_rtc` | Medium | ✅ Complete | ✅ | ✅ 6/6 100% | ✅ | 0x4000_3000-0x3FFF |
+| SMBus | `apb4_smbus` | Medium | 🔧 RTL Done | ✅ | ❌ | ❌ | 0x4000_4000-0x4FFF |
+| PM/ACPI | `apb4_pm_acpi` | Medium | 🔧 RTL Done | ✅ | ❌ | ❌ | 0x4000_5000-0x5FFF |
+| IOAPIC | `apb4_ioapic` | Medium | 🔧 In Progress | 🔧 | 🔧 3/6 50% | ❌ | 0x4000_6000-0x6FFF |
+| GPIO | `apb4_gpio` | Medium | 📋 Future | ❌ | ❌ | ❌ | TBD |
+| UART | `apb4_uart` | Medium | 📋 Future | ❌ | ❌ | ❌ | TBD |
 | SPI | `apb_spi` | Low | 📋 Future | ❌ | ❌ | ❌ | TBD |
 | I2C | `apb_i2c` | Low | 📋 Future | ❌ | ❌ | ❌ | TBD |
 | Watchdog | `apb_watchdog` | Low | 📋 Future | ❌ | ❌ | ❌ | TBD |
@@ -60,7 +60,7 @@
 ```
 ✅ rtl/hpet/                    - Complete RTL implementation
 ✅ dv/tbclasses/hpet/           - Complete testbench classes
-✅ dv/tests/test_apb_hpet.py               - Complete test suite
+✅ dv/tests/test_apb4_hpet.py               - Complete test suite
 ✅ docs/hpet_mas/              - Complete specification
 ```
 
@@ -70,7 +70,7 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/pic_8259/       - Directory created, README added
-📋 dv/tests/test_apb_pic_8259.py           - Test runner (flat dv/tests/ layout)
+📋 dv/tests/test_apb4_pic_8259.py           - Test runner (flat dv/tests/ layout)
 📋 docs/pic_8259_mas/          - Directory created, README added
 ```
 
@@ -80,7 +80,7 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/pit_8254/       - Directory created, README added
-📋 dv/tests/test_apb_pit_8254.py           - Test runner (flat dv/tests/ layout)
+📋 dv/tests/test_apb4_pit_8254.py           - Test runner (flat dv/tests/ layout)
 📋 docs/pit_8254_mas/          - Directory created, README added
 ```
 
@@ -90,7 +90,7 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/rtc/            - Directory created, README added
-📋 dv/tests/test_apb_rtc.py                - Test runner (flat dv/tests/ layout)
+📋 dv/tests/test_apb4_rtc.py                - Test runner (flat dv/tests/ layout)
 📋 docs/rtc_mas/               - Directory created, README added
 ```
 
@@ -100,7 +100,7 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/smbus/          - Directory created, README added
-📋 dv/tests/test_apb_smbus.py              - Test runner (flat dv/tests/ layout)
+📋 dv/tests/test_apb4_smbus.py              - Test runner (flat dv/tests/ layout)
 📋 docs/smbus_mas/             - Directory created, README added
 ```
 
@@ -110,7 +110,7 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/pm_acpi/        - Directory created, README added
-📋 dv/tests/test_apb_pm_acpi.py            - Test runner (flat dv/tests/ layout)
+📋 dv/tests/test_apb4_pm_acpi.py            - Test runner (flat dv/tests/ layout)
 📋 docs/pm_acpi_mas/           - Directory created, README added
 ```
 
@@ -120,7 +120,7 @@
   ├── peakrdl/                 - Empty (SystemRDL to be added)
   └── filelists/               - Empty (filelists to be added)
 📋 dv/tbclasses/ioapic/         - Directory created, README added
-📋 dv/tests/test_apb_ioapic.py             - Test runner (flat dv/tests/ layout)
+📋 dv/tests/test_apb4_ioapic.py             - Test runner (flat dv/tests/ layout)
 📋 docs/ioapic_mas/            - Directory created, README added
 ```
 

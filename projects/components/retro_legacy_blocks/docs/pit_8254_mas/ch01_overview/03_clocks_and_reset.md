@@ -223,7 +223,7 @@ The PIT does NOT implement dynamic clock gating at the module level. Clock gatin
 logic gated_pclk;
 assign gated_pclk = pclk & pit_clock_enable;
 
-apb_pit_8254 #(
+apb4_pit_8254 #(
     .CDC_ENABLE(0)
 ) u_pit (
     .pclk       (gated_pclk),  // Gated clock

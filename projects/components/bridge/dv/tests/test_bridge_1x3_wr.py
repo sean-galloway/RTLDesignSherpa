@@ -129,7 +129,7 @@ async def cocotb_test_bridge_1x3_wr_boundary_probe(dut):
     NB: previously named "address_decode". The failure modes it surfaces
     are not in the address decoder (which is per-bridge generated inline
     in <master>_adapter.sv and is fine across all configs); they're in
-    the downstream protocol shims — axi4_to_axil4_{wr,rd}, axi4_to_apb
+    the downstream protocol shims — axi4_to_axil4_{wr,rd}, axi4_to_apb4
     — stressed by the b2b page probes that the simpler basic_connectivity
     test never reaches.
 

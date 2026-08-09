@@ -214,7 +214,7 @@ STAGE F (top rewrite) DONE + LINT-CLEAN (rapids_beats_top RC 0, 73 unique source
 - [x] APB_ADDR_WIDTH bumped 12 -> 13 (to reach 0x1000 for SNK; bit[12] = half select).
       s_apb_paddr now 13-bit; s_cpuif_addr driven directly.
 - [x] ONE apb4_slave -> hand-written 3-way cmd demux: SRC-kick 0x000-0x03F (paddr[12:6]==0) ->
-      u_kick_src (apbtodescr) -> core.src_apb_*; SNK-kick 0x1000-0x103F -> u_kick_snk ->
+      u_kick_src (apb4todescr) -> core.src_apb_*; SNK-kick 0x1000-0x103F -> u_kick_snk ->
       core.snk_apb_*; everything else -> peakrdl_to_cmdrsp -> single rapids_regs. (cmdrsp_router dropped.)
 - [x] TWO rapids_config_block: u_cfg_src (hwif_out.SRC.*) -> core src_cfg_* + cfg_axi_rd_xfer_beats +
       cfg_drain_size; u_cfg_snk (hwif_out.SNK.*) -> core snk_cfg_* + cfg_axi_wr_xfer_beats + cfg_alloc_size.
@@ -262,7 +262,7 @@ STAGE G step 2 (AXIS BFM swap + split-aware core TB) DONE + GREEN:
 STAGE G step 3 (top TB, split + AXIS + APB-by-name) DONE + GREEN:
 - [x] rapids_beats_top_tb.py rewritten as the AXIS-boundary sibling of the core TB. Config BY NAME
       via TWO RegisterMap(rtl/rapids_regmap.py, 32, 13, start_address) instances: 0x0000 (SRC) /
-      0x1000 (SNK) -> SRC.GLOBAL_CTRL@0x100, SNK@0x1100. Descriptor kick over APB apbtodescr windows:
+      0x1000 (SNK) -> SRC.GLOBAL_CTRL@0x100, SNK@0x1100. Descriptor kick over APB apb4todescr windows:
       channel=apb_addr[5:3], LOW/HIGH=apb_addr[2], desc addr written LOW-then-HIGH (HIGH blocks until
       engine accepts); SRC base 0x000, SNK base 0x1000.
 - [x] m_axil_mon backed by always-accept AXIL write responder (split top has NO USE_AXI_MONITORS
@@ -320,7 +320,7 @@ STAGE G step 4 (characterization harness) STARTED:
 - [x] cocotb harness TB (projects/NexysA7/rapids_characterization/flows-rapids-beats/dv/
       rapids_char_harness_tb.py + test_rapids_char_harness.py) GREEN. Drives the harness like the host:
       APBMaster on s_apb + two RegisterMap (SRC 0x0000 / SNK 0x1000) config BY NAME; descriptors loaded
-      via desc-RAM host write ports (create_axi4_master_wr, 256b); kicked over apbtodescr windows.
+      via desc-RAM host write ports (create_axi4_master_wr, 256b); kicked over apb4todescr windows.
       MULTI-CHANNEL self-check (4 ch, 8 beats/ch) PASSES 100%:
         SINK  : o_gen_expected_crc[ch]==wr_crc_value[ch] all ch (0x8C023372/0x3FB81189/0xD64B4EEC/0x65F16C17),
                 snk_system_idle, wr_beat_count_total==32, no sched_error. Proves s_axis->sink->m_axi_wr per ch.

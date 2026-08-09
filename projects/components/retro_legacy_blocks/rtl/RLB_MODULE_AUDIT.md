@@ -46,7 +46,7 @@ Audited 5 RLB modules with APB interfaces to verify consistent architecture patt
 - **ioapic** - No APB wrapper yet
 - **pm_acpi** - No APB wrapper yet
 - **rlb_top** - Integration module, not a standalone peripheral
-- **apb_xbar** - Crossbar, different purpose
+- **apb4_xbar** - Crossbar, different purpose
 
 ---
 
@@ -54,7 +54,7 @@ Audited 5 RLB modules with APB interfaces to verify consistent architecture patt
 
 ### ✅ HPET (Reference Implementation - CORRECT)
 
-**File:** `hpet/apb_hpet.sv`
+**File:** `hpet/apb4_hpet.sv`
 
 **Architecture:**
 APB → apb4_slave_cdc (with CDC parameter) → CMD/RSP → hpet_config_regs → peakrdl_to_cmdrsp → hpet_regs (PeakRDL) → hwif → hpet_core
@@ -71,7 +71,7 @@ APB → apb4_slave_cdc (with CDC parameter) → CMD/RSP → hpet_config_regs →
 
 ### ✅ PIT_8254 (CORRECT)
 
-**File:** `pit_8254/apb_pit_8254.sv`
+**File:** `pit_8254/apb4_pit_8254.sv`
 
 **Architecture:**
 APB → apb4_slave_cdc → CMD/RSP → pit_config_regs → peakrdl_to_cmdrsp → pit_regs → hwif → pit_core
@@ -89,7 +89,7 @@ APB → apb4_slave_cdc → CMD/RSP → pit_config_regs → peakrdl_to_cmdrsp →
 
 ### ✅ SMBUS (NOW CORRECT)
 
-**File:** `smbus/apb_smbus.sv`
+**File:** `smbus/apb4_smbus.sv`
 
 **Architecture:**
 APB → apb4_slave (no CDC) → CMD/RSP → smbus_config_regs → peakrdl_to_cmdrsp → smbus_regs → hwif → smbus_core
@@ -111,7 +111,7 @@ APB → apb4_slave (no CDC) → CMD/RSP → smbus_config_regs → peakrdl_to_cmd
 
 ### ✅ RTC (CORRECT - VERIFIED)
 
-**File:** `rtc/apb_rtc.sv`
+**File:** `rtc/apb4_rtc.sv`
 
 **Architecture:**
 APB → apb4_slave → CMD/RSP → rtc_config_regs → peakrdl_to_cmdrsp → rtc_regs → hwif → rtc_core
@@ -130,7 +130,7 @@ APB → apb4_slave → CMD/RSP → rtc_config_regs → peakrdl_to_cmdrsp → rtc
 
 ### ✅ PIC_8259 (CORRECT - VERIFIED)
 
-**File:** `pic_8259/apb_pic_8259.sv`
+**File:** `pic_8259/apb4_pic_8259.sv`
 
 **Architecture:**
 APB → apb4_slave → CMD/RSP → pic_8259_config_regs → peakrdl_to_cmdrsp → pic_8259_regs → hwif → pic_8259_core

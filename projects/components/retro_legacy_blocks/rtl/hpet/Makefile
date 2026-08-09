@@ -100,7 +100,7 @@ status:
 	@echo "================================================================================"
 	@echo "APB_HPET RTL Status"
 	@echo "================================================================================"
-	@echo "Location: $(REPO_ROOT)/projects/components/apb_hpet/rtl/"
+	@echo "Location: $(REPO_ROOT)/projects/components/apb4_hpet/rtl/"
 	@echo "SystemVerilog files: $(SV_COUNT)"
 	@echo "================================================================================"
 

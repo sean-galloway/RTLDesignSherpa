@@ -25,7 +25,7 @@
 
 **Last Updated:** 2025-10-17
 
-> Status (2026-07-22): The standalone `projects/components/apb_hpet/` component was absorbed
+> Status (2026-07-22): The standalone `projects/components/apb4_hpet/` component was absorbed
 > into `projects/components/retro_legacy_blocks/`; this directory is now
 > `projects/components/retro_legacy_blocks/known_issues/`. The old `resolved/` and `active/`
 > subdirectories (including `resolved/timer_cleanup_issue.md`) were not carried over -
@@ -255,7 +255,7 @@ grep -r "Severity.*High" projects/components/retro_legacy_blocks/known_issues/ac
 - `projects/components/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md` - Test results
 
 **Test Infrastructure:**
-- `projects/components/retro_legacy_blocks/dv/tests/` - Test files (`test_apb_hpet.py`)
+- `projects/components/retro_legacy_blocks/dv/tests/` - Test files (`test_apb4_hpet.py`)
 - `projects/components/retro_legacy_blocks/dv/tbclasses/hpet/` - Reusable testbench classes
 
 ---

@@ -1196,8 +1196,8 @@ m_axi_awlen <= (s_axi_awlen + 1) * WIDTH_RATIO - 1;
 
 | Module | Purpose |
 |--------|---------|
-| `axi4_to_apb_convert` | AXI4 to APB protocol conversion (includes downsize) |
-| `axi4_to_apb_shim` | Complete AXI4 to APB bridge with converter |
+| `axi4_to_apb4_convert` | AXI4 to APB protocol conversion (includes downsize) |
+| `axi4_to_apb4_shim` | Complete AXI4 to APB bridge with converter |
 | `axi4_clock_converter` | Clock domain crossing (future) |
 | `axi4_width_and_clock_converter` | Combined width + CDC (future) |
 
@@ -1222,7 +1222,7 @@ m_axi_awlen <= (s_axi_awlen + 1) * WIDTH_RATIO - 1;
 
 - **`docs/markdown/rtl-amba/index.md`:** AMBA subsystem overview
 - **`rtl/amba/CLAUDE.md`:** AI assistance guide for AMBA
-- **`projects/components/converters/rtl/axi4_to_apb_convert.sv`:** Reference implementation for protocol/width conversion
+- **`projects/components/converters/rtl/axi4_to_apb4_convert.sv`:** Reference implementation for protocol/width conversion
 - **`docs/markdown/rtl-amba/axi4/`:** Detailed AXI module specifications
 
 ### External Resources

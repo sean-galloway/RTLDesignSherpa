@@ -37,7 +37,7 @@
 //   |              |             (apb4_master cmd/rsp -> harness s_apb).    |
 //   |              |             addr[12:0] = APB byte address. Reaches    |
 //   |              |             SRC(0x0000)/SNK(0x1000) reg spaces +      |
-//   |              |             apbtodescr kick windows inside the DUT.   |
+//   |              |             apb4todescr kick windows inside the DUT.   |
 //   | 0x1_0000     | DESC-LOAD : assemble a 256-bit descriptor from 8 x   |
 //   |              |             32-bit words, then issue ONE single-beat  |
 //   |              |             AXI4 write into the SRC or SNK descriptor |
@@ -765,7 +765,7 @@ module rapids_char_top #(
     // =========================================================================
     // Atomic-launch kick sequencer: on GO, replay the LOW/HIGH APB descriptor
     // kicks for every masked channel back-to-back at aclk, sourcing the DUT's
-    // own apbtodescr kick window (paddr = {half@bit12} + ch*8, +0=LOW/+4=HIGH;
+    // own apb4todescr kick window (paddr = {half@bit12} + ch*8, +0=LOW/+4=HIGH;
     // pwdata = descriptor addr {base + ch*stride}). This does on-chip in tens of
     // cycles what the host used to do over UART in milliseconds, so the meter
     // window brackets only the transfer.

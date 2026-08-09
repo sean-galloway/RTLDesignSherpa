@@ -9,5 +9,5 @@
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 
--f $REPO_ROOT/rtl/integ_amba/filelists/apb_peripheral_subsystem.f
--f $REPO_ROOT/rtl/integ_amba/filelists/apb_xbar_monitored.f
+-f $REPO_ROOT/rtl/integ_amba/filelists/apb4_peripheral_subsystem.f
+-f $REPO_ROOT/rtl/integ_amba/filelists/apb4_xbar_monitored.f

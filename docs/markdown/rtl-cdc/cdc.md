@@ -981,7 +981,7 @@ variant.
 
 **Protocol-level CDC built on these blocks:** `apb4_slave_cdc`,
 `apb4_slave_cdc_cg`, `apb5_slave_cdc`, `apb5_slave_cdc_cg`,
-`gaxi_skid_buffer_async`, `axi4_to_apb_shim`.
+`gaxi_skid_buffer_async`, `axi4_to_apb4_shim`.
 
 **Supporting primitives (rtl/cdc):** `bin2gray`, `gray2bin`, `johnson2bin`,
 `counter_bingray`, `counter_johnson`.

@@ -5,7 +5,7 @@ Generates per-slave adapter modules that sit between crossbar and external slave
 
 Each slave adapter contains:
 - Timing isolation wrapper (axi4_master_wr/rd for AXI4 slaves)
-- Protocol conversion (axi4_to_apb, axi4_to_axil for non-AXI4 slaves)
+- Protocol conversion (axi4_to_apb4, axi4_to_axil for non-AXI4 slaves)
 - Final skid buffers before external slave interface
 """
 
@@ -23,7 +23,7 @@ class SlaveAdapterGenerator:
 
     Each slave adapter contains:
     - axi4_master_wr/rd timing wrappers (for AXI4 slaves)
-    - axi4_to_apb converter (for APB slaves)
+    - axi4_to_apb4 converter (for APB slaves)
     - axi4_to_axil converter (for AXI4-Lite slaves)
     - Final skid buffers before external interface
     """
@@ -879,7 +879,7 @@ class SlaveAdapterGenerator:
         `axi4_master_*_mon` wrapper -- the wrapper observes the
         bridge-internal AXI4 traffic before it's converted to APB.
         Identical pattern to _generate_axil_converter."""
-        from ..components.axi4_to_apb_shim_component import Axi4ToApbShim
+        from ..components.axi4_to_apb4_shim_component import Axi4ToApbShim
 
         xbar_prefix = f"xbar_{self.slave.name}_axi_"
         lines: List[str] = []

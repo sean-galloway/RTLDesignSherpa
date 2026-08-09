@@ -878,7 +878,7 @@ def _emit_bridge_variant(
         filelist_lines.append("# axi_gen_addr and both gaxi FIFOs. Hand-listing those here is how the")
         filelist_lines.append("# shim's newer gaxi_fifo_async CDC dependency went missing.")
         filelist_lines.append(
-            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb_shim.f")
+            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb4_shim.f")
 
     # Check if any slaves use AXI4-Lite protocol
     has_axil = any(slave.protocol.lower() == 'axil' for slave in config.slaves)

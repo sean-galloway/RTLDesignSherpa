@@ -75,7 +75,7 @@
   - Root cause analysis
 
 **RTL Source Files:**
-- `rtl/hpet/apb_hpet.sv` - Top-level wrapper module
+- `rtl/hpet/apb4_hpet.sv` - Top-level wrapper module
 - `rtl/hpet/hpet_core.sv` - Core timer logic
 - `rtl/hpet/hpet_config_regs.sv` - Register wrapper
 - `rtl/hpet/hpet_regs.sv` - PeakRDL generated register file (from hpet_regs.rdl)
@@ -90,7 +90,7 @@
 - `dv/tbclasses/hpet/hpet_tests_basic.py` - Basic test suite
 - `dv/tbclasses/hpet/hpet_tests_medium.py` - Medium test suite
 - `dv/tbclasses/hpet/hpet_tests_full.py` - Full test suite
-- `dv/tests/test_apb_hpet.py` - Test runner with pytest integration
+- `dv/tests/test_apb4_hpet.py` - Test runner with pytest integration
 
 **Known Issues Documentation:**
 - `known_issues/README.md` - Issue tracking overview

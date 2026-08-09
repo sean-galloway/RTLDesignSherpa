@@ -277,8 +277,8 @@ Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 ## Protocol Bridge and Shims
 
 ### AXI4 to APB Conversion
-- **[axi4_to_apb_convert](shims/axi4_to_apb_convert.md)** - AXI4 to APB protocol converter
-- **[axi4_to_apb_shim](shims/axi4_to_apb_shim.md)** - Lightweight AXI4 to APB shim
+- **[axi4_to_apb4_convert](shims/axi4_to_apb4_convert.md)** - AXI4 to APB protocol converter
+- **[axi4_to_apb4_shim](shims/axi4_to_apb4_shim.md)** - Lightweight AXI4 to APB shim
 
 ---
 
@@ -301,9 +301,9 @@ on-chip counting).
 - **[monitor_package_spec](includes/monitor_package_spec.md)** - The package family, specified
 
 ### Packages with no page yet
-`rtl/amba/includes/` also carries `apb_pkg.sv`, `apb5_pkg.sv`, `axi_pkg.sv`,
+`rtl/amba/includes/` also carries `apb4_pkg.sv`, `apb5_pkg.sv`, `axi_pkg.sv`,
 `monitor_pkg.sv` and `monitor_common_pkg.sv`. Read the source directly until
-these are written. (This list previously linked to `apb_pkg.md`, `axi_pkg.md`,
+these are written. (This list previously linked to `apb4_pkg.md`, `axi_pkg.md`,
 `monitor_pkg.md` and `monitor_network_pkg.md`, none of which have ever existed;
 `monitor_network_pkg` has no RTL either.)
 

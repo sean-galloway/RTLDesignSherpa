@@ -508,9 +508,9 @@ Create example designs showing how to integrate monitors in real SoC environment
    - Resource utilization estimates
 
 2. **Example 1: APB Crossbar with Monitors** ✅
-   - File: rtl/integ_amba/examples/apb_xbar_monitored.sv (400+ lines)
+   - File: rtl/integ_amba/examples/apb4_xbar_monitored.sv (400+ lines)
    - 3 masters × 4 slaves = 7 monitors total
-   - Based on tested apb_xbar_thin variant (PASSED)
+   - Based on tested apb4_xbar_thin variant (PASSED)
    - Complete monitor coverage (every interface)
    - Round-robin arbiter for aggregation
    - Parameterized agent ID assignment
@@ -518,7 +518,7 @@ Create example designs showing how to integrate monitors in real SoC environment
    - Architecture diagrams and monitor table
 
 3. **Example 2: Simple APB Peripheral Subsystem** ✅
-   - File: rtl/integ_amba/examples/apb_peripheral_subsystem.sv (350+ lines)
+   - File: rtl/integ_amba/examples/apb4_peripheral_subsystem.sv (350+ lines)
    - Educational example for beginners
    - 3 peripherals: Register File (functional), Timer (stub), GPIO (stub)
    - 3 monitors with simple round-robin arbiter
@@ -874,7 +874,7 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
 
 5. **Adapters/Shims (Priority 2):**
    - ✅ docs/markdown/rtl-amba/shims/README.md exists
-   - ✅ Individual shim docs exist (axi4_to_apb_convert, axi4_to_apb_shim, peakrdl_to_cmdrsp)
+   - ✅ Individual shim docs exist (axi4_to_apb4_convert, axi4_to_apb4_shim, peakrdl_to_cmdrsp)
    - [ ] Update shims documentation with usage examples
 
 **Waveform Integration Tasks:**
@@ -883,7 +883,7 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
    - [ ] AXIL monitors (8 modules) - Similar to AXI4 but simpler
    - [ ] APB crossbar - Address decode and routing
    - [ ] Arbiters (monbus, round-robin, weighted) - QoS visualization
-   - [ ] Shims (axi4_to_apb) - Protocol conversion timing
+   - [ ] Shims (axi4_to_apb4) - Protocol conversion timing
 
 2. **Integrate Existing Waveforms (Priority 1):**
    - ✅ apb4_slave.md already includes waveforms (reference pattern)

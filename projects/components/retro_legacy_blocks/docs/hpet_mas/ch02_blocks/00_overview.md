@@ -28,7 +28,7 @@
 The APB HPET component consists of four primary SystemVerilog modules organized in a hierarchical structure:
 
 ```
-apb_hpet (Top Level)
+apb4_hpet (Top Level)
 +-- APB Slave Interface
 |   +-- apb4_slave.sv (CDC_ENABLE=0) OR
 |   +-- apb4_slave_cdc.sv (CDC_ENABLE=1)
@@ -128,8 +128,8 @@ The diagram shows the latency introduced by CDC synchronization. Configuration c
 
 #### Module Responsibilities
 
-##### 1. apb_hpet (Top Level Integration)
-**File:** `rtl/hpet/apb_hpet.sv`
+##### 1. apb4_hpet (Top Level Integration)
+**File:** `rtl/hpet/apb4_hpet.sv`
 **Purpose:** System integration and CDC selection
 
 **Responsibilities:**

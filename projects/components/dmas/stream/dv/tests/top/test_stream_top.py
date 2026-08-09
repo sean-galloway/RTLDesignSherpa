@@ -8,7 +8,7 @@ Test suite for stream_top_ch8 - complete STREAM DMA with APB configuration.
 Tests the full integration of:
 - APB4 configuration interface
 - peakrdl_to_cmdrsp (APB to CMD/RSP conversion)
-- apbtodescr (channel kick-off router)
+- apb4todescr (channel kick-off router)
 - stream_config_block (register mapping)
 - stream_core (complete datapath)
 
@@ -340,7 +340,7 @@ async def cocotb_test_stream_top_basic(dut):
             raise AssertionError(f"Channel {channel} data mismatch")
 
         # MUST: prove the kick-register WRITE actually caused a descriptor FETCH
-        # (kick reg -> apbtodescr -> descriptor engine), not just that data moved.
+        # (kick reg -> apb4todescr -> descriptor engine), not just that data moved.
         # A dead/mis-decoded kick path leaves the kicked descriptor un-fetched.
         tb.assert_descriptors_fetched()
 

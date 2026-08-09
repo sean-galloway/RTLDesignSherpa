@@ -39,7 +39,7 @@ routed by address to two targets:
 
 | Address Range | Target | Purpose |
 |---------------|--------|---------|
-| 0x000-0x03F | Descriptor kick-off (`apbtodescr`) | Per-channel descriptor chain start |
+| 0x000-0x03F | Descriptor kick-off (`apb4todescr`) | Per-channel descriptor chain start |
 | 0x100-0x3FF | `rapids_regs` (base regfile) | Channel/scheduler/descriptor configuration and status |
 | 0x1000+ | `rapids_regs` (monitor regfile) | AXI-monitor configuration and performance counters |
 

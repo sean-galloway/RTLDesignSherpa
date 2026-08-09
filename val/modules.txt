@@ -32,5 +32,5 @@ axi_monitor_timeout.sv
 axi_monitor_timer.sv
 axi_monitor_trans_mgr.sv
 cdc_handshake.sv
-axi4_to_apb_convert.sv
+axi4_to_apb4_convert.sv
 peakrdl_to_cmdrsp.sv

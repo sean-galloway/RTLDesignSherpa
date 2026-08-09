@@ -25,7 +25,7 @@ digraph uart_interfaces {
     }
 
     // Main module
-    uart [label="apb_uart_16550\n\n16550-Compatible\nUART", fillcolor=lightcyan, shape=box3d];
+    uart [label="apb4_uart_16550\n\n16550-Compatible\nUART", fillcolor=lightcyan, shape=box3d];
 
     subgraph cluster_serial {
         label="Serial";

@@ -28,7 +28,7 @@
 The APB PIT 8254 follows a clean three-layer architecture for maintainability and clarity:
 
 ```
-apb_pit_8254 (Top Level)
+apb4_pit_8254 (Top Level)
 ├── apb4_slave or apb4_slave_cdc (APB Interface)
 │   └── Protocol conversion: APB → cmd/rsp interface
 │
@@ -78,7 +78,7 @@ flowchart TD
 
 #### Block Responsibilities
 
-**apb_pit_8254 (Top Level)**
+**apb4_pit_8254 (Top Level)**
 - Module instantiation and parameter propagation
 - Signal routing between major blocks
 - Optional clock domain crossing selection
@@ -124,7 +124,7 @@ flowchart TD
 
 | From Block | To Block | Interface | Signals |
 |------------|----------|-----------|---------|
-| apb_pit_8254 | apb4_slave | APB4 | psel, penable, pwrite, paddr, pwdata, prdata, pready, pslverr |
+| apb4_pit_8254 | apb4_slave | APB4 | psel, penable, pwrite, paddr, pwdata, prdata, pready, pslverr |
 | apb4_slave | pit_config_regs | cmd/rsp | cmd_addr, cmd_wdata, cmd_wen, rsp_rdata, rsp_valid |
 | pit_config_regs | pit_regs | cpuif_apb | Various PeakRDL interface signals |
 | pit_regs | pit_config_regs | hwif | hwif_out, hwif_in (struct interfaces) |

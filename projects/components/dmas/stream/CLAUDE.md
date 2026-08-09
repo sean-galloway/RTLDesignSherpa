@@ -201,7 +201,7 @@ class SchedulerTB(TBBase):
 ```
 STREAM Architecture (as implemented)
 ├── rtl/fub/                        # Functional unit blocks
-│   ├── apbtodescr.sv               # APB kick-off to descriptor request
+│   ├── apb4todescr.sv               # APB kick-off to descriptor request
 │   ├── descriptor_engine.sv        # Descriptor fetch/parse (derived from RAPIDS)
 │   ├── scheduler.sv                # Simplified per-channel scheduler
 │   ├── axi_read_engine.sv          # Data read engine
@@ -585,7 +585,7 @@ projects/components/dmas/stream/dv/tests/
 │   ├── test_descriptor_engine.py
 │   ├── test_scheduler.py
 │   ├── test_sram_controller.py (+ test_sram_controller_alloc.py)
-│   ├── test_apbtodescr.py
+│   ├── test_apb4todescr.py
 │   ├── test_perf_profiler.py
 │   └── test_stream_latency_bridge.py
 ├── macro/                      # Multi-block scenarios (stream_core, scheduler_group, datapaths)

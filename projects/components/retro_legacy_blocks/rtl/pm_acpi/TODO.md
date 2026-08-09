@@ -40,10 +40,10 @@
   - PeakRDL hwif mapping
   - W1C edge detection
   - Auto-clear fields
-- [x] APB top-level wrapper (apb_pm_acpi.sv)
+- [x] APB top-level wrapper (apb4_pm_acpi.sv)
   - CDC_ENABLE parameter
   - Dual clock domain support
-- [x] Filelist (filelists/apb_pm_acpi.f)
+- [x] Filelist (filelists/apb4_pm_acpi.f)
 - [x] PeakRDL README (peakrdl/README.md)
 
 ### High Priority 🔴
@@ -72,7 +72,7 @@
   - Create dv/tbclasses/pm_acpi/ directory
   - pm_acpi_tb.py - Base testbench class
   - pm_acpi_tests_basic.py - Basic functionality tests
-  - test_apb_pm_acpi.py - Cocotb test runner (flat in dv/tests/)
+  - test_apb4_pm_acpi.py - Cocotb test runner (flat in dv/tests/)
 
 #### Documentation
 - [ ] **Update Main README.md**

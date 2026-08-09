@@ -37,7 +37,7 @@ filelists/
 │   └── hpet_config_regs.f  # Register wrapper (hwif → core)
 │
 └── integration/         # Top-level integration
-    └── apb_hpet.f      # Complete APB-interfaced HPET
+    └── apb4_hpet.f      # Complete APB-interfaced HPET
 ```
 
 ## Usage
@@ -50,8 +50,8 @@ export REPO_ROOT=/path/to/rtldesignsherpa
 
 # Compile complete APB HPET
 verilator -cc \
-  -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb_hpet.f \
-  --top-module apb_hpet \
+  -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f \
+  --top-module apb4_hpet \
   -GNUM_TIMERS=8 \
   -GVENDOR_ID=0x8086 \
   -GREVISION_ID=0x01
@@ -69,9 +69,9 @@ repo_root = os.environ.get('REPO_ROOT', os.path.abspath('../../../'))
 run(
     verilog_sources=[
         '-f',
-        os.path.join(repo_root, 'projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb_hpet.f')
+        os.path.join(repo_root, 'projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f')
     ],
-    toplevel='apb_hpet',
+    toplevel='apb4_hpet',
     parameters={
         'NUM_TIMERS': 2,
         'VENDOR_ID': 0x8086,
@@ -86,7 +86,7 @@ run(
 ```bash
 # View all files in dependency order
 export REPO_ROOT=/path/to/rtldesignsherpa
-verilator -E -f projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb_hpet.f
+verilator -E -f projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f
 ```
 
 ## File List Hierarchy
@@ -119,7 +119,7 @@ verilator -E -f projects/components/retro_legacy_blocks/rtl/hpet/filelists/integ
 
 ### Integration Level
 
-#### `integration/apb_hpet.f`
+#### `integration/apb4_hpet.f`
 - **Purpose:** Complete APB-interfaced HPET timer
 - **Contents:**
   - Includes `component/hpet_core.f`
@@ -127,14 +127,14 @@ verilator -E -f projects/components/retro_legacy_blocks/rtl/hpet/filelists/integ
   - APB slave infrastructure (apb4_slave.sv, apb4_slave_cdc.sv)
   - PeakRDL adapter (peakrdl_to_cmdrsp.sv)
   - FIFOs and handshaking (gaxi_fifo_sync, cdc_handshake)
-  - `apb_hpet.sv` - Top-level module
+  - `apb4_hpet.sv` - Top-level module
 - **Dependencies:** All component file lists + APB infrastructure
 - **Instantiates:** All HPET components with APB interface
 
 ## Dependency Graph
 
 ```
-apb_hpet.f (integration)
+apb4_hpet.f (integration)
 ├── hpet_core.f (component)
 │   ├── counter_bin.sv (common)
 │   └── hpet_core.sv
@@ -148,7 +148,7 @@ apb_hpet.f (integration)
 │   ├── apb4_slave_cdc.sv
 │   ├── peakrdl_to_cmdrsp.sv
 │   └── CDC/FIFO utilities
-└── apb_hpet.sv (top-level)
+└── apb4_hpet.sv (top-level)
 ```
 
 ## HPET Architecture
@@ -185,7 +185,7 @@ The HPET component consists of three main layers:
 The HPET uses a **single parameterized design** that supports multiple configurations:
 
 ```systemverilog
-module apb_hpet #(
+module apb4_hpet #(
     parameter NUM_TIMERS = 8,        // 2, 3, or 8 timers
     parameter VENDOR_ID = 16'h0001,  // Customizable vendor ID
     parameter REVISION_ID = 16'h0001 // Customizable revision
@@ -244,7 +244,7 @@ python ../../../../../../bin/peakrdl_generate.py hpet_regs.rdl --copy-rtl ..
 When adding new RTL dependencies:
 
 1. **Component-level:** Add to appropriate `component/*.f` file
-2. **Integration-level:** Add to `integration/apb_hpet.f`
+2. **Integration-level:** Add to `integration/apb4_hpet.f`
 3. **Update README:** Document new dependencies in this file
 
 ### Regenerating PeakRDL
@@ -271,8 +271,8 @@ verilator --lint-only \
 
 # Test integration-level file list
 verilator --lint-only \
-  -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb_hpet.f \
-  --top-module apb_hpet \
+  -f $REPO_ROOT/projects/components/retro_legacy_blocks/rtl/hpet/filelists/integration/apb4_hpet.f \
+  --top-module apb4_hpet \
   -GNUM_TIMERS=8
 ```
 
@@ -280,7 +280,7 @@ verilator --lint-only \
 
 - **PeakRDL Specification:** `../peakrdl/hpet_regs.rdl`
 - **Integration Status:** `../../../docs/IMPLEMENTATION_STATUS.md` (PeakRDL HPET integration final status)
-- **Test Examples:** `projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py`
+- **Test Examples:** `projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py`
 - **RAPIDS File Lists:** `projects/components/dmas/rapids/rtl/filelists/` (reference methodology)
 
 ---

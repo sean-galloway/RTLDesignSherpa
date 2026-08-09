@@ -41,7 +41,7 @@ projects/components/converters/dv/tests/
 │   ├── test_axi4_to_axil4_wr.py
 │   ├── test_axil4_to_axi4_rd.py
 │   ├── test_axil4_to_axi4_wr.py
-│   ├── test_axi4_to_apb.py
+│   ├── test_axi4_to_apb4.py
 │   └── test_peakrdl_adapter.py
 └── integration/
     ├── test_width_protocol_chain.py

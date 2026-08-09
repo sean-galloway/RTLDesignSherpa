@@ -50,7 +50,7 @@ Shape (see TASK-101 for the full spec):
   pipelined, valid/ready). It is already driven this exact way in
   `rtl/amba/shared/axi4_master_wr_pattern_gen.sv`.
 - The real cost is the descriptor-format fan-out: `stream_pkg.sv` (descriptor_t)
-  -> `apbtodescr.sv` -> `descriptor_engine.sv` -> `scheduler.sv` parse ->
+  -> `apb4todescr.sv` -> `descriptor_engine.sv` -> `scheduler.sv` parse ->
   PeakRDL register map + host descriptor programming -> every DV descriptor
   builder. Keep it additive (append fields, default linear) to avoid regressing
   base STREAM.

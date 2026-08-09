@@ -54,7 +54,7 @@ This specification is organized into five chapters covering all aspects of the A
 - 01_ioapic_core.md - Core interrupt routing logic *(planned, not yet written)*
 - 02_ioapic_config_regs.md - Configuration register wrapper with indirect access *(planned, not yet written)*
 - 03_ioapic_regs.md - PeakRDL generated register file *(planned, not yet written)*
-- 04_apb_ioapic_top.md - Top-level integration *(planned, not yet written)*
+- 04_apb4_ioapic_top.md - Top-level integration *(planned, not yet written)*
 - [05_fsm_summary.md](ch02_blocks/05_fsm_summary.md) - FSM state summary table
 
 ### Chapter 3: Interfaces
@@ -92,7 +92,7 @@ This specification is organized into five chapters covering all aspects of the A
 
 ### For Hardware Integrators
 - Start with [Chapter 1: Overview](ch01_overview/01_overview.md)
-- Chapter 3 (interfaces/signal list) is planned but not yet written; see `../../rtl/ioapic/apb_ioapic.sv` for the current port list
+- Chapter 3 (interfaces/signal list) is planned but not yet written; see `../../rtl/ioapic/apb4_ioapic.sv` for the current port list
 
 ### For Verification Engineers
 - Start with [Chapter 2: Blocks](ch02_blocks/00_overview.md)
