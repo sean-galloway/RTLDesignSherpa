@@ -99,9 +99,15 @@ class MasterConfig:
     # exposes only AXIL signals on this master port (no id/len/burst/
     # cache/qos/region/user/last). The host-side wrapper handles the
     # AXIL->AXI4 translation when transactions enter the fabric.
+    # 'axi5' (A5-1) exposes the AXI5 surface (AXI4 minus region, plus
+    # the enabled sideband features below) and terminates the features
+    # at the axi5_slave_* timing wrapper.
     protocol: str = 'axi4'
     # Reporter sub-block enables (preset + add - remove resolved upstream).
     mon_enables: Optional[Dict[str, bool]] = None
+    # AXI5 sideband features exposed on this port (protocol='axi5' only;
+    # validated upstream to the A5-1 set: nsaid/trace/mpam/mecid/unique).
+    axi5_features: Optional[List[str]] = None
 
 
 class AdapterGenerator:
@@ -292,8 +298,23 @@ class AdapterGenerator:
 
         Signal format: <master_name>_axi_<channel><signal>
         Example: cpu_axi_awaddr (NOT cpu_m_axi_awaddr)
+
+        AXI5 masters (protocol='axi5', A5-1): the surface is the AXI4
+        set MINUS aw/arregion (AXI5 removed REGION), PLUS the enabled
+        sideband features' signals appended per channel. Disabled
+        features' signals are NOT exposed -- they tie off inside at the
+        axi5_slave_* wrapper instantiation.
         """
+        from ..components.axi4_timing_wrapper_component import (
+            axi5_exposed_ext_signals,
+        )
         lines = []
+        is_axi5 = (self.master.protocol == 'axi5')
+        # Normalised prefix for the hand-emitted AXI5 extras (SignalNaming
+        # normalises internally for the base set).
+        axi5_prefix = self.master.prefix
+        if axi5_prefix and not axi5_prefix.endswith('_'):
+            axi5_prefix = axi5_prefix + '_'
 
         # Width parameters for signal info queries
         width_values = {
@@ -326,6 +347,10 @@ class AdapterGenerator:
             first_channel = False
 
             for sig_name, sig_info in channel_signals:
+                # AXI5 has no REGION -- drop it from the base set.
+                if is_axi5 and sig_info.name == 'region':
+                    continue
+
                 # Invert port direction (adapter is intermediary, not the master)
                 inverted_direction = PortDirection.OUTPUT if sig_info.direction == PortDirection.INPUT else PortDirection.INPUT
 
@@ -342,6 +367,21 @@ class AdapterGenerator:
                 # Get complete signal declaration with inverted direction
                 declaration = inverted_sig.get_declaration(sig_name, width_values)
                 lines.append(f"    {declaration},")
+
+            # AXI5 sideband extras for this channel (enabled features
+            # only). Signals driven by the external master are adapter
+            # inputs; b/r-side extras are adapter outputs.
+            if is_axi5:
+                for name, width, ext_in in axi5_exposed_ext_signals(
+                        channel.value, self.master.axi5_features):
+                    dir_str = 'input' if ext_in else 'output'
+                    sig_name = f"{axi5_prefix}{name}"
+                    if width > 1:
+                        lines.append(
+                            f"    {dir_str}  logic [{width-1}:0]  {sig_name},")
+                    else:
+                        lines.append(
+                            f"    {dir_str}  logic         {sig_name},")
 
         return lines
 
@@ -513,6 +553,15 @@ class AdapterGenerator:
         wr_agent_id = ((self.master_index << 4) | 0x1) if self.enable_monitoring else None
         rd_agent_id = ((self.master_index << 4) | 0x0) if self.enable_monitoring else None
 
+        # Boundary wrapper family: an axi5 master port gets the
+        # axi5_slave_* wrappers (AXI5 external face, AXI4 fub face --
+        # sideband features terminate at the wrapper). Everything else
+        # ('axi4' and 'axil', whose adapter still speaks full AXI4)
+        # keeps the axi4_slave_* wrappers.
+        wrapper_protocol = 'axi5' if self.master.protocol == 'axi5' else 'axi4'
+        wrapper_features = (list(self.master.axi5_features or [])
+                            if wrapper_protocol == 'axi5' else None)
+
         # Write wrapper
         if self.master.channels in ["wr", "rw"]:
             wrapper = Axi4TimingWrapper(
@@ -534,6 +583,8 @@ class AdapterGenerator:
                 ),
                 mon_enables=(self.master.mon_enables
                              if self.enable_monitoring else None),
+                protocol=wrapper_protocol,
+                axi5_features=wrapper_features,
             )
             wrapper.connect_clocks_and_resets()
             # External side comes from the master's prefix (slave-of-
@@ -553,7 +604,7 @@ class AdapterGenerator:
                 wrapper.add_addr_range_tieoff()
                 wrapper.add_perfmon_tieoff()
             lines.append("    // ================================================================")
-            lines.append(f"    // Timing isolation wrapper (axi4_slave_wr{'_mon' if self.enable_monitoring else ''})")
+            lines.append(f"    // Timing isolation wrapper ({wrapper_protocol}_slave_wr{'_mon' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")
             lines.extend(wrapper.generate_lines())
 
@@ -574,6 +625,8 @@ class AdapterGenerator:
                 ),
                 mon_enables=(self.master.mon_enables
                              if self.enable_monitoring else None),
+                protocol=wrapper_protocol,
+                axi5_features=wrapper_features,
             )
             wrapper.connect_clocks_and_resets()
             wrapper.connect_external(connector_prefix=signal_prefix)
@@ -591,7 +644,7 @@ class AdapterGenerator:
                 wrapper.add_addr_range_tieoff()
                 wrapper.add_perfmon_tieoff()
             lines.append("    // ================================================================")
-            lines.append(f"    // Timing isolation wrapper (axi4_slave_rd{'_mon' if self.enable_monitoring else ''})")
+            lines.append(f"    // Timing isolation wrapper ({wrapper_protocol}_slave_rd{'_mon' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")
             lines.extend(wrapper.generate_lines())
 

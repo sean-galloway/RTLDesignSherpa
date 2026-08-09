@@ -1,0 +1,54 @@
+# Bridge Configuration: 1x2 Read-Only Bridge with an AXI5 MASTER port
+# (BRIDGE-002 phase A5-1).
+#
+# Geometry copies bridge_1x2_rd_matched: one read-only master, two
+# matched-width AXI4 slaves. The master is protocol="axi5" with the
+# trace + unique sideband features enabled: the bridge top exposes
+# s_axi_ar{trace,unique} / s_axi_rtrace on the cpu_rd port, the adapter
+# uses axi5_slave_rd as its boundary wrapper, and the features terminate
+# there -- the fabric behind stays AXI4.
+# Connectivity comes from bridge_1x2_rd_axi5_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_rd_axi5"
+variants = ["no", "mon"]
+description = "1 AXI5 master x 2 AXI4 slave read-only bridge (A5-1)"
+
+[[bridge.masters]]
+name = "cpu_rd"  # Descriptive identifier (cpu read master)
+prefix = "cpu_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels)
+protocol = "axi5"
+# A5-1 sideband features: exposed externally, terminated at the wrapper.
+axi5_features = ["trace", "unique"]
+# Completion cone on top of the error_only baseline (matches the
+# bridge_1x2_rd_matched convention for monitor capture tests).
+mon_add = ["compl"]
+
+[[bridge.slaves]]
+name = "ddr_rd"  # Descriptive identifier (ddr read slave)
+prefix = "ddr_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+mon_add = ["compl"]  # completion cone for monitor capture/irq tests
+base_addr = "0x00000000"
+addr_range = "0x80000000"  # 2GB
+
+[[bridge.slaves]]
+name = "sram_rd"  # Descriptive identifier (sram read slave)
+prefix = "sram_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+mon_add = ["compl"]  # completion cone for monitor capture/irq tests
+base_addr = "0x80000000"
+addr_range = "0x80000000"  # 2GB

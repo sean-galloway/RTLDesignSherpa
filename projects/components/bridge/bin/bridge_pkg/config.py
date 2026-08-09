@@ -111,6 +111,14 @@ class PortSpec:
     # mon_remove subtracts cones from the preset (rarely needed).
     mon_add: List[str] = field(default_factory=list)
     mon_remove: List[str] = field(default_factory=list)
+    # AXI5 feature list (BRIDGE-002 phase A5-1). Only legal on ports with
+    # protocol="axi5". Each entry names an AXI5 sideband feature whose
+    # signals are exposed on the bridge's external boundary and terminated
+    # at the axi5_slave_{wr,rd} wrapper (the fabric behind stays AXI4).
+    # A5-1 allows the pure-sideband set: nsaid/trace/mpam/mecid/unique.
+    # Data-semantics features (poison/mte/chunking -> A5-2) and atomics
+    # (atomic -> A5-3) are rejected by validate_axi5.
+    axi5_features: List[str] = field(default_factory=list)
 
     def get_mon_enables(self, preset: str) -> Dict[str, bool]:
         """Compute the 5 ENABLE_*_LOGIC values for this port: preset

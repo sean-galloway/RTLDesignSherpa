@@ -60,18 +60,100 @@ def validate_protocol(protocol: str, port_name: str) -> None:
     Validate protocol field value.
 
     Args:
-        protocol: Protocol specification ('axi4', 'apb', 'axil')
+        protocol: Protocol specification ('axi4', 'axi5', 'apb', 'axil')
         port_name: Port name for error messages
 
     Raises:
         ValidationError: If protocol value is invalid
     """
-    valid_protocols = {'axi4', 'apb', 'axil'}
+    valid_protocols = {'axi4', 'axi5', 'apb', 'axil'}
     if protocol not in valid_protocols:
         raise ValidationError(
             f"Invalid protocol '{protocol}' for port '{port_name}'. "
             f"Must be one of {valid_protocols}"
         )
+
+
+# ---------------------------------------------------------------------------
+# AXI5 (BRIDGE-002 phase A5-1) — AXI5 MASTER ports on the AMBA4 fabric.
+#
+# A bridge master port with protocol="axi5" gets axi5_slave_{wr,rd}
+# boundary wrappers exposing an AXI5 external interface; the fabric
+# behind stays AXI4. Only pure-sideband features can be exposed in A5-1
+# (they terminate safely at the wrapper). Features that change data
+# semantics or need response routing are phase-gated below.
+# ---------------------------------------------------------------------------
+
+# Features legal in A5-1: pure sideband, terminated at the AXI4 fabric.
+AXI5_ALLOWED_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'unique')
+
+# Features that exist in the axi5 wrappers but are NOT deliverable on an
+# AXI4 fabric without more work. Maps feature -> the phase that lands it.
+AXI5_PHASED_FEATURES = {
+    'atomic':   'A5-3 (needs R-channel response routing for atomics)',
+    'poison':   'A5-2 (data-semantics conversion)',
+    'mte':      'A5-2 (data-semantics conversion)',
+    'chunking': 'A5-2 (data-semantics conversion)',
+}
+
+
+def validate_axi5(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
+    """
+    Validate AXI5 usage per the A5-1 scope.
+
+    Rules:
+    1. AXI5 slave ports are rejected (A5-1 supports AXI5 masters only).
+    2. axi5_features on a non-axi5 port is rejected.
+    3. Master feature entries must be in AXI5_ALLOWED_FEATURES; features
+       in AXI5_PHASED_FEATURES are rejected naming the delivering phase;
+       anything else is an unknown feature name.
+
+    Raises:
+        ValidationError: on any violation.
+    """
+    for slave in slaves:
+        if slave.protocol == 'axi5':
+            raise ValidationError(
+                f"Slave '{slave.port_name}': protocol='axi5' is not "
+                f"supported -- A5-1 supports AXI5 masters only; AXI5 "
+                f"slaves land with A5-2."
+            )
+
+    for port in list(masters) + list(slaves):
+        feats = getattr(port, 'axi5_features', []) or []
+        if feats and port.protocol != 'axi5':
+            raise ValidationError(
+                f"Port '{port.port_name}': 'axi5_features' is only legal "
+                f"on protocol=\"axi5\" ports (got protocol="
+                f"'{port.protocol}')"
+            )
+
+    for master in masters:
+        if master.protocol != 'axi5':
+            continue
+        feats = getattr(master, 'axi5_features', []) or []
+        seen = set()
+        for f in feats:
+            if f in seen:
+                raise ValidationError(
+                    f"AXI5 master '{master.port_name}': duplicate "
+                    f"axi5_features entry '{f}'"
+                )
+            seen.add(f)
+            if f in AXI5_ALLOWED_FEATURES:
+                continue
+            if f in AXI5_PHASED_FEATURES:
+                raise ValidationError(
+                    f"AXI5 master '{master.port_name}': feature '{f}' is "
+                    f"not supported in A5-1; it lands with "
+                    f"{AXI5_PHASED_FEATURES[f]}."
+                )
+            raise ValidationError(
+                f"AXI5 master '{master.port_name}': unknown axi5_features "
+                f"entry '{f}'. Allowed in A5-1: "
+                f"{list(AXI5_ALLOWED_FEATURES)}; phase-gated: "
+                f"{sorted(AXI5_PHASED_FEATURES)}"
+            )
 
 
 def validate_apb_constraints(port: PortSpec) -> None:
@@ -335,6 +417,9 @@ def validate_config(
 
     # Validate explicit channel specification for slaves
     validate_slave_channels_explicit(slaves)
+
+    # Validate AXI5 scope (A5-1: masters only, sideband features only)
+    validate_axi5(masters, slaves)
 
     # Validate address map
     validate_address_map(slaves)
