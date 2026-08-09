@@ -24,7 +24,7 @@ Each directory under `books/` is one self-contained review unit:
 | `integ_common` | RTL Integration Examples - Common | 3 | 2 | ~16k | 1 |
 | `axis4` | RTL AMBA AXI4-Stream | 6 | 4 | ~29k | 1 |
 | `axis5` | RTL AMBA AXI5-Stream | 5 | 4 | ~36k | 1 |
-| `gaxi` | RTL AMBA GAXI Modules | 8 | 6 | ~41k | 1 |
+| `gaxi` | RTL AMBA GAXI Modules | 8 | 6 | ~42k | 1 |
 | `integ_amba` | RTL Integration Examples - AMBA | 3 | 2 | ~43k | 1 |
 | `apb5` | RTL AMBA APB5 | 10 | 9 | ~95k | 1 |
 | `apb` | RTL AMBA APB4 | 12 | 12 | ~134k | 2 |
