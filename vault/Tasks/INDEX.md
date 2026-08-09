@@ -65,6 +65,7 @@ reviewed tree starts until the review is back and integrated.
 | [rapids](projects/components/dmas/rapids/INDEX.md) | **started** | dmas/rapids DMA (beats, nested to mirror repo) | TASK-057 regmap hygiene (ported from STREAM); [TASKS.md](../../projects/components/dmas/rapids/TASKS.md) + rapids_beats_mas/TODO still to fold in |
 | [bridge](bridge/INDEX.md) | **started** | bridge crossbar generator | [TASKS.md](../../projects/components/bridge/TASKS.md) (still to fold in; area holds BRIDGE-001) |
 | delta | pending | delta component | [TASKS.md](../../projects/components/delta/TASKS.md) |
+| [reed-solomon](projects/components/reed-solomon/INDEX.md) | **migrated** | future R/S ECC component (intent only, no RTL yet; holds RS-001) | successor to dropped COMMON-009 |
 | hive | pending | hive component | [TASKS.md](../../projects/components/hive/TASKS.md) |
 | [RLB](RLB/INDEX.md) | **migrated** | retro legacy blocks (ioapic, pm_acpi, smbus, pit, hpet) | remaining pre-migration rtl/*/TODO items still to fold in |
 | [pumice](pumice/INDEX.md) | **migrated** | pumice DDR2/LPDDR2 controller | — |
