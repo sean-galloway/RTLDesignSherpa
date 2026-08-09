@@ -22,7 +22,7 @@ from bridge_pkg.generators.adapter_generator import AdapterGenerator, MasterConf
 from bridge_pkg.generators.slave_adapter_generator import SlaveAdapterGenerator
 from bridge_pkg.generators.crossbar_generator import CrossbarGenerator
 from bridge_pkg.signal_naming import SignalNaming, Direction, AXI4Channel, Protocol, AXI4_MASTER_SIGNALS, PortDirection, SignalInfo
-from bridge_pkg.components.axi4_timing_wrapper_component import Axi4TimingWrapper
+from bridge_pkg.components.axi4_timing_wrapper_component import Axi4TimingWrapper, axi5_exposed_ext_signals
 from bridge_pkg.width_utils import get_connected_slave_widths, get_masters_connecting_to_slave
 
 
@@ -1139,6 +1139,15 @@ class BridgeModuleGenerator:
                 lines[-1] = lines[-1][:-1]
             return lines
 
+        # AXI5 master (A5-1): AXI4 base set MINUS aw/arregion (AXI5
+        # removed REGION), PLUS the enabled sideband features' signals
+        # appended per channel. Disabled features are not exposed --
+        # they terminate at the adapter's axi5_slave_* wrapper.
+        is_axi5 = (master.protocol == 'axi5')
+        axi5_prefix = master.prefix
+        if axi5_prefix and not axi5_prefix.endswith('_'):
+            axi5_prefix = axi5_prefix + '_'
+
         # Determine which channels to generate based on master type
         channels = SignalNaming.channels_from_type(master.channels)
 
@@ -1161,6 +1170,10 @@ class BridgeModuleGenerator:
             first_channel = False
 
             for sig_name, sig_info in channel_signals:
+                # AXI5 has no REGION -- drop it from the base set.
+                if is_axi5 and sig_info.name == 'region':
+                    continue
+
                 # Invert port direction (bridge is intermediary, not the actual master)
                 inverted_direction = PortDirection.OUTPUT if sig_info.direction == PortDirection.INPUT else PortDirection.INPUT
 
@@ -1177,6 +1190,20 @@ class BridgeModuleGenerator:
                 # Get complete signal declaration with inverted direction
                 declaration = inverted_sig.get_declaration(sig_name, width_values)
                 lines.append(f"    {declaration},")
+
+            # AXI5 sideband extras (enabled features only), mirroring
+            # AdapterGenerator._generate_external_ports.
+            if is_axi5:
+                for name, width, ext_in in axi5_exposed_ext_signals(
+                        channel.value, master.axi5_features):
+                    dir_str = 'input' if ext_in else 'output'
+                    sig_name = f"{axi5_prefix}{name}"
+                    if width > 1:
+                        lines.append(
+                            f"    {dir_str}  logic [{width-1}:0]  {sig_name},")
+                    else:
+                        lines.append(
+                            f"    {dir_str}  logic         {sig_name},")
 
         # Remove trailing comma from last signal
         if lines and lines[-1].endswith(','):
@@ -1597,6 +1624,11 @@ class BridgeModuleGenerator:
                     full_name = f"{channel.value}{sig_info.name}"
                     sig_name = f"{signal_prefix}{full_name}"
 
+                    # AXI5 has no REGION -- the adapter doesn't declare
+                    # the port, so don't emit a connection for it.
+                    if master.protocol == 'axi5' and sig_info.name == 'region':
+                        continue
+
                     if master.protocol != 'axil' or full_name in axil_surface:
                         # AXI4 master, or AXIL master & this signal IS on
                         # the AXIL surface — wire directly to the top.
@@ -1616,6 +1648,15 @@ class BridgeModuleGenerator:
                             # AXIL master doesn't observe this; leave the
                             # adapter port unconnected.
                             lines.append(f"        .{sig_name}(),")
+
+                # AXI5 sideband extras: pass straight through -- the
+                # adapter declares the same {prefix}{name} port names
+                # (enabled features only).
+                if master.protocol == 'axi5':
+                    for name, _width, _ext_in in axi5_exposed_ext_signals(
+                            channel.value, master.axi5_features):
+                        sig_name = f"{signal_prefix}{name}"
+                        lines.append(f"        .{sig_name}({sig_name}),")
 
             lines.append("")
             lines.append("        // Decode outputs")

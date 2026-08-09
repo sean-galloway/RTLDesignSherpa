@@ -19,15 +19,147 @@ from typing import List, Optional
 from rtl_generators.verilog.module import Module
 
 
+# ---------------------------------------------------------------------------
+# AXI5 feature tables (BRIDGE-002 phase A5-1).
+#
+# The axi5_slave_{wr,rd} modules declare every feature port
+# unconditionally; ENABLE_<FEATURE> parameters gate the logic. The
+# tables below mirror the SV declarations
+# (rtl/amba/axi5/axi5_slave_{wr,rd}.sv) so instantiation can bind every
+# pin: enabled-feature externals connect through, disabled-feature
+# external INPUTS tie to '0 and OUTPUTS get empty connectors; on the fub
+# (fabric) side every feature port terminates (outputs open, inputs '0)
+# because the fabric behind the wrapper is plain AXI4.
+#
+# Tuple format: (port_base_name, feature, ext_is_input)
+#   ext_is_input == True  -> s_axi_<name> is an input to the wrapper
+#                            (and fub_axi_<name> is an output).
+# ---------------------------------------------------------------------------
+
+# ENABLE_* parameter per feature. wr has no CHUNKING; rd has no ATOMIC.
+AXI5_FEATURE_ENABLE_PARAM = {
+    'atomic':   'ENABLE_ATOMIC',
+    'nsaid':    'ENABLE_NSAID',
+    'trace':    'ENABLE_TRACE',
+    'mpam':     'ENABLE_MPAM',
+    'mecid':    'ENABLE_MECID',
+    'unique':   'ENABLE_UNIQUE',
+    'chunking': 'ENABLE_CHUNKING',
+    'mte':      'ENABLE_MTE',
+    'poison':   'ENABLE_POISON',
+}
+_AXI5_WR_FEATURE_ORDER = (
+    'atomic', 'nsaid', 'trace', 'mpam', 'mecid', 'unique', 'mte', 'poison')
+_AXI5_RD_FEATURE_ORDER = (
+    'nsaid', 'trace', 'mpam', 'mecid', 'unique', 'chunking', 'mte', 'poison')
+
+# wr-channel extras, grouped to match the SV declaration order.
+_AXI5_WR_REQ1_EXTRAS = (            # AW-side (after awready)
+    ('awatop',   'atomic', True),
+    ('awnsaid',  'nsaid',  True),
+    ('awtrace',  'trace',  True),
+    ('awmpam',   'mpam',   True),
+    ('awmecid',  'mecid',  True),
+    ('awunique', 'unique', True),
+    ('awtagop',  'mte',    True),
+    ('awtag',    'mte',    True),
+)
+_AXI5_WR_REQ2_EXTRAS = (            # W-side (after wready)
+    ('wpoison',    'poison', True),
+    ('wtag',       'mte',    True),
+    ('wtagupdate', 'mte',    True),
+)
+_AXI5_WR_RESP_EXTRAS = (            # B-side (after bready)
+    ('btrace',    'trace', False),
+    ('btag',      'mte',   False),
+    ('btagmatch', 'mte',   False),
+)
+
+# rd-channel extras.
+_AXI5_RD_REQ1_EXTRAS = (            # AR-side (after arready)
+    ('arnsaid',   'nsaid',    True),
+    ('artrace',   'trace',    True),
+    ('armpam',    'mpam',     True),
+    ('armecid',   'mecid',    True),
+    ('arunique',  'unique',   True),
+    ('archunken', 'chunking', True),
+    ('artagop',   'mte',      True),
+)
+_AXI5_RD_RESP_EXTRAS = (            # R-side (after rready)
+    ('rtrace',     'trace',    False),
+    ('rpoison',    'poison',   False),
+    ('rchunkv',    'chunking', False),
+    ('rchunknum',  'chunking', False),
+    ('rchunkstrb', 'chunking', False),
+    ('rtag',       'mte',      False),
+    ('rtagmatch',  'mte',      False),
+)
+
+# External-surface declarations for the A5-1 sideband feature set, keyed
+# by AXI channel. Only enabled features' signals are exposed on the
+# bridge top / master adapter; the widths mirror the axi5_slave_* SV
+# parameter defaults (AXI_NSAID_WIDTH=4, AXI_MPAM_WIDTH=11,
+# AXI_MECID_WIDTH=16; trace/unique are scalars).
+# Tuple: (name, width_bits, feature, driven_by_external_master).
+AXI5_SIDEBAND_EXT_SIGNALS = {
+    'aw': (
+        ('awnsaid',  4,  'nsaid',  True),
+        ('awtrace',  1,  'trace',  True),
+        ('awmpam',   11, 'mpam',   True),
+        ('awmecid',  16, 'mecid',  True),
+        ('awunique', 1,  'unique', True),
+    ),
+    'w': (),
+    'b': (
+        ('btrace', 1, 'trace', False),
+    ),
+    'ar': (
+        ('arnsaid',  4,  'nsaid',  True),
+        ('artrace',  1,  'trace',  True),
+        ('armpam',   11, 'mpam',   True),
+        ('armecid',  16, 'mecid',  True),
+        ('arunique', 1,  'unique', True),
+    ),
+    'r': (
+        ('rtrace', 1, 'trace', False),
+    ),
+}
+
+
+def axi5_exposed_ext_signals(channel_key: str, features) -> List[tuple]:
+    """The (name, width, driven_by_external_master) triples an AXI5 port
+    with `features` enabled exposes on AXI channel `channel_key`
+    ('aw'/'w'/'b'/'ar'/'r'), in declaration order."""
+    feats = set(features or ())
+    return [(name, width, ext_in)
+            for name, width, feat, ext_in
+            in AXI5_SIDEBAND_EXT_SIGNALS[channel_key]
+            if feat in feats]
+
+
 class Axi4TimingWrapper:
-    """Generate an axi4_{master,slave}_{wr,rd} instantiation block.
+    """Generate an {axi4,axi5}_{master,slave}_{wr,rd} instantiation block.
 
     Construct with:
         Axi4TimingWrapper(side='master'|'slave', channel='wr'|'rd', ...)
 
-    `side` picks the SV module: side='master' -> axi4_master_*,
-    side='slave' -> axi4_slave_*. `channel` picks 'wr' or 'rd'. The
-    `mon` flag swaps in the `_mon` variant.
+    `side` picks the SV module: side='master' -> <protocol>_master_*,
+    side='slave' -> <protocol>_slave_*. `channel` picks 'wr' or 'rd'.
+    The `mon` flag swaps in the `_mon` variant.
+
+    `protocol` (default 'axi4') picks the module family. With
+    protocol='axi5' (A5-1: side='slave' only -- the master-adapter
+    boundary), the instantiated module is axi5_slave_{wr,rd}[_mon]:
+      - the base port set drops aw/arregion (AXI5 removed REGION),
+      - every AXI5 feature port is bound: features named in
+        `axi5_features` connect through on the external side, the rest
+        tie ('0 inputs / open outputs),
+      - ENABLE_<FEATURE> parameter overrides are emitted for every
+        feature the module declares (1'b1 when enabled, else 1'b0),
+      - the fub (fabric) side terminates ALL feature ports -- the
+        fabric behind the wrapper stays AXI4.
+    The class name keeps its historical `Axi4` prefix; renaming is out
+    of scope for A5-1.
     """
 
     def __init__(
@@ -74,20 +206,41 @@ class Axi4TimingWrapper:
         # actually drops the cone at synthesis. Only meaningful when
         # mon=True. Pass None to leave the SV defaults in place (all 1).
         mon_enables: Optional[dict] = None,
+        # protocol -- module family selector: 'axi4' (default, unchanged
+        # behaviour) or 'axi5' (A5-1: axi5_slave_* boundary wrappers on
+        # master-adapter ports). See class docstring.
+        protocol: str = 'axi4',
+        # axi5_features -- feature names whose external signals connect
+        # through (the rest tie off). Only meaningful when
+        # protocol='axi5'. Upstream validation (validate_axi5) restricts
+        # this to the A5-1 sideband set.
+        axi5_features: Optional[List[str]] = None,
     ):
         if side not in ('master', 'slave'):
             raise ValueError(f"side must be 'master' or 'slave', got {side!r}")
         if channel not in ('wr', 'rd'):
             raise ValueError(f"channel must be 'wr' or 'rd', got {channel!r}")
+        if protocol not in ('axi4', 'axi5'):
+            raise ValueError(
+                f"protocol must be 'axi4' or 'axi5', got {protocol!r}")
+        if protocol == 'axi5' and side != 'slave':
+            raise ValueError(
+                "protocol='axi5' supports side='slave' only in A5-1 "
+                "(AXI5 masters on the bridge; AXI5 slaves land with A5-2)")
+        if protocol != 'axi5' and axi5_features:
+            raise ValueError(
+                "axi5_features passed but protocol is not 'axi5'")
         self.side = side
         self.channel = channel
+        self.protocol = protocol
+        self.axi5_features = tuple(axi5_features or ())
         self.instance_name = instance_name
         self.id_width = id_width
         self.addr_width = addr_width
         self.data_width = data_width
         self.user_width = user_width
 
-        module_name = f"axi4_{side}_{channel}{'_mon' if mon else ''}"
+        module_name = f"{protocol}_{side}_{channel}{'_mon' if mon else ''}"
         self.module = Module(module_name=module_name,
                              instance_name=instance_name)
         if channel == 'wr':
@@ -109,6 +262,18 @@ class Axi4TimingWrapper:
                 f"parameter int AXI_DATA_WIDTH  = {data_width}, "
                 f"parameter int AXI_USER_WIDTH  = {user_width}"
             )
+        # AXI5 feature-enable overrides. The SV defaults are all-enabled
+        # (ENABLE_*=1), so every feature parameter the module declares is
+        # driven explicitly -- 1'b1 for features in axi5_features, 1'b0
+        # for the rest -- ensuring disabled logic is dropped at synthesis.
+        if protocol == 'axi5':
+            feature_order = (_AXI5_WR_FEATURE_ORDER if channel == 'wr'
+                             else _AXI5_RD_FEATURE_ORDER)
+            for feat in feature_order:
+                fparam = AXI5_FEATURE_ENABLE_PARAM[feat]
+                fval = "1'b1" if feat in self.axi5_features else "1'b0"
+                param_str += f", parameter bit {fparam}    = {fval}"
+
         # When the monitored variant is used, the caller can override the
         # SV module's hard-coded UNIT_ID / AGENT_ID defaults so monbus
         # packets identify exactly which per-port wrapper produced them.
@@ -157,10 +322,19 @@ class Axi4TimingWrapper:
 
         # Per-side, per-channel port name layouts. These mirror the SV
         # module declarations -- centralised so call sites can't typo.
+        #
+        # AXI5 differences (axi5_slave_{wr,rd}.sv): the base set drops
+        # aw/arregion (AXI5 removed REGION), and every feature port is
+        # appended to its channel group so instantiation binds all pins.
+        # Feature-extra tuples carry (name, feature, ext_is_input); the
+        # connector-default helpers turn them into pass-through / tie-off
+        # connectors per side.
+        is_axi5 = (protocol == 'axi5')
         if channel == 'wr':
             self._req1_ports = (
                 'awid', 'awaddr', 'awlen', 'awsize', 'awburst',
-                'awlock', 'awcache', 'awprot', 'awqos', 'awregion',
+                'awlock', 'awcache', 'awprot', 'awqos',
+            ) + (() if is_axi5 else ('awregion',)) + (
                 'awuser', 'awvalid', 'awready',
             )
             self._req2_ports = (
@@ -169,19 +343,26 @@ class Axi4TimingWrapper:
             self._resp_ports = (
                 'bid', 'bresp', 'buser', 'bvalid', 'bready',
             )
+            self._req1_extras = _AXI5_WR_REQ1_EXTRAS if is_axi5 else ()
+            self._req2_extras = _AXI5_WR_REQ2_EXTRAS if is_axi5 else ()
+            self._resp_extras = _AXI5_WR_RESP_EXTRAS if is_axi5 else ()
             self._req1_label = "AW channel"
             self._req2_label = "W channel"
             self._resp_label = "B channel"
         else:
             self._req1_ports = (
                 'arid', 'araddr', 'arlen', 'arsize', 'arburst',
-                'arlock', 'arcache', 'arprot', 'arqos', 'arregion',
+                'arlock', 'arcache', 'arprot', 'arqos',
+            ) + (() if is_axi5 else ('arregion',)) + (
                 'aruser', 'arvalid', 'arready',
             )
             self._req2_ports = ()
             self._resp_ports = (
                 'rid', 'rdata', 'rresp', 'rlast', 'ruser', 'rvalid', 'rready',
             )
+            self._req1_extras = _AXI5_RD_REQ1_EXTRAS if is_axi5 else ()
+            self._req2_extras = ()
+            self._resp_extras = _AXI5_RD_RESP_EXTRAS if is_axi5 else ()
             self._req1_label = "AR channel"
             self._req2_label = None
             self._resp_label = "R channel"
@@ -421,24 +602,50 @@ class Axi4TimingWrapper:
                 d[name] = ""
             d['buser'] = "1'b0"
             d['ruser'] = "1'b0"
+        # AXI5 feature ports terminate at the wrapper on the fabric side
+        # regardless of enablement -- the fabric behind is plain AXI4.
+        # fub direction mirrors the external one: external inputs are fub
+        # OUTPUTS (leave open), external outputs are fub INPUTS (tie '0 --
+        # b/r-side extras like btrace/rtag are driven INTO the wrapper).
+        for name, _feat, ext_in in self._all_axi5_extras():
+            d[name] = "" if ext_in else "'0"
         return d
 
     def _external_default_connectors(self, connector_prefix: str) -> dict:
         # External-side connectors pass through with the prefix unless
-        # callers override. No special defaults required today.
-        return {}
+        # callers override. Base signals need no special defaults; AXI5
+        # feature signals of DISABLED features are not exposed on the
+        # enclosing module, so tie unexposed INPUTS to '0 and leave
+        # unexposed OUTPUTS with empty connectors (house style). Enabled
+        # features fall through to the prefix+base pass-through.
+        d = {}
+        for name, feat, ext_in in self._all_axi5_extras():
+            if feat not in self.axi5_features:
+                d[name] = "'0" if ext_in else ""
+        return d
+
+    def _all_axi5_extras(self):
+        """Every AXI5 feature-extra tuple across all channel groups
+        (empty for protocol='axi4')."""
+        return (tuple(self._req1_extras) + tuple(self._req2_extras)
+                + tuple(self._resp_extras))
 
     def _build_section_pairs(self, port_prefix: str,
                              connector_prefix: str,
                              overrides: dict) -> List[tuple]:
-        """Construct (port, connector) tuples for a channel side."""
+        """Construct (port, connector) tuples for a channel side. Each
+        channel group emits its base ports first, then its AXI5 feature
+        extras (empty on the axi4 family) in SV-declaration order."""
         pairs: List[tuple] = []
         groups = [self._req1_ports, self._req2_ports, self._resp_ports]
+        extras = [self._req1_extras, self._req2_extras, self._resp_extras]
         labels = [self._req1_label, self._req2_label, self._resp_label]
-        for group, _label in zip(groups, labels):
-            if not group:
+        for group, group_extras, _label in zip(groups, extras, labels):
+            if not group and not group_extras:
                 continue
-            for base in group:
+            base_names = tuple(group) + tuple(
+                name for name, _f, _d in group_extras)
+            for base in base_names:
                 port_name = f"{port_prefix}{base}"
                 if base in overrides:
                     connector = overrides[base]

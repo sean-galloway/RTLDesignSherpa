@@ -65,6 +65,20 @@ master/slave/monitor; CocoTBFramework has AXI5 BFMs and
 simulates green with the AXI5 BFM + compliance checker, and feature
 signals terminate per policy at the AMBA4 fabric boundary.
 
+**Progress (2026-08-08):** A5-1 core LANDED for AXI5 masters —
+`protocol = "axi5"` + `axi5_features` config, validator split
+(sideband nsaid/trace/mpam/mecid/unique allowed; atomic/poison/mte/
+chunking rejected naming their delivering phase; AXI5 slaves rejected
+until A5-2), axi5_slave_{wr,rd}[_mon] boundary wrappers with
+feature-gated external ports (no region — AXI5 dropped it) and full
+tie/open termination at the AXI4 fabric, bridge_1x2_rd_axi5 fixture
+in the manifest (+_mon variant), 10 new unit tests (37 total), sim
+smoke green with the AXI4 BFM driving the base subset. axi5+mon is
+supported (monitor surface verified identical to axi4's).
+Remaining for A5-1 sign-off: a wr-channel fixture and an AXI5-BFM +
+compliance-checker driven test (currently AXI4 BFM, sideband held 0
+by Verilator defaults).
+
 ## BRIDGE-002 — AMBA5 bridge support (AXI5 ports alongside AXI4)
 **Status:** open 2026-08-08
 **Priority:** P1
@@ -105,6 +119,20 @@ master/slave/monitor; CocoTBFramework has AXI5 BFMs and
 **Done looks like (A5-1):** an `axi5` port type generates, validates,
 simulates green with the AXI5 BFM + compliance checker, and feature
 signals terminate per policy at the AMBA4 fabric boundary.
+
+**Progress (2026-08-08):** A5-1 core LANDED for AXI5 masters —
+`protocol = "axi5"` + `axi5_features` config, validator split
+(sideband nsaid/trace/mpam/mecid/unique allowed; atomic/poison/mte/
+chunking rejected naming their delivering phase; AXI5 slaves rejected
+until A5-2), axi5_slave_{wr,rd}[_mon] boundary wrappers with
+feature-gated external ports (no region — AXI5 dropped it) and full
+tie/open termination at the AXI4 fabric, bridge_1x2_rd_axi5 fixture
+in the manifest (+_mon variant), 10 new unit tests (37 total), sim
+smoke green with the AXI4 BFM driving the base subset. axi5+mon is
+supported (monitor surface verified identical to axi4's).
+Remaining for A5-1 sign-off: a wr-channel fixture and an AXI5-BFM +
+compliance-checker driven test (currently AXI4 BFM, sideband held 0
+by Verilator defaults).
 
 ## BRIDGE-001 — Generator emits NUM_SLAVES as a body localparam used in the port list
 **Status:** open 2026-07-28

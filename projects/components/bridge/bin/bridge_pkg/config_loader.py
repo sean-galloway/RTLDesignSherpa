@@ -198,6 +198,15 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         protocol = m.get('protocol', 'axi4')
         channels = m.get('channels', 'rw')
 
+        # AXI5 feature list (A5-1). Presence on a non-axi5 port is a
+        # config error -- the key silently doing nothing would hide a
+        # typo'd protocol field.
+        axi5_features = list(m.get('axi5_features', []))
+        if axi5_features and protocol != 'axi5':
+            raise ValidationError(
+                f"Master '{port_name}': 'axi5_features' is only legal on "
+                f"protocol=\"axi5\" ports (got protocol='{protocol}')")
+
         # Interface config (store for Phase 2, don't use yet)
         interface_config = m.get('interface')
 
@@ -221,6 +230,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             use_monitor=bool(m.get('use_monitor', True)),
             mon_add=list(m.get('mon_add', [])),
             mon_remove=list(m.get('mon_remove', [])),
+            axi5_features=axi5_features,
         )
 
         masters.append(port)
@@ -261,6 +271,16 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         else:
             addr_range = addr_range_raw
 
+        # AXI5 feature list (A5-1). Same non-axi5 rejection as masters.
+        # AXI5 *slaves* themselves are rejected downstream by
+        # validate_axi5 (A5-1 supports AXI5 masters only) -- parse the
+        # field here so the validator sees the user's full intent.
+        axi5_features = list(s.get('axi5_features', []))
+        if axi5_features and protocol != 'axi5':
+            raise ValidationError(
+                f"Slave '{port_name}': 'axi5_features' is only legal on "
+                f"protocol=\"axi5\" ports (got protocol='{protocol}')")
+
         # Interface config (store for Phase 2, don't use yet)
         interface_config = s.get('interface')
 
@@ -287,6 +307,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             use_monitor=bool(s.get('use_monitor', True)),
             mon_add=list(s.get('mon_add', [])),
             mon_remove=list(s.get('mon_remove', [])),
+            axi5_features=axi5_features,
         )
 
         slaves.append(port)
