@@ -85,7 +85,7 @@ def generate_test_params():
         ]
     elif reg_level == 'FUNC':
         return [
-            {'WIDTH': 8, 'test_level': 'full'},
+            {'WIDTH': 8, 'test_level': 'func'},  # FUNC selects the TB's MIDDLE depth
         ]
     else:  # FULL
         return [

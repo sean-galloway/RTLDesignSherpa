@@ -189,6 +189,39 @@ class ArbiterRoundRobinTB(TBBase):
         self.log.info(f"Walking mode set for client {active_client}, auto_ack={auto_ack_enabled}, ack_delay={ack_delay}")
 
 
+    async def drain_arbiter(self, auto_ack_enabled, timeout_cycles=200):
+        """Wait for grant_valid to drop, retiring a stranded grant if needed.
+
+        With WAIT_GNT_ACK=1 the arbiter holds grant_valid until the granted
+        client ACKs. ArbiterMaster only ACKs for clients it still has enabled,
+        so disabling everyone while one owes an ACK strands the grant and NO
+        further grant is issued for the rest of the run.
+
+        That is what made this phase look like starvation: the per-client
+        counter moved [27,27,25,32] -> [27,27,27,32] across four exclusive
+        windows -- one client served, three not -- while the compliance model
+        reported zero errors, because the arbiter was behaving correctly and
+        simply had nothing to arbitrate. Dropping a request without ACKing it
+        is a stimulus bug, not an arbiter fault.
+        """
+        for _ in range(timeout_cycles):
+            await self.wait_clocks('clk', 1)
+            gv = self.dut.grant_valid.value
+            if not gv.is_resolvable:
+                continue
+            if int(gv) == 0:
+                break
+            gnt = self.dut.grant.value
+            if auto_ack_enabled and gnt.is_resolvable and int(gnt):
+                self.dut.grant_ack.value = int(gnt)
+                await self.wait_clocks('clk', 1)
+                self.dut.grant_ack.value = 0
+        else:
+            self.log.warning(
+                f"Arbiter still asserting grant_valid {timeout_cycles} cycles "
+                f"after every client was disabled")
+        await self.wait_clocks('clk', 10)
+
     async def test_walking_requests(self):
         """Test walking requests with automatic ACK support"""
         self.log.info(f"Starting walking adjacent requests test{self.get_time_ns_str()}")
@@ -214,10 +247,11 @@ class ArbiterRoundRobinTB(TBBase):
         for i in range(self.CLIENTS):
             self.log.info(f"=== Testing individual client {i} ==={self.get_time_ns_str()}")
 
-            # STEP 1: Disable all clients
+            # STEP 1: Disable all clients, then make sure the arbiter is
+            # actually idle before handing it a new exclusive requester.
             for client_id in range(self.CLIENTS):
                 self.master.disable_client(client_id)
-            await self.wait_clocks('clk', 10)
+            await self.drain_arbiter(auto_ack_enabled)
 
             # STEP 2: Test this client with auto-ACK
             self.log.info(f"Testing client {i} with auto_ack={auto_ack_enabled}")
@@ -293,29 +327,20 @@ class ArbiterRoundRobinTB(TBBase):
                      for c in range(self.CLIENTS)]
         never_granted = [c for c in range(self.CLIENTS)
                          if phase_end[c] <= phase_start[c]]
-        if auto_ack_enabled:
-            # ACK mode: warn, do not fail. The monitor's per-client counter is
-            # a proven instrument in no-ACK mode -- the sibling simple TB uses
-            # exactly this and moves +1 per client, 5 runs clean -- but under
-            # WAIT_GNT_ACK=1 the manual-request flow does not register grants
-            # against it reliably, and the compliance monitor separately logs
-            # "ACK from client N with no pending grant" during this phase.
-            # Asserting here fires on 3 of 4 clients while the counts barely
-            # move, which is a measurement artifact, not starvation. Shipping
-            # that assertion would just teach everyone to rerun. COMMON-019
-            # holds the evidence and the framework change it needs.
-            if never_granted:
-                self.log.warning(
-                    f"Walking requests (ACK mode): client(s) {never_granted} "
-                    f"show no counted grant; {phase_start} -> {phase_end}. "
-                    f"NOT failed -- see COMMON-019."
-                )
-        else:
-            assert not never_granted, (
-                f"Walking requests: client(s) {never_granted} held an exclusive "
-                f"request and were never granted during the phase. "
-                f"Per-client grants {phase_start} -> {phase_end}"
-            )
+        # Both modes assert. The ACK-mode carve-out that used to sit here was
+        # a consequence of the monitor bug fixed as RTLDesignSherpa-DV#50: an
+        # ACK-mode grant handed between clients without grant_valid dropping
+        # never retired the old owner, so grants went unregistered against the
+        # per-client counter and the compliance model logged "ACK from client N
+        # with no pending grant" all through this phase. With that fixed the
+        # counter tracks ACK mode as reliably as no-ACK, and a client that held
+        # an exclusive request and got nothing is starvation in either mode.
+        assert not never_granted, (
+            f"Walking requests: client(s) {never_granted} held an exclusive "
+            f"request and were never granted during the phase "
+            f"(WAIT_GNT_ACK={self.WAIT_GNT_ACK}). "
+            f"Per-client grants {phase_start} -> {phase_end}"
+        )
 
         self.log.info(
             f"Walking requests test completed; every client granted "

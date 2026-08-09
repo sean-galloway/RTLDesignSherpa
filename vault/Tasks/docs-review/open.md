@@ -913,3 +913,59 @@ stimulus, vacuous main_loop, sigmoid prose, create_view_cmd FST name,
 johnson2bin/4-phase/open_loop/gaxi cdc items from the earlier cdc round).
 carry_save PARAM_N was a false alarm (fixed module is 1-bit by design).
 Remaining: MATH-001 (bf16 multiplier RNE, RTL fix directed by Sean).
+
+**common TEST AUDIT round_5 — 2026-08-08. FINAL for this area.** Scoped with
+`--tests` to the six common tests whose logic changed since round_4, plus
+`test_sync_pulse` from val/cdc -- a test I wrote from scratch and common's own
+until that morning. 4 units. The 48 wrappers whose only change was the
+identical 3-line coverage insertion were deliberately excluded, as was
+`bf16_testing.py` (the math agent's file).
+
+**5 findings. One of them is wrong, and finding that out cost a live break.**
+
+`sync_pulse` came back **CLEAN** -- the unit I most wanted checked, being the
+only module test I authored outright. The reviewer verified both level
+mechanisms move real work (8/24/80 pulses), the seed chain is intact and
+actually consumed, the assertions can fail ("a DUT that drops, duplicates,
+stretches, or invents pulses fails"), the monitor samples clear of the clock
+edge, and the timeout is ~100x the worst-case runtime. It also noted the one
+EXCLUDED scenario -- back-to-back toggling, which a toggle synchroniser cannot
+sustain by construction -- is disclaimed in the docstring rather than silently
+omitted. A documented scope decision reads differently from a hidden hole, and
+that distinction is the whole point of this exercise.
+
+**The walking-requests finding was real and the carve-out was hiding a genuine
+defect.** The ACK branch warned instead of asserting, on the recorded grounds
+that the per-client counter was "a measurement artifact, not starvation". It
+was not. Disabling every client while one still owed an ACK stranded
+`grant_valid` for the rest of the run -- the same root cause fixed in the
+weighted TB's saturation phase -- so the arbiter genuinely never granted.
+Measured: `[27,27,25,32] -> [27,27,27,32]`, one client of four served, while
+the compliance model reported ZERO errors throughout because the arbiter was
+behaving correctly with nothing to arbitrate. With a drain in place:
+`[27,32,31,31] -> [30,34,33,33]`, all four served, 6/6 clean, and a mutation
+that skips one client's window fails with `client(s) [1]`.
+
+**The stacked-clock finding is FALSE, and acting on it broke every suite.** It
+reported that six `@cocotb.test` functions each start a Clock on one dut.clk
+and leave six unsynchronised drivers. cocotb CANCELS every coroutine a test
+started when that test ends -- the clocks do not stack, and the per-test start
+is the mechanism, not a bug. A class-level guard in `TBBase.start_clock` left
+tests 2..N with no clock: counter_bin_load went from 1.4s to spinning at 100%
+CPU on an edge that never came. Reverted, with the reasoning recorded on the
+method. **Third plausible-but-wrong claim of the week to survive reading and
+die on execution**, after the shifter_universal X-select test that passed while
+exercising select=00 and ACK mode's "0 errors" that meant "not checking".
+
+Remaining three were mine and small: shifter_universal's FUNC row mapped to
+TEST_LEVEL='full' (orphaning every 'func' branch in its TB), counter_freq_
+invariant's docstring still described the pre-strategy grid, and an
+unrecognised REG_LEVEL built the FULL parameter set at gate depth.
+
+**Process hazard, recorded because it reached main:** the broken guard was
+UNCOMMITTED in the working tree when the math agent committed MATH-004. Their
+`git add` swept it into da911640 and pushed it -- a broken change of mine, in
+the history under someone else's commit message, live for about twenty
+minutes. Two agents sharing one working tree means an uncommitted experiment
+is not private.
+

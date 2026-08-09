@@ -71,10 +71,37 @@ ground truth once you have accounted for when its stimulus actually lands.**
 
 Both arbiter TBs used to carry a `MODEL_DEFECTS = {'round_robin_violation'}`
 exclusion so the suite would pass. That hid defect 1 for as long as it existed.
-The verdict is now asserted with no exclusions in no-ACK mode, and logged at
-WARNING with full per-violation detail in ACK mode until COMMON-019 closes.
+The verdict is now asserted with no exclusions in BOTH modes. ACK mode was
+logged-not-asserted until COMMON-019 closed (RTLDesignSherpa-DV#50); it
+asserts too, as of 2026-08-08.
 Print the whole record - `expected`, `actual`, `active_requests`,
 `current_mask`, `last_winner` - because the type name alone starts every debug
 session over from nothing.
 
 Related: [[measure-over-the-window]], [[bfm-usage]], [[test-review]].
+
+## A stranded ACK looks exactly like starvation
+
+With `WAIT_GNT_ACK=1` the arbiter holds `grant_valid` until the granted client
+ACKs, and `ArbiterMaster` only ACKs for clients it still has ENABLED. So a
+phase that disables every client to set up its next step -- walking requests,
+single-client saturation -- strands the outstanding grant, and **no further
+grant is issued for the rest of the run**.
+
+It presents as starvation with a clean bill of health: per-client counters
+barely move, the phase looks like the arbiter is refusing to serve anyone, and
+the compliance model reports ZERO errors the whole time, because the arbiter is
+behaving perfectly and simply has nothing to arbitrate.
+
+Both places this appeared were first explained away in a comment as a
+measurement artifact and downgraded to a warning. Both were real. Drain before
+reconfiguring: wait for `grant_valid` to drop, and if it does not, retire the
+grant yourself by driving `grant_ack` with the current grant vector.
+
+Dropping a request without ACKing it is a STIMULUS bug. The arbiter is right to
+wait.
+
+Related: [[measure-over-the-window]] -- the same instinct, one layer up. When a
+count looks wrong, suspect what you did to the DUT before suspecting the
+instrument.
+

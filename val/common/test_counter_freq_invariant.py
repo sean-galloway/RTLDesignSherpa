@@ -25,9 +25,9 @@ Three frequency ranges are tested (per the user's request):
   3. 100 - 1500 MHz   (high-speed ASIC)
 
 REG_LEVEL controls parameter breadth:
-    GATE: 1 counter width  x 3 ranges =  3 tests
-    FUNC: 2 counter widths x 3 ranges =  6 tests  (default)
-    FULL: 3 counter widths x 3 ranges =  9 tests
+    GATE: 1 width  x 3 ranges x 1 strategy (LINEAR)         =  3 tests
+    FUNC: 2 widths x 3 ranges x 2 strategies                = 12 tests (default)
+    FULL: 3 widths x 3 ranges x 2 strategies + 2 degenerate = 20 tests
 """
 
 import os
@@ -117,7 +117,8 @@ def generate_test_parameters():
 
     REG_LEVEL=GATE: 1 width  x 3 ranges x 1 strategy =  3 tests
     REG_LEVEL=FUNC: 2 widths x 3 ranges x 2 strategies = 12 tests (default)
-    REG_LEVEL=FULL: 3 widths x 3 ranges x 2 strategies = 18 tests
+    REG_LEVEL=FULL: 3 widths x 3 ranges x 2 strategies = 18, plus 2
+                    NUM_FREQ_ENTRIES=1 configs             = 20 tests
 
     GATE stays LINEAR-only to keep the smoke level fast; POW2 comes in from
     FUNC up, which is where coverage is measured.
@@ -206,8 +207,13 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz, strate
         "DEBUG_LUT":        "1",
     }
 
+    # The default must match what generate_test_parameters() does with an
+    # unrecognised REG_LEVEL: it falls into the else branch and builds the FULL
+    # grid. Defaulting the DEPTH to 'gate' instead meant a misspelled level ran
+    # the most expensive parameter set with the shallowest checks -- silently
+    # shallow exactly when the operator asked for maximal depth.
     test_level_map = {'GATE': 'gate', 'FUNC': 'func', 'FULL': 'full'}
-    test_level = test_level_map.get(reg_level, 'gate')
+    test_level = test_level_map.get(reg_level, 'full')
 
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.fst",
