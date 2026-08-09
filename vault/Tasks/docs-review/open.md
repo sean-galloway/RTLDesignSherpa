@@ -902,3 +902,14 @@ failure looked at first like my own change.**
 
 Verification: gate 75/75, func 208/208, full 925/925, no skips or reruns.
 
+
+**math TEST audit (round_1, 2026-08-06).** 173 findings over 34 units;
+triaged by class and integrated: SEED two-line variant swept repo-wide (124
+files); filelist class closed as MATH-003 (all 119 tests build from
+filelists now); levels class closed as MATH-004 (level normalizer +
+grid fixes); semantic class fixed with mutation checks (RNE checker,
+clamp bit-exact, Goldschmidt zero-window + flag checks, carry_save i_c
+stimulus, vacuous main_loop, sigmoid prose, create_view_cmd FST name,
+johnson2bin/4-phase/open_loop/gaxi cdc items from the earlier cdc round).
+carry_save PARAM_N was a false alarm (fixed module is 1-bit by design).
+Remaining: MATH-001 (bf16 multiplier RNE, RTL fix directed by Sean).

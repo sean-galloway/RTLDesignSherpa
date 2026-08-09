@@ -26,17 +26,3 @@ integration, 2026-07-29); only the RTL question remains.
 If intended: close with a one-line rationale and mark the doc note 'documented
 behavior, not a bug'. If defect: fix RTL + the consuming modules, add a
 rounding-truth-table test to val/math.
-## MATH-004 — levels are decorative: TEST_LEVEL exported but never gates depth; FULL == FUNC grids
-**Status:** open 2026-07-31 (math test-audit round_1, 59 findings in the class)
-**Priority:** P1 — HARD REQUIREMENT (Sean 2026-08-03): every test must have working gate/func/full
-**Owner:** TBD
-
-Math tests have REG_LEVEL grids on paper (119/119) but the audit finds the
-second mechanism hollow: TEST_LEVEL is exported by the wrapper and never read
-by the TB path (or gates nothing), and several grids are FULL == FUNC
-re-labelled (clause 7, "levels are honest"). cdc's batch-3 fixed this shape
-there (matrices restored, vocabulary unified); math needs the same pass per
-TB family (fp_testing, bf16_testing, adder_testing, multiplier_testing are
-shared by 100+ tests, so fixing the shared TBs covers most of the class).
-Define what gate/func/full actually DO per family (fewer patterns at gate,
-the full directed set at full) and wire it.
