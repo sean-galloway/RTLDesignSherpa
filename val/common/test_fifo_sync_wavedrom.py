@@ -58,7 +58,8 @@ from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
 
 # Import WaveDrom components
 from CocoTBFramework.components.wavedrom.constraint_solver import (
-    TemporalConstraintSolver, ClockEdge
+    TemporalConstraintSolver, ClockEdge,
+    TemporalConstraint, TemporalEvent, SignalTransition, TemporalRelation
 )
 from CocoTBFramework.components.wavedrom.wavejson_gen import WaveJSONGenerator
 from CocoTBFramework.components.shared.field_config import FieldConfig
@@ -118,9 +119,8 @@ class FifoSyncWaveDromTB(FifoBufferTB):
             read_signals = ['read', 'rd_data', 'rd_empty', 'rd_almost_empty']
             self.wave_generator.add_interface_group("Read Interface", read_signals)
 
-            # Group 4: Status
-            status_signals = ['count']  # Internal count if visible
-            self.wave_generator.add_interface_group("Status", status_signals)
+            # (no Status group: fifo_sync leaves fifo_control's count port
+            # unconnected, so there is nothing to bind a 'count' trace to)
 
             # Create temporal constraint solver
             self.wave_solver = TemporalConstraintSolver(
@@ -131,33 +131,67 @@ class FifoSyncWaveDromTB(FifoBufferTB):
                 default_field_config=self.field_config_wave
             )
 
-            # Add single clock group
+            # Add single clock group. The name MUST be 'default': that is the
+            # clock_group every TemporalConstraint defaults to, and the
+            # sampler drops constraints whose group name does not match —
+            # under any other name the windows stay at 0 cycles forever.
             self.wave_solver.add_clock_group(
-                name="clk",
+                name="default",
                 clock_signal=self.wr_clk,  # Same clock for sync FIFO
                 edge=ClockEdge.RISING,
                 sample_delay_ns=0.1,
                 field_config=self.field_config_wave
             )
 
-            # Define signal mappings
-            # Note: Sync FIFO uses different signal names (no wr_/rd_ prefixes on clk)
-            fifo_signals = {
-                'clk': 'clk',
-                'rst_n': 'rst_n',
-                'write': 'write',
-                'wr_data': 'wr_data',
-                'wr_full': 'wr_full',
-                'wr_almost_full': 'wr_almost_full',
-                'read': 'read',
-                'rd_data': 'rd_data',
-                'rd_empty': 'rd_empty',
-                'rd_almost_empty': 'rd_almost_empty',
-            }
+            # Bind signals UNPREFIXED, matching the names the interface groups
+            # and the constraints below use. add_interface() would prefix every
+            # binding with 'fifo_', so nothing would ever line up — that
+            # mismatch is half of why this generator emitted no JSON
+            # (COMMON-020); the gaxi fifo wavedrom test is the pattern.
+            for sig in ('clk', 'rst_n', 'write', 'wr_full', 'wr_almost_full',
+                        'read', 'rd_empty', 'rd_almost_empty'):
+                self.wave_solver.add_signal_binding(sig, sig)
+            for sig in ('wr_data', 'rd_data'):
+                self.wave_solver.add_signal_binding(
+                    sig, sig, self.field_config_wave.get_field(sig))
 
-            self.wave_solver.add_interface("fifo", fifo_signals, field_config=self.field_config_wave)
+            # Register the temporal constraints — the other (and larger) half
+            # of COMMON-020: without at least one add_constraint() the sampling
+            # loop iterates an empty set and no window is ever captured. Each
+            # constraint keys on a distinct single-signal transition that the
+            # scenarios produce deterministically, so one long sampling session
+            # captures all four (the solver auto-solves as each rolling window
+            # fills and stops at max_matches).
+            layout = [
+                'clk', 'rst_n', '|',
+                ['Write', 'write', 'wr_data', 'wr_full', 'wr_almost_full'], '|',
+                ['Read', 'read', 'rd_data', 'rd_empty', 'rd_almost_empty'],
+            ]
+            scenarios = [
+                # (name, signal, from, to, window, ctx_before, edges)
+                ('fifo_sync_write_empty', 'write', 0, 1, 12, 3,
+                 [('wr_data', 'rd_data', '->', 'data')]),
+                ('fifo_sync_full_flag', 'wr_full', 0, 1, 20, 4,
+                 [('write', 'wr_full', '->', 'fill')]),
+                ('fifo_sync_empty_flag', 'rd_empty', 0, 1, 20, 4,
+                 [('read', 'rd_empty', '->', 'drain')]),
+                ('fifo_sync_almost_full', 'wr_almost_full', 0, 1, 16, 3,
+                 [('write', 'wr_almost_full', '->', 'near-full')]),
+            ]
+            for name, sig, frm, to, window, ctx, edges in scenarios:
+                self.wave_solver.add_constraint(TemporalConstraint(
+                    name=name,
+                    events=[TemporalEvent(f"{name}_ev", SignalTransition(sig, frm, to))],
+                    temporal_relation=TemporalRelation.SEQUENCE,
+                    max_window_size=window,
+                    context_cycles_before=ctx,
+                    context_cycles_after=2,
+                    signals_to_show=layout,
+                    edges=edges,
+                ))
 
-            self.log.info("✓ WaveDrom setup complete for Synchronous FIFO")
+            self.log.info("✓ WaveDrom setup complete for Synchronous FIFO "
+                          f"({len(scenarios)} constraints registered)")
 
         except Exception as e:
             self.log.error(f"Failed to setup WaveDrom: {e}")
@@ -350,8 +384,22 @@ async def fifo_sync_wavedrom_test(dut):
     await tb.deassert_reset()
     await tb.wait_clocks('clk', 5)
 
-    # Set up WaveDrom
+    # The scenarios below drive dut.read by hand to stage exact fill/drain
+    # shapes, but FifoBufferTB also starts an auto-consuming FIFOSlave whose
+    # randomizer drains the FIFO on its own schedule — with it alive the FIFO
+    # never reaches full (wr_full/wr_almost_full never assert, and those
+    # constraints can never match) and the diagrams are not reproducible.
+    # Kill it and own the read pin.
+    tb.read_slave.kill()
+    dut.read.value = 0
+
+    # Set up WaveDrom. A failed setup nulls wave_solver and every wavedrom
+    # step below is guarded on it, so without this assert a broken setup
+    # would sail through as a pass with no JSON — the COMMON-020 failure
+    # mode through a different door.
     tb.setup_wavedrom()
+    assert tb.wave_solver is not None, \
+        "WaveDrom setup failed (see log above) — cannot generate wave JSON"
 
     if tb.wave_solver:
         await tb.wave_solver.start_sampling()
@@ -371,20 +419,18 @@ async def fifo_sync_wavedrom_test(dut):
 
             n = len(results['solutions'])
             tb.log.info(f"WaveDrom Results: {n} solutions")
-            if n == 0:
-                # Say so instead of celebrating. setup_wavedrom() builds the
-                # generator and the interface groups but never registers a
-                # TemporalConstraintSolver constraint, so the sampling loop
-                # iterates an empty set, no window is captured and this
-                # generator emits no wave JSON at all. It printed
-                # "GENERATION COMPLETE" over zero output. Writing the
-                # constraints is tracked as COMMON-020; val/amba's gaxi fifo
-                # wavedrom test is the working reference.
-                tb.log.warning(
-                    "NO wave JSON produced: no constraints are registered "
-                    "(COMMON-020). This generator currently emits nothing.")
-            else:
-                tb.log.info("Synchronous FIFO wavedrom generation complete")
+            tb.log.info(f"Satisfied: {results['satisfied_constraints']}")
+            if results['failed_constraints']:
+                tb.log.warning(f"Unsatisfied: {results['failed_constraints']}")
+            # The entire deliverable of this test is the wave JSON. Zero
+            # solutions means the generator emitted nothing, which is exactly
+            # the silent failure COMMON-020 existed for — fail loudly.
+            assert n > 0, (
+                "NO wave JSON produced: the constraint solver found no "
+                "solutions. The generator's whole deliverable is the wave "
+                "JSON, so an empty result is a failure, never a pass "
+                "(COMMON-020).")
+            tb.log.info("Synchronous FIFO wavedrom generation complete")
 
     finally:
         if tb.wave_solver:
