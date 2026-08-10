@@ -13,22 +13,28 @@ the existing WRR?).
 Token bucket, deficit round-robin, hierarchical arbitration. Current arbiters
 cover ~95% of use cases and complex arbiters tend to be application-specific.
 
-**How each maps onto today's `arbiter_round_robin_weighted`** (credit-based
-QoS, runtime weights, global replenishment, ACK protocol):
+**How each maps onto the existing layered family** (the stack is
+`arbiter_priority_encoder` <- `arbiter_round_robin` (rotating mask + ACK)
+<- `arbiter_round_robin_weighted` (credit filter feeding the RR) — each
+capability is a wrapper layer, per Sean's framing 2026-08-09):
 
-- **Deficit round-robin = a MODE of the current WRR**, not a new module. The
-  WRR's credit counters already implement DRR for equal-cost requests
-  (weight = grants per replenish round). True DRR adds a per-client request
-  COST input and spends cost instead of 1, carrying the remainder as
-  deficit. Extension to the existing module when a variable-cost consumer
-  (packet/burst arbitration) appears.
-- **Token bucket = a standalone request-shaper, NOT a WRR mode.** Rate
-  shaping, not fairness: per-client token counters gating `request` upstream
-  of ANY arbiter. New small block (`arbiter_token_filter` or similar),
-  composes with RR/WRR unchanged.
-- **Hierarchical = pure composition.** Group arbiter over per-group
-  arbiters — a wrapper instantiating existing modules (the monbus arbiters
-  are the in-repo composition precedent). No new arbitration logic.
+- **Deficit round-robin = a SECOND wrapper beside the WRR**, both around
+  `arbiter_round_robin`. The disciplines differ enough to stay separate
+  modules sharing the RR core: WRR is weight = consecutive grants per
+  global replenish; DRR is quantum-per-round-visit with spend = request
+  COST and the remainder carried as deficit. Wanted only when a
+  variable-cost consumer (packet/burst arbitration) appears — for
+  equal-cost requests the WRR already gives the same shares.
+- **Token bucket = a free-standing per-client request shaper**, NOT welded
+  to any one arbiter. Same structural position as the WRR's credit mask
+  (gates `request` bits) but standalone, so it composes with RR *and* with
+  WRR by wiring — shaped rate + weighted share together is the realistic
+  QoS combo. A convenience wrapper may follow a proven pairing; the shaper
+  itself stays separate.
+- **Hierarchical = grouped two-level arbitration** (group arbiter selecting
+  among per-group arbiters — hierarchy of CLIENTS, distinct from the
+  family's hierarchy of capability layers). Pure composition of existing
+  modules; the monbus arbiters are the in-repo composition precedent.
 
 Whoever picks this up: the arbiter compliance model in RDS-DV replays every
 grant — extend it alongside (a DRR mode changes the expected-grant math),
