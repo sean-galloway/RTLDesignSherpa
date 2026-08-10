@@ -106,6 +106,7 @@ turn-taking row), DV note `randomization`.
 |---|---|
 | `rtl/common/arbiter_round_robin.sv` | The library round-robin with grant/ack mode; its compliance model in the DV framework replays every grant |
 | `rtl/common/arbiter_round_robin_weighted.sv` / `arbiter_deficit_round_robin.sv` | The layered-wrapper idiom: each is a credit/deficit filter feeding the same RR core — grant-count shares vs cost-proportional shares |
+| `rtl/common/arbiter_token_bucket.sv` | Rate shaping as a FREE-STANDING request filter: composes with any of the arbiters instead of being a mode of one |
 | `rtl/amba/monitor/monbus_arbiter.sv` | Arbitration in monitoring infrastructure — many packet sources, one bus |
 | `projects/components/memory-controllers/pumice-ddr2-lpddr2/rtl/fub/pumice_cmd_arbiter.sv` | Bank-parallel selection: per-entry vectors arbitrated in one cycle, the fix that took board bandwidth off a single-bank serialization |
 

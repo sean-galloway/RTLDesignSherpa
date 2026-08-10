@@ -139,6 +139,27 @@ reads" rule keeps routing unambiguous once tracked.
   the apb one; validator apb5 constraints mirror APB4's (rw-only,
   32-bit). DV: apb5 slave BFM exists (CocoTBFramework apb5), so a
   bridge_1x2 fixture with one apb5 slave closes it.
+  *Step 1 DONE (2026-08-10, commit f6f30762):* the shim IP itself —
+  converters/rtl/axi4_to_apb5_shim.sv (pin-superset wrapper over the
+  apb4 shim; PAUSER/PWUSER tied '0 out, PWAKEUP/PRUSER/PBUSER
+  terminated in; mirrors apb5_slave.sv pin-for-pin) + its closure
+  filelist; lint/audit/decl-order clean.
+  *Step 2 implementation map (surveyed, not yet coded):* treat apb5
+  as "the apb branch + 5 extra external pins" everywhere:
+  (a) Axi4ToApbShim component gets protocol='apb4'|'apb5' (module
+  name swap + connect_apb4_master emits the 5 extra pairs);
+  (b) slave_adapter_generator: extend the protocol tests at lines
+  ~90/97, ~328/330, ~507, ~634, ~724 to include 'apb5' and add the 5
+  signals to _generate_apb_external_ports for the apb5 case;
+  (c) SlaveAdapterInstance: allow 'apb5', external-interface branch
+  += the 5 signals; (d) bridge_module_generator external apb port
+  emission + validator (validate_protocol whitelist, and
+  validate_apb_constraints applies to apb5 too) + config_loader
+  protocol whitelist; (e) bridge_generator.py filelist emission: apb5
+  slaves -f axi4_to_apb5_shim.f instead of the apb4 one; (f) fixture
+  bridge_1x2_rw_apb5 (axi4 master rw, one axi4 + one apb5 slave) +
+  generated tests + a hand-written check against the CocoTBFramework
+  apb5 slave BFM; regen all bridges, zero drift on the existing 21.
 
 **A5-2 design note (2026-08-09):** two slices.
 
