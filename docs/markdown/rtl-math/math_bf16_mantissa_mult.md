@@ -260,12 +260,14 @@ This wrapper is separate from the raw multiplier because:
 
 ### Round-to-Nearest-Even
 
-This module emits `ow_round_bit` and `ow_sticky_bit`, with the guard bit folded
-into sticky (`ow_sticky_bit = guard | sticky`). The consumer
-(`math_bf16_multiplier`) then rounds up on `round_bit & (sticky_bit | lsb)` =
-`R & (G | S | LSB)`. Note this is NOT the textbook RNE decision `G & (R | S |
-LSB)`; see the rounding note in [math_bf16_multiplier.md](math_bf16_multiplier.md).
-Whether the divergence is intended is an open owner decision (MATH-001).
+This module emits `ow_guard_bit`, `ow_round_bit` and `ow_sticky_bit` (the true
+sticky, unfolded since MATH-001). The consumer (`math_bf16_multiplier`) rounds
+up on `guard_bit & (round_bit | sticky_bit | lsb)` = `G & (R | S | LSB)` --
+textbook RNE; see the rounding note in
+[math_bf16_multiplier.md](math_bf16_multiplier.md). (History: this module once
+folded the guard into sticky and the consumer rounded on `R & (G | S | LSB)`;
+the fold makes ties-at-even round up, which the MATH-001 sweep caught at ~2.4%
+of random pairs.)
 
 ## Auto-Generated Code
 

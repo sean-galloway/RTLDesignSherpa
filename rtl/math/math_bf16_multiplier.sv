@@ -73,6 +73,7 @@ wire w_sign_result = w_sign_a ^ w_sign_b;
 wire [15:0] w_mant_product;
 wire        w_needs_norm;
 wire [6:0]  w_mant_mult_out;
+wire        w_guard_bit;
 wire        w_round_bit;
 wire        w_sticky_bit;
 
@@ -84,6 +85,7 @@ math_bf16_mantissa_mult u_mant_mult (
     .ow_product(w_mant_product),
     .ow_needs_norm(w_needs_norm),
     .ow_mant_out(w_mant_mult_out),
+    .ow_guard_bit(w_guard_bit),
     .ow_round_bit(w_round_bit),
     .ow_sticky_bit(w_sticky_bit)
 );
@@ -112,12 +114,13 @@ math_bf16_exponent_adder u_exp_add (
 );
 
 // Round-to-Nearest-Even (RNE) rounding
-// Round up if:
-//   - round_bit=1 AND (sticky_bit=1 OR LSB=1)
-// This implements RNE: ties round to even
-
+// Textbook RNE: round up iff guard=1 AND (round | sticky | LSB).
+// w_sticky_bit arrives folded (guard|sticky from mantissa_mult), which is
+// identical under the outer AND with guard. Before MATH-001 the decision
+// bit was round & (sticky|LSB) -- a different bit, diverging from RNE in
+// 6/16 guard patterns (five non-tie cases), sim-verified.
 wire w_lsb = w_mant_mult_out[0];
-wire w_round_up = w_round_bit & (w_sticky_bit | w_lsb);
+wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);
 
 // Apply rounding to mantissa
 wire [7:0] w_mant_rounded = {1'b0, w_mant_mult_out} + {7'b0, w_round_up};

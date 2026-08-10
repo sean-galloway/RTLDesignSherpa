@@ -84,6 +84,7 @@ math_ieee754_2008_fp32_mantissa_mult u_mant_mult (
     .ow_product(w_mant_product),
     .ow_needs_norm(w_needs_norm),
     .ow_mant_out(w_mant_mult_out),
+    .ow_guard_bit(w_guard_bit),
     .ow_round_bit(w_round_bit),
     .ow_sticky_bit(w_sticky_bit)
 );
@@ -117,7 +118,7 @@ math_ieee754_2008_fp32_exponent_adder u_exp_add (
 // This implements RNE: ties round to even
 
 wire w_lsb = w_mant_mult_out[0];
-wire w_round_up = w_round_bit & (w_sticky_bit | w_lsb);
+wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);  // true RNE (MATH-001 family)
 
 // Apply rounding to mantissa
 wire [23:0] w_mant_rounded = {1'b0, w_mant_mult_out} + {23'b0, w_round_up};

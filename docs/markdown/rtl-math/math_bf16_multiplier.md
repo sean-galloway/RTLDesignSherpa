@@ -32,7 +32,7 @@ The `math_bf16_multiplier` module implements full BF16 multiplication by integra
 **Key Features:**
 - **BF16 format** - Same exponent range as FP32, reduced mantissa precision
 - **IEEE 754 special cases** - Zero, infinity, NaN handling
-- **Rounding** - `R & (G | S | LSB)` -- NOT textbook RNE; see the rounding note (MATH-001)
+- **Rounding** - textbook round-to-nearest-even, `G & (R | S | LSB)` (fixed in MATH-001)
 - **FTZ mode** - Flush-to-Zero for subnormal inputs and outputs
 - **Status flags** - Overflow, underflow, and invalid operation indicators
 
@@ -109,7 +109,7 @@ flowchart TB
             ea["Bias subtraction<br/>Overflow/underflow"]
         end
 
-        subgraph Round["Rounding (see note: not RNE)"]
+        subgraph Round["Rounding (RNE)"]
             rnd["Apply rounding<br/>Handle overflow"]
         end
 
@@ -141,7 +141,7 @@ flowchart TB
 3. **Sign Computation** - XOR of input signs
 4. **Mantissa Multiplication** - 8x8 Dadda tree with normalization
 5. **Exponent Addition** - Add exponents, subtract bias, adjust for normalization
-6. **Rounding** - Apply the implemented `R & (G | S | LSB)` rounding (NOT RNE -- see the note) to the mantissa
+6. **Rounding** - Apply round-to-nearest-even (`G & (R | S | LSB)`) to the mantissa
 7. **Result Assembly** - Select output based on special case priority
 
 ## Functionality
@@ -170,26 +170,20 @@ wire w_a_is_normal = ~w_a_eff_zero & ~w_a_is_inf & ~w_a_is_nan;
 
 ### Round-to-Nearest-Even
 
-> **Rounding boolean, as implemented:** `w_round_up = w_round_bit &
-> (w_sticky_bit | w_lsb)`, where `math_bf16_mantissa_mult` folds the guard bit
-> into sticky (`ow_sticky_bit = guard | sticky`). That is `R & (G | S | LSB)`.
-> Textbook RNE is `G & (R | S | LSB)` -- a different decision bit, and the
-> divergence is NOT confined to ties. The full (LSB, guard, round, sticky)
-> truth table: the two agree in 10 of 16 guard patterns and disagree in 6,
-> of which only ONE is an exact-half tie (`G=1, R=0, S=0, LSB=1`, where the
-> RTL fails to round to even). The other five are ordinary inexact cases --
-> `G=0, R=1, S=1` (0.375 ulp) and `G=0, R=1, S=0, LSB=1` (0.25 ulp) round UP
-> where RNE rounds down; `G=1, R=0, S=1` (0.625 ulp) rounds DOWN where RNE
-> rounds up. So 37.5% of inexact guard patterns round the wrong way; this is
-> not "RNE except at ties". Whether it is intended or an RTL rounding defect
-> is an open owner decision (MATH-001). Do not treat "RNE" here as a proof
-> of tie-to-even.
+> **Rounding boolean, as implemented (fixed 2026-08-09, MATH-001):**
+> `w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb)` --
+> textbook RNE, verified by sweep: 0 mismatches in 5000 random pairs against
+> an exact behavioral reference. This page previously documented the pre-fix
+> form (`R & (G | S | LSB)`, with the guard folded into sticky), which
+> diverged from RNE in 6 of 16 guard patterns -- five ordinary inexact cases
+> plus the exact-half tie. The fold is gone: `math_bf16_mantissa_mult` now
+> exports the guard bit and the true sticky separately.
 
 
 ```systemverilog
-// RNE: Round up if round_bit=1 AND (sticky_bit=1 OR lsb=1)
+// Textbook RNE: round up iff guard=1 AND (round OR sticky OR lsb)
 wire w_lsb = w_mant_mult_out[0];
-wire w_round_up = w_round_bit & (w_sticky_bit | w_lsb);
+wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);
 
 // Apply rounding
 wire [7:0] w_mant_rounded = {1'b0, w_mant_mult_out} + {7'b0, w_round_up};
