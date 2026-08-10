@@ -48,7 +48,106 @@ WRAP = Alignment(wrap_text=True, vertical="top")
 CENTER = Alignment(horizontal="center", vertical="center")
 THIN = Border(*[Side(style="thin")] * 4)
 
+DCFILL = PatternFill("solid", fgColor="FFF2CC")  # don't-care cells
 GRAY2 = [(0, 0), (0, 1), (1, 1), (1, 0)]  # gray-code order of 2 bits
+
+
+def _norm_sop(s):
+    """Compare SOP strings without tripping over spacing or term order."""
+    terms = [t.strip() for t in s.replace("||", "|").split("|")]
+    norm = []
+    for term in terms:
+        lits = sorted(x.strip() for x in term.split("&"))
+        norm.append(" & ".join(lits))
+    return tuple(sorted(norm))
+
+# ---------------------------------------------------------------------------
+# Minimal-cover derivation (Quine-McCluskey).
+#
+# THIS is what makes a grid a K-map rather than a Gray-ordered truth table. The
+# grid shows what the mirrored RTL computes; the minimal cover says what the
+# decision MINIMALLY IS, and the difference between the two is the finding:
+#
+#   identical      -> the RTL is already minimal; the map proves it
+#   RTL redundant  -> extra terms. Often deliberate (timing, readability) --
+#                     the map makes you say which, instead of assuming.
+#   RTL differs    -> a bug, or an unstated invariant doing work. This is the
+#                     case that finds defects.
+#
+# n <= 6 by construction (the emitter caps varnames at 6), so exact QM is cheap.
+#
+# Don't-cares are FREE to join implicants -- which is exactly why marking
+# unreachable cells X (instead of forcing them to 0/1) changes the ANSWER and
+# not just the picture.
+# ---------------------------------------------------------------------------
+def _qm_minimize(n, ones, dcs):
+    """Exact-ish minimal sum-of-products. Returns a list of cubes; each cube is
+    an n-tuple of 0 / 1 / None (None = variable eliminated from that term).
+    """
+    ones = set(ones)
+    dcs = set(dcs)
+    if not ones:
+        return []                          # constant 0
+    if len(ones | dcs) == (1 << n):
+        return [tuple([None] * n)]         # constant 1
+
+    def bits(m):
+        return tuple((m >> (n - 1 - i)) & 1 for i in range(n))
+
+    cubes = {(bits(m), frozenset([m])) for m in sorted(ones | dcs)}
+    primes = set()
+    while cubes:
+        merged = set()
+        used = set()
+        cl = list(cubes)
+        for i in range(len(cl)):
+            for j in range(i + 1, len(cl)):
+                a, am = cl[i]
+                b, bm = cl[j]
+                if any((a[k] is None) != (b[k] is None) for k in range(n)):
+                    continue
+                diff = [k for k in range(n) if a[k] != b[k]]
+                if len(diff) == 1 and a[diff[0]] is not None:
+                    nc = list(a)
+                    nc[diff[0]] = None
+                    merged.add((tuple(nc), am | bm))
+                    used.add(i)
+                    used.add(j)
+        for i, c in enumerate(cl):
+            if i not in used:
+                primes.add(c)
+        cubes = merged
+
+    # cover the ONES only -- don't-cares helped form primes, they need no cover
+    prime_list = [(c, m & ones) for c, m in primes if (m & ones)]
+    chosen, remaining = [], set(ones)
+    for one in sorted(ones):                      # essential primes first
+        covering = [p for p in prime_list if one in p[1]]
+        if len(covering) == 1 and covering[0] not in chosen:
+            chosen.append(covering[0])
+    for _, m in chosen:
+        remaining -= m
+    while remaining:                              # greedy on the remainder
+        best = max(prime_list, key=lambda p: (len(p[1] & remaining),
+                                              sum(1 for v in p[0] if v is None)))
+        if not (best[1] & remaining):
+            break
+        if best not in chosen:
+            chosen.append(best)
+        remaining -= best[1]
+    return [c for c, _ in chosen]
+
+
+def _cube_str(cube, varnames):
+    parts = [(varnames[i] if v else f"!{varnames[i]}")
+             for i, v in enumerate(cube) if v is not None]
+    return " & ".join(parts) if parts else "1"
+
+
+def _sop_str(cubes, varnames):
+    return "  |  ".join(_cube_str(c, varnames) for c in cubes) if cubes else "0"
+
+
 
 # ---------------------------------------------------------------------------
 # Citation registry: (path-relative-to-repo, line-number, snippet-that-must-
@@ -140,12 +239,12 @@ CITES = [
     (DRAIN, 101, "if (w_read && !r_rd_empty) begin"),
     (DRAIN, 142, "rd_ready = !r_rd_empty"),
     (DRAIN, 145, "data_available = w_count"),
-    (CORE, 73, "parameter int RD_MON_MAX_TRANS = NUM_CHANNELS * AR_MAX_OUTSTANDING + 4"),
-    (CORE, 699, "int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable"),
-    (CORE, 754, "int_cfg_rdeng_mon_enable = 1'b0"),
-    (RD_MON, 479, "fub_axi_arready = w_core_fub_axi_arready &"),
-    (WR_MON, 484, "fub_axi_awready = w_core_fub_axi_awready &"),
-    (MON_BASE, 489, "block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)"),
+    (CORE, 126, "parameter int RD_MON_MAX_TRANS = ((NUM_CHANNELS * AR_MAX_OUTSTANDING + MON_TRANS_MARGIN) < 16)"),
+    (CORE, 779, "int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable"),
+    (CORE, 840, "int_cfg_rdeng_mon_enable = 1'b0"),
+    (RD_MON, 496, "fub_axi_arready = w_core_fub_axi_arready &"),
+    (WR_MON, 501, "fub_axi_awready = w_core_fub_axi_awready &"),
+    (MON_BASE, 504, "block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)"),
     (MON_PKG, 115, "return (max_transactions >= 16) ? 2 : 0"),
 ]
 
@@ -189,11 +288,34 @@ class KmapWriter:
             self.row += 1
         self.row += 1
 
-    def kmap(self, name, source, expr, varnames, fn, check, values=None):
-        """One K-map block. varnames: MSB-first list (2..6). fn(*bits)->0/1
-        (or a short string when `values` mapping is wanted). Pages over
-        varnames[4:]."""
+    def kmap(self, name, source, expr, varnames, fn, check, values=None,
+             depends_only_on=None, rtl_sop=None):
+        """One K-map block.
+
+        varnames: MSB-first list (2..6). Each entry is either a bare NAME
+            (legacy) or a triple (name, defining_expr, "file:line"). Prefer the
+            triple: an axis that is itself a composite expression hides exactly
+            the logic the map claims to expose, and a bare string cannot tell
+            the reader whether the axis is a flop, a wire, or something the
+            author invented for the map.
+
+        fn(*bits) -> 0/1, a short string (with `values`), or None meaning
+            DON'T-CARE. Unreachable combinations must return None, not a
+            convenient 0: a forced 0 both hides a bug (the RTL might drive 1
+            there) and blocks a legal simplification (a don't-care is free to
+            join an implicant, a 0 is not).
+
+        depends_only_on: why the mapped function ignores every OTHER input.
+            A 4-variable map of a 7-variable decision is a SLICE, and a slice
+            means nothing without saying what is held constant and why.
+
+        rtl_sop: the RTL expression written as a sum-of-products, so the emitter
+            can diff it against the derived minimal cover and render a verdict.
+        """
         ws = self.ws
+        # accept both bare names and (name, expr, cite) triples
+        axis_rows = [v for v in varnames if isinstance(v, (tuple, list))]
+        varnames = [v[0] if isinstance(v, (tuple, list)) else v for v in varnames]
         ws.cell(self.row, 1, name).font = TITLE
         ws.cell(self.row, 4, source).font = MONO
         self.row += 1
@@ -211,6 +333,39 @@ class KmapWriter:
         self.row += 1
         ws.cell(self.row, 1, f"CHECK BY INSPECTION: {check}").alignment = WRAP
         ws.cell(self.row, 1).font = Font(italic=True)
+        self.row += 1
+
+        # --- axis derivation: what each axis IS, and where it comes from ----
+        if axis_rows:
+            ws.cell(self.row, 1, "AXES").font = HDR
+            self.row += 1
+            for hdr, col in (("axis", 1), ("defining expression", 2), ("cite", 4)):
+                c = ws.cell(self.row, col, hdr)
+                c.font = HDR
+            self.row += 1
+            for a in axis_rows:
+                nm, ex, cite = (list(a) + ["", ""])[:3]
+                ws.cell(self.row, 1, nm).font = MONO
+                c = ws.cell(self.row, 2, ex)
+                c.font = MONO
+                c.alignment = WRAP
+                ws.cell(self.row, 4, cite).font = MONO
+                self.row += 1
+        else:
+            c = ws.cell(self.row, 1,
+                        "AXES: not derived -- axis equations and citations "
+                        "missing (see [[STREAM-KMAP]])")
+            c.font = Font(italic=True, color="9C6500")
+            self.row += 1
+
+        if depends_only_on:
+            c = ws.cell(self.row, 1, f"DEPENDS ONLY ON: {depends_only_on}")
+            c.alignment = WRAP
+        else:
+            c = ws.cell(self.row, 1,
+                        "DEPENDS ONLY ON: not stated -- this map is a SLICE "
+                        "with no sufficiency argument (see [[STREAM-KMAP]])")
+            c.font = Font(italic=True, color="9C6500")
         self.row += 2
 
         rows = GRAY2 if len(rowv) == 2 else ([(0,), (1,)] if len(rowv) == 1
@@ -220,6 +375,8 @@ class KmapWriter:
         pages = [()]
         for _ in pagev:
             pages = [p + (b,) for p in pages for b in (0, 1)]
+
+        ones, dontcares = [], []       # minterm indices, for the minimal cover
 
         for page in pages:
             base = self.row
@@ -239,8 +396,20 @@ class KmapWriter:
                 for j, cb in enumerate(cols):
                     bits = tuple(rb) + tuple(cb) + tuple(page)
                     v = fn(*bits)
+                    # minterm index: axis order is rows, cols, pages -- the same
+                    # MSB-first order as varnames, so the index matches _qm.
+                    idx = 0
+                    for b in bits:
+                        idx = (idx << 1) | int(bool(b))
+                    if v is None:
+                        dontcares.append(idx)
+                    elif values is None and bool(v):
+                        ones.append(idx)
                     cell = ws.cell(base + 1 + i, 2 + j)
-                    if values is not None:            # multi-valued map
+                    if v is None:                     # DON'T-CARE
+                        cell.value = "X"
+                        cell.fill = DCFILL
+                    elif values is not None:          # multi-valued map
                         cell.value = values.get(v, str(v))
                         benign = str(v) in ("0", "-", "wait", "hold", "IDLE",
                                             "n/a")
@@ -251,6 +420,43 @@ class KmapWriter:
                     cell.alignment = CENTER
                     cell.border = THIN
             self.row = base + 1 + len(rows) + 1
+
+        # --- derived minimal cover + verdict vs the RTL --------------------
+        # Skipped for multi-valued maps: a minimal SOP is only defined for a
+        # boolean function, and forcing one would be a false claim.
+        if values is None:
+            cubes = _qm_minimize(n, ones, dontcares)
+            derived = _sop_str(cubes, varnames)
+            c = ws.cell(self.row, 1, f"DERIVED MINIMAL SOP: {derived}")
+            c.font = MONO
+            c.alignment = WRAP
+            self.row += 1
+            if dontcares:
+                ws.cell(self.row, 1,
+                        f"  ({len(ones)} ones, {len(dontcares)} don't-cares -- "
+                        f"X cells were free to widen the cover)").font = Font(
+                            italic=True, size=9)
+                self.row += 1
+            if rtl_sop:
+                same = _norm_sop(rtl_sop) == _norm_sop(derived)
+                verdict = ("IDENTICAL -- the RTL is already minimal"
+                           if same else
+                           "DIFFERS -- reconcile: either the RTL carries "
+                           "redundant terms (say why: timing? readability?) "
+                           "or an unstated invariant is doing work, or it is "
+                           "a bug")
+                c = ws.cell(self.row, 1, f"RTL AS WRITTEN:      {rtl_sop}")
+                c.font = MONO
+                self.row += 1
+                c = ws.cell(self.row, 1, f"VERDICT: {verdict}")
+                c.font = Font(bold=True, color=("006100" if same else "9C0006"))
+                c.alignment = WRAP
+            else:
+                c = ws.cell(self.row, 1,
+                            "VERDICT: NOT CHECKED -- supply rtl_sop= to diff "
+                            "the RTL against the derived cover")
+                c.font = Font(italic=True, color="9C6500")
+            self.row += 1
         self.row += 1
 
     def table(self, name, source, headers, rows, note=""):
@@ -525,7 +731,7 @@ def build_apb_csr_contract(wb):
          "Gates CH_IDLE -> CH_FETCH_DESC only: a descriptor already in "
          "flight is NOT stopped by dropping enable.",
          "IDLE exit requires descriptor_valid && cfg_channel_enable",
-         f"{SCHED}:484"),
+         f"{SCHED}:501"),
         ("Channel ctrl", "cfg_channel_reset", "NC", "in", "regfile",
          "Registered internally; forces the scheduler FSM to CH_IDLE with "
          "top priority, clears beat counters and r_rd_ahead; descriptor "
@@ -589,7 +795,7 @@ def build_apb_csr_contract(wb):
          "never stalls the datapath: the ready gate ORs in "
          "~cfg_monitor_enable.",
          "USE_AXI_MONITORS=0 or cfg off => zero datapath interference",
-         f"{CORE}:699/:754; {RD_MON}:479-480"),
+         f"{CORE}:779/:840; {RD_MON}:496-480"),
     ]
     contract_sheet(
         wb, "APB-CSR config",
@@ -669,14 +875,36 @@ def build_rd_engine_kmaps(wb):
     km.kmap(
         "w_arb_request[i]", f"{RD_ENG}:327",
         "w_arb_request[i] = sched_rd_valid[i] && w_space_ok[i] && "
-        "w_below_outstanding_limit[i]   [below_limit = !r_outstanding_limit]",
-        ["sched_rd_valid", "space_ok", "below_limit"],
+        "w_below_outstanding_limit[i]",
+        # AXES as (name, defining expression, cite). Each axis is a ONE-TERM
+        # signal here, which is what makes this map trustworthy: nothing is
+        # collapsed, so no logic hides inside an axis.
+        [("sched_rd_valid",
+          "sched_rd_valid[i]  -- scheduler's per-channel read request (input port)",
+          f"{RD_ENG}:327"),
+         ("space_ok",
+          "w_space_ok[i] = axi_rd_alloc_space_free[i] >= w_transfer_size[i]+1",
+          f"{RD_ENG}:316"),
+         ("below_limit",
+          "w_below_outstanding_limit[i] = !r_outstanding_limit[i]",
+          f"{RD_ENG}:321")],
         lambda v, s, b: v and s and b,
         "EXACTLY ONE 1-cell, at all-ones. A 1 with space_ok=0 over-fills "
         "the SRAM allocation; a 1 with below_limit=0 exceeds the "
         "per-channel outstanding cap. Registered into r_arb_request "
         "(1-cycle pipeline) before the arbiter - stale-grant guards below "
-        "exist because of that register.")
+        "exist because of that register.",
+        depends_only_on=(
+            "these three and nothing else. The per-channel index i is a "
+            "generate replication, not a variable of the decision. Everything "
+            "else the read engine knows (burst size, addresses, IDs) affects "
+            "WHAT is issued, never WHETHER: w_transfer_size feeds space_ok and "
+            "is already folded into that axis, and the arbiter's own state is "
+            "downstream of this signal, not upstream. No don't-cares: all 8 "
+            "combinations are reachable, since the three axes come from three "
+            "independent sources (scheduler, SRAM allocator, outstanding "
+            "counter)."),
+        rtl_sop="sched_rd_valid & space_ok & below_limit")
 
     km.table(
         "w_space_ok / w_transfer_size sub-terms", f"{RD_ENG}:312-316",
@@ -1066,7 +1294,7 @@ def build_desc_engine_kmaps(wb):
         "idles; no error escalation).")
 
     km.kmap(
-        "w_should_chain  (immediate chain push)", f"{DESC_ENG}:479-480",
+        "w_should_chain  (immediate chain push)", f"{DESC_ENG}:496-480",
         "w_should_chain = w_chain_eligible && w_desc_committed && "
         "w_prefetch_allows && w_desc_addr_fifo_wr_ready   [committed = "
         "(state==RD_COMPLETE) && desc-FIFO wr_ready]",
@@ -1249,7 +1477,7 @@ def build_core_monitor_kmaps(wb):
          "saturation-recovery contract guarantees it un-throttles."])
 
     km.kmap(
-        "fub_axi_arready gate  (read datapath)", f"{RD_MON}:479-480",
+        "fub_axi_arready gate  (read datapath)", f"{RD_MON}:496-480",
         "fub_axi_arready = w_core_fub_axi_arready & (w_block_ready | "
         "~cfg_monitor_enable)   [identical shape for AW: "
         f"{WR_MON}:482-483]",

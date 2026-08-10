@@ -81,17 +81,18 @@ module stream_config_block #(
     input  logic                        reg_daxmon_enable_compl_en,
     input  logic                        reg_daxmon_enable_timeout_en,
     input  logic                        reg_daxmon_enable_perf_en,
+    input  logic                        reg_daxmon_enable_thresh_en,
     input  logic [31:0]                 reg_daxmon_timeout_timeout_cycles,
     input  logic [31:0]                 reg_daxmon_latency_thresh_latency_thresh,
     input  logic [15:0]                 reg_daxmon_pkt_mask_pkt_mask,
-    input  logic [3:0]                  reg_daxmon_err_cfg_err_select,
-    input  logic [7:0]                  reg_daxmon_err_cfg_err_mask,
-    input  logic [7:0]                  reg_daxmon_mask1_timeout_mask,
-    input  logic [7:0]                  reg_daxmon_mask1_compl_mask,
-    input  logic [7:0]                  reg_daxmon_mask2_thresh_mask,
-    input  logic [7:0]                  reg_daxmon_mask2_perf_mask,
-    input  logic [7:0]                  reg_daxmon_mask3_addr_mask,
-    input  logic [7:0]                  reg_daxmon_mask3_debug_mask,
+    input  logic [15:0]                  reg_daxmon_err_cfg_err_select,
+    input  logic [15:0]                  reg_daxmon_err_cfg_err_mask,
+    input  logic [15:0]                  reg_daxmon_mask1_timeout_mask,
+    input  logic [15:0]                  reg_daxmon_mask1_compl_mask,
+    input  logic [15:0]                  reg_daxmon_mask2_thresh_mask,
+    input  logic [15:0]                  reg_daxmon_mask2_perf_mask,
+    input  logic [15:0]                  reg_daxmon_mask3_addr_mask,
+    input  logic [15:0]                  reg_daxmon_mask3_debug_mask,
 
     // Read Engine AXI Monitor Configuration
     input  logic                        reg_rdmon_enable_mon_en,
@@ -99,17 +100,18 @@ module stream_config_block #(
     input  logic                        reg_rdmon_enable_compl_en,
     input  logic                        reg_rdmon_enable_timeout_en,
     input  logic                        reg_rdmon_enable_perf_en,
+    input  logic                        reg_rdmon_enable_thresh_en,
     input  logic [31:0]                 reg_rdmon_timeout_timeout_cycles,
     input  logic [31:0]                 reg_rdmon_latency_thresh_latency_thresh,
     input  logic [15:0]                 reg_rdmon_pkt_mask_pkt_mask,
-    input  logic [3:0]                  reg_rdmon_err_cfg_err_select,
-    input  logic [7:0]                  reg_rdmon_err_cfg_err_mask,
-    input  logic [7:0]                  reg_rdmon_mask1_timeout_mask,
-    input  logic [7:0]                  reg_rdmon_mask1_compl_mask,
-    input  logic [7:0]                  reg_rdmon_mask2_thresh_mask,
-    input  logic [7:0]                  reg_rdmon_mask2_perf_mask,
-    input  logic [7:0]                  reg_rdmon_mask3_addr_mask,
-    input  logic [7:0]                  reg_rdmon_mask3_debug_mask,
+    input  logic [15:0]                  reg_rdmon_err_cfg_err_select,
+    input  logic [15:0]                  reg_rdmon_err_cfg_err_mask,
+    input  logic [15:0]                  reg_rdmon_mask1_timeout_mask,
+    input  logic [15:0]                  reg_rdmon_mask1_compl_mask,
+    input  logic [15:0]                  reg_rdmon_mask2_thresh_mask,
+    input  logic [15:0]                  reg_rdmon_mask2_perf_mask,
+    input  logic [15:0]                  reg_rdmon_mask3_addr_mask,
+    input  logic [15:0]                  reg_rdmon_mask3_debug_mask,
 
     // Write Engine AXI Monitor Configuration
     input  logic                        reg_wrmon_enable_mon_en,
@@ -117,17 +119,18 @@ module stream_config_block #(
     input  logic                        reg_wrmon_enable_compl_en,
     input  logic                        reg_wrmon_enable_timeout_en,
     input  logic                        reg_wrmon_enable_perf_en,
+    input  logic                        reg_wrmon_enable_thresh_en,
     input  logic [31:0]                 reg_wrmon_timeout_timeout_cycles,
     input  logic [31:0]                 reg_wrmon_latency_thresh_latency_thresh,
     input  logic [15:0]                 reg_wrmon_pkt_mask_pkt_mask,
-    input  logic [3:0]                  reg_wrmon_err_cfg_err_select,
-    input  logic [7:0]                  reg_wrmon_err_cfg_err_mask,
-    input  logic [7:0]                  reg_wrmon_mask1_timeout_mask,
-    input  logic [7:0]                  reg_wrmon_mask1_compl_mask,
-    input  logic [7:0]                  reg_wrmon_mask2_thresh_mask,
-    input  logic [7:0]                  reg_wrmon_mask2_perf_mask,
-    input  logic [7:0]                  reg_wrmon_mask3_addr_mask,
-    input  logic [7:0]                  reg_wrmon_mask3_debug_mask,
+    input  logic [15:0]                  reg_wrmon_err_cfg_err_select,
+    input  logic [15:0]                  reg_wrmon_err_cfg_err_mask,
+    input  logic [15:0]                  reg_wrmon_mask1_timeout_mask,
+    input  logic [15:0]                  reg_wrmon_mask1_compl_mask,
+    input  logic [15:0]                  reg_wrmon_mask2_thresh_mask,
+    input  logic [15:0]                  reg_wrmon_mask2_perf_mask,
+    input  logic [15:0]                  reg_wrmon_mask3_addr_mask,
+    input  logic [15:0]                  reg_wrmon_mask3_debug_mask,
 
     // AXI Transfer Configuration
     input  logic [7:0]                  reg_axi_xfer_config_rd_xfer_beats,
@@ -178,52 +181,58 @@ module stream_config_block #(
     output logic                        cfg_desc_mon_enable,
     output logic                        cfg_desc_mon_err_enable,
     output logic                        cfg_desc_mon_perf_enable,
+    output logic                        cfg_desc_mon_compl_enable,
+    output logic                        cfg_desc_mon_thresh_enable,
     output logic                        cfg_desc_mon_timeout_enable,
     output logic [31:0]                 cfg_desc_mon_timeout_cycles,
     output logic [31:0]                 cfg_desc_mon_latency_thresh,
     output logic [15:0]                 cfg_desc_mon_pkt_mask,
-    output logic [3:0]                  cfg_desc_mon_err_select,
-    output logic [7:0]                  cfg_desc_mon_err_mask,
-    output logic [7:0]                  cfg_desc_mon_timeout_mask,
-    output logic [7:0]                  cfg_desc_mon_compl_mask,
-    output logic [7:0]                  cfg_desc_mon_thresh_mask,
-    output logic [7:0]                  cfg_desc_mon_perf_mask,
-    output logic [7:0]                  cfg_desc_mon_addr_mask,
-    output logic [7:0]                  cfg_desc_mon_debug_mask,
+    output logic [15:0]                  cfg_desc_mon_err_select,
+    output logic [15:0]                  cfg_desc_mon_err_mask,
+    output logic [15:0]                  cfg_desc_mon_timeout_mask,
+    output logic [15:0]                  cfg_desc_mon_compl_mask,
+    output logic [15:0]                  cfg_desc_mon_thresh_mask,
+    output logic [15:0]                  cfg_desc_mon_perf_mask,
+    output logic [15:0]                  cfg_desc_mon_addr_mask,
+    output logic [15:0]                  cfg_desc_mon_debug_mask,
 
     // Read Engine AXI Monitor Configuration
     output logic                        cfg_rdeng_mon_enable,
     output logic                        cfg_rdeng_mon_err_enable,
     output logic                        cfg_rdeng_mon_perf_enable,
+    output logic                        cfg_rdeng_mon_compl_enable,
+    output logic                        cfg_rdeng_mon_thresh_enable,
     output logic                        cfg_rdeng_mon_timeout_enable,
     output logic [31:0]                 cfg_rdeng_mon_timeout_cycles,
     output logic [31:0]                 cfg_rdeng_mon_latency_thresh,
     output logic [15:0]                 cfg_rdeng_mon_pkt_mask,
-    output logic [3:0]                  cfg_rdeng_mon_err_select,
-    output logic [7:0]                  cfg_rdeng_mon_err_mask,
-    output logic [7:0]                  cfg_rdeng_mon_timeout_mask,
-    output logic [7:0]                  cfg_rdeng_mon_compl_mask,
-    output logic [7:0]                  cfg_rdeng_mon_thresh_mask,
-    output logic [7:0]                  cfg_rdeng_mon_perf_mask,
-    output logic [7:0]                  cfg_rdeng_mon_addr_mask,
-    output logic [7:0]                  cfg_rdeng_mon_debug_mask,
+    output logic [15:0]                  cfg_rdeng_mon_err_select,
+    output logic [15:0]                  cfg_rdeng_mon_err_mask,
+    output logic [15:0]                  cfg_rdeng_mon_timeout_mask,
+    output logic [15:0]                  cfg_rdeng_mon_compl_mask,
+    output logic [15:0]                  cfg_rdeng_mon_thresh_mask,
+    output logic [15:0]                  cfg_rdeng_mon_perf_mask,
+    output logic [15:0]                  cfg_rdeng_mon_addr_mask,
+    output logic [15:0]                  cfg_rdeng_mon_debug_mask,
 
     // Write Engine AXI Monitor Configuration
     output logic                        cfg_wreng_mon_enable,
     output logic                        cfg_wreng_mon_err_enable,
     output logic                        cfg_wreng_mon_perf_enable,
+    output logic                        cfg_wreng_mon_compl_enable,
+    output logic                        cfg_wreng_mon_thresh_enable,
     output logic                        cfg_wreng_mon_timeout_enable,
     output logic [31:0]                 cfg_wreng_mon_timeout_cycles,
     output logic [31:0]                 cfg_wreng_mon_latency_thresh,
     output logic [15:0]                 cfg_wreng_mon_pkt_mask,
-    output logic [3:0]                  cfg_wreng_mon_err_select,
-    output logic [7:0]                  cfg_wreng_mon_err_mask,
-    output logic [7:0]                  cfg_wreng_mon_timeout_mask,
-    output logic [7:0]                  cfg_wreng_mon_compl_mask,
-    output logic [7:0]                  cfg_wreng_mon_thresh_mask,
-    output logic [7:0]                  cfg_wreng_mon_perf_mask,
-    output logic [7:0]                  cfg_wreng_mon_addr_mask,
-    output logic [7:0]                  cfg_wreng_mon_debug_mask,
+    output logic [15:0]                  cfg_wreng_mon_err_select,
+    output logic [15:0]                  cfg_wreng_mon_err_mask,
+    output logic [15:0]                  cfg_wreng_mon_timeout_mask,
+    output logic [15:0]                  cfg_wreng_mon_compl_mask,
+    output logic [15:0]                  cfg_wreng_mon_thresh_mask,
+    output logic [15:0]                  cfg_wreng_mon_perf_mask,
+    output logic [15:0]                  cfg_wreng_mon_addr_mask,
+    output logic [15:0]                  cfg_wreng_mon_debug_mask,
 
     // AXI Transfer Configuration
     output logic [7:0]                  cfg_axi_rd_xfer_beats,
@@ -294,6 +303,8 @@ module stream_config_block #(
     assign cfg_desc_mon_enable = reg_daxmon_enable_mon_en & reg_global_ctrl_global_en;
     assign cfg_desc_mon_err_enable = reg_daxmon_enable_err_en;
     assign cfg_desc_mon_perf_enable = reg_daxmon_enable_perf_en;
+    assign cfg_desc_mon_compl_enable = reg_daxmon_enable_compl_en;
+    assign cfg_desc_mon_thresh_enable = reg_daxmon_enable_thresh_en;
     assign cfg_desc_mon_timeout_enable = reg_daxmon_enable_timeout_en;
     assign cfg_desc_mon_timeout_cycles = reg_daxmon_timeout_timeout_cycles;
     assign cfg_desc_mon_latency_thresh = reg_daxmon_latency_thresh_latency_thresh;
@@ -314,6 +325,8 @@ module stream_config_block #(
     assign cfg_rdeng_mon_enable = reg_rdmon_enable_mon_en & reg_global_ctrl_global_en;
     assign cfg_rdeng_mon_err_enable = reg_rdmon_enable_err_en;
     assign cfg_rdeng_mon_perf_enable = reg_rdmon_enable_perf_en;
+    assign cfg_rdeng_mon_compl_enable = reg_rdmon_enable_compl_en;
+    assign cfg_rdeng_mon_thresh_enable = reg_rdmon_enable_thresh_en;
     assign cfg_rdeng_mon_timeout_enable = reg_rdmon_enable_timeout_en;
     assign cfg_rdeng_mon_timeout_cycles = reg_rdmon_timeout_timeout_cycles;
     assign cfg_rdeng_mon_latency_thresh = reg_rdmon_latency_thresh_latency_thresh;
@@ -334,6 +347,8 @@ module stream_config_block #(
     assign cfg_wreng_mon_enable = reg_wrmon_enable_mon_en & reg_global_ctrl_global_en;
     assign cfg_wreng_mon_err_enable = reg_wrmon_enable_err_en;
     assign cfg_wreng_mon_perf_enable = reg_wrmon_enable_perf_en;
+    assign cfg_wreng_mon_compl_enable = reg_wrmon_enable_compl_en;
+    assign cfg_wreng_mon_thresh_enable = reg_wrmon_enable_thresh_en;
     assign cfg_wreng_mon_timeout_enable = reg_wrmon_enable_timeout_en;
     assign cfg_wreng_mon_timeout_cycles = reg_wrmon_timeout_timeout_cycles;
     assign cfg_wreng_mon_latency_thresh = reg_wrmon_latency_thresh_latency_thresh;

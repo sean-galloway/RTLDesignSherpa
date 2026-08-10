@@ -102,10 +102,22 @@ regfile stream_mon_regs {
         } PERF_EN = 1'b0;
 
         field {
+            desc = "Reserved. Bit 5 is COMPRESS_EN on WRMON_ENABLE only; held reserved here so all three monitor ENABLE registers share one bit layout.";
+            sw = r;
+            hw = na;
+        } RSVD5[5:5] = 1'b0;
+
+        field {
+            desc = "Threshold enable - enable latency-threshold packets. Before this field existed the threshold cone was gated by PERF_EN, so a host that left PERF_EN clear saw no threshold packets however low it set LATENCY_THRESH.";
+            sw = rw;
+            hw = r;
+        } THRESH_EN[6:6] = 1'b0;
+
+        field {
             desc = "Reserved";
             sw = r;
             hw = na;
-        } RSVD[31:5] = 27'h0;
+        } RSVD[31:7] = 25'h0;
 
     } DAXMON_ENABLE @ 0x0C0;
 
@@ -156,28 +168,16 @@ regfile stream_mon_regs {
         desc = "Descriptor AXI monitor error selection and filtering";
 
         field {
-            desc = "Error select [3:0] - error type selection";
+            desc = "Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace";
             sw = rw;
             hw = r;
-        } ERR_SELECT[3:0] = 4'h0;
+        } ERR_SELECT[15:0] = 16'h0000;
 
         field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD1[7:4] = 4'h0;
-
-        field {
-            desc = "Error mask [15:8] - error type filtering";
+            desc = "Error mask - per-event-code drop mask, indexed by event_code[3:0]";
             sw = rw;
             hw = r;
-        } ERR_MASK[15:8] = 8'hFF;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD2[31:16] = 16'h0;
+        } ERR_MASK[31:16] = 16'hFFFF;
 
     } DAXMON_ERR_CFG @ 0x0D0;
 
@@ -186,22 +186,16 @@ regfile stream_mon_regs {
         desc = "Descriptor AXI monitor timeout and completion masks";
 
         field {
-            desc = "Timeout mask [7:0]";
+            desc = "Timeout mask";
             sw = rw;
             hw = r;
-        } TIMEOUT_MASK[7:0] = 8'hFF;
+        } TIMEOUT_MASK[15:0] = 16'hFFFF;
 
         field {
-            desc = "Completion mask [15:8]";
+            desc = "Completion mask";
             sw = rw;
             hw = r;
-        } COMPL_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
+        } COMPL_MASK[31:16] = 16'h0000;
 
     } DAXMON_MASK1 @ 0x0D4;
 
@@ -210,22 +204,16 @@ regfile stream_mon_regs {
         desc = "Descriptor AXI monitor threshold and performance masks";
 
         field {
-            desc = "Threshold mask [7:0]";
+            desc = "Threshold mask";
             sw = rw;
             hw = r;
-        } THRESH_MASK[7:0] = 8'hFF;
+        } THRESH_MASK[15:0] = 16'hFFFF;
 
         field {
-            desc = "Performance mask [15:8]";
+            desc = "Performance mask";
             sw = rw;
             hw = r;
-        } PERF_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
+        } PERF_MASK[31:16] = 16'h0000;
 
     } DAXMON_MASK2 @ 0x0D8;
 
@@ -234,22 +222,16 @@ regfile stream_mon_regs {
         desc = "Descriptor AXI monitor address and debug masks";
 
         field {
-            desc = "Address mask [7:0]";
+            desc = "Address mask";
             sw = rw;
             hw = r;
-        } ADDR_MASK[7:0] = 8'hFF;
+        } ADDR_MASK[15:0] = 16'hFFFF;
 
         field {
-            desc = "Debug mask [15:8]";
+            desc = "Debug mask";
             sw = rw;
             hw = r;
-        } DEBUG_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
+        } DEBUG_MASK[31:16] = 16'h0000;
 
     } DAXMON_MASK3 @ 0x0DC;
 
@@ -288,10 +270,22 @@ regfile stream_mon_regs {
         } PERF_EN = 1'b0;
 
         field {
+            desc = "Reserved. Bit 5 is COMPRESS_EN on WRMON_ENABLE only; held reserved here so all three monitor ENABLE registers share one bit layout.";
+            sw = r;
+            hw = na;
+        } RSVD5[5:5] = 1'b0;
+
+        field {
+            desc = "Threshold enable - enable latency-threshold packets. Before this field existed the threshold cone was gated by PERF_EN, so a host that left PERF_EN clear saw no threshold packets however low it set LATENCY_THRESH.";
+            sw = rw;
+            hw = r;
+        } THRESH_EN[6:6] = 1'b0;
+
+        field {
             desc = "Reserved";
             sw = r;
             hw = na;
-        } RSVD[31:5] = 27'h0;
+        } RSVD[31:7] = 25'h0;
 
     } RDMON_ENABLE @ 0x0E0;
 
@@ -342,28 +336,16 @@ regfile stream_mon_regs {
         desc = "Read engine AXI monitor error selection and filtering";
 
         field {
-            desc = "Error select [3:0] - error type selection";
+            desc = "Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace";
             sw = rw;
             hw = r;
-        } ERR_SELECT[3:0] = 4'h0;
+        } ERR_SELECT[15:0] = 16'h0000;
 
         field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD1[7:4] = 4'h0;
-
-        field {
-            desc = "Error mask [15:8] - error type filtering";
+            desc = "Error mask - per-event-code drop mask, indexed by event_code[3:0]";
             sw = rw;
             hw = r;
-        } ERR_MASK[15:8] = 8'hFF;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD2[31:16] = 16'h0;
+        } ERR_MASK[31:16] = 16'hFFFF;
 
     } RDMON_ERR_CFG @ 0x0F0;
 
@@ -372,22 +354,16 @@ regfile stream_mon_regs {
         desc = "Read engine AXI monitor timeout and completion masks";
 
         field {
-            desc = "Timeout mask [7:0]";
+            desc = "Timeout mask";
             sw = rw;
             hw = r;
-        } TIMEOUT_MASK[7:0] = 8'hFF;
+        } TIMEOUT_MASK[15:0] = 16'hFFFF;
 
         field {
-            desc = "Completion mask [15:8]";
+            desc = "Completion mask";
             sw = rw;
             hw = r;
-        } COMPL_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
+        } COMPL_MASK[31:16] = 16'h0000;
 
     } RDMON_MASK1 @ 0x0F4;
 
@@ -396,22 +372,16 @@ regfile stream_mon_regs {
         desc = "Read engine AXI monitor threshold and performance masks";
 
         field {
-            desc = "Threshold mask [7:0]";
+            desc = "Threshold mask";
             sw = rw;
             hw = r;
-        } THRESH_MASK[7:0] = 8'hFF;
+        } THRESH_MASK[15:0] = 16'hFFFF;
 
         field {
-            desc = "Performance mask [15:8]";
+            desc = "Performance mask";
             sw = rw;
             hw = r;
-        } PERF_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
+        } PERF_MASK[31:16] = 16'h0000;
 
     } RDMON_MASK2 @ 0x0F8;
 
@@ -420,22 +390,16 @@ regfile stream_mon_regs {
         desc = "Read engine AXI monitor address and debug masks";
 
         field {
-            desc = "Address mask [7:0]";
+            desc = "Address mask";
             sw = rw;
             hw = r;
-        } ADDR_MASK[7:0] = 8'hFF;
+        } ADDR_MASK[15:0] = 16'hFFFF;
 
         field {
-            desc = "Debug mask [15:8]";
+            desc = "Debug mask";
             sw = rw;
             hw = r;
-        } DEBUG_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
+        } DEBUG_MASK[31:16] = 16'h0000;
 
     } RDMON_MASK3 @ 0x0FC;
 
@@ -480,10 +444,16 @@ regfile stream_mon_regs {
         } COMPRESS_EN = 1'b1;
 
         field {
+            desc = "Threshold enable - enable latency-threshold packets. Before this field existed the threshold cone was gated by PERF_EN, so a host that left PERF_EN clear saw no threshold packets however low it set LATENCY_THRESH.";
+            sw = rw;
+            hw = r;
+        } THRESH_EN[6:6] = 1'b0;
+
+        field {
             desc = "Reserved";
             sw = r;
             hw = na;
-        } RSVD[31:6] = 26'h0;
+        } RSVD[31:7] = 25'h0;
 
     } WRMON_ENABLE @ 0x100;
 
@@ -534,28 +504,16 @@ regfile stream_mon_regs {
         desc = "Write engine AXI monitor error selection and filtering";
 
         field {
-            desc = "Error select [3:0] - error type selection";
+            desc = "Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace";
             sw = rw;
             hw = r;
-        } ERR_SELECT[3:0] = 4'h0;
+        } ERR_SELECT[15:0] = 16'h0000;
 
         field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD1[7:4] = 4'h0;
-
-        field {
-            desc = "Error mask [15:8] - error type filtering";
+            desc = "Error mask - per-event-code drop mask, indexed by event_code[3:0]";
             sw = rw;
             hw = r;
-        } ERR_MASK[15:8] = 8'hFF;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD2[31:16] = 16'h0;
+        } ERR_MASK[31:16] = 16'hFFFF;
 
     } WRMON_ERR_CFG @ 0x110;
 
@@ -564,22 +522,16 @@ regfile stream_mon_regs {
         desc = "Write engine AXI monitor timeout and completion masks";
 
         field {
-            desc = "Timeout mask [7:0]";
+            desc = "Timeout mask";
             sw = rw;
             hw = r;
-        } TIMEOUT_MASK[7:0] = 8'hFF;
+        } TIMEOUT_MASK[15:0] = 16'hFFFF;
 
         field {
-            desc = "Completion mask [15:8]";
+            desc = "Completion mask";
             sw = rw;
             hw = r;
-        } COMPL_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
+        } COMPL_MASK[31:16] = 16'h0000;
 
     } WRMON_MASK1 @ 0x114;
 
@@ -588,22 +540,16 @@ regfile stream_mon_regs {
         desc = "Write engine AXI monitor threshold and performance masks";
 
         field {
-            desc = "Threshold mask [7:0]";
+            desc = "Threshold mask";
             sw = rw;
             hw = r;
-        } THRESH_MASK[7:0] = 8'hFF;
+        } THRESH_MASK[15:0] = 16'hFFFF;
 
         field {
-            desc = "Performance mask [15:8]";
+            desc = "Performance mask";
             sw = rw;
             hw = r;
-        } PERF_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
+        } PERF_MASK[31:16] = 16'h0000;
 
     } WRMON_MASK2 @ 0x118;
 
@@ -612,22 +558,16 @@ regfile stream_mon_regs {
         desc = "Write engine AXI monitor address and debug masks";
 
         field {
-            desc = "Address mask [7:0]";
+            desc = "Address mask";
             sw = rw;
             hw = r;
-        } ADDR_MASK[7:0] = 8'hFF;
+        } ADDR_MASK[15:0] = 16'hFFFF;
 
         field {
-            desc = "Debug mask [15:8]";
+            desc = "Debug mask";
             sw = rw;
             hw = r;
-        } DEBUG_MASK[15:8] = 8'h00;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:16] = 16'h0;
+        } DEBUG_MASK[31:16] = 16'h0000;
 
     } WRMON_MASK3 @ 0x11C;
 

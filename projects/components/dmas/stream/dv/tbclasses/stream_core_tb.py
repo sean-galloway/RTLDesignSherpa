@@ -39,7 +39,7 @@ STREAM_REGMAP_PATH = os.path.join(
 class StreamRegisterMap:
     """STREAM Register address definitions - PeakRDL generated registers."""
 
-    # Channel kick-off registers (0x000-0x03F) - handled by apbtodescr.sv
+    # Channel kick-off registers (0x000-0x03F) - handled by apb4todescr.sv
     # These are NOT PeakRDL registers - used by existing kick_off_channel() method
     CH0_CTRL_LOW = 0x000
     CH0_CTRL_HIGH = 0x004
@@ -161,7 +161,13 @@ class StreamCoreTB(TBBase):
         self.fifo_depth = fifo_depth
         # APB config-bus geometry (stream_top). Monitor block lives at 0x1000+,
         # so stream_top monbus testing needs a 13-bit APB address (8KB space).
-        self.apb_addr_width = kwargs.get('apb_addr_width', 12)
+        # Default SIZED FROM THE REGISTER MAP, not a guessed 12. At 12 bits
+        # every address >= 0x1000 truncates back into the functional block --
+        # RDMON_ENABLE 0x10E0 -> 0x0E0, WRMON_ENABLE 0x1100 -> 0x100 which is
+        # GLOBAL_CTRL -- so a monitor test silently rewrites the DMA's control
+        # registers and reads the result as a monitor defect. The map knows how
+        # wide the window has to be; ask it.
+        self.apb_addr_width = kwargs.get('apb_addr_width') or self._apb_width_from_regmap()
         self.apb_data_width = kwargs.get('apb_data_width', 32)
         self.data_bytes = data_width // 8
         # AXI user width must match channel encoding (same as RTL)
@@ -214,7 +220,7 @@ class StreamCoreTB(TBBase):
         self.desc_builder = DescriptorPacketBuilder()
 
         # APB Master (for stream_top configuration, initialized separately)
-        self.apb_master = None
+        self.apb4_master = None
 
         # MonBus packet capture
         self.mon_packets = []
@@ -310,6 +316,48 @@ class StreamCoreTB(TBBase):
         self.log.info(f"stream_core TB initialized: {self.num_channels} channels, "
                     f"{self.data_width}-bit data, {self.fifo_depth}-deep FIFO")
         self.log.info("Background monitors started for APB, datard, datawr, scheduler state, descriptor errors")
+    def init_monbus_slave(self, ready_probability=1.0):
+        """Attach a MonbusSlave (a GAXISlave) to the monbus valid/ready port.
+
+        Valid/ready interfaces are driven by GAXI BFMs, never by poking the
+        handshake signal. An earlier version of this TB set mon_ready=1 by hand,
+        which is wrong twice over:
+
+          * it is not a protocol agent -- no handshake checking, no
+            randomizable backpressure, so it can never exercise the case where
+            the consumer stalls (and the monbus is a lossy path under
+            backpressure, which is precisely what wants testing);
+          * paired with a valid-only capture loop it produced thousands of
+            phantom packets from ONE stuck beat and hid every other agent.
+
+        MonbusSlave decodes into self.monbus_slave.received_packets, so the TB
+        no longer hand-decodes either.
+        """
+        from TBClasses.monbus.monbus_slave import MonbusSlave
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+
+        if not hasattr(self.dut, 'mon_valid'):
+            self.monbus_slave = None
+            return None
+        # bus_name carries the SEPARATOR: the resolver's patterns are
+        # '{prefix}{bus_name}valid' with nothing between, so 'mon' would look for
+        # 'monvalid'. stream_core's group is mon_valid / mon_ready / mon_packet,
+        # hence 'mon_'. (pkt_base tries {bus_name}data, {bus_name}pkt, then
+        # {bus_name}packet -- the third matches.)
+        #
+        # No start() call: GAXI BFMs derive from cocotb_bus BusMonitor and start
+        # their receive loop automatically. Starting one by hand double-drives it.
+        self.monbus_slave = MonbusSlave(
+            dut=self.dut, title='MonBusSlave', prefix='', clock=self.clk,
+            bus_name='mon_', pkt_prefix='',
+            timeout_cycles=1000, log=self.log,
+            super_debug=bool(int(os.environ.get('MONBUS_DEBUG', '0'))),
+            randomizer=FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fast']['slave']),
+        )
+        self.log.info("monbus: MonbusSlave (GAXISlave) attached to mon_valid/mon_ready")
+        return self.monbus_slave
+
 
     async def assert_reset(self):
         """Assert reset signal(s)"""
@@ -369,6 +417,7 @@ class StreamCoreTB(TBBase):
         self.dut.cfg_desceng_addr1_limit.value = 0xFFFFFFFF
 
         self.log.info(f"Configured AXI transfer sizes: RD={rd_xfer_beats} beats, WR={wr_xfer_beats} beats")
+        self.init_monbus_slave()    # GAXI BFM owns the monbus handshake
 
     async def _init_bfm_components(self):
         """Initialize AXI slave BFMs after reset"""
@@ -522,9 +571,16 @@ class StreamCoreTB(TBBase):
             if name == 'mixed':
                 name = self.MIXED_AXI_PROFILES[idx % len(self.MIXED_AXI_PROFILES)]
             if name not in AXI_RANDOMIZER_CONFIGS:
-                self.log.warning(f"Unknown AXI timing profile '{name}', using "
-                                 f"'fixed'{self.get_time_ns_str()}")
-                name = 'fixed'
+                # RAISE, do not fall back. A warning here means the caller asked
+                # for a stall and got 'fixed' -- no stall at all -- while the
+                # test goes on to conclude the DUT did not react. Cost: a
+                # 'no timeout packets' result that was really 'no timeout
+                # stimulus'. Typos in a profile name must be fatal.
+                raise ValueError(
+                    f"unknown AXI timing profile '{name}'. Valid: "
+                    f"{sorted(AXI_RANDOMIZER_CONFIGS)}. Refusing to silently "
+                    f"substitute 'fixed' -- the requested stimulus would not "
+                    f"happen and the result would be meaningless.")
             return name, FlexRandomizer(AXI_RANDOMIZER_CONFIGS[name][section])
 
         desc_if = self.desc_axi_slave['interface']
@@ -550,16 +606,53 @@ class StreamCoreTB(TBBase):
             f"{self.get_time_ns_str()}")
 
     async def _monitor_monbus(self):
-        """Monitor MonBus packets"""
-        while True:
-            await RisingEdge(self.clk)
-            await ReadOnly()
+        """No-op: MonbusSlave (a GAXISlave) owns the monbus handshake and decode.
 
-            if hasattr(self.dut, 'mon_valid'):
-                if int(self.dut.mon_valid.value) == 1:
-                    pkt_data = int(self.dut.mon_packet.value)
-                    self.mon_packets.append(pkt_data)
-                    # TODO: Decode packet fields
+        This used to sample mon_valid on every clock and decode by hand -- which
+        both bypassed the BFM layer and, because it ignored mon_ready, counted
+        one unaccepted beat thousands of times. Captured packets now come from
+        self.monbus_slave.received_packets.
+        """
+        return
+
+    # ---- monbus queries, by packet TYPE (sourced from the GAXI BFM) --------
+    @property
+    def mon_decoded(self):
+        """Packets ACCEPTED on the monbus, decoded by MonbusSlave."""
+        sl = getattr(self, 'monbus_slave', None)
+        # `is not None`, NOT truthiness: GAXI BFMs define __len__ (their queue
+        # depth), so `if sl` is FALSE for a live BFM whose queue happens to be
+        # drained. That silently returned [] while the BFM held 608 packets, and
+        # read exactly like "the monitor emitted nothing".
+        return list(sl.received_packets) if sl is not None else []
+
+    # MonbusSlave yields MonbusPacket, whose field is `pkt_type`. (The parse()
+    # path yields MonitorPacket, whose field is `packet_type` -- two decoders,
+    # two names for the same 4 bits.)
+    def mon_count_of_type(self, pkt_type) -> int:
+        want = int(pkt_type)
+        return sum(1 for p in self.mon_decoded if int(p.pkt_type) == want)
+
+    @staticmethod
+    def mon_type_name(p) -> str:
+        from TBClasses.monbus.monbus_types import PktType
+        try:
+            return PktType(int(p.pkt_type)).name
+        except ValueError:
+            return f"PktType({int(p.pkt_type)})"
+
+    def mon_types_seen(self) -> dict:
+        out = {}
+        for p in self.mon_decoded:
+            name = self.mon_type_name(p)
+            out[name] = out.get(name, 0) + 1
+        return out
+
+    def mon_clear(self):
+        """Drop captured packets so a phase counts only its own traffic."""
+        sl = getattr(self, 'monbus_slave', None)
+        if sl is not None:          # see mon_decoded: BFMs define __len__
+            sl.received_packets.clear()
 
     async def _monitor_apb_to_desc(self):
         """Monitor APB → Descriptor interface (channel kick-offs)"""
@@ -1218,7 +1311,7 @@ class StreamCoreTB(TBBase):
 
     def assert_descriptors_fetched(self):
         """MUST: every descriptor address launched by a kick-register write was
-        actually fetched by the descriptor engine (kick reg -> apbtodescr ->
+        actually fetched by the descriptor engine (kick reg -> apb4todescr ->
         descriptor engine). Independent of the datapath check -- a dead or
         mis-decoded kick leaves the kicked descriptor un-fetched."""
         fetched = set(self.desc_fetch_addrs)
@@ -1249,10 +1342,10 @@ class StreamCoreTB(TBBase):
 
         # DEBUG: Log what we're about to do
         self.log.info(f"kick_off_channel: channel={channel}, descriptor_addr=0x{descriptor_addr:016X}")
-        self.log.info(f"  APB master initialized: {self.apb_master is not None}")
+        self.log.info(f"  APB master initialized: {self.apb4_master is not None}")
 
         # Detect mode: APB (stream_top) or direct (stream_core)
-        if self.apb_master is not None:
+        if self.apb4_master is not None:
             # APB mode (stream_top) - write descriptor address to CHx_CTRL regs.
             # Resolve the kick registers BY NAME through the peakrdl regmap so a
             # dropped/renamed CHx_CTRL fails HERE. The old hardcoded
@@ -1399,7 +1492,7 @@ class StreamCoreTB(TBBase):
         self.log.info(f"Waiting for channel {channel} to become idle (timeout={timeout_us}us){self.get_time_ns_str()}")
 
         # Detect mode: APB (stream_top) or direct (stream_core)
-        if self.apb_master is not None:
+        if self.apb4_master is not None:
             # APB mode (stream_top) - read CHANNEL_IDLE register
             idle_seen = False
             cycle_count = 0
@@ -1519,7 +1612,7 @@ class StreamCoreTB(TBBase):
     # APB Configuration Interface (stream_top only)
     # =========================================================================
 
-    async def init_apb_master(self):
+    async def init_apb4_master(self):
         """
         Initialize APB master for stream_top configuration interface.
 
@@ -1533,20 +1626,20 @@ class StreamCoreTB(TBBase):
         # Check if DUT has APB interface
         if not hasattr(self.dut, 's_apb_paddr'):
             self.log.warning("DUT does not have APB interface - APB master not initialized")
-            self.apb_master = None
+            self.apb4_master = None
             return
 
         # Create APB Master
-        # IMPORTANT: When CDC_ENABLE=0, the RTL connects apb_slave to aclk internally,
+        # IMPORTANT: When CDC_ENABLE=0, the RTL connects apb4_slave to aclk internally,
         # NOT the external pclk port. So the APBMaster must use the same clock.
         # For non-CDC testing, use self.clk (which is aclk).
         # For CDC testing, use self.dut.pclk (the separate APB clock domain).
         # Since we're primarily testing with CDC_ENABLE=0, use aclk (self.clk).
-        self.apb_master = APBMaster(
+        self.apb4_master = APBMaster(
             entity=self.dut,
             title='STREAM APB Master',
             prefix='s_apb',
-            clock=self.clk,     # Use aclk - must match RTL's apb_slave clock when CDC_ENABLE=0
+            clock=self.clk,     # Use aclk - must match RTL's apb4_slave clock when CDC_ENABLE=0
             bus_width=32,       # 32-bit data
             addr_width=self.apb_addr_width,  # 12-bit (4KB) base, 13-bit (8KB) reaches monitors @ 0x1000+
             randomizer=FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']),
@@ -1554,7 +1647,7 @@ class StreamCoreTB(TBBase):
         )
 
         # Initialize the APB master
-        await self.apb_master.reset_bus()
+        await self.apb4_master.reset_bus()
 
         self.log.info("APB Master initialized for stream_top configuration")
 
@@ -1598,6 +1691,42 @@ class StreamCoreTB(TBBase):
             f"margin={margin}x)")
         return cycles
 
+    @staticmethod
+    def _apb_width_from_regmap(floor=12):
+        """Bits needed to address every register the map defines.
+
+        Reads stream_regmap.py DIRECTLY rather than self.reg_offsets, because
+        this runs from __init__ before reg_offsets exists. The first version
+        used self.reg_offsets inside a try/except that returned `floor` on
+        failure -- so it always returned 12, silently, and the register walk
+        went back to truncating MON addresses. A fallback that hides its own
+        failure is the exact bug this method exists to prevent, so there is no
+        fallback: if the map cannot be read, that is fatal.
+        """
+        import importlib.util
+        from TBClasses.shared.utilities import get_repo_root
+        path = os.path.join(get_repo_root(),
+                            'projects/components/dmas/stream/rtl/stream_regmap.py')
+        spec = importlib.util.spec_from_file_location('stream_regmap_probe', path)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        top = 0
+        for attr in dir(m):
+            if attr.startswith('_'):
+                continue
+            cand = getattr(m, attr)
+            if not isinstance(cand, dict):
+                continue
+            for reg in cand.values():
+                if isinstance(reg, dict) and 'address' in reg:
+                    top = max(top, int(str(reg['address']), 0))
+        if top == 0:
+            raise RuntimeError(
+                f"could not determine the highest register address from {path} "
+                f"-- refusing to guess an APB width, since guessing low "
+                f"silently truncates addresses onto other registers")
+        return max(floor, top.bit_length())
+
     def reg_offset(self, reg_name):
         """Resolve a register's APB offset BY NAME via the RegisterMap.
 
@@ -1631,8 +1760,8 @@ class StreamCoreTB(TBBase):
         Returns:
             APBPacket: Response packet
         """
-        if self.apb_master is None:
-            raise RuntimeError("APB master not initialized. Call init_apb_master() first.")
+        if self.apb4_master is None:
+            raise RuntimeError("APB master not initialized. Call init_apb4_master() first.")
 
         # Create APB write packet with proper field configuration (matches HPET pattern)
         from CocoTBFramework.components.apb.apb_packet import APBPacket
@@ -1651,7 +1780,7 @@ class StreamCoreTB(TBBase):
         # Send transaction and wait for completion
         # IMPORTANT: Use busy_send() to wait for transaction to complete!
         # send() is non-blocking and just queues the transaction.
-        await self.apb_master.busy_send(packet)
+        await self.apb4_master.busy_send(packet)
 
         # Wait one more clock for APBMaster to finish bus cleanup
         # This avoids race conditions with background monitors using ReadOnly()
@@ -1671,8 +1800,8 @@ class StreamCoreTB(TBBase):
         Returns:
             int: 32-bit data read
         """
-        if self.apb_master is None:
-            raise RuntimeError("APB master not initialized. Call init_apb_master() first.")
+        if self.apb4_master is None:
+            raise RuntimeError("APB master not initialized. Call init_apb4_master() first.")
 
         # Create APB read packet with proper field configuration (matches HPET pattern)
         from CocoTBFramework.components.apb.apb_packet import APBPacket
@@ -1691,7 +1820,7 @@ class StreamCoreTB(TBBase):
         # Send transaction and wait for completion
         # IMPORTANT: Use busy_send() to wait for transaction to complete!
         # send() is non-blocking and just queues the transaction.
-        await self.apb_master.busy_send(packet)
+        await self.apb4_master.busy_send(packet)
 
         # Wait one more clock for APBMaster to finish bus cleanup
         # This avoids race conditions with background monitors using ReadOnly()
@@ -1726,7 +1855,7 @@ class StreamCoreTB(TBBase):
                 last_rd_ack = int(self.dut.debug_last_cpuif_rd_ack.value)
                 self.log.info(f"  [DEBUG CAPTURE] last_addr=0x{last_addr:03X}, "
                              f"last_rd_data=0x{last_rd_data:08X}, last_rd_ack={last_rd_ack}")
-                # Probe APB cmd/rsp path (from apb_slave_cdc output) - current values
+                # Probe APB cmd/rsp path (from apb4_slave_cdc output) - current values
                 apb_cmd_valid = int(self.dut.debug_apb_cmd_valid.value)
                 apb_cmd_ready = int(self.dut.debug_apb_cmd_ready.value)
                 apb_cmd_pwrite = int(self.dut.debug_apb_cmd_pwrite.value)

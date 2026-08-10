@@ -76,13 +76,13 @@ puts "Setting top module: $top_name"
 set_property top $top_name $src_fs
 
 # ---- Build-time generics (top defaults: 8ch, profile mode on, N_PROFILE=64) ----
-# Override via env: STREAM_NUM_CHANNELS, MON_TALLY_PROFILE_MODE, MON_N_PROFILE,
+# Override via env: STREAM_NUM_CHANNELS, MON_N_PROFILE,
 # STREAM_CLKOUT0_DIVIDE (12->100 MHz; keep the XDC led_slow_clk in lockstep).
 set generics {}
 if {[info exists ::env(STREAM_CLKOUT0_DIVIDE)]}   { lappend generics "CLKOUT0_DIVIDE=$::env(STREAM_CLKOUT0_DIVIDE)" }
 if {[info exists ::env(STREAM_NUM_CHANNELS)]}      { lappend generics "NUM_CHANNELS=$::env(STREAM_NUM_CHANNELS)" }
-if {[info exists ::env(MON_TALLY_PROFILE_MODE)]}   { lappend generics "MON_TALLY_PROFILE_MODE=$::env(MON_TALLY_PROFILE_MODE)" }
 if {[info exists ::env(MON_N_PROFILE)]}            { lappend generics "MON_N_PROFILE=$::env(MON_N_PROFILE)" }
+if {[info exists ::env(MON_ERROR_FLAVOR)]}         { lappend generics "MON_ERROR_FLAVOR=$::env(MON_ERROR_FLAVOR)" }
 if {[llength $generics] > 0} {
     puts "Applying generics: $generics"
     set_property generic $generics $src_fs

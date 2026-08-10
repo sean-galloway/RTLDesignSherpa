@@ -7,9 +7,9 @@
 //
 //   Integration hierarchy:
 //     APB Interface
-//       → apb_slave_cdc (or apb_slave if CDC_ENABLE=0)
+//       → apb4_slave_cdc (or apb4_slave if CDC_ENABLE=0)
 //       → cmdrsp_router (address-based routing)
-//         → apbtodescr (channel kick-off, 0x000-0x03F)
+//         → apb4todescr (channel kick-off, 0x000-0x03F)
 //         → peakrdl_to_cmdrsp (APB → CMD/RSP conversion)
 //           → stream_regs (PeakRDL registers, 0x100-0x3FF)
 //       → stream_config_block (register mapping)
@@ -17,7 +17,7 @@
 //       → monbus_axil_group (monitor bus → AXI-Lite, USE_AXI_MONITORS=1)
 //
 //   APB Address Map:
-//     0x000-0x03F: Channel kick-off (apbtodescr)
+//     0x000-0x03F: Channel kick-off (apb4todescr)
 //     0x100-0x3FF: Configuration registers (PeakRDL)
 //
 //   Features:
@@ -103,7 +103,16 @@ module stream_top_ch8 #(
     // 0 = Gray (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit
     // pointers). Gray by default -- Johnson is opt-in.
     parameter int USE_JOHNSON = 0,
-    parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b1
+    parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b1,
+    // Data-read/-write datapath monitor logic cones. Perf-only by default (as
+    // the datapath monitors were originally hardwired, for xc7a100t area); the
+    // monitor-validation harness overrides these to exercise every packet class.
+    parameter bit DATA_MON_ENABLE_ERROR_LOGIC     = 1'b0,
+    parameter bit DATA_MON_ENABLE_TIMEOUT_LOGIC   = 1'b0,
+    parameter bit DATA_MON_ENABLE_COMPL_LOGIC     = 1'b0,
+    parameter bit DATA_MON_ENABLE_THRESHOLD_LOGIC = 1'b0,
+    parameter bit DATA_MON_ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit DATA_MON_ENABLE_DEBUG_LOGIC     = 1'b0
 ) (
     //-------------------------------------------------------------------------
     // Clock and Reset
@@ -310,7 +319,7 @@ module stream_top_ch8 #(
     output logic [9:0]                              debug_last_cpuif_addr,
     output logic [31:0]                             debug_last_cpuif_rd_data,
     output logic                                    debug_last_cpuif_rd_ack,
-    // Debug outputs for APB command path (from apb_slave_cdc)
+    // Debug outputs for APB command path (from apb4_slave_cdc)
     output logic                                    debug_apb_cmd_valid,
     output logic                                    debug_apb_cmd_ready,
     output logic                                    debug_apb_cmd_pwrite,
@@ -367,7 +376,7 @@ module stream_top_ch8 #(
     //-------------------------------------------------------------------------
     // Routed CMD/RSP - after address demux
     //-------------------------------------------------------------------------
-    // To apbtodescr (kick-off)
+    // To apb4todescr (kick-off)
     logic                       kickoff_cmd_valid;
     logic                       kickoff_cmd_ready;
     logic [APB_ADDR_WIDTH-1:0]  kickoff_cmd_paddr;
@@ -404,7 +413,7 @@ module stream_top_ch8 #(
     // Descriptor Kick-off Signals (renamed to match stream_core)
     //-------------------------------------------------------------------------
     // Two upstream sources feed the descriptor_engine kick interface:
-    //   1. apbtodescr — slow APB / UART path (kick via APB writes)
+    //   1. apb4todescr — slow APB / UART path (kick via APB writes)
     //   2. kick-burst inputs — fast hardware-trigger path from harness_csr
     // Both share the same downstream apb_valid / apb_addr / apb_ready bus
     // to the descriptor_engine; we OR-mux them below with priority to
@@ -414,8 +423,8 @@ module stream_top_ch8 #(
     logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] apb_addr;
 
     // Apbtodescr-side outputs (renamed; final apb_* are the OR-mux).
-    logic [NUM_CHANNELS-1:0]                 apb_valid_apbtodescr;
-    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] apb_addr_apbtodescr;
+    logic [NUM_CHANNELS-1:0]                 apb_valid_apb4todescr;
+    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] apb_addr_apb4todescr;
 
     // Kick-burst latch: holds a kick request high until the engine accepts
     // it (apb_ready), so a single 1-cycle trigger pulse from harness_csr
@@ -445,12 +454,12 @@ module stream_top_ch8 #(
         end
     end
 
-    // OR-mux: whichever path has a valid request drives the bus. apbtodescr
+    // OR-mux: whichever path has a valid request drives the bus. apb4todescr
     // path wins on the address when both fire (rare — APB kicks are slow).
     always_comb begin
         for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
-            apb_valid[ch] = apb_valid_apbtodescr[ch] | r_kick_burst_pending[ch];
-            apb_addr [ch] = apb_valid_apbtodescr[ch] ? apb_addr_apbtodescr[ch]
+            apb_valid[ch] = apb_valid_apb4todescr[ch] | r_kick_burst_pending[ch];
+            apb_addr [ch] = apb_valid_apb4todescr[ch] ? apb_addr_apb4todescr[ch]
                                                      : r_kick_burst_addr[ch];
         end
     end
@@ -618,6 +627,8 @@ module stream_top_ch8 #(
     logic                                   cfg_desc_mon_enable;
     logic                                   cfg_desc_mon_err_enable;
     logic                                   cfg_desc_mon_perf_enable;
+    logic                                   cfg_desc_mon_compl_enable;
+    logic                                   cfg_desc_mon_thresh_enable;
     logic                                   cfg_desc_mon_timeout_enable;
     logic [31:0]                            cfg_desc_mon_timeout_cycles;
     logic [31:0]                            cfg_desc_mon_latency_thresh;
@@ -634,6 +645,8 @@ module stream_top_ch8 #(
     logic                                   cfg_rdeng_mon_enable;
     logic                                   cfg_rdeng_mon_err_enable;
     logic                                   cfg_rdeng_mon_perf_enable;
+    logic                                   cfg_rdeng_mon_compl_enable;
+    logic                                   cfg_rdeng_mon_thresh_enable;
     logic                                   cfg_rdeng_mon_timeout_enable;
     logic [31:0]                            cfg_rdeng_mon_timeout_cycles;
     logic [31:0]                            cfg_rdeng_mon_latency_thresh;
@@ -650,6 +663,8 @@ module stream_top_ch8 #(
     logic                                   cfg_wreng_mon_enable;
     logic                                   cfg_wreng_mon_err_enable;
     logic                                   cfg_wreng_mon_perf_enable;
+    logic                                   cfg_wreng_mon_compl_enable;
+    logic                                   cfg_wreng_mon_thresh_enable;
     logic                                   cfg_wreng_mon_timeout_enable;
     logic [31:0]                            cfg_wreng_mon_timeout_cycles;
     logic [31:0]                            cfg_wreng_mon_latency_thresh;
@@ -676,8 +691,8 @@ module stream_top_ch8 #(
     // APB Clock Domain Crossing (APB → CMD/RSP)
     //=========================================================================
     // Conditional CDC based on CDC_ENABLE parameter:
-    //   CDC_ENABLE=1: apb_slave_cdc (pclk ≠ aclk, clock domain crossing)
-    //   CDC_ENABLE=0: apb_slave (pclk = aclk, same clock domain)
+    //   CDC_ENABLE=1: apb4_slave_cdc (pclk ≠ aclk, clock domain crossing)
+    //   CDC_ENABLE=0: apb4_slave (pclk = aclk, same clock domain)
     logic                       apb_cmd_valid;
     logic                       apb_cmd_ready;
     logic                       apb_cmd_pwrite;
@@ -690,13 +705,13 @@ module stream_top_ch8 #(
     logic                       apb_rsp_pslverr;
 
     generate
-        if (CDC_ENABLE != 0) begin : g_apb_slave_cdc
+        if (CDC_ENABLE != 0) begin : g_apb4_slave_cdc
             // Clock Domain Crossing version for async clocks
-            apb_slave_cdc #(
+            apb4_slave_cdc #(
                 .ADDR_WIDTH(APB_ADDR_WIDTH),
                 .DATA_WIDTH(APB_DATA_WIDTH),
                 .USE_JOHNSON (USE_JOHNSON)
-            ) u_apb_slave_cdc (
+            ) u_apb4_slave_cdc (
                 .aclk                   (aclk),
                 .aresetn                (aresetn),
                 .pclk                   (pclk),
@@ -729,10 +744,10 @@ module stream_top_ch8 #(
             );
         end else begin : g_apb_passthrough
             // Same clock domain version (pclk = aclk)
-            apb_slave #(
+            apb4_slave #(
                 .ADDR_WIDTH(APB_ADDR_WIDTH),
                 .DATA_WIDTH(APB_DATA_WIDTH)
-            ) u_apb_slave (
+            ) u_apb4_slave (
                 .pclk                   (aclk),         // Use aclk (pclk = aclk when CDC disabled)
                 .presetn                (aresetn),      // Use aresetn (presetn = aresetn)
 
@@ -767,8 +782,8 @@ module stream_top_ch8 #(
     //=========================================================================
     // CMD/RSP Address Router
     //=========================================================================
-    // Routes CMD/RSP transactions (from apb_slave_cdc) based on address:
-    //   0x000-0x03F: apbtodescr (channel kick-off)
+    // Routes CMD/RSP transactions (from apb4_slave_cdc) based on address:
+    //   0x000-0x03F: apb4todescr (channel kick-off)
     //   0x100-0x3FF: peakrdl_to_cmdrsp (configuration registers)
 
     // CMD/RSP signals to peakrdl_to_cmdrsp (m1 master)
@@ -789,7 +804,7 @@ module stream_top_ch8 #(
         .clk                        (aclk),
         .rst_n                      (aresetn),
 
-        // CMD/RSP Slave (from apb_slave_cdc)
+        // CMD/RSP Slave (from apb4_slave_cdc)
         .s_cmd_valid                (apb_cmd_valid),
         .s_cmd_ready                (apb_cmd_ready),
         .s_cmd_pwrite               (apb_cmd_pwrite),
@@ -800,7 +815,7 @@ module stream_top_ch8 #(
         .s_rsp_prdata               (apb_rsp_prdata),
         .s_rsp_pslverr              (apb_rsp_pslverr),
 
-        // CMD/RSP Master 0: apbtodescr (0x000-0x03F)
+        // CMD/RSP Master 0: apb4todescr (0x000-0x03F)
         .m0_cmd_valid               (kickoff_cmd_valid),
         .m0_cmd_ready               (kickoff_cmd_ready),
         .m0_cmd_pwrite              (kickoff_cmd_pwrite),
@@ -835,14 +850,14 @@ module stream_top_ch8 #(
     );
 
     //=========================================================================
-    // Channel Kick-off Router (apbtodescr)
+    // Channel Kick-off Router (apb4todescr)
     //=========================================================================
-    apbtodescr #(
+    apb4todescr #(
         .NUM_CHANNELS    (NUM_CHANNELS),
         .ADDR_WIDTH      (APB_ADDR_WIDTH),  // narrow APB bus address (~12 bits)
         .DATA_WIDTH      (APB_DATA_WIDTH),
         .DESC_ADDR_WIDTH (ADDR_WIDTH)       // wide descriptor address (AXI)
-    ) u_apbtodescr (
+    ) u_apb4todescr (
         .clk                            (aclk),
         .rst_n                          (aresetn),
 
@@ -858,12 +873,12 @@ module stream_top_ch8 #(
         .apb_rsp_rdata                  (kickoff_rsp_prdata),
         .apb_rsp_error                  (kickoff_rsp_pslverr),
 
-        // Descriptor Engine Outputs (apbtodescr's contribution to the
+        // Descriptor Engine Outputs (apb4todescr's contribution to the
         // shared kick bus — final apb_* is OR-muxed with the kick-burst
         // path above).
-        .desc_apb_valid                 (apb_valid_apbtodescr),
+        .desc_apb_valid                 (apb_valid_apb4todescr),
         .desc_apb_ready                 (apb_ready),
-        .desc_apb_addr                  (apb_addr_apbtodescr),
+        .desc_apb_addr                  (apb_addr_apb4todescr),
 
         // Debug output (unused)
         .apb_descriptor_kickoff_hit     ()
@@ -1200,6 +1215,7 @@ module stream_top_ch8 #(
         .reg_daxmon_enable_compl_en                 (hwif_out.MON.DAXMON_ENABLE.COMPL_EN.value),
         .reg_daxmon_enable_timeout_en               (hwif_out.MON.DAXMON_ENABLE.TIMEOUT_EN.value),
         .reg_daxmon_enable_perf_en                  (hwif_out.MON.DAXMON_ENABLE.PERF_EN.value),
+        .reg_daxmon_enable_thresh_en                (hwif_out.MON.DAXMON_ENABLE.THRESH_EN.value),
         .reg_daxmon_timeout_timeout_cycles          (hwif_out.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value),
         .reg_daxmon_latency_thresh_latency_thresh   (hwif_out.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value),
         .reg_daxmon_pkt_mask_pkt_mask               (hwif_out.MON.DAXMON_PKT_MASK.PKT_MASK.value),
@@ -1218,6 +1234,7 @@ module stream_top_ch8 #(
         .reg_rdmon_enable_compl_en                  (hwif_out.MON.RDMON_ENABLE.COMPL_EN.value),
         .reg_rdmon_enable_timeout_en                (hwif_out.MON.RDMON_ENABLE.TIMEOUT_EN.value),
         .reg_rdmon_enable_perf_en                   (hwif_out.MON.RDMON_ENABLE.PERF_EN.value),
+        .reg_rdmon_enable_thresh_en                 (hwif_out.MON.RDMON_ENABLE.THRESH_EN.value),
         .reg_rdmon_timeout_timeout_cycles           (hwif_out.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value),
         .reg_rdmon_latency_thresh_latency_thresh    (hwif_out.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value),
         .reg_rdmon_pkt_mask_pkt_mask                (hwif_out.MON.RDMON_PKT_MASK.PKT_MASK.value),
@@ -1236,6 +1253,7 @@ module stream_top_ch8 #(
         .reg_wrmon_enable_compl_en                  (hwif_out.MON.WRMON_ENABLE.COMPL_EN.value),
         .reg_wrmon_enable_timeout_en                (hwif_out.MON.WRMON_ENABLE.TIMEOUT_EN.value),
         .reg_wrmon_enable_perf_en                   (hwif_out.MON.WRMON_ENABLE.PERF_EN.value),
+        .reg_wrmon_enable_thresh_en                 (hwif_out.MON.WRMON_ENABLE.THRESH_EN.value),
         .reg_wrmon_timeout_timeout_cycles           (hwif_out.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value),
         .reg_wrmon_latency_thresh_latency_thresh    (hwif_out.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value),
         .reg_wrmon_pkt_mask_pkt_mask                (hwif_out.MON.WRMON_PKT_MASK.PKT_MASK.value),
@@ -1289,6 +1307,8 @@ module stream_top_ch8 #(
         .cfg_desc_mon_enable                (cfg_desc_mon_enable),
         .cfg_desc_mon_err_enable            (cfg_desc_mon_err_enable),
         .cfg_desc_mon_perf_enable           (cfg_desc_mon_perf_enable),
+        .cfg_desc_mon_compl_enable          (cfg_desc_mon_compl_enable),
+        .cfg_desc_mon_thresh_enable         (cfg_desc_mon_thresh_enable),
         .cfg_desc_mon_timeout_enable        (cfg_desc_mon_timeout_enable),
         .cfg_desc_mon_timeout_cycles        (cfg_desc_mon_timeout_cycles),
         .cfg_desc_mon_latency_thresh        (cfg_desc_mon_latency_thresh),
@@ -1304,6 +1324,8 @@ module stream_top_ch8 #(
         .cfg_rdeng_mon_enable               (cfg_rdeng_mon_enable),
         .cfg_rdeng_mon_err_enable           (cfg_rdeng_mon_err_enable),
         .cfg_rdeng_mon_perf_enable          (cfg_rdeng_mon_perf_enable),
+        .cfg_rdeng_mon_compl_enable         (cfg_rdeng_mon_compl_enable),
+        .cfg_rdeng_mon_thresh_enable        (cfg_rdeng_mon_thresh_enable),
         .cfg_rdeng_mon_timeout_enable       (cfg_rdeng_mon_timeout_enable),
         .cfg_rdeng_mon_timeout_cycles       (cfg_rdeng_mon_timeout_cycles),
         .cfg_rdeng_mon_latency_thresh       (cfg_rdeng_mon_latency_thresh),
@@ -1319,6 +1341,8 @@ module stream_top_ch8 #(
         .cfg_wreng_mon_enable               (cfg_wreng_mon_enable),
         .cfg_wreng_mon_err_enable           (cfg_wreng_mon_err_enable),
         .cfg_wreng_mon_perf_enable          (cfg_wreng_mon_perf_enable),
+        .cfg_wreng_mon_compl_enable         (cfg_wreng_mon_compl_enable),
+        .cfg_wreng_mon_thresh_enable        (cfg_wreng_mon_thresh_enable),
         .cfg_wreng_mon_timeout_enable       (cfg_wreng_mon_timeout_enable),
         .cfg_wreng_mon_timeout_cycles       (cfg_wreng_mon_timeout_cycles),
         .cfg_wreng_mon_latency_thresh       (cfg_wreng_mon_latency_thresh),
@@ -1372,7 +1396,13 @@ module stream_top_ch8 #(
                 .DESC_MON_ENABLE_COMPL_LOGIC     (DESC_MON_ENABLE_COMPL_LOGIC),
                 .DESC_MON_ENABLE_THRESHOLD_LOGIC (DESC_MON_ENABLE_THRESHOLD_LOGIC),
                 .DESC_MON_ENABLE_PERF_LOGIC      (DESC_MON_ENABLE_PERF_LOGIC),
-                .DESC_MON_ENABLE_DEBUG_LOGIC     (DESC_MON_ENABLE_DEBUG_LOGIC)
+                .DESC_MON_ENABLE_DEBUG_LOGIC     (DESC_MON_ENABLE_DEBUG_LOGIC),
+                .DATA_MON_ENABLE_ERROR_LOGIC     (DATA_MON_ENABLE_ERROR_LOGIC),
+                .DATA_MON_ENABLE_TIMEOUT_LOGIC   (DATA_MON_ENABLE_TIMEOUT_LOGIC),
+                .DATA_MON_ENABLE_COMPL_LOGIC     (DATA_MON_ENABLE_COMPL_LOGIC),
+                .DATA_MON_ENABLE_THRESHOLD_LOGIC (DATA_MON_ENABLE_THRESHOLD_LOGIC),
+                .DATA_MON_ENABLE_PERF_LOGIC      (DATA_MON_ENABLE_PERF_LOGIC),
+                .DATA_MON_ENABLE_DEBUG_LOGIC     (DATA_MON_ENABLE_DEBUG_LOGIC)
             ) u_stream_core (
                 .clk                        (aclk),
                 .rst_n                      (aresetn),
@@ -1410,6 +1440,8 @@ module stream_top_ch8 #(
                 .cfg_desc_mon_enable        (cfg_desc_mon_enable),
                 .cfg_desc_mon_err_enable    (cfg_desc_mon_err_enable),
                 .cfg_desc_mon_perf_enable   (cfg_desc_mon_perf_enable),
+                .cfg_desc_mon_compl_enable  (cfg_desc_mon_compl_enable),
+                .cfg_desc_mon_thresh_enable (cfg_desc_mon_thresh_enable),
                 .cfg_desc_mon_timeout_enable(cfg_desc_mon_timeout_enable),
                 .cfg_desc_mon_timeout_cycles(cfg_desc_mon_timeout_cycles),
                 .cfg_desc_mon_latency_thresh(cfg_desc_mon_latency_thresh),
@@ -1440,6 +1472,8 @@ module stream_top_ch8 #(
                 .cfg_rdeng_mon_enable       (cfg_rdeng_mon_enable),
                 .cfg_rdeng_mon_err_enable   (cfg_rdeng_mon_err_enable),
                 .cfg_rdeng_mon_perf_enable  (cfg_rdeng_mon_perf_enable),
+                .cfg_rdeng_mon_compl_enable (cfg_rdeng_mon_compl_enable),
+                .cfg_rdeng_mon_thresh_enable (cfg_rdeng_mon_thresh_enable),
                 .cfg_rdeng_mon_timeout_enable(cfg_rdeng_mon_timeout_enable),
                 .cfg_rdeng_mon_timeout_cycles(cfg_rdeng_mon_timeout_cycles),
                 .cfg_rdeng_mon_latency_thresh(cfg_rdeng_mon_latency_thresh),
@@ -1470,6 +1504,8 @@ module stream_top_ch8 #(
                 .cfg_wreng_mon_enable       (cfg_wreng_mon_enable),
                 .cfg_wreng_mon_err_enable   (cfg_wreng_mon_err_enable),
                 .cfg_wreng_mon_perf_enable  (cfg_wreng_mon_perf_enable),
+                .cfg_wreng_mon_compl_enable (cfg_wreng_mon_compl_enable),
+                .cfg_wreng_mon_thresh_enable (cfg_wreng_mon_thresh_enable),
                 .cfg_wreng_mon_timeout_enable(cfg_wreng_mon_timeout_enable),
                 .cfg_wreng_mon_timeout_cycles(cfg_wreng_mon_timeout_cycles),
                 .cfg_wreng_mon_latency_thresh(cfg_wreng_mon_latency_thresh),
@@ -1726,6 +1762,8 @@ module stream_top_ch8 #(
                 .cfg_desc_mon_enable        (1'b0),
                 .cfg_desc_mon_err_enable    (1'b0),
                 .cfg_desc_mon_perf_enable   (1'b0),
+                .cfg_desc_mon_compl_enable  (1'b0),
+                .cfg_desc_mon_thresh_enable (1'b0),
                 .cfg_desc_mon_timeout_enable(1'b0),
                 .cfg_desc_mon_timeout_cycles(32'h0),
                 .cfg_desc_mon_latency_thresh(32'h0),
@@ -1755,6 +1793,8 @@ module stream_top_ch8 #(
                 .cfg_rdeng_mon_enable       (1'b0),
                 .cfg_rdeng_mon_err_enable   (1'b0),
                 .cfg_rdeng_mon_perf_enable  (1'b0),
+                .cfg_rdeng_mon_compl_enable (1'b0),
+                .cfg_rdeng_mon_thresh_enable (1'b0),
                 .cfg_rdeng_mon_timeout_enable(1'b0),
                 .cfg_rdeng_mon_timeout_cycles(32'h0),
                 .cfg_rdeng_mon_latency_thresh(32'h0),
@@ -1784,6 +1824,8 @@ module stream_top_ch8 #(
                 .cfg_wreng_mon_enable       (1'b0),
                 .cfg_wreng_mon_err_enable   (1'b0),
                 .cfg_wreng_mon_perf_enable  (1'b0),
+                .cfg_wreng_mon_compl_enable (1'b0),
+                .cfg_wreng_mon_thresh_enable (1'b0),
                 .cfg_wreng_mon_timeout_enable(1'b0),
                 .cfg_wreng_mon_timeout_cycles(32'h0),
                 .cfg_wreng_mon_latency_thresh(32'h0),

@@ -626,6 +626,10 @@ module stream_regs (
                     logic next;
                     logic load_next;
                 } PERF_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } THRESH_EN;
             } DAXMON_ENABLE;
             struct {
                 struct {
@@ -647,41 +651,41 @@ module stream_regs (
             } DAXMON_PKT_MASK;
             struct {
                 struct {
-                    logic [3:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } ERR_SELECT;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } ERR_MASK;
             } DAXMON_ERR_CFG;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } TIMEOUT_MASK;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } COMPL_MASK;
             } DAXMON_MASK1;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } THRESH_MASK;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } PERF_MASK;
             } DAXMON_MASK2;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } ADDR_MASK;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } DEBUG_MASK;
             } DAXMON_MASK3;
@@ -706,6 +710,10 @@ module stream_regs (
                     logic next;
                     logic load_next;
                 } PERF_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } THRESH_EN;
             } RDMON_ENABLE;
             struct {
                 struct {
@@ -727,41 +735,41 @@ module stream_regs (
             } RDMON_PKT_MASK;
             struct {
                 struct {
-                    logic [3:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } ERR_SELECT;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } ERR_MASK;
             } RDMON_ERR_CFG;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } TIMEOUT_MASK;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } COMPL_MASK;
             } RDMON_MASK1;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } THRESH_MASK;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } PERF_MASK;
             } RDMON_MASK2;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } ADDR_MASK;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } DEBUG_MASK;
             } RDMON_MASK3;
@@ -790,6 +798,10 @@ module stream_regs (
                     logic next;
                     logic load_next;
                 } COMPRESS_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } THRESH_EN;
             } WRMON_ENABLE;
             struct {
                 struct {
@@ -811,41 +823,41 @@ module stream_regs (
             } WRMON_PKT_MASK;
             struct {
                 struct {
-                    logic [3:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } ERR_SELECT;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } ERR_MASK;
             } WRMON_ERR_CFG;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } TIMEOUT_MASK;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } COMPL_MASK;
             } WRMON_MASK1;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } THRESH_MASK;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } PERF_MASK;
             } WRMON_MASK2;
             struct {
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } ADDR_MASK;
                 struct {
-                    logic [7:0] next;
+                    logic [15:0] next;
                     logic load_next;
                 } DEBUG_MASK;
             } WRMON_MASK3;
@@ -1241,6 +1253,9 @@ module stream_regs (
                 struct {
                     logic value;
                 } PERF_EN;
+                struct {
+                    logic value;
+                } THRESH_EN;
             } DAXMON_ENABLE;
             struct {
                 struct {
@@ -1259,34 +1274,34 @@ module stream_regs (
             } DAXMON_PKT_MASK;
             struct {
                 struct {
-                    logic [3:0] value;
+                    logic [15:0] value;
                 } ERR_SELECT;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } ERR_MASK;
             } DAXMON_ERR_CFG;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } TIMEOUT_MASK;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } COMPL_MASK;
             } DAXMON_MASK1;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } THRESH_MASK;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } PERF_MASK;
             } DAXMON_MASK2;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } ADDR_MASK;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } DEBUG_MASK;
             } DAXMON_MASK3;
             struct {
@@ -1305,6 +1320,9 @@ module stream_regs (
                 struct {
                     logic value;
                 } PERF_EN;
+                struct {
+                    logic value;
+                } THRESH_EN;
             } RDMON_ENABLE;
             struct {
                 struct {
@@ -1323,34 +1341,34 @@ module stream_regs (
             } RDMON_PKT_MASK;
             struct {
                 struct {
-                    logic [3:0] value;
+                    logic [15:0] value;
                 } ERR_SELECT;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } ERR_MASK;
             } RDMON_ERR_CFG;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } TIMEOUT_MASK;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } COMPL_MASK;
             } RDMON_MASK1;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } THRESH_MASK;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } PERF_MASK;
             } RDMON_MASK2;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } ADDR_MASK;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } DEBUG_MASK;
             } RDMON_MASK3;
             struct {
@@ -1372,6 +1390,9 @@ module stream_regs (
                 struct {
                     logic value;
                 } COMPRESS_EN;
+                struct {
+                    logic value;
+                } THRESH_EN;
             } WRMON_ENABLE;
             struct {
                 struct {
@@ -1390,34 +1411,34 @@ module stream_regs (
             } WRMON_PKT_MASK;
             struct {
                 struct {
-                    logic [3:0] value;
+                    logic [15:0] value;
                 } ERR_SELECT;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } ERR_MASK;
             } WRMON_ERR_CFG;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } TIMEOUT_MASK;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } COMPL_MASK;
             } WRMON_MASK1;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } THRESH_MASK;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } PERF_MASK;
             } WRMON_MASK2;
             struct {
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } ADDR_MASK;
                 struct {
-                    logic [7:0] value;
+                    logic [15:0] value;
                 } DEBUG_MASK;
             } WRMON_MASK3;
             struct {
@@ -2722,6 +2743,29 @@ module stream_regs (
         end
     end
     assign hwif_out.MON.DAXMON_ENABLE.PERF_EN.value = field_storage.MON.DAXMON_ENABLE.PERF_EN.value;
+    // Field: stream_regs.MON.DAXMON_ENABLE.THRESH_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.DAXMON_ENABLE.THRESH_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.DAXMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.DAXMON_ENABLE.THRESH_EN.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.MON.DAXMON_ENABLE.THRESH_EN.next = next_c;
+        field_combo.MON.DAXMON_ENABLE.THRESH_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.DAXMON_ENABLE.THRESH_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON.DAXMON_ENABLE.THRESH_EN.load_next) begin
+                field_storage.MON.DAXMON_ENABLE.THRESH_EN.value <= field_combo.MON.DAXMON_ENABLE.THRESH_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.DAXMON_ENABLE.THRESH_EN.value = field_storage.MON.DAXMON_ENABLE.THRESH_EN.value;
     // Field: stream_regs.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES
     always_comb begin
         automatic logic [31:0] next_c;
@@ -2793,12 +2837,12 @@ module stream_regs (
     assign hwif_out.MON.DAXMON_PKT_MASK.PKT_MASK.value = field_storage.MON.DAXMON_PKT_MASK.PKT_MASK.value;
     // Field: stream_regs.MON.DAXMON_ERR_CFG.ERR_SELECT
     always_comb begin
-        automatic logic [3:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.DAXMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+            next_c = (field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.DAXMON_ERR_CFG.ERR_SELECT.next = next_c;
@@ -2806,7 +2850,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
+            field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value <= 16'h0;
         end else begin
             if(field_combo.MON.DAXMON_ERR_CFG.ERR_SELECT.load_next) begin
                 field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value <= field_combo.MON.DAXMON_ERR_CFG.ERR_SELECT.next;
@@ -2816,12 +2860,12 @@ module stream_regs (
     assign hwif_out.MON.DAXMON_ERR_CFG.ERR_SELECT.value = field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value;
     // Field: stream_regs.MON.DAXMON_ERR_CFG.ERR_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.DAXMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.DAXMON_ERR_CFG.ERR_MASK.next = next_c;
@@ -2829,7 +2873,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value <= 8'hff;
+            field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.DAXMON_ERR_CFG.ERR_MASK.load_next) begin
                 field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value <= field_combo.MON.DAXMON_ERR_CFG.ERR_MASK.next;
@@ -2839,12 +2883,12 @@ module stream_regs (
     assign hwif_out.MON.DAXMON_ERR_CFG.ERR_MASK.value = field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value;
     // Field: stream_regs.MON.DAXMON_MASK1.TIMEOUT_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.DAXMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.DAXMON_MASK1.TIMEOUT_MASK.next = next_c;
@@ -2852,7 +2896,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
+            field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.DAXMON_MASK1.TIMEOUT_MASK.load_next) begin
                 field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value <= field_combo.MON.DAXMON_MASK1.TIMEOUT_MASK.next;
@@ -2862,12 +2906,12 @@ module stream_regs (
     assign hwif_out.MON.DAXMON_MASK1.TIMEOUT_MASK.value = field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value;
     // Field: stream_regs.MON.DAXMON_MASK1.COMPL_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.DAXMON_MASK1.COMPL_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.DAXMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.DAXMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.DAXMON_MASK1.COMPL_MASK.next = next_c;
@@ -2875,7 +2919,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK1.COMPL_MASK.value <= 8'h0;
+            field_storage.MON.DAXMON_MASK1.COMPL_MASK.value <= 16'h0;
         end else begin
             if(field_combo.MON.DAXMON_MASK1.COMPL_MASK.load_next) begin
                 field_storage.MON.DAXMON_MASK1.COMPL_MASK.value <= field_combo.MON.DAXMON_MASK1.COMPL_MASK.next;
@@ -2885,12 +2929,12 @@ module stream_regs (
     assign hwif_out.MON.DAXMON_MASK1.COMPL_MASK.value = field_storage.MON.DAXMON_MASK1.COMPL_MASK.value;
     // Field: stream_regs.MON.DAXMON_MASK2.THRESH_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.DAXMON_MASK2.THRESH_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.DAXMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.MON.DAXMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.DAXMON_MASK2.THRESH_MASK.next = next_c;
@@ -2898,7 +2942,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK2.THRESH_MASK.value <= 8'hff;
+            field_storage.MON.DAXMON_MASK2.THRESH_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.DAXMON_MASK2.THRESH_MASK.load_next) begin
                 field_storage.MON.DAXMON_MASK2.THRESH_MASK.value <= field_combo.MON.DAXMON_MASK2.THRESH_MASK.next;
@@ -2908,12 +2952,12 @@ module stream_regs (
     assign hwif_out.MON.DAXMON_MASK2.THRESH_MASK.value = field_storage.MON.DAXMON_MASK2.THRESH_MASK.value;
     // Field: stream_regs.MON.DAXMON_MASK2.PERF_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.DAXMON_MASK2.PERF_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.DAXMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.DAXMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.DAXMON_MASK2.PERF_MASK.next = next_c;
@@ -2921,7 +2965,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK2.PERF_MASK.value <= 8'h0;
+            field_storage.MON.DAXMON_MASK2.PERF_MASK.value <= 16'h0;
         end else begin
             if(field_combo.MON.DAXMON_MASK2.PERF_MASK.load_next) begin
                 field_storage.MON.DAXMON_MASK2.PERF_MASK.value <= field_combo.MON.DAXMON_MASK2.PERF_MASK.next;
@@ -2931,12 +2975,12 @@ module stream_regs (
     assign hwif_out.MON.DAXMON_MASK2.PERF_MASK.value = field_storage.MON.DAXMON_MASK2.PERF_MASK.value;
     // Field: stream_regs.MON.DAXMON_MASK3.ADDR_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.DAXMON_MASK3.ADDR_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.DAXMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.MON.DAXMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.DAXMON_MASK3.ADDR_MASK.next = next_c;
@@ -2944,7 +2988,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK3.ADDR_MASK.value <= 8'hff;
+            field_storage.MON.DAXMON_MASK3.ADDR_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.DAXMON_MASK3.ADDR_MASK.load_next) begin
                 field_storage.MON.DAXMON_MASK3.ADDR_MASK.value <= field_combo.MON.DAXMON_MASK3.ADDR_MASK.next;
@@ -2954,12 +2998,12 @@ module stream_regs (
     assign hwif_out.MON.DAXMON_MASK3.ADDR_MASK.value = field_storage.MON.DAXMON_MASK3.ADDR_MASK.value;
     // Field: stream_regs.MON.DAXMON_MASK3.DEBUG_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.DAXMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.DAXMON_MASK3.DEBUG_MASK.next = next_c;
@@ -2967,7 +3011,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value <= 8'h0;
+            field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value <= 16'h0;
         end else begin
             if(field_combo.MON.DAXMON_MASK3.DEBUG_MASK.load_next) begin
                 field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value <= field_combo.MON.DAXMON_MASK3.DEBUG_MASK.next;
@@ -3090,6 +3134,29 @@ module stream_regs (
         end
     end
     assign hwif_out.MON.RDMON_ENABLE.PERF_EN.value = field_storage.MON.RDMON_ENABLE.PERF_EN.value;
+    // Field: stream_regs.MON.RDMON_ENABLE.THRESH_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.RDMON_ENABLE.THRESH_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.RDMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.RDMON_ENABLE.THRESH_EN.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.MON.RDMON_ENABLE.THRESH_EN.next = next_c;
+        field_combo.MON.RDMON_ENABLE.THRESH_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.RDMON_ENABLE.THRESH_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON.RDMON_ENABLE.THRESH_EN.load_next) begin
+                field_storage.MON.RDMON_ENABLE.THRESH_EN.value <= field_combo.MON.RDMON_ENABLE.THRESH_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.RDMON_ENABLE.THRESH_EN.value = field_storage.MON.RDMON_ENABLE.THRESH_EN.value;
     // Field: stream_regs.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES
     always_comb begin
         automatic logic [31:0] next_c;
@@ -3161,12 +3228,12 @@ module stream_regs (
     assign hwif_out.MON.RDMON_PKT_MASK.PKT_MASK.value = field_storage.MON.RDMON_PKT_MASK.PKT_MASK.value;
     // Field: stream_regs.MON.RDMON_ERR_CFG.ERR_SELECT
     always_comb begin
-        automatic logic [3:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.RDMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+            next_c = (field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.RDMON_ERR_CFG.ERR_SELECT.next = next_c;
@@ -3174,7 +3241,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
+            field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value <= 16'h0;
         end else begin
             if(field_combo.MON.RDMON_ERR_CFG.ERR_SELECT.load_next) begin
                 field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value <= field_combo.MON.RDMON_ERR_CFG.ERR_SELECT.next;
@@ -3184,12 +3251,12 @@ module stream_regs (
     assign hwif_out.MON.RDMON_ERR_CFG.ERR_SELECT.value = field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value;
     // Field: stream_regs.MON.RDMON_ERR_CFG.ERR_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.RDMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.RDMON_ERR_CFG.ERR_MASK.next = next_c;
@@ -3197,7 +3264,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value <= 8'hff;
+            field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.RDMON_ERR_CFG.ERR_MASK.load_next) begin
                 field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value <= field_combo.MON.RDMON_ERR_CFG.ERR_MASK.next;
@@ -3207,12 +3274,12 @@ module stream_regs (
     assign hwif_out.MON.RDMON_ERR_CFG.ERR_MASK.value = field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value;
     // Field: stream_regs.MON.RDMON_MASK1.TIMEOUT_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.RDMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.RDMON_MASK1.TIMEOUT_MASK.next = next_c;
@@ -3220,7 +3287,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
+            field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.RDMON_MASK1.TIMEOUT_MASK.load_next) begin
                 field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value <= field_combo.MON.RDMON_MASK1.TIMEOUT_MASK.next;
@@ -3230,12 +3297,12 @@ module stream_regs (
     assign hwif_out.MON.RDMON_MASK1.TIMEOUT_MASK.value = field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value;
     // Field: stream_regs.MON.RDMON_MASK1.COMPL_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.RDMON_MASK1.COMPL_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.RDMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.RDMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.RDMON_MASK1.COMPL_MASK.next = next_c;
@@ -3243,7 +3310,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK1.COMPL_MASK.value <= 8'h0;
+            field_storage.MON.RDMON_MASK1.COMPL_MASK.value <= 16'h0;
         end else begin
             if(field_combo.MON.RDMON_MASK1.COMPL_MASK.load_next) begin
                 field_storage.MON.RDMON_MASK1.COMPL_MASK.value <= field_combo.MON.RDMON_MASK1.COMPL_MASK.next;
@@ -3253,12 +3320,12 @@ module stream_regs (
     assign hwif_out.MON.RDMON_MASK1.COMPL_MASK.value = field_storage.MON.RDMON_MASK1.COMPL_MASK.value;
     // Field: stream_regs.MON.RDMON_MASK2.THRESH_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.RDMON_MASK2.THRESH_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.RDMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.MON.RDMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.RDMON_MASK2.THRESH_MASK.next = next_c;
@@ -3266,7 +3333,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK2.THRESH_MASK.value <= 8'hff;
+            field_storage.MON.RDMON_MASK2.THRESH_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.RDMON_MASK2.THRESH_MASK.load_next) begin
                 field_storage.MON.RDMON_MASK2.THRESH_MASK.value <= field_combo.MON.RDMON_MASK2.THRESH_MASK.next;
@@ -3276,12 +3343,12 @@ module stream_regs (
     assign hwif_out.MON.RDMON_MASK2.THRESH_MASK.value = field_storage.MON.RDMON_MASK2.THRESH_MASK.value;
     // Field: stream_regs.MON.RDMON_MASK2.PERF_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.RDMON_MASK2.PERF_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.RDMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.RDMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.RDMON_MASK2.PERF_MASK.next = next_c;
@@ -3289,7 +3356,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK2.PERF_MASK.value <= 8'h0;
+            field_storage.MON.RDMON_MASK2.PERF_MASK.value <= 16'h0;
         end else begin
             if(field_combo.MON.RDMON_MASK2.PERF_MASK.load_next) begin
                 field_storage.MON.RDMON_MASK2.PERF_MASK.value <= field_combo.MON.RDMON_MASK2.PERF_MASK.next;
@@ -3299,12 +3366,12 @@ module stream_regs (
     assign hwif_out.MON.RDMON_MASK2.PERF_MASK.value = field_storage.MON.RDMON_MASK2.PERF_MASK.value;
     // Field: stream_regs.MON.RDMON_MASK3.ADDR_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.RDMON_MASK3.ADDR_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.RDMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.MON.RDMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.RDMON_MASK3.ADDR_MASK.next = next_c;
@@ -3312,7 +3379,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK3.ADDR_MASK.value <= 8'hff;
+            field_storage.MON.RDMON_MASK3.ADDR_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.RDMON_MASK3.ADDR_MASK.load_next) begin
                 field_storage.MON.RDMON_MASK3.ADDR_MASK.value <= field_combo.MON.RDMON_MASK3.ADDR_MASK.next;
@@ -3322,12 +3389,12 @@ module stream_regs (
     assign hwif_out.MON.RDMON_MASK3.ADDR_MASK.value = field_storage.MON.RDMON_MASK3.ADDR_MASK.value;
     // Field: stream_regs.MON.RDMON_MASK3.DEBUG_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.RDMON_MASK3.DEBUG_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.RDMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.RDMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.RDMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.RDMON_MASK3.DEBUG_MASK.next = next_c;
@@ -3335,7 +3402,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.RDMON_MASK3.DEBUG_MASK.value <= 8'h0;
+            field_storage.MON.RDMON_MASK3.DEBUG_MASK.value <= 16'h0;
         end else begin
             if(field_combo.MON.RDMON_MASK3.DEBUG_MASK.load_next) begin
                 field_storage.MON.RDMON_MASK3.DEBUG_MASK.value <= field_combo.MON.RDMON_MASK3.DEBUG_MASK.next;
@@ -3481,6 +3548,29 @@ module stream_regs (
         end
     end
     assign hwif_out.MON.WRMON_ENABLE.COMPRESS_EN.value = field_storage.MON.WRMON_ENABLE.COMPRESS_EN.value;
+    // Field: stream_regs.MON.WRMON_ENABLE.THRESH_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON.WRMON_ENABLE.THRESH_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON.WRMON_ENABLE.THRESH_EN.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end
+        field_combo.MON.WRMON_ENABLE.THRESH_EN.next = next_c;
+        field_combo.MON.WRMON_ENABLE.THRESH_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON.WRMON_ENABLE.THRESH_EN.value <= 1'h0;
+        end else begin
+            if(field_combo.MON.WRMON_ENABLE.THRESH_EN.load_next) begin
+                field_storage.MON.WRMON_ENABLE.THRESH_EN.value <= field_combo.MON.WRMON_ENABLE.THRESH_EN.next;
+            end
+        end
+    end
+    assign hwif_out.MON.WRMON_ENABLE.THRESH_EN.value = field_storage.MON.WRMON_ENABLE.THRESH_EN.value;
     // Field: stream_regs.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES
     always_comb begin
         automatic logic [31:0] next_c;
@@ -3552,12 +3642,12 @@ module stream_regs (
     assign hwif_out.MON.WRMON_PKT_MASK.PKT_MASK.value = field_storage.MON.WRMON_PKT_MASK.PKT_MASK.value;
     // Field: stream_regs.MON.WRMON_ERR_CFG.ERR_SELECT
     always_comb begin
-        automatic logic [3:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.WRMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+            next_c = (field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.WRMON_ERR_CFG.ERR_SELECT.next = next_c;
@@ -3565,7 +3655,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value <= 4'h0;
+            field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value <= 16'h0;
         end else begin
             if(field_combo.MON.WRMON_ERR_CFG.ERR_SELECT.load_next) begin
                 field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value <= field_combo.MON.WRMON_ERR_CFG.ERR_SELECT.next;
@@ -3575,12 +3665,12 @@ module stream_regs (
     assign hwif_out.MON.WRMON_ERR_CFG.ERR_SELECT.value = field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value;
     // Field: stream_regs.MON.WRMON_ERR_CFG.ERR_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.WRMON_ERR_CFG && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.WRMON_ERR_CFG.ERR_MASK.next = next_c;
@@ -3588,7 +3678,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value <= 8'hff;
+            field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.WRMON_ERR_CFG.ERR_MASK.load_next) begin
                 field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value <= field_combo.MON.WRMON_ERR_CFG.ERR_MASK.next;
@@ -3598,12 +3688,12 @@ module stream_regs (
     assign hwif_out.MON.WRMON_ERR_CFG.ERR_MASK.value = field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value;
     // Field: stream_regs.MON.WRMON_MASK1.TIMEOUT_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.WRMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.WRMON_MASK1.TIMEOUT_MASK.next = next_c;
@@ -3611,7 +3701,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value <= 8'hff;
+            field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.WRMON_MASK1.TIMEOUT_MASK.load_next) begin
                 field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value <= field_combo.MON.WRMON_MASK1.TIMEOUT_MASK.next;
@@ -3621,12 +3711,12 @@ module stream_regs (
     assign hwif_out.MON.WRMON_MASK1.TIMEOUT_MASK.value = field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value;
     // Field: stream_regs.MON.WRMON_MASK1.COMPL_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.WRMON_MASK1.COMPL_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.WRMON_MASK1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.WRMON_MASK1.COMPL_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.WRMON_MASK1.COMPL_MASK.next = next_c;
@@ -3634,7 +3724,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK1.COMPL_MASK.value <= 8'h0;
+            field_storage.MON.WRMON_MASK1.COMPL_MASK.value <= 16'h0;
         end else begin
             if(field_combo.MON.WRMON_MASK1.COMPL_MASK.load_next) begin
                 field_storage.MON.WRMON_MASK1.COMPL_MASK.value <= field_combo.MON.WRMON_MASK1.COMPL_MASK.next;
@@ -3644,12 +3734,12 @@ module stream_regs (
     assign hwif_out.MON.WRMON_MASK1.COMPL_MASK.value = field_storage.MON.WRMON_MASK1.COMPL_MASK.value;
     // Field: stream_regs.MON.WRMON_MASK2.THRESH_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.WRMON_MASK2.THRESH_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.WRMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.MON.WRMON_MASK2.THRESH_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.WRMON_MASK2.THRESH_MASK.next = next_c;
@@ -3657,7 +3747,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK2.THRESH_MASK.value <= 8'hff;
+            field_storage.MON.WRMON_MASK2.THRESH_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.WRMON_MASK2.THRESH_MASK.load_next) begin
                 field_storage.MON.WRMON_MASK2.THRESH_MASK.value <= field_combo.MON.WRMON_MASK2.THRESH_MASK.next;
@@ -3667,12 +3757,12 @@ module stream_regs (
     assign hwif_out.MON.WRMON_MASK2.THRESH_MASK.value = field_storage.MON.WRMON_MASK2.THRESH_MASK.value;
     // Field: stream_regs.MON.WRMON_MASK2.PERF_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.WRMON_MASK2.PERF_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.WRMON_MASK2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.WRMON_MASK2.PERF_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.WRMON_MASK2.PERF_MASK.next = next_c;
@@ -3680,7 +3770,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK2.PERF_MASK.value <= 8'h0;
+            field_storage.MON.WRMON_MASK2.PERF_MASK.value <= 16'h0;
         end else begin
             if(field_combo.MON.WRMON_MASK2.PERF_MASK.load_next) begin
                 field_storage.MON.WRMON_MASK2.PERF_MASK.value <= field_combo.MON.WRMON_MASK2.PERF_MASK.next;
@@ -3690,12 +3780,12 @@ module stream_regs (
     assign hwif_out.MON.WRMON_MASK2.PERF_MASK.value = field_storage.MON.WRMON_MASK2.PERF_MASK.value;
     // Field: stream_regs.MON.WRMON_MASK3.ADDR_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.WRMON_MASK3.ADDR_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.WRMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            next_c = (field_storage.MON.WRMON_MASK3.ADDR_MASK.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
         field_combo.MON.WRMON_MASK3.ADDR_MASK.next = next_c;
@@ -3703,7 +3793,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK3.ADDR_MASK.value <= 8'hff;
+            field_storage.MON.WRMON_MASK3.ADDR_MASK.value <= 16'hffff;
         end else begin
             if(field_combo.MON.WRMON_MASK3.ADDR_MASK.load_next) begin
                 field_storage.MON.WRMON_MASK3.ADDR_MASK.value <= field_combo.MON.WRMON_MASK3.ADDR_MASK.next;
@@ -3713,12 +3803,12 @@ module stream_regs (
     assign hwif_out.MON.WRMON_MASK3.ADDR_MASK.value = field_storage.MON.WRMON_MASK3.ADDR_MASK.value;
     // Field: stream_regs.MON.WRMON_MASK3.DEBUG_MASK
     always_comb begin
-        automatic logic [7:0] next_c;
+        automatic logic [15:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.MON.WRMON_MASK3.DEBUG_MASK.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON.WRMON_MASK3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON.WRMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            next_c = (field_storage.MON.WRMON_MASK3.DEBUG_MASK.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON.WRMON_MASK3.DEBUG_MASK.next = next_c;
@@ -3726,7 +3816,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON.WRMON_MASK3.DEBUG_MASK.value <= 8'h0;
+            field_storage.MON.WRMON_MASK3.DEBUG_MASK.value <= 16'h0;
         end else begin
             if(field_combo.MON.WRMON_MASK3.DEBUG_MASK.load_next) begin
                 field_storage.MON.WRMON_MASK3.DEBUG_MASK.value <= field_combo.MON.WRMON_MASK3.DEBUG_MASK.next;
@@ -4522,71 +4612,61 @@ module stream_regs (
     assign readback_array[39][2:2] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ENABLE.COMPL_EN.value : '0;
     assign readback_array[39][3:3] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ENABLE.TIMEOUT_EN.value : '0;
     assign readback_array[39][4:4] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[39][31:5] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[39][5:5] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? 1'h0 : '0;
+    assign readback_array[39][6:6] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ENABLE.THRESH_EN.value : '0;
+    assign readback_array[39][31:7] = (decoded_reg_strb.MON.DAXMON_ENABLE && !decoded_req_is_wr) ? 25'h0 : '0;
     assign readback_array[40][31:0] = (decoded_reg_strb.MON.DAXMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.MON.DAXMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
     assign readback_array[41][31:0] = (decoded_reg_strb.MON.DAXMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.MON.DAXMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
     assign readback_array[42][15:0] = (decoded_reg_strb.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.MON.DAXMON_PKT_MASK.PKT_MASK.value : '0;
     assign readback_array[42][31:16] = (decoded_reg_strb.MON.DAXMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[43][3:0] = (decoded_reg_strb.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[43][7:4] = (decoded_reg_strb.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[43][15:8] = (decoded_reg_strb.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[43][31:16] = (decoded_reg_strb.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[44][7:0] = (decoded_reg_strb.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[44][15:8] = (decoded_reg_strb.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[44][31:16] = (decoded_reg_strb.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[45][7:0] = (decoded_reg_strb.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[45][15:8] = (decoded_reg_strb.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[45][31:16] = (decoded_reg_strb.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[46][7:0] = (decoded_reg_strb.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[46][15:8] = (decoded_reg_strb.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[46][31:16] = (decoded_reg_strb.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[43][15:0] = (decoded_reg_strb.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[43][31:16] = (decoded_reg_strb.MON.DAXMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.DAXMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[44][15:0] = (decoded_reg_strb.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[44][31:16] = (decoded_reg_strb.MON.DAXMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[45][15:0] = (decoded_reg_strb.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[45][31:16] = (decoded_reg_strb.MON.DAXMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[46][15:0] = (decoded_reg_strb.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[46][31:16] = (decoded_reg_strb.MON.DAXMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.DAXMON_MASK3.DEBUG_MASK.value : '0;
     assign readback_array[47][0:0] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.MON_EN.value : '0;
     assign readback_array[47][1:1] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.ERR_EN.value : '0;
     assign readback_array[47][2:2] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.COMPL_EN.value : '0;
     assign readback_array[47][3:3] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.TIMEOUT_EN.value : '0;
     assign readback_array[47][4:4] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[47][31:5] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[47][5:5] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? 1'h0 : '0;
+    assign readback_array[47][6:6] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.RDMON_ENABLE.THRESH_EN.value : '0;
+    assign readback_array[47][31:7] = (decoded_reg_strb.MON.RDMON_ENABLE && !decoded_req_is_wr) ? 25'h0 : '0;
     assign readback_array[48][31:0] = (decoded_reg_strb.MON.RDMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.MON.RDMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
     assign readback_array[49][31:0] = (decoded_reg_strb.MON.RDMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.MON.RDMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
     assign readback_array[50][15:0] = (decoded_reg_strb.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.MON.RDMON_PKT_MASK.PKT_MASK.value : '0;
     assign readback_array[50][31:16] = (decoded_reg_strb.MON.RDMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[51][3:0] = (decoded_reg_strb.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[51][7:4] = (decoded_reg_strb.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[51][15:8] = (decoded_reg_strb.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[51][31:16] = (decoded_reg_strb.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[52][7:0] = (decoded_reg_strb.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[52][15:8] = (decoded_reg_strb.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[52][31:16] = (decoded_reg_strb.MON.RDMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[53][7:0] = (decoded_reg_strb.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[53][15:8] = (decoded_reg_strb.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[53][31:16] = (decoded_reg_strb.MON.RDMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[54][7:0] = (decoded_reg_strb.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[54][15:8] = (decoded_reg_strb.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[54][31:16] = (decoded_reg_strb.MON.RDMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[51][15:0] = (decoded_reg_strb.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.RDMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[51][31:16] = (decoded_reg_strb.MON.RDMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.RDMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[52][15:0] = (decoded_reg_strb.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[52][31:16] = (decoded_reg_strb.MON.RDMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[53][15:0] = (decoded_reg_strb.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[53][31:16] = (decoded_reg_strb.MON.RDMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[54][15:0] = (decoded_reg_strb.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[54][31:16] = (decoded_reg_strb.MON.RDMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.RDMON_MASK3.DEBUG_MASK.value : '0;
     assign readback_array[55][0:0] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.MON_EN.value : '0;
     assign readback_array[55][1:1] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.ERR_EN.value : '0;
     assign readback_array[55][2:2] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.COMPL_EN.value : '0;
     assign readback_array[55][3:3] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.TIMEOUT_EN.value : '0;
     assign readback_array[55][4:4] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.PERF_EN.value : '0;
     assign readback_array[55][5:5] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.COMPRESS_EN.value : '0;
-    assign readback_array[55][31:6] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? 26'h0 : '0;
+    assign readback_array[55][6:6] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.MON.WRMON_ENABLE.THRESH_EN.value : '0;
+    assign readback_array[55][31:7] = (decoded_reg_strb.MON.WRMON_ENABLE && !decoded_req_is_wr) ? 25'h0 : '0;
     assign readback_array[56][31:0] = (decoded_reg_strb.MON.WRMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.MON.WRMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
     assign readback_array[57][31:0] = (decoded_reg_strb.MON.WRMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.MON.WRMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
     assign readback_array[58][15:0] = (decoded_reg_strb.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.MON.WRMON_PKT_MASK.PKT_MASK.value : '0;
     assign readback_array[58][31:16] = (decoded_reg_strb.MON.WRMON_PKT_MASK && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[59][3:0] = (decoded_reg_strb.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value : '0;
-    assign readback_array[59][7:4] = (decoded_reg_strb.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[59][15:8] = (decoded_reg_strb.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value : '0;
-    assign readback_array[59][31:16] = (decoded_reg_strb.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[60][7:0] = (decoded_reg_strb.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value : '0;
-    assign readback_array[60][15:8] = (decoded_reg_strb.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK1.COMPL_MASK.value : '0;
-    assign readback_array[60][31:16] = (decoded_reg_strb.MON.WRMON_MASK1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[61][7:0] = (decoded_reg_strb.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK2.THRESH_MASK.value : '0;
-    assign readback_array[61][15:8] = (decoded_reg_strb.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK2.PERF_MASK.value : '0;
-    assign readback_array[61][31:16] = (decoded_reg_strb.MON.WRMON_MASK2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[62][7:0] = (decoded_reg_strb.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK3.ADDR_MASK.value : '0;
-    assign readback_array[62][15:8] = (decoded_reg_strb.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK3.DEBUG_MASK.value : '0;
-    assign readback_array[62][31:16] = (decoded_reg_strb.MON.WRMON_MASK3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[59][15:0] = (decoded_reg_strb.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.WRMON_ERR_CFG.ERR_SELECT.value : '0;
+    assign readback_array[59][31:16] = (decoded_reg_strb.MON.WRMON_ERR_CFG && !decoded_req_is_wr) ? field_storage.MON.WRMON_ERR_CFG.ERR_MASK.value : '0;
+    assign readback_array[60][15:0] = (decoded_reg_strb.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK1.TIMEOUT_MASK.value : '0;
+    assign readback_array[60][31:16] = (decoded_reg_strb.MON.WRMON_MASK1 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK1.COMPL_MASK.value : '0;
+    assign readback_array[61][15:0] = (decoded_reg_strb.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK2.THRESH_MASK.value : '0;
+    assign readback_array[61][31:16] = (decoded_reg_strb.MON.WRMON_MASK2 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK2.PERF_MASK.value : '0;
+    assign readback_array[62][15:0] = (decoded_reg_strb.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK3.ADDR_MASK.value : '0;
+    assign readback_array[62][31:16] = (decoded_reg_strb.MON.WRMON_MASK3 && !decoded_req_is_wr) ? field_storage.MON.WRMON_MASK3.DEBUG_MASK.value : '0;
     assign readback_array[63][0:0] = (decoded_reg_strb.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.MON.DAXMON_PERF_CTRL.RUN.value : '0;
     assign readback_array[63][31:1] = (decoded_reg_strb.MON.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
     assign readback_array[64][0:0] = (decoded_reg_strb.MON.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.MON.DAXMON_PERF_STATUS.WIN_ACTIVE.next : '0;

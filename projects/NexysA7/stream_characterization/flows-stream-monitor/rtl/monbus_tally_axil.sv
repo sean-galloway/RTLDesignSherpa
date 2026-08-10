@@ -3,34 +3,36 @@
 //
 // Module: monbus_tally_axil
 // Purpose: Drop-in replacement for the monitor-trace capture SRAM (debug_sram)
-//          in the STREAM monitor harness. Presents the monbus record-ingest
-//          write surface the sdpram did, but instead of storing beats it
-//          tabulates them, and exposes a SEPARATE dedicated config/readback
-//          AXIL port for the host:
+//          in the STREAM monitor harness. Instead of storing beats it tabulates
+//          them into a direct-mapped count SRAM (monbus_pkt_tally).
 //
-//            s_axil     (record ingest, W only): the monbus group's RAW 3-beat
-//                       records -> beat reassembler -> monbus_pkt_tally.
-//            cfg_s_axil (host, R + W): R = read tally bins/counts;
-//                       W = load the profile legal-set CAM (PROFILE_MODE) at
-//                       offset 0x200 + idx*4, or clear it at 0x100.
+//          FOUR clean AXIL ports — two write, two read — with NO overloading
+//          (each channel does exactly one job; the earlier design tied off a
+//          read channel and jammed count-reads onto the config port, which bred
+//          bugs):
 //
-//          Splitting config onto its own AXIL slave keeps the sweeping-address
-//          record stream from ever colliding with host config writes (the two
-//          share no channel), and gives each tally memory a clean host port.
+//            WRITE ports
+//              rec_*   record ingest : monbus group RAW 3-beat records -> beat
+//                                      reassembler -> tally. Address ignored.
+//              cfgw_*  config write  : program the legal-set CAM via registers
+//                                      (0x100 CAM_CLEAR, 0x108 CAM_KEY,
+//                                      0x110 CAM_LOAD={valid,index}).
+//            READ ports
+//              cnt_*   count read    : rdata = tally bin count at araddr>>2.
+//              cfgr_*  config read   : rdata = tally config/status (identity,
+//                                      profile mode, sizing) — a live readback,
+//                                      never tied off.
+//
+//          Splitting ingest from config keeps the sweeping-address record
+//          stream from ever colliding with host config, and splitting the two
+//          read ports keeps count readback independent of config readback.
 //
 //          Raw-record layout on the ingest write stream (USE_COMPRESSION == 0):
 //            beat0 = {tag[3:0]=0, source_ts[59:0]}
 //            beat1 = packet[127:64]
 //            beat2 = packet[63:0]
-//          A mod-3 counter on accepted W beats reconstructs each 128-bit packet;
-//          on beat2 it is pushed to the tally. The ingest write ADDRESS is
-//          ignored (a tally is order-, not address-addressed on its input).
-//
-//          cfg_s_axil config write map (PROFILE_MODE only):
-//            0x100      PROFILE_CLEAR   W  any write invalidates all CAM entries
-//            0x200+i*4  PROFILE_ENTRY   W  wdata = legal key for dense bin i
-//                                          {agent[15:0],proto[3:0],type[3:0],event[7:0]}
-//          cfg_s_axil reads return the tally bin count at araddr>>2.
+//          A mod-3 counter on accepted rec_w beats reconstructs each 128-bit
+//          packet; on beat2 it is pushed to the tally.
 //
 // Subsystem: NexysA7/stream_characterization (monitor flow)
 // Author: sean galloway
@@ -44,100 +46,95 @@ module monbus_tally_axil
     parameter int ADDR_WIDTH       = 32,
     parameter int DATA_WIDTH       = 64,   // AXIL data width (monbus beats are 64b)
     parameter int TALLY_COUNT_WIDTH = 32,
-    parameter int TALLY_CACHE_DEPTH = 32,
-    parameter int TALLY_ADDR_BITS   = 16,
+    parameter int TALLY_ADDR_BITS   = 7,    // >= clog2(N_PROFILE+1)
     parameter int TALLY_NUM_LATCH   = 4,
-    // Profile mode: agent-resolved dense tally. Set PROFILE_MODE=1 and
-    // TALLY_ADDR_BITS >= clog2(N_PROFILE+1). The legal set is loaded over
-    // cfg_s_axil (host), never the record-ingest write channel.
-    parameter int PROFILE_MODE      = 0,
+    // The legal-set CAM ALWAYS routes packets to dense bins (agent-resolved);
+    // the set is loaded over cfgw_* (host), never the record-ingest channel.
     parameter int N_PROFILE         = 64,
     parameter int PROF_IDX_W        = (N_PROFILE > 1) ? $clog2(N_PROFILE) : 1,
-    parameter int PROF_KEY_W        = 32
+    parameter int PROF_KEY_W        = 32,
+    parameter int LSEL_WIDTH        = (TALLY_NUM_LATCH > 1) ? $clog2(TALLY_NUM_LATCH) : 1,
+    parameter int LFILL_WIDTH       = $clog2(TALLY_NUM_LATCH + 1)
 ) (
     input  logic                    aclk,
     input  logic                    aresetn,
 
-    // === Record-ingest AXIL slave (write only): monbus group RAW records ===
-    input  logic [ADDR_WIDTH-1:0]   s_axil_awaddr,
-    input  logic [2:0]              s_axil_awprot,
-    input  logic                    s_axil_awvalid,
-    output logic                    s_axil_awready,
-    input  logic [DATA_WIDTH-1:0]   s_axil_wdata,
-    input  logic [DATA_WIDTH/8-1:0] s_axil_wstrb,
-    input  logic                    s_axil_wvalid,
-    output logic                    s_axil_wready,
-    output logic [1:0]              s_axil_bresp,
-    output logic                    s_axil_bvalid,
-    input  logic                    s_axil_bready,
-    // Read channel present for surface compatibility but inert (ingest is
-    // write-only; the host reads bins via cfg_s_axil).
-    input  logic [ADDR_WIDTH-1:0]   s_axil_araddr,
-    input  logic [2:0]              s_axil_arprot,
-    input  logic                    s_axil_arvalid,
-    output logic                    s_axil_arready,
-    output logic [DATA_WIDTH-1:0]   s_axil_rdata,
-    output logic [1:0]              s_axil_rresp,
-    output logic                    s_axil_rvalid,
-    input  logic                    s_axil_rready,
+    // === WRITE port 1: record ingest (AW/W/B only) ===
+    input  logic [ADDR_WIDTH-1:0]   rec_awaddr,
+    input  logic [2:0]              rec_awprot,
+    input  logic                    rec_awvalid,
+    output logic                    rec_awready,
+    input  logic [DATA_WIDTH-1:0]   rec_wdata,
+    input  logic [DATA_WIDTH/8-1:0] rec_wstrb,
+    input  logic                    rec_wvalid,
+    output logic                    rec_wready,
+    output logic [1:0]              rec_bresp,
+    output logic                    rec_bvalid,
+    input  logic                    rec_bready,
 
-    // === Dedicated host config/readback AXIL slave (R = bins, W = config) ===
-    input  logic [ADDR_WIDTH-1:0]   cfg_awaddr,
-    input  logic [2:0]              cfg_awprot,
-    input  logic                    cfg_awvalid,
-    output logic                    cfg_awready,
-    input  logic [DATA_WIDTH-1:0]   cfg_wdata,
-    input  logic [DATA_WIDTH/8-1:0] cfg_wstrb,
-    input  logic                    cfg_wvalid,
-    output logic                    cfg_wready,
-    output logic [1:0]              cfg_bresp,
-    output logic                    cfg_bvalid,
-    input  logic                    cfg_bready,
-    input  logic [ADDR_WIDTH-1:0]   cfg_araddr,
-    input  logic [2:0]              cfg_arprot,
-    input  logic                    cfg_arvalid,
-    output logic                    cfg_arready,
-    output logic [DATA_WIDTH-1:0]   cfg_rdata,
-    output logic [1:0]              cfg_rresp,
-    output logic                    cfg_rvalid,
-    input  logic                    cfg_rready,
+    // === READ port 1: count / bin readback (AR/R only) ===
+    input  logic [ADDR_WIDTH-1:0]   cnt_araddr,
+    input  logic [2:0]              cnt_arprot,
+    input  logic                    cnt_arvalid,
+    output logic                    cnt_arready,
+    output logic [DATA_WIDTH-1:0]   cnt_rdata,
+    output logic [1:0]              cnt_rresp,
+    output logic                    cnt_rvalid,
+    input  logic                    cnt_rready,
+
+    // === WRITE port 2: config (AW/W/B only) — profile CAM load/clear ===
+    input  logic [ADDR_WIDTH-1:0]   cfgw_awaddr,
+    input  logic [2:0]              cfgw_awprot,
+    input  logic                    cfgw_awvalid,
+    output logic                    cfgw_awready,
+    input  logic [DATA_WIDTH-1:0]   cfgw_wdata,
+    input  logic [DATA_WIDTH/8-1:0] cfgw_wstrb,
+    input  logic                    cfgw_wvalid,
+    output logic                    cfgw_wready,
+    output logic [1:0]              cfgw_bresp,
+    output logic                    cfgw_bvalid,
+    input  logic                    cfgw_bready,
+
+    // === READ port 2: config / status readback (AR/R only) ===
+    input  logic [ADDR_WIDTH-1:0]   cfgr_araddr,
+    input  logic [2:0]              cfgr_arprot,
+    input  logic                    cfgr_arvalid,
+    output logic                    cfgr_arready,
+    output logic [DATA_WIDTH-1:0]   cfgr_rdata,
+    output logic [1:0]              cfgr_rresp,
+    output logic                    cfgr_rvalid,
+    input  logic                    cfgr_rready,
 
     // Tally window control (from the harness CSR)
     input  logic                    tally_freeze,
-    input  logic                    tally_flush,
-    output logic                    tally_flush_busy,
+    input  logic                    tally_flush,      // no-op (no cache); kept for compat
+    output logic                    tally_flush_busy, // high while a clear walk runs
     input  logic                    tally_clear
 );
 
     localparam int LFILL_W = $clog2(TALLY_NUM_LATCH + 1);
 
     // ------------------------------------------------------------------------
-    // Record-ingest write channel: accept AW (address ignored) and W beats;
+    // WRITE port 1 — record ingest: accept AW (address ignored) and W beats;
     // reassemble every 3 beats into a 128-bit packet and push to the tally.
     // ------------------------------------------------------------------------
     logic        w_w_hs, w_tally_in_ready;
     logic [1:0]  r_beat;                          // 3-beat record counter (0,1,2)
-    assign s_axil_awready = 1'b1;                 // always accept addresses
+    assign rec_awready = 1'b1;                    // always accept addresses
     // Beats 0/1 are consumed immediately; the record-completing beat 2 is
     // stalled until the tally can accept, so no count is ever dropped.
-    assign s_axil_wready  = (r_beat == 2'd2) ? w_tally_in_ready : 1'b1;
-    assign w_w_hs  = s_axil_wvalid & s_axil_wready;
+    assign rec_wready  = (r_beat == 2'd2) ? w_tally_in_ready : 1'b1;
+    assign w_w_hs      = rec_wvalid & rec_wready;
 
     // B response: one per (aw,w) pair.
-    logic r_bvalid;
+    logic r_rec_bvalid;
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_bvalid <= 1'b0;
-        else if (w_w_hs)            r_bvalid <= 1'b1;
-        else if (s_axil_bready)     r_bvalid <= 1'b0;
+        if (`RST_ASSERTED(aresetn)) r_rec_bvalid <= 1'b0;
+        else if (w_w_hs)            r_rec_bvalid <= 1'b1;
+        else if (rec_bready)        r_rec_bvalid <= 1'b0;
     )
-    assign s_axil_bvalid = r_bvalid;
-    assign s_axil_bresp  = 2'b00;
-
-    // Ingest read channel is inert (host reads bins via cfg_s_axil).
-    assign s_axil_arready = 1'b1;
-    assign s_axil_rvalid  = 1'b0;
-    assign s_axil_rdata   = '0;
-    assign s_axil_rresp   = 2'b00;
+    assign rec_bvalid = r_rec_bvalid;
+    assign rec_bresp  = 2'b00;
 
     // 3-beat record reassembler.
     logic [63:0]                r_pkt_hi;    // packet[127:64] from beat1
@@ -155,105 +152,209 @@ module monbus_tally_axil
             r_beat   <= 2'd0;            // re-align records on a clear
         end else if (w_w_hs) begin
             case (r_beat)
-                2'd0: begin r_ts <= s_axil_wdata[MONBUS_TS_WIDTH-1:0]; r_beat <= 2'd1; end
-                2'd1: begin r_pkt_hi <= s_axil_wdata;                  r_beat <= 2'd2; end
-                default:                                              r_beat <= 2'd0;
+                2'd0: begin r_ts <= rec_wdata[MONBUS_TS_WIDTH-1:0]; r_beat <= 2'd1; end
+                2'd1: begin r_pkt_hi <= rec_wdata;                  r_beat <= 2'd2; end
+                default:                                            r_beat <= 2'd0;
             endcase
         end
     )
     assign w_pkt_valid = w_w_hs & (r_beat == 2'd2);
-    assign w_pkt       = {r_pkt_hi, s_axil_wdata};   // {pkt_hi, pkt_lo}
+    assign w_pkt       = {r_pkt_hi, rec_wdata};   // {pkt_hi, pkt_lo}
     assign w_pkt_ts    = r_ts;
 
     // ------------------------------------------------------------------------
-    // cfg_s_axil WRITE: config. AW and W accepted INDEPENDENTLY (the bridge may
+    // WRITE port 2 — config: AW and W accepted INDEPENDENTLY (the bridge may
     // present AW then wait for awready before W -- coupling them deadlocks). The
-    // write fires once both have landed; addr decodes the op:
-    //   0x100      -> PROFILE_CLEAR   (invalidate all CAM entries)
-    //   0x200+i*4  -> PROFILE_ENTRY i (wdata = legal key, valid = 1)
+    // write fires once both have landed; the byte offset selects a register
+    // (CAM_CLEAR / CAM_KEY / CAM_LOAD -- see the decode below).
     // ------------------------------------------------------------------------
-    logic                    r_cfg_bvalid;
+    logic                    r_cfgw_bvalid;
     logic                    r_aw_done, r_w_done;
-    logic [ADDR_WIDTH-1:0]   r_cfg_awaddr;
-    logic [DATA_WIDTH-1:0]   r_cfg_wdata;
-    logic                    w_cfg_wr;
-    assign cfg_awready = ~r_aw_done;                 // accept a new AW when idle
-    assign cfg_wready  = ~r_w_done;                  // accept a new W  when idle
-    assign w_cfg_wr    = r_aw_done & r_w_done & ~r_cfg_bvalid;
+    logic [ADDR_WIDTH-1:0]   r_cfgw_awaddr;
+    logic [DATA_WIDTH-1:0]   r_cfgw_wdata;
+    logic                    w_cfgw_wr;
+    assign cfgw_awready = ~r_aw_done;                 // accept a new AW when idle
+    assign cfgw_wready  = ~r_w_done;                  // accept a new W  when idle
+    assign w_cfgw_wr    = r_aw_done & r_w_done & ~r_cfgw_bvalid;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_aw_done <= 1'b0; r_w_done <= 1'b0; r_cfg_bvalid <= 1'b0;
+            r_aw_done <= 1'b0; r_w_done <= 1'b0; r_cfgw_bvalid <= 1'b0;
         end else begin
-            if (cfg_awvalid & cfg_awready) begin r_cfg_awaddr <= cfg_awaddr; r_aw_done <= 1'b1; end
-            if (cfg_wvalid  & cfg_wready)  begin r_cfg_wdata  <= cfg_wdata;  r_w_done  <= 1'b1; end
-            if (w_cfg_wr) begin
-                r_aw_done <= 1'b0; r_w_done <= 1'b0; r_cfg_bvalid <= 1'b1;
-            end else if (cfg_bready & r_cfg_bvalid) begin
-                r_cfg_bvalid <= 1'b0;
+            if (cfgw_awvalid & cfgw_awready) begin r_cfgw_awaddr <= cfgw_awaddr; r_aw_done <= 1'b1; end
+            if (cfgw_wvalid  & cfgw_wready)  begin r_cfgw_wdata  <= cfgw_wdata;  r_w_done  <= 1'b1; end
+            if (w_cfgw_wr) begin
+                r_aw_done <= 1'b0; r_w_done <= 1'b0; r_cfgw_bvalid <= 1'b1;
+            end else if (cfgw_bready & r_cfgw_bvalid) begin
+                r_cfgw_bvalid <= 1'b0;
             end
         end
     )
-    assign cfg_bvalid = r_cfg_bvalid;
-    assign cfg_bresp  = 2'b00;
+    assign cfgw_bvalid = r_cfgw_bvalid;
+    assign cfgw_bresp  = 2'b00;
 
-    // Decode the latched write address (byte-offset windows in the cfg slave).
-    logic w_cfg_is_profile, w_cfg_is_clear;
-    assign w_cfg_is_profile = (r_cfg_awaddr[13:8] == 6'h02);   // 0x200-0x2FF
-    assign w_cfg_is_clear   = (r_cfg_awaddr[13:8] == 6'h01);   // 0x100-0x1FF
+    // Register-based CAM programming (bus-width INDEPENDENT -- the entry index
+    // comes from register DATA, not the address, so there is no 4/8-byte stride
+    // or addr[2] upsizer hazard). Three registers, 8 bytes apart so each is its
+    // own 64-bit word:
+    //   0x100 CAM_CLEAR : any write invalidates all CAM entries
+    //   0x108 CAM_KEY   : wdata[31:0] latched as the key to load next
+    //   0x110 CAM_LOAD  : wdata[31]=valid, wdata[PROF_IDX_W-1:0]=index ->
+    //                     load the latched CAM_KEY into entry[index]
+    //   0x118 WATCH_CTRL: wdata[31]=arm, wdata[15:0]=pkt_type watch mask
+    //   0x120 LATCH_SEL : which capture slot the read port returns
+    localparam logic [11:0] REG_CAM_CLEAR  = 12'h100;
+    localparam logic [11:0] REG_CAM_KEY    = 12'h108;
+    localparam logic [11:0] REG_CAM_LOAD   = 12'h110;
+    localparam logic [11:0] REG_WATCH_CTRL = 12'h118;
+    localparam logic [11:0] REG_LATCH_SEL  = 12'h120;
+    logic [11:0] w_cfg_off;
+    assign w_cfg_off = r_cfgw_awaddr[11:0];
+
+    logic w_is_key;
+    assign w_is_key = w_cfgw_wr & (w_cfg_off == REG_CAM_KEY);
+
+    // CAM_KEY holding register (loaded into the CAM on the next CAM_LOAD write).
+    logic [PROF_KEY_W-1:0] r_cam_key;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_cam_key <= '0;
+        else if (w_is_key)          r_cam_key <= r_cfgw_wdata[PROF_KEY_W-1:0];
+    )
 
     logic                    w_profile_clear;
     logic                    w_profile_we;
     logic [PROF_IDX_W-1:0]   w_profile_waddr;
     logic                    w_profile_wvalid;
     logic [PROF_KEY_W-1:0]   w_profile_wkey;
-    assign w_profile_clear  = w_cfg_wr & w_cfg_is_clear;
-    assign w_profile_we     = w_cfg_wr & w_cfg_is_profile;
-    assign w_profile_waddr  = r_cfg_awaddr[PROF_IDX_W+1:2];
-    assign w_profile_wvalid = 1'b1;
-    assign w_profile_wkey   = r_cfg_wdata[PROF_KEY_W-1:0];
+    assign w_profile_clear  = w_cfgw_wr & (w_cfg_off == REG_CAM_CLEAR);
+    assign w_profile_we     = w_cfgw_wr & (w_cfg_off == REG_CAM_LOAD);
+    assign w_profile_waddr  = r_cfgw_wdata[PROF_IDX_W-1:0];      // index from data
+    assign w_profile_wvalid = r_cfgw_wdata[31];                  // valid bit from data
+    assign w_profile_wkey   = r_cam_key;                         // key from CAM_KEY reg
 
-    // ------------------------------------------------------------------------
-    // cfg_s_axil READ: araddr>>2 selects a bin; rdata returns the count.
-    // ------------------------------------------------------------------------
-    logic [TALLY_ADDR_BITS-1:0]   r_cfg_rd_addr;
-    logic                         r_cfg_rvalid;
-    logic [TALLY_COUNT_WIDTH-1:0] w_rd_count;
-
-    assign cfg_arready = ~r_cfg_rvalid;
+    // First-event capture control. ARMED BY DEFAULT with an empty pkt_type mask:
+    // the tally's watch condition is (mask[pkt_type] || out-of-profile), so the
+    // default captures exactly the first TALLY_NUM_LATCH UNEXPECTED packets --
+    // which is the whole point of the UNEXPECTED bin. Without this the bin gives
+    // a count and no way to see WHICH message was out of profile. A host that
+    // also wants a known packet type captured writes WATCH_CTRL.
+    logic                    r_watch_arm;
+    logic [15:0]             r_watch_mask;
+    logic [LSEL_WIDTH-1:0]   r_latch_sel;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_cfg_rd_addr <= '0;
-            r_cfg_rvalid  <= 1'b0;
+            r_watch_arm  <= 1'b1;
+            r_watch_mask <= 16'h0;
+            r_latch_sel  <= '0;
         end else begin
-            if (cfg_arvalid & cfg_arready)
-                r_cfg_rd_addr <= cfg_araddr[TALLY_ADDR_BITS+1:2];
-            if (cfg_arvalid & cfg_arready)          r_cfg_rvalid <= 1'b1;
-            else if (cfg_rvalid & cfg_rready)       r_cfg_rvalid <= 1'b0;
+            if (w_cfgw_wr && (w_cfg_off == REG_WATCH_CTRL)) begin
+                r_watch_arm  <= r_cfgw_wdata[31];
+                r_watch_mask <= r_cfgw_wdata[15:0];
+            end
+            if (w_cfgw_wr && (w_cfg_off == REG_LATCH_SEL))
+                r_latch_sel <= r_cfgw_wdata[LSEL_WIDTH-1:0];
         end
     )
-    assign cfg_rvalid = r_cfg_rvalid;
-    assign cfg_rresp  = 2'b00;
-    assign cfg_rdata  = {{(DATA_WIDTH-TALLY_COUNT_WIDTH){1'b0}}, w_rd_count};
+
+    logic [127:0]            w_latch_packet;
+    logic [63:0]             w_latch_ts;
+    logic                    w_latch_valid;
+    logic [LFILL_WIDTH-1:0]  w_latch_fill;
 
     // ------------------------------------------------------------------------
-    // The tally. Profile ports driven by the cfg-write decode above.
+    // READ port 1 — count readback: araddr>>3 selects a bin (8-byte stride: one
+    // 32-bit count per 64-bit word -- same reason as the cfg entries above, so a
+    // 4-byte-strided read of an odd bin can't fall on an empty high half).
+    // ------------------------------------------------------------------------
+    logic [TALLY_ADDR_BITS-1:0]   r_cnt_rd_addr;
+    logic                         r_cnt_rvalid;
+    logic [TALLY_COUNT_WIDTH-1:0] w_rd_count;
+
+    assign cnt_arready = ~r_cnt_rvalid;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_cnt_rd_addr <= '0;
+            r_cnt_rvalid  <= 1'b0;
+        end else begin
+            if (cnt_arvalid & cnt_arready)
+                r_cnt_rd_addr <= cnt_araddr[TALLY_ADDR_BITS+2:3];
+            if (cnt_arvalid & cnt_arready)       r_cnt_rvalid <= 1'b1;
+            else if (cnt_rvalid & cnt_rready)    r_cnt_rvalid <= 1'b0;
+        end
+    )
+    assign cnt_rvalid = r_cnt_rvalid;
+    assign cnt_rresp  = 2'b00;
+    assign cnt_rdata  = {{(DATA_WIDTH-TALLY_COUNT_WIDTH){1'b0}}, w_rd_count};
+
+    // ------------------------------------------------------------------------
+    // READ port 2 — config/status readback (live; never tied off).
+    // 8-byte stride throughout (one 32-bit word per 64-bit bus word), same
+    // reason as the count and CAM ports: a 4-byte-strided read of an odd word
+    // must not land in an empty high half.
+    //   0x00 : identity/version   0x7A11_0001
+    //   0x08 : sizing             {N_PROFILE[15:0], TALLY_ADDR_BITS[15:0]}
+    //   0x10 : latch status       {valid, fill}  -- how many events captured
+    //   0x18 : latch packet[31:0]      0x20 : latch packet[63:32]
+    //   0x28 : latch packet[95:64]     0x30 : latch packet[127:96]
+    //   0x38 : latch ts[31:0]          0x40 : latch ts[63:32]
+    //   else : 0
+    // The latch words return the slot selected by LATCH_SEL. Read the status
+    // word first: fill is the number of valid slots.
+    // ------------------------------------------------------------------------
+    localparam logic [31:0] TALLY_ID = 32'h7A11_0000;   // "TA11" tag
+    logic [ADDR_WIDTH-1:0] r_cfgr_araddr;
+    logic                  r_cfgr_rvalid;
+    logic [31:0]           w_cfgr_word;
+
+    assign cfgr_arready = ~r_cfgr_rvalid;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_cfgr_araddr <= '0;
+            r_cfgr_rvalid <= 1'b0;
+        end else begin
+            if (cfgr_arvalid & cfgr_arready) r_cfgr_araddr <= cfgr_araddr;
+            if (cfgr_arvalid & cfgr_arready)     r_cfgr_rvalid <= 1'b1;
+            else if (cfgr_rvalid & cfgr_rready)  r_cfgr_rvalid <= 1'b0;
+        end
+    )
+    always_comb begin
+        unique case (r_cfgr_araddr[6:3])
+            4'd0:    w_cfgr_word = TALLY_ID | 32'h1;   // bit0 = CAM always on
+            4'd1:    w_cfgr_word = {N_PROFILE[15:0], TALLY_ADDR_BITS[15:0]};
+            4'd2:    w_cfgr_word = {15'h0, w_latch_valid,
+                                    {(16-LFILL_WIDTH){1'b0}}, w_latch_fill};
+            4'd3:    w_cfgr_word = w_latch_packet[31:0];
+            4'd4:    w_cfgr_word = w_latch_packet[63:32];
+            4'd5:    w_cfgr_word = w_latch_packet[95:64];
+            4'd6:    w_cfgr_word = w_latch_packet[127:96];
+            4'd7:    w_cfgr_word = w_latch_ts[31:0];
+            4'd8:    w_cfgr_word = w_latch_ts[63:32];
+            default: w_cfgr_word = 32'h0;
+        endcase
+    end
+    assign cfgr_rvalid = r_cfgr_rvalid;
+    assign cfgr_rresp  = 2'b00;
+    assign cfgr_rdata  = {{(DATA_WIDTH-32){1'b0}}, w_cfgr_word};
+
+    // ------------------------------------------------------------------------
+    // The tally. Profile ports driven by the cfgw-write decode above.
     // ------------------------------------------------------------------------
     monbus_pkt_tally #(
         .PKT_WIDTH(128), .TS_WIDTH(64),
-        .COUNT_WIDTH(TALLY_COUNT_WIDTH), .CACHE_DEPTH(TALLY_CACHE_DEPTH),
+        .COUNT_WIDTH(TALLY_COUNT_WIDTH),
         .NUM_LATCH(TALLY_NUM_LATCH), .ADDR_BITS(TALLY_ADDR_BITS),
-        .PROFILE_MODE(PROFILE_MODE), .N_PROFILE(N_PROFILE)
+        .N_PROFILE(N_PROFILE)
     ) u_tally (
         .clk(aclk), .rst_n(aresetn),
         .in_valid(w_pkt_valid), .in_ready(w_tally_in_ready),
         .in_packet(w_pkt), .in_ts(w_pkt_ts),
         .i_freeze(tally_freeze), .i_flush(tally_flush),
         .o_flush_busy(tally_flush_busy), .i_clear(tally_clear),
-        .rd_addr(r_cfg_rd_addr), .rd_count(w_rd_count),
-        .i_watch_arm(1'b0), .i_watch_pkttype_mask(16'h0),
-        .latch_sel('0), .latch_valid(), .latch_packet(), .latch_ts(),
-        .latch_fill(),
+        .rd_addr(r_cnt_rd_addr), .rd_count(w_rd_count),
+        .i_watch_arm(r_watch_arm), .i_watch_pkttype_mask(r_watch_mask),
+        .latch_sel(r_latch_sel), .latch_valid(w_latch_valid),
+        .latch_packet(w_latch_packet), .latch_ts(w_latch_ts),
+        .latch_fill(w_latch_fill),
         .profile_clear(w_profile_clear), .profile_we(w_profile_we),
         .profile_waddr(w_profile_waddr), .profile_wvalid(w_profile_wvalid),
         .profile_wkey(w_profile_wkey)

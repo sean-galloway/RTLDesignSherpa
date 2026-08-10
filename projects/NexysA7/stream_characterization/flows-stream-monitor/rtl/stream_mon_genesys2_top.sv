@@ -44,10 +44,13 @@ module stream_mon_genesys2_top #(
     // functionally fine -- it just doesn't fit this board with monitors on.)
     parameter int NUM_CHANNELS     = 4,
     parameter int USE_AXI_MONITORS = 1,
-    // Agent-resolved profile tally: the host loads a legal set over each tally's
-    // cfg AXIL slave; bins become dense per-agent indices + an UNEXPECTED bin.
-    parameter int MON_TALLY_PROFILE_MODE = 1,
+    // Agent-resolved tally legal-set size: the host loads a legal set over each
+    // tally's cfg AXIL slave; bins become dense per-agent indices, plus an
+    // UNEXPECTED bin at index MON_N_PROFILE.
     parameter int MON_N_PROFILE          = 64,
+    // 0 = all-except-error datapath-monitor cones (default bitstream);
+    // 1 = error-flavor build (error cone only) for ADDR_RANGE error coverage.
+    parameter int MON_ERROR_FLAVOR = 0,
     parameter int UART_BAUD        = 115_200
 ) (
     input  logic       sysclk_p,      // 200 MHz LVDS (+)
@@ -145,10 +148,13 @@ module stream_mon_genesys2_top #(
         // stream_core sizes their CAMs at RD/WR_MON_MAX_TRANS =
         // NUM_CHANNELS * AR/AW_MAX_OUTSTANDING + 4 (= 36 here) by default.
         .USE_AXI_MONITORS      (USE_AXI_MONITORS),
-        // Characterization knobs from the same per-build config package the
-        // A7 flow uses (AR/AW outstanding = 8, delay queue capacities).
-        .AR_MAX_OUTSTANDING    (stream_char_cfg_pkg::CFG_AR_MAX_OUTSTANDING),
-        .AW_MAX_OUTSTANDING    (stream_char_cfg_pkg::CFG_AW_MAX_OUTSTANDING),
+        // Monitor-validation flow shrinks AR/AW outstanding to 2 (vs the shared
+        // CFG's 8) so the in-core monitors' trans_mgr CAMs are small enough to
+        // meet timing once every packet-class cone is built. RD/WR_MON_MAX_TRANS
+        // = NUM_CHANNELS*2 + 4 = 12 slots (vs 36). Light coverage traffic never
+        // needs more; the shared perf-char flow keeps CFG's 8.
+        .AR_MAX_OUTSTANDING    (2),
+        .AW_MAX_OUTSTANDING    (2),
         .RESP_DELAY_R_CAPACITY (stream_char_cfg_pkg::CFG_RESP_DELAY_R_CAPACITY),
         .RESP_DELAY_B_CAPACITY (stream_char_cfg_pkg::CFG_RESP_DELAY_B_CAPACITY),
         // Match the A7 board build: per-channel completion/error MonBus
@@ -158,9 +164,10 @@ module stream_mon_genesys2_top #(
         // TASK-101 extended addressing on, same as the A7 bitstream, so this
         // build runs both legacy contiguous and extended descriptors.
         .USE_ROW_COL_MAJOR_ADDRESSING (1),
-        // Agent-resolved profile tally (both tally memories).
-        .MON_TALLY_PROFILE_MODE (MON_TALLY_PROFILE_MODE),
-        .MON_N_PROFILE          (MON_N_PROFILE)
+        // Agent-resolved tally legal-set size (both tally memories).
+        .MON_N_PROFILE          (MON_N_PROFILE),
+        // Datapath-monitor cone selection (error-flavor build when 1).
+        .DATA_MON_ERROR_FLAVOR  (MON_ERROR_FLAVOR[0])
     ) u_harness (
         .aclk            (aclk),
         .aresetn         (aresetn),

@@ -714,11 +714,16 @@ package stream_regs_pkg;
     } stream_mon_regs__DAXMON_ENABLE__PERF_EN__out_t;
 
     typedef struct {
+        logic value;
+    } stream_mon_regs__DAXMON_ENABLE__THRESH_EN__out_t;
+
+    typedef struct {
         stream_mon_regs__DAXMON_ENABLE__MON_EN__out_t MON_EN;
         stream_mon_regs__DAXMON_ENABLE__ERR_EN__out_t ERR_EN;
         stream_mon_regs__DAXMON_ENABLE__COMPL_EN__out_t COMPL_EN;
         stream_mon_regs__DAXMON_ENABLE__TIMEOUT_EN__out_t TIMEOUT_EN;
         stream_mon_regs__DAXMON_ENABLE__PERF_EN__out_t PERF_EN;
+        stream_mon_regs__DAXMON_ENABLE__THRESH_EN__out_t THRESH_EN;
     } stream_mon_regs__DAXMON_ENABLE__out_t;
 
     typedef struct {
@@ -746,11 +751,11 @@ package stream_regs_pkg;
     } stream_mon_regs__DAXMON_PKT_MASK__out_t;
 
     typedef struct {
-        logic [3:0] value;
+        logic [15:0] value;
     } stream_mon_regs__DAXMON_ERR_CFG__ERR_SELECT__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__DAXMON_ERR_CFG__ERR_MASK__out_t;
 
     typedef struct {
@@ -759,11 +764,11 @@ package stream_regs_pkg;
     } stream_mon_regs__DAXMON_ERR_CFG__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__DAXMON_MASK1__TIMEOUT_MASK__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__DAXMON_MASK1__COMPL_MASK__out_t;
 
     typedef struct {
@@ -772,11 +777,11 @@ package stream_regs_pkg;
     } stream_mon_regs__DAXMON_MASK1__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__DAXMON_MASK2__THRESH_MASK__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__DAXMON_MASK2__PERF_MASK__out_t;
 
     typedef struct {
@@ -785,11 +790,11 @@ package stream_regs_pkg;
     } stream_mon_regs__DAXMON_MASK2__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__DAXMON_MASK3__ADDR_MASK__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__DAXMON_MASK3__DEBUG_MASK__out_t;
 
     typedef struct {
@@ -818,11 +823,16 @@ package stream_regs_pkg;
     } stream_mon_regs__RDMON_ENABLE__PERF_EN__out_t;
 
     typedef struct {
+        logic value;
+    } stream_mon_regs__RDMON_ENABLE__THRESH_EN__out_t;
+
+    typedef struct {
         stream_mon_regs__RDMON_ENABLE__MON_EN__out_t MON_EN;
         stream_mon_regs__RDMON_ENABLE__ERR_EN__out_t ERR_EN;
         stream_mon_regs__RDMON_ENABLE__COMPL_EN__out_t COMPL_EN;
         stream_mon_regs__RDMON_ENABLE__TIMEOUT_EN__out_t TIMEOUT_EN;
         stream_mon_regs__RDMON_ENABLE__PERF_EN__out_t PERF_EN;
+        stream_mon_regs__RDMON_ENABLE__THRESH_EN__out_t THRESH_EN;
     } stream_mon_regs__RDMON_ENABLE__out_t;
 
     typedef struct {
@@ -850,11 +860,11 @@ package stream_regs_pkg;
     } stream_mon_regs__RDMON_PKT_MASK__out_t;
 
     typedef struct {
-        logic [3:0] value;
+        logic [15:0] value;
     } stream_mon_regs__RDMON_ERR_CFG__ERR_SELECT__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__RDMON_ERR_CFG__ERR_MASK__out_t;
 
     typedef struct {
@@ -863,11 +873,11 @@ package stream_regs_pkg;
     } stream_mon_regs__RDMON_ERR_CFG__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__RDMON_MASK1__TIMEOUT_MASK__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__RDMON_MASK1__COMPL_MASK__out_t;
 
     typedef struct {
@@ -876,11 +886,11 @@ package stream_regs_pkg;
     } stream_mon_regs__RDMON_MASK1__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__RDMON_MASK2__THRESH_MASK__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__RDMON_MASK2__PERF_MASK__out_t;
 
     typedef struct {
@@ -889,11 +899,11 @@ package stream_regs_pkg;
     } stream_mon_regs__RDMON_MASK2__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__RDMON_MASK3__ADDR_MASK__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__RDMON_MASK3__DEBUG_MASK__out_t;
 
     typedef struct {
@@ -926,12 +936,17 @@ package stream_regs_pkg;
     } stream_mon_regs__WRMON_ENABLE__COMPRESS_EN__out_t;
 
     typedef struct {
+        logic value;
+    } stream_mon_regs__WRMON_ENABLE__THRESH_EN__out_t;
+
+    typedef struct {
         stream_mon_regs__WRMON_ENABLE__MON_EN__out_t MON_EN;
         stream_mon_regs__WRMON_ENABLE__ERR_EN__out_t ERR_EN;
         stream_mon_regs__WRMON_ENABLE__COMPL_EN__out_t COMPL_EN;
         stream_mon_regs__WRMON_ENABLE__TIMEOUT_EN__out_t TIMEOUT_EN;
         stream_mon_regs__WRMON_ENABLE__PERF_EN__out_t PERF_EN;
         stream_mon_regs__WRMON_ENABLE__COMPRESS_EN__out_t COMPRESS_EN;
+        stream_mon_regs__WRMON_ENABLE__THRESH_EN__out_t THRESH_EN;
     } stream_mon_regs__WRMON_ENABLE__out_t;
 
     typedef struct {
@@ -959,11 +974,11 @@ package stream_regs_pkg;
     } stream_mon_regs__WRMON_PKT_MASK__out_t;
 
     typedef struct {
-        logic [3:0] value;
+        logic [15:0] value;
     } stream_mon_regs__WRMON_ERR_CFG__ERR_SELECT__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__WRMON_ERR_CFG__ERR_MASK__out_t;
 
     typedef struct {
@@ -972,11 +987,11 @@ package stream_regs_pkg;
     } stream_mon_regs__WRMON_ERR_CFG__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__WRMON_MASK1__TIMEOUT_MASK__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__WRMON_MASK1__COMPL_MASK__out_t;
 
     typedef struct {
@@ -985,11 +1000,11 @@ package stream_regs_pkg;
     } stream_mon_regs__WRMON_MASK1__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__WRMON_MASK2__THRESH_MASK__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__WRMON_MASK2__PERF_MASK__out_t;
 
     typedef struct {
@@ -998,11 +1013,11 @@ package stream_regs_pkg;
     } stream_mon_regs__WRMON_MASK2__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__WRMON_MASK3__ADDR_MASK__out_t;
 
     typedef struct {
-        logic [7:0] value;
+        logic [15:0] value;
     } stream_mon_regs__WRMON_MASK3__DEBUG_MASK__out_t;
 
     typedef struct {

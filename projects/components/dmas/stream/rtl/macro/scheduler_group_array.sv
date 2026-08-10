@@ -101,18 +101,20 @@ module scheduler_group_array #(
     input  logic                                 cfg_desc_mon_enable,
     input  logic                                 cfg_desc_mon_err_enable,
     input  logic                                 cfg_desc_mon_perf_enable,
+    input  logic                                 cfg_desc_mon_compl_enable,
+    input  logic                                 cfg_desc_mon_thresh_enable,
     input  logic                                 cfg_desc_mon_timeout_enable,
     input  logic [31:0]                          cfg_desc_mon_timeout_cycles,
     input  logic [31:0]                          cfg_desc_mon_latency_thresh,
     input  logic [15:0]                          cfg_desc_mon_pkt_mask,
-    input  logic [3:0]                           cfg_desc_mon_err_select,
-    input  logic [7:0]                           cfg_desc_mon_err_mask,
-    input  logic [7:0]                           cfg_desc_mon_timeout_mask,
-    input  logic [7:0]                           cfg_desc_mon_compl_mask,
-    input  logic [7:0]                           cfg_desc_mon_thresh_mask,
-    input  logic [7:0]                           cfg_desc_mon_perf_mask,
-    input  logic [7:0]                           cfg_desc_mon_addr_mask,
-    input  logic [7:0]                           cfg_desc_mon_debug_mask,
+    input  logic [15:0]                           cfg_desc_mon_err_select,
+    input  logic [15:0]                           cfg_desc_mon_err_mask,
+    input  logic [15:0]                           cfg_desc_mon_timeout_mask,
+    input  logic [15:0]                           cfg_desc_mon_compl_mask,
+    input  logic [15:0]                           cfg_desc_mon_thresh_mask,
+    input  logic [15:0]                           cfg_desc_mon_perf_mask,
+    input  logic [15:0]                           cfg_desc_mon_addr_mask,
+    input  logic [15:0]                           cfg_desc_mon_debug_mask,
 
     // RFC Stage E perf-window control (decoupled from cfg_desc_mon_perf_enable,
     // which only gates legacy PktTypePerf emission; see DAXMON_PERF_CTRL @ 0x2D0).
@@ -639,8 +641,8 @@ module scheduler_group_array #(
         // exists in silicon — flip cfg_debug_enable to 1'b1 at the
         // integrator level when running compression-dataset captures
         // that need state-change traces).
-        .cfg_compl_enable       (cfg_desc_mon_enable),
-        .cfg_threshold_enable   (cfg_desc_mon_perf_enable),
+        .cfg_compl_enable       (cfg_desc_mon_compl_enable),
+        .cfg_threshold_enable   (cfg_desc_mon_thresh_enable),
         .cfg_debug_enable       (1'b0),
         .cfg_timeout_enable     (cfg_desc_mon_timeout_enable),
         // Monitor port is 16-bit; our register is 32-bit. Software is
