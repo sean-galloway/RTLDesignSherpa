@@ -13,8 +13,13 @@ MAS_DIR="$SCRIPT_DIR/converter_mas"
 OUTPUT_DIR="$SCRIPT_DIR"
 
 # Output files
-DOCX_FILE="$OUTPUT_DIR/Converters_MAS_v1.0.docx"
-PDF_FILE="$OUTPUT_DIR/Converters_MAS_v1.0.pdf"
+# Revision is overridable: ./generate_mas_pdf.sh [--rev <version>]
+REV="1.1"
+if [[ "${1:-}" == "--rev" && -n "${2:-}" ]]; then
+  REV="$2"
+fi
+DOCX_FILE="$OUTPUT_DIR/Converters_MAS_v${REV}.docx"
+PDF_FILE="$OUTPUT_DIR/Converters_MAS_v${REV}.pdf"
 
 echo "=== Generating Converters MAS Documentation ==="
 echo "Source: $MAS_DIR"
