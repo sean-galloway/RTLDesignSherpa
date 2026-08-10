@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Report how far a doc area's `##` headings drift from the canonical set.
+
+The humanize pass is told to unify structure, and it does -- but "unify" without
+a named target set lets each round settle on its own self-consistent scheme, so
+areas humanized in different rounds ended up internally tidy and mutually
+inconsistent. This measures that, per area, so the question "does this area need
+re-humanizing?" has a number behind it instead of an impression.
+
+    python3 bin/review/check_doc_structure.py docs/markdown/rtl-common
+    python3 bin/review/check_doc_structure.py docs/markdown/rtl-*  docs/markdown/rtl-amba/gaxi
+
+Reports, per area:
+  - pages fully conformant (every `##` is canonical, no required section missing)
+  - which canonical sections are missing, and from how many pages
+  - which non-canonical headings appear, and how often -- the rename candidates
+
+Exit status is 0 always: this is a report, not a gate. The gate for a humanize
+round is check_tag_survival.py; this tells you whether a round is worth running.
+"""
+import os
+import re
+import sys
+import glob
+import collections
+
+# The canonical spine. Derived from vault/handbook/authoring/module-doc-template.md
+# and from what the most recently humanized area actually converged on, which is
+# not the same thing -- where they disagreed, observed usage won, because a
+# standard nothing follows is a wish.
+CANONICAL = [
+    'Overview',
+    'Module Interface',      # optional: the SystemVerilog declaration block
+    'Parameters',
+    'Ports',
+    'Functional Description',
+    'Timing Characteristics',
+    'Usage Examples',
+    'Design Notes',
+    'Related Modules',
+    'Testing',
+    'References',            # optional
+    'Navigation',
+]
+OPTIONAL = {'Module Interface', 'References', 'Waveforms', 'Timing Diagrams'}
+REQUIRED = [h for h in CANONICAL if h not in OPTIONAL]
+
+# Headings that mean a canonical section under a different name. Rename, do not
+# invent a new section for them.
+ALIASES = {
+    'Module Parameters': 'Parameters',
+    'Port Groups': 'Ports',
+    'Interface Signals': 'Ports',
+    'Behavior': 'Functional Description',
+    'Functionality': 'Functional Description',
+    'Theory of operation': 'Functional Description',
+    'Implementation': 'Functional Description',
+    'Implementation Details': 'Functional Description',
+    'Timing': 'Timing Characteristics',
+    'Timing Diagrams': 'Timing Characteristics',
+    'Usage Example': 'Usage Examples',
+    'Design examples': 'Usage Examples',
+    'Design Considerations': 'Design Notes',
+    'Design considerations': 'Design Notes',
+    'Notes': 'Design Notes',
+    'Test Coverage': 'Testing',
+    'Verification': 'Testing',
+    'Comparison with Related Modules': 'Related Modules',
+}
+
+SKIP = {'index.md', 'README.md', 'overview.md', 'quickstart.md'}
+
+
+def headings(path):
+    out = []
+    for line in open(path, errors='ignore').read().splitlines():
+        if re.match(r'^##\s', line):
+            out.append(re.sub(r'^##\s+', '', line).strip())
+    return out
+
+
+def report(area):
+    files = [f for f in sorted(glob.glob(os.path.join(area, '*.md')))
+             if os.path.basename(f) not in SKIP]
+    if not files:
+        return
+    conform = 0
+    missing = collections.Counter()
+    unknown = collections.Counter()
+    aliased = collections.Counter()
+    for f in files:
+        hs = headings(f)
+        norm = {ALIASES.get(h, h) for h in hs}
+        for h in hs:
+            if h in ALIASES:
+                aliased[f'{h} -> {ALIASES[h]}'] += 1
+            elif h not in CANONICAL:
+                unknown[h] += 1
+        gaps = [h for h in REQUIRED if h not in norm]
+        for h in gaps:
+            missing[h] += 1
+        if not gaps and not any(h not in CANONICAL for h in hs):
+            conform += 1
+    n = len(files)
+    pct = 100.0 * conform / n
+    print(f'\n{area}  --  {conform}/{n} pages conformant ({pct:.0f}%)')
+    if missing:
+        print('  missing required sections:')
+        for h, c in missing.most_common():
+            print(f'     {h:<26} absent from {c}/{n}')
+    if aliased:
+        print('  renameable (same section, different name):')
+        for h, c in aliased.most_common(8):
+            print(f'     {h:<50} x{c}')
+    if unknown:
+        print('  unrecognised headings (decide: alias, or leave page-specific):')
+        for h, c in unknown.most_common(8):
+            print(f'     {h:<40} x{c}')
+
+
+def main():
+    args = sys.argv[1:]
+    if not args:
+        print(__doc__)
+        return 0
+    for a in args:
+        if os.path.isdir(a):
+            report(a)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
