@@ -97,7 +97,6 @@ AXI5_ALLOWED_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'unique')
 # 'poison' left this set in A5-2 slice 2: it is legal under the
 # connectivity rule below (validate_axi5_poison_connectivity).
 AXI5_PHASED_FEATURES = {
-    'atomic':   'A5-3 (needs R-channel response routing for atomics)',
     'mte':      'deferred (per-beat tag fields; revisit after poison)',
     'chunking': 'deferred (R-channel re-framing through converters)',
 }
@@ -107,7 +106,10 @@ AXI5_PHASED_FEATURES = {
 # width-matched (per-beat sideband cannot traverse the dwidth-converter
 # IP, and unlike the droppable sideband set, silently dropping POISON
 # would turn corrupted data into trusted data).
-AXI5_CONNECTIVITY_GATED_FEATURES = ('poison',)
+# 'atomic' (A5-3a): store-class atomics ride the structs natively;
+# the master boundary's axi5_atomic_filter DECERRs read-return classes
+# (AtomicLoad/Swap/Compare), which this fabric cannot route.
+AXI5_CONNECTIVITY_GATED_FEATURES = ('poison', 'atomic')
 
 
 def validate_axi5(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
@@ -190,13 +192,14 @@ def validate_axi5_poison_connectivity(masters: List[PortSpec],
     dwidth converter on the path). Unlike the droppable sideband set,
     a silently-dropped POISON bit would let corrupted data read back
     as trusted data, so any non-native path is a config error."""
-    def has_poison(p):
+    def has_feat(p, feat):
         return (p.protocol == 'axi5'
-                and 'poison' in (getattr(p, 'axi5_features', None) or []))
+                and feat in (getattr(p, 'axi5_features', None) or []))
 
     pairs = _axi5_connected_pairs(masters, slaves, connectivity)
-    for port in list(masters) + list(slaves):
-        if not has_poison(port):
+    for feature in AXI5_CONNECTIVITY_GATED_FEATURES:
+      for port in list(masters) + list(slaves):
+        if not has_feat(port, feature):
             continue
         if port.direction == 'master':
             others = [s for m, s in pairs if m.port_name == port.port_name]
@@ -208,19 +211,19 @@ def validate_axi5_poison_connectivity(masters: List[PortSpec],
             problems = []
             if other.protocol != 'axi5':
                 problems.append(f"protocol '{other.protocol}' (needs axi5)")
-            elif 'poison' not in (getattr(other, 'axi5_features', None) or []):
-                problems.append("no 'poison' in axi5_features")
+            elif feature not in (getattr(other, 'axi5_features', None) or []):
+                problems.append(f"no '{feature}' in axi5_features")
             if other.data_width != port.data_width:
                 problems.append(
                     f"data width {other.data_width} != {port.data_width} "
                     f"(dwidth converters cannot carry per-beat sideband)")
             if problems:
                 raise ValidationError(
-                    f"AXI5 port '{port.port_name}' enables 'poison' but "
+                    f"AXI5 port '{port.port_name}' enables '{feature}' but "
                     f"connected {other_kind} '{other.port_name}' cannot "
                     f"carry it natively: {'; '.join(problems)}. Every "
                     f"connected path must be AXI5-both-ends, "
-                    f"poison-enabled, and width-matched."
+                    f"{feature}-enabled, and width-matched."
                 )
 
 

@@ -830,6 +830,17 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr.f")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd.f")
 
+    # Atomic-enabled AXI5 masters (A5-3a): the master adapter inserts
+    # the axi5_atomic_filter between the boundary wrapper and the fabric.
+    has_axi5_atomic = any(
+        m.protocol.lower() == 'axi5'
+        and 'atomic' in (getattr(m, 'axi5_features', None) or [])
+        for m in config.masters)
+    if has_axi5_atomic:
+        filelist_lines.append("")
+        filelist_lines.append("# AXI5 atomic filter (read-return atomics DECERR locally, A5-3a)")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_atomic_filter.f")
+
     # AXI5 slave ports (A5-2 slice 1): the slave adapter instantiates
     # the axi5_master_* boundary wrappers instead of axi4_master_*.
     # Same closure story as the axi5_slave_* wrappers above.

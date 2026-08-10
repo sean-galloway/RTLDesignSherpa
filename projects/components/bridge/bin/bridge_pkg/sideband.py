@@ -37,6 +37,7 @@ SIDEBAND_FIELDS: Tuple[Tuple[str, str, int, str, str], ...] = (
     ('aw', 'mpam',   11, 'mpam',   'awmpam'),
     ('aw', 'mecid',  16, 'mecid',  'awmecid'),
     ('aw', 'uniq',   1,  'unique', 'awunique'),
+    ('aw', 'atop',   6,  'atomic', 'awatop'),
     ('w',  'poison', 1,  'poison', 'wpoison'),
     ('b',  'trace',  1,  'trace',  'btrace'),
     ('ar', 'nsaid',  4,  'nsaid',  'arnsaid'),
@@ -48,12 +49,13 @@ SIDEBAND_FIELDS: Tuple[Tuple[str, str, int, str, str], ...] = (
     ('r',  'poison', 1,  'poison', 'rpoison'),
 )
 
-# Features whose sideband can ride the fabric structs. `poison` joins the
-# legal set in slice 2, but ONLY under the validator's connectivity rule
-# (every connected path direct + poison-enabled both ends). atomic / mte /
-# chunking remain rejected (A5-3 / deferred).
+# Features whose sideband can ride the fabric structs. `poison` (A5-2
+# slice 2) and `atomic` (A5-3a, store-class only -- the boundary's
+# axi5_atomic_filter DECERRs read-return classes) are legal ONLY under
+# the validator's connectivity rule (every connected path direct +
+# feature-enabled both ends). mte / chunking remain rejected.
 NATIVE_SIDEBAND_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'unique',
-                            'poison')
+                            'poison', 'atomic')
 
 # Response-direction channels (slave -> master).
 RESP_CHANNELS = ('b', 'r')

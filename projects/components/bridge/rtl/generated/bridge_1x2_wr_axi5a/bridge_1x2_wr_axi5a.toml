@@ -1,0 +1,54 @@
+# Bridge Configuration: 1x2 write-only bridge with NATIVE store-class
+# ATOMICS (BRIDGE-002 phase A5-3a).
+#
+# 'atomic' is connectivity-gated like poison: legal here because every
+# connected slave is AXI5, atomic-enabled, and width-matched. aw.atop
+# rides the fabric structs; the master adapter's axi5_atomic_filter
+# DECERRs read-return classes (AtomicLoad/Swap/Compare) locally and
+# forwards AtomicStore + plain writes natively.
+# Connectivity comes from bridge_1x2_wr_axi5a_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_wr_axi5a"
+variants = ["no", "mon"]
+description = "AXI5 master x 2 AXI5 slaves wr bridge, store-class atomics (A5-3a)"
+
+[[bridge.masters]]
+name = "cpu_wr"
+prefix = "cpu_wr_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "wr"
+protocol = "axi5"
+axi5_features = ["trace", "atomic"]
+mon_add = ["compl"]
+
+[[bridge.slaves]]
+name = "ddr_wr"
+prefix = "ddr_wr_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "wr"
+protocol = "axi5"
+axi5_features = ["trace", "atomic"]
+mon_add = ["compl"]
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram_wr"  # atomic only: trace drops here (warning)
+prefix = "sram_wr_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "wr"
+protocol = "axi5"
+axi5_features = ["atomic"]
+mon_add = ["compl"]
+base_addr = "0x80000000"
+addr_range = "0x80000000"
