@@ -40,7 +40,7 @@ GAXI (Generic AXI) is a simplified valid/ready handshake protocol used for strea
 - **Simple Handshake:** `valid`/`ready` only - minimal overhead
 - **Elastic Buffering:** Skid buffers and FIFOs for timing closure
 - **Clock Domain Crossing:** Async variants with proper CDC
-- **Registered Outputs:** Skid buffers and FIFOs present data one clock after an accepted write
+- **Registered Outputs:** No combinatorial write-to-read path anywhere in the directory. Latency is 1 clock for the skid buffers and for `gaxi_fifo_sync` in mux mode, 2 in flop mode -- see the latency table below.
 - **Parameterized:** Configurable data width and depth
 
 ---

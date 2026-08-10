@@ -353,7 +353,7 @@ gaxi_fifo_async #(
 
 | Module | Empty Latency | Full Latency | Notes |
 |--------|---------------|--------------|-------|
-| gaxi_skid_buffer | 0 cycles | 1 cycle | Zero-latency bypass when empty |
+| gaxi_skid_buffer | 1 cycle | 1 cycle | Registered storage and valid |
 | gaxi_fifo_sync (mux) | 1 cycle | 1 cycle | Combinatorial read |
 | gaxi_fifo_sync (flop) | 2 cycles | 2 cycles | Registered read |
 | gaxi_fifo_async | 3-5 cycles | 3-5 cycles | CDC synchronization overhead |

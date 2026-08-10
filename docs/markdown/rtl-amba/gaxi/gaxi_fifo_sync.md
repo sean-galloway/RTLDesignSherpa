@@ -212,7 +212,7 @@ pytest val/amba/test_gaxi_fifo_sync.py -k "fifo_flop" -v  # Flop mode
 
 ## Related Modules
 
-- [gaxi_skid_buffer](gaxi_skid_buffer.md) - Zero-latency bypass, smaller depths
+- [gaxi_skid_buffer](gaxi_skid_buffer.md) - Same 1-cycle latency, shallower elastic storage
 - [gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md) - Clock domain crossing version
 - [GAXI Index](index.md) - Overview of all GAXI modules
 

@@ -34,7 +34,7 @@ The `gaxi_drop_fifo_sync` module is a synchronous FIFO with dynamic drop capabil
 - Drop all (flush entire FIFO)
 - I/O blocking during drop operations (3-cycle latency)
 - Registered or mux-based output modes
-- FIFO count and almost-full/almost-empty flags
+- FIFO count output (`[AW:0]`); the almost-full/almost-empty flags stay internal
 
 **Location**: `rtl/amba/gaxi/gaxi_drop_fifo_sync.sv`
 

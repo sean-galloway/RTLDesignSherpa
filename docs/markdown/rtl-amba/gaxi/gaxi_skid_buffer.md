@@ -201,7 +201,7 @@ The module implements a shift register for data storage:
 
 ```systemverilog
 // Data storage: shift register
-logic [BUF_WIDTH-1:0] r_data;       // [DEPTH * DATA_WIDTH - 1 : 0]
+logic [DATA_WIDTH-1:0] r_data [DEPTH];  // unpacked array, shifts on read
 logic [3:0]           r_data_count;  // Current occupancy
 
 // Transfer detection
@@ -251,7 +251,7 @@ rd_valid <= (count >= 2) ||
 
 ### Critical Paths
 
-- **Write → Read (empty):** Combinatorial path (may need timing closure in deep pipelines)
+- **Write → Read (empty):** One clock. The path from `r_data[0]` to the consumer is the one to close, not a write-to-read bypass -- there is none.
 - **Ready/Valid Logic:** Single-cycle registered
 
 ---
@@ -392,10 +392,10 @@ end
 
 | DEPTH | Use Case | Latency | Buffering |
 |-------|----------|---------|-----------|
-| 2 | Minimal buffering, tight timing | 0-1 cycles | Limited backpressure tolerance |
-| 4 | Standard pipeline stage | 0-1 cycles | Moderate backpressure tolerance |
-| 6 | Heavier buffering needs | 0-1 cycles | Good backpressure tolerance |
-| 8 | Maximum buffering | 0-1 cycles | Excellent backpressure tolerance |
+| 2 | Minimal buffering, tight timing | 1 cycle | Limited backpressure tolerance |
+| 4 | Standard pipeline stage | 1 cycle | Moderate backpressure tolerance |
+| 6 | Heavier buffering needs | 1 cycle | Good backpressure tolerance |
+| 8 | Maximum buffering | 1 cycle | Excellent backpressure tolerance |
 
 **Recommendation:** Use DEPTH=4 for most cases - good balance of buffering and resource usage.
 
