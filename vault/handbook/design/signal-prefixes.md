@@ -1,6 +1,6 @@
 ---
 title: Signal prefixes r_ and w_
-summary: The prefix states storage, not scope. What it promises, and the places in this repo where it currently lies.
+summary: The prefix states storage, not scope. What it promises, the five-file lie the 2026-08-10 sweep fixed, and the two codified exceptions (mem arrays, register slice aliases).
 ---
 
 # Signal prefixes: r_ and w_
@@ -35,14 +35,31 @@ counting read latency. The canonical shape is a signal named `w_` that is in fac
 registered on some configuration path, so the page — and the reader — undercount
 the pipeline by a cycle.
 
-**This repo has that bug today.** `w_rd_data` in `rtl/common/fifo_sync.sv` (lines
-~417/444/467) and `rtl/cdc/fifo_async.sv` (~897/924/944) is assigned with `<=`
-inside `always_ff` in the registered and BRAM read paths. It is a flop wearing a
-wire's name, in the read path, which is precisely where `REGISTERED` and
-`MEM_STYLE` change the latency a reader is trying to count. It wants to be
-`r_rd_data` in those branches. Left as-is deliberately for now — renaming touches
-the mux-mode branch too and wants its own commit with a clean regression — but it
-is the example to point at when someone asks why the prefix matters.
+**This repo HAD that bug, in five files** (fixed 2026-08-10 in the prefix
+sweep). `w_rd_data` in `fifo_sync`, `fifo_async`, `gaxi_fifo_sync`,
+`gaxi_fifo_async` and `gaxi_drop_fifo_sync` was assigned with `<=` in the
+registered and BRAM read paths - a flop wearing a wire's name, in the read
+path, precisely where `REGISTERED` and `MEM_STYLE` change the latency a
+reader is trying to count. The fix that generalizes: **when one signal's
+storage differs per generate branch, it cannot have one truthful name - move
+the name into the branch.** Each registered branch declares a branch-local
+`r_rd_data` and drives the output port from it; each mux branch drives the
+port straight off the array. The shared misnamed intermediate disappears
+entirely (only one branch elaborates, so per-branch port drivers are legal).
+
+## Codified exceptions (decided in the 2026-08-10 sweep)
+
+- **Memory arrays keep the bare name `mem`.** A RAM array is storage but not
+  a signal a reader counts latency through by name - latency lives in the
+  read path around it, which the r_/w_ names now state truthfully. Renaming
+  would touch every FIFO in the family for no reader benefit.
+- **A pure slice alias of a register keeps `r_`** (e.g.
+  `assign r_wr_addr = r_wr_ptr_bin[AW-1:0]` in the FIFOs). The prefix
+  answers "does this value come out of a flop?" - for a bit-slice alias the
+  answer is yes: it holds across the edge exactly as its source does, and
+  naming it `w_` would claim combinational settling where a reader counting
+  the address path would then miss the register. The mechanical check must
+  whitelist assign-of-r_-slice aliases.
 
 ## Checking it
 
@@ -51,14 +68,18 @@ There is no gate for this yet. Until there is, the mechanical check is: for ever
 nothing assigns it with `=` outside an `always_ff`.
 
 ```bash
-# w_ signals driven by non-blocking assignment -- each one is a lie
+# w_ signals driven by non-blocking assignment -- each one is a lie.
+# The target must be at STATEMENT position: a bare `w_x <=` match also hits
+# less-than-or-equal COMPARISONS (`if (w_count <= AET)`), and that false
+# positive sent the 2026-08-10 sweep chasing two innocent signals
+# (w_almost_empty_count, w_tap_positions) before the pattern was anchored.
 python3 - <<'EOF'
 import re, glob
 for f in glob.glob('rtl/**/*.sv', recursive=True):
     s = open(f, encoding='utf-8', errors='ignore').read()
-    for blk in re.findall(r'always_ff\b(.*?)(?=always_|endmodule)', s, re.S):
-        for v in sorted(set(re.findall(r'\b(w_\w+)\s*<=', blk))):
-            print(f'{f}: {v}')
+    s = re.sub(r'//[^\n]*', '', s)
+    for m in re.finditer(r'(?:^|\bbegin\b|\)|;)\s*(w_\w+)(?:\s*\[[^\]]*\])*\s*<=\s*[^=]', s):
+        print(f'{f}: {m.group(1)}')
 EOF
 ```
 
