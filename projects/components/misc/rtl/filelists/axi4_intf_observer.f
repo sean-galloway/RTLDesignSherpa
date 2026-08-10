@@ -24,7 +24,7 @@ $REPO_ROOT/projects/components/misc/rtl/regs/obs_regs.vlt
 $REPO_ROOT/projects/components/misc/rtl/regs/generated/rtl/obs_regs_top_pkg.sv
 $REPO_ROOT/projects/components/misc/rtl/regs/generated/rtl/obs_regs_top.sv
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave.f
-$REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 # The observer's own dependencies (meters, histogram, monbus arbiter).
 -f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f

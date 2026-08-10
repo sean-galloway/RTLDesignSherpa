@@ -24,6 +24,6 @@ $REPO_ROOT/projects/components/misc/rtl/regs/slvmon_regs.vlt
 $REPO_ROOT/projects/components/misc/rtl/regs/generated/rtl/slvmon_regs_top_pkg.sv
 $REPO_ROOT/projects/components/misc/rtl/regs/generated/rtl/slvmon_regs_top.sv
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave.f
-$REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 
 $REPO_ROOT/projects/components/misc/rtl/dma_slave_monitors.sv
