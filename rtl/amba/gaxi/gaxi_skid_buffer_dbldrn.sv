@@ -50,7 +50,12 @@ module gaxi_skid_buffer_dbldrn #(
     logic                  w_wr_xfer;
     logic                  w_rd_xfer;
     logic                  w_rd_dbl_xfer;  // Double-drain transfer
+    // verilator coverage_off
+    // DEFENSIVE: `zeros` is assigned 'b0 and never anything else -- it is the
+    // shift-in constant for the drain cases below. A toggle point on it is an
+    // illegal state by construction, so it is waived rather than chased.
     logic [DW-1:0]         zeros;
+    // verilator coverage_on
 
     assign zeros         = 'b0;
     assign w_wr_xfer     = wr_valid & wr_ready;
