@@ -244,13 +244,47 @@ class AXI4MasterReadTB(TBBase):
         return configs
 
     def set_timing_profile(self, profile_name):
-        """Set timing profile for the test"""
-        if profile_name in self.randomizer_configs:
-            config = self.randomizer_configs[profile_name]
-            # Apply timing configuration to master and slave
-            self.log.info(f"Set timing profile to '{profile_name}'")
-        else:
+        """Set timing profile for the test -- and ACTUALLY APPLY IT.
+
+        This used to look the config up into a local variable, log, and return:
+        the `# Apply timing configuration` line was an unimplemented stub. Every
+        caller believed it was shaping timing and none of them was, which is why
+        no monitor test could ever provoke a THRESHOLD or TIMEOUT packet --
+        those cones need latency, and the only knob for injecting latency did
+        nothing. The enable sweep says as much in its own comment ("other cones
+        need stimulus to fire; we don't require them"), which is a coverage hole
+        wearing a justification.
+
+        master_delay shapes the AR master's valid_delay (how fast requests are
+        issued); slave_delay shapes the R responder's ready/valid delay (how
+        slowly responses come back). The latter is what a latency threshold or
+        a timeout actually measures.
+        """
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+
+        if profile_name not in self.randomizer_configs:
             self.log.warning(f"Unknown timing profile '{profile_name}', using 'normal'")
+            profile_name = 'normal'
+        config = self.randomizer_configs[profile_name]
+
+        applied = []
+        # Request side: how quickly the master drives AR.
+        if getattr(self, 'ar_master', None) is not None:
+            self.ar_master.set_randomizer(
+                FlexRandomizer({'valid_delay': config['master_delay']}))
+            applied.append('ar_master.valid_delay')
+        # Response side: the slave's R timing -- the source of measurable latency.
+        if getattr(self, 'r_master', None) is not None:
+            self.r_master.set_randomizer(
+                FlexRandomizer({'valid_delay': config['slave_delay']}))
+            applied.append('r_master.valid_delay')
+        if getattr(self, 'r_slave', None) is not None:
+            self.r_slave.set_randomizer(
+                FlexRandomizer({'ready_delay': config['master_delay']}))
+            applied.append('r_slave.ready_delay')
+
+        self.log.info(f"Set timing profile to '{profile_name}' -> {', '.join(applied) or 'NOTHING (no components)'}")
+        return applied
 
     async def assert_reset(self):
         """Assert reset and initialize components"""

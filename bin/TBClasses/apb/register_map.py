@@ -41,6 +41,134 @@ class RegisterMap:
         self.bytes_per_word = apb_data_width // 8
 
 
+    # =======================================================================
+    # Register self-test
+    # =======================================================================
+    # The map already knows every name, address, reset default and per-field sw
+    # attribute, so the walk belongs HERE -- once, in the base class -- rather
+    # than being re-implemented by each testbench and each host tool. Callers
+    # supply only the two accessors, which is what lets the SAME check run in
+    # cocotb and against silicon over UART:
+    #
+    #     fails = reg_map.walk(read=bridge.read, write=bridge.write)
+    #
+    # Per register it checks:
+    #   * reachable                (no bus-error sentinel)
+    #   * reset value on the SW-OWNED bits ONLY -- fields with sw='r' mirror
+    #     hardware and have no stored default, so a status register reading
+    #     non-zero at reset is CORRECT, not a defect
+    #   * writable fields take a write and read back, masked to those fields
+    #   * read-only registers do not move when written
+    #
+    # Patterns include values above 0xF deliberately: a field silently narrowed
+    # to 4 bits passes any test that only writes small numbers, which is how a
+    # 16-bit timeout squashed to 4 bits survived review for months.
+    # =======================================================================
+    WALK_PATTERNS = (0x0000_0000, 0xFFFF_FFFF, 0xA5A5_A5A5, 0x5A5A_5A5A,
+                     0x0001_2345)
+    WALK_NO_RESPONSE = 0xDEADBEEF
+
+    @staticmethod
+    def _walk_fields(reg):
+        return {k: v for k, v in reg.items()
+                if isinstance(v, dict) and v.get('type') == 'field'}
+
+    @classmethod
+    def sw_writable_mask(cls, reg):
+        """Bits software may change, from the FIELD sw attributes.
+
+        Field level, never register level: a register can be sw='rw' while every
+        field inside it is sw='r' (CHANNEL_IDLE is exactly that), and a
+        register-level check is then wrong in both directions.
+        """
+        flds = cls._walk_fields(reg)
+        if not flds:
+            return 0xFFFF_FFFF if reg.get('sw') == 'rw' else 0
+        mask = 0
+        for f in flds.values():
+            if f.get('sw') != 'rw':
+                continue
+            off = str(f.get('offset', '0'))
+            if ':' in off:
+                hi, lo = (int(x) for x in off.split(':'))
+            else:
+                hi = lo = int(off)
+            mask |= ((1 << (hi - lo + 1)) - 1) << lo
+        return mask
+
+    @staticmethod
+    def reg_address(reg, base=0):
+        return base + int(str(reg.get('address', reg.get('offset', '0'))), 0)
+
+    @staticmethod
+    def reg_default(reg):
+        try:
+            return int(str(reg.get('default', '0')), 0)
+        except ValueError:
+            return 0
+
+    def walk(self, read, write, base=None, names=None, restore=True):
+        """Walk every register. Returns a list of failure strings ([] = clean).
+
+        read(addr) -> int and write(addr, value) -> None may be anything
+        callable, so one implementation covers a cocotb APB master and a UART
+        bridge on the board.
+        """
+        base = self.start_address if base is None else base
+        regs = self.registers if names is None else {
+            n: self.registers[n] for n in names}
+        fails = []
+
+        for name, reg in sorted(regs.items(),
+                                key=lambda kv: self.reg_address(kv[1])):
+            addr = self.reg_address(reg, base)
+            got = read(addr)
+            if got == self.WALK_NO_RESPONSE:
+                fails.append(f"{name} @ 0x{addr:08X}: NO RESPONSE (unreachable)")
+                continue
+
+            smask = self.sw_writable_mask(reg)
+            dflt = self.reg_default(reg)
+
+            if smask and (got & smask) != (dflt & smask):
+                fails.append(f"{name} @ 0x{addr:08X}: reset 0x{got & smask:08X}"
+                             f" != default 0x{dflt & smask:08X}")
+
+            if smask == 0:
+                # Read-only must not move WHEN WRITTEN -- but many read-only
+                # registers are live hardware counters that move on their own.
+                # Sample twice with no write in between first: if it changes by
+                # itself it is volatile, and the write test cannot say anything.
+                # (DESC_AR_STALL on a running DMA changed between the two reads
+                # and was reported as a write leaking into a read-only register.)
+                again = read(addr)
+                if again != got:
+                    continue                    # volatile; nothing to assert
+                write(addr, 0xFFFF_FFFF)
+                after = read(addr)
+                if after != got and after == read(addr):
+                    fails.append(f"{name} @ 0x{addr:08X}: READ-ONLY but changed"
+                                 f" 0x{got:08X} -> 0x{after:08X}")
+                continue
+
+            for pat in self.WALK_PATTERNS:
+                write(addr, pat)
+                rb = read(addr)
+                expect = (pat & smask) | (dflt & ~smask & 0xFFFF_FFFF)
+                if rb == self.WALK_NO_RESPONSE:
+                    fails.append(f"{name} @ 0x{addr:08X}: no response after write")
+                    break
+                if rb != expect:
+                    hint = ("  [a 4-bit truncation looks exactly like this]"
+                            if pat > 0xF and rb == (expect & 0xF) else "")
+                    fails.append(f"{name} @ 0x{addr:08X}: wrote 0x{pat:08X} read"
+                                 f" 0x{rb:08X} expected 0x{expect:08X}{hint}")
+                    break
+            if restore:
+                write(addr, dflt)
+        return fails
+
+
     def _load_registers(self, filename):
         spec = importlib.util.spec_from_file_location("register_dict", filename)
         register_module = importlib.util.module_from_spec(spec)
