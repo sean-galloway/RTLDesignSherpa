@@ -136,11 +136,19 @@ reads" rule keeps routing unambiguous once tracked.
   which the AXI atomic ID rule already forbids a compliant master
   from observing. val/amba/test_axi5_atomic_filter.py green (mixed
   forward/swallow traffic, multi-beat discard, DECERR ids/order);
-  -Wall lint + decl-order + registry-audit clean. Remaining for
-  A5-3a: aw.atop[6] into the sideband spec table, 'atomic' moves to
-  the poison-style connectivity gate, master adapter instantiates
-  the filter between wrapper fub and the width paths, fixture +
-  atomic_operation BFM test.
+  -Wall lint + decl-order + registry-audit clean. *A5-3a DONE
+  (2026-08-10, commit be2fd6bc):* aw.atop[6] in the sideband table +
+  external surface; 'atomic' connectivity-gated (validator check
+  generalized over gated features); master adapter inserts the
+  filter pref_axi_* -> fub_axi_* on atomic-enabled wr paths
+  (handshakes + B payload through the filter, the rest passes
+  around); filelist emission -f's the filter closure. Fixture
+  bridge_1x2_wr_axi5a (+_mon) sims 2/2 green; hand-written atomics
+  test: plain/AtomicStore forward with atop intact at the slave AW
+  and land in memory, AtomicLoad/Swap DECERR locally with no slave
+  AW and no memory write; 52 generator unit tests; 23/23 bridges
+  regenerate, pre-existing byte-identical. A5-3 remaining: only
+  A5-3b (read-return atomics), deferred until a consumer exists.
 - *A5-3b — read-return atomics:* the shared per-ID tracking block
   above. Design that block standalone first; defer until a concrete
   consumer exists (nothing in-tree issues AtomicLoad today, and the
