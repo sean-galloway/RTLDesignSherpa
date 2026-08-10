@@ -6,8 +6,8 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 2 | accepted, not started |
-| [closed.md](closed.md) | 18 | done (kept for history) |
+| [open.md](open.md) | 1 | accepted, not started |
+| [closed.md](closed.md) | 19 | done (kept for history) |
 | [dropped.md](dropped.md) | 2 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
@@ -40,11 +40,15 @@ integration support.
   owner, so the model's mask lagged one grant forever. ACK mode now asserts on
   the compliance verdict.
 - **COMMON-003** — integration examples (P2).
-- **COMMON-007/008** — deferred enhancements (P3): arbiter types, multi-byte
-  CRC. COMMON-006 (parameterized adders/multipliers) and COMMON-009
+- **COMMON-007** — additional arbiter types (P3), deferred pending a real
+  consumer. The last open task in the area.
+- **COMMON-008** — CLOSED 2026-08-09: premise false — dataint_crc already
+  does CHUNKS = DATA_WIDTH/8 bytes per cycle (cascaded stages +
+  cascade_sel); default build is 8 bytes/cycle. See closed.md.
+- **COMMON-006** (parameterized adders/multipliers) and **COMMON-009**
   (BCH/Reed-Solomon) DROPPED 2026-08-09 — generation stays the approach for
   the former; R/S, if it happens, is a future `projects/components/reed-solomon/`
-  component, not library work (see dropped.md).
+  component, not library work (see dropped.md; tracked as RS-001).
 
 Practice and rationale live in the [handbook](../../handbook/INDEX.md);
 this directory tracks *work* only. `/GLOBAL_REQUIREMENTS.md` wins on conflict.
