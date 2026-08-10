@@ -6,8 +6,8 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 3 | accepted, not started |
-| [closed.md](closed.md) | 17 | done (kept for history) |
+| [open.md](open.md) | 2 | accepted, not started |
+| [closed.md](closed.md) | 18 | done (kept for history) |
 | [dropped.md](dropped.md) | 2 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
@@ -16,6 +16,10 @@ integration support.
 
 ## Open shortlist
 
+- **COMMON-003** — CLOSED 2026-08-09: rescoped twice (Sean) and delivered as
+  `docs/markdown/rtl-integ-common/technique-index.md` — techniques mapped to
+  their real, tested worked examples in projects/ instead of toy designs
+  that would duplicate them. No new RTL by design; see closed.md.
 - **COMMON-020** — CLOSED 2026-08-09: fifo_sync wavedrom now emits 4 diagrams
   per config and asserts non-empty. Three stacked defects (no constraints,
   wrong clock-group name, prefixed bindings) + the auto-draining FIFOSlave;

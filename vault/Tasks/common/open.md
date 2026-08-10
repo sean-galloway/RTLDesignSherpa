@@ -4,23 +4,6 @@
 
 ---
 
-## COMMON-003 — Create integration examples
-**Status:** open — not started (migrated from rtl/common/TASKS.md, P2)
-
-Standalone integration examples showing common usage patterns that combine
-multiple common modules. Location: `rtl/integ_amba/examples/`.
-
-Proposed:
-- Example 1: state machine with timeout (counter + FSM)
-- Example 2: multi-master system (arbiter + counters)
-- Example 3: CRC-checked packet buffer (CRC + FIFO)
-- Example 4: CDC data transfer (sync + handshake + FIFO)
-- Example 5: simple PWM generator (counter + comparator)
-
-Deliverables: 5 standalone designs, a test for each, documentation explaining
-the design choices, and a README index. Success = all compile cleanly, all
-tests pass, docs complete.
-
 
 ## COMMON-007 — Additional arbiter types
 **Status:** open — deferred pending user requests, P3
