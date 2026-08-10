@@ -69,7 +69,6 @@ module gaxi_fifo_sync #(
     logic [AW:0]   r_wr_ptr_bin, r_rd_ptr_bin;
     logic [AW:0]   w_wr_ptr_bin_next, w_rd_ptr_bin_next;
     logic          r_wr_full, r_wr_almost_full, r_rd_empty, r_rd_almost_empty;
-    logic [DW-1:0] w_rd_data;
 
     // ---------------------------------------------------------------------
     // Write/Read enables
@@ -161,13 +160,15 @@ module gaxi_fifo_sync #(
 
             // Read path
             if (REGISTERED != 0) begin : g_flop
+                logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                    if (!axi_aresetn) w_rd_data <= '0;
-                    else              w_rd_data <= mem[r_rd_addr];
+                    if (!axi_aresetn) r_rd_data <= '0;
+                    else              r_rd_data <= mem[r_rd_addr];
                 )
+                assign rd_data = r_rd_data;
 
             end else begin : g_mux
-                always_comb w_rd_data = mem[r_rd_addr];
+                assign rd_data = mem[r_rd_addr];
             end
 
         end
@@ -187,10 +188,12 @@ module gaxi_fifo_sync #(
             end
 
             // Synchronous read (flop output)
+            logic [DATA_WIDTH-1:0] r_rd_data;
             `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                if (!axi_aresetn) w_rd_data <= '0;
-                else              w_rd_data <= mem[r_rd_addr];
+                if (!axi_aresetn) r_rd_data <= '0;
+                else              r_rd_data <= mem[r_rd_addr];
             )
+            assign rd_data = r_rd_data;
 
 
         end
@@ -205,13 +208,15 @@ module gaxi_fifo_sync #(
             end
 
             if (REGISTERED != 0) begin : g_flop
+                logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                    if (!axi_aresetn) w_rd_data <= '0;
-                    else              w_rd_data <= mem[r_rd_addr];
+                    if (!axi_aresetn) r_rd_data <= '0;
+                    else              r_rd_data <= mem[r_rd_addr];
                 )
+                assign rd_data = r_rd_data;
 
             end else begin : g_mux
-                always_comb w_rd_data = mem[r_rd_addr];
+                assign rd_data = mem[r_rd_addr];
             end
 
             // Note: Waveform flattening removed for AUTO style to avoid Verilator
@@ -219,8 +224,9 @@ module gaxi_fifo_sync #(
             // Use indexed array viewing in waveform viewer instead.
         end
     endgenerate
-
-    assign rd_data = w_rd_data;
+    // rd_data is driven inside the elaborated MEM_STYLE branch (flop path
+    // through r_rd_data, mux path straight off the array) - one shared
+    // intermediate could not be named truthfully across REGISTERED modes.
 
     // ---------------------------------------------------------------------
     // Overflow/underflow error checking

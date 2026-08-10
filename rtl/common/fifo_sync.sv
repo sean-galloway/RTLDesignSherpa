@@ -333,7 +333,6 @@ module fifo_sync
     logic [AW:0]   w_wr_ptr_bin_next, w_rd_ptr_bin_next;
 
     // Common read-data wire driven inside the active MEM_STYLE branch
-    logic [DW-1:0] w_rd_data;
 
     // -----------------------------------------------------------------------
     // Write/Read pointers
@@ -413,13 +412,15 @@ module fifo_sync
 
             // Read path
             if (REGISTERED != 0) begin : g_flop
+                logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(clk, rst_n,
-                    if (!rst_n) w_rd_data <= '0;
-                    else        w_rd_data <= mem[r_rd_addr];
+                    if (!rst_n) r_rd_data <= '0;
+                    else        r_rd_data <= mem[r_rd_addr];
                 )
+                assign rd_data = r_rd_data;
 
             end else begin : g_mux
-                always_comb w_rd_data = mem[r_rd_addr];
+                assign rd_data = mem[r_rd_addr];
             end
 
         end
@@ -440,13 +441,15 @@ module fifo_sync
 
             // Read path
             if (REGISTERED != 0) begin : g_flop
+                logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(clk, rst_n,
-                    if (!rst_n) w_rd_data <= '0;
-                    else        w_rd_data <= mem[r_rd_addr];
+                    if (!rst_n) r_rd_data <= '0;
+                    else        r_rd_data <= mem[r_rd_addr];
                 )
+                assign rd_data = r_rd_data;
 
             end else begin : g_mux
-                always_comb w_rd_data = mem[r_rd_addr];
+                assign rd_data = mem[r_rd_addr];
             end
 
         end
@@ -463,21 +466,24 @@ module fifo_sync
 
             // Read path
             if (REGISTERED != 0) begin : g_flop
+                logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(clk, rst_n,
-                    if (!rst_n) w_rd_data <= '0;
-                    else        w_rd_data <= mem[r_rd_addr];
+                    if (!rst_n) r_rd_data <= '0;
+                    else        r_rd_data <= mem[r_rd_addr];
                 )
+                assign rd_data = r_rd_data;
 
             end else begin : g_mux
-                always_comb w_rd_data = mem[r_rd_addr];
+                assign rd_data = mem[r_rd_addr];
             end
 
         end
     endgenerate
 
-    // -----------------------------------------------------------------------
-    // Output connect (common)
-    // -----------------------------------------------------------------------
-    assign rd_data = w_rd_data;
+    // rd_data is driven inside the elaborated MEM_STYLE branch: the flop
+    // path through r_rd_data (a register, and named as one), the mux path
+    // straight off the array. One shared intermediate could not be named
+    // truthfully - its storage differs per REGISTERED - and this module was
+    // the handbook's live example of a flop wearing a wire's name.
 
 endmodule : fifo_sync

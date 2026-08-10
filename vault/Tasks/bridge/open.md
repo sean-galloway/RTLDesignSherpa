@@ -127,6 +127,28 @@ reads" rule keeps routing unambiguous once tracked.
   The filter is a real little FSM (must consume W beats) — build it
   as reusable IP (rtl/amba/axi5/axi5_atomic_filter.sv) with its own
   val tests before wiring it into the generator.
+  *Filter IP DONE (2026-08-10):* control-plane-only design (handshakes
+  + atop + id + wlast; payload routes around it): route queue pushed
+  per AW / popped at WLAST steers or sinks W bursts, response queue
+  drains local DECERRs when downstream B is idle. W stalls until its
+  AW is queued (deadlock-free — AW never depends on W). Documented
+  limitation: a local DECERR can pass a same-ID in-flight write's B,
+  which the AXI atomic ID rule already forbids a compliant master
+  from observing. val/amba/test_axi5_atomic_filter.py green (mixed
+  forward/swallow traffic, multi-beat discard, DECERR ids/order);
+  -Wall lint + decl-order + registry-audit clean. *A5-3a DONE
+  (2026-08-10, commit be2fd6bc):* aw.atop[6] in the sideband table +
+  external surface; 'atomic' connectivity-gated (validator check
+  generalized over gated features); master adapter inserts the
+  filter pref_axi_* -> fub_axi_* on atomic-enabled wr paths
+  (handshakes + B payload through the filter, the rest passes
+  around); filelist emission -f's the filter closure. Fixture
+  bridge_1x2_wr_axi5a (+_mon) sims 2/2 green; hand-written atomics
+  test: plain/AtomicStore forward with atop intact at the slave AW
+  and land in memory, AtomicLoad/Swap DECERR locally with no slave
+  AW and no memory write; 52 generator unit tests; 23/23 bridges
+  regenerate, pre-existing byte-identical. A5-3 remaining: only
+  A5-3b (read-return atomics), deferred until a consumer exists.
 - *A5-3b — read-return atomics:* the shared per-ID tracking block
   above. Design that block standalone first; defer until a concrete
   consumer exists (nothing in-tree issues AtomicLoad today, and the
@@ -144,7 +166,19 @@ reads" rule keeps routing unambiguous once tracked.
   apb4 shim; PAUSER/PWUSER tied '0 out, PWAKEUP/PRUSER/PBUSER
   terminated in; mirrors apb5_slave.sv pin-for-pin) + its closure
   filelist; lint/audit/decl-order clean.
-  *Step 2 implementation map (surveyed, not yet coded):* treat apb5
+  *Step 2 DONE (2026-08-10):* protocol="apb5" through the whole
+  generator stack per the map below — all 14 protocol-test sites,
+  the Axi4ToApbShim component's protocol switch, bridge-top +
+  adapter + instance external surfaces (5 extra pins), validator/
+  config whitelist, filelist emission, and the TB template's three
+  apb branches (APB4 BFM drives the APB5 port: same transfer
+  protocol, extras terminate in the shim). Fixture
+  bridge_1x2_rw_apb5 (+_mon) in the manifest; sims 2/2 green;
+  50 generator unit tests; 22/22 bridges regenerate — RTL
+  byte-identical for all 21 pre-existing (TBs picked up one
+  semantically-neutral template line). A5-3c CLOSED; next is A5-3a
+  (store-class atomics + the axi5_atomic_filter IP).
+  *Step 2 implementation map (as executed):* treat apb5
   as "the apb branch + 5 extra external pins" everywhere:
   (a) Axi4ToApbShim component gets protocol='apb4'|'apb5' (module
   name swap + connect_apb4_master emits the 5 extra pairs);

@@ -94,7 +94,6 @@ module gaxi_fifo_async #(
     logic [AW:0] w_count;
 
     // Common read data; driven inside the selected memory branch
-    logic [DW-1:0] w_rd_data;
 
     /////////////////////////////////////////////////////////////////////////
     // write/read enables
@@ -306,13 +305,15 @@ module gaxi_fifo_async #(
 
             // Read port
             if (REGISTERED != 0) begin : g_flop
+                logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(axi_rd_aclk, axi_rd_aresetn,
-                    if (!axi_rd_aresetn) w_rd_data <= '0;
-                    else                 w_rd_data <= mem[r_rd_addr];
+                    if (!axi_rd_aresetn) r_rd_data <= '0;
+                    else                 r_rd_data <= mem[r_rd_addr];
                 )
+                assign rd_data = r_rd_data;
 
             end else begin : g_mux
-                always_comb w_rd_data = mem[r_rd_addr];
+                assign rd_data = mem[r_rd_addr];
             end
 
         end
@@ -332,10 +333,12 @@ module gaxi_fifo_async #(
             end
 
             // Synchronous read port (axi_rd_aclk) → infer true dual-port BRAM
+            logic [DATA_WIDTH-1:0] r_rd_data;
             `ALWAYS_FF_RST(axi_rd_aclk, axi_rd_aresetn,
-                if (!axi_rd_aresetn) w_rd_data <= '0;
-                else                 w_rd_data <= mem[r_rd_addr];
+                if (!axi_rd_aresetn) r_rd_data <= '0;
+                else                 r_rd_data <= mem[r_rd_addr];
             )
+            assign rd_data = r_rd_data;
 
 
         end
@@ -351,20 +354,24 @@ module gaxi_fifo_async #(
             end
 
             if (REGISTERED != 0) begin : g_flop
+                logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(axi_rd_aclk, axi_rd_aresetn,
-                    if (!axi_rd_aresetn) w_rd_data <= '0;
-                    else                 w_rd_data <= mem[r_rd_addr];
+                    if (!axi_rd_aresetn) r_rd_data <= '0;
+                    else                 r_rd_data <= mem[r_rd_addr];
                 )
+                assign rd_data = r_rd_data;
 
             end else begin : g_mux
-                always_comb w_rd_data = mem[r_rd_addr];
+                assign rd_data = mem[r_rd_addr];
             end
 
         end
     endgenerate
 
     // Common output connect
-    assign rd_data = w_rd_data;
+    // rd_data is driven inside the elaborated MEM_STYLE branch (flop path
+    // through r_rd_data, mux path straight off the array) - one shared
+    // intermediate could not be named truthfully across REGISTERED modes.
 
     /////////////////////////////////////////////////////////////////////////
     // Overflow/underflow error checking

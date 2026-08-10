@@ -522,6 +522,58 @@ class AdapterGenerator:
             lines.append("")
         return lines
 
+    def _generate_atomic_filter(self) -> List[str]:
+        """axi5_atomic_filter between the wr wrapper (pref_axi_*) and
+        the fabric-facing fub_axi_* namespace (A5-3a). Handshakes and
+        the B payload go THROUGH the filter; everything else is a
+        payload pass-through. Swallowed (read-return) atomics never
+        assert fub_axi_awvalid, so stale pass-through payload is inert.
+        btrace passes through untouched: a local DECERR response
+        carries whatever the mux holds, which the AXI atomic ID rule
+        keeps a compliant master from pairing with a traced write."""
+        lines = []
+        lines.append("    // ================================================================")
+        lines.append("    // axi5_atomic_filter: DECERR read-return atomics locally;")
+        lines.append("    // store-class atomics and plain writes pass through (A5-3a)")
+        lines.append("    // ================================================================")
+        for sig in ('awid', 'awaddr', 'awlen', 'awsize', 'awburst',
+                    'awlock', 'awcache', 'awprot',
+                    'wdata', 'wstrb', 'wlast'):
+            lines.append(f"    assign fub_axi_{sig} = pref_axi_{sig};")
+        for ch in ('aw', 'w'):
+            for _f, _w, _feat, base in self._sb_fields(ch, self.sb_own):
+                lines.append(f"    assign fub_axi_{base} = pref_axi_{base};")
+        for _f, _w, _feat, base in self._sb_fields('b', self.sb_own):
+            lines.append(f"    assign pref_axi_{base} = fub_axi_{base};")
+        lines.append("")
+        lines.append("    axi5_atomic_filter #(")
+        lines.append(f"        .AXI_ID_WIDTH({self.master.id_width})")
+        lines.append("    ) u_atomic_filter (")
+        lines.append("        .aclk(aclk),")
+        lines.append("        .aresetn(aresetn),")
+        lines.append("        .s_awvalid(pref_axi_awvalid),")
+        lines.append("        .s_awready(pref_axi_awready),")
+        lines.append("        .s_awid(pref_axi_awid),")
+        lines.append("        .s_awatop(pref_axi_awatop),")
+        lines.append("        .s_wvalid(pref_axi_wvalid),")
+        lines.append("        .s_wready(pref_axi_wready),")
+        lines.append("        .s_wlast(pref_axi_wlast),")
+        lines.append("        .s_bvalid(pref_axi_bvalid),")
+        lines.append("        .s_bready(pref_axi_bready),")
+        lines.append("        .s_bid(pref_axi_bid),")
+        lines.append("        .s_bresp(pref_axi_bresp),")
+        lines.append("        .m_awvalid(fub_axi_awvalid),")
+        lines.append("        .m_awready(fub_axi_awready),")
+        lines.append("        .m_wvalid(fub_axi_wvalid),")
+        lines.append("        .m_wready(fub_axi_wready),")
+        lines.append("        .m_bvalid(fub_axi_bvalid),")
+        lines.append("        .m_bready(fub_axi_bready),")
+        lines.append("        .m_bid(fub_axi_bid),")
+        lines.append("        .m_bresp(fub_axi_bresp)")
+        lines.append("    );")
+        lines.append("")
+        return lines
+
     def _generate_internal_signals(self) -> List[str]:
         """Generate internal signal declarations (fub_axi_*)."""
         lines = []
@@ -601,6 +653,38 @@ class AdapterGenerator:
         # AXI5 native-sideband fub wires (A5-2 slice 2)
         lines.extend(self._sb_wire_decls())
 
+        # Pre-filter (wrapper-side) wr signals when this master carries
+        # 'atomic' (A5-3a): the axi5_atomic_filter sits pref -> fub.
+        if 'atomic' in self.sb_own and self.master.channels in ("wr", "rw"):
+            id_w = self.master.id_width
+            dw = self.master.data_width
+            lines.append("    // Pre-filter wr signals (axi5_atomic_filter upstream side)")
+            lines.append(f"    logic [{id_w-1}:0]   pref_axi_awid;")
+            lines.append("    logic [31:0]  pref_axi_awaddr;")
+            lines.append("    logic [7:0]   pref_axi_awlen;")
+            lines.append("    logic [2:0]   pref_axi_awsize;")
+            lines.append("    logic [1:0]   pref_axi_awburst;")
+            lines.append("    logic         pref_axi_awlock;")
+            lines.append("    logic [3:0]   pref_axi_awcache;")
+            lines.append("    logic [2:0]   pref_axi_awprot;")
+            lines.append("    logic         pref_axi_awvalid;")
+            lines.append("    logic         pref_axi_awready;")
+            lines.append(f"    logic [{dw-1}:0]  pref_axi_wdata;")
+            lines.append(f"    logic [{dw//8-1}:0]   pref_axi_wstrb;")
+            lines.append("    logic         pref_axi_wlast;")
+            lines.append("    logic         pref_axi_wvalid;")
+            lines.append("    logic         pref_axi_wready;")
+            lines.append(f"    logic [{id_w-1}:0]   pref_axi_bid;")
+            lines.append("    logic [1:0]   pref_axi_bresp;")
+            lines.append("    logic         pref_axi_bvalid;")
+            lines.append("    logic         pref_axi_bready;")
+            for ch in ('aw', 'w', 'b'):
+                for _f, width, feat, base in self._sb_fields(ch, self.sb_own):
+                    decl = ("    logic         " if width == 1
+                            else f"    logic [{width-1}:0]  ")
+                    lines.append(f"{decl}pref_axi_{base};")
+            lines.append("")
+
         return lines
 
     def _generate_wrapper(self) -> List[str]:
@@ -665,9 +749,15 @@ class AdapterGenerator:
             )
             wrapper.connect_clocks_and_resets()
             # External side comes from the master's prefix (slave-of-
-            # external-master). Bridge-internal side uses fub_axi_*.
+            # external-master). Bridge-internal side uses fub_axi_*,
+            # EXCEPT when this master carries 'atomic': then the wr
+            # wrapper lands on pref_axi_* and the axi5_atomic_filter
+            # sits between pref and fub (A5-3a — read-return atomics
+            # must not reach a fabric that cannot route their R data).
             wrapper.connect_external(connector_prefix=signal_prefix)
-            wrapper.connect_bridge_internal(connector_prefix='fub_axi_')
+            wr_fub_prefix = ('pref_axi_' if 'atomic' in self.sb_own
+                             else 'fub_axi_')
+            wrapper.connect_bridge_internal(connector_prefix=wr_fub_prefix)
             wrapper.add_status(busy_connector='wrapper_wr_busy')
             if self.enable_monitoring:
                 wrapper.connect_monbus(
@@ -684,6 +774,8 @@ class AdapterGenerator:
             lines.append(f"    // Timing isolation wrapper ({wrapper_protocol}_slave_wr{'_mon' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")
             lines.extend(wrapper.generate_lines())
+            if 'atomic' in self.sb_own:
+                lines.extend(self._generate_atomic_filter())
 
         # Read wrapper
         if self.master.channels in ["rd", "rw"]:

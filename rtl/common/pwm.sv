@@ -286,14 +286,14 @@ module pwm #(
             state_t           r_state;
             logic [WIDTH-1:0] r_count;
             logic [WIDTH-1:0] r_repeat_value;
-            logic [WIDTH-1:0] local_duty;
-            logic [WIDTH-1:0] local_period;
-            logic [WIDTH-1:0] local_repeat;
+            logic [WIDTH-1:0] w_local_duty;
+            logic [WIDTH-1:0] w_local_period;
+            logic [WIDTH-1:0] w_local_repeat;
 
             // Extract per-channel parameters
-            assign local_duty = duty[EndIdx-:WIDTH];
-            assign local_period = period[EndIdx-:WIDTH];
-            assign local_repeat = repeat_count[EndIdx-:WIDTH];
+            assign w_local_duty = duty[EndIdx-:WIDTH];
+            assign w_local_period = period[EndIdx-:WIDTH];
+            assign w_local_repeat = repeat_count[EndIdx-:WIDTH];
 
             // Internal control signals
             logic w_period_complete;
@@ -315,16 +315,16 @@ module pwm #(
             assign w_start_edge = start[i] && !r_start_prev;
 
             // Period completion detection
-            assign w_period_complete = (r_count == local_period - 1) && (r_state == RUNNING);
+            assign w_period_complete = (r_count == w_local_period - 1) && (r_state == RUNNING);
 
-            // All repeats done detection. Compare against local_repeat-1: the
+            // All repeats done detection. Compare against w_local_repeat-1: the
             // check fires in the same cycle r_repeat_value increments at a
-            // period boundary, so ">= local_repeat" emitted local_repeat+1
+            // period boundary, so ">= w_local_repeat" emitted w_local_repeat+1
             // periods (off-by-one vs the docs and this module's own header
-            // waveform). The local_repeat==0 branch keeps the -1 from
+            // waveform). The w_local_repeat==0 branch keeps the -1 from
             // underflowing (0 = infinite/continuous).
-            assign w_all_repeats_done = (local_repeat == 0) ? 1'b0 :  // 0 means infinite/continuous
-                                        (r_repeat_value >= local_repeat - 1'b1);
+            assign w_all_repeats_done = (w_local_repeat == 0) ? 1'b0 :  // 0 means infinite/continuous
+                                        (r_repeat_value >= w_local_repeat - 1'b1);
 
             // State machine
             `ALWAYS_FF_RST(clk, rst_n,
@@ -335,7 +335,7 @@ module pwm #(
                 end else begin
                     case (r_state)
                         IDLE: begin
-                            if (w_start_edge && local_period > 0) begin
+                            if (w_start_edge && w_local_period > 0) begin
                                 r_state <= RUNNING;
                             end
                         end
@@ -433,15 +433,15 @@ module pwm #(
             always_comb begin
                 case (r_state)
                     RUNNING: begin
-                        if (local_duty == 0) begin
+                        if (w_local_duty == 0) begin
                             // 0% duty cycle
                             pwm_out[i] = 1'b0;
-                        end else if (local_duty >= local_period) begin
+                        end else if (w_local_duty >= w_local_period) begin
                             // 100% duty cycle (duty >= period)
                             pwm_out[i] = 1'b1;
                         end else begin
                             // Normal case: PWM high for first 'duty' cycles
-                            pwm_out[i] = (r_count < local_duty);
+                            pwm_out[i] = (r_count < w_local_duty);
                         end
                     end
 

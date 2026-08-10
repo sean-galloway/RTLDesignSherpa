@@ -693,7 +693,6 @@ module fifo_async #(
     logic [AW:0]   w_wr_ptr_bin_next, w_rd_ptr_bin_next;
 
     // Common read-data line; driven inside the active memory branch
-    logic [DW-1:0] w_rd_data;
 
     // -----------------------------------------------------------------------
     // Write/read pointer generation (bin+gray)
@@ -893,14 +892,16 @@ module fifo_async #(
             // Read port
             if (REGISTERED != 0) begin : g_flop
                 // Registered read (rd_clk)
+                logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(rd_clk, rd_rst_n,
-                    if (!rd_rst_n) w_rd_data <= '0;
-                    else           w_rd_data <= mem[r_rd_addr];
+                    if (!rd_rst_n) r_rd_data <= '0;
+                    else           r_rd_data <= mem[r_rd_addr];
                 )
+                assign rd_data = r_rd_data;
 
             end else begin : g_mux
                 // Combinational read (distributed/LUTRAM supports this)
-                always_comb w_rd_data = mem[r_rd_addr];
+                assign rd_data = mem[r_rd_addr];
             end
 
         end
@@ -920,10 +921,12 @@ module fifo_async #(
             end
 
             // Synchronous read port (rd_clk) → infer true dual-port BRAM
+            logic [DATA_WIDTH-1:0] r_rd_data;
             `ALWAYS_FF_RST(rd_clk, rd_rst_n,
-                if (!rd_rst_n) w_rd_data <= '0;
-                else           w_rd_data <= mem[r_rd_addr];
+                if (!rd_rst_n) r_rd_data <= '0;
+                else           r_rd_data <= mem[r_rd_addr];
             )
+            assign rd_data = r_rd_data;
 
 
         end
@@ -940,22 +943,23 @@ module fifo_async #(
 
             if (REGISTERED != 0) begin : g_flop
                 // Registered read (rd_clk)
+                logic [DATA_WIDTH-1:0] r_rd_data;
                 `ALWAYS_FF_RST(rd_clk, rd_rst_n,
-                    if (!rd_rst_n) w_rd_data <= '0;
-                    else           w_rd_data <= mem[r_rd_addr];
+                    if (!rd_rst_n) r_rd_data <= '0;
+                    else           r_rd_data <= mem[r_rd_addr];
                 )
+                assign rd_data = r_rd_data;
 
             end else begin : g_mux
                 // Combinational read (may infer LUTRAM)
-                always_comb w_rd_data = mem[r_rd_addr];
+                assign rd_data = mem[r_rd_addr];
             end
 
         end
     endgenerate
 
-    // -----------------------------------------------------------------------
-    // Output connect (common)
-    // -----------------------------------------------------------------------
-    assign rd_data = w_rd_data;
+    // rd_data is driven inside the elaborated MEM_STYLE branch (flop path
+    // through r_rd_data, mux path straight off the array) - one shared
+    // intermediate could not be named truthfully across REGISTERED modes.
 
 endmodule : fifo_async

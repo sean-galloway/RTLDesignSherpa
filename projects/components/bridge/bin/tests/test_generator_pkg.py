@@ -234,15 +234,30 @@ def test_invalid_channels_is_error_not_silent_downgrade(tmp_path):
 # ---------------------------------------------------------------------
 
 
-def test_axi5_atomic_feature_rejected(tmp_path):
-    """'atomic' needs R-channel response routing -- lands with A5-3."""
+def test_axi5_atomic_rejected_on_non_native_path(tmp_path):
+    """A5-3a: 'atomic' is connectivity-gated like poison — a master
+    whose connected slave is plain AXI4 is a config error."""
     toml, conn = _write_min_toml(
         tmp_path,
         slave_extra='channels = "rd"',
         master_extra='protocol = "axi5"\naxi5_features = ["atomic"]',
     )
-    with pytest.raises(ValidationError, match="A5-3"):
+    with pytest.raises(ValidationError, match="cannot carry it natively"):
         load_config(toml, conn)
+
+
+def test_axi5_atomic_accepted_native_both_ends(tmp_path):
+    """A5-3a: 'atomic' validates when every connected path is
+    AXI5-both-ends, atomic-enabled, and width-matched (store-class
+    rides natively; the boundary filter DECERRs read-return classes)."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        master_extra='protocol = "axi5"\naxi5_features = ["atomic"]',
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["atomic"]'),
+    )
+    cfg = load_config(toml, conn)
+    assert 'atomic' in cfg.masters[0].axi5_features
 
 
 @pytest.mark.parametrize("feat", ["mte", "chunking"])
@@ -386,14 +401,15 @@ def test_axi5_slave_sideband_features_accepted(tmp_path):
         "nsaid", "trace", "mpam", "mecid", "unique"]
 
 
-def test_axi5_slave_atomic_feature_rejected(tmp_path):
-    """'atomic' needs R-channel response routing -- lands with A5-3."""
+def test_axi5_slave_atomic_rejected_on_non_native_path(tmp_path):
+    """A5-3a: 'atomic' on a slave whose connected master is plain AXI4
+    is a config error (the master side cannot source it)."""
     toml, conn = _write_min_toml(
         tmp_path,
         slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
                      'axi5_features = ["atomic"]'),
     )
-    with pytest.raises(ValidationError, match="A5-3"):
+    with pytest.raises(ValidationError, match="cannot carry it natively"):
         load_config(toml, conn)
 
 

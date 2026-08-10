@@ -7,7 +7,7 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
 | [open.md](open.md) | 1 | accepted, not started |
-| [closed.md](closed.md) | 19 | done (kept for history) |
+| [closed.md](closed.md) | 20 | done (kept for history) |
 | [dropped.md](dropped.md) | 2 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%

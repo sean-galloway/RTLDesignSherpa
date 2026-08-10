@@ -1238,9 +1238,9 @@ class BridgeModuleGenerator:
         }
 
         # Check protocol and generate appropriate ports
-        if slave.protocol == 'apb':
+        if slave.protocol in ('apb', 'apb5'):
             # APB slave ports - use SignalNaming for consistency
-            lines.append(f"    // APB Slave: {slave.name}")
+            lines.append(f"    // {slave.protocol.upper()} Slave: {slave.name}")
 
             # Get all APB signals from SignalNaming
             # Pass prefix so bridge's APB slave ports honour the .toml
@@ -1253,6 +1253,17 @@ class BridgeModuleGenerator:
                 # Get complete signal declaration
                 declaration = sig_info.get_declaration(sig_name, width_values)
                 lines.append(f"    {declaration},")
+
+            if slave.protocol == 'apb5':
+                # APB5 sideband (A5-3c): requester-driven user signals
+                # out, completer-driven wakeup/user in (1-bit defaults,
+                # matching axi4_to_apb5_shim).
+                p = slave.prefix
+                lines.append(f"    output logic {p}PAUSER,")
+                lines.append(f"    output logic {p}PWUSER,")
+                lines.append(f"    input  logic {p}PWAKEUP,")
+                lines.append(f"    input  logic {p}PRUSER,")
+                lines.append(f"    input  logic {p}PBUSER,")
 
             # Remove trailing comma from last signal
             if lines and lines[-1].endswith(','):

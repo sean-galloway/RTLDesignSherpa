@@ -830,6 +830,17 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr.f")
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd.f")
 
+    # Atomic-enabled AXI5 masters (A5-3a): the master adapter inserts
+    # the axi5_atomic_filter between the boundary wrapper and the fabric.
+    has_axi5_atomic = any(
+        m.protocol.lower() == 'axi5'
+        and 'atomic' in (getattr(m, 'axi5_features', None) or [])
+        for m in config.masters)
+    if has_axi5_atomic:
+        filelist_lines.append("")
+        filelist_lines.append("# AXI5 atomic filter (read-return atomics DECERR locally, A5-3a)")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/axi5_atomic_filter.f")
+
     # AXI5 slave ports (A5-2 slice 1): the slave adapter instantiates
     # the axi5_master_* boundary wrappers instead of axi4_master_*.
     # Same closure story as the axi5_slave_* wrappers above.
@@ -877,6 +888,16 @@ def _emit_bridge_variant(
         filelist_lines.append("# shim's newer gaxi_fifo_async CDC dependency went missing.")
         filelist_lines.append(
             "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb4_shim.f")
+
+    # APB5 slaves (A5-3c): the axi4_to_apb5_shim wrapper. Its closure
+    # filelist -f's the apb4 shim's closure, so this replaces (not
+    # augments) the apb4 entry when only apb5 slaves are present.
+    has_apb5 = any(slave.protocol.lower() == 'apb5' for slave in config.slaves)
+    if has_apb5:
+        filelist_lines.append("")
+        filelist_lines.append("# AXI4-to-APB5 converter shim (protocol=apb5 slaves)")
+        filelist_lines.append(
+            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb5_shim.f")
 
     # Check if any slaves use AXI4-Lite protocol
     has_axil = any(slave.protocol.lower() == 'axil' for slave in config.slaves)

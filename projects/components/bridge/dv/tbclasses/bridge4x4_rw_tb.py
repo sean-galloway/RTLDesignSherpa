@@ -265,7 +265,7 @@ class Bridge4x4RwTB(TBBase):
             master_width = self.master_data_width.get(master_idx, self.data_width)
             byte_count = master_width // 8
         offset = addr - base
-        if proto == 'apb':
+        if proto in ('apb', 'apb5'):
             apb = self.slave_apb[slave_idx]
             data_bytes = apb.mem.read(offset, byte_count)
         else:

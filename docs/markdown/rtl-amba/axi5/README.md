@@ -108,6 +108,7 @@ Consult the per-module pages for the exact signal set each module carries.
 |--------|-------------|---------------|--------|
 | **axi5_master_rd** | AXI5 read master with skid buffers and burst support | [axi5_master_rd.md](axi5_master_rd.md) | Documented |
 | **axi5_master_rd_cg** | Clock-gated AXI5 read master | [axi5_master_rd_cg.md](axi5_master_rd_cg.md) | Documented |
+| **axi5_atomic_filter** | Read-return atomic termination (store-class passes, load-class DECERRs) | [axi5_atomic_filter.md](axi5_atomic_filter.md) | Documented |
 | **axi5_master_wr** | AXI5 write master with address/data coordination | [axi5_master_wr.md](axi5_master_wr.md) | Documented |
 | **axi5_master_wr_cg** | Clock-gated AXI5 write master | [axi5_master_wr_cg.md](axi5_master_wr_cg.md) | Documented |
 

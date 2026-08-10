@@ -94,7 +94,7 @@ class SlaveAdapterGenerator:
             # slave, sideband features terminated/defaulted at the
             # wrapper.
             lines.extend(self._generate_axi4_timing_wrapper())
-        elif self.slave.protocol == 'apb':
+        elif self.slave.protocol in ('apb', 'apb5'):
             lines.extend(self._generate_apb_converter())
         elif self.slave.protocol == 'axil':
             # Real AXI4-to-AXI4-Lite conversion at the slave boundary.
@@ -327,7 +327,7 @@ class SlaveAdapterGenerator:
 
         if self.slave.protocol in ('axi4', 'axi5'):
             lines.extend(self._generate_axi4_external_ports())
-        elif self.slave.protocol == 'apb':
+        elif self.slave.protocol in ('apb', 'apb5'):
             lines.extend(self._generate_apb_external_ports())
         elif self.slave.protocol == 'axil':
             # Real AXI4-Lite external ports (no id/len/size/burst/last/user).
@@ -436,7 +436,18 @@ class SlaveAdapterGenerator:
         lines.append(f"    output logic [2:0]            {prefix}PPROT,")
         lines.append(f"    input  logic [{data_width-1}:0] {prefix}PRDATA,")
         lines.append(f"    input  logic                  {prefix}PSLVERR,")
-        lines.append(f"    input  logic                  {prefix}PREADY")
+        if self.slave.protocol == 'apb5':
+            # APB5 sideband additions (A5-3c) -- requester-driven user
+            # signals out, completer-driven wakeup/user signals in.
+            # Widths follow the axi4_to_apb5_shim defaults (1 bit).
+            lines.append(f"    input  logic                  {prefix}PREADY,")
+            lines.append(f"    output logic                  {prefix}PAUSER,")
+            lines.append(f"    output logic                  {prefix}PWUSER,")
+            lines.append(f"    input  logic                  {prefix}PWAKEUP,")
+            lines.append(f"    input  logic                  {prefix}PRUSER,")
+            lines.append(f"    input  logic                  {prefix}PBUSER")
+        else:
+            lines.append(f"    input  logic                  {prefix}PREADY")
 
         return lines
 
@@ -504,7 +515,7 @@ class SlaveAdapterGenerator:
 
         # Add protocol converter intermediate signals for APB/AXIL
         # These allow FIFO tracking to monitor converter output instead of crossbar input
-        if self.slave.protocol in ['apb', 'axil']:
+        if self.slave.protocol in ['apb', 'apb5', 'axil']:
             lines.append("    // Protocol converter intermediate signals")
             lines.append("    // (FIFO tracking monitors these instead of crossbar signals)")
             if self.has_write:
@@ -631,7 +642,7 @@ class SlaveAdapterGenerator:
         #         `converter_bready` off the shim's AXI4 (s_axi) side
         #         so the FIFO pops the moment the shim actually
         #         produces a response, not when external completes.
-        if self.slave.protocol in ('apb', 'axil'):
+        if self.slave.protocol in ('apb', 'apb5', 'axil'):
             label = self.slave.protocol.upper()
             pop_condition = "converter_bvalid && converter_bready"
             lines.append(f"    // Write Channel FIFO (In-Order) - {label} Protocol")
@@ -721,7 +732,7 @@ class SlaveAdapterGenerator:
         # shims with their own latency; tracking the shim's AXI4
         # (s_axi) output via converter_rvalid keeps the FIFO in
         # lockstep with the actual response.
-        if self.slave.protocol in ('apb', 'axil'):
+        if self.slave.protocol in ('apb', 'apb5', 'axil'):
             label = self.slave.protocol.upper()
             pop_condition = "converter_rvalid && converter_rready && converter_rlast"
             lines.append(f"    // Read Channel FIFO (In-Order) - {label} Protocol")
@@ -934,6 +945,7 @@ class SlaveAdapterGenerator:
 
         shim = Axi4ToApbShim(
             instance_name=f"u_{self.slave.name}_apb_converter",
+            protocol=('apb5' if self.slave.protocol == 'apb5' else 'apb4'),
             id_width=self.id_width,
             addr_width=self.slave.addr_width,
             axi_data_width=self.slave.data_width,

@@ -67,7 +67,7 @@ class SlaveAdapterInstance:
 
     def __init__(self, slave_name: str, slave_prefix: str, protocol: str,
                  has_write: bool, has_read: bool, axi5_features=None):
-        if protocol not in ('axi4', 'axi5', 'apb', 'axil'):
+        if protocol not in ('axi4', 'axi5', 'apb', 'apb5', 'axil'):
             raise ValueError(f"unsupported protocol: {protocol!r}")
         if not (has_write or has_read):
             raise ValueError("adapter must carry at least one channel")
@@ -170,11 +170,17 @@ class SlaveAdapterInstance:
             self._sections.append((
                 f"External AXI5 interface ({self.slave_prefix}*)", pairs))
             return
-        if self.protocol == 'apb':
+        if self.protocol in ('apb', 'apb5'):
+            sigs = list(_APB_PORTS)
+            if self.protocol == 'apb5':
+                # APB5 sideband (A5-3c): matches the adapter module's
+                # _generate_apb_external_ports declaration order.
+                sigs += ['PAUSER', 'PWUSER', 'PWAKEUP', 'PRUSER', 'PBUSER']
             pairs = [(f'{self.slave_prefix}{sig}', f'{self.slave_prefix}{sig}')
-                     for sig in _APB_PORTS]
+                     for sig in sigs]
             self._sections.append((
-                f"External APB interface ({self.slave_prefix}*)", pairs))
+                f"External {self.protocol.upper()} interface "
+                f"({self.slave_prefix}*)", pairs))
         elif self.protocol == 'axil':
             pairs: List[tuple] = []
             if self.has_write:

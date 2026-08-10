@@ -57,7 +57,7 @@ module shifter_beat_pack #(
     parameter int MAX_BEAT_BITS  = MAX_BEAT_BYTES * 8,
     parameter int STORAGE_BITS   = DEPTH_CHUNKS * CHUNK_BITS,
     parameter int COUNT_BITS     = $clog2(STORAGE_BITS + 1),
-    // Index width for r_data / v_data part-selects. r_count uses one
+    // Index width for r_data / w_v_data part-selects. r_count uses one
     // extra bit so it can represent the "full" value (STORAGE_BITS),
     // but the part-select's base only needs to address 0..STORAGE_BITS-1.
     parameter int IDX_BITS       = $clog2(STORAGE_BITS)
@@ -132,7 +132,7 @@ module shifter_beat_pack #(
     //     (r_count >= COUNT_BITS'(w_beat_bits))
     // and a runtime cfg_beat_bytes_m1 encoding a beat wider than
     // 2**COUNT_BITS-1 truncated to 0 -- pop_valid degenerated to
-    // (r_count != 0), the pop shifted v_data by the true (huge) width and
+    // (r_count != 0), the pop shifted w_v_data by the true (huge) width and
     // subtracted 0 from the count, so the packer asserted pop_valid forever
     // against corrupted accounting. Silent data corruption, where a stall
     // would have been obvious. Widening the comparison turns that misuse into
@@ -158,29 +158,29 @@ module shifter_beat_pack #(
     // Next-state — pop first, push second. Single NBA at the end
     // eliminates any internal same-cycle race.
     // ---------------------------------------------------------------
-    logic [STORAGE_BITS-1:0] v_data;
-    logic [COUNT_BITS-1:0]   v_count;
+    logic [STORAGE_BITS-1:0] w_v_data;
+    logic [COUNT_BITS-1:0]   w_v_count;
 
     always_comb begin
-        v_data  = r_data;
-        v_count = r_count;
+        w_v_data  = r_data;
+        w_v_count = r_count;
 
         // 1. Pop — drain the low w_beat_bits, shift storage down.
         if (pop_valid && pop_ready) begin
-            v_data  = v_data >> w_beat_bits;
+            w_v_data  = w_v_data >> w_beat_bits;
             // Safe by construction now: the pop only fires when the wide
             // compare above passed, so w_beat_bits <= r_count <=
             // 2**COUNT_BITS-1 and this cast is exact.
-            v_count = v_count - COUNT_BITS'(w_beat_bits);
+            w_v_count = w_v_count - COUNT_BITS'(w_beat_bits);
         end
 
-        // 2. Push — land the new chunk at [v_count +: CHUNK_BITS].
-        //    v_count here is the POST-pop occupancy, so the push
+        // 2. Push — land the new chunk at [w_v_count +: CHUNK_BITS].
+        //    w_v_count here is the POST-pop occupancy, so the push
         //    lands right above the still-valid bits, whether or not
         //    a pop fired this cycle.
         if (push_valid && push_ready) begin
-            v_data[v_count[IDX_BITS-1:0] +: CHUNK_BITS] = push_data;
-            v_count = v_count + COUNT_BITS'(CHUNK_BITS);
+            w_v_data[w_v_count[IDX_BITS-1:0] +: CHUNK_BITS] = push_data;
+            w_v_count = w_v_count + COUNT_BITS'(CHUNK_BITS);
         end
     end
 
@@ -189,8 +189,8 @@ module shifter_beat_pack #(
             r_data  <= '0;
             r_count <= '0;
         end else begin
-            r_data  <= v_data;
-            r_count <= v_count;
+            r_data  <= w_v_data;
+            r_count <= w_v_count;
         end
     end)
 

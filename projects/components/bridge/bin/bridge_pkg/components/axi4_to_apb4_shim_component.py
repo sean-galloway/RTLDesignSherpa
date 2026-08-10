@@ -55,6 +55,10 @@ class Axi4ToApbShim:
         apb_data_width: int,
         has_write: bool,
         has_read: bool,
+        # protocol -- 'apb4' (default) instantiates axi4_to_apb4_shim;
+        # 'apb5' swaps in axi4_to_apb5_shim (same protocol engine, plus
+        # the APB5 sideband pins wired by connect_apb4_master).
+        protocol: str = 'apb4',
         depth_aw: int = 2,
         depth_w: int = 4,
         depth_b: int = 2,
@@ -81,7 +85,11 @@ class Axi4ToApbShim:
         self.has_write = has_write
         self.has_read = has_read
 
-        self.module = Module(module_name='axi4_to_apb4_shim',
+        if protocol not in ('apb4', 'apb5'):
+            raise ValueError(
+                f"protocol must be 'apb4' or 'apb5', got {protocol!r}")
+        self.protocol = protocol
+        self.module = Module(module_name=f'axi4_to_{protocol}_shim',
                              instance_name=instance_name)
         param_str = (
             f"parameter int DEPTH_AW         = {depth_aw}, "
@@ -264,6 +272,16 @@ class Axi4ToApbShim:
             ('m_apb_PSLVERR', f'{prefix}PSLVERR'),
             ('m_apb_PREADY', f'{prefix}PREADY'),
         ]
+        if self.protocol == 'apb5':
+            # APB5 sideband (A5-3c) -- same declaration order as the
+            # axi4_to_apb5_shim port list.
+            pairs += [
+                ('m_apb_PAUSER', f'{prefix}PAUSER'),
+                ('m_apb_PWUSER', f'{prefix}PWUSER'),
+                ('m_apb_PWAKEUP', f'{prefix}PWAKEUP'),
+                ('m_apb_PRUSER', f'{prefix}PRUSER'),
+                ('m_apb_PBUSER', f'{prefix}PBUSER'),
+            ]
         self._sections.append(("APB master interface (to external slave)", pairs))
 
     # --- formatting ----------------------------------------------------
@@ -279,7 +297,7 @@ class Axi4ToApbShim:
             raise RuntimeError("Axi4ToApbShim: nothing to instantiate")
 
         lines: List[str] = []
-        lines.append("    axi4_to_apb4_shim #(")
+        lines.append(f"    axi4_to_{self.protocol}_shim #(")
         # Parameter override list for the instantiation -- comes from
         # Module.params.create_param_instance() which emits the
         # `.NAME(VALUE)` form (NOT `parameter int NAME = VALUE`).

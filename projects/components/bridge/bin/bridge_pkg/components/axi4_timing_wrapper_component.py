@@ -116,6 +116,7 @@ AXI5_SIDEBAND_EXT_SIGNALS = {
         ('awmpam',   11, 'mpam',   True),
         ('awmecid',  16, 'mecid',  True),
         ('awunique', 1,  'unique', True),
+        ('awatop',   6,  'atomic', True),
     ),
     'w': (
         ('wpoison', 1, 'poison', True),

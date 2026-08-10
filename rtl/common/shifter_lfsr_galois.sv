@@ -153,7 +153,7 @@ module shifter_lfsr_galois #(
     logic [WIDTH-1:0]  r_lfsr;
     logic [TIW-1:0]    w_tap_positions [TAP_COUNT];  // verilog_lint: waive unpacked-dimensions-range-ordering
     logic              w_feedback;
-    logic [WIDTH-1:0]  next_lfsr;
+    logic [WIDTH-1:0]  w_next_lfsr;
 
     ////////////////////////////////////////////////////////////////////////////
     // Split concatenated tap positions into separate groups for each tap
@@ -172,7 +172,7 @@ module shifter_lfsr_galois #(
     // Calculate next LFSR state with proper Galois feedback
     always_comb begin
         // Start with right shift (include 0 in MSB)
-        next_lfsr = {1'b0, r_lfsr[WIDTH-1:1]};
+        w_next_lfsr = {1'b0, r_lfsr[WIDTH-1:1]};
 
         // Apply Galois feedback taps if LSB is 1
         if (w_feedback) begin
@@ -180,7 +180,7 @@ module shifter_lfsr_galois #(
                 /* verilator lint_off WIDTHEXPAND */
                 if (w_tap_positions[j] > 0 && w_tap_positions[j] <= WIDTH) begin
                     // Apply XOR to the tap positions
-                    next_lfsr[w_tap_positions[j]-1] = next_lfsr[w_tap_positions[j]-1] ^ 1'b1;
+                    w_next_lfsr[w_tap_positions[j]-1] = w_next_lfsr[w_tap_positions[j]-1] ^ 1'b1;
                 /* verilator lint_on WIDTHEXPAND */
                 end
             end
@@ -197,7 +197,7 @@ module shifter_lfsr_galois #(
                 r_lfsr <= seed_data;
             end else begin
                 // Update with the next state calculated in combinational logic
-                r_lfsr <= next_lfsr;
+                r_lfsr <= w_next_lfsr;
             end
         end
     )

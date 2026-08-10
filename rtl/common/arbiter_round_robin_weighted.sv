@@ -305,7 +305,14 @@
 module arbiter_round_robin_weighted #(
     parameter int MAX_LEVELS = 16,
     parameter int CLIENTS = 4,
-    parameter int WAIT_GNT_ACK = 0
+    parameter int WAIT_GNT_ACK = 0,
+    // Derived - do not override (declared here so the port list can use
+    // them; strict front ends reject body localparams in port ranges)
+    parameter int MAX_LEVELS_WIDTH = $clog2(MAX_LEVELS),
+    parameter int N = $clog2(CLIENTS),
+    parameter int C = CLIENTS,
+    parameter int MTW = MAX_LEVELS_WIDTH,
+    parameter int CXMTW = CLIENTS * MAX_LEVELS_WIDTH
 ) (
     input  logic              clk,
     input  logic              rst_n,
@@ -321,14 +328,8 @@ module arbiter_round_robin_weighted #(
 );
 
     // =======================================================================
-    // Derived Parameters (computed from parameters)
-    // =======================================================================
-    localparam int MAX_LEVELS_WIDTH = $clog2(MAX_LEVELS);  // Credit counter width
-    localparam int N = $clog2(CLIENTS);                     // Client ID width
-    localparam int C = CLIENTS;                             // Convenience alias for port widths
-    localparam int MTW = MAX_LEVELS_WIDTH;                  // Convenience alias for weight width
-    localparam int CXMTW = CLIENTS * MAX_LEVELS_WIDTH;      // Total packed weight array width
-
+    // Derived Parameters live in the parameter list - the port declarations
+    // need them (strict front ends reject body localparams in port ranges)
     // =======================================================================
     // Local Parameters for Magic Numbers
     // =======================================================================
@@ -435,7 +436,7 @@ module arbiter_round_robin_weighted #(
     // Pre-computed Helper Signals (Optimizations)
     // =======================================================================
 
-    logic [MTW-1:0] client_weight [C];           // Per-client weights (for easier access)
+    logic [MTW-1:0] w_client_weight [C];           // Per-client weights (for easier access)
     logic           w_normal_operation;          // Normal operation state
     logic [C-1:0]   w_valid_clients;             // Clients with non-zero weights
     logic [C-1:0]   w_invalid_clients;           // Clients with zero weights
@@ -444,9 +445,9 @@ module arbiter_round_robin_weighted #(
     // Extract client weights for easier access
     generate
         for (genvar j = 0; j < CLIENTS; j++) begin : gen_weights
-            assign client_weight[j] = r_safe_max_thresh[(j+1)*MTW-1 -: MTW];
-            assign w_valid_clients[j] = (client_weight[j] > 0);
-            assign w_invalid_clients[j] = (client_weight[j] == 0);
+            assign w_client_weight[j] = r_safe_max_thresh[(j+1)*MTW-1 -: MTW];
+            assign w_valid_clients[j] = (w_client_weight[j] > 0);
+            assign w_invalid_clients[j] = (w_client_weight[j] == 0);
         end
     endgenerate
 
@@ -489,7 +490,7 @@ module arbiter_round_robin_weighted #(
                     WEIGHT_IDLE: begin
                         if (w_global_replenish) begin
                             // Global replenish - reload all clients with their weights
-                            w_credit_counter[i] = client_weight[i];
+                            w_credit_counter[i] = w_client_weight[i];
                         end else if (w_grant_completed[i] && r_credit_counter[i] > 0) begin
                             // Grant completed for this client - decrement credit
                             w_credit_counter[i] = r_credit_counter[i] - MTW'(1);
@@ -498,8 +499,8 @@ module arbiter_round_robin_weighted #(
 
                     WEIGHT_STABILIZE: begin
                         // Reset credits to new weights during weight update
-                        if (client_weight[i] > 0) begin
-                            w_credit_counter[i] = client_weight[i];  // Set to new weight
+                        if (w_client_weight[i] > 0) begin
+                            w_credit_counter[i] = w_client_weight[i];  // Set to new weight
                         end else begin
                             w_credit_counter[i] = MTW'(0);  // Disable client
                         end
@@ -528,12 +529,12 @@ module arbiter_round_robin_weighted #(
 
             // Credit availability - has remaining credits AND weight > 0 AND normal operation
             assign w_has_crd[i] = (r_credit_counter[i] > 0) &&
-                                    (client_weight[i] > 0) &&
+                                    (w_client_weight[i] > 0) &&
                                     (w_normal_operation);
 
             // Per-client credit state detection
-            assign w_has_one_credit[i] = (r_credit_counter[i] == MTW'(1)) && (client_weight[i] > 0);
-            assign w_has_any_credits[i] = (r_credit_counter[i] > MTW'(0)) && (client_weight[i] > 0);
+            assign w_has_one_credit[i] = (r_credit_counter[i] == MTW'(1)) && (w_client_weight[i] > 0);
+            assign w_has_any_credits[i] = (r_credit_counter[i] > MTW'(0)) && (w_client_weight[i] > 0);
 
             // Simple register - just assigns the combinational value
             `ALWAYS_FF_RST(clk, rst_n,
@@ -603,7 +604,7 @@ module arbiter_round_robin_weighted #(
             // Clients eligible for grants: requesting AND (has credits OR global replenish)
             // assign w_requesting_eligible[j] = w_req_post[j] &&
             //                                 ((w_has_crd[j]) ||
-            //                                     (r_global_replenish && client_weight[j] > 0));
+            //                                     (r_global_replenish && w_client_weight[j] > 0));
             assign w_requesting_eligible[j] = w_req_post[j] &&
                                                 ((w_has_crd[j]) ||
                                                     (w_global_replenish && w_valid_clients[j]));
