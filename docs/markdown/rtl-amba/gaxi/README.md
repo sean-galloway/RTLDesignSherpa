@@ -63,6 +63,12 @@ The GAXI subsystem provides a lightweight valid/ready handshake protocol for str
 | **gaxi_fifo_async** | Asynchronous FIFO for clock domain crossing | [gaxi_fifo_async.md](../../rtl-cdc/gaxi_fifo_async.md) | ✅ Documented |
 | **gaxi_drop_fifo_sync** | FIFO with drop-by-count and drop-all capability | [gaxi_drop_fifo_sync.md](gaxi_drop_fifo_sync.md) | ✅ Documented |
 
+### Register Slices (Timing Isolation)
+
+| Module | Description | Documentation | Status |
+|--------|-------------|---------------|--------|
+| **gaxi_regslice** | Single-entry registered slice for breaking timing paths | [gaxi_regslice.md](gaxi_regslice.md) | ✅ Documented |
+
 ### Test-Code Multi-Instance Helpers
 
 `rtl/amba/testcode/` holds thin multi-instance wrappers used by the DV harnesses
