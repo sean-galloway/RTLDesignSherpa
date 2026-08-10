@@ -122,8 +122,19 @@ async def axi4_master_rd_mon_cfg_test(dut):
         # Phase 2: cfg_timeout_cycles -> per-phase tick-count mapping.
         # The mapping net w_timeout_cnt did not exist pre-fix, and the
         # base's cnt inputs were hardwired 15 regardless of the port.
+        #
+        # UPDATED: this table used to assert (16 -> 15) and (1000 -> 15),
+        # i.e. it encoded the 4-bit SATURATION as correct behaviour. It was
+        # not: cfg_timeout_cycles counts microseconds off the 1 us
+        # frequency-invariant tick, and squashing it to 4 bits collapsed the
+        # whole range onto 1..15 us -- so a host asking for 50 and one asking
+        # for 100000 got identical hardware, and no timeout could be tuned.
+        # The full 16 bits now reach the comparator (65535 us ~= 65 ms).
+        # 0 still means "effectively never" rather than "immediately", so an
+        # unconfigured register does not fire a timeout on every transaction.
         # --------------------------------------------------------------
-        mapping = [(0, 15), (1, 1), (5, 5), (15, 15), (16, 15), (1000, 15)]
+        mapping = [(0, 0xFFFF), (1, 1), (5, 5), (15, 15), (16, 16),
+                   (1000, 1000), (0xFFFF, 0xFFFF)]
         for cycles, expect in mapping:
             dut.cfg_timeout_cycles.value = cycles
             await tb.base_tb.wait_clocks('aclk', 1)

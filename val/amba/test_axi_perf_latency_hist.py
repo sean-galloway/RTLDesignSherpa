@@ -282,6 +282,9 @@ def test_axi_perf_latency_hist(request, is_read):
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_LEVEL': test_level,
         'IS_READ': str(is_read),
+        # Mirrored from `parameters` so the overflow test knows how many
+        # timestamp slots the DUT was actually built with, rather than assuming.
+        'MAX_OUTSTANDING': parameters['MAX_OUTSTANDING'],
     }
 
     run(
@@ -296,3 +299,136 @@ def test_axi_perf_latency_hist(request, is_read):
         waves=bool(int(os.environ.get('WAVES', '0'))),
         compile_args=['-Wno-TIMESCALEMOD', '-Wno-WIDTHEXPAND', '-Wno-WIDTHTRUNC'],
     )
+
+
+# =============================================================================
+# The two ways this module loses samples SILENTLY.
+#
+# Both were found while chasing an observer-vs-in-core mismatch of
+# "observer 4096 vs in-core 3073" -- a latency-histogram TOTAL, i.e. a burst
+# count. Neither mechanism reports anything: no error, no flag, and the totals
+# themselves look like a perfectly plausible smaller number. That is what makes
+# them worth their own tests -- a wrong total is indistinguishable from a slower
+# DUT unless something asserts what the total SHOULD be.
+# =============================================================================
+
+
+@cocotb.test(timeout_time=200, timeout_unit='us')
+async def latency_hist_overflow_test(dut):
+    """Commands past MAX_OUTSTANDING on one channel are dropped, not counted.
+
+    w_push is qualified on the per-channel timestamp FIFO having room:
+
+        w_push = w_cmd_hs && (r_cnt[w_ch_cmd] < MAX_OUTSTANDING)
+
+    so a command arriving at a full channel handshakes normally and is simply
+    never timestamped. It is missing from o_hist_total, and its completion later
+    pops some OTHER command's timestamp -- so the surviving latencies are
+    misattributed as well as undercounted.
+
+    This is the failure mode o_cmd_block exists to expose. Sizing MAX_OUTSTANDING
+    to the real per-channel concurrency is the fix; this test is what notices
+    when that sizing is wrong.
+    """
+    tb = AxiPerfLatencyHistTB(dut)
+    depth = int(os.environ.get('MAX_OUTSTANDING', '8'))
+    await tb.setup_clocks_and_reset()
+    await tb.open_window()
+
+    # Pile depth+4 commands onto ONE channel with no completions in between,
+    # so the FIFO fills and the last 4 have nowhere to go.
+    over = 4
+    n_cmd = depth + over
+    blocked_seen = 0
+    for _ in range(n_cmd):
+        if hasattr(dut, 'o_cmd_block'):
+            dut.cmd_id.value = 0
+            await Timer(1, 'ns')
+            blocked_seen += int(dut.o_cmd_block.value)
+        await tb.cmd(0)
+
+    # Complete every one of them.
+    for _ in range(n_cmd):
+        if tb.is_read:
+            await tb.rbeat(0, last=1)
+        else:
+            await tb.bresp(0)
+        await tb.idle(2)
+    await tb.idle(8)                      # drain the update pipeline
+
+    total = await tb.read_total(0)
+    tb.log.info(f"depth={depth} commands={n_cmd} counted={total} "
+                f"o_cmd_block asserted on {blocked_seen} of them")
+
+    # The module cannot record more than it has slots for: this documents the
+    # loss rather than pretending it does not happen.
+    assert total <= depth, (
+        f"{total} samples counted with only {depth} timestamp slots -- "
+        "a timestamp was reused, which would misattribute latencies")
+
+    # And it must SAY so. Without o_cmd_block the shortfall is invisible: the
+    # totals just read low and nothing distinguishes that from less traffic.
+    if hasattr(dut, 'o_cmd_block'):
+        assert blocked_seen >= over, (
+            f"o_cmd_block asserted for only {blocked_seen} of the {over} "
+            f"commands that could not be recorded ({n_cmd} driven into "
+            f"{depth} slots). A consumer polling this signal would not learn "
+            "that its histogram totals undercount.")
+
+
+@cocotb.test(timeout_time=200, timeout_unit='us')
+async def latency_hist_window_test(dut):
+    """i_freeze decides what is counted, so two windows are two answers.
+
+    The observer and the in-core monitor instantiate THIS module with the same
+    depth, but drive i_freeze from different controllers:
+
+        in-core   ~r_perf_win_active   opens on RUN & dma_busy,
+                                       closes on idle+settle OR RUN cleared
+        observer  i_meter_freeze       opens on bus activity (no RUN term),
+                                       closes on 16 idle cycles
+
+    A comment describes them as being "in lockstep". They are not the same
+    conditions, and this test shows the consequence directly: identical traffic,
+    two freeze schedules, two different totals. That is a measurement-window
+    mismatch, not a dropped packet -- and it is the shape of an observer reading
+    HIGHER than the in-core monitor rather than lower.
+
+    It also explains why such a mismatch does not move when the drain is
+    lengthened: the window closed long before the drain ever mattered.
+    """
+    tb = AxiPerfLatencyHistTB(dut)
+    await tb.setup_clocks_and_reset()
+
+    async def run(freeze_after):
+        """Drive 6 identical transactions; freeze partway if asked."""
+        await tb.open_window()
+        dut.i_freeze.value = 0
+        for i in range(6):
+            if freeze_after is not None and i == freeze_after:
+                dut.i_freeze.value = 1      # window closes early
+            await tb.cmd(0)
+            await tb.idle(3)
+            if tb.is_read:
+                await tb.rbeat(0, last=1)
+            else:
+                await tb.bresp(0)
+            await tb.idle(3)
+        await tb.idle(8)
+        dut.i_freeze.value = 0
+        return await tb.read_total(0)
+
+    full  = await run(None)      # counts to the true end of the workload
+    early = await run(3)         # stops when its controller says stop
+
+    tb.log.info(f"same traffic: open-window total={full}, "
+                f"early-close total={early}")
+
+    assert full == 6, f"open window should count all 6 transactions, got {full}"
+    assert early < full, (
+        "a window that closes early must count fewer -- if this ever passes "
+        "equal, i_freeze is not gating accumulation and the whole windowing "
+        "story is wrong")
+    tb.log.info(f"window mismatch reproduced: {full} vs {early} for IDENTICAL "
+                "traffic -- comparing two histograms means comparing their "
+                "freeze controllers too")
