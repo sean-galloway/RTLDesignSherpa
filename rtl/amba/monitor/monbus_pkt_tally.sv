@@ -6,43 +6,38 @@
 //
 // Module: monbus_pkt_tally
 // Purpose: On-chip packet-type coverage histogram. Counts accepted monbus
-//          packets into an SRAM matrix addressed by the message identity
-//          {protocol, pkt_type, event_code}, fronted by a 32-entry LRU
-//          write-combining cache so the common case (back-to-back hits on a
-//          few hot bins) never touches the SRAM. This is the silicon twin of
-//          the sim-side packet-type coverage matrix (bin/monbus_coverage_report
-//          + TBClasses.monbus.parse): a bin count > 0 means "this message was
+//          packets into a direct-mapped count SRAM addressed by the message
+//          identity {protocol, pkt_type, event_code} (or, in PROFILE_MODE, a
+//          CSR-loaded legal-set dense index). This is the silicon twin of the
+//          sim-side packet-type coverage matrix (bin/monbus_coverage_report +
+//          TBClasses.monbus.parse): a bin count > 0 means "this message was
 //          observed on hardware", dumped in one readback sweep.
 //
 //          A counter absorbs any arrival rate, so a coverage run can span
-//          millions of cycles without a capture-bandwidth limit — unlike the
-//          compressor+log path, which bounds capture to the log SRAM depth.
+//          millions of cycles without a capture-bandwidth limit.
 //
-// Building blocks pulled together (all pre-existing on main):
-//   - monbus_cam         : the 32-entry true-LRU cache front (payload
-//                          repurposed from last_event_data to a partial count;
-//                          the evict/dump/soft_clear ports were added additively
-//                          for this consumer — the compressor path is untouched).
-//   - monitor_common_pkg : the locked 128-bit packet field map.
-//   - a synchronous single-port count SRAM (the backing histogram).
+// Data model — DELIBERATELY SIMPLE
+// --------------------------------
+//   count(bin) = SRAM[bin]                (single source of truth; always live)
+// Each accepted packet does one read-modify-write on its bin: read the current
+// count, saturating-increment, write it back. No write-combining cache, no
+// flush FSM, no "drain before you can read" contract -- a readback always sees
+// the true count, at ANY arrival volume (the earlier LRU-cache design stranded
+// low-volume counts in the cache until a flush that could silently no-op).
 //
-// Data model
-// ----------
-//   total(bin) = SRAM[bin] + (cache partial for bin, if resident)
-// Hits increment the cache partial in place (no SRAM access). A cache miss
-// installs a fresh partial (=1); if that eviction displaces an entry, the
-// victim's partial is saturating-added back into its SRAM bin (evict RMW).
-// A freeze/flush drains every resident partial into SRAM so a readback sees
-// the coherent total. All counts saturate (a pegged bin never wraps, even
-// across the cache/SRAM split).
+// The monbus reporter emits at most 1 packet / 2 cycles, which exactly matches
+// this 2-cycle RMW (accept+read, then write); bursts simply backpressure via
+// in_ready. All counts saturate (a pegged bin never wraps).
 //
-// Snapshot protocol (host, over CSR/AXIL):
-//   1. i_freeze = 1           stop counting (coherent boundary)
-//   2. pulse i_flush          drain cache partials into SRAM (o_flush_busy=1
-//                             until done; the cache is left empty)
-//   3. read rd_addr -> rd_count  sweep every bin (valid only while idle)
-//   4. pulse i_clear          zero SRAM + cache + first-event latches for the
-//                             next window
+// Window protocol (host, over CSR/AXIL):
+//   1. i_freeze = 1           stop counting (coherent read boundary)
+//   2. read rd_addr -> rd_count  sweep every bin (valid while idle/frozen)
+//   3. pulse i_clear          zero the SRAM + first-event latches (o_flush_busy
+//                             high from the pulse until the clear walk ends).
+//                             A one-cycle pulse is LATCHED, so it is honoured
+//                             even when it lands mid read-modify-write.
+//   i_flush is accepted for interface compatibility but is a no-op: there is
+//   no cache to drain, so nothing needs flushing before a read.
 //
 // First-event latch: captures the full 128-bit packet + timestamp of the
 // first NUM_LATCH accepted packets whose pkt_type is armed in
@@ -62,18 +57,14 @@ module monbus_pkt_tally #(
     parameter int PKT_WIDTH   = 128,     // monitor_packet_t width (locked)
     parameter int TS_WIDTH    = 64,      // side-band timestamp width (locked)
     parameter int COUNT_WIDTH = 32,      // saturating bin count width
-    parameter int CACHE_DEPTH = 32,      // LRU write-combining cache entries
     parameter int NUM_LATCH   = 4,       // first-event capture slots
     // Bin address = {protocol[3:0], pkt_type[3:0], event_code[7:0]} = 16 bits.
-    // Direct-mapped (no hashing) so a bin uniquely identifies the message
-    // tuple and the hardware count matches the Python parse() count exactly.
-    parameter int ADDR_BITS   = 16,
-    // Profile mode: instead of binning on {protocol,pkt_type,event_code}, a
-    // CSR-loaded legal-set CAM maps {agent,protocol,pkt_type,event_code} to a
-    // DENSE bin index; any tuple not in the loaded set lands in the single
-    // UNEXPECTED bin (index N_PROFILE). PROFILE_MODE=0 keeps the direct-mapped
-    // behaviour bit-for-bit. In profile mode set ADDR_BITS >= clog2(N_PROFILE+1).
-    parameter int PROFILE_MODE = 0,
+    // The legal-set CAM ALWAYS routes packets to a bin: it maps the tuple
+    // {agent,protocol,pkt_type,event_code} to a DENSE bin index; any tuple not
+    // in the loaded set lands in the single UNEXPECTED bin (index N_PROFILE).
+    // There is no direct-mapped bypass -- the CAM is always in the path.
+    // ADDR_BITS must be >= clog2(N_PROFILE+1).
+    parameter int ADDR_BITS   = 7,
     parameter int N_PROFILE    = 64,       // legal-set entries (dense bins 0..N-1)
     // Derived
     parameter int SRAM_DEPTH  = (1 << ADDR_BITS),
@@ -93,8 +84,8 @@ module monbus_pkt_tally #(
 
     // === Window / snapshot control ===
     input  logic                    i_freeze,      // level: hold counting
-    input  logic                    i_flush,       // pulse: drain cache -> SRAM
-    output logic                    o_flush_busy,  // high while flush/clear runs
+    input  logic                    i_flush,       // no-op (no cache to drain)
+    output logic                    o_flush_busy,  // high from the clear request until the walk ends
     input  logic                    i_clear,       // pulse: zero everything
 
     // === Count readback (registered; valid one cycle after rd_addr, idle only) ===
@@ -129,65 +120,42 @@ module monbus_pkt_tally #(
     assign w_protocol   = in_packet[108:105];
     assign w_event_code = in_packet[104:97];
 
-    // Full 16-bit message identity; the bin address is its low ADDR_BITS bits
-    // (ADDR_BITS = 16 in production keeps the whole tuple; a smaller test build
-    // keeps {pkt_type, event_code} and must restrict protocol to stay unique).
-    logic [15:0] w_bin_full;
-    assign w_bin_full = {w_protocol, w_pkt_type, w_event_code};
-
-    // Agent id: profile mode keys on it so rd vs wr (9/10), scheduler vs
+    // Agent id: the legal-set CAM keys on it so rd vs wr (9/10), scheduler vs
     // descriptor-engine agents, etc. resolve into distinct dense bins.
     logic [15:0] w_agent_id;
     assign w_agent_id = in_packet[87:72];
 
-    logic [ADDR_BITS-1:0] w_bin_addr;   // which SRAM bin this packet increments
-    logic                 w_prof_miss;  // profile mode: key not in the legal set
+    // The legal-set CAM ALWAYS routes the packet to a bin (no bypass). A hit
+    // returns the entry's dense index; a miss routes to the UNEXPECTED bin
+    // (index N_PROFILE) and is flagged for the first-event latch.
+    localparam int UNEXPECTED_BIN = N_PROFILE;
+    logic [ADDR_BITS-1:0]  w_bin_addr;   // which SRAM bin this packet increments
+    logic                  w_prof_miss;  // key not in the legal set
+    logic [PROF_KEY_W-1:0] w_in_key;
+    assign w_in_key = {w_agent_id, w_protocol, w_pkt_type, w_event_code};
 
-    generate
-        if (PROFILE_MODE != 0) begin : g_profile
-            // Legal-set match CAM (own module). A hit returns the entry's dense
-            // index -> the tally bin; a miss routes to UNEXPECTED (index
-            // N_PROFILE) and is flagged for the first-event latch.
-            localparam int UNEXPECTED_BIN = N_PROFILE;
-            logic [PROF_KEY_W-1:0] w_in_key;
-            assign w_in_key = {w_agent_id, w_protocol, w_pkt_type, w_event_code};
+    logic                  w_hit;
+    logic [PROF_IDX_W-1:0] w_hit_idx;
 
-            logic                  w_hit;
-            logic [PROF_IDX_W-1:0] w_hit_idx;
-
-            monbus_legal_cam #(
-                .N_ENTRIES (N_PROFILE),
-                .KEY_WIDTH (PROF_KEY_W)
-            ) u_legal_cam (
-                .clk        (clk),
-                .rst_n      (rst_n),
-                .load_clear (profile_clear),
-                .load_we    (profile_we),
-                .load_addr  (profile_waddr),
-                .load_valid (profile_wvalid),
-                .load_key   (profile_wkey),
-                .lookup_key (w_in_key),
-                .lookup_hit (w_hit),
-                .lookup_idx (w_hit_idx)
-            );
-
-            assign w_bin_addr  = w_hit ? ADDR_BITS'(w_hit_idx) : ADDR_BITS'(UNEXPECTED_BIN);
-            assign w_prof_miss = !w_hit;
-        end else begin : g_direct
-            assign w_bin_addr  = w_bin_full[ADDR_BITS-1:0];
-            assign w_prof_miss = 1'b0;
-        end
-    endgenerate
+    monbus_legal_cam #(
+        .N_ENTRIES (N_PROFILE),
+        .KEY_WIDTH (PROF_KEY_W)
+    ) u_legal_cam (
+        .clk        (clk),
+        .rst_n      (rst_n),
+        .load_clear (profile_clear),
+        .load_we    (profile_we),
+        .load_addr  (profile_waddr),
+        .load_valid (profile_wvalid),
+        .load_key   (profile_wkey),
+        .lookup_key (w_in_key),
+        .lookup_hit (w_hit),
+        .lookup_idx (w_hit_idx)
+    );
+    assign w_bin_addr  = w_hit ? ADDR_BITS'(w_hit_idx) : ADDR_BITS'(UNEXPECTED_BIN);
+    assign w_prof_miss = !w_hit;
 
     localparam logic [COUNT_WIDTH-1:0] COUNT_MAX = {COUNT_WIDTH{1'b1}};
-
-    // Saturating add of two counts (a is a full count, b a partial).
-    function automatic logic [COUNT_WIDTH-1:0] sat_add
-            (input logic [COUNT_WIDTH-1:0] a, input logic [COUNT_WIDTH-1:0] b);
-        logic [COUNT_WIDTH:0] sum;
-        sum = {1'b0, a} + {1'b0, b};
-        sat_add = sum[COUNT_WIDTH] ? COUNT_MAX : sum[COUNT_WIDTH-1:0];
-    endfunction
 
     // Saturating increment.
     function automatic logic [COUNT_WIDTH-1:0] sat_inc
@@ -196,107 +164,47 @@ module monbus_pkt_tally #(
     endfunction
 
     // ------------------------------------------------------------------------
-    // Controller state.
-    //   ST_RUN   : count accepted packets; service evict RMW inline.
-    //   ST_FLUSH : walk the cache, spill each live partial into SRAM.
-    //   ST_CLEAR : walk the SRAM writing 0.
-    // A small spill sub-sequence (SP_*) performs one saturating RMW; it is
-    // shared by eviction and flush so there is exactly one SRAM writer.
+    // Controller state (deliberately tiny).
+    //   ST_RUN   : accept a packet -> read its bin (one cycle).
+    //   ST_WR    : write the saturating-incremented count back (one cycle).
+    //   ST_CLEAR : walk the SRAM writing 0 (host i_clear).
+    // The single-port count SRAM has exactly one writer (ST_WR / ST_CLEAR).
     // ------------------------------------------------------------------------
-    localparam logic [1:0] ST_RUN = 2'd0, ST_FLUSH = 2'd1, ST_CLEAR = 2'd2;
-    localparam logic [1:0] SP_IDLE = 2'd0, SP_RD = 2'd1, SP_WR = 2'd2;
+    localparam logic [1:0] ST_RUN = 2'd0, ST_WR = 2'd1, ST_CLEAR = 2'd2;
+    localparam int CIDX_W = ADDR_BITS + 1;             // holds 0..SRAM_DEPTH
 
-    logic [1:0] r_st;
-    logic [1:0] r_sp;
-    logic [ADDR_BITS-1:0]      r_spill_key;
-    logic [COUNT_WIDTH-1:0]    r_spill_data;
+    logic [1:0]              r_st;
+    logic [ADDR_BITS-1:0]    r_wr_bin;                 // bin being RMW'd
+    logic [CIDX_W-1:0]       r_clear_idx;              // 0..SRAM_DEPTH (extra for done)
+    logic                    r_clear_pend;             // sticky clear request
 
-    localparam int IDX_WIDTH = (CACHE_DEPTH > 1) ? $clog2(CACHE_DEPTH) : 1;
-    localparam int FIDX_W    = IDX_WIDTH + 1;    // holds 0..CACHE_DEPTH
-    localparam int CIDX_W    = ADDR_BITS + 1;    // holds 0..SRAM_DEPTH
-    logic [FIDX_W-1:0]        r_flush_idx;   // 0..CACHE_DEPTH (one extra for done)
-    logic [CIDX_W-1:0]        r_clear_idx;   // 0..SRAM_DEPTH   (one extra for done)
-
-    logic spill_idle;
-    assign spill_idle = (r_sp == SP_IDLE);
-
-    // ------------------------------------------------------------------------
-    // The 32-entry LRU cache (reused monbus_cam). Payload = partial count.
-    // ------------------------------------------------------------------------
-    logic                    cam_hit;
-    logic [IDX_WIDTH-1:0]    cam_idx;
-    logic [COUNT_WIDTH-1:0]  cam_old_data;
-    logic [1:0]              cam_action;
-    logic [COUNT_WIDTH-1:0]  cam_new_data;
-    logic                    cam_full;
-    logic                    cam_evicted;
-    logic [ADDR_BITS-1:0]    cam_evict_key;
-    logic [COUNT_WIDTH-1:0]  cam_evict_data;
-    logic [IDX_WIDTH-1:0]    cam_dump_idx;
-    logic                    cam_dump_valid;
-    logic [ADDR_BITS-1:0]    cam_dump_key;
-    logic [COUNT_WIDTH-1:0]  cam_dump_data;
-    logic                    cam_soft_clear;
-    logic                    cam_unused_old_ts;   // access_old_ts (TS unused here)
-    logic [IDX_WIDTH:0]      cam_unused_count;    // cam_count (occupancy unused)
-
-    localparam logic [1:0] ACTION_NONE = 2'b00, ACTION_TOUCH = 2'b01, ACTION_INSTALL = 2'b10;
-
-    monbus_cam #(
-        .KEY_WIDTH  (ADDR_BITS),
-        .DATA_WIDTH (COUNT_WIDTH),
-        .TS_WIDTH   (1),
-        .DEPTH      (CACHE_DEPTH)
-    ) u_cache (
-        .clk             (clk),
-        .rst_n           (rst_n),
-        .access_key      (w_bin_addr),
-        .access_hit      (cam_hit),
-        .access_idx      (cam_idx),
-        .access_old_data (cam_old_data),
-        .access_old_ts   (cam_unused_old_ts),
-        .access_action   (cam_action),
-        .access_new_data (cam_new_data),
-        .access_new_ts   (1'b0),
-        .cam_full        (cam_full),
-        .cam_count       (cam_unused_count),
-        .evicted         (cam_evicted),
-        .evict_key       (cam_evict_key),
-        .evict_data      (cam_evict_data),
-        .dump_idx        (cam_dump_idx),
-        .dump_valid      (cam_dump_valid),
-        .dump_key        (cam_dump_key),
-        .dump_data       (cam_dump_data),
-        .soft_clear      (cam_soft_clear)
-    );
+    // i_clear is a ONE-CYCLE pulse from the host CSR block, but only ST_RUN
+    // looks at it. Counting a packet is a two-cycle RMW, so under sustained
+    // traffic the controller sits in ST_WR every other cycle and roughly half
+    // of all clear pulses would be dropped -- leaving the host to sweep stale
+    // counts it believes are zeroed. Latch the request instead of sampling it.
+    // A pulse arriving DURING the clear walk is intentionally discarded: that
+    // walk already zeroes every bin, and nothing can increment while it runs
+    // (in_ready is low), so re-walking would be pure duplicate work.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n))  r_clear_pend <= 1'b0;
+        else if (r_st == ST_CLEAR) r_clear_pend <= 1'b0;
+        else if (i_clear)          r_clear_pend <= 1'b1;
+    )
 
     // ------------------------------------------------------------------------
-    // Accept path.
-    // Accept only in ST_RUN, not frozen, and with the spill engine idle (an
-    // in-flight RMW owns the SRAM port and must finish before a new eviction
-    // can be created). This is the only place cam_action is driven.
+    // Accept path: consume a packet in ST_RUN when not frozen.
     // ------------------------------------------------------------------------
     logic w_accept;
-    assign in_ready = (r_st == ST_RUN) && !i_freeze && spill_idle;
+    assign in_ready = (r_st == ST_RUN) && !i_freeze;
     assign w_accept = in_valid && in_ready;
 
-    always_comb begin
-        cam_action   = ACTION_NONE;
-        cam_new_data = '0;
-        if (w_accept) begin
-            if (cam_hit) begin
-                cam_action   = ACTION_TOUCH;
-                cam_new_data = sat_inc(cam_old_data);   // count this occurrence
-            end else begin
-                cam_action   = ACTION_INSTALL;
-                cam_new_data = {{(COUNT_WIDTH-1){1'b0}}, 1'b1}; // first in cache
-            end
-        end
-    end
-
     // ------------------------------------------------------------------------
-    // SRAM (single-port, synchronous read + write). One writer (the spill /
-    // clear path); reads serve the host readback and the spill RD phase.
+    // Count SRAM (single-port, synchronous read + write).
+    //   ST_RUN accept : read w_bin_addr  (RMW read phase)
+    //   ST_WR         : write sat_inc(old) back to r_wr_bin
+    //   ST_CLEAR      : write 0 to r_clear_idx
+    //   idle          : serve host readback at rd_addr
     // ------------------------------------------------------------------------
     logic [COUNT_WIDTH-1:0] r_sram [SRAM_DEPTH];
     logic [ADDR_BITS-1:0]   w_sram_addr;
@@ -311,14 +219,14 @@ module monbus_pkt_tally #(
         w_sram_wdata = '0;
         if (r_st == ST_CLEAR) begin
             w_sram_addr  = r_clear_idx[ADDR_BITS-1:0];
-            w_sram_we    = 1'b1;
+            w_sram_we    = (r_clear_idx < CIDX_W'(SRAM_DEPTH));  // no write on done cycle
             w_sram_wdata = '0;
-        end else if (r_sp == SP_RD) begin
-            w_sram_addr  = r_spill_key;             // read current bin count
-        end else if (r_sp == SP_WR) begin
-            w_sram_addr  = r_spill_key;
+        end else if (r_st == ST_WR) begin
+            w_sram_addr  = r_wr_bin;                 // commit the increment
             w_sram_we    = 1'b1;
-            w_sram_wdata = sat_add(r_sram_rdata, r_spill_data);
+            w_sram_wdata = sat_inc(r_sram_rdata);
+        end else if (w_accept) begin
+            w_sram_addr  = w_bin_addr;               // read the bin to increment
         end
     end
 
@@ -336,8 +244,8 @@ module monbus_pkt_tally #(
     // ------------------------------------------------------------------------
     // First-event latch bank.
     // ------------------------------------------------------------------------
-    logic [PKT_WIDTH-1:0] r_latch_pkt [NUM_LATCH];
-    logic [TS_WIDTH-1:0]  r_latch_ts  [NUM_LATCH];
+    logic [PKT_WIDTH-1:0]   r_latch_pkt [NUM_LATCH];
+    logic [TS_WIDTH-1:0]    r_latch_ts  [NUM_LATCH];
     logic [LFILL_WIDTH-1:0] r_latch_fill;
 
     logic w_watch_match;
@@ -351,78 +259,44 @@ module monbus_pkt_tally #(
     assign latch_fill   = r_latch_fill;
 
     // ------------------------------------------------------------------------
-    // Controller + spill sequencer.
+    // Controller. i_flush is a no-op (no cache); i_clear walks the SRAM to 0.
     // ------------------------------------------------------------------------
-    assign o_flush_busy = (r_st == ST_FLUSH) || (r_st == ST_CLEAR);
-
-    // Dump index the flush walk is currently inspecting.
-    assign cam_dump_idx   = r_flush_idx[IDX_WIDTH-1:0];
-    // The CAM is invalidated at the end of a flush and on clear.
-    assign cam_soft_clear = ((r_st == ST_FLUSH) && (r_flush_idx == FIDX_W'(CACHE_DEPTH)) && spill_idle)
-                          || ((r_st == ST_CLEAR) && (r_clear_idx == CIDX_W'(SRAM_DEPTH)));
+    // Busy from the moment the request is latched, not just once the walk
+    // starts -- otherwise a host that pulses clear and immediately polls sees
+    // busy=0 and reads bins the pending clear is about to zero.
+    assign o_flush_busy = (r_st == ST_CLEAR) || r_clear_pend;
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_st          <= ST_RUN;
-            r_sp          <= SP_IDLE;
-            r_spill_key   <= '0;
-            r_spill_data  <= '0;
-            r_flush_idx   <= '0;
-            r_clear_idx   <= '0;
-            r_latch_fill  <= '0;
+            r_st         <= ST_RUN;
+            r_wr_bin     <= '0;
+            r_clear_idx  <= '0;
+            r_latch_fill <= '0;
         end else begin
-            // --- spill sub-sequence (shared RMW engine) ---
-            case (r_sp)
-                SP_RD: r_sp <= SP_WR;         // r_sram_rdata valid next cycle
-                SP_WR: r_sp <= SP_IDLE;       // write committed this cycle
-                default: ; // SP_IDLE: started by RUN eviction or FLUSH below
-            endcase
-
-            // --- main state machine ---
             case (r_st)
                 ST_RUN: begin
-                    // Kick a spill when an accept evicts a live victim.
-                    if (w_accept && cam_evicted) begin
-                        r_spill_key  <= cam_evict_key;
-                        r_spill_data <= cam_evict_data;
-                        r_sp         <= SP_RD;
-                    end
-                    // Enter flush/clear only from a quiescent spill engine.
-                    if (i_clear && spill_idle) begin
+                    if (i_clear || r_clear_pend) begin
                         r_st        <= ST_CLEAR;
                         r_clear_idx <= '0;
-                    end else if (i_flush && spill_idle) begin
-                        r_st        <= ST_FLUSH;
-                        r_flush_idx <= '0;
-                    end
-
-                    // First-event capture.
-                    if (w_accept && w_watch_match && (r_latch_fill < LFILL_WIDTH'(NUM_LATCH))) begin
-                        r_latch_pkt[r_latch_fill[LSEL_WIDTH-1:0]] <= in_packet;
-                        r_latch_ts [r_latch_fill[LSEL_WIDTH-1:0]] <= in_ts;
-                        r_latch_fill <= r_latch_fill + 1'b1;
+                    end else if (w_accept) begin
+                        r_wr_bin <= w_bin_addr;      // read issued this cycle
+                        r_st     <= ST_WR;
+                        // First-event capture on the accepted packet.
+                        if (w_watch_match && (r_latch_fill < LFILL_WIDTH'(NUM_LATCH))) begin
+                            r_latch_pkt[r_latch_fill[LSEL_WIDTH-1:0]] <= in_packet;
+                            r_latch_ts [r_latch_fill[LSEL_WIDTH-1:0]] <= in_ts;
+                            r_latch_fill <= r_latch_fill + 1'b1;
+                        end
                     end
                 end
 
-                ST_FLUSH: begin
-                    // Walk the cache; spill each live entry, one RMW at a time.
-                    if (r_flush_idx == FIDX_W'(CACHE_DEPTH)) begin
-                        // Wait for the final RMW to land, then finish (soft_clear
-                        // fires this cycle via the comb assign above).
-                        if (spill_idle) r_st <= ST_RUN;
-                    end else if (spill_idle) begin
-                        if (cam_dump_valid) begin
-                            r_spill_key  <= cam_dump_key;
-                            r_spill_data <= cam_dump_data;
-                            r_sp         <= SP_RD;
-                        end
-                        r_flush_idx <= r_flush_idx + 1'b1;
-                    end
+                ST_WR: begin
+                    r_st <= ST_RUN;                  // increment committed this cycle
                 end
 
                 ST_CLEAR: begin
                     if (r_clear_idx == CIDX_W'(SRAM_DEPTH)) begin
-                        r_latch_fill <= '0;   // latches cleared with the window
+                        r_latch_fill <= '0;          // latches cleared with the window
                         r_st         <= ST_RUN;
                     end else begin
                         r_clear_idx <= r_clear_idx + 1'b1;

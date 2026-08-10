@@ -73,7 +73,25 @@ module axi_perf_latency_hist #(
     input  logic                 i_hist_metric,        // 0 or 1 (1 = RLAST, reads only)
     input  logic [BINW-1:0]      i_hist_bin,           // which bin to read
     output logic [CNT_W-1:0]     o_hist_count,         // selected bin count
-    output logic [CNT_W-1:0]     o_hist_total          // selected metric's total txns
+    output logic [CNT_W-1:0]     o_hist_total,         // selected metric's total txns
+
+    // Backpressure request: the timestamp FIFO for the channel addressed by the
+    // CURRENT cmd_id cannot take another entry. Combinational in cmd_id, so a
+    // consumer can AND it into the command-channel ready.
+    //
+    // Without this the module degrades SILENTLY: w_push is qualified on the
+    // FIFO having room, so a command that arrives at a full channel handshakes
+    // normally and is simply never timestamped. It is missing from o_hist_total
+    // and its completion later pops some OTHER command's timestamp, so the
+    // surviving latencies are misattributed as well as undercounted -- there is
+    // no error, no flag, and nothing in the totals says a sample was lost.
+    //
+    // This matters most where the histogram is the ONLY instrumentation (the
+    // observer in a monitors-off build): the transaction table it sits beside
+    // blocks at MAX_TRANSACTIONS across all channels, while this FIFO is
+    // MAX_OUTSTANDING PER CHANNEL, so a single channel can be inside the
+    // table's limit and past this one.
+    output logic                 o_cmd_block
 );
 
     localparam int NUM_METRICS = IS_READ ? 2 : 1;
@@ -136,6 +154,13 @@ module axi_perf_latency_hist #(
     logic w_push, w_pop;
     assign w_push = w_cmd_hs  && (r_cnt[w_ch_cmd]  <  PW1'(MAX_OUTSTANDING));
     assign w_pop  = w_done_hs && w_done_last && (r_cnt[w_ch_done] != '0);
+
+    // Same condition w_push is qualified on, exported so the command channel
+    // can be held off instead of losing the sample. A pop retiring this cycle
+    // frees the slot the incoming command would take, so it is not a block --
+    // matching w_push, which would succeed on the same cycle.
+    assign o_cmd_block = (r_cnt[w_ch_cmd] >= PW1'(MAX_OUTSTANDING)) &&
+                         !(w_pop && (w_ch_done == w_ch_cmd));
 
     // Completion event this cycle (FIFO non-empty) + its metric flags.
     //   m0 = first R beat (reads) / B response (writes)

@@ -267,4 +267,38 @@ package monitor_common_pkg;
         endcase
     endfunction
 
+
+    // =========================================================================
+    // Timer tick selection
+    // =========================================================================
+    // counter_freq_invariant divides aclk to produce a 1 us tick, and the
+    // divisor IS the clock frequency in MHz -- so the LUT index whose entry is
+    // nearest the real aclk gives the tick closest to a true microsecond.
+    // Monitor timeouts are expressed in microseconds precisely so they mean the
+    // same wall-clock thing at any frequency; picking the wrong index breaks
+    // that contract silently.
+    //
+    // This exists because every monitor wrapper hardwired `cfg_freq_sel =
+    // 4'b0001` with the comment "use aclk frequency". Index 1 of the default
+    // LUT is 19 MHz, so on a 100 MHz design every timeout was ~5x shorter than
+    // the number the host wrote.
+    //
+    // Defaults match axi_monitor_timer's CFI_* parameters (LINEAR 5..220 MHz
+    // over 16 entries). Keep them in step if those change.
+    function automatic int freq_sel_for_mhz(
+        input int aclk_mhz,
+        input int lo_mhz = 5,
+        input int hi_mhz = 220,
+        input int n_entries = 16
+    );
+        int idx;
+        if (n_entries <= 1 || hi_mhz <= lo_mhz) return 0;
+        // nearest index: round((aclk - lo) * (n-1) / (hi - lo))
+        idx = ((aclk_mhz - lo_mhz) * (n_entries - 1) + ((hi_mhz - lo_mhz) / 2))
+              / (hi_mhz - lo_mhz);
+        if (idx < 0)              idx = 0;
+        if (idx > n_entries - 1)  idx = n_entries - 1;
+        return idx;
+    endfunction
+
 endpackage : monitor_common_pkg

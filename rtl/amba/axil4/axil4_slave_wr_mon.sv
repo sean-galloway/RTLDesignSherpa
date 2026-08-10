@@ -46,11 +46,23 @@ module axil4_slave_wr_mon
     parameter int AXIL_DATA_WIDTH   = 32,
 
     // Monitor parameters (literals sized to 32 bits for Verilator int-parameter width check)
+    // aclk frequency in MHz -- picks the counter_freq_invariant LUT entry that
+    // yields a ~1 us tick, which is the unit monitor timeouts are expressed in.
+    // Was hardwired to index 1 (19 MHz) with the comment "use aclk frequency";
+    // on a 100 MHz design that made every timeout ~5x shorter than requested.
+    parameter int ACLK_MHZ          = 100,
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for monitor packets
     parameter logic [15:0] AGENT_ID = 16'h0015,    // 16-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 8,     // Maximum outstanding transactions (reduced for AXIL)
+    // ID-range filter, passed through to axi_monitor_base. Default OFF ->
+    // bit-identical to before. See axi_monitor_base for why this exists:
+    // several monitors snooping one ID-multiplexed bus, each owning a slice,
+    // so no single transaction table has to hold the whole concurrency.
+    parameter bit ID_FILTER_ENABLE       = 1'b0,
+    parameter int ID_MATCH_BASE          = 0,
+    parameter int ID_MATCH_COUNT         = 0,
     // Active-transaction threshold packet trip point (used when
     // cfg_threshold_enable=1). Previously hardwired, which either spammed
     // threshold packets (table larger than the hardwire) or made the feature
@@ -158,6 +170,17 @@ module axil4_slave_wr_mon
     output logic [7:0]                 active_transactions,     // Number of active transactions
     output logic [15:0]                error_count,             // Total error count
     output logic [31:0]                transaction_count,       // Total transaction count
+    // Monitor backpressure, brought out for observability. This is the SAME
+    // net that gates the upstream command handshake below -- not a copy, not a
+    // re-derivation. It is a port and not an internal signal because a
+    // hierarchical reference to it is not reliably observable: the sby harness
+    // saw `dut.w_block_ready` elaborate as an implicitly-declared FREE wire,
+    // which made the gating properties VACUOUS, and a cocotb probe of a
+    // hierarchy path that does not resolve returns None and passes
+    // unconditionally. Both failure modes are silent, and both hide the defect
+    // the check exists to catch. A validated contract needs an observable
+    // signal. Drives nothing internally; leave unconnected if unused.
+    output logic                       debug_block_ready,
 
     // Configuration error flags
     output logic                       cfg_conflict_error,       // Configuration conflict detected
@@ -188,6 +211,11 @@ module axil4_slave_wr_mon
     // -------------------------------------------------------------------------
     logic w_core_s_axil_awready;
     logic w_block_ready;
+
+    // Observability tap for block_ready (see the port comment). Held to the
+    // internal gating net so a testbench watching the port sees exactly what
+    // the AR/AW gate sees.
+    assign debug_block_ready = w_block_ready;
 
     // -------------------------------------------------------------------------
     // Instantiate AXIL4 Slave Write Core
@@ -261,22 +289,37 @@ module axil4_slave_wr_mon
     logic        w_mon_cmd_valid;
     logic        w_mon_data_valid;
     logic        w_mon_resp_valid;
-    logic [3:0]  w_timeout_cnt;
+    logic [15:0] w_timeout_cnt;
     logic [15:0] w_perf_completed_count;
     logic [15:0] w_perf_error_count;
 
     assign w_mon_cmd_valid  = s_axil_awvalid & cfg_monitor_enable;
     assign w_mon_data_valid = s_axil_wvalid & cfg_monitor_enable;
     assign w_mon_resp_valid = s_axil_bvalid & cfg_monitor_enable;
-    assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 4'hF
-                            : (|cfg_timeout_cycles[15:4])   ? 4'hF
-                            : cfg_timeout_cycles[3:0];
+    // cfg_timeout_cycles is a MICROSECOND count (timer_tick = 1 us from
+    // counter_freq_invariant), passed through at full width. It used to be
+    // squashed into 4 bits here:
+    //     (|cfg_timeout_cycles[15:4]) ? 4'hF : cfg_timeout_cycles[3:0]
+    // which silently saturated every value >= 16 to 15 us, so the host's
+    // range collapsed and two very different requests produced identical
+    // hardware. 16 bits => 65535 us ~= 65 ms.
+    // 0 means "effectively never" (max), NOT "time out immediately" -- an
+    // unconfigured register must not fire timeouts on every transaction. That
+    // special case was in the original expression and is kept; what is gone is
+    // the saturation of everything else down to 4 bits.
+    assign w_timeout_cnt    = (cfg_timeout_cycles == 16'h0) ? 16'hFFFF
+                            : cfg_timeout_cycles;
 
     if (USE_MONITOR) begin : gen_monitor
         axi_monitor_filtered #(
+            .CFI_MIN_FREQ_MHZ        (ACLK_MHZ),
+            .CFI_MAX_FREQ_MHZ        (ACLK_MHZ),
             .UNIT_ID                 (UNIT_ID),
             .AGENT_ID                (AGENT_ID),
             .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
+            .ID_FILTER_ENABLE        (ID_FILTER_ENABLE),
+            .ID_MATCH_BASE           (ID_MATCH_BASE),
+            .ID_MATCH_COUNT          (ID_MATCH_COUNT),
             .ADDR_WIDTH              (AW),
             .ID_WIDTH                (32'd1),            // Fixed ID width for AXIL
             .IS_READ                 (1'b0),             // This is a write monitor
@@ -321,7 +364,7 @@ module axil4_slave_wr_mon
             .resp_ready              (s_axil_bready),
 
             // Configuration
-            .cfg_freq_sel            (4'b0001),          // Use aclk frequency
+            .cfg_freq_sel            (4'b0000),   // table is all-ACLK_MHZ: any index is exact
             .cfg_addr_cnt            (w_timeout_cnt),
             .cfg_data_cnt            (w_timeout_cnt),
             .cfg_resp_cnt            (w_timeout_cnt),
