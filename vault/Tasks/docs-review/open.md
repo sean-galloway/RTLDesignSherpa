@@ -969,3 +969,45 @@ the history under someone else's commit message, live for about twenty
 minutes. Two agents sharing one working tree means an uncommitted experiment
 is not private.
 
+
+---
+
+## State of the areas -- cdc and math (logged 2026-08-09, Sean's request)
+
+### cdc -- DONE
+
+| Phase | State | Evidence |
+|---|---|---|
+| Critique (qc rounds) | 4 rounds, 17 real findings, 1 FP, 0 RTL logic changes | rounds 1-4 of the reset corpus |
+| Doc correctness | all integrated | commits d121f123 and predecessors |
+| Humanize | 17 pages applied; tag-survival clean (0 links/anchors/captions lost), 0 broken links, prose emoji stripped | humanize round_3; 43abf412, 18d0f7a6 |
+| Tests (testqc round_1) | 51 findings triaged, all batches integrated; regression green gate/func/full | SEED sweeps (86c91bfc, 29900e1b), grids+vocabulary (dfe2e457, d6c72890), silent-pass class (4af3708b, 5d6d9b23, f0e68e06, 69cf2a7a, 0eeb0a8f, 97b86eed, c44c94f1), smalls (f798b801, 4c9bb752) |
+| Open items | one P3 deferred (test_fifo_async_wavedrom hand-drives the read side -- wavedrom generator, Sean parked it) | docs-review open.md DV-TODO |
+
+### math -- docs DONE; tests nearly done; 3 tasks open
+
+| Phase | State | Evidence |
+|---|---|---|
+| Critique (qc rounds) | 3 rounds, 38 findings, all real, 0 FP; converged 20->12->6 | rounds 5-7 of the reset corpus |
+| Doc correctness | all integrated (carry_save rewrite sim-verified against RTL; addsub INC; bf16 latency both ends; BK diagrams; Kogge-Stone sweep; HC usage table) | 3b0513db, 6725c6dc, d5880a05, b2deeb75, 16d3959b, 9b1604ba, aef82d2d |
+| Humanize | 29 pages applied; tag-survival clean; 0 broken links; prose emoji stripped | humanize round_5; 11f32089 |
+| Tests (testqc round_1) | 173 findings triaged by class and integrated | SEED two-line variant (29900e1b), MATH-003 filelists CLOSED (134 generated + 24 repaired; all 119 tests converted; gate 119/119 func 134/134; 276de494), MATH-004 levels CLOSED (normalize_test_level sweep of 22 sites + grid fixes; b3c0aa23), semantic class (RNE checker shift-aware + directed cases; clamp bit-exact; Goldschmidt zero-window + flags; carry_save i_c stimulus; vacuous main_loop; sigmoid prose; create_view_cmd FST name) |
+| MATH-002 | CLOSED -- bf16 adder underflow reported +inf (wrap bit shared by both flags); RTL fixed, directed FTZ regression added, mutation-checked | 650fe622 |
+| MATH-001 | bf16 multiplier now textbook RNE: mantissa_mult exports guard + true sticky (the fold made ties-at-even round up), multiplier formula G & (R\|S\|LSB); sweep-verified 0/5000 vs exact reference; fp32 pair fixed identically; docs updated | pending final suite verify + close |
+| MATH-005 | OPEN -- math_mod_3_compress formal checks (moved common->math; reviews done, formal remaining) | vault/Tasks/math |
+| MATH-006 | OPEN -- fp16/fp8 multipliers share the RNE deviation class (different shape: no guard export at all); P1 per "fix to spec" | vault/Tasks/math |
+| False alarms | carry_save PARAM_N (fixed module is 1-bit by design) | triage note in round_2 record |
+
+### Cross-area process state
+
+- Pipeline proven: tightened reviewer brief + golden deps + second-model
+  adjudication (verify_findings.py with per-finding blocks, normalized quote
+  location, identifier grep, test skeleton) -- 0 FP across the last five doc
+  rounds, verifier REFUTED-set errors all traced to evidence gaps now fixed.
+- Stopping rule: impact-based, near-empty aspiration (Sean 2026-07-28).
+- Hard requirements recorded 2026-08-03: TB separate from runner; every test
+  has gate/func/full (both REG_LEVEL grid and honest TEST_LEVEL depth).
+- math test style: directed patterns for full functional coverage, not
+  exhaustive sweeps; non-exhaustive stimulus is never a finding.
+- Next area per the order: common (with the other agent), then amba
+  (decomposed), then projects/components, then assess fpga areas.
