@@ -127,6 +127,20 @@ reads" rule keeps routing unambiguous once tracked.
   The filter is a real little FSM (must consume W beats) — build it
   as reusable IP (rtl/amba/axi5/axi5_atomic_filter.sv) with its own
   val tests before wiring it into the generator.
+  *Filter IP DONE (2026-08-10):* control-plane-only design (handshakes
+  + atop + id + wlast; payload routes around it): route queue pushed
+  per AW / popped at WLAST steers or sinks W bursts, response queue
+  drains local DECERRs when downstream B is idle. W stalls until its
+  AW is queued (deadlock-free — AW never depends on W). Documented
+  limitation: a local DECERR can pass a same-ID in-flight write's B,
+  which the AXI atomic ID rule already forbids a compliant master
+  from observing. val/amba/test_axi5_atomic_filter.py green (mixed
+  forward/swallow traffic, multi-beat discard, DECERR ids/order);
+  -Wall lint + decl-order + registry-audit clean. Remaining for
+  A5-3a: aw.atop[6] into the sideband spec table, 'atomic' moves to
+  the poison-style connectivity gate, master adapter instantiates
+  the filter between wrapper fub and the width paths, fixture +
+  atomic_operation BFM test.
 - *A5-3b — read-return atomics:* the shared per-ID tracking block
   above. Design that block standalone first; defer until a concrete
   consumer exists (nothing in-tree issues AtomicLoad today, and the
