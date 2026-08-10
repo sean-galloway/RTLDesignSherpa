@@ -42,7 +42,22 @@ module gaxi_fifo_sync #(
     output logic            wr_ready,   // not full
     input  logic [DW-1:0]   wr_data,
     input  logic            rd_ready,
+    // verilator coverage_off
+    // DEFENSIVE: count's top bit is an illegal state at any non-power-of-2
+    // DEPTH. The port is $clog2(DEPTH)+1 wide, so at DEPTH=11 it is [4:0]
+    // while occupancy maxes out at 11 (5'b01011) -- bit 4 cannot be set by any
+    // stimulus, and DEPTH=11 is a legal configuration this module supports and
+    // the FULL grid exercises.
+    //
+    // Note what this waiver costs: at a power-of-2 DEPTH that same bit IS
+    // reachable (occupancy == DEPTH sets it) and was covered -- DEPTH=8
+    // measured 70/70 with the bit toggling. Waiving by line cannot distinguish
+    // the two cases, so a real, exercised point is being suppressed along with
+    // the impossible one. If a future change stops the FIFO ever reaching
+    // full, this waiver will hide it. The occupancy assertions in
+    // gaxi_drop_fifo_sync's test_fill_and_random_drop are the backstop.
     output logic [AW:0]     count,
+    // verilator coverage_on
     output logic            rd_valid,   // not empty
     output logic [DW-1:0]   rd_data
 );
