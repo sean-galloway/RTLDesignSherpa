@@ -57,6 +57,7 @@ This specification covers the Converters component - a collection of configurabl
 - [AXI4 to AXI4-Lite](ch03_protocol_blocks/02_axi4_to_axil4.md)
 - [AXI4-Lite to AXI4](ch03_protocol_blocks/03_axil4_to_axi4.md)
 - [AXI4 to APB](ch03_protocol_blocks/04_axi4_to_apb4.md)
+- [AXI4 to APB5 Shim](ch03_protocol_blocks/06_axi4_to_apb5.md)
 - [PeakRDL Adapter](ch03_protocol_blocks/05_peakrdl_adapter.md)
 
 ### Chapter 4: FSM Design
@@ -140,6 +141,7 @@ All diagrams referenced in the documentation are available in:
 | axi4_to_axil4 | Burst decomposition | 50-100% | ~450 LUTs |
 | axil4_to_axi4 | Protocol upgrade | 100% | ~110 LUTs |
 | axi4_to_apb4_convert | Full protocol bridge | Sequential | Medium |
+| axi4_to_apb5_shim | APB5 sideband wrapper over the APB4 shim | Pass-through | Low |
 
 : Table 1.1: Converter Module Summary
 

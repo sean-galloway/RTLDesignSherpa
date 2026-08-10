@@ -60,6 +60,7 @@
 - [AXI4 Interface Overview](ch04_interfaces/01_axi4_interface.md)
 - [APB Interface Overview](ch04_interfaces/02_apb_interface.md)
 - [Clock and Reset](ch04_interfaces/03_clock_reset.md)
+- [AXI5 and APB5 Interfaces (AMBA5)](ch04_interfaces/04_axi5_apb5_interfaces.md)
 
 ### Chapter 5: Performance
 

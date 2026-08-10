@@ -532,6 +532,51 @@ endmodule
 
 ---
 
+## AMBA5 Support (BRIDGE-002)
+
+The fabric is always AXI4 internally; AMBA5 is a per-port property.
+
+```toml
+[[bridge.masters]]
+protocol = "axi5"                      # axi5_slave_* boundary wrappers
+axi5_features = ["trace", "atomic"]    # optional feature list
+
+[[bridge.slaves]]
+protocol = "apb5"                      # axi4_to_apb5_shim at the boundary
+```
+
+Key pieces (see `bridge_mas/ch02_blocks/10_amba5_boundary.md` for depth):
+
+- **`bridge_pkg/sideband.py`** — the single spec table
+  (`SIDEBAND_FIELDS`) mapping features to per-channel struct fields and
+  wrapper port bases. Package, adapter, crossbar, and slave-adapter
+  generators all iterate it in the same order.
+- **Feature classes** (`config_validator.py`):
+  `AXI5_ALLOWED_FEATURES` (droppable sideband: nsaid/trace/mpam/mecid/
+  unique — terminates mid-path with a generation-time warning),
+  `AXI5_CONNECTIVITY_GATED_FEATURES` (poison, atomic — config ERROR
+  unless every connected path is AXI5-both-ends + feature-enabled +
+  width-matched), `AXI5_PHASED_FEATURES` (mte, chunking — rejected).
+- **Native sideband** rides the generated `_pkg` structs as the UNION of
+  features on any AXI5 port; pure-AXI4 bridges emit no fields
+  (byte-identical RTL — the zero-drift invariant). Master adapters pack
+  fields on the direct width arm only ('0 on converter arms); the xbar
+  forwards unconditionally and muxes response fields from featured
+  slaves.
+- **Atomics** (store-class only): `aw.atop` rides the structs;
+  atomic-enabled master adapters insert `axi5_atomic_filter`
+  (pref_axi_* -> fub_axi_*) which DECERRs read-return ATOP classes
+  locally.
+- **APB5 slaves** reuse the APB4 path with the `Axi4ToApbShim`
+  component's `protocol='apb5'` switch (swaps in `axi4_to_apb5_shim`,
+  wires the five extra pins).
+- **Filelist emission** adds `-f` closures per feature use:
+  `axi5_{slave,master}_{wr,rd}.f`, `axi5_atomic_filter.f`,
+  `axi4_to_apb5_shim.f`.
+
+Unit coverage: `bin/tests/test_generator_pkg.py` (52 tests — feature
+gating, connectivity rules, generation smoke for every fixture family).
+
 ## Signal Naming System
 
 ### Location: `bin/bridge_pkg/signal_naming.py`
@@ -760,6 +805,11 @@ endmodule
 ---
 
 ## Current Broken State
+
+> **HISTORICAL (stale):** this section and "Next Steps for Debugging"
+> describe a debugging snapshot that has long since been fixed (see
+> BRIDGE-001 in the vault). Kept for archaeology; do not act on it.
+
 
 ### What I Changed
 

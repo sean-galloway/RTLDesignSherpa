@@ -53,6 +53,7 @@ This specification covers the Bridge component - a CSV-driven generator that cre
 - [Protocol Conversion](ch02_blocks/07_protocol_conversion.md)
 - [Response Routing](ch02_blocks/08_response_routing.md)
 - [Error Handling](ch02_blocks/09_error_handling.md)
+- [AMBA5 Boundary and Native Sideband](ch02_blocks/10_amba5_boundary.md)
 
 ### Chapter 3: FSM Design
 

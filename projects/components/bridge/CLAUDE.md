@@ -837,6 +837,29 @@ slaves = [
 
 Generator inserts AXI2APB converters automatically (Phase 3 for full implementation).
 
+**Q: "Can ports be AMBA5 (AXI5 / APB5)?"**
+
+**A: Yes — per port, while the fabric stays AXI4 (BRIDGE-002):**
+
+```toml
+[[bridge.masters]]
+protocol = "axi5"
+axi5_features = ["trace", "atomic"]  # nsaid/trace/mpam/mecid/unique are
+                                     # droppable sideband; poison/atomic are
+                                     # connectivity-gated (every connected path
+                                     # must be AXI5 + feature + width-matched);
+                                     # mte/chunking rejected
+
+[[bridge.slaves]]
+protocol = "apb5"   # APB4 rules apply (rw-only, 32-bit); adds the APB5 pins
+```
+
+Sideband passes natively on width-matched AXI5<->AXI5 paths and terminates
+with a generation-time warning elsewhere. Atomics are store-class only:
+read-return classes DECERR at the boundary (`axi5_atomic_filter`). Details:
+`docs/bridge_has/ch04_interfaces/04_axi5_apb5_interfaces.md` and
+`docs/bridge_mas/ch02_blocks/10_amba5_boundary.md`.
+
 **Q: "What if data widths don't match?"**
 
 **A: Generator inserts width converters automatically:**
