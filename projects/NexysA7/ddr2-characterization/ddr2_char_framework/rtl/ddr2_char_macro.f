@@ -35,8 +35,8 @@
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_open_loop.f
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave.f
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
-$REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
-$REPO_ROOT/projects/components/converters/rtl/apb4_to_peakrdl.sv
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/peakrdl_to_cmdrsp.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/apb4_to_peakrdl.f
 
 # The macro itself
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.sv
