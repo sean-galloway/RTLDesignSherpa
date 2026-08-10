@@ -21,3 +21,13 @@ summary: Stability rules; observers gate commands only, never responses.
   (bin/SIGNAL_CONTRACTS_KMAPS.md): the stream WLAST/drain term
   (`axi_wr_sram_drain = m_axi_wvalid && m_axi_wready`) fixed a real
   lost-WLAST deadlock.
+- **Sideband sampled across a registered decision is a different beat than
+  the one decided on.** When a decision registers (an arbiter's grant, a
+  pipelined accept), any sideband consumed at COMPLETION time (a cost, a
+  length, a tag) may already belong to the NEXT transaction - the consumer
+  legitimately updates it the moment it observes the grant. Pipeline the
+  sideband alongside the decision and consume the captured copy. *Case
+  (2026-08-09): arbiter_deficit_round_robin debited the completion-cycle
+  req_cost; a back-to-back client presenting its next frame's cost was
+  debited the wrong frame. Caught by the TB's deficit mirror, fixed with a
+  one-deep cost pipeline (r_cost_arb).*

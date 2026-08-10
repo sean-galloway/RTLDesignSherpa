@@ -56,7 +56,8 @@ the three agree.
 #### Arbiters
 - **[arbiter_round_robin_simple](arbiter_round_robin_simple.md)** - Simple round-robin arbiter with rotation
 - **[arbiter_round_robin](arbiter_round_robin.md)** - Advanced round-robin arbiter
-- **[arbiter_round_robin_weighted](arbiter_round_robin_weighted.md)** - Weighted round-robin arbiter
+- **[arbiter_round_robin_weighted](arbiter_round_robin_weighted.md)** - Weighted round-robin arbiter (grant-count shares)
+- **[arbiter_deficit_round_robin](arbiter_deficit_round_robin.md)** - Deficit round-robin arbiter (cost-proportional shares)
 - **[arbiter_single_client](arbiter_single_client.md)** - Degenerate single-client arbiter (registered ack-held grant)
 - **[arbiter_priority_encoder](arbiter_priority_encoder.md)** - Priority-based arbiter
 

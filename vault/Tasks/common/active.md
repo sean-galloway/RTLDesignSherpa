@@ -5,7 +5,9 @@
 ---
 
 ## COMMON-007 — Additional arbiter types
-**Status:** ACTIVE 2026-08-09 — the DRR slice is in implementation (Sean: "work on this please"); token bucket and hierarchical remain deferred. Shaped 2026-08-09
+**Status:** ACTIVE 2026-08-09 — DRR slice DONE same day (see progress below);
+token bucket in implementation next (Sean: "then: Token bucket"); hierarchical
+remains deferred. Shaped 2026-08-09
 against the current arbiter lineup (question from Sean: are these modes of
 the existing WRR?).
 
@@ -39,4 +41,22 @@ Whoever picks this up: the arbiter compliance model in RDS-DV replays every
 grant — extend it alongside (a DRR mode changes the expected-grant math),
 and remember randomized traffic does not prove fairness
 ([[rds-dv-randomization]]); fairness is asserted over a measured window.
+
+**Progress 2026-08-09 — DRR slice DONE:**
+- `rtl/common/arbiter_deficit_round_robin.sv` landed as the sibling wrapper
+  (quantum shadow FSM, deficit counters, affordability mask into the shared
+  RR core), filelist registered (common 48/48), doc page + index/CLAUDE
+  matrix rows, technique-index row. GATE/FUNC/FULL all green (2/6/10
+  configs, both ACK modes, 4-16 clients), sibling arbiter tests unaffected.
+- **Real RTL bug caught during bring-up by the TB's deficit mirror:** the
+  grant registers one cycle after arbitration, so debiting the
+  completion-cycle req_cost charged a back-to-back client its NEXT frame's
+  cost. Fixed with a one-deep cost pipeline (r_cost_arb); lesson recorded
+  in [[valid-ready-contracts]] (sideband across a registered decision).
+- TB mirror is TB-local (bin/TBClasses/common/arbiter_deficit_round_robin_tb.py);
+  promoting it as DeficitRoundRobinArbiterMonitor into RDS-DV
+  arbiter_monitor.py is the remaining DV follow-up for this slice. NOTE:
+  the framework's compliance analysis logs RR-order "violations" on DRR
+  runs (deficit gating legitimately reorders grants) — the promoted monitor
+  must carry DRR-aware expected-grant math, not the RR replay.
 
