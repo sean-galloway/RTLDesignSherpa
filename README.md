@@ -206,7 +206,7 @@ Things that actually run on hardware. Each project ships its own README and Viva
 | Project-specific TBs | under [`projects/components/`](projects/components/) — each `*/dv/tbclasses/` |
 | Shared TB framework | [`bin/TBClasses/`](bin/TBClasses/) |
 | BFMs / scoreboards (external package) | [`cocotb-framework` on PyPI](https://pypi.org/project/cocotb-framework/) — source: [RTLDesignSherpa-DV](https://github.com/sean-galloway/RTLDesignSherpa-DV) — `pip install cocotb-framework` |
-| Verification architecture rules | [`rtl/amba/VERIFICATION_ARCHITECTURE.md`](rtl/amba/VERIFICATION_ARCHITECTURE.md), [`GLOBAL_REQUIREMENTS.md`](GLOBAL_REQUIREMENTS.md) |
+| Verification architecture rules | [`GLOBAL_REQUIREMENTS.md`](GLOBAL_REQUIREMENTS.md) (Category 2), [`docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`](docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md) |
 
 ### 7. Tools
 

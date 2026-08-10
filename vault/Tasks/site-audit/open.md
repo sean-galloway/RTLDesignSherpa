@@ -52,7 +52,8 @@ prose docs: index, readme, overview, module pages.
 TB quality, coverage metrics, formal — per area:
 
 - [ ] Line/toggle coverage measured and the gaps triaged
-      ([[coverage]]; the `val/COVERAGE_TODO.md` backlog folds in here).
+      ([[coverage]]; that backlog now lives in `vault/Tasks/coverage/` —
+      COV-001 is the remaining rollout).
 - [ ] Functional coverage where it matters (e.g. the monbus packet-type
       matrix).
 - [ ] Formal properties for the modules that warrant them

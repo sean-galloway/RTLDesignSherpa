@@ -1,13 +1,20 @@
 # GTKWave Save Files for RTL Common Library
 
-**Last Updated:** 2025-10-15
-**Coverage:** 86/86 modules (100%)
+**Last Updated:** 2026-08-09
 
 ---
 
 ## Overview
 
-This directory contains GTKWave save files (`.gtkw`) for all 86 modules in the RTL Common Library. These files provide pre-configured waveform views with organized signal groupings for efficient debugging.
+This directory contains GTKWave save files (`.gtkw`) with pre-configured
+waveform views — organized signal groupings for efficient debugging. It was
+authored when rtl/common held 86 modules; the math split (rtl/math) and CDC
+move (rtl/cdc) have since carried many of those modules — and their `.gtkw`
+files here still cover them — while rtl/common itself is smaller. Count
+modules with `ls rtl/common/*.sv | wc -l` and save files with
+`ls val/common/GTKW/*.gtkw | wc -l` rather than trusting a number typed
+here; a `.gtkw` for a moved module is still valid (the save file keys on
+signal paths, not source location).
 
 **Purpose:**
 - Quick waveform analysis without manual signal selection

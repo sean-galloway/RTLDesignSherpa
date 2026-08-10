@@ -33,6 +33,19 @@ summary: Verilator code coverage, functional bar, monbus packet-type matrix.
   `_generate_coverage_report` block into a conftest -- that per-area duplication
   (stream was 3x274 lines, the val family 4x154) is what the shared base replaced.
 - Functional: >95 percent of the block contract, 100 percent pass rate.
+- READ THE NUMBER FOR WHAT IT IS: Verilator tracks TOGGLE coverage (bits
+  flipping), not line coverage. Multi-bit signals (addresses, data) can read
+  0 percent while functionally exercised; continuous assigns are not tracked
+  at all; instantiated building blocks (skid buffers) are counted separately
+  from the module that wires them. So a 40 percent Verilator figure can be
+  100 percent functional coverage — prove scenarios were hit with the other
+  signals: single-bit valid/ready hit counts, test phase-completion logs,
+  TB transaction statistics, and the timing-profile sweep. The YAML
+  testplans (val/<area>/testplans/) carry an `implied_coverage` block making
+  that argument explicitly per module, and
+  `bin/cov_utils/calc_coverage_excluding_building_blocks.py --level <area>` separates
+  building-block coverage from integration-logic coverage. (Folded from
+  val/amba/testplans/VERIFICATION_METHODOLOGY.md, retired 2026-08-09.)
 - Packet-type matrix (monitor board gate): MONBUS_COVERAGE=1 during val/amba
   records every decoded (protocol, pkt_type, event_code) tuple;
   bin/monbus_coverage_report.py diffs against the enum ground truth
