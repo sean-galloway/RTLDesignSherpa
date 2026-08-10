@@ -1,0 +1,14 @@
+# delay sweep 1desc 1ch 512KB
+#
+# INPUT matrix for: make host-characterize ARGS="--csv csv/delay_sweep_1desc_1ch_512KB.csv"
+# Columns: name, num_channels, descriptors_per_channel, transfer_bytes
+#   This sweep varied response delay over rd/wr = 0/0, 112/112, 128/128, 144/144, 16/16, 160/160, 192/192, 224/224, 256/256, 32/32, 320/320, 384/384, 448/448, 512/512, 64/64, 96/96.
+#   Delay is a CLI knob, not a column: re-run per delay with
+#   ARGS="--csv csv/delay_sweep_1desc_1ch_512KB.csv --rd-delay N --wr-delay N".
+#
+# Derived from the pre-migration RESULT file by dropping the measured
+# columns -- those numbers came off a NexysA7 at 100 MHz and are not
+# measurements of this board. Results land in results/.
+#
+# name,num_channels,descriptors,total_bytes
+1desc_1ch_512KB,1,1,524288

@@ -33,6 +33,7 @@ def main(argv=None) -> int:
     sub.add_parser("list", help="list known boards")
     sub.add_parser("info", help="show one board's facts")
     sub.add_parser("ports", help="list this board's UART ports")
+    sub.add_parser("serial", help="print this board's JTAG serial (for tcl)")
 
     prog = sub.add_parser("program", help="program this board over JTAG")
     prog.add_argument("--bitstream", required=True)
@@ -51,6 +52,14 @@ def main(argv=None) -> int:
 
     if args.cmd == "info":
         print(board.describe())
+        return 0
+
+    if args.cmd == "serial":
+        # For tcl that must pin a hw_target. Prints nothing (exit 0) when the
+        # board has no serial, so a caller can substitute it unconditionally and
+        # get "any target" rather than the string "None" as a match pattern.
+        if board.jtag_serial:
+            print(board.jtag_serial)
         return 0
 
     if args.cmd == "ports":

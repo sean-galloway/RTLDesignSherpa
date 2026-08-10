@@ -10,13 +10,14 @@
 //   - Width adaptation
 //
 //   Slave Adapter contains:
-//   - Timing wrapper (axi4_master_wr/rd) or Protocol converter (axi4_to_apb/axil)
+//   - Timing wrapper (axi4_master_wr/rd) or Protocol converter (axi4_to_apb4/axil)
 
 `timescale 1ns / 1ps
 
-import bridge_stream_char_axil_pkg::*;
 
-module bridge_stream_char_axil (
+module bridge_stream_char_axil
+    import bridge_stream_char_axil_pkg::*;
+(
     input  logic aclk,
     input  logic aresetn,
 
@@ -42,35 +43,8 @@ module bridge_stream_char_axil (
     output logic                  host_axi_rvalid,
     input  logic                  host_axi_rready,
 
-    // Master 1: stream_desc (rw)
-    // Master: stream_desc (axi4, rw)
-    input  logic [7:0]  stream_desc_awid,
-    input  logic [31:0]  stream_desc_awaddr,
-    input  logic [7:0]  stream_desc_awlen,
-    input  logic [2:0]  stream_desc_awsize,
-    input  logic [1:0]  stream_desc_awburst,
-    input  logic         stream_desc_awlock,
-    input  logic [3:0]  stream_desc_awcache,
-    input  logic [2:0]  stream_desc_awprot,
-    input  logic [3:0]  stream_desc_awqos,
-    input  logic [3:0]  stream_desc_awregion,
-    input  logic         stream_desc_awuser,
-    input  logic         stream_desc_awvalid,
-    output  logic         stream_desc_awready,
-
-    input  logic [255:0]  stream_desc_wdata,
-    input  logic [31:0]  stream_desc_wstrb,
-    input  logic         stream_desc_wlast,
-    input  logic         stream_desc_wuser,
-    input  logic         stream_desc_wvalid,
-    output  logic         stream_desc_wready,
-
-    output  logic [7:0]  stream_desc_bid,
-    output  logic [1:0]  stream_desc_bresp,
-    output  logic         stream_desc_buser,
-    output  logic         stream_desc_bvalid,
-    input  logic         stream_desc_bready,
-
+    // Master 1: stream_desc (rd)
+    // Master: stream_desc (axi4, rd)
     input  logic [7:0]  stream_desc_arid,
     input  logic [31:0]  stream_desc_araddr,
     input  logic [7:0]  stream_desc_arlen,
@@ -93,8 +67,8 @@ module bridge_stream_char_axil (
     output  logic         stream_desc_rvalid,
     input  logic         stream_desc_rready,
 
-    // Master 2: monbus_wr (rw)
-    // Master: monbus_wr (axil, rw)
+    // Master 2: monbus_wr (wr)
+    // Master: monbus_wr (axil, wr)
     input  logic [31:0] monbus_wr_awaddr,
     input  logic [2:0]            monbus_wr_awprot,
     input  logic                  monbus_wr_awvalid,
@@ -106,14 +80,6 @@ module bridge_stream_char_axil (
     output logic [1:0]            monbus_wr_bresp,
     output logic                  monbus_wr_bvalid,
     input  logic                  monbus_wr_bready,
-    input  logic [31:0] monbus_wr_araddr,
-    input  logic [2:0]            monbus_wr_arprot,
-    input  logic                  monbus_wr_arvalid,
-    output logic                  monbus_wr_arready,
-    output logic [63:0] monbus_wr_rdata,
-    output logic [1:0]            monbus_wr_rresp,
-    output logic                  monbus_wr_rvalid,
-    input  logic                  monbus_wr_rready,
 
     // Slave 0: stream_apb
     // APB Slave: stream_apb
@@ -325,20 +291,9 @@ module bridge_stream_char_axil (
     logic         host_256b_rready;
 
     // stream_desc Adapter outputs
-    logic [NUM_SLAVES-1:0] stream_desc_slave_select_aw;
-    logic [BRIDGE_ID_WIDTH-1:0] stream_desc_bridge_id_aw;
     logic [NUM_SLAVES-1:0] stream_desc_slave_select_ar;
     logic [BRIDGE_ID_WIDTH-1:0] stream_desc_bridge_id_ar;
     // 256b path
-    axi4_aw_t     stream_desc_256b_aw;
-    logic         stream_desc_256b_awvalid;
-    logic         stream_desc_256b_awready;
-    axi4_w_256b_t  stream_desc_256b_w;
-    logic         stream_desc_256b_wvalid;
-    logic         stream_desc_256b_wready;
-    axi4_b_t      stream_desc_256b_b;
-    logic         stream_desc_256b_bvalid;
-    logic         stream_desc_256b_bready;
     axi4_ar_t     stream_desc_256b_ar;
     logic         stream_desc_256b_arvalid;
     logic         stream_desc_256b_arready;
@@ -349,8 +304,6 @@ module bridge_stream_char_axil (
     // monbus_wr Adapter outputs
     logic [NUM_SLAVES-1:0] monbus_wr_slave_select_aw;
     logic [BRIDGE_ID_WIDTH-1:0] monbus_wr_bridge_id_aw;
-    logic [NUM_SLAVES-1:0] monbus_wr_slave_select_ar;
-    logic [BRIDGE_ID_WIDTH-1:0] monbus_wr_bridge_id_ar;
     // 64b path
     axi4_aw_t     monbus_wr_64b_aw;
     logic         monbus_wr_64b_awvalid;
@@ -361,12 +314,6 @@ module bridge_stream_char_axil (
     axi4_b_t      monbus_wr_64b_b;
     logic         monbus_wr_64b_bvalid;
     logic         monbus_wr_64b_bready;
-    axi4_ar_t     monbus_wr_64b_ar;
-    logic         monbus_wr_64b_arvalid;
-    logic         monbus_wr_64b_arready;
-    axi4_r_64b_t  monbus_wr_64b_r;
-    logic         monbus_wr_64b_rvalid;
-    logic         monbus_wr_64b_rready;
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // stream_apb (APB, 32b AXI4 interface)
@@ -800,30 +747,6 @@ module bridge_stream_char_axil (
         .aresetn(aresetn),
 
         // External interface
-        .stream_desc_awid(stream_desc_awid),
-        .stream_desc_awaddr(stream_desc_awaddr),
-        .stream_desc_awlen(stream_desc_awlen),
-        .stream_desc_awsize(stream_desc_awsize),
-        .stream_desc_awburst(stream_desc_awburst),
-        .stream_desc_awlock(stream_desc_awlock),
-        .stream_desc_awcache(stream_desc_awcache),
-        .stream_desc_awprot(stream_desc_awprot),
-        .stream_desc_awqos(stream_desc_awqos),
-        .stream_desc_awregion(stream_desc_awregion),
-        .stream_desc_awuser(stream_desc_awuser),
-        .stream_desc_awvalid(stream_desc_awvalid),
-        .stream_desc_awready(stream_desc_awready),
-        .stream_desc_wdata(stream_desc_wdata),
-        .stream_desc_wstrb(stream_desc_wstrb),
-        .stream_desc_wlast(stream_desc_wlast),
-        .stream_desc_wuser(stream_desc_wuser),
-        .stream_desc_wvalid(stream_desc_wvalid),
-        .stream_desc_wready(stream_desc_wready),
-        .stream_desc_bid(stream_desc_bid),
-        .stream_desc_bresp(stream_desc_bresp),
-        .stream_desc_buser(stream_desc_buser),
-        .stream_desc_bvalid(stream_desc_bvalid),
-        .stream_desc_bready(stream_desc_bready),
         .stream_desc_arid(stream_desc_arid),
         .stream_desc_araddr(stream_desc_araddr),
         .stream_desc_arlen(stream_desc_arlen),
@@ -846,21 +769,10 @@ module bridge_stream_char_axil (
         .stream_desc_rready(stream_desc_rready),
 
         // Decode outputs
-        .slave_select_aw(stream_desc_slave_select_aw),
-        .bridge_id_aw(stream_desc_bridge_id_aw),
         .slave_select_ar(stream_desc_slave_select_ar),
         .bridge_id_ar(stream_desc_bridge_id_ar),
 
         // 256b path
-        .stream_desc_256b_aw(stream_desc_256b_aw),
-        .stream_desc_256b_awvalid(stream_desc_256b_awvalid),
-        .stream_desc_256b_awready(stream_desc_256b_awready),
-        .stream_desc_256b_w(stream_desc_256b_w),
-        .stream_desc_256b_wvalid(stream_desc_256b_wvalid),
-        .stream_desc_256b_wready(stream_desc_256b_wready),
-        .stream_desc_256b_b(stream_desc_256b_b),
-        .stream_desc_256b_bvalid(stream_desc_256b_bvalid),
-        .stream_desc_256b_bready(stream_desc_256b_bready),
         .stream_desc_256b_ar(stream_desc_256b_ar),
         .stream_desc_256b_arvalid(stream_desc_256b_arvalid),
         .stream_desc_256b_arready(stream_desc_256b_arready),
@@ -901,32 +813,10 @@ module bridge_stream_char_axil (
         .monbus_wr_buser(),
         .monbus_wr_bvalid(monbus_wr_bvalid),
         .monbus_wr_bready(monbus_wr_bready),
-        .monbus_wr_arid(8'h0),
-        .monbus_wr_araddr(monbus_wr_araddr),
-        .monbus_wr_arlen(8'h0),
-        .monbus_wr_arsize(3'd3),
-        .monbus_wr_arburst(2'b01),
-        .monbus_wr_arlock(1'b0),
-        .monbus_wr_arcache(4'h0),
-        .monbus_wr_arprot(monbus_wr_arprot),
-        .monbus_wr_arqos(4'h0),
-        .monbus_wr_arregion(4'h0),
-        .monbus_wr_aruser(1'b0),
-        .monbus_wr_arvalid(monbus_wr_arvalid),
-        .monbus_wr_arready(monbus_wr_arready),
-        .monbus_wr_rid(),
-        .monbus_wr_rdata(monbus_wr_rdata),
-        .monbus_wr_rresp(monbus_wr_rresp),
-        .monbus_wr_rlast(),
-        .monbus_wr_ruser(),
-        .monbus_wr_rvalid(monbus_wr_rvalid),
-        .monbus_wr_rready(monbus_wr_rready),
 
         // Decode outputs
         .slave_select_aw(monbus_wr_slave_select_aw),
         .bridge_id_aw(monbus_wr_bridge_id_aw),
-        .slave_select_ar(monbus_wr_slave_select_ar),
-        .bridge_id_ar(monbus_wr_bridge_id_ar),
 
         // 64b path
         .monbus_wr_64b_aw(monbus_wr_64b_aw),
@@ -937,13 +827,7 @@ module bridge_stream_char_axil (
         .monbus_wr_64b_wready(monbus_wr_64b_wready),
         .monbus_wr_64b_b(monbus_wr_64b_b),
         .monbus_wr_64b_bvalid(monbus_wr_64b_bvalid),
-        .monbus_wr_64b_bready(monbus_wr_64b_bready),
-        .monbus_wr_64b_ar(monbus_wr_64b_ar),
-        .monbus_wr_64b_arvalid(monbus_wr_64b_arvalid),
-        .monbus_wr_64b_arready(monbus_wr_64b_arready),
-        .monbus_wr_64b_r(monbus_wr_64b_r),
-        .monbus_wr_64b_rvalid(monbus_wr_64b_rvalid),
-        .monbus_wr_64b_rready(monbus_wr_64b_rready)
+        .monbus_wr_64b_bready(monbus_wr_64b_bready)
     );
 
     // ================================================================
@@ -1008,20 +892,9 @@ module bridge_stream_char_axil (
         .host_256b_rready(host_256b_rready),
 
         // stream_desc adapter outputs
-        .stream_desc_slave_select_aw(stream_desc_slave_select_aw),
-        .stream_desc_bridge_id_aw(stream_desc_bridge_id_aw),
         .stream_desc_slave_select_ar(stream_desc_slave_select_ar),
         .stream_desc_bridge_id_ar(stream_desc_bridge_id_ar),
         // 256b path
-        .stream_desc_256b_aw(stream_desc_256b_aw),
-        .stream_desc_256b_awvalid(stream_desc_256b_awvalid),
-        .stream_desc_256b_awready(stream_desc_256b_awready),
-        .stream_desc_256b_w(stream_desc_256b_w),
-        .stream_desc_256b_wvalid(stream_desc_256b_wvalid),
-        .stream_desc_256b_wready(stream_desc_256b_wready),
-        .stream_desc_256b_b(stream_desc_256b_b),
-        .stream_desc_256b_bvalid(stream_desc_256b_bvalid),
-        .stream_desc_256b_bready(stream_desc_256b_bready),
         .stream_desc_256b_ar(stream_desc_256b_ar),
         .stream_desc_256b_arvalid(stream_desc_256b_arvalid),
         .stream_desc_256b_arready(stream_desc_256b_arready),
@@ -1032,8 +905,6 @@ module bridge_stream_char_axil (
         // monbus_wr adapter outputs
         .monbus_wr_slave_select_aw(monbus_wr_slave_select_aw),
         .monbus_wr_bridge_id_aw(monbus_wr_bridge_id_aw),
-        .monbus_wr_slave_select_ar(monbus_wr_slave_select_ar),
-        .monbus_wr_bridge_id_ar(monbus_wr_bridge_id_ar),
         // 64b path
         .monbus_wr_64b_aw(monbus_wr_64b_aw),
         .monbus_wr_64b_awvalid(monbus_wr_64b_awvalid),
@@ -1044,12 +915,6 @@ module bridge_stream_char_axil (
         .monbus_wr_64b_b(monbus_wr_64b_b),
         .monbus_wr_64b_bvalid(monbus_wr_64b_bvalid),
         .monbus_wr_64b_bready(monbus_wr_64b_bready),
-        .monbus_wr_64b_ar(monbus_wr_64b_ar),
-        .monbus_wr_64b_arvalid(monbus_wr_64b_arvalid),
-        .monbus_wr_64b_arready(monbus_wr_64b_arready),
-        .monbus_wr_64b_r(monbus_wr_64b_r),
-        .monbus_wr_64b_rvalid(monbus_wr_64b_rvalid),
-        .monbus_wr_64b_rready(monbus_wr_64b_rready),
 
         // Slave 0: stream_apb
         .stream_apb_axi_awid(xbar_stream_apb_axi_awid),

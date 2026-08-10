@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_mon_axil_pkg::*;
 
-module harness_csr_adapter #(
+module harness_csr_adapter
+    import bridge_stream_mon_axil_pkg::*;
+#(
     parameter int ID_WIDTH = 8
 ) (
     input  logic aclk,

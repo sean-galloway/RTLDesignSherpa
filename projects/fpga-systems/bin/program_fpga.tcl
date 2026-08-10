@@ -49,14 +49,57 @@ if {$want_serial eq ""} {
     }
     set tgt [lindex $targets 0]
 } else {
-    set tgt [lsearch -inline -glob $targets "*$want_serial*"]
-    if {$tgt eq ""} {
+    # A serial can match MORE THAN ONE target. The FT2232 on these boards
+    # exposes two channels and Vivado lists both -- e.g. 200300B818A0 (UART)
+    # and 200300B818A0B (JTAG) -- and because the short serial is a PREFIX of
+    # the long one, a substring glob matches both. `lsearch -inline` then
+    # returns whichever is first, which was the channel with no scan chain:
+    #   ERROR: [Labtools 27-2269] No devices detected on target ...
+    # That reads as "board missing" when the board is powered and fine.
+    #
+    # So: match by serial, then pick the candidate that actually has a device.
+    # Opening a chainless target fails, hence the catch.
+    set matches [lsearch -all -inline -glob $targets "*$want_serial*"]
+    if {[llength $matches] == 0} {
         puts stderr "ERROR: no JTAG target matching '$want_serial' in: $targets"
+        exit 1
+    }
+    # LONGEST FIRST. The channels differ by a suffix (...A0 vs ...A0B) and the
+    # JTAG one is the more specific name, so trying longest-first usually hits
+    # it on the first attempt. That matters because a FAILED open poisons the
+    # session for the sibling channel: probing the chainless one first makes
+    # the good one report "no scan chain" too. Reconnecting the server between
+    # attempts clears that, so the order is an optimisation, not the fix.
+    set matches [lsort -command {apply {{a b} {expr {[string length $b] - [string length $a]}}}} $matches]
+    set tgt ""
+    foreach cand $matches {
+        if {[catch {current_hw_target $cand; open_hw_target}]} {
+            puts "  $cand -- no scan chain, skipping"
+            # Clear the failed-open state before trying the sibling channel.
+            catch {close_hw_target}
+            catch {disconnect_hw_server}
+            connect_hw_server
+            continue
+        }
+        if {[llength [get_hw_devices]] > 0} {
+            puts "  $cand -- devices: [get_hw_devices]"
+            set tgt $cand
+            break
+        }
+        catch {close_hw_target}
+    }
+    if {$tgt eq ""} {
+        puts stderr "ERROR: '$want_serial' matched [llength $matches] target(s)\
+                     but none had a device on the chain: $matches"
+        puts stderr "       (board powered on? JTAG cable seated?)"
         exit 1
     }
 }
 puts "Opening hw_target $tgt"
-open_hw_target $tgt
+if {[catch {current_hw_target $tgt; open_hw_target}]} {
+    # Already opened by the probe loop above; that is fine.
+    current_hw_target $tgt
+}
 
 # Auto-select the device on the chosen target (xc7a100t_0 on the Nexys A7,
 # xc7k325t_0 on the Genesys 2). Assumes a single FPGA on the opened target.

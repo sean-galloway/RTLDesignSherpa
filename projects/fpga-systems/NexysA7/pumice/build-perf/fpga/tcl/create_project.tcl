@@ -19,6 +19,11 @@ set script_dir   [file dirname [file normalize [info script]]]
 set project_root [expr {[info exists ::env(FPGA_PROJECT_ROOT)] \
                         ? [file normalize $::env(FPGA_PROJECT_ROOT)] \
                         : [file normalize "$script_dir/.."]}]
+# Where the build's SOURCES live -- rtl/, rtl-vivado/. NOT project_root: that is
+# the fpga/ directory Vivado writes into, and rtl/ is its sibling, not its child.
+set build_root [expr {[info exists ::env(FPGA_BUILD_ROOT)] \
+                      ? [file normalize $::env(FPGA_BUILD_ROOT)] \
+                      : [file normalize "$script_dir/../.."]}]
 
 # ----------------------------------------------------------------------------
 # Env-var sanity check
@@ -64,8 +69,17 @@ if {[lsearch -exact [get_board_parts] $board_part_str] >= 0} {
 # ----------------------------------------------------------------------------
 source "$script_dir/filelist_utils.tcl"
 
-set top_filelist "$project_root/rtl/filelists/ddr2_char_harness.f"
+# The Makefile already names this build's filelist; take it from the
+# environment so the two cannot drift, and fall back for direct invocation.
+set top_filelist [expr {[info exists ::env(FPGA_FILELIST)] \
+                        ? [file normalize $::env(FPGA_FILELIST)] \
+                        : "$build_root/rtl/filelists/ddr2_char_harness.f"}]
 puts "\nExpanding filelist: $top_filelist"
+if {![file exists $top_filelist]} {
+    puts stderr "ERROR: filelist not found: $top_filelist"
+    puts stderr "Run via 'make project' / 'make bitstream' (it exports FPGA_FILELIST)."
+    exit 1
+}
 lassign [filelist::flatten $top_filelist] sv_sources incdirs defines
 
 puts "  [llength $sv_sources] source file(s)"
@@ -87,7 +101,7 @@ foreach src $sv_sources {
 }
 # Real generated PHY (regenerate via bin/elaborate_a7ddrphy.py; see
 # bin/README_a7ddrphy.md). Same module name `a7ddrphy` as the stub.
-set a7ddrphy_gen "$project_root/rtl-vivado/a7ddrphy/a7ddrphy_generated.v"
+set a7ddrphy_gen "$build_root/rtl-vivado/a7ddrphy/a7ddrphy_generated.v"
 if {![file exists $a7ddrphy_gen]} {
     puts stderr "ERROR: generated a7ddrphy not found: $a7ddrphy_gen"
     puts stderr "Generate it first (bin/README_a7ddrphy.md)."

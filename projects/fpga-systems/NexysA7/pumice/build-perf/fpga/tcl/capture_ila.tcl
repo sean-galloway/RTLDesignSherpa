@@ -24,7 +24,27 @@ set out  [expr {$argc >= 1 ? [lindex $argv 0] : "$project_root/reports/ila_captu
 
 open_hw_manager
 connect_hw_server -allow_non_jtag
-open_hw_target
+
+# Pin the target by JTAG serial. `open_hw_target` with no argument takes
+# whichever target Vivado lists first, and this lab habitually has a second
+# Digilent board on the chain -- so the unpinned form will cheerfully program
+# the wrong board. The serial comes from the board registry via the Makefile
+# (make/fpga_flow.mk exports FPGA_JTAG_SERIAL for every tcl- target), which is
+# the same one authority `make program` uses; no serial is hardcoded here.
+if {[info exists ::env(FPGA_JTAG_SERIAL)] && $::env(FPGA_JTAG_SERIAL) ne ""} {
+    set want    $::env(FPGA_JTAG_SERIAL)
+    set targets [get_hw_targets -quiet *$want*]
+    if {[llength $targets] == 0} {
+        puts stderr "ERROR: no JTAG target matching serial $want."
+        puts stderr "Attached: [get_hw_targets -quiet]"
+        exit 1
+    }
+    current_hw_target [lindex $targets 0]
+    open_hw_target
+} else {
+    puts "NOTE: FPGA_JTAG_SERIAL unset -- taking the first target on the chain."
+    open_hw_target
+}
 current_hw_device [lindex [get_hw_devices] 0]
 refresh_hw_device -update_hw_probes false [current_hw_device]
 

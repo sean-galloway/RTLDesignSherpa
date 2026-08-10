@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_char_axil_pkg::*;
 
-module debug_sram_adapter #(
+module debug_sram_adapter
+    import bridge_stream_char_axil_pkg::*;
+#(
     parameter int ID_WIDTH = 8
 ) (
     input  logic aclk,

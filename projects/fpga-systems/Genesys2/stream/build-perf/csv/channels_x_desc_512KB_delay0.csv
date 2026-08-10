@@ -1,0 +1,19 @@
+# channels x desc 512KB delay0
+#
+# INPUT matrix for: make host-characterize ARGS="--csv csv/channels_x_desc_512KB_delay0.csv"
+# Columns: name, num_channels, descriptors_per_channel, transfer_bytes
+#
+# Derived from the pre-migration RESULT file by dropping the measured
+# columns -- those numbers came off a NexysA7 at 100 MHz and are not
+# measurements of this board. Results land in results/.
+#
+# name,num_channels,descriptors,total_bytes
+1desc_1ch_512KB,1,1,524288
+4desc_1ch_512KB,1,4,2097152
+16desc_1ch_512KB,1,16,8388608
+1desc_2ch_512KB,2,1,1048576
+4desc_2ch_512KB,2,4,4194304
+16desc_2ch_512KB,2,16,16777216
+1desc_4ch_512KB,4,1,2097152
+4desc_4ch_512KB,4,4,8388608
+16desc_4ch_512KB,4,16,33554432
