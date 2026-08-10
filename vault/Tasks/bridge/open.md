@@ -87,8 +87,58 @@ Note for A5-2: the BFM issues trace-clear transactions by default
 (traced_transactions=0 in the report) — asserting sideband VALUES
 end-to-end belongs with the native-sideband work.
 
-Next: A5-2 (native AXI5 sideband through the fabric + AXI5 slaves),
-then A5-3 (atomics + APB5).
+Next: A5-3 (atomics + APB5).
+
+**A5-3 design note (2026-08-09):** three slices, in order of
+tractability. Facts on the ground: the axi5 wrappers already
+transport AWATOP feature-gated through their skid path (both
+families); the DV BFM's `atomic_operation` is write-shaped
+(`write_transaction` + atop — it does not collect an R return); the
+converters IP has `axi4_to_apb4_{convert,shim}` as the template and
+`apb5_pkg` provides apb4<->apb5 m2s/s2m conversion functions.
+
+*Why read-return atomics are the hard part in THIS fabric:* AWATOP
+classes — `01xxxx` AtomicStore (B-only response), `10xxxx`
+AtomicLoad, `11000x` AtomicSwap/Compare (original data returns on
+the R channel, using the AW ID). The bridge splits wr and rd into
+separate wrappers, adapters, and xbar paths per port; every R-return
+tracker (slave adapter rd-side FIFO/CAM pushing on AR handshake,
+master adapter r_slave_select FIFO, xbar rready gating on rid_valid)
+learns only about ARs. A load-class atomic issues on the wr path and
+returns on the rd path — invisible to all three trackers, so the R
+response would hang. Fixing it properly needs a per-ID tracking
+block SHARED between a port's wr and rd adapters (cross-adapter
+ports through the bridge top), pushed on atomic-AW handshake, plus
+per-ID (CAM) rather than in-order tracking on the master rd path.
+The AXI spec's "an atomic's ID must not be concurrently in use by
+reads" rule keeps routing unambiguous once tracked.
+
+- *A5-3a — store-class atomics, native transport:* `atomic` becomes
+  connectivity-gated exactly like poison (every connected path
+  AXI5-both-ends + atomic-enabled + width-matched); `aw.atop[5:0]`
+  joins the sideband spec table and rides the fabric structs by the
+  slice-2 mechanism unchanged. NEW RTL: a small atomic filter at the
+  atomic-enabled master boundary (fub side, before the structs) —
+  read-return ATOP (`awatop[5]==1`) is NOT forwarded: the filter
+  swallows the AW + its W burst and generates a local DECERR B (the
+  A5-1 termination policy, narrowed from "all atomics" to
+  "read-return atomics"), with a monitor event on mon variants.
+  Store-class forwards natively; the external slave performs the op.
+  The filter is a real little FSM (must consume W beats) — build it
+  as reusable IP (rtl/amba/axi5/axi5_atomic_filter.sv) with its own
+  val tests before wiring it into the generator.
+- *A5-3b — read-return atomics:* the shared per-ID tracking block
+  above. Design that block standalone first; defer until a concrete
+  consumer exists (nothing in-tree issues AtomicLoad today, and the
+  BFM cannot check the return path yet either).
+- *A5-3c — APB5 slaves (independent, do first):* new converters IP
+  `axi4_to_apb5_shim` = the axi4_to_apb4 conversion core + the
+  apb5_pkg m2s/s2m conversion functions + PWAKEUP generation (assert
+  with PSEL, deassert after the transfer) + user-signal ties;
+  slave_adapter_generator gains a protocol="apb5" branch mirroring
+  the apb one; validator apb5 constraints mirror APB4's (rw-only,
+  32-bit). DV: apb5 slave BFM exists (CocoTBFramework apb5), so a
+  bridge_1x2 fixture with one apb5 slave closes it.
 
 **A5-2 design note (2026-08-09):** two slices.
 
