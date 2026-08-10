@@ -1057,9 +1057,9 @@ The timestamp is carried in parallel with the packet (not within it) through the
 | **create_axi_performance_event()** | axi_performance_code_t | Create AXI performance event code |
 | **create_axi_addr_match_event()** | axi_addr_match_code_t | Create AXI address match event code |
 | **create_axi_debug_event()** | axi_debug_code_t | Create AXI debug event code |
-| **create_apb_error_event()** | apb_error_code_t | Create APB error event code |
-| **create_apb_timeout_event()** | apb_timeout_code_t | Create APB timeout event code |
-| **create_apb_completion_event()** | apb_completion_code_t | Create APB completion event code |
+| **create_apb4_error_event()** | apb_error_code_t | Create APB error event code |
+| **create_apb4_timeout_event()** | apb_timeout_code_t | Create APB timeout event code |
+| **create_apb4_completion_event()** | apb_completion_code_t | Create APB completion event code |
 | **create_mnoc_error_event()** | mnoc_error_code_t | Create MNOC error event code |
 | **create_mnoc_timeout_event()** | mnoc_timeout_code_t | Create MNOC timeout event code |
 | **create_mnoc_completion_event()** | mnoc_completion_code_t | Create MNOC completion event code |

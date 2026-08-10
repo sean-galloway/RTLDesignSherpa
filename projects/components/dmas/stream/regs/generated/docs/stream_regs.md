@@ -1368,7 +1368,9 @@ acceptance cross-check against the perf-window burst counters.</p>
 |  2 | COMPL_EN |  rw  | 0x0 |  — |
 |  3 |TIMEOUT_EN|  rw  | 0x0 |  — |
 |  4 |  PERF_EN |  rw  | 0x0 |  — |
-|31:5|   RSVD   |   r  | 0x0 |  — |
+|  5 |   RSVD5  |   r  | 0x0 |  — |
+|  6 | THRESH_EN|  rw  | 0x0 |  — |
+|31:7|   RSVD   |   r  | 0x0 |  — |
 
 #### MON_EN field
 
@@ -1389,6 +1391,14 @@ acceptance cross-check against the perf-window burst counters.</p>
 #### PERF_EN field
 
 <p>Performance enable - enable performance packets</p>
+
+#### RSVD5 field
+
+<p>Reserved. Bit 5 is COMPRESS_EN on WRMON_ENABLE only; held reserved here so all three monitor ENABLE registers share one bit layout.</p>
+
+#### THRESH_EN field
+
+<p>Threshold enable - enable latency-threshold packets. Before this field existed the threshold cone was gated by PERF_EN, so a host that left PERF_EN clear saw no threshold packets however low it set LATENCY_THRESH.</p>
 
 #### RSVD field
 
@@ -1455,28 +1465,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Descriptor AXI monitor error selection and filtering</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 3:0 |ERR_SELECT|  rw  | 0x0 |  — |
-| 7:4 |   RSVD1  |   r  | 0x0 |  — |
-| 15:8| ERR_MASK |  rw  | 0xFF|  — |
-|31:16|   RSVD2  |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0|ERR_SELECT|  rw  |  0x0 |  — |
+|31:16| ERR_MASK |  rw  |0xFFFF|  — |
 
 #### ERR_SELECT field
 
-<p>Error select [3:0] - error type selection</p>
-
-#### RSVD1 field
-
-<p>Reserved</p>
+<p>Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace</p>
 
 #### ERR_MASK field
 
-<p>Error mask [15:8] - error type filtering</p>
-
-#### RSVD2 field
-
-<p>Reserved</p>
+<p>Error mask - per-event-code drop mask, indexed by event_code[3:0]</p>
 
 ### DAXMON_MASK1 register
 
@@ -1486,23 +1486,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Descriptor AXI monitor timeout and completion masks</p>
 
-| Bits| Identifier |Access|Reset|Name|
-|-----|------------|------|-----|----|
-| 7:0 |TIMEOUT_MASK|  rw  | 0xFF|  — |
-| 15:8| COMPL_MASK |  rw  | 0x0 |  — |
-|31:16|    RSVD    |   r  | 0x0 |  — |
+| Bits| Identifier |Access| Reset|Name|
+|-----|------------|------|------|----|
+| 15:0|TIMEOUT_MASK|  rw  |0xFFFF|  — |
+|31:16| COMPL_MASK |  rw  |  0x0 |  — |
 
 #### TIMEOUT_MASK field
 
-<p>Timeout mask [7:0]</p>
+<p>Timeout mask</p>
 
 #### COMPL_MASK field
 
-<p>Completion mask [15:8]</p>
-
-#### RSVD field
-
-<p>Reserved</p>
+<p>Completion mask</p>
 
 ### DAXMON_MASK2 register
 
@@ -1512,23 +1507,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Descriptor AXI monitor threshold and performance masks</p>
 
-| Bits| Identifier|Access|Reset|Name|
-|-----|-----------|------|-----|----|
-| 7:0 |THRESH_MASK|  rw  | 0xFF|  — |
-| 15:8| PERF_MASK |  rw  | 0x0 |  — |
-|31:16|    RSVD   |   r  | 0x0 |  — |
+| Bits| Identifier|Access| Reset|Name|
+|-----|-----------|------|------|----|
+| 15:0|THRESH_MASK|  rw  |0xFFFF|  — |
+|31:16| PERF_MASK |  rw  |  0x0 |  — |
 
 #### THRESH_MASK field
 
-<p>Threshold mask [7:0]</p>
+<p>Threshold mask</p>
 
 #### PERF_MASK field
 
-<p>Performance mask [15:8]</p>
-
-#### RSVD field
-
-<p>Reserved</p>
+<p>Performance mask</p>
 
 ### DAXMON_MASK3 register
 
@@ -1538,23 +1528,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Descriptor AXI monitor address and debug masks</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 7:0 | ADDR_MASK|  rw  | 0xFF|  — |
-| 15:8|DEBUG_MASK|  rw  | 0x0 |  — |
-|31:16|   RSVD   |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0| ADDR_MASK|  rw  |0xFFFF|  — |
+|31:16|DEBUG_MASK|  rw  |  0x0 |  — |
 
 #### ADDR_MASK field
 
-<p>Address mask [7:0]</p>
+<p>Address mask</p>
 
 #### DEBUG_MASK field
 
-<p>Debug mask [15:8]</p>
-
-#### RSVD field
-
-<p>Reserved</p>
+<p>Debug mask</p>
 
 ### RDMON_ENABLE register
 
@@ -1571,7 +1556,9 @@ acceptance cross-check against the perf-window burst counters.</p>
 |  2 | COMPL_EN |  rw  | 0x0 |  — |
 |  3 |TIMEOUT_EN|  rw  | 0x0 |  — |
 |  4 |  PERF_EN |  rw  | 0x0 |  — |
-|31:5|   RSVD   |   r  | 0x0 |  — |
+|  5 |   RSVD5  |   r  | 0x0 |  — |
+|  6 | THRESH_EN|  rw  | 0x0 |  — |
+|31:7|   RSVD   |   r  | 0x0 |  — |
 
 #### MON_EN field
 
@@ -1592,6 +1579,14 @@ acceptance cross-check against the perf-window burst counters.</p>
 #### PERF_EN field
 
 <p>Performance enable - enable performance packets</p>
+
+#### RSVD5 field
+
+<p>Reserved. Bit 5 is COMPRESS_EN on WRMON_ENABLE only; held reserved here so all three monitor ENABLE registers share one bit layout.</p>
+
+#### THRESH_EN field
+
+<p>Threshold enable - enable latency-threshold packets. Before this field existed the threshold cone was gated by PERF_EN, so a host that left PERF_EN clear saw no threshold packets however low it set LATENCY_THRESH.</p>
 
 #### RSVD field
 
@@ -1658,28 +1653,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Read engine AXI monitor error selection and filtering</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 3:0 |ERR_SELECT|  rw  | 0x0 |  — |
-| 7:4 |   RSVD1  |   r  | 0x0 |  — |
-| 15:8| ERR_MASK |  rw  | 0xFF|  — |
-|31:16|   RSVD2  |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0|ERR_SELECT|  rw  |  0x0 |  — |
+|31:16| ERR_MASK |  rw  |0xFFFF|  — |
 
 #### ERR_SELECT field
 
-<p>Error select [3:0] - error type selection</p>
-
-#### RSVD1 field
-
-<p>Reserved</p>
+<p>Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace</p>
 
 #### ERR_MASK field
 
-<p>Error mask [15:8] - error type filtering</p>
-
-#### RSVD2 field
-
-<p>Reserved</p>
+<p>Error mask - per-event-code drop mask, indexed by event_code[3:0]</p>
 
 ### RDMON_MASK1 register
 
@@ -1689,23 +1674,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Read engine AXI monitor timeout and completion masks</p>
 
-| Bits| Identifier |Access|Reset|Name|
-|-----|------------|------|-----|----|
-| 7:0 |TIMEOUT_MASK|  rw  | 0xFF|  — |
-| 15:8| COMPL_MASK |  rw  | 0x0 |  — |
-|31:16|    RSVD    |   r  | 0x0 |  — |
+| Bits| Identifier |Access| Reset|Name|
+|-----|------------|------|------|----|
+| 15:0|TIMEOUT_MASK|  rw  |0xFFFF|  — |
+|31:16| COMPL_MASK |  rw  |  0x0 |  — |
 
 #### TIMEOUT_MASK field
 
-<p>Timeout mask [7:0]</p>
+<p>Timeout mask</p>
 
 #### COMPL_MASK field
 
-<p>Completion mask [15:8]</p>
-
-#### RSVD field
-
-<p>Reserved</p>
+<p>Completion mask</p>
 
 ### RDMON_MASK2 register
 
@@ -1715,23 +1695,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Read engine AXI monitor threshold and performance masks</p>
 
-| Bits| Identifier|Access|Reset|Name|
-|-----|-----------|------|-----|----|
-| 7:0 |THRESH_MASK|  rw  | 0xFF|  — |
-| 15:8| PERF_MASK |  rw  | 0x0 |  — |
-|31:16|    RSVD   |   r  | 0x0 |  — |
+| Bits| Identifier|Access| Reset|Name|
+|-----|-----------|------|------|----|
+| 15:0|THRESH_MASK|  rw  |0xFFFF|  — |
+|31:16| PERF_MASK |  rw  |  0x0 |  — |
 
 #### THRESH_MASK field
 
-<p>Threshold mask [7:0]</p>
+<p>Threshold mask</p>
 
 #### PERF_MASK field
 
-<p>Performance mask [15:8]</p>
-
-#### RSVD field
-
-<p>Reserved</p>
+<p>Performance mask</p>
 
 ### RDMON_MASK3 register
 
@@ -1741,23 +1716,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Read engine AXI monitor address and debug masks</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 7:0 | ADDR_MASK|  rw  | 0xFF|  — |
-| 15:8|DEBUG_MASK|  rw  | 0x0 |  — |
-|31:16|   RSVD   |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0| ADDR_MASK|  rw  |0xFFFF|  — |
+|31:16|DEBUG_MASK|  rw  |  0x0 |  — |
 
 #### ADDR_MASK field
 
-<p>Address mask [7:0]</p>
+<p>Address mask</p>
 
 #### DEBUG_MASK field
 
-<p>Debug mask [15:8]</p>
-
-#### RSVD field
-
-<p>Reserved</p>
+<p>Debug mask</p>
 
 ### WRMON_ENABLE register
 
@@ -1775,7 +1745,8 @@ acceptance cross-check against the perf-window burst counters.</p>
 |  3 | TIMEOUT_EN|  rw  | 0x0 |  — |
 |  4 |  PERF_EN  |  rw  | 0x0 |  — |
 |  5 |COMPRESS_EN|  rw  | 0x1 |  — |
-|31:6|    RSVD   |   r  | 0x0 |  — |
+|  6 | THRESH_EN |  rw  | 0x0 |  — |
+|31:7|    RSVD   |   r  | 0x0 |  — |
 
 #### MON_EN field
 
@@ -1800,6 +1771,10 @@ acceptance cross-check against the perf-window burst counters.</p>
 #### COMPRESS_EN field
 
 <p>Compression enable - 1=compress the monbus write stream, 0=raw 3-beat records. Only effective when the monbus group is built with USE_COMPRESSION=1. Program once before monitoring starts (must be stable while the write path is active).</p>
+
+#### THRESH_EN field
+
+<p>Threshold enable - enable latency-threshold packets. Before this field existed the threshold cone was gated by PERF_EN, so a host that left PERF_EN clear saw no threshold packets however low it set LATENCY_THRESH.</p>
 
 #### RSVD field
 
@@ -1866,28 +1841,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Write engine AXI monitor error selection and filtering</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 3:0 |ERR_SELECT|  rw  | 0x0 |  — |
-| 7:4 |   RSVD1  |   r  | 0x0 |  — |
-| 15:8| ERR_MASK |  rw  | 0xFF|  — |
-|31:16|   RSVD2  |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0|ERR_SELECT|  rw  |  0x0 |  — |
+|31:16| ERR_MASK |  rw  |0xFFFF|  — |
 
 #### ERR_SELECT field
 
-<p>Error select [3:0] - error type selection</p>
-
-#### RSVD1 field
-
-<p>Reserved</p>
+<p>Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace</p>
 
 #### ERR_MASK field
 
-<p>Error mask [15:8] - error type filtering</p>
-
-#### RSVD2 field
-
-<p>Reserved</p>
+<p>Error mask - per-event-code drop mask, indexed by event_code[3:0]</p>
 
 ### WRMON_MASK1 register
 
@@ -1897,23 +1862,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Write engine AXI monitor timeout and completion masks</p>
 
-| Bits| Identifier |Access|Reset|Name|
-|-----|------------|------|-----|----|
-| 7:0 |TIMEOUT_MASK|  rw  | 0xFF|  — |
-| 15:8| COMPL_MASK |  rw  | 0x0 |  — |
-|31:16|    RSVD    |   r  | 0x0 |  — |
+| Bits| Identifier |Access| Reset|Name|
+|-----|------------|------|------|----|
+| 15:0|TIMEOUT_MASK|  rw  |0xFFFF|  — |
+|31:16| COMPL_MASK |  rw  |  0x0 |  — |
 
 #### TIMEOUT_MASK field
 
-<p>Timeout mask [7:0]</p>
+<p>Timeout mask</p>
 
 #### COMPL_MASK field
 
-<p>Completion mask [15:8]</p>
-
-#### RSVD field
-
-<p>Reserved</p>
+<p>Completion mask</p>
 
 ### WRMON_MASK2 register
 
@@ -1923,23 +1883,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Write engine AXI monitor threshold and performance masks</p>
 
-| Bits| Identifier|Access|Reset|Name|
-|-----|-----------|------|-----|----|
-| 7:0 |THRESH_MASK|  rw  | 0xFF|  — |
-| 15:8| PERF_MASK |  rw  | 0x0 |  — |
-|31:16|    RSVD   |   r  | 0x0 |  — |
+| Bits| Identifier|Access| Reset|Name|
+|-----|-----------|------|------|----|
+| 15:0|THRESH_MASK|  rw  |0xFFFF|  — |
+|31:16| PERF_MASK |  rw  |  0x0 |  — |
 
 #### THRESH_MASK field
 
-<p>Threshold mask [7:0]</p>
+<p>Threshold mask</p>
 
 #### PERF_MASK field
 
-<p>Performance mask [15:8]</p>
-
-#### RSVD field
-
-<p>Reserved</p>
+<p>Performance mask</p>
 
 ### WRMON_MASK3 register
 
@@ -1949,23 +1904,18 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Write engine AXI monitor address and debug masks</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 7:0 | ADDR_MASK|  rw  | 0xFF|  — |
-| 15:8|DEBUG_MASK|  rw  | 0x0 |  — |
-|31:16|   RSVD   |   r  | 0x0 |  — |
+| Bits|Identifier|Access| Reset|Name|
+|-----|----------|------|------|----|
+| 15:0| ADDR_MASK|  rw  |0xFFFF|  — |
+|31:16|DEBUG_MASK|  rw  |  0x0 |  — |
 
 #### ADDR_MASK field
 
-<p>Address mask [7:0]</p>
+<p>Address mask</p>
 
 #### DEBUG_MASK field
 
-<p>Debug mask [15:8]</p>
-
-#### RSVD field
-
-<p>Reserved</p>
+<p>Debug mask</p>
 
 ### DAXMON_PERF_CTRL register
 

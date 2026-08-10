@@ -28,5 +28,5 @@ read -formal -sv formal_math_bf16_exp2.sv
 prep -top formal_math_bf16_exp2
 
 [files]
-math_bf16_exp2.sv ../../../rtl/common/math_bf16_exp2.sv
+math_bf16_exp2.sv ../../../rtl/math/math_bf16_exp2.sv
 formal_math_bf16_exp2.sv

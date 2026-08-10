@@ -148,7 +148,9 @@ When adding WAVES support to a test file:
 
 ## See Also
 
-- `/TESTING.md` - Complete testing guide
+- `vault/handbook/dv/test-runner.md` - the test-runner stack (REG_LEVEL vs
+  TEST_LEVEL, WAVES opt-in) and `vault/handbook/dv/running-regressions.md` -
+  how suites are actually run
 - `/CLAUDE.md` - Repository guide for Claude Code
 - `bin/add_waves_support.py` - Automated script (if needed)
 

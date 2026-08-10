@@ -130,6 +130,6 @@ your_regs u_regs (
 
 ### See Also
 
-- **Example**: `projects/components/retro_legacy_blocks/rtl/hpet/apb_hpet.sv` (shows full integration of PeakRDL-generated registers; the old `hpet_regs_wrapper.sv` was superseded)
+- **Example**: `projects/components/retro_legacy_blocks/rtl/hpet/apb4_hpet.sv` (shows full integration of PeakRDL-generated registers; the old `hpet_regs_wrapper.sv` was superseded)
 - **PeakRDL docs**: https://peakrdl-regblock.readthedocs.io/
 - **SystemRDL spec**: https://www.accellera.org/downloads/standards/systemrdl

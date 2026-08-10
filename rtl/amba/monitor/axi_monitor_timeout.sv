@@ -48,9 +48,9 @@ module axi_monitor_timeout
     input  logic                     timer_tick,    // From frequency invariant timer
 
     // Timeout configuration
-    input  logic [3:0]               cfg_addr_cnt,  // Address phase timeout threshold
-    input  logic [3:0]               cfg_data_cnt,  // Data phase timeout threshold
-    input  logic [3:0]               cfg_resp_cnt,  // Response phase timeout threshold
+    input  logic [15:0]              cfg_addr_cnt,  // Address phase timeout threshold
+    input  logic [15:0]              cfg_data_cnt,  // Data phase timeout threshold
+    input  logic [15:0]              cfg_resp_cnt,  // Response phase timeout threshold
 
     // Packet type configuration
     input  logic                     cfg_timeout_enable, // Enable dedicated timeout packets
@@ -69,10 +69,20 @@ module axi_monitor_timeout
     // The timers are now dedicated state, owned solely by this module, and the
     // rest of the transaction record is read live off `trans_table`.
     //
-    // cfg_*_cnt is 4 bits; TIMER_W gives headroom without carrying 3 x 32 bits
+    // cfg_*_cnt counts MICROSECONDS (timer_tick is the 1 us frequency-invariant
+    // tick from counter_freq_invariant, which is the whole point of using that
+    // counter: a timeout expressed in real time, not in clocks, so it means the
+    // same thing at any aclk. 16 bits => up to 65535 us ~= 65 ms, which is long
+    // enough that expiry is unambiguously a real timeout rather than a slow bus.
+    //
+    // These were 4 bits, and every wrapper squashed the host's 16-bit
+    // cfg_timeout_cycles down to them with a saturating truncation -- so ANY
+    // value >= 16 became 15, and the entire configurable range collapsed onto
+    // 1..15 us. A host asking for 50 and a host asking for 100000 got the same
+    // hardware.
     // of unused counter per slot.
     // -------------------------------------------------------------------------
-    localparam int TIMER_W = 8;
+    localparam int TIMER_W = 16;   // must hold the full us threshold
 
     logic [TIMER_W-1:0] r_addr_timer [MAX_TRANSACTIONS];
     logic [TIMER_W-1:0] r_data_timer [MAX_TRANSACTIONS];
@@ -188,7 +198,7 @@ module axi_monitor_timeout
 
                     // Address phase timeout detection
                     if (w_addr_pending[idx]) begin
-                        if (r_addr_timer[idx] >= {4'h0, cfg_addr_cnt}) begin
+                        if (r_addr_timer[idx] >= cfg_addr_cnt) begin
                             r_timeout_detected[idx] <= 1'b1;
                         end else begin
                             r_addr_timer[idx] <= r_addr_timer[idx] + 1'b1;
@@ -197,7 +207,7 @@ module axi_monitor_timeout
 
                     // Data phase timeout detection
                     if (w_data_pending[idx]) begin
-                        if (r_data_timer[idx] >= {4'h0, cfg_data_cnt}) begin
+                        if (r_data_timer[idx] >= cfg_data_cnt) begin
                             r_timeout_detected[idx] <= 1'b1;
                         end else begin
                             r_data_timer[idx] <= r_data_timer[idx] + 1'b1;
@@ -206,7 +216,7 @@ module axi_monitor_timeout
 
                     // Response phase timeout detection (write only)
                     if (w_resp_pending[idx]) begin
-                        if (r_resp_timer[idx] >= {4'h0, cfg_resp_cnt}) begin
+                        if (r_resp_timer[idx] >= cfg_resp_cnt) begin
                             r_timeout_detected[idx] <= 1'b1;
                         end else begin
                             r_resp_timer[idx] <= r_resp_timer[idx] + 1'b1;

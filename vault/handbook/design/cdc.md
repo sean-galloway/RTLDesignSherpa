@@ -44,7 +44,7 @@ The parameter must still be *reachable*: expose it so a caller who genuinely
 needs an odd depth can pass 1. The rule is about the default and the visibility,
 not about removing the capability.
 
-*Applied 2026-07-27 across `rtl/`: `apb_slave_cdc`, `apb_slave_cdc_cg`,
+*Applied 2026-07-27 across `rtl/`: `apb4_slave_cdc`, `apb4_slave_cdc_cg`,
 `apb5_slave_cdc_cg` and both testcode multi-wrappers had no `USE_JOHNSON`
 parameter at all; `apb5_slave_cdc` defaulted to `-1` (auto-select);
 `gaxi_fifo_async_multi` hardcoded `1` and defaulted `DEPTH` to 10, so Johnson

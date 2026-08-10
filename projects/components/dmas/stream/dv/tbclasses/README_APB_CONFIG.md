@@ -40,7 +40,7 @@ StreamCoreTB
 │   └── No APB master needed
 │
 └── APB Configuration Mode (stream_top)
-    ├── init_apb_master() - Initialize APB BFM
+    ├── init_apb4_master() - Initialize APB BFM
     ├── APB register access (0x100-0x3FF)
     ├── Still uses kick_off_channel() for 0x000-0x03F
     └── APB master handles all config writes
@@ -74,7 +74,7 @@ tb = StreamCoreTB(
 await tb.setup_clocks_and_reset()
 
 # Initialize APB master (stream_top only!)
-await tb.init_apb_master()
+await tb.init_apb4_master()
 ```
 
 ### Step 2: Configure via APB Registers
@@ -200,8 +200,8 @@ name = StreamRegisterMap.get_register_name(0x100)  # "GLOBAL_CTRL"
 
 **Existing stream_core tests are NOT affected:**
 
-- `apb_master` attribute is `None` by default
-- `init_apb_master()` detects if DUT has APB interface
+- `apb4_master` attribute is `None` by default
+- `init_apb4_master()` detects if DUT has APB interface
 - APB methods raise error if APB master not initialized
 - Existing tests use direct signal configuration - no changes needed
 
@@ -209,7 +209,7 @@ name = StreamRegisterMap.get_register_name(0x100)  # "GLOBAL_CTRL"
 # stream_core test (no APB, still works)
 tb = StreamCoreTB(dut, ...)
 await tb.setup_clocks_and_reset()
-# NO init_apb_master() call
+# NO init_apb4_master() call
 tb.write_descriptor(...)
 await tb.kick_off_channel(0, 0x10000)  # Direct signals
 ```
@@ -228,7 +228,7 @@ async def cocotb_test_apb_config(dut):
     # Initialize testbench
     tb = StreamCoreTB(dut, num_channels=8, data_width=512)
     await tb.setup_clocks_and_reset()
-    await tb.init_apb_master()
+    await tb.init_apb4_master()
 
     # Read version
     version = await tb.read_version()
@@ -282,7 +282,7 @@ def test_stream_top_apb(request, params):
 
 ### APB Master Initialization
 
-The `init_apb_master()` method:
+The `init_apb4_master()` method:
 1. Checks if DUT has `s_apb_paddr` signal (stream_top vs stream_core detection)
 2. Creates APBMaster BFM with:
    - 12-bit addressing (4KB space)
@@ -309,7 +309,7 @@ APB WRITE: CHANNEL_ENABLE (0x120) = 0x000000FF
 try:
     await tb.write_apb_register(0x100, 0x1)
 except RuntimeError as e:
-    print(f"Error: {e}")  # "APB master not initialized. Call init_apb_master() first."
+    print(f"Error: {e}")  # "APB master not initialized. Call init_apb4_master() first."
 ```
 
 ## PeakRDL Register Definitions
@@ -329,7 +329,7 @@ projects/components/dmas/stream/regs/generated/rtl/stream_regs_pkg.sv
 
 When creating stream_top tests:
 1. Import StreamCoreTB and StreamRegisterMap
-2. Call `init_apb_master()` after `setup_clocks_and_reset()`
+2. Call `init_apb4_master()` after `setup_clocks_and_reset()`
 3. Use APB methods for configuration (0x100+)
 4. Use existing methods for descriptors and transfers
 5. Follow HPET pattern for test structure

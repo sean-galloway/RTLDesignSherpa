@@ -1,7 +1,7 @@
 %%{init: {'theme': 'neutral'}}%%
 flowchart TB
     subgraph APB_CLK["APB Clock Domain (pclk)"]
-        APB_P[apb_slave_cdc<br/>pclk side]
+        APB_P[apb4_slave_cdc<br/>pclk side]
     end
 
     subgraph CDC["CDC Boundary"]
@@ -9,7 +9,7 @@ flowchart TB
     end
 
     subgraph GPIO_CLK["GPIO Clock Domain (gpio_clk)"]
-        APB_G[apb_slave_cdc<br/>gpio_clk side]
+        APB_G[apb4_slave_cdc<br/>gpio_clk side]
         P2C[peakrdl_to_cmdrsp]
         CFG[gpio_config_regs]
         REGS[gpio_regs]

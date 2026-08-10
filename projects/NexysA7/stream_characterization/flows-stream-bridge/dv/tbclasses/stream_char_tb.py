@@ -119,7 +119,7 @@ APB_DESCENG_ADDR0_LIMIT = A("DESCENG_ADDR0_LIMIT")
 APB_DESCENG_ADDR1_BASE  = A("DESCENG_ADDR1_BASE")
 APB_DESCENG_ADDR1_LIMIT = A("DESCENG_ADDR1_LIMIT")
 APB_AXI_XFER_CONFIG     = A("AXI_XFER_CONFIG")
-APB_CH_KICK_BASE        = A("CH0_CTRL_LOW")  # kick-off via apbtodescr
+APB_CH_KICK_BASE        = A("CH0_CTRL_LOW")  # kick-off via apb4todescr
 APB_CH_KICK_STRIDE      = 0x08                     # 8 bytes per ch (LOW + HIGH)
 
 # Monitor configuration registers (stream_regs.rdl).

@@ -36,22 +36,22 @@ to demonstrate -- and why the RTL currently does not build -- start at
 
 ## Monitored APB fabrics
 
-- **[apb_peripheral_subsystem](apb_peripheral_subsystem.md)** - one APB master
+- **[apb4_peripheral_subsystem](apb4_peripheral_subsystem.md)** - one APB master
   fanned out to three peripherals (regfile / timer / GPIO), each with its own
   monitor, and the monitor buses arbitrated onto one 64-bit monbus output
-- **[apb_xbar_monitored](apb_xbar_monitored.md)** - `apb_xbar_thin` with a
+- **[apb4_xbar_monitored](apb4_xbar_monitored.md)** - `apb4_xbar_thin` with a
   monitor on every master and slave port, agent-ID tagged per port
 
 ## Related
 
-- [apb_monitor](../rtl-amba/apb/apb_monitor.md) - the observer both examples
+- [apb4_monitor](../rtl-amba/apb4/apb4_monitor.md) - the observer both examples
   attach; takes the `cmd_*`/`rsp_*` handshake, not raw APB
-- [apb_slave](../rtl-amba/apb/apb_slave.md), [apb_master](../rtl-amba/apb/apb_master.md)
+- [apb4_slave](../rtl-amba/apb4/apb4_slave.md), [apb4_master](../rtl-amba/apb4/apb4_master.md)
   - the bridges that translate the wire into that handshake
 - [arbiter_round_robin](../rtl-common/arbiter_round_robin.md) - fair arbitration
   over the per-port monitor buses
-- `apb_xbar_thin` lives in `projects/components/apb_xbar`, so
-  `apb_xbar_monitored` depends on a project area from under `rtl/` -- a backwards
+- `apb4_xbar_thin` lives in `projects/components/apb4_xbar`, so
+  `apb4_xbar_monitored` depends on a project area from under `rtl/` -- a backwards
   dependency, noted in its filelist
 
 ## Navigation

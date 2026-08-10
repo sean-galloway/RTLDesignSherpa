@@ -87,7 +87,7 @@ Intel 8259A-compatible Programmable Interrupt Controller with APB interface. Pro
 Follows HPET/PIT 8254 three-layer architecture:
 
 ```
-Layer 1: apb_pic_8259.sv
+Layer 1: apb4_pic_8259.sv
   ├─ APB4 slave interface
   └─ Top-level integration
 
@@ -107,7 +107,7 @@ Layer 3: pic_8259_core.sv
 ## Files
 
 ### RTL Implementation
-- ✅ `apb_pic_8259.sv` - Top-level APB wrapper
+- ✅ `apb4_pic_8259.sv` - Top-level APB wrapper
 - ✅ `pic_8259_core.sv` - Core PIC interrupt controller logic
 - ✅ `pic_8259_config_regs.sv` - Register wrapper with edge detection
 - ✅ `pic_8259_regs.sv` - PeakRDL generated register file

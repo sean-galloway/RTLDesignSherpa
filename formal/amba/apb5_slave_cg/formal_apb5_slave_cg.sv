@@ -4,7 +4,7 @@
 // Formal proof for apb5_slave_cg -- clock-gated APB5 slave wrapper
 //
 // NOTE: The strict "no gating during PSEL" property is relaxed due to
-// 2-cycle wakeup latency (see KNOWN_BUG.md, same issue as apb_slave_cg).
+// 2-cycle wakeup latency (see KNOWN_BUG.md, same issue as apb4_slave_cg).
 //
 // Properties verified:
 //   P1: Reset clears s_apb_PREADY and gating

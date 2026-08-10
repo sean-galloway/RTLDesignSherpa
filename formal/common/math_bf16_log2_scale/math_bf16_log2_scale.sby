@@ -18,5 +18,5 @@ read -formal -sv formal_math_bf16_log2_scale.sv
 prep -top formal_math_bf16_log2_scale
 
 [files]
-math_bf16_log2_scale.sv ../../../rtl/common/math_bf16_log2_scale.sv
+math_bf16_log2_scale.sv ../../../rtl/math/math_bf16_log2_scale.sv
 formal_math_bf16_log2_scale.sv

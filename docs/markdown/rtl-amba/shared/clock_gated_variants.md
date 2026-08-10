@@ -41,7 +41,7 @@ compile-time enable parameter on the wrapper.
 
 **Examples:**
 - `axi4_master_rd.sv` → `axi4_master_rd_cg.sv`
-- `apb_slave.sv` → `apb_slave_cg.sv`
+- `apb4_slave.sv` → `apb4_slave_cg.sv`
 - `axis_master.sv` → `axis_master_cg.sv`
 
 ---
@@ -134,7 +134,7 @@ Status port naming differs by protocol family. Check the module port list before
 | AXI5-Stream (`axis5`) | `axis_clock_gating` |
 | APB, APB5 (non-CDC) | `apb_clock_gating` (the controller `idle` output is left unconnected) |
 | APB5 CDC (`apb5_slave_cdc_cg`) | `apb_clock_gating` |
-| APB CDC (`apb_slave_cdc_cg`) | `pclk_cg_gating`, `pclk_cg_idle`, `aclk_cg_gating`, `aclk_cg_idle` (two gating domains, two controller instances) |
+| APB CDC (`apb4_slave_cdc_cg`) | `pclk_cg_gating`, `pclk_cg_idle`, `aclk_cg_gating`, `aclk_cg_idle` (two gating domains, two controller instances) |
 
 **All other ports are identical to the base module.**
 
@@ -184,7 +184,7 @@ Two numbers are quoted throughout this book, and they must not be confused:
   only usable on the following edge.
 
 Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5,
-AXI5-Stream) before reaching the ICG enable, which is combinational. `apb_slave_cdc_cg`
+AXI5-Stream) before reaching the ICG enable, which is combinational. `apb4_slave_cdc_cg`
 is the one exception -- it drives `amba_clock_gate_ctrl` combinationally and so registers
 once despite being APB. The first gated-clock
 rising edge available to the block therefore arrives **2 clocks** (single-stage families)
@@ -202,13 +202,13 @@ edge, not a register stage.
 | AXI4, AXI5, AXI4-Lite `_cg` | No (combinational) | Yes | 1 | 2 clocks |
 | `axis_master_cg`, `axis_slave_cg` (AXI4-Stream) | No (combinational) | Yes | 1 | 2 clocks |
 | All `*_mon_cg` monitor wrappers | No (combinational) | Yes | 1 | 2 clocks |
-| `apb_slave_cdc_cg` | No (combinational) | Yes | 1 | 2 clocks |
-| `apb_master_cg`, `apb_slave_cg` | Yes | Yes | 2 | 3 clocks |
+| `apb4_slave_cdc_cg` | No (combinational) | Yes | 1 | 2 clocks |
+| `apb4_master_cg`, `apb4_slave_cg` | Yes | Yes | 2 | 3 clocks |
 | `apb5_master_cg`, `apb5_slave_cg`, `apb5_slave_cdc_cg` | Yes | Yes | 2 | 3 clocks |
 | `axis5_master_cg`, `axis5_slave_cg` (AXI5-Stream) | Yes | Yes | 2 | 3 clocks |
 
 > **Note:** the AXI5-Stream `_cg` wrappers register activity locally and so behave like the
-> APB family, not like the AXI4-Stream wrappers. Conversely `apb_slave_cdc_cg` drives the
+> APB family, not like the AXI4-Stream wrappers. Conversely `apb4_slave_cdc_cg` drives the
 > activity terms combinationally and so behaves like the AXI family. On both CDC wrappers
 > the cross-domain activity term additionally pays the usual two-flop synchronizer delay in
 > the receiving domain, on top of the stages counted above.
@@ -219,7 +219,7 @@ edge, not a register stage.
 `wakeup` was high. Measured from the last bus activity, that is:
 
 - `cfg_cg_idle_count + 2` clocks on the single-stage families (AXI4, AXI5, AXI4-Lite,
-  AXI4-Stream, the monitor `_cg` wrappers, `apb_slave_cdc_cg`)
+  AXI4-Stream, the monitor `_cg` wrappers, `apb4_slave_cdc_cg`)
 - `cfg_cg_idle_count + 3` clocks on the two-stage families (APB, APB5, AXI5-Stream)
 
 The extra clock in each case is the time activity takes to appear on `r_wakeup`.
@@ -254,9 +254,9 @@ first beat out of a gated period is backpressured rather than lost:
 - All AXI4, AXI5, and AXI4-Lite transport `_cg` modules
 - `axis_master_cg`, `axis_slave_cg`
 - All four AXI5 `*_mon_cg` modules
-- `apb_slave_cdc_cg` (both clock domains)
+- `apb4_slave_cdc_cg` (both clock domains)
 
-`apb_master_cg`, `apb_slave_cg`, the APB5 variants, and the AXI5-Stream variants do not
+`apb4_master_cg`, `apb4_slave_cg`, the APB5 variants, and the AXI5-Stream variants do not
 force ready.
 
 ### State Machine
@@ -458,7 +458,7 @@ Every module below instantiates `amba_clock_gate_ctrl` and takes `CG_IDLE_COUNT_
 | AXI4 | `rtl/amba/axi4/` | `axi4_master_rd_cg`, `axi4_master_wr_cg`, `axi4_slave_rd_cg`, `axi4_slave_wr_cg` |
 | AXI5 | `rtl/amba/axi5/` | `axi5_master_rd_cg`, `axi5_master_wr_cg`, `axi5_slave_rd_cg`, `axi5_slave_wr_cg` |
 | AXI4-Lite | `rtl/amba/axil4/` | `axil4_master_rd_cg`, `axil4_master_wr_cg`, `axil4_slave_rd_cg`, `axil4_slave_wr_cg` |
-| APB | `rtl/amba/apb/` | `apb_master_cg`, `apb_slave_cg`, `apb_slave_cdc_cg` (two gating domains) |
+| APB | `rtl/amba/apb4/` | `apb4_master_cg`, `apb4_slave_cg`, `apb4_slave_cdc_cg` (two gating domains) |
 | APB5 | `rtl/amba/apb5/` | `apb5_master_cg`, `apb5_slave_cg`, `apb5_slave_cdc_cg` |
 | AXI-Stream | `rtl/amba/axis4/` | `axis_master_cg`, `axis_slave_cg` |
 | AXI5-Stream | `rtl/amba/axis5/` | `axis5_master_cg`, `axis5_slave_cg` |

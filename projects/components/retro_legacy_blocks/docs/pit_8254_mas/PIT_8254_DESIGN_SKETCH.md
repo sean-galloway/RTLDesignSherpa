@@ -73,8 +73,8 @@ The APB 8254 PIT provides a production-quality implementation of the Intel 8254 
 ### 1.2 Module Hierarchy
 
 ```
-apb_pit_8254.sv              # Top-level wrapper (like apb_hpet.sv)
-├── apb_slave_cdc.sv         # CDC wrapper (conditional instantiation)
+apb4_pit_8254.sv              # Top-level wrapper (like apb4_hpet.sv)
+├── apb4_slave_cdc.sv         # CDC wrapper (conditional instantiation)
 ├── pit_config_regs.sv       # Register wrapper (like hpet_config_regs.sv)
 │   ├── peakrdl_to_cmdrsp.sv # PeakRDL adapter
 │   └── pit_regs.sv          # PeakRDL generated (from pit_regs.rdl)
@@ -84,7 +84,7 @@ apb_pit_8254.sv              # Top-level wrapper (like apb_hpet.sv)
 ```
 
 **Reuses HPET Modules:**
-- `apb_slave_cdc.sv` - Identical to HPET
+- `apb4_slave_cdc.sv` - Identical to HPET
 - `peakrdl_to_cmdrsp.sv` - Identical to HPET
 - Edge detection, synchronizers - From common library
 
@@ -656,7 +656,7 @@ dv/tbclasses/pit_8254/
 └── pit_8254_tests_full.py   # Full test suite
 
 dv/tests/                    (flat layout, shared across blocks)
-├── test_apb_pit_8254.py     # Test runner
+├── test_apb4_pit_8254.py     # Test runner
 └── conftest.py              # Pytest configuration (shared)
 ```
 
@@ -691,7 +691,7 @@ dv/tests/                    (flat layout, shared across blocks)
 
 ```python
 from TBClasses.shared.tbbase import TBBase
-from CocoTBFramework.components.apb.apb_master import APBMaster
+from CocoTBFramework.components.apb.apb4_master import APBMaster
 
 class PIT8254TB(TBBase):
     """Testbench for 8254 PIT peripheral"""
@@ -714,7 +714,7 @@ class PIT8254TB(TBBase):
         # Create APB master
         self.apb = APBMaster(
             dut=dut,
-            name="apb_master",
+            name="apb4_master",
             clk=self.pclk,
             paddr=dut.s_apb_PADDR,
             psel=dut.s_apb_PSEL,
@@ -838,7 +838,7 @@ class PIT8254TB(TBBase):
 - Basic counting test (verify down-counting works)
 
 **Day 5: Top-Level Integration**
-- Implement apb_pit_8254.sv (copy apb_hpet.sv pattern)
+- Implement apb4_pit_8254.sv (copy apb4_hpet.sv pattern)
 - Add CDC support (parameter copy from HPET)
 - Create filelists
 - **Deliverable:** Mode 0 working end-to-end

@@ -34,7 +34,7 @@ source env_python            # from the repo root: sets PYTHONPATH + provides
 
 | Region | Base | Contents |
 |--------|------|----------|
-| `0x0_0000` DUT-REG | APB byte addr `addr[12:0]` | AXIL -> `apb_master` -> harness `s_apb`. SRC config @ `0x0000`, SNK config @ `0x1000` (half = APB `addr[12]`), plus the per-half `apbtodescr` kick windows (`base + ch*8` = LOW, `+4` = HIGH). |
+| `0x0_0000` DUT-REG | APB byte addr `addr[12:0]` | AXIL -> `apb4_master` -> harness `s_apb`. SRC config @ `0x0000`, SNK config @ `0x1000` (half = APB `addr[12]`), plus the per-half `apb4todescr` kick windows (`base + ch*8` = LOW, `+4` = HIGH). |
 | `0x1_0000` DESC-LOAD | byte offsets | `DESC_WORD[0..7]` @ `0x00..0x1C`, `DESC_ADDR` @ `0x20`, `DESC_KICK` @ `0x24` (write issues one AXI4 write into the descriptor RAM; `data[0]` selects SRC=0 / SNK=1), `DESC_STATUS` @ `0x28` (read: `[0]` = last BRESP OK). |
 | `0x2_0000` HARNESS CSR | byte offsets | gen/chk/mem/mon control + status readback. `ID` @ `0x00` = `0x52415031` ("RAP1"); `STATUS` @ `0x80`; beat totals @ `0x84-0x94`; sched errors @ `0x98/0x9C`; per-channel CRC arrays @ `0xA0-0xAC` indexed by `CH_SEL` @ `0x60`; valid masks @ `0xB0-0xBC`. |
 

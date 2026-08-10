@@ -31,7 +31,7 @@
 
 ## Overview
 
-The APB Monitor Address-Range Checker is a configurable N-range address-violation filter for the APB monitor pipeline. It is the APB mirror of `axi_monitor_addr_check`: it watches the `cmd_valid`/`cmd_ready` handshake the `apb_monitor` already snoops, and when an accepted command's `paddr` falls inside any of N configured `[low, high]` inclusive ranges it emits a `PktTypeError` MonBus packet with event code `APB_ERR_ADDR_RANGE` (`8'h08`).
+The APB Monitor Address-Range Checker is a configurable N-range address-violation filter for the APB monitor pipeline. It is the APB mirror of `axi_monitor_addr_check`: it watches the `cmd_valid`/`cmd_ready` handshake the `apb4_monitor` already snoops, and when an accepted command's `paddr` falls inside any of N configured `[low, high]` inclusive ranges it emits a `PktTypeError` MonBus packet with event code `APB_ERR_ADDR_RANGE` (`8'h08`).
 
 ### Key Features
 
@@ -162,7 +162,7 @@ apb_monitor_addr_check #(
     .aresetn                (presetn),
     .i_mon_time             (mon_time),         // from the monbus group
 
-    // Snooped APB command handshake (from apb_monitor)
+    // Snooped APB command handshake (from apb4_monitor)
     .cmd_paddr              (apb_paddr),
     .cmd_pwrite             (apb_pwrite),
     .cmd_valid              (cmd_valid),
@@ -207,7 +207,7 @@ Program `cfg_addr_range_low[i] == cfg_addr_range_high[i]` to turn a range into a
 ## Related Modules
 
 ### Used By
-- `apb_monitor` pipeline (address-range violation reporting)
+- `apb4_monitor` pipeline (address-range violation reporting)
 
 ### Uses
 - **monitor_common_pkg** - `PktTypeError`, `PROTOCOL_APB`, `monbus_timestamp_t`, `create_monitor_packet`
@@ -216,7 +216,7 @@ Program `cfg_addr_range_low[i] == cfg_addr_range_high[i]` to turn a range into a
 
 ### See Also
 - **axi_monitor_addr_check.sv** - AXI-side equivalent (no `is_read` bit)
-- **apb_monitor.sv** - The APB monitor this checker plugs into
+- **apb4_monitor.sv** - The APB monitor this checker plugs into
 
 ---
 

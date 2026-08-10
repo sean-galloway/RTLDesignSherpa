@@ -1,0 +1,29 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Sun Aug  2 13:01:16 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_clock_interaction -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/pumice/build-perf/fpga/reports/clock_interaction.txt
+| Design       : ddr2_char_top
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.23 2018-06-13
+| Design State : Physopt postRoute
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Clock Interaction Report
+
+Clock Interaction Table
+-----------------------
+
+                              WNS                                 TNS Failing  TNS Total    WNS Path         Clock-Pair           Inter-Clock              
+From Clock     To Clock       Clock Edges       WNS(ns)  TNS(ns)    Endpoints    Endpoints  Requirement(ns)  Classification       Constraints              
+-------------  -------------  -----------  ------------  -------  -----------  -----------  ---------------  -------------------  -----------------------  
+led_slow_clk   led_slow_clk   rise - rise   14999998.00     0.00            0          110      15000000.00  Clean                Timed                    
+led_slow_clk   sys_clk_pin                                                  0           16                   Ignored              Asynchronous Groups      
+led_slow_clk   w_sys_i        rise - rise          8.85     0.00            0            1            10.00  Ignored              Max Delay Datapath Only  
+sys_clk_pin    sys_clk_pin    rise - rise          9.24     0.00            0            3            10.00  Clean                Partial False Path       
+sys_clk_pin    w_sys_i                                                      0         1478                   Ignored              False Path               
+w_sys_i        led_slow_clk   rise - rise          2.64     0.00            0           14       Unexpanded  No Common Period     Timed (unsafe)           
+w_sys_i        w_sys_i        rise - rise          0.10     0.00            0        62470            15.00  Clean                Partial False Path       
+
+

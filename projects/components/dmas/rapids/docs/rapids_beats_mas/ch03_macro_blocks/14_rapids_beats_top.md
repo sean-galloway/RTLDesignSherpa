@@ -47,13 +47,13 @@ and interrupt).
 ```
    s_apb_* (APB4 slave)
         |
-     apb_slave  (APB -> cmd/rsp)
+     apb4_slave  (APB -> cmd/rsp)
         |
    cmdrsp_router (address decode)
      |                         |
      | 0x000-0x03F             | 0x100+ (and 0x1000 MON)
      v                         v
-  apbtodescr            peakrdl_to_cmdrsp
+  apb4todescr            peakrdl_to_cmdrsp
   (per-channel           |
    descriptor kickoff)   v
      |               rapids_regs  ---> hwif_out
@@ -83,7 +83,7 @@ and interrupt).
 
 | Range | Target | Purpose |
 |-------|--------|---------|
-| 0x000-0x03F | `apbtodescr` | Per-channel descriptor kick-off |
+| 0x000-0x03F | `apb4todescr` | Per-channel descriptor kick-off |
 | 0x100-0x3FF | `rapids_regs` (base) | Configuration / status registers |
 | 0x1000+ | `rapids_regs` (MON regfile) | Monitor configuration / performance |
 

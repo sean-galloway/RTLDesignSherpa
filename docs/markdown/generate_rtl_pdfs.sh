@@ -119,8 +119,8 @@ if want cdc; then
     rtl-cdc/gaxi_skid_buffer_async.md
     rtl-common/glitch_free_n_dff_arn.md
     rtl-common/clock_pulse.md
-    rtl-amba/apb/apb_slave_cdc.md
-    rtl-amba/apb/apb_slave_cdc_cg.md
+    rtl-amba/apb4/apb4_slave_cdc.md
+    rtl-amba/apb4/apb4_slave_cdc_cg.md
     rtl-amba/apb5/apb5_slave_cdc.md
     rtl-amba/apb5/apb5_slave_cdc_cg.md
   )

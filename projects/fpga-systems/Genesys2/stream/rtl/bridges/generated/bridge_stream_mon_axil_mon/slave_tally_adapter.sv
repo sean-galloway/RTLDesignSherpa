@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_mon_axil_mon_pkg::*;
 
-module slave_tally_adapter #(
+module slave_tally_adapter
+    import bridge_stream_mon_axil_mon_pkg::*;
+#(
     parameter int ID_WIDTH = 8
    ,parameter bit USE_MONITOR_WR = 1'b1
    ,parameter bit USE_MONITOR_RD = 1'b1

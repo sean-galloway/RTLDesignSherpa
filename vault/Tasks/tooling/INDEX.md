@@ -7,8 +7,8 @@ Repo tooling, scripts, and process work.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 2 | in progress right now |
-| [open.md](open.md) | 9 | accepted, not started |
-| [closed.md](closed.md) | 1 | done (kept for history) |
+| [open.md](open.md) | 10 | accepted, not started |
+| [closed.md](closed.md) | 2 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing |
 
 ## Active
@@ -40,8 +40,11 @@ Repo tooling, scripts, and process work.
 - **TOOL-011** — tests resolve filelists through the toml registry, not
   hardcoded paths.
 - **TOOL-012** — burn down `--blindspots`, then make it a gate.
+- **TOOL-014** — Scripts book link rot + DOCUMENTATION_INDEX refresh/retire.
 
 ## Note
 
-This area's own historical backlog still lives in
-[/TOOLING_TODO.md](../../../TOOLING_TODO.md) and migrates here as part of TOOL-001.
+This area's historical backlog (/TOOLING_TODO.md) was folded in and the file
+deleted 2026-08-09: item 1 (kmap promote to bin/) was already subsumed by
+TOOLING-KMAP step 5, item 2 (skills strategy) closed as TOOL-013, item 3
+(Scripts link rot) opened as TOOL-014.

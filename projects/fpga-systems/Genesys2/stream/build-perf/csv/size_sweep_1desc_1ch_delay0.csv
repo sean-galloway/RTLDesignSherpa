@@ -1,0 +1,18 @@
+# size sweep 1desc 1ch delay0
+#
+# INPUT matrix for: make host-characterize ARGS="--csv csv/size_sweep_1desc_1ch_delay0.csv"
+# Columns: name, num_channels, descriptors_per_channel, transfer_bytes
+#
+# Derived from the pre-migration RESULT file by dropping the measured
+# columns -- those numbers came off a NexysA7 at 100 MHz and are not
+# measurements of this board. Results land in results/.
+#
+# name,num_channels,descriptors,total_bytes
+1desc_1ch_8KB,1,1,8192
+1desc_1ch_16KB,1,1,16384
+1desc_1ch_32KB,1,1,32768
+1desc_1ch_64KB,1,1,65536
+1desc_1ch_128KB,1,1,131072
+1desc_1ch_256KB,1,1,262144
+1desc_1ch_512KB,1,1,524288
+1desc_1ch_1MB,1,1,1048576

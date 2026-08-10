@@ -65,9 +65,15 @@ If the payload crosses a clock boundary, you want `rtl-cdc` instead: see
 [fifo_async](../rtl-cdc/fifo_async.md) and the
 [CDC decision guide](../rtl-cdc/overview.md).
 
+Looking for a technique rather than a module — how streaming datapaths,
+minimal FSMs, CDC or arbitration are actually done here? The
+[technique index](technique-index.md) maps each one to its best worked
+examples in real project code.
+
 ## Navigation
 
 - [Catalogue of every module in this area](index.md)
+- [Technique index](technique-index.md) -- where each design technique lives in real code
 - [Back to the documentation index](../index.md)
 - [rtl-common](../rtl-common/index.md) -- the blocks these are built from
 - [rtl-integ-amba](../rtl-integ-amba/index.md) -- the AMBA-side examples

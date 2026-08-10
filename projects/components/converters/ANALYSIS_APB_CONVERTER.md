@@ -24,7 +24,7 @@
 # Analysis: APB Converter vs. Generic Data Width Converters
 
 **Date:** 2025-10-25
-**Purpose:** Analyze whether `axi4_to_apb_convert.sv` could benefit from generic `axi_data_upsize` and `axi_data_dnsize` modules
+**Purpose:** Analyze whether `axi4_to_apb4_convert.sv` could benefit from generic `axi_data_upsize` and `axi_data_dnsize` modules
 
 ---
 
@@ -42,7 +42,7 @@
 
 ### 1. WRITE Path (Dnsize: Wide AXI → Narrow APB)
 
-**Location:** `axi4_to_apb_convert.sv` lines 334, 337, 461
+**Location:** `axi4_to_apb4_convert.sv` lines 334, 337, 461
 
 **Implementation:**
 ```systemverilog
@@ -65,7 +65,7 @@ w_axi_wr_data_pointer = r_axi_wr_data_pointer + 1;
 
 ### 2. READ Path (Upsize: Narrow APB → Wide AXI)
 
-**Location:** `axi4_to_apb_convert.sv` lines 283, 366
+**Location:** `axi4_to_apb4_convert.sv` lines 283, 366
 
 **Implementation:**
 ```systemverilog
@@ -123,7 +123,7 @@ end
 4. Receive narrow beat 3 (bits [127:96]) → accumulate, OUTPUT wide beat, ptr=0
 ```
 
-### APB Converter (axi4_to_apb_convert.sv)
+### APB Converter (axi4_to_apb4_convert.sv)
 
 **Usage Model: Incremental Processing Within Protocol State Machine**
 - Converts incrementally as APB transactions complete
@@ -174,7 +174,7 @@ end
 
 **Conceptual Architecture:**
 ```
-AXI4 (DW-bit) → axi_data_dnsize → AXI4 (APBDW-bit) → axi4_to_apb_convert → APB (APBDW-bit)
+AXI4 (DW-bit) → axi_data_dnsize → AXI4 (APBDW-bit) → axi4_to_apb4_convert → APB (APBDW-bit)
                                       ↑
                               Width-matched AXI
 ```
@@ -334,7 +334,7 @@ The APB converter implements data width conversion using **patterns identical to
 
 - `/mnt/data/github/rtldesignsherpa/projects/components/converters/rtl/axi_data_upsize.sv`
 - `/mnt/data/github/rtldesignsherpa/projects/components/converters/rtl/axi_data_dnsize.sv`
-- `/mnt/data/github/rtldesignsherpa/projects/components/converters/rtl/axi4_to_apb_convert.sv`
+- `/mnt/data/github/rtldesignsherpa/projects/components/converters/rtl/axi4_to_apb4_convert.sv`
 - `/mnt/data/github/rtldesignsherpa/projects/components/converters/USAGE.md`
 
 **Author:** RTL Design Sherpa

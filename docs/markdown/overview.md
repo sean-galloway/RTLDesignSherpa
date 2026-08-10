@@ -98,7 +98,7 @@ graph TD
 | **[RAPIDS](../../projects/components/dmas/rapids)** | 🟡 In Progress | Advanced DMA with network interfaces |
 | **[Bridge](../../projects/components/bridge)** | ✅ Ready | AXI protocol bridges and converters |
 | **[Converters](../../projects/components/converters)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion |
-| **[APB Crossbar](../../projects/components/apb_xbar)** | ✅ Ready | M×N APB interconnect |
+| **[APB Crossbar](../../projects/components/apb4_xbar)** | ✅ Ready | M×N APB interconnect |
 | **[Retro Legacy](../../projects/components/retro_legacy_blocks)** | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
 | **[Delta](../../projects/components/delta)** | 📋 Planned | Network-on-Chip mesh |
 | **[HIVE](../../projects/components/hive)** | 📋 Planned | Distributed RISC-V control |
@@ -174,17 +174,17 @@ module counter_bin #(
 Apply common building blocks to implement industry-standard protocols (**124 modules**):
 
 #### APB (Advanced Peripheral Bus)
-- **[APB Masters](../../rtl/amba/apb)** - Command/response interfaces with FIFO buffering
-- **[APB Slaves](../../rtl/amba/apb)** - Register interfaces with address decoding
+- **[APB Masters](../../rtl/amba/apb4)** - Command/response interfaces with FIFO buffering
+- **[APB Slaves](../../rtl/amba/apb4)** - Register interfaces with address decoding
 - **[APB Interconnect](../../rtl/integ_amba)** - Multi-master/multi-slave crossbar
-- **[APB Bridges](../../rtl/amba/apb)** - Protocol conversion, CDC
+- **[APB Bridges](../../rtl/amba/apb4)** - Protocol conversion, CDC
 
 **Example:** APB register slave demonstrates parameter-driven design
 ```systemverilog
-apb_slave #(
+apb4_slave #(
     .ADDR_WIDTH(12),
     .DATA_WIDTH(32)
-) u_apb_slave (
+) u_apb4_slave (
     .pclk, .presetn, .paddr, .psel, .penable, .pwrite,
     .pwdata, .pready, .prdata, .pslverr
 );
@@ -260,7 +260,7 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[APB Crossbar](../../projects/components/apb_xbar)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
+| **[APB Crossbar](../../projects/components/apb4_xbar)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
 | **[Bridge](../../projects/components/bridge)** | ✅ Ready | AXI4 protocol bridges, width converters, CDC |
 | **[Converters](../../projects/components/converters)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
@@ -439,7 +439,7 @@ rtldesignsherpa/
 │   │   ├── rapids/              # RAPIDS DMA engine
 │   │   ├── bridge/              # Protocol bridges
 │   │   ├── converters/          # UART-to-AXI4-Lite, etc.
-│   │   ├── apb_xbar/            # APB crossbar
+│   │   ├── apb4_xbar/            # APB crossbar
 │   │   ├── retro_legacy_blocks/ # 9 legacy peripherals
 │   │   ├── delta/               # Network-on-Chip (planned)
 │   │   ├── hive/                # RISC-V control (planned)
@@ -516,16 +516,16 @@ gtkwave val/common/local_sim_build/test_counter_bin/dump.vcd
 #### Level 2: Test APB Slave
 ```bash
 # Run APB slave tests
-pytest val/amba/test_apb_slave.py -v
+pytest val/amba/test_apb4_slave.py -v
 
 # Run only basic tests
-pytest val/amba/test_apb_slave.py -v -m basic
+pytest val/amba/test_apb4_slave.py -v -m basic
 ```
 
 #### Level 3: Test APB Crossbar Integration
 ```bash
 # Run 2-to-4 crossbar test
-pytest projects/components/apb_xbar/dv/tests/test_apb_xbar_2to4.py -v -k "2to4"
+pytest projects/components/apb4_xbar/dv/tests/test_apb4_xbar_2to4.py -v -k "2to4"
 ```
 
 #### Level 4: Test Retro Legacy Block Component
@@ -534,7 +534,7 @@ pytest projects/components/apb_xbar/dv/tests/test_apb_xbar_2to4.py -v -k "2to4"
 pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
 
 # Run specific test
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ---

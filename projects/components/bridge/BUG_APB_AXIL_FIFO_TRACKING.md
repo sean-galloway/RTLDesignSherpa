@@ -102,7 +102,7 @@ always_ff @(posedge aclk or negedge aresetn) begin
 end
 
 // AXI4-to-APB converter shim
-axi4_to_apb_shim #(...) u_apb_periph_apb_converter (
+axi4_to_apb4_shim #(...) u_apb_periph_apb_converter (
     .aclk             (aclk),
     .aresetn          (aresetn),
 
@@ -213,7 +213,7 @@ logic converter_rready;
 logic converter_rlast;
 
 // Converter instantiation
-axi4_to_apb_shim #(...) u_apb_periph_apb_converter (
+axi4_to_apb4_shim #(...) u_apb_periph_apb_converter (
     ...
     .s_axi_rvalid     (converter_rvalid),  // ← Internal signal
     .s_axi_rready     (converter_rready),
@@ -291,7 +291,7 @@ end
 Ensure converter ALWAYS generates response (even on APB slave timeout):
 
 ```systemverilog
-// Inside axi4_to_apb_shim:
+// Inside axi4_to_apb4_shim:
 // If APB slave doesn't respond within N cycles, generate SLVERR response
 
 localparam APB_TIMEOUT = 1000;

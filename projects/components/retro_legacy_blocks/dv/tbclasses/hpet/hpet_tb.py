@@ -7,8 +7,8 @@
 # Module: HPETRegisterMap
 # Purpose: HPET (High Precision Event Timer) Testbench - Scalable Version
 #
-# Documentation: projects/components/apb_hpet/PRD.md
-# Subsystem: apb_hpet
+# Documentation: projects/components/apb4_hpet/PRD.md
+# Subsystem: apb4_hpet
 #
 # Author: sean galloway
 # Created: 2025-10-18
@@ -52,7 +52,7 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_packet import APBPacket
 from CocoTBFramework.components.apb.apb_components import APBMaster
-from CocoTBFramework.components.apb.apb_factories import create_apb_monitor
+from CocoTBFramework.components.apb.apb_factories import create_apb4_monitor
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
 
@@ -364,8 +364,8 @@ class HPETTB(TBBase):
         self.expected_timer_events = {}
 
         # Components will be initialized in setup
-        self.apb_master = None
-        self.apb_monitor = None
+        self.apb4_master = None
+        self.apb4_monitor = None
         self.scoreboard = None
 
         self.log.info(f"HPET TB initialized: {self.NUM_TIMERS} timers, 12-bit addressing (4KB)")
@@ -406,7 +406,7 @@ class HPETTB(TBBase):
 
         try:
             # Create APB Master directly and initialize it properly
-            self.apb_master = APBMaster(
+            self.apb4_master = APBMaster(
                 entity=self.dut,
                 title='HPET APB Master',
                 prefix='s_apb_',  # Consistent s_apb_* naming
@@ -418,9 +418,9 @@ class HPETTB(TBBase):
             )
 
             # Properly initialize the APB master
-            await self.apb_master.reset_bus()
+            await self.apb4_master.reset_bus()
 
-            self.log.info(f"✓ APB Master created and initialized: {type(self.apb_master)}")
+            self.log.info(f"✓ APB Master created and initialized: {type(self.apb4_master)}")
 
         except Exception as e:
             self.log.error(f"Failed to create APB Master: {e}")
@@ -428,12 +428,12 @@ class HPETTB(TBBase):
 
         try:
             # APB Monitor for transaction tracking
-            self.apb_monitor = create_apb_monitor(
+            self.apb4_monitor = create_apb4_monitor(
                 self.dut, 'HPET APB Monitor', 's_apb', self.dut.pclk,
                 addr_width=12, data_width=32,  # Fixed 12-bit addr, 32-bit data
                 log=self.log
             )
-            self.log.info(f"✓ APB Monitor created: {type(self.apb_monitor)}")
+            self.log.info(f"✓ APB Monitor created: {type(self.apb4_monitor)}")
 
         except Exception as e:
             self.log.error(f"Failed to create APB Monitor: {e}")
@@ -443,7 +443,7 @@ class HPETTB(TBBase):
         self.scoreboard = HPETScoreboard(self.log, self.NUM_TIMERS)
 
         # Connect monitor callback
-        self.apb_monitor.add_callback(self.apb_transaction_callback)
+        self.apb4_monitor.add_callback(self.apb_transaction_callback)
 
         # Start interrupt monitoring
         cocotb.start_soon(self.monitor_interrupts())
@@ -513,11 +513,11 @@ class HPETTB(TBBase):
             write_packet.direction = 'WRITE'
 
             # Initialize transmit_coroutine if needed
-            if not hasattr(self.apb_master, 'transmit_coroutine'):
-                self.apb_master.transmit_coroutine = None
+            if not hasattr(self.apb4_master, 'transmit_coroutine'):
+                self.apb4_master.transmit_coroutine = None
 
             # Send using APB master
-            await self.apb_master.send(write_packet)
+            await self.apb4_master.send(write_packet)
 
             # Wait for the APB transaction to complete
             # Need to wait for both PSEL and PENABLE, then PREADY
@@ -558,11 +558,11 @@ class HPETTB(TBBase):
             read_packet.direction = 'READ'
 
             # Initialize transmit_coroutine if needed
-            if not hasattr(self.apb_master, 'transmit_coroutine'):
-                self.apb_master.transmit_coroutine = None
+            if not hasattr(self.apb4_master, 'transmit_coroutine'):
+                self.apb4_master.transmit_coroutine = None
 
             # Send using APB master
-            await self.apb_master.send(read_packet)
+            await self.apb4_master.send(read_packet)
 
             # Wait for the APB transaction to complete
             # Need to wait for both PSEL and PENABLE, then PREADY

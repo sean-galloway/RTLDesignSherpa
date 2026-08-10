@@ -186,7 +186,7 @@ class ProtocolCoverageBase:
         self.axi_write_response = self._create_axi_response_group("axi_write_response")
 
         # Standard APB coverage
-        self.apb_transactions = self._create_apb_group("apb_transactions")
+        self.apb_transactions = self._create_apb4_group("apb_transactions")
 
         # Address alignment coverage
         self.address_alignment = self._create_address_alignment_group("address_alignment")
@@ -292,7 +292,7 @@ class ProtocolCoverageBase:
             group.add_point(resp.name, f"Response {resp.name}", goal=1)
         return group
 
-    def _create_apb_group(self, name: str) -> CoverGroup:
+    def _create_apb4_group(self, name: str) -> CoverGroup:
         """Create coverage group for APB transactions."""
         group = CoverGroup(name=name, description="APB transaction coverage")
         group.add_point("read_okay", "APB read with OKAY response", goal=1)

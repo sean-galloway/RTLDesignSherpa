@@ -185,8 +185,8 @@ async def cocotb_test_ddr2_char_macro(dut):
     rd_dbg_slave.add_callback(_on_dbg_beat)
     await tb.reset(mem_type=mem_type, init_complete_delay=20)
     tb.init_register_map()
-    tb.init_apb_master()
-    await tb.apb_master.reset_bus()
+    tb.init_apb4_master()
+    await tb.apb4_master.reset_bus()
     tb.init_dfi_slave()
     tb.init_dfi_monitor()        # capture DFI cmd/wr-data/rd-data queues
     tb.start_axi_wr_snoop()      # snoop AXI WR side as WR-path ground truth

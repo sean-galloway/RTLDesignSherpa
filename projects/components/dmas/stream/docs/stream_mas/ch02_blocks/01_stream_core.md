@@ -714,7 +714,7 @@ stream_core #(
 - **Stream Latency Bridge:** `10_stream_latency_bridge.md` - Timing bridge
 - **Stream Drain Ctrl:** `11_stream_drain_ctrl.md` - Drain flow controller
 - **AXI Write Engine:** `12_axi_write_engine.md` - Write datapath
-- **APB to Descriptor:** `13_apbtodescr.md` - APB configuration interface
+- **APB to Descriptor:** `13_apb4todescr.md` - APB configuration interface
 - **Performance Profiler:** `15_perf_profiler.md` - Performance monitoring
 - **MonBus AXI-Lite Group:** `16_monbus_axil_group.md` - Monitor bus arbitration
 ---

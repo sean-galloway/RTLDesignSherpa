@@ -85,7 +85,7 @@ peakrdl regblock peakrdl/rtc_regs.rdl -o rtc_regs.sv --cpuif apb4-flat
 This RTC follows the standard 3-layer architecture:
 
 ```
-Layer 1: apb_rtc.sv           (APB4 interface)
+Layer 1: apb4_rtc.sv           (APB4 interface)
          ↓
 Layer 2: rtc_config_regs.sv   (Register wrapper + edge detection)
          ↓

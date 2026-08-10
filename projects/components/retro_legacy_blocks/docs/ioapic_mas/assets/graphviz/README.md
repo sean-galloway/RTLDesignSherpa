@@ -10,7 +10,7 @@ This directory contains Graphviz source files for IOAPIC specification diagrams.
 - Illustrates edge vs level-triggered paths
 - Used in: Ch02 FSM Summary
 
-### 2. apb_ioapic.gv
+### 2. apb4_ioapic.gv
 **Top-Level Block Diagram**
 - Shows complete module hierarchy
 - Illustrates data flow between blocks
@@ -68,7 +68,7 @@ Both are text-based and can be edited with any text editor.
 The generated PNG/SVG files are referenced in markdown documents:
 
 ```markdown
-![IOAPIC Block Diagram](../assets/svg/apb_ioapic.svg)
+![IOAPIC Block Diagram](../assets/svg/apb4_ioapic.svg)
 ```
 
 Or for SVG (better for web):

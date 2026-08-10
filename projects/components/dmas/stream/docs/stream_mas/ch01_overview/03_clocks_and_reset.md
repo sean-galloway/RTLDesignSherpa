@@ -69,8 +69,8 @@ STREAM operates in a single clock domain with a single asynchronous active-low r
 - If `pclk` = `aclk`: Direct connection (no CDC)
 
 **CDC Implementation:**
-- Use `apb_slave_cdc` wrapper (like HPET example)
-- `apb_slave_cdc` implements **handshake-based CDC** using `cdc_handshake` modules
+- Use `apb4_slave_cdc` wrapper (like HPET example)
+- `apb4_slave_cdc` implements **handshake-based CDC** using `cdc_handshake` modules
   - One `cdc_handshake` for command interface (APB → core)
   - One `cdc_handshake` for response interface (core → APB)
   - Full req/ack handshake protocol (NOT async FIFO)
@@ -253,7 +253,7 @@ write_apb(ADDR_GLOBAL_CTRL, CHANNEL_0_RESET);  // Auto-clears after 1 cycle
 
 ```systemverilog
 // APB to STREAM domain (pclk -> aclk)
-apb_slave_cdc #(
+apb4_slave_cdc #(
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32),
     .SYNC_STAGES(2)  // Dual-flop synchronizer
@@ -277,7 +277,7 @@ apb_slave_cdc #(
 ```
 
 **CDC Mechanism:**
-- `apb_slave_cdc` uses **handshake-based CDC** via `cdc_handshake` modules (NOT async FIFOs)
+- `apb4_slave_cdc` uses **handshake-based CDC** via `cdc_handshake` modules (NOT async FIFOs)
 - **Command path** (`pclk` → `aclk`): APB write/read commands cross via req/ack handshake
 - **Response path** (`aclk` → `pclk`): APB read data crosses back via req/ack handshake
 - **Internal synchronizers**: Dual-flop synchronizers (2-3 stages) for handshake signals

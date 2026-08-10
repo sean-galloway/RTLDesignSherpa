@@ -65,7 +65,7 @@ UNRESOLVED_VAR = re.compile(r"\$\{?[A-Z_][A-Z0-9_]*\}?")
 # filelist resolvable in some contexts and broken in others.
 ROOT_VARS = {
     "REPO_ROOT": "",
-    "APB_XBAR_ROOT": "projects/components/apb_xbar",
+    "APB_XBAR_ROOT": "projects/components/apb4_xbar",
     "BCH_ROOT": "projects/components/bch",
     "BRIDGE_ROOT": "projects/components/bridge",
     "CONVERTERS_ROOT": "projects/components/converters",
@@ -369,7 +369,7 @@ def cmd_unrolled(reg: dict, min_sources: int = 2) -> int:
     *path*. It cannot see the subtler and more common failure: copying the body
     of another filelist verbatim. Those copies look self-contained and pass every
     build, then silently rot the moment the copied component gains a dependency
-    -- which is exactly how the axi4_to_apb_shim's gaxi_fifo_async CDC dependency
+    -- which is exactly how the axi4_to_apb4_shim's gaxi_fifo_async CDC dependency
     went missing.
 
     A filelist B is "unrolled" into A when B's full resolved source set is a

@@ -33,8 +33,8 @@
 
 | Block | File | Description |
 |-------|------|-------------|
-| APB GPIO Top | apb_gpio.sv | Top-level module with all GPIO functionality |
-| Register File | apb_gpio_regs.sv | PeakRDL-generated control/status registers |
+| APB GPIO Top | apb4_gpio.sv | Top-level module with all GPIO functionality |
+| Register File | apb4_gpio_regs.sv | PeakRDL-generated control/status registers |
 
 : Table 2.1: Block Summary
 

@@ -606,6 +606,10 @@ async def phase_timeout_frees_slot(tb) -> list:
     tb.dut.cmd_addr.value = 0xDEAD0000
     tb.dut.cmd_len.value = 0
     tb.dut.cmd_valid.value = 1
+    # cfg_addr_cnt=2 means 2 timer ticks. With the 5 MHz table above a tick is
+    # 5 clocks, so detection lands ~10 clocks in; the rest is cleanup margin.
+    # Do not tune this to the tick by accident: if the LUT parameters change,
+    # change them here, not by nudging this number until it passes.
     await tb.idle(400)
     tb.dut.cmd_valid.value = 0
     tb.dut.cmd_ready.value = 1
@@ -885,6 +889,13 @@ def test_axi_monitor_trans_mgr(iw, aw, max_transactions, seed):
         filelist_path="rtl/amba/filelists/axi_monitor_base.f")
 
     rtl_parameters = {
+        # Timer LUT: a 5 MHz table gives a 5-clock tick, which keeps the
+        # timeout phase short. This used to be obtained by setting
+        # cfg_freq_sel=0 and relying on index 0 of a hardcoded 5..220 MHz
+        # table -- a magic index into a table the DUT did not let you choose.
+        # The table is a parameter now, so the test states what it needs.
+        'CFI_MIN_FREQ_MHZ': '5',
+        'CFI_MAX_FREQ_MHZ': '5',
         'ID_WIDTH': str(iw),
         'ADDR_WIDTH': str(aw),
         'UNIT_ID': '1',

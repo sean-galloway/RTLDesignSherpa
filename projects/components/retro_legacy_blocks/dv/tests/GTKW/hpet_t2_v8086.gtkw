@@ -10,76 +10,76 @@
 [size] 1881 1750
 [pos] 1668 20
 *-20.314381 2640000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
-[treeopen] apb_hpet.
-[treeopen] apb_hpet.u_hpet_config_regs.
+[treeopen] apb4_hpet.
+[treeopen] apb4_hpet.u_hpet_config_regs.
 [sst_width] 278
 [signals_width] 363
 [sst_expanded] 1
 [sst_vpaned_height] 557
 @22
-apb_hpet.CDC_ENABLE[31:0]
-apb_hpet.NUM_TIMERS[31:0]
+apb4_hpet.CDC_ENABLE[31:0]
+apb4_hpet.NUM_TIMERS[31:0]
 @28
-apb_hpet.hpet_clk
-apb_hpet.hpet_resetn
-apb_hpet.pclk
-apb_hpet.presetn
+apb4_hpet.hpet_clk
+apb4_hpet.hpet_resetn
+apb4_hpet.pclk
+apb4_hpet.presetn
 @200
 -apb
 @28
-apb_hpet.s_apb_PSEL
-apb_hpet.s_apb_PENABLE
-apb_hpet.s_apb_PREADY
-apb_hpet.s_apb_PWRITE
+apb4_hpet.s_apb_PSEL
+apb4_hpet.s_apb_PENABLE
+apb4_hpet.s_apb_PREADY
+apb4_hpet.s_apb_PWRITE
 @22
-apb_hpet.s_apb_PADDR[11:0]
-apb_hpet.s_apb_PWDATA[31:0]
-apb_hpet.s_apb_PSTRB[3:0]
-apb_hpet.s_apb_PRDATA[31:0]
+apb4_hpet.s_apb_PADDR[11:0]
+apb4_hpet.s_apb_PWDATA[31:0]
+apb4_hpet.s_apb_PSTRB[3:0]
+apb4_hpet.s_apb_PRDATA[31:0]
 @28
-apb_hpet.s_apb_PSEL
+apb4_hpet.s_apb_PSEL
 @200
 -configs
 @29
-apb_hpet.u_hpet_config_regs.cmd_valid
+apb4_hpet.u_hpet_config_regs.cmd_valid
 @28
-apb_hpet.u_hpet_config_regs.cmd_ready
-apb_hpet.u_hpet_config_regs.rsp_valid
-apb_hpet.u_hpet_config_regs.rsp_ready
+apb4_hpet.u_hpet_config_regs.cmd_ready
+apb4_hpet.u_hpet_config_regs.rsp_valid
+apb4_hpet.u_hpet_config_regs.rsp_ready
 @22
-apb_hpet.u_hpet_config_regs.regblk_addr[11:0]
+apb4_hpet.u_hpet_config_regs.regblk_addr[11:0]
 @28
-apb_hpet.u_hpet_config_regs.regblk_rd_ack
+apb4_hpet.u_hpet_config_regs.regblk_rd_ack
 @22
-apb_hpet.u_hpet_config_regs.regblk_rd_data[31:0]
+apb4_hpet.u_hpet_config_regs.regblk_rd_data[31:0]
 @28
-apb_hpet.u_hpet_config_regs.regblk_rd_err
-apb_hpet.u_hpet_config_regs.regblk_req
-apb_hpet.u_hpet_config_regs.regblk_req_is_wr
-apb_hpet.u_hpet_config_regs.regblk_req_stall_rd
-apb_hpet.u_hpet_config_regs.regblk_req_stall_wr
-apb_hpet.u_hpet_config_regs.regblk_wr_ack
+apb4_hpet.u_hpet_config_regs.regblk_rd_err
+apb4_hpet.u_hpet_config_regs.regblk_req
+apb4_hpet.u_hpet_config_regs.regblk_req_is_wr
+apb4_hpet.u_hpet_config_regs.regblk_req_stall_rd
+apb4_hpet.u_hpet_config_regs.regblk_req_stall_wr
+apb4_hpet.u_hpet_config_regs.regblk_wr_ack
 @22
-apb_hpet.u_hpet_config_regs.regblk_wr_biten[31:0]
-apb_hpet.u_hpet_config_regs.regblk_wr_data[31:0]
+apb4_hpet.u_hpet_config_regs.regblk_wr_biten[31:0]
+apb4_hpet.u_hpet_config_regs.regblk_wr_data[31:0]
 @28
-apb_hpet.u_hpet_config_regs.regblk_wr_err
-apb_hpet.u_hpet_config_regs.timer_comp_hi_write[1:0]
+apb4_hpet.u_hpet_config_regs.regblk_wr_err
+apb4_hpet.u_hpet_config_regs.timer_comp_hi_write[1:0]
 @22
-apb_hpet.u_hpet_config_regs.timer_comp_rdata[0][63:0]
-apb_hpet.u_hpet_config_regs.timer_comp_rdata[1][63:0]
-apb_hpet.u_hpet_config_regs.timer_comp_wdata[0][63:0]
-apb_hpet.u_hpet_config_regs.timer_comp_wdata[1][63:0]
+apb4_hpet.u_hpet_config_regs.timer_comp_rdata[0][63:0]
+apb4_hpet.u_hpet_config_regs.timer_comp_rdata[1][63:0]
+apb4_hpet.u_hpet_config_regs.timer_comp_wdata[0][63:0]
+apb4_hpet.u_hpet_config_regs.timer_comp_wdata[1][63:0]
 @28
-apb_hpet.u_hpet_config_regs.timer_comp_write[1:0]
-apb_hpet.u_hpet_config_regs.timer_comp_write_high
-apb_hpet.u_hpet_config_regs.timer_enable[1:0]
-apb_hpet.u_hpet_config_regs.timer_int_clear[1:0]
-apb_hpet.u_hpet_config_regs.timer_int_enable[1:0]
-apb_hpet.u_hpet_config_regs.timer_int_rising_edge[1:0]
-apb_hpet.u_hpet_config_regs.timer_int_status[1:0]
-apb_hpet.u_hpet_config_regs.timer_size[1:0]
-apb_hpet.u_hpet_config_regs.timer_type[1:0]
-apb_hpet.u_hpet_config_regs.timer_value_set[1:0]
+apb4_hpet.u_hpet_config_regs.timer_comp_write[1:0]
+apb4_hpet.u_hpet_config_regs.timer_comp_write_high
+apb4_hpet.u_hpet_config_regs.timer_enable[1:0]
+apb4_hpet.u_hpet_config_regs.timer_int_clear[1:0]
+apb4_hpet.u_hpet_config_regs.timer_int_enable[1:0]
+apb4_hpet.u_hpet_config_regs.timer_int_rising_edge[1:0]
+apb4_hpet.u_hpet_config_regs.timer_int_status[1:0]
+apb4_hpet.u_hpet_config_regs.timer_size[1:0]
+apb4_hpet.u_hpet_config_regs.timer_type[1:0]
+apb4_hpet.u_hpet_config_regs.timer_value_set[1:0]
 [pattern_trace] 1
 [pattern_trace] 0

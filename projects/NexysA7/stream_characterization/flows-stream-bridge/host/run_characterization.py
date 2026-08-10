@@ -151,7 +151,15 @@ WRMON_COMPRESS_EN_BIT   = 1 << 5
 # 0x0000_FFF0 keeps Error (0), Completion (1), Threshold (2), Timeout (3)
 # flowing and drops everything above. Mirrors stream_char_tb.MON_PKT_MASK_ALLOW_BASIC.
 MON_PKT_MASK_ALLOW_BASIC = 0x0000_FFF0
-# MON_ENABLE: bit 0 = ERR_EN, 1 = TIMEOUT_EN, 2 = COMPL_EN, 3 = THRESH_EN.
+# MON_*_ENABLE layout, per stream_mon_regs.rdl (NOT the order you might guess --
+# an earlier version of this comment had it wrong and the fault probes inherited
+# the error):
+#   bit0 MON_EN   bit1 ERR_EN   bit2 COMPL_EN   bit3 TIMEOUT_EN
+#   bit4 PERF_EN  bit5 COMPRESS_EN (WRMON only)  bit6 THRESH_EN
+# Prefer stream_addrs.compose("<REG>", FIELD=1, ...) over a literal: it places
+# each field at its regmap offset, so a field that moves in the RDL cannot
+# silently mean something else here.
+# 0x0F = MON_EN | ERR_EN | COMPL_EN | TIMEOUT_EN (perf and threshold off).
 MON_ENABLE_COMPL_IRQ     = 0x0F
 # MON_ERR_CFG.ERR_SELECT[15:0]: per-packet-type IRQ-vs-bulk route bit.
 #   bit[type] = 1  -> packet of that type goes to the err FIFO IRQ path

@@ -60,7 +60,7 @@ System Clock (pclk) - e.g., 100 MHz
 
 **Module Signature:**
 ```systemverilog
-module apb_smbus (
+module apb4_smbus (
     input pclk,           // Single clock for everything
     input presetn,        // Single reset
     // ... APB interface ...
@@ -75,7 +75,7 @@ APB Clock (pclk) - e.g., 50 MHz (low freq, power saving)
         │
         └─→ APB Interface
                 │
-                └─→ apb_slave_cdc (CDC HERE!)
+                └─→ apb4_slave_cdc (CDC HERE!)
                         │
                         ▼
 Timer Clock (hpet_clk) - e.g., 14.318 MHz (precise timing)
@@ -89,7 +89,7 @@ Timer Clock (hpet_clk) - e.g., 14.318 MHz (precise timing)
 
 **Module Signature:**
 ```systemverilog
-module apb_hpet (
+module apb4_hpet (
     input pclk,           // APB clock domain
     input presetn,        // APB reset
     input hpet_clk,       // SEPARATE timer clock domain

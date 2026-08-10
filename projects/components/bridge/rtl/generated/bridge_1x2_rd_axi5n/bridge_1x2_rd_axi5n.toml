@@ -1,0 +1,53 @@
+# Bridge Configuration: 1x2 read-only bridge with NATIVE AXI5 sideband
+# (BRIDGE-002 phase A5-2 slice 2).
+#
+# Geometry copies bridge_1x2_rd_axi5s, but BOTH ends of the sram path
+# are AXI5 and width-matched, so the enabled sideband (nsaid, trace,
+# unique) rides the fabric structs end-to-end:
+#   cpu_rd (AXI5) -> struct fields -> xbar -> sram_rd (AXI5)  [native]
+#   cpu_rd (AXI5) -> ddr_rd (AXI4)                    [drops, warning]
+# rtrace returns natively from sram_rd; reads from ddr_rd see rtrace=0.
+# Connectivity comes from bridge_1x2_rd_axi5n_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_rd_axi5n"
+variants = ["no", "mon"]
+description = "AXI5 master x (1 AXI4 + 1 AXI5) slave rd bridge, native sideband (A5-2 slice 2)"
+
+[[bridge.masters]]
+name = "cpu_rd"
+prefix = "cpu_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique"]
+mon_add = ["compl"]
+
+[[bridge.slaves]]
+name = "ddr_rd"  # stays AXI4: the sideband drop path
+prefix = "ddr_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"
+mon_add = ["compl"]
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram_rd"  # AXI5, same features + width as the master: native path
+prefix = "sram_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"
+protocol = "axi5"
+axi5_features = ["nsaid", "trace", "unique"]
+mon_add = ["compl"]
+base_addr = "0x80000000"
+addr_range = "0x80000000"

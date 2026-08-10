@@ -150,7 +150,7 @@ class DescriptorEngineTB(TBBase):
         self.axi_slave = None
         self.r_slave = None
         self.memory_model = None
-        self.apb_master = None
+        self.apb4_master = None
 
         # Test data storage
         self.received_descriptors = []
@@ -232,7 +232,7 @@ class DescriptorEngineTB(TBBase):
                 description='APB address'
             ))
 
-            self.apb_master = create_gaxi_master(
+            self.apb4_master = create_gaxi_master(
                 dut=self.dut,
                 title="APBMaster",
                 prefix="apb",  # Connects to apb_valid, apb_ready, apb_addr
@@ -311,7 +311,7 @@ class DescriptorEngineTB(TBBase):
             self.log.warning(f"Unknown GAXI timing profile '{profile_name}', "
                              f"using 'backtoback'")
             profile_name = 'backtoback'
-        self.apb_master.randomizer = FlexRandomizer(
+        self.apb4_master.randomizer = FlexRandomizer(
             GAXI_RANDOMIZER_CONFIGS[profile_name]['master'])
         self.log.info(f"GAXI apb master timing profile: {profile_name}")
 
@@ -406,9 +406,9 @@ class DescriptorEngineTB(TBBase):
         self.log.info(f"APB kick-off: addr=0x{first_addr:X} (start of chain)")
 
         # Send APB request for first descriptor
-        packet = self.apb_master.create_packet(addr=first_addr)
+        packet = self.apb4_master.create_packet(addr=first_addr)
         try:
-            await self.apb_master.send(packet)
+            await self.apb4_master.send(packet)
             self.apb_requests_sent += 1
         except Exception as e:
             self.log.error(f"Failed to send APB request: {e}")
@@ -506,8 +506,8 @@ class DescriptorEngineTB(TBBase):
         await self.wait_clocks(self.clk_name, producer_delay)
 
         # Send APB request
-        packet = self.apb_master.create_packet(addr=first_addr)
-        await self.apb_master.send(packet)
+        packet = self.apb4_master.create_packet(addr=first_addr)
+        await self.apb4_master.send(packet)
         self.apb_requests_sent += 1
 
         # Wait for all descriptors

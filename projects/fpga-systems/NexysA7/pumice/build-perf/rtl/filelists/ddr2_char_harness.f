@@ -26,7 +26,7 @@
 
 # Verilator-only Xilinx primitive stubs (BUFG). Wrapped in `ifdef VERILATOR
 # so Vivado doesn't see them.
-$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/verilator_xilinx_stubs.sv
+-f $REPO_ROOT/projects/components/misc/rtl/filelists/verilator_xilinx_stubs.f
 
 # Flat DFI -> per-phase adapter + a7ddrphy black-box stub. Vivado excludes
 # a7ddrphy_stub.sv and substitutes the LiteDRAM-generated a7ddrphy.v at

@@ -65,7 +65,7 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_st
 # core, the CDC handshakes, the APB master/stub, the AXI4 slave stubs,
 # axi_gen_addr and both gaxi FIFOs. Hand-listing those here is how the
 # shim's newer gaxi_fifo_async CDC dependency went missing.
--f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb_shim.f
+-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb4_shim.f
 
 # AXI4-Lite protocol converter dependencies.
 # -f the converters filelists; do not hand-list its sources.

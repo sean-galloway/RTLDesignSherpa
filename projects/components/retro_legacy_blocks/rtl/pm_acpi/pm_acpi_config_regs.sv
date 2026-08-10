@@ -25,7 +25,7 @@ module pm_acpi_config_regs
     input logic clk,
     input logic rst_n,  // Active-low reset
 
-    // Command/Response Interface (from apb_slave)
+    // Command/Response Interface (from apb4_slave)
     input  logic        cmd_valid,
     output logic        cmd_ready,
     input  logic        cmd_pwrite,

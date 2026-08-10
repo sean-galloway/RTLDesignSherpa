@@ -63,7 +63,7 @@ pit_clk (Timer clock) ───────────────────�
 The design includes clock domain crossing infrastructure to safely transfer data between APB and timer clock domains:
 
 **CDC Components:**
-- `apb_slave_cdc` module provides safe crossing from `pclk` to `pit_clk`
+- `apb4_slave_cdc` module provides safe crossing from `pclk` to `pit_clk`
 - Command/response interface synchronized using gray-code FIFOs
 - Handshaking ensures no data loss across domains
 - Status signals synchronized back to `pclk` domain
@@ -82,7 +82,7 @@ Total latency: 4-6 pit_clk cycles
 
 **When CDC_ENABLE=0:**
 
-The design uses a single clock domain with `apb_slave` module (no CDC):
+The design uses a single clock domain with `apb4_slave` module (no CDC):
 
 **Direct Connection:**
 - APB slave converts APB protocol to cmd/rsp interface
@@ -223,7 +223,7 @@ The PIT does NOT implement dynamic clock gating at the module level. Clock gatin
 logic gated_pclk;
 assign gated_pclk = pclk & pit_clock_enable;
 
-apb_pit_8254 #(
+apb4_pit_8254 #(
     .CDC_ENABLE(0)
 ) u_pit (
     .pclk       (gated_pclk),  // Gated clock
@@ -258,7 +258,7 @@ set_clock_groups -asynchronous \
 
 **CDC Path Constraints:**
 ```tcl
-# CDC paths handled by apb_slave_cdc module
+# CDC paths handled by apb4_slave_cdc module
 # Verify no timing paths between domains except through CDC
 set_false_path -from [get_clocks pclk] -to [get_clocks pit_clk]
 set_false_path -from [get_clocks pit_clk] -to [get_clocks pclk]

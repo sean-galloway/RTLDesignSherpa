@@ -1,0 +1,106 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Configuration for axi4_dma_observer -- the inline performance-observation
+// block on the STREAM datapath.
+//
+// WHY THIS EXISTS: the observer took 31 cfg_* ports and the harness tied 18 of
+// them off to constants. That is the same shape dma_slave_monitors had before
+// it grew its own APB: a block whose configuration lives in whoever happens to
+// instantiate it, so every harness must know its internals and no host can
+// change anything at runtime. With the config local, the harness is reduced to
+// instantiation and one bridge slave, which is what lets a SINGLE harness
+// source serve both the monitor and the performance builds.
+//
+// Three protocol groups, because the observer watches three kinds of traffic:
+//   AXI   -- the DMA datapath itself
+//   AXIS  -- the stream side
+//   CORE  -- scheduler / descriptor-engine events
+// Each group has the same shape as the in-core monitors' MON regfile
+// (stream_mon_regs.rdl) and the slave monitors' (slvmon_regs.rdl), so a host
+// that can drive one can drive all three without learning a new idiom.
+//
+// Mask polarity, stated once because the RDL got it backwards elsewhere:
+// PKT_MASK bit[type] = 1 means DROP that packet type (RTL:
+// pkt_drop = cfg_axi_pkt_mask[pkt_type]). The per-class masks are indexed by
+// event_code[3:0], so they are 16 bits -- not 8, which was the defect that
+// made event codes >= 8 unmaskable on the in-core monitors.
+//
+// Defaults reproduce the harness's previous tie-offs, so this is behaviour
+// neutral until a host writes.
+
+regfile obs_regs {
+    name = "DMA observer configuration";
+    desc = "Runtime config for the inline performance-observation block";
+
+    //-------------------------------------------------------------------------
+    // AXI protocol group -- the DMA datapath
+    //-------------------------------------------------------------------------
+    reg { name = "AXI packet mask"; desc = "bit[type]=1 drops that packet type; ERR_SELECT routes err-FIFO vs bulk";
+          field { sw=rw; hw=r; } PKT_MASK[15:0]    = 16'h0000;
+          field { sw=rw; hw=r; } ERR_SELECT[31:16] = 16'h0000; } AXI_PKT_MASK @ 0x000;
+    reg { name = "AXI mask1"; desc = "Per-event-code drop masks, indexed by event_code[3:0]";
+          field { sw=rw; hw=r; } ERROR_MASK[15:0]    = 16'h0000;
+          field { sw=rw; hw=r; } TIMEOUT_MASK[31:16] = 16'h0000; } AXI_MASK1 @ 0x004;
+    reg { name = "AXI mask2"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } COMPL_MASK[15:0]   = 16'h0000;
+          field { sw=rw; hw=r; } THRESH_MASK[31:16] = 16'h0000; } AXI_MASK2 @ 0x008;
+    reg { name = "AXI mask3"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } PERF_MASK[15:0]  = 16'h0000;
+          field { sw=rw; hw=r; } ADDR_MASK[31:16] = 16'h0000; } AXI_MASK3 @ 0x00C;
+    reg { name = "AXI mask4"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } DEBUG_MASK[15:0] = 16'h0000;
+          field { sw=r;  hw=na; } RSVD[31:16] = 16'h0; } AXI_MASK4 @ 0x010;
+
+    //-------------------------------------------------------------------------
+    // AXIS protocol group -- the stream side
+    //-------------------------------------------------------------------------
+    reg { name = "AXIS packet mask"; desc = "bit[type]=1 drops that packet type";
+          field { sw=rw; hw=r; } PKT_MASK[15:0]    = 16'h0000;
+          field { sw=rw; hw=r; } ERR_SELECT[31:16] = 16'h0000; } AXIS_PKT_MASK @ 0x020;
+    reg { name = "AXIS mask1"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } ERROR_MASK[15:0]    = 16'h0000;
+          field { sw=rw; hw=r; } TIMEOUT_MASK[31:16] = 16'h0000; } AXIS_MASK1 @ 0x024;
+    reg { name = "AXIS mask2"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } COMPL_MASK[15:0]    = 16'h0000;
+          field { sw=rw; hw=r; } CHANNEL_MASK[31:16] = 16'h0000; } AXIS_MASK2 @ 0x028;
+    reg { name = "AXIS mask3"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } CREDIT_MASK[15:0]  = 16'h0000;
+          field { sw=rw; hw=r; } STREAM_MASK[31:16] = 16'h0000; } AXIS_MASK3 @ 0x02C;
+
+    //-------------------------------------------------------------------------
+    // CORE protocol group -- scheduler / descriptor-engine events
+    //-------------------------------------------------------------------------
+    reg { name = "CORE packet mask"; desc = "bit[type]=1 drops that packet type";
+          field { sw=rw; hw=r; } PKT_MASK[15:0]    = 16'h0000;
+          field { sw=rw; hw=r; } ERR_SELECT[31:16] = 16'h0000; } CORE_PKT_MASK @ 0x040;
+    reg { name = "CORE mask1"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } ERROR_MASK[15:0]    = 16'h0000;
+          field { sw=rw; hw=r; } TIMEOUT_MASK[31:16] = 16'h0000; } CORE_MASK1 @ 0x044;
+    reg { name = "CORE mask2"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } COMPL_MASK[15:0]   = 16'h0000;
+          field { sw=rw; hw=r; } THRESH_MASK[31:16] = 16'h0000; } CORE_MASK2 @ 0x048;
+    reg { name = "CORE mask3"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } PERF_MASK[15:0]  = 16'h0000;
+          field { sw=rw; hw=r; } DEBUG_MASK[31:16] = 16'h0000; } CORE_MASK3 @ 0x04C;
+
+    //-------------------------------------------------------------------------
+    // Group-level controls
+    //-------------------------------------------------------------------------
+    reg { name = "Observer control"; desc = "Monbus group drain + compression";
+          field { desc = "Bulk-write flush watermark"; sw=rw; hw=r; } FLUSH_WATERMARK[15:0] = 16'h0010;
+          field { desc = "1 = compress the monbus write stream. The tally reassembles RAW 3-beat records, so leave 0 unless the consumer decompresses.";
+                  sw=rw; hw=r; } COMPRESS_EN[16:16] = 1'b0;
+          field { sw=r; hw=na; } RSVD[31:17] = 15'h0; } OBS_CTRL @ 0x060;
+
+    reg { name = "Observer window base";  desc = "Monbus bulk-write window low bound";
+          field { sw=rw; hw=r; } VALUE[31:0] = 32'h0004_0000; } OBS_BASE_ADDR  @ 0x064;
+    reg { name = "Observer window limit"; desc = "Monbus bulk-write window high bound";
+          field { sw=rw; hw=r; } VALUE[31:0] = 32'h0007_FFFF; } OBS_LIMIT_ADDR @ 0x068;
+};
+
+addrmap obs_regs_top {
+    name = "DMA observer CSRs";
+    desc = "APB-fronted configuration for the inline performance observer";
+    obs_regs OBS @ 0x000;
+};

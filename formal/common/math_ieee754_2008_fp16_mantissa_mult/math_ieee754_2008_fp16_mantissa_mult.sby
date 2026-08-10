@@ -24,11 +24,11 @@ read -formal -sv formal_math_ieee754_2008_fp16_mantissa_mult.sv
 prep -top formal_math_ieee754_2008_fp16_mantissa_mult
 
 [files]
-math_prefix_cell.sv ../../../rtl/common/math_prefix_cell.sv
-math_prefix_cell_gray.sv ../../../rtl/common/math_prefix_cell_gray.sv
-math_adder_full.sv ../../../rtl/common/math_adder_full.sv
-math_adder_han_carlson_022.sv ../../../rtl/common/math_adder_han_carlson_022.sv
-math_compressor_4to2.sv ../../../rtl/common/math_compressor_4to2.sv
-math_multiplier_dadda_4to2_011.sv ../../../rtl/common/math_multiplier_dadda_4to2_011.sv
-math_ieee754_2008_fp16_mantissa_mult.sv ../../../rtl/common/math_ieee754_2008_fp16_mantissa_mult.sv
+math_prefix_cell.sv ../../../rtl/math/math_prefix_cell.sv
+math_prefix_cell_gray.sv ../../../rtl/math/math_prefix_cell_gray.sv
+math_adder_full.sv ../../../rtl/math/math_adder_full.sv
+math_adder_han_carlson_022.sv ../../../rtl/math/math_adder_han_carlson_022.sv
+math_compressor_4to2.sv ../../../rtl/math/math_compressor_4to2.sv
+math_multiplier_dadda_4to2_011.sv ../../../rtl/math/math_multiplier_dadda_4to2_011.sv
+math_ieee754_2008_fp16_mantissa_mult.sv ../../../rtl/math/math_ieee754_2008_fp16_mantissa_mult.sv
 formal_math_ieee754_2008_fp16_mantissa_mult.sv

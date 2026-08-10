@@ -84,7 +84,7 @@
 
 **RLB Architecture Pattern:**
 ```
-APB → apb_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp → 
+APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp → 
   → <module>_regs (PeakRDL) → hwif → <module>_core
 ```
 
@@ -94,8 +94,8 @@ APB → apb_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
 - SMBus: Protocol controller with FIFOs
 
 **Converter Components:**
-- `../../converters/rtl/apb_slave.sv` - APB slave without CDC
-- `../../converters/rtl/apb_slave_cdc.sv` - APB slave with CDC
+- `../../converters/rtl/apb4_slave.sv` - APB slave without CDC
+- `../../converters/rtl/apb4_slave_cdc.sv` - APB slave with CDC
 - `../../converters/rtl/peakrdl_to_cmdrsp.sv` - PeakRDL adapter
 
 #### Historical Context

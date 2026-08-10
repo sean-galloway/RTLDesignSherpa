@@ -415,7 +415,7 @@ Each block is designed to be used standalone:
 
 **Example - HPET Integration:**
 ```systemverilog
-apb_hpet #(
+apb4_hpet #(
     .NUM_TIMERS(3),
     .VENDOR_ID(16'h8086),
     .REVISION_ID(16'h0001),

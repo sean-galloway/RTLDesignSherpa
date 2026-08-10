@@ -112,8 +112,11 @@ Specs live WITH their components, not here:
   rules (no emojis in pipeline docs, caption encoding for LoF/LoT/LoW)
 - **[/GLOBAL_REQUIREMENTS.md](../GLOBAL_REQUIREMENTS.md)** - mandatory
   repository requirements (the authority)
-- **[/TESTING.md](../TESTING.md)** - running tests: REG_LEVEL/TEST_LEVEL,
-  seeds, regressions
+- **[vault/handbook/dv/](../vault/handbook/dv/INDEX.md)** - running tests:
+  [test-runner](../vault/handbook/dv/test-runner.md) (REG_LEVEL/TEST_LEVEL,
+  WAVES), [running-regressions](../vault/handbook/dv/running-regressions.md)
+  (always the Makefile targets, never bare pytest),
+  [seeds-and-determinism](../vault/handbook/dv/seeds-and-determinism.md)
 - **[/bin/DOC_GENERATION.md](../bin/DOC_GENERATION.md)** - the doc pipeline:
   md_to_docx (--style required), book indexes, PDF generation
 - **[kimi_humanization_style_guide.md](kimi_humanization_style_guide.md)** -

@@ -25,7 +25,7 @@ Features:
 - Interrupt monitoring
 
 Architecture:
-    APB Master → apb_pic_8259 → PIC Core
+    APB Master → apb4_pic_8259 → PIC Core
                      ↓
                   8 IRQ inputs
                      ↓
@@ -102,7 +102,7 @@ class PIC8259TB(TBBase):
         # APB configuration
         self.apb_data_width = 32
         self.apb_addr_width = 12  # 4KB address window
-        self.apb_master = None  # Will be created in setup_components()
+        self.apb4_master = None  # Will be created in setup_components()
 
         self.log.info("PIC 8259 testbench initialized")
         self.log.info(f"  Data width: {self.apb_data_width}")
@@ -160,7 +160,7 @@ class PIC8259TB(TBBase):
 
         try:
             # Create APB Master - pattern from RTC/PIT/HPET
-            self.apb_master = APBMaster(
+            self.apb4_master = APBMaster(
                 entity=self.dut,
                 title="PIC_8259 APB Master",
                 prefix="s_apb",  # Constructs s_apb_PADDR, s_apb_PWRITE, etc.
@@ -172,8 +172,8 @@ class PIC8259TB(TBBase):
             )
 
             # Initialize the APB master (starts transmit coroutine)
-            await self.apb_master.reset_bus()
-            self.log.info(f"✓ APB Master created and initialized: {type(self.apb_master)}")
+            await self.apb4_master.reset_bus()
+            self.log.info(f"✓ APB Master created and initialized: {type(self.apb4_master)}")
 
         except Exception as e:
             self.log.error(f"Failed to create APB Master: {e}")
@@ -211,7 +211,7 @@ class PIC8259TB(TBBase):
         write_packet.direction = 'WRITE'
 
         # Send the packet
-        await self.apb_master.send(write_packet)
+        await self.apb4_master.send(write_packet)
 
         # Wait for transaction to complete (PSEL & PENABLE & PREADY)
         timeout = 0
@@ -254,7 +254,7 @@ class PIC8259TB(TBBase):
         read_packet.direction = 'READ'
 
         # Send the packet
-        await self.apb_master.send(read_packet)
+        await self.apb4_master.send(read_packet)
 
         # Wait for transaction to complete and capture read data
         timeout = 0

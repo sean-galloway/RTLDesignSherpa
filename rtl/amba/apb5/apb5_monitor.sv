@@ -23,7 +23,7 @@
 // APB5-specific events like wake-up sequences and parity error detection.
 //
 // Packet format: 128-bit monitor_packet_t plus the 64-bit side-band
-// monbus_timestamp, matching apb_monitor and monitor_package_spec.md.
+// monbus_timestamp, matching apb4_monitor and monitor_package_spec.md.
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba

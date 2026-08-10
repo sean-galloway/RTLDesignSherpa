@@ -35,6 +35,8 @@ The `axi_monitor_reporter_threshold` module is the threshold-crossing packet emi
 
 The block was split out of the original monolithic reporter so integrators can drop it (`ENABLE_THRESHOLD_LOGIC=0`) and recover real area, because it owns the per-slot latency pipeline (16 × 32-bit latency flops plus 16 threshold flags).
 
+`threshold` is a **fault class** ([taxonomy](monitor_system_architecture.md#healthy-classes-vs-fault-classes)) -- an early-warning fault, one step below a hard timeout. Exercise it by **injecting a slow slave**: hold responses long enough that latency crosses `LATENCY_THRESH` but stays under the timeout window (or push enough concurrent traffic to cross the active-count limit). It does not occur under healthy traffic, so like the other faults it must be provoked deliberately.
+
 ### Key Features
 
 - Active-transaction-count threshold detection (instantaneous condition)

@@ -60,7 +60,7 @@ This specification is organized into five chapters covering all aspects of the A
 **Location:** `ch03_interfaces/` *(planned, not yet written)*
 
 - 00_overview.md - Interface summary
-- 01_apb_slave.md - APB protocol specification
+- 01_apb4_slave.md - APB protocol specification
 - 02_interrupt.md - Interrupt output
 - 03_system.md - Clock and reset interface
 
@@ -93,7 +93,7 @@ This specification is organized into five chapters covering all aspects of the A
 
 ### For Hardware Integrators
 - Start with [Chapter 1: Overview](ch01_overview/01_overview.md)
-- The interfaces chapter is planned but not yet written; see `../../rtl/rtc/apb_rtc.sv` for the current port list
+- The interfaces chapter is planned but not yet written; see `../../rtl/rtc/apb4_rtc.sv` for the current port list
 
 ---
 

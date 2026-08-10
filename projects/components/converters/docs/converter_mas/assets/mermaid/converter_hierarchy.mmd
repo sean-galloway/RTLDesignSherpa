@@ -11,7 +11,7 @@ flowchart TB
         subgraph Protocol["Protocol Converters"]
             AXI_AXIL[axi4_to_axil4<br/>Burst Decomposition]
             AXIL_AXI[axil4_to_axi4<br/>Protocol Upgrade]
-            AXI_APB[axi4_to_apb_convert<br/>AXI4→APB Bridge]
+            AXI_APB[axi4_to_apb4_convert<br/>AXI4→APB Bridge]
             PEAKRDL[peakrdl_to_cmdrsp<br/>Register Adapter]
         end
     end

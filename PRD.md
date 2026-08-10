@@ -254,7 +254,7 @@ If project-specific code is found in the framework area, it MUST be moved:
 |----------|----------|---------|--------|
 | **AXI4** | Burst, out-of-order, outstanding | `monitor/axi4_{master,slave}_{rd,wr}_mon.sv` | ✅ Complete |
 | **AXI4-Lite** | Single-beat simplified | Same base with params | ✅ Complete |
-| **APB** | Peripheral bus | `apb_monitor.sv` | ✅ Complete |
+| **APB** | Peripheral bus | `apb4_monitor.sv` | ✅ Complete |
 | **AXI-Stream** | Streaming data | `axis_master.sv`, `axis_slave.sv` | ✅ Complete |
 
 **Key Features:**
@@ -442,8 +442,8 @@ def test_axi4_dwidth_converter_wr(request, params):  # ← Matches axi4_dwidth_c
     """Test for write data width converter"""
     ...
 
-# File: val/amba/test_apb_slave.py
-def test_apb_slave(request, params):  # ← Matches module
+# File: val/amba/test_apb4_slave.py
+def test_apb4_slave(request, params):  # ← Matches module
     """Test for APB slave"""
     ...
 
@@ -687,7 +687,7 @@ w_pkt = self.w_monitor._recvQ.popleft()
 - **`docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`** - Complete guide with examples for all subsystems
 - RTLDesignSherpa-DV repo CLAUDE.md - Framework-specific patterns
 - `projects/components/dmas/rapids/CLAUDE.md` - Detailed testbench architecture
-- `val/amba/test_apb_slave.py` - Reference example following this pattern
+- `val/amba/test_apb4_slave.py` - Reference example following this pattern
 
 ---
 

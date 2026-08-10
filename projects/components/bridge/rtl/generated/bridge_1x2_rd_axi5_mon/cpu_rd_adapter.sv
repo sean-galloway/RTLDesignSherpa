@@ -116,6 +116,11 @@ module cpu_rd_adapter
 
     logic         wrapper_rd_busy;
 
+    // AXI5 native sideband (A5-2 slice 2)
+    logic         fub_axi_artrace;  // AXI5 sideband (trace)
+    logic         fub_axi_arunique;  // AXI5 sideband (unique)
+    logic         fub_axi_rtrace;  // AXI5 sideband (trace)
+
     // ================================================================
     // Timing isolation wrapper (axi5_slave_rd_mon)
     // ================================================================
@@ -196,10 +201,10 @@ module cpu_rd_adapter
         .fub_axi_arvalid(fub_axi_arvalid),
         .fub_axi_arready(fub_axi_arready),
         .fub_axi_arnsaid(),
-        .fub_axi_artrace(),
+        .fub_axi_artrace(fub_axi_artrace),
         .fub_axi_armpam(),
         .fub_axi_armecid(),
-        .fub_axi_arunique(),
+        .fub_axi_arunique(fub_axi_arunique),
         .fub_axi_archunken(),
         .fub_axi_artagop(),
         .fub_axi_rid(fub_axi_rid),
@@ -209,7 +214,7 @@ module cpu_rd_adapter
         .fub_axi_ruser(1'b0),
         .fub_axi_rvalid(fub_axi_rvalid),
         .fub_axi_rready(fub_axi_rready),
-        .fub_axi_rtrace('0),
+        .fub_axi_rtrace(fub_axi_rtrace),
         .fub_axi_rpoison('0),
         .fub_axi_rchunkv('0),
         .fub_axi_rchunknum('0),
@@ -322,6 +327,8 @@ module cpu_rd_adapter
     assign cpu_rd_32b_ar.qos    = 4'b0;  // Tie to 0
     assign cpu_rd_32b_ar.region = 4'b0;  // Tie to 0
     assign cpu_rd_32b_ar.user   = 1'b0;  // Tie to 0
+    assign cpu_rd_32b_ar.trace = fub_axi_artrace;  // AXI5 sideband
+    assign cpu_rd_32b_ar.uniq = fub_axi_arunique;  // AXI5 sideband
     assign cpu_rd_32b_arvalid   = fub_axi_arvalid && ar_path_active_32b;
     // arready routed via MUX
 
@@ -400,6 +407,7 @@ module cpu_rd_adapter
         fub_axi_rresp = 2'b00;
         fub_axi_rlast = 1'b0;
         fub_axi_rvalid = 1'b0;
+        fub_axi_rtrace = '0;  // AXI5 sideband (trace)
 
         case (r_slave_select)
             2'b01: begin  // Slave 0 (32b)
@@ -408,6 +416,7 @@ module cpu_rd_adapter
                 fub_axi_rresp = cpu_rd_32b_r.resp;
                 fub_axi_rlast = cpu_rd_32b_r.last;
                 fub_axi_rvalid = cpu_rd_32b_rvalid;
+                fub_axi_rtrace = cpu_rd_32b_r.trace;
             end
             2'b10: begin  // Slave 1 (32b)
                 fub_axi_rid = cpu_rd_32b_r.id;
@@ -415,6 +424,7 @@ module cpu_rd_adapter
                 fub_axi_rresp = cpu_rd_32b_r.resp;
                 fub_axi_rlast = cpu_rd_32b_r.last;
                 fub_axi_rvalid = cpu_rd_32b_rvalid;
+                fub_axi_rtrace = cpu_rd_32b_r.trace;
             end
             default: begin
                 // No slave selected - hold defaults

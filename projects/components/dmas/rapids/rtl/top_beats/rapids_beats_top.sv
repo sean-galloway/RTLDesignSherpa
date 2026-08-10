@@ -20,10 +20,10 @@
 //
 //   Integration hierarchy:
 //     APB4 slave (s_apb_*)
-//       -> apb_slave  (APB -> CMD/RSP, single clock domain: pclk = aclk)
+//       -> apb4_slave  (APB -> CMD/RSP, single clock domain: pclk = aclk)
 //       -> cmd demux (hand-written, 3-way):
-//            0x000-0x03F  -> apbtodescr (u_kick_src)  -> core.src_apb_*
-//            0x1000-0x103F-> apbtodescr (u_kick_snk)  -> core.snk_apb_*
+//            0x000-0x03F  -> apb4todescr (u_kick_src)  -> core.src_apb_*
+//            0x1000-0x103F-> apb4todescr (u_kick_snk)  -> core.snk_apb_*
 //            all others   -> peakrdl_to_cmdrsp -> rapids_regs
 //       -> rapids_config_block x2 (u_cfg_src <- hwif_out.SRC.*,
 //                                  u_cfg_snk <- hwif_out.SNK.*)
@@ -32,9 +32,9 @@
 //                                  bulk-capture master / IRQ)
 //
 //   APB address map (13-bit APB address; bit[12] selects SRC(0)/SNK(1)):
-//     0x0000-0x003F : SOURCE channel kick-off (apbtodescr u_kick_src)
+//     0x0000-0x003F : SOURCE channel kick-off (apb4todescr u_kick_src)
 //     0x0040-0x0FFF : SOURCE configuration registers (rapids_regs SRC)
-//     0x1000-0x103F : SINK   channel kick-off (apbtodescr u_kick_snk)
+//     0x1000-0x103F : SINK   channel kick-off (apb4todescr u_kick_snk)
 //     0x1040-0x1FFF : SINK   configuration registers (rapids_regs SNK)
 //
 //   NOTE on the single MonBus egress config: the two halves each emit their own
@@ -368,10 +368,10 @@ module rapids_beats_top #(
     logic [APB_DATA_WIDTH-1:0]     apb_rsp_prdata;
     logic                          apb_rsp_pslverr;
 
-    apb_slave #(
+    apb4_slave #(
         .ADDR_WIDTH (APB_ADDR_WIDTH),
         .DATA_WIDTH (APB_DATA_WIDTH)
-    ) u_apb_slave (
+    ) u_apb4_slave (
         .pclk           (aclk),
         .presetn        (aresetn),
         .s_apb_PSEL     (s_apb_psel),
@@ -403,7 +403,7 @@ module rapids_beats_top #(
     //   - SNK kick   : 0x1000-0x103F (paddr[12]==1, paddr[11:6] == 0)
     //   - Registers  : everything else -> peakrdl register chain
     //
-    // APB is single-outstanding (apb_slave issues one CMD and waits for its
+    // APB is single-outstanding (apb4_slave issues one CMD and waits for its
     // RSP), so a combinational demux on the address is safe: exactly one sink
     // sees CMD.valid at a time, and exactly one sink asserts RSP.valid.
     //=========================================================================
@@ -442,7 +442,7 @@ module rapids_beats_top #(
     assign kick_snk_cmd_valid = apb_cmd_valid & sel_kick_snk;
     assign peakrdl_cmd_valid  = apb_cmd_valid & sel_regs;
 
-    // CMD ready mux back to apb_slave
+    // CMD ready mux back to apb4_slave
     assign apb_cmd_ready = sel_kick_src ? kick_src_cmd_ready :
                            sel_kick_snk ? kick_snk_cmd_ready :
                                           peakrdl_cmd_ready;
@@ -459,13 +459,13 @@ module rapids_beats_top #(
     assign peakrdl_rsp_ready = apb_rsp_ready;
 
     //=========================================================================
-    // SOURCE channel kick-off (apbtodescr) -> core.src_apb_*
+    // SOURCE channel kick-off (apb4todescr) -> core.src_apb_*
     //=========================================================================
     logic [NC-1:0]          src_apb_valid;
     logic [NC-1:0]          src_apb_ready;
     logic [NC-1:0][AW-1:0]  src_apb_addr;
 
-    apbtodescr #(
+    apb4todescr #(
         .ADDR_WIDTH      (APB_ADDR_WIDTH),
         .DATA_WIDTH      (APB_DATA_WIDTH),
         .NUM_CHANNELS    (NUM_CHANNELS),
@@ -489,13 +489,13 @@ module rapids_beats_top #(
     );
 
     //=========================================================================
-    // SINK channel kick-off (apbtodescr) -> core.snk_apb_*
+    // SINK channel kick-off (apb4todescr) -> core.snk_apb_*
     //=========================================================================
     logic [NC-1:0]          snk_apb_valid;
     logic [NC-1:0]          snk_apb_ready;
     logic [NC-1:0][AW-1:0]  snk_apb_addr;
 
-    apbtodescr #(
+    apb4todescr #(
         .ADDR_WIDTH      (APB_ADDR_WIDTH),
         .DATA_WIDTH      (APB_DATA_WIDTH),
         .NUM_CHANNELS    (NUM_CHANNELS),

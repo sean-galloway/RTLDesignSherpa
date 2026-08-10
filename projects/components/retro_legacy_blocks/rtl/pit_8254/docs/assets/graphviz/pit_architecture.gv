@@ -20,14 +20,14 @@ digraph pit_architecture {
         apb_in [label="APB\nMaster\n\nPSEL\nPENABLE\nPADDR\nPWDATA", fillcolor=palegreen];
     }
 
-    // apb_pit_8254 Top Level
+    // apb4_pit_8254 Top Level
     subgraph cluster_top {
-        label="apb_pit_8254 (Top Level)";
+        label="apb4_pit_8254 (Top Level)";
         style=filled;
         fillcolor=lightyellow;
 
         // APB Slave
-        apb_slave [label="APB Slave\n(apb_slave.sv or\napb_slave_cdc.sv)\n\nProtocol conversion\nOptional CDC", fillcolor=lightcyan];
+        apb4_slave [label="APB Slave\n(apb4_slave.sv or\napb4_slave_cdc.sv)\n\nProtocol conversion\nOptional CDC", fillcolor=lightcyan];
         
         // Config Registers
         config_regs [label="Config Registers\n(pit_config_regs.sv)\n\nPeakRDL wrapper\nControl word decode\nEdge detection", fillcolor=wheat];
@@ -62,8 +62,8 @@ digraph pit_architecture {
     }
 
     // APB Data Flow (Blue)
-    apb_in -> apb_slave [label="APB\ntransactions", color=blue, style=bold];
-    apb_slave -> config_regs [label="cmd/rsp", color=blue];
+    apb_in -> apb4_slave [label="APB\ntransactions", color=blue, style=bold];
+    apb4_slave -> config_regs [label="cmd/rsp", color=blue];
     config_regs -> peakrdl_regs [label="APB\nR/W", color=blue];
     
     // Register to Core (Green)
@@ -89,7 +89,7 @@ digraph pit_architecture {
     clk_apb [label="pclk", shape=ellipse, fillcolor=lightyellow];
     clk_pit [label="pit_clk", shape=ellipse, fillcolor=orange];
     
-    clk_apb -> apb_slave [label="APB side", color=blue, style=dashed];
-    clk_pit -> apb_slave [label="PIT side", color=orange, style=dashed];
+    clk_apb -> apb4_slave [label="APB side", color=blue, style=dashed];
+    clk_pit -> apb4_slave [label="PIT side", color=orange, style=dashed];
     clk_pit -> pit_core [label="Counter\nclock", color=orange, style=dashed];
 }

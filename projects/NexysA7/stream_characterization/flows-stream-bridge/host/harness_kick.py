@@ -5,7 +5,7 @@
 The char harness (`harness_csr.sv`) exposes STREAM's `i_kick_burst_mask` /
 `i_kick_burst_addr` ports as CSRs so the host can fire N channel kicks
 back-to-back in one aclk cycle instead of serializing on the slow
-`apbtodescr` LOW/HIGH APB handshake (each of which is a full UART round trip).
+`apb4todescr` LOW/HIGH APB handshake (each of which is a full UART round trip).
 
 Programming sequence (see harness_csr.sv address map, 0xB0..0xD0):
     1. Write CH_KICK_ADDR[ch] = descriptor address, for each channel to kick.
@@ -59,7 +59,7 @@ def batch_kick(bridge: _Bridge, kicks: Mapping[int, int]) -> int:
 
     The descriptor address is truncated to 32 bits: the kick-burst port is
     ADDR_WIDTH-wide (32 in current builds) and the shadow register is 32 bits —
-    unlike the apbtodescr path there is no separate HIGH word to program.
+    unlike the apb4todescr path there is no separate HIGH word to program.
     """
     if not kicks:
         return 0

@@ -56,7 +56,7 @@ module formal_apb5_master #(
     initial assume (!rst_n);
     always @(posedge clk) if (f_past_valid >= 2) assume (rst_n);
 
-    // Same APB protocol properties as apb_master
+    // Same APB protocol properties as apb4_master
     always @(posedge clk) begin
         if (rst_n) ap_pen_psel: assert (!m_apb_PENABLE || m_apb_PSEL);
     end

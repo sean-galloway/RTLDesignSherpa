@@ -29,7 +29,7 @@ The APB High Precision Event Timer (HPET) is a configurable multi-timer peripher
 
 ### Figure 1.1: APB HPET Block Diagram
 
-![APB HPET Block Diagram](../assets/draw.io/apb_hpet_blocks.png)
+![APB HPET Block Diagram](../assets/draw.io/apb4_hpet_blocks.png)
 
 #### Key Features
 

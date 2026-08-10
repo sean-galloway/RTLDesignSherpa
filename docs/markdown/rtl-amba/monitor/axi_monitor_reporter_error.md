@@ -33,6 +33,8 @@
 
 The AXI Monitor Reporter Error Cone is the error-packet detection sub-block of `axi_monitor_reporter`. It scans the outstanding-transaction table for unreported transactions in the `TRANS_ERROR` (genuine error, not a timeout) or `TRANS_ORPHANED` state, priority-encodes the first match, and emits the fields for a `PktTypeError` MonBus packet. It was split out of the monolithic reporter so integrators can drop it with `ENABLE_ERROR_LOGIC=0` and pay zero LUT cost for the per-slot scan and priority encoder. The block is purely combinational.
 
+`error` is a **fault class** ([taxonomy](monitor_system_architecture.md#healthy-classes-vs-fault-classes)): in correct operation it never fires. **An error, by definition, hangs the system** -- a transaction that returns `SLVERR`/`DECERR` or is never answered does not retire, so exercising this cone means *deliberately injecting a fault* (a slave forced to return a bad response), and the traffic that provoked it is expected to wedge. That is exactly what this cone exists to catch: it emits the `PktTypeError` packet as the hang happens. (For the address-range/allowlist flavor of error injection, which lives in the always-built [`axi_monitor_addr_check`](axi_monitor_addr_check.md) and does *not* require this cone, see that page.)
+
 ### Key Features
 
 - Scans for unreported `TRANS_ERROR` (non-timeout) and `TRANS_ORPHANED` slots

@@ -111,7 +111,7 @@ make test-stream-gate-parallel     # STREAM GATE parallel
 make test-stream-func-parallel     # STREAM FUNC parallel
 make test-stream-full-parallel     # STREAM FULL parallel
 
-# Same pattern for: rapids, bridge, delta, retro_legacy_blocks, apb_xbar
+# Same pattern for: rapids, bridge, delta, retro_legacy_blocks, apb4_xbar
 
 # Lint all components
 make lint-all

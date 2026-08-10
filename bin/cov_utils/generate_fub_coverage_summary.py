@@ -85,7 +85,7 @@ def categorize_module(filename: str) -> str:
     fub_modules = [
         'scheduler', 'descriptor_engine', 'axi_read_engine', 'axi_write_engine',
         'sram_controller', 'sram_controller_unit', 'stream_latency_bridge',
-        'stream_alloc_ctrl', 'stream_drain_ctrl', 'apbtodescr', 'perf_profiler'
+        'stream_alloc_ctrl', 'stream_drain_ctrl', 'apb4todescr', 'perf_profiler'
     ]
 
     macro_modules = [

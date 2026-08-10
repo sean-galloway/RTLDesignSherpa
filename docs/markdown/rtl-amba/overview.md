@@ -197,12 +197,12 @@ The APB implementation provides complete solutions for low-power peripheral acce
 
 ```systemverilog
 // APB4 Master with command/response interface
-apb_master #(
+apb4_master #(
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32),
     .CMD_DEPTH(6),
     .RSP_DEPTH(6)
-) u_apb_master (
+) u_apb4_master (
     .m_apb_PSEL     (psel),
     .m_apb_PENABLE  (penable),
     .m_apb_PADDR    (paddr),
@@ -476,13 +476,13 @@ module mixed_amba_system (
     axi5_master_wr_mon u_cpu_wr_master (...);
 
     // Bridge to AMBA 4 subsystem
-    axi4_to_apb_convert u_bridge (
+    axi4_to_apb4_convert u_bridge (
         .s_axi  (cpu_axi),
         .m_apb  (periph_apb)
     );
 
     // Legacy AMBA 4 peripherals
-    apb_slave u_legacy_periph (...);
+    apb4_slave u_legacy_periph (...);
 
 endmodule
 ```

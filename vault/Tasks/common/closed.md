@@ -697,3 +697,154 @@ already done, which made the remaining work look larger than it was. Re-read
 the premise of a long-lived task before working it; the answer is sometimes
 that it is finished.
 
+
+---
+
+## COMMON-020 — the fifo_sync wavedrom generator produces no wave JSON
+**Status:** CLOSED 2026-08-09 (opened 2026-08-06 by the common test-audit round)
+**Priority:** P3 — no consumer was broken
+
+`val/common/test_fifo_sync_wavedrom.py` built the `WaveJSONGenerator` and the
+interface groups but never registered a `TemporalConstraintSolver` constraint,
+so the sampling loop iterated an empty set, captured nothing, printed
+"WaveDrom Results: 0 solutions" and PASSED — a generator whose entire
+deliverable is the wave JSON, emitting none.
+
+**CLOSED — the test now emits 4 diagrams per config and can no longer pass
+empty.** Port from the working reference (`test_gaxi_fifo_sync.py`'s wavedrom
+test) surfaced THREE stacked defects, each individually sufficient to produce
+zero JSON:
+
+1. **No constraints registered** (the known one). Fixed with 4
+   `TemporalConstraint`s keyed on distinct single-signal transitions —
+   first write, `wr_full` 0->1, `rd_empty` 0->1, `wr_almost_full` 0->1 — all
+   reachable at gate level, so one long sampling session captures all four.
+2. **Clock group named `"clk"`.** Every `TemporalConstraint` defaults to
+   `clock_group='default'` and the sampler silently skips constraints whose
+   group name does not match, so windows stayed at 0 cycles forever. The
+   group must be named `'default'`.
+3. **`add_interface()` prefixes bindings** (`fifo_write`, `fifo_clk`, ...) so
+   nothing lined up with the unprefixed names the generator groups and
+   constraints use. Replaced with direct unprefixed `add_signal_binding()`
+   calls, per the reference.
+
+Plus one testbench-interaction bug: `FifoBufferTB` starts an auto-consuming
+`FIFOSlave` whose randomizer drains the FIFO on its own schedule — with it
+alive the FIFO never fills, `wr_full`/`wr_almost_full` never assert, and the
+scenarios' manual `dut.read` pokes fight the BFM. The wavedrom test now kills
+`read_slave` after reset and owns the read pin (wavedrom stimulus must be
+deterministic anyway).
+
+Hardened both silent-pass doors: `assert len(results['solutions']) > 0`
+(zero solutions = failure, never a pass) and an assert that `setup_wavedrom()`
+actually produced a solver (its except clause nulls `wave_solver`, and every
+wavedrom step was guarded on it — a broken setup sailed through as a pass).
+
+Verified: GATE and FUNC grids pass, 4 wave JSONs per config
+(`fifo_sync_{write_empty,full_flag,empty_flag,almost_full}_001.json`), content
+inspected — real transitions, correct grouping.
+
+---
+
+## COMMON-021 — Update formal for common: staleness audit + re-prove + cover closure
+**Status:** CLOSED 2026-08-09 (opened and closed same day)
+**Priority:** P2 — a passing proof of stale RTL is a false assurance, not a missing one
+
+All five items done; two of them found their premise had expired, and the
+audit found two problems bigger than the ones it went looking for.
+
+1. **Staleness audit (repo-wide, force-regen + content-diff, all 48 committed
+   `*_flat.v`): only 7 of 48 are content-current.** 36 stale (even 1-line
+   diffs are functional — fifo_control DEPTH default drift in every rapids
+   file; amba monitor files 80-220 lines behind; stream scheduler_group_array
+   +2353 lines), 5 cannot regenerate (1 DEPS drift, 4 sv2v internal errors).
+   Lists in formal/FORMAL_TODO.md; per-area re-prove routed there. Common's
+   sole flat file is current.
+2. **counter_freq_invariant was never stale.** FREQ_STRATEGY landed a week
+   BEFORE the last regen; the 2026-07-25 "change" was a comment-only docs
+   rename sv2v output does not carry. check-flat passes; fresh prove+cover
+   PASS, covers reached. Date-based staleness diagnosis lied in BOTH
+   directions across this task — only content comparison is trustworthy.
+3. **Cover closure — premise expired.** All four "prove-only" modules already
+   carry cover tasks. Fresh re-runs all PASS with every cover reached:
+   cam_tag (2), counter (2), counter_bin (3), fifo_sync_multi_sigmap (4 —
+   dir had MOVED to formal/integ_common/ in the July extraction; the
+   formal/common leftovers were untracked output debris, deleted).
+4. **icg cover — already fixed upstream.** Fresh cover PASS, both cover
+   points reached; cp_enabled is no longer unreachable.
+5. **FORMAL_TODO infrastructure corrected**: the OSS CAD Suite + sv2v are on
+   the WORKSTATION at /mnt/data/tools; the "not installed" note was written
+   from the laptop. The unrecorded machine split is what mis-directed the
+   2026-08-08 investigation.
+
+**Bonus finding, the biggest of the task:** the fp8 fma pair were
+path-broken (rtl/common -> rtl/math), and the follow-on sweep showed ALL 147
+math .sby configs broken identically — the entire math formal suite
+unrunnable since the math split (loudly, at least: sby dies at file-copy).
+Mechanically repaired, all refs verified resolving, five modules
+spot-verified prove+cover PASS. Full re-run filed as MATH-006 (math area).
+
+Commits: 5263bbd3 (audit + repairs + tracking), follow-up for this closure.
+
+---
+
+## COMMON-003 — Integration examples (became the technique index)
+**Status:** CLOSED 2026-08-09 (opened as "create integration examples",
+migrated from rtl/common/TASKS.md; rescoped twice the day it closed)
+**Priority:** P2
+
+The task's shape changed twice under examination, each time by owner call:
+
+1. Original (pre-migration): five standalone designs combining common
+   modules — watchdog FSM, arbiter system, CRC+FIFO buffer, CDC transfer,
+   PWM — each with test and docs, in rtl/integ_amba/examples/.
+2. Rescope 1 (Sean): not "testing things together" — each example should
+   demonstrate a design TECHNIQUE. PWM killed outright (rtl/common/pwm.sv
+   already demonstrates it). Four technique showcases proposed, mapped to
+   handbook notes, sited in rtl/integ_common.
+3. Rescope 2 (Sean): "I've already basically done all four of those in the
+   projects area" — and it is true: the stream engines ARE the
+   streaming-no-fsm demo, the schedulers ARE the minimal-FSM demo, pumice
+   and monbus ARE the arbitration demos, rtl/cdc + apb4_slave_cdc ARE the
+   CDC demos. Toy copies of techniques that living, tested code already
+   demonstrates are second implementations nobody maintains — the exact
+   failure mode integ_amba's two untested examples (51 Verilator errors,
+   AMBA-EXAMPLES) exhibit.
+
+**Delivered instead: `docs/markdown/rtl-integ-common/technique-index.md`** —
+a reader-facing map from each technique (streaming no-FSM, minimal FSM,
+valid/ready discipline, CDC, arbitration/fairness, timeout/recovery,
+in-line data integrity, field packing) to its best worked examples in real
+code, each with "what to look at when you get there" and its handbook note
+named. Every cited path verified to exist at authoring. Linked from the
+book's index.md and overview.md, so the review bundle picks it up.
+
+No new RTL, no new tests — deliberately. The area's two existing modules
+(fifo_sync_multi{,_sigmap}) remain the standalone composition examples and
+are fully tested.
+
+---
+
+## COMMON-008 — Multi-byte CRC support
+**Status:** CLOSED 2026-08-09 — premise false; the capability already exists
+(spotted by Sean while reviewing the open list)
+
+The task claimed "dataint_crc.sv processes one byte per cycle" and asked for
+a 2/4/8/16-byte-per-cycle option. The module's own header refutes it:
+**Throughput: CHUNKS bytes per cycle**, CHUNKS = DATA_WIDTH/8. The
+architecture is a cascade of per-byte XOR-shift stages with `cascade_sel`
+one-hot selecting the tap for a partial final beat — so any instantiation
+processes DATA_WIDTH/8 bytes every cycle, and DATA_WIDTH is a free
+parameter (default 64 = 8 bytes/cycle; 128/256 give 16/32).
+`rtl/amba/shared/axi4_slave_wr_crc_check.sv` already consumes it exactly
+this way (32-bit beats, cascade_sel one-hot on the last valid byte).
+
+The task text likely predates the cascaded rewrite and was migrated without
+re-verification — same lesson as COMMON-010 and the COMMON-021 cover rows:
+re-read a long-lived task's premise against the tree before working it.
+
+One honest residual, recorded not tasked: at very wide DATA_WIDTH the
+cascade is a serial combinational chain (one CRC stage per byte), so timing
+at 32 bytes/cycle may want an unrolled/parallel formulation. That is a
+synthesis-timing question with no consumer today; whoever hits it opens a
+fresh task with the failing clock target in hand.

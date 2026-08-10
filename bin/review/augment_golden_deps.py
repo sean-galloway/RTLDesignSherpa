@@ -98,7 +98,7 @@ def main():
     idx = sv_index()
     # Refs are the UNION across all units given: a finding in part_02 may turn
     # on a module only part_01's docs name explicitly (round_3's "twice (APB,
-    # ...)" finding needed apb_slave_cdc_cg.sv, absent from part_02's bundle).
+    # ...)" finding needed apb4_slave_cdc_cg.sv, absent from part_02's bundle).
     strong, sv_mentions = set(), set()
     for unit in sys.argv[1:]:
         docs = os.path.join(unit, "DOCS.md")

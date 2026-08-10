@@ -1,5 +1,5 @@
 // UART 16550 Top-Level Block Diagram
-// Module: apb_uart_16550
+// Module: apb4_uart_16550
 // Purpose: 16550-compatible UART with APB interface
 
 digraph uart_top {
@@ -27,7 +27,7 @@ digraph uart_top {
 
     // Main blocks
     subgraph cluster_uart {
-        label="apb_uart_16550";
+        label="apb4_uart_16550";
         style=rounded;
         fillcolor=white;
 

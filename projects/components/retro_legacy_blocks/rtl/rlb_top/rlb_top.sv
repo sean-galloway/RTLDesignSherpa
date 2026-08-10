@@ -313,12 +313,12 @@ module rlb_top #(
     // ========================================================================
     // APB Crossbar
     // ========================================================================
-    apb_xbar_rlb_1to10 #(
+    apb4_xbar_rlb_1to10 #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .BASE_ADDR  (BASE_ADDR)
-    ) u_apb_xbar (
+    ) u_apb4_xbar (
         .pclk           (pclk),
         .presetn        (presetn),
 
@@ -460,7 +460,7 @@ module rlb_top #(
     // ========================================================================
 
     // HPET (High Precision Event Timer)
-    apb_hpet #(
+    apb4_hpet #(
         .VENDOR_ID   (HPET_VENDOR_ID),
         .REVISION_ID (HPET_REVISION),
         .NUM_TIMERS  (HPET_NUM_TIMERS),
@@ -484,7 +484,7 @@ module rlb_top #(
     );
 
     // 8259 PIC (Programmable Interrupt Controller)
-    apb_pic_8259 u_pic (
+    apb4_pic_8259 u_pic (
         .pclk          (pclk),
         .presetn       (presetn),
         .s_apb_PSEL    (pic_apb_PSEL),
@@ -502,7 +502,7 @@ module rlb_top #(
     );
 
     // 8254 PIT (Programmable Interval Timer)
-    apb_pit_8254 #(
+    apb4_pit_8254 #(
         .NUM_COUNTERS (PIT_NUM_COUNTERS),
         .CDC_ENABLE   (0)
     ) u_pit (
@@ -525,7 +525,7 @@ module rlb_top #(
     );
 
     // RTC (Real-Time Clock)
-    apb_rtc u_rtc (
+    apb4_rtc u_rtc (
         .pclk          (pclk),
         .presetn       (presetn),
         .rtc_clk       (rtc_clk),
@@ -545,7 +545,7 @@ module rlb_top #(
     );
 
     // SMBus Controller
-    apb_smbus #(
+    apb4_smbus #(
         .FIFO_DEPTH (SMBUS_FIFO_DEPTH),
         .CDC_ENABLE (0)
     ) u_smbus (
@@ -573,7 +573,7 @@ module rlb_top #(
     );
 
     // PM/ACPI Controller
-    apb_pm_acpi #(
+    apb4_pm_acpi #(
         .CDC_ENABLE (0)
     ) u_pm_acpi (
         .pclk             (pclk),
@@ -603,7 +603,7 @@ module rlb_top #(
     );
 
     // IOAPIC (I/O Advanced Programmable Interrupt Controller)
-    apb_ioapic #(
+    apb4_ioapic #(
         .NUM_IRQS   (IOAPIC_NUM_IRQS),
         .CDC_ENABLE (0)
     ) u_ioapic (
@@ -632,7 +632,7 @@ module rlb_top #(
     );
 
     // GPIO Controller
-    apb_gpio #(
+    apb4_gpio #(
         .GPIO_WIDTH  (GPIO_WIDTH),
         .SYNC_STAGES (GPIO_SYNC_STAGES),
         .CDC_ENABLE  (0),
@@ -659,7 +659,7 @@ module rlb_top #(
     );
 
     // UART 16550
-    apb_uart_16550 #(
+    apb4_uart_16550 #(
         .FIFO_DEPTH  (UART_FIFO_DEPTH),
         .SYNC_STAGES (UART_SYNC_STAGES),
         .CDC_ENABLE  (0),

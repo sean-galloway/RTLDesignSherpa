@@ -44,19 +44,19 @@ Simple, low-power peripheral bus for control registers and low-bandwidth devices
 **[APB4 Module Documentation](apb/README.md)**
 
 #### Core Components
-- **[apb_master](apb/apb_master.md)** - APB master with command/response interfaces and FIFO buffering
-- **[apb_master_cg](apb/apb_master_cg.md)** - Clock-gated APB master for power optimization
-- **[apb_slave](apb/apb_slave.md)** - APB slave with configurable address decoding and response generation
-- **[apb_slave_cg](apb/apb_slave_cg.md)** - Clock-gated APB slave for power optimization
-- **[apb_monitor](apb/apb_monitor.md)** - APB protocol monitor for verification and debugging
+- **[apb4_master](apb/apb4_master.md)** - APB master with command/response interfaces and FIFO buffering
+- **[apb4_master_cg](apb/apb4_master_cg.md)** - Clock-gated APB master for power optimization
+- **[apb4_slave](apb/apb4_slave.md)** - APB slave with configurable address decoding and response generation
+- **[apb4_slave_cg](apb/apb4_slave_cg.md)** - Clock-gated APB slave for power optimization
+- **[apb4_monitor](apb/apb4_monitor.md)** - APB protocol monitor for verification and debugging
 
 #### Clock Domain Crossing
-- **[apb_slave_cdc](apb/apb_slave_cdc.md)** - APB slave with clock domain crossing support
-- **[apb_slave_cdc_cg](apb/apb_slave_cdc_cg.md)** - Clock-gated CDC APB slave
+- **[apb4_slave_cdc](apb/apb4_slave_cdc.md)** - APB slave with clock domain crossing support
+- **[apb4_slave_cdc_cg](apb/apb4_slave_cdc_cg.md)** - Clock-gated CDC APB slave
 
 #### Test and Development
-- **[apb_master_stub](apb/apb_master_stub.md)** - APB master stub for testing and simulation
-- **[apb_slave_stub](apb/apb_slave_stub.md)** - APB slave stub for testing and simulation
+- **[apb4_master_stub](apb/apb4_master_stub.md)** - APB master stub for testing and simulation
+- **[apb4_slave_stub](apb/apb4_slave_stub.md)** - APB slave stub for testing and simulation
 
 ---
 
@@ -277,8 +277,8 @@ Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 ## Protocol Bridge and Shims
 
 ### AXI4 to APB Conversion
-- **[axi4_to_apb_convert](shims/axi4_to_apb_convert.md)** - AXI4 to APB protocol converter
-- **[axi4_to_apb_shim](shims/axi4_to_apb_shim.md)** - Lightweight AXI4 to APB shim
+- **[axi4_to_apb4_convert](shims/axi4_to_apb4_convert.md)** - AXI4 to APB protocol converter
+- **[axi4_to_apb4_shim](shims/axi4_to_apb4_shim.md)** - Lightweight AXI4 to APB shim
 
 ---
 
@@ -301,9 +301,9 @@ on-chip counting).
 - **[monitor_package_spec](includes/monitor_package_spec.md)** - The package family, specified
 
 ### Packages with no page yet
-`rtl/amba/includes/` also carries `apb_pkg.sv`, `apb5_pkg.sv`, `axi_pkg.sv`,
+`rtl/amba/includes/` also carries `apb4_pkg.sv`, `apb5_pkg.sv`, `axi_pkg.sv`,
 `monitor_pkg.sv` and `monitor_common_pkg.sv`. Read the source directly until
-these are written. (This list previously linked to `apb_pkg.md`, `axi_pkg.md`,
+these are written. (This list previously linked to `apb4_pkg.md`, `axi_pkg.md`,
 `monitor_pkg.md` and `monitor_network_pkg.md`, none of which have ever existed;
 `monitor_network_pkg` has no RTL either.)
 

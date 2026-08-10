@@ -49,6 +49,71 @@ never stable and must not be hardcoded. Two filters, and BOTH are needed:
 `Board.find_uart_port(probe=...)` applies both. Areas supply the probe (pumice:
 `ddr2_char.harness_probe()`, a BUILD_ID read by name).
 
+## Picking the JTAG target: a serial is not enough
+
+A serial identifies a *cable*, not a *scan chain*, and one cable can present
+more than one target. On the Genesys 2 Vivado enumerates BOTH FT2232 channels:
+
+```
+localhost:3121/xilinx_tcf/Digilent/200300B818A0     <- no scan chain
+localhost:3121/xilinx_tcf/Digilent/200300B818A0B    <- xc7k325t_0 lives here
+```
+
+Only the `...A0B` one has a device. Opening the other gives
+
+```
+ERROR: [Labtools 27-2269] No devices detected on target .../200300B818A0
+```
+
+which reads as *board missing* when the board is powered, programmed and fine.
+
+**The registered serial is a PREFIX of the real target name**, so the obvious
+selection is quietly wrong:
+
+```tcl
+set tgt [lsearch -inline -glob [get_hw_targets] "*$want_serial*"]   ;# WRONG
+```
+
+That matches both and returns whichever Vivado listed first -- today, the
+chainless one. Every `program_fpga.tcl` in the tree had this line, and it
+"worked" only while enumeration order happened to favour the JTAG channel. It
+is a latent bug that ordering masked, not a regression: running the old logic
+today picks the wrong channel too.
+
+Note the tension with the UART rule above -- loose matching is *required* there
+(an exact compare makes a present board read as absent) and *insufficient*
+here. Same interface letter, opposite conclusions, because one is choosing a
+serial port and the other a scan chain.
+
+**The rule: match by serial, then select the candidate that actually reports a
+device.** Implemented once in `projects/fpga-systems/bin/program_fpga.tcl`:
+
+```tcl
+set matches [lsearch -all -inline -glob $targets "*$want_serial*"]
+# longest name first: the JTAG channel is the more specific one
+set matches [lsort -command {...by descending length...} $matches]
+foreach cand $matches {
+    if {[catch {current_hw_target $cand; open_hw_target}]} {
+        catch {close_hw_target}
+        catch {disconnect_hw_server}     ;# see poisoning, below
+        connect_hw_server
+        continue
+    }
+    if {[llength [get_hw_devices]] > 0} { set tgt $cand; break }
+    catch {close_hw_target}
+}
+```
+
+**A failed open POISONS the session for the sibling channel.** Probe the
+chainless target first and the good one then *also* reports "no scan chain" --
+which is why a first fix that only added the device check still failed on both.
+Reconnecting the hw_server between attempts clears it; trying the longest name
+first usually avoids the situation entirely.
+
+Debug this with `get_hw_targets` plus a per-target `get_hw_devices`, never by
+trusting the serial. `capture_ila.tcl`-style scripts that grab the first target
+have the same exposure.
+
 ## Gotchas
 
 - **Genesys 2 UART is a SEPARATE FT232R (serial AU05X8RM)**, not the JTAG

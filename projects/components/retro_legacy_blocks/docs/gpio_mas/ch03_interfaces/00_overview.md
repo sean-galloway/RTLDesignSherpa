@@ -43,7 +43,7 @@ The APB GPIO module has the following external interfaces:
 ### APB Slave Interface
 Complete APB protocol interface for register access.
 
-**See:** [01_apb_slave.md](01_apb_slave.md)
+**See:** [01_apb4_slave.md](01_apb4_slave.md)
 
 ### GPIO Pin Interface
 External GPIO pin connections with tri-state control.
@@ -62,4 +62,4 @@ Clock and reset signal requirements.
 
 ---
 
-**Next:** [01_apb_slave.md](01_apb_slave.md) - APB Slave Interface
+**Next:** [01_apb4_slave.md](01_apb4_slave.md) - APB Slave Interface

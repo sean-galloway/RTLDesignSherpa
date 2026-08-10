@@ -32,8 +32,8 @@
 ## Module Hierarchy
 
 ```
-apb_rtc (Top Level)
-+-- apb_slave
+apb4_rtc (Top Level)
++-- apb4_slave
 +-- rtc_config_regs (Register Wrapper)
 |   +-- rtc_regs (PeakRDL Generated)
 |

@@ -12,7 +12,7 @@
 //   Handles the hwif (hardware interface) signal mapping.
 //
 // Architecture:
-//   APB -> apb_slave -> CMD/RSP -> peakrdl_to_cmdrsp -> regblk_* -> gpio_regs (PeakRDL) -> hwif -> gpio_core
+//   APB -> apb4_slave -> CMD/RSP -> peakrdl_to_cmdrsp -> regblk_* -> gpio_regs (PeakRDL) -> hwif -> gpio_core
 //
 // Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
 // Created: 2025-11-29

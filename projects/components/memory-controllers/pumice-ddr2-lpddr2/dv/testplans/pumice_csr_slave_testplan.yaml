@@ -97,9 +97,9 @@ implied_coverage:
   implied_percentage: 100.0
 
 notes: |
-  Three-block stack: apb_slave_cdc + peakrdl_to_cmdrsp + PeakRDL-generated
+  Three-block stack: apb4_slave_cdc + peakrdl_to_cmdrsp + PeakRDL-generated
   register block + pumice_config_block. Mirrors stream's CSR
   methodology (manual peakrdl regblock + passthrough CPU interface).
 
   Cross-clock: APB runs at pclk, registers live at mc_clk. CDC is via
-  2-phase handshake in apb_slave_cdc.
+  2-phase handshake in apb4_slave_cdc.

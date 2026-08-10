@@ -188,7 +188,7 @@ class RapidsCharCampaign:
 
     def kick_channel(self, half: str, channel: int, descriptor_addr: int) -> None:
         """Write the 64-bit descriptor address to the channel's LOW/HIGH kick
-        register pair (per-half apbtodescr kick window). base + ch*8 = LOW,
+        register pair (per-half apb4todescr kick window). base + ch*8 = LOW,
         +4 = HIGH — identical to the cocotb TB's kick_off_channel()."""
         base = APB_SRC_BASE if half == 'src' else APB_SNK_BASE
         low = descriptor_addr & 0xFFFF_FFFF

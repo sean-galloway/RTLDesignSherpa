@@ -3,7 +3,7 @@
 #
 # Architecture: Complete STREAM DMA with APB configuration interface
 # - APB4 configuration interface (peakrdl_to_cmdrsp converter)
-# - apbtodescr (channel kick-off router)
+# - apb4todescr (channel kick-off router)
 # - stream_config_block (register mapping)
 # - stream_core (USE_AXI_MONITORS=0, monitors disabled)
 
@@ -17,7 +17,7 @@
 # dependencies, and it silently rots when they change (missing reporter
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
--f $REPO_ROOT/rtl/amba/filelists/apb_slave_cdc.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
@@ -34,14 +34,14 @@ $STREAM_ROOT/regs/generated/rtl/stream_regs.sv
 # APB to CMD/RSP converter (used by stream_top for APB interface)
 # Note: peakrdl_to_cmdrsp is a common utility block (should be in rtl/amba or rtl/common)
 # For now, assuming it's in stream/rtl/fub (may need to relocate)
-# TODO: Move peakrdl_to_cmdrsp to rtl/amba/apb/ if it's truly generic
+# TODO: Move peakrdl_to_cmdrsp to rtl/amba/apb4/ if it's truly generic
 # $STREAM_ROOT/rtl/fub/peakrdl_to_cmdrsp.sv
 
 # APB kick-off router
--f $STREAM_ROOT/rtl/filelists/fub/apbtodescr.f
+-f $STREAM_ROOT/rtl/filelists/fub/apb4todescr.f
 
-# CMD/RSP router (routes CMD/RSP from apb_slave_cdc to apbtodescr or peakrdl_to_cmdrsp)
-# Address map: 0x000-0x03F → apbtodescr, 0x100-0x3FF → peakrdl_to_cmdrsp
+# CMD/RSP router (routes CMD/RSP from apb4_slave_cdc to apb4todescr or peakrdl_to_cmdrsp)
+# Address map: 0x000-0x03F → apb4todescr, 0x100-0x3FF → peakrdl_to_cmdrsp
 $STREAM_ROOT/rtl/top/cmdrsp_router.sv
 
 # PeakRDL adapter (from converters component)

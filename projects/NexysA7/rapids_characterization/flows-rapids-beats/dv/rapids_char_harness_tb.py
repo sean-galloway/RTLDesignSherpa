@@ -38,7 +38,7 @@ on-chip. The TB drives ONLY the control surface:
   (b) DESCRIPTORS are loaded into the per-half descriptor RAM through the exposed
       host write port (desc_src_* / desc_snk_*, 256-bit AXI4 write master BFM);
       the DUT fetches them from the same byte address when kicked.
-  (c) KICK-OFF goes through the per-half apbtodescr kick windows (SRC 0x000, SNK
+  (c) KICK-OFF goes through the per-half apb4todescr kick windows (SRC 0x000, SNK
       0x1000); channel = paddr[5:3]; LOW/HIGH = paddr[2]; addr written LOW-HIGH.
   (d) AXIS gen / chk and the data-memory CRC engines are driven / read over their
       dedicated harness control/status ports.
@@ -124,7 +124,7 @@ class RapidsCharHarnessTB(TBBase):
         self.CHANNEL_OFFSET = 0x0010_0000
 
         # BFMs (created after reset).
-        self.apb_master = None
+        self.apb4_master = None
         self.desc_src_master = None
         self.desc_snk_master = None
 
@@ -149,7 +149,7 @@ class RapidsCharHarnessTB(TBBase):
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 15)
         self._create_bfms()
-        await self.init_apb_master()
+        await self.init_apb4_master()
         await self._configure_via_apb('src')
         await self._configure_via_apb('snk')
 
@@ -226,7 +226,7 @@ class RapidsCharHarnessTB(TBBase):
             data_width=self.DESC_WIDTH, id_width=self.AXI_ID_WIDTH,
             addr_width=self.ADDR_WIDTH, user_width=1, multi_sig=True)
 
-    async def init_apb_master(self):
+    async def init_apb4_master(self):
         """Bring up the framework APB master on s_apb_* (single clock = aclk)."""
         from CocoTBFramework.components.apb.apb_components import APBMaster
         from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -235,7 +235,7 @@ class RapidsCharHarnessTB(TBBase):
         if not hasattr(self.dut, 's_apb_paddr'):
             raise RuntimeError("DUT has no APB interface (s_apb_paddr missing)")
 
-        self.apb_master = APBMaster(
+        self.apb4_master = APBMaster(
             entity=self.dut,
             title='RAPIDS APB Master',
             prefix='s_apb',
@@ -245,7 +245,7 @@ class RapidsCharHarnessTB(TBBase):
             randomizer=FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']),
             log=self.log,
         )
-        await self.apb_master.reset_bus()
+        await self.apb4_master.reset_bus()
         self.log.info("APB master initialized for rapids_char_harness configuration")
 
     # =========================================================================
@@ -292,7 +292,7 @@ class RapidsCharHarnessTB(TBBase):
             data_width=self.apb_data_width, addr_width=self.apb_addr_width,
             strb_width=self.apb_data_width // 8,
         )
-        await self.apb_master.busy_send(packet)
+        await self.apb4_master.busy_send(packet)
         await RisingEdge(self.clk)
         name = reg_name or f"0x{addr:04X}"
         self.log.info(f"APB WRITE: {name} (0x{addr:04X}) = 0x{data:08X}")

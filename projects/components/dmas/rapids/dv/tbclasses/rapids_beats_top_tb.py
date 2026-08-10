@@ -29,7 +29,7 @@ core rig in exactly the two documented ways:
       register name to an absolute APB address (SRC.GLOBAL_CTRL->0x100,
       SNK.GLOBAL_CTRL->0x1100). No hardcoded offsets.
 
-  (b) DESCRIPTOR KICK-OFF goes through the per-half apbtodescr kick windows:
+  (b) DESCRIPTOR KICK-OFF goes through the per-half apb4todescr kick windows:
       SRC 0x000-0x03F, SNK 0x1000-0x103F. Each channel is a LOW/HIGH register
       pair (channel = paddr[5:3], paddr[2] = LOW(0)/HIGH(1)); the descriptor
       address is written LOW-then-HIGH and the HIGH write blocks until the
@@ -129,7 +129,7 @@ class RapidsBeatsTopTB(TBBase):
         self.ctrl_mem = {}
 
         # BFMs (created after reset).
-        self.apb_master = None
+        self.apb4_master = None
         self.desc_src_slave = None
         self.desc_snk_slave = None
         self.rd_slave = None
@@ -165,7 +165,7 @@ class RapidsBeatsTopTB(TBBase):
         await self.deassert_reset()
         await self.wait_clocks(self.clk_name, 15)
         self._create_bfms()
-        await self.init_apb_master()
+        await self.init_apb4_master()
         await self._configure_via_apb('src')
         await self._configure_via_apb('snk')
 
@@ -265,7 +265,7 @@ class RapidsBeatsTopTB(TBBase):
             dut=d, clock=self.clk, prefix="s_axis_", log=self.log,
             data_width=self.DATA_WIDTH, id_width=8, dest_width=4, user_width=1)
 
-    async def init_apb_master(self):
+    async def init_apb4_master(self):
         """Bring up the framework APB master on s_apb_* (single clock = aclk)."""
         from CocoTBFramework.components.apb.apb_components import APBMaster
         from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -274,7 +274,7 @@ class RapidsBeatsTopTB(TBBase):
         if not hasattr(self.dut, 's_apb_paddr'):
             raise RuntimeError("DUT has no APB interface (s_apb_paddr missing)")
 
-        self.apb_master = APBMaster(
+        self.apb4_master = APBMaster(
             entity=self.dut,
             title='RAPIDS APB Master',
             prefix='s_apb',
@@ -284,7 +284,7 @@ class RapidsBeatsTopTB(TBBase):
             randomizer=FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']),
             log=self.log,
         )
-        await self.apb_master.reset_bus()
+        await self.apb4_master.reset_bus()
         self.log.info("APB master initialized for rapids_beats_top configuration")
 
     # =========================================================================
@@ -340,7 +340,7 @@ class RapidsBeatsTopTB(TBBase):
             data_width=self.apb_data_width, addr_width=self.apb_addr_width,
             strb_width=self.apb_data_width // 8,
         )
-        await self.apb_master.busy_send(packet)
+        await self.apb4_master.busy_send(packet)
         await RisingEdge(self.clk)
         name = reg_name or f"0x{addr:04X}"
         self.log.info(f"APB WRITE: {name} (0x{addr:04X}) = 0x{data:08X}")
@@ -352,7 +352,7 @@ class RapidsBeatsTopTB(TBBase):
             data_width=self.apb_data_width, addr_width=self.apb_addr_width,
             strb_width=self.apb_data_width // 8,
         )
-        await self.apb_master.busy_send(packet)
+        await self.apb4_master.busy_send(packet)
         await RisingEdge(self.clk)
         data = int(packet.fields.get('prdata', 0))
         name = reg_name or f"0x{addr:04X}"
@@ -413,18 +413,18 @@ class RapidsBeatsTopTB(TBBase):
     # =========================================================================
 
     def _kick_low_addr(self, half: str, channel: int) -> int:
-        """apbtodescr LOW offset: base + channel*8 (paddr[2]=0). channel=paddr[5:3]."""
+        """apb4todescr LOW offset: base + channel*8 (paddr[2]=0). channel=paddr[5:3]."""
         base = SRC_BASE_ADDR if half == 'src' else SNK_BASE_ADDR
         return base + channel * 0x008
 
     def _kick_high_addr(self, half: str, channel: int) -> int:
-        """apbtodescr HIGH offset: base + channel*8 + 4 (paddr[2]=1)."""
+        """apb4todescr HIGH offset: base + channel*8 + 4 (paddr[2]=1)."""
         base = SRC_BASE_ADDR if half == 'src' else SNK_BASE_ADDR
         return base + channel * 0x008 + 0x004
 
     async def kick_off_channel(self, half: str, channel: int, descriptor_addr: int):
         """Kick a channel by writing the 64-bit descriptor address to its LOW/HIGH
-        kickoff register pair. The HIGH write blocks in apbtodescr until the
+        kickoff register pair. The HIGH write blocks in apb4todescr until the
         descriptor engine has ACCEPTED the kick, so a completed pair == accepted."""
         desc_low = descriptor_addr & 0xFFFF_FFFF
         desc_high = (descriptor_addr >> 32) & 0xFFFF_FFFF

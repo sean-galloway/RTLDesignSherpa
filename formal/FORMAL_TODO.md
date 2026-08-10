@@ -1,6 +1,6 @@
 # Formal Verification TODO
 
-**Last Updated:** 2026-04-17
+**Last Updated:** 2026-08-09
 **Total Proved:** 324 modules (prove+cover PASS), 330 total with prove-only
 **Tool Chain:** sv2v + SymbiYosys + yosys + z3 (OSS CAD Suite 0.62)
 
@@ -16,7 +16,7 @@
 | stream | 19 | 10 | 1 | 2 | 30 |
 | converters | 16 | 0 | 0 | 0 | 16 |
 | bridge | 1 | 0 | 0 | 0 | 1 |
-| apb_xbar | 5 | 0 | 0 | 0 | 5 |
+| apb4_xbar | 5 | 0 | 0 | 0 | 5 |
 | **Total** | **300** | **19** | **9** | **2** | **329** |
 
 **Notes:**
@@ -32,8 +32,11 @@
 
 - [x] SymbiYosys + z3 solver installed and working
 - [x] OSS CAD Suite 0.62 installed at /mnt/data/tools/oss-cad-suite
-- [x] sv2v transpiler installed at /mnt/data/tools/sv2v
-- [x] Formal directory structure: formal/{common,amba,bridge,stream,converters,apb_xbar}/
+      **on the WORKSTATION** (the machine with /mnt/data/github). The laptop
+      does NOT have it — that unrecorded distinction is what mis-directed the
+      2026-08-08 investigation. Verified present 2026-08-09.
+- [x] sv2v transpiler installed at /mnt/data/tools/sv2v (workstation, v0.0.13)
+- [x] Formal directory structure: formal/{common,amba,bridge,stream,converters,apb4_xbar}/
 - [x] Per-module pattern: formal_*.sv (wrapper) + *.sby (config) + Makefile (for sv2v modules)
 - [x] Root Makefile targets: make formal, formal-common, formal-bridge, formal-quick
 - [x] .gitignore for sby output directories
@@ -80,8 +83,11 @@
 
 ### Run list for a machine WITH the toolchain (added 2026-08-08)
 
-Everything below is blocked on `sv2v` / `yosys` / `sby`, which are not
-installed on the laptop. In order:
+**2026-08-09 (workstation): items 1, 2 and 4 are DONE — results inline below.
+Item 3 (cover tasks) remains, tracked as COMMON-021 for the common slice.**
+
+Everything below was blocked on `sv2v` / `yosys` / `sby`, which are not
+installed on the laptop (they ARE on the workstation). In order:
 
 1. **Audit every checked-in flat file for staleness, not just this one.**
    `counter_freq_invariant_flat.v` was found three months out of date by
@@ -114,11 +120,73 @@ installed on the laptop. In order:
    cover task, so nothing shows the properties are non-vacuous. Add cover
    tasks; a property that passes because it is unreachable is the formal twin
    of the silent-pass tests found in val/common this month.
+   **DONE 2026-08-09 — and the premise had already expired.** All four
+   (cam_tag, counter, counter_bin, fifo_sync_multi_sigmap) ALREADY carry
+   `[tasks] prove cover` in their .sby — cover tasks were added after this
+   table was written (fifo_sync_multi_sigmap's in commit b861ce6f). cam_tag,
+   counter and counter_bin re-run fresh 2026-08-09: prove PASS + cover PASS,
+   every cover statement reached, zero unreached. fifo_sync_multi_sigmap's
+   fresh re-run (prove depth 25 / cover depth 40, ~26 min of z3) completed
+   the same day: prove PASS + cover PASS, all 4 covers reached
+   (cp_write/cp_read/cp_full/cp_drain). icg's cover ALSO passes now (cp_enabled
+   reached — the "unreachable" entry below is history). Note:
+   fifo_sync_multi_sigmap's formal dir MOVED to `formal/integ_common/` with
+   the July integ_common extraction; the leftover gitignored output debris
+   under `formal/common/fifo_sync_multi{,_sigmap}/` was deleted 2026-08-09.
 
 4. **Correct the Infrastructure section of this file.** It states the OSS CAD
    Suite is installed at `/mnt/data/tools/oss-cad-suite`. That is not true of
    the laptop, and the claim is what sent this investigation down the wrong
    path to begin with. Record WHICH machine has it.
+
+### Flat-file staleness audit results (2026-08-09, workstation)
+
+Method: for all 48 dirs with a committed `*_flat.v`, force-regenerate
+(`make -B <name>_flat.v`) and content-diff against git. Tree restored to
+committed state afterward — the regen is cheap to redo; what is EXPENSIVE is
+the re-proving, which each area owns.
+
+**Only 7 of 48 flat files are content-current.** 36 differ after regeneration;
+5 cannot regenerate at all. The staleness is real content drift, not tool
+noise — even the smallest diffs are functional (e.g. every rapids flat file
+carries `fifo_control` `DEPTH = 16` where the RTL default is now 8). Every
+proof run against those 36 files validated RTL that no longer exists.
+
+- **Current (7):** common/counter_freq_invariant (the one the alarm was
+  raised over, ironically), amba/axi_monitor_addr_check,
+  amba/axi_monitor_trans_mgr, converters/peakrdl_to_cmdrsp,
+  rapids/axi_read_engine_beats, rapids/scheduler_beats, stream/cmdrsp_router.
+- **Stale (36):** 10 amba (the 4 `axi4_*_mon` + base/filtered diffs are
+  80-220 lines — the monitor rework landed after the last regen; the rest are
+  1-10 lines), 6 converters, 9 rapids (all the 1-line `fifo_control` depth
+  drift), 11 stream (scheduler_group_array is 2353 insertions — heavily
+  drifted).
+- **Regen FAILED (5):** `converters/axi4_to_apb4_shim` (DEPS points at
+  `rtl/amba/cdc/cdc_2_phase_handshake.sv`, which moved — DEPS drift, fix with
+  `tools/gen_formal_deps.py`), `stream/axi_read_engine`,
+  `stream/axi_write_engine`, `stream/monbus_axil_group`, `stream/stream_core`
+  (sv2v internal error in `Convert/Package.hs` — package conversion bug or an
+  RTL construct sv2v v0.0.13 cannot handle).
+
+Follow-up per area: regenerate, re-prove, commit flat+results together, and
+add the `check-flat` content-diff target (the counter_freq_invariant Makefile
+is the pattern) so this cannot silently recur. Only the common slice of this
+is COMMON-021; amba/stream/rapids/converters staleness belongs to those areas'
+task pages.
+
+**Same-day follow-on finding: the ENTIRE math formal suite was unrunnable.**
+A sweep of every source `.sby` for file references that no longer resolve
+found 147 broken configs — all `formal/common/math_*`, all pointing at
+`../../../rtl/common/math_*.sv`, which moved to `rtl/math/` in the math
+split. None of the ~165 math proofs could run at all since that split (sby
+dies at file-copy, so at least the failure was loud, unlike the flat-file
+staleness). Fixed 2026-08-09 by mechanical rewrite (only refs that exist in
+`rtl/math/` were rewritten; all 147 verified resolving afterward).
+Spot-verified prove+cover PASS on math_adder_brent_kung_008,
+math_multiplier_dadda_tree_008, math_bf16_adder, and both fp8 fma modules
+(which also gained cover verification: 5 covers reached each, closing their
+"prove-only" rows below). The full 147-module re-run belongs to the math
+area's backlog, not COMMON-021.
 
 ### counter_freq_invariant, re-diagnosed 2026-08-08
 
@@ -149,10 +217,18 @@ Two fixes landed in `formal/common/counter_freq_invariant/Makefile`:
    committed file, failing if they differ. Content, not timestamps. Run it
    before trusting any result from this harness, and ideally from CI.
 
-**Still to do, and it needs a machine with the toolchain:** regenerate the flat
-file from the current RTL, re-run prove and cover, and confirm the result. The
-same staleness question applies to every other checked-in `*_flat.v` in
-`formal/` -- this one was found by accident, and nothing has audited the rest.
+**RESOLVED 2026-08-09 (workstation): the flat file was never stale.**
+`make check-flat` passes — regenerated content is identical to the committed
+file. The "3 months stale" diagnosis was date-based, and both dates misled:
+`FREQ_STRATEGY` + `pow2_freq` landed 2026-04-10, a week BEFORE the last regen
+(2026-04-17) and are in the committed flat file; the 2026-07-25 RTL "change"
+was the docs kebab-case rename touching only header comments, which sv2v
+output does not carry. Content comparison is the only trustworthy signal —
+which is the whole reason check-flat exists. Prove and cover re-run
+2026-08-09: both PASS, cover points `cp_tick` and `cp_counter_inc` reached
+(non-vacuous). The repo-wide audit the entry below asked for has now been run
+— see "Flat-file staleness audit results" above; unlike this module, most of
+the rest of the repo IS stale.
 
 **Toolchain note (2026-08-08):** `sv2v`, `yosys` and `sby` are NOT installed on
 this workstation, and `/mnt/data/tools/oss-cad-suite` -- the location this
@@ -164,7 +240,7 @@ asserts, and it is why the items above are recorded rather than closed.
 
 | Module | Area | Root Cause | Priority |
 |--------|------|------------|----------|
-| counter_freq_invariant | common | **Re-diagnosed 2026-08-08, see below** | Fix |
+| counter_freq_invariant | common | **RESOLVED 2026-08-09: was never stale/broken — prove+cover PASS, see below** | Done |
 | math_bf16_exp2 | common | Too complex for BMC | Skip |
 | math_bf16_softmax_8 | common | Too complex for BMC | Skip |
 | math_fp16_softmax_8 | common | Too complex for BMC | Skip |
@@ -177,7 +253,7 @@ asserts, and it is why the items above are recorded rather than closed.
 
 | Module | Area | Root Cause | Priority |
 |--------|------|------------|----------|
-| icg | common | cp_enabled unreachable (latch gate timing) | Fix |
+| icg | common | **RESOLVED 2026-08-09: cover PASS, both cover points reached** | Done |
 | axi_split_combi | amba | 4 cover points unreachable at depth 1 | Fix |
 
 ### Prove-Only / Missing Cover (19 modules)
@@ -186,12 +262,12 @@ These have prove PASS but no cover task defined, or cover not yet run:
 
 | Module | Area | Notes |
 |--------|------|-------|
-| cam_tag | common | No cover task |
-| counter | common | No cover task |
-| counter_bin | common | No cover task |
-| fifo_sync_multi_sigmap | common | No cover task |
-| math_fp8_e4m3_fma | common | prove-only task |
-| math_fp8_e5m2_fma | common | prove-only task |
+| cam_tag | common | **RESOLVED 2026-08-09: cover task exists, PASS, 2 covers reached** |
+| counter | common | **RESOLVED 2026-08-09: cover task exists, PASS, 2 covers reached** |
+| counter_bin | common | **RESOLVED 2026-08-09: cover task exists, PASS, 3 covers reached** |
+| fifo_sync_multi_sigmap | integ_common | **RESOLVED 2026-08-09: dir moved to formal/integ_common/; fresh prove+cover PASS, all 4 covers reached** |
+| math_fp8_e4m3_fma | math | **RESOLVED 2026-08-09: path-fixed (rtl/math), prove+cover PASS, 5 covers reached** |
+| math_fp8_e5m2_fma | math | **RESOLVED 2026-08-09: path-fixed (rtl/math), prove+cover PASS, 5 covers reached** |
 | axi_monitor_base | amba | prove_boundary+prove_low8 PASS, no cover |
 | axi_monitor_filtered | amba | prove_boundary+prove_low8 PASS, no cover |
 | axi_monitor_trans_mgr | amba | prove_boundary+prove_low8 PASS, no cover |
@@ -221,7 +297,7 @@ These have prove PASS but no cover task defined, or cover not yet run:
 
 **Non-math (53 prove+cover PASS):**
 arbiter_round_robin_simple, arbiter_round_robin, arbiter_round_robin_weighted,
-arbiter_priority_encoder, counter_bin_load, counter_bingray, counter_freq_invariant (cover only),
+arbiter_priority_encoder, counter_bin_load, counter_bingray, counter_freq_invariant,
 counter_johnson, counter_load_clear, counter_ring, bin2gray, gray2bin, johnson2bin,
 glitch_free_n_dff_arn, fifo_sync, fifo_async, fifo_control,
 fifo_sync_multi, gaxi_skid_buffer, gaxi_skid_buffer_dbldrn, gaxi_skid_buffer_async,
@@ -230,7 +306,7 @@ gaxi_regslice, monbus_arbiter, axi_gen_addr, dataint_crc_xor_shift,
 dataint_crc_xor_shift_cascade, dataint_ecc_hamming, dataint_parity, dataint_crc,
 dataint_checksum, encoder, decoder, encoder_priority_enable, find_first_set,
 find_last_set, count_leading_zeros, leading_one_trailing_one, clock_divider,
-clock_gate_ctrl, icg (prove only), shifter_barrel, shifter_lfsr, shifter_lfsr_fibonacci,
+clock_gate_ctrl, icg, shifter_barrel, shifter_lfsr, shifter_lfsr_fibonacci,
 shifter_lfsr_galois, sort, debounce, pwm, reset_sync, cdc_handshake, cdc_synchronizer
 
 **Math -- 165 prove+cover PASS:**
@@ -247,8 +323,8 @@ shifter_lfsr_galois, sort, debounce, pwm, reset_sync, cdc_handshake, cdc_synchro
 
 ### rtl/amba/ -- 41 of 44 PASS
 
-apb_master, apb_slave, apb5_master, apb5_slave, apb_monitor, apb5_monitor,
-apb_slave_cdc, apb5_slave_cdc, axis_master, axis_slave, axi_split_combi (prove only),
+apb4_master, apb4_slave, apb5_master, apb5_slave, apb4_monitor, apb5_monitor,
+apb4_slave_cdc, apb5_slave_cdc, axis_master, axis_slave, axi_split_combi (prove only),
 cdc_handshake, cdc_synchronizer, monbus_arbiter (via common),
 axi4_master_rd, axi4_master_wr, axi4_slave_rd, axi4_slave_wr,
 axi4_master_rd_cg, axi4_master_wr_cg, axi4_slave_rd_cg, axi4_slave_wr_cg,
@@ -266,7 +342,7 @@ gaxi_skid_buffer_async_multi
 
 **FUB (11 PASS):** stream_alloc_ctrl, stream_drain_ctrl, stream_latency_bridge,
 axi_read_engine (prove), axi_write_engine (prove), descriptor_engine,
-scheduler (prove), sram_controller_unit, sram_controller, apbtodescr, perf_profiler
+scheduler (prove), sram_controller_unit, sram_controller, apb4todescr, perf_profiler
 
 **FUB_beats (7 PASS):** axi_read_engine_beats (prove), axi_write_engine_beats (prove),
 descriptor_engine_beats (prove), scheduler_beats (prove), alloc_ctrl_beats,
@@ -281,18 +357,18 @@ src_sram_controller_beats, src_sram_controller_unit_beats
 ### projects/components/converters/ -- 16 of 16 PASS
 
 axil4_to_axi4_rd, axil4_to_axi4_wr, axi4_to_axil4_rd, axi4_to_axil4_wr,
-axi4_dwidth_converter_rd, axi4_dwidth_converter_wr, axi4_to_apb_shim,
-axi4_to_apb_convert, axi_data_upsize, axi_data_dnsize, peakrdl_to_cmdrsp,
+axi4_dwidth_converter_rd, axi4_dwidth_converter_wr, axi4_to_apb4_shim,
+axi4_to_apb4_convert, axi_data_upsize, axi_data_dnsize, peakrdl_to_cmdrsp,
 uart_axil_bridge, uart_rx, uart_tx, axi4_to_axil4, axil4_to_axi4
 
 ### projects/components/bridge/ -- 1 of 1 PASS
 
 bridge_1x2_rd (address decode mutex, DDR/SRAM range, AXI handshake model)
 
-### projects/components/apb_xbar/ -- 5 of 5 PASS
+### projects/components/apb4_xbar/ -- 5 of 5 PASS
 
-apb_xbar_wrap_1x2, apb_xbar_wrap_1x3, apb_xbar_wrap_2x3,
-apb_xbar_wrap_3x3, apb_xbar_wrap_4x4
+apb4_xbar_wrap_1x2, apb4_xbar_wrap_1x3, apb4_xbar_wrap_2x3,
+apb4_xbar_wrap_3x3, apb4_xbar_wrap_4x4
 
 ---
 

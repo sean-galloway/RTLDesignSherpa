@@ -875,7 +875,7 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
    - `async def deassert_reset(self)` - Deassert reset signal(s)
 
 **📖 See:**
-- `val/amba/test_apb_slave.py` - Reference example
+- `val/amba/test_apb4_slave.py` - Reference example
 - `projects/components/dmas/rapids/CLAUDE.md` - Detailed TB requirements
 
 ---

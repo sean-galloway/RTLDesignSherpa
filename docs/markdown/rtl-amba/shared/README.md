@@ -613,7 +613,7 @@ next_addr = curr_addr  // Same address
 ```
 
 **Usage:**
-Used by axi4_to_apb_convert for burst decomposition. Also useful for any AXI address calculation.
+Used by axi4_to_apb4_convert for burst decomposition. Also useful for any AXI address calculation.
 
 **Example:**
 ```systemverilog
@@ -727,7 +727,7 @@ D_WAIT_REQ_CLR → Ack sent, waiting for request clear
 - Handshake: 4-phase (req → ack → req_clr → ack_clr)
 
 **Usage:**
-Used extensively in axi4_to_apb_shim for cmd/rsp CDC. General-purpose CDC utility.
+Used extensively in axi4_to_apb4_shim for cmd/rsp CDC. General-purpose CDC utility.
 
 **Example:**
 ```systemverilog
@@ -756,13 +756,13 @@ Shared modules are tested indirectly through higher-level protocol modules:
 # Monitor infrastructure tested via monitor tests
 pytest val/amba/test_axi4_*_mon.py -v
 pytest val/amba/test_axil4_*_mon.py -v
-pytest val/amba/test_apb_monitor.py -v
+pytest val/amba/test_apb4_monitor.py -v
 
 # CDC tested via shims
-pytest projects/components/converters/dv/tests/test_axi2apb_shim.py -v
+pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py -v
 
 # Address generation tested via conversion
-pytest projects/components/converters/dv/tests/test_axi2apb_shim.py -v
+pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py -v
 ```
 
 ---

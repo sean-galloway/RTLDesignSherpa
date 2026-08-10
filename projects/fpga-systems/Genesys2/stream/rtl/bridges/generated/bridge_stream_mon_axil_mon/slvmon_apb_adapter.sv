@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_mon_axil_mon_pkg::*;
 
-module slvmon_apb_adapter #(
+module slvmon_apb_adapter
+    import bridge_stream_mon_axil_mon_pkg::*;
+#(
     parameter int ID_WIDTH = 8
    ,parameter bit USE_MONITOR_WR = 1'b1
    ,parameter bit USE_MONITOR_RD = 1'b1
@@ -541,7 +542,7 @@ module slvmon_apb_adapter #(
     );
 
     // AXI4-to-APB converter shim
-    axi4_to_apb_shim #(
+    axi4_to_apb4_shim #(
         .DEPTH_AW(2),
         .DEPTH_W(4),
         .DEPTH_B(2),

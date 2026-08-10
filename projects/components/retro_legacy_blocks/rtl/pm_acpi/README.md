@@ -55,7 +55,7 @@ Power Management and ACPI-compatible register interface for system power control
 
 ## Files (To Be Created)
 
-- `apb_pm_acpi.sv` - Top-level wrapper with APB interface
+- `apb4_pm_acpi.sv` - Top-level wrapper with APB interface
 - `pm_acpi_core.sv` - Core power management logic
 - `pm_clock_gate_ctrl.sv` - Clock gating control
 - `pm_power_sequencer.sv` - Power domain sequencing

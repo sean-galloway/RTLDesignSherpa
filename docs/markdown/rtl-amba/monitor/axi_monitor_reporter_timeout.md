@@ -35,6 +35,8 @@ The `axi_monitor_reporter_timeout` module is the timeout-packet emitter for the 
 
 The block was split out of the original monolithic reporter so integrators can drop it (`ENABLE_TIMEOUT_LOGIC=0`).
 
+`timeout` is a **fault class** ([taxonomy](monitor_system_architecture.md#healthy-classes-vs-fault-classes)): it never fires in correct operation. Exercise it by **injecting a non-responsive slave** -- hold the R/B response beats past the configured timeout window so the transaction stays outstanding long enough for the timeout detector to flag it. Like all faults, this stalls the traffic; the cone's value is emitting `PktTypeTimeout` so the capture records *which* transaction hung.
+
 ### Key Features
 
 - Pure combinational detection (no internal state)

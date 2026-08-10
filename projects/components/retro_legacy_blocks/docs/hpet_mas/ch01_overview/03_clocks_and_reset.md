@@ -207,7 +207,7 @@ APB Access                 + Safe to access       (Wait for CDC stabilization)
 
 ##### CDC Synchronization
 
-When `CDC_ENABLE = 1`, the `apb_slave_cdc` module handles all clock domain crossing:
+When `CDC_ENABLE = 1`, the `apb4_slave_cdc` module handles all clock domain crossing:
 
 **Write Path (pclk -> hpet_clk):**
 ```

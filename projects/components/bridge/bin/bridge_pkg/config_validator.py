@@ -75,50 +75,56 @@ def validate_protocol(protocol: str, port_name: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# AXI5 (BRIDGE-002 phase A5-1) — AXI5 MASTER ports on the AMBA4 fabric.
+# AXI5 (BRIDGE-002 phases A5-1 / A5-2 slice 1) — AXI5 ports on the AMBA4
+# fabric, interop mode.
 #
-# A bridge master port with protocol="axi5" gets axi5_slave_{wr,rd}
-# boundary wrappers exposing an AXI5 external interface; the fabric
-# behind stays AXI4. Only pure-sideband features can be exposed in A5-1
-# (they terminate safely at the wrapper). Features that change data
-# semantics or need response routing are phase-gated below.
+# A bridge MASTER port with protocol="axi5" gets axi5_slave_{wr,rd}
+# boundary wrappers exposing an AXI5 external interface (A5-1); a bridge
+# SLAVE port with protocol="axi5" gets axi5_master_{wr,rd} boundary
+# wrappers driving an external AXI5 slave (A5-2 slice 1). In both cases
+# the fabric behind/between stays AXI4. Only pure-sideband features can
+# be exposed in interop mode (they terminate safely at the wrapper).
+# Features that change data semantics or need response routing are
+# phase-gated below.
 # ---------------------------------------------------------------------------
 
-# Features legal in A5-1: pure sideband, terminated at the AXI4 fabric.
+# Features legal in interop mode: pure sideband, terminated at the AXI4
+# fabric.
 AXI5_ALLOWED_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'unique')
 
 # Features that exist in the axi5 wrappers but are NOT deliverable on an
 # AXI4 fabric without more work. Maps feature -> the phase that lands it.
+# 'poison' left this set in A5-2 slice 2: it is legal under the
+# connectivity rule below (validate_axi5_poison_connectivity).
 AXI5_PHASED_FEATURES = {
     'atomic':   'A5-3 (needs R-channel response routing for atomics)',
-    'poison':   'A5-2 (data-semantics conversion)',
-    'mte':      'A5-2 (data-semantics conversion)',
-    'chunking': 'A5-2 (data-semantics conversion)',
+    'mte':      'deferred (per-beat tag fields; revisit after poison)',
+    'chunking': 'deferred (R-channel re-framing through converters)',
 }
+
+# Legal ONLY when every connected path carries it natively end-to-end
+# (A5-2 slice 2): both ends protocol="axi5" with the feature enabled and
+# width-matched (per-beat sideband cannot traverse the dwidth-converter
+# IP, and unlike the droppable sideband set, silently dropping POISON
+# would turn corrupted data into trusted data).
+AXI5_CONNECTIVITY_GATED_FEATURES = ('poison',)
 
 
 def validate_axi5(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
     """
-    Validate AXI5 usage per the A5-1 scope.
+    Validate AXI5 usage per the interop scope (A5-1 masters + A5-2
+    slice-1 slaves).
 
     Rules:
-    1. AXI5 slave ports are rejected (A5-1 supports AXI5 masters only).
-    2. axi5_features on a non-axi5 port is rejected.
-    3. Master feature entries must be in AXI5_ALLOWED_FEATURES; features
-       in AXI5_PHASED_FEATURES are rejected naming the delivering phase;
-       anything else is an unknown feature name.
+    1. axi5_features on a non-axi5 port is rejected.
+    2. Feature entries on any axi5 port (master or slave) must be in
+       AXI5_ALLOWED_FEATURES; features in AXI5_PHASED_FEATURES are
+       rejected naming the delivering phase; anything else is an unknown
+       feature name.
 
     Raises:
         ValidationError: on any violation.
     """
-    for slave in slaves:
-        if slave.protocol == 'axi5':
-            raise ValidationError(
-                f"Slave '{slave.port_name}': protocol='axi5' is not "
-                f"supported -- A5-1 supports AXI5 masters only; AXI5 "
-                f"slaves land with A5-2."
-            )
-
     for port in list(masters) + list(slaves):
         feats = getattr(port, 'axi5_features', []) or []
         if feats and port.protocol != 'axi5':
@@ -128,32 +134,124 @@ def validate_axi5(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
                 f"'{port.protocol}')"
             )
 
-    for master in masters:
-        if master.protocol != 'axi5':
+    for port in list(masters) + list(slaves):
+        if port.protocol != 'axi5':
             continue
-        feats = getattr(master, 'axi5_features', []) or []
+        kind = 'master' if port.direction == 'master' else 'slave'
+        feats = getattr(port, 'axi5_features', []) or []
         seen = set()
         for f in feats:
             if f in seen:
                 raise ValidationError(
-                    f"AXI5 master '{master.port_name}': duplicate "
+                    f"AXI5 {kind} '{port.port_name}': duplicate "
                     f"axi5_features entry '{f}'"
                 )
             seen.add(f)
             if f in AXI5_ALLOWED_FEATURES:
                 continue
+            if f in AXI5_CONNECTIVITY_GATED_FEATURES:
+                # Accepted here; validate_axi5_poison_connectivity
+                # enforces the every-path-native rule.
+                continue
             if f in AXI5_PHASED_FEATURES:
                 raise ValidationError(
-                    f"AXI5 master '{master.port_name}': feature '{f}' is "
-                    f"not supported in A5-1; it lands with "
+                    f"AXI5 {kind} '{port.port_name}': feature '{f}' is "
+                    f"not supported in interop mode; it lands with "
                     f"{AXI5_PHASED_FEATURES[f]}."
                 )
             raise ValidationError(
-                f"AXI5 master '{master.port_name}': unknown axi5_features "
-                f"entry '{f}'. Allowed in A5-1: "
-                f"{list(AXI5_ALLOWED_FEATURES)}; phase-gated: "
+                f"AXI5 {kind} '{port.port_name}': unknown axi5_features "
+                f"entry '{f}'. Allowed in interop mode: "
+                f"{list(AXI5_ALLOWED_FEATURES)}; connectivity-gated: "
+                f"{list(AXI5_CONNECTIVITY_GATED_FEATURES)}; phase-gated: "
                 f"{sorted(AXI5_PHASED_FEATURES)}"
             )
+
+
+def _axi5_connected_pairs(masters: List[PortSpec], slaves: List[PortSpec],
+                          connectivity) -> List[tuple]:
+    """(master, slave) PortSpec pairs that are connected per the
+    connectivity dict (master_name -> collection of slave names)."""
+    pairs = []
+    for m in masters:
+        connected = connectivity.get(m.port_name, set()) if connectivity else set()
+        for s in slaves:
+            if s.port_name in connected:
+                pairs.append((m, s))
+    return pairs
+
+
+def validate_axi5_poison_connectivity(masters: List[PortSpec],
+                                      slaves: List[PortSpec],
+                                      connectivity) -> None:
+    """A5-2 slice 2: 'poison' is legal on a port ONLY when every
+    connected path carries it natively end-to-end — both ends
+    protocol="axi5" with poison enabled, and data widths matched (no
+    dwidth converter on the path). Unlike the droppable sideband set,
+    a silently-dropped POISON bit would let corrupted data read back
+    as trusted data, so any non-native path is a config error."""
+    def has_poison(p):
+        return (p.protocol == 'axi5'
+                and 'poison' in (getattr(p, 'axi5_features', None) or []))
+
+    pairs = _axi5_connected_pairs(masters, slaves, connectivity)
+    for port in list(masters) + list(slaves):
+        if not has_poison(port):
+            continue
+        if port.direction == 'master':
+            others = [s for m, s in pairs if m.port_name == port.port_name]
+            other_kind = 'slave'
+        else:
+            others = [m for m, s in pairs if s.port_name == port.port_name]
+            other_kind = 'master'
+        for other in others:
+            problems = []
+            if other.protocol != 'axi5':
+                problems.append(f"protocol '{other.protocol}' (needs axi5)")
+            elif 'poison' not in (getattr(other, 'axi5_features', None) or []):
+                problems.append("no 'poison' in axi5_features")
+            if other.data_width != port.data_width:
+                problems.append(
+                    f"data width {other.data_width} != {port.data_width} "
+                    f"(dwidth converters cannot carry per-beat sideband)")
+            if problems:
+                raise ValidationError(
+                    f"AXI5 port '{port.port_name}' enables 'poison' but "
+                    f"connected {other_kind} '{other.port_name}' cannot "
+                    f"carry it natively: {'; '.join(problems)}. Every "
+                    f"connected path must be AXI5-both-ends, "
+                    f"poison-enabled, and width-matched."
+                )
+
+
+def warn_axi5_dropped_sideband(masters: List[PortSpec],
+                               slaves: List[PortSpec],
+                               connectivity) -> None:
+    """Generation-time warnings for droppable sideband that will NOT
+    propagate on some connected path (other end not axi5 / feature
+    missing / width mismatch). Dropping is legal for these features —
+    the warning just makes the termination visible in the build log."""
+    droppable = set(AXI5_ALLOWED_FEATURES)
+    for m, s in _axi5_connected_pairs(masters, slaves, connectivity):
+        m_feats = (set(getattr(m, 'axi5_features', None) or [])
+                   if m.protocol == 'axi5' else set())
+        s_feats = (set(getattr(s, 'axi5_features', None) or [])
+                   if s.protocol == 'axi5' else set())
+        for f in sorted((m_feats | s_feats) & droppable):
+            reasons = []
+            if f not in m_feats:
+                reasons.append(f"master '{m.port_name}' does not carry it")
+            if f not in s_feats:
+                reasons.append(
+                    f"slave '{s.port_name}' is not axi5/{f}-enabled")
+            if m.data_width != s.data_width:
+                reasons.append(
+                    f"width {m.data_width}->{s.data_width} converter "
+                    f"drops sideband")
+            if reasons:
+                print(f"  WARNING: AXI5 sideband '{f}' terminates on path "
+                      f"{m.port_name} -> {s.port_name}: "
+                      f"{'; '.join(reasons)}")
 
 
 def validate_apb_constraints(port: PortSpec) -> None:
@@ -418,8 +516,15 @@ def validate_config(
     # Validate explicit channel specification for slaves
     validate_slave_channels_explicit(slaves)
 
-    # Validate AXI5 scope (A5-1: masters only, sideband features only)
+    # Validate AXI5 scope (interop mode: sideband features only, on
+    # masters (A5-1) and slaves (A5-2 slice 1) alike)
     validate_axi5(masters, slaves)
+
+    # A5-2 slice 2: poison needs every connected path native; the
+    # droppable sideband set gets visibility warnings when it will
+    # terminate mid-path.
+    validate_axi5_poison_connectivity(masters, slaves, connectivity)
+    warn_axi5_dropped_sideband(masters, slaves, connectivity)
 
     # Validate address map
     validate_address_map(slaves)

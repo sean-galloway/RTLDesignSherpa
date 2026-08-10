@@ -172,7 +172,7 @@ class RapidsCoverageConfig(CoverageConfigBase):
         'sram_controller',
         'rapids_latency_bridge',
         'perf_profiler',
-        'apbtodescr',
+        'apb4todescr',
         'rapids_core',
         'datapath_rd_test',
         'datapath_wr_test',

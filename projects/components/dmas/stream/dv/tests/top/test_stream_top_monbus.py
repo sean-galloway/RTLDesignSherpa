@@ -93,7 +93,7 @@ async def cocotb_test_stream_top_monbus(dut):
     )
     await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats,
                                     wr_xfer_beats=wr_xfer_beats)
-    await tb.init_apb_master()
+    await tb.init_apb4_master()
     await tb.enable_global()
     await tb.enable_channel_mask((1 << num_channels) - 1)
     await tb.configure_transfer_beats(rd_xfer_beats=rd_xfer_beats,

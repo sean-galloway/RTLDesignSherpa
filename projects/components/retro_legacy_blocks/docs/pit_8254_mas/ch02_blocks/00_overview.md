@@ -28,8 +28,8 @@
 The APB PIT 8254 follows a clean three-layer architecture for maintainability and clarity:
 
 ```
-apb_pit_8254 (Top Level)
-├── apb_slave or apb_slave_cdc (APB Interface)
+apb4_pit_8254 (Top Level)
+├── apb4_slave or apb4_slave_cdc (APB Interface)
 │   └── Protocol conversion: APB → cmd/rsp interface
 │
 ├── pit_config_regs (Configuration Registers)
@@ -78,13 +78,13 @@ flowchart TD
 
 #### Block Responsibilities
 
-**apb_pit_8254 (Top Level)**
+**apb4_pit_8254 (Top Level)**
 - Module instantiation and parameter propagation
 - Signal routing between major blocks
 - Optional clock domain crossing selection
 - Top-level I/O connection
 
-**apb_slave / apb_slave_cdc (APB Interface)**
+**apb4_slave / apb4_slave_cdc (APB Interface)**
 - APB protocol state machine
 - Address decode and transaction control
 - Optional CDC when `CDC_ENABLE=1`
@@ -124,8 +124,8 @@ flowchart TD
 
 | From Block | To Block | Interface | Signals |
 |------------|----------|-----------|---------|
-| apb_pit_8254 | apb_slave | APB4 | psel, penable, pwrite, paddr, pwdata, prdata, pready, pslverr |
-| apb_slave | pit_config_regs | cmd/rsp | cmd_addr, cmd_wdata, cmd_wen, rsp_rdata, rsp_valid |
+| apb4_pit_8254 | apb4_slave | APB4 | psel, penable, pwrite, paddr, pwdata, prdata, pready, pslverr |
+| apb4_slave | pit_config_regs | cmd/rsp | cmd_addr, cmd_wdata, cmd_wen, rsp_rdata, rsp_valid |
 | pit_config_regs | pit_regs | cpuif_apb | Various PeakRDL interface signals |
 | pit_regs | pit_config_regs | hwif | hwif_out, hwif_in (struct interfaces) |
 | pit_config_regs | pit_core | Control | pit_enable, control_word, control_wr, counter_data, counter_wr |
@@ -148,7 +148,7 @@ CPU writes 0x30 to PIT_CONTROL (0x004)
     ↓
 APB transaction on paddr=0x004, pwdata=0x30, pwrite=1
     ↓
-apb_slave asserts cmd_wen, cmd_addr=0x004, cmd_wdata=0x30
+apb4_slave asserts cmd_wen, cmd_addr=0x004, cmd_wdata=0x30
     ↓
 peakrdl_to_cmdrsp converts to cpuif_apb protocol
     ↓
@@ -169,7 +169,7 @@ CPU reads from COUNTER1_DATA (0x014)
     ↓
 APB read transaction on paddr=0x014, pwrite=0
     ↓
-apb_slave asserts cmd_addr=0x014, cmd_wen=0 (read)
+apb4_slave asserts cmd_addr=0x014, cmd_wen=0 (read)
     ↓
 peakrdl_to_cmdrsp converts to cpuif_apb read
     ↓
@@ -213,7 +213,7 @@ Updated r_out value propagates to OUT signal and timer_irq output
 ```
 presetn = 0 (active-low reset asserted)
     ↓
-All apb_slave state machines → IDLE
+All apb4_slave state machines → IDLE
     ↓
 All pit_regs fields → reset values (0x00 for most)
     ↓
@@ -254,9 +254,9 @@ Ready to accept APB transactions
 - Lowest latency (2-3 cycle register access)
 
 **Dual Clock Configuration (CDC_ENABLE=1):**
-- `apb_slave_cdc` uses `pclk` for APB interface
+- `apb4_slave_cdc` uses `pclk` for APB interface
 - `pit_config_regs` and `pit_core` use `pit_clk`
-- CDC logic inside `apb_slave_cdc` handles crossing
+- CDC logic inside `apb4_slave_cdc` handles crossing
 - Higher latency (4-6 cycle register access)
 - Independent timer clock frequency
 

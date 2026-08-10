@@ -28,7 +28,7 @@
 
 > Status (2026-07-22): Partially superseded. The test infrastructure planned below now
 > exists: `dv/tbclasses/smbus/` (smbus_tb.py, smbus_tests_basic.py) and the flat test
-> runner `dv/tests/test_apb_smbus.py` (tests are NOT in a per-block `dv/tests/smbus/`
+> runner `dv/tests/test_apb4_smbus.py` (tests are NOT in a per-block `dv/tests/smbus/`
 > subdirectory - the dv/tests/ area is flat). Paths below have been updated accordingly.
 
 ---
@@ -159,9 +159,9 @@ async def test_read_byte(tb):
     """Test Read Byte Data transaction"""
 ```
 
-#### Step 4: Test Runner (test_apb_smbus.py)
+#### Step 4: Test Runner (test_apb4_smbus.py)
 ```python
-# projects/components/retro_legacy_blocks/dv/tests/test_apb_smbus.py
+# projects/components/retro_legacy_blocks/dv/tests/test_apb4_smbus.py
 
 import cocotb
 from cocotb.clock import Clock
@@ -180,7 +180,7 @@ async def run_all_tests(dut):
 - `dv/tbclasses/smbus/__init__.py`
 - `dv/tbclasses/smbus/smbus_tb.py` (~300 lines)
 - `dv/tbclasses/smbus/smbus_tests_basic.py` (~200 lines)
-- `dv/tests/test_apb_smbus.py` (~100 lines)
+- `dv/tests/test_apb4_smbus.py` (~100 lines)
 
 ---
 
@@ -287,7 +287,7 @@ async def smoke_test(dut):
 **Run:**
 ```bash
 cd projects/components/retro_legacy_blocks/dv/tests/
-pytest test_apb_smbus.py -v
+pytest test_apb4_smbus.py -v
 ```
 
 **Estimated:** 2-4 hours to setup + run
@@ -387,7 +387,7 @@ OVERALL:                 █████████████████░�
 **Need to create:**
 - `dv/tbclasses/smbus/smbus_tb.py` (~300 lines)
 - `dv/tbclasses/smbus/smbus_tests_basic.py` (~200 lines)
-- `dv/tests/test_apb_smbus.py` (~100 lines)
+- `dv/tests/test_apb4_smbus.py` (~100 lines)
 
 **Estimated:** 600 lines total across 3 files
 
@@ -443,7 +443,7 @@ OVERALL:                 █████████████████░�
 **To Create:**
 - `dv/tbclasses/smbus/smbus_tb.py`
 - `dv/tbclasses/smbus/smbus_tests_basic.py`
-- `dv/tests/test_apb_smbus.py`
+- `dv/tests/test_apb4_smbus.py`
 
 **To Complete:**
 - `smbus_config_regs.sv` (50% → 100%)

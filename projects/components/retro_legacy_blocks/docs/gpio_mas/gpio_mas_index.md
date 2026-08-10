@@ -51,7 +51,7 @@ This MAS is organized into five chapters covering the micro-architecture of the 
 
 ### Chapter 3: Interfaces
 - [00_overview.md](ch03_interfaces/00_overview.md) - Interface summary
-- [01_apb_slave.md](ch03_interfaces/01_apb_slave.md) - APB protocol specification
+- [01_apb4_slave.md](ch03_interfaces/01_apb4_slave.md) - APB protocol specification
 - [02_gpio_pins.md](ch03_interfaces/02_gpio_pins.md) - GPIO pin interface
 - [03_interrupt.md](ch03_interfaces/03_interrupt.md) - Interrupt output
 - [04_system.md](ch03_interfaces/04_system.md) - Clock and reset interface

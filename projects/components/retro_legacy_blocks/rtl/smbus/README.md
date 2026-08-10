@@ -69,8 +69,8 @@ Complete SMBus 2.0 controller implementation with master and slave modes, suppor
 
 ### Module Hierarchy
 ```
-apb_smbus (Top Level - To Be Implemented)
-├── apb_slave (APB4 protocol converter)
+apb4_smbus (Top Level - To Be Implemented)
+├── apb4_slave (APB4 protocol converter)
 ├── smbus_config_regs (Register interface - To Be Generated)
 └── smbus_core (SMBus protocol engine)
     ├── smbus_pec (CRC-8 calculator) ✅
@@ -83,7 +83,7 @@ apb_smbus (Top Level - To Be Implemented)
 
 ### Design Pattern
 Follows the RTC methodology:
-1. **Layer 1:** APB wrapper (`apb_smbus.sv`) - APB4 slave interface
+1. **Layer 1:** APB wrapper (`apb4_smbus.sv`) - APB4 slave interface
 2. **Layer 2:** Config registers (`smbus_config_regs.sv`) - Register interface with status feedback
 3. **Layer 3:** Core logic (`smbus_core.sv`) - SMBus protocol implementation
 
@@ -135,9 +135,9 @@ smbus/
 ├── simple_fifo.sv            ✅ FIFO wrapper with count
 ├── smbus_core.sv             🚧 Core SMBus controller
 ├── smbus_config_regs.sv      ⏳ Generated from PeakRDL
-├── apb_smbus.sv              ⏳ APB wrapper (top level)
+├── apb4_smbus.sv              ⏳ APB wrapper (top level)
 └── filelists/
-    └── apb_smbus.f           ✅ Compilation filelist
+    └── apb4_smbus.f           ✅ Compilation filelist
 ```
 
 ### PeakRDL Specification
@@ -159,7 +159,7 @@ dv/
 │   ├── smbus_tb.py          ⏳ Testbench base class
 │   └── smbus_tests_basic.py ⏳ Basic test scenarios
 └── tests/smbus/
-    └── test_apb_smbus.py    ⏳ Cocotb test runner
+    └── test_apb4_smbus.py    ⏳ Cocotb test runner
 ```
 
 ## Usage Example
@@ -191,7 +191,7 @@ apb_packets = smbus.generate_apb_cycles()
 
 ### SystemVerilog Instantiation (Future)
 ```systemverilog
-apb_smbus #(
+apb4_smbus #(
     .FIFO_DEPTH(32)
 ) u_smbus (
     .pclk                 (apb_clk),
@@ -329,8 +329,8 @@ peakrdl generate smbus_regs.rdl -o ../smbus_config_regs.sv
 ```
 
 ### Phase 5: APB Wrapper
-- Create `apb_smbus.sv` following RTC pattern
-- Instantiate apb_slave, smbus_config_regs, smbus_core
+- Create `apb4_smbus.sv` following RTC pattern
+- Instantiate apb4_slave, smbus_config_regs, smbus_core
 - Wire up all interfaces
 - Add interrupt aggregation
 
@@ -350,7 +350,7 @@ peakrdl generate smbus_regs.rdl -o ../smbus_config_regs.sv
 ### Project References
 - **RTC Implementation:** `projects/components/retro_legacy_blocks/rtl/rtc/`
 - **FIFO Infrastructure:** `rtl/common/fifo_sync.sv`
-- **APB Infrastructure:** `rtl/amba/apb/apb_slave.sv`
+- **APB Infrastructure:** `rtl/amba/apb4/apb4_slave.sv`
 
 ### Related Tools
 - **PeakRDL:** Register definition and generation framework

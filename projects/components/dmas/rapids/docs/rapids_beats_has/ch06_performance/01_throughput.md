@@ -150,13 +150,24 @@ sink `wr_crc == golden`, source `rd_crc == chk_crc == golden`. The current
 harness measures correctness and beat counts.
 
 Per-direction bus utilization uses the same instrument the STREAM char does: the
-shared, DMA-agnostic `axi4_dma_observer` (`rtl/amba/shared/`) dropped inline on
+shared `axi4_intf_observer` (`projects/components/misc/rtl/`) dropped inline on
 the harness AXI masters, auto-windowed in hardware, with aggregate PROD/BP/STARV/
 IDLE buckets + beat/byte/burst counts surfaced at harness CSR `0x100-0x11C` and
 read verbatim by `read_bus_meters.py`. RAPIDS maps to it cleanly -- a read tap on
 the source master and a write tap on the sink master give a true per-direction
 split (STREAM's shared master is aggregate-only). Wiring the observer into
 `rapids_char_harness` is the remaining step to report measured GB/s here.
+
+As of 2026-08-05 the observer carries its OWN APB config regblock (`obs_regs`)
+instead of exporting 29 `cfg_*` ports for the instantiating harness to tie off,
+and it moved to `projects/components/misc/rtl/` so any board flow can reach it:
+
+    -f $MISC_ROOT/rtl/filelists/axi4_intf_observer.f
+
+It was renamed from `axi4_dma_observer` at the same time -- the header always
+said "DMA-agnostic", and the DMA in the name read wrong for a block a memory
+controller or a beats DMA would share. `dma_slave_monitors` (the monitored
+slave wrapper, also used here) sits alongside it on the same terms.
 
 Latest on-silicon result (full characterization suite): **48 / 48 configurations
 pass** across channels {1, 2, 4} x beats {1, 4, 8, 16} x backpressure {off, on} x

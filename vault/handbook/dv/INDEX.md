@@ -24,3 +24,6 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[coverage]] - Verilator, functional bar, the monbus packet-type matrix
 - [[formal]] - sv2v/SBY flow, mutation rule, vacuity traps
 - [[cloud-sandbox]] - running sims off the workstation; the Verilator pin, the PyPI pin
+- [[silent-fallbacks]] - why almost every wrong DV conclusion is something that did not happen without saying so
+- [[wavedrom-generators]] - the deliverable is the JSON, so empty = FAIL; the clock-group-name and add_interface-prefix traps; the gaxi reference
+- [[register-testing]] - walk every register before anything is programmed; if the registers do not work, nothing above them can

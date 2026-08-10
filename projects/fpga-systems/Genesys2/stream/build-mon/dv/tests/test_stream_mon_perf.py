@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 sean galloway
+"""build-mon pytest wrappers for the IN-CORE monitor perf windows.
+
+These three cases -- desc_perf, rw_perf, obs_equiv -- read perf CSRs that exist
+only when the monitor cones are compiled in, so they belong to the monitors-ON
+build. They used to live in the perf flow, which forced USE_AXI_MONITORS=1 for
+them; that was tolerable when the perf flow owned its own harness, and became
+wrong the moment there was ONE harness whose monitors-on/off state IS the
+difference between the two builds.
+
+The cocotb code is unchanged and unduplicated: `dv/cocotb_stream_harness.py` at
+component level, the same module build-perf runs. Only the parameters differ,
+and they come in as -G overrides on the compile line.
+
+  obs_equiv is the one that matters most: it runs the in-core monitors and the
+  external axi4_intf_observer SIMULTANEOUSLY over the same traffic and checks
+  they agree. That cross-check is only possible in this build -- with monitors
+  off there is nothing to compare the observer against.
+"""
+
+import os
+import sys
+
+import pytest
+from cocotb_test.simulator import run
+
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
+
+_AREA = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     '..', '..', '..'))
+for _p in (os.path.join(_AREA, 'dv'), os.path.join(_AREA, 'bin')):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+COCOTB_MODULE = 'cocotb_stream_harness'
+
+_BUILD_HOST = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                           '..', '..', 'host'))
+
+SIM_FPGA_CLK_HZ = 100_000_000
+SIM_UART_BAUD   = 12_500_000
+
+# Build-mon geometry. AR/AW=2 MATCHES THE BOARD BUILD -- this is not a sim
+# convenience: the monitor transaction table is sized NUM_CHANNELS*AR_MAX+4, and
+# the perf flow's AR=16 (chosen for bandwidth-delay-product reasons that apply
+# to the monitors-OFF datapath study) puts it at 68 slots, which Verilator will
+# not elaborate (BLKLOOPINIT in axi_monitor_timeout). Monitors-on runs at the
+# depth the monitors-on bitstream actually uses.
+MON_RTL_PARAMS = {
+    'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
+    'UART_BAUD':   str(SIM_UART_BAUD),
+    'USE_AXI_MONITORS': '1',
+    'DATA_WIDTH': '128', 'ADDR_WIDTH': '32', 'SRAM_DEPTH': '512',
+    'AR_MAX_OUTSTANDING': os.environ.get('AR_MAX_OUTSTANDING', '2'),
+    'AW_MAX_OUTSTANDING': os.environ.get('AW_MAX_OUTSTANDING', '2'),
+    'RESP_DELAY_R_CAPACITY': '512', 'RESP_DELAY_B_CAPACITY': '512',
+    'NUM_CHANNELS': os.environ.get('SIM_NUM_CHANNELS', '4'),
+}
+
+
+@pytest.mark.parametrize("test_type", ['desc_perf', 'rw_perf', 'obs_equiv'])
+def test_stream_mon_perf(request, test_type):
+    """In-core monitor perf windows (monitors ON, board-matched depth)."""
+    module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
+        'stream_harness': 'projects/fpga-systems/Genesys2/stream',
+    })
+    dut_name = "stream_harness"
+
+    # Every root the filelist closure uses -- $FRAMEWORK_ROOT for the harness,
+    # $STREAM_CHAR_FRAMEWORK_ROOT for instrumentation.f and the generated
+    # bridges. env_python exports the latter pointing at the pre-migration tree,
+    # so omitting it silently compiles this harness against the OLD bridge.
+    area = os.path.join(repo_root_path, 'projects/fpga-systems/Genesys2/stream')
+    os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/dmas/stream')
+    os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
+    os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
+    os.environ['STREAM_CHAR_ROOT'] = area
+    os.environ['STREAM_CHAR_FRAMEWORK_ROOT'] = area
+    os.environ['FRAMEWORK_ROOT'] = area
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root_path,
+        filelist_path='projects/fpga-systems/Genesys2/stream/rtl/filelists/stream_harness.f')
+
+    test_name = f"test_stream_mon_perf_{test_type}"
+    log_path = os.path.join(log_dir, f'{test_name}.log')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        'DUT': dut_name,
+        'NUM_CHANNELS': MON_RTL_PARAMS['NUM_CHANNELS'],
+        'TEST_TYPE': test_type,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{test_name}.xml'),
+        'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
+        'UART_BAUD': str(SIM_UART_BAUD),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate'),
+        'SEED': os.environ.get('SEED', '12345'),
+    }
+    waves = bool(int(os.environ.get('WAVES', '0')))
+
+    compile_args = [
+        "--public-flat-rw",
+        "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
+        "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
+        "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
+        # Monitor trans-table loops are per-slot; raise the unroll budget.
+        "--unroll-count", "4096", "--unroll-stmts", "20000",
+    ]
+    if bool(int(os.environ.get('WAVES', '0'))):
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+
+    run(
+        python_search=[tests_dir, os.path.join(_AREA, 'dv'), os.path.join(_AREA, 'bin'), _BUILD_HOST],
+        verilog_sources=verilog_sources,
+        includes=includes,
+        toplevel=dut_name,
+        module=COCOTB_MODULE,
+        testcase="cocotb_test_stream_perf",
+        parameters=MON_RTL_PARAMS,
+        sim_build=sim_build,
+        extra_env=extra_env,
+        keep_files=True,
+        compile_args=compile_args,
+        waves=waves,
+        plus_args=['--trace'] if waves else [],
+    )

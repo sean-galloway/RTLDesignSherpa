@@ -69,21 +69,21 @@
 
 ### 3. Protocol Converters (AXI4 → APB)
 
-**File:** `axi4_to_apb_testplan.yaml`
-- **Modules:** axi4_to_apb_convert.sv, axi4_to_apb_shim.sv
-- **Tests:** test_axi2apb_shim.py
+**File:** `axi4_to_apb4_testplan.yaml`
+- **Modules:** axi4_to_apb4_convert.sv, axi4_to_apb4_shim.sv
+- **Tests:** test_axi2apb4_shim.py
 - **Coverage:** 17.4% (4 tested, 10 gaps)
 - **Status:** CRITICAL GAPS - convert module untested, width conversion untested
 - **Verilator:** ~35% (only shim tested)
 
 **GAPS:**
-- axi4_to_apb_convert.sv has NO standalone test
+- axi4_to_apb4_convert.sv has NO standalone test
 - Burst decomposition FSM UNTESTED
 - Width conversion logic UNTESTED
 - Side queue tracking UNTESTED
 - Error scenarios UNTESTED
 
-**RECOMMENDATION:** Create test_axi4_to_apb_convert.py for standalone testing
+**RECOMMENDATION:** Create test_axi4_to_apb4_convert.py for standalone testing
 
 ---
 
@@ -115,7 +115,7 @@
 | axi4_dwidth_converter_wr | 16 | 16 | 100% | ✅ Complete |
 | axi4_to_axil4 (rd/wr) | 18 | 18 | 100% | ✅ Complete |
 | axil4_to_axi4 (rd/wr) | 18 | 18 | 100% | ✅ Complete |
-| axi4_to_apb | 14 | 4 | 17.4% | 🔴 Critical gaps |
+| axi4_to_apb4 | 14 | 4 | 17.4% | 🔴 Critical gaps |
 | uart_axil_bridge | 16 | 10 | 35.7% | 🟡 Moderate gaps |
 
 **Total:** 97 scenarios, 81 tested (83.5% overall)
@@ -139,8 +139,8 @@
 12. uart_axil_bridge.sv 🟡 (partial)
 
 ### Modules with Gaps (4 total)
-13. axi4_to_apb_convert.sv 🔴 NO TEST
-14. axi4_to_apb_shim.sv 🟡 MINIMAL TEST
+13. axi4_to_apb4_convert.sv 🔴 NO TEST
+14. axi4_to_apb4_shim.sv 🟡 MINIMAL TEST
 15. uart_rx.sv 🟡 NO STANDALONE TEST
 16. uart_tx.sv 🟡 NO STANDALONE TEST
 

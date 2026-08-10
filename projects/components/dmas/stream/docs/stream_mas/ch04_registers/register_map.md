@@ -38,7 +38,7 @@ The STREAM DMA engine register interface consists of three distinct regions:
 ```
 Base Address (configurable parameter)
 │
-├─ 0x000 - 0x03F: Channel Kick-off (apbtodescr.sv routing)
+├─ 0x000 - 0x03F: Channel Kick-off (apb4todescr.sv routing)
 │  ├─ 0x000: CH0_CTRL_LOW  - Channel 0 descriptor address [31:0]
 │  ├─ 0x004: CH0_CTRL_HIGH - Channel 0 descriptor address [63:32]
 │  ├─ 0x008: CH1_CTRL_LOW  - Channel 1 descriptor address [31:0]
@@ -81,7 +81,7 @@ Base Address (configurable parameter)
 
 ### Channel Kick-off Registers (0x000 - 0x03F)
 
-These registers are **NOT** traditional registers. Writes are routed directly to descriptor engine APB ports via `apbtodescr.sv`.
+These registers are **NOT** traditional registers. Writes are routed directly to descriptor engine APB ports via `apb4todescr.sv`.
 
 **Note:** Descriptor addresses are 64-bit (ADDR_WIDTH parameter, default 64). On 32-bit APB bus, each channel requires TWO registers (LOW/HIGH).
 

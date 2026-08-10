@@ -191,7 +191,7 @@ class PMACPITB(TBBase):
         self.presetn = dut.presetn
 
         # Components will be initialized in setup_clocks_and_reset
-        self.apb_master = None
+        self.apb4_master = None
 
         # Test tracking
         self.interrupt_events = []
@@ -225,7 +225,7 @@ class PMACPITB(TBBase):
 
         try:
             # Create APB Master - SAME AS PIT/HPET/RTC
-            self.apb_master = APBMaster(
+            self.apb4_master = APBMaster(
                 entity=self.dut,
                 title='PM_ACPI APB Master',
                 prefix='s_apb_',  # Consistent s_apb_* naming
@@ -237,8 +237,8 @@ class PMACPITB(TBBase):
             )
 
             # Properly initialize the APB master
-            await self.apb_master.reset_bus()
-            self.log.info(f"APB Master created and initialized: {type(self.apb_master)}")
+            await self.apb4_master.reset_bus()
+            self.log.info(f"APB Master created and initialized: {type(self.apb4_master)}")
 
         except Exception as e:
             self.log.error(f"Failed to create APB Master: {e}")
@@ -277,10 +277,10 @@ class PMACPITB(TBBase):
 
             write_packet.direction = 'WRITE'
 
-            if not hasattr(self.apb_master, 'transmit_coroutine'):
-                self.apb_master.transmit_coroutine = None
+            if not hasattr(self.apb4_master, 'transmit_coroutine'):
+                self.apb4_master.transmit_coroutine = None
 
-            await self.apb_master.send(write_packet)
+            await self.apb4_master.send(write_packet)
 
             # Wait for transaction to complete
             timeout = 0
@@ -316,10 +316,10 @@ class PMACPITB(TBBase):
 
             read_packet.direction = 'READ'
 
-            if not hasattr(self.apb_master, 'transmit_coroutine'):
-                self.apb_master.transmit_coroutine = None
+            if not hasattr(self.apb4_master, 'transmit_coroutine'):
+                self.apb4_master.transmit_coroutine = None
 
-            await self.apb_master.send(read_packet)
+            await self.apb4_master.send(read_packet)
 
             # Wait for transaction to complete
             timeout = 0

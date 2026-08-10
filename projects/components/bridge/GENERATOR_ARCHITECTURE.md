@@ -300,7 +300,7 @@ Registered `min()` and `max()` as Jinja globals so address decode templates can 
 To reduce bugs from manual signal plumbing and tie-off widths, four sub-module instantiation patterns are now wrapped in typed components:
 
 #### 1. Axi4ToApbShim Component
-**Location:** `bin/bridge_pkg/components/axi4_to_apb_shim_component.py`
+**Location:** `bin/bridge_pkg/components/axi4_to_apb4_shim_component.py`
 **Purpose:** Encapsulate AXI4-to-APB protocol conversion instantiation
 **Handles:**
 - Parameter list generation (AXI_ID_WIDTH, AXI_ADDR_WIDTH, AXI_DATA_WIDTH)
@@ -331,7 +331,7 @@ To reduce bugs from manual signal plumbing and tie-off widths, four sub-module i
 **Handles:**
 - Protocol-specific instantiation (axi4_slave_adapter, apb_periph_adapter, axil_slave_adapter)
 - Per-slave FIFO tracking wiring (ar_trk_*, aw_trk_*, b_slave_select, r_slave_select)
-- Converter instantiation for APB/AXIL (axi4_to_apb_shim wrapping)
+- Converter instantiation for APB/AXIL (axi4_to_apb4_shim wrapping)
 - Response path interconnect
 
 **Benefits:**

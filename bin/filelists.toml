@@ -69,7 +69,7 @@ filelist_dirs = ["projects/components/misc/rtl/filelists"]
 [[area]]
 name = "integ_amba"
 kind = "library"
-# AMBA integration examples (apb_peripheral_subsystem, apb_xbar_monitored). It
+# AMBA integration examples (apb4_peripheral_subsystem, apb4_xbar_monitored). It
 # had modules but no filelists and no registration until 2026-07-26, so it was
 # invisible to --check AND to --blindspots: the orphan scan looks for .f files
 # no area covers, and an area with no .f at all has nothing to find.
@@ -144,10 +144,10 @@ rtl_roots = ["projects/components/retro_legacy_blocks/rtl"]
 filelist_dirs = ["projects/components/retro_legacy_blocks/rtl"]
 
 [[area]]
-name = "apb_xbar"
+name = "apb4_xbar"
 kind = "component"
-rtl_roots = ["projects/components/apb_xbar/rtl"]
-filelist_dirs = ["projects/components/apb_xbar/rtl/filelists"]
+rtl_roots = ["projects/components/apb4_xbar/rtl"]
+filelist_dirs = ["projects/components/apb4_xbar/rtl/filelists"]
 
 [[area]]
 name = "pumice"
@@ -182,6 +182,20 @@ rtl_roots = []
 filelist_dirs = ["projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/filelists"]
 
 [[area]]
+name = "genesys2_stream_bridges"
+kind = "board"
+generated = true
+regen = "projects/fpga-systems/Genesys2/stream/bin/regen_bridges.sh"
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/Genesys2/stream/rtl/bridges/filelists"]
+
+[[area]]
+name = "genesys2_stream"
+kind = "board"
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/Genesys2/stream/rtl/filelists"]
+
+[[area]]
 name = "nexys_stream_char"
 kind = "board"
 rtl_roots = []
@@ -201,6 +215,9 @@ filelist_dirs = [
     "projects/NexysA7/ddr2-characterization/ddr2_char_framework/dv/filelists",
     "projects/fpga-systems/NexysA7/pumice/build-perf/rtl/filelists",
     "projects/NexysA7/ddr2-characterization/flows-litedram-uart/rtl/filelists",
+    # ddr2_char_macro.f lives at the rtl root (not a filelists/ subdir);
+    # registered here so the blindspot ratchet sees it.
+    "projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl",
 ]
 
 [[area]]

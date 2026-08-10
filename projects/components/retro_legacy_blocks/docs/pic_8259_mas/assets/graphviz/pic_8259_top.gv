@@ -8,7 +8,7 @@ digraph pic_8259_top {
     cascade_in [label="CAS[2:0]\n(from master)", shape=ellipse, fillcolor=lightgreen];
 
     subgraph cluster_pic {
-        label="apb_pic_8259";
+        label="apb4_pic_8259";
         style=rounded;
 
         apb_if [label="APB\nInterface", fillcolor=lightyellow];

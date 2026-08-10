@@ -111,12 +111,14 @@ class PortSpec:
     # mon_remove subtracts cones from the preset (rarely needed).
     mon_add: List[str] = field(default_factory=list)
     mon_remove: List[str] = field(default_factory=list)
-    # AXI5 feature list (BRIDGE-002 phase A5-1). Only legal on ports with
-    # protocol="axi5". Each entry names an AXI5 sideband feature whose
-    # signals are exposed on the bridge's external boundary and terminated
-    # at the axi5_slave_{wr,rd} wrapper (the fabric behind stays AXI4).
-    # A5-1 allows the pure-sideband set: nsaid/trace/mpam/mecid/unique.
-    # Data-semantics features (poison/mte/chunking -> A5-2) and atomics
+    # AXI5 feature list (BRIDGE-002 phases A5-1 / A5-2 slice 1). Only
+    # legal on ports with protocol="axi5". Each entry names an AXI5
+    # sideband feature whose signals are exposed on the bridge's external
+    # boundary and terminated at the boundary wrapper -- axi5_slave_{wr,rd}
+    # for master ports, axi5_master_{wr,rd} for slave ports (the fabric
+    # behind/between stays AXI4). Interop mode allows the pure-sideband
+    # set: nsaid/trace/mpam/mecid/unique. Data-semantics features
+    # (poison/mte/chunking -> A5-2 native sideband) and atomics
     # (atomic -> A5-3) are rejected by validate_axi5.
     axi5_features: List[str] = field(default_factory=list)
 

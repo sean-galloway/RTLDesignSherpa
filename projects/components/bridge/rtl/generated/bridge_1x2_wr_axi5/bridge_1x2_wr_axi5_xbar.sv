@@ -237,5 +237,8 @@ module bridge_1x2_wr_axi5_xbar
         ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_bvalid : '0) |
         ((sram_wr_axi_bid_bridge_id == 0) && sram_wr_axi_bid_valid ? sram_wr_axi_bvalid : '0);
 
+    assign cpu_wr_32b_b.trace = 
+        '0;
+
 
 endmodule : bridge_1x2_wr_axi5_xbar

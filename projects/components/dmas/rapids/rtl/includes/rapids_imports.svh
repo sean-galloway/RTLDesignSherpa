@@ -15,7 +15,7 @@
 
 // Package imports are guarded so that in a shared compilation scope each
 // package is wildcard-imported exactly once. This matters because rapids_pkg
-// and stream_pkg (pulled in via the shared apbtodescr kick block on the
+// and stream_pkg (pulled in via the shared apb4todescr kick block on the
 // characterization harness) export colliding enum-label names (RD_IDLE, CH_*,
 // ...); importing either wildcard more than once into the same scope makes
 // those labels ambiguous under Vivado. The guard keeps a single canonical

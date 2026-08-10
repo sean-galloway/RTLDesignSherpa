@@ -1,0 +1,59 @@
+# Bridge Configuration: 1x2 Read-Only Bridge with an AXI5 SLAVE port
+# (BRIDGE-002 phase A5-2 slice 1 -- exact mirror of the A5-1 master
+# fixture bridge_1x2_rd_axi5).
+#
+# Geometry copies bridge_1x2_rd_matched: one read-only AXI4 master, two
+# matched-width slaves. Slave 0 (ddr_rd) stays AXI4; slave 1 (sram_rd)
+# is protocol="axi5" with the trace + unique sideband features enabled:
+# the bridge top exposes ar{trace,unique} as OUTPUTS toward the external
+# AXI5 slave and rtrace as an INPUT from it, the adapter uses
+# axi5_master_rd as its boundary wrapper, and the features
+# terminate/default there -- the fabric in front stays AXI4. Mixing an
+# AXI4 and an AXI5 slave in one bridge locks the mixed-protocol
+# emission path.
+# Connectivity comes from bridge_1x2_rd_axi5s_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_rd_axi5s"
+variants = ["no", "mon"]
+description = "1 AXI4 master x (1 AXI4 + 1 AXI5) slave read-only bridge (A5-2 slice 1)"
+
+[[bridge.masters]]
+name = "cpu_rd"  # Descriptive identifier (cpu read master)
+prefix = "cpu_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels)
+# Completion cone on top of the error_only baseline (matches the
+# bridge_1x2_rd_matched convention for monitor capture tests).
+mon_add = ["compl"]
+
+[[bridge.slaves]]
+name = "ddr_rd"  # Descriptive identifier (ddr read slave, stays AXI4)
+prefix = "ddr_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+mon_add = ["compl"]  # completion cone for monitor capture/irq tests
+base_addr = "0x00000000"
+addr_range = "0x80000000"  # 2GB
+
+[[bridge.slaves]]
+name = "sram_rd"  # Descriptive identifier (sram read slave, AXI5)
+prefix = "sram_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+protocol = "axi5"
+# A5-2 slice-1 sideband features: exposed externally, terminated at the
+# axi5_master_rd wrapper (full pass-through is slice 2).
+axi5_features = ["trace", "unique"]
+mon_add = ["compl"]  # completion cone for monitor capture/irq tests
+base_addr = "0x80000000"
+addr_range = "0x80000000"  # 2GB

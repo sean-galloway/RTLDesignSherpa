@@ -109,7 +109,7 @@ yosys: ## Yosys elaboration check (no generic flow -- see formal/)
 # the area master with --top-module. That is the whole point: a filelist carries
 # the packages and dependencies in the right order, so this is a real check that
 # gates, not a spot check. Linting bare .sv files instead cannot resolve a
-# package import (amba's apb5_pkg imports apb_pkg, and compile order is only
+# package import (amba's apb5_pkg imports apb4_pkg, and compile order is only
 # encoded in the filelist) and reports failures that are artifacts of the
 # method rather than defects in the RTL.
 verilator-%:

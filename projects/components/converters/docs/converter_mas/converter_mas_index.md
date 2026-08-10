@@ -56,7 +56,7 @@ This specification covers the Converters component - a collection of configurabl
 - [Protocol Conversion Overview](ch03_protocol_blocks/01_overview.md)
 - [AXI4 to AXI4-Lite](ch03_protocol_blocks/02_axi4_to_axil4.md)
 - [AXI4-Lite to AXI4](ch03_protocol_blocks/03_axil4_to_axi4.md)
-- [AXI4 to APB](ch03_protocol_blocks/04_axi4_to_apb.md)
+- [AXI4 to APB](ch03_protocol_blocks/04_axi4_to_apb4.md)
 - [PeakRDL Adapter](ch03_protocol_blocks/05_peakrdl_adapter.md)
 
 ### Chapter 4: FSM Design
@@ -86,7 +86,7 @@ This specification covers the Converters component - a collection of configurabl
 - **Width conversion:** See [axi_data_upsize](ch02_width_blocks/02_axi_data_upsize.md) and [axi_data_dnsize](ch02_width_blocks/03_axi_data_dnsize.md)
 - **High-performance paths:** See [Dual-Buffer Architecture](ch02_width_blocks/04_dual_buffer.md)
 - **Full AXI4 conversion:** See [axi4_dwidth_converter_wr](ch02_width_blocks/05_dwidth_converter_wr.md) and [axi4_dwidth_converter_rd](ch02_width_blocks/06_dwidth_converter_rd.md)
-- **Protocol bridges:** See [AXI4 to APB](ch03_protocol_blocks/04_axi4_to_apb.md)
+- **Protocol bridges:** See [AXI4 to APB](ch03_protocol_blocks/04_axi4_to_apb4.md)
 
 ---
 
@@ -108,13 +108,13 @@ All diagrams referenced in the documentation are available in:
 4. **axi4_dwidth_converter_wr** - [assets/mermaid/dwidth_converter_wr.png](assets/mermaid/dwidth_converter_wr.png)
 5. **axi4_dwidth_converter_rd** - [assets/mermaid/dwidth_converter_rd.png](assets/mermaid/dwidth_converter_rd.png)
 6. **axi4_to_axil4** - [assets/mermaid/axi4_to_axil4.png](assets/mermaid/axi4_to_axil4.png)
-7. **axi4_to_apb** - [assets/mermaid/axi4_to_apb.png](assets/mermaid/axi4_to_apb.png)
+7. **axi4_to_apb4** - [assets/mermaid/axi4_to_apb4.png](assets/mermaid/axi4_to_apb4.png)
 
 ### FSM Diagrams
 
 1. **Upsize FSM** - [assets/mermaid/upsize_fsm.png](assets/mermaid/upsize_fsm.png)
 2. **Downsize FSM** - [assets/mermaid/dnsize_fsm.png](assets/mermaid/dnsize_fsm.png)
-3. **AXI4-to-APB FSM** - [assets/mermaid/axi4_to_apb_fsm.png](assets/mermaid/axi4_to_apb_fsm.png)
+3. **AXI4-to-APB FSM** - [assets/mermaid/axi4_to_apb4_fsm.png](assets/mermaid/axi4_to_apb4_fsm.png)
 4. **Burst Decomposition FSM** - [assets/mermaid/burst_decomp_fsm.png](assets/mermaid/burst_decomp_fsm.png)
 
 ---
@@ -139,7 +139,7 @@ All diagrams referenced in the documentation are available in:
 | axi4_dwidth_converter_rd | Full read path | 100% | +100% (dual) |
 | axi4_to_axil4 | Burst decomposition | 50-100% | ~450 LUTs |
 | axil4_to_axi4 | Protocol upgrade | 100% | ~110 LUTs |
-| axi4_to_apb_convert | Full protocol bridge | Sequential | Medium |
+| axi4_to_apb4_convert | Full protocol bridge | Sequential | Medium |
 
 : Table 1.1: Converter Module Summary
 

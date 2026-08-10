@@ -128,7 +128,7 @@ peakrdl regblock peakrdl/smbus_regs.rdl -o smbus_regs.sv --cpuif apb4-flat
 This SMBus controller follows the standard 3-layer architecture:
 
 ```
-Layer 1: apb_smbus.sv           (APB4 interface)
+Layer 1: apb4_smbus.sv           (APB4 interface)
          ↓
 Layer 2: smbus_config_regs.sv   (Register wrapper + FIFOs)
          ↓

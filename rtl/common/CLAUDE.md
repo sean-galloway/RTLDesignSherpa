@@ -169,7 +169,8 @@ they moved to `rtl/cdc/`. `ls rtl/common/counter*.sv` returns the six above.
 | Requirement | Module | Notes |
 |---|---|---|
 | Fair arbitration | `arbiter_round_robin.sv` | Most versatile, pipelinable |
-| Weighted QoS | `arbiter_round_robin_weighted.sv` | Assign weights |
+| Weighted QoS (equal-cost requests) | `arbiter_round_robin_weighted.sv` | Shares proportional to GRANT COUNT |
+| Weighted QoS (variable-cost requests) | `arbiter_deficit_round_robin.sv` | Shares proportional to COST SERVED (packet/burst sizes); per-client `req_cost` input |
 | Fixed priority | `arbiter_priority_encoder.sv` | Lowest index wins |
 | Minimal area | `arbiter_round_robin_simple.sv` | Simplified version |
 

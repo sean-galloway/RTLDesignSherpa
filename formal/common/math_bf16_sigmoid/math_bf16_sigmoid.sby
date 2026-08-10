@@ -18,5 +18,5 @@ read -formal -sv formal_math_bf16_sigmoid.sv
 prep -top formal_math_bf16_sigmoid
 
 [files]
-math_bf16_sigmoid.sv ../../../rtl/common/math_bf16_sigmoid.sv
+math_bf16_sigmoid.sv ../../../rtl/math/math_bf16_sigmoid.sv
 formal_math_bf16_sigmoid.sv

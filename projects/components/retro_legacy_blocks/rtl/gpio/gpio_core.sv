@@ -22,7 +22,7 @@
 //
 // I/O Buffer Notes:
 //   This module does NOT instantiate FPGA I/O primitives.
-//   The top-level wrapper (apb_gpio.sv) or FPGA top-level should:
+//   The top-level wrapper (apb4_gpio.sv) or FPGA top-level should:
 //   - Connect gpio_out to IOBUF/OBUFT data input
 //   - Connect gpio_oe to IOBUF/OBUFT tristate control
 //   - Connect gpio_in from IOBUF/IBUF output

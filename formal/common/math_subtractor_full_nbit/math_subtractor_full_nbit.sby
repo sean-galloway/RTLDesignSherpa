@@ -19,6 +19,6 @@ read -formal -sv formal_math_subtractor_full_nbit.sv
 prep -top formal_math_subtractor_full_nbit
 
 [files]
-math_subtractor_full.sv ../../../rtl/common/math_subtractor_full.sv
-math_subtractor_full_nbit.sv ../../../rtl/common/math_subtractor_full_nbit.sv
+math_subtractor_full.sv ../../../rtl/math/math_subtractor_full.sv
+math_subtractor_full_nbit.sv ../../../rtl/math/math_subtractor_full_nbit.sv
 formal_math_subtractor_full_nbit.sv

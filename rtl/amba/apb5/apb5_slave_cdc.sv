@@ -251,19 +251,19 @@ module apb5_slave_cdc #(
     //                                occupancy and pops entries that were never
     //                                written. It FABRICATES, it does not swallow.
     //   - read side reset alone   -> consumed entries are REPLAYED, and
-    //                                apb_slave's positionally-paired FSM can
+    //                                apb4_slave's positionally-paired FSM can
     //                                answer a NEW command with an OLD response.
     //                                An UNREAD entry is fine: rd_ptr is already
     //                                behind wr_ptr, so resetting it to 0 rewinds
     //                                nothing and the entry is delivered once.
-    // Quiesce the bus before a one-sided reset. apb_slave's IDLE orphan-response
+    // Quiesce the bus before a one-sided reset. apb4_slave's IDLE orphan-response
     // guard (pop-and-drop with a $display) mitigates but does not close this;
     // apb5_slave has no equivalent guard at all.
     //
     // This matters here because the APB side (presetn) and the register/core
     // side (aresetn) are separate reset domains -- e.g. the ddr2-char harness
     // pulses only the core-side reset on CTRL.soft_reset while the APB side
-    // stays up. See docs/markdown/rtl-amba/apb/apb_slave_cdc.md, which has
+    // stays up. See docs/markdown/rtl-amba/apb4/apb4_slave_cdc.md, which has
     // carried the correct analysis while this comment did not.
     //
     // CDC_FIFO_DEPTH is the FIFO depth; >=2, power of 2 preferred for the gray/

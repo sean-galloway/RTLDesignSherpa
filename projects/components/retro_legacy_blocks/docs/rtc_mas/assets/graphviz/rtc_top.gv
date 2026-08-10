@@ -9,7 +9,7 @@ digraph rtc_top {
 
     // Main blocks
     subgraph cluster_rtc {
-        label="apb_rtc";
+        label="apb4_rtc";
         style=rounded;
 
         apb_if [label="APB\nInterface", fillcolor=lightyellow];

@@ -4,9 +4,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_mon_axil_mon_pkg::*;
 
-module host_adapter #(
+module host_adapter
+    import bridge_stream_mon_axil_mon_pkg::*;
+#(
     parameter NUM_SLAVES = 12,
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,

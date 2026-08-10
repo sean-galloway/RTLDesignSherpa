@@ -40,6 +40,15 @@ so one FIFO and one set of flags carry several fields.
 - **[fifo_sync_multi_sigmap](fifo_sync_multi_sigmap.md)** - the same wrapper with
   generic positional ports, for callers that own the field names
 
+## Technique index
+
+Looking for how a design technique is used in real code — streaming
+datapaths, minimal FSMs, CDC, arbitration, timeout/recovery, in-line data
+integrity? **[technique-index.md](technique-index.md)** maps each one to its
+best worked examples in the tree. It replaces the once-planned set of toy
+demonstration designs: the real, tested implementations teach better and
+cannot rot.
+
 ## Related
 
 The blocks these are built from stay in their own areas and are reached by `-f`

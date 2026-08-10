@@ -39,12 +39,12 @@
 
 Created complete directory structures following HPET pattern for:
 
-1. **8259 PIC** (`apb_pic_8259`) - Programmable Interrupt Controller
-2. **8254 PIT** (`apb_pit_8254`) - Programmable Interval Timer
-3. **RTC** (`apb_rtc`) - Real-Time Clock
-4. **SMBus** (`apb_smbus`) - System Management Bus Controller
-5. **PM/ACPI** (`apb_pm_acpi`) - Power Management / ACPI Controller
-6. **IOAPIC** (`apb_ioapic`) - I/O Advanced Programmable Interrupt Controller
+1. **8259 PIC** (`apb4_pic_8259`) - Programmable Interrupt Controller
+2. **8254 PIT** (`apb4_pit_8254`) - Programmable Interval Timer
+3. **RTC** (`apb4_rtc`) - Real-Time Clock
+4. **SMBus** (`apb4_smbus`) - System Management Bus Controller
+5. **PM/ACPI** (`apb4_pm_acpi`) - Power Management / ACPI Controller
+6. **IOAPIC** (`apb4_ioapic`) - I/O Advanced Programmable Interrupt Controller
 
 ### 2. Directory Layout Per Block
 
@@ -96,13 +96,13 @@ All blocks have assigned addresses in the 4KB window structure:
 
 | Block | Module Name | Address Window | Priority |
 |-------|-------------|----------------|----------|
-| HPET | `apb_hpet` | 0x4000_0000-0x0FFF | High (✅ Complete) |
-| 8259 PIC | `apb_pic_8259` | 0x4000_1000-0x1FFF | High |
-| 8254 PIT | `apb_pit_8254` | 0x4000_2000-0x2FFF | High |
-| RTC | `apb_rtc` | 0x4000_3000-0x3FFF | Medium |
-| SMBus | `apb_smbus` | 0x4000_4000-0x4FFF | Medium |
-| PM/ACPI | `apb_pm_acpi` | 0x4000_5000-0x5FFF | Medium |
-| IOAPIC | `apb_ioapic` | 0x4000_6000-0x6FFF | Medium |
+| HPET | `apb4_hpet` | 0x4000_0000-0x0FFF | High (✅ Complete) |
+| 8259 PIC | `apb4_pic_8259` | 0x4000_1000-0x1FFF | High |
+| 8254 PIT | `apb4_pit_8254` | 0x4000_2000-0x2FFF | High |
+| RTC | `apb4_rtc` | 0x4000_3000-0x3FFF | Medium |
+| SMBus | `apb4_smbus` | 0x4000_4000-0x4FFF | Medium |
+| PM/ACPI | `apb4_pm_acpi` | 0x4000_5000-0x5FFF | Medium |
+| IOAPIC | `apb4_ioapic` | 0x4000_6000-0x6FFF | Medium |
 
 ---
 

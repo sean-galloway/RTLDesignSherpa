@@ -39,27 +39,27 @@
 
 | Module | RTL Complete | APB Wrapper | PeakRDL | CDC Support | Validation | Status |
 |--------|--------------|-------------|---------|-------------|------------|--------|
-| **HPET** | Yes | apb_hpet.sv | Yes | CDC_ENABLE | Has tests | REFERENCE |
-| **PIT_8254** | Yes | apb_pit_8254.sv | Yes | CDC_ENABLE | Has tests | COMPLETE |
-| **RTC** | Yes | apb_rtc.sv | Yes | Yes | Has tests | COMPLETE |
-| **PIC_8259** | Yes | apb_pic_8259.sv | Yes | Yes | Basic only | NEEDS TESTS |
-| **SMBus** | Yes | apb_smbus.sv | Yes | CDC_ENABLE | None yet | NEEDS TESTS |
-| **PM_ACPI** | Yes | apb_pm_acpi.sv | Yes | CDC_ENABLE | 6 tests | COMPLETE |
-| **IOAPIC** | Yes | apb_ioapic.sv | Yes | CDC_ENABLE | None yet | NEEDS TESTS |
-| **GPIO** | Yes | apb_gpio.sv | Yes | CDC_ENABLE | 6 tests | COMPLETE |
+| **HPET** | Yes | apb4_hpet.sv | Yes | CDC_ENABLE | Has tests | REFERENCE |
+| **PIT_8254** | Yes | apb4_pit_8254.sv | Yes | CDC_ENABLE | Has tests | COMPLETE |
+| **RTC** | Yes | apb4_rtc.sv | Yes | Yes | Has tests | COMPLETE |
+| **PIC_8259** | Yes | apb4_pic_8259.sv | Yes | Yes | Basic only | NEEDS TESTS |
+| **SMBus** | Yes | apb4_smbus.sv | Yes | CDC_ENABLE | None yet | NEEDS TESTS |
+| **PM_ACPI** | Yes | apb4_pm_acpi.sv | Yes | CDC_ENABLE | 6 tests | COMPLETE |
+| **IOAPIC** | Yes | apb4_ioapic.sv | Yes | CDC_ENABLE | None yet | NEEDS TESTS |
+| **GPIO** | Yes | apb4_gpio.sv | Yes | CDC_ENABLE | 6 tests | COMPLETE |
 
 ### COMPLETE - With APB Wrappers (cont.)
 
 | Module | RTL Complete | APB Wrapper | PeakRDL | CDC Support | Validation | Status |
 |--------|--------------|-------------|---------|-------------|------------|--------|
-| **UART_16550** | Yes | apb_uart_16550.sv | Yes | CDC_ENABLE | TB Ready | PORT MISMATCH |
+| **UART_16550** | Yes | apb4_uart_16550.sv | Yes | CDC_ENABLE | TB Ready | PORT MISMATCH |
 
 **CRITICAL NOTE (2025-11-30):**
 GPIO and UART_16550 RTL modules have PORT NAME MISMATCHES with the actual
-apb_slave.sv and peakrdl_to_cmdrsp.sv infrastructure modules.
+apb4_slave.sv and peakrdl_to_cmdrsp.sv infrastructure modules.
 
 **Issues:**
-1. apb_slave.sv uses `s_apb_PSEL` naming, RTL uses `psel`
+1. apb4_slave.sv uses `s_apb_PSEL` naming, RTL uses `psel`
 2. peakrdl_to_cmdrsp.sv uses `aclk`/`aresetn`, RTL uses `clk`/`rst_n`
 3. CMD/RSP port naming differs (e.g., `cmd_addr` vs `cmd_paddr`)
 
@@ -70,7 +70,7 @@ OR update infrastructure to provide consistent naming.
 **Test Infrastructure Status:**
 - UART 16550 testbench classes: COMPLETE (uart_16550_tb.py)
 - UART 16550 test suites: COMPLETE (basic, medium, full)
-- UART 16550 test runner: COMPLETE (test_apb_uart_16550.py)
+- UART 16550 test runner: COMPLETE (test_apb4_uart_16550.py)
 - Tests use UART BFM from CocoTBFramework/components/uart/
 
 ### INCOMPLETE - Missing APB Wrappers or Core RTL
@@ -100,7 +100,7 @@ The Stream DMA provides:
 | Module | Purpose | Status |
 |--------|---------|--------|
 | **rlb_top** | Top-level integration | 📋 Planned |
-| **apb_xbar** | APB crossbar | ✅ Exists |
+| **apb4_xbar** | APB crossbar | ✅ Exists |
 
 ---
 
@@ -109,15 +109,15 @@ The Stream DMA provides:
 ### Test Infrastructure Existing
 
 **HPET:**
-- ✅ `dv/tests/test_apb_hpet.py` - Cocotb tests exist
+- ✅ `dv/tests/test_apb4_hpet.py` - Cocotb tests exist
 - Status: Has comprehensive validation
 
 **PIT_8254:**
-- ✅ `dv/tests/test_apb_pit_8254.py` - Cocotb tests exist
+- ✅ `dv/tests/test_apb4_pit_8254.py` - Cocotb tests exist
 - Status: Has comprehensive validation
 
 **RTC:**
-- ✅ `dv/tests/test_apb_rtc.py` - Cocotb test runner
+- ✅ `dv/tests/test_apb4_rtc.py` - Cocotb test runner
 - ✅ `dv/tbclasses/rtc/rtc_tb.py` - Testbench class
 - ✅ `dv/tbclasses/rtc/rtc_tests_basic.py` - Basic tests
 - Status: Has comprehensive validation infrastructure
@@ -179,7 +179,7 @@ The Stream DMA provides:
 **Estimated Time:** 2-3 days
 
 - [ ] Create `dv/tests/pic_8259/` directory
-- [ ] Create `test_apb_pic_8259.py` Cocotb test runner
+- [ ] Create `test_apb4_pic_8259.py` Cocotb test runner
 - [ ] Create `dv/tbclasses/pic_8259/` directory
 - [ ] Create `pic_8259_tb.py` testbench class
 - [ ] Create `pic_8259_tests_basic.py` basic tests
@@ -189,7 +189,7 @@ The Stream DMA provides:
 **Estimated Time:** 5-7 days
 
 - [ ] Create `dv/tests/smbus/` directory
-- [ ] Create `test_apb_smbus.py` Cocotb test runner
+- [ ] Create `test_apb4_smbus.py` Cocotb test runner
 - [ ] Create `dv/tbclasses/smbus/` directory
 - [ ] Create `smbus_tb.py` testbench class
 - [ ] Create SMBus protocol monitor/driver
@@ -209,7 +209,7 @@ The Stream DMA provides:
 
 - [ ] Create `pm_acpi_helper.py` (based on smbus_helper.py)
 - [ ] Create `dv/tests/pm_acpi/` directory
-- [ ] Create `test_apb_pm_acpi.py` Cocotb test runner
+- [ ] Create `test_apb4_pm_acpi.py` Cocotb test runner
 - [ ] Create `dv/tbclasses/pm_acpi/` directory
 - [ ] Create `pm_acpi_tb.py` testbench class
 - [ ] Test PM timer operation and overflow
@@ -225,7 +225,7 @@ The Stream DMA provides:
 
 - [ ] Create `ioapic_helper.py`
 - [ ] Create `dv/tests/ioapic/` directory
-- [ ] Create `test_apb_ioapic.py` Cocotb test runner
+- [ ] Create `test_apb4_ioapic.py` Cocotb test runner
 - [ ] Create `dv/tbclasses/ioapic/` directory
 - [ ] Create `ioapic_tb.py` testbench class
 - [ ] Test indirect register access (IOREGSEL/IOWIN)
@@ -259,7 +259,7 @@ The Stream DMA provides:
   - Interrupt status (W1C)
 - [ ] `gpio_core.sv` implementation
 - [ ] `gpio_config_regs.sv` with PeakRDL
-- [ ] `apb_gpio.sv` wrapper
+- [ ] `apb4_gpio.sv` wrapper
 - [ ] Validation suite
 
 **Typical Configuration:**
@@ -286,7 +286,7 @@ The Stream DMA provides:
   - FIFO buffers
   - Interrupt generation
 - [ ] `uart_16550_config_regs.sv` with PeakRDL
-- [ ] `apb_uart_16550.sv` wrapper
+- [ ] `apb4_uart_16550.sv` wrapper
 - [ ] Validation suite with UART protocol monitoring
 
 **16550 Features:**
@@ -376,7 +376,7 @@ The Stream DMA provides:
 
 **Standard Pattern:**
 ```
-APB → apb_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →  
+APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →  
   → <module>_regs (PeakRDL) → hwif → <module>_core
 ```
 

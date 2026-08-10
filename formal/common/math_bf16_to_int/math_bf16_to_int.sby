@@ -18,5 +18,5 @@ read -formal -sv formal_math_bf16_to_int.sv
 prep -top formal_math_bf16_to_int
 
 [files]
-math_bf16_to_int.sv ../../../rtl/common/math_bf16_to_int.sv
+math_bf16_to_int.sv ../../../rtl/math/math_bf16_to_int.sv
 formal_math_bf16_to_int.sv

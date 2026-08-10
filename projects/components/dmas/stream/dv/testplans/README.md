@@ -44,7 +44,7 @@ Direct unit tests for individual modules:
 
 | Testplan | Module | Status | Test File |
 |----------|--------|--------|-----------|
-| `apbtodescr_testplan.yaml` | apbtodescr.sv | Tested | test_apbtodescr.py |
+| `apb4todescr_testplan.yaml` | apb4todescr.sv | Tested | test_apb4todescr.py |
 | `descriptor_engine_testplan.yaml` | descriptor_engine.sv | Tested | test_descriptor_engine.py |
 | `scheduler_testplan.yaml` | scheduler.sv | Tested | test_scheduler.py |
 | `sram_controller_testplan.yaml` | sram_controller.sv | Tested | test_sram_controller.py |
@@ -74,7 +74,7 @@ Modules tested via integration (no direct FUB test):
 ## Test Coverage Strategy
 
 ### Direct Testing (FUB Level)
-- **apbtodescr**: 8 scenarios, 100% implied coverage
+- **apb4todescr**: 8 scenarios, 100% implied coverage
 - **descriptor_engine**: 10 scenarios, 100% implied coverage
 - **scheduler**: 11 scenarios, 100% implied coverage
 - **sram_controller**: 11 scenarios, 100% implied coverage

@@ -446,13 +446,13 @@ Figures MUST use the `### Figure X.X: Title` heading format to appear in the Lis
 ```markdown
 ### Figure 2.1: APB HPET Block Diagram
 
-![APB HPET Block Diagram](../assets/draw.io/apb_hpet_blocks.png)
+![APB HPET Block Diagram](../assets/draw.io/apb4_hpet_blocks.png)
 ```
 
 **INCORRECT (Will NOT appear in List of Figures):**
 
 ```markdown
-![APB HPET Block Diagram](../assets/draw.io/apb_hpet_blocks.png)
+![APB HPET Block Diagram](../assets/draw.io/apb4_hpet_blocks.png)
 ```
 
 **Detection Pattern:** `^(?:[\d.]+[\t\s]+)?Figure\s+([\d.]+)[:\s]+(.+)$`
@@ -570,8 +570,8 @@ The figure shows the module hierarchy with the APB interface at the top.
 
 | Block | File | Description |
 |-------|------|-------------|
-| GPIO Top | apb_gpio.sv | Top-level module |
-| Register File | apb_gpio_regs.sv | PeakRDL-generated registers |
+| GPIO Top | apb4_gpio.sv | Top-level module |
+| Register File | apb4_gpio_regs.sv | PeakRDL-generated registers |
 
 : Table 2.1: GPIO Block Summary
 

@@ -28,8 +28,8 @@
 The APB IOAPIC consists of four primary blocks organized in a clean hierarchical structure:
 
 ```
-apb_ioapic (Top Level)
-├── apb_slave or apb_slave_cdc (Bus Interface)
+apb4_ioapic (Top Level)
+├── apb4_slave or apb4_slave_cdc (Bus Interface)
 ├── ioapic_config_regs (Register Wrapper)
 │   ├── peakrdl_to_cmdrsp (Protocol Adapter)
 │   └── ioapic_regs (PeakRDL Generated)
@@ -40,23 +40,23 @@ apb_ioapic (Top Level)
 
 | Block | File | Lines | Purpose |
 |-------|------|-------|---------|
-| **apb_ioapic** | apb_ioapic.sv | ~340 | Top-level integration, CDC selection |
+| **apb4_ioapic** | apb4_ioapic.sv | ~340 | Top-level integration, CDC selection |
 | **ioapic_config_regs** | ioapic_config_regs.sv | ~220 | Register interface, indirect access, hwif mapping |
 | **ioapic_regs** | ioapic_regs.sv | ~2500 | PeakRDL generated register block |
 | **ioapic_core** | ioapic_core.sv | ~290 | Interrupt routing, edge/level detection, arbitration |
 | **peakrdl_to_cmdrsp** | (external) | ~150 | CMD/RSP to PeakRDL passthrough adapter |
-| **apb_slave[_cdc]** | (external) | ~200 | APB protocol handler |
+| **apb4_slave[_cdc]** | (external) | ~200 | APB protocol handler |
 
 **Total Implementation:** ~900 lines of custom RTL + ~2700 lines generated/reused
 
 #### Block Descriptions
 
-**1. apb_ioapic (Top Level)**
+**1. apb4_ioapic (Top Level)**
 - Selects APB slave type based on CDC_ENABLE parameter
 - Routes clocks and resets to submodules
 - Instantiates config_regs and core
 - Connects external IRQ and EOI interfaces
-- See: [apb_ioapic_top.md](04_apb_ioapic_top.md)
+- See: [apb4_ioapic_top.md](04_apb4_ioapic_top.md)
 
 **2. ioapic_config_regs (Register Wrapper)**
 - Instantiates peakrdl_to_cmdrsp adapter
@@ -87,7 +87,7 @@ apb_ioapic (Top Level)
 
 ```mermaid
 flowchart TD
-    A["APB Write Request"] --> B["apb_slave[_cdc]<br/>(APB protocol handling)"]
+    A["APB Write Request"] --> B["apb4_slave[_cdc]<br/>(APB protocol handling)"]
     B -->|"CMD interface"| C["peakrdl_to_cmdrsp<br/>(protocol adapter)"]
     C -->|"Passthrough interface"| D["ioapic_regs<br/>(register storage, indirect access)"]
     D -->|"hwif_out"| E["ioapic_config_regs<br/>(signal mapping)"]
@@ -101,7 +101,7 @@ flowchart TD
     A["ioapic_core<br/>(generates status)"] -->|"status_* signals"| B["ioapic_config_regs<br/>(signal mapping)"]
     B -->|"hwif_in"| C["ioapic_regs<br/>(register readback, indirect access)"]
     C -->|"RSP interface"| D["peakrdl_to_cmdrsp<br/>(protocol adapter)"]
-    D -->|"APB response"| E["apb_slave[_cdc]<br/>(APB protocol)"]
+    D -->|"APB response"| E["apb4_slave[_cdc]<br/>(APB protocol)"]
     E --> F["APB Read Data"]
 ```
 
@@ -110,7 +110,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     A["External IRQ assertion"] --> B["ioapic_core<br/>(sync → polarity → detect → arbitrate → deliver)"]
-    B -->|"irq_out_valid, irq_out_vector, irq_out_dest"| C["apb_ioapic<br/>(top-level signals)"]
+    B -->|"irq_out_valid, irq_out_vector, irq_out_dest"| C["apb4_ioapic<br/>(top-level signals)"]
     C --> D["CPU/LAPIC"]
 ```
 
@@ -132,20 +132,20 @@ flowchart TD
 
 **CDC_ENABLE=0 (Single Clock):**
 - All blocks run on `pclk`
-- apb_slave instantiated (no CDC)
+- apb4_slave instantiated (no CDC)
 - Simplest timing analysis
 
 **CDC_ENABLE=1 (Dual Clock):**
-- apb_slave_cdc runs on `pclk` (APB domain)
+- apb4_slave_cdc runs on `pclk` (APB domain)
 - config_regs runs on `ioapic_clk` (IOAPIC domain)
 - core runs on `ioapic_clk` (IOAPIC domain)
-- CDC handled by apb_slave_cdc module
+- CDC handled by apb4_slave_cdc module
 
 #### Module Dependencies
 
 **RLB Project Dependencies:**
 - `reset_defs.svh` - Reset macro definitions
-- `apb_slave.sv` or `apb_slave_cdc.sv` - APB protocol
+- `apb4_slave.sv` or `apb4_slave_cdc.sv` - APB protocol
 - `peakrdl_to_cmdrsp.sv` - Register adapter
 
 **Generated Files:**
@@ -161,7 +161,7 @@ All dependencies are within the RLB project or generated from specifications.
 - [01_ioapic_core.md](01_ioapic_core.md) - Core interrupt logic
 - [02_ioapic_config_regs.md](02_ioapic_config_regs.md) - Register wrapper
 - [03_ioapic_regs.md](03_ioapic_regs.md) - PeakRDL generated
-- [04_apb_ioapic_top.md](04_apb_ioapic_top.md) - Top-level integration
+- [04_apb4_ioapic_top.md](04_apb4_ioapic_top.md) - Top-level integration
 - [05_fsm_summary.md](05_fsm_summary.md) - State machine summary
 
 **Back to:** [Index](../ioapic_index.md) | **Next:** [ioapic_core Block](01_ioapic_core.md)

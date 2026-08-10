@@ -11,6 +11,8 @@
 # The port list depends on slave.protocol:
 #   axi4 / axil : crossbar-side AXI4 + external-side full AXI4 +
 #                 bridge_id_aw/ar + bid_*/rid_*
+#   axi5        : as axi4 minus aw/arregion, plus the enabled sideband
+#                 features' signals (A5-2 slice 1)
 #   apb         : crossbar-side AXI4 + APB master ports + bridge_id_*
 #
 # Channels are pruned by `has_write` / `has_read` (the adapter only
@@ -64,16 +66,20 @@ class SlaveAdapterInstance:
     """
 
     def __init__(self, slave_name: str, slave_prefix: str, protocol: str,
-                 has_write: bool, has_read: bool):
-        if protocol not in ('axi4', 'apb', 'axil'):
+                 has_write: bool, has_read: bool, axi5_features=None):
+        if protocol not in ('axi4', 'axi5', 'apb', 'axil'):
             raise ValueError(f"unsupported protocol: {protocol!r}")
         if not (has_write or has_read):
             raise ValueError("adapter must carry at least one channel")
+        if protocol != 'axi5' and axi5_features:
+            raise ValueError("axi5_features passed but protocol is not 'axi5'")
         self.slave_name = slave_name
         self.slave_prefix = slave_prefix
         self.protocol = protocol
         self.has_write = has_write
         self.has_read = has_read
+        # AXI5 sideband features exposed on this port (A5-2 slice 1).
+        self.axi5_features = tuple(axi5_features or ())
         self.module = Module(module_name=f"{slave_name}_adapter",
                              instance_name=f"u_{slave_name}_adapter")
         self._sections: List[tuple] = []
@@ -107,6 +113,19 @@ class SlaveAdapterInstance:
                 pairs.append((f'{xbar_prefix}{base}', f'{xbar_prefix}{base}'))
             for base in _AXI4_R_PORTS:
                 pairs.append((f'{xbar_prefix}{base}', f'{xbar_prefix}{base}'))
+        # AXI5 native sideband (A5-2 slice 2): the adapter module
+        # declares these xbar-facing ports for its enabled native
+        # features; the instantiation must bind them 1:1.
+        from bridge_pkg.sideband import (NATIVE_SIDEBAND_FEATURES,
+                                         channel_fields)
+        sb_feats = (set(self.axi5_features) & set(NATIVE_SIDEBAND_FEATURES)
+                    if self.protocol == 'axi5' else set())
+        if sb_feats:
+            chs = ((['aw', 'w', 'b'] if self.has_write else [])
+                   + (['ar', 'r'] if self.has_read else []))
+            for ch in chs:
+                for _f, _w, _feat, base in channel_fields(sb_feats, ch):
+                    pairs.append((f'{xbar_prefix}{base}', f'{xbar_prefix}{base}'))
         self._sections.append((
             f"Crossbar interface (xbar_{self.slave_name}_axi_*)", pairs))
 
@@ -116,9 +135,41 @@ class SlaveAdapterInstance:
           - apb : uppercase PADDR/PSEL/... ten-signal APB master
           - axil: AXI4-Lite (no id/len/burst/etc.)
           - axi4: full AXI4 channel set
+          - axi5: AXI4 set minus aw/arregion, plus enabled sideband
+                  feature signals per channel (A5-2 slice 1)
         Each branch must match what the adapter module declares in its
         own _generate_*_external_ports method, or the bridge top won't
         compile against the adapter."""
+        if self.protocol == 'axi5':
+            from .axi4_timing_wrapper_component import (
+                axi5_exposed_ext_signals,
+            )
+
+            def _extras(channel_key):
+                return [f'{self.slave_prefix}{name}'
+                        for name, _w, _d in axi5_exposed_ext_signals(
+                            channel_key, self.axi5_features)]
+
+            pairs: List[tuple] = []
+            names: List[str] = []
+            if self.has_write:
+                names += [f'{self.slave_prefix}{b}' for b in _AXI4_AW_PORTS
+                          if b != 'awregion']
+                names += _extras('aw')
+                names += [f'{self.slave_prefix}{b}' for b in _AXI4_W_PORTS]
+                names += _extras('w')
+                names += [f'{self.slave_prefix}{b}' for b in _AXI4_B_PORTS]
+                names += _extras('b')
+            if self.has_read:
+                names += [f'{self.slave_prefix}{b}' for b in _AXI4_AR_PORTS
+                          if b != 'arregion']
+                names += _extras('ar')
+                names += [f'{self.slave_prefix}{b}' for b in _AXI4_R_PORTS]
+                names += _extras('r')
+            pairs = [(n, n) for n in names]
+            self._sections.append((
+                f"External AXI5 interface ({self.slave_prefix}*)", pairs))
+            return
         if self.protocol == 'apb':
             pairs = [(f'{self.slave_prefix}{sig}', f'{self.slave_prefix}{sig}')
                      for sig in _APB_PORTS]

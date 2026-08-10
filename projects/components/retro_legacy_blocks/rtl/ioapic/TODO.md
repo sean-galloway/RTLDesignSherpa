@@ -64,16 +64,16 @@
   - **Handle indirect register access correctly**
 
 #### APB Wrapper
-- [ ] **apb_ioapic.sv** - APB top-level with CDC support
+- [ ] **apb4_ioapic.sv** - APB top-level with CDC support
   - CDC_ENABLE parameter (0=single, 1=dual clock)
-  - Conditional apb_slave vs apb_slave_cdc
+  - Conditional apb4_slave vs apb4_slave_cdc
   - Instantiate ioapic_config_regs
   - Instantiate ioapic_core
   - Wire 24 IRQ inputs to core
   - Wire interrupt output from core
 
 #### Support Files
-- [ ] **filelists/apb_ioapic.f** - Build filelist
+- [ ] **filelists/apb4_ioapic.f** - Build filelist
 - [ ] **peakrdl/README.md** - Register access documentation
 - [ ] **README.md** - Update with implementation details
 - [ ] **IMPLEMENTATION_STATUS.md** - Status tracking
@@ -221,7 +221,7 @@ end
 - `projects/components/retro_legacy_blocks/rtl/pic_8259/` - Simple interrupt controller
 
 **Key Patterns:**
-- APB wrapper: `apb_pm_acpi.sv`, `apb_hpet.sv`
+- APB wrapper: `apb4_pm_acpi.sv`, `apb4_hpet.sv`
 - Config regs: `pm_acpi_config_regs.sv`, `hpet_config_regs.sv`
 - Core logic: `pm_acpi_core.sv`, `pic_8259_core.sv`
 

@@ -48,8 +48,8 @@ The shims subsystem provides protocol conversion modules that bridge between dif
 
 | Shim | Purpose | Documentation | Status |
 |------|---------|---------------|--------|
-| **axi4_to_apb_shim** | AXI4 to APB bridge with dual-clock CDC | [axi4_to_apb_shim.md](axi4_to_apb_shim.md) | ✅ Documented |
-| **axi4_to_apb_convert** | Core AXI4→APB conversion logic | [axi4_to_apb_convert.md](axi4_to_apb_convert.md) | ✅ Documented |
+| **axi4_to_apb4_shim** | AXI4 to APB bridge with dual-clock CDC | [axi4_to_apb4_shim.md](axi4_to_apb4_shim.md) | ✅ Documented |
+| **axi4_to_apb4_convert** | Core AXI4→APB conversion logic | [axi4_to_apb4_convert.md](axi4_to_apb4_convert.md) | ✅ Documented |
 | **peakrdl_to_cmdrsp** | PeakRDL passthrough → cmd/rsp adapter | [peakrdl_to_cmdrsp.md](peakrdl_to_cmdrsp.md) | ✅ Documented |
 
 ---
@@ -60,7 +60,7 @@ The shims subsystem provides protocol conversion modules that bridge between dif
 
 ```systemverilog
 // Bridge AXI4 master to APB peripheral bus
-axi4_to_apb_shim #(
+axi4_to_apb4_shim #(
     .AXI_ID_WIDTH(8),
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(32),
@@ -124,7 +124,7 @@ Use AXI4-to-APB shim for CPU master accessing peripheral registers:
 
 ```systemverilog
 // ARM Cortex-M processor → APB peripherals
-axi4_to_apb_shim #(
+axi4_to_apb4_shim #(
     .AXI_ID_WIDTH(12),        // CPU master ID width
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(32),
@@ -152,7 +152,7 @@ Use width conversion for data rate adaptation:
 
 ```systemverilog
 // 64-bit AXI @ 200 MHz → 32-bit APB @ 100 MHz
-axi4_to_apb_shim #(
+axi4_to_apb4_shim #(
     .AXI_DATA_WIDTH(64),      // High-speed side
     .APB_DATA_WIDTH(32),      // Low-speed side (2:1)
     .DEPTH_AW(4),             // Deeper for CDC + bursts
@@ -176,7 +176,7 @@ axi4_to_apb_shim #(
 Use PeakRDL adapter for register automation:
 
 ```
-APB Bus → apb_slave_stub → peakrdl_to_cmdrsp → PeakRDL Register Block
+APB Bus → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL Register Block
           (APB→cmd/rsp)     (cmd/rsp→cpuif)     (generated from .rdl)
 ```
 
@@ -226,7 +226,7 @@ APB Bus → apb_slave_stub → peakrdl_to_cmdrsp → PeakRDL Register Block
 
 ```bash
 # Test AXI to APB bridge
-pytest projects/components/converters/dv/tests/test_axi2apb_shim.py -v
+pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py -v
 
 # Test PeakRDL adapter
 pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py -v
@@ -235,7 +235,7 @@ pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py -v
 pytest val/amba/test_*shim*.py val/integ_amba/test_*shim*.py -v
 
 # Generate waveforms
-pytest projects/components/converters/dv/tests/test_axi2apb_shim.py --vcd=bridge.vcd -v
+pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py --vcd=bridge.vcd -v
 gtkwave bridge.vcd
 ```
 
@@ -249,7 +249,7 @@ gtkwave bridge.vcd
 
 **Solution:**
 ```systemverilog
-axi4_to_apb_shim u_cpu_bridge (
+axi4_to_apb4_shim u_cpu_bridge (
     .aclk(cpu_axi_clk),
     .pclk(periph_apb_clk),
     // Connect CPU master → APB peripheral bus
@@ -267,7 +267,7 @@ axi4_to_apb_shim u_cpu_bridge (
 
 **Solution:**
 ```systemverilog
-axi4_to_apb_shim #(
+axi4_to_apb4_shim #(
     .DEPTH_AW(8),     // Deep buffers for burst DMA
     .DEPTH_W(16)
 ) u_dma_bridge (
@@ -288,7 +288,7 @@ axi4_to_apb_shim #(
 
 **Solution:**
 ```
-APB → apb_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
+APB → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 ```
 
 **Benefits:**
@@ -382,9 +382,9 @@ APB → apb_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 
 | Module | LUTs | FFs | BRAM | Notes |
 |--------|------|-----|------|-------|
-| axi4_to_apb_shim (32/32) | ~800 | ~600 | 0 | Minimal config |
-| axi4_to_apb_shim (64/32) | ~1200 | ~900 | 0 | Width conversion |
-| axi4_to_apb_convert | ~400 | ~300 | 0 | Core logic only |
+| axi4_to_apb4_shim (32/32) | ~800 | ~600 | 0 | Minimal config |
+| axi4_to_apb4_shim (64/32) | ~1200 | ~900 | 0 | Width conversion |
+| axi4_to_apb4_convert | ~400 | ~300 | 0 | Core logic only |
 | peakrdl_to_cmdrsp | ~50 | ~100 | 0 | Lightweight |
 
 ### Timing Closure
@@ -396,7 +396,7 @@ APB → apb_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 
 **Recommendations:**
 ```tcl
-# Constrain CDC paths in axi4_to_apb_shim
+# Constrain CDC paths in axi4_to_apb4_shim
 set_false_path -from [get_clocks aclk] -to [get_clocks pclk]
 set_max_delay -from */cdc_handshake/src_* -to */cdc_handshake/dst_* 10.0
 
@@ -430,7 +430,7 @@ set_max_fanout 16 [get_pins */data_shift_reg*]
 ### Source Code
 
 - RTL: `rtl/amba/shims/`
-- Tests: `val/amba/test_peakrdl*.py`, `val/integ_amba/test_axi2apb*.py`
+- Tests: `val/amba/test_peakrdl*.py`, `val/integ_amba/test_axi2apb4*.py`
 - Framework: `bin/TBClasses/components/`
 
 ---
@@ -486,7 +486,7 @@ axi_apb_bridge u_bridge (
 
 **After (RTL Design Sherpa):**
 ```systemverilog
-axi4_to_apb_shim u_bridge (
+axi4_to_apb4_shim u_bridge (
     .s_axi_*,  // AXI slave interface
     .m_apb_*   // APB master interface
 );

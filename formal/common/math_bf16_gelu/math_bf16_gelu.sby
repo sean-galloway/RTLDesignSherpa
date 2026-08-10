@@ -18,5 +18,5 @@ read -formal -sv formal_math_bf16_gelu.sv
 prep -top formal_math_bf16_gelu
 
 [files]
-math_bf16_gelu.sv ../../../rtl/common/math_bf16_gelu.sv
+math_bf16_gelu.sv ../../../rtl/math/math_bf16_gelu.sv
 formal_math_bf16_gelu.sv

@@ -688,7 +688,7 @@ def create_core_descriptor_content_debug_event(channel_id: int, descriptor_data:
 # APB EVENT FACTORIES (simplified - only error for now)
 # =============================================================================
 
-def create_apb_error_event(error_code: APBErrorCode, channel_id: int = 0,
+def create_apb4_error_event(error_code: APBErrorCode, channel_id: int = 0,
                         unit_id: int = 0, agent_id: int = 0, data: int = 0) -> Dict[str, Any]:
     """Create expected APB error event"""
     return {
@@ -1044,7 +1044,7 @@ def create_test_event_suite() -> Dict[str, list]:
             create_axi_timeout_event(AXITimeoutCode.CMD, 3, data=100),
         ],
         'apb_events': [
-            create_apb_error_event(APBErrorCode.PSLVERR, 1, data=0x8000),
+            create_apb4_error_event(APBErrorCode.PSLVERR, 1, data=0x8000),
         ],
         'axis_events': [
             create_axis_error_event(AXISErrorCode.AXIS_ERR_PROTOCOL, 7, data=0xFF00),

@@ -66,9 +66,9 @@ build understanding from the ground up.
 Guided progression from primitives to systems. Each level links to the corresponding section in [Browse by Class](#browse-by-class) below — every entry is a real link (works on mobile and desktop alike).
 
 - **Level 1 — [Common Building Blocks](rtl/common/)** + **[Math Library](rtl/math/)** · ~230 modules · counters, FIFOs, arbiters, data integrity, clock utilities (common) + integer and floating-point math (math)
-- **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
+- **Level 2 — [AMBA Protocol Infrastructure](rtl/amba/)** · 155 modules · [AXI4](rtl/amba/axi4/) · [AXI5](rtl/amba/axi5/) · [AXI4-Lite](rtl/amba/axil4/) · [APB](rtl/amba/apb4/) · [APB5](rtl/amba/apb5/) · [AXIS4](rtl/amba/axis4/) · [AXIS5](rtl/amba/axis5/) · [Monitors + MonBus](rtl/amba/monitor/) · [Shared observation](rtl/amba/shared/)
 - **Level 3 — [Integration Examples](rtl/integ_amba/)** · APB crossbar, bridges, multi-protocol stitching
-- **Level 4 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apb_xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/memory-controllers/)
+- **Level 4 — [Production Components](projects/components/)** · [STREAM](projects/components/dmas/stream/) · [RAPIDS](projects/components/dmas/rapids/) · [Bridge](projects/components/bridge/) · [Converters](projects/components/converters/) · [APB xbar](projects/components/apb4_xbar/) · [Retro legacy](projects/components/retro_legacy_blocks/) · [Memory controllers](projects/components/memory-controllers/)
 - **Level 5 — [FPGA Projects on Nexys A7](projects/NexysA7/)** · [stream_characterization](projects/NexysA7/stream_characterization/) · [timing_characterization](projects/NexysA7/timing_characterization/) · [cdc_counter_display](projects/NexysA7/cdc_counter_display/) · [ddr2-characterization](projects/NexysA7/ddr2-characterization/) · [rapids_characterization](projects/NexysA7/rapids_characterization/)
 
 <details>
@@ -132,7 +132,7 @@ Production-ready AXI/APB/AXIS infrastructure with built-in monitor + observation
 | [AXI4](docs/markdown/rtl-amba/axi4/README.md) | 16 | [`rtl/amba/axi4/`](rtl/amba/axi4/) | masters/slaves, RD/WR, `_mon` + `_cg` variants |
 | [AXI5](docs/markdown/rtl-amba/axi5/README.md) | 16 | [`rtl/amba/axi5/`](rtl/amba/axi5/) | AXI5 extensions |
 | [AXI4-Lite](docs/markdown/rtl-amba/axil4/README.md) | 16 | [`rtl/amba/axil4/`](rtl/amba/axil4/) | **Dedicated** `axil4_*_mon.sv` (not the legacy `IS_AXI=0`) |
-| [APB](docs/markdown/rtl-amba/apb/README.md) | 9 | [`rtl/amba/apb/`](rtl/amba/apb/) | masters, slaves, slave_cdc + `_cg` |
+| [APB](docs/markdown/rtl-amba/apb4/README.md) | 9 | [`rtl/amba/apb4/`](rtl/amba/apb4/) | masters, slaves, slave_cdc + `_cg` |
 | [APB5](docs/markdown/rtl-amba/apb5/README.md) | 9 | [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB5 extensions |
 | [AXI-Stream (AXIS4)](docs/markdown/rtl-amba/axis4/README.md) | 4 | [`rtl/amba/axis4/`](rtl/amba/axis4/) | master / slave |
 | [AXI-Stream (AXIS5)](docs/markdown/rtl-amba/axis5/README.md) | 4 | [`rtl/amba/axis5/`](rtl/amba/axis5/) | AXIS5 extensions |
@@ -163,7 +163,7 @@ doc still saying that, it is stale.
 | [`fifo_async.sv`](rtl/cdc/fifo_async.sv) | [`rtl/cdc/`](rtl/cdc/) | Async FIFO for word-width CDC |
 | [`gaxi_fifo_async.sv`](rtl/cdc/gaxi_fifo_async.sv), [`gaxi_skid_buffer_async.sv`](rtl/cdc/gaxi_skid_buffer_async.sv) | [`rtl/cdc/`](rtl/cdc/) | AXI-shaped async FIFO + skid |
 | [`reset_sync.sv`](rtl/common/reset_sync.sv) | [`rtl/common/`](rtl/common/) | Async-assert / sync-deassert reset CDC |
-| `apb_slave_cdc.sv` (and `apb5_slave_cdc.sv`) | [`rtl/amba/apb/`](rtl/amba/apb/) / [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB slave with CDC built in |
+| `apb4_slave_cdc.sv` (and `apb5_slave_cdc.sv`) | [`rtl/amba/apb4/`](rtl/amba/apb4/) / [`rtl/amba/apb5/`](rtl/amba/apb5/) | APB slave with CDC built in |
 
 **FPGA demo:** [projects/NexysA7/cdc_counter_display/](projects/NexysA7/cdc_counter_display/) — multi-clock counter CDC running on real hardware.
 
@@ -177,7 +177,7 @@ Production-shaped reusable IP. Each has its own README + dv/ + dv/tbclasses/.
 | RAPIDS | 🟡 In progress | Advanced DMA with network interfaces (RAPID AXI Programmable In-band Descriptor System) | [`projects/components/dmas/rapids/`](projects/components/dmas/rapids/) |
 | Bridge | ✅ Ready | AXI protocol bridges + RDL-generated cfg | [`projects/components/bridge/`](projects/components/bridge/) |
 | Converters | ✅ Ready | UART↔AXIL, protocol conversion | [`projects/components/converters/`](projects/components/converters/) |
-| APB Crossbar | ✅ Ready | M×N APB interconnect | [`projects/components/apb_xbar/`](projects/components/apb_xbar/) |
+| APB Crossbar | ✅ Ready | M×N APB interconnect | [`projects/components/apb4_xbar/`](projects/components/apb4_xbar/) |
 | Memory controllers | 🟡 In progress | DDR2 / LPDDR2 controller | [`projects/components/memory-controllers/`](projects/components/memory-controllers/) |
 | Retro legacy blocks | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO | [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/) |
 | Delta | 📋 Planned | Network-on-Chip mesh | [`projects/components/delta/`](projects/components/delta/) |
@@ -206,7 +206,7 @@ Things that actually run on hardware. Each project ships its own README and Viva
 | Project-specific TBs | under [`projects/components/`](projects/components/) — each `*/dv/tbclasses/` |
 | Shared TB framework | [`bin/TBClasses/`](bin/TBClasses/) |
 | BFMs / scoreboards (external package) | [`cocotb-framework` on PyPI](https://pypi.org/project/cocotb-framework/) — source: [RTLDesignSherpa-DV](https://github.com/sean-galloway/RTLDesignSherpa-DV) — `pip install cocotb-framework` |
-| Verification architecture rules | [`rtl/amba/VERIFICATION_ARCHITECTURE.md`](rtl/amba/VERIFICATION_ARCHITECTURE.md), [`GLOBAL_REQUIREMENTS.md`](GLOBAL_REQUIREMENTS.md) |
+| Verification architecture rules | [`GLOBAL_REQUIREMENTS.md`](GLOBAL_REQUIREMENTS.md) (Category 2), [`docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md`](docs/user-guides/VERIFICATION_ARCHITECTURE_GUIDE.md) |
 
 ### 7. Tools
 
@@ -289,17 +289,17 @@ module counter_bin #(
 Apply common building blocks to implement industry-standard protocols (**124 modules**):
 
 #### APB (Advanced Peripheral Bus)
-- **[APB Masters](rtl/amba/apb/)** - Command/response interfaces with FIFO buffering
-- **[APB Slaves](rtl/amba/apb/)** - Register interfaces with address decoding
+- **[APB Masters](rtl/amba/apb4/)** - Command/response interfaces with FIFO buffering
+- **[APB Slaves](rtl/amba/apb4/)** - Register interfaces with address decoding
 - **[APB Interconnect](rtl/integ_amba/)** - Multi-master/multi-slave crossbar
-- **[APB Bridges](rtl/amba/apb/)** - Protocol conversion, CDC
+- **[APB Bridges](rtl/amba/apb4/)** - Protocol conversion, CDC
 
 **Example:** APB register slave demonstrates parameter-driven design
 ```systemverilog
-apb_slave #(
+apb4_slave #(
     .ADDR_WIDTH(12),
     .DATA_WIDTH(32)
-) u_apb_slave (
+) u_apb4_slave (
     .pclk, .presetn, .paddr, .psel, .penable, .pwrite,
     .pwdata, .pready, .prdata, .pslverr
 );
@@ -375,7 +375,7 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[APB Crossbar](projects/components/apb_xbar/)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
+| **[APB Crossbar](projects/components/apb4_xbar/)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
 | **[Bridge](projects/components/bridge/)** | ✅ Ready | AXI4 protocol bridges, width converters, CDC |
 | **[Converters](projects/components/converters/)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
@@ -477,7 +477,7 @@ pytest val/amba/ -v -m medium     # Medium tests only
 pytest val/amba/ -v -m full       # Full tests only
 
 # Run component tests (example: Retro Legacy Blocks HPET)
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ---
@@ -556,7 +556,7 @@ rtldesignsherpa/
 │   │   ├── dmas/rapids/         # RAPIDS DMA engine
 │   │   ├── bridge/              # Protocol bridges
 │   │   ├── converters/          # Width/protocol converters
-│   │   ├── apb_xbar/            # APB crossbar
+│   │   ├── apb4_xbar/            # APB crossbar
 │   │   ├── memory-controllers/  # pumice DDR2/LPDDR2 controller
 │   │   ├── retro_legacy_blocks/ # Legacy peripherals (HPET, RTC, PIT, ...)
 │   │   ├── delta/               # AXIS crossbar generator
@@ -633,22 +633,22 @@ gtkwave val/common/local_sim_build/test_counter_bin/dump.vcd
 #### Level 2: Test APB Slave
 ```bash
 # Run APB slave tests
-pytest val/amba/test_apb_slave.py -v
+pytest val/amba/test_apb4_slave.py -v
 
 # Run only basic tests
-pytest val/amba/test_apb_slave.py -v -m basic
+pytest val/amba/test_apb4_slave.py -v -m basic
 ```
 
 #### Level 3: Test APB Crossbar
 ```bash
 # Run 2-to-4 crossbar test
-pytest projects/components/apb_xbar/dv/tests/test_apb_xbar_2to4.py -v
+pytest projects/components/apb4_xbar/dv/tests/test_apb4_xbar_2to4.py -v
 ```
 
 #### Level 4: Test Retro Legacy Block Component
 ```bash
 # Run HPET tests from Retro Legacy Blocks collection
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ---

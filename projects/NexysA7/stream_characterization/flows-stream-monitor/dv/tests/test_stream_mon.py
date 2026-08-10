@@ -37,16 +37,22 @@ def _load_stream_char_tb():
     _spec.loader.exec_module(_m)
     return _m
 
-# Host bin-reads + profile-CAM load now go through each tally's dedicated cfg
-# AXIL slave (record ingest stays on stream_tally@0x40000 / slave_tally@0xC0000).
-STREAM_TALLY_BASE = 0x0010_0000       # stream_tally_cfg (read bins, write config)
-SLAVE_TALLY_BASE  = 0x0014_0000       # slave_tally_cfg
+# The tally exposes FOUR clean AXIL ports (2 wr, 2 rd). Count readback rides the
+# ingest window's READ channel (stream_tally@0x40000 / slave_tally@0xC0000);
+# config (profile-CAM load/clear) rides the cfg window's WRITE channel
+# (stream_tally_cfg@0x100000 / slave_tally_cfg@0x140000).
+STREAM_TALLY_RD   = 0x0004_0000       # count readback (ingest-window read port)
+SLAVE_TALLY_RD    = 0x000C_0000
+STREAM_TALLY_CFG  = 0x0010_0000       # config write (profile CAM), config readback
+SLAVE_TALLY_CFG   = 0x0014_0000
 BIN_COMPLETION0 = 0x0100              # {AXI, COMPLETION, evcode 0}
 
-# cfg-slave config write windows (offsets within a *_tally_cfg slave):
-PROFILE_CLEAR_OFF = 0x0100            # any write clears the legal-set CAM
-PROFILE_ENTRY_OFF = 0x0200            # + idx*4: load dense-bin idx with a key
-MON_N_PROFILE     = 64               # legal-set size (matches MON_N_PROFILE)
+# CAM programming registers (offsets within a *_tally_cfg slave). Register-based
+# (index comes from data, not address) -> bus-width independent, no stride hazard.
+CAM_CLEAR_OFF = 0x0100               # any write invalidates all CAM entries
+CAM_KEY_OFF   = 0x0108               # wdata[31:0] = key to load next
+CAM_LOAD_OFF  = 0x0110               # wdata = (1<<31 valid) | index -> load CAM_KEY
+MON_N_PROFILE = 64                   # legal-set size (matches MON_N_PROFILE)
 
 
 def profile_key(agent, protocol, pkt_type, event_code):
@@ -63,15 +69,19 @@ STREAM_PROFILE = [
     (10, 0, 8, 0x01),   # 1: wr datapath AddrMatch
     (48, 4, 1, 0x01),   # 2: scheduler DESC_COMPLETE
     (16, 4, 1, 0x40),   # 3: descriptor-engine DESCRIPTOR_LOADED
+    (9,  0, 0, 0x0D),   # 4: rd ADDR_RANGE error (MISS)   <- TEST_MISS repro
+    (10, 0, 0, 0x0D),   # 5: wr ADDR_RANGE error (MISS)
+    (9,  0, 3, 0x00),   # 6: rd TIMEOUT cmd               <- the board's mystery packet
+    (10, 0, 3, 0x00),   # 7: wr TIMEOUT cmd
 ]
 
 
 async def profile_load(tb, base, legal):
     """Clear + load a legal set into a tally's CAM over its cfg AXIL slave."""
-    await tb.uart_write(base + PROFILE_CLEAR_OFF, 0)
+    await tb.uart_write(base + CAM_CLEAR_OFF, 0)
     for idx, (ag, pr, ty, ec) in enumerate(legal):
-        await tb.uart_write(base + PROFILE_ENTRY_OFF + idx * 4,
-                            profile_key(ag, pr, ty, ec))
+        await tb.uart_write(base + CAM_KEY_OFF, profile_key(ag, pr, ty, ec))
+        await tb.uart_write(base + CAM_LOAD_OFF, (1 << 31) | idx)
 
 
 async def _sweep_tally(tb, base, label, dut):
@@ -153,7 +163,30 @@ async def cocotb_test_stream_mon(dut):
             addr_range_writes += [(rbase + 0x00, 0x00000000),   # range0 LOW  = 0
                                   (rbase + 0x04, 0xFFFFFFFF),   # range0 HIGH = match-all
                                   (cbase,        ctrl_val)]     # enable range0 + check + match
-        dut._log.info(f"[addr-range] queued match-all DEBUG range0 rd+wr (ctrl=0x{ctrl_val:02x}) for post-reset programming")
+        # MISS/error repro: arm range2 (ERROR-flavored, IS_ERROR bit2) with a tiny
+        # high exclude window so EVERY command is an allowlist miss -> should emit
+        # Error/ADDR_RANGE (type 0, event 0x0D) into bin 0x000D. CTRL adds RANGE_EN
+        # bit2 + MISS_EN(6) on top of range0/match. This mirrors the board addr_error
+        # scenario -- run with TEST_MISS=1 to reproduce the empty-error-bin symptom.
+        if os.environ.get('TEST_MISS', '0') == '1':
+            miss_ctrl = 0x01 | (1 << 2) | (1 << 4) | (1 << 5) | (1 << 6)  # r0+r2+check+match+miss
+            for rbase, cbase in ((MON + 0x200, MON + 0x220), (MON + 0x230, MON + 0x250)):
+                addr_range_writes += [(rbase + 0x10, 0xFFFFFFF0),  # range2 LOW  (excludes DMA)
+                                      (rbase + 0x14, 0xFFFFFFFF),  # range2 HIGH
+                                      (cbase,        miss_ctrl)]   # + range2 enable + MISS
+            dut._log.info("[addr-range] TEST_MISS=1: armed ERROR range2 exclude + MISS_EN")
+        # Load the STREAM legal set into the tally CAM HERE too: run_dma_test's
+        # SOFT_RESET wipes the CAM (it fans out to unit_aresetn), so it MUST be
+        # (re)loaded AFTER that reset, exactly like the addr-range CSRs. These go
+        # to the tally's config WRITE port (0x100 clear, 0x200+i*4 = entry i).
+        # Register-based CAM load: CAM_CLEAR, then per entry {CAM_KEY, CAM_LOAD}.
+        # The index rides in CAM_LOAD data, so no bus-width/stride hazard.
+        addr_range_writes += [(STREAM_TALLY_CFG + CAM_CLEAR_OFF, 0)]
+        for i, (ag, pr, ty, ec) in enumerate(STREAM_PROFILE):
+            addr_range_writes += [(STREAM_TALLY_CFG + CAM_KEY_OFF, profile_key(ag, pr, ty, ec)),
+                                  (STREAM_TALLY_CFG + CAM_LOAD_OFF, (1 << 31) | i)]
+        dut._log.info(f"[addr-range] queued match-all DEBUG range0 rd+wr + "
+                      f"{len(STREAM_PROFILE)} CAM entries for post-reset programming")
 
     # Small workload: 1 channel, 2 descriptors, 4 KB each. mon_err_cfg=0
     # (BULK_TRACE) routes monitor packets to the debug_sram slot = our tally;
@@ -165,14 +198,9 @@ async def cocotb_test_stream_mon(dut):
     # passes the per-type drop mask; allow_addr_match clears MASK3.ADDR_MASK so it
     # also passes the event-code stage. Without these the STREAM group filters out
     # everything the (perf-only) in-core monitors emit.
-    # Profile mode: load the STREAM legal set into the tally CAM over its cfg
-    # AXIL slave (persists across the DMA's soft-reset; the CAM resets only on
-    # aresetn / an explicit clear).
-    profile_mode = os.environ.get('PROFILE_MODE', '0') == '1'
-    if profile_mode:
-        await profile_load(tb, STREAM_TALLY_BASE, STREAM_PROFILE)
-        dut._log.info(f"[profile] loaded {len(STREAM_PROFILE)} legal tuples into STREAM tally CAM")
-
+    # The tally ALWAYS routes packets through the legal-set CAM (no direct-mapped
+    # bypass). The CAM is (re)loaded POST-soft-reset via addr_range_writes above,
+    # since run_dma_test's SOFT_RESET wipes it.
     ok = await tb.run_dma_test(
         num_channels=1, descriptors_per_channel=1, transfer_bytes=256,
         timeout_clocks=200_000, mon_err_cfg=0, compress_en=False,
@@ -180,67 +208,46 @@ async def cocotb_test_stream_mon(dut):
         addr_range_writes=addr_range_writes)
     assert ok, "DMA workload did not complete"
 
-    # Snapshot the tally (freeze auto-flushes the cache into the count SRAM).
+    # Freeze for a coherent read boundary. Reads are LIVE (direct-mapped count
+    # SRAM, no write-combining cache) -- no flush needed before reading.
     await tb.uart_write(CSR_CTRL, compose("CTRL", FREEZE_TRACE=1))
     await tb.wait_clocks(tb.clk_name, 50)
 
-    # Profile mode: bins are dense per-agent indices, not {type,event}. Sweep
-    # the loaded dense bins + the UNEXPECTED bin and prove per-agent resolution
-    # (rd=agent 9 at bin 0, wr=agent 10 at bin 1 both fired their AddrMatch).
-    if profile_mode:
-        UNEXPECTED = MON_N_PROFILE
-        dense = {}
-        for b in list(range(len(STREAM_PROFILE))) + [UNEXPECTED]:
-            v = await tb.uart_read(STREAM_TALLY_BASE + b * 4)
-            if v:
-                dense[b] = v
-        rd_hits = dense.get(0, 0)   # agent 9  rd datapath AddrMatch
-        wr_hits = dense.get(1, 0)   # agent 10 wr datapath AddrMatch
-        dut._log.info(f"[profile] STREAM dense bins={dense} "
-                      f"rd(agent9)={rd_hits} wr(agent10)={wr_hits} "
-                      f"UNEXPECTED={dense.get(UNEXPECTED, 0)}")
-        # Did the monbus groups even WRITE their m_axil masters? This isolates
-        # "no records emitted" (probe=0) from "emitted but not binned" (probe>0).
-        dut._log.info(f"[profile] m_axil awvalid rising-edges: "
-                      f"STREAM(mon)={_emit['stream_mon_awvalid']} "
-                      f"SLAVE(slmon)={_emit['slave_slmon_awvalid']}")
-        assert rd_hits > 0 and wr_hits > 0, (
-            f"per-agent AddrMatch not resolved in the profile tally: "
-            f"rd(bin0)={rd_hits} wr(bin1)={wr_hits} (CAM load or agent binning failed); "
-            f"m_axil awvalid edges STREAM={_emit['stream_mon_awvalid']} "
-            f"SLAVE={_emit['slave_slmon_awvalid']}")
-        return
-
-    # Read BOTH tally SRAMs over the same UART (distinct address spaces).
-    stream_bins = await _sweep_tally(tb, STREAM_TALLY_BASE, "STREAM", dut)
-    slave_bins  = await _sweep_tally(tb, SLAVE_TALLY_BASE,  "SLAVE",  dut)
-
-    stream_total = sum(stream_bins.values())
-    slave_total  = sum(slave_bins.values())
-    stream_compl = sum(c for b, c in stream_bins.items() if ((b >> 8) & 0xF) == 1)
-    slave_compl  = sum(c for b, c in slave_bins.items()  if ((b >> 8) & 0xF) == 1)
-    dut._log.info(f"[stream_mon] STREAM total={stream_total} compl={stream_compl} | "
-                  f"SLAVE total={slave_total} compl={slave_compl}")
-
-    # Internal-probe verdict: did each group's m_axil master actually write?
-    dut._log.info(f"[probe] m_axil awvalid rising-edges: STREAM(mon)={_emit['stream_mon_awvalid']} "
+    # Dense bins: index = position in the loaded legal set; UNEXPECTED = N_PROFILE.
+    # rd datapath AddrMatch = agent 9 -> bin 0; wr datapath = agent 10 -> bin 1.
+    UNEXPECTED = MON_N_PROFILE
+    dense = {}
+    for b in list(range(len(STREAM_PROFILE))) + [UNEXPECTED]:
+        v = await tb.uart_read(STREAM_TALLY_RD + b * 8)   # 8-byte stride (64-bit slave)
+        if v:
+            dense[b] = v
+    rd_hits = dense.get(0, 0)   # agent 9  rd datapath AddrMatch
+    wr_hits = dense.get(1, 0)   # agent 10 wr datapath AddrMatch
+    dut._log.info(f"[tally] STREAM dense bins={dense} rd(agent9)={rd_hits} "
+                  f"wr(agent10)={wr_hits} UNEXPECTED={dense.get(UNEXPECTED, 0)}")
+    # Did each group's m_axil master actually write? Isolates emit vs bin.
+    dut._log.info(f"[probe] m_axil awvalid edges: STREAM(mon)={_emit['stream_mon_awvalid']} "
                   f"SLAVE(slmon)={_emit['slave_slmon_awvalid']}  "
-                  f"(STREAM=0 => the in-core group never emits; >0 => emits but tally not counting)")
+                  f"(STREAM=0 => in-core group never emits; >0 => emits)")
+
+    # TEST_MISS repro: read the ADDR_RANGE error bins (4/5) and TIMEOUT bins (6/7)
+    # and surface them via an assert so the counts print regardless of log capture.
+    if os.environ.get('TEST_MISS', '0') == '1':
+        rd_err = dense.get(4, 0); wr_err = dense.get(5, 0)
+        rd_to  = dense.get(6, 0); wr_to  = dense.get(7, 0)
+        msg = (f"[TEST_MISS] ADDR_RANGE error bins rd(4)={rd_err} wr(5)={wr_err} ; "
+               f"TIMEOUT_cmd bins rd(6)={rd_to} wr(7)={wr_to} ; "
+               f"AddrMatch rd(0)={rd_hits} wr(1)={wr_hits} ; full dense={dense}")
+        dut._log.info(msg)
+        assert (rd_err > 0 or wr_err > 0), (
+            "MISS armed but NO ADDR_RANGE error packet reached the tally. " + msg)
 
     # Tally asserts only when the in-core monitors are built (USE_MON=1).
     if os.environ.get('USE_MON', '0') == '1':
-        assert stream_total > 0, "STREAM tally counted nothing (in-core monitor path dead)"
-        # Completion is informational here (the DMA is already proven by the beat
-        # count); the primary assertion is that the address-range checker fired.
-        dut._log.info(f"[stream_mon] STREAM completion packets = {stream_compl}")
-        # Address-range checker: match-all DEBUG ranges -> AddrMatch (type 8) packets.
-        stream_addrmatch = sum(c for b, c in stream_bins.items() if ((b >> 8) & 0xF) == 8)
-        dut._log.info(f"[addr-range] STREAM AddrMatch (type 8) packets = {stream_addrmatch}")
-        assert stream_addrmatch > 0, (
-            "no ADDR_MATCH packets in the STREAM tally — the in-core address-range "
-            "checker did not fire (check MON_N_ADDR_RANGES + the RDMON/WRMON_ADDR_RANGE CSR writes)")
-    # The slave-side monitors are always built; if the DMA moved data they count.
-    dut._log.info(f"[stream_mon] (info) slave tally total={slave_total} compl={slave_compl}")
+        assert rd_hits > 0 and wr_hits > 0, (
+            f"per-agent AddrMatch not resolved in the STREAM tally: rd(bin0)={rd_hits} "
+            f"wr(bin1)={wr_hits} (CAM load or agent binning failed); m_axil awvalid edges "
+            f"STREAM={_emit['stream_mon_awvalid']} SLAVE={_emit['slave_slmon_awvalid']}")
 
 
 # ----------------------------------------------------------------------------
@@ -280,11 +287,14 @@ def _run_stream_mon(request, profile=False):
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ), 'UART_BAUD': str(SIM_UART_BAUD),
         'USE_AXI_MONITORS': use_mon,
         'DATA_WIDTH': '128', 'ADDR_WIDTH': '32',
-        'SRAM_DEPTH': '512', 'AR_MAX_OUTSTANDING': '16', 'AW_MAX_OUTSTANDING': '16',
+        'SRAM_DEPTH': '512',
+        # Match the board build (=2). Also keeps the in-core timeout CAM loop small
+        # enough for Verilator to unroll (AR=16 tripped BLKLOOPINIT on axi_monitor_timeout).
+        'AR_MAX_OUTSTANDING': os.environ.get('AR_MAX_OUTSTANDING', '2'),
+        'AW_MAX_OUTSTANDING': os.environ.get('AW_MAX_OUTSTANDING', '2'),
         'RESP_DELAY_R_CAPACITY': '512', 'RESP_DELAY_B_CAPACITY': '512',
     }
     if profile:
-        rtl_parameters['MON_TALLY_PROFILE_MODE'] = '1'
         rtl_parameters['MON_N_PROFILE'] = str(MON_N_PROFILE)
     extra_env = {
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ), 'UART_BAUD': str(SIM_UART_BAUD),

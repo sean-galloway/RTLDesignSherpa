@@ -107,7 +107,7 @@ class Stream(Device):
     def kick(self, channel: int, desc_addr: int) -> None:
         """Kick a channel by writing the descriptor address to CHx_CTRL.
 
-        apbtodescr is a state machine that requires BOTH writes, LOW then HIGH,
+        apb4todescr is a state machine that requires BOTH writes, LOW then HIGH,
         to complete the kick handshake (IDLE -> RESPOND_LOW -> WAIT_HIGH ->
         RESPOND_HIGH -> desc_apb_valid). Always write both, LOW first, even when
         the high word is 0 -- writing only LOW leaves it stuck in WAIT_HIGH and

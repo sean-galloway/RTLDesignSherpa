@@ -192,9 +192,9 @@ them — stable, versioned, faster builds, no build-time renderer needed.
 ```markdown
 ### Figure 2.13.1: APB to Descriptor Block Diagram
 
-![APB to Descriptor Block Diagram](../assets/mermaid/02_apbtodescr_block.png)
+![APB to Descriptor Block Diagram](../assets/mermaid/02_apb4todescr_block.png)
 
-**Source:** [02_apbtodescr_block.mmd](../assets/mermaid/02_apbtodescr_block.mmd)
+**Source:** [02_apb4todescr_block.mmd](../assets/mermaid/02_apb4todescr_block.mmd)
 ```
 
 **Regenerate via the committed batch scripts** (one per asset dir), which already

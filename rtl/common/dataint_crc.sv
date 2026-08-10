@@ -246,7 +246,15 @@ module dataint_crc #(
     parameter int DATA_WIDTH = 64,     // Adjustable data width
     parameter int CRC_WIDTH = 64,      // CRC polynomial width
     parameter int REFIN = 1,
-    parameter int REFOUT = 1
+    parameter int REFOUT = 1,
+    // CHUNKS is used by the `cascade_sel` port below, so it must be elaborated
+    // BEFORE the port list -- a body localparam is elaborated after it.
+    // Back references are accepted by some front ends and rejected by others
+    // (iverilog rejects). Derived, not configurable: leave the default alone.
+    //
+    // NB: do not begin a comment with the tool name "verilator" -- it is parsed
+    // as a lint pragma and the file then fails to compile.
+    parameter int CHUNKS = DATA_WIDTH / 8
 ) (
     input  logic [CRC_WIDTH-1:0]  POLY,
     input  logic [CRC_WIDTH-1:0]  POLY_INIT,
@@ -263,7 +271,8 @@ module dataint_crc #(
     // =======================================================================
     // Derived Parameters (computed from parameters)
     // =======================================================================
-    localparam int CHUNKS = DATA_WIDTH / 8;  // Number of bytes processed per cycle
+    // CHUNKS is now a parameter in the port list above (it is used by
+    // cascade_sel); redeclaring it here would shadow it.
     localparam int CW = CRC_WIDTH;           // Convenience alias for CRC width
     localparam int DW = DATA_WIDTH;          // Convenience alias for data width
     localparam int CH = CHUNKS;              // Convenience alias for chunks

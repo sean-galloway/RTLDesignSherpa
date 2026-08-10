@@ -67,10 +67,10 @@ def meta_pages(book, area):
     """The meta-docs, in reading order. Only the ones that exist.
 
     Everything beside the area's code counts, not just CLAUDE.md/README.md --
-    a standalone guide parked in the RTL tree (rtl/amba's
-    VERIFICATION_ARCHITECTURE.md) is the page most likely to describe a
-    structure that has since changed, and nothing else in the pipeline reads
-    it."""
+    a standalone guide parked in the RTL tree (rtl/amba once carried a
+    VERIFICATION_ARCHITECTURE.md, retired 2026-08-09) is the page most likely
+    to describe a structure that has since changed, and nothing else in the
+    pipeline reads it."""
     d = f'{REPO}/docs/markdown/{book}'
     cands = [f'{d}/index.md', f'{d}/overview.md', f'{d}/quickstart.md']
     cands += sorted(glob.glob(f'{d}/_book_*_index.md'))

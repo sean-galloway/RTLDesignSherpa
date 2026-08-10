@@ -3,7 +3,7 @@
 #
 # Wraps rapids_char_harness with board I/O (clock, reset button, UART, LEDs,
 # 7-seg) plus the host front-end (UART->AXIL bridge, AXIL slave decode/router,
-# apb_master for the DUT-register path). Sources shared with the harness or the
+# apb4_master for the DUT-register path). Sources shared with the harness or the
 # converter filelists resolve to the same absolute path and are de-duplicated.
 
 # ---- The characterization harness (+ DUT + pattern/mem blocks + incdirs) ----
@@ -14,7 +14,7 @@
 -f $REPO_ROOT/projects/components/converters/rtl/filelists/uart_axil_bridge.f
 
 # ---- AXIL-slave cmd/rsp -> APB (reuses gaxi_skid_buffer from the bridge f) ----
--f $REPO_ROOT/rtl/amba/filelists/apb_master.f
+-f $REPO_ROOT/rtl/amba/filelists/apb4_master.f
 
 # ---- Board status helpers: LED bank + 7-seg (+ their deps) ----
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f

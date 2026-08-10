@@ -6,7 +6,7 @@
 
 from .axi4_timing_wrapper_component import Axi4TimingWrapper
 from .axi4_dwidth_converter_component import Axi4DwidthConverter
-from .axi4_to_apb_shim_component import Axi4ToApbShim
+from .axi4_to_apb4_shim_component import Axi4ToApbShim
 from .axi4_to_axil_shim_component import Axi4ToAxilShim
 from .slave_adapter_instance_component import SlaveAdapterInstance
 

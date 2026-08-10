@@ -390,7 +390,7 @@ def pytest_sessionfinish(session, exitstatus):
    # Verilog filelist
    # Common dependencies
    ${RTL_ROOT}/common/counter_bin.sv
-   ${RTL_ROOT}/amba/apb/apb_slave.sv
+   ${RTL_ROOT}/amba/apb4/apb4_slave.sv
 
    # Component RTL
    ${RTL_ROOT}/projects/components/{component}/rtl/*.sv

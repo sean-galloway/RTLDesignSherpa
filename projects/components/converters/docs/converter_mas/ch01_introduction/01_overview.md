@@ -86,7 +86,7 @@ Modern SoC designs frequently encounter two integration challenges:
 - **axil4_to_axi4** - Full bidirectional wrapper
 
 **Other Converters:**
-- **axi4_to_apb_convert** - Full AXI4-to-APB bridge
+- **axi4_to_apb4_convert** - Full AXI4-to-APB bridge
 - **peakrdl_to_cmdrsp** - Register interface adapter
 
 ## 1.4 Key Design Decisions
@@ -107,7 +107,7 @@ Layer 2: Full AXI4 Converters
          - Handle burst length adjustment, ID tracking
 
 Layer 3: Protocol Converters
-         axi4_to_axil4, axi4_to_apb, etc.
+         axi4_to_axil4, axi4_to_apb4, etc.
          - Full protocol translation
          - State machine control
 ```

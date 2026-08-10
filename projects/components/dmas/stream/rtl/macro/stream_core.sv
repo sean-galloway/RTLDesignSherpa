@@ -70,8 +70,63 @@ module stream_core #(
     // deeper than that (8ch default = 68) need --unroll-count raised in the
     // sim build or the per-entry loops fail BLKLOOPINIT. The stream tests
     // pass --unroll-count 256. Synthesis tools are unaffected.
-    parameter int RD_MON_MAX_TRANS = NUM_CHANNELS * AR_MAX_OUTSTANDING + 4,
-    parameter int WR_MON_MAX_TRANS = NUM_CHANNELS * AW_MAX_OUTSTANDING + 4,
+    //
+    // SIZING: concurrency + REPORTING BACKLOG, floored at 16.
+    //
+    // A table slot is NOT freed when the AXI transaction completes -- it is
+    // freed when the entry's packet has been REPORTED (axi_monitor_trans_mgr:
+    // w_can_cleanup = event_reported, for COMPLETE/ERROR/ORPHANED alike). So
+    // the table must hold
+    //
+    //     (transactions in flight)  +  (completed, packet not yet drained)
+    //
+    // The first term is NUM_CHANNELS*Ax_MAX_OUTSTANDING. The old `+ 4` was the
+    // ENTIRE allowance for the second, and it was set when a build compiled one
+    // packet cone. The unified harness compiles FIVE (timeout, compl,
+    // threshold, perf, debug), each of which can owe a packet per transaction,
+    // against a reporter that sustains ~1 packet / 2 cycles.
+    //
+    // MEASURED: at 4 channels x AR=2 the old formula gave 12 slots. A response
+    // delay pins occupancy at the 8-transaction ceiling, leaving 4 slots of
+    // reporting slack -- and 12 < 16 means cmd_entry_reserve() grants NO
+    // recovery reservation, so the first overrun of those 4 is a permanent
+    // wedge rather than a throttle. desc_perf hung there; the same test at 20
+    // slots passed. This is the configuration the monitor BITSTREAM ships, so
+    // it was a live silicon hazard, not a sim artifact.
+    //
+    // The floor of 16 is not cosmetic: cmd_entry_reserve() returns 2 only at
+    // >= 16, and that reservation is what makes saturation recoverable.
+    // MEASURED, not guessed. obs_equiv compares the external observer against
+    // the in-core monitor over identical traffic:
+    //     16 slots -> in-core tracked 3073 of 4096 bursts (75%)
+    //     40 slots -> 4096 of 4096 (exact)
+    // The shortfall is capping, not a counting bug: while the table is full the
+    // upstream handshake throttles, but commands that slip through are never
+    // tracked. A dropped burst is a dropped MATCH, which on a coverage run reads
+    // as "this tuple never occurred" -- a confident false negative, the worst
+    // failure mode for a board campaign whose purpose is observing matches.
+    // 32 gives 40 slots at the board's 4ch x AR=2.
+    // 8 -> 16 slots at 4ch x AR=2. NOT larger, and the reason is timing, not area:
+    //
+    //   slots   WNS        LUTs            in-core tracking
+    //     16    +1.018 ns  81393 (39.9%)   3073/4096  (75%)
+    //     40   -25.183 ns  131663 (64.6%)  4096/4096  (100%)
+    //
+    // trans_mgr's CAM does three combinational ID lookups plus a free-slot
+    // priority encode across EVERY entry, so the cone scales with depth; at 40
+    // the path is >3x the 10 ns period and 64% utilisation adds routing
+    // congestion on top. Depth buys tracking completeness and spends timing,
+    // steeply and nonlinearly.
+    //
+    // 16 is therefore the floor that makes saturation RECOVERABLE
+    // (cmd_entry_reserve()==2 only at >=16) while still closing timing. It does
+    // NOT make tracking complete -- see [[AMBA-MONTRACK]]. Closing that gap
+    // needs a pipelined CAM or fewer cones per bitstream, not more slots.
+    parameter int MON_TRANS_MARGIN = 8,     // reporting backlog, not concurrency
+    parameter int RD_MON_MAX_TRANS = ((NUM_CHANNELS * AR_MAX_OUTSTANDING + MON_TRANS_MARGIN) < 16)
+                                     ? 16 : (NUM_CHANNELS * AR_MAX_OUTSTANDING + MON_TRANS_MARGIN),
+    parameter int WR_MON_MAX_TRANS = ((NUM_CHANNELS * AW_MAX_OUTSTANDING + MON_TRANS_MARGIN) < 16)
+                                     ? 16 : (NUM_CHANNELS * AW_MAX_OUTSTANDING + MON_TRANS_MARGIN),
 
     // Monitor Control
     parameter int USE_AXI_MONITORS = 1,      // 1 = Enable monitors, 0 = Disable monitors
@@ -111,6 +166,17 @@ module stream_core #(
     parameter bit DESC_MON_ENABLE_THRESHOLD_LOGIC = 1'b0,
     parameter bit DESC_MON_ENABLE_PERF_LOGIC      = 1'b1,
     parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b0,
+
+    // Data-read/-write datapath monitor logic cones. Same area tradeoff as the
+    // descriptor monitor above (perf-only by default for FPGA fit on the
+    // xc7a100t); the monitor-validation flow (Genesys2 xc7k325t) overrides these
+    // to 1'b1 to exercise every packet class (error/timeout/compl/threshold/...).
+    parameter bit DATA_MON_ENABLE_ERROR_LOGIC     = 1'b0,
+    parameter bit DATA_MON_ENABLE_TIMEOUT_LOGIC   = 1'b0,
+    parameter bit DATA_MON_ENABLE_COMPL_LOGIC     = 1'b0,
+    parameter bit DATA_MON_ENABLE_THRESHOLD_LOGIC = 1'b0,
+    parameter bit DATA_MON_ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit DATA_MON_ENABLE_DEBUG_LOGIC     = 1'b0,
 
     // Address-range (allowlist) checker on the in-core rd/wr datapath monitors.
     // N_ADDR_RANGES=0 (default) leaves the checker un-synthesised -> OFF on the
@@ -170,18 +236,20 @@ module stream_core #(
     input  logic                                cfg_desc_mon_enable,
     input  logic                                cfg_desc_mon_err_enable,
     input  logic                                cfg_desc_mon_perf_enable,
+    input  logic                                cfg_desc_mon_compl_enable,
+    input  logic                                cfg_desc_mon_thresh_enable,
     input  logic                                cfg_desc_mon_timeout_enable,
     input  logic [31:0]                         cfg_desc_mon_timeout_cycles,
     input  logic [31:0]                         cfg_desc_mon_latency_thresh,
     input  logic [15:0]                         cfg_desc_mon_pkt_mask,
-    input  logic [3:0]                          cfg_desc_mon_err_select,
-    input  logic [7:0]                          cfg_desc_mon_err_mask,
-    input  logic [7:0]                          cfg_desc_mon_timeout_mask,
-    input  logic [7:0]                          cfg_desc_mon_compl_mask,
-    input  logic [7:0]                          cfg_desc_mon_thresh_mask,
-    input  logic [7:0]                          cfg_desc_mon_perf_mask,
-    input  logic [7:0]                          cfg_desc_mon_addr_mask,
-    input  logic [7:0]                          cfg_desc_mon_debug_mask,
+    input  logic [15:0]                          cfg_desc_mon_err_select,
+    input  logic [15:0]                          cfg_desc_mon_err_mask,
+    input  logic [15:0]                          cfg_desc_mon_timeout_mask,
+    input  logic [15:0]                          cfg_desc_mon_compl_mask,
+    input  logic [15:0]                          cfg_desc_mon_thresh_mask,
+    input  logic [15:0]                          cfg_desc_mon_perf_mask,
+    input  logic [15:0]                          cfg_desc_mon_addr_mask,
+    input  logic [15:0]                          cfg_desc_mon_debug_mask,
 
     // RFC Stage E perf-window run control (see DAXMON_PERF_CTRL @ 0x2D0)
     input  logic                                cfg_desc_mon_perf_run,
@@ -190,35 +258,39 @@ module stream_core #(
     input  logic                                cfg_rdeng_mon_enable,
     input  logic                                cfg_rdeng_mon_err_enable,
     input  logic                                cfg_rdeng_mon_perf_enable,
+    input  logic                                cfg_rdeng_mon_compl_enable,
+    input  logic                                cfg_rdeng_mon_thresh_enable,
     input  logic                                cfg_rdeng_mon_timeout_enable,
     input  logic [31:0]                         cfg_rdeng_mon_timeout_cycles,
     input  logic [31:0]                         cfg_rdeng_mon_latency_thresh,
     input  logic [15:0]                         cfg_rdeng_mon_pkt_mask,
-    input  logic [3:0]                          cfg_rdeng_mon_err_select,
-    input  logic [7:0]                          cfg_rdeng_mon_err_mask,
-    input  logic [7:0]                          cfg_rdeng_mon_timeout_mask,
-    input  logic [7:0]                          cfg_rdeng_mon_compl_mask,
-    input  logic [7:0]                          cfg_rdeng_mon_thresh_mask,
-    input  logic [7:0]                          cfg_rdeng_mon_perf_mask,
-    input  logic [7:0]                          cfg_rdeng_mon_addr_mask,
-    input  logic [7:0]                          cfg_rdeng_mon_debug_mask,
+    input  logic [15:0]                          cfg_rdeng_mon_err_select,
+    input  logic [15:0]                          cfg_rdeng_mon_err_mask,
+    input  logic [15:0]                          cfg_rdeng_mon_timeout_mask,
+    input  logic [15:0]                          cfg_rdeng_mon_compl_mask,
+    input  logic [15:0]                          cfg_rdeng_mon_thresh_mask,
+    input  logic [15:0]                          cfg_rdeng_mon_perf_mask,
+    input  logic [15:0]                          cfg_rdeng_mon_addr_mask,
+    input  logic [15:0]                          cfg_rdeng_mon_debug_mask,
 
     // Write Engine AXI monitor configuration
     input  logic                                cfg_wreng_mon_enable,
     input  logic                                cfg_wreng_mon_err_enable,
     input  logic                                cfg_wreng_mon_perf_enable,
+    input  logic                                cfg_wreng_mon_compl_enable,
+    input  logic                                cfg_wreng_mon_thresh_enable,
     input  logic                                cfg_wreng_mon_timeout_enable,
     input  logic [31:0]                         cfg_wreng_mon_timeout_cycles,
     input  logic [31:0]                         cfg_wreng_mon_latency_thresh,
     input  logic [15:0]                         cfg_wreng_mon_pkt_mask,
-    input  logic [3:0]                          cfg_wreng_mon_err_select,
-    input  logic [7:0]                          cfg_wreng_mon_err_mask,
-    input  logic [7:0]                          cfg_wreng_mon_timeout_mask,
-    input  logic [7:0]                          cfg_wreng_mon_compl_mask,
-    input  logic [7:0]                          cfg_wreng_mon_thresh_mask,
-    input  logic [7:0]                          cfg_wreng_mon_perf_mask,
-    input  logic [7:0]                          cfg_wreng_mon_addr_mask,
-    input  logic [7:0]                          cfg_wreng_mon_debug_mask,
+    input  logic [15:0]                          cfg_wreng_mon_err_select,
+    input  logic [15:0]                          cfg_wreng_mon_err_mask,
+    input  logic [15:0]                          cfg_wreng_mon_timeout_mask,
+    input  logic [15:0]                          cfg_wreng_mon_compl_mask,
+    input  logic [15:0]                          cfg_wreng_mon_thresh_mask,
+    input  logic [15:0]                          cfg_wreng_mon_perf_mask,
+    input  logic [15:0]                          cfg_wreng_mon_addr_mask,
+    input  logic [15:0]                          cfg_wreng_mon_debug_mask,
 
     // RFC Stage E perf-window run control for the datapath monitors
     // (decoupled from cfg_*eng_mon_perf_enable, which only gates legacy
@@ -625,52 +697,58 @@ module stream_core #(
     logic                        int_cfg_desc_mon_enable;
     logic                        int_cfg_desc_mon_err_enable;
     logic                        int_cfg_desc_mon_perf_enable;
+    logic                        int_cfg_desc_mon_compl_enable;
+    logic                        int_cfg_desc_mon_thresh_enable;
     logic                        int_cfg_desc_mon_timeout_enable;
     logic [31:0]                 int_cfg_desc_mon_timeout_cycles;
     logic [31:0]                 int_cfg_desc_mon_latency_thresh;
     logic [15:0]                 int_cfg_desc_mon_pkt_mask;
-    logic [3:0]                  int_cfg_desc_mon_err_select;
-    logic [7:0]                  int_cfg_desc_mon_err_mask;
-    logic [7:0]                  int_cfg_desc_mon_timeout_mask;
-    logic [7:0]                  int_cfg_desc_mon_compl_mask;
-    logic [7:0]                  int_cfg_desc_mon_thresh_mask;
-    logic [7:0]                  int_cfg_desc_mon_perf_mask;
-    logic [7:0]                  int_cfg_desc_mon_addr_mask;
-    logic [7:0]                  int_cfg_desc_mon_debug_mask;
+    logic [15:0]                  int_cfg_desc_mon_err_select;
+    logic [15:0]                  int_cfg_desc_mon_err_mask;
+    logic [15:0]                  int_cfg_desc_mon_timeout_mask;
+    logic [15:0]                  int_cfg_desc_mon_compl_mask;
+    logic [15:0]                  int_cfg_desc_mon_thresh_mask;
+    logic [15:0]                  int_cfg_desc_mon_perf_mask;
+    logic [15:0]                  int_cfg_desc_mon_addr_mask;
+    logic [15:0]                  int_cfg_desc_mon_debug_mask;
     logic                        int_cfg_desc_mon_perf_run;
 
     logic                        int_cfg_rdeng_mon_enable;
     logic                        int_cfg_rdeng_mon_err_enable;
     logic                        int_cfg_rdeng_mon_perf_enable;
+    logic                        int_cfg_rdeng_mon_compl_enable;
+    logic                        int_cfg_rdeng_mon_thresh_enable;
     logic                        int_cfg_rdeng_mon_timeout_enable;
     logic [31:0]                 int_cfg_rdeng_mon_timeout_cycles;
     logic [31:0]                 int_cfg_rdeng_mon_latency_thresh;
     logic [15:0]                 int_cfg_rdeng_mon_pkt_mask;
-    logic [3:0]                  int_cfg_rdeng_mon_err_select;
-    logic [7:0]                  int_cfg_rdeng_mon_err_mask;
-    logic [7:0]                  int_cfg_rdeng_mon_timeout_mask;
-    logic [7:0]                  int_cfg_rdeng_mon_compl_mask;
-    logic [7:0]                  int_cfg_rdeng_mon_thresh_mask;
-    logic [7:0]                  int_cfg_rdeng_mon_perf_mask;
-    logic [7:0]                  int_cfg_rdeng_mon_addr_mask;
-    logic [7:0]                  int_cfg_rdeng_mon_debug_mask;
+    logic [15:0]                  int_cfg_rdeng_mon_err_select;
+    logic [15:0]                  int_cfg_rdeng_mon_err_mask;
+    logic [15:0]                  int_cfg_rdeng_mon_timeout_mask;
+    logic [15:0]                  int_cfg_rdeng_mon_compl_mask;
+    logic [15:0]                  int_cfg_rdeng_mon_thresh_mask;
+    logic [15:0]                  int_cfg_rdeng_mon_perf_mask;
+    logic [15:0]                  int_cfg_rdeng_mon_addr_mask;
+    logic [15:0]                  int_cfg_rdeng_mon_debug_mask;
     logic                        int_cfg_rdeng_mon_perf_run;
 
     logic                        int_cfg_wreng_mon_enable;
     logic                        int_cfg_wreng_mon_err_enable;
     logic                        int_cfg_wreng_mon_perf_enable;
+    logic                        int_cfg_wreng_mon_compl_enable;
+    logic                        int_cfg_wreng_mon_thresh_enable;
     logic                        int_cfg_wreng_mon_timeout_enable;
     logic [31:0]                 int_cfg_wreng_mon_timeout_cycles;
     logic [31:0]                 int_cfg_wreng_mon_latency_thresh;
     logic [15:0]                 int_cfg_wreng_mon_pkt_mask;
-    logic [3:0]                  int_cfg_wreng_mon_err_select;
-    logic [7:0]                  int_cfg_wreng_mon_err_mask;
-    logic [7:0]                  int_cfg_wreng_mon_timeout_mask;
-    logic [7:0]                  int_cfg_wreng_mon_compl_mask;
-    logic [7:0]                  int_cfg_wreng_mon_thresh_mask;
-    logic [7:0]                  int_cfg_wreng_mon_perf_mask;
-    logic [7:0]                  int_cfg_wreng_mon_addr_mask;
-    logic [7:0]                  int_cfg_wreng_mon_debug_mask;
+    logic [15:0]                  int_cfg_wreng_mon_err_select;
+    logic [15:0]                  int_cfg_wreng_mon_err_mask;
+    logic [15:0]                  int_cfg_wreng_mon_timeout_mask;
+    logic [15:0]                  int_cfg_wreng_mon_compl_mask;
+    logic [15:0]                  int_cfg_wreng_mon_thresh_mask;
+    logic [15:0]                  int_cfg_wreng_mon_perf_mask;
+    logic [15:0]                  int_cfg_wreng_mon_addr_mask;
+    logic [15:0]                  int_cfg_wreng_mon_debug_mask;
     logic                        int_cfg_wreng_mon_perf_run;
 
     //=========================================================================
@@ -682,6 +760,8 @@ module stream_core #(
             assign int_cfg_desc_mon_enable = cfg_desc_mon_enable;
             assign int_cfg_desc_mon_err_enable = cfg_desc_mon_err_enable;
             assign int_cfg_desc_mon_perf_enable = cfg_desc_mon_perf_enable;
+            assign int_cfg_desc_mon_compl_enable = cfg_desc_mon_compl_enable;
+            assign int_cfg_desc_mon_thresh_enable = cfg_desc_mon_thresh_enable;
             assign int_cfg_desc_mon_timeout_enable = cfg_desc_mon_timeout_enable;
             assign int_cfg_desc_mon_timeout_cycles = cfg_desc_mon_timeout_cycles;
             assign int_cfg_desc_mon_latency_thresh = cfg_desc_mon_latency_thresh;
@@ -699,6 +779,8 @@ module stream_core #(
             assign int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable;
             assign int_cfg_rdeng_mon_err_enable = cfg_rdeng_mon_err_enable;
             assign int_cfg_rdeng_mon_perf_enable = cfg_rdeng_mon_perf_enable;
+            assign int_cfg_rdeng_mon_compl_enable = cfg_rdeng_mon_compl_enable;
+            assign int_cfg_rdeng_mon_thresh_enable = cfg_rdeng_mon_thresh_enable;
             assign int_cfg_rdeng_mon_timeout_enable = cfg_rdeng_mon_timeout_enable;
             assign int_cfg_rdeng_mon_timeout_cycles = cfg_rdeng_mon_timeout_cycles;
             assign int_cfg_rdeng_mon_latency_thresh = cfg_rdeng_mon_latency_thresh;
@@ -716,6 +798,8 @@ module stream_core #(
             assign int_cfg_wreng_mon_enable = cfg_wreng_mon_enable;
             assign int_cfg_wreng_mon_err_enable = cfg_wreng_mon_err_enable;
             assign int_cfg_wreng_mon_perf_enable = cfg_wreng_mon_perf_enable;
+            assign int_cfg_wreng_mon_compl_enable = cfg_wreng_mon_compl_enable;
+            assign int_cfg_wreng_mon_thresh_enable = cfg_wreng_mon_thresh_enable;
             assign int_cfg_wreng_mon_timeout_enable = cfg_wreng_mon_timeout_enable;
             assign int_cfg_wreng_mon_timeout_cycles = cfg_wreng_mon_timeout_cycles;
             assign int_cfg_wreng_mon_latency_thresh = cfg_wreng_mon_latency_thresh;
@@ -737,52 +821,58 @@ module stream_core #(
             assign int_cfg_desc_mon_enable = 1'b0;
             assign int_cfg_desc_mon_err_enable = 1'b0;
             assign int_cfg_desc_mon_perf_enable = 1'b0;
+            assign int_cfg_desc_mon_compl_enable = 1'b0;
+            assign int_cfg_desc_mon_thresh_enable = 1'b0;
             assign int_cfg_desc_mon_timeout_enable = 1'b0;
             assign int_cfg_desc_mon_timeout_cycles = 32'h0;
             assign int_cfg_desc_mon_latency_thresh = 32'h0;
             assign int_cfg_desc_mon_pkt_mask = 16'h0;
-            assign int_cfg_desc_mon_err_select = 4'h0;
-            assign int_cfg_desc_mon_err_mask = 8'h0;
-            assign int_cfg_desc_mon_timeout_mask = 8'h0;
-            assign int_cfg_desc_mon_compl_mask = 8'h0;
-            assign int_cfg_desc_mon_thresh_mask = 8'h0;
-            assign int_cfg_desc_mon_perf_mask = 8'h0;
-            assign int_cfg_desc_mon_addr_mask = 8'h0;
-            assign int_cfg_desc_mon_debug_mask = 8'h0;
+            assign int_cfg_desc_mon_err_select = 16'h0;
+            assign int_cfg_desc_mon_err_mask = 16'h0;
+            assign int_cfg_desc_mon_timeout_mask = 16'h0;
+            assign int_cfg_desc_mon_compl_mask = 16'h0;
+            assign int_cfg_desc_mon_thresh_mask = 16'h0;
+            assign int_cfg_desc_mon_perf_mask = 16'h0;
+            assign int_cfg_desc_mon_addr_mask = 16'h0;
+            assign int_cfg_desc_mon_debug_mask = 16'h0;
             assign int_cfg_desc_mon_perf_run = cfg_desc_mon_perf_run;  // always-on perf window
 
             assign int_cfg_rdeng_mon_enable = 1'b0;
             assign int_cfg_rdeng_mon_err_enable = 1'b0;
             assign int_cfg_rdeng_mon_perf_enable = 1'b0;
+            assign int_cfg_rdeng_mon_compl_enable = 1'b0;
+            assign int_cfg_rdeng_mon_thresh_enable = 1'b0;
             assign int_cfg_rdeng_mon_timeout_enable = 1'b0;
             assign int_cfg_rdeng_mon_timeout_cycles = 32'h0;
             assign int_cfg_rdeng_mon_latency_thresh = 32'h0;
             assign int_cfg_rdeng_mon_pkt_mask = 16'h0;
-            assign int_cfg_rdeng_mon_err_select = 4'h0;
-            assign int_cfg_rdeng_mon_err_mask = 8'h0;
-            assign int_cfg_rdeng_mon_timeout_mask = 8'h0;
-            assign int_cfg_rdeng_mon_compl_mask = 8'h0;
-            assign int_cfg_rdeng_mon_thresh_mask = 8'h0;
-            assign int_cfg_rdeng_mon_perf_mask = 8'h0;
-            assign int_cfg_rdeng_mon_addr_mask = 8'h0;
-            assign int_cfg_rdeng_mon_debug_mask = 8'h0;
+            assign int_cfg_rdeng_mon_err_select = 16'h0;
+            assign int_cfg_rdeng_mon_err_mask = 16'h0;
+            assign int_cfg_rdeng_mon_timeout_mask = 16'h0;
+            assign int_cfg_rdeng_mon_compl_mask = 16'h0;
+            assign int_cfg_rdeng_mon_thresh_mask = 16'h0;
+            assign int_cfg_rdeng_mon_perf_mask = 16'h0;
+            assign int_cfg_rdeng_mon_addr_mask = 16'h0;
+            assign int_cfg_rdeng_mon_debug_mask = 16'h0;
             assign int_cfg_rdeng_mon_perf_run = cfg_rdeng_mon_perf_run;  // always-on perf window
 
             assign int_cfg_wreng_mon_enable = 1'b0;
             assign int_cfg_wreng_mon_err_enable = 1'b0;
             assign int_cfg_wreng_mon_perf_enable = 1'b0;
+            assign int_cfg_wreng_mon_compl_enable = 1'b0;
+            assign int_cfg_wreng_mon_thresh_enable = 1'b0;
             assign int_cfg_wreng_mon_timeout_enable = 1'b0;
             assign int_cfg_wreng_mon_timeout_cycles = 32'h0;
             assign int_cfg_wreng_mon_latency_thresh = 32'h0;
             assign int_cfg_wreng_mon_pkt_mask = 16'h0;
-            assign int_cfg_wreng_mon_err_select = 4'h0;
-            assign int_cfg_wreng_mon_err_mask = 8'h0;
-            assign int_cfg_wreng_mon_timeout_mask = 8'h0;
-            assign int_cfg_wreng_mon_compl_mask = 8'h0;
-            assign int_cfg_wreng_mon_thresh_mask = 8'h0;
-            assign int_cfg_wreng_mon_perf_mask = 8'h0;
-            assign int_cfg_wreng_mon_addr_mask = 8'h0;
-            assign int_cfg_wreng_mon_debug_mask = 8'h0;
+            assign int_cfg_wreng_mon_err_select = 16'h0;
+            assign int_cfg_wreng_mon_err_mask = 16'h0;
+            assign int_cfg_wreng_mon_timeout_mask = 16'h0;
+            assign int_cfg_wreng_mon_compl_mask = 16'h0;
+            assign int_cfg_wreng_mon_thresh_mask = 16'h0;
+            assign int_cfg_wreng_mon_perf_mask = 16'h0;
+            assign int_cfg_wreng_mon_addr_mask = 16'h0;
+            assign int_cfg_wreng_mon_debug_mask = 16'h0;
             assign int_cfg_wreng_mon_perf_run = cfg_wreng_mon_perf_run;  // always-on perf window
         end
     endgenerate
@@ -842,6 +932,8 @@ module stream_core #(
         .cfg_desc_mon_enable        (int_cfg_desc_mon_enable),
         .cfg_desc_mon_err_enable    (int_cfg_desc_mon_err_enable),
         .cfg_desc_mon_perf_enable   (int_cfg_desc_mon_perf_enable),
+        .cfg_desc_mon_compl_enable(int_cfg_desc_mon_compl_enable),
+        .cfg_desc_mon_thresh_enable(int_cfg_desc_mon_thresh_enable),
         .cfg_desc_mon_timeout_enable(int_cfg_desc_mon_timeout_enable),
         .cfg_desc_mon_timeout_cycles(int_cfg_desc_mon_timeout_cycles),
         .cfg_desc_mon_latency_thresh(int_cfg_desc_mon_latency_thresh),
@@ -1397,7 +1489,7 @@ module stream_core #(
     // plus an axi_monitor snooping the master-side R bus. Perf-only build
     // (ENABLE_PERF_LOGIC) so it accumulates the four cycle buckets + beat/byte/
     // burst counts read back through RDMON_PERF_* CSRs (no MonBus packets).
-    // Sized by RD_MON_MAX_TRANS (default NUM_CHANNELS*AR_MAX_OUTSTANDING+4)
+    // Sized by RD_MON_MAX_TRANS (MAX(16, NUM_CHANNELS*AR_MAX_OUTSTANDING+MON_TRANS_MARGIN))
     // so block_ready stays deasserted in normal operation. The previous
     // hardwired 16 compared against the PER-CHANNEL outstanding limit and
     // claimed passivity it did not have: with >=2 channels the shared master
@@ -1432,12 +1524,12 @@ module stream_core #(
         .AGENT_ID               (RD_AXI_MON_AGENT_ID),
         .MAX_TRANSACTIONS       (RD_MON_MAX_TRANS),
         .ENABLE_FILTERING       (1),
-        .ENABLE_ERROR_LOGIC     (1'b0),
-        .ENABLE_TIMEOUT_LOGIC   (1'b0),
-        .ENABLE_COMPL_LOGIC     (1'b0),
-        .ENABLE_THRESHOLD_LOGIC (1'b0),
-        .ENABLE_PERF_LOGIC      (1'b1),
-        .ENABLE_DEBUG_LOGIC     (1'b0),
+        .ENABLE_ERROR_LOGIC     (DATA_MON_ENABLE_ERROR_LOGIC),
+        .ENABLE_TIMEOUT_LOGIC   (DATA_MON_ENABLE_TIMEOUT_LOGIC),
+        .ENABLE_COMPL_LOGIC     (DATA_MON_ENABLE_COMPL_LOGIC),
+        .ENABLE_THRESHOLD_LOGIC (DATA_MON_ENABLE_THRESHOLD_LOGIC),
+        .ENABLE_PERF_LOGIC      (DATA_MON_ENABLE_PERF_LOGIC),
+        .ENABLE_DEBUG_LOGIC     (DATA_MON_ENABLE_DEBUG_LOGIC),
         .N_ADDR_RANGES          (N_ADDR_RANGES),
         .ADDR_RANGE_IS_ERROR    (MON_ADDR_RANGE_IS_ERROR)
     ) u_rd_axi_skid (
@@ -1492,27 +1584,29 @@ module stream_core #(
         .m_axi_rready           (m_axi_rd_rready),
 
         // Monitor configuration (driven by the now-live RDMON_* CSR hooks).
-        // compl follows monitor-enable, threshold follows perf, debug off —
-        // mirroring the descriptor-monitor aliasing in scheduler_group_array.
+        // compl and threshold are REAL per-class controls (RDMON_ENABLE.COMPL_EN
+        // / .THRESH_EN). They used to be aliased onto monitor-enable and perf,
+        // which left COMPL_EN dead in the register map and made THRESHOLD
+        // silently un-armable without PERF_EN.
         .cfg_monitor_enable     (int_cfg_rdeng_mon_enable),
         .cfg_error_enable       (int_cfg_rdeng_mon_err_enable | cfg_rdeng_mon_addr_miss_en),
         .cfg_perf_enable        (int_cfg_rdeng_mon_perf_enable),
-        .cfg_compl_enable       (int_cfg_rdeng_mon_enable),
-        .cfg_threshold_enable   (int_cfg_rdeng_mon_perf_enable),
+        .cfg_compl_enable       (int_cfg_rdeng_mon_compl_enable),
+        .cfg_threshold_enable   (int_cfg_rdeng_mon_thresh_enable),
         .cfg_debug_enable       (cfg_rdeng_mon_addr_match_en),
         .cfg_timeout_enable     (int_cfg_rdeng_mon_timeout_enable),
         .cfg_timeout_cycles     (16'(int_cfg_rdeng_mon_timeout_cycles)),
         .cfg_latency_threshold  (int_cfg_rdeng_mon_latency_thresh),
 
         .cfg_axi_pkt_mask       (int_cfg_rdeng_mon_pkt_mask),
-        .cfg_axi_err_select     (16'(int_cfg_rdeng_mon_err_select)),
-        .cfg_axi_error_mask     (16'(int_cfg_rdeng_mon_err_mask)),
-        .cfg_axi_timeout_mask   (16'(int_cfg_rdeng_mon_timeout_mask)),
-        .cfg_axi_compl_mask     (16'(int_cfg_rdeng_mon_compl_mask)),
-        .cfg_axi_thresh_mask    (16'(int_cfg_rdeng_mon_thresh_mask)),
-        .cfg_axi_perf_mask      (16'(int_cfg_rdeng_mon_perf_mask)),
-        .cfg_axi_addr_mask      (16'(int_cfg_rdeng_mon_addr_mask)),
-        .cfg_axi_debug_mask     (16'(int_cfg_rdeng_mon_debug_mask)),
+        .cfg_axi_err_select     (int_cfg_rdeng_mon_err_select),
+        .cfg_axi_error_mask     (int_cfg_rdeng_mon_err_mask),
+        .cfg_axi_timeout_mask   (int_cfg_rdeng_mon_timeout_mask),
+        .cfg_axi_compl_mask     (int_cfg_rdeng_mon_compl_mask),
+        .cfg_axi_thresh_mask    (int_cfg_rdeng_mon_thresh_mask),
+        .cfg_axi_perf_mask      (int_cfg_rdeng_mon_perf_mask),
+        .cfg_axi_addr_mask      (int_cfg_rdeng_mon_addr_mask),
+        .cfg_axi_debug_mask     (int_cfg_rdeng_mon_debug_mask),
 
         // Address-range checker (allowlist) driven by the RDMON_ADDR_RANGE* CSRs;
         // active only when N_ADDR_RANGES > 0 (else the checker is not built).
@@ -1595,12 +1689,12 @@ module stream_core #(
         .AGENT_ID               (WR_AXI_MON_AGENT_ID),
         .MAX_TRANSACTIONS       (WR_MON_MAX_TRANS),
         .ENABLE_FILTERING       (1),
-        .ENABLE_ERROR_LOGIC     (1'b0),
-        .ENABLE_TIMEOUT_LOGIC   (1'b0),
-        .ENABLE_COMPL_LOGIC     (1'b0),
-        .ENABLE_THRESHOLD_LOGIC (1'b0),
-        .ENABLE_PERF_LOGIC      (1'b1),
-        .ENABLE_DEBUG_LOGIC     (1'b0),
+        .ENABLE_ERROR_LOGIC     (DATA_MON_ENABLE_ERROR_LOGIC),
+        .ENABLE_TIMEOUT_LOGIC   (DATA_MON_ENABLE_TIMEOUT_LOGIC),
+        .ENABLE_COMPL_LOGIC     (DATA_MON_ENABLE_COMPL_LOGIC),
+        .ENABLE_THRESHOLD_LOGIC (DATA_MON_ENABLE_THRESHOLD_LOGIC),
+        .ENABLE_PERF_LOGIC      (DATA_MON_ENABLE_PERF_LOGIC),
+        .ENABLE_DEBUG_LOGIC     (DATA_MON_ENABLE_DEBUG_LOGIC),
         .N_ADDR_RANGES          (N_ADDR_RANGES),
         .ADDR_RANGE_IS_ERROR    (MON_ADDR_RANGE_IS_ERROR)
     ) u_wr_axi_skid (
@@ -1668,22 +1762,22 @@ module stream_core #(
         .cfg_monitor_enable     (int_cfg_wreng_mon_enable),
         .cfg_error_enable       (int_cfg_wreng_mon_err_enable | cfg_wreng_mon_addr_miss_en),
         .cfg_perf_enable        (int_cfg_wreng_mon_perf_enable),
-        .cfg_compl_enable       (int_cfg_wreng_mon_enable),
-        .cfg_threshold_enable   (int_cfg_wreng_mon_perf_enable),
+        .cfg_compl_enable       (int_cfg_wreng_mon_compl_enable),
+        .cfg_threshold_enable   (int_cfg_wreng_mon_thresh_enable),
         .cfg_debug_enable       (cfg_wreng_mon_addr_match_en),
         .cfg_timeout_enable     (int_cfg_wreng_mon_timeout_enable),
         .cfg_timeout_cycles     (16'(int_cfg_wreng_mon_timeout_cycles)),
         .cfg_latency_threshold  (int_cfg_wreng_mon_latency_thresh),
 
         .cfg_axi_pkt_mask       (int_cfg_wreng_mon_pkt_mask),
-        .cfg_axi_err_select     (16'(int_cfg_wreng_mon_err_select)),
-        .cfg_axi_error_mask     (16'(int_cfg_wreng_mon_err_mask)),
-        .cfg_axi_timeout_mask   (16'(int_cfg_wreng_mon_timeout_mask)),
-        .cfg_axi_compl_mask     (16'(int_cfg_wreng_mon_compl_mask)),
-        .cfg_axi_thresh_mask    (16'(int_cfg_wreng_mon_thresh_mask)),
-        .cfg_axi_perf_mask      (16'(int_cfg_wreng_mon_perf_mask)),
-        .cfg_axi_addr_mask      (16'(int_cfg_wreng_mon_addr_mask)),
-        .cfg_axi_debug_mask     (16'(int_cfg_wreng_mon_debug_mask)),
+        .cfg_axi_err_select     (int_cfg_wreng_mon_err_select),
+        .cfg_axi_error_mask     (int_cfg_wreng_mon_err_mask),
+        .cfg_axi_timeout_mask   (int_cfg_wreng_mon_timeout_mask),
+        .cfg_axi_compl_mask     (int_cfg_wreng_mon_compl_mask),
+        .cfg_axi_thresh_mask    (int_cfg_wreng_mon_thresh_mask),
+        .cfg_axi_perf_mask      (int_cfg_wreng_mon_perf_mask),
+        .cfg_axi_addr_mask      (int_cfg_wreng_mon_addr_mask),
+        .cfg_axi_debug_mask     (int_cfg_wreng_mon_debug_mask),
 
         // Address-range checker (allowlist) driven by the WRMON_ADDR_RANGE* CSRs.
         .cfg_addr_check_enable  (cfg_wreng_mon_addr_check_en),

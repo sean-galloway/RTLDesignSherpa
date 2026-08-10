@@ -101,18 +101,18 @@ Add optional filtering capabilities to reduce monitor packet traffic.
 **Objective:** Get all APB crossbar variants working and tested
 
 **Background:**
-- APB thin crossbar (apb_xbar_thin_wrap) is functional and tested
+- APB thin crossbar (apb4_xbar_thin_wrap) is functional and tested
 - Buffered/full variants may have issues
 - Need comprehensive testing of all variants
 
 **Requirements:**
 
 1. **Verify Thin Variant (Complete)**
-   - ✅ test_apb_xbar thin variant PASSED
+   - ✅ test_apb4_xbar thin variant PASSED
    - Works as baseline reference
 
 2. **Fix/Verify Buffered Variants**
-   - Test apb_xbar with buffering enabled
+   - Test apb4_xbar with buffering enabled
    - Identify and fix any issues
    - Verify backpressure handling
 
@@ -202,16 +202,16 @@ spine, here are the axes, here are the tweaks."
 **Status:** open 2026-07-26
 **Priority:** P2 (nothing depends on them, but `make verilator` at rtl/ is RED)
 
-`rtl/integ_amba/examples/apb_peripheral_subsystem.sv` (340 lines) and
-`apb_xbar_monitored.sv` (364) do not elaborate: **51 Verilator errors**, all
-PINNOTFOUND. They instantiate `apb_monitor` with an interface it no longer has.
+`rtl/integ_amba/examples/apb4_peripheral_subsystem.sv` (340 lines) and
+`apb4_xbar_monitored.sv` (364) do not elaborate: **51 Verilator errors**, all
+PINNOTFOUND. They instantiate `apb4_monitor` with an interface it no longer has.
 
-| the examples pass | `apb_monitor` actually takes |
+| the examples pass | `apb4_monitor` actually takes |
 |---|---|
 | `pclk`, `presetn` | `aclk`, `aresetn` |
 | `psel`, `penable`, `pwrite`, `paddr`, `pwdata`, `pready`, `prdata`, `pslverr` | `cmd_valid`/`cmd_ready` + `cmd_pwrite`/`cmd_paddr`/`cmd_pwdata`/`cmd_pstrb`/`cmd_pprot`, and `rsp_valid`/`rsp_ready` + `rsp_prdata`/`rsp_pslverr` |
 
-Both files are **unchanged since the initial commit (2025-11-01)**; `apb_monitor`
+Both files are **unchanged since the initial commit (2025-11-01)**; `apb4_monitor`
 was redesigned underneath them. They are its ONLY consumers anywhere in the tree
 — no test, no project, no doc references either file.
 
@@ -227,10 +227,10 @@ wrong. Registering it (`0c822bd5`) is what surfaced this.
 
 The APB family splits cleanly, and the examples are on the wrong side of it:
 
-- **Bridges** — `apb_master{,_cg,_stub}`, `apb_slave{,_cg,_cdc,_cdc_cg,_stub}`
+- **Bridges** — `apb4_master{,_cg,_stub}`, `apb4_slave{,_cg,_cdc,_cdc_cg,_stub}`
   and the 8 `apb5_*` equivalents — carry BOTH raw APB (`s_apb_PSEL`, ARM
   uppercase) and `cmd_*`/`rsp_*`.
-- **Observers** — `apb_monitor`, `apb5_monitor`, `apb_monitor_addr_check` —
+- **Observers** — `apb4_monitor`, `apb5_monitor`, `apb_monitor_addr_check` —
   are cmd/rsp only. That is deliberate: it makes a monitor
   protocol-version-agnostic, since APB4 and APB5 bridges hand it the same shape.
 - The monitor is a **sibling, not a submodule**: no bridge instantiates it. You
@@ -238,11 +238,11 @@ The APB family splits cleanly, and the examples are on the wrong side of it:
 
 So the correct structure is to insert a bridge and tap it:
 
-    raw APB ──> apb_slave ──cmd/rsp──> fabric
-                     └── tap cmd_*/rsp_* ──> apb_monitor ──> monbus
+    raw APB ──> apb4_slave ──cmd/rsp──> fabric
+                     └── tap cmd_*/rsp_* ──> apb4_monitor ──> monbus
 
-`apb_xbar_thin` is raw-APB on both sides (lowercase `s_apb_psel`/`m_apb_psel`),
-which is why `apb_xbar_monitored` has raw APB in hand and feeds it straight to a
+`apb4_xbar_thin` is raw-APB on both sides (lowercase `s_apb_psel`/`m_apb_psel`),
+which is why `apb4_xbar_monitored` has raw APB in hand and feeds it straight to a
 monitor that stopped accepting it.
 
 ### Decide first, then do
@@ -250,7 +250,7 @@ monitor that stopped accepting it.
 1. **Retire** — delete both and the area. They demonstrate an API that is gone
    and nothing uses them. Cheapest and honest.
 2. **Rewrite** against the bridge-tap structure above. Worth it only if a worked
-   `apb_monitor` integration example is wanted — there is none anywhere else in
+   `apb4_monitor` integration example is wanted — there is none anywhere else in
    the repo today, which is arguably the entire point of `rtl/integ_amba`.
 
 If rewriting: lint-clean is the floor, and add a smoke test under
@@ -316,30 +316,10 @@ Move this block to closed.md.
 
 **Not blocking, noted:** 387 unresolvable source refs remain in `formal/common/`
 `.sby` files, all `math_*` fallout from the earlier arithmetic split. Untouched
-here; they want their own task.
-
----
-
-## AMBA-CLEANUP — move the last misplaced docs out of rtl/amba
-**Status:** open 2026-07-24
-**Priority:** P2
-
-After the README/PRD purge (commit f7ca848a), two non-`CLAUDE.md`,
-non-`known_issues` markdown files remain in the amba RTL tree -- both are
-reader-facing/methodology docs that [[doc-placement]] says do not belong there:
-
-- [ ] `rtl/amba/axi4/AXI4_DATA_WIDTH_CONVERTER_SPEC.md` -- a module spec.
-      Reader-facing product doc -> `docs/markdown/rtl-amba/` (fold into the
-      converter's page or add as its own). Repoint any code-header/doc refs.
-- [ ] `rtl/amba/VERIFICATION_ARCHITECTURE.md` -- verification architecture /
-      methodology. Method -> `vault/handbook/dv/` if it is practice, or
-      `docs/markdown/rtl-amba/` if it is a reader-facing architecture overview.
-      Decide which by reading it; repoint refs.
-
-After this, `rtl/amba` should hold only `.sv`, `CLAUDE.md`, and
-`known_issues/` bug records -- the same clean shape `rtl/common` now has.
-Verify with `find rtl/amba -name '*.md' | grep -v CLAUDE | grep -v known_issues`
-returning nothing.
+here; they want their own task. *(They got one: paths mechanically repaired
+2026-08-09, 5 modules spot-verified prove+cover PASS; the full re-run is
+MATH-006 in vault/Tasks/math. The TOOL-012 blindspots baseline can be
+lowered accordingly.)*
 
 ---
 
@@ -361,7 +341,7 @@ an index, not storage). Most of the 366 `.f` follow this
 
 **Loose `.f` directly beside RTL, no `filelists/` subdir:**
 - [ ] `projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f`
-- [ ] `projects/components/retro_legacy_blocks/rtl/apb_xbar/apb_xbar_rlb_1to10.f`
+- [ ] `projects/components/retro_legacy_blocks/rtl/apb4_xbar/apb4_xbar_rlb_1to10.f`
 - [ ] `projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f`
 
 **TB/harness `.f` -- RESOLVED (Sean, 2026-07-24):** a testbench with its own
@@ -501,7 +481,7 @@ with respect to the bridge generator:
     .../bridge_stream_mon_axil_mon
 
 They carry `Generated by: SlaveAdapterGenerator` and instantiate
-`axi4_to_apb_shim`, but they missed the USE_JOHNSON regeneration that updated
+`axi4_to_apb4_shim`, but they missed the USE_JOHNSON regeneration that updated
 the 13 adapters under `projects/components/bridge/rtl/generated/`. Harmless
 today -- the shim's `USE_JOHNSON` defaults to 0, which is what the FIFO used
 before the parameter existed, so the elaborated hardware is identical. It is a
@@ -544,14 +524,14 @@ trusting the regenerated output.
 **Status:** open 2026-07-28 (found while reorganizing rtl/amba/monitor)
 **Priority:** P3
 
-`docs/markdown/rtl-amba/index.md` listed four package pages -- `apb_pkg.md`,
+`docs/markdown/rtl-amba/index.md` listed four package pages -- `apb4_pkg.md`,
 `axi_pkg.md`, `monitor_pkg.md`, `monitor_network_pkg.md` -- none of which have
 ever existed. That section is rebuilt: it now links the four real package pages
 and names the packages whose RTL exists with no page.
 
 Still to write, if wanted:
 
-    rtl/amba/includes/apb_pkg.sv
+    rtl/amba/includes/apb4_pkg.sv
     rtl/amba/includes/apb5_pkg.sv
     rtl/amba/includes/axi_pkg.sv
     rtl/amba/includes/monitor_pkg.sv
@@ -629,3 +609,153 @@ transposition. Both files exist and both names are correct --
 `formal_cdc_handshake.sv` is the harness (`cdc_handshake.sby` has
 `prep -top formal_cdc_handshake`) and `cdc_handshake_formal.sv` is the DUT copy.
 Confusing, but not wrong.
+
+## AMBA-MONTRACK — in-core monitor under-counts bursts when its table caps
+**Status:** open 2026-08-05  **Found:** STREAM Genesys 2 monitor cosim
+
+The in-core `axi4_master_rd_mon` does not track every burst it sees. Measured on
+the STREAM harness, external observer vs in-core, same traffic, same window:
+
+| cones compiled | table | observer | in-core | tracked |
+|---|---|---|---|---|
+| 1 (perf only)  | 16 | 4096 | 3513 | 86% |
+| 5 (mon build)  | 16 | 4096 | 3073 | 75% |
+
+Reproduce: `test_stream_mon_perf.py::obs_equiv` (5 cones) and the pre-migration
+`test_stream_char.py::obs_equiv` with `SIM_AR_OUTSTANDING=2` (1 cone). Both fail;
+this is NOT a migration regression and predates the shared harness.
+
+**Mechanism.** A table slot frees on `event_reported`, not on RLAST
+(`axi_monitor_trans_mgr`: `w_can_cleanup = event_reported` for
+COMPLETE/ERROR/ORPHANED). While the table is capped, `block_ready` throttles the
+upstream handshake, but commands that get through while capped are simply not
+tracked -- documented as "lossy-but-honest" in [[monitor-configuration]]. More
+compiled cones means more packets owed per transaction, more time capped, more
+loss. Hence 86% -> 75% from cone count alone, at identical depth.
+
+**Why it matters more than it looks.** A missed burst is a missed MATCH. On a
+coverage run the symptom is a tuple that reads as "never observed" when it did
+occur and the monitor was full. That is the exact wrong failure mode for a
+board campaign whose goal is observing lots of matches under specific patterns
+-- it produces confident false negatives.
+
+Related and separate: `rw_perf` fails `RD AR->firstR histogram total 255 !=
+burst count 256`, byte-identical on both trees. A one-burst histogram
+off-by-one, independent of the loss above.
+
+**ANSWERED 2026-08-05: depth closes it completely.**
+
+| table | observer | in-core | tracked |
+|---|---|---|---|
+| 16 | 4096 | 3073 | 75% |
+| **40** | 4096 | **4096** | **100%** -- `obs_equiv` PASSES |
+
+So the loss is not inherent to the monitor: it is capping, and a table that
+never caps tracks everything. Sizing is the lever for BOTH failure modes -- the
+wedge (fixed by the floor of 16) and the loss (needs enough depth that the
+table never fills at the sustained match rate).
+
+**RESOLVED 2026-08-06: 40 slots is NOT affordable. Timing, not area.**
+
+|  slots | WNS        | LUTs (325T)     | in-core tracking |
+|---|---|---|---|
+|  16    | **+1.018 ns** | 81393 (39.9%) | 3073/4096 (75%) |
+|  40    | **-25.183 ns** | 131663 (64.6%) | 4096/4096 (100%) |
+
+A 25 ns miss on a 10 ns period -- the path is over THREE times the clock, not a
+marginal overshoot. `monitor_trans_cam` performs three combinational ID lookups
+plus a free-slot priority encode across every entry, so the critical cone scales
+with depth; 64.6% utilisation then adds routing congestion. Depth buys tracking
+completeness and spends timing, steeply and nonlinearly.
+
+So the board ships 16: saturation is RECOVERABLE (no more permanent wedge) but
+tracking is ~75% under 5 compiled cones. Closing the completeness gap requires
+one of:
+
+1. **Pipeline the CAM lookup.** The real fix -- decouples depth from the
+   combinational cone. `monbus_cam_pipe` already exists as precedent for the
+   monbus CAM; the trans CAM has no pipelined variant.
+2. **Fewer cones per bitstream.** Tracking loss scales with cones (86% at 1 cone
+   vs 75% at 5, same depth). A coverage bitstream compiling only the classes it
+   is matching would track them completely, at the cost of more bitstreams --
+   the flavor split already established for error vs all-except-error.
+3. **Floorplanning.** A pblock around the monitor CAMs, as was done for
+   `pblock_compressor` on the stream_char timing knife-edge.
+
+**The tension this creates.** The board runs `AR_MAX_OUTSTANDING=2` explicitly
+to keep the trans_mgr CAM small enough to close timing with every cone built.
+The sizing change decouples table depth from that knob, so `AR=2` + a larger
+`MON_TRANS_MARGIN` can give 40 slots without touching the datapath -- but the
+CAM timing arc scales with DEPTH, not with AR, so a 40-deep CAM reintroduces
+exactly the pressure `AR=2` was avoiding. Completeness vs timing closure is a
+real trade here and only synthesis settles it.
+
+**Remaining open questions:**
+- Should coverage builds compile only the cones being matched, trading breadth
+  per bitstream for completeness within one?
+- Should the monitor expose a dropped-command counter, so loss is visible
+  instead of silent? Today nothing distinguishes "not observed" from "not
+  tracked".
+
+Fixed separately on 2026-08-05: the WEDGE (not the loss). Tables below 16 got
+`cmd_entry_reserve()==0` and no recovery guarantee, so the first overrun hung
+the monitored bus permanently -- live in the shipping monitor bitstream at
+4ch x AR=2 = 12 slots. `stream_core` now sizes
+`MAX(16, NUM_CHANNELS*Ax_MAX + MON_TRANS_MARGIN)`. See [[monitor-sizing]].
+
+## AMBA-BLOCKMARGIN — block_ready margin covers 1 allocator, not 3 (root cause of the tracking loss)
+**Status:** open 2026-08-08  **Supersedes the mechanism in** [[AMBA-MONTRACK]]
+
+`block_ready` is computed from `active_count`, a REGISTERED pop-count that lags
+true occupancy by one cycle (axi_monitor_trans_mgr.sv:1082, deliberately -- the
+former accumulator could underflow to 0xFF). The comment says the lag is
+"absorbed by block_ready's BLOCK_MARGIN". It is not, on any table >= 16:
+
+```
+BLOCK_MARGIN = (CMD_ENTRY_RESERVE > 0) ? (CMD_ENTRY_RESERVE - 1) : 3
+             = 1   for MAX >= 16        (CMD_ENTRY_RESERVE = 2)
+             = 3   for MAX <  16        (legacy flat margin)
+```
+
+THREE independent allocators can fire in the same cycle -- `addr_wants_alloc`,
+`data_wants_alloc`, `resp_wants_alloc`, each with its own `*_alloc_oh` out of
+monitor_trans_cam. One cycle of stale occupancy therefore admits up to three
+allocations against a margin of one.
+
+**The legacy margin of 3 was exactly right.** The saturation-recovery refactor
+replaced it with `CMD_ENTRY_RESERVE - 1` and regressed it to 1 on precisely the
+tables the reserve was added to protect.
+
+**Why the data drop is a symptom, not the defect.** Every data beat belongs to a
+command that was already accepted; if that command got a slot, its beats MATCH
+and never need allocation. Unmatched data can only exist when a command was
+accepted WITHOUT being allocated -- i.e. when block_ready failed to stop it. So
+the observable loss (unmatched data/resp beats discarded at a full table,
+because they cannot be backpressured -- a monitor must never stall returning
+data) is downstream of a command that should never have been admitted.
+
+**Measured.** val/amba/test_axi_monitor_trans_mgr.py::phase_saturation_recovers,
+depth 8: after fill `active_count=8, block_ready=0`; 32 unmatched data beats
+driven; `peak=8`, final 7 -- all 32 discarded. At the harness level obs_equiv
+reports observer 4096 vs in-core 3073, IDENTICAL at drain 2,000 and 200,000
+clocks, so it is loss and not backlog. At 40 slots the margin is still 1 but
+occupancy never nears full (8 max outstanding), so nothing is lost -- the bug
+only bites on genuine saturation.
+
+**Fix candidates:**
+1. `BLOCK_MARGIN = max(3, CMD_ENTRY_RESERVE - 1)` -- restores the legacy cover
+   while keeping the reserve. Cheapest, and the margin then matches the number
+   of allocators by construction rather than by coincidence.
+2. Derive block_ready from the COMBINATIONAL `w_occupancy` instead of the
+   registered `r_active_count`, removing the lag entirely. Costs the timing the
+   registration was added to buy -- measure before choosing.
+3. Gate `data_wants_alloc` / `resp_wants_alloc` on free slots and count the
+   rejects, so loss becomes visible instead of silent (still no counter today).
+
+Whichever is taken, add an assertion that occupancy never exceeds
+`MAX_TRANSACTIONS` AND that no command is accepted without an allocation -- the
+second is the invariant that actually failed here.
+
+**Credit:** found by the user's observation that "if the cmds are stopped
+correctly, there won't be data to drop", which reframed a documented
+"lossy-but-honest" behaviour as a flow-control defect.

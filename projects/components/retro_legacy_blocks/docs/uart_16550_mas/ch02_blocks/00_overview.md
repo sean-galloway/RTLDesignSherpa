@@ -26,7 +26,7 @@
 ## Module Hierarchy
 
 ```
-apb_uart_16550
+apb4_uart_16550
 |-- APB Interface
 |-- Register File
 |-- Baud Rate Generator

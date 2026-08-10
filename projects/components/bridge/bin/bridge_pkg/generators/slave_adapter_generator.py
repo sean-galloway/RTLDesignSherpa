@@ -5,7 +5,7 @@ Generates per-slave adapter modules that sit between crossbar and external slave
 
 Each slave adapter contains:
 - Timing isolation wrapper (axi4_master_wr/rd for AXI4 slaves)
-- Protocol conversion (axi4_to_apb, axi4_to_axil for non-AXI4 slaves)
+- Protocol conversion (axi4_to_apb4, axi4_to_axil for non-AXI4 slaves)
 - Final skid buffers before external slave interface
 """
 
@@ -23,7 +23,7 @@ class SlaveAdapterGenerator:
 
     Each slave adapter contains:
     - axi4_master_wr/rd timing wrappers (for AXI4 slaves)
-    - axi4_to_apb converter (for APB slaves)
+    - axi4_to_apb4 converter (for APB slaves)
     - axi4_to_axil converter (for AXI4-Lite slaves)
     - Final skid buffers before external interface
     """
@@ -87,7 +87,12 @@ class SlaveAdapterGenerator:
         lines.extend(self._generate_bridge_id_tracking())
 
         # Timing wrapper or protocol converter
-        if self.slave.protocol == 'axi4':
+        if self.slave.protocol in ('axi4', 'axi5'):
+            # axi5 (A5-2 slice 1): same structure as axi4, but the
+            # boundary wrapper is axi5_master_{wr,rd} -- AXI4 fub face
+            # toward the crossbar, AXI5 m_axi face toward the external
+            # slave, sideband features terminated/defaulted at the
+            # wrapper.
             lines.extend(self._generate_axi4_timing_wrapper())
         elif self.slave.protocol == 'apb':
             lines.extend(self._generate_apb_converter())
@@ -259,6 +264,30 @@ class SlaveAdapterGenerator:
                 declaration = inverted_sig.get_declaration(sig_name, width_values)
                 lines.append(f"    {declaration},")
 
+        # AXI5 native sideband (A5-2 slice 2): request-direction fields
+        # arrive FROM the crossbar (inputs), response-direction fields
+        # return TO it (outputs). Bridge-id ports always follow, so
+        # trailing commas are safe.
+        sb_feats = self._sb_feats()
+        if sb_feats:
+            from bridge_pkg.sideband import channel_fields
+            has_wr = self.channels in ["wr", "rw"]
+            has_rd = self.channels in ["rd", "rw"]
+            req_chs = (['aw', 'w'] if has_wr else []) + (['ar'] if has_rd else [])
+            rsp_chs = (['b'] if has_wr else []) + (['r'] if has_rd else [])
+            sb_lines = []
+            for ch in req_chs:
+                for _f, w, feat, base in channel_fields(sb_feats, ch):
+                    rng = "        " if w == 1 else f"[{w-1}:0]  "
+                    sb_lines.append(f"    input  logic {rng}{prefix}{base},")
+            for ch in rsp_chs:
+                for _f, w, feat, base in channel_fields(sb_feats, ch):
+                    rng = "        " if w == 1 else f"[{w-1}:0]  "
+                    sb_lines.append(f"    output logic {rng}{prefix}{base},")
+            if sb_lines:
+                lines.append("    // AXI5 native sideband (A5-2 slice 2)")
+                lines.extend(sb_lines)
+
         return lines
 
     def _generate_bridge_id_ports(self) -> List[str]:
@@ -296,7 +325,7 @@ class SlaveAdapterGenerator:
         """
         lines = []
 
-        if self.slave.protocol == 'axi4':
+        if self.slave.protocol in ('axi4', 'axi5'):
             lines.extend(self._generate_axi4_external_ports())
         elif self.slave.protocol == 'apb':
             lines.extend(self._generate_apb_external_ports())
@@ -309,11 +338,23 @@ class SlaveAdapterGenerator:
         return lines
 
     def _generate_axi4_external_ports(self) -> List[str]:
-        """Generate AXI4 external slave ports using SignalNaming."""
-        lines = []
+        """Generate AXI4 (or AXI5) external slave ports using
+        SignalNaming.
+
+        AXI5 slaves (protocol='axi5', A5-2 slice 1): the surface is the
+        AXI4 set MINUS aw/arregion (AXI5 removed REGION), PLUS the
+        enabled sideband features' signals appended per channel.
+        req-direction extras (aw/ar/w-side) are adapter OUTPUTS toward
+        the external slave; b/r-side extras are adapter INPUTS from it.
+        Disabled features' signals are NOT exposed -- they tie/default
+        at the axi5_master_* wrapper instantiation."""
+        from ..components.axi4_timing_wrapper_component import (
+            axi5_exposed_ext_signals,
+        )
 
         # Use slave prefix from config
         prefix = self.slave.prefix
+        is_axi5 = (self.slave.protocol == 'axi5')
 
         # Width parameters. ID_WIDTH is master pass-through (Bug B fix).
         width_values = {
@@ -334,30 +375,44 @@ class SlaveAdapterGenerator:
         # Adapter acts as master to external slave
         signal_db = AXI4_MASTER_SIGNALS
 
-        # Pre-calculate last signal
-        last_channel = channels[-1] if channels else None
-
-        for channel_idx, channel in enumerate(channels):
+        # Collect declarations first, then emit with commas (the AXI5
+        # extras land after the base set per channel, so the "last
+        # signal" can't be predicted inside the base loop).
+        decls: List[str] = []
+        for channel in channels:
             if channel not in signal_db:
                 continue
 
-            channel_signals = list(signal_db[channel])
-            for sig_idx, sig_info in enumerate(channel_signals):
+            for sig_info in signal_db[channel]:
+                # AXI5 has no REGION -- drop it from the base set.
+                if is_axi5 and sig_info.name == 'region':
+                    continue
+
                 # Build signal name
                 sig_name = f"{prefix}{channel.value}{sig_info.name}"
 
                 # Get declaration
-                declaration = sig_info.get_declaration(sig_name, width_values)
+                decls.append(sig_info.get_declaration(sig_name, width_values))
 
-                # Check if last signal
-                is_last_channel = (channel == last_channel)
-                is_last_signal = (sig_idx == len(channel_signals) - 1)
-                is_very_last = (is_last_channel and is_last_signal)
+            # AXI5 sideband extras for this channel (enabled features
+            # only). req-direction extras are outputs toward the
+            # external slave; b/r-side extras are inputs from it.
+            if is_axi5:
+                for name, width, req_dir in axi5_exposed_ext_signals(
+                        channel.value, self.slave.axi5_features):
+                    dir_str = 'output' if req_dir else 'input'
+                    sig_name = f"{prefix}{name}"
+                    if width > 1:
+                        decls.append(
+                            f"{dir_str}  logic [{width-1}:0]  {sig_name}")
+                    else:
+                        decls.append(
+                            f"{dir_str}  logic         {sig_name}")
 
-                if is_very_last:
-                    lines.append(f"    {declaration}")  # No comma
-                else:
-                    lines.append(f"    {declaration},")
+        lines = []
+        for idx, declaration in enumerate(decls):
+            comma = "" if idx == len(decls) - 1 else ","
+            lines.append(f"    {declaration}{comma}")
 
         return lines
 
@@ -727,9 +782,28 @@ class SlaveAdapterGenerator:
 
         return lines
 
+    def _sb_feats(self):
+        """Native sideband features this slave passes through (A5-2
+        slice 2): its own axi5_features restricted to the native set.
+        (The bridge union always contains a slave's own features, so no
+        union argument is needed here.)"""
+        from bridge_pkg.sideband import NATIVE_SIDEBAND_FEATURES, port_features
+        return port_features(self.slave) & set(NATIVE_SIDEBAND_FEATURES)
+
+    def _wrapper_protocol_and_features(self):
+        """Boundary wrapper family for this slave's timing wrapper: an
+        axi5 slave port gets the axi5_master_* wrappers (AXI4 fub face,
+        AXI5 m_axi face -- sideband features terminate/default at the
+        wrapper). Everything else (axi4, plus the apb/axil mon-sandwich
+        wrappers upstream of their converter shims) keeps axi4_master_*.
+        """
+        if self.slave.protocol == 'axi5':
+            return 'axi5', list(getattr(self.slave, 'axi5_features', None) or [])
+        return 'axi4', None
+
     def _generate_master_wr_wrapper(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
-        """Generate axi4_master_wr timing-wrapper instance via the
-        typed Axi4TimingWrapper component."""
+        """Generate {axi4,axi5}_master_wr timing-wrapper instance via
+        the typed Axi4TimingWrapper component."""
         from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
 
         # Monitor identity: UNIT_ID=1 marks every slave-side wrapper
@@ -738,6 +812,7 @@ class SlaveAdapterGenerator:
         # Matches the SV defaults' UNIT_ID=1 family.
         unit_id = 1 if self.enable_monitoring else None
         agent_id = ((self.slave_index << 4) | 0x1) if self.enable_monitoring else None
+        wrapper_protocol, wrapper_features = self._wrapper_protocol_and_features()
 
         wrapper = Axi4TimingWrapper(
             side='master', channel='wr',
@@ -758,6 +833,9 @@ class SlaveAdapterGenerator:
             ),
             mon_enables=(getattr(self.slave, 'mon_enables', None)
                          if self.enable_monitoring else None),
+            protocol=wrapper_protocol,
+            axi5_features=wrapper_features,
+            native_sideband=bool(self._sb_feats()),
         )
         wrapper.connect_clocks_and_resets()
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
@@ -774,16 +852,18 @@ class SlaveAdapterGenerator:
             wrapper.connect_cfg(connector_prefix='cfg_wr_')
             wrapper.add_addr_range_tieoff()
             wrapper.add_perfmon_tieoff()
-        return ["    // AXI4 Master Write Timing Wrapper"] + wrapper.generate_lines()
+        label = f"    // {wrapper_protocol.upper()} Master Write Timing Wrapper"
+        return [label] + wrapper.generate_lines()
 
     def _generate_master_rd_wrapper(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
-        """Generate axi4_master_rd timing-wrapper instance via the
-        typed Axi4TimingWrapper component."""
+        """Generate {axi4,axi5}_master_rd timing-wrapper instance via
+        the typed Axi4TimingWrapper component."""
         from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
 
         # UNIT_ID=1 for slave side; AGENT_ID = (slave_index << 4) | 0x0 for rd.
         unit_id = 1 if self.enable_monitoring else None
         agent_id = ((self.slave_index << 4) | 0x0) if self.enable_monitoring else None
+        wrapper_protocol, wrapper_features = self._wrapper_protocol_and_features()
 
         wrapper = Axi4TimingWrapper(
             side='master', channel='rd',
@@ -801,6 +881,9 @@ class SlaveAdapterGenerator:
             ),
             mon_enables=(getattr(self.slave, 'mon_enables', None)
                          if self.enable_monitoring else None),
+            protocol=wrapper_protocol,
+            axi5_features=wrapper_features,
+            native_sideband=bool(self._sb_feats()),
         )
         wrapper.connect_clocks_and_resets()
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
@@ -817,7 +900,8 @@ class SlaveAdapterGenerator:
             wrapper.connect_cfg(connector_prefix='cfg_rd_')
             wrapper.add_addr_range_tieoff()
             wrapper.add_perfmon_tieoff()
-        return ["    // AXI4 Master Read Timing Wrapper"] + wrapper.generate_lines()
+        label = f"    // {wrapper_protocol.upper()} Master Read Timing Wrapper"
+        return [label] + wrapper.generate_lines()
 
     def _generate_apb_converter(self) -> List[str]:
         """Generate AXI4-to-APB converter instantiation via the typed
@@ -829,7 +913,7 @@ class SlaveAdapterGenerator:
         `axi4_master_*_mon` wrapper -- the wrapper observes the
         bridge-internal AXI4 traffic before it's converted to APB.
         Identical pattern to _generate_axil_converter."""
-        from ..components.axi4_to_apb_shim_component import Axi4ToApbShim
+        from ..components.axi4_to_apb4_shim_component import Axi4ToApbShim
 
         xbar_prefix = f"xbar_{self.slave.name}_axi_"
         lines: List[str] = []
@@ -878,7 +962,7 @@ class SlaveAdapterGenerator:
         else:
             shim.tie_off_axi_read_channel()
 
-        shim.connect_apb_master(prefix=self.slave.prefix)
+        shim.connect_apb4_master(prefix=self.slave.prefix)
 
         lines.append("    // AXI4-to-APB converter shim")
         lines.extend(shim.generate_lines())

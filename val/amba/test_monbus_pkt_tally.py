@@ -8,33 +8,32 @@
 # Purpose: FUB cocotb tests for rtl/amba/monitor/monbus_pkt_tally.sv
 #
 # Documentation: rtl/amba/monitor/monbus_pkt_tally.sv (header)
-#                projects/NexysA7/stream_characterization/
-#                vault/handbook/fpga/Genesys2/stream-mon/monitor-board-coverage.md
 # Subsystem: tests
 #
 # Author: sean galloway
 
 """
-FUB tests for monbus_pkt_tally — the on-chip packet-type coverage histogram
-(SRAM count matrix + 32-entry LRU write-combining cache).
+FUB tests for monbus_pkt_tally — the on-chip packet-type coverage histogram.
 
-The acceptance criterion is the plan's cross-check: after a freeze/flush, the
-hardware bin counts must equal a pure-Python golden count of the same accepted
-(protocol, pkt_type, event_code) stream, EXACTLY. A lost increment through an
-eviction race would show up as a per-bin mismatch.
+The tally is a DIRECT-MAPPED count SRAM fronted by the legal-set CAM, which
+ALWAYS routes an accepted packet to a bin: a CAM hit -> the entry's dense index;
+a miss -> the single UNEXPECTED bin (index N_PROFILE). There is no cache and no
+flush-before-read: reads return the live SRAM count at any arrival volume.
+
+Acceptance criterion: after driving a stream, the hardware bin counts must equal
+a pure-Python golden count of the same accepted stream, EXACTLY (a lost or
+mis-routed increment shows up as a per-bin mismatch).
 
 Phases (run in order by tally_test):
-  1. reset            — all bins zero, latch empty
-  2. count + readback — random stream; frozen/flushed bins == golden
-  3. eviction stress  — many more distinct bins than the cache holds, so
-                        every bin is evicted and re-installed repeatedly;
-                        this is the real test of the evict-RMW path
-  4. saturation       — one bin driven past COUNT_MAX pegs, never wraps
-  5. first-event latch— first NUM_LATCH watched-pkt_type packets captured
-  6. clear            — zeroes SRAM + cache + latches
+  1. reset             — all bins zero, latch empty
+  2. count + readback  — legal + illegal stream; frozen bins == golden, with
+                         every illegal tuple landing in the UNEXPECTED bin
+  3. saturation        — one bin driven past COUNT_MAX pegs, never wraps
+  4. first-event latch — first NUM_LATCH watched-pkt_type packets captured
+  5. clear             — zeroes SRAM + latches
 
 Pattern A (val/amba): one cocotb test dispatching the phases, parameterized at
-the pytest level on (ADDR_BITS, COUNT_WIDTH, CACHE_DEPTH, NUM_LATCH).
+the pytest level on (ADDR_BITS, COUNT_WIDTH, NUM_LATCH, N_PROFILE).
 """
 
 import os
@@ -42,7 +41,6 @@ import random
 
 import pytest
 import cocotb
-from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ReadOnly
 
 from cocotb_test.simulator import run
@@ -54,7 +52,8 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # ----------------------------------------------------------------------------
 # Packet construction — field positions locked by monitor_common_pkg:
-#   [127:124] pkt_type   [108:105] protocol   [104:97] event_code   [63:0] data
+#   [127:124] pkt_type   [108:105] protocol   [104:97] event_code
+#   [87:72] agent_id     [63:0] data
 # ----------------------------------------------------------------------------
 def make_packet(pkt_type: int, protocol: int, event_code: int,
                 event_data: int = 0, agent_id: int = 0) -> int:
@@ -73,27 +72,22 @@ def profile_key(agent_id: int, protocol: int, pkt_type: int, event_code: int) ->
             | ((pkt_type & 0xF) << 8) | (event_code & 0xFF))
 
 
-def bin_of(protocol: int, pkt_type: int, event_code: int, addr_bits: int) -> int:
-    """Mirror of the RTL: full identity, then low ADDR_BITS bits."""
-    full = ((protocol & 0xF) << 12) | ((pkt_type & 0xF) << 8) | (event_code & 0xFF)
-    return full & ((1 << addr_bits) - 1)
-
-
 class PktTallyTB(TBBase):
     """Drives packets and cross-checks the histogram against a Python golden."""
 
     def __init__(self, dut):
         super().__init__(dut)
         self.dut = dut
-        self.ADDR_BITS    = int(os.environ['PARAM_ADDR_BITS'])
-        self.COUNT_WIDTH  = int(os.environ['PARAM_COUNT_WIDTH'])
-        self.CACHE_DEPTH  = int(os.environ['PARAM_CACHE_DEPTH'])
-        self.NUM_LATCH    = int(os.environ['PARAM_NUM_LATCH'])
-        self.PROFILE_MODE = int(os.environ.get('PARAM_PROFILE_MODE', '0'))
-        self.N_PROFILE    = int(os.environ.get('PARAM_N_PROFILE', '64'))
-        self.COUNT_MAX    = (1 << self.COUNT_WIDTH) - 1
+        self.ADDR_BITS   = int(os.environ['PARAM_ADDR_BITS'])
+        self.COUNT_WIDTH = int(os.environ['PARAM_COUNT_WIDTH'])
+        self.NUM_LATCH   = int(os.environ['PARAM_NUM_LATCH'])
+        self.N_PROFILE   = int(os.environ['PARAM_N_PROFILE'])
+        self.UNEXPECTED  = self.N_PROFILE
+        self.COUNT_MAX   = (1 << self.COUNT_WIDTH) - 1
         # Golden bin -> saturating count.
         self.golden: dict[int, int] = {}
+        # Loaded legal set: (agent, proto, type, ec) -> dense index.
+        self.idx_of: dict[tuple, int] = {}
 
     # --- three-method reset contract ---
     async def assert_reset(self):
@@ -115,7 +109,6 @@ class PktTallyTB(TBBase):
         self.dut.i_watch_arm.value = 0
         self.dut.i_watch_pkttype_mask.value = 0
         self.dut.latch_sel.value = 0
-        # Profile-load port idle.
         self.dut.profile_clear.value = 0
         self.dut.profile_we.value = 0
         self.dut.profile_waddr.value = 0
@@ -139,25 +132,23 @@ class PktTallyTB(TBBase):
                 break
         self.dut.in_valid.value = 0
 
-    def tally_golden(self, protocol: int, pkt_type: int, event_code: int):
-        b = bin_of(protocol, pkt_type, event_code, self.ADDR_BITS)
-        cur = self.golden.get(b, 0)
-        self.golden[b] = min(cur + 1, self.COUNT_MAX)
+    def bin_of(self, agent: int, proto: int, ptype: int, ec: int) -> int:
+        """CAM routing: legal tuple -> its dense index, else UNEXPECTED."""
+        return self.idx_of.get((agent, proto, ptype, ec), self.UNEXPECTED)
 
-    async def freeze_flush(self):
+    def tally_golden(self, agent: int, proto: int, ptype: int, ec: int):
+        b = self.bin_of(agent, proto, ptype, ec)
+        self.golden[b] = min(self.golden.get(b, 0) + 1, self.COUNT_MAX)
+
+    async def freeze(self):
+        """Coherent read boundary: stop counting, let any in-flight RMW land.
+        Reads are live (no cache) so there is nothing to flush."""
         self.dut.i_freeze.value = 1
+        await self.wait_clocks('clk', 3)
+
+    async def unfreeze(self):
+        self.dut.i_freeze.value = 0
         await self.wait_clocks('clk', 2)
-        self.dut.i_flush.value = 1
-        await self.wait_clocks('clk', 1)
-        self.dut.i_flush.value = 0
-        # Wait for the drain to complete.
-        for _ in range(self.CACHE_DEPTH * 8 + 50):
-            await ReadOnly()
-            busy = int(self.dut.o_flush_busy.value)
-            await RisingEdge(self.dut.clk)
-            if busy == 0:
-                break
-        assert int(self.dut.o_flush_busy.value) == 0, "flush never completed"
 
     async def read_bin(self, b: int) -> int:
         self.dut.rd_addr.value = b
@@ -167,16 +158,11 @@ class PktTallyTB(TBBase):
         await RisingEdge(self.dut.clk)
         return val
 
-    async def unfreeze(self):
-        self.dut.i_freeze.value = 0
-        await self.wait_clocks('clk', 2)
-
     async def check_all_golden(self, extra_zero_probe=8):
         """Every golden bin matches; a sample of untouched bins reads zero."""
         for b, exp in self.golden.items():
             got = await self.read_bin(b)
             assert got == exp, f"bin 0x{b:04x}: hw={got} golden={exp}"
-        # Probe some bins that were never written.
         probes = 0
         b = 0
         while probes < extra_zero_probe and b < (1 << self.ADDR_BITS):
@@ -200,7 +186,7 @@ class PktTallyTB(TBBase):
         assert int(self.dut.o_flush_busy.value) == 0, "clear never completed"
         self.golden.clear()
 
-    # --- profile (legal-set) load ---
+    # --- legal-set (CAM) load ---
     async def profile_load(self, idx: int, agent: int, proto: int,
                            ptype: int, ec: int):
         self.dut.profile_waddr.value  = idx
@@ -210,65 +196,20 @@ class PktTallyTB(TBBase):
         await RisingEdge(self.dut.clk)
         self.dut.profile_we.value     = 0
         self.dut.profile_wvalid.value = 0
+        self.idx_of[(agent, proto, ptype, ec)] = idx
 
     async def profile_clear_all(self):
         self.dut.profile_clear.value = 1
         await RisingEdge(self.dut.clk)
         self.dut.profile_clear.value = 0
         await RisingEdge(self.dut.clk)
+        self.idx_of.clear()
 
-
-async def profile_phase(tb, rng):
-    """PROFILE_MODE: load a legal set, drive matching + non-matching packets,
-    and cross-check the dense bins + the single UNEXPECTED bin against golden."""
-    UNEXPECTED = tb.N_PROFILE
-    # Legal set: a handful of realistic STREAM tuples (agent, proto, type, ec).
-    #   AXI (proto 0): rd(9)/wr(10) completion + addr-match; CORE (proto 4):
-    #   scheduler(48)/desc-engine(16) completion.
-    legal = [
-        (9,  0, 1, 0),   # rd  completion
-        (10, 0, 1, 0),   # wr  completion
-        (9,  0, 8, 5),   # rd  addr-match
-        (10, 0, 8, 5),   # wr  addr-match
-        (48, 4, 1, 1),   # scheduler DESC_COMPLETE
-        (16, 4, 1, 0x40),# desc-engine DESCRIPTOR_LOADED
-    ]
-    assert len(legal) < tb.N_PROFILE
-    idx_of = {}
-    await tb.profile_clear_all()
-    for i, (ag, pr, pt, ec) in enumerate(legal):
-        await tb.profile_load(i, ag, pr, pt, ec)
-        idx_of[(ag, pr, pt, ec)] = i
-    await tb.wait_clocks('clk', 2)
-
-    # Some deliberately-illegal tuples (wrong agent / event / protocol).
-    illegal = [
-        (9,  0, 1, 0x0D),  # rd, but an error code not in the set
-        (99, 0, 1, 0),     # unknown agent
-        (48, 4, 0, 0x0F),  # scheduler error not loaded
-        (10, 2, 1, 0),     # wr speaking APB (wrong protocol)
-    ]
-
-    pool = legal + illegal
-    for _ in range(500):
-        ag, pr, pt, ec = rng.choice(pool)
-        await tb.send(make_packet(pt, pr, ec, rng.getrandbits(64), agent_id=ag))
-        b = idx_of.get((ag, pr, pt, ec), UNEXPECTED)
-        tb.golden[b] = min(tb.golden.get(b, 0) + 1, tb.COUNT_MAX)
-
-    await tb.freeze_flush()
-    # Every dense bin matches, and the UNEXPECTED bin holds all illegal hits.
-    for b, exp in tb.golden.items():
-        got = await tb.read_bin(b)
-        assert got == exp, f"profile bin {b}: hw={got} golden={exp}"
-    assert tb.golden.get(UNEXPECTED, 0) > 0, "no UNEXPECTED packets counted"
-    # Unloaded dense bins read zero.
-    for b in range(tb.N_PROFILE):
-        if b not in tb.golden:
-            got = await tb.read_bin(b)
-            assert got == 0, f"unloaded dense bin {b}: hw={got} (expected 0)"
-    tb.log.info(f"Profile OK: {len(legal)} dense bins matched, "
-                f"UNEXPECTED={tb.golden.get(UNEXPECTED, 0)}")
+    async def load_legal_set(self, legal):
+        await self.profile_clear_all()
+        for i, (ag, pr, pt, ec) in enumerate(legal):
+            await self.profile_load(i, ag, pr, pt, ec)
+        await self.wait_clocks('clk', 2)
 
 
 @cocotb.test()
@@ -277,73 +218,66 @@ async def tally_test(dut):
     await tb.setup_clocks_and_reset()
     rng = random.Random(int(os.environ.get('SEED', '1')))
 
-    if tb.PROFILE_MODE:
-        await profile_phase(tb, rng)
-        return
+    # Legal set: realistic STREAM tuples (agent, proto, type, ec).
+    #   AXI (proto 0): rd(9)/wr(10) completion + addr-match; CORE (proto 4):
+    #   scheduler(48)/desc-engine(16) completion.
+    legal = [
+        (9,  0, 1, 0),    # 0: rd  completion
+        (10, 0, 1, 0),    # 1: wr  completion
+        (9,  0, 8, 5),    # 2: rd  addr-match
+        (10, 0, 8, 5),    # 3: wr  addr-match
+        (48, 4, 1, 1),    # 4: scheduler DESC_COMPLETE
+        (16, 4, 1, 0x40), # 5: desc-engine DESCRIPTOR_LOADED
+    ]
+    assert len(legal) < tb.N_PROFILE
+    await tb.load_legal_set(legal)
 
-    PROTO = 0  # single protocol so a narrow ADDR_BITS build stays collision-free
-    max_pkttype = 0xF
-    max_evcode  = (1 << max(0, tb.ADDR_BITS - 8)) - 1 if tb.ADDR_BITS <= 8 else 0xFF
-
-    # ---- Phase 2: random count + readback ----
-    for _ in range(400):
-        pt = rng.randint(0, max_pkttype)
-        ec = rng.randint(0, max_evcode)
-        await tb.send(make_packet(pt, PROTO, ec, rng.getrandbits(64)))
-        tb.tally_golden(PROTO, pt, ec)
-    await tb.freeze_flush()
+    # ---- Phase 2: count + readback (legal hits + illegal -> UNEXPECTED) ----
+    illegal = [
+        (9,  0, 1, 0x0D),  # rd, error code not in the set
+        (99, 0, 1, 0),     # unknown agent
+        (48, 4, 0, 0x0F),  # scheduler error not loaded
+        (10, 2, 1, 0),     # wr speaking APB (wrong protocol)
+    ]
+    pool = legal + illegal
+    for _ in range(500):
+        ag, pr, pt, ec = rng.choice(pool)
+        await tb.send(make_packet(pt, pr, ec, rng.getrandbits(64), agent_id=ag))
+        tb.tally_golden(ag, pr, pt, ec)
+    await tb.freeze()
     await tb.check_all_golden()
-    tb.log.info(f"Phase2 OK: {len(tb.golden)} distinct bins matched")
+    assert tb.golden.get(tb.UNEXPECTED, 0) > 0, "no UNEXPECTED packets counted"
+    tb.log.info(f"Phase2 OK: {len(tb.golden)} bins matched, "
+                f"UNEXPECTED={tb.golden.get(tb.UNEXPECTED, 0)}")
     await tb.unfreeze()
     await tb.do_clear()
 
-    # ---- Phase 3: eviction stress (many more bins than the cache) ----
-    distinct = min((1 << tb.ADDR_BITS), tb.CACHE_DEPTH * 5)
-    tuples = []
-    seen = set()
-    while len(tuples) < distinct:
-        pt = rng.randint(0, max_pkttype)
-        ec = rng.randint(0, max_evcode)
-        if (pt, ec) not in seen:
-            seen.add((pt, ec))
-            tuples.append((pt, ec))
-    for _round in range(12):
-        rng.shuffle(tuples)
-        for (pt, ec) in tuples:
-            reps = rng.randint(1, 4)
-            for _ in range(reps):
-                await tb.send(make_packet(pt, PROTO, ec, rng.getrandbits(64)))
-                tb.tally_golden(PROTO, pt, ec)
-    await tb.freeze_flush()
-    await tb.check_all_golden()
-    tb.log.info(f"Phase3 OK: eviction stress, {len(tb.golden)} bins matched")
-    await tb.unfreeze()
-    await tb.do_clear()
-
-    # ---- Phase 4: saturation ----
-    pt, ec = 5, 7
+    # ---- Phase 3: saturation (one legal bin driven past COUNT_MAX) ----
+    ag, pr, pt, ec = legal[0]
     for _ in range(tb.COUNT_MAX + 40):
-        await tb.send(make_packet(pt, PROTO, ec))
-        tb.tally_golden(PROTO, pt, ec)
-    b = bin_of(PROTO, pt, ec, tb.ADDR_BITS)
+        await tb.send(make_packet(pt, pr, ec, agent_id=ag))
+        tb.tally_golden(ag, pr, pt, ec)
+    b = tb.bin_of(ag, pr, pt, ec)
     assert tb.golden[b] == tb.COUNT_MAX
-    await tb.freeze_flush()
+    await tb.freeze()
     got = await tb.read_bin(b)
     assert got == tb.COUNT_MAX, f"saturation: hw={got} expected {tb.COUNT_MAX}"
-    tb.log.info(f"Phase4 OK: bin pegged at {tb.COUNT_MAX}")
+    tb.log.info(f"Phase3 OK: bin {b} pegged at {tb.COUNT_MAX}")
     await tb.unfreeze()
     await tb.do_clear()
 
-    # ---- Phase 5: first-event latch ----
-    watch_pt = 0  # PktTypeError
+    # ---- Phase 4: first-event latch ----
+    # Arm pkt_type 1 (completion). Interleave a non-watched but LEGAL type-8
+    # packet (a CAM hit, so it does NOT trip the prof_miss latch path) with the
+    # watched type-1 packet; only the watched ones must latch.
+    watch_pt = 1
     dut.i_watch_arm.value = 1
     dut.i_watch_pkttype_mask.value = (1 << watch_pt)
     expected = []
     for i in range(tb.NUM_LATCH + 3):
-        # interleave a non-watched packet
-        await tb.send(make_packet(4, PROTO, i))          # perf, not watched
-        pkt = make_packet(watch_pt, PROTO, i, event_data=0xABCD0000 + i)
-        await tb.send(pkt, ts=0x1000 + i)
+        await tb.send(make_packet(8, 0, 5, agent_id=9))          # legal addr-match, not watched
+        pkt = make_packet(watch_pt, 0, 0, event_data=0xABCD0000 + i, agent_id=9)
+        await tb.send(pkt, ts=0x1000 + i)                        # legal completion, watched
         if len(expected) < tb.NUM_LATCH:
             expected.append((pkt, 0x1000 + i))
     await ReadOnly()
@@ -361,14 +295,47 @@ async def tally_test(dut):
         assert gp == pkt, f"latch[{idx}] pkt 0x{gp:032x} != 0x{pkt:032x}"
         assert gt == ts,  f"latch[{idx}] ts 0x{gt:x} != 0x{ts:x}"
     dut.i_watch_arm.value = 0
-    tb.log.info(f"Phase5 OK: first {tb.NUM_LATCH} watched packets latched")
+    tb.log.info(f"Phase4 OK: first {tb.NUM_LATCH} watched packets latched")
 
-    # ---- Phase 6: clear zeroes the latch too ----
+    # ---- Phase 5: clear zeroes the latch too ----
     await tb.do_clear()
     await ReadOnly()
     assert int(dut.latch_fill.value) == 0, "latch_fill not cleared"
     await RisingEdge(dut.clk)
-    tb.log.info("Phase6 OK: clear zeroed SRAM + latch")
+    tb.log.info("Phase5 OK: clear zeroed SRAM + latch")
+
+    # ---- Phase 6: clear must survive landing mid-RMW (regression) ----
+    # i_clear arrives as a ONE-CYCLE pulse from the CSR block, but counting a
+    # packet is a two-cycle read-modify-write. Under sustained monbus traffic
+    # the tally sits in the write-back half every other cycle, so ~half of all
+    # clear pulses land there. A clear that is only sampled in the accept half
+    # is silently dropped and the host sweeps stale counts. Reproduce exactly
+    # that: leave the FSM in its write-back cycle, pulse clear there, require
+    # zero.
+    ag, pr, pt, ec = legal[0]
+    b = tb.bin_of(ag, pr, pt, ec)
+    for _ in range(4):
+        await tb.send(make_packet(pt, pr, ec, agent_id=ag))
+    primed = await tb.read_bin(b)
+    assert primed == 4, f"phase6 setup: bin {b} = {primed}, expected 4"
+
+    # send() returns immediately after the accepting clock edge, so the FSM is
+    # in its write-back cycle right now. Pulse clear exactly there.
+    await tb.send(make_packet(pt, pr, ec, agent_id=ag))
+    dut.i_clear.value = 1
+    await RisingEdge(dut.clk)
+    dut.i_clear.value = 0
+    # Ride out the whole clear walk (no busy-poll: with the pulse landing
+    # mid-RMW, o_flush_busy has not risen yet on the cycle after the pulse).
+    await tb.wait_clocks('clk', (1 << tb.ADDR_BITS) + 20)
+    assert int(dut.o_flush_busy.value) == 0, "clear walk never finished"
+    tb.golden.clear()
+    got = await tb.read_bin(b)
+    assert got == 0, (
+        f"clear pulsed during the read-modify-write write-back cycle was "
+        f"DROPPED: bin {b} still reads {got} (expected 0). A one-cycle "
+        f"i_clear must be latched, not sampled only in the accept state.")
+    tb.log.info("Phase6 OK: mid-RMW clear honoured")
 
 
 # ----------------------------------------------------------------------------
@@ -376,21 +343,17 @@ async def tally_test(dut):
 # ----------------------------------------------------------------------------
 def get_params():
     return [
-        # (addr_bits, count_width, cache_depth, num_latch, profile_mode, n_profile)
-        (12, 8,  8, 4, 0, 64),   # direct: small SRAM (fast clear), forces eviction
-        (12, 16, 8, 4, 0, 64),
-        (14, 16, 16, 4, 0, 64),
-        # profile mode: N_PROFILE=64 dense bins + UNEXPECTED(64) -> 65 bins,
-        # so ADDR_BITS=7 (128-deep SRAM) covers them.
-        (7, 16, 8, 4, 1, 64),
+        # (addr_bits, count_width, num_latch, n_profile)
+        # ADDR_BITS must be >= clog2(N_PROFILE+1): dense bins 0..N-1 + UNEXPECTED.
+        (7, 16, 4, 64),    # N=64 -> 65 bins, 128-deep SRAM
+        (7,  8, 4, 64),    # 8-bit count -> fast saturation
+        (8, 16, 4, 100),   # N=100 -> 101 bins, 256-deep SRAM
     ]
 
 
 @pytest.mark.parametrize(
-    "addr_bits, count_width, cache_depth, num_latch, profile_mode, n_profile",
-    get_params())
-def test_monbus_pkt_tally(request, addr_bits, count_width, cache_depth, num_latch,
-                          profile_mode, n_profile):
+    "addr_bits, count_width, num_latch, n_profile", get_params())
+def test_monbus_pkt_tally(request, addr_bits, count_width, num_latch, n_profile):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
         'rtl_monitor':  'rtl/amba/monitor',
@@ -402,10 +365,9 @@ def test_monbus_pkt_tally(request, addr_bits, count_width, cache_depth, num_latc
 
     ab = TBBase.format_dec(addr_bits, 2)
     cw = TBBase.format_dec(count_width, 2)
-    cd = TBBase.format_dec(cache_depth, 2)
-    pm = "p" if profile_mode else "d"
+    npf = TBBase.format_dec(n_profile, 3)
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-    test_name = f"test_{worker_id}_{dut_name}_a{ab}_c{cw}_d{cd}_{pm}_{reg_level}"
+    test_name = f"test_{worker_id}_{dut_name}_a{ab}_c{cw}_n{npf}_{reg_level}"
     log_path  = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -420,12 +382,10 @@ def test_monbus_pkt_tally(request, addr_bits, count_width, cache_depth, num_latc
             raise FileNotFoundError(f"RTL source not found: {src}")
 
     rtl_parameters = {
-        'ADDR_BITS':    str(addr_bits),
-        'COUNT_WIDTH':  str(count_width),
-        'CACHE_DEPTH':  str(cache_depth),
-        'NUM_LATCH':    str(num_latch),
-        'PROFILE_MODE': str(profile_mode),
-        'N_PROFILE':    str(n_profile),
+        'ADDR_BITS':   str(addr_bits),
+        'COUNT_WIDTH': str(count_width),
+        'NUM_LATCH':   str(num_latch),
+        'N_PROFILE':   str(n_profile),
     }
 
     extra_env = {
@@ -436,9 +396,7 @@ def test_monbus_pkt_tally(request, addr_bits, count_width, cache_depth, num_latc
         'SEED':                os.environ.get('SEED', str(random.randint(0, 100000))),
         'PARAM_ADDR_BITS':     str(addr_bits),
         'PARAM_COUNT_WIDTH':   str(count_width),
-        'PARAM_CACHE_DEPTH':   str(cache_depth),
         'PARAM_NUM_LATCH':     str(num_latch),
-        'PARAM_PROFILE_MODE':  str(profile_mode),
         'PARAM_N_PROFILE':     str(n_profile),
     }
 

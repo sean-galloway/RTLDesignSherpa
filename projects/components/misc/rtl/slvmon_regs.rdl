@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Slave-side monitor configuration for dma_slave_monitors.
+//
+// WHY THIS EXISTS: the two slave monitors (axi4_slave_rd_mon @ agent 0x0001,
+// axi4_slave_wr_mon @ agent 0x0002) had NO configuration path at all. Their
+// enables were tied to 1'b1 by the harness and everything else -- the latency
+// threshold, all nine event-code masks, the address-range checker -- was tied
+// off INSIDE dma_slave_monitors:
+//
+//     .cfg_latency_threshold(32'hFFFFFFFF),
+//     .cfg_addr_check_enable(1'b0), .cfg_addr_range_enable(1'b0),
+//     .cfg_addr_range_low('0), .cfg_addr_range_high('0),
+//
+// so on silicon they could only ever emit COMPLETION: nothing could be made to
+// exceed a threshold that was pinned at max, and with the address checker off
+// there was no AddrMatch and no ADDR_RANGE error. Half the monitor-validation
+// environment -- the whole AXI SLAVE side -- was structurally uncoverable.
+//
+// The block now owns its own APB slave and this register file, rather than
+// exporting ~28 configuration ports for the harness to drive. Same shape as the
+// in-core monitors' MON regfile (stream_mon_regs.rdl) so a host that can drive
+// RDMON/WRMON can drive these without learning a second idiom.
+//
+// Defaults reproduce the previous tie-offs EXACTLY, so a build that never
+// writes these registers behaves as it did before.
+//
+// NOTE the address checker here is a SINGLE range (the slave monitors take a
+// scalar low/high pair), not the four-range allowlist the in-core monitors use.
+
+regfile slvmon_regs {
+    name = "DMA slave monitor configuration";
+    desc = "Runtime config for the read/write slave-side AXI monitors";
+
+    //-------------------------------------------------------------------------
+    // Read-side slave monitor (agent 0x0001)
+    //-------------------------------------------------------------------------
+    reg {
+        name = "RD slave monitor enable";
+        desc = "Per-class enables for the read slave monitor";
+        field { desc = "Monitor enable (master enable)";       sw = rw; hw = r; } MON_EN[0:0]         = 1'b1;
+        field { desc = "Error packet enable";                  sw = rw; hw = r; } ERR_EN[1:1]         = 1'b1;
+        field { desc = "Completion packet enable";             sw = rw; hw = r; } COMPL_EN[2:2]       = 1'b1;
+        field { desc = "Timeout packet enable";                sw = rw; hw = r; } TIMEOUT_EN[3:3]     = 1'b1;
+        field { desc = "Performance packet enable";            sw = rw; hw = r; } PERF_EN[4:4]        = 1'b1;
+        field { desc = "Debug packet enable";                  sw = rw; hw = r; } DEBUG_EN[5:5]       = 1'b1;
+        field { desc = "Threshold packet enable";              sw = rw; hw = r; } THRESH_EN[6:6]      = 1'b1;
+        field { desc = "Address-range checker enable";         sw = rw; hw = r; } ADDR_CHECK_EN[7:7]  = 1'b0;
+        field { desc = "Address range compare enable";         sw = rw; hw = r; } ADDR_RANGE_EN[8:8]  = 1'b0;
+        field { desc = "Reserved";                             sw = r;  hw = na; } RSVD[31:9]         = 23'h0;
+    } RDSLV_ENABLE @ 0x000;
+
+    reg { name = "RD slave timeout";   desc = "Timeout in cycles (was pinned at 0xFFFF)";
+          field { sw=rw; hw=r; } TIMEOUT_CYCLES[15:0] = 16'hFFFF;
+          field { sw=r; hw=na; } RSVD[31:16] = 16'h0; } RDSLV_TIMEOUT @ 0x004;
+
+    reg { name = "RD slave latency threshold"; desc = "Latency above this emits a THRESHOLD packet (was pinned at max)";
+          field { sw=rw; hw=r; } VALUE[31:0] = 32'hFFFFFFFF; } RDSLV_LATENCY_THRESH @ 0x008;
+
+    reg { name = "RD slave packet mask"; desc = "1 = drop that packet type at the monbus entry";
+          field { sw=rw; hw=r; } PKT_MASK[15:0]   = 16'h0000;
+          field { sw=rw; hw=r; } ERR_SELECT[31:16] = 16'h0000; } RDSLV_PKT_MASK @ 0x00C;
+
+    reg { name = "RD slave mask1"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } ERROR_MASK[15:0]    = 16'h0000;
+          field { sw=rw; hw=r; } TIMEOUT_MASK[31:16] = 16'h0000; } RDSLV_MASK1 @ 0x010;
+
+    reg { name = "RD slave mask2"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } COMPL_MASK[15:0]  = 16'h0000;
+          field { sw=rw; hw=r; } THRESH_MASK[31:16] = 16'h0000; } RDSLV_MASK2 @ 0x014;
+
+    reg { name = "RD slave mask3"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } PERF_MASK[15:0]  = 16'h0000;
+          field { sw=rw; hw=r; } ADDR_MASK[31:16] = 16'h0000; } RDSLV_MASK3 @ 0x018;
+
+    reg { name = "RD slave mask4"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } DEBUG_MASK[15:0] = 16'h0000;
+          field { sw=r; hw=na; } RSVD[31:16] = 16'h0; } RDSLV_MASK4 @ 0x01C;
+
+    reg { name = "RD slave addr range low";  desc = "Inclusive low bound for the single address range";
+          field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } RDSLV_ADDR_RANGE_LOW  @ 0x020;
+    reg { name = "RD slave addr range high"; desc = "Inclusive high bound for the single address range";
+          field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } RDSLV_ADDR_RANGE_HIGH @ 0x024;
+
+    //-------------------------------------------------------------------------
+    // Write-side slave monitor (agent 0x0002) -- identical layout at +0x040
+    //-------------------------------------------------------------------------
+    reg {
+        name = "WR slave monitor enable";
+        desc = "Per-class enables for the write slave monitor";
+        field { desc = "Monitor enable (master enable)";       sw = rw; hw = r; } MON_EN[0:0]         = 1'b1;
+        field { desc = "Error packet enable";                  sw = rw; hw = r; } ERR_EN[1:1]         = 1'b1;
+        field { desc = "Completion packet enable";             sw = rw; hw = r; } COMPL_EN[2:2]       = 1'b1;
+        field { desc = "Timeout packet enable";                sw = rw; hw = r; } TIMEOUT_EN[3:3]     = 1'b1;
+        field { desc = "Performance packet enable";            sw = rw; hw = r; } PERF_EN[4:4]        = 1'b1;
+        field { desc = "Debug packet enable";                  sw = rw; hw = r; } DEBUG_EN[5:5]       = 1'b1;
+        field { desc = "Threshold packet enable";              sw = rw; hw = r; } THRESH_EN[6:6]      = 1'b1;
+        field { desc = "Address-range checker enable";         sw = rw; hw = r; } ADDR_CHECK_EN[7:7]  = 1'b0;
+        field { desc = "Address range compare enable";         sw = rw; hw = r; } ADDR_RANGE_EN[8:8]  = 1'b0;
+        field { desc = "Reserved";                             sw = r;  hw = na; } RSVD[31:9]         = 23'h0;
+    } WRSLV_ENABLE @ 0x040;
+
+    reg { name = "WR slave timeout";   desc = "Timeout in cycles (was pinned at 0xFFFF)";
+          field { sw=rw; hw=r; } TIMEOUT_CYCLES[15:0] = 16'hFFFF;
+          field { sw=r; hw=na; } RSVD[31:16] = 16'h0; } WRSLV_TIMEOUT @ 0x044;
+
+    reg { name = "WR slave latency threshold"; desc = "Latency above this emits a THRESHOLD packet (was pinned at max)";
+          field { sw=rw; hw=r; } VALUE[31:0] = 32'hFFFFFFFF; } WRSLV_LATENCY_THRESH @ 0x048;
+
+    reg { name = "WR slave packet mask"; desc = "1 = drop that packet type at the monbus entry";
+          field { sw=rw; hw=r; } PKT_MASK[15:0]   = 16'h0000;
+          field { sw=rw; hw=r; } ERR_SELECT[31:16] = 16'h0000; } WRSLV_PKT_MASK @ 0x04C;
+
+    reg { name = "WR slave mask1"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } ERROR_MASK[15:0]    = 16'h0000;
+          field { sw=rw; hw=r; } TIMEOUT_MASK[31:16] = 16'h0000; } WRSLV_MASK1 @ 0x050;
+
+    reg { name = "WR slave mask2"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } COMPL_MASK[15:0]  = 16'h0000;
+          field { sw=rw; hw=r; } THRESH_MASK[31:16] = 16'h0000; } WRSLV_MASK2 @ 0x054;
+
+    reg { name = "WR slave mask3"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } PERF_MASK[15:0]  = 16'h0000;
+          field { sw=rw; hw=r; } ADDR_MASK[31:16] = 16'h0000; } WRSLV_MASK3 @ 0x058;
+
+    reg { name = "WR slave mask4"; desc = "Per-event-code drop masks";
+          field { sw=rw; hw=r; } DEBUG_MASK[15:0] = 16'h0000;
+          field { sw=r; hw=na; } RSVD[31:16] = 16'h0; } WRSLV_MASK4 @ 0x05C;
+
+    reg { name = "WR slave addr range low";  desc = "Inclusive low bound for the single address range";
+          field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } WRSLV_ADDR_RANGE_LOW  @ 0x060;
+    reg { name = "WR slave addr range high"; desc = "Inclusive high bound for the single address range";
+          field { sw=rw; hw=r; } VALUE[31:0] = 32'h0; } WRSLV_ADDR_RANGE_HIGH @ 0x064;
+};
+
+addrmap slvmon_regs_top {
+    name = "DMA slave monitor CSRs";
+    desc = "APB-fronted configuration for the slave-side AXI monitors";
+    slvmon_regs SLVMON @ 0x000;
+};

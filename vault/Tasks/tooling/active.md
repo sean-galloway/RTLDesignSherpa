@@ -23,8 +23,15 @@ procedure for each so they all come out identical.
 - [ ] memory-controllers — ddr3-lpddr3 / ddr4-lpddr4 TASKS.md (pumice DONE 2026-07-23 -> vault/Tasks/pumice/)
 - [ ] nexysa7 — timing_characterization/TASKS.md + cdc_counter_display CDC_DEMO_TODO.md
 - [ ] formal — formal/FORMAL_TODO.md
-- [ ] coverage — val/COVERAGE_TODO.md
-- [ ] tooling — TOOLING_TODO.md (this area's own backlog; migrate alongside)
+- [x] coverage — val/COVERAGE_TODO.md — DONE 2026-08-09: classified against
+      the tree (most had landed via the tests.mk/cov_utils consolidation);
+      vault/Tasks/coverage/ created with COV-000 (closed, the record) and
+      COV-001 (open, the 3 areas still off base tests.mk). File deleted.
+- [x] tooling — TOOLING_TODO.md — DONE 2026-08-09: item 1 (kmap promote)
+      was already subsumed by TOOLING-KMAP step 5; item 2 (skills strategy)
+      verified done -> TOOL-013 closed; item 3 (Scripts link rot,
+      re-verified still broken) -> TOOL-014 open. File deleted, referrers
+      repointed.
 
 **Per area (see `tasks` skill):** fence-aware split of the source into task
 blocks → classify open/active/closed/dropped by REAL repo state (not the stale

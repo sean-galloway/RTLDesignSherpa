@@ -91,7 +91,7 @@ Each of the 24 IRQ inputs can be independently configured for trigger mode (edge
 - **Reset Convention**: Consistent active-low asynchronous reset
 
 **Modularity:**
-Clean separation between interrupt routing logic (ioapic_core), register interface (ioapic_config_regs), and bus interface (apb_ioapic) enables easy customization and integration.
+Clean separation between interrupt routing logic (ioapic_core), register interface (ioapic_config_regs), and bus interface (apb4_ioapic) enables easy customization and integration.
 
 #### Comparison with Intel 82093AA IOAPIC
 
@@ -224,7 +224,7 @@ Fixed 24 IRQ inputs per Intel specification. For more IRQs, use multiple IOAPIC 
 **Test Infrastructure Needed:**
 - Python helper script (ioapic_helper.py)
 - Cocotb testbench (ioapic_tb.py)
-- Test suite (test_apb_ioapic.py)
+- Test suite (test_apb4_ioapic.py)
 
 **Estimated Validation Time:** 5-7 days (per RLB_STATUS_AND_ROADMAP.md)
 

@@ -48,6 +48,14 @@ class CrossbarGenerator:
         self.masters = masters
         self.slaves = slaves
 
+        # AXI5 native sideband (A5-2 slice 2). Union drives which struct
+        # fields exist (response-direction fields must be driven for
+        # EVERY master); per-slave feats drive which discrete slave-side
+        # sideband signals exist.
+        from bridge_pkg.sideband import sideband_union, port_features
+        self.sb_union = sideband_union(self.masters, self.slaves)
+        self._sb_port_features = port_features
+
     def generate(self) -> str:
         """Generate complete crossbar module."""
         lines = []
@@ -256,6 +264,15 @@ class CrossbarGenerator:
 
         return channels
 
+    def _sb_fields(self, channel, feats):
+        from bridge_pkg.sideband import channel_fields
+        return channel_fields(feats, channel)
+
+    def _sb_slave_feats(self, slave):
+        """Sideband features this slave exposes discrete xbar signals
+        for (its own features, restricted to the bridge union)."""
+        return self._sb_port_features(slave) & self.sb_union
+
     def _generate_slave_output_ports(self, slave: SlaveInfo) -> List[str]:
         """
         Generate output ports to slave using SignalNaming convention.
@@ -305,6 +322,28 @@ class CrossbarGenerator:
             lines.append(f"    input  logic [BRIDGE_ID_WIDTH-1:0] {slave.name}_axi_rid_bridge_id,")
             lines.append(f"    input  logic                       {slave.name}_axi_rid_valid,")
         lines.append("")
+
+        # AXI5 native sideband (A5-2 slice 2): discrete signals only for
+        # slaves that enable the feature. Request-direction = outputs,
+        # response-direction = inputs. Always followed by the base
+        # channel signals, so trailing commas are safe.
+        sb_feats = self._sb_slave_feats(slave)
+        if sb_feats:
+            sb_lines = []
+            req_chs = (['aw', 'w'] if has_write else []) + (['ar'] if has_read else [])
+            rsp_chs = (['b'] if has_write else []) + (['r'] if has_read else [])
+            for ch in req_chs:
+                for _f, w, feat, base in self._sb_fields(ch, sb_feats):
+                    rng = "        " if w == 1 else f"[{w-1}:0]  "
+                    sb_lines.append(f"    output logic {rng}{slave.name}_axi_{base},")
+            for ch in rsp_chs:
+                for _f, w, feat, base in self._sb_fields(ch, sb_feats):
+                    rng = "        " if w == 1 else f"[{w-1}:0]  "
+                    sb_lines.append(f"    input  logic {rng}{slave.name}_axi_{base},")
+            if sb_lines:
+                lines.append("    // AXI5 native sideband (A5-2 slice 2)")
+                lines.extend(sb_lines)
+                lines.append("")
 
         # Get signal info from SignalNaming (crossbar is master to slave)
         signal_db = AXI4_MASTER_SIGNALS  # Crossbar acts as MASTER to slaves (outputs request, inputs response)
@@ -489,10 +528,13 @@ class CrossbarGenerator:
 
         if wr_masters:
             lines.append("    // AW channel (OR-merged across writing masters)")
-            for sig, fld in [("awid", ".id"), ("awaddr", ".addr"), ("awlen", ".len"),
-                             ("awsize", ".size"), ("awburst", ".burst"),
-                             ("awlock", ".lock"), ("awcache", ".cache"),
-                             ("awprot", ".prot")]:
+            aw_pairs = [("awid", ".id"), ("awaddr", ".addr"), ("awlen", ".len"),
+                        ("awsize", ".size"), ("awburst", ".burst"),
+                        ("awlock", ".lock"), ("awcache", ".cache"),
+                        ("awprot", ".prot")]
+            aw_pairs += [(base, f".{field}") for field, _w, _f, base
+                         in self._sb_fields('aw', self._sb_slave_feats(slave))]
+            for sig, fld in aw_pairs:
                 tmpl = "{m}_{suffix}_aw"
                 expr = _or_merge(sig, fld, tmpl, "aw", wr_masters, aw_valid)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
@@ -531,7 +573,10 @@ class CrossbarGenerator:
                 lines.append("")
 
             lines.append("    // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)")
-            for sig, fld in [("wdata", ".data"), ("wstrb", ".strb"), ("wlast", ".last")]:
+            w_pairs = [("wdata", ".data"), ("wstrb", ".strb"), ("wlast", ".last")]
+            w_pairs += [(base, f".{field}") for field, _w, _f, base
+                        in self._sb_fields('w', self._sb_slave_feats(slave))]
+            for sig, fld in w_pairs:
                 tmpl = "{m}_{suffix}_w"
                 expr = _or_merge(sig, fld, tmpl, "w", wr_masters, w_valid)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
@@ -567,10 +612,13 @@ class CrossbarGenerator:
         # Read side. Same `slave_select && arvalid` gating story.
         if rd_masters:
             lines.append("    // AR channel (OR-merged across reading masters)")
-            for sig, fld in [("arid", ".id"), ("araddr", ".addr"), ("arlen", ".len"),
-                             ("arsize", ".size"), ("arburst", ".burst"),
-                             ("arlock", ".lock"), ("arcache", ".cache"),
-                             ("arprot", ".prot")]:
+            ar_pairs = [("arid", ".id"), ("araddr", ".addr"), ("arlen", ".len"),
+                        ("arsize", ".size"), ("arburst", ".burst"),
+                        ("arlock", ".lock"), ("arcache", ".cache"),
+                        ("arprot", ".prot")]
+            ar_pairs += [(base, f".{field}") for field, _w, _f, base
+                         in self._sb_fields('ar', self._sb_slave_feats(slave))]
+            for sig, fld in ar_pairs:
                 tmpl = "{m}_{suffix}_ar"
                 expr = _or_merge(sig, fld, tmpl, "ar", rd_masters, ar_valid)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
@@ -692,6 +740,8 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}awlock   = {sig_select} ? {master.name}_{suffix}_aw.lock : '0;")
         lines.append(f"    assign {prefix}awcache  = {sig_select} ? {master.name}_{suffix}_aw.cache : '0;")
         lines.append(f"    assign {prefix}awprot   = {sig_select} ? {master.name}_{suffix}_aw.prot : '0;")
+        for field, _w, _feat, base in self._sb_fields('aw', self._sb_slave_feats(slave)):
+            lines.append(f"    assign {prefix}{base}  = {sig_select} ? {master.name}_{suffix}_aw.{field} : '0;  // AXI5 sideband")
         lines.append(f"    assign {prefix}awvalid  = {sig_select} && {master.name}_{suffix}_awvalid;")
         lines.append("")
 
@@ -726,6 +776,8 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}wdata  = {w_sig} ? {master.name}_{suffix}_w.data : '0;")
         lines.append(f"    assign {prefix}wstrb  = {w_sig} ? {master.name}_{suffix}_w.strb : '0;")
         lines.append(f"    assign {prefix}wlast  = {w_sig} ? {master.name}_{suffix}_w.last : '0;")
+        for field, _w, _feat, base in self._sb_fields('w', self._sb_slave_feats(slave)):
+            lines.append(f"    assign {prefix}{base} = {w_sig} ? {master.name}_{suffix}_w.{field} : '0;  // AXI5 sideband")
         lines.append(f"    assign {prefix}wvalid = {w_sig} && {master.name}_{suffix}_wvalid;")
         lines.append("")
 
@@ -772,6 +824,8 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}arlock   = {sig_select} ? {master.name}_{suffix}_ar.lock : '0;")
         lines.append(f"    assign {prefix}arcache  = {sig_select} ? {master.name}_{suffix}_ar.cache : '0;")
         lines.append(f"    assign {prefix}arprot   = {sig_select} ? {master.name}_{suffix}_ar.prot : '0;")
+        for field, _w, _feat, base in self._sb_fields('ar', self._sb_slave_feats(slave)):
+            lines.append(f"    assign {prefix}{base}  = {sig_select} ? {master.name}_{suffix}_ar.{field} : '0;  // AXI5 sideband")
         lines.append(f"    assign {prefix}arvalid  = {sig_select} && {master.name}_{suffix}_arvalid;")
         lines.append("")
 
@@ -898,6 +952,20 @@ class CrossbarGenerator:
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
+        # AXI5 sideband: union fields exist in the struct for every
+        # master, so they must always be driven; only slaves that expose
+        # the feature contribute (others fall to the '0 default).
+        for field, _w, feat, base in self._sb_fields('b', self.sb_union):
+            lines.append(f"    assign {master.name}_{suffix}_b.{field} = ")
+            mux_terms = []
+            for slave_idx, slave in connected_slaves:
+                if feat not in self._sb_slave_feats(slave):
+                    continue
+                prefix = get_slave_prefix(slave)
+                mux_terms.append(f"        (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid ? {prefix}{base} : '0)")
+            lines.append((" |\n".join(mux_terms) if mux_terms else "        '0") + ";")
+            lines.append("")
+
         return lines
 
     def _generate_read_response_mux(self, master: MasterConfig, width: int,
@@ -972,6 +1040,18 @@ class CrossbarGenerator:
             mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}rvalid : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
+
+        # AXI5 sideband (see write-response mux comment).
+        for field, _w, feat, base in self._sb_fields('r', self.sb_union):
+            lines.append(f"    assign {master.name}_{suffix}_r.{field} = ")
+            mux_terms = []
+            for slave_idx, slave in connected_slaves:
+                if feat not in self._sb_slave_feats(slave):
+                    continue
+                prefix = get_slave_prefix(slave)
+                mux_terms.append(f"        (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid ? {prefix}{base} : '0)")
+            lines.append((" |\n".join(mux_terms) if mux_terms else "        '0") + ";")
+            lines.append("")
 
         return lines
 

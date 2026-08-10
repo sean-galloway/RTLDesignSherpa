@@ -45,7 +45,24 @@ module axi_monitor_filtered
     // Monitor parameters (passed through to axi_monitor_base)
     parameter logic [7:0]  UNIT_ID       = 8'h01,
     parameter logic [15:0] AGENT_ID      = 16'h000A,
+    // ---- Timer LUT sizing (counter_freq_invariant) -------------------------
+    // The divisor IS the frequency in MHz, so a table built for THIS design's
+    // clock gives an exact 1 us tick -- which is the unit monitor timeouts are
+    // expressed in. Defaults below set every entry to ACLK_MHZ, so the tick is
+    // exact regardless of cfg_freq_sel. Override to a real MIN..MAX range only
+    // if the design switches aclk at runtime.
+    parameter int CFI_MIN_FREQ_MHZ     = 100,
+    parameter int CFI_MAX_FREQ_MHZ     = 100,
+    parameter int CFI_NUM_FREQ_ENTRIES = 16,
+    parameter int CFI_FREQ_STRATEGY    = 0,
     parameter int MAX_TRANSACTIONS       = 16,
+    // ID-range filter, passed through to axi_monitor_base. Default OFF ->
+    // bit-identical to before. See axi_monitor_base for why this exists:
+    // several monitors snooping one ID-multiplexed bus, each owning a slice,
+    // so no single transaction table has to hold the whole concurrency.
+    parameter bit ID_FILTER_ENABLE       = 1'b0,
+    parameter int ID_MATCH_BASE          = 0,
+    parameter int ID_MATCH_COUNT         = 0,
     parameter int ADDR_WIDTH             = 32,
     parameter int ID_WIDTH               = 8,
     parameter bit IS_READ                = 1'b1,
@@ -101,9 +118,9 @@ module axi_monitor_filtered
 
     // Configuration (passed through to base monitor)
     input  logic [3:0]                  cfg_freq_sel,
-    input  logic [3:0]                  cfg_addr_cnt,
-    input  logic [3:0]                  cfg_data_cnt,
-    input  logic [3:0]                  cfg_resp_cnt,
+    input  logic [15:0]              cfg_addr_cnt,
+    input  logic [15:0]              cfg_data_cnt,
+    input  logic [15:0]              cfg_resp_cnt,
     input  logic                        cfg_error_enable,
     input  logic                        cfg_compl_enable,
     input  logic                        cfg_threshold_enable,
@@ -217,9 +234,16 @@ module axi_monitor_filtered
     // =========================================================================
 
     axi_monitor_base #(
+        .CFI_MIN_FREQ_MHZ     (CFI_MIN_FREQ_MHZ),
+        .CFI_MAX_FREQ_MHZ     (CFI_MAX_FREQ_MHZ),
+        .CFI_NUM_FREQ_ENTRIES (CFI_NUM_FREQ_ENTRIES),
+        .CFI_FREQ_STRATEGY    (CFI_FREQ_STRATEGY),
         .UNIT_ID                 (UNIT_ID),
         .AGENT_ID                (AGENT_ID),
         .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
+            .ID_FILTER_ENABLE        (ID_FILTER_ENABLE),
+            .ID_MATCH_BASE           (ID_MATCH_BASE),
+            .ID_MATCH_COUNT          (ID_MATCH_COUNT),
         .ADDR_WIDTH              (ADDR_WIDTH),
         .ID_WIDTH                (ID_WIDTH),
         .IS_READ                 (IS_READ),

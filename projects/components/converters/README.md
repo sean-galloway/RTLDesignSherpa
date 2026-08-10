@@ -81,8 +81,8 @@ Converters Component
 │           └── Response path handling
 │
 └── Protocol Converters:
-    ├── axi4_to_apb_convert.sv   - AXI4-to-APB bridge (full protocol conversion)
-    ├── axi4_to_apb_shim.sv      - AXI4-to-APB adapter (simplified wrapper)
+    ├── axi4_to_apb4_convert.sv   - AXI4-to-APB bridge (full protocol conversion)
+    ├── axi4_to_apb4_shim.sv      - AXI4-to-APB adapter (simplified wrapper)
     └── peakrdl_to_cmdrsp.sv     - PeakRDL adapter (register→command/response)
 ```
 
@@ -362,7 +362,7 @@ These integrate the generic building blocks with:
 
 ## Protocol Converters
 
-### 4. AXI4-to-APB Bridge (axi4_to_apb_convert.sv)
+### 4. AXI4-to-APB Bridge (axi4_to_apb4_convert.sv)
 
 **Purpose:** Full protocol conversion from AXI4 to APB with address/data width adaptation
 
@@ -375,7 +375,7 @@ These integrate the generic building blocks with:
 
 **Usage Example:**
 ```systemverilog
-axi4_to_apb_convert #(
+axi4_to_apb4_convert #(
     .S_AXI_ADDR_WIDTH(64),
     .S_AXI_DATA_WIDTH(32),
     .M_APB_ADDR_WIDTH(32),

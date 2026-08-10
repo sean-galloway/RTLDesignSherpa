@@ -47,7 +47,7 @@
 <polyline fill="none" stroke="black" points="354,-255.5 210,-255.5 "/>
 <polyline fill="none" stroke="black" points="354,-255.5 354,-190.5 "/>
 <polyline fill="none" stroke="black" points="354,-255.5 358,-259.5 "/>
-<text text-anchor="middle" x="284" y="-244.3" font-family="Times,serif" font-size="14.00">apb_uart_16550</text>
+<text text-anchor="middle" x="284" y="-244.3" font-family="Times,serif" font-size="14.00">apb4_uart_16550</text>
 <text text-anchor="middle" x="284" y="-213.3" font-family="Times,serif" font-size="14.00">16550&#45;Compatible</text>
 <text text-anchor="middle" x="284" y="-198.3" font-family="Times,serif" font-size="14.00">UART</text>
 </g>

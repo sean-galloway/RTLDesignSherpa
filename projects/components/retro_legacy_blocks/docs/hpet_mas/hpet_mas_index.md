@@ -46,11 +46,11 @@ This MAS is organized into five chapters covering the micro-architecture of the 
 - [01_hpet_core.md](ch02_blocks/01_hpet_core.md) - Core timer logic (counter, comparators, FSM)
 - [02_hpet_config_regs.md](ch02_blocks/02_hpet_config_regs.md) - Configuration register wrapper
 - [03_hpet_regs.md](ch02_blocks/03_hpet_regs.md) - PeakRDL generated register file
-- [04_apb_hpet_top.md](ch02_blocks/04_apb_hpet_top.md) - Top-level integration
+- [04_apb4_hpet_top.md](ch02_blocks/04_apb4_hpet_top.md) - Top-level integration
 - [05_fsm_summary.md](ch02_blocks/05_fsm_summary.md) - FSM state summary table
 
 ### Chapter 3: Interfaces
-*(planned, not yet written - see `../../rtl/hpet/apb_hpet.sv` for the current port list)*
+*(planned, not yet written - see `../../rtl/hpet/apb4_hpet.sv` for the current port list)*
 - 01_top_level.md - Top-level signal list
 - 02_apb_interface_spec.md - APB protocol specification
 - 03_hpet_clock_interface.md - HPET clock domain interface

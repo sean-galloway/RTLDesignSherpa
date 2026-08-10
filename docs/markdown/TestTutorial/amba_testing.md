@@ -59,7 +59,7 @@ bin/TBClasses/components/
 ├── axi4lite/          # AXI4-Lite simplified protocol
 ├── apb/               # APB protocol
 │   ├── apb_components.py         # Master/Slave drivers
-│   └── apb_monitor.py            # Transaction monitoring
+│   └── apb4_monitor.py            # Transaction monitoring
 ├── axis4/             # AXI4-Stream
 └── gaxi/              # Generic AXI base classes
 ```
@@ -467,7 +467,7 @@ class APBTB(TBBase):
         super().__init__(dut)
         self.clk_name = 'pclk'
 
-        self.apb_master = APBMaster(
+        self.apb4_master = APBMaster(
             dut=dut,
             clock=dut.pclk,
             prefix="apb_",
@@ -490,12 +490,12 @@ class APBTB(TBBase):
 
     async def apb_write(self, addr, data):
         """Write via APB."""
-        await self.apb_master.write(addr, data)
+        await self.apb4_master.write(addr, data)
         self.log.info(f"APB write: addr=0x{addr:04X}, data=0x{data:08X}")
 
     async def apb_read(self, addr):
         """Read via APB."""
-        data = await self.apb_master.read(addr)
+        data = await self.apb4_master.read(addr)
         self.log.info(f"APB read: addr=0x{addr:04X}, data=0x{data:08X}")
         return data
 

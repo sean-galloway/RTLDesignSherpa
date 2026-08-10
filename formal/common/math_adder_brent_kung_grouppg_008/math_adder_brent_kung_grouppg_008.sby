@@ -20,7 +20,7 @@ read -formal -sv formal_math_adder_brent_kung_grouppg_008.sv
 prep -top formal_math_adder_brent_kung_grouppg_008
 
 [files]
-math_adder_brent_kung_black.sv ../../../rtl/common/math_adder_brent_kung_black.sv
-math_adder_brent_kung_gray.sv ../../../rtl/common/math_adder_brent_kung_gray.sv
-math_adder_brent_kung_grouppg_008.sv ../../../rtl/common/math_adder_brent_kung_grouppg_008.sv
+math_adder_brent_kung_black.sv ../../../rtl/math/math_adder_brent_kung_black.sv
+math_adder_brent_kung_gray.sv ../../../rtl/math/math_adder_brent_kung_gray.sv
+math_adder_brent_kung_grouppg_008.sv ../../../rtl/math/math_adder_brent_kung_grouppg_008.sv
 formal_math_adder_brent_kung_grouppg_008.sv

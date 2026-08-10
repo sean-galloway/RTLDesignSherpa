@@ -417,7 +417,7 @@ Both monitors emit MonBus packets with identical protocol-independent structure 
 - **Parent:** `03_scheduler_group.md` - Channel wrapper
 - **Consumer:** `04_scheduler.md` - Scheduler that receives descriptors
 - **Arbiter:** `02_scheduler_group_array.md` - Descriptor AXI arbitration
-- **APB Interface:** `13_apbtodescr.md` - APB to descriptor kick-off
+- **APB Interface:** `13_apb4todescr.md` - APB to descriptor kick-off
 ---
 
 ## Revision History

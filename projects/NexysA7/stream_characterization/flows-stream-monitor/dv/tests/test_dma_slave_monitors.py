@@ -4,7 +4,13 @@
 # Module: test_dma_slave_monitors
 # Purpose: FUB validation of dma_slave_monitors — drive the wrapper's AXI4 slave
 #          interface with an AXI4 master BFM and confirm the slave monitors
-#          observe the traffic and the tally counts it (COMPLETION bin > 0).
+#          observe the traffic and emit decodable monbus packets on the group's
+#          bulk-trace master-write port.
+#
+# NOT a tally test: the tally memories live one level up in stream_mon_harness
+# (they moved out of this wrapper), so the contract checked here is the one this
+# module actually owns -- packets on m_axil_*. The tally itself is covered by
+# val/amba/test_monbus_pkt_tally.py and the harness cosim.
 #
 # Pattern B (projects/): cocotb_test_* + pytest wrapper.
 
@@ -21,20 +27,54 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")
 async def cocotb_test_dma_slave_monitors(dut):
-    """Drive AXI reads+writes through the wrapper; the tally must count them."""
-    from tbclasses.dma_slave_monitors_tb import (
-        DmaSlaveMonitorsTB, bin_of, PKT_COMPLETION)
+    """Drive AXI reads+writes through the wrapper; the monitors must emit."""
+    # Load the TB by explicit FILE PATH, not "import tbclasses.*". Both this flow
+    # and flows-stream-bridge ship a package literally named `tbclasses`, and
+    # importing test_stream_mon.py (same directory, so pytest imports it during
+    # collection) puts the sibling flow's dv/ on sys.path FIRST. A plain import
+    # then resolves `tbclasses` to the wrong flow and this module vanishes --
+    # which is why running this file alone passed while the directory run failed.
+    # test_stream_mon.py dodges the same collision the same way.
+    import importlib.util as _ilu
+    _tb_py = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          '..', 'tbclasses', 'dma_slave_monitors_tb.py')
+    _spec = _ilu.spec_from_file_location('dma_slave_monitors_tb',
+                                         os.path.abspath(_tb_py))
+    _m = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_m)
+    DmaSlaveMonitorsTB, PKT_COMPLETION = _m.DmaSlaveMonitorsTB, _m.PKT_COMPLETION
 
+    N_WR, N_RD, BLEN = 8, 8, 4
     tb = DmaSlaveMonitorsTB(dut)
     await tb.setup_clocks_and_reset()
-    await tb.run_traffic(n_writes=8, n_reads=8, burst_len=4)
-    await tb.freeze_flush()
+    await tb.run_traffic(n_writes=N_WR, n_reads=N_RD, burst_len=BLEN)
 
-    compl = await tb.read_bin(bin_of(0, PKT_COMPLETION, 0))  # AXI/COMPLETION/0x00
-    dut._log.info(f"[dma_slave_monitors] COMPLETION bin 0x0100 = {compl}")
-    assert compl > 0, (
-        "no COMPLETION packets tabulated — the slave-monitor -> arbiter -> tally "
-        "path is not counting traffic through the wrapper")
+    # 1. The traffic really reached the slaves (DUT's own beat counters).
+    rd_beats, wr_beats = tb.beat_counts()
+    tb.log.info(f"[dma_slave_monitors] beats observed: rd={rd_beats} wr={wr_beats}")
+    assert rd_beats >= N_RD * BLEN, (
+        f"read beat count {rd_beats} < the {N_RD * BLEN} beats driven — traffic "
+        f"never reached the monitored slaves")
+    assert wr_beats >= N_WR * BLEN, (
+        f"write beat count {wr_beats} < the {N_WR * BLEN} beats driven — traffic "
+        f"never reached the monitored slaves")
+
+    # 2. The monitors turned that traffic into monbus packets on m_axil_*.
+    pkts = tb.packets()
+    kinds = {}
+    for p in pkts:
+        kinds[getattr(p, 'packet_type', None)] = kinds.get(getattr(p, 'packet_type', None), 0) + 1
+    tb.log.info(f"[dma_slave_monitors] {len(pkts)} packets decoded, by type: {kinds}")
+    assert pkts, (
+        "no monbus packets on the bulk-trace port — the slave-monitor -> "
+        "monbus_arbiter -> monbus_axil_axil_group -> m_axil_* path emitted nothing")
+
+    # 3. Completions specifically: every burst that retires should report one.
+    n_compl = sum(n for k, n in kinds.items()
+                  if k is not None and int(k) == PKT_COMPLETION)
+    assert n_compl > 0, (
+        f"packets emitted ({len(pkts)}) but none were COMPLETION (type "
+        f"{PKT_COMPLETION}); saw types {sorted(k for k in kinds if k is not None)}")
 
 
 # ----------------------------------------------------------------------------
@@ -61,12 +101,14 @@ def test_dma_slave_monitors(request):
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
 
-    # Small config: 1 channel, 64-bit data (axi4_dma_slaves default), 8-entry cache.
+    # Small config: 1 channel, 64-bit data (axi4_dma_slaves default).
+    # NOTE: no TALLY_* overrides here -- dma_slave_monitors wraps the DMA slaves
+    # and their monbus group only. The tally memories live one level up in
+    # stream_mon_harness, so passing TALLY_* here is a hard Verilator error
+    # ("Parameters from the command line were not found in the design").
     rtl_parameters = {
         'NUM_CHANNELS': '1', 'AXI_ID_WIDTH': '8', 'AXI_ADDR_WIDTH': '32',
         'AXI_DATA_WIDTH': '64', 'AXI_USER_WIDTH': '1', 'MAX_TRANSACTIONS': '16',
-        'TALLY_COUNT_WIDTH': '32', 'TALLY_CACHE_DEPTH': '8',
-        'TALLY_ADDR_BITS': '16', 'TALLY_NUM_LATCH': '4',
     }
     extra_env = {
         'DUT': dut_name, 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO',
@@ -79,6 +121,10 @@ def test_dma_slave_monitors(request):
         '+define+SIMULATION', '-Wno-DECLFILENAME', '-Wno-WIDTHEXPAND',
         '-Wno-WIDTHTRUNC', '-Wno-UNUSEDPARAM', '-Wno-TIMESCALEMOD',
         '-Wno-UNUSEDSIGNAL', '-Wno-PINCONNECTEMPTY',
+        # The monbus group's optional status outputs (fifo counts/full,
+        # compressor tier stats) are deliberately left open in
+        # dma_slave_monitors -- same suppression the sibling flow tests use.
+        '-Wno-PINMISSING',
     ]
     create_view_cmd(log_dir, log_path, sim_build, module, test_name)
 

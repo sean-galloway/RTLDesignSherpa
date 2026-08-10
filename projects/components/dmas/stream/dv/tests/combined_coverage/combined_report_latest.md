@@ -75,11 +75,11 @@ All coverage points were hit! Great job!
 
 | Test Name | Environment | Protocol | Line |
 |-----------|-------------|----------|------|
-| test_apbtodescr_backpressure_multiple_aw32_dw32_nc... | fub | 5.9% | 22.4% |
-| test_apbtodescr_backpressure_single_aw32_dw32_nc08... | fub | 5.9% | 22.4% |
-| test_apbtodescr_basic_all_channels_aw32_dw32_nc08_... | fub | 3.9% | 22.4% |
-| test_apbtodescr_errors_aw32_dw32_nc08_gw1 | fub | 5.9% | 32.8% |
-| test_apbtodescr_rapid_fire_aw32_dw32_nc08_gw2 | fub | 3.9% | 22.4% |
+| test_apb4todescr_backpressure_multiple_aw32_dw32_nc... | fub | 5.9% | 22.4% |
+| test_apb4todescr_backpressure_single_aw32_dw32_nc08... | fub | 5.9% | 22.4% |
+| test_apb4todescr_basic_all_channels_aw32_dw32_nc08_... | fub | 3.9% | 22.4% |
+| test_apb4todescr_errors_aw32_dw32_nc08_gw1 | fub | 5.9% | 32.8% |
+| test_apb4todescr_rapid_fire_aw32_dw32_nc08_gw2 | fub | 3.9% | 22.4% |
 | test_scheduler_backpressure_stress_cid00_nc08_aw06... | fub | 25.5% | 0.0% |
 | test_scheduler_basic_flow_cid00_nc08_aw064_dw0512_... | fub | 35.3% | 38.3% |
 | test_scheduler_beats_feedback_cid00_nc08_aw064_dw0... | fub | 17.6% | 38.3% |

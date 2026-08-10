@@ -1,0 +1,55 @@
+# Bridge Configuration: 1x2 write-only bridge with NATIVE AXI5 sideband
+# including POISON (BRIDGE-002 phase A5-2 slice 2).
+#
+# poison is connectivity-gated: it is legal here ONLY because every
+# connected slave is AXI5, poison-enabled, and width-matched. trace is
+# droppable sideband: it passes natively to ddr_wr and terminates at
+# sram_wr (generation-time warning) — exercising per-slave feature
+# asymmetry on the same bridge. This fixture also closes the slice-1
+# deferred item: a SIMULATED wr-channel AXI5-slave path.
+# Connectivity comes from bridge_1x2_wr_axi5n_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_wr_axi5n"
+variants = ["no", "mon"]
+description = "AXI5 master x 2 AXI5 slaves wr bridge, native sideband + poison (A5-2 slice 2)"
+
+[[bridge.masters]]
+name = "cpu_wr"
+prefix = "cpu_wr_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "wr"
+protocol = "axi5"
+axi5_features = ["trace", "poison"]
+mon_add = ["compl"]
+
+[[bridge.slaves]]
+name = "ddr_wr"  # AXI5 with both features: full native path
+prefix = "ddr_wr_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "wr"
+protocol = "axi5"
+axi5_features = ["trace", "poison"]
+mon_add = ["compl"]
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram_wr"  # AXI5 with poison only: trace drops here (warning)
+prefix = "sram_wr_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "wr"
+protocol = "axi5"
+axi5_features = ["poison"]
+mon_add = ["compl"]
+base_addr = "0x80000000"
+addr_range = "0x80000000"

@@ -4,20 +4,17 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_mon_axil_mon_pkg::*;
 
-module slave_monbus_wr_adapter #(
+module slave_monbus_wr_adapter
+    import bridge_stream_mon_axil_mon_pkg::*;
+#(
     parameter NUM_SLAVES = 12,
     parameter BRIDGE_ID = 3,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AW = 2,
     parameter SKID_DEPTH_W = 4,
     parameter SKID_DEPTH_B = 2
-    ,
-    parameter SKID_DEPTH_AR = 2,
-    parameter SKID_DEPTH_R = 2
    ,parameter bit USE_MONITOR_WR = 1'b1
-   ,parameter bit USE_MONITOR_RD = 1'b1
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -50,33 +47,9 @@ module slave_monbus_wr_adapter #(
     output  logic         slave_monbus_wr_bvalid,
     input  logic         slave_monbus_wr_bready,
 
-    input  logic [7:0]  slave_monbus_wr_arid,
-    input  logic [31:0]  slave_monbus_wr_araddr,
-    input  logic [7:0]  slave_monbus_wr_arlen,
-    input  logic [2:0]  slave_monbus_wr_arsize,
-    input  logic [1:0]  slave_monbus_wr_arburst,
-    input  logic         slave_monbus_wr_arlock,
-    input  logic [3:0]  slave_monbus_wr_arcache,
-    input  logic [2:0]  slave_monbus_wr_arprot,
-    input  logic [3:0]  slave_monbus_wr_arqos,
-    input  logic [3:0]  slave_monbus_wr_arregion,
-    input  logic         slave_monbus_wr_aruser,
-    input  logic         slave_monbus_wr_arvalid,
-    output  logic         slave_monbus_wr_arready,
-
-    output  logic [7:0]  slave_monbus_wr_rid,
-    output  logic [63:0]  slave_monbus_wr_rdata,
-    output  logic [1:0]  slave_monbus_wr_rresp,
-    output  logic         slave_monbus_wr_rlast,
-    output  logic         slave_monbus_wr_ruser,
-    output  logic         slave_monbus_wr_rvalid,
-    input  logic         slave_monbus_wr_rready,
-
     // Address decode outputs (full width one-hot)
     output logic [NUM_SLAVES-1:0] slave_select_aw,
     output logic [BRIDGE_ID_WIDTH-1:0] bridge_id_aw,
-    output logic [NUM_SLAVES-1:0] slave_select_ar,
-    output logic [BRIDGE_ID_WIDTH-1:0] bridge_id_ar,
 
     // 64b width outputs (to crossbar)
     output axi4_aw_t     slave_monbus_wr_64b_aw,
@@ -90,14 +63,6 @@ module slave_monbus_wr_adapter #(
     input  axi4_b_t      slave_monbus_wr_64b_b,
     input  logic         slave_monbus_wr_64b_bvalid,
     output logic         slave_monbus_wr_64b_bready,
-
-    output axi4_ar_t     slave_monbus_wr_64b_ar,
-    output logic         slave_monbus_wr_64b_arvalid,
-    input  logic         slave_monbus_wr_64b_arready,
-
-    input  axi4_r_64b_t  slave_monbus_wr_64b_r,
-    input  logic         slave_monbus_wr_64b_rvalid,
-    output logic         slave_monbus_wr_64b_rready,
 
     // Shared free-running monitor-time (from monbus_axil_group.mon_time_out)
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
@@ -125,32 +90,7 @@ module slave_monbus_wr_adapter #(
     input  logic [15:0] cfg_wr_axi_thresh_mask,
     input  logic [15:0] cfg_wr_axi_perf_mask,
     input  logic [15:0] cfg_wr_axi_addr_mask,
-    input  logic [15:0] cfg_wr_axi_debug_mask,
-
-    // Monitor side-band: rd wrapper
-    output logic                                  monbus_rd_valid,
-    input  logic                                  monbus_rd_ready,
-    output monitor_common_pkg::monitor_packet_t   monbus_rd_packet,
-    output monitor_common_pkg::monbus_timestamp_t monbus_rd_timestamp,
-
-    input  logic         cfg_rd_monitor_enable,
-    input  logic         cfg_rd_error_enable,
-    input  logic         cfg_rd_timeout_enable,
-    input  logic         cfg_rd_perf_enable,
-    input  logic         cfg_rd_compl_enable,
-    input  logic         cfg_rd_threshold_enable,
-    input  logic         cfg_rd_debug_enable,
-    input  logic [15:0] cfg_rd_timeout_cycles,
-    input  logic [31:0] cfg_rd_latency_threshold,
-    input  logic [15:0] cfg_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_rd_axi_err_select,
-    input  logic [15:0] cfg_rd_axi_error_mask,
-    input  logic [15:0] cfg_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_rd_axi_compl_mask,
-    input  logic [15:0] cfg_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_rd_axi_perf_mask,
-    input  logic [15:0] cfg_rd_axi_addr_mask,
-    input  logic [15:0] cfg_rd_axi_debug_mask
+    input  logic [15:0] cfg_wr_axi_debug_mask
 );
 
     // ================================================================
@@ -186,26 +126,7 @@ module slave_monbus_wr_adapter #(
     logic         fub_axi_bvalid;
     logic         fub_axi_bready;
 
-    logic [7:0]   fub_axi_arid;
-    logic [31:0]  fub_axi_araddr;
-    logic [7:0]   fub_axi_arlen;
-    logic [2:0]   fub_axi_arsize;
-    logic [1:0]   fub_axi_arburst;
-    logic         fub_axi_arlock;
-    logic [3:0]   fub_axi_arcache;
-    logic [2:0]   fub_axi_arprot;
-    logic         fub_axi_arvalid;
-    logic         fub_axi_arready;
-
-    logic [7:0]   fub_axi_rid;
-    logic [63:0]  fub_axi_rdata;
-    logic [1:0]   fub_axi_rresp;
-    logic         fub_axi_rlast;
-    logic         fub_axi_rvalid;
-    logic         fub_axi_rready;
-
     logic         wrapper_wr_busy;
-    logic         wrapper_rd_busy;
 
     // ================================================================
     // Timing isolation wrapper (axi4_slave_wr_mon)
@@ -340,133 +261,8 @@ module slave_monbus_wr_adapter #(
         .perf_burst_count()
     );
 
-    // ================================================================
-    // Timing isolation wrapper (axi4_slave_rd_mon)
-    // ================================================================
-    axi4_slave_rd_mon #(
-        .SKID_DEPTH_AR(SKID_DEPTH_AR),
-        .SKID_DEPTH_R(SKID_DEPTH_R),
-        .AXI_ID_WIDTH(8),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(64),
-        .AXI_USER_WIDTH(1),
-        .UNIT_ID(2),
-        .AGENT_ID(48),
-        .USE_MONITOR(USE_MONITOR_RD),
-        .ENABLE_ERROR_LOGIC(1'b1),
-        .ENABLE_TIMEOUT_LOGIC(1'b1),
-        .ENABLE_COMPL_LOGIC(1'b1),
-        .ENABLE_THRESHOLD_LOGIC(1'b1),
-        .ENABLE_PERF_LOGIC(1'b1),
-        .ENABLE_DEBUG_LOGIC(1'b1)
-    ) u_timing_wrapper_rd (
-        .aclk(aclk),
-        .aresetn(aresetn),
-
-        // External side (s_axi)
-        .s_axi_arid(slave_monbus_wr_arid),
-        .s_axi_araddr(slave_monbus_wr_araddr),
-        .s_axi_arlen(slave_monbus_wr_arlen),
-        .s_axi_arsize(slave_monbus_wr_arsize),
-        .s_axi_arburst(slave_monbus_wr_arburst),
-        .s_axi_arlock(slave_monbus_wr_arlock),
-        .s_axi_arcache(slave_monbus_wr_arcache),
-        .s_axi_arprot(slave_monbus_wr_arprot),
-        .s_axi_arqos(slave_monbus_wr_arqos),
-        .s_axi_arregion(slave_monbus_wr_arregion),
-        .s_axi_aruser(slave_monbus_wr_aruser),
-        .s_axi_arvalid(slave_monbus_wr_arvalid),
-        .s_axi_arready(slave_monbus_wr_arready),
-        .s_axi_rid(slave_monbus_wr_rid),
-        .s_axi_rdata(slave_monbus_wr_rdata),
-        .s_axi_rresp(slave_monbus_wr_rresp),
-        .s_axi_rlast(slave_monbus_wr_rlast),
-        .s_axi_ruser(slave_monbus_wr_ruser),
-        .s_axi_rvalid(slave_monbus_wr_rvalid),
-        .s_axi_rready(slave_monbus_wr_rready),
-
-        // Bridge-internal side (fub_axi)
-        .fub_axi_arid(fub_axi_arid),
-        .fub_axi_araddr(fub_axi_araddr),
-        .fub_axi_arlen(fub_axi_arlen),
-        .fub_axi_arsize(fub_axi_arsize),
-        .fub_axi_arburst(fub_axi_arburst),
-        .fub_axi_arlock(fub_axi_arlock),
-        .fub_axi_arcache(fub_axi_arcache),
-        .fub_axi_arprot(fub_axi_arprot),
-        .fub_axi_arqos(),
-        .fub_axi_arregion(),
-        .fub_axi_aruser(),
-        .fub_axi_arvalid(fub_axi_arvalid),
-        .fub_axi_arready(fub_axi_arready),
-        .fub_axi_rid(fub_axi_rid),
-        .fub_axi_rdata(fub_axi_rdata),
-        .fub_axi_rresp(fub_axi_rresp),
-        .fub_axi_rlast(fub_axi_rlast),
-        .fub_axi_ruser(1'b0),
-        .fub_axi_rvalid(fub_axi_rvalid),
-        .fub_axi_rready(fub_axi_rready),
-
-        // Status (empty connector = unconnected tie-off)
-        .busy(wrapper_rd_busy),
-        .active_transactions(),
-        .error_count(),
-        .transaction_count(),
-        .cfg_conflict_error(),
-
-        // Monitor bus output
-        .i_mon_time(i_mon_time),
-        .monbus_valid(monbus_rd_valid),
-        .monbus_ready(monbus_rd_ready),
-        .monbus_packet(monbus_rd_packet),
-        .monbus_timestamp(monbus_rd_timestamp),
-
-        // Monitor cfg inputs
-        .cfg_monitor_enable(cfg_rd_monitor_enable),
-        .cfg_error_enable(cfg_rd_error_enable),
-        .cfg_timeout_enable(cfg_rd_timeout_enable),
-        .cfg_perf_enable(cfg_rd_perf_enable),
-        .cfg_compl_enable(cfg_rd_compl_enable),
-        .cfg_threshold_enable(cfg_rd_threshold_enable),
-        .cfg_debug_enable(cfg_rd_debug_enable),
-        .cfg_timeout_cycles(cfg_rd_timeout_cycles),
-        .cfg_latency_threshold(cfg_rd_latency_threshold),
-        .cfg_axi_pkt_mask(cfg_rd_axi_pkt_mask),
-        .cfg_axi_err_select(cfg_rd_axi_err_select),
-        .cfg_axi_error_mask(cfg_rd_axi_error_mask),
-        .cfg_axi_timeout_mask(cfg_rd_axi_timeout_mask),
-        .cfg_axi_compl_mask(cfg_rd_axi_compl_mask),
-        .cfg_axi_thresh_mask(cfg_rd_axi_thresh_mask),
-        .cfg_axi_perf_mask(cfg_rd_axi_perf_mask),
-        .cfg_axi_addr_mask(cfg_rd_axi_addr_mask),
-        .cfg_axi_debug_mask(cfg_rd_axi_debug_mask),
-
-        // Address-range checker (disabled at N_ADDR_RANGES=0)
-        .cfg_addr_check_enable(1'b0),
-        .cfg_addr_range_enable(1'b0),
-        .cfg_addr_range_low({32{1'b0}}),
-        .cfg_addr_range_high({32{1'b0}}),
-
-        // Perfmon Stage A/B (tied off -- no window driven)
-        .cfg_start_event_sel(3'b111),
-        .cfg_end_event_sel(3'b111),
-        .cfg_start_trigger(1'b0),
-        .cfg_end_trigger(1'b0),
-        .cfg_window_force_close(1'b0),
-        .window_active(),
-        .window_cycles(),
-        .perf_prod_cycles(),
-        .perf_bp_cycles(),
-        .perf_starv_cycles(),
-        .perf_idle_cycles(),
-        .perf_beat_count(),
-        .perf_byte_count(),
-        .perf_burst_count()
-    );
-
     logic [NUM_SLAVES-1:0] b_slave_select;
     logic [NUM_SLAVES-1:0] w_slave_select;
-    logic [NUM_SLAVES-1:0] r_slave_select;
 
     // ================================================================
     // Address decode (slave selection) - Write
@@ -484,21 +280,6 @@ module slave_monbus_wr_adapter #(
     assign bridge_id_aw = BRIDGE_ID_WIDTH'(BRIDGE_ID);
 
     // ================================================================
-    // Address decode (slave selection) - Read
-    // Slave 9 (slave_tally): 0x000C0000 - 0x000FFFFF
-    // ================================================================
-    logic [NUM_SLAVES-1:0] comb_slave_select_ar;
-    always_comb begin
-        comb_slave_select_ar = '0;
-        if (fub_axi_araddr >= 32'h000C0000 && fub_axi_araddr <= 32'h000FFFFF) begin
-            comb_slave_select_ar[9] = 1'b1;  // slave_tally
-        end
-    end
-
-    // Bridge ID for read channel (constant - tied to BRIDGE_ID parameter)
-    assign bridge_id_ar = BRIDGE_ID_WIDTH'(BRIDGE_ID);
-
-    // ================================================================
     // Width adaptation - Master: 64b
     // Connected to slaves with widths: [64]
     // ================================================================
@@ -508,8 +289,6 @@ module slave_monbus_wr_adapter #(
     assign aw_path_active_64b = comb_slave_select_aw[9];
     logic w_path_active_64b;
     assign w_path_active_64b = w_slave_select[9];
-    logic ar_path_active_64b;
-    assign ar_path_active_64b = comb_slave_select_ar[9];
 
     // ================================================================
     // Direct passthrough: 64b → 64b (no converter)
@@ -543,25 +322,6 @@ module slave_monbus_wr_adapter #(
     // B channel (response: output → MUX → fub)
     assign slave_monbus_wr_64b_bready = fub_axi_bready;
     // bid, bresp, bvalid routed via MUX (user field ignored)
-
-    // AR channel (request: fub → output)
-    assign slave_monbus_wr_64b_ar.id     = fub_axi_arid;
-    assign slave_monbus_wr_64b_ar.addr   = fub_axi_araddr;
-    assign slave_monbus_wr_64b_ar.len    = fub_axi_arlen;
-    assign slave_monbus_wr_64b_ar.size   = fub_axi_arsize;
-    assign slave_monbus_wr_64b_ar.burst  = fub_axi_arburst;
-    assign slave_monbus_wr_64b_ar.lock   = fub_axi_arlock;
-    assign slave_monbus_wr_64b_ar.cache  = fub_axi_arcache;
-    assign slave_monbus_wr_64b_ar.prot   = fub_axi_arprot;
-    assign slave_monbus_wr_64b_ar.qos    = 4'b0;  // Tie to 0
-    assign slave_monbus_wr_64b_ar.region = 4'b0;  // Tie to 0
-    assign slave_monbus_wr_64b_ar.user   = 1'b0;  // Tie to 0
-    assign slave_monbus_wr_64b_arvalid   = fub_axi_arvalid && ar_path_active_64b;
-    // arready routed via MUX
-
-    // R channel (response: output → MUX → fub)
-    assign slave_monbus_wr_64b_rready = fub_axi_rready;
-    // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
 
     // ================================================================
     // Response MUX - Route responses from width-specific paths
@@ -643,38 +403,6 @@ module slave_monbus_wr_adapter #(
                           ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]
                           : '0;
 
-    // OUTPUT slave_select_ar mirrors the live combinational decode.
-    assign slave_select_ar = comb_slave_select_ar;
-
-    // -------- AR->R slave_select tracking FIFO --------
-    localparam int AR_TRK_DEPTH = 16;
-    localparam int AR_TRK_AW    = 4;
-    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];
-    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;
-    logic ar_trk_push, ar_trk_pop;
-
-    assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;
-    assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            ar_trk_wptr <= '0;
-            ar_trk_rptr <= '0;
-        end else begin
-            if (ar_trk_push) begin
-                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;
-                ar_trk_wptr <= ar_trk_wptr + 1'b1;
-            end
-            if (ar_trk_pop) begin
-                ar_trk_rptr <= ar_trk_rptr + 1'b1;
-            end
-        end
-    end
-
-    assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)
-                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
-                          : '0;
-
     // AW-ready MUX (combinational comb_slave_select_aw — awaddr is live during awvalid)
     always_comb begin
         fub_axi_awready = 1'b0;
@@ -712,41 +440,6 @@ module slave_monbus_wr_adapter #(
                 fub_axi_bid = slave_monbus_wr_64b_b.id;
                 fub_axi_bresp = slave_monbus_wr_64b_b.resp;
                 fub_axi_bvalid = slave_monbus_wr_64b_bvalid;
-            end
-            default: begin
-                // No slave selected - hold defaults
-            end
-        endcase
-    end
-
-    // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
-    always_comb begin
-        fub_axi_arready = 1'b0;
-        case (comb_slave_select_ar)
-            12'b001000000000: begin  // Slave 9 (64b)
-                fub_axi_arready = slave_monbus_wr_64b_arready;
-            end
-            default: begin
-                // No slave selected
-            end
-        endcase
-    end
-
-    // Read response MUX (R channel - uses r_slave_select FIFO head)
-    always_comb begin
-        fub_axi_rid = 8'd0;
-        fub_axi_rdata = 64'd0;
-        fub_axi_rresp = 2'b00;
-        fub_axi_rlast = 1'b0;
-        fub_axi_rvalid = 1'b0;
-
-        case (r_slave_select)
-            12'b001000000000: begin  // Slave 9 (64b)
-                fub_axi_rid = slave_monbus_wr_64b_r.id;
-                fub_axi_rdata = slave_monbus_wr_64b_r.data;
-                fub_axi_rresp = slave_monbus_wr_64b_r.resp;
-                fub_axi_rlast = slave_monbus_wr_64b_r.last;
-                fub_axi_rvalid = slave_monbus_wr_64b_rvalid;
             end
             default: begin
                 // No slave selected - hold defaults

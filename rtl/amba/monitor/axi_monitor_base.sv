@@ -37,7 +37,43 @@ module axi_monitor_base
     parameter logic [7:0]  UNIT_ID    = 8'h09,    // 8-bit Unit ID
     parameter logic [15:0] AGENT_ID   = 16'h0063, // 16-bit Agent ID
 
+    // ---- ID-range filter: track a SUBSET of the IDs on a shared bus --------
+    // Default OFF, so every existing instantiation is bit-identical.
+    //
+    // When several monitors snoop one bus that carries many channels
+    // multiplexed by AXI ID, each one otherwise allocates a table entry for
+    // EVERY transaction -- so N monitors each need the full concurrency and N
+    // instances buy nothing. Filtering allocation by ID lets each instance own
+    // a slice: 8 channels x 8 outstanding needs a 72-entry table in one
+    // monitor, which does not close timing here (measured 16 entries at
+    // WNS +1.018 ns, 40 entries at WNS -25.183 ns), while four monitors of two
+    // channels each need 16 -- the size that is known to close.
+    //
+    // This gates the MONITOR's observation inputs only. cmd_valid/data_valid/
+    // resp_valid here are observation feeds, separate from the datapath the
+    // wrapper's core drives, so filtering changes what is TRACKED and never
+    // what flows. A filtered instance is transparent on the bus, which is what
+    // makes parallel snooping possible.
+    //
+    // All three channels are filtered on the same range. Filtering the command
+    // alone would leave data/resp for other IDs arriving unmatched, and the
+    // unmatched path allocates orphan entries -- the table would fill with
+    // other channels' traffic, which is the problem this exists to avoid.
+    parameter bit ID_FILTER_ENABLE     = 1'b0,
+    parameter int ID_MATCH_BASE        = 0,      // first ID owned by this instance
+    parameter int ID_MATCH_COUNT       = 0,      // how many; 0 = all (no filter)
+
     // General parameters
+    // ---- Timer LUT sizing (counter_freq_invariant) -------------------------
+    // The divisor IS the frequency in MHz, so a table built for THIS design's
+    // clock gives an exact 1 us tick -- which is the unit monitor timeouts are
+    // expressed in. Defaults below set every entry to ACLK_MHZ, so the tick is
+    // exact regardless of cfg_freq_sel. Override to a real MIN..MAX range only
+    // if the design switches aclk at runtime.
+    parameter int CFI_MIN_FREQ_MHZ     = 100,
+    parameter int CFI_MAX_FREQ_MHZ     = 100,
+    parameter int CFI_NUM_FREQ_ENTRIES = 16,
+    parameter int CFI_FREQ_STRATEGY    = 0,
     parameter int MAX_TRANSACTIONS    = 16,    // Maximum outstanding transactions
     parameter int ADDR_WIDTH          = 32,    // Width of address bus
     parameter int ID_WIDTH            = 8,     // Width of ID bus (0 for AXIL)
@@ -113,9 +149,9 @@ module axi_monitor_base
 
     // Timer configs
     input  logic [3:0]               cfg_freq_sel, // Frequency selection (configurable)
-    input  logic [3:0]               cfg_addr_cnt, // ADDR match for a timeout
-    input  logic [3:0]               cfg_data_cnt, // DATA match for a timeout
-    input  logic [3:0]               cfg_resp_cnt, // RESP match for a timeout
+    input  logic [15:0]              cfg_addr_cnt, // ADDR match for a timeout
+    input  logic [15:0]              cfg_data_cnt, // DATA match for a timeout
+    input  logic [15:0]              cfg_resp_cnt, // RESP match for a timeout
 
     // Packet type enables
     input  logic                     cfg_error_enable,    // Enable error event packets
@@ -268,6 +304,20 @@ module axi_monitor_base
     // Module Instantiations
     // -------------------------------------------------------------------------
 
+    // ---- ID-range filter (see the parameter block) --------------------------
+    // Combinational match per channel. ID_MATCH_COUNT=0 or ID_FILTER_ENABLE=0
+    // leaves every valid untouched, so the default build is unchanged.
+    function automatic logic id_owned(input logic [IW-1:0] id);
+        if (!ID_FILTER_ENABLE || (ID_MATCH_COUNT == 0)) id_owned = 1'b1;
+        else id_owned = (int'(id) >= ID_MATCH_BASE) &&
+                        (int'(id) <  ID_MATCH_BASE + ID_MATCH_COUNT);
+    endfunction
+
+    logic w_cmd_valid_f, w_data_valid_f, w_resp_valid_f;
+    assign w_cmd_valid_f  = cmd_valid  && id_owned(cmd_id);
+    assign w_data_valid_f = data_valid && id_owned(data_id);
+    assign w_resp_valid_f = resp_valid && id_owned(resp_id);
+
     // Transaction Table Manager
     axi_monitor_trans_mgr #(
         .MAX_TRANSACTIONS   (MAX_TRANSACTIONS),
@@ -280,19 +330,19 @@ module axi_monitor_base
         .aclk               (aclk),
         .aresetn            (aresetn),
         .clear              (clear),
-        .cmd_valid          (cmd_valid),
+        .cmd_valid          (w_cmd_valid_f),
         .cmd_ready          (cmd_ready),
         .cmd_id             (cmd_id),
         .cmd_addr           (cmd_addr),
         .cmd_len            (cmd_len),
         .cmd_size           (cmd_size),
         .cmd_burst          (cmd_burst),
-        .data_valid         (data_valid),
+        .data_valid         (w_data_valid_f),
         .data_ready         (data_ready),
         .data_id            (data_id),
         .data_last          (data_last),
         .data_resp          (data_resp),
-        .resp_valid         (resp_valid),
+        .resp_valid         (w_resp_valid_f),
         .resp_ready         (resp_ready),
         .resp_id            (resp_id),
         .resp_code          (resp_code),
@@ -305,7 +355,12 @@ module axi_monitor_base
     );
 
     // Invariant Timer using counter_freq_invariant
-    axi_monitor_timer timer (
+    axi_monitor_timer #(
+        .CFI_MIN_FREQ_MHZ     (CFI_MIN_FREQ_MHZ),
+        .CFI_MAX_FREQ_MHZ     (CFI_MAX_FREQ_MHZ),
+        .CFI_NUM_FREQ_ENTRIES (CFI_NUM_FREQ_ENTRIES),
+        .CFI_FREQ_STRATEGY    (CFI_FREQ_STRATEGY)
+    ) timer (
         .aclk          (aclk),
         .aresetn       (aresetn),
         .cfg_freq_sel(cfg_freq_sel),
@@ -391,7 +446,7 @@ module axi_monitor_base
             .i_mon_time            (i_mon_time),
             .cmd_addr              (cmd_addr),
             .cmd_id                (cmd_id),
-            .cmd_valid             (cmd_valid),
+            .cmd_valid             (w_cmd_valid_f),
             .cmd_ready             (cmd_ready),
             .cfg_addr_check_enable (cfg_addr_check_enable),
             .cfg_debug_enable      (cfg_debug_enable),
@@ -484,8 +539,47 @@ module axi_monitor_base
     // in trans_mgr).
     localparam int unsigned CMD_ENTRY_RESERVE =
         unsigned'(cmd_entry_reserve(MAX_TRANSACTIONS));
-    localparam int unsigned BLOCK_MARGIN = (CMD_ENTRY_RESERVE > 0)
-                                         ? (CMD_ENTRY_RESERVE - 1) : 3;
+    // BLOCK_MARGIN must cover every allocation that can happen while
+    // active_count is stale, NOT just the command one.
+    //
+    // active_count is a REGISTERED pop-count and lags true occupancy by one
+    // cycle (axi_monitor_trans_mgr.sv -- deliberate: the old accumulator could
+    // underflow to 0xFF). In that one cycle THREE independent allocators can
+    // fire, each with its own one-hot out of monitor_trans_cam:
+    //
+    //     addr_wants_alloc    data_wants_alloc    resp_wants_alloc
+    //
+    // The legacy flat margin of 3 covered exactly that. The saturation-recovery
+    // refactor replaced it with (CMD_ENTRY_RESERVE - 1) = 1 on every table >=
+    // 16 -- the very tables the reserve was added to protect -- so a command
+    // could be ADMITTED against stale occupancy and then find no free slot.
+    // An untracked command's data beats arrive later with nothing to match,
+    // and data/resp allocation cannot be backpressured (a monitor must never
+    // stall returning data), so those beats are silently discarded.
+    //
+    // Measured: obs_equiv observer 4096 vs in-core 3073, identical at 2,000 and
+    // 200,000 clocks of drain (so loss, not backlog); the trans_mgr saturation
+    // phase discarded all 32 unmatched beats it was given.
+    //
+    // WIDENING THE MARGIN BACK TO 3 IS NOT THE FIX -- IT WAS TRIED AND REVERTED.
+    // It reintroduces exactly the permanent stall described above: with the
+    // margin equal to the command occupancy at saturation the table parks AT
+    // the threshold and block_ready never re-asserts. Measured cost: the
+    // stream DMA sim stopped completing at all (SimTimeoutError, still failing
+    // at an 800 ms budget, against ~0.4 ms before). Trading a wedge for a
+    // packet loss is a bad trade -- the loss is bounded and reported, the
+    // wedge is not.
+    //
+    // The real fix is to remove the STALENESS, not to pad around it: derive
+    // block_ready from the combinational occupancy (the same exact free vector
+    // the CAM allocates from) instead of the registered pop-count, so there is
+    // no lag for any number of allocators to slip through and no margin is
+    // needed. Tracked as [[AMBA-BLOCKMARGIN]]; until then this is the
+    // documented lossy-but-honest degrade, and
+    // val/amba/test_axi_mon_block_ready.py measures the loss
+    // (admitted_while_full) on every wrapper rather than leaving it invisible.
+    localparam int unsigned BLOCK_MARGIN =
+        (CMD_ENTRY_RESERVE > 0) ? (CMD_ENTRY_RESERVE - 1) : 3;
     assign block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)
                        ? ({24'h0, w_active_count} < (MAX_TRANSACTIONS - BLOCK_MARGIN))
                        : 1'b1;

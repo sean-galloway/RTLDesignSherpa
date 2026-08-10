@@ -20,5 +20,5 @@ prep -top formal_math_ieee754_2008_fp16_adder
 
 [files]
 count_leading_zeros.sv ../../../rtl/common/count_leading_zeros.sv
-math_ieee754_2008_fp16_adder.sv ../../../rtl/common/math_ieee754_2008_fp16_adder.sv
+math_ieee754_2008_fp16_adder.sv ../../../rtl/math/math_ieee754_2008_fp16_adder.sv
 formal_math_ieee754_2008_fp16_adder.sv

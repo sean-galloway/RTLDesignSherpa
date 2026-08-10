@@ -29,7 +29,7 @@ Usage:
 
     # Send to DUT via APB master
     for pkt in apb_cycles:
-        await apb_master.send(pkt)
+        await apb4_master.send(pkt)
 """
 
 import os
@@ -205,7 +205,7 @@ class StreamHelper:
         Kick off a channel by writing descriptor address.
 
         This writes to the CHx_CTRL_LOW and CHx_CTRL_HIGH registers
-        which triggers descriptor fetch via apbtodescr.sv.
+        which triggers descriptor fetch via apb4todescr.sv.
 
         Args:
             channel: Channel number (0-7)

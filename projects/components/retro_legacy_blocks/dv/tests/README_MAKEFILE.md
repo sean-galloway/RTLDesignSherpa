@@ -176,7 +176,7 @@ make run-all-full-parallel
 make run-pic-basic-waves
 
 # Open waveform
-gtkwave local_sim_build/test_apb_pic_8259_*/dump.vcd &
+gtkwave local_sim_build/test_apb4_pic_8259_*/dump.vcd &
 ```
 
 ## Environment Variables
@@ -210,7 +210,7 @@ To change thread count, edit the Makefile `PYTEST_XDIST` variable or override:
 
 ```bash
 # Override on command line (NOT RECOMMENDED - use Makefile targets)
-TEST_LEVEL=basic pytest test_apb_hpet.py -v --tb=short -n 16
+TEST_LEVEL=basic pytest test_apb4_hpet.py -v --tb=short -n 16
 ```
 
 ## Comparison with Stream Tests
@@ -257,7 +257,7 @@ echo $WAVES  # Should be "1"
 make collect-hpet
 
 # Verify pytest can find tests
-pytest test_apb_hpet.py --collect-only
+pytest test_apb4_hpet.py --collect-only
 ```
 
 ## Integration with CI/CD
@@ -278,11 +278,11 @@ make run-all-full-parallel
 ## Related Files
 
 - [Main Makefile](file://Makefile) - This file
-- [HPET Tests](file://test_apb_hpet.py) - HPET test suite
-- [PIT Tests](file://test_apb_pit_8254.py) - PIT 8254 test suite
-- [RTC Tests](file://test_apb_rtc.py) - RTC test suite
-- [PIC Tests](file://test_apb_pic_8259.py) - 8259 PIC test suite
-- [IOAPIC Tests](file://test_apb_ioapic.py) - IOAPIC test suite
+- [HPET Tests](file://test_apb4_hpet.py) - HPET test suite
+- [PIT Tests](file://test_apb4_pit_8254.py) - PIT 8254 test suite
+- [RTC Tests](file://test_apb4_rtc.py) - RTC test suite
+- [PIC Tests](file://test_apb4_pic_8259.py) - 8259 PIC test suite
+- [IOAPIC Tests](file://test_apb4_ioapic.py) - IOAPIC test suite
 
 ## Version History
 

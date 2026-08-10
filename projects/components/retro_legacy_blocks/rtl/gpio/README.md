@@ -41,7 +41,7 @@ FPGA-friendly General Purpose I/O controller with APB interface.
 ## Architecture
 
 ```
-APB → apb_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
+APB → apb4_slave[_cdc] → CMD/RSP → peakrdl_to_cmdrsp →
     → gpio_regs (PeakRDL) → hwif → gpio_core
 ```
 
@@ -145,25 +145,25 @@ gpio/
 ├── peakrdl/
 │   └── gpio_regs.rdl      # PeakRDL register definitions
 ├── filelists/
-│   └── apb_gpio.f         # Simulation/synthesis filelist
+│   └── apb4_gpio.f         # Simulation/synthesis filelist
 ├── gpio_regs_pkg.sv       # PeakRDL generated package
 ├── gpio_regs.sv           # PeakRDL generated registers
 ├── gpio_core.sv           # GPIO I/O logic and interrupts
 ├── gpio_config_regs.sv    # Register-to-core adapter
-├── apb_gpio.sv            # APB wrapper (top level)
+├── apb4_gpio.sv            # APB wrapper (top level)
 └── README.md              # This file
 ```
 
 ## Dependencies
 
-- apb_slave.sv / apb_slave_cdc.sv
+- apb4_slave.sv / apb4_slave_cdc.sv
 - peakrdl_to_cmdrsp.sv
 - gaxi_skid_buffer.sv (for CDC)
 - cdc_handshake.sv (for CDC)
 
 ## Test Plan
 
-Tests located in: `projects/components/retro_legacy_blocks/dv/tests/test_apb_gpio.py`
+Tests located in: `projects/components/retro_legacy_blocks/dv/tests/test_apb4_gpio.py`
 
 | Test Level | Description |
 |------------|-------------|

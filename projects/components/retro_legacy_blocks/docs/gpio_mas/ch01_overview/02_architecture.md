@@ -91,8 +91,8 @@ In asynchronous mode, the APB clock domain handles protocol conversion while the
 | gpio_core | ~200 | ~300 |
 | gpio_regs | ~400 | ~200 |
 | gpio_config_regs | ~50 | ~100 |
-| apb_slave (no CDC) | ~20 | ~50 |
-| apb_slave_cdc | ~100 | ~150 |
+| apb4_slave (no CDC) | ~20 | ~50 |
+| apb4_slave_cdc | ~100 | ~150 |
 | **Total (no CDC)** | ~670 | ~650 |
 | **Total (with CDC)** | ~750 | ~750 |
 

@@ -28,10 +28,10 @@
 The APB HPET component consists of four primary SystemVerilog modules organized in a hierarchical structure:
 
 ```
-apb_hpet (Top Level)
+apb4_hpet (Top Level)
 +-- APB Slave Interface
-|   +-- apb_slave.sv (CDC_ENABLE=0) OR
-|   +-- apb_slave_cdc.sv (CDC_ENABLE=1)
+|   +-- apb4_slave.sv (CDC_ENABLE=0) OR
+|   +-- apb4_slave_cdc.sv (CDC_ENABLE=1)
 |
 +-- hpet_config_regs (Register Wrapper)
 |   +-- hpet_regs (PeakRDL Generated)
@@ -128,8 +128,8 @@ The diagram shows the latency introduced by CDC synchronization. Configuration c
 
 #### Module Responsibilities
 
-##### 1. apb_hpet (Top Level Integration)
-**File:** `rtl/hpet/apb_hpet.sv`
+##### 1. apb4_hpet (Top Level Integration)
+**File:** `rtl/hpet/apb4_hpet.sv`
 **Purpose:** System integration and CDC selection
 
 **Responsibilities:**
@@ -265,7 +265,7 @@ hpet_core
 
 ```
 APB Clock Domain (pclk)
-+-- apb_slave
++-- apb4_slave
 +-- hpet_config_regs
 +-- hpet_regs
 +-- hpet_core
@@ -278,11 +278,11 @@ No clock domain crossing required
 
 ```
 APB Clock Domain (pclk)
-+-- apb_slave_cdc (pclk side)
++-- apb4_slave_cdc (pclk side)
 +-- [CDC boundary]
 
 HPET Clock Domain (hpet_clk)
-+-- apb_slave_cdc (hpet_clk side)
++-- apb4_slave_cdc (hpet_clk side)
 +-- hpet_config_regs
 +-- hpet_regs
 +-- hpet_core
@@ -348,10 +348,10 @@ output hpet_regs_pkg::hpet_regs__out_t hwif_out;
 | **hpet_regs** | | | |
 | - Register storage | ~128 FF, ~100 LUTs | ~160 FF, ~125 LUTs | ~256 FF, ~200 LUTs |
 | | | | |
-| **apb_slave** (no CDC) | | | |
+| **apb4_slave** (no CDC) | | | |
 | - APB protocol | ~20 FF, ~50 LUTs | (same) | (same) |
 | | | | |
-| **apb_slave_cdc** (with CDC) | | | |
+| **apb4_slave_cdc** (with CDC) | | | |
 | - CDC logic | ~100 FF, ~150 LUTs | (same) | (same) |
 | | | | |
 | **Total (no CDC)** | ~528 FF, ~510 LUTs | ~718 FF, ~680 LUTs | ~1544 FF, ~1360 LUTs |

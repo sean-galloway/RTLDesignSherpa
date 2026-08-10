@@ -450,7 +450,7 @@ Fix three critical bugs introduced by earlier optimizations that caused transact
 Implement AXI4-to-APB converter module to complete Phase 3 of CSV bridge generator.
 
 **Acceptance Criteria:**
-- [ ] Create axi4_to_apb_converter.sv module
+- [ ] Create axi4_to_apb4_converter.sv module
 - [ ] Implement AXI4 burst → APB sequential transaction splitting
 - [ ] Handle backpressure propagation (APB → AXI4 ARREADY/AWREADY)
 - [ ] Implement error mapping (PSLVERR → RRESP/BRESP)
@@ -464,7 +464,7 @@ Implement AXI4-to-APB converter module to complete Phase 3 of CSV bridge generat
 - APB BFM available in CocoTBFramework (✅)
 
 **Related Files:**
-- `rtl/converters/axi4_to_apb_converter.sv` (to be created)
+- `rtl/converters/axi4_to_apb4_converter.sv` (to be created)
 - `bin/bridge_csv_generator.py` (update converter instantiation)
 - `dv/tbclasses/apb_converter_tb.py` (to be created)
 
@@ -1173,7 +1173,7 @@ pipeline_depth_mux: int = 4           # Deeper for throughput
 **Available Monitor Components:**
 - `axi4_master_rd_mon.sv`, `axi4_master_wr_mon.sv` - Master-side monitoring
 - `axi4_slave_rd_mon.sv`, `axi4_slave_wr_mon.sv` - Slave-side monitoring
-- `apb_monitor.sv` - APB protocol monitoring (if Bridge has APB converters)
+- `apb4_monitor.sv` - APB protocol monitoring (if Bridge has APB converters)
 **Implementation Options:**
 1. **Per-Port Monitors:** Optional monitor per master/slave interface
 2. **Internal Crossbar Monitors:** Monitor internal arbitration points
@@ -1230,7 +1230,7 @@ arbiter_rr_monbus #(.N(NUM_MONITORS)) u_mon_arbiter (
 - Enable: For development, debug, performance analysis builds
 **See Also:**
 - `rtl/amba/monitor/axi4_*_mon.sv` - AXI4 monitor modules
-- `rtl/amba/apb/apb_monitor.sv` - APB monitor
+- `rtl/amba/apb4/apb4_monitor.sv` - APB monitor
 - `docs/user-guides/AXI_Monitor_Configuration_Guide.md` (repo root) - Monitor configuration best practices
 - `rtl/amba/monitor/arbiter_rr_pwm_monbus.sv` - Monitor bus arbiter (rr/wrr PWM variants)
 
@@ -1383,7 +1383,7 @@ python3 bridge_generator.py --masters 4 --slaves 3 --output ../rtl/
 **Scenario:** AXI4 masters accessing legacy APB peripherals (UART, SPI, GPIO).
 **Solution:** Use **CSV bridge generator** with APB slaves (requires Phase 3):
 - Generator identifies protocol mismatch
-- Instantiates axi4_to_apb_converter automatically
+- Instantiates axi4_to_apb4_converter automatically
 - Maps AXI4 bursts to sequential APB transactions
 **Status:** Phase 3 pending (placeholders in place)
 

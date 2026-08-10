@@ -64,6 +64,51 @@ PROJECT    ?= $(BUILD_DIR)/vivado_project/$(FLOW).xpr
 # ---- Tools -----------------------------------------------------------------
 VIVADO       ?= vivado
 VIVADO_BATCH ?= $(VIVADO) -mode batch -notrace
+
+# ---- One build per target, enforced -----------------------------------------
+# Two Vivado runs on the SAME build directory corrupt each other's project and
+# run trees: they share $(SELF_DIR)/fpga/build, both write <proj>.runs/impl_1,
+# and neither finishes. It looks like a hung build, not a collision -- the
+# processes stay pegged at 100% CPU while the log goes silent for hours.
+#
+# Observed twice: a build believed dead (pkill reported success, processes
+# survived) plus a restart on top of it, ~17 CPU-hours burned across the pair.
+#
+# The lock is per BUILD DIRECTORY, which is the right granularity: build-mon and
+# build-perf own separate fpga/build trees and may run at the same time; two of
+# the same target may not. flock releases automatically when the command exits,
+# including on kill, so there is no stale lock to clean up by hand -- a PID file
+# would need exactly the liveness check that failed us.
+BUILD_LOCK      ?= $(SELF_DIR)/.vivado-build.lock
+LOCK_EXIT        = 99
+VIVADO_LOCKED    = flock -n --conflict-exit-code $(LOCK_EXIT) $(BUILD_LOCK) $(VIVADO_BATCH)
+
+# Turn flock's exit 99 into an explanation rather than a bare failure.
+define _lock_hint
+	rc=$$?; \
+	if [ $$rc -eq $(LOCK_EXIT) ]; then \
+	    echo ""; \
+	    echo "=====================================================================";\
+	    echo " ANOTHER VIVADO BUILD IS ALREADY RUNNING FOR THIS TARGET"; \
+	    echo "   build dir : $(SELF_DIR)"; \
+	    echo "   lock      : $(BUILD_LOCK)"; \
+	    echo ""; \
+	    echo " Two builds on one project directory corrupt each other and neither"; \
+	    echo " completes. A different target (e.g. the other build-*) is fine --"; \
+	    echo " the lock is per build directory."; \
+	    echo ""; \
+	    echo " In flight:"; \
+	    ps -eo pid,etime,time,cmd --no-headers \
+	      | grep '[u]nwrapped/lnx64.o/vivado' \
+	      | awk '{print "   pid " $$1 "  elapsed " $$2 "  cpu " $$3}' || true; \
+	    echo ""; \
+	    echo " Wait for it, or stop it and re-check that it is really gone:"; \
+	    echo "   pkill -9 -f 'unwrapped/lnx64.o/vivado'"; \
+	    echo "   pgrep -cf 'unwrapped/lnx64.o/vivado'   # must print 0 before retrying"; \
+	    echo "=====================================================================";\
+	fi; \
+	exit $$rc
+endef
 PYTHON       ?= python3
 VERILATOR    ?= verilator
 
@@ -87,7 +132,22 @@ ILA_TCL     ?= $(if $(filter build_ila,$(TCL_NAMES)),build_ila.tcl,)
 
 # Vivado reads the layout from the environment rather than guessing it from
 # where the script sits, so moving a build does not silently relocate outputs.
+#
+# Two roots, because a build has two: FPGA_PROJECT_ROOT is where Vivado WRITES
+# (build/, reports/, bitstream/) and where its constraints live; FPGA_BUILD_ROOT
+# is where the build's SOURCES live (rtl/, rtl-vivado/). They were the same
+# directory under the old flat layout, so a tcl could use one for both and be
+# right by accident -- and was, until fpga/ split them and every source path
+# silently moved. FPGA_FILELIST goes further and hands the tcl the exact
+# filelist this Makefile already names, so the compile closure has one authority
+# instead of a make variable and a tcl string that must agree.
 export FPGA_PROJECT_ROOT := $(FPGA_DIR)
+export FPGA_BUILD_ROOT   := $(SELF_DIR)
+export FPGA_FILELIST     := $(FILELIST)
+# The Makefile is the single authority on the artifact name, so a tcl never
+# re-derives it. Recursive '=' on purpose: BITSTREAM is resolved further down,
+# and a flow may override it (e.g. encoding a build flavor in the filename).
+export FPGA_BITSTREAM     = $(BITSTREAM)
 
 # ---- Host / sim entry points -----------------------------------------------
 BAUD      ?= 115200
@@ -128,10 +188,14 @@ SIM_ARGS  ?= -q
 # a board top (vendor IP, generated cores, wide interconnect); real RTL rules are
 # enforced where the RTL lives, not here.
 LINT_DEFINES ?= +define+USE_ASYNC_RESET
+# PINMISSING: a board top routinely leaves a submodule's OPTIONAL status outputs
+# open (monbus group fifo counts/full, compressor tier stats, debug taps). That
+# is an integration choice, not a defect, and the module's own tests are where a
+# genuinely unconnected port gets caught.
 LINT_WAIVERS ?= -Wno-MULTIDRIVEN -Wno-UNUSED -Wno-UNDRIVEN -Wno-WIDTH \
                 -Wno-CASEINCOMPLETE -Wno-SELRANGE -Wno-DECLFILENAME \
                 -Wno-UNUSEDSIGNAL -Wno-VARHIDDEN -Wno-IMPLICIT \
-                -Wno-CASEOVERLAP -Wno-MODDUP
+                -Wno-CASEOVERLAP -Wno-MODDUP -Wno-PINMISSING
 
 include $(RDS_ROOT)/make/fpga_board.mk
 
@@ -142,10 +206,18 @@ include $(RDS_ROOT)/make/fpga_board.mk
         $(addprefix seq-,$(SEQ_NAMES)) $(addprefix host-,$(HOST_NAMES))
 
 # Run any discovered tcl by name: `make tcl-capture_ila`.
+#
+# FPGA_JTAG_SERIAL comes from the board registry so a tcl that touches hardware
+# can pin its target instead of taking whatever is first on the chain. Resolved
+# per-recipe rather than as a global export: it costs a python call, and only
+# the tcl targets need it. An empty result is fine -- the tcl then falls back to
+# "any target", which is the right answer for a board with no serial recorded.
 define _tcl_rule
 tcl-$(1):
 	@echo "[tcl] $(1).tcl"
-	cd $$(SELF_DIR) && $$(VIVADO_BATCH) -source $$(TCL_DIR)/$(1).tcl
+	cd $$(SELF_DIR) && \
+	    FPGA_JTAG_SERIAL="$$$$($$(PYTHON) $$(FPGA_BOARD_CLI) --board $$(BOARD) serial)" \
+	    $$(VIVADO_BATCH) -source $$(TCL_DIR)/$(1).tcl
 endef
 $(foreach t,$(TCL_RUNNABLE),$(eval $(call _tcl_rule,$(t))))
 
@@ -211,29 +283,97 @@ help:               ## Show this message
 	@echo "  reports   -> $(REPORTS)"
 
 # ---- Build -----------------------------------------------------------------
-lint:               ## verilator --lint-only of the whole harness (fast, pre-Vivado)
+# Declaration-order gate. Verilator does NOT catch this class and Vivado only
+# WARNS (Synth 8-8895), so it reaches a bitstream:
+#
+#   an identifier used in a module port map before it is declared becomes an
+#   IMPLICIT 1-BIT WIRE.
+#
+# That silently truncated a 32-bit APB address and data bus to one bit in
+# stream_harness -- the observer and slave-monitor register blocks could not be
+# configured at all on silicon, while every cosim passed, because Verilator
+# resolves the later declaration instead of truncating. Days were spent
+# debugging monitors that were fine.
+#
+# Scope is MODULES: *_pkg.sv is excluded because the checker conflates package
+# scopes (struct fields, enum members, function locals) and reports false
+# positives there -- and a package has no port map, so the implicit-net class
+# cannot occur in one.
+DECL_ORDER_CHECK ?= $(RDS_ROOT)/bin/check_sv_decl_order.py
+DECL_FILES       ?= $(SELF_DIR)/.decl_order_files.txt
+
+# Lint the configuration this build ACTUALLY SYNTHESIZES, not the RTL defaults.
+#
+# Vivado applies these as generics from the same env vars (see
+# fpga/tcl/create_project.tcl). Verilator was given none of them, so lint ran
+# against whatever the top declared -- for stream that is NUM_CHANNELS=4, while
+# build-perf synthesizes 8. A gate that checks a different configuration than
+# the one being built cannot catch a configuration-specific fault, and this flow
+# has already shipped one such fault to silicon (implicit 1-bit APB nets, now
+# covered by lint-decl-order). Keep this list in step with create_project.tcl.
+LINT_GENERICS = \
+    $(if $(STREAM_NUM_CHANNELS),-GNUM_CHANNELS=$(STREAM_NUM_CHANNELS)) \
+    $(if $(USE_AXI_MONITORS),-GUSE_AXI_MONITORS=$(USE_AXI_MONITORS)) \
+    $(if $(MON_N_PROFILE),-GMON_N_PROFILE=$(MON_N_PROFILE)) \
+    $(if $(MON_ERROR_FLAVOR),-GMON_ERROR_FLAVOR=$(MON_ERROR_FLAVOR)) \
+    $(if $(STREAM_CLKOUT0_DIVIDE),-GCLKOUT0_DIVIDE=$(STREAM_CLKOUT0_DIVIDE))
+
+lint: lint-decl-order   ## verilator --lint-only of the whole harness (fast, pre-Vivado)
 	@[ -n "$(TOP)" ] || (echo "TOP is not set -- cannot lint." && false)
 	@[ -f "$(FILELIST)" ] || (echo "FILELIST not found: $(FILELIST)" && false)
-	@echo "[lint] $(TOP)"
+	@echo "[lint] $(TOP) $(if $(strip $(LINT_GENERICS)),[$(strip $(LINT_GENERICS))],[RTL defaults])"
 	@$(VERILATOR) --lint-only --top-module $(TOP) -f $(FILELIST) \
-	    $(LINT_DEFINES) $(LINT_WAIVERS)
+	    $(LINT_GENERICS) $(LINT_DEFINES) $(LINT_WAIVERS)
+
+lint-decl-order:    ## signals must be declared before use (implicit 1-bit nets)
+	@[ -f "$(DECL_ORDER_CHECK)" ] || (echo "missing $(DECL_ORDER_CHECK)" && false)
+	@echo "[lint] declaration order ($(TOP))"
+	@RDS_ROOT_ENV="$(RDS_ROOT)" FL="$(FILELIST)" $(PYTHON) -c \
+	  "import os; from TBClasses.shared.filelist_utils import get_sources_from_filelist as G; \
+	   s,_ = G(repo_root=os.environ['RDS_ROOT_ENV'], filelist_path=os.environ['FL']); \
+	   print(chr(10).join(f for f in s if f.endswith('.sv') and not f.endswith('_pkg.sv')))" \
+	  > $(DECL_FILES) || (echo "could not resolve the filelist closure -- refusing to skip the check" && false)
+	@$(PYTHON) $(DECL_ORDER_CHECK) $$(cat $(DECL_FILES)) && rm -f $(DECL_FILES)
+
+# Optional pre-build step. Some flows must regenerate collateral before any
+# synthesis -- a generated bridge from its .toml, a register block from its
+# .rdl -- or a stale checkout silently produces a stale bitstream. Rather than
+# every such flow growing its own recipe (which is how per-flow Makefiles start
+# diverging again), a build declares the command and this file wires it in:
+#
+#     PREBUILD := bash $(FRAMEWORK_ROOT)/bin/regen_bridges.sh my_bridge
+#
+# Empty by default, so a flow that needs nothing adds nothing.
+PREBUILD ?=
+
+.PHONY: prebuild
+prebuild:           ## Run the flow's PREBUILD step, if it declared one
+ifneq ($(strip $(PREBUILD)),)
+	@echo "[prebuild] $(PREBUILD)"
+	@$(PREBUILD)
+endif
+
+project synth bitstream bitstream-ila: prebuild
 
 project:            ## Create the Vivado project (no build)
 	$(call _require_tcl,$(PROJECT_TCL),create_project,PROJECT_TCL)
 	@echo "[project] $(FLOW)"
-	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL_DIR)/$(PROJECT_TCL)
+	@cd $(SELF_DIR) && $(VIVADO_LOCKED) -source $(TCL_DIR)/$(PROJECT_TCL) || { \
+	    $(_lock_hint); }
 
 synth:              ## Synthesis only + utilization + failing-path reports
 	$(call _require_tcl,$(SYNTH_TCL),synth,SYNTH_TCL)
 	@echo "[synth] $(FLOW) (skip place/route)"
-	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL_DIR)/$(SYNTH_TCL)
+	@cd $(SELF_DIR) && $(VIVADO_LOCKED) -source $(TCL_DIR)/$(SYNTH_TCL) || { \
+	    $(_lock_hint); }
 	@$(MAKE) --no-print-directory utilization
 	@$(MAKE) --no-print-directory timing
 
 bitstream:          ## Full synth/impl/bitgen + all reports (10-30 min)
 	$(call _require_tcl,$(BUILD_TCL),build,BUILD_TCL)
 	@echo "[bitstream] $(FLOW) full flow"
-	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL_DIR)/$(BUILD_TCL)
+	@cd $(SELF_DIR) && $(VIVADO_LOCKED) -source $(TCL_DIR)/$(BUILD_TCL) || { \
+	    $(_lock_hint); }
 	@echo ""
 	@echo "Bitstream: $(BITSTREAM)"
 	@echo "Reports:   $(REPORTS)"
@@ -241,7 +381,8 @@ bitstream:          ## Full synth/impl/bitgen + all reports (10-30 min)
 bitstream-ila:      ## Same design plus an ILA on the marked debug nets
 	$(call _require_tcl,$(ILA_TCL),ILA build,ILA_TCL)
 	@echo "[bitstream-ila] $(FLOW)"
-	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL_DIR)/$(ILA_TCL)
+	@cd $(SELF_DIR) && $(VIVADO_LOCKED) -source $(TCL_DIR)/$(ILA_TCL) || { \
+	    $(_lock_hint); }
 	@echo ""
 	@echo "ILA bitstream: $(ILA_BITSTREAM) (+ .ltx probes)"
 
@@ -278,13 +419,21 @@ utilization:        ## Print the latest utilization report
 	    echo "No utilization report yet -- run 'make synth' or 'make bitstream'."; \
 	fi
 
+# The WNS/WHS table sits ~150 lines into the report, well past the Timer
+# Settings preamble -- so `head` showed the settings and never the verdict, which
+# is the one thing this target exists to print. Cut to the summary row plus the
+# met/not-met line instead.
+_timing_verdict = \
+	    grep -m1 -A3 'WNS(ns)' $(1) || true; \
+	    grep -m1 -E 'All user specified timing constraints are met|Timing constraints are not met' $(1) || true
+
 timing:             ## Print the latest timing summary + failing hotspots
 	@if [ -f $(REPORTS)/timing_summary.txt ]; then \
-	    echo "=== Post-route timing summary (first 60 lines) ==="; \
-	    head -60 $(REPORTS)/timing_summary.txt; \
+	    echo "=== Post-route timing summary ==="; \
+	    $(call _timing_verdict,$(REPORTS)/timing_summary.txt); \
 	elif [ -f $(REPORTS)/timing_summary_synth.txt ]; then \
-	    echo "=== Post-synth timing summary (first 60 lines) ==="; \
-	    head -60 $(REPORTS)/timing_summary_synth.txt; \
+	    echo "=== Post-synth timing summary ==="; \
+	    $(call _timing_verdict,$(REPORTS)/timing_summary_synth.txt); \
 	else \
 	    echo "No timing report yet -- run 'make synth' or 'make bitstream'."; \
 	fi

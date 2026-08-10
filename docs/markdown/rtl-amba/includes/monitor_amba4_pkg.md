@@ -391,7 +391,7 @@ code in this section is `PROTOCOL_AXIS` (4'h1).
 `monitor_amba4_pkg` also exports a `unified_event_code_t` packed union that
 overlays every enum in this document onto a single 8-bit field, plus a
 `raw` view for direct 8-bit access. Helper functions `create_axi_*_event`,
-`create_apb_*_event`, and `create_axis_*_event` (one per enum) construct
+`create_apb4_*_event`, and `create_axis_*_event` (one per enum) construct
 the union from a typed enum value — use these from any wrapper that needs
 to publish a protocol-tagged event_code without manual bit packing.
 

@@ -58,7 +58,7 @@
 ### Chapter 4: Interfaces
 
 - [AXI Master Interfaces](ch04_interfaces/01_axi_masters.md)
-- [APB Configuration Interface](ch04_interfaces/02_apb_slave.md)
+- [APB Configuration Interface](ch04_interfaces/02_apb4_slave.md)
 - [Monitoring Interface](ch04_interfaces/03_monitoring.md)
 
 ### Chapter 5: Performance

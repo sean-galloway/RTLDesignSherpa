@@ -69,8 +69,8 @@ bin/TBClasses/
 │   └── axi4_master_read_tb.py      # AXI4 master read TB
 ├── axi_monitor/
 │   └── axi_monitor_tb.py           # AXI monitor TB
-├── apb_monitor/
-│   └── apb_monitor_core_tb.py      # APB monitor TB
+├── apb4_monitor/
+│   └── apb4_monitor_core_tb.py      # APB monitor TB
 └── [protocol]/[module]_tb.py
 
 val/amba/
@@ -225,7 +225,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_fifo (
 
 | Module | Purpose | Key Params | Documentation |
 |--------|---------|------------|---------------|
-| `apb_monitor.sv` | APB transaction monitoring | ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `docs/markdown/rtl-amba/apb/` |
+| `apb4_monitor.sv` | APB transaction monitoring | ADDR_WIDTH, DATA_WIDTH, MAX_TRANSACTIONS | `docs/markdown/rtl-amba/apb4/` |
 
 ### AXIS Monitors
 
@@ -503,7 +503,7 @@ axi4_master_rd_mon #(
 ### Pattern 2: APB Monitor
 
 ```systemverilog
-apb_monitor #(
+apb4_monitor #(
     .ADDR_WIDTH(16),
     .DATA_WIDTH(32),
     .MAX_TRANSACTIONS(8)
@@ -696,7 +696,7 @@ pytest val/amba/test_axi4_monitor.py -v
 pytest val/amba/ -v
 
 # Specific protocol
-pytest val/amba/test_apb_monitor.py -v
+pytest val/amba/test_apb4_monitor.py -v
 
 # With waveforms
 pytest val/amba/test_axi4_monitor.py --vcd=waves.vcd
@@ -723,7 +723,7 @@ gtkwave waves.vcd
 - `docs/markdown/rtl-amba/index.md` - Module index
 - `docs/markdown/rtl-amba/overview.md` - Architecture
 - `docs/markdown/rtl-amba/axi4/` + `docs/markdown/rtl-amba/monitor/` - AXI module and monitor specs
-- `docs/markdown/rtl-amba/apb/` - APB module specs
+- `docs/markdown/rtl-amba/apb4/` - APB module specs
 - `docs/markdown/rtl-amba/axis4/` - AXIS module specs
 - `docs/markdown/rtl-amba/includes/monitor_package_spec.md` - Packet format
 

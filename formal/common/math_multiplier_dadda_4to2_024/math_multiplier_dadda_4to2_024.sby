@@ -26,11 +26,11 @@ read -formal -sv formal_math_multiplier_dadda_4to2_024.sv
 prep -top formal_math_multiplier_dadda_4to2_024
 
 [files]
-math_adder_half.sv ../../../rtl/common/math_adder_half.sv
-math_adder_full.sv ../../../rtl/common/math_adder_full.sv
-math_compressor_4to2.sv ../../../rtl/common/math_compressor_4to2.sv
-math_prefix_cell.sv ../../../rtl/common/math_prefix_cell.sv
-math_prefix_cell_gray.sv ../../../rtl/common/math_prefix_cell_gray.sv
-math_adder_han_carlson_048.sv ../../../rtl/common/math_adder_han_carlson_048.sv
-math_multiplier_dadda_4to2_024.sv ../../../rtl/common/math_multiplier_dadda_4to2_024.sv
+math_adder_half.sv ../../../rtl/math/math_adder_half.sv
+math_adder_full.sv ../../../rtl/math/math_adder_full.sv
+math_compressor_4to2.sv ../../../rtl/math/math_compressor_4to2.sv
+math_prefix_cell.sv ../../../rtl/math/math_prefix_cell.sv
+math_prefix_cell_gray.sv ../../../rtl/math/math_prefix_cell_gray.sv
+math_adder_han_carlson_048.sv ../../../rtl/math/math_adder_han_carlson_048.sv
+math_multiplier_dadda_4to2_024.sv ../../../rtl/math/math_multiplier_dadda_4to2_024.sv
 formal_math_multiplier_dadda_4to2_024.sv

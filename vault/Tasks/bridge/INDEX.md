@@ -20,9 +20,9 @@ generator, its generated wrappers/xbars/adapters, and their DV.
   conversion and a `*_to_apb5` shim), native-AXI5 sideband and AWATOP
   R-channel routing as follow-ons.
 
-> Note: this area currently holds only BRIDGE-001. The pre-migration
-> `projects/components/bridge/TASKS.md` still needs folding in (part of
-> TOOL-001); the master `/vault/Tasks/INDEX.md` row points here.
+> Note: the pre-migration `projects/components/bridge/TASKS.md` still needs
+> folding in (part of TOOL-001); the master `/vault/Tasks/INDEX.md` row
+> points here.
 
 Practice and rationale live in the [handbook](../../handbook/INDEX.md);
 this directory tracks *work* only. `/GLOBAL_REQUIREMENTS.md` wins on conflict.

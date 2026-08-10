@@ -22,5 +22,5 @@ prep -top formal_math_ieee754_2008_fp32_adder
 [files]
 shifter_barrel.sv ../../../rtl/common/shifter_barrel.sv
 count_leading_zeros.sv ../../../rtl/common/count_leading_zeros.sv
-math_ieee754_2008_fp32_adder.sv ../../../rtl/common/math_ieee754_2008_fp32_adder.sv
+math_ieee754_2008_fp32_adder.sv ../../../rtl/math/math_ieee754_2008_fp32_adder.sv
 formal_math_ieee754_2008_fp32_adder.sv

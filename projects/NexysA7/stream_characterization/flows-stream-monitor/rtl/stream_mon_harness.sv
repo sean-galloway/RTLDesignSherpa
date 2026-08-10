@@ -78,12 +78,19 @@ module stream_mon_harness #(
     // engine/scheduler) for FPGA area. stream_char_top sets this 0 on the board
     // build; cosim leaves it 1 so the compression-trace tests keep working.
     parameter bit GEN_MON                = 1'b1,
-    // Agent-resolved profile tally for BOTH tally memories. 0 = the legacy
-    // 16-bit {protocol,pkt_type,event_code} matrix (default, keeps existing
-    // tests). 1 = load a legal set over each tally's cfg AXIL slave; bins
-    // become dense per-agent indices + an UNEXPECTED bin.
-    parameter int MON_TALLY_PROFILE_MODE = 0,
-    parameter int MON_N_PROFILE          = 64
+    // Agent-resolved tally legal-set size, for BOTH tally memories. The host
+    // loads the legal set over each tally's cfg AXIL slave and bins become
+    // dense per-agent indices, plus an UNEXPECTED bin at index MON_N_PROFILE.
+    // (The CAM is unconditional -- there is no direct-mapped mode to select.)
+    parameter int MON_N_PROFILE          = 64,
+    // Monitor-validation DATAPATH-monitor cone selection:
+    //   0 (default) = "all except error" -> completion/timeout/threshold/perf/debug
+    //                 (+ AddrMatch). The error cone is compiled OUT for timing.
+    //   1           = "error flavor" -> ONLY the error cone is compiled in; the
+    //                 other reporter cones are compiled OUT so the low-priority
+    //                 addr_check ADDR_RANGE (allowlist-miss) error stream is not
+    //                 starved and meets timing. Two bitstreams cover all classes.
+    parameter bit DATA_MON_ERROR_FLAVOR  = 1'b0
 ) (
     input  logic            aclk,
     input  logic            aresetn,
@@ -1327,40 +1334,40 @@ module stream_mon_harness #(
     // same window. Control shares the CSR freeze/clear used by the slave tally.
     logic w_stream_tally_flush_busy;
     logic w_tally_flush;                 // auto-flush pulse shared by both tally SRAMs (assigned below)
-    // Profile-tally sizing: 16-bit direct matrix, or clog2(N+1) dense bins.
-    localparam int MON_TALLY_ADDR_BITS =
-        (MON_TALLY_PROFILE_MODE != 0) ? $clog2(MON_N_PROFILE + 1) : 16;
+    // Tally sizing: the legal-set CAM always maps to dense bins 0..N-1 plus the
+    // UNEXPECTED bin (N), so clog2(N+1) address bits.
+    localparam int MON_TALLY_ADDR_BITS = $clog2(MON_N_PROFILE + 1);
     monbus_tally_axil #(
         .ADDR_WIDTH       (32),
         .DATA_WIDTH       (64),
-        .TALLY_CACHE_DEPTH(32),
         .TALLY_ADDR_BITS  (MON_TALLY_ADDR_BITS),
-        .PROFILE_MODE     (MON_TALLY_PROFILE_MODE),
         .N_PROFILE        (MON_N_PROFILE)
-    ) u_debug_sram (
+    ) u_stream_tally (
         .aclk(aclk), .aresetn(unit_aresetn),
-        // Record ingest (write): monbus group RAW records @ 0x40000.
-        .s_axil_awaddr  (s4_awaddr),  .s_axil_awprot  (s4_awprot),
-        .s_axil_awvalid (s4_awvalid), .s_axil_awready (s4_awready),
-        .s_axil_wdata   (s4_wdata),   .s_axil_wstrb   (s4_wstrb),
-        .s_axil_wvalid  (s4_wvalid),  .s_axil_wready  (s4_wready),
-        .s_axil_bresp   (s4_bresp),   .s_axil_bvalid  (s4_bvalid),
-        .s_axil_bready  (s4_bready),
-        .s_axil_araddr  (s4_araddr),  .s_axil_arprot  (s4_arprot),
-        .s_axil_arvalid (s4_arvalid), .s_axil_arready (s4_arready),
-        .s_axil_rdata   (s4_rdata),   .s_axil_rresp   (s4_rresp),
-        .s_axil_rvalid  (s4_rvalid),  .s_axil_rready  (s4_rready),
-        // Dedicated host cfg/readback @ 0xA0000 (read bins, load profile CAM).
-        .cfg_awaddr  (sc0_awaddr),  .cfg_awprot  (sc0_awprot),
-        .cfg_awvalid (sc0_awvalid), .cfg_awready (sc0_awready),
-        .cfg_wdata   (sc0_wdata),   .cfg_wstrb   (sc0_wstrb),
-        .cfg_wvalid  (sc0_wvalid),  .cfg_wready  (sc0_wready),
-        .cfg_bresp   (sc0_bresp),   .cfg_bvalid  (sc0_bvalid),
-        .cfg_bready  (sc0_bready),
-        .cfg_araddr  (sc0_araddr),  .cfg_arprot  (sc0_arprot),
-        .cfg_arvalid (sc0_arvalid), .cfg_arready (sc0_arready),
-        .cfg_rdata   (sc0_rdata),   .cfg_rresp   (sc0_rresp),
-        .cfg_rvalid  (sc0_rvalid),  .cfg_rready  (sc0_rready),
+        // WR1 record ingest <- stream_tally slave WRITE channels @ 0x40000.
+        .rec_awaddr  (s4_awaddr),  .rec_awprot  (s4_awprot),
+        .rec_awvalid (s4_awvalid), .rec_awready (s4_awready),
+        .rec_wdata   (s4_wdata),   .rec_wstrb   (s4_wstrb),
+        .rec_wvalid  (s4_wvalid),  .rec_wready  (s4_wready),
+        .rec_bresp   (s4_bresp),   .rec_bvalid  (s4_bvalid),
+        .rec_bready  (s4_bready),
+        // RD1 count readback <- stream_tally slave READ channels @ 0x40000.
+        .cnt_araddr  (s4_araddr),  .cnt_arprot  (s4_arprot),
+        .cnt_arvalid (s4_arvalid), .cnt_arready (s4_arready),
+        .cnt_rdata   (s4_rdata),   .cnt_rresp   (s4_rresp),
+        .cnt_rvalid  (s4_rvalid),  .cnt_rready  (s4_rready),
+        // WR2 config <- stream_tally_cfg slave WRITE channels @ 0x100000.
+        .cfgw_awaddr (sc0_awaddr),  .cfgw_awprot (sc0_awprot),
+        .cfgw_awvalid(sc0_awvalid), .cfgw_awready(sc0_awready),
+        .cfgw_wdata  (sc0_wdata),   .cfgw_wstrb  (sc0_wstrb),
+        .cfgw_wvalid (sc0_wvalid),  .cfgw_wready (sc0_wready),
+        .cfgw_bresp  (sc0_bresp),   .cfgw_bvalid (sc0_bvalid),
+        .cfgw_bready (sc0_bready),
+        // RD2 config readback <- stream_tally_cfg slave READ channels @ 0x100000.
+        .cfgr_araddr (sc0_araddr),  .cfgr_arprot (sc0_arprot),
+        .cfgr_arvalid(sc0_arvalid), .cfgr_arready(sc0_arready),
+        .cfgr_rdata  (sc0_rdata),   .cfgr_rresp  (sc0_rresp),
+        .cfgr_rvalid (sc0_rvalid),  .cfgr_rready (sc0_rready),
         .tally_freeze    (csr_freeze),    .tally_flush    (w_tally_flush),
         .tally_flush_busy(w_stream_tally_flush_busy), .tally_clear(csr_clear_pulse)
     );
@@ -1369,31 +1376,33 @@ module stream_mon_harness #(
     // written by slave_monbus_wr (dma_slave_monitors' group), read by host.
     logic w_slave_tally_flush_busy;
     monbus_tally_axil #(
-        .ADDR_WIDTH(32), .DATA_WIDTH(64), .TALLY_CACHE_DEPTH(32),
+        .ADDR_WIDTH(32), .DATA_WIDTH(64),
         .TALLY_ADDR_BITS(MON_TALLY_ADDR_BITS),
-        .PROFILE_MODE(MON_TALLY_PROFILE_MODE), .N_PROFILE(MON_N_PROFILE)
+        .N_PROFILE(MON_N_PROFILE)
     ) u_slave_tally (
         .aclk(aclk), .aresetn(unit_aresetn),
-        // Record ingest (write): dma_slave_monitors group @ 0xC0000.
-        .s_axil_awaddr(s6_awaddr),  .s_axil_awprot(s6_awprot),
-        .s_axil_awvalid(s6_awvalid), .s_axil_awready(s6_awready),
-        .s_axil_wdata(s6_wdata),    .s_axil_wstrb(s6_wstrb),
-        .s_axil_wvalid(s6_wvalid),  .s_axil_wready(s6_wready),
-        .s_axil_bresp(s6_bresp),    .s_axil_bvalid(s6_bvalid), .s_axil_bready(s6_bready),
-        .s_axil_araddr(s6_araddr),  .s_axil_arprot(s6_arprot),
-        .s_axil_arvalid(s6_arvalid), .s_axil_arready(s6_arready),
-        .s_axil_rdata(s6_rdata),    .s_axil_rresp(s6_rresp),
-        .s_axil_rvalid(s6_rvalid),  .s_axil_rready(s6_rready),
-        // Dedicated host cfg/readback @ 0xB0000.
-        .cfg_awaddr(sc1_awaddr),  .cfg_awprot(sc1_awprot),
-        .cfg_awvalid(sc1_awvalid), .cfg_awready(sc1_awready),
-        .cfg_wdata(sc1_wdata),    .cfg_wstrb(sc1_wstrb),
-        .cfg_wvalid(sc1_wvalid),  .cfg_wready(sc1_wready),
-        .cfg_bresp(sc1_bresp),    .cfg_bvalid(sc1_bvalid), .cfg_bready(sc1_bready),
-        .cfg_araddr(sc1_araddr),  .cfg_arprot(sc1_arprot),
-        .cfg_arvalid(sc1_arvalid), .cfg_arready(sc1_arready),
-        .cfg_rdata(sc1_rdata),    .cfg_rresp(sc1_rresp),
-        .cfg_rvalid(sc1_rvalid),  .cfg_rready(sc1_rready),
+        // WR1 record ingest <- slave_tally slave WRITE channels @ 0xC0000.
+        .rec_awaddr(s6_awaddr),  .rec_awprot(s6_awprot),
+        .rec_awvalid(s6_awvalid), .rec_awready(s6_awready),
+        .rec_wdata(s6_wdata),    .rec_wstrb(s6_wstrb),
+        .rec_wvalid(s6_wvalid),  .rec_wready(s6_wready),
+        .rec_bresp(s6_bresp),    .rec_bvalid(s6_bvalid), .rec_bready(s6_bready),
+        // RD1 count readback <- slave_tally slave READ channels @ 0xC0000.
+        .cnt_araddr(s6_araddr),  .cnt_arprot(s6_arprot),
+        .cnt_arvalid(s6_arvalid), .cnt_arready(s6_arready),
+        .cnt_rdata(s6_rdata),    .cnt_rresp(s6_rresp),
+        .cnt_rvalid(s6_rvalid),  .cnt_rready(s6_rready),
+        // WR2 config <- slave_tally_cfg slave WRITE channels @ 0x140000.
+        .cfgw_awaddr(sc1_awaddr),  .cfgw_awprot(sc1_awprot),
+        .cfgw_awvalid(sc1_awvalid), .cfgw_awready(sc1_awready),
+        .cfgw_wdata(sc1_wdata),    .cfgw_wstrb(sc1_wstrb),
+        .cfgw_wvalid(sc1_wvalid),  .cfgw_wready(sc1_wready),
+        .cfgw_bresp(sc1_bresp),    .cfgw_bvalid(sc1_bvalid), .cfgw_bready(sc1_bready),
+        // RD2 config readback <- slave_tally_cfg slave READ channels @ 0x140000.
+        .cfgr_araddr(sc1_araddr),  .cfgr_arprot(sc1_arprot),
+        .cfgr_arvalid(sc1_arvalid), .cfgr_arready(sc1_arready),
+        .cfgr_rdata(sc1_rdata),    .cfgr_rresp(sc1_rresp),
+        .cfgr_rvalid(sc1_rvalid),  .cfgr_rready(sc1_rready),
         .tally_freeze(csr_freeze),  .tally_flush(w_tally_flush),
         .tally_flush_busy(w_slave_tally_flush_busy), .tally_clear(csr_clear_pulse)
     );
@@ -2057,12 +2066,25 @@ module stream_mon_harness #(
         .AR_MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING (AW_MAX_OUTSTANDING),
         .GEN_MON            (1'b0),
+        // Monitor-VALIDATION flow, "all except error" bitstream: build every
+        // packet-class cone EXCEPT error on the rd/wr DATAPATH monitors -> covers
+        // completion/timeout/threshold/perf/debug (+ AddrMatch). Error injection
+        // is a separate bitstream (addr-range ERROR flavor). The DESC monitor
+        // stays perf-only so its trans_mgr CAM is out of the timing path -- the
+        // datapath monitors already cover every class.
         .DESC_MON_ENABLE_ERROR_LOGIC     (1'b0),
         .DESC_MON_ENABLE_TIMEOUT_LOGIC   (1'b0),
         .DESC_MON_ENABLE_COMPL_LOGIC     (1'b0),
         .DESC_MON_ENABLE_THRESHOLD_LOGIC (1'b0),
-        .DESC_MON_ENABLE_PERF_LOGIC      (1'b0),
-        .DESC_MON_ENABLE_DEBUG_LOGIC     (1'b0)
+        .DESC_MON_ENABLE_PERF_LOGIC      (1'b1),
+        .DESC_MON_ENABLE_DEBUG_LOGIC     (1'b0),
+        // DATA_MON_ERROR_FLAVOR selects the cone set: error-only vs all-except-error.
+        .DATA_MON_ENABLE_ERROR_LOGIC     ( DATA_MON_ERROR_FLAVOR),
+        .DATA_MON_ENABLE_TIMEOUT_LOGIC   (!DATA_MON_ERROR_FLAVOR),
+        .DATA_MON_ENABLE_COMPL_LOGIC     (!DATA_MON_ERROR_FLAVOR),
+        .DATA_MON_ENABLE_THRESHOLD_LOGIC (!DATA_MON_ERROR_FLAVOR),
+        .DATA_MON_ENABLE_PERF_LOGIC      (!DATA_MON_ERROR_FLAVOR),
+        .DATA_MON_ENABLE_DEBUG_LOGIC     (!DATA_MON_ERROR_FLAVOR)
     ) u_stream (
         .aclk    (aclk),   .aresetn(unit_aresetn),
         .pclk    (aclk),   .presetn(aresetn),

@@ -6,7 +6,7 @@
 # Usage:   verilator --lint-only -f filelists/amba_all.f
 #
 # Notes:
-#   - Package files MUST be listed first (monitor_pkg, axi_pkg, apb_pkg)
+#   - Package files MUST be listed first (monitor_pkg, axi_pkg, apb4_pkg)
 #   - Modules that import packages depend on packages being compiled first
 #   - Files organized by protocol for maintainability
 #   - Self-contained: the rtl/common, rtl/math and rtl/cdc blocks these modules
@@ -27,7 +27,7 @@ $REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 # Protocol packages
 $REPO_ROOT/rtl/amba/includes/axi_pkg.sv
-$REPO_ROOT/rtl/amba/includes/apb_pkg.sv
+$REPO_ROOT/rtl/amba/includes/apb4_pkg.sv
 $REPO_ROOT/rtl/amba/includes/apb5_pkg.sv
 
 # =============================================================================
@@ -91,15 +91,15 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer_struct.sv
 # =============================================================================
 # APB - Advanced Peripheral Bus
 # =============================================================================
-$REPO_ROOT/rtl/amba/apb/apb_master.sv
-$REPO_ROOT/rtl/amba/apb/apb_master_cg.sv
-$REPO_ROOT/rtl/amba/apb/apb_master_stub.sv
-$REPO_ROOT/rtl/amba/apb/apb_monitor.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_cdc_cg.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_cg.sv
-$REPO_ROOT/rtl/amba/apb/apb_slave_stub.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_master.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_master_cg.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_master_stub.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_monitor.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_slave.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_slave_cdc.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_slave_cdc_cg.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_slave_cg.sv
+$REPO_ROOT/rtl/amba/apb4/apb4_slave_stub.sv
 
 # =============================================================================
 # AXI4 - Advanced eXtensible Interface (Full)

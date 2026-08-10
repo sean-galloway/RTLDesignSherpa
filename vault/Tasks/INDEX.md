@@ -65,6 +65,7 @@ reviewed tree starts until the review is back and integrated.
 | [rapids](projects/components/dmas/rapids/INDEX.md) | **started** | dmas/rapids DMA (beats, nested to mirror repo) | TASK-057 regmap hygiene (ported from STREAM); [TASKS.md](../../projects/components/dmas/rapids/TASKS.md) + rapids_beats_mas/TODO still to fold in |
 | [bridge](bridge/INDEX.md) | **started** | bridge crossbar generator | [TASKS.md](../../projects/components/bridge/TASKS.md) (still to fold in; area holds BRIDGE-001) |
 | delta | pending | delta component | [TASKS.md](../../projects/components/delta/TASKS.md) |
+| [reed-solomon](projects/components/reed-solomon/INDEX.md) | **migrated** | future R/S ECC component (intent only, no RTL yet; holds RS-001) | successor to dropped COMMON-009 |
 | hive | pending | hive component | [TASKS.md](../../projects/components/hive/TASKS.md) |
 | [RLB](RLB/INDEX.md) | **migrated** | retro legacy blocks (ioapic, pm_acpi, smbus, pit, hpet) | remaining pre-migration rtl/*/TODO items still to fold in |
 | [pumice](pumice/INDEX.md) | **migrated** | pumice DDR2/LPDDR2 controller | — |
@@ -72,8 +73,8 @@ reviewed tree starts until the review is back and integrated.
 | memory-controllers | pending | ddr3 / ddr4 (pumice migrated above) | ddr3-lpddr3, ddr4-lpddr4 TASKS.md |
 | [nexysa7](nexysa7/INDEX.md) | **started** | board campaigns + characterization flows | NEXYS-001 (consistent flow Makefiles); timing_characterization/TASKS.md, cdc_counter_display CDC_DEMO_TODO still to fold in |
 | formal | pending | formal proof backlog | [formal/FORMAL_TODO.md](../../formal/FORMAL_TODO.md) |
-| coverage | pending | coverage backlog | [val/COVERAGE_TODO.md](../../val/COVERAGE_TODO.md) |
-| [tooling](tooling/INDEX.md) | **migrated** | repo tooling/scripts/process | [TOOLING_TODO.md](../../TOOLING_TODO.md) (historical backlog migrates via TOOL-001) |
+| [coverage](coverage/INDEX.md) | **migrated** | coverage rollout (COV-001: last 3 areas off base tests.mk) | val/COVERAGE_TODO.md (folded in + deleted 2026-08-09) |
+| [tooling](tooling/INDEX.md) | **migrated** | repo tooling/scripts/process | TOOLING_TODO.md (folded in + deleted 2026-08-09: TOOL-013 closed, TOOL-014 open, kmap item into TOOLING-KMAP) |
 | [site-audit](site-audit/INDEX.md) | **native** | site-wide audit umbrella: RTL correct, docs match, humanized, verification covers it | — (new 2026-07-28; subsumes DOCREV-009, folds in coverage/formal backlogs) |
 
 `pending` rows still track work at the linked source file; they will migrate

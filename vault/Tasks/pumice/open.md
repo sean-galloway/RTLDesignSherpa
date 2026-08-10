@@ -115,6 +115,41 @@ with an active bring-up.
 
 ---
 
+## PUMICE-008 — adopt axi4_intf_observer (APB-configured) for perf observation
+**Status:** open 2026-08-04
+
+pumice rolls its own perf observation: `perf_rd_prod/bp/starv/idle`,
+`perf_rd_hist_count/total`, `perf_clear`, `perf_freeze` wired out of the harness
+and read back through harness CSRs. The stream flows use
+`axi4_intf_observer`, an inline pass-through meter over the same primitives
+(`axi_bus_meter`, `axi_perf_latency_hist`) that also emits monbus packets.
+
+**What changed that makes this worth doing (2026-08-04):** the observer now
+carries its OWN APB config regblock (`obs_regs`) instead of exporting 29 `cfg_*`
+ports for the instantiating harness to tie off, and it moved to
+`projects/components/misc/rtl/` so it is reachable from any board flow:
+
+    -f $MISC_ROOT/rtl/filelists/axi4_intf_observer.f
+
+So adopting it costs one bridge APB slave and one instantiation, not 29 tie-offs
+and a harness that has to know the block's internals. Registers are by name via
+the generated regmap (see [[registers-by-name]]).
+
+**Why bother:** pumice and stream currently measure throughput with different
+code, so their numbers are not strictly comparable — which matters because the
+pumice-vs-LiteDRAM A/B and the stream characterization both report MB/s. One
+meter means one definition of a stalled cycle, and pumice would inherit the
+latency histogram and the monbus packet path for free.
+
+**Scope note:** the observer is an AXI4 pass-through meter (it was called
+`axi4_dma_observer` until 2026-08-04; the DMA in the name was always wrong). pumice's interesting
+traffic is on the DFI side, so this covers the AXI front-end (host -> pumice_top)
+rather than DRAM-side behaviour; the DFI meters stay as they are.
+
+**Not urgent.** Do it when the pumice harness is next opened for other reasons,
+not as a standalone change — it touches the bridge map and the harness CSR
+readback, and pumice bitstreams are on the critical path for the DDR2 work.
+
 ## PUMICE-CLEANUP — doc + filelist cleanup (push from workstation)
 **Status:** open 2026-07-24 — deferred (project cleanup; see TOOL-010)
 **Priority:** P2
@@ -129,3 +164,30 @@ working, but leave the push to Sean. Do not `git push` pumice work from this
 box. (Reason per Sean — workstation is where pumice is pushed from.)
 
 Gated behind the RTL area completing (Tasks/INDEX.md sequencing).
+
+## PUMICE-KMAP — real K-maps for the scheduler, CAMs and DFI layer
+**Status:** open 2026-08-06  **Blocked on:** [[TOOLING-KMAP]] items 1-4
+
+`pumice-ddr2-lpddr2/docs/gen_signal_contracts_kmaps.py` emits maps that meet two
+of the six criteria in [[signal-contracts-and-kmaps]]: no axis equations, no
+sufficiency argument, no don't-cares, no implicants. Its `axis|axes|index`
+mention count is 1.
+
+Map these, because each is combinational, safety-relevant, and has already
+produced silicon bugs:
+
+- **`pumice_mem_cmd_scheduler` arbitration/issue qualification.** Two
+  double-issue hazards were caught only by the MACRO test, from registered
+  feedback latency -- exactly what a map with an honest sufficiency argument
+  would have surfaced ([[pumice-mem-cmd-scheduler]]).
+- **Bank timers / open-page decision.** Runtime page policy shipped an 8.8x
+  streaming win; the decision cone deserves a proof, not a picture.
+- **`wr_data_cam` fill/drain and the `agg||last` B-gating.** The fill/drain race
+  (fixed by `r_fdone`) is precisely a two-sided adjacency question.
+- **DFI command/phase placement.** The rd_phase and write-latency confusion cost
+  weeks on the board; a map with cited axes would have made the phase
+  assumptions explicit instead of implicit.
+
+Each map must name the invariant that makes its unreachable cells unreachable --
+several of the above have "cannot happen" regions that are true only because of
+ordering guarantees elsewhere, and those guarantees belong in the citation.

@@ -61,7 +61,7 @@ External Master → [Bridge Top] → [Master Adapter] → [Crossbar] → [Slave 
 3. **Final stage** before external slave interface
 
 ### For APB Slaves:
-1. **axi4_to_apb** - Protocol converter
+1. **axi4_to_apb4** - Protocol converter
 2. **AXI4 to APB protocol translation**
 3. **Timing isolation via converter's internal buffers**
 

@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_mon_axil_pkg::*;
 
-module stream_apb_adapter #(
+module stream_apb_adapter
+    import bridge_stream_mon_axil_pkg::*;
+#(
     parameter int ID_WIDTH = 8
 ) (
     input  logic aclk,
@@ -185,7 +186,7 @@ module stream_apb_adapter #(
     assign rid_valid     = (ar_ptr != r_ptr);
 
     // AXI4-to-APB converter shim
-    axi4_to_apb_shim #(
+    axi4_to_apb4_shim #(
         .DEPTH_AW(2),
         .DEPTH_W(4),
         .DEPTH_B(2),

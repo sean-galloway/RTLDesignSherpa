@@ -29,12 +29,12 @@ The APB IOAPIC is organized as a hierarchical design with three primary layers:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ apb_ioapic (Top Level)                                       │
+│ apb4_ioapic (Top Level)                                       │
 │                                                               │
 │  ┌────────────────────────┐                                 │
 │  │ APB Slave Interface    │ (APB Clock Domain: pclk)        │
-│  │ - apb_slave (CDC=0)    │                                 │
-│  │ - apb_slave_cdc (CDC=1)│                                 │
+│  │ - apb4_slave (CDC=0)    │                                 │
+│  │ - apb4_slave_cdc (CDC=1)│                                 │
 │  └────────┬───────────────┘                                 │
 │           │ CMD/RSP (with optional CDC)                       │
 │           ▼                                                   │
@@ -77,7 +77,7 @@ The APB IOAPIC is organized as a hierarchical design with three primary layers:
 
 The design follows RLB architecture standards with clear functional separation:
 
-1. **apb_ioapic.sv** (Top Level)
+1. **apb4_ioapic.sv** (Top Level)
    - APB slave interface selection (CDC or non-CDC via parameter)
    - Clock domain routing based on CDC_ENABLE
    - Module instantiation and wiring
@@ -110,14 +110,14 @@ The design follows RLB architecture standards with clear functional separation:
 
 **Configuration Path (APB Write):**
 ```
-Software → APB Write → apb_slave[_cdc] → CMD → peakrdl_to_cmdrsp → 
+Software → APB Write → apb4_slave[_cdc] → CMD → peakrdl_to_cmdrsp → 
 → ioapic_regs → hwif_out → ioapic_config_regs mapping → ioapic_core config
 ```
 
 **Status Readback Path (APB Read):**
 ```
 ioapic_core status → ioapic_config_regs mapping → hwif_in → ioapic_regs → 
-→ peakrdl_to_cmdrsp → RSP → apb_slave[_cdc] → APB Read Data → Software
+→ peakrdl_to_cmdrsp → RSP → apb4_slave[_cdc] → APB Read Data → Software
 ```
 
 **Interrupt Delivery Path:**
@@ -175,7 +175,7 @@ The IOAPIC supports two clock domain configurations via CDC_ENABLE parameter:
 
 **Single Clock Domain (CDC_ENABLE=0 - Default):**
 ```
-pclk ────┬──► apb_slave ───► ioapic_config_regs ───► ioapic_core
+pclk ────┬──► apb4_slave ───► ioapic_config_regs ───► ioapic_core
          └──► Register domain
          └──► Core logic domain
 ```
@@ -186,7 +186,7 @@ pclk ────┬──► apb_slave ───► ioapic_config_regs ──�
 
 **Dual Clock Domain (CDC_ENABLE=1):**
 ```
-pclk ────► apb_slave_cdc ───┐
+pclk ────► apb4_slave_cdc ───┐
                              │ CDC Handshake
 ioapic_clk ──────────────┬──┴──► ioapic_config_regs ───► ioapic_core
                          └──────► Register domain
@@ -199,7 +199,7 @@ ioapic_clk ──────────────┬──┴──► ioapi
 
 **Clock Selection Logic:**
 ```systemverilog
-// In apb_ioapic.sv:
+// In apb4_ioapic.sv:
 .clk (CDC_ENABLE[0] ? ioapic_clk : pclk)
 ```
 
@@ -215,7 +215,7 @@ The IOAPIC uses standard RLB reset methodology:
 
 **Reset Routing:**
 ```systemverilog
-// In apb_ioapic.sv:
+// In apb4_ioapic.sv:
 .rst_n (CDC_ENABLE[0] ? ioapic_resetn : presetn)
 ```
 
@@ -262,7 +262,7 @@ The IOAPIC core implements a simple 3-state FSM for interrupt delivery:
 
 **Minimal Integration (Single CPU):**
 ```systemverilog
-apb_ioapic #(
+apb4_ioapic #(
     .NUM_IRQS    (24),
     .CDC_ENABLE  (0)   // Single clock domain
 ) u_ioapic (
@@ -285,7 +285,7 @@ apb_ioapic #(
 
 **Advanced Integration (Multi-CPU with CDC):**
 ```systemverilog
-apb_ioapic #(
+apb4_ioapic #(
     .NUM_IRQS    (24),
     .CDC_ENABLE  (1)   // Dual clock domain
 ) u_ioapic (

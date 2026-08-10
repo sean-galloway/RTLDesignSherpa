@@ -18,5 +18,5 @@ read -formal -sv formal_math_fp32_min.sv
 prep -top formal_math_fp32_min
 
 [files]
-math_fp32_min.sv ../../../rtl/common/math_fp32_min.sv
+math_fp32_min.sv ../../../rtl/math/math_fp32_min.sv
 formal_math_fp32_min.sv

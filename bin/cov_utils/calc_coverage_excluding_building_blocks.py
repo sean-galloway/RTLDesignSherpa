@@ -42,7 +42,7 @@ EXCLUSION_LEVELS = {
         # FUB-level blocks (adds to common + amba)
         'scheduler', 'descriptor_', 'axi_read_engine', 'axi_write_engine',
         'alloc_ctrl', 'drain_ctrl', 'latency_bridge', 'sram_controller',
-        'apbtodescr', 'ctrlrd_', 'ctrlwr_',
+        'apb4todescr', 'ctrlrd_', 'ctrlwr_',
     ],
 }
 

@@ -18,5 +18,5 @@ read -formal -sv formal_math_fp8_e4m3_leaky_relu.sv
 prep -top formal_math_fp8_e4m3_leaky_relu
 
 [files]
-math_fp8_e4m3_leaky_relu.sv ../../../rtl/common/math_fp8_e4m3_leaky_relu.sv
+math_fp8_e4m3_leaky_relu.sv ../../../rtl/math/math_fp8_e4m3_leaky_relu.sv
 formal_math_fp8_e4m3_leaky_relu.sv

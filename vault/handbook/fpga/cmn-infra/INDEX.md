@@ -16,6 +16,13 @@ the [FPGA area](../INDEX.md) "Boards / components").
 - [[sequences]] - named, ordered, dependency-checked campaign steps
   (projects/fpga-systems/bin/sequence.py); one init, N tests, transport injected
 
+## Where things live
+- [[area-structure]] - board / component / build under projects/fpga-systems,
+  and the four homes a shared thing can have (the fifth, invented one, is the
+  mistake)
+- [[flow-migration]] - moving a pre-migration flow in: copy never move, pin the
+  roots with ':=', check source provenance before believing a build
+
 ## Build + timing process
 - [[build-flows]] - Vivado batch flow, board switches, bitstream naming
 - [[flow-layout]] - the shared build skeleton and the filename prefixes make

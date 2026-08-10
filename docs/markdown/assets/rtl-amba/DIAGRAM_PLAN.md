@@ -157,17 +157,17 @@ Main AXI4 master/slave interfaces.
 
 | File | Module | Complexity | Status |
 |------|--------|------------|--------|
-| apb/apb_master.md | apb_master | Medium | [ ] Pending |
-| apb/apb_master_stub.md | apb_master_stub | Low | [ ] Pending |
-| apb/apb_slave.md | apb_slave | Medium | [ ] Pending |
-| apb/apb_slave_stub.md | apb_slave_stub | Low | [ ] Pending |
-| apb/apb_slave_cdc.md | apb_slave_cdc | High | [ ] Pending |
-| apb/apb_monitor.md | apb_monitor | Medium | [ ] Pending |
+| apb/apb4_master.md | apb4_master | Medium | [ ] Pending |
+| apb/apb4_master_stub.md | apb4_master_stub | Low | [ ] Pending |
+| apb/apb4_slave.md | apb4_slave | Medium | [ ] Pending |
+| apb/apb4_slave_stub.md | apb4_slave_stub | Low | [ ] Pending |
+| apb/apb4_slave_cdc.md | apb4_slave_cdc | High | [ ] Pending |
+| apb/apb4_monitor.md | apb4_monitor | Medium | [ ] Pending |
 | apb/apb_crossbar.md | apb_crossbar | High | [ ] Pending |
-| apb/apb_xbar.md | apb_xbar | High | [ ] Pending |
-| apb/apb_master_cg.md | apb_master_cg | Low | [ ] Pending |
-| apb/apb_slave_cg.md | apb_slave_cg | Low | [ ] Pending |
-| apb/apb_slave_cdc_cg.md | apb_slave_cdc_cg | Low | [ ] Pending |
+| apb/apb4_xbar.md | apb4_xbar | High | [ ] Pending |
+| apb/apb4_master_cg.md | apb4_master_cg | Low | [ ] Pending |
+| apb/apb4_slave_cg.md | apb4_slave_cg | Low | [ ] Pending |
+| apb/apb4_slave_cdc_cg.md | apb4_slave_cdc_cg | Low | [ ] Pending |
 | apb/README.md | (overview) | Low | [ ] Pending |
 
 ### Phase 10: AXI-Stream Modules (6 files) - MEDIUM PRIORITY
@@ -185,8 +185,8 @@ Main AXI4 master/slave interfaces.
 
 | File | Module | Complexity | Status |
 |------|--------|------------|--------|
-| shims/axi4_to_apb_shim.md | axi4_to_apb_shim | High | [ ] Pending |
-| shims/axi4_to_apb_convert.md | axi4_to_apb_convert | High | [ ] Pending |
+| shims/axi4_to_apb4_shim.md | axi4_to_apb4_shim | High | [ ] Pending |
+| shims/axi4_to_apb4_convert.md | axi4_to_apb4_convert | High | [ ] Pending |
 | shims/peakrdl_to_cmdrsp.md | peakrdl_to_cmdrsp | Medium | [ ] Pending |
 | shims/README.md | (overview) | Low | [ ] Pending |
 

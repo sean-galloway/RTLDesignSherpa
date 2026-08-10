@@ -53,7 +53,7 @@ regs/
 
 ### Phase 1: Define Register Map (Future)
 
-Create `stream_regs.rdl` following the same pattern as `apb_hpet`.
+Create `stream_regs.rdl` following the same pattern as `apb4_hpet`.
 
 ### Phase 2: PeakRDL-Generated Registers (Future)
 
@@ -89,8 +89,8 @@ Following the same pattern as the HPET block in `projects/components/retro_legac
    ```
 
 3. **Create APB Config Wrapper**
-   - Instantiate generated register block (similar to `apb_hpet.sv`)
-   - Add `apb_slave_cdc` wrapper if clock domain crossing needed
+   - Instantiate generated register block (similar to `apb4_hpet.sv`)
+   - Add `apb4_slave_cdc` wrapper if clock domain crossing needed
    - Wire register outputs to STREAM control signals
 
 ---
@@ -151,7 +151,7 @@ module apb_config (
     );
 
     // Optional: Add CDC wrapper if crossing clock domains
-    // (like HPET's apb_slave_cdc)
+    // (like HPET's apb4_slave_cdc)
 endmodule
 ```
 
@@ -162,7 +162,7 @@ endmodule
 **HPET PeakRDL Implementation (now in retro_legacy_blocks):**
 - `projects/components/retro_legacy_blocks/rtl/hpet/peakrdl/hpet_regs.rdl` - Register definition
 - `projects/components/retro_legacy_blocks/rtl/hpet/` - Generated register RTL (`hpet_regs.sv`, `hpet_regs_pkg.sv`)
-- `projects/components/retro_legacy_blocks/rtl/hpet/apb_hpet.sv` - Wrapper with CDC
+- `projects/components/retro_legacy_blocks/rtl/hpet/apb4_hpet.sv` - Wrapper with CDC
 
 **HPET Generation Command:**
 ```bash

@@ -63,7 +63,7 @@ Complete 3-layer architecture implementation of Intel 8254-compatible Programmab
 
 ```
 rtl/pit_8254/
-├── apb_pit_8254.sv              ✅ Top-level APB wrapper
+├── apb4_pit_8254.sv              ✅ Top-level APB wrapper
 ├── pit_config_regs.sv           ✅ Register wrapper with edge detection
 ├── pit_core.sv                  ✅ 3-counter array
 ├── pit_counter.sv               ✅ Single counter (mode 0)
@@ -73,7 +73,7 @@ rtl/pit_8254/
 │   ├── pit_regs.rdl             ✅ SystemRDL specification
 │   └── README.md                ✅ Generation instructions
 ├── filelists/
-│   └── apb_pit_8254.f           ✅ Complete filelist
+│   └── apb4_pit_8254.f           ✅ Complete filelist
 ├── README.md                    ✅ User documentation
 └── IMPLEMENTATION_SUMMARY.md    ✅ This file
 
@@ -84,13 +84,13 @@ dv/tbclasses/pit_8254/
 
 dv/tests/                        (flat layout, shared across blocks)
 ├── conftest.py                  ✅ Pytest configuration (shared)
-├── test_apb_pit_8254.py         ✅ Test runner
+├── test_apb4_pit_8254.py         ✅ Test runner
 └── Makefile                     ✅ Test execution targets (run-pit)
 ```
 
 ### Architecture Layers
 
-**Layer 1: APB Interface (apb_pit_8254.sv)**
+**Layer 1: APB Interface (apb4_pit_8254.sv)**
 - APB4 slave interface
 - Clock domain crossing support (CDC_ENABLE parameter)
 - APB → Passthrough conversion
@@ -167,7 +167,7 @@ cd projects/components/retro_legacy_blocks/dv/tests
 make run-pit
 
 # Run with waveforms (pytest directly)
-WAVES=1 pytest test_apb_pit_8254.py -v -s
+WAVES=1 pytest test_apb4_pit_8254.py -v -s
 
 # Clean artifacts
 make clean
@@ -175,8 +175,8 @@ make clean
 
 Or using pytest directly:
 ```bash
-pytest test_apb_pit_8254.py -v -s
-WAVES=1 pytest test_apb_pit_8254.py -v -s
+pytest test_apb4_pit_8254.py -v -s
+WAVES=1 pytest test_apb4_pit_8254.py -v -s
 ```
 
 ### What's Not Yet Implemented

@@ -99,7 +99,7 @@ CocoTBFramework
     │   ├── amba_cg_ctrl.py
     │   ├── amba_random_configs.py
     │   ├── cdc_handshake.py
-    │   ├── apb_hpet
+    │   ├── apb4_hpet
     │   │   ├── hpet_tb.py
     │   │   ├── hpet_tests_basic.py
     │   │   ├── hpet_tests_full.py
@@ -118,14 +118,14 @@ CocoTBFramework
     │   ├── apb_command_handler.py
     │   ├── apbgaxiconfig.py
     │   └── register_map.py
-    ├── apb_monitor
+    ├── apb4_monitor
     │   ├── apb_completion_test.py
     │   ├── apb_debug_test.py
     │   ├── apb_error_test.py
-    │   ├── apb_monitor_core_tb.py
-    │   ├── apb_monitor_packets.py
-    │   ├── apb_monitor_readme.md
-    │   ├── apb_monitor_scoreboard.py
+    │   ├── apb4_monitor_core_tb.py
+    │   ├── apb4_monitor_packets.py
+    │   ├── apb4_monitor_readme.md
+    │   ├── apb4_monitor_scoreboard.py
     │   ├── apb_performance_test.py
     │   └── apb_timeout_test.py
     ├── axi4

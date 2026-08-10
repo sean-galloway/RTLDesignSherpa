@@ -130,6 +130,11 @@ module cpu_wr_adapter
 
     logic         wrapper_wr_busy;
 
+    // AXI5 native sideband (A5-2 slice 2)
+    logic         fub_axi_awtrace;  // AXI5 sideband (trace)
+    logic         fub_axi_awunique;  // AXI5 sideband (unique)
+    logic         fub_axi_btrace;  // AXI5 sideband (trace)
+
     // ================================================================
     // Timing isolation wrapper (axi5_slave_wr_mon)
     // ================================================================
@@ -216,10 +221,10 @@ module cpu_wr_adapter
         .fub_axi_awready(fub_axi_awready),
         .fub_axi_awatop(),
         .fub_axi_awnsaid(),
-        .fub_axi_awtrace(),
+        .fub_axi_awtrace(fub_axi_awtrace),
         .fub_axi_awmpam(),
         .fub_axi_awmecid(),
-        .fub_axi_awunique(),
+        .fub_axi_awunique(fub_axi_awunique),
         .fub_axi_awtagop(),
         .fub_axi_awtag(),
         .fub_axi_wdata(fub_axi_wdata),
@@ -236,7 +241,7 @@ module cpu_wr_adapter
         .fub_axi_buser(1'b0),
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
-        .fub_axi_btrace('0),
+        .fub_axi_btrace(fub_axi_btrace),
         .fub_axi_btag('0),
         .fub_axi_btagmatch('0),
 
@@ -348,6 +353,8 @@ module cpu_wr_adapter
     assign cpu_wr_32b_aw.qos    = 4'b0;  // Tie to 0
     assign cpu_wr_32b_aw.region = 4'b0;  // Tie to 0
     assign cpu_wr_32b_aw.user   = 1'b0;  // Tie to 0
+    assign cpu_wr_32b_aw.trace = fub_axi_awtrace;  // AXI5 sideband
+    assign cpu_wr_32b_aw.uniq = fub_axi_awunique;  // AXI5 sideband
     assign cpu_wr_32b_awvalid   = fub_axi_awvalid && aw_path_active_32b;
     // awready routed via MUX
 
@@ -480,17 +487,20 @@ module cpu_wr_adapter
         fub_axi_bid = 4'd0;
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
+        fub_axi_btrace = '0;  // AXI5 sideband (trace)
 
         case (b_slave_select)
             2'b01: begin  // Slave 0 (32b)
                 fub_axi_bid = cpu_wr_32b_b.id;
                 fub_axi_bresp = cpu_wr_32b_b.resp;
                 fub_axi_bvalid = cpu_wr_32b_bvalid;
+                fub_axi_btrace = cpu_wr_32b_b.trace;
             end
             2'b10: begin  // Slave 1 (32b)
                 fub_axi_bid = cpu_wr_32b_b.id;
                 fub_axi_bresp = cpu_wr_32b_b.resp;
                 fub_axi_bvalid = cpu_wr_32b_bvalid;
+                fub_axi_btrace = cpu_wr_32b_b.trace;
             end
             default: begin
                 // No slave selected - hold defaults

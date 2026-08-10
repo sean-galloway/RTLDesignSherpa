@@ -4,7 +4,7 @@
 # Module: test_axi4_dwidth_converter_wr
 # Purpose: AXI4 Write Data Width Converter Test Runner (WRITE-ONLY)
 #
-# Documentation: rtl/amba/axi4/AXI4_DATA_WIDTH_CONVERTER_SPEC.md
+# Documentation: projects/components/converters/docs/AXI4_DATA_WIDTH_CONVERTER_SPEC.md
 # Subsystem: tests
 #
 # Author: RTL Design Sherpa

@@ -58,13 +58,13 @@ The HPET module is a fully parameterized, scalable timer peripheral with APB int
 
 ### Module Hierarchy
 
-1. **`apb_hpet.sv`** (Top Level)
+1. **`apb4_hpet.sv`** (Top Level)
    - Instantiates APB slave (CDC or non-CDC via generate block)
    - Instantiates configuration registers
    - Instantiates HPET core
    - Manages clock domain selection based on `CDC_ENABLE`
 
-2. **`apb_slave.sv` / `apb_slave_cdc.sv`** (APB Interface)
+2. **`apb4_slave.sv` / `apb4_slave_cdc.sv`** (APB Interface)
    - Converts APB protocol to cmd/rsp interface
    - CDC version handles async clock crossing
 
@@ -162,7 +162,7 @@ To modify the register map:
 
 ## Parameters
 
-### Top-Level Parameters (`apb_hpet`)
+### Top-Level Parameters (`apb4_hpet`)
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -177,21 +177,21 @@ To modify the register map:
 - **APB Interface**: Uses `pclk` and `presetn`
 - **Config Registers**: Uses `pclk` and `presetn`
 - **HPET Core**: Uses `pclk` and `presetn`
-- **APB Slave**: Instantiates `apb_slave` (no CDC)
+- **APB Slave**: Instantiates `apb4_slave` (no CDC)
 - **Use Case**: Simple single-clock systems, minimal latency
 
 #### CDC_ENABLE = 1 (Dual Clock Domain)
 - **APB Interface**: Uses `pclk` and `presetn` (low frequency)
 - **Config Registers**: Uses `hpet_clk` and `hpet_resetn` (high frequency)
 - **HPET Core**: Uses `hpet_clk` and `hpet_resetn` (high frequency)
-- **APB Slave**: Instantiates `apb_slave_cdc` (with handshake-based CDC)
+- **APB Slave**: Instantiates `apb4_slave_cdc` (with handshake-based CDC)
 - **Use Case**: High-precision timing with slow APB bus
 
 ### Configuration Examples
 
 **Intel-like (2 timers, no CDC):**
 ```systemverilog
-apb_hpet #(
+apb4_hpet #(
     .NUM_TIMERS(2),
     .VENDOR_ID(16'h8086),
     .REVISION_ID(8'h01),
@@ -201,7 +201,7 @@ apb_hpet #(
 
 **AMD-like (3 timers, with CDC):**
 ```systemverilog
-apb_hpet #(
+apb4_hpet #(
     .NUM_TIMERS(3),
     .VENDOR_ID(16'h1022),
     .REVISION_ID(8'h02),
@@ -211,7 +211,7 @@ apb_hpet #(
 
 **Custom (8 timers, high-speed with CDC):**
 ```systemverilog
-apb_hpet #(
+apb4_hpet #(
     .NUM_TIMERS(8),
     .VENDOR_ID(16'hABCD),
     .REVISION_ID(8'h10),
@@ -315,7 +315,7 @@ module my_system (
 );
 
     // Instantiate HPET with 2 timers, no CDC
-    apb_hpet #(
+    apb4_hpet #(
         .NUM_TIMERS(2),
         .VENDOR_ID(16'h8086),
         .REVISION_ID(8'h01),
@@ -357,7 +357,7 @@ module high_precision_system (
 );
 
     // Instantiate HPET with 8 timers and CDC
-    apb_hpet #(
+    apb4_hpet #(
         .NUM_TIMERS(8),
         .VENDOR_ID(16'hABCD),
         .REVISION_ID(8'h10),
@@ -456,13 +456,13 @@ The test suite validates all parameter combinations:
 
 ```bash
 # Run all HPET tests
-pytest projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 
 # Run specific configuration
-pytest 'projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py::test_hpet[2-32902-1-0-full-2-timer Intel-like]' -v
+pytest 'projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py::test_hpet[2-32902-1-0-full-2-timer Intel-like]' -v
 
 # Run CDC tests only
-pytest -k "CDC" projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py -v
+pytest -k "CDC" projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 ```
 
 ### Test Coverage
@@ -478,7 +478,7 @@ All configurations pass **4/4 basic tests**:
 ```
 projects/components/retro_legacy_blocks/rtl/hpet/
 ├── README.md                          (This file)
-├── apb_hpet.sv                        (Top-level module)
+├── apb4_hpet.sv                        (Top-level module)
 ├── hpet_core.sv                       (Timer core logic)
 ├── hpet_config_regs.sv                (PeakRDL wrapper)
 ├── hpet_regs.sv                       (Auto-generated register block)
@@ -493,7 +493,7 @@ projects/components/retro_legacy_blocks/rtl/hpet/
     └── *.f                            (Simulation file lists)
 
 val/integ_amba/
-└── test_apb_hpet.py                   (Pytest test runner)
+└── test_apb4_hpet.py                   (Pytest test runner)
 ```
 
 ## Design Decisions
@@ -545,14 +545,14 @@ Allows single PeakRDL generation (NUM_TIMERS=8) to correctly report timer count 
 - **PeakRDL**: https://github.com/SystemRDL/PeakRDL-regblock
 - **SystemRDL**: https://github.com/SystemRDL/systemrdl-compiler
 - **HPET Spec**: Intel IA-PC HPET Specification (for reference, not strictly compliant)
-- **Test Documentation**: `projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py` docstrings
+- **Test Documentation**: `projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py` docstrings
 
 ## Contributing
 
 When modifying the HPET module:
 
 1. **Register Changes**: Edit `peakrdl/hpet_regs.rdl`, then regenerate
-2. **RTL Changes**: Update `apb_hpet.sv`, `hpet_core.sv`, or wrapper
+2. **RTL Changes**: Update `apb4_hpet.sv`, `hpet_core.sv`, or wrapper
 3. **Testing**: Run full test suite (all 6 configurations)
 4. **Documentation**: Update this README and inline comments
 

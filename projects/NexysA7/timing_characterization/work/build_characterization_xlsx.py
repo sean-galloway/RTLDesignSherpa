@@ -973,7 +973,7 @@ def build_stream_sheet(wb: Workbook):
             ("perf_fifo_count[15:0]","out","gaxi_fifo_sync",0,0,"u_perf_fifo.count (Q)",
              "to APB CSR"),
         ]),
-        ("apbtodescr", [
+        ("apb4todescr", [
             # local flops: r_apb_cmd_*, r_apb_rsp_*, r_ch_addr[N-1:0],
             # r_ch_valid[N-1:0], r_kickoff_hit, r_state
             ("apb_cmd_valid",  "in",  "",                0, 1, "r_apb_cmd_valid (D)",
@@ -1003,9 +1003,9 @@ def build_stream_sheet(wb: Workbook):
             # local flops: r_state (FSM), r_desc_addr, r_descriptor (latch),
             # r_rdata_valid, r_burst_count, r_chain_valid
             ("desc_apb_valid", "in",  "",                0, 1, "r_state (D)",
-             "from apbtodescr (kick-off)"),
+             "from apb4todescr (kick-off)"),
             ("desc_apb_addr[DA-1:0]","in","",            0, 0, "r_desc_addr (D)",
-             "from apbtodescr"),
+             "from apb4todescr"),
             ("r_state",        "local","",               0, 1, "AR skid wr_valid (D)",
              "FSM IDLE -> FETCH -> WAIT_RDATA"),
             ("r_desc_addr",    "local","",               0, 0, "AR skid wr_data (D)",

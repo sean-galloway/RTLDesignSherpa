@@ -46,5 +46,5 @@ r_wakeup <= s_apb_PSEL || s_apb_PENABLE || cmd_valid_sync || rsp_valid_sync || w
 
 ## Also Applies To
 
-- `apb_slave_cdc_cg.sv` (line 123: `s_apb_PSEL` used in aclk domain)
+- `apb4_slave_cdc_cg.sv` (line 123: `s_apb_PSEL` used in aclk domain)
 - All CDC CG wrappers that mix domain signals in the wakeup logic

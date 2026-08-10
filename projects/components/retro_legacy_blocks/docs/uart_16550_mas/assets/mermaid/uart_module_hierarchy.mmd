@@ -1,7 +1,7 @@
 %%{init: {'theme': 'neutral'}}%%
 flowchart TB
-    TOP[apb_uart_16550<br/>Top Level]
-    TOP --> APB[apb_slave]
+    TOP[apb4_uart_16550<br/>Top Level]
+    TOP --> APB[apb4_slave]
     APB --> PROTO["APB protocol handling"]
     APB --> CMD["CMD/RSP interface"]
 

@@ -1,7 +1,7 @@
 components
 ├── README.md
 ├── STATUS.md
-├── apb_hpet
+├── apb4_hpet
 │   ├── CLAUDE.md
 │   ├── PRD.md
 │   ├── STATUS.md
@@ -16,9 +16,9 @@ components
 │   │       ├── hpet_index.md
 │   │       ├── assets
 │   │       │   ├── draw.io
-│   │       │   │   ├── .xdp-.$apb_hpet.drawio.bkp-9s0td0
-│   │       │   │   ├── apb_hpet.drawio
-│   │       │   │   └── apb_hpet_blocks.png
+│   │       │   │   ├── .xdp-.$apb4_hpet.drawio.bkp-9s0td0
+│   │       │   │   ├── apb4_hpet.drawio
+│   │       │   │   └── apb4_hpet_blocks.png
 │   │       │   ├── graphviz
 │   │       │   │   ├── Makefile
 │   │       │   │   ├── README.md
@@ -62,7 +62,7 @@ components
 │   │       │   ├── 01_hpet_core.md
 │   │       │   ├── 02_hpet_config_regs.md
 │   │       │   ├── 03_hpet_regs.md
-│   │       │   ├── 04_apb_hpet_top.md
+│   │       │   ├── 04_apb4_hpet_top.md
 │   │       │   └── 05_fsm_summary.md
 │   │       ├── ch03_interfaces
 │   │       ├── ch04_programming
@@ -84,7 +84,7 @@ components
 │   │       ├── Makefile
 │   │       ├── __init__.py
 │   │       ├── conftest.py
-│   │       └── test_apb_hpet.py
+│   │       └── test_apb4_hpet.py
 │   ├── known_issues
 │   │   ├── README.md
 │   │   ├── active
@@ -93,7 +93,7 @@ components
 │   └── rtl
 │       ├── Makefile
 │       ├── README.md
-│       ├── apb_hpet.sv
+│       ├── apb4_hpet.sv
 │       ├── hpet_config_regs.sv
 │       ├── hpet_config_regs.sv.OLD
 │       ├── hpet_core.sv
@@ -106,7 +106,7 @@ components
 │       │   │   ├── hpet_core.f
 │       │   │   └── hpet_regs.f
 │       │   └── integration
-│       │       └── apb_hpet.f
+│       │       └── apb4_hpet.f
 │       └── peakrdl
 │           ├── README.md
 │           ├── hpet_regs.rdl
@@ -120,52 +120,52 @@ components
 │                   └── hpet_regs.sv
 │                       ├── hpet_regs.sv
 │                       └── hpet_regs_pkg.sv
-├── apb_xbar
+├── apb4_xbar
 │   ├── CLAUDE.md
 │   ├── PRD.md
 │   ├── README.md
 │   ├── bin
 │   │   └── generate_xbars.py
 │   ├── docs
-│   │   └── apb_xbar_spec
+│   │   └── apb4_xbar_spec
 │   ├── dv
 │   │   └── tests
 │   │       ├── Makefile
 │   │       ├── conftest.py
-│   │       ├── test_apb_xbar_1to1.py
-│   │       ├── test_apb_xbar_1to4.py
-│   │       ├── test_apb_xbar_2to1.py
-│   │       ├── test_apb_xbar_2to4.py
+│   │       ├── test_apb4_xbar_1to1.py
+│   │       ├── test_apb4_xbar_1to4.py
+│   │       ├── test_apb4_xbar_2to1.py
+│   │       ├── test_apb4_xbar_2to4.py
 │   │       └── GTKW
 │   │           ├── ap_xbar.gtkw
-│   │           └── apb_xbar_2_to_4.gtkw
+│   │           └── apb4_xbar_2_to_4.gtkw
 │   ├── rtl
 │   │   ├── Makefile
-│   │   ├── apb_xbar_1to1.sv
-│   │   ├── apb_xbar_1to4.sv
-│   │   ├── apb_xbar_2to1.sv
-│   │   ├── apb_xbar_2to4.sv
-│   │   ├── apb_xbar_thin.sv
+│   │   ├── apb4_xbar_1to1.sv
+│   │   ├── apb4_xbar_1to4.sv
+│   │   ├── apb4_xbar_2to1.sv
+│   │   ├── apb4_xbar_2to4.sv
+│   │   ├── apb4_xbar_thin.sv
 │   │   ├── filelists
 │   │   │   ├── core
-│   │   │   │   ├── apb_xbar_1to1.f
-│   │   │   │   ├── apb_xbar_1to4.f
-│   │   │   │   ├── apb_xbar_2to1.f
-│   │   │   │   ├── apb_xbar_2to4.f
-│   │   │   │   └── apb_xbar_common.f
+│   │   │   │   ├── apb4_xbar_1to1.f
+│   │   │   │   ├── apb4_xbar_1to4.f
+│   │   │   │   ├── apb4_xbar_2to1.f
+│   │   │   │   ├── apb4_xbar_2to4.f
+│   │   │   │   └── apb4_xbar_common.f
 │   │   │   └── wrapper
-│   │   │       ├── apb_xbar_1to1_wrap.f
-│   │   │       ├── apb_xbar_1to4_wrap.f
-│   │   │       ├── apb_xbar_2to1_wrap.f
-│   │   │       └── apb_xbar_2to4_wrap.f
+│   │   │       ├── apb4_xbar_1to1_wrap.f
+│   │   │       ├── apb4_xbar_1to4_wrap.f
+│   │   │       ├── apb4_xbar_2to1_wrap.f
+│   │   │       └── apb4_xbar_2to4_wrap.f
 │   │   └── wrappers
-│   │       ├── apb_xbar_1to1_wrap.sv
-│   │       ├── apb_xbar_1to4_wrap.sv
-│   │       ├── apb_xbar_2to1_wrap.sv
-│   │       ├── apb_xbar_2to4_wrap.sv
-│   │       ├── apb_xbar_thin_wrap_m10_s10.sv
-│   │       ├── apb_xbar_wrap.sv
-│   │       └── apb_xbar_wrap_m10_s10.sv
+│   │       ├── apb4_xbar_1to1_wrap.sv
+│   │       ├── apb4_xbar_1to4_wrap.sv
+│   │       ├── apb4_xbar_2to1_wrap.sv
+│   │       ├── apb4_xbar_2to4_wrap.sv
+│   │       ├── apb4_xbar_thin_wrap_m10_s10.sv
+│   │       ├── apb4_xbar_wrap.sv
+│   │       └── apb4_xbar_wrap_m10_s10.sv
 │   └── val
 │       └── integ_amba
 ├── bridge
@@ -639,8 +639,8 @@ components
 │   │       ├── Makefile
 │   │       └── test_peakrdl_to_cmdrsp.py
 │   └── rtl
-│       ├── axi4_to_apb_convert.sv
-│       ├── axi4_to_apb_shim.sv
+│       ├── axi4_to_apb4_convert.sv
+│       ├── axi4_to_apb4_shim.sv
 │       └── peakrdl_to_cmdrsp.sv
 └── stream
     ├── CLAUDE.md
@@ -694,7 +694,7 @@ components
     │       ├── ch01_overview
     │       │   └── 03_clocks_and_reset.md
     │       ├── ch02_blocks
-    │       │   ├── 00_apbtodescr.md
+    │       │   ├── 00_apb4todescr.md
     │       │   ├── 01_01_descriptor_engine.md
     │       │   ├── 01_02_scheduler.md
     │       │   ├── 02_01_axi_read_engine.md
@@ -724,7 +724,7 @@ components
     │   │   └── __init__.py
     │   ├── tbclasses
     │   │   ├── __init__.py
-    │   │   ├── apbtodescr_tb.py
+    │   │   ├── apb4todescr_tb.py
     │   │   ├── axi_read_engine_tb.py
     │   │   ├── axi_write_engine_tb.py
     │   │   ├── descriptor_engine_tb.py
@@ -737,13 +737,13 @@ components
     │       ├── Makefile
     │       ├── __init__.py
     │       ├── fub_tests
-    │       │   ├── README_apbtodescr.md
+    │       │   ├── README_apb4todescr.md
     │       │   ├── README_perf_profiler.md
     │       │   ├── cocotb_tests.py
     │       │   ├── conftest_descriptor_engine.py
     │       │   ├── conftest_perf_profiler.py
     │       │   ├── conftest_scheduler.py
-    │       │   ├── test_apbtodescr.py
+    │       │   ├── test_apb4todescr.py
     │       │   ├── test_axi_read_engine.py
     │       │   ├── test_axi_write_engine.py
     │       │   ├── test_descriptor_engine.py
@@ -783,7 +783,7 @@ components
     │       │       ├── Vtop_stream_pkg.h
     │       │       ├── Vtop_stream_pkg__DepSet_h801792c1__0__Slow.cpp
     │       │       ├── Vtop_stream_pkg__Slow.cpp
-    │       │       ├── apbtodescr
+    │       │       ├── apb4todescr
     │       │       ├── verilated.d
     │       │       ├── verilated.o
     │       │       ├── verilated_dpi.d
@@ -828,7 +828,7 @@ components
     │           ├── Vtop_stream_pkg.h
     │           ├── Vtop_stream_pkg__DepSet_h801792c1__0__Slow.cpp
     │           ├── Vtop_stream_pkg__Slow.cpp
-    │           ├── apbtodescr
+    │           ├── apb4todescr
     │           ├── dw2yg16y_results.xml
     │           ├── verilated.d
     │           ├── verilated.o
@@ -860,7 +860,7 @@ components
         │   ├── simple_sram.sv
         │   └── sram_controller.sv
         └── stream_macro
-            ├── apbtodescr.sv
+            ├── apb4todescr.sv
             ├── datapath.sv
             ├── monbus_axil_group.sv
             ├── scheduler_group.sv

@@ -70,7 +70,7 @@ Arithmetic, split out of rtl-common:
 #### **[RTL Integration Examples](rtl-integ-common/index.md)**
 Worked examples that wire library blocks together, rather than primitives:
 - **[rtl-integ-common](rtl-integ-common/index.md)**: multi-field FIFO wrappers over `fifo_sync` (2 modules)
-- **[rtl-integ-amba](rtl-integ-amba/index.md)**: monitored APB fabrics, showing where an `apb_monitor` attaches (2 modules -- **currently not building**, see AMBA-INTEG-EXAMPLES)
+- **[rtl-integ-amba](rtl-integ-amba/index.md)**: monitored APB fabrics, showing where an `apb4_monitor` attaches (2 modules -- **currently not building**, see AMBA-INTEG-EXAMPLES)
 
 #### **[RTL Clock Domain Crossing](rtl-cdc/index.md)**
 Everything whose job is crossing a clock boundary:

@@ -26,8 +26,8 @@
 // i_*/o_* convention. This is required because the GAXI cocotb factory
 // discovers signals by matching `{bus}_valid`, `{bus}_ready`, `{bus}_data`
 // patterns. Changing to i_/o_ prefixes would break both the verification
-// environment and every existing consumer (apb_slave_cdc, apb5_slave_cdc,
-// apb_slave_cdc_cg).
+// environment and every existing consumer (apb4_slave_cdc, apb5_slave_cdc,
+// apb4_slave_cdc_cg).
 //
 // ===========================================================================
 // REQUIRED SDC CONSTRAINTS (MUST be provided by the user)
