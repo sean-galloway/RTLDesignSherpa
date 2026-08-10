@@ -53,10 +53,17 @@ and remember randomized traffic does not prove fairness
   completion-cycle req_cost charged a back-to-back client its NEXT frame's
   cost. Fixed with a one-deep cost pipeline (r_cost_arb); lesson recorded
   in [[valid-ready-contracts]] (sideband across a registered decision).
-- TB mirror is TB-local (bin/TBClasses/common/arbiter_deficit_round_robin_tb.py);
-  promoting it as DeficitRoundRobinArbiterMonitor into RDS-DV
-  arbiter_monitor.py is the remaining DV follow-up for this slice. NOTE:
-  the framework's compliance analysis logs RR-order "violations" on DRR
-  runs (deficit gating legitimately reorders grants) — the promoted monitor
-  must carry DRR-aware expected-grant math, not the RR replay.
+- DV follow-up DONE 2026-08-10: RDS-DV#65 filed and closed by RDS-DV
+  2e3f4ff — DeficitRoundRobinArbiterMonitor + ArbiterCompliance 'drr' mode
+  (windowed served-cost shares vs quanta, zero-quantum-grant errors, NO RR
+  mask replay). Three false-positive classes were found and fixed by
+  running it against the real DUT before shipping: completion-cycle cost
+  attribution (needs the arbitration-cycle sample), windows straddling
+  participation changes (now require a stable requester set and normalize
+  over requesters' quanta), and fixed-size windows reading a lumpy
+  high-cost/low-quantum client as deviation (window now scales with client
+  count). The main-repo TB uses the framework monitor and ASSERTS on its
+  compliance verdict; the cycle-exact deficit mirror stays TB-side by
+  design (it knows the driver's cost intent). GATE/FUNC/FULL green,
+  RR/WRR sibling tests unaffected.
 

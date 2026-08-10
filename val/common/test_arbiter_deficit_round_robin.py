@@ -70,7 +70,21 @@ async def arbiter_deficit_round_robin_test(dut):
     if test_level == 'full':
         await tb.scenario_quantum_change(completions)
 
-    tb.log.info("DRR test complete - all scenarios passed")
+    # Framework compliance verdict - assert on it, never just log it
+    # (the COMMON-016..019 rule). The 'drr' mode flags zero-quantum grants
+    # as errors and windowed served-cost deviations as drr_share_violation.
+    tb.monitor.force_compliance_analysis("end_of_test")
+    comp_warnings = tb.monitor.get_protocol_warnings()  # dict form
+    comp_errors = [w for w in comp_warnings if w.get('severity') == 'error']
+    assert not comp_errors, \
+        f"framework compliance errors: {comp_errors[:3]} ({len(comp_errors)} total)"
+    share_viol = [w for w in comp_warnings
+                  if w.get('type') == 'drr_share_violation']
+    assert not share_viol, \
+        f"framework DRR share violations: {share_viol[:3]} ({len(share_viol)} total)"
+
+    tb.log.info(f"DRR test complete - all scenarios passed, framework "
+                f"compliance clean ({len(comp_warnings)} non-error warnings)")
 
 
 def generate_test_params():

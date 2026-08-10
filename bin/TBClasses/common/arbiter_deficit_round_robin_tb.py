@@ -23,18 +23,16 @@ GRANT COUNTS are weight-proportional), so the scoreboard here counts served
 cost, not grants.
 
 Verification layers:
-1. RoundRobinArbiterMonitor (framework) observes the grant stream -
-   protocol-level transaction collection. Its RR-pattern analysis is NOT
-   used: deficit gating legitimately reorders grants vs a plain RR.
+1. DeficitRoundRobinArbiterMonitor (framework, RDS-DV#65) observes the
+   grant stream: protocol-level checks plus the 'drr' compliance mode -
+   windowed served-cost shares vs quanta and zero-quantum-grant errors.
+   (No RR mask replay: deficit gating legitimately reorders grants.)
 2. A cycle mirror of the deficit discipline (same precedence as the RTL:
    request-drop clear, completion debit, replenish add) asserts that every
-   grant went to a client whose deficit covered its cost.
+   grant went to a client whose deficit covered its arbitration-cycle cost.
+   The mirror stays TB-side deliberately: it knows the driver's cost intent
+   cycle-exactly; the framework check is statistical.
 3. Windowed share measurement: served-cost fractions vs quantum ratios.
-
-NOTE: the mirror is TB-local for now. Promoting it into the RDS-DV
-arbiter_monitor family (DeficitRoundRobinArbiterMonitor) is the follow-up
-recorded in COMMON-007 - the framework model replays grants the same way
-for RR/WRR today.
 """
 
 import os
@@ -44,7 +42,7 @@ from collections import deque
 from cocotb.triggers import RisingEdge
 
 from TBClasses.shared.tbbase import TBBase
-from CocoTBFramework.components.shared.arbiter_monitor import RoundRobinArbiterMonitor
+from CocoTBFramework.components.shared.arbiter_monitor import DeficitRoundRobinArbiterMonitor
 
 
 class DeficitRoundRobinTB(TBBase):
@@ -64,9 +62,10 @@ class DeficitRoundRobinTB(TBBase):
         self.QW = max(1, (self.MAX_QUANTUM - 1).bit_length())
         self.MAX_COST = (1 << self.COST_WIDTH) - 1
 
-        # Framework monitor: transaction observation only (no RR-pattern
-        # analysis - deficit gating reorders grants vs plain RR by design)
-        self.monitor = RoundRobinArbiterMonitor(
+        # Framework monitor in 'drr' compliance mode (RDS-DV#65): windowed
+        # served-cost shares vs quanta + zero-quantum-grant errors; no RR
+        # mask replay (deficit gating reorders grants by design)
+        self.monitor = DeficitRoundRobinArbiterMonitor(
             dut=dut,
             title="DRR_Monitor",
             clock=self.dut.clk,
@@ -77,6 +76,8 @@ class DeficitRoundRobinTB(TBBase):
             gnt_id_signal=self.dut.grant_id,
             gnt_ack_signal=self.dut.grant_ack,
             block_arb_signal=self.dut.block_arb,
+            quantum_signal=self.dut.quantum,
+            req_cost_signal=self.dut.req_cost,
             clients=self.CLIENTS,
             ack_mode=(self.WAIT_GNT_ACK == 1),
             log=self.log,
