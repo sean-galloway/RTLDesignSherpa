@@ -8,7 +8,9 @@ Author: RTL Design Sherpa
 Date: 2025-11-03
 """
 
-from typing import List, Set
+from typing import Iterable, List, Optional, Set
+
+from bridge_pkg.sideband import channel_fields
 
 
 class PackageGenerator:
@@ -22,7 +24,8 @@ class PackageGenerator:
     - Write response channel (B) - width-independent
     """
 
-    def __init__(self, bridge_name: str, id_width: int = 4, addr_width: int = 32, num_masters: int = 1):
+    def __init__(self, bridge_name: str, id_width: int = 4, addr_width: int = 32, num_masters: int = 1,
+                 sideband_features: Optional[Iterable[str]] = None):
         """
         Initialize package generator.
 
@@ -31,12 +34,17 @@ class PackageGenerator:
             id_width: Default ID width for masters (can vary per master)
             addr_width: Address width for all masters/slaves (must be uniform)
             num_masters: Number of masters in the bridge (for BRIDGE_ID_WIDTH calculation)
+            sideband_features: AXI5 native-sideband feature union for this
+                bridge (A5-2 slice 2). Each named feature appends its
+                fields to the channel structs; None/empty (every pure-AXI4
+                bridge) emits the historical structs byte-identically.
         """
         self.bridge_name = bridge_name
         self.id_width = id_width
         self.addr_width = addr_width  # Configurable address width
         self.num_masters = num_masters  # Number of masters
         self.data_widths: Set[int] = set()  # Collect unique data widths
+        self.sideband_features = set(sideband_features or ())
 
     def add_data_width(self, width: int):
         """Add a data width that needs struct definitions."""
@@ -111,6 +119,18 @@ class PackageGenerator:
             f"    localparam int BRIDGE_ID_WIDTH = {bridge_id_width};  // $clog2(NUM_MASTERS)"
         ]
 
+    def _sideband_lines(self, channel: str) -> List[str]:
+        """AXI5 native-sideband field declarations for `channel` (A5-2
+        slice 2). Empty for pure-AXI4 bridges so their packages stay
+        byte-identical."""
+        lines = []
+        for field, width, feature, _base in channel_fields(
+                self.sideband_features, channel):
+            decl = "logic         " if width == 1 else f"logic [{width-1}:0]  "
+            lines.append(f"        {decl}{field + ';':<8} // AXI5 sideband"
+                         f" ({feature})")
+        return lines
+
     def _generate_aw_struct(self) -> List[str]:
         """Generate AXI4 Write Address Channel struct."""
         return [
@@ -128,6 +148,7 @@ class PackageGenerator:
             "        logic [3:0]   qos;     // Quality of Service",
             "        logic [3:0]   region;  // Region identifier",
             "        logic         user;    // User signal",
+        ] + self._sideband_lines('aw') + [
             "    } axi4_aw_t;"
         ]
 
@@ -147,6 +168,7 @@ class PackageGenerator:
             "        logic [3:0]   qos;     // Quality of Service",
             "        logic [3:0]   region;  // Region identifier",
             "        logic         user;    // User signal",
+        ] + self._sideband_lines('ar') + [
             "    } axi4_ar_t;"
         ]
 
@@ -167,6 +189,7 @@ class PackageGenerator:
             f"        logic [{strb_width-1}:0]   strb;    // Write strobes",
             "        logic         last;    // Last transfer in burst",
             "        logic         user;    // User signal",
+        ] + self._sideband_lines('w') + [
             f"    }} axi4_w_{suffix}_t;"
         ]
 
@@ -178,6 +201,7 @@ class PackageGenerator:
             f"        logic [{self.id_width-1}:0]   id;      // Response ID",
             "        logic [1:0]   resp;    // Write response",
             "        logic         user;    // User signal",
+        ] + self._sideband_lines('b') + [
             "    } axi4_b_t;"
         ]
 
@@ -198,6 +222,7 @@ class PackageGenerator:
             "        logic [1:0]   resp;    // Read response",
             "        logic         last;    // Last transfer in burst",
             "        logic         user;    // User signal",
+        ] + self._sideband_lines('r') + [
             f"    }} axi4_r_{suffix}_t;"
         ]
 

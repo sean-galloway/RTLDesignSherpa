@@ -58,6 +58,11 @@ module bridge_1x2_rd_axi5s_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] sram_rd_axi_rid_bridge_id,
     input  logic                       sram_rd_axi_rid_valid,
 
+    // AXI5 native sideband (A5-2 slice 2)
+    output logic         sram_rd_axi_artrace,
+    output logic         sram_rd_axi_arunique,
+    input  logic         sram_rd_axi_rtrace,
+
     output  logic [3:0]  sram_rd_axi_arid,
     output  logic [31:0]  sram_rd_axi_araddr,
     output  logic [7:0]  sram_rd_axi_arlen,
@@ -129,6 +134,8 @@ module bridge_1x2_rd_axi5s_xbar
     assign sram_rd_axi_arlock   = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.lock : '0;
     assign sram_rd_axi_arcache  = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.cache : '0;
     assign sram_rd_axi_arprot   = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.prot : '0;
+    assign sram_rd_axi_artrace  = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.trace : '0;  // AXI5 sideband
+    assign sram_rd_axi_arunique  = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.uniq : '0;  // AXI5 sideband
     assign sram_rd_axi_arvalid  = cpu_rd_32b_ar_to_sram_rd && cpu_rd_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -167,6 +174,9 @@ module bridge_1x2_rd_axi5s_xbar
     assign cpu_rd_32b_rvalid = 
         ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rvalid : '0) |
         ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rvalid : '0);
+
+    assign cpu_rd_32b_r.trace = 
+        ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rtrace : '0);
 
 
 endmodule : bridge_1x2_rd_axi5s_xbar

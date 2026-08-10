@@ -2,7 +2,9 @@
 
 # bridge — closed
 
-
+## BRIDGE-001 — Generator emits NUM_SLAVES as a body localparam used in the port list
+**Status:** closed 2026-08-08 (opened 2026-07-28)
+**Priority:** P1 — blocked clean commits of any regenerated bridge
 
 **Resolution (2026-08-08):** fixed on `fix/bridge-xbar-num-slaves-param`:
 

@@ -293,6 +293,9 @@ module bridge_1x2_rd_axi5s_mon
     logic                      xbar_sram_rd_axi_ruser;
     logic                      xbar_sram_rd_axi_rvalid;
     logic                      xbar_sram_rd_axi_rready;
+    logic                       xbar_sram_rd_axi_artrace;  // AXI5 sideband (trace)
+    logic                       xbar_sram_rd_axi_arunique;  // AXI5 sideband (unique)
+    logic                       xbar_sram_rd_axi_rtrace;  // AXI5 sideband (trace)
     logic [BRIDGE_ID_WIDTH-1:0] sram_rd_axi_bridge_id_ar;
     logic [BRIDGE_ID_WIDTH-1:0] sram_rd_axi_rid_bridge_id;
     logic                       sram_rd_axi_rid_valid;
@@ -455,6 +458,9 @@ module bridge_1x2_rd_axi5s_mon
         .sram_rd_axi_ruser(xbar_sram_rd_axi_ruser),
         .sram_rd_axi_rvalid(xbar_sram_rd_axi_rvalid),
         .sram_rd_axi_rready(xbar_sram_rd_axi_rready),
+        .sram_rd_axi_artrace(xbar_sram_rd_axi_artrace),
+        .sram_rd_axi_arunique(xbar_sram_rd_axi_arunique),
+        .sram_rd_axi_rtrace(xbar_sram_rd_axi_rtrace),
         .sram_rd_axi_bridge_id_ar(sram_rd_axi_bridge_id_ar),
         .sram_rd_axi_rid_bridge_id(sram_rd_axi_rid_bridge_id),
         .sram_rd_axi_rid_valid(sram_rd_axi_rid_valid)
@@ -577,6 +583,9 @@ module bridge_1x2_rd_axi5s_mon
         .xbar_sram_rd_axi_ruser(xbar_sram_rd_axi_ruser),
         .xbar_sram_rd_axi_rvalid(xbar_sram_rd_axi_rvalid),
         .xbar_sram_rd_axi_rready(xbar_sram_rd_axi_rready),
+        .xbar_sram_rd_axi_artrace(xbar_sram_rd_axi_artrace),
+        .xbar_sram_rd_axi_arunique(xbar_sram_rd_axi_arunique),
+        .xbar_sram_rd_axi_rtrace(xbar_sram_rd_axi_rtrace),
 
         // External AXI5 interface (sram_rd_axi_*)
         .sram_rd_axi_arid(sram_rd_axi_arid),

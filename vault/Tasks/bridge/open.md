@@ -102,58 +102,30 @@ then A5-3 (atomics + APB5).
   adapter's xbar_*_arregion input (fabric has region, AXI5 doesn't).
   Deferred with slice 2: wr-channel axi5-slave fixture (wr path
   generated/compiled, not simulated).
-- *Slice 2 — native sideband pass-through:* per-bridge `_pkg` structs
-  gain feature fields as the UNION of features enabled on any AXI5
-  port (pure-AXI4 bridges get no fields -> byte-identical RTL, the
-  zero-drift invariant holds). Master adapters populate their enabled
-  fields, slave adapters extract theirs; sideband is drop-legal so
-  per-path behavior is automatically right.
-  **Constraint discovered:** per-beat sideband (wpoison, rtrace,
-  rpoison, MTE tags) cannot traverse the AXI4 dwidth-converter IP —
-  beats are re-framed. And per-transaction AW/AR sideband would need
-  a FIFO riding alongside a converter to stay transaction-aligned.
-  Policy: native pass-through ONLY on direct (width-matched,
-  AXI5-both-ends) paths; converter paths terminate sideband with a
-  generation-time warning. `poison` becomes legal ONLY when every
-  connected path carrying it is direct and poison-enabled both ends
-  (validator, connectivity-aware). `chunking` stays out (R-channel
-  re-framing through converters); `mte` deferred unless the per-beat
-  tag fields fall out of the same mechanism as poison.
-
-## BRIDGE-001 — Generator emits NUM_SLAVES as a body localparam used in the port list
-**Status:** open 2026-07-28
-**Priority:** P1 — blocks clean commits of any regenerated bridge
-**Owner:** TBD
-
-The bridge generator emits `NUM_SLAVES` as a **body** localparam at line ~719
-of the generated xbars while using it in the module **port list** (line ~16).
-Verilator elaborates this; iverilog and other strict front ends reject it, and
-the repo's pre-commit declaration-order hook BLOCKS the commit. Seen on both
-generated xbars:
-
-- `.../generated/bridge_stream_mon_axil/bridge_stream_mon_axil_xbar.sv`
-- `.../generated/bridge_stream_mon_axil_mon/bridge_stream_mon_axil_mon_xbar.sv`
-
-The hook's own guidance is the fix shape: move `NUM_SLAVES` into the parameter
-port list (`module M #(..., parameter int NUM_SLAVES = ...)`), where it is
-elaborated in order, and drop the body declaration.
-
-**How it surfaced:** the stream-mon AW/W decoupling WIP (commit `c529ba49`)
-regenerated the bridges and hit the hook; it was committed with `--no-verify`
-to transfer between machines, so the debt is live on main.
-
-**Rules that apply:**
-
-- **Fix the GENERATOR, never the generated files** — hand edits regenerate away.
-- **Rule #0 (CLAUDE.md): full regeneration.** Delete ALL generated bridge
-  outputs and regenerate everything from scratch; partial regeneration causes
-  silent version-mismatch failures. Then run the full bridge DV suite, not
-  just the configs that changed.
-- **Sweep for the class, not the instance** — check the other generated
-  modules (wrappers, host/monbus/descriptor adapters) for the same
-  body-localparam-in-port-list pattern, and any other parameters emitted the
-  same way.
-
-**Done looks like:** generator fixed, all bridge configs regenerated, bridge
-DV green, and `git commit` of a regenerated bridge passes the pre-commit hook
-with no `--no-verify`.
+- *Slice 2 — native sideband pass-through:* LANDED 2026-08-09.
+  Implementation matches the design note below: shared spec table
+  `bin/bridge_pkg/sideband.py` (feature -> per-channel struct fields:
+  nsaid[4]/trace/mpam[11]/mecid[16]/uniq on aw+ar, trace on b+r,
+  poison on w+r; `uniq` because `unique` is an SV keyword); `_pkg`
+  structs carry the bridge-wide feature UNION (pure-AXI4 bridges
+  byte-identical — zero-drift held across all 19 pre-existing
+  bridges); master adapters pack own-feature fields from the
+  wrapper's fub sideband on the DIRECT width arm and '0 on converter
+  arms; the xbar forwards request fields unconditionally (non-native
+  sources are already '0) and muxes b/r fields from featured slaves
+  only; slave adapters ride `xbar_<slave>_axi_<sig>` nets into the
+  axi5_master_* wrapper via the component's new `native_sideband`
+  flag. Validator: `poison` moved from phase-gated to
+  connectivity-gated (every connected path AXI5-both-ends +
+  poison-enabled + width-matched, else ERROR — dropping POISON would
+  launder corrupted data); droppable sideband that terminates
+  mid-path now prints generation-time warnings. mte/chunking stay
+  phase-gated.
+  **Verified:** 47 generator unit tests (3 new poison rules); new
+  native fixtures bridge_1x2_{rd,wr}_axi5n (+_mon) — the wr one
+  closes the deferred wr-channel-AXI5-slave-sim item and exercises
+  poison + per-slave feature asymmetry; hand-written VALUE tests
+  drive arnsaid/artrace/arunique/awtrace/wpoison and assert the same
+  values at the far boundary + rtrace/btrace return paths + rtrace=0
+  from AXI4 slaves (closes the A5-1 deferred values item); all
+  interop axi5 fixtures re-simed green with the new plumbing.

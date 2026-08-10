@@ -168,5 +168,8 @@ module bridge_1x2_rd_axi5_mon_xbar
         ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rvalid : '0) |
         ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid ? sram_rd_axi_rvalid : '0);
 
+    assign cpu_rd_32b_r.trace = 
+        '0;
+
 
 endmodule : bridge_1x2_rd_axi5_mon_xbar

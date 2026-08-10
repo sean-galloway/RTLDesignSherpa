@@ -264,6 +264,30 @@ class SlaveAdapterGenerator:
                 declaration = inverted_sig.get_declaration(sig_name, width_values)
                 lines.append(f"    {declaration},")
 
+        # AXI5 native sideband (A5-2 slice 2): request-direction fields
+        # arrive FROM the crossbar (inputs), response-direction fields
+        # return TO it (outputs). Bridge-id ports always follow, so
+        # trailing commas are safe.
+        sb_feats = self._sb_feats()
+        if sb_feats:
+            from bridge_pkg.sideband import channel_fields
+            has_wr = self.channels in ["wr", "rw"]
+            has_rd = self.channels in ["rd", "rw"]
+            req_chs = (['aw', 'w'] if has_wr else []) + (['ar'] if has_rd else [])
+            rsp_chs = (['b'] if has_wr else []) + (['r'] if has_rd else [])
+            sb_lines = []
+            for ch in req_chs:
+                for _f, w, feat, base in channel_fields(sb_feats, ch):
+                    rng = "        " if w == 1 else f"[{w-1}:0]  "
+                    sb_lines.append(f"    input  logic {rng}{prefix}{base},")
+            for ch in rsp_chs:
+                for _f, w, feat, base in channel_fields(sb_feats, ch):
+                    rng = "        " if w == 1 else f"[{w-1}:0]  "
+                    sb_lines.append(f"    output logic {rng}{prefix}{base},")
+            if sb_lines:
+                lines.append("    // AXI5 native sideband (A5-2 slice 2)")
+                lines.extend(sb_lines)
+
         return lines
 
     def _generate_bridge_id_ports(self) -> List[str]:
@@ -758,6 +782,14 @@ class SlaveAdapterGenerator:
 
         return lines
 
+    def _sb_feats(self):
+        """Native sideband features this slave passes through (A5-2
+        slice 2): its own axi5_features restricted to the native set.
+        (The bridge union always contains a slave's own features, so no
+        union argument is needed here.)"""
+        from bridge_pkg.sideband import NATIVE_SIDEBAND_FEATURES, port_features
+        return port_features(self.slave) & set(NATIVE_SIDEBAND_FEATURES)
+
     def _wrapper_protocol_and_features(self):
         """Boundary wrapper family for this slave's timing wrapper: an
         axi5 slave port gets the axi5_master_* wrappers (AXI4 fub face,
@@ -803,6 +835,7 @@ class SlaveAdapterGenerator:
                          if self.enable_monitoring else None),
             protocol=wrapper_protocol,
             axi5_features=wrapper_features,
+            native_sideband=bool(self._sb_feats()),
         )
         wrapper.connect_clocks_and_resets()
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
@@ -850,6 +883,7 @@ class SlaveAdapterGenerator:
                          if self.enable_monitoring else None),
             protocol=wrapper_protocol,
             axi5_features=wrapper_features,
+            native_sideband=bool(self._sb_feats()),
         )
         wrapper.connect_clocks_and_resets()
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)

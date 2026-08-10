@@ -148,6 +148,15 @@ class AdapterGenerator:
         self.enable_monitoring = enable_monitoring
         self.master_index = master_index
 
+        # AXI5 native sideband (A5-2 slice 2): the struct-field union for
+        # the whole bridge, and this master's own feature set. EVERY
+        # master packs every union field (its own features from fub
+        # wires, the rest '0) so the xbar can forward fields
+        # unconditionally.
+        from bridge_pkg.sideband import sideband_union, port_features
+        self.sb_union = sideband_union(self.all_masters, self.slaves)
+        self.sb_own = port_features(self.master) & self.sb_union
+
         # Skid buffer depths (configurable)
         self.skid_depth_aw = 2
         self.skid_depth_ar = 2
@@ -455,6 +464,64 @@ class AdapterGenerator:
 
         return lines
 
+    # --- AXI5 native-sideband emission helpers (A5-2 slice 2) -------
+
+    def _sb_fields(self, channel, feats):
+        from bridge_pkg.sideband import channel_fields
+        return channel_fields(feats, channel)
+
+    def _sb_wire_decls(self) -> List[str]:
+        """fub_axi_* wire declarations for this master's own sideband
+        features (both directions; the wrapper's fub side binds them)."""
+        lines = []
+        if not self.sb_own:
+            return lines
+        chans = []
+        if self.master.channels in ("wr", "rw"):
+            chans += ['aw', 'w', 'b']
+        if self.master.channels in ("rd", "rw"):
+            chans += ['ar', 'r']
+        for ch in chans:
+            for _f, width, feat, base in self._sb_fields(ch, self.sb_own):
+                decl = ("    logic         " if width == 1
+                        else f"    logic [{width-1}:0]  ")
+                lines.append(f"{decl}fub_axi_{base};  // AXI5 sideband ({feat})")
+        if lines:
+            lines.insert(0, "    // AXI5 native sideband (A5-2 slice 2)")
+            lines.append("")
+        return lines
+
+    def _sb_pack_lines(self, channel, suffix) -> List[str]:
+        """Direct-path struct packs for `channel`: own features come
+        from the fub wires, other union fields tie '0."""
+        lines = []
+        for field, _w, feat, base in self._sb_fields(channel, self.sb_union):
+            dst = f"{self.master.name}_{suffix}_{channel}.{field}"
+            if feat in self.sb_own:
+                lines.append(f"    assign {dst} = fub_axi_{base};  // AXI5 sideband")
+            else:
+                lines.append(f"    assign {dst} = '0;  // AXI5 sideband (not on this master)")
+        return lines
+
+    def _sb_conv_tie_lines(self, suffix) -> List[str]:
+        """Converter-path struct sideband ties: per-transaction and
+        per-beat sideband cannot traverse the dwidth-converter IP, so
+        every union field packs '0 on this path."""
+        lines = []
+        chans = []
+        if self.master.channels in ("wr", "rw"):
+            chans += ['aw', 'w']
+        if self.master.channels in ("rd", "rw"):
+            chans += ['ar']
+        for ch in chans:
+            for field, _w, _feat, _b in self._sb_fields(ch, self.sb_union):
+                lines.append(
+                    f"    assign {self.master.name}_{suffix}_{ch}.{field} = '0;"
+                    f"  // AXI5 sideband: dropped across dwidth conversion")
+        if lines:
+            lines.append("")
+        return lines
+
     def _generate_internal_signals(self) -> List[str]:
         """Generate internal signal declarations (fub_axi_*)."""
         lines = []
@@ -531,6 +598,9 @@ class AdapterGenerator:
             lines.append("    logic         wrapper_rd_busy;")
         lines.append("")
 
+        # AXI5 native-sideband fub wires (A5-2 slice 2)
+        lines.extend(self._sb_wire_decls())
+
         return lines
 
     def _generate_wrapper(self) -> List[str]:
@@ -591,6 +661,7 @@ class AdapterGenerator:
                              if self.enable_monitoring else None),
                 protocol=wrapper_protocol,
                 axi5_features=wrapper_features,
+                native_sideband=bool(self.sb_own),
             )
             wrapper.connect_clocks_and_resets()
             # External side comes from the master's prefix (slave-of-
@@ -633,6 +704,7 @@ class AdapterGenerator:
                              if self.enable_monitoring else None),
                 protocol=wrapper_protocol,
                 axi5_features=wrapper_features,
+                native_sideband=bool(self.sb_own),
             )
             wrapper.connect_clocks_and_resets()
             wrapper.connect_external(connector_prefix=signal_prefix)
@@ -1107,6 +1179,8 @@ class AdapterGenerator:
             lines.append(f"        fub_axi_bid = {self.master.id_width}'d0;")
             lines.append("        fub_axi_bresp = 2'b00;")
             lines.append("        fub_axi_bvalid = 1'b0;")
+            for _f, _w, feat, base in self._sb_fields('b', self.sb_own):
+                lines.append(f"        fub_axi_{base} = '0;  // AXI5 sideband ({feat})")
             lines.append("")
 
             # Case statement based on b_slave_select (was slave_select_aw)
@@ -1129,6 +1203,8 @@ class AdapterGenerator:
                         lines.append(f"                fub_axi_bid = {self.master.name}_{suffix}_b.id;")
                         lines.append(f"                fub_axi_bresp = {self.master.name}_{suffix}_b.resp;")
                         lines.append(f"                fub_axi_bvalid = {self.master.name}_{suffix}_bvalid;")
+                        for field, _w, _feat, base in self._sb_fields('b', self.sb_own):
+                            lines.append(f"                fub_axi_{base} = {self.master.name}_{suffix}_b.{field};")
                     else:
                         # Converter intermediate signals
                         lines.append(f"                fub_axi_bid = conv_{suffix}_bid;")
@@ -1181,6 +1257,8 @@ class AdapterGenerator:
             lines.append("        fub_axi_rresp = 2'b00;")
             lines.append("        fub_axi_rlast = 1'b0;")
             lines.append("        fub_axi_rvalid = 1'b0;")
+            for _f, _w, feat, base in self._sb_fields('r', self.sb_own):
+                lines.append(f"        fub_axi_{base} = '0;  // AXI5 sideband ({feat})")
             lines.append("")
 
             # Case statement based on r_slave_select (was slave_select_ar)
@@ -1203,6 +1281,8 @@ class AdapterGenerator:
                         lines.append(f"                fub_axi_rresp = {self.master.name}_{suffix}_r.resp;")
                         lines.append(f"                fub_axi_rlast = {self.master.name}_{suffix}_r.last;")
                         lines.append(f"                fub_axi_rvalid = {self.master.name}_{suffix}_rvalid;")
+                        for field, _w, _feat, base in self._sb_fields('r', self.sb_own):
+                            lines.append(f"                fub_axi_{base} = {self.master.name}_{suffix}_r.{field};")
                     else:
                         # Converter intermediate signals
                         lines.append(f"                fub_axi_rid = conv_{suffix}_rid;")
@@ -1252,6 +1332,7 @@ class AdapterGenerator:
             lines.append(f"    assign {self.master.name}_{suffix}_aw.qos    = 4'b0;  // Tie to 0")
             lines.append(f"    assign {self.master.name}_{suffix}_aw.region = 4'b0;  // Tie to 0")
             lines.append(f"    assign {self.master.name}_{suffix}_aw.user   = 1'b0;  // Tie to 0")
+            lines.extend(self._sb_pack_lines('aw', suffix))
             # Gate by `<W>b_aw_path_active` so only the path matching the
             # currently selected slave's data_width drives awvalid (see big
             # comment in _generate_width_adaptation).
@@ -1264,6 +1345,7 @@ class AdapterGenerator:
             lines.append(f"    assign {self.master.name}_{suffix}_w.strb  = fub_axi_wstrb;")
             lines.append(f"    assign {self.master.name}_{suffix}_w.last  = fub_axi_wlast;")
             lines.append(f"    assign {self.master.name}_{suffix}_w.user  = 1'b0;  // Tie to 0")
+            lines.extend(self._sb_pack_lines('w', suffix))
             # Gate by `<W>b_w_path_active` (FIFO-tracked) -- aw_path_active
             # is combinational and would revert mid-burst once fub_axi_awaddr
             # changes.
@@ -1290,6 +1372,7 @@ class AdapterGenerator:
             lines.append(f"    assign {self.master.name}_{suffix}_ar.qos    = 4'b0;  // Tie to 0")
             lines.append(f"    assign {self.master.name}_{suffix}_ar.region = 4'b0;  // Tie to 0")
             lines.append(f"    assign {self.master.name}_{suffix}_ar.user   = 1'b0;  // Tie to 0")
+            lines.extend(self._sb_pack_lines('ar', suffix))
             # Gate by `<W>b_ar_path_active` (only the matching width path
             # drives arvalid; see comment in _generate_width_adaptation).
             lines.append(f"    assign {self.master.name}_{suffix}_arvalid   = fub_axi_arvalid && ar_path_active_{width}b;")
@@ -1331,6 +1414,9 @@ class AdapterGenerator:
             lines.append(f"    logic conv_{suffix}_rlast;")
             lines.append(f"    logic conv_{suffix}_rvalid;")
         lines.append("")
+
+        # AXI5 sideband never traverses the converter (A5-2 slice 2)
+        lines.extend(self._sb_conv_tie_lines(suffix))
 
         from ..components.axi4_dwidth_converter_component import Axi4DwidthConverter
 

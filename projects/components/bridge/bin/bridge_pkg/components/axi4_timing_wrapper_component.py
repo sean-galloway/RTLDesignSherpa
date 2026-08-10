@@ -117,7 +117,9 @@ AXI5_SIDEBAND_EXT_SIGNALS = {
         ('awmecid',  16, 'mecid',  True),
         ('awunique', 1,  'unique', True),
     ),
-    'w': (),
+    'w': (
+        ('wpoison', 1, 'poison', True),
+    ),
     'b': (
         ('btrace', 1, 'trace', False),
     ),
@@ -130,6 +132,7 @@ AXI5_SIDEBAND_EXT_SIGNALS = {
     ),
     'r': (
         ('rtrace', 1, 'trace', False),
+        ('rpoison', 1, 'poison', False),
     ),
 }
 
@@ -228,6 +231,13 @@ class Axi4TimingWrapper:
         # protocol='axi5'. Upstream validation (validate_axi5) restricts
         # this to the interop sideband set.
         axi5_features: Optional[List[str]] = None,
+        # native_sideband -- A5-2 slice 2. When True, the fub (fabric)
+        # side of each ENABLED feature's sideband port binds to
+        # <connector_prefix><base> (e.g. fub_axi_awnsaid) instead of
+        # terminating, so the enclosing adapter can ride the sideband
+        # on the fabric structs. Disabled features and the
+        # non-native extras (atomic/mte/chunking ports) still terminate.
+        native_sideband: bool = False,
     ):
         if side not in ('master', 'slave'):
             raise ValueError(f"side must be 'master' or 'slave', got {side!r}")
@@ -243,6 +253,7 @@ class Axi4TimingWrapper:
         self.channel = channel
         self.protocol = protocol
         self.axi5_features = tuple(axi5_features or ())
+        self.native_sideband = bool(native_sideband)
         self.instance_name = instance_name
         self.id_width = id_width
         self.addr_width = addr_width
@@ -623,7 +634,14 @@ class Axi4TimingWrapper:
         #     extras arrive FROM the fabric as fub INPUTS (tie '0 -- the
         #     AXI4 fabric has nothing to drive them); b/r-side extras
         #     are fub OUTPUTS (leave open).
-        for name, _feat, req_dir in self._all_axi5_extras():
+        from bridge_pkg.sideband import SIDEBAND_FIELDS
+        native_bases = {base for _ch, _f, _w, _feat, base in SIDEBAND_FIELDS}
+        for name, feat, req_dir in self._all_axi5_extras():
+            if (self.native_sideband and feat in self.axi5_features
+                    and name in native_bases):
+                # A5-2 slice 2: fall through to connector_prefix+base so
+                # the adapter's fub_axi_<base> sideband wires bind here.
+                continue
             fub_is_input = req_dir if self.side == 'master' else not req_dir
             d[name] = "'0" if fub_is_input else ""
         return d

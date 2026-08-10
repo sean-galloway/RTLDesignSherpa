@@ -245,15 +245,15 @@ def test_axi5_atomic_feature_rejected(tmp_path):
         load_config(toml, conn)
 
 
-@pytest.mark.parametrize("feat", ["poison", "mte", "chunking"])
+@pytest.mark.parametrize("feat", ["mte", "chunking"])
 def test_axi5_data_semantics_features_rejected(tmp_path, feat):
-    """poison/mte/chunking change data semantics -- land with A5-2."""
+    """mte/chunking change data semantics -- still phase-gated."""
     toml, conn = _write_min_toml(
         tmp_path,
         slave_extra='channels = "rd"',
         master_extra=f'protocol = "axi5"\naxi5_features = ["{feat}"]',
     )
-    with pytest.raises(ValidationError, match="A5-2"):
+    with pytest.raises(ValidationError, match="not supported in interop"):
         load_config(toml, conn)
 
 
@@ -344,10 +344,16 @@ def test_axi5_generation_smoke(tmp_path):
     assert ".ENABLE_UNIQUE(1'b1)" in adapter
     assert ".ENABLE_NSAID(1'b0)" in adapter
     assert ".ENABLE_CHUNKING(1'b0)" in adapter
-    # Disabled-feature external inputs tie to '0; fabric-side feature
-    # inputs (r-side extras) tie to '0 as well.
+    # Disabled-feature external inputs tie to '0. ENABLED features now
+    # ride the fabric structs natively (A5-2 slice 2): the fub side
+    # binds the adapter's sideband wires instead of terminating.
     assert ".s_axi_arnsaid('0)" in adapter
-    assert ".fub_axi_rtrace('0)" in adapter
+    assert ".fub_axi_artrace(fub_axi_artrace)" in adapter
+    assert ".fub_axi_rtrace(fub_axi_rtrace)" in adapter
+    assert "_ar.trace = fub_axi_artrace" in adapter
+    # Disabled features still terminate on the fub side.
+    assert ".fub_axi_arnsaid()" in adapter
+    assert ".fub_axi_rpoison('0)" in adapter
 
     # Both variants (no + mon) must be decl-order clean.
     sv_files = sorted(tmp_path.glob("bridge_1x2_rd_axi5*/*.sv"))
@@ -391,16 +397,15 @@ def test_axi5_slave_atomic_feature_rejected(tmp_path):
         load_config(toml, conn)
 
 
-@pytest.mark.parametrize("feat", ["poison", "mte", "chunking"])
+@pytest.mark.parametrize("feat", ["mte", "chunking"])
 def test_axi5_slave_data_semantics_features_rejected(tmp_path, feat):
-    """poison/mte/chunking change data semantics -- they land with the
-    A5-2 native-sideband slice, not the interop slice."""
+    """mte/chunking change data semantics -- still phase-gated."""
     toml, conn = _write_min_toml(
         tmp_path,
         slave_extra=(f'channels = "rd"\nprotocol = "axi5"\n'
                      f'axi5_features = ["{feat}"]'),
     )
-    with pytest.raises(ValidationError, match="A5-2"):
+    with pytest.raises(ValidationError, match="not supported in interop"):
         load_config(toml, conn)
 
 
@@ -478,8 +483,10 @@ def test_axi5_slave_generation_smoke(tmp_path):
     # from the AXI4 fabric) tie to '0 as well.
     assert ".m_axi_rpoison('0)" in adapter
     assert ".fub_axi_arnsaid('0)" in adapter
-    # The fabric side terminates even ENABLED features (interop slice).
-    assert ".fub_axi_artrace('0)" in adapter
+    # ENABLED features ride the fabric natively (A5-2 slice 2):
+    # the fub side binds the xbar sideband nets.
+    assert ".fub_axi_artrace(xbar_sram_rd_axi_artrace)" in adapter
+    assert ".fub_axi_rtrace(xbar_sram_rd_axi_rtrace)" in adapter
     # The sibling AXI4 slave adapter keeps axi4_master_rd.
     ddr_adapter = (tmp_path / "bridge_1x2_rd_axi5s" / "ddr_rd_adapter.sv").read_text()
     assert "axi4_master_rd #(" in ddr_adapter
@@ -564,3 +571,42 @@ def test_parse_bulk_csv_tolerates_expose_column_absence_and_presence(tmp_path):
         assert rows[0]["name"] == "b1"
         assert rows[0]["ports"] == "p.toml"
         assert "expose_arbiter" not in rows[0]
+
+
+def test_axi5_poison_rejected_on_non_native_path(tmp_path):
+    """A5-2 slice 2: poison on a master whose connected slave is plain
+    AXI4 is a config ERROR (silently dropping POISON would launder
+    corrupted data), with a self-documenting message."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra='channels = "rd"',
+        master_extra='protocol = "axi5"\naxi5_features = ["poison"]',
+    )
+    with pytest.raises(ValidationError, match="cannot carry it natively"):
+        load_config(toml, conn)
+
+
+def test_axi5_slave_poison_rejected_on_non_native_path(tmp_path):
+    """A5-2 slice 2: poison on a slave whose connected master is plain
+    AXI4 is a config ERROR (the master side cannot source/sink it)."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["poison"]'),
+    )
+    with pytest.raises(ValidationError, match="cannot carry it natively"):
+        load_config(toml, conn)
+
+
+def test_axi5_poison_accepted_native_both_ends(tmp_path):
+    """A5-2 slice 2: poison validates when every connected path is
+    AXI5-both-ends, poison-enabled, and width-matched."""
+    toml, conn = _write_min_toml(
+        tmp_path,
+        master_extra='protocol = "axi5"\naxi5_features = ["poison"]',
+        slave_extra=('channels = "rd"\nprotocol = "axi5"\n'
+                     'axi5_features = ["poison"]'),
+    )
+    cfg = load_config(toml, conn)
+    assert 'poison' in cfg.masters[0].axi5_features
+    assert 'poison' in cfg.slaves[0].axi5_features

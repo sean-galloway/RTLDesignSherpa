@@ -113,6 +113,19 @@ class SlaveAdapterInstance:
                 pairs.append((f'{xbar_prefix}{base}', f'{xbar_prefix}{base}'))
             for base in _AXI4_R_PORTS:
                 pairs.append((f'{xbar_prefix}{base}', f'{xbar_prefix}{base}'))
+        # AXI5 native sideband (A5-2 slice 2): the adapter module
+        # declares these xbar-facing ports for its enabled native
+        # features; the instantiation must bind them 1:1.
+        from bridge_pkg.sideband import (NATIVE_SIDEBAND_FEATURES,
+                                         channel_fields)
+        sb_feats = (set(self.axi5_features) & set(NATIVE_SIDEBAND_FEATURES)
+                    if self.protocol == 'axi5' else set())
+        if sb_feats:
+            chs = ((['aw', 'w', 'b'] if self.has_write else [])
+                   + (['ar', 'r'] if self.has_read else []))
+            for ch in chs:
+                for _f, _w, _feat, base in channel_fields(sb_feats, ch):
+                    pairs.append((f'{xbar_prefix}{base}', f'{xbar_prefix}{base}'))
         self._sections.append((
             f"Crossbar interface (xbar_{self.slave_name}_axi_*)", pairs))
 

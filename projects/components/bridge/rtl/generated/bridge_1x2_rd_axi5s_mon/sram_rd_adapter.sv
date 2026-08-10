@@ -37,6 +37,10 @@ module sram_rd_adapter
     output  logic         xbar_sram_rd_axi_ruser,
     output  logic         xbar_sram_rd_axi_rvalid,
     input  logic         xbar_sram_rd_axi_rready,
+    // AXI5 native sideband (A5-2 slice 2)
+    input  logic         xbar_sram_rd_axi_artrace,
+    input  logic         xbar_sram_rd_axi_arunique,
+    output logic         xbar_sram_rd_axi_rtrace,
 
     // Bridge ID tracking signals
     input  logic [BRIDGE_ID_WIDTH-1:0] xbar_bridge_id_ar,
@@ -188,10 +192,10 @@ module sram_rd_adapter
         .fub_axi_arvalid(xbar_sram_rd_axi_arvalid),
         .fub_axi_arready(xbar_sram_rd_axi_arready),
         .fub_axi_arnsaid('0),
-        .fub_axi_artrace('0),
+        .fub_axi_artrace(xbar_sram_rd_axi_artrace),
         .fub_axi_armpam('0),
         .fub_axi_armecid('0),
-        .fub_axi_arunique('0),
+        .fub_axi_arunique(xbar_sram_rd_axi_arunique),
         .fub_axi_archunken('0),
         .fub_axi_artagop('0),
         .fub_axi_rid(xbar_sram_rd_axi_rid),
@@ -201,7 +205,7 @@ module sram_rd_adapter
         .fub_axi_ruser(xbar_sram_rd_axi_ruser),
         .fub_axi_rvalid(xbar_sram_rd_axi_rvalid),
         .fub_axi_rready(xbar_sram_rd_axi_rready),
-        .fub_axi_rtrace(),
+        .fub_axi_rtrace(xbar_sram_rd_axi_rtrace),
         .fub_axi_rpoison(),
         .fub_axi_rchunkv(),
         .fub_axi_rchunknum(),

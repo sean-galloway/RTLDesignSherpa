@@ -24,6 +24,7 @@ from bridge_pkg.generators.crossbar_generator import CrossbarGenerator
 from bridge_pkg.signal_naming import SignalNaming, Direction, AXI4Channel, Protocol, AXI4_MASTER_SIGNALS, PortDirection, SignalInfo
 from bridge_pkg.components.axi4_timing_wrapper_component import Axi4TimingWrapper, axi5_exposed_ext_signals
 from bridge_pkg.width_utils import get_connected_slave_widths, get_masters_connecting_to_slave
+from bridge_pkg.sideband import sideband_union
 
 
 @dataclass
@@ -220,7 +221,8 @@ class BridgeModuleGenerator:
 
         # Generate package with address width and num_masters
         num_masters = len(self.masters)
-        pkg_gen = PackageGenerator(self.bridge_name, id_width=id_width, addr_width=addr_width, num_masters=num_masters)
+        pkg_gen = PackageGenerator(self.bridge_name, id_width=id_width, addr_width=addr_width, num_masters=num_masters,
+                                   sideband_features=sideband_union(self.masters, self.slaves))
         for width in data_widths:
             pkg_gen.add_data_width(width)
 
@@ -1509,6 +1511,19 @@ class BridgeModuleGenerator:
                 lines.append(f"    logic                      {prefix}rvalid;")
                 lines.append(f"    logic                      {prefix}rready;")
 
+            # AXI5 native sideband wires (A5-2 slice 2): only for slaves
+            # that expose native sideband on their xbar interface.
+            from bridge_pkg.sideband import (NATIVE_SIDEBAND_FEATURES,
+                                             channel_fields, port_features)
+            sb_feats = port_features(slave) & set(NATIVE_SIDEBAND_FEATURES)
+            if sb_feats:
+                chs = ((['aw', 'w', 'b'] if has_write else [])
+                       + (['ar', 'r'] if has_read else []))
+                for ch in chs:
+                    for _f, w, feat, base in channel_fields(sb_feats, ch):
+                        rng = "                     " if w == 1 else f"[{w-1}:0]{' ' * (21 - 7)}"
+                        lines.append(f"    logic {rng} {prefix}{base};  // AXI5 sideband ({feat})")
+
             # Bridge ID tracking signals (for slave adapters)
             # All slave adapters have bridge_id tracking (AXI4 interface on crossbar side)
             if True:  # All slaves with adapters need bridge_id signals
@@ -1876,6 +1891,18 @@ class BridgeModuleGenerator:
                     comma = "," if needs_comma else ""
                     # Use signal name for both port name and connection (signals already declared)
                     lines.append(f"        .{sig_name.replace('xbar_', '')}({sig_name}){comma}")
+
+                # AXI5 native sideband (A5-2 slice 2) -- bridge_id ports
+                # always follow, so unconditional commas are safe.
+                from bridge_pkg.sideband import (NATIVE_SIDEBAND_FEATURES,
+                                                 channel_fields, port_features)
+                sb_feats = port_features(slave) & set(NATIVE_SIDEBAND_FEATURES)
+                if sb_feats:
+                    chs = ((['aw', 'w', 'b'] if has_write else [])
+                           + (['ar', 'r'] if has_read else []))
+                    for ch in chs:
+                        for _f, _w, _feat, base in channel_fields(sb_feats, ch):
+                            lines.append(f"        .{slave.name}_axi_{base}({signal_prefix}{base}),")
 
                 # Bridge ID tracking signals (connect crossbar outputs to slave adapter inputs)
                 # All slave adapters have bridge_id tracking (AXI4 interface on crossbar side)
