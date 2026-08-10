@@ -23,19 +23,19 @@ module encoder_priority_enable #(
     output logic [$clog2(WIDTH)-1:0] encode
 );
 
-    logic found;
+    logic w_found;
 
     always_comb begin
         // Default assignments to prevent latches
         encode = '0;
-        found = 1'b0;
+        w_found = 1'b0;
 
         if (enable == 1'b1) begin
-            // Find the highest priority bit using found flag to prevent overwrites
+            // Find the highest priority bit using w_found flag to prevent overwrites
             for (int i = WIDTH-1; i >= 0; i--) begin
-                if (priority_in[i] == 1'b1 && !found) begin
+                if (priority_in[i] == 1'b1 && !w_found) begin
                     encode = $clog2(WIDTH)'(i);
-                    found = 1'b1;
+                    w_found = 1'b1;
                 end
             end
         end

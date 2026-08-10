@@ -393,11 +393,15 @@ module gaxi_drop_fifo_sync #(
                 end
             end
 
-            // Read path - synchronous read for BRAM (forces registered output)
+            // Read path - synchronous read for BRAM (forces registered output).
+            // The register gets an r_ name; w_rd_data stays a wire (alias)
+            // so the shared downstream consumers keep one truthful name.
+            logic [DATA_WIDTH-1:0] r_rd_data;
             `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-                if (!axi_aresetn) w_rd_data <= '0;
-                else              w_rd_data <= mem[r_rd_addr];
+                if (!axi_aresetn) r_rd_data <= '0;
+                else              r_rd_data <= mem[r_rd_addr];
             )
+            assign w_rd_data = r_rd_data;
 
         end
         else begin : gen_auto

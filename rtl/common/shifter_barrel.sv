@@ -39,8 +39,8 @@ module shifter_barrel #(
     assign w_data_double = {data, data};
 
     // Clamp shift amount modulo WIDTH
-    logic [$clog2(WIDTH)-1:0] shift_amount_mod;
-    assign shift_amount_mod = shift_amount[$clog2(WIDTH)-1:0];
+    logic [$clog2(WIDTH)-1:0] w_shift_amount_mod;
+    assign w_shift_amount_mod = shift_amount[$clog2(WIDTH)-1:0];
 
     // Generate lookup values for rotating shifts
     genvar i;
@@ -58,19 +58,19 @@ module shifter_barrel #(
                 data_out = data;
 
             3'b001: // Logical Right Shift (no wrap)
-                data_out = (shift_amount_mod == 0) ? data : data >> shift_amount;
+                data_out = (w_shift_amount_mod == 0) ? data : data >> shift_amount;
 
             3'b010: // Arithmetic Right Shift (preserve sign)
-                data_out = $signed(data) >>> shift_amount_mod;
+                data_out = $signed(data) >>> w_shift_amount_mod;
 
             3'b011: // Logical Right Shift with wrap
-                data_out = w_array_rs[shift_amount_mod];
+                data_out = w_array_rs[w_shift_amount_mod];
 
             3'b100: // Logical Left Shift (no wrap)
-                data_out = (shift_amount_mod == 0) ? data : data << shift_amount;
+                data_out = (w_shift_amount_mod == 0) ? data : data << shift_amount;
 
             3'b110: // Logical Left Shift with wrap
-                data_out = w_array_ls[shift_amount_mod];
+                data_out = w_array_ls[w_shift_amount_mod];
 
             default:
                 data_out = data;
