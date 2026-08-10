@@ -36,6 +36,28 @@ Reference: `projects/fpga-systems/NexysA7/pumice/` -- a per-build Makefile of
 five variables, plus an area dispatcher (`make bitstream BUILD=litedram`,
 `make ab` to run both builds back to back).
 
+### The escape hatches, so a build never needs a recipe
+
+Every time a build "obviously needs" its own rule, the answer has been a
+variable in the shared file instead. The three that exist:
+
+| Variable | For | Default |
+|---|---|---|
+| `PREBUILD` | a command that must run before `project`/`synth`/`bitstream` -- regenerating a bridge from its `.toml`, a regblock from its `.rdl` | empty (a clean no-op) |
+| `FPGA_BITSTREAM` | exported to the tcl so the artifact name has ONE authority | `$(FPGA_DIR)/bitstream/$(FLOW).bit` |
+| `LINT_WAIVERS` | board-integration warning noise | includes `-Wno-PINMISSING`: a board top routinely leaves a submodule's optional status outputs open, and that is an integration choice, not a defect |
+
+`FPGA_BITSTREAM` earns its keep when a build has more than one flavor. The
+stream monitor build compiles either the error cone or all the others, and with
+a fixed filename the second `make bitstream` silently overwrote the first --
+after which nothing on disk said which was on the board. The Makefile encodes
+the flavor in the name and the tcl reads `FPGA_BITSTREAM` rather than
+re-deriving it. A tcl that builds its own output path is a second authority
+waiting to disagree.
+
+**A recipe appearing in a build Makefile is a signal the shared flow is missing
+a hook, not that this build is special.**
+
 ## Flow notes
 
 - Non-project batch Tcl driven by the Makefiles above
@@ -51,3 +73,34 @@ five variables, plus an area dispatcher (`make bitstream BUILD=litedram`,
   may add flow-scoped vars but the .f files must not require them.
 - Verilator sim of board tops: deep monitor tables need --unroll-count
   (default 64) - see [[timing-closure]] sibling gotchas.
+
+## Bring-up order: registers before anything else
+
+The moment a bitstream is on the board, the FIRST thing to run is the register
+walk -- every endpoint, every register. Not the coverage run, not the DMA, not
+the thing you built the bitstream to measure.
+
+```sh
+make program
+make host-reg_walk        # every endpoint, every register -- MUST pass
+make host-<the-real-thing>
+```
+
+Because a broken register path is silent. It accepts writes and returns values;
+it just does not reach the hardware. On this repo that has already meant a
+32-bit APB bus reaching silicon ONE BIT WIDE (implicit nets from a
+declaration-order bug), and a 12-bit address window aliasing monitor registers
+onto `GLOBAL_CTRL`. Both invalidated weeks of board results, and neither was
+visible in sim -- Verilator and Vivado disagree on the first, and the second is
+a host-side width.
+
+Two consequences for the order:
+
+- **The walk is DESTRUCTIVE.** It restores RDL defaults, and defaults are the
+  safe-but-silent state (`PKT_MASK=0xFFFF` drops every packet). A coverage run
+  straight after it reads zero and looks like dead silicon. Run the walk first,
+  then configure, then measure -- or reprogram between.
+- **It is also the fastest possible smoke test.** 258 registers over UART takes
+  well under a minute and converts "the bitstream probably works" into a number.
+
+Method and rationale: [[register-testing]].

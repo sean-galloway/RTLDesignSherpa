@@ -185,6 +185,38 @@ This is what lets the filter be three-level (drop a whole type, then individual
 codes within a type you are keeping) and what lets the histogram bin on the
 whole tuple without knowing what any of it means.
 
+### Healthy classes vs fault classes
+
+The packet types split into two groups, and the split changes how you cover them.
+
+**Healthy classes -- `completion`, `addr_match`, `perf`/`perfwin`/`perfhist`.**
+These arise from *correct* operation. Every transaction completes; every access
+matches a configured watch range; every window closes with utilization buckets.
+Drive normal traffic and they appear. A capture that tallies them is measuring a
+working system.
+
+**Fault classes -- `error`, `timeout`, `threshold`.** These arise only from a
+*misbehaving* slave or an *illegal* access, and in a correct system they **never
+occur** -- the fault tally reads **zero**, and that zero is the pass condition,
+the "nothing went wrong" signal. You cannot exercise them with healthy traffic;
+you must **explicitly inject the fault**:
+
+| Fault packet | Inject by |
+|---|---|
+| `timeout`   | a slave that does not respond (hold R/B past the timeout window) |
+| `threshold` | a slave that is slow (latency past `LATENCY_THRESH`, under the timeout) |
+| `error`     | a slave that returns `SLVERR`/`DECERR`, or an access outside an enabled address-range allowlist (see [axi_monitor_addr_check](axi_monitor_addr_check.md)) |
+
+**An error, by definition, hangs the system.** A transaction that errors or is
+never answered does not retire, so injecting an error *wedges* the traffic that
+provoked it -- that stall is the fault, not a test artifact to engineer around.
+The monitor's job, and its whole value, is to **emit the fault packet as the hang
+happens** so a downstream capture records what stalled and why, instead of the
+system simply going dark. Consequently, fault coverage belongs in a dedicated
+fault-injection test that deliberately misbehaves the slaves -- kept separate
+from the healthy-traffic capture, whose job is to assert the fault tally stays
+zero.
+
 ### Coordinate B -- identity: who it happened to
 
 ```
@@ -300,7 +332,7 @@ keep working.
  axi4_master_rd_mon      trans_mgr (CAM)            (N:1 merge,       ├─ error FIFO
  axi5_slave_wr_mon       timer / timeout            packet+ts         │   -> AXI read
  axil4_*_mon             reporter_error            atomic)           │      (IRQ)
- apb_monitor             reporter_timeout               │            └─ write FIFO
+ apb4_monitor             reporter_timeout               │            └─ write FIFO
  apb5_monitor            reporter_compl                 │                -> AXI write
                          reporter_threshold             │                (bulk trace)
  custom producer         reporter_perf                  │                   │
@@ -505,8 +537,25 @@ debug registers is that everything after emission already exists.
 
 ## Performance monitoring
 
-`ENABLE_PERF_PACKETS` turns on a measurement-window state machine that buckets
-every cycle into one of four states and reports at window close:
+Two distinct perf paths exist, and only one currently reaches the bus:
+
+- **`PktTypePerf` rollup (implemented).** `ENABLE_PERF_LOGIC` (legacy alias
+  `ENABLE_PERF_PACKETS`) builds [`axi_monitor_reporter_perf`](axi_monitor_reporter_perf.md),
+  which rolls up lifetime completion/error counts and emits `PktTypePerf`
+  (`AXI_PERF_COMPLETED_COUNT = 0x7`, `AXI_PERF_ERROR_COUNT = 0x8`). This is the
+  perf packet you see on the MonBus today. It advances only while the output is
+  idle and loses the reporter mux to completion/threshold, so it surfaces in the
+  gaps between traffic rather than under sustained load.
+- **`PktTypePerfWin` / `PktTypePerfHist` window+histogram (RFC Stage B/F --
+  not yet emitted).** The window state machine below exists (perfmon Stage A in
+  [`axi_monitor_base`](axi_monitor_base.md)) and maintains its bucket counters,
+  but the code that *packetizes* those counters onto the MonBus is not wired yet.
+  **No module currently emits `PktTypePerfWin` or `PktTypePerfHist`** -- the
+  buckets are readable only as counters, so a MonBus tally can never bin them.
+  The description below is the intended shape once Stage B/F lands.
+
+The window state machine buckets every cycle into one of four states and (once
+Stage B/F lands) reports at window close:
 
 | Code | `AXI_PERFWIN_*` | Meaning |
 |---|---|---|

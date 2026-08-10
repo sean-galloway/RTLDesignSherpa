@@ -32,11 +32,15 @@
 
 ## Overview
 
-`monbus_pkt_tally` is an **on-chip packet-type coverage histogram**. It counts
-accepted monitor-bus packets into an SRAM matrix addressed by the message
-identity `{protocol, pkt_type, event_code}`, fronted by a 32-entry LRU
-write-combining cache so the common case — back-to-back hits on a handful of hot
-bins — never touches the SRAM.
+`monbus_pkt_tally` is an **on-chip packet-coverage histogram**. Every accepted
+monitor-bus packet's identity key `{agent[15:0], protocol[3:0], pkt_type[3:0],
+event_code[7:0]}` is looked up in a host-loaded **legal set** (a
+[`monbus_legal_cam`](monbus_legal_cam.md)); the CAM returns a **dense bin index**
+— the key's position in the legal set — and the count SRAM at that index is
+incremented. A key that is *not* in the legal set increments a single
+**`UNEXPECTED`** bin (index `N_PROFILE`), so anything unforeseen is caught rather
+than silently mis-binned. The CAM is **always** in the path — there is no
+direct-mapped bypass and no write-combining cache.
 
 It's the silicon twin of the sim-side packet-type coverage matrix
 ([`bin/monbus_coverage_report.py`](../../../../bin/monbus_coverage_report.py) +
@@ -62,10 +66,13 @@ realistic rates, then you're full. But the board-validation goal is *coverage*
 rate, drops the compressor (and its worst-case CAM timing path) from the board
 build, and *is* the coverage matrix in hardware.
 
-The catch with a naive counter array is a read-modify-write on every packet.
-That's what the LRU cache in front is for — it collapses the RMWs to one per
-eviction, and real traffic is heavily skewed to a handful of bins, so once the
-working set is warm that eviction is rare.
+Each accepted packet is a read-modify-write on the count SRAM (read the bin,
+saturating-increment, write it back). A short two-cycle accept sequence services
+that RMW directly; there is no cache in front. An earlier design added an LRU
+write-combining cache to collapse the RMWs, but it stranded low-volume counts in
+the cache (a readback returned SRAM only), so it was removed in favour of the
+simple, always-coherent direct RMW. `rd_count` is therefore always live — it is
+`SRAM[rd_addr]` with nothing to drain first.
 
 ---
 
@@ -73,45 +80,44 @@ working set is warm that eviction is rare.
 
 ```mermaid
 flowchart LR
-    IN["accepted packet<br/>{protocol,pkt_type,event_code}"] --> BIN["bin address<br/>(low ADDR_BITS bits)"]
-    BIN --> CACHE["monbus_cam<br/>32-entry LRU<br/>payload = partial count"]
-    CACHE -->|hit| INC["saturating<br/>in-place increment"]
-    CACHE -->|miss, full| EVICT["evict victim →<br/>saturating-add to SRAM"]
-    EVICT --> SRAM["count SRAM<br/>2^ADDR_BITS × COUNT_WIDTH"]
-    CACHE -->|freeze/flush| DRAIN["drain all partials → SRAM"]
-    DRAIN --> SRAM
-    SRAM --> RD["indexed readback<br/>rd_addr → rd_count"]
+    IN["accepted packet<br/>{agent,protocol,pkt_type,event_code}"] --> CAM["monbus_legal_cam<br/>legal-set lookup"]
+    CAM -->|hit| BIN["dense bin index<br/>(position in legal set)"]
+    CAM -->|miss| UNX["UNEXPECTED bin<br/>(index N_PROFILE)"]
+    BIN --> RMW["read-modify-write<br/>saturating increment"]
+    UNX --> RMW
+    RMW --> SRAM["count SRAM<br/>(N_PROFILE+1) × COUNT_WIDTH"]
+    SRAM --> RD["indexed readback<br/>rd_addr → rd_count (live)"]
     IN --> LATCH["first-event latch bank<br/>(watched pkt_types)"]
 ```
 
-The counting datapath has no FSM on the fast path: an accepted packet is a
-single-cycle cache lookup + commit. A small shared read-modify-write
-sub-sequence services evictions and the flush drain; a walk-counter zeroes the
-SRAM on clear.
+A tiny FSM runs the accept: `ST_RUN` reads the CAM-resolved bin, `ST_WR` writes
+the saturating-incremented count back; a walk-counter (`ST_CLEAR`) zeroes the
+SRAM on clear. `i_flush` is accepted for interface compatibility but is a
+**no-op** — there is no cache to drain.
 
 ---
 
 ## Data Model
 
 ```
-total(bin) = SRAM[bin] + (cache partial for bin, if resident)
+total(bin) = SRAM[bin]            # always live; no cache term
+bin        = legal_cam.lookup(key) ? dense_index : UNEXPECTED   (index N_PROFILE)
 ```
 
-- **Hit** — increment the resident partial in place (no SRAM access).
-- **Miss** — install a fresh partial (`= 1`). If the cache was full, the evicted
-  victim's partial saturating-adds back into its SRAM bin (the evict RMW).
-- **Freeze/flush** — drain every resident partial into SRAM, so a readback sees
-  the coherent total. The cache is left empty.
+- **Legal-set hit** — increment `SRAM[dense_index]` (the key's slot in the loaded
+  legal set).
+- **Legal-set miss** — increment `SRAM[UNEXPECTED]`. A non-zero `UNEXPECTED`
+  count means a packet arrived with a tuple the host did not load, and should be
+  flagged loudly.
 
-All counts **saturate**: a pegged bin never wraps, even across the cache/SRAM
-split (both the in-cache increment and the spill add are saturating).
+All counts **saturate**: a pegged bin never wraps.
 
-The bin address is the **low `ADDR_BITS` bits** of the 16-bit identity
-`{protocol[3:0], pkt_type[3:0], event_code[7:0]}`. At the production
-`ADDR_BITS = 16` this is the whole tuple, direct-mapped, so the hardware count
-equals the Python `parse()` count **exactly** — no hash collisions. A narrower
-test build keeps `{pkt_type, event_code}` and must restrict `protocol` to stay
-unique.
+The **legal set** is loaded by the host over the config port (clear, then one
+`{key, index}` pair per entry). The 32-bit key is
+`{agent[15:0], protocol[3:0], pkt_type[3:0], event_code[7:0]}` — note it includes
+**agent**, so per-instance identity is resolved, not just the message class. Dense
+bins run `0..N_PROFILE-1` with `UNEXPECTED = N_PROFILE`, so the SRAM is only
+`N_PROFILE+1` deep regardless of how sparse the underlying tuple space is.
 
 ---
 
@@ -122,10 +128,12 @@ module monbus_pkt_tally #(
     parameter int PKT_WIDTH   = 128,   // monitor_packet_t width (locked)
     parameter int TS_WIDTH    = 64,    // side-band timestamp width (locked)
     parameter int COUNT_WIDTH = 32,    // saturating bin count width
-    parameter int CACHE_DEPTH = 32,    // LRU write-combining cache entries
+    parameter int CACHE_DEPTH = 32,    // (unused; kept for interface compat)
     parameter int NUM_LATCH   = 4,     // first-event capture slots
-    parameter int ADDR_BITS   = 16,    // bin address width (16 = full tuple)
+    parameter int ADDR_BITS   = 7,     // bin address width (sizes the dense SRAM)
+    parameter int N_PROFILE   = 64,    // legal-set entries; dense bins 0..N-1, UNEXPECTED = N
     parameter int SRAM_DEPTH  = (1 << ADDR_BITS)
+    // ... plus the legal-set load port (profile_clear/we/waddr/wvalid/wkey)
 ) (
     input  logic                    clk,
     input  logic                    rst_n,
@@ -138,8 +146,8 @@ module monbus_pkt_tally #(
 
     // Window / snapshot control
     input  logic                    i_freeze,      // level: hold counting
-    input  logic                    i_flush,       // pulse: drain cache -> SRAM
-    output logic                    o_flush_busy,  // high while flush/clear runs
+    input  logic                    i_flush,       // no-op (no cache to drain)
+    output logic                    o_flush_busy,  // high while the clear walk runs
     input  logic                    i_clear,       // pulse: zero everything
 
     // Count readback (registered; valid one cycle after rd_addr, idle only)
@@ -163,40 +171,43 @@ module monbus_pkt_tally #(
 |-----------|-------------|---------|-------------|
 | `PKT_WIDTH` | Monitor packet width | 128 | Locked by `monitor_common_pkg` |
 | `TS_WIDTH` | Side-band timestamp width | 64 | Locked |
-| `COUNT_WIDTH` | Saturating bin-count width | 32 | ≥ 1; sizes the SRAM word and cache payload |
-| `CACHE_DEPTH` | LRU cache entries | 32 | Passed straight to `monbus_cam.DEPTH` |
+| `COUNT_WIDTH` | Saturating bin-count width | 32 | ≥ 1; sizes the SRAM word |
+| `CACHE_DEPTH` | Unused | 32 | Kept for interface compatibility; the cache was removed |
 | `NUM_LATCH` | First-event capture slots | 4 | ≥ 1 |
-| `ADDR_BITS` | Bin address width | 16 | ≤ 16 for direct mode; `≥ clog2(N_PROFILE+1)` in profile mode |
+| `ADDR_BITS` | Bin address width | 7 | `≥ clog2(N_PROFILE+1)` — sizes the dense count SRAM |
+| `N_PROFILE` | Legal-set entries (dense bins) | 64 | Dense bins `0..N-1`; `N` = `UNEXPECTED` |
 | `SRAM_DEPTH` | Derived count-SRAM depth | `1<<ADDR_BITS` | Do not override |
-| `PROFILE_MODE` | 0 = direct-mapped; 1 = agent-resolved profile mode | 0 | See below |
-| `N_PROFILE` | Legal-set entries (dense bins) in profile mode | 64 | Dense bins `0..N-1`; `N` = UNEXPECTED |
 
 ---
 
-## Profile Mode
+## Legal-Set (Dense) Binning
 
-By default the bin address is the low `ADDR_BITS` of the 16-bit message identity
-`{protocol, pkt_type, event_code}` — a direct-mapped matrix. That matrix cannot
-answer *"did every agent fire?"* (`agent_id` is not in the key) and is ~99% empty
-(only ~245 of the 20,480 `protocol×type×event` cells are ever legal).
+A direct-mapped `{protocol, pkt_type, event_code}` matrix cannot answer *"did
+every agent fire?"* (`agent_id` is not in the key) and is ~99% empty (only ~245
+of the 20,480 `protocol×type×event` cells are ever legal). So the tally does
+**not** use one; the CAM-resolved dense binning is the **only** mode (the earlier
+`PROFILE_MODE = 0` direct-mapped path was removed).
 
-`PROFILE_MODE = 1` replaces the direct map with a **CSR-loaded legal set**. A
-[`monbus_legal_cam`](monbus_legal_cam.md) holds up to `N_PROFILE` legal
+A [`monbus_legal_cam`](monbus_legal_cam.md) holds up to `N_PROFILE` legal
 `{agent, protocol, pkt_type, event_code}` keys; an incoming packet is matched to
-the entry's **dense bin index** (a hit) or routed to the single **UNEXPECTED
+the entry's **dense bin index** (a hit) or routed to the single **`UNEXPECTED`
 bin** at index `N_PROFILE` (a miss, also captured by the first-event latch). This
 makes per-agent coverage a first-class count, and turns any out-of-profile
 message — a wrong event code, an untracked agent, a protocol a unit should not
 speak — into a swept spec-violation signal.
 
-The legal set is loaded/cleared over the profile-load port
-(`profile_clear` / `profile_we` / `profile_waddr` / `profile_wvalid` /
-`profile_wkey`); the host can reprogram slices per run when the full legal set
-exceeds `N_PROFILE`. `PROFILE_MODE = 0` is bit-for-bit the original behaviour —
-the only datapath change is how the bin address is computed.
+The legal set is loaded/cleared over the config port. Two host encodings exist:
+the raw profile-load pins (`profile_clear` / `profile_we` / `profile_waddr` /
+`profile_wvalid` / `profile_wkey`), and — in the STREAM-monitor AXIL wrapper — a
+**register model** (`CAM_CLEAR`, then per entry `CAM_KEY` followed by
+`CAM_LOAD = (valid<<31)|index`) that carries the index in the write *data* so it
+is immune to bus-width/stride hazards. Either way the host can reprogram slices
+per run when the full legal set exceeds `N_PROFILE`.
 
 Coverage gate: every expected dense bin `> 0` (all agents/types fired) **and**
-`UNEXPECTED == 0` (nothing rogue slipped through).
+`UNEXPECTED == 0` (nothing rogue slipped through). Note that `UNEXPECTED == 0` is
+also the *fault-free* signal — the [fault classes](monitor_system_architecture.md#healthy-classes-vs-fault-classes)
+(error/timeout/threshold) only appear here when a fault was deliberately injected.
 
 ---
 
@@ -205,15 +216,13 @@ Coverage gate: every expected dense bin `> 0` (all agents/types fired) **and**
 The host reads a coherent coverage snapshot over the CSR/AXIL window as follows:
 
 1. `i_freeze = 1` — stop counting at a coherent boundary.
-2. Pulse `i_flush` — drain the cache partials into SRAM. `o_flush_busy` is high
-   until the drain completes; the cache is left empty.
-3. Sweep `rd_addr` over every bin and read `rd_count` (one-cycle registered read,
-   valid only while idle).
-4. Pulse `i_clear` — zero SRAM + cache + the first-event latches for the next
-   window. `o_flush_busy` is high during the SRAM walk.
+2. Sweep `rd_addr` over every bin and read `rd_count` (one-cycle registered read,
+   valid only while idle). No flush is needed — counts are live in SRAM.
+3. Pulse `i_clear` — zero the SRAM + the first-event latches for the next window.
+   `o_flush_busy` is high during the SRAM walk.
 
-`rd_count` is meaningful **only after a flush while frozen/idle** — mid-run it
-reflects SRAM alone (the resident partials have not been folded in yet).
+`rd_count` is **always** the coherent count (`= SRAM[rd_addr]`); there is no
+cache to fold in. `i_flush` is retained on the interface but is a no-op.
 
 ---
 
@@ -232,29 +241,26 @@ The bank is cleared by `i_clear`.
 
 | Block | Role |
 |-------|------|
-| [`monbus_cam`](monbus_cam.md) | The 32-entry LRU cache front. Its payload is repurposed from `last_event_data` to a partial count; the `evict_*` / `dump_*` / `soft_clear` ports were added additively for this consumer (the compressor path is untouched). |
-| [`monbus_legal_cam`](monbus_legal_cam.md) | Profile mode only: the CSR-loaded legal-set match CAM that maps `{agent, protocol, pkt_type, event_code}` to a dense bin index (hit) or a miss (UNEXPECTED). |
+| [`monbus_legal_cam`](monbus_legal_cam.md) | The CSR-loaded legal-set match CAM that maps `{agent, protocol, pkt_type, event_code}` to a dense bin index (hit) or a miss (`UNEXPECTED`). Always in the path. |
 | `monitor_common_pkg` | The locked 128-bit packet field map (`pkt_type[127:124]`, `protocol[108:105]`, `event_code[104:97]`, `agent_id[87:72]`). |
-| synchronous single-port SRAM | The backing count matrix. |
+| synchronous single-port SRAM | The backing dense count matrix (`N_PROFILE+1` deep). |
 
 ---
 
 ## Timing
 
-- **Fast path:** single-cycle. An accepted packet performs a combinational cache
-  lookup and commits the same cycle; `in_ready` is high whenever running,
-  unfrozen, and the spill engine is idle.
-- **Evict RMW:** a full-cache miss stalls `in_ready` for the 2-cycle
-  read-then-saturating-write that folds the victim into SRAM. Post-warmup this
-  is rare (traffic is skewed to a few bins).
-- **Flush:** walks `CACHE_DEPTH` entries, one RMW per live entry.
-- **Clear:** walks `SRAM_DEPTH` entries writing zero.
+- **Accept path:** a combinational legal-set CAM lookup resolves the bin, then a
+  2-cycle read-then-saturating-write (`ST_RUN` → `ST_WR`) commits it. `in_ready`
+  is high in `ST_RUN` whenever running and unfrozen.
+- **Read:** `rd_count` is a registered read of `SRAM[rd_addr]`, always live.
+- **Clear:** walks `SRAM_DEPTH` entries writing zero (`ST_CLEAR`).
+- **Flush:** no-op (no cache).
 
 ---
 
 ## Related Modules
 
-- [`monbus_cam.md`](monbus_cam.md) — the LRU cache reused as the tally's front.
+- [`monbus_legal_cam.md`](monbus_legal_cam.md) — the legal-set CAM that resolves each packet to its dense bin.
 - [`monbus_compressor.md`](monbus_compressor.md) — the alternative capture path
   (bounded compressed log) this histogram replaces on the board build.
 - [`axi_perf_latency_hist.md`](../shared/axi_perf_latency_hist.md) — a companion histogram

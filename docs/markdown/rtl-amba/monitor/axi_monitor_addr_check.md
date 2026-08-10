@@ -41,6 +41,8 @@ DEBUG and ERROR ranges are evaluated independently, so a single command may prod
 
 This is a **shared infrastructure module** used internally by AXI4/AXIL4/AXI5 monitor wrappers when parameterized with `N_ADDR_RANGES > 0`. It is not typically instantiated directly by users but is critical for address-space validation (allowlist enforcement) and targeted debug tracing.
 
+The ERROR/allowlist path is the checker built into the monitor whenever `N_ADDR_RANGES > 0`, **independent of the error reporter cone** (`ENABLE_ERROR_LOGIC`). It is therefore the most controllable way to **deliberately inject an error** for coverage: point an enabled ERROR range at a region the legitimate traffic never touches, and every access becomes an allowlist miss that emits `PktTypeError`/`AXI_ERR_ADDR_RANGE`. Because an error is a fault condition, this injection is expected to hang the traffic that provoked it -- see [Healthy classes vs fault classes](monitor_system_architecture.md#healthy-classes-vs-fault-classes) for why that stall is the point, not a defect.
+
 ---
 
 ## Key Features
