@@ -40,6 +40,7 @@ from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_monitor import GAXIMonitor
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+from TBClasses.amba.amba_random_configs import GAXI_RANDOMIZER_CONFIGS
 
 
 class GaxiDropFifoSyncTB(TBBase):
@@ -94,11 +95,26 @@ class GaxiDropFifoSyncTB(TBBase):
             lsb_first=True
         )
 
-        # Create randomizer for timing variation
-        self.randomizer = FlexRandomizer({
-            'valid_delay': ([(0, 0), (1, 2)], [9, 1]),  # Mostly back-to-back
-            'ready_delay': ([(0, 0), (1, 2)], [9, 1])
-        })
+        # Timing profiles, not one hardcoded distribution.
+        #
+        # This used to be a single near-back-to-back FlexRandomizer applied to
+        # both sides, so the FIFO was never driven hard enough to sit at full or
+        # run dry -- the producer never got ahead of the consumer and the
+        # consumer never got ahead of the producer. Backpressure and starvation
+        # are where a FIFO's interesting states live, and they only appear when
+        # the two sides disagree about rate.
+        #
+        # Profiles come from GAXI_RANDOMIZER_CONFIGS, which is where this repo
+        # keeps them. Each entry carries a 'master' half (valid_delay) and a
+        # 'slave' half (ready_delay), so the producer and consumer are driven
+        # from the correct side of the same named profile rather than sharing
+        # one distribution.
+        self.producer_profile = 'fast'
+        self.consumer_profile = 'fast'
+        self.randomizer = FlexRandomizer(
+            GAXI_RANDOMIZER_CONFIGS[self.producer_profile]['master'])
+        self.consumer_randomizer = FlexRandomizer(
+            GAXI_RANDOMIZER_CONFIGS[self.consumer_profile]['slave'])
 
         # Create Write Master BFM
         self.write_master = GAXIMaster(
@@ -164,6 +180,31 @@ class GaxiDropFifoSyncTB(TBBase):
         # Reset write master BFM
         await self.write_master.reset_bus()
 
+    def set_timing_profile(self, producer: str, consumer: str):
+        """Point the producer and consumer at named FlexRandomizer profiles.
+
+        The producer profile drives the write master's valid_delay; the
+        consumer profile supplies ready_delay gaps to the manually-driven read
+        path. They are set independently on purpose -- a fast producer against
+        a slow consumer fills the FIFO, the reverse starves it, and a single
+        shared profile can produce neither.
+        """
+        assert producer in GAXI_RANDOMIZER_CONFIGS, f"unknown producer profile {producer}"
+        assert consumer in GAXI_RANDOMIZER_CONFIGS, f"unknown consumer profile {consumer}"
+        self.producer_profile = producer
+        self.consumer_profile = consumer
+        self.randomizer = FlexRandomizer(GAXI_RANDOMIZER_CONFIGS[producer]['master'])
+        self.consumer_randomizer = FlexRandomizer(GAXI_RANDOMIZER_CONFIGS[consumer]['slave'])
+        self.write_master.set_randomizer(self.randomizer)
+        self.log.info(f"timing profile: producer={producer} (master), consumer={consumer} (slave)")
+
+    def _consumer_delay(self) -> int:
+        """Next ready_delay from the consumer profile."""
+        try:
+            return int(self.consumer_randomizer.next()['ready_delay'])
+        except Exception:
+            return 0
+
     async def assert_reset(self):
         """Assert active-low reset signal."""
         self.rst_n.value = 0
@@ -217,6 +258,12 @@ class GaxiDropFifoSyncTB(TBBase):
         if int(self.dut.rd_valid.value) == 0:
             self.log.error(f"Read timeout - rd_valid never asserted")
             return False, 0
+
+        # Consumer-side backpressure: hold off rd_ready for the profile's gap
+        # before accepting. This is what lets the FIFO reach full when the
+        # producer is faster than we are.
+        for _ in range(self._consumer_delay()):
+            await self.wait_clocks(self.clk_name, 1)
 
         # Assert rd_ready, then capture what the DUT is actually presenting on
         # rd_data. Sample off the edge, never within 200ps of one.
@@ -450,7 +497,20 @@ class GaxiDropFifoSyncTB(TBBase):
         mask = (1 << self.data_width) - 1
         burst = min(len(base), max(1, self.depth - 1))
 
+        # Rotate the producer/consumer pairing per round rather than running
+        # every round at one rate. Each pairing puts the FIFO in a different
+        # occupancy regime: fast/slow drives it toward full, slow/fast keeps it
+        # near empty, bursty/constrained swings between the two.
+        pairings = [
+            ('fast', 'fast'),                    # both quick: shallow occupancy
+            ('fast', 'slow_producer'),           # fast in, slow consumer -> fills
+            ('slow_producer', 'fast'),           # slow in, quick drain -> starves
+            ('burst_pause', 'constrained'),      # bursts against a steady drain
+            ('backtoback', 'gaxi_backpressure'), # hardest push toward full
+        ]
+
         for r in range(rounds):
+            self.set_timing_profile(*pairings[r % len(pairings)])
             test_data = [(base[i % len(base)] + r) & mask for i in range(burst)]
             for data in test_data:
                 await self.write_entry(data)
