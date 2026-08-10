@@ -25,25 +25,25 @@
 
 **Module:** `gaxi_skid_buffer_struct.sv`
 **Location:** `rtl/amba/gaxi/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-Struct-aware variant of **[gaxi_skid_buffer](gaxi_skid_buffer.md)** that accepts SystemVerilog type parameters instead of explicit data width. This enables clean handling of complex data structures (e.g., AXI channels, custom packets) without manual packing/unpacking.
+Struct-aware variant of **[gaxi_skid_buffer](gaxi_skid_buffer.md)** — it takes a SystemVerilog type parameter instead of an explicit data width. If your payload is a complex data structure (an AXI channel, a custom packet), this gives you clean handling without manual packing and unpacking.
 
 ### Key Features
 
-- ✅ **Type-Parameterized:** Accepts any SystemVerilog type (struct, union, enum, packed array)
-- ✅ **Automatic Width Calculation:** Uses `$bits()` to determine buffer width
-- ✅ **Registered Output:** Identical latency to the base skid buffer (1 clock)
-- ✅ **Same Architecture:** Shift register with valid/ready flow control
-- ✅ **Debug Support:** Instance naming and transaction logging
+- **Type-Parameterized:** Accepts any SystemVerilog type (struct, union, enum, packed array)
+- **Automatic Width Calculation:** Uses `$bits()` to determine buffer width
+- **Registered Output:** Identical latency to the base skid buffer (1 clock)
+- **Same Architecture:** Shift register with valid/ready flow control
+- **Debug Support:** Instance naming and transaction logging
 
 ---
 
-## Module Declaration
+## Module Interface
 
 ```systemverilog
 module gaxi_skid_buffer_struct #(
@@ -87,33 +87,62 @@ module gaxi_skid_buffer_struct #(
 
 ### Clock and Reset
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `axi_aclk` | 1 | Input | Clock |
-| `axi_aresetn` | 1 | Input | Active-low asynchronous reset |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `axi_aclk` | input | 1 | Clock |
+| `axi_aresetn` | input | 1 | Active-low asynchronous reset |
 
 ### Write Interface
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `wr_valid` | 1 | Input | Write data valid |
-| `wr_ready` | 1 | Output | Ready to accept write |
-| `wr_data` | STRUCT_TYPE | Input | Input data (type-safe) |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `wr_valid` | input | 1 | Write data valid |
+| `wr_ready` | output | 1 | Ready to accept write |
+| `wr_data` | input | STRUCT_TYPE | Input data (type-safe) |
 
 ### Read Interface
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `rd_valid` | 1 | Output | Read data valid |
-| `rd_ready` | 1 | Input | Ready to consume read |
-| `rd_data` | STRUCT_TYPE | Output | Output data (type-safe) |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `rd_valid` | output | 1 | Read data valid |
+| `rd_ready` | input | 1 | Ready to consume read |
+| `rd_data` | output | STRUCT_TYPE | Output data (type-safe) |
 
 ### Status
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `count` | 4 | Output | Current buffer occupancy (0 to DEPTH) |
-| `rd_count` | 4 | Output | Same as count (for compatibility) |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `count` | output | 4 | Current buffer occupancy (0 to DEPTH) |
+| `rd_count` | output | 4 | Same as count (for compatibility) |
+
+---
+
+## Functional Description
+
+### Identical to gaxi_skid_buffer
+
+The internal behavior is **identical** to **[gaxi_skid_buffer](gaxi_skid_buffer.md)**:
+
+1. **Shift Register:** Data stored in array, shifts on read
+2. **Registered Output:** `rd_data` is driven from a flop; minimum latency 1 clock
+3. **Valid/Ready Handshake:** Transfer occurs when `valid && ready`
+4. **Backpressure:** `wr_ready` deasserts when full
+
+### Key Difference: Type Safety
+
+**gaxi_skid_buffer:**
+```systemverilog
+.DATA_WIDTH(96),           // Manual width calculation
+.wr_data(packed_data),     // Manual packing required
+.rd_data(packed_out)       // Manual unpacking required
+```
+
+**gaxi_skid_buffer_struct:**
+```systemverilog
+.STRUCT_TYPE(axi_ar_t),    // Type parameter
+.wr_data(ar_struct),       // Direct struct assignment
+.rd_data(ar_out_struct)    // Direct struct output
+```
 
 ---
 
@@ -139,7 +168,7 @@ typedef struct packed {
 gaxi_skid_buffer_struct #(
     .STRUCT_TYPE(axi_ar_t),
     .DEPTH(4)
-    
+
 ) u_ar_buffer (
     .axi_aclk    (axi_clk),
     .axi_aresetn (axi_resetn),
@@ -180,7 +209,7 @@ typedef struct packed {
 gaxi_skid_buffer_struct #(
     .STRUCT_TYPE(custom_pkt_t),
     .DEPTH(8)
-    
+
 ) u_pkt_buffer (
     .axi_aclk    (pkt_clk),
     .axi_aresetn (pkt_resetn),
@@ -207,7 +236,7 @@ typedef logic [15:0] sample_array_t [4];
 gaxi_skid_buffer_struct #(
     .STRUCT_TYPE(sample_array_t),
     .DEPTH(4)
-    
+
 ) u_sample_buffer (
     .axi_aclk    (dsp_clk),
     .axi_aresetn (dsp_resetn),
@@ -225,38 +254,91 @@ gaxi_skid_buffer_struct #(
 );
 ```
 
----
+### Example 4: AXI Channel Buffering
 
-## Behavior
-
-### Identical to gaxi_skid_buffer
-
-The internal behavior is **identical** to **[gaxi_skid_buffer](gaxi_skid_buffer.md)**:
-
-1. **Shift Register:** Data stored in array, shifts on read
-2. **Registered Output:** `rd_data` is driven from a flop; minimum latency 1 clock
-3. **Valid/Ready Handshake:** Transfer occurs when `valid && ready`
-4. **Backpressure:** `wr_ready` deasserts when full
-
-### Key Difference: Type Safety
-
-**gaxi_skid_buffer:**
 ```systemverilog
-.DATA_WIDTH(96),           // Manual width calculation
-.wr_data(packed_data),     // Manual packing required
-.rd_data(packed_out)       // Manual unpacking required
+// Define all AXI channel structs
+typedef struct packed {
+    logic [ID_W-1:0]   awid;
+    logic [ADDR_W-1:0] awaddr;
+    // ... all AW signals
+} axi_aw_t;
+
+// Buffer each channel with appropriate type
+gaxi_skid_buffer_struct #(.STRUCT_TYPE(axi_aw_t)) u_aw_buf (...);
+gaxi_skid_buffer_struct #(.STRUCT_TYPE(axi_w_t))  u_w_buf  (...);
+gaxi_skid_buffer_struct #(.STRUCT_TYPE(axi_b_t))  u_b_buf  (...);
+gaxi_skid_buffer_struct #(.STRUCT_TYPE(axi_ar_t)) u_ar_buf (...);
+gaxi_skid_buffer_struct #(.STRUCT_TYPE(axi_r_t))  u_r_buf  (...);
 ```
 
-**gaxi_skid_buffer_struct:**
+### Example 5: Pipeline Stages with Complex Data
+
 ```systemverilog
-.STRUCT_TYPE(axi_ar_t),    // Type parameter
-.wr_data(ar_struct),       // Direct struct assignment
-.rd_data(ar_out_struct)    // Direct struct output
+// Define pipeline stage struct
+typedef struct packed {
+    logic [31:0] instruction;
+    logic [4:0]  rs1, rs2, rd;
+    logic [31:0] imm;
+    logic [6:0]  opcode;
+    logic        valid;
+} pipeline_stage_t;
+
+// Each pipeline stage buffered
+pipeline_stage_t fetch_stage, decode_stage, execute_stage;
+
+gaxi_skid_buffer_struct #(
+    .STRUCT_TYPE(pipeline_stage_t)
+
+) u_fd_buf (
+    .wr_data(fetch_stage),
+    .rd_data(decode_stage),
+    ...
+);
 ```
 
 ---
 
-## Advantages Over Base Skid Buffer
+## Design Notes
+
+### Resource Usage
+
+Same as **gaxi_skid_buffer** with equivalent DATA_WIDTH:
+- Logic: ~50 LUTs (for DEPTH=4)
+- Storage: DEPTH × $bits(STRUCT_TYPE) flip-flops
+- No additional overhead from type parameter
+
+### Type Requirements
+
+**SystemVerilog types that work:**
+- `struct packed` (recommended)
+- Packed arrays: `logic [N:0][M:0]`
+- Simple types: `logic [N:0]`
+- Caveat: `struct` (unpacked) - will be automatically packed by synthesis
+
+**Not supported:**
+- Dynamic types
+- Classes
+- Queues/associative arrays
+
+---
+
+## Testing
+
+**This module has no test of its own.** The commands that used to stand here
+named a `test_gaxi_skid_buffer_struct.py` that has never existed. The closest
+coverage is the packed-vector sibling:
+
+```bash
+pytest val/amba/test_gaxi_skid_buffer.py -v
+```
+
+That exercises the same handshake and depth logic; what it does not exercise is
+the struct packing/unpacking this module adds. Treat that as unverified.
+
+---
+
+## Comparison with the Base Skid Buffer
 
 ### Advantage 1: Type Safety
 
@@ -295,91 +377,18 @@ axi_ar_t master_ar, slave_ar;
 assign slave_ar = master_ar;  // Clean and readable
 ```
 
----
+### When to Use
 
-## Design Patterns
+**Use gaxi_skid_buffer_struct When:**
+- Working with complex data structures (AXI channels, custom packets)
+- Want type safety and compiler checks
+- Need cleaner, more readable code
+- Struct definition already exists
 
-### Pattern 1: AXI Channel Buffering
-
-```systemverilog
-// Define all AXI channel structs
-typedef struct packed {
-    logic [ID_W-1:0]   awid;
-    logic [ADDR_W-1:0] awaddr;
-    // ... all AW signals
-} axi_aw_t;
-
-// Buffer each channel with appropriate type
-gaxi_skid_buffer_struct #(.STRUCT_TYPE(axi_aw_t)) u_aw_buf (...);
-gaxi_skid_buffer_struct #(.STRUCT_TYPE(axi_w_t))  u_w_buf  (...);
-gaxi_skid_buffer_struct #(.STRUCT_TYPE(axi_b_t))  u_b_buf  (...);
-gaxi_skid_buffer_struct #(.STRUCT_TYPE(axi_ar_t)) u_ar_buf (...);
-gaxi_skid_buffer_struct #(.STRUCT_TYPE(axi_r_t))  u_r_buf  (...);
-```
-
-### Pattern 2: Pipeline Stages with Complex Data
-
-```systemverilog
-// Define pipeline stage struct
-typedef struct packed {
-    logic [31:0] instruction;
-    logic [4:0]  rs1, rs2, rd;
-    logic [31:0] imm;
-    logic [6:0]  opcode;
-    logic        valid;
-} pipeline_stage_t;
-
-// Each pipeline stage buffered
-pipeline_stage_t fetch_stage, decode_stage, execute_stage;
-
-gaxi_skid_buffer_struct #(
-    .STRUCT_TYPE(pipeline_stage_t)
-    
-) u_fd_buf (
-    .wr_data(fetch_stage),
-    .rd_data(decode_stage),
-    ...
-);
-```
-
----
-
-## Testing
-
-**This module has no test of its own.** The commands that used to stand here
-named a `test_gaxi_skid_buffer_struct.py` that has never existed. The closest
-coverage is the packed-vector sibling:
-
-```bash
-pytest val/amba/test_gaxi_skid_buffer.py -v
-```
-
-That exercises the same handshake and depth logic; what it does not exercise is
-the struct packing/unpacking this module adds. Treat that as unverified.
-
----
-
-## Synthesis Notes
-
-### Resource Usage
-
-Same as **gaxi_skid_buffer** with equivalent DATA_WIDTH:
-- Logic: ~50 LUTs (for DEPTH=4)
-- Storage: DEPTH × $bits(STRUCT_TYPE) flip-flops
-- No additional overhead from type parameter
-
-### Type Requirements
-
-**SystemVerilog types that work:**
-- ✅ `struct packed` (recommended)
-- ✅ Packed arrays: `logic [N:0][M:0]`
-- ✅ Simple types: `logic [N:0]`
-- ⚠️ `struct` (unpacked) - will be automatically packed by synthesis
-
-**Not supported:**
-- ❌ Dynamic types
-- ❌ Classes
-- ❌ Queues/associative arrays
+**Use gaxi_skid_buffer When:**
+- Simple data widths (no complex structure)
+- Need absolute minimum resource usage
+- Working with legacy code that uses explicit widths
 
 ---
 
@@ -388,21 +397,6 @@ Same as **gaxi_skid_buffer** with equivalent DATA_WIDTH:
 - **[gaxi_skid_buffer](gaxi_skid_buffer.md)** - Base implementation (DATA_WIDTH parameter)
 - **[gaxi_fifo_sync](gaxi_fifo_sync.md)** - Synchronous FIFO alternative
 - **[gaxi_skid_buffer_async](../../rtl-cdc/gaxi_skid_buffer_async.md)** - Clock domain crossing variant
-
----
-
-## When to Use
-
-**✅ Use gaxi_skid_buffer_struct When:**
-- Working with complex data structures (AXI channels, custom packets)
-- Want type safety and compiler checks
-- Need cleaner, more readable code
-- Struct definition already exists
-
-**✅ Use gaxi_skid_buffer When:**
-- Simple data widths (no complex structure)
-- Need absolute minimum resource usage
-- Working with legacy code that uses explicit widths
 
 ---
 

@@ -25,56 +25,53 @@
 
 **Location:** `rtl/amba/gaxi/`
 **Test Location:** `val/amba/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The GAXI subsystem provides a lightweight valid/ready handshake protocol for streaming data between components. Simpler than full AXI4-Stream while maintaining robust flow control, GAXI is used throughout the RTL Design Sherpa infrastructure for elastic buffering, clock domain crossing, and timing closure.
+GAXI is a lightweight valid/ready handshake protocol for streaming data between components. It's simpler than full AXI4-Stream but keeps the flow control that matters, which is why it shows up all over the RTL Design Sherpa infrastructure — elastic buffering, clock domain crossing, and timing closure all lean on these modules.
 
 ### Key Features
 
-- ✅ **Simple Handshake:** Valid/ready only - minimal overhead
-- ✅ **Elastic Buffering:** Skid buffers absorb backpressure without stalling the producer
-- ✅ **Clock Domain Crossing:** Async variants with proper CDC
-- ✅ **Type-Safe Structs:** Struct-aware buffers for complex data
-- ✅ **Drop Capability:** Special FIFO variant with drop-by-count/drop-all
-- ✅ **Flexible Modes:** Mux/flop output modes for area/speed trade-offs
+- **Simple Handshake:** Valid/ready only - minimal overhead
+- **Elastic Buffering:** Skid buffers absorb backpressure without stalling the producer
+- **Clock Domain Crossing:** Async variants with proper CDC
+- **Type-Safe Structs:** Struct-aware buffers for complex data
+- **Drop Capability:** Special FIFO variant with drop-by-count/drop-all
+- **Flexible Modes:** Mux/flop output modes for area/speed trade-offs
 
 ---
 
-## Module Categories
+## Modules
 
 ### Skid Buffers (Elastic Buffering)
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **gaxi_skid_buffer** | Synchronous elastic buffer, registered output | [gaxi_skid_buffer.md](gaxi_skid_buffer.md) | ✅ Documented |
-| **gaxi_skid_buffer_struct** | Type-parameterized variant for complex structs | [gaxi_skid_buffer_struct.md](gaxi_skid_buffer_struct.md) | ✅ Documented |
-| **gaxi_skid_buffer_async** | Asynchronous elastic buffer for CDC | [gaxi_skid_buffer_async.md](../../rtl-cdc/gaxi_skid_buffer_async.md) | ✅ Documented |
-| **gaxi_skid_buffer_dbldrn** | Double-drain skid buffer variant | [gaxi_skid_buffer_dbldrn.md](gaxi_skid_buffer_dbldrn.md) | ✅ Documented |
+| **gaxi_skid_buffer** | Synchronous elastic buffer, registered output | [gaxi_skid_buffer.md](gaxi_skid_buffer.md) | Documented |
+| **gaxi_skid_buffer_struct** | Type-parameterized variant for complex structs | [gaxi_skid_buffer_struct.md](gaxi_skid_buffer_struct.md) | Documented |
+| **gaxi_skid_buffer_async** | Asynchronous elastic buffer for CDC | [gaxi_skid_buffer_async.md](../../rtl-cdc/gaxi_skid_buffer_async.md) | Documented |
+| **gaxi_skid_buffer_dbldrn** | Double-drain skid buffer variant | [gaxi_skid_buffer_dbldrn.md](gaxi_skid_buffer_dbldrn.md) | Documented |
 
 ### FIFOs (Deep Buffering)
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **gaxi_fifo_sync** | Synchronous FIFO with mux/flop modes | [gaxi_fifo_sync.md](gaxi_fifo_sync.md) | ✅ Documented |
-| **gaxi_fifo_async** | Asynchronous FIFO for clock domain crossing | [gaxi_fifo_async.md](../../rtl-cdc/gaxi_fifo_async.md) | ✅ Documented |
-| **gaxi_drop_fifo_sync** | FIFO with drop-by-count and drop-all capability | [gaxi_drop_fifo_sync.md](gaxi_drop_fifo_sync.md) | ✅ Documented |
+| **gaxi_fifo_sync** | Synchronous FIFO with mux/flop modes | [gaxi_fifo_sync.md](gaxi_fifo_sync.md) | Documented |
+| **gaxi_fifo_async** | Asynchronous FIFO for clock domain crossing | [gaxi_fifo_async.md](../../rtl-cdc/gaxi_fifo_async.md) | Documented |
+| **gaxi_drop_fifo_sync** | FIFO with drop-by-count and drop-all capability | [gaxi_drop_fifo_sync.md](gaxi_drop_fifo_sync.md) | Documented |
 
 ### Register Slices (Timing Isolation)
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **gaxi_regslice** | Single-entry registered slice for breaking timing paths | [gaxi_regslice.md](gaxi_regslice.md) | ✅ Documented |
+| **gaxi_regslice** | Single-entry registered slice for breaking timing paths | [gaxi_regslice.md](gaxi_regslice.md) | Documented |
 
 ### Test-Code Multi-Instance Helpers
 
-`rtl/amba/testcode/` holds thin multi-instance wrappers used by the DV harnesses
-— they instantiate a bank of the base GAXI primitive (and, for the `_sigmap`
-variant, present a flattened array-signal port style). They are not documented
-individually; see the base module doc for the full behavior:
+`rtl/amba/testcode/` holds thin multi-instance wrappers used by the DV harnesses — each one instantiates a bank of the base GAXI primitive (and, for the `_sigmap` variant, presents a flattened array-signal port style). They're not documented individually; see the base module doc for the full behavior:
 
 | Test-code wrapper | Base module | Full documentation |
 |-------------------|-------------|--------------------|
@@ -86,7 +83,7 @@ individually; see the base module doc for the full behavior:
 
 ---
 
-## Protocol Overview
+## Protocol
 
 ### Interface Signals
 
@@ -112,7 +109,7 @@ individually; see the base module doc for the full behavior:
 
 ---
 
-## Quick Start
+## Usage Examples
 
 ### Basic Skid Buffer
 
@@ -265,34 +262,11 @@ gaxi_drop_fifo_sync #(
 
 ---
 
-## Testing
-
-All GAXI modules are verified using CocoTB-based testbenches:
-
-```bash
-# Run all GAXI tests
-pytest val/amba/test_gaxi*.py -v
-
-# Run specific module tests
-pytest val/amba/test_gaxi_fifo_sync.py val/amba/test_gaxi_skid_buffer.py -v      # Skid buffers + sync FIFOs
-pytest val/cdc/test_gaxi_buffer_async.py -v     # Async FIFO
-pytest val/amba/test_gaxi_drop_fifo_sync.py -v   # Drop FIFO
-
-# Run with waveforms
-pytest val/amba/test_gaxi_fifo_sync.py val/amba/test_gaxi_skid_buffer.py --vcd=waves.vcd -v
-
-# Generate WaveDrom timing diagrams
-pytest val/amba/test_gaxi_wavedrom_example.py -v
-cd val/amba && bash wd_cmd.sh  # Generate PNG/SVG
-```
-
----
-
 ## Design Patterns
 
 ### Pattern 1: Timing Closure (Pipeline Stage)
 
-Use skid buffer to break combinatorial paths:
+Use a skid buffer to break a combinatorial path that's too long to close:
 
 ```systemverilog
 // Without buffer: long combinatorial path
@@ -312,7 +286,7 @@ gaxi_skid_buffer #(.DATA_WIDTH(32), .DEPTH(2)) u_pipeline (
 
 ### Pattern 2: Rate Adaptation
 
-Use FIFO to handle burst traffic:
+Use a FIFO to soak up burst traffic:
 
 ```systemverilog
 // Bursty writer, continuous reader
@@ -329,7 +303,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(64)) u_rate_adapter (
 
 ### Pattern 3: Clock Domain Crossing
 
-Use async FIFO for safe CDC:
+Use an async FIFO for safe CDC:
 
 ```systemverilog
 // Domain A → Domain B
@@ -377,6 +351,42 @@ All modules support **1 transfer per clock cycle** when not applying backpressur
 | gaxi_fifo_sync (D=16, DW=32) | ~100 LUTs | 512 FFs | + counters |
 | gaxi_fifo_async (D=16, DW=32) | ~150 LUTs | 512 FFs | + CDC logic |
 | gaxi_drop_fifo_sync (D=64, DW=32) | ~200 LUTs | 2048 FFs | + drop control |
+
+---
+
+## Parameter Selection Guidelines
+
+### Buffer Depth (DEPTH)
+
+| Application | Recommended Depth | Rationale |
+|-------------|-------------------|-----------|
+| Pipeline stage | 2-4 | Minimal latency, timing closure |
+| Video line buffer | 16-32 | Line-sized bursts |
+| Network packet buffer | 32-64 | Variable packet sizes |
+| CDC buffer | 8-16 | Handle clock ratio variations |
+
+### Output Mode (REGISTERED)
+
+**Mux Mode (REGISTERED=0):**
+- Lower latency (1 cycle)
+- Smaller area
+- May not meet timing with wide data
+- **Use for:** Narrow data (≤64 bits), non-critical paths
+
+**Flop Mode (REGISTERED=1):**
+- Better timing (registered output)
+- Supports wide data
+- Higher latency (2 cycles)
+- More area
+- **Use for:** Wide data (≥128 bits), critical paths
+
+### CDC Synchronizer Stages (N_FLOP_CROSS)
+
+| Stages | Use Case |
+|--------|----------|
+| 2 | Slow clocks (<100 MHz), low risk |
+| 3 | **Recommended default** |
+| 4+ | High-speed (>400 MHz) or high-reliability |
 
 ---
 
@@ -431,78 +441,17 @@ gaxi_fifo_async #(
 
 ---
 
-## Parameter Selection Guidelines
-
-### Buffer Depth (DEPTH)
-
-| Application | Recommended Depth | Rationale |
-|-------------|-------------------|-----------|
-| Pipeline stage | 2-4 | Minimal latency, timing closure |
-| Video line buffer | 16-32 | Line-sized bursts |
-| Network packet buffer | 32-64 | Variable packet sizes |
-| CDC buffer | 8-16 | Handle clock ratio variations |
-
-### Output Mode (REGISTERED)
-
-**Mux Mode (REGISTERED=0):**
-- ✅ Lower latency (1 cycle)
-- ✅ Smaller area
-- ❌ May not meet timing with wide data
-- **Use for:** Narrow data (≤64 bits), non-critical paths
-
-**Flop Mode (REGISTERED=1):**
-- ✅ Better timing (registered output)
-- ✅ Supports wide data
-- ❌ Higher latency (2 cycles)
-- ❌ More area
-- **Use for:** Wide data (≥128 bits), critical paths
-
-### CDC Synchronizer Stages (N_FLOP_CROSS)
-
-| Stages | Use Case |
-|--------|----------|
-| 2 | Slow clocks (<100 MHz), low risk |
-| 3 | **Recommended default** |
-| 4+ | High-speed (>400 MHz) or high-reliability |
-
----
-
-## Related Documentation
-
-### Comprehensive Guide
-
-- **[GAXI Index (Detailed)](index.md)** - Comprehensive guide with timing diagrams
-
-### Protocol Specifications
-
-- ARM AMBA AXI4-Stream Protocol Specification (similar handshake)
-
-### RTL Design Sherpa Documentation
-
-- **[rtl-amba Overview](../overview.md)** - Complete AMBA subsystem architecture
-- **[AXI4 Modules](../axi4/README.md)** - Full AXI4 protocol
-- **[AXIS4 Modules](../axis4/README.md)** - AXI4-Stream protocol
-- **[GAXI WaveDrom Tutorial](../../TestTutorial/wavedrom_gaxi_example.md)** - Timing diagrams
-
-### Source Code
-
-- RTL: `rtl/amba/gaxi/`
-- Tests: `val/amba/test_gaxi*.py`
-- Framework: `bin/TBClasses/components/gaxi/`
-
----
-
 ## Design Notes
 
 ### When to Use GAXI vs AXI4-Stream
 
-**✅ Use GAXI For:**
+**Use GAXI For:**
 - Internal buffering and timing closure
 - Simple data streaming
 - CDC with basic handshake
 - Infrastructure/glue logic
 
-**✅ Use AXI4-Stream For:**
+**Use AXI4-Stream For:**
 - External interfaces
 - Need TID/TDEST/TUSER signals
 - Complex routing requirements
@@ -511,26 +460,49 @@ gaxi_fifo_async #(
 ### Buffer vs FIFO Selection
 
 **Use Skid Buffer (gaxi_skid_buffer) When:**
-- ✅ Need to absorb short backpressure bursts
-- ✅ Shallow depth (2-8 entries)
-- ✅ Timing closure only
-- ✅ Minimal area
+- Need to absorb short backpressure bursts
+- Shallow depth (2-8 entries)
+- Timing closure only
+- Minimal area
 
 **Use FIFO (gaxi_fifo_sync) When:**
-- ✅ Need deeper buffering (16+ entries)
-- ✅ Rate adaptation required
-- ✅ Burst traffic handling
-- ✅ More predictable latency
+- Need deeper buffering (16+ entries)
+- Rate adaptation required
+- Burst traffic handling
+- More predictable latency
 
 **Use Async FIFO (gaxi_fifo_async) When:**
-- ✅ Clock domain crossing required
-- ✅ Independent clock domains
-- ✅ Need CDC-safe handshake
+- Clock domain crossing required
+- Independent clock domains
+- Need CDC-safe handshake
 
 **Use Drop FIFO (gaxi_drop_fifo_sync) When:**
-- ✅ Need to discard oldest data on overflow
-- ✅ Packet-based processing
-- ✅ Flush/reset functionality required
+- Need to discard oldest data on overflow
+- Packet-based processing
+- Flush/reset functionality required
+
+---
+
+## Testing
+
+Every GAXI module is verified with CocoTB-based testbenches:
+
+```bash
+# Run all GAXI tests
+pytest val/amba/test_gaxi*.py -v
+
+# Run specific module tests
+pytest val/amba/test_gaxi_fifo_sync.py val/amba/test_gaxi_skid_buffer.py -v      # Skid buffers + sync FIFOs
+pytest val/cdc/test_gaxi_buffer_async.py -v     # Async FIFO
+pytest val/amba/test_gaxi_drop_fifo_sync.py -v   # Drop FIFO
+
+# Run with waveforms
+pytest val/amba/test_gaxi_fifo_sync.py val/amba/test_gaxi_skid_buffer.py --vcd=waves.vcd -v
+
+# Generate WaveDrom timing diagrams
+pytest val/amba/test_gaxi_wavedrom_example.py -v
+cd val/amba && bash wd_cmd.sh  # Generate PNG/SVG
+```
 
 ---
 
@@ -564,6 +536,31 @@ gaxi_fifo_async #(
 2. Verify independent clock domains (no relationship)
 3. Check reset synchronization in both domains
 4. Use constraints for CDC paths
+
+---
+
+## Related Documentation
+
+### Comprehensive Guide
+
+- **[GAXI Index (Detailed)](index.md)** - Comprehensive guide with timing diagrams
+
+### Protocol Specifications
+
+- ARM AMBA AXI4-Stream Protocol Specification (similar handshake)
+
+### RTL Design Sherpa Documentation
+
+- **[rtl-amba Overview](../overview.md)** - Complete AMBA subsystem architecture
+- **[AXI4 Modules](../axi4/README.md)** - Full AXI4 protocol
+- **[AXIS4 Modules](../axis4/README.md)** - AXI4-Stream protocol
+- **[GAXI WaveDrom Tutorial](../../TestTutorial/wavedrom_gaxi_example.md)** - Timing diagrams
+
+### Source Code
+
+- RTL: `rtl/amba/gaxi/`
+- Tests: `val/amba/test_gaxi*.py`
+- Framework: `bin/TBClasses/components/gaxi/`
 
 ---
 

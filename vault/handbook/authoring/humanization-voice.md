@@ -79,3 +79,29 @@ destroys how they teach. Pipeline structure still survives byte-identical
 (captions, anchors, link targets) -- unification is cosmetic, never
 structural in the machine-readable sense. Carried in the run_batch.py
 humanize prompt wrapper, not the owner's style guide.
+
+## The no-emoji rule was never in the prompt (2026-08-10)
+
+It was written down in three places that the model never sees: this note, the
+`db18b03b` sweep commit, and the reviewer's own head. The humanize wrapper in
+`run_batch.py` carried the *unify structure* instruction and said nothing about
+emoji, and `kimi_humanization_style_guide.md` -- the brief actually sent -- was
+a pure voice guide.
+
+So the gaxi round came back having ADDED 20 glyphs (81 -> 101) across three
+pages, and `check_tag_survival.py` failed it with 3 FATAL. Every one of the 81
+pre-existing glyphs survived too, which is the same thing `db18b03b` observed on
+common: **the humanizer treats emoji as content and removes none.** A voice pass
+can never be the thing that cleans them up.
+
+Both rules now live where the model reads them -- the emoji prohibition with its
+per-glyph replacement table, and a canonical `##` section list, in the style
+guide, with a short form repeated in the wrapper. "Unify the headings" without
+naming the target set had let the model invent its own self-consistent scheme
+each round.
+
+The lesson generalizes past emoji: **a rule the pipeline enforces at the gate
+but never states in the prompt is a rule you have chosen to catch instead of
+prevent.** The gate is the backstop, not the specification.
+
+Related: [[kimi-review-rounds]], [[doc-pipeline]], [[module-doc-template]].

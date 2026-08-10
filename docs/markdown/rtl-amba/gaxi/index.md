@@ -21,19 +21,17 @@
 
 <!-- End Header -->
 
-**[← Back to rtl-amba Index](../index.md)** | **[Main Index](../../index.md)**
-
 # GAXI (Generic AXI) Interface Modules
 
 **Protocol:** Generic AXI-Stream-like handshake interface
 **Location:** `rtl/amba/gaxi/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-GAXI (Generic AXI) is a simplified valid/ready handshake protocol used for streaming data between components. It provides a lightweight interface that's simpler than full AXI-Stream while maintaining robust flow control.
+GAXI (Generic AXI) is a simplified valid/ready handshake protocol for streaming data between components. You give up the AXI-Stream sideband signals and keep a lightweight interface with flow control that holds up under backpressure.
 
 ### Key Features
 
@@ -60,7 +58,7 @@ GAXI (Generic AXI) is a simplified valid/ready handshake protocol used for strea
 
 ---
 
-## Protocol Specification
+## Protocol
 
 ### Interface Signals
 
@@ -179,6 +177,71 @@ gaxi_fifo_async #(
 
 ---
 
+## Design Patterns
+
+### Pattern 1: Timing Closure (Pipeline Stage)
+
+Use a skid buffer to break a combinatorial path that's too long to close:
+
+```systemverilog
+// Without skid buffer: long combinatorial path
+assign downstream_data = upstream_data;  // May not meet timing
+
+// With skid buffer: registered boundary
+gaxi_skid_buffer #(.DATA_WIDTH(32), .DEPTH(2)) u_pipeline (
+    .wr_valid(upstream_valid),
+    .wr_ready(upstream_ready),
+    .wr_data(upstream_data),
+    .rd_valid(downstream_valid),
+    .rd_ready(downstream_ready),
+    .rd_data(downstream_data),
+    ...
+);
+```
+
+### Pattern 2: Rate Adaptation
+
+Use a FIFO to soak up burst traffic:
+
+```systemverilog
+// Bursty writer, continuous reader
+gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(64)) u_rate_adapter (
+    .wr_valid(bursty_valid),  // Intermittent bursts
+    .wr_ready(bursty_ready),
+    .wr_data(bursty_data),
+    .rd_valid(continuous_valid),  // Always reading
+    .rd_ready(continuous_ready),
+    .rd_data(continuous_data),
+    ...
+);
+```
+
+### Pattern 3: Clock Domain Crossing
+
+Use an async FIFO for safe CDC:
+
+```systemverilog
+// Domain A → Domain B
+gaxi_fifo_async #(
+    .DATA_WIDTH(32),
+    .DEPTH(8),
+    .N_FLOP_CROSS(3)
+) u_cdc (
+    .axi_wr_aclk(clk_a),
+    .axi_wr_aresetn(rst_a_n),
+    .wr_valid(domain_a_valid),
+    .wr_ready(domain_a_ready),
+    .wr_data(domain_a_data),
+    .axi_rd_aclk(clk_b),
+    .axi_rd_aresetn(rst_b_n),
+    .rd_ready(domain_b_ready),
+    .rd_valid(domain_b_valid),
+    .rd_data(domain_b_data)
+);
+```
+
+---
+
 ## Performance Characteristics
 
 ### Latency
@@ -201,71 +264,6 @@ All modules support **1 transfer per clock cycle** when not applying backpressur
 | gaxi_skid_buffer (D=4) | ~50 LUTs | 4×DW flops | Shift register |
 | gaxi_fifo_sync (D=16) | ~100 LUTs | 16×DW flops | + counters |
 | gaxi_fifo_async (D=16) | ~150 LUTs | 16×DW flops | + CDC logic |
-
----
-
-## Design Patterns
-
-### Pattern 1: Timing Closure (Pipeline Stage)
-
-Use skid buffer to break combinatorial paths:
-
-```systemverilog
-// Without skid buffer: long combinatorial path
-assign downstream_data = upstream_data;  // May not meet timing
-
-// With skid buffer: registered boundary
-gaxi_skid_buffer #(.DATA_WIDTH(32), .DEPTH(2)) u_pipeline (
-    .wr_valid(upstream_valid),
-    .wr_ready(upstream_ready),
-    .wr_data(upstream_data),
-    .rd_valid(downstream_valid),
-    .rd_ready(downstream_ready),
-    .rd_data(downstream_data),
-    ...
-);
-```
-
-### Pattern 2: Rate Adaptation
-
-Use FIFO to handle burst traffic:
-
-```systemverilog
-// Bursty writer, continuous reader
-gaxi_fifo_sync #(.DATA_WIDTH(64), .DEPTH(64)) u_rate_adapter (
-    .wr_valid(bursty_valid),  // Intermittent bursts
-    .wr_ready(bursty_ready),
-    .wr_data(bursty_data),
-    .rd_valid(continuous_valid),  // Always reading
-    .rd_ready(continuous_ready),
-    .rd_data(continuous_data),
-    ...
-);
-```
-
-### Pattern 3: Clock Domain Crossing
-
-Use async FIFO for safe CDC:
-
-```systemverilog
-// Domain A → Domain B
-gaxi_fifo_async #(
-    .DATA_WIDTH(32),
-    .DEPTH(8),
-    .N_FLOP_CROSS(3)
-) u_cdc (
-    .axi_wr_aclk(clk_a),
-    .axi_wr_aresetn(rst_a_n),
-    .wr_valid(domain_a_valid),
-    .wr_ready(domain_a_ready),
-    .wr_data(domain_a_data),
-    .axi_rd_aclk(clk_b),
-    .axi_rd_aresetn(rst_b_n),
-    .rd_ready(domain_b_ready),
-    .rd_valid(domain_b_valid),
-    .rd_data(domain_b_data)
-);
-```
 
 ---
 
@@ -338,3 +336,10 @@ cd val/amba && bash wd_cmd.sh  # Generate PNG/SVG
 **Version:** 1.0
 **Last Updated:** 2025-10-06
 **Maintained By:** RTL Design Sherpa Project
+
+---
+
+## Navigation
+
+- **[← Back to rtl-amba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

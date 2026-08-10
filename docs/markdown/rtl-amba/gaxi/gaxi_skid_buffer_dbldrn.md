@@ -21,19 +21,19 @@
 
 <!-- End Header -->
 
-**[← Back to GAXI Index](README.md)** | **[← Back to rtl-amba Index](../index.md)**
-
-# GAXI Skid Buffer (Double-Drain)
+# gaxi_skid_buffer_dbldrn
 
 **Module:** `gaxi_skid_buffer_dbldrn.sv`
 **Location:** `rtl/amba/gaxi/`
 **Status:** Production Ready
 
+---
+
 ## Overview
 
-`gaxi_skid_buffer_dbldrn` is a "double-drain" variant of the [`gaxi_skid_buffer`](gaxi_skid_buffer.md). It keeps the same elastic write side and single-read output, but adds a **second read output** (`rd_data2`) and a **second drain request** (`rd_ready2`) so the consumer can pop **two entries in one clock** when at least two are buffered. This is useful for consumers that can retire two items per cycle (for example a 2-wide unpack or a burst aligner) and would otherwise be throughput-limited by a one-per-cycle drain.
+`gaxi_skid_buffer_dbldrn` is the double-drain variant of the [`gaxi_skid_buffer`](gaxi_skid_buffer.md). The elastic write side and the single-read output are unchanged; what's new is a **second read output** (`rd_data2`) and a **second drain request** (`rd_ready2`), so the consumer can pop **two entries in one clock** when at least two are buffered. That matters for consumers that can retire two items per cycle — a 2-wide unpack, a burst aligner — and would otherwise be throughput-limited by a one-per-cycle drain.
 
-Like the base skid buffer, storage is a shift register of `DEPTH` entries and the read/write handshakes use the GAXI valid/ready convention.
+Like the base skid buffer, storage is a shift register of `DEPTH` entries and the read/write handshakes use the GAXI valid/ready convention. The base buffer drains at most one entry per cycle, which caps a fast consumer at one item per clock; this variant lets the consumer drain the lowest and next-lowest entries together, doubling drain throughput while still honoring GAXI backpressure and preserving in-order (lowest-position-first) delivery.
 
 ### Key Features
 
@@ -44,10 +44,6 @@ Like the base skid buffer, storage is a shift register of `DEPTH` entries and th
 - **Backpressure-aware ready/valid:** `wr_ready` and `rd_valid` account for both drain widths
 - **Legality assertion:** Simulation `$error` fires if `rd_ready2` is asserted with fewer than two entries buffered
 
-## Module Purpose
-
-The base skid buffer drains at most one entry per cycle, which caps a fast consumer at one item per clock. This variant lets a consumer that can accept two items per cycle drain both the lowest and next-lowest buffered entries together, doubling drain throughput while still honoring GAXI backpressure and preserving in-order (lowest-position-first) delivery.
-
 **Use Cases:**
 
 - Feeding a consumer that retires two entries per clock (2-wide unpack, dual-issue, burst aligner)
@@ -55,6 +51,8 @@ The base skid buffer drains at most one entry per cycle, which caps a fast consu
 - Any place a `gaxi_skid_buffer` is used but the sink can opportunistically take a pair
 
 **Key Benefit:** Doubles peak drain throughput (two entries per clock) when two or more are buffered, while degrading gracefully to ordinary single-drain skid-buffer behavior when only one entry is available.
+
+---
 
 ## Parameters
 
@@ -66,45 +64,49 @@ The base skid buffer drains at most one entry per cycle, which caps a fast consu
 | `BUF_WIDTH` | int | `DATA_WIDTH * DEPTH` | Derived total shift-register width (do not override) |
 | `BW` | int | `BUF_WIDTH` | Derived alias for `BUF_WIDTH` (do not override) |
 
-## Port Groups
+---
+
+## Ports
 
 ### Clock and Reset
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `axi_aclk` | Input | 1 | Clock |
-| `axi_aresetn` | Input | 1 | Active-low asynchronous reset |
+| `axi_aclk` | input | 1 | Clock |
+| `axi_aresetn` | input | 1 | Active-low asynchronous reset |
 
-### Write Interface (input side)
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `wr_valid` | Input | 1 | Write data valid |
-| `wr_ready` | Output | 1 | Ready to accept a write (registered) |
-| `wr_data` | Input | DATA_WIDTH | Write data |
-
-### Read Interface (output side)
+### Write Interface
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `rd_valid` | Output | 1 | Read data valid (registered) |
-| `rd_ready` | Input | 1 | Consumer ready to accept a read |
-| `rd_ready2` | Input | 1 | Double-drain request; legal only when `rd_count >= 2` |
-| `rd_data` | Output | DATA_WIDTH | First (lowest-position) entry |
-| `rd_data2` | Output | DATA_WIDTH | Second (next-position) entry, valid when double-draining |
+| `wr_valid` | input | 1 | Write data valid |
+| `wr_ready` | output | 1 | Ready to accept a write (registered) |
+| `wr_data` | input | DATA_WIDTH | Write data |
+
+### Read Interface
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `rd_valid` | output | 1 | Read data valid (registered) |
+| `rd_ready` | input | 1 | Consumer ready to accept a read |
+| `rd_ready2` | input | 1 | Double-drain request; legal only when `rd_count >= 2` |
+| `rd_data` | output | DATA_WIDTH | First (lowest-position) entry |
+| `rd_data2` | output | DATA_WIDTH | Second (next-position) entry, valid when double-draining |
 
 ### Status
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `count` | Output | 4 | Current buffer occupancy |
-| `rd_count` | Output | 4 | Same as `count` (read-side occupancy) |
+| `count` | output | 4 | Current buffer occupancy |
+| `rd_count` | output | 4 | Same as `count` (read-side occupancy) |
+
+---
 
 ## Functional Description
 
 ### Transfer Detection
 
-Three transfer conditions are decoded combinationally. Note that a single read is only recognized when `rd_ready2` is **not** asserted, and a double read additionally requires two entries present:
+Three transfer conditions are decoded combinationally. A single read is only recognized when `rd_ready2` is **not** asserted, and a double read additionally requires two entries present:
 
 ```systemverilog
 assign w_wr_xfer     = wr_valid & wr_ready;
@@ -156,7 +158,9 @@ assign count    = r_data_count;
 
 A simulation-only check enforces the double-drain contract: asserting `rd_ready2` (with `rd_ready`) when fewer than two entries are buffered raises a `$error`. This catches consumers that request a double-drain the buffer cannot service.
 
-## Usage Example
+---
+
+## Usage Examples
 
 ```systemverilog
 // Skid buffer feeding a consumer that can retire two entries per clock.
@@ -182,6 +186,8 @@ gaxi_skid_buffer_dbldrn #(
 );
 ```
 
+---
+
 ## Design Notes
 
 - **`rd_ready2` legality.** Only assert `rd_ready2` (together with `rd_ready`) when `rd_count >= 2`. The RTL guards the transfer with the same condition, and the simulation assertion flags misuse.
@@ -190,32 +196,23 @@ gaxi_skid_buffer_dbldrn #(
 - **Graceful degradation.** With `rd_ready2` tied low the module is functionally an ordinary single-drain skid buffer.
 - **Reset macros.** The module uses the project `reset_defs.svh` `ALWAYS_FF_RST` / `RST_ASSERTED` macros for its registered state.
 
+---
+
 ## Related Modules
-
-### Used By
-
-- Consumers that retire two GAXI entries per clock (2-wide unpack / aligner front-ends)
-
-### Uses
-
-- None (self-contained; relies only on the `reset_defs.svh` reset macros)
-
-### See Also
 
 - [gaxi_skid_buffer](gaxi_skid_buffer.md) - The single-drain base skid buffer this variant extends
 - [gaxi_skid_buffer_struct](gaxi_skid_buffer_struct.md) - Struct-typed skid buffer variant
 - [gaxi_fifo_sync](gaxi_fifo_sync.md) - Larger-depth synchronous FIFO with optional registered output
 
+Self-contained: no RTL dependencies beyond the `reset_defs.svh` reset macros. Typical integrators are consumers that retire two GAXI entries per clock (2-wide unpack / aligner front-ends).
+
+---
+
 ## References
 
-### Source Code
-
-- `rtl/amba/gaxi/gaxi_skid_buffer_dbldrn.sv`
-- `rtl/amba/gaxi/gaxi_skid_buffer.sv` (base variant)
-
-### Documentation
-
-- `docs/markdown/rtl-amba/index.md`
+- **Source:** `rtl/amba/gaxi/gaxi_skid_buffer_dbldrn.sv`
+- **Base variant:** `rtl/amba/gaxi/gaxi_skid_buffer.sv`
+- **Documentation:** `docs/markdown/rtl-amba/index.md`
 
 ---
 

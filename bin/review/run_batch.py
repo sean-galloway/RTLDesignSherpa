@@ -130,6 +130,17 @@ def build_prompt(mode, unit, unit_dir):
                 "uniform mold. Never break pipeline structure while "
                 "unifying: caption lines (`: ...`), HTML anchors/comments, "
                 "and link targets survive byte-identical.\n\n"
+                "TWO HARD RULES, both gated -- a pass that breaks either is "
+                "rejected before it can be applied:\n"
+                "1. Emit NO emoji anywhere: not in headings, not leading "
+                "bullets, not in tables, not as status markers. This includes "
+                "emoji present in the SOURCE -- they are not content to "
+                "preserve. Your brief gives the replacement for each glyph "
+                "class; note that a lone warning glyph in a list of positives "
+                "carries meaning and becomes `Caveat: ...` rather than "
+                "vanishing.\n"
+                "2. Use the canonical `##` section list in your brief. Do not "
+                "invent your own consistent-but-different set.\n\n"
                 "Return the complete rewritten Markdown and nothing else.\n\n"
                 f"{docs}\n")
 

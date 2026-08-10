@@ -21,26 +21,31 @@
 
 <!-- End Header -->
 
-# GAXI Drop FIFO Sync
+# gaxi_drop_fifo_sync
+
+**Module:** `gaxi_drop_fifo_sync.sv`
+**Location:** `rtl/amba/gaxi/`
+**Status:** Production Ready
+
+---
 
 ## Overview
 
-The `gaxi_drop_fifo_sync` module is a synchronous FIFO with dynamic drop capability. It provides standard GAXI (Generic AXI) valid/ready handshaking for both write and read operations, plus an additional drop interface for removing entries from the FIFO without reading them.
+A synchronous GAXI FIFO with a trick most FIFOs don't have: a drop interface that removes entries without reading them. You get standard valid/ready handshaking on both the write and read sides, plus the ability to drop the N oldest entries or flush the whole buffer — the operation you want when stale packets are worse than no packets.
 
-**Key Features:**
-- Standard GAXI valid/ready handshaking
-- Configurable data width and depth
-- Drop by count (remove N oldest entries)
-- Drop all (flush entire FIFO)
-- I/O blocking during drop operations (3-cycle latency)
-- Registered or mux-based output modes
-- FIFO count output (`[AW:0]`); the almost-full/almost-empty flags stay internal
+### Key Features
 
-**Location**: `rtl/amba/gaxi/gaxi_drop_fifo_sync.sv`
+- **Standard Handshake:** GAXI valid/ready on write and read
+- **Configurable:** Data width and depth
+- **Drop by Count:** Remove N oldest entries
+- **Drop All:** Flush entire FIFO
+- **I/O Blocking:** Writes and reads pause during drop operations (3-cycle latency)
+- **Two Output Modes:** Registered or mux-based
+- **Occupancy Output:** FIFO count output (`[AW:0]`); the almost-full/almost-empty flags stay internal
 
-**Testbench**: `val/amba/test_gaxi_drop_fifo_sync.py`
+---
 
-## Module Parameters
+## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -54,29 +59,31 @@ The `gaxi_drop_fifo_sync` module is a synchronous FIFO with dynamic drop capabil
 > The `DATA_WIDTH`/`DEPTH` defaults are 4 and 4, not 32 and 16. They are sized
 > for a smoke test, so set both explicitly for anything real.
 
-## Interface Signals
+---
+
+## Ports
 
 ### Clock and Reset
 
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
 | `axi_aclk` | input | 1 | Clock signal |
 | `axi_aresetn` | input | 1 | Active-low asynchronous reset |
 
-### Write Interface (GAXI Master → FIFO)
+### Write Interface
 
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
 | `wr_valid` | input | 1 | Write data valid |
 | `wr_ready` | output | 1 | FIFO ready to accept write |
 | `wr_data` | input | DATA_WIDTH | Write data |
 
 **Handshake**: Write occurs when `wr_valid && wr_ready` on rising edge of clock.
 
-### Read Interface (FIFO → GAXI Slave)
+### Read Interface
 
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
 | `rd_valid` | output | 1 | Read data valid |
 | `rd_ready` | input | 1 | Downstream ready to accept read |
 | `rd_data` | output | DATA_WIDTH | Read data |
@@ -85,8 +92,8 @@ The `gaxi_drop_fifo_sync` module is a synchronous FIFO with dynamic drop capabil
 
 ### Drop Interface
 
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
 | `drop_valid` | input | 1 | Drop request valid |
 | `drop_ready` | output | 1 | Drop operation complete |
 | `drop_count` | input | $clog2(DEPTH)+1 | Number of entries to drop. 5 bits at DEPTH=16, 9 bits at DEPTH=256 — not a fixed 8. |
@@ -96,10 +103,10 @@ The `gaxi_drop_fifo_sync` module is a synchronous FIFO with dynamic drop capabil
 
 **Drop Latency**: 3 clock cycles from `drop_valid` assertion to `drop_ready` assertion.
 
-### Status Signals
+### Status
 
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
 | `count` | output | $clog2(DEPTH)+1 | Current number of entries in FIFO |
 
 > **There are no `almost_full` / `almost_empty` ports.** The module's port list
@@ -108,7 +115,9 @@ The `gaxi_drop_fifo_sync` module is a synchronous FIFO with dynamic drop capabil
 > out, so `ALMOST_WR_MARGIN` and `ALMOST_RD_MARGIN` have no observable effect.
 > Use `count` against your own threshold instead.
 
-## Drop Operation Behavior
+---
+
+## Functional Description
 
 ### Drop by Count
 
@@ -149,6 +158,8 @@ When `drop_valid=1` and `drop_all=1`, the FIFO is completely flushed:
 **Read + Drop**: Blocked - reads cannot proceed during drop operation.
 
 **Drop + Drop**: Not supported - wait for `drop_ready` before issuing next drop.
+
+---
 
 ## Timing Diagrams
 
@@ -213,6 +224,8 @@ This scenario demonstrates mixed operations:
 > `gaxi_drop_fifo_comprehensive.json` into `docs/markdown/assets/WAVES/`, but it does not
 > currently write the file; the diagram is a documentation gap, not a
 > missing feature of the module.
+
+---
 
 ## Usage Examples
 
@@ -301,40 +314,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Test Coverage
-
-Comprehensive verification is provided in `val/amba/test_gaxi_drop_fifo_sync.py`:
-
-| Test Scenario | Coverage |
-|---------------|----------|
-| **Basic FIFO Operation** | Standard write/read without drops |
-| **Drop by Count** | Partial FIFO flush with specific count |
-| **Drop All** | Complete FIFO flush |
-| **Drop During I/O** | Verify I/O blocking during drop |
-| **Wraparound with Drop** | Drop across pointer wraparound boundary |
-
-**Test Configurations**:
-- Data widths: 8, 32, 64 bits
-- Depths: 8, 16, 64, 256 entries
-- Modes: Mux (REGISTERED=0) and Flop (REGISTERED=1)
-
-**Results**: All 8 parameterized test cases pass ✅
-
-### Running Tests
-
-```bash
-# Run all drop FIFO tests
-pytest val/amba/test_gaxi_drop_fifo_sync.py -v
-
-# Run specific test configuration
-pytest "val/amba/test_gaxi_drop_fifo_sync.py::test_gaxi_drop_fifo_sync[8-8-0-minimal-mux]" -v
-
-# Run smoke test (quick verification)
-pytest val/amba/test_gaxi_drop_fifo_sync.py::test_gaxi_drop_fifo_smoke -v
-
-# Generate waveforms for documentation
-env ENABLE_WAVEDROM=1 pytest val/amba/test_gaxi_drop_fifo_wavedrom.py -v
-```
+---
 
 ## Design Notes
 
@@ -376,6 +356,43 @@ Configure `ALMOST_WR_MARGIN` and `ALMOST_RD_MARGIN` based on:
 
 Example: If upstream has 4-cycle latency, set `ALMOST_WR_MARGIN >= 4`.
 
+---
+
+## Testing
+
+Comprehensive verification lives in `val/amba/test_gaxi_drop_fifo_sync.py`:
+
+| Test Scenario | Coverage |
+|---------------|----------|
+| **Basic FIFO Operation** | Standard write/read without drops |
+| **Drop by Count** | Partial FIFO flush with specific count |
+| **Drop All** | Complete FIFO flush |
+| **Drop During I/O** | Verify I/O blocking during drop |
+| **Wraparound with Drop** | Drop across pointer wraparound boundary |
+
+**Test Configurations**:
+- Data widths: 8, 32, 64 bits
+- Depths: 8, 16, 64, 256 entries
+- Modes: Mux (REGISTERED=0) and Flop (REGISTERED=1)
+
+**Results**: All 8 parameterized test cases pass ### Running Tests
+
+```bash
+# Run all drop FIFO tests
+pytest val/amba/test_gaxi_drop_fifo_sync.py -v
+
+# Run specific test configuration
+pytest "val/amba/test_gaxi_drop_fifo_sync.py::test_gaxi_drop_fifo_sync[8-8-0-minimal-mux]" -v
+
+# Run smoke test (quick verification)
+pytest val/amba/test_gaxi_drop_fifo_sync.py::test_gaxi_drop_fifo_smoke -v
+
+# Generate waveforms for documentation
+env ENABLE_WAVEDROM=1 pytest val/amba/test_gaxi_drop_fifo_wavedrom.py -v
+```
+
+---
+
 ## Related Modules
 
 - `fifo_control.sv` - Core FIFO control logic
@@ -383,8 +400,14 @@ Example: If upstream has 4-cycle latency, set `ALMOST_WR_MARGIN >= 4`.
 - `counter_bin_load.sv` - Loadable binary counter for drop pointer updates
 - `gaxi_drop_fifo_async.sv` - Asynchronous clock domain version (future)
 
-## Revision History
+---
 
-| Version | Date | Description |
-|---------|------|-------------|
-| 1.0 | 2025-10-17 | Initial documentation with WaveDrom examples |
+**Version:** 1.0
+**Last Updated:** 2025-10-17
+
+---
+
+## Navigation
+
+- **[← Back to GAXI Index](README.md)**
+- **[← Back to rtl-amba Index](../index.md)**

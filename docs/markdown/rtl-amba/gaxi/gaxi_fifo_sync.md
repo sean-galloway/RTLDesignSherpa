@@ -21,25 +21,25 @@
 
 <!-- End Header -->
 
-# GAXI Synchronous FIFO
+# gaxi_fifo_sync
 
 **Module:** `gaxi_fifo_sync.sv`
 **Location:** `rtl/amba/gaxi/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The GAXI synchronous FIFO provides elastic buffering for any depth (power of 2 recommended). Unlike the skid buffer, this module uses a true FIFO architecture with read/write pointers, supporting larger depths efficiently.
+Unlike the skid buffer, this module is a true FIFO built on read/write pointers, which is what lets it support larger depths efficiently. Any depth works; a power of 2 is recommended.
 
 ### Key Features
 
-- ✅ **Arbitrary Depth:** Any depth supported (power of 2 optimal)
-- ✅ **Two Read Modes:** Mux mode (combinatorial) or Flop mode (registered)
-- ✅ **Counter-Based:** Binary counters with wrapping
-- ✅ **Occupancy Count:** `count` output, `[AW:0]` wide
-- ✅ **Single Clock Domain:** Synchronous design
+- **Arbitrary Depth:** Any depth supported (power of 2 optimal)
+- **Two Read Modes:** Mux mode (combinatorial) or Flop mode (registered)
+- **Counter-Based:** Binary counters with wrapping
+- **Occupancy Count:** `count` output, `[AW:0]` wide
+- **Single Clock Domain:** Synchronous design
 
 ---
 
@@ -73,14 +73,14 @@ module gaxi_fifo_sync #(
 
 ## Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `MEM_STYLE` | `FIFO_AUTO` | Memory inference hint. `FIFO_SRL` targets distributed RAM / MLAB, `FIFO_BRAM` targets block RAM and forces a synchronous read regardless of `REGISTERED`. `FIFO_AUTO` lets the tool choose. |
-| `REGISTERED` | 0 | 0=mux mode (comb read), 1=flop mode (reg read) |
-| `DATA_WIDTH` | 4 | Data bus width |
-| `DEPTH` | 4 | FIFO depth (any value, power-of-2 optimal) |
-| `ALMOST_WR_MARGIN` | 1 | Almost-full margin — internal only, no port |
-| `ALMOST_RD_MARGIN` | 1 | Almost-empty margin — internal only, no port |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `MEM_STYLE` | fifo_mem_t | `FIFO_AUTO` | Memory inference hint. `FIFO_SRL` targets distributed RAM / MLAB, `FIFO_BRAM` targets block RAM and forces a synchronous read regardless of `REGISTERED`. `FIFO_AUTO` lets the tool choose. |
+| `REGISTERED` | int | 0 | 0=mux mode (comb read), 1=flop mode (reg read) |
+| `DATA_WIDTH` | int | 4 | Data bus width |
+| `DEPTH` | int | 4 | FIFO depth (any value, power-of-2 optimal) |
+| `ALMOST_WR_MARGIN` | int | 1 | Almost-full margin — internal only, no port |
+| `ALMOST_RD_MARGIN` | int | 1 | Almost-empty margin — internal only, no port |
 
 > The almost-full/almost-empty flags are computed inside `fifo_control` but are
 > not brought out of `gaxi_fifo_sync`, so the two margins have no observable
@@ -136,6 +136,26 @@ flowchart LR
 
 ---
 
+## Timing Characteristics
+
+| Mode | Write→Read Latency | Max Throughput | Read Path |
+|------|-------------------|----------------|-----------|
+| Mux (REGISTERED=0) | 1 cycle | 1/cycle | Combinatorial |
+| Flop (REGISTERED=1) | 2 cycles | 1/cycle | Registered |
+
+---
+
+## Resource Utilization
+
+| DEPTH | Mode | Flops | LUTs | Memory Bits |
+|-------|------|-------|------|-------------|
+| 16 | Mux | 16×DW + ~20 | ~80 | 16×DW |
+| 16 | Flop | 16×DW + DW + ~20 | ~80 | 16×DW |
+| 64 | Mux | 64×DW + ~30 | ~120 | 64×DW |
+| 64 | Flop | 64×DW + DW + ~30 | ~120 | 64×DW |
+
+---
+
 ## Usage Examples
 
 ### Example 1: Mux Mode (Low Latency)
@@ -180,27 +200,9 @@ gaxi_fifo_sync #(
 
 ---
 
-## Timing Characteristics
-
-| Mode | Write→Read Latency | Max Throughput | Read Path |
-|------|-------------------|----------------|-----------|
-| Mux (REGISTERED=0) | 1 cycle | 1/cycle | Combinatorial |
-| Flop (REGISTERED=1) | 2 cycles | 1/cycle | Registered |
-
----
-
-## Resource Utilization
-
-| DEPTH | Mode | Flops | LUTs | Memory Bits |
-|-------|------|-------|------|-------------|
-| 16 | Mux | 16×DW + ~20 | ~80 | 16×DW |
-| 16 | Flop | 16×DW + DW + ~20 | ~80 | 16×DW |
-| 64 | Mux | 64×DW + ~30 | ~120 | 64×DW |
-| 64 | Flop | 64×DW + DW + ~30 | ~120 | 64×DW |
-
----
-
 ## Testing
+
+One testbench covers both output modes:
 
 ```bash
 # Test FIFO modes
@@ -220,3 +222,10 @@ pytest val/amba/test_gaxi_fifo_sync.py -k "fifo_flop" -v  # Flop mode
 
 **Version:** 1.0
 **Last Updated:** 2025-10-06
+
+---
+
+## Navigation
+
+- **[← Back to GAXI Index](README.md)**
+- **[← Back to rtl-amba Index](../index.md)**

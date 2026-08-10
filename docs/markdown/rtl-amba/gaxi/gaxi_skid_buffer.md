@@ -21,25 +21,25 @@
 
 <!-- End Header -->
 
-# GAXI Skid Buffer
+# gaxi_skid_buffer
 
 **Module:** `gaxi_skid_buffer.sv`
 **Location:** `rtl/amba/gaxi/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The GAXI skid buffer is an elastic buffer that decouples a producer from a consumer, absorbing backpressure so neither side has to stall the other. Storage is a shift register and the output is registered, so the minimum latency is one clock.
+The skid buffer is the simplest useful elastic buffer: it decouples a producer from a consumer and absorbs backpressure so neither side has to stall the other. Storage is a shift register and the output is registered, so the minimum latency is one clock.
 
 ### Key Features
 
-- ✅ **Registered Output:** Data appears one clock after an accepted write
-- ✅ **Elastic Buffering:** Depth 2-8 entries prevent pipeline stalls
-- ✅ **Single Clock Domain:** Synchronous design for simplicity
-- ✅ **Parameterized:** Configurable data width and depth
-- ✅ **Efficient:** Shift register implementation, minimal logic
+- **Registered Output:** Data appears one clock after an accepted write
+- **Elastic Buffering:** Depth 2-8 entries prevent pipeline stalls
+- **Single Clock Domain:** Synchronous design for simplicity
+- **Parameterized:** Configurable data width and depth
+- **Efficient:** Shift register implementation, minimal logic
 
 ---
 
@@ -386,7 +386,7 @@ end
 
 ---
 
-## Design Considerations
+## Design Notes
 
 ### Depth Selection
 
@@ -430,9 +430,7 @@ end
 | Minimum Latency | 1 cycle | 1 cycle | 1 cycle |
 | Backpressure Tolerance | Low | Moderate | High |
 
----
-
-## Error Checking
+### Error Checking
 
 **The module contains no assertions.** The 2026-04-23 storage refactor removed
 the checks this section used to quote, and the quoted code would not have
@@ -479,7 +477,7 @@ cd val/amba && bash wd_cmd.sh
 
 ---
 
-## Common Issues
+## Common Issues and Debugging
 
 ### Issue 1: Timing Violation on the Read Path
 
@@ -536,3 +534,10 @@ end
 **Version:** 1.0
 **Last Updated:** 2025-10-06
 **Maintained By:** RTL Design Sherpa Project
+
+---
+
+## Navigation
+
+- **[← Back to GAXI Index](README.md)**
+- **[← Back to rtl-amba Index](../index.md)**

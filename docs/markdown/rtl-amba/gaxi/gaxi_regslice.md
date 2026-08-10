@@ -21,26 +21,26 @@
 
 <!-- End Header -->
 
-# GAXI Register Slice
+# gaxi_regslice
 
 **Module:** `gaxi_regslice.sv`
 **Location:** `rtl/amba/gaxi/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The GAXI register slice provides a timing-friendly 1-deep elastic buffer for pipeline timing isolation. It implements the classic register slice pattern with always-registered data transfer, guaranteeing predictable 1-cycle latency and consistent throughput.
+This is the classic register slice: a 1-deep elastic buffer that exists for one reason — pipeline timing isolation. Data transfer is always registered, so you get a guaranteed, predictable 1-cycle latency and consistent throughput.
 
 ### Key Features
 
-- ✅ **Fixed 1-Cycle Latency:** Always registered, predictable timing
-- ✅ **Full Throughput:** 1 beat/cycle in steady state
-- ✅ **Elastic Buffering:** Absorbs single-cycle backpressure
-- ✅ **Port Compatible:** Intentionally aligned with gaxi_skid_buffer
-- ✅ **Ready/Valid Handshake:** Industry-standard AXI-like protocol
-- ✅ **Minimal Resources:** Single register stage
+- **Fixed 1-Cycle Latency:** Always registered, predictable timing
+- **Full Throughput:** 1 beat/cycle in steady state
+- **Elastic Buffering:** Absorbs single-cycle backpressure
+- **Port Compatible:** Intentionally aligned with gaxi_skid_buffer
+- **Ready/Valid Handshake:** Industry-standard AXI-like protocol
+- **Minimal Resources:** Single register stage
 
 ---
 
@@ -75,10 +75,10 @@ module gaxi_regslice #(
 
 ## Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `DATA_WIDTH` | 32 | Data bus width (arbitrary) |
-| `DW` | DATA_WIDTH | Derived parameter (internal use) |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `DATA_WIDTH` | int | 32 | Data bus width (arbitrary) |
+| `DW` | int | DATA_WIDTH | Derived parameter (internal use) |
 
 ---
 
@@ -154,6 +154,52 @@ endcase
 
 ---
 
+## Timing Characteristics
+
+| Characteristic | Value | Notes |
+|---------------|-------|-------|
+| Write→Read Latency | **1 cycle** | Always registered, fixed latency |
+| Max Throughput | **1 beat/cycle** | Sustained in steady state |
+| Backpressure Absorption | **1 beat** | Single-entry elastic buffer |
+| Read Path | **Registered** | No combinatorial paths |
+| Write Path | **Combinatorial** | wr_ready depends on rd_ready |
+
+### Latency Guarantee
+
+The register slice introduces exactly 1 cycle of latency. So does `gaxi_skid_buffer` -- the two differ in depth and backpressure absorption, not in minimum latency:
+
+```
+Cycle:   1      2      3      4      5
+         ─────  ─────  ─────  ─────  ─────
+wr_valid   ╱‾‾╲_____________________
+wr_data  =[ A ]=====================
+
+r_valid  ________╱‾‾‾‾‾‾‾‾‾╲_________
+r_data   ========[ A ]================
+
+rd_valid ________╱‾‾‾‾‾‾‾‾‾╲_________
+rd_data  ========[ A ]================
+         ↑
+         1-cycle delay guaranteed
+```
+
+---
+
+## Resource Utilization
+
+### FPGA Resources (Typical)
+
+| DATA_WIDTH | Flops | LUTs | Slice Registers |
+|------------|-------|------|-----------------|
+| 8 | 9 | ~6 | 9 |
+| 32 | 33 | ~12 | 33 |
+| 64 | 65 | ~18 | 65 |
+| 128 | 129 | ~24 | 129 |
+
+**Scaling:** Approximately DATA_WIDTH + 1 flops (data + valid flag)
+
+---
+
 ## Usage Examples
 
 ### Example 1: Pipeline Timing Isolation
@@ -181,7 +227,7 @@ gaxi_regslice #(
 // Register slice for AXI AR channel
 gaxi_regslice #(
     .DATA_WIDTH(AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2)
-    
+
 ) u_ar_regslice (
     .axi_aclk     (aclk),
     .axi_aresetn  (aresetn),
@@ -221,116 +267,57 @@ gaxi_regslice #(.DATA_WIDTH(32)) u_stage3 (
 // Total latency: 3 cycles, full throughput maintained
 ```
 
----
+### Example 4: Breaking Long Combinatorial Paths
 
-## Timing Characteristics
-
-| Characteristic | Value | Notes |
-|---------------|-------|-------|
-| Write→Read Latency | **1 cycle** | Always registered, fixed latency |
-| Max Throughput | **1 beat/cycle** | Sustained in steady state |
-| Backpressure Absorption | **1 beat** | Single-entry elastic buffer |
-| Read Path | **Registered** | No combinatorial paths |
-| Write Path | **Combinatorial** | wr_ready depends on rd_ready |
-
-### Latency Guarantee
-
-The register slice introduces exactly 1 cycle of latency. So does `gaxi_skid_buffer` -- the two differ in depth and backpressure absorption, not in minimum latency:
-
-```
-Cycle:   1      2      3      4      5
-         ─────  ─────  ─────  ─────  ─────
-wr_valid   ╱‾‾╲_____________________
-wr_data  =[ A ]=====================
-
-r_valid  ________╱‾‾‾‾‾‾‾‾‾╲_________
-r_data   ========[ A ]================
-
-rd_valid ________╱‾‾‾‾‾‾‾‾‾╲_________
-rd_data  ========[ A ]================
-         ↑
-         1-cycle delay guaranteed
+Problem: Critical path through multiple modules
+```systemverilog
+// Before: Long combinatorial path
+assign module_b_in = complex_function(module_a_out);
 ```
 
----
+Solution: Insert register slice
+```systemverilog
+// After: Broken with 1-cycle register
+gaxi_regslice #(.DATA_WIDTH(32)) u_break (
+    .axi_aclk(clk), .axi_aresetn(rst_n),
+    .wr_valid(module_a_valid), .wr_data(module_a_out), .wr_ready(module_a_ready),
+    .rd_valid(module_b_valid), .rd_data(module_b_in),   .rd_ready(module_b_ready)
+);
+```
 
-## Comparison with Related Modules
+### Example 5: AXI Interface Pipelining
 
-### gaxi_regslice vs gaxi_skid_buffer
+Improve timing across AXI channels:
+```systemverilog
+// Pipeline all 5 AXI4 channels
+gaxi_regslice #(...) u_ar_slice (...);  // Address Read
+gaxi_regslice #(...) u_r_slice  (...);  // Read Data
+gaxi_regslice #(...) u_aw_slice (...);  // Address Write
+gaxi_regslice #(...) u_w_slice  (...);  // Write Data
+gaxi_regslice #(...) u_b_slice  (...);  // Write Response
+```
 
-| Feature | gaxi_regslice | gaxi_skid_buffer |
-|---------|---------------|------------------|
-| **Depth** | 1 entry | DEPTH entries, one of {2, 4, 6, 8} |
-| **Latency** | **1 cycle (fixed)** | 1 cycle (fixed) |
-| **Bypass Path** | ❌ No | ❌ No |
-| **Throughput** | 1 beat/cycle | 1 beat/cycle |
-| **Use Case** | **Timing isolation** | **Backpressure absorption** |
-| **Registered Output** | ✅ Always | ✅ Always |
-| **Timing Closure** | ✅ Good | ✅ Good |
+### Example 6: CDC Preparation
 
-**When to Choose:**
-- **gaxi_regslice:** Timing closure priority, need predictable latency
-- **gaxi_skid_buffer:** Latency-sensitive paths, tolerate variable timing
+Use before async FIFO to ensure registered inputs:
+```systemverilog
+// Register slice before CDC FIFO
+gaxi_regslice #(.DATA_WIDTH(32)) u_pre_cdc (
+    .axi_aclk(clk_a), .axi_aresetn(rst_a_n),
+    .wr_valid(src_valid), .wr_data(src_data), .wr_ready(src_ready),
+    .rd_valid(fifo_wr_valid), .rd_data(fifo_wr_data), .rd_ready(fifo_wr_ready)
+);
 
-### gaxi_regslice vs gaxi_fifo_sync
-
-| Feature | gaxi_regslice | gaxi_fifo_sync |
-|---------|---------------|----------------|
-| **Depth** | 1 entry (fixed) | Parameterized (N entries) |
-| **Latency** | 1 cycle | 1-2 cycles (mode-dependent) |
-| **Resources** | Minimal (1 register) | Scales with depth |
-| **Use Case** | Pipeline breaks | Buffering, rate matching |
-
----
-
-## Resource Utilization
-
-### FPGA Resources (Typical)
-
-| DATA_WIDTH | Flops | LUTs | Slice Registers |
-|------------|-------|------|-----------------|
-| 8 | 9 | ~6 | 9 |
-| 32 | 33 | ~12 | 33 |
-| 64 | 65 | ~18 | 65 |
-| 128 | 129 | ~24 | 129 |
-
-**Scaling:** Approximately DATA_WIDTH + 1 flops (data + valid flag)
-
----
-
-## Testing
-
-### Test Coverage
-
-**Test File:** `val/amba/test_gaxi_regslice.py`
-
-**Test Methods:**
-- Simple incremental loops (fill/drain cycles)
-- Back-to-back transfers (sustained throughput)
-- Comprehensive randomizer sweep (varied timing patterns)
-- Stress test with random patterns
-
-**Test Levels:**
-- **basic:** Quick smoke test (~30s, 4 loops)
-- **medium:** Moderate coverage (~2min, expanded patterns)
-- **full:** Comprehensive validation (~5min, 100+ loops)
-
-### Run Tests
-
-```bash
-# Basic test (quick validation)
-TEST_LEVEL=basic pytest val/amba/test_gaxi_regslice.py -v
-
-# Medium test (normal CI)
-TEST_LEVEL=medium pytest val/amba/test_gaxi_regslice.py -v
-
-# Full test (pre-release validation)
-TEST_LEVEL=full pytest val/amba/test_gaxi_regslice.py -v
+gaxi_fifo_async #(.DATA_WIDTH(32), .DEPTH(16)) u_cdc_fifo (
+    .wr_clk(clk_a), .rd_clk(clk_b), ...
+    .wr_valid(fifo_wr_valid), .wr_data(fifo_wr_data), .wr_ready(fifo_wr_ready),
+    ...
+);
 ```
 
 ---
 
-## Design Considerations
+## Design Notes
 
 ### Port Compatibility
 
@@ -369,6 +356,65 @@ BFMs in `val/amba/test_gaxi_regslice.py`.
 
 ---
 
+## Testing
+
+**Test File:** `val/amba/test_gaxi_regslice.py`
+
+**Test Methods:**
+- Simple incremental loops (fill/drain cycles)
+- Back-to-back transfers (sustained throughput)
+- Comprehensive randomizer sweep (varied timing patterns)
+- Stress test with random patterns
+
+**Test Levels:**
+- **basic:** Quick smoke test (~30s, 4 loops)
+- **medium:** Moderate coverage (~2min, expanded patterns)
+- **full:** Comprehensive validation (~5min, 100+ loops)
+
+### Running Tests
+
+```bash
+# Basic test (quick validation)
+TEST_LEVEL=basic pytest val/amba/test_gaxi_regslice.py -v
+
+# Medium test (normal CI)
+TEST_LEVEL=medium pytest val/amba/test_gaxi_regslice.py -v
+
+# Full test (pre-release validation)
+TEST_LEVEL=full pytest val/amba/test_gaxi_regslice.py -v
+```
+
+---
+
+## Comparison with Related Modules
+
+### gaxi_regslice vs gaxi_skid_buffer
+
+| Feature | gaxi_regslice | gaxi_skid_buffer |
+|---------|---------------|------------------|
+| **Depth** | 1 entry | DEPTH entries, one of {2, 4, 6, 8} |
+| **Latency** | **1 cycle (fixed)** | 1 cycle (fixed) |
+| **Bypass Path** | No | No |
+| **Throughput** | 1 beat/cycle | 1 beat/cycle |
+| **Use Case** | **Timing isolation** | **Backpressure absorption** |
+| **Registered Output** | Always | Always |
+| **Timing Closure** | Good | Good |
+
+**When to Choose:**
+- **gaxi_regslice:** Timing closure priority, need predictable latency
+- **gaxi_skid_buffer:** Latency-sensitive paths, tolerate variable timing
+
+### gaxi_regslice vs gaxi_fifo_sync
+
+| Feature | gaxi_regslice | gaxi_fifo_sync |
+|---------|---------------|----------------|
+| **Depth** | 1 entry (fixed) | Parameterized (N entries) |
+| **Latency** | 1 cycle | 1-2 cycles (mode-dependent) |
+| **Resources** | Minimal (1 register) | Scales with depth |
+| **Use Case** | Pipeline breaks | Buffering, rate matching |
+
+---
+
 ## Related Modules
 
 - [gaxi_skid_buffer](gaxi_skid_buffer.md) - Same latency, deeper elastic storage
@@ -378,57 +424,12 @@ BFMs in `val/amba/test_gaxi_regslice.py`.
 
 ---
 
-## Common Use Cases
-
-### 1. Breaking Long Combinatorial Paths
-
-Problem: Critical path through multiple modules
-```systemverilog
-// Before: Long combinatorial path
-assign module_b_in = complex_function(module_a_out);
-```
-
-Solution: Insert register slice
-```systemverilog
-// After: Broken with 1-cycle register
-gaxi_regslice #(.DATA_WIDTH(32)) u_break (
-    .axi_aclk(clk), .axi_aresetn(rst_n),
-    .wr_valid(module_a_valid), .wr_data(module_a_out), .wr_ready(module_a_ready),
-    .rd_valid(module_b_valid), .rd_data(module_b_in),   .rd_ready(module_b_ready)
-);
-```
-
-### 2. AXI Interface Pipelining
-
-Improve timing across AXI channels:
-```systemverilog
-// Pipeline all 5 AXI4 channels
-gaxi_regslice #(...) u_ar_slice (...);  // Address Read
-gaxi_regslice #(...) u_r_slice  (...);  // Read Data
-gaxi_regslice #(...) u_aw_slice (...);  // Address Write
-gaxi_regslice #(...) u_w_slice  (...);  // Write Data
-gaxi_regslice #(...) u_b_slice  (...);  // Write Response
-```
-
-### 3. CDC Preparation
-
-Use before async FIFO to ensure registered inputs:
-```systemverilog
-// Register slice before CDC FIFO
-gaxi_regslice #(.DATA_WIDTH(32)) u_pre_cdc (
-    .axi_aclk(clk_a), .axi_aresetn(rst_a_n),
-    .wr_valid(src_valid), .wr_data(src_data), .wr_ready(src_ready),
-    .rd_valid(fifo_wr_valid), .rd_data(fifo_wr_data), .rd_ready(fifo_wr_ready)
-);
-
-gaxi_fifo_async #(.DATA_WIDTH(32), .DEPTH(16)) u_cdc_fifo (
-    .wr_clk(clk_a), .rd_clk(clk_b), ...
-    .wr_valid(fifo_wr_valid), .wr_data(fifo_wr_data), .wr_ready(fifo_wr_ready),
-    ...
-);
-```
+**Version:** 1.0
+**Last Updated:** 2025-10-23
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2025-10-23
+## Navigation
+
+- **[← Back to GAXI Index](README.md)**
+- **[← Back to rtl-amba Index](../index.md)**
