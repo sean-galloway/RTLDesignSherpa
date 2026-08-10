@@ -93,13 +93,15 @@ class BF16MantissaMultTB(TBBase):
             exp_round = (exp_product >> 6) & 1
             guard = (exp_product >> 7) & 1
             sticky_raw = (exp_product & 0x3F) != 0
-            exp_sticky = 1 if (guard or sticky_raw) else 0
+            # TRUE sticky since MATH-001: the fold (guard|sticky) made RNE
+            # ties-at-even round up in the consumer.
+            exp_sticky = 1 if sticky_raw else 0
         else:
             # G=[6], R=[5], S=|[4:0]
             exp_round = (exp_product >> 5) & 1
             guard = (exp_product >> 6) & 1
             sticky_raw = (exp_product & 0x1F) != 0
-            exp_sticky = 1 if (guard or sticky_raw) else 0
+            exp_sticky = 1 if sticky_raw else 0
 
         self.test_count += 1
 

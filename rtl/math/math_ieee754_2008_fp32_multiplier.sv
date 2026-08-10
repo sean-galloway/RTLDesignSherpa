@@ -73,6 +73,7 @@ wire w_sign_result = w_sign_a ^ w_sign_b;
 wire [47:0] w_mant_product;
 wire        w_needs_norm;
 wire [22:0] w_mant_mult_out;
+wire        w_guard_bit;
 wire        w_round_bit;
 wire        w_sticky_bit;
 
