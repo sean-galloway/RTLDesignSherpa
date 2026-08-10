@@ -32,8 +32,16 @@ module gaxi_regslice #(
     output logic [DW-1:0] rd_data,
 
     // Status/Monitoring (kept for interface compatibility)
+    // verilator coverage_off
+    // DEFENSIVE: bits [3:1] are illegal states here, unreachable by
+    // construction -- count is assigned `r_valid ? 4'd1 : 4'd0` on a
+    // single-entry slice, so only bit 0 can ever toggle. The 4-bit width
+    // exists for interface compatibility with the FIFOs, not because this
+    // module can count that high. Waived rather than chased: no stimulus can
+    // set them.
     output logic [3:0]    count,     // 0 or 1
     output logic [3:0]    rd_count   // mirror of count
+    // verilator coverage_on
 );
 
     // ------------------------------------------------------------------------

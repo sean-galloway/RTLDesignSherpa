@@ -210,12 +210,20 @@ module gaxi_fifo_sync #(
     // ---------------------------------------------------------------------
     // Overflow/underflow error checking
     // ---------------------------------------------------------------------
+    // verilator coverage_off
+    // DEFENSIVE: Illegal states, unreachable by construction. wr_ready is
+    // !r_wr_full and w_write is wr_valid && wr_ready, so `w_write && r_wr_full`
+    // expands to `wr_valid && !full && full` -- always false. The underflow arm
+    // is the same shape against rd_valid = !r_rd_empty. No stimulus can reach
+    // either, so they are waived rather than chased: a producer cannot be
+    // accepted by a full FIFO, which is the property, not a bug to catch.
     always_ff @(posedge axi_aclk) begin
         if (w_write && r_wr_full) begin
         end
         if (w_read && r_rd_empty) begin
         end
     end
+    // verilator coverage_on
 
 endmodule : gaxi_fifo_sync
 
