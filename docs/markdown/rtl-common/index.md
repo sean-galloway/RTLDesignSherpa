@@ -58,6 +58,7 @@ the three agree.
 - **[arbiter_round_robin](arbiter_round_robin.md)** - Advanced round-robin arbiter
 - **[arbiter_round_robin_weighted](arbiter_round_robin_weighted.md)** - Weighted round-robin arbiter (grant-count shares)
 - **[arbiter_deficit_round_robin](arbiter_deficit_round_robin.md)** - Deficit round-robin arbiter (cost-proportional shares)
+- **[arbiter_token_bucket](arbiter_token_bucket.md)** - Token-bucket request shaper (rate limiting in front of any arbiter)
 - **[arbiter_single_client](arbiter_single_client.md)** - Degenerate single-client arbiter (registered ack-held grant)
 - **[arbiter_priority_encoder](arbiter_priority_encoder.md)** - Priority-based arbiter
 
@@ -150,7 +151,7 @@ modules: [fifo_sync_multi](../rtl-integ-common/fifo_sync_multi.md) and
 
 ### Module Count by Category
 
-**49 modules** in `rtl/common/`. Two sets have moved out, and they're counted in
+**48 modules** in `rtl/common/`. Two sets have moved out, and they're counted in
 their own books, not here:
 
 - Arithmetic (`math_*`) split out to `rtl/math/` — see [rtl-math](../rtl-math/index.md).
@@ -165,7 +166,7 @@ their own books, not here:
 | Counters | 6 |
 | Bit Ops & Search | 6 |
 | Shifters & LFSRs | 6 |
-| Arbiters | 5 |
+| Arbiters | 7 |
 | Conversion & Encoding | 5 |
 | Miscellaneous | 3 |
 | FIFOs | 2 |

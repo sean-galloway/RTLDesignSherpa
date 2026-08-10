@@ -364,7 +364,7 @@ module arbiter_deficit_round_robin #(
     // Pre-computed Helper Signals
     // =======================================================================
 
-    logic [QW-1:0]         client_quantum [C];   // Per-client quanta
+    logic [QW-1:0]         w_client_quantum [C];   // Per-client quanta
     logic [COST_WIDTH-1:0] w_cost_raw     [C];   // Per-client raw cost
     logic [DW-1:0]         w_cost         [C];   // Cost widened, 0 mapped to 1
     logic                  w_normal_operation;
@@ -373,8 +373,8 @@ module arbiter_deficit_round_robin #(
 
     generate
         for (genvar j = 0; j < CLIENTS; j++) begin : gen_quanta
-            assign client_quantum[j] = r_safe_quantum[(j+1)*QW-1 -: QW];
-            assign w_valid_clients[j] = (client_quantum[j] > 0);
+            assign w_client_quantum[j] = r_safe_quantum[(j+1)*QW-1 -: QW];
+            assign w_valid_clients[j] = (w_client_quantum[j] > 0);
             assign w_cost_raw[j] = req_cost[(j+1)*COST_WIDTH-1 -: COST_WIDTH];
             // Defensive: a zero cost is served as cost 1, so it still spends
             // deficit and cannot starve the other clients.
@@ -447,7 +447,7 @@ module arbiter_deficit_round_robin #(
                                            (r_deficit[i] - r_cost_arb[i]) : '0;
                         end else if (w_global_replenish && w_valid_clients[i]) begin
                             // One DRR round-visit: add this client's quantum
-                            w_deficit[i] = r_deficit[i] + DW'(client_quantum[i]);
+                            w_deficit[i] = r_deficit[i] + DW'(w_client_quantum[i]);
                         end
                     end
 

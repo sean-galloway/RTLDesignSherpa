@@ -40,8 +40,11 @@ integration support.
   owner, so the model's mask lagged one grant forever. ACK mode now asserts on
   the compliance verdict.
 - **COMMON-003** — integration examples (P2).
-- **COMMON-007** — additional arbiter types (P3), deferred pending a real
-  consumer. The last open task in the area.
+- **COMMON-007** — additional arbiter types. TWO of three shipped:
+  arbiter_deficit_round_robin (2026-08-09, cost-proportional shares, sibling
+  wrapper to the WRR) and arbiter_token_bucket (2026-08-10, free-standing
+  rate shaper). Only hierarchical (grouped two-level composition) remains,
+  deferred pending a consumer. The last open task in the area.
 - **COMMON-008** — CLOSED 2026-08-09: premise false — dataint_crc already
   does CHUNKS = DATA_WIDTH/8 bytes per cycle (cascaded stages +
   cascade_sel); default build is 8 bytes/cycle. See closed.md.
