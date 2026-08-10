@@ -1,0 +1,48 @@
+# Bridge Configuration: 1x2 read-write bridge with an APB5 slave
+# (BRIDGE-002 phase A5-3c).
+#
+# One AXI4 master, one AXI4 slave, one APB5 peripheral slave. The APB5
+# port goes through the axi4_to_apb5_shim (protocol engine identical to
+# APB4; PAUSER/PWUSER driven '0, PWAKEUP/PRUSER/PBUSER terminated) and
+# mirrors rtl/amba/apb5/apb5_slave.sv pin-for-pin.
+# Connectivity comes from bridge_1x2_rw_apb5_connectivity.csv.
+
+[bridge]
+name = "bridge_1x2_rw_apb5"
+variants = ["no", "mon"]
+description = "AXI4 master x (1 AXI4 + 1 APB5) slave rw bridge (A5-3c)"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+mon_add = ["compl"]
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+mon_add = ["compl"]
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "periph5"
+prefix = "periph5_"
+protocol = "apb5"
+channels = "rw"
+id_width = 0  # APB has no transaction IDs
+addr_width = 32
+data_width = 32
+user_width = 0
+mon_add = ["compl"]
+base_addr = "0x80000000"
+addr_range = "0x00010000"  # 64KB

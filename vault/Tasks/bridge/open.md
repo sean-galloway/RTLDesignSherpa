@@ -144,7 +144,19 @@ reads" rule keeps routing unambiguous once tracked.
   apb4 shim; PAUSER/PWUSER tied '0 out, PWAKEUP/PRUSER/PBUSER
   terminated in; mirrors apb5_slave.sv pin-for-pin) + its closure
   filelist; lint/audit/decl-order clean.
-  *Step 2 implementation map (surveyed, not yet coded):* treat apb5
+  *Step 2 DONE (2026-08-10):* protocol="apb5" through the whole
+  generator stack per the map below — all 14 protocol-test sites,
+  the Axi4ToApbShim component's protocol switch, bridge-top +
+  adapter + instance external surfaces (5 extra pins), validator/
+  config whitelist, filelist emission, and the TB template's three
+  apb branches (APB4 BFM drives the APB5 port: same transfer
+  protocol, extras terminate in the shim). Fixture
+  bridge_1x2_rw_apb5 (+_mon) in the manifest; sims 2/2 green;
+  50 generator unit tests; 22/22 bridges regenerate — RTL
+  byte-identical for all 21 pre-existing (TBs picked up one
+  semantically-neutral template line). A5-3c CLOSED; next is A5-3a
+  (store-class atomics + the axi5_atomic_filter IP).
+  *Step 2 implementation map (as executed):* treat apb5
   as "the apb branch + 5 extra external pins" everywhere:
   (a) Axi4ToApbShim component gets protocol='apb4'|'apb5' (module
   name swap + connect_apb4_master emits the 5 extra pairs);

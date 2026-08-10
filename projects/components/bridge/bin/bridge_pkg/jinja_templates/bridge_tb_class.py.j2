@@ -255,7 +255,7 @@ class {{ tb_class_name }}(TBBase):
             master_width = self.master_data_width.get(master_idx, self.data_width)
             byte_count = master_width // 8
         offset = addr - base
-        if proto == 'apb':
+        if proto in ('apb', 'apb5'):
             apb = self.slave_apb[slave_idx]
             data_bytes = apb.mem.read(offset, byte_count)
         else:
@@ -270,7 +270,7 @@ class {{ tb_class_name }}(TBBase):
 {% for master in masters %}
     def _setup_master_{{ loop.index0 }}_{{ master.port_name }}(self):
         """Set up protocol BFMs for master {{ loop.index0 }}: {{ master.port_name }} (protocol: {{ master.protocol }})"""
-{% if master.protocol.lower() == 'apb' %}
+{% if master.protocol.lower() in ('apb', 'apb5') %}
         self.master_apb[{{ loop.index0 }}] = APBMaster(
             entity=self.dut,
             title="APB_M{{ loop.index0 }}",
@@ -336,7 +336,7 @@ class {{ tb_class_name }}(TBBase):
 {% for slave in slaves %}
     def _setup_slave_{{ loop.index0 }}_{{ slave.port_name }}(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave {{ loop.index0 }}: {{ slave.port_name }} (protocol: {{ slave.protocol }})"""
-{% if slave.protocol.lower() == 'apb' %}
+{% if slave.protocol.lower() in ('apb', 'apb5') %}
         # APB slave — APBSlave manages its own internal memory; pre-seed
         # it with the slave-specific pattern via direct memory writes.
         preset = self._build_preset({{ loop.index0 }}, {{ '0x%08x' % slave.addr_range }}, {{ slave.data_width }})

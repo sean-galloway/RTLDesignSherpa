@@ -666,7 +666,7 @@ class CrossbarGenerator:
 
         lines.append(f"    // Single master: {master.name} → {slave.name}")
         lines.append(f"    // Master width: {master.data_width}b, Slave width: {slave.data_width}b")
-        lines.append(f"    // Using {suffix} path from adapter (APB LCD width)" if slave.protocol == 'apb' else f"    // Using {suffix} path from adapter")
+        lines.append(f"    // Using {suffix} path from adapter (APB LCD width)" if slave.protocol in ('apb', 'apb5') else f"    // Using {suffix} path from adapter")
         lines.append("")
 
         # Write channels

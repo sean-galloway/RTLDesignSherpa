@@ -60,13 +60,13 @@ def validate_protocol(protocol: str, port_name: str) -> None:
     Validate protocol field value.
 
     Args:
-        protocol: Protocol specification ('axi4', 'axi5', 'apb', 'axil')
+        protocol: Protocol specification ('axi4', 'axi5', 'apb', 'apb5', 'axil')
         port_name: Port name for error messages
 
     Raises:
         ValidationError: If protocol value is invalid
     """
-    valid_protocols = {'axi4', 'axi5', 'apb', 'axil'}
+    valid_protocols = {'axi4', 'axi5', 'apb', 'apb5', 'axil'}
     if protocol not in valid_protocols:
         raise ValidationError(
             f"Invalid protocol '{protocol}' for port '{port_name}'. "
@@ -270,8 +270,9 @@ def validate_apb_constraints(port: PortSpec) -> None:
     Raises:
         ValidationError: If APB constraints are violated
     """
-    if port.protocol != 'apb':
-        return  # Not APB, skip
+    if port.protocol not in ('apb', 'apb5'):
+        return  # Not APB/APB5, skip (apb5 shares APB4's transfer
+        # protocol, so the same rw-only/32-bit constraints apply)
 
     # APB must be read-write
     if port.channels != 'rw':

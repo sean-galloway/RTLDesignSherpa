@@ -878,6 +878,16 @@ def _emit_bridge_variant(
         filelist_lines.append(
             "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb4_shim.f")
 
+    # APB5 slaves (A5-3c): the axi4_to_apb5_shim wrapper. Its closure
+    # filelist -f's the apb4 shim's closure, so this replaces (not
+    # augments) the apb4 entry when only apb5 slaves are present.
+    has_apb5 = any(slave.protocol.lower() == 'apb5' for slave in config.slaves)
+    if has_apb5:
+        filelist_lines.append("")
+        filelist_lines.append("# AXI4-to-APB5 converter shim (protocol=apb5 slaves)")
+        filelist_lines.append(
+            "-f $REPO_ROOT/projects/components/converters/rtl/filelists/axi4_to_apb5_shim.f")
+
     # Check if any slaves use AXI4-Lite protocol
     has_axil = any(slave.protocol.lower() == 'axil' for slave in config.slaves)
     if has_axil:
