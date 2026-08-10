@@ -169,6 +169,15 @@ GAXI_RANDOMIZER_CONFIGS = {
         'master': {'valid_delay': ([(8, 20)], [1])},
         'slave':  {'ready_delay': ([(8, 20)], [1])}
     },
+    # A genuinely slow consumer against a producer running flat out. The other
+    # profiles delay both sides together, so the FIFO between them never gets
+    # ahead of itself and never reaches full -- occupancy stays shallow no
+    # matter how long the test runs. This one is deliberately lopsided: that is
+    # what drives a FIFO to its capacity, and with it the top bit of `count`.
+    'slow_consumer': {
+        'master': {'valid_delay': ([(0, 0)], [1])},
+        'slave':  {'ready_delay': ([(40, 80)], [1])}
+    },
     'high_throughput': {
         'master': {'valid_delay': ([(0, 1)], [1])},
         'slave':  {'ready_delay': ([(0, 1)], [1])}

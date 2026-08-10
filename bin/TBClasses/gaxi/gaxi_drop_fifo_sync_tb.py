@@ -433,6 +433,83 @@ class GaxiDropFifoSyncTB(TBBase):
         assert dut_count == model_count, \
             f"Count mismatch: DUT={dut_count}, Model={model_count}"
 
+    async def test_fill_and_random_drop(self):
+        """Let a slow consumer drive the FIFO to nearly full, then drop a
+        random amount of it.
+
+        The FIFO reaching capacity is not something to poke at directly -- it
+        is what happens when the producer outruns the consumer, so the stimulus
+        produces it rather than the test asserting its way there. The
+        'slow_consumer' profile is deliberately lopsided (producer flat out,
+        consumer 40-80 cycles a beat) because every other profile delays both
+        sides together, which keeps occupancy shallow however long you run.
+
+        The drop size is then chosen randomly from what is actually in the FIFO
+        at that moment, so it varies per run and per depth instead of being the
+        same 2 or 3 entries every time. At DEPTH=256 that is the only thing
+        that ever puts a large value on the 9-bit drop_count port.
+
+        drop_count <= count is the documented constraint; one more would
+        corrupt the FIFO silently, so the random choice is bounded by the live
+        occupancy, never by DEPTH.
+        """
+        self.dut._log.info("Testing fill-to-nearly-full then random drop")
+
+        self.set_timing_profile('backtoback', 'slow_consumer')
+        mask = (1 << self.data_width) - 1
+        # Let it reach actual capacity, not one short. A flat-out producer
+        # against a slow consumer gets there on its own -- wr_ready simply
+        # deasserts -- and `count`'s top bit only sets at exactly DEPTH, so
+        # stopping at depth-1 leaves the full condition unobserved.
+        target = self.depth
+
+        # Producer runs flat out; the consumer takes a beat only when its
+        # profile's delay has elapsed, so the FIFO climbs.
+        credit = self._consumer_delay()
+        for i in range(self.depth * 4):
+            if self.get_fifo_count() >= target:
+                break
+            await self.write_entry((0x20 + i) & mask)
+            credit -= 1
+            if credit <= 0:
+                if int(self.dut.rd_valid.value) == 1:
+                    self.dut.rd_ready.value = 1
+                    await RisingEdge(self.clk)
+                    self.dut.rd_ready.value = 0
+                    await Timer(200, units='ps')
+                credit = self._consumer_delay()
+
+        await self.wait_clocks(self.clk_name, 2)
+        count_before = self.get_fifo_count()
+        assert count_before >= target, (
+            f"slow consumer failed to fill: count={count_before}, "
+            f"wanted {target} (depth={self.depth})")
+
+        # Randomly choose how much of it to discard, bounded by what is there.
+        n = random.randint(1, count_before)
+        self.dut._log.info(f"  count={count_before}, dropping {n}")
+        await self.drop_entries(count=n, drop_all=False)
+
+        count_after = self.get_fifo_count()
+        assert count_after == count_before - n, (
+            f"drop of {n} from {count_before} left {count_after}, "
+            f"expected {count_before - n}")
+
+        # Still usable afterwards.
+        self.fifo_model.clear()
+        self.set_timing_profile('fast', 'fast')
+        await self.write_entry(0x5A & mask)
+        await self.wait_clocks(self.clk_name, 2)
+        while self.get_fifo_count() > 1:
+            self.dut.rd_ready.value = 1
+            await RisingEdge(self.clk)
+            self.dut.rd_ready.value = 0
+            await Timer(200, units='ps')
+            self.fifo_model.clear()
+        success, data = await self.read_entry()
+        assert success and data == (0x5A & mask), \
+            f"FIFO unusable after a random drop: got {data:#x}"
+
     async def test_streaming_read(self):
         """Drain the FIFO with rd_ready held high, checking every beat.
 
