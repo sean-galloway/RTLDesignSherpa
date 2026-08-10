@@ -402,7 +402,7 @@ def generate_test_params():
     REG_LEVEL values:
         GATE: 2 tests - minimal smoke test (one per mode) (~6 min)
         FUNC: 8 tests - functional coverage (~30 min) - DEFAULT
-        FULL: 72 tests - comprehensive validation (~4 hours)
+        FULL: 96 tests - comprehensive validation (~5 hours)
 
     For debugging, override REG_LEVEL:
         REG_LEVEL=GATE pytest test_gaxi_fifo_sync.py -v
@@ -430,13 +430,28 @@ def generate_test_params():
     else:  # FULL
         # Comprehensive testing - all meaningful combinations
         widths = [8, 16, 32, 64]
-        depths = [2, 4, 8]
+        # 3 and 11 are deliberate. This module takes ANY depth, odd included:
+        # its pointers are counter_bin, which holds the low bits in [0, MAX-1]
+        # and carries a separate wrap flag, so MAX never has to be a power of
+        # 2. Nothing exercised that until now -- the grid was 2/4/8 throughout,
+        # and a documented capability that is only ever run at powers of 2 is
+        # not a tested one. Verified at 3, 5, 6, 7, 11 and 12: order preserved
+        # across repeated wraps, count saturating at DEPTH, wr_ready dropping
+        # when full.
+        #
+        # gaxi_drop_fifo_sync is the opposite case and DOES require a power of
+        # 2 -- its drop path adds into the pointer and wraps at 2*MAX, an
+        # encoding that agrees with counter_bin's only when MAX is a power of
+        # 2. Measured at DEPTH=6: a 2-entry drop returned 0x00 0x11 0x12 where
+        # 0x12 0x13 0x14 was written, while count still read 5 -> 3. Do not
+        # copy this depth list into that module's grid.
+        depths = [3, 4, 8, 11]
         registered = [0, 1]  # Both modes
         clk_periods = [10]
         test_levels = ['gate', 'func', 'full']
 
         return list(product(widths, depths, registered, clk_periods, test_levels))
-        # Result: 4 widths × 3 depths × 2 modes × 3 levels = 72 tests
+        # Result: 4 widths × 4 depths × 2 modes × 3 levels = 96 tests
 
 
 params = generate_test_params()
