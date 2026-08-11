@@ -59,7 +59,7 @@ The module provides a drop-in single-client arbiter so that a design parameteriz
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `WAIT_GNT_ACK` | int | 1 | `1` = registered grant is held until `grant_ack` is received (round-robin ACK lifecycle). `0` = simple registered request-to-grant with no ack hold. |
+| WAIT_GNT_ACK | int | 1 | `1` = registered grant is held until `grant_ack` is received (round-robin ACK lifecycle). `0` = simple registered request-to-grant with no ack hold. |
 
 ## Ports
 
@@ -67,21 +67,21 @@ The module provides a drop-in single-client arbiter so that a design parameteriz
 
 | Port | Width | Description |
 |------|-------|-------------|
-| `clk` | 1 | Clock |
-| `rst_n` | 1 | Active-low asynchronous reset |
-| `block_arb` | 1 | Block arbitration; when high the request is masked and no grant is issued |
-| `request` | 1 | The single client's request |
-| `grant_ack` | 1 | The single client's grant acknowledgment (used only when `WAIT_GNT_ACK = 1`) |
+| clk | 1 | Clock |
+| rst_n | 1 | Active-low asynchronous reset |
+| block_arb | 1 | Block arbitration; when high the request is masked and no grant is issued |
+| request | 1 | The single client's request |
+| grant_ack | 1 | The single client's grant acknowledgment (used only when `WAIT_GNT_ACK = 1`) |
 
 ### Outputs
 
 | Port | Width | Description |
 |------|-------|-------------|
-| `grant_valid` | 1 | Grant valid (registered) |
-| `grant` | 1 | One-hot grant of width 1; equal to `grant_valid` |
-| `grant_id` | 1 | Granted client index; always `0` for a single client |
+| grant_valid | 1 | Grant valid (registered) |
+| grant | 1 | One-hot grant of width 1; equal to `grant_valid` |
+| grant_id | 1 | Granted client index; always `0` for a single client |
 
-## Functionality
+## Functional Description
 
 ### Request Qualification
 
@@ -137,7 +137,7 @@ assign grant_id = 1'b0;          // single client
 
 Because there is exactly one client, `grant` and `grant_valid` are identical, and `grant_id` is a constant 0.
 
-## Usage Examples
+## Usage Example
 
 ```systemverilog
 // Single-channel build: use arbiter_single_client where a >1-channel
@@ -156,7 +156,7 @@ arbiter_single_client #(
 );
 ```
 
-## Design Considerations
+## Design Notes
 
 - **Why not a combinational passthrough?** `grant = request` looks correct for one client but loses the registered, ack-held timing. The AXI read/write engines interpret the missing hold as an early grant drop and insert a bubble beat at every burst boundary. This module preserves the exact cycle-by-cycle behavior.
 - **`grant_id` degeneracy.** The general arbiter's `grant_id` is `$clog2(CLIENTS)` bits wide, which collapses to an illegal `[-1:0]` slice at `CLIENTS == 1`. Here `grant_id` is simply tied to `0`, sidestepping the elaboration problem.
@@ -165,26 +165,14 @@ arbiter_single_client #(
 
 ## Related Modules
 
-### Used By
-
-- Single-channel builds of AXI read/write datapath engines that otherwise instantiate `arbiter_round_robin`
-
-### Uses
-
-- None (self-contained; no submodule instantiations)
-
-### See Also
+Used by single-channel builds of AXI read/write datapath engines that otherwise instantiate `arbiter_round_robin`. The module itself is self-contained — no submodule instantiations.
 
 - [arbiter_round_robin](arbiter_round_robin.md) - The general N-client arbiter whose `WAIT_GNT_ACK` timing this module reproduces for one client
 - [arbiter_round_robin_simple](arbiter_round_robin_simple.md) - Minimal-area round-robin variant
 - [arbiter_round_robin_weighted](arbiter_round_robin_weighted.md) - Weighted / QoS round-robin variant
 - [arbiter_priority_encoder](arbiter_priority_encoder.md) - Fixed-priority arbiter
 
-### Source
-
-- `rtl/common/arbiter_single_client.sv`
-- `rtl/common/arbiter_round_robin.sv` (timing reference)
-- `docs/markdown/rtl-common/index.md`
+Source: `rtl/common/arbiter_single_client.sv`, with `rtl/common/arbiter_round_robin.sv` as the timing reference, and `docs/markdown/rtl-common/index.md`.
 
 **Last Updated:** 2026-07-15
 

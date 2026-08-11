@@ -60,7 +60,7 @@ The `arbiter_round_robin` module cycles through requesting clients in order, so 
 | grant_id | N | Binary encoded ID of the granted client |
 | last_grant | CLIENTS | Previous cycle's grant (for debugging/history) |
 
-## Functionality
+## Functional Description
 
 ### Fair Round-Robin Operation
 
@@ -100,8 +100,6 @@ grant history.
 ### Grant Acknowledgment Support
 
 When `WAIT_GNT_ACK = 1`, the arbiter waits for the granted client to acknowledge receipt before updating internal state and moving to the next client.
-
-## Implementation Details
 
 ### Key Internal Signals
 
@@ -159,7 +157,7 @@ assign w_should_grant = w_winner_valid && w_any_requests && w_can_grant;
 - **No-ACK Mode**: Mask updates immediately when grant issued (1-cycle round-robin)
 - **ACK Mode**: Mask updates only when ACK received (prevents premature rotation)
 
-## Design Considerations
+## Design Notes
 
 ### Usage Notes
 

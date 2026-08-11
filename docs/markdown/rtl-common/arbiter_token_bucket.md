@@ -42,8 +42,6 @@ or with [arbiter_round_robin_weighted](arbiter_round_robin_weighted.md) /
 [arbiter_deficit_round_robin](arbiter_deficit_round_robin.md) for shaped
 rate *and* weighted share together.
 
-## Module Declaration
-
 ```systemverilog
 module arbiter_token_bucket #(
     parameter int CLIENTS      = 4,
@@ -67,14 +65,14 @@ module arbiter_token_bucket #(
 
 ## Parameters
 
-| Parameter | Default | Description |
-|---|---|---|
-| CLIENTS | 4 | Number of clients being shaped |
-| MAX_TOKENS | 64 | Exclusive bound on buckets/caps; field width = $clog2(MAX_TOKENS) |
-| RATE_WIDTH | 4 | Width of each per-client tokens-per-tick rate field |
-| WAIT_GNT_ACK | 0 | Completion contract of the DOWNSTREAM arbiter (must match it) |
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| CLIENTS | int | 4 | Number of clients being shaped |
+| MAX_TOKENS | int | 64 | Exclusive bound on buckets/caps; field width = $clog2(MAX_TOKENS) |
+| RATE_WIDTH | int | 4 | Width of each per-client tokens-per-tick rate field |
+| WAIT_GNT_ACK | int | 0 | Completion contract of the DOWNSTREAM arbiter (must match it) |
 
-## Key Semantics
+## Functional Description
 
 - **`refill_tick` is external.** Pair it with
   [counter_freq_invariant](counter_freq_invariant.md)'s microsecond tick so
@@ -117,7 +115,7 @@ module arbiter_token_bucket #(
 - [counter_freq_invariant](counter_freq_invariant.md) — the natural
   refill_tick source
 
-## Test
+## Testing
 
 **Location:** `val/common/test_arbiter_token_bucket.py`
 

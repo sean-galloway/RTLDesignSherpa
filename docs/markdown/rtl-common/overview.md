@@ -275,7 +275,7 @@ Picking the right block is half the job — how you configure it decides whether
 #### Speed Optimization
 - Use parallel prefix adders (Brent-Kung, Han-Carlson) for critical paths
 - Implement pipelining in high-throughput applications
-- Utilize barrel shifters for single-cycle shift operations
+- Use barrel shifters for single-cycle shift operations
 
 #### Power Optimization
 - Apply clock gating (ICG) to inactive functional blocks

@@ -31,8 +31,6 @@ A credit-based weighted round-robin arbiter with Quality of Service (QoS) suppor
 
 The `arbiter_round_robin_weighted` module layers configurable per-client weights on top of fair round-robin arbitration, giving you proportional bandwidth allocation. Each client receives grants proportional to its assigned weight while starvation is prevented. The module supports an optional acknowledgment protocol and dynamic weight changes with atomic update semantics.
 
-## Module Declaration
-
 ```systemverilog
 module arbiter_round_robin_weighted #(
     parameter int MAX_LEVELS = 16,      // Maximum weight value per client
@@ -106,7 +104,7 @@ same pattern.)
 | grant | C | Grant vector (one-hot encoded) |
 | grant_id | N | Grant client ID (binary encoded) |
 
-## Functionality
+## Functional Description
 
 ### Credit-Based Weighting
 
@@ -177,9 +175,9 @@ The arbiter guarantees starvation-free operation:
 - Maximum starvation time: Sum of all other clients' weights
 - Global replenishment ensures fairness
 
-## Dynamic Weight Changes
+### Dynamic Weight Changes
 
-### Weight Management FSM
+#### Weight Management FSM
 
 A finite state machine handles atomic weight updates:
 
@@ -191,7 +189,7 @@ A finite state machine handles atomic weight updates:
 | WEIGHT_UPDATE | Atomic weight update, reset credits |
 | WEIGHT_STABILIZE | System stabilization (timer 3 → 4 cycles in state) |
 
-### Weight Update Sequence
+#### Weight Update Sequence
 
 1. **Detection**: FSM detects `max_thresh` change from shadow register
 2. **Block**: New grants blocked, pending grants drain
@@ -202,14 +200,12 @@ A finite state machine handles atomic weight updates:
 
 **Total Latency**: 10 cycles minimum (DRAIN occupies 3 cycles, STABILIZE 4 — each timed state runs timer+1 cycles); up to ~25 with the 15-cycle BLOCK timeout on a pending ACK
 
-### Safety Features
+#### Safety Features
 
 - **Shadow Register**: Active weights stored in `r_safe_max_thresh` for race-free updates
 - **Timeout Protection**: 15-cycle timeout prevents FSM lockup
 - **Credit Reset**: Credits reset to new weights during WEIGHT_STABILIZE state
 - **ACK Awareness**: FSM waits for pending `grant_ack` before updating weights
-
-## Implementation Details
 
 ### Credit Management
 
@@ -285,7 +281,7 @@ arbiter_round_robin #(
 );
 ```
 
-## Timing and Performance
+## Timing
 
 ### Latency and Throughput
 
@@ -324,7 +320,7 @@ arbiter_round_robin #(
 - **Typical**: 300-500 MHz (modern FPGAs)
 - **Limiting Factor**: Credit comparison and request filtering logic
 
-## Usage Examples
+## Usage Example
 
 ### Basic QoS Arbiter (No-ACK Mode)
 
@@ -418,7 +414,7 @@ arbiter_round_robin_weighted #(
 );
 ```
 
-## Design Considerations
+## Design Notes
 
 ### When to Use Each Mode
 
@@ -448,7 +444,13 @@ arbiter_round_robin_weighted #(
 - **Safe**: FSM ensures atomic updates without race conditions
 - **Timeout**: 15-cycle timeout prevents lockup
 
-## Verification
+## Related Modules
+
+- **arbiter_round_robin.sv** - Base round-robin arbiter (used internally)
+- **arbiter_round_robin_simple.sv** - Lightweight RR arbiter (no weights)
+- **arbiter_priority_encoder.sv** - Fixed priority arbiter
+
+## Testing
 
 From the test suite (`val/common/test_arbiter_round_robin_weighted.py`):
 
@@ -464,12 +466,6 @@ From the test suite (`val/common/test_arbiter_round_robin_weighted.py`):
   - Starvation prevention
 
 **Test Command**: `pytest val/common/test_arbiter_round_robin_weighted.py -v`
-
-## Related Modules
-
-- **arbiter_round_robin.sv** - Base round-robin arbiter (used internally)
-- **arbiter_round_robin_simple.sv** - Lightweight RR arbiter (no weights)
-- **arbiter_priority_encoder.sv** - Fixed priority arbiter
 
 ## Navigation
 

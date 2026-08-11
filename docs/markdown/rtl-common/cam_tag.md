@@ -61,7 +61,7 @@ The `cam_tag` module implements a Content Addressable Memory (CAM) for tag stora
 | tags_full | 1 | Indicates when CAM is completely full |
 | tag_status | 1 | Result of lookup operation (1 if tag found, 0 if not found) |
 
-## Functionality
+## Functional Description
 
 ### Tag Lookup
 
@@ -96,8 +96,6 @@ When `ENABLE = 0`:
   when matching allocations to waveforms.
 - **Replacement**: No automatic replacement policy (must manually invalidate)
 - **Overflow Protection**: Prevents insertion when full
-
-## Implementation Details
 
 ### Storage Arrays
 
@@ -178,7 +176,7 @@ end
 - `tags_full = &r_valid`: AND of all valid bits
 - `tag_status`: Result of tag lookup operation
 
-## Design Considerations
+## Design Notes
 
 ### Usage Considerations
 

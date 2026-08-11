@@ -33,8 +33,6 @@ Multiple divided clocks from one input clock, all tapped off a single shared cou
 
 The `clock_divider` module generates multiple divided clock signals from a single input clock using configurable pick-off points from a shared master counter. Because every output taps the same counter, the divided clocks come out synchronized and phase-aligned — the behavior you need for multi-rate digital signal processing, communication systems, and power management applications.
 
-## Module Declaration
-
 ```systemverilog
 module clock_divider #(
     parameter int N             = 4,  // Number of output clocks
@@ -68,11 +66,11 @@ module clock_divider #(
 
 ### Inputs
 
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `clk` | 1 | `logic` | Master input clock (source to be divided) |
-| `rst_n` | 1 | `logic` | Active-low asynchronous reset |
-| `pickoff_points` | N×PO_WIDTH | `logic` | Packed pickoff point configuration array |
+| Port | Width | Description |
+|------|-------|-------------|
+| clk | 1 | Master input clock (source to be divided) |
+| rst_n | 1 | Active-low asynchronous reset |
+| pickoff_points | N×PO_WIDTH | Packed pickoff point configuration array |
 
 **pickoff_points Format:**
 ```
@@ -82,11 +80,11 @@ Each po[i] (PO_WIDTH bits): Counter bit index to sample for output i
 
 ### Outputs
 
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `divided_clk` | N | `logic` | Divided clock outputs (registered) |
+| Port | Width | Description |
+|------|-------|-------------|
+| divided_clk | N | Divided clock outputs (registered) |
 
-## Functionality
+## Functional Description
 
 ### Counter Operation
 
@@ -137,8 +135,6 @@ Each po[i] (PO_WIDTH bits): Counter bit index to sample for output i
 - High for 2^(pickoff_point) input cycles
 - Low for 2^(pickoff_point) input cycles
 
-## Implementation Details
-
 ### Internal Signals
 
 ```systemverilog
@@ -146,7 +142,7 @@ logic [COUNTER_WIDTH-1:0] r_divider_counters;  // Free-running binary counter
 localparam int ADDR_WIDTH = $clog2(COUNTER_WIDTH);  // Address width
 ```
 
-## Timing and Performance
+## Timing
 
 ### Latency
 
@@ -189,7 +185,7 @@ architecture, excluding the clamp comparators; earlier revisions of this table
 listed 8/10/12, which did not scale with the mux width and understated the
 wide-counter cases by several times. fmax figures remain unsourced estimates.
 
-## Usage Examples
+## Usage Example
 
 ### Four Debug Clocks
 
@@ -276,7 +272,7 @@ clock_divider #(
 );
 ```
 
-## Design Considerations
+## Design Notes
 
 ### Changing Pickoff Points at Runtime
 
@@ -406,7 +402,16 @@ Using `divided_clk` as a clock creates a **derived clock**:
 - Always reset module when changing configuration
 - Do NOT change configuration while outputs are actively used
 
-## Verification
+## Related Modules
+
+- `counter_bin.sv` - Simple binary counter (related, not instantiated here —
+  `clock_divider` keeps its own `r_divider_counters` array)
+- `counter_freq_invariant.sv` - Time-based counter with 1MHz tick
+- `counter_load_clear.sv` - Arbitrary division ratios (not power-of-2)
+- `clock_pulse.sv` - Configurable pulse generator
+- `clock_gate_ctrl.sv` - Clock gating for power management
+
+## Testing
 
 ### Test Scenarios
 
@@ -437,15 +442,6 @@ covergroup clock_divider_cg @(posedge clk);
     }
 endgroup
 ```
-
-## Related Modules
-
-- `counter_bin.sv` - Simple binary counter (related, not instantiated here —
-  `clock_divider` keeps its own `r_divider_counters` array)
-- `counter_freq_invariant.sv` - Time-based counter with 1MHz tick
-- `counter_load_clear.sv` - Arbitrary division ratios (not power-of-2)
-- `clock_pulse.sv` - Configurable pulse generator
-- `clock_gate_ctrl.sv` - Clock gating for power management
 
 ## Navigation
 

@@ -42,8 +42,6 @@ With equal-cost requests the two give identical long-run shares — use the
 cheaper WRR there. Reach for the DRR when a grant's resource usage varies
 per request: packet lengths, burst sizes, variable-beat DMA descriptors.
 
-## Module Declaration
-
 ```systemverilog
 module arbiter_deficit_round_robin #(
     parameter int CLIENTS      = 4,
@@ -68,12 +66,12 @@ module arbiter_deficit_round_robin #(
 
 ### User-Settable Parameters
 
-| Parameter | Default | Range | Description |
+| Parameter | Type | Default | Description |
 |---|---|---|---|
-| CLIENTS | 4 | 2-32 | Number of requesting clients |
-| MAX_QUANTUM | 16 | 2-256 | Exclusive bound on per-client quantum; field width = $clog2(MAX_QUANTUM) |
-| COST_WIDTH | 4 | 1-16 | Width of each client's request-cost input (costs 1..2^COST_WIDTH-1) |
-| WAIT_GNT_ACK | 0 | 0/1 | 0 = grant completes immediately, 1 = grant held until grant_ack |
+| CLIENTS | int | 4 | Number of requesting clients (range: 2-32) |
+| MAX_QUANTUM | int | 16 | Exclusive bound on per-client quantum; field width = $clog2(MAX_QUANTUM) (range: 2-256) |
+| COST_WIDTH | int | 4 | Width of each client's request-cost input (costs 1..2^COST_WIDTH-1; range: 1-16) |
+| WAIT_GNT_ACK | int | 0 | 0 = grant completes immediately, 1 = grant held until grant_ack |
 
 ### Derived Parameters
 
@@ -82,7 +80,7 @@ front ends reject body localparams in port ranges); overridable in principle,
 and must not be — leave them to their derivations. Only DW is a true
 localparam.
 
-| Derived parameter | Value | Purpose |
+| Parameter | Default | Description |
 |---|---|---|
 | QW | $clog2(MAX_QUANTUM) | Quantum field width |
 | DW | $clog2(2^COST_WIDTH + MAX_QUANTUM) + 1 | Deficit counter width — sized so every legal cost is reachable by accumulation, which is the no-livelock guarantee |
@@ -95,7 +93,8 @@ localparam.
 
 | Port | Width | Description |
 |---|---|---|
-| clk / rst_n | 1 | Clock, async active-low reset |
+| clk | 1 | Clock |
+| rst_n | 1 | Async active-low reset |
 | block_arb | 1 | Block all arbitration while high |
 | quantum | CXQW | Packed per-client quanta, client 0 in the low field. Zero disables a client. Changes go through the atomic-update FSM |
 | req_cost | CXCW | Packed cost of each client's HEAD request. Stable while request held; the next frame's cost may be presented as soon as the current frame's grant is observed |
@@ -110,7 +109,7 @@ localparam.
 | grant | CLIENTS | One-hot grant vector |
 | grant_id | N | Binary-encoded winner |
 
-## Functionality
+## Functional Description
 
 ### The Deficit Discipline
 
@@ -178,7 +177,7 @@ cycle of latency).
 - [arbiter_round_robin_simple](arbiter_round_robin_simple.md),
   [arbiter_priority_encoder](arbiter_priority_encoder.md)
 
-## Test
+## Testing
 
 **Location:** `val/common/test_arbiter_deficit_round_robin.py`
 
