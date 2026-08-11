@@ -6,7 +6,8 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 1 | accepted, not started |
+| [open.md](open.md) | 0 | accepted, ready to start |
+| [deferred.md](deferred.md) | 1 | parked pending a named condition |
 | [closed.md](closed.md) | 21 | done (kept for history) |
 | [dropped.md](dropped.md) | 2 | ended without completing |
 
@@ -40,13 +41,10 @@ integration support.
   owner, so the model's mask lagged one grant forever. ACK mode now asserts on
   the compliance verdict.
 - **COMMON-003** — integration examples (P2).
-- **COMMON-007** — additional arbiter types. TWO of three shipped:
-  arbiter_deficit_round_robin (2026-08-09, cost-proportional shares, sibling
-  wrapper to the WRR) and arbiter_token_bucket (2026-08-10, free-standing
-  rate shaper) — both now FORMALLY PROVED (2026-08-10: prove+cover green,
-  every module-specific property mutation-checked; see FORMAL_TODO). Only
-  hierarchical (grouped two-level composition) remains, deferred pending a
-  consumer.
+- **COMMON-007** — DEFERRED (see deferred.md): only hierarchical (grouped
+  two-level composition) remains; un-defers when a consumer names its client
+  groups and fairness intent. DRR + token bucket slices SHIPPED and formally
+  proved (2026-08-09/10).
 - **COMMON-023** — CLOSED 2026-08-11: stale harness, not RTL. The RTL's
   repeat off-by-one fix (Kimi round_2, 2026-07-23) never reached the shadow
   FSM and the proof was never re-run — failing silently for 18 days. Shadow

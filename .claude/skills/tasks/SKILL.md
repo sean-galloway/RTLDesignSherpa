@@ -1,6 +1,6 @@
 ---
 name: tasks
-description: Where project tasks/TODOs live and how to track them - the /vault/Tasks/<area>/ directory with open/active/closed/dropped lifecycle pages. Use whenever you would record a TODO, start/finish a task, or are tempted to create a TASKS.md or TODO.md next to code.
+description: Where project tasks/TODOs live and how to track them - the /vault/Tasks/<area>/ directory with open/active/deferred/closed/dropped lifecycle pages. Use whenever you would record a TODO, start/finish a task, or are tempted to create a TASKS.md or TODO.md next to code.
 ---
 
 # tasks
@@ -8,8 +8,10 @@ description: Where project tasks/TODOs live and how to track them - the /vault/T
 READ FIRST: /vault/Tasks/INDEX.md (the master index IS the authority for this convention).
 
 All task tracking lives in `/vault/Tasks/<area>/`. Each area has `INDEX.md` plus four
-lifecycle pages: `open.md` (not started), `active.md` (in progress),
-`closed.md` (done), `dropped.md` (ended without completing).
+lifecycle pages: `open.md` (ready to start), `active.md` (in progress),
+`deferred.md` (deliberately parked - the block must NAME the condition that
+un-defers it; created per-area on first need), `closed.md` (done),
+`dropped.md` (ended without completing).
 
 The rule agents break: **never create a `TASKS.md` / `TODO.md` / `*_TODO.md`
 next to code.** That scatter is what /vault/Tasks/ replaces. A note-to-self goes in

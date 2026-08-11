@@ -1,13 +1,15 @@
 # Tasks
 
 One place to see what is going on across every project in the repo. Each area
-has its own directory with an `INDEX.md` and three lifecycle pages:
+has its own directory with an `INDEX.md` and its lifecycle pages:
 
 ```
 vault/Tasks/<area>/
   INDEX.md    rollup: counts + the active/open shortlist
   active.md   in progress right now
-  open.md     accepted, not started
+  open.md     accepted, ready to start
+  deferred.md accepted, deliberately PARKED - waiting on a named external
+              condition (a consumer, a decision, a dependency), not on effort
   closed.md   done (completed; kept for history, not deleted)
   dropped.md  ended without completing (abandoned / superseded / won't do)
 ```
@@ -16,6 +18,16 @@ vault/Tasks/<area>/
 `closed` means the work got done, `dropped` means we decided not to do it (or
 something else made it moot). Keeping them apart is what makes the history
 honest — a dropped task should never read as an accomplishment.
+
+`open` and `deferred` are both pending but they are not the same thing
+either: `open` means someone could start it today; `deferred` means starting
+it today would be wrong — its block must NAME the condition that un-defers
+it, so the parking is a recorded decision rather than quiet neglect (added
+2026-08-11, Sean; COMMON-007's hierarchical-arbitration slice was the
+motivating case — shaped, elaborated, and twice deliberately parked pending
+a consumer, which `open` kept misrepresenting as ready-to-start work).
+Areas create `deferred.md` when they first need it; an absent file means
+nothing is parked.
 
 ## The one rule
 
@@ -27,10 +39,12 @@ a new file beside the file.
 ## Lifecycle
 
 A task moves `open → active → closed` (done) — or to `dropped` if it ends
-without being completed — by **cutting** its block from one page and pasting it
-into the next. Never copy: a task must exist in exactly one state. Keep the
-task's `**Status:**` line current with a date and, when dropping, a one-line
-reason. New tasks get the next `TASK-NNN` (or area-appropriate) id and start in
+without being completed, or `open ↔ deferred` when the blocker is an external
+condition rather than effort — by **cutting** its block from one page and
+pasting it into the next. Never copy: a task must exist in exactly one state.
+Keep the task's `**Status:**` line current with a date and, when dropping or
+deferring, the one-line reason (for deferred: the condition that un-defers
+it). New tasks get the next `TASK-NNN` (or area-appropriate) id and start in
 `open.md`.
 
 ## Reporting status
