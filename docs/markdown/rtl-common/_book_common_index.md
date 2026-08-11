@@ -7,6 +7,8 @@
 - [Round Robin Arbiter](arbiter_round_robin.md)
 - [arbiter_round_robin_simple](arbiter_round_robin_simple.md)
 - [Weighted Round Robin Arbiter](arbiter_round_robin_weighted.md)
+- [Deficit Round Robin Arbiter](arbiter_deficit_round_robin.md)
+- [Token-Bucket Request Shaper](arbiter_token_bucket.md)
 - [Single-Client Arbiter](arbiter_single_client.md)
 - [Binary to BCD Converter - Comprehensive Documentation](bin_to_bcd.md)
 - [CAM Tag Module](cam_tag.md)
