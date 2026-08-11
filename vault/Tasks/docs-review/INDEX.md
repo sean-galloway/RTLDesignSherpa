@@ -37,7 +37,12 @@ projects/components, then assess fpga) and the per-area startup checklist
   minimum ~2x on both pages; two dead WRR signals removed; a sibling-page
   sweep caught the same localparam-claim error on dataint_crc.md and
   verified counter_bin_load/clock_gate_ctrl as correctly stated. WRR + DRR
-  re-linted, re-simmed, re-proved after the edits. Humanize pass follows.
+  re-linted, re-simmed, re-proved after the edits.
+- **common_part_01 humanize round_2** (2026-08-11): all 11 pages rewritten
+  and applied (99-100% length, 0 fatal tag-survival, 0 emoji); every qc fix
+  verified surviving the voice pass (the +4 formula, the 10-25 latencies,
+  N>=2, the fifo_sync example). The two new arbiter pages are now reviewed
+  AND humanized.
 
 ## Recently closed
 

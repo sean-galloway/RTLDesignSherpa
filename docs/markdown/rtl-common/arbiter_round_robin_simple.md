@@ -31,8 +31,6 @@ A generic rotating-priority arbiter that gives you fair arbitration among multip
 
 The `arbiter_round_robin_simple` module implements round-robin arbitration with fair access to a shared resource among N requesting agents. Fairness comes from remembering the last granted agent and starting the next arbitration from the next agent in sequence.
 
-## Module Declaration
-
 ```systemverilog
 module arbiter_round_robin_simple #(
     parameter int unsigned N = 4,
@@ -72,7 +70,7 @@ module arbiter_round_robin_simple #(
 | grant | N | One-hot grant output [N-1:0] |
 | grant_id | $clog2(N) | Binary encoded grant ID (undefined if grant_valid==0) |
 
-## Functionality
+## Functional Description
 
 ### Round-Robin Algorithm
 
@@ -99,8 +97,6 @@ The arbiter implements a rotating priority scheme using the following approach:
 - **Power-on Reset**: `r_last_grant` initialized to N-1, causing first arbitration to start from agent 0
 - **Active Reset**: All state registers cleared, grant outputs become invalid
 - **Reset Release**: Next arbitration cycle begins with agent 0 having highest priority
-
-## Implementation Details
 
 ### Rotation Logic
 
@@ -149,7 +145,7 @@ always_comb begin
 end
 ```
 
-## Timing and Performance
+## Timing
 
 | Characteristic | Value |
 |----------------|-------|
@@ -157,7 +153,7 @@ end
 | Response Time | Combinational (0 cycles) |
 | Reset Recovery | 1 clock cycle |
 
-## Usage Examples
+## Usage Example
 
 ### Basic 4-Agent Arbiter
 
@@ -189,7 +185,7 @@ arbiter_round_robin_simple #(
 );
 ```
 
-## Arbitration Sequence Example
+### Arbitration Sequence Example
 
 For N=4 with requests [3:0]:
 
@@ -205,7 +201,7 @@ For N=4 with requests [3:0]:
 the next agent in priority order at bit 0. `Selected` isolates that vector's
 lowest set bit, and `Grant` rotates it back to the original bit positions.
 
-## Design Considerations
+## Design Notes
 
 ### Advantages
 
@@ -227,13 +223,6 @@ lowest set bit, and `Grant` rotates it back to the original bit positions.
 - **Power**: Barrel shifter logic may have higher switching activity
 - **Optimization**: Consider using dedicated arbiter primitives for large N
 
-## Verification
-
-- **Reset Testing**: Verify proper initialization and first-grant behavior
-- **Fairness Testing**: Confirm round-robin sequence over multiple cycles
-- **Edge Cases**: Test behavior with single request, all requests, and no requests
-- **Timing**: Verify setup/hold requirements for state register updates
-
 ## Related Modules
 
 - `arbiter_round_robin`: Enhanced round-robin arbiter with additional features
@@ -241,6 +230,13 @@ lowest set bit, and `Grant` rotates it back to the original bit positions.
 - `encoder_priority_enable`: Priority encoding utility module
 
 For most round-robin arbitration needs in digital systems, `arbiter_round_robin_simple` is the efficient, fair answer.
+
+## Testing
+
+- **Reset Testing**: Verify proper initialization and first-grant behavior
+- **Fairness Testing**: Confirm round-robin sequence over multiple cycles
+- **Edge Cases**: Test behavior with single request, all requests, and no requests
+- **Timing**: Verify setup/hold requirements for state register updates
 
 ## Navigation
 

@@ -31,8 +31,6 @@ A high-speed combinational priority encoder built for arbitration. Priority is f
 
 The `arbiter_priority_encoder` module gives you single-cycle priority encoding, with optimized implementations for the common client counts (4, 8, 16, 32) built on fully unrolled casez logic. For other client counts, it falls back to a synthesizable loop-based approach. You also get dual request inputs (masked and unmasked) for use in more elaborate arbitration schemes — the round-robin arbiter in this library is built on exactly that trick.
 
-## Module Declaration
-
 ```systemverilog
 module arbiter_priority_encoder #(
     parameter int CLIENTS = 4,          // Number of requesting clients
@@ -82,7 +80,7 @@ instantiation. It is declared that way so it can size the `winner` port;
 | winner | N | Binary-encoded winner client ID |
 | winner_valid | 1 | Asserted when at least one request is active |
 
-## Functionality
+## Functional Description
 
 ### Priority Order
 
@@ -127,8 +125,6 @@ Worth knowing what you're signing up for when you pick fixed priority:
 1. **Priority Inheritance**: Temporarily boost blocked client's priority
 2. **Resource Preemption**: Force low-priority client to release resource
 3. **Priority Ceiling**: Limit maximum priority of resource holders
-
-## Implementation Details
 
 ### Optimized Implementations
 
@@ -175,9 +171,9 @@ assign w_priority_requests = any_masked_requests ?
                               requests_unmasked;
 ```
 
-## Timing and Performance
+## Timing
 
-### Timing
+### Latency and Propagation
 
 | Metric | Optimized (4,8,16,32) | Generic (<64) | Generic (>64) |
 |--------|----------------------|---------------|---------------|
@@ -195,7 +191,7 @@ assign w_priority_requests = any_masked_requests ?
 | 32 | Optimized | ~64 | O(CLIENTS) |
 | Other | Generic | ~CLIENTS×log(CLIENTS) | O(CLIENTS×log(CLIENTS)) |
 
-## Usage Examples
+## Usage Example
 
 ### Standalone Priority Encoder
 
@@ -296,9 +292,11 @@ always_comb begin
 end
 ```
 
-## Example Priority Scenarios
+### Example Priority Scenarios
 
-### Scenario 1: Single Requester (Client 2)
+Four cases worth tracing by hand before you trust the thing in a bigger design.
+
+#### Scenario 1: Single Requester (Client 2)
 ```
 requests_unmasked = 8'b0000_0100
 any_masked_requests = 0
@@ -307,7 +305,7 @@ any_masked_requests = 0
 → winner_valid = 1
 ```
 
-### Scenario 2: Multiple Requesters (Clients 0, 2, 5)
+#### Scenario 2: Multiple Requesters (Clients 0, 2, 5)
 ```
 requests_unmasked = 8'b0010_0101
 any_masked_requests = 0
@@ -316,7 +314,7 @@ any_masked_requests = 0
 → winner_valid = 1
 ```
 
-### Scenario 3: Masked Priority (Clients 3, 6 masked)
+#### Scenario 3: Masked Priority (Clients 3, 6 masked)
 ```
 requests_masked   = 8'b0100_1000
 requests_unmasked = 8'b0110_1101
@@ -326,7 +324,7 @@ any_masked_requests = 1
 → winner_valid = 1
 ```
 
-### Scenario 4: No Requests
+#### Scenario 4: No Requests
 ```
 requests_unmasked = 8'b0000_0000
 any_masked_requests = 0
@@ -335,7 +333,7 @@ any_masked_requests = 0
 → winner_valid = 0
 ```
 
-## Design Considerations
+## Design Notes
 
 ### When to Use
 
@@ -402,7 +400,15 @@ if (winner_valid && winner == 2'd0) ...
 // Use arbiter_round_robin.sv instead
 ```
 
-## Verification
+## Related Modules
+
+- **arbiter_round_robin.sv** - Uses this module internally for winner selection
+- **arbiter_round_robin_simple.sv** - Alternative simplified arbiter
+- **arbiter_round_robin_weighted.sv** - Weighted arbitration with QoS
+- **encoder.sv** - General-purpose binary encoder
+- **priority_encoder.sv** - Alternative naming (may be same module)
+
+## Testing
 
 From the test suite (`val/common/test_arbiter_priority_encoder.py`):
 
@@ -417,14 +423,6 @@ From the test suite (`val/common/test_arbiter_priority_encoder.py`):
   - Non-power-of-2 sizes (5, 12)
 
 **Test Command**: `pytest val/common/test_arbiter_priority_encoder.py -v`
-
-## Related Modules
-
-- **arbiter_round_robin.sv** - Uses this module internally for winner selection
-- **arbiter_round_robin_simple.sv** - Alternative simplified arbiter
-- **arbiter_round_robin_weighted.sv** - Weighted arbitration with QoS
-- **encoder.sv** - General-purpose binary encoder
-- **priority_encoder.sv** - Alternative naming (may be same module)
 
 ## Navigation
 

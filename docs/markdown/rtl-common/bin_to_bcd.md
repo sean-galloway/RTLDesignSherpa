@@ -31,8 +31,6 @@ Binary in, decimal out — the module you need the moment a number has to end up
 
 The `bin_to_bcd` module converts binary numbers to Binary Coded Decimal (BCD) format using the Double-Dabble algorithm (also known as the Add-3-Then-Shift algorithm). It's a fundamental operation in digital systems for displaying numeric values on seven-segment displays, LCD panels, and other decimal-based output devices.
 
-## Module Declaration
-
 ```systemverilog
 module bin_to_bcd #(
     parameter int WIDTH  = 8,
@@ -70,21 +68,21 @@ module bin_to_bcd #(
 
 ### Inputs
 
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `clk` | 1 | `logic` | System clock |
-| `rst_n` | 1 | `logic` | Active-low asynchronous reset |
-| `start` | 1 | `logic` | Initiate conversion (pulse) |
-| `binary` | WIDTH | `logic` | Binary number to convert |
+| Port | Width | Description |
+|------|-------|-------------|
+| clk | 1 | System clock |
+| rst_n | 1 | Active-low asynchronous reset |
+| start | 1 | Initiate conversion (pulse) |
+| binary | WIDTH | Binary number to convert |
 
 ### Outputs
 
-| Port | Width | Type | Description |
-|------|-------|------|-------------|
-| `bcd` | DIGITS×4 | `logic` | BCD result (packed format) |
-| `done` | 1 | `logic` | Conversion complete flag |
+| Port | Width | Description |
+|------|-------|-------------|
+| bcd | DIGITS×4 | BCD result (packed format) |
+| done | 1 | Conversion complete flag |
 
-## Functionality
+## Functional Description
 
 ### The Double-Dabble Algorithm
 
@@ -199,8 +197,6 @@ BCD_DONE            CK_S_IDX
   - Assert `done` flag
   - Prepare for next conversion
 - **Next State**: Always IDLE
-
-## Implementation Details
 
 ### Register Definitions
 
@@ -354,7 +350,7 @@ assign ascii_tens     = 8'h30 + tens;
 assign ascii_hundreds = 8'h30 + hundreds;
 ```
 
-## Timing and Performance
+## Timing
 
 ### Conversion Latency
 
@@ -413,9 +409,9 @@ The conversion is inherently sequential, making pipelining challenging:
 - **Optimization**: Clock gating during IDLE state
 - **Trade-off**: Performance vs. power efficiency
 
-## Worked Examples
+## Usage Example
 
-### Example 1: Converting 8-bit Binary 156 (WIDTH=8, DIGITS=3)
+### Worked Example: Converting 8-bit Binary 156 (WIDTH=8, DIGITS=3)
 
 **Initial State**:
 - Binary: 8'b10011100 (156 decimal), shifted MSB-first: 1,0,0,1,1,1,0,0
@@ -443,7 +439,7 @@ Note how the intermediate `(0,A,B)` = (0,10,11) at iteration 7 is exactly what
 the double-dabble algorithm relies on: the final shift carries those values up
 into legal digits, yielding 1_5_6 without a further add-3.
 
-### Example 2: Converting 4-bit Binary 9 (WIDTH=4, DIGITS=2)
+### Worked Example: Converting 4-bit Binary 9 (WIDTH=4, DIGITS=2)
 
 **Step-by-step conversion of binary 1001₂ (9₁₀)**, cycle-accurate against the
 FSM. Every shift is followed by `CK_S_IDX`, and the ADD phase visits **both**
@@ -473,8 +469,6 @@ digits (`ADD → CK_D_IDX` per digit) before the next shift. The final bit
 **Result**: BCD = 8'b00001001 = 09₁₆ = 9₁₀ (correct; 22 cycles to `done`,
 matching `(WIDTH-1)×(2×DIGITS+2)+4 = 3×6+4 = 22` — BCD_DONE is cycle 21 and
 the registered `done` follows one cycle later).
-
-## Usage Examples
 
 ### Seven-Segment Display Driver
 
@@ -720,7 +714,7 @@ module multi_channel_bcd #(
 endmodule
 ```
 
-## Design Considerations
+## Design Notes
 
 ### Optimization Techniques
 
@@ -977,7 +971,7 @@ end
 // (Shown in optimization section)
 ```
 
-## Verification
+## Testing
 
 ### Test Strategy
 
