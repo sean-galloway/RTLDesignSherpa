@@ -6,8 +6,8 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 2 | accepted, not started |
-| [closed.md](closed.md) | 20 | done (kept for history) |
+| [open.md](open.md) | 1 | accepted, not started |
+| [closed.md](closed.md) | 21 | done (kept for history) |
 | [dropped.md](dropped.md) | 2 | ended without completing |
 
 The library is a stable, mature baseline: all modules production-ready, 100%
@@ -47,9 +47,10 @@ integration support.
   every module-specific property mutation-checked; see FORMAL_TODO). Only
   hierarchical (grouped two-level composition) remains, deferred pending a
   consumer.
-- **COMMON-023** — pwm formal prove FAILs (shadow-model divergence at BMC
-  step 6), pre-existing and likely latent for months; needs trace-led
-  diagnosis. Found 2026-08-10 by the post-sweep re-verification.
+- **COMMON-023** — CLOSED 2026-08-11: stale harness, not RTL. The RTL's
+  repeat off-by-one fix (Kimi round_2, 2026-07-23) never reached the shadow
+  FSM and the proof was never re-run — failing silently for 18 days. Shadow
+  repaired, prove+cover PASS, mutation-checked. See closed.md.
 - **COMMON-008** — CLOSED 2026-08-09: premise false — dataint_crc already
   does CHUNKS = DATA_WIDTH/8 bytes per cycle (cascaded stages +
   cascade_sel); default build is 8 bytes/cycle. See closed.md.

@@ -80,16 +80,22 @@ additions) now carry harnesses, registered in formal/common/Makefile:
   ignores-quantum, debit-removed, raw-token gate, inverted bypass each
   flipped prove to FAIL and back to PASS on restore.
 
-### pwm prove FAILS - pre-existing, found 2026-08-10 (COMMON-023)
+### pwm prove FAILS - RESOLVED 2026-08-11: stale harness (COMMON-023)
 
 The post-prefix-sweep re-verification (11 of 12 touched modules PASS)
 exposed `pwm/prove: FAIL` - ap_done_matches_shadow and ap_duty_full at
 step 6. NOT the sweep: the pre-sweep RTL fails identically (verified by
 checking out the parent commit's pwm.sv). COMMON-021's audit only re-ran
 counter_freq_invariant for common, so this failure has likely hidden
-behind stale results for months. The harness carries a shadow FSM that
-disagrees with the DUT - needs a trace-led diagnosis (RTL bug vs stale
-harness model). Tracked as COMMON-023.
+behind stale results for months. The harness carried a shadow FSM
+with the PRE-FIX repeat comparison: the RTL's off-by-one repeat-done fix
+(Kimi round_2, 3218490c, 2026-07-23) never reached the shadow, and no
+formal re-run happened between then and the sweep - 18 days of silent
+FAIL behind an April PASS in the records. Shadow repaired to the corrected
+contract, prove+cover PASS (5 covers reached), and mutation-checked:
+re-breaking the RTL comparison flips prove to FAIL. The rule this buys:
+an RTL semantics change on a module with a formal dir carries its proof
+re-run in the SAME commit.
 
 ---
 

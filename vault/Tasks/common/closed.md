@@ -887,3 +887,34 @@ cocotb_test_block_ready (test_axi_mon_block_ready.py): proven pre-existing
 by stashing exactly the 12 changed files and reproducing the identical
 wedge on the baseline - it belongs to the in-flight monitor-instrumentation
 branch work, not this sweep.
+
+---
+
+## COMMON-023 — pwm formal prove FAILs: shadow model disagreed with the DUT
+**Status:** CLOSED 2026-08-11 (opened 2026-08-10 by the post-sweep formal
+re-verification; Sean: "Can you fix 23")
+
+**Verdict: STALE HARNESS, not an RTL bug — and a textbook case of the
+proof-staleness failure mode.** The RTL's repeat-done comparison gained a
+deliberate off-by-one fix in the Kimi round_2 integration (3218490c,
+2026-07-23: `>= repeat` emitted repeat+1 periods, contradicting the
+module's own header waveform; fixed to `>= repeat - 1` because the check
+fires in the same cycle the repeat counter increments). The harness's
+shadow FSM kept the OLD comparison, and nobody re-ran the proof — so
+pwm/prove sat failing, silently, for 18 days behind an April PASS in the
+records. The DUT finished one period earlier than the shadow expected:
+`done` asserted while the shadow was still F_RUNNING, failing
+ap_done_matches_shadow and ap_duty_full exactly as observed.
+
+Fix: the shadow's f_all_done now mirrors the corrected contract
+(`f_repeat >= ch0_repeat - 1`), with the history recorded in the wrapper
+comment. prove + cover PASS, all 5 covers reached. MUTATION-CHECKED per
+[[formal]]: re-breaking the RTL comparison (reverting its -1) flips prove
+to FAIL and restore returns PASS — the repaired property demonstrably
+catches the exact bug class it exists for.
+
+The lesson is COMMON-021's lesson again, one layer up: a proof is only as
+fresh as its last run against CURRENT RTL, and a shadow model is a second
+implementation of the contract that rots exactly like documentation. When
+RTL semantics change on a module with a formal dir, the proof re-run
+belongs in the SAME commit.

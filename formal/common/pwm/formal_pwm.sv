@@ -103,7 +103,15 @@ module formal_pwm #(
     reg [WIDTH-1:0] f_repeat;
 
     wire f_period_complete = (f_count == ch0_period - 1) && (f_state == F_RUNNING);
-    wire f_all_done        = (ch0_repeat == 0) ? 1'b0 : (f_repeat >= ch0_repeat);
+    // Mirror the DUT's repeat-done comparison: >= ch0_repeat - 1, because the
+    // check fires in the SAME cycle the repeat counter increments at a period
+    // boundary. The DUT gained this off-by-one fix in the Kimi round_2
+    // integration (3218490c, 2026-07-23: ">= repeat" emitted repeat+1
+    // periods); this shadow kept the OLD comparison and nobody re-ran the
+    // proof, so pwm/prove failed silently for 18 days until the post-sweep
+    // re-verification caught it (COMMON-023). The shadow must track the
+    // CONTRACT the RTL implements - exactly `repeat` periods then DONE.
+    wire f_all_done        = (ch0_repeat == 0) ? 1'b0 : (f_repeat >= ch0_repeat - 1'b1);
 
     always @(posedge clk) begin
         if (!rst_n || !sync_rst_n) begin
