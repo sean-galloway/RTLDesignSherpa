@@ -107,7 +107,9 @@
 //   Replenish:      1 cycle per round; repeats until some requester can
 //                   afford its cost (multi-round accumulation for costs
 //                   larger than one quantum)
-//   Quantum Update: 3-15 cycles (FSM: BLOCK -> DRAIN -> UPDATE -> STABILIZE)
+//   Quantum Update: 10 cycles minimum (timed states occupy timer+1 cycles:
+//                   DRAIN=3, STABILIZE=4); up to ~25 with the 15-cycle BLOCK
+//                   timeout waiting on a pending ACK
 //   Reset:          Asynchronous (deficits -> 0, quanta -> 1)
 //
 //------------------------------------------------------------------------------
@@ -303,7 +305,10 @@ module arbiter_deficit_round_robin #(
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_quant_state  <= QUANT_IDLE;
-            r_safe_quantum <= {CXQW{1'b1}};  // Default quantum=1 for all clients
+            // ALL-ONES: every quantum field reads 2^QW-1, deliberately NOT a
+            // real config - it guarantees w_quantum_change_req fires after
+            // reset so the init FSM loads the user's quanta before any grant
+            r_safe_quantum <= {CXQW{1'b1}};
             r_quant_timer  <= 4'h0;
         end else begin
             casez (r_quant_state)

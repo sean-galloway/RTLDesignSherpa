@@ -62,7 +62,8 @@
 //     Constraints: 0 = No-ACK (immediate), 1 = ACK required
 //                  ACK mode adds latency but enables pipelined masters
 //
-//   Derived Parameters (localparam - computed automatically):
+//   Derived Parameters (in the parameter list so the port declarations
+//   can use them; overridable in principle - DO NOT override):
 //     MAX_LEVELS_WIDTH: Width in bits for credit counters ($clog2(MAX_LEVELS))
 //     N: Client ID width in bits ($clog2(CLIENTS))
 //     C: Convenience alias for CLIENTS (used in port widths)
@@ -94,21 +95,30 @@
 //                   the RR decision are combinational; the only register stage
 //                   is the base arbiter's grant. Measured: request at edge N ->
 //                   grant_valid at edge N+1. First grant after reset waits for
-//                   the weight FSM to init (~7 cycles for 4 clients); a global
-//                   replenish costs a 1-cycle bubble.
+//                   the weight-init FSM: IDLE-detect(1) + BLOCK(1) + DRAIN(3:
+//                   timer 2->1->0) + UPDATE(1) + STABILIZE(4: timer 3->0) = 10
+//                   cycles to IDLE, +1 for the grant register = ~11 cycles.
+//                   A global replenish costs a 1-cycle bubble.
 //   Throughput:     1 grant per cycle (max)
 //   Grant Hold:     No-ACK: 1 cycle, ACK: Until grant_ack asserted
-//   Weight Update:  3-15 cycles (FSM: BLOCK → DRAIN → UPDATE → STABILIZE)
+//   Weight Update:  10 cycles minimum (timed states occupy timer+1 cycles:
+//                   DRAIN=3, STABILIZE=4); up to ~25 with the 15-cycle BLOCK
+//                   timeout waiting on a pending ACK
 //   Reset:          Asynchronous (all credits → 1, weights → default)
 //
 //------------------------------------------------------------------------------
 // Behavior:
 //------------------------------------------------------------------------------
 //   Credit-Based Weighting:
-//   - Reset loads ONE credit per client, not the weight (see the reset branch
-//     of r_credit_counter). Credits first take the weight values at the
-//     WEIGHT_STABILIZE load or the first global replenish, so the round
-//     immediately after reset is effectively unweighted.
+//   - Reset loads ONE credit per client (see the reset branch of
+//     r_credit_counter), but the shadow weight register resets to ALL-ONES,
+//     so for any normal configuration a weight-change is detected immediately
+//     after reset and the init FSM (BLOCK->DRAIN->UPDATE->STABILIZE) runs
+//     with the sub-arbiter blocked, loading the CONFIGURED weights into the
+//     credits before the first grant can issue. The first post-reset round IS
+//     weighted. (Only a config equal to the all-ones reset value skips the
+//     init pass; Kimi qc round_1 caught the old "first round is effectively
+//     unweighted" claim here contradicting the STABILIZE load.)
 //   - Grant completion decrements credit counter:
 //     - No-ACK mode: Decrement when grant issued (same cycle)
 //     - ACK mode: Decrement when grant_ack received (delayed)
@@ -143,10 +153,10 @@
 //   FSM ensures atomic weight updates without race conditions:
 //   1. **WEIGHT_IDLE** - Normal operation
 //   2. **WEIGHT_BLOCK** - Detect weight change, block new grants
-//   3. **WEIGHT_DRAIN** - Wait for pending ACK completion (2 cycles)
+//   3. **WEIGHT_DRAIN** - Wait for pending grants (timer 2 -> 3 cycles)
 //   4. **WEIGHT_UPDATE** - Atomic weight update, reset credits
-//   5. **WEIGHT_STABILIZE** - System stabilization (3 cycles)
-//   Total latency: ~5-8 cycles per weight change
+//   5. **WEIGHT_STABILIZE** - System stabilization (timer 3 -> 4 cycles)
+//   Total latency: 10 cycles minimum, ~25 worst-case (BLOCK timeout)
 //
 //   Weight Change Safety (ACK Mode):
 //   - FSM waits for pending grant_ack before updating weights
@@ -265,7 +275,7 @@
 //   - ACK mode: Required for pipelined/posted transaction masters
 //   - **Fairness guarantee:** All non-zero weight clients eventually served
 //   - Maximum starvation time: Sum of all other clients' weights
-//   - Weight update latency: 5-15 cycles depending on pending ACKs
+//   - Weight update latency: 10-25 cycles depending on pending ACKs
 //   - **DO NOT** change weights every cycle (causes thrashing)
 //   - Recommended: Change weights only on policy updates (ms timescale)
 //   - Credit underflow protection: Comparison logic prevents negative credits
@@ -370,7 +380,10 @@ module arbiter_round_robin_weighted #(
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_weight_state <= WEIGHT_IDLE;
-            r_safe_max_thresh <= {CXMTW{1'b1}};  // Default to weight=1 for all clients
+            // ALL-ONES: every weight field reads 2^MTW-1, deliberately NOT a
+            // real config - it guarantees w_weight_change_req fires after
+            // reset so the init FSM loads the user's weights before any grant
+            r_safe_max_thresh <= {CXMTW{1'b1}};
             r_weight_timer <= 4'h0;
         end else begin
             casez (r_weight_state)
@@ -519,11 +532,6 @@ module arbiter_round_robin_weighted #(
     // Credit Counter Registers
     // =======================================================================
 
-    // Pre-declare the signals outside the generate block
-    logic [C-1:0] w_has_one_credit;      // Which clients have exactly 1 credit
-    logic [C-1:0] w_has_any_credits;     // Which clients have any credits (> 0)
-    logic         w_last_credit;         // Only ONE client has exactly 1 credit left
-
     generate
         for (genvar i = 0; i < CLIENTS; i++) begin : gen_credit_registers
 
@@ -531,10 +539,6 @@ module arbiter_round_robin_weighted #(
             assign w_has_crd[i] = (r_credit_counter[i] > 0) &&
                                     (w_client_weight[i] > 0) &&
                                     (w_normal_operation);
-
-            // Per-client credit state detection
-            assign w_has_one_credit[i] = (r_credit_counter[i] == MTW'(1)) && (w_client_weight[i] > 0);
-            assign w_has_any_credits[i] = (r_credit_counter[i] > MTW'(0)) && (w_client_weight[i] > 0);
 
             // Simple register - just assigns the combinational value
             `ALWAYS_FF_RST(clk, rst_n,
@@ -547,12 +551,6 @@ module arbiter_round_robin_weighted #(
 
         end
     endgenerate
-
-    // Global last credit detection (outside generate block)
-    // w_last_credit = 1 when exactly ONE client has exactly 1 credit left
-    assign w_last_credit = ($countones(w_has_any_credits) == 1) &&     // Only 1 client has any credits
-                            ($countones(w_has_one_credit) == 1) &&     // Only 1 client has exactly 1 credit
-                            (w_has_any_credits == w_has_one_credit);   // Same client for both conditions
 
     // Where w_requesting_clients_with_credits is computed as:
     logic w_requesting_clients_with_credits;
