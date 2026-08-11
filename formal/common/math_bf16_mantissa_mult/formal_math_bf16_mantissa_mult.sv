@@ -30,6 +30,7 @@ module formal_math_bf16_mantissa_mult (
     logic [15:0] product;
     logic        needs_norm;
     logic [6:0]  mant_out;
+    logic        guard_bit;
     logic        round_bit;
     logic        sticky_bit;
 
@@ -41,6 +42,7 @@ module formal_math_bf16_mantissa_mult (
         .ow_product    (product),
         .ow_needs_norm (needs_norm),
         .ow_mant_out   (mant_out),
+        .ow_guard_bit  (guard_bit),
         .ow_round_bit  (round_bit),
         .ow_sticky_bit (sticky_bit)
     );
@@ -92,17 +94,25 @@ module formal_math_bf16_mantissa_mult (
     end
 
     // =========================================================================
-    // Property 5: Sticky bit includes guard and remaining bits
-    // If needs_norm: guard=product[7], sticky=|product[5:0]
-    //   -> sticky_bit = guard | |product[5:0]
-    // If not: guard=product[6], sticky=|product[4:0]
-    //   -> sticky_bit = guard | |product[4:0]
+    // Property 5: TRUE sticky (unfolded) plus explicit guard export.
+    // Pre-MATH-001 the RTL folded the guard into the sticky; the fold breaks
+    // the G & (R|S|LSB) decision, so the contract is now guard exported
+    // separately and sticky = OR of the bits strictly below the round bit.
     // =========================================================================
     always @(posedge clk) begin
         if (needs_norm) begin
-            p_sticky_norm: assert (sticky_bit == (product[7] | (|product[5:0])));
+            p_sticky_norm: assert (sticky_bit == (|product[5:0]));
         end else begin
-            p_sticky_nonorm: assert (sticky_bit == (product[6] | (|product[4:0])));
+            p_sticky_nonorm: assert (sticky_bit == (|product[4:0]));
+        end
+    end
+
+    // Property 5b: Guard bit is the first bit below the kept mantissa
+    always @(posedge clk) begin
+        if (needs_norm) begin
+            p_guard_norm: assert (guard_bit == product[7]);
+        end else begin
+            p_guard_nonorm: assert (guard_bit == product[6]);
         end
     end
 

@@ -31,6 +31,7 @@ module formal_math_ieee754_2008_fp32_mantissa_mult (
     logic        needs_norm;
     logic [22:0] mant_out;
     logic        round_bit;
+    logic        guard_bit;
     logic        sticky_bit;
 
     math_ieee754_2008_fp32_mantissa_mult dut (
@@ -41,6 +42,7 @@ module formal_math_ieee754_2008_fp32_mantissa_mult (
         .ow_product    (product),
         .ow_needs_norm (needs_norm),
         .ow_mant_out   (mant_out),
+        .ow_guard_bit  (guard_bit),
         .ow_round_bit  (round_bit),
         .ow_sticky_bit (sticky_bit)
     );
@@ -85,15 +87,24 @@ module formal_math_ieee754_2008_fp32_mantissa_mult (
     end
 
     // =========================================================================
-    // Property 5: Sticky bit (per RTL contract)
-    // needs_norm: product[23] | |product[21:0]
-    // not norm : product[22] | |product[20:0]
+    // Property 5: TRUE sticky (per MATH-001 contract -- unfolded, guard
+    // exported separately)
+    // needs_norm: |product[21:0]; not norm: |product[20:0]
     // =========================================================================
     always @(posedge clk) begin
         if (needs_norm) begin
-            p_sticky_norm: assert (sticky_bit == (product[23] | (|product[21:0])));
+            p_sticky_norm: assert (sticky_bit == (|product[21:0]));
         end else begin
-            p_sticky_nonorm: assert (sticky_bit == (product[22] | (|product[20:0])));
+            p_sticky_nonorm: assert (sticky_bit == (|product[20:0]));
+        end
+    end
+
+    // Property 5b: Guard bit is the first bit below the kept mantissa
+    always @(posedge clk) begin
+        if (needs_norm) begin
+            p_guard_norm: assert (guard_bit == product[23]);
+        end else begin
+            p_guard_nonorm: assert (guard_bit == product[22]);
         end
     end
 
