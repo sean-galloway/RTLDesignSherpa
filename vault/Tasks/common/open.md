@@ -6,7 +6,10 @@
 
 ## COMMON-007 — Additional arbiter types
 **Status:** open — ONLY the hierarchical (grouped two-level) item remains,
-deferred pending a consumer. DRR slice DONE 2026-08-09; token bucket DONE
+deferred pending a consumer. Deferral RE-CONFIRMED by Sean 2026-08-11 after
+a full elaboration of the design space (fairness semantics across unequal
+group sizes, per-level discipline pairing, two-level ACK plumbing, latency)
+— every open decision needs a named consumer to settle it. DRR slice DONE 2026-08-09; token bucket DONE
 2026-08-10 (both with full DV, see progress). Shaped 2026-08-09
 against the current arbiter lineup (question from Sean: are these modes of
 the existing WRR?).
