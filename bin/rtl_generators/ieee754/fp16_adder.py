@@ -138,18 +138,10 @@ wire [14:0] w_mant_sum_abs = w_sum_negative ? (~w_mant_sum_raw + 15'd1) : w_mant
 
 // Normalization
 
-// Count leading zeros (bit-reverse for CLZ module)
-wire [14:0] w_sum_reversed;
-genvar i;
-generate
-    for (i = 0; i < 15; i = i + 1) begin : gen_bit_reverse
-        assign w_sum_reversed[i] = w_mant_sum_abs[14 - i];
-    end
-endgenerate
-
+// Count leading zeros (count_leading_zeros counts from the MSB)
 wire [4:0] w_lz_count_raw;
 count_leading_zeros #(.WIDTH(15)) u_clz (
-    .data(w_sum_reversed),
+    .data(w_mant_sum_abs),
     .clz(w_lz_count_raw)
 );
 

@@ -540,6 +540,17 @@ class FPTestValues:
             if 1 <= exp < fmt.exp_max:
                 values.append(exp << fmt.mant_bits)
 
+        # All-ones mantissa (1.111...1 x 2^k): maximum rounding pressure.
+        # k=0 exercises generic round-up-with-carry (1.999... -> 2.0); k=8 is
+        # the e4m3 down-convert wrap trap -- a rounding carry at target exp 15
+        # wrapped to exp 0 pre-fix, silently returning +0.0 for a ~510 input.
+        # Random stimulus hits this band with ~1e-4 probability, so it must be
+        # directed.
+        for exp_offset in [0, 8]:
+            exp = fmt.bias + exp_offset
+            if 1 <= exp < fmt.exp_max:
+                values.append((exp << fmt.mant_bits) | fmt.mant_max)
+
         return values
 
     @staticmethod

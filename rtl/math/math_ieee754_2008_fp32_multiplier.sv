@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp32_multiplier.py
@@ -114,9 +114,9 @@ math_ieee754_2008_fp32_exponent_adder u_exp_add (
 );
 
 // Round-to-Nearest-Even (RNE) rounding
-// Round up if:
-//   - round_bit=1 AND (sticky_bit=1 OR LSB=1)
-// This implements RNE: ties round to even
+// Textbook RNE: round up iff guard=1 AND (round | sticky | LSB).
+// Guard is the first bit below the kept mantissa; sticky arrives TRUE
+// (unfolded) from mantissa_mult.
 
 wire w_lsb = w_mant_mult_out[0];
 wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);  // true RNE (MATH-001 family)

@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp_conversions.py
@@ -64,11 +64,11 @@ wire [3:0] w_exp_final = w_mant_overflow ?
 wire [2:0] w_mant_final = w_mant_overflow ? 3'h0 : w_mant_rounded[2:0];
 
 // Check for overflow after rounding (but not if underflow - negative exp has garbage low bits)
-// Also detect exponent wrap: if rounding carry increments exp 15 -> 0 (4-bit overflow)
-wire w_exp_rounding_overflow = w_mant_overflow & (w_exp_adjusted[3:0] == 4'hF);
 
 // FP8_E4M3 has no infinity - only overflow if result would be NaN pattern
 wire w_result_is_nan_pattern = (w_exp_final == 4'hF) & (w_mant_final >= 3'h7);
+// Also detect exponent wrap: if rounding carry increments exp 15 -> 0 (4-bit overflow)
+wire w_exp_rounding_overflow = w_mant_overflow & (w_exp_adjusted[3:0] == 4'hF);
 wire w_final_overflow = ~w_exp_underflow & (w_exp_overflow | w_result_is_nan_pattern | w_exp_rounding_overflow);
 
 // Result assembly

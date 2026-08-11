@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2025-11-25
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/bf16/bf16_multiplier.py
@@ -115,10 +115,10 @@ math_bf16_exponent_adder u_exp_add (
 
 // Round-to-Nearest-Even (RNE) rounding
 // Textbook RNE: round up iff guard=1 AND (round | sticky | LSB).
-// w_sticky_bit arrives folded (guard|sticky from mantissa_mult), which is
-// identical under the outer AND with guard. Before MATH-001 the decision
-// bit was round & (sticky|LSB) -- a different bit, diverging from RNE in
-// 6/16 guard patterns (five non-tie cases), sim-verified.
+// w_sticky_bit arrives TRUE (unfolded) from mantissa_mult; the pre-MATH-001
+// logic used round & (sticky|LSB) with a folded guard|sticky -- a different
+// decision bit, diverging from RNE in 6/16 guard patterns, sim-verified.
+
 wire w_lsb = w_mant_mult_out[0];
 wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);
 

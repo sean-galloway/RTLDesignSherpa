@@ -124,6 +124,7 @@ class FP32Multiplier(Module):
         self.instruction('wire [47:0] w_mant_product;')
         self.instruction('wire        w_needs_norm;')
         self.instruction('wire [22:0] w_mant_mult_out;')
+        self.instruction('wire        w_guard_bit;')
         self.instruction('wire        w_round_bit;')
         self.instruction('wire        w_sticky_bit;')
         self.instruction('')
@@ -135,6 +136,7 @@ class FP32Multiplier(Module):
         self.instruction('    .ow_product(w_mant_product),')
         self.instruction('    .ow_needs_norm(w_needs_norm),')
         self.instruction('    .ow_mant_out(w_mant_mult_out),')
+        self.instruction('    .ow_guard_bit(w_guard_bit),')
         self.instruction('    .ow_round_bit(w_round_bit),')
         self.instruction('    .ow_sticky_bit(w_sticky_bit)')
         self.instruction(');')
@@ -169,12 +171,12 @@ class FP32Multiplier(Module):
     def generate_rounding(self):
         """Generate round-to-nearest-even logic."""
         self.comment('Round-to-Nearest-Even (RNE) rounding')
-        self.comment('Round up if:')
-        self.comment('  - round_bit=1 AND (sticky_bit=1 OR LSB=1)')
-        self.comment('This implements RNE: ties round to even')
+        self.comment('Textbook RNE: round up iff guard=1 AND (round | sticky | LSB).')
+        self.comment('Guard is the first bit below the kept mantissa; sticky arrives TRUE')
+        self.comment('(unfolded) from mantissa_mult.')
         self.instruction('')
         self.instruction('wire w_lsb = w_mant_mult_out[0];')
-        self.instruction('wire w_round_up = w_round_bit & (w_sticky_bit | w_lsb);')
+        self.instruction('wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);  // true RNE (MATH-001 family)')
         self.instruction('')
 
         self.comment('Apply rounding to mantissa')

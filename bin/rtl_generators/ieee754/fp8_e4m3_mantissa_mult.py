@@ -81,6 +81,12 @@ class FP8E4M3MantissaMult(Module):
         self.instruction('wire [2:0] w_mant_normalized = w_needs_norm ? w_product[6:4] : w_product[5:3];')
         self.instruction('')
 
+        self.comment('NAMING NOTE (do not "fix" to the bf16 convention): w_round here is the')
+        self.comment('GUARD in G/R/S terms -- the FIRST bit below the kept mantissa -- and')
+        self.comment('w_sticky ORs everything below it (R|S). The multiplier computes')
+        self.comment('round & (sticky | LSB) == G & (R|S|LSB), which IS textbook RNE.')
+        self.comment('Sweep-verified vs an exact-product reference (MATH-007, 2026-08-10).')
+        self.instruction('')
         self.comment('Round bit (next bit after mantissa)')
         self.instruction('wire w_round = w_needs_norm ? w_product[3] : w_product[2];')
         self.instruction('')

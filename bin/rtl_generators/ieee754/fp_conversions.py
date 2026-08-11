@@ -255,7 +255,9 @@ wire [{dst_mant-1}:0] w_mant_final = w_mant_overflow ? {dst_mant}'h0 : w_mant_ro
         content += f'''
 // {dst_fmt.upper()} has no infinity - only overflow if result would be NaN pattern
 wire w_result_is_nan_pattern = (w_exp_final == {dst_exp}'h{dst_exp_max:X}) & (w_mant_final >= {dst_mant}'h{(1 << dst_mant) - 1:X});
-wire w_final_overflow = ~w_exp_underflow & (w_exp_overflow | w_result_is_nan_pattern);
+// Also detect exponent wrap: if rounding carry increments exp {dst_exp_max} -> 0 ({dst_exp}-bit overflow)
+wire w_exp_rounding_overflow = w_mant_overflow & (w_exp_adjusted[{dst_exp-1}:0] == {dst_exp}'h{dst_exp_max:X});
+wire w_final_overflow = ~w_exp_underflow & (w_exp_overflow | w_result_is_nan_pattern | w_exp_rounding_overflow);
 '''
 
     content += f'''

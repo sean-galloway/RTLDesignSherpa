@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp16_fma.py
@@ -162,7 +162,9 @@ wire [44:0] w_sum_adjusted = w_add_overflow ? {1'b0, w_sum_abs[44:1]} : w_sum_ab
 
 // Normalization
 
+// Count leading zeros (count_leading_zeros counts from the MSB)
 wire [43:0] w_sum_44 = w_sum_adjusted[43:0];
+
 wire [6:0] w_lz_count_raw;
 count_leading_zeros #(.WIDTH(44)) u_clz (
     .data(w_sum_44),

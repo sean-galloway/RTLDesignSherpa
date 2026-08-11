@@ -225,7 +225,7 @@ Array accumulation:
 -----------
  0001 1110   = 30 (decimal)
 
-Product: 5 × 6 = 30 ✓
+Product: 5 × 6 = 30 (correct)
 ```
 
 ## Usage Examples

@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp_activations.py
@@ -80,8 +80,8 @@ always_comb begin
             r_result = {1'b0, 4'd5, 3'd4};  // ~0.375
         end else begin
             // Positive: result in (0.5, 1)
-            // Approximate: 0.5 + 0.125 = 0.625 for moderate positive
-            r_result = {1'b0, 4'd6, 3'd4};  // ~0.625
+            // Approximate: 1.5 x 2^-1 = 0.75 for moderate positive
+            r_result = {1'b0, 4'd6, 3'd4};  // 0.75
         end
     end
 end

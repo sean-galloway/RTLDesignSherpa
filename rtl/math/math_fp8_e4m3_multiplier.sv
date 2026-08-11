@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp8_e4m3_multiplier.py
@@ -107,6 +107,9 @@ math_fp8_e4m3_exponent_adder u_exp_add (
 // Round-to-Nearest-Even (RNE) rounding
 // Round up if:
 //   - round_bit=1 AND (sticky_bit=1 OR LSB=1)
+// mantissa_mult exports GUARD as round_bit and (R|S) as sticky_bit
+// (see its NAMING NOTE), so this is textbook G & (R|S|LSB) RNE --
+// sweep-verified vs an exact-product reference (MATH-007, 2026-08-10).
 
 wire w_lsb = w_mant_mult_out[0];
 wire w_round_up = w_round_bit & (w_sticky_bit | w_lsb);

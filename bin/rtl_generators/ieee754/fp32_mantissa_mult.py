@@ -44,6 +44,7 @@ class FP32MantissaMult(Module):
     output logic [47:0] ow_product,    // 48-bit raw product
     output logic        ow_needs_norm, // 1 if product >= 2.0 (MSB set)
     output logic [22:0] ow_mant_out,   // 23-bit result mantissa (post-norm)
+    output logic        ow_guard_bit,  // Guard bit (first bit below mantissa)
     output logic        ow_round_bit,  // Round bit for RNE
     output logic        ow_sticky_bit  // Sticky bit for RNE
     '''
@@ -111,9 +112,11 @@ class FP32MantissaMult(Module):
         self.instruction('wire w_sticky_norm   = |ow_product[21:0];')
         self.instruction('wire w_sticky_nonorm = |ow_product[20:0];')
         self.instruction('')
+        self.instruction('assign ow_guard_bit  = ow_needs_norm ? w_guard_norm  : w_guard_nonorm;')
         self.instruction('assign ow_round_bit  = ow_needs_norm ? w_round_norm  : w_round_nonorm;')
-        self.instruction('assign ow_sticky_bit = ow_needs_norm ? ')
-        self.instruction('    (w_guard_norm | w_sticky_norm) : (w_guard_nonorm | w_sticky_nonorm);')
+        self.comment('TRUE sticky, unfolded -- with the fold, G=1 makes the parenthesized term')
+        self.comment('always 1 and ties-at-even wrongly round up (MATH-001 family fix).')
+        self.instruction('assign ow_sticky_bit = ow_needs_norm ? w_sticky_norm : w_sticky_nonorm;')
         self.instruction('')
 
     def verilog(self, file_path):

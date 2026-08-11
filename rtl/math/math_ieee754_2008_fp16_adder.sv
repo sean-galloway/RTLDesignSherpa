@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp16_adder.py
@@ -122,6 +122,7 @@ wire [14:0] w_mant_sum_abs = w_sum_negative ? (~w_mant_sum_raw + 15'd1) : w_mant
 
 // Normalization
 
+// Count leading zeros (count_leading_zeros counts from the MSB)
 wire [4:0] w_lz_count_raw;
 count_leading_zeros #(.WIDTH(15)) u_clz (
     .data(w_mant_sum_abs),
