@@ -2,65 +2,63 @@
 
 # math — Open
 
-## MATH-005 — math_mod_3_compress needs its final formal checks
-**Status:** open 2026-08-08 (Sean: moved common→math and "through all reviews
-except the final formal checks")
-**Priority:** P2
-**Owner:** TBD
-
-`math_mod_3_compress.sv` moved from rtl/common to rtl/math (commit 3ccd1fcd,
-with filelist; registry PASS, no stale doc references). Reviews are done;
-the formal checks remain. No harness exists yet (nothing under formal/
-matches). Write the formal harness per [[formal]] (sv2v/SBY flow,
-mutation rule, vacuity traps), fold the run into the formal backlog's
-coverage, and close by pointing at passing proofs.
-
 ## MATH-006 — Re-run the full math formal suite after the path repair
-**Status:** open 2026-08-09 (found by the COMMON-021 formal audit)
-**Priority:** P2 — every math proof result predates the rtl/math split
-**Owner:** TBD
+**Status:** open 2026-08-09 (found by the COMMON-021 formal audit); **re-run
+executed 2026-08-10** — one heavy task still re-proving, everything else
+dispositioned below.
+**Priority:** P2
+**Owner:** claude
 
 All 147 `formal/common/math_*` `.sby` configs pointed at
 `../../../rtl/common/math_*.sv`, which moved to `rtl/math/` in the math
 split — the entire math formal suite was unrunnable (sby dies at file-copy,
-loudly, so no false passes; but every recorded PASS predates the split and
-has been unverifiable since). The paths were mechanically repaired
-2026-08-09 (all 147 verified resolving; see `formal/FORMAL_TODO.md`,
-"Same-day follow-on finding").
+loudly, so no false passes; but every recorded PASS predates the split).
+Paths mechanically repaired 2026-08-09.
 
-Spot-verified prove+cover PASS: math_adder_brent_kung_008,
-math_multiplier_dadda_tree_008, math_bf16_adder, math_fp8_e4m3_fma,
-math_fp8_e5m2_fma (the fma pair also closed their prove-only rows — 5 covers
-reached each). The remaining ~142 need a full re-run to reconfirm against
-current RTL. Expect the 6 known BMC-intractable configs (softmax_8 x5,
-bf16_exp2) to still error — that is recorded, not a regression. Consider
-whether the suite should also MOVE to `formal/math/` to match the area
-split, and whether `make formal-common` in CI compiles the math subset at
-all today.
-## MATH-007 — fp16/fp8 multiplier rounding deviates from RNE (family sweep of MATH-001)
+### 2026-08-10 full re-run (all 171 config dirs, incl. the new mod_3_compress)
 
-(was drafted as MATH-006; renumbered -- the other agent's formal-suite
-re-run task took MATH-006 while this was in flight)
-**Status:** open 2026-08-09 (found during MATH-001's fix-every-occurrence sweep)
-**Priority:** P1 — same class as MATH-001 (Sean's "fix to spec" covers these)
+| disposition | n | detail |
+|---|---|---|
+| PASS | 157 | prove+cover reconfirmed against current RTL |
+| known BMC-intractable | 6 | softmax_8 x5, bf16_exp2 — ERROR as recorded, not regressions |
+| harness contract drift, FIXED | 2 | bf16 + fp32 mantissa_mult harnesses still asserted the pre-MATH-001 folded sticky; updated to true-sticky + guard property, now PASS, mutation-checked |
+| never proven (unchanged) | 3 | dadda_4to2_011, dadda_tree_032, wallace_tree_csa_032 — FORMAL_PRIORITY priority-0 rows ("Too large"/"Odd size") |
+| reconfirmed serially | 1 | wallace_tree_016: low8 + boundary PASS (~35 min serial) |
+| re-proving | 1 | dadda_tree_016: low8 PASS; boundary timed out at 1 h under 8-way parallelism AND at 1 h serial; 3 h serial retry in flight |
+
+Operational notes (also in formal/FORMAL_TODO.md): `sby -f dir/cfg.sby`
+resolves relative `[files]` paths against the CWD, not the .sby location —
+run from inside each config dir. The 016 configs use task names
+`prove_low8`/`prove_boundary`, so status-scrapers globbing `*_prove` miss
+them.
+
+Close when the dadda_tree_016 boundary retry resolves (PASS -> suite fully
+dispositioned; timeout -> record it beside the priority-0 heavies with the
+budget that was tried).
+
+## MATH-008 — Multiplier underflow edge: rounding carry out of exp 0 is flushed, IEEE says min-normal
+**Status:** open 2026-08-10 (found by the MATH-007 verification sweep)
+**Priority:** P2 — owner decision (same intended-or-defect class MATH-001/002 started as)
 **Owner:** TBD
 
-The MATH-001 pattern extends beyond bf16/fp32, with per-module variation:
+When the pre-round exponent sum is exactly 0 (underflow by one) and mantissa
+rounding carries out (product mantissa all-ones, rounds up), the true result
+is exactly the minimum normal. IEEE 754 detects underflow AFTER rounding, so
+the correct output is min-normal; every multiplier in the family flushes to
+zero instead (asserting ow_underflow).
 
-- `math_ieee754_2008_fp16_multiplier.sv` / `math_fp8_e4m3_multiplier.sv` /
-  `math_fp8_e5m2_multiplier.sv` all compute
-  `w_round_up = w_round_bit & (w_sticky_bit | w_lsb)`.
-- Their mantissa_mults export only round + TRUE sticky (no fold) and NO
-  guard bit, so the decision is `R & (S | LSB)` -- not RNE, and not even the
-  bf16 pre-fix form: a result strictly between half and one ulp (G=1, R=1,
-  S=0, L=0) rounds DOWN when it should round up.
-- Fix shape (same as bf16/fp32): export the guard from each mantissa_mult
-  (fp16: guard = product[11]/[10] per norm; fp8 needs the guard computed --
-  check each module's bit map), connect in the multiplier, set
-  `w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb)`.
-- Verify each with the sweep harness (/tmp/csa_check/tb_rne2.sv pattern):
-  DUT vs a textbook-RNE behavioral reference over several thousand pairs,
-  zero mismatches; then the family suites, then mutation-check (truncate
-  the guard term -> RED).
-- Docs: the per-module pages' rounding claims need the same sweep after
-  (the claims that bf16 round_2/3 corrected likely exist on these pages).
+Measured (directed enumeration, DUT probe): fp16 364/364 cases flush, e4m3
+48/48, e5m2 112/112, bf16 57/57, fp32 2,907,528/2,907,528 -- uniform across
+the family, so it reads as a deliberate FTZ-at-pre-round design choice baked
+into the exponent adders (underflow = pre-round es <= 0, exp_out saturates to
+0). The multiplier alone cannot fix it: on underflow the exponent adder
+saturates exp_out, so the "es was exactly 0" information is lost -- a fix
+needs the adder to export the raw sum (or an es==0 flag) plus a multiplier
+gate, across all five formats, in the GENERATORS per
+[[generated-rtl-discipline]].
+
+Decide: accept-and-document (docs/RTL headers say underflow detection is
+pre-round, one boundary value flushes) or fix-to-spec family-wide. Sweep
+harness pattern to verify a fix: the MATH-007 record in closed.md (exact
+reference classifies these as uf_edge; uf_minnorm counter should go from 0 to
+all).
