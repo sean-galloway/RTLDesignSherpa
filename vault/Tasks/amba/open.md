@@ -759,3 +759,115 @@ second is the invariant that actually failed here.
 **Credit:** found by the user's observation that "if the cmds are stopped
 correctly, there won't be data to drop", which reframed a documented
 "lossy-but-honest" behaviour as a flow-control defect.
+
+---
+
+### TASK-060: `axi4_dma_observer` does not elaborate — `o_cmd_block` unconnected
+**Priority:** P1
+**Status:** 🔴 Not Started (found 2026-08-10)
+**Owner:** TBD
+
+`rtl/amba/shared/axi4_dma_observer.sv` instantiates `axi_perf_latency_hist`
+twice (`u_rd_lat_hist` line ~1037, `u_wr_lat_hist` line ~1066) without
+connecting its `o_cmd_block` output. Verilator treats PINMISSING as an error:
+
+```
+%Warning-PINMISSING: axi4_dma_observer.sv:1037: Cell has missing pin: 'o_cmd_block'
+%Error: Exiting due to 4 warning(s)
+```
+
+**The module does not build**, so `val/amba/test_axi4_dma_observer.py` cannot
+run at all — it was the single failure in a 249-test GATE sweep of the shared
+area (2026-08-10). Vivado only warns on a missing pin, which is why the board
+flows that instantiate this module still build and nobody noticed.
+
+**Do not treat this as a tie-off.** `o_cmd_block`'s own port comment says it is
+exported "so the command channel can be held off instead of losing the sample",
+and names this exact case as where it matters most: the histogram FIFO is
+`MAX_OUTSTANDING` **per channel** while the transaction table beside it blocks
+at `MAX_TRANSACTIONS` **across all channels**, so one channel can be inside the
+table's limit and past this one. A dropped sample is silent — no error, no flag,
+and the surviving latencies are misattributed as well as undercounted.
+
+**The pattern already exists.** `projects/components/misc/rtl/axi4_intf_observer.sv`
+is this module's renamed successor and handles it correctly: `rd_hist_block` /
+`wr_hist_block` nets, tied to `1'b0` in the `gen_no_hist` branch, feeding a
+sticky `o_hist_sample_lost` output cleared with `i_meter_clear`. It does NOT
+backpressure the observed bus — correct for an observer — it makes the loss
+visible instead.
+
+**Work:**
+- [ ] Decide: mirror the successor (add `o_hist_sample_lost`), or explicitly
+      discard with `.o_cmd_block ()` and accept silent sample loss.
+- [ ] If the port is added, update the four instantiators —
+      `axi4_intf_observer.sv`, `stream_mon_harness.sv:1853`,
+      `stream_char_harness.sv:1665`, `harness_csr.sv` — or they inherit the
+      same PINMISSING break.
+- [ ] Re-run `val/amba/test_axi4_dma_observer.py` (currently unrunnable).
+
+**Note:** the owner said 2026-08-10 not to change this module pending their own
+look; recorded here rather than fixed.
+
+---
+
+### TASK-061: splitter `block_ready` duplicates transactions instead of blocking them
+**Priority:** P2
+**Status:** 🔴 Not Started (found 2026-08-09, doc qc round_1)
+**Owner:** TBD
+
+In `rtl/amba/shared/axi_master_rd_splitter.sv` the downstream valid is not
+gated by `block_ready`, while both the upstream ready and the FSM capture are:
+
+```systemverilog
+309:  if (fub_arvalid && m_axi_arready && !block_ready)   // FSM capture: gated
+394:  IDLE: m_axi_arvalid = fub_arvalid;                  // downstream valid: NOT gated
+409:  fub_arready = m_axi_arready && !block_ready;        // upstream ready: gated
+```
+
+With `block_ready=1`, `fub_arvalid=1`, `m_axi_arready=1`: the slave accepts the
+AR, the upstream handshake never completes, the FSM never captures — so the same
+AR is re-presented and re-accepted every cycle. **Duplicated downstream
+transactions, not blocked ones.** `axi_master_wr_splitter.sv` has the same
+structure on AW.
+
+**Latent, not live:** nothing in `rtl/` or `projects/` instantiates either
+splitter. `pumice_wr_splitter.sv` refers to "the old shared
+axi_master_wr_splitter" and replaces it. The existing tests pass because they
+never assert `block_ready` — the "who would notice if this library module were
+wrong?" shape from [escape-analysis](../../handbook/dv/escape-analysis.md).
+
+**Work:**
+- [ ] Gate `m_axi_arvalid` (and `m_axi_awvalid`) with `!block_ready` in IDLE,
+      or document that `block_ready` must never be asserted mid-transaction.
+- [ ] Add a test that asserts `block_ready` and counts downstream ARs/AWs —
+      no current test does, which is why this is a doc-review find.
+- [ ] Fix `docs/markdown/rtl-amba/shared/axi_master_rd_splitter.md`, which
+      claims `block_ready` "prevents new transactions during error conditions".
+
+---
+
+### TASK-062: `sdpram_slave_axil_axil` runs on the board with no simulation
+**Priority:** P2
+**Status:** 🔴 Not Started (found 2026-08-10)
+**Owner:** TBD
+
+`rtl/amba/shared/sdpram_slave_axil_axil.sv` is instantiated on hardware —
+`projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/stream_char_harness.sv:1229`
+(debug_sram, 64-bit AXIL write + AXIL read) plus the instrumentation filelists —
+and **no test references it**.
+
+Of the four protocol-permutation wrappers only `sdpram_slave_axi4_axi4` has a
+test (`val/amba/test_sdpram_slave.py`). `sdpram_slave_axi4_axil` and
+`sdpram_slave_axil_axi4` are untested too, but neither is instantiated anywhere
+in the repo, so they are latent; this one is deployed.
+
+The shared `sdpram_core` IS exercised through the axi4_axi4 wrapper, so the RAM
+itself has coverage. What is unverified is the wrapper glue — the AXI4↔AXIL
+handshake and width adaptation — which is exactly where a permutation wrapper
+goes wrong.
+
+**Work:**
+- [ ] Test `sdpram_slave_axil_axil` at the width the board uses (64-bit).
+- [ ] Decide on the other two: test them, or drop them if nothing will consume
+      them ("no consumer yet" is a debt entry, not a permanent state — see
+      TASK-026).

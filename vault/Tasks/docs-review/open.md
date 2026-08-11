@@ -126,6 +126,30 @@ Dominant glyphs: check mark 2724, cross mark 424, VARIATION SELECTOR-16 196,
 warning sign 161, clipboard 153, open book 143, the traffic-light circles 191
 combined.
 
+**Progress in the completed areas, and the residue the sweep's own definition
+left (measured 2026-08-11):**
+
+| area | then | now | what is left |
+|---|---|---|---|
+| `docs/markdown/rtl-common` | 8 | **0** | — |
+| `docs/markdown/rtl-amba/gaxi` | 81 | **0** | swept with the humanize apply |
+| `docs/markdown/rtl-cdc` | — | 1 | `U+FE0F` in `gaxi_fifo_async.md` |
+| `docs/markdown/rtl-math` | 111 | 6 | 5x `U+FE0F`, 1x `✓ U+2713` |
+| `docs/markdown/rtl-amba` (rest) | 613 | 531 | untouched books |
+
+The 7 stragglers in cdc/math are the "one definition of emoji" problem in
+miniature: the `U+FE0F`s are **orphans** -- invisible modifiers left behind when
+the visible glyph in front of them was deleted, so they survive both a visual
+proofread and a grep for the glyph you remember removing -- and `✓ U+2713` is a
+different codepoint from `✅ U+2705` and was never in the hand-kept set. Sweep
+against what `check_emoji.py` reports, never against a remembered glyph list.
+
+Also learned 2026-08-11: **the humanizer never removes emoji and readily adds
+them.** The gaxi humanize round came back having introduced 20 glyphs (81 -> 101)
+and `check_tag_survival.py` failed it with 3 FATAL. A voice pass can never be
+the thing that closes this task; the rule now sits in the humanize brief and the
+run_batch wrapper so future rounds stop making it worse.
+
 **Two earlier figures in this task were wrong, and the way they were wrong is
 the point.** It first said "110 files under `docs/markdown/`". Both the scope
 and the character class were too narrow:
@@ -1011,3 +1035,94 @@ is not private.
   exhaustive sweeps; non-exhaustive stimulus is never a finding.
 - Next area per the order: common (with the other agent), then amba
   (decomposed), then projects/components, then assess fpga areas.
+
+---
+
+## State of the areas -- gaxi and shared (logged 2026-08-11, Sean's request)
+
+amba is being taken one book at a time rather than as one unit; `gaxi` and
+`shared` were split out of the old combined book (58967753) so they round-trip
+independently.
+
+### gaxi -- DONE (RTL, tests, docs, humanize)
+
+| Phase | State | Evidence |
+|---|---|---|
+| Critique (qc rounds) | 2 rounds, 13 then 7 findings. round_2 was worth running: 5 of its 7 were residue of round_1's own claims (the phrase was spread wider than the findings enumerated) and one was a regression I introduced while fixing an overgeneralization | rounds 1-2, `~/rtl-doc-review-amba` |
+| RTL | mux-mode addressing bug fixed: `r_rd_addr` took the NEXT pointer, so `rd_ready` re-pointed memory past the entry being accepted -- written A B C D read back C D 00. Every RTL instantiation uses REGISTERED(0), so the broken mode was the only one shipping. Mutation-checked | 37cc9cce |
+| Doc correctness | both rounds integrated: zero-latency-bypass claim (5 files, gone since the 2026-04-23 refactor), phantom almost_full/empty ports, false min(N,count) clamp, wrong defaults/widths, undocumented MEM_STYLE, per-module power-of-2 rule | 5725969b, a0694c20 |
+| Book structure | own `_book_gaxi_index.md`; all 6 modules linked from BOTH entry points (regslice was an orphan, index.md listed 2 of 6) | 58967753, a7373cc0 |
+| Tests | the TB returned its own shadow model as the DUT's answer, so `assert data == expected` compared the stimulus list to itself -- that is what hid the RTL bug through 5 tests x 2 modes x 3 levels. Fixed to read the pin; streaming-drain and fill/random-drop tests added; 8/8 wrappers REG_LEVEL/TEST_LEVEL compliant (area is 40/119) | 37cc9cce, 5725969b, ec15a931, d4ecb410 |
+| Coverage | 100% on all five modules at REG_LEVEL=FULL. Earned by stimulus where reachable (slow_consumer profile + random drop took drop_fifo 91.3 -> 100), waived only where illegal-by-construction, each waiver carrying a DEFENSIVE comment | 27b9d981, 17b8abe8, 233a3393 |
+| Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
+| Open items | none for gaxi itself |
+
+### shared -- STARTED (findings triaged, nothing integrated)
+
+| Phase | State | Evidence |
+|---|---|---|
+| Critique (qc round_1) | 23 CONFIRMED + 6 SUSPECTED across shared_part_01..03. Re-verified current 2026-08-11: no incoming commit has touched shared docs or RTL, so none of it is stale | round_1, `~/rtl-doc-review-amba` |
+| Gate sweep | 248 passed / 1 failed across the 12 suites touching shared (Sean's suggestion: "anything that needs changes in shared can be found by running gate on it" -- it was) | 2026-08-10 |
+| RTL defects found | three, all filed rather than fixed: TASK-060 (dma_observer does not elaborate), TASK-061 (splitter block_ready duplicates), TASK-062 (sdpram_slave_axil_axil on the board untested) | vault/Tasks/amba/open.md |
+| Doc integration | NOT STARTED |
+| Humanize | NOT STARTED |
+| Tests (testqc) | NOT STARTED -- no area outside common has had a test-review round |
+| Coverage note | 7 of 21 shared modules have no test referencing them at all: axi4_dma_slaves, axi4_slave_rd_pattern_gen, axi4_slave_wr_crc_check, axi_bus_meter, axis_bus_meter, and 3 of the 4 sdpram_slave_* wrappers |
+
+### Process changes made while doing this
+
+- **The no-emoji rule was never in the humanize prompt.** It lived in the
+  handbook, a commit message, and the reviewer's head. The gaxi round came back
+  having ADDED 20 glyphs and failed the gate with 3 FATAL. Both rules -- no
+  emoji, and a NAMED canonical `##` section list -- now sit in
+  `kimi_humanization_style_guide.md` and the `run_batch.py` wrapper. "Unify the
+  headings" without naming the target set had let each round invent its own
+  self-consistent scheme, which is why the finished areas are internally tidy
+  and mutually inconsistent.
+- **`bin/review/check_doc_structure.py`** added: reports per-area heading drift
+  so "does this area need re-humanizing?" has a number. Its answer for
+  common/cdc/math/gaxi is **no** -- the deltas are mechanical renames
+  (`Implementation Details` -> `Functional Description` x30 in common) plus one
+  real content gap (DOCREV-016), and a scripted rename is cheaper and safer than
+  a voice pass that rewrites everything to fix section names.
+- **Framework upgraded 0.6.1 -> 0.6.3** on this box; `val/amba` could not
+  collect before it (`create_apb4_wavejson_generator` missing).
+
+### What comes next on amba
+
+shared: integrate the 23 CONFIRMED, decide the 6 SUSPECTED, then humanize with
+a bundle rebuilt after the last correctness commit. The remaining books
+(monitor, axi4, axi5, axil4, apb, apb5, axis4/5) have not had a round at all --
+174 of the 182 amba pages, and 531 of the emoji in DOCREV-014's amba row.
+
+---
+
+## DOCREV-016 — `Testing` section missing from most common and math module pages
+**Status:** open 2026-08-11
+**Priority:** P2
+
+`bin/review/check_doc_structure.py` (added 2026-08-11) reports a required
+section absent at scale:
+
+| area | pages missing `Testing` |
+|---|---|
+| rtl-math | **29 of 29** |
+| rtl-common | 33 of 49 |
+| rtl-cdc | 5 of 12 |
+
+`module-doc-template.md`'s completion checklist requires a test file reference —
+location plus the command to run it. **No humanize round can fix this**: the
+voice pass rewrites prose it is given and cannot invent a test path it was never
+told. It needs the real `val/<area>/test_<module>.py` path per page, which is
+mechanical (the file either exists or the module has no test, which is itself
+worth knowing).
+
+Distinct from the heading-name drift the same tool reports — those are renames
+(`Implementation Details` -> `Functional Description` x30 in common,
+`Design Considerations` -> `Design Notes` x22 in math) and can be scripted
+without touching prose. This one is missing content, not a wrong name.
+
+**Work:**
+- [ ] Add `## Testing` to each page with the test path + run command.
+- [ ] Where no test exists, say so explicitly rather than omitting the section —
+      an absent section reads as an oversight, a stated gap reads as a fact.
