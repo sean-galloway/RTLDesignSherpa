@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp8_e5m2_mantissa_mult.py
@@ -51,6 +51,12 @@ wire w_needs_norm = w_product[5];
 // If needs_norm: use bits [4:3] (shift right by 1)
 // Else: use bits [3:2]
 wire [1:0] w_mant_normalized = w_needs_norm ? w_product[4:3] : w_product[3:2];
+
+// NAMING NOTE (do not "fix" to the bf16 convention): w_round here is the
+// GUARD in G/R/S terms -- the FIRST bit below the kept mantissa -- and
+// w_sticky ORs everything below it (R|S). The multiplier computes
+// round & (sticky | LSB) == G & (R|S|LSB), which IS textbook RNE.
+// Sweep-verified vs an exact-product reference (MATH-007, 2026-08-10).
 
 // Round bit (next bit after mantissa)
 wire w_round = w_needs_norm ? w_product[2] : w_product[1];

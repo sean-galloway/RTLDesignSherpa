@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp32_fma.py
@@ -194,10 +194,10 @@ wire [71:0] w_sum_abs = w_sum_negative ? w_negated_sum :
 // Normalization
 
 // Count leading zeros for normalization
-// To get actual leading zeros from MSB, we bit-reverse the input
+// count_leading_zeros counts from the MSB (fixed by d62b794d; the old
+// module counted trailing zeros and needed a bit-reverse wrapper here)
 // For WIDTH=72, clz output is $clog2(72)+1 = 8 bits (0-72 range)
 
-// Bit-reverse function for 72-bit value
 wire [7:0] w_lz_count_raw;
 count_leading_zeros #(.WIDTH(72)) u_clz (
     .data(w_sum_abs),

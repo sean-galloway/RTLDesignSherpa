@@ -360,8 +360,11 @@ assign ascii_hundreds = 8'h30 + hundreds;
 
 The total conversion time depends on the input width and number of digits:
 
-**Formula**: `Latency ≈ (WIDTH-1) × (2×DIGITS + 2) + 3` clock cycles
+**Formula**: `Latency = (WIDTH-1) × (2×DIGITS + 2) + 4` clock cycles
 (measured from the cycle `start` is accepted to the cycle `done` asserts).
+The +4 tail is `SHIFT`, `CK_S_IDX`, `BCD_DONE`, and one more cycle for the
+registered `done`: `r_dv` is *set* in the BCD_DONE state and `done = r_dv`
+only reads 1 the following cycle, after the FSM is back in IDLE.
 
 The per-bit cost is dominated by the add-3 phase: each shift is followed by a
 full `ADD → CK_D_IDX` pass over **every** digit, so each bit position costs
@@ -381,11 +384,11 @@ full `ADD → CK_D_IDX` pass over **every** digit, so each bit position costs
 
 | WIDTH | DIGITS | Total Cycles | @ 100MHz | @ 50MHz |
 |-------|--------|--------------|----------|---------|
-| 4 | 2 | 3×6 + 3 = 21 | 210ns | 420ns |
-| 8 | 3 | 7×8 + 3 = 59 | 590ns | 1.18μs |
-| 12 | 4 | 11×10 + 3 = 113 | 1.13μs | 2.26μs |
-| 16 | 5 | 15×12 + 3 = 183 | 1.83μs | 3.66μs |
-| 20 | 7 | 19×16 + 3 = 307 | 3.07μs | 6.14μs |
+| 4 | 2 | 3×6 + 4 = 22 | 220ns | 440ns |
+| 8 | 3 | 7×8 + 4 = 60 | 600ns | 1.20μs |
+| 12 | 4 | 11×10 + 4 = 114 | 1.14μs | 2.28μs |
+| 16 | 5 | 15×12 + 4 = 184 | 1.84μs | 3.68μs |
+| 20 | 7 | 19×16 + 4 = 308 | 3.08μs | 6.16μs |
 
 ### Pipeline Considerations
 
@@ -464,10 +467,12 @@ digits (`ADD → CK_D_IDX` per digit) before the next shift. The final bit
 | 15–18 | ADD/CK_D_IDX | 00000100 | 1000 | ones=4, tens=0, no add |
 | 19 | SHIFT | 00001001 | 0000 | final bit 1 → ones=9 |
 | 20 | CK_S_IDX | 00001001 | 0000 | loop 3 = WIDTH-1 → BCD_DONE |
-| 21 | BCD_DONE | 00001001 | 0000 | done asserted, result 09 |
+| 21 | BCD_DONE | 00001001 | 0000 | `r_dv` set; `done` still 0 this cycle |
+| 22 | IDLE | 00001001 | 0000 | `done` asserts (registered), result 09 |
 
-**Result**: BCD = 8'b00001001 = 09₁₆ = 9₁₀ (correct; 21 cycles, matching
-`(WIDTH-1)×(2×DIGITS+2)+3 = 3×6+3 = 21`).
+**Result**: BCD = 8'b00001001 = 09₁₆ = 9₁₀ (correct; 22 cycles to `done`,
+matching `(WIDTH-1)×(2×DIGITS+2)+4 = 3×6+4 = 22` — BCD_DONE is cycle 21 and
+the registered `done` follows one cycle later).
 
 ## Usage Examples
 
@@ -866,18 +871,20 @@ module buffered_bcd_converter #(
     logic [WIDTH-1:0] fifo_data_out;
     logic fifo_read_enable, fifo_empty_int;
     
-    sync_fifo #(
-        .WIDTH(WIDTH),
+    fifo_sync #(
+        .DATA_WIDTH(WIDTH),
         .DEPTH(BUFFER_DEPTH)
     ) input_buffer (
         .clk(clk),
         .rst_n(rst_n),
-        .write_data(binary_in),
-        .write_enable(write_enable),
-        .read_data(fifo_data_out),
-        .read_enable(fifo_read_enable),
-        .full(buffer_full),
-        .empty(fifo_empty_int)
+        .write(write_enable),
+        .wr_data(binary_in),
+        .wr_full(buffer_full),
+        .wr_almost_full(),
+        .read(fifo_read_enable),
+        .rd_data(fifo_data_out),
+        .rd_empty(fifo_empty_int),
+        .rd_almost_empty()
     );
     
     // BCD converter control

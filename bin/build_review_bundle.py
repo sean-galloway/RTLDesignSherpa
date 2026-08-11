@@ -136,6 +136,25 @@ for idx in sorted(glob.glob(f'{MD}/**/_book_*_index.md', recursive=True)):
         manifest.append((key, len(parts), tot // 4))
         print(f'  {key:10s} {len(parts)} parts  ~{tot//4000}k tok')
 
+# ---- HAS/MAS spec books (projects/components/*/docs/<book>/<book>_index.md).
+# Chaptered specs, humanize-first consumers; their chapter names don't match
+# .sv stems so RTL.sv comes out effectively empty — that's fine, the humanize
+# mode never sends it and a qc round on these should read the generator, not
+# guess at RTL.
+for idx in sorted(glob.glob('projects/components/*/docs/*/*_index.md')):
+    base = os.path.dirname(idx)
+    key = os.path.basename(base)                      # e.g. bridge_has
+    if not re.search(r'_(has|mas)$', key): continue
+    title = next((l[2:].strip() for l in open(idx, encoding='utf-8') if l.startswith('# ')), key)
+    docs = []
+    for m in re.finditer(r'\]\(([^)]+\.md)\)', open(idx, encoding='utf-8').read()):
+        pth = os.path.normpath(os.path.join(base, m.group(1)))
+        if os.path.exists(pth) and pth not in docs: docs.append(pth)
+    if not docs: continue
+    docs.insert(0, idx)                               # index prose is part of the doc
+    sz = write_unit(f'{OUT}/books/{key}', title, docs)
+    manifest.append((key, 1, sz // 4)); print(f'  {key:14s} 1 unit   ~{sz//4000}k tok')
+
 json.dump([{'book': k, 'parts': n, 'ktok': t // 1000} for k, n, t in manifest],
           open(f'{OUT}/.manifest.json', 'w'), indent=1)
 print(f'\n  bundle rebuilt at {OUT} from current working tree')

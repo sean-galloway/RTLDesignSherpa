@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp32_adder.py
@@ -412,10 +412,10 @@ module math_ieee754_2008_fp32_adder #(
     // Stage D: Normalization (LZD + Shift)
     // =========================================================================
 
-    // Leading zero count for normalization
+    // Leading zero count for normalization (count_leading_zeros counts from the MSB)
     wire [CLZ_WIDTH-1:0] w_lzc;
 
-        count_leading_zeros #(
+    count_leading_zeros #(
         .WIDTH(28)
     ) u_clz (
         .data(r3_mant_sum),

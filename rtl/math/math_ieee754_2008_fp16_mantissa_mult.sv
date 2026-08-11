@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp16_mantissa_mult.py
@@ -56,6 +56,12 @@ assign ow_needs_norm = ow_product[21];
 // If needs_norm: take bits [20:11] (shift right)
 // If not: take bits [19:10] (no shift)
 assign ow_mant_out = ow_needs_norm ? ow_product[20:11] : ow_product[19:10];
+
+// NAMING NOTE (do not "fix" to the bf16 convention): ow_round_bit here is
+// the GUARD in G/R/S terms -- the FIRST bit below the kept mantissa -- and
+// ow_sticky_bit ORs everything below it (R|S). The multiplier computes
+// round_bit & (sticky | LSB) == G & (R|S|LSB), which IS textbook RNE.
+// Sweep-verified vs an exact-product reference (MATH-007, 2026-08-10).
 
 // Round bit (first bit after mantissa)
 assign ow_round_bit = ow_needs_norm ? ow_product[10] : ow_product[9];

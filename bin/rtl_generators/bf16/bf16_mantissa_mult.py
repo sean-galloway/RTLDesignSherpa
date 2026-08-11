@@ -44,6 +44,7 @@ class BF16MantissaMult(Module):
     output logic [15:0] ow_product,    // 16-bit raw product
     output logic        ow_needs_norm, // 1 if product >= 2.0 (MSB set)
     output logic [6:0]  ow_mant_out,   // 7-bit result mantissa (post-norm)
+    output logic        ow_guard_bit,  // Guard bit (first bit below mantissa)
     output logic        ow_round_bit,  // Round bit for RNE
     output logic        ow_sticky_bit  // Sticky bit for RNE
     '''
@@ -111,9 +112,13 @@ class BF16MantissaMult(Module):
         self.instruction('wire w_sticky_norm   = |ow_product[5:0];')
         self.instruction('wire w_sticky_nonorm = |ow_product[4:0];')
         self.instruction('')
+        self.instruction('assign ow_guard_bit  = ow_needs_norm ? w_guard_norm  : w_guard_nonorm;')
         self.instruction('assign ow_round_bit  = ow_needs_norm ? w_round_norm  : w_round_nonorm;')
-        self.instruction('assign ow_sticky_bit = ow_needs_norm ? ')
-        self.instruction('    (w_guard_norm | w_sticky_norm) : (w_guard_nonorm | w_sticky_nonorm);')
+        self.comment('TRUE sticky, unfolded. The old fold (guard|sticky) is algebraically fine')
+        self.comment('for R & (G|S|LSB) rounding but breaks G & (R|S|LSB): with the fold, G=1')
+        self.comment('makes the parenthesized term always 1, so ties-at-even wrongly round up')
+        self.comment('(round-half-up, not RNE). MATH-001 sweep caught it: ~2.4% of random pairs.')
+        self.instruction('assign ow_sticky_bit = ow_needs_norm ? w_sticky_norm : w_sticky_nonorm;')
         self.instruction('')
 
     def verilog(self, file_path):

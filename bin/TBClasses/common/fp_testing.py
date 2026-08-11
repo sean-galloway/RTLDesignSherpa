@@ -540,6 +540,17 @@ class FPTestValues:
             if 1 <= exp < fmt.exp_max:
                 values.append(exp << fmt.mant_bits)
 
+        # All-ones mantissa (1.111...1 x 2^k): maximum rounding pressure.
+        # k=0 exercises generic round-up-with-carry (1.999... -> 2.0); k=8 is
+        # the e4m3 down-convert wrap trap -- a rounding carry at target exp 15
+        # wrapped to exp 0 pre-fix, silently returning +0.0 for a ~510 input.
+        # Random stimulus hits this band with ~1e-4 probability, so it must be
+        # directed.
+        for exp_offset in [0, 8]:
+            exp = fmt.bias + exp_offset
+            if 1 <= exp < fmt.exp_max:
+                values.append((exp << fmt.mant_bits) | fmt.mant_max)
+
         return values
 
     @staticmethod
@@ -719,17 +730,44 @@ class FPMultiplierTB(FPBaseTB):
         if a_is_zero or b_is_zero:
             return sign_result << (self.fmt.bits - 1), False, False, False
 
-        result_float = a_float * b_float
-        result = FPUtils.convert_float(result_float, self.fmt)
-
-        # Apply FTZ (Flush-To-Zero) for subnormal results
-        result = FPUtils.apply_ftz(result, self.fmt)
-
-        # Check overflow/underflow
-        overflow = FPUtils.is_inf(result, self.fmt) and not (a_is_inf or b_is_inf)
-        underflow = FPUtils.is_zero(result, self.fmt) and result_float != 0
-
-        return result, overflow, underflow, False
+        # Exact integer model of the RTL datapath. IEEE 754 detects underflow
+        # AFTER rounding (MATH-008): a pre-round exponent of exactly 0 whose
+        # mantissa rounds with carry lands on the minimum normal and is NOT
+        # flushed. The previous float-based path flushed it. Sweep-proven
+        # bit-exact against all five multiplier RTLs (exhaustive for fp8).
+        mant_bits = self.fmt.mant_bits
+        ea = (a_ftz >> mant_bits) & ((1 << self.fmt.exp_bits) - 1)
+        eb = (b_ftz >> mant_bits) & ((1 << self.fmt.exp_bits) - 1)
+        ext_a = (1 << mant_bits) | (a_ftz & ((1 << mant_bits) - 1))
+        ext_b = (1 << mant_bits) | (b_ftz & ((1 << mant_bits) - 1))
+        prod = ext_a * ext_b
+        sh = mant_bits + (1 if prod >= (1 << (2 * mant_bits + 1)) else 0)
+        kept = prod >> sh
+        rem = prod & ((1 << sh) - 1)
+        half = 1 << (sh - 1)
+        es = ea + eb - self.fmt.bias + (sh - mant_bits)
+        if rem > half or (rem == half and (kept & 1)):
+            kept += 1
+        if kept >= (2 << mant_bits):  # rounding carried out of the mantissa
+            kept >>= 1
+            es += 1
+        if es < 1:
+            # Post-round underflow: flush to signed zero
+            return sign_result << (self.fmt.bits - 1), False, True, False
+        mant = kept & ((1 << mant_bits) - 1)
+        if self.fmt.has_infinity:
+            if es >= self.fmt.exp_max:
+                inf = FPUtils.make_value(sign_result, self.fmt.exp_max, 0, self.fmt)
+                return inf, True, False, False
+        else:
+            # E4M3: exp=max is normal except mant=max (NaN); overflow
+            # saturates to max normal, matching the RTL
+            if es > self.fmt.exp_max or (es == self.fmt.exp_max
+                                         and mant == self.fmt.mant_max):
+                sat = FPUtils.make_value(sign_result, self.fmt.exp_max,
+                                         self.fmt.mant_max - 1, self.fmt)
+                return sat, True, False, False
+        return FPUtils.make_value(sign_result, es, mant, self.fmt), False, False, False
 
     async def test_single(self, a: int, b: int, desc: str = "") -> bool:
         """Test a single multiplication."""
@@ -741,6 +779,38 @@ class FPMultiplierTB(FPBaseTB):
         expected, _, _, _ = self.compute_expected(a, b)
 
         return self.check_result(result, expected, desc)
+
+    def _underflow_edge_pair(self) -> Optional[Tuple[int, int]]:
+        """Find a normal*normal pair whose pre-round exponent sum is exactly 0
+        and whose mantissa rounds with carry -- the MATH-008 underflow edge.
+        IEEE detects underflow after rounding, so the correct result is
+        exactly min-normal, not a flush. Random stimulus essentially never
+        hits this band (~1e-4 for fp16, ~1e-7 for fp32)."""
+        mant_bits, bias = self.fmt.mant_bits, self.fmt.bias
+        kmax = (2 << mant_bits) - 1
+        for exta in range(1 << mant_bits, 2 << mant_bits):
+            for sh in (mant_bits, mant_bits + 1):
+                lo, hi = kmax << sh, (kmax + 1) << sh
+                b_lo = max(lo // exta, 1 << mant_bits)
+                b_hi = min(hi // exta + 2, 2 << mant_bits)
+                for extb in range(b_lo, b_hi):
+                    prod = exta * extb
+                    if not (lo <= prod < hi):
+                        continue
+                    if mant_bits + (1 if prod >= (1 << (2 * mant_bits + 1)) else 0) != sh:
+                        continue
+                    rem = prod & ((1 << sh) - 1)
+                    half = 1 << (sh - 1)
+                    # kept == kmax has LSB 1, so the tie also carries
+                    if not (rem > half or rem == half):
+                        continue
+                    eb = bias - 1 - (sh - mant_bits)
+                    if not (1 <= eb < self.fmt.exp_max):
+                        continue
+                    a = (1 << mant_bits) | (exta - (1 << mant_bits))  # exp = 1
+                    b = (eb << mant_bits) | (extb - (1 << mant_bits))
+                    return a, b
+        return None
 
     async def run_comprehensive_tests(self):
         """Run all test categories."""
@@ -757,6 +827,13 @@ class FPMultiplierTB(FPBaseTB):
         for i, a in enumerate(values[20:]):
             b = random.choice(values)
             await self.test_single(a, b, f"random_{i}")
+
+        # Directed MATH-008 underflow-edge pair: must produce min-normal with
+        # no underflow flag (mutation check: pre-fix RTL flushed it to zero)
+        pair = self._underflow_edge_pair()
+        if pair is not None:
+            await self.test_single(pair[0], pair[1],
+                                   "underflow_edge_rescued (MATH-008)")
 
         self.print_summary()
         assert self.fail_count == 0, f"{self.fail_count} tests failed"

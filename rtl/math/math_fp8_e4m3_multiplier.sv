@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2026-01-03
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp8_e4m3_multiplier.py
@@ -107,6 +107,9 @@ math_fp8_e4m3_exponent_adder u_exp_add (
 // Round-to-Nearest-Even (RNE) rounding
 // Round up if:
 //   - round_bit=1 AND (sticky_bit=1 OR LSB=1)
+// mantissa_mult exports GUARD as round_bit and (R|S) as sticky_bit
+// (see its NAMING NOTE), so this is textbook G & (R|S|LSB) RNE --
+// sweep-verified vs an exact-product reference (MATH-007, 2026-08-10).
 
 wire w_lsb = w_mant_mult_out[0];
 wire w_round_up = w_round_bit & (w_sticky_bit | w_lsb);
@@ -130,6 +133,15 @@ wire [3:0] w_exp_final = w_mant_round_overflow ? (w_exp_sum + 4'd1) : w_exp_sum;
 wire w_round_causes_overflow = w_mant_round_overflow & (w_exp_sum == 4'hF);
 wire w_final_overflow = w_exp_overflow | w_round_causes_overflow |
                         (w_exp_final == 4'hF & w_mant_final == 3'h7);
+
+// IEEE 754 detects underflow AFTER rounding (MATH-008): when the
+// pre-round exponent sum is exactly 0 (one below the normal range) and
+// mantissa rounding carries out, the result is exactly the minimum
+// normal (exp 1, mant 0) and must not be flushed. The exponent adder
+// saturates its output on underflow, so recompute "sum was exactly 0"
+// from the raw exponents here.
+wire w_exp_sum_was_zero = ({1'b0, w_exp_a} + {1'b0, w_exp_b} + {4'b0, w_needs_norm}) == 5'd7;
+wire w_uf_rescued = w_exp_sum_was_zero & w_mant_round_overflow;
 
 // Special case result handling
 
@@ -157,10 +169,10 @@ always_comb begin
         // Saturate to max normal (E4M3 has no infinity)
         ow_result = {w_sign_result, 4'hF, 3'h6};  // Max normal value
         ow_overflow = 1'b1;
-    end else if (w_result_zero | w_exp_underflow) begin
+    end else if (w_result_zero | (w_exp_underflow & ~w_uf_rescued)) begin
         // Zero result
         ow_result = {w_sign_result, 4'h0, 3'h0};
-        ow_underflow = w_exp_underflow & ~w_result_zero;
+        ow_underflow = w_exp_underflow & ~w_result_zero & ~w_uf_rescued;
     end
 end
 

@@ -450,22 +450,13 @@ module math_ieee754_2008_fp32_adder #(
     // Stage D: Normalization (LZD + Shift)
     // =========================================================================
 
-    // Leading zero count for normalization
-    wire [27:0] w_mant_for_clz;
+    // Leading zero count for normalization (count_leading_zeros counts from the MSB)
     wire [CLZ_WIDTH-1:0] w_lzc;
-
-    // Bit reversal for CLZ module
-    genvar gi;
-    generate
-        for (gi = 0; gi < 28; gi++) begin : gen_bit_reverse
-            assign w_mant_for_clz[gi] = r3_mant_sum[27-gi];
-        end
-    endgenerate
 
     count_leading_zeros #(
         .WIDTH(28)
     ) u_clz (
-        .data(w_mant_for_clz),
+        .data(r3_mant_sum),
         .clz (w_lzc)
     );
 

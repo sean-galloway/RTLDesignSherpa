@@ -179,7 +179,7 @@ wire w_round_up = w_guard & (w_round | w_sticky | w_lsb);
 | Flag | Condition |
 |------|-----------|
 | `ow_overflow` | Result magnitude exceeds max normal |
-| `ow_underflow` | Result magnitude less than min normal (non-zero) |
+| `ow_underflow` | Rounded result magnitude less than min normal (non-zero); IEEE 754 after-rounding detection, so a rounding carry out of the boundary yields min normal, not a flush (MATH-008) |
 | `ow_invalid` | Invalid operation (0*Inf, Inf-Inf, NaN input) |
 
 ## Comparison: IEEE 754 vs Simplified Modules

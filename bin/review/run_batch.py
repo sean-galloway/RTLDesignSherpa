@@ -36,6 +36,7 @@ Usage:
 import argparse
 import glob
 import json
+import re
 import os
 import shutil
 import sys
@@ -190,6 +191,14 @@ def main():
     a = ap.parse_args()
 
     brief_path = BRIEFS[a.mode]
+    # HAS/MAS spec books get the container-discipline variant of the
+    # voice guide (same voice, plus the structure-preservation rules
+    # their DOCX/PDF pipeline depends on).
+    def brief_for(unit_key):
+        if a.mode == 'humanize' and re.search(r'_(has|mas)$', unit_key.split('/')[0]):
+            return os.path.join(REPO, 'docs',
+                                'kimi_humanization_style_guide_has_mas.md')
+        return brief_path
     if not os.path.exists(brief_path):
         sys.exit(f"brief not found: {brief_path}")
     brief = open(brief_path).read()
@@ -257,16 +266,22 @@ def main():
         print(f"\n[{i}/{len(pending)}] {name}", flush=True)
         user = build_prompt(a.mode, name, d)
         print(f"      prompt {len(user):,} chars", flush=True)
+        unit_brief_path = brief_for(name)
+        unit_brief = (brief if unit_brief_path == brief_path
+                      else open(unit_brief_path).read())
+        if unit_brief_path != brief_path:
+            print(f"      brief  {os.path.relpath(unit_brief_path, REPO)}",
+                  flush=True)
         try:
             txt, meta = kimi_client.call_with_ladder(
-                brief, user, log=lambda m: print(m, flush=True))
+                unit_brief, user, log=lambda m: print(m, flush=True))
         except Exception as e:  # noqa: BLE001
             print(f"      FAIL {type(e).__name__}: {str(e)[:300]}", flush=True)
             bad += 1
             continue
         meta.update({"unit": name, "mode": a.mode,
                      "model": os.environ.get("KIMI_MODEL", "kimi-k2"),
-                     "brief": os.path.relpath(brief_path, REPO)})
+                     "brief": os.path.relpath(unit_brief_path, REPO)})
         open(os.path.join(out, f"{name}.md"), "w").write(txt)
         open(os.path.join(out, f"{name}.meta.json"), "w").write(json.dumps(meta, indent=2))
         ok += 1

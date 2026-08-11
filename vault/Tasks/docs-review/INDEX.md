@@ -23,6 +23,22 @@ see **DOCREV-013** for the area order (cdc, common, math, amba,
 projects/components, then assess fpga) and the per-area startup checklist
 (four-line Makefiles first).
 
+## Round log (post-reset corpus)
+
+- **common_part_01 qc round_1** (2026-08-11, kimi via proxy, budget ladder
+  fired once to 65536): targeted send after the new-arbiter pages joined the
+  bundle. 4 CONFIRMED + 3 SUSPECTED, all 7 verified against RTL and
+  integrated same day; the new arbiters' mechanism descriptions (DRR cost
+  pipeline, token-bucket overspend gate) all validated. Notables:
+  bin_to_bcd's latency formula was one cycle short (registered done); the
+  WRR's "first round after reset is unweighted" narrative contradicted its
+  own STABILIZE load (fixed in doc AND the RTL source comment — rule 6);
+  the WRR/DRR FSM update latencies understated the constants-implied
+  minimum ~2x on both pages; two dead WRR signals removed; a sibling-page
+  sweep caught the same localparam-claim error on dataint_crc.md and
+  verified counter_bin_load/clock_gate_ctrl as correctly stated. WRR + DRR
+  re-linted, re-simmed, re-proved after the edits. Humanize pass follows.
+
 ## Recently closed
 
 - **DOCREV-012** — second-model adjudication validated on reset-corpus cdc

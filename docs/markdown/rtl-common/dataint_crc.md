@@ -73,7 +73,12 @@ module dataint_crc #(
 | CW | CRC_WIDTH | Convenience alias for CRC width |
 | DW | DATA_WIDTH | Convenience alias for data width |
 
-**Note:** CHUNKS, CW, DW, and CH are computed internally and cannot be overridden by users.
+**Note:** CW, DW, and CH are body localparams and cannot be overridden.
+CHUNKS is different: it is a derived `parameter` (the `cascade_sel` port
+needs it, and a body localparam elaborates too late for a port width), so it
+*can* be overridden at instantiation — and must not be. The RTL's own
+parameter comment says the same: derived, not configurable, leave the
+default alone.
 
 ## Ports
 

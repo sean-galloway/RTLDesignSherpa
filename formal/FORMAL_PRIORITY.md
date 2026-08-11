@@ -134,6 +134,7 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | math_adder_han_carlson_022        | 0        |        | Odd size                          |
 | math_adder_carry_save             | 0        |        | Internal building block           |
 | math_adder_carry_save_nbit        | 0        |        | Internal                          |
+| math_mod_3_compress               | 3        | PASSING | rem == d_in % 3 vs SMT modulo; MATH-005, mutation-checked |
 | math_adder_full_nbit              | 0        |        | Wrapper                           |
 | math_addsub_full_nbit             | 3        | PASSING | Prove add/sub mode correct        |
 | math_adder_brent_kung_bitwisepg   | 0        |        | Internal cell                     |
@@ -164,8 +165,8 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | ------------------------------------ | -------- | ------ | ------------------------------ |
 | math_multiplier_wallace_tree_008     | 2        | PASSING | Prove output = a * b for 8-bit |
 | math_multiplier_dadda_tree_008       | 2        | PASSING | Same                           |
-| math_multiplier_wallace_tree_016     | 3        | PASSING | 16-bit — larger state space    |
-| math_multiplier_dadda_tree_016       | 3        | PASSING | Same                           |
+| math_multiplier_wallace_tree_016     | 3        | PASSING | 16-bit — reconfirmed 2026-08-10 (low8 + boundary, serial, ~35 min) |
+| math_multiplier_dadda_tree_016       | 3        | PROVE | low8 reconfirmed 2026-08-10; prove_boundary does not converge (3 h serial z3, MATH-006) |
 | math_multiplier_wallace_tree_032     | 0        |        | 32-bit — too large for BMC     |
 | math_multiplier_dadda_tree_032       | 0        |        | Same                           |
 | math_multiplier_dadda_4to2_008       | 3        |        | 4:2 compressor variant         |

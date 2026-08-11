@@ -15,5 +15,6 @@ summary: RTL rules with the failures that taught them.
 - [[naming-and-style]] - module/signal conventions, headers
 - [[signal-prefixes]] - r_ = flopped, w_ = combinational; what it promises and where it lies
 - [[filelists]] - every module MUST have a .f and be registered; the two silent failures
+- [[generated-rtl-discipline]] - fix the generator, not the generated .sv; regen-and-diff is the audit
 - [[minimal-fsm]] - when an FSM is right, keep it minimal
 - [[signal-contracts-and-kmaps]] - contracts workbooks; computed K-maps

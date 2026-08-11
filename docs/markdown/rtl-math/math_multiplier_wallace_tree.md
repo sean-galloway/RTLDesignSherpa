@@ -531,11 +531,11 @@ shared Brent-Kung CPA is identical in both and excluded):
 
 ### Limitations
 
-️ **Large area** - More adder cells than Dadda tree at the same depth (61 versus 42 at 8×8, 1116 versus 930 at 32×32), with no offsetting delay advantage
-️ **Irregular structure** - Complex synthesis, harder to hand-layout
-️ **Unsigned only** - Requires additional logic for signed multiplication
-️ **Fixed width** - Not parameterizable (must instantiate specific variant)
-️ **Long critical path** - May require pipelining for high-frequency designs
+**Large area** - More adder cells than Dadda tree at the same depth (61 versus 42 at 8×8, 1116 versus 930 at 32×32), with no offsetting delay advantage
+**Irregular structure** - Complex synthesis, harder to hand-layout
+**Unsigned only** - Requires additional logic for signed multiplication
+**Fixed width** - Not parameterizable (must instantiate specific variant)
+**Long critical path** - May require pipelining for high-frequency designs
 
 ### When to Use Wallace Tree
 

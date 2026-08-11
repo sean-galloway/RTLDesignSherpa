@@ -47,6 +47,7 @@ module math_bf16_mantissa_mult(
     output logic [15:0] ow_product,    // 16-bit raw product
     output logic        ow_needs_norm, // 1 if product >= 2.0
     output logic [6:0]  ow_mant_out,   // 7-bit result mantissa
+    output logic        ow_guard_bit,  // Guard bit (first bit below mantissa)
     output logic        ow_round_bit,  // Round bit for RNE
     output logic        ow_sticky_bit  // Sticky bit for RNE
 );
@@ -63,6 +64,7 @@ module math_bf16_mantissa_mult(
 | ow_product | Output | 16 | Full 16-bit raw product from 8x8 multiply |
 | ow_needs_norm | Output | 1 | 1 if product >= 2.0 (MSB of product is 1) |
 | ow_mant_out | Output | 7 | Pre-rounded 7-bit mantissa result |
+| ow_guard_bit | Output | 1 | Guard bit (first bit below the kept mantissa) |
 | ow_round_bit | Output | 1 | Round bit for RNE rounding |
 | ow_sticky_bit | Output | 1 | Sticky bit for RNE rounding |
 
@@ -147,12 +149,17 @@ wire w_round_nonorm  = ow_product[5];
 wire w_sticky_norm   = |ow_product[5:0];
 wire w_sticky_nonorm = |ow_product[4:0];
 
+assign ow_guard_bit  = ow_needs_norm ? w_guard_norm  : w_guard_nonorm;
 assign ow_round_bit  = ow_needs_norm ? w_round_norm  : w_round_nonorm;
-assign ow_sticky_bit = ow_needs_norm ?
-    (w_guard_norm | w_sticky_norm) : (w_guard_nonorm | w_sticky_nonorm);
+assign ow_sticky_bit = ow_needs_norm ? w_sticky_norm : w_sticky_nonorm;
 ```
 
-**Note:** The sticky bit includes the guard bit because after mantissa extraction, the guard becomes part of the "remaining" bits for rounding purposes.
+**Note:** Guard, round, and sticky are exported separately, and the sticky is
+the TRUE sticky (no guard folded in). The pre-MATH-001 version folded the guard
+into the sticky, which is harmless under the old `R & (G|S|LSB)` decision but
+breaks the correct `G & (R|S|LSB)`: with the fold, G=1 forces the parenthesized
+term to 1, so ties-at-even wrongly round up. See `math_bf16_multiplier` for the
+rounding decision that consumes these bits.
 
 ## Usage Examples
 
@@ -197,13 +204,14 @@ math_bf16_mantissa_mult u_mant_mult (
     .ow_product(w_product),
     .ow_needs_norm(w_needs_norm),
     .ow_mant_out(w_mant_mult_out),
+    .ow_guard_bit(w_guard_bit),
     .ow_round_bit(w_round_bit),
     .ow_sticky_bit(w_sticky_bit)
 );
 
-// Apply RNE rounding
+// Apply RNE rounding: round up iff guard=1 AND (round | sticky | LSB)
 wire w_lsb = w_mant_mult_out[0];
-wire w_round_up = w_round_bit & (w_sticky_bit | w_lsb);
+wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);
 wire [7:0] w_mant_rounded = {1'b0, w_mant_mult_out} + {7'b0, w_round_up};
 
 // Check for mantissa overflow from rounding

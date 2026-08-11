@@ -123,7 +123,13 @@ def call(brief, user, max_tokens, timeout=3600, net_retries=3):
     raise RuntimeError(last or "unknown transport failure")
 
 
-def call_with_ladder(brief, user, ladder=DEFAULT_LADDER, timeout=3600, log=print):
+def call_with_ladder(brief, user, ladder=DEFAULT_LADDER, timeout=None, log=print):
+    # KIMI_TIMEOUT overrides the per-request socket timeout. Large
+    # reasoning units need it: the bridge_mas humanize unit (and the DV
+    # `shared` unit before it) died on a 1h socket timeout while the
+    # model was still legitimately thinking, not on token budget.
+    if timeout is None:
+        timeout = int(os.environ.get("KIMI_TIMEOUT", "3600"))
     """Escalate the completion budget until we get a COMPLETE body.
 
     Two distinct under-budget failures, and only one of them is obvious:

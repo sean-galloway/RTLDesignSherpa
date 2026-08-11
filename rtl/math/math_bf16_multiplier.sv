@@ -11,7 +11,7 @@
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2025-11-25
+// Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/bf16/bf16_multiplier.py
@@ -115,10 +115,10 @@ math_bf16_exponent_adder u_exp_add (
 
 // Round-to-Nearest-Even (RNE) rounding
 // Textbook RNE: round up iff guard=1 AND (round | sticky | LSB).
-// w_sticky_bit arrives folded (guard|sticky from mantissa_mult), which is
-// identical under the outer AND with guard. Before MATH-001 the decision
-// bit was round & (sticky|LSB) -- a different bit, diverging from RNE in
-// 6/16 guard patterns (five non-tie cases), sim-verified.
+// w_sticky_bit arrives TRUE (unfolded) from mantissa_mult; the pre-MATH-001
+// logic used round & (sticky|LSB) with a folded guard|sticky -- a different
+// decision bit, diverging from RNE in 6/16 guard patterns, sim-verified.
+
 wire w_lsb = w_mant_mult_out[0];
 wire w_round_up = w_guard_bit & (w_round_bit | w_sticky_bit | w_lsb);
 
@@ -137,6 +137,15 @@ wire [7:0] w_exp_final = w_mant_round_overflow ? (w_exp_sum + 8'd1) : w_exp_sum;
 
 // Check for exponent overflow after rounding adjustment
 wire w_final_overflow = w_exp_overflow | (w_exp_final == 8'hFF);
+
+// IEEE 754 detects underflow AFTER rounding (MATH-008): when the
+// pre-round exponent sum is exactly 0 (one below the normal range) and
+// mantissa rounding carries out, the result is exactly the minimum
+// normal (exp 1, mant 0) and must not be flushed. The exponent adder
+// saturates its output on underflow, so recompute "sum was exactly 0"
+// from the raw exponents here.
+wire w_exp_sum_was_zero = ({1'b0, w_exp_a} + {1'b0, w_exp_b} + {8'b0, w_needs_norm}) == 9'd127;
+wire w_uf_rescued = w_exp_sum_was_zero & w_mant_round_overflow;
 
 // Special case result handling
 
@@ -177,8 +186,10 @@ always_comb begin
         // Infinity result (from input inf or exponent overflow)
         ow_result = {w_sign_result, 8'hFF, 7'h00};
         ow_overflow = w_final_overflow & ~w_result_inf;
-    end else if (w_exp_underflow) begin
-        // Underflow to zero
+    end else if (w_exp_underflow & ~w_uf_rescued) begin
+        // Underflow to zero (post-round: a rounding carry out of
+        // pre-round exponent 0 lands on min-normal and falls through
+        // to the default assignment instead)
         ow_result = {w_sign_result, 8'h00, 7'h00};
         ow_underflow = 1'b1;
     end
