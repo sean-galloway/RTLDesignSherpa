@@ -44,7 +44,7 @@ module math_bf16_multiplier(
     input  logic [15:0] i_b,           // BF16 operand B
     output logic [15:0] ow_result,     // BF16 product
     output logic        ow_overflow,   // Overflow to infinity
-    output logic        ow_underflow,  // Underflow to zero
+    output logic        ow_underflow,  // Underflow to zero (post-round detection)
     output logic        ow_invalid     // Invalid operation (0 * inf = NaN)
 );
 ```
@@ -220,10 +220,14 @@ always_comb begin
         // 3. Infinity: inf input or overflow
         ow_result = {w_sign_result, 8'hFF, 7'h00};
         ow_overflow = w_final_overflow & ~w_result_inf;
-    end else if (w_exp_underflow) begin
-        // 4. Underflow to zero
+    end else if (w_exp_underflow & ~w_uf_rescued) begin
+        // 4. Underflow to zero -- detected AFTER rounding, per IEEE 754.
+        //    w_uf_rescued covers the one edge this distinction changes: a
+        //    pre-round exponent sum of exactly 0 whose mantissa rounds with
+        //    carry is exactly the minimum normal (0x0080) and falls through
+        //    to the default assignment instead of flushing (MATH-008).
         ow_result = {w_sign_result, 8'h00, 7'h00};
-        ow_underflow = w_exp_underflow;
+        ow_underflow = 1'b1;
     end
 end
 ```

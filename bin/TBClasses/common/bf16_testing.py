@@ -221,27 +221,33 @@ class BF16MultiplierTB(TBBase):
         if a_is_zero or b_is_zero:
             return (sign_result << 15), False, False, False
 
-        # Normal multiplication
-        result_float = a_float * b_float
-
-        # Check for overflow/underflow before conversion
-        abs_result = abs(result_float)
-        overflow = False
-        underflow = False
-
-        # BF16 max normal: ~3.39e38, min normal: ~1.17e-38
-        if abs_result > 3.39e38:
-            overflow = True
-            return (sign_result << 15) | 0x7F80, True, False, False
-
-        if abs_result < 1.17e-38 and abs_result > 0:
-            underflow = True
+        # Normal multiplication: exact integer model of the RTL datapath.
+        # IEEE 754 detects underflow AFTER rounding (MATH-008): a pre-round
+        # exponent of exactly 0 whose mantissa rounds with carry lands on the
+        # minimum normal (0x0080) and is NOT flushed. The previous float-based
+        # path both flushed that case and could emit subnormal encodings the
+        # RTL never produces. Sweep-proven bit-exact against the RTL.
+        ea = (a_bf16 >> 7) & 0xFF
+        eb = (b_bf16 >> 7) & 0xFF
+        ext_a = 0x80 | (a_bf16 & 0x7F)
+        ext_b = 0x80 | (b_bf16 & 0x7F)
+        prod = ext_a * ext_b
+        sh = 7 + (1 if prod >= (1 << 15) else 0)
+        kept = prod >> sh
+        rem = prod & ((1 << sh) - 1)
+        half = 1 << (sh - 1)
+        es = ea + eb - 127 + (sh - 7)
+        if rem > half or (rem == half and (kept & 1)):
+            kept += 1
+        if kept >= 0x100:  # rounding carried out of the mantissa
+            kept >>= 1
+            es += 1
+        if es < 1:
+            # Post-round underflow: flush to signed zero
             return (sign_result << 15), False, True, False
-
-        # Convert to BF16 with RNE rounding
-        result_bf16 = BF16Utils.float_to_bf16(result_float)
-
-        return result_bf16, overflow, underflow, False
+        if es >= 0xFF:
+            return (sign_result << 15) | 0x7F80, True, False, False
+        return (sign_result << 15) | (es << 7) | (kept & 0x7F), False, False, False
 
     async def test_single_mult(self, a_bf16: int, b_bf16: int, desc: str = "",
                                allow_ulp_tolerance: bool = True) -> bool:
@@ -414,6 +420,12 @@ class BF16MultiplierTB(TBBase):
             (min_normal, pos_two, "min_normal * 2"),
             (max_normal, pos_two, "max_normal * 2 (overflow)"),
             (min_normal, half, "min_normal * 0.5 (underflow)"),
+            # MATH-008 underflow edge: pre-round exponent sum exactly 0 with a
+            # mantissa rounding carry. IEEE detects underflow AFTER rounding,
+            # so this is exactly min-normal (0x0080), not a flush to zero.
+            # 0x0081 * 0x3F7E: ext mantissas 0x81*0xFE, product rounds with
+            # carry. Random stimulus essentially never hits this band.
+            (0x0081, 0x3F7E, "underflow edge rescued to min_normal (MATH-008)"),
         ]
 
         # Powers of 2

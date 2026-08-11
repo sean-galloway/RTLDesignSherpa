@@ -85,7 +85,7 @@ module math_fp8_e4m3_multiplier (
     input  logic [7:0] i_b,
     output logic [7:0] ow_result,
     output logic       ow_overflow,   // Saturates to max normal (448)
-    output logic       ow_underflow,  // Flushes to zero
+    output logic       ow_underflow,  // Flushes to zero (post-round detection)
     output logic       ow_invalid     // NaN operation
 );
 ```

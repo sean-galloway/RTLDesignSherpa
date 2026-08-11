@@ -134,6 +134,15 @@ wire [4:0] w_exp_final = w_mant_round_overflow ? (w_exp_sum + 5'd1) : w_exp_sum;
 // Check for exponent overflow after rounding adjustment
 wire w_final_overflow = w_exp_overflow | (w_exp_final == 5'h1F);
 
+// IEEE 754 detects underflow AFTER rounding (MATH-008): when the
+// pre-round exponent sum is exactly 0 (one below the normal range) and
+// mantissa rounding carries out, the result is exactly the minimum
+// normal (exp 1, mant 0) and must not be flushed. The exponent adder
+// saturates its output on underflow, so recompute "sum was exactly 0"
+// from the raw exponents here.
+wire w_exp_sum_was_zero = ({1'b0, w_exp_a} + {1'b0, w_exp_b} + {5'b0, w_needs_norm}) == 6'd15;
+wire w_uf_rescued = w_exp_sum_was_zero & w_mant_round_overflow;
+
 // Special case result handling
 
 // NaN propagation: any NaN input produces NaN output
@@ -166,10 +175,10 @@ always_comb begin
         // Infinity result
         ow_result = {w_sign_result, 5'h1F, 10'h000};
         ow_overflow = w_final_overflow & ~w_result_inf;
-    end else if (w_result_zero | w_exp_underflow) begin
+    end else if (w_result_zero | (w_exp_underflow & ~w_uf_rescued)) begin
         // Zero result
         ow_result = {w_sign_result, 5'h00, 10'h000};
-        ow_underflow = w_exp_underflow & ~w_result_zero;
+        ow_underflow = w_exp_underflow & ~w_result_zero & ~w_uf_rescued;
     end
 end
 

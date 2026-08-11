@@ -201,6 +201,16 @@ class BF16Multiplier(Module):
         self.instruction("wire w_final_overflow = w_exp_overflow | (w_exp_final == 8'hFF);")
         self.instruction('')
 
+        self.comment('IEEE 754 detects underflow AFTER rounding (MATH-008): when the')
+        self.comment('pre-round exponent sum is exactly 0 (one below the normal range) and')
+        self.comment('mantissa rounding carries out, the result is exactly the minimum')
+        self.comment('normal (exp 1, mant 0) and must not be flushed. The exponent adder')
+        self.comment('saturates its output on underflow, so recompute "sum was exactly 0"')
+        self.comment('from the raw exponents here.')
+        self.instruction("wire w_exp_sum_was_zero = ({1'b0, w_exp_a} + {1'b0, w_exp_b} + {8'b0, w_needs_norm}) == 9'd127;")
+        self.instruction('wire w_uf_rescued = w_exp_sum_was_zero & w_mant_round_overflow;')
+        self.instruction('')
+
     def generate_special_case_handling(self):
         """Generate special case result selection."""
         self.comment('Special case result handling')
@@ -249,8 +259,10 @@ class BF16Multiplier(Module):
         self.instruction('        // Infinity result (from input inf or exponent overflow)')
         self.instruction("        ow_result = {w_sign_result, 8'hFF, 7'h00};")
         self.instruction('        ow_overflow = w_final_overflow & ~w_result_inf;')
-        self.instruction('    end else if (w_exp_underflow) begin')
-        self.instruction('        // Underflow to zero')
+        self.instruction('    end else if (w_exp_underflow & ~w_uf_rescued) begin')
+        self.instruction('        // Underflow to zero (post-round: a rounding carry out of')
+        self.instruction('        // pre-round exponent 0 lands on min-normal and falls through')
+        self.instruction('        // to the default assignment instead)')
         self.instruction("        ow_result = {w_sign_result, 8'h00, 7'h00};")
         self.instruction("        ow_underflow = 1'b1;")
         self.instruction('    end')
