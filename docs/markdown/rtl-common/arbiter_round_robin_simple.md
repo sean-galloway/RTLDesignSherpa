@@ -51,7 +51,7 @@ module arbiter_round_robin_simple #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| N | int unsigned | 4 | Number of requesting agents (N >= 1) |
+| N | int unsigned | 4 | Number of requesting agents (N >= 2; see note) |
 | W | int unsigned | `$clog2(N)` | Width of `grant_id`. Derived from N -- leave it at the default; it is a parameter rather than a localparam only so it can be referenced in the port list. |
 
 ## Ports
@@ -88,7 +88,11 @@ The arbiter implements a rotating priority scheme using the following approach:
 - **Fair Arbitration**: Ensures all requesting agents get equal opportunity over time
 - **Efficient Logic**: Uses bit manipulation instead of complex if/case structures
 - **Single-Cycle Response**: Combinational grant generation with registered state update
-- **Scalable**: Parameterizable for any number of agents (N >= 1)
+- **Scalable**: Parameterizable for any number of agents (N >= 2). At N=1,
+  `$clog2(1) = 0` collapses the shift/ID arithmetic into zero-size casts and
+  zero replications that strict front ends reject (the same degeneracy the
+  [arbiter_single_client](arbiter_single_client.md) page documents for the
+  base arbiter) — use `arbiter_single_client` for the one-agent case
 
 ### Reset Behavior
 

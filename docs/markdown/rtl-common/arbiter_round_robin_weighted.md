@@ -39,7 +39,7 @@ module arbiter_round_robin_weighted #(
     parameter int CLIENTS = 4,          // Number of requesting clients
     parameter int WAIT_GNT_ACK = 0      // Enable ACK protocol (0=No-ACK, 1=ACK)
 ) (
-    // Derived localparam (computed internally - not user-settable):
+    // Derived parameter - in the list for port-range use; do not override:
     // localparam int MAX_LEVELS_WIDTH = $clog2(MAX_LEVELS);  // Credit counter width
     // localparam int N = $clog2(CLIENTS);                     // Client ID width
     // localparam int C = CLIENTS;                             // Convenience alias
@@ -78,7 +78,12 @@ module arbiter_round_robin_weighted #(
 | MTW | MAX_LEVELS_WIDTH | Convenience alias for weight width |
 | CXMTW | CLIENTS * MAX_LEVELS_WIDTH | Total packed weight array width |
 
-**Note:** MAX_LEVELS_WIDTH, N, C, MTW, and CXMTW are localparams computed internally and cannot be overridden by users.
+**Note:** MAX_LEVELS_WIDTH, N, C, MTW, and CXMTW are derived `parameter`s —
+declared in the parameter list so the port declarations can use them (strict
+front ends reject body localparams in port ranges). They *can* be overridden
+at instantiation, and must not be; leave them to their derivations. (The
+[arbiter_priority_encoder](arbiter_priority_encoder.md) page describes the
+same pattern.)
 
 ## Ports
 
@@ -108,9 +113,12 @@ module arbiter_round_robin_weighted #(
 Weighted bandwidth allocation here runs on a credit system:
 
 1. **Credit Initialization**: reset loads **1 credit** per client
-   (`r_credit_counter[i] <= MTW'(1)`), not the weight. Credits only become the
-   configured weights at the first global replenish, so the very first round
-   after reset is effectively unweighted
+   (`r_credit_counter[i] <= MTW'(1)`) — but the shadow weight register resets
+   to all-ones, so for any normal configuration the weight-change FSM runs
+   immediately after reset (with the sub-arbiter blocked) and loads the
+   CONFIGURED weights into the credits at WEIGHT_STABILIZE, before the first
+   grant can issue. The first post-reset round IS weighted; only a config
+   equal to the all-ones reset value skips the init pass
 2. **Grant Completion**: When a grant completes, the client's credit counter decrements
 3. **Credit Eligibility**: Only clients with non-zero credits are eligible for round-robin arbitration
 4. **Global Replenishment**: When no requesting clients have credits, all credits are reloaded
@@ -179,9 +187,9 @@ A finite state machine handles atomic weight updates:
 |-------|-------------|
 | WEIGHT_IDLE | Normal operation |
 | WEIGHT_BLOCK | Detect weight change, block new grants |
-| WEIGHT_DRAIN | Wait for pending ACK completion (2 cycles) |
+| WEIGHT_DRAIN | Wait for pending ACK completion (timer 2 → 3 cycles in state) |
 | WEIGHT_UPDATE | Atomic weight update, reset credits |
-| WEIGHT_STABILIZE | System stabilization (3 cycles) |
+| WEIGHT_STABILIZE | System stabilization (timer 3 → 4 cycles in state) |
 
 ### Weight Update Sequence
 
@@ -192,7 +200,7 @@ A finite state machine handles atomic weight updates:
 5. **Stabilize**: System stabilization period
 6. **Resume**: Return to normal operation
 
-**Total Latency**: 5-15 cycles depending on pending ACKs
+**Total Latency**: 10 cycles minimum (DRAIN occupies 3 cycles, STABILIZE 4 — each timed state runs timer+1 cycles); up to ~25 with the 15-cycle BLOCK timeout on a pending ACK
 
 ### Safety Features
 
@@ -286,12 +294,14 @@ arbiter_round_robin #(
   `w_req_post` -> `w_requesting_eligible` -> `w_mask_req`); the only register
   stage is the base arbiter's `grant <= w_next_grant`. Measured on this RTL: a
   request sampled at edge N produces `grant_valid` at edge N+1. Two exceptions
-  add cycles -- the first grant after reset waits for the weight FSM to
-  initialise (measured at 7 cycles for a 4-client, all-weights-4 configuration),
-  and a global replenish inserts a one-cycle bubble.
+  add cycles -- the first grant after reset waits for the weight-init FSM,
+  10 cycles to return to IDLE traced from the FSM constants (detect 1 +
+  BLOCK 1 + DRAIN 3 + UPDATE 1 + STABILIZE 4) plus one for the grant
+  register, ~11 cycles total -- and a global replenish inserts a one-cycle
+  bubble.
 - **Throughput**: 1 grant per cycle (maximum)
 - **Grant Hold**: No-ACK=1 cycle, ACK=Until grant_ack asserted
-- **Weight Update**: 5-15 cycles (FSM: BLOCK→DRAIN→UPDATE→STABILIZE)
+- **Weight Update**: 10-25 cycles (FSM: BLOCK→DRAIN→UPDATE→STABILIZE)
 - **Reset**: Asynchronous (all credits→1, weights→default)
 
 ### Critical Paths

@@ -77,7 +77,12 @@ module arbiter_deficit_round_robin #(
 
 ### Derived Parameters
 
-| Localparam | Value | Purpose |
+Declared in the parameter list so the port declarations can use them (strict
+front ends reject body localparams in port ranges); overridable in principle,
+and must not be — leave them to their derivations. Only DW is a true
+localparam.
+
+| Derived parameter | Value | Purpose |
 |---|---|---|
 | QW | $clog2(MAX_QUANTUM) | Quantum field width |
 | DW | $clog2(2^COST_WIDTH + MAX_QUANTUM) + 1 | Deficit counter width — sized so every legal cost is reachable by accumulation, which is the no-livelock guarantee |
@@ -146,8 +151,8 @@ Quanta [4,2,1,1], every request cost 2:
 ### Quantum Changes and Disable
 
 Runtime quantum changes pass through the same shadow-register FSM as the
-WRR's weights (IDLE → BLOCK → DRAIN → UPDATE → STABILIZE, 15-cycle
-timeout); deficits clear at STABILIZE so old carry cannot distort the new
+WRR's weights (IDLE → BLOCK → DRAIN → UPDATE → STABILIZE; 10 cycles minimum,
+~25 with the BLOCK timeout); deficits clear at STABILIZE so old carry cannot distort the new
 policy. Quantum 0 disables a client entirely. A cost of 0 is defensively
 served as cost 1.
 
@@ -158,7 +163,7 @@ served as cost 1.
 | Latency | 1 cycle steady-state (deficit compare, masking and RR decision combinational; grant registered in the core) |
 | Throughput | 1 grant/cycle max |
 | Replenish | 1 cycle per round, repeats until affordable |
-| Quantum update | 3-15 cycles (FSM) |
+| Quantum update | 10-25 cycles (FSM; DRAIN occupies 3 cycles, STABILIZE 4) |
 
 Critical path: the deficit >= cost comparator into the request mask into
 the base arbiter — one comparator wider than the WRR's credit-nonzero
