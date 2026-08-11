@@ -252,9 +252,11 @@ mutation-checked). Of the 14 non-passes at run time:
 - 5 heavy multipliers timed out at 1800 s under 8-way parallelism:
   dadda_4to2_011, dadda_tree_032, wallace_tree_csa_032 were never proven
   (FORMAL_PRIORITY rows: priority 0, "Too large"/"Odd size" — unchanged);
-  dadda_tree_016 and wallace_tree_016 are recorded PASSING pre-split and were
-  re-run serially with a 3600 s budget (see MATH-006 in vault/Tasks/math for
-  the outcome).
+  dadda_tree_016 and wallace_tree_016 were recorded PASSING pre-split;
+  wallace reconfirmed serially (low8 + boundary, ~35 min), dadda's
+  prove_boundary does NOT converge (killed at 1 h parallel, 1 h serial and
+  3 h serial z3) while its prove_low8 passes -- honest heavy-bucket entry,
+  sby dies loudly. Full disposition in vault/Tasks/math (MATH-006, closed).
 
 Operational gotcha for the next sweep: `sby -f <dir>/<cfg>.sby` resolves the
 relative `[files]` paths against the CWD, not the .sby location — run from

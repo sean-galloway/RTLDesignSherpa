@@ -275,3 +275,103 @@ div_by_zero and the INF/ZERO conditions in their own registers, value mux
 keyed identically to the old (correct) value behavior. The failing test IS the
 mutation check: it was RED against the swapped registers and is GREEN after
 (5/5 at FULL, fresh 78 s build). Area lint PASS.
+
+---
+
+## MATH-006 — Re-run the full math formal suite after the path repair
+**Status:** closed 2026-08-11 — every config dispositioned; final entry in
+the table below resolved (dadda_tree_016 prove_boundary does NOT converge:
+killed at a 3 h serial z3 budget; its prove_low8 passes, so it joins the
+heavy bucket honestly — sby dies loudly, no false pass).
+**Priority:** P2
+**Owner:** claude
+
+All 147 `formal/common/math_*` `.sby` configs pointed at
+`../../../rtl/common/math_*.sv`, which moved to `rtl/math/` in the math
+split — the entire math formal suite was unrunnable (sby dies at file-copy,
+loudly, so no false passes; but every recorded PASS predates the split).
+Paths mechanically repaired 2026-08-09.
+
+### 2026-08-10 full re-run (all 171 config dirs, incl. the new mod_3_compress)
+
+| disposition | n | detail |
+|---|---|---|
+| PASS | 157 | prove+cover reconfirmed against current RTL |
+| known BMC-intractable | 6 | softmax_8 x5, bf16_exp2 — ERROR as recorded, not regressions |
+| harness contract drift, FIXED | 2 | bf16 + fp32 mantissa_mult harnesses still asserted the pre-MATH-001 folded sticky; updated to true-sticky + guard property, now PASS, mutation-checked |
+| never proven (unchanged) | 3 | dadda_4to2_011, dadda_tree_032, wallace_tree_csa_032 — FORMAL_PRIORITY priority-0 rows ("Too large"/"Odd size") |
+| reconfirmed serially | 1 | wallace_tree_016: low8 + boundary PASS (~35 min serial) |
+| heavy, does not converge | 1 | dadda_tree_016: low8 PASS; prove_boundary killed at 1 h parallel, 1 h serial AND 3 h serial (z3 BMC) |
+
+Operational notes (also in formal/FORMAL_TODO.md): `sby -f dir/cfg.sby`
+resolves relative `[files]` paths against the CWD, not the .sby location —
+run from inside each config dir. The 016 configs use task names
+`prove_low8`/`prove_boundary`, so status-scrapers globbing `*_prove` miss
+them.
+
+The five multiplier configs were additionally re-proven 2026-08-11 after the
+MATH-008 RTL change (prove+cover PASS all five).
+
+---
+
+## MATH-008 — Multiplier underflow edge: rounding carry out of exp 0 is flushed, IEEE says min-normal
+**Status:** closed 2026-08-11 — **fixed to IEEE per Sean ("Follow ieee, I
+messed up")**. All five multipliers now detect underflow after rounding.
+**Priority:** P1 (was P2-owner-decision; Sean ruled defect)
+**Owner:** claude
+
+When the pre-round exponent sum is exactly 0 (underflow by one) and mantissa
+rounding carries out (product mantissa all-ones, rounds up), the true result
+is exactly the minimum normal. IEEE 754 detects underflow AFTER rounding, so
+the correct output is min-normal; every multiplier in the family flushes to
+zero instead (asserting ow_underflow).
+
+Measured (directed enumeration, DUT probe): fp16 364/364 cases flush, e4m3
+48/48, e5m2 112/112, bf16 57/57, fp32 2,907,528/2,907,528 -- uniform across
+the family, so it reads as a deliberate FTZ-at-pre-round design choice baked
+into the exponent adders (underflow = pre-round es <= 0, exp_out saturates to
+0). The multiplier alone cannot fix it: on underflow the exponent adder
+saturates exp_out, so the "es was exactly 0" information is lost -- a fix
+needs the adder to export the raw sum (or an es==0 flag) plus a multiplier
+gate, across all five formats, in the GENERATORS per
+[[generated-rtl-discipline]].
+
+Decide: accept-and-document (docs/RTL headers say underflow detection is
+pre-round, one boundary value flushes) or fix-to-spec family-wide. Sweep
+harness pattern to verify a fix: the MATH-007 record in closed.md (exact
+reference classifies these as uf_edge; uf_minnorm counter should go from 0 to
+all).
+
+### Fix record (2026-08-11)
+
+- **RTL, in the generators** ([[generated-rtl-discipline]]): each multiplier
+  recomputes "pre-round exponent sum was exactly 0" from the raw exponents
+  (`exp_a + exp_b + needs_norm == BIAS` -- the exponent adder saturates on
+  underflow, so the information is otherwise lost) and gates the underflow
+  flush with `~(that & w_mant_round_overflow)`. The rescued case falls
+  through to the default assembly, which is already exactly min-normal
+  (saturated exp 0 + rounding carry = exp 1, mantissa 0). All five
+  regenerated; the only tree diffs are the rescue logic.
+- **Sweep-verified**: the harness now ASSERTS min-normal + no-underflow on
+  every edge case -- fp16 364, bf16 57, e4m3 48, e5m2 112 (both exhaustive),
+  fp32 2,907,528 directed; 0 mismatches, and the main RNE sweep is unchanged
+  (0 mismatches). Mutation: un-gating e5m2 fails the sweep immediately.
+- **TB models rewritten** to the exact integer datapath model (round first,
+  then classify). The old float-threshold models were wrong at this corner
+  three different ways: fp_testing flushed it (unf=True), bf16_testing
+  emitted a SUBNORMAL encoding (0x007f) the RTL never produces, and both
+  would have false-failed the fixed RTL on any directed hit.
+- **Directed stimulus**: a rescued pair per format (runtime-searched in
+  FPMultiplierTB, hardcoded 0x0081*0x3F7E in the bf16 corner list).
+  Mutation-checked end-to-end twice: un-gated e5m2 RTL fails pytest with
+  `got 0x00 expected 0x04`; un-gated bf16 fails its corner case; both green
+  restored on clean rebuilds.
+- **Formal**: all five multiplier configs re-proven (prove+cover PASS);
+  the underflow=>zero properties hold (rescued case clears the flag).
+- **Docs**: bf16_multiplier.md assembly snippet + flag descriptions on the
+  bf16/fp8/ieee754 pages now state after-rounding detection.
+- NOT touched: the adders and FMAs were not audited for this corner --
+  their underflow paths are structured differently (bf16_fma has its own
+  signed product-exponent handling). If IEEE-strictness matters there too,
+  that is a new task.
+
