@@ -6,7 +6,7 @@ Migrated 2026-07-23 from `rtl/common/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 0 | in progress right now |
-| [open.md](open.md) | 1 | accepted, not started |
+| [open.md](open.md) | 2 | accepted, not started |
 | [closed.md](closed.md) | 20 | done (kept for history) |
 | [dropped.md](dropped.md) | 2 | ended without completing |
 
@@ -43,8 +43,13 @@ integration support.
 - **COMMON-007** — additional arbiter types. TWO of three shipped:
   arbiter_deficit_round_robin (2026-08-09, cost-proportional shares, sibling
   wrapper to the WRR) and arbiter_token_bucket (2026-08-10, free-standing
-  rate shaper). Only hierarchical (grouped two-level composition) remains,
-  deferred pending a consumer. The last open task in the area.
+  rate shaper) — both now FORMALLY PROVED (2026-08-10: prove+cover green,
+  every module-specific property mutation-checked; see FORMAL_TODO). Only
+  hierarchical (grouped two-level composition) remains, deferred pending a
+  consumer.
+- **COMMON-023** — pwm formal prove FAILs (shadow-model divergence at BMC
+  step 6), pre-existing and likely latent for months; needs trace-led
+  diagnosis. Found 2026-08-10 by the post-sweep re-verification.
 - **COMMON-008** — CLOSED 2026-08-09: premise false — dataint_crc already
   does CHUNKS = DATA_WIDTH/8 bytes per cycle (cascaded stages +
   cascade_sel); default build is 8 bytes/cycle. See closed.md.

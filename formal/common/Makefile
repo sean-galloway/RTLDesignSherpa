@@ -12,26 +12,23 @@ SHELL := /bin/bash
 
 .DEFAULT_GOAL := help
 
-# All module directories with proofs
+# All module directories with proofs.
+# CDC modules (bin2gray/gray2bin/johnson2bin, counter_bingray/johnson,
+# glitch_free_n_dff_arn, fifo_async, gaxi_fifo_async, gaxi_skid_buffer_async)
+# moved to ../cdc with the rtl/cdc reorg - see formal/cdc/Makefile.
+# fifo_sync_multi moved to ../integ_common with the integration-example split.
 MODULES = \
+	arbiter_deficit_round_robin \
 	arbiter_round_robin_simple \
 	arbiter_round_robin \
 	arbiter_round_robin_weighted \
 	arbiter_priority_encoder \
 	counter_bin \
 	counter_bin_load \
-	counter_bingray \
 	counter_freq_invariant \
-	counter_johnson \
 	counter_load_clear \
-	bin2gray \
-	gray2bin \
-	johnson2bin \
-	glitch_free_n_dff_arn \
 	fifo_control \
 	fifo_sync \
-	fifo_sync_multi \
-	fifo_async \
 	gaxi_skid_buffer \
 	axi_gen_addr \
 	dataint_crc_xor_shift \
@@ -48,12 +45,11 @@ MODULES = \
 	find_first_set \
 	find_last_set \
 	gaxi_drop_fifo_sync \
-	gaxi_fifo_async \
 	gaxi_fifo_sync \
 	gaxi_regslice \
-	gaxi_skid_buffer_async \
 	gaxi_skid_buffer_dbldrn \
 	gaxi_skid_buffer_struct \
+	arbiter_token_bucket \
 	icg \
 	monbus_arbiter
 
@@ -69,15 +65,13 @@ help:
 	@echo "  make all                   Prove + cover everything"
 	@echo ""
 	@echo "PER-MODULE (prove-X / cover-X):"
-	@echo "  Arbiters:    arbiter-simple, arbiter-rr, arbiter-rrw, arbiter-pe"
-	@echo "  Counters:    counter, counter-load, counter-gray, counter-freq,"
-	@echo "               counter-johnson, counter-lc"
-	@echo "  Gray code:   bin2gray, gray2bin, johnson2bin"
-	@echo "  CDC:         glitch-free"
-	@echo "  FIFOs:       fifo-ctrl, fifo, fifo-multi, fifo-async, gaxi-skid,"
-	@echo "               gaxi-drop-fifo, gaxi-fifo-async, gaxi-fifo-sync,"
-	@echo "               gaxi-regslice, gaxi-skid-async, gaxi-skid-dbldrn,"
+	@echo "  Arbiters:    arbiter-simple, arbiter-rr, arbiter-rrw, arbiter-drr,"
+	@echo "               arbiter-tb (token bucket), arbiter-pe"
+	@echo "  Counters:    counter, counter-load, counter-freq, counter-lc"
+	@echo "  FIFOs:       fifo-ctrl, fifo, gaxi-skid, gaxi-drop-fifo,"
+	@echo "               gaxi-fifo-sync, gaxi-regslice, gaxi-skid-dbldrn,"
 	@echo "               gaxi-skid-struct"
+	@echo "  (CDC + fifo-async + fifo-multi moved: see ../cdc and ../integ_common)"
 	@echo "  AXI:         axi-gen-addr, monbus-arbiter"
 	@echo "  Integrity:   crc-xor, crc-cascade, ecc, parity"
 	@echo "  Logic:       cam-tag, clz, decoder, encoder, encoder-pe, ffs, fls"
@@ -100,24 +94,18 @@ cover-$(2):
 endef
 
 # --- Per-module targets ---
+$(eval $(call MODULE_TARGETS,arbiter_deficit_round_robin,arbiter-drr,arbiter_deficit_round_robin.sby))
+$(eval $(call MODULE_TARGETS,arbiter_token_bucket,arbiter-tb,arbiter_token_bucket.sby))
 $(eval $(call MODULE_TARGETS,arbiter_round_robin_simple,arbiter-simple,arbiter_round_robin_simple.sby))
 $(eval $(call MODULE_TARGETS,arbiter_round_robin,arbiter-rr,arbiter_round_robin.sby))
 $(eval $(call MODULE_TARGETS,arbiter_round_robin_weighted,arbiter-rrw,arbiter_round_robin_weighted.sby))
 $(eval $(call MODULE_TARGETS,arbiter_priority_encoder,arbiter-pe,arbiter_priority_encoder.sby))
 $(eval $(call MODULE_TARGETS,counter_bin,counter,counter_bin.sby))
 $(eval $(call MODULE_TARGETS,counter_bin_load,counter-load,counter_bin_load.sby))
-$(eval $(call MODULE_TARGETS,counter_bingray,counter-gray,counter_bingray.sby))
 $(eval $(call MODULE_TARGETS,counter_freq_invariant,counter-freq,counter_freq_invariant.sby))
-$(eval $(call MODULE_TARGETS,counter_johnson,counter-johnson,counter_johnson.sby))
 $(eval $(call MODULE_TARGETS,counter_load_clear,counter-lc,counter_load_clear.sby))
-$(eval $(call MODULE_TARGETS,bin2gray,bin2gray,bin2gray.sby))
-$(eval $(call MODULE_TARGETS,gray2bin,gray2bin,gray2bin.sby))
-$(eval $(call MODULE_TARGETS,johnson2bin,johnson2bin,johnson2bin.sby))
-$(eval $(call MODULE_TARGETS,glitch_free_n_dff_arn,glitch-free,glitch_free_n_dff_arn.sby))
 $(eval $(call MODULE_TARGETS,fifo_control,fifo-ctrl,fifo_control.sby))
 $(eval $(call MODULE_TARGETS,fifo_sync,fifo,fifo_sync.sby))
-$(eval $(call MODULE_TARGETS,fifo_sync_multi,fifo-multi,fifo_sync_multi.sby))
-$(eval $(call MODULE_TARGETS,fifo_async,fifo-async,fifo_async.sby))
 $(eval $(call MODULE_TARGETS,gaxi_skid_buffer,gaxi-skid,gaxi_skid_buffer.sby))
 $(eval $(call MODULE_TARGETS,axi_gen_addr,axi-gen-addr,axi_gen_addr.sby))
 $(eval $(call MODULE_TARGETS,dataint_crc_xor_shift,crc-xor,dataint_crc_xor_shift.sby))
@@ -134,10 +122,8 @@ $(eval $(call MODULE_TARGETS,encoder_priority_enable,encoder-pe,encoder_priority
 $(eval $(call MODULE_TARGETS,find_first_set,ffs,find_first_set.sby))
 $(eval $(call MODULE_TARGETS,find_last_set,fls,find_last_set.sby))
 $(eval $(call MODULE_TARGETS,gaxi_drop_fifo_sync,gaxi-drop-fifo,gaxi_drop_fifo_sync.sby))
-$(eval $(call MODULE_TARGETS,gaxi_fifo_async,gaxi-fifo-async,gaxi_fifo_async.sby))
 $(eval $(call MODULE_TARGETS,gaxi_fifo_sync,gaxi-fifo-sync,gaxi_fifo_sync.sby))
 $(eval $(call MODULE_TARGETS,gaxi_regslice,gaxi-regslice,gaxi_regslice.sby))
-$(eval $(call MODULE_TARGETS,gaxi_skid_buffer_async,gaxi-skid-async,gaxi_skid_buffer_async.sby))
 $(eval $(call MODULE_TARGETS,gaxi_skid_buffer_dbldrn,gaxi-skid-dbldrn,gaxi_skid_buffer_dbldrn.sby))
 $(eval $(call MODULE_TARGETS,gaxi_skid_buffer_struct,gaxi-skid-struct,gaxi_skid_buffer_struct.sby))
 $(eval $(call MODULE_TARGETS,icg,icg,icg.sby))
@@ -149,12 +135,10 @@ prove-arbiter: prove-arbiter-simple
 cover-arbiter: cover-arbiter-simple
 
 # --- Aggregates ---
-PROVE_ALL = prove-arbiter-simple prove-arbiter-rr prove-arbiter-rrw prove-arbiter-pe \
-            prove-counter prove-counter-load prove-counter-gray prove-counter-freq \
-            prove-counter-johnson prove-counter-lc \
-            prove-bin2gray prove-gray2bin prove-johnson2bin \
-            prove-glitch-free \
-            prove-fifo-ctrl prove-fifo prove-fifo-multi prove-fifo-async prove-gaxi-skid \
+PROVE_ALL = prove-arbiter-drr prove-arbiter-tb prove-arbiter-simple prove-arbiter-rr prove-arbiter-rrw prove-arbiter-pe \
+            prove-counter prove-counter-load  prove-counter-freq \
+            prove-counter-lc \
+            prove-fifo-ctrl prove-fifo   prove-gaxi-skid \
             prove-axi-gen-addr \
             prove-crc-xor prove-crc-cascade prove-ecc \
             prove-cam-tag \
@@ -162,17 +146,15 @@ PROVE_ALL = prove-arbiter-simple prove-arbiter-rr prove-arbiter-rrw prove-arbite
             prove-clz prove-parity \
             prove-decoder prove-encoder prove-encoder-pe \
             prove-ffs prove-fls \
-            prove-gaxi-drop-fifo prove-gaxi-fifo-async prove-gaxi-fifo-sync \
-            prove-gaxi-regslice prove-gaxi-skid-async prove-gaxi-skid-dbldrn \
+            prove-gaxi-drop-fifo  prove-gaxi-fifo-sync \
+            prove-gaxi-regslice  prove-gaxi-skid-dbldrn \
             prove-gaxi-skid-struct \
             prove-monbus-arbiter
 
-COVER_ALL = cover-arbiter-simple cover-arbiter-rr cover-arbiter-rrw cover-arbiter-pe \
-            cover-counter cover-counter-load cover-counter-gray cover-counter-freq \
-            cover-counter-johnson cover-counter-lc \
-            cover-bin2gray cover-gray2bin cover-johnson2bin \
-            cover-glitch-free \
-            cover-fifo-ctrl cover-fifo cover-fifo-multi cover-fifo-async cover-gaxi-skid \
+COVER_ALL = cover-arbiter-drr cover-arbiter-tb cover-arbiter-simple cover-arbiter-rr cover-arbiter-rrw cover-arbiter-pe \
+            cover-counter cover-counter-load  cover-counter-freq \
+            cover-counter-lc \
+            cover-fifo-ctrl cover-fifo   cover-gaxi-skid \
             cover-axi-gen-addr \
             cover-crc-xor cover-crc-cascade cover-ecc \
             cover-cam-tag \
@@ -180,8 +162,8 @@ COVER_ALL = cover-arbiter-simple cover-arbiter-rr cover-arbiter-rrw cover-arbite
             cover-clz cover-parity \
             cover-decoder cover-encoder cover-encoder-pe \
             cover-ffs cover-fls \
-            cover-gaxi-drop-fifo cover-gaxi-fifo-async cover-gaxi-fifo-sync \
-            cover-gaxi-regslice cover-gaxi-skid-async cover-gaxi-skid-dbldrn \
+            cover-gaxi-drop-fifo  cover-gaxi-fifo-sync \
+            cover-gaxi-regslice  cover-gaxi-skid-dbldrn \
             cover-gaxi-skid-struct \
             cover-monbus-arbiter
 

@@ -49,6 +49,48 @@
 - [ ] Create formal/stream/Makefile for STREAM proofs
 - [ ] Create formal/amba/Makefile for AMBA proofs
 
+### CDC area consolidated (2026-08-10)
+
+`formal/cdc/` had held the real collateral for every rtl/cdc module since
+the CDC reorg, but NO Makefile ran it - `make formal` never touched a CDC
+proof, while ten 0-sby output-debris twins under `formal/common/` made the
+area look covered. Fixed: `formal/cdc/Makefile` created (12 modules,
+prove/cover/all), wired as `formal-cdc` into formal/Makefile and the root
+Makefile (`make formal` now includes it), the debris deleted (including the
+retired fifo_async_div2 and the moved-to-integ_common fifo_sync_multi), and
+the CDC modules stripped from formal/common/Makefile's lists. Full area run
+green the same day. NOTE: formal/integ_common has the same no-Makefile gap
+- its two proofs run by hand; fold it in when someone touches that area.
+
+### New arbiters proved (2026-08-10)
+
+`arbiter_deficit_round_robin` and `arbiter_token_bucket` (the COMMON-007
+additions) now carry harnesses, registered in formal/common/Makefile:
+- DRR: family safety set (one-hot, subset-of-$past(request), id, reset)
+  plus ap_zero_quantum (a disabled client is never granted) with req_cost
+  left FREE - the solver may mutate a cost in the completion cycle, which
+  is the harshest test of the r_cost_arb pipeline. Covers witness replenish
+  accumulation externally (grant only after idle request-held cycles).
+- Token bucket: the tokens observability port makes the contract assertable
+  - cap invariant every cycle, gate-only-masks, bypass transparency,
+  dry/net-of-spend blocking, exact spend debit - against a FREE downstream
+  arbiter. Static-config limitation noted in the wrapper (cap-decrease
+  clamp is sim-verified, not proved).
+- All four new module-specific properties MUTATION-CHECKED: eligibility-
+  ignores-quantum, debit-removed, raw-token gate, inverted bypass each
+  flipped prove to FAIL and back to PASS on restore.
+
+### pwm prove FAILS - pre-existing, found 2026-08-10 (COMMON-023)
+
+The post-prefix-sweep re-verification (11 of 12 touched modules PASS)
+exposed `pwm/prove: FAIL` - ap_done_matches_shadow and ap_duty_full at
+step 6. NOT the sweep: the pre-sweep RTL fails identically (verified by
+checking out the parent commit's pwm.sv). COMMON-021's audit only re-ran
+counter_freq_invariant for common, so this failure has likely hidden
+behind stale results for months. The harness carries a shadow FSM that
+disagrees with the DUT - needs a trace-led diagnosis (RTL bug vs stale
+harness model). Tracked as COMMON-023.
+
 ---
 
 ## Findings (Bugs Found by Formal)

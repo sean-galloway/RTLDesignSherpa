@@ -83,3 +83,30 @@ and remember randomized traffic does not prove fairness
   must respect field widths (cap 8 in a 3-bit field wraps to 0 = bypass).
 - Naming: w_client_* prefixes per [[signal-prefixes]] in both new arbiter
   modules (the WRR's unprefixed client_weight precedent was NOT followed).
+
+## COMMON-023 — pwm formal prove FAILs: shadow model disagrees with the DUT
+**Status:** open 2026-08-10 (found by the post-prefix-sweep formal
+re-verification)
+**Priority:** P2 — a failing proof is either an RTL bug or a lying harness,
+and both matter
+
+`formal/common/pwm` prove FAILs at BMC step 6: `ap_done_matches_shadow`
+(done[0] vs the harness shadow FSM's F_DONE) and `ap_duty_full`
+(duty >= period must pin pwm_out high). Facts established at filing:
+
+- NOT the 2026-08-10 prefix sweep: the pre-sweep pwm.sv (parent of
+  1d45e3be) fails identically.
+- Cover PASSes; only prove fails.
+- Likely latent for months: COMMON-021's audit re-ran only
+  counter_freq_invariant for common, and pwm's RTL last materially changed
+  before the April formal campaign recorded it as passing — so either the
+  harness shadow model was written against different RTL semantics, or an
+  RTL change landed without a formal re-run, or the April PASS was itself
+  against different code.
+
+**Work:** pull the counterexample trace
+(`formal/common/pwm/pwm_prove/engine_0/trace.vcd`), replay the shadow FSM
+against the DUT's actual done/pwm_out semantics, and decide: RTL defect
+(fix RTL, per [[formal]] the counterexample is a REAL result) or stale
+harness model (fix the shadow, then MUTATION-CHECK the repaired properties
+— break the RTL, watch them fail). Do not quiet the assert.

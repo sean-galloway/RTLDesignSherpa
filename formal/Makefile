@@ -3,8 +3,9 @@
 # ==============================================================================
 #
 # Usage:
-#   make formal         Run all formal proofs (common + bridge)
+#   make formal         Run all formal proofs (common + cdc + stream + rapids)
 #   make formal-common  Common building blocks only
+#   make formal-cdc     CDC blocks only
 #   make formal-bridge  Bridge AXI4 protocol only (requires SVA-AXI4-FVIP)
 #   make formal-quick   Just counter_bin (fastest proof, ~seconds)
 #   make clean          Remove all formal artifacts
@@ -20,8 +21,9 @@ help:
 	@echo "Formal Verification - RTL Design Sherpa"
 	@echo "================================================================================"
 	@echo ""
-	@echo "  make formal           Run ALL formal proofs (common + stream + rapids)"
+	@echo "  make formal           Run ALL formal proofs (common + cdc + stream + rapids)"
 	@echo "  make formal-common    Common building blocks (arbiter, counter, FIFO)"
+	@echo "  make formal-cdc       CDC blocks (rtl/cdc: async FIFOs, gray, handshakes)"
 	@echo "  make formal-stream    STREAM DMA blocks (dmas/stream)"
 	@echo "  make formal-rapids    RAPIDS DMA blocks (dmas/rapids *_beats)"
 	@echo "  make formal-dma       STREAM + RAPIDS"
@@ -41,7 +43,7 @@ check-tools:
 	@which z3 > /dev/null 2>&1 && echo "  z3:        found" || echo "  z3:        NOT FOUND (optional fallback solver)"
 
 .PHONY: formal
-formal: formal-common formal-stream formal-rapids
+formal: formal-common formal-cdc formal-stream formal-rapids
 	@echo "================================================================================"
 	@echo "All formal proofs complete"
 	@echo "================================================================================"
@@ -49,6 +51,10 @@ formal: formal-common formal-stream formal-rapids
 .PHONY: formal-common
 formal-common:
 	$(MAKE) -C common all
+
+.PHONY: formal-cdc
+formal-cdc:
+	$(MAKE) -C cdc all
 
 .PHONY: formal-stream
 formal-stream:

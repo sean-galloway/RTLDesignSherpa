@@ -201,6 +201,7 @@ help:
 	@echo "FORMAL VERIFICATION:"
 	@echo "  make formal                  Run all formal proofs"
 	@echo "  make formal-common           Building blocks (arbiter, counter, FIFO)"
+	@echo "  make formal-cdc              CDC blocks (async FIFOs, gray, handshakes)"
 	@echo "  make formal-quick            Quick proof (counter_bin only, ~seconds)"
 	@echo "  make formal-check-tools      Check sby/boolector/z3 installed"
 	@echo ""
@@ -575,6 +576,10 @@ formal:
 .PHONY: formal-common
 formal-common:
 	@$(MAKE) -C formal formal-common
+
+.PHONY: formal-cdc
+formal-cdc:
+	@$(MAKE) -C formal formal-cdc
 
 .PHONY: formal-bridge
 formal-bridge:
