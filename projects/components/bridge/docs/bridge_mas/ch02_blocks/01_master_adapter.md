@@ -23,11 +23,11 @@
 
 # 2.1 Master Adapter
 
-The Master Adapter is a per-master module that provides timing isolation, protocol normalization, and request preparation for the crossbar interconnect. Each master port in the bridge has its own dedicated adapter instance.
+Every master port in the bridge gets its own Master Adapter. The adapter sits between the master and the crossbar core, and it exists to make the crossbar's life simple: timing is isolated at the boundary, channels are specialized to what the master actually uses, and every transaction carries a Bridge ID before it enters the fabric.
 
 ## 2.1.1 Purpose and Function
 
-The Master Adapter serves several critical functions:
+Concretely, the adapter does five things:
 
 1. **Timing Isolation**: Inserts pipeline registers (skid buffers) to break combinatorial paths from master to crossbar
 2. **Channel Specialization**: Separates read-only, write-only, and read-write masters for optimal resource utilization
@@ -211,7 +211,7 @@ The Master Adapter enforces several protocol requirements:
 
 ### Problem: Stale Slave Select Decode
 
-The master adapter decodes incoming address to determine target slave immediately (combinational). When the wrapper's skid buffer pops and `fub_axi_awaddr`/`fub_axi_araddr` reverts, the decode changes even though the converter is still in flight pushing the request to the crossbar. This causes the response MUX to route read/write responses from the wrong slave.
+Here's the part that bites people. The master adapter decodes the incoming address combinationally to pick a target slave. When the wrapper's skid buffer pops and `fub_axi_awaddr`/`fub_axi_araddr` reverts, the decode changes even though the converter is still in flight pushing the request to the crossbar. This causes the response MUX to route read/write responses from the wrong slave.
 
 ### Solution: Per-Channel Response-Tracking FIFOs
 

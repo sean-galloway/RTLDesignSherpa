@@ -23,7 +23,7 @@
 
 # 3.1 Protocol Conversion Overview
 
-Protocol converters enable communication between components using different communication protocols, essential for integrating diverse IP blocks in complex SoC designs.
+Protocol converters bridge components that speak different bus protocols — the glue in any SoC that mixes AXI4, AXI4-Lite, and APB.
 
 ## 3.1.1 Available Converters
 

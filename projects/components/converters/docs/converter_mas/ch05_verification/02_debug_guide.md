@@ -23,7 +23,7 @@
 
 # 5.2 Debug Guide
 
-This section provides debugging guidance for converter module issues.
+Start here when a converter misbehaves.
 
 ## 5.2.1 Common Issues
 

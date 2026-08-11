@@ -70,7 +70,7 @@ Test Bridge in target system:
 
 ### CocoTB Framework with Protocol-BFM-Only Driving
 
-Bridge uses CocoTB for verification with a protocol-BFM-only approach: **all test stimulus is driven through protocol BFMs (AXI4Master, AXI4Slave, etc.) with no direct DUT signal manipulation**. Each slave port is backed by an in-memory model (`MemoryModel`), and verification is assertion-based (readback matches write) rather than routing-based.
+Bridge verification runs on CocoTB with protocol BFMs only: **all test stimulus is driven through protocol BFMs (AXI4Master, AXI4Slave, etc.) with no direct DUT signal manipulation**. Each slave port is backed by an in-memory model (`MemoryModel`), and checking is assertion-based (readback matches write) rather than routing-based.
 
 ```python
 from CocoTBFramework.components.axi4 import AXI4Master, AXI4Slave

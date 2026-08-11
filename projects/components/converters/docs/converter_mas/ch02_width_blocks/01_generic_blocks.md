@@ -23,7 +23,7 @@
 
 # 2.1 Generic Building Blocks
 
-The Converters component provides two generic building blocks for data width conversion: **axi_data_upsize** (narrow-to-wide) and **axi_data_dnsize** (wide-to-narrow). These modules are protocol-agnostic and can be composed into full AXI4 converters or used directly in custom designs.
+Two generic building blocks handle the data movement: **axi_data_upsize** (narrow-to-wide) and **axi_data_dnsize** (wide-to-narrow). Both are protocol-agnostic — compose them into full AXI4 converters or use them directly in custom designs.
 
 ## 2.1.1 Module Hierarchy
 
@@ -57,7 +57,7 @@ They do **not** handle:
 - ID tracking
 - Protocol-specific signals (ARLEN, AWLEN, etc.)
 
-This separation enables:
+That separation buys:
 - Reuse in multiple contexts
 - Simpler verification
 - Cleaner composition into full converters
@@ -170,15 +170,12 @@ input = OKAY (2'b00)
 : Table 2.3: Performance Comparison
 
 **Why 80% for single-buffer downsize?**
-- Single buffer requires one cycle gap between wide beats
-- Wide beat loaded → N narrow beats output → gap → next wide beat
-- Gap cycle = 1/(N+1) throughput loss
-- For large N, approaches 100% but never reaches it
+
+A single buffer can't load the next wide beat while it's still draining the current one. The pattern is: load, output N narrow beats, one gap cycle, load again. That gap costs 1/(N+1) of throughput — efficiency approaches 100% for large N but never reaches it.
 
 **Why 100% for dual-buffer downsize?**
-- Ping-pong between two buffers
-- While one buffer outputs, other loads
-- No gap cycles required
+
+With two buffers, loading and draining overlap: while one buffer outputs, the other loads. There are no gap cycles.
 
 ## 2.1.6 Resource Utilization
 

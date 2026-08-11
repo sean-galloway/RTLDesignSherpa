@@ -25,7 +25,7 @@
 
 ## Overview
 
-Width converters handle data width mismatches between masters and slaves. Bridge automatically inserts upsizers (narrow to wide) and downsizers (wide to narrow) as needed.
+When a master and slave disagree on data width, a converter sits between them: an upsizer for narrow-to-wide, a downsizer for wide-to-narrow. The generator inserts them automatically wherever the configuration needs one.
 
 ## Upsize Converter
 
@@ -210,7 +210,7 @@ Logic: ~150 LEs (selection + control)
 
 ## AXIL-to-Wider-Slave Master-Side Alignment Converters
 
-When an AXI4-Lite master connects to a wider AXI4 slave through the bridge, alignment issues arise: AXIL single-beat transactions are not inherently wide-alignment-aware. The bridge generator emits master-side alignment converters (`axil_to_axi4_wide_align_{rd,wr}.sv`) to handle partial-word alignment on the AXIL side while producing properly-aligned transactions on the wide slave side.
+An AXI4-Lite master talking to a wider AXI4 slave through the bridge has an alignment problem: AXIL single-beat transactions don't know where they land in a wide word. The bridge generator emits master-side alignment converters (`axil_to_axi4_wide_align_{rd,wr}.sv`) to handle partial-word alignment on the AXIL side while producing properly-aligned transactions on the wide slave side.
 
 ### Use Case Example
 

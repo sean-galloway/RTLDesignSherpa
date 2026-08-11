@@ -42,7 +42,7 @@
 
 ## Document Purpose
 
-This Micro-Architecture Specification (MAS) provides detailed implementation information for the Bridge component, covering:
+This Micro-Architecture Specification (MAS) documents how the Bridge component is built:
 
 - Block-level architecture and internal structure
 - FSM state diagrams and transition tables

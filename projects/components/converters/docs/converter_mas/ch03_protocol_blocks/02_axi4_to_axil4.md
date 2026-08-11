@@ -35,7 +35,7 @@ axi4_to_axil4.sv          # Full bidirectional wrapper
 
 ### Design Philosophy
 
-Separate read and write paths enable:
+Read and write are separate modules, which buys:
 - Independent optimization
 - Selective instantiation (read-only, write-only, or both)
 - Simpler verification (test paths independently)

@@ -23,7 +23,7 @@
 
 # 2.6 axi4_dwidth_converter_rd
 
-The **axi4_dwidth_converter_rd** module provides complete AXI4 read path conversion, handling AR and R channels with burst length adjustment and burst-aware RLAST generation.
+The **axi4_dwidth_converter_rd** module is the complete AXI4 read path — AR and R channels with burst length adjustment and burst-aware RLAST generation.
 
 ## 2.6.1 Purpose and Function
 

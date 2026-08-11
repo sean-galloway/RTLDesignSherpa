@@ -23,7 +23,7 @@
 
 # 2.5 axi4_dwidth_converter_wr
 
-The **axi4_dwidth_converter_wr** module provides complete AXI4 write path conversion, handling AW, W, and B channels with burst length adjustment and proper protocol compliance.
+The **axi4_dwidth_converter_wr** module is the complete AXI4 write path — AW, W, and B channels with burst length adjustment for the new width.
 
 ## 2.5.1 Purpose and Function
 
@@ -136,7 +136,7 @@ localparam int RATIO_LOG2 = $clog2(RATIO);
 
 ### Non-Aligned Bursts
 
-When burst length is not a multiple of ratio:
+When the burst length is not a multiple of the ratio:
 
 ```
 S_AWLEN = 5 (6 beats), RATIO = 8
@@ -242,7 +242,7 @@ AXI4 allows AW to arrive before, with, or after W data. The converter must handl
 
 ### Solution
 
-Use FIFO for AW information needed by upsize logic:
+A FIFO carries the AW information the upsize logic needs:
 
 ```systemverilog
 // FIFO stores AWLEN for burst tracking

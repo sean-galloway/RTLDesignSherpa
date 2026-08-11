@@ -27,7 +27,7 @@ The **axi4_to_apb4_convert** module provides full protocol translation from AXI4
 
 ## 3.4.1 Purpose
 
-Bridge the significant protocol differences between AXI4 and APB:
+AXI4 and APB differ on just about every axis:
 
 | Aspect | AXI4 | APB |
 |--------|------|-----|

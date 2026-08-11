@@ -54,7 +54,7 @@ Bridge uses consistent signal prefixes:
 
 ### Figure 1.1: Block Diagram Legend
 
-Block diagrams in this specification use the following conventions:
+Block diagrams in this specification use these symbols:
 
 | Symbol | Meaning |
 |--------|---------|
@@ -67,7 +67,7 @@ Block diagrams in this specification use the following conventions:
 
 ## Code Examples
 
-SystemVerilog code examples are formatted as:
+SystemVerilog examples are formatted like this:
 
 ```systemverilog
 // Module instantiation example
@@ -80,7 +80,7 @@ bridge_4x4 u_bridge (
 
 ## Parameter Notation
 
-Parameters use the following format:
+Parameter tables throughout the spec use this format:
 
 | Parameter | Type | Range | Default | Description |
 |-----------|------|-------|---------|-------------|

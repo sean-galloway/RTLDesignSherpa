@@ -23,11 +23,11 @@
 
 # 2.8 Response Routing
 
-Response Routing is the mechanism by which slave responses (read data and write acknowledgments) are directed back to the originating master. This system uses Bridge IDs, demultiplexing logic, and optional CAM structures to ensure responses reach the correct destination.
+Requests are easy to route — the address says where they go. Responses are harder: read data and write acknowledgments have to find their way back to whichever master asked. Response routing does that with Bridge IDs, demultiplexing logic, and optional CAM structures.
 
 ## 2.8.1 Purpose and Function
 
-Response routing performs the following critical functions:
+Response routing does five things:
 
 1. **Response Direction**: Routes R and B channel responses to correct master
 2. **ID-Based Routing**: Uses extracted Bridge IDs to determine destination

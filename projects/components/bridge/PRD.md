@@ -25,7 +25,7 @@
 
 **Project:** Bridge
 **Version:** 2.1
-**Status:** 🟢 Phase 2 Complete - Simplified Architecture with Hard Limits
+**Status:** Phase 2 Complete - Simplified Architecture with Hard Limits
 **Created:** 2025-10-18
 **Last Updated:** 2025-11-02
 
@@ -83,24 +83,24 @@ We enforce uniform widths on certain parameters to eliminate complexity:
 **4. What We DON'T Support (By Design)**
 
 Features intentionally excluded for simplicity:
-- ❌ Variable ID width per port
-- ❌ Variable address width per port
-- ❌ AXI4-Lite protocol variant (use standard AXI4 with len=0)
-- ❌ ACE protocol extensions (cache coherency)
-- ❌ AXI5 features
-- ❌ Complete AXI4 sideband signal support (QoS, Region, User signals declared but not routed)
+- No variable ID width per port
+- No variable address width per port
+- No AXI4-Lite protocol variant (use standard AXI4 with len=0)
+- No ACE protocol extensions (cache coherency)
+- No AXI5 features
+- No complete AXI4 sideband signal support (QoS, Region, User signals declared but not routed)
 
 **5. What We DO Support**
 
 Core AXI4 features that matter:
-- ✅ Full 5-channel AXI4 protocol (AW, W, B, AR, R)
-- ✅ Burst transactions (INCR, WRAP, FIXED)
-- ✅ Out-of-order completion via transaction IDs
-- ✅ Multiple outstanding transactions per master
-- ✅ Channel-specific masters (write-only, read-only, read-write)
-- ✅ Data width conversion (32b ↔ 64b ↔ 128b ↔ 256b ↔ 512b)
-- ✅ Configurable M×N topology (1-32 masters, 1-256 slaves)
-- ✅ Fair round-robin arbitration per slave
+- Full 5-channel AXI4 protocol (AW, W, B, AR, R)
+- Burst transactions (INCR, WRAP, FIXED)
+- Out-of-order completion via transaction IDs
+- Multiple outstanding transactions per master
+- Channel-specific masters (write-only, read-only, read-write)
+- Data width conversion (32b ↔ 64b ↔ 128b ↔ 256b ↔ 512b)
+- Configurable M×N topology (1-32 masters, 1-256 slaves)
+- Fair round-robin arbitration per slave
 
 ### Architecture Philosophy
 
@@ -128,7 +128,7 @@ Master (512b) → Conv(512→64) → Slave (64b)         [1 conversion]
 
 ---
 
-## ⚠️ CRITICAL: RTL Regeneration Requirements
+## CRITICAL: RTL Regeneration Requirements
 
 **ALL generated RTL files MUST be deleted and regenerated together whenever ANY generator code changes.**
 
@@ -140,12 +140,12 @@ Master (512b) → Conv(512→64) → Slave (64b)         [1 conversion]
 
 **The Rule:**
 ```bash
-# ❌ WRONG - Partial regeneration
+# WRONG - Partial regeneration
 ./bridge_generator.py --masters 5 --slaves 3 --output ../rtl/
 # Only regenerates bridge_axi4_flat_5x3.sv
 # Other files (wrappers, integrators) now mismatched!
 
-# ✅ CORRECT - Full regeneration
+# CORRECT - Full regeneration
 cd bin
 make clean                               # Delete ALL generated bridges (rtl/generated/)
 make all                                 # Regenerate everything from bridge_batch.csv
@@ -174,7 +174,7 @@ When you update a generator, you don't selectively regenerate - you regenerate e
 
 ### 1.1 Purpose
 
-Bridge provides automated generation of AXI4 crossbar infrastructure with:
+Bridge automates generation of AXI4 crossbar infrastructure:
 - **Python code generation** - Parameterized RTL generation (similar to APB/Delta)
 - **Performance modeling** - Analytical + simulation validation
 - **Flat topology** - Full M×N interconnect matrix
@@ -234,7 +234,7 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
    - Interface wrapper integration (timing isolation)
    - Mixed protocols (AXI4 + APB + AXI4-Lite slaves)
    - Channel-specific masters (wr/rd/rw)
-   - Status: ✅ Phase 2 complete, Phase 3 pending
+   - Status: Phase 2 complete, Phase 3 pending
 
 2. **Legacy CSV Mode (Backwards Compatible)**
    - Separate `ports.csv` and `connectivity.csv` files
@@ -243,13 +243,13 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 
 **Phase Status:**
 
-**Phase 1: CSV Configuration ✅ COMPLETE**
+**Phase 1: CSV Configuration COMPLETE**
 - CSV parser (ports.csv, connectivity.csv)
 - Port generation with custom prefixes
 - Converter identification logic
 - Basic crossbar instantiation
 
-**Phase 2: Channel-Specific Masters ✅ COMPLETE (2025-10-26)**
+**Phase 2: Channel-Specific Masters COMPLETE (2025-10-26)**
 - Added `channels` field to PortSpec (rw/wr/rd)
 - Conditional port generation based on channels
 - **Resource Optimization:**
@@ -259,7 +259,7 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
 - Width converter awareness (only generate needed converters)
 - Example: 4-master bridge saves 35% signals with optimized channels
 
-**Phase 3: APB Converter Integration ⏳ PENDING**
+**Phase 3: APB Converter Integration PENDING**
 - AXI2APB converter module (create or integrate existing)
 - APB signal packing/unpacking
 - APB converter instantiation in generated bridges
@@ -1020,7 +1020,7 @@ The shell scripts will automatically:
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
+**See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 
@@ -1103,7 +1103,7 @@ The shell scripts will automatically:
 ---
 
 **Version:** 1.0
-**Status:** ✅ Specification Complete - Ready for Implementation
+**Status:** Specification Complete - Ready for Implementation
 **Next Steps:** Create performance models, then implement generator
 
-**Project Bridge - Connecting masters and slaves across the divide 🌉**
+**Project Bridge - Connecting masters and slaves across the divide**

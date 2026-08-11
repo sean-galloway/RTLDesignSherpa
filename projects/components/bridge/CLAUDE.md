@@ -29,11 +29,11 @@
 
 ---
 
-## 🚨 CRITICAL: Read Architecture Documents First
+## CRITICAL: Read Architecture Documents First
 
 **Before making ANY changes to bridge generator or understanding signal flow:**
 
-📖 **READ:** `projects/components/bridge/GENERATOR_ARCHITECTURE.md` (generator structure) and `projects/components/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.1.pdf`)
+**READ:** `projects/components/bridge/GENERATOR_ARCHITECTURE.md` (generator structure) and `projects/components/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.1.pdf`)
 
 These documents contain the **definitive bridge architecture** including:
 - Correct signal flow (wrappers → decoder → converters → crossbar → slaves)
@@ -48,10 +48,10 @@ These documents contain the **definitive bridge architecture** including:
 ## Quick Context
 
 **What:** Bridge - Two complementary AXI4 Crossbar Generators (framework-based and CSV-based)
-**Status:** 🟢 Phase 2 Complete - CSV generator with channel-specific masters (wr/rd/rw)
+**Status:** Phase 2 Complete - CSV generator with channel-specific masters (wr/rd/rw)
 **Your Role:** Help users configure CSV files, generate bridges, understand architecture, and create tests
 
-**📖 Complete Documentation (Read in This Order):**
+**Complete Documentation (Read in This Order):**
 1. `projects/components/bridge/GENERATOR_ARCHITECTURE.md` ← **START HERE** (generator architecture reference)
 2. `projects/components/bridge/PRD.md` ← Product requirements
 3. `projects/components/bridge/TASKS.md` ← Task history and current status
@@ -84,7 +84,7 @@ Master_B (512b)
 
 ### Why This Architecture
 
-**❌ Naive Fixed-Width Approach (Don't Do This):**
+**Naive Fixed-Width Approach (Don't Do This):**
 ```
 Master (64b) → Upsize(64→256) → Fixed 256b Crossbar → Downsize(256→64) → Slave (64b)
 ```
@@ -93,7 +93,7 @@ Master (64b) → Upsize(64→256) → Fixed 256b Crossbar → Downsize(256→64)
 - Unnecessary logic and area
 - Higher latency
 
-**✅ Intelligent Routing (Target):**
+**Intelligent Routing (Target):**
 ```
 Master (64b) → Router → Direct Connection → Slave (64b)
 ```
@@ -140,9 +140,9 @@ end
 
 ---
 
-## 🚨 CRITICAL RULE #0: RTL Regeneration Requirements
+## CRITICAL RULE #0: RTL Regeneration Requirements
 
-**⚠️ READ THIS FIRST - FAILURE TO FOLLOW CAUSES TEST FAILURES ⚠️**
+**READ THIS FIRST - FAILURE TO FOLLOW CAUSES TEST FAILURES**
 
 ### The Golden Rule
 
@@ -158,14 +158,14 @@ Generated RTL files have interdependencies:
 ### Real Example (Historical Session)
 
 ```bash
-# ❌ WHAT WENT WRONG:
+# WHAT WENT WRONG:
 1. Updated the address decode logic in the generator
 2. Regenerated ONLY one bridge configuration
 3. Did NOT regenerate the wrapper that instantiated it
 4. Result: All tests that were passing now FAIL
 5. Cause: Version mismatch between wrapper and core bridge
 
-# ✅ WHAT SHOULD HAVE BEEN DONE:
+# WHAT SHOULD HAVE BEEN DONE:
 1. Update the generator
 2. Delete ALL generated bridge directories (rtl/generated/bridge_*/)
 3. Regenerate ALL bridges from scratch (make all in bin/)
@@ -176,9 +176,9 @@ Generated RTL files have interdependencies:
 
 Any change to these files requires regenerating ALL bridges:
 
-- ✅ `bin/bridge_generator.py` - Core bridge generator (CSV/TOML driven)
-- ✅ **ANY** Python file in `bin/bridge_pkg/` (components/, generators/, config, csv_parser, signal_naming, ...)
-- ✅ Any Jinja template in `bin/bridge_pkg/jinja_templates/`
+- `bin/bridge_generator.py` - Core bridge generator (CSV/TOML driven)
+- **ANY** Python file in `bin/bridge_pkg/` (components/, generators/, config, csv_parser, signal_naming, ...)
+- Any Jinja template in `bin/bridge_pkg/jinja_templates/`
 
 ### The Regeneration Workflow
 
@@ -205,12 +205,12 @@ git diff ../rtl/  # Review all changes
 
 If you see these symptoms, you probably did partial regeneration:
 
-- ❌ Tests that previously passed now fail
-- ❌ "Signal not found" errors in simulation
-- ❌ Port width mismatches in instantiation
-- ❌ Address decode routing to wrong slaves
-- ❌ Missing debug signals (dbg_*)
-- ❌ Unexpected compile errors in working code
+- Tests that previously passed now fail
+- "Signal not found" errors in simulation
+- Port width mismatches in instantiation
+- Address decode routing to wrong slaves
+- Missing debug signals (dbg_*)
+- Unexpected compile errors in working code
 
 ### Think Like a Compiler Developer
 
@@ -247,10 +247,10 @@ The master adapter's R/B response MUX and the crossbar's AR/AW gating both relie
 
 ### Visible Symptoms
 
-- ❌ Multi-slave multi-master bridges hang (timeout)
-- ❌ Multi-width masters fail basic connectivity
-- ❌ APB/AXIL slaves consistently timeout (longer converter latency = more decode changes)
-- ✅ Single-slave or single-master systems work fine (no decode change)
+- Fails: Multi-slave multi-master bridges hang (timeout)
+- Fails: Multi-width masters fail basic connectivity
+- Fails: APB/AXIL slaves consistently timeout (longer converter latency = more decode changes)
+- Works: Single-slave or single-master systems (no decode change)
 
 ### The Solution (MANDATORY in All Generators)
 
@@ -300,7 +300,7 @@ assign r_slave_select = ar_trk_fifo_out;
 
 ---
 
-## ⚠️ MANDATORY: Project Organization Pattern
+## MANDATORY: Project Organization Pattern
 
 **THIS SUBSYSTEM MUST FOLLOW THE RAPIDS/AMBA ORGANIZATIONAL PATTERN - NO EXCEPTIONS**
 
@@ -335,17 +335,17 @@ projects/components/bridge/
 
 ### Testbench Class Location (MANDATORY)
 
-**❌ WRONG:** Testbench class in test file
+**WRONG:** Testbench class in test file
 ```python
 # projects/components/bridge/dv/tests/test_bridge_2x2_rw.py
-class Bridge2x2RwTB:  # ❌ WRONG LOCATION!
+class Bridge2x2RwTB:  # WRONG LOCATION!
     """Embedded TB - NOT REUSABLE"""
 ```
 
-**✅ CORRECT:** Testbench class in PROJECT AREA dv/tbclasses/
+**CORRECT:** Testbench class in PROJECT AREA dv/tbclasses/
 ```python
 # projects/components/bridge/dv/tbclasses/bridge2x2_rw_tb.py
-class Bridge2x2RwTB(TBBase):  # ✅ CORRECT LOCATION!
+class Bridge2x2RwTB(TBBase):  # CORRECT LOCATION!
     """Reusable TB class - imported by the matching test runner"""
 ```
 
@@ -363,7 +363,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-# ✅ IMPORT testbench class from PROJECT AREA
+# IMPORT testbench class from PROJECT AREA
 import sys
 from TBClasses.shared.utilities import get_repo_root
 sys.path.insert(0, get_repo_root())
@@ -378,7 +378,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 @cocotb.test(timeout_time=100, timeout_unit='us')
 async def cocotb_test_basic_routing(dut):
     """Test basic address routing"""
-    tb = Bridge2x2RwTB(dut)  # ✅ Imported TB
+    tb = Bridge2x2RwTB(dut)  # Imported TB
     await tb.setup_clocks_and_reset()
     result = await tb.test_basic_routing()
     assert result, "Basic routing test failed"
@@ -434,7 +434,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ### Rule #0.1: Testbench Architecture - MANDATORY SEPARATION
 
-**⚠️ THIS IS A HARD REQUIREMENT - NO EXCEPTIONS ⚠️**
+**THIS IS A HARD REQUIREMENT - NO EXCEPTIONS**
 
 **NEVER embed testbench classes inside test runner files!**
 
@@ -539,7 +539,7 @@ from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.axi4.axi4_field_configs import AXI4FieldConfigHelper
 
-# ✅ CORRECT: Use GAXI for AXI4 channels
+# CORRECT: Use GAXI for AXI4 channels
 self.aw_master = GAXIMaster(
     dut=dut,
     title="AW_M0",
@@ -561,7 +561,7 @@ self.aw_master = GAXIMaster(
 **For simple in-order verification, use direct monitor queue access:**
 
 ```python
-# ✅ CORRECT: Direct queue access
+# CORRECT: Direct queue access
 aw_pkt = self.aw_slave._recvQ.popleft()
 w_pkt = self.w_slave._recvQ.popleft()
 
@@ -569,15 +569,15 @@ w_pkt = self.w_slave._recvQ.popleft()
 assert aw_pkt.addr == expected_addr
 assert w_pkt.data == expected_data
 
-# ❌ WRONG: Memory model for simple test
+# WRONG: Memory model for simple test
 memory_model = MemoryModel()  # Unnecessary complexity
 ```
 
 **When to Use Memory Models:**
-- ❌ Simple in-order tests → Use queue access
-- ❌ Single-master systems → Use queue access
-- ✅ Complex out-of-order scenarios → Memory model may help
-- ✅ Multi-master with address overlap → Memory model tracks state
+- Simple in-order tests → Use queue access
+- Single-master systems → Use queue access
+- Complex out-of-order scenarios → Memory model may help
+- Multi-master with address overlap → Memory model tracks state
 
 ---
 
@@ -689,11 +689,11 @@ Real hardware often has dedicated read or write masters. Generating all 5 AXI4 c
 **Traditional (wasteful):**
 ```systemverilog
 // Write-only master gets unused read channels
-input  logic [63:0]  rapids_descr_m_axi_awaddr,  // ✅ USED
-input  logic [511:0] rapids_descr_m_axi_wdata,   // ✅ USED
-output logic [7:0]   rapids_descr_m_axi_bid,     // ✅ USED
-input  logic [63:0]  rapids_descr_m_axi_araddr,  // ❌ UNUSED (50% waste!)
-output logic [511:0] rapids_descr_m_axi_rdata,   // ❌ UNUSED
+input  logic [63:0]  rapids_descr_m_axi_awaddr,  // USED
+input  logic [511:0] rapids_descr_m_axi_wdata,   // USED
+output logic [7:0]   rapids_descr_m_axi_bid,     // USED
+input  logic [63:0]  rapids_descr_m_axi_araddr,  // UNUSED (50% waste!)
+output logic [511:0] rapids_descr_m_axi_rdata,   // UNUSED
 ```
 
 **Channel-Specific (optimized):**
@@ -707,7 +707,7 @@ rapids_descr_wr,master,axi4,wr,rapids_descr_m_axi_,512,64,8,N/A,N/A
 input  logic [63:0]  rapids_descr_m_axi_awaddr,
 input  logic [511:0] rapids_descr_m_axi_wdata,
 output logic [7:0]   rapids_descr_m_axi_bid,
-// ✅ NO READ CHANNELS (araddr, rdata, etc.)
+// NO READ CHANNELS (araddr, rdata, etc.)
 ```
 
 **Resource Savings:**
@@ -1009,7 +1009,7 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 - Configurable NxM topology
 - Single-clock domain
 
-**📖 See:**
+**See:**
 - `projects/components/bridge/PRD.md` - Complete specification
 - `projects/components/bridge/bin/bridge_generator.py` - Generator implementation
 
@@ -1061,41 +1061,41 @@ pytest test_bridge_2x2_rw.py -v
 
 ## Anti-Patterns to Avoid
 
-### ❌ Anti-Pattern 1: Embedded Testbench Classes
+### Anti-Pattern 1: Embedded Testbench Classes
 
 ```python
-❌ WRONG: TB class in test file
+WRONG: TB class in test file
 class BridgeTB:
     """NOT REUSABLE - WRONG LOCATION"""
 
-✅ CORRECT: Import from project area
+CORRECT: Import from project area
 import sys
 from TBClasses.shared.utilities import get_repo_root
 sys.path.insert(0, get_repo_root())
 from projects.components.bridge.dv.tbclasses.bridge2x2_rw_tb import Bridge2x2RwTB
 ```
 
-### ❌ Anti-Pattern 2: Manual AXI4 Handshaking
+### Anti-Pattern 2: Manual AXI4 Handshaking
 
 ```python
-❌ WRONG: Manual signal driving
+WRONG: Manual signal driving
 self.dut.s0_axi4_awvalid.value = 1
 while self.dut.s0_axi4_awready.value == 0:
     await RisingEdge(self.clock)
 
-✅ CORRECT: Use GAXI components
+CORRECT: Use GAXI components
 await self.aw_master.send(aw_pkt)
 ```
 
-### ❌ Anti-Pattern 3: Memory Models for Simple Tests
+### Anti-Pattern 3: Memory Models for Simple Tests
 
 ```python
-❌ WRONG: Unnecessary complexity
+WRONG: Unnecessary complexity
 memory = MemoryModel()
 memory.write(addr, data)
 result = memory.read(addr)
 
-✅ CORRECT: Direct queue verification
+CORRECT: Direct queue verification
 aw_pkt = self.aw_slave._recvQ.popleft()
 assert aw_pkt.addr == expected_addr
 ```
@@ -1135,16 +1135,16 @@ verilator --lint-only projects/components/bridge/rtl/generated/bridge_2x2_rw/bri
 
 ## Remember
 
-1. 🏗️ **MANDATORY: Testbench architecture** - TB classes in framework, tests import them
-2. 📁 **MANDATORY: Directory structure** - Follow RAPIDS/AMBA pattern exactly
-3. 📋 **MANDATORY: conftest.py** - Must exist in dv/tests/
-4. 🎯 **Use GAXI components** - Never manually drive AXI4 handshakes
-5. 📊 **Queue-based verification** - Simple tests use direct queue access
-6. 🏛️ **Three-layer architecture** - TB (framework) + Test (runner) + Scoreboard (verification)
-7. ⚙️ **Three mandatory methods** - setup_clocks_and_reset, assert_reset, deassert_reset
-8. 🔍 **Search first** - Use existing components before creating new ones
-9. 📈 **Test scalability** - Support basic/medium/full test levels
-10. 💯 **100% success** - All tests must achieve 100% success rate
+1. **MANDATORY: Testbench architecture** - TB classes in framework, tests import them
+2. **MANDATORY: Directory structure** - Follow RAPIDS/AMBA pattern exactly
+3. **MANDATORY: conftest.py** - Must exist in dv/tests/
+4. **Use GAXI components** - Never manually drive AXI4 handshakes
+5. **Queue-based verification** - Simple tests use direct queue access
+6. **Three-layer architecture** - TB (framework) + Test (runner) + Scoreboard (verification)
+7. **Three mandatory methods** - setup_clocks_and_reset, assert_reset, deassert_reset
+8. **Search first** - Use existing components before creating new ones
+9. **Test scalability** - Support basic/medium/full test levels
+10. **100% success** - All tests must achieve 100% success rate
 
 ---
 
@@ -1168,7 +1168,7 @@ The shell scripts will automatically:
 3. Generate both DOCX and PDF files in the docs/ directory
 4. Create table of contents and title page
 
-**📖 See:** `bin/md_to_docx.py` for complete implementation details
+**See:** `bin/md_to_docx.py` for complete implementation details
 
 ---
 

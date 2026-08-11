@@ -23,11 +23,11 @@
 
 # 2.3 Crossbar Core
 
-The Crossbar Core is the central interconnect fabric that enables any-to-any connectivity between masters and slaves. It contains the arbitration logic, transaction routing, and response path management that form the heart of the bridge.
+The Crossbar Core is the fabric itself: any master can reach any slave through it. Arbitration, request routing, and response management — the machinery that makes any-to-any work — all live here.
 
 ## 2.3.1 Purpose and Function
 
-The Crossbar Core performs the following critical functions:
+The core does five things:
 
 1. **Full Connectivity**: Provides complete N×M master-to-slave interconnect matrix
 2. **Independent Arbitration**: Per-slave arbiters allow parallel access to different slaves

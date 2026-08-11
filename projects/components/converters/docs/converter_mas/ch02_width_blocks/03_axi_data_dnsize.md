@@ -27,7 +27,7 @@ The **axi_data_dnsize** module splits 1 wide beat into N narrow beats. It suppor
 
 ## 2.3.1 Purpose and Function
 
-The downsize module serves several critical functions:
+The downsize module does four things:
 
 1. **Data Splitting**: Extracts N narrow beats from one wide beat
 2. **Sideband Extraction**: Slices or broadcasts sideband signals
@@ -125,7 +125,7 @@ SPLITTING:
 
 **Why 80%?**
 
-For ratio N, the cycle utilization is:
+For ratio N, each wide beat costs:
 - N cycles outputting narrow beats
 - 1 cycle loading next wide beat
 
@@ -169,10 +169,7 @@ When output complete, swap buffers
 
 ### 100% Throughput
 
-Dual-buffer achieves 100% throughput because:
-- While buffer A outputs, buffer B loads
-- While buffer B outputs, buffer A loads
-- No gap cycles required
+Dual-buffer achieves 100% throughput because loading and draining overlap: while one buffer outputs, the other loads. No gap cycles required.
 
 **Trade-off**: 2x register resources
 
@@ -335,8 +332,8 @@ Total: ~1190 flip-flops, ~80-100 LUTs
 : Table 2.9: Resource Comparison
 
 **Decision Guide**:
-- Area-constrained: Use single buffer, accept 80% throughput
-- Performance-critical: Use dual buffer, accept 2x resources
+- Area-constrained: use single buffer, accept 80% throughput
+- Performance-critical: use dual buffer, accept 2x resources
 
 ## 2.3.10 Usage Example
 

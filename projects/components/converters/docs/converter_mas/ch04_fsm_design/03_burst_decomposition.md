@@ -23,7 +23,7 @@
 
 # 4.3 Burst Decomposition
 
-This section describes how converters decompose AXI4 bursts into smaller transactions.
+Burst handling is where the two converter families diverge: width converters rescale the burst length, protocol converters split the burst into single beats.
 
 ## 4.3.1 Width Converter Burst Handling
 
@@ -48,7 +48,7 @@ Example (64-bit to 512-bit, RATIO=8):
 
 ### Non-Aligned Bursts
 
-When burst length is not a multiple of ratio:
+When the burst length is not a multiple of the ratio:
 
 ```
 S_AWLEN = 5 (6 beats), RATIO = 8

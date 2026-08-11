@@ -38,7 +38,7 @@
 
 ## Purpose
 
-This Micro-Architecture Specification (MAS) provides detailed implementation guidance for the Converters component. It covers:
+This Micro-Architecture Specification (MAS) describes how the Converters component is implemented — the internal detail behind the feature set. It covers:
 
 - Internal block architectures
 - State machine designs
@@ -48,7 +48,7 @@ This Micro-Architecture Specification (MAS) provides detailed implementation gui
 
 ## Audience
 
-This document is intended for:
+This document is for:
 
 - RTL designers implementing or modifying converter modules
 - Verification engineers creating testbenches
@@ -90,7 +90,7 @@ All diagrams use Mermaid format rendered to PNG:
 
 ### Code Examples
 
-SystemVerilog code snippets are provided for implementation guidance. These represent the intended design pattern but may differ slightly from actual RTL.
+The SystemVerilog snippets are implementation guidance: they show the intended design pattern but may differ slightly from the actual RTL.
 
 ---
 

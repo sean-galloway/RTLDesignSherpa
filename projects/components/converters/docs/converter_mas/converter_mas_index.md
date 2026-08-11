@@ -32,7 +32,7 @@
 
 ## Document Organization
 
-This specification covers the Converters component - a collection of configurable data width converters and protocol converters that enable seamless integration between components with different data widths or communication protocols.
+This specification covers the Converters component: a collection of configurable data-width and protocol converters for connecting blocks with different data widths or communication protocols.
 
 ### Front Matter
 
@@ -93,7 +93,7 @@ This specification covers the Converters component - a collection of configurabl
 
 ## Visual Assets
 
-All diagrams referenced in the documentation are available in:
+All diagrams referenced in the documentation live in:
 
 - **Source Files:**
   - `assets/mermaid/*.mmd` - Mermaid source diagrams

@@ -23,11 +23,11 @@
 
 # 2.5 ID Management
 
-ID Management is the system by which the bridge tracks outstanding transactions and routes responses back to the originating master. This is accomplished through Bridge ID injection, Content Addressable Memory (CAM) structures, and ID translation logic.
+ID Management is how the bridge remembers which master sent each outstanding transaction, so the response can find its way back. Three pieces do the work: Bridge ID injection, Content Addressable Memory (CAM) structures, and ID translation logic.
 
 ## 2.5.1 Purpose and Function
 
-The ID management system performs the following critical functions:
+The ID management system does five things:
 
 1. **Transaction Tracking**: Maintains association between requests and originating masters
 2. **Response Routing**: Directs responses to correct master using embedded IDs

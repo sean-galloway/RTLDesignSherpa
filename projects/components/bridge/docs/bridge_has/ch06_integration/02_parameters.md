@@ -101,6 +101,12 @@ Rule 3: Non-Overlapping Windows
   Invalid: Slave0: 0x00000000-0x10000000, Slave1: 0x0FFFFFFF-0x1FFFFFFF
 ```
 
+**Why This Rule Exists:**
+- Real memory systems use 4K page boundaries (virtual memory, MMU)
+- Linker scripts and memory maps assume 4K granularity
+- Address decoders simplify to bit masks with 4K alignment
+- Prevents ambiguity in address decode logic
+
 ## Top-Level Monitor Configuration
 
 When monitor collection is desired, the bridge TOML configuration includes:
@@ -126,13 +132,7 @@ AGENT_ID Assignment (per port):
 
 ### AXIL→Wider-Slave Master-Side Alignment
 
-When an AXI4-Lite master connects to a wider AXI4 slave through the bridge (e.g., 32-bit AXIL master to 64-bit AXI4 slave), the generator automatically emits a master-side alignment converter (`axil_to_axi4_wide_align_{rd,wr}` modules) between the master adapter and the crossbar core. This converter handles partial-word alignment on the narrow side while preserving AXIL's single-beat semantics, without changing the protocol from AXIL to AXI4 (protocol shims are applied separately at the slave boundary).
-
-**Why This Rule Exists**:
-- Real memory systems use 4K page boundaries (virtual memory, MMU)
-- Linker scripts and memory maps assume 4K granularity
-- Address decoders simplify to bit masks with 4K alignment
-- Prevents ambiguity in address decode logic
+When an AXI4-Lite master connects to a wider AXI4 slave through the bridge (e.g., 32-bit AXIL master to 64-bit AXI4 slave), the generator emits a master-side alignment converter (the `axil_to_axi4_wide_align_{rd,wr}` modules) between the master adapter and the crossbar core. The converter handles partial-word alignment on the narrow side while preserving AXIL's single-beat semantics; the protocol stays AXIL — protocol shims are a slave-boundary concern, applied separately.
 
 ## Configuration File Format
 

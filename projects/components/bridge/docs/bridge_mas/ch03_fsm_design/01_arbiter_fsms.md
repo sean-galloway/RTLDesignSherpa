@@ -25,14 +25,14 @@
 
 #### Overview
 
-The Bridge AXI4 crossbar implements independent per-slave arbitration using simple 2-state finite state machines (FSMs). Each slave has two dedicated arbiters:
+The Bridge AXI4 crossbar arbitrates per slave, and each arbiter is a simple 2-state finite state machine (FSM). Each slave has two dedicated arbiters:
 
 - **AW Arbiter** - Write Address channel arbitration
 - **AR Arbiter** - Read Address channel arbitration
 
 **Total FSM Count:** `2 × NUM_SLAVES`
 
-These arbiters provide fair, round-robin access to slave resources, preventing master starvation while maintaining simple, predictable behavior.
+Round-robin access keeps any master from starving, and two states keep the behavior easy to reason about.
 
 #### AW Channel Arbiter FSM
 

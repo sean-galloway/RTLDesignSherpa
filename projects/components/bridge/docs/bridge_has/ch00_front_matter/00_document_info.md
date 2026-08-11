@@ -42,7 +42,7 @@
 
 ## Document Purpose
 
-This Hardware Architecture Specification (HAS) provides a high-level view of the Bridge component, covering:
+This Hardware Architecture Specification (HAS) is the high-level view of the Bridge component. It covers:
 
 - System-level architecture and data flow
 - Protocol support (AXI4, AXI4-Lite, APB)
@@ -50,7 +50,7 @@ This Hardware Architecture Specification (HAS) provides a high-level view of the
 - Performance characteristics
 - Integration guidelines
 
-For detailed micro-architecture, FSM designs, and signal-level specifications, refer to the companion **Bridge Micro-Architecture Specification (MAS)**.
+For micro-architecture, FSM designs, and signal-level detail, see the companion **Bridge Micro-Architecture Specification (MAS)**.
 
 ## Intended Audience
 

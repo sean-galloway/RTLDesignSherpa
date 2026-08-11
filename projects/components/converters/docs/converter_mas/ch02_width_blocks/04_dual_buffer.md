@@ -29,7 +29,7 @@ The dual-buffer mode for **axi_data_dnsize** achieves 100% throughput by using p
 
 ### Single-Buffer Limitation
 
-In single-buffer mode, there is an unavoidable gap cycle between completing output of one wide beat and starting output of the next:
+In single-buffer mode, one gap cycle is unavoidable between draining one wide beat and starting the next:
 
 ```
 Cycle N:   Output last narrow beat of wide beat A
@@ -41,7 +41,7 @@ This gap cycle reduces throughput to N/(N+1), or approximately 80-90% depending 
 
 ### High-Performance Requirements
 
-Some applications require continuous 100% throughput:
+Some paths can't absorb that loss:
 - DDR memory controllers with sustained bandwidth
 - DMA engines with continuous data flows
 - Real-time video/audio processing
@@ -50,7 +50,7 @@ Some applications require continuous 100% throughput:
 
 ### Concept
 
-Use two buffers that alternate between loading and outputting:
+The fix is two buffers that alternate between loading and outputting:
 
 ```
 Time:     0   1   2   3   4   5   6   7   8   9  10  11

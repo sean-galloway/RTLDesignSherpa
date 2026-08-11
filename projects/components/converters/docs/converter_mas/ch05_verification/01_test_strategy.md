@@ -23,7 +23,7 @@
 
 # 5.1 Test Strategy
 
-This section describes the verification approach for converter modules.
+The verification approach for the converter modules, from unit tests to system stress.
 
 ## 5.1.1 Test Organization
 

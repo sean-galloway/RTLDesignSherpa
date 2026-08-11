@@ -25,11 +25,13 @@
 
 ## Overview
 
-APB converters transform AXI4 transactions into APB protocol. This is necessary when high-performance masters need to access low-speed peripherals.
+APB converters turn AXI4 transactions into APB transfers — the price a high-performance master pays to talk to a low-speed peripheral.
 
 ## Conversion Requirements
 
 ### Protocol Differences
+
+The two protocols differ in ways that force real work on the converter:
 
 | Feature | AXI4 | APB |
 |---------|------|-----|

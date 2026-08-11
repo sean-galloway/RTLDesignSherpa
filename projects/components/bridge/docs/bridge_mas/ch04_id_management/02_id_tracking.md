@@ -25,7 +25,7 @@
 
 ## Overview
 
-ID tracking tables maintain the mapping between extended IDs (with Bridge ID) and originating masters. These tables enable correct response routing in multi-master systems.
+ID tracking tables hold the mapping from extended IDs (external ID plus Bridge ID) back to the originating master — the information response routing needs in a multi-master system.
 
 ## Table Structure
 

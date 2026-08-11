@@ -23,11 +23,11 @@
 
 # 2.7 Protocol Conversion
 
-Protocol Conversion enables the bridge to interface with slaves using different bus protocols. While the bridge internally uses AXI4, it can convert to simpler protocols like APB (Advanced Peripheral Bus) for low-bandwidth peripheral access.
+The crossbar speaks AXI4 internally. Protocol conversion is what lets the bridge reach slaves that speak something simpler — APB (Advanced Peripheral Bus) for low-bandwidth peripherals being the common case.
 
 ## 2.7.1 Purpose and Function
 
-Protocol conversion performs the following critical functions:
+Protocol conversion does five things:
 
 1. **Protocol Translation**: Converts AXI4 transactions to target protocol (e.g., APB)
 2. **Handshake Mapping**: Translates ready/valid to protocol-specific handshakes

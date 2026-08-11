@@ -25,7 +25,7 @@
 
 ## Generated RTL Overview
 
-Bridge generator creates parameterized SystemVerilog modules from configuration files. The generated RTL follows a consistent structure for all topologies.
+The generator turns configuration files into parameterized SystemVerilog modules, and every topology gets the same internal structure. Once you've read one generated bridge, you can find your way around any of them.
 
 ## Top-Level Module
 

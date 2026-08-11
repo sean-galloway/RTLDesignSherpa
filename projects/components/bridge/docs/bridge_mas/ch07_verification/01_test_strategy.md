@@ -25,7 +25,7 @@
 
 ## Overview
 
-Bridge verification uses CocoTB-based testing with parameterized configurations. The test infrastructure supports all bridge topologies and protocol combinations.
+Bridge verification is CocoTB-based and parameterized: the same infrastructure covers every bridge topology and protocol combination.
 
 ## Test Categories
 
@@ -76,6 +76,8 @@ Integration Test Matrix:
 ## Test Parameterization
 
 ### Configuration Matrix
+
+Which parameters get swept, and why:
 
 | Parameter | Test Values | Purpose |
 |-----------|-------------|---------|

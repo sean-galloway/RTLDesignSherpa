@@ -67,7 +67,7 @@ Bridge does not include CDC logic:
 
 ![Reset Timing](../assets/wavedrom/reset_timing.png)
 
-The diagram shows the relationship between clock and reset signals. Reset is active-low, meaning the system is in reset when `aresetn = 0`.
+Reset is active-low: the bridge is in reset whenever `aresetn = 0`.
 
 ### Reset Effects
 
@@ -84,7 +84,7 @@ During reset (aresetn = 0):
 
 ### Outstanding Transactions
 
-**Warning:** Transactions in flight during reset are lost:
+**Warning:** reset discards transactions in flight:
 
 - Master may see timeout (no response)
 - Slave may receive partial transaction

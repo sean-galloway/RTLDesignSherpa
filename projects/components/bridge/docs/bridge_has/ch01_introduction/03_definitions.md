@@ -62,10 +62,10 @@
 ## Definitions
 
 **Address Decode:**
-The process of determining which slave should receive a transaction based on the address.
+Determining which slave receives a transaction, from its address.
 
 **Arbitration:**
-The process of selecting which master gains access to a slave when multiple masters contend.
+Selecting which master gets a slave when several masters contend for it.
 
 **Bridge ID (BID):**
 Internal identifier prepended to master IDs for response routing. Width = clog2(NUM_MASTERS).

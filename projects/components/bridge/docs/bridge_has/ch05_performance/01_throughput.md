@@ -27,6 +27,8 @@
 
 ### Single Master to Single Slave
 
+One master driving one slave — no contention, no conversion:
+
 | Data Width | Frequency | Peak Throughput |
 |------------|-----------|-----------------|
 | 32-bit | 100 MHz | 400 MB/s |

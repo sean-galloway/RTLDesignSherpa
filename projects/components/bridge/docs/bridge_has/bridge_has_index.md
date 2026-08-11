@@ -31,7 +31,7 @@
 
 ## Document Organization
 
-**Note:** All chapters linked below for automated document generation.
+**Note:** Every chapter below is one source file; the document build assembles the spec from these links.
 
 ### Front Matter
 

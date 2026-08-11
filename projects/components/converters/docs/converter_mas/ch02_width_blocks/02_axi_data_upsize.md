@@ -27,7 +27,7 @@ The **axi_data_upsize** module accumulates N narrow beats into 1 wide beat. It i
 
 ## 2.2.1 Purpose and Function
 
-The upsize module serves several critical functions:
+The upsize module does four things:
 
 1. **Data Accumulation**: Collects N narrow data beats into accumulator buffer
 2. **Sideband Packing**: Concatenates or ORs sideband signals (WSTRB, etc.)
@@ -243,9 +243,9 @@ assign m_last = r_last;
 
 ### Throughput
 
-**100% throughput** - No gaps required between input beats.
+**100% throughput** - no gaps required between input beats.
 
-The accumulator accepts one beat per cycle continuously. When the output buffer is ready, it completes the handshake and immediately starts accumulating the next wide beat.
+The accumulator accepts one beat per cycle, every cycle. When the output buffer completes its handshake, accumulation of the next wide beat starts immediately.
 
 ### Critical Paths
 
@@ -253,7 +253,7 @@ Typical critical paths:
 - `s_data` → accumulator buffer → `m_data`
 - `r_count` → comparison → `s_ready`
 
-**Timing closure**: The module is designed for single-cycle operation with combinatorial paths only within registered stages.
+**Timing closure**: The module is designed for single-cycle operation, with combinatorial paths only within registered stages.
 
 ## 2.2.8 Resource Utilization
 

@@ -23,7 +23,7 @@
 
 # 4.2 Protocol Converter FSMs
 
-This section describes the state machines used in protocol converter modules.
+These are the state machines inside the protocol converters.
 
 ## 4.2.1 AXI4 to AXI4-Lite Read FSM
 

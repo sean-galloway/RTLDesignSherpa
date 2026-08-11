@@ -27,7 +27,7 @@
 
 ### SoC Interconnects
 
-Bridge serves as the primary interconnect fabric for System-on-Chip designs:
+Bridge acts as the main interconnect fabric in SoC designs:
 
 - **Multi-core processor memory subsystems** - Connect multiple CPU cores to shared memory
 - **Accelerator integration** - Route GPU, DSP, or custom accelerator traffic
@@ -36,7 +36,7 @@ Bridge serves as the primary interconnect fabric for System-on-Chip designs:
 
 ### Memory Systems
 
-Bridge provides flexible memory access:
+Typical memory-system uses:
 
 - **Multi-port DDR controllers** - Multiple masters accessing shared DDR
 - **SRAM buffer sharing** - Shared packet buffers for networking

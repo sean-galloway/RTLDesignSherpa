@@ -23,11 +23,11 @@
 
 # 2.6 Width Conversion
 
-Width Conversion is the mechanism by which the bridge adapts between masters and slaves with different data bus widths. The bridge uses a 64-bit internal data path, with conversion logic at the master and slave interfaces to support narrower or wider external widths.
+Masters and slaves rarely agree on data width, and width conversion is how the bridge copes. The internal data path is 64 bits; conversion logic at the master and slave interfaces adapts whatever narrower or wider widths the ports bring.
 
 ## 2.6.1 Purpose and Function
 
-Width conversion performs the following critical functions:
+Width conversion does five things:
 
 1. **Data Path Adaptation**: Converts between different data widths (8, 16, 32, 64, 128, 256 bits)
 2. **Burst Splitting**: Divides wide transactions into multiple narrow transactions

@@ -32,7 +32,7 @@
 
 ## Document Organization
 
-This specification covers the Bridge component - a CSV-driven generator that creates AXI4 crossbars with automatic width conversion, protocol conversion (AXI4, AXI4-Lite, APB), and channel-specific master support (read-only, write-only, or full).
+The Bridge component is a CSV-driven generator that produces AXI4 crossbars with automatic width conversion, protocol conversion (AXI4, AXI4-Lite, APB), and channel-specific masters (read-only, write-only, or full). Each chapter below is one source file.
 
 ### Front Matter
 
@@ -86,8 +86,8 @@ This specification covers the Bridge component - a CSV-driven generator that cre
 
 ### For New Users
 
-1. Start with [Overview](ch01_introduction/01_overview.md) for understanding Bridge capabilities
-2. Read [Block Diagram](ch02_blocks/03_crossbar_core.md) to understand the architecture
+1. Start with [Overview](ch01_introduction/01_overview.md) for a tour of what Bridge can do
+2. Read [Block Diagram](ch02_blocks/03_crossbar_core.md) for the architecture
 3. Study [Arbitration](ch02_blocks/04_arbitration.md) for operational details
 4. Reference [Module Structure](ch06_generated_rtl/01_module_structure.md) for generated RTL
 
@@ -102,7 +102,7 @@ This specification covers the Bridge component - a CSV-driven generator that cre
 
 ## Visual Assets
 
-All diagrams referenced in the documentation are available in:
+Diagram sources and their renders live in two directories:
 
 - **Source Files:**
   - `assets/graphviz/*.gv` - Graphviz source diagrams
@@ -142,6 +142,8 @@ All diagrams referenced in the documentation are available in:
 - **Custom Signal Prefixes:** Unique prefixes per port for clean integration
 
 ### Protocol Conversion Matrix
+
+What happens to a transaction depends on the master/slave protocol pairing:
 
 | Master Protocol | Slave Protocol | Conversion |
 |-----------------|----------------|------------|

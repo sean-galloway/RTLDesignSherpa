@@ -23,11 +23,11 @@
 
 # 2.9 Error Handling
 
-Error Handling encompasses all mechanisms by which the bridge detects, reports, and recovers from error conditions. This includes protocol violations, out-of-range addresses, timeout conditions, and configuration errors.
+Error handling is everything the bridge does when something goes wrong: detecting the problem, answering with the right AXI error response, logging what happened, and keeping the rest of the system running. The covered failure modes are protocol violations, out-of-range addresses, timeout conditions, and configuration errors.
 
 ## 2.9.1 Purpose and Function
 
-Error handling performs the following critical functions:
+Error handling does five things:
 
 1. **Error Detection**: Identifies violations and abnormal conditions
 2. **Error Response Generation**: Creates appropriate AXI error responses

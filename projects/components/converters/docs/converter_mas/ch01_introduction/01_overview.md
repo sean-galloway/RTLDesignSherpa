@@ -25,11 +25,11 @@
 
 ## 1.1 Purpose
 
-The Converters component provides essential data width conversion and protocol conversion modules that enable seamless integration between components with different data widths or communication protocols.
+The Converters component provides data width and protocol conversion — the modules that let blocks with different data widths or communication protocols talk to each other.
 
 ## 1.2 Problem Statement
 
-Modern SoC designs frequently encounter two integration challenges:
+SoC designs run into the same two integration problems over and over:
 
 ### 1.2.1 Data Width Mismatch
 
@@ -42,7 +42,7 @@ Modern SoC designs frequently encounter two integration challenges:
 
 : Table 1.1: Common Data Width Configurations
 
-**Challenge:** Direct connection between mismatched widths is impossible. Width conversion is required.
+**Challenge:** Mismatched widths can't be wired together directly; a width converter has to sit between them.
 
 ### 1.2.2 Protocol Incompatibility
 
@@ -55,7 +55,7 @@ Modern SoC designs frequently encounter two integration challenges:
 
 : Table 1.2: Protocol Mismatch Examples
 
-**Challenge:** Different protocols require protocol bridges for communication.
+**Challenge:** Different protocols can't communicate without a bridge between them.
 
 ## 1.3 Solution Architecture
 
@@ -93,7 +93,7 @@ Modern SoC designs frequently encounter two integration challenges:
 
 ### 1.4.1 Generic vs. Full Modules
 
-The converter architecture uses a layered approach:
+The converters are built in three layers:
 
 ```
 Layer 1: Generic Building Blocks
@@ -122,11 +122,11 @@ Layer 3: Protocol Converters
 
 : Table 1.3: Throughput vs. Area Trade-offs
 
-**Design Decision:** Single-buffer upsize is always optimal (100% throughput at minimal cost). Downsize mode is configurable based on system requirements.
+**Design Decision:** Single-buffer upsize is always optimal (100% throughput at minimal cost). For downsize, the throughput/area trade-off is exposed as a configuration choice.
 
 ### 1.4.3 Sideband Signal Handling
 
-Different modes for handling sideband signals (WSTRB, RRESP, etc.):
+Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 
 | Mode | Upsize Behavior | Downsize Behavior |
 |------|-----------------|-------------------|

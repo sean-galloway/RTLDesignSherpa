@@ -25,13 +25,13 @@
 
 ## Overview
 
-Bridge uses several FSMs to track outstanding transactions and ensure correct response routing. These FSMs work in conjunction with the ID management CAM to maintain transaction state.
+Several small FSMs track outstanding transactions so responses route correctly. They work alongside the ID management CAM, each holding one piece of the transaction state.
 
 ## Write Data Tracking FSM
 
 ### Purpose
 
-Track W channel data beats to ensure correct routing after AW handshake.
+The W channel carries no address of its own, so this FSM remembers which slave the AW handshake selected and steers the data beats to match.
 
 ### States
 

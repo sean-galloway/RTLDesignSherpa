@@ -23,11 +23,11 @@
 
 # 2.2 Slave Router
 
-The Slave Router is responsible for address decoding and routing master requests to the appropriate slave. Each master has its own dedicated slave router instance that examines addresses and directs transactions to one of the configured slaves or generates error responses for out-of-range addresses.
+Every master gets its own Slave Router. The router examines each request address, steers the transaction to one of the configured slaves, and produces the error response itself when the address lands nowhere.
 
 ## 2.2.1 Purpose and Function
 
-The Slave Router performs the following critical functions:
+The router does five things:
 
 1. **Address Decoding**: Matches request addresses against configured slave address ranges
 2. **Request Routing**: Directs AR/AW/W channels to the selected slave

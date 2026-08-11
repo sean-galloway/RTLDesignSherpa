@@ -105,7 +105,7 @@ PRDATA xxxxxxxx|_____|xxxxxxxxxxxxxxxx
 
 ### Conversion Requirements
 
-When an AXI4 master accesses an APB slave, Bridge performs:
+When an AXI4 master accesses an APB slave, the bridge:
 
 1. **Burst splitting** - AXI4 bursts become multiple APB transfers
 2. **Channel mapping** - AW+W combined into PADDR+PWDATA

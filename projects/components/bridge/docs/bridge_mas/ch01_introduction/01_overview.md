@@ -25,7 +25,7 @@
 
 ## Bridge Micro-Architecture
 
-This document describes the internal micro-architecture of Bridge, a multi-protocol AXI4 crossbar generator. Bridge creates parameterized SystemVerilog RTL from CSV/TOML configuration files.
+Bridge is a multi-protocol AXI4 crossbar generator: it turns CSV/TOML configuration files into parameterized SystemVerilog RTL. This document describes what that RTL looks like on the inside.
 
 ## Key Capabilities
 
@@ -43,7 +43,7 @@ Bridge supports three AMBA protocols:
 
 ### Channel-Specific Masters
 
-Bridge generates optimized port interfaces:
+Masters that only read or only write don't pay for the channels they never use:
 
 | Type | Channels | Signals | Use Case |
 |------|----------|---------|----------|

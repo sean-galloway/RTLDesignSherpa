@@ -25,7 +25,7 @@
 
 ## Overview
 
-Bridge uses Content-Addressable Memory (CAM) structures to track outstanding transactions and enable out-of-order response routing. The CAM allows fast lookup of master origin based on transaction ID.
+The CAM is what makes out-of-order response routing possible: it records which master owns each outstanding transaction ID, and a lookup answers the routing question in one shot.
 
 ## CAM Purpose
 

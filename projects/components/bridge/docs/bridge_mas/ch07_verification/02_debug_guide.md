@@ -25,7 +25,7 @@
 
 ## Overview
 
-This guide provides debugging strategies for Bridge verification failures. Common issues and their resolution approaches are documented.
+When a Bridge test fails, start here. This guide lists the failure modes that actually occur and how to chase each one down.
 
 ## Debug Signal Access
 

@@ -27,10 +27,10 @@ The **peakrdl_to_cmdrsp** module adapts PeakRDL-generated register interfaces to
 
 ## 3.5.1 Purpose
 
-PeakRDL generates register blocks with an APB-style interface. This adapter:
+PeakRDL generates register blocks with an APB-style interface. This adapter sits behind that interface and:
 
-1. Decouples register interface from implementation
-2. Provides clean handshake protocol
+1. Decouples the register interface from the implementation
+2. Provides a clean handshake protocol
 3. Enables pipelined register access
 4. Supports custom control logic integration
 

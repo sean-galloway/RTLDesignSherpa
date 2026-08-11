@@ -23,11 +23,11 @@
 
 # 2.4 Arbitration
 
-Arbitration is the mechanism by which the bridge decides which master gains access to a slave when multiple masters simultaneously request the same slave. Each slave has dedicated arbiters for its read and write channels, enabling fair and efficient resource allocation.
+When several masters ask for the same slave in the same cycle, something has to pick a winner — that's the arbiter. Each slave gets dedicated arbiters for its read and write channels, so the pick is fair and nothing queues behind the wrong channel.
 
 ## 2.4.1 Purpose and Function
 
-The arbiter performs the following critical functions:
+The arbiter does five things:
 
 1. **Conflict Resolution**: Selects one master when multiple masters request same slave
 2. **Fairness**: Ensures all masters eventually get access (starvation-free)

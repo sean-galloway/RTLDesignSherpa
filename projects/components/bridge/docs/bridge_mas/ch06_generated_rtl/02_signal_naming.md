@@ -25,7 +25,7 @@
 
 ## Naming Convention Overview
 
-Bridge uses consistent signal naming to enable pattern-based verification and clear integration.
+Signal names in generated RTL follow one convention, which is what makes pattern-based verification and painless integration possible.
 
 ## External Port Naming
 
