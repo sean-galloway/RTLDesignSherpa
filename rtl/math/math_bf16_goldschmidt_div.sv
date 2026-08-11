@@ -215,6 +215,7 @@ module math_bf16_goldschmidt_div #(
             if (PIPELINED) begin : gen_pipe_regs
                 logic [15:0] r_n1, r_d1;
                 logic        r_valid_s1;
+                logic        r_b_is_zero;
                 logic        r_special_zero, r_special_inf, r_special_nan;
                 logic        r_result_sign;
 
@@ -223,6 +224,7 @@ module math_bf16_goldschmidt_div #(
                         r_n1 <= '0;
                         r_d1 <= '0;
                         r_valid_s1 <= 1'b0;
+                        r_b_is_zero <= 1'b0;
                         r_special_zero <= 1'b0;
                         r_special_inf <= 1'b0;
                         r_special_nan <= 1'b0;
@@ -231,10 +233,16 @@ module math_bf16_goldschmidt_div #(
                         r_n1 <= w_n1;
                         r_d1 <= w_d1;
                         r_valid_s1 <= i_valid;
-                        r_special_zero <= w_b_is_zero;
+                        r_b_is_zero <= w_b_is_zero;
                         // Zero result: a is zero, b is infinity, or prescale underflowed
-                        r_special_inf <= (w_a_is_zero && !w_b_is_zero) || w_b_is_inf ||
+                        r_special_zero <= (w_a_is_zero && !w_b_is_zero) || w_b_is_inf ||
                                         w_prescale_n_udf;
+                        // Infinity result: divide by zero, or a is infinity.
+                        // (Pre-fix these two registers held each other's conditions;
+                        // the value mux consumed them consistently so quotients were
+                        // right, but ow_is_inf asserted on ZERO results and missed
+                        // a==inf -- found by the FULL-level flag checks.)
+                        r_special_inf <= w_b_is_zero || w_a_is_inf;
                         r_special_nan <= w_a_is_nan || w_b_is_nan ||
                                         (w_a_is_zero && w_b_is_zero) ||
                                         (w_a_is_inf && w_b_is_inf);
@@ -294,15 +302,15 @@ module math_bf16_goldschmidt_div #(
                         r_is_nan <= 1'b0;
                     end else begin
                         r_valid_s2 <= r_valid_s1;
-                        r_div_zero <= r_special_zero;
+                        r_div_zero <= r_b_is_zero;
                         r_is_nan <= r_special_nan;
-                        r_is_inf <= r_special_zero || r_special_inf;
+                        r_is_inf <= r_special_inf;
 
                         if (r_special_nan)
                             r_quotient <= BF16_NAN;
-                        else if (r_special_zero)
+                        else if (r_b_is_zero)
                             r_quotient <= r_result_sign ? BF16_NEG_INF : BF16_POS_INF;
-                        else if (r_special_inf)
+                        else if (r_special_zero)
                             r_quotient <= BF16_ZERO;
                         else
                             r_quotient <= {r_result_sign, w_n2[14:0]};
