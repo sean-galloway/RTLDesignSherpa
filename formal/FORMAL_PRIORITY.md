@@ -47,7 +47,7 @@ Status: PASSING = proved (prove+cover), PROVE = prove-only PASS, ERROR = prove f
 | Module                | Priority | Status | Notes                                          |
 | --------------------- | -------- | ------ | ---------------------------------------------- |
 | glitch_free_n_dff_arn | 1        | PASSING | CDC synchronizer — prove no glitch on output   |
-| sync_pulse            | 1        |         | Pulse CDC -- no .sby yet |
+| sync_pulse            | 1        | PASSING | Pulse CDC -- proved in formal/cdc/ (area consolidation 2026-08-10) |
 | cdc_synchronizer      | 1        | PASSING | Multi-bit CDC sync                             |
 | cdc_handshake         | 1        | PASSING | Handshake-based CDC — prove no data loss       |
 | reset_sync            | 2        | PASSING | Reset synchronizer — prove clean deassertion   |

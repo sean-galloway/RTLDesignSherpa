@@ -82,7 +82,7 @@ module gaxi_fifo_async #(
 
 : gaxi_fifo_async parameters
 
-**️ Important:** Set `N_FLOP_CROSS=3` for production designs to ensure metastability protection.
+**Important:** Set `N_FLOP_CROSS=3` for production designs to ensure metastability protection.
 
 The RTL also declares five derived parameters after these -- `DW`, `D`, `AW`,
 `JCW`, `N`. They are aliases (`DW = DATA_WIDTH`, `AW = $clog2(DEPTH)`,
