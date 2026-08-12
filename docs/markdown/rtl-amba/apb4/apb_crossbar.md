@@ -26,7 +26,7 @@
 **Version:** 1.1
 **Last Updated:** 2026-07-19
 **Status:** Production Ready
-**Location:** `projects/components/apbx_xbar/`
+**Location:** `projects/components/apbx-xbar/`
 
 ---
 
@@ -54,10 +54,10 @@ The APB crossbar family provides scalable interconnect solutions for connecting 
 
 | Artifact | Path |
 |----------|------|
-| Generated RTL | `projects/components/apbx_xbar/rtl/` |
-| Generator | `projects/components/apbx_xbar/bin/apbx_xbar_generator.py` |
-| Convenience script | `projects/components/apbx_xbar/bin/generate_xbars.py` |
-| Testbenches | `projects/components/apbx_xbar/dv/tests/` |
+| Generated RTL | `projects/components/apbx-xbar/rtl/` |
+| Generator | `projects/components/apbx-xbar/bin/apbx_xbar_generator.py` |
+| Convenience script | `projects/components/apbx-xbar/bin/generate_xbars.py` |
+| Testbenches | `projects/components/apbx-xbar/dv/tests/` |
 | Formal | `formal/apbx_xbar/` |
 
 The APB4 primitives they are built from (`apb4_slave`, `apb4_master`) do live in
@@ -161,11 +161,11 @@ apbx_xbar_MtoN
 
 | Module | Masters | Slaves | Primary Use Case | File |
 |--------|---------|--------|------------------|------|
-| `apbx_xbar_1to1` | 1 | 1 | Basic passthrough, protocol conversion | `projects/components/apbx_xbar/rtl/apbx_xbar_1to1.sv` |
-| `apbx_xbar_2to1` | 2 | 1 | Simple arbitration testing | `projects/components/apbx_xbar/rtl/apbx_xbar_2to1.sv` |
-| `apbx_xbar_1to4` | 1 | 4 | Address decode testing, simple bus | `projects/components/apbx_xbar/rtl/apbx_xbar_1to4.sv` |
-| `apbx_xbar_2to4` | 2 | 4 | Full crossbar with arbitration + decode | `projects/components/apbx_xbar/rtl/apbx_xbar_2to4.sv` |
-| `apbx_xbar_thin` | M | S | Fully parameterized combinational crossbar (different architecture) | `projects/components/apbx_xbar/rtl/apbx_xbar_thin.sv` |
+| `apbx_xbar_1to1` | 1 | 1 | Basic passthrough, protocol conversion | `projects/components/apbx-xbar/rtl/apbx_xbar_1to1.sv` |
+| `apbx_xbar_2to1` | 2 | 1 | Simple arbitration testing | `projects/components/apbx-xbar/rtl/apbx_xbar_2to1.sv` |
+| `apbx_xbar_1to4` | 1 | 4 | Address decode testing, simple bus | `projects/components/apbx-xbar/rtl/apbx_xbar_1to4.sv` |
+| `apbx_xbar_2to4` | 2 | 4 | Full crossbar with arbitration + decode | `projects/components/apbx-xbar/rtl/apbx_xbar_2to4.sv` |
+| `apbx_xbar_thin` | M | S | Fully parameterized combinational crossbar (different architecture) | `projects/components/apbx-xbar/rtl/apbx_xbar_thin.sv` |
 
 `apbx_xbar_thin` is **not** a generated variant and does not share this
 architecture -- it is a combinational passthrough with weighted round-robin and
@@ -231,7 +231,7 @@ quoted here. Measure it for your slave's wait-state behaviour if it matters.
 **Need different configuration?**
 ```bash
 # Generate custom crossbar
-cd projects/components/apbx_xbar/bin
+cd projects/components/apbx-xbar/bin
 python generate_xbars.py --masters 3 --slaves 8
 ```
 
@@ -693,7 +693,7 @@ endmodule
 
 ```bash
 # Generate custom 3-master, 8-slave crossbar
-cd projects/components/apbx_xbar/bin
+cd projects/components/apbx-xbar/bin
 python generate_xbars.py --masters 3 --slaves 8 --base-addr 0x80000000
 ```
 
@@ -714,7 +714,7 @@ apbx_xbar_3to8 #(
 ## Test Results
 
 All crossbar modules have CocoTB testbenches in
-`projects/components/apbx_xbar/dv/tests/`.
+`projects/components/apbx-xbar/dv/tests/`.
 
 ### Test Coverage
 
@@ -756,14 +756,14 @@ Not covered:
 source env_python
 
 # Run all APB crossbar tests
-pytest projects/components/apbx_xbar/dv/tests/ -v
+pytest projects/components/apbx-xbar/dv/tests/ -v
 
 # Run specific variant
-pytest projects/components/apbx_xbar/dv/tests/test_apbx_xbar_2to4.py -v
+pytest projects/components/apbx-xbar/dv/tests/test_apbx_xbar_2to4.py -v
 ```
 
 Build artifacts and logs are preserved under
-`projects/components/apbx_xbar/dv/tests/local_sim_build/` and `.../logs/`.
+`projects/components/apbx-xbar/dv/tests/local_sim_build/` and `.../logs/`.
 
 ### Test Results Summary
 
@@ -846,9 +846,9 @@ not caught by the current suite.
 - `rtl/common/arbiter_round_robin.sv` - Per-slave arbitration (`WAIT_GNT_ACK=1`)
 
 **Generator:**
-- `projects/components/apbx_xbar/bin/apbx_xbar_generator.py` - Crossbar generator
-- `projects/components/apbx_xbar/bin/generate_xbars.py` - Convenience script
-- `projects/components/apbx_xbar/README.md` - Quick reference
+- `projects/components/apbx-xbar/bin/apbx_xbar_generator.py` - Crossbar generator
+- `projects/components/apbx-xbar/bin/generate_xbars.py` - Convenience script
+- `projects/components/apbx-xbar/README.md` - Quick reference
 
 ---
 

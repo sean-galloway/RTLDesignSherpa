@@ -28,6 +28,6 @@ apb4_slave.sv ../../../rtl/amba/apb4/apb4_slave.sv
 apb4_master.sv ../../../rtl/amba/apb4/apb4_master.sv
 arbiter_priority_encoder.sv ../../../rtl/common/arbiter_priority_encoder.sv
 arbiter_round_robin.sv ../../../rtl/common/arbiter_round_robin.sv
-apbx_xbar_2to4.sv ../../../projects/components/apbx_xbar/rtl/apbx_xbar_2to4.sv
+apbx_xbar_2to4.sv ../../../projects/components/apbx-xbar/rtl/apbx_xbar_2to4.sv
 formal_apbx_xbar_2to4.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

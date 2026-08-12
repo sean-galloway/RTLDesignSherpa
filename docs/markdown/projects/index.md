@@ -88,7 +88,7 @@ Advanced descriptor-based DMA with network interfaces and complex features.
 
 #### APB Crossbar
 **Status:** ✅ Production Ready (All tests passing at 100%)
-**Location:** [`projects/components/apbx_xbar/`](../../../projects/components/apbx_xbar/)
+**Location:** [`projects/components/apbx-xbar/`](../../../projects/components/apbx-xbar/)
 
 Parametric MxN APB interconnect connecting multiple masters to multiple slaves with automatic address-based routing and round-robin arbitration.
 
@@ -100,9 +100,9 @@ Parametric MxN APB interconnect connecting multiple masters to multiple slaves w
 - RTL generator for custom configurations
 
 **Documentation:**
-- 📖 [Complete Specification](../../../projects/components/apbx_xbar/docs/apbx_xbar_has/apbx_xbar_has_index.md)
-- 📋 [Product Requirements](../../../projects/components/apbx_xbar/PRD.md)
-- 🤖 [AI Guide](../../../projects/components/apbx_xbar/CLAUDE.md)
+- 📖 [Complete Specification](../../../projects/components/apbx-xbar/docs/apbx_xbar_has/apbx_xbar_has_index.md)
+- 📋 [Product Requirements](../../../projects/components/apbx-xbar/PRD.md)
+- 🤖 [AI Guide](../../../projects/components/apbx-xbar/CLAUDE.md)
 
 ---
 

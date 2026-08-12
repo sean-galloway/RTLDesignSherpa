@@ -21,7 +21,7 @@ read -formal -sv -Iincludes formal_apbx_xbar_thin.sv
 prep -top formal_apbx_xbar_thin
 
 [files]
-apbx_xbar_thin.sv ../../../projects/components/apbx_xbar/rtl/apbx_xbar_thin.sv
+apbx_xbar_thin.sv ../../../projects/components/apbx-xbar/rtl/apbx_xbar_thin.sv
 arbiter_priority_encoder.sv ../../../rtl/common/arbiter_priority_encoder.sv
 arbiter_round_robin.sv ../../../rtl/common/arbiter_round_robin.sv
 arbiter_round_robin_weighted.sv ../../../rtl/common/arbiter_round_robin_weighted.sv

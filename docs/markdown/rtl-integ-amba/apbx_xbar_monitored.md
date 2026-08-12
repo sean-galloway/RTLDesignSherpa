@@ -137,7 +137,7 @@ unchanged by being monitored.
 - **Monitor count scales with ports.** Seven monitors at `MAX_TRANSACTIONS=8`
   is a real area cost. Monitor the ports you actually debug, not all of them by
   reflex.
-- **Layering.** `apbx_xbar_thin` lives in `projects/components/apbx_xbar`, so this
+- **Layering.** `apbx_xbar_thin` lives in `projects/components/apbx-xbar`, so this
   module under `rtl/` depends on a project area. That direction is backwards and
   is noted in `rtl/integ_amba/filelists/apbx_xbar_monitored.f`.
 

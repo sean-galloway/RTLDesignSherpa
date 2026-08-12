@@ -449,7 +449,7 @@ endmodule
 
 1. **Create FPGA project** (Vivado for Xilinx)
 2. **Add simple processor** (MicroBlaze or RISC-V)
-3. **Add APB crossbar** components/apbx_xbar/
+3. **Add APB crossbar** components/apbx-xbar/
 4. **Add one RLB module** (start with GPIO)
 5. **Connect to LEDs/switches**
 6. **Test basic register access**

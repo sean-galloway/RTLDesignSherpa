@@ -28,7 +28,7 @@ multiple APB masters and slaves with weighted round-robin arbitration and
 runtime-programmable address decoding.
 
 **Module:** `apbx_xbar_thin.sv`
-**Location:** `projects/components/apbx_xbar/rtl/`
+**Location:** `projects/components/apbx-xbar/rtl/`
 **Status:** ✅ Production Ready
 
 ---
@@ -533,7 +533,7 @@ SymbiYosys proofs are checked in at `formal/apbx_xbar/apbx_xbar_thin/`, with
 ### Simulation
 
 `apbx_xbar_thin` has no dedicated CocoTB testbench. The four generated variants in
-`projects/components/apbx_xbar/dv/tests/` do, but they exercise the *other*
+`projects/components/apbx-xbar/dv/tests/` do, but they exercise the *other*
 architecture and provide no coverage of this module. Weigh that when selecting
 between the two families.
 

@@ -50,7 +50,7 @@ to demonstrate -- and why the RTL currently does not build -- start at
   - the bridges that translate the wire into that handshake
 - [arbiter_round_robin](../rtl-common/arbiter_round_robin.md) - fair arbitration
   over the per-port monitor buses
-- `apbx_xbar_thin` lives in `projects/components/apbx_xbar`, so
+- `apbx_xbar_thin` lives in `projects/components/apbx-xbar`, so
   `apbx_xbar_monitored` depends on a project area from under `rtl/` -- a backwards
   dependency, noted in its filelist
 

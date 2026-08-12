@@ -90,7 +90,7 @@
 
 **Status:** ✅ Production Ready (all tests passing)
 **Version:** 1.0
-**Location:** `projects/components/apbx_xbar/`
+**Location:** `projects/components/apbx-xbar/`
 
 **What it does:**
 - Connects M APB masters to N APB slaves with address decode and arbitration

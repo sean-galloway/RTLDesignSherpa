@@ -84,7 +84,7 @@ Monitor book.
 | **apbx_xbar_thin** | Fully parameterized M×S combinational crossbar with weighted round-robin | [apbx_xbar.md](apbx_xbar.md) | ✅ Documented |
 
 **Note:** The crossbar RTL, generator, and testbenches live in the
-`apbx_xbar` component area (`projects/components/apbx_xbar/`), not under
+`apbx_xbar` component area (`projects/components/apbx-xbar/`), not under
 `rtl/amba/apb4/`. They are documented here because they are built entirely from
 the APB4 primitives in this directory.
 
@@ -229,7 +229,7 @@ pytest val/amba/test_apb4_monitor.py -v
 pytest val/amba/test_apb4_slave_cdc_cg.py -v
 
 # Generated crossbars (component area)
-pytest projects/components/apbx_xbar/dv/tests/ -v
+pytest projects/components/apbx-xbar/dv/tests/ -v
 
 # Run with waveform generation
 env ENABLE_WAVEDROM=1 pytest val/amba/test_apb4_slave_wavedrom.py -v
@@ -373,7 +373,7 @@ Specification v2.0" without the IHI number is ambiguous.
 - APB Slave Tests: `val/amba/test_apb4_slave.py`
 - APB CDC Tests: `val/amba/test_apb4_slave_cdc.py`
 - APB Monitor Tests: `val/amba/test_apb4_monitor.py`
-- APB Crossbar Tests: `projects/components/apbx_xbar/dv/tests/`
+- APB Crossbar Tests: `projects/components/apbx-xbar/dv/tests/`
 
 ---
 

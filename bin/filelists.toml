@@ -146,8 +146,8 @@ filelist_dirs = ["projects/components/retro_legacy_blocks/rtl"]
 [[area]]
 name = "apbx_xbar"
 kind = "component"
-rtl_roots = ["projects/components/apbx_xbar/rtl"]
-filelist_dirs = ["projects/components/apbx_xbar/rtl/filelists"]
+rtl_roots = ["projects/components/apbx-xbar/rtl"]
+filelist_dirs = ["projects/components/apbx-xbar/rtl/filelists"]
 
 [[area]]
 name = "pumice"

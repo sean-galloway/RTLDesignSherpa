@@ -42,7 +42,7 @@ This directory contains the APB crossbar specifically designed for retro PC lega
 ```
 
 The implementation uses the official APB crossbar generator:
-- **apbx_xbar_1to8.sv** - Generated using `generate_xbars.py` from `projects/components/apbx_xbar/bin/`
+- **apbx_xbar_1to8.sv** - Generated using `generate_xbars.py` from `projects/components/apbx-xbar/bin/`
 - **apbx_xbar_legacy_1to8.sv** - Named-port wrapper mapping numbered ports to descriptive legacy block names
 
 ## Module: apbx_xbar_legacy_1to8
@@ -183,7 +183,7 @@ The crossbar uses bits [14:12] to decode 8 slaves (4KB per slave):
 ### How It Was Generated
 
 ```bash
-cd /mnt/data/github/rtldesignsherpa/projects/components/apbx_xbar/bin
+cd /mnt/data/github/rtldesignsherpa/projects/components/apbx-xbar/bin
 python3 apbx_xbar_generator.py --masters 1 --slaves 8 --base-addr 0xFEC00000 --slave-size 0x1000
 # Output: apbx_xbar_1to8.sv with 4KB regions (moved to retro_legacy_blocks/rtl/apbx_xbar/)
 ```
@@ -251,8 +251,8 @@ All dependencies are listed in `apbx_xbar_legacy_1to8.f`.
 
 ### Related Documentation
 
-- Main APB Crossbar Component: `/projects/components/apbx_xbar/`
-- APB Crossbar PRD: `/projects/components/apbx_xbar/PRD.md`
+- Main APB Crossbar Component: `/projects/components/apbx-xbar/`
+- APB Crossbar PRD: `/projects/components/apbx-xbar/PRD.md`
 - Retro Legacy Blocks: `/projects/components/retro_legacy_blocks/`
 
 ### Testing

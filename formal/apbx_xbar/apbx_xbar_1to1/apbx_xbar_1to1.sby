@@ -24,6 +24,6 @@ prep -top formal_apbx_xbar_1to1
 gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
 apb4_slave.sv ../../../rtl/amba/apb4/apb4_slave.sv
 apb4_master.sv ../../../rtl/amba/apb4/apb4_master.sv
-apbx_xbar_1to1.sv ../../../projects/components/apbx_xbar/rtl/apbx_xbar_1to1.sv
+apbx_xbar_1to1.sv ../../../projects/components/apbx-xbar/rtl/apbx_xbar_1to1.sv
 formal_apbx_xbar_1to1.sv
 includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

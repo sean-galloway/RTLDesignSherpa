@@ -439,7 +439,7 @@ uart_axil_bridge, uart_rx, uart_tx, axi4_to_axil4, axil4_to_axi4
 
 bridge_1x2_rd (address decode mutex, DDR/SRAM range, AXI handshake model)
 
-### projects/components/apbx_xbar/ -- 5 of 5 PASS
+### projects/components/apbx-xbar/ -- 5 of 5 PASS
 
 apbx_xbar_wrap_1x2, apbx_xbar_wrap_1x3, apbx_xbar_wrap_2x3,
 apbx_xbar_wrap_3x3, apbx_xbar_wrap_4x4
