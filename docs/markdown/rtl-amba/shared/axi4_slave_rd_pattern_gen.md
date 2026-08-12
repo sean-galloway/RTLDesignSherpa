@@ -37,7 +37,7 @@
 
 - Read-only AXI4 slave (AR + R channels) built on the standard `axi4_slave_rd` protocol handler
 - Per-channel independent LFSR + CRC-32 state, demuxed off the low bits of `arid`
-- 32-bit maximal-length Fibonacci LFSR (seed `0xDEADBEEF`, taps `{32,22,2,1}`) replicated to fill the data bus
+- 32-bit maximal-length Fibonacci LFSR (seed `0xDEADBEEF`, taps `{23,3,2,1}`) replicated to fill the data bus
 - CRC-32/Ethernet accumulator per channel (poly `0x04C11DB7`, reflected in/out) matching the write-side checker bit-for-bit
 - Gapless back-to-back bursts (AR accepted on the last beat) so `rvalid` never drops mid-stream
 - Per-channel CRC / beat-count telemetry plus an aggregate beat-count total for harness stop triggers
@@ -72,7 +72,7 @@ Characterizing a DMA read path needs a slave that is both *fast* (never the bott
 | AXI_USER_WIDTH | int | 1 | AXI user signal width |
 | LFSR_WIDTH | int | 32 | LFSR width (fixed at 32 for timing/simplicity) |
 | LFSR_SEED | logic [31:0] | 32'hDEADBEEF | Base LFSR seed; channel N uses `LFSR_SEED ^ N` |
-| LFSR_TAPS | logic [47:0] | {12'd32, 12'd22, 12'd2, 12'd1} | Maximal-length Fibonacci tap indices |
+| LFSR_TAPS | logic [47:0] | {12'd23, 12'd3, 12'd2, 12'd1} | Maximal-length Fibonacci tap indices |
 | CRC_WIDTH | int | 32 | CRC width |
 | CRC_DATA_WIDTH | int | 32 | Bits processed per CRC update (the 32-bit LFSR output) |
 | CRC_POLY | logic [31:0] | 32'h04C11DB7 | CRC-32/Ethernet polynomial |
@@ -153,7 +153,7 @@ Characterizing a DMA read path needs a slave that is both *fast* (never the bott
 
 ### LFSR Pattern Generation
 
-Each channel owns a `shifter_lfsr_fibonacci` instance (32-bit, taps `{32,22,2,1}`) seeded with `LFSR_SEED ^ channel_index`. XOR-ing the channel index into the seed guarantees each channel produces a distinct stream, so channel interleave at the shared AXI port cannot corrupt any one channel's sequence. Only the channel currently being served advances on a given R-beat handshake; all other channel LFSRs hold their state. On the global `crc_lfsr_reset` pulse every channel reloads its seed simultaneously.
+Each channel owns a `shifter_lfsr_fibonacci` instance (32-bit, taps `{23,3,2,1}`) seeded with `LFSR_SEED ^ channel_index`. XOR-ing the channel index into the seed guarantees each channel produces a distinct stream, so channel interleave at the shared AXI port cannot corrupt any one channel's sequence. Only the channel currently being served advances on a given R-beat handshake; all other channel LFSRs hold their state. On the global `crc_lfsr_reset` pulse every channel reloads its seed simultaneously.
 
 ### Data Replication to the Bus Width
 

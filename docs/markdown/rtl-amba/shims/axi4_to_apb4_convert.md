@@ -25,7 +25,7 @@
 
 **Module:** `axi4_to_apb4_convert.sv`
 **Location:** `rtl/amba/shims/`
-**Status:** ✅ Production Ready
+**Status:** Production (see the module page history for review state)
 
 ---
 
@@ -35,12 +35,12 @@ Core conversion logic that transforms AXI4 memory-mapped transactions into APB p
 
 ### Key Features
 
-- ✅ **Burst Decomposition:** AXI bursts (AWLEN/ARLEN) → APB single-beat transfers
-- ✅ **Width Adaptation:** Automatic conversion for AXI_DATA_WIDTH > APB_DATA_WIDTH
-- ✅ **Address Generation:** Proper address incrementing per AXI burst type (INCR, WRAP)
-- ✅ **Transaction Tracking:** Side FIFO maintains ID, LAST, USER across conversion
-- ✅ **Error Handling:** Accumulates APB PSLVERR → AXI BRESP/RRESP
-- ✅ **Zero Data Loss:** Proper flow control and buffering
+- **Burst Decomposition:** AXI bursts (AWLEN/ARLEN) → APB single-beat transfers
+- **Width Adaptation:** Automatic conversion for AXI_DATA_WIDTH > APB_DATA_WIDTH
+- **Address Generation:** Proper address incrementing per AXI burst type (INCR, WRAP)
+- **Transaction Tracking:** Side FIFO maintains ID, LAST, USER across conversion
+- **Error Handling:** Accumulates APB PSLVERR → AXI BRESP/RRESP
+- **Zero Data Loss:** Proper flow control and buffering
 
 ---
 
@@ -206,7 +206,7 @@ Total: 8 APB transfers for 4 AXI beats
 **Supported Burst Types:**
 - **INCR (0x01):** Sequential incrementing (most common)
 - **WRAP (0x10):** Wrapping at boundary (less common)
-- **FIXED (0x00):** Same address (APB limitation: converted to INCR)
+- **FIXED (0x00):** Same address every beat -- implemented as a true FIXED burst (`axi_gen_addr` holds the address; nothing converts it to INCR)
 
 **Address Alignment:**
 ```systemverilog
@@ -273,7 +273,7 @@ w_resp_wr = (w_pslverr | r_pslverr) ? 2'b10 : 2'b00;
 ### APB Command Packet
 
 ```
-APBCmdWidth = APBAW + APBDW + APBSW + 4 bits
+APBCmdWidth = APBAW + APBDW + APBSW + 6 bits   // 3-bit pprot + pwrite + first + last
 
 [APBCmdWidth-1]         last      (end of AXI burst)
 [APBCmdWidth-2]         first     (start of AXI burst)
@@ -438,7 +438,7 @@ pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_widt
 **Parameter Constraints:**
 - `APB_DATA_WIDTH` ≤ `AXI_DATA_WIDTH`
 - `AXI_DATA_WIDTH / APB_DATA_WIDTH` must be power of 2 (1, 2, 4, 8)
-- `SIDE_DEPTH` must be ≥ maximum AXI burst length (typically 16)
+- `SIDE_DEPTH` is a throughput knob: a shallow FIFO only throttles command issue (drains in order as responses retire); any depth >= 1 is functionally safe. The default of 6 covers typical burst overlap
 
 **Protocol Limitations:**
 - No support for AXI exclusive access (AWLOCK/ARLOCK ignored)
@@ -472,7 +472,7 @@ pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_widt
 
 - **[axi4_to_apb4_shim](axi4_to_apb4_shim.md)** - Top-level shim (instantiates this module)
 - **[axi4_slave_stub](../axi4/axi4_slave_stub.md)** - Provides input packet format
-- **[apb4_master_stub](../apb/apb4_master_stub.md)** - Consumes output packet format
+- **[apb4_master_stub](../apb4/apb4_master_stub.md)** - Consumes output packet format
 - **[axi_gen_addr](../shared/axi_gen_addr.md)** - Address generation utility
 - **[gaxi_fifo_sync](../gaxi/gaxi_fifo_sync.md)** - Side information FIFO
 
@@ -480,12 +480,12 @@ pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_widt
 
 ## When to Use
 
-**✅ Use Standalone When:**
+**Use Standalone When:**
 - Same clock domain for AXI and APB
 - Want minimal latency (no CDC overhead)
 - Custom integration with different buffering
 
-**✅ Use via axi4_to_apb4_shim When:**
+**Use via axi4_to_apb4_shim When:**
 - Different clock domains (need CDC)
 - Want complete turnkey solution
 - Standard AXI/APB interfaces

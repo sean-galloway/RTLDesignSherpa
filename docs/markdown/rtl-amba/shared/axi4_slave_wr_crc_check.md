@@ -172,7 +172,7 @@ A compact FSM tracks a single active burst via `r_wr_active`. `awready` asserts 
 
 ### Back-to-Back B Response Id Latching
 
-When bursts run back-to-back, `r_wr_id` is reloaded with the *next* burst's id on the same cycle the current burst's WLAST lands. The completing burst's B response would then carry the wrong id. To avoid that, the id/user are separately latched into `r_b_id` / `r_b_user` at WLAST and those drive the B channel. B is single-outstanding (`r_b_pending`), which is safe because the STREAM master drains B within the burst period; a higher-rate multi-channel sink would need a B FIFO (noted in the RTL).
+When bursts run back-to-back, `r_wr_id` is reloaded with the *next* burst's id on the same cycle the current burst's WLAST lands -- so the B channel cannot be driven from it. Instead an inline 16-deep B-response FIFO (`BFIFO_DEPTH = 16`) pushes the completing burst's `{user, id}` on every WLAST and pops on the B handshake. Multiple outstanding B responses queue cleanly; gapless multi-channel bursts never drop one. (An earlier single-outstanding `r_b_pending` design did drop them, which is exactly why the FIFO replaced it.)
 
 ### Standard Protocol Handler
 
@@ -228,7 +228,7 @@ axi4_slave_wr_crc_check #(
 
 - **CRC config must match the source:** the whole point is a comparable value. `CRC_POLY`, `CRC_INIT`, `CRC_XOROUT`, `CRC_REFIN`, `CRC_REFOUT`, and the 32-bit slice width are all fixed to mirror `axi4_slave_rd_pattern_gen`.
 - **Channel demux by AW id, not W sideband:** because W is in-order behind AW and only one burst is active at a time, the captured `awid` unambiguously names the channel for that burst's W beats.
-- **Single-outstanding B is deliberate but bounded:** it assumes the master drains B within a burst period. The RTL explicitly flags that a faster multi-channel sink needs a B FIFO.
+- **B responses queue through a 16-deep FIFO** (`BFIFO_DEPTH`): up to 16 completed bursts can await their B handshake without loss, so a slow B-drain or gapless multi-channel bursts are safe up to that depth.
 - **Gapless accept is a measurement fix:** the back-to-back AW accept prevents the sink from injecting a false ~1-cycle-per-burst starvation into write-side utilization numbers.
 - **Standards note:** the AW/W/B glue is hand-rolled on top of `axi4_slave_wr`; a future refactor to `axi4_slave_wr_mon` is tracked as task #79.
 

@@ -74,7 +74,8 @@ Bringing up and characterizing a memory controller means driving it with realist
 | AXI_WSTRB_WIDTH | int | AXI_DATA_WIDTH/8 | Write strobe width (derived) |
 | LFSR_WIDTH | int | 32 | LFSR width; matches slave side so CRCs interchange |
 | LFSR_SEED | logic [31:0] | 32'hDEADBEEF | LFSR seed default |
-| LFSR_TAPS | logic [47:0] | {12'd32, 12'd22, 12'd2, 12'd1} | Maximal-length Fibonacci taps |
+| LFSR_TAPS | logic [47:0] | {12'd23, 12'd3, 12'd2, 12'd1} | Maximal-length Fibonacci taps (library-table primitive set) |
+| BURST_LEN_MULTIPLE | int | 1 | Sim-only guard: cfg_start errors if `cfg_burst_len % BURST_LEN_MULTIPLE != 0` (set to the DRAM burst multiple) |
 | CRC_WIDTH | int | 32 | CRC width |
 | CRC_DATA_WIDTH | int | 32 | Bits per CRC update (fixed 32 to match slave side) |
 | CRC_POLY | logic [CRC_WIDTH-1:0] | 32'h04C11DB7 | CRC polynomial |
@@ -155,7 +156,7 @@ Two independent `dma_address_gen` instances (`u_addr_gen_aw`, `u_addr_gen_w`) wa
 
 Two data sources are muxed by `cfg_data_mode`:
 
-- **Mode 0 (LFSR):** a 32-bit Fibonacci LFSR (`shifter_lfsr_fibonacci`, taps `{32,22,2,1}`) advances on every accepted W beat, replicated across the data bus (`REP` copies). The data stream is a deterministic function of `(seed, total_beats_so_far)`. This is order-sensitive and breaks under multi-id / out-of-order completion.
+- **Mode 0 (LFSR):** a 32-bit Fibonacci LFSR (`shifter_lfsr_fibonacci`, taps `{23,3,2,1}`) advances on every accepted W beat, replicated across the data bus (`REP` copies). The data stream is a deterministic function of `(seed, total_beats_so_far)`. This is order-sensitive and breaks under multi-id / out-of-order completion.
 - **Mode 1 (address hash):** each 32-bit slice is a Murmur3-fmix-style function of its byte address and the three `cfg_hash_seed` values (xor-shift + odd multiplies). Because each beat's data depends only on its address, reorder does not perturb the per-beat compare on the read side.
 
 The per-beat byte address is anchored on the W address-generator output and stepped by `2**awsize` bytes per beat. Full-beat writes only — `wstrb` is tied all-ones.
@@ -166,7 +167,7 @@ The mode-1 hash chains two 32-bit multiplies — combinationally a ~25 ns / 4-DS
 
 ### AW-ID Generation
 
-`awid` is muxed by `cfg_id_mode`: FIXED passes `cfg_axi_id` through; COUNTER is an 8-bit counter seeded at `cfg_axi_id[7:0]`, +1 per AW; LFSR is an 8-bit maximal-length Fibonacci LFSR (taps `{8,6,5,4}`) seeded with `cfg_axi_id[7:0] | 1` to avoid the all-zero seed. Internal counter/LFSR are 8-bit and zero-extended/truncated to `IW`.
+`awid` is muxed by `cfg_id_mode`: FIXED passes `cfg_axi_id` through; COUNTER is an 8-bit counter seeded at `cfg_axi_id[7:0]`, +1 per AW; LFSR is an 8-bit maximal-length Fibonacci LFSR (taps `{7,6,5,1}`) seeded with `cfg_axi_id[7:0] | 1` to avoid the all-zero seed. Internal counter/LFSR are 8-bit and zero-extended/truncated to `IW`.
 
 ### CRC Accumulation and Completion
 

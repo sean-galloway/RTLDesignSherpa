@@ -72,7 +72,8 @@ The read half of a memory-controller integrity loop must know what it *should* r
 | AXI_USER_WIDTH | int | 1 | AXI user width |
 | LFSR_WIDTH | int | 32 | LFSR width (must match writer) |
 | LFSR_SEED | logic [31:0] | 32'hDEADBEEF | LFSR seed default (must match writer) |
-| LFSR_TAPS | logic [47:0] | {12'd32, 12'd22, 12'd2, 12'd1} | Maximal-length Fibonacci taps |
+| LFSR_TAPS | logic [47:0] | {12'd23, 12'd3, 12'd2, 12'd1} | Maximal-length Fibonacci taps (library-table primitive set) |
+| BURST_LEN_MULTIPLE | int | 1 | Sim-only guard: cfg_start errors if `cfg_burst_len % BURST_LEN_MULTIPLE != 0` (set to the DRAM burst multiple) |
 | CRC_WIDTH | int | 32 | CRC width (must match writer) |
 | CRC_DATA_WIDTH | int | 32 | Bits per CRC update |
 | CRC_POLY | logic [CRC_WIDTH-1:0] | 32'h04C11DB7 | CRC polynomial |
@@ -128,6 +129,8 @@ The read half of a memory-controller integrity loop must know what it *should* r
 | o_data_error | output | 1 | Sticky on any per-beat data mismatch |
 | o_rresp_error | output | 1 | Sticky on any non-OKAY R beat |
 | o_beats_mismatched | output | TXN_COUNT_WIDTH | Count of mismatching R beats |
+| o_stray_beat_error | output | 1 | Sticky: an R beat arrived outside any expected transaction (drained and counted, never wedges the engine) |
+| o_stray_beats | output | TXN_COUNT_WIDTH | Count of stray beats drained |
 
 ### M-Side AXI4 Read (out to fabric/controller)
 
@@ -177,7 +180,7 @@ A `dataint_crc` accumulates over the regenerated LFSR stream (not the returned `
 
 ### AR-ID Generation
 
-`arid` is muxed by `cfg_id_mode` exactly like the writer's `awid`: FIXED, an 8-bit COUNTER, or an 8-bit Fibonacci LFSR (taps `{8,6,5,4}`, seeded `cfg_axi_id[7:0] | 1`).
+`arid` is muxed by `cfg_id_mode` exactly like the writer's `awid`: FIXED, an 8-bit COUNTER, or an 8-bit Fibonacci LFSR (taps `{7,6,5,1}`, seeded `cfg_axi_id[7:0] | 1`).
 
 ### Out-of-Order Completion — Known Limitation
 

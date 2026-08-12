@@ -25,7 +25,7 @@
 
 **Module:** `peakrdl_to_cmdrsp.sv`
 **Location:** `rtl/amba/shims/`
-**Status:** ✅ Production Ready
+**Status:** Production (see the module page history for review state)
 
 ---
 
@@ -35,12 +35,12 @@ Protocol adapter that bridges between the RTL Design Sherpa standard cmd/rsp int
 
 ### Key Features
 
-- ✅ **Protocol Conversion:** cmd/rsp valid/ready ↔ PeakRDL passthrough cpuif
-- ✅ **Stall Handling:** Proper support for PeakRDL req_stall signals
-- ✅ **Strobe Conversion:** Byte strobes → bit enables (PeakRDL requirement)
-- ✅ **Error Propagation:** PeakRDL errors → cmd/rsp PSLVERR
-- ✅ **FSM-Based:** Robust state machines for cmd and rsp channels
-- ✅ **Assertions Included:** Comprehensive protocol checking (simulation only)
+- **Protocol Conversion:** cmd/rsp valid/ready ↔ PeakRDL passthrough cpuif
+- **Stall Handling:** Proper support for PeakRDL req_stall signals
+- **Strobe Conversion:** Byte strobes → bit enables (PeakRDL requirement)
+- **Error Propagation:** PeakRDL errors → cmd/rsp PSLVERR
+- **FSM-Based:** Robust state machines for cmd and rsp channels
+- **Assertions:** none in the RTL today (the Assertions section in the source is empty); protocol conformance is covered by the cocotb suite and the formal harness (`formal/converters/peakrdl_to_cmdrsp/`)
 
 ---
 
@@ -344,17 +344,15 @@ apb4_slave_stub #(
     .s_apb_PRDATA(apb_prdata),
     .s_apb_PSLVERR(apb_pslverr),
 
-    // cmd/rsp interface
+    // cmd/rsp interface -- PACKED buses, not per-field ports:
+    // cmd_data = {pprot, pwrite, pstrb, paddr, pwdata} (CMD_PACKET_WIDTH)
+    // rsp_data = {pslverr, prdata}                     (RESP_PACKET_WIDTH)
     .cmd_valid(cmd_valid),
     .cmd_ready(cmd_ready),
-    .cmd_pwrite(cmd_pwrite),
-    .cmd_paddr(cmd_paddr),
-    .cmd_pwdata(cmd_pwdata),
-    .cmd_pstrb(cmd_pstrb),
+    .cmd_data (cmd_data),
     .rsp_valid(rsp_valid),
     .rsp_ready(rsp_ready),
-    .rsp_prdata(rsp_prdata),
-    .rsp_pslverr(rsp_pslverr)
+    .rsp_data (rsp_data)
 );
 
 // PeakRDL adapter (cmd/rsp → passthrough cpuif)
@@ -443,14 +441,13 @@ gtkwave peakrdl.vcd
 
 ## Assertions
 
-**Included assertions (simulation only):**
-
-1. **cmd_valid_stable:** cmd_valid must remain high until cmd_ready
-2. **cmd_data_stable:** cmd signals must remain stable until cmd_ready
-3. **rsp_valid_stable:** rsp_valid must remain high until rsp_ready
-4. **rsp_data_stable:** rsp signals must remain stable until rsp_ready
-
-**Purpose:** Catch protocol violations during simulation.
+The RTL currently carries NO inline assertions -- the Assertions section in
+`peakrdl_to_cmdrsp.sv` is an empty placeholder. The valid/data stability
+contract (cmd/rsp valid held and payload stable until the handshake) is
+checked by the cocotb suite and the formal harness
+(`formal/converters/peakrdl_to_cmdrsp/`), not by simulation-time SVA. If
+inline SVA is added later, restore the four stability properties this page
+used to list.
 
 ---
 
@@ -490,8 +487,8 @@ gtkwave peakrdl.vcd
 
 ## Related Modules
 
-- **[apb4_slave_stub](../apb/apb4_slave_stub.md)** - APB → cmd/rsp conversion (upstream)
-- **[apb4_master_stub](../apb/apb4_master_stub.md)** - cmd/rsp → APB conversion
+- **[apb4_slave_stub](../apb4/apb4_slave_stub.md)** - APB → cmd/rsp conversion (upstream)
+- **[apb4_master_stub](../apb4/apb4_master_stub.md)** - cmd/rsp → APB conversion
 
 **External:**
 - PeakRDL: https://github.com/SystemRDL/PeakRDL
@@ -501,12 +498,12 @@ gtkwave peakrdl.vcd
 
 ## When to Use
 
-**✅ Use This Adapter When:**
+**Use This Adapter When:**
 - Integrating PeakRDL-generated register blocks
 - Using RTL Design Sherpa APB infrastructure
 - Need cmd/rsp ↔ passthrough cpuif conversion
 
-**✅ Alternatives:**
+**Alternatives:**
 - PeakRDL native APB cpuif (if not using cmd/rsp)
 - Custom register implementation (if not using PeakRDL)
 

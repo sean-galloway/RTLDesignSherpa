@@ -25,7 +25,7 @@
 
 **Module:** `axi4_to_apb4_shim.sv`
 **Location:** `rtl/amba/shims/`
-**Status:** ✅ Production Ready
+**Status:** Production (see the module page history for review state)
 
 ---
 
@@ -35,13 +35,13 @@ Top-level bridge module that converts AXI4 memory-mapped transactions to APB per
 
 ### Key Features
 
-- ✅ **Full AXI4 to APB Bridge:** Complete protocol conversion with burst decomposition
-- ✅ **Dual-Clock Support:** Independent AXI (aclk) and APB (pclk) clock domains
-- ✅ **CDC-Safe Handshakes:** Asynchronous clock domain crossing with proper synchronization
-- ✅ **Configurable Buffering:** Skid buffers on all AXI channels for timing closure
-- ✅ **Width Adaptation:** Automatic data width conversion (AXI → APB)
-- ✅ **Burst Decomposition:** AXI bursts → APB single-beat transfers
-- ✅ **Error Propagation:** APB PSLVERR mapped to AXI RRESP/BRESP
+- **Full AXI4 to APB Bridge:** Complete protocol conversion with burst decomposition
+- **Dual-Clock Support:** Independent AXI (aclk) and APB (pclk) clock domains
+- **CDC-Safe Handshakes:** Asynchronous clock domain crossing with proper synchronization
+- **Configurable Buffering:** Skid buffers on all AXI channels for timing closure
+- **Width Adaptation:** Automatic data width conversion (AXI → APB)
+- **Burst Decomposition:** AXI bursts → APB single-beat transfers
+- **Error Propagation:** APB PSLVERR mapped to AXI RRESP/BRESP
 
 ---
 
@@ -170,6 +170,7 @@ module axi4_to_apb4_shim #(
 | `SIDE_DEPTH` | 4 | Side information FIFO depth (tracks ID, last, user) |
 | `APB_CMD_DEPTH` | 4 | APB command CDC FIFO depth |
 | `APB_RSP_DEPTH` | 4 | APB response CDC FIFO depth |
+| `USE_JOHNSON` | 0 | Pointer encoding for the two CDC FIFOs: 0 = Gray (requires power-of-2 depths -- elaboration $error otherwise), 1 = Johnson (any depth) |
 
 ### AXI Interface
 
@@ -206,11 +207,11 @@ axi4_to_apb4_shim (this module)
 │   ├── Width adaptation
 │   └── gaxi_fifo_sync (side info)
 │
-├── cdc_handshake (command)
-│   └── AXI → APB clock domain crossing
+├── gaxi_fifo_async (command, aclk → pclk)
+│   └── gray/Johnson-pointer async FIFO CDC
 │
-├── cdc_handshake (response)
-│   └── APB → AXI clock domain crossing
+├── gaxi_fifo_async (response, pclk → aclk)
+│   └── gray/Johnson-pointer async FIFO CDC
 │
 └── apb4_master_stub
     └── Provides APB master interface with buffering
@@ -270,7 +271,7 @@ AXI Master → AR skid buffer (aclk)
 ### Clock Domain Crossing
 
 **CDC Handshake Protocol:**
-- Uses `cdc_handshake` module (Gray-code pointer-based)
+- Uses two `gaxi_fifo_async` async FIFOs (Gray or Johnson pointer encoding via `USE_JOHNSON`); the earlier 2-phase `cdc_handshake` scheme was replaced -- it could permanently offset the response stream
 - Command path: `aclk` → `pclk`
 - Response path: `pclk` → `aclk`
 - Zero data loss, proper synchronization
@@ -465,7 +466,7 @@ pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_axi2
 **Breakdown:**
 - axi4_slave_stub: ~300 LUTs, ~200 FFs (skid buffers)
 - axi4_to_apb4_convert: ~400 LUTs, ~300 FFs (FSMs, width logic)
-- 2× cdc_handshake: ~200 LUTs, ~150 FFs (synchronizers)
+- 2× gaxi_fifo_async (depth 4): FIFO storage + gray-pointer synchronizers
 - apb4_master_stub: ~100 LUTs, ~100 FFs (APB protocol)
 
 ### Timing Closure
@@ -482,8 +483,12 @@ set_false_path -from [get_clocks aclk] -to [get_clocks pclk]
 set_false_path -from [get_clocks pclk] -to [get_clocks aclk]
 
 # Constrain CDC paths
-set_max_delay -from [get_pins */cdc_handshake/src_*] \
-              -to [get_pins */cdc_handshake/dst_*] 10.0
+# The CDC FIFOs' pointer synchronizers carry the crossing; constrain the
+# async FIFO instances, not a cdc_handshake hierarchy (none exists here)
+set_max_delay -from [get_pins */u_cmd_cdc_fifo/*] \
+              -to   [get_pins */u_cmd_cdc_fifo/*] 10.0 -datapath_only
+set_max_delay -from [get_pins */u_rsp_cdc_fifo/*] \
+              -to   [get_pins */u_rsp_cdc_fifo/*] 10.0 -datapath_only
 ```
 
 ---
@@ -492,20 +497,20 @@ set_max_delay -from [get_pins */cdc_handshake/src_*] \
 
 - **[axi4_to_apb4_convert](axi4_to_apb4_convert.md)** - Core conversion logic (instantiated internally)
 - **[axi4_slave_stub](../axi4/axi4_slave_stub.md)** - AXI slave interface wrapper
-- **[apb4_master_stub](../apb/apb4_master_stub.md)** - APB master interface wrapper
-- **[cdc_handshake](../../rtl-cdc/cdc.md#cdc_4_phase_handshake)** - Clock domain crossing handshake
+- **[apb4_master_stub](../apb4/apb4_master_stub.md)** - APB master interface wrapper
+- **[gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md)** - the CDC FIFO used for both crossings
 
 ---
 
 ## When to Use
 
-**✅ Use This Shim When:**
+**Use This Shim When:**
 - Bridging AXI4 system interconnect to APB peripherals
 - Different clock domains for AXI and APB buses
 - Need protocol conversion with full CDC support
 - CPU/DMA master accessing peripheral registers
 
-**✅ Consider Alternatives When:**
+**Consider Alternatives When:**
 - Both sides are AXI (use AXI crossbar/interconnect instead)
 - Both sides are APB (use APB crossbar)
 - Need high-performance memory access (APB is slow, use AXI4)

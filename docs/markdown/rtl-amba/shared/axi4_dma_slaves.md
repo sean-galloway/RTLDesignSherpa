@@ -75,7 +75,7 @@ Characterizing a DMA needs a memory model on both its read and write ports. Rath
 | SKID_DEPTH_B | int | 2 | Write B skid depth |
 | LFSR_WIDTH | int | 32 | LFSR width (read side only) |
 | LFSR_SEED | logic [31:0] | 32'hDEADBEEF | Base LFSR seed (read side only) |
-| LFSR_TAPS | logic [47:0] | {12'd32, 12'd22, 12'd2, 12'd1} | Maximal-length Fibonacci taps (read side only) |
+| LFSR_TAPS | logic [47:0] | {12'd23, 12'd3, 12'd2, 12'd1} | Maximal-length Fibonacci taps (read side only) |
 | CRC_WIDTH | int | 32 | CRC width (shared) |
 | CRC_DATA_WIDTH | int | 32 | Bits per CRC update (shared) |
 | CRC_POLY | logic [31:0] | 32'h04C11DB7 | CRC-32/Ethernet polynomial (shared) |

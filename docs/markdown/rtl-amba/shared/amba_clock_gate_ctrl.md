@@ -175,8 +175,8 @@ clock_gate_ctrl #(
 
 **Base Controller Operation:**
 1. Monitors r_wakeup signal
-2. Increments idle counter when wakeup=0 (idle)
-3. Gates clock when counter >= cfg_cg_idle_count
+2. Reloads the idle counter with cfg_cg_idle_count on any activity, and counts DOWN while wakeup=0
+3. Gates the clock when the counter reaches 0
 4. Ungates when wakeup=1 (activity), without waiting for the idle counter
 
 ### Gating Threshold Behavior
@@ -201,7 +201,7 @@ clock_gate_ctrl #(
 **Gating Sequence (Activity → Idle):**
 1. Cycle N: user_valid=1, axi_valid=0 → r_wakeup=1 (active)
 2. Cycle N+1: user_valid=0, axi_valid=0 → r_wakeup=0 (idle)
-3. Idle counter starts incrementing
+3. Idle counter starts counting down from cfg_cg_idle_count
 4. Cycle N+1+cfg_cg_idle_count: Counter threshold reached
 5. Clock gates on next cycle edge (gating=1)
 

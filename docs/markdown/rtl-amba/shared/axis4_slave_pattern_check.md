@@ -69,7 +69,7 @@ Characterizing a stream-*producing* engine (a "source") needs a checker that kno
 | AXIS_USER_WIDTH | int | 1 | `tuser` width |
 | LFSR_WIDTH | int | 32 | LFSR width (fixed; must match the generator) |
 | LFSR_SEED | logic [31:0] | 32'hDEADBEEF | Base LFSR seed; channel N uses `seed ^ N` |
-| LFSR_TAPS | logic [47:0] | {12'd32, 12'd22, 12'd2, 12'd1} | Maximal-length Fibonacci taps |
+| LFSR_TAPS | logic [47:0] | {12'd23, 12'd3, 12'd2, 12'd1} | Maximal-length Fibonacci taps |
 | CRC_WIDTH | int | 32 | CRC width |
 | CRC_DATA_WIDTH | int | 32 | Bits per CRC update |
 | CRC_POLY | logic [31:0] | 32'h04C11DB7 | CRC-32/Ethernet polynomial |
@@ -137,7 +137,7 @@ Characterizing a stream-*producing* engine (a "source") needs a checker that kno
 
 ### Per-Channel LFSR + CRC Regeneration (Verbatim from the Generator)
 
-Each channel owns a `shifter_lfsr_fibonacci` (32-bit, taps `{32,22,2,1}`, seed `w_seed ^ ch`) and a `dataint_crc` (CRC-32/Ethernet, `cascade_sel = 4'b1000`). On `cfg_start` (the arm/load pulse) every channel reloads its seed and clears its CRC / counters. A channel advances only on an accepted beat carrying its `tid` (`ch_beat = w_beat && w_ch == ch`). The seed, taps, replication, CRC instantiation, and gating are copied verbatim from `axi4_slave_rd_pattern_gen`, so the per-channel CRC is bit-identical. Each channel exposes `o_actual_crc`, `o_actual_crc_valid`, and `o_beat_count`; `o_beat_count_total` is a combinational sum.
+Each channel owns a `shifter_lfsr_fibonacci` (32-bit, taps `{23,3,2,1}`, seed `w_seed ^ ch`) and a `dataint_crc` (CRC-32/Ethernet, `cascade_sel = 4'b1000`). On `cfg_start` (the arm/load pulse) every channel reloads its seed and clears its CRC / counters. A channel advances only on an accepted beat carrying its `tid` (`ch_beat = w_beat && w_ch == ch`). The seed, taps, replication, CRC instantiation, and gating are copied verbatim from `axi4_slave_rd_pattern_gen`, so the per-channel CRC is bit-identical. Each channel exposes `o_actual_crc`, `o_actual_crc_valid`, and `o_beat_count`; `o_beat_count_total` is a combinational sum.
 
 ### Per-Beat Compare and Sticky Error
 

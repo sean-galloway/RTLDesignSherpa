@@ -466,21 +466,8 @@ Enable detailed transaction logging:
 ```systemverilog
 `define DEBUG_AXI_SPLIT
 
-// Generates console output:
-=== AXI SPLIT DEBUG (NO WRAPAROUND) ===
-current_addr = 0x00000FC0
-current_len = 7 (total beats = 8)
-ax_size = 3 (bytes_per_beat = 8)
-alignment_mask = 0xFFF
-transaction_end_addr = 0x00000FFF
-next_boundary_addr = 0x00001000
-bytes_to_boundary = 64
-beats_to_boundary = 8
-crosses_boundary = 0
-split_required = 0
-split_len = 7 (split beats = 8)
-remaining_len_after_split = 0 (remaining beats = 0)
-=======================================
+// Generates console output (one line per accepted transaction):
+=== AXI SPLIT DEBUG === addr=... len=... split_required=... split_len=... remaining_after=...
 ```
 
 ---

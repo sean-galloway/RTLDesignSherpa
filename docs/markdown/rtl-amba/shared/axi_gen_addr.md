@@ -147,7 +147,7 @@ When DW != ODW, the module handles width mismatches:
 WRAP bursts require careful address calculation:
 - Wrap boundary determined by size and length
 - Wrapped address stays within the wrap region
-- Example: 4-beat wrap at 0x0FF8 wraps back to 0x0FF8 (not 0x1000)
+- Example: 4-beat wrap (len=3), 8 bytes/beat, at 0x0FF8: wrap_mask = (1<<(3+2))-1 = 0x1F, aligned next = 0x1000, so next_addr = (0x0FF8 & ~0x1F) | (0x1000 & 0x1F) = **0x0FE0** -- the address wraps to the start of the 32-byte-aligned region, not past 0x1000
 
 ### Pure Combinational
 

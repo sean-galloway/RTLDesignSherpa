@@ -123,6 +123,12 @@ observer adds **no new combinational depth** in the AXI path.
 
 | Parameter | Default | Notes |
 |---|---|---|
+| `TAP_ENABLE_ERROR_LOGIC` | 0 | Elaborate the error tap logic |
+| `TAP_ENABLE_TIMEOUT_LOGIC` | 0 | Elaborate the timeout tap logic |
+| `TAP_ENABLE_COMPL_LOGIC` | 0 | Elaborate the completion tap logic |
+| `TAP_ENABLE_THRESHOLD_LOGIC` | 0 | Elaborate the threshold tap logic |
+| `TAP_ENABLE_PERF_LOGIC` | 1 | Elaborate the perf tap logic (its packets are still off: taps instantiate with `cfg_perf_enable=0`) |
+| `TAP_ENABLE_DEBUG_LOGIC` | 0 | Elaborate the debug tap logic |
 | `NUM_RD_PORTS` | 1 | Number of AXI4 read master ports to tap |
 | `NUM_WR_PORTS` | 1 | Number of AXI4 write master ports to tap |
 | `ADDR_WIDTH` | 32 | Address width on all tap ports + the observer's own dump port |
@@ -144,6 +150,14 @@ observer adds **no new combinational depth** in the AXI path.
 | `HIST_NUM_BINS` | 16 | log2 latency bins: bin `b` counts `[2^b, 2^(b+1))` cycles |
 | `HIST_MAX_OUTSTANDING` | 8 | Per-channel timestamp-FIFO depth in each histogram |
 
+**At the documented defaults the observer emits NO monbus traffic.** The
+`TAP_ENABLE_*` parameters above gate the error/completion/timeout logic out of
+elaboration entirely, and the one enabled tap (perf) is instantiated with its
+packet generation disabled -- so the err FIFO stays empty and no dump beats
+appear. Instances that need the dump/err path (the standalone observer unit
+test, for one) override the relevant enables to 1. If you wire this up and see
+nothing, this is why.
+
 **Latency-histogram readout** (indexed, shared across ports): drive
 `i_hist_metric` (0 = AR→first-R, 1 = AR→RLAST for reads; ignored for writes) and
 `i_hist_bin`, then read each port's `{rd,wr}_hist_count` (selected bin) and
@@ -154,14 +168,17 @@ cleared in lockstep with the meters via `i_meter_freeze` / `i_meter_clear`.
 
 ## Port surface
 
-The observer's port list splits into four groups:
+The observer's port list splits into five groups:
 
 1. **Per-port read taps** (`dma_rd_*` from DMA, `fab_rd_*` to fabric).
    Sized `[NUM_RD_PORTS-1:0]` on every signal so a single instance can
    tap multiple AXI4 read masters.
 2. **Per-port write taps** (`dma_wr_*` / `fab_wr_*`), shape mirrored.
 3. **Observer outputs** (`s_axil_*` for the IRQ-drain port, `m_axi_*`
-   for the bulk-dump port, `irq_out`).
+   for the bulk-dump port, `irq_out`), plus FIFO status
+   (`err_fifo_full` / `write_fifo_full` / `err_fifo_count` /
+   `write_fifo_count`) and the `cam_clear` input that clears the
+   compressor CAM between runs.
 4. **Configuration** (address window, flush watermark, per-protocol
    filter masks — see [`monbus_group.md`](../monitor/monbus_group.md) for the full
    filter description).

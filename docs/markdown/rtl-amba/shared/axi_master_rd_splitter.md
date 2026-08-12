@@ -31,7 +31,8 @@
 
 ## Overview
 
-The AXI Master Read Splitter is a critical infrastructure module that splits single upstream AXI read transactions into multiple downstream transactions when boundary crossings occur. It enables address range interleaving, memory-mapped I/O access, and heterogeneous memory system integration while maintaining full AXI4 protocol compliance.
+The AXI Master Read Splitter is a critical infrastructure module that splits single upstream AXI read transactions into multiple downstream transactions when boundary crossings occur. It enables address range interleaving, memory-mapped I/O access, and heterogeneous memory system integration. The R-side return path requires a beat-counting consumer -- see
+the Consumer contract note under Response Path.
 
 ### Key Features
 
@@ -41,7 +42,9 @@ The AXI Master Read Splitter is a critical infrastructure module that splits sin
 - R channel pass-through with transparent ID handling
 - Split transaction tracking via dedicated FIFO interface
 - Zero added latency for non-split transactions
-- Full AXI4 protocol compliance (burst, ID, user fields)
+- Burst/ID/user fields carried through on the AR side; NOTE the R side passes
+  every split's RLAST upstream, so the consumer must count beats (see
+  Consumer contract below) -- this is not transparent AXI4 compliance
 
 ---
 
@@ -50,7 +53,7 @@ The AXI Master Read Splitter is a critical infrastructure module that splits sin
 In modern SoC designs, memory systems are often partitioned across multiple address ranges, memory controllers, or protection domains. The AXI Master Read Splitter solves the fundamental problem of handling transactions that cross these architectural boundaries.
 
 **Problem Statement:**
-- Upstream master issues single AXI read (ADDR=0x0FC0, LEN=7, 8 beats total)
+- Upstream master issues single AXI read (ADDR=0x0FC0, LEN=7, 8 beats total, 64-byte beats)
 - Transaction crosses 4KB boundary at 0x1000
 - Downstream slaves require separate transactions per boundary region
 
@@ -278,12 +281,17 @@ The R channel is completely transparent:
 - fub_rvalid = m_axi_rvalid
 - m_axi_rready = fub_rready
 
-**Why This Works:**
-- Split transactions use same ID as original
-- Downstream slaves respond with matching ID
-- Upstream master sees aggregated response stream
-- Total beats = sum of all split lengths
-- Final RLAST indicates completion
+**Consumer contract (IMPORTANT):**
+- Split transactions use same ID as original; downstream slaves respond with
+  matching ID and the upstream sees the concatenated beat stream
+- `fub_rlast` is a PURE WIRE from `m_axi_rlast`: for an N-way split the
+  upstream sees N RLAST pulses, the first arriving at the end of split 1 --
+  long before the original burst's beat count completes
+- A standards-compliant generic AXI master would treat the first RLAST as end
+  of burst. The intended consumer is a beat-COUNTING engine (the FUB-style
+  read engines), which tolerates intermediate RLASTs. Do not place a generic
+  AXI master upstream without RLAST consolidation (filed with the splitter
+  defect cluster in vault/Tasks/amba)
 
 ### Split Information Tracking
 
@@ -470,10 +478,13 @@ The module enforces several critical assumptions for correct operation:
 
 ### Error Handling
 
-**Transaction Table Exhaustion:**
-- Split FIFO can fill if consumer stalls
-- Module continues operation (FIFO write stalls fub_arready)
-- Recommendation: Size FIFO >= max outstanding transactions
+**Split-FIFO Overflow (silent record loss):**
+- The split-info FIFO's `wr_ready` is left unconnected and the push has no
+  FIFO-full term, so a push to a full FIFO is silently DISCARDED -- there is
+  no backpressure to fub_arready from the FIFO and no error indication
+- Sizing the FIFO >= the true maximum outstanding split transactions is
+  therefore a CORRECTNESS requirement, not a tuning recommendation
+- (Filed with the splitter defect cluster in vault/Tasks/amba)
 
 **Protocol Violations:**
 - Module assumes well-formed AXI transactions
@@ -488,8 +499,11 @@ The module enforces several critical assumptions for correct operation:
 ### Integration Considerations
 
 **Alignment Mask Configuration:**
-- 12-bit mask supports boundaries: 4KB to 8MB
-- Common values: 0xFFF (4KB), 0xFFFF (64KB)
+- The mask port is 12 bits and zero-extended, so the largest expressible
+  boundary is 0xFFF = 4KB; smaller powers of two (0x3F = 64B ... 0x7FF = 2KB)
+  are the other legal values
+- Driving a wider value (e.g. 0xFFFF hoping for 64KB) silently truncates to
+  0xFFF and splits at 4KB
 - Must match downstream memory region alignment
 
 **FIFO Sizing:**

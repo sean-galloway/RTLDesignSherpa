@@ -58,7 +58,8 @@
     - Full coverage of all 5 compression techniques (template extraction,
       delta-ts, width-tiered Tier-1, differential payload, Tier-0 RAW)
     - Bit layouts, encoder decision tree, pipeline/timing/synthesis notes
-    - 2026-06-15 refresh: pipeline is now 2 stages (lookup/commit ->
+    - 2026-06-15 refresh, superseded by the cam_pipe refactor: pipeline is
+      now 3 stages (lookup/commit ->
       encode/emit); delta_ts is per-template (matches the CAM's per-entry
       r_ts[24]) rather than against a single global r_last_ts; added
       compressor input skid + pblock_monbus floorplan note for the
@@ -154,14 +155,14 @@
 The following modules require documentation following the same pattern as axi_monitor_base.md:
 
 #### Monitor Infrastructure
-2. axi_monitor_filtered.md - PENDING
+2. axi_monitor_filtered.md - DONE
 3. axi_monitor_reporter.md - **COMPLETE** (rewritten 2026-06-11, see #17)
    - Now describes the dispatcher + 6 sub-blocks (error / timeout /
      compl / threshold / perf / debug). The six sub-block files
      (axi_monitor_reporter_*.sv) are covered here, not as separate
      doc pages.
-4. axi_monitor_timeout.md - PENDING
-5. axi_monitor_timer.md - PENDING
+4. axi_monitor_timeout.md - DONE
+5. axi_monitor_timer.md - DONE
 6. axi_monitor_trans_mgr.md - **COMPLETE** (rewritten 2026-06-08)
    - See #11 in Completed Documentation above
 
@@ -179,20 +180,19 @@ The following modules require documentation following the same pattern as axi_mo
        axil_axi4, axil_axil) in a single doc.
 
 #### Monitor Bus Arbitration (4 modules)
-7. arbiter_monbus_common.md - PENDING
-8. arbiter_rr_pwm_monbus.md - PENDING
-9. arbiter_wrr_pwm_monbus.md - PENDING
-10. monbus_arbiter.md - PENDING
+7. arbiter_monbus_common.md - DONE
+8. arbiter_rr_pwm_monbus.md - DONE
+9. arbiter_wrr_pwm_monbus.md - DONE
+10. monbus_arbiter.md - DONE
 
 #### AXI Utilities (4 modules)
-11. axi_gen_addr.md - PENDING
-12. axi_master_rd_splitter.md - PENDING
-13. axi_master_wr_splitter.md - PENDING
-14. axi_split_combi.md - PENDING
+11. axi_gen_addr.md - DONE
+12. axi_master_rd_splitter.md - DONE
+13. axi_master_wr_splitter.md - DONE
+14. axi_split_combi.md - DONE
 
 #### Infrastructure (2 modules)
-15. amba_clock_gate_ctrl.md - PENDING
-16. cdc_handshake.md - PENDING
+15. amba_clock_gate_ctrl.md - DONE
 
 ---
 
@@ -315,7 +315,7 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 **axi_monitor_reporter.sv**
 - Reports events/errors through shared monitor bus
 - Detects conditions from transaction table
-- Formats 64-bit interrupt packets
+- Formats 128-bit monitor packets (64-bit side-band timestamp)
 - Supports error, completion, timeout, threshold, performance, debug packets
 - FIFO buffering with gaxi_fifo_sync
 - Event reported feedback to trans_mgr (FIX-001)
@@ -408,24 +408,11 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 - Configurable idle countdown
 - Generates gated clock output
 
-**cdc_handshake.sv**
-- Clock domain crossing with handshake protocol
-- 3-stage synchronizers for metastability protection
-- Separate FSMs for source and destination domains
-- Parameterizable data width
-
----
-
 ## Next Steps
 
-1. Create remaining 15 markdown files following the template
-2. Create README.md index file for shared infrastructure directory
-3. Update parent rtl-amba/README.md to link to shared/ subdirectory
-4. Cross-reference all related modules
-5. Add usage examples for each module
-6. Document integration patterns
-
----
+All module pages exist. This file's remaining value is the RTL-extracted
+module notes below -- when a module changes, update its page FIRST and this
+inventory second (or delete the module's entry here rather than let it rot).
 
 ## Notes
 

@@ -24,7 +24,7 @@
 # Simple Dual-Port BRAM Slave Family
 
 **Modules:**
-- `sdpram_slave.sv` — common backend (BRAM glue + clear FSM + protocol skids)
+- `sdpram_core.sv` — common backend (BRAM glue + clear FSM); the protocol skids live in the WRAPPERS, not the backend
 - `sdpram_slave_axi4_axi4.sv` — wrapper: AXI4 write, AXI4 read
 - `sdpram_slave_axi4_axil.sv` — wrapper: AXI4 write, AXIL read
 - `sdpram_slave_axil_axi4.sv` — wrapper: AXIL write, AXI4 read
@@ -62,15 +62,15 @@ construct, fixed at module declaration. So to give each protocol
 combination an exact port shape — no spurious AXI4-only fields for the
 caller to tie off — the family is split:
 
-- **One common backend** (`sdpram_slave.sv`) with the BRAM port-A/B
-  glue, bulk-clear FSM, burst tracker, and the two protocol-skid
-  generate blocks (gated by `WR_PROTOCOL` / `RD_PROTOCOL` string
-  parameters). The backend's port list is the AXI4 superset; in AXIL
-  mode the unused fields are ignored on inputs / driven to 0 on
-  outputs.
-- **Four thin wrappers**, each with the right protocol-shaped port
-  list, that instantiate the backend with the matching parameter
-  setting and tie off any AXI4-only fields for an AXIL side.
+- **One common backend** (`sdpram_core.sv`) with the BRAM port-A/B
+  glue, bulk-clear FSM and burst tracker. Its whole parameter list is
+  `AXI_ID_WIDTH, ADDR_WIDTH, DATA_WIDTH, MEM_DEPTH` -- there is no
+  string-switch generate plumbing; its header says the wrappers "drop
+  straight on top".
+- **Four wrappers**, each with the right protocol-shaped port list,
+  that instantiate the matching protocol skids (`axi4_slave_wr`,
+  `axil4_slave_rd`, ...) AND the core -- the protocol skids live in the
+  wrappers, not the backend.
 
 | Wrapper | Wr ports | Rd ports |
 |---|---|---|
@@ -79,10 +79,9 @@ caller to tie off — the family is split:
 | `sdpram_slave_axil_axi4` | `s_axil_aw*/w*/b*` (AXIL only) | `s_axi_ar*/r*` (full AXI4) |
 | `sdpram_slave_axil_axil` | `s_axil_aw*/w*/b*` (AXIL only) | `s_axil_ar*/r*` (AXIL only) |
 
-Callers pick the wrapper module name matching their fabric. The bare
-`sdpram_slave` remains directly callable for unusual configs (or for
-the existing `test_sdpram_slave.py` regression which exercises both
-sides independently via the parameter knobs).
+Callers pick the wrapper module name matching their fabric. (An older
+`sdpram_slave` backend with `WR_PROTOCOL`/`RD_PROTOCOL` string
+parameters no longer exists -- this family replaced it.)
 
 ---
 
@@ -105,8 +104,10 @@ All wrappers expose the same scaling knobs as the backend:
 
 - **AXI4 mode** supports `INCR` (`awburst/arburst = 2'b01`) and `FIXED`
   (`2'b00`) of any length up to AXI4's 256-beat maximum. `WRAP` (`2'b10`)
-  is rejected by a SIMULATION-only `$error` and treated as `INCR` in
-  synth (the BRAM glue advances linearly).
+  raises a SIMULATION-only `$warning` ("not yet validated") and the burst
+  PROCEEDS -- and in synthesis it is executed as a true WRAP: the burst
+  type feeds `axi_gen_addr`, which computes wrapped addresses. It is
+  unvalidated, not rejected, and not linear.
 - **AXIL mode** is single-beat by construction — the AXIL skid ties the
   fub-side `awlen`/`arlen` to 0, so the burst-aware backend produces
   exactly one beat per AW/AR. Multi-beat transactions are not
@@ -119,7 +120,9 @@ All wrappers expose the same scaling knobs as the backend:
 All wrappers expose:
 
 - `i_cfg_start_clear` (input) — pulse high to start a memory-wide clear.
-- `o_cfg_done_clear` (output) — pulses high when the clear FSM finishes.
+- `o_cfg_done_clear` (output) — a STICKY LEVEL: set when the clear FSM
+  finishes and held high until the next clear is accepted. Do not
+  edge-count it as a pulse.
 
 The clear FSM owns BRAM port A while it walks the whole memory writing
 zeros. It waits for both sides idle before claiming the port, so an
@@ -129,11 +132,13 @@ in-flight write or read completes cleanly before the clear begins.
 
 ## Debug / Observation Outputs
 
-Common to all wrappers (and the backend):
+Common to all wrappers (`o_dbg_fub_vr`/`o_dbg_bram_*` come from
+`sdpram_core`; `o_dbg_vr` and the busy flags come from the wrapper-level
+skids):
 
 | Output | Width | Meaning |
 |---|---|---|
-| `o_dbg_vr` | 10 | External `{aw,w,b,ar,r}_{valid,ready}` (AW = [9:8], W = [7:6], B = [5:4], AR = [3:2], R = [1:0]) |
+| `o_dbg_vr` | 10 | External `{rready,rvalid, arready,arvalid, bready,bvalid, wready,wvalid, awready,awvalid}` — R = [9:8], AR = [7:6], B = [5:4], W = [3:2], AW = [1:0] |
 | `o_dbg_fub_vr` | 10 | Fub-side (post-skid) valid/ready for the same five channels |
 | `o_dbg_bram_wr` | 1 | One-cycle pulse on BRAM port-A write fire |
 | `o_dbg_bram_rd` | 1 | One-cycle pulse on BRAM port-B read fire |
@@ -156,10 +161,11 @@ and the raw-record beat layout described in
 
 ## Test
 
-`val/amba/test_sdpram_slave.py` exercises the bare `sdpram_slave`
-backend across all four `(WR_PROTOCOL, RD_PROTOCOL)` combinations via
-`@pytest.mark.parametrize`. The wrappers are thin pass-throughs so the
-backend regression is the load-bearing one. Sub-tests cover:
+`val/amba/test_sdpram_slave.py` builds `sdpram_slave_axi4_axi4` (the
+full-AXI4 wrapper, which contains `sdpram_core`) and drives the four
+protocol-combination stimulus shapes against it via
+`@pytest.mark.parametrize`. The other three wrappers are thin
+port-shape variants over the same core. Sub-tests cover:
 
 1. Single-beat AW/W/B + AR/R round-trip (all 4 combos)
 2. AXI4 INCR burst write + read (AXI4-only)

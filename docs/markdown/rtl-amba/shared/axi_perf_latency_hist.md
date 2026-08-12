@@ -35,7 +35,7 @@ The AXI Performance Latency Histogram captures per-transaction latency on an AXI
 
 ### Key Features
 
-- Per-channel log2 latency histogram (default 16 bins: bin `b` counts latencies in `[2^b, 2^(b+1))`)
+- Log2 latency histogram, one per metric (default 16 bins: bin `b` counts latencies in `[2^b, 2^(b+1))`). There is NO channel dimension in the histogram storage -- all channels fold into one histogram per metric; NUM_CHANNELS sizes only the per-channel command-timestamp FIFOs
 - Read mode (`IS_READ=1`): two metrics â€” ARâ†’first-R beat and ARâ†’RLAST
 - Write mode (`IS_READ=0`): one metric â€” AWâ†’B response
 - Per-channel command-timestamp FIFO matches completions to oldest outstanding command (same-ID in-order)
@@ -56,7 +56,7 @@ Average latency hides the distribution that actually matters for QoS analysis â€
 - Parity latency metrics alongside `axi4_dma_observer` per-port histograms
 - Host-driven on-silicon performance runs (CSR readout, no MonBus traffic)
 
-**Key Benefit:** Exposes the full latency distribution (including the tail) per channel through cheap CSR reads, without touching the shared monitor base or adding any MonBus packet traffic.
+**Key Benefit:** Exposes the full latency distribution (including the tail) through cheap CSR reads, without touching the shared monitor base or adding any MonBus packet traffic. Distributions are aggregated across channels -- per-channel histograms would need one instance per channel.
 
 ---
 
@@ -65,7 +65,7 @@ Average latency hides the distribution that actually matters for QoS analysis â€
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | ID_WIDTH | int | 8 | AXI id width on the snooped bus |
-| NUM_CHANNELS | int | 8 | Number of per-channel bins (channel = `id[CW-1:0]`) |
+| NUM_CHANNELS | int | 8 | Number of per-channel command-timestamp FIFOs (channel = `id[CW-1:0]`); does NOT create per-channel histogram bins |
 | MAX_OUTSTANDING | int | 8 | Per-channel command-timestamp FIFO depth |
 | NUM_BINS | int | 16 | Number of log2 histogram bins; bin `b` counts `[2^b, 2^(b+1))` |
 | IS_READ | bit | 1'b1 | 1 = read build (2 metrics), 0 = write build (1 metric) |
@@ -126,6 +126,7 @@ Average latency hides the distribution that actually matters for QoS analysis â€
 | i_hist_bin | input | BINW | Bin index to read |
 | o_hist_count | output | CNT_W | Selected bin's count for the selected metric |
 | o_hist_total | output | CNT_W | Selected metric's total transaction count |
+| o_cmd_block | output | 1 | High while the addressed channel's timestamp FIFO is full. AND this into the command-channel ready (it is combinational in cmd_id). Without it the module degrades SILENTLY: a command that handshakes at a full channel is never timestamped, is missing from o_hist_total, and its completion later pops some OTHER command's timestamp -- surviving latencies are misattributed as well as undercounted |
 
 ---
 
@@ -170,6 +171,11 @@ The increment is delayed a few cycles, but the host reads the window long after 
 ### Readout
 
 Readout is a combinational mux: `o_hist_count` returns `r_hist[metric][bin]` for the CSR-selected metric and bin, and `o_hist_total` returns that metric's running transaction total (useful for normalizing bin counts into a distribution).
+
+**Sizing MAX_OUTSTANDING is a correctness requirement, not a tuning note.** If a
+channel's FIFO can fill under real traffic, either wire `o_cmd_block` into the
+command ready path or size `MAX_OUTSTANDING` to the true per-channel outstanding
+depth -- otherwise the histogram silently undercounts and misattributes.
 
 ---
 

@@ -25,7 +25,7 @@
 
 **Location:** `rtl/amba/shims/`
 **Test Location:** `val/amba/`, `val/integ_amba/`
-**Status:** ✅ Production Ready
+**Status:** Production (see the module page history for review state)
 
 ---
 
@@ -35,12 +35,12 @@ The shims subsystem provides protocol conversion modules that bridge between dif
 
 ### Key Features
 
-- ✅ **Protocol Bridging:** Convert between AXI4, APB, and custom interfaces
-- ✅ **Clock Domain Crossing:** Dual-clock support with proper CDC
-- ✅ **Width Adaptation:** Automatic data width conversion
-- ✅ **Burst Decomposition:** Complex transactions → Simple protocol transfers
-- ✅ **Standards Compliance:** PeakRDL integration, APB/AXI4 conformance
-- ✅ **Production Ready:** Comprehensive testing and verification
+- **Protocol Bridging:** Convert between AXI4, APB, and custom interfaces
+- **Clock Domain Crossing:** Dual-clock support with proper CDC
+- **Width Adaptation:** Automatic data width conversion
+- **Burst Decomposition:** Complex transactions → Simple protocol transfers
+- **Standards Compliance:** PeakRDL integration, APB/AXI4 conformance
+- **Production Ready:** Comprehensive testing and verification
 
 ---
 
@@ -48,9 +48,9 @@ The shims subsystem provides protocol conversion modules that bridge between dif
 
 | Shim | Purpose | Documentation | Status |
 |------|---------|---------------|--------|
-| **axi4_to_apb4_shim** | AXI4 to APB bridge with dual-clock CDC | [axi4_to_apb4_shim.md](axi4_to_apb4_shim.md) | ✅ Documented |
-| **axi4_to_apb4_convert** | Core AXI4→APB conversion logic | [axi4_to_apb4_convert.md](axi4_to_apb4_convert.md) | ✅ Documented |
-| **peakrdl_to_cmdrsp** | PeakRDL passthrough → cmd/rsp adapter | [peakrdl_to_cmdrsp.md](peakrdl_to_cmdrsp.md) | ✅ Documented |
+| **axi4_to_apb4_shim** | AXI4 to APB bridge with dual-clock CDC | [axi4_to_apb4_shim.md](axi4_to_apb4_shim.md) | Documented |
+| **axi4_to_apb4_convert** | Core AXI4→APB conversion logic | [axi4_to_apb4_convert.md](axi4_to_apb4_convert.md) | Documented |
+| **peakrdl_to_cmdrsp** | PeakRDL passthrough → cmd/rsp adapter | [peakrdl_to_cmdrsp.md](peakrdl_to_cmdrsp.md) | Documented |
 
 ---
 
@@ -321,7 +321,7 @@ APB → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 | 64 | 64 | 1:1 | High-bandwidth peripherals |
 
 **Side FIFO Depth:**
-- `SIDE_DEPTH` ≥ max(AXI burst length × width ratio)
+- `SIDE_DEPTH` is a THROUGHPUT knob, not a legality constraint: a shallow side FIFO only stalls command issue (entries drain in order as responses retire). The defaults (6 in convert, 4 in the shim) are functionally safe at any burst length
 - Typical: 4-8 for CPU, 8-16 for DMA
 
 ### PeakRDL Adapter
@@ -340,13 +340,13 @@ APB → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 
 ### AXI to APB Bridge
 
-**✅ Advantages:**
+**Advantages:**
 - Standard protocols (AXI4 ↔ APB)
 - Dual-clock CDC support
 - Automatic width conversion
 - Burst decomposition
 
-**❌ Limitations:**
+**Limitations:**
 - APB serialization (no concurrent transactions)
 - Performance overhead (APB slower than AXI)
 - No AXI exclusive access support
@@ -358,13 +358,13 @@ APB → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 
 ### PeakRDL Adapter
 
-**✅ Advantages:**
+**Advantages:**
 - Register automation
 - Standards-based (SystemRDL)
 - Documentation generation
 - Low overhead (~50 LUTs)
 
-**❌ Limitations:**
+**Limitations:**
 - PeakRDL dependency
 - Learning curve (SystemRDL)
 - 32-bit only (typical)
@@ -398,7 +398,9 @@ APB → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 ```tcl
 # Constrain CDC paths in axi4_to_apb4_shim
 set_false_path -from [get_clocks aclk] -to [get_clocks pclk]
-set_max_delay -from */cdc_handshake/src_* -to */cdc_handshake/dst_* 10.0
+# constrain the two gaxi_fifo_async CDC instances (u_cmd_cdc_fifo / u_rsp_cdc_fifo);
+# there is no cdc_handshake hierarchy in this design
+set_max_delay -from */u_cmd_cdc_fifo/* -to */u_cmd_cdc_fifo/* 10.0 -datapath_only
 
 # Register insertion for wide data paths
 set_max_fanout 16 [get_pins */data_shift_reg*]
@@ -418,7 +420,7 @@ set_max_fanout 16 [get_pins */data_shift_reg*]
 
 - **[rtl-amba Overview](../overview.md)** - Complete AMBA subsystem
 - **[AXI4 Modules](../axi4/README.md)** - AXI4 infrastructure
-- **[APB Modules](../apb/README.md)** - APB infrastructure
+- **[APB Modules](../apb4/apb4_master.md)** - APB infrastructure
 - **[Shared Utilities](../shared/README.md)** - Common modules (CDC, FIFOs)
 
 ### External Resources
@@ -439,19 +441,19 @@ set_max_fanout 16 [get_pins */data_shift_reg*]
 
 ### When to Use Shims
 
-**✅ Use AXI4-to-APB Shim When:**
+**Use AXI4-to-APB Shim When:**
 - Bridging AXI4 master to APB slave
 - Different clock domains required
 - Width conversion needed
 - Burst decomposition required
 
-**✅ Use PeakRDL Adapter When:**
+**Use PeakRDL Adapter When:**
 - Automating register block generation
 - Using SystemRDL descriptions
 - Need documentation/header generation
 - Integrating with cmd/rsp infrastructure
 
-**❌ Consider Alternatives When:**
+**Consider alternatives when:**
 - Same protocol both sides (use crossbar)
 - Need high performance (APB is slow)
 - Simple registers (custom implementation may be lighter)
@@ -459,8 +461,8 @@ set_max_fanout 16 [get_pins */data_shift_reg*]
 ### Clock Domain Crossing
 
 **AXI to APB CDC:**
-- Uses `cdc_handshake` module
-- Gray-code pointer-based synchronization
+- Uses two `gaxi_fifo_async` async FIFOs (cmd aclk→pclk, rsp pclk→aclk)
+- Gray (or Johnson, via `USE_JOHNSON`) pointer-based synchronization
 - Safe for arbitrary clock ratios
 - Proper reset synchronization required
 

@@ -846,6 +846,37 @@ wrong?" shape from [escape-analysis](../../handbook/dv/escape-analysis.md).
 
 ---
 
+### TASK-063: splitter defect cluster round 2 — BRESP consolidation, RLAST pass-through, silent split-FIFO drop
+**Priority:** P2 (latent — nothing instantiates either splitter; pumice wrote its own)
+**Status:** Not Started (found 2026-08-12, shared doc qc re-round)
+**Owner:** TBD
+
+Three more defects in the same two modules TASK-061 covers, found by the
+fresh shared qc round and confirmed by inspection:
+
+1. **`axi_master_wr_splitter` drops the final split's BRESP.**
+   `r_consolidated_resp_status` folds each split's response in one cycle
+   AFTER its B handshake, but the FINAL split's response is forwarded
+   upstream in that same cycle — so `fub_bresp` reflects splits 1..N-1
+   only. resp1=OKAY, resp2=SLVERR upstreams as OKAY: an error on the last
+   split reads as success. (The page's own worked example describes the
+   intended, correct behavior.)
+2. **`axi_master_rd_splitter` passes every split's RLAST upstream**
+   (`assign fub_rlast = m_axi_rlast`). An N-way split delivers N RLAST
+   pulses; a generic AXI master terminates at the first one. Either
+   consolidate RLAST (mirror the write side's WLAST regeneration) or
+   pin the beat-counting-consumer restriction as the contract — decide,
+   then make docs and RTL agree. Docs now state the restriction.
+3. **Both splitters silently drop split-info records when the FIFO
+   fills** — `wr_ready` unconnected, push ungated by full. Sizing is
+   currently a correctness requirement; a full-FIFO stall (or at least
+   a sticky overflow flag) would make it fail loud.
+
+Fix together with TASK-061 in one pass over the splitter pair, with a
+testbench that actually asserts block_ready, drives error responses on
+the last split, and fills the FIFO — none of the current collateral
+exercises any of the four defects.
+
 ### TASK-062: `sdpram_slave_axil_axil` runs on the board with no simulation
 **Priority:** P2
 **Status:** 🔴 Not Started (found 2026-08-10)

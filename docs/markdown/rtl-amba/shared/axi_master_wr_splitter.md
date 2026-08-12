@@ -39,6 +39,11 @@ The AXI Master Write Splitter handles the complex task of splitting boundary-cro
 - AW + W channel forwarding with synchronized address/data flow
 - B channel response consolidation (N responses → 1 consolidated response)
 - Error priority handling (DECERR > SLVERR > EXOKAY > OKAY)
+- **KNOWN DEFECT (filed):** the current RTL folds each split's BRESP into the
+  consolidated register one cycle after the B handshake, but the FINAL split's
+  response is forwarded upstream in that same cycle -- so an error on the LAST
+  split is reported as the consolidation of splits 1..N-1 (an error-on-last
+  reads as success). See the splitter defect cluster in vault/Tasks/amba
 - WLAST regeneration for split boundaries
 - Zero added latency for non-split transactions
 - Full AXI4 protocol compliance with user extensions
@@ -533,7 +538,7 @@ Worst error wins → System sees most severe failure
 
 **FIFO Overflow:**
 - Split FIFO can fill if consumer stalls
-- Backpressure propagates to fub_awready
+- block_ready suppresses fub_awready (the split FIFO does NOT -- see Split-FIFO Overflow)
 - Size FIFO >= max outstanding writes
 
 **Data Channel Synchronization:**
