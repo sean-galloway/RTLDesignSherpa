@@ -9,5 +9,10 @@
 # Include common dependencies
 -f $REPO_ROOT/projects/components/apbx_xbar/rtl/filelists/core/apbx_xbar_common.f
 
+# The thin core's arbiter is the WEIGHTED round-robin (the generated
+# MtoN variants use the plain one via apbx_xbar_common.f) -- this was a
+# closure gap: consumers had to know to add it by hand.
+-f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin_weighted.f
+
 # Thin crossbar module
 $REPO_ROOT/projects/components/apbx_xbar/rtl/apbx_xbar_thin.sv

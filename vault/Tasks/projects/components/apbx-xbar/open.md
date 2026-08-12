@@ -58,6 +58,24 @@ assets (mmd/svg) and overview pages, `.claude/settings.json`.
 - *Docs*: component README/PRD + rtl-amba pages + assets renamed;
   spec-doc standards apply (mermaid diagrams, wavedrom waveforms).
 
+**Progress (2026-08-12):** step 1 (rename, f28581b3) and step 2a
+(thin core) LANDED. apbx_xbar_thin carries the APB5 superset sideband
+behind per-port `MST_APB5`/`SLV_APB5` masks (fixed [31:0] so -G
+overrides pass clean; grant-path index cast 5'(mst_id)); request
+sideband rides the slave mux gated by master-version AND
+slave-version, completer sideband rides the demux gated per pairing —
+verified by test_apbx_xbar_thin_mixed.py (M=2/S=2, master1+slave0
+APB5): all four pairings, leak checks both directions against
+deliberately tied-high APB4-port pins. Legacy 4-variant suite still
+green. Consumer instantiations (formal harness, integ_amba monitored
+example) tie the new pins. Bonus closure fix: apbx_xbar_thin.f was
+missing its weighted-arbiter dependency. REMAINING: step 2b — the
+generated MtoN variants use a cmd/rsp fabric (apb4_slave -> routing ->
+apb4_master), and apb5_slave already emits cmd_pauser on its cmd bus:
+per-port versions there mean swapping apb5_slave/apb5_master at
+versioned ports and widening the cmd/rsp routing; then wrappers,
+generator config, regen, docs.
+
 **Done looks like:** apbx_xbar generates all legacy variants
 byte-equivalent except naming with version bits '0; mixed fixture
 sims green with sideband value checks; all consumers updated; docs +

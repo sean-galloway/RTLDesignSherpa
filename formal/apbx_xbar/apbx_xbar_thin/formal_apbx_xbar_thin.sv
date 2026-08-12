@@ -70,7 +70,19 @@ module formal_apbx_xbar_thin #(
         .s_apb_paddr(s_apb_paddr), .s_apb_pwdata(s_apb_pwdata),
         .s_apb_pstrb(s_apb_pstrb),
         .s_apb_pready(s_apb_pready), .s_apb_prdata(s_apb_prdata),
-        .s_apb_pslverr(s_apb_pslverr)
+        .s_apb_pslverr(s_apb_pslverr),
+        // APB5 superset sideband (APBX-001): this consumer is pure APB4 —
+        // version masks default '0, so tie inputs and leave outputs open.
+        .m_apb_pauser  ('0),
+        .m_apb_pwuser  ('0),
+        .m_apb_pwakeup (),
+        .m_apb_pruser  (),
+        .m_apb_pbuser  (),
+        .s_apb_pauser  (),
+        .s_apb_pwuser  (),
+        .s_apb_pwakeup ('0),
+        .s_apb_pruser  ('0),
+        .s_apb_pbuser  ('0)
     );
 
     // -------------------------------------------------------------------------

@@ -244,7 +244,19 @@ module apbx_xbar_monitored
         .s_apb_pstrb   (xbar_s_pstrb),
         .s_apb_pready  (xbar_s_pready),
         .s_apb_prdata  (xbar_s_prdata),
-        .s_apb_pslverr (xbar_s_pslverr)
+        .s_apb_pslverr (xbar_s_pslverr),
+        // APB5 superset sideband (APBX-001): this consumer is pure APB4 —
+        // version masks default '0, so tie inputs and leave outputs open.
+        .m_apb_pauser  ('0),
+        .m_apb_pwuser  ('0),
+        .m_apb_pwakeup (),
+        .m_apb_pruser  (),
+        .m_apb_pbuser  (),
+        .s_apb_pauser  (),
+        .s_apb_pwuser  (),
+        .s_apb_pwakeup ('0),
+        .s_apb_pruser  ('0),
+        .s_apb_pbuser  ('0)
     );
 
     // =============================================================================

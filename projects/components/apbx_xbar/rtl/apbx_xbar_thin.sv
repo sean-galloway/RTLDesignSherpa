@@ -5,7 +5,10 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: apbx_xbar_thin
-// Purpose: Apb Xbar Thin module
+// Purpose: Version-generic APB crossbar core (APBX-001): MxS APB4
+//          routing with per-port APB5 enables — APB5 sideband
+//          (PAUSER/PWUSER/PWAKEUP/PRUSER/PBUSER) rides the same
+//          grant/demux paths, contribution-gated per port pair.
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -34,7 +37,18 @@ module apbx_xbar_thin #(
     parameter int AW    = ADDR_WIDTH,
     parameter int SW    = STRB_WIDTH,
     parameter int MTW   = $clog2(MAX_THRESH),
-    parameter int MXMTW = M * MTW
+    parameter int MXMTW = M * MTW,
+    // APB5 per-port enables (APBX-001): bit m/s set = that port speaks
+    // APB5. Default '0 = pure APB4 = legacy behavior; the sideband
+    // contribution gating below lets synthesis prune it entirely.
+    // Fixed 32-bit masks (M,S <= 16) so tool -G overrides pass clean.
+    parameter logic [31:0] MST_APB5 = '0,
+    parameter logic [31:0] SLV_APB5 = '0,
+    // APB5 user-signal widths (match rtl/amba/apb5 defaults)
+    parameter int AUW = 1,
+    parameter int WUW = 1,
+    parameter int RUW = 1,
+    parameter int BUW = 1
 ) (
     input  logic                         pclk,
     input  logic                         presetn,
@@ -59,6 +73,13 @@ module apbx_xbar_thin #(
     output logic [M-1:0]                 m_apb_pready,
     output logic [M-1:0][DATA_WIDTH-1:0] m_apb_prdata,
     output logic [M-1:0]                 m_apb_pslverr,
+    // APB5 sideband, requester direction in / completer direction out.
+    // APB4 masters tie the inputs and leave the outputs open.
+    input  logic [M-1:0][AUW-1:0]        m_apb_pauser,
+    input  logic [M-1:0][WUW-1:0]        m_apb_pwuser,
+    output logic [M-1:0]                 m_apb_pwakeup,
+    output logic [M-1:0][RUW-1:0]        m_apb_pruser,
+    output logic [M-1:0][BUW-1:0]        m_apb_pbuser,
 
     // Slave interfaces - these are to the APB destinations
     output logic [S-1:0]                 s_apb_psel,
@@ -70,7 +91,14 @@ module apbx_xbar_thin #(
     output logic [S-1:0][STRB_WIDTH-1:0] s_apb_pstrb,
     input  logic [S-1:0]                 s_apb_pready,
     input  logic [S-1:0][DATA_WIDTH-1:0] s_apb_prdata,
-    input  logic [S-1:0]                 s_apb_pslverr
+    input  logic [S-1:0]                 s_apb_pslverr,
+    // APB5 sideband toward/from the completers. APB4 slaves leave the
+    // outputs open and tie the inputs.
+    output logic [S-1:0][AUW-1:0]        s_apb_pauser,
+    output logic [S-1:0][WUW-1:0]        s_apb_pwuser,
+    input  logic [S-1:0]                 s_apb_pwakeup,
+    input  logic [S-1:0][RUW-1:0]        s_apb_pruser,
+    input  logic [S-1:0][BUW-1:0]        s_apb_pbuser
 );
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -163,6 +191,16 @@ module apbx_xbar_thin #(
                 s_apb_paddr[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_paddr[mst_id] : '0;
                 s_apb_pwdata[s_mux]  = arb_gnt_valid[s_mux] ? m_apb_pwdata[mst_id] : '0;
                 s_apb_pstrb[s_mux]   = arb_gnt_valid[s_mux] ? m_apb_pstrb[mst_id] : '0;
+                // APB5 sideband rides the same grant select. An APB4
+                // master contributes '0 (MST_APB5 gate); an APB4 slave
+                // never sees nonzero (SLV_APB5 gate) so synthesis can
+                // prune the whole path on all-APB4 configs.
+                s_apb_pauser[s_mux]  = (SLV_APB5[s_mux] && arb_gnt_valid[s_mux]
+                                        && MST_APB5[5'(mst_id)])
+                                       ? m_apb_pauser[mst_id] : '0;
+                s_apb_pwuser[s_mux]  = (SLV_APB5[s_mux] && arb_gnt_valid[s_mux]
+                                        && MST_APB5[5'(mst_id)])
+                                       ? m_apb_pwuser[mst_id] : '0;
             end
         end
     endgenerate
@@ -189,11 +227,23 @@ module apbx_xbar_thin #(
                 m_apb_pready[m_demux]  = 1'b0;  // default value
                 m_apb_prdata[m_demux]  = '0;    // default value
                 m_apb_pslverr[m_demux] = 1'b0;  // default value
+                m_apb_pwakeup[m_demux] = 1'b0;
+                m_apb_pruser[m_demux]  = '0;
+                m_apb_pbuser[m_demux]  = '0;
                 for (int s_demux = 0; s_demux < S; s_demux++) begin
                     if (arb_gnt_mst[m_demux][s_demux]) begin
                         m_apb_pready[m_demux]  = s_apb_pready[s_demux];
                         m_apb_prdata[m_demux]  = s_apb_prdata[s_demux];
                         m_apb_pslverr[m_demux] = s_apb_pslverr[s_demux];
+                        // Completer sideband returns only on an
+                        // APB5-master <- APB5-slave pairing. (PWAKEUP
+                        // follows the repo's s2m convention and rides
+                        // the granted path like the other responses.)
+                        if (MST_APB5[m_demux] && SLV_APB5[s_demux]) begin
+                            m_apb_pwakeup[m_demux] = s_apb_pwakeup[s_demux];
+                            m_apb_pruser[m_demux]  = s_apb_pruser[s_demux];
+                            m_apb_pbuser[m_demux]  = s_apb_pbuser[s_demux];
+                        end
                     end
                 end
             end
