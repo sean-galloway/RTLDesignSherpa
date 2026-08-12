@@ -60,7 +60,7 @@ module axi4_slave_rd_pattern_gen #(
     // LFSR parameters (32-bit fixed for simplicity and timing)
     parameter int LFSR_WIDTH = 32,
     parameter logic [31:0] LFSR_SEED = 32'hDEADBEEF,
-    parameter logic [47:0] LFSR_TAPS = {12'd32, 12'd22, 12'd2, 12'd1},  // Maximal length
+    parameter logic [47:0] LFSR_TAPS = {12'd23, 12'd3, 12'd2, 12'd1},  // Maximal length
 
     // CRC parameters (fixed, MUST MATCH axi4_slave_wr_crc_check!)
     parameter int CRC_WIDTH      = 32,

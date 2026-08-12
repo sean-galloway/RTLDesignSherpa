@@ -60,7 +60,7 @@
 //   AXI_*          - standard AXI4 widths
 //   LFSR_WIDTH     - LFSR width; defaults to 32. Matches the slave-side
 //                    block so master/slave CRC values are interchangeable.
-//   LFSR_TAPS      - maximal-length Fibonacci taps; default {32,22,2,1}.
+//   LFSR_TAPS      - maximal-length Fibonacci taps; default {23,3,2,1} (library table entry, verified primitive).
 //   CRC_WIDTH      - CRC width; 32 by default
 //   CRC_DATA_WIDTH - bytes per CRC update; we update 32 bits per LFSR step
 //                    so this is fixed at 32 to match the slave side.
@@ -82,7 +82,7 @@ module axi4_master_wr_pattern_gen #(
     // ---- LFSR ----
     parameter int                    LFSR_WIDTH = 32,
     parameter logic [31:0]           LFSR_SEED  = 32'hDEADBEEF,
-    parameter logic [47:0]           LFSR_TAPS  = {12'd32, 12'd22, 12'd2, 12'd1},
+    parameter logic [47:0]           LFSR_TAPS  = {12'd23, 12'd3, 12'd2, 12'd1},
 
     // ---- CRC (mirror slave-side defaults so the two are interchangeable) ----
     parameter int                    CRC_WIDTH      = 32,
@@ -372,6 +372,7 @@ module axi4_master_wr_pattern_gen #(
     // CRC — accumulates over the SAME LFSR stream we send out on W.
     //==========================================================================
     logic [CRC_WIDTH-1:0]         w_expected_crc;
+    logic [1:0]                   r_crc_capture_pending;
     logic                         w_crc_load_start;
 
     assign w_crc_load_start = w_lfsr_load;
@@ -393,7 +394,7 @@ module axi4_master_wr_pattern_gen #(
         .clk               (aclk),
         .rst_n             (aresetn),
         .load_crc_start    (w_crc_load_start),
-        .load_from_cascade (1'b0),
+        .load_from_cascade (w_w_beat),  // accumulate pre-advance LFSR word on every accepted W beat
         .cascade_sel       ({W_CRC_CHUNKS{1'b1}}),
         .data              (w_lfsr_out),
         .crc               (w_expected_crc)
@@ -422,7 +423,7 @@ module axi4_master_wr_pattern_gen #(
     //   FIXED:   pass r_axi_id through.
     //   COUNTER: 8-bit counter, seeded with cfg_axi_id[7:0] at cfg_start,
     //            +1 per AW handshake (wraps).
-    //   LFSR:    8-bit maximal-length Fibonacci LFSR with taps {8,6,5,4},
+    //   LFSR:    8-bit maximal-length Fibonacci LFSR with taps {7,6,5,1},
     //            seeded with cfg_axi_id[7:0] | 8'h01 (avoid all-zero seed).
     //==========================================================================
     logic [7:0]  w_id_lfsr_out;
@@ -440,7 +441,7 @@ module axi4_master_wr_pattern_gen #(
         .enable   (w_id_lfsr_advance || w_lfsr_load),
         .seed_load(w_lfsr_load),
         .seed_data(cfg_axi_id[7:0] | 8'h01),
-        .taps     ({4'd8, 4'd6, 4'd5, 4'd4}),
+        .taps     ({4'd7, 4'd6, 4'd5, 4'd1}),
         .lfsr_out (w_id_lfsr_out),
         .lfsr_done()
     );
@@ -672,6 +673,7 @@ module axi4_master_wr_pattern_gen #(
             r_gap_left        <= 4'd0;
             o_expected_crc       <= '0;
             o_expected_crc_valid <= 1'b0;
+            r_crc_capture_pending <= 2'b00;
             o_bresp_error        <= 1'b0;
         end else begin
             unique case (r_state)
@@ -800,14 +802,22 @@ module axi4_master_wr_pattern_gen #(
                 end
             end
 
-            // Latch the expected CRC at the last W beat of the last burst.
-            // Only meaningful in LFSR mode; hash mode uses per-beat compare
+            // Latch the expected CRC two cycles AFTER the last W beat of the
+            // last burst: dataint_crc's accumulator absorbs the final beat one
+            // cycle after the strobe, and its conditioned `crc` OUTPUT register
+            // lags one more. A same-cycle capture misses the whole final beat
+            // (a 1-beat run would latch the bare init constant). Only
+            // meaningful in LFSR mode; hash mode uses per-beat compare
             // (o_data_error on the read side) as the integrity contract.
+            r_crc_capture_pending <= {r_crc_capture_pending[0], 1'b0};
+            if (r_crc_capture_pending[1]) begin
+                o_expected_crc        <= w_expected_crc;
+                o_expected_crc_valid  <= 1'b1;
+            end
             if (r_state == S_RUN && w_w_beat && w_gen_wlast
                 && r_w_bursts_done + 1'b1 == r_txn_count
                 && !r_data_mode) begin
-                o_expected_crc       <= w_expected_crc;
-                o_expected_crc_valid <= 1'b1;
+                r_crc_capture_pending <= 2'b01;
             end
         end
     end)

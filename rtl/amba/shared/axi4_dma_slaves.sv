@@ -42,7 +42,7 @@ module axi4_dma_slaves #(
     // LFSR configuration (read side only)
     parameter int LFSR_WIDTH = 32,
     parameter logic [31:0] LFSR_SEED = 32'hDEADBEEF,
-    parameter logic [47:0] LFSR_TAPS = {12'd32, 12'd22, 12'd2, 12'd1},
+    parameter logic [47:0] LFSR_TAPS = {12'd23, 12'd3, 12'd2, 12'd1},
 
     // CRC configuration (shared across both sides)
     parameter int CRC_WIDTH      = 32,

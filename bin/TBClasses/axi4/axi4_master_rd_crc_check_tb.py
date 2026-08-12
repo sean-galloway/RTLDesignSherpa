@@ -329,7 +329,42 @@ class RdCrcCheckTB(TBBase):
             await RisingEdge(self.dut.aclk)
             await Timer(_NBA_SETTLE_PS, units="ps")
             if int(self.dut.cfg_done.value):
+                self.check_actual_crc()
                 return
         raise TimeoutError(
             f"cfg_done did not assert within {timeout_cycles} cycles"
         )
+
+    # ---- CRC cross-check (reference independent of the DUT) ----
+
+    def expected_lfsr_words(self, count: int, seed=None):
+        seed = seed if seed not in (None, 0) else self.LFSR_DEFAULT_SEED
+        return _shared_lfsr(seed=seed, taps=self.LFSR_TAPS,
+                            cycles=count - 1, width=32, include_seed=True)
+
+    def expected_crc32(self, count: int, seed=None) -> int:
+        """CRC-32/BZIP2 over the first `count` regenerated LFSR words
+        (little-end byte first), matching the block's dataint_crc config.
+        The reader accumulates over the REGENERATED stream, not rdata, so
+        this reference holds for garbage-data scenarios too. Pre-fix RTL
+        tied the strobe off and emitted a constant 0x00000000."""
+        from crc import Calculator, Configuration
+        cfg = Configuration(width=32, polynomial=0x04C11DB7,
+                            init_value=0xFFFFFFFF, final_xor_value=0xFFFFFFFF,
+                            reverse_input=False, reverse_output=False)
+        data = bytearray()
+        for w in self.expected_lfsr_words(count, seed=seed):
+            data += int(w).to_bytes(4, 'little')
+        return Calculator(cfg).checksum(bytes(data))
+
+    def check_actual_crc(self) -> None:
+        if getattr(self, 'data_mode', 1) != 0:
+            return
+        assert int(self.dut.o_actual_crc_valid.value) == 1, \
+            "o_actual_crc_valid not asserted after cfg_done (LFSR mode)"
+        count = self._preload_txn_count * self._preload_burst_len
+        got = int(self.dut.o_actual_crc.value)
+        want = self.expected_crc32(count, seed=self.lfsr_seed)
+        assert got == want, (
+            f"o_actual_crc mismatch: got 0x{got:08X}, want 0x{want:08X} "
+            f"over {count} LFSR beats")

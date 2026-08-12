@@ -98,7 +98,7 @@ module axi4_master_rd_crc_check #(
     // ---- LFSR (MUST match axi4_master_wr_pattern_gen) ----
     parameter int                    LFSR_WIDTH = 32,
     parameter logic [31:0]           LFSR_SEED  = 32'hDEADBEEF,
-    parameter logic [47:0]           LFSR_TAPS  = {12'd32, 12'd22, 12'd2, 12'd1},
+    parameter logic [47:0]           LFSR_TAPS  = {12'd23, 12'd3, 12'd2, 12'd1},
 
     // ---- CRC (MUST match axi4_master_wr_pattern_gen) ----
     parameter int                    CRC_WIDTH      = 32,
@@ -408,7 +408,7 @@ module axi4_master_rd_crc_check #(
         .clk               (aclk),
         .rst_n             (aresetn),
         .load_crc_start    (w_lfsr_load),
-        .load_from_cascade (1'b0),
+        .load_from_cascade (w_r_beat),  // accumulate pre-advance LFSR word on every accepted R beat
         .cascade_sel       ({W_CRC_CHUNKS{1'b1}}),
         .data              (w_lfsr_out),
         .crc               (o_actual_crc)
@@ -443,7 +443,7 @@ module axi4_master_rd_crc_check #(
         .enable   (w_id_lfsr_advance || w_lfsr_load),
         .seed_load(w_lfsr_load),
         .seed_data(cfg_axi_id[7:0] | 8'h01),
-        .taps     ({4'd8, 4'd6, 4'd5, 4'd4}),
+        .taps     ({4'd7, 4'd6, 4'd5, 4'd1}),
         .lfsr_out (w_id_lfsr_out),
         .lfsr_done()
     );
