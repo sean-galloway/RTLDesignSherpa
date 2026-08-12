@@ -90,12 +90,15 @@ completer's PWAKEUP terminates at the slave-side apb5_master.
 apbx_xbar_2to2_mixed generated (in rtl/ with banner) + its filelist +
 sim test: all four pairings green with sideband value/leak checks and
 structural no-pins-on-apb4-ports asserts. Full 6-test suite green.
-CAVEAT for regen: checked-in rtl/*.sv carry post-generation hand
-edits (SPDX banner, reset_defs macros) — the generator does not emit
-those yet, so regenerating a legacy variant would strip them; noted
-in generate_xbars.py. Teaching the generator the banner + reset
-macros is the remaining polish item, plus docs (component README,
-rtl-amba pages, mermaid/wavedrom per spec-doc-standards).
+Regen caveat RESOLVED (2026-08-12): the generator now emits the
+final form — SPDX banner, `include reset_defs.svh, ALWAYS_FF_RST /
+RST_ASSERTED macros — and generate_xbars.py writes straight into
+rtl/ with the baseline 64KB windows. All five variants regenerated
+as the new baseline (only comment/banner-class deltas plus one
+leftover raw always_ff upgraded to the macro); regeneration is
+idempotent (regen twice = identical tree) and needs zero
+post-processing. Remaining: component docs (README, rtl-amba pages,
+mermaid/wavedrom per spec-doc-standards).
 
 **Done looks like:** apbx_xbar generates all legacy variants
 byte-equivalent except naming with version bits '0; mixed fixture

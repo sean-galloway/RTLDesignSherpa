@@ -47,15 +47,15 @@ def generate_all_standard():
     ]
 
     # Mixed-version variant (APBX-001): m0=APB4, m1=APB5, s0=APB5,
-    # s1=APB4. NOTE: the checked-in rtl/*.sv carry post-generation hand
-    # edits (SPDX banner, reset_defs macros); when regenerating any
-    # variant, preserve the banner and re-apply the reset macros or
-    # diff carefully — see the APBX-001 vault task.
+    # s1=APB4. The generator emits the final form (banner + reset
+    # macros); rtl/*.sv are pure generator output — regenerate freely.
     mixed = [
         ((2, 2), ['apb4', 'apb5'], ['apb5', 'apb4'], '_mixed'),
     ]
 
-    output_dir = Path(__file__).parent
+    # Canonical outputs live in rtl/ — the generator emits the final
+    # form (banner + reset macros), so this IS the checked-in file.
+    output_dir = Path(__file__).parent.parent / 'rtl'
 
     for masters, slaves in variants:
         output_file = output_dir / f"apbx_xbar_{masters}to{slaves}.sv"
@@ -68,7 +68,8 @@ def generate_all_standard():
             base_addr=0x10000000,
             addr_width=32,
             data_width=32,
-            output_file=str(output_file)
+            output_file=str(output_file),
+            slave_size=0x10000,   # 64KB windows, matching the rtl/ baseline
         )
 
         with open(output_file, 'w') as f:
@@ -86,6 +87,7 @@ def generate_all_standard():
             addr_width=32,
             data_width=32,
             output_file=str(output_file),
+            slave_size=0x10000,
             master_versions=mv,
             slave_versions=sv,
             name_suffix=suffix,
@@ -100,7 +102,9 @@ def generate_all_standard():
 def generate_custom(masters, slaves, base_addr=0x10000000):
     """Generate a custom crossbar variant."""
 
-    output_dir = Path(__file__).parent
+    # Canonical outputs live in rtl/ — the generator emits the final
+    # form (banner + reset macros), so this IS the checked-in file.
+    output_dir = Path(__file__).parent.parent / 'rtl'
     output_file = output_dir / f"apbx_xbar_{masters}to{slaves}.sv"
 
     print(f"Generating {masters}-to-{slaves} crossbar...")

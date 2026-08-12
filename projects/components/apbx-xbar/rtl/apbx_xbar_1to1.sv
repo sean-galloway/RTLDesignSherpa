@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: apbx_xbar_1to1
-// Purpose: Apb Xbar 1To1 module
+// Purpose: Apbx Xbar 1to1 module
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -15,11 +15,13 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 // 1-to-1 APB crossbar with address decoding and arbitration
 // 1 master to 1 slave using apb4_slave and apb4_master modules
 //
 // Address Map (same for all masters):
-//   Slave 0: [0x10000000, 0x1000FFFF]
+//   Slave 0: [0x10000000, 0x1000FFFF] (64KB)
 
 module apbx_xbar_1to1 #(
     parameter int ADDR_WIDTH = 32,
@@ -82,7 +84,7 @@ module apbx_xbar_1to1 #(
     logic [DATA_WIDTH-1:0] s0_rsp_prdata;
     logic                  s0_rsp_pslverr;
 
-    // APB Slave 0 - converts master 0 APB to cmd/rsp
+    // APB Slave 0 - converts master 0 APB4 to cmd/rsp
     apb4_slave #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
@@ -128,7 +130,7 @@ module apbx_xbar_1to1 #(
     assign m0_rsp_pslverr = s0_rsp_pslverr;
     assign s0_rsp_ready = m0_rsp_ready;
 
-    // APB Master 0 - converts cmd/rsp to slave 0 APB
+    // APB Master 0 - converts cmd/rsp to slave 0 APB4
     apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),

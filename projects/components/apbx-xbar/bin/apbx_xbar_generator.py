@@ -98,7 +98,33 @@ def generate_apbx_xbar(num_masters, num_slaves, base_addr=0x10000000,
     module_name = f"apbx_xbar_{M}to{N}{name_suffix}"
 
     # Generate header
-    code = f"""`timescale 1ns / 1ps
+    # House banner + reset_defs include: the generator emits the FINAL
+    # form — regeneration must never need post-processing (APBX-001).
+    def _title(name):
+        return ' '.join(w.capitalize() for w in name.split('_'))
+    version_note = ""
+    if any(m5) or any(s5):
+        mv = ', '.join(f"m{i}={v}" for i, v in enumerate(master_versions))
+        sv = ', '.join(f"s{i}={v}" for i, v in enumerate(slave_versions))
+        version_note = (f"//          Mixed-version ports (APBX-001): {mv}; {sv}.\n")
+    code = f"""// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// Module: {module_name}
+// Purpose: {_title(module_name)} module
+{version_note}//
+// Documentation: docs/markdown/rtl-amba/index.md
+// Subsystem: amba
+//
+// Author: sean galloway
+// Created: 2025-10-18
+
+`timescale 1ns / 1ps
+
+`include "reset_defs.svh"
 
 // {M}-to-{N} APB crossbar with address decoding and arbitration
 // {M} master{'s' if M > 1 else ''} to {N} slave{'s' if N > 1 else ''} using apb4_slave and apb4_master modules
@@ -351,8 +377,8 @@ module {module_name} #(
         code += "    end\n\n"
 
         code += "    // Register slave selection for each master when command accepted\n"
-        code += "    always_ff @(posedge pclk or negedge presetn) begin\n"
-        code += "        if (!presetn) begin\n"
+        code += "    `ALWAYS_FF_RST(pclk, presetn,\n"
+        code += "        if (`RST_ASSERTED(presetn)) begin\n"
         for m in range(M):
             code += f"            r_m{m}_slave_sel <= {slave_sel_width}'d0;\n"
         code += "        end else begin\n"
@@ -361,7 +387,7 @@ module {module_name} #(
             code += f"                r_m{m}_slave_sel <= m{m}_slave_sel;\n"
             code += f"            end\n"
         code += "        end\n"
-        code += "    end\n\n"
+        code += "    )\n\n"
 
     # Generate arbitration and routing logic for each slave
     if M > 1:

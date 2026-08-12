@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: apbx_xbar_1to4
-// Purpose: Apb Xbar 1To4 module
+// Purpose: Apbx Xbar 1to4 module
 //
 // Documentation: docs/markdown/rtl-amba/index.md
 // Subsystem: amba
@@ -15,16 +15,16 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 // 1-to-4 APB crossbar with address decoding and arbitration
 // 1 master to 4 slaves using apb4_slave and apb4_master modules
 //
 // Address Map (same for all masters):
-//   Slave 0: [0x10000000, 0x1000FFFF]
-//   Slave 1: [0x10010000, 0x1001FFFF]
-//   Slave 2: [0x10020000, 0x1002FFFF]
-//   Slave 3: [0x10030000, 0x1003FFFF]
-
-`include "reset_defs.svh"
+//   Slave 0: [0x10000000, 0x1000FFFF] (64KB)
+//   Slave 1: [0x10010000, 0x1001FFFF] (64KB)
+//   Slave 2: [0x10020000, 0x1002FFFF] (64KB)
+//   Slave 3: [0x10030000, 0x1003FFFF] (64KB)
 
 module apbx_xbar_1to4 #(
     parameter int ADDR_WIDTH = 32,
@@ -123,7 +123,7 @@ module apbx_xbar_1to4 #(
     logic [DATA_WIDTH-1:0] s0_rsp_prdata, s1_rsp_prdata, s2_rsp_prdata, s3_rsp_prdata;
     logic                  s0_rsp_pslverr, s1_rsp_pslverr, s2_rsp_pslverr, s3_rsp_pslverr;
 
-    // APB Slave 0 - converts master 0 APB to cmd/rsp
+    // APB Slave 0 - converts master 0 APB4 to cmd/rsp
     apb4_slave #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
@@ -177,7 +177,6 @@ module apbx_xbar_1to4 #(
             end
         end
     )
-
 
     // Single master - command routing based on address decode
     assign s0_cmd_valid = m0_cmd_valid && m0_addr_in_range && (m0_slave_sel == 2'd0);
@@ -254,7 +253,7 @@ module apbx_xbar_1to4 #(
     assign s1_rsp_ready = (r_m0_slave_sel == 2'd1) ? m0_rsp_ready : 1'b0;
     assign s2_rsp_ready = (r_m0_slave_sel == 2'd2) ? m0_rsp_ready : 1'b0;
     assign s3_rsp_ready = (r_m0_slave_sel == 2'd3) ? m0_rsp_ready : 1'b0;
-    // APB Master 0 - converts cmd/rsp to slave 0 APB
+    // APB Master 0 - converts cmd/rsp to slave 0 APB4
     apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
@@ -286,7 +285,7 @@ module apbx_xbar_1to4 #(
         .rsp_pslverr    (s0_rsp_pslverr)
     );
 
-    // APB Master 1 - converts cmd/rsp to slave 1 APB
+    // APB Master 1 - converts cmd/rsp to slave 1 APB4
     apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
@@ -318,7 +317,7 @@ module apbx_xbar_1to4 #(
         .rsp_pslverr    (s1_rsp_pslverr)
     );
 
-    // APB Master 2 - converts cmd/rsp to slave 2 APB
+    // APB Master 2 - converts cmd/rsp to slave 2 APB4
     apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
@@ -350,7 +349,7 @@ module apbx_xbar_1to4 #(
         .rsp_pslverr    (s2_rsp_pslverr)
     );
 
-    // APB Master 3 - converts cmd/rsp to slave 3 APB
+    // APB Master 3 - converts cmd/rsp to slave 3 APB4
     apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
