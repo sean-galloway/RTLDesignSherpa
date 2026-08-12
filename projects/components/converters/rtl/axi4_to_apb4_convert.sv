@@ -406,11 +406,12 @@ module axi4_to_apb4_convert #(
                     w_next_addr     = w_next_addr_gen;
                     w_side_in_valid = 1'b1;
 
-                    // REPLACE THIS SECTION:
-                    if (r_apb_last_state == IDLE)           // ← OLD LOGIC - REMOVE
-                        w_apb_cmd_pkt_first = 1'b1;         // ← OLD LOGIC - REMOVE
-
-                    // WITH THIS NEW LOGIC:
+                    // First-beat stamp keyed on transaction progress, not on the
+                    // last APB state: the old r_apb_last_state==IDLE arm was the
+                    // hang bug apb4_master_stub.sv's header describes (first=0
+                    // freezes the RSP FSM in RSP_IDLE). The stale arm was left in
+                    // as live code and only agreed by coincidence; removed before
+                    // the two conditions could diverge.
                     if (r_axi_rd_data_pointer == 0 && r_burst_count == r_s_axi_arlen)
                         w_apb_cmd_pkt_first = 1'b1;
 
@@ -437,11 +438,12 @@ module axi4_to_apb4_convert #(
                     w_next_addr = w_next_addr_gen;
                     w_side_in_valid = 1'b1;
 
-                    // REPLACE THIS SECTION:
-                    if (r_apb_last_state == IDLE)           // ← OLD LOGIC - REMOVE
-                        w_apb_cmd_pkt_first = 1'b1;         // ← OLD LOGIC - REMOVE
-
-                    // WITH THIS NEW LOGIC:
+                    // First-beat stamp keyed on transaction progress, not on the
+                    // last APB state: the old r_apb_last_state==IDLE arm was the
+                    // hang bug apb4_master_stub.sv's header describes (first=0
+                    // freezes the RSP FSM in RSP_IDLE). The stale arm was left in
+                    // as live code and only agreed by coincidence; removed before
+                    // the two conditions could diverge.
                     if (r_axi_wr_data_pointer == 0 && r_burst_count == r_s_axi_awlen)
                         w_apb_cmd_pkt_first = 1'b1;
 

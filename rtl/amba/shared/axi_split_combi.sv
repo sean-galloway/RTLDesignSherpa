@@ -235,9 +235,13 @@ module axi_split_combi #(
     //===========================================================================
 
     `ifdef DEBUG_AXI_SPLIT
+    // Repaired: this block was a dangling fragment of a deleted $display and
+    // failed to compile whenever the documented macro was enabled.
     always_ff @(posedge aclk) begin
         if (aresetn && transaction_valid && is_idle_state) begin
-                        remaining_len_after_split, remaining_len_after_split + 1);
+            $display("=== AXI SPLIT DEBUG === addr=%h len=%0d split_required=%0d split_len=%0d remaining_after=%0d",
+                     current_addr, current_len, split_required,
+                     split_len, remaining_len_after_split);
         end
     end
     `endif
