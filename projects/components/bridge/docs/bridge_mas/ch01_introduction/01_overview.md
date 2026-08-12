@@ -84,10 +84,10 @@ Bridge NxM
 
 ### Signal Flow
 
-```
-Master → Adapter → Decode → Arbiter → Mux → Converter → Slave
-                                              ↓
-Master ← Demux ← ID Extract ← Response ← Converter ← Slave
+```mermaid
+graph LR
+    M[Master] --> AD[Adapter] --> DE[Decode] --> AR[Arbiter] --> MX[Mux] --> CVQ[Converter] --> S[Slave]
+    S --> CVR[Converter] --> RS[Response] --> IE[ID Extract] --> DM[Demux] --> M
 ```
 
 ## Document Organization

@@ -1188,6 +1188,11 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
                     pf.space_before = Pt(h_cfg['space_before'])
                 if 'space_after' in h_cfg:
                     pf.space_after = Pt(h_cfg['space_after'])
+                # Section headings that must open a fresh page (e.g.
+                # "2.4 Arbitration") -- set page_break_before: true on
+                # the heading level in the styles YAML.
+                if h_cfg.get('page_break_before'):
+                    pf.page_break_before = True
 
                 # Background shading
                 if 'background' in h_cfg:

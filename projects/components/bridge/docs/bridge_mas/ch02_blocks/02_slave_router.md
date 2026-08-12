@@ -128,10 +128,10 @@ Read address routing flow:
 3. **Route**: Send AR transaction to selected slave's arbiter
 4. **Track**: Remember routing decision for R channel responses
 
-```
-ARADDR → Decoder → Slave Selection → AR to Slave Arbiter
-                    ↓
-                 If OOR → Error Response Generator
+```mermaid
+graph LR
+    ARADDR --> DEC[Decoder] --> SEL[Slave Selection] --> ARB[AR to Slave Arbiter]
+    DEC -- "If OOR" --> ERR[Error Response Generator]
 ```
 
 ### AW/W Channel Routing
@@ -148,13 +148,12 @@ Write transactions require coordinated routing:
    - Route all W beats to same slave as AW
    - Continue until WLAST = 1
 
-```
-AWADDR → Decoder → Slave Selection → AW to Slave Arbiter
-                                      ↓
-                                   Store Routing
-                                      ↓
-W[0..N] ────────────────────────────→ W to Same Slave
-(until WLAST)
+```mermaid
+graph LR
+    AWADDR --> DEC[Decoder] --> SEL[Slave Selection] --> AWARB[AW to Slave Arbiter]
+    AWARB --> STORE[Store Routing]
+    WBEATS["W[0..N]<br/>(until WLAST)"] --> WSAME[W to Same Slave]
+    STORE --> WSAME
 ```
 
 ### Write Data Tracking FSM

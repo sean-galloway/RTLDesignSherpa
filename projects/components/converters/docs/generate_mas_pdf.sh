@@ -35,6 +35,13 @@ fi
 
 # Check for styles file
 STYLES_FILE="$MAS_DIR/converter_mas_styles.yaml"
+# Build-time styles copy: stamp today's date and the requested revision
+# onto the title page (the checked-in YAML holds placeholders only).
+BUILD_STYLE="${STYLES_FILE%.yaml}.build.yaml"
+sed -e "s/^  date: .*/  date: \"$(date +'%B %-d, %Y')\"/" \
+    -e "s/\(Specification\) [0-9][0-9.]*\"/\1 ${REV}\"/" \
+    "${STYLES_FILE}" > "${BUILD_STYLE}"
+trap 'rm -f "${BUILD_STYLE}"' EXIT
 if [[ ! -f "$STYLES_FILE" ]]; then
     echo "ERROR: Styles file not found: $STYLES_FILE"
     echo "Copy from: bridge/docs/bridge_has/bridge_has_styles.yaml"
@@ -55,7 +62,7 @@ echo "Generating DOCX and PDF..."
 python3 "$MD_TO_DOCX" \
     "$MAS_DIR/converter_mas_index.md" \
     "$DOCX_FILE" \
-    --style "$STYLES_FILE" \
+    --style "$BUILD_STYLE" \
     --expand-index \
     --skip-index-content \
     --toc \

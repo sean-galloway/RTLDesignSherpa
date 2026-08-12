@@ -76,9 +76,11 @@ prints a generation-time warning per (master, slave, feature).
 An atomic-enabled master's wr path inserts `axi5_atomic_filter`
 between the boundary wrapper and the fabric:
 
-```
-axi5_slave_wr ── pref_axi_* ── axi5_atomic_filter ── fub_axi_* ── width paths / structs
-                 (payload pass-through assigns around the filter)
+```mermaid
+graph LR
+    SW["axi5_slave_wr"] -- "pref_axi_*" --> AF["axi5_atomic_filter"]
+    AF -- "fub_axi_*" --> WP["width paths / structs"]
+    SW -. "payload pass-through assigns around the filter" .-> WP
 ```
 
 Handshakes (AW/W/B) and the B payload (`bid`/`bresp`) go **through** the

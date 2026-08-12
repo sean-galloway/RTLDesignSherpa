@@ -86,9 +86,19 @@ echo "  Output:      ${OUTPUT_DOCX} (and ${OUTPUT_PDF})"
 echo "  Repo Root:   ${REPO_ROOT}"
 echo "------------------------------------------------------------"
 
+STYLE_SRC="bridge_has/bridge_has_styles.yaml"
+
+# Build-time styles copy: stamp today's date and the requested revision
+# onto the title page (the checked-in YAML holds placeholders only).
+BUILD_STYLE="${STYLE_SRC%.yaml}.build.yaml"
+sed -e "s/^  date: .*/  date: \"$(date +'%B %-d, %Y')\"/" \
+    -e "s/\(Specification\) [0-9][0-9.]*\"/\1 ${REV}\"/" \
+    "${STYLE_SRC}" > "${BUILD_STYLE}"
+trap 'rm -f "${BUILD_STYLE}"' EXIT
+
 python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   "${HAS_INDEX}" "${OUTPUT_DOCX}" \
-  --style "bridge_has/bridge_has_styles.yaml" \
+  --style "${BUILD_STYLE}" \
   --expand-index \
   --skip-index-content \
   --toc \

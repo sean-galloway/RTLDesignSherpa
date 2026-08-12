@@ -57,36 +57,30 @@ Slave 0:
 
 ### Block Diagram
 
-```
-                    ARBITER (per slave, per channel)
-                    
-    From Masters                                  To Slave
-    (via Router)                                  (via MUX)
-         │                                            │
-         │   ┌────────────────────────────────────┐  │
-         │   │                                    │  │
-    M0───┼──>│  Request                           │  │
- (VALID) │   │  Capture   ┌──────────────────┐   │  │
-         │   │            │                  │   │  │
-    M1───┼──>│            │  Arbitration     │   │  │
- (VALID) │   │            │  Logic           │───┼──┼──> GRANT[1:0]
-         │   │            │  • Round-Robin   │   │  │    (Master Select)
-    M2───┼──>│            │  • Fixed Prio    │   │  │
- (VALID) │   │            │  • Weighted      │   │  │
-         │   │            │                  │   │  │
-    M3───┼──>│            └──────────────────┘   │  │
- (VALID) │   │                     │             │  │
-         │   │            ┌────────▼─────────┐   │  │
-    S────┼───│<───────────┤  Burst Tracking  │   │  │
-(READY)  │   │            │  (Hold Grant)    │   │  │
-         │   │            └──────────────────┘   │  │
-    S────┼───│<───────────┐                      │  │
-(LAST)   │   │            │  Grant held until   │  │
-         │   │            │  LAST asserted       │  │
-         │   │            └──────────────────────┘  │
-         │   │                                    │  │
-         │   └────────────────────────────────────┘  │
-         │                                            │
+```mermaid
+graph LR
+    subgraph FM["From Masters (via Router)"]
+        M0["M0 (VALID)"]
+        M1["M1 (VALID)"]
+        M2["M2 (VALID)"]
+        M3["M3 (VALID)"]
+        SREADY["S (READY)"]
+        SLAST["S (LAST)"]
+    end
+    subgraph ARB["ARBITER (per slave, per channel)"]
+        RC["Request Capture"]
+        AL["Arbitration Logic<br/>&bull; Round-Robin<br/>&bull; Fixed Prio<br/>&bull; Weighted"]
+        BT["Burst Tracking<br/>(Hold Grant)<br/>Grant held until LAST asserted"]
+        RC --> AL
+        AL --> BT
+    end
+    M0 --> RC
+    M1 --> RC
+    M2 --> RC
+    M3 --> RC
+    BT --> SREADY
+    BT --> SLAST
+    AL --> GRANT["GRANT[1:0]<br/>(Master Select)<br/>To Slave (via MUX)"]
 ```
 
 ## 2.4.3 Round-Robin Arbitration

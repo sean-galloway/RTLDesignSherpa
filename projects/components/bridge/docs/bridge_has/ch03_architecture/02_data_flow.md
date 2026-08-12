@@ -89,9 +89,10 @@ Extended ID = 6'b11_1100  (BID=11, prepended)
 
 ### ID Flow
 
-```
-Master 0: ID=5 --[Extend]--> Slave: ID=0x05 --[Response]--> B.ID=0x05 --[Extract]--> Master 0
-Master 1: ID=5 --[Extend]--> Slave: ID=0x15 --[Response]--> B.ID=0x15 --[Extract]--> Master 1
+```mermaid
+graph LR
+    M0["Master 0: ID=5"] -->|Extend| S0["Slave: ID=0x05"] -->|Response| B0["B.ID=0x05"] -->|Extract| M0OUT["Master 0"]
+    M1["Master 1: ID=5"] -->|Extend| S1["Slave: ID=0x15"] -->|Response| B1["B.ID=0x15"] -->|Extract| M1OUT["Master 1"]
 ```
 
 ## Response Routing
