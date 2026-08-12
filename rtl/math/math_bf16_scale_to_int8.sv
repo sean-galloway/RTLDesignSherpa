@@ -7,8 +7,8 @@
 // Module: math_bf16_scale_to_int8
 // Purpose: Fused BF16 multiply + INT8 conversion for quantization
 //
-// Documentation: BF16_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: Claude AI / sean galloway
 // Created: 2025-12-26

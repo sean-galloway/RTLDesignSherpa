@@ -7,15 +7,15 @@
 // Module: math_ieee754_2008_fp32_exponent_adder
 // Purpose: IEEE 754-2008 FP32 exponent adder with bias handling and overflow/underflow detection
 //
-// Documentation: IEEE754_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2026-01-03
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp32_exponent_adder.py
-// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
+// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/math
 //
 
 `timescale 1ns / 1ps

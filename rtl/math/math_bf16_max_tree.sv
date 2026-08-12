@@ -7,8 +7,8 @@
 // Module: math_bf16_max_tree
 // Purpose: Tree-based reduction to find maximum magnitude BF16 value
 //
-// Documentation: BF16_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2025-12-25

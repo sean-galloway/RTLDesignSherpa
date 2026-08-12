@@ -7,15 +7,15 @@
 // Module: math_bf16_fma
 // Purpose: BF16 Fused Multiply-Add with FP32 accumulator for AI training
 //
-// Documentation: BF16_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/bf16/bf16_fma.py
-// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/bf16/generate_all.py rtl/common
+// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/bf16/generate_all.py rtl/math
 //
 
 `timescale 1ns / 1ps

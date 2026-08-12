@@ -7,15 +7,15 @@
 // Module: math_bf16_multiplier
 // Purpose: Complete BF16 multiplier with special case handling and RNE rounding
 //
-// Documentation: BF16_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/bf16/bf16_multiplier.py
-// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/bf16/generate_all.py rtl/common
+// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/bf16/generate_all.py rtl/math
 //
 
 `timescale 1ns / 1ps

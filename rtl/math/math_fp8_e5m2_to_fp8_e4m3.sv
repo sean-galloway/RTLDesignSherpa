@@ -7,15 +7,15 @@
 // Module: math_fp8_e5m2_to_fp8_e4m3
 // Purpose: Convert FP8_E5M2 to FP8_E4M3
 //
-// Documentation: IEEE754_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2026-01-03
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp_conversions.py
-// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
+// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/math
 //
 
 `timescale 1ns / 1ps

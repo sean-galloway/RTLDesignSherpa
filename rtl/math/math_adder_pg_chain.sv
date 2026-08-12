@@ -7,8 +7,8 @@
 // Module: math_adder_pg_chain
 // Purpose: Math Adder Carry Lookahead module
 //
-// Documentation: docs/markdown/rtl-common/index.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2025-10-18

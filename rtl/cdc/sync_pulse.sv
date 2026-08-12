@@ -7,7 +7,7 @@
 // Module: sync_pulse
 // Purpose: //   Safe pulse synchronizer for crossing clock domains. Converts a single-
 //
-// Documentation: docs/markdown/rtl-cdc/index.md
+// Documentation: docs/markdown/rtl-cdc/sync_pulse.md
 // Subsystem: cdc
 //
 // Author: sean galloway

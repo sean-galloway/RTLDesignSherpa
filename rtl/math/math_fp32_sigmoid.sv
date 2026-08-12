@@ -7,15 +7,15 @@
 // Module: math_fp32_sigmoid
 // Purpose: FP32 Sigmoid activation function: 1/(1+exp(-x))
 //
-// Documentation: IEEE754_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2026-08-10
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp_activations.py
-// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
+// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/math
 //
 
 `timescale 1ns / 1ps

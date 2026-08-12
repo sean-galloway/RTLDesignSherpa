@@ -7,8 +7,8 @@
 // Module: math_adder_brent_kung_064
 // Purpose: Math Adder Brent Kung 064 module
 //
-// Documentation: docs/markdown/rtl-common/index.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2025-10-18

@@ -16,7 +16,7 @@
 from datetime import datetime
 
 
-def generate_rtl_header(module_name, purpose, generator_script, documentation='IEEE754_ARCHITECTURE.md'):
+def generate_rtl_header(module_name, purpose, generator_script, documentation='docs/markdown/rtl-math/overview.md'):
     """
     Generate a standard RTL file header for auto-generated IEEE 754-2008 modules.
 
@@ -41,14 +41,14 @@ def generate_rtl_header(module_name, purpose, generator_script, documentation='I
 // Purpose: {purpose}
 //
 // Documentation: {documentation}
-// Subsystem: common
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: {date_str}
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/{generator_script}
-// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
+// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/math
 //
 
 '''
@@ -56,7 +56,7 @@ def generate_rtl_header(module_name, purpose, generator_script, documentation='I
 
 
 def write_with_header(file_path, filename, module_name, purpose, generator_script,
-                      content, documentation='IEEE754_ARCHITECTURE.md'):
+                      content, documentation='docs/markdown/rtl-math/overview.md'):
     """
     Write a generated RTL file with proper header.
 

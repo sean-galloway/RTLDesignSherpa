@@ -7,8 +7,8 @@
 // Module: math_int_to_bf16
 // Purpose: Convert signed integer to BF16 floating-point for de-quantization
 //
-// Documentation: BF16_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2025-12-25

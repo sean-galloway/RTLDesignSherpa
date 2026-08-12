@@ -7,8 +7,8 @@
 // Module: math_multiplier_carry_save
 // Purpose: Math Multiplier Carry Save module
 //
-// Documentation: docs/markdown/rtl-common/index.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2025-10-18

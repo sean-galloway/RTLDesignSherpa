@@ -54,12 +54,17 @@ Three exclusions, each because a "fix" there would be a corruption:
 That accounts for most of the 64 remaining "moved" links. Any future automated
 pass must keep these three exclusions.
 
-**Plus a second, separate class: 126 `rtl/**/*.sv` `// Documentation:` headers
-point at a file that does not exist** -- 113 at `IEEE754_ARCHITECTURE.md`, 12 at
-`BF16_ARCHITECTURE.md`, 1 at `docs/bf16-research.md`. These are bare filenames,
-not paths, so they never resolved from anywhere; they want a real
-`docs/markdown/rtl-math/...` target (see DOCREV-010, which wants the same
-headers pointed at each area's `overview.md`).
+**The second class -- 126 `rtl/**/*.sv` `// Documentation:` headers pointing at
+nonexistent files -- is CLOSED (2026-08-12).** All were in `rtl/math`: 113 at
+`IEEE754_ARCHITECTURE.md`, 12 at `BF16_ARCHITECTURE.md`, 1 at
+`docs/bf16-research.md`, plus 40 more still pointing at the pre-split
+`rtl-common/index.md` and one at `index.md` -- every `rtl/math` header (167)
+now points at `docs/markdown/rtl-math/overview.md`, the stale
+`Subsystem: common` lines say `math`, and the `Regenerate:` lines name
+`rtl/math`. Fixed at the SOURCE per [[generated-rtl-discipline]]: the two
+`rtl_header.py` generators emit the new header, and regen-and-diff across
+both generated families is ZERO. The two `rtl/cdc` headers that pointed at
+`index.md` now point at their per-module pages.
 
 ### Regenerate the list
 
@@ -236,11 +241,13 @@ CDC reorg anyway, since its pages have to move out of rtl-common/rtl-amba first.
 book's `overview.md`. It cannot be a `README.md` (banned under `rtl/`, commit
 `f7ca848a`), so use the two allowed anchors:
 - the `// Documentation:` module header line -- already in 225 of 232 modules
-  under `rtl/{common,cdc,math}`, but most point at `index.md`; repoint to
-  `overview.md`, and note 113 math modules point at `IEEE754_ARCHITECTURE.md`
-  and 12 at `BF16_ARCHITECTURE.md`, which want checking separately;
-- the area `CLAUDE.md` -- exists only for `rtl/amba` and `rtl/common`;
-  `rtl/cdc`, `rtl/math` and `rtl/integ_amba` have none.
+  under `rtl/{common,cdc,math}`. The cdc and math slices are DONE
+  (2026-08-12): all 167 math headers point at `rtl-math/overview.md` (the
+  IEEE754/BF16_ARCHITECTURE phantoms are gone, fixed in the header
+  generators), and cdc's all point at per-module pages. `rtl/common`'s
+  index.md-pointing headers remain;
+- the area `CLAUDE.md` -- `rtl/amba`, `rtl/common`, `rtl/cdc` and (since
+  2026-08-12) `rtl/math` have one; `rtl/integ_amba` still has none.
 
 **Why it matters beyond tidiness:** `build_review_bundle.py` builds a unit per
 `_book_*_index.md` and includes `overview.md` plus the pages that index links.

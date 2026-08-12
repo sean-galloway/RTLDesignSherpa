@@ -28,8 +28,8 @@
 // Latency: PIPE_STAGE_1 + PIPE_STAGE_2 + PIPE_STAGE_3 + PIPE_STAGE_4 cycles
 //          (each enabled stage is one register bank; all-disabled is combinational)
 //
-// Documentation: docs/bf16-research.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2025-11-26

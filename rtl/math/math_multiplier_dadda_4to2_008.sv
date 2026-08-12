@@ -7,15 +7,15 @@
 // Module: math_multiplier_dadda_4to2_008
 // Purpose: Dadda 8x8 multiplier with 4:2 compressors for BF16 mantissa
 //
-// Documentation: BF16_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2025-11-25
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/bf16/dadda_4to2_multiplier.py
-// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/bf16/generate_all.py rtl/common
+// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/bf16/generate_all.py rtl/math
 //
 
 `timescale 1ns / 1ps

@@ -7,8 +7,8 @@
 // Module: math_bf16_divider
 // Purpose: BF16 floating-point divider with special case handling and RNE rounding
 //
-// Documentation: BF16_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2025-12-26

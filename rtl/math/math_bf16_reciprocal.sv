@@ -7,8 +7,8 @@
 // Module: math_bf16_reciprocal
 // Purpose: Fast BF16 reciprocal (1/x) using LUT + Newton-Raphson refinement
 //
-// Documentation: BF16_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: Claude AI / sean galloway
 // Created: 2025-12-26

@@ -7,15 +7,15 @@
 // Module: math_fp8_e5m2_fma
 // Purpose: FP8 E5M2 Fused Multiply-Add with 12-bit internal precision
 //
-// Documentation: IEEE754_ARCHITECTURE.md
-// Subsystem: common
+// Documentation: docs/markdown/rtl-math/overview.md
+// Subsystem: math
 //
 // Author: sean galloway
 // Created: 2026-01-03
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generator: bin/rtl_generators/ieee754/fp8_e5m2_fma.py
-// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
+// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/math
 //
 
 `timescale 1ns / 1ps

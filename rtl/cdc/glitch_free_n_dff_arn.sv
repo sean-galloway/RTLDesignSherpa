@@ -7,7 +7,7 @@
 // Module: glitch_free_n_dff_arn
 // Purpose: //   Parameterized N-stage multi-bit synchronizer for safe clock domain crossing
 //
-// Documentation: docs/markdown/rtl-cdc/index.md
+// Documentation: docs/markdown/rtl-cdc/glitch_free_n_dff_arn.md
 // Subsystem: cdc
 //
 // Author: sean galloway
