@@ -73,7 +73,7 @@ module math_adder_pg_chain #(
 | ow_sum | Output | N | Sum output (A + B + Cin) |
 | ow_carry | Output | 1 | Carry output (overflow) |
 
-## Functionality
+## Functional Description
 
 ### Algorithm Overview
 
@@ -388,7 +388,7 @@ i_a[i]/i_b[i] → P[i] → ow_sum[i]  (depends on C[i] from carry chain)
 | Brent-Kung | 4.0× | 4.0× | 16 ≤ N ≤ 32 |
 | Kogge-Stone | 6.0× (fastest) | 6.0× (largest) | N ≥ 32 |
 
-## Design Considerations
+## Design Notes
 
 ### When to Use This Adder
 
@@ -530,6 +530,14 @@ end
 // - No actual circular dependency
 // - All signals eventually resolve
 ```
+
+## Testing
+
+From the test suite (`val/math/test_math_adder_pg_chain.py`):
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

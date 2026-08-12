@@ -161,6 +161,24 @@ math_fp16_min_tree_8 u_min (
 PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
 ```
 
+## Testing
+
+Covered by 14 test suites:
+
+- `val/math/test_math_fp16_clamp.py`
+- `val/math/test_math_fp16_comparator.py`
+- `val/math/test_math_fp16_gelu.py`
+- `val/math/test_math_fp16_leaky_relu.py`
+- `val/math/test_math_fp16_max.py`
+- `val/math/test_math_fp16_min.py`
+- `val/math/test_math_fp16_relu.py`
+- `val/math/test_math_fp16_sigmoid.py`
+- ... and 6 more (`ls val/math/test_math_*.py`)
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
+
 ## Related Documentation
 
 - **[math_bf16_extended](math_bf16_extended.md)** - BF16 equivalent modules

@@ -232,7 +232,7 @@ math_fp8_e5m2_to_bf16 u_cvt (
 | -Inf | 0xFC | exp=31, mant=0 |
 | NaN | 0x7E | exp=31, mant!=0 |
 
-## Design Considerations
+## Design Notes
 
 ### E4M3 Overflow Handling
 
@@ -265,6 +265,24 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 - `bin/rtl_generators/ieee754/fp8_e5m2_multiplier.py`
 - `bin/rtl_generators/ieee754/fp_activations.py`
 - `bin/rtl_generators/ieee754/fp_conversions.py`
+
+## Testing
+
+Covered by 34 test suites:
+
+- `val/math/test_math_fp8_e4m3_adder.py`
+- `val/math/test_math_fp8_e4m3_clamp.py`
+- `val/math/test_math_fp8_e4m3_comparator.py`
+- `val/math/test_math_fp8_e4m3_fma.py`
+- `val/math/test_math_fp8_e4m3_gelu.py`
+- `val/math/test_math_fp8_e4m3_leaky_relu.py`
+- `val/math/test_math_fp8_e4m3_max.py`
+- `val/math/test_math_fp8_e4m3_min.py`
+- ... and 26 more (`ls val/math/test_math_*.py`)
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Documentation
 

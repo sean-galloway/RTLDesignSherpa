@@ -269,6 +269,24 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 - `bin/rtl_generators/ieee754/fp_comparisons.py` - Comparison modules
 - `bin/rtl_generators/ieee754/bf16_reciprocal.py` - Reciprocal/division
 
+## Testing
+
+Covered by 31 test suites:
+
+- `val/math/test_math_bf16_adder.py`
+- `val/math/test_math_bf16_clamp.py`
+- `val/math/test_math_bf16_comparator.py`
+- `val/math/test_math_bf16_divider.py`
+- `val/math/test_math_bf16_exp2.py`
+- `val/math/test_math_bf16_exponent_adder.py`
+- `val/math/test_math_bf16_fast_reciprocal.py`
+- `val/math/test_math_bf16_fma.py`
+- ... and 23 more (`ls val/math/test_math_*.py`)
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
+
 ## Related Documentation
 
 - **[math_bf16_multiplier](math_bf16_multiplier.md)** - Core BF16 multiplication

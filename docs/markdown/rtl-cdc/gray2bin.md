@@ -48,7 +48,7 @@ plenty of other CDC paths too.
 
 : gray2bin ports
 
-## Theory of operation
+## Functional Description
 
 Gray code is a binary numeral system where **only one bit changes** between
 consecutive values:
@@ -141,7 +141,7 @@ XORs together every bit from position `i` to the MSB. The generate loop makes
 it work for any WIDTH, synthesis tools recognize the pattern and optimize it,
 all bits compute in parallel, and the result maps onto XOR tree structures.
 
-## Timing characteristics
+## Timing Characteristics
 
 The delay is an XOR tree of depth `log2(WIDTH)` — typically 1-2 LUT delays for
 most widths, with the critical path running from the MSB input to the LSB
@@ -159,7 +159,7 @@ output.
 Modern synthesis tools need no help here: they recognize the XOR-reduction
 pattern, build balanced trees, and share XOR gates where possible.
 
-## Design examples
+## Usage Examples
 
 ### Asynchronous FIFO pointers
 
@@ -202,7 +202,7 @@ gray2bin #(.WIDTH(8)) position_decoder (
 );
 ```
 
-## Design considerations
+## Design Notes
 
 **Width scaling.** `binary[i]` is the XOR of Gray bits `i..WIDTH-1`, so the
 unshared cost is `WIDTH*(WIDTH-1)/2` XOR gates -- quadratic in WIDTH, as the
@@ -240,7 +240,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Verification
+## Testing
 
 ### Exhaustive Testing
 ```systemverilog
@@ -344,7 +344,7 @@ gray_in <= new_value;
 binary_out <= converted_value;
 ```
 
-## Related modules
+## Related Modules
 
 - **bin2gray**: Performs inverse conversion (binary to Gray)
 - **counter_bingray**: Combined binary/Gray counter

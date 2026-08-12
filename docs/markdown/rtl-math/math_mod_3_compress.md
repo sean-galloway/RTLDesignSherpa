@@ -61,7 +61,7 @@ This module has no parameters. The operand width is fixed at 16 bits and the res
 | `d_in` | Input | 16 | Operand whose remainder mod 3 is computed |
 | `rem_out` | Output | 2 | `d_in mod 3`, in the range 0..2 |
 
-## Functionality
+## Functional Description
 
 ### Base-4 Digit-Sum Method
 
@@ -127,6 +127,17 @@ assign rounded_count = beat_count - {14'b0, beat_rem};
 - **Datapath width headroom.** `BITS = 6` (rather than the minimum 5 needed for a 0..24 sum) gives the weight-2 carry left-shifts room so the dropped top carry is always 0, matching the div-by-15 construction.
 - **No inferred arithmetic primitives.** Because there is no `*` or `/`, synthesis produces adders and LUTs only, no DSP slices, no multi-cycle divider.
 - **Purely combinational.** `rem_out` tracks `d_in` with no clock; register the result externally if a pipeline stage is desired.
+
+## Testing
+
+From the test suite (`val/math/test_math_mod_3_compress.py`):
+
+- **Key test scenarios**:
+  - Check rem_out == d_in % 3 across the 16-bit input space.
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

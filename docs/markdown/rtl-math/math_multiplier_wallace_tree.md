@@ -106,7 +106,7 @@ module math_multiplier_wallace_tree_032 #(
 - **Unsigned only** - All operands and results are unsigned integers
 - **Full precision** - Output is full 2N-bit product (no truncation)
 
-## Functionality
+## Functional Description
 
 ### Wallace Tree Algorithm
 
@@ -519,7 +519,7 @@ shared Brent-Kung CPA is identical in both and excluded):
 - Consider Booth encoding for signed multiplication
 - Use sequential multipliers if latency acceptable
 
-## Design Considerations
+## Design Notes
 
 ### Advantages
 
@@ -732,6 +732,17 @@ stage counts are identical.
 depth). Wallace remains the clearer teaching example, but with both families
 now ending in the same Brent-Kung prefix adder, it no longer has a delay
 advantage to trade against its larger tree.
+
+## Testing
+
+Covered by 2 test suites:
+
+- `val/math/test_math_multiplier_wallace.py`
+- `val/math/test_math_multiplier_wallace_csa.py`
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

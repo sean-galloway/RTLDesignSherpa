@@ -50,7 +50,7 @@ and decoding it takes position detection rather than XOR reduction.
 
 : johnson2bin ports
 
-## Theory of operation
+## Functional Description
 
 ### The Johnson sequence
 
@@ -239,7 +239,7 @@ Resources scale with JCW (Johnson Counter Width):
 - Large FIFOs (JCW > 64): May become limiting factor
 ```
 
-## Design considerations
+## Design Notes
 
 ### When to use Johnson vs. Gray
 ```systemverilog
@@ -331,7 +331,22 @@ Other implementations detect position differently:
 - **Thermometer decoders**: convert 1-hot positions
 - **LUT-based**: for small, fixed widths
 
-## Related modules
+## Testing
+
+From the test suite (`val/cdc/test_johnson2bin.py`):
+
+- **Key test scenarios**:
+  - Gray Johnson Counter to Binary Converter Test
+  - This test verifies the Gray Johnson counter to binary conversion functionality:
+  - CONFIGURATION:
+  - JCW: Johnson Counter Width (10, 12, 16, 20)
+  - WIDTH: Binary output width (4, 5, 6, 8)
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/cdc run-all-func-parallel`, never bare pytest for suites.
+
+## Related Modules
 
 - **counter_johnson**: Generates Johnson counter sequences
 - **leading_one_trailing_one**: Position detection helper

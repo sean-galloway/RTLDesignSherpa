@@ -217,6 +217,14 @@ generator owns. Change the generator, regenerate, move on.
 
 ---
 
+## Testing
+
+This is the library catalogue -- each module page above carries its own
+Testing section with the suite that covers it. The whole area runs with
+`make -C val/math clean-all && make -C val/math run-all-{gate,func,full}-parallel`
+(119 wrappers, REG_LEVEL x TEST_LEVEL grid), and the formal suite lives in
+`formal/common/math_*/`.
+
 ## Related Documentation
 
 - Prefix cells: [math_prefix_cell.md](math_prefix_cell.md) · [math_prefix_cell_gray.md](math_prefix_cell_gray.md)

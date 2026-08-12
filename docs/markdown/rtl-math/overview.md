@@ -116,3 +116,9 @@ half of the library. The two halves aren't separate collections.
   library builds on
 - [rtl-cdc](../rtl-cdc/overview.md) — if an arithmetic block spans clock domains,
   the crossing belongs there, not here
+
+## Testing
+
+Every module page in this book carries a Testing section naming its suite.
+The area runs with `make -C val/math clean-all && make -C val/math
+run-all-{gate,func,full}-parallel`, and the formal suite lives in `formal/common/math_*/`.

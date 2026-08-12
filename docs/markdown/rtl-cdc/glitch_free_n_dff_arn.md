@@ -90,7 +90,7 @@ flowchart LR
    each added stage gives metastability more time to resolve (see the ~1000×-per-
    stage table below)
 
-## Implementation Details
+## Functional Description
 
 ### Packed Array Structure
 
@@ -346,6 +346,21 @@ endgenerate
 - **All stages visible**: Can observe data propagation through stages
 - **Metastability injection**: Can inject X values for testing
 - **Timing analysis**: Observe setup/hold violations
+
+## Testing
+
+From the test suite (`val/cdc/test_glitch_free_n_dff_arn.py`):
+
+- **Key test scenarios**:
+  - Test runner for glitch_free_n_dff_arn module
+  - The glitch_free_n_dff_arn is a parameterized N-stage synchronizer for safe
+  - clock domain crossing. It reduces metastability risk by passing signals
+  - through multiple flip-flop stages.
+  - Test Configurations:
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/cdc run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

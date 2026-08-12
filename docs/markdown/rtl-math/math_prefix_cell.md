@@ -56,7 +56,7 @@ module math_prefix_cell (
 | ow_g | Output | 1 | Combined group generate [i:j] |
 | ow_p | Output | 1 | Combined group propagate [i:j] |
 
-## Functionality
+## Functional Description
 
 ### Parallel Prefix Theory
 
@@ -184,7 +184,7 @@ endgenerate
 | Use case | Forward tree | Reverse tree / final stage |
 | Module | `math_prefix_cell` | `math_prefix_cell_gray` |
 
-## Design Considerations
+## Design Notes
 
 ### When to Use Black vs Gray Cells
 
@@ -213,6 +213,11 @@ This module is optimized with the following priorities:
 | Kogge-Stone | All | None | O(log N) | Maximum |
 | Brent-Kung | Forward tree | Reverse tree | O(2 log N) | Minimum |
 | Han-Carlson | Even positions | Final stage | O(log N + 1) | Medium |
+
+## Testing
+
+No dedicated test wrapper -- this block is exercised structurally through the Brent-Kung adder tests (`val/math/test_math_adder_brent_kung.py`).
+It is also formally proved: `formal/common/math_prefix_cell/` (prove + cover, SymbiYosys).
 
 ## Related Modules
 

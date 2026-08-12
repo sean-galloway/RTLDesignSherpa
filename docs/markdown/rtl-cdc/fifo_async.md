@@ -200,7 +200,7 @@ metastability failure probability exponentially (raises MTBF). Proper timing
 constraints on the crossing paths are essential — see the SDC section of the
 [CDC reference](cdc.md).
 
-## Design examples
+## Usage Examples
 
 Typical applications:
 
@@ -216,7 +216,7 @@ When to use what:
 - **Non-power-of-2 depth**: use `fifo_async #(.USE_JOHNSON(1))` — the
   standalone `fifo_async_div2` module was retired
 
-## Design considerations
+## Design Notes
 
 ### Depth sizing
 
@@ -295,7 +295,7 @@ pytest val/cdc/test_fifo_async_wavedrom.py -v
 
 - `test_fifo_sync_wavedrom.py` - Synchronous FIFO (single clock, no CDC)
 
-## Verification
+## Testing
 
 - `val/cdc/test_fifo_buffer_async.py` — full functional verification
 - `val/cdc/test_fifo_async_wavedrom.py` — WaveDrom timing diagrams
@@ -308,7 +308,7 @@ pytest val/cdc/test_fifo_buffer_async.py -v
 pytest val/cdc/test_fifo_async_wavedrom.py -v
 ```
 
-## Related modules
+## Related Modules
 
 - **USE_JOHNSON=1**: for non-power-of-2 depths, using Johnson counters (replaces the retired fifo_async_div2)
 - **fifo_sync**: for single clock domain applications

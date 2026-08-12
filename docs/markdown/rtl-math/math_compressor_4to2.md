@@ -60,7 +60,7 @@ module math_compressor_4to2 (
 | ow_carry | Output | 1 | Carry output (weight = column + 1) |
 | ow_cout | Output | 1 | Carry-out (weight = column + 1, independent of Cin) |
 
-## Functionality
+## Functional Description
 
 ### Architecture
 
@@ -226,7 +226,7 @@ This module is optimized with the following priorities:
 2. **Wire complexity** - Simple cascaded structure with minimal routing
 3. **Logic depth** - Fixed 2 full adder delays
 
-## Design Considerations
+## Design Notes
 
 ### Advantages
 
@@ -241,6 +241,11 @@ This module is optimized with the following priorities:
 - **Multi-operand adders** - Reducing many operands to 2
 - **DSP blocks** - Custom multiply-accumulate units
 - **BF16/FP16 arithmetic** - Mantissa multiplication
+
+## Testing
+
+No dedicated test wrapper -- this block is exercised structurally through every Dadda 4:2 multiplier test (`val/math/test_math_multiplier_dadda_4to2.py` and the FP mantissa multiplier suites).
+It is also formally proved: `formal/common/math_compressor_4to2/` (prove + cover, SymbiYosys).
 
 ## Related Modules
 

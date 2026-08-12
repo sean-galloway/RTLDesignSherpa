@@ -87,7 +87,7 @@ module math_adder_brent_kung_032 #(
 | ow_sum | Output | N | Sum output (A + B + Cin) |
 | ow_carry | Output | 1 | Carry output (overflow) |
 
-## Functionality
+## Functional Description
 
 ### Parallel Prefix Addition Theory
 
@@ -484,7 +484,7 @@ derived from them, not synthesis results.
 - Use **Ripple Carry** for: Low-speed, area-critical (e.g., control logic)
 - Use **Kogge-Stone** for: Critical datapath, maximum performance (e.g., FPU)
 
-## Design Considerations
+## Design Notes
 
 ### Width Selection
 
@@ -616,6 +616,14 @@ always_ff @(posedge clk) begin
     r_abc_sum <= abc_sum;
 end
 ```
+
+## Testing
+
+From the test suite (`val/math/test_math_adder_brent_kung.py`):
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

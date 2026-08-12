@@ -57,7 +57,7 @@ module math_adder_full #(parameter int N=1) (
 | ow_sum | Output | 1 | Sum output bit (i_a ⊕ i_b ⊕ i_c) |
 | ow_carry | Output | 1 | Carry output bit |
 
-## Functionality
+## Functional Description
 
 ### Full Adder Logic
 
@@ -267,7 +267,7 @@ endmodule
 - **Power**: Low static power, dynamic power proportional to switching activity
 - **Speed**: Limited by XOR gate delays (typically slower than AND/OR)
 
-## Design Considerations
+## Design Notes
 
 ### Advantages
 
@@ -302,6 +302,17 @@ This alternative has higher gate count but may have different timing characteris
 - **Accumulator Circuits**: Used in digital signal processing
 
 Bottom line: `math_adder_full` provides the essential functionality for binary addition, and it earns its place as the critical building block of digital arithmetic circuits.
+
+## Testing
+
+Covered by 2 test suites:
+
+- `val/math/test_math_adder_full.py`
+- `val/math/test_math_adder_full_nbit.py`
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

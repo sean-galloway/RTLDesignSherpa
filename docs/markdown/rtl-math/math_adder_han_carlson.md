@@ -120,7 +120,7 @@ that exact width. Pick the variant that matches your width instead.
 | ow_sum | Output | N | Sum result (A + B + Cin) |
 | ow_cout | Output | 1 | Carry output |
 
-## Functionality
+## Functional Description
 
 ### Han-Carlson Structure
 
@@ -351,7 +351,7 @@ derived from the cell counts, not synthesis results.
 
 : 16-bit architecture comparison, prefix depth and cell count
 
-## Design Considerations
+## Design Notes
 
 ### Design Optimization Priorities
 
@@ -411,6 +411,19 @@ always_ff @(posedge clk) begin
     sum_reg <= ow_sum;  // Register the output
 end
 ```
+
+## Testing
+
+From the test suite (`val/math/test_math_adder_han_carlson.py`):
+
+- **Key test scenarios**:
+  - These adders are used in the BF16 FMA:
+  - 16-bit: Final CPA for BF16 mantissa result
+  - 48-bit: Wide adder for FMA accumulation
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

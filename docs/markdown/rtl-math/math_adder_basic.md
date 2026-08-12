@@ -124,7 +124,7 @@ module math_adder_full_nbit #(
 | ow_sum | Output | N | Sum output (A + B + Cin) |
 | ow_carry | Output | 1 | Final carry output |
 
-## Functionality
+## Functional Description
 
 ### Half Adder
 
@@ -401,7 +401,7 @@ i_c → FA[0].Cout → FA[1].Cout → ... → FA[N-1].Cout → ow_carry
 - When ripple carry is acceptable
 - For N > 8, consider carry lookahead or parallel prefix
 
-## Design Considerations
+## Design Notes
 
 ### Why Use These Modules
 
@@ -503,6 +503,18 @@ math_adder_full fa1 (..., .i_c(c[0]));  // Missing intermediate connection
 math_adder_full fa0 (..., .ow_carry(w_c[0]));
 math_adder_full fa1 (..., .i_c(w_c[0]), .ow_carry(w_c[1]));
 ```
+
+## Testing
+
+Covered by 3 test suites:
+
+- `val/math/test_math_adder_half.py`
+- `val/math/test_math_adder_full.py`
+- `val/math/test_math_adder_full_nbit.py`
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

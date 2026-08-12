@@ -38,7 +38,7 @@ What you get:
 - **Arbitrary clock ratios:** works with any write:read clock ratio
 - **Two read modes:** mux or flop mode
 
-## Module declaration
+## Module Declaration
 
 ```systemverilog
 module gaxi_fifo_async #(
@@ -109,7 +109,7 @@ the FIFO silently drops the upper bits of every entry. Set `DATA_WIDTH`, not
 
 : gaxi_fifo_async ports
 
-## Theory of operation
+## Functional Description
 
 ### Why Gray code?
 
@@ -177,7 +177,7 @@ Each domain keeps its own binary pointer for arithmetic, converts it to Gray
 for the crossing, and decodes the synchronized remote pointer for flag
 generation.
 
-## Design examples
+## Usage Examples
 
 ### Example 1: basic CDC FIFO
 
@@ -229,7 +229,7 @@ gaxi_fifo_async #(
 );
 ```
 
-## Timing characteristics
+## Timing Characteristics
 
 | Clock Ratio (wr:rd) | Latency | Notes |
 |---------------------|---------|-------|
@@ -242,7 +242,7 @@ gaxi_fifo_async #(
 
 **Latency formula:** `~(2 × N_FLOP_CROSS) + 1` in slower clock domain cycles.
 
-## Design considerations
+## Design Notes
 
 ### Depth sizing for clock ratio
 
@@ -343,7 +343,7 @@ If you need overflow/underflow telemetry in simulation, add it in the testbench.
 2. Verify flow control is respected in both domains
 3. Monitor pointer values in both domains
 
-## Verification
+## Testing
 
 ```bash
 # Async FIFO tests with various clock ratios
@@ -360,7 +360,7 @@ The test matrix covers:
 - 2x ratio (10ns : 20ns)
 - 2.5x ratio (8ns : 20ns)
 
-## Related modules
+## Related Modules
 
 - [gaxi_fifo_sync](../rtl-amba/gaxi/gaxi_fifo_sync.md) - Single clock domain version
 - [gaxi_skid_buffer_async](gaxi_skid_buffer_async.md) - Async skid buffer

@@ -83,6 +83,12 @@ many flops you can afford:
   encodings are a parameter (`USE_JOHNSON`), not separate modules—Gray needs
   a power-of-2 depth, Johnson takes any depth.
 
+## Testing
+
+Every module page in this book carries a Testing section naming its suite.
+The area runs with `make -C val/cdc clean-all && make -C val/cdc
+run-all-{gate,func,full}-parallel`, and every module carries a passing formal harness under `formal/cdc/`.
+
 ## Navigation
 
 - **[Catalogue of every module in this area](index.md)**

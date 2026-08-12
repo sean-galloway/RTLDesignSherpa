@@ -42,7 +42,7 @@ Where it earns its keep:
 - **Error detection** — single-bit error detection schemes
 - **ADC/DAC interfaces** — fewer glitches in conversion systems
 
-## Module declaration
+## Module Declaration
 
 ```systemverilog
 module bin2gray #(
@@ -70,7 +70,7 @@ module bin2gray #(
 
 : bin2gray ports
 
-## Theory of operation
+## Functional Description
 
 ### Mathematical definition
 
@@ -166,7 +166,7 @@ the whole critical path. Each binary bit drives at most 2 XOR gates, and the
 delay is constant regardless of WIDTH. This module will never be your timing
 problem.
 
-## Design examples
+## Usage Examples
 
 > **One rule governs every example below.** `bin2gray` is combinational. If its
 > output is going to be sampled by another clock -- a FIFO pointer, a status
@@ -617,7 +617,7 @@ module bidirectional_gray_converter #(
 endmodule
 ```
 
-## Verification
+## Testing
 
 ### Comprehensive Test Bench
 ```systemverilog
@@ -873,7 +873,7 @@ module bin2gray_gated #(
 endmodule
 ```
 
-## Design considerations
+## Design Notes
 
 - **Always use Gray for async boundaries** — it's the baseline tool for safe
   asynchronous transfer of a multi-bit count.

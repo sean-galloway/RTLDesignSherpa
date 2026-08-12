@@ -56,7 +56,7 @@ module math_prefix_cell_gray (
 
 **Note:** `i_p_lo` isn't needed here—it would only feed the group propagate computation, and this cell doesn't output one.
 
-## Functionality
+## Functional Description
 
 ### Implementation
 
@@ -238,7 +238,7 @@ How these were counted:
 Han-Carlson uses gray cells only in the final fill-in stage: N/2 cells for an
 N-bit adder, which is the 8 above.
 
-## Design Considerations
+## Design Notes
 
 ### When to Use Gray Cells
 
@@ -267,6 +267,11 @@ This module is optimized with the following priorities:
 | Kogge-Stone | None | Maximum speed, maximum area |
 | Brent-Kung | Reverse tree (~50%) | Minimum area, 2x depth |
 | Han-Carlson | Final stage only (~20%) | Balanced speed/area |
+
+## Testing
+
+No dedicated test wrapper -- this block is exercised structurally through the Brent-Kung adder tests (`val/math/test_math_adder_brent_kung.py`).
+It is also formally proved: `formal/common/math_prefix_cell_gray/` (prove + cover, SymbiYosys).
 
 ## Related Modules
 

@@ -1113,9 +1113,18 @@ section absent at scale:
 
 | area | pages missing `Testing` |
 |---|---|
-| rtl-math | **29 of 29** |
+| rtl-math | ~~29 of 29~~ **0** (closed 2026-08-12: real suites named per page, docstring-extracted scenarios; no-dedicated-test blocks say so honestly and point at the structural/formal coverage; catalog and overview pages carry pointer sections) |
 | rtl-common | 33 of 49 |
-| rtl-cdc | 5 of 12 |
+| rtl-cdc | ~~5 of 12~~ **0** (same pass) |
+
+The same pass applied the checker's mechanical renames across both books
+(32 pages: Functionality/Theory of operation -> Functional Description,
+Design Considerations -> Design Notes, Verification -> Testing, case fixes)
+with a guard against creating duplicate headings. Remaining structure drift
+in math/cdc is a PAGE-TYPE question, not missing content: family/catalog
+pages (math_fp8_modules, cdc.md) can never carry a per-module Parameters
+table, and index.md TOCs should join _book pages in the checker's exempt
+set. Decide page types in the checker before chasing 0/29-conformant.
 
 `module-doc-template.md`'s completion checklist requires a test file reference —
 location plus the command to run it. **No humanize round can fix this**: the

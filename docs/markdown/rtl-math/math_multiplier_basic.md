@@ -100,7 +100,7 @@ No parameters (single-bit cell).
 | i_multiplicand | Input | N | Multiplicand operand (unsigned) |
 | ow_product | Output | 2N | Product result (unsigned) |
 
-## Functionality
+## Functional Description
 
 ### Basic Multiplier Cell
 
@@ -435,7 +435,7 @@ i_multiplier[N-1] → PP[N-1][0] → row N-1 accumulation → final addition →
 - Signed operands → Booth multiplier
 - Behavioral sufficient → Use `*` operator (synthesis optimizes)
 
-## Design Considerations
+## Design Notes
 
 ### Advantages
 
@@ -599,6 +599,11 @@ Defers final carry-propagate until end
 4. **Booth Encoding** - Learn signed multiplication
 
 **Concept:** Array → parallelize → optimize → specialize
+
+## Testing
+
+No dedicated test wrapper -- this block is exercised structurally through the tree multiplier tests that instantiate its cells (`val/math/test_math_multiplier_dadda.py`, `test_math_multiplier_wallace.py`).
+It is also formally proved: `formal/common/math_multiplier_basic_cell/` (prove + cover, SymbiYosys).
 
 ## Related Modules
 

@@ -67,7 +67,7 @@ module math_adder_ripple_carry #(
 | ow_sum | Output | N | Sum output (A + B + Cin) |
 | ow_carry | Output | 1 | Carry output (final carry from MSB) |
 
-## Functionality
+## Functional Description
 
 ### Algorithm: Sequential Carry Propagation
 
@@ -353,7 +353,7 @@ MSB (Sum[7]): Depends on C[6] → 16 levels (slowest)
 | **8-bit Speed** | 1× | 1.7× | 4× |
 | **Area Advantage** | Baseline | +50% | +275% |
 
-## Design Considerations
+## Design Notes
 
 ### When to Use Ripple Carry Adder
 
@@ -488,6 +488,14 @@ math_adder_ripple_carry #(.N(8)) u3 (.i_a(sum2), .i_b(d), .ow_sum(sum3), ...);
 
 // RIGHT: Pipeline or use carry-save adder tree
 ```
+
+## Testing
+
+From the test suite (`val/math/test_math_adder_ripple_carry.py`):
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

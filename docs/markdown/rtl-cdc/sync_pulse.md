@@ -84,7 +84,7 @@ module sync_pulse #(
 | i_dst_rst_n | Input | 1 | Destination domain active-low asynchronous reset |
 | o_pulse | Output | 1 | Synchronized output pulse (single-cycle high) |
 
-## Functionality
+## Functional Description
 
 ### Toggle-Based Pulse Synchronization
 
@@ -300,7 +300,7 @@ sync_pulse #(
 );
 ```
 
-## Design Considerations
+## Design Notes
 
 ### When to Use sync_pulse
 
@@ -520,6 +520,17 @@ always @(posedge i_dst_clk) begin
     end
 end
 ```
+
+## Testing
+
+From the test suite (`val/cdc/test_sync_pulse.py`):
+
+- **Key test scenarios**:
+  - One destination pulse per source pulse, across clock ratios.
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/cdc run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

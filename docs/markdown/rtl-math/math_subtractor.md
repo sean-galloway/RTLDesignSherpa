@@ -178,7 +178,7 @@ twice under two names (`assign ow_d = ow_difference; assign ow_b = ow_borrow_out
 | ow_borrow_out | Output | 1 | Final borrow output |
 | ow_b | Output | 1 | Alias of `ow_borrow_out` |
 
-## Functionality
+## Functional Description
 
 ### Half Subtractor
 
@@ -386,7 +386,7 @@ logic [15:0] diff_16 = {diff_high, diff_low};
 | **Timing** | Same as adder | Same as adder |
 | **Modern Practice** | Rarely used | Standard approach |
 
-## Design Considerations
+## Design Notes
 
 ### Why Adders Are Preferred for Subtraction
 
@@ -484,6 +484,19 @@ end
 
 // Remember: Borrow = 1 means underflow (A < B)
 ```
+
+## Testing
+
+Covered by 4 test suites:
+
+- `val/math/test_math_subtractor_carry_lookahead.py`
+- `val/math/test_math_subtractor_full_nbit.py`
+- `val/math/test_math_subtractor_half.py`
+- `val/math/test_math_subtractor_ripple_carry.py`
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

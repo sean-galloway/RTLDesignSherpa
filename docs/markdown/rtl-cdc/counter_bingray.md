@@ -35,7 +35,7 @@ You'll also see it used for clock-domain-crossing counters, position encoder
 interfaces, state machine counters that need glitch-free outputs, and memory
 address generation in dual-port systems.
 
-## Module declaration
+## Module Declaration
 
 ```systemverilog
 module counter_bingray #(
@@ -71,7 +71,7 @@ module counter_bingray #(
 
 : counter_bingray ports
 
-## Theory of operation
+## Functional Description
 
 Gray code (reflected binary code) guarantees adjacent values differ by exactly
 one bit. That buys you:
@@ -139,7 +139,7 @@ Note what this buys you over a `bin2gray` plus a separate flop: the Gray output
 is registered from the *next-state* value in the same process, so the encoding
 transient never leaves the module.
 
-## Timing characteristics
+## Timing Characteristics
 
 Three paths matter:
 
@@ -153,7 +153,7 @@ Clock-to-Q is the standard flip-flop delay, the combinational piece depends on
 the adder and XOR depth, and your setup check has to absorb the longest of
 them.
 
-## Design examples
+## Usage Examples
 
 ### Asynchronous FIFO pointers
 
@@ -310,7 +310,7 @@ glitch_free_n_dff_arn #(
 );
 ```
 
-## Verification
+## Testing
 
 ### Test scenarios
 

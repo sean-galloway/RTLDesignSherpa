@@ -990,6 +990,13 @@ variant.
 
 ---
 
+## Testing
+
+Each mechanism documented here has its own module page with a Testing
+section and suite. The whole area runs with
+`make -C val/cdc clean-all && make -C val/cdc run-all-{gate,func,full}-parallel`,
+and every rtl/cdc module carries a passing formal harness under `formal/cdc/`.
+
 ## Navigation
 
 - [← Back to CDC Index](index.md)

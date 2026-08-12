@@ -169,6 +169,24 @@ math_fp32_to_fp8_e4m3 u_quantize (
 PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
 ```
 
+## Testing
+
+Covered by 14 test suites:
+
+- `val/math/test_math_fp32_clamp.py`
+- `val/math/test_math_fp32_comparator.py`
+- `val/math/test_math_fp32_gelu.py`
+- `val/math/test_math_fp32_leaky_relu.py`
+- `val/math/test_math_fp32_max.py`
+- `val/math/test_math_fp32_min.py`
+- `val/math/test_math_fp32_relu.py`
+- `val/math/test_math_fp32_sigmoid.py`
+- ... and 6 more (`ls val/math/test_math_*.py`)
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
+
 ## Related Documentation
 
 - **[math_bf16_extended](math_bf16_extended.md)** - BF16 equivalent modules

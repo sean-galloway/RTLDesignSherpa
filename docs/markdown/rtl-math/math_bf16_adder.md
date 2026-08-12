@@ -86,7 +86,7 @@ module math_bf16_adder #(
 | ow_invalid | Output | 1 | 1 if operation was invalid (inf - inf) |
 | ow_valid | Output | 1 | Output result is valid |
 
-## Functionality
+## Functional Description
 
 ### BF16 Format
 
@@ -392,7 +392,7 @@ end
 | **Total (comb)** | ~230 LUTs |
 | **Total (4-stage)** | ~430 LUTs |
 
-## Design Considerations
+## Design Notes
 
 ### Flush-to-Zero (FTZ)
 
@@ -456,6 +456,21 @@ accumulator <= accumulator + ow_result;  // May be NaN or infinity!
 if (ow_valid && !ow_invalid && !ow_overflow)
     accumulator <= accumulator + ow_result;
 ```
+
+## Testing
+
+From the test suite (`val/math/test_math_bf16_adder.py`):
+
+- **Key test scenarios**:
+  - Tests the complete BF16 adder including:
+  - Normal addition and subtraction with RNE rounding
+  - Special value handling (zero, infinity, NaN, subnormal)
+  - Overflow and underflow detection
+  - Invalid operation detection (inf - inf)
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

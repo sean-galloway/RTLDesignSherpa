@@ -33,7 +33,7 @@ clock signals, driving state machine control, and running sequential timing
 applications — and, in this library, serving as the non-power-of-2 FIFO pointer
 behind `USE_JOHNSON=1`.
 
-## Module declaration
+## Module Declaration
 
 ```systemverilog
 module counter_johnson #(
@@ -70,7 +70,7 @@ A 1-stage Johnson counter has no use anyway.
 
 : counter_johnson ports
 
-## Theory of operation
+## Functional Description
 
 A Johnson counter is a shift register with inverted feedback:
 
@@ -175,7 +175,7 @@ progression and easy state decode. But they are **not** Gray code:
 > - Do not substitute one for the other in general-purpose CDC. For an
 >   arbitrary binary value crossing domains, use Gray (`bin2gray`/`gray2bin`).
 
-## Design examples
+## Usage Examples
 
 ### Example 1: 4-phase clock generator
 
@@ -304,7 +304,7 @@ counter_johnson #(.WIDTH(8)) pattern_gen (
 assign test_data = test_pattern;
 ```
 
-## Design considerations
+## Design Notes
 
 **What it does well.** The logic is minimal — a shift register and an
 inverter — so states can be used directly with no decode logic and no complex
@@ -322,7 +322,7 @@ the theory section: it is **not** self-starting, so a clean reset is a hard
 requirement and glitch-free operation is only guaranteed inside the valid
 sequence.
 
-## Verification
+## Testing
 
 ### Functional tests
 
@@ -504,7 +504,7 @@ Johnson counters are the foundation of the `fifo_async` `USE_JOHNSON=1` CDC mech
 - `test_counter_bingray_wavedrom.py` - Binary-Gray counter (power-of-2 depths, logarithmic width)
 - `test_fifo_async_wavedrom.py` - Gray code in action (async FIFO)
 
-## Related modules
+## Related Modules
 
 - `counter_ring`: different shift register pattern
 - `counter_bingray`: binary and Gray code counter

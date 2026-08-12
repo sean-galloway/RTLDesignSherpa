@@ -271,6 +271,21 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 - `bin/rtl_generators/ieee754/fp32_multiplier.py`
 - `bin/rtl_generators/ieee754/fp32_fma.py`
 
+## Testing
+
+Covered by 6 test suites:
+
+- `val/math/test_math_ieee754_2008_fp16_adder.py`
+- `val/math/test_math_ieee754_2008_fp16_fma.py`
+- `val/math/test_math_ieee754_2008_fp16_multiplier.py`
+- `val/math/test_math_ieee754_2008_fp32_adder.py`
+- `val/math/test_math_ieee754_2008_fp32_fma.py`
+- `val/math/test_math_ieee754_2008_fp32_multiplier.py`
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
+
 ## Related Documentation
 
 - **[math_bf16_multiplier](math_bf16_multiplier.md)** - Simplified BF16 multiply

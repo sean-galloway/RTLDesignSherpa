@@ -69,7 +69,7 @@ module math_addsub_full_nbit #(
 - **Add mode (i_c=0)**: ow_carry = carry output (overflow for unsigned)
 - **Subtract mode (i_c=1)**: ow_carry = ~borrow (1 if A≥B, 0 if A<B)
 
-## Functionality
+## Functional Description
 
 ### Two's Complement Subtraction
 
@@ -343,7 +343,7 @@ i_b[0] → XOR → FA[0] → FA[1] → ... → FA[7] → ow_carry
 
 **Advantage:** ~10% area overhead vs adder-only, but integrated control simplifies system design. That's a trade I'll take every time in control logic.
 
-## Design Considerations
+## Design Notes
 
 ### Advantages
 
@@ -419,6 +419,14 @@ assign signed_overflow = (i_a[N-1] == i_b[N-1]) &&
 // Be aware: XOR stage adds one logic level
 // If timing is critical, consider pipelining the XOR stage
 ```
+
+## Testing
+
+From the test suite (`val/math/test_math_addsub_full_nbit.py`):
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

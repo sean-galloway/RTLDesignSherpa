@@ -104,7 +104,7 @@ module math_multiplier_dadda_tree_032 #(
 - **Unsigned only** - All operands and results are unsigned integers
 - **Full precision** - Output is full 2N-bit product (no truncation)
 
-## Functionality
+## Functional Description
 
 ### Dadda Reduction Algorithm
 
@@ -544,7 +544,7 @@ substantially fewer compressor cells than Wallace.
 | Variable width | Behavioral (`*`) | Synthesis optimizes |
 | Very high frequency | Pipelined Dadda | Split into stages |
 
-## Design Considerations
+## Design Notes
 
 ### Advantages
 
@@ -695,6 +695,14 @@ separate sum and carry vectors.
 // RIGHT: Add pipeline stages
 // Target: 1 stage per 5-6ns of delay
 ```
+
+## Testing
+
+From the test suite (`val/math/test_math_multiplier_dadda.py`):
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 

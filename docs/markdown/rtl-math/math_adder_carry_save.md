@@ -106,7 +106,7 @@ No parameters (fixed single-bit operation).
 
 **Important:** The N-bit CSA outputs TWO N-bit vectors. To get the final result, you must add them using a conventional adder (ripple carry, CLA, or parallel prefix).
 
-## Functionality
+## Functional Description
 
 ### Single-bit Carry-Save Adder (3:2 Compressor)
 
@@ -378,7 +378,7 @@ i_a/i_b/i_c → ow_carry  (2 gates: AND + OR)
 - All bits computed in parallel
 - Constant depth regardless of width
 
-## Design Considerations
+## Design Notes
 
 ### When to Use Carry-Save Adders
 
@@ -476,6 +476,17 @@ assign result = sum_vec + carry_vec;  // May overflow!
 logic [9:0] result;
 assign result = {2'b0, sum_vec} + {carry_vec, 1'b0};
 ```
+
+## Testing
+
+Covered by 2 test suites:
+
+- `val/math/test_math_adder_carry_save.py`
+- `val/math/test_math_adder_carry_save_nbit.py`
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 
