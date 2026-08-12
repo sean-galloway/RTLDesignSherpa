@@ -52,7 +52,9 @@ and the cross-reference web depend on these being byte-identical:
     these docs; if you find one, flag it — conversion to Mermaid is an
     authoring change, not a voice change. Directory trees and pure
     containment listings in box-drawing form are fine and stay exactly
-    as written. Never introduce new ASCII diagram art.
+    as written. Waveforms/timing figures are ```wavedrom fences —
+    never ASCII waveform art. Never introduce new ASCII diagram art.
+    Full formatting rules: vault/handbook/authoring/spec-doc-standards.md.
 
 ## What You SHOULD Humanize
 

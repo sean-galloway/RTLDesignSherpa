@@ -165,21 +165,15 @@ Waveform Signal Groups:
 
 ### Timing Analysis
 
-```
-Expected Transaction Timing:
-     ┌───┐   ┌───┐   ┌───┐   ┌───┐   ┌───┐
-aclk ┘   └───┘   └───┘   └───┘   └───┘   └───
-
-     ┌───────────────────┐
-awv  ┘                   └───────────────────
-
-             ┌───────────┐
-awr  ────────┘           └───────────────────
-
-                         ┌───────────────────
-wval ────────────────────┘
-
-Time:  0     1     2     3     4     5
+```wavedrom
+{ "signal": [
+  { "name": "aclk",    "wave": "p....." },
+  { "name": "awvalid", "wave": "1..0.." },
+  { "name": "awready", "wave": "0.10.." },
+  { "name": "wvalid",  "wave": "0..1.." }
+],
+  "head": { "text": "Expected Transaction Timing" }
+}
 ```
 
 ## Assertion Failures
