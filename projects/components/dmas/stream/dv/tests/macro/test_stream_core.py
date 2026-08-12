@@ -1261,7 +1261,8 @@ async def _datapath_mon_addr_match_body(dut, which):
     tb.log.info(f"=== Datapath-monitor -> mon_valid regression ({which}, agent id {agent_id}) ===")
 
     # Consume the aggregated monbus so packets flow normally.
-    dut.mon_ready.value = 1
+    # mon_ready is owned by the MonbusSlave GAXI BFM (tb.init_monbus_slave()).
+    # Poking it here fights the BFM for the same net.
 
     # Enable the selected datapath monitor and its address-range checker:
     # range 0 = match-all, DEBUG flavor (MON_ADDR_RANGE_IS_ERROR default '0), so
@@ -1300,17 +1301,17 @@ async def _datapath_mon_addr_match_body(dut, which):
     # Decode captured mon_valid packets via the shared decoder (never inline
     # bit-slicing) and require an AddrMatch from THIS monitor's agent id.
     addr_matches = [
-        pkt for pkt in (parse(raw) for raw in tb.mon_packets)
+        pkt for pkt in tb.monbus_slave.received_packets
         if int(pkt.packet_type) == int(PktType.PktTypeAddrMatch)
         and int(pkt.agent_id) == agent_id
     ]
     tb.log.info(
-        f"mon_valid packets captured: {len(tb.mon_packets)}; "
+        f"mon_valid packets captured: {len(tb.monbus_slave.received_packets)}; "
         f"AddrMatch from agent {agent_id}: {len(addr_matches)}"
     )
     assert len(addr_matches) > 0, (
         f"No AddrMatch (pkt_type 8) from the {which} datapath monitor "
-        f"(agent id {agent_id}) reached stream_core.mon_valid. Its monbus output "
+        f"(agent id {agent_id}) reached stream_core.mon_valid. "
         f"is tied off in stream_core (.monbus_valid()/.monbus_ready(1'b1)), so its "
         f"packets are orphaned and never reach the monbus aggregation feeding mon_valid."
     )
@@ -1377,7 +1378,8 @@ async def cocotb_test_schedgrp_mon_monbus(dut):
     # Consume the aggregated monbus so packets flow normally. The scheduler /
     # descriptor-engine monitors are enabled by _init_config_signals defaults;
     # no extra config needed.
-    dut.mon_ready.value = 1
+    # mon_ready is owned by the MonbusSlave GAXI BFM (tb.init_monbus_slave()).
+    # Poking it here fights the BFM for the same net.
 
     channel = 0
     transfer_beats = 16
@@ -1396,7 +1398,7 @@ async def cocotb_test_schedgrp_mon_monbus(dut):
     success = await tb.wait_for_channel_idle(channel, timeout_us=10000)
     assert success, f"Channel {channel} did not complete (timeout)"
 
-    packets = [parse(raw) for raw in tb.mon_packets]
+    packets = list(tb.monbus_slave.received_packets)
     schedgrp = [p for p in packets if _is_schedgrp_agent(int(p.agent_id))]
     agents = sorted({int(p.agent_id) for p in packets})
     tb.log.info(

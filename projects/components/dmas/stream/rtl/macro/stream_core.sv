@@ -1535,6 +1535,8 @@ module stream_core #(
     ) u_rd_axi_skid (
         .aclk                   (clk),
         .aresetn                (rst_n),
+        // Observability tap added with the port; unused here.
+        .debug_block_ready      (),
         .cam_clear              (cam_clear),
 
         // FUB side (input from read engine)
@@ -1700,6 +1702,8 @@ module stream_core #(
     ) u_wr_axi_skid (
         .aclk                   (clk),
         .aresetn                (rst_n),
+        // Observability tap added with the port; unused here.
+        .debug_block_ready      (),
         .cam_clear              (cam_clear),
 
         // FUB side (input from write engine)
@@ -1959,6 +1963,8 @@ module stream_core #(
             ) u_rd_lat_hist (
                 .aclk         (clk),
                 .aresetn      (rst_n),
+                // Backpressure request; not consumed here.
+                .o_cmd_block  (),
                 .i_clear      (w_perf_clear),
                 .i_freeze     (~r_perf_win_active),
                 .cmd_valid    (m_axi_rd_arvalid),
@@ -1986,6 +1992,8 @@ module stream_core #(
             ) u_wr_lat_hist (
                 .aclk         (clk),
                 .aresetn      (rst_n),
+                // Backpressure request; not consumed here.
+                .o_cmd_block  (),
                 .i_clear      (w_perf_clear),
                 .i_freeze     (~r_perf_win_active),
                 .cmd_valid    (m_axi_wr_awvalid),

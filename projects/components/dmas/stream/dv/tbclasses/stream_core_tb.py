@@ -373,6 +373,67 @@ class StreamCoreTB(TBBase):
         if self.presetn is not None:
             self.presetn.value = 1
 
+
+    def _init_monitor_config(self):
+        """Drive stream_core's monitor config inputs.
+
+        stream_core is a MACRO: at stream_top these 66 cfg_*_mon_* inputs come
+        from STREAM's own PeakRDL block (hwif_out.MON.{DAXMON,RDMON,WRMON}_*).
+        A macro-level TB instantiates stream_core directly, so it must stand in
+        for that register block -- and this one never did, leaving every monitor
+        input undriven (Verilator reads 0) and every packet class disarmed.
+
+        That was survivable while the RTL ALIASED the classes -- compl followed
+        monitor-enable, threshold followed perf -- so enabling one implicitly
+        enabled others. Those aliases are now real per-class controls
+        (RDMON_ENABLE.COMPL_EN / .THRESH_EN, previously dead bits in the
+        register map), which is the correct behaviour and the reason the
+        aliasing had to go. The val collateral simply never followed the RTL.
+
+        Address ranges are set wide open (0 .. all-ones) so every access is a
+        MATCH: the AddrMatch tests assert that at least one pkt_type 8 reaches
+        mon_valid, not that filtering is selective.
+        """
+        driven, missing = [], []
+
+        def drive(name, value):
+            sig = getattr(self.dut, name, None)
+            if sig is None:
+                missing.append(name)     # do NOT skip silently
+                return
+            sig.value = value
+            driven.append(name)
+
+        for eng in ("desc", "rdeng", "wreng"):
+            drive(f"cfg_{eng}_mon_enable",         1)
+            drive(f"cfg_{eng}_mon_err_enable",     1)
+            drive(f"cfg_{eng}_mon_compl_enable",   1)   # was aliased to mon_enable
+            drive(f"cfg_{eng}_mon_thresh_enable",  1)   # was aliased to perf_enable
+            drive(f"cfg_{eng}_mon_perf_enable",    1)
+            drive(f"cfg_{eng}_mon_perf_run",       1)
+            drive(f"cfg_{eng}_mon_timeout_enable", 1)
+            drive(f"cfg_{eng}_mon_timeout_cycles", 0xFFFF)
+            drive(f"cfg_{eng}_mon_latency_thresh", 0xFFFF)
+            # Masks are DROP masks (1 = drop) -- 0 keeps every class.
+            for m in ("pkt", "err", "timeout", "compl", "thresh", "perf",
+                      "addr", "debug"):
+                drive(f"cfg_{eng}_mon_{m}_mask", 0)
+            drive(f"cfg_{eng}_mon_err_select", 0)
+            # Address-range check: the AddrMatch (pkt_type 8) source.
+            drive(f"cfg_{eng}_mon_addr_check_en",  1)
+            drive(f"cfg_{eng}_mon_addr_match_en",  1)
+            drive(f"cfg_{eng}_mon_addr_miss_en",   0)   # allowlist-miss errors off
+            drive(f"cfg_{eng}_mon_addr_range_en",  1)
+            drive(f"cfg_{eng}_mon_addr_range_low",  0)
+            drive(f"cfg_{eng}_mon_addr_range_high", (1 << 64) - 1)
+
+        # A config helper that quietly no-ops on a renamed or absent signal is
+        # indistinguishable from one that worked, and leaves the DUT disarmed.
+        self.log.info(f"monitor config: drove {len(driven)} signals")
+        if missing:
+            self.log.error(f"monitor config: {len(missing)} NOT FOUND on the "
+                           f"DUT: {sorted(missing)}")
+
     def _init_config_signals(self, rd_xfer_beats, wr_xfer_beats):
         """Initialize configuration signals before reset"""
         # Save burst sizes for test use
@@ -417,6 +478,8 @@ class StreamCoreTB(TBBase):
         self.dut.cfg_desceng_addr1_limit.value = 0xFFFFFFFF
 
         self.log.info(f"Configured AXI transfer sizes: RD={rd_xfer_beats} beats, WR={wr_xfer_beats} beats")
+        self._init_monitor_config()
+
         self.init_monbus_slave()    # GAXI BFM owns the monbus handshake
 
     async def _init_bfm_components(self):

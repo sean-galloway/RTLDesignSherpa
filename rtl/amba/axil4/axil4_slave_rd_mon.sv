@@ -55,13 +55,6 @@ module axil4_slave_rd_mon
     parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for monitor packets
     parameter logic [15:0] AGENT_ID = 16'h0014,    // 16-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 8,     // Maximum outstanding transactions (reduced for AXIL)
-    // ID-range filter, passed through to axi_monitor_base. Default OFF ->
-    // bit-identical to before. See axi_monitor_base for why this exists:
-    // several monitors snooping one ID-multiplexed bus, each owning a slice,
-    // so no single transaction table has to hold the whole concurrency.
-    parameter bit ID_FILTER_ENABLE       = 1'b0,
-    parameter int ID_MATCH_BASE          = 0,
-    parameter int ID_MATCH_COUNT         = 0,
     // Active-transaction threshold packet trip point (used when
     // cfg_threshold_enable=1). Previously hardwired, which either spammed
     // threshold packets (table larger than the hardwire) or made the feature
@@ -297,9 +290,6 @@ module axil4_slave_rd_mon
             .UNIT_ID                 (UNIT_ID),
             .AGENT_ID                (AGENT_ID),
             .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
-            .ID_FILTER_ENABLE        (ID_FILTER_ENABLE),
-            .ID_MATCH_BASE           (ID_MATCH_BASE),
-            .ID_MATCH_COUNT          (ID_MATCH_COUNT),
             .ADDR_WIDTH              (AW),
             .ID_WIDTH                (32'd1),            // Fixed ID width for AXIL
             .IS_READ                 (1'b1),             // This is a read monitor

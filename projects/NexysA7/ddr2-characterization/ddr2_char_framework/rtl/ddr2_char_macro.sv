@@ -678,6 +678,8 @@ module ddr2_char_macro
     ) u_hist_wr (
         .aclk       (mc_clk),
         .aresetn    (mc_rst_n),
+        // Backpressure request; not consumed here.
+        .o_cmd_block  (),
         .i_clear    (perf_clear),
         .i_freeze   (perf_freeze),
         .cmd_valid  (wr_awvalid),
@@ -706,6 +708,8 @@ module ddr2_char_macro
     ) u_hist_rd (
         .aclk       (mc_clk),
         .aresetn    (mc_rst_n),
+        // Backpressure request; not consumed here.
+        .o_cmd_block  (),
         .i_clear    (perf_clear),
         .i_freeze   (perf_freeze),
         .cmd_valid  (rd_arvalid),

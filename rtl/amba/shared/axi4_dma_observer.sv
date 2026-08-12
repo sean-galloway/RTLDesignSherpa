@@ -1037,6 +1037,8 @@ module axi4_dma_observer
                 ) u_rd_lat_hist (
                     .aclk         (aclk),
                     .aresetn      (aresetn),
+                    // Backpressure request; not consumed here.
+                    .o_cmd_block  (),
                     .i_clear      (i_meter_clear),
                     .i_freeze     (i_meter_freeze),
                     .cmd_valid    (fab_rd_arvalid[hi]),
@@ -1066,6 +1068,8 @@ module axi4_dma_observer
                 ) u_wr_lat_hist (
                     .aclk         (aclk),
                     .aresetn      (aresetn),
+                    // Backpressure request; not consumed here.
+                    .o_cmd_block  (),
                     .i_clear      (i_meter_clear),
                     .i_freeze     (i_meter_freeze),
                     .cmd_valid    (fab_wr_awvalid[hi]),

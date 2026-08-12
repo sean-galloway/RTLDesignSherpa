@@ -72,7 +72,10 @@ def _read64(bridge, lo_addr: int, hi_addr: int) -> int:
     return (hi << 32) | lo
 
 CLK_PERIOD_NS = 10.0  # 100 MHz aclk
-DATA_WIDTH_BYTES = 16  # 128 b data path -> 16 B per beat
+# 128 b data path -> 16 B per beat, the current build. Overwritten at runtime
+# from BUILD_CONFIG.DATA_WIDTH_B so the beat/throughput maths follows whatever
+# the bitstream was actually built with rather than this literal.
+DATA_WIDTH_BYTES = 16
 
 
 def run_one(runner, bridge, cfg, timeout_s: float, verbose: bool) -> dict:
@@ -137,6 +140,30 @@ def run_one(runner, bridge, cfg, timeout_s: float, verbose: bool) -> dict:
                 "timeout":      False,
             }
         time.sleep(0.01)
+
+    # A timeout is the ONE moment the board's state is worth reading, and the
+    # only moment it is still the failing state: re-running or reprogramming to
+    # investigate later returns stale counters and sticky bits belonging to a
+    # different attempt. Every register below is already implemented and
+    # already read by host_status.py -- printing "TIMEOUT" and discarding them
+    # cost a full debug cycle on exactly this test.
+    print(f"  !! {cfg.name} TIMED OUT -- dumping board state at failure:")
+    try:
+        from host_status import dump_status
+        dump_status(bridge)
+    except Exception as e:                     # diagnostics must never mask
+        print(f"  (status dump unavailable: {e})")   # the original failure
+
+    # Bus meters too: the status registers say WHAT stopped, the meters say
+    # WHY -- productive vs backpressure vs starvation vs idle. Reading them
+    # here is the only chance to see the split for the FAILING window; the
+    # window is one-shot and a later read gets whatever the next run leaves.
+    try:
+        from bus_meters import read_bus_meters, format_snapshot, close_windows
+        close_windows(bridge)          # freeze, or the read races the design
+        format_snapshot(read_bus_meters(bridge, cfg.num_channels))
+    except Exception as e:
+        print(f"  (bus meters unavailable: {e})")
 
     return {
         "name":         cfg.name,
@@ -285,8 +312,18 @@ def main() -> int:
     results = []
     args.port = autodetect_port(args.baud, want=args.port)
     with UARTAxiBridge(args.port, args.baud) as bridge:
+        # Ask the board its datapath width instead of asserting 128. Every beat
+        # count and MB/s below is scaled by it, so a mismatch between this
+        # literal and the bitstream silently rescales every number reported --
+        # and a wrong throughput figure looks exactly like a real one.
+        global DATA_WIDTH_BYTES
+        from characterization import data_width_bytes
+        DATA_WIDTH_BYTES = data_width_bytes(bridge)
+        if DATA_WIDTH_BYTES != 16:
+            print(f"  datapath width from board: {DATA_WIDTH_BYTES} B/beat "
+                  f"({DATA_WIDTH_BYTES*8} b)")
         runner = runner_mod.CharacterizationRunner(
-            bridge, data_width=128, verbose=args.verbose)
+            bridge, data_width=DATA_WIDTH_BYTES * 8, verbose=args.verbose)
         if not runner.ping():
             print("ERROR: harness ping failed.", file=sys.stderr)
             return 2

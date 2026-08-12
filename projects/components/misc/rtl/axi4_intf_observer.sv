@@ -110,7 +110,10 @@ module axi4_intf_observer
     //
     // Two separate things have to happen, and doing only the first is the trap:
     //   1. the transaction tables must not allocate for other IDs
-    //      -> ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT on the taps
+    //      -> observer-local only. This must NOT reach axi_monitor_base:
+    //         that module is shared by every monitor in the repo, including
+    //         stream_core's in-core ones, and a filter there changes blocks
+    //         that have nothing to do with slicing an observer across a bus.
     //   2. the latency histograms index by cmd_id[CW-1:0], so with
     //      NUM_CHANNELS=2 (CW=1) channels 0,2,4,6 would all alias onto slot 0.
     //      Narrowing NUM_CHANNELS alone does NOT select two channels, it folds
@@ -599,12 +602,6 @@ module axi4_intf_observer
                 // Own only this instance's channels: without this every
                 // parallel snooper allocates for ALL traffic and the split
                 // buys nothing.
-                .ID_FILTER_ENABLE(ENABLE_ID_SLICE),
-                // PER-TAP base: tap gi owns [CH_BASE + gi*NUM_CHANNELS, +NUM_CHANNELS).
-                // NUM_CHANNELS is per tap, so a 4-tap instance covers
-                // 4*NUM_CHANNELS channels of one shared bus.
-                .ID_MATCH_BASE   (CH_BASE + gi * NUM_CHANNELS),
-                .ID_MATCH_COUNT  (NUM_CHANNELS),
                 // Observer tap cone enables (default perf-only -- see the
                 // TAP_ENABLE_* parameter block for why). Overridable per-instance
                 // so the dump-path unit test can enable completions.
@@ -743,12 +740,6 @@ module axi4_intf_observer
                 // Own only this instance's channels: without this every
                 // parallel snooper allocates for ALL traffic and the split
                 // buys nothing.
-                .ID_FILTER_ENABLE(ENABLE_ID_SLICE),
-                // PER-TAP base: tap gi owns [CH_BASE + gi*NUM_CHANNELS, +NUM_CHANNELS).
-                // NUM_CHANNELS is per tap, so a 4-tap instance covers
-                // 4*NUM_CHANNELS channels of one shared bus.
-                .ID_MATCH_BASE   (CH_BASE + gi * NUM_CHANNELS),
-                .ID_MATCH_COUNT  (NUM_CHANNELS),
                 // Observer tap cone enables (default perf-only -- see the
                 // TAP_ENABLE_* parameter block). Overridable per-instance so the
                 // dump-path unit test can enable completions.

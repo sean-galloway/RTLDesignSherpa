@@ -242,9 +242,13 @@ def test_stream_perf(request, test_type, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED':             os.environ.get('SEED', str(random.randint(0, 100000))),
-        # DMA test parameters: 2 descriptors/ch x 8KB = 16KB moved per channel
-        'DMA_DESC_PER_CH':  '2',
-        'DMA_XFER_BYTES':   '8192',
+        # DMA test parameters: default 2 descriptors/ch x 8KB = 16KB per
+        # channel. Overridable so a run can be shrunk to the smallest thing
+        # that still exercises the path -- one descriptor per channel is the
+        # useful case for reading waves, where 2x the traffic is 2x the trace
+        # to scroll through for no extra coverage.
+        'DMA_DESC_PER_CH':  os.environ.get('DMA_DESC_PER_CH', '2'),
+        'DMA_XFER_BYTES':   os.environ.get('DMA_XFER_BYTES', '8192'),
     }
 
     # Use Verilator by default

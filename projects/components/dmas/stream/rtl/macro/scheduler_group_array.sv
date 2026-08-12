@@ -581,6 +581,8 @@ module scheduler_group_array #(
     ) u_desc_axi_monitor (
         .aclk                   (clk),
         .aresetn                (rst_n),
+        // Observability tap added with the port; unused here.
+        .debug_block_ready      (),
         .cam_clear              (cam_clear),
 
         // FUB side (input to monitor) - AR Channel

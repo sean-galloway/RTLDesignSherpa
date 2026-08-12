@@ -901,6 +901,9 @@ module stream_harness #(
         .AW(32), .DW(32), .NUM_CHANNELS(NUM_CHANNELS),
         .BUILD_ERROR_FLAVOR(int'(DATA_MON_ERROR_FLAVOR)),
         .BUILD_NUM_CHANNELS(NUM_CHANNELS),
+        // Derived, not a literal: the host reads this to size beats and
+        // throughput, so it must track the datapath it is actually built with.
+        .BUILD_DATA_WIDTH_B(DATA_WIDTH / 8),
         .BUILD_N_PROFILE   (MON_N_PROFILE),
         .BUILD_USE_MONITORS(USE_AXI_MONITORS),
         .BUILD_GEN_MON     (int'(GEN_MON))

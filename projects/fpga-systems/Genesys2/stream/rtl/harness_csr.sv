@@ -50,6 +50,12 @@
 //                            [5]   error_flavor (1 = error-cone-only build)
 //                            [6]   use_axi_monitors
 //                            [7]   gen_mon (per-channel CORE emitters built)
+//                            [15:8] data_width_bytes (DATA_WIDTH/8)
+//   The host derives beats and throughput from the datapath width. It used to
+//   hard-code 16 B in two files with nothing tying that to the build, so a
+//   width change would silently scale every beat count and MB/s figure by the
+//   ratio -- and a wrong throughput number looks exactly like a real one.
+//   Reported here so the host reads the width instead of assuming it.
 //   0x1D8  BUILD_N_PROFILE R  tally legal-set size
 //
 //   0x28  TIMER_CTRL      W   [0] = clear pulse (resets done/cycles/pass)
@@ -208,6 +214,9 @@ module harness_csr #(
     parameter int BUILD_N_PROFILE    = 64,
     parameter int BUILD_USE_MONITORS = 1,
     parameter int BUILD_GEN_MON      = 0,      // per-channel CORE emitters built?
+    // Datapath width in BYTES. 8 bits holds up to 255 B (2040 b), covering
+    // 128 b (16 B, current) through the IP's native 512 b (64 B).
+    parameter int BUILD_DATA_WIDTH_B = 16,
 
     parameter int SKID_DEPTH_AW = 2,
     parameter int SKID_DEPTH_W  = 2,
@@ -656,7 +665,8 @@ module harness_csr #(
                             8'h24: r_rdata <= BUILD_ID;
                             // 0x1D0 BUILD_VERSION, 0x1D4 BUILD_CONFIG.
                             9'h1D0: r_rdata <= 32'(BUILD_VERSION);
-                            9'h1D4: r_rdata <= {24'h0,
+                            9'h1D4: r_rdata <= {16'h0,
+                                                8'(BUILD_DATA_WIDTH_B),
                                                 1'(BUILD_GEN_MON),
                                                 1'(BUILD_USE_MONITORS),
                                                 1'(BUILD_ERROR_FLAVOR),

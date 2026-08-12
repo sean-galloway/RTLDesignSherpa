@@ -130,7 +130,27 @@ class UartRegisterMap:
         info = self._reg(reg)
         finfo = info.get(field)
         if not isinstance(finfo, dict) or finfo.get("type") != "field":
-            raise KeyError(f"unknown field {reg}.{field}")
+            # Field names in the regmaps this reads are upper-case by
+            # convention (harness_csr_regmap.py is hand-maintained to mirror
+            # harness_csr.sv), while hosts commonly write them lower-case:
+            # CTRL.write(soft_reset=1). Match case-insensitively rather than
+            # let a naming convention fail a register write at the point of
+            # use -- the alternative is every caller shouting, and one that
+            # forgets fails only on the path that reaches it.
+            want = field.casefold()
+            match = [k for k, v in info.items()
+                     if isinstance(v, dict) and v.get("type") == "field"
+                     and k.casefold() == want]
+            if len(match) == 1:
+                finfo = info[match[0]]
+            elif len(match) > 1:
+                raise KeyError(
+                    f"ambiguous field {reg}.{field}: matches {sorted(match)} "
+                    "-- case-insensitive lookup cannot disambiguate")
+            else:
+                have = sorted(k for k, v in info.items()
+                              if isinstance(v, dict) and v.get("type") == "field")
+                raise KeyError(f"unknown field {reg}.{field}; has {have}")
         lo, hi = self._rm._parse_offset(finfo["offset"])  # (low, high)
         return lo, (hi - lo + 1)
 

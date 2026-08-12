@@ -56,13 +56,6 @@ module axi5_master_wr_mon
     parameter logic [7:0]  UNIT_ID  = 8'h01,
     parameter logic [15:0] AGENT_ID = 16'h000B,
     parameter int MAX_TRANSACTIONS  = 16,
-    // ID-range filter, passed through to axi_monitor_base. Default OFF ->
-    // bit-identical to before. See axi_monitor_base for why this exists:
-    // several monitors snooping one ID-multiplexed bus, each owning a slice,
-    // so no single transaction table has to hold the whole concurrency.
-    parameter bit ID_FILTER_ENABLE       = 1'b0,
-    parameter int ID_MATCH_BASE          = 0,
-    parameter int ID_MATCH_COUNT         = 0,
     // Active-transaction threshold packet trip point (used when
     // cfg_threshold_enable=1). Previously hardwired, which either spammed
     // threshold packets (table larger than the hardwire) or made the feature
@@ -379,7 +372,6 @@ module axi5_master_wr_mon
             .CFI_MIN_FREQ_MHZ        (ACLK_MHZ),
             .CFI_MAX_FREQ_MHZ        (ACLK_MHZ),
             .UNIT_ID(UNIT_ID), .AGENT_ID(AGENT_ID), .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-            .ID_FILTER_ENABLE(ID_FILTER_ENABLE), .ID_MATCH_BASE(ID_MATCH_BASE), .ID_MATCH_COUNT(ID_MATCH_COUNT),
             .ADDR_WIDTH(AW), .ID_WIDTH(IW), .IS_READ(0), .IS_AXI(1),
             .ENABLE_PERF_PACKETS(1), .ENABLE_DEBUG_MODULE(0),
             .ENABLE_ERROR_LOGIC(ENABLE_ERROR_LOGIC),

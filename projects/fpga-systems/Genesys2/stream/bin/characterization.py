@@ -115,10 +115,34 @@ CSR_TIMER_W_LAST_HI     = H("TIMER_W_LAST_HI")
 #  were retired in RFC Stage E.4 -- datapath utilization is now read in-core via
 #  the read_bus_meters shim over the STREAM perf CSRs.)
 
-# Engine data width in BYTES per beat. The DMA's AXI bus is 128 bits wide
-# (DATA_WIDTH parameter in stream_top_ch8 / stream_char_top), so each
-# beat moves 16 bytes. expected_beats = total_bytes // DATA_WIDTH_BYTES.
-DATA_WIDTH_BYTES = 16
+# Engine data width in BYTES per beat. 128-bit bus -> 16 B, which is the
+# CURRENT build; the IP's native DATA_WIDTH is 512. Kept only as the fallback
+# for a bitstream too old to report its own width.
+#
+# Every beat count and MB/s figure the host prints is scaled by this, and
+# nothing used to tie it to the build -- so a width change would have scaled
+# all of them by the ratio with no error, and a wrong throughput number is
+# indistinguishable from a real one. Ask the board instead.
+DATA_WIDTH_BYTES_DEFAULT = 16
+DATA_WIDTH_BYTES = DATA_WIDTH_BYTES_DEFAULT   # legacy alias; prefer the fn
+
+
+def data_width_bytes(bridge=None) -> int:
+    """Datapath width in bytes, read from BUILD_CONFIG.DATA_WIDTH_B.
+
+    Falls back to the 16 B default only when the field reads 0 -- i.e. a
+    bitstream built before the field existed. A zero would otherwise divide
+    beat counts by zero, so the fallback is a real case, not defensive noise.
+    """
+    if bridge is None:
+        return DATA_WIDTH_BYTES_DEFAULT
+    try:
+        from harness_addrs import H
+        raw = bridge.read32(H["BUILD_CONFIG"])
+        w = (raw >> 8) & 0xFF
+        return w if w else DATA_WIDTH_BYTES_DEFAULT
+    except Exception:
+        return DATA_WIDTH_BYTES_DEFAULT
 
 EXPECTED_BUILD_ID   = 0x5354_5243
 

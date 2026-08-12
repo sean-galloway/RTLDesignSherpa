@@ -128,7 +128,7 @@ async def cocotb_test_reg_walk(dut):
     # control registers while reporting monitor results.
     tb = StreamCoreTB(dut)   # width auto-sized from the register map
     await tb.setup_clocks_and_reset()
-    await tb.init_apb_master()
+    await tb.init_apb4_master()
 
     regs = _regmap()
     fails, checked, skipped = [], 0, 0

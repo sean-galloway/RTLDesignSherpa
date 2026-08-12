@@ -111,6 +111,117 @@ def rd(b, addr, label):
     return val
 
 
+def dump_status(b):
+    """Read and interpret EVERY status register, given an open bridge.
+
+    Split out of main() so a FAILING test can call it. A perf run that
+    times out and prints only "TIMEOUT" throws away every diagnostic the
+    hardware is already holding -- and by the time anyone reads them by
+    hand the board has usually been re-run, so the counters are stale and
+    the sticky bits belong to a different attempt. The registers exist;
+    the failure path should read them.
+    """
+    print("=== Harness CSRs ===")
+    bid = rd(b, CSR_BUILD_ID,     "BUILD_ID")
+    sts = rd(b, CSR_STATUS,       "CSR_STATUS")
+    rd(b, CSR_DBG_WR_PTR,         "DBG_WR_PTR")
+    rd(b, CSR_DBG_OVERFLOW,       "DBG_OVERFLOW")
+    rd(b, CSR_CRC_RD_EXP,         "CRC_RD_EXPECTED")
+    rd(b, CSR_CRC_WR_EXP,         "CRC_WR_EXPECTED")
+    rd(b, CSR_CRC_WR_COMP,        "CRC_WR_COMPUTED")
+    rd(b, CSR_CRC_MATCH,          "CRC_MATCH")
+
+    if sts is not None:
+        print(f"    bits: irq={(sts>>0)&1}  "
+              f"err={(sts>>1)&1}  overflow={(sts>>2)&1}")
+
+    print("\n=== STREAM APB ===")
+    rd(b, APB_GLOBAL_CTRL,    "GLOBAL_CTRL")
+    gs  = rd(b, APB_GLOBAL_STATUS,  "GLOBAL_STATUS")
+    rd(b, APB_CHANNEL_ENABLE, "CHANNEL_ENABLE")
+    rd(b, APB_CHANNEL_RESET,  "CHANNEL_RESET")
+    rd(b, APB_SCHED_CONFIG,   "SCHED_CONFIG")
+    se  = rd(b, APB_SCHED_ERROR,    "SCHED_ERROR")
+    mfs = rd(b, APB_MON_FIFO_STAT,  "MON_FIFO_STATUS")
+    rd(b, APB_DESCENG_CFG,    "DESCENG_CONFIG")
+    rd(b, APB_AXI_XFER_CFG,   "AXI_XFER_CONFIG")
+
+    # Channel kick-LOW (read-back is just the value last written)
+    print("\n=== Channel kick LOW words (last written values) ===")
+    for ch in range(8):
+        rd(b, A(f"CH{ch}_CTRL_LOW"), f"CH{ch}_KICK_LO")
+
+    print("\n=== desc_ram observation (host AXIL writes / STREAM AXI4 reads) ===")
+    ar_hs   = rd(b, CSR_DESC_AR_HS,    "DESC_AR_HS")
+    ar_st   = rd(b, CSR_DESC_AR_STALL, "DESC_AR_STALL")
+    r_hs    = rd(b, CSR_DESC_R_HS,     "DESC_R_HS")
+    r_st    = rd(b, CSR_DESC_R_STALL,  "DESC_R_STALL")
+    rd(b, CSR_DESC_AW_HS, "DESC_AW_HS")
+    rd(b, CSR_DESC_W_HS,  "DESC_W_HS")
+    rd(b, CSR_DESC_B_HS,  "DESC_B_HS")
+    live = rd(b, CSR_DESC_VR_LIVE, "DESC_VR_LIVE")
+
+    if live is not None:
+        asserted = [name for bit, name in DESC_VR_BITS if live & (1 << bit)]
+        print(f"    live asserted: {', '.join(asserted) if asserted else '(none)'}")
+
+    # ---- STREAM channel-observation mux ----
+    # Walk all 8 channels under each of the 4 categories, printing the
+    # decoded obs_flags + the two cat-dependent data words. This is the
+    # primary tool for answering "why is ch0 stuck?" since the mux
+    # surfaces scheduler FSM state, read/write valid/ready, beats
+    # remaining, addresses, and per-channel SRAM occupancy.
+    print("\n=== STREAM channel-observation mux (0x2C0..0x2CC) ===")
+    for ch in range(8):
+        for cat in range(4):
+            # OBS_CTRL by name: CAT_SEL[4:3]=cat, CH_SEL[2:0]=ch.
+            # compose("OBS_CTRL", CAT_SEL=cat, CH_SEL=ch) == (cat<<3)|(ch&0x7).
+            write_reg(b, "OBS_CTRL", CAT_SEL=cat, CH_SEL=ch)
+            flags = b.read(APB_OBS_FLAGS)
+            d0    = b.read(APB_OBS_DATA0)
+            d1    = b.read(APB_OBS_DATA1)
+            cat_name = OBS_CAT_NAMES.get(cat, f"cat{cat}")
+            state = flags & 0x7F
+            hot_bits = [name for bit, name in OBS_FLAG_BITS if flags & (1 << bit)]
+            if cat == 0:
+                print(f"  ch{ch} {cat_name:<7}  state={state:#04x}  "
+                      f"rd_beats={d0:#x}  wr_beats={d1:#x}  "
+                      f"flags=[{', '.join(hot_bits)}]")
+            elif cat == 1:
+                print(f"  ch{ch} {cat_name:<7}  src_addr=0x{d1:08X}{d0:08X}")
+            elif cat == 2:
+                print(f"  ch{ch} {cat_name:<7}  dst_addr=0x{d1:08X}{d0:08X}")
+            elif cat == 3:
+                print(f"  ch{ch} {cat_name:<7}  rd_space_free={d0}  wr_data_avail={d1}")
+
+    # Diagnose where the desc path is stuck. If you only see one of
+    # these prints, that's the loudest signal.
+    if ar_hs is not None and ar_hs == 0 and ar_st is not None and ar_st > 0:
+        print(f"** desc_ram never granted AR ({ar_st} stall cycles) "
+              "— SRAM stuck or upstream arbiter blocking.")
+    elif ar_hs is not None and ar_hs > 0 and r_hs is not None and r_hs == 0:
+        print(f"** desc_ram accepted {ar_hs} AR but produced 0 R "
+              "— SRAM is the bottleneck.")
+    elif r_hs is not None and r_st is not None and r_st > 0 and r_hs > 0 \
+            and r_st > r_hs * 4:
+        print(f"** STREAM stalled R for {r_st} cycles vs {r_hs} delivered "
+              "— STREAM read path / desc skid full.")
+
+    print()
+    if sts is not None and (sts & 0x02):
+        print("** CSR_STATUS error bit set — design flagged an error.")
+    if mfs is not None and (mfs != 0):
+        print(f"** MON_FIFO_STATUS = 0x{mfs:08X} (non-zero) "
+              "— monitor bus has packets queued.")
+    if se is not None and (se != 0):
+        print(f"** SCHED_ERROR = 0x{se:08X} — scheduler reported error.")
+    if gs is not None and (gs != 0):
+        print(f"** GLOBAL_STATUS = 0x{gs:08X} — see stream_regmap.py "
+              "GLOBAL_STATUS for bit decode.")
+
+
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", default='auto')
@@ -120,104 +231,7 @@ def main():
     args.port = autodetect_port(args.baud, want=args.port)
 
     with UARTAxiBridge(args.port, args.baud) as b:
-        print("=== Harness CSRs ===")
-        bid = rd(b, CSR_BUILD_ID,     "BUILD_ID")
-        sts = rd(b, CSR_STATUS,       "CSR_STATUS")
-        rd(b, CSR_DBG_WR_PTR,         "DBG_WR_PTR")
-        rd(b, CSR_DBG_OVERFLOW,       "DBG_OVERFLOW")
-        rd(b, CSR_CRC_RD_EXP,         "CRC_RD_EXPECTED")
-        rd(b, CSR_CRC_WR_EXP,         "CRC_WR_EXPECTED")
-        rd(b, CSR_CRC_WR_COMP,        "CRC_WR_COMPUTED")
-        rd(b, CSR_CRC_MATCH,          "CRC_MATCH")
-
-        if sts is not None:
-            print(f"    bits: irq={(sts>>0)&1}  "
-                  f"err={(sts>>1)&1}  overflow={(sts>>2)&1}")
-
-        print("\n=== STREAM APB ===")
-        rd(b, APB_GLOBAL_CTRL,    "GLOBAL_CTRL")
-        gs  = rd(b, APB_GLOBAL_STATUS,  "GLOBAL_STATUS")
-        rd(b, APB_CHANNEL_ENABLE, "CHANNEL_ENABLE")
-        rd(b, APB_CHANNEL_RESET,  "CHANNEL_RESET")
-        rd(b, APB_SCHED_CONFIG,   "SCHED_CONFIG")
-        se  = rd(b, APB_SCHED_ERROR,    "SCHED_ERROR")
-        mfs = rd(b, APB_MON_FIFO_STAT,  "MON_FIFO_STATUS")
-        rd(b, APB_DESCENG_CFG,    "DESCENG_CONFIG")
-        rd(b, APB_AXI_XFER_CFG,   "AXI_XFER_CONFIG")
-
-        # Channel kick-LOW (read-back is just the value last written)
-        print("\n=== Channel kick LOW words (last written values) ===")
-        for ch in range(8):
-            rd(b, A(f"CH{ch}_CTRL_LOW"), f"CH{ch}_KICK_LO")
-
-        print("\n=== desc_ram observation (host AXIL writes / STREAM AXI4 reads) ===")
-        ar_hs   = rd(b, CSR_DESC_AR_HS,    "DESC_AR_HS")
-        ar_st   = rd(b, CSR_DESC_AR_STALL, "DESC_AR_STALL")
-        r_hs    = rd(b, CSR_DESC_R_HS,     "DESC_R_HS")
-        r_st    = rd(b, CSR_DESC_R_STALL,  "DESC_R_STALL")
-        rd(b, CSR_DESC_AW_HS, "DESC_AW_HS")
-        rd(b, CSR_DESC_W_HS,  "DESC_W_HS")
-        rd(b, CSR_DESC_B_HS,  "DESC_B_HS")
-        live = rd(b, CSR_DESC_VR_LIVE, "DESC_VR_LIVE")
-
-        if live is not None:
-            asserted = [name for bit, name in DESC_VR_BITS if live & (1 << bit)]
-            print(f"    live asserted: {', '.join(asserted) if asserted else '(none)'}")
-
-        # ---- STREAM channel-observation mux ----
-        # Walk all 8 channels under each of the 4 categories, printing the
-        # decoded obs_flags + the two cat-dependent data words. This is the
-        # primary tool for answering "why is ch0 stuck?" since the mux
-        # surfaces scheduler FSM state, read/write valid/ready, beats
-        # remaining, addresses, and per-channel SRAM occupancy.
-        print("\n=== STREAM channel-observation mux (0x2C0..0x2CC) ===")
-        for ch in range(8):
-            for cat in range(4):
-                # OBS_CTRL by name: CAT_SEL[4:3]=cat, CH_SEL[2:0]=ch.
-                # compose("OBS_CTRL", CAT_SEL=cat, CH_SEL=ch) == (cat<<3)|(ch&0x7).
-                write_reg(b, "OBS_CTRL", CAT_SEL=cat, CH_SEL=ch)
-                flags = b.read(APB_OBS_FLAGS)
-                d0    = b.read(APB_OBS_DATA0)
-                d1    = b.read(APB_OBS_DATA1)
-                cat_name = OBS_CAT_NAMES.get(cat, f"cat{cat}")
-                state = flags & 0x7F
-                hot_bits = [name for bit, name in OBS_FLAG_BITS if flags & (1 << bit)]
-                if cat == 0:
-                    print(f"  ch{ch} {cat_name:<7}  state={state:#04x}  "
-                          f"rd_beats={d0:#x}  wr_beats={d1:#x}  "
-                          f"flags=[{', '.join(hot_bits)}]")
-                elif cat == 1:
-                    print(f"  ch{ch} {cat_name:<7}  src_addr=0x{d1:08X}{d0:08X}")
-                elif cat == 2:
-                    print(f"  ch{ch} {cat_name:<7}  dst_addr=0x{d1:08X}{d0:08X}")
-                elif cat == 3:
-                    print(f"  ch{ch} {cat_name:<7}  rd_space_free={d0}  wr_data_avail={d1}")
-
-        # Diagnose where the desc path is stuck. If you only see one of
-        # these prints, that's the loudest signal.
-        if ar_hs is not None and ar_hs == 0 and ar_st is not None and ar_st > 0:
-            print(f"** desc_ram never granted AR ({ar_st} stall cycles) "
-                  "— SRAM stuck or upstream arbiter blocking.")
-        elif ar_hs is not None and ar_hs > 0 and r_hs is not None and r_hs == 0:
-            print(f"** desc_ram accepted {ar_hs} AR but produced 0 R "
-                  "— SRAM is the bottleneck.")
-        elif r_hs is not None and r_st is not None and r_st > 0 and r_hs > 0 \
-                and r_st > r_hs * 4:
-            print(f"** STREAM stalled R for {r_st} cycles vs {r_hs} delivered "
-                  "— STREAM read path / desc skid full.")
-
-        print()
-        if sts is not None and (sts & 0x02):
-            print("** CSR_STATUS error bit set — design flagged an error.")
-        if mfs is not None and (mfs != 0):
-            print(f"** MON_FIFO_STATUS = 0x{mfs:08X} (non-zero) "
-                  "— monitor bus has packets queued.")
-        if se is not None and (se != 0):
-            print(f"** SCHED_ERROR = 0x{se:08X} — scheduler reported error.")
-        if gs is not None and (gs != 0):
-            print(f"** GLOBAL_STATUS = 0x{gs:08X} — see stream_regmap.py "
-                  "GLOBAL_STATUS for bit decode.")
-
+        dump_status(b)
 
 if __name__ == "__main__":
     sys.exit(main() or 0)

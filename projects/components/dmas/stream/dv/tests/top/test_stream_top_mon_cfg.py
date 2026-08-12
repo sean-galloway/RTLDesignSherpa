@@ -169,7 +169,7 @@ async def cocotb_test_mon_cfg_hookup(dut):
     # hookup failure.
     tb = StreamCoreTB(dut, apb_addr_width=13)
     await tb.setup_clocks_and_reset()
-    await tb.init_apb_master()
+    await tb.init_apb4_master()
 
     core = _core_node(dut, tb.log)
     regs = _regmap()
