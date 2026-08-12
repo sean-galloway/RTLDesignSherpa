@@ -313,12 +313,12 @@ module rlb_top #(
     // ========================================================================
     // APB Crossbar
     // ========================================================================
-    apb4_xbar_rlb_1to10 #(
+    apbx_xbar_rlb_1to10 #(
         .ADDR_WIDTH (ADDR_WIDTH),
         .DATA_WIDTH (DATA_WIDTH),
         .STRB_WIDTH (STRB_WIDTH),
         .BASE_ADDR  (BASE_ADDR)
-    ) u_apb4_xbar (
+    ) u_apbx_xbar (
         .pclk           (pclk),
         .presetn        (presetn),
 

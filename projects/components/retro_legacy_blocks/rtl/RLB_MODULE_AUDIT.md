@@ -46,7 +46,7 @@ Audited 5 RLB modules with APB interfaces to verify consistent architecture patt
 - **ioapic** - No APB wrapper yet
 - **pm_acpi** - No APB wrapper yet
 - **rlb_top** - Integration module, not a standalone peripheral
-- **apb4_xbar** - Crossbar, different purpose
+- **apbx_xbar** - Crossbar, different purpose
 
 ---
 

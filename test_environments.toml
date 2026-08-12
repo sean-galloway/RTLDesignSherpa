@@ -116,7 +116,7 @@ coverage_report_target = "coverage-report"
 # --- APB Crossbar ---
 [env.apb-xbar]
 description = "APB crossbar"
-directory = "projects/components/apb4_xbar/dv/tests"
+directory = "projects/components/apbx_xbar/dv/tests"
 coverage = true
 
 # --- Retro Legacy Blocks ---

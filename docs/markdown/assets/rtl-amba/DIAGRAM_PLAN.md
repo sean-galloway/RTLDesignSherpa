@@ -164,7 +164,7 @@ Main AXI4 master/slave interfaces.
 | apb/apb4_slave_cdc.md | apb4_slave_cdc | High | [ ] Pending |
 | apb/apb4_monitor.md | apb4_monitor | Medium | [ ] Pending |
 | apb/apb_crossbar.md | apb_crossbar | High | [ ] Pending |
-| apb/apb4_xbar.md | apb4_xbar | High | [ ] Pending |
+| apb/apbx_xbar.md | apbx_xbar | High | [ ] Pending |
 | apb/apb4_master_cg.md | apb4_master_cg | Low | [ ] Pending |
 | apb/apb4_slave_cg.md | apb4_slave_cg | Low | [ ] Pending |
 | apb/apb4_slave_cdc_cg.md | apb4_slave_cdc_cg | Low | [ ] Pending |

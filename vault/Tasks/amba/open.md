@@ -101,18 +101,18 @@ Add optional filtering capabilities to reduce monitor packet traffic.
 **Objective:** Get all APB crossbar variants working and tested
 
 **Background:**
-- APB thin crossbar (apb4_xbar_thin_wrap) is functional and tested
+- APB thin crossbar (apbx_xbar_thin_wrap) is functional and tested
 - Buffered/full variants may have issues
 - Need comprehensive testing of all variants
 
 **Requirements:**
 
 1. **Verify Thin Variant (Complete)**
-   - ✅ test_apb4_xbar thin variant PASSED
+   - ✅ test_apbx_xbar thin variant PASSED
    - Works as baseline reference
 
 2. **Fix/Verify Buffered Variants**
-   - Test apb4_xbar with buffering enabled
+   - Test apbx_xbar with buffering enabled
    - Identify and fix any issues
    - Verify backpressure handling
 
@@ -203,7 +203,7 @@ spine, here are the axes, here are the tweaks."
 **Priority:** P2 (nothing depends on them, but `make verilator` at rtl/ is RED)
 
 `rtl/integ_amba/examples/apb4_peripheral_subsystem.sv` (340 lines) and
-`apb4_xbar_monitored.sv` (364) do not elaborate: **51 Verilator errors**, all
+`apbx_xbar_monitored.sv` (364) do not elaborate: **51 Verilator errors**, all
 PINNOTFOUND. They instantiate `apb4_monitor` with an interface it no longer has.
 
 | the examples pass | `apb4_monitor` actually takes |
@@ -241,8 +241,8 @@ So the correct structure is to insert a bridge and tap it:
     raw APB ──> apb4_slave ──cmd/rsp──> fabric
                      └── tap cmd_*/rsp_* ──> apb4_monitor ──> monbus
 
-`apb4_xbar_thin` is raw-APB on both sides (lowercase `s_apb_psel`/`m_apb_psel`),
-which is why `apb4_xbar_monitored` has raw APB in hand and feeds it straight to a
+`apbx_xbar_thin` is raw-APB on both sides (lowercase `s_apb_psel`/`m_apb_psel`),
+which is why `apbx_xbar_monitored` has raw APB in hand and feeds it straight to a
 monitor that stopped accepting it.
 
 ### Decide first, then do
@@ -341,7 +341,7 @@ an index, not storage). Most of the 366 `.f` follow this
 
 **Loose `.f` directly beside RTL, no `filelists/` subdir:**
 - [ ] `projects/components/retro_legacy_blocks/rtl/rlb_top/rlb_top.f`
-- [ ] `projects/components/retro_legacy_blocks/rtl/apb4_xbar/apb4_xbar_rlb_1to10.f`
+- [ ] `projects/components/retro_legacy_blocks/rtl/apbx_xbar/apbx_xbar_rlb_1to10.f`
 - [ ] `projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/ddr2_char_macro.f`
 
 **TB/harness `.f` -- RESOLVED (Sean, 2026-07-24):** a testbench with its own

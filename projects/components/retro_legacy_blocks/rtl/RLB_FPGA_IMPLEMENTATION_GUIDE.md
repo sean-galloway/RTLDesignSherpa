@@ -185,7 +185,7 @@ All RLB modules are **100% compatible** with Nexys A7 and Genesys2 FPGAs.
 │         │ APB                                            │
 │         ▼                                                │
 │  ┌──────────────────────────────────────┐              │
-│  │ APB Crossbar (apb4_xbar)              │              │
+│  │ APB Crossbar (apbx_xbar)              │              │
 │  └──┬───┬───┬───┬───┬───┬───┬──────────┘              │
 │     │   │   │   │   │   │   │                           │
 │   ┌─▼─┐ │   │   │   │   │   │   [More peripherals]     │
@@ -449,7 +449,7 @@ endmodule
 
 1. **Create FPGA project** (Vivado for Xilinx)
 2. **Add simple processor** (MicroBlaze or RISC-V)
-3. **Add APB crossbar** components/apb4_xbar/
+3. **Add APB crossbar** components/apbx_xbar/
 4. **Add one RLB module** (start with GPIO)
 5. **Connect to LEDs/switches**
 6. **Test basic register access**

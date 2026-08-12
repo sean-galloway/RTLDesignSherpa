@@ -13,4 +13,4 @@
 - [APB Slave with CDC (Clock-Gated)](apb/apb4_slave_cdc_cg.md)
 - [APB Slave Interface (Clock-Gated)](apb/apb4_slave_cg.md)
 - [apb4_slave_stub](apb/apb4_slave_stub.md)
-- [apb4_xbar_thin](apb/apb4_xbar.md)
+- [apbx_xbar_thin](apb/apbx_xbar.md)

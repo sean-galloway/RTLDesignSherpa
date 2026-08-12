@@ -101,7 +101,7 @@ def get_sources_from_filelist(repo_root, filelist_path):
     ddr2_char = os.path.join(nexys_root, 'ddr2-characterization')
 
     defaults = {
-        'APB_XBAR_ROOT': os.path.join(components_root, 'apb4_xbar'),
+        'APB_XBAR_ROOT': os.path.join(components_root, 'apbx_xbar'),
         'BCH_ROOT': os.path.join(components_root, 'bch'),
         'BRIDGE_ROOT': os.path.join(components_root, 'bridge'),
         'CONVERTERS_ROOT': os.path.join(components_root, 'converters'),

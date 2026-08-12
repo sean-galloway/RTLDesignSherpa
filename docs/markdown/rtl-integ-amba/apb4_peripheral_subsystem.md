@@ -145,7 +145,7 @@ it from rotting again.
 - [apb4_monitor](../rtl-amba/apb4/apb4_monitor.md) - the observer, one per peripheral
 - [apb4_slave](../rtl-amba/apb4/apb4_slave.md) - the bridge that produces the handshake a monitor needs
 - [arbiter_round_robin](../rtl-common/arbiter_round_robin.md) - merges the three monitor buses
-- [apb4_xbar_monitored](apb4_xbar_monitored.md) - the same idea at crossbar scale
+- [apbx_xbar_monitored](apbx_xbar_monitored.md) - the same idea at crossbar scale
 
 ## Navigation
 

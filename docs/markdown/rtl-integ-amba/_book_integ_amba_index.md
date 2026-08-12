@@ -4,4 +4,4 @@
 
 - [rtl-integ-amba Overview](overview.md)
 - [Monitored APB Peripheral Subsystem (`apb4_peripheral_subsystem.sv`)](apb4_peripheral_subsystem.md)
-- [Monitored APB Crossbar (`apb4_xbar_monitored.sv`)](apb4_xbar_monitored.md)
+- [Monitored APB Crossbar (`apbx_xbar_monitored.sv`)](apbx_xbar_monitored.md)

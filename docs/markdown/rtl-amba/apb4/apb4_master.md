@@ -444,11 +444,11 @@ module apb_system (
     // Fixed-configuration generated crossbar: 1 master, 4 slaves.
     // Its master-side ports are m0_apb_* (inputs from this master) and its
     // slave-side ports are sN_apb_* (outputs to the peripherals).
-    apb4_xbar_1to4 #(
+    apbx_xbar_1to4 #(
         .ADDR_WIDTH(32),
         .DATA_WIDTH(32),
         .BASE_ADDR (32'h1000_0000)
-    ) u_apb4_xbar (
+    ) u_apbx_xbar (
         .pclk(clk),
         .presetn(resetn),
         // Master side: driven by the apb4_master above
@@ -600,7 +600,7 @@ See [apb4_master_cg.md](apb4_master_cg.md) for the full interface.
 - **apb4_master_stub**: Packed-interface variant wrapping this module, adds first/last framing
 - **apb4_slave**: APB slave implementation
 - **apb5_master**: APB5 equivalent with `PWAKEUP`, `P*USER` and optional parity
-- **apb4_xbar_1to4 / apb4_xbar_2to4**: Generated APB crossbars for multi-slave systems
+- **apbx_xbar_1to4 / apbx_xbar_2to4**: Generated APB crossbars for multi-slave systems
 - **apb4_monitor**: APB protocol monitor and analyzer
 
 The `apb4_master` module provides a complete, high-performance solution for APB master functionality with advanced buffering, full protocol compliance, and comprehensive system integration capabilities.

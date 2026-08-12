@@ -16,7 +16,7 @@ conftest delegates to `bin/cov_utils/conftest_base.py`. Verified 2026-08-09:
 val/common, val/amba, val/integ_common, val/integ_amba, stream, rapids,
 bridge and converters are all on it. Three areas are not:
 
-- `projects/components/apb4_xbar/dv/tests/Makefile`
+- `projects/components/apbx_xbar/dv/tests/Makefile`
 - `projects/components/retro_legacy_blocks/dv/tests/Makefile`
 - `projects/NexysA7/timing_characterization/dv/tests/Makefile`
 

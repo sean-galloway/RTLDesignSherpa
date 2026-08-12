@@ -508,9 +508,9 @@ Create example designs showing how to integrate monitors in real SoC environment
    - Resource utilization estimates
 
 2. **Example 1: APB Crossbar with Monitors** ✅
-   - File: rtl/integ_amba/examples/apb4_xbar_monitored.sv (400+ lines)
+   - File: rtl/integ_amba/examples/apbx_xbar_monitored.sv (400+ lines)
    - 3 masters × 4 slaves = 7 monitors total
-   - Based on tested apb4_xbar_thin variant (PASSED)
+   - Based on tested apbx_xbar_thin variant (PASSED)
    - Complete monitor coverage (every interface)
    - Round-robin arbiter for aggregation
    - Parameterized agent ID assignment

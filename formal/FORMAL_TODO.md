@@ -16,7 +16,7 @@
 | stream | 19 | 10 | 1 | 2 | 30 |
 | converters | 16 | 0 | 0 | 0 | 16 |
 | bridge | 1 | 0 | 0 | 0 | 1 |
-| apb4_xbar | 5 | 0 | 0 | 0 | 5 |
+| apbx_xbar | 5 | 0 | 0 | 0 | 5 |
 | **Total** | **300** | **19** | **9** | **2** | **329** |
 
 **Notes:**
@@ -36,7 +36,7 @@
       does NOT have it — that unrecorded distinction is what mis-directed the
       2026-08-08 investigation. Verified present 2026-08-09.
 - [x] sv2v transpiler installed at /mnt/data/tools/sv2v (workstation, v0.0.13)
-- [x] Formal directory structure: formal/{common,amba,bridge,stream,converters,apb4_xbar}/
+- [x] Formal directory structure: formal/{common,amba,bridge,stream,converters,apbx_xbar}/
 - [x] Per-module pattern: formal_*.sv (wrapper) + *.sby (config) + Makefile (for sv2v modules)
 - [x] Root Makefile targets: make formal, formal-common, formal-bridge, formal-quick
 - [x] .gitignore for sby output directories
@@ -439,10 +439,10 @@ uart_axil_bridge, uart_rx, uart_tx, axi4_to_axil4, axil4_to_axi4
 
 bridge_1x2_rd (address decode mutex, DDR/SRAM range, AXI handshake model)
 
-### projects/components/apb4_xbar/ -- 5 of 5 PASS
+### projects/components/apbx_xbar/ -- 5 of 5 PASS
 
-apb4_xbar_wrap_1x2, apb4_xbar_wrap_1x3, apb4_xbar_wrap_2x3,
-apb4_xbar_wrap_3x3, apb4_xbar_wrap_4x4
+apbx_xbar_wrap_1x2, apbx_xbar_wrap_1x3, apbx_xbar_wrap_2x3,
+apbx_xbar_wrap_3x3, apbx_xbar_wrap_4x4
 
 ---
 

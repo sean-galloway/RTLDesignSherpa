@@ -224,14 +224,14 @@ of work.
 - [ ] **bridge** — `rtl/filelists_static/` → `filelists/` (or justify "static")
 - [ ] **rapids_char** (NexysA7) — `flows-rapids-beats/flists/` → `filelists/`
 - [ ] **retro_legacy_blocks** — loose `rtl/rlb_top/rlb_top.f`,
-      `rtl/apb4_xbar/apb4_xbar_rlb_1to10.f` → `filelists/` subdirs
+      `rtl/apbx_xbar/apbx_xbar_rlb_1to10.f` → `filelists/` subdirs
 - [ ] **ddr2_char** (NexysA7) — loose `rtl/ddr2_char_macro.f` → `filelists/`;
       the `dv/` harness `.f` get a `filelists/` dir WITH the TB
 - [ ] **pumice** — `dv/tb/*_tb_top.f` → a `filelists/` dir with the TB.
       **⚠️ PUMICE PUSHES FROM SEAN'S WORKSTATION, not this environment**
       (Sean, 2026-07-24) — make the pumice changes but do NOT push them; Sean
       pushes pumice from the workstation. See Tasks/pumice.
-- [ ] the remaining components (converters, delta, hive, misc, apb4_xbar,
+- [ ] the remaining components (converters, delta, hive, misc, apbx_xbar,
       dmas/{stream,rapids}, memory-controllers/{ddr3,ddr4}) get the same
       treatment as they are reached.
 

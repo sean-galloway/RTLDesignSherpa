@@ -120,52 +120,52 @@ components
 │                   └── hpet_regs.sv
 │                       ├── hpet_regs.sv
 │                       └── hpet_regs_pkg.sv
-├── apb4_xbar
+├── apbx_xbar
 │   ├── CLAUDE.md
 │   ├── PRD.md
 │   ├── README.md
 │   ├── bin
 │   │   └── generate_xbars.py
 │   ├── docs
-│   │   └── apb4_xbar_spec
+│   │   └── apbx_xbar_spec
 │   ├── dv
 │   │   └── tests
 │   │       ├── Makefile
 │   │       ├── conftest.py
-│   │       ├── test_apb4_xbar_1to1.py
-│   │       ├── test_apb4_xbar_1to4.py
-│   │       ├── test_apb4_xbar_2to1.py
-│   │       ├── test_apb4_xbar_2to4.py
+│   │       ├── test_apbx_xbar_1to1.py
+│   │       ├── test_apbx_xbar_1to4.py
+│   │       ├── test_apbx_xbar_2to1.py
+│   │       ├── test_apbx_xbar_2to4.py
 │   │       └── GTKW
 │   │           ├── ap_xbar.gtkw
-│   │           └── apb4_xbar_2_to_4.gtkw
+│   │           └── apbx_xbar_2_to_4.gtkw
 │   ├── rtl
 │   │   ├── Makefile
-│   │   ├── apb4_xbar_1to1.sv
-│   │   ├── apb4_xbar_1to4.sv
-│   │   ├── apb4_xbar_2to1.sv
-│   │   ├── apb4_xbar_2to4.sv
-│   │   ├── apb4_xbar_thin.sv
+│   │   ├── apbx_xbar_1to1.sv
+│   │   ├── apbx_xbar_1to4.sv
+│   │   ├── apbx_xbar_2to1.sv
+│   │   ├── apbx_xbar_2to4.sv
+│   │   ├── apbx_xbar_thin.sv
 │   │   ├── filelists
 │   │   │   ├── core
-│   │   │   │   ├── apb4_xbar_1to1.f
-│   │   │   │   ├── apb4_xbar_1to4.f
-│   │   │   │   ├── apb4_xbar_2to1.f
-│   │   │   │   ├── apb4_xbar_2to4.f
-│   │   │   │   └── apb4_xbar_common.f
+│   │   │   │   ├── apbx_xbar_1to1.f
+│   │   │   │   ├── apbx_xbar_1to4.f
+│   │   │   │   ├── apbx_xbar_2to1.f
+│   │   │   │   ├── apbx_xbar_2to4.f
+│   │   │   │   └── apbx_xbar_common.f
 │   │   │   └── wrapper
-│   │   │       ├── apb4_xbar_1to1_wrap.f
-│   │   │       ├── apb4_xbar_1to4_wrap.f
-│   │   │       ├── apb4_xbar_2to1_wrap.f
-│   │   │       └── apb4_xbar_2to4_wrap.f
+│   │   │       ├── apbx_xbar_1to1_wrap.f
+│   │   │       ├── apbx_xbar_1to4_wrap.f
+│   │   │       ├── apbx_xbar_2to1_wrap.f
+│   │   │       └── apbx_xbar_2to4_wrap.f
 │   │   └── wrappers
-│   │       ├── apb4_xbar_1to1_wrap.sv
-│   │       ├── apb4_xbar_1to4_wrap.sv
-│   │       ├── apb4_xbar_2to1_wrap.sv
-│   │       ├── apb4_xbar_2to4_wrap.sv
-│   │       ├── apb4_xbar_thin_wrap_m10_s10.sv
-│   │       ├── apb4_xbar_wrap.sv
-│   │       └── apb4_xbar_wrap_m10_s10.sv
+│   │       ├── apbx_xbar_1to1_wrap.sv
+│   │       ├── apbx_xbar_1to4_wrap.sv
+│   │       ├── apbx_xbar_2to1_wrap.sv
+│   │       ├── apbx_xbar_2to4_wrap.sv
+│   │       ├── apbx_xbar_thin_wrap_m10_s10.sv
+│   │       ├── apbx_xbar_wrap.sv
+│   │       └── apbx_xbar_wrap_m10_s10.sv
 │   └── val
 │       └── integ_amba
 ├── bridge

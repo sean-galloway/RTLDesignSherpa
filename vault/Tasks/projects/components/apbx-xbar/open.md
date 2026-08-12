@@ -2,23 +2,23 @@
 
 # apbx-xbar — Open
 
-## APBX-001 — Generalize apb4_xbar to apbx_xbar (APB4 / APB5 / mixed)
+## APBX-001 — Generalize apbx_xbar to apbx_xbar (APB4 / APB5 / mixed)
 **Status:** open 2026-08-12
 **Priority:** P2
 **Owner:** TBD
 
-Owner request: "update apb4_xbar to apbX_xbar and have it be apb4 or
+Owner request: "update apbx_xbar to apbX_xbar and have it be apb4 or
 apb5 and possibly mixed." Lowercase `apbx` in module/file names per
 house style; the X reads as the protocol-version wildcard.
 
 **Current shape (surveyed):** parameterized MxS core
-`apb4_xbar_thin` (203 lines, vectored discrete APB4 signals, WRR
+`apbx_xbar_thin` (203 lines, vectored discrete APB4 signals, WRR
 arbiter thresholds, runtime SLAVE_ENABLE/BASE/LIMIT decode) + a
-Python generator (`bin/apb4_xbar_generator.py`, 574 lines +
+Python generator (`bin/apbx_xbar_generator.py`, 574 lines +
 `generate_xbars.py`) emitting sized variants (1to1/1to4/2to1/2to4)
 and `_wrap` wrappers. Consumers outside the component: RLB's own
-`apb4_xbar_rlb_1to10.sv` (instantiates the thin core),
-`rtl/integ_amba/examples/apb4_xbar_monitored.sv`, env_python's
+`apbx_xbar_rlb_1to10.sv` (instantiates the thin core),
+`rtl/integ_amba/examples/apbx_xbar_monitored.sv`, env_python's
 `APB_XBAR_ROOT`, `bin/filelists.toml` area, filelist registry, docs
 assets (mmd/svg) and overview pages, `.claude/settings.json`.
 
@@ -44,7 +44,7 @@ assets (mmd/svg) and overview pages, `.claude/settings.json`.
   rest inside. All-apb4 configs regenerate today's surfaces exactly
   (modulo the module rename) — that is the regression bar.
 - *Naming/moves*: component dir -> `projects/components/apbx_xbar`;
-  all `apb4_xbar_*` modules/files/filelists/tests ->
+  all `apbx_xbar_*` modules/files/filelists/tests ->
   `apbx_xbar_*`; consumers updated (RLB rlb_1to10 instantiation +
   its own module name stays RLB-owned, integ example, env_python
   APB_XBAR_ROOT, filelists.toml area entry + registry, docs assets +

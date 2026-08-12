@@ -39,7 +39,7 @@ to demonstrate -- and why the RTL currently does not build -- start at
 - **[apb4_peripheral_subsystem](apb4_peripheral_subsystem.md)** - one APB master
   fanned out to three peripherals (regfile / timer / GPIO), each with its own
   monitor, and the monitor buses arbitrated onto one 64-bit monbus output
-- **[apb4_xbar_monitored](apb4_xbar_monitored.md)** - `apb4_xbar_thin` with a
+- **[apbx_xbar_monitored](apbx_xbar_monitored.md)** - `apbx_xbar_thin` with a
   monitor on every master and slave port, agent-ID tagged per port
 
 ## Related
@@ -50,8 +50,8 @@ to demonstrate -- and why the RTL currently does not build -- start at
   - the bridges that translate the wire into that handshake
 - [arbiter_round_robin](../rtl-common/arbiter_round_robin.md) - fair arbitration
   over the per-port monitor buses
-- `apb4_xbar_thin` lives in `projects/components/apb4_xbar`, so
-  `apb4_xbar_monitored` depends on a project area from under `rtl/` -- a backwards
+- `apbx_xbar_thin` lives in `projects/components/apbx_xbar`, so
+  `apbx_xbar_monitored` depends on a project area from under `rtl/` -- a backwards
   dependency, noted in its filelist
 
 ## Navigation

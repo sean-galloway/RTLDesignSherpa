@@ -11,7 +11,7 @@ Projects are organized by FPGA development board:
 ```
 projects/
 ├── components/        # Reusable RTL components / IP (see components/README.md)
-│   ├── apb4_xbar/  bridge/  converters/  delta/  hive/
+│   ├── apbx_xbar/  bridge/  converters/  delta/  hive/
 │   ├── memory-controllers/  misc/  rapids/  retro_legacy_blocks/  stream/
 │   └── ...
 ├── NexysA7/           # Digilent Nexys A7-100T projects
@@ -228,7 +228,7 @@ When adding new projects:
 | Component | Status | Docs |
 |-----------|--------|------|
 | [converters](components/converters/) | Production Ready | [README](components/converters/README.md) |
-| [apb4_xbar](components/apb4_xbar/) | Production Ready | [PRD](components/apb4_xbar/PRD.md) |
+| [apbx_xbar](components/apbx_xbar/) | Production Ready | [PRD](components/apbx_xbar/PRD.md) |
 | [stream](components/dmas/stream/) | Active | [PRD](components/dmas/stream/PRD.md) · char: [report](NexysA7/stream_characterization/docs/characterization_v1_findings.md) |
 | [rapids](components/dmas/rapids/) | Active | [PRD](components/dmas/rapids/PRD.md) · [spec](components/dmas/rapids/docs/) · char: [report](NexysA7/rapids_characterization/docs/rapids_characterization_findings.md) |
 | [bridge](components/bridge/) | Active | [PRD](components/bridge/PRD.md) |

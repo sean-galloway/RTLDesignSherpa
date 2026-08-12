@@ -26,7 +26,7 @@
 **Version:** 1.1
 **Last Updated:** 2026-07-19
 **Status:** Production Ready
-**Location:** `projects/components/apb4_xbar/`
+**Location:** `projects/components/apbx_xbar/`
 
 ---
 
@@ -47,18 +47,18 @@
 
 ## Overview
 
-The APB crossbar family provides scalable interconnect solutions for connecting multiple APB masters to multiple APB slaves. All crossbar variants are generated using the `apb4_xbar_generator.py` tool and share a common architecture based on `apb4_slave` and `apb4_master` building blocks.
+The APB crossbar family provides scalable interconnect solutions for connecting multiple APB masters to multiple APB slaves. All crossbar variants are generated using the `apbx_xbar_generator.py` tool and share a common architecture based on `apb4_slave` and `apb4_master` building blocks.
 
 **Where things live.** The crossbar RTL, generator, and testbenches are in the
-`apb4_xbar` component area, not under `rtl/amba/apb4/`:
+`apbx_xbar` component area, not under `rtl/amba/apb4/`:
 
 | Artifact | Path |
 |----------|------|
-| Generated RTL | `projects/components/apb4_xbar/rtl/` |
-| Generator | `projects/components/apb4_xbar/bin/apb4_xbar_generator.py` |
-| Convenience script | `projects/components/apb4_xbar/bin/generate_xbars.py` |
-| Testbenches | `projects/components/apb4_xbar/dv/tests/` |
-| Formal | `formal/apb4_xbar/` |
+| Generated RTL | `projects/components/apbx_xbar/rtl/` |
+| Generator | `projects/components/apbx_xbar/bin/apbx_xbar_generator.py` |
+| Convenience script | `projects/components/apbx_xbar/bin/generate_xbars.py` |
+| Testbenches | `projects/components/apbx_xbar/dv/tests/` |
+| Formal | `formal/apbx_xbar/` |
 
 The APB4 primitives they are built from (`apb4_slave`, `apb4_master`) do live in
 `rtl/amba/apb4/`, which is why this specification is published in the APB4 book.
@@ -109,7 +109,7 @@ flowchart LR
 ### Component Hierarchy
 
 ```
-apb4_xbar_MtoN
+apbx_xbar_MtoN
 ├── apb4_slave (M instances)
 │   ├── APB protocol → cmd/rsp conversion
 │   ├── Command FIFO buffering
@@ -161,15 +161,15 @@ apb4_xbar_MtoN
 
 | Module | Masters | Slaves | Primary Use Case | File |
 |--------|---------|--------|------------------|------|
-| `apb4_xbar_1to1` | 1 | 1 | Basic passthrough, protocol conversion | `projects/components/apb4_xbar/rtl/apb4_xbar_1to1.sv` |
-| `apb4_xbar_2to1` | 2 | 1 | Simple arbitration testing | `projects/components/apb4_xbar/rtl/apb4_xbar_2to1.sv` |
-| `apb4_xbar_1to4` | 1 | 4 | Address decode testing, simple bus | `projects/components/apb4_xbar/rtl/apb4_xbar_1to4.sv` |
-| `apb4_xbar_2to4` | 2 | 4 | Full crossbar with arbitration + decode | `projects/components/apb4_xbar/rtl/apb4_xbar_2to4.sv` |
-| `apb4_xbar_thin` | M | S | Fully parameterized combinational crossbar (different architecture) | `projects/components/apb4_xbar/rtl/apb4_xbar_thin.sv` |
+| `apbx_xbar_1to1` | 1 | 1 | Basic passthrough, protocol conversion | `projects/components/apbx_xbar/rtl/apbx_xbar_1to1.sv` |
+| `apbx_xbar_2to1` | 2 | 1 | Simple arbitration testing | `projects/components/apbx_xbar/rtl/apbx_xbar_2to1.sv` |
+| `apbx_xbar_1to4` | 1 | 4 | Address decode testing, simple bus | `projects/components/apbx_xbar/rtl/apbx_xbar_1to4.sv` |
+| `apbx_xbar_2to4` | 2 | 4 | Full crossbar with arbitration + decode | `projects/components/apbx_xbar/rtl/apbx_xbar_2to4.sv` |
+| `apbx_xbar_thin` | M | S | Fully parameterized combinational crossbar (different architecture) | `projects/components/apbx_xbar/rtl/apbx_xbar_thin.sv` |
 
-`apb4_xbar_thin` is **not** a generated variant and does not share this
+`apbx_xbar_thin` is **not** a generated variant and does not share this
 architecture -- it is a combinational passthrough with weighted round-robin and
-no cmd/rsp conversion. See [apb4_xbar.md](apb4_xbar.md).
+no cmd/rsp conversion. See [apbx_xbar.md](apbx_xbar.md).
 
 ### Feature Comparison
 
@@ -208,22 +208,22 @@ quoted here. Measure it for your slave's wait-state behaviour if it matters.
 
 ### Selecting a Crossbar
 
-**Use `apb4_xbar_1to1` when:**
+**Use `apbx_xbar_1to1` when:**
 - Single master and single slave
 - Need protocol conversion (APB → cmd/rsp → APB)
 - Testing or simple verification environments
 
-**Use `apb4_xbar_2to1` when:**
+**Use `apbx_xbar_2to1` when:**
 - Multiple masters sharing one slave
 - Need arbitration testing
 - Simple peripheral with multiple requestors
 
-**Use `apb4_xbar_1to4` when:**
+**Use `apbx_xbar_1to4` when:**
 - Single master accessing multiple slaves
 - Address decode testing
 - Microcontroller with multiple peripherals
 
-**Use `apb4_xbar_2to4` when:**
+**Use `apbx_xbar_2to4` when:**
 - Multiple masters and multiple slaves
 - Full system interconnect
 - Maximum flexibility needed
@@ -231,7 +231,7 @@ quoted here. Measure it for your slave's wait-state behaviour if it matters.
 **Need different configuration?**
 ```bash
 # Generate custom crossbar
-cd projects/components/apb4_xbar/bin
+cd projects/components/apbx_xbar/bin
 python generate_xbars.py --masters 3 --slaves 8
 ```
 
@@ -358,7 +358,7 @@ With `BASE_ADDR = 0x1000_0000` and 4 slaves:
 For custom address mapping, modify the `BASE_ADDR` parameter:
 
 ```systemverilog
-apb4_xbar_2to4 #(
+apbx_xbar_2to4 #(
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32),
     .BASE_ADDR(32'h4000_0000)  // Custom base address
@@ -591,7 +591,7 @@ module my_apb_subsystem (
     logic        s0_pready, s1_pready, s2_pready, s3_pready;
 
     // Instantiate crossbar
-    apb4_xbar_1to4 #(
+    apbx_xbar_1to4 #(
         .ADDR_WIDTH (32),
         .DATA_WIDTH (32),
         .BASE_ADDR  (32'h1000_0000)
@@ -665,7 +665,7 @@ module multi_master_apb_system (
     // ... (rest of DMA APB signals)
 );
 
-    apb4_xbar_2to4 #(
+    apbx_xbar_2to4 #(
         .ADDR_WIDTH (32),
         .DATA_WIDTH (32),
         .BASE_ADDR  (32'h4000_0000)
@@ -693,13 +693,13 @@ endmodule
 
 ```bash
 # Generate custom 3-master, 8-slave crossbar
-cd projects/components/apb4_xbar/bin
+cd projects/components/apbx_xbar/bin
 python generate_xbars.py --masters 3 --slaves 8 --base-addr 0x80000000
 ```
 
 Instantiate:
 ```systemverilog
-apb4_xbar_3to8 #(
+apbx_xbar_3to8 #(
     .ADDR_WIDTH (32),
     .DATA_WIDTH (32),
     .BASE_ADDR  (32'h8000_0000)  // Custom base
@@ -714,24 +714,24 @@ apb4_xbar_3to8 #(
 ## Test Results
 
 All crossbar modules have CocoTB testbenches in
-`projects/components/apb4_xbar/dv/tests/`.
+`projects/components/apbx_xbar/dv/tests/`.
 
 ### Test Coverage
 
 | Test | Description | Status |
 |------|-------------|--------|
-| `test_apb4_xbar_1to1` | Basic passthrough, protocol conversion | ✅ PASS |
-| `test_apb4_xbar_2to1` | Arbitration, fairness, grant persistence | ✅ PASS |
-| `test_apb4_xbar_1to4` | Address decode, multiple slaves | ✅ PASS |
-| `test_apb4_xbar_2to4` | Full crossbar, arbitration + decode | ✅ PASS |
+| `test_apbx_xbar_1to1` | Basic passthrough, protocol conversion | ✅ PASS |
+| `test_apbx_xbar_2to1` | Arbitration, fairness, grant persistence | ✅ PASS |
+| `test_apbx_xbar_1to4` | Address decode, multiple slaves | ✅ PASS |
+| `test_apbx_xbar_2to4` | Full crossbar, arbitration + decode | ✅ PASS |
 
-Each test drives a `*_wrap` wrapper (`rtl/wrappers/apb4_xbar_*_wrap.sv`) rather
+Each test drives a `*_wrap` wrapper (`rtl/wrappers/apbx_xbar_*_wrap.sv`) rather
 than the bare crossbar.
 
 ### Formal Verification
 
-SymbiYosys proofs exist for all four generated variants plus `apb4_xbar_thin`
-under `formal/apb4_xbar/`, each with `prove` and `cover` tasks.
+SymbiYosys proofs exist for all four generated variants plus `apbx_xbar_thin`
+under `formal/apbx_xbar/`, each with `prove` and `cover` tasks.
 
 ### Test Scenarios
 
@@ -756,24 +756,24 @@ Not covered:
 source env_python
 
 # Run all APB crossbar tests
-pytest projects/components/apb4_xbar/dv/tests/ -v
+pytest projects/components/apbx_xbar/dv/tests/ -v
 
 # Run specific variant
-pytest projects/components/apb4_xbar/dv/tests/test_apb4_xbar_2to4.py -v
+pytest projects/components/apbx_xbar/dv/tests/test_apbx_xbar_2to4.py -v
 ```
 
 Build artifacts and logs are preserved under
-`projects/components/apb4_xbar/dv/tests/local_sim_build/` and `.../logs/`.
+`projects/components/apbx_xbar/dv/tests/local_sim_build/` and `.../logs/`.
 
 ### Test Results Summary
 
 Measured 2026-07-19 with Verilator:
 
 ```
-test_apb4_xbar_1to1.py::test_apb4_xbar_1to1   PASSED
-test_apb4_xbar_2to1.py::test_apb4_xbar_2to1   PASSED
-test_apb4_xbar_1to4.py::test_apb4_xbar_1to4   PASSED
-test_apb4_xbar_2to4.py::test_apb4_xbar_2to4   PASSED  (350 transactions)
+test_apbx_xbar_1to1.py::test_apbx_xbar_1to1   PASSED
+test_apbx_xbar_2to1.py::test_apbx_xbar_2to1   PASSED
+test_apbx_xbar_1to4.py::test_apbx_xbar_1to4   PASSED
+test_apbx_xbar_2to4.py::test_apbx_xbar_2to4   PASSED  (350 transactions)
 
 4 passed in 10.14s
 ```
@@ -803,7 +803,7 @@ test_apb4_xbar_2to4.py::test_apb4_xbar_2to4   PASSED  (350 transactions)
 4. **Round-Robin Only**
    - Fixed round-robin arbitration
    - No priority levels or quality-of-service
-   - **Workaround**: use `apb4_xbar_thin`, which has weighted round-robin, or an
+   - **Workaround**: use `apbx_xbar_thin`, which has weighted round-robin, or an
      external priority arbiter ahead of the crossbar
 
 5. **Unmapped Addresses Hang the Bus**
@@ -833,7 +833,7 @@ not caught by the current suite.
 ## Related Documentation
 
 **Generator Tutorial:**
-- `docs/markdown/GeneratorTutorial/apb4_xbar_generator_tutorial.md` - How to use generator
+- `docs/markdown/GeneratorTutorial/apbx_xbar_generator_tutorial.md` - How to use generator
 
 **APB Protocol:**
 - ARM IHI 0024C -- AMBA APB Protocol Specification, Version 2.0 (APB4)
@@ -846,9 +846,9 @@ not caught by the current suite.
 - `rtl/common/arbiter_round_robin.sv` - Per-slave arbitration (`WAIT_GNT_ACK=1`)
 
 **Generator:**
-- `projects/components/apb4_xbar/bin/apb4_xbar_generator.py` - Crossbar generator
-- `projects/components/apb4_xbar/bin/generate_xbars.py` - Convenience script
-- `projects/components/apb4_xbar/README.md` - Quick reference
+- `projects/components/apbx_xbar/bin/apbx_xbar_generator.py` - Crossbar generator
+- `projects/components/apbx_xbar/bin/generate_xbars.py` - Convenience script
+- `projects/components/apbx_xbar/README.md` - Quick reference
 
 ---
 
@@ -857,7 +857,7 @@ not caught by the current suite.
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-10-14 | RTL Design Sherpa | Initial comprehensive specification |
-| 1.1 | 2026-07-19 | RTL Design Sherpa | Corrected module/test paths to the `apb4_xbar` component area; APB5 claim reduced to APB4; removed unsubstantiated latency, LUT, MHz and transaction-count figures; documented that unmapped addresses stall rather than returning `PSLVERR`/`0xDEADBEEF`; added `BASE_ADDR` alignment requirement |
+| 1.1 | 2026-07-19 | RTL Design Sherpa | Corrected module/test paths to the `apbx_xbar` component area; APB5 claim reduced to APB4; removed unsubstantiated latency, LUT, MHz and transaction-count figures; documented that unmapped addresses stall rather than returning `PSLVERR`/`0xDEADBEEF`; added `BASE_ADDR` alignment requirement |
 
 ---
 

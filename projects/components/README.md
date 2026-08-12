@@ -46,7 +46,7 @@ The `projects/components/` directory contains demonstration components showcasin
 
 | Component | Type | Status | Purpose | Complexity |
 |-----------|------|--------|---------|------------|
-| **[apb4_xbar](#apb4_xbar)** | Generator | ✅ Complete | APB crossbar interconnect | Medium |
+| **[apbx_xbar](#apbx_xbar)** | Generator | ✅ Complete | APB crossbar interconnect | Medium |
 | **[bch](#bch)** | Error Correction | 📋 Planned | BCH encoder/decoder for storage | High |
 | **[bridge](#bridge)** | Generator | 🟢 95% Complete | AXI4 full crossbar generator | High |
 | **[converters](#converters)** | Converters | ✅ Complete | AXI4 data width converters | Medium |
@@ -62,7 +62,7 @@ The `projects/components/` directory contains demonstration components showcasin
 
 ## Component Details
 
-### apb4_xbar
+### apbx_xbar
 
 **APB Crossbar Generator**
 
@@ -80,11 +80,11 @@ Python-based code generator producing parameterized APB crossbar RTL for connect
 - Comprehensive test coverage (100% passing)
 
 **Available Pre-Generated Modules:**
-- `apb4_xbar_1to1.sv` - Passthrough/protocol conversion
-- `apb4_xbar_2to1.sv` - Multi-master arbitration
-- `apb4_xbar_1to4.sv` - Address decode for peripherals
-- `apb4_xbar_2to4.sv` - Full crossbar (CPU + DMA)
-- `apb4_xbar_thin.sv` - Minimal overhead variant
+- `apbx_xbar_1to1.sv` - Passthrough/protocol conversion
+- `apbx_xbar_2to1.sv` - Multi-master arbitration
+- `apbx_xbar_1to4.sv` - Address decode for peripherals
+- `apbx_xbar_2to4.sv` - Full crossbar (CPU + DMA)
+- `apbx_xbar_thin.sv` - Minimal overhead variant
 
 **Address Map:**
 - Slave 0: BASE_ADDR + 0x0000_0000 (64KB)
@@ -98,18 +98,18 @@ Python-based code generator producing parameterized APB crossbar RTL for connect
 - Address decode and arbitration
 
 **Resources:**
-- RTL: `rtl/apb4_xbar_*.sv` (pre-generated)
+- RTL: `rtl/apbx_xbar_*.sv` (pre-generated)
 - Generator: `bin/generate_xbars.py`
-- Tests: `dv/tests/test_apb4_xbar_*.py`
+- Tests: `dv/tests/test_apbx_xbar_*.py`
 - Documentation: `PRD.md`, `CLAUDE.md`
 
 **Generation Example:**
 ```bash
-cd apb4_xbar/bin/
-python generate_xbars.py --masters 3 --slaves 6   # writes apb4_xbar_3to6.sv next to the script
+cd apbx_xbar/bin/
+python generate_xbars.py --masters 3 --slaves 6   # writes apbx_xbar_3to6.sv next to the script
 ```
 
-**📖 See:** [`apb4_xbar/PRD.md`](apb4_xbar/PRD.md) for complete specification
+**📖 See:** [`apbx_xbar/PRD.md`](apbx_xbar/PRD.md) for complete specification
 
 ---
 
@@ -554,7 +554,7 @@ Collection of utility components and adapters that solve common integration prob
 
 | Component | APB | AXI4 | AXI4-Lite | AXI-Stream | Network | MonBus | Other |
 |-----------|-----|------|-----------|------------|---------|--------|-------|
-| **apb4_xbar** | ✅ Crossbar | - | - | - | - | - | - |
+| **apbx_xbar** | ✅ Crossbar | - | - | - | - | - | - |
 | **bch** | - | - | - | ✅ M/S | - | - | ✅ Simple HS |
 | **bridge** | - | ✅ Crossbar | - | - | - | - | - |
 | **converters** | - | ✅ Converter | - | - | - | - | - |
@@ -570,7 +570,7 @@ Collection of utility components and adapters that solve common integration prob
 
 | Component | RTL Modules | Test Coverage | Primary Focus | Educational Value |
 |-----------|-------------|---------------|---------------|-------------------|
-| **apb4_xbar** | 5 pre-gen + generator | 100% | Crossbar interconnect | High |
+| **apbx_xbar** | 5 pre-gen + generator | 100% | Crossbar interconnect | High |
 | **bch** | TBD | N/A | Error correction | High |
 | **bridge** | Generated | TBD | Code generation | High |
 | **converters** | 2 | 100% | Data width adaptation | Medium |
@@ -586,7 +586,7 @@ Collection of utility components and adapters that solve common integration prob
 
 | Component | LUTs | FFs | BRAM | Notes |
 |-----------|------|-----|------|-------|
-| **apb4_xbar** | ~150-600 | ~200-500 | 0 | Depends on M×N size |
+| **apbx_xbar** | ~150-600 | ~200-500 | 0 | Depends on M×N size |
 | **bch** | ~35K | TBD | 2-4 | Encoder + Decoder estimates |
 | **bridge** | ~2,500 | ~3,000 | 0 | 4×4 @ 512-bit |
 | **converters** | ~200-400 | ~150-300 | 0 | Per converter, depends on width ratio |
@@ -604,7 +604,7 @@ Collection of utility components and adapters that solve common integration prob
 
 ```
 projects/components/
-├── apb4_xbar/                    # APB Crossbar Generator
+├── apbx_xbar/                    # APB Crossbar Generator
 │   ├── rtl/                     # Pre-generated RTL
 │   ├── bin/                     # Python generator
 │   ├── dv/tests/                # CocoTB verification
@@ -879,7 +879,7 @@ All components follow the same workflow:
 **Beginner:**
 1. **retro_legacy_blocks (HPET/PIT)** - Simple peripherals with standard APB interface
 2. **stream** - Tutorial DMA with aligned addresses
-3. **apb4_xbar** - Crossbar interconnect concepts
+3. **apbx_xbar** - Crossbar interconnect concepts
 4. **delta (flat)** - AXI-Stream crossbar basics
 
 **Intermediate:**
@@ -898,7 +898,7 @@ All components follow the same workflow:
 ### Key Concepts Taught
 
 **Interfaces and Protocols:**
-- APB (retro_legacy_blocks, apb4_xbar, stream)
+- APB (retro_legacy_blocks, apbx_xbar, stream)
 - AXI4 (bridge, rapids, stream, converters)
 - AXI4-Lite (rapids)
 - AXI-Stream (delta, bch)

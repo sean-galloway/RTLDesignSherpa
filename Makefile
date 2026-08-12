@@ -138,7 +138,7 @@ RTL_DIR = rtl
 PROJECTS_DIR = projects/components
 
 # Project list
-PROJECTS = stream rapids bridge delta apb4_xbar converters shims retro_legacy_blocks hive
+PROJECTS = stream rapids bridge delta apbx_xbar converters shims retro_legacy_blocks hive
 
 # Include generated test targets from test_environments.toml
 # Regenerate: python3 bin/generate_test_targets.py
@@ -165,7 +165,7 @@ help:
 	@echo "  make test-rapids             Run RAPIDS project tests"
 	@echo "  make test-bridge             Run Bridge project tests"
 	@echo "  make test-delta              Run Delta project tests"
-	@echo "  make test-apb4_xbar           Run APB Crossbar project tests"
+	@echo "  make test-apbx_xbar           Run APB Crossbar project tests"
 	@echo "  make test-retro_legacy_blocks Run Retro Legacy Blocks project tests"
 	@echo "  make test-hive               Run HIVE project tests"
 	@echo ""
@@ -213,7 +213,7 @@ help:
 	@echo "  make lint-rapids             Run RAPIDS RTL lint"
 	@echo "  make lint-bridge             Run Bridge RTL lint"
 	@echo "  make lint-delta              Run Delta RTL lint"
-	@echo "  make lint-apb4_xbar           Run APB Crossbar RTL lint"
+	@echo "  make lint-apbx_xbar           Run APB Crossbar RTL lint"
 	@echo "  make lint-converters         Run Converters RTL lint"
 	@echo "  make lint-shims              Run Shims RTL lint"
 	@echo "  make lint-retro_legacy_blocks Run Retro Legacy Blocks RTL lint"
@@ -282,8 +282,8 @@ test-delta:
 		echo "Delta test Makefile not found (may not have tests yet)"; \
 	fi
 
-.PHONY: test-apb4_xbar
-test-apb4_xbar: test-apb-xbar
+.PHONY: test-apbx_xbar
+test-apbx_xbar: test-apb-xbar
 
 .PHONY: test-retro_legacy_blocks
 test-retro_legacy_blocks: test-retro-legacy
@@ -299,7 +299,7 @@ test-hive:
 	fi
 
 .PHONY: test-projects
-test-projects: test-stream test-rapids test-bridge test-delta test-apb4_xbar test-retro_legacy_blocks test-hive
+test-projects: test-stream test-rapids test-bridge test-delta test-apbx_xbar test-retro_legacy_blocks test-hive
 	@echo "================================================================================"
 	@echo "✓ All project tests completed"
 	@echo "================================================================================"
@@ -645,11 +645,11 @@ lint-delta:
 		echo "⚠ Delta RTL Makefile not found"; \
 	fi
 
-.PHONY: lint-apb4_xbar
-lint-apb4_xbar:
+.PHONY: lint-apbx_xbar
+lint-apbx_xbar:
 	@echo "=== APB Crossbar RTL Lint ==="
-	@if [ -f $(PROJECTS_DIR)/apb4_xbar/rtl/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/apb4_xbar/rtl lint-all || true; \
+	@if [ -f $(PROJECTS_DIR)/apbx_xbar/rtl/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/apbx_xbar/rtl lint-all || true; \
 	else \
 		echo "⚠ APB Crossbar RTL Makefile not found"; \
 	fi
@@ -692,7 +692,7 @@ lint-hive:
 	fi
 
 .PHONY: lint-projects
-lint-projects: lint-stream lint-rapids lint-bridge lint-delta lint-apb4_xbar lint-converters lint-shims lint-retro_legacy_blocks lint-hive
+lint-projects: lint-stream lint-rapids lint-bridge lint-delta lint-apbx_xbar lint-converters lint-shims lint-retro_legacy_blocks lint-hive
 	@echo "================================================================================"
 	@echo "✓ All project RTL lint completed"
 	@echo "================================================================================"

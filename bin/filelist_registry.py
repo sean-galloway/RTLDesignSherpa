@@ -65,7 +65,7 @@ UNRESOLVED_VAR = re.compile(r"\$\{?[A-Z_][A-Z0-9_]*\}?")
 # filelist resolvable in some contexts and broken in others.
 ROOT_VARS = {
     "REPO_ROOT": "",
-    "APB_XBAR_ROOT": "projects/components/apb4_xbar",
+    "APB_XBAR_ROOT": "projects/components/apbx_xbar",
     "BCH_ROOT": "projects/components/bch",
     "BRIDGE_ROOT": "projects/components/bridge",
     "CONVERTERS_ROOT": "projects/components/converters",

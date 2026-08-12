@@ -100,7 +100,7 @@ The Stream DMA provides:
 | Module | Purpose | Status |
 |--------|---------|--------|
 | **rlb_top** | Top-level integration | 📋 Planned |
-| **apb4_xbar** | APB crossbar | ✅ Exists |
+| **apbx_xbar** | APB crossbar | ✅ Exists |
 
 ---
 

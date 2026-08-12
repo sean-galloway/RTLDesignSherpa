@@ -31,7 +31,7 @@
 # ============================================================================
 # APB Crossbar (1-to-10 for RLB peripherals)
 # ============================================================================
-$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/apb4_xbar/apb4_xbar_rlb_1to10.sv
+$REPO_ROOT/projects/components/retro_legacy_blocks/rtl/apbx_xbar/apbx_xbar_rlb_1to10.sv
 
 # ============================================================================
 # Peripheral Filelists (include all peripheral dependencies)

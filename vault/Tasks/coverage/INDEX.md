@@ -20,4 +20,4 @@ semantics, the monbus matrix); thresholds live in
 ## Open shortlist
 
 - **COV-001** — the three test areas still off the base `tests.mk` coverage
-  path: apb4_xbar, retro_legacy_blocks, timing_characterization.
+  path: apbx_xbar, retro_legacy_blocks, timing_characterization.

@@ -6,7 +6,7 @@
 # Set the root of the git repo as REPO_ROOT (dynamically from git)
 export REPO_ROOT=$(git rev-parse --show-toplevel)
 
-export APB_XBAR_ROOT=$REPO_ROOT/projects/components/apb4_xbar
+export APB_XBAR_ROOT=$REPO_ROOT/projects/components/apbx_xbar
 export BCH_ROOT=$REPO_ROOT/projects/components/bch
 export BRIDGE_ROOT=$REPO_ROOT/projects/components/bridge
 export CONVERTERS_ROOT=$REPO_ROOT/projects/components/converters
@@ -61,7 +61,7 @@ export PYTHONPATH="$REPO_ROOT/bin/rtl_generators/axi:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/fpga-systems/bin:$PYTHONPATH"
 
 # Add project DV directories for self-contained project imports
-export PYTHONPATH="$REPO_ROOT/projects/components/apb4_xbar/dv:$PYTHONPATH"
+export PYTHONPATH="$REPO_ROOT/projects/components/apbx_xbar/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/bch/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/bridge/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/converters/dv:$PYTHONPATH"

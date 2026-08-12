@@ -29,7 +29,7 @@ note — it belongs to that block and nowhere else.
 
 ## projects/components/
 
-- [apb4_xbar](projects/components/apb4_xbar/INDEX.md)
+- [apbx_xbar](projects/components/apbx_xbar/INDEX.md)
 - [bridge](projects/components/bridge/INDEX.md) — generated crossbar
 - [converters](projects/components/converters/INDEX.md)
 - [delta](projects/components/delta/INDEX.md)
