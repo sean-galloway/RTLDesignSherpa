@@ -343,15 +343,18 @@ class RdCrcCheckTB(TBBase):
                             cycles=count - 1, width=32, include_seed=True)
 
     def expected_crc32(self, count: int, seed=None) -> int:
-        """CRC-32/BZIP2 over the first `count` regenerated LFSR words
+        """Standard CRC-32 (reflected) over the first `count` regenerated LFSR words
         (little-end byte first), matching the block's dataint_crc config.
         The reader accumulates over the REGENERATED stream, not rdata, so
         this reference holds for garbage-data scenarios too. Pre-fix RTL
         tied the strobe off and emitted a constant 0x00000000."""
         from crc import Calculator, Configuration
+        # Standard CRC-32 (reflected): the masters now default
+        # CRC_REFIN/CRC_REFOUT=1, matching the slave-side blocks so the
+        # family's CRCs interchange.
         cfg = Configuration(width=32, polynomial=0x04C11DB7,
                             init_value=0xFFFFFFFF, final_xor_value=0xFFFFFFFF,
-                            reverse_input=False, reverse_output=False)
+                            reverse_input=True, reverse_output=True)
         data = bytearray()
         for w in self.expected_lfsr_words(count, seed=seed):
             data += int(w).to_bytes(4, 'little')

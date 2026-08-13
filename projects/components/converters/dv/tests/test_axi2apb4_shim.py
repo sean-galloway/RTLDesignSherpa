@@ -511,6 +511,38 @@ class Axi2ApbTB(TBBase):
         self.log.info(f"B2B BURST READ TEST PASSED: {num_bursts} bursts × {burst_len} beats")
         return True
 
+    async def partial_strobe_write_test(self):
+        """Directed WSTRB->PSTRB check (the strobe-drop regression).
+
+        The converter once emitted PSTRB=all-ones on every write (a blocking-
+        order bug guarded pstrb on a pwrite value that was still at its
+        default), so a sub-word AXI write clobbered the whole APB word. This
+        writes a full word, overwrites ONE byte via a narrow AXI write, and
+        asserts the merge -- pre-fix RTL fails the readback.
+        """
+        base = 0x0000_0040
+        ok = await self.axi_write(base, [0xDD, 0xCC, 0xBB, 0xAA])
+        if not ok:
+            self.test_failures.append("partial_strobe: full-word write failed")
+            return
+        # Explicit partial WSTRB (the BFM defaults strb to all-ones, which is
+        # exactly how the strobe-drop bug stayed invisible): byte lane 1 only.
+        result = await self.axi_write_interface.single_write(
+            address=base, data=0x0000EE00, id=0, size=2, burst_type=1,
+            strb=0b0010)
+        if not result.get('success', False):
+            self.test_failures.append("partial_strobe: strobed write failed")
+            return
+        rsp = await self.axi_read(base, 4)
+        got = list(rsp.data)
+        want = [0xDD, 0xEE, 0xBB, 0xAA]
+        if got != want:
+            self.test_failures.append(
+                f"partial_strobe: got {[hex(b) for b in got]} "
+                f"want {[hex(b) for b in want]} -- WSTRB not honored on APB")
+        else:
+            self.log.info("partial_strobe_write_test passed: byte-lane merge correct")
+
     async def main_loop(self):
         """Main test loop with comprehensive testing"""
         self.main_loop_count += 1
@@ -522,6 +554,9 @@ class Axi2ApbTB(TBBase):
             'error': ([(0, 0), (1, 1)], [10, 0]),
         }
         self.apb4_slave.set_randomizer(FlexRandomizer(apb_slv_constraints))
+
+        # Directed strobe regression first -- cheap and decisive
+        await self.partial_strobe_write_test()
 
         # Test with different timing profiles
         timing_profiles_to_test = [

@@ -332,7 +332,13 @@ module axi4_to_apb4_convert #(
         w_apb_cmd_pkt_pwrite       = 1'b0;
         w_apb_cmd_pkt_pwdata = (axi2abpratio == 1) ? r_s_axi_wdata[APBDW-1:0] :
                                 r_s_axi_wdata[r_axi_wr_data_pointer*APBDW +: APBDW];
-        w_apb_cmd_pkt_pstrb = (w_apb_cmd_pkt_pwrite == 1'b0) ? {APBSW{1'b1}} :
+        // Select on the STATE, not on w_apb_cmd_pkt_pwrite: pwrite is
+        // defaulted 0 two statements up and set to 1 only later in the
+        // WRITE/IDLE branches, so a guard on it here always saw 0 -- PSTRB
+        // went out as all-ones on every write and AXI WSTRB was dropped
+        // (partial writes clobbered whole APB words). Reads drive PSTRB=0
+        // per the APB4 spec.
+        w_apb_cmd_pkt_pstrb = (r_apb_state != WRITE) ? {APBSW{1'b0}} :
                                 (axi2abpratio == 1) ? r_s_axi_wstrb[APBSW-1:0] :
                                 r_s_axi_wstrb[r_axi_wr_data_pointer*APBSW +: APBSW];
         w_apb_cmd_pkt_pprot        = (r_apb_state  == READ) ? r_s_axi_arprot : r_s_axi_awprot;

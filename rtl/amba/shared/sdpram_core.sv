@@ -32,7 +32,9 @@
 // Bursts:
 //   - INCR (awburst/arburst = 2'b01) and FIXED (= 2'b00) of any length
 //     up to AXI4's 256-beat max.
-//   - WRAP (= 2'b10) is computed correctly by axi_gen_addr but the
+//   - WRAP (= 2'b10) address math is wrap-shaped via axi_gen_addr (its len
+//     input is the LATCHED burst length -- feeding the decrementing remainder
+//     shrank the wrap mask mid-burst and folded addresses early), but the
 //     BRAM glue advances linearly; an assertion in the AXI4 wrappers
 //     flags WRAP at the sim boundary until it's been exercised.
 //
@@ -177,6 +179,10 @@ module sdpram_core #(
     logic [AXI_ID_WIDTH-1:0]    r_wr_id;
     logic [ADDR_WIDTH-1:0]      r_wr_addr;
     logic [7:0]                 r_wr_beats_left;
+    logic [7:0]                 r_wr_len;       // latched awlen: axi_gen_addr's
+                                                // wrap mask needs the CONSTANT
+                                                // burst length, not the
+                                                // decrementing remainder
     logic [2:0]                 r_wr_size;
     logic [1:0]                 r_wr_burst;
 
@@ -210,7 +216,7 @@ module sdpram_core #(
         .curr_addr       (r_wr_addr),
         .size            (r_wr_size),
         .burst           (r_wr_burst),
-        .len             (r_wr_beats_left),
+        .len             (r_wr_len),
         .next_addr       (w_wr_next_addr),
         .next_addr_align (/* unused */)
     );
@@ -221,6 +227,7 @@ module sdpram_core #(
             r_wr_id         <= '0;
             r_wr_addr       <= '0;
             r_wr_beats_left <= 8'd0;
+            r_wr_len        <= 8'd0;
             r_wr_size       <= 3'd0;
             r_wr_burst      <= 2'b01;
             r_b_pending     <= 1'b0;
@@ -235,6 +242,7 @@ module sdpram_core #(
                 r_wr_id         <= fub_awid;
                 r_wr_addr       <= fub_awaddr;
                 r_wr_beats_left <= fub_awlen;
+                r_wr_len        <= fub_awlen;
                 r_wr_size       <= fub_awsize;
                 r_wr_burst      <= fub_awburst;
             end
@@ -263,6 +271,7 @@ module sdpram_core #(
     logic [AXI_ID_WIDTH-1:0]    r_rd_id;
     logic [ADDR_WIDTH-1:0]      r_rd_addr;
     logic [7:0]                 r_rd_beats_left;
+    logic [7:0]                 r_rd_len;       // latched arlen (see r_wr_len)
     logic [2:0]                 r_rd_size;
     logic [1:0]                 r_rd_burst;
 
@@ -287,7 +296,7 @@ module sdpram_core #(
         .curr_addr       (r_rd_addr),
         .size            (r_rd_size),
         .burst           (r_rd_burst),
-        .len             (r_rd_beats_left),
+        .len             (r_rd_len),
         .next_addr       (w_rd_next_addr),
         .next_addr_align (/* unused */)
     );
@@ -298,6 +307,7 @@ module sdpram_core #(
             r_rd_id         <= '0;
             r_rd_addr       <= '0;
             r_rd_beats_left <= 8'd0;
+            r_rd_len        <= 8'd0;
             r_rd_size       <= 3'd0;
             r_rd_burst      <= 2'b01;
         end else begin
@@ -306,6 +316,7 @@ module sdpram_core #(
                 r_rd_id         <= fub_arid;
                 r_rd_addr       <= fub_araddr;
                 r_rd_beats_left <= fub_arlen;
+                r_rd_len        <= fub_arlen;
                 r_rd_size       <= fub_arsize;
                 r_rd_burst      <= fub_arburst;
             end

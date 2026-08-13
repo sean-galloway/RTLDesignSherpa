@@ -291,16 +291,18 @@ class WrPatternGenTB(TBBase):
     # ---- CRC cross-check (MATH-007-style: reference is independent) ----
 
     def expected_crc32(self, count: int, seed=None) -> int:
-        """CRC-32/BZIP2 (poly 04C11DB7, init/xorout all-ones, no
-        reflection -- the block's dataint_crc defaults) over the first
+        """Standard CRC-32 (reflected, matching the family convention) over the first
         `count` LFSR words, each fed little-end byte first, mirroring the
         cascade order. Pre-fix RTL tied the accumulate strobe off and
         emitted a constant 0x00000000 -- this check exists so that can
         never ship silently again."""
         from crc import Calculator, Configuration
+        # Standard CRC-32 (reflected): the masters now default
+        # CRC_REFIN/CRC_REFOUT=1, matching the slave-side blocks so the
+        # family's CRCs interchange.
         cfg = Configuration(width=32, polynomial=0x04C11DB7,
                             init_value=0xFFFFFFFF, final_xor_value=0xFFFFFFFF,
-                            reverse_input=False, reverse_output=False)
+                            reverse_input=True, reverse_output=True)
         data = bytearray()
         for w in self.expected_lfsr_words(count, seed=seed):
             data += int(w).to_bytes(4, 'little')

@@ -88,6 +88,13 @@ module axi4_master_wr_pattern_gen #(
     parameter int                    CRC_WIDTH      = 32,
     parameter int                    CRC_DATA_WIDTH = 32,
     parameter logic [CRC_WIDTH-1:0]  CRC_POLY       = 32'h04C11DB7,
+    // Reflection MUST match the slave-side blocks (CRC_REFIN/REFOUT default 1
+    // there) or writer-vs-slave CRC compares can never match. The old
+    // hardcoded REFIN(0)/REFOUT(0) here broke the documented interchange --
+    // unnoticed while the accumulate strobe was also tied off (both sides
+    // emitted constant zero).
+    parameter int                    CRC_REFIN      = 1,
+    parameter int                    CRC_REFOUT     = 1,
     parameter logic [CRC_WIDTH-1:0]  CRC_POLY_INIT  = '1,
     parameter logic [CRC_WIDTH-1:0]  CRC_XOROUT     = '1,
 
@@ -385,8 +392,8 @@ module axi4_master_wr_pattern_gen #(
     dataint_crc #(
         .DATA_WIDTH(CRC_DATA_WIDTH),
         .CRC_WIDTH (CRC_WIDTH),
-        .REFIN     (0),
-        .REFOUT    (0)
+        .REFIN     (CRC_REFIN),
+        .REFOUT    (CRC_REFOUT)
     ) u_crc (
         .POLY              (CRC_POLY),
         .POLY_INIT         (CRC_POLY_INIT),
