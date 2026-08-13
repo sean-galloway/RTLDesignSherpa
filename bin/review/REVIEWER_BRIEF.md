@@ -21,21 +21,34 @@ Each directory under `books/` is one self-contained review unit:
 
 | book | title | docs | documented modules | approx tokens | parts |
 |------|-------|------|--------------------|---------------|-------|
-| `integ_common` | RTL Integration Examples - Common | 3 | 2 | ~16k | 1 |
+| `pic_8259_mas` | APB PIC 8259 Specification - Table of Contents | 3 | 0 | ~4k | 1 |
+| `smbus_mas` | APB SMBus Specification - Table of Contents | 3 | 0 | ~4k | 1 |
+| `pm_acpi_mas` | APB PM/ACPI Specification - Table of Contents | 3 | 0 | ~5k | 1 |
+| `rtc_mas` | APB RTC Specification - Table of Contents | 5 | 0 | ~10k | 1 |
+| `integ_common` | RTL Integration Examples - Common | 4 | 2 | ~18k | 1 |
+| `gpio_mas` | APB GPIO Micro-Architecture Specification | 23 | 0 | ~19k | 1 |
+| `apbx_xbar_mas` | APB Crossbar Micro-Architecture Specification Index | 9 | 0 | ~25k | 1 |
+| `pit_8254_mas` | APB PIT 8254 Specification - Table of Contents | 12 | 0 | ~26k | 1 |
+| `apbx_xbar_has` | APB Crossbar Hardware Architecture Specification Index | 23 | 0 | ~27k | 1 |
 | `axis4` | RTL AMBA AXI4-Stream | 6 | 4 | ~29k | 1 |
 | `axis5` | RTL AMBA AXI5-Stream | 5 | 4 | ~36k | 1 |
-| `gaxi` | RTL AMBA GAXI Modules | 8 | 6 | ~42k | 1 |
-| `integ_amba` | RTL Integration Examples - AMBA | 3 | 2 | ~43k | 1 |
-| `apb5` | RTL AMBA APB5 | 10 | 9 | ~95k | 1 |
-| `apb` | RTL AMBA APB4 | 12 | 12 | ~134k | 2 |
-| `cdc` | RTL Clock Domain Crossing | 16 | 23 | ~216k | 2 |
-| `common` | RTL Common Library | 47 | 46 | ~234k | 4 |
-| `axil4` | RTL AMBA AXI4-Lite | 18 | 16 | ~240k | 2 |
-| `shared` | RTL AMBA Shared Infrastructure | 29 | 24 | ~349k | 3 |
-| `axi5` | RTL AMBA AXI5 | 17 | 16 | ~382k | 3 |
+| `converter_mas` | Converters Micro-Architecture Specification Index | 20 | 0 | ~36k | 1 |
+| `uart_16550_mas` | APB UART 16550 Specification - Table of Contents | 27 | 0 | ~36k | 1 |
+| `ioapic_mas` | APB IOAPIC Specification - Table of Contents | 15 | 0 | ~37k | 1 |
+| `gaxi` | RTL AMBA GAXI Modules | 8 | 6 | ~43k | 1 |
+| `bridge_has` | Bridge Hardware Architecture Specification Index | 24 | 0 | ~43k | 1 |
+| `integ_amba` | RTL Integration Examples - AMBA | 3 | 2 | ~45k | 1 |
+| `hpet_mas` | APB HPET Micro-Architecture Specification | 14 | 0 | ~47k | 1 |
+| `bridge_mas` | Bridge Micro-Architecture Specification Index | 26 | 0 | ~80k | 1 |
+| `apb5` | RTL AMBA APB5 | 10 | 9 | ~96k | 1 |
+| `cdc` | RTL Clock Domain Crossing | 16 | 31 | ~240k | 2 |
+| `axil4` | RTL AMBA AXI4-Lite | 18 | 16 | ~246k | 2 |
+| `common` | RTL Common Library | 49 | 48 | ~248k | 4 |
+| `shared` | RTL AMBA Shared Infrastructure | 29 | 26 | ~361k | 3 |
 | `monitor` | RTL AMBA Monitor Subsystem | 36 | 34 | ~386k | 4 |
-| `axi4` | RTL AMBA AXI4 | 27 | 24 | ~392k | 3 |
-| `math` | RTL Math Library | 27 | 38 | ~425k | 3 |
+| `axi5` | RTL AMBA AXI5 | 17 | 16 | ~390k | 3 |
+| `axi4` | RTL AMBA AXI4 | 27 | 24 | ~399k | 3 |
+| `math` | RTL Math Library | 27 | 38 | ~428k | 3 |
 
 Counts are per whole book, regenerated from the built bundle (`documented modules` is the figure in each `RTL.sv` header, which excludes the dependency closure and any GOLDEN section). A book with more than one part is already split for you: **you are reviewing ONE part**, so its scope is a subset of the row above. Do not infer a missing module from these numbers.
 
