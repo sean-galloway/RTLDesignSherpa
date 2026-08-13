@@ -351,9 +351,9 @@ Reuses same combinational logic as read splitter (axi_split_combi):
 - Backpressure handled naturally by AXI protocol
 
 **B Channel Ready:**
-- Consolidation mode: m_axi_bready = 1 (accept all responses)
+- Consolidation mode: m_axi_bready = fub_bready || !w_is_final_response -- intermediate split responses are always accepted, but the FINAL split's response waits on the upstream's fub_bready
 - Pass-through mode: m_axi_bready = fub_bready
-- Critical: Must accept all split responses even if upstream not ready
+- Intermediate responses are accepted even if the upstream is not ready; the final response is not
 
 ---
 
@@ -467,8 +467,8 @@ Final consolidated response: SLVERR (10)
 
 **Upstream View:**
 - Master issues 1 write transaction (ADDR=0x0FC0, LEN=7, ID=0x42)
-- Receives 1 response (ID=0x42, BRESP=SLVERR)
-- Error correctly propagated despite partial success
+- Receives 1 response (ID=0x42) -- INTENDED BRESP=SLVERR, but the current RTL reports OKAY here: the last split's SLVERR is folded in one cycle too late (the filed defect this page's Key Features describe)
+- Intended behavior: error propagated despite partial success. Actual RTL today: error on the LAST split is lost (TASK-063)
 
 ---
 
@@ -559,7 +559,7 @@ Worst error wins → System sees most severe failure
 - Consider registering if timing closure issues
 
 **Backpressure Handling:**
-- B channel: Module accepts all split responses (m_axi_bready=1 during consolidation)
+- B channel: intermediate split responses accepted unconditionally; the final one handshakes with the upstream (can backpressure the downstream B channel)
 - Upstream backpressure (fub_bready=0) only delays final consolidated response
 - Internal buffering for responses: Single register (r_consolidated_resp_status)
 

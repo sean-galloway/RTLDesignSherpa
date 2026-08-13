@@ -24,7 +24,7 @@
 # axi4_to_apb4_shim
 
 **Module:** `axi4_to_apb4_shim.sv`
-**Location:** `rtl/amba/shims/`
+**Location:** `projects/components/converters/rtl/`
 **Status:** Production (see the module page history for review state)
 
 ---
@@ -266,7 +266,7 @@ AXI Master → AR skid buffer (aclk)
 **Error Handling:**
 - `PSLVERR` → `BRESP[1]` (write errors)
 - `PSLVERR` → `RRESP[1]` (read errors)
-- Multiple errors accumulated (OR'd) for burst transactions
+- Write errors accumulated (OR'd) into B; read beats carry per-response PSLVERR only (see the convert page and TASK-064)
 
 ### Clock Domain Crossing
 

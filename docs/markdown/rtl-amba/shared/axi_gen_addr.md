@@ -161,9 +161,10 @@ This module is purely combinational for zero latency:
 ## Related Modules
 
 ### Used By
-- axi_master_rd_splitter.sv (boundary crossing detection)
-- axi_master_wr_splitter.sv (boundary crossing detection)
-- Address generation pipelines
+- sdpram_core.sv (both BRAM address trackers)
+- axi4_to_apb4_convert.sv (APB beat addressing)
+- (The splitters do NOT use this module -- their boundary math is inline
+  in axi_split_combi)
 
 ### Related Infrastructure
 - axi_split_combi.sv (uses aligned addresses for split decisions)

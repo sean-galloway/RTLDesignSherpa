@@ -24,7 +24,7 @@
 # axi4_to_apb4_convert
 
 **Module:** `axi4_to_apb4_convert.sv`
-**Location:** `rtl/amba/shims/`
+**Location:** `projects/components/converters/rtl/`
 **Status:** Production (see the module page history for review state)
 
 ---
@@ -238,7 +238,7 @@ r_axi_data_shift[r_axi_rsp_data_pointer*APBDW +: APBDW] <= r_apb_rsp_pkt_prdata;
 ### Error Handling
 
 **Error Accumulation:**
-- Multiple APB PSLVERR errors OR'd together
+- Writes: all slice/beat PSLVERRs OR'd into B. Reads: each R beat carries only the in-flight APB response's PSLVERR (non-final-slice errors on width-converted reads are lost -- TASK-064)
 - Entire AXI transaction marked with error if any APB beat fails
 - Read errors: `RRESP = 2'b10` (SLVERR)
 - Write errors: `BRESP = 2'b10` (SLVERR)

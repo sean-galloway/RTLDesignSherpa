@@ -491,10 +491,12 @@ The module enforces several critical assumptions for correct operation:
 - Assertions validate assumptions (alignment, size, burst type)
 - Synthesis-time checks enforce parameter constraints
 
-**Backpressure Propagation:**
-- block_ready input suppresses fub_arready
-- Enables error monitor integration
-- Prevents new transactions during error conditions
+**Backpressure Propagation (partial -- see TASK-061):**
+- block_ready gates fub_arready and the split-FSM capture ONLY;
+  m_axi_arvalid and the SPLITTING state's advance are NOT gated
+- Consequence: an AR presented while block_ready=1 can still issue
+  downstream and then be issued AGAIN when block_ready drops --
+  duplication, not blocking (the filed splitter defect cluster)
 
 ### Integration Considerations
 

@@ -872,10 +872,50 @@ fresh shared qc round and confirmed by inspection:
    currently a correctness requirement; a full-FIFO stall (or at least
    a sticky overflow flag) would make it fail loud.
 
+Round_3 additions, both verified against the source (2026-08-13):
+
+4. **Consolidation state is not fenced per transaction.** The IDLE accept
+   (`fub_awvalid && m_axi_awready && !block_ready`, line ~373) has no
+   `!r_waiting_for_responses` term, and acceptance overwrites the single
+   consolidation state set (`r_original_txn_id`, counts, flags). T1's final
+   split AW handshakes -> IDLE with responses in flight; T2 accepted next
+   cycle resets to pass-through; T1's split responses then forward raw
+   upstream (3 B's for 2 AWs), or fold into T2's consolidation if T2 is
+   split (T1 never answered — deadlock). `m_axi_bid` is never checked in
+   consolidation mode.
+5. **Leading W data defeats WLAST regeneration.** W is pure pass-through
+   while `r_data_splitting` arms only when the first split AW handshakes;
+   AXI4 permits W-before-AW, so early W beats carry the original wlast and
+   are never counted.
+
 Fix together with TASK-061 in one pass over the splitter pair, with a
 testbench that actually asserts block_ready, drives error responses on
-the last split, and fills the FIFO — none of the current collateral
-exercises any of the four defects.
+the last split, fills the FIFO, overlaps two split transactions'
+response windows, and leads with W data — none of the current collateral
+exercises any of these.
+
+### TASK-064: converter read-path PSLVERR loss + peakrdl held-req contract
+**Priority:** P2
+**Status:** Not Started (found 2026-08-13, shared qc round_3; WSTRB sibling defect FIXED same day)
+**Owner:** TBD
+
+Two remaining converter-family defects (the third from this round — WSTRB
+dropped, PSTRB constant all-ones from a blocking-order guard in
+`axi4_to_apb4_convert` — is FIXED and regression-locked by the shim suite's
+`partial_strobe_write_test`, mutation-proven RED on pre-fix RTL):
+
+1. **`axi4_to_apb4_convert` loses PSLVERR from non-final APB slices on
+   width-converted reads.** `w_resp_rd = (w_pslverr) ? 2'b10 : 2'b00` uses
+   only the in-flight response; the accumulated `r_pslverr` feeds only
+   `w_resp_wr`. A 2:1 read whose first slice errors returns RRESP=OKAY with
+   partially-bad data. Fix needs per-AXI-beat accumulation for R (the
+   burst-wide `r_pslverr` would over-mark subsequent beats).
+2. **`peakrdl_to_cmdrsp` holds `regblk_req` >= 2 cycles** (IDLE accept cycle
+   + WAIT_ACK) against a documented 1-cycle strobe. Whether the PeakRDL
+   passthrough cpuif re-executes per held cycle needs settling against the
+   generated regblock's req/ack contract; idempotent plain registers would
+   mask a double-access in every current test. Decide the contract, then fix
+   RTL or re-document. Docs updated to state the held behavior meanwhile.
 
 ### TASK-062: `sdpram_slave_axil_axil` runs on the board with no simulation
 **Priority:** P2

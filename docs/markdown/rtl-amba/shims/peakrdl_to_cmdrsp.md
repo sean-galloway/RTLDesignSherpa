@@ -24,7 +24,7 @@
 # peakrdl_to_cmdrsp
 
 **Module:** `peakrdl_to_cmdrsp.sv`
-**Location:** `rtl/amba/shims/`
+**Location:** `projects/components/converters/rtl/`
 **Status:** Production (see the module page history for review state)
 
 ---
@@ -54,7 +54,7 @@ Protocol adapter that bridges between the RTL Design Sherpa standard cmd/rsp int
 - Stall handling (PeakRDL can stall requests separately for read/write)
 - Response channel synchronization
 
-**See Also:** `rtl/amba/shims/peakrdl_adapter_README.md` for PeakRDL workflow guide
+**See Also:** `projects/components/converters/rtl/peakrdl_adapter_README.md` for PeakRDL workflow guide
 
 ---
 
@@ -148,7 +148,7 @@ module peakrdl_to_cmdrsp #(
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `regblk_req` | Output | 1 | Request strobe (valid for 1 cycle) |
+| `regblk_req` | Output | 1 | Request -- held from the accept cycle THROUGH WAIT_ACK (>= 2 consecutive cycles even with earliest ack; N+1 cycles for an N-cycle ack delay). Whether the PeakRDL passthrough cpuif tolerates a held req (vs re-executing per cycle) is an open contract question: TASK-064 |
 | `regblk_req_is_wr` | Output | 1 | Operation type (1=write, 0=read) |
 | `regblk_addr` | Output | ADDR_WIDTH | Register address |
 | `regblk_wr_data` | Output | DATA_WIDTH | Write data |
@@ -511,7 +511,7 @@ used to list.
 
 ## PeakRDL Workflow
 
-**Complete workflow documented in:** `rtl/amba/shims/peakrdl_adapter_README.md`
+**Complete workflow documented in:** `projects/components/converters/rtl/peakrdl_adapter_README.md`
 
 **Quick summary:**
 1. Write `.rdl` register description

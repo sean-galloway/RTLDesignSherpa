@@ -72,7 +72,7 @@ Bringing up and characterizing a memory controller means driving it with realist
 | AXI_DATA_WIDTH | int | 64 | AXI data width |
 | AXI_USER_WIDTH | int | 1 | AXI user width |
 | AXI_WSTRB_WIDTH | int | AXI_DATA_WIDTH/8 | Write strobe width (derived) |
-| LFSR_WIDTH | int | 32 | LFSR width; matches slave side so CRCs interchange |
+| LFSR_WIDTH | int | 32 | LFSR width; matches the slave side. CRC reflection is parameterized (CRC_REFIN/CRC_REFOUT, default 1) to the same standard CRC-32 convention as the slave blocks, so writer and slave CRCs interchange -- the old hardcoded REFIN/REFOUT=0 here broke that silently |
 | LFSR_SEED | logic [31:0] | 32'hDEADBEEF | LFSR seed default |
 | LFSR_TAPS | logic [47:0] | {12'd23, 12'd3, 12'd2, 12'd1} | Maximal-length Fibonacci taps (library-table primitive set) |
 | BURST_LEN_MULTIPLE | int | 1 | Sim-only guard: cfg_start errors if `cfg_burst_len % BURST_LEN_MULTIPLE != 0` (set to the DRAM burst multiple) |
@@ -125,7 +125,7 @@ Bringing up and characterizing a memory controller means driving it with realist
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| o_expected_crc | output | CRC_WIDTH | Running CRC-32 over the written LFSR stream |
+| o_expected_crc | output | CRC_WIDTH | End-of-run CRC-32 over the written LFSR stream, captured two cycles after the final W beat (holds the previous run's value, 0 after reset, until then); qualified by o_expected_crc_valid |
 | o_expected_crc_valid | output | 1 | High with `cfg_done` (LFSR mode only) |
 | o_bresp_error | output | 1 | Sticky on any non-OKAY BRESP |
 

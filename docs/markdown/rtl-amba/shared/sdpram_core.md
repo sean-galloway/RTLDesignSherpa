@@ -163,7 +163,7 @@ On `fub_arvalid && fub_arready`, the read tracker latches the burst parameters a
 
 ### Address Generation
 
-Both paths use an `axi_gen_addr` instance (parameterized `AW=ADDR_WIDTH`, `DW=ODW=DATA_WIDTH`, `LEN=8`) to compute the next beat address from the current address, size, and burst type. INCR and FIXED are handled directly by the glue. WRAP is computed correctly by `axi_gen_addr` but the BRAM address glue advances linearly, so the AXI4 wrappers carry a sim-only assertion flagging WRAP at the sim boundary until it has been exercised.
+Both paths use an `axi_gen_addr` instance (parameterized `AW=ADDR_WIDTH`, `DW=ODW=DATA_WIDTH`, `LEN=8`) to compute the next beat address from the current address, size, and burst type. INCR and FIXED are handled directly by the glue. WRAP addressing is wrap-shaped end to end: the burst type feeds `axi_gen_addr`, whose `len` input is the LATCHED burst length (the pre-2026-08-13 wiring fed the decrementing remainder, which shrank the wrap mask mid-burst and folded addresses early). The AXI4 wrappers still carry a sim-only assertion flagging WRAP until the path is validated by a test.
 
 ### BRAM Array
 
@@ -248,7 +248,7 @@ The core exists so that the burst logic, byte-enable write, single-cycle read, a
 
 ### WRAP Bursts
 
-`axi_gen_addr` computes WRAP addresses correctly, but the BRAM glue here advances linearly. Until the WRAP path is exercised end-to-end, the AXI4 wrappers assert (sim-only) that `awburst`/`arburst` is not WRAP at the interface boundary. INCR and FIXED are fully supported.
+WRAP address math is wrap-shaped via `axi_gen_addr` fed with the latched burst length (mask-shrink bug fixed 2026-08-13), but the path remains UNVALIDATED: the AXI4 wrappers assert (sim-only) that `awburst`/`arburst` is not WRAP at the interface boundary until a test drives it. INCR and FIXED are fully supported.
 
 ### Single Outstanding Burst Per Side
 

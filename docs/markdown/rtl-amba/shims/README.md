@@ -23,7 +23,7 @@
 
 # AMBA Protocol Shims
 
-**Location:** `rtl/amba/shims/`
+**Location:** `projects/components/converters/rtl/`
 **Test Location:** `val/amba/`, `val/integ_amba/`
 **Status:** Production (see the module page history for review state)
 
@@ -427,11 +427,11 @@ set_max_fanout 16 [get_pins */data_shift_reg*]
 
 - **PeakRDL:** https://github.com/SystemRDL/PeakRDL
 - **PeakRDL regblock:** https://github.com/SystemRDL/PeakRDL-regblock
-- **PeakRDL Workflow Guide:** `rtl/amba/shims/peakrdl_adapter_README.md`
+- **PeakRDL Workflow Guide:** `projects/components/converters/rtl/peakrdl_adapter_README.md`
 
 ### Source Code
 
-- RTL: `rtl/amba/shims/`
+- RTL: `projects/components/converters/rtl/`
 - Tests: `val/amba/test_peakrdl*.py`, `val/integ_amba/test_axi2apb4*.py`
 - Framework: `bin/TBClasses/components/`
 

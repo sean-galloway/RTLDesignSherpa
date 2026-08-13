@@ -105,9 +105,9 @@ All wrappers expose the same scaling knobs as the backend:
 - **AXI4 mode** supports `INCR` (`awburst/arburst = 2'b01`) and `FIXED`
   (`2'b00`) of any length up to AXI4's 256-beat maximum. `WRAP` (`2'b10`)
   raises a SIMULATION-only `$warning` ("not yet validated") and the burst
-  PROCEEDS -- and in synthesis it is executed as a true WRAP: the burst
-  type feeds `axi_gen_addr`, which computes wrapped addresses. It is
-  unvalidated, not rejected, and not linear.
+  PROCEEDS -- and the burst proceeds with wrap-shaped addressing via `axi_gen_addr`
+  (fed the latched burst length since the 2026-08-13 mask fix). Still
+  UNVALIDATED -- no test drives WRAP through the BRAM glue.
 - **AXIL mode** is single-beat by construction — the AXIL skid ties the
   fub-side `awlen`/`arlen` to 0, so the burst-aware backend produces
   exactly one beat per AW/AR. Multi-beat transactions are not
@@ -226,5 +226,5 @@ the port list shape and signal names differ.
 |---|---|
 | [`monbus_axil_axil_group`](../monitor/monbus_group.md) | Most common consumer (memory-dump ring) |
 | [`monbus_compressor`](../monitor/monbus_compressor.md) | Source of the compressed slot stream landing in the ring |
-| `axi4_slave_wr` / `axi4_slave_rd` | AXI4-side skids instantiated by the backend |
-| `axil4_slave_wr` / `axil4_slave_rd` | AXIL-side skids instantiated by the backend |
+| `axi4_slave_wr` / `axi4_slave_rd` | AXI4-side skids instantiated by the WRAPPERS |
+| `axil4_slave_wr` / `axil4_slave_rd` | AXIL-side skids instantiated by the WRAPPERS |

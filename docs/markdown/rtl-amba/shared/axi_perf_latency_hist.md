@@ -241,7 +241,7 @@ Only histogram accumulation freezes on `i_freeze`; `r_time` keeps counting so a 
 
 ### Pipeline Drain Before Readback
 
-Because increments land up to three cycles after the completing beat, always read the histogram after the window has been closed (`i_freeze` high) long enough for the pipeline to drain — the host reads long after RUN falls, so this is automatic in the intended usage.
+Because increments land four cycles after the completing beat (capture, subtract, bin, increment -- one register stage each), always read the histogram after the window has been closed (`i_freeze` high) long enough for the pipeline to drain — the host reads long after RUN falls, so this is automatic in the intended usage.
 
 ---
 

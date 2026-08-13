@@ -48,60 +48,9 @@
     - (The legacy variant, its equivalence test, and the TRANS_MGR_VARIANT
       rollback knob were deleted in d246a72d)
 
-12. **monitor_trans_cam.md** - COMPLETE (new 2026-06-08)
-    - Multi-port ID CAM with opaque payload
-    - 3 lookup ports + 3-way mutex alloc priority encoder
-    - Synthesis notes (keep="true" anchors, per-slot generate-loop storage)
 
-13. **monbus_compressor.md** - COMPLETE (new 2026-06-08; refreshed 2026-06-15)
-    - Hardware bulk-trace encoder, ~2.6× compression
-    - Full coverage of all 5 compression techniques (template extraction,
-      delta-ts, width-tiered Tier-1, differential payload, Tier-0 RAW)
-    - Bit layouts, encoder decision tree, pipeline/timing/synthesis notes
-    - 2026-06-15 refresh, superseded by the cam_pipe refactor: pipeline is
-      now 3 stages (lookup/commit ->
-      encode/emit); delta_ts is per-template (matches the CAM's per-entry
-      r_ts[24]) rather than against a single global r_last_ts; added
-      compressor input skid + pblock_monbus floorplan note for the
-      Nexys A7 build
 
-14. **monbus_cam.md** - COMPLETE (new 2026-06-08; refreshed 2026-06-15)
-    - 32-entry true-LRU caching CAM (position-indexed storage)
-    - Backs monbus_compressor's template indexing
-    - Caller protocol (NONE/TOUCH/INSTALL), eviction semantics
-    - 2026-06-15 refresh: added per-entry r_ts[TS_WIDTH=24] storage
-      with access_old_ts / access_new_ts ports (shifts with the LRU
-      move-to-front). CAM is no longer pure opaque-payload -- the
-      caller must drive access_new_ts on every TOUCH/INSTALL.
 
-15. **monbus_group.md** - COMPLETE (rewritten 2026-06-11, was monbus_axil_group.md;
-                              refreshed same day for the two-stage burst-sizing fix)
-    - Renamed from monbus_axil_group.md to reflect the new family.
-    - Covers the full 5-file family: 1 protocol-agnostic core
-      (monbus_group_core.sv) + 4 protocol-permutation wrappers
-      (axil_axil / axil_axi4 / axi4_axil / axi4_axi4).
-    - Documents the beat-granular write FIFO, watermark + timeout
-      burst writer (4KB-boundary aware), and AXI4 burst behavior.
-    - Migration recipe from the legacy single monbus_axil_group module
-      (port-surface changes: cfg_flush_watermark added, FIFO counts
-      widened to 16 bits, FIFO_DEPTH_WRITE now in beats, locked 64-bit
-      data width).
-    - "Master-Write Behavior" section refreshed for the two-stage
-      drain plan (drain-cycle plans whole-record beats without a
-      MAX_BURST_BEATS cap; per-AW sub-bursts get the cap inside the
-      FSM). The "Test" section now lists all five tests in the suite,
-      including the new master-write coverage that closed the
-      AXIL-master raw-mode deadlock.
-    - 2026-06-15 refresh: burst writer geometry is now a 3-stage
-      registered pipeline with a fresh-FIFO cap applied combinationally
-      at the WR_IDLE commit (necessary because the FIFO keeps filling
-      while WR_IDLE waits); mod-3 rounding moved to math_mod_3_compress
-      (rtl/common/, carry-save-compressor idiom) so synthesis no longer
-      infers a DSP48 or CARRY4 iterative divider for the /3 path;
-      runtime cfg_compress_en input added (USE_COMPRESSION=1 elaborates
-      the compressor, cfg_compress_en selects at runtime); canonical
-      rtl/amba/filelists/monbus_group.f introduced (one place to add
-      new core deps).
 
 16. **sdpram_slave.md** - COMPLETE (new 2026-06-09)
     - Covers the full 5-file family: 1 backend + 4 protocol-specific
@@ -109,8 +58,6 @@
     - Documents why the split exists (SystemVerilog cannot conditionally
       include/exclude ports in a single module declaration).
     - Migration recipe from bare `sdpram_slave` to the matching wrapper.
-    - Cross-links from monbus_group.md and monbus_compressor.md
-      (the memory-dump ring's canonical backend is `sdpram_slave_axil_axil`).
 
 17. **axi_monitor_reporter.md** - COMPLETE (rewritten 2026-06-11)
     - Reflects the 2026-06-06 sub-block refactor (thin dispatcher +
@@ -143,12 +90,9 @@
 
 - `rtl/math/math_mod_3_compress.sv` - carry-save-compressor `X mod 3`
   for 16-bit operands; used by monbus_group_core's whole-record
-  rounding. Covered in monbus_group.md "mod-3 rounding" section.
 - `rtl/amba/filelists/monbus_group.f` - canonical filelist enumerating
   the group core's dependency tree (math_adder_carry_save_nbit +
   math_mod_3_compress + monbus_cam + monbus_compressor + monbus_group_core).
-  All consumers `-f`-include it. Covered in monbus_group.md
-  "Canonical filelist" subsection.
 
 ### Remaining Documentation (15 modules)
 
@@ -167,12 +111,6 @@ The following modules require documentation following the same pattern as axi_mo
    - See #11 in Completed Documentation above
 
 #### Monitor Bus Delivery + Bulk-Trace Compression (NEW SECTION)
-   - monbus_group.md - **COMPLETE** (rewritten 2026-06-11, see #15)
-     - Renamed from monbus_axil_group.md; covers the new 5-file
-       family (core + 4 wrappers).
-   - monbus_compressor.md - **COMPLETE** (new 2026-06-08, see #13)
-   - monbus_cam.md - **COMPLETE** (new 2026-06-08, see #14)
-   - monitor_trans_cam.md - **COMPLETE** (new 2026-06-08, see #12)
 
 #### Memory / BRAM Slave (NEW SECTION)
    - sdpram_slave.md - **COMPLETE** (new 2026-06-09, see #16)
@@ -407,6 +345,10 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 - Monitors user_valid and axi_valid signals
 - Configurable idle countdown
 - Generates gated clock output
+
+**Monitor-family pages** (monbus_group, monbus_compressor, monbus_cam,
+monitor_trans_cam) are NOT tracked here anymore -- they live in
+`../monitor/` with the monitor RTL (`rtl/amba/monitor/`).
 
 ## Next Steps
 
