@@ -1064,17 +1064,41 @@ independently.
 | Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
 | Open items | none for gaxi itself |
 
-### shared -- STARTED (findings triaged, nothing integrated)
+### shared -- CORRECTNESS NEARLY DONE (updated 2026-08-13, Sean's "save state")
+
+Fresh rounds re-run from this machine's tree (the round_1 collateral lived
+only on the other machine; per Sean, if the mods can't be found, nothing was
+done -- so the cycle restarted clean). Convergence: **29 -> 14 -> 10**.
 
 | Phase | State | Evidence |
 |---|---|---|
-| Critique (qc round_1) | 23 CONFIRMED + 6 SUSPECTED across shared_part_01..03. Re-verified current 2026-08-11: no incoming commit has touched shared docs or RTL, so none of it is stale | round_1, `~/rtl-doc-review-amba` |
-| Gate sweep | 248 passed / 1 failed across the 12 suites touching shared (Sean's suggestion: "anything that needs changes in shared can be found by running gate on it" -- it was) | 2026-08-10 |
-| RTL defects found | three, all filed rather than fixed: TASK-060 (dma_observer does not elaborate), TASK-061 (splitter block_ready duplicates), TASK-062 (sdpram_slave_axil_axil on the board untested) | vault/Tasks/amba/open.md |
-| Doc integration | NOT STARTED |
-| Humanize | NOT STARTED |
-| Tests (testqc) | NOT STARTED -- no area outside common has had a test-review round |
-| Coverage note | 7 of 21 shared modules have no test referencing them at all: axi4_dma_slaves, axi4_slave_rd_pattern_gen, axi4_slave_wr_crc_check, axi_bus_meter, axis_bus_meter, and 3 of the 4 sdpram_slave_* wrappers |
+| Critique | rounds 2/3/4 dispatched, adjudicated (r2: 19 UPHELD/0 REFUTED/12 UNCERTAIN, extractor 100%), triaged, integrated | `~/rtl-doc-review/results/qc-kimi-k2/round_{2,3,4}` |
+| RTL defects fixed | SIX, each mutation-proven RED->GREEN on clean rebuilds: (1) master CRC accumulate strobe tied off -- constant 0x00000000, integrity compare vacuous; (2) writer CRC captured 2 cycles early; (3) LFSR tap defaults not maximal, 8-bit ID set parks at zero from seed 0x01 -- library-table primitive sets now, family-wide incl. dma_slaves/AXIS pair; (4) convert dropped WSTRB (blocking-order guard) -- partial writes clobbered whole APB words; (5) sdpram_core WRAP mask shrank mid-burst (len = remainder, now latched); (6) rd_crc_check stray-beat drain detected pin-side, parked the stray in the skid, poisoned the next run | 494fe520, 058b3ae0 + suite evidence in messages |
+| RTL defects filed | TASK-060 (observer, left alone per Sean), TASK-061+063 (splitter cluster: block_ready duplication, final-split BRESP lost, per-split RLAST, silent FIFO drop, unfenced consolidation, leading-W), TASK-064 (read-path PSLVERR loss; peakrdl held-req contract) | vault/Tasks/amba/open.md |
+| Tests | ALL 21 shared modules covered (Sean: "all of the shared modules need tests"): 8 new suites over the 7 uncovered (TASK-062 CLOSED -- board-deployed sdpram axil_axil now simulated); software mirrors, REG/TEST_LEVEL grids, SEED, mutation evidence per suite; area sweep **246/246** clean build | ed1319a6 |
+| Doc integration | rounds 2/3/4 fully integrated with read-back verification; README 996-line second copy -> pointer map; STATUS tracking un-rotted; shims Location fixed (all four pages pointed at a directory with no RTL) | e8ba4962, 27ce2732, 058b3ae0 |
+| Guard rails added | gaxi_skid_buffer DEPTH elaboration guard ({2,4,6,8} is the PERMANENT contract -- Sean: "skid buffer will never be more than 8 deep"); shim partial-strobe regression; stray-beat scenario | 058b3ae0 |
+| Humanize | NOT STARTED (correctness first, and round_5 is deliberately held) | -- |
+
+**HELD: round_5 + the observer.** `axi4_dma_observer` is getting updates soon
+(Sean). Plan agreed: (a) wait for the update to land; (b) re-sync
+axi4_dma_observer.md; (c) build a DEDICATED observer unit carrying its FULL
+monitor cone -- part_01's closure did NOT include axi_monitor_base/filtered or
+axi_perf_latency_hist (documented in another part), which is exactly why the
+observer's own o_cmd_block defect was invisible to its reviewer; golden-deps
+auto-skips shared (47 > 25 scale guard), so hand-scope the unit like a _meta;
+(d) spin that unit alone (--only, rebuild-all-send-subset) until clean --
+likely a couple of rounds; (e) round_5 over the rest of shared; (f) humanize
+from a bundle rebuilt AFTER the last correctness commit. Close TASK-060
+against the measured tree only (elaboration passes, the 249th GATE test
+green), not the incoming commit message.
+
+**Monitor-restore incident (context, not mine):** 1e6b1d9d (stream agent,
+2026-08-12) stripped the ID-range filter feature from axi_monitor_base
+(6e95cbab's feature -- per-instance ID slices are the only way parallel
+monitor snooping closes timing). Restoration was in-flight, uncommitted, in
+the shared tree as of 2026-08-13; my footprint has zero overlap. See
+[[multi-agent-worktree]] for the discipline this week bought.
 
 ### Process changes made while doing this
 

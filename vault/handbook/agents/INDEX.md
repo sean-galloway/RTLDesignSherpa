@@ -59,3 +59,10 @@ future grep ambiguous.
   this is the rule agents break most (see the [[skills]] row for `tasks`).
 - Scope is per repo: these live in `<repo>/.claude/agents/`, never in
   `~/.claude/agents/`, which would apply them to unrelated work.
+
+## Shared worktree
+
+- [[multi-agent-worktree]] - several agents, one checkout: the four measured
+  leak paths for uncommitted state (swept experiments, staged deletions
+  riding foreign commits, rm-rf'd shared collateral roots, shared-file
+  breakage) and the staged-SET check that actually holds.

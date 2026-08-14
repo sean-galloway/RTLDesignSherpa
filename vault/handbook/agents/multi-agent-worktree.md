@@ -1,0 +1,49 @@
+---
+title: Multi-agent shared worktree discipline
+summary: One working tree, several agents - the four ways uncommitted state crosses agent boundaries, and the staged-set check that actually holds.
+---
+
+# Multi-agent shared worktree discipline
+
+Several agents share one checkout of this repo. Every incident below reached
+either main or another agent's run before being caught. The common shape:
+**uncommitted state is not private, and the index is shared.**
+
+The incidents, each a different leak path:
+
+1. **Your experiment rides someone else's commit.** A broken TBBase guard sat
+   uncommitted; the math agent's `git add` swept it into da911640 and pushed
+   it - live on main for twenty minutes under someone else's message
+   (2026-08-08).
+2. **Someone else's staged DELETIONS ride yours.** Another agent staged an
+   apb4->apbx page move (2 adds + 2 deletes). A prefix-grep stowaway check
+   caught the adds but not the deletes - deletions do not match the paths you
+   grep FOR - and 058b3ae0 shipped the delete-half of their rename. Repaired
+   in aa21bdb0 (2026-08-13).
+3. **Shared collateral roots get rebuilt mid-round.** `build_review_bundle.py`
+   is rm-rf-by-design; a second agent's rebuild deleted the first's hand-built
+   `_meta` unit mid-humanize-round (2026-07-31). One bundle root per agent, or
+   serialize.
+4. **A shared-file edit breaks every consumer at once.** An uncommitted edit
+   to `tbbase.py` doubled a decorator and broke all 118 TBs that call
+   `convert_to_int` - and the victim spent the longest stretch assuming the
+   failure was their own change (2026-08-06).
+
+The rules:
+
+- **Verify the staged SET, not staged paths.** Before every commit:
+  `git diff --cached --name-status`, compare against your intended list BOTH
+  ways - anything staged you did not list (adds, and especially deletions and
+  renames) gets `git restore --staged` first. A prefix grep over
+  `--name-only` misses deletions by construction.
+- **Commit and push promptly.** Uncommitted work in this tree has a measured
+  half-life. If it must stay uncommitted (another agent's in-flight restore,
+  say), it is at risk every minute - flag it to the owner.
+- **Never leave a broken experiment uncommitted while others work.** Mutation
+  checks restore from a kept copy in the same breath (`cp` out, mutate, run,
+  `cp` back) - never across a boundary where another agent might add/commit.
+- **One collateral root per agent** for anything rebuilt wholesale (review
+  bundles, generated trees), or explicit serialization.
+- When a suite breaks unexpectedly, **check `git status` on shared
+  infrastructure before debugging your own change** - incident 4's cost was
+  mostly misattribution time.
