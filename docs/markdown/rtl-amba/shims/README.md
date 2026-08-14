@@ -269,7 +269,7 @@ axi4_to_apb4_shim u_cpu_bridge (
 ```systemverilog
 axi4_to_apb4_shim #(
     .DEPTH_AW(8),     // Deep buffers for burst DMA
-    .DEPTH_W(16)
+    .DEPTH_W(8)       // gaxi_skid_buffer legal DEPTHs: {2,4,6,8}
 ) u_dma_bridge (
     .aclk(dma_clk),
     .pclk(periph_clk),
@@ -309,7 +309,7 @@ APB → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 |-------------|-------------|---------|---------|-------|
 | Low-latency CPU | 2 | 2-4 | 2-4 | Minimize latency |
 | Moderate DMA | 4 | 8 | 8 | Balance latency/throughput |
-| Burst DMA | 8 | 16 | 16 | Maximize throughput |
+| Burst DMA | 8 | 8 | 8 | Maximize throughput (gaxi_skid_buffer supports DEPTH in {2,4,6,8} ONLY -- 16 silently corrupts, no elaboration guard yet) |
 
 **Width Conversion:**
 

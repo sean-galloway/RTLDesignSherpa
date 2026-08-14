@@ -239,11 +239,12 @@ regblk_wr_biten = 32'hFFFF_0000
 
 **Behavior:**
 1. If stall asserted when cmd_valid:
-   - Register command locally
-   - Enter CMD_STALLED state
-   - Keep regblk_req deasserted
+   - The command is registered and the FSM holds in WAIT_ACK
+   - regblk_req IS asserted in the accept cycle regardless of stall (it is
+     not gated) -- whether that is legal against the passthrough cpuif is
+     the TASK-064 contract question
 2. When stall clears:
-   - Assert regblk_req with registered command
+   - regblk_req remains asserted with the registered command until ack
    - Move to CMD_WAIT_ACK
 
 **Purpose:** Allows PeakRDL register block to implement internal arbitration or serialization.

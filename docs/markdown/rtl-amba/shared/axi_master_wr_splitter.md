@@ -55,7 +55,7 @@ The AXI Master Write Splitter handles the complex task of splitting boundary-cro
 Write transaction splitting presents unique challenges compared to read splitting due to the tight coupling between address (AW), data (W), and response (B) channels. The AXI Master Write Splitter solves these challenges while maintaining protocol correctness.
 
 **Problem Statement:**
-- Upstream master issues write (ADDR=0x0FC0, LEN=7, 8 data beats)
+- Upstream master issues write (ADDR=0x0FC0, LEN=7, 8 data beats, 64-byte beats -- AXI_DATA_WIDTH=512; at the default 32-bit width this burst would not cross)
 - Transaction crosses 4KB boundary at 0x1000
 - Downstream requires separate transactions per boundary
 - Each split generates independent response

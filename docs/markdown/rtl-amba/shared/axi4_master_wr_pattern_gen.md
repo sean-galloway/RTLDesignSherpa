@@ -76,6 +76,8 @@ Bringing up and characterizing a memory controller means driving it with realist
 | LFSR_SEED | logic [31:0] | 32'hDEADBEEF | LFSR seed default |
 | LFSR_TAPS | logic [47:0] | {12'd23, 12'd3, 12'd2, 12'd1} | Maximal-length Fibonacci taps (library-table primitive set) |
 | BURST_LEN_MULTIPLE | int | 1 | Sim-only guard: cfg_start errors if `cfg_burst_len % BURST_LEN_MULTIPLE != 0` (set to the DRAM burst multiple) |
+| CRC_REFIN | int | 1 | CRC input reflection -- MUST match the slave-side blocks |
+| CRC_REFOUT | int | 1 | CRC output reflection (same constraint) |
 | CRC_WIDTH | int | 32 | CRC width |
 | CRC_DATA_WIDTH | int | 32 | Bits per CRC update (fixed 32 to match slave side) |
 | CRC_POLY | logic [CRC_WIDTH-1:0] | 32'h04C11DB7 | CRC polynomial |
@@ -171,7 +173,7 @@ The mode-1 hash chains two 32-bit multiplies — combinationally a ~25 ns / 4-DS
 
 ### CRC Accumulation and Completion
 
-A `dataint_crc` instance accumulates over the same LFSR stream sent on W (not over the hash), latched into `o_expected_crc` at the last W beat of the last burst — meaningful only in LFSR mode, where `o_expected_crc_valid` sets. In hash mode the CRC is not load-bearing and validity is gated low; the harness uses the read side's per-beat compare instead. B responses are counted independently of FSM phase (except never accepted pre-start); `o_bresp_error` sticks on any non-OKAY BRESP. `cfg_done` asserts once in `S_DONE` with all `cfg_txn_count` B's received.
+A `dataint_crc` instance accumulates over the same LFSR stream sent on W (not over the hash), latched into `o_expected_crc` two cycles after the last W beat of the last burst (the CRC accumulator and its conditioned output register each lag one cycle) — meaningful only in LFSR mode, where `o_expected_crc_valid` sets. In hash mode the CRC is not load-bearing and validity is gated low; the harness uses the read side's per-beat compare instead. B responses are counted independently of FSM phase (except never accepted pre-start); `o_bresp_error` sticks on any non-OKAY BRESP. `cfg_done` asserts once in `S_DONE` with all `cfg_txn_count` B's received.
 
 ### Standard Protocol Handler
 

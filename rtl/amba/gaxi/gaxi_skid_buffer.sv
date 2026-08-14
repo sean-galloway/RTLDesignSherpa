@@ -51,7 +51,7 @@
 
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
-    parameter int DEPTH = 2, // Must be one of {2, 4, 6, 8}
+    parameter int DEPTH = 2, // Must be one of {2, 4, 6, 8} -- guarded below
     // Legacy shorthand params (kept for source-compatibility)
     parameter int DW = DATA_WIDTH,
     parameter int BUF_WIDTH = DATA_WIDTH * DEPTH,
@@ -90,6 +90,18 @@ module gaxi_skid_buffer #(
     // but its update depends only on its own index i, so synth builds
     // DEPTH independent small cones instead of one giant shared demux.
     // =========================================================================
+    // The {2,4,6,8} contract was comment-only until 2026-08-13; DEPTH=16
+    // silently corrupted (the 4-bit slot counter wraps). Fail elaboration
+    // instead -- same pattern as gaxi_fifo_async's Gray/depth guard.
+    // Bare $error is an ELABORATION system task (IEEE 1800 20.11) -- do NOT
+    // wrap it in `initial`, which is runtime and never fires during lint
+    // (same note as fifo_async's g_bad_depth guard, the pattern this copies).
+    generate
+        if (DEPTH != 2 && DEPTH != 4 && DEPTH != 6 && DEPTH != 8) begin : gen_depth_guard
+            $error("gaxi_skid_buffer: DEPTH=%0d unsupported -- must be one of {2,4,6,8}", DEPTH);
+        end
+    endgenerate
+
     generate
         for (genvar gi = 0; gi < DEPTH; gi++) begin : g_slot
             `ALWAYS_FF_RST(axi_aclk, axi_aresetn,

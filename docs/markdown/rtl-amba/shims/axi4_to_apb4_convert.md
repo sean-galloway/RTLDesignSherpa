@@ -239,7 +239,6 @@ r_axi_data_shift[r_axi_rsp_data_pointer*APBDW +: APBDW] <= r_apb_rsp_pkt_prdata;
 
 **Error Accumulation:**
 - Writes: all slice/beat PSLVERRs OR'd into B. Reads: each R beat carries only the in-flight APB response's PSLVERR (non-final-slice errors on width-converted reads are lost -- TASK-064)
-- Entire AXI transaction marked with error if any APB beat fails
 - Read errors: `RRESP = 2'b10` (SLVERR)
 - Write errors: `BRESP = 2'b10` (SLVERR)
 

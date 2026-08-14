@@ -21,7 +21,7 @@ lives only in the pages that track their RTL.
 | `axi4_master_wr_pattern_gen` | Write-side characterization master: LFSR/hash pattern generator with running CRC | [page](axi4_master_wr_pattern_gen.md) |
 | `axi4_master_rd_crc_check` | Read-side characterization master: regenerates the pattern, per-beat compare + running CRC | [page](axi4_master_rd_crc_check.md) |
 | `axi4_slave_rd_pattern_gen` | Slave-side read pattern generator (serves the expected stream) | [page](axi4_slave_rd_pattern_gen.md) |
-| `axi4_slave_wr_crc_check` | Slave-side write checker (per-beat compare + CRC; 16-deep B FIFO) | [page](axi4_slave_wr_crc_check.md) |
+| `axi4_slave_wr_crc_check` | Slave-side write CRC accumulator (no compare logic -- integrity is an external CRC-vs-CRC check; 16-deep B FIFO) | [page](axi4_slave_wr_crc_check.md) |
 | `axi4_dma_slaves` | Wrapper bundling the two slave-side blocks for DMA loopback | [page](axi4_dma_slaves.md) |
 | `axis4_master_pattern_gen` | AXIS pattern source (same LFSR family) | [page](axis4_master_pattern_gen.md) |
 | `axis4_slave_pattern_check` | AXIS pattern sink/checker | [page](axis4_slave_pattern_check.md) |

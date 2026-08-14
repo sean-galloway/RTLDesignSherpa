@@ -83,8 +83,8 @@
       built-in AW->W awid order tracker (WR_CH_FROM_AWID=1, no DUT
       sideband) or the optional dma_wr_active_ch_* sideband.
     - The companion modules axi_bus_meter.sv and axi_perf_latency_hist.sv
-      are covered in this single doc rather than their own pages (small,
-      only useful in context).
+      also have their own standalone pages (axi_bus_meter.md,
+      axi_perf_latency_hist.md) -- this doc covers their observer wiring.
 
 ### New shared infrastructure (no dedicated page, covered above)
 
@@ -114,7 +114,7 @@ The following modules require documentation following the same pattern as axi_mo
 
 #### Memory / BRAM Slave (NEW SECTION)
    - sdpram_slave.md - **COMPLETE** (new 2026-06-09, see #16)
-     - Covers backend (sdpram_slave.sv) + 4 wrappers (axi4_axi4, axi4_axil,
+     - Covers backend (sdpram_core.sv) + 4 wrappers (axi4_axi4, axi4_axil,
        axil_axi4, axil_axil) in a single doc.
 
 #### Monitor Bus Arbitration (4 modules)

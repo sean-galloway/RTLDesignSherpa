@@ -74,6 +74,8 @@ The read half of a memory-controller integrity loop must know what it *should* r
 | LFSR_SEED | logic [31:0] | 32'hDEADBEEF | LFSR seed default (must match writer) |
 | LFSR_TAPS | logic [47:0] | {12'd23, 12'd3, 12'd2, 12'd1} | Maximal-length Fibonacci taps (library-table primitive set) |
 | BURST_LEN_MULTIPLE | int | 1 | Sim-only guard: cfg_start errors if `cfg_burst_len % BURST_LEN_MULTIPLE != 0` (set to the DRAM burst multiple) |
+| CRC_REFIN | int | 1 | CRC input reflection -- MUST match the slave-side blocks or writer-vs-slave CRC compares can never match |
+| CRC_REFOUT | int | 1 | CRC output reflection (same constraint) |
 | CRC_WIDTH | int | 32 | CRC width (must match writer) |
 | CRC_DATA_WIDTH | int | 32 | Bits per CRC update |
 | CRC_POLY | logic [CRC_WIDTH-1:0] | 32'h04C11DB7 | CRC polynomial |
@@ -129,7 +131,7 @@ The read half of a memory-controller integrity loop must know what it *should* r
 | o_data_error | output | 1 | Sticky on any per-beat data mismatch |
 | o_rresp_error | output | 1 | Sticky on any non-OKAY R beat |
 | o_beats_mismatched | output | TXN_COUNT_WIDTH | Count of mismatching R beats |
-| o_stray_beat_error | output | 1 | Sticky: an R beat arrived outside any expected transaction (drained and counted, never wedges the engine) |
+| o_stray_beat_error | output | 1 | Sticky: an R beat arrived outside any expected transaction (drained and counted, never wedges the engine). Detection rides the FUB side of the internal skid -- the pre-2026-08-13 pin-side detect counted the stray but PARKED it in the skid, poisoning the next run's first compare |
 | o_stray_beats | output | TXN_COUNT_WIDTH | Count of stray beats drained |
 
 ### M-Side AXI4 Read (out to fabric/controller)

@@ -495,7 +495,13 @@ module axi4_master_rd_crc_check #(
     // compare. A beat for an OUTSTANDING burst that we are merely not ready
     // to consume yet (S_GAP, addr-gen not ready) is NOT a stray — it waits on
     // the bus exactly as before.
-    assign w_stray_beat  = m_axi_rvalid && !w_r_consuming
+    // Detect on the FUB side of the internal read skid, not the m_axi pins:
+    // the skid has no same-cycle fall-through, so a pin-side detect accepted
+    // the stray INTO the skid and then dropped rready -- the beat parked at
+    // the skid head and poisoned the next run's first compare (the exact
+    // failure this drain exists to prevent). fub_rvalid sees the parked beat
+    // until it is genuinely popped.
+    assign w_stray_beat  = fub_rvalid && !w_r_consuming
                         && (r_bursts_done == r_ar_issued);
     assign fub_rready    = w_r_consuming || w_stray_beat;
 
@@ -640,7 +646,7 @@ module axi4_master_rd_crc_check #(
             o_stray_beats      <= '0;
         end else begin
             // stray-beat drain accounting (any state; cfg_start clears)
-            if (w_stray_beat && m_axi_rvalid && fub_rready) begin
+            if (w_stray_beat && fub_rvalid && fub_rready) begin
                 o_stray_beat_error <= 1'b1;
                 o_stray_beats      <= o_stray_beats + 1'b1;
             end

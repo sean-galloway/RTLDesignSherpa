@@ -44,6 +44,7 @@ async def cocotb_test_axi4_master_rd_crc_check(dut):
         "id_mode_lfsr":        _id_mode_lfsr,
         "kb4":                 _kb4,
         "kb32":                _kb32,
+        "stray_beat_drained":  _stray_beat_drained,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -342,6 +343,46 @@ async def _rerun_after_done(tb: RdCrcCheckTB):
     assert int(tb.dut.o_data_error.value) == 0
 
 
+async def _stray_beat_drained(tb: RdCrcCheckTB):
+    """A stray R beat between runs is counted AND genuinely drained.
+
+    The drain once detected on the m_axi pins while popping on the FUB side
+    of the internal skid: the stray was counted, accepted into the skid, and
+    PARKED there -- poisoning the next run's first compare (near-certain
+    o_data_error) exactly as the mechanism's own header said it prevents.
+    Detection now rides fub_rvalid; this scenario is the regression lock:
+    pre-fix RTL fails the second run's clean-compare assertion.
+    """
+    BPP = tb.BYTES_PER_BEAT
+    await tb.program(start_addr=0x100, stride_0=2 * BPP,
+                     burst_len=2, txn_count=2)
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert int(tb.dut.o_data_error.value) == 0
+    assert int(tb.dut.o_stray_beat_error.value) == 0
+
+    # Unsolicited R beat: drive the slave BFM's R channel directly (no AR
+    # outstanding -- the engine is in S_DONE).
+    pkt = tb.slave.r_channel.create_packet(
+        data=0xDEAD_BEEF, id=0, resp=0, last=1)
+    await tb.slave.r_channel.send(pkt)
+    await tb.wait_clocks('aclk', 20)
+
+    assert int(tb.dut.o_stray_beat_error.value) == 1, \
+        "stray beat not flagged"
+    assert int(tb.dut.o_stray_beats.value) == 1, \
+        f"stray count {int(tb.dut.o_stray_beats.value)} != 1"
+
+    # Second run must compare clean: pre-fix RTL pops the parked stray as
+    # this run's first beat and o_data_error goes sticky.
+    await tb.program(start_addr=0x800, stride_0=2 * BPP,
+                     burst_len=2, txn_count=2)
+    await tb.pulse_start()
+    await tb.wait_done()
+    assert int(tb.dut.o_data_error.value) == 0, \
+        "stray beat poisoned the following run's compare"
+
+
 # ---------------------------------------------------------------------------
 # Pytest matrix
 # ---------------------------------------------------------------------------
@@ -352,7 +393,7 @@ _ALL_TYPES = ["smoke_match", "multi_burst_match", "address_walk",
               "rd_gap_inserts_idle", "hash_mode_match",
               "hash_mode_low_entropy", "arvalid_no_drop",
               "id_mode_counter", "id_mode_lfsr",
-              "kb4", "kb32"]
+              "kb4", "kb32", "stray_beat_drained"]
 _GATE = ["smoke_match", "multi_burst_match", "data_mismatch_sticky"]
 _FUNC = list(_ALL_TYPES)
 _FULL = list(_ALL_TYPES)
