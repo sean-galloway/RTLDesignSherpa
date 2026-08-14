@@ -11,6 +11,17 @@ binding for new chapters and for edits to existing ones.
   Arbitration" opens a fresh page, every time. Mechanism: `md_to_docx.py`
   honors `page_break_before` per heading level; every book's styles YAML
   sets it on `h1` and `h2`. New books copy that.
+- **Exception: the first subsection stays with its chapter heading.**
+  A chapter heading whose first subsection also broke ended up alone
+  above an empty page ("3 Overview", then "3.1" on the next). A heading
+  that directly follows a shallower heading with no content between
+  them does not break. The chapter still opens a fresh page; siblings
+  (3.2, 3.3) still each start one. Handled automatically -- authors do
+  nothing.
+- **Verify page breaks in the PDF, not the DOCX.** LibreOffice's
+  TOC-update pass rewrites paragraph formatting, so `python-docx` reads
+  `page_break_before` as `None` on headings that do still break. The
+  DOCX cannot be used to check this.
 - **Title pages carry the build date and revision, stamped at build
   time.** The checked-in styles YAML holds placeholders only; each
   `generate_*_pdf.sh` writes a `.build.yaml` copy with today's date and
