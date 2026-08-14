@@ -433,17 +433,59 @@ def strip_doc_header(text: str) -> str:
     return DOC_HEADER_RE.sub('', text, count=1).lstrip('\n')
 
 
+ATX_HEADING_RE = re.compile(r'^(#{1,6})\s+\S')
+
+
+def _heading_level(line: str) -> int:
+    m = ATX_HEADING_RE.match(line.strip())
+    return len(m.group(1)) if m else 0
+
+
+def _ends_on_bare_heading(text: str) -> int:
+    """Heading level if `text`'s last content is a heading, else 0.
+
+    A chapter file that holds only "# 3 Overview" ends this way.
+    """
+    for line in reversed(text.strip().splitlines()):
+        if line.strip():
+            return _heading_level(line)
+    return 0
+
+
+def _starts_with_heading(text: str) -> int:
+    for line in text.strip().splitlines():
+        if line.strip():
+            return _heading_level(line)
+    return 0
+
+
 def concat_markdown(files: list[pathlib.Path], pagebreak: bool,
                     strip_header: bool = False) -> str:
     parts = []
-    for i, f in enumerate(files):
+    prepared = []
+    for f in files:
         text = read_text(f).rstrip() + "\n"
         if strip_header:
             text = strip_doc_header(text)
         # Rewrite relative image paths to absolute paths
         text = rewrite_image_paths_for_file(text, f)
+        prepared.append(text)
+
+    for i, text in enumerate(prepared):
         parts.append(text)
-        if pagebreak and i < len(files) - 1:
+        if pagebreak and i < len(prepared) - 1:
+            # Skip the break when this file ends on a bare heading and
+            # the next opens with a deeper one: the chapter heading
+            # would otherwise sit alone on an empty page while its
+            # first subsection starts the next. The chapter still opens
+            # a fresh page -- only the redundant inner break is
+            # dropped. (Paragraph-level page_break_before cannot cover
+            # this: LibreOffice's TOC update round-trips the DOCX and
+            # discards it, so the file-level break is what survives.)
+            here = _ends_on_bare_heading(text)
+            nxt = _starts_with_heading(prepared[i + 1])
+            if here and nxt and nxt > here:
+                continue
             parts.append('\n::: {.pagebreak}\n:::\n')
     return "\n".join(parts)
 
@@ -1250,6 +1292,45 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
                 pass
         return 0
 
+    def headings_following_parent(doc) -> set:
+        """Headings that must NOT force a page break.
+
+        A chapter heading whose first subsection also breaks ends up
+        alone on an otherwise empty page: "3 Overview" opens a page,
+        "3.1 ..." immediately opens the next one. Whenever a heading
+        directly follows a shallower heading with no content between
+        them, the break is suppressed so the pair stays together --
+        the parent still opens a fresh page, its first child just does
+        not start another one.
+
+        Returns POSITIONAL indices into doc.paragraphs, not element
+        ids: lxml creates a fresh proxy object per access, so id() is
+        neither stable nor unique across traversals and silently
+        matches the wrong paragraphs. doc.paragraphs is exactly the
+        body's direct <w:p> children in order, so a counter over those
+        lines up. Walks the body so an intervening table counts as
+        content just like a paragraph does.
+        """
+        from docx.text.paragraph import Paragraph
+        suppress, prev_level, content_since = set(), None, False
+        p_idx = -1
+        for child in doc.element.body.iterchildren():
+            tag = child.tag.split('}')[-1]
+            if tag == 'p':
+                p_idx += 1
+                para = Paragraph(child, doc)
+                lvl = get_heading_level(para)
+                if lvl > 0:
+                    if (prev_level is not None and lvl > prev_level
+                            and not content_since):
+                        suppress.add(p_idx)
+                    prev_level, content_since = lvl, False
+                elif para.text.strip():
+                    content_since = True
+            elif tag == 'tbl':
+                content_since = True
+        return suppress
+
     # Load config
     with open(style_config_path) as f:
         config = yaml.safe_load(f)
@@ -1277,8 +1358,12 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
     if lists_config.get('lot', False) or lists_config.get('lof', False):
         add_lists_to_docx(doc, lists_config, not quiet)
 
+    # Headings that directly follow their parent keep the page break
+    # off, so a chapter heading is never stranded alone on a page.
+    keep_with_parent = headings_following_parent(doc)
+
     # Process paragraphs
-    for para in doc.paragraphs:
+    for para_idx, para in enumerate(doc.paragraphs):
         level = get_heading_level(para)
 
         if level > 0:
@@ -1307,7 +1392,7 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
                 # "2.4 Arbitration") -- set page_break_before: true on
                 # the heading level in the styles YAML.
                 if h_cfg.get('page_break_before'):
-                    pf.page_break_before = True
+                    pf.page_break_before = para_idx not in keep_with_parent
 
                 # Background shading
                 if 'background' in h_cfg:
