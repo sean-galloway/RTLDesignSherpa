@@ -32,6 +32,22 @@ binding for new chapters and for edits to existing ones.
   waveform type; WaveDrom is the only sanctioned tool for signals over
   time.
 
+## Image sizing
+
+- **Every image is fitted to the page automatically.** `md_to_docx.py`
+  reads each rendered or referenced image, computes the largest size
+  that fits inside the printable box preserving aspect ratio, and emits
+  an explicit `{width=...}` attribute. Authors do not hand-size images
+  and should not add width attributes of their own.
+- The box is the page minus the margins in force (`--narrow-margins`
+  is accounted for), minus an allowance so a full-height figure does
+  not orphan its caption onto the next page.
+- **Small images are never upscaled** — a compact diagram keeps its
+  natural size rather than being stretched to the margins.
+- This is why a very tall diagram appears small: it was scaled to fit
+  the page height, not the width. If that makes it unreadable, the fix
+  is to split the diagram, not to force a size.
+
 ## Captions and lists
 
 - Table captions use the pandoc form `: Table N.M: ...` after the

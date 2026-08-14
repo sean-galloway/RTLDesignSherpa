@@ -83,6 +83,87 @@ def strip_or_map_emoji(s: str) -> str:
         s = s.replace(k, v)
     return s
 
+# ---- Image fitting ----
+#
+# Rendered diagrams arrive at whatever size the renderer chose (mermaid-cli
+# runs at scale=2 for print quality, so a wide flowchart is easily 2000+ px).
+# Pandoc embeds an image at its intrinsic size unless told otherwise, which
+# is what pushes diagrams off the right edge, and constraining only the width
+# then pushes tall ones off the bottom. Both writers honour an explicit
+# `{width=...}` attribute, so compute one that fits the printable box.
+
+PAGE_W_IN = 8.5                  # US Letter portrait
+PAGE_H_IN = 11.0
+DEFAULT_MARGIN_IN = 1.0
+NARROW_MARGIN_IN = 0.75
+# Room kept under a figure for its caption and a line or two of text, so a
+# full-height image does not leave its caption orphaned on the next page.
+CAPTION_ALLOWANCE_IN = 1.4
+# mermaid-cli and wavedrom emit at CSS pixel scale; 96 px/in is their basis.
+RENDER_DPI = 96.0
+
+#: Printable box, set once from the CLI margins. (width_in, height_in)
+IMAGE_BOX_IN = (PAGE_W_IN - 2 * DEFAULT_MARGIN_IN,
+                PAGE_H_IN - 2 * DEFAULT_MARGIN_IN - CAPTION_ALLOWANCE_IN)
+
+
+def set_image_box(margin_in: float) -> None:
+    """Set the printable box every fitted image is sized against."""
+    global IMAGE_BOX_IN
+    IMAGE_BOX_IN = (PAGE_W_IN - 2 * margin_in,
+                    PAGE_H_IN - 2 * margin_in - CAPTION_ALLOWANCE_IN)
+
+
+def _image_size_px(path: pathlib.Path):
+    """(width, height) in pixels, or None if it cannot be determined."""
+    suffix = path.suffix.lower()
+    if suffix == ".svg":
+        # SVG has no pixels; take the declared size, else the viewBox.
+        try:
+            head = path.read_text(errors="ignore")[:4000]
+        except OSError:
+            return None
+        w = re.search(r'\bwidth\s*=\s*"([\d.]+)', head)
+        h = re.search(r'\bheight\s*=\s*"([\d.]+)', head)
+        if w and h:
+            return float(w.group(1)), float(h.group(1))
+        vb = re.search(r'viewBox\s*=\s*"[\d.\-]+\s+[\d.\-]+\s+([\d.]+)\s+([\d.]+)', head)
+        if vb:
+            return float(vb.group(1)), float(vb.group(2))
+        return None
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            return float(im.width), float(im.height)
+    except Exception:
+        return None
+
+
+def fit_image_attr(path: pathlib.Path, dpi: float = RENDER_DPI) -> str:
+    """Pandoc attribute string sizing `path` to fit the printable box.
+
+    Preserves aspect ratio by constraining only the width — both writers
+    scale height to match — and never upscales, so a small diagram keeps
+    its natural size instead of being blown up to the margins.
+    Returns "" when the size cannot be read, leaving pandoc's default.
+    """
+    size = _image_size_px(path)
+    if not size:
+        return ""
+    w_px, h_px = size
+    if w_px <= 0 or h_px <= 0:
+        return ""
+    max_w, max_h = IMAGE_BOX_IN
+    w_in, h_in = w_px / dpi, h_px / dpi
+    scale = min(max_w / w_in, max_h / h_in, 1.0)
+    return "{width=%.2fin}" % (w_in * scale)
+
+
+def img_md(alt: str, path: pathlib.Path) -> str:
+    """A markdown image reference, sized to fit the page."""
+    return f"![{alt}]({path.as_posix()}){fit_image_attr(path)}"
+
+
 # ---- Mermaid handling ----
 
 def render_mermaid_block(code: str, tmp_img_dir: pathlib.Path, idx: int, title: str = None, quiet: bool = False) -> str:
@@ -118,7 +199,7 @@ def render_mermaid_block(code: str, tmp_img_dir: pathlib.Path, idx: int, title: 
             if out_png.exists():
                 if not quiet:
                     log(f"  Rendered mermaid_{idx}.png: {alt_text}")
-                return f"![{alt_text}]({out_png.as_posix()})"
+                return img_md(alt_text, out_png)
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             if not quiet:
                 log(f"  Warning: Mermaid render failed for block {idx}: {e}")
@@ -188,7 +269,7 @@ def render_wavedrom_inline(json_code: str, tmp_img_dir: pathlib.Path, idx: int, 
             return f"""
 ```{{=latex}}
 \\begin{{center}}
-\\includegraphics[width=\\linewidth,keepaspectratio]{{{img_path}}}
+\\includegraphics[width=\\linewidth,height=0.72\\textheight,keepaspectratio]{{{img_path}}}
 
 \\vspace{{0.5em}}
 \\textbf{{{escaped_title}}}
@@ -197,7 +278,7 @@ def render_wavedrom_inline(json_code: str, tmp_img_dir: pathlib.Path, idx: int, 
 ```
 """
         # Standard markdown image (will become figure in LaTeX)
-        return f"![{alt_text}]({svg_path.as_posix()})"
+        return img_md(alt_text, svg_path)
 
     # Try python-wavedrom first
     svg_text = try_render_wavedrom_python(tmp_json)
@@ -296,7 +377,7 @@ def rewrite_image_paths_for_file(text: str, source_file: pathlib.Path) -> str:
         # Resolve relative path based on source file location
         abs_path = (source_file.parent / path).resolve()
         if abs_path.exists():
-            return f"![{alt}]({abs_path.as_posix()})"
+            return f"![{alt}]({abs_path.as_posix()}){fit_image_attr(abs_path)}"
         # If file doesn't exist, keep original reference
         return m.group(0)
     return IMG_RE.sub(_sub, text)
@@ -379,10 +460,10 @@ def rewrite_wavedrom_images(md_text: str, base_dir: pathlib.Path, tmp_img_dir: p
         if svg_text:
             out_svg = tmp_img_dir / (jp.stem + ".svg")
             write_text(out_svg, svg_text)
-            return f"![{alt}]({out_svg.as_posix()})"
+            return img_md(alt, out_svg)
         out_svg = tmp_img_dir / (jp.stem + ".svg")
         if try_render_wavedrom_cli(jp, out_svg):
-            return f"![{alt}]({out_svg.as_posix()})"
+            return img_md(alt, out_svg)
         return f"[{alt or 'diagram (wavedrom)'}]({rel})"
     return IMG_JSON_RE.sub(_sub, md_text)
 
@@ -1668,6 +1749,11 @@ def main():
         front_lists = make_front_matter_lists(args)
         if front_lists:
             chunks.append(front_lists)
+
+        # Size the printable box before any image is rewritten, so the
+        # fitted widths match the margins the document will actually use.
+        set_image_box(NARROW_MARGIN_IN if args.narrow_margins
+                      else DEFAULT_MARGIN_IN)
 
         merged = concat_markdown(files, args.pagebreak,
                                  strip_header=args.strip_doc_header)
