@@ -21,7 +21,7 @@ This plan outlines the approach for generating Mermaid block diagrams for the 56
 
 ### Block Diagram
 
-![arbiter_round_robin Block Diagram](../assets/rtl-common/arbiter_round_robin.svg)
+![arbiter_round_robin Block Diagram](arbiter_round_robin.svg)
 ```
 
 ### File Organization
@@ -637,7 +637,7 @@ The `arbiter_round_robin` module implements...
 
 ### Block Diagram
 
-![arbiter_round_robin Block Diagram](../assets/rtl-common/arbiter_round_robin.svg)
+![arbiter_round_robin Block Diagram](arbiter_round_robin.svg)
 
 ## Parameters
 ...

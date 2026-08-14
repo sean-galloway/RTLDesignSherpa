@@ -202,9 +202,9 @@ apb4_slave #(
 - **[Protocol Bridges](rtl/amba/adapters/)** - APB ↔ AXI-Lite conversion
 
 #### AXI4-Stream (High-Throughput Data)
-- **[Stream Masters/Slaves](rtl/amba/axis/)** - Streaming interfaces
-- **[Flow Control](rtl/amba/axis/)** - Backpressure, buffering
-- **[Sideband Support](rtl/amba/axis/)** - TID, TDEST, TUSER, TSTRB
+- **[Stream Masters/Slaves](rtl/amba/axis4/)** - Streaming interfaces
+- **[Flow Control](rtl/amba/axis4/)** - Backpressure, buffering
+- **[Sideband Support](rtl/amba/axis4/)** - TID, TDEST, TUSER, TSTRB
 
 #### Shared Infrastructure
 - **[GAXI Buffers](../../rtl/amba/gaxi)** - Generic skid buffers, FIFOs, CDC

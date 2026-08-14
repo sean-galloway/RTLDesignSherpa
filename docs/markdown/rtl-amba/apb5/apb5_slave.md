@@ -408,7 +408,7 @@ itself convert them into PSLVERR -- that policy is left to the integrator.
 - **[APB5 Master](apb5_master.md)** - APB5 master interface
 - **[APB5 Slave CG](apb5_slave_cg.md)** - Clock-gated variant
 - **[APB5 Slave CDC](apb5_slave_cdc.md)** - Clock domain crossing variant
-- **[APB4 Slave](../apb/apb4_slave.md)** - APB4 version for comparison
+- **[APB4 Slave](../apb4/apb4_slave.md)** - APB4 version for comparison
 
 ---
 

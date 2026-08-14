@@ -22,7 +22,7 @@ This plan outlines the approach for generating Mermaid block diagrams for the 94
 
 ### Block Diagram
 
-![gaxi_fifo_async Block Diagram](../assets/rtl-amba/gaxi_fifo_async.svg)
+![gaxi_fifo_async Block Diagram](gaxi_fifo_async.svg)
 ```
 
 ### File Organization

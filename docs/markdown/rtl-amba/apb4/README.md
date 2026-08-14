@@ -63,7 +63,7 @@ signalling is required. The two families are otherwise architecturally identical
 | **apb4_master** | Full-featured APB master with command/response interface | [apb4_master.md](apb4_master.md) | ✅ Documented |
 | **apb4_slave** | Complete APB slave with buffered cmd/rsp interface | [apb4_slave.md](apb4_slave.md) | ✅ Documented |
 | **apb4_slave_cdc** | APB slave with clock domain crossing support | [apb4_slave_cdc.md](apb4_slave_cdc.md) | ✅ Documented |
-| **apb4_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb4_monitor.md](../apb/apb4_monitor.md) | ✅ Documented |
+| **apb4_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb4_monitor.md](apb4_monitor.md) | ✅ Documented |
 
 **Note:** `apb4_monitor.sv` lives in `rtl/amba/monitor/` (with the rest of the
 monitor family), not in `rtl/amba/apb4/`. Its specification is part of the
@@ -342,7 +342,7 @@ with a 64-bit side-band timestamp:
 [63:0]    - Event Data     (64 bits)
 ```
 
-See [apb4_monitor.md](../apb/apb4_monitor.md) for detailed packet format.
+See [apb4_monitor.md](apb4_monitor.md) for detailed packet format.
 
 ---
 

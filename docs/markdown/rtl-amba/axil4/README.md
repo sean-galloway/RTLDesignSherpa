@@ -366,7 +366,7 @@ measured comparison against the AXI4 modules.
 ### RTL Design Sherpa Documentation
 - **[rtl-amba Overview](../overview.md)** - Complete AMBA subsystem architecture
 - **[AXI4 Modules](../axi4/README.md)** - Full AXI4 protocol (comparison)
-- **[APB Modules](../apb/README.md)** - Even simpler peripheral bus
+- **[APB Modules](README.md)** - Even simpler peripheral bus
 - **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities (buffers, FIFOs)
 
 ### Configuration and Integration

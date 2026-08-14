@@ -375,7 +375,7 @@ APB5 modules are backward compatible with APB4 systems:
 
 ## Related Documentation
 
-- **[APB4 Modules](../apb/README.md)** - APB4 protocol components
+- **[APB4 Modules](README.md)** - APB4 protocol components
 - **[AXI5 Modules](../axi5/README.md)** - AXI5 protocol components
 - **[AXIS5 Modules](../axis5/README.md)** - AXI5-Stream components
 - **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities

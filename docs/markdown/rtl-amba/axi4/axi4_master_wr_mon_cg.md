@@ -108,7 +108,7 @@ axi4_master_wr_mon_cg #(
 - **Detailed CG Examples:**
   - [axi4_master_rd_mon_cg.md](axi4_master_rd_mon_cg.md) (AXI4 monitor)
   - [axil4_master_rd_mon_cg.md](../axil4/axil4_master_rd_mon_cg.md) (AXIL4 monitor)
-  - [apb4_slave_cg.md](../apb/apb4_slave_cg.md) (APB interface)
+  - [apb4_slave_cg.md](../apb4/apb4_slave_cg.md) (APB interface)
 
 ---
 

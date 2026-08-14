@@ -451,7 +451,7 @@ stages, so it costs no additional latency.
 - **[APB5 Slave](apb5_slave.md)** - APB5 slave interface
 - **[APB5 Master CG](apb5_master_cg.md)** - Clock-gated variant
 - **[APB5 Monitor](../apb5/apb5_monitor.md)** - Protocol monitor
-- **[APB4 Master](../apb/apb4_master.md)** - APB4 version for comparison
+- **[APB4 Master](../apb4/apb4_master.md)** - APB4 version for comparison
 
 ---
 
