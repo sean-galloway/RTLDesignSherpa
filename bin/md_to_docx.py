@@ -106,12 +106,44 @@ RENDER_DPI = 96.0
 IMAGE_BOX_IN = (PAGE_W_IN - 2 * DEFAULT_MARGIN_IN,
                 PAGE_H_IN - 2 * DEFAULT_MARGIN_IN - CAPTION_ALLOWANCE_IN)
 
+#: Same directories Pandoc gets via --resource-path. A chapter may
+#: reference an asset by a path that does not resolve relative to itself
+#: (e.g. `assets/graphviz/x.png` from `ch02_blocks/`), which Pandoc still
+#: finds through the resource path. The fitter has to search the same
+#: places or it silently skips exactly those images.
+ASSET_SEARCH_DIRS: list = []
+
 
 def set_image_box(margin_in: float) -> None:
     """Set the printable box every fitted image is sized against."""
     global IMAGE_BOX_IN
     IMAGE_BOX_IN = (PAGE_W_IN - 2 * margin_in,
                     PAGE_H_IN - 2 * margin_in - CAPTION_ALLOWANCE_IN)
+
+
+def set_asset_search_dirs(dirs) -> None:
+    """Mirror Pandoc's --resource-path for image-size lookups."""
+    global ASSET_SEARCH_DIRS
+    ASSET_SEARCH_DIRS = [pathlib.Path(d).resolve() for d in dirs
+                         if pathlib.Path(d).is_dir()]
+
+
+def resolve_asset(path_str: str, source_file: pathlib.Path = None):
+    """Locate an image the way Pandoc will: relative to its source file
+    first, then along the asset search path (by full relative path and
+    by bare filename). Returns a Path or None."""
+    p = pathlib.Path(path_str)
+    if p.is_absolute():
+        return p if p.exists() else None
+    if source_file is not None:
+        cand = (source_file.parent / p)
+        if cand.exists():
+            return cand.resolve()
+    for d in ASSET_SEARCH_DIRS:
+        for cand in (d / p, d / p.name):
+            if cand.exists():
+                return cand.resolve()
+    return None
 
 
 def _image_size_px(path: pathlib.Path):
@@ -374,11 +406,13 @@ def rewrite_image_paths_for_file(text: str, source_file: pathlib.Path) -> str:
         # Skip absolute paths, URLs, and already processed paths
         if path.startswith('/') or '://' in path:
             return m.group(0)
-        # Resolve relative path based on source file location
-        abs_path = (source_file.parent / path).resolve()
-        if abs_path.exists():
+        # Resolve the way Pandoc will: relative to the source file, then
+        # along the asset search path. A chapter that references
+        # `assets/x.png` from a subdirectory resolves only via the latter.
+        abs_path = resolve_asset(path, source_file)
+        if abs_path is not None:
             return f"![{alt}]({abs_path.as_posix()}){fit_image_attr(abs_path)}"
-        # If file doesn't exist, keep original reference
+        # If the file cannot be found, keep the original reference
         return m.group(0)
     return IMG_RE.sub(_sub, text)
 
@@ -1754,6 +1788,7 @@ def main():
         # fitted widths match the margins the document will actually use.
         set_image_box(NARROW_MARGIN_IN if args.narrow_margins
                       else DEFAULT_MARGIN_IN)
+        set_asset_search_dirs(list(args.assets_dir) + [in_path.parent])
 
         merged = concat_markdown(files, args.pagebreak,
                                  strip_header=args.strip_doc_header)
