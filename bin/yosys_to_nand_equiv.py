@@ -121,22 +121,39 @@ def parse_yosys_stat(text: str) -> Dict[str, int]:
     """
     cells = {}
 
-    # Pattern for Yosys stat output lines like:
-    #    $_AND_                         123
-    #    $_MUX_                          45
-    cell_pattern = re.compile(r'^\s+(\$_\w+_|\w+)\s+(\d+)\s*$')
+    # Yosys 'stat' prints COUNT first, then the cell type:
+    #      21862   $_AND_
+    # (some tools emit the reverse, so both orders are accepted).
+    count_first = re.compile(r'^\s+(\d+)\s+(\$_\w+_|\w+)\s*$')
+    type_first = re.compile(r'^\s+(\$_\w+_|\w+)\s+(\d+)\s*$')
+
+    # 'stat' summary lines have the same shape as a cell line once the
+    # multi-word ones are excluded ("   78934 cells"), so they must be
+    # skipped by name or they get counted as gates.
+    SUMMARY_KEYWORDS = {
+        'wires', 'bits', 'ports', 'cells', 'memories', 'processes',
+        'submodules', 'modules',
+    }
 
     # Also match "ABC RESULTS" format:
     #    ABC RESULTS:              NAND cells:        4
     abc_pattern = re.compile(r'ABC RESULTS:\s+(\w+)\s+cells:\s+(\d+)')
 
     for line in text.split('\n'):
-        # Try standard stat format
-        match = cell_pattern.match(line)
+        # Try standard stat format (either column order)
+        match = count_first.match(line)
+        if match:
+            count, cell_type = int(match.group(1)), match.group(2)
+            if cell_type.lower() not in SUMMARY_KEYWORDS:
+                cells[cell_type] = cells.get(cell_type, 0) + count
+            continue
+
+        match = type_first.match(line)
         if match:
             cell_type = match.group(1)
             count = int(match.group(2))
-            cells[cell_type] = cells.get(cell_type, 0) + count
+            if cell_type.lower() not in SUMMARY_KEYWORDS:
+                cells[cell_type] = cells.get(cell_type, 0) + count
             continue
 
         # Try ABC results format
