@@ -79,12 +79,50 @@ NAND_EQUIVALENTS = {
     # Tri-state
     '$_TBUF_': 4,          # Tri-state buffer = ~4 NAND equiv
 
-    # Arithmetic (these are rough estimates)
+    # Sequential with synchronous control
     '$_SDFF_PP0_': 10,     # Sync DFF with reset
     '$_SDFF_PP1_': 10,
     '$_SDFFCE_PP0P_': 12,  # Sync DFF with clock enable and reset
     '$_ALDFF_PP_': 10,     # Async load DFF
 }
+
+# Yosys names a generic flop by its polarities -- clock edge, reset
+# polarity, reset value, enable polarity -- which produces dozens of
+# variants per family ($_SDFFE_PN0P_, $_SDFFE_PP0P_, ...). Enumerating
+# them by hand is how the table above ended up missing most of the ones
+# real designs use, sending them to the "name contains DFF, call it 6"
+# fallback and undercounting every sync-reset flop.
+#
+# Polarity does not change gate count, only the family does, so price by
+# family. These costs match the explicit entries above (a $_SDFF_PP0_ is
+# 10 either way); the table still wins when a name is listed there.
+FF_FAMILY_NAND = [
+    (r'\$_DFFSRE_[PN]{4}_$', 12),   # async set+reset, with enable
+    (r'\$_DFFSR_[PN]{3}_$', 10),    # async set+reset
+    (r'\$_SDFFCE_[PN][PN][01][PN]_$', 12),  # sync reset, enable priority
+    (r'\$_SDFFE_[PN][PN][01][PN]_$', 12),   # sync reset + enable
+    (r'\$_SDFF_[PN][PN][01]_$', 10),        # sync reset
+    (r'\$_ALDFFE_[PN]{3}_$', 12),   # async load + enable
+    (r'\$_ALDFF_[PN]{2}_$', 10),    # async load
+    (r'\$_DFFE_[PN][PN][01][PN]_$', 10),    # async reset + enable
+    (r'\$_DFFE_[PN]{2}_$', 8),      # enable only
+    (r'\$_DFF_[PN][PN][01]_$', 8),  # async set/reset
+    (r'\$_DFF_[PN]_$', 6),          # plain
+    (r'\$_FF_[PN]_$', 6),           # generic flop
+    (r'\$_DLATCHSR_[PN]{3}_$', 6),
+    (r'\$_DLATCH_[PN][PN][01]_$', 5),
+    (r'\$_DLATCH_[PN]_$', 4),
+    (r'\$_SR_[PN]{2}_$', 4),
+]
+
+
+def generic_ff_nand(cell_type: str):
+    """NAND cost for a Yosys generic flop/latch, by family. None if the
+    name is not one."""
+    for pattern, cost in FF_FAMILY_NAND:
+        if re.fullmatch(pattern, cell_type):
+            return cost
+    return None
 
 # Alternative names (some Yosys versions use different naming)
 CELL_ALIASES = {
@@ -193,6 +231,12 @@ def cells_to_nand_equiv(cells: Dict[str, int], verbose: bool = False) -> Tuple[i
         # Look up NAND equivalent
         if normalized in NAND_EQUIVALENTS:
             nand_equiv = NAND_EQUIVALENTS[normalized] * count
+            breakdown[cell_type] = (count, nand_equiv)
+            total += nand_equiv
+        elif generic_ff_nand(normalized) is not None:
+            # A Yosys generic flop whose exact polarity variant is not
+            # listed: price it by family rather than guessing.
+            nand_equiv = generic_ff_nand(normalized) * count
             breakdown[cell_type] = (count, nand_equiv)
             total += nand_equiv
         else:
