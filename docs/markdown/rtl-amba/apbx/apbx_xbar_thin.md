@@ -27,6 +27,10 @@ A fully parameterized M×S APB crossbar switch providing full connectivity betwe
 multiple APB masters and slaves with weighted round-robin arbitration and
 runtime-programmable address decoding.
 
+Each port independently speaks **APB4 or APB5**, set by the `MST_APB5` /
+`SLV_APB5` version masks, so one fabric can carry a mix of both. The masks
+default to `'0` — pure APB4, bit-identical to the pre-APB5 module.
+
 **Module:** `apbx_xbar_thin.sv`
 **Location:** `projects/components/apbx-xbar/rtl/`
 **Status:** ✅ Production Ready
@@ -48,7 +52,7 @@ rewritten against the actual RTL.
 The other family, the fixed-configuration generated crossbars (`apbx_xbar_1to1`,
 `apbx_xbar_2to1`, `apbx_xbar_1to4`, `apbx_xbar_2to4`), *does* use `apb4_slave` +
 `apb4_master` conversion and is specified separately in
-[apb_crossbar.md](apb_crossbar.md).
+[apbx_xbar_variants.md](apbx_xbar_variants.md).
 
 ### Choosing Between the Two Families
 
@@ -59,7 +63,7 @@ The other family, the fixed-configuration generated crossbars (`apbx_xbar_1to1`,
 | Arbitration | Weighted round-robin | Plain round-robin |
 | Protocol conversion | None -- combinational passthrough | APB → cmd/rsp → APB |
 | Buffering | None | Skid buffers on both sides |
-| Added latency | Zero cycles | Multiple cycles (see [apb_crossbar.md](apb_crossbar.md)) |
+| Added latency | Zero cycles | Multiple cycles (see [apbx_xbar_variants.md](apbx_xbar_variants.md)) |
 | Combinational path | Master APB to slave APB, and `PREADY`/`PRDATA` back | Broken by registers |
 | Best for | Sparse or reprogrammable maps, latency-critical paths | Timing closure at higher frequency |
 
@@ -141,8 +145,24 @@ unlike `apb4_slave` / `apb4_master` and the generated crossbars.
 | DATA_WIDTH | int | 32 | APB data bus width |
 | STRB_WIDTH | int | DATA_WIDTH/8 | APB write strobe width (derived) |
 | MAX_THRESH | int | 16 | Sizes the per-master threshold field: `MTW = $clog2(MAX_THRESH)` |
+| MST_APB5 | logic [31:0] | '0 | Per-master version mask; bit *m* set = master *m* speaks APB5 |
+| SLV_APB5 | logic [31:0] | '0 | Per-slave version mask; bit *s* set = slave *s* speaks APB5 |
+| AUW | int | 1 | `PAUSER` width |
+| WUW | int | 1 | `PWUSER` width |
+| RUW | int | 1 | `PRUSER` width |
+| BUW | int | 1 | `PBUSER` width |
 
 **There is no `DEPTH` parameter.** The module contains no buffers.
+
+**The version masks are fixed 32-bit, not `[M-1:0]`/`[S-1:0]`.** M and S are
+capped at 16 in practice, and a fixed width is what lets a tool `-G` override
+pass cleanly — a parameter sized from another parameter provokes width-truncation
+warnings when overridden from the command line. Bits above M/S are ignored.
+
+**Default `'0` is exactly the legacy module.** With both masks zero every
+sideband contribution is gated off, so synthesis prunes the sideband logic and
+the result is bit-identical to the pre-APB5 crossbar. You pay nothing for a
+feature you have not enabled.
 
 **`MAX_THRESH` only sizes the field.** The arbiter is instantiated with
 `MAX_LEVELS(16)` hardcoded, so changing `MAX_THRESH` changes the width of
@@ -193,6 +213,15 @@ on them. They are named `m_apb_*` because they connect to external APB masters.
 | m_apb_pready | M | Output | Ready returned to each master |
 | m_apb_prdata | M × DATA_WIDTH | Output | Read data returned to each master |
 | m_apb_pslverr | M | Output | Error returned to each master |
+| m_apb_pauser | M × AUW | Input | APB5 address-phase user (requester direction) |
+| m_apb_pwuser | M × WUW | Input | APB5 write-data user (requester direction) |
+| m_apb_pwakeup | M | Output | APB5 wakeup toward the master |
+| m_apb_pruser | M × RUW | Output | APB5 read-data user returned to the master |
+| m_apb_pbuser | M × BUW | Output | APB5 response user returned to the master |
+
+The five sideband ports exist on every build regardless of `MST_APB5`. An
+APB4 master ties the inputs to `'0` and leaves the outputs open — see
+[Mixed APB4 / APB5 Operation](#mixed-apb4--apb5-operation).
 
 ### Slave Interfaces (Output Side)
 
@@ -212,6 +241,11 @@ slaves.
 | s_apb_pready | S | Input | Ready from each slave |
 | s_apb_prdata | S × DATA_WIDTH | Input | Read data from each slave |
 | s_apb_pslverr | S | Input | Error from each slave |
+| s_apb_pauser | S × AUW | Output | APB5 address-phase user driven to the slave |
+| s_apb_pwuser | S × WUW | Output | APB5 write-data user driven to the slave |
+| s_apb_pwakeup | S | Input | APB5 wakeup from the slave |
+| s_apb_pruser | S × RUW | Input | APB5 read-data user from the slave |
+| s_apb_pbuser | S × BUW | Input | APB5 response user from the slave |
 
 ### A Note on the `m_`/`s_` Prefixes
 
@@ -326,6 +360,86 @@ arbiter_round_robin_weighted #(
   higher-weighted master wins more often across a rotation while still being
   starvation-free.
 
+### Mixed APB4 / APB5 Operation
+
+One fabric carries both protocol versions at once. `MST_APB5[m]` and
+`SLV_APB5[s]` declare what each port speaks; the two masks are independent, so
+an APB5 master may target an APB4 slave and vice versa.
+
+**Nothing converts.** APB5 is APB4's transfer protocol plus additional
+sideband pins — the handshake, the address phase, and the access phase are
+unchanged. So the sideband rides the *same* select, grant, and demux muxes as
+`PADDR` and `PWDATA`, and no protocol converter, bridge, or extra state exists
+anywhere in the crossbar. (This is the same conclusion the bridge reached with
+`axi4_to_apb5_shim`; the converters MAS records it.)
+
+What the masks do is gate *contribution*, on both ends of every path:
+
+```mermaid
+flowchart LR
+    M4["Master 0<br/>APB4<br/>MST_APB5[0]=0"] -->|"sideband = '0"| FAB
+    M5["Master 1<br/>APB5<br/>MST_APB5[1]=1"] -->|"PAUSER, PWUSER"| FAB
+    FAB{{"shared select /<br/>grant / demux muxes"}}
+    FAB -->|"gated by SLV_APB5[0]"| S5["Slave 0<br/>APB5<br/>sees real sideband"]
+    FAB -->|"gated by SLV_APB5[1]"| S4["Slave 1<br/>APB4<br/>reads '0"]
+```
+
+Figure 1: Contribution gating on a 2×2 mixed fabric.
+
+Read the requester-direction assignment as the two gates in series:
+
+```systemverilog
+s_apb_pauser[s_mux] = (SLV_APB5[s_mux] && arb_gnt_valid[s_mux]
+                       && MST_APB5[5'(mst_id)])
+                      ? m_apb_pauser[mst_id] : '0;
+```
+
+Both ends must be APB5 for sideband to flow. The consequences are the ones you
+want by default:
+
+- An **APB4 master** contributes `'0`, so an APB5 slave downstream of it sees
+  zeroed user bits rather than an X or a stale value from another master.
+- An **APB4 slave** can never be driven with nonzero sideband, so the pins do
+  not need to exist on it at all.
+- Because both gates are compile-time constants, synthesis prunes the entire
+  sideband path for any pairing that cannot occur. An all-APB4 build optimizes
+  away to the legacy crossbar exactly.
+
+`PWAKEUP` is the exception to "rides the same muxes", because it is not a
+per-transfer payload: it flows completer-to-requester independently of any
+grant. In the generated variants the master-side `apb5_slave` regenerates
+`PWAKEUP` toward its master, and the external completer's `PWAKEUP` terminates
+at the slave-side `apb5_master`.
+
+Sideband is valid across exactly the same window as the address phase it
+belongs to — it is muxed by the same grant, so it appears and disappears with
+`PSEL`:
+
+```wavedrom
+{ "signal": [
+  { "name": "pclk",          "wave": "p......" },
+  { "name": "m1_psel",       "wave": "01..0..", "node": ".a..b" },
+  { "name": "m1_penable",    "wave": "0.1.0.." },
+  { "name": "m1_pauser",     "wave": "x3..x..", "data": ["A"] },
+  { "name": "s0_psel",       "wave": "01..0.." },
+  { "name": "s0_pauser",     "wave": "x3..x..", "data": ["A"] },
+  { "name": "s1_pauser",     "wave": "0......" },
+  { "name": "s0_pready",     "wave": "0..10.." }
+  ],
+  "edge": ["a-b granted window"],
+  "head": { "text": "APB5 master 1 to APB5 slave 0; APB4 slave 1 stays at zero" }
+}
+```
+
+Waveform 1: Sideband follows the granted address phase; an APB4 port on the
+same fabric never sees it.
+
+**What is not implemented.** APB5's parity feature (`PSELPARITY` and friends)
+is not carried across the fabric. The generated variants instantiate their
+boundary IP with `ENABLE_PARITY=0` and tie the parity pins off. Wakeup and the
+user buses are the supported sideband; parity would be a separate change with
+its own protection-domain argument.
+
 ---
 
 ## Timing Characteristics
@@ -346,7 +460,7 @@ The cost is timing, not cycles:
 
 Both paths scale with M and S. On FPGA targets this is normally the critical path
 of any design instantiating a large `apbx_xbar_thin`. If timing does not close,
-use a generated crossbar from [apb_crossbar.md](apb_crossbar.md), which breaks
+use a generated crossbar from [apbx_xbar_variants.md](apbx_xbar_variants.md), which breaks
 these paths with registers, or register the crossbar's boundaries externally.
 
 ### Arbitration Turnaround
@@ -478,7 +592,7 @@ the master-side demultiplexer leaves `m_apb_pready[m]` at its default of `1'b0`.
 timeout.
 
 This is the same limitation as the generated crossbars -- see
-[apb_crossbar.md](apb_crossbar.md).
+[apbx_xbar_variants.md](apbx_xbar_variants.md).
 
 **Mitigation:** hold `SLAVE_ENABLE` such that the programmed ranges cover every
 address a master can emit, or place an address filter with an error slave
@@ -530,12 +644,26 @@ suggest; budget for it before committing to a topology.
 SymbiYosys proofs are checked in at `formal/apbx_xbar/apbx_xbar_thin/`, with
 `prove` and `cover` tasks.
 
+The proofs run the default all-APB4 configuration. They were updated for the
+APB5 port additions — the harness ties the sideband inputs and leaves the
+outputs open — but they do not yet prove anything about the version gating
+itself; that is tracked as follow-up work in the component's task page.
+
 ### Simulation
 
-`apbx_xbar_thin` has no dedicated CocoTB testbench. The four generated variants in
-`projects/components/apbx-xbar/dv/tests/` do, but they exercise the *other*
-architecture and provide no coverage of this module. Weigh that when selecting
-between the two families.
+`test_apbx_xbar_thin_mixed.py` drives the core directly with M=2, S=2 and
+`MST_APB5`/`SLV_APB5` set to a mixed pairing, checking all four
+master×slave combinations for sideband **value** (an APB5→APB5 path carries
+the user bits through) and **leak** (no other pairing sees them).
+
+Note the testbench drives whole flat vectors rather than indexing the packed
+2-D ports. That is not a style choice: the Verilator VPI cannot address an
+element of a packed 2-D array, so per-element access raises
+`IndexError: ... contains no object at index 0`. The TB keeps shadow vectors
+and writes them in full.
+
+The four generated variants have their own testbenches, but they exercise the
+*other* architecture and provide no coverage of this module.
 
 ### Suggested Coverage
 
@@ -545,17 +673,18 @@ between the two families.
 - Arbitration fairness and weighting under sustained contention
 - Grant persistence across a slave's wait states
 - Reset behaviour with a transfer in flight
+- Every version pairing (4→4, 4→5, 5→4, 5→5) for sideband value and leak
 
 ---
 
 ## Related Modules
 
-- **apbx_xbar_1to1 / 2to1 / 1to4 / 2to4**: fixed-configuration generated crossbars ([apb_crossbar.md](apb_crossbar.md))
-- **apb4_master**: APB master, used by the generated crossbars ([apb4_master.md](apb4_master.md))
-- **apb4_slave**: APB slave, used by the generated crossbars ([apb4_slave.md](apb4_slave.md))
+- **apbx_xbar_1to1 / 2to1 / 1to4 / 2to4**: fixed-configuration generated crossbars ([apbx_xbar_variants.md](apbx_xbar_variants.md))
+- **apb4_master**: APB master, used by the generated crossbars ([apb4_master.md](../apb4/apb4_master.md))
+- **apb4_slave**: APB slave, used by the generated crossbars ([apb4_slave.md](../apb4/apb4_slave.md))
 - **arbiter_round_robin_weighted**: the per-slave arbiter instantiated here
 - **arbiter_round_robin**: plain round-robin used by the generated crossbars
-- **apb4_monitor**: APB protocol monitoring ([apb4_monitor.md](../apb/apb4_monitor.md))
+- **apb4_monitor**: APB protocol monitoring ([apb4_monitor.md](../apb4/apb4_monitor.md))
 
 **Dependencies:**
 
@@ -570,6 +699,6 @@ between the two families.
 
 ## Navigation
 
-- **[← Back to APB Index](README.md)**
+- **[← Back to APBX Index](README.md)**
 - **[← Back to rtl-amba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

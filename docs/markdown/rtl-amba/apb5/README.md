@@ -82,6 +82,17 @@ ports to connect.
 | **apb5_master_stub** | Lightweight APB5 master for testbench integration | [apb5_master_stub.md](apb5_master_stub.md) | Documented |
 | **apb5_slave_stub** | Lightweight APB5 slave for testbench integration | [apb5_slave_stub.md](apb5_slave_stub.md) | Documented |
 
+### Interconnect
+
+| Module | Description | Documentation | Status |
+|--------|-------------|---------------|--------|
+| **apbx_xbar** | APB crossbar family; any port may be APB5, and APB4/APB5 may be mixed on one fabric | [../apbx/README.md](../apbx/README.md) | Documented |
+
+The crossbar is documented in its own [apbx/](../apbx/README.md) area rather
+than here, because it is not an APB5-only block — the same RTL covers APB4,
+APB5, and mixed configurations. An APB5 port on the crossbar instantiates the
+`apb5_master` / `apb5_slave` boundary IP listed above.
+
 ---
 
 ## Key Features

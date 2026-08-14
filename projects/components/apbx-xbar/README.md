@@ -23,24 +23,43 @@
 
 # APB Crossbar Modules
 
-This directory contains APB crossbar modules generated using the proven `apb4_slave` and `apb4_master` architecture.
+This directory contains the APB crossbar family: a parameterized core plus
+generated fixed-configuration variants. Every port independently speaks
+**APB4 or APB5**, so one fabric can carry a mix of both.
+
+The `x` in `apbx` is the version wildcard — it is not a separate protocol.
 
 ## Architecture
 
-All crossbars follow a consistent design:
+Generated variants follow a consistent design:
 
 ```
-Master Side:     apb4_slave modules convert APB → cmd/rsp interface
+Master Side:     apb4_slave / apb5_slave convert APB → cmd/rsp interface
 Internal:        Round-robin arbitration + address decoding
-Slave Side:      apb4_master modules convert cmd/rsp → APB interface
+Slave Side:      apb4_master / apb5_master convert cmd/rsp → APB interface
 ```
+
+`apbx_xbar_thin` is a different architecture — a combinational passthrough
+with weighted round-robin and no cmd/rsp conversion. See
+[the docs](../../../docs/markdown/rtl-amba/apbx/README.md) for choosing
+between them.
 
 ### Key Features
 
 - **Independent arbitration per slave**: Each slave has its own round-robin arbiter
 - **Grant persistence**: Grants held from command acceptance through response completion
 - **Address decoding**: Automatic slave selection based on address ranges
-- **Proven architecture**: Uses production-tested apb4_slave/apb4_master modules
+- **Mixed APB4/APB5**: per-port version selection, sideband gated at both ends
+- **Proven architecture**: Uses production-tested apb4/apb5 slave and master modules
+
+### Why mixing needs no converters
+
+APB5 is APB4's transfer protocol plus extra sideband pins — the handshake and
+phases are identical. So sideband rides the same select/grant/demux muxes as
+`PADDR`, and the version selection only gates *contribution*: an APB4 master
+contributes `'0`, and an APB4 slave is never driven with nonzero sideband.
+Both gates are compile-time constants, so synthesis prunes any pairing that
+cannot occur, and an all-APB4 build is bit-identical to the pre-APB5 crossbar.
 
 ## Available Modules
 
@@ -50,6 +69,8 @@ Slave Side:      apb4_master modules convert cmd/rsp → APB interface
 | `apbx_xbar_2to1.sv` | Arbitration only | 2 | 1 | Multi-master to single slave |
 | `apbx_xbar_1to4.sv` | Address decode only | 1 | 4 | Single master to multi-slave |
 | `apbx_xbar_2to4.sv` | Full crossbar | 2 | 4 | Multi-master to multi-slave |
+| `apbx_xbar_2to2_mixed.sv` | Mixed APB4/APB5 | 2 | 2 | m0=APB4, m1=APB5, s0=APB5, s1=APB4 |
+| `apbx_xbar_thin.sv` | Parameterized core | M | S | Any topology; versions set by parameter |
 
 ## Generating Crossbars
 
@@ -65,6 +86,25 @@ Generate custom variant:
 ```bash
 python generate_xbars.py --masters 3 --slaves 6
 python generate_xbars.py --masters 4 --slaves 8 --base-addr 0x80000000
+```
+
+Generate a mixed-version variant — versions are positional per port, and are
+baked in at generation time rather than being a runtime parameter:
+
+```python
+# in generate_xbars.py
+mixed = [
+    ((2, 2), ['apb4', 'apb5'], ['apb5', 'apb4'], '_mixed'),
+]
+```
+
+**`rtl/*.sv` is generator output.** The generator emits the final form (SPDX
+banner, `reset_defs.svh` include, reset macros) straight into `rtl/`, so there
+is no post-processing step and nothing to hand-edit. Regeneration is
+idempotent:
+
+```bash
+python3 generate_xbars.py && git status --short ../rtl/   # expect no output
 ```
 
 ### Method 2: Direct Generator
@@ -141,6 +181,16 @@ All generated crossbars have corresponding test files in `dv/tests/`:
 - `test_apbx_xbar_2to1.py` - 130+ transactions, arbitration stress tests
 - `test_apbx_xbar_1to4.py` - 200+ transactions, address decode validation
 - `test_apbx_xbar_2to4.py` - 350+ transactions, full crossbar stress
+- `test_apbx_xbar_2to2_mixed.py` - all four version pairings on the generated
+  mixed fabric: sideband value where both ends are APB5, no leak anywhere else,
+  plus a structural check that APB4 ports carry no sideband pins
+- `test_apbx_xbar_thin_mixed.py` - the same pairing matrix against
+  `apbx_xbar_thin` with `MST_APB5`/`SLV_APB5` masks
+
+The mixed tests drive their DUT directly; the four legacy tests drive a
+`rtl/wrappers/*_wrap.sv` scaffold. Those wrappers are hand-written testbench
+scaffolding, not generator output, so a variant gets one only when a test
+needs it.
 
 Run tests:
 ```bash
@@ -197,11 +247,24 @@ if M < 1 or M > 16:  # Change 16 to desired max
 
 ## References
 
-- APB Specification: ARM IHI 0024C (AMBA APB Protocol v2.0)
+- APB Specification: ARM IHI 0024C (AMBA APB Protocol v2.0), and IHI 0024E for
+  the APB5 sideband signals
+- Documentation: [docs/markdown/rtl-amba/apbx/](../../../docs/markdown/rtl-amba/apbx/README.md)
 - Generator: `projects/components/apbx-xbar/bin/apbx_xbar_generator.py`
-- Base modules: `rtl/amba/apb4/apb4_slave.sv`, `rtl/amba/apb4/apb4_master.sv`
+- Base modules: `rtl/amba/apb4/apb4_{slave,master}.sv`,
+  `rtl/amba/apb5/apb5_{slave,master}.sv`
+- Formal: `formal/apbx_xbar/` (all-APB4 configuration)
 - Tests: `dv/tests/test_apbx_xbar_*.py`
+
+## Not implemented
+
+- **APB5 parity** (`PSELPARITY` and friends) is not carried across the fabric.
+  Boundary IP is instantiated with `ENABLE_PARITY=0` and the parity pins tied
+  off. Adding it is a separate change with its own protection-domain argument.
+- **Formal proofs cover the all-APB4 configuration only.** The harnesses were
+  updated for the new ports and still pass, but nothing yet proves the version
+  gating itself.
 
 ---
 
-**Generated by RTL Design Sherpa** | **Last Updated:** 2025-10-14
+**Generated by RTL Design Sherpa** | **Last Updated:** 2026-08-13

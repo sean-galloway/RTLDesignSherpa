@@ -80,13 +80,18 @@ Monitor book.
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **apbx_xbar_1to1** / **2to1** / **1to4** / **2to4** | Generated fixed-configuration crossbars built from `apb4_slave` + `apb4_master` | [apb_crossbar.md](apb_crossbar.md) | ✅ Documented |
-| **apbx_xbar_thin** | Fully parameterized M×S combinational crossbar with weighted round-robin | [apbx_xbar.md](apbx_xbar.md) | ✅ Documented |
+| **apbx_xbar_thin** | Fully parameterized M×S combinational crossbar with weighted round-robin | [../apbx/apbx_xbar_thin.md](../apbx/apbx_xbar_thin.md) | ✅ Documented |
+| **apbx_xbar_1to1** / **2to1** / **1to4** / **2to4** / **2to2_mixed** | Generated fixed-configuration crossbars | [../apbx/apbx_xbar_variants.md](../apbx/apbx_xbar_variants.md) | ✅ Documented |
 
-**Note:** The crossbar RTL, generator, and testbenches live in the
-`apbx_xbar` component area (`projects/components/apbx-xbar/`), not under
-`rtl/amba/apb4/`. They are documented here because they are built entirely from
-the APB4 primitives in this directory.
+**Note:** The crossbar moved out of this directory (2026-08-13). It is no
+longer an APB4-only block: `apbx_xbar` carries per-port version masks and can
+be APB4, APB5, or mixed on the same fabric, so it is documented in
+[../apbx/](../apbx/README.md). An all-APB4 configuration — the default — is
+still built entirely from the APB4 primitives here, which is why the entry
+remains listed.
+
+The RTL, generator, and testbenches live in the component area
+(`projects/components/apbx-xbar/`), not under `rtl/amba/apb4/`.
 
 ### Clock-Gated Variants
 

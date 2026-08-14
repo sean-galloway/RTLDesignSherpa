@@ -3,7 +3,6 @@
 <!-- Auto-generated link index for PDF build. Regenerate via generate_rtl_pdfs.sh -->
 
 - [APB (Advanced Peripheral Bus) Modules](apb/README.md)
-- [APB Crossbar Specification](apb/apb_crossbar.md)
 - [apb4_master](apb/apb4_master.md)
 - [APB Master Interface (Clock-Gated)](apb/apb4_master_cg.md)
 - [apb4_master_stub](apb/apb4_master_stub.md)

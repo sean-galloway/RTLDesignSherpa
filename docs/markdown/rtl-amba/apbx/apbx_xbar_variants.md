@@ -165,20 +165,22 @@ apbx_xbar_MtoN
 | `apbx_xbar_2to1` | 2 | 1 | Simple arbitration testing | `projects/components/apbx-xbar/rtl/apbx_xbar_2to1.sv` |
 | `apbx_xbar_1to4` | 1 | 4 | Address decode testing, simple bus | `projects/components/apbx-xbar/rtl/apbx_xbar_1to4.sv` |
 | `apbx_xbar_2to4` | 2 | 4 | Full crossbar with arbitration + decode | `projects/components/apbx-xbar/rtl/apbx_xbar_2to4.sv` |
+| `apbx_xbar_2to2_mixed` | 2 | 2 | Mixed APB4/APB5 fabric (m0=APB4, m1=APB5, s0=APB5, s1=APB4) | `projects/components/apbx-xbar/rtl/apbx_xbar_2to2_mixed.sv` |
 | `apbx_xbar_thin` | M | S | Fully parameterized combinational crossbar (different architecture) | `projects/components/apbx-xbar/rtl/apbx_xbar_thin.sv` |
 
 `apbx_xbar_thin` is **not** a generated variant and does not share this
 architecture -- it is a combinational passthrough with weighted round-robin and
-no cmd/rsp conversion. See [apbx_xbar.md](apbx_xbar.md).
+no cmd/rsp conversion. See [apbx_xbar_thin.md](apbx_xbar_thin.md).
 
 ### Feature Comparison
 
-| Feature | 1to1 | 2to1 | 1to4 | 2to4 |
-|---------|------|------|------|------|
-| Address Decode | ✗ | ✗ | ✓ | ✓ |
-| Arbitration | ✗ | ✓ | ✗ | ✓ |
-| Relative Resources | Minimal | Low | Medium | Medium-High |
-| Relative Max Frequency | Highest | High | High | Medium-High |
+| Feature | 1to1 | 2to1 | 1to4 | 2to4 | 2to2_mixed |
+|---------|------|------|------|------|------------|
+| Address Decode | ✗ | ✗ | ✓ | ✓ | ✓ |
+| Arbitration | ✗ | ✓ | ✗ | ✓ | ✓ |
+| APB5 sideband | ✗ | ✗ | ✗ | ✗ | ✓ (per port) |
+| Relative Resources | Minimal | Low | Medium | Medium-High | Medium |
+| Relative Max Frequency | Highest | High | High | Medium-High | Medium-High |
 
 **Resource and frequency columns are relative rankings only.** No synthesis has
 been run for these modules in this repository, so no LUT counts or MHz figures
@@ -193,7 +195,7 @@ of them is a wire.
 The dominant cost is that each APB transfer through the crossbar becomes **two**
 APB transfers -- one on the master side and one on the slave side -- and the
 `apb4_slave` FSM alone inserts at least two wait states in its ACCESS phase (see
-[apb4_slave.md](apb4_slave.md)). The structural contributors are:
+[apb4_slave.md](../apb4/apb4_slave.md)). The structural contributors are:
 
 | Stage | Cost |
 |-------|------|
@@ -228,12 +230,77 @@ quoted here. Measure it for your slave's wait-state behaviour if it matters.
 - Full system interconnect
 - Maximum flexibility needed
 
+**Use `apbx_xbar_2to2_mixed` when:**
+- Masters and slaves in the same system speak different APB versions
+- You want APB5 sideband on the ports that have it without forcing every
+  peripheral to be upgraded
+
 **Need different configuration?**
 ```bash
 # Generate custom crossbar
 cd projects/components/apbx-xbar/bin
 python generate_xbars.py --masters 3 --slaves 8
 ```
+
+### Generating a Mixed Variant
+
+Per-port versions are chosen at generation time. In `generate_xbars.py` the
+mixed variants are listed separately from the plain M×S ones, because they
+need version lists and a name suffix:
+
+```python
+mixed = [
+    ((2, 2), ['apb4', 'apb5'], ['apb5', 'apb4'], '_mixed'),
+]
+```
+
+which reaches the generator as:
+
+```python
+generate_apbx_xbar(
+    num_masters=2, num_slaves=2,
+    master_versions=['apb4', 'apb5'],   # m0, m1
+    slave_versions=['apb5', 'apb4'],    # s0, s1
+    name_suffix='_mixed',
+    ...)
+```
+
+Each entry is `'apb4'` or `'apb5'` and positionally matches the port index.
+Omitting the version lists entirely gives an all-APB4 variant, byte-identical
+to the legacy output apart from the module name.
+
+**What changes in the emitted RTL.** An APB5 port instantiates `apb5_slave` /
+`apb5_master` boundary IP in place of the APB4 pair, and the cmd/rsp fabric
+grows the sideband fields — `pauser`/`pwuser` on the command path,
+`pruser`/`pbuser` on the response path — carried only for versioned ports and
+gated per pairing in all three routing shapes the generator emits (M>1
+arbitration, M==1 with N>1 decode, and 1-to-1).
+
+`PWAKEUP` is handled structurally rather than routed: the master-side
+`apb5_slave` regenerates it toward its master, and the external completer's
+`PWAKEUP` terminates at the slave-side `apb5_master`.
+
+The boundary IP is instantiated with `ENABLE_PARITY=0` and its parity pins
+tied off; `wakeup_request` is driven `'0` and `wakeup_pending` left open. APB5
+parity is not carried across the fabric.
+
+### Regeneration Is the Source of Truth
+
+`rtl/*.sv` in the component area **is** generator output, not a
+post-processed copy of it. The generator emits the final form directly — SPDX
+banner, `include reset_defs.svh`, and the `ALWAYS_FF_RST` / `RST_ASSERTED`
+macros — and `generate_xbars.py` writes straight into `rtl/` with the
+checked-in 64 KB address windows.
+
+```bash
+cd projects/components/apbx-xbar/bin && python3 generate_xbars.py
+git status --short ../rtl/      # expect: no output
+```
+
+Regeneration is idempotent: running it twice produces an identical tree, and
+running it once against a clean checkout produces no diff at all. If you see a
+diff after regenerating without changing the generator, that is a defect in
+the generator, not a file to hand-edit back.
 
 ---
 
@@ -248,6 +315,14 @@ All crossbar modules support these parameters:
 | `ADDR_WIDTH` | int | 32 | 16-64 | APB address bus width |
 | `DATA_WIDTH` | int | 32 | 8, 16, 32, 64 | APB data bus width |
 | `BASE_ADDR` | logic[ADDR_WIDTH-1:0] | 0x10000000 | Any | Base address for slave 0 |
+
+Variants generated with APB5 ports additionally carry the user-signal widths
+(`AUW`, `WUW`, `RUW`, `BUW`, all defaulting to 1). There is no runtime version
+parameter here: unlike `apbx_xbar_thin`, which takes `MST_APB5`/`SLV_APB5` as
+parameters, a generated variant has its per-port versions **baked in at
+generation time** — the boundary IP instantiated on each port differs, so the
+choice is structural rather than a mask. See
+[Generating a Mixed Variant](#generating-a-mixed-variant).
 
 **Derived Parameters:**
 - `STRB_WIDTH = DATA_WIDTH / 8` (automatically calculated)
@@ -490,72 +565,81 @@ end-to-end transfer latency.
 
 ### Basic Write Transaction (No Wait States)
 
+```wavedrom
+{ "signal": [
+  { "name": "PCLK",    "wave": "p...." },
+  { "name": "PSEL",    "wave": "01..0" },
+  { "name": "PENABLE", "wave": "0.1.0" },
+  { "name": "PWRITE",  "wave": "01..0" },
+  { "name": "PADDR",   "wave": "x3..x", "data": ["ADDR"] },
+  { "name": "PWDATA",  "wave": "x4..x", "data": ["DATA"] },
+  { "name": "PREADY",  "wave": "0..10" }
+  ],
+  "foot": { "text": "IDLE | SETUP | ACCESS | IDLE" }
+}
 ```
-CLK      ┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─
-         └─┘ └─┘ └─┘ └─┘ └─┘
-PSEL     ───┐       ┌───────────
-            └───────┘
-PENABLE  ─────────┐   ┌─────────
-                  └───┘
-PWRITE   ───┐       ┌───────────
-            └───────┘
-PADDR    ───<ADDR  >───────────
-PWDATA   ───<DATA  >───────────
-PREADY   ─────────┐   ┌─────────
-                  └───┘
-         │IDLE │SETUP│ACCESS│IDLE
-```
+
+Waveform 1: Write transfer with no wait states.
 
 ### Basic Read Transaction (No Wait States)
 
+```wavedrom
+{ "signal": [
+  { "name": "PCLK",    "wave": "p...." },
+  { "name": "PSEL",    "wave": "01..0" },
+  { "name": "PENABLE", "wave": "0.1.0" },
+  { "name": "PWRITE",  "wave": "0...." },
+  { "name": "PADDR",   "wave": "x3..x", "data": ["ADDR"] },
+  { "name": "PRDATA",  "wave": "x..4x", "data": ["DATA"] },
+  { "name": "PREADY",  "wave": "0..10" }
+  ],
+  "foot": { "text": "IDLE | SETUP | ACCESS | IDLE" }
+}
 ```
-CLK      ┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─
-         └─┘ └─┘ └─┘ └─┘ └─┘
-PSEL     ───┐       ┌───────────
-            └───────┘
-PENABLE  ─────────┐   ┌─────────
-                  └───┘
-PWRITE   ──────────────────────
-PADDR    ───<ADDR  >───────────
-PRDATA   ───────────<DATA>─────
-PREADY   ─────────┐   ┌─────────
-                  └───┘
-         │IDLE │SETUP│ACCESS│IDLE
-```
+
+Waveform 2: Read transfer with no wait states; read data is valid in the
+cycle PREADY is asserted.
 
 ### Write with Wait States
 
+```wavedrom
+{ "signal": [
+  { "name": "PCLK",    "wave": "p......" },
+  { "name": "PSEL",    "wave": "01....0" },
+  { "name": "PENABLE", "wave": "0.1...0" },
+  { "name": "PWRITE",  "wave": "01....0" },
+  { "name": "PADDR",   "wave": "x3....x", "data": ["ADDR"] },
+  { "name": "PWDATA",  "wave": "x4....x", "data": ["DATA"] },
+  { "name": "PREADY",  "wave": "0....10" }
+  ],
+  "foot": { "text": "IDLE | SETUP | ACCESS (extended by wait states) | IDLE" }
+}
 ```
-CLK      ┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─
-         └─┘ └─┘ └─┘ └─┘ └─┘ └─┘
-PSEL     ───┐           ┌─────────
-            └───────────┘
-PENABLE  ─────────┐         ┌─────
-                  └─────────┘
-PWRITE   ───┐           ┌─────────
-            └───────────┘
-PADDR    ───<ADDR      >─────────
-PWDATA   ───<DATA      >─────────
-PREADY   ─────────────┐     ┌─────
-                      └─────┘
-         │IDLE │SETUP│ ACCESS  │IDLE
-                      │(extended)
-```
+
+Waveform 3: The slave holds PREADY low to extend the access phase; address
+and data must remain stable for its whole duration.
 
 ### Arbitration with Contention
 
+```wavedrom
+{ "signal": [
+  { "name": "PCLK",       "wave": "p......." },
+  { "name": "m0_PSEL",    "wave": "01..0..." },
+  { "name": "m1_PSEL",    "wave": "01.....0" },
+  {},
+  { "name": "grant",      "wave": "x3..4..x", "data": ["M0", "M1"],
+    "node": "....a" },
+  { "name": "s_PSEL",     "wave": "01.....0" },
+  { "name": "s_PADDR",    "wave": "x3..4..x", "data": ["M0 addr", "M1 addr"] }
+  ],
+  "edge": ["a M0 completes, M1 granted"],
+  "head": { "text": "Both masters request; M1 waits for M0's transfer to finish" }
+}
 ```
-         Master 0        Master 1
-         ────────────    ────────────
-M0_PSEL  ───┐   ┌───
-            └───┘
-M1_PSEL                 ───┐   ┌───
-                            └───┘
-Slave    ───<M0>───────────<M1>───
-Grant    ───[M0]───────────[M1]───
-                  ↑ M0 completes,
-                    M1 granted
-```
+
+Waveform 4: Grant persistence. M1 asserts PSEL while M0 holds the grant and
+is not served until M0's transfer completes -- the grant is held from command
+acceptance through response completion, so a transfer is never interleaved.
 
 ---
 
@@ -724,14 +808,30 @@ All crossbar modules have CocoTB testbenches in
 | `test_apbx_xbar_2to1` | Arbitration, fairness, grant persistence | ✅ PASS |
 | `test_apbx_xbar_1to4` | Address decode, multiple slaves | ✅ PASS |
 | `test_apbx_xbar_2to4` | Full crossbar, arbitration + decode | ✅ PASS |
+| `test_apbx_xbar_2to2_mixed` | Mixed APB4/APB5: all four pairings, sideband value + leak | ✅ PASS |
+| `test_apbx_xbar_thin_mixed` | `apbx_xbar_thin` with mixed version masks | ✅ PASS |
 
-Each test drives a `*_wrap` wrapper (`rtl/wrappers/apbx_xbar_*_wrap.sv`) rather
-than the bare crossbar.
+The four legacy tests drive a `*_wrap` wrapper
+(`rtl/wrappers/apbx_xbar_*_wrap.sv`) rather than the bare crossbar. The two
+mixed tests drive their DUT directly and have no wrapper — the wrappers are
+hand-written testbench scaffolding, not generator output, so one is added only
+when a test needs it.
+
+Beyond checking that sideband arrives where it should, the mixed test asserts
+the negative cases: that an APB5→APB4 path leaves the slave's user bits at
+zero, and — structurally — that an APB4 port has no sideband pins on it at all.
+A fabric that quietly wired sideband everywhere would pass a value-only test.
 
 ### Formal Verification
 
 SymbiYosys proofs exist for all four generated variants plus `apbx_xbar_thin`
 under `formal/apbx_xbar/`, each with `prove` and `cover` tasks.
+
+The proofs cover the **all-APB4 configuration only**. They were updated when
+the sideband ports were added — the harnesses tie the inputs and leave the
+outputs open — and still pass, but no proof currently constrains the version
+gating itself. Extending formal to a mixed configuration is tracked as
+follow-up work on the component's task page.
 
 ### Test Scenarios
 
@@ -840,8 +940,8 @@ not caught by the current suite.
 - [APB module index](README.md) - Protocol overview and signal descriptions
 
 **Building Blocks:**
-- `rtl/amba/apb4/apb4_slave.sv` - APB → cmd/rsp conversion ([apb4_slave.md](apb4_slave.md))
-- `rtl/amba/apb4/apb4_master.sv` - cmd/rsp → APB conversion ([apb4_master.md](apb4_master.md))
+- `rtl/amba/apb4/apb4_slave.sv` - APB → cmd/rsp conversion ([apb4_slave.md](../apb4/apb4_slave.md))
+- `rtl/amba/apb4/apb4_master.sv` - cmd/rsp → APB conversion ([apb4_master.md](../apb4/apb4_master.md))
 - `rtl/amba/gaxi/gaxi_skid_buffer.sv` - Command and response buffering
 - `rtl/common/arbiter_round_robin.sv` - Per-slave arbitration (`WAIT_GNT_ACK=1`)
 
