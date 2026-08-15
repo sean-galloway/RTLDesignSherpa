@@ -33,7 +33,8 @@ module formal_apbx_xbar_thin_mixed #(
     parameter int RUW = 4,
     parameter int BUW = 4,
     parameter logic [31:0] MST_APB5 = 32'h0000_0002,   // m1 only
-    parameter logic [31:0] SLV_APB5 = 32'h0000_0001    // s0 only
+    parameter logic [31:0] SLV_APB5 = 32'h0000_0001,   // s0 only
+    parameter bit ENABLE_PARITY = 1'b1                 // APBX-003
 ) (
     input logic clk,
     input logic rst_n,
@@ -53,6 +54,9 @@ module formal_apbx_xbar_thin_mixed #(
     // Requester-direction sideband, free inputs
     input logic [M-1:0][AUW-1:0] m_apb_pauser,
     input logic [M-1:0][WUW-1:0] m_apb_pwuser,
+    input logic [M-1:0][SW-1:0]  m_apb_pwdataparity,
+    input logic [M-1:0]          m_apb_paddrparity,
+    input logic [M-1:0]          m_apb_pctrlparity,
 
     input logic [S-1:0]          s_apb_pready,
     input logic [S-1:0][DW-1:0]  s_apb_prdata,
@@ -60,7 +64,10 @@ module formal_apbx_xbar_thin_mixed #(
     // Completer-direction sideband, free inputs
     input logic [S-1:0]          s_apb_pwakeup,
     input logic [S-1:0][RUW-1:0] s_apb_pruser,
-    input logic [S-1:0][BUW-1:0] s_apb_pbuser
+    input logic [S-1:0][BUW-1:0] s_apb_pbuser,
+    input logic [S-1:0][SW-1:0]  s_apb_prdataparity,
+    input logic [S-1:0]          s_apb_preadyparity,
+    input logic [S-1:0]          s_apb_pslverrparity
 );
 
     logic [M-1:0]          m_apb_pready;
@@ -79,12 +86,19 @@ module formal_apbx_xbar_thin_mixed #(
     logic [S-1:0][SW-1:0]  s_apb_pstrb;
     logic [S-1:0][AUW-1:0] s_apb_pauser;
     logic [S-1:0][WUW-1:0] s_apb_pwuser;
+    logic [S-1:0][SW-1:0]  s_apb_pwdataparity;
+    logic [S-1:0]          s_apb_paddrparity;
+    logic [S-1:0]          s_apb_pctrlparity;
+    logic [M-1:0][SW-1:0]  m_apb_prdataparity;
+    logic [M-1:0]          m_apb_preadyparity;
+    logic [M-1:0]          m_apb_pslverrparity;
 
     apbx_xbar_thin #(
         .M(M), .S(S),
         .ADDR_WIDTH(AW), .DATA_WIDTH(DW),
         .MAX_THRESH(MAX_THRESH),
         .MST_APB5(MST_APB5), .SLV_APB5(SLV_APB5),
+        .ENABLE_PARITY(ENABLE_PARITY),
         .AUW(AUW), .WUW(WUW), .RUW(RUW), .BUW(BUW)
     ) dut (
         .pclk(clk), .presetn(rst_n),
@@ -99,6 +113,12 @@ module formal_apbx_xbar_thin_mixed #(
         .m_apb_pready(m_apb_pready), .m_apb_prdata(m_apb_prdata),
         .m_apb_pslverr(m_apb_pslverr),
         .m_apb_pauser(m_apb_pauser), .m_apb_pwuser(m_apb_pwuser),
+        .m_apb_pwdataparity(m_apb_pwdataparity),
+        .m_apb_paddrparity(m_apb_paddrparity),
+        .m_apb_pctrlparity(m_apb_pctrlparity),
+        .m_apb_prdataparity(m_apb_prdataparity),
+        .m_apb_preadyparity(m_apb_preadyparity),
+        .m_apb_pslverrparity(m_apb_pslverrparity),
         .m_apb_pwakeup(m_apb_pwakeup), .m_apb_pruser(m_apb_pruser),
         .m_apb_pbuser(m_apb_pbuser),
         .s_apb_psel(s_apb_psel), .s_apb_penable(s_apb_penable),
@@ -108,6 +128,12 @@ module formal_apbx_xbar_thin_mixed #(
         .s_apb_pready(s_apb_pready), .s_apb_prdata(s_apb_prdata),
         .s_apb_pslverr(s_apb_pslverr),
         .s_apb_pauser(s_apb_pauser), .s_apb_pwuser(s_apb_pwuser),
+        .s_apb_pwdataparity(s_apb_pwdataparity),
+        .s_apb_paddrparity(s_apb_paddrparity),
+        .s_apb_pctrlparity(s_apb_pctrlparity),
+        .s_apb_prdataparity(s_apb_prdataparity),
+        .s_apb_preadyparity(s_apb_preadyparity),
+        .s_apb_pslverrparity(s_apb_pslverrparity),
         .s_apb_pwakeup(s_apb_pwakeup), .s_apb_pruser(s_apb_pruser),
         .s_apb_pbuser(s_apb_pbuser)
     );
@@ -234,6 +260,73 @@ module formal_apbx_xbar_thin_mixed #(
                     if (!apb5_mst_active) begin
                         assert (s_apb_pauser[cs] == '0);
                         assert (s_apb_pwuser[cs] == '0);
+                    end
+                end
+            end
+        end
+    endgenerate
+
+    // =======================================================================
+    // Property D: parity obeys the same gate as the rest of the
+    // sideband -- an APB4 slave is never driven with parity, and an
+    // APB4 master never receives it. This is the owner's rule from
+    // 2026-08-15 ("a mixed pairing ignores parity") stated as a
+    // property rather than as a comment.
+    // =======================================================================
+    generate
+        for (genvar ds = 0; ds < S; ds++) begin : gen_par_slv
+            if (SLV_APB5[ds] == 1'b0) begin : gen_apb4_slave_par
+                always @(posedge clk) if (rst_n) begin
+                    assert (s_apb_pwdataparity[ds] == '0);
+                    assert (s_apb_paddrparity[ds]  == 1'b0);
+                    assert (s_apb_pctrlparity[ds]  == 1'b0);
+                end
+            end
+        end
+        for (genvar dm = 0; dm < M; dm++) begin : gen_par_mst
+            if (MST_APB5[dm] == 1'b0) begin : gen_apb4_master_par
+                always @(posedge clk) if (rst_n) begin
+                    assert (m_apb_prdataparity[dm]  == '0);
+                    assert (m_apb_preadyparity[dm]  == 1'b0);
+                    assert (m_apb_pslverrparity[dm] == 1'b0);
+                end
+            end
+        end
+    endgenerate
+
+    // =======================================================================
+    // Property E: on an APB5->APB5 path the thin core passes parity
+    // through UNALTERED. This is the whole reason the thin core carries
+    // parity end-to-end instead of regenerating it: a recomputed parity
+    // bit would be correct-by-construction and would therefore hide a
+    // fault in the mux it just travelled through. Stated as "whatever
+    // reaches the slave equals what some master drove", via the
+    // sticky-flag trick used for Property C -- while only the APB5
+    // master has ever selected, the APB5 slave's parity must equal that
+    // master's.
+    // =======================================================================
+    logic apb4_mst_active;
+    always @(posedge clk) begin
+        if (!rst_n) apb4_mst_active <= 1'b0;
+        else if ((m_apb_psel & ~MST_APB5[M-1:0]) != '0)
+            apb4_mst_active <= 1'b1;
+    end
+
+    generate
+        for (genvar es = 0; es < S; es++) begin : gen_par_pass
+            if (SLV_APB5[es] == 1'b1) begin : gen_apb5_slave_pass
+                for (genvar em = 0; em < M; em++) begin : gen_par_src
+                    if (MST_APB5[em] == 1'b1) begin : gen_apb5_src
+                        always @(posedge clk) if (rst_n) begin
+                            if (!apb4_mst_active && s_apb_psel[es]) begin
+                                assert (s_apb_pwdataparity[es] ==
+                                        m_apb_pwdataparity[em]);
+                                assert (s_apb_paddrparity[es] ==
+                                        m_apb_paddrparity[em]);
+                                assert (s_apb_pctrlparity[es] ==
+                                        m_apb_pctrlparity[em]);
+                            end
+                        end
                     end
                 end
             end

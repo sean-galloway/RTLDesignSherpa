@@ -44,6 +44,19 @@ module apbx_xbar_thin #(
     // Fixed 32-bit masks (M,S <= 16) so tool -G overrides pass clean.
     parameter logic [31:0] MST_APB5 = '0,
     parameter logic [31:0] SLV_APB5 = '0,
+    // APB5 parity (APBX-003). Parity rides the same muxes as the rest
+    // of the sideband and is gated by the same masks, so a mixed
+    // pairing ignores it -- an APB5 port talking to an APB4 port has
+    // no parity, exactly as it has no user buses.
+    //
+    // The thin core passes parity through END TO END rather than
+    // regenerating it: this is a combinational mux that does not modify
+    // the payload, so the requester's parity is still correct at the
+    // completer. That covers corruption inside the mux itself, which a
+    // regenerate-at-each-boundary scheme cannot see. (The generated
+    // MtoN variants have no choice -- their boundary IP deconstructs
+    // the transfer into cmd/rsp, so parity terminates there.)
+    parameter bit ENABLE_PARITY = 1'b0,
     // APB5 user-signal widths (match rtl/amba/apb5 defaults)
     parameter int AUW = 1,
     parameter int WUW = 1,
@@ -77,6 +90,13 @@ module apbx_xbar_thin #(
     // APB4 masters tie the inputs and leave the outputs open.
     input  logic [M-1:0][AUW-1:0]        m_apb_pauser,
     input  logic [M-1:0][WUW-1:0]        m_apb_pwuser,
+    // APB5 parity, requester direction in / completer direction out
+    input  logic [M-1:0][STRB_WIDTH-1:0] m_apb_pwdataparity,
+    input  logic [M-1:0]                 m_apb_paddrparity,
+    input  logic [M-1:0]                 m_apb_pctrlparity,
+    output logic [M-1:0][DATA_WIDTH/8-1:0] m_apb_prdataparity,
+    output logic [M-1:0]                 m_apb_preadyparity,
+    output logic [M-1:0]                 m_apb_pslverrparity,
     output logic [M-1:0]                 m_apb_pwakeup,
     output logic [M-1:0][RUW-1:0]        m_apb_pruser,
     output logic [M-1:0][BUW-1:0]        m_apb_pbuser,
@@ -96,6 +116,13 @@ module apbx_xbar_thin #(
     // outputs open and tie the inputs.
     output logic [S-1:0][AUW-1:0]        s_apb_pauser,
     output logic [S-1:0][WUW-1:0]        s_apb_pwuser,
+    // APB5 parity, requester direction out / completer direction in
+    output logic [S-1:0][STRB_WIDTH-1:0] s_apb_pwdataparity,
+    output logic [S-1:0]                 s_apb_paddrparity,
+    output logic [S-1:0]                 s_apb_pctrlparity,
+    input  logic [S-1:0][DATA_WIDTH/8-1:0] s_apb_prdataparity,
+    input  logic [S-1:0]                 s_apb_preadyparity,
+    input  logic [S-1:0]                 s_apb_pslverrparity,
     input  logic [S-1:0]                 s_apb_pwakeup,
     input  logic [S-1:0][RUW-1:0]        s_apb_pruser,
     input  logic [S-1:0][BUW-1:0]        s_apb_pbuser
@@ -201,6 +228,21 @@ module apbx_xbar_thin #(
                 s_apb_pwuser[s_mux]  = (SLV_APB5[s_mux] && arb_gnt_valid[s_mux]
                                         && MST_APB5[5'(mst_id)])
                                        ? m_apb_pwuser[mst_id] : '0;
+                // Parity carries the requester's own bits through
+                // unchanged -- the payload above is not modified, so
+                // recomputing here would only mask a mux fault.
+                s_apb_pwdataparity[s_mux] = (ENABLE_PARITY && SLV_APB5[s_mux]
+                                             && arb_gnt_valid[s_mux]
+                                             && MST_APB5[5'(mst_id)])
+                                            ? m_apb_pwdataparity[mst_id] : '0;
+                s_apb_paddrparity[s_mux]  = (ENABLE_PARITY && SLV_APB5[s_mux]
+                                             && arb_gnt_valid[s_mux]
+                                             && MST_APB5[5'(mst_id)])
+                                            ? m_apb_paddrparity[mst_id] : 1'b0;
+                s_apb_pctrlparity[s_mux]  = (ENABLE_PARITY && SLV_APB5[s_mux]
+                                             && arb_gnt_valid[s_mux]
+                                             && MST_APB5[5'(mst_id)])
+                                            ? m_apb_pctrlparity[mst_id] : 1'b0;
             end
         end
     endgenerate
@@ -230,6 +272,9 @@ module apbx_xbar_thin #(
                 m_apb_pwakeup[m_demux] = 1'b0;
                 m_apb_pruser[m_demux]  = '0;
                 m_apb_pbuser[m_demux]  = '0;
+                m_apb_prdataparity[m_demux]  = '0;
+                m_apb_preadyparity[m_demux]  = 1'b0;
+                m_apb_pslverrparity[m_demux] = 1'b0;
                 for (int s_demux = 0; s_demux < S; s_demux++) begin
                     if (arb_gnt_mst[m_demux][s_demux]) begin
                         m_apb_pready[m_demux]  = s_apb_pready[s_demux];
@@ -243,6 +288,14 @@ module apbx_xbar_thin #(
                             m_apb_pwakeup[m_demux] = s_apb_pwakeup[s_demux];
                             m_apb_pruser[m_demux]  = s_apb_pruser[s_demux];
                             m_apb_pbuser[m_demux]  = s_apb_pbuser[s_demux];
+                            if (ENABLE_PARITY) begin
+                                m_apb_prdataparity[m_demux]  =
+                                    s_apb_prdataparity[s_demux];
+                                m_apb_preadyparity[m_demux]  =
+                                    s_apb_preadyparity[s_demux];
+                                m_apb_pslverrparity[m_demux] =
+                                    s_apb_pslverrparity[s_demux];
+                            end
                         end
                     end
                 end
