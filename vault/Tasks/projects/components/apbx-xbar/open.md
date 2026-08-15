@@ -4,28 +4,6 @@
 
 ---
 
-## APBX-002 — Formal coverage for the APB4/APB5 version gating
-**Status:** open 2026-08-14 — split out of APBX-001 at close
-
-The SymbiYosys proofs under `formal/apbx_xbar/` were updated for the
-sideband ports (harnesses tie the inputs, leave the outputs open) and
-still pass, but they only ever run the **default all-APB4
-configuration**. Nothing formal constrains the thing APBX-001 actually
-added.
-
-Worth proving, and cheap because the masks are parameters on the thin
-core — a harness can be instantiated per configuration:
-
-- with `MST_APB5[m]=0`, `s_apb_pauser`/`pwuser` are `'0` on every slave
-  regardless of what master *m* drives (an APB4 master cannot leak);
-- with `SLV_APB5[s]=0`, slave *s*'s sideband outputs are `'0` for every
-  granted master (an APB4 slave is never driven);
-- with both set, the sideband equals the granted master's within the
-  granted window.
-
-Simulation already checks all three, so this is about proving them
-exhaustively rather than for the sampled stimulus.
-
 ## APBX-003 — APB5 parity across the fabric
 **Status:** open 2026-08-14 — split out of APBX-001 at close
 
