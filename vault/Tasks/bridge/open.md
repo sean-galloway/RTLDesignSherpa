@@ -2,27 +2,18 @@
 
 # bridge — open
 
-## BRIDGE-003 — All six *_mon_monitor stress tests fail (pre-existing)
-**Status:** open 2026-08-08
-**Priority:** P1
-**Owner:** TBD
+## BRIDGE-004 — three 1x2_wr_*_mon_monitor stress tests fail at init
+**Status:** open 2026-08-16 — split out of [[BRIDGE-003]] at close
 
-The full bridge DV run (2026-08-08, on `fix/bridge-xbar-num-slaves-param`
-after the BRIDGE-001 fixes) shows all six monitor stress tests failing:
-1x2_rd_mon, 1x2_rd_regblock_mon, mix_a/b/c/d_mon (`test_*_mon_monitor.py`).
-Verified pre-existing: `test_bridge_mix_d_mon_monitor` fails identically
-in a worktree at the branch's base commit, so this is NOT fallout from
-the NUM_SLAVES / package-import / sweep work — 25/25 non-monitor tests
-pass with all of that landed.
+`test_bridge_1x2_wr_axi5_mon_monitor`, `_axi5a_` and `_axi5n_` fail.
+Confirmed **pre-existing and unrelated** to the BRIDGE-003 fix: with
+that change stashed, they fail identically at HEAD.
 
-Owner note (2026-08-08): likely a COMMON issue in the monitor
-`block_ready` path — another agent is already working that block.
-Hold off on independent diagnosis here until that lands; then rerun
-the six stress tests before doing anything bridge-side.
-
-**Done looks like:** all six monitor stress tests green from clean
-builds on this branch (or a documented decision that the stress
-expectations changed with the monbus rework).
+They die in about a second, before any traffic — the cocotb log stops
+right after `block_ready probe ... resolved=True`, so this is a
+setup/elaboration problem rather than a stimulus one. Note all three are
+**write** variants while the four passing siblings are reads, which is
+the obvious place to start.
 
 ## BRIDGE-002 — AMBA5 bridge support (AXI5 ports alongside AXI4)
 **Status:** open 2026-08-08
