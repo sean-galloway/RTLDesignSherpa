@@ -865,7 +865,48 @@ ties `block_ready` low and never fills the split FIFO, and NOTHING in `rtl/`
 or `projects/` instantiates either splitter (`pumice` wrote its own). Escape
 analysis shape: "who would notice if this library module were wrong?"
 
-**Items 1-5 below are NOT started.** They want ONE coordinated pass over the
+**UPDATE 2026-08-16 — items 1, 3, 4 have RTL fixes; NONE are proven.**
+
+- **(1) BRESP.** `fub_bresp` now folds the in-flight `m_axi_bresp`
+  combinationally via `w_resp_with_current` instead of reading a register that
+  only holds splits 1..N-1. A SLVERR on the final split no longer upstreams as
+  OKAY.
+- **(4) Fencing.** IDLE acceptance now requires `!r_waiting_for_responses`,
+  and the fence is applied to the AW **valid and ready** as well as the FSM
+  capture. Gating the capture alone would have recreated TASK-061 exactly
+  (slave accepts a command the FSM never recorded). Costs throughput on
+  back-to-back split writes; correct while there is one consolidation state
+  set, and `m_axi_bid` is not checked in consolidation mode so responses
+  cannot be told apart by ID anyway.
+- **(3) Split-FIFO drop.** Both splitters connect `wr_ready`, latch a sticky
+  overflow when a push meets a full FIFO, and expose `o_split_fifo_overflow`
+  (NEW OUTPUT PORT on both). This makes the loss VISIBLE, it does not prevent
+  it -- sizing remains a correctness requirement. Stalling the command needs
+  the accept path to consult the FIFO; deliberately not done here.
+
+Verification so far is `4 passed` (both existing splitter suites +
+`test_axi_splitter_block_ready.py`) and lint clean. **That is a no-regression
+result, not proof.** Nothing in the current collateral drives an error on the
+final split, overlaps two transactions' response windows, or fills the split
+FIFO -- which is precisely why these defects survived to be found by
+inspection. All three fixes currently rest on reading the RTL.
+
+**NEXT: the directed testbench, before items 5 and 2.** Three unproven fixes
+is where the risk now sits. It must (a) drive SLVERR/DECERR on the LAST split
+and check the upstream BRESP, (b) issue two split writes back-to-back so their
+response windows would overlap, (c) fill the split FIFO and check
+`o_split_fifo_overflow`, (d) lead with W data before AW. Mutation-check each
+one against the pre-fix RTL, as was done for TASK-061 (60 downstream accepts)
+and the CAM alloc_mask (t18).
+
+**Items 5 and 2 are NOT started.**
+- (5) leading W defeats WLAST regeneration.
+- (2) RLAST consolidation **needs a decision first**: consolidate the read
+  side (mirroring the write side's WLAST regeneration), or pin the
+  beat-counting-consumer restriction as the contract. The docs currently state
+  the restriction, so RTL and docs disagree until this is settled.
+
+**Original write-up of items 1-5 follows.** They want ONE coordinated pass over the
 splitter pair plus a testbench that does four things the current collateral
 never does: drive an error response on the LAST split, fill the split-info
 FIFO, overlap two split transactions' response windows, and lead with W data
