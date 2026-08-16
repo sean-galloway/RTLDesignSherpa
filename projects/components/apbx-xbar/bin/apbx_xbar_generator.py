@@ -42,7 +42,8 @@ from pathlib import Path
 
 def generate_apbx_xbar(num_masters, num_slaves, base_addr=0x10000000,
                       addr_width=32, data_width=32, output_file=None, slave_size=0x1000,
-                      master_versions=None, slave_versions=None, name_suffix=""):
+                      master_versions=None, slave_versions=None, name_suffix="",
+                      enable_parity=False):
     """
     Generate an M-to-N APB crossbar module.
 
@@ -55,6 +56,17 @@ def generate_apbx_xbar(num_masters, num_slaves, base_addr=0x10000000,
         output_file: Output filename (default apbx_xbar_MtoN.sv)
         slave_size: Address space per slave (default 0x1000 = 4KB)
                     Common values: 0x1000 (4KB), 0x10000 (64KB)
+        enable_parity: Carry APB5 parity on APB5 ports (APBX-003).
+                    Unlike apbx_xbar_thin, which passes parity through
+                    end to end, a generated variant CHECKS it at the
+                    boundary and REGENERATES it on the far side -- the
+                    boundary IP deconstructs the transfer into cmd/rsp
+                    and the parity bits do not cross that interface.
+                    The cmd/rsp fabric between the two is therefore
+                    outside the protected domain, so each port exposes
+                    its own parity_error_* outputs; a check whose result
+                    goes nowhere is not protection. A mixed pairing has
+                    no parity at all, per the version masks.
 
     Returns:
         SystemVerilog code as string
@@ -173,6 +185,21 @@ module {module_name} #(
             code += f"    output logic                  m{m}_apb_PWAKEUP,\n"
             code += f"    output logic                  m{m}_apb_PRUSER,\n"
             code += f"    output logic                  m{m}_apb_PBUSER"
+            if enable_parity:
+                code += ",\n"
+                code += f"    // APB5 parity (checked here, regenerated on the far side)\n"
+                code += f"    input  logic [STRB_WIDTH-1:0] m{m}_apb_PWDATAPARITY,\n"
+                code += f"    input  logic                  m{m}_apb_PADDRPARITY,\n"
+                code += f"    input  logic                  m{m}_apb_PCTRLPARITY,\n"
+                code += f"    output logic [STRB_WIDTH-1:0] m{m}_apb_PRDATAPARITY,\n"
+                code += f"    output logic                  m{m}_apb_PREADYPARITY,\n"
+                code += f"    output logic                  m{m}_apb_PSLVERRPARITY,\n"
+                code += f"    // Per-port fault report. Deliberately NOT folded into\n"
+                code += f"    // PSLVERR: that would make a fabric fault look like the\n"
+                code += f"    // slave's own error response, which is the distinction\n"
+                code += f"    // parity exists to draw.\n"
+                code += f"    output logic                  m{m}_parity_error_wdata,\n"
+                code += f"    output logic                  m{m}_parity_error_ctrl"
         code += ",\n\n" if m < M-1 or N > 0 else "\n"
 
     # Generate slave interfaces
@@ -196,6 +223,17 @@ module {module_name} #(
             code += f"    input  logic                  s{s}_apb_PWAKEUP,\n"
             code += f"    input  logic                  s{s}_apb_PRUSER,\n"
             code += f"    input  logic                  s{s}_apb_PBUSER"
+            if enable_parity:
+                code += ",\n"
+                code += f"    // APB5 parity (regenerated here from the cmd/rsp path)\n"
+                code += f"    output logic [STRB_WIDTH-1:0] s{s}_apb_PWDATAPARITY,\n"
+                code += f"    output logic                  s{s}_apb_PADDRPARITY,\n"
+                code += f"    output logic                  s{s}_apb_PCTRLPARITY,\n"
+                code += f"    input  logic [STRB_WIDTH-1:0] s{s}_apb_PRDATAPARITY,\n"
+                code += f"    input  logic                  s{s}_apb_PREADYPARITY,\n"
+                code += f"    input  logic                  s{s}_apb_PSLVERRPARITY,\n"
+                code += f"    output logic                  s{s}_parity_error_rdata,\n"
+                code += f"    output logic                  s{s}_parity_error_ctrl"
         code += ",\n\n" if s < N-1 else "\n"
 
     code += ");\n\n"
@@ -300,7 +338,11 @@ module {module_name} #(
             code += f"        .AUSER_WIDTH (1),\n"
             code += f"        .WUSER_WIDTH (1),\n"
             code += f"        .RUSER_WIDTH (1),\n"
-            code += f"        .BUSER_WIDTH (1)\n"
+            if enable_parity:
+                code += f"        .BUSER_WIDTH (1),\n"
+                code += f"        .ENABLE_PARITY (1)\n"
+            else:
+                code += f"        .BUSER_WIDTH (1)\n"
         else:
             code += f"        .PROT_WIDTH (3)\n"
         code += f"    ) u_{proto}_slave_m{m} (\n"
@@ -337,15 +379,26 @@ module {module_name} #(
             code += f"        .cmd_pwuser     (m{m}_cmd_pwuser),\n"
             code += f"        .rsp_pruser     (m{m}_rsp_pruser),\n"
             code += f"        .rsp_pbuser     (m{m}_rsp_pbuser),\n"
-            code += f"        // parity feature unused (ENABLE_PARITY=0)\n"
-            code += f"        .s_apb_PWDATAPARITY ('0),\n"
-            code += f"        .s_apb_PADDRPARITY  ('0),\n"
-            code += f"        .s_apb_PCTRLPARITY  ('0),\n"
-            code += f"        .s_apb_PRDATAPARITY (),\n"
-            code += f"        .s_apb_PREADYPARITY (),\n"
-            code += f"        .s_apb_PSLVERRPARITY(),\n"
-            code += f"        .parity_error_wdata (),\n"
-            code += f"        .parity_error_ctrl  (),\n"
+            if enable_parity:
+                code += f"        // parity checked here; regenerated on the far side\n"
+                code += f"        .s_apb_PWDATAPARITY (m{m}_apb_PWDATAPARITY),\n"
+                code += f"        .s_apb_PADDRPARITY  (m{m}_apb_PADDRPARITY),\n"
+                code += f"        .s_apb_PCTRLPARITY  (m{m}_apb_PCTRLPARITY),\n"
+                code += f"        .s_apb_PRDATAPARITY (m{m}_apb_PRDATAPARITY),\n"
+                code += f"        .s_apb_PREADYPARITY (m{m}_apb_PREADYPARITY),\n"
+                code += f"        .s_apb_PSLVERRPARITY(m{m}_apb_PSLVERRPARITY),\n"
+                code += f"        .parity_error_wdata (m{m}_parity_error_wdata),\n"
+                code += f"        .parity_error_ctrl  (m{m}_parity_error_ctrl),\n"
+            else:
+                code += f"        // parity feature unused (ENABLE_PARITY=0)\n"
+                code += f"        .s_apb_PWDATAPARITY ('0),\n"
+                code += f"        .s_apb_PADDRPARITY  ('0),\n"
+                code += f"        .s_apb_PCTRLPARITY  ('0),\n"
+                code += f"        .s_apb_PRDATAPARITY (),\n"
+                code += f"        .s_apb_PREADYPARITY (),\n"
+                code += f"        .s_apb_PSLVERRPARITY(),\n"
+                code += f"        .parity_error_wdata (),\n"
+                code += f"        .parity_error_ctrl  (),\n"
             code += f"        // wakeup handled inside the boundary IP\n"
             code += f"        .wakeup_request     ('0)\n"
         else:
@@ -622,7 +675,11 @@ module {module_name} #(
             code += f"        .AUSER_WIDTH (1),\n"
             code += f"        .WUSER_WIDTH (1),\n"
             code += f"        .RUSER_WIDTH (1),\n"
-            code += f"        .BUSER_WIDTH (1)\n"
+            if enable_parity:
+                code += f"        .BUSER_WIDTH (1),\n"
+                code += f"        .ENABLE_PARITY (1)\n"
+            else:
+                code += f"        .BUSER_WIDTH (1)\n"
         else:
             code += f"        .PROT_WIDTH (3)\n"
         code += f"    ) u_{proto}_master_s{s} (\n"
@@ -662,15 +719,26 @@ module {module_name} #(
             code += f"        .rsp_pwakeup    (),\n"
             code += f"        .rsp_pruser     (s{s}_rsp_pruser),\n"
             code += f"        .rsp_pbuser     (s{s}_rsp_pbuser),\n"
-            code += f"        // parity feature unused (ENABLE_PARITY=0)\n"
-            code += f"        .m_apb_PWDATAPARITY (),\n"
-            code += f"        .m_apb_PADDRPARITY  (),\n"
-            code += f"        .m_apb_PCTRLPARITY  (),\n"
-            code += f"        .m_apb_PRDATAPARITY ('0),\n"
-            code += f"        .m_apb_PREADYPARITY ('0),\n"
-            code += f"        .m_apb_PSLVERRPARITY('0),\n"
-            code += f"        .parity_error_rdata (),\n"
-            code += f"        .parity_error_ctrl  (),\n"
+            if enable_parity:
+                code += f"        // parity regenerated here from the cmd/rsp path\n"
+                code += f"        .m_apb_PWDATAPARITY (s{s}_apb_PWDATAPARITY),\n"
+                code += f"        .m_apb_PADDRPARITY  (s{s}_apb_PADDRPARITY),\n"
+                code += f"        .m_apb_PCTRLPARITY  (s{s}_apb_PCTRLPARITY),\n"
+                code += f"        .m_apb_PRDATAPARITY (s{s}_apb_PRDATAPARITY),\n"
+                code += f"        .m_apb_PREADYPARITY (s{s}_apb_PREADYPARITY),\n"
+                code += f"        .m_apb_PSLVERRPARITY(s{s}_apb_PSLVERRPARITY),\n"
+                code += f"        .parity_error_rdata (s{s}_parity_error_rdata),\n"
+                code += f"        .parity_error_ctrl  (s{s}_parity_error_ctrl),\n"
+            else:
+                code += f"        // parity feature unused (ENABLE_PARITY=0)\n"
+                code += f"        .m_apb_PWDATAPARITY (),\n"
+                code += f"        .m_apb_PADDRPARITY  (),\n"
+                code += f"        .m_apb_PCTRLPARITY  (),\n"
+                code += f"        .m_apb_PRDATAPARITY ('0),\n"
+                code += f"        .m_apb_PREADYPARITY ('0),\n"
+                code += f"        .m_apb_PSLVERRPARITY('0),\n"
+                code += f"        .parity_error_rdata (),\n"
+                code += f"        .parity_error_ctrl  (),\n"
             code += f"        .wakeup_pending     ()\n"
         else:
             code += f"        .rsp_pslverr    (s{s}_rsp_pslverr)\n"
