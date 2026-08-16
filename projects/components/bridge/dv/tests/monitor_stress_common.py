@@ -95,12 +95,26 @@ def make_harness(dut, tb, block_node=None):
     )
 
 
-def stress_read_plan(tb, n, *, slaves=None, seed=0xC0FFEE):
+def stress_read_plan(tb, n, *, slaves=None, seed=0xC0FFEE, master_idx=0):
     """n (slave_idx, addr) pairs, word-aligned within each slave's seeded
-    window so tb.slave_mem_read yields golden data."""
+    window so tb.slave_mem_read yields golden data.
+
+    Offsets step by the SLAVE word but the expected-value read consumes
+    MASTER-width bytes (tb.slave_mem_read derives byte_count from
+    master_idx), so the whole access -- not just its first byte -- has to
+    fit inside the seeded window. Draw the top offset with a 64-bit
+    master over a 4 KB window and you get a read of 8 bytes at 0xFFC,
+    which runs 4 bytes past the cap; MemoryModel raises ValueError and
+    the phase dies with an uncaught exception rather than a data
+    mismatch. That is a latent bug, not a per-test one: mix_a has the
+    same 64-bit master as mix_b/c/d and passed only because its draw
+    never landed on the last word.
+    """
     rng = random.Random(seed)
     idxs = list(slaves) if slaves is not None else sorted(tb.slave_info.keys())
-    max_word = _SLAVE_CAP_BYTES // _SLAVE_WORD_BYTES
+    access = tb.master_data_width.get(master_idx, tb.data_width) // 8
+    # Largest k with k*WORD + access <= CAP, inclusive -> +1 for randrange.
+    max_word = (_SLAVE_CAP_BYTES - access) // _SLAVE_WORD_BYTES + 1
     plan = []
     for _ in range(n):
         s = rng.choice(idxs)
