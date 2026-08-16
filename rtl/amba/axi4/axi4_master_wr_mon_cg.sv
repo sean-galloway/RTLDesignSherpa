@@ -400,7 +400,13 @@ module axi4_master_wr_mon_cg
         .perf_idle_cycles        (perf_idle_cycles),
         .perf_beat_count         (perf_beat_count),
         .perf_byte_count         (perf_byte_count),
-        .perf_burst_count        (perf_burst_count)
+        .perf_burst_count        (perf_burst_count),
+        // Observability tap on the inner monitor's backpressure. Connected
+        // EXPLICITLY rather than omitted: an omitted pin is PINMISSING,
+        // which Verilator escalates to an error, and that is what kept the
+        // four axil4 _cg builds from compiling at all. Left empty because
+        // the _cg wrapper does not re-export it.
+        .debug_block_ready       ()
 
     );
 

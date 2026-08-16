@@ -52,6 +52,18 @@ module axi5_slave_rd_mon
     parameter logic [7:0]  UNIT_ID  = 8'h01,
     parameter logic [15:0] AGENT_ID = 16'h000C,
     parameter int MAX_TRANSACTIONS  = 16,
+    // ID-range filter, passed through to axi_monitor_base. Default OFF ->
+    // bit-identical to before. See axi_monitor_base for why this exists:
+    // several monitors snooping one ID-multiplexed bus, each owning a slice,
+    // so no single transaction table has to hold the whole concurrency.
+    // Transaction-table shaping, forwarded to axi_monitor_trans_mgr.
+    // Defaults reproduce today's behaviour exactly; see that module for the
+    // AW-order queue and the bank sizing rule.
+    parameter bit USE_WDATA_ORDER_Q      = 1'b0,
+    parameter int NUM_BANKS              = 1,
+    parameter bit ID_FILTER_ENABLE       = 1'b0,
+    parameter int ID_MATCH_BASE          = 0,
+    parameter int ID_MATCH_COUNT         = 0,
     // Active-transaction threshold packet trip point (used when
     // cfg_threshold_enable=1). Previously hardwired, which either spammed
     // threshold packets (table larger than the hardwire) or made the feature
@@ -231,6 +243,19 @@ module axi5_slave_rd_mon
     logic w_core_s_axi_arready;
     logic w_block_ready;
 
+    // BOTH ENDS OF THE HANDSHAKE, GATED BY THE SAME TERM.
+    // Masking only the outward ready let the core keep seeing an
+    // ungated valid: it accepted the command while the master was
+    // told "not ready", the master held the same command on the bus,
+    // and the core accepted it AGAIN every cycle until the table
+    // drained. Backpressure became replay -- measured 49 commands in
+    // and 367 accepted on the Genesys 2 STREAM build, and caught by
+    // val/amba/test_axi_mon_block_ready.py once it was bound to the
+    // slave wrappers. Gating the valid too makes a full table stall
+    // the bus, which is the documented contract.
+    logic w_gated_arvalid;
+    assign w_gated_arvalid = s_axi_arvalid & (w_block_ready | ~cfg_monitor_enable);
+
     // Observability tap for block_ready (see the port comment). Held to the
     // internal gating net so a testbench watching the port sees exactly what
     // the AR/AW gate sees.
@@ -252,7 +277,7 @@ module axi5_slave_rd_mon
         .s_axi_arid(s_axi_arid), .s_axi_araddr(s_axi_araddr), .s_axi_arlen(s_axi_arlen),
         .s_axi_arsize(s_axi_arsize), .s_axi_arburst(s_axi_arburst), .s_axi_arlock(s_axi_arlock),
         .s_axi_arcache(s_axi_arcache), .s_axi_arprot(s_axi_arprot), .s_axi_arqos(s_axi_arqos),
-        .s_axi_aruser(s_axi_aruser), .s_axi_arvalid(s_axi_arvalid), .s_axi_arready(w_core_s_axi_arready),  // gated below
+        .s_axi_aruser(s_axi_aruser), .s_axi_arvalid(w_gated_arvalid), .s_axi_arready(w_core_s_axi_arready),  // gated below
         .s_axi_arnsaid(s_axi_arnsaid), .s_axi_artrace(s_axi_artrace), .s_axi_armpam(s_axi_armpam),
         .s_axi_armecid(s_axi_armecid), .s_axi_arunique(s_axi_arunique),
         .s_axi_archunken(s_axi_archunken), .s_axi_artagop(s_axi_artagop),
@@ -325,6 +350,8 @@ module axi5_slave_rd_mon
             .CFI_MIN_FREQ_MHZ        (ACLK_MHZ),
             .CFI_MAX_FREQ_MHZ        (ACLK_MHZ),
             .UNIT_ID(UNIT_ID), .AGENT_ID(AGENT_ID), .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+            .USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q), .NUM_BANKS(NUM_BANKS),
+            .ID_FILTER_ENABLE(ID_FILTER_ENABLE), .ID_MATCH_BASE(ID_MATCH_BASE), .ID_MATCH_COUNT(ID_MATCH_COUNT),
             .ADDR_WIDTH(AW), .ID_WIDTH(IW), .IS_READ(1), .IS_AXI(1),
             .ENABLE_PERF_PACKETS(1), .ENABLE_DEBUG_MODULE(0),
             .ENABLE_ERROR_LOGIC(ENABLE_ERROR_LOGIC),

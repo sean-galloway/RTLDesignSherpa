@@ -532,7 +532,13 @@ module axi_master_wr_splitter
 
         // Valid signal
         case (r_split_state)
-            IDLE: m_axi_awvalid = fub_awvalid;
+            // block_ready MUST gate the downstream valid as well as the
+            // upstream ready and the FSM capture. Gating only two of the three
+            // meant the slave accepted the AW while the upstream handshake
+            // never completed, so the same AW was re-presented and re-accepted
+            // every cycle -- duplicated downstream transactions, not blocked
+            // ones. See the matching fix on the read splitter.
+            IDLE: m_axi_awvalid = fub_awvalid && !block_ready;
             SPLITTING: m_axi_awvalid = 1'b1;
             default: m_axi_awvalid = 1'b0;
         endcase

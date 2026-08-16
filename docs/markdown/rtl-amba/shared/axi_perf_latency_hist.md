@@ -53,7 +53,7 @@ Average latency hides the distribution that actually matters for QoS analysis â€
 **Use Cases:**
 - Read/write latency distribution characterization on AXI master ports (perfmon Stage D)
 - Tail-latency analysis for QoS and arbitration tuning
-- Parity latency metrics alongside `axi4_dma_observer` per-port histograms
+- Parity latency metrics alongside `axi4_intf_master_observer` per-port histograms
 - Host-driven on-silicon performance runs (CSR readout, no MonBus traffic)
 
 **Key Benefit:** Exposes the full latency distribution (including the tail) through cheap CSR reads, without touching the shared monitor base or adding any MonBus packet traffic. Distributions are aggregated across channels -- per-channel histograms would need one instance per channel.
@@ -256,7 +256,7 @@ Because increments land four cycles after the completing beat (capture, subtract
 
 ### See Also
 - **axi_bus_meter.sv** - Four-bucket utilization meter, shares the window-control convention
-- **axi4_dma_observer.sv** - DMA observability wrapper with per-port latency histograms
+- **axi4_intf_master_observer.sv** - interface observability wrapper with per-port latency histograms (`projects/components/misc/rtl/`)
 - **axi_monitor_base.sv** - The shared monitor scaffold this block deliberately does not touch
 
 ---

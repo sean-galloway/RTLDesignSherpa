@@ -389,9 +389,18 @@ module axi_master_rd_splitter
             m_axi_aruser = r_orig_aruser;
         end
 
-        // Valid signal
+        // Valid signal.
+        //
+        // BLOCK_READY MUST GATE THE DOWNSTREAM VALID, not only the upstream
+        // ready and the FSM capture. With block_ready=1, fub_arvalid=1 and
+        // m_axi_arready=1 the slave accepted the AR, the upstream handshake
+        // never completed and the FSM never captured -- so the SAME AR was
+        // re-presented and re-accepted every cycle. That is duplicated
+        // downstream transactions, not blocked ones: the exact "gate one half
+        // of the handshake" defect that turned monitor backpressure into
+        // replay elsewhere in this repo.
         case (r_split_state)
-            IDLE: m_axi_arvalid = fub_arvalid;
+            IDLE: m_axi_arvalid = fub_arvalid && !block_ready;
             SPLITTING: m_axi_arvalid = 1'b1;
             default: m_axi_arvalid = 1'b0;
         endcase

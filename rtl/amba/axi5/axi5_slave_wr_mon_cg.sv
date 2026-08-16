@@ -361,7 +361,10 @@ module axi5_slave_wr_mon_cg
         .perf_idle_cycles(perf_idle_cycles),
         .perf_beat_count(perf_beat_count),
         .perf_byte_count(perf_byte_count),
-        .perf_burst_count(perf_burst_count)
+        .perf_burst_count(perf_burst_count),
+        // Explicit empty connection -- see the axi4/axil4 _cg wrappers:
+        // an omitted pin is PINMISSING, which Verilator errors on.
+        .debug_block_ready()
 
     );
 

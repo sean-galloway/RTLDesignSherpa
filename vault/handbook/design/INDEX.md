@@ -8,6 +8,8 @@ summary: RTL rules with the failures that taught them.
 - [[reset-and-clocking]] - reset macros, aresetn, clock conventions
 - [[cdc]] - crossing rules, gray pointers, handshakes
 - [[valid-ready-contracts]] - stability rules; who may stall whom
+- [[observers-do-not-drive]] - a parallel snoop must not gate the bus it taps
+  (in-path `*_mon` wrappers own ready by design; the rule is not about them)
 - [[streaming-no-fsm]] - the pipeline pattern for datapaths
 - [[sram-and-memories]] - no-reset SRAMs, ram_style, array syntax
 - [[sizing-invariants]] - shared-resource math; one source of truth

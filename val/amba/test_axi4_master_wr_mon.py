@@ -312,7 +312,21 @@ def test_axi4_master_wr_mon(id_width, addr_width, data_width, user_width, wstrb_
 
     dut_name = "axi4_master_wr_mon"
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
-    test_name = f"test_{worker_id}_{dut_name}_iw{id_width}_aw{addr_width}_dw{data_width}_mt{max_trans}_sk{skid_aw}x{skid_w}x{skid_b}_{test_level}_{reg_level}"
+
+    # Transaction-table shaping, overridable from the environment. Defaults are
+    # the RTL defaults (single full-depth CAM, no AW-order queue), so the
+    # regular sweep is unchanged. These are env rather than parametrize because
+    # the banked configuration is a synthesis/timing measure being brought up —
+    # it needs to be reproducible on demand before it earns a place in the
+    # standing matrix. BOTH go in the build directory name: the parameter set
+    # changes the elaborated design, and a sim_build shared across values is
+    # how a banked run silently reuses an unbanked binary and passes.
+    num_banks = int(os.environ.get('NUM_BANKS', '1'))
+    use_wq = int(os.environ.get('USE_WDATA_ORDER_Q', '0'))
+
+    test_name = (f"test_{worker_id}_{dut_name}_iw{id_width}_aw{addr_width}_dw{data_width}"
+                 f"_mt{max_trans}_sk{skid_aw}x{skid_w}x{skid_b}"
+                 f"_nb{num_banks}_wq{use_wq}_{test_level}_{reg_level}")
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
@@ -340,6 +354,8 @@ def test_axi4_master_wr_mon(id_width, addr_width, data_width, user_width, wstrb_
         'UNIT_ID': '1',
         'AGENT_ID': '11',
         'MAX_TRANSACTIONS': str(max_trans),
+        'NUM_BANKS': str(num_banks),
+        'USE_WDATA_ORDER_Q': str(use_wq),
         'ENABLE_FILTERING': '1',
         'SKID_DEPTH_AW': str(skid_aw),
         'SKID_DEPTH_W': str(skid_w),

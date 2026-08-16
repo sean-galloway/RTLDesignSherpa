@@ -115,13 +115,13 @@ with an active bring-up.
 
 ---
 
-## PUMICE-008 — adopt axi4_intf_observer (APB-configured) for perf observation
+## PUMICE-008 — adopt axi4_intf_master_observer (APB-configured) for perf observation
 **Status:** open 2026-08-04
 
 pumice rolls its own perf observation: `perf_rd_prod/bp/starv/idle`,
 `perf_rd_hist_count/total`, `perf_clear`, `perf_freeze` wired out of the harness
 and read back through harness CSRs. The stream flows use
-`axi4_intf_observer`, an inline pass-through meter over the same primitives
+`axi4_intf_master_observer`, an inline pass-through meter over the same primitives
 (`axi_bus_meter`, `axi_perf_latency_hist`) that also emits monbus packets.
 
 **What changed that makes this worth doing (2026-08-04):** the observer now
@@ -129,7 +129,7 @@ carries its OWN APB config regblock (`obs_regs`) instead of exporting 29 `cfg_*`
 ports for the instantiating harness to tie off, and it moved to
 `projects/components/misc/rtl/` so it is reachable from any board flow:
 
-    -f $MISC_ROOT/rtl/filelists/axi4_intf_observer.f
+    -f $MISC_ROOT/rtl/filelists/axi4_intf_master_observer.f
 
 So adopting it costs one bridge APB slave and one instantiation, not 29 tie-offs
 and a harness that has to know the block's internals. Registers are by name via

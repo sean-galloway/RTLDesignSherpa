@@ -211,6 +211,14 @@ class MonitorTransCamTB(TBBase):
         self.dut.addr_wants_alloc.value = 0
         self.dut.data_wants_alloc.value = 0
         self.dut.resp_wants_alloc.value = 0
+        # Allocation masks: all-ones is UNRESTRICTED, and that is the only
+        # value this file's model describes. They are real inputs with no
+        # default, so leaving them undriven parks them at 0 -- which reads as
+        # "no slot is eligible" and silently allocates nothing
+        # (addr_alloc_oh=0x0 against a model expecting 0x1). A banked
+        # trans_mgr narrows them per phase; that behaviour is covered by
+        # test_alloc_mask_confines_allocation below.
+        self._drive_alloc_masks(self._all_slots, self._all_slots, self._all_slots)
         self.dut.entry_we.value         = 0
         self.dut.entry_valid_next.value = 0
         for i in range(self.DEPTH):
@@ -243,6 +251,16 @@ class MonitorTransCamTB(TBBase):
         self.dut.data_wants_alloc.value = int(bool(wd))
         self.dut.resp_wants_alloc.value = int(bool(wr))
 
+    @property
+    def _all_slots(self) -> int:
+        """Unrestricted allocation mask (every slot eligible)."""
+        return (1 << self.DEPTH) - 1
+
+    def _drive_alloc_masks(self, addr_mask: int, data_mask: int, resp_mask: int):
+        self.dut.addr_alloc_mask.value = addr_mask & self._all_slots
+        self.dut.data_alloc_mask.value = data_mask & self._all_slots
+        self.dut.resp_alloc_mask.value = resp_mask & self._all_slots
+
     def _drive_writes(self,
                       we_mask: int,
                       valid_next_mask: int,
@@ -269,10 +287,17 @@ class MonitorTransCamTB(TBBase):
                     we_mask:        int = 0,
                     valid_next_mask: int = 0,
                     ids_next:       List[int] = None,
-                    payloads_next:  List[int] = None):
+                    payloads_next:  List[int] = None,
+                    addr_alloc_mask: int = None,
+                    data_alloc_mask: int = None,
+                    resp_alloc_mask: int = None):
         """One clock cycle. Drives inputs, samples combinational outputs
         at ReadOnly, advances the model on the next clock edge, then
-        cross-checks the registered state."""
+        cross-checks the registered state.
+
+        The alloc masks default to unrestricted; the model below has no notion
+        of them, so a restricted mask is only meaningful in a test that checks
+        the RTL directly (t18)."""
         if ids_next is None:
             ids_next = [0] * self.DEPTH
         if payloads_next is None:
@@ -280,6 +305,10 @@ class MonitorTransCamTB(TBBase):
 
         self._drive_lookups(addr_id, data_id, resp_id)
         self._drive_wants(wants_addr, wants_data, wants_resp)
+        self._drive_alloc_masks(
+            self._all_slots if addr_alloc_mask is None else addr_alloc_mask,
+            self._all_slots if data_alloc_mask is None else data_alloc_mask,
+            self._all_slots if resp_alloc_mask is None else resp_alloc_mask)
         self._drive_writes(we_mask, valid_next_mask, ids_next, payloads_next)
 
         # ---- Combinational sample + check ----
@@ -315,12 +344,19 @@ class MonitorTransCamTB(TBBase):
             f"data_match_first_oh mismatch: rtl=0x{rtl_data_first_oh:x}, model=0x{exp_data_first_oh:x}"
         assert rtl_free_oh == exp_free_oh, \
             f"free_oh mismatch: rtl=0x{rtl_free_oh:x}, model=0x{exp_free_oh:x}"
-        assert rtl_addr_alloc_oh == exp_aa, \
-            f"addr_alloc_oh mismatch: rtl=0x{rtl_addr_alloc_oh:x}, model=0x{exp_aa:x}"
-        assert rtl_data_alloc_oh == exp_da, \
-            f"data_alloc_oh mismatch: rtl=0x{rtl_data_alloc_oh:x}, model=0x{exp_da:x}"
-        assert rtl_resp_alloc_oh == exp_ra, \
-            f"resp_alloc_oh mismatch: rtl=0x{rtl_resp_alloc_oh:x}, model=0x{exp_ra:x}"
+        # The reference model allocates unrestricted, so it can only be held
+        # to the RTL when the masks are unrestricted too. A test driving a
+        # narrowed mask checks the RTL directly (t18).
+        unrestricted = (addr_alloc_mask is None and
+                        data_alloc_mask is None and
+                        resp_alloc_mask is None)
+        if unrestricted:
+            assert rtl_addr_alloc_oh == exp_aa, \
+                f"addr_alloc_oh mismatch: rtl=0x{rtl_addr_alloc_oh:x}, model=0x{exp_aa:x}"
+            assert rtl_data_alloc_oh == exp_da, \
+                f"data_alloc_oh mismatch: rtl=0x{rtl_data_alloc_oh:x}, model=0x{exp_da:x}"
+            assert rtl_resp_alloc_oh == exp_ra, \
+                f"resp_alloc_oh mismatch: rtl=0x{rtl_resp_alloc_oh:x}, model=0x{exp_ra:x}"
         assert rtl_entry_valid == exp_entry_valid, \
             f"entry_valid mismatch: rtl=0x{rtl_entry_valid:x}, model=0x{exp_entry_valid:x}"
 
@@ -563,6 +599,58 @@ class MonitorTransCamTB(TBBase):
         assert r['resp_alloc_oh'] == 0b10
         self.log.info("=== t8: PASS ===")
 
+    async def t18_alloc_mask_confines_allocation(self):
+        """A narrowed alloc mask must confine the pick to the masked slots.
+
+        This is the CAM-level half of the banking contract: a banked
+        axi_monitor_trans_mgr keeps every entry for an ID inside that ID's
+        bank by narrowing these masks, and if the CAM ignored them an ID's
+        entries would scatter across banks while the caller's same-bank age
+        comparisons silently skipped pairs they must order. Nothing exercised
+        the masks before -- they were added, defaulted to undriven, and the
+        only symptom was this file's own allocations going to zero.
+        """
+        self.log.info("=== t18: alloc masks confine the allocation pick ===")
+        if self.DEPTH < 4:
+            self.log.info("=== t18: SKIPPED (DEPTH < 4) ===")
+            return
+
+        # All slots free, but only the upper half is eligible: the pick must
+        # be the lowest free slot INSIDE the mask, not slot 0.
+        upper_half = self._all_slots & ~((1 << (self.DEPTH // 2)) - 1)
+        r = await self._step(wants_addr=True, addr_alloc_mask=upper_half)
+        expect = 1 << (self.DEPTH // 2)
+        assert r['addr_alloc_oh'] == expect, \
+            (f"masked addr_alloc_oh=0x{r['addr_alloc_oh']:x}, expected "
+             f"0x{expect:x} (lowest free slot within mask 0x{upper_half:x})")
+
+        # A single-slot mask pins the pick exactly.
+        only_slot = 1 << (self.DEPTH - 1)
+        r = await self._step(wants_addr=True, addr_alloc_mask=only_slot)
+        assert r['addr_alloc_oh'] == only_slot, \
+            f"single-slot mask: got 0x{r['addr_alloc_oh']:x}, expected 0x{only_slot:x}"
+
+        # An empty mask means no slot is eligible: allocate nothing. This is
+        # also the undriven-input case, which is why it must be explicit.
+        r = await self._step(wants_addr=True, addr_alloc_mask=0)
+        assert r['addr_alloc_oh'] == 0, \
+            f"empty mask allocated 0x{r['addr_alloc_oh']:x}, expected 0"
+
+        # Masks are per phase and independent: addr confined to the low half,
+        # data to the high half, and they must not collide.
+        low_half = (1 << (self.DEPTH // 2)) - 1
+        r = await self._step(wants_addr=True, wants_data=True,
+                             addr_alloc_mask=low_half,
+                             data_alloc_mask=upper_half)
+        assert r['addr_alloc_oh'] & low_half, \
+            f"addr alloc 0x{r['addr_alloc_oh']:x} escaped its mask 0x{low_half:x}"
+        assert r['data_alloc_oh'] & upper_half, \
+            f"data alloc 0x{r['data_alloc_oh']:x} escaped its mask 0x{upper_half:x}"
+        assert not (r['addr_alloc_oh'] & r['data_alloc_oh']), \
+            "addr and data allocated the same slot under disjoint masks"
+
+        self.log.info("=== t18: PASS ===")
+
     async def t9_alloc_mutex(self):
         self.log.info("=== t9: all three phases want -> three distinct slots ===")
         # All slots free, all three want. Should get bits 0, 1, 2.
@@ -781,6 +869,7 @@ async def monitor_trans_cam_test(dut):
     await tb.t14_lookup_miss();                      await tb.reset_dut()
     await tb.t15_alloc_priority_cascade();           await tb.reset_dut()
     await tb.t16_id_collision_tolerance();           await tb.reset_dut()
+    await tb.t18_alloc_mask_confines_allocation(); await tb.reset_dut()
     await tb.t17_random_stress(n_ops=n_stress_ops)
 
     tb.log.info("=== ALL TESTS PASSED ===")

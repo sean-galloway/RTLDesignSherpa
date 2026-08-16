@@ -283,7 +283,7 @@ module harness_csr #(
     input  logic [31:0]     i_mon_comp_event_data_ovf,
     input  logic [31:0]     i_mon_comp_ed_delta_ovf,
 
-    // RFC Stage E: external axi4_intf_observer perf readback (revives the
+    // RFC Stage E: external axi4_intf_master_observer perf readback (revives the
     // 0x100-0x128 range the retired harness axi_bus_meter used). Aggregate
     // R/W bus-meter buckets + an indexed latency-histogram readout, sourced
     // from the standalone observer dropped inline on STREAM's rd/wr AXI. Used
@@ -733,7 +733,7 @@ module harness_csr #(
                             8'hCC: r_rdata <= r_kick_addr[6];
                             8'hD0: r_rdata <= r_kick_addr[7];
 
-                            // RFC Stage E: external axi4_intf_observer perf
+                            // RFC Stage E: external axi4_intf_master_observer perf
                             // readback (revives 0x100-0x128). Aggregate R/W
                             // buckets + indexed latency-histogram readout.
                             9'h100: r_rdata <= i_obs_rd_prod;

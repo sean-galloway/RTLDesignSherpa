@@ -92,6 +92,17 @@ module monitor_trans_cam #(
     input  logic                              addr_wants_alloc,
     input  logic                              data_wants_alloc,
     input  logic                              resp_wants_alloc,
+
+    // Per-phase allocation restriction. A slot is only eligible for a phase's
+    // allocation when its mask bit is set; tie all ones for the unrestricted
+    // behaviour. Used by a BANKED trans_mgr to keep every entry for a given ID
+    // inside that ID's bank -- without it the free-slot scan below would hand
+    // an ID a slot in a foreign bank, and the caller's same-bank age
+    // comparisons would then silently skip a pair they must order.
+    input  logic [DEPTH-1:0]                  addr_alloc_mask,
+    input  logic [DEPTH-1:0]                  data_alloc_mask,
+    input  logic [DEPTH-1:0]                  resp_alloc_mask,
+
     output logic [DEPTH-1:0]                  addr_alloc_oh,
     output logic [DEPTH-1:0]                  data_alloc_oh,
     output logic [DEPTH-1:0]                  resp_alloc_oh,
@@ -173,7 +184,7 @@ module monitor_trans_cam #(
         if (addr_wants_alloc) begin
             taken = 1'b0;
             for (int i = 0; i < DEPTH; i++) begin
-                if (!taken && remaining[i]) begin
+                if (!taken && remaining[i] && addr_alloc_mask[i]) begin
                     addr_alloc_oh[i] = 1'b1;
                     remaining[i]     = 1'b0;
                     taken            = 1'b1;
@@ -184,7 +195,7 @@ module monitor_trans_cam #(
         if (data_wants_alloc) begin
             taken = 1'b0;
             for (int i = 0; i < DEPTH; i++) begin
-                if (!taken && remaining[i]) begin
+                if (!taken && remaining[i] && data_alloc_mask[i]) begin
                     data_alloc_oh[i] = 1'b1;
                     remaining[i]     = 1'b0;
                     taken            = 1'b1;
@@ -195,7 +206,7 @@ module monitor_trans_cam #(
         if (resp_wants_alloc) begin
             taken = 1'b0;
             for (int i = 0; i < DEPTH; i++) begin
-                if (!taken && remaining[i]) begin
+                if (!taken && remaining[i] && resp_alloc_mask[i]) begin
                     resp_alloc_oh[i] = 1'b1;
                     remaining[i]     = 1'b0;
                     taken            = 1'b1;

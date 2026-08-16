@@ -20,7 +20,7 @@ are [[flow-layout]]; this is the object model those rules arrange.
 | `CharacterizationRunner` | `bin/characterization.py` | the harness CSRs + a DMA campaign | runner/library |
 | `DescriptorBuilder` | `bin/descriptor_builder.py` | descriptor RAM contents | pure builder |
 | `harness_addrs` / `stream_addrs` | `bin/` | by-name addresses + `compose()` | library |
-| `bus_meters` | `bin/bus_meters.py` | `axi4_intf_observer` bucket CSRs | library + `main()` |
+| `bus_meters` | `bin/bus_meters.py` | `axi4_intf_master_observer` bucket CSRs | library + `main()` |
 | `rw_perf` / `desc_perf` | `bin/` | in-core RDMON/WRMON/DAXMON windows | library + `main()` |
 | `stream_ext_suite` | `bin/stream_ext_suite.py` | row/col traversal cases over `Stream` | library + `main()` |
 | `stream_ext_report` | `bin/stream_ext_report.py` | nothing -- formats results | pure formatter |

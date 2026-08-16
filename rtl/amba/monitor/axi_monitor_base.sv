@@ -37,6 +37,36 @@ module axi_monitor_base
     parameter logic [7:0]  UNIT_ID    = 8'h09,    // 8-bit Unit ID
     parameter logic [15:0] AGENT_ID   = 16'h0063, // 16-bit Agent ID
 
+    // ---- ID-range filter: track a SUBSET of the IDs on a shared bus --------
+    // Default OFF, so every existing instantiation is bit-identical.
+    //
+    // When several monitors snoop one bus that carries many channels
+    // multiplexed by AXI ID, each one otherwise allocates a table entry for
+    // EVERY transaction -- so N monitors each need the full concurrency and N
+    // instances buy nothing. Filtering allocation by ID lets each instance own
+    // a slice: 8 channels x 8 outstanding needs a 72-entry table in one
+    // monitor, which does not close timing here (measured 16 entries at
+    // WNS +1.018 ns, 40 entries at WNS -25.183 ns), while four monitors of two
+    // channels each need 16 -- the size that is known to close.
+    //
+    // This gates the MONITOR's observation inputs only. cmd_valid/data_valid/
+    // resp_valid here are observation feeds, separate from the datapath the
+    // wrapper's core drives, so filtering changes what is TRACKED and never
+    // what flows. A filtered instance is transparent on the bus, which is what
+    // makes parallel snooping possible.
+    //
+    // All three channels are filtered on the same range. Filtering the command
+    // alone would leave data/resp for other IDs arriving unmatched, and the
+    // unmatched path allocates orphan entries -- the table would fill with
+    // other channels' traffic, which is the problem this exists to avoid.
+    // Transaction-table shaping, forwarded to axi_monitor_trans_mgr.
+    // Defaults reproduce today's behaviour exactly; see that module for the
+    // AW-order queue and the bank sizing rule.
+    parameter bit USE_WDATA_ORDER_Q      = 1'b0,
+    parameter int NUM_BANKS              = 1,
+    parameter bit ID_FILTER_ENABLE     = 1'b0,
+    parameter int ID_MATCH_BASE        = 0,      // first ID owned by this instance
+    parameter int ID_MATCH_COUNT       = 0,      // how many; 0 = all (no filter)
 
     // General parameters
     // ---- Timer LUT sizing (counter_freq_invariant) -------------------------
@@ -279,6 +309,19 @@ module axi_monitor_base
     // Module Instantiations
     // -------------------------------------------------------------------------
 
+    // ---- ID-range filter (see the parameter block) --------------------------
+    // Combinational match per channel. ID_MATCH_COUNT=0 or ID_FILTER_ENABLE=0
+    // leaves every valid untouched, so the default build is unchanged.
+    function automatic logic id_owned(input logic [IW-1:0] id);
+        if (!ID_FILTER_ENABLE || (ID_MATCH_COUNT == 0)) id_owned = 1'b1;
+        else id_owned = (int'(id) >= ID_MATCH_BASE) &&
+                        (int'(id) <  ID_MATCH_BASE + ID_MATCH_COUNT);
+    endfunction
+
+    logic w_cmd_valid_f, w_data_valid_f, w_resp_valid_f;
+    assign w_cmd_valid_f  = cmd_valid  && id_owned(cmd_id);
+    assign w_data_valid_f = data_valid && id_owned(data_id);
+    assign w_resp_valid_f = resp_valid && id_owned(resp_id);
 
     // Transaction Table Manager
     axi_monitor_trans_mgr #(
@@ -287,24 +330,26 @@ module axi_monitor_base
         .ID_WIDTH           (ID_WIDTH),
         .IS_READ            (IS_READ),
         .IS_AXI             (IS_AXI),
+        .USE_WDATA_ORDER_Q       (USE_WDATA_ORDER_Q),
+        .NUM_BANKS               (NUM_BANKS),
         .ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS)
     ) trans_mgr(
         .aclk               (aclk),
         .aresetn            (aresetn),
         .clear              (clear),
-        .cmd_valid          (cmd_valid),
+        .cmd_valid          (w_cmd_valid_f),
         .cmd_ready          (cmd_ready),
         .cmd_id             (cmd_id),
         .cmd_addr           (cmd_addr),
         .cmd_len            (cmd_len),
         .cmd_size           (cmd_size),
         .cmd_burst          (cmd_burst),
-        .data_valid         (data_valid),
+        .data_valid         (w_data_valid_f),
         .data_ready         (data_ready),
         .data_id            (data_id),
         .data_last          (data_last),
         .data_resp          (data_resp),
-        .resp_valid         (resp_valid),
+        .resp_valid         (w_resp_valid_f),
         .resp_ready         (resp_ready),
         .resp_id            (resp_id),
         .resp_code          (resp_code),
@@ -408,7 +453,7 @@ module axi_monitor_base
             .i_mon_time            (i_mon_time),
             .cmd_addr              (cmd_addr),
             .cmd_id                (cmd_id),
-            .cmd_valid             (cmd_valid),
+            .cmd_valid             (w_cmd_valid_f),
             .cmd_ready             (cmd_ready),
             .cfg_addr_check_enable (cfg_addr_check_enable),
             .cfg_debug_enable      (cfg_debug_enable),

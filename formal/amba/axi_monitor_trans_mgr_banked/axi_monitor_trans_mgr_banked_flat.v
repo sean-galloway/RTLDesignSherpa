@@ -245,16 +245,16 @@ module axi_monitor_trans_mgr (
 	endfunction
 	generate
 		if ((NUM_BANKS < 1) || ((NUM_BANKS & (NUM_BANKS - 1)) != 0)) begin : gen_bad_banks
-			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr/axi_monitor_trans_mgr.sv:201:9 - axi_monitor_trans_mgr.gen_bad_banks\n msg: ", "axi_monitor_trans_mgr: NUM_BANKS=%0d must be a power of 2.", NUM_BANKS);
+			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr_banked/axi_monitor_trans_mgr.sv:201:9 - axi_monitor_trans_mgr.gen_bad_banks\n msg: ", "axi_monitor_trans_mgr: NUM_BANKS=%0d must be a power of 2.", NUM_BANKS);
 		end
 		if ((NUM_BANKS > 1) && ((MAX_TRANSACTIONS % NUM_BANKS) != 0)) begin : gen_ragged_banks
-			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr/axi_monitor_trans_mgr.sv:204:9 - axi_monitor_trans_mgr.gen_ragged_banks\n msg: ", "axi_monitor_trans_mgr: MAX_TRANSACTIONS=%0d is not divisible by NUM_BANKS=%0d.", MAX_TRANSACTIONS, NUM_BANKS);
+			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr_banked/axi_monitor_trans_mgr.sv:204:9 - axi_monitor_trans_mgr.gen_ragged_banks\n msg: ", "axi_monitor_trans_mgr: MAX_TRANSACTIONS=%0d is not divisible by NUM_BANKS=%0d.", MAX_TRANSACTIONS, NUM_BANKS);
 		end
 		if (((NUM_BANKS > 1) && !IS_READ) && !USE_WDATA_ORDER_Q) begin : gen_banked_wr_needs_widq
-			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr/axi_monitor_trans_mgr.sv:220:9 - axi_monitor_trans_mgr.gen_banked_wr_needs_widq\n msg: ", "axi_monitor_trans_mgr: NUM_BANKS=%0d on a write monitor requires USE_WDATA_ORDER_Q=1 (the WID-less fallback double-counts one W beat across banks).", NUM_BANKS);
+			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr_banked/axi_monitor_trans_mgr.sv:220:9 - axi_monitor_trans_mgr.gen_banked_wr_needs_widq\n msg: ", "axi_monitor_trans_mgr: NUM_BANKS=%0d on a write monitor requires USE_WDATA_ORDER_Q=1 (the WID-less fallback double-counts one W beat across banks).", NUM_BANKS);
 		end
 		if (ID_WIDTH > 8) begin : gen_id_width_unsupported
-			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr/axi_monitor_trans_mgr.sv:257:9 - axi_monitor_trans_mgr.gen_id_width_unsupported\n msg: ", "axi_monitor_trans_mgr: ID_WIDTH=%0d exceeds the 8-bit id field in bus_transaction_t; the table and the CAM key would disagree. Widen bus_transaction_t.id or reduce ID_WIDTH.", ID_WIDTH);
+			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr_banked/axi_monitor_trans_mgr.sv:257:9 - axi_monitor_trans_mgr.gen_id_width_unsupported\n msg: ", "axi_monitor_trans_mgr: ID_WIDTH=%0d exceeds the 8-bit id field in bus_transaction_t; the table and the CAM key would disagree. Widen bus_transaction_t.id or reduce ID_WIDTH.", ID_WIDTH);
 		end
 	endgenerate
 	reg [N - 1:0] addr_match_oh;

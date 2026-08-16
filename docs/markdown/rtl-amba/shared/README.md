@@ -28,7 +28,6 @@ lives only in the pages that track their RTL.
 | `axi_bus_meter` | Always-on AXI bandwidth/beat/burst meter | [page](axi_bus_meter.md) |
 | `axis_bus_meter` | AXIS variant of the bus meter | [page](axis_bus_meter.md) |
 | `axi_perf_latency_hist` | Log2 latency histogram, one per metric (channels share it) | [page](axi_perf_latency_hist.md) |
-| `axi4_dma_observer` | Read+write tap observer with monbus dump path (tap logic gated by `TAP_ENABLE_*`) | [page](axi4_dma_observer.md) |
 | `axi_master_rd_splitter` | Boundary-crossing read splitter (beat-counting consumer required) | [page](axi_master_rd_splitter.md) |
 | `axi_master_wr_splitter` | Boundary-crossing write splitter with B consolidation | [page](axi_master_wr_splitter.md) |
 | `axi_split_combi` | Pure combinational split decision used by both splitters | [page](axi_split_combi.md) |
@@ -63,10 +62,12 @@ Recorded here because more than one page used to contradict them:
   split RLASTs pass upstream, the split-info FIFO drops records when full,
   and the write splitter's B consolidation misses the final split's error
   status. All filed in `vault/Tasks/amba` (splitter defect cluster).
-- `axi4_dma_observer` produces no monbus traffic at its documented parameter
-  defaults -- the `TAP_ENABLE_*` parameters gate the tap logic off and perf
-  packets are disabled; override them to get the dump path (its page has the
-  table).
+- The interface observer produces no monbus traffic at its documented
+  parameter defaults -- the `TAP_ENABLE_*` parameters gate the tap logic off
+  and perf packets are disabled; override them to get the dump path. It now
+  lives at `projects/components/misc/rtl/axi4_intf_master_observer.sv`; the
+  `axi4_dma_observer` copy that used to sit here was retired 2026-08-14 (see
+  below).
 - `o_cfg_done_clear` on the sdpram family is a sticky level, not a pulse.
 
 ## Testing

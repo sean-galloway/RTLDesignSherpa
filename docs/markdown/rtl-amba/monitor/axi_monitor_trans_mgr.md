@@ -165,6 +165,8 @@ generate-loop storage) explicit and reusable.
 | `ID_WIDTH` | int | 8 | Width of AXI ID |
 | `IS_READ` | bit | 1 | 1 for read monitors, 0 for write |
 | `IS_AXI` | bit | 1 | 1 for AXI4, 0 for AXI-Lite |
+| `USE_WDATA_ORDER_Q` | bit | 0 | Write monitors: attribute W beats via an AWID FIFO instead of the table-wide state predicate. **Required when `NUM_BANKS > 1`** |
+| `NUM_BANKS` | int | 1 | Generate the CAM this many times, `MAX_TRANSACTIONS/NUM_BANKS` deep each. Power of 2, must divide the table |
 | `ENABLE_PERF_PACKETS` | bit | 0 | Reserved — perf packet generation hook |
 
 The `AW` and `IW` short-alias parameters are retained for API stability with
@@ -350,6 +352,31 @@ while a stray **non-last** beat is absorbed with no update at all (the
 pre-fix behavior re-opened a terminal entry into an unclosable state — the
 production saturation-wedge mechanism, guarded by the in-RTL formal property
 `ap_no_reopened_complete`).
+
+### Write-data attribution by AWID FIFO (`USE_WDATA_ORDER_Q`)
+
+AXI4 W beats carry no WID, so the entry a beat belongs to cannot come from
+the beat. With `USE_WDATA_ORDER_Q=1` the manager records the **AWID** on each
+AW handshake and pops it on W-LAST; the head AWID keys the write-data
+candidate set, and `pick_oldest()` then resolves among that ID's entries.
+
+This is required whenever the table is banked. `pick_oldest()` compares
+**same-bank only** — the cross-bank comparators are constant-folded away at
+elaboration — and that is sound precisely because candidates are ID-matched
+and all of an ID's entries live in one bank. The legacy write path built its
+candidates from a state predicate over the *whole* table, which is not
+ID-matched, so at `NUM_BANKS=B` the select returned one winner **per bank**
+and a single W beat advanced up to `B` transactions. `NUM_BANKS > 1` on a
+write monitor therefore refuses to elaborate without this parameter
+(`$error`), because the combination has no correct fallback.
+
+**Bus requirement — W must not lead AW.** Attribution is by AW order, so the
+AW naming a beat must already have been seen. Same-cycle AW+W is supported
+(below); W strictly *before* its AW has no AWID to attribute it to and is
+treated as a stray. This is the restriction commercial VIPs commonly impose.
+
+Regression: `val/amba/test_axi_monitor_trans_mgr_wr_bank.py` (attribution at
+`NUM_BANKS` 1 and 4, plus the refusal of the illegal combination).
 
 ### Same-cycle AW+W bypass (write monitors)
 

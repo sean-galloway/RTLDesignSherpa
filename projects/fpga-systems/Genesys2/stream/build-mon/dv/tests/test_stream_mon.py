@@ -243,7 +243,7 @@ async def cocotb_test_stream_mon(dut):
 
     # ---- Observer perf counters: must work with USE_AXI_MONITORS=0 ---------
     # The perf build turns the in-core monitors OFF (USE_AXI_MONITORS=0) and
-    # relies on axi4_intf_observer as its sole perf source. That path has
+    # relies on axi4_intf_master_observer as its sole perf source. That path has
     # regressed silently before: USE_AXI_MONITORS=0 once over-gated the cheap
     # bus meters as well as the heavy monitors, so the build reported ZEROS
     # rather than merely losing monitor packets. Nothing caught it, because

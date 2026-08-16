@@ -17,6 +17,19 @@ summary: Stability rules; observers gate commands only, never responses.
   size so backpressure does not normally happen ([[sizing-invariants]]),
   but when it does, blocking must throttle-and-recover, never deadlock
   (the saturation-recovery contract, monitor_common_pkg::cmd_entry_reserve).
+- **W must not lead AW on any bus carrying an AXI4 write monitor** (owner
+  design law, 2026-08-14). AXI4 W beats have no WID, so a monitor attributes
+  them by AW order: `axi_monitor_trans_mgr` pushes the AWID on the AW
+  handshake and pops it on W-LAST. Same-cycle AW+W is supported (the queue's
+  empty-push bypass takes the head straight off `cmd_id`); W strictly BEFORE
+  its AW is not, and those beats are treated as strays because there is no
+  AWID yet to attribute them to. Many commercial VIPs impose the same
+  restriction. The alternative - deriving the target entry from a state
+  predicate over the whole table - is what banking broke: the candidate set
+  was not ID-matched, so the same-bank `pick_oldest` returned one winner per
+  bank and one W beat advanced one transaction PER BANK
+  ([[observers-do-not-drive]] is a different defect in the same family:
+  both come from a monitor's bookkeeping being derived rather than recorded).
 - Drain/pop strobes coupling two blocks deserve K-maps
   (bin/SIGNAL_CONTRACTS_KMAPS.md): the stream WLAST/drain term
   (`axi_wr_sram_drain = m_axi_wvalid && m_axi_wready`) fixed a real

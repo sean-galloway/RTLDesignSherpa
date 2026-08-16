@@ -56,6 +56,18 @@ module axil4_slave_wr_mon
     parameter logic [7:0]  UNIT_ID  = 8'h02,     // 8-bit Unit ID for monitor packets
     parameter logic [15:0] AGENT_ID = 16'h0015,    // 16-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 8,     // Maximum outstanding transactions (reduced for AXIL)
+    // ID-range filter, passed through to axi_monitor_base. Default OFF ->
+    // bit-identical to before. See axi_monitor_base for why this exists:
+    // several monitors snooping one ID-multiplexed bus, each owning a slice,
+    // so no single transaction table has to hold the whole concurrency.
+    // Transaction-table shaping, forwarded to axi_monitor_trans_mgr.
+    // Defaults reproduce today's behaviour exactly; see that module for the
+    // AW-order queue and the bank sizing rule.
+    parameter bit USE_WDATA_ORDER_Q      = 1'b0,
+    parameter int NUM_BANKS              = 1,
+    parameter bit ID_FILTER_ENABLE       = 1'b0,
+    parameter int ID_MATCH_BASE          = 0,
+    parameter int ID_MATCH_COUNT         = 0,
     // Active-transaction threshold packet trip point (used when
     // cfg_threshold_enable=1). Previously hardwired, which either spammed
     // threshold packets (table larger than the hardwire) or made the feature
@@ -205,6 +217,19 @@ module axil4_slave_wr_mon
     logic w_core_s_axil_awready;
     logic w_block_ready;
 
+    // BOTH ENDS OF THE HANDSHAKE, GATED BY THE SAME TERM.
+    // Masking only the outward ready let the core keep seeing an
+    // ungated valid: it accepted the command while the master was
+    // told "not ready", the master held the same command on the bus,
+    // and the core accepted it AGAIN every cycle until the table
+    // drained. Backpressure became replay -- measured 49 commands in
+    // and 367 accepted on the Genesys 2 STREAM build, and caught by
+    // val/amba/test_axi_mon_block_ready.py once it was bound to the
+    // slave wrappers. Gating the valid too makes a full table stall
+    // the bus, which is the documented contract.
+    logic w_gated_awvalid;
+    assign w_gated_awvalid = s_axil_awvalid & (w_block_ready | ~cfg_monitor_enable);
+
     // Observability tap for block_ready (see the port comment). Held to the
     // internal gating net so a testbench watching the port sees exactly what
     // the AR/AW gate sees.
@@ -226,7 +251,7 @@ module axil4_slave_wr_mon
         // Slave AXIL Interface (Input Side)
         .s_axil_awaddr           (s_axil_awaddr),
         .s_axil_awprot           (s_axil_awprot),
-        .s_axil_awvalid          (s_axil_awvalid),
+        .s_axil_awvalid          (w_gated_awvalid),
         .s_axil_awready          (w_core_s_axil_awready),    // gated below
 
         .s_axil_wdata            (s_axil_wdata),
@@ -310,6 +335,10 @@ module axil4_slave_wr_mon
             .UNIT_ID                 (UNIT_ID),
             .AGENT_ID                (AGENT_ID),
             .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
+            .USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q), .NUM_BANKS(NUM_BANKS),
+            .ID_FILTER_ENABLE        (ID_FILTER_ENABLE),
+            .ID_MATCH_BASE           (ID_MATCH_BASE),
+            .ID_MATCH_COUNT          (ID_MATCH_COUNT),
             .ADDR_WIDTH              (AW),
             .ID_WIDTH                (32'd1),            // Fixed ID width for AXIL
             .IS_READ                 (1'b0),             // This is a write monitor

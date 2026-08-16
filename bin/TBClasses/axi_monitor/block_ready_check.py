@@ -104,13 +104,28 @@ class BlockReadyCheck:
     """
 
     # (valid, ready) candidates for the GATED upstream command handshake.
+    #
+    # ORDER MATTERS, and getting it wrong does not fail loudly -- it binds to a
+    # real handshake that simply is not the gated one, then reports its normal
+    # traffic as gating violations. A wrapper has BOTH sides:
+    #
+    #   master mon:  fub_axi_* upstream (GATED)   m_axi_*   downstream
+    #   slave  mon:  s_axi_*   upstream (GATED)   fub_axi_* downstream
+    #
+    # so `fub_axi_*` is the gated side on a master and the free-running side on
+    # a slave. Trying fub_* first bound every slave wrapper to its downstream
+    # side and charged it 33 "violations" of a gate that never applied there.
+    # s_axi_*/s_axil_* only exists on the slave wrappers, so preferring it is
+    # unambiguous.
     _CMD_HANDSHAKES = [
+        ("s_axi_arvalid",    "s_axi_arready"),
+        ("s_axi_awvalid",    "s_axi_awready"),
+        ("s_axil_arvalid",   "s_axil_arready"),
+        ("s_axil_awvalid",   "s_axil_awready"),
         ("fub_axi_arvalid",  "fub_axi_arready"),
         ("fub_axi_awvalid",  "fub_axi_awready"),
         ("fub_axil_arvalid", "fub_axil_arready"),
         ("fub_axil_awvalid", "fub_axil_awready"),
-        ("s_axi_arvalid",    "s_axi_arready"),
-        ("s_axi_awvalid",    "s_axi_awready"),
     ]
 
     def __init__(self, dut, log, depth):
