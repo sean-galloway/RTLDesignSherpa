@@ -14,7 +14,7 @@ component level, the same module build-perf runs. Only the parameters differ,
 and they come in as -G overrides on the compile line.
 
   obs_equiv is the one that matters most: it runs the in-core monitors and the
-  external axi4_intf_observer SIMULTANEOUSLY over the same traffic and checks
+  external axi4_intf_master_observer SIMULTANEOUSLY over the same traffic and checks
   they agree. That cross-check is only possible in this build -- with monitors
   off there is nothing to compare the observer against.
 """

@@ -2,7 +2,7 @@
 # Location: rtl/amba/filelists/monbus_group.f
 #
 # Every consumer of the monbus group (stream, rapids, bridge-generated *_mon
-# bridges, the stream_char framework, the axi4_dma_observer, and the val/amba
+# bridges, the stream_char framework, the axi4_intf_{master,slave}_observer, and the val/amba
 # tests) MUST -f this file rather than listing these sources inline, so a
 # shared dependency (e.g. the div-by-3 helper) is added in ONE place.
 #

@@ -17,15 +17,15 @@ module axi_monitor_timeout (
 	input wire aresetn;
 	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
 	input wire timer_tick;
-	input wire [3:0] cfg_addr_cnt;
-	input wire [3:0] cfg_data_cnt;
-	input wire [3:0] cfg_resp_cnt;
+	input wire [15:0] cfg_addr_cnt;
+	input wire [15:0] cfg_data_cnt;
+	input wire [15:0] cfg_resp_cnt;
 	input wire cfg_timeout_enable;
 	output wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
-	localparam signed [31:0] TIMER_W = 8;
-	reg [7:0] r_addr_timer [0:MAX_TRANSACTIONS - 1];
-	reg [7:0] r_data_timer [0:MAX_TRANSACTIONS - 1];
-	reg [7:0] r_resp_timer [0:MAX_TRANSACTIONS - 1];
+	localparam signed [31:0] TIMER_W = 16;
+	reg [15:0] r_addr_timer [0:MAX_TRANSACTIONS - 1];
+	reg [15:0] r_data_timer [0:MAX_TRANSACTIONS - 1];
+	reg [15:0] r_resp_timer [0:MAX_TRANSACTIONS - 1];
 	reg [MAX_TRANSACTIONS - 1:0] r_timeout_detected;
 	assign timeout_detected = (cfg_timeout_enable ? r_timeout_detected : {MAX_TRANSACTIONS {1'b0}});
 	reg [MAX_TRANSACTIONS - 1:0] w_addr_pending;
@@ -85,19 +85,19 @@ module axi_monitor_timeout (
 						r_resp_timer[idx] <= 1'sb0;
 					if ((cfg_timeout_enable && timer_tick) && !r_timeout_detected[idx]) begin
 						if (w_addr_pending[idx]) begin
-							if (r_addr_timer[idx] >= {4'h0, cfg_addr_cnt})
+							if (r_addr_timer[idx] >= cfg_addr_cnt)
 								r_timeout_detected[idx] <= 1'b1;
 							else
 								r_addr_timer[idx] <= r_addr_timer[idx] + 1'b1;
 						end
 						if (w_data_pending[idx]) begin
-							if (r_data_timer[idx] >= {4'h0, cfg_data_cnt})
+							if (r_data_timer[idx] >= cfg_data_cnt)
 								r_timeout_detected[idx] <= 1'b1;
 							else
 								r_data_timer[idx] <= r_data_timer[idx] + 1'b1;
 						end
 						if (w_resp_pending[idx]) begin
-							if (r_resp_timer[idx] >= {4'h0, cfg_resp_cnt})
+							if (r_resp_timer[idx] >= cfg_resp_cnt)
 								r_timeout_detected[idx] <= 1'b1;
 							else
 								r_resp_timer[idx] <= r_resp_timer[idx] + 1'b1;

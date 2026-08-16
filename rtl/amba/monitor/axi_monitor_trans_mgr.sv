@@ -67,6 +67,60 @@ module axi_monitor_trans_mgr
     parameter bit IS_AXI              = 1'b1, // 1 for AXI, 0 for AXI-Lite
     parameter bit ENABLE_PERF_PACKETS = 1'b0, // Enable performance metrics tracking
 
+    // Write-data ordering queue (writes only; ignored when IS_READ=1).
+    //
+    // AXI4 gives W beats no WID and requires them to be consumed in AW ISSUE
+    // ORDER. The default path recovers that order by ranking every live entry
+    // by age and running an O(N^2) oldest-select (pick_oldest) over the whole
+    // table -- the structure that stops closing timing past ~16 slots.
+    //
+    // The order is already known at AW time, so it does not need to be
+    // rediscovered per beat: push the slot on the AW handshake, pop it on
+    // W last, and the head IS the target. O(1), no age ranks, no cross-slot
+    // compare -- which is also what makes the table bankable, since every
+    // remaining lookup is then keyed by ID.
+    //
+    // Default 0 -> the age-rank path, bit-identical to before.
+    parameter bit USE_WDATA_ORDER_Q   = 1'b0,
+
+    // Age/rank banking by low ID bits (1 = off, today's behaviour).
+    //
+    // The table's two O(N^2) structures are BOTH here, not in the CAM:
+    // pick_oldest (every candidate compared against every other) and the rank
+    // update (every survivor counting the freed entries ranked below it). The
+    // CAM itself is per-slot compare plus a priority encode -- O(N) area, log
+    // depth -- so it does not need replicating; measured 16 slots at
+    // WNS +1.018 ns vs 40 at -25.183 ns is these two loops.
+    //
+    // Slot i belongs to bank i/(N/NUM_BANKS); an ID lands in bank
+    // id[$clog2(NUM_BANKS)-1:0]. Every entry sharing an ID therefore shares a
+    // bank, so both loops can be restricted to same-bank pairs and stay EXACT
+    // -- ranks are only ever compared within a bank once USE_WDATA_ORDER_Q
+    // carries the WID-less write order (that was the one cross-ID compare).
+    //
+    // The guards below are elaboration-time constants, so cross-bank
+    // comparators are never generated: area falls from O(N^2) to
+    // NUM_BANKS * O((N/NUM_BANKS)^2) -- 4096 -> 1024 terms at N=64, B=4, each
+    // bank the size that is known to close.
+    //
+    // SIZING RULE -- the one that bites. Every transaction sharing an ID lands
+    // in the SAME bank, so per-ID concurrency is capped by the BANK depth, not
+    // by MAX_TRANSACTIONS:
+    //
+    //     MAX_TRANSACTIONS/NUM_BANKS >= (IDs per bank) * (outstanding per ID)
+    //
+    // The observer case: 8 channels x 8 outstanding over 4 banks = 2 channels
+    // x 8 = 16 per bank, so MAX_TRANSACTIONS=64 with NUM_BANKS=4 -- and 16 is
+    // the depth measured to close (WNS +1.018 ns).
+    //
+    // Undersize it and entries are refused rather than mis-tracked:
+    // val/amba/test_axi_monitor_trans_mgr drives 4 outstanding on one ID and
+    // reports "four outstanding AR(id=2) occupy 2 slot(s), expected 4" at
+    // N=8/B=4 (2 per bank), while N=16/B=4 (4 per bank) passes. That is the
+    // table being too small for the traffic, not a tracking defect -- but it
+    // surfaces three layers up as missing packets, so size it deliberately.
+    parameter int NUM_BANKS           = 1,
+
     // Short params (kept for API compatibility with the production module)
     parameter int AW                  = ADDR_WIDTH,
     parameter int IW                  = ID_WIDTH
@@ -126,6 +180,46 @@ module axi_monitor_trans_mgr
 
     localparam int N         = MAX_TRANSACTIONS;
     localparam int PAYLOAD_W = $bits(bus_transaction_t);
+
+    // Age/rank banking (see NUM_BANKS). BANK_SLOTS is the divisor used by the
+    // same-bank guards; at NUM_BANKS=1 it equals N so every pair is same-bank
+    // and the guards fold away to the original all-pairs logic.
+    localparam int BANK_SLOTS = N / NUM_BANKS;
+
+    // Bank of an ID = its low $clog2(NUM_BANKS) bits. Modulo is the low bits
+    // for the power-of-2 sizes this supports, and keeps the result in range
+    // without a width-dependent part-select.
+    function automatic int bank_of(input logic [IW-1:0] id);
+        return (NUM_BANKS > 1) ? int'(32'(id) % NUM_BANKS) : 0;
+    endfunction
+
+    // NUM_BANKS must divide the table and be a power of 2: the bank index is
+    // the low ID bits, and slot->bank is i/BANK_SLOTS. A ragged split would put
+    // an ID's entries in a bank the guards do not agree on, which is silent
+    // mis-ordering rather than a refused allocation.
+    if ((NUM_BANKS < 1) || ((NUM_BANKS & (NUM_BANKS - 1)) != 0)) begin : gen_bad_banks
+        $error("axi_monitor_trans_mgr: NUM_BANKS=%0d must be a power of 2.", NUM_BANKS);
+    end
+    if ((NUM_BANKS > 1) && ((MAX_TRANSACTIONS % NUM_BANKS) != 0)) begin : gen_ragged_banks
+        $error("axi_monitor_trans_mgr: MAX_TRANSACTIONS=%0d is not divisible by NUM_BANKS=%0d.",
+               MAX_TRANSACTIONS, NUM_BANKS);
+    end
+
+    // A BANKED WRITE MONITOR REQUIRES THE AWID FIFO. Without it the WID-less
+    // write select falls back to a state predicate over the whole table, which
+    // is not ID-matched -- and pick_oldest compares same-bank only, so the
+    // select returns one winner per bank and one W beat advances one
+    // transaction PER BANK. Measured at N=16/B=4 before the FIFO landed; see
+    // the write-data ordering FIFO block below and
+    // val/amba/test_axi_monitor_trans_mgr_wr_bank.py. Refusing the build is
+    // the honest answer: the combination has no correct behaviour to fall
+    // back to.
+    if ((NUM_BANKS > 1) && !IS_READ && !USE_WDATA_ORDER_Q) begin : gen_banked_wr_needs_widq
+        // ONE string literal: a {"a","b"} concatenation is a bit-vector concat,
+        // not a format string, and renders the message as a 1000-digit number.
+        $error("axi_monitor_trans_mgr: NUM_BANKS=%0d on a write monitor requires USE_WDATA_ORDER_Q=1 (the WID-less fallback double-counts one W beat across banks).",
+               NUM_BANKS);
+    end
 
     // ------------------------------------------------------------------------
     // Parameter width limits (issue #41 "width truncation").
@@ -188,50 +282,139 @@ module axi_monitor_trans_mgr
     logic                         data_wants_alloc;
     logic                         resp_wants_alloc;
 
+    // Per-phase bank restriction for allocation (see NUM_BANKS). Constant all
+    // ones when unbanked, so the CAM's free-slot scan is unrestricted exactly
+    // as before.
+    logic [N-1:0] w_addr_bank_mask, w_data_bank_mask, w_resp_bank_mask;
+    always_comb begin
+        for (int i = 0; i < N; i++) begin
+            w_addr_bank_mask[i] = (NUM_BANKS == 1) || ((i / BANK_SLOTS) == bank_of(cmd_id));
+            w_data_bank_mask[i] = (NUM_BANKS == 1) || ((i / BANK_SLOTS) == bank_of(data_id));
+            w_resp_bank_mask[i] = (NUM_BANKS == 1) || ((i / BANK_SLOTS) == bank_of(resp_id));
+        end
+    end
+
     // ------------------------------------------------------------------------
     // monitor_trans_cam -- keys + payload storage live here.
     // ------------------------------------------------------------------------
     /* verilator lint_off PINCONNECTEMPTY */
-    monitor_trans_cam #(
-        .DEPTH         (N),
-        .ID_WIDTH      (IW),
-        .PAYLOAD_WIDTH (PAYLOAD_W)
-    ) u_cam (
-        .clk                  (aclk),
-        .rst_n                (aresetn),
-        .clear                (clear),
+    // ------------------------------------------------------------------------
+    // monitor_trans_cam -- GENERATED NUM_BANKS TIMES.
+    //
+    // The point of the replication is TIMING: one table deep enough for the
+    // real concurrency does not close (16 entries WNS +1.018 ns, 40 entries
+    // -25.183 ns, 72 hopeless), so the CAM is generated NUM_BANKS times at
+    // MAX_TRANSACTIONS/NUM_BANKS each and every instance is the depth that is
+    // known to close.
+    //
+    // Bank b owns slots [b*BANK_SLOTS, (b+1)*BANK_SLOTS) and the IDs whose low
+    // bits equal b. A generated CAM can only allocate within itself, so an
+    // ID's entries cannot escape its bank -- which is what makes the same-bank
+    // age comparisons complete. Per-bank one-hots are stitched back into the
+    // flat N-wide vectors below, so everything downstream is unchanged.
+    //
+    // At NUM_BANKS=1 this is a single CAM of depth N: the original design.
+    // ------------------------------------------------------------------------
+    logic [BANK_SLOTS-1:0] wb_addr_match      [NUM_BANKS];
+    logic [BANK_SLOTS-1:0] wb_data_match      [NUM_BANKS];
+    logic [BANK_SLOTS-1:0] wb_resp_match      [NUM_BANKS];
+    logic [BANK_SLOTS-1:0] wb_data_first      [NUM_BANKS];
+    logic [BANK_SLOTS-1:0] wb_free            [NUM_BANKS];
+    logic [BANK_SLOTS-1:0] wb_addr_alloc      [NUM_BANKS];
+    logic [BANK_SLOTS-1:0] wb_data_alloc      [NUM_BANKS];
+    logic [BANK_SLOTS-1:0] wb_resp_alloc      [NUM_BANKS];
+    logic [BANK_SLOTS-1:0] wb_entry_valid     [NUM_BANKS];
+    bus_transaction_t      wb_entry_payload   [NUM_BANKS][BANK_SLOTS];
 
-        .lookup_addr_id       (cmd_id),
-        .lookup_data_id       (data_id),
-        .lookup_resp_id       (resp_id),
+    logic [BANK_SLOTS-1:0] wb_entry_we        [NUM_BANKS];
+    logic [BANK_SLOTS-1:0] wb_valid_next      [NUM_BANKS];
+    logic [IW-1:0]         wb_id_next         [NUM_BANKS][BANK_SLOTS];
+    bus_transaction_t      wb_payload_next    [NUM_BANKS][BANK_SLOTS];
 
-        .addr_match_oh        (addr_match_oh),
-        .data_match_oh        (data_match_oh),
-        .resp_match_oh        (resp_match_oh),
-        .data_match_first_oh  (cam_data_match_first_oh),
+    // Flat -> per-bank (write side).
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            for (int i = 0; i < BANK_SLOTS; i++) begin
+                wb_entry_we    [b][i] = cam_entry_we        [b*BANK_SLOTS + i];
+                wb_valid_next  [b][i] = cam_entry_valid_next[b*BANK_SLOTS + i];
+                wb_id_next     [b][i] = cam_entry_id_next   [b*BANK_SLOTS + i];
+                wb_payload_next[b][i] = cam_entry_payload_next[b*BANK_SLOTS + i];
+            end
+        end
+    end
 
-        .free_oh              (free_oh),
+    /* verilator lint_off PINCONNECTEMPTY */
+    generate
+        for (genvar gb = 0; gb < NUM_BANKS; gb++) begin : g_cam_bank
+            monitor_trans_cam #(
+                .DEPTH         (BANK_SLOTS),
+                .ID_WIDTH      (IW),
+                .PAYLOAD_WIDTH (PAYLOAD_W)
+            ) u_cam (
+                .clk                  (aclk),
+                .rst_n                (aresetn),
+                .clear                (clear),
 
-        .addr_wants_alloc     (addr_wants_alloc),
-        .data_wants_alloc     (data_wants_alloc),
-        .resp_wants_alloc     (resp_wants_alloc),
-        .addr_alloc_oh        (addr_alloc_oh),
-        .data_alloc_oh        (data_alloc_oh),
-        .resp_alloc_oh        (resp_alloc_oh),
+                .lookup_addr_id       (cmd_id),
+                .lookup_data_id       (data_id),
+                .lookup_resp_id       (resp_id),
 
-        .entry_we             (cam_entry_we),
-        .entry_valid_next     (cam_entry_valid_next),
-        .entry_id_next        (cam_entry_id_next),
-        .entry_payload_next   (cam_entry_payload_next),
+                .addr_match_oh        (wb_addr_match[gb]),
+                .data_match_oh        (wb_data_match[gb]),
+                .resp_match_oh        (wb_resp_match[gb]),
+                .data_match_first_oh  (wb_data_first[gb]),
 
-        .entry_valid          (cam_entry_valid),
-        // entry_id port is informational only; the trans_mgr trusts the
-        // payload's `id` field as the source of truth (the CAM and the
-        // payload are written atomically so they always agree).
-        .entry_id             (),
-        .entry_payload        (cam_entry_payload)
-    );
+                .free_oh              (wb_free[gb]),
+
+                // Only the bank owning the incoming ID may allocate for it.
+                .addr_wants_alloc     (addr_wants_alloc && (bank_of(cmd_id)  == gb)),
+                .data_wants_alloc     (data_wants_alloc && (bank_of(data_id) == gb)),
+                .resp_wants_alloc     (resp_wants_alloc && (bank_of(resp_id) == gb)),
+
+                // Redundant now that each bank is its own CAM, but kept as an
+                // explicit guard: a generated CAM cannot allocate outside
+                // itself, so these are all ones.
+                .addr_alloc_mask      ({BANK_SLOTS{1'b1}}),
+                .data_alloc_mask      ({BANK_SLOTS{1'b1}}),
+                .resp_alloc_mask      ({BANK_SLOTS{1'b1}}),
+
+                .addr_alloc_oh        (wb_addr_alloc[gb]),
+                .data_alloc_oh        (wb_data_alloc[gb]),
+                .resp_alloc_oh        (wb_resp_alloc[gb]),
+
+                .entry_we             (wb_entry_we[gb]),
+                .entry_valid_next     (wb_valid_next[gb]),
+                .entry_id_next        (wb_id_next[gb]),
+                .entry_payload_next   (wb_payload_next[gb]),
+
+                .entry_valid          (wb_entry_valid[gb]),
+                // entry_id port is informational only; the trans_mgr trusts the
+                // payload's `id` field as the source of truth (the CAM and the
+                // payload are written atomically so they always agree).
+                .entry_id             (),
+                .entry_payload        (wb_entry_payload[gb])
+            );
+        end
+    endgenerate
     /* verilator lint_on PINCONNECTEMPTY */
+
+    // Per-bank -> flat (read side). Single driver per flat vector.
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            for (int i = 0; i < BANK_SLOTS; i++) begin
+                addr_match_oh          [b*BANK_SLOTS + i] = wb_addr_match   [b][i];
+                data_match_oh          [b*BANK_SLOTS + i] = wb_data_match   [b][i];
+                resp_match_oh          [b*BANK_SLOTS + i] = wb_resp_match   [b][i];
+                cam_data_match_first_oh[b*BANK_SLOTS + i] = wb_data_first   [b][i];
+                free_oh                [b*BANK_SLOTS + i] = wb_free         [b][i];
+                addr_alloc_oh          [b*BANK_SLOTS + i] = wb_addr_alloc   [b][i];
+                data_alloc_oh          [b*BANK_SLOTS + i] = wb_data_alloc   [b][i];
+                resp_alloc_oh          [b*BANK_SLOTS + i] = wb_resp_alloc   [b][i];
+                cam_entry_valid        [b*BANK_SLOTS + i] = wb_entry_valid  [b][i];
+                cam_entry_payload      [b*BANK_SLOTS + i] = wb_entry_payload[b][i];
+            end
+        end
+    end
 
     // ========================================================================
     // Per-slot AGE (issue order)  -- issue #41 defect 1.
@@ -294,7 +477,13 @@ module axi_monitor_trans_mgr
         for (int i = 0; i < N; i++) begin
             lose = 1'b0;
             for (int j = 0; j < N; j++) begin
-                if (j != i && cand[j] &&
+                // SAME-BANK ONLY. Constant-folded at elaboration, so at
+                // NUM_BANKS=1 this is the original all-pairs compare and at
+                // B>1 the cross-bank comparators are simply never built.
+                // Exact either way: candidates come from an ID-matched vector
+                // and every entry with a given ID lives in one bank.
+                if ((i / BANK_SLOTS) == (j / BANK_SLOTS) &&
+                    j != i && cand[j] &&
                     ((ages[j*AGEW +: AGEW] <  ages[i*AGEW +: AGEW]) ||
                      ((ages[j*AGEW +: AGEW] == ages[i*AGEW +: AGEW]) && (j < i)))) begin
                     lose = 1'b1;
@@ -320,7 +509,6 @@ module axi_monitor_trans_mgr
     logic [N-1:0]                     w_data_state_first_oh;
 
     always_comb begin
-        w_data_state_first_oh = '0;
         for (int i = 0; i < N; i++) begin
             w_data_state_pred_oh[i] = cam_entry_valid[i] &&
                                        ((cam_entry_payload[i].state == TRANS_ADDR_PHASE) ||
@@ -328,12 +516,127 @@ module axi_monitor_trans_mgr
                                        cam_entry_payload[i].cmd_received &&
                                        !cam_entry_payload[i].data_completed;
         end
-        // Oldest-first pick for the WID-less write path. AXI4 requires write
-        // data to be consumed in AW issue order, so "oldest" -- not
-        // "lowest slot index" -- is the correct tie-break (issue #41
-        // defect 1: index order does not track issue order once slots
-        // start being recycled).
-        w_data_state_first_oh = pick_oldest(w_data_state_pred_oh, w_age_flat);
+    end
+
+    // Declared here rather than beside its always_comb: the write-data
+    // ordering FIFO below reads it, and the repo's pre-commit check
+    // requires declaration before use.
+    logic [N-1:0] w_freeing_oh;
+
+    // ========================================================================
+    // Write-data ordering FIFO of AWIDs (USE_WDATA_ORDER_Q, writes only).
+    //
+    // AXI4 W beats carry no WID, so the entry a beat belongs to cannot come
+    // from the beat itself. This FIFO records the AWID at AW time and hands
+    // it back at W time: PUSH on the AW handshake, POP on W-LAST, head == the
+    // AWID of the burst currently on W.
+    //
+    // WHY AN ID AND NOT A SLOT INDEX. The previous version queued the
+    // allocated SLOT, which orders correctly but leaves the write-data
+    // candidate set outside the ID-matched world the rest of this module
+    // lives in. `pick_oldest` compares SAME-BANK ONLY, and its correctness
+    // argument is "candidates come from an ID-matched vector, and every entry
+    // with a given ID lives in one bank". A state-predicate candidate set
+    // spans every bank, so at NUM_BANKS=B the select returned one winner PER
+    // BANK and a single W beat advanced up to B transactions -- the issue #41
+    // double-count, reintroduced across banks. Measured at N=16/B=4: one W
+    // beat advanced slots 0 and 4 together
+    // (val/amba/test_axi_monitor_trans_mgr_wr_bank.py). Keying the candidates
+    // on the head AWID restores the premise by construction: every candidate
+    // shares one ID, therefore one bank, and the same-bank compare is exact.
+    //
+    // BUS REQUIREMENT -- W MUST NOT LEAD AW. A W beat is attributed by AW
+    // order, so the AW naming it must already have been seen. Same-cycle AW+W
+    // is supported (the empty-queue bypass takes the head straight off cmd_id
+    // and w_data_cmd_bypass_oh binds the entry the command path is touching
+    // this cycle), but W strictly BEFORE its AW is not: those beats have no
+    // AWID to attribute them to and are treated as strays. This is the
+    // restriction commercial VIPs commonly impose, and it is a REPO-WIDE
+    // requirement for any bus these monitors are attached to. Recorded in
+    // vault/handbook/design/valid-ready-contracts.md.
+    //
+    // AN ENTRY THAT DIES WITHOUT W-LAST must still retire its queue slot or
+    // the head parks forever and stalls every later burst (the same leak
+    // class as the stray-beat poison above). The head is dead when no live
+    // entry carries its ID still awaiting data -- the ID-keyed equivalent of
+    // the old w_freeing_oh[head_slot] test.
+    // ========================================================================
+    localparam int SLOTW = (N > 1) ? $clog2(N) : 1;
+    localparam int WQW   = (N > 1) ? $clog2(N + 1) : 1;
+
+    logic [IW-1:0]  r_widq [N];
+    logic [WQW-1:0] r_widq_count;
+    logic [IW-1:0]  w_widq_head;
+    logic [N-1:0]   w_widq_cand_oh;
+    logic w_widq_push, w_widq_pop, w_widq_head_dead, w_widq_bypass;
+
+    // Push on the AW handshake. The ID comes off the command lines, so no
+    // allocation one-hot is needed and a data-first orphan adopted by its AW
+    // pushes exactly like a fresh allocation.
+    assign w_widq_push   = !IS_READ && USE_WDATA_ORDER_Q && cmd_valid && cmd_ready;
+
+    // Empty queue + a push this cycle == same-cycle AW+W: the head is the ID
+    // arriving now, one cycle before it is registered.
+    assign w_widq_bypass = (r_widq_count == '0) && w_widq_push;
+    assign w_widq_head   = w_widq_bypass ? cmd_id : r_widq[0];
+
+    // Entries owned by the head AWID that are still expecting W data.
+    //
+    // The queue must be NON-EMPTY (or pushing this cycle) for the head to mean
+    // anything: r_widq[0] holds the last popped ID once the queue drains, and
+    // matching against that stale value would attribute a stray W beat -- one
+    // with no AW behind it at all -- to whatever unrelated transaction happens
+    // to still be open on that ID. With no AW owed, there is no candidate, and
+    // the beat falls through to the stray/orphan path as it should.
+    always_comb begin
+        w_widq_cand_oh = '0;
+        if (!IS_READ && USE_WDATA_ORDER_Q &&
+            ((r_widq_count != '0) || w_widq_bypass)) begin
+            for (int i = 0; i < N; i++) begin
+                w_widq_cand_oh[i] = w_data_state_pred_oh[i] &&
+                                    (cam_entry_payload[i].id == w_widq_head) &&
+                                    !w_freeing_oh[i];
+            end
+        end
+    end
+
+    assign w_widq_head_dead = (r_widq_count != '0) && !(|w_widq_cand_oh);
+    assign w_widq_pop       = (r_widq_count != '0) &&
+                              ((data_valid && data_ready && data_last) ||
+                               w_widq_head_dead);
+
+    // Oldest-first among the head ID's entries: AXI4 orders same-ID bursts by
+    // issue order, and slot index does not track issue order once slots start
+    // being recycled (issue #41 defect 1).
+    assign w_data_state_first_oh = USE_WDATA_ORDER_Q
+                                 ? pick_oldest(w_widq_cand_oh,       w_age_flat)
+                                 : pick_oldest(w_data_state_pred_oh, w_age_flat);
+
+    // Shift-out queue: N is small (table depth) and one entry moves per cycle,
+    // so a shift register costs less than pointer wrap logic and keeps head at
+    // index 0 for a flat mux.
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_widq_count <= '0;
+            for (int i = 0; i < N; i++) r_widq[i] <= '0;
+        end else if (clear) begin
+            r_widq_count <= '0;
+            for (int i = 0; i < N; i++) r_widq[i] <= '0;
+        end else if (!IS_READ && USE_WDATA_ORDER_Q) begin
+            automatic logic [WQW-1:0] v_cnt = r_widq_count;
+
+            if (w_widq_pop && (v_cnt != '0)) begin
+                for (int i = 0; i < N - 1; i++) r_widq[i] <= r_widq[i + 1];
+                v_cnt = v_cnt - 1'b1;
+            end
+            if (w_widq_push && (v_cnt < WQW'(N))) begin
+                // v_cnt is a 0..N count and the push is guarded to v_cnt < N
+                // above, so the low SLOTW bits are the tail index.
+                r_widq[v_cnt[SLOTW-1:0]] <= cmd_id;
+                v_cnt = v_cnt + 1'b1;
+            end
+            r_widq_count <= v_cnt;
+        end
     end
 
     // ------------------------------------------------------------------------
@@ -357,7 +660,6 @@ module axi_monitor_trans_mgr
     end
 
     // Slots that are live now but go away at this clock edge.
-    logic [N-1:0] w_freeing_oh;
     always_comb begin
         for (int i = 0; i < N; i++) begin
             w_freeing_oh[i] = cam_entry_valid[i] && w_can_cleanup[i];
@@ -440,12 +742,27 @@ module axi_monitor_trans_mgr
     // first from the free vector, i.e. lowest free index when
     // addr_wants_alloc -- and is cross-checked against the CAM output by
     // ap_bypass_alloc_mirror below.
+    // BANKED: the mirror must scan the SAME slots the CAM does. Bank gb's
+    // generated CAM only sees its own slots, so it allocates the lowest free
+    // slot WITHIN the ID's bank -- an unmasked "lowest free index" mirror
+    // points at a slot in some other bank, and the same-cycle bypass then
+    // binds the W beat to an entry that was never allocated. The beat is lost,
+    // the write never completes, and the B fabricates an EVT_PROTOCOL
+    // "response before data" on legal traffic (measured at N=16/B=4 by
+    // test_axi_monitor_wr_same_cycle with USE_WDATA_ORDER_Q=1).
+    //
+    // Same defect class as the WID-less write select above: a stated
+    // invariant -- here "the CAM allocates the lowest free index" -- that was
+    // true of one flat table and silently stopped being true once the table
+    // was banked. Masking with w_addr_bank_mask restores it; at NUM_BANKS=1
+    // the mask is all ones and this is the original scan.
     logic [N-1:0] w_addr_alloc_mirror_oh;
     always_comb begin
         w_addr_alloc_mirror_oh = '0;
         if (addr_wants_alloc) begin
             for (int i = 0; i < N; i++) begin
-                if ((w_addr_alloc_mirror_oh == '0) && free_oh[i]) begin
+                if ((w_addr_alloc_mirror_oh == '0) && free_oh[i] &&
+                    w_addr_bank_mask[i]) begin
                     w_addr_alloc_mirror_oh[i] = 1'b1;
                 end
             end
@@ -694,18 +1011,32 @@ module axi_monitor_trans_mgr
     // Rank assigned to a slot allocated by each phase this cycle.
     logic [AGEW-1:0] w_age_addr_new, w_age_data_new, w_age_resp_new;
 
+    // Ranks are dense within a BANK, so a new entry's rank is its own bank's
+    // survivor count -- and a same-cycle allocation only bumps it when that
+    // allocation lands in the same bank. At NUM_BANKS=1 every bank_of() is 0
+    // and every same-bank test is true, so this reduces to the original
+    // global count exactly.
     always_comb begin
-        int surv;
-        surv = 0;
+        int surv_bank [NUM_BANKS];
+        int ab, db, rb;
+
+        for (int b = 0; b < NUM_BANKS; b++) surv_bank[b] = 0;
         for (int i = 0; i < N; i++) begin
             if (cam_entry_valid[i] && !w_freeing_oh[i]) begin
-                surv++;
+                surv_bank[i / BANK_SLOTS]++;
             end
         end
-        w_age_addr_new = AGEW'(surv);
-        w_age_data_new = AGEW'(surv + (w_addr_alloc_fire ? 1 : 0));
-        w_age_resp_new = AGEW'(surv + (w_addr_alloc_fire ? 1 : 0)
-                                    + (w_data_alloc_fire ? 1 : 0));
+
+        ab = bank_of(cmd_id);
+        db = bank_of(data_id);
+        rb = bank_of(resp_id);
+
+        w_age_addr_new = AGEW'(surv_bank[ab]);
+        w_age_data_new = AGEW'(surv_bank[db]
+                             + ((w_addr_alloc_fire && (ab == db)) ? 1 : 0));
+        w_age_resp_new = AGEW'(surv_bank[rb]
+                             + ((w_addr_alloc_fire && (ab == rb)) ? 1 : 0)
+                             + ((w_data_alloc_fire && (db == rb)) ? 1 : 0));
     end
 
     // Combinational next-rank per slot. Kept separate from the registers
@@ -730,8 +1061,11 @@ module axi_monitor_trans_mgr
                 w_age_next[i] = w_age_resp_new;
             end else if (cam_entry_valid[i] && !w_freeing_oh[i]) begin
                 // Close the gaps left by entries freed ahead of us.
+                // Same-bank only, for the reason given on NUM_BANKS: ranks are
+                // dense within a bank and never compared across one.
                 for (int j = 0; j < N; j++) begin
-                    if (w_freeing_oh[j] && (r_age[j] < r_age[i])) begin
+                    if ((i / BANK_SLOTS) == (j / BANK_SLOTS) &&
+                        w_freeing_oh[j] && (r_age[j] < r_age[i])) begin
                         dec++;
                     end
                 end

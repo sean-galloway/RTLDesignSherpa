@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Module: axi4_intf_observer
+// Module: axi4_intf_master_observer
 // Purpose: Inline AXI-interface observer -- a pass-through meter for any AXI4
 //          master interface, with its own APB configuration.
 //
@@ -43,7 +43,7 @@
 
 `include "reset_defs.svh"
 
-module axi4_intf_observer
+module axi4_intf_master_observer
     import monitor_common_pkg::*;
 #(
     // ---------- Tap counts ----------
@@ -110,10 +110,7 @@ module axi4_intf_observer
     //
     // Two separate things have to happen, and doing only the first is the trap:
     //   1. the transaction tables must not allocate for other IDs
-    //      -> observer-local only. This must NOT reach axi_monitor_base:
-    //         that module is shared by every monitor in the repo, including
-    //         stream_core's in-core ones, and a filter there changes blocks
-    //         that have nothing to do with slicing an observer across a bus.
+    //      -> ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT on the taps
     //   2. the latency histograms index by cmd_id[CW-1:0], so with
     //      NUM_CHANNELS=2 (CW=1) channels 0,2,4,6 would all alias onto slot 0.
     //      Narrowing NUM_CHANNELS alone does NOT select two channels, it folds
@@ -144,8 +141,8 @@ module axi4_intf_observer
     // ---------- axi_bus_meter integration ----------
     parameter bit ENABLE_BUS_METER      = 1'b1,  // 0 = omit meters, tie outputs to 0
     // 1 = derive write per-channel attribution from awid via an internal AW->W
-    // order tracker (no dma_wr_active_ch_* sideband needed; valid when AW leads
-    // W, the common case). 0 = use the explicit dma_wr_active_ch_* sideband.
+    // order tracker (no obs_wr_active_ch_* sideband needed; valid when AW leads
+    // W, the common case). 0 = use the explicit obs_wr_active_ch_* sideband.
     parameter bit WR_CH_FROM_AWID       = 1'b0,
     parameter int NUM_CHANNELS          = 1,     // 1 = aggregate only (no per-channel buckets)
     parameter int CW                    = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
@@ -180,115 +177,66 @@ module axi4_intf_observer
     input  logic                                                cam_clear,
 
     // ================================================================
-    // Read tap pairs.
-    // For each i in [0..NUM_RD_PORTS-1]:
-    //   dma_rd_*  inputs come from the DMA's external read master port
-    //   fab_rd_*  outputs go to the fabric's external read slave port
-    // The observer passes signals through with one pipeline stage of
-    // skid buffering (inherited from axi4_master_rd_mon).
+    // OBSERVED AXI4 READ PORTS -- INPUTS ONLY.
+    //
+    // This block OBSERVES. Every AXI4 signal below is an input, including
+    // both halves of each handshake, because a snoop watches the wire and
+    // needs valid AND ready to know a beat happened. Nothing here is
+    // driven back onto the observed bus, so attaching this block cannot
+    // change the transaction stream it is measuring.
+    // See vault/handbook/design/observers-do-not-drive.md.
     // ================================================================
-    // AR channel (DMA -> observer)
-    input  logic [NUM_RD_PORTS-1:0][AXI_ID_WIDTH-1:0]           dma_rd_arid,
-    input  logic [NUM_RD_PORTS-1:0][ADDR_WIDTH-1:0]             dma_rd_araddr,
-    input  logic [NUM_RD_PORTS-1:0][7:0]                        dma_rd_arlen,
-    input  logic [NUM_RD_PORTS-1:0][2:0]                        dma_rd_arsize,
-    input  logic [NUM_RD_PORTS-1:0][1:0]                        dma_rd_arburst,
-    input  logic [NUM_RD_PORTS-1:0]                             dma_rd_arlock,
-    input  logic [NUM_RD_PORTS-1:0][3:0]                        dma_rd_arcache,
-    input  logic [NUM_RD_PORTS-1:0][2:0]                        dma_rd_arprot,
-    input  logic [NUM_RD_PORTS-1:0][3:0]                        dma_rd_arqos,
-    input  logic [NUM_RD_PORTS-1:0][3:0]                        dma_rd_arregion,
-    input  logic [NUM_RD_PORTS-1:0][AXI_USER_WIDTH-1:0]         dma_rd_aruser,
-    input  logic [NUM_RD_PORTS-1:0]                             dma_rd_arvalid,
-    output logic [NUM_RD_PORTS-1:0]                             dma_rd_arready,
-    // R channel (observer -> DMA)
-    output logic [NUM_RD_PORTS-1:0][AXI_ID_WIDTH-1:0]           dma_rd_rid,
-    output logic [NUM_RD_PORTS-1:0][DATA_WIDTH-1:0]             dma_rd_rdata,
-    output logic [NUM_RD_PORTS-1:0][1:0]                        dma_rd_rresp,
-    output logic [NUM_RD_PORTS-1:0]                             dma_rd_rlast,
-    output logic [NUM_RD_PORTS-1:0][AXI_USER_WIDTH-1:0]         dma_rd_ruser,
-    output logic [NUM_RD_PORTS-1:0]                             dma_rd_rvalid,
-    input  logic [NUM_RD_PORTS-1:0]                             dma_rd_rready,
-    // AR channel (observer -> fabric)
-    output logic [NUM_RD_PORTS-1:0][AXI_ID_WIDTH-1:0]           fab_rd_arid,
-    output logic [NUM_RD_PORTS-1:0][ADDR_WIDTH-1:0]             fab_rd_araddr,
-    output logic [NUM_RD_PORTS-1:0][7:0]                        fab_rd_arlen,
-    output logic [NUM_RD_PORTS-1:0][2:0]                        fab_rd_arsize,
-    output logic [NUM_RD_PORTS-1:0][1:0]                        fab_rd_arburst,
-    output logic [NUM_RD_PORTS-1:0]                             fab_rd_arlock,
-    output logic [NUM_RD_PORTS-1:0][3:0]                        fab_rd_arcache,
-    output logic [NUM_RD_PORTS-1:0][2:0]                        fab_rd_arprot,
-    output logic [NUM_RD_PORTS-1:0][3:0]                        fab_rd_arqos,
-    output logic [NUM_RD_PORTS-1:0][3:0]                        fab_rd_arregion,
-    output logic [NUM_RD_PORTS-1:0][AXI_USER_WIDTH-1:0]         fab_rd_aruser,
-    output logic [NUM_RD_PORTS-1:0]                             fab_rd_arvalid,
-    input  logic [NUM_RD_PORTS-1:0]                             fab_rd_arready,
-    // R channel (fabric -> observer)
-    input  logic [NUM_RD_PORTS-1:0][AXI_ID_WIDTH-1:0]           fab_rd_rid,
-    input  logic [NUM_RD_PORTS-1:0][DATA_WIDTH-1:0]             fab_rd_rdata,
-    input  logic [NUM_RD_PORTS-1:0][1:0]                        fab_rd_rresp,
-    input  logic [NUM_RD_PORTS-1:0]                             fab_rd_rlast,
-    input  logic [NUM_RD_PORTS-1:0][AXI_USER_WIDTH-1:0]         fab_rd_ruser,
-    input  logic [NUM_RD_PORTS-1:0]                             fab_rd_rvalid,
-    output logic [NUM_RD_PORTS-1:0]                             fab_rd_rready,
+    input  logic [NUM_RD_PORTS-1:0][AXI_ID_WIDTH-1:0]       obs_rd_arid,
+    input  logic [NUM_RD_PORTS-1:0][ADDR_WIDTH-1:0]         obs_rd_araddr,
+    input  logic [NUM_RD_PORTS-1:0][7:0]                    obs_rd_arlen,
+    input  logic [NUM_RD_PORTS-1:0][2:0]                    obs_rd_arsize,
+    input  logic [NUM_RD_PORTS-1:0][1:0]                    obs_rd_arburst,
+    input  logic [NUM_RD_PORTS-1:0]                         obs_rd_arlock,
+    input  logic [NUM_RD_PORTS-1:0][3:0]                    obs_rd_arcache,
+    input  logic [NUM_RD_PORTS-1:0][2:0]                    obs_rd_arprot,
+    input  logic [NUM_RD_PORTS-1:0][3:0]                    obs_rd_arqos,
+    input  logic [NUM_RD_PORTS-1:0][3:0]                    obs_rd_arregion,
+    input  logic [NUM_RD_PORTS-1:0][AXI_USER_WIDTH-1:0]     obs_rd_aruser,
+    input  logic [NUM_RD_PORTS-1:0]                         obs_rd_arvalid,
+    input  logic [NUM_RD_PORTS-1:0]                         obs_rd_arready,
+    // R channel
+    input  logic [NUM_RD_PORTS-1:0][AXI_ID_WIDTH-1:0]       obs_rd_rid,
+    input  logic [NUM_RD_PORTS-1:0][DATA_WIDTH-1:0]         obs_rd_rdata,
+    input  logic [NUM_RD_PORTS-1:0][1:0]                    obs_rd_rresp,
+    input  logic [NUM_RD_PORTS-1:0]                         obs_rd_rlast,
+    input  logic [NUM_RD_PORTS-1:0][AXI_USER_WIDTH-1:0]     obs_rd_ruser,
+    input  logic [NUM_RD_PORTS-1:0]                         obs_rd_rvalid,
+    input  logic [NUM_RD_PORTS-1:0]                         obs_rd_rready,
 
     // ================================================================
-    // Write tap pairs (same shape, write-channel direction).
+    // OBSERVED AXI4 WRITE PORTS -- INPUTS ONLY (same rule as above).
     // ================================================================
-    // AW channel (DMA -> observer)
-    input  logic [NUM_WR_PORTS-1:0][AXI_ID_WIDTH-1:0]           dma_wr_awid,
-    input  logic [NUM_WR_PORTS-1:0][ADDR_WIDTH-1:0]             dma_wr_awaddr,
-    input  logic [NUM_WR_PORTS-1:0][7:0]                        dma_wr_awlen,
-    input  logic [NUM_WR_PORTS-1:0][2:0]                        dma_wr_awsize,
-    input  logic [NUM_WR_PORTS-1:0][1:0]                        dma_wr_awburst,
-    input  logic [NUM_WR_PORTS-1:0]                             dma_wr_awlock,
-    input  logic [NUM_WR_PORTS-1:0][3:0]                        dma_wr_awcache,
-    input  logic [NUM_WR_PORTS-1:0][2:0]                        dma_wr_awprot,
-    input  logic [NUM_WR_PORTS-1:0][3:0]                        dma_wr_awqos,
-    input  logic [NUM_WR_PORTS-1:0][3:0]                        dma_wr_awregion,
-    input  logic [NUM_WR_PORTS-1:0][AXI_USER_WIDTH-1:0]         dma_wr_awuser,
-    input  logic [NUM_WR_PORTS-1:0]                             dma_wr_awvalid,
-    output logic [NUM_WR_PORTS-1:0]                             dma_wr_awready,
-    // W channel (DMA -> observer)
-    input  logic [NUM_WR_PORTS-1:0][DATA_WIDTH-1:0]             dma_wr_wdata,
-    input  logic [NUM_WR_PORTS-1:0][DATA_WIDTH/8-1:0]           dma_wr_wstrb,
-    input  logic [NUM_WR_PORTS-1:0]                             dma_wr_wlast,
-    input  logic [NUM_WR_PORTS-1:0][AXI_USER_WIDTH-1:0]         dma_wr_wuser,
-    input  logic [NUM_WR_PORTS-1:0]                             dma_wr_wvalid,
-    output logic [NUM_WR_PORTS-1:0]                             dma_wr_wready,
-    // B channel (observer -> DMA)
-    output logic [NUM_WR_PORTS-1:0][AXI_ID_WIDTH-1:0]           dma_wr_bid,
-    output logic [NUM_WR_PORTS-1:0][1:0]                        dma_wr_bresp,
-    output logic [NUM_WR_PORTS-1:0][AXI_USER_WIDTH-1:0]         dma_wr_buser,
-    output logic [NUM_WR_PORTS-1:0]                             dma_wr_bvalid,
-    input  logic [NUM_WR_PORTS-1:0]                             dma_wr_bready,
-    // AW channel (observer -> fabric)
-    output logic [NUM_WR_PORTS-1:0][AXI_ID_WIDTH-1:0]           fab_wr_awid,
-    output logic [NUM_WR_PORTS-1:0][ADDR_WIDTH-1:0]             fab_wr_awaddr,
-    output logic [NUM_WR_PORTS-1:0][7:0]                        fab_wr_awlen,
-    output logic [NUM_WR_PORTS-1:0][2:0]                        fab_wr_awsize,
-    output logic [NUM_WR_PORTS-1:0][1:0]                        fab_wr_awburst,
-    output logic [NUM_WR_PORTS-1:0]                             fab_wr_awlock,
-    output logic [NUM_WR_PORTS-1:0][3:0]                        fab_wr_awcache,
-    output logic [NUM_WR_PORTS-1:0][2:0]                        fab_wr_awprot,
-    output logic [NUM_WR_PORTS-1:0][3:0]                        fab_wr_awqos,
-    output logic [NUM_WR_PORTS-1:0][3:0]                        fab_wr_awregion,
-    output logic [NUM_WR_PORTS-1:0][AXI_USER_WIDTH-1:0]         fab_wr_awuser,
-    output logic [NUM_WR_PORTS-1:0]                             fab_wr_awvalid,
-    input  logic [NUM_WR_PORTS-1:0]                             fab_wr_awready,
-    // W channel (observer -> fabric)
-    output logic [NUM_WR_PORTS-1:0][DATA_WIDTH-1:0]             fab_wr_wdata,
-    output logic [NUM_WR_PORTS-1:0][DATA_WIDTH/8-1:0]           fab_wr_wstrb,
-    output logic [NUM_WR_PORTS-1:0]                             fab_wr_wlast,
-    output logic [NUM_WR_PORTS-1:0][AXI_USER_WIDTH-1:0]         fab_wr_wuser,
-    output logic [NUM_WR_PORTS-1:0]                             fab_wr_wvalid,
-    input  logic [NUM_WR_PORTS-1:0]                             fab_wr_wready,
-    // B channel (fabric -> observer)
-    input  logic [NUM_WR_PORTS-1:0][AXI_ID_WIDTH-1:0]           fab_wr_bid,
-    input  logic [NUM_WR_PORTS-1:0][1:0]                        fab_wr_bresp,
-    input  logic [NUM_WR_PORTS-1:0][AXI_USER_WIDTH-1:0]         fab_wr_buser,
-    input  logic [NUM_WR_PORTS-1:0]                             fab_wr_bvalid,
-    output logic [NUM_WR_PORTS-1:0]                             fab_wr_bready,
+    input  logic [NUM_WR_PORTS-1:0][AXI_ID_WIDTH-1:0]       obs_wr_awid,
+    input  logic [NUM_WR_PORTS-1:0][ADDR_WIDTH-1:0]         obs_wr_awaddr,
+    input  logic [NUM_WR_PORTS-1:0][7:0]                    obs_wr_awlen,
+    input  logic [NUM_WR_PORTS-1:0][2:0]                    obs_wr_awsize,
+    input  logic [NUM_WR_PORTS-1:0][1:0]                    obs_wr_awburst,
+    input  logic [NUM_WR_PORTS-1:0]                         obs_wr_awlock,
+    input  logic [NUM_WR_PORTS-1:0][3:0]                    obs_wr_awcache,
+    input  logic [NUM_WR_PORTS-1:0][2:0]                    obs_wr_awprot,
+    input  logic [NUM_WR_PORTS-1:0][3:0]                    obs_wr_awqos,
+    input  logic [NUM_WR_PORTS-1:0][3:0]                    obs_wr_awregion,
+    input  logic [NUM_WR_PORTS-1:0][AXI_USER_WIDTH-1:0]     obs_wr_awuser,
+    input  logic [NUM_WR_PORTS-1:0]                         obs_wr_awvalid,
+    input  logic [NUM_WR_PORTS-1:0]                         obs_wr_awready,
+    // W channel
+    input  logic [NUM_WR_PORTS-1:0][DATA_WIDTH-1:0]         obs_wr_wdata,
+    input  logic [NUM_WR_PORTS-1:0][DATA_WIDTH/8-1:0]       obs_wr_wstrb,
+    input  logic [NUM_WR_PORTS-1:0]                         obs_wr_wlast,
+    input  logic [NUM_WR_PORTS-1:0][AXI_USER_WIDTH-1:0]     obs_wr_wuser,
+    input  logic [NUM_WR_PORTS-1:0]                         obs_wr_wvalid,
+    input  logic [NUM_WR_PORTS-1:0]                         obs_wr_wready,
+    // B channel
+    input  logic [NUM_WR_PORTS-1:0][AXI_ID_WIDTH-1:0]       obs_wr_bid,
+    input  logic [NUM_WR_PORTS-1:0][1:0]                    obs_wr_bresp,
+    input  logic [NUM_WR_PORTS-1:0][AXI_USER_WIDTH-1:0]     obs_wr_buser,
+    input  logic [NUM_WR_PORTS-1:0]                         obs_wr_bvalid,
+    input  logic [NUM_WR_PORTS-1:0]                         obs_wr_bready,
 
     // ================================================================
     // Observability outputs
@@ -390,8 +338,8 @@ module axi4_intf_observer
     // exposes o_active_channel_id / o_active_channel_valid that wires
     // directly here. DMAs without this output: tie both to 0 (aggregate
     // counters still tick; per-channel buckets stay at 0).
-    input  logic [CW-1:0]           dma_wr_active_ch_id          [NUM_WR_PORTS],
-    input  logic                    dma_wr_active_ch_valid       [NUM_WR_PORTS],
+    input  logic [CW-1:0]           obs_wr_active_ch_id          [NUM_WR_PORTS],
+    input  logic                    obs_wr_active_ch_valid       [NUM_WR_PORTS],
 
     // ================================================================
     // axi_bus_meter outputs (one set per monitored port)
@@ -449,6 +397,12 @@ module axi4_intf_observer
 );
 
 
+    // Per-tap monitor backpressure. Not a bus signal -- nothing here
+    // reaches the observed interface -- but a tap whose table is full
+    // stops tracking, so this is the honesty flag for the coverage
+    // numbers. See vault/Tasks/amba (AMBA-MONTRACK).
+    logic [NUM_RD_PORTS-1:0] obs_rd_block_ready;
+    logic [NUM_WR_PORTS-1:0] obs_wr_block_ready;
     // =======================================================================
     // Configuration: APB -> cmd/rsp -> passthrough regblock
     // Same chain as stream_top_ch8 and dma_slave_monitors. No cmdrsp_router:
@@ -565,7 +519,7 @@ module axi4_intf_observer
     // Sanity: monbus_arbiter requires at least one client.
     initial begin
         if (NUM_MON_SOURCES < 1) begin
-            $error("axi4_intf_observer: NUM_RD_PORTS + NUM_WR_PORTS must be >= 1");
+            $error("axi4_intf_master_observer: NUM_RD_PORTS + NUM_WR_PORTS must be >= 1");
         end
     end
 
@@ -602,6 +556,12 @@ module axi4_intf_observer
                 // Own only this instance's channels: without this every
                 // parallel snooper allocates for ALL traffic and the split
                 // buys nothing.
+                .ID_FILTER_ENABLE(ENABLE_ID_SLICE),
+                // PER-TAP base: tap gi owns [CH_BASE + gi*NUM_CHANNELS, +NUM_CHANNELS).
+                // NUM_CHANNELS is per tap, so a 4-tap instance covers
+                // 4*NUM_CHANNELS channels of one shared bus.
+                .ID_MATCH_BASE   (CH_BASE + gi * NUM_CHANNELS),
+                .ID_MATCH_COUNT  (NUM_CHANNELS),
                 // Observer tap cone enables (default perf-only -- see the
                 // TAP_ENABLE_* parameter block for why). Overridable per-instance
                 // so the dump-path unit test can enable completions.
@@ -617,50 +577,51 @@ module axi4_intf_observer
                 .cam_clear (cam_clear),
 
                 // fub side = DMA-facing (pass-through input from DMA)
-                .fub_axi_arid    (dma_rd_arid[gi]),
-                .fub_axi_araddr  (dma_rd_araddr[gi]),
-                .fub_axi_arlen   (dma_rd_arlen[gi]),
-                .fub_axi_arsize  (dma_rd_arsize[gi]),
-                .fub_axi_arburst (dma_rd_arburst[gi]),
-                .fub_axi_arlock  (dma_rd_arlock[gi]),
-                .fub_axi_arcache (dma_rd_arcache[gi]),
-                .fub_axi_arprot  (dma_rd_arprot[gi]),
-                .fub_axi_arqos   (dma_rd_arqos[gi]),
-                .fub_axi_arregion(dma_rd_arregion[gi]),
-                .fub_axi_aruser  (dma_rd_aruser[gi]),
-                .fub_axi_arvalid (dma_rd_arvalid[gi]),
-                .fub_axi_arready (dma_rd_arready[gi]),
-                .fub_axi_rid     (dma_rd_rid[gi]),
-                .fub_axi_rdata   (dma_rd_rdata[gi]),
-                .fub_axi_rresp   (dma_rd_rresp[gi]),
-                .fub_axi_rlast   (dma_rd_rlast[gi]),
-                .fub_axi_ruser   (dma_rd_ruser[gi]),
-                .fub_axi_rvalid  (dma_rd_rvalid[gi]),
-                .fub_axi_rready  (dma_rd_rready[gi]),
+                .fub_axi_arid(obs_rd_arid[gi]),
+                .fub_axi_araddr(obs_rd_araddr[gi]),
+                .fub_axi_arlen(obs_rd_arlen[gi]),
+                .fub_axi_arsize(obs_rd_arsize[gi]),
+                .fub_axi_arburst(obs_rd_arburst[gi]),
+                .fub_axi_arlock(obs_rd_arlock[gi]),
+                .fub_axi_arcache(obs_rd_arcache[gi]),
+                .fub_axi_arprot(obs_rd_arprot[gi]),
+                .fub_axi_arqos(obs_rd_arqos[gi]),
+                .fub_axi_arregion(obs_rd_arregion[gi]),
+                .fub_axi_aruser(obs_rd_aruser[gi]),
+                .fub_axi_arvalid(obs_rd_arvalid[gi]),
+                .fub_axi_arready(),
+                .fub_axi_rid(),
+                .fub_axi_rdata(),
+                .fub_axi_rresp(),
+                .fub_axi_rlast(),
+                .fub_axi_ruser(),
+                .fub_axi_rvalid(),
+                .fub_axi_rready(obs_rd_rready[gi]),
 
                 // m_axi side = fabric-facing
-                .m_axi_arid      (fab_rd_arid[gi]),
-                .m_axi_araddr    (fab_rd_araddr[gi]),
-                .m_axi_arlen     (fab_rd_arlen[gi]),
-                .m_axi_arsize    (fab_rd_arsize[gi]),
-                .m_axi_arburst   (fab_rd_arburst[gi]),
-                .m_axi_arlock    (fab_rd_arlock[gi]),
-                .m_axi_arcache   (fab_rd_arcache[gi]),
-                .m_axi_arprot    (fab_rd_arprot[gi]),
-                .m_axi_arqos     (fab_rd_arqos[gi]),
-                .m_axi_arregion  (fab_rd_arregion[gi]),
-                .m_axi_aruser    (fab_rd_aruser[gi]),
-                .m_axi_arvalid   (fab_rd_arvalid[gi]),
-                .m_axi_arready   (fab_rd_arready[gi]),
-                .m_axi_rid       (fab_rd_rid[gi]),
-                .m_axi_rdata     (fab_rd_rdata[gi]),
-                .m_axi_rresp     (fab_rd_rresp[gi]),
-                .m_axi_rlast     (fab_rd_rlast[gi]),
-                .m_axi_ruser     (fab_rd_ruser[gi]),
-                .m_axi_rvalid    (fab_rd_rvalid[gi]),
-                .m_axi_rready    (fab_rd_rready[gi]),
+                .m_axi_arid(),
+                .m_axi_araddr(),
+                .m_axi_arlen(),
+                .m_axi_arsize(),
+                .m_axi_arburst(),
+                .m_axi_arlock(),
+                .m_axi_arcache(),
+                .m_axi_arprot(),
+                .m_axi_arqos(),
+                .m_axi_arregion(),
+                .m_axi_aruser(),
+                .m_axi_arvalid(),
+                .m_axi_arready(obs_rd_arready[gi]),
+                .m_axi_rid(obs_rd_rid[gi]),
+                .m_axi_rdata(obs_rd_rdata[gi]),
+                .m_axi_rresp(obs_rd_rresp[gi]),
+                .m_axi_rlast(obs_rd_rlast[gi]),
+                .m_axi_ruser(obs_rd_ruser[gi]),
+                .m_axi_rvalid(obs_rd_rvalid[gi]),
+                .m_axi_rready(),
 
                 // Monitor enables (all-on default; expose later if needed)
+                .debug_block_ready    (obs_rd_block_ready[gi]),
                 .cfg_monitor_enable   (ENABLE_MON_TAPS),
                 .cfg_error_enable     (1'b1),
                 .cfg_timeout_enable   (1'b1),
@@ -740,6 +701,12 @@ module axi4_intf_observer
                 // Own only this instance's channels: without this every
                 // parallel snooper allocates for ALL traffic and the split
                 // buys nothing.
+                .ID_FILTER_ENABLE(ENABLE_ID_SLICE),
+                // PER-TAP base: tap gi owns [CH_BASE + gi*NUM_CHANNELS, +NUM_CHANNELS).
+                // NUM_CHANNELS is per tap, so a 4-tap instance covers
+                // 4*NUM_CHANNELS channels of one shared bus.
+                .ID_MATCH_BASE   (CH_BASE + gi * NUM_CHANNELS),
+                .ID_MATCH_COUNT  (NUM_CHANNELS),
                 // Observer tap cone enables (default perf-only -- see the
                 // TAP_ENABLE_* parameter block). Overridable per-instance so the
                 // dump-path unit test can enable completions.
@@ -754,56 +721,57 @@ module axi4_intf_observer
                 .aresetn (aresetn),
                 .cam_clear (cam_clear),
 
-                .fub_axi_awid    (dma_wr_awid[gi]),
-                .fub_axi_awaddr  (dma_wr_awaddr[gi]),
-                .fub_axi_awlen   (dma_wr_awlen[gi]),
-                .fub_axi_awsize  (dma_wr_awsize[gi]),
-                .fub_axi_awburst (dma_wr_awburst[gi]),
-                .fub_axi_awlock  (dma_wr_awlock[gi]),
-                .fub_axi_awcache (dma_wr_awcache[gi]),
-                .fub_axi_awprot  (dma_wr_awprot[gi]),
-                .fub_axi_awqos   (dma_wr_awqos[gi]),
-                .fub_axi_awregion(dma_wr_awregion[gi]),
-                .fub_axi_awuser  (dma_wr_awuser[gi]),
-                .fub_axi_awvalid (dma_wr_awvalid[gi]),
-                .fub_axi_awready (dma_wr_awready[gi]),
-                .fub_axi_wdata   (dma_wr_wdata[gi]),
-                .fub_axi_wstrb   (dma_wr_wstrb[gi]),
-                .fub_axi_wlast   (dma_wr_wlast[gi]),
-                .fub_axi_wuser   (dma_wr_wuser[gi]),
-                .fub_axi_wvalid  (dma_wr_wvalid[gi]),
-                .fub_axi_wready  (dma_wr_wready[gi]),
-                .fub_axi_bid     (dma_wr_bid[gi]),
-                .fub_axi_bresp   (dma_wr_bresp[gi]),
-                .fub_axi_buser   (dma_wr_buser[gi]),
-                .fub_axi_bvalid  (dma_wr_bvalid[gi]),
-                .fub_axi_bready  (dma_wr_bready[gi]),
+                .fub_axi_awid(obs_wr_awid[gi]),
+                .fub_axi_awaddr(obs_wr_awaddr[gi]),
+                .fub_axi_awlen(obs_wr_awlen[gi]),
+                .fub_axi_awsize(obs_wr_awsize[gi]),
+                .fub_axi_awburst(obs_wr_awburst[gi]),
+                .fub_axi_awlock(obs_wr_awlock[gi]),
+                .fub_axi_awcache(obs_wr_awcache[gi]),
+                .fub_axi_awprot(obs_wr_awprot[gi]),
+                .fub_axi_awqos(obs_wr_awqos[gi]),
+                .fub_axi_awregion(obs_wr_awregion[gi]),
+                .fub_axi_awuser(obs_wr_awuser[gi]),
+                .fub_axi_awvalid(obs_wr_awvalid[gi]),
+                .fub_axi_awready(),
+                .fub_axi_wdata(obs_wr_wdata[gi]),
+                .fub_axi_wstrb(obs_wr_wstrb[gi]),
+                .fub_axi_wlast(obs_wr_wlast[gi]),
+                .fub_axi_wuser(obs_wr_wuser[gi]),
+                .fub_axi_wvalid(obs_wr_wvalid[gi]),
+                .fub_axi_wready(),
+                .fub_axi_bid(),
+                .fub_axi_bresp(),
+                .fub_axi_buser(),
+                .fub_axi_bvalid(),
+                .fub_axi_bready(obs_wr_bready[gi]),
 
-                .m_axi_awid      (fab_wr_awid[gi]),
-                .m_axi_awaddr    (fab_wr_awaddr[gi]),
-                .m_axi_awlen     (fab_wr_awlen[gi]),
-                .m_axi_awsize    (fab_wr_awsize[gi]),
-                .m_axi_awburst   (fab_wr_awburst[gi]),
-                .m_axi_awlock    (fab_wr_awlock[gi]),
-                .m_axi_awcache   (fab_wr_awcache[gi]),
-                .m_axi_awprot    (fab_wr_awprot[gi]),
-                .m_axi_awqos     (fab_wr_awqos[gi]),
-                .m_axi_awregion  (fab_wr_awregion[gi]),
-                .m_axi_awuser    (fab_wr_awuser[gi]),
-                .m_axi_awvalid   (fab_wr_awvalid[gi]),
-                .m_axi_awready   (fab_wr_awready[gi]),
-                .m_axi_wdata     (fab_wr_wdata[gi]),
-                .m_axi_wstrb     (fab_wr_wstrb[gi]),
-                .m_axi_wlast     (fab_wr_wlast[gi]),
-                .m_axi_wuser     (fab_wr_wuser[gi]),
-                .m_axi_wvalid    (fab_wr_wvalid[gi]),
-                .m_axi_wready    (fab_wr_wready[gi]),
-                .m_axi_bid       (fab_wr_bid[gi]),
-                .m_axi_bresp     (fab_wr_bresp[gi]),
-                .m_axi_buser     (fab_wr_buser[gi]),
-                .m_axi_bvalid    (fab_wr_bvalid[gi]),
-                .m_axi_bready    (fab_wr_bready[gi]),
+                .m_axi_awid(),
+                .m_axi_awaddr(),
+                .m_axi_awlen(),
+                .m_axi_awsize(),
+                .m_axi_awburst(),
+                .m_axi_awlock(),
+                .m_axi_awcache(),
+                .m_axi_awprot(),
+                .m_axi_awqos(),
+                .m_axi_awregion(),
+                .m_axi_awuser(),
+                .m_axi_awvalid(),
+                .m_axi_awready(obs_wr_awready[gi]),
+                .m_axi_wdata(),
+                .m_axi_wstrb(),
+                .m_axi_wlast(),
+                .m_axi_wuser(),
+                .m_axi_wvalid(),
+                .m_axi_wready(obs_wr_wready[gi]),
+                .m_axi_bid(obs_wr_bid[gi]),
+                .m_axi_bresp(obs_wr_bresp[gi]),
+                .m_axi_buser(obs_wr_buser[gi]),
+                .m_axi_bvalid(obs_wr_bvalid[gi]),
+                .m_axi_bready(),
 
+                .debug_block_ready    (obs_wr_block_ready[gi]),
                 .cfg_monitor_enable   (ENABLE_MON_TAPS),
                 .cfg_error_enable     (1'b1),
                 .cfg_timeout_enable   (1'b1),
@@ -1040,7 +1008,7 @@ module axi4_intf_observer
                 always_comb begin
                     for (int c = 0; c < NUM_CHANNELS; c = c + 1) begin
                         rd_hit_mask[c] = cfg_rd_rid_per_channel_valid[mi][c]
-                                      && (fab_rd_rid[mi] == cfg_rd_rid_per_channel[mi][c]);
+                                      && (obs_rd_rid[mi] == cfg_rd_rid_per_channel[mi][c]);
                     end
                     // Priority-encode: lowest-index matching channel wins
                     rd_ch_id    = '0;
@@ -1063,13 +1031,13 @@ module axi4_intf_observer
                     // Snoop the fabric-side R handshake. (Equivalent to
                     // dma-side post-skid since the wrappers don't drop
                     // beats.)
-                    .i_valid          (fab_rd_rvalid[mi]),
-                    .i_ready          (fab_rd_rready[mi]),
+                    .i_valid          (obs_rd_rvalid[mi]),
+                    .i_ready          (obs_rd_rready[mi]),
                     // rid is only meaningful when rvalid; gate the channel
                     // attribution accordingly. rd_ch_match additionally
                     // requires a matching entry in the rid->ch map.
                     .i_channel_id     (rd_ch_id),
-                    .i_channel_valid  (fab_rd_rvalid[mi] && rd_ch_match),
+                    .i_channel_valid  (obs_rd_rvalid[mi] && rd_ch_match),
                     .o_agg_productive   (rd_meter_agg_productive[mi]),
                     .o_agg_backpressure (rd_meter_agg_backpressure[mi]),
                     .o_agg_starvation   (rd_meter_agg_starvation[mi]),
@@ -1091,7 +1059,7 @@ module axi4_intf_observer
                 //   (push awid's channel at AW-accept, head = current burst's
                 //   channel, pop at WLAST). STREAM drives awid = channel, so no
                 //   DMA sideband is needed. Correct when AW leads/accompanies W.
-                //   WR_CH_FROM_AWID=0: use the explicit dma_wr_active_ch_* sideband.
+                //   WR_CH_FROM_AWID=0: use the explicit obs_wr_active_ch_* sideband.
                 logic [CW-1:0]  wr_ch_id;
                 logic           wr_ch_valid;
 
@@ -1104,9 +1072,9 @@ module axi4_intf_observer
                     assign awq_empty = (awq_wptr == awq_rptr);
                     assign awq_full  = (awq_wptr[AWQ_PTRW-1:0] == awq_rptr[AWQ_PTRW-1:0])
                                     && (awq_wptr[AWQ_PTRW]     != awq_rptr[AWQ_PTRW]);
-                    assign awq_push  = fab_wr_awvalid[mi] && fab_wr_awready[mi] && !awq_full;
-                    assign awq_pop   = fab_wr_wvalid[mi]  && fab_wr_wready[mi]
-                                    && fab_wr_wlast[mi]   && !awq_empty;
+                    assign awq_push  = obs_wr_awvalid[mi] && obs_wr_awready[mi] && !awq_full;
+                    assign awq_pop   = obs_wr_wvalid[mi]  && obs_wr_wready[mi]
+                                    && obs_wr_wlast[mi]   && !awq_empty;
 
                     `ALWAYS_FF_RST(aclk, aresetn,
                         if (`RST_ASSERTED(aresetn)) begin
@@ -1114,7 +1082,7 @@ module axi4_intf_observer
                             awq_rptr <= '0;
                         end else begin
                             if (awq_push) begin
-                                awq_mem[awq_wptr[AWQ_PTRW-1:0]] <= fab_wr_awid[mi][CW-1:0];
+                                awq_mem[awq_wptr[AWQ_PTRW-1:0]] <= obs_wr_awid[mi][CW-1:0];
                                 awq_wptr <= awq_wptr + 1'b1;
                             end
                             if (awq_pop) awq_rptr <= awq_rptr + 1'b1;
@@ -1123,8 +1091,8 @@ module axi4_intf_observer
                     assign wr_ch_id    = awq_mem[awq_rptr[AWQ_PTRW-1:0]];
                     assign wr_ch_valid = !awq_empty;
                 end else begin : g_sideband
-                    assign wr_ch_id    = dma_wr_active_ch_id[mi];
-                    assign wr_ch_valid = dma_wr_active_ch_valid[mi];
+                    assign wr_ch_id    = obs_wr_active_ch_id[mi];
+                    assign wr_ch_valid = obs_wr_active_ch_valid[mi];
                 end
 
                 axi_bus_meter #(
@@ -1134,8 +1102,8 @@ module axi4_intf_observer
                     .aresetn          (aresetn),
                     .i_clear          (i_meter_clear),
                     .i_freeze         (i_meter_freeze),
-                    .i_valid          (fab_wr_wvalid[mi]),
-                    .i_ready          (fab_wr_wready[mi]),
+                    .i_valid          (obs_wr_wvalid[mi]),
+                    .i_ready          (obs_wr_wready[mi]),
                     .i_channel_id     (wr_ch_id),
                     .i_channel_valid  (wr_ch_valid),
                     .o_agg_productive   (wr_meter_agg_productive[mi]),
@@ -1239,13 +1207,13 @@ module axi4_intf_observer
                     .aresetn      (aresetn),
                     .i_clear      (i_meter_clear),
                     .i_freeze     (i_meter_freeze),
-                    .cmd_valid    (fab_rd_arvalid[hi]),
-                    .cmd_ready    (fab_rd_arready[hi]),
-                    .cmd_id       (obs_rebase_id(fab_rd_arid[hi], hi)),
-                    .data_valid   (fab_rd_rvalid[hi]),
-                    .data_ready   (fab_rd_rready[hi]),
-                    .data_last    (fab_rd_rlast[hi]),
-                    .data_id      (obs_rebase_id(fab_rd_rid[hi], hi)),
+                    .cmd_valid    (obs_rd_arvalid[hi]),
+                    .cmd_ready    (obs_rd_arready[hi]),
+                    .cmd_id       (obs_rebase_id(obs_rd_arid[hi], hi)),
+                    .data_valid   (obs_rd_rvalid[hi]),
+                    .data_ready   (obs_rd_rready[hi]),
+                    .data_last    (obs_rd_rlast[hi]),
+                    .data_id      (obs_rebase_id(obs_rd_rid[hi], hi)),
                     .resp_valid   (1'b0),
                     .resp_ready   (1'b0),
                     .resp_id      ('0),
@@ -1269,16 +1237,16 @@ module axi4_intf_observer
                     .aresetn      (aresetn),
                     .i_clear      (i_meter_clear),
                     .i_freeze     (i_meter_freeze),
-                    .cmd_valid    (fab_wr_awvalid[hi]),
-                    .cmd_ready    (fab_wr_awready[hi]),
-                    .cmd_id       (obs_rebase_id(fab_wr_awid[hi], hi)),
+                    .cmd_valid    (obs_wr_awvalid[hi]),
+                    .cmd_ready    (obs_wr_awready[hi]),
+                    .cmd_id       (obs_rebase_id(obs_wr_awid[hi], hi)),
                     .data_valid   (1'b0),
                     .data_ready   (1'b0),
                     .data_last    (1'b0),
                     .data_id      ('0),
-                    .resp_valid   (fab_wr_bvalid[hi]),
-                    .resp_ready   (fab_wr_bready[hi]),
-                    .resp_id      (obs_rebase_id(fab_wr_bid[hi], hi)),
+                    .resp_valid   (obs_wr_bvalid[hi]),
+                    .resp_ready   (obs_wr_bready[hi]),
+                    .resp_id      (obs_rebase_id(obs_wr_bid[hi], hi)),
                     .i_hist_metric(i_hist_metric),
                     .i_hist_bin   (i_hist_bin),
                     .o_hist_count (wr_hist_count[hi]),
@@ -1300,4 +1268,4 @@ module axi4_intf_observer
         end
     endgenerate
 
-endmodule : axi4_intf_observer
+endmodule : axi4_intf_master_observer

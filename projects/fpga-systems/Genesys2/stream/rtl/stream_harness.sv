@@ -361,7 +361,7 @@ module stream_harness #(
     //
     // Keep declarations ahead of first use in this file. `default_nettype none`
     // would make the whole class fatal; see [[STREAM-NETTYPE]].
-    // Observer config APB (bridge obs_apb -> axi4_intf_observer).
+    // Observer config APB (bridge obs_apb -> axi4_intf_master_observer).
     logic        obs_apb_PSEL, obs_apb_PENABLE, obs_apb_PWRITE;
     logic        obs_apb_PREADY, obs_apb_PSLVERR;
     logic [31:0] obs_apb_PADDR, obs_apb_PWDATA, obs_apb_PRDATA;
@@ -1558,7 +1558,7 @@ module stream_harness #(
     // -------------------------------------------------------------------------
     // Observer fabric-side wires (f_rd_* / f_wr_*).
     //
-    // axi4_intf_observer is inserted INLINE between the STREAM DUT (which stays
+    // axi4_intf_master_observer SNOOPS the STREAM DUT's master ports (which stay
     // on rd_*/wr_*) and the axi4_dma_slaves + axi_response_delay blocks. The
     // observer's DMA side carries rd_*/wr_*; its fabric side carries these
     // f_*. The slaves and resp-delay master sides are re-pointed to f_* below.
@@ -1805,7 +1805,7 @@ module stream_harness #(
     );
 
     // =========================================================================
-    // axi4_intf_observer (RFC Stage E option 2): INLINE pass-through meter.
+    // axi4_intf_master_observer (RFC Stage E option 2): snoop-only meter.
     //
     // Sits transparently between STREAM's rd_*/wr_* data masters and the
     // axi4_dma_slaves + axi_response_delay fabric (f_rd_*/f_wr_*). Both the
@@ -1952,7 +1952,58 @@ module stream_harness #(
     assign obs_hist_data_mux  = obs_hist_bus ? obs_wr_hist_count[0] : obs_rd_hist_count[0];
     assign obs_hist_total_mux = obs_hist_bus ? obs_wr_hist_total[0] : obs_rd_hist_total[0];
 
-    axi4_intf_observer #(
+
+    // ---- STREAM master <-> fabric, wired STRAIGHT THROUGH ----------------
+    // These used to run through u_dma_observer, which meant the instrument
+    // was in the datapath and its block_ready could gate the DMA. The
+    // observer is a snoop now, so the connection is direct and the
+    // observer cannot affect what it measures.
+    assign f_rd_arid     = rd_arid;
+    assign f_rd_araddr   = rd_araddr;
+    assign f_rd_arlen    = rd_arlen;
+    assign f_rd_arsize   = rd_arsize;
+    assign f_rd_arburst  = rd_arburst;
+    assign f_rd_arlock   = rd_arlock;
+    assign f_rd_arcache  = rd_arcache;
+    assign f_rd_arprot   = rd_arprot;
+    assign f_rd_arqos    = rd_arqos;
+    assign f_rd_arregion = rd_arregion;
+    assign f_rd_aruser   = rd_aruser;
+    assign f_rd_arvalid  = rd_arvalid;
+    assign rd_arready   = f_rd_arready;
+    assign rd_rid      = f_rd_rid;
+    assign rd_rdata    = f_rd_rdata;
+    assign rd_rresp    = f_rd_rresp;
+    assign rd_rlast    = f_rd_rlast;
+    assign rd_ruser    = f_rd_ruser;
+    assign rd_rvalid   = f_rd_rvalid;
+    assign f_rd_rready  = rd_rready;
+    assign f_wr_awid     = wr_awid;
+    assign f_wr_awaddr   = wr_awaddr;
+    assign f_wr_awlen    = wr_awlen;
+    assign f_wr_awsize   = wr_awsize;
+    assign f_wr_awburst  = wr_awburst;
+    assign f_wr_awlock   = wr_awlock;
+    assign f_wr_awcache  = wr_awcache;
+    assign f_wr_awprot   = wr_awprot;
+    assign f_wr_awqos    = wr_awqos;
+    assign f_wr_awregion = wr_awregion;
+    assign f_wr_awuser   = wr_awuser;
+    assign f_wr_awvalid  = wr_awvalid;
+    assign f_wr_wdata    = wr_wdata;
+    assign f_wr_wstrb    = wr_wstrb;
+    assign f_wr_wlast    = wr_wlast;
+    assign f_wr_wuser    = wr_wuser;
+    assign f_wr_wvalid   = wr_wvalid;
+    assign wr_awready   = f_wr_awready;
+    assign wr_wready    = f_wr_wready;
+    assign wr_bid      = f_wr_bid;
+    assign wr_bresp    = f_wr_bresp;
+    assign wr_buser    = f_wr_buser;
+    assign wr_bvalid   = f_wr_bvalid;
+    assign f_wr_bready  = wr_bready;
+
+    axi4_intf_master_observer #(
         .NUM_RD_PORTS        (1),
         .NUM_WR_PORTS        (1),
         .ADDR_WIDTH          (ADDR_WIDTH),
@@ -2012,58 +2063,61 @@ module stream_harness #(
         .cam_clear (1'b0),
 
         // ---- Read tap: DMA side = STREAM (rd_*) -----------------------------
-        .dma_rd_arid    (rd_arid),    .dma_rd_araddr  (rd_araddr),
-        .dma_rd_arlen   (rd_arlen),   .dma_rd_arsize  (rd_arsize),
-        .dma_rd_arburst (rd_arburst), .dma_rd_arlock  (rd_arlock),
-        .dma_rd_arcache (rd_arcache), .dma_rd_arprot  (rd_arprot),
-        .dma_rd_arqos   (rd_arqos),   .dma_rd_arregion(rd_arregion),
-        .dma_rd_aruser  (rd_aruser),  .dma_rd_arvalid (rd_arvalid),
-        .dma_rd_arready (rd_arready),
-        .dma_rd_rid     (rd_rid),     .dma_rd_rdata   (rd_rdata),
-        .dma_rd_rresp   (rd_rresp),   .dma_rd_rlast   (rd_rlast),
-        .dma_rd_ruser   (rd_ruser),   .dma_rd_rvalid  (rd_rvalid),
-        .dma_rd_rready  (rd_rready),
+        // ---- Observation taps: INPUTS ONLY. The observer no longer
+        // ---- sits in the path; it watches the wires assigned below.
+        // ---- (vault/handbook/design/observers-do-not-drive.md)
+        .obs_rd_arid    (rd_arid),
+        .obs_rd_araddr  (rd_araddr),
+        .obs_rd_arlen   (rd_arlen),
+        .obs_rd_arsize  (rd_arsize),
+        .obs_rd_arburst (rd_arburst),
+        .obs_rd_arlock  (rd_arlock),
+        .obs_rd_arcache (rd_arcache),
+        .obs_rd_arprot  (rd_arprot),
+        .obs_rd_arqos   (rd_arqos),
+        .obs_rd_arregion(rd_arregion),
+        .obs_rd_aruser  (rd_aruser),
+        .obs_rd_arvalid (rd_arvalid),
+        .obs_rd_arready (f_rd_arready),
+        .obs_rd_rid     (f_rd_rid),
+        .obs_rd_rdata   (f_rd_rdata),
+        .obs_rd_rresp   (f_rd_rresp),
+        .obs_rd_rlast   (f_rd_rlast),
+        .obs_rd_ruser   (f_rd_ruser),
+        .obs_rd_rvalid  (f_rd_rvalid),
+        .obs_rd_rready  (rd_rready),
+        .obs_wr_awid    (wr_awid),
+        .obs_wr_awaddr  (wr_awaddr),
+        .obs_wr_awlen   (wr_awlen),
+        .obs_wr_awsize  (wr_awsize),
+        .obs_wr_awburst (wr_awburst),
+        .obs_wr_awlock  (wr_awlock),
+        .obs_wr_awcache (wr_awcache),
+        .obs_wr_awprot  (wr_awprot),
+        .obs_wr_awqos   (wr_awqos),
+        .obs_wr_awregion(wr_awregion),
+        .obs_wr_awuser  (wr_awuser),
+        .obs_wr_awvalid (wr_awvalid),
+        .obs_wr_wdata   (wr_wdata),
+        .obs_wr_wstrb   (wr_wstrb),
+        .obs_wr_wlast   (wr_wlast),
+        .obs_wr_wuser   (wr_wuser),
+        .obs_wr_wvalid  (wr_wvalid),
+        .obs_wr_awready (f_wr_awready),
+        .obs_wr_wready  (f_wr_wready),
+        .obs_wr_bid     (f_wr_bid),
+        .obs_wr_bresp   (f_wr_bresp),
+        .obs_wr_buser   (f_wr_buser),
+        .obs_wr_bvalid  (f_wr_bvalid),
+        .obs_wr_bready  (wr_bready),
+        // Channel-active sideband: an INPUT to the observer, not a bus
+        // signal. Kept when the pass-through pairs went away.
+        .obs_wr_active_ch_id          (obs_wr_active_ch_id),
+        .obs_wr_active_ch_valid       (obs_wr_active_ch_valid),
         // Read tap: fabric side = slaves / resp-delay (f_rd_*)
-        .fab_rd_arid    (f_rd_arid),  .fab_rd_araddr  (f_rd_araddr),
-        .fab_rd_arlen   (f_rd_arlen), .fab_rd_arsize  (f_rd_arsize),
-        .fab_rd_arburst (f_rd_arburst),.fab_rd_arlock (f_rd_arlock),
-        .fab_rd_arcache (f_rd_arcache),.fab_rd_arprot (f_rd_arprot),
-        .fab_rd_arqos   (f_rd_arqos), .fab_rd_arregion(f_rd_arregion),
-        .fab_rd_aruser  (f_rd_aruser),.fab_rd_arvalid (f_rd_arvalid),
-        .fab_rd_arready (f_rd_arready),
-        .fab_rd_rid     (f_rd_rid),   .fab_rd_rdata   (f_rd_rdata),
-        .fab_rd_rresp   (f_rd_rresp), .fab_rd_rlast   (f_rd_rlast),
-        .fab_rd_ruser   (f_rd_ruser), .fab_rd_rvalid  (f_rd_rvalid),
-        .fab_rd_rready  (f_rd_rready),
 
         // ---- Write tap: DMA side = STREAM (wr_*) ----------------------------
-        .dma_wr_awid    (wr_awid),    .dma_wr_awaddr  (wr_awaddr),
-        .dma_wr_awlen   (wr_awlen),   .dma_wr_awsize  (wr_awsize),
-        .dma_wr_awburst (wr_awburst), .dma_wr_awlock  (wr_awlock),
-        .dma_wr_awcache (wr_awcache), .dma_wr_awprot  (wr_awprot),
-        .dma_wr_awqos   (wr_awqos),   .dma_wr_awregion(wr_awregion),
-        .dma_wr_awuser  (wr_awuser),  .dma_wr_awvalid (wr_awvalid),
-        .dma_wr_awready (wr_awready),
-        .dma_wr_wdata   (wr_wdata),   .dma_wr_wstrb   (wr_wstrb),
-        .dma_wr_wlast   (wr_wlast),   .dma_wr_wuser   (wr_wuser),
-        .dma_wr_wvalid  (wr_wvalid),  .dma_wr_wready  (wr_wready),
-        .dma_wr_bid     (wr_bid),     .dma_wr_bresp   (wr_bresp),
-        .dma_wr_buser   (wr_buser),   .dma_wr_bvalid  (wr_bvalid),
-        .dma_wr_bready  (wr_bready),
         // Write tap: fabric side = slaves / resp-delay (f_wr_*)
-        .fab_wr_awid    (f_wr_awid),  .fab_wr_awaddr  (f_wr_awaddr),
-        .fab_wr_awlen   (f_wr_awlen), .fab_wr_awsize  (f_wr_awsize),
-        .fab_wr_awburst (f_wr_awburst),.fab_wr_awlock (f_wr_awlock),
-        .fab_wr_awcache (f_wr_awcache),.fab_wr_awprot (f_wr_awprot),
-        .fab_wr_awqos   (f_wr_awqos), .fab_wr_awregion(f_wr_awregion),
-        .fab_wr_awuser  (f_wr_awuser),.fab_wr_awvalid (f_wr_awvalid),
-        .fab_wr_awready (f_wr_awready),
-        .fab_wr_wdata   (f_wr_wdata), .fab_wr_wstrb   (f_wr_wstrb),
-        .fab_wr_wlast   (f_wr_wlast), .fab_wr_wuser   (f_wr_wuser),
-        .fab_wr_wvalid  (f_wr_wvalid),.fab_wr_wready  (f_wr_wready),
-        .fab_wr_bid     (f_wr_bid),   .fab_wr_bresp   (f_wr_bresp),
-        .fab_wr_buser   (f_wr_buser), .fab_wr_bvalid  (f_wr_bvalid),
-        .fab_wr_bready  (f_wr_bready),
 
         // ---- Observability dump path: UNUSED (held idle/legal) --------------
         // AXIL slave-read drain: no host reads -> tie request inputs idle.
@@ -2122,8 +2176,6 @@ module stream_harness #(
         .i_meter_freeze       (obs_meter_freeze),
         .cfg_rd_rid_per_channel       (obs_cfg_rd_rid),
         .cfg_rd_rid_per_channel_valid (obs_cfg_rd_rid_valid),
-        .dma_wr_active_ch_id          (obs_wr_active_ch_id),
-        .dma_wr_active_ch_valid       (obs_wr_active_ch_valid),
 
         // ---- Meter outputs --------------------------------------------------
         .rd_meter_agg_productive   (obs_rd_agg_prod),

@@ -227,8 +227,19 @@ def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed):
     })
 
     dut_name = "axi_monitor_base"
+
+    # Write-data attribution mechanism, overridable from the environment.
+    # Default 0 keeps the standing sweep on the legacy state-predicate select;
+    # USE_WDATA_ORDER_Q=1 selects the AWID FIFO, whose empty-queue bypass is
+    # exactly what carries the same-cycle AW+W case this file exists to pin.
+    # Both go in the build directory name so a run at one setting cannot reuse
+    # the other's binary.
+    use_wq = int(os.environ.get('USE_WDATA_ORDER_Q', '0'))
+    num_banks = int(os.environ.get('NUM_BANKS', '1'))
+
     test_name = (f"test_{worker_id}_axi_monitor_wr_same_cycle_"
-                 f"iw{iw}_aw{aw}_mt{max_transactions}_seed{seed}")
+                 f"iw{iw}_aw{aw}_mt{max_transactions}"
+                 f"_nb{num_banks}_wq{use_wq}_seed{seed}")
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -247,6 +258,8 @@ def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed):
         'MAX_TRANSACTIONS': str(max_transactions),
         'IS_READ': '0',            # WRITE monitor -- the path under test
         'IS_AXI': '1',             # orphan write-data path compiled dead
+        'USE_WDATA_ORDER_Q': str(use_wq),
+        'NUM_BANKS': str(num_banks),
         'ENABLE_PERF_PACKETS': '0',
         'ENABLE_DEBUG_MODULE': '0',
     }

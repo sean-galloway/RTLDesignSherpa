@@ -7,7 +7,7 @@
 #
 # The distinction that matters: USE_AXI_MONITORS=0 drops the heavy in-core
 # monitor cones (which is what lets a small part fit), while the inline
-# axi4_intf_observer is instantiated OUTSIDE that gate and keeps producing perf
+# axi4_intf_master_observer is instantiated OUTSIDE that gate and keeps producing perf
 # counts. That separation regressed once -- USE_AXI_MONITORS=0 over-gated the
 # cheap bus meters too and the build reported zeros -- so test_stream_mon now
 # asserts the observer counters are non-zero in this flavor.

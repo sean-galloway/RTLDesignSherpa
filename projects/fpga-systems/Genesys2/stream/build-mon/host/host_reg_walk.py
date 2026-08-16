@@ -20,7 +20,7 @@ Endpoints (bases owned by the address modules, never re-typed here):
     stream_apb   STREAM functional + MON regfile   stream_addrs.STREAM_APB_BASE
     harness_csr  char-harness CSRs                 harness_addrs.HARNESS_CSR_BASE
     slvmon_apb   dma_slave_monitors regblock       slvmon_device.SLVMON_APB_BASE
-    obs_apb      axi4_intf_observer regblock       obs_addrs.OBS_APB_BASE
+    obs_apb      axi4_intf_master_observer regblock       obs_addrs.OBS_APB_BASE
 
 The last two are why this exists. Until the declaration-order fix they were
 wired through IMPLICIT 1-BIT WIRES -- the bridge drove 32 bits, the block
@@ -76,7 +76,7 @@ def _endpoints():
         ("slvmon", "slvmon_apb  dma_slave_monitors",
          slvmon_device._default_regmap(),
          slvmon_device.SLVMON_APB_BASE),
-        ("obs", "obs_apb     axi4_intf_observer",
+        ("obs", "obs_apb     axi4_intf_master_observer",
          obs_addrs._regmap_path(),
          obs_addrs.OBS_APB_BASE),
     ]

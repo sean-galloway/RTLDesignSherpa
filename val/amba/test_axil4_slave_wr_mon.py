@@ -99,7 +99,19 @@ def test_axil4_slave_wr_mon(test_level):
 
     dut_name = "axil4_slave_wr_mon"
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
-    test_name = f"test_{worker_id}_{dut_name}_{test_level}_{reg_level}"
+    # Transaction-table shaping, overridable from the environment. Defaults are
+    # the RTL defaults, so the standing sweep is unchanged. These exist on EVERY
+    # write monitor because the defect they gate is on the write path: the
+    # WID-less select is not ID-matched, so a banked table advanced one
+    # transaction PER BANK on a single W beat. Testing that on axi4 alone would
+    # leave the same parameter unexercised on five other wrappers that share
+    # the mechanism. Both values go in the build directory name -- they change
+    # the elaborated design, and a shared sim_build silently reuses the wrong
+    # binary.
+    num_banks = int(os.environ.get('NUM_BANKS', '1'))
+    use_wq = int(os.environ.get('USE_WDATA_ORDER_Q', '0'))
+
+    test_name = f"test_{worker_id}_{dut_name}_nb{num_banks}_wq{use_wq}_{test_level}_{reg_level}"
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
@@ -124,6 +136,8 @@ def test_axil4_slave_wr_mon(test_level):
         'UNIT_ID': '2',
         'AGENT_ID': '21',
         'MAX_TRANSACTIONS': '8',  # Reduced for AXIL
+        'NUM_BANKS': str(num_banks),
+        'USE_WDATA_ORDER_Q': str(use_wq),
         'ENABLE_FILTERING': '1',
         'SKID_DEPTH_AW': '2',
         'SKID_DEPTH_W': '2',

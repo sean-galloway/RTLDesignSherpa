@@ -31,6 +31,11 @@ module gaxi_skid_buffer (
 	wire w_rd_xfer;
 	assign w_wr_xfer = wr_valid & wr_ready;
 	assign w_rd_xfer = rd_valid & rd_ready;
+	generate
+		if ((((DEPTH != 2) && (DEPTH != 4)) && (DEPTH != 6)) && (DEPTH != 8)) begin : gen_depth_guard
+			initial $display("Error [elaboration] /tmp/formal_axi4_master_rd_mon/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be one of {2,4,6,8}", DEPTH);
+		end
+	endgenerate
 	genvar _gv_gi_1;
 	generate
 		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
@@ -245,6 +250,8 @@ module axi_monitor_addr_check (
 	cmd_valid,
 	cmd_ready,
 	cfg_addr_check_enable,
+	cfg_debug_enable,
+	cfg_error_enable,
 	cfg_addr_range_enable,
 	cfg_addr_range_low,
 	cfg_addr_range_high,
@@ -260,6 +267,7 @@ module axi_monitor_addr_check (
 	parameter [7:0] UNIT_ID = 8'h00;
 	parameter [15:0] AGENT_ID = 16'h0000;
 	parameter [0:0] IS_READ = 1'b1;
+	parameter [N_ADDR_RANGES - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
 	parameter signed [31:0] M = ADDR_WIDTH;
 	parameter signed [31:0] IW = ID_WIDTH;
 	input wire clk;
@@ -271,6 +279,8 @@ module axi_monitor_addr_check (
 	input wire cmd_valid;
 	input wire cmd_ready;
 	input wire cfg_addr_check_enable;
+	input wire cfg_debug_enable;
+	input wire cfg_error_enable;
 	input wire [N_ADDR_RANGES - 1:0] cfg_addr_range_enable;
 	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_low;
 	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_high;
@@ -280,7 +290,7 @@ module axi_monitor_addr_check (
 	output wire [127:0] addr_pkt_data;
 	output wire [63:0] addr_pkt_timestamp;
 	wire cmd_fire;
-	reg [N_ADDR_RANGES - 1:0] hit_oh;
+	reg [N_ADDR_RANGES - 1:0] raw_hit;
 	assign cmd_fire = (cmd_valid && cmd_ready) && cfg_addr_check_enable;
 	always @(*) begin
 		if (_sv2v_0)
@@ -288,16 +298,49 @@ module axi_monitor_addr_check (
 		begin : sv2v_autoblock_1
 			reg signed [31:0] i;
 			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				hit_oh[i] = ((cfg_addr_range_enable[i] && cmd_fire) && (cmd_addr >= cfg_addr_range_low[i * M+:M])) && (cmd_addr <= cfg_addr_range_high[i * M+:M]);
+				raw_hit[i] = (cfg_addr_range_enable[i] && (cmd_addr >= cfg_addr_range_low[i * M+:M])) && (cmd_addr <= cfg_addr_range_high[i * M+:M]);
 		end
 	end
-	reg [N_ADDR_RANGES - 1:0] r_pending;
-	reg [(N_ADDR_RANGES * M) - 1:0] r_lat_addr;
-	reg [(N_ADDR_RANGES * IW) - 1:0] r_lat_id;
-	reg [N_ADDR_RANGES - 1:0] emit_oh;
-	wire emit_any;
-	reg [3:0] emit_idx;
-	assign emit_any = |r_pending;
+	reg [N_ADDR_RANGES - 1:0] debug_hit;
+	reg [N_ADDR_RANGES - 1:0] err_range_en;
+	wire err_hit;
+	wire err_ranges_exist;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_2
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				begin
+					debug_hit[i] = raw_hit[i] && !ADDR_RANGE_IS_ERROR[i];
+					err_range_en[i] = cfg_addr_range_enable[i] && ADDR_RANGE_IS_ERROR[i];
+				end
+		end
+	end
+	assign err_hit = |(raw_hit & ADDR_RANGE_IS_ERROR);
+	assign err_ranges_exist = |err_range_en;
+	reg [N_ADDR_RANGES - 1:0] match_set;
+	wire miss_set;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_3
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				match_set[i] = (cmd_fire && cfg_debug_enable) && debug_hit[i];
+		end
+	end
+	assign miss_set = ((cmd_fire && cfg_error_enable) && err_ranges_exist) && !err_hit;
+	reg [N_ADDR_RANGES - 1:0] r_match_pending;
+	reg [(N_ADDR_RANGES * M) - 1:0] r_match_addr;
+	reg [(N_ADDR_RANGES * IW) - 1:0] r_match_id;
+	reg r_miss_pending;
+	reg [M - 1:0] r_miss_addr;
+	reg [IW - 1:0] r_miss_id;
+	reg [N_ADDR_RANGES - 1:0] match_emit_oh;
+	wire match_emit_any;
+	reg [3:0] match_emit_idx;
+	assign match_emit_any = |r_match_pending;
 	function automatic signed [3:0] sv2v_cast_4_signed;
 		input reg signed [3:0] inp;
 		sv2v_cast_4_signed = inp;
@@ -305,65 +348,92 @@ module axi_monitor_addr_check (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		emit_oh = 1'sb0;
-		emit_idx = 4'h0;
-		begin : sv2v_autoblock_2
+		match_emit_oh = 1'sb0;
+		match_emit_idx = 4'h0;
+		begin : sv2v_autoblock_4
 			reg signed [31:0] i;
 			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				if (r_pending[i] && (emit_oh == {N_ADDR_RANGES {1'sb0}})) begin
-					emit_oh[i] = 1'b1;
-					emit_idx = sv2v_cast_4_signed(i);
+				if (r_match_pending[i] && (match_emit_oh == {N_ADDR_RANGES {1'sb0}})) begin
+					match_emit_oh[i] = 1'b1;
+					match_emit_idx = sv2v_cast_4_signed(i);
 				end
 		end
 	end
-	assign addr_pkt_valid = emit_any && cfg_addr_check_enable;
+	wire emit_is_miss;
+	assign emit_is_miss = r_miss_pending;
+	assign addr_pkt_valid = (r_miss_pending || match_emit_any) && cfg_addr_check_enable;
 	wire accept;
 	assign accept = addr_pkt_valid && addr_pkt_ready;
 	always @(posedge clk)
 		if (!aresetn) begin
-			r_pending <= 1'sb0;
-			r_lat_addr <= 1'sb0;
-			r_lat_id <= 1'sb0;
+			r_match_pending <= 1'sb0;
+			r_match_addr <= 1'sb0;
+			r_match_id <= 1'sb0;
+			r_miss_pending <= 1'b0;
+			r_miss_addr <= 1'sb0;
+			r_miss_id <= 1'sb0;
 		end
 		else begin
-			begin : sv2v_autoblock_3
+			begin : sv2v_autoblock_5
 				reg signed [31:0] i;
 				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-					if (hit_oh[i]) begin
-						r_lat_addr[i * M+:M] <= cmd_addr;
-						r_lat_id[i * IW+:IW] <= cmd_id;
+					if (match_set[i]) begin
+						r_match_addr[i * M+:M] <= cmd_addr;
+						r_match_id[i * IW+:IW] <= cmd_id;
 					end
 			end
-			begin : sv2v_autoblock_4
+			begin : sv2v_autoblock_6
 				reg signed [31:0] i;
 				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-					if (hit_oh[i])
-						r_pending[i] <= 1'b1;
-					else if (accept && emit_oh[i])
-						r_pending[i] <= 1'b0;
+					if (match_set[i])
+						r_match_pending[i] <= 1'b1;
+					else if ((accept && !emit_is_miss) && match_emit_oh[i])
+						r_match_pending[i] <= 1'b0;
 			end
+			if (miss_set) begin
+				r_miss_addr <= cmd_addr;
+				r_miss_id <= cmd_id;
+			end
+			if (miss_set)
+				r_miss_pending <= 1'b1;
+			else if (accept && emit_is_miss)
+				r_miss_pending <= 1'b0;
 		end
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	localparam [3:0] PKT_TYPE_FIELD = monitor_common_pkg_PktTypeError;
-	localparam [3:0] PROTOCOL_FIELD = 4'h0;
-	localparam [7:0] EVENT_CODE = 8'h0d;
+	localparam [3:0] MISS_RANGE_SENTINEL = 4'hf;
+	reg [3:0] pkt_type_field;
+	reg [7:0] event_code_field;
+	reg [3:0] emit_idx;
 	reg [M - 1:0] emit_addr;
 	reg [IW - 1:0] emit_id;
 	wire [8:0] channel_id_field;
 	wire [63:0] event_data_field;
 	wire [59:0] addr_payload;
+	localparam [3:0] monitor_common_pkg_PktTypeAddrMatch = 4'h8;
+	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		emit_addr = 1'sb0;
-		emit_id = 1'sb0;
-		begin : sv2v_autoblock_5
-			reg signed [31:0] i;
-			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				if (emit_oh[i]) begin
-					emit_addr = r_lat_addr[i * M+:M];
-					emit_id = r_lat_id[i * IW+:IW];
-				end
+		if (emit_is_miss) begin
+			pkt_type_field = monitor_common_pkg_PktTypeError;
+			event_code_field = 8'h0d;
+			emit_idx = MISS_RANGE_SENTINEL;
+			emit_addr = r_miss_addr;
+			emit_id = r_miss_id;
+		end
+		else begin
+			pkt_type_field = monitor_common_pkg_PktTypeAddrMatch;
+			event_code_field = 8'h01;
+			emit_idx = match_emit_idx;
+			emit_addr = 1'sb0;
+			emit_id = 1'sb0;
+			begin : sv2v_autoblock_7
+				reg signed [31:0] i;
+				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+					if (match_emit_oh[i]) begin
+						emit_addr = r_match_addr[i * M+:M];
+						emit_id = r_match_id[i * IW+:IW];
+					end
+			end
 		end
 	end
 	generate
@@ -391,7 +461,7 @@ module axi_monitor_addr_check (
 		input reg [63:0] event_data;
 		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
-	assign addr_pkt_data = monitor_common_pkg_create_monitor_packet(PKT_TYPE_FIELD, PROTOCOL_FIELD, EVENT_CODE, channel_id_field, UNIT_ID, AGENT_ID, event_data_field);
+	assign addr_pkt_data = monitor_common_pkg_create_monitor_packet(pkt_type_field, 4'h0, event_code_field, channel_id_field, UNIT_ID, AGENT_ID, event_data_field);
 	assign addr_pkt_timestamp = i_mon_time;
 	initial _sv2v_0 = 0;
 endmodule
@@ -986,7 +1056,7 @@ module fifo_control (
 	rd_almost_empty
 );
 	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 16;
+	parameter signed [31:0] DEPTH = 8;
 	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
 	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
 	parameter signed [31:0] REGISTERED = 0;
@@ -1082,7 +1152,6 @@ module gaxi_fifo_sync (
 	rd_valid,
 	rd_data
 );
-	reg _sv2v_0;
 	parameter signed [31:0] MEM_STYLE = 32'sd0;
 	parameter signed [31:0] REGISTERED = 0;
 	parameter signed [31:0] DATA_WIDTH = 4;
@@ -1111,7 +1180,6 @@ module gaxi_fifo_sync (
 	wire r_wr_almost_full;
 	wire r_rd_empty;
 	wire r_rd_almost_empty;
-	reg [DW - 1:0] w_rd_data;
 	wire w_write;
 	wire w_read;
 	assign w_write = wr_valid && wr_ready;
@@ -1168,18 +1236,16 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
 				always @(posedge axi_aclk)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 		else if (MEM_STYLE == 32'sd2) begin : gen_bram
@@ -1187,11 +1253,13 @@ module gaxi_fifo_sync (
 			always @(posedge axi_aclk)
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
+			reg [DATA_WIDTH - 1:0] r_rd_data;
 			always @(posedge axi_aclk)
 				if (!axi_aresetn)
-					w_rd_data <= 1'sb0;
+					r_rd_data <= 1'sb0;
 				else
-					w_rd_data <= mem[r_rd_addr];
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
 		end
 		else begin : gen_auto
 			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
@@ -1199,29 +1267,25 @@ module gaxi_fifo_sync (
 				if (w_write && !r_wr_full)
 					mem[r_wr_addr] <= wr_data;
 			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
 				always @(posedge axi_aclk)
 					if (!axi_aresetn)
-						w_rd_data <= 1'sb0;
+						r_rd_data <= 1'sb0;
 					else
-						w_rd_data <= mem[r_rd_addr];
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
 			end
 			else begin : g_mux
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					w_rd_data = mem[r_rd_addr];
-				end
+				assign rd_data = mem[r_rd_addr];
 			end
 		end
 	endgenerate
-	assign rd_data = w_rd_data;
 	always @(posedge axi_aclk) begin
 		if (w_write && r_wr_full)
 			;
 		if (w_read && r_rd_empty)
 			;
 	end
-	initial _sv2v_0 = 0;
 endmodule
 module axi_monitor_reporter (
 	aclk,
@@ -1707,15 +1771,15 @@ module axi_monitor_timeout (
 	input wire aresetn;
 	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
 	input wire timer_tick;
-	input wire [3:0] cfg_addr_cnt;
-	input wire [3:0] cfg_data_cnt;
-	input wire [3:0] cfg_resp_cnt;
+	input wire [15:0] cfg_addr_cnt;
+	input wire [15:0] cfg_data_cnt;
+	input wire [15:0] cfg_resp_cnt;
 	input wire cfg_timeout_enable;
 	output wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
-	localparam signed [31:0] TIMER_W = 8;
-	reg [7:0] r_addr_timer [0:MAX_TRANSACTIONS - 1];
-	reg [7:0] r_data_timer [0:MAX_TRANSACTIONS - 1];
-	reg [7:0] r_resp_timer [0:MAX_TRANSACTIONS - 1];
+	localparam signed [31:0] TIMER_W = 16;
+	reg [15:0] r_addr_timer [0:MAX_TRANSACTIONS - 1];
+	reg [15:0] r_data_timer [0:MAX_TRANSACTIONS - 1];
+	reg [15:0] r_resp_timer [0:MAX_TRANSACTIONS - 1];
 	reg [MAX_TRANSACTIONS - 1:0] r_timeout_detected;
 	assign timeout_detected = (cfg_timeout_enable ? r_timeout_detected : {MAX_TRANSACTIONS {1'b0}});
 	reg [MAX_TRANSACTIONS - 1:0] w_addr_pending;
@@ -1775,19 +1839,19 @@ module axi_monitor_timeout (
 						r_resp_timer[idx] <= 1'sb0;
 					if ((cfg_timeout_enable && timer_tick) && !r_timeout_detected[idx]) begin
 						if (w_addr_pending[idx]) begin
-							if (r_addr_timer[idx] >= {4'h0, cfg_addr_cnt})
+							if (r_addr_timer[idx] >= cfg_addr_cnt)
 								r_timeout_detected[idx] <= 1'b1;
 							else
 								r_addr_timer[idx] <= r_addr_timer[idx] + 1'b1;
 						end
 						if (w_data_pending[idx]) begin
-							if (r_data_timer[idx] >= {4'h0, cfg_data_cnt})
+							if (r_data_timer[idx] >= cfg_data_cnt)
 								r_timeout_detected[idx] <= 1'b1;
 							else
 								r_data_timer[idx] <= r_data_timer[idx] + 1'b1;
 						end
 						if (w_resp_pending[idx]) begin
-							if (r_resp_timer[idx] >= {4'h0, cfg_resp_cnt})
+							if (r_resp_timer[idx] >= cfg_resp_cnt)
 								r_timeout_detected[idx] <= 1'b1;
 							else
 								r_resp_timer[idx] <= r_resp_timer[idx] + 1'b1;
@@ -2045,6 +2109,9 @@ module monitor_trans_cam (
 	addr_wants_alloc,
 	data_wants_alloc,
 	resp_wants_alloc,
+	addr_alloc_mask,
+	data_alloc_mask,
+	resp_alloc_mask,
 	addr_alloc_oh,
 	data_alloc_oh,
 	resp_alloc_oh,
@@ -2074,6 +2141,9 @@ module monitor_trans_cam (
 	input wire addr_wants_alloc;
 	input wire data_wants_alloc;
 	input wire resp_wants_alloc;
+	input wire [DEPTH - 1:0] addr_alloc_mask;
+	input wire [DEPTH - 1:0] data_alloc_mask;
+	input wire [DEPTH - 1:0] resp_alloc_mask;
 	output reg [DEPTH - 1:0] addr_alloc_oh;
 	output reg [DEPTH - 1:0] data_alloc_oh;
 	output reg [DEPTH - 1:0] resp_alloc_oh;
@@ -2135,7 +2205,7 @@ module monitor_trans_cam (
 			begin : sv2v_autoblock_4
 				reg signed [31:0] i;
 				for (i = 0; i < DEPTH; i = i + 1)
-					if (!taken && remaining[i]) begin
+					if ((!taken && remaining[i]) && addr_alloc_mask[i]) begin
 						addr_alloc_oh[i] = 1'b1;
 						remaining[i] = 1'b0;
 						taken = 1'b1;
@@ -2147,7 +2217,7 @@ module monitor_trans_cam (
 			begin : sv2v_autoblock_5
 				reg signed [31:0] i;
 				for (i = 0; i < DEPTH; i = i + 1)
-					if (!taken && remaining[i]) begin
+					if ((!taken && remaining[i]) && data_alloc_mask[i]) begin
 						data_alloc_oh[i] = 1'b1;
 						remaining[i] = 1'b0;
 						taken = 1'b1;
@@ -2159,7 +2229,7 @@ module monitor_trans_cam (
 			begin : sv2v_autoblock_6
 				reg signed [31:0] i;
 				for (i = 0; i < DEPTH; i = i + 1)
-					if (!taken && remaining[i]) begin
+					if ((!taken && remaining[i]) && resp_alloc_mask[i]) begin
 						resp_alloc_oh[i] = 1'b1;
 						remaining[i] = 1'b0;
 						taken = 1'b1;
@@ -2225,6 +2295,8 @@ module axi_monitor_trans_mgr (
 	parameter [0:0] IS_READ = 1'b1;
 	parameter [0:0] IS_AXI = 1'b1;
 	parameter [0:0] ENABLE_PERF_PACKETS = 1'b0;
+	parameter [0:0] USE_WDATA_ORDER_Q = 1'b0;
+	parameter signed [31:0] NUM_BANKS = 1;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] IW = ID_WIDTH;
 	input wire aclk;
@@ -2254,115 +2326,277 @@ module axi_monitor_trans_mgr (
 	output wire [MAX_TRANSACTIONS - 1:0] state_change;
 	localparam signed [31:0] N = MAX_TRANSACTIONS;
 	localparam signed [31:0] PAYLOAD_W = 285;
+	localparam signed [31:0] BANK_SLOTS = N / NUM_BANKS;
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	function automatic signed [31:0] sv2v_cast_32_signed;
+		input reg signed [31:0] inp;
+		sv2v_cast_32_signed = inp;
+	endfunction
+	function automatic signed [31:0] bank_of;
+		input reg [IW - 1:0] id;
+		bank_of = (NUM_BANKS > 1 ? sv2v_cast_32_signed(sv2v_cast_32(id) % NUM_BANKS) : 0);
+	endfunction
 	generate
+		if ((NUM_BANKS < 1) || ((NUM_BANKS & (NUM_BANKS - 1)) != 0)) begin : gen_bad_banks
+			initial $display("Error [elaboration] /tmp/formal_axi4_master_rd_mon/axi_monitor_trans_mgr.sv:201:9 - axi_monitor_trans_mgr.gen_bad_banks\n msg: ", "axi_monitor_trans_mgr: NUM_BANKS=%0d must be a power of 2.", NUM_BANKS);
+		end
+		if ((NUM_BANKS > 1) && ((MAX_TRANSACTIONS % NUM_BANKS) != 0)) begin : gen_ragged_banks
+			initial $display("Error [elaboration] /tmp/formal_axi4_master_rd_mon/axi_monitor_trans_mgr.sv:204:9 - axi_monitor_trans_mgr.gen_ragged_banks\n msg: ", "axi_monitor_trans_mgr: MAX_TRANSACTIONS=%0d is not divisible by NUM_BANKS=%0d.", MAX_TRANSACTIONS, NUM_BANKS);
+		end
+		if (((NUM_BANKS > 1) && !IS_READ) && !USE_WDATA_ORDER_Q) begin : gen_banked_wr_needs_widq
+			initial $display("Error [elaboration] /tmp/formal_axi4_master_rd_mon/axi_monitor_trans_mgr.sv:220:9 - axi_monitor_trans_mgr.gen_banked_wr_needs_widq\n msg: ", "axi_monitor_trans_mgr: NUM_BANKS=%0d on a write monitor requires USE_WDATA_ORDER_Q=1 (the WID-less fallback double-counts one W beat across banks).", NUM_BANKS);
+		end
 		if (ID_WIDTH > 8) begin : gen_id_width_unsupported
-			initial $display("Error [elaboration] /tmp/formal_axi4_master_rd_mon/axi_monitor_trans_mgr.sv:163:9 - axi_monitor_trans_mgr.gen_id_width_unsupported\n msg: ", "axi_monitor_trans_mgr: ID_WIDTH=%0d exceeds the 8-bit id field in bus_transaction_t; the table and the CAM key would disagree. Widen bus_transaction_t.id or reduce ID_WIDTH.", ID_WIDTH);
+			initial $display("Error [elaboration] /tmp/formal_axi4_master_rd_mon/axi_monitor_trans_mgr.sv:257:9 - axi_monitor_trans_mgr.gen_id_width_unsupported\n msg: ", "axi_monitor_trans_mgr: ID_WIDTH=%0d exceeds the 8-bit id field in bus_transaction_t; the table and the CAM key would disagree. Widen bus_transaction_t.id or reduce ID_WIDTH.", ID_WIDTH);
 		end
 	endgenerate
-	wire [N - 1:0] addr_match_oh;
-	wire [N - 1:0] data_match_oh;
-	wire [N - 1:0] resp_match_oh;
-	wire [N - 1:0] cam_data_match_first_oh;
-	wire [N - 1:0] free_oh;
-	wire [N - 1:0] addr_alloc_oh;
-	wire [N - 1:0] data_alloc_oh;
-	wire [N - 1:0] resp_alloc_oh;
-	wire [N - 1:0] cam_entry_valid;
-	wire [(N * 285) - 1:0] cam_entry_payload;
+	reg [N - 1:0] addr_match_oh;
+	reg [N - 1:0] data_match_oh;
+	reg [N - 1:0] resp_match_oh;
+	reg [N - 1:0] cam_data_match_first_oh;
+	reg [N - 1:0] free_oh;
+	reg [N - 1:0] addr_alloc_oh;
+	reg [N - 1:0] data_alloc_oh;
+	reg [N - 1:0] resp_alloc_oh;
+	reg [N - 1:0] cam_entry_valid;
+	reg [(N * 285) - 1:0] cam_entry_payload;
 	wire [N - 1:0] cam_entry_we;
 	wire [N - 1:0] cam_entry_valid_next;
-	wire [(N * IW) - 1:0] cam_entry_id_next;
-	wire [(N * 285) - 1:0] cam_entry_payload_next;
+	wire [IW - 1:0] cam_entry_id_next [0:N - 1];
+	wire [284:0] cam_entry_payload_next [0:N - 1];
 	wire addr_wants_alloc;
 	reg data_wants_alloc;
 	reg resp_wants_alloc;
-	monitor_trans_cam #(
-		.DEPTH(N),
-		.ID_WIDTH(IW),
-		.PAYLOAD_WIDTH(PAYLOAD_W)
-	) u_cam(
-		.clk(aclk),
-		.rst_n(aresetn),
-		.clear(clear),
-		.lookup_addr_id(cmd_id),
-		.lookup_data_id(data_id),
-		.lookup_resp_id(resp_id),
-		.addr_match_oh(addr_match_oh),
-		.data_match_oh(data_match_oh),
-		.resp_match_oh(resp_match_oh),
-		.data_match_first_oh(cam_data_match_first_oh),
-		.free_oh(free_oh),
-		.addr_wants_alloc(addr_wants_alloc),
-		.data_wants_alloc(data_wants_alloc),
-		.resp_wants_alloc(resp_wants_alloc),
-		.addr_alloc_oh(addr_alloc_oh),
-		.data_alloc_oh(data_alloc_oh),
-		.resp_alloc_oh(resp_alloc_oh),
-		.entry_we(cam_entry_we),
-		.entry_valid_next(cam_entry_valid_next),
-		.entry_id_next(cam_entry_id_next),
-		.entry_payload_next(cam_entry_payload_next),
-		.entry_valid(cam_entry_valid),
-		.entry_id(),
-		.entry_payload(cam_entry_payload)
-	);
-	localparam signed [31:0] AGEW = (N > 1 ? $clog2(N) : 1);
-	reg [AGEW - 1:0] r_age [0:N - 1];
-	reg [(N * AGEW) - 1:0] w_age_flat;
+	reg [N - 1:0] w_addr_bank_mask;
+	reg [N - 1:0] w_data_bank_mask;
+	reg [N - 1:0] w_resp_bank_mask;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		begin : sv2v_autoblock_1
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
+				begin
+					w_addr_bank_mask[i] = (NUM_BANKS == 1) || ((i / BANK_SLOTS) == bank_of(cmd_id));
+					w_data_bank_mask[i] = (NUM_BANKS == 1) || ((i / BANK_SLOTS) == bank_of(data_id));
+					w_resp_bank_mask[i] = (NUM_BANKS == 1) || ((i / BANK_SLOTS) == bank_of(resp_id));
+				end
+		end
+	end
+	wire [BANK_SLOTS - 1:0] wb_addr_match [0:NUM_BANKS - 1];
+	wire [BANK_SLOTS - 1:0] wb_data_match [0:NUM_BANKS - 1];
+	wire [BANK_SLOTS - 1:0] wb_resp_match [0:NUM_BANKS - 1];
+	wire [BANK_SLOTS - 1:0] wb_data_first [0:NUM_BANKS - 1];
+	wire [BANK_SLOTS - 1:0] wb_free [0:NUM_BANKS - 1];
+	wire [BANK_SLOTS - 1:0] wb_addr_alloc [0:NUM_BANKS - 1];
+	wire [BANK_SLOTS - 1:0] wb_data_alloc [0:NUM_BANKS - 1];
+	wire [BANK_SLOTS - 1:0] wb_resp_alloc [0:NUM_BANKS - 1];
+	wire [BANK_SLOTS - 1:0] wb_entry_valid [0:NUM_BANKS - 1];
+	wire [(BANK_SLOTS * 285) - 1:0] wb_entry_payload [0:NUM_BANKS - 1];
+	reg [BANK_SLOTS - 1:0] wb_entry_we [0:NUM_BANKS - 1];
+	reg [BANK_SLOTS - 1:0] wb_valid_next [0:NUM_BANKS - 1];
+	reg [(BANK_SLOTS * IW) - 1:0] wb_id_next [0:NUM_BANKS - 1];
+	reg [(BANK_SLOTS * 285) - 1:0] wb_payload_next [0:NUM_BANKS - 1];
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_2
+			reg signed [31:0] b;
+			for (b = 0; b < NUM_BANKS; b = b + 1)
+				begin : sv2v_autoblock_3
+					reg signed [31:0] i;
+					for (i = 0; i < BANK_SLOTS; i = i + 1)
+						begin
+							wb_entry_we[b][i] = cam_entry_we[(b * BANK_SLOTS) + i];
+							wb_valid_next[b][i] = cam_entry_valid_next[(b * BANK_SLOTS) + i];
+							wb_id_next[b][((BANK_SLOTS - 1) - i) * IW+:IW] = cam_entry_id_next[(b * BANK_SLOTS) + i];
+							wb_payload_next[b][((BANK_SLOTS - 1) - i) * 285+:285] = cam_entry_payload_next[(b * BANK_SLOTS) + i];
+						end
+				end
+		end
+	end
+	genvar _gv_gb_1;
+	generate
+		for (_gv_gb_1 = 0; _gv_gb_1 < NUM_BANKS; _gv_gb_1 = _gv_gb_1 + 1) begin : g_cam_bank
+			localparam gb = _gv_gb_1;
+			monitor_trans_cam #(
+				.DEPTH(BANK_SLOTS),
+				.ID_WIDTH(IW),
+				.PAYLOAD_WIDTH(PAYLOAD_W)
+			) u_cam(
+				.clk(aclk),
+				.rst_n(aresetn),
+				.clear(clear),
+				.lookup_addr_id(cmd_id),
+				.lookup_data_id(data_id),
+				.lookup_resp_id(resp_id),
+				.addr_match_oh(wb_addr_match[gb]),
+				.data_match_oh(wb_data_match[gb]),
+				.resp_match_oh(wb_resp_match[gb]),
+				.data_match_first_oh(wb_data_first[gb]),
+				.free_oh(wb_free[gb]),
+				.addr_wants_alloc(addr_wants_alloc && (bank_of(cmd_id) == gb)),
+				.data_wants_alloc(data_wants_alloc && (bank_of(data_id) == gb)),
+				.resp_wants_alloc(resp_wants_alloc && (bank_of(resp_id) == gb)),
+				.addr_alloc_mask({BANK_SLOTS {1'b1}}),
+				.data_alloc_mask({BANK_SLOTS {1'b1}}),
+				.resp_alloc_mask({BANK_SLOTS {1'b1}}),
+				.addr_alloc_oh(wb_addr_alloc[gb]),
+				.data_alloc_oh(wb_data_alloc[gb]),
+				.resp_alloc_oh(wb_resp_alloc[gb]),
+				.entry_we(wb_entry_we[gb]),
+				.entry_valid_next(wb_valid_next[gb]),
+				.entry_id_next(wb_id_next[gb]),
+				.entry_payload_next(wb_payload_next[gb]),
+				.entry_valid(wb_entry_valid[gb]),
+				.entry_id(),
+				.entry_payload(wb_entry_payload[gb])
+			);
+		end
+	endgenerate
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_4
+			reg signed [31:0] b;
+			for (b = 0; b < NUM_BANKS; b = b + 1)
+				begin : sv2v_autoblock_5
+					reg signed [31:0] i;
+					for (i = 0; i < BANK_SLOTS; i = i + 1)
+						begin
+							addr_match_oh[(b * BANK_SLOTS) + i] = wb_addr_match[b][i];
+							data_match_oh[(b * BANK_SLOTS) + i] = wb_data_match[b][i];
+							resp_match_oh[(b * BANK_SLOTS) + i] = wb_resp_match[b][i];
+							cam_data_match_first_oh[(b * BANK_SLOTS) + i] = wb_data_first[b][i];
+							free_oh[(b * BANK_SLOTS) + i] = wb_free[b][i];
+							addr_alloc_oh[(b * BANK_SLOTS) + i] = wb_addr_alloc[b][i];
+							data_alloc_oh[(b * BANK_SLOTS) + i] = wb_data_alloc[b][i];
+							resp_alloc_oh[(b * BANK_SLOTS) + i] = wb_resp_alloc[b][i];
+							cam_entry_valid[(b * BANK_SLOTS) + i] = wb_entry_valid[b][i];
+							cam_entry_payload[((N - 1) - ((b * BANK_SLOTS) + i)) * 285+:285] = wb_entry_payload[b][((BANK_SLOTS - 1) - i) * 285+:285];
+						end
+				end
+		end
+	end
+	localparam signed [31:0] AGEW = (N > 1 ? $clog2(N) : 1);
+	reg [AGEW - 1:0] r_age [0:N - 1];
+	reg [(N * AGEW) - 1:0] w_age_flat;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_6
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
 				w_age_flat[i * AGEW+:AGEW] = r_age[i];
 		end
 	end
-	function automatic signed [AGEW - 1:0] sv2v_cast_D1065_signed;
-		input reg signed [AGEW - 1:0] inp;
-		sv2v_cast_D1065_signed = inp;
-	endfunction
 	function automatic [N - 1:0] pick_oldest;
 		input reg [N - 1:0] cand;
 		input reg [(N * AGEW) - 1:0] ages;
 		reg [N - 1:0] res;
-		reg found;
+		reg lose;
 		begin
-			res = 1'sb0;
-			found = 1'b0;
-			begin : sv2v_autoblock_2
-				reg signed [31:0] r;
-				for (r = 0; r < N; r = r + 1)
-					begin : sv2v_autoblock_3
-						reg signed [31:0] i;
-						for (i = 0; i < N; i = i + 1)
-							if ((!found && cand[i]) && (ages[i * AGEW+:AGEW] == sv2v_cast_D1065_signed(r))) begin
-								res[i] = 1'b1;
-								found = 1'b1;
-							end
+			begin : sv2v_autoblock_7
+				reg signed [31:0] i;
+				for (i = 0; i < N; i = i + 1)
+					begin
+						lose = 1'b0;
+						begin : sv2v_autoblock_8
+							reg signed [31:0] j;
+							for (j = 0; j < N; j = j + 1)
+								if (((((i / BANK_SLOTS) == (j / BANK_SLOTS)) && (j != i)) && cand[j]) && ((ages[j * AGEW+:AGEW] < ages[i * AGEW+:AGEW]) || ((ages[j * AGEW+:AGEW] == ages[i * AGEW+:AGEW]) && (j < i))))
+									lose = 1'b1;
+						end
+						res[i] = cand[i] && !lose;
 					end
 			end
 			pick_oldest = res;
 		end
 	endfunction
 	(* keep = "true" *) reg [N - 1:0] w_data_state_pred_oh;
-	reg [N - 1:0] w_data_state_first_oh;
+	wire [N - 1:0] w_data_state_first_oh;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		w_data_state_first_oh = 1'sb0;
-		begin : sv2v_autoblock_4
+		begin : sv2v_autoblock_9
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				w_data_state_pred_oh[i] = ((cam_entry_valid[i] && ((cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h1) || (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h2))) && cam_entry_payload[(((N - 1) - i) * 285) + 283]) && !cam_entry_payload[(((N - 1) - i) * 285) + 281];
 		end
-		w_data_state_first_oh = pick_oldest(w_data_state_pred_oh, w_age_flat);
 	end
+	localparam signed [31:0] SLOTW = (N > 1 ? $clog2(N) : 1);
+	localparam signed [31:0] WQW = (N > 1 ? $clog2(N + 1) : 1);
+	reg [IW - 1:0] r_widq [0:N - 1];
+	reg [WQW - 1:0] r_widq_count;
+	wire [IW - 1:0] w_widq_head;
+	reg [N - 1:0] w_widq_cand_oh;
+	wire w_widq_push;
+	wire w_widq_pop;
+	wire w_widq_head_dead;
+	wire w_widq_bypass;
+	assign w_widq_push = ((!IS_READ && USE_WDATA_ORDER_Q) && cmd_valid) && cmd_ready;
+	assign w_widq_bypass = (r_widq_count == {WQW {1'sb0}}) && w_widq_push;
+	assign w_widq_head = (w_widq_bypass ? cmd_id : r_widq[0]);
+	reg [N - 1:0] w_freeing_oh;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_widq_cand_oh = 1'sb0;
+		if ((!IS_READ && USE_WDATA_ORDER_Q) && ((r_widq_count != {WQW {1'sb0}}) || w_widq_bypass)) begin : sv2v_autoblock_10
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				w_widq_cand_oh[i] = (w_data_state_pred_oh[i] && (cam_entry_payload[(((N - 1) - i) * 285) + 242-:8] == w_widq_head)) && !w_freeing_oh[i];
+		end
+	end
+	assign w_widq_head_dead = (r_widq_count != {WQW {1'sb0}}) && !(|w_widq_cand_oh);
+	assign w_widq_pop = (r_widq_count != {WQW {1'sb0}}) && (((data_valid && data_ready) && data_last) || w_widq_head_dead);
+	assign w_data_state_first_oh = (USE_WDATA_ORDER_Q ? pick_oldest(w_widq_cand_oh, w_age_flat) : pick_oldest(w_data_state_pred_oh, w_age_flat));
+	function automatic signed [WQW - 1:0] sv2v_cast_6C857_signed;
+		input reg signed [WQW - 1:0] inp;
+		sv2v_cast_6C857_signed = inp;
+	endfunction
+	always @(posedge aclk or negedge aresetn)
+		if (!aresetn) begin
+			r_widq_count <= 1'sb0;
+			begin : sv2v_autoblock_11
+				reg signed [31:0] i;
+				for (i = 0; i < N; i = i + 1)
+					r_widq[i] <= 1'sb0;
+			end
+		end
+		else if (clear) begin
+			r_widq_count <= 1'sb0;
+			begin : sv2v_autoblock_12
+				reg signed [31:0] i;
+				for (i = 0; i < N; i = i + 1)
+					r_widq[i] <= 1'sb0;
+			end
+		end
+		else if (!IS_READ && USE_WDATA_ORDER_Q) begin : sv2v_autoblock_13
+			reg [WQW - 1:0] v_cnt;
+			v_cnt = r_widq_count;
+			if (w_widq_pop && (v_cnt != {WQW {1'sb0}})) begin
+				begin : sv2v_autoblock_14
+					reg signed [31:0] i;
+					for (i = 0; i < (N - 1); i = i + 1)
+						r_widq[i] <= r_widq[i + 1];
+				end
+				v_cnt = v_cnt - 1'b1;
+			end
+			if (w_widq_push && (v_cnt < sv2v_cast_6C857_signed(N))) begin
+				r_widq[v_cnt[SLOTW - 1:0]] <= cmd_id;
+				v_cnt = v_cnt + 1'b1;
+			end
+			r_widq_count <= v_cnt;
+		end
 	reg [N - 1:0] w_can_cleanup;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_5
+		begin : sv2v_autoblock_15
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				if (cam_entry_valid[i])
@@ -2375,11 +2609,10 @@ module axi_monitor_trans_mgr (
 					w_can_cleanup[i] = 1'b0;
 		end
 	end
-	reg [N - 1:0] w_freeing_oh;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_6
+		begin : sv2v_autoblock_16
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				w_freeing_oh[i] = cam_entry_valid[i] && w_can_cleanup[i];
@@ -2389,7 +2622,7 @@ module axi_monitor_trans_mgr (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_7
+		begin : sv2v_autoblock_17
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				w_addr_pend_oh[i] = (addr_match_oh[i] && !cam_entry_payload[(((N - 1) - i) * 285) + 283]) && !w_freeing_oh[i];
@@ -2400,20 +2633,22 @@ module axi_monitor_trans_mgr (
 		if (_sv2v_0)
 			;
 		w_addr_alloc_mirror_oh = 1'sb0;
-		if (addr_wants_alloc) begin : sv2v_autoblock_8
+		if (addr_wants_alloc) begin : sv2v_autoblock_18
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
-				if ((w_addr_alloc_mirror_oh == {N {1'sb0}}) && free_oh[i])
+				if (((w_addr_alloc_mirror_oh == {N {1'sb0}}) && free_oh[i]) && w_addr_bank_mask[i])
 					w_addr_alloc_mirror_oh[i] = 1'b1;
 		end
 	end
-	reg [N - 1:0] w_data_cmd_bypass_oh;
 	wire [N - 1:0] addr_update_oh;
+	wire [N - 1:0] data_update_oh;
+	wire [N - 1:0] resp_update_oh;
+	reg [N - 1:0] w_data_cmd_bypass_oh;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_data_cmd_bypass_oh = 1'sb0;
-		if (((!IS_READ && data_valid) && data_ready) && !(|w_data_state_pred_oh)) begin : sv2v_autoblock_9
+		if (((!IS_READ && data_valid) && data_ready) && !(|w_data_state_pred_oh)) begin : sv2v_autoblock_19
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				w_data_cmd_bypass_oh[i] = w_addr_alloc_mirror_oh[i] || ((cmd_valid && addr_update_oh[i]) && (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h1));
@@ -2439,7 +2674,7 @@ module axi_monitor_trans_mgr (
 		if (_sv2v_0)
 			;
 		w_cmd_entry_count = 1'sb0;
-		begin : sv2v_autoblock_10
+		begin : sv2v_autoblock_20
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				if (cam_entry_valid[i] && (cam_entry_payload[(((N - 1) - i) * 285) + 283] || (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h1)))
@@ -2458,8 +2693,6 @@ module axi_monitor_trans_mgr (
 			data_wants_alloc = ((data_valid && data_ready) && !IS_AXI) && !data_hit_any;
 		resp_wants_alloc = ((!IS_READ && resp_valid) && resp_ready) && !resp_hit_any;
 	end
-	wire [N - 1:0] data_update_oh;
-	wire [N - 1:0] resp_update_oh;
 	reg [N - 1:0] w_data_cand_open;
 	reg [N - 1:0] w_data_cand_any;
 	reg [N - 1:0] w_resp_cand_open;
@@ -2467,7 +2700,7 @@ module axi_monitor_trans_mgr (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_11
+		begin : sv2v_autoblock_21
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				begin
@@ -2495,7 +2728,7 @@ module axi_monitor_trans_mgr (
 			r_rpt_stale_mask <= 1'sb0;
 		else if (clear)
 			r_rpt_stale_mask <= 1'sb0;
-		else begin : sv2v_autoblock_12
+		else begin : sv2v_autoblock_22
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				if (w_freeing_oh[i])
@@ -2512,29 +2745,47 @@ module axi_monitor_trans_mgr (
 	reg [AGEW - 1:0] w_age_addr_new;
 	reg [AGEW - 1:0] w_age_data_new;
 	reg [AGEW - 1:0] w_age_resp_new;
-	always @(*) begin : sv2v_autoblock_13
-		reg signed [31:0] surv;
+	function automatic [AGEW - 1:0] sv2v_cast_D1065;
+		input reg [AGEW - 1:0] inp;
+		sv2v_cast_D1065 = inp;
+	endfunction
+	always @(*) begin : sv2v_autoblock_23
+		reg signed [31:0] surv_bank [0:NUM_BANKS - 1];
+		reg signed [31:0] ab;
+		reg signed [31:0] db;
+		reg signed [31:0] rb;
 		if (_sv2v_0)
 			;
-		surv = 0;
-		begin : sv2v_autoblock_14
+		begin : sv2v_autoblock_24
+			reg signed [31:0] b;
+			for (b = 0; b < NUM_BANKS; b = b + 1)
+				surv_bank[b] = 0;
+		end
+		begin : sv2v_autoblock_25
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				if (cam_entry_valid[i] && !w_freeing_oh[i])
-					surv = surv + 1;
+					surv_bank[i / BANK_SLOTS] = surv_bank[i / BANK_SLOTS] + 1;
 		end
-		w_age_addr_new = sv2v_cast_D1065_signed(surv);
-		w_age_data_new = sv2v_cast_D1065_signed(surv + (w_addr_alloc_fire ? 1 : 0));
-		w_age_resp_new = sv2v_cast_D1065_signed((surv + (w_addr_alloc_fire ? 1 : 0)) + (w_data_alloc_fire ? 1 : 0));
+		ab = bank_of(cmd_id);
+		db = bank_of(data_id);
+		rb = bank_of(resp_id);
+		w_age_addr_new = sv2v_cast_D1065(surv_bank[ab]);
+		w_age_data_new = sv2v_cast_D1065(surv_bank[db] + (w_addr_alloc_fire && (ab == db) ? 1 : 0));
+		w_age_resp_new = sv2v_cast_D1065((surv_bank[rb] + (w_addr_alloc_fire && (ab == rb) ? 1 : 0)) + (w_data_alloc_fire && (db == rb) ? 1 : 0));
 	end
 	reg [AGEW - 1:0] w_age_next [0:N - 1];
+	function automatic signed [AGEW - 1:0] sv2v_cast_D1065_signed;
+		input reg signed [AGEW - 1:0] inp;
+		sv2v_cast_D1065_signed = inp;
+	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_15
+		begin : sv2v_autoblock_26
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
-				begin : sv2v_autoblock_16
+				begin : sv2v_autoblock_27
 					reg signed [31:0] dec;
 					dec = 0;
 					w_age_next[i] = r_age[i];
@@ -2545,10 +2796,10 @@ module axi_monitor_trans_mgr (
 					else if (resp_alloc_oh[i])
 						w_age_next[i] = w_age_resp_new;
 					else if (cam_entry_valid[i] && !w_freeing_oh[i]) begin
-						begin : sv2v_autoblock_17
+						begin : sv2v_autoblock_28
 							reg signed [31:0] j;
 							for (j = 0; j < N; j = j + 1)
-								if (w_freeing_oh[j] && (r_age[j] < r_age[i]))
+								if ((((i / BANK_SLOTS) == (j / BANK_SLOTS)) && w_freeing_oh[j]) && (r_age[j] < r_age[i]))
 									dec = dec + 1;
 						end
 						w_age_next[i] = r_age[i] - sv2v_cast_D1065_signed(dec);
@@ -2578,10 +2829,6 @@ module axi_monitor_trans_mgr (
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_ORPHAN = 8'h03;
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_SLVERR = 8'h00;
 	localparam [7:0] monitor_amba4_pkg_EVT_RESP_TIMEOUT = 8'h02;
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
 	generate
 		for (_gv_gi_4 = 0; _gv_gi_4 < N; _gv_gi_4 = _gv_gi_4 + 1) begin : g_entry_next
 			localparam gi = _gv_gi_4;
@@ -2736,8 +2983,8 @@ module axi_monitor_trans_mgr (
 			end
 			assign cam_entry_we[gi] = next_we;
 			assign cam_entry_valid_next[gi] = next[284];
-			assign cam_entry_id_next[((N - 1) - gi) * IW+:IW] = next_id;
-			assign cam_entry_payload_next[((N - 1) - gi) * 285+:285] = next;
+			assign cam_entry_id_next[gi] = next_id;
+			assign cam_entry_payload_next[gi] = next;
 		end
 	endgenerate
 	assign trans_table = cam_entry_payload;
@@ -2747,7 +2994,7 @@ module axi_monitor_trans_mgr (
 		if (_sv2v_0)
 			;
 		w_occupancy = 1'sb0;
-		begin : sv2v_autoblock_18
+		begin : sv2v_autoblock_29
 			reg signed [31:0] i;
 			for (i = 0; i < N; i = i + 1)
 				w_occupancy = w_occupancy + {{$clog2(N + 1) - 1 {1'b0}}, cam_entry_valid[i]};
@@ -2765,7 +3012,7 @@ module axi_monitor_trans_mgr (
 	reg [N - 1:0] r_state_change;
 	always @(posedge aclk)
 		if (!aresetn) begin
-			begin : sv2v_autoblock_19
+			begin : sv2v_autoblock_30
 				reg signed [31:0] i;
 				for (i = 0; i < N; i = i + 1)
 					r_trans_table_prev[((N - 1) - i) * 285+:285] <= 1'sb0;
@@ -2774,7 +3021,7 @@ module axi_monitor_trans_mgr (
 		end
 		else begin
 			r_trans_table_prev <= cam_entry_payload;
-			begin : sv2v_autoblock_20
+			begin : sv2v_autoblock_31
 				reg signed [31:0] i;
 				for (i = 0; i < N; i = i + 1)
 					r_state_change[i] <= (cam_entry_payload[(((N - 1) - i) * 285) + 284] && r_trans_table_prev[(((N - 1) - i) * 285) + 284]) && (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] != r_trans_table_prev[(((N - 1) - i) * 285) + 277-:3]);
@@ -2785,7 +3032,7 @@ module axi_monitor_trans_mgr (
 	initial f_past_ok = 1'b0;
 	always @(posedge aclk) f_past_ok <= aresetn;
 	always @(posedge aclk)
-		if ((IS_READ && aresetn) && f_past_ok) begin : sv2v_autoblock_21
+		if ((IS_READ && aresetn) && f_past_ok) begin : sv2v_autoblock_32
 			reg signed [31:0] fi;
 			for (fi = 0; fi < N; fi = fi + 1)
 				if (cam_entry_valid[fi]) begin : ap_no_reopened_complete
@@ -2793,7 +3040,7 @@ module axi_monitor_trans_mgr (
 				end
 		end
 	always @(posedge aclk)
-		if ((!IS_READ && aresetn) && f_past_ok) begin : sv2v_autoblock_22
+		if ((!IS_READ && aresetn) && f_past_ok) begin : sv2v_autoblock_33
 			reg signed [31:0] fi;
 			for (fi = 0; fi < N; fi = fi + 1)
 				if (cam_entry_valid[fi]) begin : ap_wr_data_phase_has_cmd
@@ -2876,6 +3123,15 @@ module axi_monitor_base (
 	reg _sv2v_0;
 	parameter [7:0] UNIT_ID = 8'h09;
 	parameter [15:0] AGENT_ID = 16'h0063;
+	parameter [0:0] USE_WDATA_ORDER_Q = 1'b0;
+	parameter signed [31:0] NUM_BANKS = 1;
+	parameter [0:0] ID_FILTER_ENABLE = 1'b0;
+	parameter signed [31:0] ID_MATCH_BASE = 0;
+	parameter signed [31:0] ID_MATCH_COUNT = 0;
+	parameter signed [31:0] CFI_MIN_FREQ_MHZ = 100;
+	parameter signed [31:0] CFI_MAX_FREQ_MHZ = 100;
+	parameter signed [31:0] CFI_NUM_FREQ_ENTRIES = 16;
+	parameter signed [31:0] CFI_FREQ_STRATEGY = 0;
 	parameter signed [31:0] MAX_TRANSACTIONS = 16;
 	parameter signed [31:0] ADDR_WIDTH = 32;
 	parameter signed [31:0] ID_WIDTH = 8;
@@ -2893,6 +3149,7 @@ module axi_monitor_base (
 	parameter signed [31:0] INTR_FIFO_DEPTH = 8;
 	parameter signed [31:0] DEBUG_FIFO_DEPTH = 8;
 	parameter signed [31:0] N_ADDR_RANGES = 0;
+	parameter [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] IW = ID_WIDTH;
 	parameter signed [31:0] ADDR_BITS = (ADDR_BITS_IN_PKT > AW ? AW : ADDR_BITS_IN_PKT);
@@ -2916,9 +3173,9 @@ module axi_monitor_base (
 	input wire resp_valid;
 	input wire resp_ready;
 	input wire [3:0] cfg_freq_sel;
-	input wire [3:0] cfg_addr_cnt;
-	input wire [3:0] cfg_data_cnt;
-	input wire [3:0] cfg_resp_cnt;
+	input wire [15:0] cfg_addr_cnt;
+	input wire [15:0] cfg_data_cnt;
+	input wire [15:0] cfg_resp_cnt;
 	input wire cfg_error_enable;
 	input wire cfg_compl_enable;
 	input wire cfg_threshold_enable;
@@ -2982,30 +3239,49 @@ module axi_monitor_base (
 			assign w_debug_monbus_packet = 1'sb0;
 		end
 	endgenerate
+	function automatic signed [31:0] sv2v_cast_32_signed;
+		input reg signed [31:0] inp;
+		sv2v_cast_32_signed = inp;
+	endfunction
+	function automatic id_owned;
+		input reg [IW - 1:0] id;
+		if (!ID_FILTER_ENABLE || (ID_MATCH_COUNT == 0))
+			id_owned = 1'b1;
+		else
+			id_owned = (sv2v_cast_32_signed(id) >= ID_MATCH_BASE) && (sv2v_cast_32_signed(id) < (ID_MATCH_BASE + ID_MATCH_COUNT));
+	endfunction
+	wire w_cmd_valid_f;
+	wire w_data_valid_f;
+	wire w_resp_valid_f;
+	assign w_cmd_valid_f = cmd_valid && id_owned(cmd_id);
+	assign w_data_valid_f = data_valid && id_owned(data_id);
+	assign w_resp_valid_f = resp_valid && id_owned(resp_id);
 	axi_monitor_trans_mgr #(
 		.MAX_TRANSACTIONS(MAX_TRANSACTIONS),
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.ID_WIDTH(ID_WIDTH),
 		.IS_READ(IS_READ),
 		.IS_AXI(IS_AXI),
+		.USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q),
+		.NUM_BANKS(NUM_BANKS),
 		.ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS)
 	) trans_mgr(
 		.aclk(aclk),
 		.aresetn(aresetn),
 		.clear(clear),
-		.cmd_valid(cmd_valid),
+		.cmd_valid(w_cmd_valid_f),
 		.cmd_ready(cmd_ready),
 		.cmd_id(cmd_id),
 		.cmd_addr(cmd_addr),
 		.cmd_len(cmd_len),
 		.cmd_size(cmd_size),
 		.cmd_burst(cmd_burst),
-		.data_valid(data_valid),
+		.data_valid(w_data_valid_f),
 		.data_ready(data_ready),
 		.data_id(data_id),
 		.data_last(data_last),
 		.data_resp(data_resp),
-		.resp_valid(resp_valid),
+		.resp_valid(w_resp_valid_f),
 		.resp_ready(resp_ready),
 		.resp_id(resp_id),
 		.resp_code(resp_code),
@@ -3016,7 +3292,12 @@ module axi_monitor_base (
 		.active_count(w_active_count),
 		.state_change(w_state_change_detected)
 	);
-	axi_monitor_timer timer(
+	axi_monitor_timer #(
+		.CFI_MIN_FREQ_MHZ(CFI_MIN_FREQ_MHZ),
+		.CFI_MAX_FREQ_MHZ(CFI_MAX_FREQ_MHZ),
+		.CFI_NUM_FREQ_ENTRIES(CFI_NUM_FREQ_ENTRIES),
+		.CFI_FREQ_STRATEGY(CFI_FREQ_STRATEGY)
+	) timer(
 		.aclk(aclk),
 		.aresetn(aresetn),
 		.cfg_freq_sel(cfg_freq_sel),
@@ -3088,16 +3369,19 @@ module axi_monitor_base (
 				.ID_WIDTH((ID_WIDTH > 0 ? ID_WIDTH : 1)),
 				.UNIT_ID(UNIT_ID),
 				.AGENT_ID(AGENT_ID),
-				.IS_READ(IS_READ)
+				.IS_READ(IS_READ),
+				.ADDR_RANGE_IS_ERROR(ADDR_RANGE_IS_ERROR)
 			) addr_check(
 				.clk(aclk),
 				.aresetn(aresetn),
 				.i_mon_time(i_mon_time),
 				.cmd_addr(cmd_addr),
 				.cmd_id(cmd_id),
-				.cmd_valid(cmd_valid),
+				.cmd_valid(w_cmd_valid_f),
 				.cmd_ready(cmd_ready),
 				.cfg_addr_check_enable(cfg_addr_check_enable),
+				.cfg_debug_enable(cfg_debug_enable),
+				.cfg_error_enable(cfg_error_enable),
 				.cfg_addr_range_enable(cfg_addr_range_enable),
 				.cfg_addr_range_low(cfg_addr_range_low),
 				.cfg_addr_range_high(cfg_addr_range_high),
@@ -3355,7 +3639,16 @@ module axi_monitor_filtered (
 	reg _sv2v_0;
 	parameter [7:0] UNIT_ID = 8'h01;
 	parameter [15:0] AGENT_ID = 16'h000a;
+	parameter signed [31:0] CFI_MIN_FREQ_MHZ = 100;
+	parameter signed [31:0] CFI_MAX_FREQ_MHZ = 100;
+	parameter signed [31:0] CFI_NUM_FREQ_ENTRIES = 16;
+	parameter signed [31:0] CFI_FREQ_STRATEGY = 0;
 	parameter signed [31:0] MAX_TRANSACTIONS = 16;
+	parameter [0:0] USE_WDATA_ORDER_Q = 1'b0;
+	parameter signed [31:0] NUM_BANKS = 1;
+	parameter [0:0] ID_FILTER_ENABLE = 1'b0;
+	parameter signed [31:0] ID_MATCH_BASE = 0;
+	parameter signed [31:0] ID_MATCH_COUNT = 0;
 	parameter signed [31:0] ADDR_WIDTH = 32;
 	parameter signed [31:0] ID_WIDTH = 8;
 	parameter [0:0] IS_READ = 1'b1;
@@ -3371,6 +3664,7 @@ module axi_monitor_filtered (
 	parameter [0:0] ENABLE_FILTERING = 1;
 	parameter [0:0] ADD_PIPELINE_STAGE = 0;
 	parameter signed [31:0] N_ADDR_RANGES = 0;
+	parameter [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
 	input wire aclk;
 	input wire aresetn;
 	input wire clear;
@@ -3391,9 +3685,9 @@ module axi_monitor_filtered (
 	input wire resp_valid;
 	input wire resp_ready;
 	input wire [3:0] cfg_freq_sel;
-	input wire [3:0] cfg_addr_cnt;
-	input wire [3:0] cfg_data_cnt;
-	input wire [3:0] cfg_resp_cnt;
+	input wire [15:0] cfg_addr_cnt;
+	input wire [15:0] cfg_data_cnt;
+	input wire [15:0] cfg_resp_cnt;
 	input wire cfg_error_enable;
 	input wire cfg_compl_enable;
 	input wire cfg_threshold_enable;
@@ -3460,9 +3754,18 @@ module axi_monitor_filtered (
 	wire [63:0] pipe_timestamp;
 	assign cfg_conflict_error = |(cfg_axi_pkt_mask & cfg_axi_err_select);
 	axi_monitor_base #(
+		.CFI_MIN_FREQ_MHZ(CFI_MIN_FREQ_MHZ),
+		.CFI_MAX_FREQ_MHZ(CFI_MAX_FREQ_MHZ),
+		.CFI_NUM_FREQ_ENTRIES(CFI_NUM_FREQ_ENTRIES),
+		.CFI_FREQ_STRATEGY(CFI_FREQ_STRATEGY),
 		.UNIT_ID(UNIT_ID),
 		.AGENT_ID(AGENT_ID),
 		.MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+		.USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q),
+		.NUM_BANKS(NUM_BANKS),
+		.ID_FILTER_ENABLE(ID_FILTER_ENABLE),
+		.ID_MATCH_BASE(ID_MATCH_BASE),
+		.ID_MATCH_COUNT(ID_MATCH_COUNT),
 		.ADDR_WIDTH(ADDR_WIDTH),
 		.ID_WIDTH(ID_WIDTH),
 		.IS_READ(IS_READ),
@@ -3475,7 +3778,8 @@ module axi_monitor_filtered (
 		.ENABLE_THRESHOLD_LOGIC(ENABLE_THRESHOLD_LOGIC),
 		.ENABLE_PERF_LOGIC(ENABLE_PERF_LOGIC),
 		.ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
-		.N_ADDR_RANGES(N_ADDR_RANGES)
+		.N_ADDR_RANGES(N_ADDR_RANGES),
+		.ADDR_RANGE_IS_ERROR(ADDR_RANGE_IS_ERROR)
 	) u_axi_monitor_base(
 		.aclk(aclk),
 		.aresetn(aresetn),
@@ -3704,6 +4008,7 @@ module axi4_master_rd_mon (
 	active_transactions,
 	error_count,
 	transaction_count,
+	debug_block_ready,
 	window_active,
 	window_cycles,
 	perf_prod_cycles,
@@ -3722,11 +4027,18 @@ module axi4_master_rd_mon (
 	parameter signed [31:0] AXI_DATA_WIDTH = 32;
 	parameter signed [31:0] AXI_USER_WIDTH = 1;
 	parameter signed [31:0] AXI_WSTRB_WIDTH = AXI_DATA_WIDTH / 8;
+	parameter signed [31:0] ACLK_MHZ = 100;
 	parameter [0:0] USE_MONITOR = 1'b1;
 	parameter signed [31:0] N_ADDR_RANGES = 0;
+	parameter [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
 	parameter [7:0] UNIT_ID = 8'h01;
 	parameter [15:0] AGENT_ID = 16'h000a;
 	parameter signed [31:0] MAX_TRANSACTIONS = 16;
+	parameter [0:0] USE_WDATA_ORDER_Q = 1'b0;
+	parameter signed [31:0] NUM_BANKS = 1;
+	parameter [0:0] ID_FILTER_ENABLE = 1'b0;
+	parameter signed [31:0] ID_MATCH_BASE = 0;
+	parameter signed [31:0] ID_MATCH_COUNT = 0;
 	parameter signed [31:0] ACTIVE_TRANS_THRESHOLD = MAX_TRANSACTIONS / 2;
 	parameter [0:0] ENABLE_FILTERING = 1;
 	parameter [0:0] ADD_PIPELINE_STAGE = 0;
@@ -3822,6 +4134,7 @@ module axi4_master_rd_mon (
 	output wire [7:0] active_transactions;
 	output wire [15:0] error_count;
 	output wire [31:0] transaction_count;
+	output wire debug_block_ready;
 	output wire window_active;
 	output wire [31:0] window_cycles;
 	output wire [31:0] perf_prod_cycles;
@@ -3834,6 +4147,8 @@ module axi4_master_rd_mon (
 	output wire cfg_conflict_error;
 	wire w_core_fub_axi_arready;
 	wire w_block_ready;
+	assign debug_block_ready = w_block_ready;
+	wire w_gated_arvalid;
 	axi4_master_rd #(
 		.SKID_DEPTH_AR(SKID_DEPTH_AR),
 		.SKID_DEPTH_R(SKID_DEPTH_R),
@@ -3856,7 +4171,7 @@ module axi4_master_rd_mon (
 		.fub_axi_arqos(fub_axi_arqos),
 		.fub_axi_arregion(fub_axi_arregion),
 		.fub_axi_aruser(fub_axi_aruser),
-		.fub_axi_arvalid(fub_axi_arvalid),
+		.fub_axi_arvalid(w_gated_arvalid),
 		.fub_axi_arready(w_core_fub_axi_arready),
 		.fub_axi_rid(fub_axi_rid),
 		.fub_axi_rdata(fub_axi_rdata),
@@ -3890,13 +4205,13 @@ module axi4_master_rd_mon (
 	wire w_mon_cmd_valid;
 	wire w_mon_data_valid;
 	wire w_mon_resp_valid;
-	wire [3:0] w_timeout_cnt;
+	wire [15:0] w_timeout_cnt;
 	wire [15:0] w_perf_completed_count;
 	wire [15:0] w_perf_error_count;
 	assign w_mon_cmd_valid = m_axi_arvalid & cfg_monitor_enable;
 	assign w_mon_data_valid = m_axi_rvalid & cfg_monitor_enable;
 	assign w_mon_resp_valid = (m_axi_rvalid && m_axi_rlast) & cfg_monitor_enable;
-	assign w_timeout_cnt = (cfg_timeout_cycles == 16'h0000 ? 4'hf : (|cfg_timeout_cycles[15:4] ? 4'hf : cfg_timeout_cycles[3:0]));
+	assign w_timeout_cnt = (cfg_timeout_cycles == 16'h0000 ? 16'hffff : cfg_timeout_cycles);
 	function automatic signed [15:0] sv2v_cast_16_signed;
 		input reg signed [15:0] inp;
 		sv2v_cast_16_signed = inp;
@@ -3904,9 +4219,16 @@ module axi4_master_rd_mon (
 	generate
 		if (USE_MONITOR) begin : gen_monitor
 			axi_monitor_filtered #(
+				.CFI_MIN_FREQ_MHZ(ACLK_MHZ),
+				.CFI_MAX_FREQ_MHZ(ACLK_MHZ),
 				.UNIT_ID(UNIT_ID),
 				.AGENT_ID(AGENT_ID),
 				.MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+				.USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q),
+				.NUM_BANKS(NUM_BANKS),
+				.ID_FILTER_ENABLE(ID_FILTER_ENABLE),
+				.ID_MATCH_BASE(ID_MATCH_BASE),
+				.ID_MATCH_COUNT(ID_MATCH_COUNT),
 				.ADDR_WIDTH(AW),
 				.ID_WIDTH(IW),
 				.IS_READ(1'b1),
@@ -3921,7 +4243,8 @@ module axi4_master_rd_mon (
 				.ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
 				.ENABLE_FILTERING(ENABLE_FILTERING),
 				.ADD_PIPELINE_STAGE(ADD_PIPELINE_STAGE),
-				.N_ADDR_RANGES(N_ADDR_RANGES)
+				.N_ADDR_RANGES(N_ADDR_RANGES),
+				.ADDR_RANGE_IS_ERROR(ADDR_RANGE_IS_ERROR)
 			) axi_monitor_inst(
 				.aclk(aclk),
 				.aresetn(aresetn),
@@ -3943,7 +4266,7 @@ module axi4_master_rd_mon (
 				.resp_code(m_axi_rresp),
 				.resp_valid(w_mon_resp_valid),
 				.resp_ready(m_axi_rready),
-				.cfg_freq_sel(4'b0001),
+				.cfg_freq_sel(4'b0000),
 				.cfg_addr_cnt(w_timeout_cnt),
 				.cfg_data_cnt(w_timeout_cnt),
 				.cfg_resp_cnt(w_timeout_cnt),
@@ -4016,6 +4339,7 @@ module axi4_master_rd_mon (
 			assign perf_burst_count = 32'h00000000;
 		end
 	endgenerate
+	assign w_gated_arvalid = fub_axi_arvalid & (w_block_ready | ~cfg_monitor_enable);
 	assign fub_axi_arready = w_core_fub_axi_arready & (w_block_ready | ~cfg_monitor_enable);
 	assign error_count = w_perf_error_count;
 	assign transaction_count = {16'h0000, w_perf_completed_count};

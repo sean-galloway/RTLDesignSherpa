@@ -11,7 +11,6 @@
 - [Shared Infrastructure Documentation Status](shared/DOCUMENTATION_STATUS.md)
 - [AMBA Shared Infrastructure](shared/README.md)
 - [AMBA Clock Gate Controller](shared/amba_clock_gate_ctrl.md)
-- [AXI4 DMA Observer](shared/axi4_dma_observer.md)
 - [AXI4 DMA Slaves](shared/axi4_dma_slaves.md)
 - [AXI4 Master Read CRC Checker](shared/axi4_master_rd_crc_check.md)
 - [AXI4 Master Write Pattern Generator](shared/axi4_master_wr_pattern_gen.md)

@@ -16,7 +16,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4_dma_slaves.f
 -f $FRAMEWORK_ROOT/rtl/filelists/instrumentation_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
--f $MISC_ROOT/rtl/filelists/axi4_intf_observer.f
+-f $MISC_ROOT/rtl/filelists/axi4_intf_master_observer.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f

@@ -82,7 +82,7 @@ suite is [[host-tools]]; the object-by-object catalogue is [[host-objects]].
 
 **What "monitors off" does and does not turn off.** The heavy in-core monitor
 cones are gone -- which is what lets the design fit a smaller part and run all
-8 channels -- but the inline `axi4_intf_observer` is instantiated OUTSIDE that
+8 channels -- but the inline `axi4_intf_master_observer` is instantiated OUTSIDE that
 gate and keeps metering the bus. That separation is the whole reason a perf
 build is useful, and it regressed once: `USE_AXI_MONITORS=0` over-gated the
 cheap always-on bus meters too, and the build reported zeros that looked like

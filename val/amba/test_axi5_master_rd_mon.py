@@ -114,7 +114,16 @@ def test_axi5_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
 
     dut_name = "axi5_master_rd_mon"
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
-    test_name = f"test_{worker_id}_{dut_name}_iw{id_width}_aw{addr_width}_dw{data_width}_mt{max_trans}_sk{skid_ar}x{skid_r}_{test_level}_{reg_level}"
+    # Transaction-table shaping, overridable from the environment. The READ
+    # select is ID-matched, so banking should not disturb it -- but "should not"
+    # is exactly the reasoning that left the WRITE path's banked double-count
+    # unexercised until it was found by inspection. A parameter no test can
+    # express is a parameter nobody is checking. Both go in the build directory
+    # name: they change the elaborated design.
+    num_banks = int(os.environ.get('NUM_BANKS', '1'))
+    use_wq = int(os.environ.get('USE_WDATA_ORDER_Q', '0'))
+
+    test_name = f"test_{worker_id}_{dut_name}_iw{id_width}_aw{addr_width}_dw{data_width}_mt{max_trans}_sk{skid_ar}x{skid_r}_nb{num_banks}_wq{use_wq}_{test_level}_{reg_level}"
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
@@ -140,6 +149,8 @@ def test_axi5_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
         'UNIT_ID': '1',
         'AGENT_ID': '10',
         'MAX_TRANSACTIONS': str(max_trans),
+        'NUM_BANKS': str(num_banks),
+        'USE_WDATA_ORDER_Q': str(use_wq),
         'ENABLE_FILTERING': '1',
         'SKID_DEPTH_AR': str(skid_ar),
         'SKID_DEPTH_R': str(skid_r),

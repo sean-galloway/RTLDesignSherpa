@@ -40,7 +40,7 @@ certainly shares the patterns — audit and fix all three:
 `rapids_regmap.py`, the top/kick tests fail if a kick does not fetch a
 descriptor, and no register is hand-added.
 
-## RAPIDS-OBS — adopt the shared instrumentation pair (axi4_intf_observer + dma_slave_monitors)
+## RAPIDS-OBS — adopt the shared instrumentation pair (axi4_intf_master_observer + dma_slave_monitors)
 **Status:** open 2026-08-05
 
 The beats HAS (`ch06_performance/01_throughput`) already commits to measuring
@@ -48,7 +48,7 @@ per-direction bus utilization with the same instrument STREAM uses, and names
 wiring it into `rapids_char_harness` as the remaining step. Two things changed
 on 2026-08-05 that make that cheaper than it was:
 
-- **`axi4_dma_observer` -> `axi4_intf_observer`**, moved to
+- **`axi4_dma_observer` -> `axi4_intf_master_observer`**, moved to
   `projects/components/misc/rtl/`. The old name was a misnomer (its own header
   said "DMA-agnostic") and read wrong for a block shared by a DMA, a memory
   controller and a characterization harness.
@@ -61,7 +61,7 @@ on 2026-08-05 that make that cheaper than it was:
 regblock, `slvmon_regs`), since rapids-beats uses the monitored-slave wrapper
 too:
 
-    -f $MISC_ROOT/rtl/filelists/axi4_intf_observer.f
+    -f $MISC_ROOT/rtl/filelists/axi4_intf_master_observer.f
     -f $MISC_ROOT/rtl/filelists/dma_slave_monitors.f
 
 **Why it matters:** RAPIDS maps to the observer better than STREAM does -- a

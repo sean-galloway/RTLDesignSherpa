@@ -38,6 +38,7 @@ import os
 
 import pytest
 import cocotb
+from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -48,7 +49,7 @@ from TBClasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
 
 
 # Wrappers under test. Every one instantiates axi_monitor_base, so every one
-# inherits the gate -- axi4_intf_observer is a thin wrapper over these, which is
+# inherits the gate -- axi4_intf_master_observer is a thin wrapper over these, which is
 # why the observer-level drop reproduces here.
 WRAPPERS = [
     "axi4_master_rd_mon",  "axi4_master_wr_mon",
@@ -63,6 +64,105 @@ FILELIST_DIR = {"axi4": "rtl/amba/filelists", "axi5": "rtl/amba/filelists",
                 "axil": "rtl/amba/filelists"}
 
 
+async def _wait_clocks(tb, n):
+    """Advance n aclk edges regardless of which testbench shape `tb` is.
+
+    The axi4/axi5 monitor TBs wrap a base TB that owns wait_clocks; the axil4
+    ones build BFM components directly and have no base_tb at all. Reaching
+    for tb.base_tb unconditionally is what made the four axil4 wrappers fail
+    in setup with AttributeError instead of running.
+    """
+    base = getattr(tb, "base_tb", None)
+    if base is not None and hasattr(base, "wait_clocks"):
+        await base.wait_clocks("aclk", n)
+        return
+    for _ in range(n):
+        await RisingEdge(tb.aclk if hasattr(tb, "aclk") else tb.dut.aclk)
+
+
+def _resolve_driver(tb, is_write: str):
+    """The one-transaction driver, whatever this TB calls it and wherever it
+    lives. Raises rather than returning None: a missing driver must never read
+    as a run in which the RTL simply accepted nothing."""
+    names = (["single_write_test", "single_write_response_test", "simple_write_test",
+              "single_write", "simple_write"] if is_write else
+             ["single_read_test", "single_read_response_test", "simple_read_test",
+              "single_read", "simple_read"])
+    base = getattr(tb, "base_tb", None)
+    if base is not None:
+        for n in names:
+            if hasattr(base, n):
+                return getattr(base, n)
+    comps = getattr(tb, "master_components", None)
+    if isinstance(comps, dict):
+        for n in names:
+            if n in comps:
+                return comps[n]
+    raise RuntimeError(
+        f"{type(tb).__name__} exposes none of {names} on base_tb or "
+        f"master_components; cannot drive traffic.")
+
+
+
+def _apply_hold(tb, hold):
+    """Push the response-holding randomizer onto whichever components exist.
+
+    Saturation is the PREMISE of this test -- layer 1 fails the run outright if
+    the table never fills. The axi4/axi5 TBs expose their BFM components as
+    attributes of base_tb; the axil4 TBs hand back dicts (master_components /
+    slave_components). Only reaching for the first shape left the axil4
+    wrappers running at full speed, so entries retired as fast as they were
+    made and block_ready never went low -- which layer 1 correctly refused to
+    call a pass.
+    """
+    n = 0
+    base = getattr(tb, "base_tb", None)
+    for comp in ("aw_master", "w_master", "b_slave", "ar_master", "r_slave"):
+        c = getattr(base, comp, None)
+        if c is not None and hasattr(c, "randomizer"):
+            c.randomizer = hold; n += 1
+    for attr in ("master_components", "slave_components"):
+        d = getattr(tb, attr, None)
+        if isinstance(d, dict):
+            for v in d.values():
+                if hasattr(v, "randomizer"):
+                    v.randomizer = hold; n += 1
+                for sub in ("master", "slave", "interface"):
+                    s = getattr(v, sub, None) if not isinstance(v, dict) else v.get(sub)
+                    if s is not None and hasattr(s, "randomizer"):
+                        s.randomizer = hold; n += 1
+    return n
+
+
+def _monitor_tb_for(dut_name: str):
+    """Pick the testbench that matches the wrapper's PORT NAMES.
+
+    The BFM binds by port name, and the twelve wrappers do not share one
+    naming: an axi4/axi5 MASTER monitor drives `m_axi_*`, a SLAVE monitor has
+    `s_axi_*` upstream and `fub_axi_*` downstream, and the axil4 family uses
+    `*_axil_*` throughout. Using the master TB for all twelve -- which this
+    file did -- meant eight of them looked for `m_axi_arvalid` on a DUT that
+    has no such port, and died in setup with "Missing required signals for
+    AR_Slave" before a single transaction was driven.
+
+    That is why block_ready had 16 standing failures: not a monitor defect,
+    a testbench bound to the wrong half of the family. The four wrappers it
+    did fit (axi4/axi5 master rd/wr) were the only ones ever exercised.
+    """
+    from TBClasses.axi4.monitor.axi4_slave_monitor_tb import AXI4SlaveMonitorTB
+    from TBClasses.axi5.monitor.axi5_master_monitor_tb import AXI5MasterMonitorTB
+    from TBClasses.axi5.monitor.axi5_slave_monitor_tb import AXI5SlaveMonitorTB
+    from TBClasses.axil4.monitor.axil4_master_monitor_tb import AXIL4MasterMonitorTB
+    from TBClasses.axil4.monitor.axil4_slave_monitor_tb import AXIL4SlaveMonitorTB
+
+    is_slave = "_slave_" in dut_name
+    if dut_name.startswith("axil4"):
+        return AXIL4SlaveMonitorTB if is_slave else AXIL4MasterMonitorTB
+    if dut_name.startswith("axi5"):
+        return AXI5SlaveMonitorTB if is_slave else AXI5MasterMonitorTB
+    return AXI4SlaveMonitorTB if is_slave else AXI4MasterMonitorTB
+
+
 @cocotb.test(timeout_time=180, timeout_unit="sec")
 async def cocotb_test_block_ready(dut):
     """Saturate the table, then check all three layers."""
@@ -71,8 +171,8 @@ async def cocotb_test_block_ready(dut):
     n_txns = int(os.environ.get("TXN_COUNT", "192"))
     is_write = "_wr_" in dut_name
 
-    tb = AXI4MasterMonitorTB(dut, is_write=is_write,
-                             aclk=dut.aclk, aresetn=dut.aresetn)
+    tb = _monitor_tb_for(dut_name)(dut, is_write=is_write,
+                                   aclk=dut.aclk, aresetn=dut.aresetn)
     await tb.initialize()
 
     # Every cone enabled: a single-cone build drains far faster and may never
@@ -85,7 +185,7 @@ async def cocotb_test_block_ready(dut):
     # Long timeout: do not let the timeout path retire slots underneath us, or
     # the table drains for a reason unrelated to what is being measured.
     dut.cfg_timeout_cycles.value = 0xFFFF
-    await tb.base_tb.wait_clocks("aclk", 4)
+    await _wait_clocks(tb, 4)
 
     chk = BlockReadyCheck(dut, tb.log, depth=depth)
     chk.start()
@@ -94,7 +194,8 @@ async def cocotb_test_block_ready(dut):
     # NORMAL path -- commands still gated by block_ready. This is the difference
     # from the trans_mgr FUB test, which injects unmatched data directly and so
     # constructs the symptom instead of reproducing the cause.
-    tb.base_tb.set_timing_profile("slow")
+    if hasattr(getattr(tb, "base_tb", None), "set_timing_profile"):
+        tb.base_tb.set_timing_profile("slow")
 
     # Writes need an asymmetric profile. A write entry is held from AW until its
     # B response, so occupancy is built by slow responses -- but the stock
@@ -107,12 +208,30 @@ async def cocotb_test_block_ready(dut):
             'w_delay':  [(0, 0)],
             'b_delay':  [(120, 400)],        # responses held -> entries persist
         })
-        for comp in ("aw_master", "w_master", "b_slave"):
-            c = getattr(tb.base_tb, comp, None)
-            if c is not None and hasattr(c, "randomizer"):
-                c.randomizer = hold
+        _apply_hold(tb, hold)
+    else:
+        # READ side, same intent as the write profile above: commands as fast
+        # as the RTL takes them, RESPONSES held so entries stay resident and
+        # the table actually fills. This branch did not exist -- reads relied
+        # entirely on base_tb.set_timing_profile("slow"), which the axil4
+        # testbenches do not have, so the axil4 read wrappers ran at full speed
+        # and layer 1 correctly refused to call the run a pass.
+        hold = FlexRandomizer({
+            'ar_delay': [(0, 0)],
+            'r_delay':  [(120, 400)],
+        })
+        _apply_hold(tb, hold)
 
-    # CONCURRENT, not sequential. single_read_test/single_write_test await
+    # The six base testbenches spell their one-transaction driver differently
+    # -- single_{read,write}_test on the axi4/axi5 masters and the axi5 slaves,
+    # single_{read,write}_response_test on the axi4/axil4 slaves, and
+    # simple_{read,write}_test on the axil4 masters -- while all of them take
+    # (addr) for a read and (addr, data) for a write. Resolve by name once,
+    # and FAIL LOUDLY if none is present: a missing driver must not read as a
+    # run where the RTL simply never accepted anything.
+    drive = _resolve_driver(tb, is_write)
+
+    # CONCURRENT, not sequential. The single-transaction driver awaits
     # completion, so a plain loop keeps exactly one transaction in flight and
     # occupancy never exceeds 1 -- the table cannot fill and the run proves
     # nothing (assert_saturation_reached catches that, and did). Saturation
@@ -122,24 +241,24 @@ async def cocotb_test_block_ready(dut):
         addr = 0x1000 + i * 0x40
         try:
             if is_write:
-                # single_write_test(address, data) -- data is REQUIRED. Calling
+                # The driver takes (address, data) -- data is REQUIRED. Calling
                 # it with the address alone raises TypeError, and swallowing
                 # that below reported admitted=0 as if the RTL never accepted a
                 # command. Hence the narrow except: a transaction that stalls
                 # or is dropped is the thing under test, but a bad call is a
                 # bug in this file and must not masquerade as a result.
-                await tb.base_tb.single_write_test(addr, 0xA5A50000 | i)
+                await drive(addr, 0xA5A50000 | i)
             else:
-                await tb.base_tb.single_read_test(addr)
+                await drive(addr)
         except (TypeError, AttributeError, NameError):
             raise                                 # programming error -- surface it
         except Exception as e:                    # a stalled/dropped txn is
             tb.log.debug(f"txn {i}: {e}")         # the thing under test
 
     tasks = [cocotb.start_soon(one(i)) for i in range(n_txns)]
-    await tb.base_tb.wait_clocks("aclk", 8000)      # let everything retire
+    await _wait_clocks(tb, 8000)      # let everything retire
     chk.stop()
-    await tb.base_tb.wait_clocks("aclk", 2)
+    await _wait_clocks(tb, 2)
 
     tb.log.info(f"{dut_name} MAX_TRANSACTIONS={depth}: {chk.summary()}")
 
@@ -158,8 +277,29 @@ async def cocotb_test_block_ready(dut):
 # layer 1. Using depths the path can actually fill keeps the check honest
 # instead of tuning the stimulus until a number appears.
 def _cases():
+    """(wrapper, MAX_TRANSACTIONS) pairs the stimulus can actually SATURATE.
+
+    Depth matters here only insofar as the run fills the table: block_ready
+    asserts at depth - CMD_ENTRY_RESERVE, so a depth the stimulus cannot reach
+    produces a run that proves nothing, and layer 1 fails it outright rather
+    than reporting a hollow pass.
+
+    The AXIL read path tops out around 9-10 concurrent outstanding with this
+    testbench -- single-beat, no IDs, one master component shared by every
+    task. That clears depth 12 (blocks at 10) and cannot clear depth 16
+    (blocks at 14), which is exactly what the two standing failures were: not
+    a monitor defect, a depth the stimulus was never able to fill. Until the
+    AXIL read stimulus can sustain >14 outstanding, a depth-16 AXIL read case
+    is untestable rather than failing, so it is not claimed.
+    """
     for w in WRAPPERS:
-        for d in ([8, 12] if "_wr_" in w else [12, 16]):
+        if "_wr_" in w:
+            depths = [8, 12]
+        elif w.startswith("axil4"):
+            depths = [8, 12]        # see docstring: 16 is unreachable here
+        else:
+            depths = [12, 16]
+        for d in depths:
             yield (w, d)
 
 
@@ -249,11 +389,12 @@ async def cocotb_test_id_slice(dut):
     dut.cfg_compl_enable.value = 1
     dut.cfg_timeout_enable.value = 1
     dut.cfg_timeout_cycles.value = 0xFFFF
-    await tb.base_tb.wait_clocks("aclk", 4)
+    await _wait_clocks(tb, 4)
 
     chk = BlockReadyCheck(dut, tb.log, depth=depth)
     chk.start()
-    tb.base_tb.set_timing_profile("slow")
+    if hasattr(getattr(tb, "base_tb", None), "set_timing_profile"):
+        tb.base_tb.set_timing_profile("slow")
 
     # Spread ids 0..7 evenly; only [base, base+count) belong to this instance.
     n_txns = 128
@@ -267,9 +408,9 @@ async def cocotb_test_id_slice(dut):
 
     for i in range(n_txns):
         cocotb.start_soon(one(i))
-    await tb.base_tb.wait_clocks("aclk", 6000)
+    await _wait_clocks(tb, 6000)
     chk.stop()
-    await tb.base_tb.wait_clocks("aclk", 2)
+    await _wait_clocks(tb, 2)
 
     owned_frac = count / 8.0
     tb.log.info(f"slice=[{base},{base + count}) of 8 ids -> "

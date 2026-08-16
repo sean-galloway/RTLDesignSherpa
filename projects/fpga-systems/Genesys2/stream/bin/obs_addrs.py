@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""By-name addresses for the axi4_intf_observer's own regblock (obs_regs).
+"""By-name addresses for the axi4_intf_master_observer's own regblock (obs_regs).
 
 The observer owns its configuration since it grew an APB slave, so it needs the
 same by-name accessor every other block has. Without one, callers hardcode

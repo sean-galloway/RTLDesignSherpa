@@ -56,6 +56,18 @@ module axi_monitor_filtered
     parameter int CFI_NUM_FREQ_ENTRIES = 16,
     parameter int CFI_FREQ_STRATEGY    = 0,
     parameter int MAX_TRANSACTIONS       = 16,
+    // ID-range filter, passed through to axi_monitor_base. Default OFF ->
+    // bit-identical to before. See axi_monitor_base for why this exists:
+    // several monitors snooping one ID-multiplexed bus, each owning a slice,
+    // so no single transaction table has to hold the whole concurrency.
+    // Transaction-table shaping, forwarded to axi_monitor_trans_mgr.
+    // Defaults reproduce today's behaviour exactly; see that module for the
+    // AW-order queue and the bank sizing rule.
+    parameter bit USE_WDATA_ORDER_Q      = 1'b0,
+    parameter int NUM_BANKS              = 1,
+    parameter bit ID_FILTER_ENABLE       = 1'b0,
+    parameter int ID_MATCH_BASE          = 0,
+    parameter int ID_MATCH_COUNT         = 0,
     parameter int ADDR_WIDTH             = 32,
     parameter int ID_WIDTH               = 8,
     parameter bit IS_READ                = 1'b1,
@@ -234,6 +246,11 @@ module axi_monitor_filtered
         .UNIT_ID                 (UNIT_ID),
         .AGENT_ID                (AGENT_ID),
         .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
+            .USE_WDATA_ORDER_Q       (USE_WDATA_ORDER_Q),
+            .NUM_BANKS               (NUM_BANKS),
+            .ID_FILTER_ENABLE        (ID_FILTER_ENABLE),
+            .ID_MATCH_BASE           (ID_MATCH_BASE),
+            .ID_MATCH_COUNT          (ID_MATCH_COUNT),
         .ADDR_WIDTH              (ADDR_WIDTH),
         .ID_WIDTH                (ID_WIDTH),
         .IS_READ                 (IS_READ),

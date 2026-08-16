@@ -6,7 +6,7 @@
 # ports for the harness to tie off.
 #
 # In misc/ because it is NOT stream-specific -- rapids-beats uses the same
-# instrumentation pair (this and axi4_intf_observer), and its HAS already names
+# instrumentation pair (this and axi4_intf_master_observer), and its HAS already names
 # the observer as "the shared, DMA-agnostic" instrument. It was briefly placed
 # in the stream component on the assumption only stream used it; that was the
 # same wrong assumption made about the observer an hour earlier.

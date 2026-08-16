@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Read the axi4_intf_observer's 4-bucket bus meters over UART.
+"""Read the axi4_intf_master_observer's 4-bucket bus meters over UART.
 
 The observer taps STREAM's shared read/write AXI masters INLINE and is not
 gated by USE_AXI_MONITORS, so these counters are live in the perf flavor --

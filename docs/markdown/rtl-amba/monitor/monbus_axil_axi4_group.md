@@ -309,7 +309,7 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 - **monbus_axil_axil_group.sv** — Same drain, AXIL single-beat master-write
 - **monbus_axi4_axil_group.sv** / **monbus_axi4_axi4_group.sv** — AXI4-burst slave-read variants
 - **monbus_arbiter.sv** — Upstream multi-source merge (instantiate before this wrapper for N>1 sources)
-- **axi4_dma_observer.sv** — Instantiates this wrapper as its central filter + err FIFO + dump writer
+- **axi4_intf_master_observer.sv** — Instantiates this wrapper as its central filter + err FIFO + dump writer (`projects/components/misc/rtl/`)
 
 ---
 
