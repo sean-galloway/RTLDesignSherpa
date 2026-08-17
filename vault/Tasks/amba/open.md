@@ -967,11 +967,25 @@ Two blockers already cleared, do not re-derive them:
                          rlast[1], rresp[3:2])
    AXI ports are `r_s_axi_*` (inputs) and `w_s_axi_*` (outputs), not `s_axi_*`.
 
-**The remaining defect is mine, in the test:** the AR packet bit offsets were
-derived by counting field widths by hand rather than against the DUT's
-parameter widths, so the read never starts and no R beat appears. Recompute
-the offsets from `AXI_ID_WIDTH`/`AXI_ADDR_WIDTH`/`AXI_USER_WIDTH` as the RTL
-declares them, then **confirm the test fails on the PRE-FIX RRESP logic**
+**AR offsets: FIXED.** They are now derived from the declared widths --
+`ARSize = IW + AW + 8+3+2+1+4+3+4+4 + UW`, packed MSB..LSB, giving LSB offsets
+user 0, region 1, qos 5, prot 9, cache 12, lock 16, burst 17, size 19, len 22,
+addr 30, id 62. The hand-counted version was wrong on every field.
+
+**REMAINING FAILURE (next thing to chase):** `SimTimeoutError`. The test now
+hangs in `_slice()`, which spins on `while True: await RisingEdge; if
+w_rsp_ready: break` -- so the converter never asserts `w_rsp_ready` and never
+opens its response path for this stimulus. Two candidates, in order:
+  (a) the AR is accepted but the converter expects the APB COMMAND side to be
+      consumed first -- `r_cmd_valid`/`w_cmd_ready` are also ports, and the TB
+      drives neither, so the command may never leave and no response is
+      expected;
+  (b) `arsize=3` (8 bytes) against `APB_DATA_WIDTH=32` may not produce the 2:1
+      slicing assumed -- check `axi2abpratio` for the chosen parameters.
+Add a bounded timeout to `_slice()` with a clear message rather than an
+infinite spin, so the next failure names itself instead of hanging.
+
+Then **confirm the test fails on the PRE-FIX RRESP logic**
 (revert `w_resp_rd` to `(w_pslverr) ? 2'b10 : 2'b00` and require RED) before
 trusting a green run. Every other fix in this cluster was mutation-proven; this
 one is not, and a readback test that passes on broken RTL is the exact failure
