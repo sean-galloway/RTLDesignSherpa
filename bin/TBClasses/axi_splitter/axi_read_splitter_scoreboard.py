@@ -507,13 +507,32 @@ class AxiReadSplitterScoreboard:
         if len(split_ars) > 1:
             # SPLIT TRANSACTION: Verify aggregate correctness
             last_signals = [r for r in responses if r.last == 1]
-            expected_last_count = len(split_ars)
+            # CONSOLIDATED RLAST: the upstream burst is ONE transaction, so it
+            # sees exactly ONE RLAST -- on the final beat of the ORIGINAL
+            # request -- no matter how many splits went downstream.
+            #
+            # This used to expect len(split_ars), i.e. one RLAST per split.
+            # That is what the RTL did, and it is wrong for any generic AXI
+            # master: a master terminates its burst on the FIRST RLAST, so an
+            # N-way split ended the burst N-1 beats early. The splitter now
+            # consolidates (the read-side counterpart of the write side's WLAST
+            # regeneration), and this check follows the contract.
+            expected_last_count = 1
 
             if len(last_signals) != expected_last_count:
                 self._add_error_with_context(
-                    f"LAST signal count wrong: expected {expected_last_count}, got {len(last_signals)}",
+                    f"LAST signal count wrong: expected {expected_last_count} "
+                    f"(consolidated), got {len(last_signals)} across "
+                    f"{len(split_ars)} splits",
                     txn_id, "LAST_SIGNALS", "ERROR"
                 )
+                verification_passed = False
+
+            # And it must be on the FINAL beat, not an arbitrary one.
+            if last_signals and responses and responses[-1].last != 1:
+                self._add_error_with_context(
+                    "RLAST asserted on a beat other than the last of the "
+                    "original transaction", txn_id, "LAST_POSITION", "ERROR")
                 verification_passed = False
 
             # Verify total response count

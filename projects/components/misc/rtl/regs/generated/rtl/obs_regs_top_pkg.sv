@@ -294,8 +294,12 @@ package obs_regs_top_pkg;
     } obs_regs__OBS_STAT_SEL__IS_WRITE__out_t;
 
     typedef struct {
-        logic [6:0] value;
+        logic [5:0] value;
     } obs_regs__OBS_STAT_SEL__BIN__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__OBS_STAT_SEL__HIST_METRIC__out_t;
 
     typedef struct {
         obs_regs__OBS_STAT_SEL__TAP__out_t TAP;
@@ -303,6 +307,7 @@ package obs_regs_top_pkg;
         obs_regs__OBS_STAT_SEL__METRIC__out_t METRIC;
         obs_regs__OBS_STAT_SEL__IS_WRITE__out_t IS_WRITE;
         obs_regs__OBS_STAT_SEL__BIN__out_t BIN;
+        obs_regs__OBS_STAT_SEL__HIST_METRIC__out_t HIST_METRIC;
     } obs_regs__OBS_STAT_SEL__out_t;
 
     typedef struct {

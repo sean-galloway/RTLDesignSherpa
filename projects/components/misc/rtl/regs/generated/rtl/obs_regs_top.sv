@@ -299,9 +299,13 @@ module obs_regs_top (
                     logic load_next;
                 } IS_WRITE;
                 struct {
-                    logic [6:0] next;
+                    logic [5:0] next;
                     logic load_next;
                 } BIN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } HIST_METRIC;
             } OBS_STAT_SEL;
         } OBS;
     } field_combo_t;
@@ -442,8 +446,11 @@ module obs_regs_top (
                     logic value;
                 } IS_WRITE;
                 struct {
-                    logic [6:0] value;
+                    logic [5:0] value;
                 } BIN;
+                struct {
+                    logic value;
+                } HIST_METRIC;
             } OBS_STAT_SEL;
         } OBS;
     } field_storage_t;
@@ -1210,12 +1217,12 @@ module obs_regs_top (
     assign hwif_out.OBS.OBS_STAT_SEL.IS_WRITE.value = field_storage.OBS.OBS_STAT_SEL.IS_WRITE.value;
     // Field: obs_regs_top.OBS.OBS_STAT_SEL.BIN
     always_comb begin
-        automatic logic [6:0] next_c;
+        automatic logic [5:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.OBS.OBS_STAT_SEL.BIN.value;
         load_next_c = '0;
         if(decoded_reg_strb.OBS.OBS_STAT_SEL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.OBS.OBS_STAT_SEL.BIN.value & ~decoded_wr_biten[31:25]) | (decoded_wr_data[31:25] & decoded_wr_biten[31:25]);
+            next_c = (field_storage.OBS.OBS_STAT_SEL.BIN.value & ~decoded_wr_biten[30:25]) | (decoded_wr_data[30:25] & decoded_wr_biten[30:25]);
             load_next_c = '1;
         end
         field_combo.OBS.OBS_STAT_SEL.BIN.next = next_c;
@@ -1223,7 +1230,7 @@ module obs_regs_top (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.OBS.OBS_STAT_SEL.BIN.value <= 7'h0;
+            field_storage.OBS.OBS_STAT_SEL.BIN.value <= 6'h0;
         end else begin
             if(field_combo.OBS.OBS_STAT_SEL.BIN.load_next) begin
                 field_storage.OBS.OBS_STAT_SEL.BIN.value <= field_combo.OBS.OBS_STAT_SEL.BIN.next;
@@ -1231,6 +1238,29 @@ module obs_regs_top (
         end
     end
     assign hwif_out.OBS.OBS_STAT_SEL.BIN.value = field_storage.OBS.OBS_STAT_SEL.BIN.value;
+    // Field: obs_regs_top.OBS.OBS_STAT_SEL.HIST_METRIC
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.OBS_STAT_SEL.HIST_METRIC.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.OBS_STAT_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.OBS_STAT_SEL.HIST_METRIC.value & ~decoded_wr_biten[31:31]) | (decoded_wr_data[31:31] & decoded_wr_biten[31:31]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.OBS_STAT_SEL.HIST_METRIC.next = next_c;
+        field_combo.OBS.OBS_STAT_SEL.HIST_METRIC.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.OBS_STAT_SEL.HIST_METRIC.value <= 1'h0;
+        end else begin
+            if(field_combo.OBS.OBS_STAT_SEL.HIST_METRIC.load_next) begin
+                field_storage.OBS.OBS_STAT_SEL.HIST_METRIC.value <= field_combo.OBS.OBS_STAT_SEL.HIST_METRIC.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.OBS_STAT_SEL.HIST_METRIC.value = field_storage.OBS.OBS_STAT_SEL.HIST_METRIC.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -1284,7 +1314,8 @@ module obs_regs_top (
     assign readback_array[16][15:8] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.CHANNEL.value : '0;
     assign readback_array[16][23:16] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.METRIC.value : '0;
     assign readback_array[16][24:24] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.IS_WRITE.value : '0;
-    assign readback_array[16][31:25] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.BIN.value : '0;
+    assign readback_array[16][30:25] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.BIN.value : '0;
+    assign readback_array[16][31:31] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.HIST_METRIC.value : '0;
     assign readback_array[17][31:0] = (decoded_reg_strb.OBS.OBS_STAT_DATA && !decoded_req_is_wr) ? hwif_in.OBS.OBS_STAT_DATA.VALUE.next : '0;
     assign readback_array[18][15:0] = (decoded_reg_strb.OBS.OBS_FIFO_STAT && !decoded_req_is_wr) ? hwif_in.OBS.OBS_FIFO_STAT.ERR_COUNT.next : '0;
     assign readback_array[18][30:16] = (decoded_reg_strb.OBS.OBS_FIFO_STAT && !decoded_req_is_wr) ? hwif_in.OBS.OBS_FIFO_STAT.WRITE_COUNT.next : '0;

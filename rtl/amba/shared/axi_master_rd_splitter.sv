@@ -175,8 +175,16 @@ module axi_master_rd_splitter
     output logic [IW-1:0]              fub_split_id,
     output logic [7:0]                 fub_split_cnt,
     output logic                       fub_split_valid,
+    // Sticky: a split-info record was dropped because the FIFO was
+    // full. Sizing this FIFO is a correctness requirement, so the
+    // violation has to be observable rather than silent.
+    output logic                       o_split_fifo_overflow,
     input  logic                       fub_split_ready
 );
+
+    logic r_split_fifo_overflow;   // sticky: a split record was LOST
+    assign o_split_fifo_overflow = r_split_fifo_overflow;
+
 
     //===========================================================================
     // Parameter Validation
@@ -284,8 +292,24 @@ module axi_master_rd_splitter
     logic w_is_final_split;
     assign w_is_final_split = (r_split_state == SPLITTING) && !w_split_required;
 
+    // ---- Upstream RLAST consolidation ------------------------------------
+    // An N-way split produces N RLASTs downstream, and passing them all up
+    // ends the burst N-1 times early for any generic AXI master (they
+    // terminate on the first one). The upstream burst must see exactly ONE
+    // RLAST, on the final beat of the ORIGINAL transaction -- the read-side
+    // counterpart of the write side's WLAST regeneration.
+    //
+    // The count is captured when the original is ADMITTED (IDLE accept),
+    // not when fub_arready finally asserts: fub_arready is suppressed until
+    // the last split, while R beats for split 1 are already flowing back.
+    logic [8:0] r_rbeats_remaining;
+    logic       r_rbeats_active;
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
+            r_rbeats_remaining <= 9'd0;
+            r_rbeats_active <= 1'b0;
+            r_split_fifo_overflow <= 1'b0;
             r_split_state <= IDLE;
             r_current_addr <= '0;
             r_current_len <= '0;
@@ -304,9 +328,20 @@ module axi_master_rd_splitter
             r_orig_arregion <= '0;
             r_orig_aruser <= '0;
         end else begin
+            // Retire one owed beat per upstream R handshake. Independent of
+            // the split FSM: beats keep arriving while the FSM is still
+            // issuing later splits.
+            if (r_rbeats_active && fub_rvalid && fub_rready) begin
+                r_rbeats_remaining <= r_rbeats_remaining - 9'd1;
+                if (r_rbeats_remaining == 9'd1) r_rbeats_active <= 1'b0;
+            end
+
             case (r_split_state)
                 IDLE: begin
                     if (fub_arvalid && m_axi_arready && !block_ready) begin
+                        // Beats owed upstream for THIS original transaction.
+                        r_rbeats_remaining <= 9'(fub_arlen) + 9'd1;
+                        r_rbeats_active <= 1'b1;
                         // Buffer the original transaction
                         r_orig_arid <= fub_arid;
                         r_orig_araddr <= fub_araddr;
@@ -434,7 +469,11 @@ module axi_master_rd_splitter
     assign fub_rresp = m_axi_rresp;
     assign fub_ruser = m_axi_ruser;
     assign fub_rvalid = m_axi_rvalid;
-    assign fub_rlast = m_axi_rlast;
+    // One RLAST per ORIGINAL transaction. Falls back to the downstream
+    // RLAST when no transaction is being tracked, so an unexpected beat is
+    // still framed rather than swallowed.
+    assign fub_rlast = r_rbeats_active ? (r_rbeats_remaining == 9'd1)
+                                       : m_axi_rlast;
     assign m_axi_rready = fub_rready;
 
     //===========================================================================
@@ -444,6 +483,16 @@ module axi_master_rd_splitter
     // Pack the split info for the FIFO
     logic [AW+IW+8-1:0] split_fifo_din;
     logic w_split_fifo_valid;
+    logic w_split_fifo_ready;
+
+    // SIZING IS A CORRECTNESS REQUIREMENT HERE, SO SAY SO OUT LOUD.
+    // wr_ready was unconnected and the push ungated, so once the FIFO
+    // filled a split-info record was dropped silently -- the consumer
+    // then reads someone else's record, or none, with nothing to
+    // indicate it happened. A sticky flag cannot un-drop the record but
+    // it turns a silent wrong answer into a visible one. Stalling the
+    // command instead would be better still; that needs the accept path
+    // to consult the FIFO, which is a larger change than this fix.
 
     // Write split info when original transaction is accepted (fub_arready asserts)
     assign w_split_fifo_valid = fub_arvalid && fub_arready;
@@ -477,7 +526,7 @@ module axi_master_rd_splitter
         .rd_valid        (fub_split_valid),
         .rd_data         ({fub_split_addr, fub_split_id, fub_split_cnt}),
         /* verilator lint_off PINCONNECTEMPTY */
-        .wr_ready        (),  // Not used
+        .wr_ready        (w_split_fifo_ready),
         .count          ()    // Not used
         /* verilator lint_on PINCONNECTEMPTY */
     );
@@ -516,6 +565,9 @@ module axi_master_rd_splitter
             end
 
             // Verify split info FIFO write timing
+            if (w_split_fifo_valid && !w_split_fifo_ready) begin
+                r_split_fifo_overflow <= 1'b1;
+            end
             if (w_split_fifo_valid) begin
                 assert (fub_arvalid && fub_arready) else
                     $error("Split info should only be written when transaction is accepted");

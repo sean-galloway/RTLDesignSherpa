@@ -203,8 +203,16 @@ module axi_master_wr_splitter
     output logic [IW-1:0]              fub_split_id,
     output logic [7:0]                 fub_split_cnt,
     output logic                       fub_split_valid,
+    // Sticky: a split-info record was dropped because the FIFO was
+    // full. Sizing this FIFO is a correctness requirement, so the
+    // violation has to be observable rather than silent.
+    output logic                       o_split_fifo_overflow,
     input  logic                       fub_split_ready
 );
+
+    logic r_split_fifo_overflow;   // sticky: a split record was LOST
+    assign o_split_fifo_overflow = r_split_fifo_overflow;
+
 
     //===========================================================================
     // Parameter Validation
@@ -250,6 +258,17 @@ module axi_master_wr_splitter
     logic [7:0]     r_expected_beats;      // Expected beats for current split
     logic [7:0]     r_beat_counter;        // Current beat counter
     logic           r_data_splitting;      // Flag indicating we're handling split data
+    // An AW for the CURRENT transaction has been issued downstream.
+    //
+    // W is pure pass-through, while r_data_splitting arms only when the first
+    // split AW handshakes. AXI4 permits W before AW, so early beats took the
+    // non-split branch, carried the ORIGINAL fub_wlast downstream and were
+    // never counted toward a split boundary -- WLAST regeneration silently
+    // defeated. Holding W until its AW has been issued is the same contract
+    // the monitors require (vault/handbook/design/valid-ready-contracts.md:
+    // W must not lead AW), so the restriction is consistent repo-wide rather
+    // than local to this block.
+    logic           r_aw_issued;
 
     //===========================================================================
     // Response Consolidation Logic
@@ -337,6 +356,7 @@ module axi_master_wr_splitter
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
+            r_split_fifo_overflow <= 1'b0;
             r_split_state <= IDLE;
             r_current_addr <= '0;
             r_current_len <= '0;
@@ -359,6 +379,7 @@ module axi_master_wr_splitter
             r_expected_beats <= '0;
             r_beat_counter <= '0;
             r_data_splitting <= 1'b0;
+            r_aw_issued <= 1'b0;
 
             // Reset response consolidation state
             r_expected_response_count <= '0;
@@ -371,7 +392,23 @@ module axi_master_wr_splitter
         end else begin
             case (r_split_state)
                 IDLE: begin
-                    if (fub_awvalid && m_axi_awready && !block_ready) begin
+                    // FENCE THE CONSOLIDATION STATE PER TRANSACTION.
+                    // There is ONE set of consolidation registers
+                    // (r_original_txn_id, the counts, r_consolidated_*), so a
+                    // second transaction accepted while the first still has
+                    // split responses in flight OVERWRITES them. T1's final
+                    // split AW handshakes -> IDLE with responses outstanding;
+                    // T2 accepted the next cycle resets to pass-through, and
+                    // T1's split responses then forward raw upstream (3 B's
+                    // for 2 AWs) -- or, if T2 also splits, fold into T2's
+                    // consolidation and T1 is never answered at all. Holding
+                    // acceptance until the previous transaction's responses
+                    // are collected costs throughput on back-to-back split
+                    // writes and is the only correct behaviour with one state
+                    // set. (m_axi_bid is not checked in consolidation mode
+                    // either, so responses cannot be told apart by ID.)
+                    if (fub_awvalid && m_axi_awready && !block_ready &&
+                        !r_waiting_for_responses) begin
                         // Buffer the original transaction
                         r_orig_awid <= fub_awid;
                         r_orig_awaddr <= fub_awaddr;
@@ -473,6 +510,10 @@ module axi_master_wr_splitter
                 end
             end
 
+            // Track that this transaction's AW has gone downstream.
+            if (m_axi_awvalid && m_axi_awready) r_aw_issued <= 1'b1;
+            if (fub_wvalid && fub_wready && fub_wlast) r_aw_issued <= 1'b0;
+
             // RESPONSE CONSOLIDATION: Process incoming split responses
             if (m_axi_bvalid && m_axi_bready) begin
                 // Received a split response - consolidate it
@@ -538,7 +579,10 @@ module axi_master_wr_splitter
             // never completed, so the same AW was re-presented and re-accepted
             // every cycle -- duplicated downstream transactions, not blocked
             // ones. See the matching fix on the read splitter.
-            IDLE: m_axi_awvalid = fub_awvalid && !block_ready;
+            // Same fence as the FSM capture: gating the capture alone
+            // would let the slave accept an AW that was never recorded.
+            IDLE: m_axi_awvalid = fub_awvalid && !block_ready &&
+                                  !r_waiting_for_responses;
             SPLITTING: m_axi_awvalid = 1'b1;
             default: m_axi_awvalid = 1'b0;
         endcase
@@ -553,7 +597,8 @@ module axi_master_wr_splitter
                     fub_awready = 1'b0;
                 end else begin
                     // No split needed - pass through ready immediately
-                    fub_awready = m_axi_awready && !block_ready;
+                    fub_awready = m_axi_awready && !block_ready &&
+                                  !r_waiting_for_responses;
                 end
             end
             SPLITTING: begin
@@ -586,8 +631,10 @@ module axi_master_wr_splitter
     assign m_axi_wstrb = fub_wstrb;
     assign m_axi_wuser = fub_wuser;
     assign m_axi_wlast = w_generate_wlast;
-    assign m_axi_wvalid = fub_wvalid;
-    assign fub_wready = m_axi_wready;
+    // Both ends of the W handshake gated by the same term -- gating one side
+    // alone is the defect pattern this repo has now hit three times.
+    assign m_axi_wvalid = fub_wvalid && r_aw_issued;
+    assign fub_wready   = m_axi_wready && r_aw_issued;
 
     //===========================================================================
     // Write Response Channel with Consolidation
@@ -601,12 +648,28 @@ module axi_master_wr_splitter
     assign w_is_final_response = (r_received_response_count + 8'd1 >= r_expected_response_count);
     assign w_should_send_consolidated_response = !r_waiting_for_responses || w_is_final_response;
 
+    // Worst-of(accumulated, in-flight) response. AXI severity order is
+    // DECERR(3) > SLVERR(2) > EXOKAY(1) > OKAY(0), matching the
+    // registered fold below, so a plain compare is the same rule.
+    logic [1:0] w_resp_with_current;
+    assign w_resp_with_current = (m_axi_bresp > r_consolidated_resp_status)
+                               ? m_axi_bresp : r_consolidated_resp_status;
+
     // B Channel - Response consolidation logic
     always_comb begin
         if (r_waiting_for_responses) begin
             // CONSOLIDATION MODE: Collecting multiple split responses into one
             fub_bid = r_original_txn_id;  // Use original transaction ID
-            fub_bresp = w_is_final_response ? r_consolidated_resp_status : 2'b00; // Use consolidated status for final response
+            // THE FINAL SPLIT'S OWN RESPONSE MUST BE IN THE FOLD.
+            // r_consolidated_resp_status is registered: it folds each split's
+            // response one cycle AFTER that split's B handshake. The final
+            // split is forwarded upstream in the SAME cycle as its handshake,
+            // so the register still holds splits 1..N-1 and the last split's
+            // status was dropped -- resp1=OKAY, resp2=SLVERR upstreamed as
+            // OKAY. An error on the last split read as success, which is
+            // silent corruption rather than a visible failure. Fold the
+            // in-flight response combinationally for the value forwarded.
+            fub_bresp = w_is_final_response ? w_resp_with_current : 2'b00;
             fub_buser = r_consolidated_buser; // Use stored user field
             fub_bvalid = m_axi_bvalid && w_is_final_response; // Only assert valid for final consolidated response
             m_axi_bready = fub_bready || !w_is_final_response; // Accept all responses during consolidation
@@ -627,6 +690,16 @@ module axi_master_wr_splitter
     // Pack the split info for the FIFO
     logic [AW+IW+8-1:0] split_fifo_din;
     logic w_split_fifo_valid;
+    logic w_split_fifo_ready;
+
+    // SIZING IS A CORRECTNESS REQUIREMENT HERE, SO SAY SO OUT LOUD.
+    // wr_ready was unconnected and the push ungated, so once the FIFO
+    // filled a split-info record was dropped silently -- the consumer
+    // then reads someone else's record, or none, with nothing to
+    // indicate it happened. A sticky flag cannot un-drop the record but
+    // it turns a silent wrong answer into a visible one. Stalling the
+    // command instead would be better still; that needs the accept path
+    // to consult the FIFO, which is a larger change than this fix.
 
     // Write split info when original transaction is accepted
     assign w_split_fifo_valid = fub_awvalid && fub_awready;
@@ -660,7 +733,7 @@ module axi_master_wr_splitter
         .rd_valid(fub_split_valid),
         .rd_data({fub_split_addr, fub_split_id, fub_split_cnt}),
         /* verilator lint_off PINCONNECTEMPTY */
-        .wr_ready(),  // Not used
+        .wr_ready(w_split_fifo_ready),
         .count()    // Not used
         /* verilator lint_on PINCONNECTEMPTY */
     );
@@ -717,6 +790,9 @@ module axi_master_wr_splitter
             end
 
             // Verify split info FIFO write timing
+            if (w_split_fifo_valid && !w_split_fifo_ready) begin
+                r_split_fifo_overflow <= 1'b1;
+            end
             if (w_split_fifo_valid) begin
                 assert (fub_awvalid && fub_awready) else
                     $error("Split info should only be written when transaction is accepted");

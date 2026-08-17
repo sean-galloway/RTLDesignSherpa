@@ -220,20 +220,9 @@ PERF_OFF_BURST_COUNT   = 0x28
 # observer runs inline in parallel with the in-core monitors; the host reads its
 # aggregate buckets and indexed latency histogram entirely over CSR so observer-
 # vs-in-core equivalence can be checked on the real bus (no hierarchy probe).
-CSR_OBS_RD_PROD       = H("OBS_RD_PROD")
-CSR_OBS_RD_BP         = H("OBS_RD_BP")
-CSR_OBS_RD_STARV      = H("OBS_RD_STARV")
-CSR_OBS_RD_IDLE       = H("OBS_RD_IDLE")
-CSR_OBS_WR_PROD       = H("OBS_WR_PROD")
-CSR_OBS_WR_BP         = H("OBS_WR_BP")
-CSR_OBS_WR_STARV      = H("OBS_WR_STARV")
-CSR_OBS_WR_IDLE       = H("OBS_WR_IDLE")
 # Indexed histogram readout. HIST_SEL packs {bin[5:2], metric[1], bus[0]}:
 #   bus=0 read-side / bus=1 write-side; metric selects AR->firstR vs AR->RLAST
 #   (read) or AW->B (write); bin indexes the 16-entry log2 histogram.
-CSR_OBS_HIST_SEL      = H("OBS_HIST_SEL")   # RW
-CSR_OBS_HIST_DATA     = H("OBS_HIST_DATA")   # R: selected bin count
-CSR_OBS_HIST_TOTAL    = H("OBS_HIST_TOTAL")  # R: selected metric total
 
 # Per-channel datapath perf buckets (RFC Stage C, indexed readout). Select a
 # channel via PERF_CH_SEL, then read the packed {bp,prod}/{idle,starv} regs.
@@ -665,41 +654,52 @@ class StreamHarnessTB(TBBase):
         return {'bins': bins, 'total': total}
 
     async def _read_observer_perf(self) -> dict:
-        """Read the inline axi4_dma_observer's meter + histogram outputs over the
-        harness CSR (the same path the host uses) to compare against the in-core
-        RDMON/WRMON perf -- no RTL hierarchy probing.
+        """Read the observer's telemetry from ITS OWN register window.
 
-        The observer is a transparent pass-through, so it meters the SAME R/W
-        beats as the in-core monitors: aggregate productive cycles and the
-        per-metric histogram TOTALS (= burst counts) must match exactly. The
-        observer's pass-through skid shifts the measured AR->R / AW->B *latency*
-        by a couple of cycles, so per-bin counts may move at a bin boundary --
-        we log those for inspection but assert on the window-independent totals.
+        These used to be observer output ports mirrored into harness_csr at
+        0x100. The observer owns its telemetry now: write OBS_STAT_SEL to
+        address a counter, read OBS_STAT_DATA. Still the host path -- no RTL
+        hierarchy probing.
+
+        OBS_STAT_SEL layout: TAP[7:0], CHANNEL[15:8], METRIC[23:16],
+        IS_WRITE[24], BIN[30:25], HIST_METRIC[31]. IS_WRITE picks the read- or
+        write-side array; HIST_METRIC picks WHICH latency metric the histogram
+        reports. They are separate fields -- conflating them leaves half the
+        histogram unreachable.
         """
-        async def _hist(metric: int, bus: int):
-            """Sweep all bins for one (metric, bus) selection. Returns
-            (bins[], total). bus: 0=read-side, 1=write-side."""
-            bins = []
-            total = 0
-            for b in range(HIST_NUM_BINS):
-                sel = (b << 2) | ((metric & 0x1) << 1) | (bus & 0x1)
-                await self.uart_write(CSR_OBS_HIST_SEL, sel)
-                bins.append(await self.uart_read(CSR_OBS_HIST_DATA))
-            total = await self.uart_read(CSR_OBS_HIST_TOTAL)
+        from obs_addrs import O
+        SEL, DATA = O("OBS_STAT_SEL"), O("OBS_STAT_DATA")
+
+        async def _stat(metric: int, is_write: int = 0, tap: int = 0,
+                        channel: int = 0, bin_idx: int = 0,
+                        hist_metric: int = 0) -> int:
+            sel = ((tap & 0xFF) | ((channel & 0xFF) << 8) |
+                   ((metric & 0xFF) << 16) | ((is_write & 1) << 24) |
+                   ((bin_idx & 0x3F) << 25) | ((hist_metric & 1) << 31))
+            await self.uart_write(SEL, sel)
+            return await self.uart_read(DATA) or 0
+
+        # METRIC ids: 0..3 aggregate meter buckets, 9 histogram bin,
+        # 10 histogram total.
+        async def _hist(hist_metric: int, bus: int):
+            bins = [await _stat(9, is_write=bus, bin_idx=b,
+                                hist_metric=hist_metric)
+                    for b in range(HIST_NUM_BINS)]
+            total = await _stat(10, is_write=bus, hist_metric=hist_metric)
             return bins, total
 
         rd0, rd0t = await _hist(0, 0)   # rd: AR->first-R
         rd1, rd1t = await _hist(1, 0)   # rd: AR->RLAST
         wr0, wr0t = await _hist(0, 1)   # wr: AW->B
         return {
-            'rd_prod':  await self.uart_read(CSR_OBS_RD_PROD),
-            'wr_prod':  await self.uart_read(CSR_OBS_WR_PROD),
-            'rd_bp':    await self.uart_read(CSR_OBS_RD_BP),
-            'wr_bp':    await self.uart_read(CSR_OBS_WR_BP),
-            'rd_starv': await self.uart_read(CSR_OBS_RD_STARV),
-            'wr_starv': await self.uart_read(CSR_OBS_WR_STARV),
-            'rd_idle':  await self.uart_read(CSR_OBS_RD_IDLE),
-            'wr_idle':  await self.uart_read(CSR_OBS_WR_IDLE),
+            'rd_prod':  await _stat(0, 0),
+            'wr_prod':  await _stat(0, 1),
+            'rd_bp':    await _stat(1, 0),
+            'wr_bp':    await _stat(1, 1),
+            'rd_starv': await _stat(2, 0),
+            'wr_starv': await _stat(2, 1),
+            'rd_idle':  await _stat(3, 0),
+            'wr_idle':  await _stat(3, 1),
             'rd_hist_firstr': {'bins': rd0, 'total': rd0t},
             'rd_hist_rlast':  {'bins': rd1, 'total': rd1t},
             'wr_hist_b':      {'bins': wr0, 'total': wr0t},

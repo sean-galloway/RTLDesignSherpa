@@ -124,7 +124,9 @@ regfile obs_regs {
           field { desc = "Metric id. AGGREGATE (per tap): 0=productive, 1=backpressure, 2=starvation, 3=idle. PER CHANNEL (uses CHANNEL): 4=productive, 5=backpressure, 6=starvation, 7=idle, 8=overflow. HISTOGRAM: 9=bin (NOT YET READABLE - the bin is chosen by the i_hist_bin input port, so BIN here is accepted and ignored and this reads 0), 10=total. Any other value reads 0.";
                   sw=rw; hw=r; } METRIC[23:16] = 8'h00;
           field { desc = "0 = read-side metric, 1 = write-side"; sw=rw; hw=r; } IS_WRITE[24:24] = 1'b0;
-          field { desc = "Histogram bin index, used when METRIC=9"; sw=rw; hw=r; } BIN[31:25] = 7'h00;
+          field { desc = "Histogram bin index, used when METRIC=9"; sw=rw; hw=r; } BIN[30:25] = 6'h00;
+          field { desc = "Which latency metric the histogram reports (e.g. AR->firstR vs AR->RLAST). SEPARATE from IS_WRITE, which selects the read- or write-side array -- conflating them makes half the histogram unreachable.";
+                  sw=rw; hw=r; } HIST_METRIC[31:31] = 1'b0;
         } OBS_STAT_SEL @ 0x070;
 
     reg { name = "Telemetry data"; desc = "The counter addressed by OBS_STAT_SEL. Reads as 0 for a metric this instance does not build (meters/histograms are parameter-gated).";

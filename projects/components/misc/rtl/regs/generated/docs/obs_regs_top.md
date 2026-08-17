@@ -272,13 +272,14 @@ Don't override. Generated from: $root
 
 <p>Addresses one telemetry counter for OBS_STAT_DATA</p>
 
-| Bits|Identifier|Access|Reset|Name|
-|-----|----------|------|-----|----|
-| 7:0 |    TAP   |  rw  | 0x0 |  — |
-| 15:8|  CHANNEL |  rw  | 0x0 |  — |
-|23:16|  METRIC  |  rw  | 0x0 |  — |
-|  24 | IS_WRITE |  rw  | 0x0 |  — |
-|31:25|    BIN   |  rw  | 0x0 |  — |
+| Bits| Identifier|Access|Reset|Name|
+|-----|-----------|------|-----|----|
+| 7:0 |    TAP    |  rw  | 0x0 |  — |
+| 15:8|  CHANNEL  |  rw  | 0x0 |  — |
+|23:16|   METRIC  |  rw  | 0x0 |  — |
+|  24 |  IS_WRITE |  rw  | 0x0 |  — |
+|30:25|    BIN    |  rw  | 0x0 |  — |
+|  31 |HIST_METRIC|  rw  | 0x0 |  — |
 
 #### TAP field
 
@@ -299,6 +300,10 @@ Don't override. Generated from: $root
 #### BIN field
 
 <p>Histogram bin index, used when METRIC=9</p>
+
+#### HIST_METRIC field
+
+<p>Which latency metric the histogram reports (e.g. AR-&gt;firstR vs AR-&gt;RLAST). SEPARATE from IS_WRITE, which selects the read- or write-side array -- conflating them makes half the histogram unreachable.</p>
 
 ### OBS_STAT_DATA register
 

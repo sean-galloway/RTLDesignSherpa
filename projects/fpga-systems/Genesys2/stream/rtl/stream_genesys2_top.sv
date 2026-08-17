@@ -50,6 +50,13 @@ module stream_genesys2_top #(
     // tally's cfg AXIL slave; bins become dense per-agent indices, plus an
     // UNEXPECTED bin at index MON_N_PROFILE.
     parameter int MON_N_PROFILE          = 64,
+    // Observer transaction-table sizing, forwarded to stream_harness.
+    // TOTAL slots per tap / number of generated CAMs. Timing scales with
+    // the depth of ONE cam, so 64/4 is four 16-deep CAMs. A banked WRITE
+    // monitor also requires OBS_USE_WDATA_ORDER_Q=1.
+    parameter int OBS_MAX_TRANSACTIONS   = 16,
+    parameter int OBS_NUM_BANKS          = 1,
+    parameter bit OBS_USE_WDATA_ORDER_Q  = 1'b0,
     // 0 = all-except-error datapath-monitor cones (default bitstream);
     // 1 = error-flavor build (error cone only) for ADDR_RANGE error coverage.
     parameter int MON_ERROR_FLAVOR = 0,
@@ -144,6 +151,9 @@ module stream_genesys2_top #(
         .ADDR_WIDTH            (32),
         .SRAM_DEPTH            (256),
         .NUM_CHANNELS          (NUM_CHANNELS),
+        .OBS_MAX_TRANSACTIONS  (OBS_MAX_TRANSACTIONS),
+        .OBS_NUM_BANKS         (OBS_NUM_BANKS),
+        .OBS_USE_WDATA_ORDER_Q (OBS_USE_WDATA_ORDER_Q),
         .DESC_RAM_ENTRIES      ( 256),   //  256 x 256 b =   8 KB (LUTRAM)
         .DEBUG_SRAM_WORDS      (4096),   // 4096 x  32 b =  16 KB (~4 BRAM tiles)
         // In-core rd/wr AXI monitors ON (the point of this bitstream).

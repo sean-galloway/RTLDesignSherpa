@@ -28,6 +28,20 @@ module stream_harness #(
     parameter int DATA_WIDTH   = 128,
     parameter int ADDR_WIDTH   = 32,
     parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,  // TASK-101 STREAM Extended
+    // ---- Observer transaction-table sizing (Vivado generics) --------------
+    // OBS_MAX_TRANSACTIONS is the TOTAL slots per tap; the CAM is generated
+    // OBS_NUM_BANKS times at OBS_MAX_TRANSACTIONS/OBS_NUM_BANKS each, because
+    // timing scales with the depth of ONE cam, not the total (16 deep measured
+    // at WNS +1.018 ns, 40 deep at -25.183 ns -- so 64 as one flat CAM will
+    // not close, while 64 as 4x16 is four CAMs at a depth that does).
+    // Banking is by ID, so per-ID concurrency is capped by the BANK depth:
+    //     OBS_MAX_TRANSACTIONS/OBS_NUM_BANKS >= IDs-per-bank * outstanding-per-ID
+    // 8 channels x 8 outstanding over 4 banks => 64/4 = 16 per bank.
+    parameter int OBS_MAX_TRANSACTIONS   = 16,
+    parameter int OBS_NUM_BANKS          = 1,
+    // Mandatory once a WRITE monitor is banked: the WID-less select is not
+    // ID-matched, and trans_mgr refuses to elaborate without this.
+    parameter bit OBS_USE_WDATA_ORDER_Q  = 1'b0,
     // Heavy in-core AXI monitors (CAM/reporter cones + latency histograms).
     // Default 0 = board build (area): the always-on bus meters still give
     // utilisation. Cosim monitor-validation tests (rw_perf hist tail, obs_equiv,
@@ -1743,7 +1757,9 @@ module stream_harness #(
         .DATA_WIDTH          (DATA_WIDTH),
         .AXI_ID_WIDTH        (AXI_ID_WIDTH),
         .AXI_USER_WIDTH      (AXI_USER_WIDTH),
-        .MAX_TRANSACTIONS    (16),
+        .MAX_TRANSACTIONS    (OBS_MAX_TRANSACTIONS),
+        .NUM_BANKS           (OBS_NUM_BANKS),
+        .USE_WDATA_ORDER_Q   (OBS_USE_WDATA_ORDER_Q),
         // AXIL egress: the harness tally path consumes m_axil_*.
         .EGRESS_AXIL         (1'b1),
         .ENABLE_MON_TAPS     (USE_AXI_MONITORS != 0),
@@ -2123,7 +2139,9 @@ module stream_harness #(
         // stream. USE_AXI_MONITORS=0 (build-perf) => taps off, no gate, no
         // throttle. USE_AXI_MONITORS=1 (build-mon) => taps on, as before.
         .ENABLE_MON_TAPS     (USE_AXI_MONITORS != 0),
-        .MAX_TRANSACTIONS    (16),
+        .MAX_TRANSACTIONS    (OBS_MAX_TRANSACTIONS),
+        .NUM_BANKS           (OBS_NUM_BANKS),
+        .USE_WDATA_ORDER_Q   (OBS_USE_WDATA_ORDER_Q),
         .ENABLE_BUS_METER    (1),
         .WR_CH_FROM_AWID     (1),
         .NUM_CHANNELS        (OBS_NUM_CHANNELS),

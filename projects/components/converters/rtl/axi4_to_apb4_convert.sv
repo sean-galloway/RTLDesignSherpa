@@ -137,6 +137,15 @@ module axi4_to_apb4_convert #(
     logic [DW-1:0]       w_data_zeros;
     logic [DW-1:0]       w_data_read;
     logic                w_pslverr, r_pslverr;
+    // PER-AXI-BEAT error accumulator for the READ path.
+    //
+    // A width-converted read assembles one AXI beat from several APB slices.
+    // RRESP was driven from w_pslverr alone -- the IN-FLIGHT slice -- so a
+    // 2:1 read whose FIRST slice errored returned RRESP=OKAY with partially
+    // bad data. The burst-wide r_pslverr cannot be used instead: once set it
+    // would over-mark every LATER beat of the same burst as an error. This
+    // accumulates across the slices of ONE beat and restarts each beat.
+    logic                r_beat_pslverr;
     logic [1:0]          w_resp_rd;
     logic [1:0]          w_resp_wr;
 
@@ -215,7 +224,7 @@ module axi4_to_apb4_convert #(
 
     // Assign the side outputs to the responses to the AXI slave
     assign w_data_read = (axi2abpratio == 1) ? {{(DW-APBDW){1'b0}}, r_apb_rsp_pkt_prdata} : w_axi_data_shift;
-    assign w_resp_rd      = (w_pslverr) ? 2'b10 : 2'b00;
+    assign w_resp_rd      = (w_pslverr | r_beat_pslverr) ? 2'b10 : 2'b00;
     assign w_resp_wr      = (w_pslverr | r_pslverr) ? 2'b10 : 2'b00;
     assign r_s_axi_r_pkt  = {r_side_id, w_data_read, w_resp_rd, r_side_last, r_side_user};
     assign r_s_axi_b_pkt  = {r_side_id, w_resp_wr, r_side_user};
@@ -272,11 +281,16 @@ module axi4_to_apb4_convert #(
 
             if (r_rsp_state == RSP_IDLE) begin
                 r_pslverr <= 1'b0;
+                r_beat_pslverr <= 1'b0;
                 r_axi_rsp_data_pointer <= 'b0;
             end else
                 r_pslverr <= r_pslverr | w_pslverr;  // TODO: only assert w_pslverr when rsp is vld
 
             if ((r_rsp_state == RSP_ACTIVE) && r_rsp_valid && w_rsp_ready) begin
+                // First slice of a beat starts a fresh accumulation; later
+                // slices OR into it. Cleared per beat, not per burst.
+                r_beat_pslverr <= (r_axi_rsp_data_pointer == '0)
+                                ? w_pslverr : (r_beat_pslverr | w_pslverr);
                 if (axi2abpratio == 1) begin
                     r_axi_data_shift <= {{(DW-APBDW){1'b0}}, r_apb_rsp_pkt_prdata};
                 end else begin

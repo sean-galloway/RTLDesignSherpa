@@ -96,6 +96,14 @@ if {[info exists ::env(STREAM_CLKOUT0_DIVIDE)]}   { lappend generics "CLKOUT0_DI
 if {[info exists ::env(STREAM_NUM_CHANNELS)]}      { lappend generics "NUM_CHANNELS=$::env(STREAM_NUM_CHANNELS)" }
 if {[info exists ::env(MON_N_PROFILE)]}            { lappend generics "MON_N_PROFILE=$::env(MON_N_PROFILE)" }
 if {[info exists ::env(MON_ERROR_FLAVOR)]}         { lappend generics "MON_ERROR_FLAVOR=$::env(MON_ERROR_FLAVOR)" }
+# Observer transaction-table sizing. OBS_MAX_TRANSACTIONS is the TOTAL slots
+# per tap; the CAM is generated OBS_NUM_BANKS times at TOTAL/BANKS each,
+# because timing scales with the depth of ONE cam. 64/4 = four 16-deep CAMs.
+# A banked WRITE monitor also needs OBS_USE_WDATA_ORDER_Q=1 or the RTL
+# refuses to elaborate.
+if {[info exists ::env(OBS_MAX_TRANSACTIONS)]}     { lappend generics "OBS_MAX_TRANSACTIONS=$::env(OBS_MAX_TRANSACTIONS)" }
+if {[info exists ::env(OBS_NUM_BANKS)]}            { lappend generics "OBS_NUM_BANKS=$::env(OBS_NUM_BANKS)" }
+if {[info exists ::env(OBS_USE_WDATA_ORDER_Q)]}    { lappend generics "OBS_USE_WDATA_ORDER_Q=$::env(OBS_USE_WDATA_ORDER_Q)" }
 if {[llength $generics] > 0} {
     puts "Applying generics: $generics"
     set_property generic $generics $src_fs

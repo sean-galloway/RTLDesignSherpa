@@ -80,6 +80,20 @@ module axi4_intf_master_observer
 
     // ---------- Per-leaf monitor config ----------
     parameter int MAX_TRANSACTIONS      = 16,
+
+    // ---- Transaction-table banking (see axi_monitor_trans_mgr) -----------
+    // MAX_TRANSACTIONS is the TOTAL slots; the CAM is generated NUM_BANKS
+    // times at MAX_TRANSACTIONS/NUM_BANKS each, because timing scales with
+    // the depth of ONE cam, not the total (16 deep measured WNS +1.018 ns,
+    // 40 deep -25.183 ns). Banking is by ID, so per-ID concurrency is
+    // capped by the BANK depth:
+    //     MAX_TRANSACTIONS/NUM_BANKS >= (IDs per bank) * (outstanding per ID)
+    // 8 channels x 8 outstanding over 4 banks => 64/4 = 16 per bank.
+    parameter int NUM_BANKS             = 1,
+    // Required when a WRITE monitor is banked -- the WID-less select is not
+    // ID-matched otherwise and double-counts across banks. The trans_mgr
+    // refuses to elaborate without it.
+    parameter bit USE_WDATA_ORDER_Q     = 1'b0,
     // Drives cfg_monitor_enable on the embedded axi4_master_{rd,wr}_mon taps.
     //
     // This was hardwired to 1'b1, and that is what made the observer a
@@ -588,6 +602,8 @@ module axi4_intf_master_observer
                 .UNIT_ID         (UNIT_ID),
                 .AGENT_ID        ({8'h00, 4'h0, gi[3:0]}),  // RD ports: [3:0]=index, [7:4]=0
                 .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+                .NUM_BANKS       (NUM_BANKS),
+                .USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q),
                 // Own only this instance's channels: without this every
                 // parallel snooper allocates for ALL traffic and the split
                 // buys nothing.
@@ -733,6 +749,8 @@ module axi4_intf_master_observer
                 .UNIT_ID         (UNIT_ID),
                 .AGENT_ID        ({8'h00, 4'h1, gi[3:0]}),  // WR ports: [3:0]=idx, [7:4]=1
                 .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+                .NUM_BANKS       (NUM_BANKS),
+                .USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q),
                 // Own only this instance's channels: without this every
                 // parallel snooper allocates for ALL traffic and the split
                 // buys nothing.
@@ -920,7 +938,11 @@ module axi4_intf_master_observer
     // through one register pair instead of wiggling a port.
     logic                 w_hist_metric_sel;
     logic [HIST_BINW-1:0] w_hist_bin_sel;
-    assign w_hist_metric_sel = hwif.OBS.OBS_STAT_SEL.IS_WRITE.value;
+    // HIST_METRIC, not IS_WRITE: IS_WRITE picks the read- or write-side
+    // histogram ARRAY, while this picks WHICH LATENCY METRIC that
+    // histogram reports. Driving it from IS_WRITE left half the
+    // histogram unreachable.
+    assign w_hist_metric_sel = hwif.OBS.OBS_STAT_SEL.HIST_METRIC.value;
     assign w_hist_bin_sel    = HIST_BINW'(hwif.OBS.OBS_STAT_SEL.BIN.value);
 
     // Egress select. Exactly one group is built; the other port set is
