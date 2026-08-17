@@ -23,6 +23,44 @@
   BASE commit (verified in a worktree at the pre-fix parent) — see
   BRIDGE-003.
 
+## BRIDGE-004 — three 1x2_wr_*_mon_monitor stress tests fail at init
+**Status:** closed 2026-08-17 — 426e3b3d; all 13 monitor stress tests
+pass together from a verified clean (13/13, 56m57s)
+
+`KeyError: 0` on `tb.master_read(0, addr)` → `self.master_rd[0]`.
+Write-only bridge configs populate `master_wr` and leave `master_rd`
+empty, but the shared harness assumed a read path in three phases, so
+these died in about a second before any traffic.
+
+**The characterisation was what cracked it.** Running all 13 together
+showed every read variant passing, `mix_a`–`mix_d` passing, and
+`1x2_rw_apb5` passing *while driving writes*. So the common factor was
+never "writes" or "AXI5" — it was **no read master**, and `rw_apb5` was
+the control that ruled the other two out.
+
+Fix: `has_read_master()` (checks `master_rd` or `master_apb`, since APB
+serves both directions through one object) gates three phases.
+`run_traffic_phase` drives the same address plan as writes and verifies
+through the slave memory model rather than a read-back — same traffic,
+same addresses, same assertion, only the observation point moves.
+`run_write_bp_phase` / `run_err_bp_phase` drive writes, since those
+phases are about backpressure and packet flow.
+
+SLVERR injection needed a write-side twin: `install_slverr_override`
+replaces the read response generator, but the write path hardcodes
+`resp=0` deep inside `_complete_write_transaction`, so
+`install_slverr_override_wr` patches `b_channel.create_packet` — used
+only for B responses on that slave, so the same blast radius rather
+than a broader monkey-patch.
+
+It took two rounds. Fixing the traffic phase moved the failure from
+1.1 s to 31.9 s, which surfaced the SLVERR layer underneath; each fix
+exposed the next assumption. The read path is untouched, so the ten
+already-passing tests run byte-identical code.
+
+**The bridge monitor stress suite is now fully green**, which it has
+not been in this repo's recorded history.
+
 ## BRIDGE-003 — All six *_mon_monitor stress tests fail (pre-existing)
 **Status:** closed 2026-08-16 — 6/6 green; 5963b2dc
 

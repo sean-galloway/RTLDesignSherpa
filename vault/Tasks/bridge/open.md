@@ -2,39 +2,6 @@
 
 # bridge — open
 
-## BRIDGE-004 — three 1x2_wr_*_mon_monitor stress tests fail at init
-**Status:** open 2026-08-16 — split out of [[BRIDGE-003]] at close
-
-`test_bridge_1x2_wr_axi5_mon_monitor`, `_axi5a_` and `_axi5n_` fail.
-Confirmed **pre-existing and unrelated** to the BRIDGE-003 fix: with
-that change stashed, they fail identically at HEAD.
-
-They die in about a second, before any traffic — the cocotb log stops
-right after `block_ready probe ... resolved=True`, so this is a
-setup/elaboration problem rather than a stimulus one.
-
-**Characterised 2026-08-17** by running all 13 `*_mon_monitor` tests in
-one pass from a *verified* clean (55 min, 10 pass / 3 fail). The split
-is exact and is the strongest lead available:
-
-| | result |
-|---|---|
-| every `*_rd_*` variant (incl. `axi5`, `axi5n`, `axi5s`) | PASS |
-| `1x2_rw_apb5` | PASS |
-| `mix_a/b/c/d` | PASS |
-| `1x2_wr_axi5`, `1x2_wr_axi5a`, `1x2_wr_axi5n` | **FAIL** |
-
-So it is not "writes are broken" and not "AXI5 is broken" — it is
-specifically the **AXI5 write** variants. `1x2_rw_apb5` is the useful
-control: it drives writes and passes, so the write *stimulus* path is
-fine. And the AXI5 read variants pass, so AXI5 support per se is fine.
-Start where those two intersect: AXI5 write-side setup/elaboration in
-the `1x2_wr_axi5*` harnesses.
-
-Failing from a verified clean rules out stale build artifacts, which the
-earlier runs could not (see [[running-regressions]] — `make clean-all`
-aborts silently when `REPO_ROOT` is unset).
-
 ## BRIDGE-002 — AMBA5 bridge support (AXI5 ports alongside AXI4)
 **Status:** open 2026-08-08
 **Priority:** P1
