@@ -52,6 +52,11 @@ same 64-bit master as `mix_b/c/d` and passed only because its random
 draw never landed on the last word — a seed change would have moved the
 failure around and made it look flaky.
 
+**Re-verified 2026-08-17** from a genuinely clean build (all 13
+`*_mon_monitor` in one pass, 55 min): all six are green. The earlier
+6/6 had run behind a `make clean-all` that silently aborted, so this is
+the result that actually counts.
+
 **Not in scope, still failing:** of the seven other tests sharing this
 helper, `1x2_wr_axi5`, `_axi5a` and `_axi5n` fail. Confirmed
 pre-existing and unrelated by stashing this change and reproducing the
