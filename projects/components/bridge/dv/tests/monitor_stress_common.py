@@ -151,10 +151,44 @@ def stress_count(default=256):
 # --------------------------------------------------------------------------- #
 # phases (each owns a fresh harness; asserts on exit; leaves DUT quiesced)
 # --------------------------------------------------------------------------- #
+def has_read_master(tb, master_idx=0) -> bool:
+    """True when master_idx can issue reads.
+
+    Write-only bridges (the `1x2_wr_*` configs) populate `master_wr` and
+    leave `master_rd` empty, so a phase that assumes a read path dies on
+    `KeyError: 0` before any traffic runs. APB masters serve both
+    directions through `master_apb`, so they count as readable.
+    """
+    return (master_idx in getattr(tb, "master_rd", {})
+            or master_idx in getattr(tb, "master_apb", {}))
+
+
 async def run_traffic_phase(dut, tb, cfg_prefixes, *, n, reachable=None):
     set_monitor_cfg(dut, cfg_prefixes, monitor=0)
     await ClockCycles(tb.clock, 5)
-    for slave_idx, addr in stress_read_plan(tb, n, slaves=reachable, seed=0xA11CE):
+    readable = has_read_master(tb)
+    plan = stress_read_plan(tb, n, slaves=reachable, seed=0xA11CE)
+
+    if not readable:
+        # Write-only bridge: there is no read path to check against, so
+        # drive the same address plan as writes and verify against the
+        # slave's memory model instead. Same traffic volume, same
+        # addresses, same monitors-quiet assertion -- what changes is
+        # only how the data is observed.
+        for slave_idx, addr in plan:
+            data = (addr ^ 0xA5A5_5A5A) & ((1 << tb.master_data_width.get(0, tb.data_width)) - 1)
+            await tb.master_write(0, addr, data)
+        await ClockCycles(tb.clock, 20)
+        for slave_idx, addr in plan:
+            exp = (addr ^ 0xA5A5_5A5A) & ((1 << tb.master_data_width.get(0, tb.data_width)) - 1)
+            act = tb.slave_mem_read(slave_idx, addr, master_idx=0)
+            assert act == exp, (f"[traffic] write-readback mismatch "
+                                f"s{slave_idx}@0x{addr:08x}: got 0x{act:08x} "
+                                f"exp 0x{exp:08x}")
+        tb.log.info(f"[traffic] {n} writes ok (write-only bridge), monitors quiet")
+        return
+
+    for slave_idx, addr in plan:
         exp = tb.slave_mem_read(slave_idx, addr, master_idx=0)
         act = await tb.master_read(0, addr)
         assert act == exp, (f"[traffic] data mismatch s{slave_idx}@0x{addr:08x}: "
@@ -185,12 +219,19 @@ async def run_write_bp_phase(dut, tb, cfg_prefixes, block_node, *, n, reachable=
     mon.start_fifo_monitor()
     mon.start_trace_consumer(ready_prob=ready_prob)
 
+    readable = has_read_master(tb)
     for slave_idx, addr in plan:
         try:
-            act = await tb.master_read(0, addr)
-            if not inject_slverr:
-                exp = tb.slave_mem_read(slave_idx, addr, master_idx=0)
-                assert act == exp, f"[{label}] data mismatch s{slave_idx}@0x{addr:08x}"
+            if readable:
+                act = await tb.master_read(0, addr)
+                if not inject_slverr:
+                    exp = tb.slave_mem_read(slave_idx, addr, master_idx=0)
+                    assert act == exp, f"[{label}] data mismatch s{slave_idx}@0x{addr:08x}"
+            else:
+                # Write-only bridge: drive the same plan as writes. The
+                # phase is about backpressure and packet flow, so the
+                # traffic matters and the read-back does not.
+                await tb.master_write(0, addr, addr & 0xFFFF_FFFF)
         except RuntimeError as e:
             assert "SLVERR" in str(e), f"[{label}] unexpected master error: {e}"
 
@@ -231,7 +272,12 @@ async def run_err_bp_phase(dut, tb, cfg_prefixes, block_node, *, mode, n,
                            reachable=None, pump_gap=150, hwm=48):
     rs = list(reachable) if reachable else sorted(tb.slave_info.keys())
     if mode == "slverr":
-        install_slverr_override(tb.slave_rd[rs[0]])
+        # Write-only bridges have no read slave to inject on; force the
+        # error on the write response path instead.
+        if has_read_master(tb):
+            install_slverr_override(tb.slave_rd[rs[0]])
+        else:
+            install_slverr_override_wr(tb.slave_wr[rs[0]])
         plan = stress_read_plan(tb, n, slaves=(rs[0],), seed=0xDEAD)
         init_group_cfg(dut, err_select=0x1)            # PktTypeError -> err FIFO
         set_monitor_cfg(dut, cfg_prefixes, monitor=1, compl=0, error=1)
@@ -249,12 +295,16 @@ async def run_err_bp_phase(dut, tb, cfg_prefixes, block_node, *, mode, n,
     mon.start_drain_pump(record_gap_cycles=pump_gap)
 
     errors = 0
+    readable = has_read_master(tb)
     for slave_idx, addr in plan:
         try:
-            act = await tb.master_read(0, addr)
-            if mode == "compl":
-                exp = tb.slave_mem_read(slave_idx, addr, master_idx=0)
-                assert act == exp, f"[ERR_BP] data mismatch s{slave_idx}@0x{addr:08x}"
+            if readable:
+                act = await tb.master_read(0, addr)
+                if mode == "compl":
+                    exp = tb.slave_mem_read(slave_idx, addr, master_idx=0)
+                    assert act == exp, f"[ERR_BP] data mismatch s{slave_idx}@0x{addr:08x}"
+            else:
+                await tb.master_write(0, addr, addr & 0xFFFF_FFFF)
         except RuntimeError as e:
             assert "SLVERR" in str(e), f"[ERR_BP] unexpected master error: {e}"
             errors += 1
@@ -413,6 +463,25 @@ async def program_regblock_group_window(dut, tb,
 # --------------------------------------------------------------------------- #
 # slave SLVERR override (shared)
 # --------------------------------------------------------------------------- #
+def install_slverr_override_wr(slave, force_resp: int = 2) -> None:
+    """Force BRESP=force_resp (2=SLVERR) on every write response from
+    `slave`. The write-only counterpart of install_slverr_override.
+
+    The read side replaces the whole response generator, but the write
+    path builds its B packet with `resp=0` hardcoded deep inside
+    `_complete_write_transaction`, so patch the packet factory instead:
+    `b_channel.create_packet` is only ever used for B responses on this
+    slave, so the blast radius is the same as the read override's.
+    """
+    orig = slave.b_channel.create_packet
+
+    def _forced(*args, **kwargs):
+        kwargs['resp'] = force_resp
+        return orig(*args, **kwargs)
+
+    slave.b_channel.create_packet = _forced
+
+
 def install_slverr_override(slave, force_resp: int = 2) -> None:
     """Monkey-patch slave._generate_read_response to drive RRESP=force_resp
     (2=SLVERR) on every beat. Scoped to one slave instance."""
