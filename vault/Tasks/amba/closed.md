@@ -902,6 +902,30 @@ Complete comprehensive markdown documentation for all AMBA modules with integrat
 
 **Integration Pattern (from apb4_slave.md):**
 ```markdown
+## BRIDGE-MON-STRESS — three _mon monitor stress tests fail on a memory-bounds read
+**Status:** closed 2026-08-17 — duplicate; fixed as BRIDGE-003 (5963b2dc)
+
+Same three tests (`mix_b`, `mix_c`, `mix_d`) and the same error —
+`Read at address 0xFFC with size 8 exceeds memory bounds (size: 4096)`.
+This block had already reached the right conclusion in July: *"the
+failure is in the testbench memory model, not in the RTL."*
+
+Root cause, confirmed 2026-08-16: `stress_read_plan` stepped offsets by
+the SLAVE word (4 B) while `run_err_bp_phase` computed its expected
+value via `tb.slave_mem_read(...)`, which derives `byte_count` from the
+MASTER width. A 64-bit master drawing the top offset produced an 8-byte
+read at `0xFFC`, four bytes past the cap, and because that call sits
+outside the phase's `try/except` the phase died on an uncaught
+`ValueError` rather than reporting a mismatch.
+
+It was latent rather than per-test: `mix_a` has the same 64-bit master
+and passed only because its random draw never landed on the last word.
+
+The whole 13-test monitor stress suite now passes from a verified
+clean. Tracked to completion in `vault/Tasks/bridge/closed.md`
+(BRIDGE-003, and BRIDGE-004 for the write-only variants found
+alongside).
+
 ## Waveforms
 
 ![APB Write](../../../assets/WAVES/apb4_slave/apb_write_sequence_001.png)

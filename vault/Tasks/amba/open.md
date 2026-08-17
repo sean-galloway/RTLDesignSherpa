@@ -26,13 +26,13 @@ reports amba at 152 modules / 147 covered / 0 uncovered. The 5-module gap is the
 **Work:**
 - [ ] Resolve the five exemptions: give each a filelist and a consumer, or drop
       the module. "No consumer yet" is a debt entry, not a permanent state.
-- [ ] Wire `--check` into a gate. **Nothing runs it today** — not the
-      pre-commit hook, not CI (the only workflow is `track-clones.yml`), not a
-      Makefile target. A MUST that nothing enforces is a wish. Shared with
-      COMMON-010; do the gate once for both areas.
-- [ ] Also wire `--audit` (consumers hand-listing `rtl/common` / `rtl/amba`
-      sources). amba is the area most likely to be hand-listed by a consumer,
-      so the audit matters more here than anywhere else.
+- [x] Wire `--check` into a gate. **Done** — `.github/workflows/filelist-checks.yml`
+      runs on every push and treats `--check` and `--audit` as hard gates, with
+      `--blindspots` ratcheted against `bin/blindspots_baseline.json`. (The
+      original text here said nothing enforced it and the only workflow was
+      `track-clones.yml`; that has not been true for some time. Corrected
+      2026-08-17.)
+- [x] Also wire `--audit`. Done in the same workflow.
 
 **Why this is worth a gate — both failure modes are silent:**
 - `//` is a comment, so a doubled slash in a path silently drops that source.
@@ -424,46 +424,6 @@ top consumer sets them on `axi4_slave_rd_mon` / `axi4_slave_wr_mon` /
 goal (drop mask) but same comparator neighborhood; fold in if done together.
 
 ---
-
----
-
-## BRIDGE-MON-STRESS — three _mon monitor stress tests fail on a memory-bounds read
-**Status:** open 2026-07-28 (found by Claude while regenerating bridges for USE_JOHNSON)
-**Priority:** P2
-
-`test_bridge_mix_b_mon_monitor`, `test_bridge_mix_c_mon_monitor` and
-`test_bridge_mix_d_mon_monitor` fail. The other 28 bridge tests pass.
-
-```
-Memory read failed at 0x00000FFC: Read at address 0xFFC with size 8
-exceeds memory bounds (size: 4096)
-```
-
-A 4096-byte model read at offset 0xFFC with size 8 runs 4 bytes past the end.
-Either the stimulus should not generate an 8-byte access at that offset, or the
-memory model needs to be sized/masked to tolerate it. The failure is in the
-testbench memory model, not in the RTL: no `_mon` variant differs from its
-passing non-`mon` sibling in anything that touches addressing.
-
-### Why this surfaced now, and why it is NOT a regression
-
-These three were never being collected. `projects/components/bridge/dv/tests/`
-tests do `from monitor_stress_common import ...` — a sibling module — and the
-directory was not on `sys.path`, so all six `_mon` tests died at import with
-`ModuleNotFoundError` when pytest ran from the repo root. That is fixed (the
-directory is now inserted in the area's own `conftest.py`), which is what made
-these three visible.
-
-They are unrelated to the USE_JOHNSON regeneration that uncovered them: the
-generated adapters gained exactly one line, `.USE_JOHNSON(0)`, which passes the
-value `gaxi_fifo_async` was already defaulting to. The generated RTL is
-semantically identical.
-
-### Before starting
-
-- Run from inside `projects/components/bridge/dv/tests/`, or rely on the
-  conftest fix. Confirm all 31 collect.
-- ~66 min for the full bridge suite; the three failures each take ~3 min alone.
 
 ---
 
