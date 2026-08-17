@@ -252,11 +252,23 @@ async def cocotb_test_stream_mon(dut):
     # Assert unconditionally -- the observer is instantiated outside the
     # USE_AXI_MONITORS generate, so it must count in BOTH flavors. If this ever
     # fails only in the USE_MON=0 run, the gate has crept back over the meters.
-    # By name: these ARE in the harness regmap (OBS_RD_PROD / OBS_WR_PROD).
-    # An earlier version of this computed base + 0x100 without checking.
-    OBS_RD_PROD, OBS_WR_PROD = H("OBS_RD_PROD"), H("OBS_WR_PROD")
-    rd_prod = await tb.uart_read(OBS_RD_PROD) or 0
-    wr_prod = await tb.uart_read(OBS_WR_PROD) or 0
+    # Read from the OBSERVER'S OWN window, not a harness_csr mirror.
+    #
+    # These counters used to be observer OUTPUT PORTS, fanned into harness_csr
+    # and read at its 0x100 block. The observer owns its telemetry now
+    # (OBS_STAT_SEL selects, OBS_STAT_DATA returns), so the mirror and the ~70
+    # ports behind it are gone. Select-then-read, by name, against the
+    # observer's APB window.
+    from obs_addrs import O                     # observer APB base, by name
+    STAT_SEL, STAT_DATA = O("OBS_STAT_SEL"), O("OBS_STAT_DATA")
+
+    async def obs_metric(metric: int, is_write: int, tap: int = 0) -> int:
+        """One telemetry counter: METRIC[23:16], IS_WRITE[24], TAP[7:0]."""
+        await tb.uart_write(STAT_SEL, (metric << 16) | (is_write << 24) | tap)
+        return await tb.uart_read(STAT_DATA) or 0
+
+    rd_prod = await obs_metric(0, 0)            # METRIC 0 = aggregate productive
+    wr_prod = await obs_metric(0, 1)
     # tb.log, NOT dut._log: pytest captures dut._log on PASS, so the numbers
     # vanish exactly when you want to confirm a green run did real work.
     tb.log.info(f"[observer] rd_prod={rd_prod} wr_prod={wr_prod} "

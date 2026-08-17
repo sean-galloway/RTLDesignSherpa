@@ -326,13 +326,13 @@ module stream_harness #(
     // handles every port — no external converter glue.
 
     // ---- Interconnect wires for the new mon-bridge ports -------------------
-    // slave_monbus_wr master  <- dma_slave_monitors.m_axil_* (64-bit AXIL wr)
+    // slave_monbus_wr master  <- u_slave_observer.m_axil_* (64-bit AXIL wr)
     logic [31:0] slmon_awaddr; logic [2:0] slmon_awprot;
     logic        slmon_awvalid, slmon_awready;
     logic [63:0] slmon_wdata;  logic [7:0] slmon_wstrb;
     logic        slmon_wvalid, slmon_wready;
     logic [1:0]  slmon_bresp;  logic slmon_bvalid, slmon_bready;
-    // slave_err slave (read side) -> dma_slave_monitors.s_axil_* (32-bit AXIL rd)
+    // slave_err slave (read side) -> u_slave_observer.s_axil_* (32-bit AXIL rd)
     logic [31:0] se_araddr; logic [2:0] se_arprot;
     logic        se_arvalid, se_arready;
     logic [31:0] se_rdata;  logic [1:0] se_rresp;
@@ -368,7 +368,7 @@ module stream_harness #(
     logic [3:0]  obs_apb_PSTRB;
     logic [2:0]  obs_apb_PPROT;
 
-    // Slave-monitor config APB (bridge slvmon_apb @ 0x180000 -> dma_slave_monitors).
+    // Slave-observer config APB (bridge slvmon_apb @ 0x180000 -> u_slave_observer).
     logic        slvmon_apb_PSEL, slvmon_apb_PENABLE, slvmon_apb_PWRITE;
     logic        slvmon_apb_PREADY, slvmon_apb_PSLVERR;
     logic [31:0] slvmon_apb_PADDR, slvmon_apb_PWDATA, slvmon_apb_PRDATA;
@@ -993,19 +993,9 @@ module stream_harness #(
         // reads the observer's aggregate productive/bp/starv/idle buckets and
         // the indexed latency histogram entirely over CSR (no hierarchy
         // probe), enabling observer-vs-in-core equivalence over the real bus.
-        .i_obs_rd_prod   (obs_rd_agg_prod[0]),
-        .i_obs_rd_bp     (obs_rd_agg_bp[0]),
-        .i_obs_rd_starv  (obs_rd_agg_starv[0]),
-        .i_obs_rd_idle   (obs_rd_agg_idle[0]),
-        .i_obs_wr_prod   (obs_wr_agg_prod[0]),
-        .i_obs_wr_bp     (obs_wr_agg_bp[0]),
-        .i_obs_wr_starv  (obs_wr_agg_starv[0]),
-        .i_obs_wr_idle   (obs_wr_agg_idle[0]),
         // Indexed histogram readout: CSR drives the {bin,metric,bus} selector,
         // the harness muxes the selected count/total back in.
-        .o_obs_hist_sel  (obs_hist_sel),
-        .i_obs_hist_data (obs_hist_data_mux),
-        .i_obs_hist_total(obs_hist_total_mux)
+        .o_obs_hist_sel  (obs_hist_sel)
     );
 
     // =========================================================================
@@ -1689,34 +1679,29 @@ module stream_harness #(
         else               r_tally_freeze_d <= csr_freeze;
     assign w_tally_flush   = csr_freeze & ~r_tally_freeze_d;  // auto-flush on freeze rising edge
 
-    dma_slave_monitors #(
+    // The bare DMA slaves. The monitors that used to be spliced INLINE here
+    // (dma_slave_monitors) are gone: an in-path monitor whose table
+    // saturates gates the bus, and that is what replayed 49 ARs as 367 on
+    // channel 3. Observation is done by u_slave_observer below, which only
+    // watches these wires.
+    axi4_dma_slaves #(
         .NUM_CHANNELS  (NUM_CHANNELS),
         .AXI_ID_WIDTH  (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH(ADDR_WIDTH),
         .AXI_DATA_WIDTH(DATA_WIDTH),
-        .AXI_USER_WIDTH(AXI_USER_WIDTH),
-        .MAX_TRANSACTIONS(16),
-        .S_AXIL_DATA_WIDTH(32)
+        .AXI_USER_WIDTH(AXI_USER_WIDTH)
     ) u_dma_slaves (
         .aclk(aclk), .aresetn(unit_aresetn),
-
-        // Resets — both sides re-armed by the same CSR clear pulse.
         .read_lfsr_reset       (csr_clear_pulse),
         .write_crc_reset       (csr_clear_pulse),
-
-        // Read-side observation
         .read_crc_value        (read_crc_value),
         .read_crc_valid        (read_crc_valid),
         .read_beat_count       (read_beat_count_per_ch),
         .read_beat_count_total (read_beat_count),
-
-        // Write-side observation
         .write_crc_value        (write_crc_value),
         .write_crc_valid        (write_crc_valid),
         .write_beat_count       (write_beat_count_per_ch),
         .write_beat_count_total (write_beat_count),
-
-        // AR/R (slave-side R wires fed through u_rd_resp_delay below)
         .s_axi_arid    (f_rd_arid),   .s_axi_araddr  (f_rd_araddr),
         .s_axi_arlen   (f_rd_arlen),  .s_axi_arsize  (f_rd_arsize),
         .s_axi_arburst (f_rd_arburst),.s_axi_arlock  (f_rd_arlock),
@@ -1728,8 +1713,6 @@ module stream_harness #(
         .s_axi_rresp   (s_rd_rresp),  .s_axi_rlast   (s_rd_rlast),
         .s_axi_ruser   (s_rd_ruser),  .s_axi_rvalid  (s_rd_rvalid),
         .s_axi_rready  (s_rd_rready),
-
-        // AW/W (slave-side B wires fed through u_wr_resp_delay below)
         .s_axi_awid    (f_wr_awid),   .s_axi_awaddr  (f_wr_awaddr),
         .s_axi_awlen   (f_wr_awlen),  .s_axi_awsize  (f_wr_awsize),
         .s_axi_awburst (f_wr_awburst),.s_axi_awlock  (f_wr_awlock),
@@ -1743,26 +1726,88 @@ module stream_harness #(
         .s_axi_bid     (s_wr_bid),    .s_axi_bresp   (s_wr_bresp),
         .s_axi_buser   (s_wr_buser),  .s_axi_bvalid  (s_wr_bvalid),
         .s_axi_bready  (s_wr_bready),
-
         .busy_rd       (),
-        .busy_wr       (),
-        .cam_clear     (csr_cam_clear),
+        .busy_wr       ()
+    );
 
-        // Monitor config is the block's OWN APB regblock now (slvmon_apb @
-        // 0x180000), not 22 tied-off ports here. Defaults reproduce the old
-        // tie-offs, so this is behaviour-neutral until a host writes.
+    // SLAVE-ROLE observer on the DMA SLAVES' port (f_rd_*/f_wr_*). Pure snoop: every AXI4
+    // port below is an INPUT, so unlike the block it replaces it cannot gate
+    // or corrupt the bus no matter how full its tables get. Together with
+    // u_dma_observer (master role) on STREAM's own port, this is what
+    // exercises all four axi4 monitor flavours -- master rd/wr and slave
+    // rd/wr -- which is the point of the build-mon configuration.
+    axi4_intf_slave_observer #(
+        .NUM_RD_PORTS        (1),
+        .NUM_WR_PORTS        (1),
+        .ADDR_WIDTH          (ADDR_WIDTH),
+        .DATA_WIDTH          (DATA_WIDTH),
+        .AXI_ID_WIDTH        (AXI_ID_WIDTH),
+        .AXI_USER_WIDTH      (AXI_USER_WIDTH),
+        .MAX_TRANSACTIONS    (16),
+        // AXIL egress: the harness tally path consumes m_axil_*.
+        .EGRESS_AXIL         (1'b1),
+        .ENABLE_MON_TAPS     (USE_AXI_MONITORS != 0),
+        .ENABLE_BUS_METER    (0),
+        .ENABLE_LATENCY_HIST (0),
+        .NUM_CHANNELS        (OBS_NUM_CHANNELS),
+        .UNIT_ID             (8'h11)
+    ) u_slave_observer (
+        .aclk    (aclk),
+        .aresetn (unit_aresetn),
+        .cam_clear(csr_cam_clear),
+        .obs_rd_arid     (f_rd_arid),
+        .obs_rd_araddr   (f_rd_araddr),
+        .obs_rd_arlen    (f_rd_arlen),
+        .obs_rd_arsize   (f_rd_arsize),
+        .obs_rd_arburst  (f_rd_arburst),
+        .obs_rd_arlock   (f_rd_arlock),
+        .obs_rd_arcache  (f_rd_arcache),
+        .obs_rd_arprot   (f_rd_arprot),
+        .obs_rd_arqos    (f_rd_arqos),
+        .obs_rd_arregion (f_rd_arregion),
+        .obs_rd_aruser   (f_rd_aruser),
+        .obs_rd_arvalid  (f_rd_arvalid),
+        .obs_rd_arready  (f_rd_arready),
+        .obs_rd_rid      (f_rd_rid),
+        .obs_rd_rdata    (f_rd_rdata),
+        .obs_rd_rresp    (f_rd_rresp),
+        .obs_rd_rlast    (f_rd_rlast),
+        .obs_rd_ruser    (f_rd_ruser),
+        .obs_rd_rvalid   (f_rd_rvalid),
+        .obs_rd_rready   (f_rd_rready),
+        .obs_wr_awid     (f_wr_awid),
+        .obs_wr_awaddr   (f_wr_awaddr),
+        .obs_wr_awlen    (f_wr_awlen),
+        .obs_wr_awsize   (f_wr_awsize),
+        .obs_wr_awburst  (f_wr_awburst),
+        .obs_wr_awlock   (f_wr_awlock),
+        .obs_wr_awcache  (f_wr_awcache),
+        .obs_wr_awprot   (f_wr_awprot),
+        .obs_wr_awqos    (f_wr_awqos),
+        .obs_wr_awregion (f_wr_awregion),
+        .obs_wr_awuser   (f_wr_awuser),
+        .obs_wr_awvalid  (f_wr_awvalid),
+        .obs_wr_awready  (f_wr_awready),
+        .obs_wr_wdata    (f_wr_wdata),
+        .obs_wr_wstrb    (f_wr_wstrb),
+        .obs_wr_wlast    (f_wr_wlast),
+        .obs_wr_wuser    (f_wr_wuser),
+        .obs_wr_wvalid   (f_wr_wvalid),
+        .obs_wr_wready   (f_wr_wready),
+        .obs_wr_bid      (f_wr_bid),
+        .obs_wr_bresp    (f_wr_bresp),
+        .obs_wr_buser    (f_wr_buser),
+        .obs_wr_bvalid   (f_wr_bvalid),
+        .obs_wr_bready   (f_wr_bready),
         .s_apb_psel   (slvmon_apb_PSEL),    .s_apb_penable(slvmon_apb_PENABLE),
         .s_apb_pready (slvmon_apb_PREADY),  .s_apb_paddr  (slvmon_apb_PADDR[11:0]),
         .s_apb_pwrite (slvmon_apb_PWRITE),  .s_apb_pwdata (slvmon_apb_PWDATA),
         .s_apb_pstrb  (slvmon_apb_PSTRB),   .s_apb_prdata (slvmon_apb_PRDATA),
         .s_apb_pslverr(slvmon_apb_PSLVERR),
-
-        // monbus group err/IRQ AXIL slave-read -> bridge slave_err
         .s_axil_arvalid(se_arvalid), .s_axil_arready(se_arready),
         .s_axil_araddr (se_araddr),  .s_axil_arprot (se_arprot),
         .s_axil_rvalid (se_rvalid),  .s_axil_rready (se_rready),
         .s_axil_rdata  (se_rdata),   .s_axil_rresp  (se_rresp),
-        // monbus group bulk-trace AXIL master-write -> bridge slave_monbus_wr
         .m_axil_awvalid(slmon_awvalid), .m_axil_awready(slmon_awready),
         .m_axil_awaddr (slmon_awaddr),  .m_axil_awprot (slmon_awprot),
         .m_axil_wvalid (slmon_wvalid),  .m_axil_wready (slmon_wready),
@@ -1770,8 +1815,42 @@ module stream_harness #(
         .m_axil_bvalid (slmon_bvalid),  .m_axil_bready (slmon_bready),
         .m_axil_bresp  (slmon_bresp),
         .irq_out       (),
-        // Bulk-trace target window = the slave_tally region (0xC0000..0xFFFFF).
-        .cfg_base_addr (32'h000C0000), .cfg_limit_addr(32'h000FFFFF)
+        // Meters and histograms are DISABLED on this observer
+        // (ENABLE_BUS_METER=0 / ENABLE_LATENCY_HIST=0) -- the master-role
+        // observer already provides them and duplicating costs area on a
+        // 325T that is already the reason this build is 4 channels. The
+        // ports still exist, so connect them EXPLICITLY: an omitted pin is
+        // PINMISSING, which Verilator escalates to an error.
+        .cfg_rd_rid_per_channel      (),
+        .cfg_rd_rid_per_channel_valid(),
+        .i_meter_clear               (),
+        .i_meter_freeze              (),
+        .m_axi_awaddr                (),
+        .m_axi_awburst               (),
+        .m_axi_awcache               (),
+        .m_axi_awid                  (),
+        .m_axi_awlen                 (),
+        .m_axi_awlock                (),
+        .m_axi_awprot                (),
+        .m_axi_awqos                 (),
+        .m_axi_awready               (),
+        .m_axi_awregion              (),
+        .m_axi_awsize                (),
+        .m_axi_awuser                (),
+        .m_axi_awvalid               (),
+        .m_axi_bid                   (),
+        .m_axi_bready                (),
+        .m_axi_bresp                 (),
+        .m_axi_buser                 (),
+        .m_axi_bvalid                (),
+        .m_axi_wdata                 (),
+        .m_axi_wlast                 (),
+        .m_axi_wready                (),
+        .m_axi_wstrb                 (),
+        .m_axi_wuser                 (),
+        .m_axi_wvalid                (),
+        .obs_wr_active_ch_id         (),
+        .obs_wr_active_ch_valid      ()
     );
 
     // Optional per-beat response delay on the B channel. Bypass when
@@ -2063,7 +2142,16 @@ module stream_harness #(
         .cam_clear (1'b0),
 
         // ---- Read tap: DMA side = STREAM (rd_*) -----------------------------
-        // ---- Observation taps: INPUTS ONLY. The observer no longer
+        // ---- Observation taps: INPUTS ONLY, all off STREAM's OWN master
+        // ---- port (rd_*/wr_*). The slave-role observer hangs off the DMA
+        // ---- slaves' port (f_rd_*/f_wr_*) instead, so each observer is
+        // ---- attached to exactly ONE endpoint. Those two net groups are a
+        // ---- straight wire today, so this is electrically a no-op -- but
+        // ---- mixing them would quietly stop being a no-op the moment
+        // ---- anything (a crossbar, a width converter) is inserted between
+        // ---- STREAM and the slaves, and the two observers would then be
+        // ---- reporting the same side of it.
+        // ---- The observer no longer
         // ---- sits in the path; it watches the wires assigned below.
         // ---- (vault/handbook/design/observers-do-not-drive.md)
         .obs_rd_arid    (rd_arid),
@@ -2078,13 +2166,13 @@ module stream_harness #(
         .obs_rd_arregion(rd_arregion),
         .obs_rd_aruser  (rd_aruser),
         .obs_rd_arvalid (rd_arvalid),
-        .obs_rd_arready (f_rd_arready),
-        .obs_rd_rid     (f_rd_rid),
-        .obs_rd_rdata   (f_rd_rdata),
-        .obs_rd_rresp   (f_rd_rresp),
-        .obs_rd_rlast   (f_rd_rlast),
-        .obs_rd_ruser   (f_rd_ruser),
-        .obs_rd_rvalid  (f_rd_rvalid),
+        .obs_rd_arready (rd_arready),
+        .obs_rd_rid     (rd_rid),
+        .obs_rd_rdata   (rd_rdata),
+        .obs_rd_rresp   (rd_rresp),
+        .obs_rd_rlast   (rd_rlast),
+        .obs_rd_ruser   (rd_ruser),
+        .obs_rd_rvalid  (rd_rvalid),
         .obs_rd_rready  (rd_rready),
         .obs_wr_awid    (wr_awid),
         .obs_wr_awaddr  (wr_awaddr),
@@ -2103,21 +2191,21 @@ module stream_harness #(
         .obs_wr_wlast   (wr_wlast),
         .obs_wr_wuser   (wr_wuser),
         .obs_wr_wvalid  (wr_wvalid),
-        .obs_wr_awready (f_wr_awready),
-        .obs_wr_wready  (f_wr_wready),
-        .obs_wr_bid     (f_wr_bid),
-        .obs_wr_bresp   (f_wr_bresp),
-        .obs_wr_buser   (f_wr_buser),
-        .obs_wr_bvalid  (f_wr_bvalid),
+        .obs_wr_awready (wr_awready),
+        .obs_wr_wready  (wr_wready),
+        .obs_wr_bid     (wr_bid),
+        .obs_wr_bresp   (wr_bresp),
+        .obs_wr_buser   (wr_buser),
+        .obs_wr_bvalid  (wr_bvalid),
         .obs_wr_bready  (wr_bready),
         // Channel-active sideband: an INPUT to the observer, not a bus
         // signal. Kept when the pass-through pairs went away.
         .obs_wr_active_ch_id          (obs_wr_active_ch_id),
         .obs_wr_active_ch_valid       (obs_wr_active_ch_valid),
-        // Read tap: fabric side = slaves / resp-delay (f_rd_*)
+        // Read tap: fabric side = slaves / resp-delay (rd_*)
 
         // ---- Write tap: DMA side = STREAM (wr_*) ----------------------------
-        // Write tap: fabric side = slaves / resp-delay (f_wr_*)
+        // Write tap: fabric side = slaves / resp-delay (wr_*)
 
         // ---- Observability dump path: UNUSED (held idle/legal) --------------
         // AXIL slave-read drain: no host reads -> tie request inputs idle.
@@ -2166,10 +2254,6 @@ module stream_harness #(
         .s_apb_pwrite (obs_apb_PWRITE),  .s_apb_pwdata (obs_apb_PWDATA),
         .s_apb_pstrb  (obs_apb_PSTRB),   .s_apb_prdata (obs_apb_PRDATA),
         .s_apb_pslverr(obs_apb_PSLVERR),
-        .err_fifo_full        (),
-        .write_fifo_full      (),
-        .err_fifo_count       (),
-        .write_fifo_count     (),
 
         // ---- Meter window + channel maps ------------------------------------
         .i_meter_clear        (obs_meter_clear),
@@ -2178,37 +2262,27 @@ module stream_harness #(
         .cfg_rd_rid_per_channel_valid (obs_cfg_rd_rid_valid),
 
         // ---- Meter outputs --------------------------------------------------
-        .rd_meter_agg_productive   (obs_rd_agg_prod),
-        .rd_meter_agg_backpressure (obs_rd_agg_bp),
-        .rd_meter_agg_starvation   (obs_rd_agg_starv),
-        .rd_meter_agg_idle         (obs_rd_agg_idle),
-        .rd_meter_ch_productive    (obs_rd_ch_prod),
-        .rd_meter_ch_backpressure  (obs_rd_ch_bp),
-        .rd_meter_ch_starvation    (obs_rd_ch_starv),
-        .rd_meter_ch_idle          (obs_rd_ch_idle),
-        .rd_meter_ch_overflow      (obs_rd_ch_overflow),
-        .wr_meter_agg_productive   (obs_wr_agg_prod),
-        .wr_meter_agg_backpressure (obs_wr_agg_bp),
-        .wr_meter_agg_starvation   (obs_wr_agg_starv),
-        .wr_meter_agg_idle         (obs_wr_agg_idle),
-        .wr_meter_ch_productive    (obs_wr_ch_prod),
-        .wr_meter_ch_backpressure  (obs_wr_ch_bp),
-        .wr_meter_ch_starvation    (obs_wr_ch_starv),
-        .wr_meter_ch_idle          (obs_wr_ch_idle),
-        .wr_meter_ch_overflow      (obs_wr_ch_overflow),
 
         // ---- Latency-histogram readout + outputs ----------------------------
-        .i_hist_metric (obs_hist_metric),
-        .i_hist_bin    (obs_hist_bin),
-        .rd_hist_count (obs_rd_hist_count),
-        .rd_hist_total (obs_rd_hist_total),
-        .wr_hist_count (obs_wr_hist_count),
-        .wr_hist_total (obs_wr_hist_total),
         // Sizing self-check: asserts if a latency timestamp was ever dropped,
         // i.e. the observer is too small for what STREAM can initiate and the
         // histogram totals read low. Should be 0 by construction now that the
         // depths are derived; surfaced so it cannot regress silently.
-        .o_hist_sample_lost (obs_hist_sample_lost)
+        // EGRESS_AXIL=0 on this instance, so the AXIL dump master is tied
+        // off inside the observer. The ports exist either way -- that is the
+        // price of a port list that does not move with the parameter -- so
+        // connect them explicitly rather than leaving them PINMISSING.
+        .m_axil_awaddr   (),
+        .m_axil_awprot   (),
+        .m_axil_awready  (),
+        .m_axil_awvalid  (),
+        .m_axil_bready   (),
+        .m_axil_bresp    (),
+        .m_axil_bvalid   (),
+        .m_axil_wdata    (),
+        .m_axil_wready   (),
+        .m_axil_wstrb    (),
+        .m_axil_wvalid   ()
     );
 
     // =========================================================================

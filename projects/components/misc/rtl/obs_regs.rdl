@@ -97,6 +97,56 @@ regfile obs_regs {
           field { sw=rw; hw=r; } VALUE[31:0] = 32'h0004_0000; } OBS_BASE_ADDR  @ 0x064;
     reg { name = "Observer window limit"; desc = "Monbus bulk-write window high bound";
           field { sw=rw; hw=r; } VALUE[31:0] = 32'h0007_FFFF; } OBS_LIMIT_ADDR @ 0x068;
+
+    //-------------------------------------------------------------------------
+    // Telemetry readback (0x070+)
+    //
+    // The meters, latency histograms and perf counters are PER TAP and PER
+    // CHANNEL, so exposing them flat would be hundreds of registers -- and
+    // exposing them as PORTS (what this block used to do) cost 70 tie-offs per
+    // instance, every one of them a silent break if forgotten. Indexed
+    // select/data instead, the same shape stream_regs uses for HIST_SEL /
+    // HIST_DATA.
+    //
+    // Write OBS_STAT_SEL, then read OBS_STAT_DATA. The selection is registered
+    // in hardware, so the read returns the addressed counter with no side
+    // effects and re-reading is safe.
+    //
+    // IDENTICAL IN BOTH OBSERVERS. The master and slave observers differ only
+    // in which monitor flavour they instantiate; their register map is the
+    // same file, so one host decoder and one regmap serve both.
+    //-------------------------------------------------------------------------
+    reg { name = "Telemetry select"; desc = "Addresses one telemetry counter for OBS_STAT_DATA";
+          field { desc = "Tap index (0..NUM_RD_PORTS-1 for read metrics, 0..NUM_WR_PORTS-1 for write)";
+                  sw=rw; hw=r; } TAP[7:0] = 8'h00;
+          field { desc = "Channel index within the tap; ignored for aggregate metrics";
+                  sw=rw; hw=r; } CHANNEL[15:8] = 8'h00;
+          field { desc = "Metric id. AGGREGATE (per tap): 0=productive, 1=backpressure, 2=starvation, 3=idle. PER CHANNEL (uses CHANNEL): 4=productive, 5=backpressure, 6=starvation, 7=idle, 8=overflow. HISTOGRAM: 9=bin (NOT YET READABLE - the bin is chosen by the i_hist_bin input port, so BIN here is accepted and ignored and this reads 0), 10=total. Any other value reads 0.";
+                  sw=rw; hw=r; } METRIC[23:16] = 8'h00;
+          field { desc = "0 = read-side metric, 1 = write-side"; sw=rw; hw=r; } IS_WRITE[24:24] = 1'b0;
+          field { desc = "Histogram bin index, used when METRIC=9"; sw=rw; hw=r; } BIN[31:25] = 7'h00;
+        } OBS_STAT_SEL @ 0x070;
+
+    reg { name = "Telemetry data"; desc = "The counter addressed by OBS_STAT_SEL. Reads as 0 for a metric this instance does not build (meters/histograms are parameter-gated).";
+          field { sw=r; hw=w; } VALUE[31:0] = 32'h0; } OBS_STAT_DATA @ 0x074;
+
+    reg { name = "Monbus FIFO status"; desc = "Group err/write FIFO occupancy and full flags";
+          field { sw=r; hw=w; } ERR_COUNT[15:0]   = 16'h0;
+          field { sw=r; hw=w; } WRITE_COUNT[30:16] = 15'h0;
+          field { desc = "Either FIFO full"; sw=r; hw=w; } ANY_FULL[31:31] = 1'b0;
+        } OBS_FIFO_STAT @ 0x078;
+
+    reg { name = "Observer sticky status"; desc = "Sticky flags. A dropped sample or a blocked tap means the numbers above are INCOMPLETE, so it has to be readable alongside them.";
+          field { desc = "A latency-histogram timestamp was dropped"; sw=r; hw=w; } HIST_SAMPLE_LOST[0:0] = 1'b0;
+          field { desc = "Any tap asserted block_ready (its table filled, so it stopped tracking)"; sw=r; hw=w; } TAP_BLOCKED[1:1] = 1'b0;
+          field { sw=r; hw=na; } RSVD[31:2] = 30'h0; } OBS_STICKY @ 0x07C;
+
+    reg { name = "Compressor stats"; desc = "monbus_compressor tier hits and CAM misses";
+          field { sw=r; hw=w; } TIER1[15:0] = 16'h0;
+          field { sw=r; hw=w; } TIER0[31:16] = 16'h0; } OBS_COMP_STAT0 @ 0x080;
+    reg { name = "Compressor stats 2"; desc = "CAM miss and overflow counters";
+          field { sw=r; hw=w; } CAM_MISS[15:0] = 16'h0;
+          field { sw=r; hw=w; } OVERFLOW[31:16] = 16'h0; } OBS_COMP_STAT1 @ 0x084;
 };
 
 addrmap obs_regs_top {

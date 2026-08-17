@@ -289,21 +289,11 @@ module harness_csr #(
     // from the standalone observer dropped inline on STREAM's rd/wr AXI. Used
     // for observer-vs-in-core equivalence and the eventual USE_AXI_MONITORS=0
     // path where the observer is the sole perf source.
-    input  logic [31:0]     i_obs_rd_prod,
-    input  logic [31:0]     i_obs_rd_bp,
-    input  logic [31:0]     i_obs_rd_starv,
-    input  logic [31:0]     i_obs_rd_idle,
-    input  logic [31:0]     i_obs_wr_prod,
-    input  logic [31:0]     i_obs_wr_bp,
-    input  logic [31:0]     i_obs_wr_starv,
-    input  logic [31:0]     i_obs_wr_idle,
     // Indexed histogram readout. o_obs_hist_sel = {bin[5:2], metric[1], bus[0]}
     // (bus 0=read/1=write; metric 0=AR->firstR or AW->B, 1=AR->RLAST). The
     // harness drives the observer's i_hist_metric/i_hist_bin from this and
     // muxes the selected count/total back into i_obs_hist_data/total.
     output logic [5:0]      o_obs_hist_sel,
-    input  logic [31:0]     i_obs_hist_data,
-    input  logic [31:0]     i_obs_hist_total,
 
     input  logic [31:0]     i_crc_rd_expected,
     input  logic [31:0]     i_crc_wr_expected,
@@ -736,17 +726,7 @@ module harness_csr #(
                             // RFC Stage E: external axi4_intf_master_observer perf
                             // readback (revives 0x100-0x128). Aggregate R/W
                             // buckets + indexed latency-histogram readout.
-                            9'h100: r_rdata <= i_obs_rd_prod;
-                            9'h104: r_rdata <= i_obs_rd_bp;
-                            9'h108: r_rdata <= i_obs_rd_starv;
-                            9'h10C: r_rdata <= i_obs_rd_idle;
-                            9'h110: r_rdata <= i_obs_wr_prod;
-                            9'h114: r_rdata <= i_obs_wr_bp;
-                            9'h118: r_rdata <= i_obs_wr_starv;
-                            9'h11C: r_rdata <= i_obs_wr_idle;
                             9'h120: r_rdata <= {26'd0, r_obs_hist_sel};
-                            9'h124: r_rdata <= i_obs_hist_data;
-                            9'h128: r_rdata <= i_obs_hist_total;
 
                             // MonBus compressor statistics (0 unless the
                             // build has USE_MON_COMPRESSION=1).

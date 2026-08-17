@@ -4,8 +4,85 @@
 package obs_regs_top_pkg;
 
     localparam OBS_REGS_TOP_DATA_WIDTH = 32;
-    localparam OBS_REGS_TOP_MIN_ADDR_WIDTH = 7;
-    localparam OBS_REGS_TOP_SIZE = 'h6c;
+    localparam OBS_REGS_TOP_MIN_ADDR_WIDTH = 8;
+    localparam OBS_REGS_TOP_SIZE = 'h88;
+
+    typedef struct {
+        logic [31:0] next;
+    } obs_regs__OBS_STAT_DATA__VALUE__in_t;
+
+    typedef struct {
+        obs_regs__OBS_STAT_DATA__VALUE__in_t VALUE;
+    } obs_regs__OBS_STAT_DATA__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } obs_regs__OBS_FIFO_STAT__ERR_COUNT__in_t;
+
+    typedef struct {
+        logic [14:0] next;
+    } obs_regs__OBS_FIFO_STAT__WRITE_COUNT__in_t;
+
+    typedef struct {
+        logic next;
+    } obs_regs__OBS_FIFO_STAT__ANY_FULL__in_t;
+
+    typedef struct {
+        obs_regs__OBS_FIFO_STAT__ERR_COUNT__in_t ERR_COUNT;
+        obs_regs__OBS_FIFO_STAT__WRITE_COUNT__in_t WRITE_COUNT;
+        obs_regs__OBS_FIFO_STAT__ANY_FULL__in_t ANY_FULL;
+    } obs_regs__OBS_FIFO_STAT__in_t;
+
+    typedef struct {
+        logic next;
+    } obs_regs__OBS_STICKY__HIST_SAMPLE_LOST__in_t;
+
+    typedef struct {
+        logic next;
+    } obs_regs__OBS_STICKY__TAP_BLOCKED__in_t;
+
+    typedef struct {
+        obs_regs__OBS_STICKY__HIST_SAMPLE_LOST__in_t HIST_SAMPLE_LOST;
+        obs_regs__OBS_STICKY__TAP_BLOCKED__in_t TAP_BLOCKED;
+    } obs_regs__OBS_STICKY__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } obs_regs__OBS_COMP_STAT0__TIER1__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } obs_regs__OBS_COMP_STAT0__TIER0__in_t;
+
+    typedef struct {
+        obs_regs__OBS_COMP_STAT0__TIER1__in_t TIER1;
+        obs_regs__OBS_COMP_STAT0__TIER0__in_t TIER0;
+    } obs_regs__OBS_COMP_STAT0__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } obs_regs__OBS_COMP_STAT1__CAM_MISS__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } obs_regs__OBS_COMP_STAT1__OVERFLOW__in_t;
+
+    typedef struct {
+        obs_regs__OBS_COMP_STAT1__CAM_MISS__in_t CAM_MISS;
+        obs_regs__OBS_COMP_STAT1__OVERFLOW__in_t OVERFLOW;
+    } obs_regs__OBS_COMP_STAT1__in_t;
+
+    typedef struct {
+        obs_regs__OBS_STAT_DATA__in_t OBS_STAT_DATA;
+        obs_regs__OBS_FIFO_STAT__in_t OBS_FIFO_STAT;
+        obs_regs__OBS_STICKY__in_t OBS_STICKY;
+        obs_regs__OBS_COMP_STAT0__in_t OBS_COMP_STAT0;
+        obs_regs__OBS_COMP_STAT1__in_t OBS_COMP_STAT1;
+    } obs_regs__in_t;
+
+    typedef struct {
+        obs_regs__in_t OBS;
+    } obs_regs_top__in_t;
 
     typedef struct {
         logic [15:0] value;
@@ -201,6 +278,34 @@ package obs_regs_top_pkg;
     } obs_regs__OBS_LIMIT_ADDR__out_t;
 
     typedef struct {
+        logic [7:0] value;
+    } obs_regs__OBS_STAT_SEL__TAP__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } obs_regs__OBS_STAT_SEL__CHANNEL__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } obs_regs__OBS_STAT_SEL__METRIC__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__OBS_STAT_SEL__IS_WRITE__out_t;
+
+    typedef struct {
+        logic [6:0] value;
+    } obs_regs__OBS_STAT_SEL__BIN__out_t;
+
+    typedef struct {
+        obs_regs__OBS_STAT_SEL__TAP__out_t TAP;
+        obs_regs__OBS_STAT_SEL__CHANNEL__out_t CHANNEL;
+        obs_regs__OBS_STAT_SEL__METRIC__out_t METRIC;
+        obs_regs__OBS_STAT_SEL__IS_WRITE__out_t IS_WRITE;
+        obs_regs__OBS_STAT_SEL__BIN__out_t BIN;
+    } obs_regs__OBS_STAT_SEL__out_t;
+
+    typedef struct {
         obs_regs__AXI_PKT_MASK__out_t AXI_PKT_MASK;
         obs_regs__AXI_MASK1__out_t AXI_MASK1;
         obs_regs__AXI_MASK2__out_t AXI_MASK2;
@@ -217,6 +322,7 @@ package obs_regs_top_pkg;
         obs_regs__OBS_CTRL__out_t OBS_CTRL;
         obs_regs__OBS_BASE_ADDR__out_t OBS_BASE_ADDR;
         obs_regs__OBS_LIMIT_ADDR__out_t OBS_LIMIT_ADDR;
+        obs_regs__OBS_STAT_SEL__out_t OBS_STAT_SEL;
     } obs_regs__out_t;
 
     typedef struct {

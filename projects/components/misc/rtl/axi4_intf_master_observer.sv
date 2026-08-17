@@ -66,6 +66,18 @@ module axi4_intf_master_observer
     parameter int FLUSH_TIMEOUT_CYCLES  = 1024,
     parameter int USE_COMPRESSION       = 0,
 
+    // ---- Monbus egress: which dump master this instance exposes ----------
+    // 0 = monbus_axil_axi4_group -> AXI4 burst master (m_axi_*), for a
+    //     memory-ring dump.
+    // 1 = monbus_axil_axil_group -> AXIL write master (m_axil_*), which is
+    //     what the STREAM harness's tally path consumes.
+    // BOTH port sets are always declared so the module's port list does not
+    // change with the parameter; the unused set is driven to zero. A port
+    // list that moved with a parameter would make every instantiation
+    // parameter-order-sensitive, which is a worse trap than a few tied
+    // outputs.
+    parameter bit EGRESS_AXIL           = 1'b0,
+
     // ---------- Per-leaf monitor config ----------
     parameter int MAX_TRANSACTIONS      = 16,
     // Drives cfg_monitor_enable on the embedded axi4_master_{rd,wr}_mon taps.
@@ -278,6 +290,19 @@ module axi4_intf_master_observer
     input  logic                                                m_axi_bvalid,
     output logic                                                m_axi_bready,
 
+    // ---- AXIL dump master (EGRESS_AXIL=1). Zero when unused. ----------
+    output logic                                                m_axil_awvalid,
+    input  logic                                                m_axil_awready,
+    output logic [ADDR_WIDTH-1:0]                               m_axil_awaddr,
+    output logic [2:0]                                          m_axil_awprot,
+    output logic                                                m_axil_wvalid,
+    input  logic                                                m_axil_wready,
+    output logic [63:0]                                         m_axil_wdata,
+    output logic [7:0]                                          m_axil_wstrb,
+    input  logic                                                m_axil_bvalid,
+    output logic                                                m_axil_bready,
+    input  logic [1:0]                                          m_axil_bresp,
+
     // IRQ
     output logic                                                irq_out,
 
@@ -301,10 +326,6 @@ module axi4_intf_master_observer
     // monitor source -- but they're real filter inputs either way.
 
     // ----- AXI -----
-    output logic                                                err_fifo_full,
-    output logic                                                write_fifo_full,
-    output logic [15:0]                                         err_fifo_count,
-    output logic [15:0]                                         write_fifo_count,
 
     // ================================================================
     // axi_bus_meter inputs (optional; safe to tie off if ENABLE_BUS_METER=0)
@@ -339,31 +360,13 @@ module axi4_intf_master_observer
     // directly here. DMAs without this output: tie both to 0 (aggregate
     // counters still tick; per-channel buckets stay at 0).
     input  logic [CW-1:0]           obs_wr_active_ch_id          [NUM_WR_PORTS],
-    input  logic                    obs_wr_active_ch_valid       [NUM_WR_PORTS],
+    input  logic                    obs_wr_active_ch_valid       [NUM_WR_PORTS]
 
     // ================================================================
     // axi_bus_meter outputs (one set per monitored port)
     // ================================================================
     // Read-side meters
-    output logic [31:0]             rd_meter_agg_productive      [NUM_RD_PORTS],
-    output logic [31:0]             rd_meter_agg_backpressure    [NUM_RD_PORTS],
-    output logic [31:0]             rd_meter_agg_starvation      [NUM_RD_PORTS],
-    output logic [31:0]             rd_meter_agg_idle            [NUM_RD_PORTS],
-    output logic [15:0]             rd_meter_ch_productive       [NUM_RD_PORTS][NUM_CHANNELS],
-    output logic [15:0]             rd_meter_ch_backpressure     [NUM_RD_PORTS][NUM_CHANNELS],
-    output logic [15:0]             rd_meter_ch_starvation       [NUM_RD_PORTS][NUM_CHANNELS],
-    output logic [15:0]             rd_meter_ch_idle             [NUM_RD_PORTS][NUM_CHANNELS],
-    output logic [NUM_CHANNELS*4-1:0] rd_meter_ch_overflow       [NUM_RD_PORTS],
     // Write-side meters
-    output logic [31:0]             wr_meter_agg_productive      [NUM_WR_PORTS],
-    output logic [31:0]             wr_meter_agg_backpressure    [NUM_WR_PORTS],
-    output logic [31:0]             wr_meter_agg_starvation      [NUM_WR_PORTS],
-    output logic [31:0]             wr_meter_agg_idle            [NUM_WR_PORTS],
-    output logic [15:0]             wr_meter_ch_productive       [NUM_WR_PORTS][NUM_CHANNELS],
-    output logic [15:0]             wr_meter_ch_backpressure     [NUM_WR_PORTS][NUM_CHANNELS],
-    output logic [15:0]             wr_meter_ch_starvation       [NUM_WR_PORTS][NUM_CHANNELS],
-    output logic [15:0]             wr_meter_ch_idle             [NUM_WR_PORTS][NUM_CHANNELS],
-    output logic [NUM_CHANNELS*4-1:0] wr_meter_ch_overflow       [NUM_WR_PORTS],
 
     // ================================================================
     // axi_perf_latency_hist (RFC Stage E.3) — per-port latency histograms
@@ -374,18 +377,12 @@ module axi4_intf_master_observer
     // writes expose one metric (AW->B; i_hist_metric is ignored for writes).
     // o_*_hist_total is the per-metric transaction count (== burst count).
     // Frozen/cleared in lockstep with the meters (i_meter_clear/i_meter_freeze).
-    input  logic                    i_hist_metric,
-    input  logic [HIST_BINW-1:0]    i_hist_bin,
-    output logic [31:0]             rd_hist_count   [NUM_RD_PORTS],
-    output logic [31:0]             rd_hist_total   [NUM_RD_PORTS],
-    output logic [31:0]             wr_hist_count   [NUM_WR_PORTS],
-    output logic [31:0]             wr_hist_total   [NUM_WR_PORTS],
 
     // Sticky: a latency-timestamp FIFO was full when a command arrived, so at
     // least one sample was lost and the histogram totals READ LOW.
     //
     // This is a STATUS bit, not backpressure. Throttling the command channel
-    // would keep the totals exact while changing the traffic being measured,
+    // would keep the totals exact while changing the traffic being measured
     // which for a performance observer is the worse error -- the instrument
     // must not become the bottleneck. So the observer is sized to track
     // everything the DMA can initiate (NUM_CHANNELS x per-channel outstanding)
@@ -393,8 +390,40 @@ module axi4_intf_master_observer
     // numbers are trustworthy; one means they undercount and the design is
     // mis-parameterized. Without it, undersizing is indistinguishable from a
     // slower DMA.
-    output logic                    o_hist_sample_lost
 );
+
+    // Telemetry, formerly ~27 OUTPUT PORTS. Read through this block's own
+    // regblock (OBS_STAT_SEL/OBS_STAT_DATA, OBS_FIFO_STAT, OBS_STICKY,
+    // OBS_COMP_STAT*) instead. Fanning them out cost the integrator a
+    // tie-off per pin, and a forgotten one is silent.
+    logic                        err_fifo_full ;
+    logic                        write_fifo_full ;
+    logic [15:0]                 err_fifo_count ;
+    logic [15:0]                 write_fifo_count ;
+    logic [31:0]                 rd_meter_agg_productive [NUM_RD_PORTS];
+    logic [31:0]                 rd_meter_agg_backpressure [NUM_RD_PORTS];
+    logic [31:0]                 rd_meter_agg_starvation [NUM_RD_PORTS];
+    logic [31:0]                 rd_meter_agg_idle [NUM_RD_PORTS];
+    logic [15:0]                 rd_meter_ch_productive [NUM_RD_PORTS][NUM_CHANNELS];
+    logic [15:0]                 rd_meter_ch_backpressure [NUM_RD_PORTS][NUM_CHANNELS];
+    logic [15:0]                 rd_meter_ch_starvation [NUM_RD_PORTS][NUM_CHANNELS];
+    logic [15:0]                 rd_meter_ch_idle [NUM_RD_PORTS][NUM_CHANNELS];
+    logic [NUM_CHANNELS*4-1:0]   rd_meter_ch_overflow [NUM_RD_PORTS];
+    logic [31:0]                 wr_meter_agg_productive [NUM_WR_PORTS];
+    logic [31:0]                 wr_meter_agg_backpressure [NUM_WR_PORTS];
+    logic [31:0]                 wr_meter_agg_starvation [NUM_WR_PORTS];
+    logic [31:0]                 wr_meter_agg_idle [NUM_WR_PORTS];
+    logic [15:0]                 wr_meter_ch_productive [NUM_WR_PORTS][NUM_CHANNELS];
+    logic [15:0]                 wr_meter_ch_backpressure [NUM_WR_PORTS][NUM_CHANNELS];
+    logic [15:0]                 wr_meter_ch_starvation [NUM_WR_PORTS][NUM_CHANNELS];
+    logic [15:0]                 wr_meter_ch_idle [NUM_WR_PORTS][NUM_CHANNELS];
+    logic [NUM_CHANNELS*4-1:0]   wr_meter_ch_overflow [NUM_WR_PORTS];
+    logic [31:0]                 rd_hist_count [NUM_RD_PORTS];
+    logic [31:0]                 rd_hist_total [NUM_RD_PORTS];
+    logic [31:0]                 wr_hist_count [NUM_WR_PORTS];
+    logic [31:0]                 wr_hist_total [NUM_WR_PORTS];
+    logic                        o_hist_sample_lost ;
+
 
 
     // Per-tap monitor backpressure. Not a bus signal -- nothing here
@@ -452,6 +481,11 @@ module axi4_intf_master_observer
     );
 
     obs_regs_top_pkg::obs_regs_top__out_t hwif;
+    // Hardware->software side of the regblock: the telemetry readback.
+    // Populated by the OBS_STAT_SEL mux below; zeroed here so every field
+    // has exactly one driver and an unpopulated metric reads as 0 rather
+    // than X.
+    obs_regs_top_pkg::obs_regs_top__in_t hwif_i;
 
     obs_regs_top u_obs_regs (
         .clk(aclk), .rst(~aresetn),
@@ -462,6 +496,7 @@ module axi4_intf_master_observer
         .s_cpuif_rd_ack(w_rb_rd_ack),         .s_cpuif_rd_err(w_rb_rd_err),
         .s_cpuif_rd_data(w_rb_rd_data),
         .s_cpuif_wr_ack(w_rb_wr_ack),         .s_cpuif_wr_err(w_rb_wr_err),
+        .hwif_in(hwif_i),
         .hwif_out(hwif)
     );
 
@@ -868,116 +903,252 @@ module axi4_intf_master_observer
     //   - AXIL slave-read for CPU IRQ drain
     //   - AXI4 burst master-write for memory-ring dump
     // =================================================================
+    // Compressor telemetry, captured from the monbus group rather than
+    // left unconnected -- it is readable through OBS_COMP_STAT* now.
+    logic [15:0] w_comp_stat_tier1_a;
+    logic [15:0] w_comp_stat_tier1_b;
+    logic [15:0] w_comp_stat_tier1_c;
+    logic [15:0] w_comp_stat_tier0;
+    logic [15:0] w_comp_stat_cam_miss;
+    logic [15:0] w_comp_stat_delta_ts_ovf;
+    logic [15:0] w_comp_stat_event_data_ovf;
+    logic [15:0] w_comp_stat_ed_delta_ovf;
+
+    // Histogram selection comes from this block's OWN register now, not
+    // from input ports the integrator had to drive. That is what makes
+    // OBS_STAT_SEL.BIN mean something: select the bin and read it back
+    // through one register pair instead of wiggling a port.
+    logic                 w_hist_metric_sel;
+    logic [HIST_BINW-1:0] w_hist_bin_sel;
+    assign w_hist_metric_sel = hwif.OBS.OBS_STAT_SEL.IS_WRITE.value;
+    assign w_hist_bin_sel    = HIST_BINW'(hwif.OBS.OBS_STAT_SEL.BIN.value);
+
+    // Egress select. Exactly one group is built; the other port set is
+    // tied off so an unused egress reads as idle rather than floating.
+    generate
+    if (EGRESS_AXIL) begin : g_egress_axil
+        assign m_axi_awid = '0; assign m_axi_awaddr = '0;
+        assign m_axi_awlen = '0; assign m_axi_awsize = '0;
+        assign m_axi_awburst = '0; assign m_axi_awlock = 1'b0;
+        assign m_axi_awcache = '0; assign m_axi_awprot = '0;
+        assign m_axi_awqos = '0; assign m_axi_awregion = '0;
+        assign m_axi_awuser = '0; assign m_axi_awvalid = 1'b0;
+        assign m_axi_wdata = '0; assign m_axi_wstrb = '0;
+        assign m_axi_wlast = 1'b0; assign m_axi_wuser = '0;
+        assign m_axi_wvalid = 1'b0; assign m_axi_bready = 1'b0;
+    monbus_axil_axil_group #(
+            .FIFO_DEPTH_ERR        (FIFO_DEPTH_ERR),
+            .FIFO_DEPTH_WRITE      (FIFO_DEPTH_WRITE),
+            .ADDR_WIDTH            (ADDR_WIDTH),
+            .FLUSH_TIMEOUT_CYCLES  (FLUSH_TIMEOUT_CYCLES),
+            .USE_COMPRESSION       (USE_COMPRESSION)
+        ) u_group (
+            .axi_aclk         (aclk),
+            .axi_aresetn      (aresetn),
+            .cam_clear        (cam_clear),
+    
+            .monbus_valid     (arb_monbus_valid),
+            .monbus_ready     (arb_monbus_ready),
+            .monbus_packet    (arb_monbus_packet),
+            .monbus_timestamp (arb_monbus_timestamp),
+    
+            .mon_time_out     (mon_time_w),
+    
+            // AXIL slave-read
+            .s_axil_arvalid   (s_axil_arvalid),
+            .s_axil_arready   (s_axil_arready),
+            .s_axil_araddr    (s_axil_araddr),
+            .s_axil_arprot    (s_axil_arprot),
+            .s_axil_rvalid    (s_axil_rvalid),
+            .s_axil_rready    (s_axil_rready),
+            .s_axil_rdata     (s_axil_rdata),
+            .s_axil_rresp     (s_axil_rresp),
+    
+            // AXI4 master-write
+    
+            .m_axil_awvalid   (m_axil_awvalid),
+            .m_axil_awready   (m_axil_awready),
+            .m_axil_awaddr    (m_axil_awaddr),
+            .m_axil_awprot    (m_axil_awprot),
+            .m_axil_wvalid    (m_axil_wvalid),
+            .m_axil_wready    (m_axil_wready),
+            .m_axil_wdata     (m_axil_wdata),
+            .m_axil_wstrb     (m_axil_wstrb),
+            .m_axil_bvalid    (m_axil_bvalid),
+            .m_axil_bready    (m_axil_bready),
+            .m_axil_bresp     (m_axil_bresp),
+    
+            .irq_out          (irq_out),
+    
+            // Address window + filter masks (caller-driven)
+            .cfg_base_addr        (cfg_base_addr),
+            .cfg_limit_addr       (cfg_limit_addr),
+            .cfg_flush_watermark  (cfg_flush_watermark),
+            .cfg_compress_en      (cfg_compress_en),
+    
+            .cfg_axi_pkt_mask     (cfg_axi_pkt_mask),
+            .cfg_axi_err_select   (cfg_axi_err_select),
+            .cfg_axi_error_mask   (cfg_axi_error_mask),
+            .cfg_axi_timeout_mask (cfg_axi_timeout_mask),
+            .cfg_axi_compl_mask   (cfg_axi_compl_mask),
+            .cfg_axi_thresh_mask  (cfg_axi_thresh_mask),
+            .cfg_axi_perf_mask    (cfg_axi_perf_mask),
+            .cfg_axi_addr_mask    (cfg_axi_addr_mask),
+            .cfg_axi_debug_mask   (cfg_axi_debug_mask),
+    
+            // AXIS / CORE protocol masks: this observer doesn't generate
+            // AXIS or CORE packets, so tie all to 0 (no filtering).
+            .cfg_axis_pkt_mask     (cfg_axis_pkt_mask),
+            .cfg_axis_err_select   (cfg_axis_err_select),
+            .cfg_axis_error_mask   (cfg_axis_error_mask),
+            .cfg_axis_timeout_mask (cfg_axis_timeout_mask),
+            .cfg_axis_compl_mask   (cfg_axis_compl_mask),
+            .cfg_axis_credit_mask  (cfg_axis_credit_mask),
+            .cfg_axis_channel_mask (cfg_axis_channel_mask),
+            .cfg_axis_stream_mask  (cfg_axis_stream_mask),
+            .cfg_core_pkt_mask     (cfg_core_pkt_mask),
+            .cfg_core_err_select   (cfg_core_err_select),
+            .cfg_core_error_mask   (cfg_core_error_mask),
+            .cfg_core_timeout_mask (cfg_core_timeout_mask),
+            .cfg_core_compl_mask   (cfg_core_compl_mask),
+            .cfg_core_thresh_mask  (cfg_core_thresh_mask),
+            .cfg_core_perf_mask    (cfg_core_perf_mask),
+            .cfg_core_debug_mask   (cfg_core_debug_mask),
+    
+            .err_fifo_full      (err_fifo_full),
+            .write_fifo_full    (write_fifo_full),
+            .err_fifo_count     (err_fifo_count),
+            .write_fifo_count   (write_fifo_count),
+    
+            /* verilator lint_off PINCONNECTEMPTY */
+            .mon_compressor_stat_tier1_a        (w_comp_stat_tier1_a),
+            .mon_compressor_stat_tier1_b        (w_comp_stat_tier1_b),
+            .mon_compressor_stat_tier1_c        (w_comp_stat_tier1_c),
+            .mon_compressor_stat_tier0          (),
+            .mon_compressor_stat_cam_miss       (),
+            .mon_compressor_stat_delta_ts_ovf   (),
+            .mon_compressor_stat_event_data_ovf (),
+            .mon_compressor_stat_ed_delta_ovf   ()
+            /* verilator lint_on PINCONNECTEMPTY */
+        );
+    end else begin : g_egress_axi4
+        assign m_axil_awvalid = 1'b0; assign m_axil_awaddr = '0;
+        assign m_axil_awprot = '0; assign m_axil_wvalid = 1'b0;
+        assign m_axil_wdata = '0; assign m_axil_wstrb = '0;
+        assign m_axil_bready = 1'b0;
     monbus_axil_axi4_group #(
-        .FIFO_DEPTH_ERR        (FIFO_DEPTH_ERR),
-        .FIFO_DEPTH_WRITE      (FIFO_DEPTH_WRITE),
-        .ADDR_WIDTH            (ADDR_WIDTH),
-        .AXI_ID_WIDTH          (OBS_AXI_ID_WIDTH),
-        .AXI_USER_WIDTH        (1),
-        .MAX_BURST_BEATS       (MAX_BURST_BEATS),
-        .FLUSH_TIMEOUT_CYCLES  (FLUSH_TIMEOUT_CYCLES),
-        .USE_COMPRESSION       (USE_COMPRESSION)
-    ) u_group (
-        .axi_aclk         (aclk),
-        .axi_aresetn      (aresetn),
-        .cam_clear        (cam_clear),
+            .FIFO_DEPTH_ERR        (FIFO_DEPTH_ERR),
+            .FIFO_DEPTH_WRITE      (FIFO_DEPTH_WRITE),
+            .ADDR_WIDTH            (ADDR_WIDTH),
+            .AXI_ID_WIDTH          (OBS_AXI_ID_WIDTH),
+            .AXI_USER_WIDTH        (1),
+            .MAX_BURST_BEATS       (MAX_BURST_BEATS),
+            .FLUSH_TIMEOUT_CYCLES  (FLUSH_TIMEOUT_CYCLES),
+            .USE_COMPRESSION       (USE_COMPRESSION)
+        ) u_group (
+            .axi_aclk         (aclk),
+            .axi_aresetn      (aresetn),
+            .cam_clear        (cam_clear),
+    
+            .monbus_valid     (arb_monbus_valid),
+            .monbus_ready     (arb_monbus_ready),
+            .monbus_packet    (arb_monbus_packet),
+            .monbus_timestamp (arb_monbus_timestamp),
+    
+            .mon_time_out     (mon_time_w),
+    
+            // AXIL slave-read
+            .s_axil_arvalid   (s_axil_arvalid),
+            .s_axil_arready   (s_axil_arready),
+            .s_axil_araddr    (s_axil_araddr),
+            .s_axil_arprot    (s_axil_arprot),
+            .s_axil_rvalid    (s_axil_rvalid),
+            .s_axil_rready    (s_axil_rready),
+            .s_axil_rdata     (s_axil_rdata),
+            .s_axil_rresp     (s_axil_rresp),
+    
+            // AXI4 master-write
+            .m_axi_awid       (m_axi_awid),
+            .m_axi_awaddr     (m_axi_awaddr),
+            .m_axi_awlen      (m_axi_awlen),
+            .m_axi_awsize     (m_axi_awsize),
+            .m_axi_awburst    (m_axi_awburst),
+            .m_axi_awlock     (m_axi_awlock),
+            .m_axi_awcache    (m_axi_awcache),
+            .m_axi_awprot     (m_axi_awprot),
+            .m_axi_awqos      (m_axi_awqos),
+            .m_axi_awregion   (m_axi_awregion),
+            .m_axi_awuser     (m_axi_awuser),
+            .m_axi_awvalid    (m_axi_awvalid),
+            .m_axi_awready    (m_axi_awready),
+            .m_axi_wdata      (m_axi_wdata),
+            .m_axi_wstrb      (m_axi_wstrb),
+            .m_axi_wlast      (m_axi_wlast),
+            .m_axi_wuser      (m_axi_wuser),
+            .m_axi_wvalid     (m_axi_wvalid),
+            .m_axi_wready     (m_axi_wready),
+            .m_axi_bid        (m_axi_bid),
+            .m_axi_bresp      (m_axi_bresp),
+            .m_axi_buser      (m_axi_buser),
+            .m_axi_bvalid     (m_axi_bvalid),
+            .m_axi_bready     (m_axi_bready),
+    
+            .irq_out          (irq_out),
+    
+            // Address window + filter masks (caller-driven)
+            .cfg_base_addr        (cfg_base_addr),
+            .cfg_limit_addr       (cfg_limit_addr),
+            .cfg_flush_watermark  (cfg_flush_watermark),
+            .cfg_compress_en      (cfg_compress_en),
+    
+            .cfg_axi_pkt_mask     (cfg_axi_pkt_mask),
+            .cfg_axi_err_select   (cfg_axi_err_select),
+            .cfg_axi_error_mask   (cfg_axi_error_mask),
+            .cfg_axi_timeout_mask (cfg_axi_timeout_mask),
+            .cfg_axi_compl_mask   (cfg_axi_compl_mask),
+            .cfg_axi_thresh_mask  (cfg_axi_thresh_mask),
+            .cfg_axi_perf_mask    (cfg_axi_perf_mask),
+            .cfg_axi_addr_mask    (cfg_axi_addr_mask),
+            .cfg_axi_debug_mask   (cfg_axi_debug_mask),
+    
+            // AXIS / CORE protocol masks: this observer doesn't generate
+            // AXIS or CORE packets, so tie all to 0 (no filtering).
+            .cfg_axis_pkt_mask     (cfg_axis_pkt_mask),
+            .cfg_axis_err_select   (cfg_axis_err_select),
+            .cfg_axis_error_mask   (cfg_axis_error_mask),
+            .cfg_axis_timeout_mask (cfg_axis_timeout_mask),
+            .cfg_axis_compl_mask   (cfg_axis_compl_mask),
+            .cfg_axis_credit_mask  (cfg_axis_credit_mask),
+            .cfg_axis_channel_mask (cfg_axis_channel_mask),
+            .cfg_axis_stream_mask  (cfg_axis_stream_mask),
+            .cfg_core_pkt_mask     (cfg_core_pkt_mask),
+            .cfg_core_err_select   (cfg_core_err_select),
+            .cfg_core_error_mask   (cfg_core_error_mask),
+            .cfg_core_timeout_mask (cfg_core_timeout_mask),
+            .cfg_core_compl_mask   (cfg_core_compl_mask),
+            .cfg_core_thresh_mask  (cfg_core_thresh_mask),
+            .cfg_core_perf_mask    (cfg_core_perf_mask),
+            .cfg_core_debug_mask   (cfg_core_debug_mask),
+    
+            .err_fifo_full      (err_fifo_full),
+            .write_fifo_full    (write_fifo_full),
+            .err_fifo_count     (err_fifo_count),
+            .write_fifo_count   (write_fifo_count),
+    
+            /* verilator lint_off PINCONNECTEMPTY */
+            .mon_compressor_stat_tier1_a        (w_comp_stat_tier1_a),
+            .mon_compressor_stat_tier1_b        (w_comp_stat_tier1_b),
+            .mon_compressor_stat_tier1_c        (w_comp_stat_tier1_c),
+            .mon_compressor_stat_tier0          (),
+            .mon_compressor_stat_cam_miss       (),
+            .mon_compressor_stat_delta_ts_ovf   (),
+            .mon_compressor_stat_event_data_ovf (),
+            .mon_compressor_stat_ed_delta_ovf   ()
+            /* verilator lint_on PINCONNECTEMPTY */
+        );
+    end
+    endgenerate
 
-        .monbus_valid     (arb_monbus_valid),
-        .monbus_ready     (arb_monbus_ready),
-        .monbus_packet    (arb_monbus_packet),
-        .monbus_timestamp (arb_monbus_timestamp),
-
-        .mon_time_out     (mon_time_w),
-
-        // AXIL slave-read
-        .s_axil_arvalid   (s_axil_arvalid),
-        .s_axil_arready   (s_axil_arready),
-        .s_axil_araddr    (s_axil_araddr),
-        .s_axil_arprot    (s_axil_arprot),
-        .s_axil_rvalid    (s_axil_rvalid),
-        .s_axil_rready    (s_axil_rready),
-        .s_axil_rdata     (s_axil_rdata),
-        .s_axil_rresp     (s_axil_rresp),
-
-        // AXI4 master-write
-        .m_axi_awid       (m_axi_awid),
-        .m_axi_awaddr     (m_axi_awaddr),
-        .m_axi_awlen      (m_axi_awlen),
-        .m_axi_awsize     (m_axi_awsize),
-        .m_axi_awburst    (m_axi_awburst),
-        .m_axi_awlock     (m_axi_awlock),
-        .m_axi_awcache    (m_axi_awcache),
-        .m_axi_awprot     (m_axi_awprot),
-        .m_axi_awqos      (m_axi_awqos),
-        .m_axi_awregion   (m_axi_awregion),
-        .m_axi_awuser     (m_axi_awuser),
-        .m_axi_awvalid    (m_axi_awvalid),
-        .m_axi_awready    (m_axi_awready),
-        .m_axi_wdata      (m_axi_wdata),
-        .m_axi_wstrb      (m_axi_wstrb),
-        .m_axi_wlast      (m_axi_wlast),
-        .m_axi_wuser      (m_axi_wuser),
-        .m_axi_wvalid     (m_axi_wvalid),
-        .m_axi_wready     (m_axi_wready),
-        .m_axi_bid        (m_axi_bid),
-        .m_axi_bresp      (m_axi_bresp),
-        .m_axi_buser      (m_axi_buser),
-        .m_axi_bvalid     (m_axi_bvalid),
-        .m_axi_bready     (m_axi_bready),
-
-        .irq_out          (irq_out),
-
-        // Address window + filter masks (caller-driven)
-        .cfg_base_addr        (cfg_base_addr),
-        .cfg_limit_addr       (cfg_limit_addr),
-        .cfg_flush_watermark  (cfg_flush_watermark),
-        .cfg_compress_en      (cfg_compress_en),
-
-        .cfg_axi_pkt_mask     (cfg_axi_pkt_mask),
-        .cfg_axi_err_select   (cfg_axi_err_select),
-        .cfg_axi_error_mask   (cfg_axi_error_mask),
-        .cfg_axi_timeout_mask (cfg_axi_timeout_mask),
-        .cfg_axi_compl_mask   (cfg_axi_compl_mask),
-        .cfg_axi_thresh_mask  (cfg_axi_thresh_mask),
-        .cfg_axi_perf_mask    (cfg_axi_perf_mask),
-        .cfg_axi_addr_mask    (cfg_axi_addr_mask),
-        .cfg_axi_debug_mask   (cfg_axi_debug_mask),
-
-        // AXIS / CORE protocol masks: this observer doesn't generate
-        // AXIS or CORE packets, so tie all to 0 (no filtering).
-        .cfg_axis_pkt_mask     (cfg_axis_pkt_mask),
-        .cfg_axis_err_select   (cfg_axis_err_select),
-        .cfg_axis_error_mask   (cfg_axis_error_mask),
-        .cfg_axis_timeout_mask (cfg_axis_timeout_mask),
-        .cfg_axis_compl_mask   (cfg_axis_compl_mask),
-        .cfg_axis_credit_mask  (cfg_axis_credit_mask),
-        .cfg_axis_channel_mask (cfg_axis_channel_mask),
-        .cfg_axis_stream_mask  (cfg_axis_stream_mask),
-        .cfg_core_pkt_mask     (cfg_core_pkt_mask),
-        .cfg_core_err_select   (cfg_core_err_select),
-        .cfg_core_error_mask   (cfg_core_error_mask),
-        .cfg_core_timeout_mask (cfg_core_timeout_mask),
-        .cfg_core_compl_mask   (cfg_core_compl_mask),
-        .cfg_core_thresh_mask  (cfg_core_thresh_mask),
-        .cfg_core_perf_mask    (cfg_core_perf_mask),
-        .cfg_core_debug_mask   (cfg_core_debug_mask),
-
-        .err_fifo_full      (err_fifo_full),
-        .write_fifo_full    (write_fifo_full),
-        .err_fifo_count     (err_fifo_count),
-        .write_fifo_count   (write_fifo_count),
-
-        /* verilator lint_off PINCONNECTEMPTY */
-        .mon_compressor_stat_tier1_a        (),
-        .mon_compressor_stat_tier1_b        (),
-        .mon_compressor_stat_tier1_c        (),
-        .mon_compressor_stat_tier0          (),
-        .mon_compressor_stat_cam_miss       (),
-        .mon_compressor_stat_delta_ts_ovf   (),
-        .mon_compressor_stat_event_data_ovf (),
-        .mon_compressor_stat_ed_delta_ovf   ()
-        /* verilator lint_on PINCONNECTEMPTY */
-    );
 
     // =================================================================
     // axi_bus_meter per-port instantiations
@@ -1217,8 +1388,8 @@ module axi4_intf_master_observer
                     .resp_valid   (1'b0),
                     .resp_ready   (1'b0),
                     .resp_id      ('0),
-                    .i_hist_metric(i_hist_metric),
-                    .i_hist_bin   (i_hist_bin),
+                    .i_hist_metric   (w_hist_metric_sel),
+                    .i_hist_bin      (w_hist_bin_sel),
                     .o_hist_count (rd_hist_count[hi]),
                     .o_hist_total (rd_hist_total[hi]),
                     .o_cmd_block  (rd_hist_block[hi])
@@ -1247,8 +1418,8 @@ module axi4_intf_master_observer
                     .resp_valid   (obs_wr_bvalid[hi]),
                     .resp_ready   (obs_wr_bready[hi]),
                     .resp_id      (obs_rebase_id(obs_wr_bid[hi], hi)),
-                    .i_hist_metric(i_hist_metric),
-                    .i_hist_bin   (i_hist_bin),
+                    .i_hist_metric   (w_hist_metric_sel),
+                    .i_hist_bin      (w_hist_bin_sel),
                     .o_hist_count (wr_hist_count[hi]),
                     .o_hist_total (wr_hist_total[hi]),
                     .o_cmd_block  (wr_hist_block[hi])
@@ -1267,5 +1438,73 @@ module axi4_intf_master_observer
             end
         end
     endgenerate
+
+
+    // =========================================================================
+    // Telemetry readback mux (OBS_STAT_SEL -> OBS_STAT_DATA)
+    //
+    // These counters used to leave the block as ~70 output ports, which meant
+    // every integrator tied off 70 pins and a forgotten one was a silent
+    // break. They are read through this block's OWN regblock now, the same way
+    // its configuration already was.
+    //
+    // Metrics this instance does not build (meters and histograms are
+    // parameter-gated) read as 0 -- their source nets are tied to '0 by the
+    // gating generate, so no special case is needed here.
+    // =========================================================================
+    logic [31:0] w_stat_data;
+    always_comb begin
+        automatic int unsigned ti = hwif.OBS.OBS_STAT_SEL.TAP.value;
+        automatic int unsigned ci = hwif.OBS.OBS_STAT_SEL.CHANNEL.value;
+        automatic logic        iw = hwif.OBS.OBS_STAT_SEL.IS_WRITE.value;
+        w_stat_data = 32'h0;
+        case (hwif.OBS.OBS_STAT_SEL.METRIC.value)
+            8'd0: if (!iw) begin if (ti < NUM_RD_PORTS) w_stat_data = rd_meter_agg_productive[ti]; end
+                  else      begin if (ti < NUM_WR_PORTS) w_stat_data = wr_meter_agg_productive[ti]; end
+            8'd1: if (!iw) begin if (ti < NUM_RD_PORTS) w_stat_data = rd_meter_agg_backpressure[ti]; end
+                  else      begin if (ti < NUM_WR_PORTS) w_stat_data = wr_meter_agg_backpressure[ti]; end
+            8'd2: if (!iw) begin if (ti < NUM_RD_PORTS) w_stat_data = rd_meter_agg_starvation[ti]; end
+                  else      begin if (ti < NUM_WR_PORTS) w_stat_data = wr_meter_agg_starvation[ti]; end
+            8'd3: if (!iw) begin if (ti < NUM_RD_PORTS) w_stat_data = rd_meter_agg_idle[ti]; end
+                  else      begin if (ti < NUM_WR_PORTS) w_stat_data = wr_meter_agg_idle[ti]; end
+            // Per-channel meter buckets. CHANNEL selects within the tap; the
+            // arrays are [tap][channel] and 16-bit, zero-extended here.
+            8'd4: if (!iw) begin if (ti < NUM_RD_PORTS && ci < NUM_CHANNELS) w_stat_data = 32'(rd_meter_ch_productive[ti][ci]); end
+                  else      begin if (ti < NUM_WR_PORTS && ci < NUM_CHANNELS) w_stat_data = 32'(wr_meter_ch_productive[ti][ci]); end
+            8'd5: if (!iw) begin if (ti < NUM_RD_PORTS && ci < NUM_CHANNELS) w_stat_data = 32'(rd_meter_ch_backpressure[ti][ci]); end
+                  else      begin if (ti < NUM_WR_PORTS && ci < NUM_CHANNELS) w_stat_data = 32'(wr_meter_ch_backpressure[ti][ci]); end
+            8'd6: if (!iw) begin if (ti < NUM_RD_PORTS && ci < NUM_CHANNELS) w_stat_data = 32'(rd_meter_ch_starvation[ti][ci]); end
+                  else      begin if (ti < NUM_WR_PORTS && ci < NUM_CHANNELS) w_stat_data = 32'(wr_meter_ch_starvation[ti][ci]); end
+            8'd7: if (!iw) begin if (ti < NUM_RD_PORTS && ci < NUM_CHANNELS) w_stat_data = 32'(rd_meter_ch_idle[ti][ci]); end
+                  else      begin if (ti < NUM_WR_PORTS && ci < NUM_CHANNELS) w_stat_data = 32'(wr_meter_ch_idle[ti][ci]); end
+            8'd8: if (!iw) begin if (ti < NUM_RD_PORTS && ci < NUM_CHANNELS) w_stat_data = 32'(rd_meter_ch_overflow[ti][ci]); end
+                  else      begin if (ti < NUM_WR_PORTS && ci < NUM_CHANNELS) w_stat_data = 32'(wr_meter_ch_overflow[ti][ci]); end
+            // Latency histogram TOTAL (== burst count for the metric currently
+            // selected on i_hist_metric).
+            8'd10: if (!iw) begin if (ti < NUM_RD_PORTS) w_stat_data = rd_hist_total[ti]; end
+                   else      begin if (ti < NUM_WR_PORTS) w_stat_data = wr_hist_total[ti]; end
+            // Histogram BIN. Readable now that the bin selector is driven
+            // from OBS_STAT_SEL.BIN rather than from an input port.
+            8'd9: if (!iw) begin if (ti < NUM_RD_PORTS) w_stat_data = rd_hist_count[ti]; end
+                  else      begin if (ti < NUM_WR_PORTS) w_stat_data = wr_hist_count[ti]; end
+            default: w_stat_data = 32'h0;
+        endcase
+    end
+
+    // Continuous per-field drive rather than `hwif_i = '0` plus overrides:
+    // The generated hwif struct has no operator= in the simulator's C++
+    // backend, so a struct-wide assignment elaborates in SV and then fails at
+    // model-compile time -- lint alone does not catch it.
+    // Every hw=w field in obs_regs is driven below, so nothing floats.
+    assign hwif_i.OBS.OBS_STAT_DATA.VALUE.next  = w_stat_data;
+    assign hwif_i.OBS.OBS_FIFO_STAT.ERR_COUNT.next   = 16'(err_fifo_count);
+    assign hwif_i.OBS.OBS_FIFO_STAT.WRITE_COUNT.next = 15'(write_fifo_count);
+    assign hwif_i.OBS.OBS_FIFO_STAT.ANY_FULL.next    = err_fifo_full | write_fifo_full;
+    assign hwif_i.OBS.OBS_STICKY.HIST_SAMPLE_LOST.next = o_hist_sample_lost;
+    assign hwif_i.OBS.OBS_STICKY.TAP_BLOCKED.next      = (|obs_rd_block_ready) | (|obs_wr_block_ready);
+    assign hwif_i.OBS.OBS_COMP_STAT0.TIER1.next    = 16'(w_comp_stat_tier1_a);
+    assign hwif_i.OBS.OBS_COMP_STAT0.TIER0.next    = 16'(w_comp_stat_tier0);
+    assign hwif_i.OBS.OBS_COMP_STAT1.CAM_MISS.next = 16'(w_comp_stat_cam_miss);
+    assign hwif_i.OBS.OBS_COMP_STAT1.OVERFLOW.next = 16'(w_comp_stat_event_data_ovf);
 
 endmodule : axi4_intf_master_observer

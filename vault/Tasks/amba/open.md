@@ -1134,10 +1134,26 @@ was watching. Nothing in `build-perf` even reads these monitors, and
       pumice / rapids task pages. `grep axi4_intf_observer` over `*.sv`/`*.f`
       returns nothing; the only surviving mentions are this task page's own
       historical record.
-- [ ] **Egress mismatch:** `axi4_intf_observer` uses `monbus_axil_axi4_group`
-      (`m_axi_*`), but the tally is fed by `m_axil_*`
-      (`monbus_axil_axil_group`). Needs a parameter selecting the group;
-      declare both port sets and generate-select so the port list never changes.
+- [ ] **Egress mismatch — THIS IS THE BLOCKER for instantiating the slave
+      observer (confirmed against the harness 2026-08-16).** `stream_harness`
+      wires the slave monbus path as `m_axil_*` (AXIL write master -> bridge
+      master `slave_monbus_wr` -> `u_slave_tally`), which is what
+      `dma_slave_monitors` provides via `monbus_axil_axil_group`. Both new
+      observers inherit `monbus_axil_axi4_group` from the original, so they
+      expose `m_axi_*` (AXI4 burst master) instead. The slave observer cannot
+      take `u_dma_slaves`' place until the group is parameter-selected:
+      declare both port sets and generate-select so the port list is stable.
+
+      **The rest of that swap is mapped and mechanical.** Replace
+      `dma_slave_monitors u_dma_slaves` (harness ~1692-1775) with
+      `axi4_dma_slaves`, carrying the same `s_axi_*` / CRC / beat-count /
+      busy connections, and add the slave observer snooping the SAME
+      `f_rd_*` / `f_wr_*` nets. Those are the nets the MASTER observer
+      already snoops -- one bus, both roles, which is exactly what exercises
+      all four monitor flavours. Non-AXI ports to carry over from the old
+      instance: `cam_clear` (csr_cam_clear), `s_apb_*` (slvmon_apb_*),
+      `s_axil_*` (se_*), `m_axil_*` (slmon_*), `irq_out`,
+      `cfg_base_addr`/`cfg_limit_addr` (0x000C0000 / 0x000FFFFF).
 - [ ] **Generate the CAM NUM_BANKS times** (generate loop of
       `monitor_trans_cam`, depth MAX_TRANSACTIONS/NUM_BANKS each) so each
       instance closes timing. Currently only the age/rank logic is banked;
@@ -1275,3 +1291,44 @@ slot(s), expected 4" at N=8/B=4, and passes at N=16/B=4.
 **Debug collateral:** `projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/GTKW/ch3-sram-counts.gtkw`
 (110 signals across the three SRAM pointer pairs and both engines) against the
 pinned `local_sim_build/ch3-hang.fst`.
+
+## OBS-PORTS — the observers fan telemetry out as ports instead of owning it
+
+**Status:** open 2026-08-16 (found while wiring both observers into stream_harness)
+
+`axi4_intf_{master,slave}_observer` each declare 60 outputs, and only 33 are a
+real interface (APB slave response, AXIL slave read, the dump master, irq).
+The rest -- bus meters, latency histograms, perf counters, FIFO counts,
+compressor stats -- are TELEMETRY fanned out as top-level ports. Wiring the
+slave observer into `stream_harness` required tying off **70 pins** on that one
+instance, and every one of them is a Verilator PINMISSING error if forgotten.
+
+**This contradicts the block's own design note.** Its header argues it "owns
+its configuration rather than taking 29 cfg_* ports that the harness tied off",
+and that owning the APB window is "what lets ONE harness source serve both
+builds". Config was internalized; STATUS never was, so the harness still has to
+know the block's internals to read anything out of it.
+
+**Wanted:** telemetry readable through the observer's OWN regblock (`obs_regs`,
+already instantiated behind `s_apb_*`), not through ports.
+
+- Add status fields to `obs_regs.rdl` for the meter buckets, histogram
+  bins/totals, perf counters, FIFO counts and compressor stats.
+- Regenerate via `bin/peakrdl_generate.py` ONLY -- the wrapper emits RTL, docs
+  and regmap in lockstep; raw `peakrdl regblock` desyncs the regmap
+  ([[feedback_peakrdl_generate_bin]]).
+- Wire the internal nets to the regblock and DELETE the telemetry ports.
+- Repoint the readers: `harness_csr.sv` currently mirrors the observer's perf
+  outputs into its own CSR space (the "RFC Stage E external observer perf
+  readback" path), and the host reads them there. With the regblock owning
+  them, the host reads the observer's APB window directly, by name via
+  `obs_addrs.py` ([[feedback_registers_by_name]]).
+
+**Why it matters beyond tidiness:** 70 tie-offs per instance is 70 chances to
+forget one, and a forgotten OUTPUT is silent -- it reads as PINMISSING only
+because Verilator escalates it. The `_cg` wrappers shipped for months with an
+unconnected `debug_block_ready` for exactly this reason, hidden behind
+`-Wno-PINMISSING`.
+
+**Do this BEFORE the 8-channel build.** Two observers x 70 ports is also
+routing and area on a 325T that is already the reason build-mon is 4 channels.

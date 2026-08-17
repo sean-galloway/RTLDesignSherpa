@@ -7,7 +7,7 @@ module obs_regs_top (
 
         input wire s_cpuif_req,
         input wire s_cpuif_req_is_wr,
-        input wire [6:0] s_cpuif_addr,
+        input wire [7:0] s_cpuif_addr,
         input wire [31:0] s_cpuif_wr_data,
         input wire [31:0] s_cpuif_wr_biten,
         output wire s_cpuif_req_stall_wr,
@@ -18,6 +18,7 @@ module obs_regs_top (
         output wire s_cpuif_wr_ack,
         output wire s_cpuif_wr_err,
 
+        input obs_regs_top_pkg::obs_regs_top__in_t hwif_in,
         output obs_regs_top_pkg::obs_regs_top__out_t hwif_out
     );
 
@@ -26,7 +27,7 @@ module obs_regs_top (
     //--------------------------------------------------------------------------
     logic cpuif_req;
     logic cpuif_req_is_wr;
-    logic [6:0] cpuif_addr;
+    logic [7:0] cpuif_addr;
     logic [31:0] cpuif_wr_data;
     logic [31:0] cpuif_wr_biten;
     logic cpuif_req_stall_wr;
@@ -82,6 +83,12 @@ module obs_regs_top (
             logic OBS_CTRL;
             logic OBS_BASE_ADDR;
             logic OBS_LIMIT_ADDR;
+            logic OBS_STAT_SEL;
+            logic OBS_STAT_DATA;
+            logic OBS_FIFO_STAT;
+            logic OBS_STICKY;
+            logic OBS_COMP_STAT0;
+            logic OBS_COMP_STAT1;
         } OBS;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
@@ -91,22 +98,28 @@ module obs_regs_top (
     logic [31:0] decoded_wr_biten;
 
     always_comb begin
-        decoded_reg_strb.OBS.AXI_PKT_MASK = cpuif_req_masked & (cpuif_addr == 7'h0);
-        decoded_reg_strb.OBS.AXI_MASK1 = cpuif_req_masked & (cpuif_addr == 7'h4);
-        decoded_reg_strb.OBS.AXI_MASK2 = cpuif_req_masked & (cpuif_addr == 7'h8);
-        decoded_reg_strb.OBS.AXI_MASK3 = cpuif_req_masked & (cpuif_addr == 7'hc);
-        decoded_reg_strb.OBS.AXI_MASK4 = cpuif_req_masked & (cpuif_addr == 7'h10);
-        decoded_reg_strb.OBS.AXIS_PKT_MASK = cpuif_req_masked & (cpuif_addr == 7'h20);
-        decoded_reg_strb.OBS.AXIS_MASK1 = cpuif_req_masked & (cpuif_addr == 7'h24);
-        decoded_reg_strb.OBS.AXIS_MASK2 = cpuif_req_masked & (cpuif_addr == 7'h28);
-        decoded_reg_strb.OBS.AXIS_MASK3 = cpuif_req_masked & (cpuif_addr == 7'h2c);
-        decoded_reg_strb.OBS.CORE_PKT_MASK = cpuif_req_masked & (cpuif_addr == 7'h40);
-        decoded_reg_strb.OBS.CORE_MASK1 = cpuif_req_masked & (cpuif_addr == 7'h44);
-        decoded_reg_strb.OBS.CORE_MASK2 = cpuif_req_masked & (cpuif_addr == 7'h48);
-        decoded_reg_strb.OBS.CORE_MASK3 = cpuif_req_masked & (cpuif_addr == 7'h4c);
-        decoded_reg_strb.OBS.OBS_CTRL = cpuif_req_masked & (cpuif_addr == 7'h60);
-        decoded_reg_strb.OBS.OBS_BASE_ADDR = cpuif_req_masked & (cpuif_addr == 7'h64);
-        decoded_reg_strb.OBS.OBS_LIMIT_ADDR = cpuif_req_masked & (cpuif_addr == 7'h68);
+        decoded_reg_strb.OBS.AXI_PKT_MASK = cpuif_req_masked & (cpuif_addr == 8'h0);
+        decoded_reg_strb.OBS.AXI_MASK1 = cpuif_req_masked & (cpuif_addr == 8'h4);
+        decoded_reg_strb.OBS.AXI_MASK2 = cpuif_req_masked & (cpuif_addr == 8'h8);
+        decoded_reg_strb.OBS.AXI_MASK3 = cpuif_req_masked & (cpuif_addr == 8'hc);
+        decoded_reg_strb.OBS.AXI_MASK4 = cpuif_req_masked & (cpuif_addr == 8'h10);
+        decoded_reg_strb.OBS.AXIS_PKT_MASK = cpuif_req_masked & (cpuif_addr == 8'h20);
+        decoded_reg_strb.OBS.AXIS_MASK1 = cpuif_req_masked & (cpuif_addr == 8'h24);
+        decoded_reg_strb.OBS.AXIS_MASK2 = cpuif_req_masked & (cpuif_addr == 8'h28);
+        decoded_reg_strb.OBS.AXIS_MASK3 = cpuif_req_masked & (cpuif_addr == 8'h2c);
+        decoded_reg_strb.OBS.CORE_PKT_MASK = cpuif_req_masked & (cpuif_addr == 8'h40);
+        decoded_reg_strb.OBS.CORE_MASK1 = cpuif_req_masked & (cpuif_addr == 8'h44);
+        decoded_reg_strb.OBS.CORE_MASK2 = cpuif_req_masked & (cpuif_addr == 8'h48);
+        decoded_reg_strb.OBS.CORE_MASK3 = cpuif_req_masked & (cpuif_addr == 8'h4c);
+        decoded_reg_strb.OBS.OBS_CTRL = cpuif_req_masked & (cpuif_addr == 8'h60);
+        decoded_reg_strb.OBS.OBS_BASE_ADDR = cpuif_req_masked & (cpuif_addr == 8'h64);
+        decoded_reg_strb.OBS.OBS_LIMIT_ADDR = cpuif_req_masked & (cpuif_addr == 8'h68);
+        decoded_reg_strb.OBS.OBS_STAT_SEL = cpuif_req_masked & (cpuif_addr == 8'h70);
+        decoded_reg_strb.OBS.OBS_STAT_DATA = cpuif_req_masked & (cpuif_addr == 8'h74);
+        decoded_reg_strb.OBS.OBS_FIFO_STAT = cpuif_req_masked & (cpuif_addr == 8'h78);
+        decoded_reg_strb.OBS.OBS_STICKY = cpuif_req_masked & (cpuif_addr == 8'h7c);
+        decoded_reg_strb.OBS.OBS_COMP_STAT0 = cpuif_req_masked & (cpuif_addr == 8'h80);
+        decoded_reg_strb.OBS.OBS_COMP_STAT1 = cpuif_req_masked & (cpuif_addr == 8'h84);
     end
 
     // Pass down signals to next stage
@@ -268,6 +281,28 @@ module obs_regs_top (
                     logic load_next;
                 } VALUE;
             } OBS_LIMIT_ADDR;
+            struct {
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } TAP;
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } CHANNEL;
+                struct {
+                    logic [7:0] next;
+                    logic load_next;
+                } METRIC;
+                struct {
+                    logic next;
+                    logic load_next;
+                } IS_WRITE;
+                struct {
+                    logic [6:0] next;
+                    logic load_next;
+                } BIN;
+            } OBS_STAT_SEL;
         } OBS;
     } field_combo_t;
     field_combo_t field_combo;
@@ -393,6 +428,23 @@ module obs_regs_top (
                     logic [31:0] value;
                 } VALUE;
             } OBS_LIMIT_ADDR;
+            struct {
+                struct {
+                    logic [7:0] value;
+                } TAP;
+                struct {
+                    logic [7:0] value;
+                } CHANNEL;
+                struct {
+                    logic [7:0] value;
+                } METRIC;
+                struct {
+                    logic value;
+                } IS_WRITE;
+                struct {
+                    logic [6:0] value;
+                } BIN;
+            } OBS_STAT_SEL;
         } OBS;
     } field_storage_t;
     field_storage_t field_storage;
@@ -1064,6 +1116,121 @@ module obs_regs_top (
         end
     end
     assign hwif_out.OBS.OBS_LIMIT_ADDR.VALUE.value = field_storage.OBS.OBS_LIMIT_ADDR.VALUE.value;
+    // Field: obs_regs_top.OBS.OBS_STAT_SEL.TAP
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.OBS_STAT_SEL.TAP.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.OBS_STAT_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.OBS_STAT_SEL.TAP.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.OBS_STAT_SEL.TAP.next = next_c;
+        field_combo.OBS.OBS_STAT_SEL.TAP.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.OBS_STAT_SEL.TAP.value <= 8'h0;
+        end else begin
+            if(field_combo.OBS.OBS_STAT_SEL.TAP.load_next) begin
+                field_storage.OBS.OBS_STAT_SEL.TAP.value <= field_combo.OBS.OBS_STAT_SEL.TAP.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.OBS_STAT_SEL.TAP.value = field_storage.OBS.OBS_STAT_SEL.TAP.value;
+    // Field: obs_regs_top.OBS.OBS_STAT_SEL.CHANNEL
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.OBS_STAT_SEL.CHANNEL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.OBS_STAT_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.OBS_STAT_SEL.CHANNEL.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.OBS_STAT_SEL.CHANNEL.next = next_c;
+        field_combo.OBS.OBS_STAT_SEL.CHANNEL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.OBS_STAT_SEL.CHANNEL.value <= 8'h0;
+        end else begin
+            if(field_combo.OBS.OBS_STAT_SEL.CHANNEL.load_next) begin
+                field_storage.OBS.OBS_STAT_SEL.CHANNEL.value <= field_combo.OBS.OBS_STAT_SEL.CHANNEL.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.OBS_STAT_SEL.CHANNEL.value = field_storage.OBS.OBS_STAT_SEL.CHANNEL.value;
+    // Field: obs_regs_top.OBS.OBS_STAT_SEL.METRIC
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.OBS_STAT_SEL.METRIC.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.OBS_STAT_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.OBS_STAT_SEL.METRIC.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.OBS_STAT_SEL.METRIC.next = next_c;
+        field_combo.OBS.OBS_STAT_SEL.METRIC.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.OBS_STAT_SEL.METRIC.value <= 8'h0;
+        end else begin
+            if(field_combo.OBS.OBS_STAT_SEL.METRIC.load_next) begin
+                field_storage.OBS.OBS_STAT_SEL.METRIC.value <= field_combo.OBS.OBS_STAT_SEL.METRIC.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.OBS_STAT_SEL.METRIC.value = field_storage.OBS.OBS_STAT_SEL.METRIC.value;
+    // Field: obs_regs_top.OBS.OBS_STAT_SEL.IS_WRITE
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.OBS_STAT_SEL.IS_WRITE.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.OBS_STAT_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.OBS_STAT_SEL.IS_WRITE.value & ~decoded_wr_biten[24:24]) | (decoded_wr_data[24:24] & decoded_wr_biten[24:24]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.OBS_STAT_SEL.IS_WRITE.next = next_c;
+        field_combo.OBS.OBS_STAT_SEL.IS_WRITE.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.OBS_STAT_SEL.IS_WRITE.value <= 1'h0;
+        end else begin
+            if(field_combo.OBS.OBS_STAT_SEL.IS_WRITE.load_next) begin
+                field_storage.OBS.OBS_STAT_SEL.IS_WRITE.value <= field_combo.OBS.OBS_STAT_SEL.IS_WRITE.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.OBS_STAT_SEL.IS_WRITE.value = field_storage.OBS.OBS_STAT_SEL.IS_WRITE.value;
+    // Field: obs_regs_top.OBS.OBS_STAT_SEL.BIN
+    always_comb begin
+        automatic logic [6:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.OBS_STAT_SEL.BIN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.OBS_STAT_SEL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.OBS_STAT_SEL.BIN.value & ~decoded_wr_biten[31:25]) | (decoded_wr_data[31:25] & decoded_wr_biten[31:25]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.OBS_STAT_SEL.BIN.next = next_c;
+        field_combo.OBS.OBS_STAT_SEL.BIN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.OBS_STAT_SEL.BIN.value <= 7'h0;
+        end else begin
+            if(field_combo.OBS.OBS_STAT_SEL.BIN.load_next) begin
+                field_storage.OBS.OBS_STAT_SEL.BIN.value <= field_combo.OBS.OBS_STAT_SEL.BIN.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.OBS_STAT_SEL.BIN.value = field_storage.OBS.OBS_STAT_SEL.BIN.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -1081,7 +1248,7 @@ module obs_regs_top (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[16];
+    logic [31:0] readback_array[22];
     assign readback_array[0][15:0] = (decoded_reg_strb.OBS.AXI_PKT_MASK && !decoded_req_is_wr) ? field_storage.OBS.AXI_PKT_MASK.PKT_MASK.value : '0;
     assign readback_array[0][31:16] = (decoded_reg_strb.OBS.AXI_PKT_MASK && !decoded_req_is_wr) ? field_storage.OBS.AXI_PKT_MASK.ERR_SELECT.value : '0;
     assign readback_array[1][15:0] = (decoded_reg_strb.OBS.AXI_MASK1 && !decoded_req_is_wr) ? field_storage.OBS.AXI_MASK1.ERROR_MASK.value : '0;
@@ -1113,6 +1280,22 @@ module obs_regs_top (
     assign readback_array[13][31:17] = (decoded_reg_strb.OBS.OBS_CTRL && !decoded_req_is_wr) ? 15'h0 : '0;
     assign readback_array[14][31:0] = (decoded_reg_strb.OBS.OBS_BASE_ADDR && !decoded_req_is_wr) ? field_storage.OBS.OBS_BASE_ADDR.VALUE.value : '0;
     assign readback_array[15][31:0] = (decoded_reg_strb.OBS.OBS_LIMIT_ADDR && !decoded_req_is_wr) ? field_storage.OBS.OBS_LIMIT_ADDR.VALUE.value : '0;
+    assign readback_array[16][7:0] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.TAP.value : '0;
+    assign readback_array[16][15:8] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.CHANNEL.value : '0;
+    assign readback_array[16][23:16] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.METRIC.value : '0;
+    assign readback_array[16][24:24] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.IS_WRITE.value : '0;
+    assign readback_array[16][31:25] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.BIN.value : '0;
+    assign readback_array[17][31:0] = (decoded_reg_strb.OBS.OBS_STAT_DATA && !decoded_req_is_wr) ? hwif_in.OBS.OBS_STAT_DATA.VALUE.next : '0;
+    assign readback_array[18][15:0] = (decoded_reg_strb.OBS.OBS_FIFO_STAT && !decoded_req_is_wr) ? hwif_in.OBS.OBS_FIFO_STAT.ERR_COUNT.next : '0;
+    assign readback_array[18][30:16] = (decoded_reg_strb.OBS.OBS_FIFO_STAT && !decoded_req_is_wr) ? hwif_in.OBS.OBS_FIFO_STAT.WRITE_COUNT.next : '0;
+    assign readback_array[18][31:31] = (decoded_reg_strb.OBS.OBS_FIFO_STAT && !decoded_req_is_wr) ? hwif_in.OBS.OBS_FIFO_STAT.ANY_FULL.next : '0;
+    assign readback_array[19][0:0] = (decoded_reg_strb.OBS.OBS_STICKY && !decoded_req_is_wr) ? hwif_in.OBS.OBS_STICKY.HIST_SAMPLE_LOST.next : '0;
+    assign readback_array[19][1:1] = (decoded_reg_strb.OBS.OBS_STICKY && !decoded_req_is_wr) ? hwif_in.OBS.OBS_STICKY.TAP_BLOCKED.next : '0;
+    assign readback_array[19][31:2] = (decoded_reg_strb.OBS.OBS_STICKY && !decoded_req_is_wr) ? 30'h0 : '0;
+    assign readback_array[20][15:0] = (decoded_reg_strb.OBS.OBS_COMP_STAT0 && !decoded_req_is_wr) ? hwif_in.OBS.OBS_COMP_STAT0.TIER1.next : '0;
+    assign readback_array[20][31:16] = (decoded_reg_strb.OBS.OBS_COMP_STAT0 && !decoded_req_is_wr) ? hwif_in.OBS.OBS_COMP_STAT0.TIER0.next : '0;
+    assign readback_array[21][15:0] = (decoded_reg_strb.OBS.OBS_COMP_STAT1 && !decoded_req_is_wr) ? hwif_in.OBS.OBS_COMP_STAT1.CAM_MISS.next : '0;
+    assign readback_array[21][31:16] = (decoded_reg_strb.OBS.OBS_COMP_STAT1 && !decoded_req_is_wr) ? hwif_in.OBS.OBS_COMP_STAT1.OVERFLOW.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -1120,7 +1303,7 @@ module obs_regs_top (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<16; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<22; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 
