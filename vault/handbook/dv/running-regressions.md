@@ -38,6 +38,41 @@ error - it produces a pass you will trust and should not.
 Skipping it saves a couple of minutes. Being wrong about whether the design
 works costs hours, and costs them later, usually on the board.
 
+## Running it is not the same as it working
+
+`make clean-all` **aborts** when `REPO_ROOT` is unset:
+
+```
+Makefile:24: *** REPO_ROOT is not set. Please run: source $REPO_ROOT/env_python.  Stop.
+```
+
+It stops before deleting anything. So the habit of writing
+`make clean-all >/dev/null 2>&1` — sending the noise to the bin and moving
+on — hides the abort completely and leaves every artifact in place. The
+subsequent run then reports against a stale build while its log claims the
+tree was cleaned.
+
+**Source `env_python` first, and check that the directories are actually
+gone**, not that the command was typed:
+
+```bash
+source $REPO_ROOT/env_python
+make clean-all
+ls -d local_sim_build sim_build logs 2>/dev/null || echo "clean"
+```
+
+**Case study, 2026-08-16 (BRIDGE-003).** Six monitor stress tests were rerun
+with `make clean-all >/dev/null 2>&1` in front of them and reported 6/6 in
+7m22s. The clean had silently aborted; 18 GB and 88 build directories were
+still on disk. Rerun after a *verified* clean, the same six took **35m50s** —
+and still passed, so the conclusion survived. It did not have to. The tell was
+the runtime: a suite that rebuilds from nothing cannot be five times faster
+than the same suite the run before.
+
+This is the [[silent-fallbacks]] pattern applied to your own tooling: the
+step that was supposed to protect the result is itself capable of failing
+quietly.
+
 ## Levels
 
 | Level | Env | Scope | Use |
