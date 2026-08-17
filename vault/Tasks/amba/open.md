@@ -926,6 +926,57 @@ response windows, and leads with W data — none of the current collateral
 exercises any of these.
 
 ### TASK-064: converter read-path PSLVERR loss + peakrdl held-req contract
+
+**STATE 2026-08-17 — BOTH RTL FIXES LANDED (537c7af8). ONE TEST OUTSTANDING.**
+
+- **(1) RRESP per-slice error — RTL FIXED, TEST NOT WORKING.**
+  `axi4_to_apb4_convert` drove RRESP from `w_pslverr` alone (the in-flight
+  slice), so a 2:1 read whose FIRST slice errored returned OKAY with partially
+  bad data. Now a PER-AXI-BEAT accumulator `r_beat_pslverr`, restarted on the
+  first slice of each beat and folded combinationally into `w_resp_rd`. The
+  burst-wide `r_pslverr` could NOT be reused -- once set it over-marks every
+  later beat of the burst.
+  Lint clean, converter suite 99 passed. **The fix is UNPROVEN**: no test
+  drives a per-slice error.
+
+- **(2) `peakrdl_to_cmdrsp` held req — RTL FIXED.** `regblk_req` included
+  `cmd_state == CMD_WAIT_ACK`, so it stayed high for the accept cycle AND
+  every wait-for-ack cycle, against a documented ONE-cycle strobe. Reduced to
+  the accept cycle (plus the cycle a stall clears); the address/data muxes
+  still hold steady through `CMD_WAIT_ACK`. Fixed the RTL rather than the doc
+  because an idempotent plain register hides a double-access in every existing
+  test, while a counter, a write-1-to-clear field or a self-clearing KICK bit
+  would double-count and only fail on hardware.
+
+**PICK UP HERE — finishing the RRESP test.**
+
+`projects/components/converters/dv/tests/test_axi4_to_apb4_rresp.py` exists,
+is UNTRACKED and FAILS. It was deliberately not committed rather than left
+looking green.
+
+Two blockers already cleared, do not re-derive them:
+1. No BFM change is needed. `create_apb4_slave` has no PSLVERR injection hook
+   and owns `m_apb_pslverr`, BUT `axi4_to_apb4_convert` exposes its APB
+   response as PORTS -- `r_rsp_valid` / `w_rsp_ready` / `r_rsp_data` -- so a
+   unit-level TB drives per-slice errors directly.
+2. The interfaces are PACKED, and the layouts are (from the RTL):
+       r_rsp_data     = {last, first, pslverr, prdata}
+       r_s_axi_ar_pkt = {arid, araddr, arlen, arsize, arburst, arlock,
+                         arcache, arprot, arqos, arregion, aruser}
+       r_s_axi_r_pkt  = {rid, rdata, rresp, rlast, ruser}   (ruser = LSB,
+                         rlast[1], rresp[3:2])
+   AXI ports are `r_s_axi_*` (inputs) and `w_s_axi_*` (outputs), not `s_axi_*`.
+
+**The remaining defect is mine, in the test:** the AR packet bit offsets were
+derived by counting field widths by hand rather than against the DUT's
+parameter widths, so the read never starts and no R beat appears. Recompute
+the offsets from `AXI_ID_WIDTH`/`AXI_ADDR_WIDTH`/`AXI_USER_WIDTH` as the RTL
+declares them, then **confirm the test fails on the PRE-FIX RRESP logic**
+(revert `w_resp_rd` to `(w_pslverr) ? 2'b10 : 2'b00` and require RED) before
+trusting a green run. Every other fix in this cluster was mutation-proven; this
+one is not, and a readback test that passes on broken RTL is the exact failure
+mode this whole cluster came from.
+
 **Priority:** P2
 **Status:** Not Started (found 2026-08-13, shared qc round_3; WSTRB sibling defect FIXED same day)
 **Owner:** TBD
