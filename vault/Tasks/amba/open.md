@@ -968,13 +968,29 @@ exercises any of these.
   original blocker. Mutation: reverting to `(w_pslverr)` gives `RRESP=0b00` for
   a beat whose first slice returned PSLVERR.
 
-- **(2) `peakrdl_to_cmdrsp` held req.** `regblk_req` included
-  `cmd_state == CMD_WAIT_ACK`, holding it high for the accept cycle AND every
-  wait cycle against a documented ONE-cycle strobe. Reduced to the accept cycle
-  (plus the cycle a stall clears); payload muxes still steady through
-  `CMD_WAIT_ACK`. Fixed the RTL rather than the doc because an idempotent
-  register hides a double-access in every test, while a counter or a
-  self-clearing KICK bit would only fail on hardware.
+- **(2) `peakrdl_to_cmdrsp` held req — THE DOC IS WRONG, THE RTL IS RIGHT.
+  Reverted 2026-08-18.** `regblk_req` holds through `CMD_WAIT_ACK` against an
+  interface that documents a one-cycle strobe. Reducing it to one cycle BROKE
+  every register read through this bridge: the observers' `obs_apb` window
+  returned nothing and `test_stream_mon` failed with
+  `uart_read: bad response ''`. Reverting restored `2 passed /
+  rd_prod=16 wr_prod=16` on a clean rebuild with one variable changed. The
+  generated PeakRDL passthrough regblock needs the request HELD until it acks.
+
+  **The broken change reached main in 537c7af8 and is reverted here.** It was
+  live on main for roughly a day.
+
+  Two process failures worth keeping, because neither was bad luck:
+  - This task said "settle the contract against the generated regblock's
+    req/ack behaviour, THEN fix RTL or re-document." That step was skipped;
+    "fix the RTL" was chosen on the strength of an argument about counters and
+    self-clearing bits rather than on any measurement.
+  - The converter suite's 100 passes were treated as sufficient. They cannot
+    see this: the standalone test hangs a plain IDEMPOTENT PeakRDL register off
+    the interface, which is exactly the case that masks a request-timing
+    change. That sentence was written into the commit message and then ignored.
+    **Any future attempt at this must be validated through an INTEGRATED path**
+    (stream build-mon's `obs_apb` window), never the standalone converter tests.
 
 Converter suite 100 passed.
 

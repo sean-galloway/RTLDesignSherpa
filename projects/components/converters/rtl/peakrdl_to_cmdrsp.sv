@@ -199,9 +199,24 @@ module peakrdl_to_cmdrsp #(
     // The request is asserted only in the accept cycle. CMD_WAIT_ACK still
     // holds the ADDRESS and DATA muxes steady (below) so the register block
     // sees stable payload while it completes.
-    assign regblk_req = ((cmd_state == CMD_IDLE) && cmd_valid) ||
-                        ((cmd_state == CMD_STALLED) && cmd_valid &&
-                         !(cmd_pwrite ? regblk_req_stall_wr : regblk_req_stall_rd));
+    // HELD until ack -- do NOT reduce this to a one-cycle strobe.
+    //
+    // TASK-064 item 2 observes that the interface DOCUMENTS a one-cycle
+    // strobe while this holds req through CMD_WAIT_ACK. Reducing it to one
+    // cycle (2026-08-17) BROKE every register read through this bridge: the
+    // observers' obs_apb window returned nothing and test_stream_mon failed
+    // with `uart_read: bad response ''`. Reverting it restored 2 passed /
+    // rd_prod=16 wr_prod=16 on a clean rebuild, one variable changed.
+    //
+    // The generated PeakRDL passthrough regblock evidently needs the request
+    // held until it acks, so the DOC is what is wrong here, not the RTL. The
+    // converter's own suite cannot see this -- it hangs a plain idempotent
+    // register off the interface, which is exactly the case that masks a
+    // request-timing change -- so any future attempt must be validated
+    // through an INTEGRATED path (stream build-mon's obs_apb window), not
+    // the standalone converter tests.
+    assign regblk_req = (cmd_state == CMD_WAIT_ACK) ||
+                        ((cmd_state == CMD_IDLE) && cmd_valid);
 
     // Mux between current command and registered command
     assign regblk_req_is_wr = (cmd_state == CMD_IDLE) ? cmd_pwrite : r_cmd_pwrite;
