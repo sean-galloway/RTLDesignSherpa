@@ -927,73 +927,39 @@ exercises any of these.
 
 ### TASK-064: converter read-path PSLVERR loss + peakrdl held-req contract
 
-**STATE 2026-08-17 — BOTH RTL FIXES LANDED (537c7af8). ONE TEST OUTSTANDING.**
+**RESOLVED 2026-08-17. Both RTL fixes landed and BOTH are mutation-proven.**
 
-- **(1) RRESP per-slice error — RTL FIXED, TEST NOT WORKING.**
-  `axi4_to_apb4_convert` drove RRESP from `w_pslverr` alone (the in-flight
-  slice), so a 2:1 read whose FIRST slice errored returned OKAY with partially
-  bad data. Now a PER-AXI-BEAT accumulator `r_beat_pslverr`, restarted on the
-  first slice of each beat and folded combinationally into `w_resp_rd`. The
-  burst-wide `r_pslverr` could NOT be reused -- once set it over-marks every
-  later beat of the burst.
-  Lint clean, converter suite 99 passed. **The fix is UNPROVEN**: no test
-  drives a per-slice error.
+- **(1) RRESP per-slice error.** `axi4_to_apb4_convert` drove RRESP from
+  `w_pslverr` alone (the in-flight slice), so a 2:1 read whose FIRST slice
+  errored returned OKAY with partially bad data. Fixed with a PER-AXI-BEAT
+  accumulator (`r_beat_pslverr`), restarted on the first slice of each beat and
+  folded combinationally into `w_resp_rd`. The burst-wide `r_pslverr` could NOT
+  be reused -- once set it over-marks every later beat.
+  **Test:** `projects/components/converters/dv/tests/test_axi4_to_apb4_rresp.py`
+  drives the APB response ports directly (`r_rsp_valid`/`w_rsp_ready`/
+  `r_rsp_data`) for per-slice control -- no BFM change needed, which was the
+  original blocker. Mutation: reverting to `(w_pslverr)` gives `RRESP=0b00` for
+  a beat whose first slice returned PSLVERR.
 
-- **(2) `peakrdl_to_cmdrsp` held req — RTL FIXED.** `regblk_req` included
-  `cmd_state == CMD_WAIT_ACK`, so it stayed high for the accept cycle AND
-  every wait-for-ack cycle, against a documented ONE-cycle strobe. Reduced to
-  the accept cycle (plus the cycle a stall clears); the address/data muxes
-  still hold steady through `CMD_WAIT_ACK`. Fixed the RTL rather than the doc
-  because an idempotent plain register hides a double-access in every existing
-  test, while a counter, a write-1-to-clear field or a self-clearing KICK bit
-  would double-count and only fail on hardware.
+- **(2) `peakrdl_to_cmdrsp` held req.** `regblk_req` included
+  `cmd_state == CMD_WAIT_ACK`, holding it high for the accept cycle AND every
+  wait cycle against a documented ONE-cycle strobe. Reduced to the accept cycle
+  (plus the cycle a stall clears); payload muxes still steady through
+  `CMD_WAIT_ACK`. Fixed the RTL rather than the doc because an idempotent
+  register hides a double-access in every test, while a counter or a
+  self-clearing KICK bit would only fail on hardware.
 
-**PICK UP HERE — finishing the RRESP test.**
+Converter suite 100 passed.
 
-`projects/components/converters/dv/tests/test_axi4_to_apb4_rresp.py` exists,
-is UNTRACKED and FAILS. It was deliberately not committed rather than left
-looking green.
-
-Two blockers already cleared, do not re-derive them:
-1. No BFM change is needed. `create_apb4_slave` has no PSLVERR injection hook
-   and owns `m_apb_pslverr`, BUT `axi4_to_apb4_convert` exposes its APB
-   response as PORTS -- `r_rsp_valid` / `w_rsp_ready` / `r_rsp_data` -- so a
-   unit-level TB drives per-slice errors directly.
-2. The interfaces are PACKED, and the layouts are (from the RTL):
-       r_rsp_data     = {last, first, pslverr, prdata}
-       r_s_axi_ar_pkt = {arid, araddr, arlen, arsize, arburst, arlock,
-                         arcache, arprot, arqos, arregion, aruser}
-       r_s_axi_r_pkt  = {rid, rdata, rresp, rlast, ruser}   (ruser = LSB,
-                         rlast[1], rresp[3:2])
-   AXI ports are `r_s_axi_*` (inputs) and `w_s_axi_*` (outputs), not `s_axi_*`.
-
-**AR offsets: FIXED.** They are now derived from the declared widths --
-`ARSize = IW + AW + 8+3+2+1+4+3+4+4 + UW`, packed MSB..LSB, giving LSB offsets
-user 0, region 1, qos 5, prot 9, cache 12, lock 16, burst 17, size 19, len 22,
-addr 30, id 62. The hand-counted version was wrong on every field.
-
-**REMAINING FAILURE (next thing to chase):** `SimTimeoutError`. The test now
-hangs in `_slice()`, which spins on `while True: await RisingEdge; if
-w_rsp_ready: break` -- so the converter never asserts `w_rsp_ready` and never
-opens its response path for this stimulus. Two candidates, in order:
-  (a) the AR is accepted but the converter expects the APB COMMAND side to be
-      consumed first -- `r_cmd_valid`/`w_cmd_ready` are also ports, and the TB
-      drives neither, so the command may never leave and no response is
-      expected;
-  (b) `arsize=3` (8 bytes) against `APB_DATA_WIDTH=32` may not produce the 2:1
-      slicing assumed -- check `axi2abpratio` for the chosen parameters.
-Add a bounded timeout to `_slice()` with a clear message rather than an
-infinite spin, so the next failure names itself instead of hanging.
-
-Then **confirm the test fails on the PRE-FIX RRESP logic**
-(revert `w_resp_rd` to `(w_pslverr) ? 2'b10 : 2'b00` and require RED) before
-trusting a green run. Every other fix in this cluster was mutation-proven; this
-one is not, and a readback test that passes on broken RTL is the exact failure
-mode this whole cluster came from.
-
-**Priority:** P2
-**Status:** Not Started (found 2026-08-13, shared qc round_3; WSTRB sibling defect FIXED same day)
-**Owner:** TBD
+**Two testbench lessons worth keeping** (both cost a diagnostic cycle and both
+looked like RTL failures):
+- The AXI/APB interfaces here are PACKED. Bit offsets must be derived from the
+  declared field widths (`ARSize = IW + AW + 8+3+2+1+4+3+4+4 + UW`), not
+  hand-counted. The hand-counted version was wrong on every field.
+- The APB COMMAND side must be drained (`r_cmd_ready`) or the converter stalls
+  before producing any response. A TB that only drives the response side hangs.
+- `_slice()` now bounds its wait and names the likely cause instead of spinning
+  forever; a stalled DUT should say so rather than time out anonymously.
 
 Two remaining converter-family defects (the third from this round — WSTRB
 dropped, PSTRB constant all-ones from a blocking-order guard in
