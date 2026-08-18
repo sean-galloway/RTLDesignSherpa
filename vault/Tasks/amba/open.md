@@ -702,7 +702,34 @@ clocks, so it is loss and not backlog. At 40 slots the margin is still 1 but
 occupancy never nears full (8 max outstanding), so nothing is lost -- the bug
 only bites on genuine saturation.
 
-**Fix candidates:**
+**FIX CANDIDATE 1 IS WRONG — MEASURED 2026-08-17.**
+
+`BLOCK_MARGIN = max(3, CMD_ENTRY_RESERVE - 1)` was implemented and it BREAKS
+saturation recovery. The margin must satisfy two constraints simultaneously:
+
+  (a) >= 3, to cover the three allocators that can fire in the one stale cycle
+  (b) <= CMD_ENTRY_RESERVE - 1, or `block_ready` can never RE-ASSERT
+
+With `CMD_ENTRY_RESERVE = 2` on tables >= 16 these are unsatisfiable. At
+margin 3 on a 16-slot table `block_ready` needs `active_count < 13`, while the
+reserve only guarantees 2 free slots -- so occupancy parks at 14 and the gate
+never recovers. `test_axi_monitor_trans_mgr` catches it directly:
+
+    block_ready never re-asserted after traffic stopped
+    (active_count stuck at 14/16) -- peak=16 block_ready=0
+
+That is the permanent wedge the reserve was added to prevent, which is a worse
+failure than the tracking loss it was meant to fix. Reverted; the reasoning is
+now recorded in `axi_monitor_base.sv` beside the localparam so the next person
+does not re-try it.
+
+**THE ACTUAL FIX: raise `CMD_ENTRY_RESERVE` to 4** (in `monitor_common_pkg`),
+so both constraints can hold at margin 3. That costs 4 slots of capacity per
+table rather than 2 and touches every wrapper's effective depth, so it wants
+sizing review alongside -- it is not a one-liner, and this task should stop
+describing it as one.
+
+**Fix candidates (original):**
 1. `BLOCK_MARGIN = max(3, CMD_ENTRY_RESERVE - 1)` -- restores the legacy cover
    while keeping the reserve. Cheapest, and the margin then matches the number
    of allocators by construction rather than by coincidence.

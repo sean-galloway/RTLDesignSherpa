@@ -585,6 +585,25 @@ module axi_monitor_base
     // documented lossy-but-honest degrade, and
     // val/amba/test_axi_mon_block_ready.py measures the loss
     // (admitted_while_full) on every wrapper rather than leaving it invisible.
+    // BLOCK_MARGIN: do NOT "just" raise this to 3 -- see [[AMBA-BLOCKMARGIN]].
+    //
+    // The margin has to satisfy TWO constraints at once and they conflict:
+    //   (a) >= 3, because three allocators (addr/data/resp_wants_alloc) can
+    //       fire in the single stale cycle of the registered w_active_count;
+    //   (b) <= CMD_ENTRY_RESERVE - 1, or block_ready can never RE-ASSERT.
+    // With CMD_ENTRY_RESERVE = 2 on tables >= 16 the two are unsatisfiable.
+    //
+    // Setting it to 3 was tried (2026-08-17) and breaks (b): block_ready then
+    // needs active_count < 13 on a 16-slot table while the reserve only
+    // guarantees 2 free slots, so occupancy parks at 14 and the gate never
+    // recovers -- test_axi_monitor_trans_mgr reports "block_ready never
+    // re-asserted after traffic stopped (active_count stuck at 14/16)". That
+    // is the permanent wedge the reserve exists to prevent, which is worse
+    // than the tracking loss it was meant to fix.
+    //
+    // The real fix raises CMD_ENTRY_RESERVE to 4 (monitor_common_pkg) so both
+    // constraints can hold, and costs 4 slots of capacity per table. Left as
+    // is until that is taken deliberately.
     localparam int unsigned BLOCK_MARGIN =
         (CMD_ENTRY_RESERVE > 0) ? (CMD_ENTRY_RESERVE - 1) : 3;
     assign block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)
