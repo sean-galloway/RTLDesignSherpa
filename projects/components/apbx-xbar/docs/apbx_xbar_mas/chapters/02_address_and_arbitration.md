@@ -54,7 +54,7 @@ BASE_ADDR + 0x000F_0000 → 0x000F_FFFF : Slave 15 (64KB)
 
 **Default BASE_ADDR:** 0x10000000
 
-**Total Address Space:** NUM_SLAVES × 64KB
+**Total Address Space:** (number of slaves) × 64KB
 
 ### Decode Algorithm
 
@@ -337,7 +337,7 @@ apbx_xbar_2to4 #(
 **Multiple Masters (Different Slaves):**
 - Full parallelism
 - Each master gets 100% of its target slave
-- Total system bandwidth = NUM_SLAVES × slave_bandwidth
+- Total system bandwidth = (number of slaves) × slave_bandwidth
 
 ### Latency
 

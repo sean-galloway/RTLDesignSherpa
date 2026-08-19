@@ -273,7 +273,7 @@ Transaction 4: M0, M1 request → M0 granted → Priority rotates to M1
 
 **Multiple Masters (Different Slaves):**
 - Full parallelism: Each master gets 100% of its target slave
-- Total system bandwidth = NUM_SLAVES × slave_bandwidth
+- Total system bandwidth = (number of slaves) × slave_bandwidth
 
 **See:** [02_address_and_arbitration.md#performance](02_address_and_arbitration.md#performance-characteristics)
 

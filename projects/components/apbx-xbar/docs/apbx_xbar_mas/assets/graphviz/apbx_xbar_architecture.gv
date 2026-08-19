@@ -98,7 +98,7 @@ digraph apbx_xbar_architecture {
     apb4_master3 -> slave3 [label="APB\nprotocol", style=bold];
 
     // Parameters
-    params [label="Parameters\n\nNUM_MASTERS = 2\nNUM_SLAVES = 4\nADDR_WIDTH = 32\nDATA_WIDTH = 32\nBASE_ADDR = 0x10000000", shape=note, fillcolor=lightgray];
+    params [label="Parameters\n\nADDR_WIDTH = 32\nDATA_WIDTH = 32\nSTRB_WIDTH = DATA_WIDTH/8\nBASE_ADDR = 0x10000000\n\n2x4 is fixed by the generator\n(thin core takes M / S)", shape=note, fillcolor=lightgray];
     params -> addr_decode [style=dashed, label="Config"];
 
     // Legend
