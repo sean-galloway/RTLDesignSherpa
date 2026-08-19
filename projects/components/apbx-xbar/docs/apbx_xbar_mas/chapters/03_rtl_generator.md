@@ -144,6 +144,34 @@ python generate_xbars.py [OPTIONS]
 
 : Command Line Options
 
+The CLI covers the common cases. Per-port APB version and parity are
+reachable only through the Python API (`generate_apbx_xbar`), since they
+take per-port lists rather than scalars:
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `slave_size` | int | 0x1000 | Address window per slave. `generate_xbars.py` passes 0x10000 for the shipped variants |
+| `master_versions` | list | None | Per-master APB version (`4`/`5`); None ⇒ all APB4 |
+| `slave_versions` | list | None | Per-slave APB version (`4`/`5`); None ⇒ all APB4 |
+| `name_suffix` | str | `""` | Appended to the generated module name |
+| `enable_parity` | bool | False | Carry APB5 parity on APB5 ports |
+
+: Python API Arguments
+
+**`enable_parity` behaves differently here than in the thin core.** A
+generated variant **checks** parity at the ingress boundary and
+**regenerates** it on the far side, because the parity bits do not cross
+the cmd/rsp interface the boundary IP deconstructs each transfer into.
+The cmd/rsp fabric between the two is outside the protected domain, so
+with `enable_parity=True` each **APB5** port exposes its own
+`parity_error_*` outputs (`m0_parity_error_wdata`,
+`s0_parity_error_rdata`, ...) — a check whose result goes nowhere is not
+protection. APB4 ports get none, and the shipped `apbx_xbar_2to2_mixed`
+is generated with parity off, so there the boundary IP's flags are tied
+off internally. The thin core instead
+passes parity through end to end — see chapter 1. A mixed APB4/APB5
+pairing carries no parity in either family.
+
 **Rules:**
 - If neither `--masters` nor `--slaves` specified → Generate all standard variants
 - If only one specified → Error (must specify both)

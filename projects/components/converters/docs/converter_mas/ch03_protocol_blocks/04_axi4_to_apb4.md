@@ -49,15 +49,39 @@ AXI4 and APB differ on just about every axis:
 
 ### Parameters
 
+**`axi4_to_apb4_convert`** — the conversion core:
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| AXI_ADDR_WIDTH | int | 64 | AXI4 address width |
+| AXI_ADDR_WIDTH | int | 32 | AXI4 address width |
 | AXI_DATA_WIDTH | int | 32 | AXI4 data width |
-| AXI_ID_WIDTH | int | 4 | AXI4 ID width |
+| AXI_ID_WIDTH | int | 8 | AXI4 ID width |
+| AXI_USER_WIDTH | int | 1 | AXI4 user-signal width |
 | APB_ADDR_WIDTH | int | 32 | APB address width |
 | APB_DATA_WIDTH | int | 32 | APB data width |
+| SIDE_DEPTH | int | 6 | Side-channel FIFO depth (ID/user carried past the APB hop) |
 
 : Table 3.16: AXI4 to APB Parameters
+
+**`axi4_to_apb4_shim`** — the wrapper integrators actually instantiate.
+It adds the channel FIFOs around the core, and is what the bridge
+generator emits:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| DEPTH_AW / DEPTH_AR | int | 2 | Write/read address channel FIFO depth |
+| DEPTH_W / DEPTH_R | int | 4 | Write/read data channel FIFO depth |
+| DEPTH_B | int | 2 | Write response channel FIFO depth |
+| SIDE_DEPTH | int | 4 | Side-channel FIFO depth |
+| APB_CMD_DEPTH | int | 4 | APB command FIFO depth |
+| APB_RSP_DEPTH | int | 4 | APB response FIFO depth |
+| USE_JOHNSON | int | 0 | FIFO pointer style: 0 = binary, 1 = Johnson |
+| AXI_*/APB_* widths | int | as above | Same width parameters as the core |
+
+: Table 3.17: AXI4 to APB Shim Parameters
+
+The shim's defaults differ from the core's `SIDE_DEPTH` (4 vs 6); it
+sets its own rather than inheriting.
 
 ### Ports
 

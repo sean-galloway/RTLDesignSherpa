@@ -159,21 +159,83 @@ Internal Crossbar Logic → cmd/rsp bus → apb4_master → APB Slave
 
 ## Parameter Configuration
 
-**Top-Level Parameters:**
+The two families parameterize differently, and the difference is not
+cosmetic: a generated variant has its M×N **baked in** by the generator,
+so there is no port-count parameter to override at elaboration. Only the
+thin core takes M and S as parameters.
+
+**Generated variants** (`apbx_xbar_2to4`, `apbx_xbar_2to2_mixed`, ...):
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
-| `NUM_MASTERS` | 1-16 | 2 | Number of APB masters |
-| `NUM_SLAVES` | 1-16 | 4 | Number of APB slaves |
 | `ADDR_WIDTH` | 8-64 | 32 | Address bus width |
 | `DATA_WIDTH` | 8-64 | 32 | Data bus width |
-| `BASE_ADDR` | Any | 0x10000000 | Base address for address map |
+| `STRB_WIDTH` | derived | `DATA_WIDTH/8` | Write strobe width |
+| `BASE_ADDR` | Any | 0x10000000 | Base of the slave address map |
 
-: Top-Level Parameters
+: Generated-Variant Parameters
 
-**Derived Parameters:**
-- Slave address range: 64KB (0x10000) per slave
-- Total address space: NUM_SLAVES × 64KB
+Port counts, per-slave window size and APB version per port are
+generator inputs, not parameters — see chapter 3.
+
+**Thin core** (`apbx_xbar_thin`):
+
+| Parameter | Range | Default | Description |
+|-----------|-------|---------|-------------|
+| `M` | 1-16 | 2 | Number of APB masters |
+| `S` | 1-16 | 4 | Number of APB slaves |
+| `ADDR_WIDTH` | 8-64 | 32 | Address bus width |
+| `DATA_WIDTH` | 8-64 | 32 | Data bus width |
+| `STRB_WIDTH` | derived | `DATA_WIDTH/8` | Write strobe width |
+| `MAX_THRESH` | ≥1 | 16 | Arbiter weight ceiling |
+| `MST_APB5` | bitmask | `'0` | Bit *m* set ⇒ master *m* is APB5 |
+| `SLV_APB5` | bitmask | `'0` | Bit *s* set ⇒ slave *s* is APB5 |
+| `ENABLE_PARITY` | 0/1 | 0 | Carry APB5 parity end to end |
+| `AUW`/`WUW`/`RUW`/`BUW` | ≥1 | 1 | APB5 user-signal widths |
+
+: Thin-Core Parameters
+
+`ENABLE_PARITY` defaults to 0 so existing builds stay bit-identical.
+
+**Derived:**
+- Slave address range: 64KB (0x10000) per slave, as the shipped variants
+  are generated (the generator's own default window is 4KB)
+- Total address space: S × 64KB
+
+---
+
+## APB5 Parity Across the Fabric
+
+Parity is carried only between two APB5 ports. A **mixed pairing ignores
+parity entirely**, gated by the same `MST_APB5`/`SLV_APB5` masks as the
+rest of the APB5 sideband — there is no separate policy knob.
+
+For an APB5→APB5 path the two families are forced apart by their own
+architectures; this is not a configuration choice:
+
+**Thin core — end-to-end pass-through.** It is a combinational mux that
+never modifies the payload, so the requester's parity is still correct
+at the completer. Parity rides the existing grant/demux muxes, which
+means it covers corruption *inside the mux* — precisely the fault a
+regenerating scheme cannot see, since a recomputed bit would be correct
+by construction and would mask it.
+
+**Generated variants — check and regenerate, unavoidably.** The boundary
+IP deconstructs each transfer into cmd/rsp, and the parity bits do not
+cross that interface: `apb5_slave` checks on the way in, `apb5_master`
+regenerates on the way out. The cmd/rsp fabric between them is therefore
+**outside the protected domain**. That span is documented rather than
+hidden, and because of it each port brings its `parity_error_*` flag out
+individually — a check whose result goes nowhere is not protection.
+
+The error flags are deliberately **not** folded into `PSLVERR`, which
+would make a fabric fault indistinguishable from the slave's own error
+response.
+
+Formal coverage: property **D** — an APB4 port never sees parity in
+either direction; property **E** — on an APB5→APB5 path the parity
+reaching the slave equals what the master drove, which is what makes the
+pass-through claim mean anything.
 
 ---
 
@@ -181,11 +243,12 @@ Internal Crossbar Logic → cmd/rsp bus → apb4_master → APB Slave
 
 | Module | M×N | LOC | Use Case |
 |--------|-----|-----|----------|
-| `apbx_xbar_1to1` | 1×1 | ~200 | Passthrough, protocol conversion |
-| `apbx_xbar_2to1` | 2×1 | ~400 | Multi-master arbitration |
-| `apbx_xbar_1to4` | 1×4 | ~500 | Simple SoC peripheral bus |
-| `apbx_xbar_2to4` | 2×4 | ~1000 | Typical SoC with CPU+DMA |
-| `apbx_xbar_thin` | 1×1 | ~150 | Minimal overhead passthrough |
+| `apbx_xbar_1to1` | 1×1 | 165 | Passthrough, protocol conversion |
+| `apbx_xbar_2to1` | 2×1 | 314 | Multi-master arbitration |
+| `apbx_xbar_1to4` | 1×4 | 384 | Simple SoC peripheral bus |
+| `apbx_xbar_2to4` | 2×4 | 751 | Typical SoC with CPU+DMA |
+| `apbx_xbar_2to2_mixed` | 2×2 | 570 | Mixed APB4/APB5 ports, version gating |
+| `apbx_xbar_thin` | M×S | 306 | Minimal overhead, parameterized ports |
 
 : Pre-Generated Crossbar Variants
 
