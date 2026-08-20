@@ -129,23 +129,23 @@ When the configured beat is narrower than `MAX_BEAT_BITS`, the upper bits of `po
 
 ### Next-State: Pop First, Push Second
 
-Each cycle the combinational block computes next-state `v_data` / `v_count` in two ordered steps:
+Each cycle the combinational block computes next-state `w_v_data` / `w_v_count` in two ordered steps:
 
 1. **Pop** (when `pop_valid && pop_ready`): shift the register down by `w_beat_bits` and subtract that many bits from the count, draining the low beat.
-2. **Push** (when `push_valid && push_ready`): land the new chunk at `[v_count +: CHUNK_BITS]` using the *post-pop* occupancy, so the chunk sits right above the still-valid bits whether or not a pop fired, then add `CHUNK_BITS` to the count.
+2. **Push** (when `push_valid && push_ready`): land the new chunk at `[w_v_count +: CHUNK_BITS]` using the *post-pop* occupancy, so the chunk sits right above the still-valid bits whether or not a pop fired, then add `CHUNK_BITS` to the count.
 
 ```systemverilog
 if (pop_valid && pop_ready) begin
-    v_data  = v_data >> w_beat_bits;
-    v_count = v_count - COUNT_BITS'(w_beat_bits);
+    w_v_data  = w_v_data >> w_beat_bits;
+    w_v_count = w_v_count - COUNT_BITS'(w_beat_bits);
 end
 if (push_valid && push_ready) begin
-    v_data[v_count[IDX_BITS-1:0] +: CHUNK_BITS] = push_data;
-    v_count = v_count + COUNT_BITS'(CHUNK_BITS);
+    w_v_data[w_v_count[IDX_BITS-1:0] +: CHUNK_BITS] = push_data;
+    w_v_count = w_v_count + COUNT_BITS'(CHUNK_BITS);
 end
 ```
 
-One non-blocking assignment then writes `r_data` / `r_count` from `v_data` / `v_count`, so same-cycle push + pop has no internal last-assignment race.
+One non-blocking assignment then writes `r_data` / `r_count` from `w_v_data` / `w_v_count`, so same-cycle push + pop has no internal last-assignment race.
 
 ### Elaboration-Time Contract
 

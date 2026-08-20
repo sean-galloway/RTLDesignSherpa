@@ -38,7 +38,7 @@ A synchronous First-In-First-Out buffer for when everything lives in a single cl
 
 **`MEM_STYLE` details:** In this module every branch honours `REGISTERED`: with
 `REGISTERED=0` the BRAM branch gives a *combinational* read
-(`always_comb w_rd_data = mem[r_rd_addr]`), not a registered one. Note that
+(`assign rd_data = mem[r_rd_addr]`), not a registered one. Note that
 `fifo_async` differs here — its BRAM branch is unconditionally registered — so
 do not carry that assumption across. **Caveat:** `MEM_STYLE=FIFO_BRAM` with
 `REGISTERED=0` asks for an asynchronous read from a block RAM, which real BRAM
@@ -69,7 +69,9 @@ to LUTRAM instead. Use `REGISTERED=1` when you actually want block RAM.
 
 ### Memory Organization
 ```systemverilog
-logic [DW-1:0] r_mem[0:((1<<AW)-1)];  // Memory array
+logic [DATA_WIDTH-1:0] mem [DEPTH];       // Memory array (declared inside the
+                                          // MEM_STYLE generate branch so all
+                                          // accesses share one scope)
 assign r_wr_addr = r_wr_ptr_bin[AW-1:0];  // Write address
 assign r_rd_addr = r_rd_ptr_bin[AW-1:0];  // Read address
 ```
@@ -107,20 +109,18 @@ end
 
 #### Read Operation - Dual Mode
 ```systemverilog
-generate
-    if (REGISTERED != 0) begin : gen_flop_mode
-        // Flop mode - registered output
-        always_ff @(posedge clk or negedge rst_n) begin
-            if (!rst_n)
-                rd_data <= 'b0;
-            else
-                rd_data <= w_rd_data;
-        end
-    end else begin : gen_mux_mode
-        // Mux mode - non-registered output
-        assign rd_data = w_rd_data;
-    end
-endgenerate
+if (REGISTERED != 0) begin : g_flop
+    logic [DATA_WIDTH-1:0] r_rd_data;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (!rst_n) r_rd_data <= '0;
+        else        r_rd_data <= mem[r_rd_addr];
+    )
+    assign rd_data = r_rd_data;
+
+end else begin : g_mux
+    // Mux mode - non-registered output
+    assign rd_data = mem[r_rd_addr];
+end
 ```
 
 ### Status Flag Generation
