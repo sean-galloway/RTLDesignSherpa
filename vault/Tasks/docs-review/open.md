@@ -1166,3 +1166,72 @@ without touching prose. This one is missing content, not a wrong name.
 - [ ] Add `## Testing` to each page with the test path + run command.
 - [ ] Where no test exists, say so explicitly rather than omitting the section —
       an absent section reads as an oversight, a stated gap reads as a fact.
+
+---
+
+## DOCREV-017 — The five HAS/MAS books: qc rounds, then humanize
+**Status:** open 2026-08-20 (Sean)
+**Priority:** P2
+
+The component books queued for correctness first, voice second. This is the
+`projects/components` slice of [[DOCREV-013]], decomposed to the five books
+that actually exist as HAS/MAS today.
+
+| Book | Words | qc round | humanized |
+|---|---|---|---|
+| Bridge MAS | — | **none recorded** | 2026-08-11 (`93eed6f1`) |
+| Bridge HAS | — | **none recorded** | 2026-08-11 (`93eed6f1`) |
+| Converters MAS | — | **none recorded** | 2026-08-11 (`93eed6f1`), 19 files |
+| APB Crossbar MAS | 7,154 (5 md) | none | **never** |
+| APB Crossbar HAS | 8,179 (20 md) | none | **never** |
+
+### Two problems, not one
+
+**Three books were voice-passed without a correctness round.** Searching the
+docs-review area for a bridge or converters qc round returns nothing; the
+2026-08-11 humanization ran anyway. That is the failure shape
+[kimi-review-rounds](../../handbook/authoring/kimi-review-rounds.md#the-order-correctness-until-clean-then-voice)
+names outright: a voice pass rewrites every page, so voice-passing a page that
+is still wrong "produces a well-written falsehood, and the rewrite makes the
+error harder to spot later because it no longer reads like something copied
+from stale RTL." Their qc round is therefore owed retroactively, and it is
+reading prose that has already been smoothed once.
+
+**The two APB Crossbar books have had neither pass.** Not an oversight in
+judgement — a timing miss. The `apbx-xbar` doc tree was created 2026-08-12
+(`95f7006f`), one day after the humanization pass ran, and nothing has swept
+it since.
+
+### Content added after both passes
+
+Written 2026-08-19/20 (`cf3aa7da`), so it postdates every prior round:
+
+- apbx MAS ch1 — APB5 parity section; the generated-vs-thin parameter split
+- apbx MAS ch3 — generator arguments the CLI does not expose
+- Converters MAS §3.4 — `axi4_to_apb4_shim` parameter table
+
+The converters case is the one to watch: an un-humanized table now sits inside
+an otherwise-humanized file, which is where a voice mismatch will show first.
+
+That same commit corrected parameter tables that had documented
+`NUM_MASTERS`/`NUM_SLAVES` — parameters no module has — and defaults that were
+simply wrong (`AXI_ADDR_WIDTH` 64 vs the actual 32). Both were found by reading
+the RTL, not the docs. Treat that as evidence about the qc round's likely yield
+on books nobody has checked against source: aim it at parameter tables,
+defaults, and module names first.
+
+**Work:**
+- [ ] qc round per book, re-run until a round returns nothing actionable or
+      only false positives. One round is not a clean bill of health.
+- [ ] Integrate findings, verifying each against RTL before acting — a
+      mis-packaged bundle produces confident-but-wrong findings.
+- [ ] Only then humanize, using
+      `docs/kimi_humanization_style_guide_has_mas.md` (the guide the
+      2026-08-11 HAS/MAS pass used), gated on `verify_structure.py`.
+- [ ] Re-verify the qc fixes survived the voice pass.
+- [ ] Rebuild all five books; confirm LoF/LoT/LoW still populate — caption
+      encoding (`: caption`, `Figure N:`) drives them, and a rewrite that
+      drops it silently breaks book generation.
+
+**Note:** the apbx books are small enough to send un-split. Sizes above are
+markdown word counts, not the built page counts.

@@ -6,9 +6,9 @@ Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 12 |
-| [closed](closed.md) | 2 |
-| [dropped](dropped.md) | 1 |
+| [open](open.md) | 11 |
+| [closed](closed.md) | 3 |
+| [dropped](dropped.md) | 2 |
 
 ## Corpus reset — 2026-07-28
 
@@ -55,9 +55,9 @@ projects/components, then assess fpga) and the per-area startup checklist
 
 ## Open shortlist
 
-- **DOCREV-002** — humanizer structural-preservation preamble + tag-survival test.
-  Mechanism exists in `run_batch.py`; the proof does not. Gates DOCREV-003.
-- **DOCREV-003** — final MD-only humanize round. Blocked on DOCREV-002 and -001.
+- **DOCREV-003** — final MD-only humanize round. Its blockers are gone:
+  DOCREV-002 closed 2026-07-28 (tag survival is now `bin/review/check_tag_survival.py`)
+  and DOCREV-001 was dropped in the corpus reset. Needs re-scoping, not waiting.
 - **DOCREV-004** — back up or retire the off-repo collateral at
   `/mnt/data/github/rtl-doc-review/`.
 - **DOCREV-007** — README rollout: 105 beside-code READMEs, many 500-1000 line
@@ -75,6 +75,12 @@ projects/components, then assess fpga) and the per-area startup checklist
 - **DOCREV-014** — 110 files under `docs/markdown/` carry emoji, against a rule
   that exists because they break PDF generation. The humanizer is one source;
   `check_tag_survival.py` now blocks that inflow.
+- **DOCREV-017** — the five HAS/MAS books (Bridge MAS/HAS, Converters MAS, APB
+  Crossbar MAS/HAS): qc rounds until clean, then humanize. Three of the five were
+  voice-passed on 2026-08-11 with no qc round on record, which is the ordering
+  the handbook warns against; the two APB Crossbar books have had neither pass
+  (their tree was created the day after that run). Content added 2026-08-19/20
+  postdates everything.
 - **DOCREV-013** — fresh per-area qc rounds under the adjudication pipeline.
   Order: cdc, common, math, amba (decomposed later), projects/components
   (decomposed later), then assess fpga. Per-area startup: four-line Makefiles
