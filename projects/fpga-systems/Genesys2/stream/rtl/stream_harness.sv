@@ -37,11 +37,11 @@ module stream_harness #(
     // Banking is by ID, so per-ID concurrency is capped by the BANK depth:
     //     OBS_MAX_TRANSACTIONS/OBS_NUM_BANKS >= IDs-per-bank * outstanding-per-ID
     // 8 channels x 8 outstanding over 4 banks => 64/4 = 16 per bank.
-    parameter int OBS_MAX_TRANSACTIONS   = 16,
-    parameter int OBS_NUM_BANKS          = 1,
+    parameter int OBS_MAX_TRANSACTIONS   = 64,
+    parameter int OBS_NUM_BANKS          = 4,
     // Mandatory once a WRITE monitor is banked: the WID-less select is not
     // ID-matched, and trans_mgr refuses to elaborate without this.
-    parameter bit OBS_USE_WDATA_ORDER_Q  = 1'b0,
+    parameter bit OBS_USE_WDATA_ORDER_Q  = 1'b1,
     // Heavy in-core AXI monitors (CAM/reporter cones + latency histograms).
     // Default 0 = board build (area): the always-on bus meters still give
     // utilisation. Cosim monitor-validation tests (rw_perf hist tail, obs_equiv,
@@ -135,6 +135,12 @@ module stream_harness #(
     localparam int APB_DATA_WIDTH = 32;
 
     localparam int CLKS_PER_BIT = FPGA_CLK_HZ / UART_BAUD;
+
+    // Observer monitor-timer LUT frequency. Derived from the clock rather than
+    // set independently: counter_freq_invariant divides BY this for its 1 us
+    // tick, so a value that drifts from aclk skews every monitor timeout by
+    // the ratio, silently and uniformly.
+    localparam int OBS_ACLK_MHZ = FPGA_CLK_HZ / 1_000_000;
 
     // =========================================================================
     // UART-AXIL bridge
@@ -253,6 +259,9 @@ module stream_harness #(
     logic [1:0]                 desc_rresp;
     logic                       desc_rlast;
     logic [AXI_USER_WIDTH-1:0]  desc_ruser;
+    // Bridge drives a single ruser bit; zero-extend to the harness net width.
+    logic                       w_desc_ruser_b0;
+    assign desc_ruser = AXI_USER_WIDTH'(w_desc_ruser_b0);
     logic                       desc_rvalid, desc_rready;
 
     // ---- Slave-side AXIL wires consumed by the rest of the harness ---------
@@ -608,7 +617,11 @@ module stream_harness #(
         .stream_desc_arprot   (desc_arprot),
         .stream_desc_arqos    (desc_arqos),
         .stream_desc_arregion (desc_arregion),
-        .stream_desc_aruser   (desc_aruser),
+        // The bridge carries ONE user bit on this port while the harness net is
+        // AXI_USER_WIDTH ($clog2(NUM_CHANNELS)). STREAM never drives desc aruser
+        // (m_axi_desc_aruser is an unassigned output of stream_core), so nothing
+        // is lost -- but narrow explicitly rather than by implicit truncation.
+        .stream_desc_aruser   (desc_aruser[0]),
         .stream_desc_arvalid  (desc_arvalid),
         .stream_desc_arready  (desc_arready),
 
@@ -616,7 +629,7 @@ module stream_harness #(
         .stream_desc_rdata    (desc_rdata),
         .stream_desc_rresp    (desc_rresp),
         .stream_desc_rlast    (desc_rlast),
-        .stream_desc_ruser    (desc_ruser),
+        .stream_desc_ruser    (w_desc_ruser_b0),
         .stream_desc_rvalid   (desc_rvalid),
         .stream_desc_rready   (desc_rready),
 
@@ -1760,6 +1773,7 @@ module stream_harness #(
         .MAX_TRANSACTIONS    (OBS_MAX_TRANSACTIONS),
         .NUM_BANKS           (OBS_NUM_BANKS),
         .USE_WDATA_ORDER_Q   (OBS_USE_WDATA_ORDER_Q),
+        .ACLK_MHZ            (OBS_ACLK_MHZ),
         // AXIL egress: the harness tally path consumes m_axil_*.
         .EGRESS_AXIL         (1'b1),
         .ENABLE_MON_TAPS     (USE_AXI_MONITORS != 0),
@@ -2142,6 +2156,7 @@ module stream_harness #(
         .MAX_TRANSACTIONS    (OBS_MAX_TRANSACTIONS),
         .NUM_BANKS           (OBS_NUM_BANKS),
         .USE_WDATA_ORDER_Q   (OBS_USE_WDATA_ORDER_Q),
+        .ACLK_MHZ            (OBS_ACLK_MHZ),
         .ENABLE_BUS_METER    (1),
         .WR_CH_FROM_AWID     (1),
         .NUM_CHANNELS        (OBS_NUM_CHANNELS),

@@ -811,6 +811,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_host_0_wr_threshold_enable;
     logic         cfg_host_0_wr_debug_enable;
     logic [15:0] cfg_host_0_wr_timeout_cycles;
+    logic [3:0] cfg_host_0_wr_freq_sel;
     logic [31:0] cfg_host_0_wr_latency_threshold;
     logic [15:0] cfg_host_0_wr_axi_pkt_mask;
     logic [15:0] cfg_host_0_wr_axi_err_select;
@@ -831,6 +832,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_host_0_rd_threshold_enable;
     logic         cfg_host_0_rd_debug_enable;
     logic [15:0] cfg_host_0_rd_timeout_cycles;
+    logic [3:0] cfg_host_0_rd_freq_sel;
     logic [31:0] cfg_host_0_rd_latency_threshold;
     logic [15:0] cfg_host_0_rd_axi_pkt_mask;
     logic [15:0] cfg_host_0_rd_axi_err_select;
@@ -851,6 +853,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_stream_desc_1_rd_threshold_enable;
     logic         cfg_stream_desc_1_rd_debug_enable;
     logic [15:0] cfg_stream_desc_1_rd_timeout_cycles;
+    logic [3:0] cfg_stream_desc_1_rd_freq_sel;
     logic [31:0] cfg_stream_desc_1_rd_latency_threshold;
     logic [15:0] cfg_stream_desc_1_rd_axi_pkt_mask;
     logic [15:0] cfg_stream_desc_1_rd_axi_err_select;
@@ -871,6 +874,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_monbus_wr_2_wr_threshold_enable;
     logic         cfg_monbus_wr_2_wr_debug_enable;
     logic [15:0] cfg_monbus_wr_2_wr_timeout_cycles;
+    logic [3:0] cfg_monbus_wr_2_wr_freq_sel;
     logic [31:0] cfg_monbus_wr_2_wr_latency_threshold;
     logic [15:0] cfg_monbus_wr_2_wr_axi_pkt_mask;
     logic [15:0] cfg_monbus_wr_2_wr_axi_err_select;
@@ -891,6 +895,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_stream_apb_0_wr_threshold_enable;
     logic         cfg_stream_apb_0_wr_debug_enable;
     logic [15:0] cfg_stream_apb_0_wr_timeout_cycles;
+    logic [3:0] cfg_stream_apb_0_wr_freq_sel;
     logic [31:0] cfg_stream_apb_0_wr_latency_threshold;
     logic [15:0] cfg_stream_apb_0_wr_axi_pkt_mask;
     logic [15:0] cfg_stream_apb_0_wr_axi_err_select;
@@ -911,6 +916,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_stream_apb_0_rd_threshold_enable;
     logic         cfg_stream_apb_0_rd_debug_enable;
     logic [15:0] cfg_stream_apb_0_rd_timeout_cycles;
+    logic [3:0] cfg_stream_apb_0_rd_freq_sel;
     logic [31:0] cfg_stream_apb_0_rd_latency_threshold;
     logic [15:0] cfg_stream_apb_0_rd_axi_pkt_mask;
     logic [15:0] cfg_stream_apb_0_rd_axi_err_select;
@@ -931,6 +937,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_harness_csr_1_wr_threshold_enable;
     logic         cfg_harness_csr_1_wr_debug_enable;
     logic [15:0] cfg_harness_csr_1_wr_timeout_cycles;
+    logic [3:0] cfg_harness_csr_1_wr_freq_sel;
     logic [31:0] cfg_harness_csr_1_wr_latency_threshold;
     logic [15:0] cfg_harness_csr_1_wr_axi_pkt_mask;
     logic [15:0] cfg_harness_csr_1_wr_axi_err_select;
@@ -951,6 +958,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_harness_csr_1_rd_threshold_enable;
     logic         cfg_harness_csr_1_rd_debug_enable;
     logic [15:0] cfg_harness_csr_1_rd_timeout_cycles;
+    logic [3:0] cfg_harness_csr_1_rd_freq_sel;
     logic [31:0] cfg_harness_csr_1_rd_latency_threshold;
     logic [15:0] cfg_harness_csr_1_rd_axi_pkt_mask;
     logic [15:0] cfg_harness_csr_1_rd_axi_err_select;
@@ -971,6 +979,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_desc_ram_2_wr_threshold_enable;
     logic         cfg_desc_ram_2_wr_debug_enable;
     logic [15:0] cfg_desc_ram_2_wr_timeout_cycles;
+    logic [3:0] cfg_desc_ram_2_wr_freq_sel;
     logic [31:0] cfg_desc_ram_2_wr_latency_threshold;
     logic [15:0] cfg_desc_ram_2_wr_axi_pkt_mask;
     logic [15:0] cfg_desc_ram_2_wr_axi_err_select;
@@ -991,6 +1000,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_desc_ram_2_rd_threshold_enable;
     logic         cfg_desc_ram_2_rd_debug_enable;
     logic [15:0] cfg_desc_ram_2_rd_timeout_cycles;
+    logic [3:0] cfg_desc_ram_2_rd_freq_sel;
     logic [31:0] cfg_desc_ram_2_rd_latency_threshold;
     logic [15:0] cfg_desc_ram_2_rd_axi_pkt_mask;
     logic [15:0] cfg_desc_ram_2_rd_axi_err_select;
@@ -1011,6 +1021,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_stream_err_3_wr_threshold_enable;
     logic         cfg_stream_err_3_wr_debug_enable;
     logic [15:0] cfg_stream_err_3_wr_timeout_cycles;
+    logic [3:0] cfg_stream_err_3_wr_freq_sel;
     logic [31:0] cfg_stream_err_3_wr_latency_threshold;
     logic [15:0] cfg_stream_err_3_wr_axi_pkt_mask;
     logic [15:0] cfg_stream_err_3_wr_axi_err_select;
@@ -1031,6 +1042,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_stream_err_3_rd_threshold_enable;
     logic         cfg_stream_err_3_rd_debug_enable;
     logic [15:0] cfg_stream_err_3_rd_timeout_cycles;
+    logic [3:0] cfg_stream_err_3_rd_freq_sel;
     logic [31:0] cfg_stream_err_3_rd_latency_threshold;
     logic [15:0] cfg_stream_err_3_rd_axi_pkt_mask;
     logic [15:0] cfg_stream_err_3_rd_axi_err_select;
@@ -1051,6 +1063,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_debug_sram_4_wr_threshold_enable;
     logic         cfg_debug_sram_4_wr_debug_enable;
     logic [15:0] cfg_debug_sram_4_wr_timeout_cycles;
+    logic [3:0] cfg_debug_sram_4_wr_freq_sel;
     logic [31:0] cfg_debug_sram_4_wr_latency_threshold;
     logic [15:0] cfg_debug_sram_4_wr_axi_pkt_mask;
     logic [15:0] cfg_debug_sram_4_wr_axi_err_select;
@@ -1071,6 +1084,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_debug_sram_4_rd_threshold_enable;
     logic         cfg_debug_sram_4_rd_debug_enable;
     logic [15:0] cfg_debug_sram_4_rd_timeout_cycles;
+    logic [3:0] cfg_debug_sram_4_rd_freq_sel;
     logic [31:0] cfg_debug_sram_4_rd_latency_threshold;
     logic [15:0] cfg_debug_sram_4_rd_axi_pkt_mask;
     logic [15:0] cfg_debug_sram_4_rd_axi_err_select;
@@ -1091,6 +1105,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_dma_axil_5_wr_threshold_enable;
     logic         cfg_dma_axil_5_wr_debug_enable;
     logic [15:0] cfg_dma_axil_5_wr_timeout_cycles;
+    logic [3:0] cfg_dma_axil_5_wr_freq_sel;
     logic [31:0] cfg_dma_axil_5_wr_latency_threshold;
     logic [15:0] cfg_dma_axil_5_wr_axi_pkt_mask;
     logic [15:0] cfg_dma_axil_5_wr_axi_err_select;
@@ -1111,6 +1126,7 @@ module bridge_stream_char_axil_mon
     logic         cfg_dma_axil_5_rd_threshold_enable;
     logic         cfg_dma_axil_5_rd_debug_enable;
     logic [15:0] cfg_dma_axil_5_rd_timeout_cycles;
+    logic [3:0] cfg_dma_axil_5_rd_freq_sel;
     logic [31:0] cfg_dma_axil_5_rd_latency_threshold;
     logic [15:0] cfg_dma_axil_5_rd_axi_pkt_mask;
     logic [15:0] cfg_dma_axil_5_rd_axi_err_select;
@@ -1280,6 +1296,7 @@ module bridge_stream_char_axil_mon
         .cfg_wr_threshold_enable(cfg_host_0_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_host_0_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_host_0_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_host_0_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_host_0_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_host_0_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_host_0_wr_axi_err_select),
@@ -1302,6 +1319,7 @@ module bridge_stream_char_axil_mon
         .cfg_rd_threshold_enable(cfg_host_0_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_host_0_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_host_0_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_host_0_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_host_0_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_host_0_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_host_0_rd_axi_err_select),
@@ -1371,6 +1389,7 @@ module bridge_stream_char_axil_mon
         .cfg_rd_threshold_enable(cfg_stream_desc_1_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_stream_desc_1_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_stream_desc_1_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_stream_desc_1_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_stream_desc_1_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_stream_desc_1_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_stream_desc_1_rd_axi_err_select),
@@ -1447,6 +1466,7 @@ module bridge_stream_char_axil_mon
         .cfg_wr_threshold_enable(cfg_monbus_wr_2_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_monbus_wr_2_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_monbus_wr_2_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_monbus_wr_2_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_monbus_wr_2_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_monbus_wr_2_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_monbus_wr_2_wr_axi_err_select),
@@ -1959,6 +1979,7 @@ module bridge_stream_char_axil_mon
         .cfg_wr_threshold_enable(cfg_stream_apb_0_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_stream_apb_0_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_stream_apb_0_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_stream_apb_0_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_stream_apb_0_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_stream_apb_0_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_stream_apb_0_wr_axi_err_select),
@@ -1981,6 +2002,7 @@ module bridge_stream_char_axil_mon
         .cfg_rd_threshold_enable(cfg_stream_apb_0_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_stream_apb_0_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_stream_apb_0_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_stream_apb_0_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_stream_apb_0_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_stream_apb_0_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_stream_apb_0_rd_axi_err_select),
@@ -2090,6 +2112,7 @@ module bridge_stream_char_axil_mon
         .cfg_wr_threshold_enable(cfg_harness_csr_1_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_harness_csr_1_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_harness_csr_1_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_harness_csr_1_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_harness_csr_1_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_harness_csr_1_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_harness_csr_1_wr_axi_err_select),
@@ -2112,6 +2135,7 @@ module bridge_stream_char_axil_mon
         .cfg_rd_threshold_enable(cfg_harness_csr_1_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_harness_csr_1_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_harness_csr_1_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_harness_csr_1_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_harness_csr_1_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_harness_csr_1_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_harness_csr_1_rd_axi_err_select),
@@ -2246,6 +2270,7 @@ module bridge_stream_char_axil_mon
         .cfg_wr_threshold_enable(cfg_desc_ram_2_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_desc_ram_2_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_desc_ram_2_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_desc_ram_2_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_desc_ram_2_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_desc_ram_2_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_desc_ram_2_wr_axi_err_select),
@@ -2268,6 +2293,7 @@ module bridge_stream_char_axil_mon
         .cfg_rd_threshold_enable(cfg_desc_ram_2_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_desc_ram_2_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_desc_ram_2_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_desc_ram_2_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_desc_ram_2_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_desc_ram_2_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_desc_ram_2_rd_axi_err_select),
@@ -2377,6 +2403,7 @@ module bridge_stream_char_axil_mon
         .cfg_wr_threshold_enable(cfg_stream_err_3_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_stream_err_3_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_stream_err_3_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_stream_err_3_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_stream_err_3_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_stream_err_3_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_stream_err_3_wr_axi_err_select),
@@ -2399,6 +2426,7 @@ module bridge_stream_char_axil_mon
         .cfg_rd_threshold_enable(cfg_stream_err_3_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_stream_err_3_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_stream_err_3_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_stream_err_3_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_stream_err_3_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_stream_err_3_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_stream_err_3_rd_axi_err_select),
@@ -2508,6 +2536,7 @@ module bridge_stream_char_axil_mon
         .cfg_wr_threshold_enable(cfg_debug_sram_4_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_debug_sram_4_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_debug_sram_4_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_debug_sram_4_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_debug_sram_4_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_debug_sram_4_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_debug_sram_4_wr_axi_err_select),
@@ -2530,6 +2559,7 @@ module bridge_stream_char_axil_mon
         .cfg_rd_threshold_enable(cfg_debug_sram_4_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_debug_sram_4_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_debug_sram_4_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_debug_sram_4_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_debug_sram_4_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_debug_sram_4_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_debug_sram_4_rd_axi_err_select),
@@ -2639,6 +2669,7 @@ module bridge_stream_char_axil_mon
         .cfg_wr_threshold_enable(cfg_dma_axil_5_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_dma_axil_5_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_dma_axil_5_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_dma_axil_5_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_dma_axil_5_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_dma_axil_5_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_dma_axil_5_wr_axi_err_select),
@@ -2661,6 +2692,7 @@ module bridge_stream_char_axil_mon
         .cfg_rd_threshold_enable(cfg_dma_axil_5_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_dma_axil_5_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_dma_axil_5_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_dma_axil_5_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_dma_axil_5_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_dma_axil_5_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_dma_axil_5_rd_axi_err_select),
@@ -2712,6 +2744,7 @@ module bridge_stream_char_axil_mon
     assign cfg_host_0_wr_threshold_enable = hwif_out.HOST_0_WR_CTRL.threshold_enable.value;
     assign cfg_host_0_wr_debug_enable = hwif_out.HOST_0_WR_CTRL.debug_enable.value;
     assign cfg_host_0_wr_timeout_cycles = hwif_out.HOST_0_WR_CTRL.timeout_cycles.value;
+    assign cfg_host_0_wr_freq_sel = hwif_out.HOST_0_WR_CTRL.freq_sel.value;
     assign cfg_host_0_wr_latency_threshold = hwif_out.HOST_0_WR_LATENCY.latency_threshold.value;
     assign cfg_host_0_wr_axi_pkt_mask = hwif_out.HOST_0_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_host_0_wr_axi_err_select = hwif_out.HOST_0_WR_MASKS_A.axi_err_select.value;
@@ -2731,6 +2764,7 @@ module bridge_stream_char_axil_mon
     assign cfg_host_0_rd_threshold_enable = hwif_out.HOST_0_RD_CTRL.threshold_enable.value;
     assign cfg_host_0_rd_debug_enable = hwif_out.HOST_0_RD_CTRL.debug_enable.value;
     assign cfg_host_0_rd_timeout_cycles = hwif_out.HOST_0_RD_CTRL.timeout_cycles.value;
+    assign cfg_host_0_rd_freq_sel = hwif_out.HOST_0_RD_CTRL.freq_sel.value;
     assign cfg_host_0_rd_latency_threshold = hwif_out.HOST_0_RD_LATENCY.latency_threshold.value;
     assign cfg_host_0_rd_axi_pkt_mask = hwif_out.HOST_0_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_host_0_rd_axi_err_select = hwif_out.HOST_0_RD_MASKS_A.axi_err_select.value;
@@ -2750,6 +2784,7 @@ module bridge_stream_char_axil_mon
     assign cfg_stream_desc_1_rd_threshold_enable = hwif_out.STREAM_DESC_1_RD_CTRL.threshold_enable.value;
     assign cfg_stream_desc_1_rd_debug_enable = hwif_out.STREAM_DESC_1_RD_CTRL.debug_enable.value;
     assign cfg_stream_desc_1_rd_timeout_cycles = hwif_out.STREAM_DESC_1_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_desc_1_rd_freq_sel = hwif_out.STREAM_DESC_1_RD_CTRL.freq_sel.value;
     assign cfg_stream_desc_1_rd_latency_threshold = hwif_out.STREAM_DESC_1_RD_LATENCY.latency_threshold.value;
     assign cfg_stream_desc_1_rd_axi_pkt_mask = hwif_out.STREAM_DESC_1_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_desc_1_rd_axi_err_select = hwif_out.STREAM_DESC_1_RD_MASKS_A.axi_err_select.value;
@@ -2769,6 +2804,7 @@ module bridge_stream_char_axil_mon
     assign cfg_monbus_wr_2_wr_threshold_enable = hwif_out.MONBUS_WR_2_WR_CTRL.threshold_enable.value;
     assign cfg_monbus_wr_2_wr_debug_enable = hwif_out.MONBUS_WR_2_WR_CTRL.debug_enable.value;
     assign cfg_monbus_wr_2_wr_timeout_cycles = hwif_out.MONBUS_WR_2_WR_CTRL.timeout_cycles.value;
+    assign cfg_monbus_wr_2_wr_freq_sel = hwif_out.MONBUS_WR_2_WR_CTRL.freq_sel.value;
     assign cfg_monbus_wr_2_wr_latency_threshold = hwif_out.MONBUS_WR_2_WR_LATENCY.latency_threshold.value;
     assign cfg_monbus_wr_2_wr_axi_pkt_mask = hwif_out.MONBUS_WR_2_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_monbus_wr_2_wr_axi_err_select = hwif_out.MONBUS_WR_2_WR_MASKS_A.axi_err_select.value;
@@ -2788,6 +2824,7 @@ module bridge_stream_char_axil_mon
     assign cfg_stream_apb_0_wr_threshold_enable = hwif_out.STREAM_APB_0_WR_CTRL.threshold_enable.value;
     assign cfg_stream_apb_0_wr_debug_enable = hwif_out.STREAM_APB_0_WR_CTRL.debug_enable.value;
     assign cfg_stream_apb_0_wr_timeout_cycles = hwif_out.STREAM_APB_0_WR_CTRL.timeout_cycles.value;
+    assign cfg_stream_apb_0_wr_freq_sel = hwif_out.STREAM_APB_0_WR_CTRL.freq_sel.value;
     assign cfg_stream_apb_0_wr_latency_threshold = hwif_out.STREAM_APB_0_WR_LATENCY.latency_threshold.value;
     assign cfg_stream_apb_0_wr_axi_pkt_mask = hwif_out.STREAM_APB_0_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_apb_0_wr_axi_err_select = hwif_out.STREAM_APB_0_WR_MASKS_A.axi_err_select.value;
@@ -2807,6 +2844,7 @@ module bridge_stream_char_axil_mon
     assign cfg_stream_apb_0_rd_threshold_enable = hwif_out.STREAM_APB_0_RD_CTRL.threshold_enable.value;
     assign cfg_stream_apb_0_rd_debug_enable = hwif_out.STREAM_APB_0_RD_CTRL.debug_enable.value;
     assign cfg_stream_apb_0_rd_timeout_cycles = hwif_out.STREAM_APB_0_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_apb_0_rd_freq_sel = hwif_out.STREAM_APB_0_RD_CTRL.freq_sel.value;
     assign cfg_stream_apb_0_rd_latency_threshold = hwif_out.STREAM_APB_0_RD_LATENCY.latency_threshold.value;
     assign cfg_stream_apb_0_rd_axi_pkt_mask = hwif_out.STREAM_APB_0_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_apb_0_rd_axi_err_select = hwif_out.STREAM_APB_0_RD_MASKS_A.axi_err_select.value;
@@ -2826,6 +2864,7 @@ module bridge_stream_char_axil_mon
     assign cfg_harness_csr_1_wr_threshold_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.threshold_enable.value;
     assign cfg_harness_csr_1_wr_debug_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.debug_enable.value;
     assign cfg_harness_csr_1_wr_timeout_cycles = hwif_out.HARNESS_CSR_1_WR_CTRL.timeout_cycles.value;
+    assign cfg_harness_csr_1_wr_freq_sel = hwif_out.HARNESS_CSR_1_WR_CTRL.freq_sel.value;
     assign cfg_harness_csr_1_wr_latency_threshold = hwif_out.HARNESS_CSR_1_WR_LATENCY.latency_threshold.value;
     assign cfg_harness_csr_1_wr_axi_pkt_mask = hwif_out.HARNESS_CSR_1_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_harness_csr_1_wr_axi_err_select = hwif_out.HARNESS_CSR_1_WR_MASKS_A.axi_err_select.value;
@@ -2845,6 +2884,7 @@ module bridge_stream_char_axil_mon
     assign cfg_harness_csr_1_rd_threshold_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.threshold_enable.value;
     assign cfg_harness_csr_1_rd_debug_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.debug_enable.value;
     assign cfg_harness_csr_1_rd_timeout_cycles = hwif_out.HARNESS_CSR_1_RD_CTRL.timeout_cycles.value;
+    assign cfg_harness_csr_1_rd_freq_sel = hwif_out.HARNESS_CSR_1_RD_CTRL.freq_sel.value;
     assign cfg_harness_csr_1_rd_latency_threshold = hwif_out.HARNESS_CSR_1_RD_LATENCY.latency_threshold.value;
     assign cfg_harness_csr_1_rd_axi_pkt_mask = hwif_out.HARNESS_CSR_1_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_harness_csr_1_rd_axi_err_select = hwif_out.HARNESS_CSR_1_RD_MASKS_A.axi_err_select.value;
@@ -2864,6 +2904,7 @@ module bridge_stream_char_axil_mon
     assign cfg_desc_ram_2_wr_threshold_enable = hwif_out.DESC_RAM_2_WR_CTRL.threshold_enable.value;
     assign cfg_desc_ram_2_wr_debug_enable = hwif_out.DESC_RAM_2_WR_CTRL.debug_enable.value;
     assign cfg_desc_ram_2_wr_timeout_cycles = hwif_out.DESC_RAM_2_WR_CTRL.timeout_cycles.value;
+    assign cfg_desc_ram_2_wr_freq_sel = hwif_out.DESC_RAM_2_WR_CTRL.freq_sel.value;
     assign cfg_desc_ram_2_wr_latency_threshold = hwif_out.DESC_RAM_2_WR_LATENCY.latency_threshold.value;
     assign cfg_desc_ram_2_wr_axi_pkt_mask = hwif_out.DESC_RAM_2_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_desc_ram_2_wr_axi_err_select = hwif_out.DESC_RAM_2_WR_MASKS_A.axi_err_select.value;
@@ -2883,6 +2924,7 @@ module bridge_stream_char_axil_mon
     assign cfg_desc_ram_2_rd_threshold_enable = hwif_out.DESC_RAM_2_RD_CTRL.threshold_enable.value;
     assign cfg_desc_ram_2_rd_debug_enable = hwif_out.DESC_RAM_2_RD_CTRL.debug_enable.value;
     assign cfg_desc_ram_2_rd_timeout_cycles = hwif_out.DESC_RAM_2_RD_CTRL.timeout_cycles.value;
+    assign cfg_desc_ram_2_rd_freq_sel = hwif_out.DESC_RAM_2_RD_CTRL.freq_sel.value;
     assign cfg_desc_ram_2_rd_latency_threshold = hwif_out.DESC_RAM_2_RD_LATENCY.latency_threshold.value;
     assign cfg_desc_ram_2_rd_axi_pkt_mask = hwif_out.DESC_RAM_2_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_desc_ram_2_rd_axi_err_select = hwif_out.DESC_RAM_2_RD_MASKS_A.axi_err_select.value;
@@ -2902,6 +2944,7 @@ module bridge_stream_char_axil_mon
     assign cfg_stream_err_3_wr_threshold_enable = hwif_out.STREAM_ERR_3_WR_CTRL.threshold_enable.value;
     assign cfg_stream_err_3_wr_debug_enable = hwif_out.STREAM_ERR_3_WR_CTRL.debug_enable.value;
     assign cfg_stream_err_3_wr_timeout_cycles = hwif_out.STREAM_ERR_3_WR_CTRL.timeout_cycles.value;
+    assign cfg_stream_err_3_wr_freq_sel = hwif_out.STREAM_ERR_3_WR_CTRL.freq_sel.value;
     assign cfg_stream_err_3_wr_latency_threshold = hwif_out.STREAM_ERR_3_WR_LATENCY.latency_threshold.value;
     assign cfg_stream_err_3_wr_axi_pkt_mask = hwif_out.STREAM_ERR_3_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_err_3_wr_axi_err_select = hwif_out.STREAM_ERR_3_WR_MASKS_A.axi_err_select.value;
@@ -2921,6 +2964,7 @@ module bridge_stream_char_axil_mon
     assign cfg_stream_err_3_rd_threshold_enable = hwif_out.STREAM_ERR_3_RD_CTRL.threshold_enable.value;
     assign cfg_stream_err_3_rd_debug_enable = hwif_out.STREAM_ERR_3_RD_CTRL.debug_enable.value;
     assign cfg_stream_err_3_rd_timeout_cycles = hwif_out.STREAM_ERR_3_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_err_3_rd_freq_sel = hwif_out.STREAM_ERR_3_RD_CTRL.freq_sel.value;
     assign cfg_stream_err_3_rd_latency_threshold = hwif_out.STREAM_ERR_3_RD_LATENCY.latency_threshold.value;
     assign cfg_stream_err_3_rd_axi_pkt_mask = hwif_out.STREAM_ERR_3_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_err_3_rd_axi_err_select = hwif_out.STREAM_ERR_3_RD_MASKS_A.axi_err_select.value;
@@ -2940,6 +2984,7 @@ module bridge_stream_char_axil_mon
     assign cfg_debug_sram_4_wr_threshold_enable = hwif_out.DEBUG_SRAM_4_WR_CTRL.threshold_enable.value;
     assign cfg_debug_sram_4_wr_debug_enable = hwif_out.DEBUG_SRAM_4_WR_CTRL.debug_enable.value;
     assign cfg_debug_sram_4_wr_timeout_cycles = hwif_out.DEBUG_SRAM_4_WR_CTRL.timeout_cycles.value;
+    assign cfg_debug_sram_4_wr_freq_sel = hwif_out.DEBUG_SRAM_4_WR_CTRL.freq_sel.value;
     assign cfg_debug_sram_4_wr_latency_threshold = hwif_out.DEBUG_SRAM_4_WR_LATENCY.latency_threshold.value;
     assign cfg_debug_sram_4_wr_axi_pkt_mask = hwif_out.DEBUG_SRAM_4_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_debug_sram_4_wr_axi_err_select = hwif_out.DEBUG_SRAM_4_WR_MASKS_A.axi_err_select.value;
@@ -2959,6 +3004,7 @@ module bridge_stream_char_axil_mon
     assign cfg_debug_sram_4_rd_threshold_enable = hwif_out.DEBUG_SRAM_4_RD_CTRL.threshold_enable.value;
     assign cfg_debug_sram_4_rd_debug_enable = hwif_out.DEBUG_SRAM_4_RD_CTRL.debug_enable.value;
     assign cfg_debug_sram_4_rd_timeout_cycles = hwif_out.DEBUG_SRAM_4_RD_CTRL.timeout_cycles.value;
+    assign cfg_debug_sram_4_rd_freq_sel = hwif_out.DEBUG_SRAM_4_RD_CTRL.freq_sel.value;
     assign cfg_debug_sram_4_rd_latency_threshold = hwif_out.DEBUG_SRAM_4_RD_LATENCY.latency_threshold.value;
     assign cfg_debug_sram_4_rd_axi_pkt_mask = hwif_out.DEBUG_SRAM_4_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_debug_sram_4_rd_axi_err_select = hwif_out.DEBUG_SRAM_4_RD_MASKS_A.axi_err_select.value;
@@ -2978,6 +3024,7 @@ module bridge_stream_char_axil_mon
     assign cfg_dma_axil_5_wr_threshold_enable = hwif_out.DMA_AXIL_5_WR_CTRL.threshold_enable.value;
     assign cfg_dma_axil_5_wr_debug_enable = hwif_out.DMA_AXIL_5_WR_CTRL.debug_enable.value;
     assign cfg_dma_axil_5_wr_timeout_cycles = hwif_out.DMA_AXIL_5_WR_CTRL.timeout_cycles.value;
+    assign cfg_dma_axil_5_wr_freq_sel = hwif_out.DMA_AXIL_5_WR_CTRL.freq_sel.value;
     assign cfg_dma_axil_5_wr_latency_threshold = hwif_out.DMA_AXIL_5_WR_LATENCY.latency_threshold.value;
     assign cfg_dma_axil_5_wr_axi_pkt_mask = hwif_out.DMA_AXIL_5_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_dma_axil_5_wr_axi_err_select = hwif_out.DMA_AXIL_5_WR_MASKS_A.axi_err_select.value;
@@ -2997,6 +3044,7 @@ module bridge_stream_char_axil_mon
     assign cfg_dma_axil_5_rd_threshold_enable = hwif_out.DMA_AXIL_5_RD_CTRL.threshold_enable.value;
     assign cfg_dma_axil_5_rd_debug_enable = hwif_out.DMA_AXIL_5_RD_CTRL.debug_enable.value;
     assign cfg_dma_axil_5_rd_timeout_cycles = hwif_out.DMA_AXIL_5_RD_CTRL.timeout_cycles.value;
+    assign cfg_dma_axil_5_rd_freq_sel = hwif_out.DMA_AXIL_5_RD_CTRL.freq_sel.value;
     assign cfg_dma_axil_5_rd_latency_threshold = hwif_out.DMA_AXIL_5_RD_LATENCY.latency_threshold.value;
     assign cfg_dma_axil_5_rd_axi_pkt_mask = hwif_out.DMA_AXIL_5_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_dma_axil_5_rd_axi_err_select = hwif_out.DMA_AXIL_5_RD_MASKS_A.axi_err_select.value;

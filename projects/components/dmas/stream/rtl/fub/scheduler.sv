@@ -602,8 +602,8 @@ module scheduler #(
             r_descriptor <= '0;
             r_descriptor_ext <= '0;
             r_descriptor_loaded <= 1'b0;
-            r_src_addr <= 64'h0;
-            r_dst_addr <= 64'h0;
+            r_src_addr <= '0;
+            r_dst_addr <= '0;
             r_beats_remaining <= 32'h0;
             r_read_beats_remaining <= 32'h0;
             r_write_beats_remaining <= 32'h0;
@@ -662,8 +662,11 @@ module scheduler #(
                 CH_FETCH_DESC: begin
                     // Transfer initialization: Copy descriptor fields to working registers
                     // These working registers will be updated as transfer progresses
-                    r_src_addr <= r_descriptor.src_addr;   // run 0 base (read)
-                    r_dst_addr <= r_descriptor.dst_addr;   // run 0 base (write)
+                    // Descriptor addresses are STREAM_ADDR_WIDTH (64); the datapath
+                    // register is ADDR_WIDTH. Slice explicitly, as the cfg_base_addr
+                    // connection below already does.
+                    r_src_addr <= r_descriptor.src_addr[ADDR_WIDTH-1:0];   // run 0 base (read)
+                    r_dst_addr <= r_descriptor.dst_addr[ADDR_WIDTH-1:0];   // run 0 base (write)
                     r_beats_remaining <= r_descriptor.length;
                     r_read_beats_remaining <= r_descriptor.length;
                     r_write_beats_remaining <= r_descriptor.length;
@@ -1029,8 +1032,8 @@ module scheduler #(
             .cfg_base_addr   (r_descriptor.src_addr[ADDR_WIDTH-1:0]),
             .cfg_stride_0    (r_descriptor_ext.rd_stride_0),
             .cfg_stride_1    (r_descriptor_ext.rd_stride_1),
-            .cfg_wrap_mask_0 (wrap_log2_to_mask(r_descriptor_ext.rd_wrap0_log2)),
-            .cfg_wrap_mask_1 (wrap_log2_to_mask(r_descriptor_ext.rd_wrap1_log2)),
+            .cfg_wrap_mask_0 (ADDR_WIDTH'(wrap_log2_to_mask(r_descriptor_ext.rd_wrap0_log2))),
+            .cfg_wrap_mask_1 (ADDR_WIDTH'(wrap_log2_to_mask(r_descriptor_ext.rd_wrap1_log2))),
             .cfg_inner_count (r_descriptor_ext.rd_inner_count),
             .cfg_total_beats (r_descriptor.length),
             .o_base_valid    (w_rd_base_valid),
@@ -1051,8 +1054,8 @@ module scheduler #(
             .cfg_base_addr   (r_descriptor.dst_addr[ADDR_WIDTH-1:0]),
             .cfg_stride_0    (r_descriptor_ext.wr_stride_0),
             .cfg_stride_1    (r_descriptor_ext.wr_stride_1),
-            .cfg_wrap_mask_0 (wrap_log2_to_mask(r_descriptor_ext.wr_wrap0_log2)),
-            .cfg_wrap_mask_1 (wrap_log2_to_mask(r_descriptor_ext.wr_wrap1_log2)),
+            .cfg_wrap_mask_0 (ADDR_WIDTH'(wrap_log2_to_mask(r_descriptor_ext.wr_wrap0_log2))),
+            .cfg_wrap_mask_1 (ADDR_WIDTH'(wrap_log2_to_mask(r_descriptor_ext.wr_wrap1_log2))),
             .cfg_inner_count (r_descriptor_ext.wr_inner_count),
             .cfg_total_beats (r_descriptor.length),
             .o_base_valid    (w_wr_base_valid),

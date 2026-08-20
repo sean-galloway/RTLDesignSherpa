@@ -36,6 +36,10 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
     } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_CTRL__timeout_cycles__out_t;
 
@@ -47,6 +51,7 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_CTRL__out_t;
 
@@ -175,6 +180,10 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
     } bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_CTRL__timeout_cycles__out_t;
 
@@ -186,6 +195,7 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_WR_CTRL__out_t;
 
@@ -286,6 +296,10 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
     } bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_RD_CTRL__timeout_cycles__out_t;
 
@@ -297,6 +311,7 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_1x2_rd_regblock_mon_cfg__DDR_RD_0_RD_CTRL__out_t;
 
@@ -397,6 +412,10 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
     } bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_WR_CTRL__timeout_cycles__out_t;
 
@@ -408,6 +427,7 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
         bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_WR_CTRL__out_t;
 
@@ -508,6 +528,10 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
     } bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_RD_CTRL__timeout_cycles__out_t;
 
@@ -519,6 +543,7 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
         bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_1x2_rd_regblock_mon_cfg__SRAM_RD_1_RD_CTRL__out_t;
 

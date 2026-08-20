@@ -257,8 +257,18 @@ package obs_regs_top_pkg;
     } obs_regs__OBS_CTRL__COMPRESS_EN__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } obs_regs__OBS_CTRL__FREQ_SEL__out_t;
+
+    typedef struct {
+        logic value;
+    } obs_regs__OBS_CTRL__FREQ_SEL_OVR__out_t;
+
+    typedef struct {
         obs_regs__OBS_CTRL__FLUSH_WATERMARK__out_t FLUSH_WATERMARK;
         obs_regs__OBS_CTRL__COMPRESS_EN__out_t COMPRESS_EN;
+        obs_regs__OBS_CTRL__FREQ_SEL__out_t FREQ_SEL;
+        obs_regs__OBS_CTRL__FREQ_SEL_OVR__out_t FREQ_SEL_OVR;
     } obs_regs__OBS_CTRL__out_t;
 
     typedef struct {

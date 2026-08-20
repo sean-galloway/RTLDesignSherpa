@@ -263,11 +263,15 @@ module stream_config_block #(
     // Global and Channel Control
     //-------------------------------------------------------------------------
 
-    // Gate all channel enables by global enable
-    assign cfg_channel_enable = reg_channel_enable_ch_en & {NUM_CHANNELS{reg_global_ctrl_global_en}};
+    // Gate all channel enables by global enable. The CSR field is always 8 bits
+    // wide; slice it to the channels this build actually has, so bits for
+    // non-existent channels are dropped explicitly rather than by inference.
+    assign cfg_channel_enable = reg_channel_enable_ch_en[NUM_CHANNELS-1:0]
+                              & {NUM_CHANNELS{reg_global_ctrl_global_en}};
 
-    // Channel resets are OR'd with global reset
-    assign cfg_channel_reset = reg_channel_reset_ch_rst | {NUM_CHANNELS{reg_global_ctrl_global_rst}};
+    // Channel resets are OR'd with global reset (same 8-bit CSR slice as above).
+    assign cfg_channel_reset = reg_channel_reset_ch_rst[NUM_CHANNELS-1:0]
+                             | {NUM_CHANNELS{reg_global_ctrl_global_rst}};
 
     //-------------------------------------------------------------------------
     // Scheduler Configuration

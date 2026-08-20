@@ -36,6 +36,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_CTRL__timeout_cycles__out_t;
 
@@ -47,6 +51,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__HOST_0_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__HOST_0_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__HOST_0_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__HOST_0_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__HOST_0_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__HOST_0_WR_CTRL__out_t;
 
@@ -175,6 +180,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__timeout_cycles__out_t;
 
@@ -186,6 +195,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__HOST_0_RD_CTRL__out_t;
 
@@ -314,6 +324,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_CTRL__timeout_cycles__out_t;
 
@@ -325,6 +339,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__STREAM_DESC_1_RD_CTRL__out_t;
 
@@ -453,6 +468,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__timeout_cycles__out_t;
 
@@ -464,6 +483,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__MONBUS_WR_2_WR_CTRL__out_t;
 
@@ -592,6 +612,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__timeout_cycles__out_t;
 
@@ -603,6 +627,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_MONBUS_WR_3_WR_CTRL__out_t;
 
@@ -731,6 +756,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_CTRL__timeout_cycles__out_t;
 
@@ -742,6 +771,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__OBS_APB_0_WR_CTRL__out_t;
 
@@ -842,6 +872,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__OBS_APB_0_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__OBS_APB_0_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__OBS_APB_0_RD_CTRL__timeout_cycles__out_t;
 
@@ -853,6 +887,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__OBS_APB_0_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__OBS_APB_0_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__OBS_APB_0_RD_CTRL__out_t;
 
@@ -953,6 +988,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_WR_CTRL__timeout_cycles__out_t;
 
@@ -964,6 +1003,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_WR_CTRL__out_t;
 
@@ -1064,6 +1104,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_RD_CTRL__timeout_cycles__out_t;
 
@@ -1075,6 +1119,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__SLVMON_APB_1_RD_CTRL__out_t;
 
@@ -1175,6 +1220,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_WR_CTRL__timeout_cycles__out_t;
 
@@ -1186,6 +1235,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_WR_CTRL__out_t;
 
@@ -1286,6 +1336,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_RD_CTRL__timeout_cycles__out_t;
 
@@ -1297,6 +1351,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__STREAM_APB_2_RD_CTRL__out_t;
 
@@ -1397,6 +1452,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_WR_CTRL__timeout_cycles__out_t;
 
@@ -1408,6 +1467,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_WR_CTRL__out_t;
 
@@ -1508,6 +1568,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_RD_CTRL__timeout_cycles__out_t;
 
@@ -1519,6 +1583,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__HARNESS_CSR_3_RD_CTRL__out_t;
 
@@ -1619,6 +1684,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_WR_CTRL__timeout_cycles__out_t;
 
@@ -1630,6 +1699,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_WR_CTRL__out_t;
 
@@ -1730,6 +1800,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_RD_CTRL__timeout_cycles__out_t;
 
@@ -1741,6 +1815,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__DESC_RAM_4_RD_CTRL__out_t;
 
@@ -1841,6 +1916,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_WR_CTRL__timeout_cycles__out_t;
 
@@ -1852,6 +1931,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_WR_CTRL__out_t;
 
@@ -1952,6 +2032,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_RD_CTRL__timeout_cycles__out_t;
 
@@ -1963,6 +2047,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__STREAM_ERR_5_RD_CTRL__out_t;
 
@@ -2063,6 +2148,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_WR_CTRL__timeout_cycles__out_t;
 
@@ -2074,6 +2163,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_WR_CTRL__out_t;
 
@@ -2174,6 +2264,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_RD_CTRL__timeout_cycles__out_t;
 
@@ -2185,6 +2279,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_6_RD_CTRL__out_t;
 
@@ -2285,6 +2380,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_WR_CTRL__timeout_cycles__out_t;
 
@@ -2296,6 +2395,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_WR_CTRL__out_t;
 
@@ -2396,6 +2496,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_RD_CTRL__timeout_cycles__out_t;
 
@@ -2407,6 +2511,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__DMA_AXIL_7_RD_CTRL__out_t;
 
@@ -2507,6 +2612,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_WR_CTRL__timeout_cycles__out_t;
 
@@ -2518,6 +2627,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_WR_CTRL__out_t;
 
@@ -2618,6 +2728,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_RD_CTRL__timeout_cycles__out_t;
 
@@ -2629,6 +2743,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_ERR_8_RD_CTRL__out_t;
 
@@ -2729,6 +2844,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_WR_CTRL__timeout_cycles__out_t;
 
@@ -2740,6 +2859,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_WR_CTRL__out_t;
 
@@ -2840,6 +2960,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_RD_CTRL__timeout_cycles__out_t;
 
@@ -2851,6 +2975,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_9_RD_CTRL__out_t;
 
@@ -2951,6 +3076,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_WR_CTRL__timeout_cycles__out_t;
 
@@ -2962,6 +3091,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_WR_CTRL__out_t;
 
@@ -3062,6 +3192,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_RD_CTRL__timeout_cycles__out_t;
 
@@ -3073,6 +3207,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__STREAM_TALLY_CFG_10_RD_CTRL__out_t;
 
@@ -3173,6 +3308,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_WR_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_WR_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_WR_CTRL__timeout_cycles__out_t;
 
@@ -3184,6 +3323,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_WR_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_WR_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_WR_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_WR_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_WR_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_WR_CTRL__out_t;
 
@@ -3284,6 +3424,10 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_RD_CTRL__debug_enable__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_RD_CTRL__freq_sel__out_t;
+
+    typedef struct {
         logic [15:0] value;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_RD_CTRL__timeout_cycles__out_t;
 
@@ -3295,6 +3439,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_RD_CTRL__compl_enable__out_t compl_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_RD_CTRL__threshold_enable__out_t threshold_enable;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_RD_CTRL__debug_enable__out_t debug_enable;
+        bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_RD_CTRL__freq_sel__out_t freq_sel;
         bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_RD_CTRL__timeout_cycles__out_t timeout_cycles;
     } bridge_stream_mon_axil_mon_cfg__SLAVE_TALLY_CFG_11_RD_CTRL__out_t;
 

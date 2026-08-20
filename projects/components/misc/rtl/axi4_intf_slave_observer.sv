@@ -79,7 +79,7 @@ module axi4_intf_slave_observer
     parameter bit EGRESS_AXIL           = 1'b0,
 
     // ---------- Per-leaf monitor config ----------
-    parameter int MAX_TRANSACTIONS      = 16,
+    parameter int MAX_TRANSACTIONS      = 64,
 
     // ---- Transaction-table banking (see axi_monitor_trans_mgr) -----------
     // MAX_TRANSACTIONS is the TOTAL slots; the CAM is generated NUM_BANKS
@@ -89,11 +89,25 @@ module axi4_intf_slave_observer
     // capped by the BANK depth:
     //     MAX_TRANSACTIONS/NUM_BANKS >= (IDs per bank) * (outstanding per ID)
     // 8 channels x 8 outstanding over 4 banks => 64/4 = 16 per bank.
-    parameter int NUM_BANKS             = 1,
+    parameter int NUM_BANKS             = 4,
     // Required when a WRITE monitor is banked -- the WID-less select is not
     // ID-matched otherwise and double-counts across banks. The trans_mgr
     // refuses to elaborate without it.
-    parameter bit USE_WDATA_ORDER_Q     = 1'b0,
+    parameter bit USE_WDATA_ORDER_Q     = 1'b1,
+    // Monitor timer LUT frequency, in MHz. counter_freq_invariant divides BY
+    // this to produce the 1 us tick that every monitor timeout is expressed
+    // in, so it MUST track the real aclk: a table built for 100 running on a
+    // 90 MHz clock stretches every timeout by 11% with no other symptom.
+    // The *_mon wrapper maps it onto both CFI bounds, so every LUT entry is
+    // this frequency and the tick is exact for any cfg_freq_sel.
+    parameter int ACLK_MHZ              = 100,
+    // CFI LUT bounds. Unlike the *_mon default (MIN==MAX==ACLK_MHZ, one
+    // degenerate entry), the observers carry a REAL range so cfg_freq_sel
+    // actually selects. LINEAR gives freq[i] = MIN + (MAX-MIN)*i/(N-1);
+    // 60..135 over 16 entries is exactly 60+5i, so 80/90/100/120 all land
+    // on integer indices (4/6/8/12) and stay tick-exact.
+    parameter int CFI_MIN_FREQ_MHZ      = 60,
+    parameter int CFI_MAX_FREQ_MHZ      = 135,
     // Drives cfg_monitor_enable on the embedded axi4_master_{rd,wr}_mon taps.
     //
     // This was hardwired to 1'b1, and that is what made the observer a
@@ -527,6 +541,28 @@ module axi4_intf_slave_observer
     logic [15:0] cfg_core_perf_mask, cfg_core_debug_mask;
     logic [15:0] cfg_flush_watermark;
     logic        cfg_compress_en;
+    logic [3:0]  cfg_freq_sel;
+
+    // Build-time LUT index for ACLK_MHZ, inverting the LINEAR mapping
+    // freq[i] = MIN + (MAX-MIN)*i/(N-1) with N=16.
+    localparam int CFI_ENTRIES    = 16;
+    localparam int ACLK_FREQ_SEL  =
+        ((ACLK_MHZ - CFI_MIN_FREQ_MHZ) * (CFI_ENTRIES - 1))
+        / (CFI_MAX_FREQ_MHZ - CFI_MIN_FREQ_MHZ);
+
+    // The derived index is only tick-exact if ACLK_MHZ lands ON a LUT entry.
+    // Off-grid, the timer divides by a neighbouring frequency and every
+    // monitor timeout skews -- silently. Fail elaboration instead.
+    initial begin
+        if (ACLK_MHZ < CFI_MIN_FREQ_MHZ || ACLK_MHZ > CFI_MAX_FREQ_MHZ)
+            $error("ACLK_MHZ=%0d outside the observer CFI LUT range %0d..%0d",
+                   ACLK_MHZ, CFI_MIN_FREQ_MHZ, CFI_MAX_FREQ_MHZ);
+        else if (CFI_MIN_FREQ_MHZ
+                 + ((CFI_MAX_FREQ_MHZ - CFI_MIN_FREQ_MHZ) * ACLK_FREQ_SEL)
+                   / (CFI_ENTRIES - 1) != ACLK_MHZ)
+            $error("ACLK_MHZ=%0d is not on the CFI LUT grid (%0d..%0d/%0d entries); the 1 us tick would be inexact",
+                   ACLK_MHZ, CFI_MIN_FREQ_MHZ, CFI_MAX_FREQ_MHZ, CFI_ENTRIES);
+    end
     logic [ADDR_WIDTH-1:0] cfg_base_addr, cfg_limit_addr;
 
     assign cfg_axi_pkt_mask      = hwif.OBS.AXI_PKT_MASK.PKT_MASK.value;
@@ -556,6 +592,14 @@ module axi4_intf_slave_observer
     assign cfg_core_debug_mask   = hwif.OBS.CORE_MASK3.DEBUG_MASK.value;
     assign cfg_flush_watermark   = hwif.OBS.OBS_CTRL.FLUSH_WATERMARK.value;
     assign cfg_compress_en       = hwif.OBS.OBS_CTRL.COMPRESS_EN.value;
+    // Monitor timer LUT index. At reset FREQ_SEL_OVR=0 selects the index
+    // DERIVED from ACLK_MHZ, so the 1 us tick is correct for whatever clock
+    // this was built at -- a CSR reset value alone could not do that without
+    // silently disagreeing with the clock on any non-default build. Software
+    // sets FREQ_SEL_OVR to take manual control.
+    assign cfg_freq_sel          = hwif.OBS.OBS_CTRL.FREQ_SEL_OVR.value
+                                 ? hwif.OBS.OBS_CTRL.FREQ_SEL.value
+                                 : ACLK_FREQ_SEL[3:0];
     assign cfg_base_addr         = ADDR_WIDTH'(hwif.OBS.OBS_BASE_ADDR.VALUE.value);
     assign cfg_limit_addr        = ADDR_WIDTH'(hwif.OBS.OBS_LIMIT_ADDR.VALUE.value);
 
@@ -602,6 +646,9 @@ module axi4_intf_slave_observer
                 .UNIT_ID         (UNIT_ID),
                 .AGENT_ID        ({8'h00, 4'h0, gi[3:0]}),  // RD ports: [3:0]=index, [7:4]=0
                 .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+                .ACLK_MHZ        (ACLK_MHZ),
+                .CFI_MIN_FREQ_MHZ(CFI_MIN_FREQ_MHZ),
+                .CFI_MAX_FREQ_MHZ(CFI_MAX_FREQ_MHZ),
                 .NUM_BANKS       (NUM_BANKS),
                 .USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q),
                 // Own only this instance's channels: without this every
@@ -681,6 +728,7 @@ module axi4_intf_slave_observer
                 .cfg_threshold_enable (1'b0),
                 .cfg_debug_enable     (1'b0),
                 .cfg_timeout_cycles   (16'd1024),
+                .cfg_freq_sel         (cfg_freq_sel),
                 .cfg_latency_threshold(32'h0000_FFFF),
 
                 // Leaf filter masks tied to "let everything through";
@@ -749,6 +797,9 @@ module axi4_intf_slave_observer
                 .UNIT_ID         (UNIT_ID),
                 .AGENT_ID        ({8'h00, 4'h1, gi[3:0]}),  // WR ports: [3:0]=idx, [7:4]=1
                 .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+                .ACLK_MHZ        (ACLK_MHZ),
+                .CFI_MIN_FREQ_MHZ(CFI_MIN_FREQ_MHZ),
+                .CFI_MAX_FREQ_MHZ(CFI_MAX_FREQ_MHZ),
                 .NUM_BANKS       (NUM_BANKS),
                 .USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q),
                 // Own only this instance's channels: without this every
@@ -833,6 +884,7 @@ module axi4_intf_slave_observer
                 .cfg_threshold_enable (1'b0),
                 .cfg_debug_enable     (1'b0),
                 .cfg_timeout_cycles   (16'd1024),
+                .cfg_freq_sel         (cfg_freq_sel),
                 .cfg_latency_threshold(32'h0000_FFFF),
 
                 .cfg_axi_pkt_mask    (16'h0000),

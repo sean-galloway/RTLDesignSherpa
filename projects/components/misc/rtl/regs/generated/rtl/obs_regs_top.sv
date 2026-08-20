@@ -268,6 +268,14 @@ module obs_regs_top (
                     logic next;
                     logic load_next;
                 } COMPRESS_EN;
+                struct {
+                    logic [3:0] next;
+                    logic load_next;
+                } FREQ_SEL;
+                struct {
+                    logic next;
+                    logic load_next;
+                } FREQ_SEL_OVR;
             } OBS_CTRL;
             struct {
                 struct {
@@ -421,6 +429,12 @@ module obs_regs_top (
                 struct {
                     logic value;
                 } COMPRESS_EN;
+                struct {
+                    logic [3:0] value;
+                } FREQ_SEL;
+                struct {
+                    logic value;
+                } FREQ_SEL_OVR;
             } OBS_CTRL;
             struct {
                 struct {
@@ -1077,6 +1091,52 @@ module obs_regs_top (
         end
     end
     assign hwif_out.OBS.OBS_CTRL.COMPRESS_EN.value = field_storage.OBS.OBS_CTRL.COMPRESS_EN.value;
+    // Field: obs_regs_top.OBS.OBS_CTRL.FREQ_SEL
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.OBS_CTRL.FREQ_SEL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.OBS_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.OBS_CTRL.FREQ_SEL.value & ~decoded_wr_biten[20:17]) | (decoded_wr_data[20:17] & decoded_wr_biten[20:17]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.OBS_CTRL.FREQ_SEL.next = next_c;
+        field_combo.OBS.OBS_CTRL.FREQ_SEL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.OBS_CTRL.FREQ_SEL.value <= 4'h0;
+        end else begin
+            if(field_combo.OBS.OBS_CTRL.FREQ_SEL.load_next) begin
+                field_storage.OBS.OBS_CTRL.FREQ_SEL.value <= field_combo.OBS.OBS_CTRL.FREQ_SEL.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.OBS_CTRL.FREQ_SEL.value = field_storage.OBS.OBS_CTRL.FREQ_SEL.value;
+    // Field: obs_regs_top.OBS.OBS_CTRL.FREQ_SEL_OVR
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS.OBS_CTRL.FREQ_SEL_OVR.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS.OBS_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS.OBS_CTRL.FREQ_SEL_OVR.value & ~decoded_wr_biten[21:21]) | (decoded_wr_data[21:21] & decoded_wr_biten[21:21]);
+            load_next_c = '1;
+        end
+        field_combo.OBS.OBS_CTRL.FREQ_SEL_OVR.next = next_c;
+        field_combo.OBS.OBS_CTRL.FREQ_SEL_OVR.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS.OBS_CTRL.FREQ_SEL_OVR.value <= 1'h0;
+        end else begin
+            if(field_combo.OBS.OBS_CTRL.FREQ_SEL_OVR.load_next) begin
+                field_storage.OBS.OBS_CTRL.FREQ_SEL_OVR.value <= field_combo.OBS.OBS_CTRL.FREQ_SEL_OVR.next;
+            end
+        end
+    end
+    assign hwif_out.OBS.OBS_CTRL.FREQ_SEL_OVR.value = field_storage.OBS.OBS_CTRL.FREQ_SEL_OVR.value;
     // Field: obs_regs_top.OBS.OBS_BASE_ADDR.VALUE
     always_comb begin
         automatic logic [31:0] next_c;
@@ -1307,7 +1367,9 @@ module obs_regs_top (
     assign readback_array[12][31:16] = (decoded_reg_strb.OBS.CORE_MASK3 && !decoded_req_is_wr) ? field_storage.OBS.CORE_MASK3.DEBUG_MASK.value : '0;
     assign readback_array[13][15:0] = (decoded_reg_strb.OBS.OBS_CTRL && !decoded_req_is_wr) ? field_storage.OBS.OBS_CTRL.FLUSH_WATERMARK.value : '0;
     assign readback_array[13][16:16] = (decoded_reg_strb.OBS.OBS_CTRL && !decoded_req_is_wr) ? field_storage.OBS.OBS_CTRL.COMPRESS_EN.value : '0;
-    assign readback_array[13][31:17] = (decoded_reg_strb.OBS.OBS_CTRL && !decoded_req_is_wr) ? 15'h0 : '0;
+    assign readback_array[13][20:17] = (decoded_reg_strb.OBS.OBS_CTRL && !decoded_req_is_wr) ? field_storage.OBS.OBS_CTRL.FREQ_SEL.value : '0;
+    assign readback_array[13][21:21] = (decoded_reg_strb.OBS.OBS_CTRL && !decoded_req_is_wr) ? field_storage.OBS.OBS_CTRL.FREQ_SEL_OVR.value : '0;
+    assign readback_array[13][31:22] = (decoded_reg_strb.OBS.OBS_CTRL && !decoded_req_is_wr) ? 10'h0 : '0;
     assign readback_array[14][31:0] = (decoded_reg_strb.OBS.OBS_BASE_ADDR && !decoded_req_is_wr) ? field_storage.OBS.OBS_BASE_ADDR.VALUE.value : '0;
     assign readback_array[15][31:0] = (decoded_reg_strb.OBS.OBS_LIMIT_ADDR && !decoded_req_is_wr) ? field_storage.OBS.OBS_LIMIT_ADDR.VALUE.value : '0;
     assign readback_array[16][7:0] = (decoded_reg_strb.OBS.OBS_STAT_SEL && !decoded_req_is_wr) ? field_storage.OBS.OBS_STAT_SEL.TAP.value : '0;

@@ -105,6 +105,12 @@ module apb4todescr #(
     // Address decode
     logic [2:0]             channel_id;          // Decoded channel ID (0-7, 3 bits)
     logic                   addr_in_range;       // Address within valid range
+    // r_channel_id is 3 bits (channel 0-7 as decoded from the address), but the
+    // desc_apb_* arrays are only NUM_CHANNELS wide. addr_in_range + the !r_error
+    // guard already reject a channel that does not exist, so this is the index
+    // width agreeing with the array rather than a live out-of-range access.
+    localparam int CH_IDX_W = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1;
+    logic [CH_IDX_W-1:0]    w_ch_idx;
 
     // FSM for transaction control
     typedef enum logic [2:0] {
@@ -138,6 +144,7 @@ module apb4todescr #(
     // Check if address is within valid range (first 4KB of address space)
     // Valid: 0x00 to 0x3F (8 channels × 8 bytes) within lower 12 bits
     assign addr_in_range = ({20'h0, apb_cmd_addr[11:0]} < (NUM_CHANNELS * 8));
+    assign w_ch_idx      = CH_IDX_W'(r_channel_id);
 
     //=========================================================================
     // FSM State Register
@@ -211,7 +218,7 @@ module apb4todescr #(
                 if (r_error) begin
                     // Address error - skip routing, go to response
                     w_next_state = RESPOND_HIGH;
-                end else if (desc_apb_ready[r_channel_id]) begin
+                end else if (desc_apb_ready[w_ch_idx]) begin
                     // Descriptor engine accepted - go to response
                     w_next_state = RESPOND_HIGH;
                 end
@@ -306,7 +313,7 @@ module apb4todescr #(
 
         // Assert valid for selected channel when in ROUTE state (and no error)
         if (r_state == ROUTE && !r_error) begin
-            desc_apb_valid[r_channel_id] = 1'b1;
+            desc_apb_valid[w_ch_idx] = 1'b1;
         end
     end
 

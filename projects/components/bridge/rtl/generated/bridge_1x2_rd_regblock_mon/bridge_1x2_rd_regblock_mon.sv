@@ -263,6 +263,7 @@ module bridge_1x2_rd_regblock_mon
     logic         cfg_cpu_rd_0_rd_threshold_enable;
     logic         cfg_cpu_rd_0_rd_debug_enable;
     logic [15:0] cfg_cpu_rd_0_rd_timeout_cycles;
+    logic [3:0] cfg_cpu_rd_0_rd_freq_sel;
     logic [31:0] cfg_cpu_rd_0_rd_latency_threshold;
     logic [15:0] cfg_cpu_rd_0_rd_axi_pkt_mask;
     logic [15:0] cfg_cpu_rd_0_rd_axi_err_select;
@@ -283,6 +284,7 @@ module bridge_1x2_rd_regblock_mon
     logic         cfg_ddr_rd_0_rd_threshold_enable;
     logic         cfg_ddr_rd_0_rd_debug_enable;
     logic [15:0] cfg_ddr_rd_0_rd_timeout_cycles;
+    logic [3:0] cfg_ddr_rd_0_rd_freq_sel;
     logic [31:0] cfg_ddr_rd_0_rd_latency_threshold;
     logic [15:0] cfg_ddr_rd_0_rd_axi_pkt_mask;
     logic [15:0] cfg_ddr_rd_0_rd_axi_err_select;
@@ -303,6 +305,7 @@ module bridge_1x2_rd_regblock_mon
     logic         cfg_sram_rd_1_rd_threshold_enable;
     logic         cfg_sram_rd_1_rd_debug_enable;
     logic [15:0] cfg_sram_rd_1_rd_timeout_cycles;
+    logic [3:0] cfg_sram_rd_1_rd_freq_sel;
     logic [31:0] cfg_sram_rd_1_rd_latency_threshold;
     logic [15:0] cfg_sram_rd_1_rd_axi_pkt_mask;
     logic [15:0] cfg_sram_rd_1_rd_axi_err_select;
@@ -402,6 +405,7 @@ module bridge_1x2_rd_regblock_mon
         .cfg_rd_threshold_enable(cfg_cpu_rd_0_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_cpu_rd_0_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_cpu_rd_0_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_cpu_rd_0_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_cpu_rd_0_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_cpu_rd_0_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_cpu_rd_0_rd_axi_err_select),
@@ -560,6 +564,7 @@ module bridge_1x2_rd_regblock_mon
         .cfg_rd_threshold_enable(cfg_ddr_rd_0_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_ddr_rd_0_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_ddr_rd_0_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_ddr_rd_0_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_ddr_rd_0_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_ddr_rd_0_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_ddr_rd_0_rd_axi_err_select),
@@ -642,6 +647,7 @@ module bridge_1x2_rd_regblock_mon
         .cfg_rd_threshold_enable(cfg_sram_rd_1_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_sram_rd_1_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_sram_rd_1_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_sram_rd_1_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_sram_rd_1_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_sram_rd_1_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_sram_rd_1_rd_axi_err_select),
@@ -693,6 +699,7 @@ module bridge_1x2_rd_regblock_mon
     assign cfg_cpu_rd_0_rd_threshold_enable = hwif_out.CPU_RD_0_RD_CTRL.threshold_enable.value;
     assign cfg_cpu_rd_0_rd_debug_enable = hwif_out.CPU_RD_0_RD_CTRL.debug_enable.value;
     assign cfg_cpu_rd_0_rd_timeout_cycles = hwif_out.CPU_RD_0_RD_CTRL.timeout_cycles.value;
+    assign cfg_cpu_rd_0_rd_freq_sel = hwif_out.CPU_RD_0_RD_CTRL.freq_sel.value;
     assign cfg_cpu_rd_0_rd_latency_threshold = hwif_out.CPU_RD_0_RD_LATENCY.latency_threshold.value;
     assign cfg_cpu_rd_0_rd_axi_pkt_mask = hwif_out.CPU_RD_0_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_cpu_rd_0_rd_axi_err_select = hwif_out.CPU_RD_0_RD_MASKS_A.axi_err_select.value;
@@ -712,6 +719,7 @@ module bridge_1x2_rd_regblock_mon
     assign cfg_ddr_rd_0_rd_threshold_enable = hwif_out.DDR_RD_0_RD_CTRL.threshold_enable.value;
     assign cfg_ddr_rd_0_rd_debug_enable = hwif_out.DDR_RD_0_RD_CTRL.debug_enable.value;
     assign cfg_ddr_rd_0_rd_timeout_cycles = hwif_out.DDR_RD_0_RD_CTRL.timeout_cycles.value;
+    assign cfg_ddr_rd_0_rd_freq_sel = hwif_out.DDR_RD_0_RD_CTRL.freq_sel.value;
     assign cfg_ddr_rd_0_rd_latency_threshold = hwif_out.DDR_RD_0_RD_LATENCY.latency_threshold.value;
     assign cfg_ddr_rd_0_rd_axi_pkt_mask = hwif_out.DDR_RD_0_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_ddr_rd_0_rd_axi_err_select = hwif_out.DDR_RD_0_RD_MASKS_A.axi_err_select.value;
@@ -731,6 +739,7 @@ module bridge_1x2_rd_regblock_mon
     assign cfg_sram_rd_1_rd_threshold_enable = hwif_out.SRAM_RD_1_RD_CTRL.threshold_enable.value;
     assign cfg_sram_rd_1_rd_debug_enable = hwif_out.SRAM_RD_1_RD_CTRL.debug_enable.value;
     assign cfg_sram_rd_1_rd_timeout_cycles = hwif_out.SRAM_RD_1_RD_CTRL.timeout_cycles.value;
+    assign cfg_sram_rd_1_rd_freq_sel = hwif_out.SRAM_RD_1_RD_CTRL.freq_sel.value;
     assign cfg_sram_rd_1_rd_latency_threshold = hwif_out.SRAM_RD_1_RD_LATENCY.latency_threshold.value;
     assign cfg_sram_rd_1_rd_axi_pkt_mask = hwif_out.SRAM_RD_1_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_sram_rd_1_rd_axi_err_select = hwif_out.SRAM_RD_1_RD_MASKS_A.axi_err_select.value;

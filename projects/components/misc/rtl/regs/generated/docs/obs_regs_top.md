@@ -230,7 +230,9 @@ Don't override. Generated from: $root
 |-----|---------------|------|-----|----|
 | 15:0|FLUSH_WATERMARK|  rw  | 0x10|  — |
 |  16 |  COMPRESS_EN  |  rw  | 0x0 |  — |
-|31:17|      RSVD     |   r  | 0x0 |  — |
+|20:17|    FREQ_SEL   |  rw  | 0x0 |  — |
+|  21 |  FREQ_SEL_OVR |  rw  | 0x0 |  — |
+|31:22|      RSVD     |   r  | 0x0 |  — |
 
 #### FLUSH_WATERMARK field
 
@@ -239,6 +241,14 @@ Don't override. Generated from: $root
 #### COMPRESS_EN field
 
 <p>1 = compress the monbus write stream. The tally reassembles RAW 3-beat records, so leave 0 unless the consumer decompresses.</p>
+
+#### FREQ_SEL field
+
+<p>counter_freq_invariant LUT index, used only when FREQ_SEL_OVR=1. The LUT is 60+5*i MHz, so 4=80, 6=90, 8=100, 12=120.</p>
+
+#### FREQ_SEL_OVR field
+
+<p>0 = use the build-time index derived from ACLK_MHZ (correct at reset for any build frequency); 1 = use FREQ_SEL instead. Exists so the reset value cannot silently disagree with the actual clock.</p>
 
 ### OBS_BASE_ADDR register
 

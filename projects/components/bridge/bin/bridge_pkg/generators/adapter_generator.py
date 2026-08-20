@@ -32,6 +32,8 @@ _MONITOR_CFG_WIDTHS = {
     'cfg_threshold_enable':     1,
     'cfg_debug_enable':         1,
     'cfg_timeout_cycles':      16,
+    # counter_freq_invariant LUT index (was hardcoded 4'b0000 inside the wrapper).
+    'cfg_freq_sel':             4,
     'cfg_latency_threshold':   32,
     'cfg_axi_pkt_mask':        16,
     'cfg_axi_err_select':      16,

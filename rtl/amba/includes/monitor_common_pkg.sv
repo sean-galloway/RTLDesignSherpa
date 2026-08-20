@@ -112,7 +112,22 @@ package monitor_common_pkg;
     // recovery guarantee for capacity.
     // ------------------------------------------------------------------------
     function automatic int cmd_entry_reserve(input int max_transactions);
-        return (max_transactions >= 16) ? 2 : 0;
+        // FOUR, not two. block_ready is computed from a REGISTERED occupancy
+        // count that lags by one cycle, and THREE allocators (addr/data/resp
+        // _wants_alloc) can fire in that cycle -- so the gate's margin must be
+        // at least 3. axi_monitor_base derives BLOCK_MARGIN as
+        // cmd_entry_reserve-1, and the gate can only RE-ASSERT if the margin
+        // is <= reserve-1, so a reserve of 2 caps the margin at 1 and admits
+        // up to three allocations against it. That is the mechanism behind the
+        // observer-level tracking loss (4096 observed vs 3073 tracked): the
+        // discarded data beats are the symptom, admitting a command with no
+        // free slot is the defect. See [[AMBA-BLOCKMARGIN]] / [[AMBA-MONTRACK]].
+        //
+        // Raising the margin alone does NOT work and was measured to wedge the
+        // gate (active_count parks at 14/16 and block_ready never re-asserts);
+        // the reserve has to rise with it. Costs 2 more slots on a 16-deep
+        // table, 4 of 64 at the board sizing.
+        return (max_transactions >= 16) ? 4 : 0;
     endfunction
 
     // Helper functions for monitor packet manipulation

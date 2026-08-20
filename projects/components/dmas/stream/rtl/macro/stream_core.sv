@@ -1598,6 +1598,11 @@ module stream_core #(
         .cfg_debug_enable       (cfg_rdeng_mon_addr_match_en),
         .cfg_timeout_enable     (int_cfg_rdeng_mon_timeout_enable),
         .cfg_timeout_cycles     (16'(int_cfg_rdeng_mon_timeout_cycles)),
+        // ACLK_MHZ is left at its default here, so the CFI LUT is degenerate
+        // (every entry == ACLK_MHZ) and any index gives an exact 1 us tick.
+        // Set ACLK_MHZ + a real CFI_MIN/MAX range and drive this from a CSR
+        // if this block ever needs runtime frequency selection.
+        .cfg_freq_sel(4'b0000),
         .cfg_latency_threshold  (int_cfg_rdeng_mon_latency_thresh),
 
         .cfg_axi_pkt_mask       (int_cfg_rdeng_mon_pkt_mask),
@@ -1771,6 +1776,7 @@ module stream_core #(
         .cfg_debug_enable       (cfg_wreng_mon_addr_match_en),
         .cfg_timeout_enable     (int_cfg_wreng_mon_timeout_enable),
         .cfg_timeout_cycles     (16'(int_cfg_wreng_mon_timeout_cycles)),
+        .cfg_freq_sel(4'b0000),
         .cfg_latency_threshold  (int_cfg_wreng_mon_latency_thresh),
 
         .cfg_axi_pkt_mask       (int_cfg_wreng_mon_pkt_mask),
@@ -2050,9 +2056,15 @@ module stream_core #(
     //   [20]   dbg_write_error_sticky        (sticky)
     //   [21]   dbg_timeout_expired           (live)
     //   [31:22] reserved (0)
-    // Assumes NC <= 8; software just shouldn't probe channels >= NC.
-    logic [2:0] w_obs_ch;
-    assign w_obs_ch = cfg_obs_ch_sel;
+    // cfg_obs_ch_sel is a fixed 3 bits (NC <= 8), but the arrays below are only
+    // NC entries wide. Indexing them with the raw 3-bit value reads PAST THE END
+    // on any build with NC < 8 -- X in simulation, undefined logic on the FPGA --
+    // which surfaces as corrupt telemetry rather than as a rejected request.
+    // Narrow to the array's own index width and clamp, so probing a channel that
+    // does not exist deterministically reports channel 0.
+    localparam int OBS_CW = (NC > 1) ? $clog2(NC) : 1;
+    logic [OBS_CW-1:0] w_obs_ch;
+    assign w_obs_ch = (32'(cfg_obs_ch_sel) < NC) ? OBS_CW'(cfg_obs_ch_sel) : '0;
 
     always_comb begin
         obs_flags = '0;
@@ -2084,11 +2096,11 @@ module stream_core #(
             end
             2'd1: begin  // rd_addr: current 64-bit source address
                 obs_data0 = sched_rd_addr[w_obs_ch][31:0];
-                obs_data1 = (AW > 32) ? sched_rd_addr[w_obs_ch][AW-1:32] : 32'h0;
+                obs_data1 = (AW > 32) ? 32'(sched_rd_addr[w_obs_ch] >> 32) : 32'h0;
             end
             2'd2: begin  // wr_addr: current 64-bit destination address
                 obs_data0 = sched_wr_addr[w_obs_ch][31:0];
-                obs_data1 = (AW > 32) ? sched_wr_addr[w_obs_ch][AW-1:32] : 32'h0;
+                obs_data1 = (AW > 32) ? 32'(sched_wr_addr[w_obs_ch] >> 32) : 32'h0;
             end
             2'd3: begin  // sram: per-channel free / available beats
                 obs_data0 = {{(32-($clog2(FIFO_DEPTH)+1)){1'b0}}, axi_rd_space_free[w_obs_ch]};

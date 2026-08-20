@@ -54,6 +54,11 @@ module axi4_master_wr_mon
     // Was hardwired to index 1 (19 MHz) with the comment "use aclk frequency";
     // on a 100 MHz design that made every timeout ~5x shorter than requested.
     parameter int ACLK_MHZ          = 100,
+    // CFI LUT bounds. The default MIN==MAX==ACLK_MHZ makes every entry equal
+    // ACLK_MHZ, so the 1 us tick is exact for ANY cfg_freq_sel index. Give
+    // these a real MIN..MAX range to make cfg_freq_sel actually select.
+    parameter int CFI_MIN_FREQ_MHZ  = ACLK_MHZ,
+    parameter int CFI_MAX_FREQ_MHZ  = ACLK_MHZ,
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,  // per-range flavor: 0=debug/match, 1=error/allowlist-miss
@@ -175,6 +180,7 @@ module axi4_master_wr_mon
     input  logic                       cfg_threshold_enable, // Enable threshold packets
     input  logic                       cfg_debug_enable,     // Enable debug packets
     input  logic [15:0]                cfg_timeout_cycles,      // Timeout threshold in cycles
+    input  logic [3:0]                 cfg_freq_sel,            // counter_freq_invariant LUT index
     input  logic [31:0]                cfg_latency_threshold,   // Latency threshold for alerts
 
     // AXI Protocol Filtering Configuration
@@ -397,8 +403,8 @@ module axi4_master_wr_mon
 
     if (USE_MONITOR) begin : gen_monitor
         axi_monitor_filtered #(
-            .CFI_MIN_FREQ_MHZ        (ACLK_MHZ),
-            .CFI_MAX_FREQ_MHZ        (ACLK_MHZ),
+            .CFI_MIN_FREQ_MHZ        (CFI_MIN_FREQ_MHZ),
+            .CFI_MAX_FREQ_MHZ        (CFI_MAX_FREQ_MHZ),
             .UNIT_ID                 (UNIT_ID),
             .AGENT_ID                (AGENT_ID),
             .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
@@ -452,7 +458,11 @@ module axi4_master_wr_mon
             .resp_ready              (m_axi_bready),
 
             // Configuration
-            .cfg_freq_sel            (4'b0000),   // table is all-ACLK_MHZ: any index is exact
+            // cfg_freq_sel selects the counter_freq_invariant LUT entry. With the
+            // default CFI_MIN==CFI_MAX==ACLK_MHZ every entry equals ACLK_MHZ, so any
+            // index gives an exact 1 us tick; give the CFI a real MIN..MAX range for
+            // this input to actually select a frequency.
+            .cfg_freq_sel            (cfg_freq_sel),
             .cfg_addr_cnt            (w_timeout_cnt),
             .cfg_data_cnt            (w_timeout_cnt),
             .cfg_resp_cnt            (w_timeout_cnt),

@@ -150,6 +150,7 @@ module axi4_slave_wr_mon_cg
     input  logic                       cfg_threshold_enable, // Enable threshold packets
     input  logic                       cfg_debug_enable,     // Enable debug packets
     input  logic [15:0]                cfg_timeout_cycles,      // Timeout threshold in cycles
+    input  logic [3:0]                 cfg_freq_sel,            // counter_freq_invariant LUT index
     input  logic [31:0]                cfg_latency_threshold,   // Latency threshold for alerts
 
     // AXI Protocol Filtering Configuration
@@ -352,6 +353,7 @@ module axi4_slave_wr_mon_cg
         .cfg_threshold_enable         (cfg_threshold_enable),
         .cfg_debug_enable         (cfg_debug_enable),
         .cfg_timeout_cycles      (cfg_timeout_cycles),
+        .cfg_freq_sel            (cfg_freq_sel),
         .cfg_latency_threshold   (cfg_latency_threshold),
 
         // AXI Protocol Filtering Configuration

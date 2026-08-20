@@ -380,6 +380,10 @@ module bridge_1x2_rd_regblock_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -488,6 +492,10 @@ module bridge_1x2_rd_regblock_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -573,6 +581,10 @@ module bridge_1x2_rd_regblock_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -660,6 +672,10 @@ module bridge_1x2_rd_regblock_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -745,6 +761,10 @@ module bridge_1x2_rd_regblock_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -977,6 +997,9 @@ module bridge_1x2_rd_regblock_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } CPU_RD_0_RD_CTRL;
@@ -1062,6 +1085,9 @@ module bridge_1x2_rd_regblock_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } DDR_RD_0_WR_CTRL;
@@ -1129,6 +1155,9 @@ module bridge_1x2_rd_regblock_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -1198,6 +1227,9 @@ module bridge_1x2_rd_regblock_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } SRAM_RD_1_WR_CTRL;
@@ -1265,6 +1297,9 @@ module bridge_1x2_rd_regblock_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -1594,6 +1629,29 @@ module bridge_1x2_rd_regblock_mon_cfg (
         end
     end
     assign hwif_out.CPU_RD_0_RD_CTRL.debug_enable.value = field_storage.CPU_RD_0_RD_CTRL.debug_enable.value;
+    // Field: bridge_1x2_rd_regblock_mon_cfg.CPU_RD_0_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.CPU_RD_0_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.CPU_RD_0_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.CPU_RD_0_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.CPU_RD_0_RD_CTRL.freq_sel.next = next_c;
+        field_combo.CPU_RD_0_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.CPU_RD_0_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.CPU_RD_0_RD_CTRL.freq_sel.load_next) begin
+                field_storage.CPU_RD_0_RD_CTRL.freq_sel.value <= field_combo.CPU_RD_0_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.CPU_RD_0_RD_CTRL.freq_sel.value = field_storage.CPU_RD_0_RD_CTRL.freq_sel.value;
     // Field: bridge_1x2_rd_regblock_mon_cfg.CPU_RD_0_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -2123,6 +2181,29 @@ module bridge_1x2_rd_regblock_mon_cfg (
         end
     end
     assign hwif_out.DDR_RD_0_WR_CTRL.debug_enable.value = field_storage.DDR_RD_0_WR_CTRL.debug_enable.value;
+    // Field: bridge_1x2_rd_regblock_mon_cfg.DDR_RD_0_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DDR_RD_0_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DDR_RD_0_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DDR_RD_0_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.DDR_RD_0_WR_CTRL.freq_sel.next = next_c;
+        field_combo.DDR_RD_0_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DDR_RD_0_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.DDR_RD_0_WR_CTRL.freq_sel.load_next) begin
+                field_storage.DDR_RD_0_WR_CTRL.freq_sel.value <= field_combo.DDR_RD_0_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.DDR_RD_0_WR_CTRL.freq_sel.value = field_storage.DDR_RD_0_WR_CTRL.freq_sel.value;
     // Field: bridge_1x2_rd_regblock_mon_cfg.DDR_RD_0_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -2537,6 +2618,29 @@ module bridge_1x2_rd_regblock_mon_cfg (
         end
     end
     assign hwif_out.DDR_RD_0_RD_CTRL.debug_enable.value = field_storage.DDR_RD_0_RD_CTRL.debug_enable.value;
+    // Field: bridge_1x2_rd_regblock_mon_cfg.DDR_RD_0_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DDR_RD_0_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DDR_RD_0_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DDR_RD_0_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.DDR_RD_0_RD_CTRL.freq_sel.next = next_c;
+        field_combo.DDR_RD_0_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DDR_RD_0_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.DDR_RD_0_RD_CTRL.freq_sel.load_next) begin
+                field_storage.DDR_RD_0_RD_CTRL.freq_sel.value <= field_combo.DDR_RD_0_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.DDR_RD_0_RD_CTRL.freq_sel.value = field_storage.DDR_RD_0_RD_CTRL.freq_sel.value;
     // Field: bridge_1x2_rd_regblock_mon_cfg.DDR_RD_0_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -2951,6 +3055,29 @@ module bridge_1x2_rd_regblock_mon_cfg (
         end
     end
     assign hwif_out.SRAM_RD_1_WR_CTRL.debug_enable.value = field_storage.SRAM_RD_1_WR_CTRL.debug_enable.value;
+    // Field: bridge_1x2_rd_regblock_mon_cfg.SRAM_RD_1_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRAM_RD_1_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRAM_RD_1_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRAM_RD_1_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SRAM_RD_1_WR_CTRL.freq_sel.next = next_c;
+        field_combo.SRAM_RD_1_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRAM_RD_1_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SRAM_RD_1_WR_CTRL.freq_sel.load_next) begin
+                field_storage.SRAM_RD_1_WR_CTRL.freq_sel.value <= field_combo.SRAM_RD_1_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SRAM_RD_1_WR_CTRL.freq_sel.value = field_storage.SRAM_RD_1_WR_CTRL.freq_sel.value;
     // Field: bridge_1x2_rd_regblock_mon_cfg.SRAM_RD_1_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -3365,6 +3492,29 @@ module bridge_1x2_rd_regblock_mon_cfg (
         end
     end
     assign hwif_out.SRAM_RD_1_RD_CTRL.debug_enable.value = field_storage.SRAM_RD_1_RD_CTRL.debug_enable.value;
+    // Field: bridge_1x2_rd_regblock_mon_cfg.SRAM_RD_1_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SRAM_RD_1_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SRAM_RD_1_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SRAM_RD_1_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SRAM_RD_1_RD_CTRL.freq_sel.next = next_c;
+        field_combo.SRAM_RD_1_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SRAM_RD_1_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SRAM_RD_1_RD_CTRL.freq_sel.load_next) begin
+                field_storage.SRAM_RD_1_RD_CTRL.freq_sel.value <= field_combo.SRAM_RD_1_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SRAM_RD_1_RD_CTRL.freq_sel.value = field_storage.SRAM_RD_1_RD_CTRL.freq_sel.value;
     // Field: bridge_1x2_rd_regblock_mon_cfg.SRAM_RD_1_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -4310,7 +4460,9 @@ module bridge_1x2_rd_regblock_mon_cfg (
     assign readback_array[0][4:4] = (decoded_reg_strb.CPU_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.CPU_RD_0_RD_CTRL.compl_enable.value : '0;
     assign readback_array[0][5:5] = (decoded_reg_strb.CPU_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.CPU_RD_0_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[0][6:6] = (decoded_reg_strb.CPU_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.CPU_RD_0_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[0][15:7] = '0;
+    assign readback_array[0][7:7] = '0;
+    assign readback_array[0][11:8] = (decoded_reg_strb.CPU_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.CPU_RD_0_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[0][15:12] = '0;
     assign readback_array[0][31:16] = (decoded_reg_strb.CPU_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.CPU_RD_0_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[1][31:0] = (decoded_reg_strb.CPU_RD_0_RD_LATENCY && !decoded_req_is_wr) ? field_storage.CPU_RD_0_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[2][15:0] = (decoded_reg_strb.CPU_RD_0_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.CPU_RD_0_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -4336,7 +4488,9 @@ module bridge_1x2_rd_regblock_mon_cfg (
     assign readback_array[8][4:4] = (decoded_reg_strb.DDR_RD_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.DDR_RD_0_WR_CTRL.compl_enable.value : '0;
     assign readback_array[8][5:5] = (decoded_reg_strb.DDR_RD_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.DDR_RD_0_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[8][6:6] = (decoded_reg_strb.DDR_RD_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.DDR_RD_0_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[8][15:7] = '0;
+    assign readback_array[8][7:7] = '0;
+    assign readback_array[8][11:8] = (decoded_reg_strb.DDR_RD_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.DDR_RD_0_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[8][15:12] = '0;
     assign readback_array[8][31:16] = (decoded_reg_strb.DDR_RD_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.DDR_RD_0_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[9][31:0] = (decoded_reg_strb.DDR_RD_0_WR_LATENCY && !decoded_req_is_wr) ? field_storage.DDR_RD_0_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[10][15:0] = (decoded_reg_strb.DDR_RD_0_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.DDR_RD_0_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -4356,7 +4510,9 @@ module bridge_1x2_rd_regblock_mon_cfg (
     assign readback_array[15][4:4] = (decoded_reg_strb.DDR_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.DDR_RD_0_RD_CTRL.compl_enable.value : '0;
     assign readback_array[15][5:5] = (decoded_reg_strb.DDR_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.DDR_RD_0_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[15][6:6] = (decoded_reg_strb.DDR_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.DDR_RD_0_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[15][15:7] = '0;
+    assign readback_array[15][7:7] = '0;
+    assign readback_array[15][11:8] = (decoded_reg_strb.DDR_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.DDR_RD_0_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[15][15:12] = '0;
     assign readback_array[15][31:16] = (decoded_reg_strb.DDR_RD_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.DDR_RD_0_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[16][31:0] = (decoded_reg_strb.DDR_RD_0_RD_LATENCY && !decoded_req_is_wr) ? field_storage.DDR_RD_0_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[17][15:0] = (decoded_reg_strb.DDR_RD_0_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.DDR_RD_0_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -4376,7 +4532,9 @@ module bridge_1x2_rd_regblock_mon_cfg (
     assign readback_array[22][4:4] = (decoded_reg_strb.SRAM_RD_1_WR_CTRL && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_WR_CTRL.compl_enable.value : '0;
     assign readback_array[22][5:5] = (decoded_reg_strb.SRAM_RD_1_WR_CTRL && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[22][6:6] = (decoded_reg_strb.SRAM_RD_1_WR_CTRL && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[22][15:7] = '0;
+    assign readback_array[22][7:7] = '0;
+    assign readback_array[22][11:8] = (decoded_reg_strb.SRAM_RD_1_WR_CTRL && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[22][15:12] = '0;
     assign readback_array[22][31:16] = (decoded_reg_strb.SRAM_RD_1_WR_CTRL && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[23][31:0] = (decoded_reg_strb.SRAM_RD_1_WR_LATENCY && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[24][15:0] = (decoded_reg_strb.SRAM_RD_1_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -4396,7 +4554,9 @@ module bridge_1x2_rd_regblock_mon_cfg (
     assign readback_array[29][4:4] = (decoded_reg_strb.SRAM_RD_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_RD_CTRL.compl_enable.value : '0;
     assign readback_array[29][5:5] = (decoded_reg_strb.SRAM_RD_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[29][6:6] = (decoded_reg_strb.SRAM_RD_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[29][15:7] = '0;
+    assign readback_array[29][7:7] = '0;
+    assign readback_array[29][11:8] = (decoded_reg_strb.SRAM_RD_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[29][15:12] = '0;
     assign readback_array[29][31:16] = (decoded_reg_strb.SRAM_RD_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[30][31:0] = (decoded_reg_strb.SRAM_RD_1_RD_LATENCY && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[31][15:0] = (decoded_reg_strb.SRAM_RD_1_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.SRAM_RD_1_RD_MASKS_A.axi_pkt_mask.value : '0;

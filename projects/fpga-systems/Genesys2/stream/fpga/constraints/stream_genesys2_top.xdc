@@ -60,12 +60,12 @@ set_false_path -from [get_pins -hier -filter {NAME =~ r_rst_sync_reg/C}]
 ##==============================================================================
 ## LED status driver — slow generated clock + CDC handshake. Same structure as
 ## the A7/rapids flows. NOTE: -divide_by = 2 * FPGA_CLK_HZ / LED_UPDATE_HZ.
-## Keep in lockstep with CLKOUT0_DIVIDE in the top: 100 MHz -> 1000000,
-## 80 MHz -> 800000, 60 MHz -> 600000.
+## Keep in lockstep with VCO_MHZ/CLKOUT0_DIVIDE in the top: 90 MHz -> 900000,
+## 100 MHz -> 1000000, 80 MHz -> 800000, 60 MHz -> 600000.
 ##==============================================================================
 create_generated_clock -name led_slow_clk \
     -source [get_pins -hier -filter {NAME =~ *u_led_status_driver/r_div_count_reg[0]/C}] \
-    -divide_by 1000000 \
+    -divide_by 900000 \
     [get_pins -hier -filter {NAME =~ *u_led_status_driver/u_slow_bufg/O}]
 
 set_clock_groups -asynchronous \

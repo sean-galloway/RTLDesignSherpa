@@ -799,12 +799,12 @@ module descriptor_engine #(
         if (`RST_ASSERTED(rst_n)) begin
             r_apb_operation_active <= 1'b0;
             r_axi_read_active <= 1'b0;
-            r_axi_read_addr <= 64'h0;
+            r_axi_read_addr <= '0;
             r_axi_read_resp <= 2'b00;
             r_descriptor_data <= '0;
             r_descriptor_ext_data <= '0;
             r_is_ext <= 1'b0;
-            r_saved_next_addr <= 64'h0;
+            r_saved_next_addr <= '0;
             r_descriptor_error <= 1'b0;
         end else begin
             case (r_current_state)

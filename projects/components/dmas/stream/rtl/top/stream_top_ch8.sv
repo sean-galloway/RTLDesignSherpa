@@ -307,12 +307,12 @@ module stream_top_ch8 #(
     // Debug outputs for stream_regs interface
     output logic                                    debug_regblk_req,
     output logic                                    debug_regblk_req_is_wr,
-    output logic [11:0]                             debug_regblk_addr,
+    output logic [APB_ADDR_WIDTH-1:0]               debug_regblk_addr,
     output logic [31:0]                             debug_regblk_rd_data,
     output logic                                    debug_regblk_rd_ack,
     // Debug outputs for command path to peakrdl_to_cmdrsp
     output logic                                    debug_peakrdl_cmd_valid,
-    output logic [11:0]                             debug_peakrdl_cmd_paddr,
+    output logic [APB_ADDR_WIDTH-1:0]               debug_peakrdl_cmd_paddr,
     output logic                                    debug_peakrdl_rsp_valid,
     output logic [31:0]                             debug_peakrdl_rsp_prdata,
     // Registered debug capture - holds last read transaction values
@@ -323,14 +323,14 @@ module stream_top_ch8 #(
     output logic                                    debug_apb_cmd_valid,
     output logic                                    debug_apb_cmd_ready,
     output logic                                    debug_apb_cmd_pwrite,
-    output logic [11:0]                             debug_apb_cmd_paddr,
+    output logic [APB_ADDR_WIDTH-1:0]               debug_apb_cmd_paddr,
     // Debug outputs for APB response path
     output logic                                    debug_apb_rsp_valid,
     output logic                                    debug_apb_rsp_ready,
     output logic [31:0]                             debug_apb_rsp_prdata,
     // Registered debug captures (hold values after transaction)
     output logic                                    debug_apb_rd_cmd_seen,
-    output logic [11:0]                             debug_apb_rd_cmd_addr,
+    output logic [APB_ADDR_WIDTH-1:0]               debug_apb_rd_cmd_addr,
     output logic [31:0]                             debug_apb_rsp_prdata_captured,
     // Sticky counters - count total reads at each stage
     output logic [7:0]                              debug_apb_rd_count,
@@ -1105,7 +1105,10 @@ module stream_top_ch8 #(
 
     // Registered debug capture for APB read commands (captures when read cmd is accepted)
     logic r_debug_apb_rd_cmd_seen;
-    logic [11:0] r_debug_apb_rd_cmd_addr;
+    // Must track APB_ADDR_WIDTH: at 12 bits this dropped bit[12], so any
+    // debug capture of an address >= 0x1000 -- where the monitor registers
+    // now live -- reported the wrong address.
+    logic [APB_ADDR_WIDTH-1:0] r_debug_apb_rd_cmd_addr;
     logic [31:0] r_debug_apb_rsp_prdata_captured;
 
     always_ff @(posedge aclk or negedge aresetn) begin

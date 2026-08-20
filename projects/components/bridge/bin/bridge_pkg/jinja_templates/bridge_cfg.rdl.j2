@@ -12,7 +12,7 @@
 // list (single source of truth in axi4_timing_wrapper_component.py).
 // Per-direction register layout:
 //
-//   +0x00  CTRL     enables[6:0] + timeout_cycles[31:16]
+//   +0x00  CTRL     enables[6:0] + freq_sel[11:8] + timeout_cycles[31:16]
 //   +0x04  LATENCY  latency_threshold[31:0]
 //   +0x08  MASKS_A  axi_pkt_mask     + axi_err_select
 //   +0x0C  MASKS_B  axi_error_mask   + axi_timeout_mask
@@ -41,7 +41,7 @@ addrmap {{ bridge_name }}_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "{{ adapter.name }}_{{ adapter.idx }} {{ dir_uc }} CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -49,6 +49,10 @@ addrmap {{ bridge_name }}_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } {{ adapter.name | upper }}_{{ adapter.idx }}_{{ dir_uc }}_CTRL;
 

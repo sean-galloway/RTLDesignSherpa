@@ -724,6 +724,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -831,6 +835,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -940,6 +948,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -1047,6 +1059,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -1156,6 +1172,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -1264,6 +1284,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -1349,6 +1373,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -1436,6 +1464,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -1521,6 +1553,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -1608,6 +1644,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -1693,6 +1733,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -1780,6 +1824,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -1865,6 +1913,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -1952,6 +2004,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -2037,6 +2093,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -2124,6 +2184,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -2209,6 +2273,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -2296,6 +2364,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -2381,6 +2453,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -2468,6 +2544,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -2553,6 +2633,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -2640,6 +2724,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -2725,6 +2813,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -2812,6 +2904,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -2897,6 +2993,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -2984,6 +3084,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -3069,6 +3173,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -3156,6 +3264,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic load_next;
             } debug_enable;
             struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
+            struct {
                 logic [15:0] next;
                 logic load_next;
             } timeout_cycles;
@@ -3241,6 +3353,10 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic next;
                 logic load_next;
             } debug_enable;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } freq_sel;
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -3473,6 +3589,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } HOST_0_WR_CTRL;
@@ -3557,6 +3676,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -3643,6 +3765,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } STREAM_DESC_1_RD_CTRL;
@@ -3727,6 +3852,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -3813,6 +3941,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } SLAVE_MONBUS_WR_3_WR_CTRL;
@@ -3898,6 +4029,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } OBS_APB_0_WR_CTRL;
@@ -3965,6 +4099,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -4034,6 +4171,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } SLVMON_APB_1_WR_CTRL;
@@ -4101,6 +4241,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -4170,6 +4313,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } STREAM_APB_2_WR_CTRL;
@@ -4237,6 +4383,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -4306,6 +4455,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } HARNESS_CSR_3_WR_CTRL;
@@ -4373,6 +4525,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -4442,6 +4597,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } DESC_RAM_4_WR_CTRL;
@@ -4509,6 +4667,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -4578,6 +4739,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } STREAM_ERR_5_WR_CTRL;
@@ -4645,6 +4809,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -4714,6 +4881,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } STREAM_TALLY_6_WR_CTRL;
@@ -4781,6 +4951,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -4850,6 +5023,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } DMA_AXIL_7_WR_CTRL;
@@ -4917,6 +5093,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -4986,6 +5165,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } SLAVE_ERR_8_WR_CTRL;
@@ -5053,6 +5235,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -5122,6 +5307,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } SLAVE_TALLY_9_WR_CTRL;
@@ -5189,6 +5377,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -5258,6 +5449,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } STREAM_TALLY_CFG_10_WR_CTRL;
@@ -5325,6 +5519,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -5394,6 +5591,9 @@ module bridge_stream_mon_axil_mon_cfg (
                 logic value;
             } debug_enable;
             struct {
+                logic [3:0] value;
+            } freq_sel;
+            struct {
                 logic [15:0] value;
             } timeout_cycles;
         } SLAVE_TALLY_CFG_11_WR_CTRL;
@@ -5461,6 +5661,9 @@ module bridge_stream_mon_axil_mon_cfg (
             struct {
                 logic value;
             } debug_enable;
+            struct {
+                logic [3:0] value;
+            } freq_sel;
             struct {
                 logic [15:0] value;
             } timeout_cycles;
@@ -5790,6 +5993,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.HOST_0_WR_CTRL.debug_enable.value = field_storage.HOST_0_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.HOST_0_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.HOST_0_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.HOST_0_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.HOST_0_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.HOST_0_WR_CTRL.freq_sel.next = next_c;
+        field_combo.HOST_0_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.HOST_0_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.HOST_0_WR_CTRL.freq_sel.load_next) begin
+                field_storage.HOST_0_WR_CTRL.freq_sel.value <= field_combo.HOST_0_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.HOST_0_WR_CTRL.freq_sel.value = field_storage.HOST_0_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.HOST_0_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -6319,6 +6545,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.HOST_0_RD_CTRL.debug_enable.value = field_storage.HOST_0_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.HOST_0_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.HOST_0_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.HOST_0_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.HOST_0_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.HOST_0_RD_CTRL.freq_sel.next = next_c;
+        field_combo.HOST_0_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.HOST_0_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.HOST_0_RD_CTRL.freq_sel.load_next) begin
+                field_storage.HOST_0_RD_CTRL.freq_sel.value <= field_combo.HOST_0_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.HOST_0_RD_CTRL.freq_sel.value = field_storage.HOST_0_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.HOST_0_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -6848,6 +7097,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.STREAM_DESC_1_RD_CTRL.debug_enable.value = field_storage.STREAM_DESC_1_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_DESC_1_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_DESC_1_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_DESC_1_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_DESC_1_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_DESC_1_RD_CTRL.freq_sel.next = next_c;
+        field_combo.STREAM_DESC_1_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_DESC_1_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.STREAM_DESC_1_RD_CTRL.freq_sel.load_next) begin
+                field_storage.STREAM_DESC_1_RD_CTRL.freq_sel.value <= field_combo.STREAM_DESC_1_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_DESC_1_RD_CTRL.freq_sel.value = field_storage.STREAM_DESC_1_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.STREAM_DESC_1_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -7377,6 +7649,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.MONBUS_WR_2_WR_CTRL.debug_enable.value = field_storage.MONBUS_WR_2_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.MONBUS_WR_2_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MONBUS_WR_2_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MONBUS_WR_2_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MONBUS_WR_2_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.MONBUS_WR_2_WR_CTRL.freq_sel.next = next_c;
+        field_combo.MONBUS_WR_2_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MONBUS_WR_2_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.MONBUS_WR_2_WR_CTRL.freq_sel.load_next) begin
+                field_storage.MONBUS_WR_2_WR_CTRL.freq_sel.value <= field_combo.MONBUS_WR_2_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.MONBUS_WR_2_WR_CTRL.freq_sel.value = field_storage.MONBUS_WR_2_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.MONBUS_WR_2_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -7906,6 +8201,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.debug_enable.value = field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_MONBUS_WR_3_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.next = next_c;
+        field_combo.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.load_next) begin
+                field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.value <= field_combo.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.value = field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_MONBUS_WR_3_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -8435,6 +8753,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.OBS_APB_0_WR_CTRL.debug_enable.value = field_storage.OBS_APB_0_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.OBS_APB_0_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS_APB_0_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS_APB_0_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS_APB_0_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.OBS_APB_0_WR_CTRL.freq_sel.next = next_c;
+        field_combo.OBS_APB_0_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS_APB_0_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.OBS_APB_0_WR_CTRL.freq_sel.load_next) begin
+                field_storage.OBS_APB_0_WR_CTRL.freq_sel.value <= field_combo.OBS_APB_0_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.OBS_APB_0_WR_CTRL.freq_sel.value = field_storage.OBS_APB_0_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.OBS_APB_0_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -8849,6 +9190,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.OBS_APB_0_RD_CTRL.debug_enable.value = field_storage.OBS_APB_0_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.OBS_APB_0_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS_APB_0_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS_APB_0_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS_APB_0_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.OBS_APB_0_RD_CTRL.freq_sel.next = next_c;
+        field_combo.OBS_APB_0_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS_APB_0_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.OBS_APB_0_RD_CTRL.freq_sel.load_next) begin
+                field_storage.OBS_APB_0_RD_CTRL.freq_sel.value <= field_combo.OBS_APB_0_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.OBS_APB_0_RD_CTRL.freq_sel.value = field_storage.OBS_APB_0_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.OBS_APB_0_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -9263,6 +9627,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.SLVMON_APB_1_WR_CTRL.debug_enable.value = field_storage.SLVMON_APB_1_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLVMON_APB_1_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLVMON_APB_1_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLVMON_APB_1_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLVMON_APB_1_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SLVMON_APB_1_WR_CTRL.freq_sel.next = next_c;
+        field_combo.SLVMON_APB_1_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLVMON_APB_1_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SLVMON_APB_1_WR_CTRL.freq_sel.load_next) begin
+                field_storage.SLVMON_APB_1_WR_CTRL.freq_sel.value <= field_combo.SLVMON_APB_1_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SLVMON_APB_1_WR_CTRL.freq_sel.value = field_storage.SLVMON_APB_1_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.SLVMON_APB_1_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -9677,6 +10064,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.SLVMON_APB_1_RD_CTRL.debug_enable.value = field_storage.SLVMON_APB_1_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLVMON_APB_1_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLVMON_APB_1_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLVMON_APB_1_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLVMON_APB_1_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SLVMON_APB_1_RD_CTRL.freq_sel.next = next_c;
+        field_combo.SLVMON_APB_1_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLVMON_APB_1_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SLVMON_APB_1_RD_CTRL.freq_sel.load_next) begin
+                field_storage.SLVMON_APB_1_RD_CTRL.freq_sel.value <= field_combo.SLVMON_APB_1_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SLVMON_APB_1_RD_CTRL.freq_sel.value = field_storage.SLVMON_APB_1_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.SLVMON_APB_1_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -10091,6 +10501,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.STREAM_APB_2_WR_CTRL.debug_enable.value = field_storage.STREAM_APB_2_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_APB_2_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_APB_2_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_APB_2_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_APB_2_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_APB_2_WR_CTRL.freq_sel.next = next_c;
+        field_combo.STREAM_APB_2_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_APB_2_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.STREAM_APB_2_WR_CTRL.freq_sel.load_next) begin
+                field_storage.STREAM_APB_2_WR_CTRL.freq_sel.value <= field_combo.STREAM_APB_2_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_APB_2_WR_CTRL.freq_sel.value = field_storage.STREAM_APB_2_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.STREAM_APB_2_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -10505,6 +10938,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.STREAM_APB_2_RD_CTRL.debug_enable.value = field_storage.STREAM_APB_2_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_APB_2_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_APB_2_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_APB_2_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_APB_2_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_APB_2_RD_CTRL.freq_sel.next = next_c;
+        field_combo.STREAM_APB_2_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_APB_2_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.STREAM_APB_2_RD_CTRL.freq_sel.load_next) begin
+                field_storage.STREAM_APB_2_RD_CTRL.freq_sel.value <= field_combo.STREAM_APB_2_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_APB_2_RD_CTRL.freq_sel.value = field_storage.STREAM_APB_2_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.STREAM_APB_2_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -10919,6 +11375,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.HARNESS_CSR_3_WR_CTRL.debug_enable.value = field_storage.HARNESS_CSR_3_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.HARNESS_CSR_3_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.HARNESS_CSR_3_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.HARNESS_CSR_3_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.HARNESS_CSR_3_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.HARNESS_CSR_3_WR_CTRL.freq_sel.next = next_c;
+        field_combo.HARNESS_CSR_3_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.HARNESS_CSR_3_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.HARNESS_CSR_3_WR_CTRL.freq_sel.load_next) begin
+                field_storage.HARNESS_CSR_3_WR_CTRL.freq_sel.value <= field_combo.HARNESS_CSR_3_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.HARNESS_CSR_3_WR_CTRL.freq_sel.value = field_storage.HARNESS_CSR_3_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.HARNESS_CSR_3_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -11333,6 +11812,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.HARNESS_CSR_3_RD_CTRL.debug_enable.value = field_storage.HARNESS_CSR_3_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.HARNESS_CSR_3_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.HARNESS_CSR_3_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.HARNESS_CSR_3_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.HARNESS_CSR_3_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.HARNESS_CSR_3_RD_CTRL.freq_sel.next = next_c;
+        field_combo.HARNESS_CSR_3_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.HARNESS_CSR_3_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.HARNESS_CSR_3_RD_CTRL.freq_sel.load_next) begin
+                field_storage.HARNESS_CSR_3_RD_CTRL.freq_sel.value <= field_combo.HARNESS_CSR_3_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.HARNESS_CSR_3_RD_CTRL.freq_sel.value = field_storage.HARNESS_CSR_3_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.HARNESS_CSR_3_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -11747,6 +12249,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.DESC_RAM_4_WR_CTRL.debug_enable.value = field_storage.DESC_RAM_4_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.DESC_RAM_4_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DESC_RAM_4_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DESC_RAM_4_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DESC_RAM_4_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.DESC_RAM_4_WR_CTRL.freq_sel.next = next_c;
+        field_combo.DESC_RAM_4_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DESC_RAM_4_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.DESC_RAM_4_WR_CTRL.freq_sel.load_next) begin
+                field_storage.DESC_RAM_4_WR_CTRL.freq_sel.value <= field_combo.DESC_RAM_4_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.DESC_RAM_4_WR_CTRL.freq_sel.value = field_storage.DESC_RAM_4_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.DESC_RAM_4_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12161,6 +12686,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.DESC_RAM_4_RD_CTRL.debug_enable.value = field_storage.DESC_RAM_4_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.DESC_RAM_4_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DESC_RAM_4_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DESC_RAM_4_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DESC_RAM_4_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.DESC_RAM_4_RD_CTRL.freq_sel.next = next_c;
+        field_combo.DESC_RAM_4_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DESC_RAM_4_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.DESC_RAM_4_RD_CTRL.freq_sel.load_next) begin
+                field_storage.DESC_RAM_4_RD_CTRL.freq_sel.value <= field_combo.DESC_RAM_4_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.DESC_RAM_4_RD_CTRL.freq_sel.value = field_storage.DESC_RAM_4_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.DESC_RAM_4_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12575,6 +13123,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.STREAM_ERR_5_WR_CTRL.debug_enable.value = field_storage.STREAM_ERR_5_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_ERR_5_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_ERR_5_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_ERR_5_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_ERR_5_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_ERR_5_WR_CTRL.freq_sel.next = next_c;
+        field_combo.STREAM_ERR_5_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_ERR_5_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.STREAM_ERR_5_WR_CTRL.freq_sel.load_next) begin
+                field_storage.STREAM_ERR_5_WR_CTRL.freq_sel.value <= field_combo.STREAM_ERR_5_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_ERR_5_WR_CTRL.freq_sel.value = field_storage.STREAM_ERR_5_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.STREAM_ERR_5_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12989,6 +13560,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.STREAM_ERR_5_RD_CTRL.debug_enable.value = field_storage.STREAM_ERR_5_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_ERR_5_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_ERR_5_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_ERR_5_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_ERR_5_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_ERR_5_RD_CTRL.freq_sel.next = next_c;
+        field_combo.STREAM_ERR_5_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_ERR_5_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.STREAM_ERR_5_RD_CTRL.freq_sel.load_next) begin
+                field_storage.STREAM_ERR_5_RD_CTRL.freq_sel.value <= field_combo.STREAM_ERR_5_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_ERR_5_RD_CTRL.freq_sel.value = field_storage.STREAM_ERR_5_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.STREAM_ERR_5_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -13403,6 +13997,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.STREAM_TALLY_6_WR_CTRL.debug_enable.value = field_storage.STREAM_TALLY_6_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_6_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_6_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_6_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_6_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_6_WR_CTRL.freq_sel.next = next_c;
+        field_combo.STREAM_TALLY_6_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_6_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_6_WR_CTRL.freq_sel.load_next) begin
+                field_storage.STREAM_TALLY_6_WR_CTRL.freq_sel.value <= field_combo.STREAM_TALLY_6_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_6_WR_CTRL.freq_sel.value = field_storage.STREAM_TALLY_6_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_6_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -13817,6 +14434,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.STREAM_TALLY_6_RD_CTRL.debug_enable.value = field_storage.STREAM_TALLY_6_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_6_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_6_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_6_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_6_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_6_RD_CTRL.freq_sel.next = next_c;
+        field_combo.STREAM_TALLY_6_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_6_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_6_RD_CTRL.freq_sel.load_next) begin
+                field_storage.STREAM_TALLY_6_RD_CTRL.freq_sel.value <= field_combo.STREAM_TALLY_6_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_6_RD_CTRL.freq_sel.value = field_storage.STREAM_TALLY_6_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_6_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -14231,6 +14871,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.DMA_AXIL_7_WR_CTRL.debug_enable.value = field_storage.DMA_AXIL_7_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.DMA_AXIL_7_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DMA_AXIL_7_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DMA_AXIL_7_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DMA_AXIL_7_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.DMA_AXIL_7_WR_CTRL.freq_sel.next = next_c;
+        field_combo.DMA_AXIL_7_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DMA_AXIL_7_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.DMA_AXIL_7_WR_CTRL.freq_sel.load_next) begin
+                field_storage.DMA_AXIL_7_WR_CTRL.freq_sel.value <= field_combo.DMA_AXIL_7_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.DMA_AXIL_7_WR_CTRL.freq_sel.value = field_storage.DMA_AXIL_7_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.DMA_AXIL_7_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -14645,6 +15308,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.DMA_AXIL_7_RD_CTRL.debug_enable.value = field_storage.DMA_AXIL_7_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.DMA_AXIL_7_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DMA_AXIL_7_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DMA_AXIL_7_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DMA_AXIL_7_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.DMA_AXIL_7_RD_CTRL.freq_sel.next = next_c;
+        field_combo.DMA_AXIL_7_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DMA_AXIL_7_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.DMA_AXIL_7_RD_CTRL.freq_sel.load_next) begin
+                field_storage.DMA_AXIL_7_RD_CTRL.freq_sel.value <= field_combo.DMA_AXIL_7_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.DMA_AXIL_7_RD_CTRL.freq_sel.value = field_storage.DMA_AXIL_7_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.DMA_AXIL_7_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -15059,6 +15745,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.SLAVE_ERR_8_WR_CTRL.debug_enable.value = field_storage.SLAVE_ERR_8_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_ERR_8_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_ERR_8_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_ERR_8_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_ERR_8_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_ERR_8_WR_CTRL.freq_sel.next = next_c;
+        field_combo.SLAVE_ERR_8_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_ERR_8_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SLAVE_ERR_8_WR_CTRL.freq_sel.load_next) begin
+                field_storage.SLAVE_ERR_8_WR_CTRL.freq_sel.value <= field_combo.SLAVE_ERR_8_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_ERR_8_WR_CTRL.freq_sel.value = field_storage.SLAVE_ERR_8_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_ERR_8_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -15473,6 +16182,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.SLAVE_ERR_8_RD_CTRL.debug_enable.value = field_storage.SLAVE_ERR_8_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_ERR_8_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_ERR_8_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_ERR_8_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_ERR_8_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_ERR_8_RD_CTRL.freq_sel.next = next_c;
+        field_combo.SLAVE_ERR_8_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_ERR_8_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SLAVE_ERR_8_RD_CTRL.freq_sel.load_next) begin
+                field_storage.SLAVE_ERR_8_RD_CTRL.freq_sel.value <= field_combo.SLAVE_ERR_8_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_ERR_8_RD_CTRL.freq_sel.value = field_storage.SLAVE_ERR_8_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_ERR_8_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -15887,6 +16619,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.SLAVE_TALLY_9_WR_CTRL.debug_enable.value = field_storage.SLAVE_TALLY_9_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_9_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_9_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_9_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_9_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_9_WR_CTRL.freq_sel.next = next_c;
+        field_combo.SLAVE_TALLY_9_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_9_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_9_WR_CTRL.freq_sel.load_next) begin
+                field_storage.SLAVE_TALLY_9_WR_CTRL.freq_sel.value <= field_combo.SLAVE_TALLY_9_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_9_WR_CTRL.freq_sel.value = field_storage.SLAVE_TALLY_9_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_9_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -16301,6 +17056,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.SLAVE_TALLY_9_RD_CTRL.debug_enable.value = field_storage.SLAVE_TALLY_9_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_9_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_9_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_9_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_9_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_9_RD_CTRL.freq_sel.next = next_c;
+        field_combo.SLAVE_TALLY_9_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_9_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_9_RD_CTRL.freq_sel.load_next) begin
+                field_storage.SLAVE_TALLY_9_RD_CTRL.freq_sel.value <= field_combo.SLAVE_TALLY_9_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_9_RD_CTRL.freq_sel.value = field_storage.SLAVE_TALLY_9_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_9_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -16715,6 +17493,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.STREAM_TALLY_CFG_10_WR_CTRL.debug_enable.value = field_storage.STREAM_TALLY_CFG_10_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_10_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.next = next_c;
+        field_combo.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.load_next) begin
+                field_storage.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.value <= field_combo.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.value = field_storage.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_10_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -17129,6 +17930,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.STREAM_TALLY_CFG_10_RD_CTRL.debug_enable.value = field_storage.STREAM_TALLY_CFG_10_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.STREAM_TALLY_CFG_10_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.next = next_c;
+        field_combo.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.load_next) begin
+                field_storage.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.value <= field_combo.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.value = field_storage.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.STREAM_TALLY_CFG_10_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -17543,6 +18367,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.SLAVE_TALLY_CFG_11_WR_CTRL.debug_enable.value = field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_11_WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.value <= field_combo.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.value = field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_11_WR_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -17957,6 +18804,29 @@ module bridge_stream_mon_axil_mon_cfg (
         end
     end
     assign hwif_out.SLAVE_TALLY_CFG_11_RD_CTRL.debug_enable.value = field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.debug_enable.value;
+    // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SLAVE_TALLY_CFG_11_RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.next = next_c;
+        field_combo.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.value <= 4'h0;
+        end else begin
+            if(field_combo.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.load_next) begin
+                field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.value <= field_combo.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.value = field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.value;
     // Field: bridge_stream_mon_axil_mon_cfg.SLAVE_TALLY_CFG_11_RD_CTRL.timeout_cycles
     always_comb begin
         automatic logic [15:0] next_c;
@@ -18902,7 +19772,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[0][4:4] = (decoded_reg_strb.HOST_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_WR_CTRL.compl_enable.value : '0;
     assign readback_array[0][5:5] = (decoded_reg_strb.HOST_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[0][6:6] = (decoded_reg_strb.HOST_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[0][15:7] = '0;
+    assign readback_array[0][7:7] = '0;
+    assign readback_array[0][11:8] = (decoded_reg_strb.HOST_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[0][15:12] = '0;
     assign readback_array[0][31:16] = (decoded_reg_strb.HOST_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[1][31:0] = (decoded_reg_strb.HOST_0_WR_LATENCY && !decoded_req_is_wr) ? field_storage.HOST_0_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[2][15:0] = (decoded_reg_strb.HOST_0_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.HOST_0_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -18928,7 +19800,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[8][4:4] = (decoded_reg_strb.HOST_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_RD_CTRL.compl_enable.value : '0;
     assign readback_array[8][5:5] = (decoded_reg_strb.HOST_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[8][6:6] = (decoded_reg_strb.HOST_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[8][15:7] = '0;
+    assign readback_array[8][7:7] = '0;
+    assign readback_array[8][11:8] = (decoded_reg_strb.HOST_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[8][15:12] = '0;
     assign readback_array[8][31:16] = (decoded_reg_strb.HOST_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.HOST_0_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[9][31:0] = (decoded_reg_strb.HOST_0_RD_LATENCY && !decoded_req_is_wr) ? field_storage.HOST_0_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[10][15:0] = (decoded_reg_strb.HOST_0_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.HOST_0_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -18954,7 +19828,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[16][4:4] = (decoded_reg_strb.STREAM_DESC_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_DESC_1_RD_CTRL.compl_enable.value : '0;
     assign readback_array[16][5:5] = (decoded_reg_strb.STREAM_DESC_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_DESC_1_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[16][6:6] = (decoded_reg_strb.STREAM_DESC_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_DESC_1_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[16][15:7] = '0;
+    assign readback_array[16][7:7] = '0;
+    assign readback_array[16][11:8] = (decoded_reg_strb.STREAM_DESC_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_DESC_1_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[16][15:12] = '0;
     assign readback_array[16][31:16] = (decoded_reg_strb.STREAM_DESC_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_DESC_1_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[17][31:0] = (decoded_reg_strb.STREAM_DESC_1_RD_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_DESC_1_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[18][15:0] = (decoded_reg_strb.STREAM_DESC_1_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_DESC_1_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -18980,7 +19856,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[24][4:4] = (decoded_reg_strb.MONBUS_WR_2_WR_CTRL && !decoded_req_is_wr) ? field_storage.MONBUS_WR_2_WR_CTRL.compl_enable.value : '0;
     assign readback_array[24][5:5] = (decoded_reg_strb.MONBUS_WR_2_WR_CTRL && !decoded_req_is_wr) ? field_storage.MONBUS_WR_2_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[24][6:6] = (decoded_reg_strb.MONBUS_WR_2_WR_CTRL && !decoded_req_is_wr) ? field_storage.MONBUS_WR_2_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[24][15:7] = '0;
+    assign readback_array[24][7:7] = '0;
+    assign readback_array[24][11:8] = (decoded_reg_strb.MONBUS_WR_2_WR_CTRL && !decoded_req_is_wr) ? field_storage.MONBUS_WR_2_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[24][15:12] = '0;
     assign readback_array[24][31:16] = (decoded_reg_strb.MONBUS_WR_2_WR_CTRL && !decoded_req_is_wr) ? field_storage.MONBUS_WR_2_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[25][31:0] = (decoded_reg_strb.MONBUS_WR_2_WR_LATENCY && !decoded_req_is_wr) ? field_storage.MONBUS_WR_2_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[26][15:0] = (decoded_reg_strb.MONBUS_WR_2_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.MONBUS_WR_2_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19006,7 +19884,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[32][4:4] = (decoded_reg_strb.SLAVE_MONBUS_WR_3_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.compl_enable.value : '0;
     assign readback_array[32][5:5] = (decoded_reg_strb.SLAVE_MONBUS_WR_3_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[32][6:6] = (decoded_reg_strb.SLAVE_MONBUS_WR_3_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[32][15:7] = '0;
+    assign readback_array[32][7:7] = '0;
+    assign readback_array[32][11:8] = (decoded_reg_strb.SLAVE_MONBUS_WR_3_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[32][15:12] = '0;
     assign readback_array[32][31:16] = (decoded_reg_strb.SLAVE_MONBUS_WR_3_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_MONBUS_WR_3_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[33][31:0] = (decoded_reg_strb.SLAVE_MONBUS_WR_3_WR_LATENCY && !decoded_req_is_wr) ? field_storage.SLAVE_MONBUS_WR_3_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[34][15:0] = (decoded_reg_strb.SLAVE_MONBUS_WR_3_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_MONBUS_WR_3_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19032,7 +19912,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[40][4:4] = (decoded_reg_strb.OBS_APB_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.OBS_APB_0_WR_CTRL.compl_enable.value : '0;
     assign readback_array[40][5:5] = (decoded_reg_strb.OBS_APB_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.OBS_APB_0_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[40][6:6] = (decoded_reg_strb.OBS_APB_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.OBS_APB_0_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[40][15:7] = '0;
+    assign readback_array[40][7:7] = '0;
+    assign readback_array[40][11:8] = (decoded_reg_strb.OBS_APB_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.OBS_APB_0_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[40][15:12] = '0;
     assign readback_array[40][31:16] = (decoded_reg_strb.OBS_APB_0_WR_CTRL && !decoded_req_is_wr) ? field_storage.OBS_APB_0_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[41][31:0] = (decoded_reg_strb.OBS_APB_0_WR_LATENCY && !decoded_req_is_wr) ? field_storage.OBS_APB_0_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[42][15:0] = (decoded_reg_strb.OBS_APB_0_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.OBS_APB_0_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19052,7 +19934,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[47][4:4] = (decoded_reg_strb.OBS_APB_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.OBS_APB_0_RD_CTRL.compl_enable.value : '0;
     assign readback_array[47][5:5] = (decoded_reg_strb.OBS_APB_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.OBS_APB_0_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[47][6:6] = (decoded_reg_strb.OBS_APB_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.OBS_APB_0_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[47][15:7] = '0;
+    assign readback_array[47][7:7] = '0;
+    assign readback_array[47][11:8] = (decoded_reg_strb.OBS_APB_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.OBS_APB_0_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[47][15:12] = '0;
     assign readback_array[47][31:16] = (decoded_reg_strb.OBS_APB_0_RD_CTRL && !decoded_req_is_wr) ? field_storage.OBS_APB_0_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[48][31:0] = (decoded_reg_strb.OBS_APB_0_RD_LATENCY && !decoded_req_is_wr) ? field_storage.OBS_APB_0_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[49][15:0] = (decoded_reg_strb.OBS_APB_0_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.OBS_APB_0_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19072,7 +19956,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[54][4:4] = (decoded_reg_strb.SLVMON_APB_1_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_WR_CTRL.compl_enable.value : '0;
     assign readback_array[54][5:5] = (decoded_reg_strb.SLVMON_APB_1_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[54][6:6] = (decoded_reg_strb.SLVMON_APB_1_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[54][15:7] = '0;
+    assign readback_array[54][7:7] = '0;
+    assign readback_array[54][11:8] = (decoded_reg_strb.SLVMON_APB_1_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[54][15:12] = '0;
     assign readback_array[54][31:16] = (decoded_reg_strb.SLVMON_APB_1_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[55][31:0] = (decoded_reg_strb.SLVMON_APB_1_WR_LATENCY && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[56][15:0] = (decoded_reg_strb.SLVMON_APB_1_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19092,7 +19978,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[61][4:4] = (decoded_reg_strb.SLVMON_APB_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_RD_CTRL.compl_enable.value : '0;
     assign readback_array[61][5:5] = (decoded_reg_strb.SLVMON_APB_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[61][6:6] = (decoded_reg_strb.SLVMON_APB_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[61][15:7] = '0;
+    assign readback_array[61][7:7] = '0;
+    assign readback_array[61][11:8] = (decoded_reg_strb.SLVMON_APB_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[61][15:12] = '0;
     assign readback_array[61][31:16] = (decoded_reg_strb.SLVMON_APB_1_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[62][31:0] = (decoded_reg_strb.SLVMON_APB_1_RD_LATENCY && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[63][15:0] = (decoded_reg_strb.SLVMON_APB_1_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.SLVMON_APB_1_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19112,7 +20000,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[68][4:4] = (decoded_reg_strb.STREAM_APB_2_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_WR_CTRL.compl_enable.value : '0;
     assign readback_array[68][5:5] = (decoded_reg_strb.STREAM_APB_2_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[68][6:6] = (decoded_reg_strb.STREAM_APB_2_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[68][15:7] = '0;
+    assign readback_array[68][7:7] = '0;
+    assign readback_array[68][11:8] = (decoded_reg_strb.STREAM_APB_2_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[68][15:12] = '0;
     assign readback_array[68][31:16] = (decoded_reg_strb.STREAM_APB_2_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[69][31:0] = (decoded_reg_strb.STREAM_APB_2_WR_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[70][15:0] = (decoded_reg_strb.STREAM_APB_2_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19132,7 +20022,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[75][4:4] = (decoded_reg_strb.STREAM_APB_2_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_RD_CTRL.compl_enable.value : '0;
     assign readback_array[75][5:5] = (decoded_reg_strb.STREAM_APB_2_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[75][6:6] = (decoded_reg_strb.STREAM_APB_2_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[75][15:7] = '0;
+    assign readback_array[75][7:7] = '0;
+    assign readback_array[75][11:8] = (decoded_reg_strb.STREAM_APB_2_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[75][15:12] = '0;
     assign readback_array[75][31:16] = (decoded_reg_strb.STREAM_APB_2_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[76][31:0] = (decoded_reg_strb.STREAM_APB_2_RD_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[77][15:0] = (decoded_reg_strb.STREAM_APB_2_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_APB_2_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19152,7 +20044,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[82][4:4] = (decoded_reg_strb.HARNESS_CSR_3_WR_CTRL && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_WR_CTRL.compl_enable.value : '0;
     assign readback_array[82][5:5] = (decoded_reg_strb.HARNESS_CSR_3_WR_CTRL && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[82][6:6] = (decoded_reg_strb.HARNESS_CSR_3_WR_CTRL && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[82][15:7] = '0;
+    assign readback_array[82][7:7] = '0;
+    assign readback_array[82][11:8] = (decoded_reg_strb.HARNESS_CSR_3_WR_CTRL && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[82][15:12] = '0;
     assign readback_array[82][31:16] = (decoded_reg_strb.HARNESS_CSR_3_WR_CTRL && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[83][31:0] = (decoded_reg_strb.HARNESS_CSR_3_WR_LATENCY && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[84][15:0] = (decoded_reg_strb.HARNESS_CSR_3_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19172,7 +20066,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[89][4:4] = (decoded_reg_strb.HARNESS_CSR_3_RD_CTRL && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_RD_CTRL.compl_enable.value : '0;
     assign readback_array[89][5:5] = (decoded_reg_strb.HARNESS_CSR_3_RD_CTRL && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[89][6:6] = (decoded_reg_strb.HARNESS_CSR_3_RD_CTRL && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[89][15:7] = '0;
+    assign readback_array[89][7:7] = '0;
+    assign readback_array[89][11:8] = (decoded_reg_strb.HARNESS_CSR_3_RD_CTRL && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[89][15:12] = '0;
     assign readback_array[89][31:16] = (decoded_reg_strb.HARNESS_CSR_3_RD_CTRL && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[90][31:0] = (decoded_reg_strb.HARNESS_CSR_3_RD_LATENCY && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[91][15:0] = (decoded_reg_strb.HARNESS_CSR_3_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.HARNESS_CSR_3_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19192,7 +20088,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[96][4:4] = (decoded_reg_strb.DESC_RAM_4_WR_CTRL && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_WR_CTRL.compl_enable.value : '0;
     assign readback_array[96][5:5] = (decoded_reg_strb.DESC_RAM_4_WR_CTRL && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[96][6:6] = (decoded_reg_strb.DESC_RAM_4_WR_CTRL && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[96][15:7] = '0;
+    assign readback_array[96][7:7] = '0;
+    assign readback_array[96][11:8] = (decoded_reg_strb.DESC_RAM_4_WR_CTRL && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[96][15:12] = '0;
     assign readback_array[96][31:16] = (decoded_reg_strb.DESC_RAM_4_WR_CTRL && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[97][31:0] = (decoded_reg_strb.DESC_RAM_4_WR_LATENCY && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[98][15:0] = (decoded_reg_strb.DESC_RAM_4_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19212,7 +20110,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[103][4:4] = (decoded_reg_strb.DESC_RAM_4_RD_CTRL && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_RD_CTRL.compl_enable.value : '0;
     assign readback_array[103][5:5] = (decoded_reg_strb.DESC_RAM_4_RD_CTRL && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[103][6:6] = (decoded_reg_strb.DESC_RAM_4_RD_CTRL && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[103][15:7] = '0;
+    assign readback_array[103][7:7] = '0;
+    assign readback_array[103][11:8] = (decoded_reg_strb.DESC_RAM_4_RD_CTRL && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[103][15:12] = '0;
     assign readback_array[103][31:16] = (decoded_reg_strb.DESC_RAM_4_RD_CTRL && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[104][31:0] = (decoded_reg_strb.DESC_RAM_4_RD_LATENCY && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[105][15:0] = (decoded_reg_strb.DESC_RAM_4_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.DESC_RAM_4_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19232,7 +20132,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[110][4:4] = (decoded_reg_strb.STREAM_ERR_5_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_WR_CTRL.compl_enable.value : '0;
     assign readback_array[110][5:5] = (decoded_reg_strb.STREAM_ERR_5_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[110][6:6] = (decoded_reg_strb.STREAM_ERR_5_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[110][15:7] = '0;
+    assign readback_array[110][7:7] = '0;
+    assign readback_array[110][11:8] = (decoded_reg_strb.STREAM_ERR_5_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[110][15:12] = '0;
     assign readback_array[110][31:16] = (decoded_reg_strb.STREAM_ERR_5_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[111][31:0] = (decoded_reg_strb.STREAM_ERR_5_WR_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[112][15:0] = (decoded_reg_strb.STREAM_ERR_5_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19252,7 +20154,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[117][4:4] = (decoded_reg_strb.STREAM_ERR_5_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_RD_CTRL.compl_enable.value : '0;
     assign readback_array[117][5:5] = (decoded_reg_strb.STREAM_ERR_5_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[117][6:6] = (decoded_reg_strb.STREAM_ERR_5_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[117][15:7] = '0;
+    assign readback_array[117][7:7] = '0;
+    assign readback_array[117][11:8] = (decoded_reg_strb.STREAM_ERR_5_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[117][15:12] = '0;
     assign readback_array[117][31:16] = (decoded_reg_strb.STREAM_ERR_5_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[118][31:0] = (decoded_reg_strb.STREAM_ERR_5_RD_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[119][15:0] = (decoded_reg_strb.STREAM_ERR_5_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_ERR_5_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19272,7 +20176,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[124][4:4] = (decoded_reg_strb.STREAM_TALLY_6_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_WR_CTRL.compl_enable.value : '0;
     assign readback_array[124][5:5] = (decoded_reg_strb.STREAM_TALLY_6_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[124][6:6] = (decoded_reg_strb.STREAM_TALLY_6_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[124][15:7] = '0;
+    assign readback_array[124][7:7] = '0;
+    assign readback_array[124][11:8] = (decoded_reg_strb.STREAM_TALLY_6_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[124][15:12] = '0;
     assign readback_array[124][31:16] = (decoded_reg_strb.STREAM_TALLY_6_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[125][31:0] = (decoded_reg_strb.STREAM_TALLY_6_WR_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[126][15:0] = (decoded_reg_strb.STREAM_TALLY_6_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19292,7 +20198,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[131][4:4] = (decoded_reg_strb.STREAM_TALLY_6_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_RD_CTRL.compl_enable.value : '0;
     assign readback_array[131][5:5] = (decoded_reg_strb.STREAM_TALLY_6_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[131][6:6] = (decoded_reg_strb.STREAM_TALLY_6_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[131][15:7] = '0;
+    assign readback_array[131][7:7] = '0;
+    assign readback_array[131][11:8] = (decoded_reg_strb.STREAM_TALLY_6_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[131][15:12] = '0;
     assign readback_array[131][31:16] = (decoded_reg_strb.STREAM_TALLY_6_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[132][31:0] = (decoded_reg_strb.STREAM_TALLY_6_RD_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[133][15:0] = (decoded_reg_strb.STREAM_TALLY_6_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_6_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19312,7 +20220,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[138][4:4] = (decoded_reg_strb.DMA_AXIL_7_WR_CTRL && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_WR_CTRL.compl_enable.value : '0;
     assign readback_array[138][5:5] = (decoded_reg_strb.DMA_AXIL_7_WR_CTRL && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[138][6:6] = (decoded_reg_strb.DMA_AXIL_7_WR_CTRL && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[138][15:7] = '0;
+    assign readback_array[138][7:7] = '0;
+    assign readback_array[138][11:8] = (decoded_reg_strb.DMA_AXIL_7_WR_CTRL && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[138][15:12] = '0;
     assign readback_array[138][31:16] = (decoded_reg_strb.DMA_AXIL_7_WR_CTRL && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[139][31:0] = (decoded_reg_strb.DMA_AXIL_7_WR_LATENCY && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[140][15:0] = (decoded_reg_strb.DMA_AXIL_7_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19332,7 +20242,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[145][4:4] = (decoded_reg_strb.DMA_AXIL_7_RD_CTRL && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_RD_CTRL.compl_enable.value : '0;
     assign readback_array[145][5:5] = (decoded_reg_strb.DMA_AXIL_7_RD_CTRL && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[145][6:6] = (decoded_reg_strb.DMA_AXIL_7_RD_CTRL && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[145][15:7] = '0;
+    assign readback_array[145][7:7] = '0;
+    assign readback_array[145][11:8] = (decoded_reg_strb.DMA_AXIL_7_RD_CTRL && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[145][15:12] = '0;
     assign readback_array[145][31:16] = (decoded_reg_strb.DMA_AXIL_7_RD_CTRL && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[146][31:0] = (decoded_reg_strb.DMA_AXIL_7_RD_LATENCY && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[147][15:0] = (decoded_reg_strb.DMA_AXIL_7_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.DMA_AXIL_7_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19352,7 +20264,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[152][4:4] = (decoded_reg_strb.SLAVE_ERR_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_WR_CTRL.compl_enable.value : '0;
     assign readback_array[152][5:5] = (decoded_reg_strb.SLAVE_ERR_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[152][6:6] = (decoded_reg_strb.SLAVE_ERR_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[152][15:7] = '0;
+    assign readback_array[152][7:7] = '0;
+    assign readback_array[152][11:8] = (decoded_reg_strb.SLAVE_ERR_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[152][15:12] = '0;
     assign readback_array[152][31:16] = (decoded_reg_strb.SLAVE_ERR_8_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[153][31:0] = (decoded_reg_strb.SLAVE_ERR_8_WR_LATENCY && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[154][15:0] = (decoded_reg_strb.SLAVE_ERR_8_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19372,7 +20286,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[159][4:4] = (decoded_reg_strb.SLAVE_ERR_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_RD_CTRL.compl_enable.value : '0;
     assign readback_array[159][5:5] = (decoded_reg_strb.SLAVE_ERR_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[159][6:6] = (decoded_reg_strb.SLAVE_ERR_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[159][15:7] = '0;
+    assign readback_array[159][7:7] = '0;
+    assign readback_array[159][11:8] = (decoded_reg_strb.SLAVE_ERR_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[159][15:12] = '0;
     assign readback_array[159][31:16] = (decoded_reg_strb.SLAVE_ERR_8_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[160][31:0] = (decoded_reg_strb.SLAVE_ERR_8_RD_LATENCY && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[161][15:0] = (decoded_reg_strb.SLAVE_ERR_8_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_ERR_8_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19392,7 +20308,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[166][4:4] = (decoded_reg_strb.SLAVE_TALLY_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_WR_CTRL.compl_enable.value : '0;
     assign readback_array[166][5:5] = (decoded_reg_strb.SLAVE_TALLY_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[166][6:6] = (decoded_reg_strb.SLAVE_TALLY_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[166][15:7] = '0;
+    assign readback_array[166][7:7] = '0;
+    assign readback_array[166][11:8] = (decoded_reg_strb.SLAVE_TALLY_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[166][15:12] = '0;
     assign readback_array[166][31:16] = (decoded_reg_strb.SLAVE_TALLY_9_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[167][31:0] = (decoded_reg_strb.SLAVE_TALLY_9_WR_LATENCY && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[168][15:0] = (decoded_reg_strb.SLAVE_TALLY_9_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19412,7 +20330,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[173][4:4] = (decoded_reg_strb.SLAVE_TALLY_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_RD_CTRL.compl_enable.value : '0;
     assign readback_array[173][5:5] = (decoded_reg_strb.SLAVE_TALLY_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[173][6:6] = (decoded_reg_strb.SLAVE_TALLY_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[173][15:7] = '0;
+    assign readback_array[173][7:7] = '0;
+    assign readback_array[173][11:8] = (decoded_reg_strb.SLAVE_TALLY_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[173][15:12] = '0;
     assign readback_array[173][31:16] = (decoded_reg_strb.SLAVE_TALLY_9_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[174][31:0] = (decoded_reg_strb.SLAVE_TALLY_9_RD_LATENCY && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[175][15:0] = (decoded_reg_strb.SLAVE_TALLY_9_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_9_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19432,7 +20352,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[180][4:4] = (decoded_reg_strb.STREAM_TALLY_CFG_10_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_WR_CTRL.compl_enable.value : '0;
     assign readback_array[180][5:5] = (decoded_reg_strb.STREAM_TALLY_CFG_10_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[180][6:6] = (decoded_reg_strb.STREAM_TALLY_CFG_10_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[180][15:7] = '0;
+    assign readback_array[180][7:7] = '0;
+    assign readback_array[180][11:8] = (decoded_reg_strb.STREAM_TALLY_CFG_10_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[180][15:12] = '0;
     assign readback_array[180][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_10_WR_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[181][31:0] = (decoded_reg_strb.STREAM_TALLY_CFG_10_WR_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[182][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_10_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19452,7 +20374,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[187][4:4] = (decoded_reg_strb.STREAM_TALLY_CFG_10_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_RD_CTRL.compl_enable.value : '0;
     assign readback_array[187][5:5] = (decoded_reg_strb.STREAM_TALLY_CFG_10_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[187][6:6] = (decoded_reg_strb.STREAM_TALLY_CFG_10_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[187][15:7] = '0;
+    assign readback_array[187][7:7] = '0;
+    assign readback_array[187][11:8] = (decoded_reg_strb.STREAM_TALLY_CFG_10_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[187][15:12] = '0;
     assign readback_array[187][31:16] = (decoded_reg_strb.STREAM_TALLY_CFG_10_RD_CTRL && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[188][31:0] = (decoded_reg_strb.STREAM_TALLY_CFG_10_RD_LATENCY && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[189][15:0] = (decoded_reg_strb.STREAM_TALLY_CFG_10_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.STREAM_TALLY_CFG_10_RD_MASKS_A.axi_pkt_mask.value : '0;
@@ -19472,7 +20396,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[194][4:4] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.compl_enable.value : '0;
     assign readback_array[194][5:5] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.threshold_enable.value : '0;
     assign readback_array[194][6:6] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.debug_enable.value : '0;
-    assign readback_array[194][15:7] = '0;
+    assign readback_array[194][7:7] = '0;
+    assign readback_array[194][11:8] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.freq_sel.value : '0;
+    assign readback_array[194][15:12] = '0;
     assign readback_array[194][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_WR_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_WR_CTRL.timeout_cycles.value : '0;
     assign readback_array[195][31:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_WR_LATENCY && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_WR_LATENCY.latency_threshold.value : '0;
     assign readback_array[196][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_WR_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_WR_MASKS_A.axi_pkt_mask.value : '0;
@@ -19492,7 +20418,9 @@ module bridge_stream_mon_axil_mon_cfg (
     assign readback_array[201][4:4] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.compl_enable.value : '0;
     assign readback_array[201][5:5] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.threshold_enable.value : '0;
     assign readback_array[201][6:6] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.debug_enable.value : '0;
-    assign readback_array[201][15:7] = '0;
+    assign readback_array[201][7:7] = '0;
+    assign readback_array[201][11:8] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.freq_sel.value : '0;
+    assign readback_array[201][15:12] = '0;
     assign readback_array[201][31:16] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_RD_CTRL && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_RD_CTRL.timeout_cycles.value : '0;
     assign readback_array[202][31:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_RD_LATENCY && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_RD_LATENCY.latency_threshold.value : '0;
     assign readback_array[203][15:0] = (decoded_reg_strb.SLAVE_TALLY_CFG_11_RD_MASKS_A && !decoded_req_is_wr) ? field_storage.SLAVE_TALLY_CFG_11_RD_MASKS_A.axi_pkt_mask.value : '0;

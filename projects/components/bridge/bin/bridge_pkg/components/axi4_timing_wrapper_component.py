@@ -549,6 +549,7 @@ class Axi4TimingWrapper:
         'cfg_threshold_enable',
         'cfg_debug_enable',
         'cfg_timeout_cycles',
+        'cfg_freq_sel',
         'cfg_latency_threshold',
         'cfg_axi_pkt_mask',
         'cfg_axi_err_select',

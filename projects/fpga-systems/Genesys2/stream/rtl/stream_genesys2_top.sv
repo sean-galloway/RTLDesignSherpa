@@ -37,9 +37,16 @@
 `include "reset_defs.svh"
 
 module stream_genesys2_top #(
-    // Harness clock = 1200 MHz VCO / CLKOUT0_DIVIDE.
-    //   12 -> 100 MHz, 15 -> 80 MHz, 20 -> 60 MHz.
-    parameter int CLKOUT0_DIVIDE = 12,
+    // Harness clock = VCO_MHZ / CLKOUT0_DIVIDE, VCO = 200 MHz sysclk * MULT_F.
+    //   1350 / 15 ->  90 MHz  (default)
+    //   1200 / 12 -> 100 MHz
+    //   1200 / 15 ->  80 MHz
+    //   1200 / 20 ->  60 MHz
+    // MULT_F moves in 0.125 steps, so VCO_MHZ must be a multiple of 25; 90 MHz
+    // is NOT reachable from a 1200 MHz VCO (1200/90 = 13.33), hence the retune.
+    // The elaboration guards below reject any pair that violates either rule.
+    parameter int VCO_MHZ        = 1350,
+    parameter int CLKOUT0_DIVIDE = 15,
     // Monitor coverage campaign geometry. 4 channels: 8ch + in-core monitors +
     // profile tallies is LUT-bound on the xc7k325t (~103%, placement fails);
     // 4 channels fits with wide margin. (The engine wedge is fixed, so 8ch is
@@ -54,9 +61,9 @@ module stream_genesys2_top #(
     // TOTAL slots per tap / number of generated CAMs. Timing scales with
     // the depth of ONE cam, so 64/4 is four 16-deep CAMs. A banked WRITE
     // monitor also requires OBS_USE_WDATA_ORDER_Q=1.
-    parameter int OBS_MAX_TRANSACTIONS   = 16,
-    parameter int OBS_NUM_BANKS          = 1,
-    parameter bit OBS_USE_WDATA_ORDER_Q  = 1'b0,
+    parameter int OBS_MAX_TRANSACTIONS   = 64,
+    parameter int OBS_NUM_BANKS          = 4,
+    parameter bit OBS_USE_WDATA_ORDER_Q  = 1'b1,
     // 0 = all-except-error datapath-monitor cones (default bitstream);
     // 1 = error-flavor build (error cone only) for ADDR_RANGE error coverage.
     parameter int MON_ERROR_FLAVOR = 0,
@@ -74,11 +81,29 @@ module stream_genesys2_top #(
 
     // Derived harness clock frequency; single source of truth for the UART
     // divisor, heartbeat, LED update rate and characterization timer.
-    localparam int FPGA_CLK_HZ = 1_200_000_000 / CLKOUT0_DIVIDE;
+    localparam int FPGA_CLK_HZ = (VCO_MHZ * 1_000_000) / CLKOUT0_DIVIDE;
+
+    // MMCM feedback multiplier. Real so the 0.125-step grid is expressible
+    // (1350/200 = 6.750); the guards below keep it ON that grid.
+    localparam real CLKFBOUT_MULT = real'(VCO_MHZ) / 200.0;
+
+    // Elaboration guards: catch an unbuildable clock pair at compile time
+    // rather than as a silently-wrong tick rate or an MMCM DRC deep in synth.
+    initial begin
+        if (VCO_MHZ % 25 != 0)
+            $error("VCO_MHZ=%0d is not a multiple of 25: MULT_F=%0f is off the MMCM 0.125 grid",
+                   VCO_MHZ, real'(VCO_MHZ) / 200.0);
+        if (VCO_MHZ < 600 || VCO_MHZ > 1440)
+            $error("VCO_MHZ=%0d outside the -2 Kintex MMCM range 600..1440", VCO_MHZ);
+        if ((VCO_MHZ * 1_000_000) % CLKOUT0_DIVIDE != 0)
+            $error("VCO_MHZ=%0d / CLKOUT0_DIVIDE=%0d is not an integer Hz frequency",
+                   VCO_MHZ, CLKOUT0_DIVIDE);
+    end
 
     // =========================================================================
     // 200 MHz LVDS -> single-ended -> MMCM -> harness clock.
-    // VCO = 200 MHz * 6 = 1200 MHz (inside the -2 Kintex 600-1440 MHz range).
+    // VCO = 200 MHz * MULT = VCO_MHZ (kept inside the -2 Kintex 600-1440 range
+    // by the elaboration guard above). Default 6.750 -> 1350 MHz.
     // =========================================================================
     logic sysclk_ib, clk_unbuf, aclk, clkfb, clkfb_buf, mmcm_locked;
 
@@ -88,7 +113,7 @@ module stream_genesys2_top #(
         .BANDWIDTH        ("OPTIMIZED"),
         .CLKIN1_PERIOD    (5.000),                // 200 MHz
         .DIVCLK_DIVIDE    (1),
-        .CLKFBOUT_MULT_F  (6.000),                // VCO = 1200 MHz
+        .CLKFBOUT_MULT_F  (CLKFBOUT_MULT),         // VCO = 200 MHz * MULT
         .CLKOUT0_DIVIDE_F (CLKOUT0_DIVIDE),        // int -> real conversion
         .CLKOUT0_DUTY_CYCLE(0.500),
         .CLKOUT0_PHASE    (0.000),

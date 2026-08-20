@@ -294,6 +294,11 @@ module dma_slave_monitors
         .cfg_timeout_enable(hwif.SLVMON.RDSLV_ENABLE.TIMEOUT_EN.value), .cfg_perf_enable(hwif.SLVMON.RDSLV_ENABLE.PERF_EN.value),
         .cfg_compl_enable(hwif.SLVMON.RDSLV_ENABLE.COMPL_EN.value), .cfg_threshold_enable(hwif.SLVMON.RDSLV_ENABLE.THRESH_EN.value),
         .cfg_debug_enable(hwif.SLVMON.RDSLV_ENABLE.DEBUG_EN.value), .cfg_timeout_cycles(hwif.SLVMON.RDSLV_TIMEOUT.TIMEOUT_CYCLES.value),
+        // ACLK_MHZ is left at its default here, so the CFI LUT is degenerate
+        // (every entry == ACLK_MHZ) and any index gives an exact 1 us tick.
+        // Set ACLK_MHZ + a real CFI_MIN/MAX range and drive this from a CSR
+        // if this block ever needs runtime frequency selection.
+        .cfg_freq_sel(4'b0000),
         .cfg_latency_threshold(hwif.SLVMON.RDSLV_LATENCY_THRESH.VALUE.value),
         .cfg_axi_pkt_mask  (hwif.SLVMON.RDSLV_PKT_MASK.PKT_MASK.value),
         .cfg_axi_err_select(hwif.SLVMON.RDSLV_PKT_MASK.ERR_SELECT.value),
@@ -357,6 +362,7 @@ module dma_slave_monitors
         .cfg_timeout_enable(hwif.SLVMON.WRSLV_ENABLE.TIMEOUT_EN.value), .cfg_perf_enable(hwif.SLVMON.WRSLV_ENABLE.PERF_EN.value),
         .cfg_compl_enable(hwif.SLVMON.WRSLV_ENABLE.COMPL_EN.value), .cfg_threshold_enable(hwif.SLVMON.WRSLV_ENABLE.THRESH_EN.value),
         .cfg_debug_enable(hwif.SLVMON.WRSLV_ENABLE.DEBUG_EN.value), .cfg_timeout_cycles(hwif.SLVMON.WRSLV_TIMEOUT.TIMEOUT_CYCLES.value),
+        .cfg_freq_sel(4'b0000),
         .cfg_latency_threshold(hwif.SLVMON.WRSLV_LATENCY_THRESH.VALUE.value),
         .cfg_axi_pkt_mask  (hwif.SLVMON.WRSLV_PKT_MASK.PKT_MASK.value),
         .cfg_axi_err_select(hwif.SLVMON.WRSLV_PKT_MASK.ERR_SELECT.value),

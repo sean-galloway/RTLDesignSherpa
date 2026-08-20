@@ -869,6 +869,11 @@ module scheduler_group_array_beats #(
         .cfg_perf_enable        (cfg_desc_mon_perf_enable),
         .cfg_timeout_enable     (cfg_desc_mon_timeout_enable),
         .cfg_timeout_cycles     (cfg_desc_mon_timeout_cycles),
+        // ACLK_MHZ is left at its default here, so the CFI LUT is degenerate
+        // (every entry == ACLK_MHZ) and any index gives an exact 1 us tick.
+        // Set ACLK_MHZ + a real CFI_MIN/MAX range and drive this from a CSR
+        // if this block ever needs runtime frequency selection.
+        .cfg_freq_sel(4'b0000),
         .cfg_latency_threshold  (cfg_desc_mon_latency_thresh),
 
         // AXI Protocol Filtering Configuration

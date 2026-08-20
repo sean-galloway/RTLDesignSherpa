@@ -24,6 +24,7 @@ PER_MON_FIELD_MAP = {
     'threshold_enable':  ('CTRL',    'threshold_enable'),
     'debug_enable':      ('CTRL',    'debug_enable'),
     'timeout_cycles':    ('CTRL',    'timeout_cycles'),
+    'freq_sel':          ('CTRL',    'freq_sel'),
     'latency_threshold': ('LATENCY', 'latency_threshold'),
     'axi_pkt_mask':      ('MASKS_A', 'axi_pkt_mask'),
     'axi_err_select':    ('MASKS_A', 'axi_err_select'),

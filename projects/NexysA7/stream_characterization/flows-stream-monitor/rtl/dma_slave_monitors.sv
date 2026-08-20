@@ -224,6 +224,11 @@ module dma_slave_monitors
         .cfg_timeout_enable(cfg_rd_timeout_enable), .cfg_perf_enable(cfg_rd_perf_enable),
         .cfg_compl_enable(cfg_rd_compl_enable), .cfg_threshold_enable(cfg_rd_threshold_enable),
         .cfg_debug_enable(cfg_rd_debug_enable), .cfg_timeout_cycles(cfg_rd_timeout_cycles),
+        // ACLK_MHZ is left at its default here, so the CFI LUT is degenerate
+        // (every entry == ACLK_MHZ) and any index gives an exact 1 us tick.
+        // Set ACLK_MHZ + a real CFI_MIN/MAX range and drive this from a CSR
+        // if this block ever needs runtime frequency selection.
+        .cfg_freq_sel(4'b0000),
         .cfg_latency_threshold(32'hFFFFFFFF),
         .cfg_axi_pkt_mask(16'h0), .cfg_axi_err_select(16'h0),
         .cfg_axi_error_mask(16'h0), .cfg_axi_timeout_mask(16'h0),
@@ -281,6 +286,7 @@ module dma_slave_monitors
         .cfg_timeout_enable(cfg_wr_timeout_enable), .cfg_perf_enable(cfg_wr_perf_enable),
         .cfg_compl_enable(cfg_wr_compl_enable), .cfg_threshold_enable(cfg_wr_threshold_enable),
         .cfg_debug_enable(cfg_wr_debug_enable), .cfg_timeout_cycles(cfg_wr_timeout_cycles),
+        .cfg_freq_sel(4'b0000),
         .cfg_latency_threshold(32'hFFFFFFFF),
         .cfg_axi_pkt_mask(16'h0), .cfg_axi_err_select(16'h0),
         .cfg_axi_error_mask(16'h0), .cfg_axi_timeout_mask(16'h0),

@@ -91,7 +91,11 @@ regfile obs_regs {
           field { desc = "Bulk-write flush watermark"; sw=rw; hw=r; } FLUSH_WATERMARK[15:0] = 16'h0010;
           field { desc = "1 = compress the monbus write stream. The tally reassembles RAW 3-beat records, so leave 0 unless the consumer decompresses.";
                   sw=rw; hw=r; } COMPRESS_EN[16:16] = 1'b0;
-          field { sw=r; hw=na; } RSVD[31:17] = 15'h0; } OBS_CTRL @ 0x060;
+          field { desc = "counter_freq_invariant LUT index, used only when FREQ_SEL_OVR=1. The LUT is 60+5*i MHz, so 4=80, 6=90, 8=100, 12=120.";
+                  sw=rw; hw=r; } FREQ_SEL[20:17] = 4'h0;
+          field { desc = "0 = use the build-time index derived from ACLK_MHZ (correct at reset for any build frequency); 1 = use FREQ_SEL instead. Exists so the reset value cannot silently disagree with the actual clock.";
+                  sw=rw; hw=r; } FREQ_SEL_OVR[21:21] = 1'b0;
+          field { sw=r; hw=na; } RSVD[31:22] = 10'h0; } OBS_CTRL @ 0x060;
 
     reg { name = "Observer window base";  desc = "Monbus bulk-write window low bound";
           field { sw=rw; hw=r; } VALUE[31:0] = 32'h0004_0000; } OBS_BASE_ADDR  @ 0x064;

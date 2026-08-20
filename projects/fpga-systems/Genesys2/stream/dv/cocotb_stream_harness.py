@@ -288,9 +288,17 @@ async def cocotb_test_stream_perf(dut):
         tb.log.info("=== Observer vs in-core equivalence (RFC Stage E) ===")
         ok = await tb.run_ping_test()
         ok &= await tb.run_dma_test(
+            # WORKLOAD SCALE. The full 1 MB (4ch x 4desc x 64KB) needs ~50 ms
+            # of sim and ~25 min of wall clock, which is far past the point of
+            # diminishing returns for an equivalence check -- the observer and
+            # the in-core monitors either agree or they do not, and they do so
+            # within a few thousand bursts. OBS_EQUIV_SCALE shrinks the
+            # transfer so a run lands in 10-20 ms; set it to 1 for the full
+            # soak. The channel and descriptor COUNTS are held, because the
+            # multi-channel interleave is what the comparison is about.
             num_channels=4,
             descriptors_per_channel=4,
-            transfer_bytes=65536,      # 4ch x 4desc x 64KB = 1 MB moved => lots of cycles
+            transfer_bytes=65536 // int(os.environ.get('OBS_EQUIV_SCALE', '8')),
             timeout_clocks=600_000,
             measure_rw_perf=True,      # opens/closes in-core window, reads RDMON/WRMON + hists
         )

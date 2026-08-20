@@ -161,6 +161,7 @@ module axi5_slave_rd_mon_cg
     input  logic                       cfg_threshold_enable,
     input  logic                       cfg_debug_enable,
     input  logic [15:0]                cfg_timeout_cycles,
+    input  logic [3:0]                 cfg_freq_sel,            // counter_freq_invariant LUT index
     input  logic [31:0]                cfg_latency_threshold,
     input  logic [15:0]                cfg_axi_pkt_mask,
     input  logic [15:0]                cfg_axi_err_select,
@@ -318,6 +319,7 @@ module axi5_slave_rd_mon_cg
         .cfg_compl_enable(cfg_compl_enable), .cfg_threshold_enable(cfg_threshold_enable),
         .cfg_debug_enable(cfg_debug_enable),
         .cfg_timeout_cycles(cfg_timeout_cycles), .cfg_latency_threshold(cfg_latency_threshold),
+        .cfg_freq_sel      (cfg_freq_sel),
         .cfg_axi_pkt_mask(cfg_axi_pkt_mask), .cfg_axi_err_select(cfg_axi_err_select),
         .cfg_axi_error_mask(cfg_axi_error_mask), .cfg_axi_timeout_mask(cfg_axi_timeout_mask),
         .cfg_axi_compl_mask(cfg_axi_compl_mask), .cfg_axi_thresh_mask(cfg_axi_thresh_mask),
