@@ -20,6 +20,7 @@ fonts:
 # Heading styles
 headings:
   h1:
+    page_break_before: true
     font_size: 16
     color: white
     background: secondary    # Uses colors.secondary
@@ -28,6 +29,7 @@ headings:
     space_after: 6
 
   h2:
+    page_break_before: true
     font_size: 14
     color: primary           # Uses colors.primary (forest green)
     bold: true

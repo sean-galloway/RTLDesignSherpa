@@ -491,6 +491,95 @@ def concat_markdown(files: list[pathlib.Path], pagebreak: bool,
 
 # ---- Wavedrom handling ----
 
+def pagebreak_levels_from_style(style_path) -> set:
+    """Heading levels whose style asks for a fresh page.
+
+    Read at markdown-merge time so the break can be injected as a
+    `::: {.pagebreak}` div. Doing it later, as a paragraph property on
+    the DOCX, does not stick -- LibreOffice's TOC update round-trips
+    the file and drops it.
+    """
+    if not style_path:
+        return set()
+    try:
+        import yaml
+        with open(style_path, encoding="utf-8") as fh:
+            cfg = yaml.safe_load(fh) or {}
+    except Exception:
+        return set()
+    levels = set()
+    for key, h_cfg in (cfg.get('headings') or {}).items():
+        if isinstance(h_cfg, dict) and h_cfg.get('page_break_before'):
+            m = re.fullmatch(r'h([1-6])', str(key).strip().lower())
+            if m:
+                levels.add(int(m.group(1)))
+    return levels
+
+
+def inject_heading_pagebreaks(md: str, levels: set) -> str:
+    """Put a page break before every heading at one of `levels`.
+
+    Uses the same `::: {.pagebreak}` div as the between-file breaks,
+    because that is what survives to the PDF; an explicit run inside the
+    heading paragraph gets stripped, and the paragraph property more so.
+
+    Two headings are left alone:
+
+    * the first heading in the document, which would otherwise open with
+      a blank page, and
+    * a heading that directly follows a shallower one with nothing in
+      between -- "3 Overview" then "3.1 Scope" would strand the chapter
+      title alone on an empty page. The chapter still opens a fresh
+      page; only the redundant inner break is dropped.
+    """
+    if not levels:
+        return md
+
+    out, in_fence, fence = [], False, ""
+    prev_heading_level = None      # shallower heading still "open"
+    seen_content = False
+    seen_heading = False
+
+    for line in md.split("\n"):
+        stripped = line.strip()
+
+        m_fence = re.match(r'^(```+|~~~+)', stripped)
+        if m_fence:
+            if not in_fence:
+                in_fence, fence = True, m_fence.group(1)[0]
+            elif stripped[0] == fence:
+                in_fence = False
+            out.append(line)
+            continue
+        if in_fence:
+            out.append(line)
+            continue
+
+        m = re.match(r'^(#{1,6})\s+\S', line)
+        if not m:
+            out.append(line)
+            if stripped and not stripped.startswith(':::'):
+                seen_content = True
+                prev_heading_level = None   # real content closed the pair
+            continue
+
+        level = len(m.group(1))
+        if level in levels and seen_heading:
+            orphan = (prev_heading_level is not None
+                      and level > prev_heading_level
+                      and not seen_content)
+            already = any(p.strip() == ':::' for p in out[-3:])
+            if not orphan and not already:
+                out.append('\n::: {.pagebreak}\n:::\n')
+
+        out.append(line)
+        prev_heading_level = level
+        seen_content = False
+        seen_heading = True
+
+    return "\n".join(out)
+
+
 def try_render_wavedrom_python(json_path: pathlib.Path) -> str | None:
     try:
         import wavedrom
@@ -1259,6 +1348,57 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
         shd.set(qn('w:fill'), color_hex)
         pPr.append(shd)
 
+    def force_page_break(paragraph) -> None:
+        """Open a fresh page before this heading, durably.
+
+        Setting `paragraph_format.page_break_before` is the obvious way
+        and does not survive: LibreOffice's TOC update round-trips the
+        DOCX and drops the paragraph property, which is why headings
+        kept reappearing mid-page even with `page_break_before: true`
+        set in the styles YAML. An explicit <w:br w:type="page"/> run is
+        the same mechanism the between-file breaks use, and those do
+        survive the round trip.
+
+        The run goes after <w:pPr> -- a run before the paragraph
+        properties is invalid OOXML and Word will refuse the file.
+        """
+        p = paragraph._p
+        if p.findall(qn('w:r')):
+            first_run = p.findall(qn('w:r'))[0]
+            for br in first_run.findall(qn('w:br')):
+                if br.get(qn('w:type')) == 'page':
+                    return                      # already breaks; don't stack
+        r = OxmlElement('w:r')
+        br = OxmlElement('w:br')
+        br.set(qn('w:type'), 'page')
+        r.append(br)
+        pPr = p.find(qn('w:pPr'))
+        if pPr is not None:
+            pPr.addnext(r)
+        else:
+            p.insert(0, r)
+
+    def already_page_broken(doc, para_idx: int) -> bool:
+        """True if a page break already lands immediately before this
+        heading, so a second one would leave a blank page between them.
+
+        Covers both the file-level `::: {.pagebreak}` divs and a heading
+        that is simply the first thing in the document.
+        """
+        if para_idx == 0:
+            return True
+        for prev in reversed(doc.paragraphs[:para_idx]):
+            p = prev._p
+            for r in p.findall(qn('w:r')):
+                for br in r.findall(qn('w:br')):
+                    if br.get(qn('w:type')) == 'page':
+                        return True
+            if prev.text.strip():
+                return False                    # real content in between
+            if p.findall(qn('w:r')) or p.find(qn('w:pPr')) is None:
+                return False
+        return True                             # nothing but empties above
+
     def add_bottom_border(paragraph, color_hex: str, width: int = 12):
         color_hex = color_hex.lstrip('#')
         pPr = paragraph._p.get_or_add_pPr()
@@ -1392,7 +1532,13 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
                 # "2.4 Arbitration") -- set page_break_before: true on
                 # the heading level in the styles YAML.
                 if h_cfg.get('page_break_before'):
-                    pf.page_break_before = para_idx not in keep_with_parent
+                    wants_break = para_idx not in keep_with_parent
+                    # Keep the property for Word's benefit, but the
+                    # explicit run is what actually survives to the PDF
+                    # (see force_page_break).
+                    pf.page_break_before = wants_break
+                    if wants_break and not already_page_broken(doc, para_idx):
+                        force_page_break(para)
 
                 # Background shading
                 if 'background' in h_cfg:
@@ -1877,6 +2023,8 @@ def main():
 
         merged = concat_markdown(files, args.pagebreak,
                                  strip_header=args.strip_doc_header)
+        merged = inject_heading_pagebreaks(
+            merged, pagebreak_levels_from_style(args.style))
         merged = strip_or_map_emoji(merged)
         merged = rewrite_wavedrom_images(merged, in_path.parent, tmp_imgs)
         if not args.no_wavedrom:
