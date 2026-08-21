@@ -1302,7 +1302,7 @@ async def _datapath_mon_addr_match_body(dut, which):
     # bit-slicing) and require an AddrMatch from THIS monitor's agent id.
     addr_matches = [
         pkt for pkt in tb.monbus_slave.received_packets
-        if int(pkt.packet_type) == int(PktType.PktTypeAddrMatch)
+        if int(pkt.pkt_type) == int(PktType.PktTypeAddrMatch)
         and int(pkt.agent_id) == agent_id
     ]
     tb.log.info(
@@ -1312,8 +1312,11 @@ async def _datapath_mon_addr_match_body(dut, which):
     assert len(addr_matches) > 0, (
         f"No AddrMatch (pkt_type 8) from the {which} datapath monitor "
         f"(agent id {agent_id}) reached stream_core.mon_valid. "
-        f"is tied off in stream_core (.monbus_valid()/.monbus_ready(1'b1)), so its "
-        f"packets are orphaned and never reach the monbus aggregation feeding mon_valid."
+        f"Captured {len(tb.monbus_slave.received_packets)} packet(s) overall from "
+        f"agents {sorted({int(p.agent_id) for p in tb.monbus_slave.received_packets})}. "
+        f"If this agent appears in that list, the monbus path is fine and the "
+        f"addr_check config is what to look at; if it is absent, the monitor is "
+        f"not emitting or not winning monbus arbitration."
     )
 
 
