@@ -1080,8 +1080,13 @@ done -- so the cycle restarted clean). Convergence: **29 -> 14 -> 10**.
 | Guard rails added | gaxi_skid_buffer DEPTH elaboration guard ({2,4,6,8} is the PERMANENT contract -- Sean: "skid buffer will never be more than 8 deep"); shim partial-strobe regression; stray-beat scenario | 058b3ae0 |
 | Humanize | NOT STARTED (correctness first, and round_5 is deliberately held) | -- |
 
-**HELD: round_5 + the observer.** `axi4_dma_observer` is getting updates soon
-(Sean). Plan agreed: (a) wait for the update to land; (b) re-sync
+**UNBLOCKED 2026-08-21: the observer rework LANDED as a deletion.**
+axi4_dma_observer (module + doc page) is gone, replaced by
+axi4_intf_master/slave_observer in projects/components/misc; TASK-060 closed
+obsolete. The dedicated-observer-unit plan below is MOOT for shared -- the
+successors belong to the misc book and get reviewed there. Shared's round_5
+re-critique can proceed with the current 24-page book. (Original held plan,
+for context:) Plan agreed: (a) wait for the update to land; (b) re-sync
 axi4_dma_observer.md; (c) build a DEDICATED observer unit carrying its FULL
 monitor cone -- part_01's closure did NOT include axi_monitor_base/filtered or
 axi_perf_latency_hist (documented in another part), which is exactly why the

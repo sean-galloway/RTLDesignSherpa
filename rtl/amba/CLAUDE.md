@@ -268,7 +268,6 @@ All protocol-agnostic. The monitor core, monbus infrastructure and monbus arbite
 
 | Module | Purpose |
 |---|---|
-| `axi4_dma_observer.sv` | DMA observability wrapper. Per-channel AW→W AWID order tracker (no sideband). Per-port latency histograms for parity with in-core perfmon |
 | `axi_perf_latency_hist.sv` | Per-channel 16-bucket log2 latency histogram |
 | `axi_bus_meter.sv` | 4-bucket bus meter (productive / backpressure / starvation / idle) — see `DMA_UTILIZATION_MEASUREMENT.md` for window semantics |
 

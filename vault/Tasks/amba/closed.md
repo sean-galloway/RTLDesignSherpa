@@ -1051,3 +1051,66 @@ them changed the destination, which is why the task said to read first:
 Acceptance check passes: `find rtl/amba -name '*.md' | grep -v CLAUDE |
 grep -v KNOWN_ISSUES` returns nothing. rtl/amba now has the same clean
 shape as rtl/common.
+
+---
+
+### TASK-060: `axi4_dma_observer` does not elaborate — CLOSED: module deleted
+**Closed 2026-08-21 (Sean: "the dma observer should be deleted"), measured
+against the tree:** rtl/amba/shared/axi4_dma_observer.sv and its doc page are
+gone (retired 2026-08-14 with the observer rework); the successors are
+projects/components/misc/axi4_intf_master_observer.sv /
+axi4_intf_slave_observer.sv, whose headers record the rename and which carry
+the sticky o_hist_sample_lost this task's defect asked for. The
+does-not-elaborate defect is moot with the module. Residual: two LEGACY
+NexysA7 stream_characterization harnesses (flows-stream-bridge,
+flows-stream-monitor) still instantiate the deleted module — those flows are
+superseded by the Genesys2 flows; whoever next touches NexysA7 char should
+migrate or retire them (they cannot build as-is).
+(original record follows)
+
+**Priority:** P1
+**Status:** 🔴 Not Started (found 2026-08-10)
+**Owner:** TBD
+
+`rtl/amba/shared/axi4_dma_observer.sv` instantiates `axi_perf_latency_hist`
+twice (`u_rd_lat_hist` line ~1037, `u_wr_lat_hist` line ~1066) without
+connecting its `o_cmd_block` output. Verilator treats PINMISSING as an error:
+
+```
+%Warning-PINMISSING: axi4_dma_observer.sv:1037: Cell has missing pin: 'o_cmd_block'
+%Error: Exiting due to 4 warning(s)
+```
+
+**The module does not build**, so `val/amba/test_axi4_dma_observer.py` cannot
+run at all — it was the single failure in a 249-test GATE sweep of the shared
+area (2026-08-10). Vivado only warns on a missing pin, which is why the board
+flows that instantiate this module still build and nobody noticed.
+
+**Do not treat this as a tie-off.** `o_cmd_block`'s own port comment says it is
+exported "so the command channel can be held off instead of losing the sample",
+and names this exact case as where it matters most: the histogram FIFO is
+`MAX_OUTSTANDING` **per channel** while the transaction table beside it blocks
+at `MAX_TRANSACTIONS` **across all channels**, so one channel can be inside the
+table's limit and past this one. A dropped sample is silent — no error, no flag,
+and the surviving latencies are misattributed as well as undercounted.
+
+**The pattern already exists.** `projects/components/misc/rtl/axi4_intf_observer.sv`
+is this module's renamed successor and handles it correctly: `rd_hist_block` /
+`wr_hist_block` nets, tied to `1'b0` in the `gen_no_hist` branch, feeding a
+sticky `o_hist_sample_lost` output cleared with `i_meter_clear`. It does NOT
+backpressure the observed bus — correct for an observer — it makes the loss
+visible instead.
+
+**Work:**
+- [ ] Decide: mirror the successor (add `o_hist_sample_lost`), or explicitly
+      discard with `.o_cmd_block ()` and accept silent sample loss.
+- [ ] If the port is added, update the four instantiators —
+      `axi4_intf_observer.sv`, `stream_mon_harness.sv:1853`,
+      `stream_char_harness.sv:1665`, `harness_csr.sv` — or they inherit the
+      same PINMISSING break.
+- [ ] Re-run `val/amba/test_axi4_dma_observer.py` (currently unrunnable).
+
+**Note:** the owner said 2026-08-10 not to change this module pending their own
+look; recorded here rather than fixed.
+
+---

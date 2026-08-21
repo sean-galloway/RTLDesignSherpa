@@ -70,7 +70,7 @@
       explicitly covered here rather than as individual doc pages,
       since they are private to the reporter family.
 
-18. **axi4_dma_observer.md** - COMPLETE (new 2026-06-15)
+18. **axi4_dma_observer.md** - RETIRED 2026-08-14 with the module (replaced by axi4_intf_master/slave_observer in projects/components/misc)
     - Standalone, DMA-agnostic observability harness that wraps any
       AXI4-master DMA from outside the DMA (non-intrusive). Companion
       to the per-DMA axi_monitor_* family which wraps from inside.

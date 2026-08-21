@@ -30,7 +30,7 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
   ERROR range sets, with params at the monitor + AXI\* wrapper module level
 - **TASK-022** — Make APB crossbar variants functional
 - **TASK-024** — Monitor system whitepaper (P3)
-- **TASK-060** — `axi4_dma_observer` does not elaborate: `o_cmd_block`
+- **TASK-060** — CLOSED 2026-08-21: module deleted with the observer rework (successors in misc); `o_cmd_block`
   unconnected on both `axi_perf_latency_hist` instances, so its test cannot run
   at all. Vivado only warns, which is why the board flows still build. (P1)
 - **TASK-061** — splitter `block_ready` duplicates transactions instead of
