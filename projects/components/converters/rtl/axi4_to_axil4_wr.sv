@@ -331,7 +331,17 @@ module axi4_to_axil4_wr #(
     assign w_b_all_beats_done = (r_b_beat_count == r_b_len);
 
     assign s_axi_bid = r_b_id;
-    assign s_axi_bresp = r_b_resp_accum;
+    // The accumulator is a registered fold, so at the moment B is emitted it
+    // does not yet contain the final beat's own response -- the non-blocking
+    // assign lands next cycle. That dropped the last beat's error at any
+    // burst length, and for awlen=0 the only beat IS the last one, so every
+    // single-beat write error was reported to the master as OKAY. Fold the
+    // live beat in before emitting. (bresp is only sampled while bvalid,
+    // which requires m_axil_bvalid, so m_axil_bresp is valid here.)
+    logic [1:0] w_b_resp_worst;
+    assign w_b_resp_worst = (m_axil_bresp > r_b_resp_accum) ? m_axil_bresp
+                                                            : r_b_resp_accum;
+    assign s_axi_bresp = w_b_resp_worst;
     assign s_axi_buser = '0;
     assign s_axi_bvalid = m_axil_bvalid && w_b_all_beats_done;
     assign m_axil_bready = s_axi_bready || !w_b_all_beats_done;

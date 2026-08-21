@@ -246,7 +246,16 @@ module axi4_to_axil4_rd #(
     // Read data channel passthrough
     assign s_axi_rid = r_r_id;
     assign s_axi_rdata = m_axil_rdata;
-    assign s_axi_rresp = (r_r_beat_count == r_r_len) ? r_r_resp_accum : m_axil_rresp;
+    // The accumulator is a registered fold, so on the beat that concludes a
+    // burst it does not yet contain that beat's own response -- the
+    // non-blocking assign lands next cycle. Selecting it here dropped the
+    // final beat's error, and for arlen=0 the only beat IS the final one, so
+    // every single-beat error was reported to the master as OKAY. Fold the
+    // live beat in before emitting.
+    logic [1:0] w_r_resp_worst;
+    assign w_r_resp_worst = (m_axil_rresp > r_r_resp_accum) ? m_axil_rresp
+                                                            : r_r_resp_accum;
+    assign s_axi_rresp = (r_r_beat_count == r_r_len) ? w_r_resp_worst : m_axil_rresp;
     assign s_axi_rlast = (r_r_beat_count == r_r_len);
     assign s_axi_ruser = '0;  // AXI4-Lite has no USER
     assign s_axi_rvalid = m_axil_rvalid;

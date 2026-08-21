@@ -26,6 +26,7 @@ Architecture:
 import os
 import sys
 import cocotb
+from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.clock import Clock
 import random
@@ -418,6 +419,94 @@ class AXI4ToAXIL4ReadTB(TBBase):
         """
         return await self.test_read_burst(0x40000, 256, burst_type=1)
 
+
+    async def test_error_response(self, address, burst_len=1, last_only=False,
+                                  label=""):
+        """A non-OKAY response from the AXIL4 slave must reach the AXI master.
+
+        The converter aggregates each beat's RRESP and emits the worst one.
+        Whether it emits the aggregate or the live beat is chosen by
+        `r_r_beat_count == r_r_len`, and on the FINAL beat that picks the
+        registered accumulator -- which has not yet absorbed that beat's own
+        response, because the fold is a non-blocking assign landing next
+        cycle. A single-beat read is all final beat, so its error is the one
+        that gets dropped.
+
+        Silently downgrading SLVERR to OKAY is the worst failure a converter
+        can have: the master believes a read succeeded and consumes whatever
+        data came back with it.
+
+        `read_transaction` raises on any non-OKAY response, so the pass
+        condition is that it RAISES; returning normally means the error was
+        swallowed.
+        """
+        tag = f"[{label}] " if label else ""
+        size = (self.data_width // 8).bit_length() - 1
+        # last_only is the sharper case: with every beat erroring, an earlier
+        # beat is already in the accumulator and masks the final-beat loss.
+        last_addr = address + (burst_len - 1) * (1 << size)
+        if last_only:
+            self.axil4_slave.resp_override = lambda a: 2 if a == last_addr else None
+        else:
+            self.axil4_slave.resp_override = lambda a: 2
+        try:
+            await self.axi4_master.read_transaction(
+                address=address, burst_len=burst_len, size=size, burst_type=1)
+        except RuntimeError as exc:
+            if 'SLVERR' in str(exc):
+                self.log.info(f"@ {get_sim_time('ns')}ns: {tag}len={burst_len}: "
+                              f"SLVERR propagated correctly")
+                return True
+            self.log.error(f"@ {get_sim_time('ns')}ns: {tag}len={burst_len}: "
+                           f"wrong error surfaced: {exc}")
+            self.stats['errors'] += 1
+            return False
+        except Exception as exc:
+            self.log.error(f"@ {get_sim_time('ns')}ns: {tag}len={burst_len}: "
+                           f"unexpected failure: {exc!r}")
+            self.stats['errors'] += 1
+            return False
+        else:
+            self.log.error(
+                f"@ {get_sim_time('ns')}ns: {tag}len={burst_len}: SLVERR from the "
+                f"AXIL4 slave was reported to the AXI master as OKAY -- the "
+                f"error was silently dropped")
+            self.stats['errors'] += 1
+            return False
+        finally:
+            # read_transaction raises on the FIRST bad beat, so a burst that
+            # errors early leaves its remaining beats in flight. Those would
+            # be drained by whatever transaction runs next and surface there
+            # as a spurious failure, so isolate the scenario: stop forcing
+            # errors, let the tail land, drop it, and reset the DUT.
+            self.axil4_slave.resp_override = None
+            await self.wait_clocks(self.clk_name, 40)
+            for q in getattr(self.axi4_master, '_response_by_id', {}).values():
+                q.clear()
+            await self.assert_reset()
+            await self.wait_clocks(self.clk_name, 5)
+            await self.deassert_reset()
+            await self.wait_clocks(self.clk_name, 5)
+
+    async def test_error_responses(self):
+        """Error propagation across burst lengths.
+
+        len=1 isolates the single-beat case; the longer bursts prove the
+        final beat's own response is not lost either.
+        """
+        ok = True
+        for blen in (1, 2, 4):
+            if not await self.test_error_response(0xA000 + blen * 0x100,
+                                                  burst_len=blen,
+                                                  label=f"{blen}beat-all"):
+                ok = False
+        for blen in (2, 4):
+            if not await self.test_error_response(0xD000 + blen * 0x100,
+                                                  burst_len=blen, last_only=True,
+                                                  label=f"{blen}beat-last-only"):
+                ok = False
+        return ok
+
     async def run_basic_test(self):
         """Run basic read burst test suite"""
         self.log.info("=" * 80)
@@ -438,6 +527,10 @@ class AXI4ToAXIL4ReadTB(TBBase):
         for addr, burst_len in test_cases:
             if not await self.test_read_burst(addr, burst_len):
                 success = False
+
+        # Error propagation (RRESP) -- see test_error_response.
+        if not await self.test_error_responses():
+            success = False
 
         # Lightweight b2b smoke
         b2b_smoke = [(0x5000, 2), (0x5010, 2)]
@@ -463,6 +556,10 @@ class AXI4ToAXIL4ReadTB(TBBase):
 
             if not await self.test_read_burst(addr, burst_len, burst_type):
                 success = False
+
+        # Error propagation (RRESP) -- see test_error_response.
+        if not await self.test_error_responses():
+            success = False
 
         # B2B scenarios — exercises the page-probe class of bug
         b2b_bursts = []

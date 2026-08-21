@@ -26,6 +26,7 @@ Architecture:
 import os
 import sys
 import cocotb
+from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.clock import Clock
 import random
@@ -525,6 +526,81 @@ class AXI4ToAXIL4WriteTB(TBBase):
                      for i in range(burst_len)]
         return await self.test_write_burst(addr, data_list, burst_type=1)
 
+
+    async def test_error_response(self, address, beats=1, last_only=False,
+                                  label=""):
+        """A non-OKAY B response from the AXIL4 slave must reach the master.
+
+        A write burst becomes N single AXIL4 writes, each with its own B,
+        which the converter folds into the ONE B response AXI expects. The
+        fold is registered but `s_axi_bresp` is read on the same handshake
+        that emits it, so the FINAL beat's own response is never folded in.
+
+        Two shapes, because they fail differently:
+
+        * every beat errors -- an early beat is already in the accumulator,
+          so only a single-beat write (where the only beat is the final one)
+          loses it;
+        * only the LAST beat errors -- nothing else was ever accumulated, so
+          the error is lost at any burst length.
+
+        `write_transaction` catches its own error and RETURNS
+        {'success': False, ...}; it does not propagate. Passing means
+        success is False with SLVERR named.
+        """
+        tag = f"[{label}] " if label else ""
+        size = (self.data_width // 8).bit_length() - 1
+        last_addr = address + (beats - 1) * (1 << size)
+        if last_only:
+            self.axil4_slave.resp_override = lambda a: 2 if a == last_addr else None
+        else:
+            self.axil4_slave.resp_override = lambda a: 2
+        data_list = [0xA5A50000 + i for i in range(beats)]
+        try:
+            result = await self.axi4_master.write_transaction(
+                address=address, data=data_list, size=size, burst_type=1)
+            err = (result or {}).get('error', '') or ''
+            if not (result or {}).get('success', True) and 'SLVERR' in err:
+                self.log.info(f"@ {get_sim_time('ns')}ns: {tag}beats={beats}: "
+                              f"SLVERR propagated correctly")
+                return True
+            self.log.error(
+                f"@ {get_sim_time('ns')}ns: {tag}beats={beats}: SLVERR from the "
+                f"AXIL4 slave was reported to the AXI master as OKAY -- the "
+                f"error was silently dropped (result={result})")
+            self.stats['errors'] += 1
+            return False
+        except Exception as exc:
+            self.log.error(f"@ {get_sim_time('ns')}ns: {tag}beats={beats}: "
+                           f"unexpected failure: {exc!r}")
+            self.stats['errors'] += 1
+            return False
+        finally:
+            # Isolate: stop forcing errors, let any tail land, drop it, reset.
+            self.axil4_slave.resp_override = None
+            await self.wait_clocks(self.clk_name, 40)
+            for q in getattr(self.axi4_master, '_response_by_id', {}).values():
+                q.clear()
+            await self.assert_reset()
+            await self.wait_clocks(self.clk_name, 5)
+            await self.deassert_reset()
+            await self.wait_clocks(self.clk_name, 5)
+
+    async def test_error_responses(self):
+        """Error propagation across burst lengths and error placement."""
+        ok = True
+        for beats in (1, 2, 4):
+            if not await self.test_error_response(0xB000 + beats * 0x100,
+                                                  beats=beats,
+                                                  label=f"{beats}beat-all"):
+                ok = False
+        for beats in (2, 4):
+            if not await self.test_error_response(0xC000 + beats * 0x100,
+                                                  beats=beats, last_only=True,
+                                                  label=f"{beats}beat-last-only"):
+                ok = False
+        return ok
+
     async def run_basic_test(self):
         """Run basic write burst test suite"""
         self.log.info("=" * 80)
@@ -541,6 +617,10 @@ class AXI4ToAXIL4WriteTB(TBBase):
             (0x3000, [0x44444444, 0x55555555, 0x66666666, 0x77777777]), # 4-beat burst
             (0x4000, [0xDEADBEEF]),                                    # Another single beat
         ]
+
+        # Error propagation (BRESP) -- see test_error_response.
+        if not await self.test_error_responses():
+            success = False
 
         for addr, data_list in test_cases:
             if not await self.test_write_burst(addr, data_list):

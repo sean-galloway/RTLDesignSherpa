@@ -38,7 +38,7 @@ it.
 | `REGISTERED` | — | 0 = mux mode, 1 = flop mode for read output |
 | `DATA_WIDTH` | 8 | Width of data |
 | `DEPTH` | 16 | FIFO depth. Power-of-2 with the default binary Gray pointers; set **`USE_JOHNSON=1`** for **non-power-of-2** depths (Johnson-coded pointers via `counter_johnson`/`johnson2bin`). |
-| `USE_JOHNSON` | 0 | 0 = binary Gray pointers (power-of-2 depth), 1 = Johnson pointers (arbitrary depth). This is the supported route to non-power-of-2 depth (the old `fifo_async_div2` module was retired). |
+| `USE_JOHNSON` | 0 | 0 = Gray pointers (power-of-2 depth), 1 = Johnson pointers (arbitrary depth). This is the supported route to non-power-of-2 depth (the old `fifo_async_div2` module was retired). |
 | `N_FLOP_CROSS` | 2 | Number of synchronizer stages |
 | `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
 | `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
