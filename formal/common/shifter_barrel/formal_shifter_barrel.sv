@@ -33,8 +33,21 @@ module formal_shifter_barrel #(
     always_comb begin
         case (ctrl)
             3'b000: f_expected = data;
-            3'b001: f_expected = (shift_mod == 0) ? data : data >> shift_amount;
-            3'b010: f_expected = $signed(data) >>> shift_mod;
+            // IEEE no-wrap semantics, INDEPENDENT of the RTL's internals:
+            // logical shifts by >= WIDTH give 0, arithmetic gives all-sign.
+            // The old model restated the RTL's mod arithmetic ("matching
+            // RTL") -- a tautological property that proved a broken shifter
+            // for months (shift-by-WIDTH returned the input).
+            3'b001: f_expected = ({{32-SHIFT_BITS{1'b0}}, shift_amount} >= WIDTH)
+                               ? '0 : data >> shift_amount;
+            // if/else, not ?: -- mixed-signedness ternary operands turn
+            // >>> into a logical shift (same trap as the RTL fix).
+            3'b010: begin
+                if ({{32-SHIFT_BITS{1'b0}}, shift_amount} >= WIDTH)
+                    f_expected = {WIDTH{data[WIDTH-1]}};
+                else
+                    f_expected = $signed(data) >>> shift_amount;
+            end
             3'b011: begin
                 // Right rotation: lower bits wrap to top
                 if (shift_mod == 0)
@@ -42,7 +55,8 @@ module formal_shifter_barrel #(
                 else
                     f_expected = (data >> shift_mod) | (data << (WIDTH - shift_mod));
             end
-            3'b100: f_expected = (shift_mod == 0) ? data : data << shift_amount;
+            3'b100: f_expected = ({{32-SHIFT_BITS{1'b0}}, shift_amount} >= WIDTH)
+                               ? '0 : data << shift_amount;
             3'b110: begin
                 // Left rotation: upper bits wrap to bottom
                 if (shift_mod == 0)
@@ -73,10 +87,14 @@ module formal_shifter_barrel #(
     // Safety properties: Logical Right Shift (ctrl == 3'b001)
     // =========================================================================
 
-    // When shift_mod is 0, RTL returns data unchanged (identity)
+    // Identity holds ONLY at amount 0; amount == WIDTH (also mod 0) gives 0
+    // -- the old mod-scoped identity property blessed the shift-by-WIDTH bug.
     always @(posedge clk)
-        if (ctrl == 3'b001 && shift_mod == 0)
+        if (ctrl == 3'b001 && shift_amount == 0)
             ap_lsr_zero: assert (data_out == data);
+    always @(posedge clk)
+        if (ctrl == 3'b001 && {{32-SHIFT_BITS{1'b0}}, shift_amount} >= WIDTH)
+            ap_lsr_sat: assert (data_out == '0);
 
     // Non-zero shift with shift_amount < WIDTH: standard right shift
     always @(posedge clk)
@@ -89,22 +107,28 @@ module formal_shifter_barrel #(
 
     // Sign bit is preserved in output MSB when shifting
     always @(posedge clk)
-        if (ctrl == 3'b010 && shift_mod > 0 && data[WIDTH-1])
+        if (ctrl == 3'b010 && shift_amount > 0 && data[WIDTH-1])
             ap_asr_sign_fill: assert (data_out[WIDTH-1]);
 
-    // When input MSB is 0, ASR matches LSR for clamped amount
+    // When input MSB is 0, ASR matches LSR (0 for amounts >= WIDTH)
     always @(posedge clk)
-        if (ctrl == 3'b010 && !data[WIDTH-1])
-            ap_asr_positive: assert (data_out == (data >> shift_mod));
+        if (ctrl == 3'b010 && !data[WIDTH-1] && {{32-SHIFT_BITS{1'b0}}, shift_amount} < WIDTH)
+            ap_asr_positive: assert (data_out == (data >> shift_amount));
+    always @(posedge clk)
+        if (ctrl == 3'b010 && !data[WIDTH-1] && {{32-SHIFT_BITS{1'b0}}, shift_amount} >= WIDTH)
+            ap_asr_positive_sat: assert (data_out == '0);
 
     // =========================================================================
     // Safety properties: Logical Left Shift (ctrl == 3'b100)
     // =========================================================================
 
-    // When shift_mod is 0, RTL returns data unchanged (identity)
+    // Identity ONLY at amount 0 (see ap_lsr_zero note)
     always @(posedge clk)
-        if (ctrl == 3'b100 && shift_mod == 0)
+        if (ctrl == 3'b100 && shift_amount == 0)
             ap_lsl_zero: assert (data_out == data);
+    always @(posedge clk)
+        if (ctrl == 3'b100 && {{32-SHIFT_BITS{1'b0}}, shift_amount} >= WIDTH)
+            ap_lsl_sat: assert (data_out == '0);
 
     // Non-zero shift with shift_amount < WIDTH: standard left shift
     always @(posedge clk)

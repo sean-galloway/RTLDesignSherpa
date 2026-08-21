@@ -57,17 +57,32 @@ module shifter_barrel #(
             3'b000: // No shift
                 data_out = data;
 
+            // No-wrap shifts use the RAW amount. The old mod==0 passthrough
+            // guard conflated shift-by-0 with shift-by-WIDTH (both mod to 0),
+            // so shifting a WIDTH-bit value by WIDTH returned the INPUT
+            // instead of 0 / sign-fill -- and the arithmetic branch shifted
+            // by the modded amount, wrong for every amount >= WIDTH. Found by
+            // the math doc round (its harness never drove amount == WIDTH);
+            // sim-confirmed before fixing. Amounts >= WIDTH now saturate the
+            // IEEE way: logical -> 0, arithmetic -> all-sign.
             3'b001: // Logical Right Shift (no wrap)
-                data_out = (w_shift_amount_mod == 0) ? data : data >> shift_amount;
+                data_out = data >> shift_amount;
 
             3'b010: // Arithmetic Right Shift (preserve sign)
-                data_out = $signed(data) >>> w_shift_amount_mod;
+                // if/else, NOT a ternary: a ternary whose other branch is
+                // unsigned makes BOTH operands unsigned per the LRM, silently
+                // degrading >>> to a logical shift. Caught by the directed
+                // suite the first time this was written as ?:
+                if (shift_amount >= ($clog2(WIDTH)+1)'(WIDTH))
+                    data_out = {WIDTH{data[WIDTH-1]}};
+                else
+                    data_out = $signed(data) >>> shift_amount;
 
             3'b011: // Logical Right Shift with wrap
                 data_out = w_array_rs[w_shift_amount_mod];
 
             3'b100: // Logical Left Shift (no wrap)
-                data_out = (w_shift_amount_mod == 0) ? data : data << shift_amount;
+                data_out = data << shift_amount;
 
             3'b110: // Logical Left Shift with wrap
                 data_out = w_array_ls[w_shift_amount_mod];

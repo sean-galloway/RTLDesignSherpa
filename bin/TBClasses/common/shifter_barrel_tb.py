@@ -160,18 +160,19 @@ class ShifterBarrelTB(TBBase):
             # No shift
             return data
         elif ctrl == self.CTRL_RIGHT_SHIFT:
-            # Logical right shift (no wrap)
-            return data if shift_amount_mod == 0 else data >> shift_amount
+            # Logical right shift (no wrap): IEEE -- amounts >= WIDTH give 0.
+            # (The old model mirrored the RTL's mod bug: shift-by-WIDTH
+            # returned the input. Independent model now.)
+            return 0 if shift_amount >= self.WIDTH else data >> shift_amount
         elif ctrl == self.CTRL_ARITH_RIGHT_SHIFT:
-            # Arithmetic right shift
-            # Check if MSB is set (negative number)
+            # Arithmetic right shift: amounts >= WIDTH give all-sign
             msb_set = (data >> (self.WIDTH - 1)) & 1
+            if shift_amount >= self.WIDTH:
+                return self.MAX_DATA if msb_set else 0
             if not msb_set:
-                # For positive numbers, same as logical shift
-                return (data >> shift_amount_mod) & self.MAX_DATA
-            # Arithmetic shift for negative number
-            mask = ((1 << shift_amount_mod) - 1) << (self.WIDTH - shift_amount_mod)
-            return ((data >> shift_amount_mod) | mask) & self.MAX_DATA
+                return (data >> shift_amount) & self.MAX_DATA
+            mask = ((1 << shift_amount) - 1) << (self.WIDTH - shift_amount)
+            return ((data >> shift_amount) | mask) & self.MAX_DATA
         elif ctrl == self.CTRL_RIGHT_SHIFT_WRAP:
             # Logical right shift with wrap
             if shift_amount_mod == 0:
@@ -183,12 +184,8 @@ class ShifterBarrelTB(TBBase):
             # Combine
             return (wrapped | shifted) & self.MAX_DATA
         elif ctrl == self.CTRL_LEFT_SHIFT:
-            # Logical left shift (no wrap)
-            return (
-                data
-                if shift_amount_mod == 0
-                else (data << shift_amount) & self.MAX_DATA
-            )
+            # Logical left shift (no wrap): amounts >= WIDTH give 0
+            return 0 if shift_amount >= self.WIDTH else (data << shift_amount) & self.MAX_DATA
         elif ctrl == self.CTRL_LEFT_SHIFT_WRAP:
             # Logical left shift with wrap
             if shift_amount_mod == 0:
@@ -253,7 +250,11 @@ class ShifterBarrelTB(TBBase):
             (0xFF & self.MAX_DATA, 4),    # Shift by 4
             (0xA5 & self.MAX_DATA, 2),    # Alternating bits
             (0x0F & self.MAX_DATA, 2),    # Low nibble set
-            (0xF0 & self.MAX_DATA, 4)     # High nibble set
+            (0xF0 & self.MAX_DATA, 4),    # High nibble set
+            # WIDTH-boundary: the old mod-based RTL returned the INPUT for
+            # shift == WIDTH (mod wraps to 0). IEEE: result is 0.
+            (0xA5 & self.MAX_DATA, self.WIDTH),
+            (0xFF & self.MAX_DATA, self.WIDTH + 1)
         ]
 
         all_passed = True
@@ -283,7 +284,10 @@ class ShifterBarrelTB(TBBase):
             (0x7F & self.MAX_DATA, 1),    # Positive number (MSB=0)
             ((0x80 | 0x3F) & self.MAX_DATA, 1),    # Negative number (MSB=1)
             (0x7F & self.MAX_DATA, 4),    # Larger shift for positive
-            ((0x80 | 0x3F) & self.MAX_DATA, 4)     # Larger shift for negative
+            ((0x80 | 0x3F) & self.MAX_DATA, 4),    # Larger shift for negative
+            # WIDTH-boundary: all-sign expected (old RTL shifted by mod=0)
+            ((0x80 | 0x05) & self.MAX_DATA, self.WIDTH),
+            (0x7F & self.MAX_DATA, self.WIDTH)
         ]
 
         all_passed = True
@@ -347,7 +351,9 @@ class ShifterBarrelTB(TBBase):
             (0xFF & self.MAX_DATA, 4),    # Shift by 4
             (0xA5 & self.MAX_DATA, 2),    # Alternating bits
             (0x0F & self.MAX_DATA, 2),    # Low nibble set
-            (0xF0 & self.MAX_DATA, 4)     # High nibble set
+            (0xF0 & self.MAX_DATA, 4),    # High nibble set
+            # WIDTH-boundary: 0 expected (old RTL returned the input)
+            (0xA5 & self.MAX_DATA, self.WIDTH)
         ]
 
         all_passed = True

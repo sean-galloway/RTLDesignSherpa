@@ -77,12 +77,15 @@ The 3-bit `ctrl` signal determines the shift operation:
 logic [$clog2(WIDTH)-1:0] shift_amount_mod;
 assign shift_amount_mod = shift_amount[$clog2(WIDTH)-1:0];
 ```
-`shift_amount_mod` reduces the amount modulo WIDTH, but **only the wrap and
-arithmetic-shift paths use it**. The two non-wrap paths (`ctrl=3'b001` logical
-right, `ctrl=3'b100` logical left) shift by the raw `shift_amount`, guarded only
-by `shift_amount_mod == 0`. With WIDTH=8 that means `shift_amount=8` returns the
-data unshifted (the guard fires) and `shift_amount=9` returns 0 — neither is the
-modulo-reduced result. Drive `shift_amount < WIDTH` on the non-wrap paths.
+`shift_amount_mod` reduces the amount modulo WIDTH — **only the wrap (rotate)
+paths use it**. The three no-wrap paths take the RAW amount, with IEEE
+saturation for amounts at or beyond the width: logical right/left by
+`>= WIDTH` gives 0, arithmetic right gives all-sign-bits. (Before 2026-08-20
+the no-wrap paths carried a `shift_amount_mod == 0` passthrough guard, so
+shifting by exactly WIDTH returned the *input* — and the arithmetic path
+shifted by the modded amount, wrong for every amount `>= WIDTH`. Found by a
+doc review round, sim-confirmed, fixed with directed WIDTH-boundary tests and
+an un-tautologized formal model that fails on the old RTL.)
 
 ### Wrap-Around Implementation
 ```systemverilog
@@ -115,16 +118,21 @@ always_comb begin
             data_out = data;
 
         3'b001: // Logical Right Shift (no wrap)
-            data_out = (shift_amount_mod == 0) ? data : data >> shift_amount;
+            data_out = data >> shift_amount;
 
         3'b010: // Arithmetic Right Shift (preserve sign)
-            data_out = $signed(data) >>> shift_amount_mod;
+            // if/else, NOT a ternary: a mixed-signedness ternary silently
+            // degrades >>> to a logical shift
+            if (shift_amount >= ($clog2(WIDTH)+1)'(WIDTH))
+                data_out = {WIDTH{data[WIDTH-1]}};
+            else
+                data_out = $signed(data) >>> shift_amount;
 
         3'b011: // Logical Right Shift with wrap
             data_out = w_array_rs[shift_amount_mod];
 
         3'b100: // Logical Left Shift (no wrap)
-            data_out = (shift_amount_mod == 0) ? data : data << shift_amount;
+            data_out = data << shift_amount;
 
         3'b110: // Logical Left Shift with wrap
             data_out = w_array_ls[shift_amount_mod];
