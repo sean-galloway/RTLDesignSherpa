@@ -37,7 +37,7 @@ A parameterized carry lookahead adder supporting arbitrary bit widths with O(N) 
 
 The `math_adder_pg_chain` module implements a carry lookahead adder (CLA) with parameterizable width. It's not a true parallel-prefix lookahead (which would have O(log N) depth), but it uses propagate (P) and generate (G) signals to compute carries more efficiently than a simple ripple-carry adder. Think of it as a good middle shelf: a sensible balance between speed and area for small to medium width additions (4-16 bits).
 
-## Module Declaration
+### Module Declaration
 
 ```systemverilog
 module math_adder_pg_chain #(
@@ -135,7 +135,60 @@ end
 ow_carry = w_c[N];
 ```
 
-## Usage Examples
+## Timing
+
+### Timing Analysis
+
+**Logic Depth:**
+- **P/G generation**: 1 level (AND/XOR)
+- **Carry chain**: N levels (each carry depends on previous)
+- **Sum calculation**: 1 level (XOR)
+- **Total**: N + 2 levels
+
+**Critical Path:**
+```
+i_a/i_b → P[0]/G[0] → C[1] → C[2] → ... → C[N-1] → C[N] → Sum[N-1]
+```
+
+### Combinational Delay Analysis
+
+| Width | Logic Levels | Typical Delay (ns) @ 1.0V | Max Frequency |
+|-------|--------------|---------------------------|---------------|
+| 4-bit | 6 | ~1.2 | ~800 MHz |
+| 8-bit | 10 | ~2.0 | ~500 MHz |
+| 16-bit | 18 | ~3.5 | ~285 MHz |
+| 32-bit | 34 | ~6.5 | ~155 MHz |
+
+**Logic Level Breakdown (8-bit example):**
+1. P/G generation: 1 level (AND/XOR)
+2. Carry chain: 8 levels (C[1] → C[2] → ... → C[8])
+3. Sum calculation: 1 level (XOR)
+4. **Total**: 10 levels
+
+### Critical Paths
+
+**Main Critical Path (Longest):**
+```
+i_a[0]/i_b[0] → P[0]/G[0] → C[1] → C[2] → ... → C[N] → ow_carry
+```
+
+**Sum Output Path:**
+```
+i_a[i]/i_b[i] → P[i] → ow_sum[i]  (depends on C[i] from carry chain)
+```
+
+### Performance vs Width
+
+| Width | Delay (relative) | Frequency (relative) |
+|-------|-----------------|---------------------|
+| 4-bit | 1.0× (baseline) | 1.00× (baseline) |
+| 8-bit | 1.7× | 0.60× |
+| 16-bit | 3.0× | 0.35× |
+| 32-bit | 5.7× | 0.19× |
+
+**Observation:** Delay scales linearly with width. For N > 16, that's your cue to reach for a parallel prefix adder (Brent-Kung, Kogge-Stone).
+
+## Usage Example
 
 ### Basic 8-bit Addition
 
@@ -298,96 +351,6 @@ end
 assign loop_done = (loop_counter == 8'd99);
 ```
 
-## Timing Characteristics
-
-### Timing Analysis
-
-**Logic Depth:**
-- **P/G generation**: 1 level (AND/XOR)
-- **Carry chain**: N levels (each carry depends on previous)
-- **Sum calculation**: 1 level (XOR)
-- **Total**: N + 2 levels
-
-**Critical Path:**
-```
-i_a/i_b → P[0]/G[0] → C[1] → C[2] → ... → C[N-1] → C[N] → Sum[N-1]
-```
-
-### Combinational Delay Analysis
-
-| Width | Logic Levels | Typical Delay (ns) @ 1.0V | Max Frequency |
-|-------|--------------|---------------------------|---------------|
-| 4-bit | 6 | ~1.2 | ~800 MHz |
-| 8-bit | 10 | ~2.0 | ~500 MHz |
-| 16-bit | 18 | ~3.5 | ~285 MHz |
-| 32-bit | 34 | ~6.5 | ~155 MHz |
-
-**Logic Level Breakdown (8-bit example):**
-1. P/G generation: 1 level (AND/XOR)
-2. Carry chain: 8 levels (C[1] → C[2] → ... → C[8])
-3. Sum calculation: 1 level (XOR)
-4. **Total**: 10 levels
-
-### Critical Paths
-
-**Main Critical Path (Longest):**
-```
-i_a[0]/i_b[0] → P[0]/G[0] → C[1] → C[2] → ... → C[N] → ow_carry
-```
-
-**Sum Output Path:**
-```
-i_a[i]/i_b[i] → P[i] → ow_sum[i]  (depends on C[i] from carry chain)
-```
-
-### Performance vs Width
-
-| Width | Delay (relative) | Frequency (relative) |
-|-------|-----------------|---------------------|
-| 4-bit | 1.0× (baseline) | 1.00× (baseline) |
-| 8-bit | 1.7× | 0.60× |
-| 16-bit | 3.0× | 0.35× |
-| 32-bit | 5.7× | 0.19× |
-
-**Observation:** Delay scales linearly with width. For N > 16, that's your cue to reach for a parallel prefix adder (Brent-Kung, Kogge-Stone).
-
-## Performance Characteristics
-
-### Resource Utilization
-
-| Width | LUTs (Est.) | FFs (Pipeline) | Description |
-|-------|-------------|----------------|-------------|
-| 4-bit | ~12 | 0 (combinational) | Minimal |
-| 8-bit | ~24 | 0 (combinational) | Small |
-| 16-bit | ~48 | 0 (combinational) | Medium |
-| 32-bit | ~96 | 0 (combinational) | Large (consider alternatives) |
-
-**Area Breakdown (8-bit):**
-- P/G generation: 8 × 2 gates = 16 LUTs
-- Carry chain: 8 × 2 gates = 16 LUTs (OR + AND)
-- Sum calculation: 8 × 1 gate = 8 LUTs (XOR)
-- **Total**: ~24 LUTs (may optimize to fewer)
-
-### Comparison to Other Adders
-
-| Adder Type | Logic Depth | Area | Best Use Case |
-|------------|-------------|------|---------------|
-| Ripple Carry | O(N) | Minimal | N ≤ 4, area-critical |
-| **CLA (this)** | **O(N)** | **Small** | **4 ≤ N ≤ 16, balanced** |
-| Brent-Kung | O(log N) | Medium | N ≥ 16, speed-critical |
-| Kogge-Stone | O(log N) | Large | N ≥ 32, max speed |
-
-**Note:** True carry lookahead adders (with group generate/propagate) can achieve O(log N) depth but require more complex logic. This implementation is a hybrid approach optimized for simplicity and area.
-
-### Speed vs Area Trade-offs
-
-| Adder Architecture | Relative Speed | Relative Area | Best Width Range |
-|-------------------|----------------|---------------|------------------|
-| Ripple Carry | 1.0× (slowest) | 1.0× (smallest) | N ≤ 4 |
-| **CLA (this)** | **1.5×** | **1.2×** | **4 ≤ N ≤ 16** |
-| Brent-Kung | 4.0× | 4.0× | 16 ≤ N ≤ 32 |
-| Kogge-Stone | 6.0× (fastest) | 6.0× (largest) | N ≥ 32 |
-
 ## Design Notes
 
 ### When to Use This Adder
@@ -455,24 +418,42 @@ The module includes a Verilator pragma:
 
 **Reason:** The carry chain creates combinational loops that Verilator warns about but are intentional for CLA operation.
 
-### Verification Strategy
+### Performance
 
-Test suite location: `val/math/test_math_adder_pg_chain.py`
+| Width | LUTs (Est.) | FFs (Pipeline) | Description |
+|-------|-------------|----------------|-------------|
+| 4-bit | ~12 | 0 (combinational) | Minimal |
+| 8-bit | ~24 | 0 (combinational) | Small |
+| 16-bit | ~48 | 0 (combinational) | Medium |
+| 32-bit | ~96 | 0 (combinational) | Large (consider alternatives) |
 
-**Key Test Scenarios:**
-- Random stimulus (all widths)
-- Corner cases: 0+0, 0+MAX, MAX+MAX, MAX+1
-- Carry propagation: All 1's + 1 (tests full carry chain)
-- Incrementer mode: A + 0 + 1
-- Subtraction mode: A + (~B) + 1
-- Multi-precision chaining
+**Area Breakdown (8-bit):**
+- P/G generation: 8 × 2 gates = 16 LUTs
+- Carry chain: 8 × 2 gates = 16 LUTs (OR + AND)
+- Sum calculation: 8 × 1 gate = 8 LUTs (XOR)
+- **Total**: ~24 LUTs (may optimize to fewer)
 
-**Test Command:**
-```bash
-pytest val/math/test_math_adder_pg_chain.py -v
-```
+**Comparison to Other Adders:**
 
-## Common Pitfalls
+| Adder Type | Logic Depth | Area | Best Use Case |
+|------------|-------------|------|---------------|
+| Ripple Carry | O(N) | Minimal | N ≤ 4, area-critical |
+| **CLA (this)** | **O(N)** | **Small** | **4 ≤ N ≤ 16, balanced** |
+| Brent-Kung | O(log N) | Medium | N ≥ 16, speed-critical |
+| Kogge-Stone | O(log N) | Large | N ≥ 32, max speed |
+
+**Note:** True carry lookahead adders (with group generate/propagate) can achieve O(log N) depth but require more complex logic. This implementation is a hybrid approach optimized for simplicity and area.
+
+**Speed vs Area Trade-offs:**
+
+| Adder Architecture | Relative Speed | Relative Area | Best Width Range |
+|-------------------|----------------|---------------|------------------|
+| Ripple Carry | 1.0× (slowest) | 1.0× (smallest) | N ≤ 4 |
+| **CLA (this)** | **1.5×** | **1.2×** | **4 ≤ N ≤ 16** |
+| Brent-Kung | 4.0× | 4.0× | 16 ≤ N ≤ 32 |
+| Kogge-Stone | 6.0× (fastest) | 6.0× (largest) | N ≥ 32 |
+
+### Common Pitfalls
 
 **Anti-Pattern 1**: Using for very wide additions without pipelining
 
@@ -531,20 +512,33 @@ end
 // - All signals eventually resolve
 ```
 
-## Testing
-
-From the test suite (`val/math/test_math_adder_pg_chain.py`):
-
-Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
-parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
-`make -C val/math run-all-func-parallel`, never bare pytest for suites.
-
 ## Related Modules
 
 - **math_adder_brent_kung_*.sv** - Faster parallel prefix adder (O(log N) depth)
 - **math_adder_ripple_carry.sv** - Minimal area adder (slower)
 - **math_adder_carry_save_nbit.sv** - For multi-operand addition (multipliers)
 - **math_subtractor_carry_lookahead.sv** - CLA-based subtractor variant
+
+## Testing
+
+From the test suite (`val/math/test_math_adder_pg_chain.py`):
+
+**Key Test Scenarios:**
+- Random stimulus (all widths)
+- Corner cases: 0+0, 0+MAX, MAX+MAX, MAX+1
+- Carry propagation: All 1's + 1 (tests full carry chain)
+- Incrementer mode: A + 0 + 1
+- Subtraction mode: A + (~B) + 1
+- Multi-precision chaining
+
+**Test Command:**
+```bash
+pytest val/math/test_math_adder_pg_chain.py -v
+```
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## References
 
@@ -554,5 +548,5 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 
 ## Navigation
 
-- **[← Back to Math Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [Back to Math Index](index.md)
+- [Back to Main Documentation Index](../index.md)

@@ -36,7 +36,7 @@ them with counters and FIFOs made both harder to navigate. If a doc still says
 
 **Full catalogue:** [index.md](index.md)
 
-## Start here
+## Overview
 
 Read [the Math Library map](math_library.md) first. A flat list of 172 files
 isn't navigable, so that page organizes the library the way you'd actually
@@ -54,7 +54,38 @@ per-methodology page.
 | [Generation automation](math_library.md#generation-automation-bin) | The Python emitters that produce most of this RTL |
 | [Research references](math_library.md#research-references) | The papers each methodology implements |
 
-## How the library is shaped
+The four floating-point formats are the same pipeline at different widths —
+unpack, align, operate, normalize, round, repack — so read one per-format page
+properly and the other three will feel familiar:
+[bf16](math_bf16_adder.md), [fp16](math_fp16_modules.md),
+[fp32](math_fp32_modules.md), [fp8](math_fp8_modules.md). Start with
+[bf16](math_bf16_adder.md). Of the four full-size formats it has the fewest
+mantissa bits (7 — only the fp8 formats have fewer), so the worked examples
+stay short, and the [extended set](math_bf16_extended.md) shows what a fully
+built-out format looks like once conversions, comparisons and activations are
+added.
+
+And the mantissa multipliers? They're the integer Dadda trees from the first
+half of the library. The two halves aren't separate collections.
+
+## Usage Example
+
+Choosing an adder is the question everyone asks first in this area — and the
+one the module names answer least well. So:
+
+| If you need | Use | Why |
+|---|---|---|
+| Smallest area, timing is not tight | `math_adder_ripple_carry` | O(n) delay, minimal logic. Fine at 8 bits, painful at 32 |
+| A balance at moderate width | `math_adder_brent_kung` | O(log n) depth with far fewer cells than Kogge-Stone |
+| Fastest at wide widths, area available | `math_adder_han_carlson` | Hybrid: Kogge-Stone-like depth, Brent-Kung-like wiring |
+| To sum three or more operands | `math_adder_carry_save` | Defers the carry chain; finish with one real adder |
+| A partial-product tree | `math_compressor_4to2` | The cell the Wallace and 4:2-Dadda trees are built from (the 3:2 Dadda tree uses carry-save adders) |
+
+The Han-Carlson adders are built from the shared `math_prefix_cell` and
+`math_prefix_cell_gray` (Brent-Kung uses its own black/gray cells); those two
+pages walk through the group-generate/propagate algebra that all of them use.
+
+## Design Notes
 
 Two things set this area apart from every other area in the repository, and
 both change how you work in it.
@@ -80,39 +111,7 @@ its instances — which is how two dozen module pages cover 172 modules, and why
 you should look for the *methodology* page, not a page named after your exact
 file.
 
-## Choosing an adder
-
-Here's the question everyone asks first in this area — and the one the module
-names answer least well:
-
-| If you need | Use | Why |
-|---|---|---|
-| Smallest area, timing is not tight | `math_adder_ripple_carry` | O(n) delay, minimal logic. Fine at 8 bits, painful at 32 |
-| A balance at moderate width | `math_adder_brent_kung` | O(log n) depth with far fewer cells than Kogge-Stone |
-| Fastest at wide widths, area available | `math_adder_han_carlson` | Hybrid: Kogge-Stone-like depth, Brent-Kung-like wiring |
-| To sum three or more operands | `math_adder_carry_save` | Defers the carry chain; finish with one real adder |
-| A partial-product tree | `math_compressor_4to2` | The cell the Wallace and 4:2-Dadda trees are built from (the 3:2 Dadda tree uses carry-save adders) |
-
-The Han-Carlson adders are built from the shared `math_prefix_cell` and
-`math_prefix_cell_gray` (Brent-Kung uses its own black/gray cells); those two
-pages walk through the group-generate/propagate algebra that all of them use.
-
-## Floating point
-
-The four formats are the same pipeline at different widths — unpack, align,
-operate, normalize, round, repack — so read one per-format page properly and
-the other three will feel familiar: [bf16](math_bf16_adder.md),
-[fp16](math_fp16_modules.md), [fp32](math_fp32_modules.md),
-[fp8](math_fp8_modules.md). Start with [bf16](math_bf16_adder.md). Of the four
-full-size formats it has the fewest mantissa bits (7 — only the fp8 formats
-have fewer), so the worked examples stay short, and the
-[extended set](math_bf16_extended.md) shows what a fully built-out format
-looks like once conversions, comparisons and activations are added.
-
-And the mantissa multipliers? They're the integer Dadda trees from the first
-half of the library. The two halves aren't separate collections.
-
-## Related
+## Related Modules
 
 - [rtl-common](../rtl-common/overview.md) — the counters, FIFOs and encoders this
   library builds on

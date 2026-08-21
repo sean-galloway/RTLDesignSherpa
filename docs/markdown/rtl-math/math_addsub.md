@@ -31,7 +31,7 @@ The `math_addsub_full_nbit` module is a combined adder/subtractor that performs 
 
 **Key Feature:** One arithmetic unit handles both operations using XOR gates and a control signal — noticeably less hardware than separate adder and subtractor modules.
 
-## Module Declaration
+### Module Declaration
 
 ```systemverilog
 module math_addsub_full_nbit #(
@@ -150,7 +150,25 @@ w_c[0] = 1                       (carry in = 1)
 Result = A + (~B) + 1 = A - B   (two's complement)
 ```
 
-## Usage Examples
+## Timing
+
+| Metric | Value |
+|--------|-------|
+| **Logic Depth** | 2N + 1 levels (1 XOR + N full adders x 2) |
+| **Typical Delay (8-bit)** | ~3.2 ns @ 1.0V |
+| **Max Frequency (8-bit)** | ~300 MHz |
+
+**Logic Level Breakdown (8-bit):**
+1. XOR stage: 1 level (B ^ control)
+2. Carry chain: 16 levels (8 full adders × 2)
+3. **Total**: 17 levels
+
+**Critical Path:**
+```
+i_b[0] → XOR → FA[0] → FA[1] → ... → FA[7] → ow_carry
+```
+
+## Usage Example
 
 ### Simple Add/Subtract ALU
 
@@ -301,48 +319,6 @@ module multi_alu (
 endmodule
 ```
 
-## Timing Characteristics
-
-| Metric | Value |
-|--------|-------|
-| **Logic Depth** | 2N + 1 levels (1 XOR + N full adders x 2) |
-| **Typical Delay (8-bit)** | ~3.2 ns @ 1.0V |
-| **Max Frequency (8-bit)** | ~300 MHz |
-
-**Logic Level Breakdown (8-bit):**
-1. XOR stage: 1 level (B ^ control)
-2. Carry chain: 16 levels (8 full adders × 2)
-3. **Total**: 17 levels
-
-**Critical Path:**
-```
-i_b[0] → XOR → FA[0] → FA[1] → ... → FA[7] → ow_carry
-```
-
-## Performance Characteristics
-
-### Resource Utilization
-
-| Width | LUTs (Est.) | Description |
-|-------|-------------|-------------|
-| 8-bit | ~18 | N XORs + N full adders |
-| 16-bit | ~34 | Linear scaling |
-| 32-bit | ~66 | Linear scaling |
-
-**Area Breakdown (8-bit):**
-- XOR gates: 8 LUTs
-- Full adders: 8 × 2 = 16 LUTs (optimized)
-- **Total**: ~18 LUTs
-
-**Comparison:**
-| Architecture | Area (relative) | Operations |
-|--------------|-----------------|-----------|
-| Separate Add + Sub | 2.0× | Add or Sub |
-| **Add/Sub Unit** | **1.1×** | **Add and Sub** |
-| Adder only (manual control) | 1.0× | Add and Sub (external invert) |
-
-**Advantage:** ~10% area overhead vs adder-only, but integrated control simplifies system design. That's a trade I'll take every time in control logic.
-
 ## Design Notes
 
 ### Advantages
@@ -383,7 +359,29 @@ i_b[0] → XOR → FA[0] → FA[1] → ... → FA[7] → ow_carry
    end
    ```
 
-## Common Pitfalls
+### Performance
+
+| Width | LUTs (Est.) | Description |
+|-------|-------------|-------------|
+| 8-bit | ~18 | N XORs + N full adders |
+| 16-bit | ~34 | Linear scaling |
+| 32-bit | ~66 | Linear scaling |
+
+**Area Breakdown (8-bit):**
+- XOR gates: 8 LUTs
+- Full adders: 8 × 2 = 16 LUTs (optimized)
+- **Total**: ~18 LUTs
+
+**Comparison:**
+| Architecture | Area (relative) | Operations |
+|--------------|-----------------|-----------|
+| Separate Add + Sub | 2.0× | Add or Sub |
+| **Add/Sub Unit** | **1.1×** | **Add and Sub** |
+| Adder only (manual control) | 1.0× | Add and Sub (external invert) |
+
+**Advantage:** ~10% area overhead vs adder-only, but integrated control simplifies system design. That's a trade I'll take every time in control logic.
+
+### Common Pitfalls
 
 **Anti-Pattern 1**: Misinterpreting carry output
 
@@ -420,6 +418,12 @@ assign signed_overflow = (i_a[N-1] == i_b[N-1]) &&
 // If timing is critical, consider pipelining the XOR stage
 ```
 
+## Related Modules
+
+- **math_adder_ripple_carry.sv** - Add-only (no XOR overhead)
+- **math_subtractor_ripple_carry.sv** - Subtract-only (rarely used)
+- **math_adder_pg_chain.sv** - Faster alternative for adder stage
+
 ## Testing
 
 From the test suite (`val/math/test_math_addsub_full_nbit.py`):
@@ -428,12 +432,6 @@ Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
-## Related Modules
-
-- **math_adder_ripple_carry.sv** - Add-only (no XOR overhead)
-- **math_subtractor_ripple_carry.sv** - Subtract-only (rarely used)
-- **math_adder_pg_chain.sv** - Faster alternative for adder stage
-
 ## References
 
 - Mano, M.M. "Digital Design." Prentice Hall, 2002.
@@ -441,5 +439,5 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 
 ## Navigation
 
-- **[← Back to Math Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [Back to Math Index](index.md)
+- [Back to Main Documentation Index](../index.md)

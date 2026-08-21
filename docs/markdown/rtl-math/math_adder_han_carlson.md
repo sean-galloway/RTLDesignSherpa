@@ -70,9 +70,9 @@ table. Widths on paper are not widths in silicon; the grep doesn't lie.
 - `math_prefix_cell.sv` - Black cell (outputs G and P)
 - `math_prefix_cell_gray.sv` - Gray cell (outputs G only)
 
-## Module Declaration
+### Module Declaration
 
-### 16-bit Han-Carlson Adder
+**16-bit Han-Carlson Adder**
 
 ```systemverilog
 module math_adder_han_carlson_016 #(
@@ -86,7 +86,7 @@ module math_adder_han_carlson_016 #(
 );
 ```
 
-### 48-bit Han-Carlson Adder
+**48-bit Han-Carlson Adder**
 
 ```systemverilog
 module math_adder_han_carlson_048 #(
@@ -218,7 +218,39 @@ level deeper than Han-Carlson at N=16. Han-Carlson's advantage is in wiring
 tracks and fanout regularity, and it widens as N grows — not in cell count at
 this width.
 
-## Usage Examples
+## Timing
+
+### 16-bit Adder
+
+| Metric | Value |
+|--------|-------|
+| Logic Levels | 5 prefix stages + sum XOR |
+| Prefix Cells | 32 (24 black + 8 gray) |
+| Critical Path | cin -> Stage 1 -> Stage 5 -> sum[15] |
+
+### 48-bit Adder
+
+| Metric | Value |
+|--------|-------|
+| Logic Levels | 7 prefix stages + sum XOR |
+| Prefix Cells | 136 (112 black + 24 gray) |
+| Critical Path | cin -> Stage 1 -> Stage 7 -> sum[47] |
+
+### Depth Formula
+
+For N-bit Han-Carlson:
+- **Prefix-tree depth** = ceil(log2(N)) + 1 stages
+- **Total depth** = prefix tree + 1 sum stage = ceil(log2(N)) + 2 stages
+- **16-bit:** prefix = 4 + 1 = 5, total = 6 stages (5 prefix + 1 sum)
+- **48-bit:** prefix = 6 + 1 = 7, total = 8 stages (7 prefix + 1 sum)
+
+The `+2` is **total** depth, not prefix depth — the sparsity-2 Han-Carlson
+prefix network is `log2(N) + 1` deep, and the final sum stage adds one more.
+Quoting `+2` without saying which is being counted invites an off-by-one when
+comparing against the Harris taxonomy, which tabulates prefix depth. Say which
+number you're quoting.
+
+## Usage Example
 
 ### Basic 16-bit Addition
 
@@ -289,68 +321,6 @@ math_adder_han_carlson_048 u_wide_add (
 );
 ```
 
-## Timing Characteristics
-
-### 16-bit Adder
-
-| Metric | Value |
-|--------|-------|
-| Logic Levels | 5 prefix stages + sum XOR |
-| Prefix Cells | 32 (24 black + 8 gray) |
-| Critical Path | cin -> Stage 1 -> Stage 5 -> sum[15] |
-
-### 48-bit Adder
-
-| Metric | Value |
-|--------|-------|
-| Logic Levels | 7 prefix stages + sum XOR |
-| Prefix Cells | 136 (112 black + 24 gray) |
-| Critical Path | cin -> Stage 1 -> Stage 7 -> sum[47] |
-
-### Depth Formula
-
-For N-bit Han-Carlson:
-- **Prefix-tree depth** = ceil(log2(N)) + 1 stages
-- **Total depth** = prefix tree + 1 sum stage = ceil(log2(N)) + 2 stages
-- **16-bit:** prefix = 4 + 1 = 5, total = 6 stages (5 prefix + 1 sum)
-- **48-bit:** prefix = 6 + 1 = 7, total = 8 stages (7 prefix + 1 sum)
-
-The `+2` is **total** depth, not prefix depth — the sparsity-2 Han-Carlson
-prefix network is `log2(N) + 1` deep, and the final sum stage adds one more.
-Quoting `+2` without saying which is being counted invites an off-by-one when
-comparing against the Harris taxonomy, which tabulates prefix depth. Say which
-number you're quoting.
-
-## Performance Characteristics
-
-### Resource Utilization
-
-Cell counts are exact, obtained by elaborating the generate stages of each file.
-Gray cells always number N/2 (the final fill-in stage). LUT figures are estimates
-derived from the cell counts, not synthesis results.
-
-| Width | Prefix Stages | Black Cells | Gray Cells | Total Cells | LUTs (Est.) |
-|-------|---------------|-------------|------------|-------------|-------------|
-| 16-bit | 5 | 24 | 8 | 32 | ~90 |
-| 22-bit | 6 | 39 | 11 | 50 | ~140 |
-| 32-bit | 6 | 64 | 16 | 80 | ~225 |
-| 44-bit | 7 | 100 | 22 | 122 | ~345 |
-| 48-bit | 7 | 112 | 24 | 136 | ~385 |
-| 72-bit | 8 | 188 | 36 | 224 | ~630 |
-
-: Han-Carlson prefix-cell counts, elaborated from the generated RTL
-
-### Comparison with Other Architectures
-
-| Architecture | 16-bit Depth | 16-bit Cells | Wiring Complexity |
-|--------------|--------------|--------------|-------------------|
-| Ripple Carry | 16 | 16 | Minimal |
-| Brent-Kung | 6 | 27 | Low |
-| **Han-Carlson** | **5** | **32** | **Medium** |
-| Kogge-Stone (not implemented here) | 4 | 49 | High |
-
-: 16-bit architecture comparison, prefix depth and cell count
-
 ## Design Notes
 
 ### Design Optimization Priorities
@@ -386,7 +356,35 @@ variants; running it will not reproduce the current file set.
 
 **Do not edit the generated .sv files manually.** Modify the generator script instead.
 
-## Common Pitfalls
+### Performance
+
+Cell counts are exact, obtained by elaborating the generate stages of each file.
+Gray cells always number N/2 (the final fill-in stage). LUT figures are estimates
+derived from the cell counts, not synthesis results.
+
+| Width | Prefix Stages | Black Cells | Gray Cells | Total Cells | LUTs (Est.) |
+|-------|---------------|-------------|------------|-------------|-------------|
+| 16-bit | 5 | 24 | 8 | 32 | ~90 |
+| 22-bit | 6 | 39 | 11 | 50 | ~140 |
+| 32-bit | 6 | 64 | 16 | 80 | ~225 |
+| 44-bit | 7 | 100 | 22 | 122 | ~345 |
+| 48-bit | 7 | 112 | 24 | 136 | ~385 |
+| 72-bit | 8 | 188 | 36 | 224 | ~630 |
+
+: Han-Carlson prefix-cell counts, elaborated from the generated RTL
+
+**Comparison with Other Architectures:**
+
+| Architecture | 16-bit Depth | 16-bit Cells | Wiring Complexity |
+|--------------|--------------|--------------|-------------------|
+| Ripple Carry | 16 | 16 | Minimal |
+| Brent-Kung | 6 | 27 | Low |
+| **Han-Carlson** | **5** | **32** | **Medium** |
+| Kogge-Stone (not implemented here) | 4 | 49 | High |
+
+: 16-bit architecture comparison, prefix depth and cell count
+
+### Common Pitfalls
 
 **Anti-Pattern 1**: Expecting parameterizable width
 
@@ -412,6 +410,15 @@ always_ff @(posedge clk) begin
 end
 ```
 
+## Related Modules
+
+- **math_prefix_cell** - Black cell building block
+- **math_prefix_cell_gray** - Gray cell building block
+- **math_multiplier_dadda_4to2_008/011/024** - Use the 16/22/48-bit Han-Carlson as final CPA
+- **math_bf16_fma** - Uses 48-bit Han-Carlson for wide addition
+- **math_ieee754_2008_fp32_fma** - Uses 72-bit Han-Carlson for wide addition
+- **math_adder_brent_kung_008/016/032/064** - Alternative area-optimized prefix adders
+
 ## Testing
 
 From the test suite (`val/math/test_math_adder_han_carlson.py`):
@@ -426,15 +433,6 @@ Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
-## Related Modules
-
-- **math_prefix_cell** - Black cell building block
-- **math_prefix_cell_gray** - Gray cell building block
-- **math_multiplier_dadda_4to2_008/011/024** - Use the 16/22/48-bit Han-Carlson as final CPA
-- **math_bf16_fma** - Uses 48-bit Han-Carlson for wide addition
-- **math_ieee754_2008_fp32_fma** - Uses 72-bit Han-Carlson for wide addition
-- **math_adder_brent_kung_008/016/032/064** - Alternative area-optimized prefix adders
-
 ## References
 
 - Han, T., Carlson, D.A. "Fast Area-Efficient VLSI Adders." IEEE Symposium on Computer Arithmetic, 1987.
@@ -443,5 +441,5 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 
 ## Navigation
 
-- **[← Back to Math Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [Back to Math Index](index.md)
+- [Back to Main Documentation Index](../index.md)

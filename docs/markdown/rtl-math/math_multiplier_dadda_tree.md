@@ -46,7 +46,15 @@ The Dadda tree multiplier family implements high-speed multiplication using an *
 
 The CPA width is the **product** width, not the operand width: the 8-bit multiplier instantiates `math_adder_brent_kung_016`, the 16-bit one `math_adder_brent_kung_032`, and the 32-bit one `math_adder_brent_kung_064`. Carry-in is tied to `1'b0`, and the adder's carry-out is left unread on `w_cpa_carry_unused` - an N x N product is strictly less than 2**(2N), so the top column can never carry out.
 
-## Module Declarations
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| N | int | 8/16/32 | Bit width (fixed per variant) |
+
+**Note:** The `N` parameter is present but fixed per module variant. It is not intended for user modification.
+
+## Ports
 
 ### 8-bit Dadda Tree Multiplier
 
@@ -83,16 +91,6 @@ module math_multiplier_dadda_tree_032 #(
     output logic [2*N-1:0] ow_product
 );
 ```
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| N | int | 8/16/32 | Bit width (fixed per variant) |
-
-**Note:** The `N` parameter is present but fixed per module variant. It is not intended for user modification.
-
-## Ports
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -315,7 +313,96 @@ What remains is the pure statement of the tradeoff: Wallace spends more
 compressor cells than Dadda to reach the same reduction depth, and now gets
 nothing in return. Dadda is the better choice on both axes.
 
-## Usage Examples
+### Algorithm Reference: Dadda Sequence
+
+The Dadda reduction sequence is defined as:
+
+```
+d(1) = 2           (final stage: 2 rows)
+d(j+1) = ⌊1.5 × d(j)⌋  (recursive definition)
+
+Sequence: 2, 3, 4, 6, 9, 13, 19, 28, 42, 63, 94, 141, ...
+```
+
+**For N×N multiplication:**
+1. Find maximum column height (N for the middle column)
+2. Find the largest sequence entry strictly below max_height - that is the first
+   stage target
+3. Work downwards through the sequence until the target is 2
+
+**Example (8×8):**
+- Max height = 8
+- Largest sequence entry below 8 is 6, so that is the first target
+- Stage targets: 6 → 4 → 3 → 2 (four stages)
+
+This matches the generated RTL, whose stage comments read
+`Dadda reduction stage 1: max column height 6` through
+`stage 4: max column height 2`.
+
+## Timing
+
+| Metric | 8-bit | 16-bit | 32-bit |
+|--------|-------|--------|--------|
+| **Logic Depth** | ~13-15 levels | ~17-20 levels | ~22-28 levels |
+| **Typical Delay (ns)** | ~6.5-7.5 | ~8.5-10.5 | ~11-14 |
+| **Max Frequency** | ~130-150 MHz | ~95-115 MHz | ~70-90 MHz |
+
+**Logic Depth Breakdown:**
+- Partial product generation: 1 level (AND gates)
+- Dadda reduction stages: logarithmic - 4 / 6 / 8 stages for 8 / 16 / 32-bit
+- Final addition: on-chip **Brent-Kung** parallel-prefix carry-propagate adder, O(log N) levels
+
+**Critical Path:**
+```
+a middle-column partial product (the tallest column feeds the most CSA
+levels; corner PPs like PP[N-1][N-1] join late and are NOT critical)
+→ Stage 1 CSA → ... → Stage K CSA
+→ Brent-Kung prefix network (~2·log2(2N) levels) → ow_product[2N-1]
+```
+
+**Important:** both halves of the datapath are logarithmic. The reduction tree
+is log-depth, and the final adder is a Brent-Kung parallel-prefix adder, which
+is also log-depth, so the **end-to-end delay of these modules is O(log N)**.
+There is no serial carry chain anywhere in the design. The 32-bit variant, for
+example, follows an 8-stage tree with a 64-bit prefix network rather than the
+61-deep ripple it used to carry.
+
+### Resource Utilization
+
+Instance counts below are exact, taken from the generated RTL. "3:2 cells"
+counts `math_adder_carry_save` and "half adders" counts `math_adder_half`;
+every one of them lives in the reduction tree. The final CPA is a single
+prefix-adder instance and contributes no discrete adder cells, so
+`math_adder_full` does not appear in these files at all.
+
+| Width | 3:2 cells (tree) | Half adders (tree) | Final CPA | AND Gates | Total adder cells |
+|-------|------------------|--------------------|-----------|-----------|-------------------|
+| 8-bit | 35 | 7 | 1 × `math_adder_brent_kung_016` | 64 | 42 |
+| 16-bit | 195 | 15 | 1 × `math_adder_brent_kung_032` | 256 | 210 |
+| 32-bit | 899 | 31 | 1 × `math_adder_brent_kung_064` | 1024 | 930 |
+
+**Area Comparison (measured cell counts, Dadda versus Wallace):**
+
+Both families now instantiate the same Brent-Kung CPA at the same width, so the
+adder-cell totals below compare reduction trees on equal terms.
+
+| Width | Dadda total cells | Wallace total cells | Dadda saving |
+|-------|-------------------|---------------------|--------------|
+| 8-bit | 42 | 61 | 31% |
+| 16-bit | 210 | 274 | 23% |
+| 32-bit | 930 | 1116 | 17% |
+
+Totals count every instantiated discrete adder cell in the corresponding
+generated `.sv` file, all of which are in the reduction tree. The shared
+Brent-Kung CPA is identical in both families and is excluded from the totals;
+adding it back shifts both columns by the same amount. LUT and gate-level area will differ by
+technology and synthesis settings; these are structural counts, not synthesis
+results.
+
+**Key Advantage:** for the same reduction depth, Dadda instantiates
+substantially fewer compressor cells than Wallace.
+
+## Usage Example
 
 ### Basic 8×8 Multiplication
 
@@ -471,81 +558,6 @@ module flexible_multiplier #(
 endmodule
 ```
 
-## Timing Characteristics
-
-| Metric | 8-bit | 16-bit | 32-bit |
-|--------|-------|--------|--------|
-| **Logic Depth** | ~13-15 levels | ~17-20 levels | ~22-28 levels |
-| **Typical Delay (ns)** | ~6.5-7.5 | ~8.5-10.5 | ~11-14 |
-| **Max Frequency** | ~130-150 MHz | ~95-115 MHz | ~70-90 MHz |
-
-**Logic Depth Breakdown:**
-- Partial product generation: 1 level (AND gates)
-- Dadda reduction stages: logarithmic - 4 / 6 / 8 stages for 8 / 16 / 32-bit
-- Final addition: on-chip **Brent-Kung** parallel-prefix carry-propagate adder, O(log N) levels
-
-**Critical Path:**
-```
-a middle-column partial product (the tallest column feeds the most CSA
-levels; corner PPs like PP[N-1][N-1] join late and are NOT critical)
-→ Stage 1 CSA → ... → Stage K CSA
-→ Brent-Kung prefix network (~2·log2(2N) levels) → ow_product[2N-1]
-```
-
-**Important:** both halves of the datapath are logarithmic. The reduction tree
-is log-depth, and the final adder is a Brent-Kung parallel-prefix adder, which
-is also log-depth, so the **end-to-end delay of these modules is O(log N)**.
-There is no serial carry chain anywhere in the design. The 32-bit variant, for
-example, follows an 8-stage tree with a 64-bit prefix network rather than the
-61-deep ripple it used to carry.
-
-## Performance Characteristics
-
-### Resource Utilization
-
-Instance counts below are exact, taken from the generated RTL. "3:2 cells"
-counts `math_adder_carry_save` and "half adders" counts `math_adder_half`;
-every one of them lives in the reduction tree. The final CPA is a single
-prefix-adder instance and contributes no discrete adder cells, so
-`math_adder_full` does not appear in these files at all.
-
-| Width | 3:2 cells (tree) | Half adders (tree) | Final CPA | AND Gates | Total adder cells |
-|-------|------------------|--------------------|-----------|-----------|-------------------|
-| 8-bit | 35 | 7 | 1 × `math_adder_brent_kung_016` | 64 | 42 |
-| 16-bit | 195 | 15 | 1 × `math_adder_brent_kung_032` | 256 | 210 |
-| 32-bit | 899 | 31 | 1 × `math_adder_brent_kung_064` | 1024 | 930 |
-
-**Area Comparison (measured cell counts, Dadda versus Wallace):**
-
-Both families now instantiate the same Brent-Kung CPA at the same width, so the
-adder-cell totals below compare reduction trees on equal terms.
-
-| Width | Dadda total cells | Wallace total cells | Dadda saving |
-|-------|-------------------|---------------------|--------------|
-| 8-bit | 42 | 61 | 31% |
-| 16-bit | 210 | 274 | 23% |
-| 32-bit | 930 | 1116 | 17% |
-
-Totals count every instantiated discrete adder cell in the corresponding
-generated `.sv` file, all of which are in the reduction tree. The shared
-Brent-Kung CPA is identical in both families and is excluded from the totals;
-adding it back shifts both columns by the same amount. LUT and gate-level area will differ by
-technology and synthesis settings; these are structural counts, not synthesis
-results.
-
-**Key Advantage:** for the same reduction depth, Dadda instantiates
-substantially fewer compressor cells than Wallace.
-
-### Multiplier Architecture Selection
-
-| Requirement | Best Choice | Reasoning |
-|-------------|-------------|-----------|
-| **High-speed unsigned** | **Dadda Tree** | Log-depth tree with the fewest compressors |
-| Signed multiplication | Booth Radix-4 | Fewer partial products |
-| Minimal area | Array Multiplier | Sequential, low gates |
-| Variable width | Behavioral (`*`) | Synthesis optimizes |
-| Very high frequency | Pipelined Dadda | Split into stages |
-
 ## Design Notes
 
 ### Advantages
@@ -591,6 +603,16 @@ substantially fewer compressor cells than Wallace.
 - Specific timing requirements favor it
 
 **In Practice:** Dadda is preferred for almost all production designs.
+
+### Multiplier Architecture Selection
+
+| Requirement | Best Choice | Reasoning |
+|-------------|-------------|-----------|
+| **High-speed unsigned** | **Dadda Tree** | Log-depth tree with the fewest compressors |
+| Signed multiplication | Booth Radix-4 | Fewer partial products |
+| Minimal area | Array Multiplier | Sequential, low gates |
+| Variable width | Behavioral (`*`) | Synthesis optimizes |
+| Very high frequency | Pipelined Dadda | Split into stages |
 
 ### Signed Multiplication
 
@@ -645,7 +667,7 @@ end
 **4-Stage Pipeline** (for maximum frequency):
 Split Dadda tree into pipeline stages based on reduction schedule.
 
-## Common Pitfalls
+### Common Pitfalls
 
 **Anti-Pattern 1: Expecting width parameterization**
 
@@ -698,14 +720,6 @@ separate sum and carry vectors.
 // Target: 1 stage per 5-6ns of delay
 ```
 
-## Testing
-
-From the test suite (`val/math/test_math_multiplier_dadda.py`):
-
-Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
-parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
-`make -C val/math run-all-func-parallel`, never bare pytest for suites.
-
 ## Related Modules
 
 - **math_multiplier_wallace_tree_*.sv** - same reduction depth, 17-31% more adder cells, identical final CPA
@@ -713,31 +727,13 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 - **math_adder_carry_save.sv** - 3:2 compressor building block; the only compressor these files use
 - **math_adder_half.sv** - Half adder primitive, used in the reduction tree only
 
-## Algorithm Reference: Dadda Sequence
+## Testing
 
-The Dadda reduction sequence is defined as:
+From the test suite (`val/math/test_math_multiplier_dadda.py`):
 
-```
-d(1) = 2           (final stage: 2 rows)
-d(j+1) = ⌊1.5 × d(j)⌋  (recursive definition)
-
-Sequence: 2, 3, 4, 6, 9, 13, 19, 28, 42, 63, 94, 141, ...
-```
-
-**For N×N multiplication:**
-1. Find maximum column height (N for the middle column)
-2. Find the largest sequence entry strictly below max_height - that is the first
-   stage target
-3. Work downwards through the sequence until the target is 2
-
-**Example (8×8):**
-- Max height = 8
-- Largest sequence entry below 8 is 6, so that is the first target
-- Stage targets: 6 → 4 → 3 → 2 (four stages)
-
-This matches the generated RTL, whose stage comments read
-`Dadda reduction stage 1: max column height 6` through
-`stage 4: max column height 2`.
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## References
 

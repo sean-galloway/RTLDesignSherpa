@@ -23,7 +23,7 @@
 
 # Carry-Save Adder
 
-Single-bit and N-bit carry-save adders for high-speed multi-operand addition — 3:2 compression with constant-depth parallel operation. These are the fundamental building blocks of fast multipliers and multi-operand addition trees.
+Single-bit and N-bit carry-save adders for high-speed multi-operand addition — 3:2 compression with constant-depth parallel operation.
 
 ## Overview
 
@@ -33,13 +33,15 @@ Carry-save adders (CSAs) add three operands in a single level of logic by keepin
 - **Multiplier trees**: Essential for Wallace and Dadda tree multipliers
 - **Multi-operand addition**: Add many numbers efficiently
 
+These are the fundamental building blocks of fast multipliers and multi-operand addition trees.
+
 **Modules Covered:**
 - **math_adder_carry_save** - Single-bit CSA (3:2 compressor)
 - **math_adder_carry_save_nbit** - N-bit parallel CSA array
 
-## Module Declarations
+### Module Declarations
 
-### Single-bit Carry-Save Adder
+**Single-bit Carry-Save Adder**
 
 ```systemverilog
 module math_adder_carry_save (
@@ -51,7 +53,7 @@ module math_adder_carry_save (
 );
 ```
 
-### N-bit Carry-Save Adder
+**N-bit Carry-Save Adder**
 
 ```systemverilog
 module math_adder_carry_save_nbit #(
@@ -190,7 +192,32 @@ assign final_result = {2'b0, sum_vec} + {carry_vec, 1'b0};
 
 **Common mistake:** adding the vectors without shifting the carry. `Sum + 2xCarry = A + B + C` (the `Key Property` above) — the factor of two IS a left shift by one. `sum_vec + carry_vec` is wrong; `sum_vec + (carry_vec << 1)` is correct. I've debugged this exact bug in someone else's multiplier at least twice.
 
-## Usage Examples
+## Timing
+
+### Propagation Delays
+
+| Module | Logic Levels | Typical Delay (ns) |
+|--------|--------------|-------------------|
+| Single-bit CSA | 2 | ~0.4 |
+| N-bit CSA | 2 | ~0.4 (independent of N!) |
+
+**Key Advantage:** Delay is constant regardless of bit width. That's the whole point of the architecture.
+
+**Critical Path:**
+```
+i_a/i_b/i_c → ow_sum    (2 XOR gates)
+i_a/i_b/i_c → ow_carry  (2 gates: AND + OR)
+```
+
+**Comparison:**
+| Adder Type | N-bit Delay |
+|------------|-------------|
+| **CSA** | **O(1)** - constant |
+| Ripple Carry | O(N) - linear |
+| Carry Lookahead | O(N) - linear (simplified) |
+| Parallel Prefix | O(log N) |
+
+## Usage Example
 
 ### Adding 3 Numbers (Single CSA Stage)
 
@@ -324,60 +351,6 @@ math_adder_carry_save_nbit #(.N(16)) u_csa_pp_l1_1 (
 // Final: Fast adder for last two vectors
 ```
 
-## Timing Characteristics
-
-### Propagation Delays
-
-| Module | Logic Levels | Typical Delay (ns) |
-|--------|--------------|-------------------|
-| Single-bit CSA | 2 | ~0.4 |
-| N-bit CSA | 2 | ~0.4 (independent of N!) |
-
-**Key Advantage:** Delay is constant regardless of bit width. That's the whole point of the architecture.
-
-**Critical Path:**
-```
-i_a/i_b/i_c → ow_sum    (2 XOR gates)
-i_a/i_b/i_c → ow_carry  (2 gates: AND + OR)
-```
-
-**Comparison:**
-| Adder Type | N-bit Delay |
-|------------|-------------|
-| **CSA** | **O(1)** - constant |
-| Ripple Carry | O(N) - linear |
-| Carry Lookahead | O(N) - linear (simplified) |
-| Parallel Prefix | O(log N) |
-
-## Performance Characteristics
-
-### Resource Utilization
-
-| Module | LUTs | Description |
-|--------|------|-------------|
-| Single-bit CSA | 2 | 1 XOR + 1 Majority |
-| N-bit CSA | ~2N | N single-bit CSAs |
-
-**Comparison to Full Adder:**
-- **Logic**: Identical (both use XOR + Majority)
-- **Usage**: Different (parallel vs chained)
-- **Area**: Same (~2 LUTs per bit)
-
-### Speed Advantages
-
-**CSA vs Ripple Carry Adder (8-bit example):**
-
-| Operation | Depth | Delay (ns) |
-|-----------|-------|-----------|
-| CSA (parallel) | 2 levels | ~0.4 |
-| Ripple (sequential) | 16 levels | ~3.0 |
-| **Speedup** | **8×** | **7.5×** |
-
-**Why CSA is Faster:**
-- No carry propagation between bits
-- All bits computed in parallel
-- Constant depth regardless of width
-
 ## Design Notes
 
 ### When to Use Carry-Save Adders
@@ -422,7 +395,32 @@ After CSA tree reduction, choose the final adder wisely — it sits on the criti
 | 16-32 bits | Brent-Kung |
 | ≥ 32 bits | Brent-Kung (to 64-bit) or Han-Carlson (to 72-bit); pipeline beyond |
 
-## Common Pitfalls
+### Performance
+
+| Module | LUTs | Description |
+|--------|------|-------------|
+| Single-bit CSA | 2 | 1 XOR + 1 Majority |
+| N-bit CSA | ~2N | N single-bit CSAs |
+
+**Comparison to Full Adder:**
+- **Logic**: Identical (both use XOR + Majority)
+- **Usage**: Different (parallel vs chained)
+- **Area**: Same (~2 LUTs per bit)
+
+**CSA vs Ripple Carry Adder (8-bit example):**
+
+| Operation | Depth | Delay (ns) |
+|-----------|-------|-----------|
+| CSA (parallel) | 2 levels | ~0.4 |
+| Ripple (sequential) | 16 levels | ~3.0 |
+| **Speedup** | **8×** | **7.5×** |
+
+**Why CSA is Faster:**
+- No carry propagation between bits
+- All bits computed in parallel
+- Constant depth regardless of width
+
+### Common Pitfalls
 
 **Anti-Pattern 1**: Reducing without shifting the carry
 
@@ -477,6 +475,13 @@ logic [9:0] result;
 assign result = {2'b0, sum_vec} + {carry_vec, 1'b0};
 ```
 
+## Related Modules
+
+- **math_adder_full.sv** - Identical logic, used in ripple chains
+- **math_multiplier_wallace_tree_*.sv** - Uses CSA for partial product reduction
+- **math_multiplier_dadda_tree_*.sv** - Uses CSA with optimized schedule
+- **math_multiplier_carry_save.sv** - Multiplier variant using CSA stages
+
 ## Testing
 
 Covered by 2 test suites:
@@ -488,13 +493,6 @@ Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
-## Related Modules
-
-- **math_adder_full.sv** - Identical logic, used in ripple chains
-- **math_multiplier_wallace_tree_*.sv** - Uses CSA for partial product reduction
-- **math_multiplier_dadda_tree_*.sv** - Uses CSA with optimized schedule
-- **math_multiplier_carry_save.sv** - Multiplier variant using CSA stages
-
 ## References
 
 - Wallace, C.S. "A Suggestion for a Fast Multiplier." IEEE Transactions on Electronic Computers, 1964.
@@ -504,5 +502,5 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 
 ## Navigation
 
-- **[← Back to Math Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [Back to Math Index](index.md)
+- [Back to Main Documentation Index](../index.md)

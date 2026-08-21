@@ -31,7 +31,7 @@
 
 ## Overview
 
-`rtl/math/` is a ~170-module arithmetic library: integer add/subtract/multiply, IEEE-754-style floating-point (bf16, fp16, fp32, fp8) arithmetic, comparison, conversion, and machine-learning activation functions. Almost all of it is **code-generated** by the Python framework under `bin/rtl_generators/` — and that tells you how to read it. Don't approach this as a flat list of 170 files; you'll drown. Read it by **operation** and, within each operation, by the **methodology** (algorithm) that implements it.
+`rtl/math/` is a ~170-module arithmetic library: integer add/subtract/multiply, IEEE-754-style floating-point (bf16, fp16, fp32, fp8) arithmetic, comparison, conversion, and machine-learning activation functions. Almost all of it is **code-generated** by the Python framework under `bin/rtl_generators/` — and that should tell you how to read it. Don't approach this as a flat list of 170 files; you'll drown. Read it by **operation** and, within each operation, by the **methodology** (algorithm) that implements it.
 
 This document is the organizing map. Each operation lists its methodologies, the research each is based on, the module name pattern, and a link to the detailed per-methodology doc. The floating-point cores are themselves built from the integer methodologies below — Dadda trees for the mantissa multiplies — so the two halves of the library share a foundation.
 
@@ -204,18 +204,12 @@ generator owns. Change the generator, regenerate, move on.
 
 ---
 
-## Research References
+## Related Modules
 
-- Brent, R.P. & Kung, H.T. (1982). "A Regular Layout for Parallel Adders." *IEEE Transactions on Computers*, C-31(3), 260-264.
-- Han, T. & Carlson, D.A. (1987). "Fast area-efficient VLSI adders." *Proc. 8th IEEE Symposium on Computer Arithmetic (ARITH-8)*, 49-56.
-- Kogge, P.M. & Stone, H.S. (1973). "A Parallel Algorithm for the Efficient Solution of a General Class of Recurrence Equations." *IEEE Transactions on Computers*, C-22(8), 786-793.
-- Dadda, L. (1965). "Some schemes for parallel multipliers." *Alta Frequenza*, 34, 349-356.
-- Wallace, C.S. (1964). "A Suggestion for a Fast Multiplier." *IEEE Transactions on Electronic Computers*, EC-13(1), 14-17.
-- Weinberger, A. & Smith, J.L. (1958). "A Logic for High-Speed Addition." *National Bureau of Standards Circular 591*, 3-12.
-- Goldschmidt, R.E. (1964). "Applications of Division by Convergence." M.Sc. thesis, MIT.
-- IEEE Std 754-2008, *IEEE Standard for Floating-Point Arithmetic*.
-
----
+- Prefix cells: [math_prefix_cell.md](math_prefix_cell.md) · [math_prefix_cell_gray.md](math_prefix_cell_gray.md)
+- Multipliers: [dadda_tree](math_multiplier_dadda_tree.md) · [dadda_4to2](math_multiplier_dadda_4to2.md) · [wallace_tree](math_multiplier_wallace_tree.md) · [basic](math_multiplier_basic.md) · [compressor_4to2](math_compressor_4to2.md)
+- Subtraction: [math_subtractor.md](math_subtractor.md)
+- Floating-point: [bf16 extended](math_bf16_extended.md) · [fp16](math_fp16_modules.md) · [fp32](math_fp32_modules.md) · [fp8](math_fp8_modules.md) · [ieee754](math_ieee754_modules.md)
 
 ## Testing
 
@@ -225,12 +219,16 @@ Testing section with the suite that covers it. The whole area runs with
 (119 wrappers, REG_LEVEL x TEST_LEVEL grid), and the formal suite lives in
 `formal/common/math_*/`.
 
-## Related Documentation
+## References
 
-- Prefix cells: [math_prefix_cell.md](math_prefix_cell.md) · [math_prefix_cell_gray.md](math_prefix_cell_gray.md)
-- Multipliers: [dadda_tree](math_multiplier_dadda_tree.md) · [dadda_4to2](math_multiplier_dadda_4to2.md) · [wallace_tree](math_multiplier_wallace_tree.md) · [basic](math_multiplier_basic.md) · [compressor_4to2](math_compressor_4to2.md)
-- Subtraction: [math_subtractor.md](math_subtractor.md)
-- Floating-point: [bf16 extended](math_bf16_extended.md) · [fp16](math_fp16_modules.md) · [fp32](math_fp32_modules.md) · [fp8](math_fp8_modules.md) · [ieee754](math_ieee754_modules.md)
+- Brent, R.P. & Kung, H.T. (1982). "A Regular Layout for Parallel Adders." *IEEE Transactions on Computers*, C-31(3), 260-264.
+- Han, T. & Carlson, D.A. (1987). "Fast area-efficient VLSI adders." *Proc. 8th IEEE Symposium on Computer Arithmetic (ARITH-8)*, 49-56.
+- Kogge, P.M. & Stone, H.S. (1973). "A Parallel Algorithm for the Efficient Solution of a General Class of Recurrence Equations." *IEEE Transactions on Computers*, C-22(8), 786-793.
+- Dadda, L. (1965). "Some schemes for parallel multipliers." *Alta Frequenza*, 34, 349-356.
+- Wallace, C.S. (1964). "A Suggestion for a Fast Multiplier." *IEEE Transactions on Electronic Computers*, EC-13(1), 14-17.
+- Weinberger, A. & Smith, J.L. (1958). "A Logic for High-Speed Addition." *National Bureau of Standards Circular 591*, 3-12.
+- Goldschmidt, R.E. (1964). "Applications of Division by Convergence." M.Sc. thesis, MIT.
+- IEEE Std 754-2008, *IEEE Standard for Floating-Point Arithmetic*.
 
 ---
 

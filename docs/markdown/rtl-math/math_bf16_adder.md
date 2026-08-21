@@ -38,7 +38,7 @@ The `math_bf16_adder` module implements full BF16 addition and subtraction with 
 - **Status flags** - Overflow, underflow, and invalid operation indicators
 - **Valid handshaking** - Input/output valid signals for pipeline control
 
-## Module Declaration
+### Module Declaration
 
 ```systemverilog
 module math_bf16_adder #(
@@ -264,7 +264,29 @@ always_comb begin
 end
 ```
 
-## Usage Examples
+## Timing
+
+### Pipeline Latency Configurations
+
+| Configuration | Latency | Use Case |
+|---------------|---------|----------|
+| [0,0,0,0] | 0 cycles (combinational) | Area-constrained, low frequency |
+| [1,0,0,0] | 1 cycle | Balance input timing |
+| [0,0,0,1] | 1 cycle | Balance output timing |
+| [1,1,1,1] | 4 cycles | Maximum frequency |
+
+### Logic Depth by Stage
+
+| Stage | Logic Depth |
+|-------|-------------|
+| Exponent compare | ~3 gates |
+| Alignment shift | ~4 gates (log2) |
+| Mantissa add | ~5 gates |
+| CLZ + normalize | ~6 gates |
+| Rounding | ~3 gates |
+| **Total (comb)** | ~20-25 gates |
+
+## Usage Example
 
 ### Basic Addition (Combinational)
 
@@ -354,44 +376,6 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Timing Characteristics
-
-### Pipeline Latency Configurations
-
-| Configuration | Latency | Use Case |
-|---------------|---------|----------|
-| [0,0,0,0] | 0 cycles (combinational) | Area-constrained, low frequency |
-| [1,0,0,0] | 1 cycle | Balance input timing |
-| [0,0,0,1] | 1 cycle | Balance output timing |
-| [1,1,1,1] | 4 cycles | Maximum frequency |
-
-### Logic Depth by Stage
-
-| Stage | Logic Depth |
-|-------|-------------|
-| Exponent compare | ~3 gates |
-| Alignment shift | ~4 gates (log2) |
-| Mantissa add | ~5 gates |
-| CLZ + normalize | ~6 gates |
-| Rounding | ~3 gates |
-| **Total (comb)** | ~20-25 gates |
-
-## Performance Characteristics
-
-### Resource Utilization (Estimated)
-
-| Component | LUTs (est.) |
-|-----------|-------------|
-| Unpack + compare | ~40 |
-| Alignment shifter | ~50 |
-| Mantissa adder | ~30 |
-| CLZ + normalize | ~60 |
-| Rounding logic | ~20 |
-| Result MUX | ~30 |
-| Pipeline regs (per stage) | ~50 |
-| **Total (comb)** | ~230 LUTs |
-| **Total (4-stage)** | ~430 LUTs |
-
 ## Design Notes
 
 ### Flush-to-Zero (FTZ)
@@ -419,7 +403,21 @@ The sign of zero follows IEEE 754:
 
 Only Round-to-Nearest-Even (RNE) is supported. This is standard for BF16 in AI applications.
 
-## Common Pitfalls
+### Performance
+
+| Component | LUTs (est.) |
+|-----------|-------------|
+| Unpack + compare | ~40 |
+| Alignment shifter | ~50 |
+| Mantissa adder | ~30 |
+| CLZ + normalize | ~60 |
+| Rounding logic | ~20 |
+| Result MUX | ~30 |
+| Pipeline regs (per stage) | ~50 |
+| **Total (comb)** | ~230 LUTs |
+| **Total (4-stage)** | ~430 LUTs |
+
+### Common Pitfalls
 
 **Anti-Pattern 1**: Ignoring valid signals
 
@@ -457,6 +455,15 @@ if (ow_valid && !ow_invalid && !ow_overflow)
     accumulator <= accumulator + ow_result;
 ```
 
+## Related Modules
+
+- **math_bf16_multiplier** - BF16 multiplication
+- **math_bf16_fma** - Fused Multiply-Add with FP32 accumulator
+- **shifter_barrel** - Used internally for mantissa alignment
+- **count_leading_zeros** - Used internally for normalization
+
+This module instantiates **shifter_barrel** (alignment shifting and normalization) and **count_leading_zeros** (determining the normalization shift amount).
+
 ## Testing
 
 From the test suite (`val/math/test_math_bf16_adder.py`):
@@ -472,15 +479,6 @@ Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
-## Related Modules
-
-- **math_bf16_multiplier** - BF16 multiplication
-- **math_bf16_fma** - Fused Multiply-Add with FP32 accumulator
-- **shifter_barrel** - Used internally for mantissa alignment
-- **count_leading_zeros** - Used internally for normalization
-
-This module instantiates **shifter_barrel** (alignment shifting and normalization) and **count_leading_zeros** (determining the normalization shift amount).
-
 ## References
 
 - Google Brain Float (BF16) specification
@@ -491,5 +489,5 @@ This module instantiates **shifter_barrel** (alignment shifting and normalizatio
 
 ## Navigation
 
-- **[← Back to Math Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [Back to Math Index](index.md)
+- [Back to Main Documentation Index](../index.md)

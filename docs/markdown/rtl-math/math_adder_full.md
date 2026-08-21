@@ -29,7 +29,7 @@
 
 The `math_adder_full` module adds three single-bit inputs (two operands and a carry-in) and produces a sum bit and carry-out bit. This is the basis for multi-bit adders and more complex arithmetic units — if you understand this module cold, everything else in the adder family is structure, not new logic.
 
-## Module Declaration
+### Module Declaration
 
 ```systemverilog
 module math_adder_full #(parameter int N=1) (
@@ -152,7 +152,16 @@ flowchart LR
 
 **Key optimization:** The `a^b` XOR result is shared between sum calculation and carry propagation. One gate, two jobs.
 
-## Usage Examples
+## Timing
+
+| Characteristic | Typical Value | Description |
+|----------------|---------------|-------------|
+| Propagation Delay (Sum) | 2 × t_XOR | Through 2 XOR gates |
+| Propagation Delay (Carry) | t_AND + t_OR | Through AND-OR path |
+| Setup Time | 0 | Purely combinational |
+| Hold Time | 0 | Purely combinational |
+
+## Usage Example
 
 ### Basic Full Adder
 
@@ -252,21 +261,6 @@ module tb_math_adder_full;
 endmodule
 ```
 
-## Timing Characteristics
-
-| Characteristic | Typical Value | Description |
-|----------------|---------------|-------------|
-| Propagation Delay (Sum) | 2 × t_XOR | Through 2 XOR gates |
-| Propagation Delay (Carry) | t_AND + t_OR | Through AND-OR path |
-| Setup Time | 0 | Purely combinational |
-| Hold Time | 0 | Purely combinational |
-
-## Performance Characteristics
-
-- **Area**: 5 logic gates (2 XOR, 2 AND, 1 OR)
-- **Power**: Low static power, dynamic power proportional to switching activity
-- **Speed**: Limited by XOR gate delays (typically slower than AND/OR)
-
 ## Design Notes
 
 ### Advantages
@@ -294,6 +288,12 @@ assign ow_carry = (i_a & i_b) | (i_a & i_c) | (i_b & i_c);
 
 This alternative has higher gate count but may have different timing characteristics.
 
+### Performance
+
+- **Area**: 5 logic gates (2 XOR, 2 AND, 1 OR)
+- **Power**: Low static power, dynamic power proportional to switching activity
+- **Speed**: Limited by XOR gate delays (typically slower than AND/OR)
+
 ### Applications
 
 - **Multi-bit Adders**: Building block for ripple carry adders
@@ -302,6 +302,13 @@ This alternative has higher gate count but may have different timing characteris
 - **Accumulator Circuits**: Used in digital signal processing
 
 Bottom line: `math_adder_full` provides the essential functionality for binary addition, and it earns its place as the critical building block of digital arithmetic circuits.
+
+## Related Modules
+
+- `math_adder_half`: Half adder (2 inputs, no carry-in)
+- `math_adder_full_nbit`: N-bit full adder using ripple carry
+- `math_adder_ripple_carry`: Multi-bit ripple carry adder
+- `math_adder_carry_save`: Carry-save adder for multiple operand addition
 
 ## Testing
 
@@ -314,14 +321,7 @@ Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
-## Related Modules
-
-- `math_adder_half`: Half adder (2 inputs, no carry-in)
-- `math_adder_full_nbit`: N-bit full adder using ripple carry
-- `math_adder_ripple_carry`: Multi-bit ripple carry adder
-- `math_adder_carry_save`: Carry-save adder for multiple operand addition
-
 ## Navigation
 
-- **[← Back to Math Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [Back to Math Index](index.md)
+- [Back to Main Documentation Index](../index.md)

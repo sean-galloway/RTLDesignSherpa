@@ -23,7 +23,7 @@
 
 # Brent-Kung Parallel Prefix Adder
 
-A family of high-performance parallel prefix adders built on the Brent-Kung algorithm — O(log N) depth with minimal area overhead, achieved through an asymmetric tree structure and area-efficient gray cells.
+A family of parallel prefix adders built on the Brent-Kung algorithm — O(log N) depth without the Kogge-Stone area bill, thanks to an asymmetric tree and area-efficient gray cells.
 
 ## Overview
 
@@ -47,7 +47,7 @@ Available widths: **8-bit**, **16-bit**, **32-bit**, **64-bit**
 - `math_adder_brent_kung_grouppg_008/016/032/064.sv` - Width-specific prefix networks
 - `math_adder_brent_kung_sum.sv` - Final sum calculation
 
-## Module Declaration
+### Module Declaration
 
 ```systemverilog
 module math_adder_brent_kung_032 #(
@@ -256,7 +256,62 @@ Black cells follow `N - log2(N) - 1` and gray cells `N`. Don't take my word for
 it — count them yourself with
 `grep -c math_adder_brent_kung_black rtl/math/math_adder_brent_kung_grouppg_032.sv`.
 
-## Usage Examples
+## Timing
+
+### Combinational Delay Analysis
+
+Logic levels below are cell levels counted from the RTL. The delay and frequency
+columns are rough estimates only — no synthesis run backs them, and they will
+move substantially with technology, constraints and effort level.
+
+| Width | Logic Levels | Est. Delay (ns) | Est. Max Frequency |
+|-------|--------------|-----------------|--------------------|
+| 8-bit | 6 | ~2.0 | ~500 MHz |
+| 16-bit | 8 | ~2.5 | ~400 MHz |
+| 32-bit | 10 | ~3.0 | ~333 MHz |
+| 64-bit | 12 | ~3.5 | ~285 MHz |
+
+: Brent-Kung timing, logic levels measured and delays estimated
+
+**Logic Level Breakdown (32-bit):**
+1. Bitwise PG: 1 level (AND/XOR)
+2. Forward tree: 4 levels (levels containing black cells)
+3. Reverse tree: 4 levels (gray cells only)
+4. Sum calculation: 1 level (XOR)
+5. **Total**: 10 levels
+
+**Comparison to Other Adders:**
+
+| Adder Type | Logic Depth | Area | Best Use Case |
+|------------|-------------|------|---------------|
+| Ripple Carry | O(N) | Minimal | Low-speed, area-critical |
+| Carry Lookahead | O(log N) | Medium | Moderate speed |
+| **Brent-Kung** | **O(log N)** | **Medium** | **Balanced speed/area** |
+| Kogge-Stone | O(log N) | Maximum | Maximum speed (datapath) |
+
+### Critical Paths
+
+1. **Forward Tree Path**: i_a/i_b -> PG -> black cells (prefix levels 1-4) -> Group G
+2. **Reverse Tree Path**: Group G -> gray cells (prefix levels 5-8) -> Final G
+3. **Sum Path**: Final G → XOR with P → ow_sum
+
+**Optimization Tip**: Pipeline between stages for >1 GHz operation:
+```systemverilog
+// Pipeline registers (example for 2-stage pipeline)
+logic [N-1:0] r_p_stage1, r_g_stage1;
+logic [N-1:0] r_sum;
+
+always_ff @(posedge clk) begin
+    // Stage 1: PG generation + first half of prefix tree
+    r_p_stage1 <= ow_p;
+    r_g_stage1 <= partial_gg;  // Intermediate prefix result
+
+    // Stage 2: Second half of prefix tree + sum
+    r_sum <= ow_sum;
+end
+```
+
+## Usage Example
 
 ### Basic 32-bit Addition
 
@@ -383,108 +438,6 @@ initial begin
 end
 ```
 
-## Timing Characteristics
-
-### Combinational Delay Analysis
-
-Logic levels below are cell levels counted from the RTL. The delay and frequency
-columns are rough estimates only — no synthesis run backs them, and they will
-move substantially with technology, constraints and effort level.
-
-| Width | Logic Levels | Est. Delay (ns) | Est. Max Frequency |
-|-------|--------------|-----------------|--------------------|
-| 8-bit | 6 | ~2.0 | ~500 MHz |
-| 16-bit | 8 | ~2.5 | ~400 MHz |
-| 32-bit | 10 | ~3.0 | ~333 MHz |
-| 64-bit | 12 | ~3.5 | ~285 MHz |
-
-: Brent-Kung timing, logic levels measured and delays estimated
-
-**Logic Level Breakdown (32-bit):**
-1. Bitwise PG: 1 level (AND/XOR)
-2. Forward tree: 4 levels (levels containing black cells)
-3. Reverse tree: 4 levels (gray cells only)
-4. Sum calculation: 1 level (XOR)
-5. **Total**: 10 levels
-
-**Comparison to Other Adders:**
-
-| Adder Type | Logic Depth | Area | Best Use Case |
-|------------|-------------|------|---------------|
-| Ripple Carry | O(N) | Minimal | Low-speed, area-critical |
-| Carry Lookahead | O(log N) | Medium | Moderate speed |
-| **Brent-Kung** | **O(log N)** | **Medium** | **Balanced speed/area** |
-| Kogge-Stone | O(log N) | Maximum | Maximum speed (datapath) |
-
-### Critical Paths
-
-1. **Forward Tree Path**: i_a/i_b -> PG -> black cells (prefix levels 1-4) -> Group G
-2. **Reverse Tree Path**: Group G -> gray cells (prefix levels 5-8) -> Final G
-3. **Sum Path**: Final G → XOR with P → ow_sum
-
-**Optimization Tip**: Pipeline between stages for >1 GHz operation:
-```systemverilog
-// Pipeline registers (example for 2-stage pipeline)
-logic [N-1:0] r_p_stage1, r_g_stage1;
-logic [N-1:0] r_sum;
-
-always_ff @(posedge clk) begin
-    // Stage 1: PG generation + first half of prefix tree
-    r_p_stage1 <= ow_p;
-    r_g_stage1 <= partial_gg;  // Intermediate prefix result
-
-    // Stage 2: Second half of prefix tree + sum
-    r_sum <= ow_sum;
-end
-```
-
-## Performance Characteristics
-
-### Resource Utilization
-
-Cell counts below are exact (counted from the RTL); the LUT figures are estimates
-derived from them, not synthesis results.
-
-| Width | Black cells | Gray cells | LUTs (Est.) | FFs (Pipeline) |
-|-------|-------------|------------|-------------|----------------|
-| 8-bit | 4 | 8 | ~45 | 0 (combinational) |
-| 16-bit | 11 | 16 | ~100 | 0 (combinational) |
-| 32-bit | 26 | 32 | ~240 | 0 (combinational) |
-| 64-bit | 57 | 64 | ~510 | 0 (combinational) |
-
-: Brent-Kung area, cell counts measured and LUTs estimated
-
-**Area Breakdown (32-bit):**
-- Bitwise PG: 32 x 2 gates = 64 LUTs
-- Black cells: 26 cells x 3 gates = 78 LUTs
-- Gray cells: 32 cells x 2 gates = 64 LUTs
-- Sum logic: 32 x 1 gate = 32 LUTs
-- **Total**: ~238 LUTs
-
-**Comparison (32-bit, estimated):**
-- **Ripple Carry**: ~32 LUTs (32 full adders)
-- **Brent-Kung**: ~240 LUTs (balanced)
-- **Kogge-Stone**: ~450 LUTs (maximum speed, maximum area)
-
-### Speed vs Area Trade-offs
-
-| Adder Architecture | Relative Speed | Relative Area | Logic Depth |
-|-------------------|----------------|---------------|-------------|
-| Ripple Carry | 1.0× (slowest) | 1.0× (smallest) | O(N) |
-| Carry Lookahead | 4.0× | 3.0× | O(log N) |
-| **Brent-Kung** | **6.0×** | **4.5×** | **O(log N)** |
-| Kogge-Stone | 8.0× (fastest) | 7.0× (largest) | O(log N) |
-
-**When to Use Brent-Kung:**
-- **Balanced designs**: Need good speed without excessive area
-- **Mid-range frequency**: 200-500 MHz targets
-- **FPGA implementations**: LUT utilization matters
-- **Multiple adders**: Area budget shared across many units
-
-**When to Use Alternatives:**
-- Use **Ripple Carry** for: Low-speed, area-critical (e.g., control logic)
-- Use **Kogge-Stone** for: Critical datapath, maximum performance (e.g., FPU)
-
 ## Design Notes
 
 ### Width Selection
@@ -521,34 +474,52 @@ derived from them, not synthesis results.
    - Consider carry lookahead instead (smaller but still fast)
    - Share adders using time-division multiplexing
 
-### Verification Strategy
+### Performance
 
-Test suite location: `val/math/test_math_adder_brent_kung.py` — one parameterized
-test covering every width, not one file per width.
+Cell counts below are exact (counted from the RTL); the LUT figures are estimates
+derived from them, not synthesis results.
 
-**Key Test Scenarios:**
-- Exhaustive testing (8-bit only)
-- Random stimulus (16/32-bit)
-- Corner cases: 0+0, 0+MAX, MAX+MAX
-- Carry propagation: All 1's + 1
-- Signed overflow detection
-- Multi-precision chaining
+| Width | Black cells | Gray cells | LUTs (Est.) | FFs (Pipeline) |
+|-------|-------------|------------|-------------|----------------|
+| 8-bit | 4 | 8 | ~45 | 0 (combinational) |
+| 16-bit | 11 | 16 | ~100 | 0 (combinational) |
+| 32-bit | 26 | 32 | ~240 | 0 (combinational) |
+| 64-bit | 57 | 64 | ~510 | 0 (combinational) |
 
-**Test Command:**
-```bash
-# Test all widths the test sweeps (REG_LEVEL selects the width list)
-pytest val/math/test_math_adder_brent_kung.py -v
+: Brent-Kung area, cell counts measured and LUTs estimated
 
-# A single width
-pytest "val/math/test_math_adder_brent_kung.py::test_math_adder_brent_kung[32]" -v
-```
+**Area Breakdown (32-bit):**
+- Bitwise PG: 32 x 2 gates = 64 LUTs
+- Black cells: 26 cells x 3 gates = 78 LUTs
+- Gray cells: 32 cells x 2 gates = 64 LUTs
+- Sum logic: 32 x 1 gate = 32 LUTs
+- **Total**: ~238 LUTs
 
-The width sweep is driven by `REG_LEVEL`: `FUNC` (the default) covers 8 and 16
-bits, `FULL` covers 8, 16 and 32. The 64-bit variant is exercised indirectly,
-as the final CPA of the 32-bit Dadda and Wallace multiplier tests, rather than
-by a direct adder test.
+**Comparison (32-bit, estimated):**
+- **Ripple Carry**: ~32 LUTs (32 full adders)
+- **Brent-Kung**: ~240 LUTs (balanced)
+- **Kogge-Stone**: ~450 LUTs (maximum speed, maximum area)
 
-## Common Pitfalls
+**Speed vs Area Trade-offs:**
+
+| Adder Architecture | Relative Speed | Relative Area | Logic Depth |
+|-------------------|----------------|---------------|-------------|
+| Ripple Carry | 1.0× (slowest) | 1.0× (smallest) | O(N) |
+| Carry Lookahead | 4.0× | 3.0× | O(log N) |
+| **Brent-Kung** | **6.0×** | **4.5×** | **O(log N)** |
+| Kogge-Stone | 8.0× (fastest) | 7.0× (largest) | O(log N) |
+
+**When to Use Brent-Kung:**
+- **Balanced designs**: Need good speed without excessive area
+- **Mid-range frequency**: 200-500 MHz targets
+- **FPGA implementations**: LUT utilization matters
+- **Multiple adders**: Area budget shared across many units
+
+**When to Use Alternatives:**
+- Use **Ripple Carry** for: Low-speed, area-critical (e.g., control logic)
+- Use **Kogge-Stone** for: Critical datapath, maximum performance (e.g., FPU)
+
+### Common Pitfalls
 
 **Anti-Pattern 1**: Using wrong width variant
 
@@ -618,20 +589,43 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Testing
-
-From the test suite (`val/math/test_math_adder_brent_kung.py`):
-
-Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
-parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
-`make -C val/math run-all-func-parallel`, never bare pytest for suites.
-
 ## Related Modules
 
 - **math_adder_pg_chain.sv** - Medium-speed adder (less area)
 - **math_adder_ripple_carry.sv** - Minimal area adder (slow)
 - **math_adder_carry_save_nbit.sv** - For multi-operand addition (multipliers)
 - **math_subtractor_*.sv** - Subtraction variants (uses two's complement)
+
+## Testing
+
+From the test suite (`val/math/test_math_adder_brent_kung.py`) — one parameterized
+test covering every width, not one file per width.
+
+**Key Test Scenarios:**
+- Exhaustive testing (8-bit only)
+- Random stimulus (16/32-bit)
+- Corner cases: 0+0, 0+MAX, MAX+MAX
+- Carry propagation: All 1's + 1
+- Signed overflow detection
+- Multi-precision chaining
+
+**Test Command:**
+```bash
+# Test all widths the test sweeps (REG_LEVEL selects the width list)
+pytest val/math/test_math_adder_brent_kung.py -v
+
+# A single width
+pytest "val/math/test_math_adder_brent_kung.py::test_math_adder_brent_kung[32]" -v
+```
+
+The width sweep is driven by `REG_LEVEL`: `FUNC` (the default) covers 8 and 16
+bits, `FULL` covers 8, 16 and 32. The 64-bit variant is exercised indirectly,
+as the final CPA of the 32-bit Dadda and Wallace multiplier tests, rather than
+by a direct adder test.
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## References
 
@@ -641,5 +635,5 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 
 ## Navigation
 
-- **[← Back to Math Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [Back to Math Index](index.md)
+- [Back to Main Documentation Index](../index.md)

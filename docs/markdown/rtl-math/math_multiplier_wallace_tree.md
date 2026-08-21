@@ -23,11 +23,9 @@
 
 # Wallace Tree Multipliers
 
-Fast parallel multipliers built on tree-based partial product reduction with carry-save adders. These modules provide unsigned integer multiplication for 8×8, 16×16, and 32×32 operations. The reduction tree is logarithmic in depth, and the final carry-propagate adder is a Brent-Kung parallel-prefix adder—also log depth—so end-to-end delay is O(log N).
-
 ## Overview
 
-The Wallace tree family multiplies the fast way: a tree of 3:2 compressors (carry-save adders) works through the partial products in parallel. The reduction is built with maximal parallelism—everything that can compress in a given layer does compress, rather than following a schedule.
+Fast parallel multipliers built on tree-based partial product reduction with carry-save adders. The family covers unsigned integer multiplication for 8×8, 16×16, and 32×32 operations, and the recipe is the same at every width: AND gates build the N×N partial-product matrix, a tree of 3:2 compressors (carry-save adders) works through it in parallel, and a Brent-Kung parallel-prefix adder sums the two surviving rows. The reduction is built with maximal parallelism—everything that can compress in a given layer does compress, rather than following a schedule. The tree is logarithmic in depth, the final adder is log depth too, so end-to-end delay is O(log N).
 
 **Key Features:**
 - **Logarithmic reduction depth** - 4 layers for 8-bit, 6 for 16-bit, 8 for 32-bit
@@ -48,9 +46,19 @@ The CPA width is the **product** width, not the operand width: the 8-bit multipl
 
 **Two variants are generated.** `math_multiplier_wallace_tree_NNN` builds its reduction tree from `math_adder_full`; `math_multiplier_wallace_tree_csa_NNN` builds it from `math_adder_carry_save`. Both cells are 3:2 compressors, so the two trees come out structurally identical—same instance counts, same topology. The final CPA is the same `math_adder_brent_kung_{2N}` instance in **both** variants. Both are standalone top-level multipliers with the same port list. Pick either.
 
-## Module Declarations
+## Parameters
 
-### 8-bit Wallace Tree Multiplier
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| N | int | 8/16/32 | Bit width (fixed per variant) |
+
+**Note:** `N` is present but fixed per module variant. It's not intended for user modification.
+
+## Ports
+
+### Module Declarations
+
+#### 8-bit Wallace Tree Multiplier
 
 ```systemverilog
 module math_multiplier_wallace_tree_008 #(
@@ -62,7 +70,7 @@ module math_multiplier_wallace_tree_008 #(
 );
 ```
 
-### 16-bit Wallace Tree Multiplier
+#### 16-bit Wallace Tree Multiplier
 
 ```systemverilog
 module math_multiplier_wallace_tree_016 #(
@@ -74,7 +82,7 @@ module math_multiplier_wallace_tree_016 #(
 );
 ```
 
-### 32-bit Wallace Tree Multiplier
+#### 32-bit Wallace Tree Multiplier
 
 ```systemverilog
 module math_multiplier_wallace_tree_032 #(
@@ -86,15 +94,7 @@ module math_multiplier_wallace_tree_032 #(
 );
 ```
 
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| N | int | 8/16/32 | Bit width (fixed per variant) |
-
-**Note:** `N` is present but fixed per module variant. It's not intended for user modification.
-
-## Ports
+### Port List
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -296,7 +296,65 @@ passes through untouched, and carries arriving from the column below can raise
 a column between layers. Those two effects cost an extra layer by the time N
 reaches 32. Take the layer count from the RTL, not from a formula.
 
-## Usage Examples
+### The `_csa_` Variant
+
+**math_multiplier_wallace_tree_csa_008/016/032.sv** are **standalone top-level
+multipliers**, not internal sub-components. Each declares the same module
+interface as the plain variant:
+
+```systemverilog
+module math_multiplier_wallace_tree_csa_008 #(
+    parameter int N = 8
+) (
+    input  logic [  N-1:0] i_multiplier,
+    input  logic [  N-1:0] i_multiplicand,
+    output logic [2*N-1:0] ow_product
+);
+```
+
+The only difference is which cell builds the reduction tree:
+
+| | Plain variant | `_csa_` variant |
+|---|---------------|-----------------|
+| Reduction tree cell | `math_adder_full` | `math_adder_carry_save` |
+| Final CPA cell | `math_adder_brent_kung_{16,32,64}` | `math_adder_brent_kung_{16,32,64}` |
+| Tree topology | identical | identical |
+| Instance counts | identical | identical |
+
+Both cells are 3:2 compressors, so the trees are structurally identical. The
+plain variant is **not** built out of the `_csa_` variant—they're two
+independent generated modules, and neither instantiates the other. Instantiate
+whichever one you prefer.
+
+## Timing
+
+| Metric | 8-bit | 16-bit | 32-bit |
+|--------|-------|--------|--------|
+| **Logic Depth** | ~14-16 levels | ~18-22 levels | ~24-30 levels |
+| **Typical Delay (ns)** | ~7-8 | ~9-11 | ~12-15 |
+| **Max Frequency** | ~125 MHz | ~90-110 MHz | ~65-80 MHz |
+
+**Logic Depth Breakdown:**
+- Partial product generation: 1 level (AND gates)
+- Wallace reduction layers: logarithmic - 4 / 6 / 8 layers for 8 / 16 / 32-bit
+- Final addition: on-chip **Brent-Kung** parallel-prefix carry-propagate adder, O(log N) levels
+
+**Critical Path:**
+```
+i_multiplier[N-1] → PP generation → Layer 1 → Layer 2 → ... → Layer K
+→ Brent-Kung prefix network (~2·log2(2N) levels) → ow_product[2N-1]
+```
+
+One thing worth stating plainly: both halves of the datapath are logarithmic.
+The reduction tree is log-depth, and the final adder is a Brent-Kung
+parallel-prefix adder, which is also log-depth, so the **end-to-end delay of
+these modules is O(log N)**. There is no serial carry chain anywhere in the
+design. The 32-bit variant, for example, follows an 8-layer tree with a
+64-bit prefix network rather than the 54-deep ripple it used to carry.
+
+**Note:** Actual timing depends heavily on synthesis optimization and target technology.
+
+## Usage Example
 
 ### Basic 8×8 Multiplication
 
@@ -418,35 +476,37 @@ module pipelined_multiplier (
 endmodule
 ```
 
-## Timing Characteristics
+## Design Notes
 
-| Metric | 8-bit | 16-bit | 32-bit |
-|--------|-------|--------|--------|
-| **Logic Depth** | ~14-16 levels | ~18-22 levels | ~24-30 levels |
-| **Typical Delay (ns)** | ~7-8 | ~9-11 | ~12-15 |
-| **Max Frequency** | ~125 MHz | ~90-110 MHz | ~65-80 MHz |
+### Advantages
 
-**Logic Depth Breakdown:**
-- Partial product generation: 1 level (AND gates)
-- Wallace reduction layers: logarithmic - 4 / 6 / 8 layers for 8 / 16 / 32-bit
-- Final addition: on-chip **Brent-Kung** parallel-prefix carry-propagate adder, O(log N) levels
+- **Log-depth end to end** - the tree collapses N rows to 2 in O(log N) layers, versus O(N) for an array multiplier, and the Brent-Kung prefix CPA that follows is O(log N) as well
+- **Highly parallel** - Exploits 3:2 compression at all levels
+- **No sequential logic** - Pure combinational (easy to pipeline)
+- **Unsigned friendly** - Natural fit for unsigned operands
+- **Scalable** - Algorithm extends to any bit width
 
-**Critical Path:**
-```
-i_multiplier[N-1] → PP generation → Layer 1 → Layer 2 → ... → Layer K
-→ Brent-Kung prefix network (~2·log2(2N) levels) → ow_product[2N-1]
-```
+### Limitations
 
-One thing worth stating plainly: both halves of the datapath are logarithmic.
-The reduction tree is log-depth, and the final adder is a Brent-Kung
-parallel-prefix adder, which is also log-depth, so the **end-to-end delay of
-these modules is O(log N)**. There is no serial carry chain anywhere in the
-design. The 32-bit variant, for example, follows an 8-layer tree with a
-64-bit prefix network rather than the 54-deep ripple it used to carry.
+- **Large area** - More adder cells than Dadda tree at the same depth (61 versus 42 at 8×8, 1116 versus 930 at 32×32), with no offsetting delay advantage
+- **Irregular structure** - Complex synthesis, harder to hand-layout
+- **Unsigned only** - Requires additional logic for signed multiplication
+- **Fixed width** - Not parameterizable (must instantiate specific variant)
+- **Long critical path** - May require pipelining for high-frequency designs
 
-**Note:** Actual timing depends heavily on synthesis optimization and target technology.
+### When to Use Wallace Tree
 
-## Performance Characteristics
+**Appropriate Use Cases:**
+- High-speed DSP applications (FIR filters, FFT butterfly)
+- Single-cycle multiplication requirements
+- FPGA designs with abundant LUT resources
+- Unsigned integer multiplication
+
+**Consider Alternatives When:**
+- Area is critical → Use Dadda tree (17-31% fewer adder cells at the same depth)
+- Operands are signed → Use Booth multiplier
+- Low frequency → Use array multiplier (much smaller)
+- Variable width needed → Use parameterized array/Booth
 
 ### Resource Utilization
 
@@ -462,7 +522,7 @@ instance and contributes none.
 | 16-bit | 196 | 78 | 1 × `math_adder_brent_kung_032` | 256 | 274 |
 | 32-bit | 900 | 216 | 1 × `math_adder_brent_kung_064` | 1024 | 1116 |
 
-**Comparison to Other Multiplier Architectures:**
+### Comparison to Other Multiplier Architectures
 
 | Architecture | Area (relative) | Delay (relative, lower = faster) | Best Use Case |
 |--------------|-----------------|------------------|---------------|
@@ -471,7 +531,7 @@ instance and contributes none.
 | Array Multiplier | 0.8× | 2.5× | Low-speed, minimal area |
 | Booth (radix-4) | 0.9× | 1.5× | Signed, reduced partial products |
 
-**Wallace vs Dadda—the headline comparison:**
+### Wallace Tree vs Dadda Tree
 
 For 8×8, both reach column height 2 in **4 layers/stages—the same depth**.
 What differs is what that depth costs:
@@ -507,6 +567,25 @@ shared Brent-Kung CPA is identical in both and excluded):
 | 16-bit | 274 | 210 |
 | 32-bit | 1116 | 930 |
 
+Both use CSA trees; they differ in reduction strategy:
+
+| Aspect | Wallace Tree | Dadda Tree |
+|--------|--------------|------------|
+| **Strategy** | Compress everything as early as possible | Defer; compress only down to a per-stage target height |
+| **Layers / stages to height 2** | 4 / 6 / 8 (8/16/32-bit) | 4 / 6 / 8 - **the same** |
+| **Reduction cells (8×8)** | 61 | 42 |
+| **Final CPA (8×8)** | `math_adder_brent_kung_016` | `math_adder_brent_kung_016` - **the same** |
+| **Total adder cells (8×8)** | 61 | 42 |
+| **Design** | Simpler (greedy grouping) | More complex (scheduled targets) |
+
+Dadda uses **fewer compressors for the same depth**—not fewer stages. The
+stage counts are identical.
+
+**Recommendation:** Use Dadda tree for production designs (fewer cells at equal
+depth). Wallace remains the clearer teaching example, but with both families
+now ending in the same Brent-Kung prefix adder, it no longer has a delay
+advantage to trade against its larger tree.
+
 ### Area-Speed Tradeoffs
 
 **For High-Speed Requirements:**
@@ -518,38 +597,6 @@ shared Brent-Kung CPA is identical in both and excluded):
 - Use Dadda tree instead (see `math_multiplier_dadda_tree.md`)
 - Consider Booth encoding for signed multiplication
 - Use sequential multipliers if latency acceptable
-
-## Design Notes
-
-### Advantages
-
-**Log-depth end to end** - the tree collapses N rows to 2 in O(log N) layers, versus O(N) for an array multiplier, and the Brent-Kung prefix CPA that follows is O(log N) as well
-**Highly parallel** - Exploits 3:2 compression at all levels
-**No sequential logic** - Pure combinational (easy to pipeline)
-**Unsigned friendly** - Natural fit for unsigned operands
-**Scalable** - Algorithm extends to any bit width
-
-### Limitations
-
-**Large area** - More adder cells than Dadda tree at the same depth (61 versus 42 at 8×8, 1116 versus 930 at 32×32), with no offsetting delay advantage
-**Irregular structure** - Complex synthesis, harder to hand-layout
-**Unsigned only** - Requires additional logic for signed multiplication
-**Fixed width** - Not parameterizable (must instantiate specific variant)
-**Long critical path** - May require pipelining for high-frequency designs
-
-### When to Use Wallace Tree
-
-**Appropriate Use Cases:**
-- High-speed DSP applications (FIR filters, FFT butterfly)
-- Single-cycle multiplication requirements
-- FPGA designs with abundant LUT resources
-- Unsigned integer multiplication
-
-**Consider Alternatives When:**
-- Area is critical → Use Dadda tree (17-31% fewer adder cells at the same depth)
-- Operands are signed → Use Booth multiplier
-- Low frequency → Use array multiplier (much smaller)
-- Variable width needed → Use parameterized array/Booth
 
 ### Signed Multiplication
 
@@ -623,7 +670,7 @@ set_implementation rtl  # vs gate-level
 - Synthesis tools may map Wallace tree to DSP block
 - **Check resource utilization** - may use LUTs instead of DSP if tree doesn't fit
 
-## Common Pitfalls
+### Common Pitfalls
 
 **Anti-Pattern 1: Expecting parameterized width**
 
@@ -682,56 +729,13 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## The `_csa_` Variant
+## Related Modules
 
-**math_multiplier_wallace_tree_csa_008/016/032.sv** are **standalone top-level
-multipliers**, not internal sub-components. Each declares the same module
-interface as the plain variant:
-
-```systemverilog
-module math_multiplier_wallace_tree_csa_008 #(
-    parameter int N = 8
-) (
-    input  logic [  N-1:0] i_multiplier,
-    input  logic [  N-1:0] i_multiplicand,
-    output logic [2*N-1:0] ow_product
-);
-```
-
-The only difference is which cell builds the reduction tree:
-
-| | Plain variant | `_csa_` variant |
-|---|---------------|-----------------|
-| Reduction tree cell | `math_adder_full` | `math_adder_carry_save` |
-| Final CPA cell | `math_adder_brent_kung_{16,32,64}` | `math_adder_brent_kung_{16,32,64}` |
-| Tree topology | identical | identical |
-| Instance counts | identical | identical |
-
-Both cells are 3:2 compressors, so the trees are structurally identical. The
-plain variant is **not** built out of the `_csa_` variant—they're two
-independent generated modules, and neither instantiates the other. Instantiate
-whichever one you prefer.
-
-## Wallace Tree vs Dadda Tree
-
-Both use CSA trees; they differ in reduction strategy:
-
-| Aspect | Wallace Tree | Dadda Tree |
-|--------|--------------|------------|
-| **Strategy** | Compress everything as early as possible | Defer; compress only down to a per-stage target height |
-| **Layers / stages to height 2** | 4 / 6 / 8 (8/16/32-bit) | 4 / 6 / 8 - **the same** |
-| **Reduction cells (8×8)** | 61 | 42 |
-| **Final CPA (8×8)** | `math_adder_brent_kung_016` | `math_adder_brent_kung_016` - **the same** |
-| **Total adder cells (8×8)** | 61 | 42 |
-| **Design** | Simpler (greedy grouping) | More complex (scheduled targets) |
-
-Dadda uses **fewer compressors for the same depth**—not fewer stages. The
-stage counts are identical.
-
-**Recommendation:** Use Dadda tree for production designs (fewer cells at equal
-depth). Wallace remains the clearer teaching example, but with both families
-now ending in the same Brent-Kung prefix adder, it no longer has a delay
-advantage to trade against its larger tree.
+- **math_multiplier_dadda_tree_*.sv** - same reduction depth, 17-31% fewer adder cells, identical final CPA
+- **math_adder_brent_kung_016/032/064.sv** - logarithmic-depth parallel-prefix adder used as the final CPA here (8/16/32-bit multipliers use the 016/032/064 widths respectively)
+- **math_adder_carry_save.sv** - 3:2 compressor, used in the `_csa_` variant's reduction tree
+- **math_adder_full.sv** - Full adder primitive, used in the plain variant's reduction tree
+- **math_adder_half.sv** - Half adder primitive, used in the reduction tree of both variants
 
 ## Testing
 
@@ -743,14 +747,6 @@ Covered by 2 test suites:
 Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
-
-## Related Modules
-
-- **math_multiplier_dadda_tree_*.sv** - same reduction depth, 17-31% fewer adder cells, identical final CPA
-- **math_adder_brent_kung_016/032/064.sv** - logarithmic-depth parallel-prefix adder used as the final CPA here (8/16/32-bit multipliers use the 016/032/064 widths respectively)
-- **math_adder_carry_save.sv** - 3:2 compressor, used in the `_csa_` variant's reduction tree
-- **math_adder_full.sv** - Full adder primitive, used in the plain variant's reduction tree
-- **math_adder_half.sv** - Half adder primitive, used in the reduction tree of both variants
 
 ## References
 

@@ -53,7 +53,9 @@ subnormal is 2^-16 ~ 1.5e-5; ~6e-8 is the FP16 subnormal minimum, not E5M2's.
 Special: exp=31, mant=0 is Inf; mant!=0 is NaN
 ```
 
-## Format Comparison
+## Functional Description
+
+### Format Comparison
 
 | Property | E4M3 | E5M2 | BF16 |
 |----------|------|------|------|
@@ -65,9 +67,7 @@ Special: exp=31, mant=0 is Inf; mant!=0 is NaN
 | Has infinity | No | Yes | Yes |
 | Use case | Inference | Training | General |
 
-## E4M3 Modules
-
-### Core Arithmetic
+### E4M3 Core Arithmetic
 
 | Module | Function | Description |
 |--------|----------|-------------|
@@ -77,7 +77,7 @@ Special: exp=31, mant=0 is Inf; mant!=0 is NaN
 | `math_fp8_e4m3_mantissa_mult` | Internal | Mantissa multiplication helper |
 | `math_fp8_e4m3_exponent_adder` | Internal | Exponent computation helper |
 
-#### Multiplier Interface
+The multiplier interface:
 
 ```systemverilog
 module math_fp8_e4m3_multiplier (
@@ -92,7 +92,7 @@ module math_fp8_e4m3_multiplier (
 
 **Note:** E4M3 has no infinity - overflow saturates to max normal value (0x7E = 448).
 
-### Activation Functions
+### E4M3 Activation Functions
 
 | Module | Function | Description |
 |--------|----------|-------------|
@@ -104,7 +104,7 @@ module math_fp8_e4m3_multiplier (
 | `math_fp8_e4m3_silu` | x * sigmoid(x) | SiLU/Swish |
 | `math_fp8_e4m3_softmax_8` | softmax(x[7:0]) | 8-input softmax |
 
-### Comparison and Selection
+### E4M3 Comparison and Selection
 
 | Module | Function | Description |
 |--------|----------|-------------|
@@ -115,7 +115,7 @@ module math_fp8_e4m3_multiplier (
 | `math_fp8_e4m3_min_tree_8` | min(a[7:0]) | 8-input min |
 | `math_fp8_e4m3_clamp` | clamp(x, lo, hi) | Value clamping |
 
-### Format Conversions
+### E4M3 Format Conversions
 
 | Module | Conversion | Notes |
 |--------|------------|-------|
@@ -124,9 +124,7 @@ module math_fp8_e4m3_multiplier (
 | `math_fp8_e4m3_to_fp32` | E4M3 -> FP32 | Lossless upconversion |
 | `math_fp8_e4m3_to_fp8_e5m2` | E4M3 -> E5M2 | May lose precision |
 
-## E5M2 Modules
-
-### Core Arithmetic
+### E5M2 Core Arithmetic
 
 | Module | Function | Description |
 |--------|----------|-------------|
@@ -136,7 +134,7 @@ module math_fp8_e4m3_multiplier (
 | `math_fp8_e5m2_mantissa_mult` | Internal | Mantissa multiplication helper |
 | `math_fp8_e5m2_exponent_adder` | Internal | Exponent computation helper |
 
-### Activation Functions
+### E5M2 Activation Functions
 
 | Module | Function | Description |
 |--------|----------|-------------|
@@ -148,7 +146,7 @@ module math_fp8_e4m3_multiplier (
 | `math_fp8_e5m2_silu` | x * sigmoid(x) | SiLU/Swish |
 | `math_fp8_e5m2_softmax_8` | softmax(x[7:0]) | 8-input softmax |
 
-### Comparison and Selection
+### E5M2 Comparison and Selection
 
 | Module | Function | Description |
 |--------|----------|-------------|
@@ -159,7 +157,7 @@ module math_fp8_e4m3_multiplier (
 | `math_fp8_e5m2_min_tree_8` | min(a[7:0]) | 8-input min |
 | `math_fp8_e5m2_clamp` | clamp(x, lo, hi) | Value clamping |
 
-### Format Conversions
+### E5M2 Format Conversions
 
 | Module | Conversion | Notes |
 |--------|------------|-------|
@@ -168,7 +166,29 @@ module math_fp8_e4m3_multiplier (
 | `math_fp8_e5m2_to_fp32` | E5M2 -> FP32 | Lossless upconversion |
 | `math_fp8_e5m2_to_fp8_e4m3` | E5M2 -> E4M3 | May overflow/lose precision |
 
-## Usage Examples
+### Special Values
+
+#### E4M3 Special Values
+
+| Value | Encoding | Notes |
+|-------|----------|-------|
+| +0 | 0x00 | Positive zero |
+| -0 | 0x80 | Negative zero |
+| Max Normal | 0x7E | 448 (exp=15, mant=6) |
+| NaN | 0x7F | exp=15, mant=7 |
+| No Infinity | - | Overflow saturates to 0x7E |
+
+#### E5M2 Special Values
+
+| Value | Encoding | Notes |
+|-------|----------|-------|
+| +0 | 0x00 | Positive zero |
+| -0 | 0x80 | Negative zero |
+| +Inf | 0x7C | exp=31, mant=0 |
+| -Inf | 0xFC | exp=31, mant=0 |
+| NaN | 0x7E | exp=31, mant!=0 |
+
+## Usage Example
 
 ### Inference Pipeline (E4M3)
 
@@ -210,28 +230,6 @@ math_fp8_e5m2_to_bf16 u_cvt (
 // ... backward pass in BF16 ...
 ```
 
-## Special Values
-
-### E4M3 Special Values
-
-| Value | Encoding | Notes |
-|-------|----------|-------|
-| +0 | 0x00 | Positive zero |
-| -0 | 0x80 | Negative zero |
-| Max Normal | 0x7E | 448 (exp=15, mant=6) |
-| NaN | 0x7F | exp=15, mant=7 |
-| No Infinity | - | Overflow saturates to 0x7E |
-
-### E5M2 Special Values
-
-| Value | Encoding | Notes |
-|-------|----------|-------|
-| +0 | 0x00 | Positive zero |
-| -0 | 0x80 | Negative zero |
-| +Inf | 0x7C | exp=31, mant=0 |
-| -Inf | 0xFC | exp=31, mant=0 |
-| NaN | 0x7E | exp=31, mant!=0 |
-
 ## Design Notes
 
 ### E4M3 Overflow Handling
@@ -253,7 +251,7 @@ Both E4M3 and E5M2 use Flush-to-Zero (FTZ):
 - Results that would be subnormal flush to zero
 - Simplifies hardware, matches AI accelerator conventions
 
-## Auto-Generation
+### Auto-Generation
 
 ```bash
 # Regenerate all FP8 modules
@@ -265,6 +263,13 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 - `bin/rtl_generators/ieee754/fp8_e5m2_multiplier.py`
 - `bin/rtl_generators/ieee754/fp_activations.py`
 - `bin/rtl_generators/ieee754/fp_conversions.py`
+
+## Related Modules
+
+- **[math_bf16_extended](math_bf16_extended.md)** - BF16 modules
+- **[math_fp16_modules](math_fp16_modules.md)** - FP16 modules
+- **[math_fp32_modules](math_fp32_modules.md)** - FP32 modules
+- **[math_ieee754_modules](math_ieee754_modules.md)** - IEEE 754-2008 arithmetic
 
 ## Testing
 
@@ -283,13 +288,6 @@ Covered by 34 test suites:
 Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
-
-## Related Documentation
-
-- **[math_bf16_extended](math_bf16_extended.md)** - BF16 modules
-- **[math_fp16_modules](math_fp16_modules.md)** - FP16 modules
-- **[math_fp32_modules](math_fp32_modules.md)** - FP32 modules
-- **[math_ieee754_modules](math_ieee754_modules.md)** - IEEE 754-2008 arithmetic
 
 ## Navigation
 

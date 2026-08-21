@@ -23,7 +23,7 @@
 
 # Basic Adder Building Blocks
 
-Everything in this library eventually bottoms out here: the half adder, the full adder, and an N-bit array of full adders. Single-bit and multi-bit primitives that the more complex arithmetic circuits are built from.
+Everything in this library eventually bottoms out here: the half adder, the full adder, and an N-bit array of full adders.
 
 ## Overview
 
@@ -34,9 +34,9 @@ Three modules form the foundation of every adder architecture in the library:
 
 You'll find them inside ripple carry adders, carry-save adders, multipliers, and just about every other arithmetic circuit here.
 
-## Module Declarations
+### Module Declarations
 
-### Half Adder
+**Half Adder**
 
 ```systemverilog
 module math_adder_half #(
@@ -49,7 +49,7 @@ module math_adder_half #(
 );
 ```
 
-### Full Adder
+**Full Adder**
 
 ```systemverilog
 module math_adder_full #(
@@ -63,7 +63,7 @@ module math_adder_full #(
 );
 ```
 
-### N-bit Full Adder Array
+**N-bit Full Adder Array**
 
 ```systemverilog
 module math_adder_full_nbit #(
@@ -234,7 +234,37 @@ assign ow_carry = w_c[N];  // Final carry out
 - `math_adder_ripple_carry`: Instantiates first FA separately, then generates remaining
 - `math_adder_full_nbit`: Uniform generate loop for all FAs
 
-## Usage Examples
+## Timing
+
+### Propagation Delays
+
+| Module | Logic Levels | Typical Delay (ns) |
+|--------|--------------|-------------------|
+| Half Adder | 1 (XOR/AND parallel) | ~0.2 |
+| Full Adder | 2 (XOR then carry) | ~0.4 |
+| N-bit Array | 2N (ripple chain) | ~0.4N |
+
+**Critical Paths:**
+
+**Half Adder:**
+```
+i_a/i_b → ow_sum    (1 XOR gate)
+i_a/i_b → ow_carry  (1 AND gate)
+```
+
+**Full Adder:**
+```
+i_a/i_b/i_c → ow_sum    (2 XOR gates)
+i_a/i_b/i_c → ow_carry  (2 gates: XOR + OR/AND)
+```
+
+**N-bit Array:**
+```
+i_c → FA[0].Cout → FA[1].Cout → ... → FA[N-1].Cout → ow_carry
+     (2N gate delays)
+```
+
+## Usage Example
 
 ### Half Adder: Parity Generator
 
@@ -340,67 +370,6 @@ math_adder_full fa1 (
 );
 ```
 
-## Timing Characteristics
-
-### Propagation Delays
-
-| Module | Logic Levels | Typical Delay (ns) |
-|--------|--------------|-------------------|
-| Half Adder | 1 (XOR/AND parallel) | ~0.2 |
-| Full Adder | 2 (XOR then carry) | ~0.4 |
-| N-bit Array | 2N (ripple chain) | ~0.4N |
-
-**Critical Paths:**
-
-**Half Adder:**
-```
-i_a/i_b → ow_sum    (1 XOR gate)
-i_a/i_b → ow_carry  (1 AND gate)
-```
-
-**Full Adder:**
-```
-i_a/i_b/i_c → ow_sum    (2 XOR gates)
-i_a/i_b/i_c → ow_carry  (2 gates: XOR + OR/AND)
-```
-
-**N-bit Array:**
-```
-i_c → FA[0].Cout → FA[1].Cout → ... → FA[N-1].Cout → ow_carry
-     (2N gate delays)
-```
-
-## Performance Characteristics
-
-### Resource Utilization
-
-| Module | LUTs | Description |
-|--------|------|-------------|
-| Half Adder | 2 | 1 XOR + 1 AND |
-| Full Adder | 2 | Optimized to 2 LUTs on modern FPGAs |
-| N-bit Array | ~2N | N full adders |
-
-**FPGA Note:** Modern FPGAs (Xilinx, Intel) have dedicated carry chain logic that implements full adders very efficiently — often faster than generic LUT logic.
-
-### When to Use Each Module
-
-**Half Adder:**
-- First bit of addition chain (no carry input)
-- Parity generation
-- Educational/demonstration purposes
-- Rarely used standalone in production designs
-
-**Full Adder:**
-- Building block for custom arithmetic circuits
-- Carry-save adder stages
-- Multiplier partial product reduction
-- When instantiating adder arrays manually
-
-**N-bit Array:**
-- Quick multi-bit adder for small widths (N ≤ 8)
-- When ripple carry is acceptable
-- For N > 8, consider carry lookahead or parallel prefix
-
 ## Design Notes
 
 ### Why Use These Modules
@@ -446,7 +415,36 @@ Modern FPGAs have dedicated adder resources:
 
 **Exception:** Carry-save adders and multiplier trees benefit from explicit full adder instantiation.
 
-## Common Pitfalls
+### Performance
+
+| Module | LUTs | Description |
+|--------|------|-------------|
+| Half Adder | 2 | 1 XOR + 1 AND |
+| Full Adder | 2 | Optimized to 2 LUTs on modern FPGAs |
+| N-bit Array | ~2N | N full adders |
+
+**FPGA Note:** Modern FPGAs (Xilinx, Intel) have dedicated carry chain logic that implements full adders very efficiently — often faster than generic LUT logic.
+
+**When to Use Each Module**
+
+**Half Adder:**
+- First bit of addition chain (no carry input)
+- Parity generation
+- Educational/demonstration purposes
+- Rarely used standalone in production designs
+
+**Full Adder:**
+- Building block for custom arithmetic circuits
+- Carry-save adder stages
+- Multiplier partial product reduction
+- When instantiating adder arrays manually
+
+**N-bit Array:**
+- Quick multi-bit adder for small widths (N ≤ 8)
+- When ripple carry is acceptable
+- For N > 8, consider carry lookahead or parallel prefix
+
+### Common Pitfalls
 
 **Anti-Pattern 1**: Using half adder where full adder needed
 
@@ -505,6 +503,13 @@ math_adder_full fa0 (.i_a(a[0]), .i_b(b[0]), .i_c(cin),  .ow_sum(s[0]), .ow_carr
 math_adder_full fa1 (.i_a(a[1]), .i_b(b[1]), .i_c(c[0]), .ow_sum(s[1]), .ow_carry(c[1]));
 ```
 
+## Related Modules
+
+- **math_adder_ripple_carry.sv** - Uses full adders for N-bit addition
+- **math_adder_carry_save.sv** - Parallel full adders (no carry chain)
+- **math_multiplier_*.sv** - Uses full adders for partial product reduction
+- **math_adder_full_nbit.sv** - Identical functionality to ripple carry adder
+
 ## Testing
 
 Covered by 3 test suites:
@@ -517,13 +522,6 @@ Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
-## Related Modules
-
-- **math_adder_ripple_carry.sv** - Uses full adders for N-bit addition
-- **math_adder_carry_save.sv** - Parallel full adders (no carry chain)
-- **math_multiplier_*.sv** - Uses full adders for partial product reduction
-- **math_adder_full_nbit.sv** - Identical functionality to ripple carry adder
-
 ## References
 
 - Mano, M.M. "Digital Design." Prentice Hall, 2002.
@@ -532,5 +530,5 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 
 ## Navigation
 
-- **[← Back to Math Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [Back to Math Index](index.md)
+- [Back to Main Documentation Index](../index.md)

@@ -23,11 +23,9 @@
 
 # Prefix Cell Gray
 
-An area-optimized parallel prefix building block that computes only the group generate (G) signal. It earns its keep in reverse tree stages and final carry computation—anywhere the propagate signal isn't needed downstream.
-
 ## Overview
 
-The `math_prefix_cell_gray` module (the "gray cell") is the reduced-area sibling of the prefix cell, and it outputs only the group generate. The final carry computation needs G, not P, so gray cells save ~33% area in stages where propagate signals aren't required downstream.
+The `math_prefix_cell_gray` module (the "gray cell") is the reduced-area sibling of the prefix cell—an area-optimized parallel prefix building block that computes only the group generate (G) signal. It earns its keep in reverse tree stages and final carry computation, anywhere the propagate signal isn't needed downstream. The final carry computation needs G, not P, so gray cells save ~33% area in exactly those stages.
 
 **Key Features:**
 - **Outputs G only** - Optimized for carry-only computation
@@ -35,7 +33,13 @@ The `math_prefix_cell_gray` module (the "gray cell") is the reduced-area sibling
 - **Same delay** as black cell for G output
 - **Used in** the Han-Carlson prefix stages (all six widths); Brent-Kung's reverse tree uses math_adder_brent_kung_gray instead
 
-## Module Declaration
+## Parameters
+
+None. This is a fixed single-bit cell—there's nothing to parameterize.
+
+## Ports
+
+### Module Declaration
 
 ```systemverilog
 module math_prefix_cell_gray (
@@ -45,7 +49,7 @@ module math_prefix_cell_gray (
 );
 ```
 
-## Ports
+### Port List
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -104,7 +108,15 @@ flowchart LR
     end
 ```
 
-## Usage Examples
+## Timing
+
+| Metric | Value | Description |
+|--------|-------|-------------|
+| Logic Depth | 2 gates | 1 AND + 1 OR |
+| Critical Path | AND-OR | i_g_lo -> ow_g |
+| Gate Count | 2 | 1 AND + 1 OR |
+
+## Usage Example
 
 ### In Han-Carlson Final Stage
 
@@ -179,15 +191,7 @@ endgenerate
 assign cout = g_final[N-1];
 ```
 
-## Timing Characteristics
-
-| Metric | Value | Description |
-|--------|-------|-------------|
-| Logic Depth | 2 gates | 1 AND + 1 OR |
-| Critical Path | AND-OR | i_g_lo -> ow_g |
-| Gate Count | 2 | 1 AND + 1 OR |
-
-## Performance Characteristics
+## Design Notes
 
 ### Resource Utilization
 
@@ -238,8 +242,6 @@ How these were counted:
 Han-Carlson uses gray cells only in the final fill-in stage: N/2 cells for an
 N-bit adder, which is the 8 above.
 
-## Design Notes
-
 ### When to Use Gray Cells
 
 **Use gray cells when:**
@@ -268,10 +270,12 @@ This module is optimized with the following priorities:
 | Brent-Kung | Reverse tree (~50%) | Minimum area, 2x depth |
 | Han-Carlson | Final stage only (~20%) | Balanced speed/area |
 
-## Testing
+### Applications
 
-No dedicated test wrapper -- this block is exercised structurally through the Han-Carlson adder tests (`val/math/test_math_adder_han_carlson.py`) -- all six HC widths instantiate this cell (Brent-Kung uses its own math_adder_brent_kung_black/gray cells, NOT this one).
-It is also formally proved: `formal/common/math_prefix_cell_gray/` (prove + cover, SymbiYosys).
+- **Parallel prefix adders** - Final carry computation stages
+- **Area-optimized adders** - Brent-Kung and Han-Carlson architectures
+- **Multiplier CPAs** - Final addition where area matters
+- **Low-power designs** - Fewer gates = lower dynamic power
 
 ## Related Modules
 
@@ -280,12 +284,10 @@ It is also formally proved: `formal/common/math_prefix_cell_gray/` (prove + cove
 - **math_adder_han_carlson_048** - 48-bit Han-Carlson adder using this cell
 - **math_adder_brent_kung_gray** - Brent-Kung gray cell (equivalent)
 
-## Applications
+## Testing
 
-- **Parallel prefix adders** - Final carry computation stages
-- **Area-optimized adders** - Brent-Kung and Han-Carlson architectures
-- **Multiplier CPAs** - Final addition where area matters
-- **Low-power designs** - Fewer gates = lower dynamic power
+No dedicated test wrapper -- this block is exercised structurally through the Han-Carlson adder tests (`val/math/test_math_adder_han_carlson.py`) -- all six HC widths instantiate this cell (Brent-Kung uses its own math_adder_brent_kung_black/gray cells, NOT this one).
+It is also formally proved: `formal/common/math_prefix_cell_gray/` (prove + cover, SymbiYosys).
 
 ## References
 

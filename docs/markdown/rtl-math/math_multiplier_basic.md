@@ -40,9 +40,21 @@ These modules demonstrate fundamental multiplication concepts and serve as refer
 - **Scalable** - Generic width support via parameter
 - **Combinational** - Pure logic, no sequential elements
 
-## Module Declarations
+## Parameters
 
-### Basic Multiplier Cell
+### math_multiplier_basic_cell
+
+No parameters (single-bit cell).
+
+### math_multiplier_carry_save
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| N | int | 4 | Bit width (range: 2-32, typical: 4-16) |
+
+## Ports
+
+### math_multiplier_basic_cell
 
 ```systemverilog
 module math_multiplier_basic_cell (
@@ -55,7 +67,16 @@ module math_multiplier_basic_cell (
 );
 ```
 
-### Carry-Save Array Multiplier
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_i | Input | 1 | Multiplier bit (row index) |
+| i_j | Input | 1 | Multiplicand bit (column index) |
+| i_c | Input | 1 | Carry input (from cell below) |
+| i_p | Input | 1 | Partial sum input (from cell to the left) |
+| ow_c | Output | 1 | Carry output (to cell above) |
+| ow_p | Output | 1 | Partial sum output (to cell on the right) |
+
+### math_multiplier_carry_save
 
 ```systemverilog
 module math_multiplier_carry_save #(
@@ -66,33 +87,6 @@ module math_multiplier_carry_save #(
     output logic [2*N-1:0] ow_product
 );
 ```
-
-## Parameters
-
-### Basic Multiplier Cell
-
-No parameters (single-bit cell).
-
-### Carry-Save Array Multiplier
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| N | int | 4 | Bit width (range: 2-32, typical: 4-16) |
-
-## Ports
-
-### Basic Multiplier Cell
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| i_i | Input | 1 | Multiplier bit (row index) |
-| i_j | Input | 1 | Multiplicand bit (column index) |
-| i_c | Input | 1 | Carry input (from cell below) |
-| i_p | Input | 1 | Partial sum input (from cell to the left) |
-| ow_c | Output | 1 | Carry output (to cell above) |
-| ow_p | Output | 1 | Partial sum output (to cell on the right) |
-
-### Carry-Save Array Multiplier
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -228,7 +222,49 @@ Array accumulation:
 Product: 5 × 6 = 30 (correct)
 ```
 
-## Usage Examples
+## Timing
+
+| Metric | 4-bit | 8-bit | 16-bit |
+|--------|-------|-------|--------|
+| **Logic Depth** | ~8 levels | ~16 levels | ~32 levels |
+| **Typical Delay (ns)** | ~3.2 | ~6.4 | ~12.8 |
+| **Max Frequency** | ~310 MHz | ~155 MHz | ~78 MHz |
+
+**Logic Depth Breakdown:**
+- Each cell: 2 levels (AND + full adder)
+- Array depth: 2N levels (carry ripples down rows)
+- Final addition: Additional adder delay
+
+**Critical Path:**
+```
+i_multiplier[N-1] → PP[N-1][0] → row N-1 accumulation → final addition → ow_product[2N-1]
+```
+
+**Scaling:** O(N) depth - doubles with doubling of bit width
+
+### Resource Utilization
+
+| Width | Basic Cells | Final Adder | AND Gates | Estimated LUTs |
+|-------|-------------|-------------|-----------|----------------|
+| 4-bit | 16 | 4-bit | 16 | ~48 |
+| 8-bit | 64 | 8-bit | 64 | ~192 |
+| 16-bit | 256 | 16-bit | 256 | ~768 |
+
+**Area Formula:** N² basic cells + N-bit final adder ≈ 3N² LUTs
+
+### Comparison to Optimized Multipliers
+
+| Architecture | 8-bit LUTs | 8-bit Delay | Best Use Case |
+|--------------|------------|-------------|---------------|
+| Array (Basic Cell) | ~192 | ~6.4 ns | Educational, low speed |
+| **Carry-Save Array** | **~192** | **~6.4 ns** | **Simple, moderate speed** |
+| Wallace Tree | ~120 | ~3.5 ns | High speed, larger area |
+| Dadda Tree | ~108 | ~3.2 ns | **Production (best balance)** |
+| Booth Radix-4 | ~100 | ~4.5 ns | Signed multiplication |
+
+**Key Observation:** Array multipliers are ~2× slower but simpler than tree multipliers.
+
+## Usage Example
 
 ### Basic 4×4 Multiplication
 
@@ -376,65 +412,6 @@ module handshake_multiplier #(
 endmodule
 ```
 
-## Timing Characteristics
-
-| Metric | 4-bit | 8-bit | 16-bit |
-|--------|-------|-------|--------|
-| **Logic Depth** | ~8 levels | ~16 levels | ~32 levels |
-| **Typical Delay (ns)** | ~3.2 | ~6.4 | ~12.8 |
-| **Max Frequency** | ~310 MHz | ~155 MHz | ~78 MHz |
-
-**Logic Depth Breakdown:**
-- Each cell: 2 levels (AND + full adder)
-- Array depth: 2N levels (carry ripples down rows)
-- Final addition: Additional adder delay
-
-**Critical Path:**
-```
-i_multiplier[N-1] → PP[N-1][0] → row N-1 accumulation → final addition → ow_product[2N-1]
-```
-
-**Scaling:** O(N) depth - doubles with doubling of bit width
-
-## Performance Characteristics
-
-### Resource Utilization
-
-| Width | Basic Cells | Final Adder | AND Gates | Estimated LUTs |
-|-------|-------------|-------------|-----------|----------------|
-| 4-bit | 16 | 4-bit | 16 | ~48 |
-| 8-bit | 64 | 8-bit | 64 | ~192 |
-| 16-bit | 256 | 16-bit | 256 | ~768 |
-
-**Area Formula:** N² basic cells + N-bit final adder ≈ 3N² LUTs
-
-### Comparison to Optimized Multipliers
-
-| Architecture | 8-bit LUTs | 8-bit Delay | Best Use Case |
-|--------------|------------|-------------|---------------|
-| Array (Basic Cell) | ~192 | ~6.4 ns | Educational, low speed |
-| **Carry-Save Array** | **~192** | **~6.4 ns** | **Simple, moderate speed** |
-| Wallace Tree | ~120 | ~3.5 ns | High speed, larger area |
-| Dadda Tree | ~108 | ~3.2 ns | **Production (best balance)** |
-| Booth Radix-4 | ~100 | ~4.5 ns | Signed multiplication |
-
-**Key Observation:** Array multipliers are ~2× slower but simpler than tree multipliers.
-
-### When to Use Array Multipliers
-
-**Appropriate Use Cases:**
-- Educational demonstrations
-- Low-frequency designs (<100 MHz for 8-bit)
-- Simple prototypes
-- Designs where area is more critical than speed
-- Parameterized width support needed
-
-**Prefer Optimized Multipliers When:**
-- High speed required → Wallace or Dadda tree
-- Area critical → Dadda tree (optimized CSA)
-- Signed operands → Booth multiplier
-- Behavioral sufficient → Use `*` operator (synthesis optimizes)
-
 ## Design Notes
 
 ### Advantages
@@ -451,6 +428,21 @@ i_multiplier[N-1] → PP[N-1][0] → row N-1 accumulation → final addition →
 - **Poor scaling** - Area grows as N², delay as N
 - **Not optimal** - Better alternatives exist (Dadda, Wallace)
 - **Unsigned only** - Requires sign handling for signed operands
+
+### When to Use Array Multipliers
+
+**Appropriate Use Cases:**
+- Educational demonstrations
+- Low-frequency designs (<100 MHz for 8-bit)
+- Simple prototypes
+- Designs where area is more critical than speed
+- Parameterized width support needed
+
+**Prefer Optimized Multipliers When:**
+- High speed required → Wallace or Dadda tree
+- Area critical → Dadda tree (optimized CSA)
+- Signed operands → Booth multiplier
+- Behavioral sufficient → Use `*` operator (synthesis optimizes)
 
 ### Basic Cell Design Notes
 
@@ -514,7 +506,7 @@ end
 // Example: 16-row array split into 4 stages (4 rows each)
 ```
 
-## Common Pitfalls
+### Common Pitfalls
 
 **Anti-Pattern 1: Using for high-speed designs**
 
@@ -565,11 +557,9 @@ math_multiplier_carry_save #(.N(32)) u_mult (...);
 // CONSIDER: Dadda tree or behavioral for large widths
 ```
 
-## Educational Value
+### Educational Value
 
-### Understanding Multiplication
-
-The array multiplier clearly demonstrates:
+The array multiplier clearly demonstrates the algorithm you'd use on paper:
 
 **1. Partial Product Generation:**
 ```
@@ -590,7 +580,7 @@ Sums propagate rightward (same row)
 Defers final carry-propagate until end
 ```
 
-### Progression to Optimized Multipliers
+**Progression to Optimized Multipliers:**
 
 **Learning Path:**
 1. **Array Multiplier** (this document) - Understand basic concept
@@ -599,6 +589,14 @@ Defers final carry-propagate until end
 4. **Booth Encoding** - Learn signed multiplication
 
 **Concept:** Array → parallelize → optimize → specialize
+
+## Related Modules
+
+- **math_multiplier_wallace_tree_*.sv** - Fast tree-based multiplication
+- **math_multiplier_dadda_tree_*.sv** - Optimized tree-based multiplication
+- **math_adder_carry_save.sv** - 3:2 compressor used in trees
+- **math_adder_full.sv** - Full adder primitive
+- **math_adder_half.sv** - Half adder primitive
 
 ## Testing
 
@@ -610,14 +608,6 @@ These are reference implementations. Verification is the formal proofs:
 `formal/common/math_multiplier_basic_cell/` and
 `formal/common/math_multiplier_carry_save/` (prove + cover, SymbiYosys,
 re-run 2026-08-10 against current RTL).
-
-## Related Modules
-
-- **math_multiplier_wallace_tree_*.sv** - Fast tree-based multiplication
-- **math_multiplier_dadda_tree_*.sv** - Optimized tree-based multiplication
-- **math_adder_carry_save.sv** - 3:2 compressor used in trees
-- **math_adder_full.sv** - Full adder primitive
-- **math_adder_half.sv** - Half adder primitive
 
 ## References
 

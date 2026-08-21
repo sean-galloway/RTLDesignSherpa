@@ -31,7 +31,7 @@ The complete `math_*` arithmetic library: adders, subtractors, multipliers,
 compressors, prefix cells, and the BF16 / FP8 / FP16 / FP32 / IEEE-754
 floating-point modules — every family, with the files that make it up.
 
-## Start here
+## Overview
 
 This page is the catalogue, not the guide. Read the **[Math Library
 overview](math_library.md)** first: it organizes the whole `math_*` family by
@@ -39,7 +39,8 @@ operation → methodology — Brent-Kung / Han-Carlson adders, Dadda / Wallace
 multipliers, IEEE-754 fp32/fp16/bf16/fp8 operators, conversions, and
 activations — each with its research reference and a link to the detailed doc
 below, plus the `bin/` code-generation automation. Come back here when you
-need the exact file list.
+need the exact file list. That's the one thing this page does better than any
+other.
 
 ## Module categories
 
@@ -138,8 +139,11 @@ need the exact file list.
 - **[math_prefix_cell_gray](math_prefix_cell_gray.md)** — gray cell for parallel prefix adders (area-optimized)
   - Includes: `math_prefix_cell_gray.sv`
 
-## Related
+## Related Modules
 
 - [rtl-common index](../rtl-common/index.md) — counters, FIFOs, arbiters, CDC,
   data integrity
+
+## Navigation
+
 - [Documentation index](../../DOCUMENTATION_INDEX.md)

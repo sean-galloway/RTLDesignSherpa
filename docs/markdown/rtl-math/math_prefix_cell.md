@@ -23,11 +23,9 @@
 
 # Prefix Cell (Black Cell)
 
-The parallel prefix building block that combines generate (G) and propagate (P) signals from adjacent bit groups—the cell at the heart of high-performance adders like Kogge-Stone, Brent-Kung, and Han-Carlson.
-
 ## Overview
 
-The `math_prefix_cell` module (the "black cell") implements the fundamental prefix operation for parallel prefix adders. It takes the generate and propagate signals from a higher bit position and a lower one, and computes the group generate and group propagate for the combined range.
+The `math_prefix_cell` module (the "black cell") is the parallel prefix building block that combines generate (G) and propagate (P) signals from adjacent bit groups—the cell at the heart of high-performance adders like Kogge-Stone, Brent-Kung, and Han-Carlson. It takes the generate and propagate signals from a higher bit position and a lower one, and computes the group generate and group propagate for the combined range.
 
 **Key Features:**
 - **Outputs both G and P** - Full prefix cell for forward tree stages
@@ -35,7 +33,13 @@ The `math_prefix_cell` module (the "black cell") implements the fundamental pref
 - **Building block** for all parallel prefix adder architectures
 - **Enables O(log N) addition** - Parallel carry computation
 
-## Module Declaration
+## Parameters
+
+None. This is a fixed single-bit cell—there's nothing to parameterize.
+
+## Ports
+
+### Module Declaration
 
 ```systemverilog
 module math_prefix_cell (
@@ -45,7 +49,7 @@ module math_prefix_cell (
 );
 ```
 
-## Ports
+### Port List
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -105,7 +109,15 @@ After Stage 2 (prefix cells combining pairs of pairs):
   P[3:0] = P[3:2] & P[1:0]             // Does range [3:0] propagate?
 ```
 
-## Usage Examples
+## Timing
+
+| Metric | Value | Description |
+|--------|-------|-------------|
+| Logic Depth | 2 gates | 1 AND + 1 OR (for G), 1 AND (for P) |
+| Critical Path | AND-OR | i_p_hi/i_g_lo -> ow_g |
+| Gate Count | 3 | 2 AND gates + 1 OR gate |
+
+## Usage Example
 
 ### In Kogge-Stone Adder (Stage 1)
 
@@ -156,15 +168,7 @@ generate
 endgenerate
 ```
 
-## Timing Characteristics
-
-| Metric | Value | Description |
-|--------|-------|-------------|
-| Logic Depth | 2 gates | 1 AND + 1 OR (for G), 1 AND (for P) |
-| Critical Path | AND-OR | i_p_hi/i_g_lo -> ow_g |
-| Gate Count | 3 | 2 AND gates + 1 OR gate |
-
-## Performance Characteristics
+## Design Notes
 
 ### Resource Utilization
 
@@ -183,8 +187,6 @@ endgenerate
 | Gate count | 3 | 2 |
 | Use case | Forward tree | Reverse tree / final stage |
 | Module | `math_prefix_cell` | `math_prefix_cell_gray` |
-
-## Design Notes
 
 ### When to Use Black vs Gray Cells
 
@@ -214,10 +216,12 @@ This module is optimized with the following priorities:
 | Brent-Kung | Forward tree | Reverse tree | O(2 log N) | Minimum |
 | Han-Carlson | Even positions | Final stage | O(log N + 1) | Medium |
 
-## Testing
+### Applications
 
-No dedicated test wrapper -- this block is exercised structurally through the Han-Carlson adder tests (`val/math/test_math_adder_han_carlson.py`) -- all six HC widths instantiate this cell (Brent-Kung uses its own math_adder_brent_kung_black/gray cells, NOT this one).
-It is also formally proved: `formal/common/math_prefix_cell/` (prove + cover, SymbiYosys).
+- **High-performance adders** - All parallel prefix adder architectures
+- **Multiplier final CPA** - Fast carry-propagate addition
+- **Incrementers/Decrementers** - Priority-encoded operations
+- **Comparators** - Parallel comparison networks
 
 ## Related Modules
 
@@ -226,12 +230,10 @@ It is also formally proved: `formal/common/math_prefix_cell/` (prove + cover, Sy
 - **math_adder_han_carlson_048** - 48-bit Han-Carlson adder using this cell
 - **math_adder_brent_kung_black** - Brent-Kung black cell (equivalent)
 
-## Applications
+## Testing
 
-- **High-performance adders** - All parallel prefix adder architectures
-- **Multiplier final CPA** - Fast carry-propagate addition
-- **Incrementers/Decrementers** - Priority-encoded operations
-- **Comparators** - Parallel comparison networks
+No dedicated test wrapper -- this block is exercised structurally through the Han-Carlson adder tests (`val/math/test_math_adder_han_carlson.py`) -- all six HC widths instantiate this cell (Brent-Kung uses its own math_adder_brent_kung_black/gray cells, NOT this one).
+It is also formally proved: `formal/common/math_prefix_cell/` (prove + cover, SymbiYosys).
 
 ## References
 

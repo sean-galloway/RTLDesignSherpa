@@ -39,7 +39,7 @@ Range: ~1.2e-38 to ~3.4e38
 Precision: ~0.00001% (7 decimal digits)
 ```
 
-## Module Categories
+## Functional Description
 
 ### Activation Functions
 
@@ -52,8 +52,6 @@ Precision: ~0.00001% (7 decimal digits)
 | `math_fp32_tanh` | tanh(x) | Hyperbolic tangent |
 | `math_fp32_silu` | x * sigmoid(x) | SiLU/Swish activation |
 | `math_fp32_softmax_8` | softmax(x[7:0]) | 8-input softmax |
-
-#### Interface
 
 Every SCALAR activation function in this group uses the same two-port pattern:
 
@@ -84,8 +82,6 @@ module math_fp32_{activation} (
 | `math_fp32_to_fp8_e4m3` | FP32 -> FP8 E4M3 | ML inference quantization |
 | `math_fp32_to_fp8_e5m2` | FP32 -> FP8 E5M2 | ML training quantization |
 
-#### Downconversion Notes
-
 **FP32 to BF16:**
 ```systemverilog
 module math_fp32_to_bf16 (
@@ -106,7 +102,19 @@ module math_fp32_to_bf16 (
 - May underflow (FP32 value < FP16 min subnormal)
 - Mantissa rounding (23 -> 10 bits)
 
-## Usage Examples
+### Special Values
+
+| Value | Encoding | Notes |
+|-------|----------|-------|
+| +0 | 0x00000000 | Positive zero |
+| -0 | 0x80000000 | Negative zero |
+| +Inf | 0x7F800000 | Positive infinity |
+| -Inf | 0xFF800000 | Negative infinity |
+| NaN | 0x7FC00000 | Canonical quiet NaN |
+| Max Normal | 0x7F7FFFFF | ~3.4e38 |
+| Min Normal | 0x00800000 | ~1.2e-38 |
+
+## Usage Example
 
 ### Training Pipeline (FP32 Master)
 
@@ -150,24 +158,21 @@ math_fp32_to_fp8_e4m3 u_quantize (
 );
 ```
 
-## Special Values
+## Design Notes
 
-| Value | Encoding | Notes |
-|-------|----------|-------|
-| +0 | 0x00000000 | Positive zero |
-| -0 | 0x80000000 | Negative zero |
-| +Inf | 0x7F800000 | Positive infinity |
-| -Inf | 0xFF800000 | Negative infinity |
-| NaN | 0x7FC00000 | Canonical quiet NaN |
-| Max Normal | 0x7F7FFFFF | ~3.4e38 |
-| Min Normal | 0x00800000 | ~1.2e-38 |
-
-## Auto-Generation
+### Auto-Generation
 
 ```bash
 # Regenerate all FP32 modules
 PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/math
 ```
+
+## Related Modules
+
+- **[math_bf16_extended](math_bf16_extended.md)** - BF16 equivalent modules
+- **[math_fp16_modules](math_fp16_modules.md)** - FP16 equivalent modules
+- **[math_fp8_modules](math_fp8_modules.md)** - FP8 variants
+- **[math_ieee754_modules](math_ieee754_modules.md)** - IEEE 754-2008 compliant arithmetic
 
 ## Testing
 
@@ -186,13 +191,6 @@ Covered by 14 test suites:
 Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
-
-## Related Documentation
-
-- **[math_bf16_extended](math_bf16_extended.md)** - BF16 equivalent modules
-- **[math_fp16_modules](math_fp16_modules.md)** - FP16 equivalent modules
-- **[math_fp8_modules](math_fp8_modules.md)** - FP8 variants
-- **[math_ieee754_modules](math_ieee754_modules.md)** - IEEE 754-2008 compliant arithmetic
 
 ## Navigation
 

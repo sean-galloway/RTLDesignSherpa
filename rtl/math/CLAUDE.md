@@ -2,9 +2,7 @@
 
 **Purpose:** AI-specific guidance for `rtl/math/`
 
----
-
-## Quick Context
+## Overview
 
 **What:** 172 arithmetic modules -- integer adders/subtractors/multipliers
 (Brent-Kung, Han-Carlson, Dadda, Wallace), and the floating-point families:
@@ -21,9 +19,9 @@ This area was split out of `rtl/common` (tests moved from
 `val/common/test_math_*` to `val/math/`). A reference to
 `rtl/common/math_*.sv` is stale -- fix it rather than working around it.
 
----
+## Design Notes
 
-## The one rule that matters here
+### Generated RTL: fix the generator, never the .sv
 
 **Most of the FP family is GENERATED. Fix the generator, never the .sv.**
 The bf16 and ieee754 families come from `bin/rtl_generators/{bf16,ieee754}/`;
@@ -35,9 +33,7 @@ and diff against the tree ignoring the `// Created:` line -- zero diffs is
 the healthy state. Keep it that way: generator and regenerated .sv land in
 the same commit.
 
----
-
-## Rounding and underflow are settled -- do not "fix" them
+### Rounding and underflow are settled -- do not "fix" them
 
 - Every FP multiplier implements textbook RNE: round up iff
   `guard & (round | sticky | LSB)`, with TRUE (unfolded) sticky (MATH-001).
@@ -57,9 +53,18 @@ Verification precedent for any change in this space: sweep DUT vs an
 exact-integer-product reference (exhaustive for fp8), then mutation-check --
 see the MATH-007/008 records in `vault/Tasks/math/closed.md`.
 
----
+### Before adding a module here
 
-## Testing this area
+1. Search first: `ls rtl/math/*.sv` -- five FP formats and a dozen adder
+   families already exist; a new width of an existing family belongs in the
+   GENERATOR, not as a hand-written sibling.
+2. A new module lands with its `.f` in `rtl/math/filelists/` in the same
+   commit, and `math_all.f` gets a line; `python3 bin/filelist_registry.py
+   --check` and `--audit` must both pass.
+3. Docs page under `docs/markdown/rtl-math/` (see [[module-docs]]), test in
+   `val/math/` with a REG_LEVEL grid and honest TEST_LEVEL depth.
+
+## Testing
 
 - Directed patterns for functional coverage, not exhaustive sweeps --
   non-exhaustive stimulus is never a finding here (Sean).
@@ -71,9 +76,7 @@ see the MATH-007/008 records in `vault/Tasks/math/closed.md`.
 - Run regressions via `make -C val/math clean-all && make -C val/math
   run-all-{gate,func,full}-parallel`, never bare pytest.
 
----
-
-## Formal
+### Formal
 
 All `formal/common/math_*` configs run against current RTL (MATH-006,
 2026-08-11): 157 PASS. Known-heavy, recorded and not worth re-litigating:
@@ -84,16 +87,3 @@ its `prove_low8` passes). The 016 configs use task names
 `prove_low8`/`prove_boundary` -- status scrapers globbing `*_prove` miss
 them. `sby -f` resolves `[files]` paths against the CWD: run from inside
 the config dir.
-
----
-
-## Before adding a module here
-
-1. Search first: `ls rtl/math/*.sv` -- five FP formats and a dozen adder
-   families already exist; a new width of an existing family belongs in the
-   GENERATOR, not as a hand-written sibling.
-2. A new module lands with its `.f` in `rtl/math/filelists/` in the same
-   commit, and `math_all.f` gets a line; `python3 bin/filelist_registry.py
-   --check` and `--audit` must both pass.
-3. Docs page under `docs/markdown/rtl-math/` (see [[module-docs]]), test in
-   `val/math/` with a REG_LEVEL grid and honest TEST_LEVEL depth.

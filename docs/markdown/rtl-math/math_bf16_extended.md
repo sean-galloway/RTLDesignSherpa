@@ -36,7 +36,7 @@ The core BF16 arithmetic (adder, multiplier, FMA) only gets you multiply-accumul
 - **NaN propagation** throughout all operations
 - **Auto-generated** from Python generators for consistency
 
-## Module Categories
+## Functional Description
 
 ### Activation Functions
 
@@ -52,30 +52,12 @@ The standard neural network activation functions, BF16 in and BF16 out.
 | `math_bf16_silu` | x * sigmoid(x) | Sigmoid Linear Unit (Swish) |
 | `math_bf16_softmax_8` | exp(xi)/sum(exp(xj)) | 8-input softmax normalization |
 
-#### Interface
-
 Every SCALAR activation function in this group uses the same two-port pattern:
 
 ```systemverilog
 module math_bf16_{activation} (
     input  logic [15:0] i_a,        // BF16 input
     output logic [15:0] ow_result   // BF16 output
-);
-```
-
-#### Usage Example
-
-```systemverilog
-// Apply ReLU activation to layer output
-math_bf16_relu u_relu (
-    .i_a(layer_output),
-    .ow_result(activated_output)
-);
-
-// Apply sigmoid for binary classification
-math_bf16_sigmoid u_sigmoid (
-    .i_a(logit),
-    .ow_result(probability)
 );
 ```
 
@@ -94,7 +76,7 @@ The extended math operations for neural network computations.
 | `math_bf16_goldschmidt_div` | a/b | Iterative Goldschmidt division |
 | `math_bf16_newton_raphson_recip` | 1/x | Newton-Raphson iterative reciprocal |
 
-#### Reciprocal/Division Modules
+The reciprocal and division modules give you an accuracy/latency trade-off — fast LUT-based single-cycle on one end, iterative Goldschmidt on the other:
 
 ```systemverilog
 // Fast reciprocal (single-cycle, LUT-based)
@@ -143,7 +125,7 @@ Modules for comparing and selecting BF16 values.
 | `math_bf16_min_tree_8` | min(a[7:0]) | 8-input minimum |
 | `math_bf16_clamp` | clamp(x, lo, hi) | Value clamping to range |
 
-#### Comparator Interface
+The comparator interface:
 
 ```systemverilog
 module math_bf16_comparator (
@@ -153,19 +135,6 @@ module math_bf16_comparator (
     output logic        ow_lt,        // a < b
     output logic        ow_gt,        // a > b
     output logic        ow_unordered  // NaN comparison
-);
-```
-
-#### Max/Min Tree Usage
-
-```systemverilog
-// Find maximum across 8 values (e.g., for pooling)
-logic [15:0] pool_inputs [8];
-logic [15:0] pool_max;
-
-math_bf16_max_tree_8 u_max_pool (
-    .i_data(pool_inputs),
-    .ow_max(pool_max)
 );
 ```
 
@@ -183,8 +152,6 @@ Convert between BF16 and other floating-point formats.
 | `math_int_to_bf16` | INT -> BF16 | Integer to float conversion |
 | `math_bf16_scale_to_int8` | BF16 -> INT8 | Quantization with scaling |
 
-#### Interface
-
 The converters all follow the same shape — value in, converted value out, plus the three status flags:
 
 ```systemverilog
@@ -197,7 +164,51 @@ module math_bf16_to_{format} (
 );
 ```
 
-#### Quantization Example
+### Special Value Handling
+
+Special values behave the same way across every module:
+
+| Input | ReLU | Sigmoid | Max/Min | Converters |
+|-------|------|---------|---------|------------|
+| +0 | +0 | 0.5 | Compares as 0 | Format-specific 0 |
+| -0 | +0 | 0.5 | Compares as 0 | Format-specific 0 |
+| +Inf | +Inf | 1.0 | Largest | Passes through where the target has Inf; saturates + overflow flag where it does not (e4m3) |
+| -Inf | 0 | 0.0 | Smallest | Same, sign-preserved -- NO underflow flag (underflow means too-small magnitude) |
+| NaN | NaN | NaN | Propagates | Invalid flag |
+| Subnormal | FTZ | FTZ | FTZ | FTZ |
+
+## Usage Example
+
+### Applying an Activation
+
+```systemverilog
+// Apply ReLU activation to layer output
+math_bf16_relu u_relu (
+    .i_a(layer_output),
+    .ow_result(activated_output)
+);
+
+// Apply sigmoid for binary classification
+math_bf16_sigmoid u_sigmoid (
+    .i_a(logit),
+    .ow_result(probability)
+);
+```
+
+### Max/Min Tree Pooling
+
+```systemverilog
+// Find maximum across 8 values (e.g., for pooling)
+logic [15:0] pool_inputs [8];
+logic [15:0] pool_max;
+
+math_bf16_max_tree_8 u_max_pool (
+    .i_data(pool_inputs),
+    .ow_max(pool_max)
+);
+```
+
+### Quantization
 
 ```systemverilog
 // Convert BF16 weights to INT8 for inference
@@ -214,20 +225,7 @@ math_bf16_scale_to_int8 u_quantize (
 );
 ```
 
-## Special Value Handling
-
-Special values behave the same way across every module:
-
-| Input | ReLU | Sigmoid | Max/Min | Converters |
-|-------|------|---------|---------|------------|
-| +0 | +0 | 0.5 | Compares as 0 | Format-specific 0 |
-| -0 | +0 | 0.5 | Compares as 0 | Format-specific 0 |
-| +Inf | +Inf | 1.0 | Largest | Passes through where the target has Inf; saturates + overflow flag where it does not (e4m3) |
-| -Inf | 0 | 0.0 | Smallest | Same, sign-preserved -- NO underflow flag (underflow means too-small magnitude) |
-| NaN | NaN | NaN | Propagates | Invalid flag |
-| Subnormal | FTZ | FTZ | FTZ | FTZ |
-
-## Implementation Notes
+## Design Notes
 
 ### Piecewise Linear Approximations
 
@@ -254,7 +252,7 @@ When you need higher accuracy (exp2, log2, reciprocal), the implementation switc
 // Accuracy: ~0.1% for 128-entry LUT
 ```
 
-## Auto-Generation
+### Auto-Generation
 
 All modules are auto-generated for consistency:
 
@@ -268,6 +266,14 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 - `bin/rtl_generators/ieee754/fp_conversions.py` - Format converters
 - `bin/rtl_generators/ieee754/fp_comparisons.py` - Comparison modules
 - `bin/rtl_generators/ieee754/bf16_reciprocal.py` - Reciprocal/division
+
+## Related Modules
+
+- **[math_bf16_multiplier](math_bf16_multiplier.md)** - Core BF16 multiplication
+- **[math_bf16_adder](math_bf16_adder.md)** - Core BF16 addition
+- **[math_bf16_fma](math_bf16_fma.md)** - Fused Multiply-Add
+- **[math_fp16_modules](math_fp16_modules.md)** - FP16 equivalents
+- **[math_fp8_modules](math_fp8_modules.md)** - FP8 E4M3/E5M2 modules
 
 ## Testing
 
@@ -286,14 +292,6 @@ Covered by 31 test suites:
 Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
-
-## Related Documentation
-
-- **[math_bf16_multiplier](math_bf16_multiplier.md)** - Core BF16 multiplication
-- **[math_bf16_adder](math_bf16_adder.md)** - Core BF16 addition
-- **[math_bf16_fma](math_bf16_fma.md)** - Fused Multiply-Add
-- **[math_fp16_modules](math_fp16_modules.md)** - FP16 equivalents
-- **[math_fp8_modules](math_fp8_modules.md)** - FP8 E4M3/E5M2 modules
 
 ## Navigation
 

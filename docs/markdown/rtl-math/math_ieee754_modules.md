@@ -35,9 +35,11 @@ These modules implement complete IEEE 754-2008 compliant arithmetic for half-pre
 - **Status flags** - Overflow, underflow, invalid
 - **Pipelined options** - Configurable pipeline stages for timing closure
 
-## Module Summary
+## Functional Description
 
-### FP16 (Half Precision) IEEE 754
+### Module Summary
+
+#### FP16 (Half Precision) IEEE 754
 
 | Module | Operation | Description |
 |--------|-----------|-------------|
@@ -47,7 +49,7 @@ These modules implement complete IEEE 754-2008 compliant arithmetic for half-pre
 | `math_ieee754_2008_fp16_mantissa_mult` | Internal | 11x11 mantissa multiply |
 | `math_ieee754_2008_fp16_exponent_adder` | Internal | Exponent computation |
 
-### FP32 (Single Precision) IEEE 754
+#### FP32 (Single Precision) IEEE 754
 
 | Module | Operation | Description |
 |--------|-----------|-------------|
@@ -57,9 +59,9 @@ These modules implement complete IEEE 754-2008 compliant arithmetic for half-pre
 | `math_ieee754_2008_fp32_mantissa_mult` | Internal | 24x24 mantissa multiply |
 | `math_ieee754_2008_fp32_exponent_adder` | Internal | Exponent computation |
 
-## Module Interfaces
+### Module Interfaces
 
-### FP16 Adder
+#### FP16 Adder
 
 ```systemverilog
 module math_ieee754_2008_fp16_adder #(
@@ -81,7 +83,7 @@ module math_ieee754_2008_fp16_adder #(
 );
 ```
 
-### FP32 Multiplier
+#### FP32 Multiplier
 
 ```systemverilog
 module math_ieee754_2008_fp32_multiplier (
@@ -94,7 +96,7 @@ module math_ieee754_2008_fp32_multiplier (
 );
 ```
 
-### FP32 FMA
+#### FP32 FMA
 
 ```systemverilog
 module math_ieee754_2008_fp32_fma (
@@ -108,9 +110,9 @@ module math_ieee754_2008_fp32_fma (
 );
 ```
 
-## Architecture
+### Architecture
 
-### FP32 Multiplier Pipeline
+#### FP32 Multiplier Pipeline
 
 ```
 Stage 1: Field extraction + special case detection
@@ -132,7 +134,7 @@ Stage 5: Special case priority selection
          Result assembly
 ```
 
-### FP32 FMA Architecture
+#### FP32 FMA Architecture
 
 ```mermaid
 flowchart TB
@@ -154,9 +156,9 @@ flowchart TB
     round --> result["ow_result[31:0]"]
 ```
 
-## IEEE 754 Compliance
+### IEEE 754 Compliance
 
-### Special Value Handling
+#### Special Value Handling
 
 | Operation | Input | Output |
 |-----------|-------|--------|
@@ -166,7 +168,7 @@ flowchart TB
 | x + y | Normal, Normal | Normal/Subnormal |
 | x * y | Normal, Normal | Normal/Subnormal/Zero |
 
-### Rounding Modes
+#### Rounding Modes
 
 Currently implements Round-to-Nearest-Even (RNE):
 ```systemverilog
@@ -174,7 +176,7 @@ Currently implements Round-to-Nearest-Even (RNE):
 wire w_round_up = w_guard & (w_round | w_sticky | w_lsb);
 ```
 
-### Status Flags
+#### Status Flags
 
 | Flag | Condition |
 |------|-----------|
@@ -182,18 +184,7 @@ wire w_round_up = w_guard & (w_round | w_sticky | w_lsb);
 | `ow_underflow` | Rounded result magnitude less than min normal (non-zero); IEEE 754 after-rounding detection, so a rounding carry out of the boundary yields min normal, not a flush (MATH-008) |
 | `ow_invalid` | Invalid operation (0*Inf, Inf-Inf, NaN input) |
 
-## Comparison: IEEE 754 vs Simplified Modules
-
-| Feature | IEEE 754 Modules | BF16/FP8 Modules |
-|---------|------------------|------------------|
-| Subnormals | Full support | Flush to Zero |
-| Infinity | Proper handling | Saturation (FP8 E4M3) |
-| NaN payloads | Preserved | Canonical only |
-| Rounding modes | RNE (extensible) | RNE only |
-| Pipeline options | Configurable | Fixed |
-| Target use | Precision-critical | AI/ML acceleration |
-
-## Usage Examples
+## Usage Example
 
 ### High-Precision Computation
 
@@ -243,7 +234,20 @@ math_ieee754_2008_fp16_adder #(
 );
 ```
 
-## Dependencies
+## Design Notes
+
+### Comparison: IEEE 754 vs Simplified Modules
+
+| Feature | IEEE 754 Modules | BF16/FP8 Modules |
+|---------|------------------|------------------|
+| Subnormals | Full support | Flush to Zero |
+| Infinity | Proper handling | Saturation (FP8 E4M3) |
+| NaN payloads | Preserved | Canonical only |
+| Rounding modes | RNE (extensible) | RNE only |
+| Pipeline options | Configurable | Fixed |
+| Target use | Precision-critical | AI/ML acceleration |
+
+### Dependencies
 
 These modules use the following building blocks:
 
@@ -256,7 +260,7 @@ These modules use the following building blocks:
 | `count_leading_zeros` | All | Normalization |
 | `shifter_barrel` | Adders | Mantissa alignment |
 
-## Auto-Generation
+### Auto-Generation
 
 ```bash
 # Regenerate IEEE 754 modules
@@ -270,6 +274,13 @@ PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rt
 - `bin/rtl_generators/ieee754/fp32_adder.py`
 - `bin/rtl_generators/ieee754/fp32_multiplier.py`
 - `bin/rtl_generators/ieee754/fp32_fma.py`
+
+## Related Modules
+
+- **[math_bf16_multiplier](math_bf16_multiplier.md)** - Simplified BF16 multiply
+- **[math_bf16_fma](math_bf16_fma.md)** - Simplified BF16 FMA
+- **[math_adder_han_carlson](math_adder_han_carlson.md)** - Prefix adder building block
+- **[math_multiplier_dadda_4to2](math_multiplier_dadda_4to2.md)** - Dadda multiplier
 
 ## Testing
 
@@ -285,13 +296,6 @@ Covered by 6 test suites:
 Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
-
-## Related Documentation
-
-- **[math_bf16_multiplier](math_bf16_multiplier.md)** - Simplified BF16 multiply
-- **[math_bf16_fma](math_bf16_fma.md)** - Simplified BF16 FMA
-- **[math_adder_han_carlson](math_adder_han_carlson.md)** - Prefix adder building block
-- **[math_multiplier_dadda_4to2](math_multiplier_dadda_4to2.md)** - Dadda multiplier
 
 ## Navigation
 

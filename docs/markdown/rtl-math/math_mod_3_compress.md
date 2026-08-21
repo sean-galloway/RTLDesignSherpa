@@ -23,12 +23,14 @@
 
 # math_mod_3_compress (`math_mod_3_compress.sv`)
 
+A combinational 16-bit mod-3 block built from a carry-save compressor tree — no multiplier, no divider, no DSP, just the 2-bit remainder the monbus burst-writer needs.
+
 **Location:** `rtl/math/`
 **Status:** Production Ready
 
-## Purpose
+## Overview
 
-`math_mod_3_compress` is a purely combinational block that computes `d_in mod 3` for a 16-bit operand, returning the 2-bit remainder (0..2). It's built in the same carry-save-compressor style as `div_by_15_ceil_32compress.sv` — a 3:2 compressor tree feeding a final carry-propagate add and a small fold — but it emits only the remainder, which is exactly what the monbus burst-writer needs to round a beat count **down** to a whole number of 3-beat records: `rounded = X - (X mod 3)`.
+`math_mod_3_compress` computes `d_in mod 3` for a 16-bit operand and returns the 2-bit remainder (0..2). It's built in the same carry-save-compressor style as `div_by_15_ceil_32compress.sv` — a 3:2 compressor tree feeding a final carry-propagate add and a small fold — but it emits only the remainder, which is exactly what the monbus burst-writer needs to round a beat count **down** to a whole number of 3-beat records: `rounded = X - (X mod 3)`.
 
 There's no `*` or `/` operator anywhere, so it infers no DSP block and no iterative divider — just a shallow tree of carry-save adders and a couple of small adds.
 
@@ -104,7 +106,11 @@ assign rem_out = 2'((w_fold >= 4'd6) ? (w_fold - 4'd6)
 
 The two-branch subtract handles `w_fold` values up to 7 (subtract 6, subtract 3, or pass through), yielding the exact remainder 0, 1, or 2.
 
-## Usage Examples
+## Timing
+
+Purely combinational. `rem_out` tracks `d_in` with no clock and no state — one cycle of logic through the compressor tree, the final add, and the fold. If you want a pipeline stage, register the result externally.
+
+## Usage Example
 
 ```systemverilog
 // Round a beat count down to a whole number of 3-beat monbus records.
@@ -126,18 +132,6 @@ assign rounded_count = beat_count - {14'b0, beat_rem};
 - **Why remainder only?** The div-by-15 reference computes a quotient; here only the residue is needed, so the quotient machinery is dropped, keeping the logic shallow.
 - **Datapath width headroom.** `BITS = 6` (rather than the minimum 5 needed for a 0..24 sum) gives the weight-2 carry left-shifts room so the dropped top carry is always 0, matching the div-by-15 construction.
 - **No inferred arithmetic primitives.** Because there is no `*` or `/`, synthesis produces adders and LUTs only, no DSP slices, no multi-cycle divider.
-- **Purely combinational.** `rem_out` tracks `d_in` with no clock; register the result externally if a pipeline stage is desired.
-
-## Testing
-
-From the test suite (`val/math/test_math_mod_3_compress.py`):
-
-- **Key test scenarios**:
-  - Check rem_out == d_in % 3 across the 16-bit input space.
-
-Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
-parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
-`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## Related Modules
 
@@ -153,6 +147,17 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 ### See Also
 
 - `div_by_15_ceil_32compress.sv` - The reference implementation this module's compressor style follows
+
+## Testing
+
+From the test suite (`val/math/test_math_mod_3_compress.py`):
+
+- **Key test scenarios**:
+  - Check rem_out == d_in % 3 across the 16-bit input space.
+
+Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
+parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
+`make -C val/math run-all-func-parallel`, never bare pytest for suites.
 
 ## References
 

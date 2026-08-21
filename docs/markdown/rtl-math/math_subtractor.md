@@ -23,11 +23,11 @@
 
 # Binary Subtractors
 
-A family of binary subtractor modules—half, full, ripple, and carry lookahead—that compute A - B with dedicated subtraction logic. Modern designs typically subtract with an adder and two's complement instead, but these modules remain useful for educational purposes and specific applications.
-
 ## Overview
 
-This document covers the complete subtractor module family:
+A family of binary subtractor modules—half, full, ripple, and carry lookahead—that compute A - B with dedicated subtraction logic. Modern designs typically subtract with an adder and two's complement instead, but these modules remain useful for educational purposes and specific applications.
+
+The complete subtractor module family:
 - **math_subtractor_half** - Single-bit half subtractor (2 inputs)
 - **math_subtractor_full** - Single-bit full subtractor (3 inputs with borrow)
 - **math_subtractor_full_nbit** - N-bit ripple borrow subtractor
@@ -35,75 +35,6 @@ This document covers the complete subtractor module family:
 - **math_subtractor_carry_lookahead** - N-bit subtractor with lookahead logic
 
 **Modern Alternative:** Most designs subtract with an adder via two's complement: `A - B = A + (~B) + 1`. Same result, and it reuses adder hardware you already have.
-
-## Module Declarations
-
-### Half Subtractor
-
-```systemverilog
-module math_subtractor_half (
-    input  logic i_a,       // Minuend
-    input  logic i_b,       // Subtrahend
-    output logic o_d,       // Difference
-    output logic o_b        // Borrow output
-);
-```
-
-### Full Subtractor
-
-```systemverilog
-module math_subtractor_full (
-    input  logic i_a,       // Minuend
-    input  logic i_b,       // Subtrahend
-    input  logic i_b_in,    // Borrow input
-    output logic ow_d,      // Difference
-    output logic ow_b       // Borrow output
-);
-```
-
-### N-bit Ripple Borrow Subtractor
-
-```systemverilog
-module math_subtractor_ripple_carry #(
-    parameter int N = 4
-) (
-    input  logic [N-1:0] i_a,            // Minuend
-    input  logic [N-1:0] i_b,            // Subtrahend
-    input  logic         i_borrow_in,    // Borrow input
-    output logic [N-1:0] ow_difference,  // Difference
-    output logic         ow_carry_out    // Borrow out (carry out)
-);
-```
-
-### N-bit Full Subtractor (math_subtractor_full_nbit)
-
-```systemverilog
-module math_subtractor_full_nbit #(
-    parameter int N = 4
-) (
-    input  logic [N-1:0] i_a,     // Minuend
-    input  logic [N-1:0] i_b,     // Subtrahend
-    input  logic         i_b_in,  // Borrow input
-    output logic [N-1:0] ow_d,    // Difference
-    output logic         ow_b     // Borrow out
-);
-```
-
-### N-bit Carry Lookahead Subtractor
-
-```systemverilog
-module math_subtractor_carry_lookahead #(
-    parameter int N = 4
-) (
-    input  logic [N-1:0] i_a,            // Minuend
-    input  logic [N-1:0] i_b,            // Subtrahend
-    input  logic         i_borrow_in,    // Borrow input
-    output logic [N-1:0] ow_difference,  // Difference
-    output logic [N-1:0] ow_d,           // Alias of ow_difference
-    output logic         ow_borrow_out,  // Borrow output
-    output logic         ow_b            // Alias of ow_borrow_out
-);
-```
 
 ## Parameters
 
@@ -119,7 +50,16 @@ No parameters (fixed single-bit operation).
 
 ## Ports
 
-### Half Subtractor Ports
+### Half Subtractor
+
+```systemverilog
+module math_subtractor_half (
+    input  logic i_a,       // Minuend
+    input  logic i_b,       // Subtrahend
+    output logic o_d,       // Difference
+    output logic o_b        // Borrow output
+);
+```
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -128,7 +68,17 @@ No parameters (fixed single-bit operation).
 | o_d | Output | 1 | Difference output (A - B) |
 | o_b | Output | 1 | Borrow output |
 
-### Full Subtractor Ports
+### Full Subtractor
+
+```systemverilog
+module math_subtractor_full (
+    input  logic i_a,       // Minuend
+    input  logic i_b,       // Subtrahend
+    input  logic i_b_in,    // Borrow input
+    output logic ow_d,      // Difference
+    output logic ow_b       // Borrow output
+);
+```
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -138,14 +88,26 @@ No parameters (fixed single-bit operation).
 | ow_d | Output | 1 | Difference output |
 | ow_b | Output | 1 | Borrow output (to next stage) |
 
-### N-bit Subtractor Ports
+### N-bit Subtractors
 
 The three N-bit subtractors do **not** share a port list—check which one
 you're instantiating. `math_subtractor_full_nbit` shares only `i_a`/`i_b`
 with the other two: its borrow in is `i_b_in` (not `i_borrow_in`) and its
 outputs are `ow_d`/`ow_b` only (no `ow_difference`/`ow_carry_out` aliases).
 
-`math_subtractor_full_nbit`:
+#### math_subtractor_full_nbit
+
+```systemverilog
+module math_subtractor_full_nbit #(
+    parameter int N = 4
+) (
+    input  logic [N-1:0] i_a,     // Minuend
+    input  logic [N-1:0] i_b,     // Subtrahend
+    input  logic         i_b_in,  // Borrow input
+    output logic [N-1:0] ow_d,    // Difference
+    output logic         ow_b     // Borrow out
+);
+```
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -155,7 +117,19 @@ outputs are `ow_d`/`ow_b` only (no `ow_difference`/`ow_carry_out` aliases).
 | ow_d | Output | N | Difference vector (A - B - Bin) |
 | ow_b | Output | 1 | Final borrow out |
 
-`math_subtractor_ripple_carry`:
+#### math_subtractor_ripple_carry
+
+```systemverilog
+module math_subtractor_ripple_carry #(
+    parameter int N = 4
+) (
+    input  logic [N-1:0] i_a,            // Minuend
+    input  logic [N-1:0] i_b,            // Subtrahend
+    input  logic         i_borrow_in,    // Borrow input
+    output logic [N-1:0] ow_difference,  // Difference
+    output logic         ow_carry_out    // Borrow out (carry out)
+);
+```
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -165,8 +139,24 @@ outputs are `ow_d`/`ow_b` only (no `ow_difference`/`ow_carry_out` aliases).
 | ow_difference | Output | N | Difference vector (A - B - Bin) |
 | ow_carry_out | Output | 1 | Final borrow out (carry out) |
 
-`math_subtractor_carry_lookahead`—same inputs, but every output is exposed
-twice under two names (`assign ow_d = ow_difference; assign ow_b = ow_borrow_out;`):
+#### math_subtractor_carry_lookahead
+
+Same inputs as the ripple variant, but every output is exposed twice under two
+names (`assign ow_d = ow_difference; assign ow_b = ow_borrow_out;`):
+
+```systemverilog
+module math_subtractor_carry_lookahead #(
+    parameter int N = 4
+) (
+    input  logic [N-1:0] i_a,            // Minuend
+    input  logic [N-1:0] i_b,            // Subtrahend
+    input  logic         i_borrow_in,    // Borrow input
+    output logic [N-1:0] ow_difference,  // Difference
+    output logic [N-1:0] ow_d,           // Alias of ow_difference
+    output logic         ow_borrow_out,  // Borrow output
+    output logic         ow_b            // Alias of ow_borrow_out
+);
+```
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -252,7 +242,18 @@ Uses lookahead logic to compute borrows faster (similar to CLA adder):
 
 **Timing:** O(N) delay (simplified lookahead)
 
-## Usage Examples
+## Timing
+
+| Module | Logic Levels | Typical Delay (ns) |
+|--------|--------------|-------------------|
+| Half Subtractor | 1 | ~0.2 |
+| Full Subtractor | 2 | ~0.4 |
+| Ripple (N-bit) | 2N | ~0.4N |
+| CLA (N-bit) | O(N) | Similar to ripple (simplified) |
+
+**Note:** Subtractors have the same timing as the equivalent adders.
+
+## Usage Example
 
 ### Basic Subtraction (Using Subtractor)
 
@@ -356,18 +357,7 @@ math_subtractor_ripple_carry #(.N(8)) u_sub_high (
 logic [15:0] diff_16 = {diff_high, diff_low};
 ```
 
-## Timing Characteristics
-
-| Module | Logic Levels | Typical Delay (ns) |
-|--------|--------------|-------------------|
-| Half Subtractor | 1 | ~0.2 |
-| Full Subtractor | 2 | ~0.4 |
-| Ripple (N-bit) | 2N | ~0.4N |
-| CLA (N-bit) | O(N) | Similar to ripple (simplified) |
-
-**Note:** Subtractors have the same timing as the equivalent adders.
-
-## Performance Characteristics
+## Design Notes
 
 ### Resource Utilization
 
@@ -385,8 +375,6 @@ logic [15:0] diff_16 = {diff_high, diff_low};
 | **Area** | +100% (separate unit) | +1% (just inverter) |
 | **Timing** | Same as adder | Same as adder |
 | **Modern Practice** | Rarely used | Standard approach |
-
-## Design Notes
 
 ### Why Adders Are Preferred for Subtraction
 
@@ -437,9 +425,9 @@ module simple_alu (
 endmodule
 ```
 
-## Common Pitfalls
+### Common Pitfalls
 
-**Anti-Pattern 1**: Using subtractors instead of adders
+**Anti-Pattern 1: Using subtractors instead of adders**
 
 ```systemverilog
 // DISCOURAGED: Separate adder and subtractor
@@ -455,7 +443,7 @@ math_adder_ripple_carry u_alu (
 );
 ```
 
-**Anti-Pattern 2**: Ignoring borrow for underflow detection
+**Anti-Pattern 2: Ignoring borrow for underflow detection**
 
 ```systemverilog
 // WRONG: Ignoring borrow output
@@ -474,7 +462,7 @@ math_subtractor_ripple_carry u_sub (
 );
 ```
 
-**Anti-Pattern 3**: Incorrect borrow interpretation
+**Anti-Pattern 3: Incorrect borrow interpretation**
 
 ```systemverilog
 // WRONG: Borrow means A < B, not A > B
@@ -484,6 +472,11 @@ end
 
 // Remember: Borrow = 1 means underflow (A < B)
 ```
+
+## Related Modules
+
+- **math_adder_*.sv** - Preferred for subtraction via two's complement
+- **math_addsub_full_nbit.sv** - Combined add/subtract unit
 
 ## Testing
 
@@ -497,11 +490,6 @@ Covered by 4 test suites:
 Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/math run-all-func-parallel`, never bare pytest for suites.
-
-## Related Modules
-
-- **math_adder_*.sv** - Preferred for subtraction via two's complement
-- **math_addsub_full_nbit.sv** - Combined add/subtract unit
 
 ## References
 

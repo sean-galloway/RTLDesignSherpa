@@ -35,7 +35,11 @@ The `math_compressor_4to2` module implements a 4:2 compressor using two cascaded
 - **2 full adder depth** - Predictable timing
 - **Building block** for Dadda/Wallace trees with 4:2 compressors
 
-## Module Declaration
+## Parameters
+
+None — this is a single-bit cell with nothing to configure.
+
+## Ports
 
 ```systemverilog
 module math_compressor_4to2 (
@@ -46,8 +50,6 @@ module math_compressor_4to2 (
     output logic ow_cout
 );
 ```
-
-## Ports
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -114,7 +116,39 @@ ow_cout = (i_x1 & i_x2) | (i_x2 & i_x3) | (i_x1 & i_x3);
 
 This allows multiple 4:2 compressors to be chained with their cout signals forming independent carry chains, reducing the critical path compared to implementations where all carries depend on cin.
 
-## Usage Examples
+## Timing
+
+| Metric | Value | Description |
+|--------|-------|-------------|
+| Logic Depth | 4 gates | 2 full adders in series |
+| Cin to Sum | 2 XOR gates | Through FA2 only |
+| Cin to Carry | 1 XOR + 1 AND-OR | Through FA2 only |
+| X1-X3 to Cout | 1 AND-OR | Through FA1 only |
+
+**Critical Path:** X1/X2/X3 -> FA1 sum -> FA2 sum = 4 XOR gate delays
+
+### Resource Utilization
+
+| Metric | Value |
+|--------|-------|
+| Full Adders | 2 |
+| Total Gates | ~10-12 (technology dependent) |
+| LUTs (FPGA) | ~3-4 |
+
+### Comparison with 3:2 Compressor (Full Adder)
+
+| Metric | 3:2 Compressor | 4:2 Compressor |
+|--------|----------------|----------------|
+| Inputs | 3 | 5 |
+| Outputs | 2 | 3 |
+| Reduction ratio | 3:2 | 5:3 |
+| Gate count | ~5 | ~10-12 |
+| Logic depth | 2 | 4 |
+| Column reduction | -1 per stage | -2 per stage |
+
+**Advantage:** 4:2 compressors reduce column height faster, resulting in fewer reduction stages for multipliers.
+
+## Usage Example
 
 ### Single Compressor
 
@@ -185,39 +219,7 @@ math_compressor_4to2 u_dadda_comp (
 // pp4 passes through to next stage if column height allows
 ```
 
-## Timing Characteristics
-
-| Metric | Value | Description |
-|--------|-------|-------------|
-| Logic Depth | 4 gates | 2 full adders in series |
-| Cin to Sum | 2 XOR gates | Through FA2 only |
-| Cin to Carry | 1 XOR + 1 AND-OR | Through FA2 only |
-| X1-X3 to Cout | 1 AND-OR | Through FA1 only |
-
-**Critical Path:** X1/X2/X3 -> FA1 sum -> FA2 sum = 4 XOR gate delays
-
-## Performance Characteristics
-
-### Resource Utilization
-
-| Metric | Value |
-|--------|-------|
-| Full Adders | 2 |
-| Total Gates | ~10-12 (technology dependent) |
-| LUTs (FPGA) | ~3-4 |
-
-### Comparison with 3:2 Compressor (Full Adder)
-
-| Metric | 3:2 Compressor | 4:2 Compressor |
-|--------|----------------|----------------|
-| Inputs | 3 | 5 |
-| Outputs | 2 | 3 |
-| Reduction ratio | 3:2 | 5:3 |
-| Gate count | ~5 | ~10-12 |
-| Logic depth | 2 | 4 |
-| Column reduction | -1 per stage | -2 per stage |
-
-**Advantage:** 4:2 compressors reduce column height faster, resulting in fewer reduction stages for multipliers.
+## Design Notes
 
 ### Design Optimization Priorities
 
@@ -225,8 +227,6 @@ This module is optimized with the following priorities:
 1. **Area** - Minimal gate count using two full adders
 2. **Wire complexity** - Simple cascaded structure with minimal routing
 3. **Logic depth** - Fixed 2 full adder delays
-
-## Design Notes
 
 ### Advantages
 
@@ -242,17 +242,17 @@ This module is optimized with the following priorities:
 - **DSP blocks** - Custom multiply-accumulate units
 - **BF16/FP16 arithmetic** - Mantissa multiplication
 
-## Testing
-
-No dedicated test wrapper -- this block is exercised structurally through every Dadda 4:2 multiplier test (`val/math/test_math_multiplier_dadda_4to2.py` and the FP mantissa multiplier suites).
-It is also formally proved: `formal/common/math_compressor_4to2/` (prove + cover, SymbiYosys).
-
 ## Related Modules
 
 - **math_adder_full** - Full adder building block (3:2 compressor)
 - **math_adder_half** - Half adder building block
 - **math_multiplier_dadda_4to2_008** - 8x8 multiplier using this compressor
 - **math_adder_carry_save** - Alternative 3:2 compressor naming
+
+## Testing
+
+No dedicated test wrapper -- this block is exercised structurally through every Dadda 4:2 multiplier test (`val/math/test_math_multiplier_dadda_4to2.py` and the FP mantissa multiplier suites).
+It is also formally proved: `formal/common/math_compressor_4to2/` (prove + cover, SymbiYosys).
 
 ## References
 
