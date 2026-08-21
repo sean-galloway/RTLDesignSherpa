@@ -601,6 +601,69 @@ class AXI4ToAXIL4WriteTB(TBBase):
                 ok = False
         return ok
 
+
+    async def test_pipelined_aw_identity(self, label=""):
+        """Two single-beat writes accepted back-to-back keep their own IDs.
+
+        The write path mirrors the read path: r_b_id / r_b_len /
+        r_b_beat_count are a SINGLE-entry record of the burst in flight, and
+        `s_axi_awready = !r_aw_active && ...` never sets r_aw_active for
+        awlen==0. A second single-beat AW can therefore be accepted while the
+        first write's B is still outstanding, overwriting the identity of the
+        write already in flight.
+
+        Driven on the AW/W channels directly, not via two overlapping
+        `write_transaction` calls -- pipelining BFM traffic with parallel
+        tasks races on its own account, and the DUT is what is under test.
+        """
+        tag = f"[{label}] " if label else ""
+        saved_delay = self.axil4_slave.response_delay_cycles
+        self.axil4_slave.response_delay_cycles = 8
+        size = (self.data_width // 8).bit_length() - 1
+        strb = (1 << (self.data_width // 8)) - 1
+        ids = (3, 5)
+        addrs = (0xF000, 0xF100)
+
+        for q in getattr(self.axi4_master, '_response_by_id', {}).values():
+            q.clear()
+
+        try:
+            for axid, addr in zip(ids, addrs):
+                aw = self.axi4_master.aw_channel.create_packet(
+                    addr=addr, len=0, id=axid, size=size, burst=1,
+                    lock=0, cache=0, prot=0, qos=0, region=0)
+                await self.axi4_master.aw_channel.send(aw)
+                w = self.axi4_master.w_channel.create_packet(
+                    data=0xC0DE0000 + axid, last=1, strb=strb)
+                await self.axi4_master.w_channel.send(w)
+
+            await self.wait_clocks(self.clk_name, 120)
+
+            ok = True
+            for axid in ids:
+                q = self.axi4_master._response_by_id.get(axid)
+                got = len(q) if q else 0
+                if got != 1:
+                    self.log.error(
+                        f"@ {get_sim_time('ns')}ns: {tag}id={axid}: expected 1 "
+                        f"B response, got {got} -- the in-flight write's "
+                        f"identity was overwritten by the next AW")
+                    self.stats['errors'] += 1
+                    ok = False
+            if ok:
+                self.log.info(f"@ {get_sim_time('ns')}ns: {tag}pipelined AWs "
+                              f"kept their IDs")
+            return ok
+        finally:
+            self.axil4_slave.response_delay_cycles = saved_delay
+            await self.wait_clocks(self.clk_name, 40)
+            for q in getattr(self.axi4_master, '_response_by_id', {}).values():
+                q.clear()
+            await self.assert_reset()
+            await self.wait_clocks(self.clk_name, 5)
+            await self.deassert_reset()
+            await self.wait_clocks(self.clk_name, 5)
+
     async def run_basic_test(self):
         """Run basic write burst test suite"""
         self.log.info("=" * 80)
@@ -620,6 +683,10 @@ class AXI4ToAXIL4WriteTB(TBBase):
 
         # Error propagation (BRESP) -- see test_error_response.
         if not await self.test_error_responses():
+            success = False
+
+        # Outstanding-burst identity -- see test_pipelined_aw_identity.
+        if not await self.test_pipelined_aw_identity(label='b2b-ids'):
             success = False
 
         for addr, data_list in test_cases:

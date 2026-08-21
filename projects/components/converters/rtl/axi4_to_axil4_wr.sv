@@ -242,13 +242,38 @@ module axi4_to_axil4_wr #(
     // AXI4-Lite AW and W channel assignment
     // For bursts (awlen>0): Don't pass through, let FSM handle all beats
     // For single beats (awlen==0): Pass through directly for efficiency
+    // One AXI write burst in flight at a time: set on AW acceptance, cleared
+    // when its B is handed to the master. awready is low while set, so the
+    // set and clear cannot collide.
+    logic r_wr_outstanding;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_wr_outstanding <= 1'b0;
+        end else if (s_axi_awvalid && s_axi_awready) begin
+            r_wr_outstanding <= 1'b1;
+        end else if (s_axi_bvalid && s_axi_bready) begin
+            r_wr_outstanding <= 1'b0;
+        end
+    end
+
     assign m_axil_awaddr = r_aw_active ? r_aw_addr : s_axi_awaddr;
     assign m_axil_awprot = r_aw_active ? r_aw_prot : s_axi_awprot;
+    // The passthrough leg drives awvalid from s_axi_awvalid directly rather
+    // than from the accepted handshake, so it needs the same outstanding
+    // guard as awready -- otherwise an AW held off by the guard keeps
+    // awvalid asserted and the AXIL slave services the same write again.
     assign m_axil_awvalid = r_aw_active ? (r_wr_state != WR_IDLE && !r_aw_sent) :
-                            (s_axi_awvalid && (s_axi_awlen == 0));
+                            (s_axi_awvalid && (s_axi_awlen == 0) &&
+                             !r_wr_outstanding);
     // For bursts, accept AW immediately into registers (don't wait for AXIL ready)
-    // For single beats, tie to AXIL ready for passthrough
-    assign s_axi_awready = !r_aw_active &&
+    // For single beats, tie to AXIL ready for passthrough.
+    //
+    // r_b_id / r_b_len / r_b_beat_count are a SINGLE-entry record of the
+    // write in flight, and accepting an AW overwrites them. For awlen==0
+    // r_aw_active never sets, so without the outstanding guard a second
+    // single-beat AW was accepted while the first write's B was still
+    // outstanding, and the first master never saw its response at all.
+    assign s_axi_awready = !r_aw_active && !r_wr_outstanding &&
                            ((s_axi_awlen == 0) ? m_axil_awready : 1'b1);
 
     // Write data control with burst synchronization
@@ -298,6 +323,7 @@ module axi4_to_axil4_wr #(
                                               (r_aw_sent ||
                                                (m_axil_awvalid && m_axil_awready))) :
                                              m_axil_wready;
+
 
     // Write response path - accumulate responses
     logic [7:0] r_b_beat_count;

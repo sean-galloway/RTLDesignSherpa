@@ -202,16 +202,45 @@ module axi4_to_axil4_rd #(
     end
 
     // AXI4-Lite AR channel assignment
+    // One AXI read burst may be in flight at a time: set on AR acceptance,
+    // cleared when its final beat is handed to the master. arready is low
+    // while this is set, so the set and clear cannot collide.
+    logic r_rd_outstanding;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_rd_outstanding <= 1'b0;
+        end else if (s_axi_arvalid && s_axi_arready) begin
+            r_rd_outstanding <= 1'b1;
+        end else if (s_axi_rvalid && s_axi_rready && s_axi_rlast) begin
+            r_rd_outstanding <= 1'b0;
+        end
+    end
+
     // For bursts (arlen>0): Don't pass through, let FSM handle all beats
     // For single beats (arlen==0): Pass through directly for efficiency
     assign m_axil_araddr = r_ar_active ? r_ar_addr : s_axi_araddr;
     assign m_axil_arprot = r_ar_active ? r_ar_prot : s_axi_arprot;
+    // The passthrough leg drives arvalid from s_axi_arvalid directly, NOT
+    // from the accepted handshake, so it must carry the same outstanding
+    // guard as arready. Without it, an AR held off by the guard keeps
+    // arvalid asserted and the AXIL slave services the same read again on
+    // every cycle it is ready.
     assign m_axil_arvalid = r_ar_active ? (r_rd_state != RD_IDLE) :
-                            (s_axi_arvalid && (s_axi_arlen == 0));
+                            (s_axi_arvalid && (s_axi_arlen == 0) &&
+                             !r_rd_outstanding);
     // For bursts, accept AR immediately into registers (don't wait for AXIL ready)
     // For single beats, tie to AXIL ready for passthrough
-    assign s_axi_arready = !r_ar_active &&
+    // r_r_id / r_r_len / r_r_beat_count are a SINGLE-entry record of the
+    // burst in flight, and accepting an AR overwrites them. For arlen==0
+    // r_ar_active never sets, so without the outstanding guard a second
+    // single-beat AR was accepted while the first read's R beat was still
+    // in flight: both beats then returned under the second burst's ID --
+    // the first master never saw its data (it hangs waiting) and the second
+    // received a beat that was not its own. Hold AR off until the burst in
+    // flight has delivered its last beat.
+    assign s_axi_arready = !r_ar_active && !r_rd_outstanding &&
                            ((s_axi_arlen == 0) ? m_axil_arready : 1'b1);
+
 
     // Read data path - accumulate responses
     logic [7:0] r_r_beat_count;

@@ -507,6 +507,84 @@ class AXI4ToAXIL4ReadTB(TBBase):
                 ok = False
         return ok
 
+
+    async def test_pipelined_ar_identity(self, label=""):
+        """Two single-beat reads accepted back-to-back keep their own IDs.
+
+        `s_axi_arready = !r_ar_active && ...`, and for arlen=0 `r_ar_active`
+        never sets, so a second AR can be accepted while the first read's R
+        beat is still in flight. Accepting it rewrites r_r_id, r_r_len and
+        r_r_beat_count -- which are the ONLY record of the burst already in
+        flight. The first burst's beat can then come back wearing the second
+        burst's ID.
+
+        Driven on the AR channel directly rather than through two overlapping
+        `read_transaction` calls: pipelining AXI BFM traffic with parallel
+        tasks is its own source of races, and this test is about the DUT.
+
+        The AXIL4 slave is slowed so both ARs are accepted before either R
+        returns -- with the default 1-cycle response the window never opens,
+        which is why the existing b2b test passes.
+        """
+        tag = f"[{label}] " if label else ""
+        saved_delay = self.axil4_slave.response_delay_cycles
+        self.axil4_slave.response_delay_cycles = 8
+        size = (self.data_width // 8).bit_length() - 1
+        ids = (3, 5)
+        addrs = (0xE000, 0xE100)
+
+        for q in getattr(self.axi4_master, '_response_by_id', {}).values():
+            q.clear()
+
+        try:
+            for axid, addr in zip(ids, addrs):
+                pkt = self.axi4_master.ar_channel.create_packet(
+                    addr=addr, len=0, id=axid, size=size, burst=1,
+                    lock=0, cache=0, prot=0, qos=0, region=0)
+                await self.axi4_master.ar_channel.send(pkt)
+
+            await self.wait_clocks(self.clk_name, 120)
+
+            ok = True
+            for axid, addr in zip(ids, addrs):
+                q = self.axi4_master._response_by_id.get(axid)
+                got = len(q) if q else 0
+                if got != 1:
+                    self.log.error(
+                        f"@ {get_sim_time('ns')}ns: {tag}id={axid} "
+                        f"(addr=0x{addr:04X}): expected 1 R beat, got {got} -- "
+                        f"the in-flight burst's identity was overwritten by "
+                        f"the next AR")
+                    self.stats['errors'] += 1
+                    ok = False
+                    continue
+                # The slave with no memory model answers addr ^ 0xDEADBEEF,
+                # so the data says which read this beat really belongs to.
+                expected = (addr & 0xFFFFFFFF) ^ 0xDEADBEEF
+                mask = (1 << self.data_width) - 1
+                got_data = int(getattr(q[0], 'data', 0)) & mask
+                if got_data != (expected & mask):
+                    self.log.error(
+                        f"@ {get_sim_time('ns')}ns: {tag}id={axid}: beat "
+                        f"carries data 0x{got_data:08X}, expected "
+                        f"0x{expected & mask:08X} -- returned under the "
+                        f"wrong ID")
+                    self.stats['errors'] += 1
+                    ok = False
+            if ok:
+                self.log.info(f"@ {get_sim_time('ns')}ns: {tag}pipelined ARs "
+                              f"kept their IDs")
+            return ok
+        finally:
+            self.axil4_slave.response_delay_cycles = saved_delay
+            await self.wait_clocks(self.clk_name, 40)
+            for q in getattr(self.axi4_master, '_response_by_id', {}).values():
+                q.clear()
+            await self.assert_reset()
+            await self.wait_clocks(self.clk_name, 5)
+            await self.deassert_reset()
+            await self.wait_clocks(self.clk_name, 5)
+
     async def run_basic_test(self):
         """Run basic read burst test suite"""
         self.log.info("=" * 80)
@@ -530,6 +608,10 @@ class AXI4ToAXIL4ReadTB(TBBase):
 
         # Error propagation (RRESP) -- see test_error_response.
         if not await self.test_error_responses():
+            success = False
+
+        # Outstanding-burst identity -- see test_pipelined_ar_identity.
+        if not await self.test_pipelined_ar_identity(label='b2b-ids'):
             success = False
 
         # Lightweight b2b smoke
