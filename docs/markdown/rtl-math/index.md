@@ -124,7 +124,7 @@ need the exact file list.
 
 ### IEEE 754-2008 compliant arithmetic
 
-- **[math_ieee754_modules](math_ieee754_modules.md)** — full IEEE 754-2008 compliance (10 modules)
+- **[math_ieee754_modules](math_ieee754_modules.md)** — IEEE 754-2008 arithmetic (10 modules; multipliers sweep-verified to spec incl. RNE and after-rounding underflow -- the adder/FMA underflow corner is unaudited, see rtl/math/CLAUDE.md)
   - FP16: `adder`, `multiplier`, `fma`, `mantissa_mult`, `exponent_adder`
   - FP32: `adder`, `multiplier`, `fma`, `mantissa_mult`, `exponent_adder`
   - Features: proper subnormal handling, pipelined options, full status flags

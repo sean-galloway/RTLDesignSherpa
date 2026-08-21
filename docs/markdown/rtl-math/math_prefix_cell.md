@@ -216,7 +216,7 @@ This module is optimized with the following priorities:
 
 ## Testing
 
-No dedicated test wrapper -- this block is exercised structurally through the Brent-Kung adder tests (`val/math/test_math_adder_brent_kung.py`).
+No dedicated test wrapper -- this block is exercised structurally through the Han-Carlson adder tests (`val/math/test_math_adder_han_carlson.py`) -- all six HC widths instantiate this cell (Brent-Kung uses its own math_adder_brent_kung_black/gray cells, NOT this one).
 It is also formally proved: `formal/common/math_prefix_cell/` (prove + cover, SymbiYosys).
 
 ## Related Modules

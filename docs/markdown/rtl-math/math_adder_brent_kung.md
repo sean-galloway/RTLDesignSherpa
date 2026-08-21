@@ -211,21 +211,22 @@ assign ow_g = i_g | (i_p & i_g_km1);  // Group generate
 ```
 Depth 0 (Bitwise):  P0 G0  P1 G1  P2 G2  P3 G3  ...  P31 G31
 
-Depth 1 (Forward):     [1:0]*   [3:2]    [5:4]    ...  [31:30]  (Black cells; * [1:0] is a GRAY cell -- the final prefix for bit 1 needs no P output)
+Depth 1 (Forward):  [1:0]g  [3:2]  [5:4]  [7:6] ... [31:30]      (15 black + 1 gray;
+                                                                  [1:0] is GRAY -- bit 1's
+                                                                  final prefix needs no P)
 
-Depth 2 (Forward):         [3:0]          [7:4]         [15:8]  (Black cells; * [1:0] is a GRAY cell -- the final prefix for bit 1 needs no P output)
+Depth 2 (Forward):  [3:0]g  [7:4]  [11:8]  [15:12] ... [31:28]   (7 black + 1 gray)
 
-Depth 3 (Forward):             [7:0]              [15:0]        (Black cells; * [1:0] is a GRAY cell -- the final prefix for bit 1 needs no P output)
+Depth 3 (Forward):  [7:0]g  [15:8]  [23:16]  [31:24]             (3 black + 1 gray)
 
-Depth 4 (Forward):                    [15:0]      [31:16]       (Black cells; * [1:0] is a GRAY cell -- the final prefix for bit 1 needs no P output)
+Depth 4 (Forward):  [15:0]g  [31:16]                             (1 black + 1 gray)
 
-Depth 5 (Reverse):                        [31:0]               (Gray cell --
-                                                              the root: no P
-                                                              needed further)
+Depth 5 (Root):     [31:0]g                                      (gray -- the root
+                                                                  needs no P output)
 
-Depth 6 (Reverse):         [2:0] [4:0] [6:0] ... (fill gaps)   (Gray cells)
-
-Depth 7 (Reverse):    [1:0] [3:0] [5:0] [7:0] ... (fill gaps)  (Gray cells)
+Depth 6+ (Reverse fill): gray cells complete the remaining
+prefixes ([2:0], [4:0], [5:0], [6:0], ...) by combining each
+bit's own (g,p) with the nearest completed prefix below it
 
 Depth 8 (Reverse):  deepest gap-fill (e.g. [30:29])            (Gray cells)
 

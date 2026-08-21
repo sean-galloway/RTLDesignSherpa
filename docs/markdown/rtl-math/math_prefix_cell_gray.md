@@ -33,7 +33,7 @@ The `math_prefix_cell_gray` module (the "gray cell") is the reduced-area sibling
 - **Outputs G only** - Optimized for carry-only computation
 - **~33% smaller** than black cells (2 gates vs 3)
 - **Same delay** as black cell for G output
-- **Used in** reverse tree stages of Brent-Kung and final stage of Han-Carlson
+- **Used in** the Han-Carlson prefix stages (all six widths); Brent-Kung's reverse tree uses math_adder_brent_kung_gray instead
 
 ## Module Declaration
 
@@ -270,7 +270,7 @@ This module is optimized with the following priorities:
 
 ## Testing
 
-No dedicated test wrapper -- this block is exercised structurally through the Brent-Kung adder tests (`val/math/test_math_adder_brent_kung.py`).
+No dedicated test wrapper -- this block is exercised structurally through the Han-Carlson adder tests (`val/math/test_math_adder_han_carlson.py`) -- all six HC widths instantiate this cell (Brent-Kung uses its own math_adder_brent_kung_black/gray cells, NOT this one).
 It is also formally proved: `formal/common/math_prefix_cell_gray/` (prove + cover, SymbiYosys).
 
 ## Related Modules

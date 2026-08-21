@@ -145,9 +145,9 @@ math_compressor_4to2 u_c4to2_07_001 (
     .i_x1(w_pp_0_7), .i_x2(w_pp_1_6),
     .i_x3(w_pp_2_5), .i_x4(w_pp_3_4),
     .i_cin(1'b0),
-    .ow_sum(w_c4to2_sum_07_000),
-    .ow_carry(w_c4to2_carry_07_000),
-    .ow_cout(w_c4to2_cout_07_000)
+    .ow_sum(w_c4to2_sum_07_001),
+    .ow_carry(w_c4to2_carry_07_001),
+    .ow_cout(w_c4to2_cout_07_001)
 );
 
 // Column 1 has only two partial products: no half adder in this design --
@@ -272,7 +272,7 @@ Stage 3 4:2 -> Stage 4 HA/FA -> CPA -> ow_product[15]
 |--------|---------------|----------------------|
 | Reduction stages | 4 (measured, 8x8) | 4 (measured, 8x8) |
 | Total adders/compressors | 42 (measured: 35 CSA + 7 half adders) | 41 (measured: 39 c4:2 + 2 FA) |
-| Logic depth | ~17-20 | ~13-15 |
+| Logic depth | ~13-15 | ~13-15 |
 | Area (LUTs) | ~130 | ~130 |
 
 **Advantage:** at 8x8 the 4:2 variant saves one cell (41 vs 42) at the SAME 4 stages -- the win is cell count and regularity, not stage count (an earlier ~25%-fewer-stages claim was measured at 4 vs 4 and removed).
@@ -282,7 +282,7 @@ Stage 3 4:2 -> Stage 4 HA/FA -> CPA -> ow_product[15]
 This module is optimized with the following priorities:
 1. **Area** - Dadda scheduling minimizes total compressor count
 2. **Wire complexity** - Regular structure from systematic reduction
-3. **Logic depth** - 4:2 compressors reduce critical path stages
+3. **Regularity** - 4:2 compressors give a more uniform column structure (measured stage count matches the 3:2 tree at 8x8)
 
 ## Design Notes
 

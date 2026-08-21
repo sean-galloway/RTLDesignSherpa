@@ -281,8 +281,8 @@ generate
 endgenerate
 
 // Final result: sum + (carry << 1) using conventional adder
-logic [8:0] result;
-assign result = {1'b0, sum} + {carry, 1'b0};
+logic [9:0] result;   // 3 x 255 = 765 needs 10 bits (see math_adder_carry_save's rule)
+assign result = {2'b0, sum} + {1'b0, carry, 1'b0};
 ```
 
 ### N-bit Full Adder: BCD Digit Adder
@@ -495,13 +495,14 @@ assign sum = a + b;
 **Anti-Pattern 4**: Incorrect carry chain connection
 
 ```systemverilog
-// WRONG: Carry not properly chained
-math_adder_full fa0 (..., .ow_carry(c[0]));
-math_adder_full fa1 (..., .i_c(c[0]));  // Missing intermediate connection
+// WRONG: both stages fed the SAME carry-in -- fa1 must consume fa0's
+// carry-OUT, not the chain's original carry-in
+math_adder_full fa0 (.i_a(a[0]), .i_b(b[0]), .i_c(cin),  .ow_sum(s[0]), .ow_carry(c[0]));
+math_adder_full fa1 (.i_a(a[1]), .i_b(b[1]), .i_c(cin),  .ow_sum(s[1]), .ow_carry(c[1]));
 
-// RIGHT: Ensure proper carry propagation
-math_adder_full fa0 (..., .ow_carry(w_c[0]));
-math_adder_full fa1 (..., .i_c(w_c[0]), .ow_carry(w_c[1]));
+// RIGHT: carry ripples -- each stage's i_c is the previous stage's ow_carry
+math_adder_full fa0 (.i_a(a[0]), .i_b(b[0]), .i_c(cin),  .ow_sum(s[0]), .ow_carry(c[0]));
+math_adder_full fa1 (.i_a(a[1]), .i_b(b[1]), .i_c(c[0]), .ow_sum(s[1]), .ow_carry(c[1]));
 ```
 
 ## Testing

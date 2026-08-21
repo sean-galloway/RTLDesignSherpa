@@ -3,6 +3,7 @@
 <!-- Auto-generated link index for PDF build. Regenerate via generate_rtl_pdfs.sh -->
 
 - [RTL Math Library](math_library.md)
+- [Mod-3 Carry-Save Compressor](math_mod_3_compress.md)
 - [Basic Adder Building Blocks](math_adder_basic.md)
 - [Brent-Kung Parallel Prefix Adder](math_adder_brent_kung.md)
 - [Carry-Save Adder](math_adder_carry_save.md)

@@ -222,8 +222,8 @@ Special values behave the same way across every module:
 |-------|------|---------|---------|------------|
 | +0 | +0 | 0.5 | Compares as 0 | Format-specific 0 |
 | -0 | +0 | 0.5 | Compares as 0 | Format-specific 0 |
-| +Inf | +Inf | 1.0 | Largest | Overflow flag |
-| -Inf | 0 | 0.0 | Smallest | Underflow flag |
+| +Inf | +Inf | 1.0 | Largest | Passes through where the target has Inf; saturates + overflow flag where it does not (e4m3) |
+| -Inf | 0 | 0.0 | Smallest | Same, sign-preserved -- NO underflow flag (underflow means too-small magnitude) |
 | NaN | NaN | NaN | Propagates | Invalid flag |
 | Subnormal | FTZ | FTZ | FTZ | FTZ |
 
