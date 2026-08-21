@@ -1015,6 +1015,19 @@ is not private.
 | Tests (testqc round_1) | 51 findings triaged, all batches integrated; regression green gate/func/full | SEED sweeps (86c91bfc, 29900e1b), grids+vocabulary (dfe2e457, d6c72890), silent-pass class (4af3708b, 5d6d9b23, f0e68e06, 69cf2a7a, 0eeb0a8f, 97b86eed, c44c94f1), smalls (f798b801, 4c9bb752) |
 | Open items | one P3 deferred (test_fifo_async_wavedrom hand-drives the read side -- wavedrom generator, Sean parked it) | docs-review open.md DV-TODO |
 
+### math -- RE-SCRUBBED AND RE-HUMANIZED 2026-08-19..21 (post-update cycle)
+
+The 2026-08-10..13 RTL wave (MATH-001/008/009, generator back-ports, header
+sweep) invalidated the July certification, so the full loop re-ran:
+
+| Phase | State | Evidence |
+|---|---|---|
+| Critique | rounds 5/6/7 of the corpus: 11 -> 10 -> 6 findings, STOP per the impact rule (nothing trap-class; part_03 clean twice) | commits 16e4c18b, 43b26620, c6e2ffc5 |
+| RTL found | shifter_barrel no-wrap shifts wrong at/beyond WIDTH -- carried a PASSING formal proof whose model restated the RTL's mod arithmetic ("matching RTL"); fixed with IEEE saturation, un-tautologized formal + directed TB, mutation-proven both ways. En route: the mixed-signedness ternary trap (>>> silently degrades) caught by the new independent model | shifter_barrel fix commit |
+| New page | mod_3_compress.md was OUTSIDE the book index, the PDF build and every prior review round; round_6 added it, round_7 gave it its first critique | c6e2ffc5 |
+| Humanize | 32 pages applied incl. CLAUDE.md; fix-survival verified per unit BEFORE apply and re-confirmed on the tree; tag-survival caught the humanizer's recurring '](../index.md]' malformed-link class (1 FATAL, repaired, re-gated); post-apply checks all zero | e0ff79ee |
+| Ops notes | large humanize units need KIMI_TIMEOUT=7200 (die thinking on the 1h default); run_batch --resume fills gaps only | |
+
 ### math -- docs DONE; tests nearly done; 3 tasks open
 
 | Phase | State | Evidence |
