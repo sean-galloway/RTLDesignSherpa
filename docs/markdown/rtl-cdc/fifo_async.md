@@ -145,8 +145,13 @@ always_ff @(posedge wr_clk) begin
     end
 end
 
-// Read port (read domain)
-assign w_rd_data = mem[r_rd_addr];
+// Read port (read domain) -- dual mode, like fifo_sync:
+if (REGISTERED != 0) begin : g_flop
+    always_ff ... r_rd_data <= mem[r_rd_addr];
+    assign rd_data = r_rd_data;
+end else begin : g_mux
+    assign rd_data = mem[r_rd_addr];
+end
 ```
 
 Addresses come from the binary pointers, truncated to the low bits:

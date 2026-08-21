@@ -151,7 +151,7 @@
 //
 //   Write Operation (wr_clk domain):
 //   - When write=1 and wr_full=0:
-//     1. Data written to r_mem[r_wr_addr]
+//     1. Data written to mem[r_wr_addr]
 //     2. Binary write pointer increments (counter_bingray)
 //     3. Gray write pointer updates automatically
 //     4. wr_full determined by comparing wr_ptr_bin vs wdom_rd_ptr_bin
@@ -159,7 +159,7 @@
 //   Read Operation (rd_clk domain):
 //   - When read=1 and rd_empty=0:
 //     1. Read pointer increments (binary and gray)
-//     2. rd_data = r_mem[r_rd_addr] (mux) or registered (flop)
+//     2. rd_data = mem[r_rd_addr] (mux) or registered (flop)
 //     3. rd_empty determined by comparing rd_ptr_bin vs rdom_wr_ptr_bin
 //
 //   Full Detection (wr_clk domain):
