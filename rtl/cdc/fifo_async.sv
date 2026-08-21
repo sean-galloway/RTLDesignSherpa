@@ -328,7 +328,7 @@
 //------------------------------------------------------------------------------
 //   **Memory Inference on FPGAs:**
 //   - This is the MOST CRITICAL aspect for FPGA implementation!
-//   - FIFO memory (r_mem) maps to different FPGA resources based on size:
+//   - FIFO memory (mem) maps to different FPGA resources based on size:
 //
 //   **Xilinx FPGAs:**
 //   - DEPTH × DATA_WIDTH ≤ 64 bits → Distributed RAM (LUTs)
@@ -347,16 +347,16 @@
 //
 //   **Forcing Memory Type (Xilinx):**
 //   ```systemverilog
-//   (* ram_style = "distributed" *) logic [DATA_WIDTH-1:0] r_mem [DEPTH-1:0];  // Force LUT RAM
-//   (* ram_style = "block" *) logic [DATA_WIDTH-1:0] r_mem [DEPTH-1:0];        // Force BRAM
-//   (* ram_style = "auto" *) logic [DATA_WIDTH-1:0] r_mem [DEPTH-1:0];         // Let tool decide
+//   (* ram_style = "distributed" *) logic [DATA_WIDTH-1:0] mem [DEPTH-1:0];  // Force LUT RAM
+//   (* ram_style = "block" *) logic [DATA_WIDTH-1:0] mem [DEPTH-1:0];        // Force BRAM
+//   (* ram_style = "auto" *) logic [DATA_WIDTH-1:0] mem [DEPTH-1:0];         // Let tool decide
 //   ```
 //
 //   **Forcing Memory Type (Intel):**
 //   ```systemverilog
-//   (* ramstyle = "mlab" *) logic [DATA_WIDTH-1:0] r_mem [DEPTH-1:0];    // Force MLAB
-//   (* ramstyle = "M20K" *) logic [DATA_WIDTH-1:0] r_mem [DEPTH-1:0];    // Force M20K
-//   (* ramstyle = "logic" *) logic [DATA_WIDTH-1:0] r_mem [DEPTH-1:0];   // Force registers
+//   (* ramstyle = "mlab" *) logic [DATA_WIDTH-1:0] mem [DEPTH-1:0];    // Force MLAB
+//   (* ramstyle = "M20K" *) logic [DATA_WIDTH-1:0] mem [DEPTH-1:0];    // Force M20K
+//   (* ramstyle = "logic" *) logic [DATA_WIDTH-1:0] mem [DEPTH-1:0];   // Force registers
 //   ```
 //
 //   **MEM_STYLE Parameter:**
@@ -595,10 +595,10 @@
 //   Intel Quartus (QSF file):
 //   ```tcl
 //   # Force M20K inference
-//   set_instance_assignment -name RAMSTYLE M20K -to u_fifo|r_mem
+//   set_instance_assignment -name RAMSTYLE M20K -to u_fifo|mem
 //
 //   # Force MLAB inference
-//   set_instance_assignment -name RAMSTYLE MLAB -to u_fifo|r_mem
+//   set_instance_assignment -name RAMSTYLE MLAB -to u_fifo|mem
 //
 //   # Mark synchronizers
 //   set_instance_assignment -name SYNCHRONIZER_IDENTIFICATION FORCED \
