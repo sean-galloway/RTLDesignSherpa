@@ -417,9 +417,10 @@ end
 From the test suite (`val/math/test_math_adder_han_carlson.py`):
 
 - **Key test scenarios**:
-  - These adders are used in the BF16 FMA:
-  - 16-bit: Final CPA for BF16 mantissa result
-  - 48-bit: Wide adder for FMA accumulation
+  - Structural coverage follows the MEASURED usage table above (the
+    authoritative list): 16-bit lives only inside
+    `math_multiplier_dadda_4to2_008`'s final CPA; 48-bit serves the BF16 FMA
+    wide addition and `dadda_4to2_024`'s CPA; 72-bit the FP32 FMA accumulator
 
 Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with

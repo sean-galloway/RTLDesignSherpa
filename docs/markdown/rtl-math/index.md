@@ -46,7 +46,7 @@ need the exact file list.
 ### Basic arithmetic
 
 - **[math_adder_basic](math_adder_basic.md)** — single-bit adders (full and half adder)
-  - Includes: `math_adder_full.sv`, `math_adder_half.sv`, `math_adder_full_nbit.sv`
+  - Includes: `math_adder_full.sv` ([dedicated page](math_adder_full.md)), `math_adder_half.sv`, `math_adder_full_nbit.sv`
 - **[math_adder_ripple_carry](math_adder_ripple_carry.md)** — multi-bit ripple carry adder
 - **[math_adder_pg_chain](math_adder_pg_chain.md)** — fast carry lookahead adder
 - **[math_adder_carry_save](math_adder_carry_save.md)** — carry-save adder for multiple operands

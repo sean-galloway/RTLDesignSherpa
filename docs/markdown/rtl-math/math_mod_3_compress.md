@@ -164,10 +164,10 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 
 ### Documentation
 
-- `docs/markdown/rtl-common/index.md`
+- `docs/markdown/rtl-math/index.md`
 
 **Last Updated:** 2026-07-15
 
 ## Navigation
 
-- [Back to rtl-common Index](index.md)
+- [Back to Math Index](index.md)

@@ -47,7 +47,7 @@ This document is the organizing map. Each operation lists its methodologies, the
 |-------------|---------|----------|--------|
 | Ripple-carry / full / half | `math_adder_full`, `math_adder_half`, `math_adder_full_nbit` | Classic ripple carry | [math_adder_full.md](math_adder_full.md), [math_adder_basic.md](math_adder_basic.md) |
 | Carry-save (CSA) | `math_adder_carry_save_nbit` | Redundant carry-save form (used in multiplier trees) | [math_adder_carry_save.md](math_adder_carry_save.md) |
-| Carry-lookahead | (see subtractor / adder-basic) | Weinberger & Smith, "A Logic for High-Speed Addition," NBS Circular 591 (1958) | [math_adder_pg_chain.md](math_adder_pg_chain.md) |
+| Carry chain (serial P/G -- NOT Weinberger-Smith O(log N) lookahead; the linked page explains) | (see subtractor / adder-basic) | Weinberger & Smith, "A Logic for High-Speed Addition," NBS Circular 591 (1958) | [math_adder_pg_chain.md](math_adder_pg_chain.md) |
 | **Brent-Kung** (parallel prefix) | `math_adder_brent_kung_{008,016,032,064}` + prefix cells (`_black`, `_gray`, `_pg`, `_bitwisepg`, `_grouppg_*`, `_sum`) | Brent, R.P. & Kung, H.T. (1982), "A Regular Layout for Parallel Adders," *IEEE Trans. Computers* C-31(3):260-264 | [math_adder_brent_kung.md](math_adder_brent_kung.md), [math_prefix_cell.md](math_prefix_cell.md) |
 | **Han-Carlson** (parallel prefix) | `math_adder_han_carlson_{016,022,032,044,048,072}` | Han, T. & Carlson, D.A. (1987), "Fast area-efficient VLSI adders," *Proc. 8th IEEE Symp. Computer Arithmetic (ARITH)*:49-56 | [math_adder_han_carlson.md](math_adder_han_carlson.md) |
 | Add/subtract | `math_addsub_full_nbit` | Two's-complement add/sub select | [math_addsub.md](math_addsub.md) |

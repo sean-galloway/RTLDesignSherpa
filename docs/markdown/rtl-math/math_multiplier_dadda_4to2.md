@@ -249,8 +249,12 @@ end
 ### Critical Path
 
 ```
-i_multiplier[7] -> pp_7_7 -> Stage 1 4:2 -> Stage 2 4:2 ->
-Stage 3 4:2 -> Stage 4 HA/FA -> CPA -> ow_product[15]
+a middle-column partial product (e.g. pp_3_4, column 7) -> Stage 1 4:2 ->
+Stage 2 4:2 -> Stage 3 4:2 -> Stage 4 FA/4:2 -> CPA -> ow_product[15]
+
+(pp_7_7 is NOT on the critical path -- it enters at stage 4 directly.
+Stage 4 holds 2 full adders + 4 compressors; the design has zero half
+adders, matching the resource table.)
 ```
 
 ## Performance Characteristics

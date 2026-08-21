@@ -486,7 +486,9 @@ endmodule
 
 **Critical Path:**
 ```
-i_multiplier[N-1] → PP[N-1][N-1] → Stage 1 CSA → ... → Stage K CSA
+a middle-column partial product (the tallest column feeds the most CSA
+levels; corner PPs like PP[N-1][N-1] join late and are NOT critical)
+→ Stage 1 CSA → ... → Stage K CSA
 → Brent-Kung prefix network (~2·log2(2N) levels) → ow_product[2N-1]
 ```
 

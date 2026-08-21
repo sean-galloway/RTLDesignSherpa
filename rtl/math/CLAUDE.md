@@ -7,9 +7,11 @@
 ## Quick Context
 
 **What:** 172 arithmetic modules -- integer adders/subtractors/multipliers
-(Brent-Kung, Han-Carlson, Dadda, Wallace), and the floating-point families
-(bf16, fp16, fp32, fp8 e4m3/e5m2: multiplier, adder, FMA, comparisons,
-activations, and every cross-format conversion).
+(Brent-Kung, Han-Carlson, Dadda, Wallace), and the floating-point families:
+bf16 and fp8 e4m3/e5m2 each carry multiplier/adder/FMA plus comparisons and
+activations; fp16/fp32 arithmetic lives under the `math_ieee754_2008_*` names
+(the plain `math_fp16_*`/`math_fp32_*` prefixes are comparisons, activations
+and conversions only); every cross-format conversion exists.
 **Where the docs are:** [`docs/markdown/rtl-math/overview.md`](../../docs/markdown/rtl-math/overview.md)
 -- the catalogue is [`index.md`](../../docs/markdown/rtl-math/index.md).
 **Tests:** `val/math/` · **Filelists:** `rtl/math/filelists/` (lint the area
