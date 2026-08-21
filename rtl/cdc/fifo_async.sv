@@ -582,10 +582,10 @@
 //   Xilinx Vivado (project.tcl or XDC):
 //   ```tcl
 //   # Force BRAM inference for large FIFOs
-//   set_property RAM_STYLE BLOCK [get_cells u_fifo/r_mem_reg]
+//   set_property RAM_STYLE BLOCK [get_cells u_fifo/mem_reg]
 //
 //   # Force distributed RAM for small FIFOs
-//   set_property RAM_STYLE DISTRIBUTED [get_cells u_fifo/r_mem_reg]
+//   set_property RAM_STYLE DISTRIBUTED [get_cells u_fifo/mem_reg]
 //
 //   # Prevent synchronizer optimization
 //   set_property ASYNC_REG TRUE [get_cells u_fifo/u_sync_*/r_sync_reg*]
