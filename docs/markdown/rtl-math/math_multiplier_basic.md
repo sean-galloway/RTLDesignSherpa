@@ -602,8 +602,14 @@ Defers final carry-propagate until end
 
 ## Testing
 
-No dedicated test wrapper -- this block is exercised structurally through the tree multiplier tests that instantiate its cells (`val/math/test_math_multiplier_dadda.py`, `test_math_multiplier_wallace.py`).
-It is also formally proved: `formal/common/math_multiplier_basic_cell/` (prove + cover, SymbiYosys).
+No dedicated test wrapper, and -- correcting an earlier claim -- NO structural
+coverage either: none of the tree multipliers instantiate
+`math_multiplier_basic_cell` or the `math_multiplier_carry_save` array (the
+Dadda trees use `math_adder_carry_save`, a different 1-bit 3:2 CSA module).
+These are reference implementations. Verification is the formal proofs:
+`formal/common/math_multiplier_basic_cell/` and
+`formal/common/math_multiplier_carry_save/` (prove + cover, SymbiYosys,
+re-run 2026-08-10 against current RTL).
 
 ## Related Modules
 

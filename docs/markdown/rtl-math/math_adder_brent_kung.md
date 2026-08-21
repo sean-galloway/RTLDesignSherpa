@@ -211,13 +211,13 @@ assign ow_g = i_g | (i_p & i_g_km1);  // Group generate
 ```
 Depth 0 (Bitwise):  P0 G0  P1 G1  P2 G2  P3 G3  ...  P31 G31
 
-Depth 1 (Forward):     [1:0]    [3:2]    [5:4]    ...  [31:30]  (Black cells)
+Depth 1 (Forward):     [1:0]*   [3:2]    [5:4]    ...  [31:30]  (Black cells; * [1:0] is a GRAY cell -- the final prefix for bit 1 needs no P output)
 
-Depth 2 (Forward):         [3:0]          [7:4]         [15:8]  (Black cells)
+Depth 2 (Forward):         [3:0]          [7:4]         [15:8]  (Black cells; * [1:0] is a GRAY cell -- the final prefix for bit 1 needs no P output)
 
-Depth 3 (Forward):             [7:0]              [15:0]        (Black cells)
+Depth 3 (Forward):             [7:0]              [15:0]        (Black cells; * [1:0] is a GRAY cell -- the final prefix for bit 1 needs no P output)
 
-Depth 4 (Forward):                    [15:0]      [31:16]       (Black cells)
+Depth 4 (Forward):                    [15:0]      [31:16]       (Black cells; * [1:0] is a GRAY cell -- the final prefix for bit 1 needs no P output)
 
 Depth 5 (Reverse):                        [31:0]               (Gray cell --
                                                               the root: no P

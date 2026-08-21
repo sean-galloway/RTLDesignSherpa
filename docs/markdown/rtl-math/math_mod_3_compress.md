@@ -160,7 +160,7 @@ parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 
 - `rtl/math/math_mod_3_compress.sv`
 - `rtl/math/math_adder_carry_save.sv` (instantiated submodule)
-- `rtl/common/div_by_15_ceil_32compress.sv` (style reference)
+- `div_by_15_ceil_32compress.sv` (the carry-save-compressor style reference this module was patterned on; the file itself lives outside this repo's tree -- historical reference only)
 
 ### Documentation
 

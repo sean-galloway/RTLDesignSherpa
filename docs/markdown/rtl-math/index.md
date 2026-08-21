@@ -23,7 +23,7 @@
 
 # rtl-math module index
 
-**RTL:** `rtl/math/` (171 modules)
+**RTL:** `rtl/math/` (172 modules)
 **Tests:** `val/math/`
 **Common building blocks:** [rtl-common](../rtl-common/index.md)
 

@@ -22,7 +22,6 @@
 - [FP32 (Single Precision) Modules](math_fp32_modules.md)
 - [FP8 (8-bit Floating-Point) Modules](math_fp8_modules.md)
 - [IEEE 754-2008 Compliant Modules](math_ieee754_modules.md)
-- [RTL Math Library](math_library.md)
 - [Basic Multiplier Building Blocks](math_multiplier_basic.md)
 - [Dadda Multiplier with 4:2 Compressors](math_multiplier_dadda_4to2.md)
 - [Dadda Tree Multipliers](math_multiplier_dadda_tree.md)

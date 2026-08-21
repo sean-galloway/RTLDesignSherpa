@@ -257,7 +257,7 @@ Both E4M3 and E5M2 use Flush-to-Zero (FTZ):
 
 ```bash
 # Regenerate all FP8 modules
-PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
+PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/math
 ```
 
 **Generator files:**

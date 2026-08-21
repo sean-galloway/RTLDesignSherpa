@@ -260,7 +260,7 @@ These modules use the following building blocks:
 
 ```bash
 # Regenerate IEEE 754 modules
-PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
+PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/math
 ```
 
 **Generator files:**

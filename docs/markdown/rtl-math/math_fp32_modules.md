@@ -55,7 +55,7 @@ Precision: ~0.00001% (7 decimal digits)
 
 #### Interface
 
-Every activation function in this group uses the same two-port pattern:
+Every SCALAR activation function in this group uses the same two-port pattern:
 
 ```systemverilog
 module math_fp32_{activation} (
@@ -166,7 +166,7 @@ math_fp32_to_fp8_e4m3 u_quantize (
 
 ```bash
 # Regenerate all FP32 modules
-PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
+PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/math
 ```
 
 ## Testing

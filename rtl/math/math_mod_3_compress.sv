@@ -6,7 +6,7 @@
 //
 // Module: math_mod_3_compress
 // Purpose: Combinational d_in mod 3 for a 16-bit operand, built in the same
-//          carry-save-compressor style as common/rtl/div_by_15_ceil_32compress.sv
+//          carry-save-compressor style as the div_by_15_ceil_32compress reference (external)
 //          (3:2 compressor tree -> final carry-propagate add -> small fold),
 //          but computing only the remainder -- which is all the monbus
 //          burst-writer needs to round a beat count down to a whole number of

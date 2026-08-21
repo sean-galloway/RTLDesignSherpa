@@ -54,7 +54,7 @@ The standard neural network activation functions, BF16 in and BF16 out.
 
 #### Interface
 
-Every activation function in this group uses the same two-port pattern:
+Every SCALAR activation function in this group uses the same two-port pattern:
 
 ```systemverilog
 module math_bf16_{activation} (
@@ -260,7 +260,7 @@ All modules are auto-generated for consistency:
 
 ```bash
 # Regenerate all BF16 modules
-PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
+PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/math
 ```
 
 **Generator files:**

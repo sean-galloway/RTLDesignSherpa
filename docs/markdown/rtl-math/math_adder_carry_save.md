@@ -197,7 +197,7 @@ assign final_result = {2'b0, sum_vec} + {carry_vec, 1'b0};
 ```systemverilog
 logic [7:0] a, b, c;
 logic [7:0] sum_vec, carry_vec;
-logic [8:0] final_result;
+logic [9:0] final_result;
 
 // Stage 1: CSA reduces 3 numbers to 2
 math_adder_carry_save_nbit #(.N(8)) u_csa (
@@ -209,7 +209,7 @@ math_adder_carry_save_nbit #(.N(8)) u_csa (
 );
 
 // Stage 2: conventional adder, carry shifted left 1
-assign final_result = {1'b0, sum_vec} + {carry_vec, 1'b0};
+assign final_result = {2'b0, sum_vec} + {1'b0, carry_vec, 1'b0};
 
 // Example: 10 + 20 + 30 = 60
 // CSA gives sum_vec = 0, carry_vec = 30; 0 + (30 << 1) = 60
@@ -218,7 +218,7 @@ initial begin
     b = 8'd20;
     c = 8'd30;
     #1;
-    assert(final_result == 9'd60);
+    assert(final_result == 10'd60);
 end
 ```
 
@@ -405,8 +405,8 @@ stage at some sizes, so count the sequence, not just the bound.
 
 **Example:**
 - 3 operands: 1 CSA + 1 adder (3 → 2)
-- 7 operands: 4 CSAs + 1 adder (7 → 5 → 4 → 3 → 2)
-- 15 operands: 6 CSAs + 1 adder (15 → 10 → 7 → 5 → 4 → 3 → 2;
+- 7 operands: 4 CSA stages / 5 CSAs + 1 adder (7 → 5 → 4 → 3 → 2; each CSA is 3→2, removing exactly one operand, so N operands take N-2 CSAs)
+- 15 operands: 6 CSA stages / 13 CSAs + 1 adder (15 → 10 → 7 → 5 → 4 → 3 → 2;
   ceil(log_1.5(15/2)) = 5 underestimates — the passthroughs cost a stage)
 
 **Optimization:** Minimize final adder width by aligning partial products carefully.
