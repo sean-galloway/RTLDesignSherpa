@@ -46,12 +46,11 @@ The upsize module does four things:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| NARROW_WIDTH | int | 64 | Input data width (bits) |
-| WIDE_WIDTH | int | 512 | Output data width (bits) |
-| NARROW_SB_WIDTH | int | 8 | Input sideband width (bits) |
-| WIDE_SB_WIDTH | int | 64 | Output sideband width |
-| SB_OR_MODE | bit | 0 | 0=concatenate, 1=OR sidebands |
-| USE_LAST | bit | 1 | Enable LAST signal tracking |
+| NARROW_WIDTH | int | 32 | Input data width (bits) |
+| WIDE_WIDTH | int | 128 | Output data width (bits) |
+| NARROW_SB_WIDTH | int | 0 | Input sideband width (bits), 0 if unused |
+| WIDE_SB_WIDTH | int | 0 | Output sideband width, 0 if unused |
+| SB_OR_MODE | int | 0 | 0=concatenate, 1=OR sidebands |
 
 : Table 2.4: axi_data_upsize Parameters
 
@@ -59,29 +58,36 @@ The upsize module does four things:
 
 ```systemverilog
 module axi_data_upsize #(
-    parameter int NARROW_WIDTH    = 64,
-    parameter int WIDE_WIDTH      = 512,
-    parameter int NARROW_SB_WIDTH = 8,
-    parameter int WIDE_SB_WIDTH   = 64,
-    parameter bit SB_OR_MODE      = 0,
-    parameter bit USE_LAST        = 1
+    // Width Configuration
+    parameter int NARROW_WIDTH    = 32,
+    parameter int WIDE_WIDTH      = 128,
+    parameter int NARROW_SB_WIDTH = 0,        // Sideband width (0 if unused)
+    parameter int WIDE_SB_WIDTH   = 0,        // Wide sideband width
+    parameter int SB_OR_MODE      = 0,        // 0=concatenate, 1=OR together
+
+    // Calculated Parameters
+    localparam int WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH,
+    localparam int PTR_WIDTH   = $clog2(WIDTH_RATIO),
+    // Ensure sideband widths are at least 1 for port declarations (unused if actual width is 0)
+    localparam int NARROW_SB_PORT_WIDTH = (NARROW_SB_WIDTH > 0) ? NARROW_SB_WIDTH : 1,
+    localparam int WIDE_SB_PORT_WIDTH = (WIDE_SB_WIDTH > 0) ? WIDE_SB_WIDTH : 1
 ) (
-    input  logic                        clk,
-    input  logic                        rst_n,
+    input  logic                            aclk,
+    input  logic                            aresetn,
 
-    // Narrow input interface
-    input  logic                        s_valid,
-    output logic                        s_ready,
-    input  logic [NARROW_WIDTH-1:0]     s_data,
-    input  logic [NARROW_SB_WIDTH-1:0]  s_sideband,
-    input  logic                        s_last,
+    // Narrow Input (from slave or master)
+    input  logic                            narrow_valid,
+    output logic                            narrow_ready,
+    input  logic [NARROW_WIDTH-1:0]         narrow_data,
+    input  logic [NARROW_SB_PORT_WIDTH-1:0] narrow_sideband,  // Min width 1 to avoid [-1:0]
+    input  logic                            narrow_last,
 
-    // Wide output interface
-    output logic                        m_valid,
-    input  logic                        m_ready,
-    output logic [WIDE_WIDTH-1:0]       m_data,
-    output logic [WIDE_SB_WIDTH-1:0]    m_sideband,
-    output logic                        m_last
+    // Wide Output (to master or slave)
+    output logic                            wide_valid,
+    input  logic                            wide_ready,
+    output logic [WIDE_WIDTH-1:0]           wide_data,
+    output logic [WIDE_SB_PORT_WIDTH-1:0]   wide_sideband,  // Min width 1 to avoid [-1:0]
+    output logic                            wide_last
 );
 ```
 
@@ -290,11 +296,10 @@ axi_data_upsize #(
     .WIDE_WIDTH(512),
     .NARROW_SB_WIDTH(8),    // WSTRB
     .WIDE_SB_WIDTH(64),
-    .SB_OR_MODE(0),         // Concatenate WSTRB
-    .USE_LAST(1)
-) u_wdata_upsize (
-    .clk        (aclk),
-    .rst_n      (aresetn),
+    .SB_OR_MODE(0)          // Concatenate WSTRB
+) u_w_upsize (
+    .aclk       (aclk),
+    .aresetn    (aresetn),
     .s_valid    (s_wvalid),
     .s_ready    (s_wready),
     .s_data     (s_wdata),

@@ -55,7 +55,7 @@ s_data/m_data   - Compare input/output patterns
 - Master receives wrong beat count
 
 **Debug Steps:**
-1. Check USE_LAST parameter
+1. Check TRACK_BURSTS parameter (axi_data_dnsize); there is no USE_LAST
 2. Verify burst tracker logic if enabled
 3. Check s_last input timing
 

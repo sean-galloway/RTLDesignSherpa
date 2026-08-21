@@ -230,7 +230,7 @@ Total: ~140-180 LEs, ~1040 registers
 
 ```systemverilog
 // Full AXI4 write path composition
-axi4_dwidth_converter_wr #(.S_DATA_WIDTH(64), .M_DATA_WIDTH(512)) u_wr (
+axi4_dwidth_converter_wr #(.S_AXI_DATA_WIDTH(32), .M_AXI_DATA_WIDTH(128)) u_wr (
     // This module internally instantiates:
     // 1. Address phase skid buffer
     // 2. axi_data_upsize for write data

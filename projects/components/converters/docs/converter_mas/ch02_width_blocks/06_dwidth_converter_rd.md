@@ -46,12 +46,13 @@ The read converter combines the generic `axi_data_dnsize` with AXI4 protocol han
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| S_DATA_WIDTH | int | 64 | Slave-side (narrow) data width |
-| M_DATA_WIDTH | int | 512 | Master-side (wide) data width |
-| ADDR_WIDTH | int | 64 | Address width |
-| ID_WIDTH | int | 4 | Transaction ID width |
-| DUAL_BUFFER | bit | 1 | Enable dual-buffer for 100% throughput |
-| SKID_DEPTH | int | 2 | Pipeline buffer depth |
+| S_AXI_DATA_WIDTH | int | 32 | Slave-side data width |
+| M_AXI_DATA_WIDTH | int | 128 | Master-side data width |
+| AXI_ID_WIDTH | int | 8 | Transaction ID width |
+| AXI_ADDR_WIDTH | int | 32 | Address width |
+| AXI_USER_WIDTH | int | 1 | User-signal width |
+| SKID_DEPTH_AR | int | 2 | AR skid buffer depth |
+| SKID_DEPTH_R | int | 4 | R skid buffer depth |
 
 : Table 2.17: Read Converter Parameters
 
@@ -59,47 +60,89 @@ The read converter combines the generic `axi_data_dnsize` with AXI4 protocol han
 
 ```systemverilog
 module axi4_dwidth_converter_rd #(
-    parameter int S_DATA_WIDTH = 64,
-    parameter int M_DATA_WIDTH = 512,
-    parameter int ADDR_WIDTH   = 64,
-    parameter int ID_WIDTH     = 4,
-    parameter bit DUAL_BUFFER  = 1,
-    parameter int SKID_DEPTH   = 2
+    // Width Configuration
+    parameter int S_AXI_DATA_WIDTH  = 32,
+    parameter int M_AXI_DATA_WIDTH  = 128,
+    parameter int AXI_ID_WIDTH      = 8,
+    parameter int AXI_ADDR_WIDTH    = 32,
+    parameter int AXI_USER_WIDTH    = 1,
+
+    // Skid Buffer Depths (for timing closure)
+    parameter int SKID_DEPTH_AR     = 2,
+    parameter int SKID_DEPTH_R      = 4,
+
+    // Calculated Parameters
+    localparam int S_STRB_WIDTH = S_AXI_DATA_WIDTH / 8,
+    localparam int M_STRB_WIDTH = M_AXI_DATA_WIDTH / 8,
+    localparam int WIDTH_RATIO  = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH) ?
+                                  (M_AXI_DATA_WIDTH / S_AXI_DATA_WIDTH) :
+                                  (S_AXI_DATA_WIDTH / M_AXI_DATA_WIDTH),
+    localparam bit UPSIZE       = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
+    localparam bit DOWNSIZE     = (S_AXI_DATA_WIDTH > M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
+
+    // Skid buffer packed widths
+    localparam int AR_WIDTH = AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + AXI_USER_WIDTH,
+    localparam int R_WIDTH  = S_AXI_DATA_WIDTH + 2 + AXI_USER_WIDTH + 1 + AXI_ID_WIDTH
 ) (
-    input  logic clk,
-    input  logic rst_n,
+    // Clock and Reset
+    input  logic                        aclk,
+    input  logic                        aresetn,
 
-    // Slave interface (narrow, to master)
-    input  logic                      s_arvalid,
-    output logic                      s_arready,
-    input  logic [ADDR_WIDTH-1:0]     s_araddr,
-    input  logic [7:0]                s_arlen,
-    input  logic [2:0]                s_arsize,
-    input  logic [1:0]                s_arburst,
-    input  logic [ID_WIDTH-1:0]       s_arid,
+    //==========================================================================
+    // Slave AXI Read Interface
+    //==========================================================================
 
-    output logic                      s_rvalid,
-    input  logic                      s_rready,
-    output logic [S_DATA_WIDTH-1:0]   s_rdata,
-    output logic [ID_WIDTH-1:0]       s_rid,
-    output logic [1:0]                s_rresp,
-    output logic                      s_rlast,
+    // Read Address Channel
+    input  logic [AXI_ID_WIDTH-1:0]     s_axi_arid,
+    input  logic [AXI_ADDR_WIDTH-1:0]   s_axi_araddr,
+    input  logic [7:0]                  s_axi_arlen,
+    input  logic [2:0]                  s_axi_arsize,
+    input  logic [1:0]                  s_axi_arburst,
+    input  logic                        s_axi_arlock,
+    input  logic [3:0]                  s_axi_arcache,
+    input  logic [2:0]                  s_axi_arprot,
+    input  logic [3:0]                  s_axi_arqos,
+    input  logic [3:0]                  s_axi_arregion,
+    input  logic [AXI_USER_WIDTH-1:0]   s_axi_aruser,
+    input  logic                        s_axi_arvalid,
+    output logic                        s_axi_arready,
 
-    // Master interface (wide, from slave)
-    output logic                      m_arvalid,
-    input  logic                      m_arready,
-    output logic [ADDR_WIDTH-1:0]     m_araddr,
-    output logic [7:0]                m_arlen,
-    output logic [2:0]                m_arsize,
-    output logic [1:0]                m_arburst,
-    output logic [ID_WIDTH-1:0]       m_arid,
+    // Read Data Channel
+    output logic [AXI_ID_WIDTH-1:0]     s_axi_rid,
+    output logic [S_AXI_DATA_WIDTH-1:0] s_axi_rdata,
+    output logic [1:0]                  s_axi_rresp,
+    output logic                        s_axi_rlast,
+    output logic [AXI_USER_WIDTH-1:0]   s_axi_ruser,
+    output logic                        s_axi_rvalid,
+    input  logic                        s_axi_rready,
 
-    input  logic                      m_rvalid,
-    output logic                      m_rready,
-    input  logic [M_DATA_WIDTH-1:0]   m_rdata,
-    input  logic [ID_WIDTH-1:0]       m_rid,
-    input  logic [1:0]                m_rresp,
-    input  logic                      m_rlast
+    //==========================================================================
+    // Master AXI Read Interface
+    //==========================================================================
+
+    // Read Address Channel
+    output logic [AXI_ID_WIDTH-1:0]     m_axi_arid,
+    output logic [AXI_ADDR_WIDTH-1:0]   m_axi_araddr,
+    output logic [7:0]                  m_axi_arlen,
+    output logic [2:0]                  m_axi_arsize,
+    output logic [1:0]                  m_axi_arburst,
+    output logic                        m_axi_arlock,
+    output logic [3:0]                  m_axi_arcache,
+    output logic [2:0]                  m_axi_arprot,
+    output logic [3:0]                  m_axi_arqos,
+    output logic [3:0]                  m_axi_arregion,
+    output logic [AXI_USER_WIDTH-1:0]   m_axi_aruser,
+    output logic                        m_axi_arvalid,
+    input  logic                        m_axi_arready,
+
+    // Read Data Channel
+    input  logic [AXI_ID_WIDTH-1:0]     m_axi_rid,
+    input  logic [M_AXI_DATA_WIDTH-1:0] m_axi_rdata,
+    input  logic [1:0]                  m_axi_rresp,
+    input  logic                        m_axi_rlast,
+    input  logic [AXI_USER_WIDTH-1:0]   m_axi_ruser,
+    input  logic                        m_axi_rvalid,
+    output logic                        m_axi_rready
 );
 ```
 
@@ -110,7 +153,7 @@ module axi4_dwidth_converter_rd #(
 Same as write converter:
 
 ```systemverilog
-localparam int RATIO = M_DATA_WIDTH / S_DATA_WIDTH;
+localparam int RATIO = M_AXI_DATA_WIDTH / S_AXI_DATA_WIDTH;
 localparam int RATIO_LOG2 = $clog2(RATIO);
 
 // New ARLEN = (original ARLEN + 1) / RATIO - 1
@@ -164,15 +207,15 @@ fifo_sync #(.WIDTH(8+ID_WIDTH), .DEPTH(4)) u_ar_info_fifo (
 
 ```systemverilog
 axi_data_dnsize #(
-    .WIDE_WIDTH(M_DATA_WIDTH),
-    .NARROW_WIDTH(S_DATA_WIDTH),
-    .WIDE_SB_WIDTH(2),          // RRESP
-    .NARROW_SB_WIDTH(2),
-    .SB_BROADCAST(1),           // Broadcast RRESP
-    .DUAL_BUFFER(DUAL_BUFFER),
-    .USE_BURST_TRACKER(1),
-    .BURST_LEN_WIDTH(8)
-) u_rdata_dnsize (
+    .WIDE_WIDTH      (M_AXI_DATA_WIDTH),
+    .NARROW_WIDTH    (S_AXI_DATA_WIDTH),
+    .WIDE_SB_WIDTH   (2),          // RRESP
+    .NARROW_SB_WIDTH (2),
+    .SB_BROADCAST    (1),          // Broadcast RRESP
+    .TRACK_BURSTS    (1),
+    .BURST_LEN_WIDTH (8),
+    .DUAL_BUFFER     (0)
+) u_r_dnsize (
     .clk        (clk),
     .rst_n      (rst_n),
     .s_valid    (m_rvalid),
@@ -304,11 +347,10 @@ Total: ~880 flip-flops, ~120 LUTs
 
 ```systemverilog
 axi4_dwidth_converter_rd #(
-    .S_DATA_WIDTH(64),
-    .M_DATA_WIDTH(512),
+    .S_AXI_DATA_WIDTH(32),
+    .M_AXI_DATA_WIDTH(128),
     .ADDR_WIDTH(64),
     .ID_WIDTH(4),
-    .DUAL_BUFFER(1),      // High-performance mode
     .SKID_DEPTH(2)
 ) u_rd_converter (
     .clk     (aclk),

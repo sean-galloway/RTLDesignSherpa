@@ -50,14 +50,14 @@ The downsize module does four things:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| WIDE_WIDTH | int | 512 | Input data width (bits) |
-| NARROW_WIDTH | int | 64 | Output data width (bits) |
-| WIDE_SB_WIDTH | int | 2 | Input sideband width |
-| NARROW_SB_WIDTH | int | 2 | Output sideband width |
-| SB_BROADCAST | bit | 1 | 0=slice, 1=broadcast sidebands |
-| DUAL_BUFFER | bit | 0 | 0=single, 1=dual buffer mode |
-| USE_BURST_TRACKER | bit | 0 | Enable burst-aware LAST generation |
+| WIDE_WIDTH | int | 128 | Input data width (bits) |
+| NARROW_WIDTH | int | 32 | Output data width (bits) |
+| WIDE_SB_WIDTH | int | 0 | Input sideband width, 0 if unused |
+| NARROW_SB_WIDTH | int | 0 | Output sideband width, 0 if unused |
+| SB_BROADCAST | int | 1 | 0=slice, 1=broadcast sidebands |
+| TRACK_BURSTS | int | 0 | Enable burst-aware LAST generation |
 | BURST_LEN_WIDTH | int | 8 | Width of burst length input |
+| DUAL_BUFFER | int | 0 | 0=single buffer, 1=dual buffer (100% throughput, 2x area) |
 
 : Table 2.7: axi_data_dnsize Parameters
 
@@ -65,34 +65,43 @@ The downsize module does four things:
 
 ```systemverilog
 module axi_data_dnsize #(
-    parameter int WIDE_WIDTH       = 512,
-    parameter int NARROW_WIDTH     = 64,
-    parameter int WIDE_SB_WIDTH    = 2,
-    parameter int NARROW_SB_WIDTH  = 2,
-    parameter bit SB_BROADCAST     = 1,
-    parameter bit DUAL_BUFFER      = 0,
-    parameter bit USE_BURST_TRACKER = 0,
-    parameter int BURST_LEN_WIDTH  = 8
+    // Width Configuration
+    parameter int WIDE_WIDTH        = 128,
+    parameter int NARROW_WIDTH      = 32,
+    parameter int WIDE_SB_WIDTH     = 0,        // Sideband width (0 if unused)
+    parameter int NARROW_SB_WIDTH   = 0,
+    parameter int SB_BROADCAST      = 1,        // 1=broadcast, 0=slice
+    parameter int TRACK_BURSTS      = 0,        // 1=track bursts for LAST
+    parameter int BURST_LEN_WIDTH   = 8,        // Burst length counter width
+    parameter int DUAL_BUFFER       = 0,        // 1=dual buffer (100% throughput, 2x area), 0=single buffer (80% throughput)
+
+    // Calculated Parameters
+    localparam int WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH,
+    localparam int PTR_WIDTH   = $clog2(WIDTH_RATIO),
+    // Ensure sideband widths are at least 1 for port declarations
+    localparam int WIDE_SB_PORT_WIDTH = (WIDE_SB_WIDTH > 0) ? WIDE_SB_WIDTH : 1,
+    localparam int NARROW_SB_PORT_WIDTH = (NARROW_SB_WIDTH > 0) ? NARROW_SB_WIDTH : 1
 ) (
-    input  logic                       clk,
-    input  logic                       rst_n,
+    input  logic                            aclk,
+    input  logic                            aresetn,
 
-    // Wide input interface
-    input  logic                       s_valid,
-    output logic                       s_ready,
-    input  logic [WIDE_WIDTH-1:0]      s_data,
-    input  logic [WIDE_SB_WIDTH-1:0]   s_sideband,
-    input  logic                       s_last,
+    // Burst Control (only if TRACK_BURSTS=1)
+    input  logic [BURST_LEN_WIDTH-1:0]      burst_len,       // From address channel (ARLEN/AWLEN)
+    input  logic                            burst_start,     // Pulse to start new burst
 
-    // Burst length input (optional)
-    input  logic [BURST_LEN_WIDTH-1:0] burst_len,
+    // Wide Input (from slave or master)
+    input  logic                            wide_valid,
+    output logic                            wide_ready,
+    input  logic [WIDE_WIDTH-1:0]           wide_data,
+    input  logic [WIDE_SB_PORT_WIDTH-1:0]   wide_sideband,  // Min width 1 to avoid [-1:0]
+    input  logic                            wide_last,
 
-    // Narrow output interface
-    output logic                       m_valid,
-    input  logic                       m_ready,
-    output logic [NARROW_WIDTH-1:0]    m_data,
-    output logic [NARROW_SB_WIDTH-1:0] m_sideband,
-    output logic                       m_last
+    // Narrow Output (to master or slave)
+    output logic                            narrow_valid,
+    input  logic                            narrow_ready,
+    output logic [NARROW_WIDTH-1:0]         narrow_data,
+    output logic [NARROW_SB_PORT_WIDTH-1:0] narrow_sideband,  // Min width 1 to avoid [-1:0]
+    output logic                            narrow_last
 );
 ```
 
@@ -218,7 +227,7 @@ Beat 7: output RRESP = 2'b00
 
 ### Purpose
 
-When `USE_BURST_TRACKER=1`, the module generates correct `m_last` based on AXI4 burst length instead of relying on input `s_last`.
+When `TRACK_BURSTS=1`, the module generates `narrow_last` from the AXI4 burst length instead of relying on the incoming `wide_last`.
 
 ### Operation
 
@@ -347,7 +356,7 @@ axi_data_dnsize #(
     .NARROW_SB_WIDTH(2),
     .SB_BROADCAST(1),        // Broadcast RRESP
     .DUAL_BUFFER(1),         // 100% throughput
-    .USE_BURST_TRACKER(1),   // Generate RLAST
+    .TRACK_BURSTS(1),        // Generate RLAST
     .BURST_LEN_WIDTH(8)
 ) u_rdata_dnsize (
     .clk        (aclk),

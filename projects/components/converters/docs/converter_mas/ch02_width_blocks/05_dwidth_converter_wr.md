@@ -46,11 +46,14 @@ The write converter combines the generic `axi_data_upsize` with AXI4 protocol ha
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| S_DATA_WIDTH | int | 64 | Slave-side (narrow) data width |
-| M_DATA_WIDTH | int | 512 | Master-side (wide) data width |
-| ADDR_WIDTH | int | 64 | Address width |
-| ID_WIDTH | int | 4 | Transaction ID width |
-| SKID_DEPTH | int | 2 | Pipeline buffer depth |
+| S_AXI_DATA_WIDTH | int | 32 | Slave-side data width |
+| M_AXI_DATA_WIDTH | int | 128 | Master-side data width |
+| AXI_ID_WIDTH | int | 8 | Transaction ID width |
+| AXI_ADDR_WIDTH | int | 32 | Address width |
+| AXI_USER_WIDTH | int | 1 | User-signal width |
+| SKID_DEPTH_AW | int | 2 | AW skid buffer depth |
+| SKID_DEPTH_W | int | 4 | W skid buffer depth |
+| SKID_DEPTH_B | int | 2 | B skid buffer depth |
 
 : Table 2.14: Write Converter Parameters
 
@@ -58,56 +61,103 @@ The write converter combines the generic `axi_data_upsize` with AXI4 protocol ha
 
 ```systemverilog
 module axi4_dwidth_converter_wr #(
-    parameter int S_DATA_WIDTH = 64,
-    parameter int M_DATA_WIDTH = 512,
-    parameter int ADDR_WIDTH   = 64,
-    parameter int ID_WIDTH     = 4,
-    parameter int SKID_DEPTH   = 2
+    // Width Configuration
+    parameter int S_AXI_DATA_WIDTH  = 32,
+    parameter int M_AXI_DATA_WIDTH  = 128,
+    parameter int AXI_ID_WIDTH      = 8,
+    parameter int AXI_ADDR_WIDTH    = 32,
+    parameter int AXI_USER_WIDTH    = 1,
+
+    // Skid Buffer Depths (for timing closure)
+    parameter int SKID_DEPTH_AW     = 2,
+    parameter int SKID_DEPTH_W      = 4,
+    parameter int SKID_DEPTH_B      = 2,
+
+    // Calculated Parameters
+    localparam int S_STRB_WIDTH = S_AXI_DATA_WIDTH / 8,
+    localparam int M_STRB_WIDTH = M_AXI_DATA_WIDTH / 8,
+    localparam int WIDTH_RATIO  = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH) ?
+                                  (M_AXI_DATA_WIDTH / S_AXI_DATA_WIDTH) :
+                                  (S_AXI_DATA_WIDTH / M_AXI_DATA_WIDTH),
+    localparam bit UPSIZE       = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
+    localparam bit DOWNSIZE     = (S_AXI_DATA_WIDTH > M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
+
+    // Skid buffer packed widths
+    localparam int AW_WIDTH = AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + AXI_USER_WIDTH,
+    localparam int W_WIDTH  = S_AXI_DATA_WIDTH + S_STRB_WIDTH + 1 + AXI_USER_WIDTH,
+    localparam int B_WIDTH  = AXI_ID_WIDTH + 2 + AXI_USER_WIDTH
 ) (
-    input  logic clk,
-    input  logic rst_n,
+    // Clock and Reset
+    input  logic                        aclk,
+    input  logic                        aresetn,
 
-    // Slave interface (narrow, from master)
-    input  logic                      s_awvalid,
-    output logic                      s_awready,
-    input  logic [ADDR_WIDTH-1:0]     s_awaddr,
-    input  logic [7:0]                s_awlen,
-    input  logic [2:0]                s_awsize,
-    input  logic [1:0]                s_awburst,
-    input  logic [ID_WIDTH-1:0]       s_awid,
-    // ... other AW signals
+    //==========================================================================
+    // Slave AXI Write Interface
+    //==========================================================================
 
-    input  logic                      s_wvalid,
-    output logic                      s_wready,
-    input  logic [S_DATA_WIDTH-1:0]   s_wdata,
-    input  logic [S_DATA_WIDTH/8-1:0] s_wstrb,
-    input  logic                      s_wlast,
+    // Write Address Channel
+    input  logic [AXI_ID_WIDTH-1:0]     s_axi_awid,
+    input  logic [AXI_ADDR_WIDTH-1:0]   s_axi_awaddr,
+    input  logic [7:0]                  s_axi_awlen,
+    input  logic [2:0]                  s_axi_awsize,
+    input  logic [1:0]                  s_axi_awburst,
+    input  logic                        s_axi_awlock,
+    input  logic [3:0]                  s_axi_awcache,
+    input  logic [2:0]                  s_axi_awprot,
+    input  logic [3:0]                  s_axi_awqos,
+    input  logic [3:0]                  s_axi_awregion,
+    input  logic [AXI_USER_WIDTH-1:0]   s_axi_awuser,
+    input  logic                        s_axi_awvalid,
+    output logic                        s_axi_awready,
 
-    output logic                      s_bvalid,
-    input  logic                      s_bready,
-    output logic [ID_WIDTH-1:0]       s_bid,
-    output logic [1:0]                s_bresp,
+    // Write Data Channel
+    input  logic [S_AXI_DATA_WIDTH-1:0] s_axi_wdata,
+    input  logic [S_STRB_WIDTH-1:0]     s_axi_wstrb,
+    input  logic                        s_axi_wlast,
+    input  logic [AXI_USER_WIDTH-1:0]   s_axi_wuser,
+    input  logic                        s_axi_wvalid,
+    output logic                        s_axi_wready,
 
-    // Master interface (wide, to slave)
-    output logic                      m_awvalid,
-    input  logic                      m_awready,
-    output logic [ADDR_WIDTH-1:0]     m_awaddr,
-    output logic [7:0]                m_awlen,
-    output logic [2:0]                m_awsize,
-    output logic [1:0]                m_awburst,
-    output logic [ID_WIDTH-1:0]       m_awid,
-    // ... other AW signals
+    // Write Response Channel
+    output logic [AXI_ID_WIDTH-1:0]     s_axi_bid,
+    output logic [1:0]                  s_axi_bresp,
+    output logic [AXI_USER_WIDTH-1:0]   s_axi_buser,
+    output logic                        s_axi_bvalid,
+    input  logic                        s_axi_bready,
 
-    output logic                      m_wvalid,
-    input  logic                      m_wready,
-    output logic [M_DATA_WIDTH-1:0]   m_wdata,
-    output logic [M_DATA_WIDTH/8-1:0] m_wstrb,
-    output logic                      m_wlast,
+    //==========================================================================
+    // Master AXI Write Interface
+    //==========================================================================
 
-    input  logic                      m_bvalid,
-    output logic                      m_bready,
-    input  logic [ID_WIDTH-1:0]       m_bid,
-    input  logic [1:0]                m_bresp
+    // Write Address Channel
+    output logic [AXI_ID_WIDTH-1:0]     m_axi_awid,
+    output logic [AXI_ADDR_WIDTH-1:0]   m_axi_awaddr,
+    output logic [7:0]                  m_axi_awlen,
+    output logic [2:0]                  m_axi_awsize,
+    output logic [1:0]                  m_axi_awburst,
+    output logic                        m_axi_awlock,
+    output logic [3:0]                  m_axi_awcache,
+    output logic [2:0]                  m_axi_awprot,
+    output logic [3:0]                  m_axi_awqos,
+    output logic [3:0]                  m_axi_awregion,
+    output logic [AXI_USER_WIDTH-1:0]   m_axi_awuser,
+    output logic                        m_axi_awvalid,
+    input  logic                        m_axi_awready,
+
+    // Write Data Channel
+    output logic [M_AXI_DATA_WIDTH-1:0] m_axi_wdata,
+    output logic [M_STRB_WIDTH-1:0]     m_axi_wstrb,
+    output logic                        m_axi_wlast,
+    output logic [AXI_USER_WIDTH-1:0]   m_axi_wuser,
+    output logic                        m_axi_wvalid,
+    input  logic                        m_axi_wready,
+
+    // Write Response Channel
+    input  logic [AXI_ID_WIDTH-1:0]     m_axi_bid,
+    input  logic [1:0]                  m_axi_bresp,
+    input  logic [AXI_USER_WIDTH-1:0]   m_axi_buser,
+    input  logic                        m_axi_bvalid,
+    output logic                        m_axi_bready
 );
 ```
 
@@ -116,7 +166,7 @@ module axi4_dwidth_converter_wr #(
 ### Ratio Calculation
 
 ```systemverilog
-localparam int RATIO = M_DATA_WIDTH / S_DATA_WIDTH;
+localparam int RATIO = M_AXI_DATA_WIDTH / S_AXI_DATA_WIDTH;
 localparam int RATIO_LOG2 = $clog2(RATIO);
 
 // New AWLEN = (original AWLEN + 1) / RATIO - 1
@@ -187,13 +237,12 @@ axi_skid_buffer #(
 
 ```systemverilog
 axi_data_upsize #(
-    .NARROW_WIDTH(S_DATA_WIDTH),
-    .WIDE_WIDTH(M_DATA_WIDTH),
-    .NARROW_SB_WIDTH(S_DATA_WIDTH/8),  // WSTRB
-    .WIDE_SB_WIDTH(M_DATA_WIDTH/8),
-    .SB_OR_MODE(0),                     // Concatenate WSTRB
-    .USE_LAST(1)
-) u_wdata_upsize (
+    .NARROW_WIDTH    (S_AXI_DATA_WIDTH),
+    .WIDE_WIDTH      (M_AXI_DATA_WIDTH),
+    .NARROW_SB_WIDTH (S_STRB_WIDTH),   // WSTRB
+    .WIDE_SB_WIDTH   (M_STRB_WIDTH),
+    .SB_OR_MODE      (0)               // Concatenate WSTRB
+) u_w_upsize (
     .clk        (clk),
     .rst_n      (rst_n),
     .s_valid    (s_wvalid),
@@ -294,8 +343,8 @@ Total: ~870 flip-flops, ~160 LUTs
 
 ```systemverilog
 axi4_dwidth_converter_wr #(
-    .S_DATA_WIDTH(64),
-    .M_DATA_WIDTH(512),
+    .S_AXI_DATA_WIDTH(32),
+    .M_AXI_DATA_WIDTH(128),
     .ADDR_WIDTH(64),
     .ID_WIDTH(4),
     .SKID_DEPTH(2)

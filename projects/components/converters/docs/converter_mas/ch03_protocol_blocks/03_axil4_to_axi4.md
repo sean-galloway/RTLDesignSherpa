@@ -59,8 +59,8 @@ axil4_to_axi4.sv          # Full bidirectional wrapper
 | - | ARSIZE | $clog2(DATA_WIDTH/8) |
 | - | ARBURST | 2'b01 (INCR) |
 | - | ARLOCK | 1'b0 (normal) |
-| - | ARCACHE | 4'b0000 (non-cacheable) |
-| - | ARQOS | 4'b0000 (no QoS) |
+| - | ARCACHE | 4'b0011 (bufferable, modifiable) |
+| - | ARQOS | 4'(DEFAULT_QOS), parameter, default 0 |
 | - | ARID | Configurable default |
 
 : Table 3.10: AR Channel Mapping
@@ -138,8 +138,8 @@ module axil4_to_axi4_rd #(
     assign m_arsize  = $clog2(DATA_WIDTH/8);     // Full width
     assign m_arburst = 2'b01;                    // INCR
     assign m_arlock  = 1'b0;                     // Normal access
-    assign m_arcache = 4'b0000;                  // Non-cacheable
-    assign m_arqos   = 4'b0000;                  // No QoS
+    assign m_axi_arcache = 4'b0011;              // Bufferable
+    assign m_axi_arqos   = 4'(DEFAULT_QOS);      // Parameter, default 0
     assign m_arid    = DEFAULT_ARID;             // Configurable ID
 
     // R channel - passthrough (ignore RLAST and RID)
@@ -222,7 +222,7 @@ module axil4_to_axi4_wr #(
     assign m_awsize  = $clog2(DATA_WIDTH/8);
     assign m_awburst = 2'b01;
     assign m_awlock  = 1'b0;
-    assign m_awcache = 4'b0000;
+    assign m_axi_awcache = 4'b0011;              // Bufferable
     assign m_awqos   = 4'b0000;
     assign m_awid    = DEFAULT_AWID;
 

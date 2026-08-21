@@ -253,7 +253,7 @@ axi_data_dnsize #(
     .WIDE_WIDTH(512),
     .NARROW_WIDTH(64),
     .DUAL_BUFFER(1),          // Enable dual buffer
-    .USE_BURST_TRACKER(1),
+    .TRACK_BURSTS(1),
     .SB_BROADCAST(1)
 ) u_rdata_dnsize (
     // ... connections
@@ -264,7 +264,7 @@ axi_data_dnsize #(
     .WIDE_WIDTH(128),
     .NARROW_WIDTH(32),
     .DUAL_BUFFER(0),          // Single buffer OK
-    .USE_BURST_TRACKER(0),
+    .TRACK_BURSTS(0),
     .SB_BROADCAST(1)
 ) u_ctrl_dnsize (
     // ... connections
