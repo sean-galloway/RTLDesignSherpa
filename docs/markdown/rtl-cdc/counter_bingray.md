@@ -27,15 +27,13 @@
 
 `counter_bingray` is a dual-output counter: you get the binary and the Gray
 representation of the same count, registered in parallel. Asynchronous FIFOs
-are the reason it exists — the Gray value is what crosses the clock boundary
+are the reason it exists -- the Gray value is what crosses the clock boundary
 safely (one bit changes per increment, so metastability never gets a foothold),
 while the binary value stays home for the arithmetic.
 
 You'll also see it used for clock-domain-crossing counters, position encoder
 interfaces, state machine counters that need glitch-free outputs, and memory
 address generation in dual-port systems.
-
-## Module Declaration
 
 ```systemverilog
 module counter_bingray #(
@@ -107,8 +105,6 @@ The conversion is the standard one:
 | 14 | 1110 | 1001 | bit 1 |
 | 15 | 1111 | 1000 | bit 0 |
 
-## Implementation
-
 ### Internal logic
 
 ```systemverilog
@@ -139,25 +135,122 @@ Note what this buys you over a `bin2gray` plus a separate flop: the Gray output
 is registered from the *next-state* value in the same process, so the encoding
 transient never leaves the module.
 
-## Timing Characteristics
+## Timing
 
 Three paths matter:
 
-1. **Binary increment** — standard binary addition timing
-2. **Gray conversion** — a single XOR level: `gray = bin ^ (bin >> 1)` gives
+1. **Binary increment** -- standard binary addition timing
+2. **Gray conversion** -- a single XOR level: `gray = bin ^ (bin >> 1)` gives
    every output bit one 2-input XOR, so the delay is constant in WIDTH. (The
    log(WIDTH) XOR depth belongs to the *decode* direction, `gray2bin`.)
-3. **Combined path** — increment + conversion in the same cycle
+3. **Combined path** -- increment + conversion in the same cycle
 
 Clock-to-Q is the standard flip-flop delay, the combinational piece depends on
 the adder and XOR depth, and your setup check has to absorb the longest of
-them.
+them. Expect 200-400 MHz in a modern FPGA as-is; pipeline the Gray conversion
+if you need more.
 
-## Usage Examples
+## Waveforms
+
+**WaveDrom timing diagrams for the Binary-Gray counter are available.**
+
+Four scenarios walk through the dual-output counter design:
+
+### Scenario 1: Binary vs Gray Code Comparison
+
+![BinGray Comparison](../assets/WAVES/counter_bingray/bingray_counter_binary_vs_gray.png)
+
+**WaveJSON:** [bingray_counter_binary_vs_gray.json](../assets/WAVES/counter_bingray/bingray_counter_binary_vs_gray.json)
+
+Side-by-side comparison of both outputs:
+- Binary: Normal sequential counting (0→1→2→3→...)
+- Gray: Single-bit transitions between values
+- Shows full cycle demonstrating encoding differences
+- Illustrates why Gray code is CDC-safe
+
+### Scenario 2: Single-Bit Transitions (CDC Safety) **KEY FEATURE**
+
+![BinGray Single-Bit Transitions](../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.png)
+
+**WaveJSON:** [bingray_counter_single_bit_transitions.json](../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.json)
+
+Gray code CDC safety property:
+- Each Gray transition changes EXACTLY one bit
+- Hamming distance = 1 between adjacent values
+- **Critical for fifo_async CDC mechanism**
+- Prevents metastability in clock domain crossing
+
+### Scenario 3: Lookahead Signal (counter_bin_next)
+
+![BinGray Lookahead](../assets/WAVES/counter_bingray/bingray_counter_lookahead.png)
+
+**WaveJSON:** [bingray_counter_lookahead.json](../assets/WAVES/counter_bingray/bingray_counter_lookahead.json)
+
+Combinational lookahead feature:
+- Predicts next binary value one cycle ahead
+- Useful for FIFO full/empty prediction
+- Shows enable gating behavior
+- Enables early decision-making
+
+### Scenario 4: Enable and Reset Control
+
+![BinGray Enable and Reset](../assets/WAVES/counter_bingray/bingray_counter_enable_reset.png)
+
+**WaveJSON:** [bingray_counter_enable_reset.json](../assets/WAVES/counter_bingray/bingray_counter_enable_reset.json)
+
+Control signal behavior:
+- Both outputs hold when enable=0
+- Asynchronous reset to zero
+- Clean state transitions
+- Reset during counting demonstration
+
+---
+
+**To regenerate these waveforms:**
+```bash
+pytest val/cdc/test_counter_bingray_wavedrom.py -v
+# Then convert JSON to PNG:
+cd docs/markdown/assets/WAVES/counter_bingray
+for f in *.json; do wavedrom-cli -i "$f" -p "${f%.json}.png"; done
+```
+
+**What Makes Binary-Gray Counters Special:**
+
+The waveforms put the unique dual-output design on display:
+- **Dual Encoding**: Binary for arithmetic, Gray for CDC safety
+- **Single-Bit Transitions**: Gray code changes one bit at a time
+- **Lookahead**: counter_bin_next provides one-cycle prediction
+- **CDC-Safe**: Safe for asynchronous clock domain crossing
+
+**Relationship to fifo_async:**
+
+Binary-Gray counters are the foundation of the standard `fifo_async` module:
+- **fifo_async** uses this counter for read/write pointers
+- Gray outputs cross clock domains safely
+- Binary outputs used for arithmetic (occupancy, address generation)
+- Logarithmic width (`$clog2(DEPTH) + 1`) for resource efficiency
+
+**Comparison Table:**
+
+| Feature | BinGray Counter | Johnson Counter |
+|---------|----------------|-----------------|
+| **Output Width** | `$clog2(DEPTH) + 1` bits | `DEPTH` bits |
+| **CDC Method** | Standard Gray code | Johnson code |
+| **Depth Support** | Power-of-2 only | Any depth, odd included |
+| **Resource Efficiency** | Logarithmic (better for large depths) | Linear |
+| **Conversion** | XOR tree (simple) | Position detection (complex) |
+| **Used In** | `fifo_async` USE_JOHNSON=0 | `fifo_async` USE_JOHNSON=1 |
+
+**Comparison with Other Modules:**
+
+- `test_counter_johnson_wavedrom.py` - Johnson counter (any depth, linear width)
+- `test_fifo_async_wavedrom.py` - BinGray counter in action (async FIFO, power-of-2)
+
+## Usage Example
 
 ### Asynchronous FIFO pointers
 
-This is the canonical use — one counter per domain:
+This is the canonical use -- one counter per domain:
 
 ```systemverilog
 // Write domain counter
@@ -310,6 +403,53 @@ glitch_free_n_dff_arn #(
 );
 ```
 
+## Design Notes
+
+Resource cost: 2×WIDTH flip-flops (binary and Gray registers are separate),
+plus the increment logic and the single-level XOR for the Gray conversion. The
+critical path runs through the binary increment and the Gray conversion in
+series.
+
+```systemverilog
+// Optional: Pipeline Gray conversion for high speed
+logic [WIDTH-1:0] counter_gray_pipe;
+always_ff @(posedge clk) begin
+    counter_gray_pipe <= w_counter_gray;
+end
+```
+
+Mark the Gray register as an async-crossing register so the placer keeps the
+sync chain tight:
+
+```systemverilog
+(* ASYNC_REG = "TRUE" *) logic [WIDTH-1:0] counter_gray; // Xilinx
+// synthesis attribute ASYNC_REG of counter_gray is "TRUE"  // Altera/Intel
+```
+
+Dynamic power scales with switching activity; static is minimal. Gate the clock
+with `enable` if the counter sits idle for long stretches.
+
+### Common mistakes
+
+1. **Metastability** -- the Gray value must go through a proper synchronizer in
+   the destination domain; the encoding alone doesn't sample for you.
+2. **Timing violations** -- pipeline the Gray conversion if the increment+XOR
+   path doesn't close.
+3. **Incorrect FIFO status** -- check the Gray-to-binary decode on the
+   synchronized pointer before blaming the flags.
+4. **Reset skew** -- use proper reset synchronization in each domain.
+
+For debug: assert the Gray properties in simulation, capture real transitions
+on a logic analyzer, run timing analysis on the crossing paths, and verify the
+synchronizer stage count against your MTBF target.
+
+## Related Modules
+
+- **counter_johnson**: the non-power-of-2 alternative -- any depth, linear width
+- **bin2gray** / **gray2bin**: the standalone converters, if you ever need the encode or decode alone
+- **glitch_free_n_dff_arn**: the multi-flop synchronizer the Gray output crosses through
+- **fifo_async** / **gaxi_fifo_async**: the modules this counter exists to serve
+
 ## Testing
 
 ### Test scenarios
@@ -367,8 +507,8 @@ assert property (bin_gray_relationship);
 
 ### Test files
 
-- `val/cdc/test_counter_bingray.py` — full functional verification
-- `val/cdc/test_counter_bingray_wavedrom.py` — WaveDrom timing diagrams 
+- `val/cdc/test_counter_bingray.py` -- full functional verification
+- `val/cdc/test_counter_bingray_wavedrom.py` -- WaveDrom timing diagrams 
 
 ```bash
 # Full functional test (basic/medium/full levels)
@@ -378,144 +518,7 @@ pytest val/cdc/test_counter_bingray.py -v
 pytest val/cdc/test_counter_bingray_wavedrom.py -v
 ```
 
-## Synthesis and performance
-
-Resource cost: 2×WIDTH flip-flops (binary and Gray registers are separate),
-plus the increment logic and the single-level XOR for the Gray conversion. The
-critical path runs through the binary increment and the Gray conversion in
-series. Expect 200-400 MHz in a modern FPGA as-is; pipeline the Gray conversion
-if you need more:
-
-```systemverilog
-// Optional: Pipeline Gray conversion for high speed
-logic [WIDTH-1:0] counter_gray_pipe;
-always_ff @(posedge clk) begin
-    counter_gray_pipe <= w_counter_gray;
-end
-```
-
-Mark the Gray register as an async-crossing register so the placer keeps the
-sync chain tight:
-
-```systemverilog
-(* ASYNC_REG = "TRUE" *) logic [WIDTH-1:0] counter_gray; // Xilinx
-// synthesis attribute ASYNC_REG of counter_gray is "TRUE"  // Altera/Intel
-```
-
-Dynamic power scales with switching activity; static is minimal. Gate the clock
-with `enable` if the counter sits idle for long stretches.
-
-## Common mistakes
-
-1. **Metastability** — the Gray value must go through a proper synchronizer in
-   the destination domain; the encoding alone doesn't sample for you.
-2. **Timing violations** — pipeline the Gray conversion if the increment+XOR
-   path doesn't close.
-3. **Incorrect FIFO status** — check the Gray-to-binary decode on the
-   synchronized pointer before blaming the flags.
-4. **Reset skew** — use proper reset synchronization in each domain.
-
-For debug: assert the Gray properties in simulation, capture real transitions
-on a logic analyzer, run timing analysis on the crossing paths, and verify the
-synchronizer stage count against your MTBF target.
-
-## WaveDrom visualization
-
-**WaveDrom timing diagrams for the Binary-Gray counter are available.**
-
-Four scenarios walk through the dual-output counter design:
-
-### Scenario 1: Binary vs Gray Code Comparison
-
-![BinGray Comparison](../assets/WAVES/counter_bingray/bingray_counter_binary_vs_gray.png)
-
-**WaveJSON:** [bingray_counter_binary_vs_gray.json](../assets/WAVES/counter_bingray/bingray_counter_binary_vs_gray.json)
-
-Side-by-side comparison of both outputs:
-- Binary: Normal sequential counting (0→1→2→3→...)
-- Gray: Single-bit transitions between values
-- Shows full cycle demonstrating encoding differences
-- Illustrates why Gray code is CDC-safe
-
-### Scenario 2: Single-Bit Transitions (CDC Safety) **KEY FEATURE**
-
-![BinGray Single-Bit Transitions](../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.png)
-
-**WaveJSON:** [bingray_counter_single_bit_transitions.json](../assets/WAVES/counter_bingray/bingray_counter_single_bit_transitions.json)
-
-Gray code CDC safety property:
-- Each Gray transition changes EXACTLY one bit
-- Hamming distance = 1 between adjacent values
-- **Critical for fifo_async CDC mechanism**
-- Prevents metastability in clock domain crossing
-
-### Scenario 3: Lookahead Signal (counter_bin_next)
-
-![BinGray Lookahead](../assets/WAVES/counter_bingray/bingray_counter_lookahead.png)
-
-**WaveJSON:** [bingray_counter_lookahead.json](../assets/WAVES/counter_bingray/bingray_counter_lookahead.json)
-
-Combinational lookahead feature:
-- Predicts next binary value one cycle ahead
-- Useful for FIFO full/empty prediction
-- Shows enable gating behavior
-- Enables early decision-making
-
-### Scenario 4: Enable and Reset Control
-
-![BinGray Enable and Reset](../assets/WAVES/counter_bingray/bingray_counter_enable_reset.png)
-
-**WaveJSON:** [bingray_counter_enable_reset.json](../assets/WAVES/counter_bingray/bingray_counter_enable_reset.json)
-
-Control signal behavior:
-- Both outputs hold when enable=0
-- Asynchronous reset to zero
-- Clean state transitions
-- Reset during counting demonstration
-
----
-
-**To regenerate these waveforms:**
-```bash
-pytest val/cdc/test_counter_bingray_wavedrom.py -v
-# Then convert JSON to PNG:
-cd docs/markdown/assets/WAVES/counter_bingray
-for f in *.json; do wavedrom-cli -i "$f" -p "${f%.json}.png"; done
-```
-
-**What Makes Binary-Gray Counters Special:**
-
-The waveforms put the unique dual-output design on display:
-- **Dual Encoding**: Binary for arithmetic, Gray for CDC safety
-- **Single-Bit Transitions**: Gray code changes one bit at a time
-- **Lookahead**: counter_bin_next provides one-cycle prediction
-- **CDC-Safe**: Safe for asynchronous clock domain crossing
-
-**Relationship to fifo_async:**
-
-Binary-Gray counters are the foundation of the standard `fifo_async` module:
-- **fifo_async** uses this counter for read/write pointers
-- Gray outputs cross clock domains safely
-- Binary outputs used for arithmetic (occupancy, address generation)
-- Logarithmic width (`$clog2(DEPTH) + 1`) for resource efficiency
-
-**Comparison Table:**
-
-| Feature | BinGray Counter | Johnson Counter |
-|---------|----------------|-----------------|
-| **Output Width** | `$clog2(DEPTH) + 1` bits | `DEPTH` bits |
-| **CDC Method** | Standard Gray code | Johnson code |
-| **Depth Support** | Power-of-2 only | Any depth, odd included |
-| **Resource Efficiency** | Logarithmic (better for large depths) | Linear |
-| **Conversion** | XOR tree (simple) | Position detection (complex) |
-| **Used In** | `fifo_async` USE_JOHNSON=0 | `fifo_async` USE_JOHNSON=1 |
-
-**Comparison with Other Modules:**
-
-- `test_counter_johnson_wavedrom.py` - Johnson counter (any depth, linear width)
-- `test_fifo_async_wavedrom.py` - BinGray counter in action (async FIFO, power-of-2)
-
 ## Navigation
 
-- **[← Back to CDC Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [← Back to CDC Index](index.md)
+- [← Back to Main Documentation Index](../index.md)

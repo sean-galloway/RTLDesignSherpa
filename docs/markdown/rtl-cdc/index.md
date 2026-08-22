@@ -24,12 +24,9 @@
 
 # rtl-cdc Modules Index
 
-This is the catalogue for `rtl/cdc/`. If what you want is orientation—which
-technique to reach for, and why—start at [overview.md](overview.md) first.
+This is the catalogue for `rtl/cdc/` — every module in the area, what it does, and where to read about it. If what you want is orientation (which technique to reach for, and why), start at [overview.md](overview.md) first, then come back here for the links.
 
-**14 modules** live in `rtl/cdc/`, and every one of them exists to get data
-across a clock boundary. The count comes from `ls rtl/cdc/*.sv`—regenerate it
-rather than hand-editing.
+**14 modules** live in `rtl/cdc/`, and every one of them exists to get data across a clock boundary. The count comes from `ls rtl/cdc/*.sv` — regenerate it rather than hand-editing when the directory changes.
 
 ## Module Categories
 
@@ -41,57 +38,43 @@ rather than hand-editing.
 
 ### Synchronizer and Handshakes
 
-These four share one reference page instead of a page each, because choosing
-between them is a single decision:
+Four of these six share one reference page instead of a page each, because choosing between them is a single decision:
 
-- **[glitch_free_n_dff_arn](glitch_free_n_dff_arn.md)** - the N-stage synchroniser
-  primitive the blocks below are built from (moved here from rtl/common 2026-08-08)
-- **[sync_pulse](sync_pulse.md)** - toggle-based pulse synchroniser: exactly one
-  destination pulse per source pulse, whatever the clock ratio
-- **[cdc_synchronizer](cdc.md#cdc_synchronizer)** - N-stage flop synchronizer for a
-  quasi-static value or a single flag
-- **[cdc_open_loop](cdc.md#cdc_open_loop)** - the source holds data and valid; no
-  acknowledge comes back
-- **[cdc_2_phase_handshake](cdc.md#cdc_2_phase_handshake)** - toggle (NRZ)
-  valid/ready handshake. Read [Reset Considerations](cdc.md#reset-considerations)
-  first: it will fabricate a transfer if the domains can reset independently
-- **[cdc_4_phase_handshake](cdc.md#cdc_4_phase_handshake)** - level (RZ)
-  valid/ready handshake
+- **[glitch_free_n_dff_arn](glitch_free_n_dff_arn.md)** — the N-stage synchronizer primitive the blocks below are built from (moved here from rtl/common 2026-08-08)
+- **[sync_pulse](sync_pulse.md)** — toggle-based pulse synchronizer: exactly one destination pulse per source pulse, whatever the clock ratio
+- **[cdc_synchronizer](cdc.md#cdc_synchronizer)** — N-stage flop synchronizer for a quasi-static value or a single flag
+- **[cdc_open_loop](cdc.md#cdc_open_loop)** — the source holds data and valid; no acknowledge comes back
+- **[cdc_2_phase_handshake](cdc.md#cdc_2_phase_handshake)** — toggle (NRZ) valid/ready handshake. Read [Reset Considerations](cdc.md#reset-considerations) first: it will fabricate a transfer if the domains can reset independently
+- **[cdc_4_phase_handshake](cdc.md#cdc_4_phase_handshake)** — level (RZ) valid/ready handshake
 
 ### Gray and Johnson Coders
 
-These are the encodings that make a multi-bit crossing safe—only one bit
-changes per step, so a mid-flight sample still lands on a value that actually
-existed:
+These are the encodings that make a multi-bit crossing safe — only one bit changes per step, so a mid-flight sample still lands on a value that actually existed:
 
-- **[bin2gray](bin2gray.md)** - binary to Gray code
-- **[gray2bin](gray2bin.md)** - Gray code back to binary
-- **[johnson2bin](johnson2bin.md)** - Johnson (twisted-ring) code to binary
-- **[counter_bingray](counter_bingray.md)** - counter emitting binary and Gray together
-- **[counter_johnson](counter_johnson.md)** - Johnson counter
+- **[bin2gray](bin2gray.md)** — binary to Gray code
+- **[gray2bin](gray2bin.md)** — Gray code back to binary
+- **[johnson2bin](johnson2bin.md)** — Johnson (twisted-ring) code to binary
+- **[counter_bingray](counter_bingray.md)** — counter emitting binary and Gray together
+- **[counter_johnson](counter_johnson.md)** — Johnson counter
 
 ### Asynchronous FIFOs
 
-- **[fifo_async](fifo_async.md)** - asynchronous FIFO; `USE_JOHNSON` selects the
-  pointer encoding (Gray needs a power-of-2 depth, Johnson takes any depth)
-- **[gaxi_fifo_async](gaxi_fifo_async.md)** - the same crossing behind a GAXI
-  valid/ready interface
-- **[gaxi_skid_buffer_async](gaxi_skid_buffer_async.md)** - GAXI async FIFO with a
-  skid buffer on each side
+- **[fifo_async](fifo_async.md)** — asynchronous FIFO; `USE_JOHNSON` selects the pointer encoding (Gray needs a power-of-2 depth, Johnson takes any depth)
+- **[gaxi_fifo_async](gaxi_fifo_async.md)** — the same crossing behind a GAXI valid/ready interface
+- **[gaxi_skid_buffer_async](gaxi_skid_buffer_async.md)** — GAXI async FIFO with a skid buffer on each side
 
-## Related
+## Related Modules
 
-The modules these depend on stay in their own areas and get pulled in by `-f`
-include—nothing is copied here:
+The modules this area depends on stay in their own areas and get pulled in by `-f` include — nothing is copied here:
 
 - [`fifo_control`](../rtl-common/fifo_control.md),
   [`counter_bin`](../rtl-common/counter_bin.md),
   [`find_first_set`](../rtl-common/find_first_set.md),
   [`find_last_set`](../rtl-common/find_last_set.md),
-  [`leading_one_trailing_one`](../rtl-common/leading_one_trailing_one.md) -
+  [`leading_one_trailing_one`](../rtl-common/leading_one_trailing_one.md) —
   [rtl-common](../rtl-common/index.md). The three bit-search modules arrive
   through `johnson2bin`, which uses them to decode a Johnson pointer.
-- [`gaxi_skid_buffer`](../rtl-amba/gaxi/gaxi_skid_buffer.md) - [rtl-amba](../rtl-amba/index.md)
+- [`gaxi_skid_buffer`](../rtl-amba/gaxi/gaxi_skid_buffer.md) — [rtl-amba](../rtl-amba/index.md)
 
 The APB/APB5 CDC slaves that consume this area live with their protocol
 documentation: [apb4_slave_cdc](../rtl-amba/apb4/apb4_slave_cdc.md),

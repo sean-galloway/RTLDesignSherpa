@@ -25,8 +25,8 @@
 
 ## Overview
 
-`bin2gray` is a purely combinational binary-to-Gray converter. Gray code —
-reflected binary code, unit-distance code, same thing — is a binary numeral
+`bin2gray` is a purely combinational binary-to-Gray converter. Gray code --
+reflected binary code, unit-distance code, same thing -- is a binary numeral
 system where two successive values differ in exactly one bit. That one-bit
 property is what reduces glitches and metastability exposure when a value moves
 between asynchronous domains, which is why Gray code turns up everywhere in
@@ -34,15 +34,15 @@ clock domain crossing work.
 
 Where it earns its keep:
 
-- **Asynchronous FIFOs** — pointer comparisons that can't afford metastability
-- **Clock domain crossing** — safe multi-bit signal transfer
-- **Position encoders** — mechanical/optical encoder interfaces
-- **Memory address generation** — reduces EMI and power spikes
-- **Test pattern generation** — controlled single-bit transitions
-- **Error detection** — single-bit error detection schemes
-- **ADC/DAC interfaces** — fewer glitches in conversion systems
+- **Asynchronous FIFOs** -- pointer comparisons that can't afford metastability
+- **Clock domain crossing** -- safe multi-bit signal transfer
+- **Position encoders** -- mechanical/optical encoder interfaces
+- **Memory address generation** -- reduces EMI and power spikes
+- **Test pattern generation** -- controlled single-bit transitions
+- **Error detection** -- single-bit error detection schemes
+- **ADC/DAC interfaces** -- fewer glitches in conversion systems
 
-## Module Declaration
+The whole module is one parameter and two ports:
 
 ```systemverilog
 module bin2gray #(
@@ -90,7 +90,7 @@ That one-bit property buys you four things:
 
 ### Gray code sequences
 
-Walk the tables and watch the "changed bit" column — one bit, every time.
+Walk the tables and watch the "changed bit" column -- one bit, every time.
 
 #### 2-bit Gray Code
 | Decimal | Binary | Gray | Transition |
@@ -124,8 +124,6 @@ Walk the tables and watch the "changed bit" column — one bit, every time.
 | 6 | 0110 | 0101 | 14 | 1110 | 1001 |
 | 7 | 0111 | 0100 | 15 | 1111 | 1000 |
 
-## Implementation
-
 ### Core logic
 
 ```systemverilog
@@ -141,7 +139,7 @@ assign gray[WIDTH-1] = binary[WIDTH-1];
 
 What the RTL builds is a bank of XOR gates: each lower Gray bit is the XOR of
 the current and next binary bits, the MSB comes straight across, and everything
-evaluates in parallel — a single level of logic.
+evaluates in parallel -- a single level of logic.
 
 For WIDTH = 4, gate level:
 
@@ -159,14 +157,60 @@ flowchart LR
     xor0 --> g0["gray[0]"]
 ```
 
-### Timing characteristics
+### Companion converter: gray2bin
 
-One XOR gate of delay — typically 0.1-0.3ns in modern processes — and that's
+You'll almost always need the trip back. The inverse conversion:
+
+```systemverilog
+module gray2bin #(
+    parameter int WIDTH = 4
+) (
+    input  wire [WIDTH-1:0] gray,
+    output wire [WIDTH-1:0] binary
+);
+
+    genvar i;
+    
+    // MSB is unchanged
+    assign binary[WIDTH-1] = gray[WIDTH-1];
+    
+    // Other bits: XOR accumulation from MSB down
+    generate
+        for (i = WIDTH-2; i >= 0; i--) begin : gen_binary
+            assign binary[i] = binary[i+1] ^ gray[i];
+        end
+    endgenerate
+
+endmodule
+```
+
+#### Gray-to-Binary Truth Table (4-bit)
+| Gray | Binary | Conversion Process |
+|------|--------|--------------------|
+| 0000 | 0000 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕0=0, bin[0]=0⊕0=0 |
+| 0001 | 0001 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕0=0, bin[0]=0⊕1=1 |
+| 0011 | 0010 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕1=1, bin[0]=1⊕1=0 |
+| 0010 | 0011 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕1=1, bin[0]=1⊕0=1 |
+
+## Timing
+
+One XOR gate of delay -- typically 0.1-0.3ns in modern processes -- and that's
 the whole critical path. Each binary bit drives at most 2 XOR gates, and the
 delay is constant regardless of WIDTH. This module will never be your timing
 problem.
 
-## Usage Examples
+Typical FPGA resource usage, by width:
+
+| WIDTH | LUTs | Delay (ns) | Max Freq (MHz) |
+|-------|------|------------|----------------|
+| 4 | 3 | 0.2 | 800+ |
+| 8 | 7 | 0.2 | 800+ |
+| 16 | 15 | 0.3 | 600+ |
+| 32 | 31 | 0.4 | 500+ |
+
+: bin2gray resource usage by width (typical FPGA)
+
+## Usage Example
 
 > **One rule governs every example below.** `bin2gray` is combinational. If its
 > output is going to be sampled by another clock -- a FIFO pointer, a status
@@ -456,44 +500,8 @@ module gray_code_synchronizer #(
 endmodule
 ```
 
-## Companion converter: gray2bin
+### Advanced variant: parameterized converter with validation
 
-You'll almost always need the trip back. The inverse conversion:
-
-```systemverilog
-module gray2bin #(
-    parameter int WIDTH = 4
-) (
-    input  wire [WIDTH-1:0] gray,
-    output wire [WIDTH-1:0] binary
-);
-
-    genvar i;
-    
-    // MSB is unchanged
-    assign binary[WIDTH-1] = gray[WIDTH-1];
-    
-    // Other bits: XOR accumulation from MSB down
-    generate
-        for (i = WIDTH-2; i >= 0; i--) begin : gen_binary
-            assign binary[i] = binary[i+1] ^ gray[i];
-        end
-    endgenerate
-
-endmodule
-```
-
-### Gray-to-Binary Truth Table (4-bit)
-| Gray | Binary | Conversion Process |
-|------|--------|--------------------|
-| 0000 | 0000 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕0=0, bin[0]=0⊕0=0 |
-| 0001 | 0001 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕0=0, bin[0]=0⊕1=1 |
-| 0011 | 0010 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕1=1, bin[0]=1⊕1=0 |
-| 0010 | 0011 | bin[3]=0, bin[2]=0⊕0=0, bin[1]=0⊕1=1, bin[0]=1⊕0=1 |
-
-## Advanced implementations
-
-### 1. Parameterized Converter with Validation
 ```systemverilog
 module bin2gray_validated #(
     parameter int WIDTH = 4,
@@ -530,7 +538,8 @@ module bin2gray_validated #(
 endmodule
 ```
 
-### 2. Pipelined Converter for High Speed
+### Advanced variant: pipelined converter for high speed
+
 ```systemverilog
 module bin2gray_pipelined #(
     parameter int WIDTH = 32,
@@ -588,7 +597,8 @@ module bin2gray_pipelined #(
 endmodule
 ```
 
-### 3. Bidirectional Converter
+### Advanced variant: bidirectional converter
+
 ```systemverilog
 module bidirectional_gray_converter #(
     parameter int WIDTH = 8
@@ -616,6 +626,103 @@ module bidirectional_gray_converter #(
 
 endmodule
 ```
+
+### Registering the output for critical paths
+
+If this block ever lands on a critical path -- it shouldn't, but designs surprise
+you -- register the output:
+
+```systemverilog
+// For critical timing paths, add pipeline register
+module bin2gray_registered #(
+    parameter int WIDTH = 16
+) (
+    input  logic             clk,
+    input  logic             rst_n,
+    input  logic [WIDTH-1:0] binary,
+    output logic [WIDTH-1:0] gray
+);
+
+    logic [WIDTH-1:0] gray_comb;
+    
+    // Combinational conversion
+    bin2gray #(.WIDTH(WIDTH)) conv (
+        .binary(binary),
+        .gray(gray_comb)
+    );
+    
+    // Output register
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            gray <= 'b0;
+        else
+            gray <= gray_comb;
+    end
+
+endmodule
+```
+
+### Clock gating the registered version
+
+And if the block sits in a power-sensitive path, gate the clock of the
+registered version:
+
+```systemverilog
+// Clock gating for power savings
+module bin2gray_gated #(
+    parameter int WIDTH = 8
+) (
+    input  logic             clk,
+    input  logic             rst_n,
+    input  logic             enable,
+    input  logic [WIDTH-1:0] binary,
+    output logic [WIDTH-1:0] gray
+);
+
+    logic gated_clk;
+    
+    // Clock gate
+    clock_gate cg_inst (
+        .clk(clk),
+        .enable(enable),
+        .gated_clk(gated_clk)
+    );
+    
+    // Registered converter
+    bin2gray_registered #(.WIDTH(WIDTH)) conv (
+        .clk(gated_clk),
+        .rst_n(rst_n),
+        .binary(binary),
+        .gray(gray)
+    );
+
+endmodule
+```
+
+## Design Notes
+
+- **Always use Gray for async boundaries** -- it's the baseline tool for safe
+  asynchronous transfer of a multi-bit count.
+- **Timing is a non-issue**: purely combinational, no setup/hold concerns of
+  its own.
+- **Verify the single-bit property**: adjacent values must differ by exactly
+  one bit. Check it in simulation, not by eye.
+- **Plan for the trip back**: you usually need `gray2bin` on the other side.
+- **Check the width**: enough bits for the application range, no more.
+
+The binary-to-Gray converter is one of those fundamental building blocks --
+simple, combinational, dependable. For asynchronous interfaces and glitch-free
+operation it's close to indispensable. Respect the two rules from the multi-bit
+synchronizer example above -- register the Gray value in the source domain, and
+make sure it only ever increments by one -- and this module will never be the
+source of your bug.
+
+## Related Modules
+
+- **gray2bin**: performs the inverse conversion (Gray to binary)
+- **counter_bingray**: combined binary/Gray counter; what the FIFOs instantiate
+- **glitch_free_n_dff_arn** / **cdc_synchronizer**: multi-flop synchronizers that carry the registered Gray value across
+- **fifo_async** / **gaxi_fifo_async**: the primary users of this conversion
 
 ## Testing
 
@@ -786,112 +893,13 @@ endcovergroup
 
 ### Test files
 
-- `val/cdc/test_bin2gray.py` — functional verification
+- `val/cdc/test_bin2gray.py` -- functional verification
 
 ```bash
 pytest val/cdc/test_bin2gray.py -v
 ```
 
-## Synthesis and performance
-
-Typical FPGA resource usage, by width:
-
-| WIDTH | LUTs | Delay (ns) | Max Freq (MHz) |
-|-------|------|------------|----------------|
-| 4 | 3 | 0.2 | 800+ |
-| 8 | 7 | 0.2 | 800+ |
-| 16 | 15 | 0.3 | 600+ |
-| 32 | 31 | 0.4 | 500+ |
-
-: bin2gray resource usage by width (typical FPGA)
-
-If this block ever lands on a critical path — it shouldn't, but designs surprise
-you — register the output:
-
-```systemverilog
-// For critical timing paths, add pipeline register
-module bin2gray_registered #(
-    parameter int WIDTH = 16
-) (
-    input  logic             clk,
-    input  logic             rst_n,
-    input  logic [WIDTH-1:0] binary,
-    output logic [WIDTH-1:0] gray
-);
-
-    logic [WIDTH-1:0] gray_comb;
-    
-    // Combinational conversion
-    bin2gray #(.WIDTH(WIDTH)) conv (
-        .binary(binary),
-        .gray(gray_comb)
-    );
-    
-    // Output register
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            gray <= 'b0;
-        else
-            gray <= gray_comb;
-    end
-
-endmodule
-```
-
-And if the block sits in a power-sensitive path, gate the clock of the
-registered version:
-
-```systemverilog
-// Clock gating for power savings
-module bin2gray_gated #(
-    parameter int WIDTH = 8
-) (
-    input  logic             clk,
-    input  logic             rst_n,
-    input  logic             enable,
-    input  logic [WIDTH-1:0] binary,
-    output logic [WIDTH-1:0] gray
-);
-
-    logic gated_clk;
-    
-    // Clock gate
-    clock_gate cg_inst (
-        .clk(clk),
-        .enable(enable),
-        .gated_clk(gated_clk)
-    );
-    
-    // Registered converter
-    bin2gray_registered #(.WIDTH(WIDTH)) conv (
-        .clk(gated_clk),
-        .rst_n(rst_n),
-        .binary(binary),
-        .gray(gray)
-    );
-
-endmodule
-```
-
-## Design Notes
-
-- **Always use Gray for async boundaries** — it's the baseline tool for safe
-  asynchronous transfer of a multi-bit count.
-- **Timing is a non-issue**: purely combinational, no setup/hold concerns of
-  its own.
-- **Verify the single-bit property**: adjacent values must differ by exactly
-  one bit. Check it in simulation, not by eye.
-- **Plan for the trip back**: you usually need `gray2bin` on the other side.
-- **Check the width**: enough bits for the application range, no more.
-
-The binary-to-Gray converter is one of those fundamental building blocks —
-simple, combinational, dependable. For asynchronous interfaces and glitch-free
-operation it's close to indispensable. Respect the two rules from the multi-bit
-synchronizer example above — register the Gray value in the source domain, and
-make sure it only ever increments by one — and this module will never be the
-source of your bug.
-
 ## Navigation
 
-- **[← Back to CDC Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [← Back to CDC Index](index.md)
+- [← Back to Main Documentation Index](../index.md)

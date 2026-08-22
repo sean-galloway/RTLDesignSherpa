@@ -38,8 +38,6 @@ What you get:
 - **Arbitrary clock ratios:** works with any write:read clock ratio
 - **Two read modes:** mux or flop mode
 
-## Module Declaration
-
 ```systemverilog
 module gaxi_fifo_async #(
     parameter fifo_mem_t MEM_STYLE        = FIFO_AUTO,  // FIFO_AUTO / FIFO_SRL / FIFO_BRAM
@@ -134,7 +132,7 @@ This prevents glitches during synchronization across clock domains.
 - `counter_bingray.sv` / `gray2bin.sv` - Gray pointer path (combinational decode), used when `USE_JOHNSON=0`
 - `fifo_control.sv` - Full/empty flag generation
 
-## Implementation
+### Implementation
 
 ```mermaid
 flowchart TB
@@ -177,7 +175,20 @@ Each domain keeps its own binary pointer for arithmetic, converts it to Gray
 for the crossing, and decodes the synchronized remote pointer for flag
 generation.
 
-## Usage Examples
+## Timing
+
+| Clock Ratio (wr:rd) | Latency | Notes |
+|---------------------|---------|-------|
+| 1:1 (same freq) | 3-5 cycles | CDC synchronization overhead |
+| 2:1 (fast→slow) | 4-6 cycles | Additional write-side delay |
+| 1:2 (slow→fast) | 3-5 cycles | Read-side samples faster |
+| Any ratio | 3-7 cycles | Depends on synchronizer stages + clock relationship |
+
+: gaxi_fifo_async latency by clock ratio
+
+**Latency formula:** `~(2 × N_FLOP_CROSS) + 1` in slower clock domain cycles.
+
+## Usage Example
 
 ### Example 1: basic CDC FIFO
 
@@ -228,19 +239,6 @@ gaxi_fifo_async #(
     .rd_data        (slow_data)
 );
 ```
-
-## Timing Characteristics
-
-| Clock Ratio (wr:rd) | Latency | Notes |
-|---------------------|---------|-------|
-| 1:1 (same freq) | 3-5 cycles | CDC synchronization overhead |
-| 2:1 (fast→slow) | 4-6 cycles | Additional write-side delay |
-| 1:2 (slow→fast) | 3-5 cycles | Read-side samples faster |
-| Any ratio | 3-7 cycles | Depends on synchronizer stages + clock relationship |
-
-: gaxi_fifo_async latency by clock ratio
-
-**Latency formula:** `~(2 × N_FLOP_CROSS) + 1` in slower clock domain cycles.
 
 ## Design Notes
 
@@ -299,7 +297,7 @@ owns the discussion.
 
 **Recommendation:** always use `N_FLOP_CROSS=3` in production.
 
-## Error checking
+### Error checking
 
 The RTL contains **no** assertions and no runtime `$display` checks. What is
 there is a single empty read-domain block:
@@ -315,33 +313,29 @@ There is no write-domain equivalent. Overflow is prevented structurally by the
 If you need overflow/underflow telemetry in simulation, add it in the testbench.
 `fifo_async.md` states the same for its module.
 
-## Common mistakes
+### Common mistakes
 
-### 1. Metastability
+**1. Metastability.** Symptom: random data corruption, simulation/hardware
+mismatch. Fix: increase `N_FLOP_CROSS` to 3 or 4.
 
-**Symptom:** random data corruption, simulation/hardware mismatch.
-
-**Fix:** increase `N_FLOP_CROSS` to 3 or 4.
-
-### 2. Pointer synchronization failure
-
-**Symptom:** FIFO full/empty signals incorrect.
-
-**Debug:**
+**2. Pointer synchronization failure.** Symptom: FIFO full/empty signals
+incorrect. Debug:
 
 1. Verify the clocks are truly independent (no PLL relationship violations)
-2. Check reset synchronization — both domains must reset properly
+2. Check reset synchronization -- both domains must reset properly
 3. Verify the Gray code conversion logic
 
-### 3. Underflow/overflow
-
-**Symptom:** data loss or corruption.
-
-**Debug:**
+**3. Underflow/overflow.** Symptom: data loss or corruption. Debug:
 
 1. Check `DEPTH` is sufficient for the clock ratio
 2. Verify flow control is respected in both domains
 3. Monitor pointer values in both domains
+
+## Related Modules
+
+- [gaxi_fifo_sync](../rtl-amba/gaxi/gaxi_fifo_sync.md) - Single clock domain version
+- [gaxi_skid_buffer_async](gaxi_skid_buffer_async.md) - Async skid buffer
+- [GAXI Index](index.md) - Overview
 
 ## Testing
 
@@ -360,12 +354,6 @@ The test matrix covers:
 - 2x ratio (10ns : 20ns)
 - 2.5x ratio (8ns : 20ns)
 
-## Related Modules
-
-- [gaxi_fifo_sync](../rtl-amba/gaxi/gaxi_fifo_sync.md) - Single clock domain version
-- [gaxi_skid_buffer_async](gaxi_skid_buffer_async.md) - Async skid buffer
-- [GAXI Index](index.md) - Overview
-
 ## References
 
 - **Clifford Cummings:** "Simulation and Synthesis Techniques for Asynchronous FIFO Design" (Sunburst Design)
@@ -374,8 +362,8 @@ The test matrix covers:
 
 ## Navigation
 
-- **[← Back to CDC Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [← Back to CDC Index](index.md)
+- [← Back to Main Documentation Index](../index.md)
 
 ---
 

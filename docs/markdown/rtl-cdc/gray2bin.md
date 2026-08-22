@@ -27,7 +27,7 @@
 
 `gray2bin` converts Gray code (reflected binary code) back to standard binary
 using XOR reduction. When a Gray pointer crosses into a domain that needs to do
-arithmetic on it, this is the module that turns it back into a number —
+arithmetic on it, this is the module that turns it back into a number --
 asynchronous FIFO pointer comparison is the classic case, and it shows up in
 plenty of other CDC paths too.
 
@@ -102,9 +102,9 @@ assign binary[1] = gray[3] ^ gray[2] ^ gray[1];       // XOR from MSB down
 assign binary[0] = gray[3] ^ gray[2] ^ gray[1] ^ gray[0]; // XOR all bits
 ```
 
-## Functional examples
+### Worked conversions
 
-### 4-Bit Conversion Table
+#### 4-Bit Conversion Table
 | Gray[3:0] | Binary[3:0] | Calculation |
 |-----------|-------------|-------------|
 | 0000      | 0000        | 0⊕0⊕0⊕0=0, 0⊕0⊕0=0, 0⊕0=0, 0=0 |
@@ -116,7 +116,7 @@ assign binary[0] = gray[3] ^ gray[2] ^ gray[1] ^ gray[0]; // XOR all bits
 | 0101      | 0110        | 0⊕1⊕0⊕1=0, 0⊕1⊕0=1, 0⊕1=1, 0=0 |
 | 0100      | 0111        | 0⊕1⊕0⊕0=1, 0⊕1⊕0=1, 0⊕1=1, 0=0 |
 
-### Step-by-Step Example (Gray 0110 → Binary)
+#### Step-by-Step Example (Gray 0110 → Binary)
 ```
 Gray input: 0110
 
@@ -128,7 +128,7 @@ binary[0] = gray[3] ^ gray[2] ^ gray[1] ^ gray[0] = 0 ^ 1 ^ 1 ^ 0 = 0
 Result: binary = 0100 (decimal 4)
 ```
 
-## Implementation
+### Implementation
 
 The whole module is one line per bit:
 
@@ -136,14 +136,14 @@ The whole module is one line per bit:
 assign binary[i] = ^(gray >> i);
 ```
 
-Read it as: shift `gray` right by `i`, then XOR-reduce whatever is left — which
+Read it as: shift `gray` right by `i`, then XOR-reduce whatever is left -- which
 XORs together every bit from position `i` to the MSB. The generate loop makes
 it work for any WIDTH, synthesis tools recognize the pattern and optimize it,
 all bits compute in parallel, and the result maps onto XOR tree structures.
 
-## Timing Characteristics
+## Timing
 
-The delay is an XOR tree of depth `log2(WIDTH)` — typically 1-2 LUT delays for
+The delay is an XOR tree of depth `log2(WIDTH)` -- typically 1-2 LUT delays for
 most widths, with the critical path running from the MSB input to the LSB
 output.
 
@@ -159,7 +159,7 @@ output.
 Modern synthesis tools need no help here: they recognize the XOR-reduction
 pattern, build balanced trees, and share XOR gates where possible.
 
-## Usage Examples
+## Usage Example
 
 ### Asynchronous FIFO pointers
 
@@ -211,7 +211,7 @@ prefixes, so realised area lands between linear and quadratic; do not budget it
 as linear for wide converters. Delay grows with log(WIDTH), and the module
 works well up to 64+ bits.
 
-**Input validation.** Gray codes have no invalid states — every input decodes
+**Input validation.** Gray codes have no invalid states -- every input decodes
 to something. If you want to gate on the *source* of the Gray code instead:
 
 ```systemverilog
@@ -239,6 +239,54 @@ always_ff @(posedge clk) begin
     end
 end
 ```
+
+### Common mistakes
+
+**Bit order confusion.** The shift direction matters:
+
+```systemverilog
+// WRONG: Bit order matters in Gray codes
+assign binary[i] = ^(gray << i);  // Left shift instead of right
+
+// CORRECT:
+assign binary[i] = ^(gray >> i);  // Right shift
+```
+
+**Width mismatches.** Match the parameter to the actual bus width:
+
+```systemverilog
+// WRONG: Input/output width mismatch
+gray2bin #(.WIDTH(4)) converter (
+    .gray(gray_5bit),     // 5-bit input
+    .binary(binary_4bit)  // 4-bit output
+);
+
+// CORRECT: Match widths
+gray2bin #(.WIDTH(5)) converter (
+    .gray(gray_5bit),
+    .binary(binary_5bit)
+);
+```
+
+**Timing assumptions.** The output is combinational, not instantaneous:
+
+```systemverilog
+// WRONG: Assuming zero delay
+gray_in <= new_value;
+binary_out <= converted_value;  // May not be updated yet
+
+// CORRECT: Account for combinational delay
+gray_in <= new_value;
+#1;  // Wait for conversion
+binary_out <= converted_value;
+```
+
+## Related Modules
+
+- **bin2gray**: Performs inverse conversion (binary to Gray)
+- **counter_bingray**: Combined binary/Gray counter
+- **fifo_async**: Uses Gray codes for CDC
+- **johnson2bin**: Johnson counter to binary converter (different algorithm)
 
 ## Testing
 
@@ -300,58 +348,13 @@ end
 
 ### Test files
 
-- `val/cdc/test_gray2bin.py` — functional verification
+- `val/cdc/test_gray2bin.py` -- functional verification
 
 ```bash
 pytest val/cdc/test_gray2bin.py -v
 ```
 
-## Common mistakes
-
-### Bit Order Confusion
-```systemverilog
-// WRONG: Bit order matters in Gray codes
-assign binary[i] = ^(gray << i);  // Left shift instead of right
-
-// CORRECT:
-assign binary[i] = ^(gray >> i);  // Right shift
-```
-
-### Width Mismatches
-```systemverilog
-// WRONG: Input/output width mismatch
-gray2bin #(.WIDTH(4)) converter (
-    .gray(gray_5bit),     // 5-bit input
-    .binary(binary_4bit)  // 4-bit output
-);
-
-// CORRECT: Match widths
-gray2bin #(.WIDTH(5)) converter (
-    .gray(gray_5bit),
-    .binary(binary_5bit)
-);
-```
-
-### Timing Assumptions
-```systemverilog
-// WRONG: Assuming zero delay
-gray_in <= new_value;
-binary_out <= converted_value;  // May not be updated yet
-
-// CORRECT: Account for combinational delay
-gray_in <= new_value;
-#1;  // Wait for conversion
-binary_out <= converted_value;
-```
-
-## Related Modules
-
-- **bin2gray**: Performs inverse conversion (binary to Gray)
-- **counter_bingray**: Combined binary/Gray counter
-- **fifo_async**: Uses Gray codes for CDC
-- **johnson2bin**: Johnson counter to binary converter (different algorithm)
-
 ## Navigation
 
-- **[← Back to CDC Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [← Back to CDC Index](index.md)
+- [← Back to Main Documentation Index](../index.md)

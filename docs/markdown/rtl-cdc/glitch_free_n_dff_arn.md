@@ -21,17 +21,18 @@
 
 <!-- End Header -->
 
-# glitch_free_n_dff_arn (`glitch_free_n_dff_arn.sv`)
+# glitch_free_n_dff_arn
 
-## Purpose
+## Overview
+
 This is the synchronizer the rest of the CDC toolbox is built on: a parameterized multi-stage flip-flop chain for safe clock domain crossing (CDC). You set the stage count and the width; the configurable flip-flop stages knock down metastability risk while your data makes the jump between asynchronous clock domains intact.
 
 ## Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `int FLOP_COUNT` | 3 | Number of synchronizer flip-flop stages |
-| `int WIDTH` | 4 | Data width in bits |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `FLOP_COUNT` | `int` | 3 | Number of synchronizer flip-flop stages |
+| `WIDTH` | `int` | 4 | Data width in bits |
 
 ## Ports
 
@@ -42,9 +43,9 @@ This is the synchronizer the rest of the CDC toolbox is built on: a parameterize
 | `d` | Input | WIDTH | Input data from source clock domain |
 | `q` | Output | WIDTH | Synchronized output data in destination domain |
 
-## Clock Domain Crossing Theory
+## Functional Description
 
-### Metastability Problem
+### The Metastability Problem
 
 When signals cross between asynchronous clock domains:
 
@@ -55,16 +56,14 @@ Dest Clock       ___|‾|__|‾|__|‾|__|‾|_
 Setup Violation?      ↑ Potential metastability
 ```
 
-### Metastability Effects
+Metastability effects:
 
 - **Undefined output**: Neither 0 nor 1, but an intermediate voltage
 - **Extended resolution**: Takes longer than a normal clock period to settle
 - **Propagation**: Can corrupt downstream logic
 - **System failure**: Can take the entire design down
 
-## Multi-Stage Synchronizer Solution
-
-### Architecture Overview
+### Multi-Stage Synchronizer Solution
 
 ```mermaid
 flowchart LR
@@ -82,15 +81,13 @@ flowchart LR
     end
 ```
 
-### Stage-by-Stage Analysis
+Stage by stage:
 
 1. **Stage 1 (FF1)**: Captures the source data — this is the one that may go metastable
 2. **Stage 2 (FF2)**: Gives metastability time to resolve, low probability of propagation
 3. **Stage 3+ (FFN)**: Further **increases** MTBF (Mean Time Between Failures) —
    each added stage gives metastability more time to resolve (see the ~1000×-per-
    stage table below)
-
-## Functional Description
 
 ### Packed Array Structure
 
@@ -128,9 +125,9 @@ end
 - **Complete reset**: All stages reset to zero
 - **Nested replication**: `{FC{{DW{1'b0}}}}` creates FC copies of DW zeros
 
-## MTBF (Mean Time Between Failures) Analysis
+### MTBF (Mean Time Between Failures) Analysis
 
-### MTBF Calculation
+The MTBF calculation:
 
 ```
 MTBF = (e^(t_res/τ)) / (T₀ × f_clk × f_data)
@@ -152,7 +149,7 @@ The stage-count table below is a **rule of thumb** for relative improvement, not
 a result derived from this formula. Use the formula only with real `τ`/`T₀`
 values for your target device; otherwise rely on the table for sizing.
 
-### Stage Count Impact
+Stage count impact:
 
 | Stages | Relative MTBF |
 |--------|---------------|
@@ -173,13 +170,13 @@ module. If you need one, put your vendor's `tau` and `T0` into the formula above
 with your real `f_clk` and `f_data`. If you do not have those numbers, use the
 relative column for sizing and do not quote an absolute figure to anyone.
 
-### Practical Guidelines
+Practical guidelines:
 
 - **2 stages**: Minimum for most applications
 - **3 stages**: Recommended for high-reliability systems  
 - **4+ stages**: Extreme reliability requirements (aerospace, medical)
 
-## Latency vs. Reliability Trade-off
+## Timing
 
 ### Synchronizer Latency
 
@@ -200,40 +197,7 @@ glitch_free_n_dff_arn #(.FLOP_COUNT(3)) safe_sync (...);
 glitch_free_n_dff_arn #(.FLOP_COUNT(4)) ultra_safe_sync (...);
 ```
 
-## Usage Guidelines
-
-### Appropriate Use Cases
-
-- **Control signals**: Reset, enable, mode switches
-- **Slow status signals**: Error flags, configuration bits
-- **Gray code pointers**: FIFO read/write pointers
-- **Single-bit signals**: Generally safe for multi-bit if Gray coded
-
-### Inappropriate Use Cases
-
-- **High-speed data buses**: Use proper CDC techniques (handshaking, FIFOs)
-- **Binary counters**: Multiple bits can transition simultaneously
-- **Address buses**: Binary addresses are not CDC-safe
-- **Clock signals**: Never synchronize clocks this way
-
-### Multi-Bit Considerations
-
-```systemverilog
-// SAFE: Gray-coded FIFO pointers
-glitch_free_n_dff_arn #(.WIDTH(5)) gray_sync (
-    .d(gray_pointer),      // Gray code - only 1 bit changes
-    .q(sync_gray_pointer)
-);
-
-// UNSAFE: Binary counter synchronization
-// Don't do this - multiple bits can change simultaneously
-glitch_free_n_dff_arn #(.WIDTH(8)) bad_sync (
-    .d(binary_counter),    // Binary - multiple bit transitions
-    .q(sync_counter)       // May capture inconsistent values
-);
-```
-
-## Advanced Applications
+## Usage Example
 
 ### Reset Synchronizer Pattern
 
@@ -273,15 +237,48 @@ glitch_free_n_dff_arn #(.FLOP_COUNT(2), .WIDTH(4)) status_sync (
 );
 ```
 
-## Synthesis Considerations
+## Design Notes
 
-### FPGA Implementation
+### Appropriate Use Cases
+
+- **Control signals**: Reset, enable, mode switches
+- **Slow status signals**: Error flags, configuration bits
+- **Gray code pointers**: FIFO read/write pointers
+- **Single-bit signals**: Generally safe for multi-bit if Gray coded
+
+### Inappropriate Use Cases
+
+- **High-speed data buses**: Use proper CDC techniques (handshaking, FIFOs)
+- **Binary counters**: Multiple bits can transition simultaneously
+- **Address buses**: Binary addresses are not CDC-safe
+- **Clock signals**: Never synchronize clocks this way
+
+### Multi-Bit Considerations
+
+```systemverilog
+// SAFE: Gray-coded FIFO pointers
+glitch_free_n_dff_arn #(.WIDTH(5)) gray_sync (
+    .d(gray_pointer),      // Gray code - only 1 bit changes
+    .q(sync_gray_pointer)
+);
+
+// UNSAFE: Binary counter synchronization
+// Don't do this - multiple bits can change simultaneously
+glitch_free_n_dff_arn #(.WIDTH(8)) bad_sync (
+    .d(binary_counter),    // Binary - multiple bit transitions
+    .q(sync_counter)       // May capture inconsistent values
+);
+```
+
+### Synthesis Considerations
+
+On FPGA:
 
 - **Dedicated resources**: Maps to flip-flop primitives
 - **Placement**: Tools may place stages in different locations
 - **Timing constraints**: Require proper CDC constraints
 
-### Timing Constraints
+Timing constraints:
 
 ```tcl
 # Constrain the synchronizer input as asynchronous
@@ -291,7 +288,7 @@ set_false_path -to [get_pins sync_inst/r_q_array[0]/D]
 set_max_delay -to [get_pins sync_inst/r_q_array[0]/D] 2.0
 ```
 
-### Optimization Prevention
+Optimization prevention:
 
 ```systemverilog
 // Synthesis attributes to prevent optimization (one declaration, both attributes --
@@ -299,36 +296,9 @@ set_max_delay -to [get_pins sync_inst/r_q_array[0]/D] 2.0
 (* ASYNC_REG = "TRUE", DONT_TOUCH = "TRUE" *) logic [FC-1:0][WIDTH-1:0] r_q_array;
 ```
 
-## Verification Strategies
+### Debug Features
 
-### Functional Verification
-
-- **Data integrity**: Verify output eventually matches input
-- **Reset behavior**: Check proper reset operation
-- **Latency verification**: Confirm expected delay
-
-### Metastability Testing
-
-```systemverilog
-// Stress test with rapid data changes
-initial begin
-    forever begin
-        @(posedge source_clk);
-        d <= $random();
-        #($random() % 100);  // Random timing
-    end
-end
-```
-
-### Formal Verification
-
-- **Eventually properties**: Data will eventually propagate
-- **Reset properties**: Reset behavior verification
-- **No X propagation**: Ensure no unknown values propagate
-
-## Debug Features
-
-### Waveform Analysis
+Flatten the array for waveform viewing:
 
 ```systemverilog
 // Flatten array for waveform viewing
@@ -341,13 +311,49 @@ generate
 endgenerate
 ```
 
-### Simulation Visibility
+Simulation visibility:
 
 - **All stages visible**: Can observe data propagation through stages
 - **Metastability injection**: Can inject X values for testing
 - **Timing analysis**: Observe setup/hold violations
 
+## Related Modules
+
+- **FIFO CDC modules**: Use this for pointer synchronization
+- **Reset synchronizers**: Specialized CDC for reset signals
+- **Handshake synchronizers**: For complex data CDC
+- **Pulse synchronizers**: For single-cycle pulse CDC
+
 ## Testing
+
+### Verification Strategies
+
+Functional verification:
+
+- **Data integrity**: Verify output eventually matches input
+- **Reset behavior**: Check proper reset operation
+- **Latency verification**: Confirm expected delay
+
+Metastability testing:
+
+```systemverilog
+// Stress test with rapid data changes
+initial begin
+    forever begin
+        @(posedge source_clk);
+        d <= $random();
+        #($random() % 100);  // Random timing
+    end
+end
+```
+
+Formal verification:
+
+- **Eventually properties**: Data will eventually propagate
+- **Reset properties**: Reset behavior verification
+- **No X propagation**: Ensure no unknown values propagate
+
+### Test Suite
 
 From the test suite (`val/cdc/test_glitch_free_n_dff_arn.py`):
 
@@ -361,13 +367,6 @@ From the test suite (`val/cdc/test_glitch_free_n_dff_arn.py`):
 Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/cdc run-all-func-parallel`, never bare pytest for suites.
-
-## Related Modules
-
-- **FIFO CDC modules**: Use this for pointer synchronization
-- **Reset synchronizers**: Specialized CDC for reset signals
-- **Handshake synchronizers**: For complex data CDC
-- **Pulse synchronizers**: For single-cycle pulse CDC
 
 ## Navigation
 

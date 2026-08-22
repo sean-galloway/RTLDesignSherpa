@@ -26,7 +26,7 @@
 ## Overview
 
 An asynchronous FIFO for crossing data safely between different clock domains.
-**Restricted to power-of-2 depths only** — that restriction comes from the Gray
+**Restricted to power-of-2 depths only** -- that restriction comes from the Gray
 code pointer implementation, and `USE_JOHNSON=1` is the supported way around
 it.
 
@@ -64,7 +64,7 @@ it.
 
 : fifo_async ports
 
-## Implementation
+## Functional Description
 
 ### Clock domain crossing strategy
 
@@ -111,7 +111,7 @@ counter_bingray #(.WIDTH(AW + 1)) wr_ptr_counter_gray (
 ```
 
 Pointer width: `AW = $clog2(DEPTH)` address bits, plus one extra bit for wrap
-detection — so DEPTH=16 gives AW=4 and a 5-bit pointer.
+detection -- so DEPTH=16 gives AW=4 and a 5-bit pointer.
 
 ### Clock domain crossing
 
@@ -129,7 +129,7 @@ glitch_free_n_dff_arn #(
 ```
 
 The default is 2 flip-flops per crossing (`N_FLOP_CROSS=2`). Each additional
-stage improves MTBF at the cost of latency — the classic trade.
+stage improves MTBF at the cost of latency -- the classic trade.
 
 ### Memory organization
 
@@ -190,10 +190,10 @@ FIFO non-empty shows up at the reader one `rd_clk` later).
 
 The algorithm in words: **full** is MSBs differ AND LSBs equal (the write
 pointer has wrapped and caught the read pointer); **empty** is all bits equal
-(pointers at the same location). The MSB is the wrap bit — it records which
+(pointers at the same location). The MSB is the wrap bit -- it records which
 pointer has lapped.
 
-## The power-of-2 requirement
+### The power-of-2 requirement
 
 Why power-of-2 only, with Gray pointers:
 
@@ -207,7 +207,7 @@ Why power-of-2 only, with Gray pointers:
 // Invalid depths: 3, 5, 6, 7, 9, 10, 12, 15, ...
 ```
 
-## Timing considerations
+## Timing
 
 - **Pointer propagation**: 2-3 clock cycles (depending on `N_FLOP_CROSS`)
 - **Status flag delay**: flags reflect state with synchronizer latency
@@ -216,63 +216,17 @@ Why power-of-2 only, with Gray pointers:
 Metastability protection comes from the usual pair: Gray code transitions
 (single bit changes only) and multi-stage synchronization, which reduces
 metastability failure probability exponentially (raises MTBF). Proper timing
-constraints on the crossing paths are essential — see the SDC section of the
+constraints on the crossing paths are essential -- see the SDC section of the
 [CDC reference](cdc.md).
 
-## Usage Examples
-
-Typical applications:
-
-- **Video processing**: different pixel and memory clock domains
-- **Networking**: packet buffers between different rate domains
-- **Audio systems**: sample rate conversion buffers
-- **Microprocessor interfaces**: CPU and peripheral clock domains
-
-When to use what:
-
-- **Async FIFO** when the clock domains are truly independent
-- **Sync FIFO** when a single clock domain is sufficient
-- **Non-power-of-2 depth**: use `fifo_async #(.USE_JOHNSON(1))` — the
-  standalone `fifo_async_div2` module was retired
-
-## Design Notes
-
-### Depth sizing
-
-```systemverilog
-// Calculate minimum depth for burst handling
-// DEPTH ≥ burst_size + synchronizer_latency + margin
-parameter int MIN_DEPTH = 16;  // Typical minimum for async FIFOs
-```
-
-### Clock relationship
-
-- **Asynchronous clocks**: no phase relationship assumed
-- **Clock gating**: avoid gating clocks used by the FIFO
-- **Reset deassertion**: ensure proper reset release sequencing
-
-### Almost full/empty settings
-
-- **Almost full**: `DEPTH - ALMOST_WR_MARGIN`
-- **Almost empty**: `ALMOST_RD_MARGIN`
-- **Guideline**: set margins > synchronizer latency
-
-## Synthesis and performance
+Throughput and latency at a glance:
 
 - **Throughput**: up to 1 operation per clock per domain
 - **Latency**: 0-1 cycles (depending on REGISTERED mode)
 - **CDC latency**: 2-3 cycles for status propagation
 - **Efficiency**: ~100% utilization possible
 
-## Error checking
-
-The current RTL has **no** runtime `$display` overflow/underflow checks. The
-`!wr_full` write guard is the only overflow protection. The one
-elaboration-time check that does exist is an `$error` for a non-power-of-2
-`DEPTH` when Gray pointers are selected (`USE_JOHNSON=0`). Add assertions in
-your testbench if you need overflow telemetry.
-
-## WaveDrom visualization
+## Waveforms
 
 **WaveDrom timing diagrams of the Gray code CDC mechanism are available.**
 
@@ -314,10 +268,63 @@ pytest val/cdc/test_fifo_async_wavedrom.py -v
 
 - `test_fifo_sync_wavedrom.py` - Synchronous FIFO (single clock, no CDC)
 
+## Usage Example
+
+Typical applications:
+
+- **Video processing**: different pixel and memory clock domains
+- **Networking**: packet buffers between different rate domains
+- **Audio systems**: sample rate conversion buffers
+- **Microprocessor interfaces**: CPU and peripheral clock domains
+
+When to use what:
+
+- **Async FIFO** when the clock domains are truly independent
+- **Sync FIFO** when a single clock domain is sufficient
+- **Non-power-of-2 depth**: use `fifo_async #(.USE_JOHNSON(1))` -- the
+  standalone `fifo_async_div2` module was retired
+
+## Design Notes
+
+### Depth sizing
+
+```systemverilog
+// Calculate minimum depth for burst handling
+// DEPTH ≥ burst_size + synchronizer_latency + margin
+parameter int MIN_DEPTH = 16;  // Typical minimum for async FIFOs
+```
+
+### Clock relationship
+
+- **Asynchronous clocks**: no phase relationship assumed
+- **Clock gating**: avoid gating clocks used by the FIFO
+- **Reset deassertion**: ensure proper reset release sequencing
+
+### Almost full/empty settings
+
+- **Almost full**: `DEPTH - ALMOST_WR_MARGIN`
+- **Almost empty**: `ALMOST_RD_MARGIN`
+- **Guideline**: set margins > synchronizer latency
+
+### Error checking
+
+The current RTL has **no** runtime `$display` overflow/underflow checks. The
+`!wr_full` write guard is the only overflow protection. The one
+elaboration-time check that does exist is an `$error` for a non-power-of-2
+`DEPTH` when Gray pointers are selected (`USE_JOHNSON=0`). Add assertions in
+your testbench if you need overflow telemetry.
+
+## Related Modules
+
+- **USE_JOHNSON=1**: for non-power-of-2 depths, using Johnson counters (replaces the retired fifo_async_div2)
+- **fifo_sync**: for single clock domain applications
+- **counter_bingray**: binary-Gray counter implementation
+- **glitch_free_n_dff_arn**: multi-stage synchronizer
+
 ## Testing
 
-- `val/cdc/test_fifo_buffer_async.py` — full functional verification
-- `val/cdc/test_fifo_async_wavedrom.py` — WaveDrom timing diagrams
+- `val/cdc/test_fifo_buffer_async.py` -- full functional verification
+- `val/cdc/test_fifo_async_wavedrom.py` -- WaveDrom timing diagrams
 
 ```bash
 # Full functional test (basic/medium/full levels)
@@ -327,14 +334,7 @@ pytest val/cdc/test_fifo_buffer_async.py -v
 pytest val/cdc/test_fifo_async_wavedrom.py -v
 ```
 
-## Related Modules
-
-- **USE_JOHNSON=1**: for non-power-of-2 depths, using Johnson counters (replaces the retired fifo_async_div2)
-- **fifo_sync**: for single clock domain applications
-- **counter_bingray**: binary-Gray counter implementation
-- **glitch_free_n_dff_arn**: multi-stage synchronizer
-
 ## Navigation
 
-- **[← Back to CDC Index](index.md)**
-- **[← Back to Main Documentation Index](../index.md)**
+- [← Back to CDC Index](index.md)
+- [← Back to Main Documentation Index](../index.md)

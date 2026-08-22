@@ -21,16 +21,16 @@
 
 <!-- End Header -->
 
-# APB Slave with CDC (Clock-Gated)
+# apb4_slave_cdc_cg
 
 **Module:** `apb4_slave_cdc_cg.sv`
 **Base Module:** [apb4_slave_cdc](./apb4_slave_cdc.md)
 **Location:** `rtl/amba/apb4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
-## Quick Reference
+## Overview
 
 This is the **clock-gated variant** of [apb4_slave_cdc](./apb4_slave_cdc.md).
 
@@ -42,10 +42,6 @@ This is the **clock-gated variant** of [apb4_slave_cdc](./apb4_slave_cdc.md).
 Both live in the Shared book, which is published as a separate PDF. Take the
 parameter and port names for this module from the tables below, not from the
 generic guide.
-
----
-
-## Summary
 
 The `apb4_slave_cdc_cg` module adds power optimization to `apb4_slave_cdc` through
 activity-based clock gating. **Both clock domains are gated independently** — the
@@ -63,14 +59,14 @@ pointer copy is a live synchronizer, not a snapshot).
 While a domain is gated, that domain's `ready` outputs are forced low, so no
 handshake can complete against a stopped clock.
 
-- ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Dual-Domain Gating:** Separate gate cell per clock domain
-- ✅ **Runtime Control:** Gating is enabled and tuned by input signals, not parameters
-- ✅ **Bypassable:** Tie `cfg_cg_enable = 0` for behaviour identical to the base module
+- **Same Functionality:** 100% equivalent to base module
+- **Dual-Domain Gating:** Separate gate cell per clock domain
+- **Runtime Control:** Gating is enabled and tuned by input signals, not parameters
+- **Bypassable:** Tie `cfg_cg_enable = 0` for behaviour identical to the base module
 
 ---
 
-## Additional Parameters
+## Parameters
 
 In addition to all [apb4_slave_cdc](./apb4_slave_cdc.md) parameters:
 
@@ -82,18 +78,18 @@ In addition to all [apb4_slave_cdc](./apb4_slave_cdc.md) parameters:
 and ignored**. There is no `ENABLE_CLOCK_GATING` parameter and no per-domain
 `CG_GATE_*` parameters.
 
-## Additional Ports
+## Ports
 
 In addition to all [apb4_slave_cdc](./apb4_slave_cdc.md) ports:
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `cfg_cg_enable` | 1 | Input | Global clock-gate enable for both domains. 0 = never gate |
-| `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles to count down before gating |
-| `pclk_cg_gating` | 1 | Output | Asserted while the `pclk` domain is gated |
-| `pclk_cg_idle` | 1 | Output | Asserted one cycle after the `pclk`-domain activity terms go low. **Not an occupancy flag** — see below |
-| `aclk_cg_gating` | 1 | Output | Asserted while the `aclk` domain is gated |
-| `aclk_cg_idle` | 1 | Output | Asserted one cycle after the `aclk`-domain activity terms go low. **Not an occupancy flag** — see below |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `cfg_cg_enable` | Input | 1 | Global clock-gate enable for both domains. 0 = never gate |
+| `cfg_cg_idle_count` | Input | CG_IDLE_COUNT_WIDTH | Idle cycles to count down before gating |
+| `pclk_cg_gating` | Output | 1 | Asserted while the `pclk` domain is gated |
+| `pclk_cg_idle` | Output | 1 | Asserted one cycle after the `pclk`-domain activity terms go low. **Not an occupancy flag** — see below |
+| `aclk_cg_gating` | Output | 1 | Asserted while the `aclk` domain is gated |
+| `aclk_cg_idle` | Output | 1 | Asserted one cycle after the `aclk`-domain activity terms go low. **Not an occupancy flag** — see below |
 
 > **`*_cg_idle` does not know whether the FIFOs are empty.** `amba_clock_gate_ctrl`
 > has no occupancy input at all — its whole idle logic is
@@ -113,7 +109,7 @@ In addition to all [apb4_slave_cdc](./apb4_slave_cdc.md) ports:
 
 ---
 
-## Quick Usage
+## Usage Example
 
 ```systemverilog
 apb4_slave_cdc_cg #(
@@ -150,7 +146,7 @@ independently gated clocks make cross-domain timing very hard to read.
 
 ---
 
-## Documentation
+## Related Modules
 
 - **Base Module Functionality:** [apb4_slave_cdc.md](./apb4_slave_cdc.md)
 - **Clock Gating Guide:** [clock_gated_variants.md](../shared/clock_gated_variants.md)

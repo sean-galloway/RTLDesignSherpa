@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# APB5 Slave (CDC + Clock-Gated)
+# apb5_slave_cdc_cg
 
 **Module:** `apb5_slave_cdc_cg.sv`
 **Location:** `rtl/amba/apb5/`
@@ -35,47 +35,13 @@ The APB5 Slave CDC + Clock-Gated module combines clock domain crossing with cloc
 
 ### Key Features
 
-- ✅ Full APB5 protocol support with all extensions
-- ✅ Asynchronous clock domain crossing (APB to backend)
-- ✅ Clock gating for power reduction during idle
-- ✅ All APB5 user signals (PAUSER, PWUSER, PRUSER, PBUSER)
-- ✅ PWAKEUP signal handling across domains
-- ✅ Optional parity support for data integrity
-- ✅ Automatic wake-up on transaction activity
-
----
-
-## Architecture
-
-```mermaid
-flowchart TB
-    subgraph APB_CLK["APB Clock Domain (pclk)"]
-        cg_ctrl["Clock Gate<br/>Controller"]
-        apb_if["APB5<br/>Interface"]
-    end
-
-    subgraph GATED["Gated Clock Domain"]
-        cdc_core["apb5_slave_cdc<br/>(CDC Core)"]
-    end
-
-    subgraph USER_CLK["User Clock Domain (aclk)"]
-        cmd_if["Command<br/>Interface"]
-        rsp_if["Response<br/>Interface"]
-    end
-
-    pclk["pclk"] --> cg_ctrl
-    cg_ctrl -->|gated_pclk| cdc_core
-    aclk["aclk"] --> cdc_core
-
-    apb_if --> cdc_core
-    cdc_core --> cmd_if
-    rsp_if --> cdc_core
-    cdc_core --> apb_if
-
-    cfg_cg_enable --> cg_ctrl
-    apb_if -->|activity| cg_ctrl
-    cg_ctrl -->|apb_clock_gating| status
-```
+- Full APB5 protocol support with all extensions
+- Asynchronous clock domain crossing (APB to backend)
+- Clock gating for power reduction during idle
+- All APB5 user signals (PAUSER, PWUSER, PRUSER, PBUSER)
+- PWAKEUP signal handling across domains
+- Optional parity support for data integrity
+- Automatic wake-up on transaction activity
 
 ---
 
@@ -106,19 +72,19 @@ parameter: pointer synchronization is fixed at 2 flops inside the async FIFOs.
 
 ### Clock and Reset
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `pclk` | 1 | Input | APB bus clock |
-| `presetn` | 1 | Input | APB reset (active low) |
-| `aclk` | 1 | Input | User/backend clock |
-| `aresetn` | 1 | Input | User reset (active low) |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `pclk` | Input | 1 | APB bus clock |
+| `presetn` | Input | 1 | APB reset (active low) |
+| `aclk` | Input | 1 | User/backend clock |
+| `aresetn` | Input | 1 | User reset (active low) |
 
 ### Clock Gating Configuration
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `cfg_cg_enable` | 1 | Input | Enable clock gating |
-| `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `cfg_cg_enable` | Input | 1 | Enable clock gating |
+| `cfg_cg_idle_count` | Input | CG_IDLE_COUNT_WIDTH | Idle cycles before gating |
 
 ### APB5 Slave Interface
 
@@ -130,15 +96,47 @@ Same command/response interface as [apb5_slave_cdc](apb5_slave_cdc.md) - operate
 
 ### Status Outputs
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `apb_clock_gating` | 1 | Output | Indicates clock is currently gated |
-| `parity_error_wdata` | 1 | Output | Write data parity error detected |
-| `parity_error_ctrl` | 1 | Output | Control signal parity error |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `apb_clock_gating` | Output | 1 | Indicates clock is currently gated |
+| `parity_error_wdata` | Output | 1 | Write data parity error detected |
+| `parity_error_ctrl` | Output | 1 | Control signal parity error |
 
 ---
 
-## Clock Gating and CDC Interaction
+## Functional Description
+
+### Architecture
+
+```mermaid
+flowchart TB
+    subgraph APB_CLK["APB Clock Domain (pclk)"]
+        cg_ctrl["Clock Gate<br/>Controller"]
+        apb_if["APB5<br/>Interface"]
+    end
+
+    subgraph GATED["Gated Clock Domain"]
+        cdc_core["apb5_slave_cdc<br/>(CDC Core)"]
+    end
+
+    subgraph USER_CLK["User Clock Domain (aclk)"]
+        cmd_if["Command<br/>Interface"]
+        rsp_if["Response<br/>Interface"]
+    end
+
+    pclk["pclk"] --> cg_ctrl
+    cg_ctrl -->|gated_pclk| cdc_core
+    aclk["aclk"] --> cdc_core
+
+    apb_if --> cdc_core
+    cdc_core --> cmd_if
+    rsp_if --> cdc_core
+    cdc_core --> apb_if
+
+    cfg_cg_enable --> cg_ctrl
+    apb_if -->|activity| cg_ctrl
+    cg_ctrl -->|apb_clock_gating| status
+```
 
 ### Wake-up Logic
 
@@ -175,6 +173,10 @@ flowchart TD
 The `aclk`-domain activity terms are ORed together and passed through a two-flop
 synchronizer before being combined with the `pclk`-domain terms. Without that
 synchronizer, these signals would cross domains unsynchronized.
+
+---
+
+## Timing
 
 ### Timing Considerations
 
@@ -300,7 +302,7 @@ flowchart TB
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[APB5 Slave](apb5_slave.md)** - Base slave module
 - **[APB5 Slave CDC](apb5_slave_cdc.md)** - CDC variant without clock gating

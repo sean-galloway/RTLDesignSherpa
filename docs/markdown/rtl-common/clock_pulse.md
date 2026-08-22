@@ -21,13 +21,21 @@
 
 <!-- End Header -->
 
-# Clock Pulse Generator
+# clock_pulse
 
 ## Overview
 
 The `clock_pulse` module is a periodic pulse generator with a configurable period: it emits a single-cycle pulse every WIDTH clock cycles. It's the part you reach for whenever something in the system needs to happen on a schedule — timing generation, heartbeat signals, sampling triggers, periodic events of any kind.
 
-## Module Declaration
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `WIDTH` | `int` | `10` | Period of the pulse generation in clock cycles |
+
+`WIDTH` can range from 2 to 2^31-1. The parameter is declared `int`, which is 32-bit SIGNED, so 2^32-1 is not representable. It sets the pulse frequency (f_clk / WIDTH). The pulse itself is always exactly 1 clock cycle wide, which makes the duty cycle 1/WIDTH — 10% for WIDTH=10.
+
+## Ports
 
 ```systemverilog
 module clock_pulse #(
@@ -40,30 +48,13 @@ module clock_pulse #(
 );
 ```
 
-## Parameters
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `clk` | Input | 1 | System clock input |
+| `rst_n` | Input | 1 | Active-low asynchronous reset |
+| `pulse` | Output | 1 | Periodic pulse output |
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `WIDTH` | `int` | `10` | Period of the pulse generation in clock cycles |
-
-`WIDTH` can range from 2 to 2^31-1. The parameter is declared `int`, which is 32-bit SIGNED, so 2^32-1 is not representable. It sets the pulse frequency (f_clk / WIDTH). The pulse itself is always exactly 1 clock cycle wide, which makes the duty cycle 1/WIDTH — 10% for WIDTH=10.
-
-## Ports
-
-### Inputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| `clk` | 1 | System clock input |
-| `rst_n` | 1 | Active-low asynchronous reset |
-
-### Outputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| `pulse` | 1 | Periodic pulse output |
-
-## Architecture and Implementation
+## Functional Description
 
 ### Internal Counter
 
@@ -109,6 +100,8 @@ end
 
 That second point is the one people get wrong, so let's be blunt about it: the registered comparison means `pulse` never coincides with the terminal count. It lands one cycle later, on the wrapped-to-zero count. Every timing diagram below follows from that.
 
+## Timing
+
 ### Timing Characteristics
 
 - **Period**: WIDTH clock cycles
@@ -118,8 +111,6 @@ That second point is the one people get wrong, so let's be blunt about it: the r
 - **Phase**: Because the comparison is registered, `pulse` is high one cycle
   **after** `r_counter == WIDTH-1` — that is, during the `r_counter == 0` cycle
   of each period, not on the WIDTH-1 count itself.
-
-## Timing Diagrams
 
 ### Basic Operation (WIDTH=4)
 
@@ -162,7 +153,7 @@ Two things worth seeing here, both consequences of the pulse being registered
 | 100 | 100 cycles | 1% | Heartbeat |
 | 1000 | 1000 cycles | 0.1% | Slow events |
 
-## Usage Examples
+## Usage Example
 
 ### 1. Heartbeat and Status Indicators
 
@@ -525,9 +516,9 @@ module test_pattern_generator (
 endmodule
 ```
 
-## Advanced Variants
+### Advanced Variants
 
-### 1. Enable-Controlled Pulse Generator
+#### 1. Enable-Controlled Pulse Generator
 
 ```systemverilog
 module pulse_generator_with_enable #(
@@ -566,7 +557,7 @@ module pulse_generator_with_enable #(
 endmodule
 ```
 
-### 2. Variable Width Pulse Generator
+#### 2. Variable Width Pulse Generator
 
 ```systemverilog
 module variable_pulse_generator #(
@@ -617,7 +608,7 @@ module variable_pulse_generator #(
 endmodule
 ```
 
-### 3. Multi-Phase Pulse Generator
+#### 3. Multi-Phase Pulse Generator
 
 ```systemverilog
 module multi_phase_pulse_generator #(
@@ -672,7 +663,7 @@ module multi_phase_pulse_generator #(
 endmodule
 ```
 
-### 4. Burst Pulse Generator
+#### 4. Burst Pulse Generator
 
 ```systemverilog
 module burst_pulse_generator #(
@@ -762,7 +753,83 @@ module burst_pulse_generator #(
 endmodule
 ```
 
-## Verification
+## Design Notes
+
+### Resource Utilization
+
+| WIDTH | Counter Bits | LUTs | FFs | Max Freq |
+|-------|--------------|------|-----|----------|
+| 8 | 3 | 8 | 4 | 500MHz |
+| 16 | 4 | 12 | 5 | 450MHz |
+| 32 | 5 | 18 | 6 | 400MHz |
+| 1024 | 10 | 28 | 11 | 350MHz |
+
+### Synthesis Considerations
+
+For high-frequency applications, pipeline the comparison:
+
+```systemverilog
+// For high-frequency applications, pipeline the comparison (WIDTH >= 2).
+// IMPORTANT: because the registered compare_result ALSO gates the counter
+// wrap, it must be produced from the WIDTH-2 threshold, not WIDTH-1. Comparing
+// against WIDTH-1 here makes the counter sequence 0..WIDTH,0 and yields a
+// period of WIDTH+1, not WIDTH. With WIDTH-2 the period is exactly WIDTH and
+// the pulse still lands on the r_counter==0 cycle, matching the base module.
+module clock_pulse_pipelined #(
+    parameter int WIDTH = 1000
+) (
+    input  logic clk,
+    input  logic rst_n,
+    output logic pulse
+);
+
+    localparam int CW = (WIDTH < 2) ? 1 : $clog2(WIDTH);
+    logic [CW-1:0] r_counter;
+    logic          compare_result;
+
+    // Register the comparison one count early so the pipelined wrap keeps a
+    // WIDTH-cycle period.
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) compare_result <= 1'b0;
+        else        compare_result <= (r_counter == CW'(WIDTH - 2));
+    end
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            r_counter <= 'b0;
+            pulse     <= 1'b0;
+        end else begin
+            r_counter <= compare_result ? '0 : r_counter + 1'b1;
+            pulse     <= compare_result;
+        end
+    end
+
+endmodule
+```
+
+### Design Considerations
+
+1. **Choose Appropriate WIDTH**: Balance between resolution and resource usage
+2. **Consider Reset Timing**: Ensure clean startup behavior
+3. **Validate Timing**: Verify pulse frequency matches requirements
+4. **Plan for Variation**: Consider process, voltage, temperature effects
+5. **Monitor Resource Usage**: Large counters can impact timing and area
+6. **Use Enables**: Add enable signals for conditional operation
+7. **Document Timing**: Clearly specify pulse rates and relationships
+
+### Common Applications
+
+1. **Timing References**: System heartbeats, watchdog timers
+2. **Sampling Systems**: ADC triggers, data acquisition timing
+3. **Communication**: Baud rate generation, protocol timing
+4. **Memory Systems**: Refresh timing, access scheduling
+5. **Test Equipment**: Pattern generation, stimulus timing
+6. **Power Management**: Activity monitoring, timeout generation
+7. **Display Systems**: Refresh rates, sync generation
+
+That's the whole module. It's a small thing, but precise periodic timing shows up in nearly every design you'll ever ship — get this one right once, parameterize it well, and reuse it forever.
+
+## Testing
 
 ### Comprehensive Test Bench
 
@@ -1008,82 +1075,6 @@ module clock_pulse_properties;
 
 endmodule
 ```
-
-## Performance Characteristics
-
-### Resource Utilization
-
-| WIDTH | Counter Bits | LUTs | FFs | Max Freq |
-|-------|--------------|------|-----|----------|
-| 8 | 3 | 8 | 4 | 500MHz |
-| 16 | 4 | 12 | 5 | 450MHz |
-| 32 | 5 | 18 | 6 | 400MHz |
-| 1024 | 10 | 28 | 11 | 350MHz |
-
-## Synthesis Considerations
-
-### Timing Optimization
-
-```systemverilog
-// For high-frequency applications, pipeline the comparison (WIDTH >= 2).
-// IMPORTANT: because the registered compare_result ALSO gates the counter
-// wrap, it must be produced from the WIDTH-2 threshold, not WIDTH-1. Comparing
-// against WIDTH-1 here makes the counter sequence 0..WIDTH,0 and yields a
-// period of WIDTH+1, not WIDTH. With WIDTH-2 the period is exactly WIDTH and
-// the pulse still lands on the r_counter==0 cycle, matching the base module.
-module clock_pulse_pipelined #(
-    parameter int WIDTH = 1000
-) (
-    input  logic clk,
-    input  logic rst_n,
-    output logic pulse
-);
-
-    localparam int CW = (WIDTH < 2) ? 1 : $clog2(WIDTH);
-    logic [CW-1:0] r_counter;
-    logic          compare_result;
-
-    // Register the comparison one count early so the pipelined wrap keeps a
-    // WIDTH-cycle period.
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) compare_result <= 1'b0;
-        else        compare_result <= (r_counter == CW'(WIDTH - 2));
-    end
-
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            r_counter <= 'b0;
-            pulse     <= 1'b0;
-        end else begin
-            r_counter <= compare_result ? '0 : r_counter + 1'b1;
-            pulse     <= compare_result;
-        end
-    end
-
-endmodule
-```
-
-## Design Considerations
-
-1. **Choose Appropriate WIDTH**: Balance between resolution and resource usage
-2. **Consider Reset Timing**: Ensure clean startup behavior
-3. **Validate Timing**: Verify pulse frequency matches requirements
-4. **Plan for Variation**: Consider process, voltage, temperature effects
-5. **Monitor Resource Usage**: Large counters can impact timing and area
-6. **Use Enables**: Add enable signals for conditional operation
-7. **Document Timing**: Clearly specify pulse rates and relationships
-
-## Common Applications
-
-1. **Timing References**: System heartbeats, watchdog timers
-2. **Sampling Systems**: ADC triggers, data acquisition timing
-3. **Communication**: Baud rate generation, protocol timing
-4. **Memory Systems**: Refresh timing, access scheduling
-5. **Test Equipment**: Pattern generation, stimulus timing
-6. **Power Management**: Activity monitoring, timeout generation
-7. **Display Systems**: Refresh rates, sync generation
-
-That's the whole module. It's a small thing, but precise periodic timing shows up in nearly every design you'll ever ship — get this one right once, parameterize it well, and reuse it forever.
 
 ## Navigation
 

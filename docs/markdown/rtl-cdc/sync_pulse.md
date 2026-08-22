@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# Pulse Synchronizer Module
+# sync_pulse
 
-## Purpose
+## Overview
 
 A safe pulse synchronizer that transfers single-cycle pulses between asynchronous
 clock domains using a toggle-based handshake with metastability filtering.
@@ -37,7 +37,19 @@ a level and synchronize *that*. Multi-stage synchronization plus edge detection
 reconstructs the pulse on the other side — and as long as minimum spacing
 requirements are met, no pulse is ever lost.
 
-## Module Declaration
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `SYNC_STAGES` | `int` | 3 | Number of synchronizer stages for metastability filtering (range: 2-4) |
+
+**SYNC_STAGES guidelines:**
+
+- **2 stages**: Minimum CDC-safe, basic reliability
+- **3 stages**: Recommended default -- enough metastability margin for most designs at one extra cycle of latency
+- **4 stages**: Ultra-high reliability (aerospace, medical)
+
+## Ports
 
 ```systemverilog
 module sync_pulse #(
@@ -55,34 +67,21 @@ module sync_pulse #(
 );
 ```
 
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| SYNC_STAGES | int | 3 | Number of synchronizer stages for metastability filtering (range: 2-4) |
-
-**SYNC_STAGES Guidelines:**
-- **2 stages**: Minimum CDC-safe, basic reliability
-- **3 stages**: Recommended default -- enough metastability margin for most designs at one extra cycle of latency
-- **4 stages**: Ultra-high reliability (aerospace, medical)
-
-## Ports
-
 ### Source Clock Domain
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| i_src_clk | Input | 1 | Source clock (where input pulse originates) |
-| i_src_rst_n | Input | 1 | Source domain active-low asynchronous reset |
-| i_pulse | Input | 1 | Input pulse (must be single-cycle high) |
+| `i_src_clk` | Input | 1 | Source clock (where input pulse originates) |
+| `i_src_rst_n` | Input | 1 | Source domain active-low asynchronous reset |
+| `i_pulse` | Input | 1 | Input pulse (must be single-cycle high) |
 
 ### Destination Clock Domain
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| i_dst_clk | Input | 1 | Destination clock (where output pulse appears) |
-| i_dst_rst_n | Input | 1 | Destination domain active-low asynchronous reset |
-| o_pulse | Output | 1 | Synchronized output pulse (single-cycle high) |
+| `i_dst_clk` | Input | 1 | Destination clock (where output pulse appears) |
+| `i_dst_rst_n` | Input | 1 | Destination domain active-low asynchronous reset |
+| `o_pulse` | Output | 1 | Synchronized output pulse (single-cycle high) |
 
 ## Functional Description
 
@@ -94,23 +93,6 @@ The module uses a four-stage process to safely transfer pulses:
 2. **Synchronization**: Toggle synchronized across clock domains via multi-stage synchronizer
 3. **Edge Detection**: XOR detects toggle transitions to generate destination pulse
 4. **Single-Cycle Output**: Output pulse is exactly one destination clock cycle wide
-
-### Timing Characteristics
-
-- **Latency**: ~`SYNC_STAGES` destination clock cycles to the pulse edge (the
-  combinational edge detector adds no stage; the RTL header's `SYNC_STAGES + 2`
-  is a conservative bound — see Latency Breakdown)
-- **Minimum Pulse Spacing**: `3 × T_dst + 2 × T_src` clock periods
-- **MTBF**: increases with SYNC_STAGES, but is **technology- and rate-dependent**
-  (a function of the flop's metastability τ/T₀, the destination clock, and the
-  event rate) — no fixed hours figure applies without those parameters. Compute
-  it for your target device rather than quoting a constant.
-
-Where:
-- `T_dst` = Destination clock period
-- `T_src` = Source clock period
-
-## Implementation Details
 
 ### Source Domain: Toggle Register
 
@@ -126,7 +108,8 @@ always_ff @(posedge i_src_clk or negedge i_src_rst_n) begin
 end
 ```
 
-**Key Points:**
+**Key points:**
+
 - Toggle persists across clock domains (quasi-static)
 - Each pulse inverts toggle state (0→1 or 1→0)
 - Toggle visible to destination synchronizer for multiple cycles
@@ -145,7 +128,8 @@ always_ff @(posedge i_dst_clk or negedge i_dst_rst_n) begin
 end
 ```
 
-**Metastability Filtering:**
+**Metastability filtering:**
+
 - Stage 0: Captures source toggle (may go metastable)
 - Stages 1 to N-1: Filter metastability exponentially
 - Stage N-1: Clean synchronized toggle output
@@ -168,12 +152,28 @@ end
 assign o_pulse = r_sync[SYNC_STAGES-1] ^ r_sync_prev;
 ```
 
-**Edge Detection Logic:**
+**Edge detection logic:**
+
 - Compares current toggle with previous toggle
 - XOR: `0→1` or `1→0` transition generates pulse
 - Output: Single-cycle high pulse in destination domain
 
-## Protocol Timing
+## Timing
+
+### Timing Characteristics
+
+- **Latency**: ~`SYNC_STAGES` destination clock cycles to the pulse edge (the
+  combinational edge detector adds no stage; the RTL header's `SYNC_STAGES + 2`
+  is a conservative bound — see Latency Breakdown)
+- **Minimum Pulse Spacing**: `3 × T_dst + 2 × T_src` clock periods
+- **MTBF**: increases with SYNC_STAGES, but is **technology- and rate-dependent**
+  (a function of the flop's metastability τ/T₀, the destination clock, and the
+  event rate) — no fixed hours figure applies without those parameters. Compute
+  it for your target device rather than quoting a constant.
+
+Where:
+- `T_dst` = Destination clock period
+- `T_src` = Source clock period
 
 ### Single Pulse Transfer
 
@@ -205,7 +205,21 @@ Dest:     ___|‾|__|__|__|‾|__|__|__|__|__|‾|__|__|_
 Note: Minimum 3 destination clock spacing maintained
 ```
 
-## Usage Examples
+### Latency Breakdown
+
+For SYNC_STAGES=3:
+1. Source toggle register: up to 1 source clock
+2. Synchronizer stages: 3 destination clocks (r_sync[0..2])
+
+`o_pulse = r_sync[SYNC_STAGES-1] ^ r_sync_prev` is **combinational**, so the
+pulse *starts* the same destination cycle `r_sync[SYNC_STAGES-1]` updates — edge
+detection is **not** an extra pipeline stage. The pulse therefore rises ~2-3
+destination clocks after the toggle flip (plus up to 1 source clock to capture
+`i_pulse`), i.e. roughly `SYNC_STAGES` destination clocks — not `SYNC_STAGES+2`.
+The `+2` in the formula (and RTL header) is a conservative over-count; the timing
+diagram above shows `o_pulse` aligned with `r_sync[2]`, consistent with this.
+
+## Usage Example
 
 ### Basic Pulse Synchronization
 
@@ -304,14 +318,14 @@ sync_pulse #(
 
 ### When to Use sync_pulse
 
-**Appropriate Use Cases:**
+**Appropriate use cases:**
 - Single-cycle pulse events (interrupts, triggers, strobes)
 - Event counters across clock domains
 - Handshake acknowledgments
 - Sporadic control signals (button presses, sensor events)
 - Timeout/watchdog pulses
 
-**Inappropriate Use Cases:**
+**Inappropriate use cases:**
 - High-frequency continuous pulses (use async FIFO)
 - Data buses (use handshake or FIFO)
 - Multi-bit values (use `glitch_free_n_dff_arn` with Gray code)
@@ -359,9 +373,7 @@ reset_sync u_dst_rst_sync (
 );
 ```
 
-## Synthesis and Constraints
-
-### Synthesis Attributes
+### Synthesis and Constraints
 
 The module includes ASYNC_REG attributes to prevent optimization:
 
@@ -375,7 +387,7 @@ These attributes:
 - Ensure synchronizer stages stay together
 - Help tools recognize CDC paths
 
-### Timing Constraints (Xilinx XDC)
+Timing constraints (Xilinx XDC):
 
 ```tcl
 # Mark clock domain crossing paths as false paths
@@ -388,7 +400,7 @@ set_max_delay -from [get_clocks i_src_clk] -to [get_pins -hierarchical *r_sync_r
 set_property ASYNC_REG TRUE [get_cells -hierarchical *r_sync_reg*]
 ```
 
-### Timing Constraints (Intel SDC)
+Timing constraints (Intel SDC):
 
 ```tcl
 # Set false path for CDC
@@ -397,22 +409,6 @@ set_false_path -from [get_clocks i_src_clk] -to [get_registers *r_sync[0]]
 # Mark synchronizer chain
 set_instance_assignment -name SYNCHRONIZER_IDENTIFICATION "FORCED IF ASYNCHRONOUS" -to *r_sync*
 ```
-
-## Performance Analysis
-
-### Latency Breakdown
-
-For SYNC_STAGES=3:
-1. Source toggle register: up to 1 source clock
-2. Synchronizer stages: 3 destination clocks (r_sync[0..2])
-
-`o_pulse = r_sync[SYNC_STAGES-1] ^ r_sync_prev` is **combinational**, so the
-pulse *starts* the same destination cycle `r_sync[SYNC_STAGES-1]` updates — edge
-detection is **not** an extra pipeline stage. The pulse therefore rises ~2-3
-destination clocks after the toggle flip (plus up to 1 source clock to capture
-`i_pulse`), i.e. roughly `SYNC_STAGES` destination clocks — not `SYNC_STAGES+2`.
-The `+2` in the formula (and RTL header) is a conservative over-count; the timing
-diagram above shows `o_pulse` aligned with `r_sync[2]`, consistent with this.
 
 ### Resource Utilization
 
@@ -424,7 +420,7 @@ diagram above shows `o_pulse` aligned with `r_sync[2]`, consistent with this.
 | o_pulse | 0 | 1 | XOR edge detector |
 | **Total** | **SYNC_STAGES+2** | **2** | Minimal footprint |
 
-## Common Pitfalls
+### Common Pitfalls
 
 **Anti-Pattern 1**: Multi-cycle input pulses
 ```systemverilog
@@ -476,7 +472,15 @@ end
 // RIGHT: Use handshake or async FIFO for data
 ```
 
-## Verification and Assertions
+## Related Modules
+
+- **glitch_free_n_dff_arn.sv** - Multi-bit signal synchronization (quasi-static)
+- **reset_sync.sv** - Specialized reset synchronization
+- **edge_detect.sv** - Edge-to-pulse conversion (single clock domain)
+- **async_fifo.sv** - For high-throughput data CDC
+- **handshake_sync.sv** - Multi-bit data CDC with handshake
+
+## Testing
 
 ### Formal Assertions (guarded by `` `ifdef FORMAL ``)
 
@@ -521,7 +525,7 @@ always @(posedge i_dst_clk) begin
 end
 ```
 
-## Testing
+### Test Suite
 
 From the test suite (`val/cdc/test_sync_pulse.py`):
 
@@ -531,14 +535,6 @@ From the test suite (`val/cdc/test_sync_pulse.py`):
 Run levels come from the standard grid: `REG_LEVEL=GATE|FUNC|FULL` selects the
 parameter set, `TEST_LEVEL` the per-test depth. Run the whole area with
 `make -C val/cdc run-all-func-parallel`, never bare pytest for suites.
-
-## Related Modules
-
-- **glitch_free_n_dff_arn.sv** - Multi-bit signal synchronization (quasi-static)
-- **reset_sync.sv** - Specialized reset synchronization
-- **edge_detect.sv** - Edge-to-pulse conversion (single clock domain)
-- **async_fifo.sv** - For high-throughput data CDC
-- **handshake_sync.sv** - Multi-bit data CDC with handshake
 
 ## References
 

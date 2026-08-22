@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# GAXI Asynchronous Skid Buffer
+# gaxi_skid_buffer_async
 
 **Module:** `gaxi_skid_buffer_async.sv`
 **Location:** `rtl/cdc/`
@@ -31,7 +31,7 @@
 
 ## Overview
 
-This module is a wrapper, and it owns that: a synchronous skid buffer on the write side, an asynchronous FIFO behind it. One instantiation buys you the skid buffer's elastic buffering plus a clock domain crossing. One thing to know before you build around it — the skid buffer registers its handshake outputs, so there is no zero-latency bypass path; see Latency Components below.
+This module is a wrapper, and it owns that: a synchronous skid buffer on the write side, an asynchronous FIFO behind it. One instantiation buys you the skid buffer's elastic buffering plus a clock domain crossing. One thing to know before you build around it — the skid buffer registers its handshake outputs, so there is no zero-latency bypass path; see Latency Components under Timing below.
 
 ### Key Features
 
@@ -43,7 +43,32 @@ This module is a wrapper, and it owns that: a synchronous skid buffer on the wri
 
 ---
 
-## Module Interface
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `MEM_STYLE` | `fifo_mem_t` | `FIFO_AUTO` | Async FIFO storage: `FIFO_AUTO` / `FIFO_SRL` / `FIFO_BRAM` |
+| `REGISTERED` | `int` | 0 | Async FIFO read mode (0=mux, 1=flop) |
+| `DATA_WIDTH` | `int` | 32 | Data bus width |
+| `DEPTH` | `int` | 2 | Async FIFO depth (CDC stage) |
+| `USE_JOHNSON` | `int` | 0 | 0 = Gray pointers, power-of-2 `DEPTH` only; 1 = Johnson pointers, any `DEPTH` |
+| `N_FLOP_CROSS` | `int` | 2 | Synchronizer stages (3 recommended) |
+
+`USE_JOHNSON` reaches the async FIFO underneath and carries the same meaning it
+has there: it selects the pointer encoding, and with it the legal `DEPTH` values.
+Leave it at 0 and `DEPTH` must be a power of 2 or elaboration fails; set it to 1
+and odd depths become legal at the cost of a wider pointer. See
+[gaxi_fifo_async](gaxi_fifo_async.md) for the trade-off in full.
+
+**Note:** the skid half's depth is NOT `DEPTH`. The wrapper instantiates
+`gaxi_skid_buffer` with `DATA_WIDTH` only, so it takes that module's own default
+of 2. `DEPTH` sizes the async FIFO behind it.
+
+---
+
+## Ports
+
+The port list splits cleanly into a write domain and a read domain:
 
 ```systemverilog
 module gaxi_skid_buffer_async #(
@@ -73,7 +98,9 @@ module gaxi_skid_buffer_async #(
 
 ---
 
-## Architecture
+## Functional Description
+
+### Architecture
 
 ```mermaid
 flowchart LR
@@ -108,30 +135,31 @@ flowchart LR
 
 ---
 
-## Parameters
+## Timing
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `MEM_STYLE` | `fifo_mem_t` | `FIFO_AUTO` | Async FIFO storage: `FIFO_AUTO` / `FIFO_SRL` / `FIFO_BRAM` |
-| `REGISTERED` | `int` | 0 | Async FIFO read mode (0=mux, 1=flop) |
-| `DATA_WIDTH` | `int` | 32 | Data bus width |
-| `DEPTH` | `int` | 2 | Async FIFO depth (CDC stage) |
-| `USE_JOHNSON` | `int` | 0 | 0 = Gray pointers, power-of-2 `DEPTH` only; 1 = Johnson pointers, any `DEPTH` |
-| `N_FLOP_CROSS` | `int` | 2 | Synchronizer stages (3 recommended) |
+### Latency Components
 
-`USE_JOHNSON` reaches the async FIFO underneath and carries the same meaning it
-has there: it selects the pointer encoding, and with it the legal `DEPTH` values.
-Leave it at 0 and `DEPTH` must be a power of 2 or elaboration fails; set it to 1
-and odd depths become legal at the cost of a wider pointer. See
-[gaxi_fifo_async](gaxi_fifo_async.md) for the trade-off in full.
+| Component | Latency | Domain |
+|-----------|---------|--------|
+| Skid buffer (empty) | 1 cycle | Write |
+| Skid buffer (buffered) | 1 cycle | Write |
+| Async FIFO CDC | 3-5 cycles | Both |
+| **Total (empty path)** | **4-6 cycles** | End-to-end |
+| **Total (buffered)** | **4-6 cycles** | End-to-end |
 
-**Note:** the skid half's depth is NOT `DEPTH`. The wrapper instantiates
-`gaxi_skid_buffer` with `DATA_WIDTH` only, so it takes that module's own default
-of 2. `DEPTH` sizes the async FIFO behind it.
+`gaxi_skid_buffer` registers its handshake outputs, so even a write into an empty
+buffer costs one write clock before `rd_valid` rises and the async FIFO can take
+the data. There is no zero-latency bypass path.
+
+### Throughput
+
+- **Write Side:** 1 transfer/cycle (when not full)
+- **Read Side:** 1 transfer/cycle (when not empty)
+- **Sustained:** Limited by slower clock domain
 
 ---
 
-## Usage Examples
+## Usage Example
 
 ### Example 1: Basic Async Skid Buffer
 
@@ -184,30 +212,6 @@ gaxi_skid_buffer_async #(
 
 ---
 
-## Timing Characteristics
-
-### Latency Components
-
-| Component | Latency | Domain |
-|-----------|---------|--------|
-| Skid buffer (empty) | 1 cycle | Write |
-| Skid buffer (buffered) | 1 cycle | Write |
-| Async FIFO CDC | 3-5 cycles | Both |
-| **Total (empty path)** | **4-6 cycles** | End-to-end |
-| **Total (buffered)** | **4-6 cycles** | End-to-end |
-
-`gaxi_skid_buffer` registers its handshake outputs, so even a write into an empty
-buffer costs one write clock before `rd_valid` rises and the async FIFO can take
-the data. There is no zero-latency bypass path.
-
-### Throughput
-
-- **Write Side:** 1 transfer/cycle (when not full)
-- **Read Side:** 1 transfer/cycle (when not empty)
-- **Sustained:** Limited by slower clock domain
-
----
-
 ## Design Notes
 
 ### When to Use This Module
@@ -250,9 +254,7 @@ reset_sync #(.N(3)) u_rd_sync (
 );
 ```
 
----
-
-## Resource Utilization
+### Resource Utilization
 
 Combines resources of both sub-modules:
 
@@ -266,6 +268,46 @@ The skid row does not scale with `DEPTH`. The wrapper never overrides the skid
 buffer's depth, so its storage is `r_data[2]` — two words — whatever `DEPTH`
 you pass. Only the FIFO row moves.
 
+### Common Issues
+
+**Issue 1: CDC Violations**
+
+Symptom: metastability, data corruption.
+
+Solution:
+- Set `N_FLOP_CROSS=3` (minimum for production)
+- Verify clocks are truly independent
+- Check reset synchronization
+
+**Issue 2: Write-Side Stalls**
+
+Symptom: `wr_ready` deasserts unexpectedly.
+
+Debug:
+1. Check async FIFO depth (DEPTH parameter)
+2. Verify read-side is consuming data
+3. Monitor clock ratio - may need deeper FIFO
+
+**Issue 3: Unexpected Latency**
+
+Symptom: data takes longer than expected.
+
+Explanation:
+- Total latency = skid buffer (1 write clock) + async FIFO CDC (3-5 cycles)
+- Minimum 4-6 cycles even when empty — see the latency table above, which is
+  where this number comes from
+- There is no zero-latency bypass: `gaxi_skid_buffer` registers its handshake
+  outputs, so the skid hop always costs a write clock
+- This is inherent to CDC design
+
+---
+
+## Related Modules
+
+- [gaxi_skid_buffer](../rtl-amba/gaxi/gaxi_skid_buffer.md) - Synchronous version
+- [gaxi_fifo_async](gaxi_fifo_async.md) - Async FIFO without skid buffer
+- [GAXI Index](index.md) - Overview
+
 ---
 
 ## Testing
@@ -277,48 +319,6 @@ pytest val/cdc/test_gaxi_buffer_async.py -k "skid" -v
 # Test specific clock ratio
 pytest val/cdc/test_gaxi_buffer_async.py -k "skid" -k "wr10_rd20" -v
 ```
-
----
-
-## Common Issues
-
-### Issue 1: CDC Violations
-
-**Symptom:** Metastability, data corruption
-
-**Solution:**
-- Set `N_FLOP_CROSS=3` (minimum for production)
-- Verify clocks are truly independent
-- Check reset synchronization
-
-### Issue 2: Write-Side Stalls
-
-**Symptom:** `wr_ready` deasserts unexpectedly
-
-**Debug:**
-1. Check async FIFO depth (DEPTH parameter)
-2. Verify read-side is consuming data
-3. Monitor clock ratio - may need deeper FIFO
-
-### Issue 3: Unexpected Latency
-
-**Symptom:** Data takes longer than expected
-
-**Explanation:**
-- Total latency = skid buffer (1 write clock) + async FIFO CDC (3-5 cycles)
-- Minimum 4-6 cycles even when empty — see the latency table above, which is
-  where this number comes from
-- There is no zero-latency bypass: `gaxi_skid_buffer` registers its handshake
-  outputs, so the skid hop always costs a write clock
-- This is inherent to CDC design
-
----
-
-## Related Documentation
-
-- [gaxi_skid_buffer](../rtl-amba/gaxi/gaxi_skid_buffer.md) - Synchronous version
-- [gaxi_fifo_async](gaxi_fifo_async.md) - Async FIFO without skid buffer
-- [GAXI Index](index.md) - Overview
 
 ---
 

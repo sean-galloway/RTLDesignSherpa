@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# APB5 Slave (Clock Domain Crossing)
+# apb5_slave_cdc
 
 **Module:** `apb5_slave_cdc.sv`
 **Location:** `rtl/amba/apb5/`
@@ -35,46 +35,13 @@ The APB5 Slave CDC module provides clock domain crossing between an APB5 bus clo
 
 ### Key Features
 
-- ✅ Full APB5 protocol support with CDC
-- ✅ Asynchronous FIFO-based clock domain crossing (Gray pointers by default;
+- Full APB5 protocol support with CDC
+- Asynchronous FIFO-based clock domain crossing (Gray pointers by default;
   Johnson available via `USE_JOHNSON`, and opt-in by design)
-- ✅ All APB5 user signals (PAUSER, PWUSER, PRUSER, PBUSER)
-- ✅ Wake-up request crossing via a dedicated level synchronizer
-- ✅ Single `DEPTH` parameter sizes both directions
-- ✅ Metastability protection with 2-flop pointer synchronizers
-
----
-
-## Architecture
-
-```mermaid
-flowchart LR
-    subgraph APB_CLK["APB Clock Domain"]
-        apb_if["APB5<br/>Interface"]
-        cmd_sync["Command<br/>Sync"]
-    end
-
-    subgraph CDC["Clock Domain Crossing"]
-        cmd_fifo["Async<br/>CMD FIFO"]
-        rsp_fifo["Async<br/>RSP FIFO"]
-    end
-
-    subgraph BACKEND_CLK["Backend Clock Domain"]
-        rsp_sync["Response<br/>Sync"]
-        backend["Backend<br/>Interface"]
-    end
-
-    apb_if --> cmd_sync
-    cmd_sync --> cmd_fifo
-    cmd_fifo --> backend
-
-    backend --> rsp_sync
-    rsp_sync --> rsp_fifo
-    rsp_fifo --> apb_if
-
-    pclk["pclk"] --> APB_CLK
-    aclk["aclk"] --> BACKEND_CLK
-```
+- All APB5 user signals (PAUSER, PWUSER, PRUSER, PBUSER)
+- Wake-up request crossing via a dedicated level synchronizer
+- Single `DEPTH` parameter sizes both directions
+- Metastability protection with 2-flop pointer synchronizers
 
 ---
 
@@ -114,12 +81,12 @@ instantiation in the RTL.
 
 ### Clock and Reset
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| `pclk` | 1 | Input | APB bus clock |
-| `presetn` | 1 | Input | APB reset (active low) |
-| `aclk` | 1 | Input | Backend/user clock |
-| `aresetn` | 1 | Input | Backend/user reset (active low) |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `pclk` | Input | 1 | APB bus clock |
+| `presetn` | Input | 1 | APB reset (active low) |
+| `aclk` | Input | 1 | Backend/user clock |
+| `aresetn` | Input | 1 | Backend/user reset (active low) |
 
 The backend clock and reset are named `aclk` and `aresetn`, matching the rest of
 the AMBA library. There are no `bclk`/`bresetn` ports.
@@ -143,7 +110,38 @@ them yourself before using them in `aclk`.
 
 ---
 
-## CDC Implementation
+## Functional Description
+
+### Architecture
+
+```mermaid
+flowchart LR
+    subgraph APB_CLK["APB Clock Domain"]
+        apb_if["APB5<br/>Interface"]
+        cmd_sync["Command<br/>Sync"]
+    end
+
+    subgraph CDC["Clock Domain Crossing"]
+        cmd_fifo["Async<br/>CMD FIFO"]
+        rsp_fifo["Async<br/>RSP FIFO"]
+    end
+
+    subgraph BACKEND_CLK["Backend Clock Domain"]
+        rsp_sync["Response<br/>Sync"]
+        backend["Backend<br/>Interface"]
+    end
+
+    apb_if --> cmd_sync
+    cmd_sync --> cmd_fifo
+    cmd_fifo --> backend
+
+    backend --> rsp_sync
+    rsp_sync --> rsp_fifo
+    rsp_fifo --> apb_if
+
+    pclk["pclk"] --> APB_CLK
+    aclk["aclk"] --> BACKEND_CLK
+```
 
 ### CDC Mechanism
 
@@ -175,7 +173,7 @@ wrapped `apb5_slave`. Because it is a level, not a pulse, this is safe — but i
 means `wakeup_request` must be held asserted long enough to be sampled in the
 `pclk` domain (at least two `pclk` periods).
 
-### CDC FIFO pointer encoding
+### CDC FIFO Pointer Encoding
 
 The wrapper derives `CDC_FIFO_DEPTH = (DEPTH < 4) ? 4 : DEPTH` and hands that to
 two `gaxi_fifo_async` instances (command and response). Gray pointers only close
@@ -252,6 +250,10 @@ Neither reset is internally synchronized to the other domain's clock; each is
 expected to be already synchronized (or asynchronously asserted and
 synchronously deasserted) in its own domain by the integrator.
 
+---
+
+## Timing
+
 ### Latency
 
 - Crossing latency is the async-FIFO write-to-read pointer synchronization: on
@@ -260,16 +262,6 @@ synchronously deasserted) in its own domain by the integrator.
 - A full APB transfer therefore costs the command crossing plus the response
   crossing before PREADY can assert
 - Additional latency if the FIFOs are full (backpressure) or the backend is slow
-
-### FIFO Depth Sizing
-
-- `DEPTH` sizes the `apb5_slave` skid buffers; the CDC FIFOs are sized
-  separately as `max(DEPTH, 4)`, so the crossing itself is never shallower than
-  4 entries even at the default `DEPTH=2`
-- Deeper FIFOs buy tolerance for a slow backend or a bursty APB master; they do
-  not reduce the per-transfer crossing latency
-- Because APB is single-outstanding, depth beyond a handful of entries has
-  little effect on throughput for this module
 
 ### Timing Considerations
 
@@ -325,7 +317,21 @@ apb5_slave_cdc #(
 
 ---
 
-## Related Documentation
+## Design Notes
+
+### FIFO Depth Sizing
+
+- `DEPTH` sizes the `apb5_slave` skid buffers; the CDC FIFOs are sized
+  separately as `max(DEPTH, 4)`, so the crossing itself is never shallower than
+  4 entries even at the default `DEPTH=2`
+- Deeper FIFOs buy tolerance for a slow backend or a bursty APB master; they do
+  not reduce the per-transfer crossing latency
+- Because APB is single-outstanding, depth beyond a handful of entries has
+  little effect on throughput for this module
+
+---
+
+## Related Modules
 
 - **[APB5 Slave](apb5_slave.md)** - Base slave without CDC
 - **[APB5 Slave CDC CG](apb5_slave_cdc_cg.md)** - CDC with clock gating

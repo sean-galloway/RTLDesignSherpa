@@ -30,16 +30,16 @@ Each directory under `books/` is one self-contained review unit:
 | `gaxi` | RTL AMBA GAXI Modules | 8 | 6 | ~43k | 1 |
 | `integ_amba` | RTL Integration Examples - AMBA | 3 | 7 | ~50k | 1 |
 | `apbx_xbar_has` | APB Crossbar Hardware Architecture Specification Index | 23 | 11 | ~66k | 1 |
-| `gpio_mas` | APB GPIO Micro-Architecture Specification | 23 | 7 | ~70k | 1 |
+| `gpio_mas` | APB GPIO Micro-Architecture Specification | 23 | 7 | ~71k | 1 |
 | `apbx_xbar_mas` | APB Crossbar Micro-Architecture Specification Index | 9 | 14 | ~76k | 1 |
 | `pit_8254_mas` | APB PIT 8254 Specification - Table of Contents | 12 | 10 | ~81k | 1 |
 | `rtc_mas` | APB RTC Specification - Table of Contents | 5 | 7 | ~85k | 1 |
 | `apb` | RTL AMBA APB4 | 10 | 9 | ~93k | 1 |
 | `apb5` | RTL AMBA APB5 | 10 | 9 | ~96k | 1 |
-| `hpet_mas` | APB HPET Micro-Architecture Specification | 14 | 15 | ~117k | 1 |
+| `hpet_mas` | APB HPET Micro-Architecture Specification | 14 | 15 | ~118k | 1 |
 | `uart_16550_mas` | APB UART 16550 Specification - Table of Contents | 27 | 8 | ~118k | 1 |
-| `converter_mas` | Converters Micro-Architecture Specification Index | 20 | 23 | ~163k | 2 |
-| `bridge_has` | Bridge Hardware Architecture Specification Index | 24 | 10 | ~175k | 2 |
+| `converter_mas` | Converters Micro-Architecture Specification Index | 20 | 25 | ~173k | 2 |
+| `bridge_has` | Bridge Hardware Architecture Specification Index | 24 | 10 | ~177k | 2 |
 | `cdc` | RTL Clock Domain Crossing | 16 | 24 | ~219k | 2 |
 | `common` | RTL Common Library | 49 | 48 | ~248k | 4 |
 | `axil4` | RTL AMBA AXI4-Lite | 18 | 16 | ~256k | 2 |
@@ -47,8 +47,8 @@ Each directory under `books/` is one self-contained review unit:
 | `monitor` | RTL AMBA Monitor Subsystem | 36 | 34 | ~390k | 4 |
 | `axi5` | RTL AMBA AXI5 | 17 | 16 | ~403k | 3 |
 | `axi4` | RTL AMBA AXI4 | 27 | 24 | ~411k | 3 |
-| `math` | RTL Math Library | 27 | 38 | ~428k | 3 |
-| `bridge_mas` | Bridge Micro-Architecture Specification Index | 26 | 24 | ~431k | 3 |
+| `math` | RTL Math Library | 28 | 39 | ~432k | 3 |
+| `bridge_mas` | Bridge Micro-Architecture Specification Index | 26 | 24 | ~433k | 3 |
 | `ioapic_mas` | APB IOAPIC Specification - Table of Contents | 15 | 48 | ~498k | 3 |
 
 Counts are per whole book, regenerated from the built bundle (`documented modules` is the figure in each `RTL.sv` header, which excludes the dependency closure and any GOLDEN section). A book with more than one part is already split for you: **you are reviewing ONE part**, so its scope is a subset of the row above. Do not infer a missing module from these numbers.

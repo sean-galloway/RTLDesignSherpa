@@ -21,11 +21,11 @@
 
 <!-- End Header -->
 
-# APB Slave CDC
+# apb4_slave_cdc
 
 **Module:** `apb4_slave_cdc.sv`
 **Location:** `rtl/amba/apb4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -35,19 +35,33 @@ The APB Slave CDC (Clock Domain Crossing) module is a complete APB slave interfa
 
 ### Key Features
 
-- ✅ **Safe CDC:** Gray-pointer asynchronous FIFOs, one per direction
-- ✅ **Dual Clock Domains:** APB (pclk) and AXI (aclk) operate independently
-- ⚠️ **Reset both domains together:** a one-sided reset is NOT safe -- see [Reset Behavior](#reset-behavior)
-- ✅ **Full APB4 Support:** Complete AMBA 4 APB protocol compliance
-- ✅ **Command/Response Interface:** Clean GAXI-style backend interface
-- ✅ **Buffered Operation:** Integrated skid buffers for elastic storage
+- **Safe CDC:** Gray-pointer asynchronous FIFOs, one per direction
+- **Dual Clock Domains:** APB (pclk) and AXI (aclk) operate independently
+- Caveat: **reset both domains together** — a one-sided reset is NOT safe; see [Reset Behavior](#reset-behavior)
+- **Full APB4 Support:** Complete AMBA 4 APB protocol compliance
+- **Command/Response Interface:** Clean GAXI-style backend interface
+- **Buffered Operation:** Integrated skid buffers for elastic storage
 
 **Protocol scope:** APB4 only. For APB5 signalling use `apb5_slave_cdc` from
 `rtl/amba/apb5/` — see the [APB5 book](../apb5/apb5_slave_cdc.md).
 
 ---
 
-## Module Interface
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `ADDR_WIDTH` | int | 32 | APB address bus width |
+| `DATA_WIDTH` | int | 32 | APB data bus width |
+| `STRB_WIDTH` | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+| `PROT_WIDTH` | int | 3 | APB protection signal width |
+| `DEPTH` | int | 2 | Skid-buffer depth **in entries** inside the wrapped `apb4_slave`; also the floor for the CDC FIFO depth |
+| `USE_JOHNSON` | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray (power-of-2 derived depth only), `1` Johnson (any FIFO depth, `max(DEPTH,4)`-bit pointers; module-level `DEPTH` stays limited to `{2,4,6,8}` by the skid buffers). Gray by default — Johnson is opt-in because its pointers cost `DEPTH` bits in both domains and every synchronizer stage. |
+| `USE_2_PHASE_CDC` | bit | 1 | **Deprecated and ignored.** Has no effect on the generated logic |
+
+---
+
+## Ports
 
 ```systemverilog
 module apb4_slave_cdc #(
@@ -105,39 +119,23 @@ module apb4_slave_cdc #(
 
 ---
 
-## Parameters
+## Functional Description
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `ADDR_WIDTH` | int | 32 | APB address bus width |
-| `DATA_WIDTH` | int | 32 | APB data bus width |
-| `STRB_WIDTH` | int | DATA_WIDTH/8 | Write strobe width (calculated) |
-| `PROT_WIDTH` | int | 3 | APB protection signal width |
-| `DEPTH` | int | 2 | Skid-buffer depth **in entries** inside the wrapped `apb4_slave`; also the floor for the CDC FIFO depth |
-| `USE_JOHNSON` | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray (power-of-2 derived depth only), `1` Johnson (any FIFO depth, `max(DEPTH,4)`-bit pointers; module-level `DEPTH` stays limited to `{2,4,6,8}` by the skid buffers). Gray by default — Johnson is opt-in because its pointers cost `DEPTH` bits in both domains and every synchronizer stage. |
-| `USE_2_PHASE_CDC` | bit | 1 | **Deprecated and ignored.** Has no effect on the generated logic |
+### Clock Domains
 
----
-
-## Clock Domains
-
-### APB Domain (pclk)
+**APB domain (pclk):**
 
 - APB slave interface signals
 - Typical frequency: 50-200 MHz
 - Used by APB master/interconnect
 
-### AXI Domain (aclk)
+**AXI domain (aclk):**
 
 - Command and response interfaces
 - Can be faster or slower than pclk
 - Used by backend processing logic
 
----
-
-## CDC Implementation
-
-### Structure
+### CDC Structure
 
 The module is an `apb4_slave` in the `pclk` domain plus two independent
 asynchronous FIFOs:
@@ -248,53 +246,6 @@ Standard practice applies:
 
 ---
 
-## Usage Example
-
-```systemverilog
-apb4_slave_cdc #(
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32),
-    .DEPTH(2)
-) u_apb_cdc (
-    // APB clock domain
-    .pclk         (apb_clk),
-    .presetn      (apb_resetn),
-
-    // AXI clock domain
-    .aclk         (axi_clk),
-    .aresetn      (axi_resetn),
-
-    // APB slave interface (pclk domain)
-    .s_apb_PSEL     (apb_psel),
-    .s_apb_PENABLE  (apb_penable),
-    .s_apb_PREADY   (apb_pready),
-    .s_apb_PADDR    (apb_paddr),
-    .s_apb_PWRITE   (apb_pwrite),
-    .s_apb_PWDATA   (apb_pwdata),
-    .s_apb_PSTRB    (apb_pstrb),
-    .s_apb_PPROT    (apb_pprot),
-    .s_apb_PRDATA   (apb_prdata),
-    .s_apb_PSLVERR  (apb_pslverr),
-
-    // Command interface (aclk domain)
-    .cmd_valid      (cmd_valid),
-    .cmd_ready      (cmd_ready),
-    .cmd_pwrite     (cmd_pwrite),
-    .cmd_paddr      (cmd_paddr),
-    .cmd_pwdata     (cmd_pwdata),
-    .cmd_pstrb      (cmd_pstrb),
-    .cmd_pprot      (cmd_pprot),
-
-    // Response interface (aclk domain)
-    .rsp_valid      (rsp_valid),
-    .rsp_ready      (rsp_ready),
-    .rsp_prdata     (rsp_prdata),
-    .rsp_pslverr    (rsp_pslverr)
-);
-```
-
----
-
 ## Waveforms
 
 The following timing diagrams show CDC behavior with **both clock domains visible**:
@@ -362,7 +313,54 @@ Shows APB read with response crossing back from aclk to pclk domain:
 
 ---
 
-## Related Documentation
+## Usage Example
+
+```systemverilog
+apb4_slave_cdc #(
+    .ADDR_WIDTH(32),
+    .DATA_WIDTH(32),
+    .DEPTH(2)
+) u_apb_cdc (
+    // APB clock domain
+    .pclk         (apb_clk),
+    .presetn      (apb_resetn),
+
+    // AXI clock domain
+    .aclk         (axi_clk),
+    .aresetn      (axi_resetn),
+
+    // APB slave interface (pclk domain)
+    .s_apb_PSEL     (apb_psel),
+    .s_apb_PENABLE  (apb_penable),
+    .s_apb_PREADY   (apb_pready),
+    .s_apb_PADDR    (apb_paddr),
+    .s_apb_PWRITE   (apb_pwrite),
+    .s_apb_PWDATA   (apb_pwdata),
+    .s_apb_PSTRB    (apb_pstrb),
+    .s_apb_PPROT    (apb_pprot),
+    .s_apb_PRDATA   (apb_prdata),
+    .s_apb_PSLVERR  (apb_pslverr),
+
+    // Command interface (aclk domain)
+    .cmd_valid      (cmd_valid),
+    .cmd_ready      (cmd_ready),
+    .cmd_pwrite     (cmd_pwrite),
+    .cmd_paddr      (cmd_paddr),
+    .cmd_pwdata     (cmd_pwdata),
+    .cmd_pstrb      (cmd_pstrb),
+    .cmd_pprot      (cmd_pprot),
+
+    // Response interface (aclk domain)
+    .rsp_valid      (rsp_valid),
+    .rsp_ready      (rsp_ready),
+    .rsp_prdata     (rsp_prdata),
+    .rsp_pslverr    (rsp_pslverr)
+);
+```
+
+---
+
+## Related Modules
 
 - **APB Slave:** [apb4_slave.md](apb4_slave.md)
 - **Clock-Gated Variant:** [apb4_slave_cdc_cg.md](apb4_slave_cdc_cg.md)

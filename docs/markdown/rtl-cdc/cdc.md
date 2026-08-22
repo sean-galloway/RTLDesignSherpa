@@ -31,10 +31,10 @@ Reset behavior across independent domains is argued from the RTL and, for the
 proofs, which drive both domains from one clock and one reset. See
 [Verification status](#verification-status) before relying on that badge.
 
-This is the single reference for clock domain crossing in this repository. It
-covers every CDC building block, how to choose between them, and the reset
-behavior that distinguishes them -- which is the property most likely to bite
-you and the least likely to show up in simulation.
+This page is the single reference for clock domain crossing in this repository:
+every CDC building block, how to choose between them, and the reset behavior
+that distinguishes them. That last part is the property most likely to bite
+you, and the least likely to show up in simulation.
 
 | Module | Category | One-line |
 |--------|----------|----------|
@@ -49,6 +49,8 @@ you and the least likely to show up in simulation.
 ---
 
 ## Choosing a technique
+
+Start with the shape of the traffic, not the protocol:
 
 ```
 Need to cross clock domains with multi-bit data?
@@ -105,9 +107,10 @@ common situation, and it is not visible from the port list.
 > A toggle handshake stores transfer state as **parity**, and parity cannot
 > survive a one-sided reset.
 
-"Independently" includes cases that are easy to miss: a soft reset that clears a
+"Independently" covers more cases than people expect: a soft reset that clears a
 datapath but not a register block, a per-block reset, separate power domains, or
-a reset synchronizer whose deassertion is gated differently on each side.
+a reset synchronizer whose deassertion is gated differently on each side. If any
+of those can reach one domain alone, the rule applies.
 
 ### Why encoding decides reset behavior
 
@@ -140,13 +143,13 @@ That XOR is the entire protocol state. Each side resets its own flops:
 : 2-phase handshake reset domains per flop
 
 Reset **both** domains together and everything lands at 0 -- parity agrees, no
-event. Reset **one** and the ends land at opposite parity, and the XOR reports an
-edge no source transfer produced.
+event. Reset **one** and the two ends land at opposite parity, and the XOR
+reports an edge no source transfer produced.
 
-Because parity is relative, there is no toggle value meaning "idle". Whatever
-`r_req_tog` happens to hold, a freshly cleared destination disagrees with it half
-the time. In 4-phase, `req = 0` *is* idle absolutely: a reset destination
-observing `req = 0` correctly concludes nothing is pending.
+Because parity is relative, there is no toggle value that means "idle".
+Whatever `r_req_tog` happens to hold, a freshly cleared destination disagrees
+with it half the time. In 4-phase, `req = 0` *is* idle, absolutely: a reset
+destination observing `req = 0` correctly concludes nothing is pending.
 
 #### Waveform 1.1: 2-Phase Normal Transfer
 
@@ -293,7 +296,8 @@ responses to requests positionally (`apb4_slave.sv` returns whatever response si
 at the head of its skid buffer), and **every register read from then on returned
 the previous register's value** -- lagged by ~3 transactions, permanently, until
 reprogramming. Writes were unaffected, so it presented as a readback bug rather
-than a CDC bug.
+than a CDC bug. I've debugged enough of these to know that disguise is what makes
+them expensive.
 
 Replacing that handshake with `gaxi_fifo_async` fixed it: reads became stable
 across `soft_reset`, verified on silicon.
@@ -960,7 +964,7 @@ variant.
 
 ---
 
-## Module reference
+## Related Modules
 
 | Module | RTL | Filelist | Test |
 |--------|-----|----------|------|
