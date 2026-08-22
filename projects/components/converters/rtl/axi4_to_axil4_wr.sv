@@ -133,6 +133,20 @@ module axi4_to_axil4_wr #(
     logic [AXI_ADDR_WIDTH-1:0] w_aw_addr_incr;
     assign w_aw_addr_incr = (1 << r_aw_size);
 
+    // WRAP wraps inside an aligned (len+1) * (1 << size) byte window: the
+    // low bits advance and carry back to the window base instead of running
+    // past it. Without this a WRAP burst is written as INCR and the beats
+    // that should fold back land outside the window entirely.
+    logic [AXI_ADDR_WIDTH-1:0] w_aw_wrap_mask;
+    logic [AXI_ADDR_WIDTH-1:0] w_aw_next_addr;
+    assign w_aw_wrap_mask = (({{(AXI_ADDR_WIDTH-8){1'b0}}, r_aw_len} + 1)
+                             << r_aw_size) - 1;
+    assign w_aw_next_addr =
+        (r_aw_burst == 2'b10)
+            ? ((r_aw_addr & ~w_aw_wrap_mask) |
+               ((r_aw_addr + w_aw_addr_incr) & w_aw_wrap_mask))
+            : (r_aw_addr + w_aw_addr_incr);
+
     // Write state machine
     typedef enum logic [1:0] {
         WR_IDLE       = 2'b00,
@@ -215,7 +229,7 @@ module axi4_to_axil4_wr #(
                         // Both AW and W complete together
                         r_aw_beat_count <= r_aw_beat_count + 1'b1;
                         if (r_aw_burst != 2'b00)  // Not FIXED
-                            r_aw_addr <= r_aw_addr + w_aw_addr_incr;
+                            r_aw_addr <= w_aw_next_addr;
                         if (r_wr_state == WR_LAST_BEAT)
                             r_aw_active <= 1'b0;
                         r_aw_sent <= 1'b0;  // Ready for next beat
@@ -226,7 +240,7 @@ module axi4_to_axil4_wr #(
                         // W completes after AW
                         r_aw_beat_count <= r_aw_beat_count + 1'b1;
                         if (r_aw_burst != 2'b00)  // Not FIXED
-                            r_aw_addr <= r_aw_addr + w_aw_addr_incr;
+                            r_aw_addr <= w_aw_next_addr;
                         if (r_wr_state == WR_LAST_BEAT)
                             r_aw_active <= 1'b0;
                         r_aw_sent <= 1'b0;

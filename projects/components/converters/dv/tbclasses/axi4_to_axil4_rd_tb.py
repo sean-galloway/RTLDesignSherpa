@@ -585,6 +585,77 @@ class AXI4ToAXIL4ReadTB(TBBase):
             await self.deassert_reset()
             await self.wait_clocks(self.clk_name, 5)
 
+
+    async def test_wrap_burst(self, address, burst_len, label=""):
+        """A WRAP burst must wrap inside its aligned window.
+
+        AXI4 WRAP exists for cache-line fills: the address advances like
+        INCR but wraps back to the start of an aligned
+        (len+1) * (1 << size) byte window when it reaches the end. A
+        converter that decomposes a burst into single AXIL4 accesses has to
+        compute that itself -- the wrap is not visible in any single beat.
+
+        The RTL increments for every burst type except FIXED
+        (`if (r_ar_burst != 2'b00)`), so WRAP is handled as INCR and the
+        beats that should fold back run off the end of the window instead.
+        The book documents a next_address() with correct wrap masking; no
+        such function exists.
+
+        Nothing else covers this: the random burst-type picks are
+        `random.choice([0, 1])` -- FIXED or INCR only.
+        """
+        tag = f"[{label}] " if label else ""
+        size = (self.data_width // 8).bit_length() - 1
+        incr = 1 << size
+        window = (burst_len * incr)
+        base = address & ~(window - 1)
+
+        expected = []
+        addr = address
+        for _ in range(burst_len):
+            expected.append(addr)
+            addr = base | ((addr + incr) & (window - 1))
+
+        start = len(self.axil_transactions)
+        try:
+            await self.axi4_master.read_transaction(
+                address=address, burst_len=burst_len, size=size, burst_type=2)
+        except Exception as exc:
+            self.log.error(f"@ {get_sim_time('ns')}ns: {tag}WRAP read raised: "
+                           f"{exc!r}")
+            self.stats['errors'] += 1
+            return False
+        await self.wait_clocks(self.clk_name, 20)
+
+        got = [a for _, a, _ in self.axil_transactions[start:]]
+        if got == expected:
+            self.log.info(f"@ {get_sim_time('ns')}ns: {tag}WRAP len={burst_len} "
+                          f"wrapped correctly: "
+                          f"{' '.join(f'0x{a:X}' for a in got)}")
+            return True
+        self.log.error(
+            f"@ {get_sim_time('ns')}ns: {tag}WRAP len={burst_len} from "
+            f"0x{address:X} (window 0x{base:X}..0x{base + window - 1:X}): "
+            f"expected {' '.join(f'0x{a:X}' for a in expected)}, "
+            f"got {' '.join(f'0x{a:X}' for a in got)} -- the burst ran past "
+            f"the window instead of wrapping")
+        self.stats['errors'] += 1
+        return False
+
+    async def test_wrap_bursts(self):
+        """WRAP from a non-window-aligned start, where INCR and WRAP differ."""
+        ok = True
+        incr = 1 << ((self.data_width // 8).bit_length() - 1)
+        for blen in (2, 4):
+            # start one beat below the top of the window so the burst must
+            # fold back; starting at the window base would look like INCR.
+            base = 0x2000
+            start = base + (blen - 1) * incr
+            if not await self.test_wrap_burst(start, blen,
+                                              label=f"wrap-len{blen}"):
+                ok = False
+        return ok
+
     async def run_basic_test(self):
         """Run basic read burst test suite"""
         self.log.info("=" * 80)
@@ -612,6 +683,10 @@ class AXI4ToAXIL4ReadTB(TBBase):
 
         # Outstanding-burst identity -- see test_pipelined_ar_identity.
         if not await self.test_pipelined_ar_identity(label='b2b-ids'):
+            success = False
+
+        # WRAP bursts -- see test_wrap_burst.
+        if not await self.test_wrap_bursts():
             success = False
 
         # Lightweight b2b smoke

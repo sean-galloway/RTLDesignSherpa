@@ -664,6 +664,63 @@ class AXI4ToAXIL4WriteTB(TBBase):
             await self.deassert_reset()
             await self.wait_clocks(self.clk_name, 5)
 
+
+    async def test_wrap_burst(self, address, beats, label=""):
+        """A WRAP write must wrap inside its aligned window.
+
+        Same defect as the read path: the RTL advances the address for every
+        burst type except FIXED, so WRAP is written as INCR and the beats
+        that should fold back run past the window. WRAP is never exercised
+        elsewhere -- the random burst-type picks are FIXED or INCR only.
+        """
+        tag = f"[{label}] " if label else ""
+        size = (self.data_width // 8).bit_length() - 1
+        incr = 1 << size
+        window = beats * incr
+        base = address & ~(window - 1)
+
+        expected, addr = [], address
+        for _ in range(beats):
+            expected.append(addr)
+            addr = base | ((addr + incr) & (window - 1))
+
+        start = len(self.axil_transactions)
+        data_list = [0x5A5A0000 + i for i in range(beats)]
+        try:
+            await self.axi4_master.write_transaction(
+                address=address, data=data_list, size=size, burst_type=2)
+        except Exception as exc:
+            self.log.error(f"@ {get_sim_time('ns')}ns: {tag}WRAP write raised: "
+                           f"{exc!r}")
+            self.stats['errors'] += 1
+            return False
+        await self.wait_clocks(self.clk_name, 20)
+
+        got = [a for _, a, _, _ in self.axil_transactions[start:]]
+        if got == expected:
+            self.log.info(f"@ {get_sim_time('ns')}ns: {tag}WRAP beats={beats} "
+                          f"wrapped correctly: "
+                          f"{' '.join(f'0x{a:X}' for a in got)}")
+            return True
+        self.log.error(
+            f"@ {get_sim_time('ns')}ns: {tag}WRAP beats={beats} from "
+            f"0x{address:X} (window 0x{base:X}..0x{base + window - 1:X}): "
+            f"expected {' '.join(f'0x{a:X}' for a in expected)}, "
+            f"got {' '.join(f'0x{a:X}' for a in got)} -- the burst ran past "
+            f"the window instead of wrapping")
+        self.stats['errors'] += 1
+        return False
+
+    async def test_wrap_bursts(self):
+        ok = True
+        incr = 1 << ((self.data_width // 8).bit_length() - 1)
+        for beats in (2, 4):
+            base = 0x3000
+            if not await self.test_wrap_burst(base + (beats - 1) * incr, beats,
+                                              label=f"wrap-{beats}beat"):
+                ok = False
+        return ok
+
     async def run_basic_test(self):
         """Run basic write burst test suite"""
         self.log.info("=" * 80)
@@ -687,6 +744,10 @@ class AXI4ToAXIL4WriteTB(TBBase):
 
         # Outstanding-burst identity -- see test_pipelined_aw_identity.
         if not await self.test_pipelined_aw_identity(label='b2b-ids'):
+            success = False
+
+        # WRAP bursts -- see test_wrap_burst.
+        if not await self.test_wrap_bursts():
             success = False
 
         for addr, data_list in test_cases:

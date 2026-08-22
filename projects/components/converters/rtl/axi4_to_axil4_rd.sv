@@ -116,6 +116,20 @@ module axi4_to_axil4_rd #(
     logic [AXI_ADDR_WIDTH-1:0] w_ar_addr_incr;
     assign w_ar_addr_incr = (1 << r_ar_size);  // Byte increment per beat
 
+    // WRAP wraps inside an aligned (len+1) * (1 << size) byte window: the
+    // low bits advance and carry back to the window base instead of running
+    // past it. Used for cache-line fills, where the requested word comes
+    // first and the rest of the line follows round the boundary.
+    logic [AXI_ADDR_WIDTH-1:0] w_ar_wrap_mask;
+    logic [AXI_ADDR_WIDTH-1:0] w_ar_next_addr;
+    assign w_ar_wrap_mask = (({{(AXI_ADDR_WIDTH-8){1'b0}}, r_ar_len} + 1)
+                             << r_ar_size) - 1;
+    assign w_ar_next_addr =
+        (r_ar_burst == 2'b10)
+            ? ((r_ar_addr & ~w_ar_wrap_mask) |
+               ((r_ar_addr + w_ar_addr_incr) & w_ar_wrap_mask))
+            : (r_ar_addr + w_ar_addr_incr);
+
     // Read state machine
     typedef enum logic [1:0] {
         RD_IDLE       = 2'b00,
@@ -187,9 +201,10 @@ module axi4_to_axil4_rd #(
                 RD_BURST, RD_LAST_BEAT: begin
                     if (m_axil_arvalid && m_axil_arready) begin
                         r_ar_beat_count <= r_ar_beat_count + 1'b1;
-                        // Address increment (INCR and WRAP both increment)
+                        // FIXED holds the address; INCR advances; WRAP
+                        // advances and folds back at the window boundary.
                         if (r_ar_burst != 2'b00)  // Not FIXED
-                            r_ar_addr <= r_ar_addr + w_ar_addr_incr;
+                            r_ar_addr <= w_ar_next_addr;
                         if (r_rd_state == RD_LAST_BEAT)
                             r_ar_active <= 1'b0;
                     end
