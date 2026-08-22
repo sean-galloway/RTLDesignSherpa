@@ -26,7 +26,8 @@ module apb4_slave_cdc_cg #(
     // way DEPTH itself must be one of {2,4,6,8} -- it also feeds the wrapped
     // slave's gaxi_skid_buffers, whose elaboration guard rejects the rest.
     // Defaults to 0. Johnson is opt-in and must be a conscious choice -- its
-    // pointers are DEPTH bits wide against Gray's $clog2(DEPTH)+1, duplicated
+    // pointers are max(DEPTH,4) bits wide (the floored FIFO depth) against
+    // Gray's $clog2(max(DEPTH,4))+1, duplicated
     // per domain and per synchronizer stage.
     parameter int USE_JOHNSON = 0,
     // Clock gating parameters

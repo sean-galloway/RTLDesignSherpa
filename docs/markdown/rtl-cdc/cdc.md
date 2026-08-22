@@ -984,9 +984,8 @@ variant.
 `gaxi_skid_buffer_async`, `axi4_to_apb4_shim`.
 
 **Supporting primitives (rtl/cdc):** `bin2gray`, `gray2bin`, `johnson2bin`,
-`counter_bingray`, `counter_johnson`.
-**Supporting primitives (rtl/common):** `glitch_free_n_dff_arn`, `reset_sync`,
-`sync_pulse`.
+`counter_bingray`, `counter_johnson`, `glitch_free_n_dff_arn`, `sync_pulse`.
+**Supporting primitives (rtl/common):** `reset_sync`.
 
 ---
 
