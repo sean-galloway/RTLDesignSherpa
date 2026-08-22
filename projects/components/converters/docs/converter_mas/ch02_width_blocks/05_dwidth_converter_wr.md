@@ -291,21 +291,13 @@ AXI4 allows AW to arrive before, with, or after W data. The converter must handl
 
 ### Solution
 
-A FIFO carries the AW information the upsize logic needs:
+The write converter carries no AW information queue. AW is handled on the
+channel itself and the upsize block frames its output from the beats it
+is given, so there is nothing to stash between the address and its data.
 
-```systemverilog
-// FIFO stores AWLEN for burst tracking
-fifo_sync #(.WIDTH(8), .DEPTH(4)) u_aw_info_fifo (
-    .clk     (clk),
-    .rst_n   (rst_n),
-    .wr_en   (s_awvalid && s_awready),
-    .wr_data (s_awlen),
-    .rd_en   (m_wvalid && m_wready && m_wlast),
-    .rd_data (current_awlen),
-    .full    (aw_fifo_full),
-    .empty   (aw_fifo_empty)
-);
-```
+Compare the read converter, which does need one: its downsize block has
+no length queue of its own, so overlapping read bursts would lose their
+framing without an external ARLEN queue.
 
 ## 2.5.9 Resource Utilization
 
@@ -315,10 +307,12 @@ fifo_sync #(.WIDTH(8), .DEPTH(4)) u_aw_info_fifo (
 AW skid buffer:     ~200 flip-flops
 W upsize:           ~600 flip-flops, ~60 LUTs
 B skid buffer:      ~20 flip-flops
-AW info FIFO:       ~50 flip-flops
 Control logic:      ~100 LUTs
 
-Total: ~870 flip-flops, ~160 LUTs
+Total: ~820 flip-flops, ~160 LUTs
+
+Hand estimates, not synthesis results. There is no AW information FIFO
+in this converter.
 ```
 
 ## 2.5.10 Timing Characteristics

@@ -63,74 +63,77 @@ Cycle 0:   AR[0] issued to AXIL4
 Cycle 1:   R[0] received, AR[1] issued
 Cycle 2:   R[1] received, AR[2] issued
 ...
-Cycle 2N-1: R[N-1] received (RLAST)
-Total: 2N cycles (1 cycle per AR + 1 cycle per R)
+           R[N-1] received (RLAST)
 ```
+
+The AR for the next beat is issued in the same cycle the previous beat's
+R returns -- the converter inserts no wait state of its own between them.
+End-to-end duration is therefore set by the AXIL4 slave's response
+latency and readiness, not by the converter.
+
+Bursts do not overlap each other: AR is held off until the burst in
+flight has delivered its last beat, because the burst-tracking registers
+hold one burst at a time.
 
 ### State Machine
 
 ```systemverilog
 typedef enum logic [1:0] {
-    IDLE       = 2'b00,  // Wait for AR
-    DECOMPOSE  = 2'b01,  // Issuing single beats
-    WAIT_R     = 2'b10   // Wait for last R
+    RD_IDLE       = 2'b00,   // No burst in flight
+    RD_BURST      = 2'b01,   // Issuing the AXIL4 reads of a burst
+    RD_LAST_BEAT  = 2'b10    // Issuing the burst's final read
 } rd_state_t;
 ```
+
+A single-beat read (`ARLEN == 0`) never leaves `RD_IDLE`: it takes the
+passthrough leg rather than the decomposition FSM. That is also why the
+one-outstanding-burst guard cannot rely on the FSM state alone.
 
 ### Implementation
 
 ```systemverilog
-// Beat counter and address tracking
-logic [7:0] r_beat_count;
-logic [7:0] r_arlen_saved;
-logic [ADDR_WIDTH-1:0] r_current_addr;
+    // Read state machine
+    typedef enum logic [1:0] {
+        RD_IDLE       = 2'b00,
+        RD_BURST      = 2'b01,
+        RD_LAST_BEAT  = 2'b10
+    } rd_state_t;
 
-// State machine
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        r_state <= IDLE;
-        r_beat_count <= '0;
-    end else begin
-        case (r_state)
-            IDLE: begin
-                if (s_arvalid && s_arready) begin
-                    r_arlen_saved <= s_arlen;
-                    r_current_addr <= s_araddr;
-                    if (s_arlen == 0) begin
-                        // Single beat - passthrough
-                        r_state <= WAIT_R;
-                    end else begin
-                        r_state <= DECOMPOSE;
-                        r_beat_count <= 8'd1;
-                    end
+    rd_state_t r_rd_state, w_rd_next_state;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_rd_state <= RD_IDLE;
+        end else begin
+            r_rd_state <= w_rd_next_state;
+        end
+    end
+
+    // Read next state logic
+    always_comb begin
+        w_rd_next_state = r_rd_state;
+        case (r_rd_state)
+            RD_IDLE: begin
+                if (s_axi_arvalid && s_axi_arready) begin
+                    if (s_axi_arlen == 0)
+                        w_rd_next_state = RD_IDLE;  // Single beat, stay idle
+                    else
+                        w_rd_next_state = RD_BURST;  // Start burst decomposition
                 end
             end
-
-            DECOMPOSE: begin
-                if (m_arvalid && m_arready) begin
-                    r_current_addr <= r_current_addr + (1 << s_arsize);
-                    r_beat_count <= r_beat_count + 1;
-                    if (r_beat_count == r_arlen_saved) begin
-                        r_state <= WAIT_R;
-                    end
+            RD_BURST: begin
+                if (m_axil_arvalid && m_axil_arready) begin
+                    if (r_ar_beat_count == r_ar_len - 1)
+                        w_rd_next_state = RD_LAST_BEAT;
                 end
             end
-
-            WAIT_R: begin
-                if (s_rvalid && s_rready && s_rlast) begin
-                    r_state <= IDLE;
-                end
+            RD_LAST_BEAT: begin
+                if (m_axil_arvalid && m_axil_arready)
+                    w_rd_next_state = RD_IDLE;
             end
+            default: w_rd_next_state = RD_IDLE;
         endcase
     end
-end
-
-// AXIL4 AR generation
-assign m_arvalid = (r_state == DECOMPOSE) || (r_state == IDLE && s_arvalid);
-assign m_araddr = r_current_addr;
-
-// R aggregation
-assign s_rlast = (r_beat_count == r_arlen_saved) || (r_arlen_saved == 0);
 ```
 
 ## 3.2.3 Write Path (axi4_to_axil4_wr)
@@ -156,8 +159,14 @@ Cycle 0:   AW[0] + W[0] issued
 Cycle 1:   B[0] received, AW[1] + W[1] issued
 ...
 Cycle 2N-1: B[N-1] received
-Total: 2N cycles
+           B[N-1] received
 ```
+
+As on the read path, the next beat's AW/W is issued as the previous
+beat's B returns; the converter adds no wait state between them. The
+single B the master receives is emitted once every decomposed write has
+responded. Bursts do not overlap: AW is held off until the write in
+flight has had its B accepted.
 
 ### AW/W Synchronization Challenge
 
@@ -166,31 +175,41 @@ AXI4 allows AW and W to arrive in any order:
 - W before AW
 - Interleaved
 
-### Solution: Dual Accept Logic
+### Solution: W gated on the AW that owns it
+
+W is gated directly against the state of the AW it belongs to, rather
+than through pending-arrival flags, so a data beat cannot reach the
+AXIL4 slave ahead of its own address:
+
+* **Burst capture cycle.** When a burst's AW is being taken into the
+  registers, W is held off for that cycle (`w_burst_capture`). Without
+  it, the first W beat of the next burst slips out while the previous
+  burst is still finishing, and the AXIL4 slave pairs an address from
+  burst N with data from burst N+1.
+* **During a burst.** W passes only once this burst's AW has actually
+  been sent (`r_aw_sent`), or is being sent in this very cycle.
+* **Single beats.** Straight passthrough; AW and W are presented
+  together.
 
 ```systemverilog
-// Track AW and W arrival independently
-logic r_aw_accepted;
-logic r_w_accepted;
+    wire w_burst_capture = !r_aw_active && s_axi_awvalid && (s_axi_awlen > 0);
 
-// Accept both when ready to issue
-always_ff @(posedge clk) begin
-    if (w_issue_axil4) begin
-        r_aw_accepted <= 1'b0;
-        r_w_accepted <= 1'b0;
-    end else begin
-        if (s_awvalid && s_awready)
-            r_aw_accepted <= 1'b1;
-        if (s_wvalid && s_wready)
-            r_w_accepted <= 1'b1;
-    end
-end
-
-// Issue AXIL4 when both available
-assign w_issue_axil4 = (r_aw_accepted || s_awvalid) &&
-                       (r_w_accepted || s_wvalid) &&
-                       m_ready;
+    assign m_axil_wvalid = w_burst_capture ? 1'b0 :
+                           r_aw_active     ? (s_axi_wvalid &&
+                                              (r_aw_sent ||
+                                               (m_axil_awvalid && m_axil_awready))) :
+                                             s_axi_wvalid;
+    assign s_axi_wready  = w_burst_capture ? 1'b0 :
+                           r_aw_active     ? (m_axil_wready &&
+                                              (r_aw_sent ||
+                                               (m_axil_awvalid && m_axil_awready))) :
+                                             m_axil_wready;
 ```
+
+The failure this guards against only appears back to back -- the next AW
+arriving the cycle after `WR_LAST_BEAT` completes. A sequential test with
+a cooldown between bursts never opens that window, which is why it
+survived the FUB tests and was caught by a bridge-level probe.
 
 ### Response Aggregation
 
@@ -259,14 +278,19 @@ endmodule
 
 ### Throughput
 
-| Transaction Type | Throughput |
-|------------------|------------|
-| Single-beat | 100% (passthrough) |
-| 2-beat burst | 50% |
-| 4-beat burst | 50% |
-| N-beat burst | ~50% |
+| Transaction Type | Behaviour |
+|------------------|-----------|
+| Single-beat | Passthrough; no converter-inserted wait state |
+| N-beat burst | One AXIL4 access per beat, next request issued as the previous response returns |
+| Back-to-back bursts | Serialized: the next AR/AW waits for the previous burst's last beat |
 
 : Table 3.7: AXI4 to AXIL4 Throughput
+
+The previous "50% for any burst" figure was not measured and does not
+follow from the design: the converter adds no wait state between beats,
+so the achievable rate is whatever the AXIL4 slave sustains. A measured
+characterization per slave latency has not been done and is not claimed
+here.
 
 ### Latency
 

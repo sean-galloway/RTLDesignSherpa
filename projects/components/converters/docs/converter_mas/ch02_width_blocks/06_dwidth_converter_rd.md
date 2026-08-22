@@ -183,23 +183,38 @@ logic [2:0] w_adjusted_arsize;
 assign w_adjusted_arsize = s_arsize + RATIO_LOG2;
 ```
 
-### AR Information FIFO
+### Burst-Length FIFO
 
-Store original ARLEN for RLAST generation:
+Only the wide->narrow (downsize) read path needs one. The downsize block
+ignores a `burst_start` pulse while a burst is active and keeps no length
+queue of its own, so framing only the first burst would collapse N read
+bursts into one -- bursts 2..N would drain with `narrow_last` never
+asserting. A small queue holds one narrow ARLEN per outstanding burst:
+its head feeds the downsize, and it pops as each narrow burst completes,
+so every burst is framed however they overlap.
+
+It is an inline circular buffer rather than a `fifo_sync` instance,
+deliberately: this converter is widely instantiated and a submodule here
+would add a filelist dependency to every consumer. It stores the length
+alone -- ID is carried on the AXI channels, not through this queue -- and
+AR is back-pressured when full, so it cannot overflow.
 
 ```systemverilog
-// FIFO to track original burst length
-fifo_sync #(.WIDTH(8+ID_WIDTH), .DEPTH(4)) u_ar_info_fifo (
-    .clk     (clk),
-    .rst_n   (rst_n),
-    .wr_en   (s_arvalid && s_arready),
-    .wr_data ({s_arid, s_arlen}),
-    .rd_en   (s_rvalid && s_rready && s_rlast),
-    .rd_data ({current_arid, current_arlen}),
-    .full    (ar_fifo_full),
-    .empty   (ar_fifo_empty)
-);
+            localparam int BLEN_FIFO_DEPTH = 16;
+            localparam int BLEN_AW         = $clog2(BLEN_FIFO_DEPTH);
+
+            logic [7:0]         blen_mem [BLEN_FIFO_DEPTH];
+            logic [BLEN_AW:0]   blen_wptr, blen_rptr;   // extra MSB for full/empty
+            logic               w_blen_push, w_blen_pop;
+
+            // AR accepted -> enqueue its narrow length. A slave-side (narrow)
+            // burst completes on its last-beat handshake -> dequeue.
+            assign w_blen_push = int_ar_valid && int_ar_ready;
+            assign w_blen_pop  = int_r_valid && int_r_ready && int_rlast;
 ```
+
+The narrow->wide (upsize) direction needs no such queue; see the
+generate branch in the RTL.
 
 ## 2.6.6 Read Data Channel
 
@@ -308,14 +323,17 @@ assign s_rid = current_arid;
 
 ### Typical Resources (512→64, ID=4, Dual Buffer)
 
-```
-AR skid buffer:     ~150 flip-flops
-R downsize (dual):  ~1200 flip-flops, ~100 LUTs
-AR info FIFO:       ~100 flip-flops
-Burst tracker:      ~30 flip-flops, ~20 LUTs
-Control logic:      ~80 LUTs
+Hand estimates, not synthesis results, except the burst-length FIFO,
+which is counted from its declaration.
 
-Total: ~1480 flip-flops, ~200 LUTs
+```
+AR skid buffer:      ~150 flip-flops
+R downsize (dual):   ~1200 flip-flops, ~100 LUTs
+Burst-length FIFO:   138 flip-flops (16 x 8b + two 5b pointers)
+Burst tracker:       ~30 flip-flops, ~20 LUTs
+Control logic:       ~80 LUTs
+
+Total: ~1500 flip-flops, ~200 LUTs
 ```
 
 ### Single Buffer Version
