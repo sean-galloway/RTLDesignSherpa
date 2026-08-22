@@ -152,6 +152,12 @@ async def cocotb_test_throughput(dut):
     if rate is not None:
         assert rate > 0.5, f"throughput collapsed to {rate:.3f} beats/cycle"
 
+    # TRACK_BURSTS pays per burst, not per beat -- measured separately
+    burst_rate = await tb.measure_burst_throughput(bursts=8, wide_per_burst=8,
+                                                   label="framed-bursts")
+    if burst_rate is not None:
+        assert burst_rate > 0.5, f"burst throughput collapsed to {burst_rate:.3f}"
+
 
 @cocotb.test()
 async def cocotb_test_last_propagation(dut):
@@ -166,6 +172,10 @@ async def cocotb_test_burst_tracking(dut):
     """Test burst tracking mode for correct LAST generation"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
+    # NOTE: the return value is deliberately NOT asserted yet -- it is False
+    # today and the cause is unresolved (CONV-001 in vault/Tasks). Asserting
+    # it turns 6 configs red without telling anyone anything new. The silent
+    # discard is the bug; the task carries the evidence.
     await tb.test_burst_tracking(num_bursts=15)
 
 

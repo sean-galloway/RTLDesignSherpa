@@ -289,6 +289,92 @@ class AXIDataDnsizeTB(TBBase):
                       f"({100.0 * rate:.1f}% of the narrow-side maximum)")
         return rate
 
+
+    async def measure_burst_throughput(self, bursts=8, wide_per_burst=8,
+                                       label=""):
+        """Throughput in TRACK_BURSTS mode, where the cost is per BURST.
+
+        The replace condition here is `mid_burst_replace`, which requires a
+        burst to be active AND more beats to remain:
+
+            mid_burst_replace = r_burst_active
+                                && (r_beat_ptr == WIDTH_RATIO-1)
+                                && ((r_slave_beat_count + 1) < r_slave_total_beats)
+
+        The final beat of a burst is excluded, so the module gives up a
+        cycle at each burst BOUNDARY -- not at each wide beat, which is what
+        the book used to claim. Expected steady state is therefore
+        N/(N+1) per burst, where N is the burst's narrow-beat count.
+
+        Each burst is framed and drained completely before the next starts,
+        so nothing is left mid-burst for the scenario that follows -- an
+        earlier attempt that framed one long burst and let the drain time
+        out corrupted the burst-tracking test.
+        """
+        tag = f"[{label}] " if label else ""
+        if not self.track_bursts:
+            return None
+
+        saved = (getattr(self.wide_master, 'randomizer', None),
+                 getattr(self.narrow_slave, 'randomizer', None))
+        b2b = quick_config(profiles=['backtoback'],
+                           fields=['valid_delay', 'ready_delay']).build()
+        self.wide_master.set_randomizer(b2b['backtoback'])
+        self.narrow_slave.set_randomizer(b2b['backtoback'])
+
+        per_burst = wide_per_burst * self.width_ratio
+        total_beats = total_cycles = 0
+        ok = True
+        try:
+            for _ in range(bursts):
+                self.get_narrow_beats(clear=True)
+                await self.start_burst(per_burst - 1)   # narrow-beat framing
+                await self.wait_clocks(self.clk_name, 2)
+
+                for i in range(wide_per_burst):
+                    pkt = {'data': 0xB0B00000 + i,
+                           'last': 1 if i == wide_per_burst - 1 else 0}
+                    if self.wide_sb_width > 0:
+                        pkt['sideband'] = 0
+                    await self.wide_master._driver_send(
+                        self.wide_master.create_packet(**pkt), sync=True)
+
+                start = get_sim_time('ns')
+                for _ in range(per_burst * 4 + 100):
+                    if len(self.get_narrow_beats()) >= per_burst:
+                        break
+                    await self.wait_clocks(self.clk_name, 1)
+                cycles = (get_sim_time('ns') - start) / self.clk_period_ns
+
+                got = len(self.get_narrow_beats())
+                if got < per_burst:
+                    self.log.error(f"@ {get_sim_time('ns')}ns: {tag}burst "
+                                   f"drained {got}/{per_burst}")
+                    ok = False
+                    break
+                total_beats += got
+                total_cycles += cycles
+                # fully drained before the next burst is framed
+                self.get_narrow_beats(clear=True)
+                await self.wait_clocks(self.clk_name, 5)
+        finally:
+            if saved[0] is not None:
+                self.wide_master.set_randomizer(saved[0])
+            if saved[1] is not None:
+                self.narrow_slave.set_randomizer(saved[1])
+            await self.wait_clocks(self.clk_name, 10)
+
+        if not ok or not total_cycles:
+            self.stats['errors'] = self.stats.get('errors', 0) + 1
+            return None
+        rate = total_beats / total_cycles
+        ideal = per_burst / (per_burst + 1)
+        self.log.info(f"@ {get_sim_time('ns')}ns: {tag}{bursts} bursts x "
+                      f"{per_burst} narrow beats: {total_beats} beats in "
+                      f"{total_cycles:.0f} cycles = {rate:.3f} beats/cycle "
+                      f"(one bubble per burst predicts {ideal:.3f})")
+        return rate
+
     async def test_basic_splitting(self, num_transactions=10):
         """
         Test basic splitting: send 1 wide beat,
@@ -391,7 +477,11 @@ class AXIDataDnsizeTB(TBBase):
             burst_len_beats = burst_len_encoded + 1
 
             # Start burst
-            await self.start_burst(burst_len_encoded)
+            # burst_len is NARROW beats - 1. In TRACK_BURSTS mode narrow_last
+            # is driven ONLY by (r_slave_beat_count + 1 >= r_slave_total_beats),
+            # and r_slave_beat_count increments on every narrow beat sent, so
+            # framing this in wide beats makes LAST fire WIDTH_RATIO times early.
+            await self.start_burst(burst_len_beats * self.width_ratio - 1)
             await self.wait_clocks(self.clk_name, 2)
 
             # Send burst_len_beats wide beats
@@ -416,6 +506,55 @@ class AXIDataDnsizeTB(TBBase):
 
         self.log.info(f"✓ Burst tracking test PASSED ({num_bursts} bursts)")
         return True
+
+
+    async def test_burst_len_drives_last(self, wide_beats=4):
+        """narrow_last must come from burst_len, not from wide_last.
+
+        test_burst_tracking asserts `wide_last` on the final wide beat AND
+        frames the burst, so a correct narrow_last proves nothing about the
+        counter -- the passthrough alone produces it. Framing that test in
+        wide beats instead of narrow (a WIDTH_RATIO error) changes nothing
+        it observes; it passes either way.
+
+        This drives the burst WITHOUT wide_last, so the only thing that can
+        terminate it is `r_slave_beat_count` reaching `r_slave_total_beats`.
+        """
+        if not self.track_bursts:
+            return True
+
+        total_narrow = wide_beats * self.width_ratio
+        self.get_narrow_beats(clear=True)
+        await self.start_burst(total_narrow - 1)
+        await self.wait_clocks(self.clk_name, 2)
+
+        for i in range(wide_beats):
+            pkt = {'data': 0xC0DE0000 + i, 'last': 0}       # deliberately no last
+            if self.wide_sb_width > 0:
+                pkt['sideband'] = 0
+            await self.send_wide_beat(pkt['data'], pkt.get('sideband', 0),
+                                      last=False)
+
+        await self.wait_clocks(self.clk_name, total_narrow + 20)
+        beats = self.get_narrow_beats(clear=True)
+        if len(beats) < total_narrow:
+            self.log.error(f"@ {get_sim_time('ns')}ns: burst_len-driven LAST: "
+                           f"only {len(beats)}/{total_narrow} narrow beats")
+            self.stats['errors'] = self.stats.get('errors', 0) + 1
+            return False
+
+        lasts = [i for i, (_, _, lst) in enumerate(beats[:total_narrow]) if lst]
+        if lasts == [total_narrow - 1]:
+            self.log.info(f"@ {get_sim_time('ns')}ns: burst_len-driven LAST "
+                          f"asserted on narrow beat {total_narrow - 1}, with "
+                          f"no wide_last -- the counter drives it")
+            return True
+        self.log.error(f"@ {get_sim_time('ns')}ns: burst_len-driven LAST: "
+                       f"expected LAST only on beat {total_narrow - 1}, got "
+                       f"it on {lasts} -- narrow_last is not coming from "
+                       f"burst_len")
+        self.stats['errors'] = self.stats.get('errors', 0) + 1
+        return False
 
     async def test_backpressure(self, num_transactions=10):
         """Test backpressure handling"""
