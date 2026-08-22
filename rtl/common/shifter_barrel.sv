@@ -40,7 +40,16 @@ module shifter_barrel #(
 
     // Clamp shift amount modulo WIDTH
     logic [$clog2(WIDTH)-1:0] w_shift_amount_mod;
-    assign w_shift_amount_mod = shift_amount[$clog2(WIDTH)-1:0];
+    // Truncation to $clog2(WIDTH) bits is modulo 2^clog2(WIDTH), which is
+    // only "modulo WIDTH" when WIDTH is a power of two. For npo2 widths the
+    // truncated value can reach 2^clog2(WIDTH)-1 >= WIDTH and would index the
+    // rotate arrays out of bounds (X in sim). One conditional subtract makes
+    // it exact for ALL widths: the truncated value is < 2^clog2(WIDTH) < 2*WIDTH.
+    logic [$clog2(WIDTH)-1:0] w_shift_amount_trunc;
+    assign w_shift_amount_trunc = shift_amount[$clog2(WIDTH)-1:0];
+    assign w_shift_amount_mod = (32'(w_shift_amount_trunc) >= WIDTH)
+                              ? $clog2(WIDTH)'(32'(w_shift_amount_trunc) - WIDTH)
+                              : w_shift_amount_trunc;
 
     // Generate lookup values for rotating shifts
     genvar i;

@@ -30,7 +30,7 @@ This is the shared brain that generates full/empty status flags for both FIFO va
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `ADDR_WIDTH` | 3 | Address width |
-| `DEPTH` | 16 | FIFO depth |
+| `DEPTH` | 8 | FIFO depth (default was 16 until COMMON-014: 16 against ADDR_WIDTH=3 broke the module's own DEPTH <= 2^ADDR_WIDTH rule and wr_almost_full could never assert) |
 | `ALMOST_WR_MARGIN` | 1 | Almost full threshold |
 | `ALMOST_RD_MARGIN` | 1 | Almost empty threshold |
 | `REGISTERED` | 0 | Output mode: 0=mux, 1=flop |

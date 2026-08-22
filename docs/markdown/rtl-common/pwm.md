@@ -210,6 +210,7 @@ PWM:    ████▒▒▒▒████▒▒▒▒____
 ### Motor Speed Control
 ```systemverilog
 // 50% duty cycle, 1kHz frequency (assuming 1MHz clock)
+// WIDTH >= 10 needed for these values (default 8 truncates silently)
 duty = 500;
 period = 1000; 
 repeat_count = 0;  // Continuous operation
@@ -227,7 +228,7 @@ repeat_count = fade_duration;
 ```systemverilog
 // 20ms period with 1-2ms pulse width
 duty = servo_position;     // 1000-2000 for 1-2ms
-period = 20000;           // 20ms at 1MHz clock  
+period = 20000;  // needs WIDTH >= 15 -- at the default 8, 20000 truncates to 32           // 20ms at 1MHz clock  
 repeat_count = 1;         // Single pulse
 ```
 

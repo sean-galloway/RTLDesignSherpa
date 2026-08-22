@@ -29,8 +29,8 @@ A synchronous First-In-First-Out buffer for when everything lives in a single cl
 ## Parameters
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `MEM_STYLE` | — | Memory implementation (`FIFO_AUTO`/SRL/BRAM) — see note below |
-| `REGISTERED` | — | Output mode: 0=mux mode (combinational), 1=flop mode (registered) |
+| `MEM_STYLE` | FIFO_AUTO | Memory implementation (`FIFO_AUTO`/SRL/BRAM) — see note below |
+| `REGISTERED` | 0 | Output mode: 0=mux mode (combinational), 1=flop mode (registered) |
 | `DATA_WIDTH` | 4 | Width of data bus |
 | `DEPTH` | 4 | FIFO depth in words |
 | `ALMOST_WR_MARGIN` | 1 | Almost full threshold |

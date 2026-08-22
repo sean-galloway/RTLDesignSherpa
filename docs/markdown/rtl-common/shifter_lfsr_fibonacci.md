@@ -201,7 +201,7 @@ Unlike some LFSR implementations that reset to all ones, this module resets to
 all zeros and relies on seed loading for proper initialization.
 
 ## Applications
-- Pseudo-random sequence generation (identical to Galois LFSR output)
+- Pseudo-random sequence generation (same maximal-length guarantees as the Galois form; the STATE SEQUENCES differ -- see the Usage Note and the Galois page)
 - CRC calculation (with appropriate polynomial)
 - Data scrambling and encryption
 - Test pattern generation

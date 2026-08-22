@@ -161,19 +161,19 @@ their own books, not here:
 
 | Category | Count |
 |---|---|
-| Clock, Reset & CDC | 8 |
+| Clock, Reset & Debounce | 6 |
 | Data Integrity | 7 |
 | Counters | 6 |
 | Bit Ops & Search | 6 |
 | Shifters & LFSRs | 6 |
 | Arbiters | 7 |
 | Conversion & Encoding | 5 |
-| Miscellaneous | 3 |
+| Miscellaneous | 2 |
 | FIFOs | 2 |
 | CAM | 1 |
 
 The counts come from `ls rtl/common/*.sv` — regenerate them rather than
-hand-editing. They sum to 49, and every module in the tree falls into exactly
+hand-editing. They sum to 48, and every module in the tree falls into exactly
 one row.
 
 ### Usage Guidelines

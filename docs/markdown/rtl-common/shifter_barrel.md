@@ -77,8 +77,11 @@ The 3-bit `ctrl` signal determines the shift operation:
 logic [$clog2(WIDTH)-1:0] shift_amount_mod;
 assign shift_amount_mod = shift_amount[$clog2(WIDTH)-1:0];
 ```
-`shift_amount_mod` reduces the amount modulo WIDTH — **only the wrap (rotate)
-paths use it**. The three no-wrap paths take the RAW amount, with IEEE
+`shift_amount_mod` folds the amount into [0, WIDTH) for the wrap (rotate)
+paths — **only they use it**. The fold is truncate-to-$clog2(WIDTH)-bits then
+one conditional subtract of WIDTH: plain truncation is modulo a power of two,
+which for non-power-of-2 widths could reach past the rotate arrays (an
+out-of-bounds X before 2026-08-21; exact for all widths now). The three no-wrap paths take the RAW amount, with IEEE
 saturation for amounts at or beyond the width: logical right/left by
 `>= WIDTH` gives 0, arithmetic right gives all-sign-bits. (Before 2026-08-20
 the no-wrap paths carried a `shift_amount_mod == 0` passthrough guard, so
@@ -187,10 +190,6 @@ Output: 8'b10110110  (bits wrap around)
 ### 2. Arithmetic Right Shift
 The arithmetic shift uses SystemVerilog's `>>>` operator with a `$signed()` cast,
 so sign extension behaves correctly for two's complement numbers.
-
-### 3. Zero Shift Optimization
-The explicit `shift_amount_mod == 0` checks short-circuit the most common case —
-no shift at all — and skip the unnecessary computation.
 
 ### 4. Double-Width Concatenation
 The `{data, data}` concatenation is the oldest trick in the book: paste the data

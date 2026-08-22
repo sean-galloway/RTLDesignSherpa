@@ -65,7 +65,10 @@ def generate_test_params():
 
     REG_LEVEL=GATE: 2 tests (8-bit, gate+func)
     REG_LEVEL=FUNC: 3 tests (8-bit all levels) - default
-    REG_LEVEL=FULL: 6 tests (8-bit all levels + 4, 16, 32-bit)
+    REG_LEVEL=FULL: 7 tests (8-bit all levels + 4, 11, 16, 32-bit;
+    11 is the non-power-of-2 row -- the rotate fold region 11..15 only
+    exists at npo2 widths, where the pre-2026-08-21 RTL indexed the
+    rotate arrays out of bounds)
 
     Returns:
         List of dicts with WIDTH, test_level
@@ -90,6 +93,7 @@ def generate_test_params():
             {'WIDTH': 8, 'test_level': 'func'},
             {'WIDTH': 8, 'test_level': 'full'},
             {'WIDTH':  4, 'test_level': 'func'},
+            {'WIDTH': 11, 'test_level': 'func'},
             {'WIDTH': 16, 'test_level': 'func'},
             {'WIDTH': 32, 'test_level': 'func'},
         ]

@@ -31,10 +31,10 @@
 
 ## Overview
 
-The Common RTL Library is **49 reusable building blocks** for FPGA and ASIC designs. Every module is technology-agnostic, fully parameterizable, and verified with comprehensive CocoTB test suites. This guide is the fast path in.
+The Common RTL Library is **48 reusable building blocks** for FPGA and ASIC designs. Every module is technology-agnostic, fully parameterizable, and verified with comprehensive CocoTB test suites. This guide is the fast path in.
 
 **Quick Stats:**
-- **49 modules** across 10 categories (arithmetic split out to `rtl/math/`, clock-crossing to `rtl/cdc/`)
+- **48 modules** across 10 categories (arithmetic split out to `rtl/math/`, clock-crossing to `rtl/cdc/`)
 - **Technology agnostic** (FPGA/ASIC portable)
 - **Well documented** (inline + external docs)
 - **Every module has a CocoTB test** under `val/common/`
@@ -265,8 +265,7 @@ dataint_ecc_hamming_decode_secded #(
 
 **Need:** Safely cross a signal from one clock domain to another
 
-**Module:** `cdc_synchronizer.sv` (for data) or `sync_pulse.sv` -- both in `rtl/cdc/`
-in `rtl/common/` (for pulses). There is no `sync_2ff` module — earlier revisions
+**Module:** `cdc_synchronizer.sv` (for data) or `sync_pulse.sv` -- both in `rtl/cdc/` (for pulses). There is no `sync_2ff` module — earlier revisions
 of this guide named one, but it has never existed in the tree.
 
 ```systemverilog
@@ -324,10 +323,10 @@ sync_pulse u_pulse_sync (
 
 | Standard | Module | Configuration |
 |---|---|---|
-| Any CRC standard | `dataint_crc.sv` | Set POLYNOMIAL parameter |
-| CRC-32 (Ethernet) | `dataint_crc.sv` | POLYNOMIAL=32'h04C11DB7 |
-| CRC-16-CCITT | `dataint_crc.sv` | POLYNOMIAL=16'h1021 |
-| CRC-8 | `dataint_crc.sv` | POLYNOMIAL=8'h07 |
+| Any CRC standard | `dataint_crc.sv` | Drive the POLY input port (a PORT, not a parameter) |
+| CRC-32 (Ethernet) | `dataint_crc.sv` | POLY port = 32'h04C11DB7 |
+| CRC-16-CCITT | `dataint_crc.sv` | POLY port = 16'h1021 |
+| CRC-8 | `dataint_crc.sv` | POLY port = 8'h07 |
 | Custom | `dataint_crc_xor_shift.sv` | Build custom |
 
 **The validated CRC configurations (250 standards) are the `crc_parameters` table in `bin/TBClasses/common/crc_testing.py`, which drives `val/common/test_dataint_crc.py`.**

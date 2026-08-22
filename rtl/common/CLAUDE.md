@@ -31,7 +31,7 @@
 
 ## Quick Context
 
-**What:** Reusable technology-agnostic building blocks (counters, arbiters, CRC, CDC, etc.); math primitives now live in `rtl/math/`
+**What:** Reusable technology-agnostic building blocks (counters, arbiters, CRC, encoders, etc. -- CDC now lives in `rtl/cdc/`); math primitives now live in `rtl/math/`
 **Status:** Stable, mature baseline - production ready
 **Your Role:** Help users integrate existing modules, rarely create new ones
 
@@ -121,9 +121,9 @@ cat val/common/test_counter_bin.py
 **See:** `/GLOBAL_REQUIREMENTS.md` Section 1.1 for complete requirement
 
 **Common RTL Status:** Active-low everywhere, but the port is named **`rst_n`**,
-not `i_rst_n`. Measured across `rtl/common/*.sv`: 28 modules expose `rst_n`, one
-exposes `aresetn` (`clock_gate_ctrl`), and **none** expose `i_rst_n`; the other
-20 have no reset port at all (`icg` among them). Write `.rst_n(...)` — an `i_rst_n` connection will not elaborate against
+not `i_rst_n`. Measured across `rtl/common/*.sv` (re-measured 2026-08-21, 48 modules): 25
+modules expose `rst_n`, one exposes `aresetn` (`clock_gate_ctrl`), and **none**
+expose `i_rst_n`; the other 22 have no reset port at all (`icg` among them). Write `.rst_n(...)` — an `i_rst_n` connection will not elaborate against
 these modules. The polarity requirement in `/GLOBAL_REQUIREMENTS.md` §1.1 is met; the
 `i_`-prefix naming is not, and reconciling the two is an open decision, not
 something to patch per-instantiation.
@@ -143,12 +143,12 @@ something to patch per-instantiation.
 | "...error correction" | `dataint_ecc_hamming_*.sv` | SECDED ECC |
 | "...parity" | `dataint_parity.sv` | Even/odd parity |
 | "...clock divider" | `clock_divider.sv` | But warn: prefer PLL |
-| "...synchronizer/CDC" | `glitch_free_n_dff_arn.sv` or `sync_pulse.sv` | Safe CDC |
+| "...synchronizer/CDC" | `rtl/cdc/glitch_free_n_dff_arn.sv` or `rtl/cdc/sync_pulse.sv` (MOVED to rtl/cdc) | Safe CDC |
 | "...FIFO" | Point to `rtl/amba/gaxi/` | Production FIFOs |
 | "...priority encoder" | `arbiter_priority_encoder.sv` | Exists |
 | "...leading zeros" | `count_leading_zeros.sv` | Exists (scans MSB down) |
 | "...trailing zeros / alignment" | `count_trailing_zeros.sv` | Exists (scans LSB up) - do NOT bit-reverse into CLZ |
-| "...Gray code" | `bin2gray.sv`, `gray2bin.sv` | Both directions |
+| "...Gray code" | `rtl/cdc/bin2gray.sv`, `rtl/cdc/gray2bin.sv` (MOVED to rtl/cdc) | Both directions |
 
 ### Counter Selection Matrix
 
