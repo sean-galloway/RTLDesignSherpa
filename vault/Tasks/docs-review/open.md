@@ -1041,7 +1041,7 @@ sweep) invalidated the July certification, so the full loop re-ran:
 | cdc humanize | 19 pages + brief table (unit scope pulls in 4 APB slave-CDC pages + rtl-common clock_pulse); fix-survival verified; tag-survival caught `](../index.md])` -- THIRD consecutive humanize round with this defect class, gate catches it every time | 42630ad3 |
 | Ops notes | run_batch refuses a qc dispatch on a stale brief table (rebuild bundle -> make_meta_unit -> update_brief_table -> dispatch, in that order); one engine_overloaded transport failure resent via --resume per the client's remedy text | |
 
-### math -- docs DONE; tests nearly done; 3 tasks open
+### math -- DONE; all MATH-001..009 closed (open.md/active.md empty; stale rows below corrected 2026-08-22)
 
 | Phase | State | Evidence |
 |---|---|---|
@@ -1050,9 +1050,9 @@ sweep) invalidated the July certification, so the full loop re-ran:
 | Humanize | 29 pages applied; tag-survival clean; 0 broken links; prose emoji stripped | humanize round_5; 11f32089 |
 | Tests (testqc round_1) | 173 findings triaged by class and integrated | SEED two-line variant (29900e1b), MATH-003 filelists CLOSED (134 generated + 24 repaired; all 119 tests converted; gate 119/119 func 134/134; 276de494), MATH-004 levels CLOSED (normalize_test_level sweep of 22 sites + grid fixes; b3c0aa23), semantic class (RNE checker shift-aware + directed cases; clamp bit-exact; Goldschmidt zero-window + flags; carry_save i_c stimulus; vacuous main_loop; sigmoid prose; create_view_cmd FST name) |
 | MATH-002 | CLOSED -- bf16 adder underflow reported +inf (wrap bit shared by both flags); RTL fixed, directed FTZ regression added, mutation-checked | 650fe622 |
-| MATH-001 | bf16 multiplier now textbook RNE: mantissa_mult exports guard + true sticky (the fold made ties-at-even round up), multiplier formula G & (R\|S\|LSB); sweep-verified 0/5000 vs exact reference; fp32 pair fixed identically; docs updated | pending final suite verify + close |
-| MATH-005 | OPEN -- math_mod_3_compress formal checks (moved common->math; reviews done, formal remaining) | vault/Tasks/math |
-| MATH-006 | OPEN -- fp16/fp8 multipliers share the RNE deviation class (different shape: no guard export at all); P1 per "fix to spec" | vault/Tasks/math |
+| MATH-001 | CLOSED -- bf16 multiplier textbook RNE (guard + true sticky export, G & (R\|S\|LSB)); sweep-verified 0/5000 vs exact reference; fp32 pair fixed identically; docs updated | vault/Tasks/math/closed.md |
+| MATH-005 | CLOSED -- math_mod_3_compress final formal checks done | vault/Tasks/math/closed.md |
+| MATH-006 | CLOSED -- (this row misdescribed it: the fp16/fp8 RNE sweep was MATH-007, closed false-alarm with exhaustive evidence). MATH-006 = full math formal suite re-run after the .sby path repair: 157 PASS 2026-08-11 | vault/Tasks/math/closed.md |
 | False alarms | carry_save PARAM_N (fixed module is 1-bit by design) | triage note in round_2 record |
 
 ### Cross-area process state
