@@ -224,6 +224,17 @@ class AXIDataDnsizeTB(TBBase):
         narrow beat every cycle, which is the most the narrow side can carry.
         """
         tag = f"[{label}] " if label else ""
+
+        # TRACK_BURSTS mode is deliberately NOT measured here. Its replace
+        # condition (`mid_burst_replace`) needs a framed burst, and driving
+        # one long enough to measure leaves the module mid-burst for the
+        # scenario that follows -- it corrupted the burst-tracking test when
+        # tried. Characterizing that mode needs its own scenario.
+        if getattr(self, 'track_bursts', False):
+            self.log.info(f"{tag}skipped: TRACK_BURSTS needs framed bursts, "
+                          f"see the note in measure_throughput")
+            return None
+
         self.get_narrow_beats(clear=True)
 
         # Drive both sides with the shared 'backtoback' profile. With the

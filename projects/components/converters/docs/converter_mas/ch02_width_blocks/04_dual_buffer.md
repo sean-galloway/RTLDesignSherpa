@@ -42,9 +42,12 @@ lands in the same cycle. With `TRACK_BURSTS=1` the condition narrows to
 `mid_burst_replace`, which excludes the final beat of a burst -- so that
 mode gives up a cycle at each BURST boundary, not at each wide beat.
 
-Throughput has not been characterized end to end. A bench measurement is
-dominated by the harness unless the master is driven back to back, and
-the two ratios measured so far disagree, so no figure is quoted here.
+Measured, both modes reach 0.992 beats/cycle at ratio 4 (256 narrow
+beats in 258 cycles) and single buffer reaches 0.985 at ratio 2 -- a flat
+2-cycle pipeline fill, no per-beat cost. **In simple mode the dual buffer
+buys no throughput over the single buffer**, so its 2x area only pays for
+itself in `TRACK_BURSTS` mode, where the single buffer gives up a cycle
+at each burst boundary. That mode is not yet measured.
 
 ### High-Performance Requirements
 

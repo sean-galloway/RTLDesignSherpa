@@ -164,7 +164,7 @@ input = OKAY (2'b00)
 | Module | Mode | Throughput | Latency | Area |
 |--------|------|------------|---------|------|
 | axi_data_upsize | Single | 100% | N cycles | 1x |
-| axi_data_dnsize | Single | not characterized | 1 cycle | 1x |
+| axi_data_dnsize | Single | 0.992 beats/cycle | 1 cycle | 1x |
 | axi_data_dnsize | Dual | 100% | 1 cycle | 2x |
 
 : Table 2.3: Performance Comparison

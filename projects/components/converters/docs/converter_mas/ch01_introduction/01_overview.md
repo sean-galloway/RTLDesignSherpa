@@ -117,7 +117,7 @@ Layer 3: Protocol Converters
 | Configuration | Throughput | Area | Use Case |
 |---------------|------------|------|----------|
 | Upsize (single buffer) | 100% | 1x | All narrow-to-wide |
-| Downsize (single buffer) | not characterized | 1x | Area-constrained |
+| Downsize (single buffer) | 0.992 beats/cycle | 1x | Area-constrained |
 | Downsize (dual buffer) | 100% | 2x | High-performance |
 
 : Table 1.3: Throughput vs. Area Trade-offs

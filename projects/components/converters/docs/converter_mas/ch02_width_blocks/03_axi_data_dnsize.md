@@ -143,7 +143,25 @@ the current beat finishes.
 `mid_burst_replace`, which excludes the final beat of a burst, so a
 cycle is given up at each burst boundary -- not at each wide beat.
 
-End-to-end throughput is not characterized here; see 2.4.
+Measured on `axi_data_dnsize` with both sides driven by the shared
+`backtoback` randomizer profile, 64 wide beats per run, timing the drain
+only (see `measure_throughput` in the dnsize TB):
+
+| Configuration | Narrow beats | Cycles | Beats/cycle |
+|---|---|---|---|
+| ratio 4, single buffer | 256 | 258 | **0.992** |
+| ratio 4, dual buffer | 256 | 258 | **0.992** |
+| ratio 2, single buffer | 128 | 130 | **0.985** |
+
+Both buffering modes sustain a narrow beat every cycle, which is the most
+the narrow side can carry. The shortfall is a constant 2-cycle pipeline
+fill, not a per-beat cost -- it does not grow with the run, which is how
+the earlier "one gap cycle per wide beat" model was ruled out.
+
+`TRACK_BURSTS=1` is not covered by these numbers: its replace condition
+excludes the final beat of a burst, so it is expected to give up a cycle
+at each burst boundary, and measuring it needs a framed-burst scenario
+that does not yet exist.
 
 | Ratio | Cycles Active | Cycles Total | Throughput |
 |-------|---------------|--------------|------------|
@@ -340,8 +358,8 @@ Total: ~1190 flip-flops, ~80-100 LUTs
 
 | Mode | Registers | LUTs | Throughput |
 |------|-----------|------|------------|
-| Single | 590 | 40 | not characterized |
-| Dual | 1190 | 90 | not characterized |
+| Single | 590 | 40 | 0.992 beats/cycle (ratio 4) |
+| Dual | 1190 | 90 | 0.992 beats/cycle (ratio 4) |
 
 : Table 2.9: Resource Comparison
 
