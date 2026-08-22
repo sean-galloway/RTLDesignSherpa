@@ -1028,6 +1028,19 @@ sweep) invalidated the July certification, so the full loop re-ran:
 | Humanize | 32 pages applied incl. CLAUDE.md; fix-survival verified per unit BEFORE apply and re-confirmed on the tree; tag-survival caught the humanizer's recurring '](../index.md]' malformed-link class (1 FATAL, repaired, re-gated); post-apply checks all zero | e0ff79ee |
 | Ops notes | large humanize units need KIMI_TIMEOUT=7200 (die thinking on the 1h default); run_batch --resume fills gaps only | |
 
+### common + cdc -- POST-JULY-28 UPDATE CYCLE DONE 2026-08-22 (Sean: "run the common/cdc files updated since July 28 throught the critique/humanize flows")
+
+| Phase | State | Evidence |
+|---|---|---|
+| common critique | rounds 8/9: 12 -> 6, converged (round_9 all doc nits) | 2f3ae653, 45c7fcc3 |
+| common RTL found | shifter_barrel npo2 rotate fold was plain $clog2-truncation (modulo 2^k, NOT modulo WIDTH); fixed with truncate + one conditional subtract (exact since trunc < 2*WIDTH), permanent WIDTH=11 FULL-grid row, pre-fix directed test FAILED 10/10 | 2f3ae653 |
+| common notable | LFSR seed-behavior claims ENUMERATED not patched: WIDTH=4 [4,3] Fibonacci = 3 freeze (1..3) / 3 revisit so lfsr_done asserts (6,11,13) / 9 cycle; the galois page's copy described the FIBONACCI module, and Galois itself measures MAXIMAL (all 15 seeds full period) | 45c7fcc3 |
+| common humanize | 31 pages; fix-survival grep-verified pre-apply; tag-survival caught the recurring `](../index.md]` class again (1 FATAL, repaired) | 465ab9f3 |
+| cdc critique | rounds 10/11 (first full review of the standalone cdc book incl. sync_pulse.md): 8 -> 4, meta unit clean, zero RTL logic | 516d43d0, 2763905a |
+| cdc notable | apb4_slave_cdc.md's DEPTH-elaboration analysis predated the gaxi_skid_buffer {2,4,6,8} guard (raw DEPTH bypasses the FIFO floor and hits the skids; legal set {2,4,6,8}, Johnson only buys 6); round_11 then caught round_10's own kept shorthand -- pointer widths follow the FLOORED max(DEPTH,4), so default DEPTH=2 pays 4-vs-3 bits, not 2-vs-2. Same fixes mirrored into 5 wrapper .sv header comments (comment-only, diff-verified) | 516d43d0, 2763905a |
+| cdc humanize | 19 pages + brief table (unit scope pulls in 4 APB slave-CDC pages + rtl-common clock_pulse); fix-survival verified; tag-survival caught `](../index.md])` -- THIRD consecutive humanize round with this defect class, gate catches it every time | 42630ad3 |
+| Ops notes | run_batch refuses a qc dispatch on a stale brief table (rebuild bundle -> make_meta_unit -> update_brief_table -> dispatch, in that order); one engine_overloaded transport failure resent via --resume per the client's remedy text | |
+
 ### math -- docs DONE; tests nearly done; 3 tasks open
 
 | Phase | State | Evidence |

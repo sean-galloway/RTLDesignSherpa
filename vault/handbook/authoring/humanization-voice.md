@@ -38,6 +38,16 @@ line, unbalanced code fences, an emoji introduced. WARN (judgement): heading
 drift and length ratios outside 0.85-1.20, both of which the unify-structure
 instruction produces legitimately.
 
+**The bracket-for-paren link is a RECURRING emission, not a one-off.** Three
+consecutive humanize rounds (math 2026-08-21, common and cdc 2026-08-22)
+each emitted a malformed footer link -- `](../index.md]` or `](../index.md])`
+-- always on the boilerplate "Back to Main Documentation Index" line. Link
+checkers cannot see it (the target text is intact; the markdown just doesn't
+parse as a link), only the tag-survival diff catches it, as a lost link
+target. The repair is mechanical: fix the bracket in the round's result file
+(assert the count first), re-gate to 0 FATAL, then apply. Do not re-run the
+unit for this.
+
 **The dropped-page class is the one that hides.** `apply_humanize` splits the
 returned blob on `<!-- SOURCE FILE: ... -->` banners, so a banner the humanizer
 eats folds that page into the previous one: the page is silently never written,
