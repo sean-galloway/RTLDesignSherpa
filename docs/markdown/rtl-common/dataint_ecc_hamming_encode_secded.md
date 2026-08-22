@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# dataint_ecc_hamming_encode_secded (`dataint_ecc_hamming_encode_secded.sv`)
+# dataint_ecc_hamming_encode_secded
 
-## Purpose
+## Overview
+
 The encoder half of a SECDED Hamming scheme (Single Error Correction, Double Error Detection). It generates the check bits that let the far end detect up to 2-bit errors and correct single-bit errors in the data.
 
-## Module Declaration
+### Module Declaration
+
 ```systemverilog
 module dataint_ecc_hamming_encode_secded #(
     parameter int WIDTH = 4,
@@ -38,32 +40,57 @@ module dataint_ecc_hamming_encode_secded #(
 ```
 
 ## Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `WIDTH` | 4 | Width of input data in bits |
 | `DEBUG` | 0 | Enable debug output (1=enabled, 0=disabled) |
 
-## Calculated Parameters
+### Calculated Parameters
+
 | Parameter | Formula | Description |
 |-----------|---------|-------------|
 | `ParityBits` | `$clog2(WIDTH + $clog2(WIDTH) + 1)` | Number of Hamming parity bits |
 | `TotalWidth` | `WIDTH + ParityBits + 1` | Total encoded data width (includes SECDED bit) |
 
+### Example Configurations
+
+4-bit data (the common example):
+- Data bits: 4
+- Parity bits: 3 (positions 0, 1, 3)
+- SECDED bit: 1 (position 7)
+- Total width: 8 bits
+
+8-bit data:
+- Data bits: 8
+- Parity bits: 4 (positions 0, 1, 3, 7)
+- SECDED bit: 1 (position 12)
+- Total width: 13 bits
+
+16-bit data:
+- Data bits: 16
+- Parity bits: 5 (positions 0, 1, 3, 7, 15)
+- SECDED bit: 1 (position 21)
+- Total width: 22 bits
+
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `data` | Input | WIDTH | Original data to be encoded |
 | `encoded_data` | Output | TotalWidth | Encoded data with parity and SECDED bits |
 
-## Functionality
+## Functional Description
 
 ### Hamming Code Structure
+
 The encoded word carries three things:
 1. **Data Bits**: Your original data, parked at specific positions
 2. **Parity Bits**: Hamming parity bits at the power-of-2 positions (1, 2, 4, 8, ...)
 3. **SECDED Bit**: One extra overall parity bit for double error detection
 
 ### Bit Position Layout
+
 ```
 Position: 1  2  3  4  5  6  7  8  9  10 11 12 ...
 Content:  P1 P2 D1 P4 D2 D3 D4 P8 D5 D6 D7 D8 ...
@@ -71,12 +98,12 @@ Content:  P1 P2 D1 P4 D2 D3 D4 P8 D5 D6 D7 D8 ...
 Where: P = Parity bit, D = Data bit
 ```
 
-## Implementation Details
-
 ### Key Functions
 
 #### `bit_position(k)` Function
+
 Works out where data bit `k` belongs in the encoded stream:
+
 ```systemverilog
 function automatic integer bit_position(input integer k);
     integer j, pos;
@@ -91,7 +118,9 @@ endfunction
 ```
 
 #### `get_covered_bits(parity_bit)` Function
+
 Returns a bitmask of every position a specific parity bit covers:
+
 ```systemverilog
 function automatic [TotalWidth-1:0] get_covered_bits(input integer parity_bit);
     integer j;
@@ -109,6 +138,7 @@ endfunction
 ### Encoding Algorithm
 
 #### Step 1: Data Placement
+
 ```systemverilog
 // Initialize with zeros
 w_data_with_parity = {TotalWidth{1'b0}};
@@ -120,6 +150,7 @@ end
 ```
 
 #### Step 2: Parity Calculation
+
 ```systemverilog
 // Calculate each Hamming parity bit
 for (i = 0; i < ParityBits; i++) begin
@@ -138,39 +169,24 @@ end
 ```
 
 #### Step 3: SECDED Bit Calculation
+
 ```systemverilog
 // Calculate overall parity for SECDED
 w_data_with_parity[TotalWidth-1] = ^w_data_with_parity[TotalWidth-2:0];
 ```
 
-## Key Features
+### Error Correction Capabilities
 
-### Combinational Design
-- **No Clock Required**: Purely combinational logic
-- **Immediate Output**: Encoded data shows up as soon as the input settles
-- **Stateless Operation**: No internal state, nothing to reset
-
-### Scalable Architecture
-- **Parameterizable Width**: Any data width you like
-- **Automatic Sizing**: The parity bit count is worked out for you
-- **Efficient Layout**: Optimal bit positioning for the Hamming code
-
-### Debug Support
-Note that `DEBUG` is a **no-op** in this module: the RTL never references it outside its parameter declaration, so there's no debug output to be had. The parameter is reserved for future use.
-
-## Error Correction Capabilities
-
-### Single Error Correction
+Single error correction:
 - Can correct any single-bit error in the encoded data
 - Uses the Hamming parity bits to locate the error
 - The decoder flips the bad bit
 
-### Double Error Detection
+Double error detection:
 - The SECDED bit is what spots double-bit errors
 - Can't fix them, but it flags them
 - No silent data corruption
 
-### Error Detection Matrix
 | Error Type | Detection | Correction |
 |------------|-----------|------------|
 | No Error | Yes | N/A |
@@ -178,29 +194,26 @@ Note that `DEBUG` is a **no-op** in this module: the RTL never references it out
 | Double Bit Error | Yes | No |
 | Triple+ Bit Error | Partial | No |
 
-## Example Configurations
+### Combinational Design
 
-### 4-bit Data (Common Example)
-- Data bits: 4
-- Parity bits: 3 (positions 0, 1, 3)
-- SECDED bit: 1 (position 7)
-- Total width: 8 bits
+- **No Clock Required**: Purely combinational logic
+- **Immediate Output**: Encoded data shows up as soon as the input settles
+- **Stateless Operation**: No internal state, nothing to reset
 
-### 8-bit Data
-- Data bits: 8
-- Parity bits: 4 (positions 0, 1, 3, 7)
-- SECDED bit: 1 (position 12)
-- Total width: 13 bits
+### Scalable Architecture
 
-### 16-bit Data
-- Data bits: 16
-- Parity bits: 5 (positions 0, 1, 3, 7, 15)
-- SECDED bit: 1 (position 21)
-- Total width: 22 bits
+- **Parameterizable Width**: Any data width you like
+- **Automatic Sizing**: The parity bit count is worked out for you
+- **Efficient Layout**: Optimal bit positioning for the Hamming code
 
-## Usage Examples
+### Debug Support
+
+Note that `DEBUG` is a **no-op** in this module: the RTL never references it outside its parameter declaration, so there's no debug output to be had. The parameter is reserved for future use.
+
+## Usage Example
 
 ### Basic Encoding
+
 ```systemverilog
 // 8-bit data encoder
 dataint_ecc_hamming_encode_secded #(
@@ -213,6 +226,7 @@ dataint_ecc_hamming_encode_secded #(
 ```
 
 ### With Debug
+
 ```systemverilog
 // Debug-enabled encoder for verification
 dataint_ecc_hamming_encode_secded #(
@@ -224,7 +238,10 @@ dataint_ecc_hamming_encode_secded #(
 );
 ```
 
-## Applications
+## Design Notes
+
+### Applications
+
 - Memory systems (ECC RAM)
 - Communication protocols
 - Storage systems
@@ -233,6 +250,7 @@ dataint_ecc_hamming_encode_secded #(
 - Any application requiring data integrity
 
 ## Related Modules
+
 - **`dataint_ecc_hamming_decode_secded`**: Corresponding decoder module
 - Used together for complete SECDED error correction system
 

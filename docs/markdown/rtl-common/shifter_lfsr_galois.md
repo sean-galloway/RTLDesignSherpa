@@ -21,16 +21,16 @@
 
 <!-- End Header -->
 
-# Galois LFSR Module
+# shifter_lfsr_galois
 
-## Purpose
+## Overview
+
 The `shifter_lfsr_galois` module is a Galois Linear Feedback Shift Register:
 instead of one feedback XOR at the end of the chain, the XOR gates are
 distributed across the tap positions inside the register. That buys you better
 timing and higher operating frequencies than the Fibonacci form — which is
 usually why you're reaching for it.
 
-## Key Features
 - Galois (internal XOR) LFSR architecture
 - Distributed feedback XOR gates at tap positions
 - Right-shift operation with LSB feedback
@@ -65,7 +65,7 @@ usually why you're reaching for it.
 | `lfsr_out` | WIDTH | Current LFSR value |
 | `lfsr_done` | 1 | High when LFSR returns to seed value |
 
-## Galois LFSR Architecture
+## Functional Description
 
 ### Key Architectural Differences
 ```
@@ -83,8 +83,6 @@ LSB                                                             └────�
 - **Better Timing**: Shorter critical paths between flip-flops
 - **Higher Frequency**: Can operate at higher clock speeds
 - **Localized Routing**: Reduced interconnect complexity
-
-## Implementation Details
 
 ### Tap Position Processing
 ```systemverilog
@@ -135,9 +133,11 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Timing Example (4-bit Galois LFSR)
+## Timing
 
-### Configuration
+### 4-bit Galois LFSR Example
+
+Configuration:
 - WIDTH = 4
 - Polynomial: x⁴ + x³ + 1 (taps at positions 4,3)
 - Seed: 4'b1001
@@ -156,7 +156,33 @@ Cycle | LFSR | LSB | after >>1 | XOR 1100? | Next LFSR
 ...
 ```
 
-## Special Implementation Notes
+## Usage Example
+
+### High-Speed Systems
+```systemverilog
+// Use Galois LFSR for high-frequency applications
+// Clock rates > 500MHz where timing is critical
+```
+
+### Communications
+```systemverilog
+// Spread spectrum systems requiring fast sequence generation
+// Real-time scrambling/descrambling applications
+```
+
+### Cryptography
+```systemverilog
+// Stream cipher implementations
+// Key sequence generation
+```
+
+### Testing
+```systemverilog
+// High-speed BIST pattern generation
+// Fast pseudo-random test vectors
+```
+
+## Design Notes
 
 ### 1. Reset to All Ones
 ```systemverilog
@@ -197,34 +223,6 @@ Explicit bounds checking prevents out-of-range array access and handles unused t
 The basic operation is a right shift, but with XOR gates inserted at tap
 positions that conditionally invert bits based on the LSB feedback.
 
-## Applications
-
-### High-Speed Systems
-```systemverilog
-// Use Galois LFSR for high-frequency applications
-// Clock rates > 500MHz where timing is critical
-```
-
-### Communications
-```systemverilog
-// Spread spectrum systems requiring fast sequence generation
-// Real-time scrambling/descrambling applications
-```
-
-### Cryptography
-```systemverilog
-// Stream cipher implementations
-// Key sequence generation
-```
-
-### Testing
-```systemverilog
-// High-speed BIST pattern generation
-// Fast pseudo-random test vectors
-```
-
-## Performance Characteristics
-
 ### Critical Path Analysis
 ```
 Fibonacci LFSR Critical Path:
@@ -239,8 +237,6 @@ Previous bit → XOR gate → Current bit flip-flop
 - **Parallel Processing**: All XOR operations occur simultaneously
 - **Reduced Fan-out**: No single XOR gate with multiple inputs
 - **Better Scaling**: Critical path doesn't grow with tap count
-
-## Polynomial Considerations
 
 ### Tap Position Mapping
 For a polynomial P(x) = x^n + x^a + x^b + ... + 1:
@@ -275,8 +271,6 @@ Widths 3 through 16 were confirmed by simulation against this RTL; each yields
 period 2^n - 1. The full 168-width table is in the module's RTL header
 (`rtl/common/shifter_lfsr_galois.sv`).
 
-## Design Trade-offs
-
 ### Galois LFSR Advantages
 - **Speed**: Higher maximum clock frequency
 - **Timing**: Better setup/hold characteristics
@@ -289,21 +283,26 @@ period 2^n - 1. The full 168-width table is in the module's RTL header
 - **Debug**: Harder to trace intermediate states
 - **Understanding**: Less intuitive than classical Fibonacci
 
-## When to Choose Galois over Fibonacci
+### When to Choose Galois over Fibonacci
 
-### Use Galois LFSR When:
+Use Galois LFSR when:
 - High clock frequency is required (>100MHz)
 - Timing closure is challenging
 - Multiple taps are needed (>3 taps)
 - Power consumption is critical
 - Synthesis tools favor distributed logic
 
-### Use Fibonacci LFSR When:
+Use Fibonacci LFSR when:
 - Educational/demonstration purposes
 - Legacy system compatibility required
 - Very few taps (2 taps or less)
 - Area is more critical than speed
 - Debugging capabilities are important
+
+## Related Modules
+
+- [shifter_lfsr_fibonacci](shifter_lfsr_fibonacci.md) — the single-XOR Fibonacci form. Do **not** pass this page's tap numbers to it; the encoding differs (see Tap Position Mapping above).
+- [shifter_lfsr](shifter_lfsr.md) — the generic XNOR-feedback LFSR.
 
 ## Navigation
 

@@ -21,9 +21,10 @@
 
 <!-- End Header -->
 
-# leading_one_trailing_one (`leading_one_trailing_one.sv`)
+# leading_one_trailing_one
 
-## Purpose
+## Overview
+
 Finds both ends of your set bits at once: the position of the most significant bit (leading one) and the least significant bit (trailing one) in an input data vector. You get index outputs, one-hot vector representations of both positions, and status flags for the edge cases.
 
 - Finds the highest set bit position (leading one)
@@ -33,11 +34,13 @@ Finds both ends of your set bits at once: the position of the most significant b
 - Parameterizable width with automatic index sizing
 
 ## Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `WIDTH` | 8 | Width of input data vector — the module's only parameter |
 
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `data` | Input | WIDTH | Input data vector to analyze |
@@ -49,9 +52,10 @@ Finds both ends of your set bits at once: the position of the most significant b
 | `all_ones` | Output | 1 | High when input data is all ones |
 | `valid` | Output | 1 | High when input data contains at least one set bit |
 
-## Implementation Details
+## Functional Description
 
 ### Submodules
+
 Internally it's two specialized finder modules working opposite ends:
 
 1. **find_last_set**: Locates the position of the most significant set bit
@@ -63,6 +67,7 @@ Internally it's two specialized finder modules working opposite ends:
    - Implements priority encoding from LSB to MSB
 
 ### One-Hot Vector Generation
+
 ```systemverilog
 always_comb begin
     leadingone_vector = '0;
@@ -82,11 +87,12 @@ end
 ```
 
 ### Status Flag Logic
+
 - **all_ones**: Uses reduction AND (`&data`) to detect when all bits are set
 - **all_zeroes**: Uses reduction OR negation (`~(|data)`) to detect when no bits are set
 - **valid**: Uses reduction OR (`|data`) to indicate presence of at least one set bit
 
-## Special Implementation Notes
+### Special Implementation Notes
 
 1. **Index Width Calculation**: Uses `$clog2(WIDTH)` to automatically size index outputs for any input width
 
@@ -101,9 +107,10 @@ end
 
 4. **Type Casting**: Uses `int'()` casting for index comparisons to ensure proper integer arithmetic
 
-## Usage Examples
+## Usage Example
 
 ### 8-bit Example
+
 ```
 Input:  data = 8'b00101000
 Output: leadingone = 3'd5
@@ -116,6 +123,7 @@ Output: leadingone = 3'd5
 ```
 
 ### Edge Cases
+
 ```
 Input:  data = 8'b00000000
 Output: leadingone = 3'd0   (deterministic, not X; qualify with valid)
@@ -136,12 +144,20 @@ Output: leadingone = 3'd7
         valid = 1'b1
 ```
 
-## Applications
+## Design Notes
+
+### Applications
+
 - Priority arbitration systems
 - Bit manipulation operations
 - Data compression algorithms
 - Network packet processing
 - Cache management systems
+
+## Related Modules
+
+- **find_last_set**: Locates the most significant set bit; drives the `leadingone` output
+- **find_first_set**: Locates the least significant set bit; drives the `trailingone` output
 
 ## Navigation
 

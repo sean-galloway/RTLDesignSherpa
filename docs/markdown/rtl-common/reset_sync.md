@@ -21,12 +21,12 @@
 
 <!-- End Header -->
 
-# Reset Synchronizer Module
+# reset_sync
 
-## Purpose
+## Overview
+
 The `reset_sync` module is a parameterized reset synchronizer with asynchronous assertion and synchronous deassertion. That combination is the whole point: reset needs to hit immediately when it fires, but it has to come *off* on a clock edge. Release it asynchronously and every flop downstream gets a setup/hold gamble. This is the standard circuit for proper reset distribution, and it exists to keep reset release from going metastable or violating timing.
 
-## Key Features
 - Asynchronous reset assertion (immediate)
 - Synchronous reset deassertion (clocked)
 - Parameterizable synchronization depth
@@ -74,7 +74,7 @@ The names stick around for compatibility, which means a `reset_sync` with
 |------|-------|-------------|
 | `sync_rst_n` | 1 | Synchronized reset output (active-low) |
 
-## Reset Synchronizer Theory
+## Functional Description
 
 ### The Reset Problem
 Reset release is where synchronous designs get hurt. Mishandle it and you're
@@ -87,8 +87,6 @@ looking at:
 The behavior you actually want:
 - **Assert**: Immediate (asynchronous) when reset input becomes active
 - **Deassert**: Synchronized to clock edge to ensure clean timing
-
-## Implementation Details
 
 ### Synchronization Register Chain
 
@@ -147,7 +145,7 @@ attached at the declaration. All four variants are logically identical apart
 from the attributes and the sensitivity list. Yes, it's repetitive. That's the
 attribute syntax's fault, not the author's.
 
-## Timing Behavior
+## Timing
 
 ### Reset Assertion (Asynchronous)
 ```
@@ -187,58 +185,7 @@ Remember the chain holds the active-high form, so 111 is "asserted".
 The output releases on the third clock edge after `rst_n` goes high — those N
 cycles are the metastability margin the chain exists to buy you.
 
-## Special Implementation Notes
-
-### 1. Why the chain looks inverted
-
-The chain stores the **active-high** form of the reset, while the ports are named
-for the active-low one. Read the dataflow in order and the confusion evaporates:
-
-- `rst_in_h` is the input normalized to active-high
-- while `rst_in_h` is 1, the chain is forced to all ones (reset asserted)
-- when `rst_in_h` falls, zeros shift in from the LSB
-- after N edges the MSB is 0, and the output stage inverts it back to the
-  requested polarity
-
-So during reset the register holds 1s and after release it drains to 0s — the
-opposite of what the port names alone would tell you.
-
-### 2. Metastability Resolution
-The N stages buy you multiple clock cycles for metastability to resolve:
-- Each flip-flop stage gets a chance to resolve potential metastability
-- Probability of metastability propagation: (MTBF)^(-N)
-- N=2 typically sufficient, N=3 provides extra margin
-
-### 3. Initialization
-
-```systemverilog
-logic [N-1:0] r_sync_reg = '0;
-```
-
-The declaration initializer gives FPGA configuration a defined starting value.
-Note which value: 0, the *released* state. So on an FPGA the design comes out of
-configuration with reset already deasserted unless `rst_n` is asserted. On an
-ASIC the initializer is ignored, and the first asynchronous assertion establishes
-the state.
-
-### 4. Vendor attributes
-
-With `KEEP_ATTRS = 1` (the default) the chain carries `ASYNC_REG = "TRUE"` and
-`SHREG_EXTRACT = "NO"` for Xilinx, `altera_attribute` forcing synchronizer
-identification for Intel, and `syn_preserve` for Synplify. These do two jobs:
-they stop the tool from packing the chain into an SRL primitive — which would
-quietly destroy your metastability margin — and they let CDC reports recognize
-it as a synchronizer. Set `KEEP_ATTRS = 0` only if your flow objects to the
-attributes.
-
-### 5. Parameterization Benefits
-
-Configurable N lets you tune for different requirements:
-- **N=2**: Minimum permitted, fast reset release
-- **N=3**: Standard choice, good metastability margin
-- **N>=4**: Conservative, slower release in exchange for maximum metastability protection
-
-## Parameter Selection Guidelines
+## Usage Example
 
 ### Choosing N Value
 
@@ -277,8 +224,6 @@ reset_sync #(.N(4)) rst_sync_inst (
 - **Use when**: Critical applications, poor clock quality
 - **Benefit**: Maximum metastability protection
 - **Trade-off**: Slower reset release
-
-## Applications
 
 ### Global Reset Distribution
 ```systemverilog
@@ -350,7 +295,56 @@ module reset_controller (
 endmodule
 ```
 
-## Design Considerations
+## Design Notes
+
+### 1. Why the chain looks inverted
+
+The chain stores the **active-high** form of the reset, while the ports are named
+for the active-low one. Read the dataflow in order and the confusion evaporates:
+
+- `rst_in_h` is the input normalized to active-high
+- while `rst_in_h` is 1, the chain is forced to all ones (reset asserted)
+- when `rst_in_h` falls, zeros shift in from the LSB
+- after N edges the MSB is 0, and the output stage inverts it back to the
+  requested polarity
+
+So during reset the register holds 1s and after release it drains to 0s — the
+opposite of what the port names alone would tell you.
+
+### 2. Metastability Resolution
+The N stages buy you multiple clock cycles for metastability to resolve:
+- Each flip-flop stage gets a chance to resolve potential metastability
+- Probability of metastability propagation: (MTBF)^(-N)
+- N=2 typically sufficient, N=3 provides extra margin
+
+### 3. Initialization
+
+```systemverilog
+logic [N-1:0] r_sync_reg = '0;
+```
+
+The declaration initializer gives FPGA configuration a defined starting value.
+Note which value: 0, the *released* state. So on an FPGA the design comes out of
+configuration with reset already deasserted unless `rst_n` is asserted. On an
+ASIC the initializer is ignored, and the first asynchronous assertion establishes
+the state.
+
+### 4. Vendor attributes
+
+With `KEEP_ATTRS = 1` (the default) the chain carries `ASYNC_REG = "TRUE"` and
+`SHREG_EXTRACT = "NO"` for Xilinx, `altera_attribute` forcing synchronizer
+identification for Intel, and `syn_preserve` for Synplify. These do two jobs:
+they stop the tool from packing the chain into an SRL primitive — which would
+quietly destroy your metastability margin — and they let CDC reports recognize
+it as a synchronizer. Set `KEEP_ATTRS = 0` only if your flow objects to the
+attributes.
+
+### 5. Parameterization Benefits
+
+Configurable N lets you tune for different requirements:
+- **N=2**: Minimum permitted, fast reset release
+- **N=3**: Standard choice, good metastability margin
+- **N>=4**: Conservative, slower release in exchange for maximum metastability protection
 
 ### Reset Tree Planning
 ```systemverilog
@@ -370,8 +364,6 @@ endmodule
 // Multiple reset sources need careful combination
 wire combined_reset = por_n & external_rst_n & watchdog_rst_n & ~soft_reset;
 ```
-
-## Common Design Mistakes
 
 ### Incorrect Sensitivity List
 ```systemverilog
@@ -399,7 +391,26 @@ end
 // Don't share synchronized reset across clock domains
 ```
 
-## Verification Considerations
+## Related Modules
+
+- **Positive-edge reset**: For active-high reset systems
+- **Multi-domain reset**: For complex clock domain systems
+- **Reset pulse generator**: For generating reset pulses
+- **Reset debouncer**: For mechanical switch inputs
+
+Integration points worth knowing about:
+
+- Clock domain crossing modules
+- PLL/clock management units
+- Power management controllers
+- System controllers and reset managers
+
+## Testing
+
+### Test Coverage
+Test coverage for the reset_sync module lives in:
+- **Testbench Class**: `bin/TBClasses/reset_sync_tb.py`
+- **Test Runner**: `val/common/test_reset_sync.py`
 
 ### Test Scenarios
 - Reset assertion during various clock phases
@@ -407,6 +418,12 @@ end
 - Multiple reset assertion/deassertion cycles
 - Clock jitter during reset release
 - Power-on behavior
+
+### Testbench Scenarios
+**Basic Reset Synchronization** - Verifies N-cycle synchronization delay
+**Immediate Reset Assertion** - Verifies asynchronous assertion behavior
+**Multiple Reset Cycles** - Tests repeated reset/release sequences
+**Reset Glitch Filtering** - Validates recovery from short reset pulses
 
 ### Assertions
 ```systemverilog
@@ -427,19 +444,6 @@ endproperty
 - Reset release with different clock phases
 - Multiple consecutive reset cycles
 - Parameter variation coverage (different N values)
-
-## Test Verification
-
-### Test Coverage
-Test coverage for the reset_sync module lives in:
-- **Testbench Class**: `bin/TBClasses/reset_sync_tb.py`
-- **Test Runner**: `val/common/test_reset_sync.py`
-
-### Test Scenarios
-**Basic Reset Synchronization** - Verifies N-cycle synchronization delay
-**Immediate Reset Assertion** - Verifies asynchronous assertion behavior
-**Multiple Reset Cycles** - Tests repeated reset/release sequences
-**Reset Glitch Filtering** - Validates recovery from short reset pulses
 
 ### Running Tests
 ```bash
@@ -463,20 +467,6 @@ All 4 parameter configurations passing (100% success rate):
 **Bug Discovery**: the test suite caught a critical RTL bug on the initial run —
 an inverted reset polarity. Exactly the kind of bug that sails through a smoke
 test and ruins someone's bring-up. Thorough verification earns its keep.
-
-## Related Modules
-
-### Reset Synchronizer Variants
-- **Positive-edge reset**: For active-high reset systems
-- **Multi-domain reset**: For complex clock domain systems
-- **Reset pulse generator**: For generating reset pulses
-- **Reset debouncer**: For mechanical switch inputs
-
-### Integration with Other Modules
-- Clock domain crossing modules
-- PLL/clock management units
-- Power management controllers
-- System controllers and reset managers
 
 ## Navigation
 

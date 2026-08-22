@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# dataint_parity (`dataint_parity.sv`)
+# dataint_parity
 
-## Purpose
+## Overview
+
 A generic parity generator and checker in one. It computes parity bits over data chunks and verifies incoming parity against them, supporting both even and odd schemes across as many data segments as you carve your bus into.
 
-## Module Declaration
+### Module Declaration
+
 ```systemverilog
 module dataint_parity #(
     parameter int CHUNKS = 4,  // Number of chunks to check parity
@@ -41,18 +43,21 @@ module dataint_parity #(
 ```
 
 ## Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `CHUNKS` | 4 | Number of data chunks to process |
 | `WIDTH` | 32 | Total width of input data in bits |
 
-## Calculated Parameters
+### Calculated Parameters
+
 | Parameter | Formula | Description |
 |-----------|---------|-------------|
 | `ChunkSize` | `WIDTH / CHUNKS` | Size of each chunk in bits |
 | `ExtraBits` | `WIDTH % CHUNKS` | Remaining bits if WIDTH not evenly divisible |
 
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `data_in` | Input | WIDTH | Input data to calculate/check parity |
@@ -61,25 +66,27 @@ module dataint_parity #(
 | `parity` | Output | CHUNKS | Calculated parity bits |
 | `parity_err` | Output | CHUNKS | Error flags (1=parity mismatch) |
 
-## Functionality
+## Functional Description
 
 ### Dual Operation Modes
+
 The module does both jobs at once:
 1. **Generates Parity**: Calculates parity for each data chunk
 2. **Checks Parity**: Compares that calculated parity with the input parity
 
 ### Parity Types
+
 - **Even Parity** (`parity_type = 1`): The parity bit makes the total 1s even
 - **Odd Parity** (`parity_type = 0`): The parity bit makes the total 1s odd
 
 ### Data Chunking
+
 Data gets divided into chunks, with a small wrinkle for widths that don't divide evenly:
 - Most chunks: `ChunkSize` bits each
 - The last chunk picks up any extra bits when `WIDTH % CHUNKS ≠ 0`
 
-## Implementation Details
-
 ### Generate Block Architecture
+
 ```systemverilog
 genvar i;
 generate
@@ -101,11 +108,13 @@ endgenerate
 ```
 
 ### Chunk Boundary Calculation
+
 Each chunk's bounds are worked out statically:
 - **Regular Chunks** (i < CHUNKS-1): Fixed-size chunks
 - **Last Chunk** (i = CHUNKS-1): Mops up any remainder bits
 
 ### Parity Calculation Logic
+
 For each chunk:
 1. **XOR Reduction**: `^data_in[UpperBound:LowerBound]`
 2. **Parity Type Application**:
@@ -113,31 +122,17 @@ For each chunk:
    - Odd parity: invert it
 
 ### Error Detection
+
 Error checking is just a compare — calculated against expected:
+
 ```systemverilog
 assign parity_err[i] = (calculated_parity != parity_in[i]);
 ```
 
-## Key Features
+### Example Configurations
 
-### Scalable Architecture
-- **Parameterizable Chunks**: As many segments as you need
-- **Flexible Data Width**: Any total data width
-- **Automatic Sizing**: Uneven chunk divisions handled for you
+32-bit data, 4 chunks (8 bits each):
 
-### Simultaneous Operation
-- **Generation and Checking**: Both run concurrently
-- **Independent Chunks**: Each chunk minds its own business
-- **Parallel Processing**: All chunks evaluate at the same time
-
-### Parity Flexibility
-- **Runtime Configurable**: You can flip the parity type during operation
-- **Per-Module Setting**: All chunks share the same parity type
-- **Standard Support**: Both common parity schemes covered
-
-## Example Configurations
-
-### 32-bit Data, 4 Chunks (8 bits each)
 ```
 Chunk 0: data_in[7:0]    → parity[0], parity_err[0]
 Chunk 1: data_in[15:8]   → parity[1], parity_err[1]
@@ -145,7 +140,8 @@ Chunk 2: data_in[23:16]  → parity[2], parity_err[2]
 Chunk 3: data_in[31:24]  → parity[3], parity_err[3]
 ```
 
-### 30-bit Data, 4 Chunks (uneven division)
+30-bit data, 4 chunks (uneven division):
+
 ```
 Chunk 0: data_in[6:0]    (7 bits)  → parity[0], parity_err[0]
 Chunk 1: data_in[13:7]   (7 bits)  → parity[1], parity_err[1]
@@ -153,25 +149,24 @@ Chunk 2: data_in[20:14]  (7 bits)  → parity[2], parity_err[2]
 Chunk 3: data_in[29:21]  (9 bits)  → parity[3], parity_err[3]
 ```
 
-## Performance Characteristics
+### Key Features
 
-### Timing
+- **Scalable Architecture**: Parameterizable chunk count, flexible data width, uneven divisions handled for you
+- **Simultaneous Operation**: Generation and checking run concurrently, each chunk minds its own business, and all chunks evaluate at the same time
+- **Parity Flexibility**: You can flip the parity type during operation; all chunks share the same parity type; both common parity schemes covered
+
+## Timing
+
 - **Combinational Logic**: Zero clock delay
 - **Critical Path**: XOR tree depth ≈ log₂(ChunkSize)
 - **Propagation Delay**: Minimal for typical chunk sizes
+- **Area**: Grows linearly with CHUNKS and WIDTH; just XOR trees, so very little logic per chunk
+- **Power**: Low — simple combinational logic, and power tracks the data switching
 
-### Area
-- **Linear Scaling**: Area grows with CHUNKS and WIDTH
-- **Efficient Implementation**: Just XOR trees
-- **Low Overhead**: Very little logic per chunk
-
-### Power
-- **Low Power**: Simple combinational logic
-- **Activity Dependent**: Power tracks the data switching
-
-## Usage Examples
+## Usage Example
 
 ### Basic Parity Generation
+
 ```systemverilog
 dataint_parity #(
     .CHUNKS(8),
@@ -186,6 +181,7 @@ dataint_parity #(
 ```
 
 ### Parity Checking
+
 ```systemverilog
 dataint_parity #(
     .CHUNKS(4),
@@ -203,6 +199,7 @@ wire any_parity_error = |error_flags;
 ```
 
 ### Error Correction System
+
 ```systemverilog
 logic [CHUNKS-1:0] error_location;
 logic [WIDTH-1:0]  corrected_data;
@@ -227,45 +224,39 @@ always_comb begin
 end
 ```
 
-## Applications
+## Design Notes
 
-### Error Detection
+### Applications
+
 - Memory parity checking
 - Communication protocol verification
 - Data bus integrity monitoring
 - Storage system error detection
+- Real-time parity generation and concurrent error checking
+- Multi-segment data validation and protocol compliance verification
+- Building block for ECC systems and larger error correction schemes
+- Interface protection, debug and validation tools
 
-### Data Integrity
-- Real-time parity generation
-- Concurrent error checking
-- Multi-segment data validation
-- Protocol compliance verification
-
-### System Integration
-- Building block for ECC systems
-- Component in larger error correction schemes
-- Interface protection
-- Debug and validation tools
-
-### Related Applications
+Related application areas:
 - **ECC Systems**: Building block for Hamming codes
 - **Network Protocols**: Ethernet, UART parity
 - **Memory Systems**: DRAM/SRAM parity protection
 - **Communication**: RS-232, SPI, I2C error detection
 
-## Design Considerations
-
 ### Chunk Size Selection
+
 - **Power of 2**: Usually the friendliest for alignment
 - **Protocol Requirements**: Match whatever your system demands
 - **Error Granularity**: Smaller chunks pin errors down tighter
 
 ### Parity Type Selection
+
 - **Even Parity**: The more common choice in digital systems
 - **Odd Parity**: Gives you all-zeros detection
 - **System Compatibility**: Match the existing standard
 
 ### Width Considerations
+
 - **Alignment**: Think about data bus alignment
 - **Extra Bits**: Handle remainder bits sensibly
 - **Performance**: Balance chunk count against granularity

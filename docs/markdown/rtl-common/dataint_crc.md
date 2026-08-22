@@ -27,7 +27,7 @@
 
 The `dataint_crc` module is a generic Cyclic Redundancy Check (CRC) computation engine — configurable polynomials, data widths, and processing options, built for flexible, high-performance CRC calculation. It's a full CRC calculation engine for data integrity applications, communication protocols, and storage systems, with support for configurable polynomial widths, data widths, input/output reflection, and cascade processing for high-throughput applications.
 
-## Module Declaration
+### Module Declaration
 
 ```systemverilog
 module dataint_crc #(
@@ -58,20 +58,20 @@ module dataint_crc #(
 
 ### User-Settable Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| DATA_WIDTH | int | 64 | Input data width in bits (must be multiple of 8) |
-| CRC_WIDTH | int | 64 | CRC polynomial width in bits (8, 16, 32, or 64) |
-| REFIN | int | 1 | Reflect input data bytes (1=reflect, 0=direct) |
-| REFOUT | int | 1 | Reflect output CRC (1=reflect, 0=direct) |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `DATA_WIDTH` | 64 | Input data width in bits (must be multiple of 8) |
+| `CRC_WIDTH` | 64 | CRC polynomial width in bits (8, 16, 32, or 64) |
+| `REFIN` | 1 | Reflect input data bytes (1=reflect, 0=direct) |
+| `REFOUT` | 1 | Reflect output CRC (1=reflect, 0=direct) |
 
-### Derived Parameter (Do Not Override)
+### Calculated Parameters (Do Not Override)
 
-| Localparam | Computation | Description |
-|------------|-------------|-------------|
-| CHUNKS (CH) | DATA_WIDTH/8 | Number of 8-bit processing chunks per cycle |
-| CW | CRC_WIDTH | Convenience alias for CRC width |
-| DW | DATA_WIDTH | Convenience alias for data width |
+| Parameter | Formula | Description |
+|-----------|---------|-------------|
+| `CHUNKS` (CH) | DATA_WIDTH/8 | Number of 8-bit processing chunks per cycle |
+| `CW` | CRC_WIDTH | Convenience alias for CRC width |
+| `DW` | DATA_WIDTH | Convenience alias for data width |
 
 **Note:** CW, DW, and CH are body localparams and cannot be overridden.
 CHUNKS is different: it is a derived `parameter` (the `cascade_sel` port
@@ -82,31 +82,24 @@ default alone.
 
 ## Ports
 
-### Inputs
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `POLY` | Input | CRC_WIDTH | CRC polynomial coefficient |
+| `POLY_INIT` | Input | CRC_WIDTH | Initial CRC value (seed) |
+| `XOROUT` | Input | CRC_WIDTH | Final XOR mask for output |
+| `clk` | Input | 1 | System clock |
+| `rst_n` | Input | 1 | Active-low asynchronous reset |
+| `load_crc_start` | Input | 1 | Load initial CRC value |
+| `load_from_cascade` | Input | 1 | Load CRC from cascade output |
+| `cascade_sel` | Input | CHUNKS | One-hot cascade stage selection |
+| `data` | Input | DATA_WIDTH | Input data for CRC calculation |
+| `crc` | Output | CRC_WIDTH | Computed CRC value (registered) |
 
-| Port | Width | Description |
-|------|-------|-------------|
-| POLY | CRC_WIDTH | CRC polynomial coefficient |
-| POLY_INIT | CRC_WIDTH | Initial CRC value (seed) |
-| XOROUT | CRC_WIDTH | Final XOR mask for output |
-| clk | 1 | System clock |
-| rst_n | 1 | Active-low asynchronous reset |
-| load_crc_start | 1 | Load initial CRC value |
-| load_from_cascade | 1 | Load CRC from cascade output |
-| cascade_sel | CHUNKS | One-hot cascade stage selection |
-| data | DATA_WIDTH | Input data for CRC calculation |
-
-### Outputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| crc | CRC_WIDTH | Computed CRC value (registered) |
-
-## Architecture and Implementation
+## Functional Description
 
 ### CRC Algorithm Implementation
 
-The CRC calculation is parallel and runs through the following stages:
+The CRC calculation is parallel and runs through four stages:
 
 1. **Input Data Conditioning**: Optional bit reflection per REFIN parameter
 2. **Cascade Processing**: Parallel processing through multiple XOR-shift stages
@@ -174,7 +167,31 @@ always_comb begin
 end
 ```
 
-## Usage Examples
+## Timing
+
+### Throughput
+
+| Data Width | CRC Width | Max Frequency | Throughput |
+|------------|-----------|---------------|------------|
+| 32-bit | 32-bit | ~400 MHz | 12.8 Gbps |
+| 64-bit | 32-bit | ~350 MHz | 22.4 Gbps |
+| 128-bit | 64-bit | ~300 MHz | 38.4 Gbps |
+
+### Latency
+
+| Property | Value |
+|----------|-------|
+| Pipeline stages | 2 cycles (input conditioning + CRC computation) |
+| Reset recovery | 1 cycle |
+| Cascade selection | 0 cycles (combinational) |
+
+### Critical Paths
+
+1. **Cascade Chain**: Data flows through all cascade stages
+2. **Output Reflection**: Bit reversal for REFOUT
+3. **Register Setup**: Loading CRC state register
+
+## Usage Example
 
 ### Basic CRC Calculation
 
@@ -269,8 +286,6 @@ generate
 endgenerate
 ```
 
-## CRC Standards Compatibility
-
 ### CRC-32 (IEEE 802.3)
 
 ```systemverilog
@@ -319,31 +334,29 @@ dataint_crc #(
 );
 ```
 
-## Performance Characteristics
+## Design Notes
 
-### Throughput
+### Area Optimization
 
-| Data Width | CRC Width | Max Frequency | Throughput |
-|------------|-----------|---------------|------------|
-| 32-bit | 32-bit | ~400 MHz | 12.8 Gbps |
-| 64-bit | 32-bit | ~350 MHz | 22.4 Gbps |
-| 128-bit | 64-bit | ~300 MHz | 38.4 Gbps |
+- **Polynomial Optimization**: Use polynomials with fewer terms
+- **Width Reduction**: Match CRC_WIDTH to actual requirements
+- **Cascade Stages**: Reduce CHUNKS for lower throughput applications
 
-### Latency
+### Power Optimization
 
-| Property | Value |
-|----------|-------|
-| Pipeline stages | 2 cycles (input conditioning + CRC computation) |
-| Reset recovery | 1 cycle |
-| Cascade selection | 0 cycles (combinational) |
+- **Clock Gating**: Gate unused cascade stages
+- **Data Gating**: Prevent unnecessary switching when not processing
 
-### Critical Paths
+Between the configurable polynomial, the reflection options, and the cascade architecture, `dataint_crc` covers most of the CRC standards you'll meet in practice — set it up once per protocol and let it run.
 
-1. **Cascade Chain**: Data flows through all cascade stages
-2. **Output Reflection**: Bit reversal for REFOUT
-3. **Register Setup**: Loading CRC state register
+## Related Modules
 
-## Verification
+- **dataint_crc_xor_shift_cascade** - Building block for cascade stages
+- **dataint_crc_xor_shift** - Simple XOR-shift CRC implementation
+- **dataint_checksum** - Alternative integrity checking method
+- **dataint_parity** - Simpler parity-based error detection
+
+## Testing
 
 ### Setup Requirements
 
@@ -365,28 +378,6 @@ cascade_timing: assert property (
 - **Cascade Testing**: Test all cascade selection combinations
 - **Reflection Testing**: Verify bit ordering for REFIN/REFOUT modes
 - **Standards Compliance**: Validate against published CRC standards
-
-## Design Considerations
-
-### Area Optimization
-
-- **Polynomial Optimization**: Use polynomials with fewer terms
-- **Width Reduction**: Match CRC_WIDTH to actual requirements
-- **Cascade Stages**: Reduce CHUNKS for lower throughput applications
-
-### Power Optimization
-
-- **Clock Gating**: Gate unused cascade stages
-- **Data Gating**: Prevent unnecessary switching when not processing
-
-Between the configurable polynomial, the reflection options, and the cascade architecture, `dataint_crc` covers most of the CRC standards you'll meet in practice — set it up once per protocol and let it run.
-
-## Related Modules
-
-- **dataint_crc_xor_shift_cascade** - Building block for cascade stages
-- **dataint_crc_xor_shift** - Simple XOR-shift CRC implementation
-- **dataint_checksum** - Alternative integrity checking method
-- **dataint_parity** - Simpler parity-based error detection
 
 ## Navigation
 

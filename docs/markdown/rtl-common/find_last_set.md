@@ -21,25 +21,29 @@
 
 <!-- End Header -->
 
-# find_last_set (`find_last_set.sv`)
+# find_last_set
 
-## Purpose
+## Overview
+
 Finds the index of the most significant bit (MSB) that's set to '1' in the input vector — the mirror image of find_first_set, favoring the higher-indexed bits.
 
 ## Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `WIDTH` | 32 | Width of input data vector — the module's only parameter |
 
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `data` | Input | WIDTH | Input data vector to search |
 | `index` | Output | $clog2(WIDTH) | Index of the last (highest) set bit |
 
-## Functionality
+## Functional Description
 
 ### Search Strategy
+
 - **Direction**: MSB to LSB (right to left, descending index)
 - **Priority**: Higher indices have higher priority
 - **First match**: Stops at the first '1' bit encountered from the MSB
@@ -62,14 +66,14 @@ Finds the index of the most significant bit (MSB) that's set to '1' in the input
 | 11111111  | 111        | All bits set - bit 7 wins |
 
 ### Key Characteristics
+
 - **MSB priority**: Multiple bits set? You get the highest index
 - **Zero default**: Returns 0 when no bits are set (same as find_first_set)
 - **Deterministic**: Same input always produces same output
 - **Combinational**: Immediate response to input changes
 
-## Implementation Details
-
 ### Core Algorithm
+
 ```systemverilog
 localparam int N = $clog2(WIDTH);
 logic w_found;
@@ -88,14 +92,17 @@ end
 ```
 
 ### Reverse Loop Implementation
+
 ```systemverilog
 for (int i = WIDTH - 1; i >= 0; i--) begin
 ```
+
 - **MSB-first**: Starts from the highest bit index
 - **Decrementing**: Walks toward the LSB
 - **Early termination**: Stops at the first match found
 
 ### Width Parameterization
+
 Same auto-sizing as `find_first_set`:
 - **Output width**: `$clog2(WIDTH)` bits
 - **Examples**:
@@ -104,65 +111,50 @@ Same auto-sizing as `find_first_set`:
   - WIDTH=32 → index[4:0] (5 bits)
 
 ### Found Flag Logic
+
 ```systemverilog
 if (data[i] && !w_found) begin
     index = i[N-1:0];
     w_found = 1'b1;
 end
 ```
+
 - **Single assignment**: Prevents overwriting the highest found bit
 - **Priority enforcement**: Only the first match (highest index) is captured
 
-## Timing Characteristics
+## Timing
 
 ### Propagation Delay
+
 - **Best case**: 1 LUT delay (MSB set)
 - **Worst case**: Multiple LUT delays (LSB only set)
 - **Average case**: Depends on typical bit patterns
 
 ### Critical Path Analysis
+
 ```
 MSB check → MSB-1 check → ... → LSB check → Output
 ```
+
 - **Path length**: Linear with WIDTH in the worst case
 - **Typical case**: Shorter path when higher bits are set
 - **Optimization**: Synthesis tools create efficient implementations
 
-## Algorithm Comparison
-
-### Find Last Set vs. Find First Set
-
-| Aspect | Find Last Set | Find First Set |
-|--------|---------------|----------------|
-| **Search Direction** | MSB → LSB | LSB → MSB |
-| **Priority** | Higher index wins | Lower index wins |
-| **Loop Direction** | `i--` (decrementing) | `i++` (incrementing) |
-| **Use Case** | Priority systems | Fair allocation |
-| **Default Output** | 0 (same) | 0 (same) |
-
-### Typical Use Case Patterns
-
-| Application Type | Preferred Algorithm |
-|------------------|-------------------|
-| **Interrupt Controllers** | Find Last Set (priority) |
-| **Round-Robin Arbiters** | Find First Set (fairness) |
-| **Error Reporting** | Find Last Set (severity) |
-| **Resource Allocation** | Find First Set (efficiency) |
-| **Bit Manipulation** | Either (depends on need) |
-
-## Usage Examples
+## Usage Example
 
 ### Interrupt Priority Handling
+
 ```systemverilog
 find_last_set #(.WIDTH(8)) irq_priority (
     .data(interrupt_pending),
     .index(highest_priority_irq)
 );
 ```
-- Service highest-priority interrupt first
-- Preemptive interrupt handling
+
+Service the highest-priority interrupt first — preemptive interrupt handling.
 
 ### Leading Zero Count
+
 ```systemverilog
 // Find position of leading 1, then calculate leading zeros
 find_last_set #(.WIDTH(32)) leading_one (
@@ -174,6 +166,7 @@ assign leading_zero_count = (input_value == 0) ? 32 : (31 - msb_position);
 ```
 
 ### Bit Width Calculation
+
 ```systemverilog
 find_last_set #(.WIDTH(64)) width_calc (
     .data(value),
@@ -184,16 +177,18 @@ assign required_bits = msb_pos + 1; // Minimum bits needed to represent value
 ```
 
 ### Cache Line Selection
+
 ```systemverilog
 find_last_set #(.WIDTH(16)) cache_priority (
     .data(cache_line_priorities),
     .index(selected_cache_line)
 );
 ```
-- Select highest priority cache line for replacement
-- LRU policy implementation
+
+Select the highest priority cache line for replacement — LRU policy implementation.
 
 ### Hierarchical Priority Encoding
+
 ```systemverilog
 // For very wide inputs, use hierarchical approach
 find_last_set #(.WIDTH(8)) level0_fls [7:0] (
@@ -211,6 +206,7 @@ assign final_index = {active_chunk, chunk_indices[active_chunk]};
 ```
 
 ### Conditional Priority Selection
+
 ```systemverilog
 // Select between different priority schemes
 assign priority_vector = use_high_priority ? high_pri_requests : 
@@ -224,6 +220,7 @@ find_last_set #(.WIDTH(N)) flexible_priority (
 ```
 
 ### Dynamic Width Processing
+
 ```systemverilog
 // Process variable-width data
 logic [MAX_WIDTH-1:0] padded_data;
@@ -238,34 +235,69 @@ find_last_set #(.WIDTH(MAX_WIDTH)) variable_fls (
 assign adjusted_index = (raw_index >= actual_width) ? 0 : raw_index;
 ```
 
-## Design Considerations
+## Design Notes
+
+### Algorithm Comparison
+
+Find last set vs. find first set:
+
+| Aspect | Find Last Set | Find First Set |
+|--------|---------------|----------------|
+| **Search Direction** | MSB → LSB | LSB → MSB |
+| **Priority** | Higher index wins | Lower index wins |
+| **Loop Direction** | `i--` (decrementing) | `i++` (incrementing) |
+| **Use Case** | Priority systems | Fair allocation |
+| **Default Output** | 0 (same) | 0 (same) |
+
+Typical use case patterns:
+
+| Application Type | Preferred Algorithm |
+|------------------|-------------------|
+| **Interrupt Controllers** | Find Last Set (priority) |
+| **Round-Robin Arbiters** | Find First Set (fairness) |
+| **Error Reporting** | Find Last Set (severity) |
+| **Resource Allocation** | Find First Set (efficiency) |
+| **Bit Manipulation** | Either (depends on need) |
 
 ### Zero Input Handling
+
 Both modules return 0 for zero input:
+
 ```systemverilog
 // data = 8'b00000000
 // Both find_first_set and find_last_set return 3'b000
 ```
-**Application consideration**: May need explicit zero detection:
+
+Your application may need explicit zero detection:
+
 ```systemverilog
 assign valid_result = |data;  // OR-reduce to detect any bits set
 assign result_index = valid_result ? index : INVALID_INDEX;
 ```
 
 ### Performance Scaling
+
 - **Small WIDTH (<16)**: Excellent performance
 - **Medium WIDTH (16-64)**: Good performance, may need pipelining
 - **Large WIDTH (>64)**: Consider hierarchical implementation
 
 ### Synthesis Optimization
+
 Modern synthesis tools recognize these patterns:
 - **Priority encoder primitives**: Often map to dedicated hardware
 - **LUT optimization**: Efficient resource utilization
 - **Timing optimization**: Automatic critical path optimization
 
-## Verification Strategies
+## Related Modules
+
+- **find_first_set**: LSB-priority search
+- **encoder_priority_enable**: Enhanced priority encoder
+- **leading_one_trailing_one**: Position detection for Johnson counters
+
+## Testing
 
 ### Comprehensive Test Coverage
+
 ```systemverilog
 // Test single bit at each position
 for (int i = 0; i < WIDTH; i++) begin
@@ -284,6 +316,7 @@ expected_result = 0;        // Default
 ```
 
 ### Random Testing
+
 ```systemverilog
 // Random bit patterns
 repeat (1000) begin
@@ -292,11 +325,6 @@ repeat (1000) begin
     // Verify against reference function
 end
 ```
-
-## Related Modules
-- **find_first_set**: LSB-priority search
-- **encoder_priority_enable**: Enhanced priority encoder
-- **leading_one_trailing_one**: Position detection for Johnson counters
 
 ## Navigation
 

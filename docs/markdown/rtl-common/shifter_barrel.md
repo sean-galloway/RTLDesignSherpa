@@ -21,15 +21,15 @@
 
 <!-- End Header -->
 
-# Barrel Shifter Module
+# shifter_barrel
 
-## Purpose
+## Overview
+
 The `shifter_barrel` module is a combinational barrel shifter: any shift amount,
 any supported mode, done in a single clock cycle. It covers logical left/right
 shifts with and without wrap-around, arithmetic right shifts, and a no-shift
 pass-through, all selected by a 3-bit control signal.
 
-## Key Features
 - Single-cycle shift operations for any shift amount
 - Multiple shift modes: logical, arithmetic, and rotational
 - Configurable shift amount up to data width
@@ -56,7 +56,9 @@ pass-through, all selected by a 3-bit control signal.
 |------|-------|-------------|
 | `data_out` | WIDTH | Shifted output data |
 
-## Control Signal Encoding
+## Functional Description
+
+### Control Signal Encoding
 
 The 3-bit `ctrl` signal determines the shift operation:
 
@@ -69,8 +71,6 @@ The 3-bit `ctrl` signal determines the shift operation:
 | 3'b100 | Logical Left Shift (no wrap) | Fill with zeros from right |
 | 3'b110 | Logical Left Shift (wrap) | Rotate left |
 | Others | No shift | Default case |
-
-## Implementation Details
 
 ### Shift Amount Modulation
 ```systemverilog
@@ -149,7 +149,7 @@ always_comb begin
 end
 ```
 
-## Timing Examples
+## Timing
 
 ### 8-bit Examples (WIDTH=8)
 
@@ -183,7 +183,18 @@ Input:  data = 8'b11010110, shift_amount = 3, ctrl = 3'b110
 Output: 8'b10110110  (bits wrap around)
 ```
 
-## Special Implementation Notes
+## Usage Example
+
+Barrel shifters show up anywhere bits need to move fast. Typical homes for this one:
+
+- ALU implementations
+- Cryptographic operations
+- Signal processing
+- Bit manipulation engines
+- Network packet processing
+- Data alignment circuits
+
+## Design Notes
 
 ### 1. Combinational Design
 - All operations complete in zero clock cycles
@@ -202,16 +213,6 @@ rotation amount, same cost.
 ### 5. Generate Block Optimization
 The generate block pre-computes every possible rotation at compile time, so
 runtime is just a lookup. You spend a little area, you get back maximum speed.
-
-## Applications
-- ALU implementations
-- Cryptographic operations
-- Signal processing
-- Bit manipulation engines
-- Network packet processing
-- Data alignment circuits
-
-## Resource Utilization
 
 ### Area Considerations
 - **Lookup Arrays**: Require WIDTH × WIDTH bits of combinational logic

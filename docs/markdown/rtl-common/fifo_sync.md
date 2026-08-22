@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# fifo_sync (`fifo_sync.sv`)
+# fifo_sync
 
-## Purpose
+## Overview
+
 A synchronous First-In-First-Out buffer for when everything lives in a single clock domain. Depth, data width, and output modes are all configurable, and you get the full set of status signals.
 
 ## Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `MEM_STYLE` | FIFO_AUTO | Memory implementation (`FIFO_AUTO`/SRL/BRAM) — see note below |
@@ -46,6 +48,7 @@ cannot do; synthesis will ignore the `ram_style`/`ramstyle` attribute and map
 to LUTRAM instead. Use `REGISTERED=1` when you actually want block RAM.
 
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `clk` | Input | 1 | System clock |
@@ -59,15 +62,17 @@ to LUTRAM instead. Use `REGISTERED=1` when you actually want block RAM.
 | `rd_empty` | Output | 1 | Read domain empty flag |
 | `rd_almost_empty` | Output | 1 | Read domain almost empty flag |
 
-## Architecture Overview
+## Functional Description
 
 ### Core Components
+
 1. **Binary counters** for the read/write pointers
 2. **Memory array** for data storage
 3. **FIFO control logic** for status generation
 4. **Output multiplexing** based on the REGISTERED parameter
 
 ### Memory Organization
+
 ```systemverilog
 logic [DATA_WIDTH-1:0] mem [DEPTH];       // Memory array (declared inside the
                                           // MEM_STYLE generate branch so all
@@ -76,9 +81,8 @@ assign r_wr_addr = r_wr_ptr_bin[AW-1:0];  // Write address
 assign r_rd_addr = r_rd_ptr_bin[AW-1:0];  // Read address
 ```
 
-## Implementation Details
-
 ### Pointer Management
+
 Binary counters drive both the read and write pointers:
 
 ```systemverilog
@@ -91,14 +95,15 @@ counter_bin #(.WIDTH(AW + 1), .MAX(D)) write_pointer_inst (
 );
 ```
 
-#### Pointer Characteristics
+Pointer characteristics:
 - **Width**: `$clog2(DEPTH) + 1` bits (the extra bit catches wraps)
 - **Increment**: Only when the operation is valid (write && !full, read && !empty)
 - **Wraparound**: Automatic modulo DEPTH counting
 
 ### Memory Operations
 
-#### Write Operation
+Write operation:
+
 ```systemverilog
 always_ff @(posedge clk) begin
     if (write && !wr_full) begin   // the !wr_full guard is REQUIRED: it stops a
@@ -107,7 +112,8 @@ always_ff @(posedge clk) begin
 end
 ```
 
-#### Read Operation - Dual Mode
+Read operation — dual mode:
+
 ```systemverilog
 if (REGISTERED != 0) begin : g_flop
     logic [DATA_WIDTH-1:0] r_rd_data;
@@ -124,49 +130,51 @@ end
 ```
 
 ### Status Flag Generation
+
 Status comes out of the shared `fifo_control` module:
 - **Full detection**: Based on pointer comparison with wraparound handling
 - **Almost full**: When remaining space ≤ `ALMOST_WR_MARGIN`
 - **Empty detection**: When read pointer equals write pointer
 - **Almost empty**: When available data ≤ `ALMOST_RD_MARGIN`
 
-## Operating Modes
+### Operating Modes
 
-### Mux Mode (REGISTERED = 0)
+Mux mode (REGISTERED = 0):
 - **Read latency**: 0 cycles (combinational output)
 - **Data availability**: Immediate after write
 - **Use case**: Low-latency applications
 - **Timing**: Read data changes combinationally with the address
 
-### Flop Mode (REGISTERED = 1)  
+Flop mode (REGISTERED = 1):
 - **Read latency**: 1 cycle (registered output)
 - **Data availability**: 1 cycle after read enable
 - **Use case**: High-speed designs, timing closure
 - **Timing**: Read data stable for the full clock cycle
 
-## Functional Behavior
+### Functional Behavior
 
-### Write Operations
+Write operations:
 - **Condition**: `write && !wr_full`
 - **Action**: Store data at the write pointer, bump the pointer
 - **Blocking**: Writes ignored when the FIFO is full
 - **Status**: Full flags track the new occupancy
 
-### Read Operations
+Read operations:
 - **Condition**: `read && !rd_empty`  
 - **Action**: Advance the read pointer (data handling depends on mode)
 - **Blocking**: Reads ignored when the FIFO is empty
 - **Status**: Empty flags track the new occupancy
 
-### Reset Behavior
+Reset behavior:
 - **Pointers**: Reset to 0
 - **Flags**: Full flags → 0, Empty flags → 1
 - **Data**: Read data cleared in flop mode
 - **Memory**: Contents undefined, but that doesn't matter
 
-## Timing Diagrams
+## Timing
 
 ### Write Sequence
+
 ```
 clk     __|‾|__|‾|__|‾|__|‾|__
 write   ______|‾‾‾‾‾|_________
@@ -175,6 +183,7 @@ wr_full _____________________|‾  (when FIFO becomes full)
 ```
 
 ### Read Sequence - Mux Mode
+
 ```
 clk     __|‾|__|‾|__|‾|__|‾|__
 read    ______|‾‾‾‾‾|_________
@@ -182,60 +191,63 @@ rd_data ======[ D0 ]=========  (immediate)
 ```
 
 ### Read Sequence - Flop Mode  
+
 ```
 clk     __|‾|__|‾|__|‾|__|‾|__
 read    ______|‾‾‾‾‾|_________
 rd_data ===========[ D0 ]=====  (1 cycle delay)
 ```
 
-## Use Cases
+### Performance Characteristics
 
-### Low Latency Applications (Mux Mode)
-- Data streaming with minimal delay
-- Real-time processing pipelines
-- Clock domain buffers
-
-### High Speed Applications (Flop Mode)
-- High-frequency designs
-- Timing-critical paths
-- Pipelined architectures
-
-## Design Considerations
-
-### Mode Selection Guidelines
-- **Choose Mux Mode when**: Latency is critical, moderate clock speeds
-- **Choose Flop Mode when**: High clock speeds, timing closure issues
-- **Performance impact**: Flop mode costs you 1 cycle of latency but buys fmax
-
-### Sizing Considerations
-- **Depth**: Must accommodate worst-case burst sizes
-- **Almost flags**: Set margins based on producer/consumer response times
-- **Data width**: Should match datapath requirements
-
-### Error Detection
-**Note:** the current RTL does **not** contain any runtime `$display`
-overflow/underflow checks. The
-`!wr_full` write guard is the only overflow protection. If you need write-while-
-full / read-while-empty telemetry, add assertions in your own testbench.
-
-## Performance Characteristics
 - **Throughput**: 1 operation per clock cycle (when not full/empty)
 - **Latency**: 0 cycles (mux) or 1 cycle (flop) for read
 - **Occupancy**: 0 to DEPTH words
 - **Efficiency**: 100% bandwidth utilization possible
 
-## WaveDrom Visualization
+## Design Notes
 
-**High-quality waveforms showcasing synchronous FIFO operation are available!**
+### Mode Selection Guidelines
 
-Run the WaveDrom test to generate detailed timing diagrams:
+- **Choose Mux Mode when**: Latency is critical, moderate clock speeds
+- **Choose Flop Mode when**: High clock speeds, timing closure issues
+- **Performance impact**: Flop mode costs you 1 cycle of latency but buys fmax
+
+Typical use cases:
+- **Low latency applications (mux mode)**: Data streaming with minimal delay, real-time processing pipelines, clock domain buffers
+- **High speed applications (flop mode)**: High-frequency designs, timing-critical paths, pipelined architectures
+
+### Sizing Considerations
+
+- **Depth**: Must accommodate worst-case burst sizes
+- **Almost flags**: Set margins based on producer/consumer response times
+- **Data width**: Should match datapath requirements
+
+### Error Detection
+
+**Note:** the current RTL does **not** contain any runtime `$display`
+overflow/underflow checks. The
+`!wr_full` write guard is the only overflow protection. If you need write-while-
+full / read-while-empty telemetry, add assertions in your own testbench.
+
+## Related Modules
+
+- **fifo_async**: For clock domain crossing applications
+- **fifo_control**: Shared status flag generation logic
+- **counter_bin**: Binary counter implementation
+
+## Testing
+
+### WaveDrom Visualization
+
+The WaveDrom test generates detailed timing diagrams for synchronous FIFO operation:
 
 ```bash
 # Generate synchronous FIFO waveforms (single clock domain)
 pytest val/common/test_fifo_sync_wavedrom.py -v
 ```
 
-**Waveform Scenarios Generated:**
+Waveform scenarios generated:
 
 1. **Write-Fill-Read-Empty Cycle**
    - Basic synchronous FIFO operation
@@ -257,24 +269,24 @@ pytest val/common/test_fifo_sync_wavedrom.py -v
    - Almost-full/almost-empty thresholds
    - Flow control signaling
 
-**Key Characteristics vs. Async FIFOs:**
+Key characteristics vs. async FIFOs:
 
 - **Single Clock Domain**: No CDC complexity, simpler design
 - **Binary Pointers**: Direct addressing, no Gray code conversion
 - **Zero CDC Latency**: Flags update immediately (no synchronization delay)
 - **Simultaneous Access**: Can read and write in same cycle
 
-**Comparison Tests:**
+Comparison tests:
 
 - `test_fifo_async_wavedrom.py` - Gray code CDC (power-of-2 depths)
 
-## Test and Verification
+### Functional Test Suite
 
-**Comprehensive Test Suite:**
 - `val/common/test_fifo_buffer.py` - Full functional verification
 - `val/common/test_fifo_sync_wavedrom.py` - WaveDrom timing diagrams
 
-**Run Tests:**
+Run the tests:
+
 ```bash
 # Full functional test (basic/medium/full levels)
 pytest val/common/test_fifo_buffer.py -v
@@ -282,11 +294,6 @@ pytest val/common/test_fifo_buffer.py -v
 # WaveDrom waveform generation
 pytest val/common/test_fifo_sync_wavedrom.py -v
 ```
-
-## Related Modules
-- **fifo_async**: For clock domain crossing applications
-- **fifo_control**: Shared status flag generation logic
-- **counter_bin**: Binary counter implementation
 
 ## Navigation
 

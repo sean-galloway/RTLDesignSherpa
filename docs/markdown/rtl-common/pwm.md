@@ -21,9 +21,10 @@
 
 <!-- End Header -->
 
-# pwm (`pwm.sv`)
+# pwm
 
-## Purpose
+## Overview
+
 Generates multiple independent pulse width modulation signals with configurable duty cycles, periods, and repeat counts. Each channel runs as its own state machine with precise timing control and completion detection.
 
 - Multiple independent PWM channels (parameterizable)
@@ -34,12 +35,14 @@ Generates multiple independent pulse width modulation signals with configurable 
 - Precise timing with configurable counter width
 
 ## Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `WIDTH` | 8 | Bit width of counters and timing parameters |
 | `CHANNELS` | 4 | Number of independent PWM channels |
 
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `clk` | Input | 1 | System clock |
@@ -52,11 +55,12 @@ Generates multiple independent pulse width modulation signals with configurable 
 | `done` | Output | CHANNELS | Completion status for each channel |
 | `pwm_out` | Output | CHANNELS | PWM output signals for each channel |
 
-## State Machine
+## Functional Description
+
+### State Machine
 
 Each PWM channel runs a 3-state finite state machine:
 
-### States
 ```systemverilog
 typedef enum logic [1:0] {
     IDLE = 2'b00,     // Waiting for start trigger
@@ -67,25 +71,24 @@ typedef enum logic [1:0] {
 
 ### State Transitions
 
-#### IDLE → RUNNING
+IDLE → RUNNING:
 - **Condition**: `w_start_edge && local_period > 0`
 - **Action**: Reset counters and begin PWM generation
 
-#### RUNNING → DONE  
+RUNNING → DONE:
 - **Condition**: `w_period_complete && w_all_repeats_done`
 - **Action**: Stop PWM generation and assert done flag
 
-#### DONE → RUNNING
+DONE → RUNNING:
 - **Condition**: `w_start_edge`
 - **Action**: Restart PWM generation with reset counters
 
-#### Any State → IDLE
+Any State → IDLE:
 - **Condition**: System reset
 - **Action**: Initialize all registers
 
-## Implementation Details
-
 ### Per-Channel Parameter Extraction
+
 ```systemverilog
 localparam int EndIdx = (i + 1) * WIDTH - 1;
 assign local_duty = duty[EndIdx-:WIDTH];
@@ -94,6 +97,7 @@ assign local_repeat = repeat_count[EndIdx-:WIDTH];
 ```
 
 ### Edge Detection for Start Signal
+
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) r_start_prev <= 1'b0;
@@ -103,6 +107,7 @@ assign w_start_edge = start[i] && !r_start_prev;
 ```
 
 ### PWM Output Generation Logic
+
 ```systemverilog
 always_comb begin
     case (r_state)
@@ -127,24 +132,26 @@ end
 
 ### Counter Management
 
-#### Main Counter (Period Timing)
+Main counter (period timing):
 - Increments each clock cycle during RUNNING state
 - Resets to 0 when reaching `local_period - 1`
 - Controls PWM frequency
 
-#### Repeat Counter
+Repeat counter:
 - Increments each time a period completes
 - Compared against `repeat_count` to determine completion
 - Special case: `repeat_count == 0` means infinite operation
 
 ### Critical Control Signals
 
-#### Period Completion Detection
+Period completion detection:
+
 ```systemverilog
 assign w_period_complete = (r_count == local_period - 1) && (r_state == RUNNING);
 ```
 
-#### All Repeats Done Detection  
+All repeats done detection:
+
 ```systemverilog
 assign w_all_repeats_done = (local_repeat == 0) ? 1'b0 :  // 0 means infinite
                             (r_repeat_value >= local_repeat - 1'b1);
@@ -158,19 +165,19 @@ The `- 1'b1` is load-bearing. The check fires in the same cycle that
 `1 >= 1`). The `local_repeat == 0` branch also keeps the `- 1` from
 underflowing, since 0 means infinite.
 
-## Special Implementation Notes
+### Special Implementation Notes
 
-### 1. Edge-Triggered Start Control
+1. **Edge-Triggered Start Control**
 - Prevents continuous restart while start signal is held high
 - Enables precise control of PWM initiation
 - Each channel has independent edge detection
 
-### 2. Duty Cycle Edge Cases
+2. **Duty Cycle Edge Cases**
 - **0% Duty**: Output permanently low during RUNNING state
 - **100% Duty**: Output permanently high when `duty >= period`
 - **Normal Operation**: High for first `duty` clock cycles of each period
 
-### 3. Infinite Repeat Mode
+3. **Infinite Repeat Mode**
 - `repeat_count = 0` enables continuous operation
 - PWM runs indefinitely. A `start` pulse while RUNNING is **ignored** — the FSM
   leaves RUNNING only on `w_period_complete && w_all_repeats_done`, which never
@@ -178,21 +185,22 @@ underflowing, since 0 means infinite.
   stopped by `start`. Use reset, or a non-zero `repeat_count`, to end it.
 - Useful for continuous motor control or LED dimming
 
-### 4. Simultaneous Multi-Channel Operation
+4. **Simultaneous Multi-Channel Operation**
 - All channels operate independently
 - No inter-channel dependencies or conflicts
 - Scalable to any number of channels via parameters
 
-### 5. Reset Behavior
+5. **Reset Behavior**
 - Two resets: `rst_n` (asynchronous) and `sync_rst_n` (synchronous). Either one
   returns the channel FSM to IDLE and clears counters.
 - Asynchronous reset immediately stops all PWM outputs
 - All internal counters and state machines reset to IDLE
 - Clean startup guaranteed after reset deassertion
 
-## Timing Examples
+## Timing
 
 ### Single Period Example (WIDTH=8, duty=3, period=8)
+
 ```
 Clock:  0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 ...
 Count:  0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 ...
@@ -200,14 +208,16 @@ PWM:    1 1 1 0 0 0 0 0 1 1 1 0 0 0 0 0 ...
 ```
 
 ### Multi-Repeat Example (repeat_count=2)
+
 ```
 Period: 1     2     DONE
 PWM:    ████▒▒▒▒████▒▒▒▒____
 ```
 
-## Usage Scenarios
+## Usage Example
 
 ### Motor Speed Control
+
 ```systemverilog
 // 50% duty cycle, 1kHz frequency (assuming 1MHz clock)
 // WIDTH >= 10 needed for these values (default 8 truncates silently)
@@ -217,6 +227,7 @@ repeat_count = 0;  // Continuous operation
 ```
 
 ### LED Dimming Sequence
+
 ```systemverilog
 // Fade effect with 10 brightness levels
 duty = brightness_level * 10;
@@ -225,6 +236,7 @@ repeat_count = fade_duration;
 ```
 
 ### Servo Motor Control
+
 ```systemverilog
 // 20ms period with 1-2ms pulse width
 duty = servo_position;     // 1000-2000 for 1-2ms
@@ -232,7 +244,10 @@ period = 20000;  // needs WIDTH >= 15 -- at the default 8, 20000 truncates to 32
 repeat_count = 1;         // Single pulse
 ```
 
-## Applications
+## Design Notes
+
+### Applications
+
 - Motor speed control
 - LED brightness control
 - Servo motor positioning

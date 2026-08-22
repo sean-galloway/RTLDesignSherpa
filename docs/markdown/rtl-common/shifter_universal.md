@@ -21,15 +21,15 @@
 
 <!-- End Header -->
 
-# Universal Shifter Module
+# shifter_universal
 
-## Purpose
+## Overview
+
 The `shifter_universal` module is the general-purpose shift register: left shift,
 right shift, parallel load, and hold, with both serial and parallel data in and
 out. If your design needs bits moved sideways in any direction, this is the part
 you reach for.
 
-## Key Features
 - Four distinct operations: hold, right shift, left shift, parallel load
 - Bidirectional serial data input/output
 - Parallel data load capability
@@ -62,7 +62,9 @@ you reach for.
 | `o_sdata_lt` | 1 | Serial data output (left side) |
 | `o_sdata_rt` | 1 | Serial data output (right side) |
 
-## Operation Control
+## Functional Description
+
+### Operation Control
 
 The 2-bit `select` signal controls the shifter operation:
 
@@ -72,8 +74,6 @@ The 2-bit `select` signal controls the shifter operation:
 | 2'b01 | Right Shift | Shift data right; new bit enters from `i_sdata_rt` |
 | 2'b10 | Left Shift | Shift data left; new bit enters from `i_sdata_lt` |
 | 2'b11 | Parallel Load | Load parallel input data |
-
-## Implementation Details
 
 ### Combinational Logic for Next State
 ```systemverilog
@@ -126,8 +126,6 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Operation Details
-
 ### Hold Operation (select = 2'b00)
 - **Function**: Maintains current register state
 - **Data Flow**: No data movement
@@ -154,7 +152,7 @@ end
 - **Serial Outputs**: Both remain low (no shift occurring)
 - **Use Case**: Initialization, data injection
 
-## Timing Diagrams
+## Timing
 
 ### Right Shift Operation Example (WIDTH=4)
 
@@ -183,30 +181,7 @@ o_pdata:   1010 0101 1010 0101
 o_sdata_lt:---- 1    0    1
 ```
 
-## Special Implementation Notes
-
-### 1. Bidirectional Serial Interface
-The module provides separate serial inputs and outputs for both directions:
-- **Left side**: `i_sdata_lt` (input), `o_sdata_lt` (output)
-- **Right side**: `i_sdata_rt` (input), `o_sdata_rt` (output)
-
-That's what lets you chain multiple shifters or hook into bidirectional serial systems.
-
-### 2. Clean Serial Output Management
-Serial outputs are explicitly driven to zero when not actively shifting in that
-direction — no glitches, no ambiguous states.
-
-### 3. Asynchronous Reset
-Reset immediately clears all outputs to zero, providing deterministic startup conditions.
-
-### 4. Combinational/Sequential Separation
-The design cleanly separates:
-- **Combinational logic**: Calculates next state
-- **Sequential logic**: Registers the state on clock edge
-
-That split improves timing predictability and synthesis results.
-
-## Applications
+## Usage Example
 
 ### Serial Communication Interface
 ```systemverilog
@@ -272,7 +247,38 @@ i_sdata_rt = next_scan_in;
 scan_out = o_sdata_rt;
 ```
 
-## Design Considerations
+### Common Use Cases
+- Serial-to-parallel conversion
+- Parallel-to-serial conversion  
+- Data delay and timing adjustment
+- Arithmetic operations (×2, ÷2)
+- Pattern generation and circulation
+- Scan chain testing
+- FIFO buffer implementation
+- Digital signal processing pipelines
+
+## Design Notes
+
+### 1. Bidirectional Serial Interface
+The module provides separate serial inputs and outputs for both directions:
+- **Left side**: `i_sdata_lt` (input), `o_sdata_lt` (output)
+- **Right side**: `i_sdata_rt` (input), `o_sdata_rt` (output)
+
+That's what lets you chain multiple shifters or hook into bidirectional serial systems.
+
+### 2. Clean Serial Output Management
+Serial outputs are explicitly driven to zero when not actively shifting in that
+direction — no glitches, no ambiguous states.
+
+### 3. Asynchronous Reset
+Reset immediately clears all outputs to zero, providing deterministic startup conditions.
+
+### 4. Combinational/Sequential Separation
+The design cleanly separates:
+- **Combinational logic**: Calculates next state
+- **Sequential logic**: Registers the state on clock edge
+
+That split improves timing predictability and synthesis results.
 
 ### Chaining Multiple Shifters
 ```systemverilog
@@ -304,16 +310,6 @@ case (state)
     HOLD: select = 2'b00;
 endcase
 ```
-
-## Common Use Cases
-- Serial-to-parallel conversion
-- Parallel-to-serial conversion  
-- Data delay and timing adjustment
-- Arithmetic operations (×2, ÷2)
-- Pattern generation and circulation
-- Scan chain testing
-- FIFO buffer implementation
-- Digital signal processing pipelines
 
 ## Navigation
 

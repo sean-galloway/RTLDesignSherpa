@@ -21,16 +21,16 @@
 
 <!-- End Header -->
 
-# Sort Module
+# sort
 
-## Purpose
+## Overview
 
 The Sort module is a pipelined hardware sorting engine built on the odd-even
 sort algorithm, sorting arrays of configurable size in descending order. It's
 aimed at high-throughput work: new data accepted every clock cycle, with
 predictable latency equal to the number of elements being sorted.
 
-## Module Declaration
+### Module Declaration
 
 ```systemverilog
 module sort #(
@@ -71,7 +71,9 @@ module sort #(
 | `sorted` | `NUM_VALS*SIZE` | Packed output array sorted in descending order. Same packing format as input. |
 | `done` | 1 | Status signal. Asserted (high) when the sorting operation is complete and `sorted` output is valid. |
 
-## Data Format
+## Functional Description
+
+### Data Format
 
 **Input/Output Packing**: Arrays are packed into a single wide bus where:
 - Element 0 occupies bits `[SIZE-1:0]`
@@ -80,14 +82,10 @@ module sort #(
 
 **Sort Order**: Output is sorted in **descending order** (largest to smallest).
 
-## Algorithm: Odd-Even Sort
-
-### Overview
+### Algorithm: Odd-Even Sort
 
 The module implements the **Odd-Even Sort** (also known as **Brick Sort**)
 algorithm — a particularly good fit for pipelined hardware, as you'll see below.
-
-### Algorithm Description
 
 Odd-Even Sort works by alternating between two types of comparison passes:
 
@@ -156,8 +154,6 @@ registers"). Do not read O(1) as the hardware area.
 4. **Simple Control**: No complex indexing or variable loop bounds
 5. **Scalable**: Pipeline depth scales linearly with array size
 
-## Architecture
-
 ### Pipeline Structure
 
 The module implements a `NUM_VALS`-stage pipeline where:
@@ -198,8 +194,6 @@ Naming is strict, and it pays off when you're reading waveforms:
 - **Flopped signals** (sequential): Prefixed with `r_`
   - `r_stage_data[stage]`: Pipeline data registers
   - `r_stage_valid[stage]`: Pipeline valid registers
-
-## Implementation Details
 
 ### Compare-Swap Logic
 
@@ -242,21 +236,10 @@ end
 - **Valid Reset**: All `r_stage_valid` registers are cleared to zero
 - **Output**: Both `sorted` and `done` outputs go to zero during reset
 
-### Timing Characteristics
-
-- **Latency**: `NUM_VALS` clock cycles from `valid_in` assertion to `done` assertion
-- **Throughput**: 1 array per clock cycle (once pipeline is full)
-- **Critical Path**: One compare-swap operation — a `SIZE`-bit magnitude
-  comparator feeding a 2:1 mux, i.e. several logic levels (consistent with the
-  ~1.5-2.0 ns figures in the synthesis table below, not "1-2 gate delays")
-- **Pipeline Depth**: `NUM_VALS` stages
-
-## State Machines
+### Control Flow
 
 The Sort module does **not** use explicit Finite State Machines (FSMs). Control
 is just the pipeline itself — a **pipeline-based control scheme**:
-
-### Control Flow
 
 1. **Input Stage (Combinational)**:
    - Accepts new `data` when `valid_in` is asserted
@@ -271,6 +254,17 @@ is just the pipeline itself — a **pipeline-based control scheme**:
    - `done` signal is simply the valid signal from the final pipeline stage
    - No complex output state management required
 
+## Timing
+
+### Timing Characteristics
+
+- **Latency**: `NUM_VALS` clock cycles from `valid_in` assertion to `done` assertion
+- **Throughput**: 1 array per clock cycle (once pipeline is full)
+- **Critical Path**: One compare-swap operation — a `SIZE`-bit magnitude
+  comparator feeding a 2:1 mux, i.e. several logic levels (consistent with the
+  ~1.5-2.0 ns figures in the synthesis table below, not "1-2 gate delays")
+- **Pipeline Depth**: `NUM_VALS` stages
+
 ### Valid Signal Flow
 
 ```
@@ -284,7 +278,31 @@ r_stage_valid[5]: -      -      -      -      -      1
 done:     0      0      0      0      0      1
 ```
 
-## Special Features
+## Usage Example
+
+### Typical Use Cases
+
+1. **Packet Processing**: Sorting priority fields or timestamps
+2. **Signal Processing**: Median filtering, statistical operations
+3. **Graphics**: Z-buffer sorting, polygon vertex ordering
+4. **Control Systems**: Sorting sensor readings or control parameters
+
+### Integration Considerations
+
+1. **Clock Domain**: Ensure `clk` is stable and meets timing requirements
+2. **Reset Strategy**: Include proper reset sequencing in system design
+3. **Data Formatting**: Pack input arrays correctly according to element ordering
+4. **Flow Control**: Monitor `done` signal for output validity
+5. **Resource Planning**: Consider pipeline depth impact on latency-sensitive applications
+
+### Performance Optimization
+
+1. **Pipeline Depth**: Use smallest practical `NUM_VALS` for lowest latency
+2. **Data Width**: Use smallest practical `SIZE` for best area efficiency
+3. **Clock Frequency**: Critical path is typically one comparison operation
+4. **Resource Sharing**: Multiple instances can share input/output buses if properly arbitrated
+
+## Design Notes
 
 ### 1. Parameterizable Design
 
@@ -310,7 +328,33 @@ done:     0      0      0      0      0      1
 - **Unpacked Internal Arrays**: Easy element-wise manipulation
 - **Automatic Packing/Unpacking**: Transparent data format conversion
 
-## Verification Strategy
+### Synthesis Results
+
+Typical synthesis results for common configurations:
+
+| Configuration | Pipeline Stages | Critical Path | Area (LUTs) | Frequency |
+|---------------|----------------|---------------|-------------|-----------|
+| 3×8-bit | 3 | ~1.2ns | ~150 | >800 MHz |
+| 5×16-bit | 5 | ~1.5ns | ~400 | >650 MHz |
+| 8×32-bit | 8 | ~2.0ns | ~1200 | >500 MHz |
+
+*Results vary by target FPGA family and synthesis tool settings*
+
+### Future Enhancements
+
+Potential improvements for future versions:
+
+1. **Bidirectional Sorting**: Parameter to select ascending vs descending order
+2. **Early Termination**: Detect when array is already sorted and terminate early
+3. **Variable Width Elements**: Support for mixed-width data elements
+4. **Priority Encoding**: Include secondary sort keys for equal elements
+5. **Power Optimization**: Clock gating for unused pipeline stages
+
+---
+
+*This documentation describes the Sort module implementation. For the latest updates and additional examples, refer to the source code and testbench files.*
+
+## Testing
 
 The module comes with a comprehensive CocoTB testbench that includes:
 
@@ -328,56 +372,6 @@ The module comes with a comprehensive CocoTB testbench that includes:
 - **Parametric**: Multiple `NUM_VALS` and `SIZE` combinations
 - **Temporal**: Pipeline timing and valid signal propagation
 - **Stress**: Back-to-back operations and maximum throughput
-
-## Usage Guidelines
-
-### Typical Use Cases
-
-1. **Packet Processing**: Sorting priority fields or timestamps
-2. **Signal Processing**: Median filtering, statistical operations
-3. **Graphics**: Z-buffer sorting, polygon vertex ordering
-4. **Control Systems**: Sorting sensor readings or control parameters
-
-### Integration Considerations
-
-1. **Clock Domain**: Ensure `clk` is stable and meets timing requirements
-2. **Reset Strategy**: Include proper reset sequencing in system design
-3. **Data Formatting**: Pack input arrays correctly according to element ordering
-4. **Flow Control**: Monitor `done` signal for output validity
-5. **Resource Planning**: Consider pipeline depth impact on latency-sensitive applications
-
-### Performance Optimization
-
-1. **Pipeline Depth**: Use smallest practical `NUM_VALS` for lowest latency
-2. **Data Width**: Use smallest practical `SIZE` for best area efficiency
-3. **Clock Frequency**: Critical path is typically one comparison operation
-4. **Resource Sharing**: Multiple instances can share input/output buses if properly arbitrated
-
-## Synthesis Results
-
-Typical synthesis results for common configurations:
-
-| Configuration | Pipeline Stages | Critical Path | Area (LUTs) | Frequency |
-|---------------|----------------|---------------|-------------|-----------|
-| 3×8-bit | 3 | ~1.2ns | ~150 | >800 MHz |
-| 5×16-bit | 5 | ~1.5ns | ~400 | >650 MHz |
-| 8×32-bit | 8 | ~2.0ns | ~1200 | >500 MHz |
-
-*Results vary by target FPGA family and synthesis tool settings*
-
-## Future Enhancements
-
-Potential improvements for future versions:
-
-1. **Bidirectional Sorting**: Parameter to select ascending vs descending order
-2. **Early Termination**: Detect when array is already sorted and terminate early
-3. **Variable Width Elements**: Support for mixed-width data elements
-4. **Priority Encoding**: Include secondary sort keys for equal elements
-5. **Power Optimization**: Clock gating for unused pipeline stages
-
----
-
-*This documentation describes the Sort module implementation. For the latest updates and additional examples, refer to the source code and testbench files.*
 
 ## Navigation
 

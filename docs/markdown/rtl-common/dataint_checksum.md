@@ -27,7 +27,7 @@
 
 The `dataint_checksum` module is a simple accumulating checksum calculator. It keeps adding incoming data values into a running checksum you can use for basic data integrity verification. Nothing fancy — that's the point.
 
-## Module Declaration
+### Module Declaration
 
 ```systemverilog
 module dataint_checksum #(
@@ -44,34 +44,27 @@ module dataint_checksum #(
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `WIDTH` | `int` | 8 | Width of the data and checksum in bits |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `WIDTH` | 8 | Width of the data and checksum in bits |
 
 ## Ports
 
-### Inputs
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `clk` | Input | 1 | Clock signal |
+| `rst_n` | Input | 1 | Active-low asynchronous reset |
+| `reset` | Input | 1 | Synchronous reset signal |
+| `valid` | Input | 1 | Data valid signal - when high, data is accumulated |
+| `data` | Input | WIDTH | Input data to be added to checksum |
+| `chksum` | Output | WIDTH | Current checksum value |
 
-| Port | Width | Description |
-|------|-------|-------------|
-| `clk` | 1 | Clock signal |
-| `rst_n` | 1 | Active-low asynchronous reset |
-| `reset` | 1 | Synchronous reset signal |
-| `valid` | 1 | Data valid signal - when high, data is accumulated |
-| `data` | WIDTH | Input data to be added to checksum |
-
-### Outputs
-
-| Port | Width | Description |
-|------|-------|-------------|
-| `chksum` | WIDTH | Current checksum value |
-
-## Architecture and Implementation
+## Functional Description
 
 ### Operation
 
 The module keeps an internal counter (`r_count`) that accumulates incoming data:
-- On reset (either asynchronous `rst_n` or synchronous `reset`), the counter is cleared to zero
+- On reset (either asynchronous `rst_n` or synchronous `reset`), the counter clears to zero
 - When `valid` is asserted, the input `data` is added to the current counter value
 - The checksum output is simply the current counter value
 
@@ -90,17 +83,17 @@ Two reset mechanisms, and you should know which one wins:
 
 ### Special Considerations
 
-- **Overflow Handling**: The checksum will wrap around when the accumulated value exceeds the maximum value representable in `WIDTH` bits — expected behavior for a checksum, not a bug
+- **Overflow Handling**: The checksum wraps around when the accumulated value exceeds the maximum representable in `WIDTH` bits — expected behavior for a checksum, not a bug
 - **Continuous Output**: The checksum output is always valid and reflects the current accumulated value
 - **Reset Priority**: Asynchronous reset (`rst_n`) takes precedence over synchronous reset (`reset`)
 
 ### State Machine
 
-No formal FSM here — it operates as a simple accumulator with the following states:
+No formal FSM here — it operates as a simple accumulator with two states:
 - **RESET**: Counter is zero
 - **ACCUMULATING**: Counter adds valid data inputs
 
-## Usage Examples
+## Usage Example
 
 ```systemverilog
 // 16-bit checksum calculator
@@ -116,7 +109,9 @@ dataint_checksum #(
 );
 ```
 
-## Common Applications
+## Design Notes
+
+### Common Applications
 
 - Simple data integrity checking
 - Packet checksum calculation

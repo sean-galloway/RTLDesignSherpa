@@ -21,12 +21,13 @@
 
 <!-- End Header -->
 
-# icg (`icg.sv`)
+# icg
 
-## Purpose
+## Overview
+
 An Integrated Clock Gating (ICG) cell: a latch-based clock gate that lets you selectively kill clock signals to cut dynamic power consumption. It's one of the fundamental power management moves in modern ASIC and FPGA designs, and for good reason.
 
-## Module Declaration
+### Module Declaration
 
 ```systemverilog
 module icg(
@@ -37,6 +38,7 @@ module icg(
 ```
 
 ## Parameters
+
 This module has no parameters.
 
 ## Ports
@@ -47,7 +49,7 @@ This module has no parameters.
 | `clk` | Input | 1 | Input clock signal to be gated |
 | `gclk` | Output | 1 | Gated clock output - clk when en=1, low when en=0 |
 
-## Functionality
+## Functional Description
 
 ### Clock Gating Operation
 
@@ -73,7 +75,7 @@ end
 assign gclk = en_out && clk;
 ```
 
-## Timing Characteristics
+## Timing
 
 ### Critical Timing Requirements
 
@@ -102,48 +104,7 @@ gclk     ____   |     | ___ | ___ | ___ |  ___
             |___|     ||___|||___|||___|||_____|
 ```
 
-## Power Optimization Benefits
-
-### Dynamic Power Reduction
-
-The ICG cuts dynamic power on three fronts:
-
-- **Clock Tree Power**: Eliminates switching activity in downstream clock networks
-- **Register Power**: Prevents unnecessary flip-flop transitions when data is not changing
-- **Combinational Power**: Reduces spurious switching in logic fed by gated registers
-
-### Power Savings
-
-Clock gating removes switching on the gated clock branch while a block is idle.
-The actual saving is **design- and technology-specific** — it depends on the
-activity factor, gating ratio, process node, and clock-tree structure — so no
-fixed percentage applies here. Quantify it from synthesis/power analysis of your
-own design rather than a generic figure. (Earlier revisions of this page quoted
-20-40% / 30-60% / 10-30% numbers that had no source or stated conditions.)
-
-## Design Considerations
-
-### Safety Requirements
-
-- **Glitch-Free Operation**: Latch-based design prevents glitches on gated clock
-- **Setup/Hold Timing**: Enable signal must meet timing requirements relative to clock
-- **Clock Domain**: All logic using `gclk` must be in the same clock domain
-
-### Enable Signal Guidelines
-
-```systemverilog
-// Good: Enable changes during clock low period
-always_ff @(posedge clk) begin
-    if (rst_n) begin
-        enable_reg <= new_enable_value;  // Changes on clock edge
-    end
-end
-
-// Caution: Ensure enable is stable during clock high
-assign icg_enable = enable_reg && additional_condition;
-```
-
-## Usage Examples
+## Usage Example
 
 ### Basic Register Bank Gating
 
@@ -207,9 +168,44 @@ icg u_mem_icg (
 assign mem_access_active = mem_read_req || mem_write_req || mem_busy;
 ```
 
-## Implementation Alternatives
+## Design Notes
 
-### Standard Cell ICG
+### Power Optimization Benefits
+
+The ICG cuts dynamic power on three fronts:
+
+- **Clock Tree Power**: Eliminates switching activity in downstream clock networks
+- **Register Power**: Prevents unnecessary flip-flop transitions when data is not changing
+- **Combinational Power**: Reduces spurious switching in logic fed by gated registers
+
+Clock gating removes switching on the gated clock branch while a block is idle.
+The actual saving is **design- and technology-specific** — it depends on the
+activity factor, gating ratio, process node, and clock-tree structure — so no
+fixed percentage applies here. Quantify it from synthesis/power analysis of your
+own design rather than a generic figure. (Earlier revisions of this page quoted
+20-40% / 30-60% / 10-30% numbers that had no source or stated conditions.)
+
+### Safety Requirements
+
+- **Glitch-Free Operation**: Latch-based design prevents glitches on gated clock
+- **Setup/Hold Timing**: Enable signal must meet timing requirements relative to clock
+- **Clock Domain**: All logic using `gclk` must be in the same clock domain
+
+### Enable Signal Guidelines
+
+```systemverilog
+// Good: Enable changes during clock low period
+always_ff @(posedge clk) begin
+    if (rst_n) begin
+        enable_reg <= new_enable_value;  // Changes on clock edge
+    end
+end
+
+// Caution: Ensure enable is stable during clock high
+assign icg_enable = enable_reg && additional_condition;
+```
+
+### Implementation Alternatives
 
 Many ASIC libraries provide optimized ICG cells:
 
@@ -222,8 +218,6 @@ CLOCK_GATE_ICG u_lib_icg (
 );
 ```
 
-### FPGA Implementation
-
 For FPGA targets, use dedicated clock control primitives:
 
 ```systemverilog
@@ -235,7 +229,46 @@ BUFGCE u_bufgce (
 );
 ```
 
-## Verification Considerations
+### Synthesis Guidelines
+
+Technology mapping:
+- **ASIC**: Use library-specific ICG cells for optimal area/power/timing
+- **FPGA**: Map to dedicated clock control primitives (BUFGCE, etc.)
+- **Timing Closure**: Account for additional setup/hold requirements
+
+Clock tree synthesis:
+
+```tcl
+# Example synthesis constraints for ICG
+set_case_analysis 0 [get_pins u_icg/en]  ;# For power analysis
+set_clock_gating_check -setup 0.1 [get_pins u_icg/gclk]
+set_clock_gating_check -hold 0.1 [get_pins u_icg/gclk]
+```
+
+### Design Integration
+
+Where you put the ICG in the clock tree matters:
+
+```
+Main Clock → ICG → Local Clock Tree → Registers
+           ↑
+     Enable Logic
+```
+
+Power domain considerations:
+- **Retention**: Ensure enable logic remains powered during clock gating
+- **Isolation**: Properly isolate gated domains in multi-voltage designs
+- **Power Sequencing**: Coordinate with power management units
+
+The `icg` module is a fundamental building block of power-efficient digital design: significant power savings through controlled clock gating, without giving up design safety or functionality.
+
+## Related Modules
+
+- `clock_gate_ctrl`: Enhanced clock gating controller with additional features
+- `clock_divider`: Clock frequency division functionality
+- `reset_sync`: Reset synchronization for gated clock domains
+
+## Testing
 
 ### Functional Tests
 
@@ -266,49 +299,6 @@ end
 - **Activity Monitoring**: Track switching activity reduction in gated domains
 - **Power Estimation**: Measure power savings using EDA power analysis tools
 - **Efficiency Metrics**: Calculate gating efficiency (% time clock is disabled)
-
-## Synthesis Guidelines
-
-### Technology Mapping
-
-- **ASIC**: Use library-specific ICG cells for optimal area/power/timing
-- **FPGA**: Map to dedicated clock control primitives (BUFGCE, etc.)
-- **Timing Closure**: Account for additional setup/hold requirements
-
-### Clock Tree Synthesis
-
-```tcl
-# Example synthesis constraints for ICG
-set_case_analysis 0 [get_pins u_icg/en]  ;# For power analysis
-set_clock_gating_check -setup 0.1 [get_pins u_icg/gclk]
-set_clock_gating_check -hold 0.1 [get_pins u_icg/gclk]
-```
-
-## Design Integration
-
-### Clock Tree Integration
-
-Where you put the ICG in the clock tree matters:
-
-```
-Main Clock → ICG → Local Clock Tree → Registers
-           ↑
-     Enable Logic
-```
-
-### Power Domain Considerations
-
-- **Retention**: Ensure enable logic remains powered during clock gating
-- **Isolation**: Properly isolate gated domains in multi-voltage designs
-- **Power Sequencing**: Coordinate with power management units
-
-The `icg` module is a fundamental building block of power-efficient digital design: significant power savings through controlled clock gating, without giving up design safety or functionality.
-
-## Related Modules
-
-- `clock_gate_ctrl`: Enhanced clock gating controller with additional features
-- `clock_divider`: Clock frequency division functionality
-- `reset_sync`: Reset synchronization for gated clock domains
 
 ## Navigation
 

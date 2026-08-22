@@ -21,15 +21,15 @@
 
 <!-- End Header -->
 
-# LFSR (Linear Feedback Shift Register) Module
+# shifter_lfsr
 
-## Purpose
+## Overview
+
 The `shifter_lfsr` module is the generic Linear Feedback Shift Register:
 configurable tap positions for pseudo-random number generation, support for
 various LFSR polynomials, and cycle completion detection so you know exactly
 when the deterministic sequence has wrapped.
 
-## Key Features
 - Configurable tap positions for different polynomial implementations
 - Seed loading capability for sequence initialization
 - Cycle completion detection (sequence wrap-around)
@@ -63,7 +63,7 @@ when the deterministic sequence has wrapped.
 | `lfsr_out` | WIDTH | Current LFSR value |
 | `lfsr_done` | 1 | High when LFSR returns to seed value |
 
-## LFSR Theory and Implementation
+## Functional Description
 
 ### Feedback Polynomial
 The LFSR implements a linear feedback shift register based on a primitive
@@ -108,7 +108,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Timing Diagrams
+## Timing
 
 ### Seed Loading and Operation
 ```
@@ -136,7 +136,44 @@ Step | LFSR | lfsr & 110 | Feedback | Next
 6    | 000  | 000        | 1        | 001  (wraps to start; period 7)
 ```
 
-## Special Implementation Notes
+## Usage Example
+
+### Pseudo-Random Number Generation
+```systemverilog
+// Initialize with non-zero seed
+seed_data = 8'hA5;
+seed_load = 1'b1;  // Load seed
+// Then enable normal operation
+enable = 1'b1;
+seed_load = 1'b0;
+// lfsr_out provides pseudo-random sequence
+```
+
+### Built-In Self-Test (BIST)
+```systemverilog
+// Use lfsr_done to detect test completion
+if (lfsr_done) begin
+    // Full test sequence completed
+    test_complete = 1'b1;
+end
+```
+
+### Scrambling/Descrambling
+```systemverilog
+// XOR data with LFSR output for scrambling
+scrambled_data = input_data ^ lfsr_out;
+```
+
+### Common Use Cases
+- Pseudo-random number generation
+- Data scrambling and encryption
+- Built-in self-test pattern generation
+- CRC calculation
+- Spread spectrum communications
+- Test vector generation
+- Noise generation for audio applications
+
+## Design Notes
 
 ### 1. Tap Position Encoding
 - Tap positions are 1-indexed (position 1 = bit 0)
@@ -170,48 +207,10 @@ traditional right-shift LFSRs but with different bit ordering.
 - Seed loading is therefore optional: it selects where in the sequence you
   start, but the reset state runs correctly without it
 
-## Applications
+### LFSR Polynomial Reference
 
-### Pseudo-Random Number Generation
-```systemverilog
-// Initialize with non-zero seed
-seed_data = 8'hA5;
-seed_load = 1'b1;  // Load seed
-// Then enable normal operation
-enable = 1'b1;
-seed_load = 1'b0;
-// lfsr_out provides pseudo-random sequence
-```
+The module supports various standard LFSR polynomials. Common configurations (XNOR taps):
 
-### Built-In Self-Test (BIST)
-```systemverilog
-// Use lfsr_done to detect test completion
-if (lfsr_done) begin
-    // Full test sequence completed
-    test_complete = 1'b1;
-end
-```
-
-### Scrambling/Descrambling
-```systemverilog
-// XOR data with LFSR output for scrambling
-scrambled_data = input_data ^ lfsr_out;
-```
-
-## Common Use Cases
-- Pseudo-random number generation
-- Data scrambling and encryption
-- Built-in self-test pattern generation
-- CRC calculation
-- Spread spectrum communications
-- Test vector generation
-- Noise generation for audio applications
-
-## LFSR Polynomial Reference
-
-The module supports various standard LFSR polynomials. Here are some common configurations:
-
-### Popular LFSR Polynomials (XNOR taps)
 | Width | Tap Positions | Max Period |
 |-------|---------------|------------|
 | 3 | [3,2] | 7 |
@@ -231,6 +230,11 @@ parameter TIW = 4;  // 4 bits enough for tap positions up to 8
 // Concatenated tap positions: {8,6,5,4}
 wire [TAP_COUNT*TIW-1:0] taps = {4'd8, 4'd6, 4'd5, 4'd4};
 ```
+
+## Related Modules
+
+- [shifter_lfsr_fibonacci](shifter_lfsr_fibonacci.md) — Fibonacci (external-XOR) form; carries the `|r_lfsr` zero guard this module doesn't need.
+- [shifter_lfsr_galois](shifter_lfsr_galois.md) — Galois (distributed-XOR) form for higher clock frequencies.
 
 ## Navigation
 

@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# debounce (`debounce.sv`)
+# debounce
 
-## Purpose
+## Overview
+
 Kills mechanical switch bounce by sampling button inputs on a regular tick and refusing to believe a button until the same state shows up for several consecutive samples.
 
 ## Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `N` | 4 | Number of buttons/input signals |
@@ -34,6 +36,7 @@ Kills mechanical switch bounce by sampling button inputs on a regular tick and r
 | `PRESSED_STATE` | 1 | Logic level when button is pressed (1 for normally open, 0 for normally closed) |
 
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `clk` | Input | 1 | System clock signal |
@@ -42,9 +45,10 @@ Kills mechanical switch bounce by sampling button inputs on a regular tick and r
 | `button_in` | Input | N | Raw button input signals to be debounced |
 | `button_out` | Output | N | Debounced button output signals |
 
-## Implementation Details
+## Functional Description
 
 ### Core Algorithm
+
 The module tracks each button's recent history in a shift register:
 
 ```systemverilog
@@ -65,11 +69,13 @@ end
 ```
 
 ### Sampling Control
+
 - Only samples inputs when `long_tick` fires
 - Over-sampling invites false triggering — this avoids it
 - Typical `long_tick` period: ~10ms
 
 ### Button Type Support
+
 - **Normally Open (NO)**: `PRESSED_STATE = 1`
   - Button reads '0' when not pressed, '1' when pressed
 - **Normally Closed (NC)**: `PRESSED_STATE = 0`  
@@ -77,6 +83,7 @@ end
 - The input inversion handles NC buttons transparently
 
 ### Debounce Logic
+
 - Keeps `DEBOUNCE_DELAY` samples per button
 - The output only goes high when every sample in the shift register is '1'
 - Which means the button has to sit stable in the pressed state for the whole delay
@@ -91,17 +98,20 @@ end
 ```
 
 ### Output Registration
+
 - The final output is registered, so transitions come out clean and glitch-free
 - Resets to all zeros on system reset
 
-## Timing Characteristics
+## Timing
 
 ### Debounce Delay
+
 - **Total delay** = `DEBOUNCE_DELAY` × `long_tick` period
 - **Default**: 4 × 10ms = 40ms debounce time
 - **Minimum stable time**: The button has to hold steady for the full delay period
 
 ### Response Time
+
 - **Press detection**: `DEBOUNCE_DELAY` ticks after the button stabilizes high
   (the output is `&r_shift_regs[i]`, so it needs `DEBOUNCE_DELAY` consecutive
   high samples to assert)
@@ -111,13 +121,17 @@ end
 - **Asymmetric**: press is fully debounced; release propagates ~`DEBOUNCE_DELAY`×
   faster. Do NOT rely on symmetric debounce timing.
 
-## Applications
+## Design Notes
+
+### Applications
+
 - Mechanical pushbuttons and switches
 - Rotary encoder inputs (with the delay set appropriately)
 - Any digital input prone to contact bounce
 - Both normally open and normally closed switch types
 
-## Design Considerations
+### Design Considerations
+
 - **Delay tuning**: Set `DEBOUNCE_DELAY` to match your switch's characteristics
 - **Tick frequency**: `long_tick` should run much slower than the bounce duration
 - **Multiple buttons**: All buttons share the same debounce parameters

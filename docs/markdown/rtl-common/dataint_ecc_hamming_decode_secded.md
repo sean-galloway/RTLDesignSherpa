@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# dataint_ecc_hamming_decode_secded (`dataint_ecc_hamming_decode_secded.sv`)
+# dataint_ecc_hamming_decode_secded
 
-## Purpose
+## Overview
+
 A Hamming decoder with SECDED — Single Error Correction, Double Error Detection. It decodes Hamming-encoded data, detects and fixes single-bit errors, and raises a flag when two bits have gone bad (which it can see but not repair).
 
-## Module Declaration
+### Module Declaration
+
 ```systemverilog
 module dataint_ecc_hamming_decode_secded #(
     parameter int WIDTH = 4,
@@ -43,18 +45,21 @@ module dataint_ecc_hamming_decode_secded #(
 ```
 
 ## Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `WIDTH` | 4 | Width of original data in bits |
 | `DEBUG` | 0 | Enable debug output (1=enabled, 0=disabled) |
 
-## Calculated Parameters
+### Calculated Parameters
+
 | Parameter | Formula | Description |
 |-----------|---------|-------------|
 | `ParityBits` | `$clog2(WIDTH + $clog2(WIDTH) + 1)` | Number of Hamming parity bits |
 | `TotalWidth` | `WIDTH + ParityBits + 1` | Total encoded data width |
 
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `clk` | Input | 1 | Clock signal |
@@ -65,9 +70,10 @@ module dataint_ecc_hamming_decode_secded #(
 | `error_detected` | Output | 1 | Single or double error detected |
 | `double_error_detected` | Output | 1 | Double error specifically detected |
 
-## Functionality
+## Functional Description
 
 ### Decoding Process
+
 1. **Syndrome Generation**: Calculate the parity check syndrome
 2. **Overall Parity Check**: Verify the SECDED bit
 3. **Error Classification**: Work out the error type and location
@@ -75,6 +81,7 @@ module dataint_ecc_hamming_decode_secded #(
 5. **Data Extraction**: Pull the corrected original data back out
 
 ### Error Detection Logic
+
 | Overall Parity | Syndrome | Error Type | Action |
 |----------------|----------|------------|---------|
 | Match | Zero | No Error | Pass data through |
@@ -82,12 +89,12 @@ module dataint_ecc_hamming_decode_secded #(
 | Mismatch | Zero | Single Error (SECDED) | No correction needed |
 | Match | Non-zero | Double Error | Flag error, no correction |
 
-## Implementation Details
-
 ### Key Functions
 
 #### `bit_position(k)` Function
+
 Tells you where data bit `k` ended up in the encoded stream:
+
 ```systemverilog
 function automatic integer bit_position(input integer k);
     integer j, pos;
@@ -102,7 +109,9 @@ endfunction
 ```
 
 #### `get_covered_bits(parity_bit)` Function
+
 Hands back a bitmask of every position a given parity bit covers:
+
 ```systemverilog
 function automatic [TotalWidth-1:0] get_covered_bits(input integer parity_bit);
     integer j;
@@ -118,6 +127,7 @@ endfunction
 ```
 
 ### Syndrome Generation
+
 ```systemverilog
 always_comb begin : create_syndrome_covered_bits
     if (enable) begin
@@ -141,6 +151,7 @@ end
 ```
 
 ### Overall Parity Check
+
 ```systemverilog
 always_comb begin : check_overall_parity
     w_overall_parity_in = hamming_data[TotalWidth-1];  // SECDED bit
@@ -153,12 +164,14 @@ end
 ```
 
 ### Control States
+
 There's no fancy FSM here — just `enable` gating two logical states:
 
 1. **IDLE**: `enable = 0` - No processing
 2. **DECODE**: `enable = 1` - Active decoding and error correction
 
 ### Error Correction Logic
+
 ```systemverilog
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
@@ -191,6 +204,7 @@ end
 ```
 
 ### Data Extraction
+
 ```systemverilog
 genvar j;
 generate
@@ -202,37 +216,37 @@ endgenerate
 
 That peels just the original data bits out of the corrected encoded word.
 
-## Key Features
+### Error Handling Details
+
+Syndrome interpretation:
+- **Syndrome = 0**: No error in the Hamming bits
+- **Syndrome ≠ 0**: Points to the error bit position (1-based)
+- **Zero-based Syndrome**: `w_syndrome_0_based = w_syndrome - 1`
+
+The SECDED bit is what lets you tell apart:
+- Single-bit errors (correctable)
+- Double-bit errors (detectable, but you're out of luck on correction)
+- No errors
+
+The correction sequence:
+1. Calculate the syndrome from the received parity bits
+2. Check overall parity (the SECDED bit)
+3. Single error detected? Flip the bit at the syndrome position
+4. Double error detected? Flag it, but leave the data alone
 
 ### Error Correction Capabilities
+
 - **Single Error Correction**: Automatically fixes single-bit errors
 - **Double Error Detection**: Flags double-bit errors but can't correct them
 - **Error Location**: The syndrome points right at the bad bit
 - **SECDED Protection**: The extra parity bit buys you double-error detection
 
 ### Debug Support
+
 Fair warning: the `DEBUG` parameter is a **no-op** today. The RTL's only nod to it is an empty `initial begin if (DEBUG != 0) begin ... end end` placeholder with no `$display` statements. Turn it on and you'll get exactly no output in the current implementation.
 
-## Error Handling Details
+## Timing
 
-### Syndrome Interpretation
-- **Syndrome = 0**: No error in the Hamming bits
-- **Syndrome ≠ 0**: Points to the error bit position (1-based)
-- **Zero-based Syndrome**: `w_syndrome_0_based = w_syndrome - 1`
-
-### SECDED Bit Function
-The SECDED bit is what lets you tell apart:
-- Single-bit errors (correctable)
-- Double-bit errors (detectable, but you're out of luck on correction)
-- No errors
-
-### Error Correction Process
-1. Calculate the syndrome from the received parity bits
-2. Check overall parity (the SECDED bit)
-3. Single error detected? Flip the bit at the syndrome position
-4. Double error detected? Flag it, but leave the data alone
-
-## Performance Considerations
 - **Latency**: One clock cycle for error correction
 - **Throughput**: One word per clock cycle
 - **Detection Rate**: 100% for single and double errors
@@ -241,9 +255,10 @@ The SECDED bit is what lets you tell apart:
 - **Area**: Scales with data width and parity requirements
 - **Power**: Moderate — the combinational parity math costs you
 
-## Usage Examples
+## Usage Example
 
 ### Basic Decoder
+
 ```systemverilog
 dataint_ecc_hamming_decode_secded #(
     .WIDTH(8),
@@ -260,6 +275,7 @@ dataint_ecc_hamming_decode_secded #(
 ```
 
 ### Error Handling System
+
 ```systemverilog
 always_ff @(posedge clk) begin
     if (error_detected) begin
@@ -277,7 +293,10 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Applications
+## Design Notes
+
+### Applications
+
 - ECC memory systems
 - Communication error correction
 - Storage system integrity
@@ -286,6 +305,7 @@ end
 - Network protocol implementation
 
 ## Related Modules
+
 - **`dataint_ecc_hamming_encode_secded`**: Corresponding encoder
 - Used together for complete ECC system implementation
 

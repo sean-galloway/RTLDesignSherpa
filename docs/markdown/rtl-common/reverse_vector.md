@@ -21,15 +21,15 @@
 
 <!-- End Header -->
 
-# Reverse Vector Module
+# reverse_vector
 
-## Purpose
+## Overview
+
 The `reverse_vector` module flips the bit order of an input vector end for end:
 MSB swaps with LSB, second MSB with second LSB, and so on down the line. It's a
 purely combinational operation — no clock, no state, just wires with an opinion
 about ordering.
 
-## Key Features
 - Combinational bit reversal operation
 - Parameterizable vector width
 - Zero propagation delay (combinational logic only)
@@ -53,7 +53,7 @@ about ordering.
 |------|-------|-------------|
 | `vector_rev` | WIDTH | Bit-reversed output vector |
 
-## Implementation Details
+## Functional Description
 
 ### Bit Reversal Logic
 ```systemverilog
@@ -69,8 +69,6 @@ A simple for-loop maps each input bit to its mirrored output position:
 - Input bit 1 → Output bit (WIDTH-2)
 - Input bit i → Output bit (WIDTH-1-i)
 - Input bit (WIDTH-1) → Output bit 0
-
-## Operation Examples
 
 ### 8-bit Vector Reversal
 ```
@@ -100,34 +98,19 @@ vector_in[1] = 1 → vector_rev[2] = 1
 vector_in[0] = 1 → vector_rev[3] = 1
 ```
 
-## Special Implementation Notes
+## Timing
 
-### 1. Combinational Operation
-- No clock signal required
-- No sequential logic elements
-- Output changes immediately when input changes
-- Zero propagation delay (limited only by gate delays)
+There is no clock and no state here, so timing in the usual sense doesn't
+apply. The output follows the input after gate and wire delay, and that's the
+whole story:
 
-### 2. Parameterizable Width
-The module works with any vector width specified by the WIDTH parameter:
-- Automatically scales to any desired width
-- Synthesis tools optimize for the specific width
-- No hardcoded bit indices
+- **Propagation Delay**: Minimal (wire delay only), < 1ns typical
+- **Critical Path**: Direct wire connections
+- **Setup/Hold**: Not applicable (combinational)
+- **Maximum Frequency**: Unlimited by this module — limited by surrounding logic
+- **Throughput**: One operation per clock cycle (if clocked)
 
-### 3. For-Loop Synthesis
-Synthesis unrolls the for-loop completely, leaving one wire assignment per bit
-position. What you get:
-- Parallel bit assignments (no sequential operation)
-- Optimal timing characteristics
-- Efficient hardware implementation
-
-### 4. Bidirectional Property
-Reverse twice and you're back where you started:
-```systemverilog
-original_vector == reverse(reverse(original_vector))
-```
-
-## Applications
+## Usage Example
 
 ### Endianness Conversion
 ```systemverilog
@@ -166,8 +149,6 @@ converted_data = reverse_vector(input_format);
 mirror_pattern = reverse_vector(original_pattern);
 ```
 
-## Usage Examples
-
 ### Instantiation with Different Widths
 ```systemverilog
 // 16-bit reversal
@@ -201,13 +182,32 @@ assign output_data = reverse_enable ?
                      vector_in;
 ```
 
-## Design Considerations
+## Design Notes
 
-### Timing Analysis
-- **Propagation Delay**: Minimal (wire delay only)
-- **Critical Path**: Direct wire connections
-- **Setup/Hold**: Not applicable (combinational)
-- **Clock Frequency**: Unlimited (no sequential logic)
+### 1. Combinational Operation
+- No clock signal required
+- No sequential logic elements
+- Output changes immediately when input changes
+- Zero propagation delay (limited only by gate delays)
+
+### 2. Parameterizable Width
+The module works with any vector width specified by the WIDTH parameter:
+- Automatically scales to any desired width
+- Synthesis tools optimize for the specific width
+- No hardcoded bit indices
+
+### 3. For-Loop Synthesis
+Synthesis unrolls the for-loop completely, leaving one wire assignment per bit
+position. What you get:
+- Parallel bit assignments (no sequential operation)
+- Optimal timing characteristics
+- Efficient hardware implementation
+
+### 4. Bidirectional Property
+Reverse twice and you're back where you started:
+```systemverilog
+original_vector == reverse(reverse(original_vector))
+```
 
 ### Power Consumption
 - **Static Power**: Minimal (no storage elements)
@@ -219,8 +219,6 @@ assign output_data = reverse_enable ?
 - **Routing Resources**: WIDTH wire connections
 - **Memory**: None required
 - **Scalability**: Linear with WIDTH
-
-## Synthesis Considerations
 
 ### Hardware Implementation
 What synthesis actually builds:
@@ -239,38 +237,33 @@ assign vector_rev[1] = vector_in[WIDTH-2];
 assign vector_rev[0] = vector_in[WIDTH-1];
 ```
 
-## Performance Metrics
+### Performance Metrics
 
-### Speed
-- **Combinational Delay**: < 1ns (typical)
-- **Maximum Frequency**: Limited by surrounding logic
-- **Throughput**: One operation per clock cycle (if clocked)
-
-### Area
+Area:
 - **Gate Count**: 0 (wire-only implementation)
 - **Equivalent Gates**: WIDTH (for routing complexity)
 - **Memory Bits**: 0
 
-### Power
+Power:
 - **Leakage**: Negligible
 - **Dynamic**: Proportional to toggle rate
 - **Peak Power**: During simultaneous bit transitions
 
-## Common Pitfalls and Solutions
+### Common Pitfalls
 
-### Simulation Warnings
+Simulation warnings:
 ```systemverilog
 // Use 'integer' instead of 'int' for compatibility
 for (integer i = 0; i < WIDTH; i++) begin
 ```
 
-### Synthesis Issues
+Synthesis issues:
 ```systemverilog
 // Ensure WIDTH is properly parameterized
 localparam int W = WIDTH;  // Local parameter for clarity
 ```
 
-### Timing Closure
+Timing closure:
 ```systemverilog
 // Add pipeline stage if needed for timing
 always_ff @(posedge clk) begin
@@ -278,34 +271,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Verification Considerations
-
-### Test Cases
-```systemverilog
-// Test all zeros
-vector_in = '0;
-assert(vector_rev == '0);
-
-// Test all ones  
-vector_in = '1;
-assert(vector_rev == '1);
-
-// Test alternating pattern
-vector_in = 8'b10101010;
-assert(vector_rev == 8'b01010101);
-
-// Test double reversal
-temp = reverse_vector_inst1.vector_rev;
-assert(reverse_vector_inst2.vector_rev == vector_in);
-```
-
-### Coverage Points
-- All bit positions exercised
-- Boundary conditions (all 0s, all 1s)
-- Random patterns
-- Double reversal verification
-
-## Related Modules and Alternatives
+## Related Modules
 
 ### Byte Reversal
 If what you actually need is byte-level endianness conversion, a separate module
@@ -332,6 +298,33 @@ generate
     endcase
 endgenerate
 ```
+
+## Testing
+
+### Test Cases
+```systemverilog
+// Test all zeros
+vector_in = '0;
+assert(vector_rev == '0);
+
+// Test all ones  
+vector_in = '1;
+assert(vector_rev == '1);
+
+// Test alternating pattern
+vector_in = 8'b10101010;
+assert(vector_rev == 8'b01010101);
+
+// Test double reversal
+temp = reverse_vector_inst1.vector_rev;
+assert(reverse_vector_inst2.vector_rev == vector_in);
+```
+
+### Coverage Points
+- All bit positions exercised
+- Boundary conditions (all 0s, all 1s)
+- Random patterns
+- Double reversal verification
 
 ## Navigation
 

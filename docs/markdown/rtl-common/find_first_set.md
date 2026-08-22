@@ -21,25 +21,29 @@
 
 <!-- End Header -->
 
-# find_first_set (`find_first_set.sv`)
+# find_first_set
 
-## Purpose
+## Overview
+
 Finds the index of the least significant bit (LSB) that's set to '1' in the input vector — a priority encoder that plays favorites with the low bits.
 
 ## Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `WIDTH` | 32 | Width of input data vector — the module's only parameter |
 
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `data` | Input | WIDTH | Input data vector to search |
 | `index` | Output | $clog2(WIDTH) | Index of the first (lowest) set bit |
 
-## Functionality
+## Functional Description
 
 ### Search Strategy
+
 - **Direction**: LSB to MSB (left to right, ascending index)
 - **Priority**: Lower indices have higher priority
 - **First match**: Stops at the first '1' bit encountered
@@ -62,14 +66,14 @@ Finds the index of the least significant bit (LSB) that's set to '1' in the inpu
 | 11111111  | 000        | All bits set - bit 0 wins |
 
 ### Key Characteristics
+
 - **LSB priority**: Multiple bits set? You get the lowest index
 - **Zero default**: Returns 0 when no bits are set
 - **Deterministic**: Same input always produces same output
 - **Combinational**: Immediate response to input changes
 
-## Implementation Details
-
 ### Core Algorithm
+
 ```systemverilog
 localparam int N = $clog2(WIDTH);
 logic w_found;
@@ -88,6 +92,7 @@ end
 ```
 
 ### Width Parameterization
+
 - **Automatic sizing**: Output width calculated as `$clog2(WIDTH)`
 - **Examples**:
   - WIDTH=8 → index[2:0] (3 bits)
@@ -95,93 +100,89 @@ end
   - WIDTH=32 → index[4:0] (5 bits)
 
 ### Found Flag Logic
+
 ```systemverilog
 if (data[i] && !w_found) begin
     index = i[N-1:0];
     w_found = 1'b1;
 end
 ```
+
 - **Purpose**: Keeps the first found result from being overwritten
 - **Mechanism**: Once `w_found` is set, no further assignments occur
 - **Result**: Only the lowest index is captured
 
 ### Bit Width Handling
+
 ```systemverilog
 index = i[N-1:0]; // Ensure correct bit width
 ```
+
 - **Type safety**: Explicit width matching keeps synthesis warnings away
 - **Truncation**: Safely handles loop variable width vs. output width
 
-## Timing Characteristics
+## Timing
 
 ### Propagation Delay
+
 - **Best case**: 1 LUT delay (bit 0 set)
 - **Worst case**: Multiple LUT delays (higher bits set)
 - **Average case**: Depends on typical input patterns
 
 ### Critical Path
+
 - **Path length**: Increases with WIDTH
 - **Optimization**: Modern synthesizers create efficient priority encoders
 - **Scaling**: Generally logarithmic complexity in hardware
 
-## Algorithm Comparison
-
-### vs. Find Last Set
-| Aspect | Find First Set | Find Last Set |
-|--------|----------------|---------------|
-| **Search direction** | LSB → MSB | MSB → LSB |
-| **Priority** | Lower index wins | Higher index wins |
-| **Use case** | Fair allocation | Priority allocation |
-
-### vs. Priority Encoder
-| Aspect | Find First Set | Priority Encoder |
-|--------|----------------|------------------|
-| **Priority direction** | LSB has priority | MSB has priority |
-| **Application** | Round-robin systems | Hierarchical systems |
-
-## Usage Examples
+## Usage Example
 
 ### Interrupt Processing
+
 ```systemverilog
 find_first_set #(.WIDTH(8)) irq_ffs (
     .data(interrupt_pending),
     .index(lowest_priority_irq)
 );
 ```
-- Process lowest-numbered interrupt first
-- Fair servicing of interrupt sources
+
+Process the lowest-numbered interrupt first — fair servicing of interrupt sources.
 
 ### Resource Allocation
+
 ```systemverilog
 find_first_set #(.WIDTH(16)) resource_ffs (
     .data(available_resources),
     .index(allocated_resource_id)
 );
 ```
-- Allocate lowest-numbered available resource
-- Round-robin allocation when combined with masking
+
+Allocate the lowest-numbered available resource; round-robin allocation when combined with masking.
 
 ### Error Detection
+
 ```systemverilog
 find_first_set #(.WIDTH(4)) error_ffs (
     .data(error_status),
     .index(first_error_type)
 );
 ```
-- Report first error condition detected
-- Prioritize error handling by position
+
+Report the first error condition detected, prioritizing error handling by position.
 
 ### Bit Manipulation
+
 ```systemverilog
 find_first_set #(.WIDTH(32)) bit_scan (
     .data(search_pattern),
     .index(first_set_position)
 );
 ```
-- Bit scanning operations
-- Pattern analysis and parsing
+
+Bit scanning operations, pattern analysis and parsing.
 
 ### Round-Robin Arbitration
+
 ```systemverilog
 // Mask off already-serviced requests
 assign masked_requests = pending_requests & ~service_mask;
@@ -196,6 +197,7 @@ assign next_mask = service_mask | (1 << next_grant);
 ```
 
 ### Free List Management
+
 ```systemverilog
 find_first_set #(.WIDTH(POOL_SIZE)) free_finder (
     .data(free_pool_bitmap),
@@ -207,6 +209,7 @@ assign updated_bitmap = free_pool_bitmap & ~(1 << allocated_entry);
 ```
 
 ### Packet Classification
+
 ```systemverilog
 find_first_set #(.WIDTH(NUM_RULES)) rule_matcher (
     .data(rule_match_vector),
@@ -214,52 +217,71 @@ find_first_set #(.WIDTH(NUM_RULES)) rule_matcher (
 );
 ```
 
-## Design Considerations
+## Design Notes
 
-### Input Validation
+### Algorithm Comparison
+
+Versus find_last_set:
+
+| Aspect | Find First Set | Find Last Set |
+|--------|----------------|---------------|
+| **Search direction** | LSB → MSB | MSB → LSB |
+| **Priority** | Lower index wins | Higher index wins |
+| **Use case** | Fair allocation | Priority allocation |
+
+Versus a priority encoder:
+
+| Aspect | Find First Set | Priority Encoder |
+|--------|----------------|------------------|
+| **Priority direction** | LSB has priority | MSB has priority |
+| **Application** | Round-robin systems | Hierarchical systems |
+
+### Design Considerations
+
+Input validation:
 - **All zeros**: Returns 0 (may need validation in application)
 - **Valid range**: All input patterns handled gracefully
 - **No error conditions**: Always produces a result
 
-### Performance Optimization
+Performance optimization:
 - **Synthesis**: Let tools optimize the priority encoding
 - **Pipelining**: Consider registering for high-speed applications
 - **Parallel**: Can process multiple vectors simultaneously
 
-### Width Selection
+Width selection:
 - **Power of 2**: Often most efficient for synthesis
 - **Arbitrary width**: Supported but may have overhead
 - **Large widths**: Consider hierarchical implementation
 
-## Synthesis Considerations
+### Synthesis Considerations
 
-### Resource Utilization
 - **LUT usage**: Typically maps to priority encoder primitives
 - **Efficiency**: Good utilization for most FPGA architectures
 - **Scaling**: Linear increase in resources with WIDTH
-
-### Timing Optimization
 - **Critical paths**: May need pipeline registers for large WIDTH
 - **Clock frequency**: Generally achieves high fmax
 - **Constraints**: Standard combinational timing constraints apply
 
-## Verification Considerations
+## Related Modules
+
+- **find_last_set**: MSB-first search variant
+- **encoder**: Basic priority encoder
+- **encoder_priority_enable**: Enhanced priority encoder with enable
+
+## Testing
 
 ### Test Scenarios
+
 - **Single bit**: Each bit position individually
 - **Multiple bits**: Various combinations
 - **All zeros**: Edge case handling
 - **All ones**: Maximum case behavior
 
 ### Coverage Metrics
+
 - **Bit coverage**: Each input bit position
 - **Pattern coverage**: Representative bit combinations
 - **Boundary cases**: Min/max index values
-
-## Related Modules
-- **find_last_set**: MSB-first search variant
-- **encoder**: Basic priority encoder
-- **encoder_priority_enable**: Enhanced priority encoder with enable
 
 ## Navigation
 

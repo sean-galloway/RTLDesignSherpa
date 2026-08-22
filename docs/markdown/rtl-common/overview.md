@@ -25,7 +25,7 @@
 
 # rtl-common Library Overview
 
-The rtl-common library is a collection of fundamental digital design building blocks — parameterizable, synthesis-friendly RTL modules built to a consistent quality bar, ready to drop into a wide range of digital systems. If you've hand-rolled a counter or a CRC one too many times, this library is where that stops.
+The rtl-common library is a collection of fundamental digital design building blocks — parameterizable, synthesis-friendly RTL modules built to a consistent quality bar, ready to drop into a wide range of digital systems. If you've hand-rolled a counter or a CRC one too many times (and if you've been doing this long enough, you have), this library is where that stops.
 
 ## Library Philosophy
 
@@ -98,7 +98,7 @@ floating-point modules) is now its own subsystem and its own book:
 
 ### 2. Data Integrity and Error Management
 
-If data has to survive storage or transmission, these are the blocks that make that happen — critical functions in modern digital systems.
+If data has to survive storage or transmission, these are the blocks that make that happen.
 
 #### Cyclic Redundancy Check (CRC)
 - **Generic CRC Engine**: Configurable polynomial, width, and initialization
@@ -121,7 +121,7 @@ If data has to survive storage or transmission, these are the blocks that make t
 
 ### 3. Control Logic and Arbitration
 
-Shared resources need a referee. These are the essential components for managing them and coordinating the system.
+Shared resources need a referee. These blocks are it — the essential components for managing shared resources and coordinating the system.
 
 #### Round-Robin Arbitration
 - **Simple Round-Robin**: Basic fair arbitration with minimal overhead

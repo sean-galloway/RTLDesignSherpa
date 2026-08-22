@@ -21,23 +21,27 @@
 
 <!-- End Header -->
 
-# hex_to_7seg (`hex_to_7seg.sv`)
+# hex_to_7seg
 
-## Purpose
+## Overview
+
 Converts 4-bit hexadecimal values (0-F) to 7-segment display patterns for common anode displays — the thing you reach for when you want human-readable output for debugging, user interfaces, and embedded systems.
 
 ## Parameters
+
 This module has no parameters — fixed functionality for standard 7-segment displays.
 
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `hex` | Input | 4 | 4-bit hexadecimal input (0x0 to 0xF) |
 | `seg` | Output | 7 | 7-segment display pattern |
 
-## Functionality
+## Functional Description
 
 ### Segment Naming Convention
+
 ```
      aaa
     f   b
@@ -49,13 +53,15 @@ This module has no parameters — fixed functionality for standard 7-segment dis
 ```
 
 ### Bit Assignment
+
 - **seg[6:0] = {g, f, e, d, c, b, a}**
 - **Common Anode**: 0 = segment ON, 1 = segment OFF
 - **Active Low**: LED segments illuminate when driven low
 
 ### Character Patterns
 
-#### Complete Truth Table
+Complete truth table:
+
 | Hex | Display | seg[6:0] | Segments ON | Pattern |
 |-----|---------|----------|-------------|---------|
 | 0x0 | **0** | 1000000 | abcdef | Classic 0 |
@@ -75,7 +81,8 @@ This module has no parameters — fixed functionality for standard 7-segment dis
 | 0xE | **E** | 0000110 | afged | Letter E |
 | 0xF | **F** | 0001110 | afge | Letter F |
 
-#### Visual Representation
+Visual representation:
+
 ```
  ###   #   ###  ###  # #  ###  ###  ###  ###  ### 
 #   # # #     #    # # #  #    #      # #   # #   #
@@ -92,9 +99,8 @@ This module has no parameters — fixed functionality for standard 7-segment dis
   A     b    C    d    E    F
 ```
 
-## Implementation Details
-
 ### Case Statement Structure
+
 ```systemverilog
 always_comb begin
     casez (hex)
@@ -119,57 +125,21 @@ always_comb begin
 end
 ```
 
-### Design Choices
+## Timing
 
-#### Lowercase vs. Uppercase
-- **A**: Uppercase (more readable)
-- **b, d**: Lowercase (distinguishable from 8, 0)
-- **C**: Uppercase (standard representation)
-- **E, F**: Uppercase (clear representation)
-
-#### Common Anode Configuration
-- **Active low outputs**: 0 = LED on, 1 = LED off
-- **Current sourcing**: Display provides +V, controller sinks current
-- **Logic inversion**: Many controllers expect active-high, requiring external inversion
-
-## Display Technology Integration
-
-### Common Anode Connection
-
-```mermaid
-flowchart TB
-    VCC["VCC (+V)"] --> LED["LED<br/>segment a"]
-    LED --> Out["Output A<br/>(controller)"]
-```
-
-### Common Cathode Alternative
-Running common cathode instead? Invert all outputs:
-```systemverilog
-// For common cathode displays:
-assign seg_common_cathode = ~seg;
-```
-
-### Current Limiting
-```
-Controller → [Resistor] → LED Segment → Common Anode (+V)
-```
-Typical resistor values: 220Ω - 1kΩ depending on LED specifications.
-
-## Timing Characteristics
-
-### Propagation Delay
-- **Combinational logic**: Case statement maps to LUT
+- **Combinational logic**: The case statement maps to a LUT
 - **Typical delay**: 1 LUT delay (sub-nanosecond)
 - **No clock dependency**: Immediate response to input changes
 
-### Display Update Rate
+On display update rate:
 - **Electronic response**: Immediate (propagation delay)
 - **Visual response**: Limited by LED rise/fall times (~microseconds)
 - **Human perception**: >30Hz refresh rate for flicker-free display
 
-## Usage Examples
+## Usage Example
 
 ### Debug Displays
+
 ```systemverilog
 // Display processor status
 hex_to_7seg status_display (
@@ -179,6 +149,7 @@ hex_to_7seg status_display (
 ```
 
 ### Multi-Digit Displays
+
 ```systemverilog
 // 4-digit hex display
 hex_to_7seg digit0 (.hex(value[3:0]),   .seg(seg0));
@@ -188,6 +159,7 @@ hex_to_7seg digit3 (.hex(value[15:12]), .seg(seg3));
 ```
 
 ### Memory/Register Viewers
+
 ```systemverilog
 // Display memory contents
 hex_to_7seg mem_display (
@@ -197,6 +169,7 @@ hex_to_7seg mem_display (
 ```
 
 ### Error Code Display
+
 ```systemverilog
 // Show error codes
 hex_to_7seg error_display (
@@ -205,10 +178,50 @@ hex_to_7seg error_display (
 );
 ```
 
-## Design Variations
+## Design Notes
 
-### Extended Character Set
-Some implementations add additional characters:
+### Design Choices
+
+Lowercase vs. uppercase:
+- **A**: Uppercase (more readable)
+- **b, d**: Lowercase (distinguishable from 8, 0)
+- **C**: Uppercase (standard representation)
+- **E, F**: Uppercase (clear representation)
+
+Common anode configuration:
+- **Active low outputs**: 0 = LED on, 1 = LED off
+- **Current sourcing**: Display provides +V, controller sinks current
+- **Logic inversion**: Many controllers expect active-high, requiring external inversion
+
+### Display Technology Integration
+
+Common anode connection:
+
+```mermaid
+flowchart TB
+    VCC["VCC (+V)"] --> LED["LED<br/>segment a"]
+    LED --> Out["Output A<br/>(controller)"]
+```
+
+Running common cathode instead? Invert all outputs:
+
+```systemverilog
+// For common cathode displays:
+assign seg_common_cathode = ~seg;
+```
+
+Current limiting:
+
+```
+Controller → [Resistor] → LED Segment → Common Anode (+V)
+```
+
+Typical resistor values: 220Ω - 1kΩ depending on LED specifications.
+
+### Design Variations
+
+Extended character set — some implementations add extra characters:
+
 ```systemverilog
 // Extended characters (implementation dependent)
 4'h10: seg = 7'b1111111;  // Blank/space
@@ -216,14 +229,15 @@ Some implementations add additional characters:
 4'h12: seg = 7'b1110111;  // Underscore
 ```
 
-### Alternative Fonts
-Different character representations for better readability:
+Alternative fonts for better readability:
+
 ```systemverilog
 // Alternative 'b' (uppercase-like)
 4'hb: seg = 7'b0000111;  // More symmetric b
 ```
 
-### Brightness Control
+Brightness control:
+
 ```systemverilog
 // PWM brightness control
 logic [6:0] seg_raw;
@@ -233,9 +247,10 @@ hex_to_7seg decoder (.hex(hex_in), .seg(seg_raw));
 assign seg_out = brightness_enable ? seg_raw : 7'b1111111;
 ```
 
-## Multiplexed Display Support
+### Multiplexed Display Support
 
-### Time-Division Multiplexing
+Time-division multiplexing:
+
 ```systemverilog
 // 4-digit multiplexed display
 logic [1:0] digit_select;
@@ -260,7 +275,8 @@ hex_to_7seg display_decoder (
 assign digit_enable = ~(4'b0001 << digit_select);
 ```
 
-### Refresh Rate Calculation
+Refresh rate calculation:
+
 ```systemverilog
 // For 4-digit display at 1kHz total refresh:
 // Each digit displayed for 250μs
@@ -269,9 +285,34 @@ assign digit_enable = ~(4'b0001 << digit_select);
 localparam REFRESH_DIVIDER = CLOCK_FREQ / 4000;
 ```
 
-## Verification and Testing
+### Common Issues and Debugging
+
+Segment mapping errors:
+- **Bit order**: Ensure {g,f,e,d,c,b,a} ordering matches hardware
+- **Active level**: Verify common anode vs. common cathode
+- **Pin assignment**: Check physical connections match bit assignments
+
+Display quality issues:
+- **Ghost segments**: Check current limiting and multiplexing timing
+- **Dim display**: Verify current levels and refresh rates
+- **Flicker**: Ensure adequate refresh rate (>30Hz visible, >60Hz preferred)
+
+Character readability:
+- **Ambiguous characters**: 6 vs b, 8 vs B, 0 vs O
+- **Context**: Use surrounding digits/letters for disambiguation
+- **Alternative fonts**: Consider modified patterns for better distinction
+
+## Related Modules
+
+- **BCD to 7-segment**: For decimal-only displays
+- **ASCII to 7-segment**: Extended character set support
+- **Display multiplexer**: Time-division multiplexing controller
+- **PWM brightness controller**: Dynamic brightness adjustment
+
+## Testing
 
 ### Exhaustive Testing
+
 ```systemverilog
 // Test all 16 hex values
 for (int i = 0; i < 16; i++) begin
@@ -283,11 +324,13 @@ end
 ```
 
 ### Visual Verification
+
 - **Physical testing**: Connect to actual 7-segment display
 - **Simulation**: Use testbench with visual output
 - **Reference comparison**: Compare with known-good implementations
 
 ### Pattern Validation
+
 ```systemverilog
 // Verify no segments are permanently on/off
 logic [6:0] all_segments_used = '0;
@@ -296,29 +339,6 @@ for (int i = 0; i < 16; i++) begin
 end
 assert(all_segments_used == 7'b1111111);  // All segments used somewhere
 ```
-
-## Common Issues and Debugging
-
-### Segment Mapping Errors
-- **Bit order**: Ensure {g,f,e,d,c,b,a} ordering matches hardware
-- **Active level**: Verify common anode vs. common cathode
-- **Pin assignment**: Check physical connections match bit assignments
-
-### Display Quality Issues
-- **Ghost segments**: Check current limiting and multiplexing timing
-- **Dim display**: Verify current levels and refresh rates
-- **Flicker**: Ensure adequate refresh rate (>30Hz visible, >60Hz preferred)
-
-### Character Readability
-- **Ambiguous characters**: 6 vs b, 8 vs B, 0 vs O
-- **Context**: Use surrounding digits/letters for disambiguation
-- **Alternative fonts**: Consider modified patterns for better distinction
-
-## Related Modules
-- **BCD to 7-segment**: For decimal-only displays
-- **ASCII to 7-segment**: Extended character set support
-- **Display multiplexer**: Time-division multiplexing controller
-- **PWM brightness controller**: Dynamic brightness adjustment
 
 ## Navigation
 

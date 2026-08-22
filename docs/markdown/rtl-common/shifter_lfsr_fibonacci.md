@@ -21,12 +21,12 @@
 
 <!-- End Header -->
 
-# Fibonacci LFSR Module
+# shifter_lfsr_fibonacci
 
-## Purpose
+## Overview
+
 The `shifter_lfsr_fibonacci` module is a Fibonacci Linear Feedback Shift Register — the textbook form, where all the feedback funnels into a single point at the most significant bit. It's the complement to the Galois LFSR, and the two come with genuinely different implementation trade-offs.
 
-## Key Features
 - Fibonacci (external XOR) LFSR architecture
 - Configurable tap positions and polynomial
 - Right-shift operation with feedback to MSB
@@ -61,7 +61,7 @@ The `shifter_lfsr_fibonacci` module is a Fibonacci Linear Feedback Shift Registe
 | `lfsr_out` | WIDTH | Current LFSR value |
 | `lfsr_done` | 1 | High when LFSR returns to seed value |
 
-## Fibonacci vs Galois LFSR Architecture
+## Functional Description
 
 ### Fibonacci LFSR Characteristics
 - **Feedback Location**: Single XOR gate feeding MSB
@@ -69,7 +69,7 @@ The `shifter_lfsr_fibonacci` module is a Fibonacci Linear Feedback Shift Registe
 - **XOR Gate Count**: One multi-input XOR gate
 - **Critical Path**: Through feedback XOR to MSB
 
-### Implementation Comparison
+### Fibonacci vs Galois at a Glance
 
 ```mermaid
 flowchart TB
@@ -89,8 +89,6 @@ flowchart TB
         fb["LSB → feedback"]
     end
 ```
-
-## Implementation Details
 
 ### Tap Processing (Same as Standard LFSR)
 ```systemverilog
@@ -133,9 +131,11 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## Timing Example (4-bit Fibonacci LFSR)
+## Timing
 
-### Configuration
+### 4-bit Fibonacci LFSR Example
+
+Configuration:
 - WIDTH = 4
 - Polynomial: x⁴ + x³ + 1, which **this module encodes as taps `[4,1]`** — see
   the tap-direction note under "Polynomial Examples" below
@@ -168,7 +168,16 @@ and freeze under the `|r_lfsr` guard (seeds 1..3), three revisit their seed so
 `lfsr_done` DOES assert (seeds 6, 11, 13), and the remaining nine settle into a
 cycle that never revisits the seed.
 
-## Special Implementation Notes
+## Usage Example
+
+- Pseudo-random sequence generation (same maximal-length guarantees as the Galois form; the STATE SEQUENCES differ -- see the Usage Note and the Galois page)
+- CRC calculation (with appropriate polynomial)
+- Data scrambling and encryption
+- Test pattern generation
+- Spread spectrum communications
+- Error detection and correction
+
+## Design Notes
 
 ### 1. XOR vs XNOR Feedback
 - **Fibonacci LFSR**: Uses XOR (`^`) for feedback calculation
@@ -201,16 +210,6 @@ P(x) = x^n + x^(tap1) + x^(tap2) + ... + x^(tapk) + 1
 Unlike some LFSR implementations that reset to all ones, this module resets to
 all zeros and relies on seed loading for proper initialization.
 
-## Applications
-- Pseudo-random sequence generation (same maximal-length guarantees as the Galois form; the STATE SEQUENCES differ -- see the Usage Note and the Galois page)
-- CRC calculation (with appropriate polynomial)
-- Data scrambling and encryption
-- Test pattern generation
-- Spread spectrum communications
-- Error detection and correction
-
-## Comparison with Galois LFSR
-
 ### Advantages of Fibonacci LFSR
 - **Simpler Data Path**: Only one shift register with external feedback
 - **Easy to Understand**: Classical LFSR textbook implementation
@@ -227,7 +226,7 @@ all zeros and relies on seed loading for proper initialization.
 - **Area Constraints**: When minimizing XOR gate count is critical
 - **Legacy Compatibility**: When interfacing with existing Fibonacci LFSR systems
 
-## Polynomial Examples for Fibonacci LFSR
+### Polynomial Examples for Fibonacci LFSR
 
 > **The tap numbers below are specific to this module's shift direction.** The
 > tap column published for Galois LFSRs -- and the table in the
@@ -239,8 +238,6 @@ all zeros and relies on seed loading for proper initialization.
 > guard; the other twelve settle into a short cycle that never revisits the
 > seed, so `lfsr_done` never asserts. `[4,1]` runs the full period of 15 from
 > every seed.
-
-### Common Primitive Polynomials
 
 | Width | Polynomial | Tap Positions | Period |
 |-------|------------|---------------|---------|
@@ -282,6 +279,11 @@ The same polynomial works for both Fibonacci and Galois LFSRs, and both produce
 maximal-length sequences of the same period -- but the *tap numbers you pass in*
 differ, and the state orderings differ. `shifter_lfsr_galois.sv` takes the
 exponents directly (`[n, a, b]`); this module takes `[a+1, b+1, 1]`.
+
+## Related Modules
+
+- [shifter_lfsr_galois](shifter_lfsr_galois.md) — the distributed-XOR Galois form. Same polynomials and period, but the tap numbers are **not** interchangeable with this module's, and the state orderings differ.
+- [shifter_lfsr](shifter_lfsr.md) — the generic XNOR-feedback LFSR; left-shift, different tap encoding again (see the warning above).
 
 ## Navigation
 

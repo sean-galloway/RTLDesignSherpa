@@ -23,7 +23,7 @@
 
 # rtl-common Modules Index
 
-This directory documents the common RTL module library — the fundamental building blocks for digital design, covering arithmetic operations, data integrity functions, control logic, and specialized utilities.
+This directory documents the common RTL module library — the fundamental building blocks for digital design: data integrity, control logic, clock and reset handling, counters, shifters, and the specialized utilities every project ends up needing. Arithmetic lived here too, once — it has its own book now, as the first category below explains.
 
 ## Overview
 
@@ -183,9 +183,9 @@ one row.
    parallel-prefix (Brent-Kung, Han-Carlson) and ripple-carry implementations,
    see the [rtl-math](../rtl-math/index.md) book.
 2. **Area Constrained**: prefer the simpler variant where one exists (for
-   example `arbiter_round_robin_simple` over the weighted arbiter)
-3. **Power Sensitive**: use clock gating (ICG) and frequency-invariant designs
-4. **Data Integrity**: apply the ECC and CRC modules for reliable data storage/transmission
+   example `arbiter_round_robin_simple` over the weighted arbiter).
+3. **Power Sensitive**: use clock gating (ICG) and frequency-invariant designs.
+4. **Data Integrity**: apply the ECC and CRC modules for reliable data storage/transmission.
 
 ### Module Naming Convention
 

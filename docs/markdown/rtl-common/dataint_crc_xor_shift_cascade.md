@@ -21,12 +21,14 @@
 
 <!-- End Header -->
 
-# dataint_crc_xor_shift_cascade (`dataint_crc_xor_shift_cascade.sv`)
+# dataint_crc_xor_shift_cascade
 
-## Purpose
+## Overview
+
 Eight instances of `dataint_crc_xor_shift`, chained back to back so a full byte of data gets chewed through in a single combinational operation. Byte in, updated CRC out — no clock involved.
 
-## Module Declaration
+### Module Declaration
+
 ```systemverilog
 module dataint_crc_xor_shift_cascade #(
     parameter int CRC_WIDTH = 32
@@ -39,11 +41,13 @@ module dataint_crc_xor_shift_cascade #(
 ```
 
 ## Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `CRC_WIDTH` | 32 | Width of the CRC register and polynomial |
 
 ## Ports
+
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `block_input` | Input | CRC_WIDTH | Initial CRC state for the byte |
@@ -51,29 +55,31 @@ module dataint_crc_xor_shift_cascade #(
 | `data_input` | Input | 8 | 8-bit data byte to process |
 | `block_output` | Output | CRC_WIDTH | Final CRC state after processing 8 bits |
 
-## Functionality
+## Functional Description
 
 ### Cascade Operation
+
 Eight CRC calculation stages, chained end to end:
 1. **Stage 0**: Processes the MSB of the data byte against the initial CRC state
 2. **Stages 1-6**: Each processes the next data bit against the previous stage's output
 3. **Stage 7**: Processes the LSB and produces the final result
 
 ### Data Bit Ordering
+
 Data bits run MSB to LSB:
 - `data_input[7]` is processed first
 - `data_input[0]` is processed last
 - This matches typical serial transmission order
 
-## Implementation Details
-
 ### Architecture Overview
+
 ```
 block_input → [Stage 0] → [Stage 1] → ... → [Stage 7] → block_output
               data[7]     data[6]           data[0]
 ```
 
 ### Generate Block Structure
+
 The cascade is built from a parameterized generate block:
 
 ```systemverilog
@@ -101,30 +107,21 @@ endgenerate
 ```
 
 ### Intermediate Signals
+
 - **`w_cascade[0:7]`**: Array holding intermediate CRC states
 - **Fixed Width**: Each element is `CRC_WIDTH` bits wide
 - **Sequential Chain**: Each stage feeds the next
 
-## Key Features
+### Key Features
 
-### Parallel Byte Processing
-- Processes 8 bits in one combinational operation
-- No clock required — purely combinational
-- Suitable for high-speed applications
+- **Parallel Byte Processing**: 8 bits in one combinational operation, no clock required — suitable for high-speed applications
+- **Bit Order Handling**: MSB-first processing (network byte order), with the bit index calculated as `data_input[7-i]`, matching standard CRC bit processing order
+- **Scalable Architecture**: Easy to modify for different byte sizes; generate blocks enable clean scaling, parameterized for different CRC widths
 
-### Bit Order Handling
-- MSB-first processing (network byte order)
-- Bit index calculation: `data_input[7-i]`
-- Matches standard CRC bit processing order
-
-### Scalable Architecture
-- Easy to modify for different byte sizes
-- Generate blocks enable clean scaling
-- Parameterized for different CRC widths
-
-## Timing Characteristics
+## Timing
 
 ### Combinational Delay
+
 Total delay is the sum of 8 CRC stage delays:
 - Each stage: ~2-3 gate delays
 - Total cascade: ~16-24 gate delays
@@ -133,27 +130,17 @@ Total delay is the sum of 8 CRC stage delays:
 Do that math against your clock period before you promise timing closure — 24 gate levels is not free at 400 MHz.
 
 ### Critical Path
+
 The critical path runs through all 8 stages:
+
 ```
 block_input → Stage0 → Stage1 → ... → Stage7 → block_output
 ```
 
-## Performance Optimization
-
-### Pipelining Considerations
-For high-frequency operation:
-- Consider adding pipeline registers between cascades
-- Balance latency vs. throughput requirements
-- May need to pipeline within the 8-stage cascade
-
-### Area Optimization
-- Each stage requires ~CRC_WIDTH XOR gates
-- Total area scales with CRC_WIDTH × 8
-- Consider time-multiplexed alternatives for area-critical applications
-
-## Usage Examples
+## Usage Example
 
 ### Basic Usage
+
 ```systemverilog
 dataint_crc_xor_shift_cascade #(
     .CRC_WIDTH(16)
@@ -166,6 +153,7 @@ dataint_crc_xor_shift_cascade #(
 ```
 
 ### Multi-Byte Processing
+
 ```systemverilog
 // Process 4 bytes (32 bits) of data
 wire [CRC_WIDTH-1:0] stage_output[0:3];
@@ -185,20 +173,34 @@ endgenerate
 assign final_crc = stage_output[3];
 ```
 
-## Integration with CRC System
+## Design Notes
 
-### Role in CRC Module
+### Performance Optimization
+
+For high-frequency operation:
+- Consider adding pipeline registers between cascades
+- Balance latency vs. throughput requirements
+- You may need to pipeline within the 8-stage cascade
+
+For area:
+- Each stage requires ~CRC_WIDTH XOR gates
+- Total area scales with CRC_WIDTH × 8
+- Consider time-multiplexed alternatives for area-critical applications
+
+### Integration with the CRC System
+
 This module is used by `dataint_crc` for:
 - Processing data in byte-sized chunks
 - Building wider data processing capability
 - Maintaining processing efficiency
 
-### Interface with Parent Module
+On the interface with the parent module:
 - Multiple cascade instances handle wide data
 - Cascade selection allows intermediate results
 - Enables flexible data width support
 
-## Applications
+### Applications
+
 - High-speed packet processing
 - Real-time data integrity checking
 - Communication protocol implementations
@@ -206,6 +208,7 @@ This module is used by `dataint_crc` for:
 - Building block for wider CRC processors
 
 ## Related Modules
+
 - **`dataint_crc_xor_shift`**: Single-bit processing building block
 - **`dataint_crc`**: Parent CRC calculation module
 - Used together to create flexible CRC calculation systems

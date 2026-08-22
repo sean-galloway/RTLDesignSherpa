@@ -21,13 +21,13 @@
 
 <!-- End Header -->
 
-# Beat-Packing Shifter Module
+# shifter_beat_pack
 
 **Module:** `shifter_beat_pack.sv`
 **Location:** `rtl/common/`
 **Status:** Production Ready
 
-## Purpose
+## Overview
 
 `shifter_beat_pack` is a bit-granular packing/aligning shifter. It accepts fixed-width `CHUNK_BITS` entries on a push handshake, accumulates them in a multi-chunk staging register, and drains **configurable-width "beats"** out the low end on a pop handshake. The beat width is a runtime input (bytes minus one), so the same instance can emit different beat sizes across bursts.
 
@@ -43,7 +43,7 @@ This module exists for a problem that shows up constantly: repacking a stream of
 
 **Key Benefit:** Centralizes the shift, load, and residue-compensation logic behind two simple handshakes, so callers get runtime-variable beat repacking without hand-rolling their own barrel shifter.
 
-## Key Features
+Feature summary:
 
 - **Bit-granular staging:** A `DEPTH_CHUNKS × CHUNK_BITS` register packs chunks and drains beats at bit resolution
 - **Runtime beat width:** `cfg_beat_bytes_m1` selects the beat size (bytes − 1) per burst without re-elaboration
@@ -67,41 +67,30 @@ This module exists for a problem that shows up constantly: repacking a stream of
 
 ## Ports
 
-### Clock and Reset
+Functionally the ports form a clock/reset pair, a runtime configuration input, a
+push (ingress) handshake, a pop (egress) handshake, and two status outputs.
+Grouped by direction:
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `clk` | Input | 1 | Clock |
-| `rst_n` | Input | 1 | Active-low reset (via `reset_defs.svh` macros) |
+### Inputs
 
-### Configuration
+| Port | Width | Description |
+|------|-------|-------------|
+| `clk` | 1 | Clock |
+| `rst_n` | 1 | Active-low reset (via `reset_defs.svh` macros) |
+| `cfg_beat_bytes_m1` | CFG_BITS | Beat width in bytes − 1 (0 → 1 byte). Held stable per burst. |
+| `push_valid` | 1 | New chunk valid (push/ingress handshake) |
+| `push_data` | CHUNK_BITS | The chunk to pack |
+| `pop_ready` | 1 | Consumer accepts a beat (pop/egress handshake) |
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `cfg_beat_bytes_m1` | Input | CFG_BITS | Beat width in bytes − 1 (0 → 1 byte). Held stable per burst. |
+### Outputs
 
-### Push Interface (ingress)
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `push_valid` | Input | 1 | New chunk valid |
-| `push_ready` | Output | 1 | Room for another whole chunk (post-push count `<= STORAGE_BITS`) |
-| `push_data` | Input | CHUNK_BITS | The chunk to pack |
-
-### Pop Interface (egress)
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `pop_valid` | Output | 1 | At least one whole beat is available |
-| `pop_ready` | Input | 1 | Consumer accepts a beat |
-| `pop_data` | Output | MAX_BEAT_BITS | Low `MAX_BEAT_BITS` of the staging register; consumer reads only the low `(cfg_beat_bytes_m1+1)*8` bits |
-
-### Status
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `empty` | Output | 1 | Staging register holds no bits (`r_count == 0`) |
-| `count_bits_o` | Output | COUNT_BITS | Current occupancy in bits |
+| Port | Width | Description |
+|------|-------|-------------|
+| `push_ready` | 1 | Room for another whole chunk (post-push count `<= STORAGE_BITS`) |
+| `pop_valid` | 1 | At least one whole beat is available |
+| `pop_data` | MAX_BEAT_BITS | Low `MAX_BEAT_BITS` of the staging register; consumer reads only the low `(cfg_beat_bytes_m1+1)*8` bits |
+| `empty` | 1 | Staging register holds no bits (`r_count == 0`) |
+| `count_bits_o` | COUNT_BITS | Current occupancy in bits |
 
 ## Functional Description
 
@@ -158,14 +147,6 @@ Two `$error` guards enforce the sizing rules that keep forward progress guarante
 
 Pick `CHUNK_BITS` and `MAX_BEAT_BYTES` so any runtime beat width fits in the `2N` (or deeper) storage, i.e. `cfg_beat_bytes × 8 <= DEPTH_CHUNKS × CHUNK_BITS`. Ingress chunk width and egress beat cap are independent, so callers can right-size both.
 
-## Design Notes
-
-- **Bit occupancy, not entry count.** `r_count` tracks bits, not entries, because chunks land whole but beats drain at a runtime-variable bit width.
-- **Pop-then-push ordering is deliberate.** Draining first frees the low bits so the incoming chunk lands at the correct post-pop position, which is what makes same-cycle push + pop safe.
-- **`pop_data` upper bits may be stale.** Only the low `(cfg_beat_bytes_m1+1)*8` bits are meaningful; the consumer must mask to the configured width.
-- **Depth vs. timing.** Increasing `DEPTH_CHUNKS` lets the packer absorb more data before draining but widens the pop-side barrel shifter, degrading timing.
-- **Reset macros.** The module uses the project `reset_defs.svh` `ALWAYS_FF_RST` / `RST_ASSERTED` macros for the registered state.
-
 ## Usage Example
 
 ```systemverilog
@@ -196,19 +177,19 @@ shifter_beat_pack #(
 );
 ```
 
+## Design Notes
+
+- **Bit occupancy, not entry count.** `r_count` tracks bits, not entries, because chunks land whole but beats drain at a runtime-variable bit width.
+- **Pop-then-push ordering is deliberate.** Draining first frees the low bits so the incoming chunk lands at the correct post-pop position, which is what makes same-cycle push + pop safe.
+- **`pop_data` upper bits may be stale.** Only the low `(cfg_beat_bytes_m1+1)*8` bits are meaningful; the consumer must mask to the configured width.
+- **Depth vs. timing.** Increasing `DEPTH_CHUNKS` lets the packer absorb more data before draining but widens the pop-side barrel shifter, degrading timing.
+- **Reset macros.** The module uses the project `reset_defs.svh` `ALWAYS_FF_RST` / `RST_ASSERTED` macros for the registered state.
+
 ## Related Modules
 
-### Used By
-
-- Memory-controller aligners that repack DFI cycles into DRAM beats
-
-### Uses
-
-- None (self-contained; relies only on the `reset_defs.svh` reset macros)
-
-### See Also
-
-- [fifo_sync](fifo_sync.md) - Whole-entry synchronous FIFO (contrast: this module repacks at bit granularity)
+- **Used by:** memory-controller aligners that repack DFI cycles into DRAM beats
+- **Uses:** nothing beyond the `reset_defs.svh` reset macros — the module is self-contained
+- **See also:** [fifo_sync](fifo_sync.md) - Whole-entry synchronous FIFO (contrast: this module repacks at bit granularity)
 
 ## References
 
