@@ -69,7 +69,7 @@ assign m_last = (r_count == RATIO - 1) || r_input_last_seen;
 
 **Symptoms:**
 - Gaps between output beats
-- Single-buffer achieving <80%
+- Single-buffer stalling between wide beats (it should replace during the last narrow beat)
 
 **Debug Steps:**
 1. Check downstream ready signal behavior

@@ -23,21 +23,28 @@
 
 # 2.4 Dual-Buffer Architecture
 
-The dual-buffer mode for **axi_data_dnsize** achieves 100% throughput by using ping-pong buffering to eliminate the gap cycle between wide beat loads.
+The dual-buffer mode for **axi_data_dnsize** uses ping-pong buffering so a wide beat can load while another drains. Note that single-buffer mode already replaces its beat without a stall (below), so the area is not buying back a per-beat gap.
 
 ## 2.4.1 Problem Statement
 
 ### Single-Buffer Limitation
 
-In single-buffer mode, one gap cycle is unavoidable between draining one wide beat and starting the next:
+Single-buffer mode does **not** stall for a cycle between wide beats. It
+asserts `wide_ready` during the last narrow beat of the one it is
+draining:
 
-```
-Cycle N:   Output last narrow beat of wide beat A
-Cycle N+1: Load wide beat B (gap - no output)
-Cycle N+2: Output first narrow beat of wide beat B
+```systemverilog
+assign wide_ready = !r_wide_buffered || (narrow_ready && w_last_narrow_beat);
 ```
 
-This gap cycle reduces throughput to N/(N+1), or approximately 80-90% depending on the width ratio.
+and the accept flop is ordered after the send flop so the replacement
+lands in the same cycle. With `TRACK_BURSTS=1` the condition narrows to
+`mid_burst_replace`, which excludes the final beat of a burst -- so that
+mode gives up a cycle at each BURST boundary, not at each wide beat.
+
+Throughput has not been characterized end to end. A bench measurement is
+dominated by the harness unless the master is driven back to back, and
+the two ratios measured so far disagree, so no figure is quoted here.
 
 ### High-Performance Requirements
 

@@ -47,7 +47,7 @@ module axi_data_dnsize #(
     parameter int SB_BROADCAST      = 1,        // 1=broadcast, 0=slice
     parameter int TRACK_BURSTS      = 0,        // 1=track bursts for LAST
     parameter int BURST_LEN_WIDTH   = 8,        // Burst length counter width
-    parameter int DUAL_BUFFER       = 0,        // 1=dual buffer (100% throughput, 2x area), 0=single buffer (80% throughput)
+    parameter int DUAL_BUFFER       = 0,        // 1=dual buffer (ping-pong, 2x area), 0=single buffer (replaces during the last narrow beat)
 
     // Calculated Parameters
     localparam int WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH,

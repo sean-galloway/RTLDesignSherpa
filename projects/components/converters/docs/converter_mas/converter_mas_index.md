@@ -127,7 +127,7 @@ All diagrams referenced in the documentation live in:
 - **Generic Building Blocks:** `axi_data_upsize` and `axi_data_dnsize` for any width ratio
 - **Full AXI4 Converters:** Complete write path (AW+W+B) and read path (AR+R) modules
 - **Protocol Bridges:** AXI4-to-AXI4-Lite, AXI4-Lite-to-AXI4, and AXI4-to-APB conversion
-- **Throughput Options:** Single-buffer (80%) or dual-buffer (100%) for downsize
+- **Buffering Options:** Single- or dual-buffer downsize (single already replaces its beat without a stall; see 2.4)
 - **Flexible Sideband Handling:** Concatenate, broadcast, or OR modes
 
 ### Module Summary
@@ -135,7 +135,7 @@ All diagrams referenced in the documentation live in:
 | Module | Purpose | Throughput | Area |
 |--------|---------|------------|------|
 | axi_data_upsize | Narrow-to-wide accumulator | 100% | 1x |
-| axi_data_dnsize | Wide-to-narrow splitter | 80% / 100% | 1x / 2x |
+| axi_data_dnsize | Wide-to-narrow splitter | not characterized | 1x / 2x |
 | axi4_dwidth_converter_wr | Full write path | 100% | Standard |
 | axi4_dwidth_converter_rd | Full read path | 100% | +100% (dual) |
 | axi4_to_axil4 | Burst decomposition | 50-100% | ~450 LUTs |

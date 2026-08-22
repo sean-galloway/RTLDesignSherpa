@@ -6,6 +6,8 @@ Tests wide→narrow splitter using proper GAXI components
 import os
 import sys
 import cocotb
+from CocoTBFramework.components.shared.flex_config_gen import quick_config
+from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb.clock import Clock
 import random
@@ -112,6 +114,8 @@ class AXIDataDnsizeTB(TBBase):
     async def setup_clocks_and_reset(self, period_ns=10):
         """Complete initialization - start clocks and perform reset"""
         # Start clock
+        # recorded so cycle-counting measurements do not hardcode it
+        self.clk_period_ns = period_ns
         await self.start_clock(self.clk_name, freq=period_ns, units='ns')
 
         # Initialize burst tracking signals if needed
@@ -203,6 +207,76 @@ class AXIDataDnsizeTB(TBBase):
     # =========================================================================
     # TEST SCENARIO METHODS
     # =========================================================================
+
+
+    async def measure_throughput(self, wide_beats=16, label=""):
+        """Measure sustained narrow-side throughput with no backpressure.
+
+        The book's central performance claim is that single-buffer mode
+        costs one gap cycle per wide beat (N/(N+1), "80%"), and that dual
+        buffer exists to recover it. The RTL says otherwise: simple mode
+        asserts `wide_ready` DURING the last narrow beat
+        (`!r_wide_buffered || (narrow_ready && w_last_narrow_beat)`), so the
+        next wide beat lands with no bubble. A claim about cycles should be
+        measured, not read off the source, so this counts them.
+
+        Returns beats-per-cycle over the steady-state window: 1.0 means a
+        narrow beat every cycle, which is the most the narrow side can carry.
+        """
+        tag = f"[{label}] " if label else ""
+        self.get_narrow_beats(clear=True)
+
+        # Drive both sides with the shared 'backtoback' profile. With the
+        # default randomizers this measures the testbench's own pacing
+        # rather than the DUT -- the first run of this came back at 13-24%,
+        # which says nothing about the converter. Saved and restored so the
+        # other scenarios keep their randomized behaviour.
+        saved = (getattr(self.wide_master, 'randomizer', None),
+                 getattr(self.narrow_slave, 'randomizer', None))
+        b2b = quick_config(profiles=['backtoback'],
+                           fields=['valid_delay', 'ready_delay']).build()
+        self.wide_master.set_randomizer(b2b['backtoback'])
+        self.narrow_slave.set_randomizer(b2b['backtoback'])
+
+        # QUEUE every beat first, then time the drain. `send()` waits for
+        # completion and then an extra clock edge, so sending in a loop puts
+        # a bubble between beats that belongs to the harness, not the DUT --
+        # measuring that way produced ~1 lost cycle per wide beat, which is
+        # exactly the effect under investigation. _driver_send() enqueues
+        # without waiting, so the master can present beats back to back.
+        for i in range(wide_beats):
+            pkt_dict = {'data': 0xA5A50000 + i,
+                        'last': 1 if i == wide_beats - 1 else 0}
+            if self.wide_sb_width > 0:
+                pkt_dict['sideband'] = 0
+            await self.wide_master._driver_send(
+                self.wide_master.create_packet(**pkt_dict), sync=True)
+        start = get_sim_time('ns')
+        # let the tail drain
+        expect = wide_beats * self.width_ratio
+        for _ in range(expect * 4 + 100):
+            if len(self.get_narrow_beats()) >= expect:
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        end = get_sim_time('ns')
+
+        if saved[0] is not None:
+            self.wide_master.set_randomizer(saved[0])
+        if saved[1] is not None:
+            self.narrow_slave.set_randomizer(saved[1])
+
+        got = len(self.get_narrow_beats())
+        cycles = (end - start) / self.clk_period_ns
+        if got < expect:
+            self.log.error(f"@ {end}ns: {tag}only {got}/{expect} narrow beats "
+                           f"arrived; cannot measure throughput")
+            self.stats['errors'] = self.stats.get('errors', 0) + 1
+            return None
+        rate = got / cycles if cycles else 0
+        self.log.info(f"@ {end}ns: {tag}{got} narrow beats in {cycles:.0f} "
+                      f"cycles = {rate:.3f} beats/cycle "
+                      f"({100.0 * rate:.1f}% of the narrow-side maximum)")
+        return rate
 
     async def test_basic_splitting(self, num_transactions=10):
         """

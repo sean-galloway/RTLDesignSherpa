@@ -372,7 +372,7 @@ Total: ~880 flip-flops, ~120 LUTs
 ### Throughput
 
 - AR channel: 1 transaction/cycle
-- R channel: 80% (single) or 100% (dual)
+- R channel: single-buffer replaces without a stall; dual overlaps load and drain (neither characterized)
 
 ## 2.6.12 Usage Example
 

@@ -164,18 +164,19 @@ input = OKAY (2'b00)
 | Module | Mode | Throughput | Latency | Area |
 |--------|------|------------|---------|------|
 | axi_data_upsize | Single | 100% | N cycles | 1x |
-| axi_data_dnsize | Single | 80% | 1 cycle | 1x |
+| axi_data_dnsize | Single | not characterized | 1 cycle | 1x |
 | axi_data_dnsize | Dual | 100% | 1 cycle | 2x |
 
 : Table 2.3: Performance Comparison
 
-**Why 80% for single-buffer downsize?**
+**Single-buffer downsize does not stall between wide beats.**
 
-A single buffer can't load the next wide beat while it's still draining the current one. The pattern is: load, output N narrow beats, one gap cycle, load again. That gap costs 1/(N+1) of throughput — efficiency approaches 100% for large N but never reaches it.
+`wide_ready` is asserted during the last narrow beat, so the next wide
+beat is accepted as the current one finishes draining. With
+`TRACK_BURSTS=1` the replacement is suppressed at burst boundaries only.
 
-**Why 100% for dual-buffer downsize?**
-
-With two buffers, loading and draining overlap: while one buffer outputs, the other loads. There are no gap cycles.
+With two buffers, loading and draining overlap explicitly: while one
+buffer outputs, the other loads.
 
 ## 2.1.6 Resource Utilization
 

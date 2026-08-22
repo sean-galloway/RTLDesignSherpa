@@ -142,6 +142,16 @@ async def cocotb_test_basic_splitting(dut):
 
 
 @cocotb.test()
+async def cocotb_test_throughput(dut):
+    """Measure sustained throughput -- the book claims single buffer loses
+    a cycle per wide beat, which the RTL's ready logic contradicts."""
+    tb = AXIDataDnsizeTB(dut)
+    await tb.setup_clocks_and_reset()
+    rate = await tb.measure_throughput(wide_beats=16, label="no-backpressure")
+    assert rate is not None, "throughput measurement did not complete"
+
+
+@cocotb.test()
 async def cocotb_test_last_propagation(dut):
     """Test that wide_last propagates to last narrow beat (simple mode)"""
     tb = AXIDataDnsizeTB(dut)

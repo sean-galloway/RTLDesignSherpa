@@ -23,7 +23,7 @@
 
 # 2.3 axi_data_dnsize Module
 
-The **axi_data_dnsize** module splits 1 wide beat into N narrow beats. It supports both single-buffer (80% throughput) and dual-buffer (100% throughput) modes.
+The **axi_data_dnsize** module splits 1 wide beat into N narrow beats. It offers single-buffer and dual-buffer (ping-pong) modes; the single buffer accepts its replacement during the last narrow beat rather than stalling.
 
 ## 2.3.1 Purpose and Function
 
@@ -31,7 +31,7 @@ The downsize module does four things:
 
 1. **Data Splitting**: Extracts N narrow beats from one wide beat
 2. **Sideband Extraction**: Slices or broadcasts sideband signals
-3. **Dual-Buffer Mode**: Optional ping-pong buffering for 100% throughput
+3. **Dual-Buffer Mode**: Optional ping-pong buffering; load and drain overlap explicitly
 4. **Burst Tracking**: Optional LAST signal generation based on burst length
 
 ## 2.3.2 Block Diagram
@@ -57,7 +57,7 @@ The downsize module does four things:
 | SB_BROADCAST | int | 1 | 0=slice, 1=broadcast sidebands |
 | TRACK_BURSTS | int | 0 | Enable burst-aware LAST generation |
 | BURST_LEN_WIDTH | int | 8 | Width of burst length input |
-| DUAL_BUFFER | int | 0 | 0=single buffer, 1=dual buffer (100% throughput, 2x area) |
+| DUAL_BUFFER | int | 0 | 0=single buffer, 1=dual buffer (ping-pong, 2x area) |
 
 : Table 2.7: axi_data_dnsize Parameters
 
@@ -73,7 +73,7 @@ module axi_data_dnsize #(
     parameter int SB_BROADCAST      = 1,        // 1=broadcast, 0=slice
     parameter int TRACK_BURSTS      = 0,        // 1=track bursts for LAST
     parameter int BURST_LEN_WIDTH   = 8,        // Burst length counter width
-    parameter int DUAL_BUFFER       = 0,        // 1=dual buffer (100% throughput, 2x area), 0=single buffer (80% throughput)
+    parameter int DUAL_BUFFER       = 0,        // 1=dual buffer (ping-pong, 2x area), 0=single buffer (replaces during the last narrow beat)
 
     // Calculated Parameters
     localparam int WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH,
@@ -115,7 +115,7 @@ Cycle 1: m_data = buffer[63:0],   count = 0, m_valid = 1
 Cycle 2: m_data = buffer[127:64], count = 1
 ...
 Cycle 8: m_data = buffer[511:448], count = 7, m_last possible
-Cycle 9: s_ready = 1, gap cycle (80% throughput loss)
+Cycle 9: wide_ready already asserted during cycle 8's last narrow beat -- no gap
 ```
 
 ### State Machine
@@ -132,13 +132,18 @@ SPLITTING:
 
 ### Throughput Analysis
 
-**Why 80%?**
+**No per-beat load cycle**
 
-For ratio N, each wide beat costs:
-- N cycles outputting narrow beats
-- 1 cycle loading next wide beat
+For ratio N, a wide beat costs N cycles outputting narrow beats. The
+load of the next wide beat is not an extra cycle: `wide_ready` is
+asserted during the Nth narrow beat, so the replacement is accepted as
+the current beat finishes.
 
-Throughput = N / (N + 1)
+`TRACK_BURSTS=1` is the exception. Its ready condition is
+`mid_burst_replace`, which excludes the final beat of a burst, so a
+cycle is given up at each burst boundary -- not at each wide beat.
+
+End-to-end throughput is not characterized here; see 2.4.
 
 | Ratio | Cycles Active | Cycles Total | Throughput |
 |-------|---------------|--------------|------------|
@@ -178,7 +183,7 @@ When output complete, swap buffers
 
 ### 100% Throughput
 
-Dual-buffer achieves 100% throughput because loading and draining overlap: while one buffer outputs, the other loads. No gap cycles required.
+Dual-buffer overlaps loading and draining explicitly: while one buffer outputs, the other loads. Note this is an overlap the single buffer largely achieves anyway by accepting its replacement during the last narrow beat, so measure before paying the 2x area.
 
 **Trade-off**: 2x register resources
 
@@ -335,8 +340,8 @@ Total: ~1190 flip-flops, ~80-100 LUTs
 
 | Mode | Registers | LUTs | Throughput |
 |------|-----------|------|------------|
-| Single | 590 | 40 | 80% |
-| Dual | 1190 | 90 | 100% |
+| Single | 590 | 40 | not characterized |
+| Dual | 1190 | 90 | not characterized |
 
 : Table 2.9: Resource Comparison
 

@@ -117,12 +117,12 @@ Layer 3: Protocol Converters
 | Configuration | Throughput | Area | Use Case |
 |---------------|------------|------|----------|
 | Upsize (single buffer) | 100% | 1x | All narrow-to-wide |
-| Downsize (single buffer) | 80% | 1x | Area-constrained |
+| Downsize (single buffer) | not characterized | 1x | Area-constrained |
 | Downsize (dual buffer) | 100% | 2x | High-performance |
 
 : Table 1.3: Throughput vs. Area Trade-offs
 
-**Design Decision:** Single-buffer upsize is always optimal (100% throughput at minimal cost). For downsize, the throughput/area trade-off is exposed as a configuration choice.
+**Design Decision:** Single-buffer upsize is always optimal. For downsize the buffering depth is exposed as a configuration choice, though the single buffer already replaces its beat without stalling -- characterize before assuming dual is worth 2x the area.
 
 ### 1.4.3 Sideband Signal Handling
 
