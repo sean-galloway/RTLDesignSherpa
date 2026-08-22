@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Thu Aug 20 04:46:08 2026
+| Date             : Sat Aug 22 03:38:41 2026
 | Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-mon/fpga/reports/power.txt
 | Design           : stream_genesys2_top
@@ -30,14 +30,14 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.866        |
+| Total On-Chip Power (W)  | 0.997        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.701        |
-| Device Static (W)        | 0.164        |
+| Dynamic (W)              | 0.832        |
+| Device Static (W)        | 0.165        |
 | Effective TJA (C/W)      | 1.8          |
-| Max Ambient (C)          | 83.5         |
-| Junction Temperature (C) | 26.5         |
+| Max Ambient (C)          | 83.2         |
+| Junction Temperature (C) | 26.8         |
 | Confidence Level         | Medium       |
 | Setting File             | ---          |
 | Simulation Activity File | ---          |
@@ -52,22 +52,22 @@ Table of Contents
 +--------------------------+-----------+----------+-----------+-----------------+
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
-| Clocks                   |     0.172 |        6 |       --- |             --- |
-| Slice Logic              |     0.166 |   202895 |       --- |             --- |
-|   LUT as Logic           |     0.154 |   107480 |    203800 |           52.74 |
-|   CARRY4                 |     0.005 |     3562 |     50950 |            6.99 |
-|   LUT as Distributed RAM |     0.004 |     5362 |     64000 |            8.38 |
-|   Register               |     0.002 |    62227 |    407600 |           15.27 |
-|   F7/F8 Muxes            |    <0.001 |     1582 |    203800 |            0.78 |
+| Clocks                   |     0.210 |        6 |       --- |             --- |
+| Slice Logic              |     0.203 |   253158 |       --- |             --- |
+|   LUT as Logic           |     0.189 |   130839 |    203800 |           64.20 |
+|   CARRY4                 |     0.008 |     5314 |     50950 |           10.43 |
+|   LUT as Distributed RAM |     0.004 |     6676 |     64000 |           10.43 |
+|   Register               |     0.002 |    78114 |    407600 |           19.16 |
+|   F7/F8 Muxes            |    <0.001 |     3197 |    203800 |            1.57 |
 |   BUFG                   |    <0.001 |        1 |        32 |            3.13 |
-|   Others                 |     0.000 |      713 |       --- |             --- |
-| Signals                  |     0.190 |   155960 |       --- |             --- |
-| Block RAM                |     0.022 |      7.5 |       445 |            1.69 |
+|   Others                 |     0.000 |     1017 |       --- |             --- |
+| Signals                  |     0.233 |   192888 |       --- |             --- |
+| Block RAM                |     0.033 |     11.5 |       445 |            2.58 |
 | MMCM                     |     0.148 |        1 |        10 |           10.00 |
-| DSPs                     |     0.000 |       32 |       840 |            3.81 |
+| DSPs                     |    <0.001 |       64 |       840 |            7.62 |
 | I/O                      |     0.004 |       13 |       500 |            2.60 |
-| Static Power             |     0.164 |          |           |                 |
-| Total                    |     0.866 |          |           |                 |
+| Static Power             |     0.165 |          |           |                 |
+| Total                    |     0.997 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -77,7 +77,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.622 |       0.550 |      0.072 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.753 |       0.680 |      0.073 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.112 |       0.083 |      0.029 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.001 |       0.000 |      0.001 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -86,7 +86,7 @@ Table of Contents
 | Vcco135   |       1.350 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco12    |       1.200 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vccaux_io |       1.800 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
-| Vccbram   |       1.000 |     0.002 |       0.001 |      0.002 |       NA    | Unspecified | NA         |
+| Vccbram   |       1.000 |     0.003 |       0.001 |      0.002 |       NA    | Unspecified | NA         |
 | MGTAVcc   |       1.000 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | MGTAVtt   |       1.200 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | MGTVccaux |       1.800 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -150,51 +150,52 @@ Table of Contents
 +-----------------------------------------------+-----------+
 | Name                                          | Power (W) |
 +-----------------------------------------------+-----------+
-| stream_genesys2_top                           |     0.701 |
-|   u_harness                                   |     0.547 |
+| stream_genesys2_top                           |     0.832 |
+|   u_harness                                   |     0.677 |
 |     u_bridge                                  |     0.037 |
-|       u_desc_ram_adapter                      |     0.009 |
-|       u_host_adapter                          |     0.006 |
+|       u_desc_ram_adapter                      |     0.007 |
+|       u_host_adapter                          |     0.007 |
 |       u_monbus_wr_adapter                     |     0.002 |
 |       u_obs_apb_adapter                       |     0.004 |
 |       u_slave_monbus_wr_adapter               |     0.002 |
 |       u_slvmon_apb_adapter                    |     0.004 |
 |       u_stream_apb_adapter                    |     0.004 |
 |       u_stream_desc_adapter                   |     0.004 |
-|       u_xbar                                  |     0.002 |
-|     u_csr                                     |     0.008 |
-|     u_desc_ram                                |     0.022 |
-|       u_axi4_rd                               |     0.003 |
+|       u_xbar                                  |     0.003 |
+|     u_csr                                     |     0.004 |
+|     u_desc_ram                                |     0.023 |
+|       u_axi4_rd                               |     0.004 |
 |       u_axi4_wr                               |     0.002 |
 |       u_core                                  |     0.017 |
-|     u_dma_observer                            |     0.090 |
+|     u_dma_observer                            |     0.099 |
 |       g_egress_axi4.u_group                   |     0.003 |
 |       gen_hist.gen_rd_hist[0].u_rd_lat_hist   |     0.009 |
-|       gen_hist.gen_wr_hist[0].u_wr_lat_hist   |     0.005 |
-|       gen_meters.gen_rd_meter[0].u_rd_meter   |     0.001 |
-|       gen_meters.gen_wr_meter[0].u_wr_meter   |     0.002 |
-|       gen_rd_mon[0].u_rd_mon                  |     0.030 |
-|       gen_wr_mon[0].u_wr_mon                  |     0.036 |
+|       gen_hist.gen_wr_hist[0].u_wr_lat_hist   |     0.006 |
+|       gen_meters.gen_rd_meter[0].u_rd_meter   |     0.002 |
+|       gen_meters.gen_wr_meter[0].u_wr_meter   |     0.003 |
+|       gen_rd_mon[0].u_rd_mon                  |     0.033 |
+|       gen_wr_mon[0].u_wr_mon                  |     0.040 |
 |       u_obs_regs                              |     0.002 |
-|     u_dma_slaves                              |     0.043 |
-|       u_rd_pattern_gen                        |     0.010 |
-|       u_wr_crc_check                          |     0.034 |
+|     u_dma_slaves                              |     0.077 |
+|       u_rd_pattern_gen                        |     0.015 |
+|       u_wr_crc_check                          |     0.063 |
 |     u_rd_resp_delay                           |     0.008 |
-|     u_slave_observer                          |     0.144 |
+|     u_slave_observer                          |     0.141 |
 |       g_egress_axil.u_group                   |     0.005 |
-|       gen_rd_mon[0].u_rd_mon                  |     0.063 |
-|       gen_wr_mon[0].u_wr_mon                  |     0.071 |
+|       gen_rd_mon[0].u_rd_mon                  |     0.059 |
+|       gen_wr_mon[0].u_wr_mon                  |     0.073 |
 |       u_arbiter                               |     0.001 |
 |       u_obs_regs                              |     0.001 |
-|     u_slave_tally                             |     0.010 |
+|     u_slave_tally                             |     0.009 |
 |       u_tally                                 |     0.009 |
-|     u_stream                                  |     0.168 |
+|     u_stream                                  |     0.261 |
 |       g_monbus_axil.u_monbus_axil_group       |     0.006 |
-|       g_stream_core_mon_enabled.u_stream_core |     0.157 |
-|       u_stream_regs                           |     0.004 |
+|       g_stream_core_mon_enabled.u_stream_core |     0.247 |
+|       u_stream_regs                           |     0.005 |
 |     u_stream_tally                            |     0.010 |
 |       u_tally                                 |     0.009 |
-|     u_uart                                    |     0.003 |
+|     u_uart                                    |     0.002 |
+|     u_wr_resp_delay                           |     0.001 |
 +-----------------------------------------------+-----------+
 
 

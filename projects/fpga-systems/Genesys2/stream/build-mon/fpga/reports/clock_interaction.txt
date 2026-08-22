@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Thu Aug 20 04:45:45 2026
+| Date         : Sat Aug 22 03:38:14 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_clock_interaction -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-mon/fpga/reports/clock_interaction.txt
 | Design       : stream_genesys2_top
@@ -18,7 +18,7 @@ Clock Interaction Table
                             WNS                                TNS Failing  TNS Total    WNS Path         Clock-Pair           Inter-Clock          
 From Clock    To Clock      Clock Edges      WNS(ns)  TNS(ns)    Endpoints    Endpoints  Requirement(ns)  Classification       Constraints          
 ------------  ------------  -----------  -----------  -------  -----------  -----------  ---------------  -------------------  -------------------  
-clk_unbuf     clk_unbuf     rise - rise         0.13     0.00            0       212365            11.11  Clean                Partial False Path   
+clk_unbuf     clk_unbuf     rise - rise         0.31     0.00            0       267476            11.11  Clean                Partial False Path   
 clk_unbuf     led_slow_clk                                               0            9                   Ignored              Asynchronous Groups  
 led_slow_clk  clk_unbuf                                                  0            1                   Ignored              Asynchronous Groups  
 led_slow_clk  led_slow_clk  rise - rise   9999998.00     0.00            0           61      10000000.00  Clean                Timed                
