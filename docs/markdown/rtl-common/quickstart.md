@@ -303,7 +303,7 @@ sync_pulse u_pulse_sync (
 
 | Requirement | Module | Notes |
 |---|---|---|
-| Simple up counter | `counter_bin.sv` | Most common choice |
+| Simple up counter | `counter_load_clear.sv` | Plain counting to a value (counter_bin is a FIFO-POINTER counter -- its MSB is a wrap flag, not a count bit) |
 | With load/clear | `counter_load_clear.sv` | Explicit control |
 | Time-based timeout | `counter_freq_invariant.sv` | Frequency-independent |
 | Gray code | `counter_bingray.sv` (in `rtl/cdc/`) | For CDC |

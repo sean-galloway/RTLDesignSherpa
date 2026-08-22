@@ -37,7 +37,7 @@ Five principles run through everything in here:
 - **Parameterizability**: Configurable width and functionality parameters for maximum reusability
 - **Synthesis Friendly**: Optimized for modern synthesis tools with predictable area/timing results
 - **Technology Independence**: Clean RTL that works across ASIC and FPGA technologies
-- **Broad Coverage**: counters, FIFOs, arbiters, CDC, data integrity, and clock/reset control (arithmetic is its own library — [rtl-math](../rtl-math/index.md))
+- **Broad Coverage**: counters, FIFOs, arbiters, data integrity, and clock/reset control (arithmetic is its own library — [rtl-math](../rtl-math/index.md); CDC is its own too — [rtl-cdc](../rtl-cdc/index.md))
 
 ### Quality Standards
 
@@ -148,7 +148,6 @@ Power and timing management — the unglamorous foundation of a dependable digit
 
 #### Reset and Synchronization
 - **Reset Synchronizers**: Safe reset assertion/deassertion
-- **Glitch-Free Logic**: Reliable signal conditioning
 - **Debouncing**: Input signal stabilization
 
 **Power Management Benefits:**

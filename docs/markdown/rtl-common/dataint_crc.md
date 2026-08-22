@@ -37,7 +37,7 @@ module dataint_crc #(
     parameter int REFOUT = 1                  // Reflect output data
 ) (
     // Derived localparam (computed internally - not user-settable):
-    // localparam int CHUNKS = DATA_WIDTH / 8;  // Number of byte chunks
+    parameter int CHUNKS = DATA_WIDTH / 8,      // Derived -- do NOT override (port width dependency)
     // localparam int CW = CRC_WIDTH;           // CRC width alias
     // localparam int DW = DATA_WIDTH;          // Data width alias
     // localparam int CH = CHUNKS;              // Chunks alias
@@ -65,7 +65,7 @@ module dataint_crc #(
 | REFIN | int | 1 | Reflect input data bytes (1=reflect, 0=direct) |
 | REFOUT | int | 1 | Reflect output CRC (1=reflect, 0=direct) |
 
-### Derived Localparam (Computed Internally)
+### Derived Parameter (Do Not Override)
 
 | Localparam | Computation | Description |
 |------------|-------------|-------------|

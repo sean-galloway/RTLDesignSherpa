@@ -74,8 +74,11 @@ The 3-bit `ctrl` signal determines the shift operation:
 
 ### Shift Amount Modulation
 ```systemverilog
-logic [$clog2(WIDTH)-1:0] shift_amount_mod;
-assign shift_amount_mod = shift_amount[$clog2(WIDTH)-1:0];
+logic [$clog2(WIDTH)-1:0] w_shift_amount_trunc, w_shift_amount_mod;
+assign w_shift_amount_trunc = shift_amount[$clog2(WIDTH)-1:0];
+assign w_shift_amount_mod = (32'(w_shift_amount_trunc) >= WIDTH)
+                          ? $clog2(WIDTH)'(32'(w_shift_amount_trunc) - WIDTH)
+                          : w_shift_amount_trunc;
 ```
 `shift_amount_mod` folds the amount into [0, WIDTH) for the wrap (rotate)
 paths — **only they use it**. The fold is truncate-to-$clog2(WIDTH)-bits then
@@ -132,13 +135,13 @@ always_comb begin
                 data_out = $signed(data) >>> shift_amount;
 
         3'b011: // Logical Right Shift with wrap
-            data_out = w_array_rs[shift_amount_mod];
+            data_out = w_array_rs[w_shift_amount_mod];
 
         3'b100: // Logical Left Shift (no wrap)
             data_out = data << shift_amount;
 
         3'b110: // Logical Left Shift with wrap
-            data_out = w_array_ls[shift_amount_mod];
+            data_out = w_array_ls[w_shift_amount_mod];
 
         default:
             data_out = data;

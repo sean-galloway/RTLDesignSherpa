@@ -423,10 +423,10 @@ property lsb_set_case;
 endproperty
 
 // Relationship between CTZ and the lowest '1' position
+// Legal SVA: no continuous assigns inside a property body -- fold the
+// expression in directly (or use a `let`)
 property ctz_correctness;
-    logic [WIDTH-1:0] shifted;
-    assign shifted = data >> ctz;
-    (data != '0) |-> shifted[0];
+    (data != '0) |-> ((data >> ctz) & 1'b1);
 endproperty
 
 // CTZ must select exactly the isolated lowest set bit
@@ -434,11 +434,15 @@ property ctz_isolates_lowest;
     (data != '0) |-> ((data & (~data + 1)) == (1 << ctz));
 endproperty
 
-assert property (ctz_bounds);
-assert property (all_zeros_case);
-assert property (lsb_set_case);
-assert property (ctz_correctness);
-assert property (ctz_isolates_lowest);
+// Concurrent asserts need a clocking event (or a default clocking block);
+// this module is combinational, so sample on the consumer's clock:
+always @(posedge clk) begin
+    assert property (ctz_bounds);
+    assert property (all_zeros_case);
+    assert property (lsb_set_case);
+    assert property (ctz_correctness);
+    assert property (ctz_isolates_lowest);
+end
 ```
 
 ## Synthesis Considerations

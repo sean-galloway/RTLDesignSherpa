@@ -164,8 +164,9 @@ The sequence runs the full period of 15 and returns to the seed, at which point
 register cannot leave zero on its own — a `seed_load` is required to start it.
 Getting the taps wrong costs the full period, and how it fails depends on the
 seed: sweeping all 15 non-zero seeds at WIDTH=4 with `[4,3]`, three walk to zero
-and freeze under the `|r_lfsr` guard while the other twelve settle into a short
-cycle that never revisits the seed, so `lfsr_done` never asserts.
+and freeze under the `|r_lfsr` guard (seeds 1..3), three revisit their seed so
+`lfsr_done` DOES assert (seeds 6, 11, 13), and the remaining nine settle into a
+cycle that never revisits the seed.
 
 ## Special Implementation Notes
 

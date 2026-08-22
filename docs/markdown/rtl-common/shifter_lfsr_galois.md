@@ -250,9 +250,12 @@ For a polynomial P(x) = x^n + x^a + x^b + ... + 1:
   the post-shift value, so taps are the exponents; `shifter_lfsr_fibonacci.sv`
   XORs the tapped bits into the MSB, which shifts the encoding to `[a+1, b+1, 1]`.
   Passing Galois taps to the Fibonacci module costs the full period, but what
-  you see depends on the seed: measured at `WIDTH=4` with taps `[4,3]`, three
-  of the 15 non-zero seeds walk to zero and freeze there, and the other twelve
-  settle into a short cycle that never revisits the seed.
+  you see depends on the seed: measured at `WIDTH=4` with taps `[4,3]` fed to
+  the FIBONACCI module, three of the 15 non-zero seeds walk to zero and freeze
+  (1..3), three revisit their seed so `lfsr_done` still asserts (6, 11, 13),
+  and the remaining nine cycle without ever revisiting. (This module itself
+  with `[4,3]` is maximal: all 15 seeds run the full period -- enumerated
+  2026-08-22.)
 - Different sequences produced but same mathematical properties
 
 ### Example Polynomials
