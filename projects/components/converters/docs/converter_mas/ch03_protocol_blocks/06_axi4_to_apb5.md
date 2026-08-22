@@ -46,9 +46,11 @@ The APB5 additions on the requester surface:
 | `m_apb_PRUSER[APB_RUSER_WIDTH-1:0]` | in | accepted and terminated |
 | `m_apb_PBUSER[APB_BUSER_WIDTH-1:0]` | in | accepted and terminated |
 
-User-signal widths default to 1 and match `rtl/amba/apb5/apb5_slave.sv`,
-which this requester drops onto pin-for-pin (including the repo's
-convention that PWAKEUP rides completer→requester).
+User-signal widths default to 1. `rtl/amba/apb5/apb5_slave.sv` defaults
+its own to 4, so the two do NOT line up out of the box -- set
+`APB_{A,W,R,B}USER_WIDTH` to match whatever completer you attach. The
+signal set is otherwise pin-for-pin with that slave, including the
+repo's convention that PWAKEUP rides completer→requester.
 
 ## Rationale
 

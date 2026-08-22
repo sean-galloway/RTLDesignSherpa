@@ -86,66 +86,106 @@ sets its own rather than inheriting.
 ### Ports
 
 ```systemverilog
+// The conversion CORE. It does not sit on the AXI4 channels directly:
+// the shim packs each channel into a packet plus a count and hands those
+// in, which is why the ports below are r_s_axi_*_pkt rather than the raw
+// AXI signals. Integrators instantiate axi4_to_apb4_shim instead; its
+// parameters are in the shim table above.
+
 module axi4_to_apb4_convert #(
-    parameter int AXI_ADDR_WIDTH = 64,
-    parameter int AXI_DATA_WIDTH = 32,
-    parameter int AXI_ID_WIDTH   = 4,
-    parameter int APB_ADDR_WIDTH = 32,
-    parameter int APB_DATA_WIDTH = 32
+    parameter int SIDE_DEPTH        = 6,
+    parameter int AXI_ID_WIDTH      = 8,
+    parameter int AXI_ADDR_WIDTH    = 32,
+    parameter int AXI_DATA_WIDTH    = 32,
+    parameter int AXI_USER_WIDTH    = 1,
+    parameter int APB_ADDR_WIDTH    = 32,
+    parameter int APB_DATA_WIDTH    = 32,
+    parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
+    parameter int APB_WSTRB_WIDTH   = APB_DATA_WIDTH / 8,
+    // short and calculated params
+    parameter int AW                = AXI_ADDR_WIDTH,
+    parameter int DW                = AXI_DATA_WIDTH,
+    parameter int IW                = AXI_ID_WIDTH,
+    parameter int UW                = AXI_USER_WIDTH,
+    parameter int SW                = AXI_DATA_WIDTH / 8,
+    parameter int APBAW             = APB_ADDR_WIDTH,
+    parameter int APBDW             = APB_DATA_WIDTH,
+    parameter int APBSW             = APB_DATA_WIDTH / 8,
+    parameter int AXI2APBRATIO      = DW / APBDW,
+    parameter int AWSize            = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + UW,
+    parameter int WSize             = DW + SW + 1 + UW,
+    parameter int BSize             = IW + 2 + UW,
+    parameter int ARSize            = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + UW,
+    parameter int RSize             = IW + DW + 2 + 1 + UW,
+    parameter int APBCmdWidth       = APBAW + APBDW + APBSW + 3 + 1 + 1 + 1,
+    parameter int APBRspWidth       = APBDW + 1 + 1 + 1,
+    parameter int SideSize          = 1 + IW + 1 + UW
 ) (
-    input  logic clk,
-    input  logic rst_n,
+    // Clock and Reset
+    input  logic                    aclk,
+    input  logic                    aresetn,
 
-    // AXI4 slave interface
-    // AW channel
-    input  logic                        s_awvalid,
-    output logic                        s_awready,
-    input  logic [AXI_ADDR_WIDTH-1:0]   s_awaddr,
-    input  logic [7:0]                  s_awlen,
-    input  logic [AXI_ID_WIDTH-1:0]     s_awid,
+    // Inputs from axi_slave_stub
+    input  logic [AWSize-1:0]       r_s_axi_aw_pkt,
+    input  logic [3:0]              r_s_axi_aw_count,
+    input  logic                    r_s_axi_awvalid,
+    output logic                    w_s_axi_awready,
 
-    // W channel
-    input  logic                        s_wvalid,
-    output logic                        s_wready,
-    input  logic [AXI_DATA_WIDTH-1:0]   s_wdata,
-    input  logic [AXI_DATA_WIDTH/8-1:0] s_wstrb,
-    input  logic                        s_wlast,
+    input  logic [WSize-1:0]        r_s_axi_w_pkt,
+    input  logic                    r_s_axi_wvalid,
+    output logic                    w_s_axi_wready,
 
-    // B channel
-    output logic                        s_bvalid,
-    input  logic                        s_bready,
-    output logic [AXI_ID_WIDTH-1:0]     s_bid,
-    output logic [1:0]                  s_bresp,
+    output logic [BSize-1:0]        r_s_axi_b_pkt,
+    output logic                    w_s_axi_bvalid,
+    input  logic                    r_s_axi_bready,
 
-    // AR channel
-    input  logic                        s_arvalid,
-    output logic                        s_arready,
-    input  logic [AXI_ADDR_WIDTH-1:0]   s_araddr,
-    input  logic [7:0]                  s_arlen,
-    input  logic [AXI_ID_WIDTH-1:0]     s_arid,
+    input  logic [ARSize-1:0]       r_s_axi_ar_pkt,
+    input  logic [3:0]              r_s_axi_ar_count,
+    input  logic                    r_s_axi_arvalid,
+    output logic                    w_s_axi_arready,
 
-    // R channel
-    output logic                        s_rvalid,
-    input  logic                        s_rready,
-    output logic [AXI_DATA_WIDTH-1:0]   s_rdata,
-    output logic [AXI_ID_WIDTH-1:0]     s_rid,
-    output logic [1:0]                  s_rresp,
-    output logic                        s_rlast,
+    output logic [RSize-1:0]        r_s_axi_r_pkt,
+    output logic                    w_s_axi_rvalid,
+    input  logic                    r_s_axi_rready,
 
-    // APB master interface
-    output logic                        psel,
-    output logic                        penable,
-    output logic                        pwrite,
-    output logic [APB_ADDR_WIDTH-1:0]   paddr,
-    output logic [APB_DATA_WIDTH-1:0]   pwdata,
-    output logic [APB_DATA_WIDTH/8-1:0] pstrb,
-    input  logic                        pready,
-    input  logic [APB_DATA_WIDTH-1:0]   prdata,
-    input  logic                        pslverr
+    // APB Master Interface
+    output logic                    w_cmd_valid,
+    input  logic                    r_cmd_ready,
+    output logic [APBCmdWidth-1:0]  r_cmd_data,
+
+    input  logic                    r_rsp_valid,
+    output logic                    w_rsp_ready,
+    input  logic [APBRspWidth-1:0]  r_rsp_data
 );
 ```
 
-## 3.4.4 State Machine
+## 3.4.4 Clock Domains
+
+The shim is a **two-clock** block. `aclk` runs the AXI side and `pclk`
+the APB side, with independent resets (`aresetn`, `presetn`). Commands
+cross aclk->pclk and responses pclk->aclk through gray-pointer
+asynchronous FIFOs (`gaxi_fifo_async`).
+
+The reset behaviour is the part worth knowing. Each domain resets its own
+pointer and its crossed copy of the remote pointer from its LOCAL reset,
+so resetting one side alone leaves that side self-consistent -- both
+pointers at 0, meaning empty. Because the pointers are absolute positions
+rather than toggle parity, an independent reset of one side cannot
+fabricate or swallow a transfer. The earlier 2-phase handshake could, and
+the failure was permanent rather than transient: the response stream ends
+up offset by one and every read returns the previous read's data.
+
+CDC FIFO depths follow the APB cmd/rsp queue depths, floored at 4:
+
+```systemverilog
+localparam int CDC_CMD_DEPTH = (APB_CMD_DEPTH < 4) ? 4 : APB_CMD_DEPTH;
+localparam int CDC_RSP_DEPTH = (APB_RSP_DEPTH < 4) ? 4 : APB_RSP_DEPTH;
+```
+
+A power-of-2 depth is preferred: the default `USE_JOHNSON=0` Gray
+encoding requires it (see the parameter table above).
+
+## 3.4.5 State Machine
 
 ### Figure 3.7: AXI4 to APB FSM
 
@@ -181,7 +221,7 @@ typedef enum logic [2:0] {
 
 : Table 3.17: FSM Transitions
 
-## 3.4.5 Burst Handling
+## 3.4.6 Burst Handling
 
 ### Burst Decomposition
 
@@ -211,7 +251,7 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## 3.4.6 Address Width Adaptation
+## 3.4.7 Address Width Adaptation
 
 ### 64-bit to 32-bit Conversion
 
@@ -223,7 +263,7 @@ assign paddr = s_awaddr[APB_ADDR_WIDTH-1:0];
 wire w_addr_oor = |s_awaddr[AXI_ADDR_WIDTH-1:APB_ADDR_WIDTH];
 ```
 
-## 3.4.7 Error Response Mapping
+## 3.4.8 Error Response Mapping
 
 | APB Signal | AXI4 Response |
 |------------|---------------|
@@ -249,7 +289,7 @@ end
 assign s_bresp = r_error_seen ? 2'b10 : 2'b00;
 ```
 
-## 3.4.8 Implementation
+## 3.4.9 Implementation
 
 ### Core FSM
 
@@ -321,7 +361,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 ```
 
-## 3.4.9 Resource Utilization
+## 3.4.10 Resource Utilization
 
 ```
 State machine:        ~50 LUTs, ~20 regs
@@ -332,7 +372,7 @@ Control:              ~60 LUTs, ~20 regs
 Total: ~150 LUTs, ~150 regs
 ```
 
-## 3.4.10 Performance
+## 3.4.11 Performance
 
 ### Timing Analysis
 
@@ -350,7 +390,7 @@ Total: ~150 LUTs, ~150 regs
 **Best case:** 1 transfer per 3 cycles
 **With slow PREADY:** Additional cycles per transfer
 
-## 3.4.11 Usage Example
+## 3.4.12 Usage Example
 
 ```systemverilog
 axi4_to_apb4_convert #(

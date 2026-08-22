@@ -200,19 +200,36 @@ Remaining 2 positions have WSTRB = 0 (no write).
 
 ### AW Passthrough with Adjustment
 
+The rewrite differs by direction, so the RTL has two generate branches.
+
+**Narrow -> wide (upsize).** Beats combine, so the count divides -- and it
+must round UP, because a burst that is not a whole multiple of the ratio
+still needs a final partial wide beat:
+
 ```systemverilog
-// Burst length adjustment
-logic [7:0] w_adjusted_awlen;
-assign w_adjusted_awlen = ((s_awlen + 1) >> RATIO_LOG2) - 1;
-
-// Size adjustment (wider data = larger size)
-logic [2:0] w_adjusted_awsize;
-assign w_adjusted_awsize = s_awsize + RATIO_LOG2;
-
-// Address alignment check
-logic w_aligned;
-assign w_aligned = (s_awaddr[RATIO_LOG2+2:0] == '0);
+assign m_axi_awlen = ((int_awlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
 ```
+
+**Wide -> narrow (downsize).** Each wide beat becomes RATIO narrow ones:
+
+```systemverilog
+assign m_axi_awlen = ((int_awlen + 8'd1) * 8'(WIDTH_RATIO)) - 8'd1;
+```
+
+Rounding up is the whole point of the `+ WIDTH_RATIO` term. A floor
+divide underflows: AWLEN=5 (6 beats) at RATIO=8 gives `(6 >> 3) - 1`,
+which is -1 -- 8'hFF, a 256-beat burst -- where the correct answer is 0,
+one wide beat.
+
+**Size** is not derived from the incoming AWSIZE. Both branches drive the
+master side at its own full width:
+
+```systemverilog
+assign m_axi_awsize = MASTER_SIZE[2:0];
+```
+
+This converter performs no address-alignment check; the read converter
+aligns the address it issues (see 2.6.5).
 
 ### Skid Buffer for AW
 

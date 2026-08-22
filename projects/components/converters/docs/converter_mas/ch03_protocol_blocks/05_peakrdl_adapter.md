@@ -23,7 +23,7 @@
 
 # 3.5 PeakRDL Adapter
 
-The **peakrdl_to_cmdrsp** module adapts PeakRDL-generated register interfaces to a custom command/response protocol, enabling protocol decoupling and flexible register implementations.
+The **peakrdl_to_cmdrsp** module drives a PeakRDL-generated register block from a command/response stream. Data flows cmd/rsp -> PeakRDL: `cmd_*` are inputs and `regblk_*` request signals are outputs, with the register block's acks and read data coming back in. The name reads in the opposite order to the dataflow; the ports below are authoritative.
 
 ## 3.5.1 Purpose
 
@@ -55,33 +55,45 @@ PeakRDL generates register blocks with an APB-style interface. This adapter sits
 
 ```systemverilog
 module peakrdl_to_cmdrsp #(
-    parameter int ADDR_WIDTH = 32,
-    parameter int DATA_WIDTH = 32
+    parameter int ADDR_WIDTH = 12,  // Address width for cmd/rsp interface
+    parameter int DATA_WIDTH = 32   // Must match PeakRDL generation (typically 32)
 ) (
-    input  logic clk,
-    input  logic rst_n,
+    // Clock and Reset
+    input  logic                    aclk,
+    input  logic                    aresetn,
 
-    // Register interface (from PeakRDL)
-    input  logic [ADDR_WIDTH-1:0]   reg_addr,
-    input  logic [DATA_WIDTH-1:0]   reg_wdata,
-    input  logic                    reg_write,
-    input  logic                    reg_read,
-    output logic [DATA_WIDTH-1:0]   reg_rdata,
-    output logic                    reg_error,
-    output logic                    reg_ack,
+    // =========================================================================
+    // CMD/RSP Interface (rtldesignsherpa standard)
+    // =========================================================================
+    // Command Channel
+    input  logic                    cmd_valid,
+    output logic                    cmd_ready,
+    input  logic                    cmd_pwrite,         // 1=write, 0=read
+    input  logic [ADDR_WIDTH-1:0]   cmd_paddr,          // Byte address
+    input  logic [DATA_WIDTH-1:0]   cmd_pwdata,         // Write data
+    input  logic [DATA_WIDTH/8-1:0] cmd_pstrb,          // Byte strobes
 
-    // Command interface (output)
-    output logic                    cmd_valid,
-    input  logic                    cmd_ready,
-    output logic [ADDR_WIDTH-1:0]   cmd_addr,
-    output logic [DATA_WIDTH-1:0]   cmd_wdata,
-    output logic                    cmd_write,
+    // Response Channel
+    output logic                    rsp_valid,
+    input  logic                    rsp_ready,
+    output logic [DATA_WIDTH-1:0]   rsp_prdata,         // Read data
+    output logic                    rsp_pslverr,        // Error flag
 
-    // Response interface (input)
-    input  logic                    rsp_valid,
-    output logic                    rsp_ready,
-    input  logic [DATA_WIDTH-1:0]   rsp_rdata,
-    input  logic                    rsp_error
+    // =========================================================================
+    // PeakRDL Passthrough Interface
+    // =========================================================================
+    output logic                    regblk_req,         // Request strobe
+    output logic                    regblk_req_is_wr,   // Write flag
+    output logic [ADDR_WIDTH-1:0]   regblk_addr,        // Address
+    output logic [DATA_WIDTH-1:0]   regblk_wr_data,     // Write data
+    output logic [DATA_WIDTH-1:0]   regblk_wr_biten,    // Write bit enables
+    input  logic                    regblk_req_stall_wr, // Write stall
+    input  logic                    regblk_req_stall_rd, // Read stall
+    input  logic                    regblk_rd_ack,      // Read acknowledge
+    input  logic                    regblk_rd_err,      // Read error
+    input  logic [DATA_WIDTH-1:0]   regblk_rd_data,     // Read data
+    input  logic                    regblk_wr_ack,      // Write acknowledge
+    input  logic                    regblk_wr_err       // Write error
 );
 ```
 

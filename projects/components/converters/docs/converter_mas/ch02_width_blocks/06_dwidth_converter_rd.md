@@ -173,14 +173,27 @@ localparam int RATIO_LOG2 = $clog2(RATIO);
 
 ### AR Passthrough with Adjustment
 
-```systemverilog
-// Burst length adjustment
-logic [7:0] w_adjusted_arlen;
-assign w_adjusted_arlen = ((s_arlen + 1) >> RATIO_LOG2) - 1;
+Same two directions as the write converter (see 2.5.4 for why the upsize
+divide rounds up):
 
-// Size adjustment
-logic [2:0] w_adjusted_arsize;
-assign w_adjusted_arsize = s_arsize + RATIO_LOG2;
+```systemverilog
+// narrow -> wide (upsize): beats combine, round up
+assign m_axi_arlen  = ((int_arlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
+// wide -> narrow (downsize): each wide beat becomes RATIO narrow beats
+assign m_axi_arlen  = ((int_arlen + 8'd1) * 8'(WIDTH_RATIO)) - 8'd1;
+
+// size is the master's own full width, not a shift of ARSIZE
+assign m_axi_arsize = MASTER_SIZE[2:0];
+```
+
+On the downsize path the issued address is aligned down to the master
+data width, since a wide access cannot start mid-word:
+
+```systemverilog
+localparam int ALIGN_BITS = $clog2(M_STRB_WIDTH);
+assign aligned_araddr = {int_araddr[AXI_ADDR_WIDTH-1:ALIGN_BITS],
+                         {ALIGN_BITS{1'b0}}};
+assign m_axi_araddr   = aligned_araddr;
 ```
 
 ### Burst-Length FIFO

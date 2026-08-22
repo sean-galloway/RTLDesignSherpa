@@ -30,7 +30,9 @@ module axi4_to_apb5_shim #(
     parameter bit USE_2_PHASE_CDC = 1'b1,   // deprecated, ignored
     parameter int AXI_WSTRB_WIDTH = AXI_DATA_WIDTH / 8,
     parameter int APB_WSTRB_WIDTH = APB_DATA_WIDTH / 8,
-    // APB5 user-signal widths (match apb5_slave.sv defaults)
+    // APB5 user-signal widths. These default to 1, NARROWER than
+    // apb5_slave.sv's own default of 4 -- override them to match
+    // whatever completer you attach.
     parameter int APB_AUSER_WIDTH = 1,
     parameter int APB_WUSER_WIDTH = 1,
     parameter int APB_RUSER_WIDTH = 1,
