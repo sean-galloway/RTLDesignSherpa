@@ -66,3 +66,64 @@ narrow-beat framing, consistent with one bubble per burst boundary.
 - [ ] If test: fix the framing units and the expectation.
 - [ ] Either way, assert the return value so it can never silently fail again.
 - [ ] Sweep for the same pattern: other scenarios whose result is discarded.
+
+
+---
+
+## CONV-002 — the dnsize and upsize test files are decorative: 22/22 configs fail when asserted
+**Status:** open 2026-08-22
+**Priority:** P0 — two primitives have no working verification at all
+
+[[CONV-001]] found one scenario whose result was discarded. Sweeping for the
+pattern found that **every** scenario in both width-primitive test files does
+it, and that all of them are failing.
+
+| File | Scenarios discarded | Configs |
+|---|---|---|
+| `test_axi_data_dnsize.py` | 5 (all) | 16 |
+| `test_axi_data_upsize.py` | 4 (all) | 6 |
+| `test_dnsize_quick.py` | 1 (all) | — |
+
+**Assert the verdicts and 22 of 22 configurations fail.** They report green
+today only because nothing reads the return value.
+
+Failures seen on `axi_data_upsize` (32to256_no_sideband):
+
+```
+Transaction 0: Expected 1 wide beat, got 0
+Transaction 0: Expected wide_last=1 for early termination
+Continuous streaming: Expected 30 beats, got 31
+```
+
+`basic_accumulation` and `early_last` fail; `backpressure` and
+`continuous_streaming` pass. On dnsize, `burst_tracking` fails (that is
+CONV-001) and `basic_splitting` logs a data mismatch while still returning
+true.
+
+### Why this matters more than the individual failures
+
+`axi_data_upsize` and `axi_data_dnsize` are the primitives underneath
+`axi4_dwidth_converter_rd/wr`, which the bridge fabric instantiates. They
+have had no effective verification, and the four RTL bugs already found this
+round were all in paths whose tests did not check what they claimed.
+
+Whether these are RTL defects or scenario defects is **unknown** and must be
+settled one at a time -- the upsize "expected 1 wide beat, got 0" could be
+either.
+
+### Do not simply turn the asserts on
+
+22 red configurations diagnose nothing and block everyone. Take one scenario
+at a time: assert it, decide RTL-vs-test, fix, keep the assert.
+
+**Work:**
+- [ ] `axi_data_upsize`: basic_accumulation, early_last -- diagnose and fix.
+- [ ] `axi_data_dnsize`: basic_splitting's silent data mismatch; burst
+      tracking is CONV-001.
+- [ ] Assert every scenario verdict as each one goes green.
+- [ ] `bin/review/check_discarded_verdicts.py` reports this class; wire it
+      into whatever gate runs the other `bin/review/check_*` scripts.
+- [ ] Sweep the rest of the repo -- the tool finds 93 discards overall, most
+      of them helpers rather than scenarios, but
+      `dmas/stream/.../test_sram_controller_alloc.py:257`
+      (`run_full_allocation_test`) is the same shape and is unexamined.
