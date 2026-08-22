@@ -49,20 +49,29 @@ SIM_TESTS ?= $(SELF_DIR)/dv/tests
 export STREAM_BUILD ?= mon
 
 # ---- Build geometry (Vivado generics) --------------------------------------
-# 4 channels: 8ch + monitors + tallies overflows LUTs on the 325T.
-export STREAM_NUM_CHANNELS ?= 4
+export STREAM_NUM_CHANNELS ?= 8
 export MON_N_PROFILE       ?= 64
-# 0 = all-except-error datapath cones (default); 1 = error-flavor build (error
-# cone only) for ADDR_RANGE coverage. Two bitstreams cover every packet class.
-export MON_ERROR_FLAVOR    ?= 0
+# Datapath-monitor cone set: 0 = all-except-error, 1 = error only,
+# 2 = ALL cones. 0 and 1 are mutually exclusive halves and needed TWO
+# bitstreams (and a re-flash mid-campaign) to cover every packet class;
+# 2 is the union, which is the point of the 90 MHz harness clock.
+export MON_ERROR_FLAVOR    ?= 2
 
 # The flavor is part of the ARTIFACT NAME, not just a build-time switch. With a
 # single fixed name, `make bitstream MON_ERROR_FLAVOR=1` silently overwrote the
 # flavor-0 bitstream and left no way to tell the two apart on disk -- which then
 # reads as "the monitor missed the fault" when the truth is "that cone is not in
 # this bitstream". Encode it instead.
+#
+# DERIVED, not hand-written. The old expression tested only for flavor 1 and
+# called everything else "_all_except_error", so the all-cones build landed on
+# disk under a name asserting the error cone was absent -- the exact failure
+# this comment block was written to prevent, reintroduced by adding a third
+# mode. Deriving every token from the geometry means the filename cannot
+# disagree with the bitstream again.
 FPGA_DIR  := $(SELF_DIR)/fpga
-BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)$(if $(filter 1,$(MON_ERROR_FLAVOR)),_error,_all_except_error).bit
+MON_CONES := $(if $(filter 2,$(MON_ERROR_FLAVOR)),allcones,$(if $(filter 1,$(MON_ERROR_FLAVOR)),error,allexcepterror))
+BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(STREAM_NUM_CHANNELS)ch_$(MON_CONES)_obsmaster_obsslave.bit
 
 # Keep the generated bridge in lockstep with its .toml/.csv before any synthesis
 # (cheap, and stops a stale checkout producing a stale bitstream). fpga_flow.mk

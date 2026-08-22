@@ -26,6 +26,25 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+# Window-edge tolerance for latency-histogram totals.
+#
+# The two numbers being compared come from DIFFERENT modules, each with its own
+# i_clear/i_freeze window: the burst count from axi_bus_meter (which counts AR/AW
+# HANDSHAKES) and the total from axi_perf_latency_hist (which counts COMPLETIONS).
+# A transaction straddling either window boundary is therefore counted by one and
+# not the other, so exact equality is stricter than the hardware can guarantee.
+#
+# The skew is ONE EVENT PER BOUNDARY and does not scale with traffic: measured
+# 255 vs 256 on a 256-burst run and 4092 vs 4093 on a 4096-burst run. That is why
+# this is a small CONSTANT and deliberately NOT a percentage. axi_perf_latency_hist
+# has a second, far more serious failure mode -- when its per-channel timestamp
+# FIFO is full the push is silently dropped, the completion pops some OTHER
+# command's timestamp, and totals undercount while surviving latencies are
+# misattributed, with no flag anywhere. That loss DOES scale with traffic, so a
+# proportional tolerance would grow to hide exactly the bug this check exists to
+# catch. Keep it constant.
+HIST_EDGE_TOL = 2
+
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
@@ -262,8 +281,10 @@ async def cocotb_test_stream_perf(dut):
                                    ('RD AR->RLAST', rd_rlast, rd['bursts']),
                                    ('WR AW->B', wr_b, wr['bursts'])):
             bin_sum = sum(hist['bins'])
-            assert hist['total'] == bursts, \
-                (f"{name} histogram total {hist['total']} != burst count {bursts}")
+            assert abs(hist['total'] - bursts) <= HIST_EDGE_TOL, \
+                (f"{name} histogram total {hist['total']} vs burst count {bursts} "
+                 f"differs by more than the {HIST_EDGE_TOL}-sample window-edge "
+                 f"tolerance -- that is a real loss, not a boundary effect")
             assert bin_sum == hist['total'], \
                 (f"{name} histogram bins sum {bin_sum} != total {hist['total']}")
             # Highest populated bin -> a coarse latency sanity check.
@@ -326,13 +347,16 @@ async def cocotb_test_stream_perf(dut):
             f"WR productive mismatch: observer {obs['wr_prod']} vs in-core "
             f"{wr['productive']} (tol {TOL})")
 
-        # 2) Latency-histogram TOTALS (= burst counts) must match exactly.
+        # 2) Latency-histogram TOTALS. Observer and in-core are two SEPARATE
+        #    axi_perf_latency_hist instances with independent windows, so the
+        #    same window-edge skew applies here as against the bus meter.
         for label, o, c in (('rd AR->firstR', obs['rd_hist_firstr'], rd_hf),
                             ('rd AR->RLAST',  obs['rd_hist_rlast'],  rd_hl),
                             ('wr AW->B',      obs['wr_hist_b'],      wr_hb)):
-            assert o['total'] == c['total'], (
+            assert abs(o['total'] - c['total']) <= HIST_EDGE_TOL, (
                 f"{label} hist total mismatch: observer {o['total']} vs in-core "
-                f"{c['total']}")
+                f"{c['total']} (exceeds the {HIST_EDGE_TOL}-sample window-edge "
+                f"tolerance)")
             # bin-shift due to the observer's skid is tolerated; report it.
             same = (o['bins'] == c['bins'])
             tb.log.info(f"  {label}: total={o['total']} (match); per-bin "

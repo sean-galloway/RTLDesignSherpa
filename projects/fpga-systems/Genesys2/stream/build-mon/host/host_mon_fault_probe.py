@@ -281,7 +281,13 @@ def main(argv=None):
         # monitor failure when it is a bitstream mismatch.
         info = build_info(br)
         print(f"mon_fault_probe: port={port}  {describe_build(br)}")
-        if info["error_flavor"]:
+        # A union build (MON_ERROR_FLAVOR=2) compiles in BOTH cone sets, so it
+        # can run every fault with no skips and no re-flash. The two legacy
+        # halves still skip what they physically lack.
+        err, main = info["error_flavor"], info["main_cones"]
+        if err and main:
+            can, why = {"addr_range", "no_response", "slow"}, ""
+        elif err:
             can, why = {"addr_range"}, "error-only build: timeout/threshold cones absent"
         else:
             can, why = {"no_response", "slow"}, "all-except-error build: error cone absent"
@@ -289,7 +295,7 @@ def main(argv=None):
         faults = [f for f in FAULTS if f in only and f in can]
         if skipped:
             print(f"  SKIPPING {', '.join(skipped)} -- {why}")
-            print(f"  (rebuild with MON_ERROR_FLAVOR={0 if info['error_flavor'] else 1} to cover them)")
+            print("  (rebuild with MON_ERROR_FLAVOR=2 for a single bitstream covering all of them)")
         print(f"  running: {faults}")
         runner = CharacterizationRunner(br)
         results = {}

@@ -209,7 +209,12 @@ module harness_csr #(
     // harness's OWN parameters, so what the host reads is what the bitstream
     // was compiled with and cannot drift from it.
     parameter int BUILD_VERSION      = 1,      // bump per functional build
-    parameter int BUILD_ERROR_FLAVOR = 0,      // 1 = error-cone-only build
+    parameter int BUILD_ERROR_FLAVOR = 0,      // 1 = error cone compiled in
+    // 1 = timeout/compl/threshold/perf/debug cones compiled in. Separate
+    // from ERROR_FLAVOR because a union build has BOTH set, which a single
+    // flavour bit cannot express -- and the host decides what to exercise
+    // from these, so an under-reported build silently skips coverage.
+    parameter int BUILD_MAIN_CONES   = 1,
     parameter int BUILD_NUM_CHANNELS = 4,
     parameter int BUILD_N_PROFILE    = 64,
     parameter int BUILD_USE_MONITORS = 1,
@@ -655,7 +660,12 @@ module harness_csr #(
                             8'h24: r_rdata <= BUILD_ID;
                             // 0x1D0 BUILD_VERSION, 0x1D4 BUILD_CONFIG.
                             9'h1D0: r_rdata <= 32'(BUILD_VERSION);
-                            9'h1D4: r_rdata <= {16'h0,
+                            // MAIN_CONES goes at bit 16, in the previously
+                            // reserved upper half, so the existing field
+                            // positions -- and any host already parsing them --
+                            // are untouched.
+                            9'h1D4: r_rdata <= {15'h0,
+                                                1'(BUILD_MAIN_CONES),
                                                 8'(BUILD_DATA_WIDTH_B),
                                                 1'(BUILD_GEN_MON),
                                                 1'(BUILD_USE_MONITORS),

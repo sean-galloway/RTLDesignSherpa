@@ -176,6 +176,9 @@ def build_info(bridge) -> dict:
         "version":      bridge.read(H("BUILD_VERSION")),
         "num_channels": regs.field("BUILD_CONFIG", "NUM_CHANNELS"),
         "error_flavor": regs.field("BUILD_CONFIG", "ERROR_FLAVOR"),
+        # Present since the union build: ERROR_FLAVOR alone cannot distinguish
+        # "error cone only" from "error cone AND the rest".
+        "main_cones":   regs.field("BUILD_CONFIG", "MAIN_CONES"),
         "use_monitors": regs.field("BUILD_CONFIG", "USE_MONITORS"),
         "gen_mon":      regs.field("BUILD_CONFIG", "GEN_MON"),
         "n_profile":    bridge.read(H("BUILD_N_PROFILE")),
@@ -184,7 +187,11 @@ def build_info(bridge) -> dict:
 
 def describe_build(bridge) -> str:
     b = build_info(bridge)
-    flavor = "error-only" if b["error_flavor"] else "all-except-error"
+    err, main = b["error_flavor"], b["main_cones"]
+    flavor = ("all-cones"          if err and main else
+              "error-only"         if err          else
+              "all-except-error"   if main         else
+              "no-datapath-cones")
     return (f"build v{b['version']} {flavor} nch={b['num_channels']} "
             f"n_profile={b['n_profile']} monitors={b['use_monitors']} "
             f"gen_mon={b['gen_mon']}")

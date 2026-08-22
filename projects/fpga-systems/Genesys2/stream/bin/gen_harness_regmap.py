@@ -64,7 +64,13 @@ reg(0x124, 'OBS_HIST_DATA'); reg(0x128, 'OBS_HIST_TOTAL')
 # by-name rule exists to stop.
 reg(0x1D0, 'BUILD_VERSION')
 reg(0x1D4, 'BUILD_CONFIG', 'r', [('NUM_CHANNELS',4,0,'r'), ('ERROR_FLAVOR',5,5,'r'),
-                                 ('USE_MONITORS',6,6,'r'), ('GEN_MON',7,7,'r')])
+                                 ('USE_MONITORS',6,6,'r'), ('GEN_MON',7,7,'r'),
+                                 # DATA_WIDTH_B occupies 15:8. MAIN_CONES sits at
+                                 # 16 (previously reserved) so the fields below it
+                                 # keep their positions. ERROR_FLAVOR + MAIN_CONES
+                                 # together describe the cone set: 0/1 = the legacy
+                                 # halves, both = the union build.
+                                 ('DATA_WIDTH_B',15,8,'r'), ('MAIN_CONES',16,16,'r')])
 reg(0x1D8, 'BUILD_N_PROFILE')
 # Monbus-compression observer readback
 for i,n in enumerate(['COMP_TIER1_A','COMP_TIER1_B','COMP_TIER1_C','COMP_TIER0',

@@ -47,11 +47,16 @@ module stream_genesys2_top #(
     // The elaboration guards below reject any pair that violates either rule.
     parameter int VCO_MHZ        = 1350,
     parameter int CLKOUT0_DIVIDE = 15,
-    // Monitor coverage campaign geometry. 4 channels: 8ch + in-core monitors +
-    // profile tallies is LUT-bound on the xc7k325t (~103%, placement fails);
-    // 4 channels fits with wide margin. (The engine wedge is fixed, so 8ch is
-    // functionally fine -- it just doesn't fit this board with monitors on.)
-    parameter int NUM_CHANNELS     = 4,
+    // Monitor coverage campaign geometry. 8 channels is the DESIGN POINT, not a
+    // stretch goal: the observer transaction table is banked 64/4 precisely
+    // because 8 channels x 8 outstanding over 4 banks needs 16 slots per bank
+    // (see the OBS_* block below). At 4 channels the same banking is 2x
+    // over-provisioned, so a 4-channel build under-exercises the very structure
+    // the banking exists for. An earlier note here claimed 8ch was LUT-bound at
+    // ~103% and defaulted this to 4; that predates the observer rework and the
+    // 90 MHz clock, and reading it as current is how a 4-channel bitstream got
+    // built for an 8-channel campaign.
+    parameter int NUM_CHANNELS     = 8,
     parameter int USE_AXI_MONITORS = 1,
     // Agent-resolved tally legal-set size: the host loads a legal set over each
     // tally's cfg AXIL slave; bins become dense per-agent indices, plus an
@@ -64,9 +69,18 @@ module stream_genesys2_top #(
     parameter int OBS_MAX_TRANSACTIONS   = 64,
     parameter int OBS_NUM_BANKS          = 4,
     parameter bit OBS_USE_WDATA_ORDER_Q  = 1'b1,
-    // 0 = all-except-error datapath-monitor cones (default bitstream);
-    // 1 = error-flavor build (error cone only) for ADDR_RANGE error coverage.
-    parameter int MON_ERROR_FLAVOR = 0,
+    // Datapath-monitor cone set:
+    //   0 = all-except-error (legacy default bitstream)
+    //   1 = error cone only  (legacy ADDR_RANGE error-coverage bitstream)
+    //   2 = ALL cones        (error + timeout/compl/threshold/perf/debug)
+    // Modes 0 and 1 are mutually exclusive halves and needed TWO bitstreams to
+    // cover every packet class, which meant re-flashing between validation
+    // phases and comparing runs across two different builds. Mode 2 is the
+    // union: one bitstream that can emit every class. It costs the area and
+    // timing of both cone sets at once, which is what the 90 MHz harness clock
+    // (VCO 1350 / 15) buys back -- at 100 MHz the observers already missed by
+    // 110 ps with only half the cones present.
+    parameter int MON_ERROR_FLAVOR = 2,
     parameter int UART_BAUD        = 115_200
 ) (
     input  logic       sysclk_p,      // 200 MHz LVDS (+)
@@ -90,6 +104,9 @@ module stream_genesys2_top #(
     // Elaboration guards: catch an unbuildable clock pair at compile time
     // rather than as a silently-wrong tick rate or an MMCM DRC deep in synth.
     initial begin
+        if (MON_ERROR_FLAVOR < 0 || MON_ERROR_FLAVOR > 2)
+            $error("MON_ERROR_FLAVOR=%0d invalid (0=all-except-error, 1=error-only, 2=all cones)",
+                   MON_ERROR_FLAVOR);
         if (VCO_MHZ % 25 != 0)
             $error("VCO_MHZ=%0d is not a multiple of 25: MULT_F=%0f is off the MMCM 0.125 grid",
                    VCO_MHZ, real'(VCO_MHZ) / 200.0);
@@ -215,7 +232,10 @@ module stream_genesys2_top #(
         // Agent-resolved tally legal-set size (both tally memories).
         .MON_N_PROFILE          (MON_N_PROFILE),
         // Datapath-monitor cone selection (error-flavor build when 1).
-        .DATA_MON_ERROR_FLAVOR  (MON_ERROR_FLAVOR[0])
+        // Pass the whole mode, NOT bit 0: mode 2 (all cones) has bit0 == 0,
+        // so a [0] truncation here would silently build the legacy
+        // all-except-error bitstream while every label said otherwise.
+        .DATA_MON_CONE_MODE     (MON_ERROR_FLAVOR)
     ) u_harness (
         .aclk            (aclk),
         .aresetn         (aresetn),

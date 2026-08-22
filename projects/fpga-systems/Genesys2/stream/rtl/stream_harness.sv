@@ -104,7 +104,13 @@ module stream_harness #(
     //                 other reporter cones are compiled OUT so the low-priority
     //                 addr_check ADDR_RANGE (allowlist-miss) error stream is not
     //                 starved and meets timing. Two bitstreams cover all classes.
-    parameter bit DATA_MON_ERROR_FLAVOR  = 1'b0
+    //                 Mode 2 is the UNION of both cone sets: one bitstream that
+    //                 can emit every packet class, so a validation campaign no
+    //                 longer has to re-flash between phases or compare results
+    //                 across two different builds. It costs both cone sets'
+    //                 area and timing at once -- affordable at the 90 MHz
+    //                 harness clock, not at 100 MHz.
+    parameter int DATA_MON_CONE_MODE     = 2
 ) (
     input  logic            aclk,
     input  logic            aresetn,
@@ -141,6 +147,11 @@ module stream_harness #(
     // tick, so a value that drifts from aclk skews every monitor timeout by
     // the ratio, silently and uniformly.
     localparam int OBS_ACLK_MHZ = FPGA_CLK_HZ / 1_000_000;
+
+    // Datapath-monitor cone predicates. Mode 2 (union) asserts BOTH, which is
+    // what makes one bitstream able to emit every packet class.
+    localparam bit w_data_mon_error_cone = (DATA_MON_CONE_MODE != 0);
+    localparam bit w_data_mon_main_cones = (DATA_MON_CONE_MODE != 1);
 
     // =========================================================================
     // UART-AXIL bridge
@@ -926,7 +937,9 @@ module stream_harness #(
     // are structural rather than a coverage gap.
     harness_csr #(
         .AW(32), .DW(32), .NUM_CHANNELS(NUM_CHANNELS),
-        .BUILD_ERROR_FLAVOR(int'(DATA_MON_ERROR_FLAVOR)),
+        // The host reads these to know which classes this bitstream can emit.
+        .BUILD_ERROR_FLAVOR(int'(w_data_mon_error_cone)),
+        .BUILD_MAIN_CONES  (int'(w_data_mon_main_cones)),
         .BUILD_NUM_CHANNELS(NUM_CHANNELS),
         // Derived, not a literal: the host reads this to size beats and
         // throughput, so it must track the datapath it is actually built with.
@@ -2361,13 +2374,18 @@ module stream_harness #(
         .DESC_MON_ENABLE_THRESHOLD_LOGIC (1'b0),
         .DESC_MON_ENABLE_PERF_LOGIC      (1'b1),
         .DESC_MON_ENABLE_DEBUG_LOGIC     (1'b0),
-        // DATA_MON_ERROR_FLAVOR selects the cone set: error-only vs all-except-error.
-        .DATA_MON_ENABLE_ERROR_LOGIC     ( DATA_MON_ERROR_FLAVOR),
-        .DATA_MON_ENABLE_TIMEOUT_LOGIC   (!DATA_MON_ERROR_FLAVOR),
-        .DATA_MON_ENABLE_COMPL_LOGIC     (!DATA_MON_ERROR_FLAVOR),
-        .DATA_MON_ENABLE_THRESHOLD_LOGIC (!DATA_MON_ERROR_FLAVOR),
-        .DATA_MON_ENABLE_PERF_LOGIC      (!DATA_MON_ERROR_FLAVOR),
-        .DATA_MON_ENABLE_DEBUG_LOGIC     (!DATA_MON_ERROR_FLAVOR)
+        // Cone set, from DATA_MON_CONE_MODE:
+        //   0 -> error OFF, the rest ON   (legacy all-except-error)
+        //   1 -> error ON,  the rest OFF  (legacy error-only)
+        //   2 -> everything ON            (single-bitstream validation)
+        // Expressed as two independent predicates rather than a flavour bit and
+        // its inverse, because the union needs both true at once.
+        .DATA_MON_ENABLE_ERROR_LOGIC     (w_data_mon_error_cone),
+        .DATA_MON_ENABLE_TIMEOUT_LOGIC   (w_data_mon_main_cones),
+        .DATA_MON_ENABLE_COMPL_LOGIC     (w_data_mon_main_cones),
+        .DATA_MON_ENABLE_THRESHOLD_LOGIC (w_data_mon_main_cones),
+        .DATA_MON_ENABLE_PERF_LOGIC      (w_data_mon_main_cones),
+        .DATA_MON_ENABLE_DEBUG_LOGIC     (w_data_mon_main_cones)
     ) u_stream (
         .aclk    (aclk),   .aresetn(unit_aresetn),
         .pclk    (aclk),   .presetn(aresetn),
