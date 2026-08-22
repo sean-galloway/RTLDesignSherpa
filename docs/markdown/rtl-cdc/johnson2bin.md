@@ -34,8 +34,8 @@ and decoding it takes position detection rather than XOR reduction.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `JCW` | — | Johnson Counter Width (equals FIFO DEPTH) |
-| `WIDTH` | — | Binary output width (typically `$clog2(DEPTH) + 1`) |
+| `JCW` | 10 | Johnson Counter Width (equals FIFO DEPTH) |
+| `WIDTH` | 4 | Binary output width (typically `$clog2(DEPTH) + 1`) |
 
 : johnson2bin parameters
 

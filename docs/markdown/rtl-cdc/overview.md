@@ -23,15 +23,15 @@
 
 # Clock Domain Crossing
 
-**RTL:** `rtl/cdc/` (12 modules)
+**RTL:** `rtl/cdc/` (14 modules)
 **Filelists:** `rtl/cdc/filelists/` — lint the whole area with `cdc_all.f`
 **Tests:** `val/cdc/`
 
 If a module's job is getting data safely across a clock boundary, it lives
 here: the synchronizer, the handshakes, the asynchronous FIFOs, and the Gray
 and Johnson coders that exist to make those crossings safe. The blocks these
-modules *depend on*—`fifo_control`, `counter_bin`, `glitch_free_n_dff_arn`,
-and the bit-search trio behind `johnson2bin`—stay in `rtl/common`, because
+modules *depend on*—`fifo_control`, `counter_bin`, and the bit-search trio
+behind `johnson2bin`—stay in `rtl/common`, because
 they serve FIFOs and bit-search in general, not just crossings.
 
 **Full catalogue:** [index.md](index.md)

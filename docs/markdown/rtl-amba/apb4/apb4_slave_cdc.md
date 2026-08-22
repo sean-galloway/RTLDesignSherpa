@@ -114,7 +114,7 @@ module apb4_slave_cdc #(
 | `STRB_WIDTH` | int | DATA_WIDTH/8 | Write strobe width (calculated) |
 | `PROT_WIDTH` | int | 3 | APB protection signal width |
 | `DEPTH` | int | 2 | Skid-buffer depth **in entries** inside the wrapped `apb4_slave`; also the floor for the CDC FIFO depth |
-| `USE_JOHNSON` | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray (power-of-2 derived depth only), `1` Johnson (any depth, `DEPTH`-bit pointers). Gray by default — Johnson is opt-in because its pointers cost `DEPTH` bits in both domains and every synchronizer stage. |
+| `USE_JOHNSON` | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray (power-of-2 derived depth only), `1` Johnson (any FIFO depth, `DEPTH`-bit pointers; module-level `DEPTH` stays limited to `{2,4,6,8}` by the skid buffers). Gray by default — Johnson is opt-in because its pointers cost `DEPTH` bits in both domains and every synchronizer stage. |
 | `USE_2_PHASE_CDC` | bit | 1 | **Deprecated and ignored.** Has no effect on the generated logic |
 
 ---
@@ -157,14 +157,20 @@ Both are `gaxi_fifo_async` instances with:
   default `USE_JOHNSON = 0` a power of two is required**, because Gray carries a
   generate-scope elaboration check
   (`(USE_JOHNSON == 0) && ((DEPTH & (DEPTH-1)) != 0)` -> `$error`). The check sees
-  the DERIVED depth, so `DEPTH` of 1 or 3 floors to 4 and builds; it is a
-  non-power-of-2 `DEPTH` of 4 or more — 5, 6, 7 — that fails.
+  the DERIVED depth, so the floor protects the FIFOs from `DEPTH` of 1 or 3 —
+  but the same `DEPTH` also reaches the wrapped `apb4_slave`'s two
+  `gaxi_skid_buffer` instances UNFLOORED, and their elaboration guard rejects
+  everything outside `{2, 4, 6, 8}`. `DEPTH` of 1, 3, 5 or 7 therefore fails
+  elaboration at the skid buffers no matter what the FIFOs would accept.
 
-  That constraint belongs to the encoding, not to this module. The module's own
-  `USE_JOHNSON` parameter is forwarded to both FIFOs, so `USE_JOHNSON = 1` makes
-  5, 6 and 7 elaborate — at `DEPTH`-bit pointers instead of Gray's
-  `$clog2(DEPTH)+1`, in both domains and every synchronizer stage. Gray is the
-  default so that cost is never paid by accident.
+  The Gray power-of-2 constraint belongs to the encoding, and `USE_JOHNSON = 1`
+  does lift it for the FIFOs — but the skid-buffer guard still holds, so the
+  legal `DEPTH` set for this module is `{2, 4, 6, 8}` regardless of encoding.
+  The only depth Johnson buys here is 6 (a legal skid depth that Gray's
+  power-of-2 check would reject at the derived FIFO depth of 6). It pays for
+  that with `DEPTH`-bit pointers instead of Gray's `$clog2(DEPTH)+1`, in both
+  domains and every synchronizer stage; Gray is the default so that cost is
+  never paid by accident.
 
 There is no separate metastability-hardening option — two-flop synchronization is
 fixed at instantiation.

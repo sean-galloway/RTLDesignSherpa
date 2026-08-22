@@ -160,19 +160,33 @@ Addresses come from the binary pointers, truncated to the low bits:
 ### Full/empty detection
 
 ```systemverilog
-// In write domain
-assign wr_full = (w_wdom_ptr_xor && 
-                 (wr_ptr_bin[AW-1:0] == wdom_rd_ptr_bin[AW-1:0]));
+// In write domain (fifo_control): computed combinationally, REGISTERED out
+assign w_wr_full_d = (w_wdom_ptr_xor &&
+                     (wr_ptr_bin[AW-1:0] == wdom_rd_ptr_bin[AW-1:0]));
+
+always_ff @(posedge wr_clk, negedge wr_rst_n) begin
+    if (!wr_rst_n) wr_full <= 'b0;
+    else           wr_full <= w_wr_full_d;
+end
 
 // Where:
 assign w_wdom_ptr_xor = wr_ptr_bin[AW] ^ wdom_rd_ptr_bin[AW];
 ```
 
 ```systemverilog
-// In read domain
-assign rd_empty = (!w_rdom_ptr_xor_for_empty &&
-                  (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]));
+// In read domain: same shape, and rd_empty RESETS TO 1 (empty out of reset)
+assign w_rd_empty_d = (!w_rdom_ptr_xor_for_empty &&
+                      (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]));
+
+always_ff @(posedge rd_clk, negedge rd_rst_n) begin
+    if (!rd_rst_n) rd_empty <= 'b1;
+    else           rd_empty <= w_rd_empty_d;
+end
 ```
+
+Both flags are registered, so each lags its pointer comparison by one cycle of
+its own clock -- conservative in the safe direction (a write that just made the
+FIFO non-empty shows up at the reader one `rd_clk` later).
 
 The algorithm in words: **full** is MSBs differ AND LSBs equal (the write
 pointer has wrapped and caught the read pointer); **empty** is all bits equal

@@ -143,14 +143,16 @@
 //   - Metastability resolves exponentially: P_meta = e^(-T_res/τ)
 //   - Multiple stages provide exponential improvement in reliability
 //
-//   MTBF Formula:
-//   MTBF = (e^(T_res / τ)) / (T_clk × f_data × WIDTH)
+//   MTBF Formula (textbook form; per bit -- divide by WIDTH for the vector):
+//   MTBF = (e^(T_res / τ)) / (T0 × f_clk × f_data)
 //   Where:
-//     T_res = Resolution time (1 clk period per stage)
-//     τ = Metastability time constant (~100ps for modern FPGAs)
-//     T_clk = Destination clock period
+//     T_res = Resolution time (1 clk period per settling stage)
+//     τ = Metastability time constant (~100ps for modern FPGAs; exponent ONLY)
+//     T0 = Metastability aperture constant (device-specific, ~1e-12 s)
+//     f_clk = Destination clock frequency
 //     f_data = Input transition frequency
-//     WIDTH = Number of bits (more bits = more chances for metastability)
+//   T0 and τ are DIFFERENT device parameters -- see the doc page for the
+//   derivation and worked numbers.
 //
 //   Example MTBF Calculation:
 //   Conditions: 100MHz clk, 1MHz data toggle, WIDTH=8, FLOP_COUNT=3

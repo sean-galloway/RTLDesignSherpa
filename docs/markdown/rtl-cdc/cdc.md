@@ -319,7 +319,7 @@ If any box is unchecked, choose a level-encoded or pointer-encoded crossing.
 |--------|--------|-------|
 | Move both domains onto a common reset | Low | Best when the split was accidental |
 | Swap to `cdc_4_phase_handshake` | Low | Pin-compatible; level encoding self-recovers |
-| Swap to `gaxi_fifo_async` | Medium | Absolute pointers, tolerant of local resets, adds buffering |
+| Swap to `gaxi_fifo_async` | Medium | Absolute pointers fail less catastrophically than a stuck toggle, adds buffering -- the quiesce-before-reset rule above still applies |
 
 : Options for recovering a design using 2-phase across independent resets
 

@@ -27,7 +27,7 @@
 This is the catalogue for `rtl/cdc/`. If what you want is orientation—which
 technique to reach for, and why—start at [overview.md](overview.md) first.
 
-**12 modules** live in `rtl/cdc/`, and every one of them exists to get data
+**14 modules** live in `rtl/cdc/`, and every one of them exists to get data
 across a clock boundary. The count comes from `ls rtl/cdc/*.sv`—regenerate it
 rather than hand-editing.
 
@@ -35,7 +35,7 @@ rather than hand-editing.
 
 | Category | Count |
 |---|---|
-| Synchronizer & handshakes | 4 |
+| Synchronizer & handshakes | 6 |
 | Gray / Johnson coders | 5 |
 | Asynchronous FIFOs | 3 |
 

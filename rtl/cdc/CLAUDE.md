@@ -50,8 +50,8 @@ is documented with waveforms in
 
 ## What stays in rtl/common
 
-`fifo_control`, `counter_bin`, `glitch_free_n_dff_arn`, `find_first_set`,
-`find_last_set` and `leading_one_trailing_one` are dependencies of modules here,
+`fifo_control`, `counter_bin`, `find_first_set`, `find_last_set` and
+`leading_one_trailing_one` are dependencies of modules here,
 but they are NOT cdc modules -- they serve FIFOs and bit-search generally. They
 stay in `rtl/common` and are reached with `-f` includes. Do not move them here
 and do not hand-list their sources in a cdc filelist; see
@@ -75,7 +75,7 @@ parameter -- one module, not two:
 
 ## Before adding a module here
 
-1. Search first: `ls rtl/cdc/*.sv`. Twelve modules already cover most crossings.
+1. Search first: `ls rtl/cdc/*.sv`. Fourteen modules already cover most crossings.
 2. A new module lands with its `.f` in `rtl/cdc/filelists/` **in the same
    commit**, and `cdc_all.f` gets a line. Then
    `python3 bin/filelist_registry.py --check` and `--audit` must both pass.
