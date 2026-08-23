@@ -84,9 +84,11 @@ def run_case(stream, channel: int, case: str, W: int, H: int,
              *, poll_max: int = 500_000) -> dict:
     """Program + kick + wait for one case. Returns a result dict.
 
-    Kicks via the harness KICK_GO fast path (program the CH_KICK_ADDR shadow
-    register, then one go-bit write) rather than the slow apbtodescr LOW/HIGH
-    APB kick, so a run starts on one aclk cycle with no per-kick UART stall.
+    Kicks via STREAM's own stage-then-launch: batch_kick stages each channel's
+    CHx_CTRL_{LOW,HIGH} and then issues ONE KICK_ENABLE write, so every selected
+    channel starts on the same aclk cycle with no per-kick UART stall. (This
+    used to route through the harness KICK_GO CSR; the launch now lives inside
+    STREAM, so the harness carries no kick state.)
     """
     kick = program_case(stream, channel, case, W, H)
     stream.enable_channel(channel, True)

@@ -8,7 +8,7 @@
 module stream_desc_adapter
     import bridge_stream_mon_axil_pkg::*;
 #(
-    parameter NUM_SLAVES = 12,
+    parameter NUM_SLAVES = 13,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AR = 2,
@@ -250,7 +250,7 @@ module stream_desc_adapter
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            12'b000000010000: begin  // Slave 4 (256b)
+            13'b0000000010000: begin  // Slave 4 (256b)
                 fub_axi_arready = stream_desc_256b_arready;
             end
             default: begin
@@ -268,7 +268,7 @@ module stream_desc_adapter
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            12'b000000010000: begin  // Slave 4 (256b)
+            13'b0000000010000: begin  // Slave 4 (256b)
                 fub_axi_rid = stream_desc_256b_r.id;
                 fub_axi_rdata = stream_desc_256b_r.data;
                 fub_axi_rresp = stream_desc_256b_r.resp;

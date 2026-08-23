@@ -14,27 +14,28 @@ Don't override. Generated from: $root
 
 |Offset|     Identifier     |                 Name                 |
 |------|--------------------|--------------------------------------|
-|0x0000|    CH0_CTRL_LOW    |             Ch0 kick LOW             |
-|0x0004|    CH0_CTRL_HIGH   |             Ch0 kick HIGH            |
-|0x0008|    CH1_CTRL_LOW    |             Ch1 kick LOW             |
-|0x000C|    CH1_CTRL_HIGH   |             Ch1 kick HIGH            |
-|0x0010|    CH2_CTRL_LOW    |             Ch2 kick LOW             |
-|0x0014|    CH2_CTRL_HIGH   |             Ch2 kick HIGH            |
-|0x0018|    CH3_CTRL_LOW    |             Ch3 kick LOW             |
-|0x001C|    CH3_CTRL_HIGH   |             Ch3 kick HIGH            |
-|0x0020|    CH4_CTRL_LOW    |             Ch4 kick LOW             |
-|0x0024|    CH4_CTRL_HIGH   |             Ch4 kick HIGH            |
-|0x0028|    CH5_CTRL_LOW    |             Ch5 kick LOW             |
-|0x002C|    CH5_CTRL_HIGH   |             Ch5 kick HIGH            |
-|0x0030|    CH6_CTRL_LOW    |             Ch6 kick LOW             |
-|0x0034|    CH6_CTRL_HIGH   |             Ch6 kick HIGH            |
-|0x0038|    CH7_CTRL_LOW    |             Ch7 kick LOW             |
-|0x003C|    CH7_CTRL_HIGH   |             Ch7 kick HIGH            |
+|0x0000|    CH0_CTRL_LOW    |           Ch0 desc addr LOW          |
+|0x0004|    CH0_CTRL_HIGH   |          Ch0 desc addr HIGH          |
+|0x0008|    CH1_CTRL_LOW    |           Ch1 desc addr LOW          |
+|0x000C|    CH1_CTRL_HIGH   |          Ch1 desc addr HIGH          |
+|0x0010|    CH2_CTRL_LOW    |           Ch2 desc addr LOW          |
+|0x0014|    CH2_CTRL_HIGH   |          Ch2 desc addr HIGH          |
+|0x0018|    CH3_CTRL_LOW    |           Ch3 desc addr LOW          |
+|0x001C|    CH3_CTRL_HIGH   |          Ch3 desc addr HIGH          |
+|0x0020|    CH4_CTRL_LOW    |           Ch4 desc addr LOW          |
+|0x0024|    CH4_CTRL_HIGH   |          Ch4 desc addr HIGH          |
+|0x0028|    CH5_CTRL_LOW    |           Ch5 desc addr LOW          |
+|0x002C|    CH5_CTRL_HIGH   |          Ch5 desc addr HIGH          |
+|0x0030|    CH6_CTRL_LOW    |           Ch6 desc addr LOW          |
+|0x0034|    CH6_CTRL_HIGH   |          Ch6 desc addr HIGH          |
+|0x0038|    CH7_CTRL_LOW    |           Ch7 desc addr LOW          |
+|0x003C|    CH7_CTRL_HIGH   |          Ch7 desc addr HIGH          |
 |0x0100|     GLOBAL_CTRL    |        Global Control Register       |
 |0x0104|    GLOBAL_STATUS   |        Global Status Register        |
 |0x0108|       VERSION      |           Version Register           |
 |0x0120|   CHANNEL_ENABLE   |        Channel Enable Register       |
 |0x0124|    CHANNEL_RESET   |        Channel Reset Register        |
+|0x0128|     KICK_ENABLE    |              Kick enable             |
 |0x0140|    CHANNEL_IDLE    |          Channel Idle Status         |
 |0x0144|  DESC_ENGINE_IDLE  |     Descriptor Engine Idle Status    |
 |0x0148|   SCHEDULER_IDLE   |         Scheduler Idle Status        |
@@ -75,11 +76,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x0
 - Size: 0x4
 
-<p>Ch0 descriptor addr [31:0]  (write kicks)</p>
+<p>Ch0 descriptor addr [31:0] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier |Access|Reset|Name|
 |----|-------------|------|-----|----|
-|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_LOW|  rw  | 0x0 |  — |
 
 ### CH0_CTRL_HIGH register
 
@@ -87,11 +88,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x4
 - Size: 0x4
 
-<p>Ch0 descriptor addr [63:32] (write kicks)</p>
+<p>Ch0 descriptor addr [63:32] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier  |Access|Reset|Name|
 |----|--------------|------|-----|----|
-|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_HIGH|  rw  | 0x0 |  — |
 
 ### CH1_CTRL_LOW register
 
@@ -99,11 +100,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x8
 - Size: 0x4
 
-<p>Ch1 descriptor addr [31:0]  (write kicks)</p>
+<p>Ch1 descriptor addr [31:0] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier |Access|Reset|Name|
 |----|-------------|------|-----|----|
-|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_LOW|  rw  | 0x0 |  — |
 
 ### CH1_CTRL_HIGH register
 
@@ -111,11 +112,11 @@ Don't override. Generated from: $root
 - Base Offset: 0xC
 - Size: 0x4
 
-<p>Ch1 descriptor addr [63:32] (write kicks)</p>
+<p>Ch1 descriptor addr [63:32] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier  |Access|Reset|Name|
 |----|--------------|------|-----|----|
-|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_HIGH|  rw  | 0x0 |  — |
 
 ### CH2_CTRL_LOW register
 
@@ -123,11 +124,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x10
 - Size: 0x4
 
-<p>Ch2 descriptor addr [31:0]  (write kicks)</p>
+<p>Ch2 descriptor addr [31:0] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier |Access|Reset|Name|
 |----|-------------|------|-----|----|
-|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_LOW|  rw  | 0x0 |  — |
 
 ### CH2_CTRL_HIGH register
 
@@ -135,11 +136,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x14
 - Size: 0x4
 
-<p>Ch2 descriptor addr [63:32] (write kicks)</p>
+<p>Ch2 descriptor addr [63:32] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier  |Access|Reset|Name|
 |----|--------------|------|-----|----|
-|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_HIGH|  rw  | 0x0 |  — |
 
 ### CH3_CTRL_LOW register
 
@@ -147,11 +148,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x18
 - Size: 0x4
 
-<p>Ch3 descriptor addr [31:0]  (write kicks)</p>
+<p>Ch3 descriptor addr [31:0] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier |Access|Reset|Name|
 |----|-------------|------|-----|----|
-|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_LOW|  rw  | 0x0 |  — |
 
 ### CH3_CTRL_HIGH register
 
@@ -159,11 +160,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x1C
 - Size: 0x4
 
-<p>Ch3 descriptor addr [63:32] (write kicks)</p>
+<p>Ch3 descriptor addr [63:32] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier  |Access|Reset|Name|
 |----|--------------|------|-----|----|
-|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_HIGH|  rw  | 0x0 |  — |
 
 ### CH4_CTRL_LOW register
 
@@ -171,11 +172,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x20
 - Size: 0x4
 
-<p>Ch4 descriptor addr [31:0]  (write kicks)</p>
+<p>Ch4 descriptor addr [31:0] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier |Access|Reset|Name|
 |----|-------------|------|-----|----|
-|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_LOW|  rw  | 0x0 |  — |
 
 ### CH4_CTRL_HIGH register
 
@@ -183,11 +184,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x24
 - Size: 0x4
 
-<p>Ch4 descriptor addr [63:32] (write kicks)</p>
+<p>Ch4 descriptor addr [63:32] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier  |Access|Reset|Name|
 |----|--------------|------|-----|----|
-|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_HIGH|  rw  | 0x0 |  — |
 
 ### CH5_CTRL_LOW register
 
@@ -195,11 +196,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x28
 - Size: 0x4
 
-<p>Ch5 descriptor addr [31:0]  (write kicks)</p>
+<p>Ch5 descriptor addr [31:0] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier |Access|Reset|Name|
 |----|-------------|------|-----|----|
-|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_LOW|  rw  | 0x0 |  — |
 
 ### CH5_CTRL_HIGH register
 
@@ -207,11 +208,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x2C
 - Size: 0x4
 
-<p>Ch5 descriptor addr [63:32] (write kicks)</p>
+<p>Ch5 descriptor addr [63:32] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier  |Access|Reset|Name|
 |----|--------------|------|-----|----|
-|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_HIGH|  rw  | 0x0 |  — |
 
 ### CH6_CTRL_LOW register
 
@@ -219,11 +220,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x30
 - Size: 0x4
 
-<p>Ch6 descriptor addr [31:0]  (write kicks)</p>
+<p>Ch6 descriptor addr [31:0] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier |Access|Reset|Name|
 |----|-------------|------|-----|----|
-|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_LOW|  rw  | 0x0 |  — |
 
 ### CH6_CTRL_HIGH register
 
@@ -231,11 +232,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x34
 - Size: 0x4
 
-<p>Ch6 descriptor addr [63:32] (write kicks)</p>
+<p>Ch6 descriptor addr [63:32] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier  |Access|Reset|Name|
 |----|--------------|------|-----|----|
-|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_HIGH|  rw  | 0x0 |  — |
 
 ### CH7_CTRL_LOW register
 
@@ -243,11 +244,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x38
 - Size: 0x4
 
-<p>Ch7 descriptor addr [31:0]  (write kicks)</p>
+<p>Ch7 descriptor addr [31:0] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier |Access|Reset|Name|
 |----|-------------|------|-----|----|
-|31:0|DESC_ADDR_LOW|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_LOW|  rw  | 0x0 |  — |
 
 ### CH7_CTRL_HIGH register
 
@@ -255,11 +256,11 @@ Don't override. Generated from: $root
 - Base Offset: 0x3C
 - Size: 0x4
 
-<p>Ch7 descriptor addr [63:32] (write kicks)</p>
+<p>Ch7 descriptor addr [63:32] (staged; launch via KICK_ENABLE)</p>
 
 |Bits|  Identifier  |Access|Reset|Name|
 |----|--------------|------|-----|----|
-|31:0|DESC_ADDR_HIGH|   w  | 0x0 |  — |
+|31:0|DESC_ADDR_HIGH|  rw  | 0x0 |  — |
 
 ### GLOBAL_CTRL register
 
@@ -380,6 +381,26 @@ Don't override. Generated from: $root
 #### RSVD field
 
 <p>Reserved</p>
+
+### KICK_ENABLE register
+
+- Absolute Address: 0x128
+- Base Offset: 0x128
+- Size: 0x4
+
+<p>Write 1 to bit[ch] to launch that channel from its staged CHx_CTRL address</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   KICK0  |   w  | 0x0 |  — |
+|  1 |   KICK1  |   w  | 0x0 |  — |
+|  2 |   KICK2  |   w  | 0x0 |  — |
+|  3 |   KICK3  |   w  | 0x0 |  — |
+|  4 |   KICK4  |   w  | 0x0 |  — |
+|  5 |   KICK5  |   w  | 0x0 |  — |
+|  6 |   KICK6  |   w  | 0x0 |  — |
+|  7 |   KICK7  |   w  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
 
 ### CHANNEL_IDLE register
 

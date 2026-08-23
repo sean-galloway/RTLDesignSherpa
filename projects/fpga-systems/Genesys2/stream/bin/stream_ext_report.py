@@ -123,8 +123,14 @@ def build_report(data: dict, clk_hz: float, source: str) -> str:
         md.append("## Utilization vs. channel count\n")
         md.append(
             "Aggregate bus utilization as the transpose (single-beat) modes are run "
-            f"across 1..N channels concurrently at a {sz} tile, kicked back-to-back "
-            "via the harness KICK_GO fast path. A single channel is latency-bound "
+            f"across 1..N channels concurrently at a {sz} tile, launched "
+            "SIMULTANEOUSLY: every channel's descriptor address is staged in its "
+            "CHx_CTRL_{LOW,HIGH} registers and a single write to STREAM's "
+            "KICK_ENABLE starts them all on the same clock edge. This matters for "
+            "reading the numbers below -- if the channels started one host "
+            "transaction apart (milliseconds over UART) the early channels would "
+            "have run alone for part of the window and the concurrency being "
+            "measured would be partly fictional. A single channel is latency-bound "
             "(the shared bus idles between single beats); firing multiple channels "
             "lets the shared read/write engine interleave them, hiding per-beat "
             "AR/AW latency, so the single-beat side's utilization is expected to "

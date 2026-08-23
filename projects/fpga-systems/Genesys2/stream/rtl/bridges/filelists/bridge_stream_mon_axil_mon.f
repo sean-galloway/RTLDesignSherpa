@@ -14,6 +14,7 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_st
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil_mon/stream_desc_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil_mon/bridge_stream_mon_axil_mon.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil_mon/bridge_stream_mon_axil_mon_xbar.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil_mon/comp_sram_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil_mon/desc_ram_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil_mon/dma_axil_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/bridges/generated/bridge_stream_mon_axil_mon/harness_csr_adapter.sv

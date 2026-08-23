@@ -105,15 +105,40 @@ class Stream(Device):
 
     # ----- kick off by name -------------------------------------------------
     def kick(self, channel: int, desc_addr: int) -> None:
-        """Kick a channel by writing the descriptor address to CHx_CTRL.
+        """Stage a channel's descriptor address, then launch it.
 
-        apbtodescr is a state machine that requires BOTH writes, LOW then HIGH,
-        to complete the kick handshake (IDLE -> RESPOND_LOW -> WAIT_HIGH ->
-        RESPOND_HIGH -> desc_apb_valid). Always write both, LOW first, even when
-        the high word is 0 -- writing only LOW leaves it stuck in WAIT_HIGH and
-        the channel never starts."""
+        CHx_CTRL_{LOW,HIGH} are ordinary stored registers: writing them STAGES
+        the address and starts nothing. The launch is the separate KICK_ENABLE
+        write. (Previously the HIGH write itself completed an apb4todescr FSM
+        handshake and kicked -- so an unmodified caller now stages and returns,
+        and the channel silently never starts.)
+
+        Use kick_many() to start several channels on the SAME cycle.
+        """
         self.write(f"CH{channel}_CTRL_LOW", DESC_ADDR_LOW=desc_addr & 0xFFFF_FFFF)
         self.write(f"CH{channel}_CTRL_HIGH", DESC_ADDR_HIGH=(desc_addr >> 32) & 0xFFFF_FFFF)
+        self.write("KICK_ENABLE", **{f"KICK{channel}": 1})
+
+    def kick_many(self, channel_desc_pairs) -> None:
+        """Stage several channels, then launch them all in ONE write.
+
+        This is what replaces the harness KICK_GO fast path. Calling kick() N
+        times costs N KICK_ENABLE writes -- over UART that is milliseconds
+        between the first and last channel, enough to bias any cross-channel
+        measurement. Here every address is staged first and a single
+        KICK_ENABLE write sets all the bits, so the descriptor engines see
+        their requests on the same clock edge.
+
+        Args:
+            channel_desc_pairs: iterable of (channel, desc_addr)
+        """
+        fields = {}
+        for ch, addr in channel_desc_pairs:
+            self.write(f"CH{ch}_CTRL_LOW", DESC_ADDR_LOW=addr & 0xFFFF_FFFF)
+            self.write(f"CH{ch}_CTRL_HIGH", DESC_ADDR_HIGH=(addr >> 32) & 0xFFFF_FFFF)
+            fields[f"KICK{ch}"] = 1
+        if fields:
+            self.write("KICK_ENABLE", **fields)
 
     def run(self, channel: int, kick_addr: Optional[int] = None) -> None:
         """Enable + kick a channel (descriptors must already be loaded)."""
@@ -143,7 +168,7 @@ def build_stream_bus(bridge, *, stream_base: int = STREAM_APB_BASE,
                           hand-authored CSR map).
 
     Host tools access everything by name -- bus["stream"].SCHED_CONFIG,
-    bus["harness"].KICK_GO.write_word(m) -- over the one injected bridge, so the
+    bus["stream"].KICK_ENABLE.write_word(m) -- over the one injected bridge, so the
     same code drives silicon and cocotb sim.
     """
     from harness_addrs import _default_regmap as _harness_regmap  # sibling module

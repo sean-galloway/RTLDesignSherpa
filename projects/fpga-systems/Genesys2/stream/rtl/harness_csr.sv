@@ -107,27 +107,9 @@
 //   0xA4          CRC_MATCH_MASK      R  [NC-1:0] = per-channel match bits
 //                                        (read CRC == write CRC AND valid)
 //
-//   Kick-burst fast path. Bypasses the slow APB-via-UART kick sequence
-//   (which would otherwise stretch out by ~2 ms per UART write at 115200
-//   baud, pushing the harness timer's "first AR -> last W" window way
-//   past the actual hardware compute). Programming sequence:
-//     1. Write CHx_KICK_ADDR for every channel that should be kicked.
-//     2. Write KICK_GO with a bitmask of channels — that single APB write
-//        pulses the in-hardware kick lines for every selected channel
-//        within one aclk cycle, so multi-channel runs actually pipeline
-//        rather than serializing on UART.
-//
-//   CH_KICK_ADDR[ch]  RW  Per-channel descriptor address latch (8 slots).
-//                          Layout SKIPS 0xC0 (that slot is KICK_GO):
-//                          ch 0..3 -> 0xB0/0xB4/0xB8/0xBC
-//                          ch 4..7 -> 0xC4/0xC8/0xCC/0xD0
-//                          Host code must NOT use a bare "BASE + 4*ch"
-//                          stride -- that lands ch=4 on 0xC0 and writes
-//                          into KICK_GO, firing a spurious one-cycle
-//                          kick whose mask is the LSBs of the address.
-//   0xC0          KICK_GO  W  Bitmask: writing N pulses the hardware
-//                              kick line for each set bit for one cycle.
-//                              Reads as 0.
+//   (Kick-burst fast path REMOVED: the launch now lives inside STREAM as
+//    CHx_CTRL_{LOW,HIGH} + KICK_ENABLE, so the harness no longer needs a
+//    CSR shortcut around the per-channel APB kick.)
 //
 //   0xD4  DESC_SRAM_AR_HS  R  AXIL AR handshake at the desc_ram SRAM port
 //                              (s2_arvalid && s2_arready). Localizes the
@@ -217,6 +199,12 @@ module harness_csr #(
     parameter int BUILD_MAIN_CONES   = 1,
     parameter int BUILD_NUM_CHANNELS = 4,
     parameter int BUILD_N_PROFILE    = 64,
+    // Harness clock in Hz. The host converts cycle counts to bandwidth with
+    // this; when it was not published the host had to ASSUME a frequency,
+    // and the 100 MHz assumption silently inflated every GB/s figure by 11%
+    // once the harness moved to 90 MHz. Publishing it makes the conversion
+    // a fact the board states rather than a constant the host guesses.
+    parameter int BUILD_CLK_HZ       = 100_000_000,
     parameter int BUILD_USE_MONITORS = 1,
     parameter int BUILD_GEN_MON      = 0,      // per-channel CORE emitters built?
     // Datapath width in BYTES. 8 bits holds up to 255 B (2040 b), covering
@@ -336,11 +324,6 @@ module harness_csr #(
     output logic [15:0]     o_wr_resp_delay_cyc,
 
     // =====================================================================
-    // Kick-burst fast path (CH_KICK_ADDR slots split around KICK_GO @ 0xC0;
-    // see address-map block at top of file for the layout)
-    // =====================================================================
-    output logic [NUM_CHANNELS-1:0]       o_kick_burst_mask,  // 1-cycle pulse
-    output logic [NUM_CHANNELS-1:0][31:0] o_kick_burst_addr,  // shadow values
 
     // =====================================================================
     // desc_ram observation counters (read at 0xD4/0xD8 + 0xE0-0xFC,
@@ -474,13 +457,6 @@ module harness_csr #(
     logic [15:0] r_wr_resp_delay_cyc;
 
     // Kick-burst storage: per-channel address shadow + pulse-per-cycle
-    // trigger output. Writing CH_KICK_ADDR[ch] latches an address; the
-    // address-map block at top of file shows the per-channel offsets
-    // (split around the 0xC0 KICK_GO slot). Writing KICK_GO (0xC0) with
-    // a bitmask asserts o_kick_burst_mask for that bitmask for exactly
-    // one cycle.
-    logic [31:0] r_kick_addr [8];   // 8 fixed slots; only NUM_CHANNELS used
-    logic [7:0]  r_kick_go_pulse;   // one-cycle pulse driven by 0xC0 write
 
     // Fixed-shape views over per-channel CRC arrays so the read-decode
     // case below can index them with literals regardless of NUM_CHANNELS.
@@ -537,15 +513,12 @@ module harness_csr #(
             r_rd_resp_delay_cyc    <= '0;
             r_wr_resp_delay_cyc    <= '0;
             r_obs_hist_sel         <= '0;
-            for (int i = 0; i < 8; i++) r_kick_addr[i] <= '0;
-            r_kick_go_pulse        <= '0;
         end else begin
             r_start_pulse          <= 1'b0;
             r_clear_stats_pulse    <= 1'b0;
             r_soft_reset_pulse     <= 1'b0;
             r_cam_clear_pulse      <= 1'b0;
             r_timer_clear_pulse    <= 1'b0;
-            r_kick_go_pulse        <= '0;  // single-cycle trigger
 
             case (r_wstate)
                 W_IDLE: begin
@@ -571,19 +544,8 @@ module harness_csr #(
                                 r_wr_resp_delay_cyc <= int_wdata[31:16];
                             end
                             // Kick-burst shadow address per channel
-                            // (0xB0..0xCC: 8 slots = enough for NC up to 8)
-                            8'hB0: r_kick_addr[0] <= int_wdata;
-                            8'hB4: r_kick_addr[1] <= int_wdata;
-                            8'hB8: r_kick_addr[2] <= int_wdata;
-                            8'hBC: r_kick_addr[3] <= int_wdata;
-                            8'hC4: r_kick_addr[4] <= int_wdata;
-                            8'hC8: r_kick_addr[5] <= int_wdata;
-                            8'hCC: r_kick_addr[6] <= int_wdata;
-                            8'hD0: r_kick_addr[7] <= int_wdata;
-                            // Kick-burst trigger: bitmask of channels to
-                            // pulse for exactly one cycle. Auto-clears.
-                            8'hC0: r_kick_go_pulse <= int_wdata[7:0];
-                            // RFC Stage E observer histogram selector (RW):
+                            // (0xB0..0xCC: 8 slots = enough for NC up to 8)                            // Kick-burst trigger: bitmask of channels to
+                            // pulse for exactly one cycle. Auto-clears.                            // RFC Stage E observer histogram selector (RW):
                             // {bin[5:2], metric[1], bus[0]}. Drives the
                             // observer's hist read port; data/total stream
                             // back through 0x124/0x128 (read-only).
@@ -672,6 +634,7 @@ module harness_csr #(
                                                 1'(BUILD_ERROR_FLAVOR),
                                                 5'(BUILD_NUM_CHANNELS)};
                             9'h1D8: r_rdata <= 32'(BUILD_N_PROFILE);
+                            9'h1DC: r_rdata <= 32'(BUILD_CLK_HZ);
                             8'h28: r_rdata <= 32'h0000_0000;  // TIMER_CTRL is W-only
                             8'h2C: r_rdata <= {29'd0, i_timer_pass,
                                                        i_timer_running,
@@ -722,18 +685,7 @@ module harness_csr #(
                             8'hF4: r_rdata <= i_desc_w_hs;
                             8'hF8: r_rdata <= i_desc_b_hs;
                             8'hFC: r_rdata <= {16'h0, i_desc_vr_live};
-                            // Kick-burst shadow registers (read-back)
-                            8'hB0: r_rdata <= r_kick_addr[0];
-                            8'hB4: r_rdata <= r_kick_addr[1];
-                            8'hB8: r_rdata <= r_kick_addr[2];
-                            8'hBC: r_rdata <= r_kick_addr[3];
-                            8'hC0: r_rdata <= 32'h0;  // KICK_GO is W-only
-                            8'hC4: r_rdata <= r_kick_addr[4];
-                            8'hC8: r_rdata <= r_kick_addr[5];
-                            8'hCC: r_rdata <= r_kick_addr[6];
-                            8'hD0: r_rdata <= r_kick_addr[7];
-
-                            // RFC Stage E: external axi4_intf_master_observer perf
+                            // Kick-burst shadow registers (read-back)                            // RFC Stage E: external axi4_intf_master_observer perf
                             // readback (revives 0x100-0x128). Aggregate R/W
                             // buckets + indexed latency-histogram readout.
                             9'h120: r_rdata <= {26'd0, r_obs_hist_sel};
@@ -778,15 +730,6 @@ module harness_csr #(
     assign o_wr_resp_delay_cyc    = r_wr_resp_delay_cyc;
     assign o_obs_hist_sel         = r_obs_hist_sel;
 
-    // Kick-burst outputs: pulse the mask exactly when KICK_GO was just
-    // written (one aclk cycle), and broadcast the per-channel shadow
-    // addresses so stream_top_ch8 latches the right one for each ch.
-    always_comb begin
-        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
-            o_kick_burst_mask[ch] = r_kick_go_pulse[ch];
-            o_kick_burst_addr[ch] = r_kick_addr[ch];
-        end
-    end
 
     // Prevent unused signal warnings
     /* verilator lint_off UNUSED */

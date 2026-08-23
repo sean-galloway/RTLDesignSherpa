@@ -59,7 +59,7 @@ class BridgeStreamMonAxilTB(TBBase):
 
     Configuration:
         Masters: 4 (host, stream_desc, monbus_wr, slave_monbus_wr)
-        Slaves:  12 (obs_apb, slvmon_apb, stream_apb, harness_csr, desc_ram, stream_err, stream_tally, dma_axil, slave_err, slave_tally, stream_tally_cfg, slave_tally_cfg)
+        Slaves:  13 (obs_apb, slvmon_apb, stream_apb, harness_csr, desc_ram, stream_err, stream_tally, dma_axil, slave_err, slave_tally, comp_sram, stream_tally_cfg, slave_tally_cfg)
         Channels: RW
         Data Width: 256
         Addr Width: 64
@@ -79,7 +79,7 @@ class BridgeStreamMonAxilTB(TBBase):
 
         # Bridge configuration
         self.num_masters = 4
-        self.num_slaves = 12
+        self.num_slaves = 13
         self.data_width = 256
         self.addr_width = 64
         self.id_width = 8
@@ -97,8 +97,9 @@ class BridgeStreamMonAxilTB(TBBase):
             7: ('axil', 0x00080000, 0x00001000, 32),  # dma_axil
             8: ('axil', 0x00090000, 0x00001000, 32),  # slave_err
             9: ('axil', 0x000c0000, 0x00040000, 64),  # slave_tally
-            10: ('axil', 0x00100000, 0x00040000, 64),  # stream_tally_cfg
-            11: ('axil', 0x00140000, 0x00040000, 64),  # slave_tally_cfg
+            10: ('axil', 0x001a0000, 0x00010000, 64),  # comp_sram
+            11: ('axil', 0x00100000, 0x00040000, 64),  # stream_tally_cfg
+            12: ('axil', 0x00140000, 0x00040000, 64),  # slave_tally_cfg
         }
 
         # Per-master data width (in bits). Used by master_read/write helpers
@@ -137,8 +138,9 @@ class BridgeStreamMonAxilTB(TBBase):
         self._setup_slave_7_dma_axil()
         self._setup_slave_8_slave_err()
         self._setup_slave_9_slave_tally()
-        self._setup_slave_10_stream_tally_cfg()
-        self._setup_slave_11_slave_tally_cfg()
+        self._setup_slave_10_comp_sram()
+        self._setup_slave_11_stream_tally_cfg()
+        self._setup_slave_12_slave_tally_cfg()
         self._setup_master_0_host()
         self._setup_master_1_stream_desc()
         self._setup_master_2_monbus_wr()
@@ -653,14 +655,14 @@ class BridgeStreamMonAxilTB(TBBase):
             memory_model=self.slave_memory[9],
             base_addr=0x000c0000,
         )
-    def _setup_slave_10_stream_tally_cfg(self):
-        """Set up protocol BFM and pre-seeded MemoryModel for slave 10: stream_tally_cfg (protocol: axil)"""
+    def _setup_slave_10_comp_sram(self):
+        """Set up protocol BFM and pre-seeded MemoryModel for slave 10: comp_sram (protocol: axil)"""
         # AXIL slave — own MemoryModel pre-seeded with the slave-specific
         # pattern; AXIL4SlaveRead/Write auto-responds from it honoring
         # whatever ARADDR / AWADDR the bridge forwards (after burst
         # decomposition by axi4_to_axil4 shims, if any).
         bytes_per_line = 64 // 8
-        addr_range = 0x00040000
+        addr_range = 0x00010000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
         mem_bytes = min(addr_range, self.SLAVE_MEM_CAP_BYTES)
         preset = self._build_preset(10, addr_range, 64)
@@ -672,26 +674,26 @@ class BridgeStreamMonAxilTB(TBBase):
         )
         self.slave_rd[10] = AXIL4SlaveRead(
             self.dut, self.clock,
-            prefix="stream_tally_cfg_axi_",
+            prefix="comp_sram_axi_",
             log=self.log,
             data_width=64,
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[10],
-            base_addr=0x00100000,
+            base_addr=0x001a0000,
         )
         self.slave_wr[10] = AXIL4SlaveWrite(
             self.dut, self.clock,
-            prefix="stream_tally_cfg_axi_",
+            prefix="comp_sram_axi_",
             log=self.log,
             data_width=64,
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[10],
-            base_addr=0x00100000,
+            base_addr=0x001a0000,
         )
-    def _setup_slave_11_slave_tally_cfg(self):
-        """Set up protocol BFM and pre-seeded MemoryModel for slave 11: slave_tally_cfg (protocol: axil)"""
+    def _setup_slave_11_stream_tally_cfg(self):
+        """Set up protocol BFM and pre-seeded MemoryModel for slave 11: stream_tally_cfg (protocol: axil)"""
         # AXIL slave — own MemoryModel pre-seeded with the slave-specific
         # pattern; AXIL4SlaveRead/Write auto-responds from it honoring
         # whatever ARADDR / AWADDR the bridge forwards (after burst
@@ -709,22 +711,59 @@ class BridgeStreamMonAxilTB(TBBase):
         )
         self.slave_rd[11] = AXIL4SlaveRead(
             self.dut, self.clock,
-            prefix="slave_tally_cfg_axi_",
+            prefix="stream_tally_cfg_axi_",
             log=self.log,
             data_width=64,
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[11],
-            base_addr=0x00140000,
+            base_addr=0x00100000,
         )
         self.slave_wr[11] = AXIL4SlaveWrite(
+            self.dut, self.clock,
+            prefix="stream_tally_cfg_axi_",
+            log=self.log,
+            data_width=64,
+            addr_width=32,
+            multi_sig=True,
+            memory_model=self.slave_memory[11],
+            base_addr=0x00100000,
+        )
+    def _setup_slave_12_slave_tally_cfg(self):
+        """Set up protocol BFM and pre-seeded MemoryModel for slave 12: slave_tally_cfg (protocol: axil)"""
+        # AXIL slave — own MemoryModel pre-seeded with the slave-specific
+        # pattern; AXIL4SlaveRead/Write auto-responds from it honoring
+        # whatever ARADDR / AWADDR the bridge forwards (after burst
+        # decomposition by axi4_to_axil4 shims, if any).
+        bytes_per_line = 64 // 8
+        addr_range = 0x00040000
+        # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
+        mem_bytes = min(addr_range, self.SLAVE_MEM_CAP_BYTES)
+        preset = self._build_preset(12, addr_range, 64)
+        self.slave_memory[12] = MemoryModel(
+            num_lines=mem_bytes // bytes_per_line,
+            bytes_per_line=bytes_per_line,
+            preset_values=list(preset),
+            log=self.log,
+        )
+        self.slave_rd[12] = AXIL4SlaveRead(
             self.dut, self.clock,
             prefix="slave_tally_cfg_axi_",
             log=self.log,
             data_width=64,
             addr_width=32,
             multi_sig=True,
-            memory_model=self.slave_memory[11],
+            memory_model=self.slave_memory[12],
+            base_addr=0x00140000,
+        )
+        self.slave_wr[12] = AXIL4SlaveWrite(
+            self.dut, self.clock,
+            prefix="slave_tally_cfg_axi_",
+            log=self.log,
+            data_width=64,
+            addr_width=32,
+            multi_sig=True,
+            memory_model=self.slave_memory[12],
             base_addr=0x00140000,
         )
 

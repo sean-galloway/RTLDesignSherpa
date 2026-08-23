@@ -87,7 +87,13 @@ module cmdrsp_router #(
     logic addr_hit_m1;   // Everything else - Configuration registers (default route)
 
     always_comb begin
-        addr_hit_m0   = (s_cmd_paddr[ADDR_WIDTH-1:6] == '0);  // 0x000-0x03F
+        // 0x000-0x03F used to be carved out to apb4todescr, which snooped the
+        // raw command stream to turn a descriptor-address WRITE into a kick.
+        // Those addresses are now ordinary stored registers in the PeakRDL
+        // block (launch moved to KICK_ENABLE), so the range falls through to
+        // the default m1 route with everything else. m0 is retained, tied
+        // inactive, so the router's port map is unchanged for other users.
+        addr_hit_m0   = 1'b0;
         addr_hit_perf = (s_cmd_paddr[ADDR_WIDTH-1:8] == '0) && (s_cmd_paddr[7:6] != 2'b00);  // 0x040-0x0FF
         // m1 is default route: anything that doesn't match m0 or perf
         addr_hit_m1   = !addr_hit_m0 && !addr_hit_perf;

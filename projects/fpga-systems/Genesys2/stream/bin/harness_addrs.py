@@ -10,7 +10,7 @@ follows automatically. Kept SEPARATE from stream_addrs.A() (STREAM IP registers)
 so the two regmaps never leak into each other.
 
     from harness_addrs import H
-    bridge.write(H("KICK_GO"), mask)
+    bridge.write(H("RUN_CTRL"), val)
     cyc = bridge.read(H("TIMER_CYCLES_LO"))
     prod = bridge.read(H("OBS_RD_PROD"))
     addr = H("CH5_KICK_ADDR")            # kick-addr shadow regs, split around 0xC0
@@ -182,6 +182,11 @@ def build_info(bridge) -> dict:
         "use_monitors": regs.field("BUILD_CONFIG", "USE_MONITORS"),
         "gen_mon":      regs.field("BUILD_CONFIG", "GEN_MON"),
         "n_profile":    bridge.read(H("BUILD_N_PROFILE")),
+        # Read, never assumed. Bandwidth is bytes_per_cycle * clk_hz, so a host
+        # that guesses the frequency reports plausible-looking numbers that are
+        # wrong by exactly the ratio it guessed wrong by -- 100 MHz assumed
+        # against a 90 MHz board is +11% on every GB/s figure, silently.
+        "clk_hz":       bridge.read(H("BUILD_CLK_HZ")),
     }
 
 
@@ -192,6 +197,8 @@ def describe_build(bridge) -> str:
               "error-only"         if err          else
               "all-except-error"   if main         else
               "no-datapath-cones")
+    mhz = (b.get("clk_hz") or 0) / 1e6
     return (f"build v{b['version']} {flavor} nch={b['num_channels']} "
+            f"clk={mhz:.1f}MHz "
             f"n_profile={b['n_profile']} monitors={b['use_monitors']} "
             f"gen_mon={b['gen_mon']}")

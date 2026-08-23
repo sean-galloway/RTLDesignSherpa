@@ -22,6 +22,8 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_pkt_tally.f
+# comp_sram: compression-capture memory behind the bridge's comp_sram slave.
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axil_axil.f
 $FRAMEWORK_ROOT/rtl/stream_cfg_pkg.sv
 $FRAMEWORK_ROOT/rtl/monbus_tally_axil.sv
 # dma_slave_monitors owns its own compile closure (regblock + APB chain) in

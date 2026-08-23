@@ -317,7 +317,29 @@ module bridge_stream_mon_axil
     input  logic                  slave_tally_axi_rvalid,
     output logic                  slave_tally_axi_rready,
 
-    // Slave 10: stream_tally_cfg
+    // Slave 10: comp_sram
+    // AXI4-Lite Slave: comp_sram
+    output logic [31:0] comp_sram_axi_awaddr,
+    output logic [2:0]            comp_sram_axi_awprot,
+    output logic                  comp_sram_axi_awvalid,
+    input  logic                  comp_sram_axi_awready,
+    output logic [63:0] comp_sram_axi_wdata,
+    output logic [7:0] comp_sram_axi_wstrb,
+    output logic                  comp_sram_axi_wvalid,
+    input  logic                  comp_sram_axi_wready,
+    input  logic [1:0]            comp_sram_axi_bresp,
+    input  logic                  comp_sram_axi_bvalid,
+    output logic                  comp_sram_axi_bready,
+    output logic [31:0] comp_sram_axi_araddr,
+    output logic [2:0]            comp_sram_axi_arprot,
+    output logic                  comp_sram_axi_arvalid,
+    input  logic                  comp_sram_axi_arready,
+    input  logic [63:0] comp_sram_axi_rdata,
+    input  logic [1:0]            comp_sram_axi_rresp,
+    input  logic                  comp_sram_axi_rvalid,
+    output logic                  comp_sram_axi_rready,
+
+    // Slave 11: stream_tally_cfg
     // AXI4-Lite Slave: stream_tally_cfg
     output logic [31:0] stream_tally_cfg_axi_awaddr,
     output logic [2:0]            stream_tally_cfg_axi_awprot,
@@ -339,7 +361,7 @@ module bridge_stream_mon_axil
     input  logic                  stream_tally_cfg_axi_rvalid,
     output logic                  stream_tally_cfg_axi_rready,
 
-    // Slave 11: slave_tally_cfg
+    // Slave 12: slave_tally_cfg
     // AXI4-Lite Slave: slave_tally_cfg
     output logic [31:0] slave_tally_cfg_axi_awaddr,
     output logic [2:0]            slave_tally_cfg_axi_awprot,
@@ -362,7 +384,7 @@ module bridge_stream_mon_axil
     output logic                  slave_tally_cfg_axi_rready
 );
 
-    localparam NUM_SLAVES = 12;
+    localparam NUM_SLAVES = 13;
 
     // host Adapter outputs
     logic [NUM_SLAVES-1:0] host_slave_select_aw;
@@ -977,6 +999,58 @@ module bridge_stream_mon_axil
     logic [BRIDGE_ID_WIDTH-1:0] slave_tally_axi_bridge_id_ar;
     logic [BRIDGE_ID_WIDTH-1:0] slave_tally_axi_rid_bridge_id;
     logic                       slave_tally_axi_rid_valid;
+
+    // comp_sram (AXIL, 64b AXI4 interface)
+    logic [7:0]            xbar_comp_sram_axi_awid;
+    logic [31:0]               xbar_comp_sram_axi_awaddr;
+    logic [7:0]                xbar_comp_sram_axi_awlen;
+    logic [2:0]                xbar_comp_sram_axi_awsize;
+    logic [1:0]                xbar_comp_sram_axi_awburst;
+    logic                      xbar_comp_sram_axi_awlock;
+    logic [3:0]                xbar_comp_sram_axi_awcache;
+    logic [2:0]                xbar_comp_sram_axi_awprot;
+    logic [3:0]                xbar_comp_sram_axi_awqos;
+    logic [3:0]                xbar_comp_sram_axi_awregion;
+    logic                      xbar_comp_sram_axi_awuser;
+    logic                      xbar_comp_sram_axi_awvalid;
+    logic                      xbar_comp_sram_axi_awready;
+    logic [63:0] xbar_comp_sram_axi_wdata;
+    logic [7:0] xbar_comp_sram_axi_wstrb;
+    logic                      xbar_comp_sram_axi_wlast;
+    logic                      xbar_comp_sram_axi_wuser;
+    logic                      xbar_comp_sram_axi_wvalid;
+    logic                      xbar_comp_sram_axi_wready;
+    logic [7:0]            xbar_comp_sram_axi_bid;
+    logic [1:0]                xbar_comp_sram_axi_bresp;
+    logic                      xbar_comp_sram_axi_buser;
+    logic                      xbar_comp_sram_axi_bvalid;
+    logic                      xbar_comp_sram_axi_bready;
+    logic [7:0]            xbar_comp_sram_axi_arid;
+    logic [31:0]               xbar_comp_sram_axi_araddr;
+    logic [7:0]                xbar_comp_sram_axi_arlen;
+    logic [2:0]                xbar_comp_sram_axi_arsize;
+    logic [1:0]                xbar_comp_sram_axi_arburst;
+    logic                      xbar_comp_sram_axi_arlock;
+    logic [3:0]                xbar_comp_sram_axi_arcache;
+    logic [2:0]                xbar_comp_sram_axi_arprot;
+    logic [3:0]                xbar_comp_sram_axi_arqos;
+    logic [3:0]                xbar_comp_sram_axi_arregion;
+    logic                      xbar_comp_sram_axi_aruser;
+    logic                      xbar_comp_sram_axi_arvalid;
+    logic                      xbar_comp_sram_axi_arready;
+    logic [7:0]            xbar_comp_sram_axi_rid;
+    logic [63:0] xbar_comp_sram_axi_rdata;
+    logic [1:0]                xbar_comp_sram_axi_rresp;
+    logic                      xbar_comp_sram_axi_rlast;
+    logic                      xbar_comp_sram_axi_ruser;
+    logic                      xbar_comp_sram_axi_rvalid;
+    logic                      xbar_comp_sram_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] comp_sram_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] comp_sram_axi_bid_bridge_id;
+    logic                       comp_sram_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] comp_sram_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] comp_sram_axi_rid_bridge_id;
+    logic                       comp_sram_axi_rid_valid;
 
     // stream_tally_cfg (AXIL, 64b AXI4 interface)
     logic [7:0]            xbar_stream_tally_cfg_axi_awid;
@@ -1963,7 +2037,60 @@ module bridge_stream_mon_axil
         .slave_tally_axi_rid_bridge_id(slave_tally_axi_rid_bridge_id),
         .slave_tally_axi_rid_valid(slave_tally_axi_rid_valid),
 
-        // Slave 10: stream_tally_cfg
+        // Slave 10: comp_sram
+        .comp_sram_axi_awid(xbar_comp_sram_axi_awid),
+        .comp_sram_axi_awaddr(xbar_comp_sram_axi_awaddr),
+        .comp_sram_axi_awlen(xbar_comp_sram_axi_awlen),
+        .comp_sram_axi_awsize(xbar_comp_sram_axi_awsize),
+        .comp_sram_axi_awburst(xbar_comp_sram_axi_awburst),
+        .comp_sram_axi_awlock(xbar_comp_sram_axi_awlock),
+        .comp_sram_axi_awcache(xbar_comp_sram_axi_awcache),
+        .comp_sram_axi_awprot(xbar_comp_sram_axi_awprot),
+        .comp_sram_axi_awqos(xbar_comp_sram_axi_awqos),
+        .comp_sram_axi_awregion(xbar_comp_sram_axi_awregion),
+        .comp_sram_axi_awuser(xbar_comp_sram_axi_awuser),
+        .comp_sram_axi_awvalid(xbar_comp_sram_axi_awvalid),
+        .comp_sram_axi_awready(xbar_comp_sram_axi_awready),
+        .comp_sram_axi_wdata(xbar_comp_sram_axi_wdata),
+        .comp_sram_axi_wstrb(xbar_comp_sram_axi_wstrb),
+        .comp_sram_axi_wlast(xbar_comp_sram_axi_wlast),
+        .comp_sram_axi_wuser(xbar_comp_sram_axi_wuser),
+        .comp_sram_axi_wvalid(xbar_comp_sram_axi_wvalid),
+        .comp_sram_axi_wready(xbar_comp_sram_axi_wready),
+        .comp_sram_axi_bid(xbar_comp_sram_axi_bid),
+        .comp_sram_axi_bresp(xbar_comp_sram_axi_bresp),
+        .comp_sram_axi_buser(xbar_comp_sram_axi_buser),
+        .comp_sram_axi_bvalid(xbar_comp_sram_axi_bvalid),
+        .comp_sram_axi_bready(xbar_comp_sram_axi_bready),
+        .comp_sram_axi_arid(xbar_comp_sram_axi_arid),
+        .comp_sram_axi_araddr(xbar_comp_sram_axi_araddr),
+        .comp_sram_axi_arlen(xbar_comp_sram_axi_arlen),
+        .comp_sram_axi_arsize(xbar_comp_sram_axi_arsize),
+        .comp_sram_axi_arburst(xbar_comp_sram_axi_arburst),
+        .comp_sram_axi_arlock(xbar_comp_sram_axi_arlock),
+        .comp_sram_axi_arcache(xbar_comp_sram_axi_arcache),
+        .comp_sram_axi_arprot(xbar_comp_sram_axi_arprot),
+        .comp_sram_axi_arqos(xbar_comp_sram_axi_arqos),
+        .comp_sram_axi_arregion(xbar_comp_sram_axi_arregion),
+        .comp_sram_axi_aruser(xbar_comp_sram_axi_aruser),
+        .comp_sram_axi_arvalid(xbar_comp_sram_axi_arvalid),
+        .comp_sram_axi_arready(xbar_comp_sram_axi_arready),
+        .comp_sram_axi_rid(xbar_comp_sram_axi_rid),
+        .comp_sram_axi_rdata(xbar_comp_sram_axi_rdata),
+        .comp_sram_axi_rresp(xbar_comp_sram_axi_rresp),
+        .comp_sram_axi_rlast(xbar_comp_sram_axi_rlast),
+        .comp_sram_axi_ruser(xbar_comp_sram_axi_ruser),
+        .comp_sram_axi_rvalid(xbar_comp_sram_axi_rvalid),
+        .comp_sram_axi_rready(xbar_comp_sram_axi_rready),
+        .comp_sram_axi_bridge_id_aw(comp_sram_axi_bridge_id_aw),
+        .comp_sram_axi_bid_bridge_id(comp_sram_axi_bid_bridge_id),
+        .comp_sram_axi_bid_valid(comp_sram_axi_bid_valid),
+
+        .comp_sram_axi_bridge_id_ar(comp_sram_axi_bridge_id_ar),
+        .comp_sram_axi_rid_bridge_id(comp_sram_axi_rid_bridge_id),
+        .comp_sram_axi_rid_valid(comp_sram_axi_rid_valid),
+
+        // Slave 11: stream_tally_cfg
         .stream_tally_cfg_axi_awid(xbar_stream_tally_cfg_axi_awid),
         .stream_tally_cfg_axi_awaddr(xbar_stream_tally_cfg_axi_awaddr),
         .stream_tally_cfg_axi_awlen(xbar_stream_tally_cfg_axi_awlen),
@@ -2016,7 +2143,7 @@ module bridge_stream_mon_axil
         .stream_tally_cfg_axi_rid_bridge_id(stream_tally_cfg_axi_rid_bridge_id),
         .stream_tally_cfg_axi_rid_valid(stream_tally_cfg_axi_rid_valid),
 
-        // Slave 11: slave_tally_cfg
+        // Slave 12: slave_tally_cfg
         .slave_tally_cfg_axi_awid(xbar_slave_tally_cfg_axi_awid),
         .slave_tally_cfg_axi_awaddr(xbar_slave_tally_cfg_axi_awaddr),
         .slave_tally_cfg_axi_awlen(xbar_slave_tally_cfg_axi_awlen),
@@ -2883,6 +3010,87 @@ module bridge_stream_mon_axil
         .xbar_bridge_id_ar(slave_tally_axi_bridge_id_ar),
         .rid_bridge_id(slave_tally_axi_rid_bridge_id),
         .rid_valid(slave_tally_axi_rid_valid)
+    );
+
+    // comp_sram adapter (AXIL, crossbar → external slave)
+    comp_sram_adapter u_comp_sram_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_comp_sram_axi_*)
+        .xbar_comp_sram_axi_awid(xbar_comp_sram_axi_awid),
+        .xbar_comp_sram_axi_awaddr(xbar_comp_sram_axi_awaddr),
+        .xbar_comp_sram_axi_awlen(xbar_comp_sram_axi_awlen),
+        .xbar_comp_sram_axi_awsize(xbar_comp_sram_axi_awsize),
+        .xbar_comp_sram_axi_awburst(xbar_comp_sram_axi_awburst),
+        .xbar_comp_sram_axi_awlock(xbar_comp_sram_axi_awlock),
+        .xbar_comp_sram_axi_awcache(xbar_comp_sram_axi_awcache),
+        .xbar_comp_sram_axi_awprot(xbar_comp_sram_axi_awprot),
+        .xbar_comp_sram_axi_awqos(xbar_comp_sram_axi_awqos),
+        .xbar_comp_sram_axi_awregion(xbar_comp_sram_axi_awregion),
+        .xbar_comp_sram_axi_awuser(xbar_comp_sram_axi_awuser),
+        .xbar_comp_sram_axi_awvalid(xbar_comp_sram_axi_awvalid),
+        .xbar_comp_sram_axi_awready(xbar_comp_sram_axi_awready),
+        .xbar_comp_sram_axi_wdata(xbar_comp_sram_axi_wdata),
+        .xbar_comp_sram_axi_wstrb(xbar_comp_sram_axi_wstrb),
+        .xbar_comp_sram_axi_wlast(xbar_comp_sram_axi_wlast),
+        .xbar_comp_sram_axi_wuser(xbar_comp_sram_axi_wuser),
+        .xbar_comp_sram_axi_wvalid(xbar_comp_sram_axi_wvalid),
+        .xbar_comp_sram_axi_wready(xbar_comp_sram_axi_wready),
+        .xbar_comp_sram_axi_bid(xbar_comp_sram_axi_bid),
+        .xbar_comp_sram_axi_bresp(xbar_comp_sram_axi_bresp),
+        .xbar_comp_sram_axi_buser(xbar_comp_sram_axi_buser),
+        .xbar_comp_sram_axi_bvalid(xbar_comp_sram_axi_bvalid),
+        .xbar_comp_sram_axi_bready(xbar_comp_sram_axi_bready),
+        .xbar_comp_sram_axi_arid(xbar_comp_sram_axi_arid),
+        .xbar_comp_sram_axi_araddr(xbar_comp_sram_axi_araddr),
+        .xbar_comp_sram_axi_arlen(xbar_comp_sram_axi_arlen),
+        .xbar_comp_sram_axi_arsize(xbar_comp_sram_axi_arsize),
+        .xbar_comp_sram_axi_arburst(xbar_comp_sram_axi_arburst),
+        .xbar_comp_sram_axi_arlock(xbar_comp_sram_axi_arlock),
+        .xbar_comp_sram_axi_arcache(xbar_comp_sram_axi_arcache),
+        .xbar_comp_sram_axi_arprot(xbar_comp_sram_axi_arprot),
+        .xbar_comp_sram_axi_arqos(xbar_comp_sram_axi_arqos),
+        .xbar_comp_sram_axi_arregion(xbar_comp_sram_axi_arregion),
+        .xbar_comp_sram_axi_aruser(xbar_comp_sram_axi_aruser),
+        .xbar_comp_sram_axi_arvalid(xbar_comp_sram_axi_arvalid),
+        .xbar_comp_sram_axi_arready(xbar_comp_sram_axi_arready),
+        .xbar_comp_sram_axi_rid(xbar_comp_sram_axi_rid),
+        .xbar_comp_sram_axi_rdata(xbar_comp_sram_axi_rdata),
+        .xbar_comp_sram_axi_rresp(xbar_comp_sram_axi_rresp),
+        .xbar_comp_sram_axi_rlast(xbar_comp_sram_axi_rlast),
+        .xbar_comp_sram_axi_ruser(xbar_comp_sram_axi_ruser),
+        .xbar_comp_sram_axi_rvalid(xbar_comp_sram_axi_rvalid),
+        .xbar_comp_sram_axi_rready(xbar_comp_sram_axi_rready),
+
+        // External AXI4-Lite interface (comp_sram_axi_*)
+        .comp_sram_axi_awaddr(comp_sram_axi_awaddr),
+        .comp_sram_axi_awprot(comp_sram_axi_awprot),
+        .comp_sram_axi_awvalid(comp_sram_axi_awvalid),
+        .comp_sram_axi_awready(comp_sram_axi_awready),
+        .comp_sram_axi_wdata(comp_sram_axi_wdata),
+        .comp_sram_axi_wstrb(comp_sram_axi_wstrb),
+        .comp_sram_axi_wvalid(comp_sram_axi_wvalid),
+        .comp_sram_axi_wready(comp_sram_axi_wready),
+        .comp_sram_axi_bresp(comp_sram_axi_bresp),
+        .comp_sram_axi_bvalid(comp_sram_axi_bvalid),
+        .comp_sram_axi_bready(comp_sram_axi_bready),
+        .comp_sram_axi_araddr(comp_sram_axi_araddr),
+        .comp_sram_axi_arprot(comp_sram_axi_arprot),
+        .comp_sram_axi_arvalid(comp_sram_axi_arvalid),
+        .comp_sram_axi_arready(comp_sram_axi_arready),
+        .comp_sram_axi_rdata(comp_sram_axi_rdata),
+        .comp_sram_axi_rresp(comp_sram_axi_rresp),
+        .comp_sram_axi_rvalid(comp_sram_axi_rvalid),
+        .comp_sram_axi_rready(comp_sram_axi_rready),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(comp_sram_axi_bridge_id_aw),
+        .bid_bridge_id(comp_sram_axi_bid_bridge_id),
+        .bid_valid(comp_sram_axi_bid_valid),
+        .xbar_bridge_id_ar(comp_sram_axi_bridge_id_ar),
+        .rid_bridge_id(comp_sram_axi_rid_bridge_id),
+        .rid_valid(comp_sram_axi_rid_valid)
     );
 
     // stream_tally_cfg adapter (AXIL, crossbar → external slave)

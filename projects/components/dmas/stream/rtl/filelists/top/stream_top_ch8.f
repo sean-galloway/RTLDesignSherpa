@@ -3,7 +3,6 @@
 #
 # Architecture: Complete STREAM DMA with APB configuration interface
 # - APB4 configuration interface (peakrdl_to_cmdrsp converter)
-# - apb4todescr (channel kick-off router)
 # - stream_config_block (register mapping)
 # - stream_core (USE_AXI_MONITORS=0, monitors disabled)
 
@@ -38,10 +37,7 @@ $STREAM_ROOT/regs/generated/rtl/stream_regs.sv
 # $STREAM_ROOT/rtl/fub/peakrdl_to_cmdrsp.sv
 
 # APB kick-off router
--f $STREAM_ROOT/rtl/filelists/fub/apb4todescr.f
 
-# CMD/RSP router (routes CMD/RSP from apb4_slave_cdc to apb4todescr or peakrdl_to_cmdrsp)
-# Address map: 0x000-0x03F → apb4todescr, 0x100-0x3FF → peakrdl_to_cmdrsp
 $STREAM_ROOT/rtl/top/cmdrsp_router.sv
 
 # PeakRDL adapter (from converters component)

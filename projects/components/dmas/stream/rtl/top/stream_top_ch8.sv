@@ -129,17 +129,6 @@ module stream_top_ch8 #(
     input  logic                                    presetn,
 
     //-------------------------------------------------------------------------
-    // Kick-Burst Interface (fast-path multi-channel kick from harness CSR)
-    //-------------------------------------------------------------------------
-    // Bypasses the slow APB-via-UART kick path. Pulse i_kick_burst_mask[ch]
-    // for one cycle with the channel's first descriptor address on
-    // i_kick_burst_addr[ch] to enqueue a kick. We latch into pending bits
-    // and drive the descriptor_engine's apb_valid until accepted, so no
-    // beats are lost even if a channel is briefly unready.
-    input  logic [NUM_CHANNELS-1:0]                 i_kick_burst_mask,
-    input  logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] i_kick_burst_addr,
-
-    //-------------------------------------------------------------------------
     // APB4 Configuration Interface
     //-------------------------------------------------------------------------
     input  logic [APB_ADDR_WIDTH-1:0]               s_apb_paddr,
@@ -389,6 +378,14 @@ module stream_top_ch8 #(
     logic [APB_DATA_WIDTH-1:0]  kickoff_rsp_prdata;
     logic                       kickoff_rsp_pslverr;
 
+    // Router master 0 is retired (addr_hit_m0 is hard 0), so its response path
+    // is driven to safe constants rather than left floating: an unconnected
+    // rsp_valid on a never-selected port is still an X the router could sample.
+    assign kickoff_cmd_ready  = 1'b1;
+    assign kickoff_rsp_valid  = 1'b0;
+    assign kickoff_rsp_prdata = '0;
+    assign kickoff_rsp_pslverr= 1'b0;
+
     // To stream_regs (PeakRDL)
     logic                       regs_cmd_valid;
     logic                       regs_cmd_ready;
@@ -412,55 +409,87 @@ module stream_top_ch8 #(
     //-------------------------------------------------------------------------
     // Descriptor Kick-off Signals (renamed to match stream_core)
     //-------------------------------------------------------------------------
-    // Two upstream sources feed the descriptor_engine kick interface:
-    //   1. apb4todescr — slow APB / UART path (kick via APB writes)
-    //   2. kick-burst inputs — fast hardware-trigger path from harness_csr
-    // Both share the same downstream apb_valid / apb_addr / apb_ready bus
-    // to the descriptor_engine; we OR-mux them below with priority to
-    // whichever source is currently asserting.
+    // Descriptor-engine kick, single source.
+    //
+    // Software stages a 64-bit descriptor address per channel in
+    // CHx_CTRL_{LOW,HIGH} (0x000-0x03F, ordinary stored registers) and then
+    // launches with ONE write to KICK_ENABLE (0x128). Each KICKn field is a
+    // singlepulse, so a write emits a one-cycle request and self-clears.
+    //
+    // This replaces two mechanisms: apb4todescr, which snooped the raw APB
+    // command stream so that the ADDRESS WRITE ITSELF kicked (the address was
+    // never readable state, and an 8-channel launch cost 8 APB-over-UART
+    // writes, starting the channels milliseconds apart), and the kick_burst
+    // top-level ports that existed only to work around that latency from
+    // harness_csr. One 32-bit write to KICK_ENABLE now starts every channel
+    // on the same cycle, with no port plumbing outside STREAM.
     logic [NUM_CHANNELS-1:0]                 apb_valid;
     logic [NUM_CHANNELS-1:0]                 apb_ready;
     logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] apb_addr;
 
-    // Apbtodescr-side outputs (renamed; final apb_* are the OR-mux).
-    logic [NUM_CHANNELS-1:0]                 apb_valid_apb4todescr;
-    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] apb_addr_apb4todescr;
+    // The regblock names the eight register pairs and eight kick bits
+    // individually (SystemRDL has no array here), so flatten them once into
+    // channel-indexed vectors. Bounded by NUM_CHANNELS: a build with fewer
+    // channels simply leaves the upper registers unread.
+    logic [7:0][63:0] w_staged_addr;
+    logic [7:0]       w_kick_pulse;
+    always_comb begin
+        w_staged_addr[0] = {hwif_out.CH0_CTRL_HIGH.DESC_ADDR_HIGH.value, hwif_out.CH0_CTRL_LOW.DESC_ADDR_LOW.value};
+        w_staged_addr[1] = {hwif_out.CH1_CTRL_HIGH.DESC_ADDR_HIGH.value, hwif_out.CH1_CTRL_LOW.DESC_ADDR_LOW.value};
+        w_staged_addr[2] = {hwif_out.CH2_CTRL_HIGH.DESC_ADDR_HIGH.value, hwif_out.CH2_CTRL_LOW.DESC_ADDR_LOW.value};
+        w_staged_addr[3] = {hwif_out.CH3_CTRL_HIGH.DESC_ADDR_HIGH.value, hwif_out.CH3_CTRL_LOW.DESC_ADDR_LOW.value};
+        w_staged_addr[4] = {hwif_out.CH4_CTRL_HIGH.DESC_ADDR_HIGH.value, hwif_out.CH4_CTRL_LOW.DESC_ADDR_LOW.value};
+        w_staged_addr[5] = {hwif_out.CH5_CTRL_HIGH.DESC_ADDR_HIGH.value, hwif_out.CH5_CTRL_LOW.DESC_ADDR_LOW.value};
+        w_staged_addr[6] = {hwif_out.CH6_CTRL_HIGH.DESC_ADDR_HIGH.value, hwif_out.CH6_CTRL_LOW.DESC_ADDR_LOW.value};
+        w_staged_addr[7] = {hwif_out.CH7_CTRL_HIGH.DESC_ADDR_HIGH.value, hwif_out.CH7_CTRL_LOW.DESC_ADDR_LOW.value};
+        w_kick_pulse = {hwif_out.KICK_ENABLE.KICK7.value, hwif_out.KICK_ENABLE.KICK6.value,
+                        hwif_out.KICK_ENABLE.KICK5.value, hwif_out.KICK_ENABLE.KICK4.value,
+                        hwif_out.KICK_ENABLE.KICK3.value, hwif_out.KICK_ENABLE.KICK2.value,
+                        hwif_out.KICK_ENABLE.KICK1.value, hwif_out.KICK_ENABLE.KICK0.value};
+    end
 
-    // Kick-burst latch: holds a kick request high until the engine accepts
-    // it (apb_ready), so a single 1-cycle trigger pulse from harness_csr
-    // can't be missed even if the engine isn't immediately ready.
-    logic [NUM_CHANNELS-1:0]                 r_kick_burst_pending;
-    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] r_kick_burst_addr;
+    // RISING-EDGE detect on the kick, NOT the level.
+    //
+    // peakrdl_to_cmdrsp holds regblk_req across CMD_IDLE -> CMD_WAIT_ACK (see
+    // the comment on `assign regblk_req` there: the one-cycle variant was tried
+    // and reverted because it broke every register read). A PeakRDL singlepulse
+    // fires once per decoded write strobe, so a held request pulses KICKn on
+    // consecutive cycles -- launching the channel TWICE and moving exactly 2x
+    // the descriptor's beats. Edge-detecting here makes the launch independent
+    // of how many cycles the adapter holds the request.
+    logic [7:0] r_kick_pulse_d;
+    logic [7:0] w_kick_edge;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) r_kick_pulse_d <= '0;
+        else          r_kick_pulse_d <= w_kick_pulse;
+    end
+    assign w_kick_edge = w_kick_pulse & ~r_kick_pulse_d;
+
+    // Hold the request until the descriptor engine accepts it, so a one-cycle
+    // pulse cannot be lost when a channel is briefly unready.
+    logic [NUM_CHANNELS-1:0]                 r_kick_pending;
+    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] r_kick_addr;
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            r_kick_burst_pending <= '0;
-            r_kick_burst_addr    <= '{default:'0};
+            r_kick_pending <= '0;
+            r_kick_addr    <= '{default:'0};
         end else begin
             for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
-                // Trigger pulse: latch new address and mark pending. If a
-                // pending kick is already waiting on this channel, the new
-                // address overwrites — host should not retrigger before
-                // the previous one has been accepted.
-                if (i_kick_burst_mask[ch]) begin
-                    r_kick_burst_pending[ch] <= 1'b1;
-                    r_kick_burst_addr[ch]    <= i_kick_burst_addr[ch];
-                end
-                // Clear when the descriptor_engine accepts the kick.
-                else if (r_kick_burst_pending[ch] && apb_ready[ch]) begin
-                    r_kick_burst_pending[ch] <= 1'b0;
+                if (w_kick_edge[ch]) begin
+                    r_kick_pending[ch] <= 1'b1;
+                    r_kick_addr[ch]    <= ADDR_WIDTH'(w_staged_addr[ch]);
+                end else if (r_kick_pending[ch] && apb_ready[ch]) begin
+                    r_kick_pending[ch] <= 1'b0;
                 end
             end
         end
     end
 
-    // OR-mux: whichever path has a valid request drives the bus. apb4todescr
-    // path wins on the address when both fire (rare — APB kicks are slow).
     always_comb begin
         for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
-            apb_valid[ch] = apb_valid_apb4todescr[ch] | r_kick_burst_pending[ch];
-            apb_addr [ch] = apb_valid_apb4todescr[ch] ? apb_addr_apb4todescr[ch]
-                                                     : r_kick_burst_addr[ch];
+            apb_valid[ch] = r_kick_pending[ch];
+            apb_addr [ch] = r_kick_addr[ch];
         end
     end
 
@@ -815,7 +844,8 @@ module stream_top_ch8 #(
         .s_rsp_prdata               (apb_rsp_prdata),
         .s_rsp_pslverr              (apb_rsp_pslverr),
 
-        // CMD/RSP Master 0: apb4todescr (0x000-0x03F)
+        // CMD/RSP Master 0: retired (apb4todescr). addr_hit_m0 is hard 0 in the
+        // router, so this port set never activates; driven to safe constants.
         .m0_cmd_valid               (kickoff_cmd_valid),
         .m0_cmd_ready               (kickoff_cmd_ready),
         .m0_cmd_pwrite              (kickoff_cmd_pwrite),
@@ -849,40 +879,8 @@ module stream_top_ch8 #(
         .perf_fifo_rd               (perf_fifo_rd)
     );
 
-    //=========================================================================
-    // Channel Kick-off Router (apb4todescr)
-    //=========================================================================
-    apb4todescr #(
-        .NUM_CHANNELS    (NUM_CHANNELS),
-        .ADDR_WIDTH      (APB_ADDR_WIDTH),  // narrow APB bus address (~12 bits)
-        .DATA_WIDTH      (APB_DATA_WIDTH),
-        .DESC_ADDR_WIDTH (ADDR_WIDTH)       // wide descriptor address (AXI)
-    ) u_apb4todescr (
-        .clk                            (aclk),
-        .rst_n                          (aresetn),
-
-        // CMD/RSP Interface (from cmdrsp_router m0)
-        .apb_cmd_valid                  (kickoff_cmd_valid),
-        .apb_cmd_ready                  (kickoff_cmd_ready),
-        .apb_cmd_addr                   (kickoff_cmd_paddr),
-        .apb_cmd_wdata                  (kickoff_cmd_pwdata),
-        .apb_cmd_write                  (kickoff_cmd_pwrite),
-
-        .apb_rsp_valid                  (kickoff_rsp_valid),
-        .apb_rsp_ready                  (kickoff_rsp_ready),
-        .apb_rsp_rdata                  (kickoff_rsp_prdata),
-        .apb_rsp_error                  (kickoff_rsp_pslverr),
-
-        // Descriptor Engine Outputs (apb4todescr's contribution to the
-        // shared kick bus — final apb_* is OR-muxed with the kick-burst
-        // path above).
-        .desc_apb_valid                 (apb_valid_apb4todescr),
-        .desc_apb_ready                 (apb_ready),
-        .desc_apb_addr                  (apb_addr_apb4todescr),
-
-        // Debug output (unused)
-        .apb_descriptor_kickoff_hit     ()
-    );
+    // (apb4todescr removed: the kick is now CHx_CTRL_{LOW,HIGH} + KICK_ENABLE
+    //  in the PeakRDL block, handled above. m0 of the router is tied inactive.)
 
     //=========================================================================
     // CMD/RSP to Passthrough Adapter (peakrdl_to_cmdrsp)

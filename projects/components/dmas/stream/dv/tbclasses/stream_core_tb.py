@@ -1388,12 +1388,51 @@ class StreamCoreTB(TBBase):
         n = sum(len(v) for v in self.kicked_desc_addrs.values())
         self.log.info(f"descriptor-fetch proof: all {n} kicked descriptors were fetched")
 
+    async def kick_off_channels_together(self, channel_desc_pairs):
+        """
+        Stage several channels, then launch them ALL ON THE SAME CYCLE.
+
+        This is what splitting stage from launch buys. Calling
+        kick_off_channel() N times issues N separate KICK_ENABLE writes, so the
+        channels start one APB transaction apart -- over UART on the board that
+        is milliseconds, long enough to bias any cross-channel measurement. Here
+        every address is staged first and a SINGLE write to KICK_ENABLE sets all
+        the bits at once, so the descriptor engines see their requests on the
+        same clock edge.
+
+        Args:
+            channel_desc_pairs: iterable of (channel, descriptor_addr)
+        """
+        if self.apb4_master is None:
+            # stream_core has no APB; fall back to the per-channel signal path.
+            for ch, addr in channel_desc_pairs:
+                await self.kick_off_channel(ch, addr)
+            return
+
+        mask = 0
+        for ch, addr in channel_desc_pairs:
+            if ch >= self.num_channels:
+                self.log.error(f"Invalid channel {ch}, max is {self.num_channels-1}")
+                continue
+            await self.write_apb_register(self._reg_addr(f"CH{ch}_CTRL_LOW"),
+                                          addr & 0xFFFFFFFF)
+            await self.write_apb_register(self._reg_addr(f"CH{ch}_CTRL_HIGH"),
+                                          (addr >> 32) & 0xFFFFFFFF)
+            self.kicked_desc_addrs.setdefault(ch, []).append(addr)
+            mask |= (1 << ch)
+
+        if mask:
+            await self.write_apb_register(self._reg_addr("KICK_ENABLE"), mask)
+            self.log.info(f"Launched channels {bin(mask)} together (one KICK_ENABLE write)")
+
     async def kick_off_channel(self, channel, descriptor_addr):
         """
         Kick off a DMA transfer on specified channel.
 
         For stream_core: Uses per-channel control signals (apb_addr, apb_valid, apb_ready)
-        For stream_top: Uses APB4 protocol writes to CHx_CTRL_LOW/HIGH registers
+        For stream_top: stages CHx_CTRL_LOW/HIGH then pulses KICK_ENABLE bit[ch].
+                        Use kick_off_channels_together() to launch several
+                        channels on the SAME cycle.
 
         Args:
             channel: Channel number (0 to num_channels-1)
@@ -1424,11 +1463,21 @@ class StreamCoreTB(TBBase):
             self.log.info(f"  Writing (by name) APB 0x{ctrl_low_addr:03X} = 0x{desc_low:08X} (descriptor LOW)")
             self.log.info(f"  Writing (by name) APB 0x{ctrl_high_addr:03X} = 0x{desc_high:08X} (descriptor HIGH)")
 
-            # Write lower 32 bits
+            # Stage the 64-bit address. These are ORDINARY STORED REGISTERS now
+            # (sw=rw, hw=r) -- writing them no longer kicks. That was the whole
+            # point of the refactor: the address is readable state that can be
+            # verified before launch, instead of a write side effect decoded off
+            # the raw APB stream by apb4todescr.
             await self.write_apb_register(ctrl_low_addr, desc_low)
-
-            # Write upper 32 bits (triggers kick-off)
             await self.write_apb_register(ctrl_high_addr, desc_high)
+
+            # Launch. KICK_ENABLE.KICKn is a singlepulse: the write emits a
+            # one-cycle request to the descriptor engine and self-clears, so
+            # there is nothing to clear afterwards and a read-back can never be
+            # mistaken for a pending launch.
+            kick_addr = self._reg_addr("KICK_ENABLE")
+            self.log.info(f"  Writing (by name) APB 0x{kick_addr:03X} = bit{channel} (KICK_ENABLE)")
+            await self.write_apb_register(kick_addr, 1 << channel)
 
             # Remember what this kick launched so assert_descriptors_fetched()
             # can prove the write actually caused a descriptor fetch.

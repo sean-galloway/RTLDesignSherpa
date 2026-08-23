@@ -26,7 +26,7 @@ from TBClasses.shared.utilities import get_paths
 from projects.fpga-systems.Genesys2.stream.rtl.bridges.dv.tbclasses.bridge_stream_mon_axil_mon_tb import BridgeStreamMonAxilMonTB
 from monitor_stress_common import run_comprehensive, run_monitor_sim
 
-CFG_PREFIXES = ['host_0_rd', 'host_0_wr', 'stream_desc_1_rd', 'monbus_wr_2_wr', 'slave_monbus_wr_3_wr', 'obs_apb_0_rd', 'obs_apb_0_wr', 'slvmon_apb_1_rd', 'slvmon_apb_1_wr', 'stream_apb_2_rd', 'stream_apb_2_wr', 'harness_csr_3_rd', 'harness_csr_3_wr', 'desc_ram_4_rd', 'desc_ram_4_wr', 'stream_err_5_rd', 'stream_err_5_wr', 'stream_tally_6_rd', 'stream_tally_6_wr', 'dma_axil_7_rd', 'dma_axil_7_wr', 'slave_err_8_rd', 'slave_err_8_wr', 'slave_tally_9_rd', 'slave_tally_9_wr', 'stream_tally_cfg_10_rd', 'stream_tally_cfg_10_wr', 'slave_tally_cfg_11_rd', 'slave_tally_cfg_11_wr']
+CFG_PREFIXES = ['host_0_rd', 'host_0_wr', 'stream_desc_1_rd', 'monbus_wr_2_wr', 'slave_monbus_wr_3_wr', 'obs_apb_0_rd', 'obs_apb_0_wr', 'slvmon_apb_1_rd', 'slvmon_apb_1_wr', 'stream_apb_2_rd', 'stream_apb_2_wr', 'harness_csr_3_rd', 'harness_csr_3_wr', 'desc_ram_4_rd', 'desc_ram_4_wr', 'stream_err_5_rd', 'stream_err_5_wr', 'stream_tally_6_rd', 'stream_tally_6_wr', 'dma_axil_7_rd', 'dma_axil_7_wr', 'slave_err_8_rd', 'slave_err_8_wr', 'slave_tally_9_rd', 'slave_tally_9_wr', 'comp_sram_10_rd', 'comp_sram_10_wr', 'stream_tally_cfg_11_rd', 'stream_tally_cfg_11_wr', 'slave_tally_cfg_12_rd', 'slave_tally_cfg_12_wr']
 BLOCK_READY_PATH = "u_host_adapter.u_timing_wrapper_rd"
 REACHABLE_SLAVES = [4]
 HAS_COMPL = True

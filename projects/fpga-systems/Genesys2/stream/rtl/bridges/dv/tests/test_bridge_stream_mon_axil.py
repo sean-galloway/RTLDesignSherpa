@@ -7,7 +7,7 @@
 #
 # Configuration:
 #   Masters: 4 (host, stream_desc, monbus_wr, slave_monbus_wr)
-#   Slaves:  12 (obs_apb, slvmon_apb, stream_apb, harness_csr, desc_ram, stream_err, stream_tally, dma_axil, slave_err, slave_tally, stream_tally_cfg, slave_tally_cfg)
+#   Slaves:  13 (obs_apb, slvmon_apb, stream_apb, harness_csr, desc_ram, stream_err, stream_tally, dma_axil, slave_err, slave_tally, comp_sram, stream_tally_cfg, slave_tally_cfg)
 #   Channels: RW
 
 import os
@@ -63,7 +63,7 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
 
     tb.log.info("=" * 80)
     tb.log.info("Starting basic connectivity test")
-    tb.log.info(f"Configuration: 4M x 12S, RW channels")
+    tb.log.info(f"Configuration: 4M x 13S, RW channels")
     tb.log.info("=" * 80)
 
     # ---- Write connectivity --------------------------------------------
@@ -208,8 +208,8 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
     assert actual == test_data, (
         f"Slave 9 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
-    # Master 0 → Slave 10 (stream_tally_cfg)
-    test_addr = 0x00100100
+    # Master 0 → Slave 10 (comp_sram)
+    test_addr = 0x001a0100
     # Non-pattern data: upper byte 0xDE so it can't be confused with any
     # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
     # the slave ID). Lower byte tags the (master, slave) pair for debug.
@@ -222,8 +222,8 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
     assert actual == test_data, (
         f"Slave 10 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
-    # Master 0 → Slave 11 (slave_tally_cfg)
-    test_addr = 0x00140100
+    # Master 0 → Slave 11 (stream_tally_cfg)
+    test_addr = 0x00100100
     # Non-pattern data: upper byte 0xDE so it can't be confused with any
     # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
     # the slave ID). Lower byte tags the (master, slave) pair for debug.
@@ -235,6 +235,20 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
     actual = tb.slave_mem_read(11, test_addr, master_idx=0)
     assert actual == test_data, (
         f"Slave 11 memory mismatch at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    # Master 0 → Slave 12 (slave_tally_cfg)
+    test_addr = 0x00140100
+    # Non-pattern data: upper byte 0xDE so it can't be confused with any
+    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+    # the slave ID). Lower byte tags the (master, slave) pair for debug.
+    test_data = (0xDE000000 | (0 << 12) | 12)
+    tb.log.info(f"  W slave=12 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+    await tb.master_write(0, test_addr, test_data)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(12, test_addr, master_idx=0)
+    assert actual == test_data, (
+        f"Slave 12 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     tb.log.info(f"Master 2 (monbus_wr) — writes")
     # Master 2 → Slave 6 (stream_tally)
@@ -251,6 +265,20 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
     assert actual == test_data, (
         f"Slave 6 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    # Master 2 → Slave 10 (comp_sram)
+    test_addr = 0x001a0100
+    # Non-pattern data: upper byte 0xDE so it can't be confused with any
+    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+    # the slave ID). Lower byte tags the (master, slave) pair for debug.
+    test_data = (0xDE000000 | (2 << 12) | 10)
+    tb.log.info(f"  W slave=10 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+    await tb.master_write(2, test_addr, test_data)
+    # Read back at master 2's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(10, test_addr, master_idx=2)
+    assert actual == test_data, (
+        f"Slave 10 memory mismatch at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     tb.log.info(f"Master 3 (slave_monbus_wr) — writes")
     # Master 3 → Slave 9 (slave_tally)
     test_addr = 0x000c0100
@@ -265,6 +293,20 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
     actual = tb.slave_mem_read(9, test_addr, master_idx=3)
     assert actual == test_data, (
         f"Slave 9 memory mismatch at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+    # Master 3 → Slave 10 (comp_sram)
+    test_addr = 0x001a0100
+    # Non-pattern data: upper byte 0xDE so it can't be confused with any
+    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+    # the slave ID). Lower byte tags the (master, slave) pair for debug.
+    test_data = (0xDE000000 | (3 << 12) | 10)
+    tb.log.info(f"  W slave=10 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+    await tb.master_write(3, test_addr, test_data)
+    # Read back at master 3's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(10, test_addr, master_idx=3)
+    assert actual == test_data, (
+        f"Slave 10 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
 
     # ---- Read connectivity ---------------------------------------------
@@ -369,25 +411,35 @@ async def cocotb_test_bridge_stream_mon_axil_basic_connectivity(dut):
     assert actual == expected, (
         f"Read mismatch master 0 ← slave 9 at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
-    # Master 0 → Slave 10 (stream_tally_cfg)
+    # Master 0 → Slave 10 (comp_sram)
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00100100
+    test_addr = 0x001a0100
     expected = tb.slave_mem_read(10, test_addr, master_idx=0)
     tb.log.info(f"  R slave=10 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(0, test_addr)
     assert actual == expected, (
         f"Read mismatch master 0 ← slave 10 at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
-    # Master 0 → Slave 11 (slave_tally_cfg)
+    # Master 0 → Slave 11 (stream_tally_cfg)
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
-    test_addr = 0x00140100
+    test_addr = 0x00100100
     expected = tb.slave_mem_read(11, test_addr, master_idx=0)
     tb.log.info(f"  R slave=11 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(0, test_addr)
     assert actual == expected, (
         f"Read mismatch master 0 ← slave 11 at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Master 0 → Slave 12 (slave_tally_cfg)
+    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
+    # +0x100 is always safely inside the slave's window.
+    test_addr = 0x00140100
+    expected = tb.slave_mem_read(12, test_addr, master_idx=0)
+    tb.log.info(f"  R slave=12 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+    actual = await tb.master_read(0, test_addr)
+    assert actual == expected, (
+        f"Read mismatch master 0 ← slave 12 at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
     tb.log.info(f"Master 1 (stream_desc) — reads")
     # Master 1 → Slave 4 (desc_ram)
@@ -698,7 +750,7 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
                     f"M0→S9 data mismatch at "
                     f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
                     f"got 0x{got:08x}, expected 0x{d:08x}")
-    # Slave 10 (stream_tally_cfg): 0x00100000-0x0013ffff
+    # Slave 10 (comp_sram): 0x001a0000-0x001affff
     pages_0_10 = tb.slave_probe_pages(10, mode=mode)
     in_page_0_10 = tb.page_probe_offsets(10, master_idx=0)
     tb.log.info(f"  slave 10: {len(pages_0_10)} pages x 3 probes/page")
@@ -723,7 +775,7 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
                     f"M0→S10 data mismatch at "
                     f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
                     f"got 0x{got:08x}, expected 0x{d:08x}")
-    # Slave 11 (slave_tally_cfg): 0x00140000-0x0017ffff
+    # Slave 11 (stream_tally_cfg): 0x00100000-0x0013ffff
     pages_0_11 = tb.slave_probe_pages(11, mode=mode)
     in_page_0_11 = tb.page_probe_offsets(11, master_idx=0)
     tb.log.info(f"  slave 11: {len(pages_0_11)} pages x 3 probes/page")
@@ -746,6 +798,31 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
                 got = tb.slave_mem_read(11, addr, master_idx=0)
                 assert got == d, (
                     f"M0→S11 data mismatch at "
+                    f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
+                    f"got 0x{got:08x}, expected 0x{d:08x}")
+    # Slave 12 (slave_tally_cfg): 0x00140000-0x0017ffff
+    pages_0_12 = tb.slave_probe_pages(12, mode=mode)
+    in_page_0_12 = tb.page_probe_offsets(12, master_idx=0)
+    tb.log.info(f"  slave 12: {len(pages_0_12)} pages x 3 probes/page")
+    for page_idx, page_base in enumerate(pages_0_12):
+        for probe_idx, probe_off in enumerate(in_page_0_12):
+            addr = page_base + probe_off
+            # Tag data with (master, slave, page_idx, probe_idx) — every
+            # probe within an (M,S) pair gets a unique 16-bit ID so a
+            # misroute (write lands at wrong slave / wrong offset) is
+            # visible at a glance in the failure message.
+            d = (0xDE000000 | (0 << 20) | (12 << 16)
+                 | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
+            await tb.master_write(0, addr, d)
+            # Data round-trip IS the routing check: a misrouted write
+            # lands at a different slave (or different offset) and the
+            # seed pattern shows through instead of d. Skip the check
+            # for non-seeded probes (write still exercises the decode
+            # path, framework just drops OOR memory writes silently).
+            if tb.is_seeded(12, addr):
+                got = tb.slave_mem_read(12, addr, master_idx=0)
+                assert got == d, (
+                    f"M0→S12 data mismatch at "
                     f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
                     f"got 0x{got:08x}, expected 0x{d:08x}")
     tb.log.info(f"Master 1 (stream_desc)")
@@ -805,6 +882,31 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
                     f"M2→S6 data mismatch at "
                     f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
                     f"got 0x{got:08x}, expected 0x{d:08x}")
+    # Slave 10 (comp_sram): 0x001a0000-0x001affff
+    pages_2_10 = tb.slave_probe_pages(10, mode=mode)
+    in_page_2_10 = tb.page_probe_offsets(10, master_idx=2)
+    tb.log.info(f"  slave 10: {len(pages_2_10)} pages x 3 probes/page")
+    for page_idx, page_base in enumerate(pages_2_10):
+        for probe_idx, probe_off in enumerate(in_page_2_10):
+            addr = page_base + probe_off
+            # Tag data with (master, slave, page_idx, probe_idx) — every
+            # probe within an (M,S) pair gets a unique 16-bit ID so a
+            # misroute (write lands at wrong slave / wrong offset) is
+            # visible at a glance in the failure message.
+            d = (0xDE000000 | (2 << 20) | (10 << 16)
+                 | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
+            await tb.master_write(2, addr, d)
+            # Data round-trip IS the routing check: a misrouted write
+            # lands at a different slave (or different offset) and the
+            # seed pattern shows through instead of d. Skip the check
+            # for non-seeded probes (write still exercises the decode
+            # path, framework just drops OOR memory writes silently).
+            if tb.is_seeded(10, addr):
+                got = tb.slave_mem_read(10, addr, master_idx=2)
+                assert got == d, (
+                    f"M2→S10 data mismatch at "
+                    f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
+                    f"got 0x{got:08x}, expected 0x{d:08x}")
     tb.log.info(f"Master 3 (slave_monbus_wr)")
     # Slave 9 (slave_tally): 0x000c0000-0x000fffff
     pages_3_9 = tb.slave_probe_pages(9, mode=mode)
@@ -829,6 +931,31 @@ async def cocotb_test_bridge_stream_mon_axil_boundary_probe(dut):
                 got = tb.slave_mem_read(9, addr, master_idx=3)
                 assert got == d, (
                     f"M3→S9 data mismatch at "
+                    f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
+                    f"got 0x{got:08x}, expected 0x{d:08x}")
+    # Slave 10 (comp_sram): 0x001a0000-0x001affff
+    pages_3_10 = tb.slave_probe_pages(10, mode=mode)
+    in_page_3_10 = tb.page_probe_offsets(10, master_idx=3)
+    tb.log.info(f"  slave 10: {len(pages_3_10)} pages x 3 probes/page")
+    for page_idx, page_base in enumerate(pages_3_10):
+        for probe_idx, probe_off in enumerate(in_page_3_10):
+            addr = page_base + probe_off
+            # Tag data with (master, slave, page_idx, probe_idx) — every
+            # probe within an (M,S) pair gets a unique 16-bit ID so a
+            # misroute (write lands at wrong slave / wrong offset) is
+            # visible at a glance in the failure message.
+            d = (0xDE000000 | (3 << 20) | (10 << 16)
+                 | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
+            await tb.master_write(3, addr, d)
+            # Data round-trip IS the routing check: a misrouted write
+            # lands at a different slave (or different offset) and the
+            # seed pattern shows through instead of d. Skip the check
+            # for non-seeded probes (write still exercises the decode
+            # path, framework just drops OOR memory writes silently).
+            if tb.is_seeded(10, addr):
+                got = tb.slave_mem_read(10, addr, master_idx=3)
+                assert got == d, (
+                    f"M3→S10 data mismatch at "
                     f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
                     f"got 0x{got:08x}, expected 0x{d:08x}")
 

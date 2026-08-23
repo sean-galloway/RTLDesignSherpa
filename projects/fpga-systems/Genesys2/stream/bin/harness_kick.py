@@ -1,47 +1,42 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Harness kick-burst fast path — single source of truth.
+"""Multi-channel kick — single source of truth.
 
-The char harness (`harness_csr.sv`) exposes STREAM's `i_kick_burst_mask` /
-`i_kick_burst_addr` ports as CSRs so the host can fire N channel kicks
-back-to-back in one aclk cycle instead of serializing on the slow
-`apbtodescr` LOW/HIGH APB handshake (each of which is a full UART round trip).
+Stage each channel's descriptor address in STREAM's CHx_CTRL_{LOW,HIGH}, then
+issue ONE write to KICK_ENABLE with a channel bitmask. Every selected channel
+launches on the same aclk cycle, so a multi-channel run measures real
+concurrency rather than a staggered start.
 
-Programming sequence (see harness_csr.sv address map, 0xB0..0xD0):
-    1. Write CH_KICK_ADDR[ch] = descriptor address, for each channel to kick.
-    2. Write KICK_GO = bitmask of those channels. That single write pulses the
-       in-hardware kick line for every set bit for exactly one cycle.
+History, because the name of this module still says "harness": the launch used
+to live in the char harness. harness_csr.sv shadowed descriptor addresses in
+CH_KICK_ADDR (0xB0..0xD0, split around a KICK_GO slot at 0xC0) and pulsed
+STREAM's i_kick_burst_* ports. That existed only because the alternative was
+apb4todescr's LOW/HIGH APB handshake -- one full UART round trip per channel,
+milliseconds apart at 115200 baud. STREAM now owns both halves: the addresses
+are ordinary stored registers and KICK_ENABLE is the launch, so the harness
+carries no kick state and those ports are gone.
 
-CSR layout note: KICK_GO sits at 0xC0, in the *middle* of the kick-address slot
-range, so the per-channel slots split into two banks. A naive `base + 4*ch`
-stride lands ch=4 on 0xC0 and writes the address into KICK_GO — firing a
-spurious kick and never delivering channels >= 4. Always use kick_addr_csr().
-
-This module is the ONE place these offsets live; other host scripts import
-from here rather than re-declaring them.
+Other host scripts import batch_kick from here rather than re-implementing
+stage-then-launch.
 """
 
 from __future__ import annotations
 
 from typing import Mapping, Protocol
 
-from harness_addrs import H, HARNESS_CSR_BASE   # by-name harness CSR resolution (no hardcoded offsets)
-
-# Back-compat re-export (resolved BY NAME now, not a hardcoded offset).
-CSR_KICK_GO = H("KICK_GO")
+from harness_addrs import H, HARNESS_CSR_BASE   # noqa: F401  (HARNESS_CSR_BASE re-exported)
+from stream_addrs import A                     # by-name STREAM APB resolution
 
 
 def kick_addr_csr(ch: int) -> int:
-    """Absolute CSR address of the per-channel kick-address shadow register.
+    """Absolute address of a channel's staged descriptor-address register (LOW word).
 
-    Resolved BY NAME from harness_csr_regmap.py (CH{ch}_KICK_ADDR). The 8-channel
-    layout splits around the 0xC0 KICK_GO slot (ch 0..3 -> 0xB0..0xBC,
-    ch 4..7 -> 0xC4..0xD0); that split now lives in the regmap, not here, so a
-    map change follows automatically.
+    Now a STREAM register (CHx_CTRL_LOW), not a harness shadow: the launch moved
+    inside STREAM. Kept so callers that only wanted the address keep working.
     """
     if not 0 <= ch < 8:
         raise ValueError(f"channel {ch} out of range 0..7")
-    return H(f"CH{ch}_KICK_ADDR")
+    return A(f"CH{ch}_CTRL_LOW")
 
 
 class _Bridge(Protocol):
@@ -50,24 +45,31 @@ class _Bridge(Protocol):
 
 
 def batch_kick(bridge: _Bridge, kicks: Mapping[int, int]) -> int:
-    """Program address registers, then write the go bit — N kicks, one cycle.
+    """Stage every channel's descriptor address, then launch them in one write.
 
-    `kicks` maps {channel: descriptor_address}. Loads every CH_KICK_ADDR shadow
-    register, then issues a single KICK_GO with the combined channel bitmask, so
-    all selected channels are kicked back-to-back within one aclk cycle. Returns
-    the mask written to KICK_GO.
+    `kicks` maps {channel: descriptor_address}. Writes each channel's
+    CHx_CTRL_{LOW,HIGH}, then a single STREAM KICK_ENABLE with the combined
+    bitmask, so every selected channel starts on the SAME clock edge. Returns
+    the mask written.
 
-    The descriptor address is truncated to 32 bits: the kick-burst port is
-    ADDR_WIDTH-wide (32 in current builds) and the shadow register is 32 bits —
-    unlike the apbtodescr path there is no separate HIGH word to program.
+    This used to go through the harness KICK_GO CSR, which shadowed descriptor
+    addresses in harness_csr and pulsed STREAM's i_kick_burst_* ports. That
+    existed only because kicking through APB cost one UART transaction per
+    channel. STREAM now owns both halves, so the harness no longer carries kick
+    state and the ports are gone.
+
+    Unlike the old shadow registers, the address is a full 64 bits: STREAM
+    stores it as a LOW/HIGH pair.
     """
     if not kicks:
         return 0
     mask = 0
     for ch, desc_addr in kicks.items():
-        if not bridge.write(kick_addr_csr(ch), desc_addr & 0xFFFF_FFFF):
-            raise IOError(f"kick-addr write failed for channel {ch}")
+        if not bridge.write(A(f"CH{ch}_CTRL_LOW"), desc_addr & 0xFFFF_FFFF):
+            raise IOError(f"staged-addr LOW write failed for channel {ch}")
+        if not bridge.write(A(f"CH{ch}_CTRL_HIGH"), (desc_addr >> 32) & 0xFFFF_FFFF):
+            raise IOError(f"staged-addr HIGH write failed for channel {ch}")
         mask |= (1 << ch)
-    if not bridge.write(H("KICK_GO"), mask):
-        raise IOError(f"KICK_GO write failed (mask={mask:#x})")
+    if not bridge.write(A("KICK_ENABLE"), mask):
+        raise IOError(f"KICK_ENABLE write failed (mask={mask:#x})")
     return mask

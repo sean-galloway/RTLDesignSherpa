@@ -85,9 +85,9 @@ CSR_CRC_WR_PER_CH_BASE = H("CRC_WR_PER_CH0")
 CSR_CRC_VALID_MASK     = H("CRC_VALID_MASK")
 CSR_CRC_MATCH_MASK     = H("CRC_MATCH_MASK")
 # Kick-burst fast path — single source of truth in harness_kick.py.
-# (kick_addr_csr splits the per-channel slots around the 0xC0 KICK_GO slot;
+# (kick_addr_csr now resolves STREAM's CHx_CTRL_LOW by name;
 # batch_kick() programs the addresses then writes the go bit.)
-from harness_kick import CSR_KICK_GO, kick_addr_csr, batch_kick  # noqa: E402,F401
+from harness_kick import kick_addr_csr, batch_kick  # noqa: E402,F401
 CSR_SCRATCH         = H("SCRATCH")
 CSR_BUILD_ID        = H("BUILD_ID")
 
@@ -446,19 +446,19 @@ class CharacterizationRunner:
 
     def kick_channels(self, kick_addresses: dict):
         """Kick-burst fast path: pre-load per-channel addresses into the
-        harness CSR shadow registers, then fire a single KICK_GO write
-        with a channel bitmask. The harness pulses every kick line on the
-        same aclk cycle, so multi-channel runs actually pipeline instead
-        of serializing on the slow UART that the legacy per-channel APB
-        kick path needed (~2 ms / write at 115200 baud)."""
-        mask = 0
+        STREAM's staged CHx_CTRL registers, then fire a single KICK_ENABLE write
+        with a channel bitmask. STREAM pulses every kick line on the same
+        aclk cycle, so multi-channel runs actually pipeline instead of
+        serializing on the slow UART that a per-channel kick would need
+        (~2 ms / write at 115200 baud)."""
+        # Delegated to batch_kick so there is ONE implementation of
+        # stage-then-launch: it writes each channel's CHx_CTRL_{LOW,HIGH} and
+        # then a single KICK_ENABLE, starting every selected channel on the
+        # same clock edge.
+        mask = batch_kick(self.bridge, dict(sorted(kick_addresses.items())))
         for ch, axi4_addr in sorted(kick_addresses.items()):
-            self.bridge.write(kick_addr_csr(ch),
-                              axi4_addr & 0xFFFFFFFF)
-            mask |= (1 << ch)
-            self.vlog(f"  Loaded channel {ch} kick addr 0x{axi4_addr:08X}")
-        self.bridge.write(CSR_KICK_GO, mask)
-        self.vlog(f"  Kick burst fired, mask=0x{mask:02X}")
+            self.vlog(f"  Staged channel {ch} desc addr 0x{axi4_addr:08X}")
+        self.vlog(f"  Launched together, mask=0x{mask:02X}")
 
     # -----------------------------------------------------------------
     # Methodology metrics capture (per DMA_UTILIZATION_MEASUREMENT.md)

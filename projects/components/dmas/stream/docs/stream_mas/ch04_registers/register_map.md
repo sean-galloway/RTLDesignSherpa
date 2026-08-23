@@ -38,7 +38,7 @@ The STREAM DMA engine register interface consists of three distinct regions:
 ```
 Base Address (configurable parameter)
 │
-├─ 0x000 - 0x03F: Channel Kick-off (apb4todescr.sv routing)
+├─ 0x000 - 0x03F: Channel descriptor addresses (staged; see KICK_ENABLE)
 │  ├─ 0x000: CH0_CTRL_LOW  - Channel 0 descriptor address [31:0]
 │  ├─ 0x004: CH0_CTRL_HIGH - Channel 0 descriptor address [63:32]
 │  ├─ 0x008: CH1_CTRL_LOW  - Channel 1 descriptor address [31:0]
@@ -56,6 +56,8 @@ Base Address (configurable parameter)
 │  ├─ 0x038: CH7_CTRL_LOW  - Channel 7 descriptor address [31:0]
 │  └─ 0x03C: CH7_CTRL_HIGH - Channel 7 descriptor address [63:32]
 │
+│
+├─ 0x128: KICK_ENABLE - write bit[ch]=1 to launch that channel (self-clearing)
 ├─ 0x040 - 0x0FF: Reserved
 │
 ├─ 0x100 - 0x3FF: Configuration and Status Registers (base regfile)
@@ -79,15 +81,26 @@ Base Address (configurable parameter)
 
 ## Register Details
 
-### Channel Kick-off Registers (0x000 - 0x03F)
+### Channel Descriptor Address Registers (0x000 - 0x03F)
 
-These registers are **NOT** traditional registers. Writes are routed directly to descriptor engine APB ports via `apb4todescr.sv`.
+Ordinary read/write storage. A write STAGES an address; it does **not** start a
+transfer. Launch is a separate write to `KICK_ENABLE` (0x128).
+
+This changed: these were previously write-only address-map placeholders with no
+storage, and the write itself kicked -- decoded off the raw APB command stream by
+`apb4todescr.sv`, which sat beside the register block rather than in it. Two
+consequences drove the change. The descriptor address existed nowhere as readable
+state, so it could not be verified before launch. And because the write *was* the
+launch, starting N channels cost N APB transactions: over UART that is
+milliseconds between the first and last channel, long enough to bias any
+cross-channel measurement. Staging the addresses first and then writing
+`KICK_ENABLE` once starts every channel on the same cycle.
 
 **Note:** Descriptor addresses are 64-bit (ADDR_WIDTH parameter, default 64). On 32-bit APB bus, each channel requires TWO registers (LOW/HIGH).
 
 | Offset | Register       | Type | Reset | Description                                    |
 |--------|----------------|------|-------|------------------------------------------------|
-| 0x000  | CH0_CTRL_LOW   | WO   | N/A   | Channel 0 descriptor address [31:0]            |
+| 0x000  | CH0_CTRL_LOW   | RW   | 0x0   | Channel 0 descriptor address [31:0] (staged)   |
 | 0x004  | CH0_CTRL_HIGH  | WO   | N/A   | Channel 0 descriptor address [63:32]           |
 | 0x008  | CH1_CTRL_LOW   | WO   | N/A   | Channel 1 descriptor address [31:0]            |
 | 0x00C  | CH1_CTRL_HIGH  | WO   | N/A   | Channel 1 descriptor address [63:32]           |

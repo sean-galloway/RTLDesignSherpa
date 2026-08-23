@@ -378,6 +378,19 @@ module stream_harness #(
     logic [31:0] s6_araddr; logic [2:0] s6_arprot; logic s6_arvalid, s6_arready;
     logic [63:0] s6_rdata;  logic [1:0] s6_rresp;  logic s6_rvalid, s6_rready;
 
+    // comp_sram: a REAL memory (sdpram_slave_axil_axil), not a tally. The tally
+    // reassembles RAW 3-beat records and cannot consume the compressed monbus
+    // stream, so with compression enabled there was nowhere for the traffic to
+    // land. Writes here are ordinary memory writes: the host reads the bytes
+    // back and diffs them against the bit-exact Python golden
+    // (bin/TBClasses/monbus/monbus_compressor.py), which verifies the format on
+    // silicon with no RTL decoder in the loop.
+    logic [31:0] cs_awaddr; logic [2:0] cs_awprot; logic cs_awvalid, cs_awready;
+    logic [63:0] cs_wdata;  logic [7:0] cs_wstrb;  logic cs_wvalid, cs_wready;
+    logic [1:0]  cs_bresp;  logic cs_bvalid, cs_bready;
+    logic [31:0] cs_araddr; logic [2:0] cs_arprot; logic cs_arvalid, cs_arready;
+    logic [63:0] cs_rdata;  logic [1:0] cs_rresp;  logic cs_rvalid, cs_rready;
+
     // ---- Bridge instance ---------------------------------------------------
     // ---- Observer / slave-monitor config APB nets ---------------------------
     // DECLARED HERE, BEFORE THE BRIDGE INSTANTIATION BELOW USES THEM.
@@ -718,6 +731,18 @@ module stream_harness #(
         .slave_tally_axi_rdata   (s6_rdata),   .slave_tally_axi_rresp   (s6_rresp),
         .slave_tally_axi_rvalid  (s6_rvalid),  .slave_tally_axi_rready  (s6_rready),
 
+        // Slave 10: comp_sram — compression capture memory.
+        .comp_sram_axi_awaddr  (cs_awaddr),  .comp_sram_axi_awprot  (cs_awprot),
+        .comp_sram_axi_awvalid (cs_awvalid), .comp_sram_axi_awready (cs_awready),
+        .comp_sram_axi_wdata   (cs_wdata),   .comp_sram_axi_wstrb   (cs_wstrb),
+        .comp_sram_axi_wvalid  (cs_wvalid),  .comp_sram_axi_wready  (cs_wready),
+        .comp_sram_axi_bresp   (cs_bresp),   .comp_sram_axi_bvalid  (cs_bvalid),
+        .comp_sram_axi_bready  (cs_bready),
+        .comp_sram_axi_araddr  (cs_araddr),  .comp_sram_axi_arprot  (cs_arprot),
+        .comp_sram_axi_arvalid (cs_arvalid), .comp_sram_axi_arready (cs_arready),
+        .comp_sram_axi_rdata   (cs_rdata),   .comp_sram_axi_rresp   (cs_rresp),
+        .comp_sram_axi_rvalid  (cs_rvalid),  .comp_sram_axi_rready  (cs_rready),
+
         // Dedicated host cfg/readback ports (AXIL subset; AXI4 extras open).
         .stream_tally_cfg_axi_awaddr (sc0_awaddr), .stream_tally_cfg_axi_awprot (sc0_awprot),
         .stream_tally_cfg_axi_awvalid(sc0_awvalid),.stream_tally_cfg_axi_awready(sc0_awready),
@@ -872,8 +897,6 @@ module stream_harness #(
     logic [15:0] csr_wr_resp_delay_cyc;
 
     // Wires from harness_csr → stream_top_ch8 (kick-burst fast path).
-    logic [NUM_CHANNELS-1:0]       csr_kick_burst_mask;
-    logic [NUM_CHANNELS-1:0][31:0] csr_kick_burst_addr;
 
     // desc_ram observation bus + handshake/stall counters (consumed by the
     // harness_csr instance below; counters use w_desc_*_hs / *_stall wires
@@ -940,6 +963,10 @@ module stream_harness #(
         // The host reads these to know which classes this bitstream can emit.
         .BUILD_ERROR_FLAVOR(int'(w_data_mon_error_cone)),
         .BUILD_MAIN_CONES  (int'(w_data_mon_main_cones)),
+        // Derived from the harness clock, never a literal: a second copy
+        // would be free to disagree with the MMCM, which is exactly the
+        // failure this register exists to remove.
+        .BUILD_CLK_HZ      (FPGA_CLK_HZ),
         .BUILD_NUM_CHANNELS(NUM_CHANNELS),
         // Derived, not a literal: the host reads this to size beats and
         // throughput, so it must track the datapath it is actually built with.
@@ -1008,8 +1035,6 @@ module stream_harness #(
 
         // Kick-burst outputs (CH_KICK_ADDR slots split around KICK_GO @ 0xC0;
         // see harness_csr.sv address-map block for the per-channel offsets)
-        .o_kick_burst_mask     (csr_kick_burst_mask),
-        .o_kick_burst_addr     (csr_kick_burst_addr),
 
         // (AXI bus meter readback retired in RFC Stage E.4 -- datapath
         //  utilization is now measured in-core via the STREAM RDMON/WRMON_PERF
@@ -1505,6 +1530,61 @@ module stream_harness #(
         .cfgr_rvalid(sc1_rvalid),  .cfgr_rready(sc1_rready),
         .tally_freeze(csr_freeze),  .tally_flush(w_tally_flush),
         .tally_flush_busy(w_slave_tally_flush_busy), .tally_clear(csr_clear_pulse)
+    );
+
+    // =========================================================================
+    // Compression capture SRAM (comp_sram @ 0x001A_0000, 64 KB)
+    // =========================================================================
+    // MEM_DEPTH is in 64-bit words: the bridge window is 64 KB and the data bus
+    // is 64 bits, so 65536/8 = 8192 entries. Sizing it from the window rather
+    // than a literal keeps the two from drifting -- a memory smaller than its
+    // window aliases silently, which on a capture buffer looks like corrupted
+    // records rather than a wrap.
+    localparam int COMP_SRAM_BYTES = 32'h0001_0000;   // must match addr_range
+    localparam int COMP_SRAM_WORDS = COMP_SRAM_BYTES / 8;
+
+    sdpram_slave_axil_axil #(
+        .ADDR_WIDTH (32),
+        .DATA_WIDTH (64),
+        .MEM_DEPTH  (COMP_SRAM_WORDS)
+    ) u_comp_sram (
+        .aclk(aclk), .aresetn(unit_aresetn),
+
+        .s_axil_awaddr  (cs_awaddr),
+        .s_axil_awprot  (cs_awprot),
+        .s_axil_awvalid (cs_awvalid),
+        .s_axil_awready (cs_awready),
+
+        .s_axil_wdata   (cs_wdata),
+        .s_axil_wstrb   (cs_wstrb),
+        .s_axil_wvalid  (cs_wvalid),
+        .s_axil_wready  (cs_wready),
+
+        .s_axil_bresp   (cs_bresp),
+        .s_axil_bvalid  (cs_bvalid),
+        .s_axil_bready  (cs_bready),
+
+        .s_axil_araddr  (cs_araddr),
+        .s_axil_arprot  (cs_arprot),
+        .s_axil_arvalid (cs_arvalid),
+        .s_axil_arready (cs_arready),
+
+        .s_axil_rdata   (cs_rdata),
+        .s_axil_rresp   (cs_rresp),
+        .s_axil_rvalid  (cs_rvalid),
+        .s_axil_rready  (cs_rready),
+
+        // Bulk clear unused: the host zeroes the window before a capture run
+        // so a short capture cannot be read as stale bytes from the last one.
+        .i_cfg_start_clear (1'b0),
+        .o_cfg_done_clear  (),
+
+        .o_dbg_vr      (),
+        .o_dbg_fub_vr  (),
+        .o_dbg_bram_wr (),
+        .o_dbg_bram_rd (),
+        .o_dbg_busy_wr (),
+        .o_dbg_busy_rd ()
     );
     // debug_sram's trace-log debug signals no longer exist; tie them off so the
     // legacy host-visible wr_ptr / CSR plumbing below still compiles (those
@@ -2393,8 +2473,6 @@ module stream_harness #(
 
         // Kick-burst fast path (1-cycle pulse from harness_csr KICK_GO,
         // shadow addresses from CH_KICK_ADDR[ch]).
-        .i_kick_burst_mask (csr_kick_burst_mask),
-        .i_kick_burst_addr (csr_kick_burst_addr),
 
         // APB config
         .s_apb_paddr  (apb_paddr),

@@ -31,10 +31,11 @@ reg(0x58, 'TIMER_W_LAST_LO');  reg(0x5C, 'TIMER_W_LAST_HI')
 for ch in range(8): reg(0x60 + 4*ch, f'CRC_RD_PER_CH{ch}')
 for ch in range(8): reg(0x80 + 4*ch, f'CRC_WR_PER_CH{ch}')
 reg(0xA0, 'CRC_VALID_MASK'); reg(0xA4, 'CRC_MATCH_MASK')
-# Kick-burst shadow addr regs split around KICK_GO @ 0xC0
-for ch in range(4): reg(0xB0 + 4*ch, f'CH{ch}_KICK_ADDR', 'rw')
-reg(0xC0, 'KICK_GO', 'rw', [('MASK',7,0,'w')])
-for ch in range(4): reg(0xC4 + 4*ch, f'CH{ch+4}_KICK_ADDR', 'rw')
+# 0xB0-0xD0 were the kick-burst shadow addresses + KICK_GO. Retired: the launch
+# is now STREAM's own CHx_CTRL_{LOW,HIGH} + KICK_ENABLE, so the harness no
+# longer shadows descriptor addresses or pulses kick lines. The slots are left
+# unallocated rather than reused, so an old host writing 0xC0 reads/writes a
+# hole instead of silently hitting some new register.
 reg(0xD4, 'DESC_SRAM_AR_HS'); reg(0xD8, 'DESC_SRAM_R_HS')
 reg(0xE0, 'DESC_AR_HS'); reg(0xE4, 'DESC_AR_STALL')
 reg(0xE8, 'DESC_R_HS');  reg(0xEC, 'DESC_R_STALL')
@@ -72,6 +73,8 @@ reg(0x1D4, 'BUILD_CONFIG', 'r', [('NUM_CHANNELS',4,0,'r'), ('ERROR_FLAVOR',5,5,'
                                  # halves, both = the union build.
                                  ('DATA_WIDTH_B',15,8,'r'), ('MAIN_CONES',16,16,'r')])
 reg(0x1D8, 'BUILD_N_PROFILE')
+# Harness clock in Hz -- the host reads this instead of assuming 100 MHz.
+reg(0x1DC, 'BUILD_CLK_HZ')
 # Monbus-compression observer readback
 for i,n in enumerate(['COMP_TIER1_A','COMP_TIER1_B','COMP_TIER1_C','COMP_TIER0',
                       'COMP_CAM_MISS','COMP_DELTA_TS_OVF','COMP_EVENT_DATA_OVF','COMP_ED_DELTA_OVF']):
@@ -102,7 +105,7 @@ hdr = '''# SPDX-License-Identifier: MIT
 # SEPARATE from stream_regmap.py (the STREAM IP registers) -- this is the char
 # harness's own control/status/timer/observer/kick block at base 0x0001_0000.
 # Fed to the harness code as its own device so harness registers are accessed by
-# name: harness.write("KICK_GO", MASK=...) / harness.read("TIMER_CYCLES_LO") /
+# name: harness.write("RUN_CTRL", ...) / harness.read("TIMER_CYCLES_LO") /
 # harness.field("TIMER_STATUS", "DONE"), exactly like the STREAM device.
 #
 # Hand-maintained to mirror harness_csr.sv's documented address map (the harness

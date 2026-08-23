@@ -1439,10 +1439,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     } SLAVE_TALLY_9_RD_MASKS_E;
 
     // ----------------------------------------------------------------
-    // stream_tally_cfg_10 WR direction
+    // comp_sram_10 WR direction
     // ----------------------------------------------------------------
     reg {
-        name = "stream_tally_cfg_10 WR CTRL";
+        name = "comp_sram_10 WR CTRL";
         desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
@@ -1456,47 +1456,47 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
         field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
-    } STREAM_TALLY_CFG_10_WR_CTRL;
+    } COMP_SRAM_10_WR_CTRL;
 
     reg {
-        name = "stream_tally_cfg_10 WR LATENCY";
+        name = "comp_sram_10 WR LATENCY";
         field { reset = 32'h00000200; } latency_threshold[31:0];
-    } STREAM_TALLY_CFG_10_WR_LATENCY;
+    } COMP_SRAM_10_WR_LATENCY;
 
     reg {
-        name = "stream_tally_cfg_10 WR MASKS_A";
+        name = "comp_sram_10 WR MASKS_A";
         field { reset = 16'h0000; } axi_pkt_mask[15:0];
         field { reset = 16'h0000; } axi_err_select[31:16];
-    } STREAM_TALLY_CFG_10_WR_MASKS_A;
+    } COMP_SRAM_10_WR_MASKS_A;
 
     reg {
-        name = "stream_tally_cfg_10 WR MASKS_B";
+        name = "comp_sram_10 WR MASKS_B";
         field { reset = 16'h0000; } axi_error_mask[15:0];
         field { reset = 16'h0000; } axi_timeout_mask[31:16];
-    } STREAM_TALLY_CFG_10_WR_MASKS_B;
+    } COMP_SRAM_10_WR_MASKS_B;
 
     reg {
-        name = "stream_tally_cfg_10 WR MASKS_C";
+        name = "comp_sram_10 WR MASKS_C";
         field { reset = 16'h0000; } axi_compl_mask[15:0];
         field { reset = 16'h0000; } axi_thresh_mask[31:16];
-    } STREAM_TALLY_CFG_10_WR_MASKS_C;
+    } COMP_SRAM_10_WR_MASKS_C;
 
     reg {
-        name = "stream_tally_cfg_10 WR MASKS_D";
+        name = "comp_sram_10 WR MASKS_D";
         field { reset = 16'h0000; } axi_perf_mask[15:0];
         field { reset = 16'h0000; } axi_addr_mask[31:16];
-    } STREAM_TALLY_CFG_10_WR_MASKS_D;
+    } COMP_SRAM_10_WR_MASKS_D;
 
     reg {
-        name = "stream_tally_cfg_10 WR MASKS_E";
+        name = "comp_sram_10 WR MASKS_E";
         field { reset = 16'h0000; } axi_debug_mask[15:0];
-    } STREAM_TALLY_CFG_10_WR_MASKS_E;
+    } COMP_SRAM_10_WR_MASKS_E;
 
     // ----------------------------------------------------------------
-    // stream_tally_cfg_10 RD direction
+    // comp_sram_10 RD direction
     // ----------------------------------------------------------------
     reg {
-        name = "stream_tally_cfg_10 RD CTRL";
+        name = "comp_sram_10 RD CTRL";
         desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
@@ -1510,47 +1510,47 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
         field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
-    } STREAM_TALLY_CFG_10_RD_CTRL;
+    } COMP_SRAM_10_RD_CTRL;
 
     reg {
-        name = "stream_tally_cfg_10 RD LATENCY";
+        name = "comp_sram_10 RD LATENCY";
         field { reset = 32'h00000200; } latency_threshold[31:0];
-    } STREAM_TALLY_CFG_10_RD_LATENCY;
+    } COMP_SRAM_10_RD_LATENCY;
 
     reg {
-        name = "stream_tally_cfg_10 RD MASKS_A";
+        name = "comp_sram_10 RD MASKS_A";
         field { reset = 16'h0000; } axi_pkt_mask[15:0];
         field { reset = 16'h0000; } axi_err_select[31:16];
-    } STREAM_TALLY_CFG_10_RD_MASKS_A;
+    } COMP_SRAM_10_RD_MASKS_A;
 
     reg {
-        name = "stream_tally_cfg_10 RD MASKS_B";
+        name = "comp_sram_10 RD MASKS_B";
         field { reset = 16'h0000; } axi_error_mask[15:0];
         field { reset = 16'h0000; } axi_timeout_mask[31:16];
-    } STREAM_TALLY_CFG_10_RD_MASKS_B;
+    } COMP_SRAM_10_RD_MASKS_B;
 
     reg {
-        name = "stream_tally_cfg_10 RD MASKS_C";
+        name = "comp_sram_10 RD MASKS_C";
         field { reset = 16'h0000; } axi_compl_mask[15:0];
         field { reset = 16'h0000; } axi_thresh_mask[31:16];
-    } STREAM_TALLY_CFG_10_RD_MASKS_C;
+    } COMP_SRAM_10_RD_MASKS_C;
 
     reg {
-        name = "stream_tally_cfg_10 RD MASKS_D";
+        name = "comp_sram_10 RD MASKS_D";
         field { reset = 16'h0000; } axi_perf_mask[15:0];
         field { reset = 16'h0000; } axi_addr_mask[31:16];
-    } STREAM_TALLY_CFG_10_RD_MASKS_D;
+    } COMP_SRAM_10_RD_MASKS_D;
 
     reg {
-        name = "stream_tally_cfg_10 RD MASKS_E";
+        name = "comp_sram_10 RD MASKS_E";
         field { reset = 16'h0000; } axi_debug_mask[15:0];
-    } STREAM_TALLY_CFG_10_RD_MASKS_E;
+    } COMP_SRAM_10_RD_MASKS_E;
 
     // ----------------------------------------------------------------
-    // slave_tally_cfg_11 WR direction
+    // stream_tally_cfg_11 WR direction
     // ----------------------------------------------------------------
     reg {
-        name = "slave_tally_cfg_11 WR CTRL";
+        name = "stream_tally_cfg_11 WR CTRL";
         desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
@@ -1564,47 +1564,47 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
         field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
-    } SLAVE_TALLY_CFG_11_WR_CTRL;
+    } STREAM_TALLY_CFG_11_WR_CTRL;
 
     reg {
-        name = "slave_tally_cfg_11 WR LATENCY";
+        name = "stream_tally_cfg_11 WR LATENCY";
         field { reset = 32'h00000200; } latency_threshold[31:0];
-    } SLAVE_TALLY_CFG_11_WR_LATENCY;
+    } STREAM_TALLY_CFG_11_WR_LATENCY;
 
     reg {
-        name = "slave_tally_cfg_11 WR MASKS_A";
+        name = "stream_tally_cfg_11 WR MASKS_A";
         field { reset = 16'h0000; } axi_pkt_mask[15:0];
         field { reset = 16'h0000; } axi_err_select[31:16];
-    } SLAVE_TALLY_CFG_11_WR_MASKS_A;
+    } STREAM_TALLY_CFG_11_WR_MASKS_A;
 
     reg {
-        name = "slave_tally_cfg_11 WR MASKS_B";
+        name = "stream_tally_cfg_11 WR MASKS_B";
         field { reset = 16'h0000; } axi_error_mask[15:0];
         field { reset = 16'h0000; } axi_timeout_mask[31:16];
-    } SLAVE_TALLY_CFG_11_WR_MASKS_B;
+    } STREAM_TALLY_CFG_11_WR_MASKS_B;
 
     reg {
-        name = "slave_tally_cfg_11 WR MASKS_C";
+        name = "stream_tally_cfg_11 WR MASKS_C";
         field { reset = 16'h0000; } axi_compl_mask[15:0];
         field { reset = 16'h0000; } axi_thresh_mask[31:16];
-    } SLAVE_TALLY_CFG_11_WR_MASKS_C;
+    } STREAM_TALLY_CFG_11_WR_MASKS_C;
 
     reg {
-        name = "slave_tally_cfg_11 WR MASKS_D";
+        name = "stream_tally_cfg_11 WR MASKS_D";
         field { reset = 16'h0000; } axi_perf_mask[15:0];
         field { reset = 16'h0000; } axi_addr_mask[31:16];
-    } SLAVE_TALLY_CFG_11_WR_MASKS_D;
+    } STREAM_TALLY_CFG_11_WR_MASKS_D;
 
     reg {
-        name = "slave_tally_cfg_11 WR MASKS_E";
+        name = "stream_tally_cfg_11 WR MASKS_E";
         field { reset = 16'h0000; } axi_debug_mask[15:0];
-    } SLAVE_TALLY_CFG_11_WR_MASKS_E;
+    } STREAM_TALLY_CFG_11_WR_MASKS_E;
 
     // ----------------------------------------------------------------
-    // slave_tally_cfg_11 RD direction
+    // stream_tally_cfg_11 RD direction
     // ----------------------------------------------------------------
     reg {
-        name = "slave_tally_cfg_11 RD CTRL";
+        name = "stream_tally_cfg_11 RD CTRL";
         desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
@@ -1618,41 +1618,149 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
         field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
-    } SLAVE_TALLY_CFG_11_RD_CTRL;
+    } STREAM_TALLY_CFG_11_RD_CTRL;
 
     reg {
-        name = "slave_tally_cfg_11 RD LATENCY";
+        name = "stream_tally_cfg_11 RD LATENCY";
         field { reset = 32'h00000200; } latency_threshold[31:0];
-    } SLAVE_TALLY_CFG_11_RD_LATENCY;
+    } STREAM_TALLY_CFG_11_RD_LATENCY;
 
     reg {
-        name = "slave_tally_cfg_11 RD MASKS_A";
+        name = "stream_tally_cfg_11 RD MASKS_A";
         field { reset = 16'h0000; } axi_pkt_mask[15:0];
         field { reset = 16'h0000; } axi_err_select[31:16];
-    } SLAVE_TALLY_CFG_11_RD_MASKS_A;
+    } STREAM_TALLY_CFG_11_RD_MASKS_A;
 
     reg {
-        name = "slave_tally_cfg_11 RD MASKS_B";
+        name = "stream_tally_cfg_11 RD MASKS_B";
         field { reset = 16'h0000; } axi_error_mask[15:0];
         field { reset = 16'h0000; } axi_timeout_mask[31:16];
-    } SLAVE_TALLY_CFG_11_RD_MASKS_B;
+    } STREAM_TALLY_CFG_11_RD_MASKS_B;
 
     reg {
-        name = "slave_tally_cfg_11 RD MASKS_C";
+        name = "stream_tally_cfg_11 RD MASKS_C";
         field { reset = 16'h0000; } axi_compl_mask[15:0];
         field { reset = 16'h0000; } axi_thresh_mask[31:16];
-    } SLAVE_TALLY_CFG_11_RD_MASKS_C;
+    } STREAM_TALLY_CFG_11_RD_MASKS_C;
 
     reg {
-        name = "slave_tally_cfg_11 RD MASKS_D";
+        name = "stream_tally_cfg_11 RD MASKS_D";
         field { reset = 16'h0000; } axi_perf_mask[15:0];
         field { reset = 16'h0000; } axi_addr_mask[31:16];
-    } SLAVE_TALLY_CFG_11_RD_MASKS_D;
+    } STREAM_TALLY_CFG_11_RD_MASKS_D;
 
     reg {
-        name = "slave_tally_cfg_11 RD MASKS_E";
+        name = "stream_tally_cfg_11 RD MASKS_E";
         field { reset = 16'h0000; } axi_debug_mask[15:0];
-    } SLAVE_TALLY_CFG_11_RD_MASKS_E;
+    } STREAM_TALLY_CFG_11_RD_MASKS_E;
+
+    // ----------------------------------------------------------------
+    // slave_tally_cfg_12 WR direction
+    // ----------------------------------------------------------------
+    reg {
+        name = "slave_tally_cfg_12 WR CTRL";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
+        field { reset = 1'h1; } monitor_enable[0:0];
+        field { reset = 1'h1; } error_enable[1:1];
+        field { reset = 1'h0; } timeout_enable[2:2];
+        field { reset = 1'h0; } perf_enable[3:3];
+        field { reset = 1'h0; } compl_enable[4:4];
+        field { reset = 1'h0; } threshold_enable[5:5];
+        field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
+        field { reset = 16'h0400; } timeout_cycles[31:16];
+    } SLAVE_TALLY_CFG_12_WR_CTRL;
+
+    reg {
+        name = "slave_tally_cfg_12 WR LATENCY";
+        field { reset = 32'h00000200; } latency_threshold[31:0];
+    } SLAVE_TALLY_CFG_12_WR_LATENCY;
+
+    reg {
+        name = "slave_tally_cfg_12 WR MASKS_A";
+        field { reset = 16'h0000; } axi_pkt_mask[15:0];
+        field { reset = 16'h0000; } axi_err_select[31:16];
+    } SLAVE_TALLY_CFG_12_WR_MASKS_A;
+
+    reg {
+        name = "slave_tally_cfg_12 WR MASKS_B";
+        field { reset = 16'h0000; } axi_error_mask[15:0];
+        field { reset = 16'h0000; } axi_timeout_mask[31:16];
+    } SLAVE_TALLY_CFG_12_WR_MASKS_B;
+
+    reg {
+        name = "slave_tally_cfg_12 WR MASKS_C";
+        field { reset = 16'h0000; } axi_compl_mask[15:0];
+        field { reset = 16'h0000; } axi_thresh_mask[31:16];
+    } SLAVE_TALLY_CFG_12_WR_MASKS_C;
+
+    reg {
+        name = "slave_tally_cfg_12 WR MASKS_D";
+        field { reset = 16'h0000; } axi_perf_mask[15:0];
+        field { reset = 16'h0000; } axi_addr_mask[31:16];
+    } SLAVE_TALLY_CFG_12_WR_MASKS_D;
+
+    reg {
+        name = "slave_tally_cfg_12 WR MASKS_E";
+        field { reset = 16'h0000; } axi_debug_mask[15:0];
+    } SLAVE_TALLY_CFG_12_WR_MASKS_E;
+
+    // ----------------------------------------------------------------
+    // slave_tally_cfg_12 RD direction
+    // ----------------------------------------------------------------
+    reg {
+        name = "slave_tally_cfg_12 RD CTRL";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
+        field { reset = 1'h1; } monitor_enable[0:0];
+        field { reset = 1'h1; } error_enable[1:1];
+        field { reset = 1'h0; } timeout_enable[2:2];
+        field { reset = 1'h0; } perf_enable[3:3];
+        field { reset = 1'h0; } compl_enable[4:4];
+        field { reset = 1'h0; } threshold_enable[5:5];
+        field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
+        field { reset = 16'h0400; } timeout_cycles[31:16];
+    } SLAVE_TALLY_CFG_12_RD_CTRL;
+
+    reg {
+        name = "slave_tally_cfg_12 RD LATENCY";
+        field { reset = 32'h00000200; } latency_threshold[31:0];
+    } SLAVE_TALLY_CFG_12_RD_LATENCY;
+
+    reg {
+        name = "slave_tally_cfg_12 RD MASKS_A";
+        field { reset = 16'h0000; } axi_pkt_mask[15:0];
+        field { reset = 16'h0000; } axi_err_select[31:16];
+    } SLAVE_TALLY_CFG_12_RD_MASKS_A;
+
+    reg {
+        name = "slave_tally_cfg_12 RD MASKS_B";
+        field { reset = 16'h0000; } axi_error_mask[15:0];
+        field { reset = 16'h0000; } axi_timeout_mask[31:16];
+    } SLAVE_TALLY_CFG_12_RD_MASKS_B;
+
+    reg {
+        name = "slave_tally_cfg_12 RD MASKS_C";
+        field { reset = 16'h0000; } axi_compl_mask[15:0];
+        field { reset = 16'h0000; } axi_thresh_mask[31:16];
+    } SLAVE_TALLY_CFG_12_RD_MASKS_C;
+
+    reg {
+        name = "slave_tally_cfg_12 RD MASKS_D";
+        field { reset = 16'h0000; } axi_perf_mask[15:0];
+        field { reset = 16'h0000; } axi_addr_mask[31:16];
+    } SLAVE_TALLY_CFG_12_RD_MASKS_D;
+
+    reg {
+        name = "slave_tally_cfg_12 RD MASKS_E";
+        field { reset = 16'h0000; } axi_debug_mask[15:0];
+    } SLAVE_TALLY_CFG_12_RD_MASKS_E;
 
     // ----------------------------------------------------------------
     // Group cfg — shared across all monitors at the monbus_axil_group.

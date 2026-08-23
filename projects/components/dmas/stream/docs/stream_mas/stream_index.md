@@ -68,7 +68,6 @@
 - [AXI Write Engine](ch02_blocks/12_axi_write_engine.md)
 
 **Configuration & Monitoring:**
-- [APB to Descriptor Router](ch02_blocks/13_apb4todescr.md)
 - [APB Config](ch02_blocks/14_apb_config.md)
 - [Performance Profiler](ch02_blocks/15_perf_profiler.md)
 - [MonBus AXIL Group](ch02_blocks/16_monbus_axil_group.md)

@@ -5,14 +5,19 @@
 // Enhanced with full monitor configuration fields
 //
 // Address Space Layout:
-//   0x000 - 0x03F: Channel kick-off registers (handled by apb4todescr.sv)
-//                  - 16 registers: CHx_CTRL_LOW + CHx_CTRL_HIGH for 8 channels
-//                  - 64-bit descriptor addresses split across LOW/HIGH pairs
+//   0x000 - 0x03F: Per-channel descriptor address, 8 x 64-bit (LOW/HIGH pairs)
+//   0x128        : KICK_ENABLE -- one bit per channel, launches the staged addr
+//                  (0x040-0x0FF is the perf profiler's window, so the kick
+//                   register lives with the other per-channel controls)
 //   0x100 - 0x3FF: Control and status registers (this file)
 //
 // Notes:
-//   - Channel kick-off registers (CHx_CTRL) are NOT defined here
-//   - Those are routed directly to descriptor engines via apb4todescr.sv
+//   - The address registers STORE (sw=rw, hw=r); a write no longer kicks.
+//   - Launch is a separate write to KICK_ENABLE, so software stages every
+//     channel's address first and then starts them TOGETHER. Kicking via the
+//     address write forced one APB (i.e. one UART) transaction per channel,
+//     so channel 0 had been running for milliseconds before channel 7 began
+//     and any cross-channel measurement was reading a staggered start.
 //   - This file defines all other configuration and status registers
 //   - Includes full monitor mask and threshold registers
 //
@@ -38,22 +43,52 @@ addrmap stream_regs {
     // write is decoded by cmdrsp_router (0x000-0x03F -> apb4todescr), so there is
     // no PeakRDL storage/hwif effect (hw=na); they occupy the address map only.
     //=========================================================================
-    reg { name="Ch0 kick LOW";  desc="Ch0 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH0_CTRL_LOW  @ 0x000;
-    reg { name="Ch0 kick HIGH"; desc="Ch0 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH0_CTRL_HIGH @ 0x004;
-    reg { name="Ch1 kick LOW";  desc="Ch1 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH1_CTRL_LOW  @ 0x008;
-    reg { name="Ch1 kick HIGH"; desc="Ch1 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH1_CTRL_HIGH @ 0x00C;
-    reg { name="Ch2 kick LOW";  desc="Ch2 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH2_CTRL_LOW  @ 0x010;
-    reg { name="Ch2 kick HIGH"; desc="Ch2 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH2_CTRL_HIGH @ 0x014;
-    reg { name="Ch3 kick LOW";  desc="Ch3 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH3_CTRL_LOW  @ 0x018;
-    reg { name="Ch3 kick HIGH"; desc="Ch3 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH3_CTRL_HIGH @ 0x01C;
-    reg { name="Ch4 kick LOW";  desc="Ch4 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH4_CTRL_LOW  @ 0x020;
-    reg { name="Ch4 kick HIGH"; desc="Ch4 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH4_CTRL_HIGH @ 0x024;
-    reg { name="Ch5 kick LOW";  desc="Ch5 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH5_CTRL_LOW  @ 0x028;
-    reg { name="Ch5 kick HIGH"; desc="Ch5 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH5_CTRL_HIGH @ 0x02C;
-    reg { name="Ch6 kick LOW";  desc="Ch6 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH6_CTRL_LOW  @ 0x030;
-    reg { name="Ch6 kick HIGH"; desc="Ch6 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH6_CTRL_HIGH @ 0x034;
-    reg { name="Ch7 kick LOW";  desc="Ch7 descriptor addr [31:0]  (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_LOW[31:0]=0;  } CH7_CTRL_LOW  @ 0x038;
-    reg { name="Ch7 kick HIGH"; desc="Ch7 descriptor addr [63:32] (write kicks)"; field { sw=w; hw=na; } DESC_ADDR_HIGH[31:0]=0; } CH7_CTRL_HIGH @ 0x03C;
+    reg { name="Ch0 desc addr LOW"; desc="Ch0 descriptor addr [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0; } CH0_CTRL_LOW  @ 0x000;
+    reg { name="Ch0 desc addr HIGH"; desc="Ch0 descriptor addr [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH0_CTRL_HIGH @ 0x004;
+    reg { name="Ch1 desc addr LOW"; desc="Ch1 descriptor addr [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0; } CH1_CTRL_LOW  @ 0x008;
+    reg { name="Ch1 desc addr HIGH"; desc="Ch1 descriptor addr [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH1_CTRL_HIGH @ 0x00C;
+    reg { name="Ch2 desc addr LOW"; desc="Ch2 descriptor addr [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0; } CH2_CTRL_LOW  @ 0x010;
+    reg { name="Ch2 desc addr HIGH"; desc="Ch2 descriptor addr [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH2_CTRL_HIGH @ 0x014;
+    reg { name="Ch3 desc addr LOW"; desc="Ch3 descriptor addr [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0; } CH3_CTRL_LOW  @ 0x018;
+    reg { name="Ch3 desc addr HIGH"; desc="Ch3 descriptor addr [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH3_CTRL_HIGH @ 0x01C;
+    reg { name="Ch4 desc addr LOW"; desc="Ch4 descriptor addr [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0; } CH4_CTRL_LOW  @ 0x020;
+    reg { name="Ch4 desc addr HIGH"; desc="Ch4 descriptor addr [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH4_CTRL_HIGH @ 0x024;
+    reg { name="Ch5 desc addr LOW"; desc="Ch5 descriptor addr [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0; } CH5_CTRL_LOW  @ 0x028;
+    reg { name="Ch5 desc addr HIGH"; desc="Ch5 descriptor addr [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH5_CTRL_HIGH @ 0x02C;
+    reg { name="Ch6 desc addr LOW"; desc="Ch6 descriptor addr [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0; } CH6_CTRL_LOW  @ 0x030;
+    reg { name="Ch6 desc addr HIGH"; desc="Ch6 descriptor addr [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH6_CTRL_HIGH @ 0x034;
+    reg { name="Ch7 desc addr LOW"; desc="Ch7 descriptor addr [31:0] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_LOW[31:0]=0; } CH7_CTRL_LOW  @ 0x038;
+    reg { name="Ch7 desc addr HIGH"; desc="Ch7 descriptor addr [63:32] (staged; launch via KICK_ENABLE)"; field { sw=rw; hw=r; } DESC_ADDR_HIGH[31:0]=0; } CH7_CTRL_HIGH @ 0x03C;
+
+    //=========================================================================
+    // Launch (0x040)
+    //=========================================================================
+    // One bit per channel. Writing a 1 emits a ONE-CYCLE pulse (singlepulse)
+    // that hands CHx_CTRL_{LOW,HIGH} to that channel's descriptor engine as a
+    // valid descriptor request; the bit self-clears, so software never has to
+    // clear it and a re-read cannot be mistaken for a pending launch.
+    //
+    // Writing all eight bits in ONE transaction starts all eight channels on
+    // the same cycle. That is the point of splitting stage from launch: the
+    // old scheme kicked on the address write, so an 8-channel run needed 8
+    // separate APB-over-UART writes and the channels started milliseconds
+    // apart -- long enough to bias every cross-channel perf window.
+    reg { name="Kick enable";
+          desc="Write 1 to bit[ch] to launch that channel from its staged CHx_CTRL address";
+          // Eight 1-bit pulses rather than one 8-bit field: SystemRDL requires
+          // singlepulse to be width 1. They share a register, so a single
+          // 32-bit write still launches every channel on the same cycle --
+          // the atomicity is a property of the bus transaction, not the field
+          // width.
+          field { sw=w; hw=r; singlepulse; } KICK0[0:0]=0;
+          field { sw=w; hw=r; singlepulse; } KICK1[1:1]=0;
+          field { sw=w; hw=r; singlepulse; } KICK2[2:2]=0;
+          field { sw=w; hw=r; singlepulse; } KICK3[3:3]=0;
+          field { sw=w; hw=r; singlepulse; } KICK4[4:4]=0;
+          field { sw=w; hw=r; singlepulse; } KICK5[5:5]=0;
+          field { sw=w; hw=r; singlepulse; } KICK6[6:6]=0;
+          field { sw=w; hw=r; singlepulse; } KICK7[7:7]=0;
+          field { sw=r; hw=na; } RSVD[31:8]=0; } KICK_ENABLE @ 0x128;
 
     //=========================================================================
     // Global Control and Status (0x100 - 0x11F)

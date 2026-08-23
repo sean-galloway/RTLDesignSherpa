@@ -493,6 +493,134 @@ package stream_regs_pkg;
     } stream_regs__in_t;
 
     typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH0_CTRL_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        stream_regs__CH0_CTRL_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } stream_regs__CH0_CTRL_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH0_CTRL_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        stream_regs__CH0_CTRL_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } stream_regs__CH0_CTRL_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH1_CTRL_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        stream_regs__CH1_CTRL_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } stream_regs__CH1_CTRL_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH1_CTRL_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        stream_regs__CH1_CTRL_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } stream_regs__CH1_CTRL_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH2_CTRL_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        stream_regs__CH2_CTRL_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } stream_regs__CH2_CTRL_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH2_CTRL_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        stream_regs__CH2_CTRL_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } stream_regs__CH2_CTRL_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH3_CTRL_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        stream_regs__CH3_CTRL_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } stream_regs__CH3_CTRL_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH3_CTRL_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        stream_regs__CH3_CTRL_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } stream_regs__CH3_CTRL_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH4_CTRL_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        stream_regs__CH4_CTRL_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } stream_regs__CH4_CTRL_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH4_CTRL_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        stream_regs__CH4_CTRL_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } stream_regs__CH4_CTRL_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH5_CTRL_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        stream_regs__CH5_CTRL_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } stream_regs__CH5_CTRL_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH5_CTRL_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        stream_regs__CH5_CTRL_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } stream_regs__CH5_CTRL_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH6_CTRL_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        stream_regs__CH6_CTRL_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } stream_regs__CH6_CTRL_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH6_CTRL_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        stream_regs__CH6_CTRL_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } stream_regs__CH6_CTRL_HIGH__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH7_CTRL_LOW__DESC_ADDR_LOW__out_t;
+
+    typedef struct {
+        stream_regs__CH7_CTRL_LOW__DESC_ADDR_LOW__out_t DESC_ADDR_LOW;
+    } stream_regs__CH7_CTRL_LOW__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_regs__CH7_CTRL_HIGH__DESC_ADDR_HIGH__out_t;
+
+    typedef struct {
+        stream_regs__CH7_CTRL_HIGH__DESC_ADDR_HIGH__out_t DESC_ADDR_HIGH;
+    } stream_regs__CH7_CTRL_HIGH__out_t;
+
+    typedef struct {
         logic value;
     } stream_regs__GLOBAL_CTRL__GLOBAL_EN__out_t;
 
@@ -522,6 +650,49 @@ package stream_regs_pkg;
     typedef struct {
         stream_regs__CHANNEL_RESET__CH_RST__out_t CH_RST;
     } stream_regs__CHANNEL_RESET__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_regs__KICK_ENABLE__KICK0__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_regs__KICK_ENABLE__KICK1__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_regs__KICK_ENABLE__KICK2__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_regs__KICK_ENABLE__KICK3__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_regs__KICK_ENABLE__KICK4__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_regs__KICK_ENABLE__KICK5__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_regs__KICK_ENABLE__KICK6__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_regs__KICK_ENABLE__KICK7__out_t;
+
+    typedef struct {
+        stream_regs__KICK_ENABLE__KICK0__out_t KICK0;
+        stream_regs__KICK_ENABLE__KICK1__out_t KICK1;
+        stream_regs__KICK_ENABLE__KICK2__out_t KICK2;
+        stream_regs__KICK_ENABLE__KICK3__out_t KICK3;
+        stream_regs__KICK_ENABLE__KICK4__out_t KICK4;
+        stream_regs__KICK_ENABLE__KICK5__out_t KICK5;
+        stream_regs__KICK_ENABLE__KICK6__out_t KICK6;
+        stream_regs__KICK_ENABLE__KICK7__out_t KICK7;
+    } stream_regs__KICK_ENABLE__out_t;
 
     typedef struct {
         logic [31:0] value;
@@ -1299,9 +1470,26 @@ package stream_regs_pkg;
     } stream_mon_regs__out_t;
 
     typedef struct {
+        stream_regs__CH0_CTRL_LOW__out_t CH0_CTRL_LOW;
+        stream_regs__CH0_CTRL_HIGH__out_t CH0_CTRL_HIGH;
+        stream_regs__CH1_CTRL_LOW__out_t CH1_CTRL_LOW;
+        stream_regs__CH1_CTRL_HIGH__out_t CH1_CTRL_HIGH;
+        stream_regs__CH2_CTRL_LOW__out_t CH2_CTRL_LOW;
+        stream_regs__CH2_CTRL_HIGH__out_t CH2_CTRL_HIGH;
+        stream_regs__CH3_CTRL_LOW__out_t CH3_CTRL_LOW;
+        stream_regs__CH3_CTRL_HIGH__out_t CH3_CTRL_HIGH;
+        stream_regs__CH4_CTRL_LOW__out_t CH4_CTRL_LOW;
+        stream_regs__CH4_CTRL_HIGH__out_t CH4_CTRL_HIGH;
+        stream_regs__CH5_CTRL_LOW__out_t CH5_CTRL_LOW;
+        stream_regs__CH5_CTRL_HIGH__out_t CH5_CTRL_HIGH;
+        stream_regs__CH6_CTRL_LOW__out_t CH6_CTRL_LOW;
+        stream_regs__CH6_CTRL_HIGH__out_t CH6_CTRL_HIGH;
+        stream_regs__CH7_CTRL_LOW__out_t CH7_CTRL_LOW;
+        stream_regs__CH7_CTRL_HIGH__out_t CH7_CTRL_HIGH;
         stream_regs__GLOBAL_CTRL__out_t GLOBAL_CTRL;
         stream_regs__CHANNEL_ENABLE__out_t CHANNEL_ENABLE;
         stream_regs__CHANNEL_RESET__out_t CHANNEL_RESET;
+        stream_regs__KICK_ENABLE__out_t KICK_ENABLE;
         stream_regs__SCHED_TIMEOUT_CYCLES__out_t SCHED_TIMEOUT_CYCLES;
         stream_regs__SCHED_CONFIG__out_t SCHED_CONFIG;
         stream_regs__SCHED_TIMEOUT_LIMIT__out_t SCHED_TIMEOUT_LIMIT;

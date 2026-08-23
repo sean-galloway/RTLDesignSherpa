@@ -211,6 +211,25 @@ user_width  = 0
 base_addr   = "0x000C0000"
 addr_range  = "0x00040000"     # 256 KB  (ends 0xF_FFFF)
 
+# Compression capture SRAM (sdpram_slave_axil_axil): a REAL memory, not a tally.
+# The tally reassembles RAW 3-beat records and cannot consume the compressed
+# stream, so with USE_COMPRESSION=1 there was nowhere for compressed traffic to
+# land and nothing to check it against. This slave gives the compressor an
+# ordinary write target: the host reads the bytes back and compares them to the
+# bit-exact Python golden (bin/TBClasses/monbus/monbus_compressor.py), so the
+# format is verified on hardware without needing an RTL decoder first.
+[[bridge.slaves]]
+name        = "comp_sram"
+prefix      = "comp_sram_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 8
+addr_width  = 32
+data_width  = 64
+user_width  = 0
+base_addr   = "0x001A0000"
+addr_range  = "0x00010000"     # 64 KB
+
 # Dedicated host config/readback ports for the two tally memories
 # (monbus_tally_axil cfg_s_axil): R = read bins, W = load the profile legal-set
 # CAM (0x200 + idx*4) / clear (0x100). Record ingest stays on stream_tally /
