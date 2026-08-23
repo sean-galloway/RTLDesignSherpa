@@ -108,10 +108,11 @@ All wrappers expose the same scaling knobs as the backend:
   PROCEEDS -- and the burst proceeds with wrap-shaped addressing via `axi_gen_addr`
   (fed the latched burst length since the 2026-08-13 mask fix). Still
   UNVALIDATED -- no test drives WRAP through the BRAM glue.
-- **AXIL mode** is single-beat by construction — the AXIL skid ties the
-  fub-side `awlen`/`arlen` to 0, so the burst-aware backend produces
-  exactly one beat per AW/AR. Multi-beat transactions are not
-  expressible in AXIL anyway.
+- **AXIL mode** is single-beat by construction — the AXIL slaves have no
+  len ports at all, and the WRAPPERS tie the core's fub-side `awlen`/`arlen`
+  to 0 at the sdpram_core boundary (single-beat defaults), so the
+  burst-aware backend produces exactly one beat per AW/AR. Multi-beat
+  transactions are not expressible in AXIL anyway.
 
 ---
 

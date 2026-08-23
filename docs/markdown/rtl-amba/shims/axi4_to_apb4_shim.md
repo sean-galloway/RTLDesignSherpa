@@ -155,13 +155,13 @@ module axi4_to_apb4_shim #(
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `DEPTH_AW` | 2 | AW channel skid buffer depth (power of 2) |
+| `DEPTH_AW` | 2 | AW channel skid buffer depth (one of {2,4,6,8} -- gaxi_skid_buffer elaboration guard) |
 | `DEPTH_W` | 4 | W channel skid buffer depth |
 | `DEPTH_B` | 2 | B channel skid buffer depth |
 | `DEPTH_AR` | 2 | AR channel skid buffer depth |
 | `DEPTH_R` | 4 | R channel skid buffer depth |
 
-**Recommendation:** Use deeper depths (4-8) for high-latency paths, shallow (2) for low-latency.
+**Recommendation:** Use deeper depths (4-8) for high-latency paths, shallow (2) for low-latency. All five DEPTH_* parameters must be in {2, 4, 6, 8}: gaxi_skid_buffer rejects anything else at elaboration.
 
 ### Internal Buffering
 
@@ -266,7 +266,7 @@ AXI Master → AR skid buffer (aclk)
 **Error Handling:**
 - `PSLVERR` → `BRESP[1]` (write errors)
 - `PSLVERR` → `RRESP[1]` (read errors)
-- Write errors accumulated (OR'd) into B; read beats carry per-response PSLVERR only (see the convert page and TASK-064)
+- Write errors accumulated (OR'd) into B; read beats accumulate PSLVERR across their APB slices per beat (see the convert page; the per-slice loss was TASK-064, fixed)
 
 ### Clock Domain Crossing
 

@@ -148,7 +148,7 @@ module peakrdl_to_cmdrsp #(
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `regblk_req` | Output | 1 | Request -- held from the accept cycle THROUGH WAIT_ACK (>= 2 consecutive cycles even with earliest ack; N+1 cycles for an N-cycle ack delay). Whether the PeakRDL passthrough cpuif tolerates a held req (vs re-executing per cycle) is an open contract question: TASK-064 |
+| `regblk_req` | Output | 1 | Request -- held from the accept cycle THROUGH WAIT_ACK (>= 2 consecutive cycles even with earliest ack; N+1 cycles for an N-cycle ack delay; drops during CMD_STALLED). The hold is REQUIRED: the generated PeakRDL passthrough cpuif needs req held until it acks -- a one-cycle reduction (2026-08-17) broke every integrated register read and was reverted. Any future timing change must be validated through an integrated path (stream build-mon obs_apb), not the standalone converter suite, whose idempotent register masks request-timing changes (TASK-064 closure note) |
 | `regblk_req_is_wr` | Output | 1 | Operation type (1=write, 0=read) |
 | `regblk_addr` | Output | ADDR_WIDTH | Register address |
 | `regblk_wr_data` | Output | DATA_WIDTH | Write data |
@@ -239,13 +239,14 @@ regblk_wr_biten = 32'hFFFF_0000
 
 **Behavior:**
 1. If stall asserted when cmd_valid:
-   - The command is registered and the FSM holds in WAIT_ACK
-   - regblk_req IS asserted in the accept cycle regardless of stall (it is
-     not gated) -- whether that is legal against the passthrough cpuif is
-     the TASK-064 contract question
+   - `regblk_req` IS asserted in the accept cycle regardless of stall (it is
+     not gated: `req = WAIT_ACK || (IDLE && cmd_valid)`), the command is
+     registered, and the FSM moves to CMD_STALLED
+   - While in CMD_STALLED, `regblk_req` is LOW -- the request does not sit
+     asserted against a stalling register block
 2. When stall clears:
-   - regblk_req remains asserted with the registered command until ack
-   - Move to CMD_WAIT_ACK
+   - The FSM moves to CMD_WAIT_ACK on the next cycle; `regblk_req`
+     re-asserts there with the REGISTERED command and is HELD until ack
 
 **Purpose:** Allows PeakRDL register block to implement internal arbitration or serialization.
 
@@ -416,8 +417,9 @@ cmd_ready  ¯¯¯¯¯¯¯¯¯\______________/¯¯¯¯¯¯¯¯¯¯¯¯¯¯
 regblk_req_stall_wr ___/¯¯¯¯¯¯¯\___________________
                (stalled in cycles 1-2)
 
-regblk_req ____________/¯\_________________________
-                 (asserted when stall clears)
+regblk_req ____/¯¯¯¯¯\_________/¯¯¯¯¯¯¯¯¯¯\_______
+             (accept-cycle pulse; LOW during STALLED;
+              re-asserted in WAIT_ACK and HELD until ack)
 
 regblk_wr_ack ______________/¯\___________________
 

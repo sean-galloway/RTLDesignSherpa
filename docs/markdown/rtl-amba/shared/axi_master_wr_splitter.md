@@ -39,11 +39,11 @@ The AXI Master Write Splitter handles the complex task of splitting boundary-cro
 - AW + W channel forwarding with synchronized address/data flow
 - B channel response consolidation (N responses → 1 consolidated response)
 - Error priority handling (DECERR > SLVERR > EXOKAY > OKAY)
-- **KNOWN DEFECT (filed):** the current RTL folds each split's BRESP into the
-  consolidated register one cycle after the B handshake, but the FINAL split's
-  response is forwarded upstream in that same cycle -- so an error on the LAST
-  split is reported as the consolidation of splits 1..N-1 (an error-on-last
-  reads as success). See the splitter defect cluster in vault/Tasks/amba
+- The consolidated response combines the registered fold with the IN-FLIGHT
+  final response combinationally (`fub_bresp = w_is_final_response ?
+  w_resp_with_current : OKAY`), so an error on the LAST split is included --
+  the historical error-on-last-reads-as-success defect was fixed and
+  mutation-proven with the splitter cluster (vault/Tasks/amba)
 - WLAST regeneration for split boundaries
 - Zero added latency for non-split transactions
 - Full AXI4 protocol compliance with user extensions
@@ -140,7 +140,7 @@ Write transaction splitting presents unique challenges compared to read splittin
 | m_axi_wstrb | output | DW/8 | Write strobes (pass-through from fub) |
 | m_axi_wlast | output | 1 | Last beat indicator (regenerated at split boundaries) |
 | m_axi_wuser | output | UW | User-defined extension (pass-through from fub) |
-| m_axi_wvalid | output | 1 | Valid signal for write data (pass-through from fub) |
+| m_axi_wvalid | output | 1 | Valid signal for write data (fub_wvalid gated on r_aw_issued) |
 | m_axi_wready | input | 1 | Ready signal from downstream slave |
 
 **B Channel (Write Response):**
@@ -182,7 +182,7 @@ Write transaction splitting presents unique challenges compared to read splittin
 | fub_wlast | input | 1 | Last beat indicator from upstream master |
 | fub_wuser | input | UW | User-defined extension |
 | fub_wvalid | input | 1 | Valid signal for write data |
-| fub_wready | output | 1 | Ready signal to upstream master (pass-through from m_axi) |
+| fub_wready | output | 1 | Ready signal to upstream master (m_axi_wready gated on r_aw_issued) |
 
 **B Channel (Write Response):**
 
@@ -203,6 +203,7 @@ Write transaction splitting presents unique challenges compared to read splittin
 | fub_split_cnt | output | 8 | Number of split transactions generated (2+ if split occurred) |
 | fub_split_valid | output | 1 | Valid signal for split information |
 | fub_split_ready | input | 1 | Ready signal from split information consumer |
+| o_split_fifo_overflow | output | 1 | STICKY: a split-info record was dropped because the FIFO was full; stays high until reset |
 
 ---
 
@@ -343,12 +344,20 @@ Reuses same combinational logic as read splitter (axi_split_combi):
 **fub_awready Logic:**
 - IDLE + no split: fub_awready = m_axi_awready
 - IDLE + split needed: fub_awready = 0 (suppress)
+- IDLE + no split: fub_awready = m_axi_awready && !block_ready &&
+  !r_waiting_for_responses -- the `r_waiting_for_responses` term is the
+  ACCEPTANCE FENCE: no new transaction is accepted while a previous one's
+  response consolidation is still open (one consolidation state set exists;
+  unfenced acceptance was one of the splitter-cluster defects)
 - SPLITTING + intermediate: fub_awready = 0
-- SPLITTING + final split: fub_awready = m_axi_awready
+- SPLITTING + final split: fub_awready = w_is_final_split && m_axi_awready && !block_ready
 
 **W Channel Ready:**
-- Always pass-through: fub_wready = m_axi_wready
-- Backpressure handled naturally by AXI protocol
+- Gated on address issue: `fub_wready = m_axi_wready && r_aw_issued` (and
+  `m_axi_wvalid = fub_wvalid && r_aw_issued`) -- W data is HELD until its AW
+  has been accepted downstream, enforcing the repo-wide AW-before-W rule so
+  WLAST regeneration can never run ahead of the address stream
+- Backpressure otherwise propagates naturally through the AXI protocol
 
 **B Channel Ready:**
 - Consolidation mode: m_axi_bready = fub_bready || !w_is_final_response -- intermediate split responses are always accepted, but the FINAL split's response waits on the upstream's fub_bready
@@ -538,7 +547,11 @@ Worst error wins → System sees most severe failure
 
 **FIFO Overflow:**
 - Split FIFO can fill if consumer stalls
-- block_ready suppresses fub_awready (the split FIFO does NOT -- see Split-FIFO Overflow)
+- block_ready suppresses fub_awready; the split-info FIFO does not
+  backpressure acceptance -- instead a push to a full FIFO sets the sticky
+  `o_split_fifo_overflow` output (a record was lost; treat as fatal).
+  Sizing the FIFO for the true maximum outstanding splits remains a
+  correctness requirement
 - Size FIFO >= max outstanding writes
 
 **Data Channel Synchronization:**

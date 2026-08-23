@@ -309,7 +309,7 @@ APB → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 |-------------|-------------|---------|---------|-------|
 | Low-latency CPU | 2 | 2-4 | 2-4 | Minimize latency |
 | Moderate DMA | 4 | 8 | 8 | Balance latency/throughput |
-| Burst DMA | 8 | 8 | 8 | Maximize throughput (gaxi_skid_buffer supports DEPTH in {2,4,6,8} ONLY -- 16 silently corrupts, no elaboration guard yet) |
+| Burst DMA | 8 | 8 | 8 | Maximize throughput (gaxi_skid_buffer supports DEPTH in {2,4,6,8} ONLY -- anything else now FAILS at elaboration via the DEPTH guard) |
 
 **Width Conversion:**
 

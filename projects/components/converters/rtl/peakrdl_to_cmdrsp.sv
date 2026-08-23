@@ -186,22 +186,9 @@ module peakrdl_to_cmdrsp #(
     // =========================================================================
     // Generate request to register block
     // =========================================================================
-    // ONE-CYCLE STROBE, per the documented contract.
-    //
-    // This used to include (cmd_state == CMD_WAIT_ACK), so req stayed high for
-    // the accept cycle AND every cycle spent waiting for ack -- two cycles
-    // minimum against a strobe the interface documents as one. Whether the
-    // PeakRDL passthrough cpuif re-executes per held cycle is not something to
-    // leave to chance: a plain idempotent register masks a double-access in
-    // every test, while a counter, a write-1-to-clear field or a self-clearing
-    // KICK bit would double-count and only show up on hardware.
-    //
-    // The request is asserted only in the accept cycle. CMD_WAIT_ACK still
-    // holds the ADDRESS and DATA muxes steady (below) so the register block
-    // sees stable payload while it completes.
     // HELD until ack -- do NOT reduce this to a one-cycle strobe.
     //
-    // TASK-064 item 2 observes that the interface DOCUMENTS a one-cycle
+    // TASK-064 item 2 observed that the interface DOCUMENTED a one-cycle
     // strobe while this holds req through CMD_WAIT_ACK. Reducing it to one
     // cycle (2026-08-17) BROKE every register read through this bridge: the
     // observers' obs_apb window returned nothing and test_stream_mon failed

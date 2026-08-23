@@ -238,14 +238,14 @@ r_axi_data_shift[r_axi_rsp_data_pointer*APBDW +: APBDW] <= r_apb_rsp_pkt_prdata;
 ### Error Handling
 
 **Error Accumulation:**
-- Writes: all slice/beat PSLVERRs OR'd into B. Reads: each R beat carries only the in-flight APB response's PSLVERR (non-final-slice errors on width-converted reads are lost -- TASK-064)
+- Writes: all slice/beat PSLVERRs OR'd into B. Reads: each R beat accumulates PSLVERR across ALL of its APB slices (`w_pslverr | r_beat_pslverr`, accumulator restarting per beat) -- a width-converted read whose FIRST slice errors returns SLVERR on that beat. (The lost-non-final-slice defect was TASK-064, fixed)
 - Read errors: `RRESP = 2'b10` (SLVERR)
 - Write errors: `BRESP = 2'b10` (SLVERR)
 
 **Error Propagation:**
 ```systemverilog
 r_pslverr <= r_pslverr | w_pslverr;  // Sticky error
-w_resp_rd = (w_pslverr) ? 2'b10 : 2'b00;
+w_resp_rd = (w_pslverr | r_beat_pslverr) ? 2'b10 : 2'b00;
 w_resp_wr = (w_pslverr | r_pslverr) ? 2'b10 : 2'b00;
 ```
 

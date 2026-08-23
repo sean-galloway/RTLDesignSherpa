@@ -284,14 +284,16 @@ The R channel is completely transparent:
 **Consumer contract (IMPORTANT):**
 - Split transactions use same ID as original; downstream slaves respond with
   matching ID and the upstream sees the concatenated beat stream
-- `fub_rlast` is a PURE WIRE from `m_axi_rlast`: for an N-way split the
-  upstream sees N RLAST pulses, the first arriving at the end of split 1 --
-  long before the original burst's beat count completes
-- A standards-compliant generic AXI master would treat the first RLAST as end
-  of burst. The intended consumer is a beat-COUNTING engine (the FUB-style
-  read engines), which tolerates intermediate RLASTs. Do not place a generic
-  AXI master upstream without RLAST consolidation (filed with the splitter
-  defect cluster in vault/Tasks/amba)
+- `fub_rlast` is CONSOLIDATED to one pulse per ORIGINAL transaction: an
+  owed-beat counter (`r_rbeats_remaining`, loaded with the original burst
+  length at acceptance) retires one beat per upstream R handshake and asserts
+  `fub_rlast` only on the final owed beat; intermediate splits' `m_axi_rlast`
+  pulses are absorbed
+- A standards-compliant generic AXI master can therefore sit upstream
+  directly -- it sees exactly one RLAST per burst it issued. (The pre-fix
+  behavior passed every intermediate RLAST through and required a
+  beat-counting consumer; that defect was closed with the splitter cluster
+  in vault/Tasks/amba)
 
 ### Split Information Tracking
 
@@ -478,25 +480,26 @@ The module enforces several critical assumptions for correct operation:
 
 ### Error Handling
 
-**Split-FIFO Overflow (silent record loss):**
-- The split-info FIFO's `wr_ready` is left unconnected and the push has no
-  FIFO-full term, so a push to a full FIFO is silently DISCARDED -- there is
-  no backpressure to fub_arready from the FIFO and no error indication
+**Split-FIFO Overflow (observable, sticky):**
+- The split-info FIFO's `wr_ready` is connected; a push attempted while the
+  FIFO is full sets the STICKY output `o_split_fifo_overflow`, which stays
+  high until reset -- integration logic should treat it as a fatal
+  configuration error (a split record was lost)
 - Sizing the FIFO >= the true maximum outstanding split transactions is
-  therefore a CORRECTNESS requirement, not a tuning recommendation
-- (Filed with the splitter defect cluster in vault/Tasks/amba)
+  still a CORRECTNESS requirement; the sticky flag makes a violation
+  observable rather than silent
 
 **Protocol Violations:**
 - Module assumes well-formed AXI transactions
 - Assertions validate assumptions (alignment, size, burst type)
 - Synthesis-time checks enforce parameter constraints
 
-**Backpressure Propagation (partial -- see TASK-061):**
-- block_ready gates fub_arready and the split-FSM capture ONLY;
-  m_axi_arvalid and the SPLITTING state's advance are NOT gated
-- Consequence: an AR presented while block_ready=1 can still issue
-  downstream and then be issued AGAIN when block_ready drops --
-  duplication, not blocking (the filed splitter defect cluster)
+**Backpressure Propagation:**
+- `block_ready` gates the full acceptance path: `fub_arready`, the split-FSM
+  capture, AND `m_axi_arvalid` in IDLE (`m_axi_arvalid = fub_arvalid &&
+  !block_ready`), so an AR presented while `block_ready=1` neither issues
+  downstream nor is captured -- blocking, not duplication (the TASK-061
+  duplication defect is fixed and mutation-proven)
 
 ### Integration Considerations
 

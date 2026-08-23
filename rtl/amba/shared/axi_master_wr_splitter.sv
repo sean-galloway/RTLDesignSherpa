@@ -356,7 +356,6 @@ module axi_master_wr_splitter
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_split_fifo_overflow <= 1'b0;
             r_split_state <= IDLE;
             r_current_addr <= '0;
             r_current_len <= '0;
@@ -390,6 +389,7 @@ module axi_master_wr_splitter
             r_consolidated_buser <= '0;
 
         end else begin
+
             case (r_split_state)
                 IDLE: begin
                     // FENCE THE CONSOLIDATION STATE PER TRANSACTION.
@@ -641,12 +641,10 @@ module axi_master_wr_splitter
     //===========================================================================
 
     // Response consolidation logic - OR's multiple split responses into one
-    logic w_should_send_consolidated_response;
     logic w_is_final_response;
 
     // Determine when we have the final response to consolidate
     assign w_is_final_response = (r_received_response_count + 8'd1 >= r_expected_response_count);
-    assign w_should_send_consolidated_response = !r_waiting_for_responses || w_is_final_response;
 
     // Worst-of(accumulated, in-flight) response. AXI severity order is
     // DECERR(3) > SLVERR(2) > EXOKAY(1) > OKAY(0), matching the
@@ -691,6 +689,16 @@ module axi_master_wr_splitter
     logic [AW+IW+8-1:0] split_fifo_din;
     logic w_split_fifo_valid;
     logic w_split_fifo_ready;
+
+    // Sticky overflow, sole driving process for this register: a split
+    // record arrived while the FIFO was full. The integration-validation
+    // block at the end of the file only ASSERTS on the event.
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_split_fifo_overflow <= 1'b0;
+        end else if (w_split_fifo_valid && !w_split_fifo_ready) begin
+            r_split_fifo_overflow <= 1'b1;
+        end)
 
     // SIZING IS A CORRECTNESS REQUIREMENT HERE, SO SAY SO OUT LOUD.
     // wr_ready was unconnected and the push ungated, so once the FIFO
@@ -790,9 +798,6 @@ module axi_master_wr_splitter
             end
 
             // Verify split info FIFO write timing
-            if (w_split_fifo_valid && !w_split_fifo_ready) begin
-                r_split_fifo_overflow <= 1'b1;
-            end
             if (w_split_fifo_valid) begin
                 assert (fub_awvalid && fub_awready) else
                     $error("Split info should only be written when transaction is accepted");

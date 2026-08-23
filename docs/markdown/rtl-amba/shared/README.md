@@ -28,7 +28,7 @@ lives only in the pages that track their RTL.
 | `axi_bus_meter` | Always-on AXI bandwidth/beat/burst meter | [page](axi_bus_meter.md) |
 | `axis_bus_meter` | AXIS variant of the bus meter | [page](axis_bus_meter.md) |
 | `axi_perf_latency_hist` | Log2 latency histogram, one per metric (channels share it) | [page](axi_perf_latency_hist.md) |
-| `axi_master_rd_splitter` | Boundary-crossing read splitter (beat-counting consumer required) | [page](axi_master_rd_splitter.md) |
+| `axi_master_rd_splitter` | Boundary-crossing read splitter (RLAST consolidated to one per original burst) | [page](axi_master_rd_splitter.md) |
 | `axi_master_wr_splitter` | Boundary-crossing write splitter with B consolidation | [page](axi_master_wr_splitter.md) |
 | `axi_split_combi` | Pure combinational split decision used by both splitters | [page](axi_split_combi.md) |
 | `sdpram_core` | BRAM glue + clear FSM backend of the slave family | [page](sdpram_core.md) |

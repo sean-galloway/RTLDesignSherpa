@@ -309,7 +309,6 @@ module axi_master_rd_splitter
         if (`RST_ASSERTED(aresetn)) begin
             r_rbeats_remaining <= 9'd0;
             r_rbeats_active <= 1'b0;
-            r_split_fifo_overflow <= 1'b0;
             r_split_state <= IDLE;
             r_current_addr <= '0;
             r_current_len <= '0;
@@ -328,6 +327,7 @@ module axi_master_rd_splitter
             r_orig_arregion <= '0;
             r_orig_aruser <= '0;
         end else begin
+
             // Retire one owed beat per upstream R handshake. Independent of
             // the split FSM: beats keep arriving while the FSM is still
             // issuing later splits.
@@ -485,6 +485,16 @@ module axi_master_rd_splitter
     logic w_split_fifo_valid;
     logic w_split_fifo_ready;
 
+    // Sticky overflow, sole driving process for this register: a split
+    // record arrived while the FIFO was full. The integration-validation
+    // block at the end of the file only ASSERTS on the event.
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_split_fifo_overflow <= 1'b0;
+        end else if (w_split_fifo_valid && !w_split_fifo_ready) begin
+            r_split_fifo_overflow <= 1'b1;
+        end)
+
     // SIZING IS A CORRECTNESS REQUIREMENT HERE, SO SAY SO OUT LOUD.
     // wr_ready was unconnected and the push ungated, so once the FIFO
     // filled a split-info record was dropped silently -- the consumer
@@ -565,9 +575,6 @@ module axi_master_rd_splitter
             end
 
             // Verify split info FIFO write timing
-            if (w_split_fifo_valid && !w_split_fifo_ready) begin
-                r_split_fifo_overflow <= 1'b1;
-            end
             if (w_split_fifo_valid) begin
                 assert (fub_arvalid && fub_arready) else
                     $error("Split info should only be written when transaction is accepted");
