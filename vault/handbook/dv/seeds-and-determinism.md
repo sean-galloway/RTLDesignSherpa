@@ -52,6 +52,35 @@ drawing fresh seeds to find the next one. See [[randomization]] for why
 randomized traffic alone proves nothing about fairness or arbitration, which is
 the same argument from the other side.
 
+## The cocotb seed, xdist clustering, and the binary (CONV-002, 2026-08-23)
+
+The repo's `SEED` convention above is the WRAPPER's seed. cocotb has its own:
+it seeds Python's global `random` at sim start with `RANDOM_SEED` from the
+environment, or `int(time.time())` when unset — and the GAXI BFM randomizers
+draw from that global stream. Three mechanics follow, each measured while
+running down the converters' "intermittent" failures:
+
+- **Same-second launches share a seed.** Under `pytest -n 16`, every test
+  spawned in the same wall-clock second gets the identical time seed. One bad
+  seed then fails four+ configs in one sweep (all four dnsize failures in one
+  run shared seed 1787502707), while a solo retry loop draws a fresh seed per
+  second and can go hundreds of runs green. That asymmetry is exactly what
+  "fails in CI, passes on my machine" looks like — it is still deterministic.
+- **Replay = `RANDOM_SEED=<n>` from the failing log's "Seeding Python random
+  module with n" line** — but only against the SAME compiled binary. The
+  everything-else that a seed replay requires unchanged INCLUDES the Verilator
+  codegen: any rebuild, including toggling `WAVES=1`, reorders evaluation
+  enough to shift which seeds reach the condition. A failure that "goes away
+  with waves on" has not gone away; you rebuilt the binary.
+- **Kill your BFMs between sub-tests.** Each cocotb sub-test that constructs
+  a fresh GAXI master/slave pair on the same DUT leaves the previous pair's
+  cocotb-bus BusMonitor coroutines RUNNING — by the fourth sub-test, four
+  slaves drive the same ready signal with independent randomizers,
+  last-deposit-wins. That is both a stimulus corruption and the reason
+  outcomes become sensitive to evaluation order at all. Framework-level
+  teardown is RDS-DV work; until it exists, reuse one component set across
+  sub-tests instead of stacking.
+
 ## Pin only a committed artifact
 
 Wavedrom generators produce the wave JSON the docs embed. A random seed there

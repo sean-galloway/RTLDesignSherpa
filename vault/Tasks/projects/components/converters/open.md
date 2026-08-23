@@ -144,23 +144,22 @@ either.
 22 red configurations diagnose nothing and block everyone. Take one scenario
 at a time: assert it, decide RTL-vs-test, fix, keep the assert.
 
-**Triage data (2026-08-23, shared-arc regression sweep):** with the asserts
-on, `test_axi_data_upsize` is INTERMITTENT, not solid-red: two full-directory
-`-n16` sweeps failed different param sets (4x uart_axil_bridge, then 2x
-upsize), a serial rerun of all 4 uart params passed 765s clean, and a solo
-upsize loop failed on iteration 1 (seed 1787443637, "Transaction 1: Expected
-1 wide beat, got 0" at 5510ns) -- then PASSED when replayed with
-RANDOM_SEED=1787443637. So the failure is stimulus-order/timing dependent
-and NOT reproducible from the cocotb seed alone (something in the TB or BFM
-draws randomness outside the seeded stream -- worth fixing first, since
-un-replayable failures make the RTL-vs-test call expensive). The TB polls
-`width_ratio*8+100` clocks for the wide beat; whether the GAXI master's
-randomized pacing can legitimately exceed that window is the first thing to
-settle.
+**Triage RESOLVED (2026-08-23, shared-scrub session; supersedes the earlier
+"not reproducible from the seed" paragraph, which was wrong):** the failures
+are fully DETERMINISTIC per (RANDOM_SEED, compiled binary). Replay recipe:
+grep "Seeding Python random module with N" from the failing test's captured
+output, then `RANDOM_SEED=N pytest <that test>` -- reproduced dnsize
+[512to128_rresp_burst_track_DUAL] identically, twice, against the sweep's own
+binary (seeds 1787509080 / 1787510673, matching RNG-state fingerprints). The
+earlier "same seed passed on replay" observations were all explained by
+REBUILDS between fail and replay: any recompile (including a WAVES=1 toggle)
+shifts Verilator codegen and with it the bad-seed set. Sweeps cluster
+failures because same-second xdist launches share one time-based seed.
+Full mechanics + the stacked-BFM teardown gap (four slaves driving one ready
+by sub-test 4 -- RDS-DV work) recorded in
+vault/handbook/dv/seeds-and-determinism.md.
 
 **Work:**
-- [ ] Make a failure replayable (find the unseeded randomness) BEFORE
-      diagnosing RTL-vs-test.
 - [ ] `axi_data_upsize`: basic_accumulation, early_last -- diagnose and fix.
 - [ ] `axi_data_dnsize`: basic_splitting's silent data mismatch; burst
       tracking is CONV-001.
