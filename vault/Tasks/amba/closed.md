@@ -1114,3 +1114,286 @@ visible instead.
 look; recorded here rather than fixed.
 
 ---
+
+---
+
+### TASK-061: splitter block_ready duplication — CLOSED (fixed pre-537c7af8, verified against tree 2026-08-23)
+
+Both splitters gate the acceptance path fully: m_axi_arvalid/awvalid in IDLE,
+fub_ready, and the FSM capture (`m_axi_arvalid = fub_arvalid && !block_ready`).
+Mutation evidence in the fix arc (60 early accepts with the gate removed).
+Tree-measured at c3b84d0c: splitter suites 8/8 incl.
+test_axi_splitter_block_ready.py; docs synced in qc round_12.
+
+Original filing follows for the record:
+
+### TASK-061: splitter `block_ready` duplicates transactions instead of blocking them
+**Priority:** P2
+**Status:** 🔴 Not Started (found 2026-08-09, doc qc round_1)
+**Owner:** TBD
+
+In `rtl/amba/shared/axi_master_rd_splitter.sv` the downstream valid is not
+gated by `block_ready`, while both the upstream ready and the FSM capture are:
+
+```systemverilog
+309:  if (fub_arvalid && m_axi_arready && !block_ready)   // FSM capture: gated
+394:  IDLE: m_axi_arvalid = fub_arvalid;                  // downstream valid: NOT gated
+409:  fub_arready = m_axi_arready && !block_ready;        // upstream ready: gated
+```
+
+With `block_ready=1`, `fub_arvalid=1`, `m_axi_arready=1`: the slave accepts the
+AR, the upstream handshake never completes, the FSM never captures — so the same
+AR is re-presented and re-accepted every cycle. **Duplicated downstream
+transactions, not blocked ones.** `axi_master_wr_splitter.sv` has the same
+structure on AW.
+
+**Latent, not live:** nothing in `rtl/` or `projects/` instantiates either
+splitter. `pumice_wr_splitter.sv` refers to "the old shared
+axi_master_wr_splitter" and replaces it. The existing tests pass because they
+never assert `block_ready` — the "who would notice if this library module were
+wrong?" shape from [escape-analysis](../../handbook/dv/escape-analysis.md).
+
+**Work:**
+- [ ] Gate `m_axi_arvalid` (and `m_axi_awvalid`) with `!block_ready` in IDLE,
+      or document that `block_ready` must never be asserted mid-transaction.
+- [ ] Add a test that asserts `block_ready` and counts downstream ARs/AWs —
+      no current test does, which is why this is a doc-review find.
+- [ ] Fix `docs/markdown/rtl-amba/shared/axi_master_rd_splitter.md`, which
+      claims `block_ready` "prevents new transactions during error conditions".
+
+---
+
+
+---
+
+### TASK-063: splitter defect cluster round 2 — CLOSED (537c7af8; verified against tree 2026-08-23)
+
+Items 1-5 fixed and mutation-proven in 537c7af8 (final-split BRESP fold now
+combinational worst-of with the in-flight response; acceptance fenced on
+r_waiting_for_responses at BOTH the accept and the AW valid/ready; RLAST
+consolidated to one per original transaction via the owed-beat counter;
+split-FIFO wr_ready connected + sticky o_split_fifo_overflow; W held until
+its AW is issued). test_axi_wr_splitter_defects.py covers error-on-last,
+overlapping response windows, full split FIFO. Follow-up at c3b84d0c: the
+sticky overflow register was written from TWO always_ff processes (main FSM
+reset + assertion-block set, IEEE 1800 violation) — now one dedicated
+process. Docs synced in qc round_12.
+
+RESIDUAL (from the fix commit's own GAPS note): the split-FIFO overflow test
+asserts the port exists and reads a defined value; no test forces an actual
+overflow. 063-5 (W-before-AW) has no directed test because that traffic is
+illegal repo-wide — the fix enforces the rule.
+
+Original filing follows for the record:
+
+### TASK-063: splitter defect cluster round 2 — BRESP consolidation, RLAST pass-through, silent split-FIFO drop
+
+**STATE 2026-08-16 (start here after a context clear).**
+
+TASK-061 is **DONE and mutation-proven** — do not redo it. Both splitters now
+gate the downstream valid with `block_ready`
+(`IDLE: m_axi_a{r,w}valid = fub_a{r,w}valid && !block_ready`), matching the
+upstream ready and the FSM capture. New test
+`val/amba/test_axi_splitter_block_ready.py` asserts the contract on both
+splitters: blocked -> 0 commands reach the slave, released -> exactly 1, and
+the gate must RECOVER (a deadlock fails too). Mutation check: removing the
+gate gives **60 downstream accepts of one command** in the blocked window.
+`4 passed` = that file plus both pre-existing splitter suites.
+
+**Why nothing had caught any of this:** the entire existing splitter suite
+ties `block_ready` low and never fills the split FIFO, and NOTHING in `rtl/`
+or `projects/` instantiates either splitter (`pumice` wrote its own). Escape
+analysis shape: "who would notice if this library module were wrong?"
+
+**UPDATE 2026-08-16 — items 1, 3, 4 have RTL fixes; NONE are proven.**
+
+- **(1) BRESP.** `fub_bresp` now folds the in-flight `m_axi_bresp`
+  combinationally via `w_resp_with_current` instead of reading a register that
+  only holds splits 1..N-1. A SLVERR on the final split no longer upstreams as
+  OKAY.
+- **(4) Fencing.** IDLE acceptance now requires `!r_waiting_for_responses`,
+  and the fence is applied to the AW **valid and ready** as well as the FSM
+  capture. Gating the capture alone would have recreated TASK-061 exactly
+  (slave accepts a command the FSM never recorded). Costs throughput on
+  back-to-back split writes; correct while there is one consolidation state
+  set, and `m_axi_bid` is not checked in consolidation mode so responses
+  cannot be told apart by ID anyway.
+- **(3) Split-FIFO drop.** Both splitters connect `wr_ready`, latch a sticky
+  overflow when a push meets a full FIFO, and expose `o_split_fifo_overflow`
+  (NEW OUTPUT PORT on both). This makes the loss VISIBLE, it does not prevent
+  it -- sizing remains a correctness requirement. Stalling the command needs
+  the accept path to consult the FIFO; deliberately not done here.
+
+Verification so far is `4 passed` (both existing splitter suites +
+`test_axi_splitter_block_ready.py`) and lint clean. **That is a no-regression
+result, not proof.** Nothing in the current collateral drives an error on the
+final split, overlaps two transactions' response windows, or fills the split
+FIFO -- which is precisely why these defects survived to be found by
+inspection. All three fixes currently rest on reading the RTL.
+
+**NEXT: the directed testbench, before items 5 and 2.** Three unproven fixes
+is where the risk now sits. It must (a) drive SLVERR/DECERR on the LAST split
+and check the upstream BRESP, (b) issue two split writes back-to-back so their
+response windows would overlap, (c) fill the split FIFO and check
+`o_split_fifo_overflow`, (d) lead with W data before AW. Mutation-check each
+one against the pre-fix RTL, as was done for TASK-061 (60 downstream accepts)
+and the CAM alloc_mask (t18).
+
+**Items 5 and 2 are NOT started.**
+- (5) leading W defeats WLAST regeneration.
+- (2) RLAST consolidation **needs a decision first**: consolidate the read
+  side (mirroring the write side's WLAST regeneration), or pin the
+  beat-counting-consumer restriction as the contract. The docs currently state
+  the restriction, so RTL and docs disagree until this is settled.
+
+**Original write-up of items 1-5 follows.** They want ONE coordinated pass over the
+splitter pair plus a testbench that does four things the current collateral
+never does: drive an error response on the LAST split, fill the split-info
+FIFO, overlap two split transactions' response windows, and lead with W data
+before AW. Suggested order by severity: (1) BRESP first — a lost error
+response is silent data corruption; then (4) consolidation fencing, since it
+shares the same state; then (5), (3), (2).
+
+Files: `rtl/amba/shared/axi_master_{rd,wr}_splitter.sv` (518 / 735 lines).
+Tests: `val/amba/test_axi_master_{rd,wr}_splitter.py` +
+`val/amba/test_axi_splitter_block_ready.py`.
+
+**Priority:** P2 (latent — nothing instantiates either splitter; pumice wrote its own)
+**Status:** Not Started (found 2026-08-12, shared doc qc re-round)
+**Owner:** TBD
+
+Three more defects in the same two modules TASK-061 covers, found by the
+fresh shared qc round and confirmed by inspection:
+
+1. **`axi_master_wr_splitter` drops the final split's BRESP.**
+   `r_consolidated_resp_status` folds each split's response in one cycle
+   AFTER its B handshake, but the FINAL split's response is forwarded
+   upstream in that same cycle — so `fub_bresp` reflects splits 1..N-1
+   only. resp1=OKAY, resp2=SLVERR upstreams as OKAY: an error on the last
+   split reads as success. (The page's own worked example describes the
+   intended, correct behavior.)
+2. **`axi_master_rd_splitter` passes every split's RLAST upstream**
+   (`assign fub_rlast = m_axi_rlast`). An N-way split delivers N RLAST
+   pulses; a generic AXI master terminates at the first one. Either
+   consolidate RLAST (mirror the write side's WLAST regeneration) or
+   pin the beat-counting-consumer restriction as the contract — decide,
+   then make docs and RTL agree. Docs now state the restriction.
+3. **Both splitters silently drop split-info records when the FIFO
+   fills** — `wr_ready` unconnected, push ungated by full. Sizing is
+   currently a correctness requirement; a full-FIFO stall (or at least
+   a sticky overflow flag) would make it fail loud.
+
+Round_3 additions, both verified against the source (2026-08-13):
+
+4. **Consolidation state is not fenced per transaction.** The IDLE accept
+   (`fub_awvalid && m_axi_awready && !block_ready`, line ~373) has no
+   `!r_waiting_for_responses` term, and acceptance overwrites the single
+   consolidation state set (`r_original_txn_id`, counts, flags). T1's final
+   split AW handshakes -> IDLE with responses in flight; T2 accepted next
+   cycle resets to pass-through; T1's split responses then forward raw
+   upstream (3 B's for 2 AWs), or fold into T2's consolidation if T2 is
+   split (T1 never answered — deadlock). `m_axi_bid` is never checked in
+   consolidation mode.
+5. **Leading W data defeats WLAST regeneration.** W is pure pass-through
+   while `r_data_splitting` arms only when the first split AW handshakes;
+   AXI4 permits W-before-AW, so early W beats carry the original wlast and
+   are never counted.
+
+Fix together with TASK-061 in one pass over the splitter pair, with a
+testbench that actually asserts block_ready, drives error responses on
+the last split, fills the FIFO, overlaps two split transactions'
+response windows, and leads with W data — none of the current collateral
+exercises any of these.
+
+
+---
+
+### TASK-064: converter read-path PSLVERR + peakrdl held-req — CLOSED (537c7af8 + revert; verified against tree 2026-08-23)
+
+Item 1 (PSLVERR loss on width-converted reads): fixed — per-beat accumulator
+`w_resp_rd = (w_pslverr | r_beat_pslverr)`, restarting each beat.
+Item 2 (peakrdl held-req vs documented one-cycle strobe): resolved the OTHER
+way — the 2026-08-17 one-cycle reduction broke every integrated register
+read (obs_apb window returned nothing) and was reverted; the generated
+PeakRDL passthrough cpuif REQUIRES req held until ack. The DOC was wrong,
+not the RTL: page contract/prose/diagram updated in qc round_12, RTL comment
+consolidated (c3b84d0c). Converter dwidth/shim/chain suites green.
+
+RESIDUAL: no directed test for the read-PSLVERR fix — the APB BFM owns
+m_apb_pslverr with no error-injection hook (needs an RDS-DV change or a unit
+TB on the converter's APB response interface). Any future req-timing change
+must be validated through an INTEGRATED path (stream build-mon obs_apb), not
+the standalone converter suite, whose idempotent register masks it.
+
+Original filing follows for the record:
+
+### TASK-064: converter read-path PSLVERR loss + peakrdl held-req contract
+
+**RESOLVED 2026-08-17. Both RTL fixes landed and BOTH are mutation-proven.**
+
+- **(1) RRESP per-slice error.** `axi4_to_apb4_convert` drove RRESP from
+  `w_pslverr` alone (the in-flight slice), so a 2:1 read whose FIRST slice
+  errored returned OKAY with partially bad data. Fixed with a PER-AXI-BEAT
+  accumulator (`r_beat_pslverr`), restarted on the first slice of each beat and
+  folded combinationally into `w_resp_rd`. The burst-wide `r_pslverr` could NOT
+  be reused -- once set it over-marks every later beat.
+  **Test:** `projects/components/converters/dv/tests/test_axi4_to_apb4_rresp.py`
+  drives the APB response ports directly (`r_rsp_valid`/`w_rsp_ready`/
+  `r_rsp_data`) for per-slice control -- no BFM change needed, which was the
+  original blocker. Mutation: reverting to `(w_pslverr)` gives `RRESP=0b00` for
+  a beat whose first slice returned PSLVERR.
+
+- **(2) `peakrdl_to_cmdrsp` held req — THE DOC IS WRONG, THE RTL IS RIGHT.
+  Reverted 2026-08-18.** `regblk_req` holds through `CMD_WAIT_ACK` against an
+  interface that documents a one-cycle strobe. Reducing it to one cycle BROKE
+  every register read through this bridge: the observers' `obs_apb` window
+  returned nothing and `test_stream_mon` failed with
+  `uart_read: bad response ''`. Reverting restored `2 passed /
+  rd_prod=16 wr_prod=16` on a clean rebuild with one variable changed. The
+  generated PeakRDL passthrough regblock needs the request HELD until it acks.
+
+  **The broken change reached main in 537c7af8 and is reverted here.** It was
+  live on main for roughly a day.
+
+  Two process failures worth keeping, because neither was bad luck:
+  - This task said "settle the contract against the generated regblock's
+    req/ack behaviour, THEN fix RTL or re-document." That step was skipped;
+    "fix the RTL" was chosen on the strength of an argument about counters and
+    self-clearing bits rather than on any measurement.
+  - The converter suite's 100 passes were treated as sufficient. They cannot
+    see this: the standalone test hangs a plain IDEMPOTENT PeakRDL register off
+    the interface, which is exactly the case that masks a request-timing
+    change. That sentence was written into the commit message and then ignored.
+    **Any future attempt at this must be validated through an INTEGRATED path**
+    (stream build-mon's `obs_apb` window), never the standalone converter tests.
+
+Converter suite 100 passed.
+
+**Two testbench lessons worth keeping** (both cost a diagnostic cycle and both
+looked like RTL failures):
+- The AXI/APB interfaces here are PACKED. Bit offsets must be derived from the
+  declared field widths (`ARSize = IW + AW + 8+3+2+1+4+3+4+4 + UW`), not
+  hand-counted. The hand-counted version was wrong on every field.
+- The APB COMMAND side must be drained (`r_cmd_ready`) or the converter stalls
+  before producing any response. A TB that only drives the response side hangs.
+- `_slice()` now bounds its wait and names the likely cause instead of spinning
+  forever; a stalled DUT should say so rather than time out anonymously.
+
+Two remaining converter-family defects (the third from this round — WSTRB
+dropped, PSTRB constant all-ones from a blocking-order guard in
+`axi4_to_apb4_convert` — is FIXED and regression-locked by the shim suite's
+`partial_strobe_write_test`, mutation-proven RED on pre-fix RTL):
+
+1. **`axi4_to_apb4_convert` loses PSLVERR from non-final APB slices on
+   width-converted reads.** `w_resp_rd = (w_pslverr) ? 2'b10 : 2'b00` uses
+   only the in-flight response; the accumulated `r_pslverr` feeds only
+   `w_resp_wr`. A 2:1 read whose first slice errors returns RRESP=OKAY with
+   partially-bad data. Fix needs per-AXI-beat accumulation for R (the
+   burst-wide `r_pslverr` would over-mark subsequent beats).
+2. **`peakrdl_to_cmdrsp` holds `regblk_req` >= 2 cycles** (IDLE accept cycle
+   + WAIT_ACK) against a documented 1-cycle strobe. Whether the PeakRDL
+   passthrough cpuif re-executes per held cycle needs settling against the
+   generated regblock's req/ack contract; idempotent plain registers would
+   mask a double-access in every current test. Decide the contract, then fix
+   RTL or re-document. Docs updated to state the held behavior meanwhile.
+

@@ -116,7 +116,23 @@ either.
 22 red configurations diagnose nothing and block everyone. Take one scenario
 at a time: assert it, decide RTL-vs-test, fix, keep the assert.
 
+**Triage data (2026-08-23, shared-arc regression sweep):** with the asserts
+on, `test_axi_data_upsize` is INTERMITTENT, not solid-red: two full-directory
+`-n16` sweeps failed different param sets (4x uart_axil_bridge, then 2x
+upsize), a serial rerun of all 4 uart params passed 765s clean, and a solo
+upsize loop failed on iteration 1 (seed 1787443637, "Transaction 1: Expected
+1 wide beat, got 0" at 5510ns) -- then PASSED when replayed with
+RANDOM_SEED=1787443637. So the failure is stimulus-order/timing dependent
+and NOT reproducible from the cocotb seed alone (something in the TB or BFM
+draws randomness outside the seeded stream -- worth fixing first, since
+un-replayable failures make the RTL-vs-test call expensive). The TB polls
+`width_ratio*8+100` clocks for the wide beat; whether the GAXI master's
+randomized pacing can legitimately exceed that window is the first thing to
+settle.
+
 **Work:**
+- [ ] Make a failure replayable (find the unseeded randomness) BEFORE
+      diagnosing RTL-vs-test.
 - [ ] `axi_data_upsize`: basic_accumulation, early_last -- diagnose and fix.
 - [ ] `axi_data_dnsize`: basic_splitting's silent data mismatch; burst
       tracking is CONV-001.
