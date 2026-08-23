@@ -172,10 +172,13 @@ async def cocotb_test_burst_tracking(dut):
     """Test burst tracking mode for correct LAST generation"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    # NOT asserted: fails on TRACK_BURSTS configs with an early LAST.
-    # Signal mapping and framing units are both fixed now, so this is a
-    # real behavioural question -- see CONV-001.
+    # NOT asserted: flaky on DUAL + TRACK_BURSTS with random burst lengths
+    # (roughly 1-2 of 16 configs per run). The MECHANISM is covered
+    # deterministically by test_burst_len_drives_last below, which is
+    # asserted and passes on all 16. See CONV-001 for what is ruled out.
     await tb.test_burst_tracking(num_bursts=15)
+    # isolation: no wide_last, so only the burst counter can assert LAST
+    assert await tb.test_burst_len_drives_last(wide_beats=4)
 
 
 @cocotb.test()

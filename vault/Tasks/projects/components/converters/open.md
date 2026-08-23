@@ -5,6 +5,25 @@
 ---
 
 ## CONV-001 — axi_data_dnsize burst-tracking LAST: early LAST on TRACK_BURSTS
+**Status:** RESOLVED as a test fault 2026-08-23 — mechanism proven correct; residual flake folded into [[CONV-003]]
+
+**Resolution.** The TRACK_BURSTS LAST mechanism is correct.
+`test_burst_len_drives_last` frames a burst and holds `wide_last` LOW, so
+the counter is the only thing that can assert LAST -- it lands exactly on
+`burst_len`, on all 16 configurations including DUAL. That test is asserted
+and green.
+
+Everything that looked like an RTL defect was test-side, in three layers:
+the signal mapping (LAST never bound, so it read False always), the framing
+units (wide beats where the RTL counts narrow), and fixed waits that let a
+previous burst's tail be read as the next burst's beat 0. All fixed.
+
+`test_burst_tracking` itself remains intermittently red on DUAL and is left
+unasserted -- but the failure it shows is a DUAL-buffer symptom shared with
+CONV-003, not a burst-tracking one. Tracking it there.
+
+**Superseded detail below.**
+
 **Status:** open 2026-08-22; narrowed 2026-08-23
 **Priority:** P1 — either a broken feature or a broken test, and neither is known
 
@@ -156,9 +175,43 @@ settle.
 
 ---
 
-## CONV-003 — dnsize DUAL buffer drops beats under backpressure
-**Status:** open 2026-08-23
-**Priority:** P1 — possible RTL defect in the dual-buffer path
+## CONV-003 — dnsize DUAL buffer: dropped beats and misplaced LAST
+**Status:** open 2026-08-23; widened same day
+**Priority:** P1 — the evidence now points at the dual-buffer path itself
+
+**Widened.** This is no longer just the backpressure scenario. After the
+test-side faults were cleared (see [[CONV-002]], [[CONV-001]]), DUAL
+configurations are the only ones that still misbehave, and they do it in
+more than one scenario:
+
+| Symptom | Scenario | Configs |
+|---|---|---|
+| 36 of 40 beats received | `test_backpressure` | DUAL |
+| LAST asserted early (beat 3 of a ratio-4 burst) | `test_burst_tracking` | DUAL + TRACK_BURSTS |
+| LAST asserted early | `test_last_propagation` | `128to32_wstrb_slice_simple_DUAL` |
+
+Single-buffer configurations pass all three. The last row matters most: it
+is a SIMPLE config, so this is not specific to burst tracking.
+
+It is intermittent -- 0 to 2 failures per run across 16 configs -- which is
+why it survives casual runs and why chasing it through the randomized
+scenarios has been unproductive.
+
+**What is ruled out:** the counter mechanism (proven by
+`test_burst_len_drives_last`, deterministic, green on DUAL), signal binding,
+framing units, fixed-wait races, and queue residue. Each was a real fault and
+each was fixed; the DUAL symptom outlived all of them.
+
+**Work:**
+- [ ] Write a DETERMINISTIC dual-buffer scenario -- fixed lengths, no random
+      burst sizes -- that reproduces on demand. The randomized scenarios have
+      given all they are going to.
+- [ ] Read `gen_dual_buffer` against it: the ping-pong swap and its
+      `narrow_last` (`current_buffer_valid && ...`) are the suspects.
+- [ ] Decide RTL vs test on that evidence; an RTL fix needs a failing test
+      first, per the standing rule.
+- [ ] `test_burst_tracking` and `test_backpressure` stay unasserted until
+      this closes.
 
 Split out of [[CONV-002]] once the test-side faults were cleared.
 

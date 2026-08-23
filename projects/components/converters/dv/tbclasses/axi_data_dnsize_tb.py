@@ -482,11 +482,26 @@ class AXIDataDnsizeTB(TBBase):
             return True
 
         self.log.info(f"Starting burst tracking test ({num_bursts} bursts)")
+        # CONV-002 intermittency probe: fingerprint the RNG stream. If two
+        # same-seed runs print different values here, draws diverged UPSTREAM;
+        # if the fingerprint matches but lengths differ, something concurrent
+        # is stealing draws mid-scenario.
+        import hashlib as _hl
+        self.log.info(f"RNG fingerprint at burst_tracking entry: "
+                      f"{_hl.md5(repr(random.getstate()).encode()).hexdigest()[:12]}")
+        _drawn_lengths = []
 
         for burst_id in range(num_bursts):
             # Random burst length (1-16 beats, encoded as 0-15)
             burst_len_encoded = random.randint(0, 15)
+            _drawn_lengths.append(burst_len_encoded)
             burst_len_beats = burst_len_encoded + 1
+
+            # Empty the queue before framing. Polling for N beats below only
+            # proves N ARRIVED, not that they belong to THIS burst -- residue
+            # from the previous one satisfies the count early and shifts every
+            # index, which reads as a LAST in the wrong place.
+            self.get_narrow_beats(clear=True)
 
             # Start burst
             # burst_len is NARROW beats - 1. In TRACK_BURSTS mode narrow_last
@@ -504,7 +519,27 @@ class AXIDataDnsizeTB(TBBase):
 
             # Wait for all narrow beats
             total_narrow_beats = burst_len_beats * self.width_ratio
-            await self.wait_clocks(self.clk_name, total_narrow_beats + 10)
+            # Poll for this burst's full set. On a fixed window the previous
+            # burst's tail is still queued and burst N reads it as its own
+            # beat 0 -- which is the "beat 3: expected False, got True" this
+            # reported, beat 3 being the previous burst's final beat at
+            # ratio 4. The counter itself is correct: see
+            # test_burst_len_drives_last, which drives a framed burst with
+            # wide_last held low and gets LAST exactly where burst_len says.
+            for _ in range(total_narrow_beats * 8 + 200):
+                if len(self.get_narrow_beats()) >= total_narrow_beats:
+                    break
+                await self.wait_clocks(self.clk_name, 1)
+
+            # Let the burst close before the next iteration frames one. The
+            # RTL latches burst_len only when a burst is NOT already active
+            # (`burst_start && !r_burst_active`), so a start_burst issued
+            # while the previous burst is still draining is silently dropped
+            # and the next burst inherits the OLD length -- LAST then lands
+            # WIDTH_RATIO beats early. Intermittent by nature: it depends on
+            # whether the drain had finished, which is why only some random
+            # length sequences showed it.
+            await self.wait_clocks(self.clk_name, 10)
 
             # Verify LAST only on final narrow beat
             narrow_beats = self.get_narrow_beats(count=total_narrow_beats, clear=True)
@@ -516,7 +551,8 @@ class AXIDataDnsizeTB(TBBase):
                                    f"expected {expected_last}, got {narrow_last}")
                     return False
 
-        self.log.info(f"✓ Burst tracking test PASSED ({num_bursts} bursts)")
+        self.log.info(f"✓ Burst tracking test PASSED ({num_bursts} bursts); "
+                      f"lengths={_drawn_lengths}")
         return True
 
 
@@ -547,7 +583,12 @@ class AXIDataDnsizeTB(TBBase):
             await self.send_wide_beat(pkt['data'], pkt.get('sideband', 0),
                                       last=False)
 
-        await self.wait_clocks(self.clk_name, total_narrow + 20)
+        # Poll, do not assume: a fixed window here would report a slow
+        # drain as a lost beat.
+        for _ in range(total_narrow * 8 + 200):
+            if len(self.get_narrow_beats()) >= total_narrow:
+                break
+            await self.wait_clocks(self.clk_name, 1)
         beats = self.get_narrow_beats(clear=True)
         if len(beats) < total_narrow:
             self.log.error(f"@ {get_sim_time('ns')}ns: burst_len-driven LAST: "
