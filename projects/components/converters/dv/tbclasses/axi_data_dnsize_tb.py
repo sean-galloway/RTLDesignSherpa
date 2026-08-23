@@ -84,7 +84,7 @@ class AXIDataDnsizeTB(TBBase):
             prefix="wide_",
             clock=self.clk,
             field_config=wide_field_config,
-            pkt_prefix="wide",
+            pkt_prefix="",
             multi_sig=True,
             log=self.log
         )
@@ -102,7 +102,7 @@ class AXIDataDnsizeTB(TBBase):
             prefix="narrow_",
             clock=self.clk,
             field_config=narrow_field_config,
-            pkt_prefix="narrow",
+            pkt_prefix="",
             multi_sig=True,
             log=self.log
         )
@@ -390,8 +390,12 @@ class AXIDataDnsizeTB(TBBase):
             # Send wide beat using GAXI master
             await self.send_wide_beat(wide_data, wide_sideband, last=False)
 
-            # Wait for narrow beats to appear
-            await self.wait_clocks(self.clk_name, self.width_ratio + 5)
+            # Poll for the beats rather than waiting a fixed window: the
+            # narrow side's ready is randomized, so ratio+5 is a race.
+            for _ in range(self.width_ratio * 8 + 100):
+                if len(self.get_narrow_beats()) >= self.width_ratio:
+                    break
+                await self.wait_clocks(self.clk_name, 1)
 
             # Verify we received WIDTH_RATIO narrow beats
             narrow_beats = self.get_narrow_beats(count=self.width_ratio, clear=True)
@@ -447,7 +451,15 @@ class AXIDataDnsizeTB(TBBase):
             await self.send_wide_beat(wide_data, wide_sideband, last=True)
 
             # Wait for narrow beats
-            await self.wait_clocks(self.clk_name, self.width_ratio + 5)
+            # Poll for this transaction's full set before reading. On a
+            # fixed window the previous transaction's tail is still in the
+            # queue, so beat 0 here is really the last beat of the one
+            # before -- which is exactly the "expected False, got True"
+            # LAST mismatch this used to report.
+            for _ in range(self.width_ratio * 8 + 100):
+                if len(self.get_narrow_beats()) >= self.width_ratio:
+                    break
+                await self.wait_clocks(self.clk_name, 1)
 
             # Get narrow beats
             narrow_beats = self.get_narrow_beats(count=self.width_ratio, clear=True)
@@ -574,8 +586,15 @@ class AXIDataDnsizeTB(TBBase):
             # Wait for transaction to complete
             await self.wait_clocks(self.clk_name, self.width_ratio + 10)
 
-        # Verify we got all expected beats
+        # Verify we got all expected beats. Poll for the tail: the per-
+        # transaction wait above is a fixed window and this scenario is
+        # deliberately slowing the narrow side, so the last transaction can
+        # still be draining when the loop ends.
         expected_total = num_transactions * self.width_ratio
+        for _ in range(expected_total * 4 + 200):
+            if len(self.narrow_slave._recvQ) >= expected_total:
+                break
+            await self.wait_clocks(self.clk_name, 1)
         actual_total = len(self.narrow_slave._recvQ)
 
         if actual_total != expected_total:

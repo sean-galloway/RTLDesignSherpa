@@ -138,7 +138,7 @@ async def cocotb_test_basic_splitting(dut):
     """Test basic wide→narrow splitting"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    await tb.test_basic_splitting(num_transactions=20)
+    assert await tb.test_basic_splitting(num_transactions=20), 'scenario reported failure'
 
 
 @cocotb.test()
@@ -164,7 +164,7 @@ async def cocotb_test_last_propagation(dut):
     """Test that wide_last propagates to last narrow beat (simple mode)"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    await tb.test_last_propagation(num_transactions=10)
+    assert await tb.test_last_propagation(num_transactions=10), 'scenario reported failure'
 
 
 @cocotb.test()
@@ -172,10 +172,9 @@ async def cocotb_test_burst_tracking(dut):
     """Test burst tracking mode for correct LAST generation"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    # NOTE: the return value is deliberately NOT asserted yet -- it is False
-    # today and the cause is unresolved (CONV-001 in vault/Tasks). Asserting
-    # it turns 6 configs red without telling anyone anything new. The silent
-    # discard is the bug; the task carries the evidence.
+    # NOT asserted: fails on TRACK_BURSTS configs with an early LAST.
+    # Signal mapping and framing units are both fixed now, so this is a
+    # real behavioural question -- see CONV-001.
     await tb.test_burst_tracking(num_bursts=15)
 
 
@@ -184,6 +183,8 @@ async def cocotb_test_backpressure(dut):
     """Test backpressure handling"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
+    # NOT asserted: DUAL configs lose beats (40 expected, 36 seen) and the
+    # tail is polled, so they are dropped rather than late -- see CONV-003.
     await tb.test_backpressure(num_transactions=10)
 
 
@@ -192,7 +193,7 @@ async def cocotb_test_continuous_streaming(dut):
     """Test continuous streaming without gaps"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    await tb.test_continuous_streaming(num_wide_beats=30)
+    assert await tb.test_continuous_streaming(num_wide_beats=30), 'scenario reported failure'
 
 
 if __name__ == "__main__":

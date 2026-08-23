@@ -79,7 +79,7 @@ class AXIDataUpsizeTB(TBBase):
             prefix="narrow_",
             clock=self.clk,
             field_config=narrow_field_config,
-            pkt_prefix="narrow",
+            pkt_prefix="",
             multi_sig=True,
             log=self.log
         )
@@ -97,7 +97,7 @@ class AXIDataUpsizeTB(TBBase):
             prefix="wide_",
             clock=self.clk,
             field_config=wide_field_config,
-            pkt_prefix="wide",
+            pkt_prefix="",
             multi_sig=True,
             log=self.log
         )
@@ -202,8 +202,12 @@ class AXIDataUpsizeTB(TBBase):
             for i, (data, sideband) in enumerate(narrow_beats):
                 await self.send_narrow_beat(data, sideband, last=False)
 
-            # Wait for wide beat to appear
-            await self.wait_clocks(self.clk_name, self.width_ratio + 5)
+            # Wait for wide beat to appear. The wide side is randomized, so
+            # a fixed ratio+5 window is a race, not a bound -- poll instead.
+            for _ in range(self.width_ratio * 8 + 100):
+                if len(self.get_wide_beats()) >= 1:
+                    break
+                await self.wait_clocks(self.clk_name, 1)
 
             # Verify we received 1 wide beat
             wide_beats = self.get_wide_beats(count=1, clear=True)
@@ -266,8 +270,12 @@ class AXIDataUpsizeTB(TBBase):
                 is_last = (i == num_beats - 1)
                 await self.send_narrow_beat(data, sideband, last=is_last)
 
-            # Wait for wide beat
-            await self.wait_clocks(self.clk_name, num_beats + 5)
+            # Poll rather than wait a fixed window: the wide side's ready is
+            # randomized, so num_beats+5 is a race, not a bound.
+            for _ in range(self.width_ratio * 8 + 100):
+                if len(self.get_wide_beats()) >= 1:
+                    break
+                await self.wait_clocks(self.clk_name, 1)
 
             # Get wide beat
             wide_beats = self.get_wide_beats(count=1, clear=True)
@@ -298,9 +306,14 @@ class AXIDataUpsizeTB(TBBase):
                 data = random.randint(0, (1 << self.narrow_width) - 1)
                 await self.send_narrow_beat(data, sideband=0, last=False)
 
-            # Add random delay before checking output
-            delay_cycles = random.randint(5, 20)
-            await self.wait_clocks(self.clk_name, delay_cycles)
+            # Random delay, then poll. The delay is the point of this
+            # scenario -- the bound on arrival is not, and a randomized
+            # ready can outlast a 5-20 cycle window.
+            await self.wait_clocks(self.clk_name, random.randint(5, 20))
+            for _ in range(self.width_ratio * 8 + 100):
+                if len(self.get_wide_beats()) >= 1:
+                    break
+                await self.wait_clocks(self.clk_name, 1)
 
             # Verify wide beat arrived
             wide_beats = self.get_wide_beats(count=1, clear=True)
@@ -314,6 +327,12 @@ class AXIDataUpsizeTB(TBBase):
     async def test_continuous_streaming(self, num_wide_beats=20):
         """Test continuous streaming without gaps"""
         self.log.info(f"Starting continuous streaming test ({num_wide_beats} wide beats)")
+
+        # Start from an empty queue. Each cocotb test builds a fresh TB but
+        # the DUT and its BFMs persist across tests in one simulation, so
+        # beats left by the previous scenario are counted here -- that is
+        # the "expected 30, got 31" this used to report.
+        self.get_wide_beats(clear=True)
 
         # Send narrow beats continuously
         for wide_beat in range(num_wide_beats):

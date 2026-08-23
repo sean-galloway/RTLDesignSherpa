@@ -4,9 +4,18 @@
 
 ---
 
-## CONV-001 — axi_data_dnsize burst-tracking LAST: test discards a failing result
-**Status:** open 2026-08-22
+## CONV-001 — axi_data_dnsize burst-tracking LAST: early LAST on TRACK_BURSTS
+**Status:** open 2026-08-22; narrowed 2026-08-23
 **Priority:** P1 — either a broken feature or a broken test, and neither is known
+
+**Update 2026-08-23.** Two of the three suspects are eliminated. The signal
+mapping was broken (`field_last_sig` never resolved, so LAST read as 0
+regardless of what the RTL did) and the framing units were wrong (wide beats
+where the RTL counts narrow). Both are fixed. With LAST actually observable,
+the symptom changed from "LAST never asserts" to **"LAST asserts early"** --
+`Burst 2, beat 3: expected False, got True`, beat 3 being the end of the
+first WIDE beat at ratio 4. That is a real behavioural question about the
+counter path, not an artefact. Everything below still applies.
 
 `test_axi_data_dnsize.py` calls the scenario without checking it:
 
@@ -71,7 +80,7 @@ narrow-beat framing, consistent with one bubble per burst boundary.
 ---
 
 ## CONV-002 — the dnsize and upsize test files are decorative: 22/22 configs fail when asserted
-**Status:** open 2026-08-22
+**Status:** mostly resolved 2026-08-23 — root cause found, 7 of 9 scenarios now asserted and green
 **Priority:** P0 — two primitives have no working verification at all
 
 [[CONV-001]] found one scenario whose result was discarded. Sweeping for the
@@ -143,3 +152,27 @@ settle.
       of them helpers rather than scenarios, but
       `dmas/stream/.../test_sram_controller_alloc.py:257`
       (`run_full_allocation_test`) is the same shape and is unexamined.
+
+
+---
+
+## CONV-003 — dnsize DUAL buffer drops beats under backpressure
+**Status:** open 2026-08-23
+**Priority:** P1 — possible RTL defect in the dual-buffer path
+
+Split out of [[CONV-002]] once the test-side faults were cleared.
+
+`test_backpressure` on `axi_data_dnsize` reports **40 expected, 36 received**
+on DUAL configurations (`128to32_wstrb_slice_simple_DUAL` and siblings).
+Single-buffer configurations pass the same scenario.
+
+This is not a timing race. The scenario now polls for the tail
+(`expected * 4 + 200` cycles) before counting, so the four beats are missing,
+not late.
+
+**Work:**
+- [ ] Confirm against the RTL whether the dual-buffer path can drop a beat
+      when the narrow side stalls, or whether the scenario mis-drives it.
+- [ ] Any RTL defect gets a test that fails before the fix, per the standing
+      rule.
+- [ ] Assert the verdict once green (currently gated with a pointer here).

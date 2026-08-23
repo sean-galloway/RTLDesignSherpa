@@ -121,7 +121,7 @@ async def cocotb_test_basic_accumulation(dut):
     """Test basic narrow→wide accumulation"""
     tb = AXIDataUpsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    await tb.test_basic_accumulation(num_transactions=20)
+    assert await tb.test_basic_accumulation(num_transactions=20)
 
 
 @cocotb.test()
@@ -129,7 +129,7 @@ async def cocotb_test_early_last(dut):
     """Test early termination with narrow_last"""
     tb = AXIDataUpsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    await tb.test_early_last(num_transactions=15)
+    assert await tb.test_early_last(num_transactions=15), 'scenario reported failure'
 
 
 @cocotb.test()
@@ -137,7 +137,7 @@ async def cocotb_test_backpressure(dut):
     """Test backpressure handling"""
     tb = AXIDataUpsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    await tb.test_backpressure(num_transactions=10)
+    assert await tb.test_backpressure(num_transactions=10), 'scenario reported failure'
 
 
 @cocotb.test()
@@ -145,7 +145,7 @@ async def cocotb_test_continuous_streaming(dut):
     """Test continuous streaming without gaps"""
     tb = AXIDataUpsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    await tb.test_continuous_streaming(num_wide_beats=30)
+    assert await tb.test_continuous_streaming(num_wide_beats=30), 'scenario reported failure'
 
 
 if __name__ == "__main__":
