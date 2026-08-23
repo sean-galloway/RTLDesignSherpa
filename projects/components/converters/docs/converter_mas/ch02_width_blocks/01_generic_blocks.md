@@ -36,7 +36,7 @@ Generic Building Blocks
 |   +-- Sideband packing
 |
 +-- axi_data_dnsize.sv      # Wide-to-Narrow splitter
-    +-- Data buffer (single or dual)
+    +-- Data buffer
     +-- Beat counter
     +-- Sideband extraction
     +-- Optional burst tracking
@@ -165,7 +165,6 @@ input = OKAY (2'b00)
 |--------|------|------------|---------|------|
 | axi_data_upsize | Single | 100% | N cycles | 1x |
 | axi_data_dnsize | Single | 0.992 beats/cycle | 1 cycle | 1x |
-| axi_data_dnsize | Dual | 100% | 1 cycle | 2x |
 
 : Table 2.3: Performance Comparison
 
@@ -202,13 +201,6 @@ Control logic:        ~50 LEs
 
 Total: ~70-100 LEs, ~520 registers
 ```
-
-**Dual Buffer:**
-```
-Data buffers (2x):    1024 bits
-Beat counters (2x):   6 bits
-Sideband logic:       ~40 LEs
-Control logic:        ~100 LEs (ping-pong FSM)
 
 Total: ~140-180 LEs, ~1040 registers
 ```

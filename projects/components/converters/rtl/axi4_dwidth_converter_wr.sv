@@ -350,8 +350,7 @@ module axi4_dwidth_converter_wr #(
                 .NARROW_SB_WIDTH (M_STRB_WIDTH),
                 .SB_BROADCAST    (0),
                 .TRACK_BURSTS    (0),
-                .BURST_LEN_WIDTH (8),
-                .DUAL_BUFFER     (0)
+                .BURST_LEN_WIDTH (8)
             ) u_w_dnsize (
                 .aclk            (aclk),
                 .aresetn         (aresetn),

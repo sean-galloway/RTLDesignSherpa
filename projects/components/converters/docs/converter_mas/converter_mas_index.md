@@ -47,7 +47,6 @@ This specification covers the Converters component: a collection of configurable
 - [Generic Building Blocks](ch02_width_blocks/01_generic_blocks.md)
 - [axi_data_upsize Module](ch02_width_blocks/02_axi_data_upsize.md)
 - [axi_data_dnsize Module](ch02_width_blocks/03_axi_data_dnsize.md)
-- [Dual-Buffer Architecture](ch02_width_blocks/04_dual_buffer.md)
 - [axi4_dwidth_converter_wr](ch02_width_blocks/05_dwidth_converter_wr.md)
 - [axi4_dwidth_converter_rd](ch02_width_blocks/06_dwidth_converter_rd.md)
 
@@ -85,7 +84,6 @@ This specification covers the Converters component: a collection of configurable
 ### For Integration
 
 - **Width conversion:** See [axi_data_upsize](ch02_width_blocks/02_axi_data_upsize.md) and [axi_data_dnsize](ch02_width_blocks/03_axi_data_dnsize.md)
-- **High-performance paths:** See [Dual-Buffer Architecture](ch02_width_blocks/04_dual_buffer.md)
 - **Full AXI4 conversion:** See [axi4_dwidth_converter_wr](ch02_width_blocks/05_dwidth_converter_wr.md) and [axi4_dwidth_converter_rd](ch02_width_blocks/06_dwidth_converter_rd.md)
 - **Protocol bridges:** See [AXI4 to APB](ch03_protocol_blocks/04_axi4_to_apb4.md)
 
@@ -105,7 +103,6 @@ All diagrams referenced in the documentation live in:
 
 1. **axi_data_upsize** - [assets/mermaid/axi_data_upsize.png](assets/mermaid/axi_data_upsize.png)
 2. **axi_data_dnsize_single** - [assets/mermaid/axi_data_dnsize_single.png](assets/mermaid/axi_data_dnsize_single.png)
-3. **axi_data_dnsize_dual** - [assets/mermaid/axi_data_dnsize_dual.png](assets/mermaid/axi_data_dnsize_dual.png)
 4. **axi4_dwidth_converter_wr** - [assets/mermaid/dwidth_converter_wr.png](assets/mermaid/dwidth_converter_wr.png)
 5. **axi4_dwidth_converter_rd** - [assets/mermaid/dwidth_converter_rd.png](assets/mermaid/dwidth_converter_rd.png)
 6. **axi4_to_axil4** - [assets/mermaid/axi4_to_axil4.png](assets/mermaid/axi4_to_axil4.png)
@@ -127,7 +124,7 @@ All diagrams referenced in the documentation live in:
 - **Generic Building Blocks:** `axi_data_upsize` and `axi_data_dnsize` for any width ratio
 - **Full AXI4 Converters:** Complete write path (AW+W+B) and read path (AR+R) modules
 - **Protocol Bridges:** AXI4-to-AXI4-Lite, AXI4-Lite-to-AXI4, and AXI4-to-APB conversion
-- **Buffering Options:** Single- or dual-buffer downsize (single already replaces its beat without a stall; see 2.4)
+- **Downsize buffering:** a single buffer that accepts its replacement during the last narrow beat -- measured at 0.992 beats/cycle, so no second buffer is needed
 - **Flexible Sideband Handling:** Concatenate, broadcast, or OR modes
 
 ### Module Summary
@@ -137,7 +134,7 @@ All diagrams referenced in the documentation live in:
 | axi_data_upsize | Narrow-to-wide accumulator | 100% | 1x |
 | axi_data_dnsize | Wide-to-narrow splitter | 0.992 beats/cycle | 1x / 2x |
 | axi4_dwidth_converter_wr | Full write path | 100% | Standard |
-| axi4_dwidth_converter_rd | Full read path | 100% | +100% (dual) |
+| axi4_dwidth_converter_rd | Full read path | 0.992 beats/cycle | 1x |
 | axi4_to_axil4 | Burst decomposition | 50-100% | ~450 LUTs |
 | axil4_to_axi4 | Protocol upgrade | 100% | ~110 LUTs |
 | axi4_to_apb4_convert | Full protocol bridge | Sequential | Medium |

@@ -23,7 +23,7 @@
 
 # 2.3 axi_data_dnsize Module
 
-The **axi_data_dnsize** module splits 1 wide beat into N narrow beats. It offers single-buffer and dual-buffer (ping-pong) modes; the single buffer accepts its replacement during the last narrow beat rather than stalling.
+The **axi_data_dnsize** module splits 1 wide beat into N narrow beats. It accepts the next wide beat during the last narrow beat of the current one, so a steady stream costs no per-beat stall.
 
 ## 2.3.1 Purpose and Function
 
@@ -31,7 +31,6 @@ The downsize module does four things:
 
 1. **Data Splitting**: Extracts N narrow beats from one wide beat
 2. **Sideband Extraction**: Slices or broadcasts sideband signals
-3. **Dual-Buffer Mode**: Optional ping-pong buffering; load and drain overlap explicitly
 4. **Burst Tracking**: Optional LAST signal generation based on burst length
 
 ## 2.3.2 Block Diagram
@@ -39,10 +38,6 @@ The downsize module does four things:
 ### Figure 2.3: axi_data_dnsize Single-Buffer Architecture
 
 ![axi_data_dnsize Single Buffer](../assets/mermaid/axi_data_dnsize_single.png)
-
-### Figure 2.4: axi_data_dnsize Dual-Buffer Architecture
-
-![axi_data_dnsize Dual Buffer](../assets/mermaid/axi_data_dnsize_dual.png)
 
 ## 2.3.3 Interface Specification
 
@@ -57,7 +52,6 @@ The downsize module does four things:
 | SB_BROADCAST | int | 1 | 0=slice, 1=broadcast sidebands |
 | TRACK_BURSTS | int | 0 | Enable burst-aware LAST generation |
 | BURST_LEN_WIDTH | int | 8 | Width of burst length input |
-| DUAL_BUFFER | int | 0 | 0=single buffer, 1=dual buffer (ping-pong, 2x area) |
 
 : Table 2.7: axi_data_dnsize Parameters
 
@@ -73,7 +67,6 @@ module axi_data_dnsize #(
     parameter int SB_BROADCAST      = 1,        // 1=broadcast, 0=slice
     parameter int TRACK_BURSTS      = 0,        // 1=track bursts for LAST
     parameter int BURST_LEN_WIDTH   = 8,        // Burst length counter width
-    parameter int DUAL_BUFFER       = 0,        // 1=dual buffer (ping-pong, 2x area), 0=single buffer (replaces during the last narrow beat)
 
     // Calculated Parameters
     localparam int WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH,
@@ -150,7 +143,6 @@ only (see `measure_throughput` in the dnsize TB):
 | Configuration | Narrow beats | Cycles | Beats/cycle |
 |---|---|---|---|
 | ratio 4, single buffer | 256 | 258 | **0.992** |
-| ratio 4, dual buffer | 256 | 258 | **0.992** |
 | ratio 2, single buffer | 128 | 130 | **0.985** |
 
 Both buffering modes sustain a narrow beat every cycle, which is the most
@@ -172,40 +164,7 @@ that does not yet exist.
 
 : Table 2.8: Single-Buffer Throughput by Ratio
 
-## 2.3.5 Dual-Buffer Mode Operation
-
-### Ping-Pong Operation
-
-```
-Buffer A          Buffer B          Output
---------          --------          ------
-Load beat 0       (empty)           (idle)
-Outputting 0      Load beat 1       beat 0[0]
-Outputting 0      Outputting 1      beat 0[1]
-...               ...               ...
-Outputting 0      Outputting 1      beat 0[N-1]
-Load beat 2       Outputting 1      beat 1[0]
-Outputting 2      Outputting 1      beat 1[1]
-...
-```
-
-### State Machine (Dual)
-
-```
-Buffer A State: LOADING | OUTPUTTING | DONE
-Buffer B State: LOADING | OUTPUTTING | DONE
-
-Arbiter selects active output buffer
-When output complete, swap buffers
-```
-
-### 100% Throughput
-
-Dual-buffer overlaps loading and draining explicitly: while one buffer outputs, the other loads. Note this is an overlap the single buffer largely achieves anyway by accepting its replacement during the last narrow beat, so measure before paying the 2x area.
-
-**Trade-off**: 2x register resources
-
-## 2.3.6 Sideband Handling
+## 2.3.5 Sideband Handling
 
 ### Slice Mode (SB_BROADCAST=0)
 
@@ -246,7 +205,7 @@ Beat 1: output RRESP = 2'b00
 Beat 7: output RRESP = 2'b00
 ```
 
-## 2.3.7 Burst Tracking
+## 2.3.6 Burst Tracking
 
 ### Purpose
 
@@ -277,7 +236,7 @@ Beat 0-30: m_last = 0
 Beat 31: m_last = 1
 ```
 
-## 2.3.8 Implementation
+## 2.3.7 Implementation
 
 ### Single-Buffer Core Logic
 
@@ -328,7 +287,7 @@ assign s_ready = !r_active;
 assign m_last = r_last_wide && (r_count == RATIO - 1);
 ```
 
-## 2.3.9 Resource Utilization
+## 2.3.8 Resource Utilization
 
 ### Single-Buffer (512-bit to 64-bit)
 
@@ -342,32 +301,21 @@ Control logic:        ~10 flip-flops
 Total: ~590 flip-flops, ~30-50 LUTs
 ```
 
-### Dual-Buffer (512-bit to 64-bit)
+### Measured Throughput
 
-```
-Data buffers (2x):    1024 flip-flops
-Sideband buffers:     128 flip-flops
-Beat counters (2x):   6 flip-flops
-Control logic:        ~30 flip-flops
-Ping-pong FSM:        ~50 LUTs
+| Registers | LUTs | Throughput |
+|-----------|------|------------|
+| 590 | 40 | 0.992 beats/cycle (ratio 4) |
 
-Total: ~1190 flip-flops, ~80-100 LUTs
-```
+: Table 2.9: Resources and measured rate
 
-### Comparison
+A narrow beat every cycle, so there is nothing left for a second buffer
+to recover. The ping-pong `DUAL_BUFFER` mode this table used to compare
+against was removed once the single buffer was fixed to accept its
+replacement during the last narrow beat -- nothing instantiated it and it
+measured no faster.
 
-| Mode | Registers | LUTs | Throughput |
-|------|-----------|------|------------|
-| Single | 590 | 40 | 0.992 beats/cycle (ratio 4) |
-| Dual | 1190 | 90 | 0.992 beats/cycle (ratio 4) |
-
-: Table 2.9: Resource Comparison
-
-**Decision Guide**:
-- Area-constrained: use single buffer, accept 80% throughput
-- Performance-critical: use dual buffer, accept 2x resources
-
-## 2.3.10 Usage Example
+## 2.3.9 Usage Example
 
 ### 512-bit to 64-bit Read Data (High Performance)
 
@@ -378,12 +326,11 @@ axi_data_dnsize #(
     .WIDE_SB_WIDTH(2),       // RRESP
     .NARROW_SB_WIDTH(2),
     .SB_BROADCAST(1),        // Broadcast RRESP
-    .DUAL_BUFFER(1),         // 100% throughput
     .TRACK_BURSTS(1),        // Generate RLAST
     .BURST_LEN_WIDTH(8)
 ) u_rdata_dnsize (
-    .clk        (aclk),
-    .rst_n      (aresetn),
+    .aclk       (aclk),
+    .aresetn    (aresetn),
     .s_valid    (s_rvalid),
     .s_ready    (s_rready),
     .s_data     (s_rdata),
@@ -400,4 +347,4 @@ axi_data_dnsize #(
 
 ---
 
-**Next:** [Dual-Buffer Architecture](04_dual_buffer.md)
+**Next:** [Dwidth Converter (write)](05_dwidth_converter_wr.md)

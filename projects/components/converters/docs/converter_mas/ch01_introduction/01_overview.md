@@ -118,11 +118,10 @@ Layer 3: Protocol Converters
 |---------------|------------|------|----------|
 | Upsize (single buffer) | 100% | 1x | All narrow-to-wide |
 | Downsize (single buffer) | 0.992 beats/cycle | 1x | Area-constrained |
-| Downsize (dual buffer) | 100% | 2x | High-performance |
 
 : Table 1.3: Throughput vs. Area Trade-offs
 
-**Design Decision:** Single-buffer upsize is always optimal. For downsize the buffering depth is exposed as a configuration choice, though the single buffer already replaces its beat without stalling -- characterize before assuming dual is worth 2x the area.
+**Design Decision:** One buffer per direction. The downsize accepts its next wide beat during the last narrow beat of the current one, measured at 0.992 beats/cycle, so a second buffer has nothing to recover. A ping-pong mode existed for this and was removed once the single buffer was fixed.
 
 ### 1.4.3 Sideband Signal Handling
 
@@ -144,7 +143,6 @@ Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 |--------|-------------|-----------------|
 | axi_data_upsize | 0 cycles | N cycles to accumulate |
 | axi_data_dnsize (single) | 1 cycle | N cycles + gap |
-| axi_data_dnsize (dual) | 1 cycle | N cycles |
 | axi4_to_axil4 | 0 cycles | 2xN cycles |
 | axil4_to_axi4 | 0 cycles | N/A (single only) |
 
@@ -156,7 +154,6 @@ Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 |--------|--------------|-----------------|
 | axi_data_upsize | Single buffer | 1 beat/cycle |
 | axi_data_dnsize | Single buffer | 0.8 beats/cycle |
-| axi_data_dnsize | Dual buffer | 1 beat/cycle |
 | axi4_to_axil4 | Burst | 0.5 beats/cycle |
 | axil4_to_axi4 | Any | 1 beat/cycle |
 
@@ -176,7 +173,7 @@ Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 
 - Non-integer width ratios (e.g., 3:2 conversion)
 - AXI4-Stream protocol (see Stream component)
-- Complex buffering beyond dual-buffer
+- Buffering deeper than one beat per direction
 - Clock domain crossing (use separate CDC modules)
 - Address translation (handled by crossbar)
 

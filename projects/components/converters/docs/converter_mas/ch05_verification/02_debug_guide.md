@@ -73,7 +73,6 @@ assign m_last = (r_count == RATIO - 1) || r_input_last_seen;
 
 **Debug Steps:**
 1. Check downstream ready signal behavior
-2. Verify DUAL_BUFFER parameter for downsize
 3. Look for backpressure stalls
 
 ### Protocol Converter Issues
@@ -282,7 +281,6 @@ async def measure_throughput(tb, transaction_count=1000):
 |--------|------|----------|
 | axi_data_upsize | Single | 1.0 trans/cycle |
 | axi_data_dnsize | Single | 0.8 trans/cycle |
-| axi_data_dnsize | Dual | 1.0 trans/cycle |
 | axi4_to_axil4 | Single-beat | 1.0 trans/cycle |
 | axi4_to_axil4 | Burst | 0.5 trans/cycle |
 

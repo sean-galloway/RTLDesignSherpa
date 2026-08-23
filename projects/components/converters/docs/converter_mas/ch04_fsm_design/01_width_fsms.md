@@ -117,47 +117,7 @@ OUTPUT:
   - m_ready && count == RATIO-1 → IDLE
 ```
 
-## 4.1.3 Downsize FSM (Dual Buffer)
-
-Dual-buffer mode uses two parallel state machines with an arbiter.
-
-### Buffer State Machine
-
-```systemverilog
-typedef enum logic [1:0] {
-    BUF_EMPTY     = 2'b00,
-    BUF_LOADED    = 2'b01,
-    BUF_OUTPUTTING = 2'b10
-} buf_state_t;
-
-buf_state_t r_buf_a_state, r_buf_b_state;
-```
-
-### Arbiter Logic
-
-```systemverilog
-// Select which buffer outputs
-always_comb begin
-    if (r_buf_a_state == BUF_OUTPUTTING)
-        output_sel = 1'b0;  // Buffer A
-    else if (r_buf_b_state == BUF_OUTPUTTING)
-        output_sel = 1'b1;  // Buffer B
-    else if (r_buf_a_state == BUF_LOADED)
-        output_sel = 1'b0;  // A loaded first
-    else
-        output_sel = 1'b1;  // B loaded first
-end
-
-// Select which buffer loads
-always_comb begin
-    if (r_buf_a_state == BUF_EMPTY)
-        load_sel = 1'b0;
-    else
-        load_sel = 1'b1;
-end
-```
-
-## 4.1.4 Full Converter FSMs
+## 4.1.3 Full Converter FSMs
 
 ### Write Converter (axi4_dwidth_converter_wr)
 
@@ -195,7 +155,7 @@ R_FORWARD:
   - on RLAST → IDLE
 ```
 
-## 4.1.5 Timing Diagrams
+## 4.1.4 Timing Diagrams
 
 ### Upsize Timing (8:1 ratio)
 

@@ -482,19 +482,10 @@ class AXIDataDnsizeTB(TBBase):
             return True
 
         self.log.info(f"Starting burst tracking test ({num_bursts} bursts)")
-        # CONV-002 intermittency probe: fingerprint the RNG stream. If two
-        # same-seed runs print different values here, draws diverged UPSTREAM;
-        # if the fingerprint matches but lengths differ, something concurrent
-        # is stealing draws mid-scenario.
-        import hashlib as _hl
-        self.log.info(f"RNG fingerprint at burst_tracking entry: "
-                      f"{_hl.md5(repr(random.getstate()).encode()).hexdigest()[:12]}")
-        _drawn_lengths = []
 
         for burst_id in range(num_bursts):
             # Random burst length (1-16 beats, encoded as 0-15)
             burst_len_encoded = random.randint(0, 15)
-            _drawn_lengths.append(burst_len_encoded)
             burst_len_beats = burst_len_encoded + 1
 
             # Empty the queue before framing. Polling for N beats below only
@@ -551,8 +542,7 @@ class AXIDataDnsizeTB(TBBase):
                                    f"expected {expected_last}, got {narrow_last}")
                     return False
 
-        self.log.info(f"✓ Burst tracking test PASSED ({num_bursts} bursts); "
-                      f"lengths={_drawn_lengths}")
+        self.log.info(f"✓ Burst tracking test PASSED ({num_bursts} bursts)")
         return True
 
 

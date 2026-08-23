@@ -55,8 +55,7 @@ module axi4_to_apb4_shim #(
     parameter int ARSize            = IW+AW+8+3+2+1+4+3+4+4+UW,
     parameter int RSize             = IW+DW+2+1+UW,
     parameter int APBCmdWidth       = APBAW + APBDW + APBSW + 3 + 1 + 1 + 1,
-    parameter int APBRspWidth       = APBDW + 1 + 1 + 1,
-    parameter int SideSize          = 1+IW+2+1+UW
+    parameter int APBRspWidth       = APBDW + 1 + 1 + 1
 ) (
     // Clock and Reset
     input  logic                          aclk,

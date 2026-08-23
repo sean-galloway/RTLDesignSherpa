@@ -242,7 +242,6 @@ axi_data_dnsize #(
     .SB_BROADCAST    (1),          // Broadcast RRESP
     .TRACK_BURSTS    (1),
     .BURST_LEN_WIDTH (8),
-    .DUAL_BUFFER     (0)
 ) u_r_dnsize (
     .clk        (clk),
     .rst_n      (rst_n),
@@ -309,39 +308,16 @@ assign s_rid = m_rid;
 assign s_rid = current_arid;
 ```
 
-## 2.6.9 Dual-Buffer Impact
+## 2.6.9 Resource Utilization
 
-### Performance Comparison
-
-| Mode | Throughput | Latency | Resources |
-|------|------------|---------|-----------|
-| Single | 80-90% | 1 cycle | 1x |
-| Dual | 100% | 1 cycle | 2x |
-
-: Table 2.19: Read Converter Performance
-
-### When to Use Dual Buffer
-
-**Use dual buffer for:**
-- DDR read paths with high bandwidth
-- Streaming read applications
-- DMA read operations
-
-**Use single buffer for:**
-- Control register reads
-- Low-bandwidth paths
-- Area-constrained designs
-
-## 2.6.10 Resource Utilization
-
-### Typical Resources (512→64, ID=4, Dual Buffer)
+### Typical Resources (512→64, ID=4)
 
 Hand estimates, not synthesis results, except the burst-length FIFO,
 which is counted from its declaration.
 
 ```
 AR skid buffer:      ~150 flip-flops
-R downsize (dual):   ~1200 flip-flops, ~100 LUTs
+R downsize:          ~1200 flip-flops, ~100 LUTs
 Burst-length FIFO:   138 flip-flops (16 x 8b + two 5b pointers)
 Burst tracker:       ~30 flip-flops, ~20 LUTs
 Control logic:       ~80 LUTs
@@ -357,7 +333,7 @@ R downsize (single): ~600 flip-flops, ~50 LUTs
 Total: ~880 flip-flops, ~120 LUTs
 ```
 
-## 2.6.11 Timing Characteristics
+## 2.6.10 Timing Characteristics
 
 ### Latency
 
@@ -372,9 +348,9 @@ Total: ~880 flip-flops, ~120 LUTs
 ### Throughput
 
 - AR channel: 1 transaction/cycle
-- R channel: single-buffer replaces without a stall; dual overlaps load and drain (neither characterized)
+- R channel: the downsize accepts its next wide beat during the last narrow beat, measured at 0.992 beats/cycle
 
-## 2.6.12 Usage Example
+## 2.6.11 Usage Example
 
 ```systemverilog
 axi4_dwidth_converter_rd #(

@@ -17,33 +17,23 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Test parameter combinations
 test_params = [
-    # (wide_width, narrow_width, wide_sb, narrow_sb, sb_broadcast, track_bursts, dual_buffer, description)
+    # (wide_width, narrow_width, wide_sb, narrow_sb, sb_broadcast, track_bursts, description)
 
-    # SINGLE-BUFFER MODE (DUAL_BUFFER=0) - Original tests
-    (128, 32, 16, 4, 0, 0, 0, "128to32_wstrb_slice_simple"),
-    (256, 64, 32, 8, 0, 0, 0, "256to64_wstrb_slice_simple"),
-    (128, 32, 2, 2, 1, 0, 0, "128to32_rresp_broadcast_simple"),
-    (256, 64, 2, 2, 1, 0, 0, "256to64_rresp_broadcast_simple"),
-    (128, 32, 2, 2, 1, 1, 0, "128to32_rresp_burst_track"),
-    (256, 64, 2, 2, 1, 1, 0, "256to64_rresp_burst_track"),
-    (512, 128, 2, 2, 1, 1, 0, "512to128_rresp_burst_track"),
-    (128, 64, 0, 0, 1, 0, 0, "128to64_no_sideband_simple"),
+    (128, 32, 16, 4, 0, 0, "128to32_wstrb_slice_simple"),
+    (256, 64, 32, 8, 0, 0, "256to64_wstrb_slice_simple"),
+    (128, 32, 2, 2, 1, 0, "128to32_rresp_broadcast_simple"),
+    (256, 64, 2, 2, 1, 0, "256to64_rresp_broadcast_simple"),
+    (128, 32, 2, 2, 1, 1, "128to32_rresp_burst_track"),
+    (256, 64, 2, 2, 1, 1, "256to64_rresp_burst_track"),
+    (512, 128, 2, 2, 1, 1, "512to128_rresp_burst_track"),
+    (128, 64, 0, 0, 1, 0, "128to64_no_sideband_simple"),
 
-    # DUAL-BUFFER MODE (DUAL_BUFFER=1) - High throughput tests
-    (128, 32, 16, 4, 0, 0, 1, "128to32_wstrb_slice_simple_DUAL"),
-    (256, 64, 32, 8, 0, 0, 1, "256to64_wstrb_slice_simple_DUAL"),
-    (128, 32, 2, 2, 1, 0, 1, "128to32_rresp_broadcast_simple_DUAL"),
-    (256, 64, 2, 2, 1, 0, 1, "256to64_rresp_broadcast_simple_DUAL"),
-    (128, 32, 2, 2, 1, 1, 1, "128to32_rresp_burst_track_DUAL"),
-    (256, 64, 2, 2, 1, 1, 1, "256to64_rresp_burst_track_DUAL"),
-    (512, 128, 2, 2, 1, 1, 1, "512to128_rresp_burst_track_DUAL"),
-    (128, 64, 0, 0, 1, 0, 1, "128to64_no_sideband_simple_DUAL"),
 ]
 
 
 def get_test_name(params):
     """Generate test name from parameters"""
-    wide_w, narrow_w, wide_sb, narrow_sb, sb_bc, track, dual_buf, desc = params
+    wide_w, narrow_w, wide_sb, narrow_sb, sb_bc, track, desc = params
     return desc
 
 
@@ -53,7 +43,7 @@ def test_axi_data_dnsize(request, params):
     """
     Test axi_data_dnsize with various configurations
     """
-    wide_width, narrow_width, wide_sb_width, narrow_sb_width, sb_broadcast, track_bursts, dual_buffer, description = params
+    wide_width, narrow_width, wide_sb_width, narrow_sb_width, sb_broadcast, track_bursts, description = params
 
     # Get directory and module information using repository standard
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -74,7 +64,6 @@ def test_axi_data_dnsize(request, params):
         "SB_BROADCAST": sb_broadcast,
         "TRACK_BURSTS": track_bursts,
         "BURST_LEN_WIDTH": 8,
-        "DUAL_BUFFER": dual_buffer
     }
 
 
@@ -172,11 +161,7 @@ async def cocotb_test_burst_tracking(dut):
     """Test burst tracking mode for correct LAST generation"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    # NOT asserted: flaky on DUAL + TRACK_BURSTS with random burst lengths
-    # (roughly 1-2 of 16 configs per run). The MECHANISM is covered
-    # deterministically by test_burst_len_drives_last below, which is
-    # asserted and passes on all 16. See CONV-001 for what is ruled out.
-    await tb.test_burst_tracking(num_bursts=15)
+    assert await tb.test_burst_tracking(num_bursts=15), 'scenario reported failure'
     # isolation: no wide_last, so only the burst counter can assert LAST
     assert await tb.test_burst_len_drives_last(wide_beats=4)
 
@@ -186,9 +171,7 @@ async def cocotb_test_backpressure(dut):
     """Test backpressure handling"""
     tb = AXIDataDnsizeTB(dut)
     await tb.setup_clocks_and_reset()
-    # NOT asserted: DUAL configs lose beats (40 expected, 36 seen) and the
-    # tail is polled, so they are dropped rather than late -- see CONV-003.
-    await tb.test_backpressure(num_transactions=10)
+    assert await tb.test_backpressure(num_transactions=10), 'scenario reported failure'
 
 
 @cocotb.test()

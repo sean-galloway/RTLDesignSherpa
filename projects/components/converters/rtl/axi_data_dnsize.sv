@@ -47,7 +47,6 @@ module axi_data_dnsize #(
     parameter int SB_BROADCAST      = 1,        // 1=broadcast, 0=slice
     parameter int TRACK_BURSTS      = 0,        // 1=track bursts for LAST
     parameter int BURST_LEN_WIDTH   = 8,        // Burst length counter width
-    parameter int DUAL_BUFFER       = 0,        // 1=dual buffer (ping-pong, 2x area), 0=single buffer (replaces during the last narrow beat)
 
     // Calculated Parameters
     localparam int WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH,
@@ -106,22 +105,11 @@ module axi_data_dnsize #(
 
     // Single-buffer mode registers
     generate
-        if (DUAL_BUFFER == 0) begin : gen_single_buffer
+        begin : gen_single_buffer
             logic [WIDE_WIDTH-1:0]          r_data_buffer;
             logic [WIDE_SB_PORT_WIDTH-1:0]  r_sideband_buffer;
             logic                           r_wide_buffered;
             logic                           r_last_buffered;
-        end else begin : gen_dual_buffer
-            // Dual-buffer mode registers
-            logic [WIDE_WIDTH-1:0]          r_buffer_0;
-            logic [WIDE_WIDTH-1:0]          r_buffer_1;
-            logic [WIDE_SB_PORT_WIDTH-1:0]  r_sb_buffer_0;
-            logic [WIDE_SB_PORT_WIDTH-1:0]  r_sb_buffer_1;
-            logic                           r_last_buffer_0;
-            logic                           r_last_buffer_1;
-            logic                           r_buffer_0_valid;
-            logic                           r_buffer_1_valid;
-            logic                           r_read_buffer;  // 0=reading buf0, 1=reading buf1
         end
     endgenerate
 
@@ -130,7 +118,7 @@ module axi_data_dnsize #(
     //==========================================================================
 
     generate
-        if (DUAL_BUFFER == 0) begin : gen_single_buffer_sm
+        begin : gen_single_buffer_sm
             // SINGLE-BUFFER MODE
             //
             // Send/accept ordering note:
@@ -212,114 +200,6 @@ module axi_data_dnsize #(
                     end
                 end
             )
-        end else begin : gen_dual_buffer_sm
-            // DUAL-BUFFER MODE: Enhanced throughput implementation
-            `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-                    gen_dual_buffer.r_buffer_0 <= '0;
-                    gen_dual_buffer.r_buffer_1 <= '0;
-                    gen_dual_buffer.r_last_buffer_0 <= 1'b0;
-                    gen_dual_buffer.r_last_buffer_1 <= 1'b0;
-                    gen_dual_buffer.r_buffer_0_valid <= 1'b0;
-                    gen_dual_buffer.r_buffer_1_valid <= 1'b0;
-                    gen_dual_buffer.r_read_buffer <= 1'b0;
-                    r_beat_ptr <= '0;
-
-                    if (TRACK_BURSTS != 0) begin
-                        r_slave_beat_count <= '0;
-                        r_slave_total_beats <= '0;
-                        r_burst_active <= 1'b0;
-                    end
-                end else begin
-                    // Burst tracking logic
-                    if (TRACK_BURSTS != 0 && burst_start && !r_burst_active) begin
-                        r_slave_total_beats <= burst_len + 1'b1;
-                        r_slave_beat_count <= '0;
-                        r_burst_active <= 1'b1;
-                    end
-
-                    // WRITE PATH: Accept wide beat into empty buffer
-                    if (wide_valid && wide_ready) begin
-                        if (!gen_dual_buffer.r_buffer_0_valid) begin
-                            // Write to buffer 0
-                            gen_dual_buffer.r_buffer_0 <= wide_data;
-                            gen_dual_buffer.r_last_buffer_0 <= wide_last;
-                            gen_dual_buffer.r_buffer_0_valid <= 1'b1;
-                        end else begin
-                            // Write to buffer 1 (must be empty if wide_ready=1)
-                            gen_dual_buffer.r_buffer_1 <= wide_data;
-                            gen_dual_buffer.r_last_buffer_1 <= wide_last;
-                            gen_dual_buffer.r_buffer_1_valid <= 1'b1;
-                        end
-                    end
-
-                    // READ PATH: Send narrow beats from current buffer
-                    if ((gen_dual_buffer.r_read_buffer ? gen_dual_buffer.r_buffer_1_valid : gen_dual_buffer.r_buffer_0_valid) && narrow_ready) begin
-                        // Check if this is the last narrow beat from current wide beat
-                        // Check if this is the last beat of entire burst
-
-                        if (TRACK_BURSTS != 0 && r_burst_active) begin
-                            // Burst tracking mode
-                            if (((r_slave_beat_count + 1'b1) >= r_slave_total_beats)) begin
-                                // Last narrow beat of entire burst - clear current buffer
-                                if (gen_dual_buffer.r_read_buffer) begin
-                                    gen_dual_buffer.r_buffer_1_valid <= 1'b0;
-                                end else begin
-                                    gen_dual_buffer.r_buffer_0_valid <= 1'b0;
-                                end
-                                r_beat_ptr <= '0;
-                                r_slave_beat_count <= '0;
-                                r_burst_active <= 1'b0;
-
-                                // Swap to other buffer if it has data
-                                if (gen_dual_buffer.r_read_buffer ? gen_dual_buffer.r_buffer_0_valid :
-                                    gen_dual_buffer.r_buffer_1_valid) begin
-                                    gen_dual_buffer.r_read_buffer <= ~gen_dual_buffer.r_read_buffer;
-                                end
-                            end else if (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1)) begin
-                                // Last narrow beat from this wide beat, but more beats in burst
-                                if (gen_dual_buffer.r_read_buffer) begin
-                                    gen_dual_buffer.r_buffer_1_valid <= 1'b0;
-                                end else begin
-                                    gen_dual_buffer.r_buffer_0_valid <= 1'b0;
-                                end
-                                r_beat_ptr <= '0;
-                                r_slave_beat_count <= r_slave_beat_count + 1'b1;
-
-                                // Swap to other buffer if it has data
-                                if (gen_dual_buffer.r_read_buffer ? gen_dual_buffer.r_buffer_0_valid :
-                                    gen_dual_buffer.r_buffer_1_valid) begin
-                                    gen_dual_buffer.r_read_buffer <= ~gen_dual_buffer.r_read_buffer;
-                                end
-                            end else begin
-                                // More narrow beats from this wide beat
-                                r_beat_ptr <= r_beat_ptr + 1'b1;
-                                r_slave_beat_count <= r_slave_beat_count + 1'b1;
-                            end
-                        end else begin
-                            // Simple mode (no burst tracking)
-                            if (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1)) begin
-                                // Last narrow beat - clear current buffer
-                                if (gen_dual_buffer.r_read_buffer) begin
-                                    gen_dual_buffer.r_buffer_1_valid <= 1'b0;
-                                end else begin
-                                    gen_dual_buffer.r_buffer_0_valid <= 1'b0;
-                                end
-                                r_beat_ptr <= '0;
-
-                                // Swap to other buffer if it has data
-                                if (gen_dual_buffer.r_read_buffer ? gen_dual_buffer.r_buffer_0_valid :
-                                    gen_dual_buffer.r_buffer_1_valid) begin
-                                    gen_dual_buffer.r_read_buffer <= ~gen_dual_buffer.r_read_buffer;
-                                end
-                            end else begin
-                                // More narrow beats from this wide beat
-                                r_beat_ptr <= r_beat_ptr + 1'b1;
-                            end
-                        end
-                    end
-                end
-            )
         end
     endgenerate
 
@@ -329,7 +209,7 @@ module axi_data_dnsize #(
 
     generate
         if (WIDE_SB_WIDTH > 0) begin : gen_sideband_buffer_logic
-            if (DUAL_BUFFER == 0) begin : gen_single_sb
+            begin : gen_single_sb
                 // Single-buffer sideband logic — same accept criterion
                 // as the data-path FF above (drops the !r_wide_buffered
                 // predicate so back-to-back atomic-replace captures the
@@ -340,23 +220,6 @@ module axi_data_dnsize #(
                     end else begin
                         if (wide_valid && wide_ready) begin
                             gen_single_buffer.r_sideband_buffer <= wide_sideband;
-                        end
-                    end
-                end
-            end else begin : gen_dual_sb
-                // Dual-buffer sideband logic
-                always_ff @(posedge aclk or negedge aresetn) begin
-                    if (!aresetn) begin
-                        gen_dual_buffer.r_sb_buffer_0 <= '0;
-                        gen_dual_buffer.r_sb_buffer_1 <= '0;
-                    end else begin
-                        // Write sideband to same buffer as data
-                        if (wide_valid && wide_ready) begin
-                            if (!gen_dual_buffer.r_buffer_0_valid) begin
-                                gen_dual_buffer.r_sb_buffer_0 <= wide_sideband;
-                            end else begin
-                                gen_dual_buffer.r_sb_buffer_1 <= wide_sideband;
-                            end
                         end
                     end
                 end
@@ -373,7 +236,7 @@ module axi_data_dnsize #(
     assign w_last_narrow_beat = (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1));
 
     generate
-        if (DUAL_BUFFER == 0) begin : gen_single_buffer_outputs
+        begin : gen_single_buffer_outputs
             // SINGLE-BUFFER MODE OUTPUTS
 
             // Extract narrow data slice from wide buffer
@@ -426,56 +289,6 @@ module axi_data_dnsize #(
                 assign wide_ready = !gen_single_buffer.r_wide_buffered ||
                                     (narrow_ready && w_last_narrow_beat);
             end
-
-        end else begin : gen_dual_buffer_outputs
-            // DUAL-BUFFER MODE OUTPUTS
-
-            // Select current buffer based on read pointer
-            logic [WIDE_WIDTH-1:0] current_buffer_data;
-            logic [WIDE_SB_PORT_WIDTH-1:0] current_buffer_sideband;
-            logic current_buffer_last;
-            logic current_buffer_valid;
-
-            assign current_buffer_data = gen_dual_buffer.r_read_buffer ?
-                gen_dual_buffer.r_buffer_1 : gen_dual_buffer.r_buffer_0;
-            assign current_buffer_sideband = gen_dual_buffer.r_read_buffer ?
-                gen_dual_buffer.r_sb_buffer_1 : gen_dual_buffer.r_sb_buffer_0;
-            assign current_buffer_last = gen_dual_buffer.r_read_buffer ?
-                gen_dual_buffer.r_last_buffer_1 : gen_dual_buffer.r_last_buffer_0;
-            assign current_buffer_valid = gen_dual_buffer.r_read_buffer ?
-                gen_dual_buffer.r_buffer_1_valid : gen_dual_buffer.r_buffer_0_valid;
-
-            // Extract narrow data slice from current buffer
-            assign narrow_data = current_buffer_data[r_beat_ptr*NARROW_WIDTH +: NARROW_WIDTH];
-
-            // Handle sideband signal extraction
-            if (NARROW_SB_WIDTH > 0) begin : gen_sideband
-                if (SB_BROADCAST != 0) begin : gen_broadcast
-                    // Broadcast mode
-                    assign narrow_sideband = current_buffer_sideband[NARROW_SB_WIDTH-1:0];
-                end else begin : gen_slice
-                    // Slice mode
-                    assign narrow_sideband = current_buffer_sideband[r_beat_ptr*NARROW_SB_WIDTH +: NARROW_SB_WIDTH];
-                end
-            end else begin : gen_no_sideband
-                assign narrow_sideband = '0;
-            end
-
-            // Generate LAST signal
-            if (TRACK_BURSTS != 0) begin : gen_tracked_last
-                // With burst tracking: LAST on final beat of entire burst
-                assign narrow_last = current_buffer_valid && r_burst_active &&
-                                     (r_slave_beat_count + 1'b1 >= r_slave_total_beats);
-            end else begin : gen_simple_last
-                // Simple mode: LAST when we finish splitting AND wide_last was set
-                assign narrow_last = current_buffer_valid && current_buffer_last && w_last_narrow_beat;
-            end
-
-            // Narrow side valid when current buffer has data
-            assign narrow_valid = current_buffer_valid;
-
-            // Wide side ready when at least one buffer is empty
-            assign wide_ready = !gen_dual_buffer.r_buffer_0_valid || !gen_dual_buffer.r_buffer_1_valid;
 
         end
     endgenerate
