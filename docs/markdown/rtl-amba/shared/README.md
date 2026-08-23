@@ -58,10 +58,13 @@ inventory with RTL-extracted notes is
 
 Recorded here because more than one page used to contradict them:
 
-- The splitters require a beat-counting (FUB-style) consumer -- intermediate
-  split RLASTs pass upstream, the split-info FIFO drops records when full,
-  and the write splitter's B consolidation misses the final split's error
-  status. All filed in `vault/Tasks/amba` (splitter defect cluster).
+- The splitter defect cluster (intermediate RLASTs passing upstream,
+  silent split-FIFO record drops, the write splitter's B consolidation
+  missing the final split's error) is FIXED and closed in
+  `vault/Tasks/amba`: RLAST is consolidated to one per original
+  transaction, a full FIFO sets the sticky `o_split_fifo_overflow`
+  output, and the final split's error folds into the consolidated BRESP.
+  A generic AXI master can sit upstream of either splitter directly.
 - The interface observer produces no monbus traffic at its documented
   parameter defaults -- the `TAP_ENABLE_*` parameters gate the tap logic off
   and perf packets are disabled; override them to get the dump path. It now

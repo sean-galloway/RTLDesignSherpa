@@ -438,7 +438,7 @@ pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_axi2
 - `APB_DATA_WIDTH` must be ≤ `AXI_DATA_WIDTH`
 - `AXI_DATA_WIDTH / APB_DATA_WIDTH` must be power of 2
 - `APB_ADDR_WIDTH` should match `AXI_ADDR_WIDTH` (or be subset)
-- All DEPTH_* parameters must be ≥ 2
+- All DEPTH_* parameters must be in {2, 4, 6, 8} (gaxi_skid_buffer elaboration guard)
 
 **Protocol Limitations:**
 - APB does not support outstanding transactions (serialized)

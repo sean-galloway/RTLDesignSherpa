@@ -253,7 +253,7 @@ w_resp_wr = (w_pslverr | r_pslverr) ? 2'b10 : 2'b00;
 
 **Side FIFO Contents:**
 ```systemverilog
-// For each AXI transaction, track:
+// One entry pushed PER APB BEAT (not per AXI transaction), tracking:
 {operation,    // 1=write, 0=read
  ID,           // Transaction ID
  last,         // RLAST/BLAST flag
@@ -261,7 +261,7 @@ w_resp_wr = (w_pslverr | r_pslverr) ? 2'b10 : 2'b00;
 ```
 
 **Purpose:**
-- Preserves ID for out-of-order response reconstruction
+- Preserves ID so responses carry the originating transaction's ID (the design is serialized -- one APB command at a time -- so there is no out-of-order reconstruction to do)
 - Maintains LAST flag for burst completion signaling
 - Passes USER sideband through the bridge
 

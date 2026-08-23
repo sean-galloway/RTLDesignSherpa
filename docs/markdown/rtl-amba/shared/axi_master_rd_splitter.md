@@ -42,9 +42,10 @@ the Consumer contract note under Response Path.
 - R channel pass-through with transparent ID handling
 - Split transaction tracking via dedicated FIFO interface
 - Zero added latency for non-split transactions
-- Burst/ID/user fields carried through on the AR side; NOTE the R side passes
-  every split's RLAST upstream, so the consumer must count beats (see
-  Consumer contract below) -- this is not transparent AXI4 compliance
+- Burst/ID/user fields carried through on the AR side; the R side
+  CONSOLIDATES RLAST to one pulse per original transaction (owed-beat
+  counter -- see Consumer contract below), so a generic AXI4 master can
+  sit upstream directly
 
 ---
 
@@ -163,7 +164,7 @@ In modern SoC designs, memory systems are often partitioned across multiple addr
 | fub_rid | output | IW | Response transaction ID (pass-through from m_axi) |
 | fub_rdata | output | DW | Read data payload (pass-through from m_axi) |
 | fub_rresp | output | 2 | Response status (pass-through from m_axi) |
-| fub_rlast | output | 1 | Last beat indicator (pass-through from m_axi) |
+| fub_rlast | output | 1 | Last beat indicator (consolidated: one per ORIGINAL transaction via the owed-beat counter) |
 | fub_ruser | output | UW | User-defined extension (pass-through from m_axi) |
 | fub_rvalid | output | 1 | Valid signal for response (pass-through from m_axi) |
 | fub_rready | input | 1 | Ready signal from upstream master |
@@ -177,6 +178,7 @@ In modern SoC designs, memory systems are often partitioned across multiple addr
 | fub_split_cnt | output | 8 | Number of split transactions generated (2+ if split occurred) |
 | fub_split_valid | output | 1 | Valid signal for split information |
 | fub_split_ready | input | 1 | Ready signal from split information consumer |
+| o_split_fifo_overflow | output | 1 | STICKY: a split-info record was dropped because the FIFO was full; stays high until reset |
 
 ---
 
@@ -276,7 +278,7 @@ The R channel is completely transparent:
 - fub_rid = m_axi_rid
 - fub_rdata = m_axi_rdata
 - fub_rresp = m_axi_rresp
-- fub_rlast = m_axi_rlast
+- fub_rlast = owed-beat consolidation: `r_rbeats_active ? (r_rbeats_remaining == 1) : m_axi_rlast`
 - fub_ruser = m_axi_ruser
 - fub_rvalid = m_axi_rvalid
 - m_axi_rready = fub_rready

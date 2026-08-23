@@ -342,7 +342,6 @@ Reuses same combinational logic as read splitter (axi_split_combi):
 ### Ready Signal Management
 
 **fub_awready Logic:**
-- IDLE + no split: fub_awready = m_axi_awready
 - IDLE + split needed: fub_awready = 0 (suppress)
 - IDLE + no split: fub_awready = m_axi_awready && !block_ready &&
   !r_waiting_for_responses -- the `r_waiting_for_responses` term is the
@@ -476,7 +475,7 @@ Final consolidated response: SLVERR (10)
 
 **Upstream View:**
 - Master issues 1 write transaction (ADDR=0x0FC0, LEN=7, ID=0x42)
-- Receives 1 response (ID=0x42) -- INTENDED BRESP=SLVERR, but the current RTL reports OKAY here: the last split's SLVERR is folded in one cycle too late (the filed defect this page's Key Features describe)
+- Receives 1 response (ID=0x42) with BRESP=SLVERR: the last split's error is combined combinationally with the accumulated fold (`w_resp_with_current`), so error-on-last upstreams correctly (the historical one-cycle-late fold was the closed splitter-cluster defect)
 - Intended behavior: error propagated despite partial success. Actual RTL today: error on the LAST split is lost (TASK-063)
 
 ---

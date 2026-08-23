@@ -213,7 +213,17 @@ class AXIDataUpsizeTB(TBBase):
             wide_beats = self.get_wide_beats(count=1, clear=True)
 
             if len(wide_beats) != 1:
-                self.log.error(f"Transaction {txn}: Expected 1 wide beat, got {len(wide_beats)}")
+                # Dump handshake-level state so an intermittent hit diagnoses
+                # itself (CONV-002): did the narrow beats reach the DUT, and
+                # is the wide beat stuck at the output or never made?
+                self.log.error(
+                    f"Transaction {txn}: Expected 1 wide beat, got {len(wide_beats)} | "
+                    f"narrow_valid={self.dut.narrow_valid.value} "
+                    f"narrow_ready={self.dut.narrow_ready.value} "
+                    f"wide_valid={self.dut.wide_valid.value} "
+                    f"wide_ready={self.dut.wide_ready.value} | "
+                    f"slave_recvQ={len(self.wide_slave._recvQ)}"
+                )
                 return False
 
             wide_data, wide_sideband, wide_last = wide_beats[0]
@@ -281,7 +291,17 @@ class AXIDataUpsizeTB(TBBase):
             wide_beats = self.get_wide_beats(count=1, clear=True)
 
             if len(wide_beats) != 1:
-                self.log.error(f"Transaction {txn}: Expected 1 wide beat, got {len(wide_beats)}")
+                # Dump handshake-level state so an intermittent hit diagnoses
+                # itself (CONV-002): did the narrow beats reach the DUT, and
+                # is the wide beat stuck at the output or never made?
+                self.log.error(
+                    f"Transaction {txn}: Expected 1 wide beat, got {len(wide_beats)} | "
+                    f"narrow_valid={self.dut.narrow_valid.value} "
+                    f"narrow_ready={self.dut.narrow_ready.value} "
+                    f"wide_valid={self.dut.wide_valid.value} "
+                    f"wide_ready={self.dut.wide_ready.value} | "
+                    f"slave_recvQ={len(self.wide_slave._recvQ)}"
+                )
                 return False
 
             _, _, wide_last = wide_beats[0]
@@ -318,7 +338,17 @@ class AXIDataUpsizeTB(TBBase):
             # Verify wide beat arrived
             wide_beats = self.get_wide_beats(count=1, clear=True)
             if len(wide_beats) != 1:
-                self.log.error(f"Transaction {txn}: Expected 1 wide beat, got {len(wide_beats)}")
+                # Dump handshake-level state so an intermittent hit diagnoses
+                # itself (CONV-002): did the narrow beats reach the DUT, and
+                # is the wide beat stuck at the output or never made?
+                self.log.error(
+                    f"Transaction {txn}: Expected 1 wide beat, got {len(wide_beats)} | "
+                    f"narrow_valid={self.dut.narrow_valid.value} "
+                    f"narrow_ready={self.dut.narrow_ready.value} "
+                    f"wide_valid={self.dut.wide_valid.value} "
+                    f"wide_ready={self.dut.wide_ready.value} | "
+                    f"slave_recvQ={len(self.wide_slave._recvQ)}"
+                )
                 return False
 
         self.log.info(f"✓ Backpressure test PASSED ({num_transactions} transactions)")
