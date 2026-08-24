@@ -1090,6 +1090,23 @@ independently.
 | Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
 | Open items | none for gaxi itself |
 
+### shared -- ARC COMPLETE 2026-08-24 (correctness + tests + humanize)
+
+Resumed post-observer-unblock as rounds 12/13/14 (qc rounds 5-7 of the arc):
+14 -> 8 -> 8. Round_12 = docs lagging 537c7af8 (14 findings) + the splitters'
+two-process sticky-overflow write (fixed, single dedicated process,
+c3b84d0c). Round_13 = residue/nits (5a5d82c8). Round_14 caught the REAL one:
+the rd splitter's owed-beat RLAST counter is single-transaction state and a
+second admission mid-flight reloaded it -- fixed with the r_rbeats_active
+acceptance fence mirroring the wr side, mutation-proven via a new
+back-to-back TB scenario (landed inside the converters session's 426e2fb8 --
+see incident 5 in the worktree note; provenance commit 1de8ad18). Humanize:
+28 pages, all survival gates clean first pass (da44a07c). Arc totals:
+correctness rounds 2/3/4 + 12/13/14, SEVEN mutation-proven RTL fixes, all 21
+modules tested (TASK-062), TASK-060/061/063/064 closed.
+
+(Previous save-state record follows for history:)
+
 ### shared -- CORRECTNESS NEARLY DONE (updated 2026-08-13, Sean's "save state")
 
 Fresh rounds re-run from this machine's tree (the round_1 collateral lived
