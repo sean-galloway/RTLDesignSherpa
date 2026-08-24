@@ -37,7 +37,7 @@ the Consumer contract note under Response Path.
 ### Key Features
 
 - Automatic boundary crossing detection and transaction splitting
-- Configurable alignment boundary (4KB, 64KB, etc.)
+- Configurable alignment boundary via the 12-bit `alignment_mask` port (4KB maximum -- see Integration)
 - AR channel forwarding with address/length calculation
 - R channel pass-through with transparent ID handling
 - Split transaction tracking via dedicated FIFO interface
@@ -291,11 +291,17 @@ The R channel is completely transparent:
   length at acceptance) retires one beat per upstream R handshake and asserts
   `fub_rlast` only on the final owed beat; intermediate splits' `m_axi_rlast`
   pulses are absorbed
-- A standards-compliant generic AXI master can therefore sit upstream
-  directly -- it sees exactly one RLAST per burst it issued. (The pre-fix
-  behavior passed every intermediate RLAST through and required a
-  beat-counting consumer; that defect was closed with the splitter cluster
-  in vault/Tasks/amba)
+- A standards-compliant generic AXI master can sit upstream directly --
+  it sees exactly one RLAST per burst it issued -- because acceptance is
+  SERIALIZED: the owed-beat counter is single-transaction state, so
+  `r_rbeats_active` fences admission (fub_arready, the FSM capture and
+  m_axi_arvalid in IDLE all carry `!r_rbeats_active`) until the previous
+  burst's final beat has returned. One outstanding upstream read at a
+  time is the throughput cost of the consolidation; mutation-proven by
+  the back-to-back scenario in the rd splitter TB. (The pre-fix behavior
+  passed every intermediate RLAST through and required a beat-counting
+  consumer; that defect was closed with the splitter cluster in
+  vault/Tasks/amba)
 
 ### Split Information Tracking
 
@@ -493,7 +499,7 @@ The module enforces several critical assumptions for correct operation:
 
 **Protocol Violations:**
 - Module assumes well-formed AXI transactions
-- Assertions validate assumptions (alignment, size, burst type)
+- Assertions validate assumptions (address alignment, ax_size, no-WRAP -- in `axi_split_combi`; burst TYPE itself is not asserted)
 - Synthesis-time checks enforce parameter constraints
 
 **Backpressure Propagation:**

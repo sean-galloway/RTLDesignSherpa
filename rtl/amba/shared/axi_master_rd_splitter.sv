@@ -338,7 +338,8 @@ module axi_master_rd_splitter
 
             case (r_split_state)
                 IDLE: begin
-                    if (fub_arvalid && m_axi_arready && !block_ready) begin
+                    if (fub_arvalid && m_axi_arready && !block_ready
+                        && !r_rbeats_active) begin
                         // Beats owed upstream for THIS original transaction.
                         r_rbeats_remaining <= 9'(fub_arlen) + 9'd1;
                         r_rbeats_active <= 1'b1;
@@ -435,7 +436,12 @@ module axi_master_rd_splitter
         // of the handshake" defect that turned monitor backpressure into
         // replay elsewhere in this repo.
         case (r_split_state)
-            IDLE: m_axi_arvalid = fub_arvalid && !block_ready;
+            // r_rbeats_active is the ACCEPTANCE FENCE: the owed-beat RLAST
+            // counter is single-transaction state, so a second admission while
+            // beats are still returning would reload it mid-burst (early +
+            // double RLAST upstream). Mirrors the write splitter's
+            // r_waiting_for_responses fence.
+            IDLE: m_axi_arvalid = fub_arvalid && !block_ready && !r_rbeats_active;
             SPLITTING: m_axi_arvalid = 1'b1;
             default: m_axi_arvalid = 1'b0;
         endcase
@@ -450,7 +456,7 @@ module axi_master_rd_splitter
                     fub_arready = 1'b0;
                 end else begin
                     // No split needed - pass through ready immediately
-                    fub_arready = m_axi_arready && !block_ready;
+                    fub_arready = m_axi_arready && !block_ready && !r_rbeats_active;
                 end
             end
             SPLITTING: begin

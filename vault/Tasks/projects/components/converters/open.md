@@ -173,3 +173,65 @@ vault/handbook/dv/seeds-and-determinism.md.
 
 
 ---
+
+---
+
+## CONV-004 — downsize converters truncate AWLEN/ARLEN on long bursts
+**Status:** open 2026-08-23
+**Priority:** P1 — silent data loss on legal AXI4 traffic
+
+`axi4_dwidth_converter_wr.sv:280` and `axi4_dwidth_converter_rd.sv:239`
+multiply the beat count into an **8-bit** field:
+
+```systemverilog
+assign m_axi_awlen = ((int_awlen + 8'd1) * 8'(WIDTH_RATIO)) - 8'd1;
+```
+
+AXI4 allows 256 beats (AWLEN=255). Downsizing multiplies, so the product
+overflows and wraps:
+
+| ratio | slave beats | narrow beats needed | AWLEN wanted | 8-bit gives | beats issued |
+|---|---|---|---|---|---|
+| 2 | 256 | 512 | 511 | 255 | 256 (half lost) |
+| 4 | 128 | 512 | 511 | 255 | 256 |
+| 4 | 64 | 256 | 255 | 255 | 256 (correct) |
+
+At ratio 4 with 128 slave beats the wanted value is actually 515, which
+wraps to 3 -- **4 beats instead of 512**.
+
+The largest slave burst that survives is `256 / WIDTH_RATIO` beats: 128 at
+2:1, 64 at 4:1, 32 at 8:1.
+
+### This is not just arithmetic
+
+512 beats is not a legal AXI4 burst at any width. Widening the field would
+not help; the master side has to issue SEVERAL bursts to carry one long
+slave burst. That means:
+
+- **AW:** a state machine emitting `ceil(total_narrow / 256)` bursts, each
+  with its own address and length. Currently pure combinational
+  passthrough.
+- **W:** `m_axi_wlast` comes straight from `axi_data_dnsize.narrow_last`,
+  which frames the WHOLE slave burst. It has to assert at each master
+  burst boundary instead.
+- **B:** several master responses collapse into one slave response, worst
+  case wins -- the same fold `axi4_to_axil4_wr` already does.
+
+### How it survived
+
+Found by `make run-all-full-parallel` (REG_LEVEL=FULL), which reaches
+`test_axi4_dwidth_to_axil4_wr_chain` params 6/7/8. Confirmed pre-existing
+by checking the converter RTL out at HEAD~2 and reproducing.
+
+The unit TB's burst sweep stops at 8 beats. A max-length scenario added to
+it (`test_max_length_burst`) does NOT fail, because
+`do_write_and_verify` does not detect the shortfall -- worth fixing
+separately, since it means the unit level cannot see this class of bug at
+all.
+
+**Work:**
+- [ ] Split on the write path: AW state machine, per-burst WLAST, B fold.
+- [ ] Same on the read path (`arlen`, R aggregation).
+- [ ] Make `do_write_and_verify` detect a beat-count shortfall.
+- [ ] Keep the chain test at REG_LEVEL=FULL as the gate.
+

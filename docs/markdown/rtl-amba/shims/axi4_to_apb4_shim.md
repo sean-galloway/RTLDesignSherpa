@@ -168,8 +168,8 @@ module axi4_to_apb4_shim #(
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `SIDE_DEPTH` | 4 | Side information FIFO depth (tracks ID, last, user) |
-| `APB_CMD_DEPTH` | 4 | APB command CDC FIFO depth |
-| `APB_RSP_DEPTH` | 4 | APB response CDC FIFO depth |
+| `APB_CMD_DEPTH` | 4 | APB command CDC FIFO depth. Legal values with the default Gray encoding: {2, 4, 8} -- the value feeds BOTH the apb4_master skid buffers ({2,4,6,8} guard) and, floored to `max(DEPTH,4)`, the Gray CDC FIFO (power-of-2 guard), so 6 elaborates only with USE_JOHNSON=1 |
+| `APB_RSP_DEPTH` | 4 | APB response CDC FIFO depth. Same constraint set as APB_CMD_DEPTH |
 | `USE_JOHNSON` | 0 | Pointer encoding for the two CDC FIFOs: 0 = Gray (requires power-of-2 depths -- elaboration $error otherwise), 1 = Johnson (any depth) |
 
 ### AXI Interface
@@ -250,7 +250,7 @@ AXI Master → AR skid buffer (aclk)
 **Burst Decomposition:**
 - AXI burst (AWLEN > 0) → Multiple APB single-beat transfers
 - Each beat addressed individually (address increments per burst type)
-- WLAST signal tracked to determine burst completion
+- Burst completion is counted from AWLEN (`r_burst_count`); WLAST is carried but never sampled -- a malformed W stream with wrong WLAST placement is not detected
 
 **Width Adaptation:**
 - When `AXI_DATA_WIDTH > APB_DATA_WIDTH`:

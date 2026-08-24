@@ -185,7 +185,7 @@ clock_gate_ctrl #(
 
 | Value | Behavior |
 |-------|----------|
-| 0 | Aggressive: gate 1 clock after the internal wakeup deasserts (2 clocks after the last bus activity on single-stage families, 3 on two-stage families) |
+| 0 | Aggressive: gate in the SAME cycle the registered wakeup first reads 0 (2 clocks after the last bus activity on single-stage families, 3 on two-stage families) |
 | 1 | Gate after 1 idle cycle |
 | 4 | Conservative: Gate after 4 consecutive idle cycles |
 | 15 | Maximum delay: Gate after 15 consecutive idle cycles |
@@ -199,7 +199,7 @@ clock_gate_ctrl #(
 ### Gating/Ungating Timing
 
 **Gating Sequence (Activity → Idle):**
-1. Cycle N: user_valid=1, axi_valid=0 → r_wakeup=1 (active)
+1. Cycle N: user_valid=1, axi_valid=0 → r_wakeup=1 during cycle N+1 (registered)
 2. Cycle N+1: user_valid=0, axi_valid=0 → r_wakeup=0 (idle)
 3. Idle counter starts counting down from cfg_cg_idle_count
 4. Cycle N+1+cfg_cg_idle_count: Counter threshold reached

@@ -975,6 +975,7 @@ class AxiReadSplitterTB(TBBase):
 
         # Test sequence
         tests = [
+            ("Back-to-Back Fence", self.test_back_to_back_reads),
             ("Basic Splitting", self.test_basic_splitting),
             ("Burst Types", self.test_burst_types),
             ("Random Transactions", self.test_random_transactions),
@@ -1021,6 +1022,68 @@ class AxiReadSplitterTB(TBBase):
         self.print_comprehensive_report()
 
         return all_passed
+
+    async def test_back_to_back_reads(self) -> bool:
+        """Two ARs queued with no gap: the acceptance fence must serialize
+        them, so each upstream burst sees exactly one RLAST, on its own
+        final beat.
+
+        Without the r_rbeats_active fence the second admission reloads the
+        single owed-beat counter mid-burst: burst A gets an EARLY RLAST at
+        B's length, then A's raw downstream RLAST leaks through as a second
+        one -- a protocol violation for any pipelining upstream master.
+        This scenario is the RED/GREEN witness for that fence."""
+        test_start_str = self.get_time_ns_str()
+        self.log.info(f"Running back-to-back read fence test{test_start_str}")
+
+        # Local recorder: (id, last) per upstream R beat, in arrival order.
+        upstream_beats = []
+        def _rec(packet):
+            pid = getattr(packet, 'id', 0)
+            plast = getattr(packet, 'last', 0)
+            upstream_beats.append((int(pid), int(plast)))
+        self.fub_r_monitor.add_callback(_rec)
+
+        base = self.align_address_to_data_width(0x2000)
+        id_a, id_b = self._get_next_id(), self._get_next_id()
+        plan = [(id_a, base, 7), (id_b, base + 0x100 * self.BYTES_PER_BEAT, 3)]
+
+        for pid, addr, length in plan:
+            ar = AXIAddressPacket(
+                field_config=self.addr_field_config,
+                id=pid, addr=addr, len=length,
+                size=self.EXPECTED_AX_SIZE, burst=1, cache=0x3, prot=0x0,
+                lock=0, qos=0, region=0,
+                user=0 if self.UW > 0 else None)
+            # No wait between sends: the second AR is PRESENTED while the
+            # first one's R beats are still owed.
+            if not await self.send_read_transaction(ar, "back_to_back"):
+                return False
+
+        await self.wait_for_transaction_completion(id_a, timeout_cycles=400,
+                                                    test_case_name="back_to_back")
+        await self.wait_for_transaction_completion(id_b, timeout_cycles=400,
+                                                    test_case_name="back_to_back")
+        await self.wait_clocks('aclk', 20)
+
+        passed = True
+        for pid, _, length in plan:
+            beats = [(i, l) for i, (bid, l) in enumerate(upstream_beats) if bid == pid]
+            lasts = [k for k, (_, l) in enumerate(beats) if l]
+            if len(beats) != length + 1:
+                self.log.error(f"back_to_back ID={pid:02X}: {len(beats)} beats, "
+                               f"expected {length + 1}")
+                passed = False
+            if lasts != [length]:
+                self.log.error(f"back_to_back ID={pid:02X}: RLAST at beat "
+                               f"indices {lasts}, expected only [{length}] -- "
+                               f"early/duplicate RLAST (owed-beat counter "
+                               f"reloaded by a second admission?)")
+                passed = False
+        if passed:
+            self.log.info("back-to-back fence test PASSED: one RLAST per "
+                          "burst, each on its own final beat")
+        return passed
 
     async def test_basic_splitting(self) -> bool:
         """Test basic address boundary splitting with SAFE address generation"""

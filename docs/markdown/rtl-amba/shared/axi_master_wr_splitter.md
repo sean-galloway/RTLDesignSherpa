@@ -476,7 +476,7 @@ Final consolidated response: SLVERR (10)
 **Upstream View:**
 - Master issues 1 write transaction (ADDR=0x0FC0, LEN=7, ID=0x42)
 - Receives 1 response (ID=0x42) with BRESP=SLVERR: the last split's error is combined combinationally with the accumulated fold (`w_resp_with_current`), so error-on-last upstreams correctly (the historical one-cycle-late fold was the closed splitter-cluster defect)
-- Intended behavior: error propagated despite partial success. Actual RTL today: error on the LAST split is lost (TASK-063)
+- Behavior: error propagated despite partial success -- the final split's in-flight BRESP is combined combinationally, so error-on-last upstreams correctly (the historical loss was TASK-063, closed)
 
 ---
 

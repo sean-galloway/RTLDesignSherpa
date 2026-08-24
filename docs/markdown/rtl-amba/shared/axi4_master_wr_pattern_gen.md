@@ -110,7 +110,7 @@ Bringing up and characterizing a memory controller means driving it with realist
 | cfg_addr_stride_1 | input | signed STRIDE_WIDTH | Address stride, dimension 1 (held at index 0 here) |
 | cfg_addr_wrap_mask_0 | input | AW | Address wrap mask, dimension 0 |
 | cfg_addr_wrap_mask_1 | input | AW | Address wrap mask, dimension 1 |
-| cfg_burst_len | input | 8 | Beats per burst (1..256); `awlen = len − 1` |
+| cfg_burst_len | input | 8 | Beats per burst (1..255; the port is 8 bits, so 256 is not expressible -- it truncates to 0); `awlen = len − 1` |
 | cfg_txn_count | input | TXN_COUNT_WIDTH | Total bursts to issue |
 | cfg_axi_id | input | IW | FIXED-mode id / seed for COUNTER+LFSR modes |
 | cfg_id_mode | input | 2 | AW-ID mode: 0=FIXED, 1=COUNTER, 2=LFSR |

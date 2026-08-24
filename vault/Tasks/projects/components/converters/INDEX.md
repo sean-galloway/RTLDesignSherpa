@@ -6,10 +6,14 @@ upsize/downsize primitives and the dwidth converter wrappers.
 
 | State | Count |
 |---|---|
-| [open](open.md) | 1 |
+| [open](open.md) | 2 |
 | [closed](closed.md) | 1 |
 
 ## Open shortlist
+
+- **CONV-004** — downsize converters truncate AWLEN/ARLEN: a max-length AXI4
+  burst overflows the 8-bit field and silently loses beats (at 4:1, 512 beats
+  becomes 4). Needs burst splitting, not wider arithmetic. Pre-existing. P1.
 
 - **CONV-002** — mostly resolved: root cause was a doubled signal prefix
   (`wide_wide_data`), so data and LAST read 0 and every check failed. 7 of 9

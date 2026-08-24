@@ -588,6 +588,46 @@ class AXI4DWidthConverterWriteTB(TBBase):
         self.log.info(f"✅ Write verification passed: {len(slave_data_list)} slave beats → {expected_master_beats} master beats")
         return True
 
+
+    async def test_max_length_burst(self):
+        """A maximum-length slave burst must survive downsizing.
+
+        AXI4 caps a burst at 256 beats (AWLEN=255). Downsizing multiplies
+        the beat count by WIDTH_RATIO, so a 256-beat wide burst needs
+        512 narrow beats at 2:1 -- which does not fit in AWLEN, and is not
+        a legal AXI4 burst either. The master side has to issue SEVERAL
+        bursts to carry it.
+
+        The converter currently computes
+        `m_axi_awlen = ((awlen + 1) * RATIO) - 1` into an 8-bit field, so
+        511 wraps to 255 and half the burst is silently dropped.
+
+        Nothing else covers this: the burst-length sweep above stops at 8,
+        and the chain test only reaches it at REG_LEVEL=FULL.
+        """
+        self.log.info("--- Max-length burst (AWLEN=255) ---")
+        # Only the downsize direction multiplies the beat count; upsize
+        # divides, so it cannot overflow AWLEN.
+        if not self.DOWNSIZE:
+            self.log.info("  upsize: beat count divides, nothing to overflow")
+            return True
+
+        ok = True
+        # the largest slave burst that still fits after multiplication, then
+        # the first one that does not
+        safe = (256 // self.WIDTH_RATIO)
+        for beats in (safe, safe * 2):
+            addr = 0x40000
+            data = [0xC0000000 + i for i in range(beats)]
+            needed = beats * self.WIDTH_RATIO
+            self.log.info(f"  slave burst {beats} beats -> {needed} narrow "
+                          f"beats ({'fits' if needed <= 256 else 'needs splitting'})")
+            if not await self.do_write_and_verify(addr, data):
+                self.log.error(f"  max-length burst FAILED at {beats} slave "
+                               f"beats ({needed} narrow)")
+                ok = False
+        return ok
+
     async def run_medium_test(self):
         """
         Medium test - multiple transactions with different patterns.
@@ -662,6 +702,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
             else:
                 self.log.info(f"  ✅ Burst length {burst_len} test PASSED")
             addr += 0x100
+
+        # Test 2b: maximum-length bursts -- see test_max_length_burst
+        if not await self.test_max_length_burst():
+            all_success = False
 
         # Test 3: Random addresses and unique data
         self.log.info("--- Test 3: Random Address/Data Patterns ---")

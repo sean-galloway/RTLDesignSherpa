@@ -64,7 +64,10 @@ Recorded here because more than one page used to contradict them:
   `vault/Tasks/amba`: RLAST is consolidated to one per original
   transaction, a full FIFO sets the sticky `o_split_fifo_overflow`
   output, and the final split's error folds into the consolidated BRESP.
-  A generic AXI master can sit upstream of either splitter directly.
+  A generic AXI master can sit upstream of either splitter directly;
+  both serialize acceptance (one outstanding transaction at a time) --
+  the read side fences on its owed-beat RLAST counter, the write side on
+  open response consolidation.
 - The interface observer produces no monbus traffic at its documented
   parameter defaults -- the `TAP_ENABLE_*` parameters gate the tap logic off
   and perf packets are disabled; override them to get the dump path. It now
