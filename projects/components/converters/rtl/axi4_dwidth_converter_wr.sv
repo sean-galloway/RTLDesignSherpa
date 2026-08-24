@@ -188,6 +188,25 @@ module axi4_dwidth_converter_wr #(
 
     logic [B_WIDTH-1:0]        int_b_data;
     logic                      int_b_valid;
+
+    // -----------------------------------------------------------------
+    // Downsize burst-split queue (driven in gen_aw_downsize, consumed by
+    // the W framing counter and the B fold; tied off for upsize).
+    //
+    // One slave burst can need more narrow beats than one legal master
+    // burst can carry, so the AW splitter issues several master bursts
+    // and records each one here: its beat count (for W framing) and
+    // whether it is the slave burst's final one (for the B fold). Two
+    // read pointers walk one memory -- W pops per completed master
+    // burst, B pops per master response -- and since a burst's B always
+    // follows its W data, the B pointer is the laggard and full is
+    // checked against it alone.
+    // -----------------------------------------------------------------
+    logic       split_w_avail;   // an unconsumed entry exists for W framing
+    logic [8:0] split_w_beats;   // its master-burst beat count (1..256)
+    logic       split_w_pop;     // W side: consumed this entry
+    logic       split_b_final;   // head-of-B entry: last burst of its slave burst
+    logic       split_b_pop;     // B side: consumed one response
     logic                      int_b_ready;
 
     logic [AXI_ID_WIDTH-1:0]   int_bid;
@@ -270,14 +289,100 @@ module axi4_dwidth_converter_wr #(
 
     generate
         if (DOWNSIZE) begin : gen_aw_downsize
-            // Downsize: slave (wide) → master (narrow). Multiply slave's
-            // burst length by ratio so master moves the same total bytes
-            // in narrow beats.
+            // Downsize: slave (wide) → master (narrow). One wide beat
+            // becomes WIDTH_RATIO narrow beats -- and that product does
+            // not fit a burst. AXI4 allows 256 beats, so a full-length
+            // slave burst needs up to 256*WIDTH_RATIO narrow beats,
+            // which is neither expressible in AWLEN nor legal. The old
+            // ((awlen+1)*RATIO)-1 computed straight into the 8-bit field
+            // and wrapped: 511 truncated to 255 (half the burst lost),
+            // and at 4:1 a 128-beat slave burst asked for 515 and got 3.
+            //
+            // So one slave burst is SPLIT into as many master bursts of
+            // <= 256 beats as it takes, each recorded in the split queue
+            // for the W framing and B fold. WRAP never gets here: AXI4
+            // caps it at 16 beats, and 16*RATIO <= 256 for every ratio
+            // this converter supports.
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
+            localparam int MAX_BEATS   = 256;
+            localparam int CNTW        = 9 + $clog2(WIDTH_RATIO);
+            localparam int SPLITQ_DEPTH = 16;
+            localparam int SPLITQ_AW    = $clog2(SPLITQ_DEPTH);
+
+            logic [CNTW-1:0]           r_split_remaining;
+            logic [AXI_ADDR_WIDTH-1:0] r_split_addr;
+            logic                      r_split_active;
+            logic [8:0]                w_this_beats;
+            logic                      w_this_last;
+            logic                      w_aw_issue;
+
+            assign w_this_beats = (r_split_remaining > CNTW'(MAX_BEATS))
+                                  ? 9'(MAX_BEATS) : 9'(r_split_remaining);
+            assign w_this_last  = (r_split_remaining <= CNTW'(MAX_BEATS));
+            assign w_aw_issue   = m_axi_awvalid && m_axi_awready;
+
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    r_split_remaining <= '0;
+                    r_split_addr      <= '0;
+                    r_split_active    <= 1'b0;
+                end else if (!r_split_active) begin
+                    if (int_aw_valid) begin
+                        r_split_remaining <= (CNTW'(int_awlen) + CNTW'(1))
+                                             * CNTW'(WIDTH_RATIO);
+                        r_split_addr      <= int_awaddr;
+                        r_split_active    <= 1'b1;
+                    end
+                end else if (w_aw_issue) begin
+                    if (w_this_last) begin
+                        r_split_remaining <= '0;
+                        r_split_active    <= 1'b0;
+                    end else begin
+                        r_split_remaining <= r_split_remaining
+                                             - CNTW'(MAX_BEATS);
+                        // FIXED holds the address; INCR walks on. WRAP
+                        // cannot reach a split (see above).
+                        if (int_awburst != 2'b00)
+                            r_split_addr <= r_split_addr
+                                + AXI_ADDR_WIDTH'(MAX_BEATS * M_STRB_WIDTH);
+                    end
+                end
+            )
+
+            // Split queue: one memory, two read pointers (see the
+            // declaration block above). Push at each master AW issue;
+            // AW is back-pressured on full so it cannot overflow.
+            logic [9:0]           splitq_mem [SPLITQ_DEPTH];
+            logic [SPLITQ_AW:0]   splitq_wptr, splitq_rptr_w, splitq_rptr_b;
+            logic                 w_splitq_full;
+
+            // B trails W, so B's pointer is the laggard: full-check it.
+            assign w_splitq_full =
+                (splitq_wptr[SPLITQ_AW-1:0] == splitq_rptr_b[SPLITQ_AW-1:0]) &&
+                (splitq_wptr[SPLITQ_AW]     != splitq_rptr_b[SPLITQ_AW]);
+            assign split_w_avail = (splitq_wptr != splitq_rptr_w);
+            assign split_w_beats = splitq_mem[splitq_rptr_w[SPLITQ_AW-1:0]][8:0];
+            assign split_b_final = splitq_mem[splitq_rptr_b[SPLITQ_AW-1:0]][9];
+
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    splitq_wptr   <= '0;
+                    splitq_rptr_w <= '0;
+                    splitq_rptr_b <= '0;
+                end else begin
+                    if (w_aw_issue) begin
+                        splitq_mem[splitq_wptr[SPLITQ_AW-1:0]]
+                            <= {w_this_last, w_this_beats};
+                        splitq_wptr <= splitq_wptr + 1'b1;
+                    end
+                    if (split_w_pop) splitq_rptr_w <= splitq_rptr_w + 1'b1;
+                    if (split_b_pop) splitq_rptr_b <= splitq_rptr_b + 1'b1;
+                end
+            )
 
             assign m_axi_awid     = int_awid;
-            assign m_axi_awaddr   = int_awaddr;
-            assign m_axi_awlen    = ((int_awlen + 8'd1) * 8'(WIDTH_RATIO)) - 8'd1;
+            assign m_axi_awaddr   = r_split_addr;
+            assign m_axi_awlen    = 8'(w_this_beats - 9'd1);
             assign m_axi_awsize   = MASTER_SIZE[2:0];
             assign m_axi_awburst  = int_awburst;
             assign m_axi_awlock   = int_awlock;
@@ -286,13 +391,20 @@ module axi4_dwidth_converter_wr #(
             assign m_axi_awqos    = int_awqos;
             assign m_axi_awregion = int_awregion;
             assign m_axi_awuser   = int_awuser;
-            assign m_axi_awvalid  = int_aw_valid;
-            assign int_aw_ready   = m_axi_awready;
+            assign m_axi_awvalid  = r_split_active && !w_splitq_full;
+            // the slave's AW is consumed only when its FINAL master
+            // burst is issued
+            assign int_aw_ready   = w_aw_issue && w_this_last;
 
         end else begin : gen_aw_upsize
             // Upsize: slave (narrow) → master (wide). Divide burst length
-            // by ratio (round up).
+            // by ratio (round up). Division can never overflow AWLEN, so
+            // no splitting is needed and the split queue is tied off.
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
+
+            assign split_w_avail = 1'b0;
+            assign split_w_beats = 9'd0;
+            assign split_b_final = 1'b1;
 
             assign m_axi_awid     = int_awid;
             assign m_axi_awaddr   = int_awaddr;
@@ -343,6 +455,9 @@ module axi4_dwidth_converter_wr #(
             // slave's wlast drives narrow_last on the final narrow beat
             // from the last wide beat (matches the master's awlen rewrite).
             // WSTRB slices per narrow beat: SB_BROADCAST=0.
+            logic w_dnsize_valid;
+            logic w_dnsize_ready;
+
             axi_data_dnsize #(
                 .WIDE_WIDTH      (S_AXI_DATA_WIDTH),
                 .NARROW_WIDTH    (M_AXI_DATA_WIDTH),
@@ -361,14 +476,50 @@ module axi4_dwidth_converter_wr #(
                 .wide_data       (int_wdata),
                 .wide_sideband   (int_wstrb),
                 .wide_last       (int_wlast),
-                .narrow_valid    (m_axi_wvalid),
-                .narrow_ready    (m_axi_wready),
+                .narrow_valid    (w_dnsize_valid),
+                .narrow_ready    (w_dnsize_ready),
                 .narrow_data     (m_axi_wdata),
                 .narrow_sideband (m_axi_wstrb),
-                .narrow_last     (m_axi_wlast)
+                .narrow_last     ()                 // frames the SLAVE burst; see below
             );
 
+            // The dnsize frames the whole SLAVE burst, but the AW side
+            // may have split it into several master bursts, each needing
+            // its own WLAST at its own boundary. A counter holds the
+            // beat count of the master burst currently draining, loaded
+            // from the split queue -- a queue, not a snapshot of the AW
+            // side, because AW deliberately runs ahead of W and a single
+            // shared register would be overwritten mid-burst (that
+            // exact failure delivered 505 of 512 beats in an earlier
+            // version of this fix).
+            //
+            // W data is held until its burst's entry has been loaded, so
+            // no beat can slip through unframed. For an unsplit burst
+            // the queue holds exactly one entry and this degenerates to
+            // the old passthrough with one idle cycle at burst start.
+            logic [8:0] r_w_beats_left;
+
+            assign split_w_pop = (r_w_beats_left == 9'd0) && split_w_avail;
+
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    r_w_beats_left <= 9'd0;
+                end else if (r_w_beats_left == 9'd0) begin
+                    if (split_w_avail)
+                        r_w_beats_left <= split_w_beats;
+                end else if (m_axi_wvalid && m_axi_wready) begin
+                    r_w_beats_left <= r_w_beats_left - 9'd1;
+                end
+            )
+
+            assign m_axi_wvalid  = w_dnsize_valid && (r_w_beats_left != 9'd0);
+            assign w_dnsize_ready = m_axi_wready && (r_w_beats_left != 9'd0);
+            assign m_axi_wlast   = (r_w_beats_left == 9'd1);
+
+            // (split_w_pop driven above)
+
         end else begin : gen_w_upsize
+            assign split_w_pop = 1'b0;
             // Slave narrow, master wide. W direction: slave → master, so
             // narrow → wide. axi_data_upsize concatenates WSTRBs:
             // SB_OR_MODE=0. wlast on the narrow side terminates the
@@ -397,13 +548,48 @@ module axi4_dwidth_converter_wr #(
     endgenerate
 
     //==========================================================================
-    // Write Response Channel (Pass-Through)
+    // Write Response Channel
     //==========================================================================
 
-    assign int_bid     = m_axi_bid;
-    assign int_bresp   = m_axi_bresp;
-    assign int_buser   = m_axi_buser;
-    assign int_b_valid = m_axi_bvalid;
-    assign m_axi_bready = int_b_ready;
+    generate
+        if (DOWNSIZE) begin : gen_b_fold
+            // A split slave burst gets several master B responses; the
+            // slave expects ONE. The split queue's head flag says whether
+            // the response now arriving belongs to the final master burst
+            // of its slave burst. Non-final responses are consumed
+            // immediately and folded (worst case wins -- the same fold
+            // axi4_to_axil4_wr uses); the final one carries the folded
+            // result to the slave. All master bursts of a slave burst
+            // share its ID, so forwarding the final B's ID is correct.
+            logic [1:0] r_b_worst;
+
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    r_b_worst <= 2'b00;
+                end else if (m_axi_bvalid && m_axi_bready) begin
+                    if (split_b_final)
+                        r_b_worst <= 2'b00;              // slave burst done
+                    else if (m_axi_bresp > r_b_worst)
+                        r_b_worst <= m_axi_bresp;
+                end
+            )
+
+            assign split_b_pop  = m_axi_bvalid && m_axi_bready;
+            assign int_bid      = m_axi_bid;
+            assign int_bresp    = (m_axi_bresp > r_b_worst) ? m_axi_bresp
+                                                            : r_b_worst;
+            assign int_buser    = m_axi_buser;
+            assign int_b_valid  = m_axi_bvalid && split_b_final;
+            assign m_axi_bready = split_b_final ? int_b_ready : 1'b1;
+
+        end else begin : gen_b_pass
+            assign split_b_pop  = 1'b0;
+            assign int_bid      = m_axi_bid;
+            assign int_bresp    = m_axi_bresp;
+            assign int_buser    = m_axi_buser;
+            assign int_b_valid  = m_axi_bvalid;
+            assign m_axi_bready = int_b_ready;
+        end
+    endgenerate
 
 endmodule : axi4_dwidth_converter_wr

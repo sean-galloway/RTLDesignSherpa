@@ -626,6 +626,40 @@ class AXI4DWidthConverterWriteTB(TBBase):
                 self.log.error(f"  max-length burst FAILED at {beats} slave "
                                f"beats ({needed} narrow)")
                 ok = False
+                continue
+
+            # Beat COUNT is not enough. On the truncated-AWLEN bug all the
+            # data still arrived -- the dnsize kept draining past the burst
+            # the AW had promised -- so counting W handshakes passed while
+            # the framing was garbage. Check the frame: the captured AWs
+            # must account for every beat in legal bursts, and WLAST must
+            # land exactly on each promised boundary.
+            aw_lens = [int(getattr(pkt, 'len', 0)) + 1
+                       for pkt in self.captured_aw_packets]
+            if sum(aw_lens) != needed:
+                self.log.error(f"  AW framing: bursts of {aw_lens} account "
+                               f"for {sum(aw_lens)} beats, need {needed}")
+                ok = False
+                continue
+            if any(l > 256 for l in aw_lens):
+                self.log.error(f"  AW framing: illegal burst length in "
+                               f"{aw_lens}")
+                ok = False
+                continue
+            lasts = [i for i, pkt in enumerate(self.captured_w_packets)
+                     if int(getattr(pkt, 'last', 0)) == 1]
+            bound, expect_lasts = 0, []
+            for l in aw_lens:
+                bound += l
+                expect_lasts.append(bound - 1)
+            if lasts != expect_lasts:
+                self.log.error(f"  WLAST framing: asserted at {lasts}, "
+                               f"expected {expect_lasts} (AW bursts "
+                               f"{aw_lens})")
+                ok = False
+                continue
+            self.log.info(f"  framing OK: {len(aw_lens)} master burst(s) "
+                          f"{aw_lens}, WLAST on each boundary")
         return ok
 
     async def run_medium_test(self):

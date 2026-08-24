@@ -163,6 +163,14 @@ module axi4_dwidth_converter_rd #(
     logic [S_AXI_DATA_WIDTH-1:0] int_rdata;
     logic [1:0]                  int_rresp;
     logic                        int_rlast;
+
+    // Downsize AR-split queue (driven in gen_ar_downsize, consumed by the
+    // R path; tied off for upsize). One flag per issued master burst:
+    // whether it is the final master burst of its slave burst. Pushed at
+    // AR issue, popped at that burst's RLAST, so the head always
+    // describes the master burst currently returning data.
+    logic       arsplit_final;   // head: current master burst is the last
+    logic       arsplit_pop;     // R side: master burst completed
     logic [AXI_USER_WIDTH-1:0]   int_ruser;
 
     // Burst-length FIFO handshake (used only in the wide->narrow R data path,
@@ -229,14 +237,93 @@ module axi4_dwidth_converter_rd #(
 
     generate
         if (DOWNSIZE) begin : gen_ar_downsize
-            // Downsize: slave (wide) → master (narrow).
-            // Multiply slave's burst length by ratio so master moves the
-            // same total bytes in narrow beats.
+            // Downsize: slave (wide) → master (narrow). One wide beat
+            // becomes WIDTH_RATIO narrow beats, and the product does not
+            // fit a burst: a full-length slave burst needs up to
+            // 256*WIDTH_RATIO narrow beats, which is neither expressible
+            // in the 8-bit ARLEN nor a legal AXI4 burst. The old
+            // ((arlen+1)*RATIO)-1 wrapped -- 511 truncated to 255 and
+            // half the read went missing (same defect the write
+            // converter had; see its gen_aw_downsize).
+            //
+            // So one slave burst is SPLIT into as many master bursts of
+            // <= 256 beats as it takes. WRAP never gets here: AXI4 caps
+            // it at 16 beats, and 16*RATIO <= 256 for every supported
+            // ratio.
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
+            localparam int MAX_BEATS   = 256;
+            localparam int CNTW        = 9 + $clog2(WIDTH_RATIO);
+            localparam int ARQ_DEPTH   = 16;
+            localparam int ARQ_AW      = $clog2(ARQ_DEPTH);
+
+            logic [CNTW-1:0]           r_split_remaining;
+            logic [AXI_ADDR_WIDTH-1:0] r_split_addr;
+            logic                      r_split_active;
+            logic [8:0]                w_this_beats;
+            logic                      w_this_last;
+            logic                      w_ar_issue;
+
+            assign w_this_beats = (r_split_remaining > CNTW'(MAX_BEATS))
+                                  ? 9'(MAX_BEATS) : 9'(r_split_remaining);
+            assign w_this_last  = (r_split_remaining <= CNTW'(MAX_BEATS));
+            assign w_ar_issue   = m_axi_arvalid && m_axi_arready;
+
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    r_split_remaining <= '0;
+                    r_split_addr      <= '0;
+                    r_split_active    <= 1'b0;
+                end else if (!r_split_active) begin
+                    if (int_ar_valid) begin
+                        r_split_remaining <= (CNTW'(int_arlen) + CNTW'(1))
+                                             * CNTW'(WIDTH_RATIO);
+                        r_split_addr      <= int_araddr;
+                        r_split_active    <= 1'b1;
+                    end
+                end else if (w_ar_issue) begin
+                    if (w_this_last) begin
+                        r_split_remaining <= '0;
+                        r_split_active    <= 1'b0;
+                    end else begin
+                        r_split_remaining <= r_split_remaining
+                                             - CNTW'(MAX_BEATS);
+                        // FIXED holds the address; INCR walks on. WRAP
+                        // cannot reach a split (see above).
+                        if (int_arburst != 2'b00)
+                            r_split_addr <= r_split_addr
+                                + AXI_ADDR_WIDTH'(MAX_BEATS * M_STRB_WIDTH);
+                    end
+                end
+            )
+
+            // Final-burst flag queue: pushed per issued master burst,
+            // popped by the R path at that burst's RLAST. AR is
+            // back-pressured on full, so it cannot overflow.
+            logic [ARQ_AW:0] arq_wptr, arq_rptr;
+            logic            arq_mem [ARQ_DEPTH];
+            logic            w_arq_full;
+
+            assign w_arq_full =
+                (arq_wptr[ARQ_AW-1:0] == arq_rptr[ARQ_AW-1:0]) &&
+                (arq_wptr[ARQ_AW]     != arq_rptr[ARQ_AW]);
+            assign arsplit_final = arq_mem[arq_rptr[ARQ_AW-1:0]];
+
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    arq_wptr <= '0;
+                    arq_rptr <= '0;
+                end else begin
+                    if (w_ar_issue) begin
+                        arq_mem[arq_wptr[ARQ_AW-1:0]] <= w_this_last;
+                        arq_wptr <= arq_wptr + 1'b1;
+                    end
+                    if (arsplit_pop) arq_rptr <= arq_rptr + 1'b1;
+                end
+            )
 
             assign m_axi_arid     = int_arid;
-            assign m_axi_araddr   = int_araddr;
-            assign m_axi_arlen    = ((int_arlen + 8'd1) * 8'(WIDTH_RATIO)) - 8'd1;
+            assign m_axi_araddr   = r_split_addr;
+            assign m_axi_arlen    = 8'(w_this_beats - 9'd1);
             assign m_axi_arsize   = MASTER_SIZE[2:0];
             assign m_axi_arburst  = int_arburst;
             assign m_axi_arlock   = int_arlock;
@@ -245,13 +332,18 @@ module axi4_dwidth_converter_rd #(
             assign m_axi_arqos    = int_arqos;
             assign m_axi_arregion = int_arregion;
             assign m_axi_aruser   = int_aruser;
-            assign m_axi_arvalid  = int_ar_valid;
-            assign int_ar_ready   = m_axi_arready;
+            assign m_axi_arvalid  = r_split_active && !w_arq_full;
+            // the slave's AR is consumed only when its FINAL master
+            // burst is issued
+            assign int_ar_ready   = w_ar_issue && w_this_last;
 
         end else begin : gen_ar_upsize
             // Upsize: slave (narrow) → master (wide). Divide burst length
             // by ratio (round up) and align address down to wide boundary.
+            // Division can never overflow ARLEN; the split queue is inert.
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
+
+            assign arsplit_final = 1'b1;
             localparam int ALIGN_BITS  = $clog2(M_STRB_WIDTH);
 
             logic [7:0] master_arlen;
@@ -330,13 +422,22 @@ module axi4_dwidth_converter_rd #(
                 .narrow_ready    (m_axi_rready),
                 .narrow_data     (m_axi_rdata),
                 .narrow_sideband (m_axi_rresp),
-                .narrow_last     (m_axi_rlast),
+                // A split slave burst returns as several master bursts,
+                // each with its own RLAST -- but the slave must see ONE.
+                // Only the final master burst's RLAST reaches the upsize;
+                // the rest are masked and accumulation just continues
+                // across the boundary, which is safe because 256 narrow
+                // beats is a whole number of wide beats at every ratio.
+                .narrow_last     (m_axi_rlast && arsplit_final),
                 .wide_valid      (int_r_valid),
                 .wide_ready      (int_r_ready),
                 .wide_data       (int_rdata),
                 .wide_sideband   (int_rresp),
                 .wide_last       (int_rlast)
             );
+
+            // step the flag queue as each master burst completes
+            assign arsplit_pop = m_axi_rvalid && m_axi_rready && m_axi_rlast;
 
             // No burst-length FIFO needed on the narrow->wide (upsize) data
             // path; keep the shared handshake wires inert.
@@ -345,6 +446,7 @@ module axi4_dwidth_converter_rd #(
             assign w_blen_rd_data  = '0;
 
         end else begin : gen_r_upsize
+            assign arsplit_pop = 1'b0;
             // Slave narrow, master wide. R direction: master → slave, so
             // wide → narrow. axi_data_dnsize (TRACK_BURSTS=1) asserts
             // narrow_last on the last narrow beat of each burst, using that

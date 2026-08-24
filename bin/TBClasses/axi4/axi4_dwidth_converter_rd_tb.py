@@ -574,6 +574,59 @@ class AXI4DWidthConverterReadTB(TBBase):
         self.log.info(f"✅ Read verification passed: {burst_len} slave beats → {expected_master_beats} master beats")
         return True
 
+
+    async def test_max_length_burst(self):
+        """A maximum-length slave read must survive downsizing.
+
+        Downsizing multiplies the beat count, and the product overflows the
+        8-bit ARLEN exactly as it did AWLEN on the write side (CONV-004): a
+        slave burst longer than 256/WIDTH_RATIO beats wraps the field and
+        the master returns only a fraction of the data -- the read here
+        simply times out short. The fix splits one slave burst into several
+        master bursts, and the slave must then see ONE RLAST, on the true
+        final beat, not one per master burst.
+        """
+        self.log.info("--- Max-length read burst (ARLEN overflow) ---")
+        if not self.DOWNSIZE:
+            self.log.info("  upsize: beat count divides, nothing to overflow")
+            return True
+
+        ok = True
+        safe = 256 // self.WIDTH_RATIO
+        for beats in (safe, safe * 2):
+            addr = 0x40000
+            needed = beats * self.WIDTH_RATIO
+            self.log.info(f"  slave read {beats} beats -> {needed} narrow "
+                          f"beats ({'fits' if needed <= 256 else 'needs splitting'})")
+            try:
+                data = await self.read_transaction(addr, beats)
+            except TimeoutError:
+                self.log.error(f"  max-length read TIMED OUT at {beats} slave "
+                               f"beats ({needed} narrow) -- ARLEN truncated")
+                self.errors += 1
+                ok = False
+                continue
+            if len(data) != beats:
+                self.log.error(f"  max-length read: {len(data)}/{beats} beats")
+                self.errors += 1
+                ok = False
+                continue
+
+            # Framing: the slave must see exactly one RLAST, on the final
+            # beat. A split without RLAST masking delivers one per master
+            # burst instead.
+            lasts = [i for i, pkt in enumerate(self.captured_r_packets)
+                     if int(getattr(pkt, 'last', 0)) == 1]
+            if lasts != [beats - 1]:
+                self.log.error(f"  RLAST framing: asserted at {lasts}, "
+                               f"expected [{beats - 1}] only")
+                self.errors += 1
+                ok = False
+                continue
+            self.log.info(f"  framing OK: {beats} beats, single RLAST on "
+                          f"the final beat")
+        return ok
+
     async def run_medium_test(self):
         """
         Medium test - multiple transactions with different patterns.
@@ -646,6 +699,10 @@ class AXI4DWidthConverterReadTB(TBBase):
             else:
                 self.log.info(f"  ✅ Burst length {burst_len} test PASSED")
             addr += 0x100
+
+        # Test 2b: maximum-length bursts -- see test_max_length_burst
+        if not await self.test_max_length_burst():
+            all_success = False
 
         # Test 3: Random addresses and burst lengths
         self.log.info("--- Test 3: Random Address/Burst Length Patterns ---")
