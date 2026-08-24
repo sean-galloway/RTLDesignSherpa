@@ -98,7 +98,7 @@ module apb4_master #(
 **CMD_DEPTH and RSP_DEPTH are literal entry counts.** Both buffers are
 `gaxi_skid_buffer` instances, which store their payload in an unpacked array of
 `DEPTH` slots. The default of 6 means six entries, not sixty-four. Supported
-values are `{2, 4, 6, 8}`.
+values are 2..8 inclusive.
 
 ## Ports
 
@@ -521,7 +521,7 @@ end
 
 ### FIFO Depth Selection
 
-Depths are entry counts and must be one of `{2, 4, 6, 8}`. Because APB is
+Depths are entry counts and must be one of 2..8 inclusive. Because APB is
 non-pipelined, deeper buffers do not increase bus throughput -- they only let the
 command producer run further ahead of the bus and absorb bursty response
 draining.

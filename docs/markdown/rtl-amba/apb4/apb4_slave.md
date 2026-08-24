@@ -95,7 +95,7 @@ module apb4_slave #(
 
 **DEPTH is a literal entry count.** `gaxi_skid_buffer` stores its payload in an
 unpacked array of `DEPTH` slots, so `DEPTH=2` gives two entries, not four.
-Supported values are `{2, 4, 6, 8}`; the shift-register storage is optimal at 2
+Supported values are 2..8 inclusive; the shift-register storage is optimal at 2
 and remains cheaper than a packed-vector implementation through 8. Odd values and
 values above 8 are not supported.
 
@@ -606,7 +606,7 @@ endmodule
 
 ### Buffer Depth Selection
 
-`DEPTH` is an entry count and must be one of `{2, 4, 6, 8}`. Because APB allows
+`DEPTH` is an entry count and must be one of 2..8 inclusive. Because APB allows
 only one outstanding transfer, extra depth does **not** buy concurrency -- it only
 absorbs jitter in a backend that returns responses unevenly. `DEPTH=2` is
 correct for almost every backend.

@@ -78,8 +78,8 @@ flowchart LR
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| CMD_DEPTH | int | 6 | Command skid-buffer depth in entries; one of {2, 4, 6, 8} |
-| RSP_DEPTH | int | 6 | Response skid-buffer depth in entries; one of {2, 4, 6, 8} |
+| CMD_DEPTH | int | 6 | Command skid-buffer depth in entries; 2..8 inclusive (any integer) |
+| RSP_DEPTH | int | 6 | Response skid-buffer depth in entries; 2..8 inclusive (any integer) |
 | ADDR_WIDTH | int | 32 | APB address bus width |
 | DATA_WIDTH | int | 32 | APB data bus width |
 | PROT_WIDTH | int | 3 | Protection signal width |

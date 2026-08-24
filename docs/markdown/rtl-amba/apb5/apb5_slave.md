@@ -122,7 +122,7 @@ flowchart LR
 | WUSER_WIDTH | int | 4 | Write data user signal width |
 | RUSER_WIDTH | int | 4 | Read data user signal width |
 | BUSER_WIDTH | int | 4 | Response user signal width |
-| DEPTH | int | 2 | Skid-buffer depth in entries; must be one of {2, 4, 6, 8} |
+| DEPTH | int | 2 | Skid-buffer depth in entries; must be 2..8 inclusive (any integer) |
 | ENABLE_PARITY | bit | 0 | Enable parity generation and checking |
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
 

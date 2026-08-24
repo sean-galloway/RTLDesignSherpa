@@ -57,7 +57,7 @@ The APB5 Slave CDC module provides clock domain crossing between an APB5 bus clo
 | `WUSER_WIDTH` | int | 4 | Write user signal width |
 | `RUSER_WIDTH` | int | 4 | Read user signal width |
 | `BUSER_WIDTH` | int | 4 | Response user signal width |
-| `DEPTH` | int | 2 | Skid-buffer depth of the wrapped `apb5_slave`; one of {2, 4, 6, 8} |
+| `DEPTH` | int | 2 | Skid-buffer depth of the wrapped `apb5_slave`; 2..8 inclusive (any integer) |
 | `USE_JOHNSON` | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray, `1` Johnson, `-1` auto-select. See below. |
 | `ENABLE_PARITY` | bit | 0 | Enable parity generation and checking |
 | `USE_2_PHASE_CDC` | bit | 1 | Deprecated and ignored — retained for source compatibility |
@@ -184,13 +184,13 @@ carries an elaboration-time `$error` for exactly that case.
 
 | `USE_JOHNSON` | Encoding | Pointer width | Depth constraint |
 |---|---|---|---|
-| `0` (default) | Gray | `$clog2(DEPTH)+1` | power of 2 only |
+| `0` (default) | Gray | `$clog2(max(DEPTH, 4))+1` | floored `max(DEPTH, 4)` must be a power of 2: DEPTH in {2, 3, 4, 8} |
 | `1` | Johnson | `max(DEPTH, 4)` bits | any depth |
 | `-1` | auto | per depth | none — Gray when the derived FIFO depth is a power of 2, Johnson otherwise |
 
-**The default is Gray, not auto.** With defaults, DEPTH 2, 4 and 8 elaborate
-(2 and 4 both derive a depth-4 FIFO) and **DEPTH=6 fails the build**. That is
-intentional. Johnson costs `max(DEPTH, 4)`-bit pointers against Gray's `$clog2(max(DEPTH, 4))+1` (widths follow the floored FIFO depth, so the default `DEPTH = 2` pays 4 bits vs 3)
+**The default is Gray, not auto.** With defaults, DEPTH 2, 3, 4 and 8
+elaborate (2, 3 and 4 all derive a depth-4 FIFO) and **DEPTH 5, 6 and 7 fail
+the build**. That is intentional. Johnson costs `max(DEPTH, 4)`-bit pointers against Gray's `$clog2(max(DEPTH, 4))+1` (widths follow the floored FIFO depth, so the default `DEPTH = 2` pays 4 bits vs 3)
 — at depth 6, 6 bits against 4 — duplicated in both domains and again in every
 synchronizer stage. Nobody should pay that because a default quietly decided for
 them.

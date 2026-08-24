@@ -21,7 +21,7 @@
 
 module gaxi_skid_buffer_dbldrn #(
     parameter int DATA_WIDTH = 32,
-    parameter int DEPTH = 4, // Must be one of {2, 4, 6, 8}
+    parameter int DEPTH = 4, // Must be 2..8 inclusive
     parameter int DW = DATA_WIDTH,
     parameter int BUF_WIDTH = DATA_WIDTH * DEPTH,
     parameter int BW = BUF_WIDTH
@@ -50,8 +50,8 @@ module gaxi_skid_buffer_dbldrn #(
     // wrap it in `initial`, which never fires during lint. Without this, an
     // unsupported DEPTH silently wraps the 4-bit r_data_count.
     generate
-        if (DEPTH != 2 && DEPTH != 4 && DEPTH != 6 && DEPTH != 8) begin : gen_depth_guard
-            $error("gaxi_skid_buffer_dbldrn: DEPTH=%0d unsupported -- must be one of {2,4,6,8}", DEPTH);
+        if (DEPTH < 2 || DEPTH > 8) begin : gen_depth_guard
+            $error("gaxi_skid_buffer_dbldrn: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
         end
     endgenerate
 

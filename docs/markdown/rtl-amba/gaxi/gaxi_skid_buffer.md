@@ -48,7 +48,7 @@ The skid buffer is the simplest useful elastic buffer: it decouples a producer f
 ```systemverilog
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
-    parameter int DEPTH = 2,        // Must be one of {2, 4, 6, 8}
+    parameter int DEPTH = 2,        // Must be 2..8 inclusive (any integer)
     parameter int DW = DATA_WIDTH,
     parameter int BUF_WIDTH = DATA_WIDTH * DEPTH,
     parameter int BW = BUF_WIDTH

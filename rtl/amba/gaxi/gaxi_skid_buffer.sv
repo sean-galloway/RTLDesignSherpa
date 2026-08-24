@@ -40,7 +40,7 @@
 // The write-during-simultaneous-r+w lands at `count-1` after the shift,
 // so slot (count-1) takes `wr_data` instead of `r_data[i+1]`.
 //
-// Depth is expected to be one of {2, 4, 6, 8}. The shift-register form
+// Depth is expected to be 2..8 inclusive (any integer). The shift-register form
 // is optimal at depths 2–3 (the common case for AXI channel skids) and
 // still cheaper than the packed-vector form for depths up through 8.
 // ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@
 
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
-    parameter int DEPTH = 2, // Must be one of {2, 4, 6, 8} -- guarded below
+    parameter int DEPTH = 2, // Must be 2..8 inclusive -- guarded below
     // Legacy shorthand params (kept for source-compatibility)
     parameter int DW = DATA_WIDTH,
     parameter int BUF_WIDTH = DATA_WIDTH * DEPTH,
@@ -90,15 +90,17 @@ module gaxi_skid_buffer #(
     // but its update depends only on its own index i, so synth builds
     // DEPTH independent small cones instead of one giant shared demux.
     // =========================================================================
-    // The {2,4,6,8} contract was comment-only until 2026-08-13; DEPTH=16
-    // silently corrupted (the 4-bit slot counter wraps). Fail elaboration
-    // instead -- same pattern as gaxi_fifo_async's Gray/depth guard.
+    // The depth contract is 2..8 INCLUSIVE -- any integer; skid buffers are
+    // never more than 8 deep (Sean). It was comment-only until 2026-08-13;
+    // DEPTH=16 silently corrupted (the 4-bit slot counter wraps). Fail
+    // elaboration instead -- same pattern as gaxi_fifo_async's depth guard.
+    // (The guard briefly rejected odd depths; 3, 5, 7 are legal.)
     // Bare $error is an ELABORATION system task (IEEE 1800 20.11) -- do NOT
     // wrap it in `initial`, which is runtime and never fires during lint
     // (same note as fifo_async's g_bad_depth guard, the pattern this copies).
     generate
-        if (DEPTH != 2 && DEPTH != 4 && DEPTH != 6 && DEPTH != 8) begin : gen_depth_guard
-            $error("gaxi_skid_buffer: DEPTH=%0d unsupported -- must be one of {2,4,6,8}", DEPTH);
+        if (DEPTH < 2 || DEPTH > 8) begin : gen_depth_guard
+            $error("gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
         end
     endgenerate
 

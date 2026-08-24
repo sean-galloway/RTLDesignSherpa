@@ -265,7 +265,7 @@ end
 
 `SKID_DEPTH_AR` and `SKID_DEPTH_R` are passed straight through to the `DEPTH`
 parameter of `gaxi_skid_buffer`. `DEPTH` is the **literal entry count**, not an
-exponent, and is constrained to one of `{2, 4, 6, 8}`.
+exponent, and is constrained to one of 2..8 inclusive.
 
 **AR Channel (Addresses):**
 - **SKID_DEPTH_AR = 2** (2 entries): Typical for control registers

@@ -134,8 +134,8 @@ these ports.
 apb5_master #(
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32),
-    .CMD_DEPTH (6),      // command FIFO entries: one of {2, 4, 6, 8}
-    .RSP_DEPTH (6)       // response FIFO entries: one of {2, 4, 6, 8}
+    .CMD_DEPTH (6),      // command FIFO entries: 2..8 inclusive (any integer)
+    .RSP_DEPTH (6)       // response FIFO entries: 2..8 inclusive (any integer)
 ) u_apb5_master (
     .pclk           (clk),
     .presetn        (resetn),

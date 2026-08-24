@@ -78,7 +78,7 @@ module apb4_slave_stub #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| DEPTH | int | 4 | Skid-buffer depth in **entries** (not a log2 exponent); must be one of `{2, 4, 6, 8}` |
+| DEPTH | int | 4 | Skid-buffer depth in **entries** (not a log2 exponent); must be one of 2..8 inclusive |
 | DATA_WIDTH | int | 32 | APB data bus width |
 | ADDR_WIDTH | int | 32 | APB address bus width |
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |

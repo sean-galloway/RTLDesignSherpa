@@ -424,7 +424,7 @@ def generate_test_params():
     else:  # FULL
         # Comprehensive testing - all meaningful combinations
         widths = [8, 16, 32, 64]
-        depths = [2, 4, 8]
+        depths = [2, 3, 4, 8]   # 3 = odd-depth regression: contract is 2..8 inclusive, not evens-only
         clk_periods = [10]
         test_levels = ['gate', 'func', 'full']
 

@@ -81,7 +81,7 @@ flowchart LR
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| DEPTH | int | 4 | Skid-buffer depth in entries; one of {2, 4, 6, 8} |
+| DEPTH | int | 4 | Skid-buffer depth in entries; 2..8 inclusive (any integer) |
 | ADDR_WIDTH | int | 32 | APB address bus width |
 | DATA_WIDTH | int | 32 | APB data bus width |
 | PROT_WIDTH | int | 3 | Protection signal width |

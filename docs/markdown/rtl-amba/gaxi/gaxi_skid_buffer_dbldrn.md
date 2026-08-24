@@ -59,7 +59,7 @@ Like the base skid buffer, storage is a shift register of `DEPTH` entries and th
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `DATA_WIDTH` | int | 32 | Data bus width in bits |
-| `DEPTH` | int | 4 | Buffer depth in entries (must be one of {2, 4, 6, 8}) |
+| `DEPTH` | int | 4 | Buffer depth in entries (must be 2..8 inclusive (any integer)) |
 | `DW` | int | `DATA_WIDTH` | Derived alias for `DATA_WIDTH` (do not override) |
 | `BUF_WIDTH` | int | `DATA_WIDTH * DEPTH` | Derived total shift-register width (do not override) |
 | `BW` | int | `BUF_WIDTH` | Derived alias for `BUF_WIDTH` (do not override) |

@@ -64,7 +64,7 @@ Most of the art in using these shims is picking buffer depths and width ratios. 
 |-------------|-------------|---------|---------|-------|
 | Low-latency CPU | 2 | 2-4 | 2-4 | Minimize latency |
 | Moderate DMA | 4 | 8 | 8 | Balance latency/throughput |
-| Burst DMA | 8 | 8 | 8 | Maximize throughput (gaxi_skid_buffer supports DEPTH in {2,4,6,8} ONLY -- anything else now FAILS at elaboration via the DEPTH guard) |
+| Burst DMA | 8 | 8 | 8 | Maximize throughput (gaxi_skid_buffer supports DEPTH in 2..8 inclusive (any integer) -- anything else now FAILS at elaboration via the DEPTH guard) |
 
 **Width Conversion:**
 
@@ -281,7 +281,7 @@ Scenario: DMA engine (AXI4 master) writing to APB peripheral registers.
 ```systemverilog
 axi4_to_apb4_shim #(
     .DEPTH_AW(8),     // Deep buffers for burst DMA
-    .DEPTH_W(8)       // gaxi_skid_buffer legal DEPTHs: {2,4,6,8}
+    .DEPTH_W(8)       // gaxi_skid_buffer legal DEPTHs: 2..8 inclusive
 ) u_dma_bridge (
     .aclk(dma_clk),
     .pclk(periph_clk),

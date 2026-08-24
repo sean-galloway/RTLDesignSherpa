@@ -393,7 +393,7 @@ TEST_LEVEL=full pytest val/amba/test_gaxi_regslice.py -v
 
 | Feature | gaxi_regslice | gaxi_skid_buffer |
 |---------|---------------|------------------|
-| **Depth** | 1 entry | DEPTH entries, one of {2, 4, 6, 8} |
+| **Depth** | 1 entry | DEPTH entries, 2..8 inclusive (any integer) |
 | **Latency** | **1 cycle (fixed)** | 1 cycle (fixed) |
 | **Bypass Path** | No | No |
 | **Throughput** | 1 beat/cycle | 1 beat/cycle |

@@ -83,7 +83,7 @@ module axis_slave #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| SKID_DEPTH | int | 4 | Skid buffer depth in **entries** (not a log2 exponent). Passed directly to `gaxi_skid_buffer.DEPTH`, which supports `{2, 4, 6, 8}` |
+| SKID_DEPTH | int | 4 | Skid buffer depth in **entries** (not a log2 exponent). Passed directly to `gaxi_skid_buffer.DEPTH`, which supports 2..8 inclusive |
 | AXIS_DATA_WIDTH | int | 32 | AXI4-Stream data bus width in **bits** (must be a multiple of 8; `SW = AXIS_DATA_WIDTH/8`) |
 | AXIS_ID_WIDTH | int | 8 | Stream ID width (0 to disable) |
 | AXIS_DEST_WIDTH | int | 4 | Destination width (0 to disable) |
@@ -91,7 +91,7 @@ module axis_slave #(
 
 > **SKID_DEPTH is a literal entry count.** `SKID_DEPTH = 4` yields a 4-entry buffer, not 16.
 > The underlying `gaxi_skid_buffer` is a shift-register FIFO whose `count` port is 4 bits wide;
-> only the values `{2, 4, 6, 8}` are supported. Odd values such as 3 or 5 are not legal.
+> only the values 2..8 inclusive are supported. Odd values such as 3 or 5 are not legal.
 
 ## Ports
 
@@ -217,7 +217,7 @@ axis_slave #(
 | No native CDC | Both interfaces are on `aclk`. Crossing clock domains requires an external `gaxi_fifo_async` |
 | No routing or demultiplexing | `TID`/`TDEST` are carried through unmodified; they are not decoded |
 | No protocol checking | The module does not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
-| `SKID_DEPTH` limited to `{2, 4, 6, 8}` | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
+| `SKID_DEPTH` limited to 2..8 inclusive | The buffer is a timing element, not a rate adapter. Use a `gaxi_fifo_sync` downstream for deep elastic storage |
 
 ## Related Modules
 

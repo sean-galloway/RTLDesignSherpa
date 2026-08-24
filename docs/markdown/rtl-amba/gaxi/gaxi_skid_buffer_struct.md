@@ -48,7 +48,7 @@ Struct-aware variant of **[gaxi_skid_buffer](gaxi_skid_buffer.md)** — it takes
 ```systemverilog
 module gaxi_skid_buffer_struct #(
     parameter type STRUCT_TYPE = logic [31:0],  // Any SystemVerilog type
-    parameter int  DEPTH = 2,                   // Must be {2, 4, 6, 8}
+    parameter int  DEPTH = 2,                   // Must be 2..8 inclusive
 
     // Automatically derived
     localparam int STRUCT_WIDTH = $bits(STRUCT_TYPE),

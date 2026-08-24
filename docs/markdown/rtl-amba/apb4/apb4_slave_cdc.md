@@ -56,7 +56,7 @@ The APB Slave CDC (Clock Domain Crossing) module is a complete APB slave interfa
 | `STRB_WIDTH` | int | DATA_WIDTH/8 | Write strobe width (calculated) |
 | `PROT_WIDTH` | int | 3 | APB protection signal width |
 | `DEPTH` | int | 2 | Skid-buffer depth **in entries** inside the wrapped `apb4_slave`; also the floor for the CDC FIFO depth |
-| `USE_JOHNSON` | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray (power-of-2 derived depth only), `1` Johnson (any FIFO depth, `max(DEPTH,4)`-bit pointers; module-level `DEPTH` stays limited to `{2,4,6,8}` by the skid buffers). Gray by default — Johnson is opt-in because its pointers cost `DEPTH` bits in both domains and every synchronizer stage. |
+| `USE_JOHNSON` | int | 0 (Gray) | CDC-FIFO pointer encoding: `0` Gray (power-of-2 derived depth only), `1` Johnson (any FIFO depth, `max(DEPTH,4)`-bit pointers; module-level `DEPTH` stays limited to 2..8 inclusive by the skid buffers). Gray by default — Johnson is opt-in because its pointers cost `DEPTH` bits in both domains and every synchronizer stage. |
 | `USE_2_PHASE_CDC` | bit | 1 | **Deprecated and ignored.** Has no effect on the generated logic |
 
 ---
@@ -155,17 +155,13 @@ Both are `gaxi_fifo_async` instances with:
   default `USE_JOHNSON = 0` a power of two is required**, because Gray carries a
   generate-scope elaboration check
   (`(USE_JOHNSON == 0) && ((DEPTH & (DEPTH-1)) != 0)` -> `$error`). The check sees
-  the DERIVED depth, so the floor protects the FIFOs from `DEPTH` of 1 or 3 —
-  but the same `DEPTH` also reaches the wrapped `apb4_slave`'s two
-  `gaxi_skid_buffer` instances UNFLOORED, and their elaboration guard rejects
-  everything outside `{2, 4, 6, 8}`. `DEPTH` of 1, 3, 5 or 7 therefore fails
-  elaboration at the skid buffers no matter what the FIFOs would accept.
-
-  The Gray power-of-2 constraint belongs to the encoding, and `USE_JOHNSON = 1`
-  does lift it for the FIFOs — but the skid-buffer guard still holds, so the
-  legal `DEPTH` set for this module is `{2, 4, 6, 8}` regardless of encoding.
-  The only depth Johnson buys here is 6 (a legal skid depth that Gray's
-  power-of-2 check would reject at the derived FIFO depth of 6). It pays for
+  the DERIVED depth `max(DEPTH, 4)`, while the same `DEPTH` also reaches the
+  wrapped `apb4_slave`'s two `gaxi_skid_buffer` instances UNFLOORED, whose
+  guard accepts 2..8 inclusive (any integer). Under the default Gray
+  encoding the floored depth must be a power of two, so the legal `DEPTH`
+  set is **{2, 3, 4, 8}** (2 and 3 floor to 4); 5, 6 and 7 floor to
+  themselves, fail the power-of-2 check, and elaborate only with
+  `USE_JOHNSON = 1` -- Johnson buys exactly those three depths. It pays for
   that with pointers as wide as the derived FIFO depth `max(DEPTH, 4)` against
   Gray's `$clog2(max(DEPTH, 4))+1` -- at the default `DEPTH = 2` that is 4 bits
   vs 3, not 2 vs 2 -- in both domains and every synchronizer stage; Gray is the default so that cost is

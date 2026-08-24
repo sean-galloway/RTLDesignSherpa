@@ -56,8 +56,8 @@ module monbus_arbiter
     parameter int CLIENTS            = 4,
     parameter int INPUT_SKID_ENABLE  = 1,        // Keep as int but convert internally
     parameter int OUTPUT_SKID_ENABLE = 1,        // Keep as int but convert internally
-    parameter int INPUT_SKID_DEPTH   = 2,        // Must be one of {2, 4, 6, 8}
-    parameter int OUTPUT_SKID_DEPTH  = 2,        // Must be one of {2, 4, 6, 8}
+    parameter int INPUT_SKID_DEPTH   = 2,        // Must be 2..8 inclusive
+    parameter int OUTPUT_SKID_DEPTH  = 2,        // Must be 2..8 inclusive
     parameter int N = $clog2(CLIENTS),
 
     // Combined (packet + timestamp) width carried atomically through the

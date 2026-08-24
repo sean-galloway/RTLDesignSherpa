@@ -22,9 +22,10 @@ module apb4_slave_cdc #(
     parameter int PROT_WIDTH  = 3,
     parameter int DEPTH       = 2,
     // Async-FIFO pointer encoding, surfaced here rather than left to the FIFO's
-    // own default: 0 = Gray (power-of-2 derived FIFO depth), 1 = Johnson. Either
-    // way DEPTH itself must be one of {2,4,6,8} -- it also feeds the wrapped
-    // slave's gaxi_skid_buffers, whose elaboration guard rejects the rest.
+    // own default: 0 = Gray (power-of-2 derived FIFO depth), 1 = Johnson.
+    // DEPTH also feeds the wrapped slave's gaxi_skid_buffers (2..8 inclusive
+    // guard); with Gray the floored max(DEPTH,4) must be a power of two, so
+    // the legal set is {2,3,4,8} -- Johnson lifts 5, 6 and 7.
     // Defaults to 0. Johnson is opt-in and must be a conscious choice -- its
     // pointers are max(DEPTH,4) bits wide (the floored FIFO depth) against
     // Gray's $clog2(max(DEPTH,4))+1, duplicated

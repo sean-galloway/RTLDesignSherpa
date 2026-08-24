@@ -131,8 +131,8 @@ flowchart LR
 | WUSER_WIDTH | int | 4 | Write data user signal width |
 | RUSER_WIDTH | int | 4 | Read data user signal width |
 | BUSER_WIDTH | int | 4 | Response user signal width |
-| CMD_DEPTH | int | 6 | Command skid-buffer depth in entries; must be one of {2, 4, 6, 8} |
-| RSP_DEPTH | int | 6 | Response skid-buffer depth in entries; must be one of {2, 4, 6, 8} |
+| CMD_DEPTH | int | 6 | Command skid-buffer depth in entries; must be 2..8 inclusive (any integer) |
+| RSP_DEPTH | int | 6 | Response skid-buffer depth in entries; must be 2..8 inclusive (any integer) |
 | ENABLE_PARITY | bit | 0 | Enable parity generation and checking |
 | STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
 
@@ -413,7 +413,7 @@ apb5_master #(
 
 - Command depth should match the expected command burst length
 - Response depth should match to prevent backpressure
-- `CMD_DEPTH` / `RSP_DEPTH` are entry counts, restricted to {2, 4, 6, 8} by the
+- `CMD_DEPTH` / `RSP_DEPTH` are entry counts, restricted to 2..8 inclusive by the
   underlying `gaxi_skid_buffer`
 
 ### Parity Implementation

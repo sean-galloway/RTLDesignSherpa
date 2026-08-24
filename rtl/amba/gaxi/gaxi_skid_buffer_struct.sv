@@ -19,7 +19,7 @@
 
 module gaxi_skid_buffer_struct #(
     parameter type STRUCT_TYPE = logic [31:0], // Generic struct type parameter
-    parameter int  DEPTH = 2,                  // Must be one of {2, 4, 6, 8}
+    parameter int  DEPTH = 2,                  // Must be 2..8 inclusive
 
     // Derived parameters - calculate struct width automatically
     localparam int STRUCT_WIDTH = $bits(STRUCT_TYPE),
@@ -113,11 +113,13 @@ module gaxi_skid_buffer_struct #(
     // =======================================================================
     // Structural checks
     // =======================================================================
-    initial begin
-        if (DEPTH < 2 || DEPTH > 8 || (DEPTH % 2) != 0) begin
-            $error("STRUCT_SKID_BUFFER[%m]: Invalid DEPTH=%0d. Must be one of {2, 4, 6, 8}",
-                    DEPTH);
+    // Bare $error in a generate block is an ELABORATION task (IEEE 1800
+    // 20.11); the previous `initial` form never fired during lint. Contract
+    // is 2..8 inclusive -- any integer (odd depths are legal).
+    generate
+        if (DEPTH < 2 || DEPTH > 8) begin : gen_depth_guard
+            $error("gaxi_skid_buffer_struct: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
         end
-    end
+    endgenerate
 
 endmodule : gaxi_skid_buffer_struct

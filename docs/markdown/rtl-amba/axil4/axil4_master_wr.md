@@ -325,7 +325,7 @@ fub_wvalid  = 1'b1;
 
 `SKID_DEPTH_AW`, `SKID_DEPTH_W`, and `SKID_DEPTH_B` are passed straight through
 to the `DEPTH` parameter of `gaxi_skid_buffer`. `DEPTH` is the **literal entry
-count**, not an exponent, and is constrained to one of `{2, 4, 6, 8}`.
+count**, not an exponent, and is constrained to one of 2..8 inclusive.
 
 **AW Channel (Addresses):**
 - **SKID_DEPTH_AW = 2** (2 entries): Typical for control registers

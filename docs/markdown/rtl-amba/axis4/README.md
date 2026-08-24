@@ -291,7 +291,7 @@ pytest val/amba/test_axis_master.py --vcd=waves.vcd -v
 
 All core modules use `gaxi_skid_buffer`:
 - Decouples source and sink timing
-- Configurable depth per module (`{2, 4, 6, 8}` entries)
+- Configurable depth per module (2..8 inclusive entries)
 - 1-cycle latency overhead on **every** transfer — the buffer registers both data and
   `rd_valid`, so this is not a zero-bubble bypass skid
 - Full backpressure handling, one beat per cycle sustained once primed
@@ -438,7 +438,7 @@ than a benchmarked result.
 ### Buffer Depth (SKID_DEPTH)
 
 `SKID_DEPTH` is a **literal entry count**, not a log2 exponent, and is passed straight to
-`gaxi_skid_buffer.DEPTH`. Only the values `{2, 4, 6, 8}` are supported.
+`gaxi_skid_buffer.DEPTH`. Only the values 2..8 inclusive are supported.
 
 | SKID_DEPTH | Buffer Size | Use Case |
 |------------|-------------|----------|
@@ -482,7 +482,7 @@ Applies to `axis_master`, `axis_slave`, and their `_cg` variants:
 | No routing, arbitration, or multiplexing | `TID`/`TDEST` are carried through unmodified, never decoded. No `axis_arbiter` or `axis_interconnect` module exists in this repository |
 | No protocol checking | These modules do not detect or report `TVALID` deassertion before `TREADY`, or `TLAST` framing errors |
 | No monitor bus output | Unlike the AXI4/AXIL4/APB monitors, the AXIS4 modules emit no monbus packets. For stream instrumentation see [axis_bus_meter](../shared/axis_bus_meter.md) |
-| `SKID_DEPTH` limited to `{2, 4, 6, 8}` | The skid buffer is a timing element, not a rate adapter |
+| `SKID_DEPTH` limited to 2..8 inclusive | The skid buffer is a timing element, not a rate adapter |
 | 1 register stage / 2-cycle ungating latency (`_cg`) | The first beat after an idle period is backpressured while the clock restarts |
 
 ---

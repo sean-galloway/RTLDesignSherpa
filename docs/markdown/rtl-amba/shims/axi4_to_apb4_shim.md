@@ -51,20 +51,20 @@ The top-level bridge: AXI4 memory-mapped transactions in, APB peripheral bus acc
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| DEPTH_AW | int | 2 | AW channel skid buffer depth (one of {2,4,6,8} -- gaxi_skid_buffer elaboration guard) |
+| DEPTH_AW | int | 2 | AW channel skid buffer depth (2..8 inclusive (any integer) -- gaxi_skid_buffer elaboration guard) |
 | DEPTH_W | int | 4 | W channel skid buffer depth |
 | DEPTH_B | int | 2 | B channel skid buffer depth |
 | DEPTH_AR | int | 2 | AR channel skid buffer depth |
 | DEPTH_R | int | 4 | R channel skid buffer depth |
 
-**Recommendation:** Use deeper depths (4-8) for high-latency paths, shallow (2) for low-latency. All five DEPTH_* parameters must be in {2, 4, 6, 8}: gaxi_skid_buffer rejects anything else at elaboration.
+**Recommendation:** Use deeper depths (4-8) for high-latency paths, shallow (2) for low-latency. All five DEPTH_* parameters must be 2..8 inclusive (any integer): gaxi_skid_buffer rejects anything else at elaboration.
 
 ### Internal Buffering
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | SIDE_DEPTH | int | 4 | Side information FIFO depth (tracks ID, last, user) |
-| APB_CMD_DEPTH | int | 4 | APB command CDC FIFO depth. Legal values with the default Gray encoding: {2, 4, 8} -- the value feeds BOTH the apb4_master skid buffers ({2,4,6,8} guard) and, floored to `max(DEPTH,4)`, the Gray CDC FIFO (power-of-2 guard), so 6 elaborates only with USE_JOHNSON=1 |
+| APB_CMD_DEPTH | int | 4 | APB command CDC FIFO depth. Legal values with the default Gray encoding: {2, 3, 4, 8} -- the value feeds BOTH the apb4_master skid buffers (2..8 inclusive guard) and, floored to `max(DEPTH,4)`, the Gray CDC FIFO (power-of-2 guard; 2 and 3 floor to 4), so 5/6/7 elaborate only with USE_JOHNSON=1 |
 | APB_RSP_DEPTH | int | 4 | APB response CDC FIFO depth. Same constraint set as APB_CMD_DEPTH |
 | USE_JOHNSON | int | 0 | Pointer encoding for the two CDC FIFOs: 0 = Gray (requires power-of-2 depths -- elaboration $error otherwise), 1 = Johnson (any depth) |
 
@@ -424,7 +424,7 @@ axi4_to_apb4_shim #(
 - `APB_DATA_WIDTH` must be ≤ `AXI_DATA_WIDTH`
 - `AXI_DATA_WIDTH / APB_DATA_WIDTH` must be power of 2
 - `APB_ADDR_WIDTH` should match `AXI_ADDR_WIDTH` (or be subset)
-- All DEPTH_* parameters must be in {2, 4, 6, 8} (gaxi_skid_buffer elaboration guard)
+- All DEPTH_* parameters must be 2..8 inclusive (any integer) (gaxi_skid_buffer elaboration guard)
 
 **Protocol Limitations:**
 - APB does not support outstanding transactions (serialized)

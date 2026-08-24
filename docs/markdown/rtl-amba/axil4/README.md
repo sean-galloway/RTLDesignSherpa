@@ -278,7 +278,7 @@ pytest val/amba/test_axil4_master_rd.py --vcd=waves.vcd -v
 - **No error injection or response rewriting.** `RRESP` / `BRESP` pass through from the backend unmodified.
 - **No write-data reordering or AW/W matching.** The AW and W channels are buffered independently; nothing in these modules pairs an address with its data. A backend that requires AW before W must enforce that itself.
 - **Unaligned and narrow accesses are the backend's problem.** AXI4-Lite has no `AxSIZE`; partial-word access is expressed only through `WSTRB`, which the backend must honor.
-- **`gaxi_skid_buffer` constrains `SKID_DEPTH_*` to `{2, 4, 6, 8}`.** Other values are not supported.
+- **`gaxi_skid_buffer` constrains `SKID_DEPTH_*` to 2..8 inclusive.** Other values are not supported.
 - **Clock gating is ASIC-oriented.** `clock_gate_ctrl` instantiates an ICG cell; on FPGA this does not map to true clock gating. There is no scan/test bypass port — set `cfg_cg_enable = 0` to disable gating.
 
 ---
@@ -406,7 +406,7 @@ measured comparison against the AXI4 modules.
 The `SKID_DEPTH_*` parameters are passed straight through to the `DEPTH`
 parameter of `gaxi_skid_buffer`, which is the **literal entry count**, not an
 exponent. `SKID_DEPTH_AR = 2` means a 2-entry buffer. `gaxi_skid_buffer`
-constrains `DEPTH` to one of `{2, 4, 6, 8}`.
+constrains `DEPTH` to one of 2..8 inclusive.
 
 **Address Channels (AR/AW):**
 - Default: 2 entries - sufficient for most register access
