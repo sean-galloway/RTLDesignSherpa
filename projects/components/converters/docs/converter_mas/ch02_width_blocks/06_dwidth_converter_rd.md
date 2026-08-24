@@ -179,12 +179,24 @@ divide rounds up):
 ```systemverilog
 // narrow -> wide (upsize): beats combine, round up
 assign m_axi_arlen  = ((int_arlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
-// wide -> narrow (downsize): each wide beat becomes RATIO narrow beats
-assign m_axi_arlen  = ((int_arlen + 8'd1) * 8'(WIDTH_RATIO)) - 8'd1;
+
+// wide -> narrow (downsize): each wide beat becomes RATIO narrow beats,
+// and the product can exceed both AWLEN's 8 bits and the 256-beat legal
+// maximum -- so one slave burst is SPLIT into master bursts of <= 256
+// beats (same mechanism as the write converter, see 2.5.5)
+assign m_axi_arlen  = 8'(w_this_beats - 9'd1);  // min(remaining, 256)
 
 // size is the master's own full width, not a shift of ARSIZE
 assign m_axi_arsize = MASTER_SIZE[2:0];
 ```
+
+For a split read the slave must still see ONE burst: each master burst
+returns its own RLAST, and every one except the final master burst's is
+masked out of the upsize, whose accumulation simply continues across the
+boundary. The masking is safe by construction -- 256 narrow beats is a
+whole number of wide beats at every ratio, so a masked boundary can never
+land mid-accumulation. A one-bit flag queue, pushed per issued AR and
+popped per master RLAST, says which burst is final.
 
 On the downsize path the issued address is aligned down to the master
 data width, since a wide access cannot start mid-word:

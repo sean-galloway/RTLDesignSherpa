@@ -210,11 +210,29 @@ still needs a final partial wide beat:
 assign m_axi_awlen = ((int_awlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
 ```
 
-**Wide -> narrow (downsize).** Each wide beat becomes RATIO narrow ones:
+**Wide -> narrow (downsize).** Each wide beat becomes RATIO narrow ones
+-- and the product does not fit a burst. AXI4 allows 256 beats, so a
+full-length slave burst needs up to `256 * WIDTH_RATIO` narrow beats,
+which is neither expressible in the 8-bit AWLEN nor a legal burst. One
+slave burst is therefore **split** into as many master bursts of <= 256
+beats as it takes:
 
 ```systemverilog
-assign m_axi_awlen = ((int_awlen + 8'd1) * 8'(WIDTH_RATIO)) - 8'd1;
+// remaining-beat counter, 9 + $clog2(WIDTH_RATIO) bits -- 8 is exactly
+// what a multiply-into-AWLEN overflows
+r_split_remaining <= (CNTW'(int_awlen) + CNTW'(1)) * CNTW'(WIDTH_RATIO);
+...
+assign m_axi_awlen = 8'(w_this_beats - 9'd1);   // w_this_beats = min(remaining, 256)
 ```
+
+Each issued master burst is recorded in a split queue -- its beat count
+frames that burst's WLAST on the W path, and a final-burst flag drives
+the B fold (several master responses collapse into one slave response,
+worst case wins). The address advances by `256 * M_STRB_WIDTH` per burst
+for INCR and holds for FIXED; WRAP never reaches a split, since AXI4
+caps it at 16 beats and `16 * RATIO <= 256` for every supported ratio.
+The slave's AW is consumed only when its final master burst has been
+issued.
 
 Rounding up is the whole point of the `+ WIDTH_RATIO` term. A floor
 divide underflows: AWLEN=5 (6 beats) at RATIO=8 gives `(6 >> 3) - 1`,
