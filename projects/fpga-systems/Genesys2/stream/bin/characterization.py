@@ -214,7 +214,7 @@ class CharacterizationRunner:
     def __init__(self, bridge, data_width: int = 128,
                  verbose: bool = False, mon_config: str = None,
                  poll_interval_s: float = 0.001,
-                 aclk_hz: float = 100_000_000.0,
+                 aclk_hz: float = None,   # None = read BUILD_CLK_HZ from the board
                  compression: bool = True,
                  rd_prefetch: bool = True):
         self.bridge = bridge
@@ -246,6 +246,25 @@ class CharacterizationRunner:
         # AXI clock the on-chip timer counts on. Used to convert
         # cycles_total -> bus_time_s -> bus_throughput. Default 100 MHz
         # matches the stream_char bitstream's create_clock.
+        # Clock frequency: READ FROM THE BOARD, not assumed. Throughput is
+        # cycles/aclk_hz, so a wrong constant scales every MB/s figure by
+        # exactly the ratio it is wrong by -- silently, with plausible-looking
+        # numbers. The 100 MHz default was correct on the Nexys A7 and wrong by
+        # 11% the moment this harness moved to 90 MHz. BUILD_CLK_HZ is published
+        # by harness_csr precisely so the host never has to guess.
+        if aclk_hz is None:
+            try:
+                from harness_addrs import H
+                hz = bridge.read(H("BUILD_CLK_HZ"))
+                if hz and hz > 0:
+                    aclk_hz = float(hz)
+                else:
+                    raise ValueError(f"BUILD_CLK_HZ reads {hz!r}")
+            except Exception as e:
+                aclk_hz = 100_000_000.0
+                print(f"WARNING: could not read BUILD_CLK_HZ ({e}); "
+                      f"assuming {aclk_hz/1e6:.0f} MHz -- throughput figures "
+                      f"will be wrong if the board is not at that frequency")
         self.aclk_hz = aclk_hz
 
     def log(self, msg: str):
@@ -1200,11 +1219,13 @@ Examples:
                              'host completion loop (default 1.0 ms; '
                              'was 50 ms historically and polluted '
                              'short-transfer wall-clock throughput).')
-    parser.add_argument('--aclk-mhz', type=float, default=100.0,
-                        help='AXI clock the on-chip timer counts on, '
-                             'in MHz (default 100). Used to convert '
-                             'cycles_total -> bus_time_s for the bus-'
-                             'side throughput metric.')
+    parser.add_argument('--aclk-mhz', type=float, default=None,
+                        help='AXI clock the on-chip timer counts on, in MHz. '
+                             'DEFAULT: read from the board (BUILD_CLK_HZ) -- '
+                             'pass this only to override. Converts '
+                             'cycles_total -> bus_time_s for the bus-side '
+                             'throughput metric, so a wrong value scales every '
+                             'MB/s figure by the same ratio.')
 
     # Response-delay sweep mode (methodology Section 6, "backpressure
     # profile" axis). When --resp-delays is set, the listed configs are
@@ -1309,7 +1330,7 @@ def main():
             bridge, data_width=128, verbose=args.verbose,
             mon_config=args.mon_config,
             poll_interval_s=args.poll_interval_ms / 1000.0,
-            aclk_hz=args.aclk_mhz * 1_000_000.0,
+            aclk_hz=(args.aclk_mhz * 1_000_000.0) if args.aclk_mhz else None,
             compression=(args.compression == 'on'),
             rd_prefetch=(args.rd_prefetch == 'on'))
         if args.resp_delays:

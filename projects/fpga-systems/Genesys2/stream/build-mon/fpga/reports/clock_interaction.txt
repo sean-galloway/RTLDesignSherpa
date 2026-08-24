@@ -1,0 +1,26 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Sun Aug 23 22:01:43 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_clock_interaction -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-mon/fpga/reports/clock_interaction.txt
+| Design       : stream_genesys2_top
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Physopt postRoute
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Clock Interaction Report
+
+Clock Interaction Table
+-----------------------
+
+                            WNS                                TNS Failing  TNS Total    WNS Path         Clock-Pair           Inter-Clock          
+From Clock    To Clock      Clock Edges      WNS(ns)  TNS(ns)    Endpoints    Endpoints  Requirement(ns)  Classification       Constraints          
+------------  ------------  -----------  -----------  -------  -----------  -----------  ---------------  -------------------  -------------------  
+clk_unbuf     clk_unbuf     rise - rise         0.04     0.00            0       271265            11.11  Clean                Partial False Path   
+clk_unbuf     led_slow_clk                                               0            9                   Ignored              Asynchronous Groups  
+led_slow_clk  clk_unbuf                                                  0            1                   Ignored              Asynchronous Groups  
+led_slow_clk  led_slow_clk  rise - rise   9999998.00     0.00            0           61      10000000.00  Clean                Timed                
+
+
