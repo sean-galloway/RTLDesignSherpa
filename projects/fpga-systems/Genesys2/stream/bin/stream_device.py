@@ -134,8 +134,9 @@ class Stream(Device):
         """
         fields = {}
         for ch, addr in channel_desc_pairs:
+            # LOW only: HIGH resets to 0 and nothing writes it on a 32-bit
+            # build, so the extra transaction per channel buys nothing.
             self.write(f"CH{ch}_CTRL_LOW", DESC_ADDR_LOW=addr & 0xFFFF_FFFF)
-            self.write(f"CH{ch}_CTRL_HIGH", DESC_ADDR_HIGH=(addr >> 32) & 0xFFFF_FFFF)
             fields[f"KICK{ch}"] = 1
         if fields:
             self.write("KICK_ENABLE", **fields)

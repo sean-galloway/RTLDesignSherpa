@@ -54,7 +54,18 @@ module sdpram_core #(
     parameter int    AXI_ID_WIDTH = 8,    // FUB id width (passthrough; tied 0 by AXIL wrappers)
     parameter int    ADDR_WIDTH   = 32,
     parameter int    DATA_WIDTH   = 256,
-    parameter int    MEM_DEPTH    = 2048
+    parameter int    MEM_DEPTH    = 2048,
+    // 1 = honour fub_wstrb per byte (default; preserves every existing user).
+    // 0 = full-word writes only, for a memory whose consumer never asserts a
+    //     partial strobe. This is not a micro-optimisation: with byte enables
+    //     the write block holds a FULL-WORD clear at one address and a
+    //     BYTE-GRANULAR write at another inside the same always_ff, and that
+    //     mixed granularity on a muxed address will not map to a single BRAM
+    //     write port -- Vivado drops the whole array into distributed RAM. A
+    //     64 KB instance cost ~23k LUTs that way (LUT-as-Memory 5,400 ->
+    //     28,696, Block RAM idle at 2.6%). With USE_WSTRB=0 both branches are
+    //     full-word writes and it infers block RAM.
+    parameter bit    USE_WSTRB    = 1'b1
 ) (
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -346,14 +357,25 @@ module sdpram_core #(
     // every index that reaches the array is provably in [0,MEM_DEPTH-1]
     // by tracker construction.
     /* verilator lint_off WIDTHTRUNC */
-    always_ff @(posedge aclk) begin
-        if (w_clearing) begin
-            r_mem[r_clear_addr] <= '0;
-        end else if (write_fire && write_addr_in_range) begin
-            for (int b = 0; b < STRB_W; b++) begin
-                if (fub_wstrb[b]) begin
-                    r_mem[write_bram_addr][8*b +: 8] <= fub_wdata[8*b +: 8];
+    if (USE_WSTRB) begin : g_wstrb
+        always_ff @(posedge aclk) begin
+            if (w_clearing) begin
+                r_mem[r_clear_addr] <= '0;
+            end else if (write_fire && write_addr_in_range) begin
+                for (int b = 0; b < STRB_W; b++) begin
+                    if (fub_wstrb[b]) begin
+                        r_mem[write_bram_addr][8*b +: 8] <= fub_wdata[8*b +: 8];
+                    end
                 end
+            end
+        end
+    end else begin : g_fullword
+        // Single write port, one address mux, one full-word datum: the shape
+        // block-RAM inference expects. fub_wstrb is ignored by construction.
+        always_ff @(posedge aclk) begin
+            if (w_clearing || (write_fire && write_addr_in_range)) begin
+                r_mem[w_clearing ? r_clear_addr : write_bram_addr] <=
+                    w_clearing ? '0 : fub_wdata;
             end
         end
     end

@@ -1546,7 +1546,12 @@ module stream_harness #(
     sdpram_slave_axil_axil #(
         .ADDR_WIDTH (32),
         .DATA_WIDTH (64),
-        .MEM_DEPTH  (COMP_SRAM_WORDS)
+        .MEM_DEPTH  (COMP_SRAM_WORDS),
+        // The monbus writer emits whole 64-bit beats -- this memory never sees
+        // a partial strobe. Saying so lets the array infer BLOCK RAM: with byte
+        // enables it fell into distributed RAM and cost ~23k LUTs (81% device
+        // utilisation) for a buffer that belongs in ~14 BRAM tiles.
+        .USE_WSTRB  (1'b0)
     ) u_comp_sram (
         .aclk(aclk), .aresetn(unit_aresetn),
 
@@ -1576,6 +1581,13 @@ module stream_harness #(
 
         // Bulk clear unused: the host zeroes the window before a capture run
         // so a short capture cannot be read as stale bytes from the last one.
+        // Zeroing is the ONLY host write that behaves intuitively here. With
+        // USE_WSTRB=0 the strobes are ignored, so a 32-bit host write rewrites
+        // the whole 64-bit word -- data into the addressed lane, ZEROES into
+        // the other. Seeding a non-zero 64-bit pattern as two 32-bit writes
+        // therefore leaves only the second one (measured on silicon). That is
+        // correct for the traffic that matters: the monbus writer emits full
+        // 64-bit beats. Read-back is unaffected.
         .i_cfg_start_clear (1'b0),
         .o_cfg_done_clear  (),
 

@@ -58,8 +58,11 @@ def batch_kick(bridge: _Bridge, kicks: Mapping[int, int]) -> int:
     channel. STREAM now owns both halves, so the harness no longer carries kick
     state and the ports are gone.
 
-    Unlike the old shadow registers, the address is a full 64 bits: STREAM
-    stores it as a LOW/HIGH pair.
+    Programs the LOW 32 bits only. CHx_CTRL_HIGH is a separate stored register
+    that resets to 0 and nothing writes it, so on a 32-bit-addressed build the
+    HIGH write is a wasted bus transaction per channel -- and over UART those
+    are exactly what the single-shot launch exists to avoid. A caller needing
+    >4 GB descriptor addresses must stage CHx_CTRL_HIGH itself before calling.
     """
     if not kicks:
         return 0
@@ -67,8 +70,6 @@ def batch_kick(bridge: _Bridge, kicks: Mapping[int, int]) -> int:
     for ch, desc_addr in kicks.items():
         if not bridge.write(A(f"CH{ch}_CTRL_LOW"), desc_addr & 0xFFFF_FFFF):
             raise IOError(f"staged-addr LOW write failed for channel {ch}")
-        if not bridge.write(A(f"CH{ch}_CTRL_HIGH"), (desc_addr >> 32) & 0xFFFF_FFFF):
-            raise IOError(f"staged-addr HIGH write failed for channel {ch}")
         mask |= (1 << ch)
     if not bridge.write(A("KICK_ENABLE"), mask):
         raise IOError(f"KICK_ENABLE write failed (mask={mask:#x})")

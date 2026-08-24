@@ -80,38 +80,33 @@ CSR_CRC_WR_PER_CH_BASE= H("CRC_WR_PER_CH0")   # 0x80+4*ch
 CSR_CRC_VALID_MASK    = H("CRC_VALID_MASK")   # [NC-1:0]
 CSR_CRC_MATCH_MASK    = H("CRC_MATCH_MASK")   # [NC-1:0]
 
-# Kick-burst fast path. A single UART write to KICK_GO with a channel bitmask
-# pulses the in-RTL kick lines for every set bit on one aclk cycle -- eliminates
-# the multi-ms UART gap between per-channel APB kick writes.
+# Channel launch. STREAM owns both halves now: stage each channel's 64-bit
+# descriptor address in CHx_CTRL_{LOW,HIGH} (0x000-0x03F, ordinary stored
+# registers -- writing them does NOT kick), then write KICK_ENABLE once with a
+# channel bitmask. Every selected channel starts on the same aclk cycle, so a
+# multi-channel run measures real concurrency instead of a staggered start.
 #
-# KICK_GO sits at 0xC0 (in the middle of the kick-addr slot range), so the
-# per-channel kick-address slots are split into two banks:
-#   ch 0..3 -> 0xB0/0xB4/0xB8/0xBC  (4-byte stride from 0xB0)
-#   ch 4..7 -> 0xC4/0xC8/0xCC/0xD0  (4-byte stride from 0xC4)
-# A naive `4*ch` stride hits 0xC0 for ch=4 and writes the kick address into
-# KICK_GO -- it pulses a spurious kick for whichever channels the LSBs happen
-# to encode and never delivers the real address for channels >= 4. Use the
-# kick_addr_csr() helper below instead of the bare base + 4*ch.
-CSR_KICK_GO           = H("KICK_GO")
+# This replaces the harness KICK_GO CSR, which shadowed descriptor addresses in
+# harness_csr and pulsed STREAM's i_kick_burst_* ports. That existed only to
+# dodge the per-channel APB kick latency (a UART round trip each); with the
+# launch inside STREAM there is nothing to dodge, and harness_csr carries no
+# kick state at all. KICK_GO and CH_KICK_ADDR are gone from the harness regmap.
 
-# Harness timer (matches run_characterization.py). The completion signal the
-# FPGA runner waits on is TIMER_STATUS.done, which fires when the sink-side
-# (write-engine) beat counter reaches CSR_TIMER_EXPECTED_BEATS. Polling this
-# (instead of stream_irq) is what makes a sim run an apples-to-apples copy
-# of an FPGA run -- the IRQ path fires on the first per-burst completion
-# packet, much earlier than the final beat, so sim that polls IRQ "completes"
-# even when the harness timer would still be waiting.
 CSR_TIMER_CTRL        = H("TIMER_CTRL")   # W: bit 0 = clear pulse
 CSR_TIMER_STATUS      = H("TIMER_STATUS")   # R: [0]=done [1]=running [2]=pass
 CSR_TIMER_EXPECTED_BEATS= H("TIMER_EXPECTED_BEATS")   # RW: stop when sink beat >= this
 
 
 def kick_addr_csr(ch: int) -> int:
-    """CSR address for the per-channel kick-address shadow register.
+    """Address of a channel's staged descriptor address (LOW word).
 
-    Skips the 0xC0 KICK_GO slot so the 8-channel layout is unambiguous.
+    A STREAM register now (CHx_CTRL_LOW), not a harness shadow. The HIGH word
+    is the next 32-bit slot; use stage_and_launch() rather than poking these
+    directly, so the launch is never forgotten.
     """
-    return H(f"CH{ch}_KICK_ADDR")   # by-name; regmap encodes the 0xC0 KICK_GO split
+    return A(f"CH{ch}_CTRL_LOW")
+
+
 CSR_SCRATCH           = H("SCRATCH")
 CSR_BUILD_ID          = H("BUILD_ID")
 
@@ -131,8 +126,6 @@ APB_DESCENG_ADDR0_LIMIT = A("DESCENG_ADDR0_LIMIT")
 APB_DESCENG_ADDR1_BASE  = A("DESCENG_ADDR1_BASE")
 APB_DESCENG_ADDR1_LIMIT = A("DESCENG_ADDR1_LIMIT")
 APB_AXI_XFER_CONFIG     = A("AXI_XFER_CONFIG")
-APB_CH_KICK_BASE        = A("CH0_CTRL_LOW")  # kick-off via apbtodescr
-APB_CH_KICK_STRIDE      = 0x08                     # 8 bytes per ch (LOW + HIGH)
 
 # Monitor configuration registers (stream_regs.rdl).
 # stream_irq == monbus_axil_group.irq_out == !err_fifo_empty. A packet only
@@ -861,7 +854,7 @@ class StreamHarnessTB(TBBase):
                 def dma(_c=case, _W=W, _H=H):
                     kick = ec.program_case(stream, 0, _c, _W, _H)
                     stream.enable_channel(0, True)
-                    ec.batch_kick(stream.bridge, {0: kick})  # harness KICK_GO fast path
+                    ec.batch_kick(stream.bridge, {0: kick})  # stage CHx_CTRL + one KICK_ENABLE
                     return ec.wait_done(stream, 0, poll_max=4000)
 
                 res = await cocotb.external(dma)()
@@ -949,9 +942,12 @@ class StreamHarnessTB(TBBase):
         self.log.info(f"ext_chain: depth={depth} {W}x{H} transpose chain, "
                       f"expected_total={expected_total} beats, kick=0x{kick:08X}")
 
-        # Kick via the harness KICK_GO fast path (shadow addr + one go write).
-        await self.uart_write(kick_addr_csr(channel), kick)
-        await self.uart_write(CSR_KICK_GO, 1 << channel)
+        # Stage the descriptor address, then launch with KICK_ENABLE. LOW only:
+        # this harness is 32-bit addressed and CHx_CTRL_HIGH resets to 0, so the
+        # HIGH write would be a wasted UART round trip. (The old apb4todescr FSM
+        # REQUIRED both writes to complete its handshake; stored registers do not.)
+        await self.uart_write(A(f"CH{channel}_CTRL_LOW"), kick & 0xFFFF_FFFF)
+        await self.uart_write(A("KICK_ENABLE"), 1 << channel)
 
         # Poll the sink-side timer for done (write_beat_count >= expected).
         done = False
@@ -1045,8 +1041,9 @@ class StreamHarnessTB(TBBase):
                 stream.enable_channel(channel, True)
                 return kick
             kick = await cocotb.external(program)()
-            await self.uart_write(kick_addr_csr(channel), kick)
-            await self.uart_write(CSR_KICK_GO, 1 << channel)
+            # Stage (LOW only -- 32-bit harness, HIGH resets to 0), then launch.
+            await self.uart_write(A(f"CH{channel}_CTRL_LOW"), kick & 0xFFFF_FFFF)
+            await self.uart_write(A("KICK_ENABLE"), 1 << channel)
 
             done = False
             for _ in range(4000):
@@ -1335,20 +1332,21 @@ class StreamHarnessTB(TBBase):
                           f"(RUN armed, scheduler idle, no DMA yet)")
             await self.wait_clocks(self.clk_name, _arm_gap)
 
-        # 5. Kick all channels (two APB writes per channel: LOW + HIGH 32-bit)
-        # Kick-burst fast path: pre-load each channel's first descriptor
-        # address into the shadow register, then a single KICK_GO write
-        # pulses every channel's hardware kick line on the same aclk
-        # cycle. This avoids the multi-ms UART gap between per-channel
-        # APB writes that would otherwise serialize multi-channel runs.
+        # 5. Stage every channel's descriptor address, then launch them all in
+        # ONE write. CHx_CTRL_LOW is a stored register -- writing it does NOT
+        # kick -- and CHx_CTRL_HIGH is left alone: this harness is 32-bit
+        # addressed and HIGH resets to 0, so writing it would just add a UART
+        # round trip per channel. KICK_ENABLE starts every selected channel on the same
+        # aclk cycle, avoiding the multi-ms UART gap that would otherwise
+        # serialize a multi-channel run and bias the measurement.
         kick_mask = 0
         for ch, kick_addr in sorted(test_data['kick_addresses'].items()):
-            await self.uart_write(kick_addr_csr(ch),
+            await self.uart_write(A(f"CH{ch}_CTRL_LOW"),
                                   kick_addr & 0xFFFF_FFFF)
             kick_mask |= (1 << ch)
-            self.log.info(f"  Loaded ch{ch} kick addr 0x{kick_addr:08X}")
-        await self.uart_write(CSR_KICK_GO, kick_mask)
-        self.log.info(f"  Kick burst fired, mask=0x{kick_mask:02X}")
+            self.log.info(f"  Staged ch{ch} desc addr 0x{kick_addr:016X}")
+        await self.uart_write(A("KICK_ENABLE"), kick_mask)
+        self.log.info(f"  Launched together, mask=0x{kick_mask:02X}")
 
         # 5a. Debug: read status immediately after kick
         await self.wait_clocks(self.clk_name, 1000)

@@ -20,6 +20,9 @@ module sdpram_slave_axil_axil #(
     parameter int    ADDR_WIDTH    = 32,
     parameter int    DATA_WIDTH    = 64,
     parameter int    MEM_DEPTH     = 1024,
+    // Forwarded to sdpram_core: 0 = full-word writes only (infers block RAM);
+    // see the parameter comment there for why byte enables force distributed.
+    parameter bit    USE_WSTRB     = 1'b1,
     parameter int    SKID_DEPTH_AW = 2,
     parameter int    SKID_DEPTH_W  = 2,
     parameter int    SKID_DEPTH_B  = 2,
@@ -193,6 +196,7 @@ module sdpram_slave_axil_axil #(
     // exactly one place per wrapper.
     // ---------------------------------------------------------------
     sdpram_core #(
+        .USE_WSTRB    (USE_WSTRB),
         .AXI_ID_WIDTH (CORE_ID_WIDTH),
         .ADDR_WIDTH   (ADDR_WIDTH),
         .DATA_WIDTH   (DATA_WIDTH),
