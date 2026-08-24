@@ -25,9 +25,6 @@
 //   AXI_ADDR_WIDTH: Address bus width (12-64)
 //   AXI_DATA_WIDTH: Data bus width - must match (32, 64, 128, 256)
 //   AXI_USER_WIDTH: User signal width on AXI4 side (0-1024)
-//   SKID_DEPTH_AW: Address channel skid depth (2-8, default 2)
-//   SKID_DEPTH_W: Write data channel skid depth (2-8, default 4)
-//   SKID_DEPTH_B: Response channel skid depth (2-8, default 4)
 //
 // Limitations:
 //   - Data widths must match (no data width conversion)
@@ -47,9 +44,8 @@ module axi4_to_axil4_wr #(
     parameter int AXI_USER_WIDTH    = 1,
 
     // Skid Buffer Depths (for timing closure)
-    parameter int SKID_DEPTH_AW     = 2,
-    parameter int SKID_DEPTH_W      = 4,
-    parameter int SKID_DEPTH_B      = 4,
+
+
 
     // Calculated Parameters
     localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8

@@ -28,8 +28,6 @@
 //   DEFAULT_ID: Default transaction ID (0-255)
 //   DEFAULT_REGION: Default region value (0-15)
 //   DEFAULT_QOS: Default QoS value (0-15)
-//   SKID_DEPTH_AR: Address channel skid depth (2-8, default 2)
-//   SKID_DEPTH_R: Response channel skid depth (2-8, default 4)
 //
 // Limitations:
 //   - Data widths must match (no data width conversion)
@@ -56,8 +54,7 @@ module axil4_to_axi4_rd #(
     parameter int DEFAULT_QOS       = 0,
 
     // Skid Buffer Depths (for timing closure)
-    parameter int SKID_DEPTH_AR     = 2,
-    parameter int SKID_DEPTH_R      = 4,
+
 
     // Calculated Parameters
     localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8,

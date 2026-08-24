@@ -310,7 +310,7 @@ module axi_data_dnsize #(
 
     // Check for pointer overflow
     always @(posedge aclk) begin
-        if (aresetn && r_wide_buffered && narrow_ready) begin
+        if (aresetn && gen_single_buffer.r_wide_buffered && narrow_ready) begin
             if (r_beat_ptr >= PTR_WIDTH'(WIDTH_RATIO)) begin
                 $error("ERROR: Splitter pointer overflow (ptr=%0d, ratio=%0d)", r_beat_ptr, WIDTH_RATIO);
             end

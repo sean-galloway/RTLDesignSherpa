@@ -139,7 +139,11 @@ module uart_axil_bridge #(
 
     // Command buffer (parameterized for data width)
     logic [7:0]  r_cmd_type;
-    logic [31:0] r_cmd_addr;  // Address stays 32-bit (adequate for most systems)
+    // Width follows the parameter. It was hardcoded [31:0] while the
+    // shift and awaddr assignment indexed [AXIL_ADDR_WIDTH-5:0] -- an
+    // out-of-range select for any width above 32, so the parameter
+    // advertised support the module did not have.
+    logic [AXIL_ADDR_WIDTH-1:0] r_cmd_addr;
     logic [AXIL_DATA_WIDTH-1:0] r_cmd_data;  // Data width parameterized
     logic [AXIL_DATA_WIDTH-1:0] r_resp_data; // Response data parameterized
     logic [4:0]  r_nibble_count;  // Increased to handle 64-bit (16 nibbles)

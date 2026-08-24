@@ -15,7 +15,8 @@
 //
 //   Key Features:
 //   - Burst decomposition: Multi-beat bursts → multiple single transactions
-//   - Timing closure: Uses gaxi_skid_buffer on all channels
+//   - Purely combinational conversion; no internal pipelining.
+//     Add external skid buffers if timing needs them.
 //   - Protocol compliant: Full AXI4 slave, AXI4-Lite master
 //   - Response aggregation: Collects responses and returns with original ID
 //   - Modular design: Instantiates standalone read/write converters
@@ -25,9 +26,6 @@
 //   AXI_ADDR_WIDTH: Address bus width (12-64)
 //   AXI_DATA_WIDTH: Data bus width - must match (32, 64, 128, 256)
 //   AXI_USER_WIDTH: User signal width on AXI4 side (0-1024)
-//   SKID_DEPTH_AR/AW: Address channel skid depths (2-8, default 2)
-//   SKID_DEPTH_R/B: Response channel skid depths (2-8, default 4)
-//   SKID_DEPTH_W: Write data channel skid depth (2-8, default 4)
 //
 // Limitations:
 //   - Data widths must match (no data width conversion)
@@ -50,11 +48,10 @@ module axi4_to_axil4 #(
     parameter int AXI_USER_WIDTH    = 1,
 
     // Skid Buffer Depths (for timing closure)
-    parameter int SKID_DEPTH_AR     = 2,
-    parameter int SKID_DEPTH_AW     = 2,
-    parameter int SKID_DEPTH_W      = 4,
-    parameter int SKID_DEPTH_R      = 4,
-    parameter int SKID_DEPTH_B      = 4,
+
+
+
+
 
     // Calculated Parameters
     localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8
@@ -163,9 +160,8 @@ module axi4_to_axil4 #(
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
-        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
-        .SKID_DEPTH_AR   (SKID_DEPTH_AR),
-        .SKID_DEPTH_R    (SKID_DEPTH_R)
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH)
+
     ) u_rd_converter (
         .aclk           (aclk),
         .aresetn        (aresetn),
@@ -211,10 +207,9 @@ module axi4_to_axil4 #(
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
-        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
-        .SKID_DEPTH_AW   (SKID_DEPTH_AW),
-        .SKID_DEPTH_W    (SKID_DEPTH_W),
-        .SKID_DEPTH_B    (SKID_DEPTH_B)
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH)
+
+
     ) u_wr_converter (
         .aclk           (aclk),
         .aresetn        (aresetn),

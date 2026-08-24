@@ -16,7 +16,8 @@
 //   Key Features:
 //   - Simple passthrough: All transactions remain single-beat
 //   - Protocol upgrade: AXI4-Lite → AXI4 full with safe defaults
-//   - Timing closure: Uses gaxi_skid_buffer on all channels
+//   - Purely combinational conversion; no internal pipelining.
+//     Add external skid buffers if timing needs them.
 //   - Configurable defaults: ID, USER, REGION, QOS values
 //   - Modular design: Instantiates standalone read/write converters
 //
@@ -28,9 +29,6 @@
 //   DEFAULT_ID: Default transaction ID (0-255)
 //   DEFAULT_REGION: Default region value (0-15)
 //   DEFAULT_QOS: Default QoS value (0-15)
-//   SKID_DEPTH_AR/AW: Address channel skid depths (2-8, default 2)
-//   SKID_DEPTH_R/B: Response channel skid depths (2-8, default 4)
-//   SKID_DEPTH_W: Write data channel skid depth (2-8, default 4)
 //
 // Limitations:
 //   - Data widths must match (no data width conversion)
@@ -58,11 +56,10 @@ module axil4_to_axi4 #(
     parameter int DEFAULT_QOS       = 0,
 
     // Skid Buffer Depths (for timing closure)
-    parameter int SKID_DEPTH_AR     = 2,
-    parameter int SKID_DEPTH_AW     = 2,
-    parameter int SKID_DEPTH_W      = 4,
-    parameter int SKID_DEPTH_R      = 4,
-    parameter int SKID_DEPTH_B      = 4,
+
+
+
+
 
     // Calculated Parameters
     localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8
@@ -174,9 +171,8 @@ module axil4_to_axi4 #(
         .AXI_USER_WIDTH  (AXI_USER_WIDTH),
         .DEFAULT_ID      (DEFAULT_ID),
         .DEFAULT_REGION  (DEFAULT_REGION),
-        .DEFAULT_QOS     (DEFAULT_QOS),
-        .SKID_DEPTH_AR   (SKID_DEPTH_AR),
-        .SKID_DEPTH_R    (SKID_DEPTH_R)
+        .DEFAULT_QOS     (DEFAULT_QOS)
+
     ) u_rd_converter (
         .aclk           (aclk),
         .aresetn        (aresetn),
@@ -225,10 +221,9 @@ module axil4_to_axi4 #(
         .AXI_USER_WIDTH  (AXI_USER_WIDTH),
         .DEFAULT_ID      (DEFAULT_ID),
         .DEFAULT_REGION  (DEFAULT_REGION),
-        .DEFAULT_QOS     (DEFAULT_QOS),
-        .SKID_DEPTH_AW   (SKID_DEPTH_AW),
-        .SKID_DEPTH_W    (SKID_DEPTH_W),
-        .SKID_DEPTH_B    (SKID_DEPTH_B)
+        .DEFAULT_QOS     (DEFAULT_QOS)
+
+
     ) u_wr_converter (
         .aclk           (aclk),
         .aresetn        (aresetn),
