@@ -1090,6 +1090,20 @@ independently.
 | Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
 | Open items | none for gaxi itself |
 
+### gaxi -- RE-SCRUB COMPLETE 2026-08-24 (post-drift confirmation)
+
+First review since the 08-10 humanize (the signal-prefix sweep and skid
+DEPTH guard landed after it). Round_15 -> round_16: substantive -> 3 nits.
+
+| Item | Outcome |
+|---|---|
+| RTL: dbldrn rd_valid corner | double drain from EXACTLY 2 held rd_valid on empty; streaming consumer's accept underflowed count 0->15, wedged until reset. Fixed (count==2 term excludes dbl-drain-without-write), RED 4/4 -> GREEN 4/4 via new double-drain-to-empty scenario (8b760a10) |
+| RTL: dbldrn DEPTH guard | added, mirroring base module; verified firing at -GDEPTH=16 (was comment-only with the same 4-bit wrap) |
+| RTL: drop FIFO bounds check | the header PROMISED 'checked in simulation'; no check existed. Now a real capture-edge $error; header + doc disclosure synced (5f240490) |
+| Docs | 9 findings across the two rounds: self-contradicting ALMOST-margins guidance, dbldrn storage-style claim, regslice latency-differentiation contradiction, README drop-FIFO latency row (flop=2), phantom 'transaction logging' feature, DEPTH=1 'any depth' overstatement (verified failing), + 3 example/format nits |
+| Humanize | NOT re-run -- the 08-10 voice pass stands; integration edits are localized and voice-matched |
+| Suites | dbldrn/skid/drop/regslice 18/18 clean builds |
+
 ### shared -- ARC COMPLETE 2026-08-24 (correctness + tests + humanize)
 
 Resumed post-observer-unblock as rounds 12/13/14 (qc rounds 5-7 of the arc):
