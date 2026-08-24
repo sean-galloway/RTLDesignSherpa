@@ -349,12 +349,12 @@ This latency ensures clean separation between normal FIFO operations and drop op
 
 ### Almost Full/Empty Margins
 
-Configure `ALMOST_WR_MARGIN` and `ALMOST_RD_MARGIN` based on:
-- Pipeline depth of upstream producer
-- Pipeline depth of downstream consumer
-- Latency tolerance requirements
-
-Example: If upstream has 4-cycle latency, set `ALMOST_WR_MARGIN >= 4`.
+`ALMOST_WR_MARGIN` and `ALMOST_RD_MARGIN` are accepted but have NO observable
+effect on this module -- the almost-full/almost-empty flags exist only as
+internal wires and are never brought out (the port list ends at `drop_all`).
+Threshold logic belongs on YOUR side: compare `count` against your own
+watermark. (This section previously gave sizing guidance for margins that can
+never appear; the note earlier on this page was always the correct one.)
 
 ---
 
@@ -375,7 +375,9 @@ Comprehensive verification lives in `val/amba/test_gaxi_drop_fifo_sync.py`:
 - Depths: 8, 16, 64, 256 entries
 - Modes: Mux (REGISTERED=0) and Flop (REGISTERED=1)
 
-**Results**: All 8 parameterized test cases pass ### Running Tests
+**Results**: All 8 parameterized test cases pass
+
+### Running Tests
 
 ```bash
 # Run all drop FIFO tests

@@ -347,6 +347,70 @@ class GaxiBufferDblDrnTB(TBBase):
         await self.drain_buffer_double()
         return True
 
+    async def test_double_drain_to_empty(self):
+        """Double drain from EXACTLY 2 entries: rd_valid must drop.
+
+        RED/GREEN witness for the rd_valid corner (gaxi qc round_15
+        RTL-BUG-1): the next-state term `(r_data_count >= 2)` was inherited
+        from the single-drain base buffer, where count>=2 always leaves >=1
+        after a drain. A double drain from exactly 2 leaves ZERO -- the
+        unfixed RTL held rd_valid high on an empty buffer, and a consumer
+        accepting the phantom entry underflowed count to 15 and wedged the
+        module until reset.
+        """
+        self.log.info("=== Scenario DBLDRN-EMPTY: double drain from exactly 2 ===")
+        self.sent_data.clear()
+
+        await self.fill_buffer(2)
+        await self.wait_clocks(self.clk_name, 2)
+        if self.get_count() != 2:
+            self.log.error(f"Expected count=2 after fill, got {self.get_count()}")
+            self.total_errors += 1
+            return False
+
+        # Streaming consumer: double-drain the two entries and KEEP rd_ready
+        # high into the next cycle (a back-to-back consumer's natural shape).
+        # The unfixed RTL holds rd_valid=1 for that one cycle on the now-empty
+        # buffer; with rd_ready still high, the phantom handshake decrements
+        # count from 0 to 15 and the module wedges.
+        self.dut.rd_ready.value = 1
+        self.dut.rd_ready2.value = 1
+        await self.wait_clocks(self.clk_name, 1)     # double-drain handshake edge
+        self.dut.rd_ready2.value = 0                 # rd_ready STAYS high
+        phantom_valid = self.get_rd_valid()
+        if phantom_valid:
+            self.log.error("Phantom rd_valid=1 on the cycle after a double "
+                           "drain from exactly 2 entries (buffer is empty)")
+            self.total_errors += 1
+        await self.wait_clocks(self.clk_name, 1)     # phantom-accept edge if bugged
+        self.dut.rd_ready.value = 0
+        await self.wait_clocks(self.clk_name, 1)
+
+        if self.get_count() != 0:
+            self.log.error(f"count corrupted to {self.get_count()} after "
+                           f"double-drain-to-empty with rd_ready held "
+                           f"(underflow wedge -- expected 0)")
+            self.total_errors += 1
+            return False
+        if self.total_errors:
+            return False
+
+        await self.fill_buffer(1)
+        await self.wait_clocks(self.clk_name, 2)
+        if self.get_count() != 1 or self.get_rd_valid() != 1:
+            self.log.error(f"Recovery write failed: count={self.get_count()}, "
+                           f"rd_valid={self.get_rd_valid()}")
+            self.total_errors += 1
+            return False
+        data = await self.read_single()
+        if data is None:
+            self.log.error("Recovery read failed")
+            self.total_errors += 1
+            return False
+
+        self.log.info("Double drain to empty: PASSED")
+        return True
+
     async def test_data2_correctness(self):
         """Verify rd_data2 returns the second item correctly"""
         self.log.info("=== Scenario DBLDRN-05: rd_data2 correctness ===")
@@ -668,6 +732,10 @@ class GaxiBufferDblDrnTB(TBBase):
         await self.reset_buffer()
 
         if not await self.test_count_decrement_double():
+            all_passed = False
+        await self.reset_buffer()
+
+        if not await self.test_double_drain_to_empty():
             all_passed = False
         await self.reset_buffer()
 

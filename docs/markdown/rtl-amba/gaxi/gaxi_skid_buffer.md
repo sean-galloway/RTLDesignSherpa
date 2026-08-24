@@ -337,7 +337,7 @@ gaxi_skid_buffer #(
 // Absorb temporary backpressure from downstream
 gaxi_skid_buffer #(
     .DATA_WIDTH(128),
-    .DEPTH(8),              // Larger depth for more buffering
+    .DEPTH(8)               // Larger depth for more buffering
 ) u_backpressure_buffer (
     .axi_aclk    (clk),
     .axi_aresetn (rst_n),

@@ -309,7 +309,7 @@ gaxi_regslice #(.DATA_WIDTH(32)) u_pre_cdc (
 );
 
 gaxi_fifo_async #(.DATA_WIDTH(32), .DEPTH(16)) u_cdc_fifo (
-    .wr_clk(clk_a), .rd_clk(clk_b), ...
+    .axi_wr_aclk(clk_a), .axi_rd_aclk(clk_b), ...
     .wr_valid(fifo_wr_valid), .wr_data(fifo_wr_data), .wr_ready(fifo_wr_ready),
     ...
 );
@@ -330,8 +330,9 @@ gaxi_skid_buffer #(.DATA_WIDTH(64)) u_option2 (...);
 ```
 
 This enables easy experimentation:
-- Start with **gaxi_skid_buffer** for low latency
-- Upgrade to **gaxi_regslice** if timing closure issues arise
+- Start with **gaxi_regslice** when a single pipeline break is all you need
+- Swap to **gaxi_skid_buffer** when the consumer stalls and you want 2-8
+  entries of backpressure absorption -- latency is identical either way
 
 ### Status Signals
 
@@ -401,8 +402,11 @@ TEST_LEVEL=full pytest val/amba/test_gaxi_regslice.py -v
 | **Timing Closure** | Good | Good |
 
 **When to Choose:**
-- **gaxi_regslice:** Timing closure priority, need predictable latency
-- **gaxi_skid_buffer:** Latency-sensitive paths, tolerate variable timing
+- **gaxi_regslice:** one entry is enough -- you only need a pipeline break
+- **gaxi_skid_buffer:** you also need backpressure absorption (2-8 entries)
+
+Latency does NOT differentiate them: both are fixed 1-cycle with registered
+outputs (the table above and the RTL agree). Choose on depth.
 
 ### gaxi_regslice vs gaxi_fifo_sync
 

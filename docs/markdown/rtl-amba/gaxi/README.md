@@ -164,8 +164,11 @@ gaxi_fifo_sync #(
 
 > **Two depth rules in this directory, and they are not a contradiction.**
 > The shallow skid buffers (`gaxi_skid_buffer`, `gaxi_skid_buffer_struct`,
-> `gaxi_skid_buffer_dbldrn`) store entries in a small unpacked array and accept
-> `DEPTH` in `{2, 4, 6, 8}`. Among the FIFOs the rule differs per module:
+> `gaxi_skid_buffer_dbldrn`) accept `DEPTH` in `{2, 4, 6, 8}`. The first two
+> store entries in a small unpacked array; `gaxi_skid_buffer_dbldrn` still
+> uses the flat packed vector with dynamic part-selects the base module was
+> refactored away from (the style its header blames for missing 100 MHz at
+> wide data) -- relevant when reasoning about timing at width. Among the FIFOs the rule differs per module:
 > `gaxi_drop_fifo_sync` needs a power of 2, because its drop path adds
 > `drop_count` to the read pointer and wraps at `2*MAX`, and the low `AW` bits
 > only name the right entry when `DEPTH` is a power of 2. `gaxi_fifo_sync`

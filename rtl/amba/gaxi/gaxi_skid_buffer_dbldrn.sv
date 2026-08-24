@@ -45,6 +45,16 @@ module gaxi_skid_buffer_dbldrn #(
     output logic [DW-1:0] rd_data2      // Second data output for double-drain
 );
 
+    // Same contract and same guard as the base gaxi_skid_buffer: bare $error
+    // in a generate block is an ELABORATION task (IEEE 1800 20.11) -- do NOT
+    // wrap it in `initial`, which never fires during lint. Without this, an
+    // unsupported DEPTH silently wraps the 4-bit r_data_count.
+    generate
+        if (DEPTH != 2 && DEPTH != 4 && DEPTH != 6 && DEPTH != 8) begin : gen_depth_guard
+            $error("gaxi_skid_buffer_dbldrn: DEPTH=%0d unsupported -- must be one of {2,4,6,8}", DEPTH);
+        end
+    endgenerate
+
     logic [BW-1:0]         r_data;
     logic [3:0]            r_data_count;
     logic                  w_wr_xfer;
@@ -109,10 +119,16 @@ module gaxi_skid_buffer_dbldrn #(
                         (32'(r_data_count) == DEPTH-1 && (~w_wr_xfer || w_rd_xfer || w_rd_dbl_xfer)) ||
                         (32'(r_data_count) == DEPTH && (w_rd_xfer || w_rd_dbl_xfer));
 
-            // Read valid: have at least one item (or incoming write)
-            rd_valid <= (r_data_count >= 2) ||
-                        (r_data_count == 4'b0001 && (~w_rd_xfer || w_wr_xfer)) ||
-                        (r_data_count == 4'b0000 && w_wr_xfer);
+            // Read valid: at least one item will remain (or arrive). The
+            // count>=2 term alone is only safe for SINGLE drain (which leaves
+            // >=1); a double drain from exactly 2 leaves ZERO, so count==2
+            // must exclude it -- otherwise rd_valid holds high one cycle on
+            // an empty buffer and a streaming consumer's accept underflows
+            // the count to 15 (qc round_15 RTL-BUG-1, mutation-proven).
+            rd_valid <= (r_data_count >= 4'd3) ||
+                        (r_data_count == 4'd2 && (~w_rd_dbl_xfer || w_wr_xfer)) ||
+                        (r_data_count == 4'd1 && (~w_rd_xfer || w_wr_xfer)) ||
+                        (r_data_count == 4'd0 && w_wr_xfer);
         end
     )
 

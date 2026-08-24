@@ -106,8 +106,8 @@
 //   Drop Operation Latency: 3 cycles
 //     - Cycle 0: drop_valid asserted, FSM enters DROP_ACTIVE
 //     - Cycle 1: Pointer adjustment, FSM enters DROP_SETTLE
-//     - Cycle 2: drop_ready asserted, FSM returns IDLE
-//     - Cycle 3+: Normal operation resumes
+//     - Cycle 2: Settling, FSM enters DROP_DONE
+//     - Cycle 3: drop_ready asserted, FSM returns IDLE; normal operation resumes
 //
 //   I/O Freeze During Drop: rd_valid and wr_ready forced low in DROP_ACTIVE and DROP_SETTLE
 //
