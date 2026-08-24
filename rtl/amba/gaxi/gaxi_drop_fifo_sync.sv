@@ -142,7 +142,8 @@
 //------------------------------------------------------------------------------
 //   - Drop operation takes 3 clock cycles (activate, adjust, settle)
 //   - FIFO I/O blocked during drop to prevent data corruption
-//   - drop_count must be <= current FIFO count (checked in simulation)
+//   - drop_count must be <= current FIFO count (simulation $error at the
+//     capture edge; not enforced in hardware -- see assertion below)
 //   - drop_all=1 overrides drop_count (empties entire FIFO)
 //   - Pointer wraparound handled correctly (MSB toggle preserved)
 //   - Custom pointer arithmetic required (counter_bin only increments by 1)
@@ -257,6 +258,19 @@ module gaxi_drop_fifo_sync #(
     assign w_drop_active  = (r_drop_state == DROP_ACTIVE) || (r_drop_state == DROP_SETTLE);
     assign w_use_drop_ptr = (r_drop_state == DROP_ACTIVE);
     assign drop_ready     = (r_drop_state == DROP_DONE);
+
+    // The bounds check the header always promised. The drop path adds
+    // drop_count to the read pointer UNCONDITIONALLY -- overshooting the
+    // occupancy walks rd_ptr past wr_ptr, fifo_control computes a wrapped
+    // count (3 - 5 mod 32 = 30) with rd_empty low, and rd_valid comes back
+    // presenting never-written memory. Catch it at the capture edge.
+    always @(posedge axi_aclk) begin
+        if (axi_aresetn && r_drop_state == IDLE && drop_valid && !drop_all
+            && (32'(drop_count) > 32'(count))) begin
+            $error("gaxi_drop_fifo_sync: drop_count=%0d exceeds occupancy count=%0d -- read pointer will overrun and count will wrap",
+                   drop_count, count);
+        end
+    end
 
     /////////////////////////////////////////////////////////////////////////
     // Write counter (standard operation, supports drop_all load)

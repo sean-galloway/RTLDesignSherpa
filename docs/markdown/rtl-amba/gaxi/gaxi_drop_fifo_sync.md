@@ -128,13 +128,14 @@ When `drop_valid=1` and `drop_all=0`, the FIFO removes `drop_count` oldest entri
 3. **Cycle 3**: Drop complete, `drop_ready=1`
 4. **Result**: the read pointer advances by exactly `N`
 
-> **`drop_count` must not exceed `count`.** There is no clamp and no bounds
-> check — `counter_bin_load` adds `drop_count` to the read pointer
-> unconditionally. Dropping 5 from a FIFO holding 3 (DEPTH=16) leaves
-> `rd_ptr=5` ahead of `wr_ptr=3`, and `fifo_control` then computes a count of
-> 30 with `rd_empty` still low: the FIFO reports 30 entries of garbage and
-> hands back memory that was never written. The RTL header's "checked in
-> simulation" note refers to a check that does not exist.
+> **`drop_count` must not exceed `count`.** There is no clamp in hardware —
+> `counter_bin_load` adds `drop_count` to the read pointer unconditionally.
+> Dropping 5 from a FIFO holding 3 (DEPTH=16) leaves `rd_ptr=5` ahead of
+> `wr_ptr=3`, and `fifo_control` then computes a count of 30 with `rd_empty`
+> still low: the FIFO reports 30 entries of garbage and hands back memory
+> that was never written. Simulation now catches this at the capture edge
+> with a `$error` (the check the RTL header had always promised); silicon
+> does not — bound `drop_count` on your side.
 
 **I/O Blocking**: During drop operation (cycles 1-2):
 - `wr_ready = 0` (writes blocked)

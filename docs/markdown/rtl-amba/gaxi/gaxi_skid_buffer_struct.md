@@ -39,7 +39,7 @@ Struct-aware variant of **[gaxi_skid_buffer](gaxi_skid_buffer.md)** — it takes
 - **Automatic Width Calculation:** Uses `$bits()` to determine buffer width
 - **Registered Output:** Identical latency to the base skid buffer (1 clock)
 - **Same Architecture:** Shift register with valid/ready flow control
-- **Debug Support:** Instance naming and transaction logging
+- **Debug Support:** INSTANCE_NAME parameter for waveform/error identification (no transaction logging in the RTL)
 
 ---
 

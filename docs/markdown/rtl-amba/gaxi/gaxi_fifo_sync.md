@@ -35,7 +35,7 @@ Unlike the skid buffer, this module is a true FIFO built on read/write pointers,
 
 ### Key Features
 
-- **Arbitrary Depth:** Any depth supported (power of 2 optimal)
+- **Arbitrary Depth:** Any depth >= 2 (power of 2 optimal; DEPTH=1 does not elaborate -- the pointer math needs at least one address bit)
 - **Two Read Modes:** Mux mode (combinatorial) or Flop mode (registered)
 - **Counter-Based:** Binary counters with wrapping
 - **Occupancy Count:** `count` output, `[AW:0]` wide

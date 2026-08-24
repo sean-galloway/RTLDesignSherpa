@@ -340,7 +340,8 @@ gaxi_fifo_async #(
 | gaxi_fifo_sync (mux) | 1 cycle | 1 cycle | Combinatorial read |
 | gaxi_fifo_sync (flop) | 2 cycles | 2 cycles | Registered read |
 | gaxi_fifo_async | 3-5 cycles | 3-5 cycles | CDC synchronization overhead |
-| gaxi_drop_fifo_sync | 1 cycle | 1 cycle | Plus 3 cycles for drop operation |
+| gaxi_drop_fifo_sync (mux) | 1 cycle | 1 cycle | Plus 3 cycles for drop operation |
+| gaxi_drop_fifo_sync (flop) | 2 cycles | 2 cycles | Registered read; the README's own wide-data examples use REGISTERED=1 |
 
 ### Throughput
 
