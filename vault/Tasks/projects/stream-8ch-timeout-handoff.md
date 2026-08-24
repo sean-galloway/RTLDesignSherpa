@@ -44,6 +44,30 @@ the earlier instance was fixed by wiring `cfg_prefetch_enable`/`fifo_threshold` 
 sizing the scheduler timeout to the workload. Check whether the board path programs
 prefetch the way the sim path does.
 
+## TREAT THIS AS A STREAM RTL BUG, NOT A HOST TIMEOUT
+
+Owner's guidance (2026-08-24): **the last time this symptom appeared it was a real
+bug in STREAM.** Do not start from "the host poll timed out" -- start from "what in
+STREAM strands under high channel contention".
+
+The prior instance ([[project_stream_desceng_prefetch_and_sched_timeout]]) was a
+1000-cycle scheduler write-timeout firing under 8-channel contention, setting a
+sticky `CH_ERROR` that stranded the descriptor FIFO. It never reproduced at macro
+level because the timeout was a settable INPUT there but register-driven at top --
+so a TB signal poke was dead code and only the top-level path could show it. Expect
+the same asymmetry here: reproduce at the level that owns the register.
+
+Both halves of that fix are still in place, so this is a NEW instance of the class,
+not a regression of it:
+  * `cfg_prefetch_enable` / `cfg_fifo_threshold` are wired in
+    `descriptor_engine.sv` (lines 124-125, 240, 466).
+  * `characterization.py:393` programs `SCHED_TIMEOUT_CYCLES = 0xFFFFFFFF`.
+
+So look for what ELSE strands at 7-8 channels. Useful first reads on a hung board,
+before resetting it: `SCHED_ERROR`, `CHANNEL_IDLE`, `DESC_ENGINE_IDLE`,
+`SCHEDULER_IDLE`, and the per-channel `CH_STATE{0..7}_STATE` -- a stranded channel
+should show which stage it died in. `host_status.py` dumps most of these.
+
 ## START HERE — reproduce in sim, the cosim does NOT cover this
 
 `SIM_NUM_CHANNELS=8` only sets how many channels are BUILT. The tests drive at most
