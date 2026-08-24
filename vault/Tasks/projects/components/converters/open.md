@@ -229,9 +229,51 @@ it (`test_max_length_burst`) does NOT fail, because
 separately, since it means the unit level cannot see this class of bug at
 all.
 
+### Attempt 1 (2026-08-23, reverted) -- what it taught
+
+A splitter was written and backed out rather than left half-working in a
+shared tree. It got the chain test from 256 beats to 505 of 512, so the
+approach is sound and the remaining gap is in the W framing, not the AW
+arithmetic. Reverted at `projects/components/converters/rtl/axi4_dwidth_converter_wr.sv`;
+nothing of it is in the tree.
+
+What it consisted of, and what to keep:
+
+- **AW state machine** -- `r_split_remaining` (needs `9 + $clog2(RATIO)`
+  bits; 8 is what overflows today), `r_split_addr`, `r_split_active`.
+  Issue `min(256, remaining)` per master burst, advance the address by
+  `256 * M_STRB_WIDTH` for INCR, hold it for FIXED. This part worked.
+- **WRAP needs no handling.** AXI4 caps WRAP at 16 beats, so
+  `16 * RATIO <= 256` for every ratio this converter supports. It can
+  never reach a split.
+- **`int_aw_ready` must assert only on the LAST master burst**, or the
+  slave's AW is consumed while bursts are still owed.
+
+Where it went wrong, and the actual hard part:
+
+- **W framing.** `m_axi_wlast` comes from `axi_data_dnsize.narrow_last`,
+  which frames the whole SLAVE burst. Each master burst needs its own.
+  A single "beats owed" counter loaded at AW-issue is NOT enough: AW runs
+  ahead of W, so the next AW overwrites the counter before the current
+  burst's data has drained (505 of 512). Gating AW on the counter reaching
+  zero changed it to 504, not 512 -- so the residue is a framing/ordering
+  detail, not simply overlap.
+- **What to do instead:** carry a QUEUE of per-burst lengths from AW to W,
+  the way `axi4_dwidth_converter_rd` already does for ARLEN with its inline
+  circular buffer (`BLEN_FIFO_DEPTH`). That is the proven pattern in this
+  same file's sibling, and it decouples AW from W without serializing them.
+
 **Work:**
-- [ ] Split on the write path: AW state machine, per-burst WLAST, B fold.
+- [ ] Write path: AW state machine (above) + per-burst length QUEUE feeding
+      the W framing + B fold. Not a single counter.
 - [ ] Same on the read path (`arlen`, R aggregation).
-- [ ] Make `do_write_and_verify` detect a beat-count shortfall.
-- [ ] Keep the chain test at REG_LEVEL=FULL as the gate.
+- [ ] Make `do_write_and_verify` detect a beat-count shortfall -- the
+      max-length unit scenario passes today despite the loss, so the unit
+      level cannot see this class of bug.
+- [ ] Keep the chain test at REG_LEVEL=FULL as the gate; it is the only
+      thing that currently catches it.
+
+**Note on lint:** `verilator --lint-only -Wno-fatal` hides the WIDTHEXPAND
+that the test build treats as fatal. Lint without `-Wno-fatal` when touching
+this file.
 
