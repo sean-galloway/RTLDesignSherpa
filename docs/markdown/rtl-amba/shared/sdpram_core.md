@@ -45,10 +45,6 @@
 - FUB-shaped interface that degenerates cleanly to single-beat for AXIL wrappers
 - Observation outputs (valid/ready snapshot, BRAM write/read fire pulses)
 
----
-
-## Module Purpose
-
 The `sdpram_slave_*` family needs one memory kernel that behaves identically regardless of which AMBA protocol drives its write and read sides. Rather than duplicate the BRAM, burst logic, and clear FSM in every protocol permutation, that logic lives once here, and the wrappers translate their protocol's FUB into this core's AXI-shaped FUB.
 
 The core speaks exactly one wire format. AXI4 wrappers pass the real `awlen / awsize / awburst / awid` fields straight through; AXIL wrappers, which have no burst or ID fields, feed single-beat defaults (`awlen=0`, `awsize=$clog2(STRB_W)`, `awburst=INCR`, `awid=0`) so the burst tracker collapses to a single-beat path.
@@ -80,7 +76,7 @@ The core speaks exactly one wire format. AXI4 wrappers pass the real `awlen / aw
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 

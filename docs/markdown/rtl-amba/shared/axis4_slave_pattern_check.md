@@ -42,11 +42,7 @@
 - Per-channel actual-CRC / beat-count telemetry plus aggregate beat and packet (`tlast`) counters
 - LFSR advances only on accepted beats, so the check is independent of upstream stalls and cross-channel interleave
 
----
-
-## Module Purpose
-
-Characterizing a stream-*producing* engine (a "source") needs a checker that knows what the engine should emit. This block seeds every channel identically to the generator and, on each accepted beat, regenerates the expected pattern for that channel and compares it against the received `tdata`. It also folds the regenerated data into a per-channel CRC-32 for a whole-run summary. Because the LFSR advances only on accepted beats and is demuxed by `tid`, the check is robust to backpressure and to arbitrary interleave of channels on the shared stream.
+Characterizing a stream-*producing* engine (a "source") needs a checker that knows what the engine should emit. This block seeds every channel identically to the generator and, on each accepted beat, regenerates the expected pattern for that channel and compares it against the received `tdata`. It also folds the regenerated data into a per-channel CRC-32 for a whole-run summary. Because the LFSR advances only on accepted beats and is demuxed by `tid`, the check is insensitive to backpressure and to arbitrary interleave of channels on the shared stream.
 
 **Use Cases:**
 - Terminating and verifying a RAPIDS source engine's AXIS output during characterization
@@ -54,7 +50,7 @@ Characterizing a stream-*producing* engine (a "source") needs a checker that kno
 - Per-channel integrity checking under backpressure (via `ready_en`)
 - On-chip (FPGA) stream checker in the RAPIDS characterization harness
 
-**Key Benefit:** A memory-free stream checker that both pinpoints (sticky `o_data_error` per beat) and summarizes (per-channel CRC-32 identical to the generator) integrity, robust to stalls and channel interleave.
+**Key Benefit:** A memory-free stream checker that both pinpoints (sticky `o_data_error` per beat) and summarizes (per-channel CRC-32 identical to the generator) integrity, immune to stalls and channel interleave.
 
 ---
 
@@ -86,7 +82,7 @@ Characterizing a stream-*producing* engine (a "source") needs a checker that kno
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 

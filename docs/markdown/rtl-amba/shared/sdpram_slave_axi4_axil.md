@@ -43,10 +43,6 @@
 - Bulk-clear control and debug taps
 - Sim-only WRAP-burst assertion on the AXI4 write side
 
----
-
-## Module Purpose
-
 Some harness topologies write bulk data over a high-throughput AXI4 burst port but only need simple, single-word AXIL reads for status polling or spot checks. This wrapper matches that shape: fast AXI4 in, lightweight AXIL out, over one shared BRAM.
 
 The AXIL read side has no burst or ID fields, so the wrapper supplies the missing AXI-shaped fields at the single point where the AXIL read FUB meets the core, letting the core's burst tracker collapse to a single-beat read path.
@@ -79,7 +75,7 @@ The AXIL read side has no burst or ID fields, so the wrapper supplies the missin
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 

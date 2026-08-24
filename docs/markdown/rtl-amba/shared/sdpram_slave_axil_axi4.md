@@ -31,7 +31,9 @@
 
 ## Overview
 
-`sdpram_slave_axil_axi4` is the family permutation with a **single-beat AXI4-Lite slave on the write side** (AW + W + B) and a **full AXI4 slave on the read side** (AR + R) in front of the shared `sdpram_core` backend. The write side instantiates `axil4_slave_wr`; the read side instantiates `axi4_slave_rd` (full AXI4 with id / len / size / burst). The wrapper bridges the AXIL write FUB into the core's AXI-shaped write FUB using single-beat defaults.
+`sdpram_slave_axil_axi4` is the asymmetric member of the family: a **single-beat AXI4-Lite slave on the write side** (AW + W + B) and a **full AXI4 slave on the read side** (AR + R), both in front of the shared `sdpram_core` backend. The write side instantiates `axil4_slave_wr`; the read side instantiates `axi4_slave_rd` (full AXI4 with id / len / size / burst). AXIL carries no burst or ID fields, so the wrapper bridges the AXIL write FUB into the core's AXI-shaped write FUB using single-beat defaults — the one spot in this design where anything is synthesized rather than genuine.
+
+That shape fits a common characterization pattern: a host CPU populates a memory a word at a time over a simple AXIL write port (a descriptor RAM's host-write port, say), while a high-throughput engine reads bursts back over full AXI4. Supplying the missing AXI-shaped fields at the single point where the AXIL write FUB meets the core collapses the core's write burst tracker to a single-beat path.
 
 ### Key Features
 
@@ -42,14 +44,6 @@
 - Byte-enabled writes, single-cycle-latency reads
 - Bulk-clear control and debug taps
 - Sim-only WRAP-burst assertion on the AXI4 read side
-
----
-
-## Module Purpose
-
-This shape fits a common characterization pattern: a host CPU populates a memory a word at a time over a simple AXIL write port (for example, a descriptor RAM's host-write port), while a high-throughput engine reads bursts back over full AXI4.
-
-The AXIL write side has no burst or ID fields, so the wrapper supplies the missing AXI-shaped fields at the single point where the AXIL write FUB meets the core, collapsing the core's write burst tracker to a single-beat path.
 
 **Use Cases:**
 - Descriptor RAM: host writes descriptors over AXIL, an engine reads them over AXI4 bursts
@@ -79,7 +73,7 @@ The AXIL write side has no burst or ID fields, so the wrapper supplies the missi
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -148,7 +142,7 @@ The AXIL write side has no burst or ID fields, so the wrapper supplies the missi
 
 ### Structure
 
-Three instances: `axil4_slave_wr` (write), `axi4_slave_rd` (read), and `sdpram_core` (backend). The read leaf's FUB carries full AXI4 read fields into the core. The write leaf's AXIL FUB carries only address and data; the wrapper supplies the burst/ID fields the core expects.
+Three instances: `axil4_slave_wr` (write), `axi4_slave_rd` (read), and `sdpram_core` (backend). The read leaf's FUB carries full AXI4 read fields into the core. The write leaf's AXIL FUB carries only address and data — the wrapper supplies the burst/ID fields the core expects.
 
 ### AXIL Write Bridge
 

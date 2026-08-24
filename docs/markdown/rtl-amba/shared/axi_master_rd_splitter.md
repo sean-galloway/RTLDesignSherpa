@@ -31,45 +31,37 @@
 
 ## Overview
 
-The AXI Master Read Splitter is a critical infrastructure module that splits single upstream AXI read transactions into multiple downstream transactions when boundary crossings occur. It enables address range interleaving, memory-mapped I/O access, and heterogeneous memory system integration. The R-side return path requires a beat-counting consumer -- see
-the Consumer contract note under Response Path.
+The AXI master read splitter takes a single upstream AXI read transaction and splits it into multiple downstream transactions when it crosses a boundary. That's what enables address range interleaving, memory-mapped I/O access, and heterogeneous memory system integration. The R-side return path consolidates RLAST to one pulse per original transaction, so a generic AXI4 master can sit upstream directly — see the consumer contract under R Channel Handling.
 
-### Key Features
+In modern SoC designs, memory systems are often partitioned across multiple address ranges, memory controllers, or protection domains. This module solves the fundamental problem of transactions that cross those architectural boundaries.
 
-- Automatic boundary crossing detection and transaction splitting
-- Configurable alignment boundary via the 12-bit `alignment_mask` port (4KB maximum -- see Integration)
-- AR channel forwarding with address/length calculation
-- R channel pass-through with transparent ID handling
-- Split transaction tracking via dedicated FIFO interface
-- Zero added latency for non-split transactions
-- Burst/ID/user fields carried through on the AR side; the R side
-  CONSOLIDATES RLAST to one pulse per original transaction (owed-beat
-  counter -- see Consumer contract below), so a generic AXI4 master can
-  sit upstream directly
-
----
-
-## Module Purpose
-
-In modern SoC designs, memory systems are often partitioned across multiple address ranges, memory controllers, or protection domains. The AXI Master Read Splitter solves the fundamental problem of handling transactions that cross these architectural boundaries.
-
-**Problem Statement:**
+**The problem:**
 - Upstream master issues single AXI read (ADDR=0x0FC0, LEN=7, 8 beats total, 64-byte beats)
 - Transaction crosses 4KB boundary at 0x1000
 - Downstream slaves require separate transactions per boundary region
 
-**Solution:**
-- Module detects boundary crossing using combinational split logic
+**The solution:**
+- The module detects the boundary crossing using combinational split logic
 - Automatically generates N split transactions (where N >= 1)
 - First split: ADDR=0x0FC0, LEN=0 (1 beat to boundary)
 - Second split: ADDR=0x1000, LEN=6 (7 beats remaining)
 - All response data aggregated transparently
 
-**Key Invariants:**
+**Key invariants:**
 - Upstream sees exactly ONE transaction request/acceptance
 - Downstream sees N split transactions (boundary-aligned)
-- Total response beats equals original transaction beat count
+- Total response beats equals the original transaction beat count
 - All AXI signaling (ID, USER, PROT, QOS) preserved across splits
+
+### Key Features
+
+- Automatic boundary crossing detection and transaction splitting
+- Configurable alignment boundary via the 12-bit `alignment_mask` port (4KB maximum — see Integration)
+- AR channel forwarding with address/length calculation
+- R channel pass-through with transparent ID handling
+- Split transaction tracking via dedicated FIFO interface
+- Zero added latency for non-split transactions
+- Burst/ID/user fields carried through on the AR side; the R side CONSOLIDATES RLAST to one pulse per original transaction (owed-beat counter — see Consumer contract below), so a generic AXI4 master can sit upstream directly
 
 ---
 
@@ -89,7 +81,7 @@ In modern SoC designs, memory systems are often partitioned across multiple addr
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -186,19 +178,19 @@ In modern SoC designs, memory systems are often partitioned across multiple addr
 
 ### Transaction Splitting Overview
 
-The module operates as a transparent pass-through for non-split transactions and as an intelligent splitter for boundary-crossing transactions.
+The module operates as a transparent pass-through for non-split transactions and as an intelligent splitter for boundary-crossing ones.
 
-**Non-Split Path (Fast):**
-- Transaction fully contained within single boundary region
+**Non-split path (fast):**
+- Transaction fully contained within a single boundary region
 - AR signals pass directly from fub to m_axi
 - fub_arready = m_axi_arready (immediate acceptance)
 - R channel completely transparent
 - Split count = 1
 
-**Split Path (Multi-Transaction):**
+**Split path (multi-transaction):**
 - Transaction crosses one or more boundary regions
 - AR signals buffered and regenerated for each split
-- fub_arready suppressed until final split accepted
+- fub_arready suppressed until the final split is accepted
 - R channel remains transparent (ID-based aggregation)
 - Split count = N (number of boundary crossings + 1)
 
@@ -206,35 +198,35 @@ The module operates as a transparent pass-through for non-split transactions and
 
 The module implements a simple two-state FSM:
 
-**IDLE State:**
-- Awaits new transactions on fub_ar interface
-- Combinational split logic evaluates boundary crossing
+**IDLE state:**
+- Awaits new transactions on the fub_ar interface
+- Combinational split logic evaluates the boundary crossing
 - If no split: immediate pass-through with fub_arready = m_axi_arready
-- If split: buffer transaction, transition to SPLITTING, suppress fub_arready
+- If split: buffer the transaction, transition to SPLITTING, suppress fub_arready
 
-**SPLITTING State:**
-- Issue current split using buffered address/length
-- Update next_addr and remaining_len for subsequent split
+**SPLITTING state:**
+- Issue the current split using the buffered address/length
+- Update next_addr and remaining_len for the subsequent split
 - If more splits needed: stay in SPLITTING, increment split_count
 - If final split: assert fub_arready when accepted, return to IDLE
 
 ### Boundary Crossing Detection
 
-Combinational logic module (axi_split_combi) provides real-time splitting decisions:
+A combinational logic module (axi_split_combi) provides the real-time splitting decisions:
 
 **Inputs:**
-- current_addr: Transaction start address
-- current_len: Total beats remaining (AXI encoding)
-- ax_size: Bytes per beat
-- alignment_mask: Boundary size (e.g., 0xFFF for 4KB)
+- current_addr: transaction start address
+- current_len: total beats remaining (AXI encoding)
+- ax_size: bytes per beat
+- alignment_mask: boundary size (e.g., 0xFFF for 4KB)
 
 **Outputs:**
-- split_required: Transaction crosses boundary
-- split_len: Beats to consume in current split (AXI encoding)
-- next_boundary_addr: Address at next boundary alignment
-- remaining_len_after_split: Beats remaining after current split
+- split_required: transaction crosses a boundary
+- split_len: beats to consume in the current split (AXI encoding)
+- next_boundary_addr: address at next boundary alignment
+- remaining_len_after_split: beats remaining after the current split
 
-**Key Calculation:**
+**Key calculation:**
 ```
 next_boundary_addr = (current_addr | alignment_mask) + 1
 bytes_to_boundary = next_boundary_addr - current_addr
@@ -244,37 +236,37 @@ split_len = beats_to_boundary - 1  // AXI encoding
 
 ### AR Channel Forwarding Logic
 
-**Address/Length Calculation:**
-- IDLE state: Use live fub_araddr and calculated split_len
-- SPLITTING state: Use buffered r_current_addr and split_len
-- Always output minimum of (split_len, current_len) for safety
+**Address/length calculation:**
+- IDLE state: use live fub_araddr and calculated split_len
+- SPLITTING state: use buffered r_current_addr and split_len
+- Always output the minimum of (split_len, current_len) for safety
 
-**Control Signals (ID, PROT, QOS, etc.):**
-- IDLE state: Pass through from fub_ar* signals
-- SPLITTING state: Use buffered r_orig_ar* signals (captured at acceptance)
-- Ensures all split transactions carry identical attributes
+**Control signals (ID, PROT, QOS, etc.):**
+- IDLE state: pass through from the fub_ar* signals
+- SPLITTING state: use the buffered r_orig_ar* signals (captured at acceptance)
+- This keeps every split transaction carrying identical attributes
 
-**Valid Signal Generation:**
+**Valid signal generation:**
 - IDLE: m_axi_arvalid = fub_arvalid
-- SPLITTING: m_axi_arvalid = 1 (always asserting next split)
+- SPLITTING: m_axi_arvalid = 1 (always asserting the next split)
 
 ### Ready Signal Management
 
-**Critical Protocol Constraint:**
-- fub_arready must NOT assert until entire original transaction accepted
-- Upstream master expects single handshake for its request
+**The protocol constraint that drives everything here:**
+- fub_arready must NOT assert until the entire original transaction is accepted
+- The upstream master expects a single handshake for its request
 
-**Ready Logic:**
+**Ready logic:**
 - IDLE + no split: fub_arready = m_axi_arready (immediate)
 - IDLE + split needed: fub_arready = 0 (suppress until done)
 - SPLITTING + intermediate: fub_arready = 0
-- SPLITTING + final split: fub_arready = m_axi_arready (complete handshake)
+- SPLITTING + final split: fub_arready = m_axi_arready (completes the handshake)
 
 ### R Channel Handling
 
 The R channel is completely transparent:
 
-**Pass-Through Signals:**
+**Pass-through signals:**
 - fub_rid = m_axi_rid
 - fub_rdata = m_axi_rdata
 - fub_rresp = m_axi_rresp
@@ -283,39 +275,24 @@ The R channel is completely transparent:
 - fub_rvalid = m_axi_rvalid
 - m_axi_rready = fub_rready
 
-**Consumer contract (IMPORTANT):**
-- Split transactions use same ID as original; downstream slaves respond with
-  matching ID and the upstream sees the concatenated beat stream
-- `fub_rlast` is CONSOLIDATED to one pulse per ORIGINAL transaction: an
-  owed-beat counter (`r_rbeats_remaining`, loaded with the original burst
-  length at acceptance) retires one beat per upstream R handshake and asserts
-  `fub_rlast` only on the final owed beat; intermediate splits' `m_axi_rlast`
-  pulses are absorbed
-- A standards-compliant generic AXI master can sit upstream directly --
-  it sees exactly one RLAST per burst it issued -- because acceptance is
-  SERIALIZED: the owed-beat counter is single-transaction state, so
-  `r_rbeats_active` fences admission (fub_arready, the FSM capture and
-  m_axi_arvalid in IDLE all carry `!r_rbeats_active`) until the previous
-  burst's final beat has returned. One outstanding upstream read at a
-  time is the throughput cost of the consolidation; mutation-proven by
-  the back-to-back scenario in the rd splitter TB. (The pre-fix behavior
-  passed every intermediate RLAST through and required a beat-counting
-  consumer; that defect was closed with the splitter cluster in
-  vault/Tasks/amba)
+**Consumer contract (read this before integrating):**
+- Split transactions use the same ID as the original; downstream slaves respond with a matching ID and the upstream sees the concatenated beat stream
+- `fub_rlast` is CONSOLIDATED to one pulse per ORIGINAL transaction: an owed-beat counter (`r_rbeats_remaining`, loaded with the original burst length at acceptance) retires one beat per upstream R handshake and asserts `fub_rlast` only on the final owed beat; intermediate splits' `m_axi_rlast` pulses are absorbed
+- A standards-compliant generic AXI master can sit upstream directly — it sees exactly one RLAST per burst it issued — because acceptance is SERIALIZED: the owed-beat counter is single-transaction state, so `r_rbeats_active` fences admission (fub_arready, the FSM capture and m_axi_arvalid in IDLE all carry `!r_rbeats_active`) until the previous burst's final beat has returned. One outstanding upstream read at a time is the throughput cost of the consolidation; mutation-proven by the back-to-back scenario in the rd splitter TB. (The pre-fix behavior passed every intermediate RLAST through and required a beat-counting consumer; that defect was closed with the splitter cluster in vault/Tasks/amba)
 
 ### Split Information Tracking
 
 A dedicated FIFO captures metadata for each completed transaction:
 
-**FIFO Write Conditions:**
+**FIFO write conditions:**
 - Written when fub_arvalid && fub_arready (transaction accepted)
 - Contains: {original_addr, transaction_id, split_count}
 
-**Split Count Values:**
+**Split count values:**
 - No split: split_cnt = 1
 - Split occurred: split_cnt = N (number of splits generated)
 
-**Use Cases:**
+**Use cases:**
 - Performance monitoring (detect excessive splitting)
 - Error correlation (map responses to original requests)
 - Debug visibility (trace transaction decomposition)
@@ -416,27 +393,27 @@ gaxi_fifo_sync #(
 
 ### Transaction Splitting Example Scenario
 
-**Original Transaction:**
+**Original transaction:**
 - Address: 0x0FC0 (4032 bytes into 4KB region)
 - Length: 7 (8 beats total in AXI encoding)
 - Size: 3'b011 (8 bytes per beat = 64 bits)
 - Total bytes: 8 beats × 8 bytes = 64 bytes
 - End address: 0x0FC0 + 64 - 1 = 0x0FFF
 
-**Boundary Analysis:**
+**Boundary analysis:**
 - 4KB boundary at 0x1000
 - Bytes to boundary: 0x1000 - 0x0FC0 = 64 bytes
 - Beats to boundary: 64 / 8 = 8 beats
 - Transaction crosses boundary: NO (ends exactly at boundary)
 - Split required: NO
 
-**Modified Scenario (Crosses Boundary):**
+**Modified scenario (crosses boundary):**
 - Address: 0x0FC0
 - Length: 8 (9 beats)
 - Total bytes: 9 × 8 = 72 bytes
 - End address: 0x0FC0 + 72 - 1 = 0x1007
 
-**Split Sequence:**
+**Split sequence:**
 1. First split: ADDR=0x0FC0, LEN=7 (8 beats to reach 0x1000)
 2. Second split: ADDR=0x1000, LEN=0 (1 remaining beat)
 3. Split count = 2
@@ -447,87 +424,75 @@ gaxi_fifo_sync #(
 
 ### AXI Protocol Assumptions
 
-The module enforces several critical assumptions for correct operation:
+The module enforces several assumptions you need to hold for correct operation:
 
-**Assumption 1: Address Alignment**
-- All AXI addresses aligned to data bus width
-- If DATA_WIDTH = 512 bits, ARADDR always 64-byte aligned
+**Assumption 1: Address alignment**
+- All AXI addresses aligned to the data bus width
+- If DATA_WIDTH = 512 bits, ARADDR is always 64-byte aligned
 - Verified by assertions in axi_split_combi
 
-**Assumption 2: Fixed Transfer Size**
-- All transfers use maximum size equal to bus width
+**Assumption 2: Fixed transfer size**
+- All transfers use the maximum size equal to the bus width
 - ARSIZE always matches log2(DATA_WIDTH/8)
 - Example: 64-bit bus → ARSIZE = 3'b011 (8 bytes)
 
-**Assumption 3: Incrementing Bursts Only**
+**Assumption 3: Incrementing bursts only**
 - Only INCR burst type supported (ARBURST = 2'b01)
 - No FIXED or WRAP burst handling
-- Simplifies address calculation logic
+- Simplifies the address calculation logic
 
-**Assumption 4: No Address Wraparound**
+**Assumption 4: No address wraparound**
 - Transactions never wrap 0xFFFFFFFF → 0x00000000
-- Guaranteed by system software/memory allocators
-- Enables simplified boundary crossing logic
+- Guaranteed by system software / memory allocators
+- Enables the simplified boundary crossing logic
 
 ### Performance Characteristics
 
 **Latency:**
-- No split: Zero added cycles (combinational pass-through)
+- No split: zero added cycles (combinational pass-through)
 - Split required: 1 cycle per split transaction
 - Example: 3-way split adds 2 cycles total latency
 
 **Throughput:**
 - Full AXI bandwidth for non-split traffic
-- Sustained split traffic: Limited by split calculation (1 cycle/split)
-- R channel: Full bandwidth (pass-through)
+- Sustained split traffic: limited by the split calculation (1 cycle/split)
+- R channel: full bandwidth (pass-through)
 
 **Area:**
-- Minimal overhead: State machine + transaction buffer
-- Major component: Split information FIFO
-- Configurable via SPLIT_FIFO_DEPTH parameter
+- Minimal overhead: state machine + transaction buffer
+- Major component: split information FIFO
+- Configurable via the SPLIT_FIFO_DEPTH parameter
 
 ### Error Handling
 
-**Split-FIFO Overflow (observable, sticky):**
-- The split-info FIFO's `wr_ready` is connected; a push attempted while the
-  FIFO is full sets the STICKY output `o_split_fifo_overflow`, which stays
-  high until reset -- integration logic should treat it as a fatal
-  configuration error (a split record was lost)
-- Sizing the FIFO >= the true maximum outstanding split transactions is
-  still a CORRECTNESS requirement; the sticky flag makes a violation
-  observable rather than silent
+**Split-FIFO overflow (observable, sticky):**
+- The split-info FIFO's `wr_ready` is connected; a push attempted while the FIFO is full sets the STICKY output `o_split_fifo_overflow`, which stays high until reset — integration logic should treat it as a fatal configuration error (a split record was lost)
+- Sizing the FIFO >= the true maximum outstanding split transactions is still a CORRECTNESS requirement; the sticky flag makes a violation observable rather than silent
 
-**Protocol Violations:**
-- Module assumes well-formed AXI transactions
-- Assertions validate assumptions (address alignment, ax_size, no-WRAP -- in `axi_split_combi`; burst TYPE itself is not asserted)
+**Protocol violations:**
+- The module assumes well-formed AXI transactions
+- Assertions validate the assumptions (address alignment, ax_size, no-WRAP — in `axi_split_combi`; burst TYPE itself is not asserted)
 - Synthesis-time checks enforce parameter constraints
 
-**Backpressure Propagation:**
-- `block_ready` gates the full acceptance path: `fub_arready`, the split-FSM
-  capture, AND `m_axi_arvalid` in IDLE (`m_axi_arvalid = fub_arvalid &&
-  !block_ready`), so an AR presented while `block_ready=1` neither issues
-  downstream nor is captured -- blocking, not duplication (the TASK-061
-  duplication defect is fixed and mutation-proven)
+**Backpressure propagation:**
+- `block_ready` gates the full acceptance path: `fub_arready`, the split-FSM capture, AND `m_axi_arvalid` in IDLE (`m_axi_arvalid = fub_arvalid && !block_ready`), so an AR presented while `block_ready=1` neither issues downstream nor is captured — blocking, not duplication (the TASK-061 duplication defect is fixed and mutation-proven)
 
 ### Integration Considerations
 
-**Alignment Mask Configuration:**
-- The mask port is 12 bits and zero-extended, so the largest expressible
-  boundary is 0xFFF = 4KB; smaller powers of two (0x3F = 64B ... 0x7FF = 2KB)
-  are the other legal values
-- Driving a wider value (e.g. 0xFFFF hoping for 64KB) silently truncates to
-  0xFFF and splits at 4KB
+**Alignment mask configuration:**
+- The mask port is 12 bits and zero-extended, so the largest expressible boundary is 0xFFF = 4KB; smaller powers of two (0x3F = 64B ... 0x7FF = 2KB) are the other legal values
+- Driving a wider value (e.g. 0xFFFF hoping for 64KB) silently truncates to 0xFFF and splits at 4KB
 - Must match downstream memory region alignment
 
-**FIFO Sizing:**
+**FIFO sizing:**
 - SPLIT_FIFO_DEPTH should accommodate burst traffic
 - Typical value: 16 entries for general-purpose use
 - High-performance: 32-64 entries
 
-**Clock Domain Constraints:**
+**Clock domain constraints:**
 - Single clock domain (aclk) for all interfaces
-- No CDC required within module
-- Ensure timing closure on split calculation path
+- No CDC required within the module
+- Ensure timing closure on the split calculation path
 
 ---
 
@@ -540,13 +505,22 @@ The module enforces several critical assumptions for correct operation:
 - DMA engines with address range constraints
 
 ### Uses
-- **axi_split_combi.sv** - Combinational splitting logic (boundary detection, length calculation)
-- **gaxi_fifo_sync.sv** - Split information tracking FIFO
-- **reset_defs.svh** - Standard reset macro definitions
+- **axi_split_combi.sv** — combinational splitting logic (boundary detection, length calculation)
+- **gaxi_fifo_sync.sv** — split information tracking FIFO
+- **reset_defs.svh** — standard reset macro definitions
 
 ### See Also
-- **axi_master_wr_splitter.sv** - Write channel splitting (AW + W channels)
-- **axi_split_combi.sv** - Combined read/write splitting wrapper
+- **axi_master_wr_splitter.sv** — write channel splitting (AW + W channels)
+- **axi_split_combi.sv** — combined read/write splitting wrapper
+
+---
+
+## Testing
+
+- Tests: `val/amba/test_axi_master_rd_splitter.py`
+- Testbench: `bin/TBClasses/amba/axi_master_rd_splitter_tb.py`
+
+The back-to-back scenario in the testbench mutation-proves the RLAST consolidation, and the TASK-061 `block_ready` duplication fix is mutation-proven as well.
 
 ---
 
@@ -554,8 +528,6 @@ The module enforces several critical assumptions for correct operation:
 
 ### Source Code
 - RTL: `rtl/amba/shared/axi_master_rd_splitter.sv`
-- Tests: `val/amba/test_axi_master_rd_splitter.py`
-- Testbench: `bin/TBClasses/amba/axi_master_rd_splitter_tb.py`
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`

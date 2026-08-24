@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI Burst Address Generator calculates the next address for AXI burst transactions, supporting FIXED, INCR, and WRAP burst types. It handles data width conversions and provides both next address and aligned address outputs for boundary-aware transaction processing.
+The AXI burst address generator calculates the next address for AXI burst transactions, supporting FIXED, INCR, and WRAP burst types. It handles data width conversions and provides both next-address and aligned-address outputs for boundary-aware transaction processing.
 
 ### Key Features
 
@@ -71,12 +71,12 @@ The AXI Burst Address Generator calculates the next address for AXI burst transa
 
 ### Increment Calculation
 
-The address increment is determined by the size field:
+The address increment comes from the size field:
 ```systemverilog
 increment_pre = (1 << size)  // 2^size bytes per beat
 ```
 
-When data widths differ (DW != ODW), the increment is clamped:
+When the data widths differ (DW != ODW), the increment is clamped:
 ```systemverilog
 if (increment_pre > ODWBYTES)
     increment = ODWBYTES;
@@ -84,29 +84,29 @@ if (increment_pre > ODWBYTES)
 
 ### Burst Type Handling
 
-**FIXED Burst (burst = 2'b00)**:
-- Address remains constant for all beats
+**FIXED burst (burst = 2'b00)**:
+- Address stays constant for all beats
 - `next_addr = curr_addr`
 
-**INCR Burst (burst = 2'b01)**:
+**INCR burst (burst = 2'b01)**:
 - Address increments by size each beat
 - `next_addr = curr_addr + increment`
 
-**WRAP Burst (burst = 2'b10)**:
-- Address wraps at burst boundary
+**WRAP burst (burst = 2'b10)**:
+- Address wraps at the burst boundary
 - Wrap mask = (1 << (size + log2(len+1))) - 1
 - Aligned address = (curr_addr + increment) & ~(increment - 1)
 - Wrap address = (curr_addr & ~wrap_mask) | (aligned_addr & wrap_mask)
 
 ### Aligned Address Output
 
-The aligned address output aligns the next address to the output data width:
+The aligned output aligns the next address to the output data width:
 ```systemverilog
 alignment_mask = ODWBYTES - 1
 next_addr_align = next_addr & ~alignment_mask
 ```
 
-This is useful for boundary crossing detection in transaction splitters.
+That's what the boundary-crossing detection in the transaction splitters consumes.
 
 ---
 
@@ -138,23 +138,23 @@ axi_gen_addr #(
 
 ### Data Width Conversion
 
-When DW != ODW, the module handles width mismatches:
-- If increment > output bus bytes, clamp to output bus width
+When DW != ODW, the module handles the mismatch:
+- If increment > output bus bytes, clamp to the output bus width
 - This prevents address increments larger than the physical bus
 
 ### WRAP Burst Alignment
 
-WRAP bursts require careful address calculation:
-- Wrap boundary determined by size and length
-- Wrapped address stays within the wrap region
-- Example: 4-beat wrap (len=3), 8 bytes/beat, at 0x0FF8: wrap_mask = (1<<(3+2))-1 = 0x1F, aligned next = 0x1000, so next_addr = (0x0FF8 & ~0x1F) | (0x1000 & 0x1F) = **0x0FE0** -- the address wraps to the start of the 32-byte-aligned region, not past 0x1000
+WRAP bursts need careful address math:
+- The wrap boundary is determined by size and length
+- The wrapped address stays within the wrap region
+- Example: 4-beat wrap (len=3), 8 bytes/beat, at 0x0FF8: wrap_mask = (1<<(3+2))-1 = 0x1F, aligned next = 0x1000, so next_addr = (0x0FF8 & ~0x1F) | (0x1000 & 0x1F) = **0x0FE0** — the address wraps to the start of the 32-byte-aligned region, not past 0x1000
 
 ### Pure Combinational
 
-This module is purely combinational for zero latency:
-- No clock or reset
+The module is purely combinational, for zero latency:
+- No clock, no reset
 - Instant address generation
-- Use in address calculation pipelines
+- Drop it into address calculation pipelines
 
 ---
 
@@ -163,11 +163,16 @@ This module is purely combinational for zero latency:
 ### Used By
 - sdpram_core.sv (both BRAM address trackers)
 - axi4_to_apb4_convert.sv (APB beat addressing)
-- (The splitters do NOT use this module -- their boundary math is inline
-  in axi_split_combi)
+- (The splitters do NOT use this module — their boundary math is inline in axi_split_combi)
 
-### Related Infrastructure
+### See Also
 - axi_split_combi.sv (uses aligned addresses for split decisions)
+
+---
+
+## Testing
+
+Covered from `val/amba/` with the rest of the shared area — run everything with `make -C val/amba clean-all && make -C val/amba run-all-func-parallel`.
 
 ---
 

@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI Performance Latency Histogram captures per-transaction latency on an AXI master bus and bins it into a log2 histogram surfaced through a CSR-indexed readout (no MonBus packets). It is a self-contained snoop block — it does not gate or otherwise touch the AXI datapath — and is instantiated alongside the datapath monitors, deliberately leaving the shared `axi_monitor_base` untouched. For reads it measures both AR→first-R and AR→RLAST latency; for writes it measures AW→B latency.
+The AXI Performance Latency Histogram captures per-transaction latency on an AXI master bus and bins it into a log2 histogram, surfaced through a CSR-indexed readout — no MonBus packets. It's a self-contained snoop block: it doesn't gate or otherwise touch the AXI datapath, it sits alongside the datapath monitors, and it deliberately leaves the shared `axi_monitor_base` alone. For reads it measures both AR→first-R and AR→RLAST latency; for writes it measures AW→B latency.
 
 ### Key Features
 
@@ -44,11 +44,7 @@ The AXI Performance Latency Histogram captures per-transaction latency on an AXI
 - CSR-indexed readout of any bin count plus each metric's transaction total
 - Window control (`i_clear` / `i_freeze`) mirroring `axi_bus_meter`
 
----
-
-## Module Purpose
-
-Average latency hides the distribution that actually matters for QoS analysis — a bus can have a fine mean while a tail of slow transactions strangles a real workload. This block bins each transaction's measured latency into a log2 histogram, so the shape of the distribution (and its tail) is visible from a handful of CSR reads. It snoops the command and completion channels, timestamps each command as it is accepted, and on completion subtracts to get latency and increments the matching log2 bin. It is purely observational and adds no load to the AXI path, so it can be dropped in for characterization without perturbing the design under measurement.
+Average latency hides the distribution that actually matters for QoS analysis — a bus can have a fine mean while a tail of slow transactions strangles a real workload. So this block bins each transaction's measured latency into a log2 histogram, and the shape of the distribution (and its tail) becomes visible from a handful of CSR reads. It snoops the command and completion channels, timestamps each command as it is accepted, and on completion subtracts to get latency and increments the matching log2 bin. It's purely observational and adds no load to the AXI path, so you can drop it in for characterization without perturbing the design under measurement.
 
 **Use Cases:**
 - Read/write latency distribution characterization on AXI master ports (perfmon Stage D)
@@ -77,7 +73,7 @@ Average latency hides the distribution that actually matters for QoS analysis �
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -141,7 +137,7 @@ The histogram storage is always sized for two metrics for uniform indexing; the 
 
 ### Transaction Matching
 
-AXI requires same-ID responses to return in order, so completions can be matched to commands with a simple per-channel FIFO of command-phase timestamps rather than a CAM. On a command handshake (`cmd_valid && cmd_ready`) the current free-running time is pushed into the channel's FIFO (bounded by `MAX_OUTSTANDING`). On completion the oldest timestamp for that channel (`r_ts[ch][head]`) is the start time, and the FIFO is popped when the completing beat is `last` (RLAST for reads; B is always "last" for writes). A single AXI data/response bus carries at most one beat per cycle, so at most one push and one pop occur per cycle — there is no multi-writer hazard on the shared histogram.
+AXI requires same-ID responses to return in order, and that guarantee buys us something useful: completions can be matched to commands with a simple per-channel FIFO of command-phase timestamps rather than a CAM. On a command handshake (`cmd_valid && cmd_ready`) the current free-running time is pushed into the channel's FIFO (bounded by `MAX_OUTSTANDING`). On completion the oldest timestamp for that channel (`r_ts[ch][head]`) is the start time, and the FIFO is popped when the completing beat is `last` (RLAST for reads; B is always "last" for writes). A single AXI data/response bus carries at most one beat per cycle, so at most one push and one pop occur per cycle — there is no multi-writer hazard on the shared histogram.
 
 For reads, a per-channel `r_burst_active` flag distinguishes the first R beat (metric 0, AR→first-R) from subsequent beats of the same burst; it is set on the first beat and cleared when the burst pops on RLAST.
 

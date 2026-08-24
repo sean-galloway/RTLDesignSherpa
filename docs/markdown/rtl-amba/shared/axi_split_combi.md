@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI Split Combinational Logic module provides pure combinational boundary crossing detection and split length calculation for AXI transactions. It serves as the core computational engine for both read and write transaction splitters, enabling real-time decision-making without state machine overhead.
+This is the arithmetic engine both splitters share: pure combinational boundary-crossing detection and split-length calculation for AXI transactions. No state machine, no cycles of latency — the split decision is ready the same cycle the address shows up, which is exactly what the read and write splitters need to make real-time calls.
 
 ### Key Features
 
@@ -43,16 +43,12 @@ The AXI Split Combinational Logic module provides pure combinational boundary cr
 - Configurable address and data widths
 - No address wraparound assumption (simplified logic)
 
----
-
-## Module Purpose
-
-AXI transaction splitting requires complex address arithmetic to determine:
+AXI transaction splitting needs three questions answered, fast:
 1. Does this transaction cross a boundary?
 2. How many beats fit before the boundary?
 3. What address/length for the next split?
 
-This module encapsulates all splitting calculations into reusable combinational logic, ensuring consistent behavior across read and write splitters.
+This module packs all of that arithmetic into one reusable combinational block, so the read and write splitters behave identically by construction.
 
 **Design Philosophy:**
 - Separation of concerns: Calculation logic separate from state management
@@ -80,7 +76,7 @@ This module encapsulates all splitting calculations into reusable combinational 
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset (For Assertions Only)
 
@@ -202,70 +198,6 @@ new_split_needed = split_required AND is_idle_state AND transaction_valid
 ```
 
 This signal indicates a new split sequence is starting (as opposed to continuing an existing split).
-
----
-
-## Design Assumptions
-
-The module enforces several critical assumptions to enable simplified, high-performance logic:
-
-### Assumption 1: Address Alignment
-
-**Assumption:** All AXI addresses are aligned to the data bus width.
-
-**Implication:**
-- If DATA_WIDTH = 512 bits (64 bytes), address is always 64-byte aligned
-- Low-order address bits are always zero
-
-**Verification:**
-```systemverilog
-assert ((current_addr & ADDR_ALIGN_MASK) == '0)
-```
-
-### Assumption 2: Fixed Transfer Size
-
-**Assumption:** All AXI transfers use maximum transfer size equal to bus width.
-
-**Implication:**
-- ax_size always matches log2(DATA_WIDTH/8)
-- Example: 64-bit bus → ax_size = 3'b011 (8 bytes)
-
-**Verification:**
-```systemverilog
-assert (ax_size == EXPECTED_AX_SIZE)
-```
-
-### Assumption 3: Incrementing Bursts Only
-
-**Assumption:** All bursts use incrementing address mode (AxBURST = 2'b01).
-
-**Implication:**
-- No FIXED or WRAP burst handling
-- Address calculation simplified
-
-**Rationale:**
-- Covers 95%+ of real-world use cases
-- FIXED bursts rarely cross boundaries
-- WRAP bursts require complex modulo arithmetic
-
-### Assumption 4: No Address Wraparound
-
-**Assumption:** Transactions never wrap around top of address space (0xFFFFFFFF → 0x00000000).
-
-**Implication:**
-- No wraparound detection or handling
-- Simplified comparison logic
-
-**Verification:**
-```systemverilog
-assert (transaction_end_addr >= current_addr) // No overflow
-assert (next_boundary_addr > current_addr)    // Boundary doesn't wrap
-```
-
-**Rationale:**
-- Top of address space typically reserved for device registers
-- Memory allocators avoid near-boundary allocations
-- Real systems never allow this condition
 
 ---
 
@@ -412,6 +344,68 @@ split_required = True
 ---
 
 ## Design Notes
+
+### Design Assumptions
+
+Four assumptions make the simplified, high-performance logic possible, and the module enforces every one of them:
+
+### Assumption 1: Address Alignment
+
+**Assumption:** All AXI addresses are aligned to the data bus width.
+
+**Implication:**
+- If DATA_WIDTH = 512 bits (64 bytes), address is always 64-byte aligned
+- Low-order address bits are always zero
+
+**Verification:**
+```systemverilog
+assert ((current_addr & ADDR_ALIGN_MASK) == '0)
+```
+
+### Assumption 2: Fixed Transfer Size
+
+**Assumption:** All AXI transfers use maximum transfer size equal to bus width.
+
+**Implication:**
+- ax_size always matches log2(DATA_WIDTH/8)
+- Example: 64-bit bus → ax_size = 3'b011 (8 bytes)
+
+**Verification:**
+```systemverilog
+assert (ax_size == EXPECTED_AX_SIZE)
+```
+
+### Assumption 3: Incrementing Bursts Only
+
+**Assumption:** All bursts use incrementing address mode (AxBURST = 2'b01).
+
+**Implication:**
+- No FIXED or WRAP burst handling
+- Address calculation simplified
+
+**Rationale:**
+- Covers 95%+ of real-world use cases
+- FIXED bursts rarely cross boundaries
+- WRAP bursts require complex modulo arithmetic
+
+### Assumption 4: No Address Wraparound
+
+**Assumption:** Transactions never wrap around top of address space (0xFFFFFFFF → 0x00000000).
+
+**Implication:**
+- No wraparound detection or handling
+- Simplified comparison logic
+
+**Verification:**
+```systemverilog
+assert (transaction_end_addr >= current_addr) // No overflow
+assert (next_boundary_addr > current_addr)    // Boundary doesn't wrap
+```
+
+**Rationale:**
+- Top of address space typically reserved for device registers
+- Memory allocators avoid near-boundary allocations
+- Real systems never allow this condition
 
 ### Synthesis Optimization
 

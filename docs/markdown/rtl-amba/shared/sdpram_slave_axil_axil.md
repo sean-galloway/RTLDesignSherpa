@@ -31,7 +31,9 @@
 
 ## Overview
 
-`sdpram_slave_axil_axil` is the all-AXI4-Lite permutation of the family: a **single-beat AXIL slave on the write side** (AW + W + B) and a **single-beat AXIL slave on the read side** (AR + R) in front of the shared `sdpram_core` backend. It directly instantiates the native `axil4_slave_wr` and `axil4_slave_rd` skid leaves and bridges their AXIL FUB outputs into the core's AXI-shaped FUB by supplying single-beat defaults on both sides. No AXI4-only fields appear anywhere on the wrapper's external boundary.
+`sdpram_slave_axil_axil` is the all-AXI4-Lite permutation of the family: a **single-beat AXIL slave on the write side** (AW + W + B) and a **single-beat AXIL slave on the read side** (AR + R) in front of the shared `sdpram_core` backend. It directly instantiates the native `axil4_slave_wr` and `axil4_slave_rd` skid leaves and bridges their AXIL FUB outputs into the core's AXI-shaped FUB by supplying single-beat defaults on both sides. No AXI4-only fields appear anywhere on the wrapper's external boundary — which is exactly what you want from a register-style memory.
+
+Sometimes you just need a lightweight memory shared between two AXIL agents — one writing, one reading — with no burst machinery exposed. This wrapper is exactly that: both sides are single-word AXIL, and the shared backend supplies the burst/ID scaffolding internally. Because AXIL carries no transaction ID, the wrapper carries a 1-bit zero ID through `sdpram_core` purely for type-width bookkeeping. The single-beat defaults are the only "fake" AXI4 fields in the design, and they live in exactly one place per side.
 
 ### Key Features
 
@@ -43,14 +45,6 @@
 - Byte-enabled writes, single-cycle-latency reads
 - Bulk-clear control and debug taps
 - No WRAP assertion needed (both sides are inherently single-beat INCR)
-
----
-
-## Module Purpose
-
-The simplest members of the family need a lightweight, register-style memory shared between two AXIL agents — one writing, one reading. This wrapper provides exactly that with no burst machinery exposed: both sides are single-word AXIL, and the shared backend supplies the burst/ID scaffolding internally.
-
-Because AXIL carries no transaction ID, the wrapper carries a 1-bit zero ID through `sdpram_core` purely for type-width bookkeeping. The single-beat defaults are the only "fake" AXI4 fields in the design, and they live in exactly one place per side.
 
 **Use Cases:**
 - Lightweight scratch / mailbox RAM shared between two AXIL agents
@@ -81,7 +75,7 @@ Because AXIL carries no transaction ID, the wrapper carries a 1-bit zero ID thro
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 

@@ -44,11 +44,7 @@ compile-time enable parameter on the wrapper.
 - `apb4_slave.sv` → `apb4_slave_cg.sv`
 - `axis_master.sv` → `axis_master_cg.sv`
 
----
-
-## Key Principle
-
-**Clock-gated variants preserve the functional behavior of the base module and add runtime power management.**
+The key principle: **clock-gated variants preserve the functional behavior of the base module and add runtime power management.**
 
 ```
 Base Module + amba_clock_gate_ctrl + activity detection = _cg Variant
@@ -57,50 +53,15 @@ Base Module + amba_clock_gate_ctrl + activity detection = _cg Variant
 All base-module parameters and ports are preserved. The wrapper adds one parameter, two
 configuration inputs, and one or two status outputs.
 
-Note that a `_cg` variant is not cycle-identical to its base module. Most `_cg` wrappers
-force the relevant `*ready` signals low while the clock is gated, so the first transfer
-that arrives out of a gated period is backpressured for the wake-up cycle. Transfers are
-delayed, never dropped. See [Wake-Up Behavior](#wake-up-behavior).
+One thing to understand before you wire one up: a `_cg` variant is not cycle-identical to
+its base module. Most `_cg` wrappers force the relevant `*ready` signals low while the
+clock is gated, so the first transfer that arrives out of a gated period is backpressured
+for the wake-up cycle. Transfers are delayed, never dropped. See
+[Wake-Up Behavior](#wake-up-behavior).
 
 ---
 
-## Gating Infrastructure
-
-The gating logic lives in two shared modules, not in the wrappers themselves.
-
-### amba_clock_gate_ctrl (`rtl/amba/shared/`)
-
-The AMBA-facing adapter. It ORs the two activity inputs, registers the result into
-`r_wakeup`, exposes `idle = ~r_wakeup`, and passes `r_wakeup` to the generic controller.
-
-| Port | Direction | Description |
-|------|-----------|-------------|
-| `clk_in` | Input | Ungated clock |
-| `aresetn` | Input | Asynchronous active-low reset |
-| `cfg_cg_enable` | Input | Global gating enable (0 = clock always runs) |
-| `cfg_cg_idle_count` | Input | Idle countdown value, `CG_IDLE_COUNT_WIDTH` bits |
-| `user_valid` | Input | Any user-side valid/activity signal |
-| `axi_valid` | Input | Any bus-side valid/activity signal |
-| `clk_out` | Output | Gated clock |
-| `gating` | Output | Clock currently gated |
-| `idle` | Output | No activity seen in the previous cycle |
-
-### clock_gate_ctrl (`rtl/common/`)
-
-The generic countdown controller. It loads `cfg_cg_idle_count` on reset, on `wakeup`, and
-whenever `cfg_cg_enable` is low; otherwise it decrements to zero and holds. The gate
-condition is:
-
-```systemverilog
-w_gate_enable = cfg_cg_enable && !wakeup && (r_idle_counter == 0);
-```
-
-`w_gate_enable` drives the `icg` cell (inverted, since the cell enable is active-high) and
-is also driven out as `gating`.
-
----
-
-## Additional Parameter (All _cg Modules)
+## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -114,7 +75,7 @@ threshold you need exceeds the current counter range.
 
 ---
 
-## Additional Ports (All _cg Modules)
+## Ports
 
 ### Configuration Inputs
 
@@ -153,7 +114,41 @@ These are common misconceptions; none of them are present in the RTL:
 
 ---
 
-## Clock Gating Behavior
+## Functional Description
+
+### Gating Infrastructure
+
+The gating logic lives in two shared modules, not in the wrappers themselves.
+
+#### amba_clock_gate_ctrl (`rtl/amba/shared/`)
+
+The AMBA-facing adapter. It ORs the two activity inputs, registers the result into
+`r_wakeup`, exposes `idle = ~r_wakeup`, and passes `r_wakeup` to the generic controller.
+
+| Port | Direction | Description |
+|------|-----------|-------------|
+| `clk_in` | Input | Ungated clock |
+| `aresetn` | Input | Asynchronous active-low reset |
+| `cfg_cg_enable` | Input | Global gating enable (0 = clock always runs) |
+| `cfg_cg_idle_count` | Input | Idle countdown value, `CG_IDLE_COUNT_WIDTH` bits |
+| `user_valid` | Input | Any user-side valid/activity signal |
+| `axi_valid` | Input | Any bus-side valid/activity signal |
+| `clk_out` | Output | Gated clock |
+| `gating` | Output | Clock currently gated |
+| `idle` | Output | No activity seen in the previous cycle |
+
+#### clock_gate_ctrl (`rtl/common/`)
+
+The generic countdown controller. It loads `cfg_cg_idle_count` on reset, on `wakeup`, and
+whenever `cfg_cg_enable` is low; otherwise it decrements to zero and holds. The gate
+condition is:
+
+```systemverilog
+w_gate_enable = cfg_cg_enable && !wakeup && (r_idle_counter == 0);
+```
+
+`w_gate_enable` drives the `icg` cell (inverted, since the cell enable is active-high) and
+is also driven out as `gating`.
 
 ### Activity Detection
 
@@ -171,6 +166,47 @@ assign axi_valid  = m_axi_arvalid   || m_axi_rvalid;
 1. `cfg_cg_enable = 1`
 2. The internal `r_wakeup` is deasserted (no activity in the previous cycle)
 3. The idle counter has decremented to zero
+
+### Ready Forcing While Gated
+
+The following wrappers drive the relevant `*ready` outputs to zero while gated, so the
+first beat out of a gated period is backpressured rather than lost:
+
+- All AXI4, AXI5, and AXI4-Lite transport `_cg` modules
+- `axis_master_cg`, `axis_slave_cg`
+- All four AXI5 `*_mon_cg` modules
+- `apb4_slave_cdc_cg` (both clock domains)
+
+`apb4_master_cg`, `apb4_slave_cg`, the APB5 variants, and the AXI5-Stream variants do not
+force ready.
+
+### State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> RUNNING
+
+    RUNNING --> COUNTING : wakeup deasserted
+    COUNTING --> RUNNING : activity detected<br/>(counter reloads)
+    COUNTING --> GATED : counter reaches 0<br/>&& cfg_cg_enable
+    GATED --> RUNNING : activity detected<br/>(1 stage / 2 clocks to first edge;<br/>2 stages / 3 clocks on APB, APB5, AXI5-Stream)
+
+    state RUNNING {
+        note right of RUNNING : Clock running, counter reloaded
+    }
+
+    state COUNTING {
+        note right of COUNTING : Counter decrementing to 0
+    }
+
+    state GATED {
+        note right of GATED : Clock stopped, ready forced low
+    }
+```
+
+---
+
+## Timing
 
 ### Counting Convention
 
@@ -246,46 +282,9 @@ Cycle N+2: First usable gated-clock rising edge. ARREADY reflects the base
 before handing it to `amba_clock_gate_ctrl`, which registers it again — **2 register
 stages, first usable clock edge 3 clocks** after activity asserts.
 
-### Ready Forcing While Gated
-
-The following wrappers drive the relevant `*ready` outputs to zero while gated, so the
-first beat out of a gated period is backpressured rather than lost:
-
-- All AXI4, AXI5, and AXI4-Lite transport `_cg` modules
-- `axis_master_cg`, `axis_slave_cg`
-- All four AXI5 `*_mon_cg` modules
-- `apb4_slave_cdc_cg` (both clock domains)
-
-`apb4_master_cg`, `apb4_slave_cg`, the APB5 variants, and the AXI5-Stream variants do not
-force ready.
-
-### State Machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> RUNNING
-
-    RUNNING --> COUNTING : wakeup deasserted
-    COUNTING --> RUNNING : activity detected<br/>(counter reloads)
-    COUNTING --> GATED : counter reaches 0<br/>&& cfg_cg_enable
-    GATED --> RUNNING : activity detected<br/>(1 stage / 2 clocks to first edge;<br/>2 stages / 3 clocks on APB, APB5, AXI5-Stream)
-
-    state RUNNING {
-        note right of RUNNING : Clock running, counter reloaded
-    }
-
-    state COUNTING {
-        note right of COUNTING : Counter decrementing to 0
-    }
-
-    state GATED {
-        note right of GATED : Clock stopped, ready forced low
-    }
-```
-
 ---
 
-## Usage Patterns
+## Usage Example
 
 ### Pattern 1: Aggressive Gating
 
@@ -361,9 +360,7 @@ signals. The wrapper is then behaviorally equivalent to the base module.
 
 This is the only bypass mechanism. There is no separate scan or test-mode port.
 
----
-
-## Measuring Gated Cycles
+### Measuring Gated Cycles
 
 The wrappers do not count gated cycles. Accumulate the status output where the metric is
 needed:
@@ -388,9 +385,9 @@ Note that this counter must itself be clocked from an ungated clock.
 
 ---
 
-## Synthesis and Portability
+## Design Notes
 
-### The ICG Cell
+### Synthesis and Portability
 
 `clock_gate_ctrl` instantiates a bare `icg` primitive by name:
 
@@ -422,60 +419,7 @@ glitch-prone, unconstrained clock. For FPGA targets, either
 This is a real portability constraint, not a tuning preference. Do not push a `_cg` variant
 through an FPGA flow without addressing it.
 
----
-
-## Verification Considerations
-
-### Functional Verification
-
-Hold `cfg_cg_enable` low for functional regression runs. This yields simpler waveforms,
-faster simulation, and removes the wake-up backpressure cycle from the transfer timing.
-
-### Gating Verification
-
-For gating-specific tests, drive `cfg_cg_enable` high and:
-
-1. Sweep `cfg_cg_idle_count` and confirm `cg_gating` asserts `cfg_cg_idle_count + 1` clocks
-   after the last wakeup.
-2. Confirm the wake-up latency — 1 register stage and a first usable gated-clock edge
-   2 clocks after activity asserts, or 2 stages and 3 clocks on APB, APB5, and AXI5-Stream
-   — and that no transfer is lost across a gate-to-ungate transition.
-3. Confirm that `*ready` is low for the whole gated interval on the wrappers listed under
-   [Ready Forcing While Gated](#ready-forcing-while-gated).
-4. Confirm `cfg_cg_enable = 0` reproduces base-module timing exactly.
-
----
-
-## Available Clock-Gated Variants
-
-### Transport Modules (22)
-
-Every module below instantiates `amba_clock_gate_ctrl` and takes `CG_IDLE_COUNT_WIDTH`,
-`cfg_cg_enable`, and `cfg_cg_idle_count`.
-
-| Protocol | Location | CG Variants |
-|----------|----------|-------------|
-| AXI4 | `rtl/amba/axi4/` | `axi4_master_rd_cg`, `axi4_master_wr_cg`, `axi4_slave_rd_cg`, `axi4_slave_wr_cg` |
-| AXI5 | `rtl/amba/axi5/` | `axi5_master_rd_cg`, `axi5_master_wr_cg`, `axi5_slave_rd_cg`, `axi5_slave_wr_cg` |
-| AXI4-Lite | `rtl/amba/axil4/` | `axil4_master_rd_cg`, `axil4_master_wr_cg`, `axil4_slave_rd_cg`, `axil4_slave_wr_cg` |
-| APB | `rtl/amba/apb4/` | `apb4_master_cg`, `apb4_slave_cg`, `apb4_slave_cdc_cg` (two gating domains) |
-| APB5 | `rtl/amba/apb5/` | `apb5_master_cg`, `apb5_slave_cg`, `apb5_slave_cdc_cg` |
-| AXI-Stream | `rtl/amba/axis4/` | `axis_master_cg`, `axis_slave_cg` |
-| AXI5-Stream | `rtl/amba/axis5/` | `axis5_master_cg`, `axis5_slave_cg` |
-
-### Monitor Modules (12)
-
-| Protocol | Location | CG Variants | Gating Implemented |
-|----------|----------|-------------|--------------------|
-| AXI5 | `rtl/amba/monitor/` | `axi5_master_rd_mon_cg`, `axi5_master_wr_mon_cg`, `axi5_slave_rd_mon_cg`, `axi5_slave_wr_mon_cg` | Yes |
-| AXI4 | `rtl/amba/monitor/` | `axi4_master_rd_mon_cg`, `axi4_master_wr_mon_cg`, `axi4_slave_rd_mon_cg`, `axi4_slave_wr_mon_cg` | No — see [Known Gaps](#known-gaps) |
-| AXI4-Lite | `rtl/amba/monitor/` | `axil4_master_rd_mon_cg`, `axil4_master_wr_mon_cg`, `axil4_slave_rd_mon_cg`, `axil4_slave_wr_mon_cg` | No — see [Known Gaps](#known-gaps) |
-
-**Total:** 34 `_cg` modules, of which 26 implement clock gating.
-
----
-
-## Known Gaps
+### Known Gaps
 
 The eight AXI4 and AXI4-Lite `*_mon_cg` wrappers predate `amba_clock_gate_ctrl` and use a
 different, incomplete scheme. None of them instantiates `amba_clock_gate_ctrl`, and none of
@@ -509,7 +453,36 @@ AXI5 `*_mon_cg` modules are the reference for how a monitor CG wrapper should lo
 
 ---
 
-## Related Documentation
+## Related Modules
+
+### Available Clock-Gated Variants
+
+#### Transport Modules (22)
+
+Every module below instantiates `amba_clock_gate_ctrl` and takes `CG_IDLE_COUNT_WIDTH`,
+`cfg_cg_enable`, and `cfg_cg_idle_count`.
+
+| Protocol | Location | CG Variants |
+|----------|----------|-------------|
+| AXI4 | `rtl/amba/axi4/` | `axi4_master_rd_cg`, `axi4_master_wr_cg`, `axi4_slave_rd_cg`, `axi4_slave_wr_cg` |
+| AXI5 | `rtl/amba/axi5/` | `axi5_master_rd_cg`, `axi5_master_wr_cg`, `axi5_slave_rd_cg`, `axi5_slave_wr_cg` |
+| AXI4-Lite | `rtl/amba/axil4/` | `axil4_master_rd_cg`, `axil4_master_wr_cg`, `axil4_slave_rd_cg`, `axil4_slave_wr_cg` |
+| APB | `rtl/amba/apb4/` | `apb4_master_cg`, `apb4_slave_cg`, `apb4_slave_cdc_cg` (two gating domains) |
+| APB5 | `rtl/amba/apb5/` | `apb5_master_cg`, `apb5_slave_cg`, `apb5_slave_cdc_cg` |
+| AXI-Stream | `rtl/amba/axis4/` | `axis_master_cg`, `axis_slave_cg` |
+| AXI5-Stream | `rtl/amba/axis5/` | `axis5_master_cg`, `axis5_slave_cg` |
+
+#### Monitor Modules (12)
+
+| Protocol | Location | CG Variants | Gating Implemented |
+|----------|----------|-------------|--------------------|
+| AXI5 | `rtl/amba/monitor/` | `axi5_master_rd_mon_cg`, `axi5_master_wr_mon_cg`, `axi5_slave_rd_mon_cg`, `axi5_slave_wr_mon_cg` | Yes |
+| AXI4 | `rtl/amba/monitor/` | `axi4_master_rd_mon_cg`, `axi4_master_wr_mon_cg`, `axi4_slave_rd_mon_cg`, `axi4_slave_wr_mon_cg` | No — see [Known Gaps](#known-gaps) |
+| AXI4-Lite | `rtl/amba/monitor/` | `axil4_master_rd_mon_cg`, `axil4_master_wr_mon_cg`, `axil4_slave_rd_mon_cg`, `axil4_slave_wr_mon_cg` | No — see [Known Gaps](#known-gaps) |
+
+**Total:** 34 `_cg` modules, of which 26 implement clock gating.
+
+### Related Documentation
 
 - **Gating Controller:** [amba_clock_gate_ctrl.md](amba_clock_gate_ctrl.md)
 - **Per-Protocol Guides:**
@@ -522,8 +495,30 @@ AXI5 `*_mon_cg` modules are the reference for how a monitor CG wrapper should lo
 
 ---
 
+## Testing
+
+### Functional Verification
+
+Hold `cfg_cg_enable` low for functional regression runs. This yields simpler waveforms,
+faster simulation, and removes the wake-up backpressure cycle from the transfer timing.
+
+### Gating Verification
+
+For gating-specific tests, drive `cfg_cg_enable` high and:
+
+1. Sweep `cfg_cg_idle_count` and confirm `cg_gating` asserts `cfg_cg_idle_count + 1` clocks
+   after the last wakeup.
+2. Confirm the wake-up latency — 1 register stage and a first usable gated-clock edge
+   2 clocks after activity asserts, or 2 stages and 3 clocks on APB, APB5, and AXI5-Stream
+   — and that no transfer is lost across a gate-to-ungate transition.
+3. Confirm that `*ready` is low for the whole gated interval on the wrappers listed under
+   [Ready Forcing While Gated](#ready-forcing-while-gated).
+4. Confirm `cfg_cg_enable = 0` reproduces base-module timing exactly.
+
+---
+
 ## Navigation
 
-- **[← Back to Shared Infrastructure Index](./README.md)**
-- **[← Back to rtl-amba Index](../index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- [Back to Shared Infrastructure Index](./README.md)
+- [Back to rtl-amba Index](../index.md)
+- [Back to Main Documentation Index](../../index.md)

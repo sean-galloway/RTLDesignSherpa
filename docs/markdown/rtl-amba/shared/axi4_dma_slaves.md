@@ -33,6 +33,15 @@
 
 `axi4_dma_slaves` bundles a synthetic AXI4 read *source* and write *sink* into one block that a DMA or streaming engine can plug into for source/sink characterization without a real memory backend. The read side (`axi4_slave_rd_pattern_gen`) answers AR bursts with LFSR-generated data; the write side (`axi4_slave_wr_crc_check`) accepts AW/W bursts and CRCs the data. Both compute CRC-32 with the same configuration, so a master that reads the pattern and writes it straight back produces matching read/write CRCs when the datapath is clean.
 
+Characterizing a DMA needs a memory model on both its read and write ports. Rather than instantiate a real RAM (and its checking logic) twice, this block wraps the two purpose-built synthetic slaves and exposes their combined port surface as a single AXI4 read+write slave. The read side manufactures a deterministic pattern; the write side verifies one. Because the CRC polynomial, init, xorout, and reflection settings are threaded identically into both children, the two CRCs are on the same footing — the master writes back the same LFSR data it read, and both sides compute against the same CRC.
+
+**Use cases:**
+- `stream_char_harness` attaches this to STREAM's `m_axi_rd` / `m_axi_wr` to characterize DMA throughput, response-delay sweeps, and end-to-end CRC integrity
+- RAPIDS characterization: source/sink termination for an engine's AXI4 master ports
+- Any AXI4 master needing a fast, checkable, memory-free source/sink pair
+
+**Key benefit:** a drop-in memory replacement that is both non-blocking (never the bottleneck) and self-checking (read and write CRCs must agree), all from a single instantiation.
+
 ### Key Features
 
 - One-instance source + sink slave pair for DMA / streaming-engine characterization
@@ -43,19 +52,6 @@
 - Independent read-LFSR and write-CRC resets so either side can be re-armed alone
 - Per-channel and aggregate CRC / beat-count telemetry from both sides
 - Per-side `busy_rd` / `busy_wr` status for harness-level stop triggers
-
----
-
-## Module Purpose
-
-Characterizing a DMA needs a memory model on both its read and write ports. Rather than instantiate a real RAM (and its checking logic) twice, this block wraps the two purpose-built synthetic slaves and exposes their combined port surface as a single AXI4 read+write slave. The read side manufactures a deterministic pattern; the write side verifies one. Because the CRC polynomial, init, xorout, and reflection settings are threaded identically into both children, the two CRCs are on the same footing — the master writes back the same LFSR data it read, and both sides compute against the same CRC.
-
-**Use Cases:**
-- `stream_char_harness` attaches this to STREAM's `m_axi_rd` / `m_axi_wr` to characterize DMA throughput, response-delay sweeps, and end-to-end CRC integrity
-- RAPIDS characterization: source/sink termination for an engine's AXI4 master ports
-- Any AXI4 master needing a fast, checkable, memory-free source/sink pair
-
-**Key Benefit:** A drop-in memory replacement that is both non-blocking (never the bottleneck) and self-checking (read and write CRCs must agree), all from a single instantiation.
 
 ---
 
@@ -91,7 +87,7 @@ Characterizing a DMA needs a memory model on both its read and write ports. Rath
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -233,6 +229,12 @@ assign integrity_ok = (rd_crc[ch] == wr_crc[ch]);
 ### See Also
 - **axi4_master_wr_pattern_gen.sv** / **axi4_master_rd_crc_check.sv** — the master-side counterparts (drive traffic instead of terminating it)
 - **axi4_intf_master_observer.sv** — non-intrusive observability wrapper for a DMA's master ports (`projects/components/misc/rtl/`)
+
+---
+
+## Testing
+
+Covered from `val/amba/` with the rest of the shared area — run everything with `make -C val/amba clean-all && make -C val/amba run-all-func-parallel`.
 
 ---
 

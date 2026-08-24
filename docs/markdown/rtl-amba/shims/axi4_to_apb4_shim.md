@@ -31,7 +31,7 @@
 
 ## Overview
 
-Top-level bridge module that converts AXI4 memory-mapped transactions to APB peripheral bus accesses with full dual-clock domain crossing (CDC) support. This shim integrates multiple components to provide a complete, robust bridge between AXI4 and APB protocols.
+The top-level bridge: AXI4 memory-mapped transactions in, APB peripheral bus accesses out, with full dual-clock domain crossing (CDC) support in between. This shim stitches together the AXI slave stub, the converter core, two async FIFOs, and the APB master stub so you don't have to — drop it between your AXI interconnect and your APB bus and it does the whole job.
 
 ### Key Features
 
@@ -45,7 +45,52 @@ Top-level bridge module that converts AXI4 memory-mapped transactions to APB per
 
 ---
 
-## Module Declaration
+## Parameters
+
+### Skid Buffer Depths
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| DEPTH_AW | int | 2 | AW channel skid buffer depth (one of {2,4,6,8} -- gaxi_skid_buffer elaboration guard) |
+| DEPTH_W | int | 4 | W channel skid buffer depth |
+| DEPTH_B | int | 2 | B channel skid buffer depth |
+| DEPTH_AR | int | 2 | AR channel skid buffer depth |
+| DEPTH_R | int | 4 | R channel skid buffer depth |
+
+**Recommendation:** Use deeper depths (4-8) for high-latency paths, shallow (2) for low-latency. All five DEPTH_* parameters must be in {2, 4, 6, 8}: gaxi_skid_buffer rejects anything else at elaboration.
+
+### Internal Buffering
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| SIDE_DEPTH | int | 4 | Side information FIFO depth (tracks ID, last, user) |
+| APB_CMD_DEPTH | int | 4 | APB command CDC FIFO depth. Legal values with the default Gray encoding: {2, 4, 8} -- the value feeds BOTH the apb4_master skid buffers ({2,4,6,8} guard) and, floored to `max(DEPTH,4)`, the Gray CDC FIFO (power-of-2 guard), so 6 elaborates only with USE_JOHNSON=1 |
+| APB_RSP_DEPTH | int | 4 | APB response CDC FIFO depth. Same constraint set as APB_CMD_DEPTH |
+| USE_JOHNSON | int | 0 | Pointer encoding for the two CDC FIFOs: 0 = Gray (requires power-of-2 depths -- elaboration $error otherwise), 1 = Johnson (any depth) |
+
+### AXI Interface
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| AXI_ID_WIDTH | int | 8 | Transaction ID width (1-16) |
+| AXI_ADDR_WIDTH | int | 32 | Address width (12-64) |
+| AXI_DATA_WIDTH | int | 32 | Data width (32, 64, 128, 256, 512) |
+| AXI_USER_WIDTH | int | 1 | User sideband signal width |
+
+### APB Interface
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| APB_ADDR_WIDTH | int | 32 | APB address width (must match AXI) |
+| APB_DATA_WIDTH | int | 32 | APB data width (8, 16, 32, 64) |
+
+**Note:** APB_DATA_WIDTH must be ≤ AXI_DATA_WIDTH. Width adaptation is automatic.
+
+---
+
+## Ports
+
+The full interface — all five AXI4 channels on the slave side, a classic APB3 master on the other:
 
 ```systemverilog
 module axi4_to_apb4_shim #(
@@ -149,52 +194,9 @@ module axi4_to_apb4_shim #(
 
 ---
 
-## Parameters
+## Functional Description
 
-### Skid Buffer Depths
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `DEPTH_AW` | 2 | AW channel skid buffer depth (one of {2,4,6,8} -- gaxi_skid_buffer elaboration guard) |
-| `DEPTH_W` | 4 | W channel skid buffer depth |
-| `DEPTH_B` | 2 | B channel skid buffer depth |
-| `DEPTH_AR` | 2 | AR channel skid buffer depth |
-| `DEPTH_R` | 4 | R channel skid buffer depth |
-
-**Recommendation:** Use deeper depths (4-8) for high-latency paths, shallow (2) for low-latency. All five DEPTH_* parameters must be in {2, 4, 6, 8}: gaxi_skid_buffer rejects anything else at elaboration.
-
-### Internal Buffering
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `SIDE_DEPTH` | 4 | Side information FIFO depth (tracks ID, last, user) |
-| `APB_CMD_DEPTH` | 4 | APB command CDC FIFO depth. Legal values with the default Gray encoding: {2, 4, 8} -- the value feeds BOTH the apb4_master skid buffers ({2,4,6,8} guard) and, floored to `max(DEPTH,4)`, the Gray CDC FIFO (power-of-2 guard), so 6 elaborates only with USE_JOHNSON=1 |
-| `APB_RSP_DEPTH` | 4 | APB response CDC FIFO depth. Same constraint set as APB_CMD_DEPTH |
-| `USE_JOHNSON` | 0 | Pointer encoding for the two CDC FIFOs: 0 = Gray (requires power-of-2 depths -- elaboration $error otherwise), 1 = Johnson (any depth) |
-
-### AXI Interface
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `AXI_ID_WIDTH` | 8 | Transaction ID width (1-16) |
-| `AXI_ADDR_WIDTH` | 32 | Address width (12-64) |
-| `AXI_DATA_WIDTH` | 32 | Data width (32, 64, 128, 256, 512) |
-| `AXI_USER_WIDTH` | 1 | User sideband signal width |
-
-### APB Interface
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `APB_ADDR_WIDTH` | 32 | APB address width (must match AXI) |
-| `APB_DATA_WIDTH` | 32 | APB data width (8, 16, 32, 64) |
-
-**Note:** APB_DATA_WIDTH must be ≤ AXI_DATA_WIDTH. Width adaptation is automatic.
-
----
-
-## Architecture
-
-### Component Hierarchy
+### Architecture
 
 ```
 axi4_to_apb4_shim (this module)
@@ -241,16 +243,14 @@ AXI Master → AR skid buffer (aclk)
           → R channel response + data (aclk)
 ```
 
----
-
-## Behavior
-
 ### AXI to APB Conversion
 
 **Burst Decomposition:**
 - AXI burst (AWLEN > 0) → Multiple APB single-beat transfers
 - Each beat addressed individually (address increments per burst type)
 - Burst completion is counted from AWLEN (`r_burst_count`); WLAST is carried but never sampled -- a malformed W stream with wrong WLAST placement is not detected
+
+That last point is worth repeating: if your master misplaces WLAST, this bridge won't catch it. Verify your masters.
 
 **Width Adaptation:**
 - When `AXI_DATA_WIDTH > APB_DATA_WIDTH`:
@@ -283,7 +283,42 @@ AXI Master → AR skid buffer (aclk)
 
 ---
 
-## Usage Examples
+## Timing
+
+### Latency
+
+| Configuration | Typical Latency | Notes |
+|--------------|-----------------|-------|
+| Same clock, no width convert | 5-7 cycles | Minimal overhead |
+| Same clock, width convert | 8-12 cycles | +1 cycle per APB beat |
+| Dual-clock, no width convert | 12-16 cycles | +3-5 cycles per CDC |
+| Dual-clock, width convert | 15-20 cycles | Combined overhead |
+
+**Components:**
+- AXI skid buffers: 1 cycle
+- Conversion logic: 2-3 cycles
+- CMD CDC: 3-5 cycles
+- APB protocol: 2 cycles minimum
+- RSP CDC: 3-5 cycles
+
+### Throughput
+
+**Maximum AXI Burst Throughput:**
+- Limited by APB protocol (2 cycles per beat minimum)
+- Width conversion: N APB beats per AXI beat (N = AXI_DW / APB_DW)
+- **Example:** 64b AXI → 32b APB = 4 APB cycles per AXI beat
+
+**Sustained Bandwidth:**
+```
+AXI Bandwidth → APB Bandwidth:
+- Same width: APB_BW = AXI_BW / 2 (APB overhead)
+- 2:1 ratio:  APB_BW = AXI_BW / 4
+- 4:1 ratio:  APB_BW = AXI_BW / 8
+```
+
+---
+
+## Usage Example
 
 ### Example 1: Same Clock, Same Width
 
@@ -381,58 +416,9 @@ axi4_to_apb4_shim #(
 
 ---
 
-## Performance Characteristics
+## Design Notes
 
-### Latency
-
-| Configuration | Typical Latency | Notes |
-|--------------|-----------------|-------|
-| Same clock, no width convert | 5-7 cycles | Minimal overhead |
-| Same clock, width convert | 8-12 cycles | +1 cycle per APB beat |
-| Dual-clock, no width convert | 12-16 cycles | +3-5 cycles per CDC |
-| Dual-clock, width convert | 15-20 cycles | Combined overhead |
-
-**Components:**
-- AXI skid buffers: 1 cycle
-- Conversion logic: 2-3 cycles
-- CMD CDC: 3-5 cycles
-- APB protocol: 2 cycles minimum
-- RSP CDC: 3-5 cycles
-
-### Throughput
-
-**Maximum AXI Burst Throughput:**
-- Limited by APB protocol (2 cycles per beat minimum)
-- Width conversion: N APB beats per AXI beat (N = AXI_DW / APB_DW)
-- **Example:** 64b AXI → 32b APB = 4 APB cycles per AXI beat
-
-**Sustained Bandwidth:**
-```
-AXI Bandwidth → APB Bandwidth:
-- Same width: APB_BW = AXI_BW / 2 (APB overhead)
-- 2:1 ratio:  APB_BW = AXI_BW / 4
-- 4:1 ratio:  APB_BW = AXI_BW / 8
-```
-
----
-
-## Testing
-
-```bash
-# Run integration test
-pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py -v
-
-# Test with waveforms
-pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py --vcd=shim.vcd -v
-gtkwave shim.vcd
-
-# Run with specific configuration
-pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_axi2apb4[64-32]" -v
-```
-
----
-
-## Constraints and Limitations
+### Constraints and Limitations
 
 **Parameter Constraints:**
 - `APB_DATA_WIDTH` must be ≤ `AXI_DATA_WIDTH`
@@ -451,11 +437,9 @@ pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_axi2
 - Resets must be properly synchronized in each domain
 - Metastability-hardened flip-flops recommended for CDC paths
 
----
+### Synthesis Notes
 
-## Synthesis Notes
-
-### Resource Usage (Typical)
+**Resource Usage (Typical):**
 
 | Configuration | LUTs | FFs | BRAM | Notes |
 |--------------|------|-----|------|-------|
@@ -468,8 +452,6 @@ pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_axi2
 - axi4_to_apb4_convert: ~400 LUTs, ~300 FFs (FSMs, width logic)
 - 2× gaxi_fifo_async (depth 4): FIFO storage + gray-pointer synchronizers
 - apb4_master_stub: ~100 LUTs, ~100 FFs (APB protocol)
-
-### Timing Closure
 
 **Critical Paths:**
 - AXI packet unpacking (combinatorial)
@@ -491,18 +473,7 @@ set_max_delay -from [get_pins */u_rsp_cdc_fifo/*] \
               -to   [get_pins */u_rsp_cdc_fifo/*] 10.0 -datapath_only
 ```
 
----
-
-## Related Modules
-
-- **[axi4_to_apb4_convert](axi4_to_apb4_convert.md)** - Core conversion logic (instantiated internally)
-- **[axi4_slave_stub](../axi4/axi4_slave_stub.md)** - AXI slave interface wrapper
-- **[apb4_master_stub](../apb4/apb4_master_stub.md)** - APB master interface wrapper
-- **[gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md)** - the CDC FIFO used for both crossings
-
----
-
-## When to Use
+### When to Use
 
 **Use This Shim When:**
 - Bridging AXI4 system interconnect to APB peripherals
@@ -517,11 +488,36 @@ set_max_delay -from [get_pins */u_rsp_cdc_fifo/*] \
 
 ---
 
+## Related Modules
+
+- **[axi4_to_apb4_convert](axi4_to_apb4_convert.md)** - Core conversion logic (instantiated internally)
+- **[axi4_slave_stub](../axi4/axi4_slave_stub.md)** - AXI slave interface wrapper
+- **[apb4_master_stub](../apb4/apb4_master_stub.md)** - APB master interface wrapper
+- **[gaxi_fifo_async](../../rtl-cdc/gaxi_fifo_async.md)** - the CDC FIFO used for both crossings
+
+---
+
+## Testing
+
+```bash
+# Run integration test
+pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py -v
+
+# Test with waveforms
+pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py --vcd=shim.vcd -v
+gtkwave shim.vcd
+
+# Run with specific configuration
+pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_axi2apb4[64-32]" -v
+```
+
+---
+
 **Last Updated:** 2025-10-20
 
 ---
 
 ## Navigation
 
-- **[← Back to Shims Index](README.md)**
-- **[← Back to rtl-amba Index](../index.md)**
+- [Back to Shims Index](README.md)
+- [Back to rtl-amba Index](../index.md)

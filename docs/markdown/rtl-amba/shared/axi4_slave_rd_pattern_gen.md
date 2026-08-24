@@ -33,6 +33,16 @@
 
 `axi4_slave_rd_pattern_gen` is a read-only AXI4 slave that answers AR bursts with deterministic, LFSR-generated data and accumulates a running CRC-32 over the stream it emits. It exists to serve as a synthetic data *source* for DMA / streaming-engine characterization: a master under test issues read bursts, the slave returns a reproducible pseudo-random pattern, and the same pattern (and CRC) can be regenerated anywhere else in the system to prove end-to-end data integrity.
 
+Characterizing a DMA read path needs a slave that is both *fast* (never the bottleneck) and *checkable* (the returned data is a known function of the request). A real memory backend gives you neither cheaply. This module instead generates its read data from a Fibonacci LFSR, so every beat is a deterministic function of `(seed, beat_index)`, and folds that same data into a CRC-32 the harness can compare against an independently computed golden value.
+
+**Use cases:**
+- Feeding a DMA / streaming engine's read (`m_axi_rd`) port during throughput characterization
+- End-to-end integrity checks where read data is looped back to a write-CRC sink
+- Per-channel multi-context validation, where each channel's data must be independent of another channel's interleave on the shared AXI port
+- On-chip (FPGA) stimulus in the STREAM / RAPIDS characterization harnesses
+
+**Key benefit:** a memory-free, deterministic read slave whose per-channel CRC-32 is bit-identical to the write-side checker — integrity is proven with a single register compare, and the slave never starves the master.
+
 ### Key Features
 
 - Read-only AXI4 slave (AR + R channels) built on the standard `axi4_slave_rd` protocol handler
@@ -42,20 +52,6 @@
 - Gapless back-to-back bursts (AR accepted on the last beat) so `rvalid` never drops mid-stream
 - Per-channel CRC / beat-count telemetry plus an aggregate beat-count total for harness stop triggers
 - Single `crc_lfsr_reset` pulse re-arms all channel LFSRs and CRCs together
-
----
-
-## Module Purpose
-
-Characterizing a DMA read path needs a slave that is both *fast* (never the bottleneck) and *checkable* (the returned data is a known function of the request). A real memory backend gives neither cheaply. This module instead generates its read data from a Fibonacci LFSR, so every beat is a deterministic function of `(seed, beat_index)`, and folds that same data into a CRC-32 the harness can compare against an independently computed golden value.
-
-**Use Cases:**
-- Feeding a DMA / streaming engine's read (`m_axi_rd`) port during throughput characterization
-- End-to-end integrity checks where read data is looped back to a write-CRC sink
-- Per-channel multi-context validation, where each channel's data must be independent of another channel's interleave on the shared AXI port
-- On-chip (FPGA) stimulus in the STREAM / RAPIDS characterization harnesses
-
-**Key Benefit:** A memory-free, deterministic read slave whose per-channel CRC-32 is bit-identical to the write-side checker — integrity can be proven with a single register compare, and the slave never starves the master.
 
 ---
 
@@ -87,7 +83,7 @@ Characterizing a DMA read path needs a slave that is both *fast* (never the bott
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -240,6 +236,12 @@ axi4_slave_rd_pattern_gen #(
 - **axi4_slave_wr_crc_check.sv** — the matching write-side CRC sink (same CRC config)
 - **axi4_dma_slaves.sv** — the source/sink bundle
 - **axis4_master_pattern_gen.sv** — AXIS equivalent of this generator
+
+---
+
+## Testing
+
+Covered from `val/amba/` with the rest of the shared area — run everything with `make -C val/amba clean-all && make -C val/amba run-all-func-parallel`.
 
 ---
 

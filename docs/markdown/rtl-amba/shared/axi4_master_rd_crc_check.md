@@ -33,6 +33,16 @@
 
 `axi4_master_rd_crc_check` is a CSR-programmed AXI4 read *master* and integrity checker for memory-controller characterization. It walks the *same* algorithmic address mix (via `dma_address_gen`) and the *same* LFSR / hash schedule as `axi4_master_wr_pattern_gen`, so each returned R beat can be compared bit-for-bit against a locally regenerated pattern. It also accumulates a CRC-32 over the regenerated stream, so the harness can compare `o_actual_crc` against the writer's `o_expected_crc`.
 
+The read half of a memory-controller integrity loop has to know what it *should* receive. This block regenerates the writer's exact data locally — either from the same LFSR phase counter or from the same address hash — and compares every returned R beat against it, latching any mismatch. It also rolls the regenerated data into a CRC-32 that should equal the writer's expected CRC when the wire is clean. Together those give you both a per-beat pinpoint (which beat disagreed) and a whole-run summary (the CRC compare).
+
+**Use cases:**
+- Reading back a DDR / memory controller and verifying the data written by `axi4_master_wr_pattern_gen`
+- Address-pattern integrity sweeps sharing one descriptor with the write generator
+- Multi-id / out-of-order read validation using hash (address-derived) expected data
+- On-chip (FPGA) read checker in the DDR2 characterization harness
+
+**Key benefit:** end-to-end integrity in one block — the per-beat compare localizes corruption while the CRC-32 gives a single comparable summary, both derived from exactly the writer's algorithm.
+
 ### Key Features
 
 - CSR-programmed read workload with the *same descriptor shape* as the write pattern generator (one CSR word drives both)
@@ -43,20 +53,6 @@
 - Sticky `o_data_error` on any per-beat data mismatch, mismatch counter, and sticky `o_rresp_error` on non-OKAY R beats
 - CRC-32 over the regenerated LFSR stream (`o_actual_crc`) comparable to the writer's expected CRC
 - Optional debug FIFO capturing `(actual, expected, mismatch)` per R beat for ground-truth disagreement logging
-
----
-
-## Module Purpose
-
-The read half of a memory-controller integrity loop must know what it *should* receive. This block regenerates the writer's exact data locally — either from the same LFSR phase counter or from the same address hash — and compares every returned R beat against it, latching any mismatch. It also rolls the regenerated data into a CRC-32 that should equal the writer's expected CRC when the wire is clean. Together these give both a per-beat pinpoint (which beat disagreed) and a whole-run summary (CRC compare).
-
-**Use Cases:**
-- Reading back a DDR / memory controller and verifying the data written by `axi4_master_wr_pattern_gen`
-- Address-pattern integrity sweeps sharing one descriptor with the write generator
-- Multi-id / out-of-order read validation using hash (address-derived) expected data
-- On-chip (FPGA) read checker in the DDR2 characterization harness
-
-**Key Benefit:** End-to-end integrity in one block — per-beat compare localizes corruption while the CRC-32 gives a single comparable summary, both derived from exactly the writer's algorithm.
 
 ---
 
@@ -91,7 +87,7 @@ The read half of a memory-controller integrity loop must know what it *should* r
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -186,7 +182,7 @@ A `dataint_crc` accumulates over the regenerated LFSR stream (not the returned `
 
 ### Out-of-Order Completion — Known Limitation
 
-The v1 LFSR mirror advances on *arrival* index, so it is only correct with a single outstanding AR, or when all ARs share one ID (AXI4 mandates in-order R per id). With multiple outstanding ARs at distinct IDs the controller may return bursts interleaved / fully OOO, which reorders R beats versus the writer's W phase and breaks both the per-beat compare and the CRC roll-up. The header documents the v2 plan (per-address hash expected function + commutative CRC roll-up). Until then, the harness CSR must keep the read block single-outstanding (or all-same-id) when the controller has OOO enabled — or use hash data mode, which is inherently OOO-safe for the per-beat compare.
+Here's the part that gets everyone. The v1 LFSR mirror advances on *arrival* index, so it is only correct with a single outstanding AR, or when all ARs share one ID (AXI4 mandates in-order R per id). With multiple outstanding ARs at distinct IDs the controller may return bursts interleaved / fully OOO, which reorders R beats versus the writer's W phase and breaks both the per-beat compare and the CRC roll-up. The header documents the v2 plan (per-address hash expected function + commutative CRC roll-up). Until then, the harness CSR must keep the read block single-outstanding (or all-same-id) when the controller has OOO enabled — or use hash data mode, which is inherently OOO-safe for the per-beat compare.
 
 ### Optional Debug FIFO
 
@@ -279,6 +275,12 @@ assign integrity_ok = (rd_actual_crc == wr_expected_crc) && !rd_data_error;
 ### See Also
 - **axi4_master_wr_pattern_gen.sv** — the matching write-side driver (same LFSR/CRC/hash/descriptor config)
 - **axi4_slave_rd_pattern_gen.sv** — the slave-side read pattern source
+
+---
+
+## Testing
+
+Covered from `val/amba/` with the rest of the shared area — run everything with `make -C val/amba clean-all && make -C val/amba run-all-func-parallel`. The characterization masters carry an independent software CRC cross-check in their TBs.
 
 ---
 

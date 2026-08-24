@@ -31,7 +31,22 @@
 
 ## Overview
 
-The AMBA Clock Gate Controller provides dynamic clock gating capability tailored for AMBA protocol interfaces. It monitors transaction activity on both user-side and AXI-side interfaces to automatically gate the clock during idle periods, reducing dynamic power consumption while maintaining protocol correctness.
+The AMBA clock gate controller adds dynamic clock gating to AMBA protocol interfaces. It watches transaction activity on both the user side and the AXI side, gates the clock during idle stretches, and wakes on new activity — cutting dynamic power without touching protocol behavior.
+
+AMBA interfaces idle a lot in real systems, and an always-on clock burns power the whole time. This module does something about it:
+
+1. Monitors transaction activity on both interfaces
+2. Detects extended idle periods
+3. Gates the clock automatically to save power
+4. Ungates on new activity without waiting for the idle counter
+
+**Use cases:**
+- Power-critical AMBA interface implementations
+- Battery-powered systems with intermittent bus activity
+- Multi-master systems where individual masters idle frequently
+- ASIC designs requiring aggressive dynamic power reduction
+
+**Key benefit:** transparent power saving with no protocol impact — the activity detection guarantees the clock is there when a transfer needs it.
 
 ### Key Features
 
@@ -42,25 +57,6 @@ The AMBA Clock Gate Controller provides dynamic clock gating capability tailored
 - Global enable/disable control
 - Idle status monitoring
 - Zero added latency while the clock is already ungated (wake-up from gated costs 1 register stage here; see Performance Considerations)
-
----
-
-## Module Purpose
-
-AMBA protocol interfaces often experience periods of inactivity during system operation. Traditional always-on clocking wastes power during these idle periods. The AMBA Clock Gate Controller solves this by:
-
-1. Monitoring transaction activity on both interfaces
-2. Detecting extended idle periods
-3. Automatically gating the clock to save power
-4. Ungating on new activity without waiting for the idle counter
-
-**Use Cases:**
-- Power-critical AMBA interface implementations
-- Battery-powered systems with intermittent bus activity
-- Multi-master systems where individual masters idle frequently
-- ASIC designs requiring aggressive dynamic power reduction
-
-**Key Benefit:** Transparent power saving with no protocol impact (activity detection ensures clock availability when needed).
 
 ---
 
@@ -78,7 +74,7 @@ AMBA protocol interfaces often experience periods of inactivity during system op
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -115,18 +111,18 @@ AMBA protocol interfaces often experience periods of inactivity during system op
 
 ### Activity Detection Logic
 
-The module combines activity signals from both user and AXI interfaces to form a unified wakeup signal:
+The module ORs the activity signals from both interfaces into one wakeup:
 
 ```
 wakeup = user_valid OR axi_valid
 ```
 
-**Why Both Interfaces?**
-- User interface: Detects upstream master activity
-- AXI interface: Detects downstream slave activity
-- Combined: Ensures clock active for bidirectional traffic
+**Why both interfaces?**
+- User interface: catches upstream master activity
+- AXI interface: catches downstream slave activity
+- Combined: keeps the clock alive for bidirectional traffic
 
-**Registered Wakeup:**
+**Registered wakeup:**
 ```systemverilog
 always_ff @(posedge clk_in or negedge aresetn) begin
     if (!aresetn)
@@ -136,28 +132,29 @@ always_ff @(posedge clk_in or negedge aresetn) begin
 end
 ```
 
-**Key Property:** Wakeup signal is registered to:
-1. Prevent metastability (if activity signals cross clock domains)
-2. Provide stable input to downstream clock gate control
-3. Default to active state during reset (ensures clock available)
+Registering the wakeup buys you three things:
+
+1. Metastability protection, if the activity signals cross clock domains
+2. A stable, glitch-free input to the downstream clock gate control
+3. A default-active state during reset, so the clock is always available coming out of it
 
 ### Idle Signal Generation
 
-Idle status is the inverse of wakeup:
+Idle is just the inverse of wakeup:
 
 ```
 idle = ~r_wakeup
 ```
 
-**Interpretation:**
-- idle = 1: No activity for at least 1 cycle (eligible for gating)
-- idle = 0: Recent activity detected (clock must remain ungated)
+**Reading it:**
+- idle = 1: no activity for at least 1 cycle (eligible for gating)
+- idle = 0: recent activity detected (clock must stay ungated)
 
-**Usage:** Exported for monitoring/debug (system can observe interface idle status).
+It's exported for monitoring and debug, so the system can observe per-interface idle status directly.
 
 ### Clock Gating Control Integration
 
-The module instantiates a base clock gate controller:
+The real work is delegated to the base clock gate controller:
 
 ```systemverilog
 clock_gate_ctrl #(
@@ -173,15 +170,16 @@ clock_gate_ctrl #(
 );
 ```
 
-**Base Controller Operation:**
-1. Monitors r_wakeup signal
+**Base controller operation:**
+
+1. Monitors r_wakeup
 2. Reloads the idle counter with cfg_cg_idle_count on any activity, and counts DOWN while wakeup=0
 3. Gates the clock when the counter reaches 0
 4. Ungates when wakeup=1 (activity), without waiting for the idle counter
 
 ### Gating Threshold Behavior
 
-**cfg_cg_idle_count Examples (4-bit counter):**
+**cfg_cg_idle_count examples (4-bit counter):**
 
 | Value | Behavior |
 |-------|----------|
@@ -190,29 +188,33 @@ clock_gate_ctrl #(
 | 4 | Conservative: Gate after 4 consecutive idle cycles |
 | 15 | Maximum delay: Gate after 15 consecutive idle cycles |
 
-**Trade-off:**
-- Low threshold: Maximum power saving, higher gating/ungating frequency
-- High threshold: Reduced gating overhead, less power saving
+**The trade-off:**
+- Low threshold: maximum power saving, more gating/ungating churn
+- High threshold: less gating overhead, less power saved
 
-**Recommendation:** Start with moderate value (4-8) and tune based on measured activity patterns.
+Start with a moderate value (4-8) and tune against measured activity patterns. There's no universally right answer here — it depends on your burst shape.
 
-### Gating/Ungating Timing
+---
 
-**Gating Sequence (Activity → Idle):**
+## Timing
+
+### Gating Sequence (Activity → Idle)
+
 1. Cycle N: user_valid=1, axi_valid=0 → r_wakeup=1 during cycle N+1 (registered)
 2. Cycle N+1: user_valid=0, axi_valid=0 → r_wakeup=0 (idle)
 3. Idle counter starts counting down from cfg_cg_idle_count
-4. Cycle N+1+cfg_cg_idle_count: Counter threshold reached
+4. Cycle N+1+cfg_cg_idle_count: counter threshold reached
 5. Clock gates on next cycle edge (gating=1)
 
-**Ungating Sequence (Idle → Activity):**
+### Ungating Sequence (Idle → Activity)
+
 1. Clock currently gated (gating=1)
 2. Cycle M: user_valid=1 (new activity arrives)
 3. Cycle M+1: r_wakeup=1 (registered); gating=0 combinationally
 4. Cycle M+2: first usable gated-clock rising edge
 5. Normal operation resumes with no lost cycles
 
-**Critical Property:** Ungating does not wait on the idle counter. It still costs 1 register stage here, so the first usable gated-clock edge arrives 2 clocks after activity asserts (3 on the two-stage APB, APB5, and AXI5-Stream wrappers).
+The part that matters: ungating does not wait on the idle counter. It still costs 1 register stage here, so the first usable gated-clock edge arrives 2 clocks after activity asserts (3 on the two-stage APB, APB5, and AXI5-Stream wrappers).
 
 ---
 
@@ -324,23 +326,18 @@ amba_clock_gate_ctrl #(
 
 ### Wakeup Signal Registration
 
-**Design Decision:** The wakeup signal is registered before passing to clock gate controller.
+**Design decision:** the wakeup signal is registered before it reaches the clock gate controller.
 
-**Rationale:**
-1. **Metastability Protection:** Activity signals may originate from different clock domains
-2. **Stable Input:** Clock gate controller receives glitch-free wakeup signal
-3. **Reset Safety:** Defaults to active (1'b1) ensuring clock availability during reset
+**Why:**
+1. **Metastability protection:** activity signals may originate from different clock domains
+2. **Stable input:** the clock gate controller sees a glitch-free wakeup
+3. **Reset safety:** defaults to active (1'b1), so the clock is available during reset
 
-**Trade-off:** Adds 1 register stage to activity detection, so the first usable gated-clock
-edge arrives 2 clocks after activity asserts (3 on the two-stage APB, APB5, and AXI5-Stream
-wrappers, which register activity again before this module). Robust operation is worth the
-cost.
+**The cost:** one register stage on activity detection, so the first usable gated-clock edge arrives 2 clocks after activity asserts (3 on the two-stage APB, APB5, and AXI5-Stream wrappers, which register activity again before this module). A clean, glitch-free gate enable is worth that cycle.
 
 ### Activity Signal Selection
 
-**Best Practices:**
-
-**For User Interface (Upstream):**
+**For the user interface (upstream):**
 ```systemverilog
 // AXI Master Interface
 user_valid = awvalid | wvalid | arvalid
@@ -349,7 +346,7 @@ user_valid = awvalid | wvalid | arvalid
 user_valid = awready | wready | arready | rvalid | bvalid
 ```
 
-**For AXI Interface (Downstream):**
+**For the AXI interface (downstream):**
 ```systemverilog
 // AXI Master Interface
 axi_valid = awready | wready | arready | rvalid | bvalid
@@ -358,16 +355,16 @@ axi_valid = awready | wready | arready | rvalid | bvalid
 axi_valid = awvalid | wvalid | arvalid
 ```
 
-**Why Not Ready Signals?**
+**Why not ready signals?**
 - Valid signals indicate actual transaction progress
 - Ready signals may assert speculatively
 - Valid-based detection prevents premature gating
 
 ### Integration with ICG Cells
 
-The base clock_gate_ctrl module expects integration with standard ICG cell:
+The base clock_gate_ctrl expects a standard ICG cell underneath:
 
-**Typical ICG Cell Interface:**
+**Typical ICG cell interface:**
 ```systemverilog
 // Standard ICG cell instantiation (inside clock_gate_ctrl)
 ICG u_icg (
@@ -377,21 +374,21 @@ ICG u_icg (
 );
 ```
 
-**ASIC Integration:**
-- Use library-specific ICG cell (vendor-provided)
-- Ensure glitch-free enable signal (provided by controller)
+**ASIC integration:**
+- Use the library-specific ICG cell (vendor-provided)
+- The enable must be glitch-free (the controller provides that)
 - Consider test mode bypass for scan insertion
 
-**FPGA Integration:**
+**FPGA integration:**
 - Use global clock mux primitives (BUFGMUX, BUFGCE)
 - Some FPGAs have dedicated clock gating resources
-- Alternative: Fine-grained clock enable on flip-flops
+- Alternative: fine-grained clock enable on the flip-flops themselves
 
 ### Power Measurement Methodology
 
-**Estimating Power Savings:**
+**Estimating power savings:**
 
-1. **Measure Idle Time:**
+1. **Measure idle time:**
 ```systemverilog
 logic [31:0] idle_cycle_count;
 always_ff @(posedge clk_in) begin
@@ -400,17 +397,17 @@ always_ff @(posedge clk_in) begin
 end
 ```
 
-2. **Calculate Gating Efficiency:**
+2. **Calculate gating efficiency:**
 ```
 Gating Efficiency = (gating_active_cycles / total_cycles) × 100%
 ```
 
-3. **Estimate Power Reduction:**
+3. **Estimate power reduction:**
 ```
 Dynamic Power Saving ≈ Gating Efficiency × Clock Tree Power
 ```
 
-**Typical Results:**
+**Typical results:**
 - Low-activity interfaces: 60-80% gating efficiency
 - Burst-heavy traffic: 20-40% gating efficiency
 - Clock tree power: 20-30% of total dynamic power
@@ -418,25 +415,19 @@ Dynamic Power Saving ≈ Gating Efficiency × Clock Tree Power
 
 ### Performance Considerations
 
-**Latency Impact:**
+**Latency impact:**
 - No added latency when the clock is already ungated (activity present)
-- Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5,
-  AXI5-Stream) before reaching the ICG enable, which is combinational. The one
-  exception is `apb4_slave_cdc_cg`, which drives this module combinationally
-  (`assign pclk_user_valid = s_apb_PSEL || w_rsp_valid;`) and therefore registers
-  once despite being APB -- 2 clocks to the first usable gated edge, not 3. This module
-  contributes the single `r_wakeup` stage; two-stage families add one more in the wrapper.
-- First usable gated-clock rising edge: 2 clocks (single-stage families) or 3 clocks
-  (two-stage families) after activity asserts
+- Activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before reaching the ICG enable, which is combinational. The one exception is `apb4_slave_cdc_cg`, which drives this module combinationally (`assign pclk_user_valid = s_apb_PSEL || w_rsp_valid;`) and therefore registers once despite being APB — 2 clocks to the first usable gated edge, not 3. This module contributes the single `r_wakeup` stage; two-stage families add one more in the wrapper.
+- First usable gated-clock rising edge: 2 clocks (single-stage families) or 3 clocks (two-stage families) after activity asserts
 - Ungating does not wait on the idle counter
 
-**Throughput Impact:**
-- Zero impact: Clock always available for valid transactions
-- Activity detection ensures ungating before transaction arrival
+**Throughput impact:**
+- Zero: the clock is always available for valid transactions
+- Activity detection ungates before the transaction arrives
 
-**Area Overhead:**
-- Minimal: Single register + base controller
-- Base controller: Small FSM + counter
+**Area overhead:**
+- Minimal: single register + base controller
+- Base controller: small FSM + counter
 - Typical: <100 gates total
 
 ---
@@ -450,12 +441,20 @@ Dynamic Power Saving ≈ Gating Efficiency × Clock Tree Power
 - Power-critical peripheral interfaces
 
 ### Uses
-- **clock_gate_ctrl.sv** - Base clock gating controller (idle counter, FSM)
-- **reset_defs.svh** - Standard reset macro definitions
+- **clock_gate_ctrl.sv** — base clock gating controller (idle counter, FSM)
+- **reset_defs.svh** — standard reset macro definitions
 
 ### See Also
-- **clock_gate_ctrl.sv** - Generic clock gating controller (rtl/common/)
-- **icg.sv** - Integrated clock gate cell wrapper
+- **clock_gate_ctrl.sv** — generic clock gating controller (rtl/common/)
+- **icg.sv** — integrated clock gate cell wrapper
+
+---
+
+## Testing
+
+- Tests: `val/common/test_clock_gate_ctrl.py`
+
+The module is also covered from `val/amba/` with the rest of the shared area — run it with `make -C val/amba clean-all && make -C val/amba run-all-func-parallel`.
 
 ---
 
@@ -464,7 +463,6 @@ Dynamic Power Saving ≈ Gating Efficiency × Clock Tree Power
 ### Source Code
 - RTL: `rtl/amba/shared/amba_clock_gate_ctrl.sv`
 - Base Controller: `rtl/common/clock_gate_ctrl.sv`
-- Tests: `val/common/test_clock_gate_ctrl.py`
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
@@ -472,8 +470,8 @@ Dynamic Power Saving ≈ Gating Efficiency × Clock Tree Power
 - Design Guide: `docs/markdown/rtl-amba/index.md`
 
 ### Industry Standards
-- IEEE 1801 (UPF) - Unified Power Format for power-aware design
-- ARM AMBA specifications - Clock gating recommendations
+- IEEE 1801 (UPF) — Unified Power Format for power-aware design
+- ARM AMBA specifications — clock gating recommendations
 
 ---
 

@@ -31,7 +31,17 @@
 
 ## Overview
 
-Protocol adapter that bridges between the RTL Design Sherpa standard cmd/rsp interface and the PeakRDL register block "passthrough" cpuif interface. This shim enables seamless integration of PeakRDL-generated register blocks with RTL Design Sherpa's APB infrastructure.
+A protocol adapter that bridges between the RTL Design Sherpa standard cmd/rsp interface and the PeakRDL register block "passthrough" cpuif interface. If you're generating register blocks from SystemRDL and want them on the Sherpa APB infrastructure, this little shim is what sits in the middle.
+
+Some background, since the name assumes it: **PeakRDL** is a register description language compiler that generates SystemVerilog register blocks from `.rdl` files. The generated blocks use a "passthrough" cpuif (CPU interface) that differs from standard bus protocols.
+
+**What this adapter solves:**
+- Integration with RTL Design Sherpa's cmd/rsp-based APB infrastructure
+- Byte strobe → bit enable conversion (PeakRDL uses bit-level enables)
+- Stall handling (PeakRDL can stall requests separately for read/write)
+- Response channel synchronization
+
+**See Also:** `projects/components/converters/rtl/peakrdl_adapter_README.md` for the PeakRDL workflow guide
 
 ### Key Features
 
@@ -39,26 +49,25 @@ Protocol adapter that bridges between the RTL Design Sherpa standard cmd/rsp int
 - **Stall Handling:** Proper support for PeakRDL req_stall signals
 - **Strobe Conversion:** Byte strobes → bit enables (PeakRDL requirement)
 - **Error Propagation:** PeakRDL errors → cmd/rsp PSLVERR
-- **FSM-Based:** Robust state machines for cmd and rsp channels
+- **FSM-Based:** Clean state machines for cmd and rsp channels
 - **Assertions:** none in the RTL today (the Assertions section in the source is empty); protocol conformance is covered by the cocotb suite and the formal harness (`formal/converters/peakrdl_to_cmdrsp/`)
 
 ---
 
-## Background: PeakRDL Integration
+## Parameters
 
-**PeakRDL** is a register description language compiler that generates SystemVerilog register blocks from `.rdl` files. The generated blocks use a "passthrough" cpuif (CPU interface) that differs from standard bus protocols.
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| ADDR_WIDTH | int | 12 | Address width for cmd/rsp interface (4 KB register space) |
+| DATA_WIDTH | int | 32 | Data width (must match PeakRDL generation, typically 32) |
 
-**This adapter solves:**
-- Integration with RTL Design Sherpa's cmd/rsp-based APB infrastructure
-- Byte strobe → bit enable conversion (PeakRDL uses bit-level enables)
-- Stall handling (PeakRDL can stall requests separately for read/write)
-- Response channel synchronization
-
-**See Also:** `projects/components/converters/rtl/peakrdl_adapter_README.md` for PeakRDL workflow guide
+**Note:** These must match the PeakRDL register block generation parameters.
 
 ---
 
-## Module Declaration
+## Ports
+
+The full interface — cmd/rsp on one side, PeakRDL passthrough cpuif on the other:
 
 ```systemverilog
 module peakrdl_to_cmdrsp #(
@@ -105,42 +114,27 @@ module peakrdl_to_cmdrsp #(
 );
 ```
 
----
-
-## Parameters
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `ADDR_WIDTH` | 12 | Address width for cmd/rsp interface (4 KB register space) |
-| `DATA_WIDTH` | 32 | Data width (must match PeakRDL generation, typically 32) |
-
-**Note:** These must match the PeakRDL register block generation parameters.
-
----
-
-## Ports
-
 ### CMD/RSP Interface (RTL Design Sherpa Standard)
 
 **Command Channel:**
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `cmd_valid` | Input | 1 | Command valid |
-| `cmd_ready` | Output | 1 | Ready to accept command |
-| `cmd_pwrite` | Input | 1 | Write operation (1=write, 0=read) |
-| `cmd_paddr` | Input | ADDR_WIDTH | Byte address |
-| `cmd_pwdata` | Input | DATA_WIDTH | Write data |
-| `cmd_pstrb` | Input | DATA_WIDTH/8 | Byte strobes (1=valid byte) |
+| cmd_valid | Input | 1 | Command valid |
+| cmd_ready | Output | 1 | Ready to accept command |
+| cmd_pwrite | Input | 1 | Write operation (1=write, 0=read) |
+| cmd_paddr | Input | ADDR_WIDTH | Byte address |
+| cmd_pwdata | Input | DATA_WIDTH | Write data |
+| cmd_pstrb | Input | DATA_WIDTH/8 | Byte strobes (1=valid byte) |
 
 **Response Channel:**
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `rsp_valid` | Output | 1 | Response valid |
-| `rsp_ready` | Input | 1 | Ready to consume response |
-| `rsp_prdata` | Output | DATA_WIDTH | Read data |
-| `rsp_pslverr` | Output | 1 | Error flag (1=error) |
+| rsp_valid | Output | 1 | Response valid |
+| rsp_ready | Input | 1 | Ready to consume response |
+| rsp_prdata | Output | DATA_WIDTH | Read data |
+| rsp_pslverr | Output | 1 | Error flag (1=error) |
 
 ### PeakRDL Passthrough Interface
 
@@ -148,27 +142,27 @@ module peakrdl_to_cmdrsp #(
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `regblk_req` | Output | 1 | Request -- held from the accept cycle THROUGH WAIT_ACK (>= 2 consecutive cycles even with earliest ack; N+1 cycles for an N-cycle ack delay; drops during CMD_STALLED). The hold is REQUIRED: the generated PeakRDL passthrough cpuif needs req held until it acks -- a one-cycle reduction (2026-08-17) broke every integrated register read and was reverted. Any future timing change must be validated through an integrated path (stream build-mon obs_apb), not the standalone converter suite, whose idempotent register masks request-timing changes (TASK-064 closure note) |
-| `regblk_req_is_wr` | Output | 1 | Operation type (1=write, 0=read) |
-| `regblk_addr` | Output | ADDR_WIDTH | Register address |
-| `regblk_wr_data` | Output | DATA_WIDTH | Write data |
-| `regblk_wr_biten` | Output | DATA_WIDTH | Write bit enables (1=update bit) |
+| regblk_req | Output | 1 | Request -- held from the accept cycle THROUGH WAIT_ACK (>= 2 consecutive cycles even with earliest ack; N+1 cycles for an N-cycle ack delay; drops during CMD_STALLED). The hold is REQUIRED: the generated PeakRDL passthrough cpuif needs req held until it acks -- a one-cycle reduction (2026-08-17) broke every integrated register read and was reverted. Any future timing change must be validated through an integrated path (stream build-mon obs_apb), not the standalone converter suite, whose idempotent register masks request-timing changes (TASK-064 closure note) |
+| regblk_req_is_wr | Output | 1 | Operation type (1=write, 0=read) |
+| regblk_addr | Output | ADDR_WIDTH | Register address |
+| regblk_wr_data | Output | DATA_WIDTH | Write data |
+| regblk_wr_biten | Output | DATA_WIDTH | Write bit enables (1=update bit) |
 
 **Stall/Acknowledge Signals:**
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `regblk_req_stall_wr` | Input | 1 | Write request stalled (retry later) |
-| `regblk_req_stall_rd` | Input | 1 | Read request stalled (retry later) |
-| `regblk_rd_ack` | Input | 1 | Read completed (1 cycle pulse) |
-| `regblk_wr_ack` | Input | 1 | Write completed (1 cycle pulse) |
-| `regblk_rd_data` | Input | DATA_WIDTH | Read data (valid with rd_ack) |
-| `regblk_rd_err` | Input | 1 | Read error (valid with rd_ack) |
-| `regblk_wr_err` | Input | 1 | Write error (valid with wr_ack) |
+| regblk_req_stall_wr | Input | 1 | Write request stalled (retry later) |
+| regblk_req_stall_rd | Input | 1 | Read request stalled (retry later) |
+| regblk_rd_ack | Input | 1 | Read completed (1 cycle pulse) |
+| regblk_wr_ack | Input | 1 | Write completed (1 cycle pulse) |
+| regblk_rd_data | Input | DATA_WIDTH | Read data (valid with rd_ack) |
+| regblk_rd_err | Input | 1 | Read error (valid with rd_ack) |
+| regblk_wr_err | Input | 1 | Write error (valid with wr_ack) |
 
 ---
 
-## Behavior
+## Functional Description
 
 ### Command State Machine
 
@@ -248,11 +242,77 @@ regblk_wr_biten = 32'hFFFF_0000
    - The FSM moves to CMD_WAIT_ACK on the next cycle; `regblk_req`
      re-asserts there with the REGISTERED command and is HELD until ack
 
-**Purpose:** Allows PeakRDL register block to implement internal arbitration or serialization.
+**Purpose:** This lets the PeakRDL register block implement internal arbitration or serialization without losing requests.
 
 ---
 
-## Usage Examples
+## Timing
+
+### Timing Diagrams
+
+**Read Transaction (No Stall):**
+
+```
+Cycle:         0    1    2    3    4    5
+              ___  ___  ___  ___  ___  ___
+aclk       __|   |_|   |_|   |_|   |_|   |_
+
+cmd_valid  ____/¯¯¯¯¯\_____________________
+cmd_ready  ¯¯¯¯¯¯¯¯¯\______/¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+cmd_pwrite ____[  0  ]_____________________
+cmd_paddr  ____[0x100]_____________________
+
+regblk_req ________/¯¯¯\___________________
+              (held from accept until rd_ack)
+regblk_rd_ack __________/¯\_________________
+
+rsp_valid  ____________/¯¯¯¯¯\_____________
+rsp_ready  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\______/¯¯¯¯¯
+rsp_prdata ____________[DATA  ]_____________
+```
+
+**Write Transaction with Stall:**
+
+```
+Cycle:         0    1    2    3    4    5    6
+              ___  ___  ___  ___  ___  ___  ___
+aclk       __|   |_|   |_|   |_|   |_|   |_|   |_
+
+cmd_valid  ____/¯¯¯¯¯\_____________________________
+cmd_ready  ¯¯¯¯¯¯¯¯¯\______________/¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+
+regblk_req_stall_wr ___/¯¯¯¯¯¯¯\___________________
+               (stalled in cycles 1-2)
+
+regblk_req ____/¯¯¯¯¯\_________/¯¯¯¯¯¯¯¯¯¯\_______
+             (accept-cycle pulse; LOW during STALLED;
+              re-asserted in WAIT_ACK and HELD until ack)
+
+regblk_wr_ack ______________/¯\___________________
+
+rsp_valid  ________________/¯¯¯¯¯\________________
+rsp_ready  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\______/¯¯¯¯¯¯¯¯
+```
+
+Watch the `regblk_req` line in that second diagram — accept-cycle pulse, low while stalled, then re-asserted and held. That's the behavior the generated cpuif depends on.
+
+### Latency
+
+| Operation | Typical Latency | Notes |
+|-----------|-----------------|-------|
+| Read (no stall) | 2 cycles | req → rd_ack → rsp |
+| Write (no stall) | 2 cycles | req → wr_ack → rsp |
+| Read (with stall) | 2 + stall cycles | Depends on PeakRDL arbitration |
+| Write (with stall) | 2 + stall cycles | Depends on PeakRDL arbitration |
+
+### Throughput
+
+- **Maximum:** 1 transaction per 2 cycles (no stalls)
+- **Typical:** 1 transaction per 3-5 cycles (APB overhead)
+
+---
+
+## Usage Example
 
 ### Example 1: Basic Integration with PeakRDL Register Block
 
@@ -380,104 +440,23 @@ my_regs u_regs (
 );
 ```
 
----
+### PeakRDL Workflow
 
-## Timing Diagrams
+**Complete workflow documented in:** `projects/components/converters/rtl/peakrdl_adapter_README.md`
 
-### Read Transaction (No Stall)
-
-```
-Cycle:         0    1    2    3    4    5
-              ___  ___  ___  ___  ___  ___
-aclk       __|   |_|   |_|   |_|   |_|   |_
-
-cmd_valid  ____/¯¯¯¯¯\_____________________
-cmd_ready  ¯¯¯¯¯¯¯¯¯\______/¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-cmd_pwrite ____[  0  ]_____________________
-cmd_paddr  ____[0x100]_____________________
-
-regblk_req ________/¯¯¯\___________________
-              (held from accept until rd_ack)
-regblk_rd_ack __________/¯\_________________
-
-rsp_valid  ____________/¯¯¯¯¯\_____________
-rsp_ready  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\______/¯¯¯¯¯
-rsp_prdata ____________[DATA  ]_____________
-```
-
-### Write Transaction with Stall
-
-```
-Cycle:         0    1    2    3    4    5    6
-              ___  ___  ___  ___  ___  ___  ___
-aclk       __|   |_|   |_|   |_|   |_|   |_|   |_
-
-cmd_valid  ____/¯¯¯¯¯\_____________________________
-cmd_ready  ¯¯¯¯¯¯¯¯¯\______________/¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-
-regblk_req_stall_wr ___/¯¯¯¯¯¯¯\___________________
-               (stalled in cycles 1-2)
-
-regblk_req ____/¯¯¯¯¯\_________/¯¯¯¯¯¯¯¯¯¯\_______
-             (accept-cycle pulse; LOW during STALLED;
-              re-asserted in WAIT_ACK and HELD until ack)
-
-regblk_wr_ack ______________/¯\___________________
-
-rsp_valid  ________________/¯¯¯¯¯\________________
-rsp_ready  ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\______/¯¯¯¯¯¯¯¯
-```
+**Quick summary:**
+1. Write `.rdl` register description
+2. Generate SystemVerilog: `peakrdl regblock my_regs.rdl -o my_regs.sv`
+3. Select passthrough cpuif during generation
+4. Use this adapter to bridge to APB infrastructure
 
 ---
 
-## Testing
+## Design Notes
 
-```bash
-# Run adapter test
-pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py -v
+### Synthesis Notes
 
-# Test with waveforms
-pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py --vcd=peakrdl.vcd -v
-gtkwave peakrdl.vcd
-```
-
----
-
-## Assertions
-
-The RTL currently carries NO inline assertions -- the Assertions section in
-`peakrdl_to_cmdrsp.sv` is an empty placeholder. The valid/data stability
-contract (cmd/rsp valid held and payload stable until the handshake) is
-checked by the cocotb suite and the formal harness
-(`formal/converters/peakrdl_to_cmdrsp/`), not by simulation-time SVA. If
-inline SVA is added later, restore the four stability properties this page
-used to list.
-
----
-
-## Performance
-
-### Latency
-
-| Operation | Typical Latency | Notes |
-|-----------|-----------------|-------|
-| Read (no stall) | 2 cycles | req → rd_ack → rsp |
-| Write (no stall) | 2 cycles | req → wr_ack → rsp |
-| Read (with stall) | 2 + stall cycles | Depends on PeakRDL arbitration |
-| Write (with stall) | 2 + stall cycles | Depends on PeakRDL arbitration |
-
-### Throughput
-
-- **Maximum:** 1 transaction per 2 cycles (no stalls)
-- **Typical:** 1 transaction per 3-5 cycles (APB overhead)
-
----
-
-## Synthesis Notes
-
-### Resource Usage
-
-**Typical (ADDR_WIDTH=12, DATA_WIDTH=32):**
+**Resource Usage (ADDR_WIDTH=12, DATA_WIDTH=32):**
 - ~50 LUTs
 - ~100 FFs
 - 0 BRAM
@@ -486,6 +465,19 @@ used to list.
 - Command FSM: ~20 LUTs, ~40 FFs
 - Response FSM: ~10 LUTs, ~35 FFs
 - Strobe conversion: ~20 LUTs (combinatorial)
+
+Fifty LUTs. This is one of the cheapest shims you'll ever instantiate — the register block behind it will dwarf it.
+
+### When to Use
+
+**Use This Adapter When:**
+- Integrating PeakRDL-generated register blocks
+- Using RTL Design Sherpa APB infrastructure
+- Need cmd/rsp ↔ passthrough cpuif conversion
+
+**Alternatives:**
+- PeakRDL native APB cpuif (if not using cmd/rsp)
+- Custom register implementation (if not using PeakRDL)
 
 ---
 
@@ -500,28 +492,26 @@ used to list.
 
 ---
 
-## When to Use
+## Testing
 
-**Use This Adapter When:**
-- Integrating PeakRDL-generated register blocks
-- Using RTL Design Sherpa APB infrastructure
-- Need cmd/rsp ↔ passthrough cpuif conversion
+```bash
+# Run adapter test
+pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py -v
 
-**Alternatives:**
-- PeakRDL native APB cpuif (if not using cmd/rsp)
-- Custom register implementation (if not using PeakRDL)
+# Test with waveforms
+pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py --vcd=peakrdl.vcd -v
+gtkwave peakrdl.vcd
+```
 
----
+### Assertions
 
-## PeakRDL Workflow
-
-**Complete workflow documented in:** `projects/components/converters/rtl/peakrdl_adapter_README.md`
-
-**Quick summary:**
-1. Write `.rdl` register description
-2. Generate SystemVerilog: `peakrdl regblock my_regs.rdl -o my_regs.sv`
-3. Select passthrough cpuif during generation
-4. Use this adapter to bridge to APB infrastructure
+The RTL currently carries NO inline assertions -- the Assertions section in
+`peakrdl_to_cmdrsp.sv` is an empty placeholder. The valid/data stability
+contract (cmd/rsp valid held and payload stable until the handshake) is
+checked by the cocotb suite and the formal harness
+(`formal/converters/peakrdl_to_cmdrsp/`), not by simulation-time SVA. If
+inline SVA is added later, restore the four stability properties this page
+used to list.
 
 ---
 
@@ -531,5 +521,5 @@ used to list.
 
 ## Navigation
 
-- **[← Back to Shims Index](README.md)**
-- **[← Back to rtl-amba Index](../index.md)**
+- [Back to Shims Index](README.md)
+- [Back to rtl-amba Index](../index.md)

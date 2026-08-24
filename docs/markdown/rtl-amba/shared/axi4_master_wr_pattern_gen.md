@@ -33,6 +33,16 @@
 
 `axi4_master_wr_pattern_gen` is a CSR-programmed AXI4 write *master* for memory-controller characterization. On a start pulse it walks an algorithmic address mix (via `dma_address_gen`) and streams LFSR-pattern data through `axi4_master_wr`, accumulating a CRC-32 over the data it writes. It pairs with `axi4_master_rd_crc_check`, which regenerates the same pattern on the read side so the two CRCs (and per-beat compares) validate end-to-end data integrity through a real DRAM controller.
 
+Bringing up a memory controller means driving it with realistic, deterministic write traffic and proving the data survives the round trip. This block drives the writes: it walks a programmable address pattern and emits reproducible data, folding that data into a CRC-32 that becomes the "expected" value for the read-side checker. The write data can be a simple LFSR phase counter (fast, but order-sensitive) or an address-derived hash (each beat's data is a pure function of its byte address, so multi-id / out-of-order completion still validates).
+
+**Use cases:**
+- Driving a DDR / memory-controller's AXI4 write port during characterization sweeps
+- Generating the "golden" CRC / data that `axi4_master_rd_crc_check` compares against
+- Address-pattern stress (incremental, row-major, column-major page attacks) via the `dma_address_gen` descriptor
+- On-chip (FPGA) write stimulus in the DDR2 characterization harness
+
+**Key benefit:** a CSR-driven, deterministic write generator whose data can be regenerated bit-for-bit anywhere — turning memory-controller bring-up into a single expected-vs-actual CRC comparison.
+
 ### Key Features
 
 - CSR-programmed write workload: start address, address-generator strides/wrap masks, burst length, transaction count, AXI id/size/burst attributes
@@ -43,20 +53,6 @@
 - CRC-32 accumulator over the written LFSR stream (`o_expected_crc`) for the read side to compare against
 - Configurable inter-burst idle gap (`cfg_wr_gap`) for throughput-stress sweeps
 - Sticky `o_bresp_error` on any non-OKAY write response; direct re-arm from the done state
-
----
-
-## Module Purpose
-
-Bringing up and characterizing a memory controller means driving it with realistic, deterministic write traffic and proving the data survives the round trip. This block drives the writes: it walks a programmable address pattern and emits reproducible data, folding that data into a CRC-32 that becomes the "expected" value for the read-side checker. The write data can be a simple LFSR phase counter (fast, but order-sensitive) or an address-derived hash (each beat's data is a pure function of its byte address, so multi-id / out-of-order completion still validates).
-
-**Use Cases:**
-- Driving a DDR / memory-controller's AXI4 write port during characterization sweeps
-- Generating the "golden" CRC / data that `axi4_master_rd_crc_check` compares against
-- Address-pattern stress (incremental, row-major, column-major page attacks) via the `dma_address_gen` descriptor
-- On-chip (FPGA) write stimulus in the DDR2 characterization harness
-
-**Key Benefit:** A CSR-driven, deterministic, self-documenting write generator whose data can be regenerated bit-for-bit anywhere — turning a memory-controller bring-up into a single expected-vs-actual CRC comparison.
 
 ---
 
@@ -92,7 +88,7 @@ Bringing up and characterizing a memory controller means driving it with realist
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -156,7 +152,7 @@ Two independent `dma_address_gen` instances (`u_addr_gen_aw`, `u_addr_gen_w`) wa
 
 ### Data Path: LFSR vs Address Hash
 
-Two data sources are muxed by `cfg_data_mode`:
+Two data sources, muxed by `cfg_data_mode`:
 
 - **Mode 0 (LFSR):** a 32-bit Fibonacci LFSR (`shifter_lfsr_fibonacci`, taps `{23,3,2,1}`) advances on every accepted W beat, replicated across the data bus (`REP` copies). The data stream is a deterministic function of `(seed, total_beats_so_far)`. This is order-sensitive and breaks under multi-id / out-of-order completion.
 - **Mode 1 (address hash):** each 32-bit slice is a Murmur3-fmix-style function of its byte address and the three `cfg_hash_seed` values (xor-shift + odd multiplies). Because each beat's data depends only on its address, reorder does not perturb the per-beat compare on the read side.
@@ -254,6 +250,12 @@ axi4_master_wr_pattern_gen #(
 ### See Also
 - **axi4_master_rd_crc_check.sv** — the matching read-side driver + checker (same LFSR/CRC/hash config)
 - **axi4_slave_wr_crc_check.sv** — the slave-side write CRC sink
+
+---
+
+## Testing
+
+Covered from `val/amba/` with the rest of the shared area — run everything with `make -C val/amba clean-all && make -C val/amba run-all-func-parallel`. The characterization masters carry an independent software CRC cross-check in their TBs.
 
 ---
 

@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI Master Write Splitter handles the complex task of splitting boundary-crossing write transactions while maintaining data integrity and response consolidation. Unlike read splitting which simply passes through responses, write splitting must aggregate multiple split responses into a single consolidated response with proper error priority handling.
+The write half of the splitter pair earns its keep. Splitting a boundary-crossing read is mostly bookkeeping — the responses flow back upstream as they arrive. Splitting a write is harder: the downstream slave returns one B-channel response per split, but the upstream master issued exactly one transaction and expects exactly one response. This module detects the crossing, splits the transaction, keeps the AW and W channels synchronized while it does it, and folds N responses into one consolidated response with proper error priority handling.
 
 ### Key Features
 
@@ -48,11 +48,7 @@ The AXI Master Write Splitter handles the complex task of splitting boundary-cro
 - Zero added latency for non-split transactions
 - Full AXI4 protocol compliance with user extensions
 
----
-
-## Module Purpose
-
-Write transaction splitting presents unique challenges compared to read splitting due to the tight coupling between address (AW), data (W), and response (B) channels. The AXI Master Write Splitter solves these challenges while maintaining protocol correctness.
+Write transactions couple three channels — address (AW), data (W), and response (B) — that handshake on independent timing. That coupling is what makes write splitting a genuinely different problem from read splitting, and it's the problem this module solves without bending the protocol.
 
 **Problem Statement:**
 - Upstream master issues write (ADDR=0x0FC0, LEN=7, 8 data beats, 64-byte beats -- AXI_DATA_WIDTH=512; at the default 32-bit width this burst would not cross)
@@ -96,7 +92,7 @@ Write transaction splitting presents unique challenges compared to read splittin
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -211,7 +207,7 @@ Write transaction splitting presents unique challenges compared to read splittin
 
 ### Write Transaction Splitting Overview
 
-Write splitting requires coordinated management of three independent AXI channels with different timing characteristics.
+Write splitting is a juggling act: three independent AXI channels with different timing characteristics, one transaction that has to stay coherent. The module has two paths through it.
 
 **Non-Split Path (Fast):**
 - Transaction fully contained within single boundary
@@ -230,7 +226,7 @@ Write splitting requires coordinated management of three independent AXI channel
 
 ### State Machine Architecture
 
-Similar to read splitter but with additional W channel tracking:
+Same skeleton as the read splitter, with extra bookkeeping for the W channel:
 
 **IDLE State:**
 - Awaits new transactions on fub_aw interface
@@ -249,7 +245,7 @@ Similar to read splitter but with additional W channel tracking:
 
 **WLAST Regeneration:**
 
-The critical challenge is regenerating WLAST at split boundaries:
+This is the part that bites people. When a burst gets cut at a boundary, the WLAST that arrived with the original stream lands in the wrong place for every split except the last — so the module regenerates it.
 
 **Beat Counter Tracking:**
 - r_expected_beats: Beats required for current split (from split_len + 1)
@@ -271,7 +267,7 @@ Else:
 
 ### Response Consolidation Logic
 
-**CRITICAL FEATURE:** Multiple split responses must aggregate into single upstream response.
+**CRITICAL FEATURE:** the N split responses have to come back upstream as one.
 
 **Consolidation State:**
 - r_expected_response_count: Total splits generated
@@ -315,7 +311,7 @@ if (m_axi_bresp > r_consolidated_resp_status):
 
 ### Boundary Crossing Detection
 
-Reuses same combinational logic as read splitter (axi_split_combi):
+Same combinational engine the read splitter uses (axi_split_combi) — one way to compute a boundary, shared by both.
 
 **Inputs:**
 - current_addr, current_len, ax_size, alignment_mask

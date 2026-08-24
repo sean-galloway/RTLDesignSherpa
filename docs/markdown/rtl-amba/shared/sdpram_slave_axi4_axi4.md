@@ -43,10 +43,6 @@
 - Full complement of debug taps (external and FUB valid/ready, BRAM fire pulses, leaf busy)
 - Sim-only assertion flagging unvalidated WRAP bursts
 
----
-
-## Module Purpose
-
 Characterization harnesses need a synthesizable memory that a device-under-test can read and write over AXI4 while a separate host or checker uses the other port. Splitting the write side and read side into two independent AXI4 slaves lets one agent stream data in while another drains it out, with the BRAM as the shared medium.
 
 This is the pure-AXI4 permutation of the family. When both the producer and consumer speak full AXI4 (bursts, IDs), this wrapper avoids any width- or burst-adaptation on either side.
@@ -78,7 +74,7 @@ This is the pure-AXI4 permutation of the family. When both the producer and cons
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 

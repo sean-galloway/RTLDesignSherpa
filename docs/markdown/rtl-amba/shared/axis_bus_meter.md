@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXIS Bus Meter is the AXI-Stream analogue of `axi_bus_meter`. It performs the same four-bucket per-cycle valid/ready classification (productive / backpressure / starvation / idle), and adds AXIS-native throughput counters that are **window-independent**: a payload-byte count derived from `tstrb` popcount and a packet count derived from `tlast`. Because bytes and packets are counted only on productive beats, they measure exactly how much data moved regardless of how long the measurement window stays open — so throughput computed as bytes / busy-time is robust to backpressure and idle padding that would distort a pure cycle-utilization figure. Like its AXI cousin, it is a pure observer and drives nothing back onto the bus.
+The AXIS Bus Meter is the AXI-Stream analogue of `axi_bus_meter`. It performs the same four-bucket per-cycle valid/ready classification (productive / backpressure / starvation / idle), and adds AXIS-native throughput counters that are **window-independent**: a payload-byte count derived from `tstrb` popcount and a packet count derived from `tlast`. Because bytes and packets are counted only on productive beats, they measure exactly how much data moved regardless of how long the measurement window stays open — so throughput computed as bytes / busy-time is immune to the backpressure and idle padding that would distort a pure cycle-utilization figure. Like its AXI cousin, it is a pure observer and drives nothing back onto the bus.
 
 ### Key Features
 
@@ -41,10 +41,6 @@ The AXIS Bus Meter is the AXI-Stream analogue of `axi_bus_meter`. It performs th
 - Per-channel 16-bit cycle buckets binned by `tid`, with per-channel 4-bit sticky overflow
 - Synchronous one-cycle `i_clear` and `i_freeze` window control
 - Passive snoop of `tvalid`/`tready`/`tlast`/`tstrb`/`tid` — no bus interaction
-
----
-
-## Module Purpose
 
 Cycle-utilization alone is a fragile throughput proxy on a stream bus: if a window is held open for host polling after the last beat, idle cycles inflate and the utilization ratio drops even though the same number of bytes moved. The AXIS Bus Meter fixes this by counting the actual payload transferred. Every productive beat contributes `popcount(tstrb)` bytes to a 64-bit accumulator and, when `tlast` is set, one packet to a 32-bit accumulator. These are byte-exact and independent of window length, so the honest throughput figure is `bytes / busy_time`. The four cycle buckets are retained alongside for root-causing where non-productive time went.
 
@@ -72,7 +68,7 @@ The block is instantiated one per AXIS bus to be measured, snooping the stream s
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 

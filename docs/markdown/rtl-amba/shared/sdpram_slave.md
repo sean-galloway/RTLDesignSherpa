@@ -54,7 +54,43 @@ descriptor RAMs (e.g. `stream_char_harness::u_desc_ram`, 256-bit data,
 
 ---
 
-## Why four wrappers + a backend?
+## Parameters
+
+All wrappers expose the same scaling knobs as the backend:
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `ADDR_WIDTH` | 32 | Address width. |
+| `DATA_WIDTH` | 256 (`axi4_*`) / 64 (`axil_axil`) | Data-bus width. |
+| `MEM_DEPTH` | 2048 (`axi4_*`) / 1024 (`axil_axil`) | BRAM word count. |
+| `AXI_ID_WIDTH` | 8 | Present only when at least one side is AXI4. |
+| `USER_WIDTH` | 1 | Present only when at least one side is AXI4. |
+| `SKID_DEPTH_AW/W/B/AR/R` | 2/2/2/2/4 | Skid buffer depths for each channel. |
+
+---
+
+## Ports
+
+### Debug / Observation Outputs
+
+Common to all wrappers (`o_dbg_fub_vr`/`o_dbg_bram_*` come from
+`sdpram_core`; `o_dbg_vr` and the busy flags come from the wrapper-level
+skids):
+
+| Output | Width | Meaning |
+|---|---|---|
+| `o_dbg_vr` | 10 | External `{rready,rvalid, arready,arvalid, bready,bvalid, wready,wvalid, awready,awvalid}` — R = [9:8], AR = [7:6], B = [5:4], W = [3:2], AW = [1:0] |
+| `o_dbg_fub_vr` | 10 | Fub-side (post-skid) valid/ready for the same five channels |
+| `o_dbg_bram_wr` | 1 | One-cycle pulse on BRAM port-A write fire |
+| `o_dbg_bram_rd` | 1 | One-cycle pulse on BRAM port-B read fire |
+| `o_dbg_busy_wr` | 1 | Write-side skid busy |
+| `o_dbg_busy_rd` | 1 | Read-side skid busy |
+
+---
+
+## Functional Description
+
+### Why Four Wrappers + a Backend?
 
 SystemVerilog cannot conditionally include or exclude ports from a
 single module's port list. The port list is a static syntactic
@@ -83,24 +119,7 @@ Callers pick the wrapper module name matching their fabric. (An older
 `sdpram_slave` backend with `WR_PROTOCOL`/`RD_PROTOCOL` string
 parameters no longer exists -- this family replaced it.)
 
----
-
-## Common Parameters
-
-All wrappers expose the same scaling knobs as the backend:
-
-| Parameter | Default | Notes |
-|---|---|---|
-| `ADDR_WIDTH` | 32 | Address width. |
-| `DATA_WIDTH` | 256 (`axi4_*`) / 64 (`axil_axil`) | Data-bus width. |
-| `MEM_DEPTH` | 2048 (`axi4_*`) / 1024 (`axil_axil`) | BRAM word count. |
-| `AXI_ID_WIDTH` | 8 | Present only when at least one side is AXI4. |
-| `USER_WIDTH` | 1 | Present only when at least one side is AXI4. |
-| `SKID_DEPTH_AW/W/B/AR/R` | 2/2/2/2/4 | Skid buffer depths for each channel. |
-
----
-
-## Burst Support
+### Burst Support
 
 - **AXI4 mode** supports `INCR` (`awburst/arburst = 2'b01`) and `FIXED`
   (`2'b00`) of any length up to AXI4's 256-beat maximum. `WRAP` (`2'b10`)
@@ -114,9 +133,7 @@ All wrappers expose the same scaling knobs as the backend:
   burst-aware backend produces exactly one beat per AW/AR. Multi-beat
   transactions are not expressible in AXIL anyway.
 
----
-
-## Bulk Clear
+### Bulk Clear
 
 All wrappers expose:
 
@@ -131,55 +148,9 @@ in-flight write or read completes cleanly before the clear begins.
 
 ---
 
-## Debug / Observation Outputs
+## Usage Example
 
-Common to all wrappers (`o_dbg_fub_vr`/`o_dbg_bram_*` come from
-`sdpram_core`; `o_dbg_vr` and the busy flags come from the wrapper-level
-skids):
-
-| Output | Width | Meaning |
-|---|---|---|
-| `o_dbg_vr` | 10 | External `{rready,rvalid, arready,arvalid, bready,bvalid, wready,wvalid, awready,awvalid}` — R = [9:8], AR = [7:6], B = [5:4], W = [3:2], AW = [1:0] |
-| `o_dbg_fub_vr` | 10 | Fub-side (post-skid) valid/ready for the same five channels |
-| `o_dbg_bram_wr` | 1 | One-cycle pulse on BRAM port-A write fire |
-| `o_dbg_bram_rd` | 1 | One-cycle pulse on BRAM port-B read fire |
-| `o_dbg_busy_wr` | 1 | Write-side skid busy |
-| `o_dbg_busy_rd` | 1 | Read-side skid busy |
-
----
-
-## Use in the Monitor System
-
-The `sdpram_slave_axil_axil` wrapper is the canonical SRAM-ring backend
-for the [`monbus_axil_axil_group`](../monitor/monbus_group.md) master writer —
-both sides AXIL, so no AXI4-only fields anywhere on the harness wiring.
-For details on the slot stream landing in the ring, see
-[`monbus_compressor.md`](../monitor/monbus_compressor.md) (the compressed case)
-and the raw-record beat layout described in
-[`monbus_group.md`](../monitor/monbus_group.md).
-
----
-
-## Test
-
-`val/amba/test_sdpram_slave.py` builds `sdpram_slave_axi4_axi4` (the
-full-AXI4 wrapper, which contains `sdpram_core`) and drives the four
-protocol-combination stimulus shapes against it via
-`@pytest.mark.parametrize`. The other three wrappers are thin
-port-shape variants over the same core. Sub-tests cover:
-
-1. Single-beat AW/W/B + AR/R round-trip (all 4 combos)
-2. AXI4 INCR burst write + read (AXI4-only)
-3. AXI4 FIXED burst write (last beat wins) + read (AXI4-only)
-4. Random fill + readback (all 4 combos)
-
-```bash
-pytest val/amba/test_sdpram_slave.py -v
-```
-
----
-
-## Migration
+### Migration
 
 If you have an old caller that instantiates the bare `sdpram_slave`:
 
@@ -223,9 +194,47 @@ the port list shape and signal names differ.
 
 ## Related Modules
 
+### Use in the Monitor System
+
+The `sdpram_slave_axil_axil` wrapper is the canonical SRAM-ring backend
+for the [`monbus_axil_axil_group`](../monitor/monbus_group.md) master writer —
+both sides AXIL, so no AXI4-only fields anywhere on the harness wiring.
+For details on the slot stream landing in the ring, see
+[`monbus_compressor.md`](../monitor/monbus_compressor.md) (the compressed case)
+and the raw-record beat layout described in
+[`monbus_group.md`](../monitor/monbus_group.md).
+
+### Family Relationships
+
 | Module | Role |
 |---|---|
 | [`monbus_axil_axil_group`](../monitor/monbus_group.md) | Most common consumer (memory-dump ring) |
 | [`monbus_compressor`](../monitor/monbus_compressor.md) | Source of the compressed slot stream landing in the ring |
 | `axi4_slave_wr` / `axi4_slave_rd` | AXI4-side skids instantiated by the WRAPPERS |
 | `axil4_slave_wr` / `axil4_slave_rd` | AXIL-side skids instantiated by the WRAPPERS |
+
+---
+
+## Testing
+
+`val/amba/test_sdpram_slave.py` builds `sdpram_slave_axi4_axi4` (the
+full-AXI4 wrapper, which contains `sdpram_core`) and drives the four
+protocol-combination stimulus shapes against it via
+`@pytest.mark.parametrize`. The other three wrappers are thin
+port-shape variants over the same core. Sub-tests cover:
+
+1. Single-beat AW/W/B + AR/R round-trip (all 4 combos)
+2. AXI4 INCR burst write + read (AXI4-only)
+3. AXI4 FIXED burst write (last beat wins) + read (AXI4-only)
+4. Random fill + readback (all 4 combos)
+
+```bash
+pytest val/amba/test_sdpram_slave.py -v
+```
+
+---
+
+## Navigation
+
+- [Back to Shared Infrastructure Index](README.md)
+- [Back to rtl-amba Index](../index.md)

@@ -31,7 +31,7 @@
 
 ## Overview
 
-Core conversion logic that transforms AXI4 memory-mapped transactions into APB peripheral bus protocol. This module handles burst decomposition, width adaptation, and protocol conversion within a single clock domain. Used internally by **[axi4_to_apb4_shim](axi4_to_apb4_shim.md)** but can also be instantiated standalone for same-clock bridging.
+This is the engine room of the AXI4-to-APB bridge: the core conversion logic that transforms AXI4 memory-mapped transactions into APB peripheral bus protocol. Burst decomposition, width adaptation, and protocol conversion all happen here, within a single clock domain. **[axi4_to_apb4_shim](axi4_to_apb4_shim.md)** instantiates it internally, but you can also instantiate it standalone for same-clock bridging when you don't want to pay for CDC.
 
 ### Key Features
 
@@ -44,7 +44,28 @@ Core conversion logic that transforms AXI4 memory-mapped transactions into APB p
 
 ---
 
-## Module Declaration
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| SIDE_DEPTH | int | 6 | Side information FIFO depth (tracks ID, last, user) |
+| AXI_ID_WIDTH | int | 8 | AXI transaction ID width |
+| AXI_ADDR_WIDTH | int | 32 | AXI address width |
+| AXI_DATA_WIDTH | int | 32 | AXI data width (32, 64, 128, 256, 512) |
+| AXI_USER_WIDTH | int | 1 | AXI user sideband width |
+| APB_ADDR_WIDTH | int | 32 | APB address width (must match AXI) |
+| APB_DATA_WIDTH | int | 32 | APB data width (8, 16, 32, 64) |
+
+**Derived Parameters:**
+- `AXI2APBRATIO` = `AXI_DATA_WIDTH / APB_DATA_WIDTH` (automatically calculated)
+- `APBCmdWidth` = APB command packet width
+- `APBRspWidth` = APB response packet width
+
+---
+
+## Ports
+
+The full interface, straight from the RTL. Note the AXI side is packet-based — it expects the packed channel format produced by `axi4_slave_stub`, not raw AXI signals, and the APB side speaks command/response packets:
 
 ```systemverilog
 module axi4_to_apb4_convert #(
@@ -103,28 +124,9 @@ module axi4_to_apb4_convert #(
 
 ---
 
-## Parameters
+## Functional Description
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `SIDE_DEPTH` | 6 | Side information FIFO depth (tracks ID, last, user) |
-| `AXI_ID_WIDTH` | 8 | AXI transaction ID width |
-| `AXI_ADDR_WIDTH` | 32 | AXI address width |
-| `AXI_DATA_WIDTH` | 32 | AXI data width (32, 64, 128, 256, 512) |
-| `AXI_USER_WIDTH` | 1 | AXI user sideband width |
-| `APB_ADDR_WIDTH` | 32 | APB address width (must match AXI) |
-| `APB_DATA_WIDTH` | 32 | APB data width (8, 16, 32, 64) |
-
-**Derived Parameters:**
-- `AXI2APBRATIO` = `AXI_DATA_WIDTH / APB_DATA_WIDTH` (automatically calculated)
-- `APBCmdWidth` = APB command packet width
-- `APBRspWidth` = APB response packet width
-
----
-
-## Architecture
-
-### Component Structure
+### Architecture
 
 ```
 axi4_to_apb4_convert
@@ -176,15 +178,11 @@ APB response → Data accumulation → R packet
             → Shift register fill
 ```
 
----
-
-## Behavior
-
 ### Burst Decomposition
 
 **AXI Burst → APB Beats:**
 
-Single AXI beat may require multiple APB beats when `AXI_DATA_WIDTH > APB_DATA_WIDTH`:
+A single AXI beat may require multiple APB beats when `AXI_DATA_WIDTH > APB_DATA_WIDTH` — this is where the bridge earns its keep.
 
 **Example: 64-bit AXI → 32-bit APB (2:1 ratio)**
 ```
@@ -265,11 +263,9 @@ w_resp_wr = (w_pslverr | r_pslverr) ? 2'b10 : 2'b00;
 - Maintains LAST flag for burst completion signaling
 - Passes USER sideband through the bridge
 
----
+### Packet Formats
 
-## Packet Formats
-
-### APB Command Packet
+**APB Command Packet:**
 
 ```
 APBCmdWidth = APBAW + APBDW + APBSW + 6 bits   // 3-bit pprot + pwrite + first + last
@@ -283,7 +279,7 @@ APBCmdWidth = APBAW + APBDW + APBSW + 6 bits   // 3-bit pprot + pwrite + first +
 [APBDW-1:0]             pwdata    (APBDW bits)
 ```
 
-### APB Response Packet
+**APB Response Packet:**
 
 ```
 APBRspWidth = APBDW + 3 bits
@@ -294,9 +290,75 @@ APBRspWidth = APBDW + 3 bits
 [APBDW-1:0]        prdata      (read data)
 ```
 
+### State Machines
+
+**APB FSM:**
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> READ : ARVALID
+    IDLE --> WRITE : AWVALID & WVALID
+    READ --> IDLE : burst_count==0 & last APB beat
+    WRITE --> IDLE : burst_count==0 & last APB beat
+
+    note right of READ
+        Generate APB read commands
+        Increment address per burst type
+        Decrement burst counter
+    end note
+
+    note right of WRITE
+        Generate APB write commands
+        Slice AXI data to APB data
+        Increment address per burst type
+    end note
+```
+
+**Response FSM:**
+
+```mermaid
+stateDiagram-v2
+    [*] --> RSP_IDLE
+    RSP_IDLE --> RSP_ACTIVE : rsp_valid & first
+    RSP_ACTIVE --> RSP_IDLE : rsp_valid & last
+
+    note right of RSP_ACTIVE
+        Accumulate APB read data
+        Accumulate errors
+        Generate AXI R/B responses
+    end note
+```
+
 ---
 
-## Usage Examples
+## Timing
+
+APB's two-phase handshake sets the floor here — every beat costs a SETUP and an ACCESS cycle, and width conversion multiplies the beat count.
+
+### Latency (Cycles)
+
+| Operation | Typical Latency | Notes |
+|-----------|---------|-------|
+| AXI single-beat read (1:1 width) | 4-5 | Unpack + APB + pack |
+| AXI single-beat write (1:1 width) | 4-5 | Same |
+| AXI burst (AWLEN=15, 1:1 width) | 68-80 | 16 beats × 4-5 cycles |
+| Width convert read (2:1) | 8-10 | 2 APB beats per AXI beat |
+| Width convert read (4:1) | 16-20 | 4 APB beats per AXI beat |
+
+### Throughput
+
+**Maximum Throughput (same width):**
+- 1 APB transfer every 2 cycles (SETUP + ACCESS phases)
+- Pipelined: ~0.5 transfers/cycle
+
+**Width Conversion Impact:**
+- 2:1 ratio: Throughput halved (2 APB beats per AXI beat)
+- 4:1 ratio: Throughput quartered
+
+---
+
+## Usage Example
 
 ### Example 1: Standalone Conversion (Same Width)
 
@@ -351,88 +413,9 @@ axi4_to_apb4_convert #(
 
 ---
 
-## State Machines
+## Design Notes
 
-### APB FSM
-
-```mermaid
-stateDiagram-v2
-    [*] --> IDLE
-    IDLE --> READ : ARVALID
-    IDLE --> WRITE : AWVALID & WVALID
-    READ --> IDLE : burst_count==0 & last APB beat
-    WRITE --> IDLE : burst_count==0 & last APB beat
-
-    note right of READ
-        Generate APB read commands
-        Increment address per burst type
-        Decrement burst counter
-    end note
-
-    note right of WRITE
-        Generate APB write commands
-        Slice AXI data to APB data
-        Increment address per burst type
-    end note
-```
-
-### Response FSM
-
-```mermaid
-stateDiagram-v2
-    [*] --> RSP_IDLE
-    RSP_IDLE --> RSP_ACTIVE : rsp_valid & first
-    RSP_ACTIVE --> RSP_IDLE : rsp_valid & last
-
-    note right of RSP_ACTIVE
-        Accumulate APB read data
-        Accumulate errors
-        Generate AXI R/B responses
-    end note
-```
-
----
-
-## Performance
-
-### Latency (Cycles)
-
-| Operation | Latency | Notes |
-|-----------|---------|-------|
-| AXI single-beat read (1:1 width) | 4-5 | Unpack + APB + pack |
-| AXI single-beat write (1:1 width) | 4-5 | Same |
-| AXI burst (AWLEN=15, 1:1 width) | 68-80 | 16 beats × 4-5 cycles |
-| Width convert read (2:1) | 8-10 | 2 APB beats per AXI beat |
-| Width convert read (4:1) | 16-20 | 4 APB beats per AXI beat |
-
-### Throughput
-
-**Maximum Throughput (same width):**
-- 1 APB transfer every 2 cycles (SETUP + ACCESS phases)
-- Pipelined: ~0.5 transfers/cycle
-
-**Width Conversion Impact:**
-- 2:1 ratio: Throughput halved (2 APB beats per AXI beat)
-- 4:1 ratio: Throughput quartered
-
----
-
-## Testing
-
-```bash
-# Core conversion tested via integration test
-pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py -v
-
-# Test with burst traffic
-pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_burst" -v
-
-# Test width conversion
-pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_width[64-32]" -v
-```
-
----
-
-## Constraints and Limitations
+### Constraints and Limitations
 
 **Parameter Constraints:**
 - `APB_DATA_WIDTH` ≤ `AXI_DATA_WIDTH`
@@ -448,11 +431,9 @@ pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_widt
 - Only supports narrowing (AXI → APB), not widening
 - APB_DATA_WIDTH must be at least 8 bits
 
----
+### Synthesis Notes
 
-## Synthesis Notes
-
-### Resource Usage
+**Resource Usage:**
 
 | Configuration | LUTs | FFs | Notes |
 |--------------|------|-----|-------|
@@ -465,19 +446,7 @@ pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_widt
 - Data shift register (read accumulation)
 - FSM next-state logic
 
----
-
-## Related Modules
-
-- **[axi4_to_apb4_shim](axi4_to_apb4_shim.md)** - Top-level shim (instantiates this module)
-- **[axi4_slave_stub](../axi4/axi4_slave_stub.md)** - Provides input packet format
-- **[apb4_master_stub](../apb4/apb4_master_stub.md)** - Consumes output packet format
-- **[axi_gen_addr](../shared/axi_gen_addr.md)** - Address generation utility
-- **[gaxi_fifo_sync](../gaxi/gaxi_fifo_sync.md)** - Side information FIFO
-
----
-
-## When to Use
+### When to Use
 
 **Use Standalone When:**
 - Same clock domain for AXI and APB
@@ -491,11 +460,38 @@ pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_widt
 
 ---
 
+## Related Modules
+
+- **[axi4_to_apb4_shim](axi4_to_apb4_shim.md)** - Top-level shim (instantiates this module)
+- **[axi4_slave_stub](../axi4/axi4_slave_stub.md)** - Provides input packet format
+- **[apb4_master_stub](../apb4/apb4_master_stub.md)** - Consumes output packet format
+- **[axi_gen_addr](../shared/axi_gen_addr.md)** - Address generation utility
+- **[gaxi_fifo_sync](../gaxi/gaxi_fifo_sync.md)** - Side information FIFO
+
+---
+
+## Testing
+
+The converter is exercised through the shim's integration tests:
+
+```bash
+# Core conversion tested via integration test
+pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py -v
+
+# Test with burst traffic
+pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_burst" -v
+
+# Test width conversion
+pytest "projects/components/converters/dv/tests/test_axi2apb4_shim.py::test_width[64-32]" -v
+```
+
+---
+
 **Last Updated:** 2025-10-20
 
 ---
 
 ## Navigation
 
-- **[← Back to Shims Index](README.md)**
-- **[← Back to rtl-amba Index](../index.md)**
+- [Back to Shims Index](README.md)
+- [Back to rtl-amba Index](../index.md)

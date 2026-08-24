@@ -33,6 +33,16 @@
 
 `axi4_slave_wr_crc_check` is a write-only AXI4 slave that accepts AW/W bursts, folds the written data into a per-channel CRC-32, and returns B responses. It is the *sink* counterpart to `axi4_slave_rd_pattern_gen`: a master under test writes data, this slave CRCs it, and the resulting CRC can be compared against an independently computed golden value to prove the write path carried the data intact.
 
+The write half of a DMA characterization loop needs a slave that accepts write traffic at full rate and reports whether the data arrived correctly. This module CRCs the incoming write data per channel using exactly the same CRC-32 configuration as the read pattern generator, so if a master reads the LFSR pattern and writes it straight back, the write-side CRC must equal the read-side CRC. Any mismatch localizes a data-path corruption to the write path.
+
+**Use cases:**
+- Terminating a DMA / streaming engine's write (`m_axi_wr`) port during characterization
+- End-to-end integrity checks where read data is looped back and re-verified on write
+- Per-channel multi-context validation on a shared write port
+- On-chip (FPGA) write sink in the STREAM / RAPIDS characterization harnesses
+
+**Key benefit:** a memory-free write slave that produces a per-channel CRC-32 directly comparable to the read generator — a single register compare confirms the write path is clean, and the sink never backpressures the master unnecessarily.
+
 ### Key Features
 
 - Write-only AXI4 slave (AW + W + B channels) built on the standard `axi4_slave_wr` protocol handler
@@ -42,20 +52,6 @@
 - Gapless back-to-back bursts (AW accepted on the last W beat) so `wready` never drops mid-stream
 - Separately-latched B id/user so back-to-back bursts return the correct response id
 - Per-channel CRC / beat-count telemetry plus an aggregate beat-count total for harness stop triggers
-
----
-
-## Module Purpose
-
-The write half of a DMA characterization loop needs a slave that accepts write traffic at full rate and reports whether the data arrived correctly. This module CRCs the incoming write data per channel using exactly the same CRC-32 configuration as the read pattern generator, so if a master reads the LFSR pattern and writes it straight back, the write-side CRC must equal the read-side CRC. Any mismatch localizes a data-path corruption to the write path.
-
-**Use Cases:**
-- Terminating a DMA / streaming engine's write (`m_axi_wr`) port during characterization
-- End-to-end integrity checks where read data is looped back and re-verified on write
-- Per-channel multi-context validation on a shared write port
-- On-chip (FPGA) write sink in the STREAM / RAPIDS characterization harnesses
-
-**Key Benefit:** A memory-free write slave that produces a per-channel CRC-32 directly comparable to the read generator — a single register compare confirms the write path is clean, and the sink never backpressures the master unnecessarily.
 
 ---
 
@@ -85,7 +81,7 @@ The write half of a DMA characterization loop needs a slave that accepts write t
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -172,7 +168,7 @@ A compact FSM tracks a single active burst via `r_wr_active`. `awready` asserts 
 
 ### Back-to-Back B Response Id Latching
 
-When bursts run back-to-back, `r_wr_id` is reloaded with the *next* burst's id on the same cycle the current burst's WLAST lands -- so the B channel cannot be driven from it. Instead an inline 16-deep B-response FIFO (`BFIFO_DEPTH = 16`) pushes the completing burst's `{user, id}` on every WLAST and pops on the B handshake. Multiple outstanding B responses queue cleanly; gapless multi-channel bursts never drop one. (An earlier single-outstanding `r_b_pending` design did drop them, which is exactly why the FIFO replaced it.)
+When bursts run back-to-back, `r_wr_id` is reloaded with the *next* burst's id on the same cycle the current burst's WLAST lands — so the B channel cannot be driven from it. Instead an inline 16-deep B-response FIFO (`BFIFO_DEPTH = 16`) pushes the completing burst's `{user, id}` on every WLAST and pops on the B handshake. Multiple outstanding B responses queue cleanly; gapless multi-channel bursts never drop one. (An earlier single-outstanding `r_b_pending` design did drop them, which is exactly why the FIFO replaced it.)
 
 ### Standard Protocol Handler
 
@@ -249,6 +245,12 @@ axi4_slave_wr_crc_check #(
 - **axi4_slave_rd_pattern_gen.sv** — the matching read-side pattern source (same CRC config)
 - **axi4_dma_slaves.sv** — the source/sink bundle
 - **axis4_slave_pattern_check.sv** — AXIS equivalent checker
+
+---
+
+## Testing
+
+Covered from `val/amba/` with the rest of the shared area — run everything with `make -C val/amba clean-all && make -C val/amba run-all-func-parallel`.
 
 ---
 

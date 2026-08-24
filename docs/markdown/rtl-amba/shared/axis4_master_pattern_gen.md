@@ -43,10 +43,6 @@
 - Per-channel expected-CRC / beat-count telemetry plus an aggregate total
 - LFSR/CRC advance only on accepted beats, so beat N of channel C is a deterministic function of `(seed ^ C, N)` independent of `tready` stalls
 
----
-
-## Module Purpose
-
 Characterizing a stream-consuming engine (a "sink") needs a deterministic source that a downstream checker can predict. This block streams a known LFSR pattern per channel and computes the CRC-32 that the same data will produce when it lands in a CRC-checking sink. Because the LFSR advances only on accepted beats, backpressure never perturbs the sequence — the emitted data is a pure function of channel and beat index, and the exported per-channel CRC is the golden value for end-to-end integrity.
 
 **Use Cases:**
@@ -87,7 +83,7 @@ Characterizing a stream-consuming engine (a "sink") needs a deterministic source
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 

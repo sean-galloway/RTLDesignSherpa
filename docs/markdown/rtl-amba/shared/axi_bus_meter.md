@@ -31,7 +31,19 @@
 
 ## Overview
 
-The AXI Bus Meter is a per-cycle valid/ready classifier for a single AXI data channel. Every clock cycle it inspects the `valid` and `ready` handshake pair and attributes that cycle to one of four buckets — productive, backpressure, starvation, or idle — accumulating both aggregate (32-bit) and per-channel (16-bit) counts. It is a pure passive observer that drives nothing back onto the bus, making it safe to drop onto any live AXI R or W channel to characterize datapath utilization.
+The AXI bus meter is a per-cycle valid/ready classifier for a single AXI data channel. Every clock cycle it inspects the `valid`/`ready` handshake pair and attributes that cycle to one of four buckets — productive, backpressure, starvation, or idle — accumulating both aggregate (32-bit) and per-channel (16-bit) counts. It's a pure passive observer that drives nothing back onto the bus, so you can drop it onto any live AXI R or W channel to characterize datapath utilization.
+
+AXI datapath performance comes down to how often data actually moves versus how often a handshake stalls. A raw throughput number can't distinguish a slow producer (master not offering data) from a congested consumer (slave withholding `ready`). The meter separates those root causes by classifying every cycle into one of four mutually-exclusive buckets, so post-run analysis can compute utilization and — this is the part that matters — attribute lost cycles to the correct side of the interface.
+
+The block is instantiated one per bus to be measured. On a read engine it drops onto the R channel (aggregate plus per-channel via `rid`); on a write engine it drops onto the W channel (aggregate plus per-channel via an engine-side sideband, since AXI4 W beats carry no id).
+
+**Use cases:**
+- Metering read R-bus and write W-bus utilization on the stream/rapids characterization engines
+- Root-causing throughput shortfalls (backpressure-bound vs starvation-bound datapaths)
+- Per-channel utilization breakdown in multi-channel DMA engines
+- On-silicon performance characterization runs driven from a host CSR interface
+
+**Key benefit:** turns a single throughput figure into an attributable four-way cycle budget, so lost bandwidth can be pinned to producer starvation or consumer backpressure per channel.
 
 ### Key Features
 
@@ -45,22 +57,6 @@ The AXI Bus Meter is a per-cycle valid/ready classifier for a single AXI data ch
 
 ---
 
-## Module Purpose
-
-AXI datapath performance is dominated by how often data actually moves versus how often a handshake stalls. A raw throughput number cannot distinguish a slow producer (master not offering data) from a congested consumer (slave withholding `ready`). The AXI Bus Meter separates these root causes by classifying every cycle into one of four mutually-exclusive buckets, so a post-run analysis can compute utilization and, more importantly, attribute lost cycles to the correct side of the interface.
-
-The block is instantiated one per bus to be measured. On a read engine it drops onto the R channel (aggregate plus per-channel via `rid`); on a write engine it drops onto the W channel (aggregate plus per-channel via an engine-side sideband, since AXI4 W beats carry no id).
-
-**Use Cases:**
-- Metering read R-bus and write W-bus utilization on the stream/rapids characterization engines
-- Root-causing throughput shortfalls (backpressure-bound vs starvation-bound datapaths)
-- Per-channel utilization breakdown in multi-channel DMA engines
-- On-silicon performance characterization runs driven from a host CSR interface
-
-**Key Benefit:** Turns a single throughput figure into an attributable four-way cycle budget, so lost bandwidth can be pinned to producer starvation or consumer backpressure per channel.
-
----
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
@@ -70,7 +66,7 @@ The block is instantiated one per bus to be measured. On a read engine it drops 
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
@@ -120,7 +116,7 @@ The block is instantiated one per bus to be measured. On a read engine it drops 
 
 ### Bucket Classification
 
-The four buckets are decoded combinationally from the handshake pair and are mutually exclusive — exactly one is asserted every cycle:
+The four buckets decode combinationally from the handshake pair and are mutually exclusive — exactly one asserts every cycle:
 
 ```
 w_prod  =  i_valid &&  i_ready   // productive   — data delivered
@@ -148,7 +144,7 @@ Because 16 bits wraps after 65 536 cycles (~655 µs at 100 MHz), each per-channe
 
 ### Clear and Freeze Semantics
 
-`i_clear` is a synchronous one-cycle pulse: on the cycle it is high, all counters and all overflow stickies reset to zero. It is intended to be wired to the same control bit that clears the surrounding measurement state (debug SRAM, harness CRC) so a single CSR write atomically resets the entire measurement substrate.
+`i_clear` is a synchronous one-cycle pulse: on the cycle it is high, all counters and all overflow stickies reset to zero. Wire it to the same control bit that clears the surrounding measurement state (debug SRAM, harness CRC) so a single CSR write atomically resets the entire measurement substrate.
 
 `i_freeze` holds every counter and sticky frozen while high — no bucket increments, no overflow flips. It is driven from the characterization timer's `done` so the window closes the moment the workload finishes. Without it, the lifetime starvation count would drift upward at one bit per cycle during post-burst host polling, contaminating the in-window utilization math. Hold `i_freeze` low for unbounded free-running measurement.
 
@@ -198,7 +194,7 @@ axi_bus_meter #(
 
 ### Passive Observer
 
-The meter drives nothing back onto the AXI bus — it only reads `valid`/`ready`. It can be added to or removed from a design without any protocol impact, and multiple meters can snoop different channels independently.
+The meter drives nothing back onto the AXI bus — it only reads `valid`/`ready`. You can add it to or remove it from a design without any protocol impact, and multiple meters can snoop different channels independently.
 
 ### Counter Width Rationale
 
@@ -222,11 +218,17 @@ For correct in-window math, drive `i_clear` and `i_freeze` from the same window 
 - Host-driven on-silicon performance characterization harnesses
 
 ### Uses
-- **reset_defs.svh** - `ALWAYS_FF_RST` / `RST_ASSERTED` reset macros
+- **reset_defs.svh** — `ALWAYS_FF_RST` / `RST_ASSERTED` reset macros
 
 ### See Also
-- **axis_bus_meter.sv** - AXIS analogue with byte/packet throughput counters
-- **axi_perf_latency_hist.sv** - Per-channel latency histogram, same window-control convention
+- **axis_bus_meter.sv** — AXIS analogue with byte/packet throughput counters
+- **axi_perf_latency_hist.sv** — per-channel latency histogram, same window-control convention
+
+---
+
+## Testing
+
+Covered from `val/amba/` with the rest of the shared area — run everything with `make -C val/amba clean-all && make -C val/amba run-all-func-parallel`.
 
 ---
 
