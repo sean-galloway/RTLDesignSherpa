@@ -138,10 +138,20 @@ wr_ready <= (r_data_count <= DEPTH-2) ||
             (r_data_count == DEPTH-1 && (~w_wr_xfer || w_rd_xfer || w_rd_dbl_xfer)) ||
             (r_data_count == DEPTH   && (w_rd_xfer || w_rd_dbl_xfer));
 
-rd_valid <= (r_data_count >= 2) ||
+rd_valid <= (r_data_count >= 3) ||
+            (r_data_count == 2 && (~w_rd_dbl_xfer || w_wr_xfer)) ||
             (r_data_count == 1 && (~w_rd_xfer || w_wr_xfer)) ||
             (r_data_count == 0 && w_wr_xfer);
 ```
+
+The `count == 2` term is the one the double drain makes load-bearing: the
+base buffer's plain `count >= 2` is safe only for single drain (which always
+leaves at least one entry), but a double drain from exactly two leaves ZERO.
+The unfixed equation held `rd_valid` high for one cycle on the empty buffer,
+and a streaming consumer holding `rd_ready` through that cycle accepted a
+phantom entry -- underflowing the count to 15 and wedging the module until
+reset. The double-drain-to-empty scenario in the TB is the regression for
+exactly this corner.
 
 ### Output Assignments
 
