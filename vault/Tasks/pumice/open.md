@@ -4,28 +4,6 @@
 
 ---
 
-## PUMICE-002 — test_pumice_top_csr wr_rd roundtrip returns zero read beats
-**Status:** open 2026-07-23 — pre-existing, re-confirmed twice by bisection
-
-`cocotb_test_pumice_top_csr` fails its AXI write-then-read phase: read 0 gets
-ZERO R beats in 800 cycles (`got=[]`), i.e. the read path never returns — while
-`test_pumice_top` (45 read-heavy tests), core, core_dfi, geared and the whole
-fub/macro suite pass.
-
-**Bisected 2026-07-21:** fails identically at HEAD (95c9490a) with only the
-filelist fix applied — predates the deskew removal and the refresh/tRFC arbiter
-change.
-
-**Re-confirmed 2026-07-23:** fails identically with `pumice_top.sv` reverted to
-HEAD and a clean rebuild, so it is not caused by the PUMICE-001 page_policy fix
-either. Note the rebuild mattered — the first run reused a stale `sim_build`
-and completed in 0.41 s, which would have made a reverted-RTL run meaningless.
-
-Suspect the CSR-programmed config path (hwif-driven init) diverging from the
-TB-driven config the other tops use. The top tests were compile-broken (missing
-`gaxi_fifo_async` deps in the dv/tb filelists) for some window, so the
-regression that introduced this was masked.
-
 ## PUMICE-003 — test_ddr2_char_char_families integrity fail (bank_interleave/incremental_bl8)
 **Status:** open 2026-07-23 — pre-existing, same class as PUMICE-001
 
@@ -191,3 +169,38 @@ produced silicon bugs:
 Each map must name the invariant that makes its unreachable cells unreachable --
 several of the above have "cannot happen" regions that are true only because of
 ordering guarantees elsewhere, and those guarantees belong in the citation.
+
+## PUMICE-010 — top-tier shared sim_build races under clean parallel runs
+**Status:** open 2026-08-23 — mechanism confirmed twice, serial run is the workaround
+
+`dv/tests/top/test_pumice_top.py::_run` shares one compiled sim per parameter
+set (`local_sim_build/shared_nr1` / `shared_nr2`) so the suite compiles ~twice
+instead of once per test — but there is NO LOCK around the compile. After
+`make clean-all`, `run-gate-parallel` (-n 48) sends dozens of concurrent
+Verilator/ccache compiles into the same directory and they destroy each
+other's artifacts (`Vtop__pch.h.fast: No such file`, invalid-PCH, missing .o).
+Measured 2026-08-23: two consecutive clean parallel runs reported 48 and 31
+spurious FAILs (126-144 reruns) on a suite that passes 53/55 serially — the
+reruns converge only once one compile survives, so the tally is garbage and
+the flake burns ~5 min anyway.
+
+`smoke`/warm-tree parallel runs are fine (nothing to compile). fub/macro use
+per-test build dirs and don't race.
+
+**Fix options:** a file lock around the cocotb_test `run()` compile (fcntl on
+`<sim_build>/.compile_lock`), or a cheap pre-compile step in the Makefile's
+parallel targets (run one test per shared build serially first, then fan out).
+Whichever lands, the parallel targets must give an honest tally after
+`clean-all` — that is the canonical regression recipe.
+
+Found while validating the RDS-DV#69 fix; the 2 real reds behind the noise are
+PUMICE-002 and the LPDDR2 decode regression RDS-DV#70.
+
+**Second finding (2026-08-24): failing seeds are unrecoverable.** One serial
+clean tier run showed geared[64/128/256] failing together; the per-test SEED is
+`random.randint(0,100000)` at wrapper level, printed nowhere in the summary, and
+the logs/ + results xml were wiped by the next `make clean-all` — so the repro
+was lost. File-scope reruns and a 10-seed `PUMICE_SEED` sweep (30 runs) all
+pass. Whatever fix lands for the lock should ALSO make the wrapper echo each
+test's SEED into the pytest summary line (or persist logs/ across clean-all
+until explicitly cleared) so a one-off failure is reproducible after the fact.

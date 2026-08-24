@@ -109,7 +109,13 @@ async def cocotb_test_pumice_top_csr(dut):
     await _csr_wr(dut, TIM_RRD,  pk((2, 0), (6, 8), (2, 16), (1, 24)))   # tRRD,tFAW,tWTR,tCCD
     await _csr_wr(dut, TIM_CLWR, pk((3, 0), (2, 8), (3, 16)))            # CL,CWL,tWR
     await _csr_wr(dut, TIM_RTP,  pk((2, 0), (2, 8)))                     # tRTP,tRTW
-    await _csr_wr(dut, DFI_PHASE, pk((0, 0), (0, 4)))                    # rd_phase,wr_phase
+    # rd_phase, wr_phase, gear_ratio = log2(DFI_RATE), bl. gear/bl became
+    # runtime CSR fields (DFI_PHASE[8:7]/[12:9]) in the config-not-param
+    # work; this hand-packed write predates them, and leaving them 0
+    # programs a zero-beat burst — the read path then never returns data
+    # (PUMICE-002's zero-R-beats signature).
+    await _csr_wr(dut, DFI_PHASE, pk((0, 0), (0, 4),
+                                     (DFI_RATE.bit_length() - 1, 7), (BL, 9)))
     await _csr_wr(dut, PHY_TIMING, pk((1, 0), (2, 8), (0, 16), (1, 20))) # wrlat,rddata_en,memtype,refresh_burst
     await _csr_wr(dut, REFRESH_TUNING, pk((0, 2)))                        # page_policy_or=OPEN @ [3:2]
     await _csr_wr(dut, ADDR_MAP, pk((10, 0)))                             # bank_lsb=10=ROW_MAJOR

@@ -4,6 +4,48 @@
 
 ---
 
+## PUMICE-002 — test_pumice_top_csr wr_rd roundtrip returns zero read beats
+**Status:** closed 2026-08-24 — TEST defect, not RTL: stale hand-packed DFI_PHASE
+
+`cocotb_test_pumice_top_csr` fails its AXI write-then-read phase: read 0 gets
+ZERO R beats in 800 cycles (`got=[]`), i.e. the read path never returns — while
+`test_pumice_top` (45 read-heavy tests), core, core_dfi, geared and the whole
+fub/macro suite pass.
+
+**Bisected 2026-07-21:** fails identically at HEAD (95c9490a) with only the
+filelist fix applied — predates the deskew removal and the refresh/tRFC arbiter
+change.
+
+**Re-confirmed 2026-07-23:** fails identically with `pumice_top.sv` reverted to
+HEAD and a clean rebuild, so it is not caused by the PUMICE-001 page_policy fix
+either. Note the rebuild mattered — the first run reused a stale `sim_build`
+and completed in 0.41 s, which would have made a reverted-RTL run meaningless.
+
+Suspect the CSR-programmed config path (hwif-driven init) diverging from the
+TB-driven config the other tops use. The top tests were compile-broken (missing
+`gaxi_fifo_async` deps in the dv/tb filelists) for some window, so the
+regression that introduced this was masked.
+
+**Root cause (2026-08-24):** the test programs CSRs by HARDCODED offset +
+hand-packed bit positions (predates [[registers-by-name]]). `DFI_PHASE` grew
+`gear_ratio[8:7]` and `bl[12:9]` when gear/BL became runtime CSRs — during the
+exact filelist-drift window this test could not compile — and the test's
+`pk((0,0),(0,4))` kept writing the whole register as 0. gear=0/bl=0 programs a
+zero-beat burst: init completes, AXI writes still get B responses, but the read
+path has nothing to return → rvalid never fires → `got=[]`. Every register
+OFFSET still matched the current regmap; only the field packing had rotted.
+
+**Fix:** write `gear_ratio=log2(DFI_RATE)`, `bl=BL` in the DFI_PHASE pack
+(one line). Red→green flip confirmed on clean builds. The suspicion in the
+original filing ("CSR-programmed config path diverging from TB-driven") was
+half right — the divergence was in the TEST's packing, not the RTL's hwif.
+Textbook case for [[registers-by-name]]: the by-name TB absorbed the RDL
+change, the hardcoded one silently rotted. Follow-up candidate: migrate this
+test's CSR writes to the generated regmap so it cannot rot again (its distinct
+value — raw-cpuif programming + hand-rolled AXI as a BFM-independent second
+opinion — is worth keeping).
+
+
 ## PUMICE-005 — Board reads WORK: validated tuple + honest measurement
 **Status:** closed 2026-07-21 — reads clean on silicon; residual corruption split out to PUMICE-004
 
