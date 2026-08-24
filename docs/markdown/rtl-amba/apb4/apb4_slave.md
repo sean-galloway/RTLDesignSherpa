@@ -331,7 +331,7 @@ header, to determine transaction direction. This affects the images under
 apb4_slave #(
     .ADDR_WIDTH(16),     // 64KB address space
     .DATA_WIDTH(32),
-    .DEPTH(2)            // 4-entry buffers
+    .DEPTH(2)            // 2-entry buffers (literal entry count)
 ) u_reg_slave (
     .pclk         (apb_clk),
     .presetn      (apb_resetn),
@@ -436,7 +436,7 @@ endmodule
 apb4_slave #(
     .ADDR_WIDTH(20),     // 1MB address space
     .DATA_WIDTH(32),
-    .DEPTH(3)            // 8-entry buffers for memory latency
+    .DEPTH(3)            // 3-entry buffers for memory latency (odd depths are legal: 2..8)
 ) u_mem_slave (
     .pclk         (mem_clk),
     .presetn      (mem_resetn),

@@ -140,8 +140,8 @@ The stub uses packed interfaces to simplify testbench integration:
 - `pwrite` (1 bit): Write/read operation
 - `pprot` (3 bits): Protection attributes
 - `pstrb` (SW bits): Write strobe
-- `pwdata` (DW bits): Write data
 - `paddr` (AW bits): Address
+- `pwdata` (DW bits): Write data -- the LSB field (paddr sits ABOVE pwdata)
 
 **Response Packet Format** (MSB to LSB):
 - `last` (1 bit): Last transfer indicator
@@ -216,7 +216,8 @@ apb4_master_stub #(
 
 // Example: Send write command (in testbench)
 // Pack command: addr=0x1000, data=0xDEADBEEF, write=1
-assign test_cmd_data = {1'b1, 1'b1, 1'b1, 3'b000, 4'hF, 32'hDEADBEEF, 16'h1000};
+// Field order per the RTL unpack: {last, first, pwrite, pprot, pstrb, paddr, pwdata}
+assign test_cmd_data = {1'b1, 1'b1, 1'b1, 3'b000, 4'hF, 16'h1000, 32'hDEADBEEF};
 assign test_cmd_valid = 1'b1;
 ```
 

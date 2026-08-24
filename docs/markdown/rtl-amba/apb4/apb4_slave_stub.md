@@ -115,7 +115,7 @@ module apb4_slave_stub #(
 |------|-------|-----------|-------------|
 | cmd_valid | 1 | Output | Command packet valid |
 | cmd_ready | 1 | Input | Ready for command packet |
-| cmd_data | CPW | Output | Packed command (pwrite, pprot, pstrb, pwdata, paddr) |
+| cmd_data | CPW | Output | Packed command (pwrite, pprot, pstrb, paddr, pwdata) |
 
 ### Packed Response Interface
 
@@ -135,8 +135,8 @@ The stub uses packed interfaces to simplify testbench integration:
 - `pwrite` (1 bit): Write/read operation
 - `pprot` (3 bits): Protection attributes
 - `pstrb` (SW bits): Write strobe
-- `pwdata` (DW bits): Write data
 - `paddr` (AW bits): Address
+- `pwdata` (DW bits): Write data -- the LSB field (paddr sits ABOVE pwdata, matching the comparison table below)
 
 **Response Packet Format** (MSB to LSB):
 - `pslverr` (1 bit): Slave error
@@ -215,8 +215,8 @@ always_comb begin
     test_cmd_ready = 1'b1;  // Always ready
     if (test_cmd_valid) begin
         // Unpack command
-        logic [AW-1:0] addr = test_cmd_data[AW-1:0];
-        logic [DW-1:0] wdata = test_cmd_data[AW+DW-1:AW];
+        logic [DW-1:0] wdata = test_cmd_data[DW-1:0];
+        logic [AW-1:0] addr = test_cmd_data[DW+AW-1:DW];
         logic pwrite = test_cmd_data[CPW-1];
 
         // Generate response

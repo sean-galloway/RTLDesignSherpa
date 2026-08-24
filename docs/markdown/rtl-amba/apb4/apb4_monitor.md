@@ -33,8 +33,13 @@ The `apb4_monitor` module monitors APB command/response interfaces to detect pro
 
 ```systemverilog
 module apb4_monitor
-    import monitor_pkg::*;
+    import monitor_common_pkg::*;  // PROTOCOL_APB, PktType*, transaction states
+    import monitor_amba4_pkg::*;   // APB_ERR_*, APB_TIMEOUT_*, etc.
+    // (`import monitor_pkg::*;` is intentionally omitted -- its helpers
+    // duplicate monitor_common_pkg's and Vivado flags the wildcard overlap)
 #(
+    parameter bit USE_MONITOR         = 1'b1,  // 0 = omit monitor body, tie outputs
+    parameter int N_ADDR_RANGES       = 0,     // 0 = address-range checker disabled
     parameter int ADDR_WIDTH          = 32,
     parameter int DATA_WIDTH          = 32,
     parameter logic [7:0]  UNIT_ID    = 8'h01,     // 8-bit Unit ID
@@ -76,7 +81,7 @@ module apb4_monitor
     // Configuration - Performance Monitoring
     input  logic                     cfg_perf_enable,         // Enable performance packets
     input  logic                     cfg_latency_enable,      // Enable latency tracking
-    input  logic                     cfg_throughput_enable,   // Enable throughput tracking
+    input  logic                     cfg_throughput_enable,   // ACCEPTED BUT UNIMPLEMENTED -- no throughput event exists (see Design Notes)
 
     // Configuration - Debug
     input  logic                     cfg_debug_enable,        // Enable debug packets
@@ -160,7 +165,7 @@ module apb4_monitor
 |------|-------|-----------|-------------|
 | cfg_perf_enable | 1 | Input | Enable performance packet generation |
 | cfg_latency_enable | 1 | Input | Enable latency measurement |
-| cfg_throughput_enable | 1 | Input | Enable throughput tracking |
+| cfg_throughput_enable | 1 | Input | ACCEPTED BUT UNIMPLEMENTED: never referenced in the module body; no throughput event exists |
 
 ### Configuration - Debug
 
@@ -177,7 +182,11 @@ module apb4_monitor
 | cfg_cmd_timeout_cnt | 16 | Input | Command timeout threshold (clock cycles) |
 | cfg_rsp_timeout_cnt | 16 | Input | Response timeout threshold (clock cycles) |
 | cfg_latency_threshold | 32 | Input | Latency threshold for alerts (clock cycles) |
-| cfg_throughput_threshold | 16 | Input | Throughput threshold for alerts |
+| cfg_throughput_threshold | 16 | Input | ACCEPTED BUT UNIMPLEMENTED: never referenced in the module body |
+| cfg_addr_check_enable | 1 | Input | Enable the address-range checker (needs N_ADDR_RANGES > 0) |
+| cfg_addr_range_enable | N_ADDR_RANGES | Input | Per-range enable |
+| cfg_addr_range_low | N_ADDR_RANGES x AW | Input | Per-range low bound |
+| cfg_addr_range_high | N_ADDR_RANGES x AW | Input | Per-range high bound |
 
 ### Monitor Bus Interface
 
@@ -223,9 +232,8 @@ The monitor generates standardized 128-bit packets (paired with 64-bit side-band
 - Timeout conditions (when cfg_timeout_enable = 1)
 
 **Performance Events** (when cfg_perf_enable = 1):
-- Latency threshold violations
-- Throughput degradation
-- Transaction statistics
+- Latency threshold violations (`cfg_latency_threshold` compare -- the only
+  perf event the RTL generates)
 
 **Debug Events** (when cfg_debug_enable = 1):
 - Transaction start/completion
@@ -279,7 +287,7 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 .cfg_slverr_enable(1'b1),         // Keep error reporting
 .cfg_perf_enable(1'b1),           // Enable performance tracking
 .cfg_latency_enable(1'b1),        // Track latencies
-.cfg_throughput_enable(1'b1),     // Track throughput
+.cfg_throughput_enable(1'b0),     // unimplemented -- tie low
 .cfg_latency_threshold(32'd100)   // Alert on >100 cycle latency
 ```
 
@@ -318,6 +326,8 @@ apb4_master #(
     .cmd_pwrite(cmd_pwrite),
     .cmd_paddr(cmd_paddr),
     .cmd_pwdata(cmd_pwdata),
+    .cmd_pstrb(cmd_pstrb),     // floating these drives Z into the command FIFO
+    .cmd_pprot(cmd_pprot),
     .rsp_valid(rsp_valid),
     .rsp_ready(rsp_ready),
     .rsp_prdata(rsp_prdata),
@@ -355,10 +365,13 @@ apb4_monitor #(
     .cfg_debug_enable(1'b0),
     .cfg_cmd_timeout_cnt(16'd1000),
     .cfg_rsp_timeout_cnt(16'd1000),
-    // Monitor bus
+    // Free-running time input -- leaving it unconnected floats the timestamp
+    .i_mon_time(mon_time),
+    // Monitor bus (128-bit packet + 64-bit side-band timestamp)
     .monbus_valid(mon_valid),
     .monbus_ready(mon_ready),
     .monbus_packet(mon_packet),
+    .monbus_timestamp(mon_timestamp),
     // Status
     .active_count(mon_active),
     .error_count(mon_errors),
@@ -367,7 +380,8 @@ apb4_monitor #(
 
 // Downstream FIFO for monitor packets
 gaxi_fifo_sync #(
-    .DATA_WIDTH(64),
+    .DATA_WIDTH(128),   // FULL packet width -- 64 would truncate the entire
+                        // header half (type, protocol, event code, IDs)
     .DEPTH(128)
 ) u_mon_fifo (
     .axi_aclk(pclk),
@@ -393,8 +407,13 @@ gaxi_fifo_sync #(
 ### Packet Generation
 
 - Internal FIFO buffers monitor packets (depth = MONITOR_FIFO_DEPTH)
-- Backpressure on monbus_ready propagates to packet generation
-- FIFO full condition prevents packet loss
+- Backpressure on `monbus_ready` stops at the internal FIFO: packet
+  generation fires purely from event conditions and does NOT consult the
+  FIFO's ready -- a full FIFO silently DROPS the packet
+- Worse, a dropped completion/error packet never sets `event_reported`, so
+  the transaction-table slot is never freed; after MAX_TRANSACTIONS such
+  losses the monitor stops tracking anything until reset (filed as a task
+  in vault/Tasks/amba). Size MONITOR_FIFO_DEPTH and drain promptly
 
 ### Performance Considerations
 
@@ -406,7 +425,7 @@ gaxi_fifo_sync #(
 
 - `apb4_master.sv` - APB master with cmd/rsp interfaces
 - `apb4_slave.sv` - APB slave with cmd/rsp interfaces
-- `monitor_pkg.sv` - Monitor packet definitions and utilities
+- `monitor_common_pkg.sv` / `monitor_amba4_pkg.sv` - Monitor packet definitions and APB event codes
 - `gaxi_fifo_sync.sv` - Recommended for monitor packet buffering
 
 ## References

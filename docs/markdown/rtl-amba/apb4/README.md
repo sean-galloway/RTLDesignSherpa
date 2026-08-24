@@ -65,9 +65,10 @@ signalling is required. The two families are otherwise architecturally identical
 | **apb4_slave_cdc** | APB slave with clock domain crossing support | [apb4_slave_cdc.md](apb4_slave_cdc.md) | ✅ Documented |
 | **apb4_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb4_monitor.md](apb4_monitor.md) | ✅ Documented |
 
-**Note:** `apb4_monitor.sv` lives in `rtl/amba/monitor/` (with the rest of the
-monitor family), not in `rtl/amba/apb4/`. Its specification is part of the
-Monitor book.
+**Note:** `apb4_monitor.sv` lives HERE in `rtl/amba/apb4/` -- the protocol
+monitors stay with the protocol they wrap; only the monitor CORE pieces
+live in `rtl/amba/monitor/`. Its specification is
+[apb4_monitor.md](apb4_monitor.md) in this book.
 
 ### Testbench Utilities
 
@@ -121,7 +122,7 @@ identical to it. They add `cfg_cg_enable` / `cfg_cg_idle_count` inputs and an
 - ✅ **Dual-Clock Operation:** APB (pclk) and backend (aclk) domains
 - ✅ **Safe CDC:** Gray-pointer asynchronous FIFOs (`gaxi_fifo_async`) in both directions
 - ✅ **Independent Frequencies:** Backend can run faster or slower than APB
-- ✅ **Independent Resets:** Each domain may be reset alone without desynchronizing the link
+- **Reset both domains together** across the CDC variants -- a one-sided reset is NOT safe (consumed entries replay / responses fabricate; see apb4_slave_cdc.md's reset analysis)
 
 ### Monitoring and Debug
 - ✅ **Transaction Monitoring:** Real-time protocol monitoring
@@ -144,10 +145,11 @@ identical to it. They add `cfg_cg_enable` / `cfg_cg_idle_count` inputs and an
 apb4_master #(
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32),
-    .DEPTH(2)
+    .CMD_DEPTH(2),
+    .RSP_DEPTH(2)
 ) u_apb4_master (
-    .aclk           (clk),
-    .aresetn        (resetn),
+    .pclk           (clk),
+    .presetn        (resetn),
 
     // Command interface
     .cmd_valid      (cmd_valid),
@@ -184,8 +186,8 @@ apb4_slave #(
     .DATA_WIDTH(32),
     .DEPTH(2)
 ) u_apb4_slave (
-    .aclk           (clk),
-    .aresetn        (resetn),
+    .pclk           (clk),
+    .presetn        (resetn),
 
     // APB slave interface
     .s_apb_PSEL     (psel),

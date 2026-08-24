@@ -20,7 +20,7 @@
 module apb4_slave #(
     parameter int ADDR_WIDTH      = 32,
     parameter int DATA_WIDTH      = 32,
-    parameter int STRB_WIDTH      = 32 / 8,
+    parameter int STRB_WIDTH      = DATA_WIDTH / 8,
     parameter int PROT_WIDTH      = 3,
     parameter int DEPTH      = 2,
     // Short Parameters

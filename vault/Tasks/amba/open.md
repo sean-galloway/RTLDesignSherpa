@@ -749,6 +749,38 @@ correctly, there won't be data to drop", which reframed a documented
 
 ---
 
+### TASK-066: apb4_monitor lost events permanently leak transaction-table slots
+**Priority:** P1 (family precedent: the AXI monitor's event_reported feedback bug)
+**Status:** Open (filed from apb4 qc round_17, 2026-08-24; traced, not yet simulated)
+
+Cleanup requires `event_reported`; it is set only when `w_fifo_wr_valid &&
+w_fifo_wr_ready` in the cycle a pulse-based event fires. Completion/error
+events fire only on the response-handshake cycle -- if the monitor FIFO is
+full that cycle, the packet is dropped AND the slot is never freed. After
+MAX_TRANSACTIONS (default 4) such losses, `w_has_free_slot` sticks at 0 and
+the monitor stops tracking until reset. Secondary wart: on event collision
+the priority loser is marked reported anyway (silently discarded).
+Fix candidates: pend the event in the table entry until the FIFO accepts
+(preferred -- matches the AXI family's eventual shape), or free-on-drop
+(lossy-but-honest). Write the directed test FIRST (fill the FIFO, complete a
+transaction, watch the slot leak), then fix, then mutation-check. The doc
+page now states the drop behavior honestly (round_17 integration).
+apb5_monitor shares the pattern -- check it in the same pass.
+
+### TASK-067: apb4_master_stub first/last side FIFO can silently overflow
+**Priority:** P2
+**Status:** Open (filed from apb4 qc round_17, 2026-08-24; reachability traced)
+
+The side FIFO (depth CMD_DEPTH) pushes per accepted command and pops per
+response handshake, but accepted-not-yet-drained can reach CMD_DEPTH + 1 +
+RSP_DEPTH (13 at defaults) because the response skid absorbs more.
+`fl_in_ready` is never consulted, so overflow silently drops {last,first}
+framing and later responses pair with stale framing. Fix candidates: size
+the side FIFO to CMD_DEPTH + RSP_DEPTH + 1, or gate cmd_ready on
+fl_in_ready; either way add the sticky-overflow observability the splitter
+pattern established. Directed test: saturate responses-undrained, count
+framing pairs.
+
 ### TASK-062: `sdpram_slave_axil_axil` runs on the board with no simulation
 **Priority:** P2
 **Status:** 🔴 Not Started (found 2026-08-10)

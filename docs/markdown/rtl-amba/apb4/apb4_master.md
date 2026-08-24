@@ -176,9 +176,9 @@ Response Interface ← Response FIFO ← APB Response Processing
 
 | Characteristic | Value | Description |
 |----------------|-------|-------------|
-| Setup Phase | 1 clock cycle | PSEL assertion |
+| Setup Phase | 2 clock cycles cold, 1 back-to-back | PSEL asserts in IDLE and again through SETUP before PENABLE; ACCESS -> SETUP skips the IDLE cycle |
 | Access Phase | ≥1 clock cycle | PENABLE assertion until PREADY |
-| Total Latency | 2+ clock cycles | Minimum transaction time |
+| Total Latency | 3+ clock cycles cold, 2+ back-to-back | Minimum transaction time (a standalone transfer pays the extra IDLE-entry cycle) |
 | FIFO Latency | 1 clock cycle | Command to APB delay |
 | Response Latency | 1 clock cycle | APB to response delay |
 
@@ -196,7 +196,9 @@ and cannot start the next until `PREADY` for the current one. Buffering lets the
 command producer run ahead and lets responses drain lazily; it does not overlap
 bus transfers. Peak throughput is therefore
 `DATA_WIDTH / (transfer cycles × pclk period)`, with a minimum of two cycles
-(SETUP + one ACCESS cycle) per transfer against a zero-wait-state slave.
+(SETUP + one ACCESS cycle) per transfer against a zero-wait-state slave --
+back-to-back only; a cold (standalone) transfer takes THREE cycles, paying an
+extra PSEL cycle on the IDLE -> SETUP entry.
 
 ## Waveforms
 
@@ -284,8 +286,8 @@ Shows APB write with command FIFO and response handling:
 apb4_master #(
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32),
-    .CMD_DEPTH(4),      // 16-entry command FIFO
-    .RSP_DEPTH(4)       // 16-entry response FIFO
+    .CMD_DEPTH(4),      // 4-entry command FIFO (literal entry count)
+    .RSP_DEPTH(4)       // 4-entry response FIFO (literal entry count)
 ) u_apb4_master (
     .pclk         (apb_clk),
     .presetn      (apb_resetn),
