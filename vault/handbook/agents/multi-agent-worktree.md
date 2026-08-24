@@ -28,6 +28,16 @@ The incidents, each a different leak path:
    to `tbbase.py` doubled a decorator and broke all 118 TBs that call
    `convert_to_int` - and the victim spent the longest stretch assuming the
    failure was their own change (2026-08-06).
+5. **Your STAGED set rides someone else's commit - including RTL.** A staged
+   round-14 integration (an acceptance-fence RTL fix + TB scenario + 7 doc
+   pages) was swept wholesale into the converters session's 426e2fb8, whose
+   message describes none of it - a shared-RTL behavior change shipped under
+   a test-work title. Same week, the reverse: a diagnostic probe rode that
+   session's 40e5e116. Both directions of incident 1/2, now with staged (not
+   just worktree) state. Provenance repaired with an empty commit carrying
+   the intended message (1de8ad18, 2026-08-23). The fix is symmetrical:
+   pathspec'd commits + the staged-SET check catch it on the committer's
+   side; there is NO defense on the victim's side except committing fast.
 
 The rules:
 
