@@ -1333,9 +1333,16 @@ async def cocotb_test_wr_datapath_mon_monbus(dut):
 
 
 # stream_core agent-id map (see stream_core.sv parameter defaults). The
-# scheduler group owns the descriptor-AXI monitor plus the per-channel
-# descriptor-engine and scheduler monitors; the two datapath monitors (9, 10)
-# are separate arbiter clients handled by the tests above.
+# scheduler group owns the per-channel descriptor-engine and scheduler
+# monitors; the two datapath monitors (9, 10) are separate arbiter clients
+# handled by the tests above.
+#
+# Agent 8 (the shared descriptor-AXI monitor) is NO LONGER BUILT by default:
+# scheduler_group_array's USE_DESC_AXI_MONITOR now defaults to 0, since that
+# monitor existed only to instrument the descriptor bus while chasing a STREAM
+# bug. The id is kept here so the checks below still accept it if someone
+# re-arms the monitor for debug; agents 16-23 and 48-55 keep this test sourced
+# either way.
 _DESC_AXI_MON_AGENT_ID   = 8
 _DESC_MON_BASE_AGENT_ID  = 16   # descriptor engines 16..23
 _SCHED_MON_BASE_AGENT_ID = 48   # schedulers 48..55

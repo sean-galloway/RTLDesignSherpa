@@ -39,6 +39,13 @@ module scheduler_group_array #(
     // CAM + reporters). Mirrors stream_core's USE_MONITOR plumbing for the data
     // monitors so USE_AXI_MONITORS=0 removes ALL monitors, descriptor included.
     parameter int USE_AXI_MONITORS = 1,
+    // Shared descriptor-fetch AXI monitor. It existed to instrument the
+    // descriptor bus while chasing a STREAM bug; that job is done, so it is
+    // OFF by default -- it costs ~600 LUTs of base+CAM that the DESC_MON_*
+    // cone switches cannot trim, on a build that closes at +0.040 ns. Set to 1
+    // to re-arm it for debug; the tie-off path is the same one USE_AXI_MONITORS=0
+    // already uses, so turning it off does not disturb the data monitors.
+    parameter bit USE_DESC_AXI_MONITOR = 1'b0,
     parameter int NUM_CHANNELS = 8,
     parameter int CHAN_WIDTH = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
     parameter int ADDR_WIDTH = 64,
@@ -558,7 +565,7 @@ module scheduler_group_array #(
         // monitors are disabled -- the DESC_MON_ENABLE_* cones only trim the
         // reporter sub-blocks, not the ~600-LUT base/CAM, which is gated solely
         // by USE_MONITOR. Matches stream_core:USE_MONITOR(USE_AXI_MONITORS==1).
-        .USE_MONITOR            (USE_AXI_MONITORS == 1),
+        .USE_MONITOR            (USE_AXI_MONITORS == 1 && USE_DESC_AXI_MONITOR),
         .AXI_ID_WIDTH           (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH         (ADDR_WIDTH),
         .AXI_DATA_WIDTH         (256),  // FIXED 256-bit for descriptor size
