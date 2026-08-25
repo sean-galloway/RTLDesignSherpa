@@ -240,10 +240,12 @@ class Axi4ToAxilShim:
             f"parameter int AXI_ID_WIDTH     = {self.id_width}, "
             f"parameter int AXI_ADDR_WIDTH   = {self.addr_width}, "
             f"parameter int AXI_DATA_WIDTH   = {self.data_width}, "
-            f"parameter int AXI_USER_WIDTH   = {self.axi_user_width}, "
-            # SKID_DEPTH_AR is gone from axi4_to_axil4_rd; only the R-channel
-            # depth remains sizable from outside.
-            f"parameter int SKID_DEPTH_R     = {self._skid_depth_r}"
+            f"parameter int AXI_USER_WIDTH   = {self.axi_user_width}"
+            # ALL skid-depth parameters are gone from axi4_to_axil4_rd/wr --
+            # the modules never contained a skid buffer, and the parameter
+            # surface was removed with the false header claims. SKID_DEPTH_R
+            # briefly survived that cleanup (it was the last parameter, no
+            # trailing comma) and is now gone too.
         )
 
     def generate_lines(self) -> List[str]:
