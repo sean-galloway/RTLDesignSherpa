@@ -150,6 +150,7 @@ flowchart TB
 |------|-------|-----------|-------------|
 | aclk | 1 | Input | AXI clock (ungated) |
 | aresetn | 1 | Input | AXI active-low reset |
+| cam_clear | 1 | Input | Synchronous clear of the monitor transaction CAM (do not leave unconnected) |
 
 ### Clock Gating Configuration
 
@@ -176,7 +177,7 @@ Same as `axi5_slave_wr_mon` - see [AXI5 Slave Write Monitor](axi5_slave_wr_mon.m
 |------|-------|-----------|-------------|
 | monbus_valid | 1 | Output | Monitor packet valid |
 | monbus_ready | 1 | Input | Monitor packet ready |
-| monbus_packet | 128 | Output | `monitor_packet_t` (see format below) |
+| monbus_packet | 128 | Output | `monitor_packet_t` (128-bit; [127:124] type, [104:97] event code -- full layout on the base mon page) |
 | monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
 | i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
@@ -186,8 +187,8 @@ Same as `axi5_slave_wr_mon` - see [AXI5 Slave Write Monitor](axi5_slave_wr_mon.m
 |------|-------|-----------|-------------|
 | busy | 1 | Output | Module busy indicator |
 | active_transactions | 8 | Output | Current outstanding transactions |
-| error_count | 16 | Output | Total errors detected |
-| transaction_count | 32 | Output | Total transactions completed |
+| error_count | 16 | Output | Errors whose packets were actually EMITTED -- reads 0 with cfg_error_enable off or ENABLE_PERF_LOGIC=0 (auto-retired entries are deliberately not counted) |
+| transaction_count | 32 | Output | Completion packets actually EMITTED -- with cfg_compl_enable off (this page's own perf-mode recipe) it reads 0 while transactions complete normally |
 | cfg_conflict_error | 1 | Output | Configuration conflict detected |
 | cg_gating | 1 | Output | Clock is currently gated |
 | cg_idle | 1 | Output | Module is idle |
@@ -199,7 +200,7 @@ Same as `axi5_slave_wr_mon` - see [AXI5 Slave Write Monitor](axi5_slave_wr_mon.m
 ### Clock Gating Behavior
 
 **Activity Detection:**
-- **user_valid:** Asserted when slave interface has activity (awvalid, wvalid, bready, or internal busy)
+- **user_valid:** Asserted when slave interface has activity (awvalid, wvalid, bvalid, or internal busy -- peer VALID, never peer READY)
 - **axi_valid:** Asserted when FUB interface has activity (awvalid, wvalid, bvalid)
 
 **Key Points:**
@@ -252,12 +253,12 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 ### Observability
 
 **Monitoring Capabilities:**
-- Error detection (SLVERR, timeout, orphan, poison)
+- Error detection (SLVERR, timeout, orphan -- poison is NOT observable; see below)
 - Performance tracking (latency, throughput)
 - Transaction completion tracking
 - Protocol violation detection
-- Atomic operation monitoring
-- Tag mismatch detection (when ENABLE_MTE=1)
+- (Atomic operations are NOT monitored -- AWATOP never reaches the monitor)
+- (Tag-mismatch detection is NOT implemented -- ENABLE_MTE shapes the transport only)
 - All monitoring continues when ungated
 
 ---
@@ -338,7 +339,7 @@ always @(posedge axi_clk or negedge axi_rst_n) begin
         // Decode packet type
         case (mon_packet[127:124])  // Packet type (128-bit monitor_packet_t)
             4'd0: begin  // Error packet
-                if (mon_packet[104:97] == 8'h5)  // AXI5_POISON_DETECTED
+                if (mon_packet[104:97] == 8'h5)  // (never emitted -- poison is not monitored; see above)
                     critical_errors <= critical_errors + 1;
             end
         endcase
@@ -421,14 +422,14 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 - Gating should not occur mid-burst
 
 **Atomic Operations:**
-- Monitor tracks AWATOP field
+- AWATOP is NOT tracked by the monitor (transport-only signal)
 - Atomic transaction latency measured end-to-end
 - Consider higher idle_count for atomic-heavy workloads
 
-**Poison Detection:**
-- Generates error packet when WPOISON asserted
-- Critical for data integrity in safety-critical systems
-- Monitor overhead minimal (single bit check per beat)
+**Poison Detection:** NOT implemented. WPOISON flows through the
+transport data plane and never reaches the monitor -- no poison event
+packet can be emitted (the 8'h5 decode some examples showed can never
+match).
 
 ---
 

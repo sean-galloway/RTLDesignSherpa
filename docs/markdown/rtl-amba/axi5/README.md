@@ -278,9 +278,9 @@ axi5_master_rd_mon #(
     .m_axi_r*           (...),
 
     // Monitor bus output
-    .mon_valid          (rd_mon_valid),
-    .mon_ready          (rd_mon_ready),
-    .mon_data           (rd_mon_data)
+    .monbus_valid          (rd_mon_valid),
+    .monbus_ready          (rd_mon_ready),
+    .monbus_packet           (rd_mon_data)
 );
 ```
 
