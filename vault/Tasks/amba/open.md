@@ -749,6 +749,32 @@ correctly, there won't be data to drop", which reframed a documented
 
 ---
 
+### TASK-068: apb4_master deadlocks the bus when its response FIFO is full at completion
+**Priority:** P1 -- CONFIRMED by inspection (apb4 qc round_19, 2026-08-25)
+
+ACCESS state: `if (m_apb_PREADY) begin if (r_rsp_ready) ... else w_apb_next_state = ACCESS;`
+-- the completed transfer is dropped and the master holds PENABLE high forever
+(also an APB protocol violation). Paired with apb4_slave, PREADY is a
+one-cycle pulse and the slave's edge-detect never re-fires: permanent bus
+wedge whenever the consumer backpressures rsp_ready until RSP_DEPTH fills.
+No parameter prevents it. Fix direction: don't complete the bus transfer
+until r_rsp_ready (hold in SETUP/dont-assert-PENABLE), or reserve one rsp
+slot per in-flight ACCESS. Directed test: stall rsp_ready, run RSP_DEPTH+1
+transfers, expect either backpressure (fixed) or the wedge (RED).
+
+### TASK-069: apb4_monitor protocol-violation check false-positives on pipelined traffic; event data pairs with the LIVE command
+**Priority:** P2 (qc round_19 items C + E; D folds in)
+
+C: `rsp_valid && IDLE` / `cmd_valid && CMD_SENT` raise APB_ERR_SETUP_VIOLATION
+on exactly the pipelined traffic the module's own MAX_TRANSACTIONS=4 table
+supports -- the check contradicts the tracker. E: completion/perf/debug
+packets take cmd_paddr/cmd_pprot/cmd_pwrite from the LIVE command, so under
+pipelining a completion for transaction N carries N+1's address (the table
+stores per-slot addr/burst/channel -- use them). D: active_count cleanup
+loop decrements once for multiple frees (last-nonblocking-wins) and nets -1
+on same-cycle alloc+free -- status-only drift, same class as the historical
+trans_mgr accumulator bug.
+
 ### TASK-066: apb4_monitor lost events permanently leak transaction-table slots
 **Priority:** P1 (family precedent: the AXI monitor's event_reported feedback bug)
 **Status:** Open (filed from apb4 qc round_17, 2026-08-24; traced, not yet simulated)
@@ -766,6 +792,13 @@ Fix candidates: pend the event in the table entry until the FIFO accepts
 transaction, watch the slot leak), then fix, then mutation-check. The doc
 page now states the drop behavior honestly (round_17 integration).
 apb5_monitor shares the pattern -- check it in the same pass.
+Round_19 adds a SECOND trigger (B): with cfg_slverr_enable=0, an erroring
+transaction reaches TRANS_COMPLETE but neither the completion event
+(!rsp_pslverr) nor the error event (cfg gate) fires -- slot leaks with the
+FIFO EMPTY. Mitigation nuance: any later packet write frees all completed
+slots, so the wedge needs MAX_TRANSACTIONS leaks with no intervening
+event-generating traffic (reachable: polling an erroring region with error
+events off).
 
 ### TASK-067: apb4_master_stub first/last side FIFO can silently overflow
 **Priority:** P2

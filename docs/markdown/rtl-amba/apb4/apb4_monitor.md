@@ -86,13 +86,19 @@ module apb4_monitor
     // Configuration - Debug
     input  logic                     cfg_debug_enable,        // Enable debug packets
     input  logic                     cfg_trans_debug_enable,  // Enable transaction debug
-    input  logic [3:0]               cfg_debug_level,         // Debug verbosity level
+    input  logic [3:0]               cfg_debug_level,         // ACCEPTED BUT UNIMPLEMENTED -- never referenced in the body
 
     // Configuration - Thresholds and Timeouts
     input  logic [15:0]              cfg_cmd_timeout_cnt,     // Command timeout (cycles)
     input  logic [15:0]              cfg_rsp_timeout_cnt,     // Response timeout (cycles)
     input  logic [31:0]              cfg_latency_threshold,   // Latency threshold (cycles)
-    input  logic [15:0]              cfg_throughput_threshold, // Throughput threshold
+    input  logic [15:0]              cfg_throughput_threshold, // ACCEPTED BUT UNIMPLEMENTED
+
+    // Address-range checker (elaborated when N_ADDR_RANGES > 0)
+    input  logic                                                       cfg_addr_check_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]         cfg_addr_range_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
     // Consolidated 128-bit event packet interface (monitor bus) + 64-bit side-band timestamp
     output logic                     monbus_valid,            // Monitor bus valid
@@ -117,7 +123,6 @@ module apb4_monitor
 | UNIT_ID | logic [7:0] | 8'h01 | 8-bit Unit identifier for monitor packets |
 | AGENT_ID | logic [15:0] | 16'h000A | 16-bit Agent identifier for monitor packets |
 | MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions (APB typically 1-4) |
-| USE_MONITOR | bit | 1 | 0 = omit the monitor body entirely, tie outputs |
 | N_ADDR_RANGES | int | 0 | Address-range checker ranges; 0 disables the checker |
 | MONITOR_FIFO_DEPTH | int | 8 | Internal FIFO depth for monitor packets |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
@@ -175,7 +180,7 @@ module apb4_monitor
 |------|-------|-----------|-------------|
 | cfg_debug_enable | 1 | Input | Enable debug packet generation |
 | cfg_trans_debug_enable | 1 | Input | Enable transaction-level debugging |
-| cfg_debug_level | 4 | Input | Debug verbosity level (0-15) |
+| cfg_debug_level | 4 | Input | ACCEPTED BUT UNIMPLEMENTED: never referenced in the module body |
 
 ### Configuration - Thresholds
 
@@ -249,7 +254,10 @@ The 128-bit `monbus_packet` (paired with the 64-bit `monbus_timestamp` side-band
 ```
 Bits [127:124] - Packet Type:
   0x0 = ERROR      Error events (SLVERR, protocol violations)
-  0x1 = COMPL      Completion events (transaction finished)
+  0x1 = COMPL      Completion events (transaction finished). NOTE: completion
+                   packets are UNGATED -- one monbus packet per successful
+                   transaction in EVERY configuration; there is no
+                   cfg_compl_enable on this monitor. Budget the consumer for it.
   0x2 = THRESH     Threshold events
   0x3 = TIMEOUT    Timeout events
   0x4 = PERF       Performance metrics
@@ -299,7 +307,7 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 .cfg_error_enable(1'b1),
 .cfg_debug_enable(1'b1),          // Enable debug packets
 .cfg_trans_debug_enable(1'b1),    // Transaction-level debug
-.cfg_debug_level(4'd2),           // Medium verbosity
+.cfg_debug_level(4'd0),           // unimplemented -- tie low
 .cfg_perf_enable(1'b0)            // Reduce traffic
 ```
 

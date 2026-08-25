@@ -211,7 +211,7 @@ apb4_slave #(
     .cmd_paddr      (cmd_paddr),
     .cmd_pwdata     (cmd_pwdata),
     .cmd_pstrb      (cmd_pstrb),
-    .cmd_pprot      (3'b000),      // floating this drives Z into the FIFO
+    .cmd_pprot      (cmd_pprot),   // OUTPUT to the backend (do not tie)
 
     // Response interface
     .rsp_valid      (rsp_valid),
