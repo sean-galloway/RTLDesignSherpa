@@ -342,7 +342,7 @@ module apb4_monitor
                 r_trans_table[w_free_idx].addr_timer <= '0;
                 r_trans_table[w_free_idx].resp_timer <= '0;
 
-                r_active_count <= r_active_count + 1'b1;
+                // (r_active_count updated once, net, below -- TASK-069 drift fix)
                 r_cmd_start_time <= r_timestamp;
 
                 // Transition to data phase immediately for APB
@@ -374,9 +374,17 @@ module apb4_monitor
             for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
                 if (w_completed_trans[i]) begin
                     r_trans_table[i].valid <= 1'b0;
-                    r_active_count <= r_active_count - 1'b1;
                 end
             end
+
+            // Net active_count update, computed ONCE per cycle: the old
+            // per-site nonblocking updates collapsed under
+            // last-assignment-wins -- two frees in one cycle decremented
+            // once, and a same-cycle alloc+free netted -1 instead of 0
+            // (TASK-069, the historical trans_mgr accumulator class).
+            r_active_count <= 8'(32'(r_active_count)
+                + ((w_cmd_handshake && w_has_free_slot) ? 32'd1 : 32'd0)
+                - $countones(w_completed_trans));
         end
     )
 
@@ -422,13 +430,12 @@ module apb4_monitor
         w_protocol_violation = 1'b0;
 
         if (cfg_protocol_enable) begin
-            // Detect protocol violations
-            // Example: Response without command
-            if (rsp_valid && r_trans_state == CMD_RSP_IDLE) begin
-                w_protocol_violation = 1'b1;
-            end
-            // Example: Multiple commands without response
-            if (cmd_valid && r_trans_state == CMD_RSP_CMD_SENT) begin
+            // Orphan response: a response with NO tracked transaction open.
+            // Checked against the TABLE, not the 2-state cmd/rsp FSM -- the
+            // old FSM-based checks fired on ordinary pipelined traffic
+            // (command N+1 while response N pending), which this monitor's
+            // own MAX_TRANSACTIONS table explicitly supports (TASK-069).
+            if (rsp_valid && !w_has_active_trans) begin
                 w_protocol_violation = 1'b1;
             end
         end
@@ -576,8 +583,13 @@ module apb4_monitor
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeCompletion;
             w_fifo_wr_data.event_code = APB_COMPL_TRANS_COMPLETE;
-            w_fifo_wr_data.event_data = cmd_paddr;
-            w_fifo_wr_data.aux_data = {4'h0, cmd_pprot, cmd_pwrite};
+            // From the TRACKED entry: under pipelining the live cmd_* pins
+            // already carry command N+1 when transaction N completes
+            // (TASK-069's stale-pairing class).
+            w_fifo_wr_data.event_data = w_has_active_trans ? r_trans_table[w_active_idx].addr[31:0] : cmd_paddr;
+            w_fifo_wr_data.aux_data = w_has_active_trans
+                ? {4'h0, r_trans_table[w_active_idx].channel[5:3], r_trans_table[w_active_idx].burst[0]}
+                : {4'h0, cmd_pprot, cmd_pwrite};
         end
     end
 
@@ -586,11 +598,20 @@ module apb4_monitor
         if (`RST_ASSERTED(aresetn)) begin
             // Reset handled in transaction management
         end else begin
-            // Mark events as reported when packets are generated
+            // Retire terminal entries UNCONDITIONALLY (TASK-066). The
+            // completion/error packet is pulse-based: its only chance to
+            // write the FIFO is the transition cycle, and the table state
+            // reads terminal one cycle later -- so gating this mark on
+            // w_fifo_wr_valid && w_fifo_wr_ready leaked the slot whenever
+            // the packet was dropped (FIFO full) or never generated (event
+            // class disabled), wedging the monitor after MAX_TRANSACTIONS
+            // losses. Whether the packet made it or not, it will never fire
+            // again: free the slot (lossy-but-honest, the AXI family's
+            // auto-retire shape).
             for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
                 if (r_trans_table[i].valid &&
                     (r_trans_table[i].state == TRANS_COMPLETE || r_trans_table[i].state == TRANS_ERROR) &&
-                    !r_trans_table[i].event_reported && w_fifo_wr_valid && w_fifo_wr_ready) begin
+                    !r_trans_table[i].event_reported) begin
                     r_trans_table[i].event_reported <= 1'b1;
                 end
             end

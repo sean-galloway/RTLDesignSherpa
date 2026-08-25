@@ -113,7 +113,13 @@ module apb4_master_stub #(
 
     gaxi_fifo_sync #(
         .DATA_WIDTH (2),
-        .DEPTH      (CMD_DEPTH)
+        // Sized for the TRUE outstanding bound, not just the command
+        // buffer: accepted-but-undrained commands can reach CMD_DEPTH
+        // (cmd skid) + 1 (APB FSM in flight) + RSP_DEPTH (response skid
+        // absorbing while the consumer stalls). At CMD_DEPTH alone the
+        // overflow silently dropped {last,first} records and every later
+        // response paired with stale framing (TASK-067).
+        .DEPTH      (CMD_DEPTH + RSP_DEPTH + 2)
     ) u_first_last_fifo (
         .axi_aclk    (pclk),
         .axi_aresetn (presetn),
@@ -127,6 +133,15 @@ module apb4_master_stub #(
         .count       ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
+
+    // The sizing above makes overflow unreachable; if a future change
+    // breaks the bound, fail LOUDLY in sim instead of pairing responses
+    // with stale framing (the sticky-observability rule the splitters set).
+    always @(posedge pclk) begin
+        if (presetn && (cmd_valid && cmd_ready) && !fl_in_ready) begin
+            $error("apb4_master_stub: first/last side FIFO overflow -- framing record dropped");
+        end
+    end
 
     // Pack response packet with the first/last bits that belong to the
     // command whose response is being emitted right now (not whatever

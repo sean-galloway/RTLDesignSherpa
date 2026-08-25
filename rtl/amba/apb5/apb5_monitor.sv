@@ -429,7 +429,7 @@ module apb5_monitor
                 r_trans_table[w_free_idx].addr_timer <= '0;
                 r_trans_table[w_free_idx].resp_timer <= '0;
 
-                r_active_count <= r_active_count + 1'b1;
+                // (net active_count update below -- TASK-069 drift fix)
                 r_cmd_start_time <= r_timestamp;
             end
 
@@ -455,9 +455,13 @@ module apb5_monitor
             for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
                 if (w_completed_trans[i]) begin
                     r_trans_table[i].valid <= 1'b0;
-                    r_active_count <= r_active_count - 1'b1;
                 end
             end
+
+            // Net update once per cycle (last-nonblocking-wins drift fix)
+            r_active_count <= 8'(32'(r_active_count)
+                + ((w_cmd_handshake && w_has_free_slot) ? 32'd1 : 32'd0)
+                - $countones(w_completed_trans));
         end
     )
 
@@ -499,7 +503,10 @@ module apb5_monitor
         w_parity_error = 1'b0;
 
         if (cfg_protocol_enable) begin
-            if (rsp_valid && r_trans_state == CMD_RSP_IDLE) begin
+            // Orphan response only, checked against the TABLE (the old
+            // FSM-keyed checks fired on legal pipelined traffic -- TASK-069,
+            // same fix as apb4_monitor).
+            if (rsp_valid && !w_has_active_trans) begin
                 w_protocol_violation = 1'b1;
             end
             if (cmd_valid && r_trans_state == CMD_RSP_CMD_SENT) begin
@@ -695,8 +702,11 @@ module apb5_monitor
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeCompletion;
             w_fifo_wr_data.event_code = APB_COMPL_TRANS_COMPLETE;
-            w_fifo_wr_data.event_data = 32'(cmd_paddr);
-            w_fifo_wr_data.aux_data = {4'h0, cmd_pprot, cmd_pwrite};
+            // From the TRACKED entry, not the live pins (TASK-069 pairing)
+            w_fifo_wr_data.event_data = w_has_active_trans ? r_trans_table[w_active_idx].addr[31:0] : 32'(cmd_paddr);
+            w_fifo_wr_data.aux_data = w_has_active_trans
+                ? {4'h0, r_trans_table[w_active_idx].channel[5:3], r_trans_table[w_active_idx].burst[0]}
+                : {4'h0, cmd_pprot, cmd_pwrite};
         end
     end
 
@@ -705,10 +715,15 @@ module apb5_monitor
         if (`RST_ASSERTED(aresetn)) begin
             // Reset handled in transaction management
         end else begin
+            // Retire terminal entries UNCONDITIONALLY -- same TASK-066 leak
+            // as apb4_monitor: the packet's only chance was the transition
+            // pulse; gating the mark on a successful FIFO write leaked the
+            // slot on drop (FIFO full) or disabled event class, wedging the
+            // monitor after MAX_TRANSACTIONS losses.
             for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
                 if (r_trans_table[i].valid &&
                     (r_trans_table[i].state == TRANS_COMPLETE || r_trans_table[i].state == TRANS_ERROR) &&
-                    !r_trans_table[i].event_reported && w_fifo_wr_valid && w_fifo_wr_ready) begin
+                    !r_trans_table[i].event_reported) begin
                     r_trans_table[i].event_reported <= 1'b1;
                 end
             end

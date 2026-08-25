@@ -201,6 +201,116 @@ def decode_monbus_packet(pkt: int) -> dict:
 
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
+async def apb4_monitor_slot_retire_test(dut):
+    """TASK-066/069 witness: terminal slots retire; no pipelining false alarms.
+
+    Phase 1 (066-a): with monbus_ready STALLED, run enough transactions to
+    fill the internal packet FIFO and then some -- the overflow completions'
+    packets are dropped. Unfixed RTL never set event_reported for a dropped
+    packet, leaking the slot: active_count sticks at MAX_TRANSACTIONS and the
+    monitor stops tracking until reset. Fixed RTL retires terminal entries
+    unconditionally: active_count drains to 0 even during the stall.
+
+    Phase 2 (066-b): with error reporting DISABLED, pslverr transactions
+    reach TRANS_ERROR with no event to generate -- unfixed RTL leaked those
+    slots with the FIFO empty.
+
+    Phase 3 (069-C): legally pipelined traffic (second command accepted while
+    the first response is pending) must raise NO protocol violation --
+    unfixed checks keyed the 2-state FSM and fired on exactly this shape.
+    """
+    tb = SimpleAPBMonitorTB(dut)
+    dut.i_mon_time.value = 0
+    await tb.setup_clocks_and_reset()
+
+    for sig in ('cmd_valid', 'cmd_ready', 'cmd_pwrite', 'cmd_paddr', 'cmd_pwdata',
+                'cmd_pstrb', 'cmd_pprot', 'rsp_valid', 'rsp_ready', 'rsp_prdata',
+                'rsp_pslverr', 'cfg_error_enable', 'cfg_timeout_enable',
+                'cfg_protocol_enable', 'cfg_slverr_enable', 'cfg_perf_enable',
+                'cfg_latency_enable', 'cfg_throughput_enable', 'cfg_debug_enable',
+                'cfg_trans_debug_enable', 'cfg_debug_level', 'cfg_cmd_timeout_cnt',
+                'cfg_rsp_timeout_cnt', 'cfg_latency_threshold',
+                'cfg_throughput_threshold', 'cfg_addr_check_enable',
+                'cfg_addr_range_enable'):
+        getattr(dut, sig).value = 0
+    dut.cfg_cmd_timeout_cnt.value = 1000
+    dut.cfg_rsp_timeout_cnt.value = 1000
+
+    async def one_txn(addr, slverr=0, gap=2):
+        dut.cmd_valid.value = 1
+        dut.cmd_ready.value = 1
+        dut.cmd_pwrite.value = 1
+        dut.cmd_paddr.value = addr
+        dut.cmd_pwdata.value = 0xD00D0000 | (addr & 0xFFFF)
+        dut.cmd_pstrb.value = 0xF
+        await RisingEdge(dut.aclk)
+        dut.cmd_valid.value = 0
+        dut.cmd_ready.value = 0
+        await RisingEdge(dut.aclk)
+        dut.rsp_valid.value = 1
+        dut.rsp_ready.value = 1
+        dut.rsp_pslverr.value = slverr
+        await RisingEdge(dut.aclk)
+        dut.rsp_valid.value = 0
+        dut.rsp_ready.value = 0
+        dut.rsp_pslverr.value = 0
+        for _ in range(gap):
+            await RisingEdge(dut.aclk)
+
+    # ---- Phase 1: FIFO-drop retire ----
+    dut.monbus_ready.value = 0
+    for i in range(14):                      # > MONITOR_FIFO_DEPTH + MAX_TRANSACTIONS
+        await one_txn(0x1000 + i * 4)
+    for _ in range(10):
+        await RisingEdge(dut.aclk)
+    ac = int(dut.active_count.value)
+    assert ac == 0, (
+        f"Phase1: active_count={ac} with monbus stalled after all responses -- "
+        f"dropped-packet slots never retired (monitor wedges at MAX_TRANSACTIONS)")
+    dut.monbus_ready.value = 1               # drain the packet FIFO
+    for _ in range(20):
+        await RisingEdge(dut.aclk)
+
+    # ---- Phase 2: disabled-config retire ----
+    for i in range(6):                       # > MAX_TRANSACTIONS erroring txns, events all off
+        await one_txn(0x2000 + i * 4, slverr=1)
+    for _ in range(10):
+        await RisingEdge(dut.aclk)
+    ac = int(dut.active_count.value)
+    assert ac == 0, (
+        f"Phase2: active_count={ac} after pslverr traffic with error events "
+        f"disabled -- slots leak with the FIFO EMPTY")
+
+    # ---- Phase 3: pipelined traffic, no protocol false alarms ----
+    dut.cfg_protocol_enable.value = 1
+    err_before = int(dut.error_count.value)
+    # two commands accepted before the first response
+    for i in range(2):
+        dut.cmd_valid.value = 1
+        dut.cmd_ready.value = 1
+        dut.cmd_pwrite.value = 1
+        dut.cmd_paddr.value = 0x3000 + i * 4
+        dut.cmd_pwdata.value = 0xBEEF0000 + i
+        dut.cmd_pstrb.value = 0xF
+        await RisingEdge(dut.aclk)
+    dut.cmd_valid.value = 0
+    dut.cmd_ready.value = 0
+    for _ in range(2):
+        dut.rsp_valid.value = 1
+        dut.rsp_ready.value = 1
+        await RisingEdge(dut.aclk)
+    dut.rsp_valid.value = 0
+    dut.rsp_ready.value = 0
+    for _ in range(10):
+        await RisingEdge(dut.aclk)
+    err_after = int(dut.error_count.value)
+    assert err_after == err_before, (
+        f"Phase3: {err_after - err_before} protocol-violation event(s) on "
+        f"legally pipelined traffic (cmd N+1 before rsp N)")
+    tb.log.info("slot-retire witness PASSED: phases 1-3 clean")
+
+
+@cocotb.test(timeout_time=100, timeout_unit="us")
 async def apb4_monitor_addr_range_test(dut):
     """Address-range violation through apb4_monitor -- the KNOWN-GOOD control.
 
@@ -379,6 +489,89 @@ def test_apb4_monitor_addr_range():
         print(f"APB Monitor addr-range control test FAILED: {e}")
         print(f"Logs at: {log_path}")
         raise
+
+
+def test_apb4_monitor_slot_retire():
+    """TASK-066/069 witness runner: slot retirement + pipelining."""
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn':           'rtl/common',
+        'rtl_gaxi':          'rtl/amba/gaxi',
+        'rtl_apb':           'rtl/amba/apb4',
+        'rtl_amba_shared':   'rtl/amba/shared',
+        'rtl_monitor':       'rtl/amba/monitor',
+        'rtl_amba_includes': 'rtl/amba/includes',
+    })
+
+    aw, dw = 32, 32
+    unit_id, agent_id = 4, 8
+
+    test_name = f"test_{worker_id}_apb4_monitor_slot_retire"
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    log_path = os.path.join(log_dir, f'{test_name}.log')
+
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path="rtl/amba/filelists/apb4_monitor.f")
+
+    parameters = {
+        'UNIT_ID': str(unit_id),
+        'AGENT_ID': str(agent_id),
+        'MAX_TRANSACTIONS': '4',
+        'ADDR_WIDTH': str(aw),
+        'DATA_WIDTH': str(dw),
+        'MONITOR_FIFO_DEPTH': '8',
+        'N_ADDR_RANGES': '4',
+        'AW': str(aw),
+        'DW': str(dw),
+        'SW': str(dw // 8),
+    }
+
+    extra_env = {
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        'TEST_AW': str(aw),
+        'TEST_DW': str(dw),
+        'TEST_UNIT_ID': str(unit_id),
+        'TEST_AGENT_ID': str(agent_id),
+        'TEST_MAX_TRANSACTIONS': '4',
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'LOG_PATH': log_path
+    }
+
+    compile_args = [
+        "--trace-fst",
+        "--trace-structs",
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-WIDTHEXPAND",
+        "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-PINCONNECTEMPTY", "--no-timing"
+    ]
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel='apb4_monitor',
+            module='test_apb4_monitor',
+            parameters=parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
+            compile_args=compile_args,
+            testcase="apb4_monitor_slot_retire_test",
+        )
+    except Exception as e:
+        print(f"APB Monitor addr-range control test FAILED: {e}")
+        print(f"Logs at: {log_path}")
+        raise
+
+
 
 
 if __name__ == "__main__":

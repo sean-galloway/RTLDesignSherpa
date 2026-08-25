@@ -1426,3 +1426,31 @@ until r_rsp_ready (hold in SETUP/dont-assert-PENABLE), or reserve one rsp
 slot per in-flight ACCESS. Directed test: stall rsp_ready, run RSP_DEPTH+1
 transfers, expect either backpressure (fixed) or the wedge (RED).
 
+---
+
+### TASK-066 / TASK-069 / TASK-067 -- CLOSED together (fixed + witnessed, 2026-08-25)
+
+**066 (both monitors):** terminal entries now retire UNCONDITIONALLY -- the
+completion/error packet is pulse-based, so its only FIFO chance is the
+transition cycle; gating event_reported on a successful write leaked the
+slot on drop (FIFO full) or disabled event class. The old mark also
+required state==TERMINAL, true only the cycle AFTER the pulse, so it
+worked only via unrelated later traffic. Witness
+apb4_monitor_slot_retire_test: RED on HEAD = "Phase1: active_count=4 --
+dropped-packet slots never retired"; GREEN with fix (phases: FIFO-drop,
+disabled-config, pipelined). Fix ported to apb5_monitor (5/5 suite).
+
+**069 (both monitors):** protocol check now flags only ORPHAN responses
+against the TABLE (the FSM-keyed checks fired on legal pipelined traffic);
+completion event_data/aux come from the tracked entry, not the live cmd
+pins (stale-pairing under pipelining); active_count updated once per cycle
+as a net (alloc - $countones(frees)) killing the last-nonblocking-wins
+drift (the historical trans_mgr class). Phase 3 of the witness pins the
+no-false-alarm behavior.
+
+**067 (apb4_master_stub):** first/last side FIFO sized to the TRUE
+outstanding bound CMD_DEPTH + RSP_DEPTH + 2 (was CMD_DEPTH; the response
+skid absorbs RSP_DEPTH more while the consumer stalls, silently dropping
+framing records), plus a loud sim \$error if a future change breaks the
+bound. Lint clean; no dedicated apb4 stub suite exists (coverage via
+harness integration) -- the assertion is the tripwire.
