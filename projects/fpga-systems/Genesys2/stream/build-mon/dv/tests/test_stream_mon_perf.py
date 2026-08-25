@@ -63,8 +63,24 @@ MON_RTL_PARAMS = {
 }
 
 
-@pytest.mark.parametrize("test_type", ['desc_perf', 'rw_perf', 'obs_equiv'])
+# 'dma_8ch' is the corner the board perf sweep failed on (7-8 active channels x
+# >=4 descriptors) and that nothing else here covers: obs_equiv drives 4 active
+# channels, everything else drives 1. It needs monitors ON -- the descriptor-fetch
+# master is shared by every channel, so its monitor transaction table is the one
+# structure that scales with channel count. Drive depth with DMA_DESC_PER_CH.
+@pytest.mark.parametrize("test_type", ['desc_perf', 'rw_perf', 'obs_equiv', 'dma_8ch'])
 def test_stream_mon_perf(request, test_type):
+    # 'desc_perf' measures the DESCRIPTOR monitor's perf window. That monitor
+    # (scheduler_group_array u_desc_axi_monitor) existed to instrument the
+    # descriptor bus while chasing a STREAM bug and is now built only on demand
+    # -- USE_DESC_AXI_MONITOR defaults to 0 -- so its perf CSRs read a
+    # structural zero and this case cannot pass. Skipped in lockstep with the
+    # parameter rather than deleted: re-arm the monitor and set
+    # DESC_AXI_MON=1 to run it again. The data-path perf cases (rw_perf) use
+    # stream_core's u_rd_axi_skid / write counterpart and are unaffected.
+    if test_type == 'desc_perf' and os.environ.get('DESC_AXI_MON', '0') != '1':
+        pytest.skip("descriptor-AXI monitor not built "
+                    "(USE_DESC_AXI_MONITOR=0); set DESC_AXI_MON=1 to run")
     """In-core monitor perf windows (monitors ON, board-matched depth)."""
     module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
         'stream_harness': 'projects/fpga-systems/Genesys2/stream',

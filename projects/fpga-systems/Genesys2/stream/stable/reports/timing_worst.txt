@@ -1,0 +1,199 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Sun Aug 23 22:01:42 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -sort_by group -max_paths 20 -path_type summary -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-mon/fpga/reports/timing_worst.txt
+| Design       : stream_genesys2_top
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Physopt postRoute
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Startpoint                     Endpoint                       Slack(ns)     
+----------------------------------------------------------------------------
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[17].r_payload_reg[17][79]/D
+                                                              0.040         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[21].r_payload_reg[21][87]/D
+                                                              0.056         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[21].r_payload_reg[21][82]/D
+                                                              0.069         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[21].r_payload_reg[21][78]/D
+                                                              0.080         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[21].r_payload_reg[21][76]/D
+                                                              0.086         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[17].r_payload_reg[17][72]/D
+                                                              0.094         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[21].r_payload_reg[21][85]/D
+                                                              0.097         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[21].r_payload_reg[21][84]/D
+                                                              0.097         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[17].r_payload_reg[17][80]/D
+                                                              0.098         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[17].r_payload_reg[17][76]/D
+                                                              0.099         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[17].r_payload_reg[17][87]/D
+                                                              0.172         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][70]/D
+                                                              0.179         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[5].r_payload_reg[5][67]/D
+                                                              0.180         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[17].r_payload_reg[17][73]/D
+                                                              0.184         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[21].r_payload_reg[21][86]/D
+                                                              0.196         
+u_harness/u_dma_observer/gen_wr_mon[0].u_wr_mon/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[0].r_valid_reg[0]/C
+                               u_harness/u_dma_observer/gen_wr_mon[0].u_wr_mon/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[3].u_cam/g_slot[15].r_payload_reg[15][276]/CE
+                                                              0.209         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[17].r_payload_reg[17][77]/D
+                                                              0.209         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[17].r_payload_reg[17][71]/D
+                                                              0.231         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[23].r_payload_reg[23][79]/D
+                                                              0.270         
+u_harness/u_rd_resp_delay/r_data_reg_0/CLKARDCLK
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_rd_axi_skid/gen_monitor.axi_monitor_inst/u_axi_monitor_base/trans_mgr/g_cam_bank[0].u_cam/g_slot[23].r_payload_reg[23][87]/D
+                                                              0.270         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][11][4]/CLR
+                                                              2.027         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][9][2]/CLR
+                                                              2.071         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][9][4]/CLR
+                                                              2.071         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][11][2]/CLR
+                                                              2.073         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][4][12]/CLR
+                                                              2.075         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][4][4]/CLR
+                                                              2.075         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][4][8]/CLR
+                                                              2.075         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][3][2]/CLR
+                                                              2.077         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][3][4]/CLR
+                                                              2.077         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][13][1]/CLR
+                                                              2.085         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][13][2]/CLR
+                                                              2.085         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][13][4]/CLR
+                                                              2.085         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][13][8]/CLR
+                                                              2.085         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][5][4]/CLR
+                                                              2.100         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][12][16]/CLR
+                                                              2.108         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][12][1]/CLR
+                                                              2.108         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][12][2]/CLR
+                                                              2.108         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][12][4]/CLR
+                                                              2.108         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][12][5]/CLR
+                                                              2.108         
+u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/u_wr_axi_skid/axi4_master_wr_inst/w_channel/rd_valid_reg/C
+                               u_harness/u_stream/g_stream_core_mon_enabled.u_stream_core/g_perf_hist.u_rd_lat_hist/r_hist_reg[0][12][8]/CLR
+                                                              2.108         
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/dst_valid_reg/D
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_ack_tog_reg/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[0]/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[1]/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[2]/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[3]/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[4]/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[5]/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[6]/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[7]/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_state_reg_inv/S
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_req_sync_d_reg/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_req_sync_reg[0]/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_req_sync_reg[1]/R
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_req_sync_reg[2]/R
+                                                              9999998.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[0]/CE
+                                                              9999999.000   
+u_led_status_driver/u_hs/r_dst_data_reg[0]/C
+                               u_led_status_driver/r_led_reg[0]/D
+                                                              9999999.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[1]/CE
+                                                              9999999.000   
+u_led_status_driver/u_hs/r_dst_data_reg[1]/C
+                               u_led_status_driver/r_led_reg[1]/D
+                                                              9999999.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[2]/CE
+                                                              9999999.000   
+
+
+
