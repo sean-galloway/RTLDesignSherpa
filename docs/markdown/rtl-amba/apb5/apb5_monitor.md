@@ -24,7 +24,7 @@
 # APB5 Monitor
 
 **Module:** `apb5_monitor.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/apb5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
 **Status:** Production Ready
 
 ---
@@ -198,8 +198,9 @@ merged onto the monitor bus at lower priority than the event FIFO.
 The APB5 monitor emits the standard **128-bit `monitor_packet_t`** plus the 64-bit
 side-band `monbus_timestamp`, identical to `apb4_monitor`. `i_mon_time` is the
 free-running monitor-time broadcast from the `monbus_group` family; FIFO events
-sample it at emission, and address-range packets carry the timestamp latched by
-`apb_monitor_addr_check`.
+sample it at emission; address-range packets sample it the same way --
+`apb_monitor_addr_check` holds no timestamp register, so the value is the
+emission-cycle time, not a match-cycle latch.
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|

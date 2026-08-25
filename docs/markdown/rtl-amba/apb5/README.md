@@ -65,7 +65,7 @@ ports to connect.
 | **apb5_master** | Full-featured APB5 master with command/response interface | [apb5_master.md](apb5_master.md) | Documented |
 | **apb5_slave** | Complete APB5 slave with buffered cmd/rsp interface | [apb5_slave.md](apb5_slave.md) | Documented |
 | **apb5_slave_cdc** | APB5 slave with clock domain crossing support | [apb5_slave_cdc.md](apb5_slave_cdc.md) | Documented |
-| **apb5_monitor** | Transaction monitoring with 64-bit monitor bus packet | [apb5_monitor.md](../apb5/apb5_monitor.md) | Documented |
+| **apb5_monitor** | Transaction monitoring with 128-bit monitor bus packet + 64-bit side-band timestamp | [apb5_monitor.md](apb5_monitor.md) | Documented |
 
 ### Clock-Gated Variants
 
@@ -375,7 +375,7 @@ APB5 modules are backward compatible with APB4 systems:
 
 ## Related Documentation
 
-- **[APB4 Modules](README.md)** - APB4 protocol components
+- **[APB4 Modules](../apb4/README.md)** - APB4 protocol components
 - **[AXI5 Modules](../axi5/README.md)** - AXI5 protocol components
 - **[AXIS5 Modules](../axis5/README.md)** - AXI5-Stream components
 - **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities
