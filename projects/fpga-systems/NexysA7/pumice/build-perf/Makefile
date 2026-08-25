@@ -21,4 +21,12 @@ SEQ_DIR   := $(SELF_DIR)/../bin
 # $(SELF_DIR)/dv/tests when the framework migration lands (NEXYS-003).
 SIM_TESTS ?= $(REPO_ROOT)/projects/NexysA7/ddr2-characterization/ddr2_char_framework/dv/tests/test_ddr2_char_uart.py
 
+# Keep the generated 1->5 AXIL bridge in lockstep with its .toml/.csv before
+# any synthesis (the Genesys2 stream builds' pattern). The bridge adapters
+# instantiate the converters component; twice in one week a converters-side
+# interface change left the checked-in generated RTL stale (SKID_DEPTH_*
+# removal, header-scope import move) and the staleness surfaced as a mid-build
+# compile error instead of at regen time. Cheap, and it cannot rot silently.
+PREBUILD := bash $(RDS_ROOT)/projects/NexysA7/ddr2-characterization/ddr2_char_framework/bin/regen_bridges.sh
+
 include $(RDS_ROOT)/make/fpga_flow.mk
