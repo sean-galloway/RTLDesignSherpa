@@ -46,20 +46,28 @@ The `axi4_master_rd_cg` module adds power optimization to `axi4_master_rd` throu
 
 - ✅ **Same Functionality:** 100% equivalent to base module
 - ✅ **Power Savings:** 25-70% depending on traffic utilization
-- ✅ **Configurable:** Idle threshold, gating domains, enable/disable
-- ✅ **Zero Overhead When Disabled:** `ENABLE_CLOCK_GATING=0` → identical to base
+- ✅ **Configurable at runtime:** `cfg_cg_enable` / `cfg_cg_idle_count` inputs
+- ✅ **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate
 
 ---
 
 ## Common Parameters
 
-In addition to all [axi4_master_rd](./axi4_master_rd.md) parameters:
+In addition to the [axi4_master_rd](./axi4_master_rd.md) parameters (note:
+the base module's `busy` output is NOT re-exported by this wrapper -- it is
+consumed internally as a wake term):
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `ENABLE_CLOCK_GATING` | 1 | Master enable (0=disable, identical to base) |
-| `CG_IDLE_CYCLES` | 8 | Cycles before clock gating activates |
-| `CG_GATE_*` | 1 | Domain-specific gating enables |
+| `CG_IDLE_COUNT_WIDTH` | 4 | Width of the idle countdown, sizing `cfg_cg_idle_count` |
+
+The gating controls are RUNTIME INPUTS, not parameters: `cfg_cg_enable`
+(gate master-enable) and `cfg_cg_idle_count` (idle cycles before gating).
+Status outputs are `cg_gating` and `cg_idle`. There are no per-domain
+gates -- one `amba_clock_gate_ctrl` gates the whole module. (This page once
+documented an ENABLE_CLOCK_GATING / CG_IDLE_CYCLES / CG_GATE_* parameter
+interface that never existed; the clock-gating guide in this book was
+always the accurate reference.)
 
 ---
 
@@ -71,14 +79,15 @@ axi4_master_rd_cg #(
     .AXI_ID_WIDTH(8),
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(64),
-
-    // Clock gating (see CG guide for details)
-    .ENABLE_CLOCK_GATING(1),
-    .CG_IDLE_CYCLES(8)
+    .CG_IDLE_COUNT_WIDTH(4)
 ) u_cg (
     .aclk(clk),
     .aresetn(rst_n),
-    // ... all other ports same as axi4_master_rd
+    .cfg_cg_enable(1'b1),
+    .cfg_cg_idle_count(4'd8),
+    .cg_gating(),           // status: clock currently gated
+    .cg_idle(),             // status: idle countdown expired
+    // ... all other ports same as axi4_master_rd (except busy)
 );
 ```
 

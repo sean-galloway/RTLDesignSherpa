@@ -24,7 +24,7 @@
 # AXI5 Slave Read Monitor
 
 **Module:** `axi5_slave_rd_mon.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/axi5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
 **Status:** Production Ready
 
 ---
@@ -206,7 +206,7 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for co
 | cfg_compl_enable | 1 | Input | Enable transaction-completion packets |
 | cfg_threshold_enable | 1 | Input | Enable threshold-crossed packets |
 | cfg_debug_enable | 1 | Input | Enable debug/trace packets (gates the debug cone — the 6th reporter sub-block) |
-| cfg_timeout_cycles | 16 | Input | Unified coarse timeout control: 0 = legacy full-scale (15 ticks), 1-15 = that many timer ticks per phase, >15 saturates at 15. One value drives all three phase counts (addr/data/resp), measured in `cfg_freq_sel`-scaled timer ticks, not raw clock cycles |
+| cfg_timeout_cycles | 16 | Input | Unified coarse timeout control, a MICROSECOND count passed through at FULL 16-bit width: 1..65535 us per phase; 0 = 16'hFFFF (~65 ms, effectively never). One value drives all three phase counts (addr/data/resp). The old 4-bit squash that saturated >= 16 at 15 us is retired |
 | cfg_latency_threshold | 32 | Input | High latency threshold (cycles) |
 | cfg_axi_pkt_mask | 16 | Input | Packet type filter mask |
 | cfg_axi_err_select | 16 | Input | Error selection mask |

@@ -277,7 +277,7 @@ Use cases:
 
 `SKID_DEPTH_*` is an entry count, not a log2 exponent. The underlying
 `gaxi_skid_buffer` allocates one register slot per entry and tracks occupancy
-with a 4-bit counter, so legal values are 2, 4, 6, and 8. Values greater than 8
+with a 4-bit counter, so legal values are 2..8 inclusive (any integer). Values greater than 8
 overflow the occupancy counter and are not supported.
 
 **Write Address (SKID_DEPTH_AW):**

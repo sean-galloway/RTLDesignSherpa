@@ -24,7 +24,7 @@
 # AXI4 Slave Read Monitor
 
 **Module:** `axi4_slave_rd_mon.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/axi4/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
 **Status:** ✅ Production Ready
 
 ---
@@ -245,7 +245,7 @@ When `USE_MONITOR = 0`, every perfmon output is tied to 0 and the window never o
 Configuration ports are identical to other AXI4 monitors:
 - Basic enables: `cfg_monitor_enable` (master runtime gate: 0 = monitor inert, CAM held clear, never stalls the datapath), `cfg_error_enable`, `cfg_timeout_enable`, `cfg_perf_enable`, `cfg_compl_enable` (completion packets), `cfg_threshold_enable` (threshold-crossed packets), `cfg_debug_enable` (debug/trace cone — the 6th reporter sub-block)
 - Clear: `cam_clear` (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4])
-- Thresholds: `cfg_timeout_cycles` (unified coarse timeout: 0 = legacy full-scale 15 ticks, 1-15 literal, >15 saturates; drives all three phase counts in `cfg_freq_sel`-scaled timer ticks), `cfg_latency_threshold`
+- Thresholds: `cfg_timeout_cycles` (unified coarse timeout, a MICROSECOND count at full 16-bit width: 1..65535 us per phase, 0 = 16'hFFFF ~ effectively never; drives all three phase counts), `cfg_latency_threshold`
 - Filtering: 7 mask signals (`cfg_axi_*_mask`)
 - Performance window control: `cfg_start_event_sel`, `cfg_end_event_sel`, `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close` (see [Performance Monitoring](#performance-monitoring))
 

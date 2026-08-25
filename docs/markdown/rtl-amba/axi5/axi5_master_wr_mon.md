@@ -24,7 +24,7 @@
 # AXI5 Master Write with Monitor
 
 **Module:** `axi5_master_wr_mon.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/axi5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
 **Status:** Production Ready
 
 ---

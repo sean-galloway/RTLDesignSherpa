@@ -112,8 +112,8 @@ module axi4_master_rd #(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| SKID_DEPTH_AR | int | 2 | Address channel skid buffer depth in entries (2, 4, 6, or 8) |
-| SKID_DEPTH_R | int | 4 | Read data channel skid buffer depth in entries (2, 4, 6, or 8) |
+| SKID_DEPTH_AR | int | 2 | Address channel skid buffer depth in entries (2..8 inclusive, any integer) |
+| SKID_DEPTH_R | int | 4 | Read data channel skid buffer depth in entries (2..8 inclusive, any integer) |
 | AXI_ID_WIDTH | int | 8 | AXI transaction ID width |
 | AXI_ADDR_WIDTH | int | 32 | AXI address bus width |
 | AXI_DATA_WIDTH | int | 32 | AXI data bus width |
@@ -449,18 +449,18 @@ axi4_master_rd_cg #(
     .aresetn         (axi_resetn),
 
     // Standard AXI interfaces
-    .fub_axi_*(fub_axi_*),
-    .m_axi_*(m_axi_*),
+    /* ... fub_axi_* and m_axi_* ports ... */
 
-    // Clock gating control
-    .cg_enable       (rd_enable),
-    .cg_test_enable  (scan_mode),
-    .busy            (rd_busy)
+    // Clock gating control (runtime inputs; scan bypass = cfg_cg_enable=0)
+    .cfg_cg_enable    (rd_enable && !scan_mode),
+    .cfg_cg_idle_count(4'd8),
+    .cg_gating        (rd_cg_gating),
+    .cg_idle          (rd_cg_idle)
 );
-
-// Use busy signal for system-level power management
+// NOTE: the _cg wrapper does not re-export the base module's busy output;
+// use cg_idle for system-level power management instead.
 always_ff @(posedge axi_clk) begin
-    rd_power_gate <= !rd_busy && idle_counter > IDLE_THRESHOLD;
+    rd_power_gate <= rd_cg_idle && idle_counter > IDLE_THRESHOLD;
 end
 ```
 
@@ -472,8 +472,9 @@ Choose buffer depths based on system characteristics:
 
 `SKID_DEPTH_*` is an entry count, not a log2 exponent. The underlying
 `gaxi_skid_buffer` stores one register slot per entry and tracks occupancy in a
-4-bit counter, so legal values are 2, 4, 6, and 8. Values above 8 overflow the
-occupancy counter and are not supported; for deeper elasticity use a
+4-bit counter, so legal values are 2..8 inclusive (any
+integer -- odd depths are legal). Values above 8 fail elaboration
+(the guard errors rather than overflowing); for deeper elasticity use a
 `gaxi_fifo_sync` stage ahead of the module instead.
 
 | System Type | SKID_DEPTH_AR | SKID_DEPTH_R | Rationale |

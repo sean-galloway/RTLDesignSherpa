@@ -113,8 +113,8 @@ Example: 4 wide R beats (128-bit) ← 16 narrow R beats (32-bit)
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| `S_AXI_DATA_WIDTH` | int | 32 | 8-1024 | Slave interface data width (power of 2) |
-| `M_AXI_DATA_WIDTH` | int | 128 | 8-1024 | Master interface data width (power of 2) |
+| `S_AXI_DATA_WIDTH` | int | 32 | 32-256 | Slave interface data width (power of 2; per the RTL header: 32, 64, 128, 256) |
+| `M_AXI_DATA_WIDTH` | int | 128 | 32-256 | Master interface data width (power of 2; per the RTL header: 32, 64, 128, 256) |
 | `AXI_ID_WIDTH` | int | 8 | 1-16 | Transaction ID width |
 | `AXI_ADDR_WIDTH` | int | 32 | 12-64 | Address bus width |
 | `AXI_USER_WIDTH` | int | 1 | 0-1024 | User signal width |
@@ -123,8 +123,8 @@ Example: 4 wide R beats (128-bit) ← 16 narrow R beats (32-bit)
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `AR_FIFO_DEPTH` | int | 4 | Read address FIFO depth (power of 2) |
-| `R_FIFO_DEPTH` | int | 8 | Read data FIFO depth (power of 2) |
+| `SKID_DEPTH_AR` | int | 2 | AR channel skid-buffer depth (2..8 inclusive) |
+| `SKID_DEPTH_R` | int | 4 | R channel skid-buffer depth (2..8 inclusive) -- the converters use SKID_DEPTH_* skid buffers, not channel FIFOs |
 
 ### Calculated Parameters (Auto)
 
@@ -158,8 +158,7 @@ Example: 4 wide R beats (128-bit) ← 16 narrow R beats (32-bit)
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `busy` | Output | 1 | Indicates active read conversions in progress |
-| `rd_transactions_pending` | Output | 16 | Number of pending read transactions |
+| (none) | -- | -- | The module has no status outputs; its port list ends at `m_axi_rready` |
 
 ---
 
@@ -241,8 +240,8 @@ axi4_dwidth_converter_rd #(
     .AXI_USER_WIDTH     (1),
 
     // Buffer depths
-    .AR_FIFO_DEPTH      (4),
-    .R_FIFO_DEPTH       (16)      // Deeper for burst unpacking
+    .SKID_DEPTH_AR      (2),
+    .SKID_DEPTH_R       (4)       // skid depths, 2..8
 ) u_rd_upsize (
     .aclk               (axi_clk),
     .aresetn            (axi_resetn),
@@ -280,8 +279,6 @@ axi4_dwidth_converter_rd #(
     .m_axi_rready       (mem_rready),
 
     // Status
-    .busy                   (rd_busy),
-    .rd_transactions_pending(rd_pend)
 );
 
 // Use case: CPU (32-bit read) ← Memory controller (128-bit interface)
@@ -298,8 +295,8 @@ axi4_dwidth_converter_rd #(
     .AXI_ADDR_WIDTH     (32),
 
     // Buffer depths
-    .AR_FIFO_DEPTH      (4),
-    .R_FIFO_DEPTH       (32)      // Deeper for burst packing
+    .SKID_DEPTH_AR      (2),
+    .SKID_DEPTH_R       (4)       // skid depths, 2..8
 ) u_rd_downsize (
     .aclk               (axi_clk),
     .aresetn            (axi_resetn),
@@ -337,8 +334,6 @@ axi4_dwidth_converter_rd #(
     .m_axi_rready       (periph_rready),
 
     // Status
-    .busy                   (rd_busy),
-    .rd_transactions_pending(rd_pend)
 );
 
 // Use case: Interconnect (128-bit) → Peripheral (32-bit read-only)
@@ -382,7 +377,11 @@ Master ARSIZE = $clog2(M_AXI_DATA_WIDTH / 8)                    // full master w
 
 **Downsize:**
 ```
-Master ARLEN  = (Slave ARLEN + 1) * WIDTH_RATIO - 1
+Total master beats = (Slave ARLEN + 1) * WIDTH_RATIO, SPLIT into as many
+master bursts of <= 256 beats as it takes (MAX_BEATS cap): each split's
+m_axi_arlen = that split's beats - 1. A 256-beat slave read at 4:1 becomes
+FOUR master bursts of arlen=255 -- the naive single-burst formula would
+need arlen=1023, unrepresentable in 8 bits
 Master ARSIZE = $clog2(M_AXI_DATA_WIDTH / 8)                    // full master width
 ```
 
@@ -434,8 +433,9 @@ See [axi4_dwidth_converter](axi4_dwidth_converter.md) for detailed examples.
 - Need to accumulate all narrow beats before forwarding
 
 **Comparison to Full Converter:**
-- ~20-30% lower latency (no write path overhead)
-- ~40% resource savings (no write channel FIFOs)
+- Lower latency and area than a combined read+write converter would be
+  (no write-path logic) -- unquantified: the 'full converter' has no RTL
+  in this repository to measure against
 
 ---
 
@@ -462,7 +462,7 @@ See [axi4_dwidth_converter](axi4_dwidth_converter.md) for detailed examples.
 - Chapter 11: Data Width Conversion
 
 ### Source Code
-- RTL: `rtl/amba/axi4/axi4_dwidth_converter_rd.sv`
+- RTL: `projects/components/converters/rtl/axi4_dwidth_converter_rd.sv`
 - Tests: `projects/components/converters/dv/tests/test_axi4_dwidth_converter_rd.py`
 - Framework: `bin/TBClasses/components/axi4/`
 

@@ -145,7 +145,6 @@ Example: 4 wide W beats (128-bit) → 16 narrow W beats (32-bit)
 | `WIDTH_RATIO` | `MAX / MIN` | Data width ratio (2-16) |
 | `UPSIZE` | `S < M` | 1 if upsizing, 0 if downsizing |
 | `DOWNSIZE` | `S > M` | 1 if downsizing, 0 if upsizing |
-| `PTR_WIDTH` | `$clog2(WIDTH_RATIO)` | Beat pointer width |
 
 ---
 
@@ -239,7 +238,7 @@ BRESP: Single response from master → slave
 32-bit WSTRB (4 beats):
 Beat 0: 4'b1111  ────┐
 Beat 1: 4'b1111  ────┤
-Beat 2: 4'b0011  ────┼──► 128-bit WSTRB: 16'b1111_1111_1111_0011
+Beat 2: 4'b0011  ────┼──► 128-bit WSTRB: 16'b1100_0011_1111_1111  (beat 0 in the LOW nibble, beat 3 in the HIGH)
 Beat 3: 4'b1100  ────┘
 ```
 
@@ -256,7 +255,10 @@ Beat 3: 4'b1111  (bits [15:12])
 
 ### BRESP Propagation
 
-**Both Modes:** Single B channel response is forwarded unchanged
+**Both Modes:** the slave sees exactly ONE B response. When a downsize
+burst SPLITS, the master side returns several B responses and the
+converter FOLDS them (worst-of accumulate across splits); the final fold
+is what reaches the slave
 ```
 Master BRESP: OKAY → Slave BRESP: OKAY
 Master BRESP: SLVERR → Slave BRESP: SLVERR
@@ -431,7 +433,8 @@ Master AWSIZE = $clog2(M_AXI_DATA_WIDTH / 8)                    // full master w
 
 **Downsize:**
 ```
-Master AWLEN  = (Slave AWLEN + 1) * WIDTH_RATIO - 1
+Total master beats = (Slave AWLEN + 1) * WIDTH_RATIO, SPLIT into master
+bursts of <= 256 beats (MAX_BEATS cap), same as the read converter
 Master AWSIZE = $clog2(M_AXI_DATA_WIDTH / 8)                    // full master width
 ```
 
@@ -462,8 +465,9 @@ See [axi4_dwidth_converter](axi4_dwidth_converter.md) for detailed examples.
 - Full wide beat unpacked in consecutive cycles
 
 **Comparison to Full Converter:**
-- ~20-30% lower latency (no read path overhead)
-- ~40% resource savings (no read channel buffers)
+- Lower latency and area than a combined converter would be (no
+  read-path logic) -- unquantified: the 'full converter' has no RTL in
+  this repository to measure against
 
 ### WSTRB Validation
 
@@ -509,7 +513,7 @@ end
 - Chapter 11: Data Width Conversion
 
 ### Source Code
-- RTL: `rtl/amba/axi4/axi4_dwidth_converter_wr.sv`
+- RTL: `projects/components/converters/rtl/axi4_dwidth_converter_wr.sv`
 - Tests: `projects/components/converters/dv/tests/test_axi4_dwidth_converter_wr.py`
 - Framework: `bin/TBClasses/components/axi4/`
 

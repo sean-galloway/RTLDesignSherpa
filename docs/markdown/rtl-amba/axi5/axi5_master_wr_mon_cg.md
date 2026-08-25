@@ -24,7 +24,7 @@
 # AXI5 Master Write with Monitor and Clock Gating
 
 **Module:** `axi5_master_wr_mon_cg.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/axi5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
 **Status:** Production Ready
 
 ---
@@ -470,7 +470,7 @@ gaxi_fifo_sync #(
 ```systemverilog
 // For write path (vs. read path adjustments)
 .cfg_cg_idle_count      (4'd5),    // Longer than read (B latency)
-.cfg_timeout_cycles     (16'd15),   // Max ticks (>15 saturates at 15)
+.cfg_timeout_cycles     (16'd15),   // 15 microseconds per phase (full 16-bit range)
 .cfg_latency_threshold  (32'd800)   // Higher variance than reads
 ```
 

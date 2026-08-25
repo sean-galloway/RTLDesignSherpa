@@ -359,9 +359,9 @@ Choose ID width based on system requirements:
 
 `SKID_DEPTH_*` is an entry count, not a log2 exponent: `SKID_DEPTH_AR = 2`
 gives a 2-entry buffer, not 4. The underlying `gaxi_skid_buffer` allocates one
-register slot per entry and tracks occupancy with a 4-bit counter, so legal
-values are 2, 4, 6, and 8. Values greater than 8 overflow the occupancy counter
-and are not supported; place a `gaxi_fifo_sync` stage ahead of the module when
+register slot per entry and tracks occupancy with a 4-bit counter; legal
+values are 2..8 inclusive (any integer -- odd depths are legal). Values above 8
+fail elaboration (the guard errors rather than overflowing); place a `gaxi_fifo_sync` stage ahead of the module when
 deeper elasticity is required.
 
 **Address Channels (AR/AW):**

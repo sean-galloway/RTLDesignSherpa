@@ -85,7 +85,11 @@ All AXI4 modules in this subsystem have clock-gated (`_cg`) variants that add po
 The `_cg` wrappers expose gating state only. They do not implement a cumulative
 gated-cycle counter; accumulate `cg_gating` externally if a power metric is needed.
 
-**All other ports are identical to the base module.**
+**All other ports are identical to the base module, with two exceptions:**
+the plain `_cg` wrappers do NOT re-export the base `busy` output (it is
+consumed internally as a wake term), and the `_mon_cg` wrappers tie off
+`debug_block_ready` rather than forwarding it. Connect either of those and
+elaboration fails -- use the base module when you need them.
 
 ---
 
@@ -100,7 +104,10 @@ gated-cycle counter; accumulate `cg_gating` externally if a power metric is need
 ### Ungating Conditions (Any Triggers Ungating)
 
 1. Any `*valid` signal asserted on any channel
-2. Configuration change (`cfg_cg_enable` or `cfg_cg_idle_count`)
+2. `cfg_cg_enable` deasserted (opens the clock immediately). NOTE:
+   `cfg_cg_idle_count` is NOT a wake trigger -- while gated, changing it has
+   no effect until bus activity wakes the block (the counter only reloads
+   on wakeup or !enable)
 
 **Ungating Latency:** activity is registered once (AXI4, AXI5, AXI4-Lite, AXI4-Stream) or
 twice (APB, APB5, AXI5-Stream) before reaching the ICG enable, which is combinational. The

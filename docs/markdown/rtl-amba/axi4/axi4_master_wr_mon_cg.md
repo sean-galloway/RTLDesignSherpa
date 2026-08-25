@@ -25,7 +25,7 @@
 
 **Module:** `axi4_master_wr_mon_cg.sv`
 **Base Module:** [axi4_master_wr_mon](./axi4_master_wr_mon.md)
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/axi4/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
 **Status:** ✅ Production Ready
 
 ---

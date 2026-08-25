@@ -24,7 +24,7 @@
 # AXI5 Slave Read Monitor with Clock Gating
 
 **Module:** `axi5_slave_rd_mon_cg.sv`
-**Location:** `rtl/amba/monitor/`
+**Location:** `rtl/amba/axi5/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
 **Status:** Production Ready
 
 ---
