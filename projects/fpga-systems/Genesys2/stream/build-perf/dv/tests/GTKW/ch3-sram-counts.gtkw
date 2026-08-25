@@ -1,0 +1,225 @@
+[*] GTKWave save file -- channel 3 SRAM occupancy and everything that moves it
+[*]
+[*] THE FAULT: ch3 wedges with both virtual counts reading 512 on a 512-entry
+[*] buffer -- alloc says EMPTY (space_free=512, 6979.14us) and drain says FULL
+[*] (data_avail=512, 7023.87us), 44.7us apart. Neither wrapped, neither exceeded
+[*] depth. Each is well-formed alone; together they are impossible.
+[*]
+[*] THREE pointer pairs feed this, groups 2a/2b/2c below:
+[*]   2a u_alloc_ctrl   wr_ptr += wr_size on RESERVATION, rd_ptr += 1 on actual
+[*]   2b u_drain_ctrl   wr_ptr += 1 on actual, rd_ptr += rd_size on RESERVATION
+[*]   2c u_channel_fifo the real memory pointers -- GROUND TRUTH
+[*]
+[*] HOW TO READ IT: fifo_count (group 1) is the physical occupancy, brought out
+[*] at sram_controller_unit.sv:235 and consumed by NOTHING. The drain accounting
+[*] never consults it. Compare it against the virtual counts:
+[*]   A) axi_wr_drain_size > fifo_count at a request -> reservations outran real
+[*]      data; the virtual accounting is the bug. Confirm in 2b.
+[*]   B) drain_data_available climbs to ~512 while fifo_count stays sane -> it got
+[*]      there another way; 2b r_rd_ptr_bin vs r_wr_ptr_bin says which.
+[*] The code comment at sram_controller_unit.sv:284-300 already describes the
+[*] mechanism for (B): rd_ptr overshoots wr_ptr, the wrap-corrected count
+[*] evaluates to ~DEPTH, then both pointers advance in lockstep and it is
+[*] permanent. 2b shows that directly -- watch rd_ptr cross wr_ptr.
+[*]
+[*] WHY THE EXISTING ASSERTION PROVED NOTHING: the over-drain $error at
+[*] stream_drain_ctrl.sv:176 compares rd_size against data_available -- the same
+[*] REGISTERED count the write engine already compensates for (group 4:
+[*] w_effective_avail = avail - w_pending_drain, a 2-cycle window matching the
+[*] two flops on the path). The engine guarantees rd_size <= that number, so the
+[*] check is tautological. It not firing means the engine obeyed the protocol,
+[*] NOT that the reservation was physically backed.
+[*]
+[*] TIMELINE: 6970.58-.60us kick (all 8 accepted) | 6977.91 rd_arready drops |
+[*] 6979.14 space_free[3]=512 | 7018.97 wr_wvalid drops | 7023.87
+[*] drain_avail[3]=512 | 7023.93 rd_rready drops -- wedged. Markers are on the
+[*] two count events; both stalled boundary signals are STREAM outputs, and the
+[*] perf endpoints (LFSR gen + CRC sink, hardcoded OKAY) cannot backpressure.
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/local_sim_build/ch3-hang.fst"
+[dumpfile_mtime] "Wed Aug 12 17:51:43 2026"
+[dumpfile_size] 41910886
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/GTKW/ch3-sram-counts.gtkw"
+[timestart] 6960000000
+[size] 1920 1080
+[pos] -1 -1
+*-16.000000 6979140000 7023870000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .stream_harness.
+[treeopen] .stream_harness.u_stream.
+[treeopen] .stream_harness.u_stream.g_stream_core.
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.
+[sst_width] 500
+[signals_width] 620
+[sst_expanded] 1
+[sst_vpaned_height] 380
+@200
+-=1= THE CONTRADICTION (ch3 virtual counts)
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.axi_rd_alloc_space_free[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.axi_wr_drain_data_avail[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.drain_data_available[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.fifo_count[9:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.fifo_empty
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.fifo_full
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.bridge_occupancy[2:0]
+@200
+-=2a= ALLOC ctrl raw pointers (space reservation)
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.r_wr_ptr_bin[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.r_rd_ptr_bin[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.w_count[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.space_free[9:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.wr_valid
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.wr_size[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.wr_ready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.rd_valid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.rd_ready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.w_write
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_alloc_ctrl.w_read
+@200
+-=2b= DRAIN ctrl raw pointers (data reservation) <-- prime suspect
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.r_wr_ptr_bin[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.r_rd_ptr_bin[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.w_count[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.w_available_data[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.data_available[9:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.wr_valid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.wr_ready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.rd_valid
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.rd_size[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.rd_ready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.w_write
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.w_read
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.rd_empty
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_drain_ctrl.wr_full
+@200
+-=2c= PHYSICAL FIFO pointers (ground truth)
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.r_wr_ptr_bin[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.r_rd_ptr_bin[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.count[9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.r_wr_addr[8:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.r_rd_addr[8:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.wr_valid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.wr_ready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.rd_valid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.rd_ready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.r_wr_full
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.r_rd_empty
+@200
+-=3= ch3 requests + real data movement
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.axi_rd_alloc_req
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.axi_rd_alloc_size[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.axi_wr_drain_req
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.axi_wr_drain_size[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.axi_rd_sram_valid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.axi_rd_sram_ready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.axi_wr_sram_valid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[3].u_channel_unit.axi_wr_sram_ready
+@200
+-=4= WRITE engine ch3 compensation chain
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_effective_avail[3][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_pending_drain[3][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_drain_t[3][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_drain_tminus1[3][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_transfer_size[3][7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_drain_size[3][7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.axi_wr_drain_data_avail[3][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_outstanding_count[3][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_beats_written[3][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_beats_done[3][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_commit_beats[3][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_stuck_counter[3][15:0]
+@200
+-=5= WRITE engine arbitration (bit 3 = ch3)
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_has_data[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_data_ok[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_final_burst[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_no_outstanding[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_arb_request[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_arb_grant_valid
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_arb_grant_id[2:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_stale_grant[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.axi_wr_drain_req[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_aw_valid
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_aw_channel_id[2:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_aw_len[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_w_active
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_w_channel_id[2:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_w_beats_remaining[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_phase_txn_fifo_full
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.w_phase_txn_fifo_empty
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.b_phase_txn_fifo_full[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.b_phase_txn_fifo_empty[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.m_axi_awvalid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.m_axi_awready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.m_axi_wvalid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.m_axi_wready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.m_axi_wlast
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.m_axi_bvalid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.m_axi_bready
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_wr_error[7:0]
+@200
+-=6= READ engine (bit 3 = ch3)
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.w_space_ok[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.w_below_outstanding_limit[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.w_arb_request[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.w_arb_grant_valid
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.w_arb_grant_id[2:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.axi_rd_alloc_req
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.axi_rd_alloc_size[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.axi_rd_alloc_id[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.axi_rd_alloc_space_free[3][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_outstanding_count[3][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_beats_done[3][31:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.axi_rd_sram_valid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.axi_rd_sram_ready
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.axi_rd_sram_id[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.m_axi_arvalid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.m_axi_arready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.m_axi_rvalid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.m_axi_rready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.m_axi_rlast
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_rd_error[7:0]

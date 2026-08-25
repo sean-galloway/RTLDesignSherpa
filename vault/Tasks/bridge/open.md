@@ -2,6 +2,42 @@
 
 # bridge — open
 
+## BRIDGE-005 — generated xbar has no request arbiter: concurrent multi-master traffic OR-merges
+**Status:** open 2026-08-25
+**Priority:** P1 — silent data/address corruption under contention
+**Owner:** TBD
+
+The crossbar generator's multi-master routing OR-merges every master's
+request contribution per slave with **no grant**: two masters presenting
+AW/AR to the same slave in the same cycle merge field-by-field
+(addr = A|B, id = A|B, ...), and both masters see the ORed ready and each
+believes its request was accepted. Reproduced deterministically by the DV
+bridge concurrency suite: cpu's AR 0x900032F8 | dma's 0x90001D20 arrived
+at the axil slave as 0x90003FF8, and the original read timed out.
+
+This is a KNOWN deferral — `crossbar_generator.py` says so at the
+multi-master branch ("correct as long as only one master at a time is
+targeting this slave... Simultaneous contention would need a real
+arbiter; that's a separate follow-up"). This task is that follow-up.
+
+Confirming tests (currently `xfail`, strict=False, in DV
+`tests/sim/bridges/test_bridge_{b,c}_concurrency.py`):
+`parallel_storm` ×2, `cross_protocol_race`, `apb_fan_in`. Drop the xfail
+markers when the arbiter lands — they are the acceptance gate.
+Single-master-at-a-time tests (basic, same_id, per_id_response_race)
+pass today.
+
+**Work:**
+- [ ] Per-slave, per-channel (AW+W paired, AR) grant: round-robin or
+      fixed-priority, hold until handshake completes (W until WLAST).
+- [ ] Non-granted masters must NOT see ready (per-master ready gating,
+      not the current OR).
+- [ ] Response paths already route by bridge_id — unaffected.
+- [ ] Regenerate all trees (RDS `rtl/generated/` + DV
+      `tests/sim/rtl/bridges/`), drop the 4 xfails, suite must go 8/8.
+
+---
+
 ## BRIDGE-002 — AMBA5 bridge support (AXI5 ports alongside AXI4)
 **Status:** open 2026-08-08
 **Priority:** P1

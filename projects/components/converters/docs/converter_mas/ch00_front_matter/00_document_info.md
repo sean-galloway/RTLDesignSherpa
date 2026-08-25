@@ -59,12 +59,13 @@ This document is for:
 
 | Document | Purpose |
 |----------|---------|
-| Converters Spec | High-level feature specification |
-| Component PRD | Product requirements and goals |
 | Bridge MAS | Related crossbar micro-architecture |
 | Stream MAS | Related datapath micro-architecture |
 
 : Table 0.2: Related Documents
+
+(The old converter spec tree was migrated into this MAS, and converters
+has no standalone PRD — this book is the authoritative document.)
 
 ## Revision History
 

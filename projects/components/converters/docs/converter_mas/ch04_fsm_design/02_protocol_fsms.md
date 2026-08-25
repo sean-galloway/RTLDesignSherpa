@@ -40,8 +40,9 @@ typedef enum logic [1:0] {
 Earlier revisions documented IDLE/SINGLE/DECOMPOSE/WAIT_R. Two of those
 never existed: a single-beat read (`ARLEN==0`) takes a passthrough leg
 and never leaves `RD_IDLE`, and there is no wait-for-R state at all --
-the address and data paths are decoupled, with the next AR issuing as
-the previous R returns (see 3.2). What serializes bursts is not an FSM
+the address and data paths are decoupled, with ARs issuing at the
+downstream accept rate regardless of R (see 3.2). What serializes
+bursts is not an FSM
 state but the one-outstanding-burst guard: the burst-tracking registers
 (`r_r_id`/`r_r_len`/`r_r_beat_count`) hold exactly one burst, so
 `s_axi_arready` is held off until the in-flight burst delivers its last
@@ -75,13 +76,16 @@ description in 3.4.5.
 ## 4.2.4 Timing Analysis
 
 **AXI4 to AXIL4.** A single-beat transfer is a combinational
-passthrough -- no converter-inserted wait state. In a burst the next
-AXIL4 request issues in the same cycle the previous response returns,
-so end-to-end duration is set by the AXIL4 slave's latency, not the
-converter; the old "2 cycles overhead / 2N cycles per burst" figures
-described a serialization the RTL does not have. Bursts do not overlap
-each other (the one-outstanding guard above); that is the only
-converter-imposed serialization.
+passthrough -- no converter-inserted wait state. In a burst the
+decomposed requests issue at the downstream ACCEPT rate, independent of
+responses: `m_axil_arvalid` in RD_BURST holds every cycle and the beat
+tracker advances on `m_axil_arvalid && m_axil_arready` -- no signal in
+the request path samples `m_axil_rvalid`/`m_axil_bvalid`. Against a
+pipelining slave, N requests issue in N consecutive cycles and the
+burst finishes one response latency later; the old "2 cycles overhead /
+2N cycles per burst" figures described a serialization the RTL does not
+have. Bursts do not overlap each other (the one-outstanding guard
+above); that is the only converter-imposed serialization.
 
 **AXI4 to APB.** Per APB beat: command packet -> CDC (2-flop gray
 crossing each way) -> APB setup + access (2 pclk minimum, plus

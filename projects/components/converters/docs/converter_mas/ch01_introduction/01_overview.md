@@ -131,7 +131,7 @@ Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 |------|-----------------|-------------------|
 | Concatenate | Pack narrow strobes | Slice wide strobes |
 | Broadcast | N/A | Repeat value |
-| OR | Combine with OR | N/A |
+| Severity fold | Keep numeric max | N/A |
 
 : Table 1.4: Sideband Handling Modes
 
@@ -142,7 +142,7 @@ Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 | Module | Single-Beat | Burst (N beats) |
 |--------|-------------|-----------------|
 | axi_data_upsize | 1 cycle (registered output) | RATIO narrow beats to fill a group |
-| axi_data_dnsize (single) | 1 cycle | N cycles + gap |
+| axi_data_dnsize (single) | 1 cycle | N cycles (replacement wide beat accepted during the last narrow beat — no gap) |
 | axi4_to_axil4 | 0 cycles | slave-limited (see 3.2.6) |
 | axil4_to_axi4 | 0 cycles | N/A (single only) |
 

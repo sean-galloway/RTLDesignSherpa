@@ -251,6 +251,14 @@ Neither converter checks address alignment on the downsize path. The
 read converter aligns the address it issues on its UPSIZE path only --
 a wide access cannot start mid-word (see 2.6.5).
 
+**Upsize bursts must start wide-aligned.** The W-path packer
+(`axi_data_upsize`) always begins filling at lane 0 -- there is no
+mid-word entry point -- so a write burst whose start address is not a
+multiple of the wide width lands its data in the wrong byte lanes of
+the first wide beat. Nothing in the RTL checks or corrects this;
+integrators must align burst starts to the wider bus (the bridge
+testbenches do exactly that).
+
 ### Skid Buffer for AW
 
 The channel buffers are `gaxi_skid_buffer` (there is no
@@ -341,13 +349,20 @@ AXI4 allows AW to arrive before, with, or after W data. The converter must handl
 
 ### Solution
 
-The write converter carries no AW information queue. AW is handled on the
-channel itself and the upsize block frames its output from the beats it
-is given, so there is nothing to stash between the address and its data.
+On the **upsize** path the write converter carries no AW information
+queue: AW is handled on the channel itself and the upsize block frames
+its output from the beats it is given, so there is nothing to stash
+between the address and its data.
 
-Compare the read converter, which does need one: its downsize block has
-no length queue of its own, so overlapping read bursts would lose their
-framing without an external ARLEN queue.
+The **downsize** path does carry one — the split queue of 2.5.5. Each
+issued master burst pushes `{final-burst flag, beat count}`; the beat
+count frames that burst's WLAST on the W path and the flag drives the
+B fold. AW runs ahead of W, which is precisely why that AW-derived
+information must be queued.
+
+Compare the read converter, which needs a queue in its UPSIZE mode: its
+downsize block has no length queue of its own, so overlapping read
+bursts would lose their framing without an external ARLEN queue.
 
 ## 2.5.9 Resource Utilization
 
@@ -361,8 +376,8 @@ Control logic:      ~100 LUTs
 
 Total: ~820 flip-flops, ~160 LUTs
 
-Hand estimates, not synthesis results. There is no AW information FIFO
-in this converter.
+Hand estimates, not synthesis results. The only AW-derived storage is
+the downsize split queue (2.5.5); the upsize path has none.
 ```
 
 ## 2.5.10 Timing Characteristics

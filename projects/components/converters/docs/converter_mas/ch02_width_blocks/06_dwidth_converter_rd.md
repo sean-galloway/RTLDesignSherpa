@@ -213,7 +213,9 @@ assign m_axi_araddr   = aligned_araddr;
 
 ### Burst-Length FIFO
 
-Only the wide->narrow (downsize) read path needs one. The downsize block
+Only the wide->narrow R data path needs one — that is the converter's
+**UPSIZE** mode (S narrower than M: wide master read data sliced down to
+narrow slave beats through `axi_data_dnsize`). The downsize block
 ignores a `burst_start` pulse while a burst is active and keeps no length
 queue of its own, so framing only the first burst would collapse N read
 bursts into one -- bursts 2..N would drain with `narrow_last` never
@@ -241,8 +243,9 @@ AR is back-pressured when full, so it cannot overflow.
             assign w_blen_pop  = int_r_valid && int_r_ready && int_rlast;
 ```
 
-The narrow->wide (upsize) direction needs no such queue; see the
-generate branch in the RTL.
+The narrow->wide R data path (the converter's DOWNSIZE mode) needs no
+such queue; its generate branch ties the shared handshake wires off
+inert.
 
 ## 2.6.6 Read Data Channel
 
@@ -256,13 +259,15 @@ axi_data_dnsize #(
     .NARROW_SB_WIDTH (2),
     .SB_BROADCAST    (1),          // Broadcast RRESP
     .TRACK_BURSTS    (1),
-    .BURST_LEN_WIDTH (8),
+    .BURST_LEN_WIDTH (8)
 ) u_r_dnsize (
     .aclk            (aclk),
     .aresetn         (aresetn),
     // burst framing is MANDATORY with TRACK_BURSTS(1): burst_len is in
-    // NARROW beats - 1 and burst_start pulses per accepted AR; leaving
-    // them off silently produces framing with no LAST (see 2.3.9)
+    // NARROW beats - 1, and burst_start is LEVEL-HELD while the length
+    // FIFO is non-empty (the dnsize samples it only when idle, which is
+    // what frames every overlapping burst); leaving them off silently
+    // produces framing with no LAST (see 2.3.9)
     .burst_len       (w_blen_rd_data),
     .burst_start     (w_blen_rd_valid),
     .wide_valid      (m_axi_rvalid),
@@ -289,9 +294,10 @@ and passes to `s_axi_rlast` through the R skid.
 
 (An earlier revision showed a standalone counter loading
 `(arlen + 1) * RATIO - 1`, the same xRATIO framing 2.3.4 calls out as
-the classic mis-framing bug. The multiplication happens where the FIFO
-is FILLED -- in converter code that knows the ratio -- not inside the
-tracker.)
+the classic mis-framing bug. No such multiply exists anywhere in the
+converter: in UPSIZE mode the slave side is already narrow, so the
+ARLEN pushed into the FIFO is already in narrow-beat units --
+`blen_mem[...] <= int_arlen;` stores it unchanged.)
 
 ## 2.6.8 RID Handling
 
@@ -329,13 +335,9 @@ Control logic:       ~80 LUTs
 Total: ~920 flip-flops, ~160 LUTs (sum of the lines above)
 ```
 
-### Single Buffer Version
-
-```
-R downsize (single): ~600 flip-flops, ~50 LUTs
-
-Total: ~880 flip-flops, ~120 LUTs
-```
+(The R data path in these figures is the single-buffer `axi_data_dnsize`
+-- the only implementation; its ping-pong `DUAL_BUFFER` variant was
+removed, see 2.3.8.)
 
 ## 2.6.10 Timing Characteristics
 

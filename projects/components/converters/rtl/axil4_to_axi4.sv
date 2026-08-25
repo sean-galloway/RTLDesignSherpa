@@ -55,12 +55,6 @@ module axil4_to_axi4 #(
     parameter int DEFAULT_REGION    = 0,
     parameter int DEFAULT_QOS       = 0,
 
-    // Skid Buffer Depths (for timing closure)
-
-
-
-
-
     // Calculated Parameters
     localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8
 ) (
@@ -172,7 +166,6 @@ module axil4_to_axi4 #(
         .DEFAULT_ID      (DEFAULT_ID),
         .DEFAULT_REGION  (DEFAULT_REGION),
         .DEFAULT_QOS     (DEFAULT_QOS)
-
     ) u_rd_converter (
         .aclk           (aclk),
         .aresetn        (aresetn),
@@ -222,8 +215,6 @@ module axil4_to_axi4 #(
         .DEFAULT_ID      (DEFAULT_ID),
         .DEFAULT_REGION  (DEFAULT_REGION),
         .DEFAULT_QOS     (DEFAULT_QOS)
-
-
     ) u_wr_converter (
         .aclk           (aclk),
         .aresetn        (aresetn),

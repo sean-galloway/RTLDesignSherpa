@@ -6,11 +6,14 @@ upsize/downsize primitives and the dwidth converter wrappers.
 
 | State | Count |
 |---|---|
-| [open](open.md) | 1 |
+| [open](open.md) | 2 |
 | [closed](closed.md) | 3 |
 
 ## Open shortlist
 
+- **CONV-006** — upsize paths require wide-aligned burst starts. Constraint
+  now documented (MAS 2.5.5) and asserted in sim; lifting it (start-lane
+  support in the width primitives) is scoped future work.
 
 *(CONV-004 closed 2026-08-24: burst splitting on both dwidth paths;
 run-all-full-parallel 112/112.)*

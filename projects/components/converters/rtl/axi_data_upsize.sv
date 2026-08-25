@@ -21,7 +21,7 @@
 //   WIDE_WIDTH: Output data width (64, 128, 256, 512)
 //   NARROW_SB_WIDTH: Narrow sideband width (0=none, N/8 for WSTRB, 2 for RRESP)
 //   WIDE_SB_WIDTH: Wide sideband width (calculated or explicit)
-//   SB_OR_MODE: 0=concatenate sideband (WSTRB), 1=OR together (RRESP)
+//   SB_OR_MODE: 0=concatenate sideband (WSTRB), 1=severity fold: keep numeric max (RRESP)
 //
 // Usage Examples:
 //   Write UPSIZE (32→128):
@@ -42,7 +42,7 @@ module axi_data_upsize #(
     parameter int WIDE_WIDTH      = 128,
     parameter int NARROW_SB_WIDTH = 0,        // Sideband width (0 if unused)
     parameter int WIDE_SB_WIDTH   = 0,        // Wide sideband width
-    parameter int SB_OR_MODE      = 0,        // 0=concatenate, 1=OR together
+    parameter int SB_OR_MODE      = 0,        // 0=concatenate, 1=severity fold (numeric max)
 
     // Calculated Parameters
     localparam int WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH,

@@ -316,14 +316,20 @@ Total: ~150 LUTs, ~150 regs
 |-----------|--------|
 | Single write | 3-4 APB-side + ~2 pclk in + ~2 aclk out for the CDC crossings (see 3.4.4) |
 | Single read | 3-4 (setup + access + R) |
-| N-beat write burst | ~3N APB-side + the same two CDC crossings, paid once per command run |
-| N-beat read burst | 3N + 1 |
+| N-beat write burst | ~2N+1 APB-side + the same two CDC crossings, paid once per command run |
+| N-beat read burst | ~2N+1 APB-side |
 
 : Table 3.19: APB Converter Timing
 
+The 2N+1 shape falls out of the FSM: the first transfer pays
+IDLE→SETUP→ACCESS (3 pclk), but with commands queued in the skid the
+ACCESS state hands straight back to SETUP — every subsequent transfer is
+SETUP→ACCESS, 2 pclk, PREADY permitting.
+
 ### Throughput
 
-**Best case:** 1 transfer per 3 cycles
+**Best case (sustained):** 1 transfer per 2 pclk cycles once the first
+transfer's extra IDLE cycle is paid
 **With slow PREADY:** Additional cycles per transfer
 
 ## 3.4.12 Usage Example

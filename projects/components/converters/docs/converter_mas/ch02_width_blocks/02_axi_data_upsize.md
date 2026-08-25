@@ -152,30 +152,35 @@ Beat 7: WSTRB = 0xAA → output[63:56] = 0xAA
 Final:  output = 0xAA_..._0F_F0_FF
 ```
 
-### OR Mode (SB_OR_MODE=1)
+### Severity-Fold Mode (SB_OR_MODE=1)
 
-Used for error flag aggregation:
+Folds per-sub-beat responses into one wide-beat response by keeping the
+**numeric maximum**, not a bitwise OR. The distinction matters for the mode's
+primary use case, 2-bit RRESP: with the AXI encoding (OKAY=00, EXOKAY=01,
+SLVERR=10, DECERR=11), `SLVERR | EXOKAY = DECERR` — an OR inflates the error
+class the moment an exclusive-read beat mixes with a slave error (CONV-005).
+Numeric max is exactly severity order for RRESP, so the fold keeps the worst
+response instead:
 
 ```systemverilog
-// OR narrow sidebands together
-always_ff @(posedge clk) begin
-    if (s_valid && s_ready) begin
-        if (r_count == 0)
-            r_sideband <= {{(WIDE_SB_WIDTH-NARROW_SB_WIDTH){1'b0}}, s_sideband};
-        else
-            r_sideband <= r_sideband | s_sideband;
-    end
+// gen_or_mode: keep the numeric max across the group's sub-beats
+if (narrow_valid && narrow_ready) begin
+    if (r_beat_ptr == '0)
+        r_sideband_accumulator <= WIDE_SB_PORT_WIDTH'(narrow_sideband);
+    else if (WIDE_SB_PORT_WIDTH'(narrow_sideband) > r_sideband_accumulator)
+        r_sideband_accumulator <= WIDE_SB_PORT_WIDTH'(narrow_sideband);
 end
 ```
 
-**Example**: Any error in burst propagates
+For 1-bit sidebands (a bare error flag) max and OR coincide, so "any error in
+the group propagates" still holds:
+
 ```
-Beat 0: error = 0 → output = 0
-Beat 1: error = 0 → output = 0
-Beat 2: error = 1 → output = 1 (error detected)
-Beat 3: error = 0 → output = 1 (remains set)
-...
-Final:  output = 1 (error occurred in burst)
+Beat 0: RRESP = OKAY   (00) → accumulator = 00
+Beat 1: RRESP = EXOKAY (01) → accumulator = 01
+Beat 2: RRESP = SLVERR (10) → accumulator = 10 (worst so far)
+Beat 3: RRESP = OKAY   (00) → accumulator = 10 (max retained)
+Final:  wide RRESP = SLVERR — not DECERR, which a bitwise OR would fabricate
 ```
 
 ## 2.2.6 Implementation

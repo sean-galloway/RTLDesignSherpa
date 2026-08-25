@@ -259,27 +259,36 @@ module axil4_to_axi4_wr #(
 
 ```systemverilog
 module axil4_to_axi4 #(
+    parameter int AXI_ID_WIDTH   = 8,
+    parameter int AXI_ADDR_WIDTH = 32,
     parameter int AXI_DATA_WIDTH = 32,
-    parameter int ADDR_WIDTH = 32,
-    parameter int ID_WIDTH   = 4,
-    parameter logic [ID_WIDTH-1:0] DEFAULT_ID = '0
+    parameter int AXI_USER_WIDTH = 1,
+    parameter int DEFAULT_ID     = 0,
+    parameter int DEFAULT_REGION = 0,
+    parameter int DEFAULT_QOS    = 0
 ) (
     // ... all port declarations
 );
 
     axil4_to_axi4_rd #(
-        .DATA_WIDTH(DATA_WIDTH),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .ID_WIDTH(ID_WIDTH),
-        .DEFAULT_ID(DEFAULT_ID)
-    ) u_rd (/* connections */);
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
+        .DEFAULT_ID      (DEFAULT_ID),
+        .DEFAULT_REGION  (DEFAULT_REGION),
+        .DEFAULT_QOS     (DEFAULT_QOS)
+    ) u_rd_converter (/* connections */);
 
     axil4_to_axi4_wr #(
-        .DATA_WIDTH(DATA_WIDTH),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .ID_WIDTH(ID_WIDTH),
-        .DEFAULT_ID(DEFAULT_ID)
-    ) u_wr (/* connections */);
+        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH  (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH  (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
+        .DEFAULT_ID      (DEFAULT_ID),
+        .DEFAULT_REGION  (DEFAULT_REGION),
+        .DEFAULT_QOS     (DEFAULT_QOS)
+    ) u_wr_converter (/* connections */);
 
 endmodule
 ```

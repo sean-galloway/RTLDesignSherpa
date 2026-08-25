@@ -1,0 +1,183 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Wed Aug 12 00:31:00 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/local_sim_build/elab_59929495eece/dump.fst"
+[dumpfile_mtime] "Tue Aug 11 14:41:22 2026"
+[dumpfile_size] 41910886
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/GTKW/perf-8ch.gtkw"
+[timestart] 6968842000
+[size] 3538 1749
+[pos] 17 57
+*-18.033926 6970590000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .stream_harness.
+[treeopen] .stream_harness.u_stream.
+[treeopen] .stream_harness.u_stream.g_stream_core.
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[1].
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[1].u_scheduler_group.
+[treeopen] .stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[0].
+[treeopen] .stream_harness.u_stream.u_apb4todescr.
+[sst_width] 584
+[signals_width] 311
+[sst_expanded] 1
+[sst_vpaned_height] 831
+@28
+stream_harness.u_stream.aclk
+stream_harness.u_stream.aresetn
+stream_harness.u_stream.pclk
+stream_harness.u_stream.presetn
+stream_harness.u_stream.s_apb_psel
+stream_harness.u_stream.s_apb_penable
+stream_harness.u_stream.s_apb_pwrite
+@22
+stream_harness.u_stream.s_apb_paddr[12:0]
+stream_harness.u_stream.s_apb_pwdata[31:0]
+stream_harness.u_stream.s_apb_pstrb[3:0]
+stream_harness.u_stream.s_apb_prdata[31:0]
+@28
+stream_harness.u_stream.s_apb_pslverr
+stream_harness.u_stream.s_apb_pready
+stream_harness.u_stream.u_apb4todescr.apb_cmd_valid
+stream_harness.u_stream.u_apb4todescr.apb_cmd_ready
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.apb_valid
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.apb_ready
+stream_harness.u_stream.u_apb4todescr.apb_cmd_valid
+stream_harness.u_stream.u_apb4todescr.apb_cmd_ready
+@23
+stream_harness.u_stream.u_apb4todescr.apb_cmd_addr[12:0]
+@22
+stream_harness.u_stream.u_apb4todescr.apb_cmd_wdata[31:0]
+@28
+stream_harness.u_stream.u_apb4todescr.apb_cmd_write
+stream_harness.u_stream.u_apb4todescr.apb_rsp_valid
+stream_harness.u_stream.u_apb4todescr.apb_rsp_ready
+@22
+stream_harness.u_stream.u_apb4todescr.apb_rsp_rdata[31:0]
+stream_harness.u_stream.u_apb4todescr.desc_apb_addr[0][31:0]
+stream_harness.u_stream.u_apb4todescr.desc_apb_addr[1][31:0]
+stream_harness.u_stream.u_apb4todescr.desc_apb_addr[2][31:0]
+stream_harness.u_stream.u_apb4todescr.desc_apb_addr[3][31:0]
+stream_harness.u_stream.u_apb4todescr.desc_apb_addr[4][31:0]
+stream_harness.u_stream.u_apb4todescr.desc_apb_addr[5][31:0]
+stream_harness.u_stream.u_apb4todescr.desc_apb_addr[6][31:0]
+stream_harness.u_stream.u_apb4todescr.desc_apb_addr[7][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_valid[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_ready[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_addr[0][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_addr[1][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_addr[2][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_addr[3][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_addr[4][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_addr[5][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_addr[6][31:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.apb_addr[7][31:0]
+@28
+stream_harness.u_stream.m_axi_desc_arvalid
+stream_harness.u_stream.g_stream_core.u_stream_core.m_axi_desc_arready
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.m_axi_desc_araddr[31:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.m_axi_desc_arburst[1:0]
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.m_axi_desc_arid[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.m_axi_desc_arlen[7:0]
+@28
+stream_harness.u_stream.m_axi_desc_rvalid
+stream_harness.u_stream.g_stream_core.u_stream_core.m_axi_desc_rready
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.m_axi_desc_rdata[255:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.m_axi_desc_rid[7:0]
+@28
+stream_harness.u_stream.g_stream_core.u_stream_core.m_axi_desc_rlast
+stream_harness.u_stream.g_stream_core.u_stream_core.m_axi_desc_rresp[1:0]
+stream_harness.u_stream.m_axi_rd_arvalid
+stream_harness.u_stream.m_axi_rd_arready
+@22
+stream_harness.u_stream.m_axi_rd_araddr[31:0]
+stream_harness.u_stream.m_axi_rd_arid[7:0]
+@28
+stream_harness.u_stream.m_axi_rd_rvalid
+stream_harness.u_stream.m_axi_rd_rready
+@22
+stream_harness.u_stream.m_axi_rd_rdata[127:0]
+stream_harness.u_stream.m_axi_rd_rid[7:0]
+@28
+stream_harness.u_stream.m_axi_rd_rlast
+stream_harness.u_stream.m_axi_rd_rresp[1:0]
+stream_harness.u_stream.m_axi_wr_awvalid
+stream_harness.u_stream.m_axi_wr_awready
+@22
+stream_harness.u_stream.m_axi_wr_awaddr[31:0]
+stream_harness.u_stream.m_axi_wr_awid[7:0]
+stream_harness.u_stream.m_axi_wr_awlen[7:0]
+@28
+stream_harness.u_stream.m_axi_wr_wvalid
+stream_harness.u_stream.m_axi_wr_wready
+@22
+stream_harness.u_stream.m_axi_wr_wdata[127:0]
+@28
+stream_harness.u_stream.m_axi_wr_wlast
+stream_harness.u_stream.m_axi_wr_bvalid
+stream_harness.u_stream.m_axi_wr_bready
+@22
+stream_harness.u_stream.m_axi_wr_bid[7:0]
+@28
+stream_harness.u_stream.m_axi_wr_bresp[1:0]
+stream_harness.u_stream.m_axi_rd_rvalid
+stream_harness.u_stream.m_axi_wr_bvalid
+stream_harness.u_stream.m_axil_mon_bvalid
+stream_harness.u_stream.m_axi_rd_arvalid
+stream_harness.u_stream.m_axi_wr_awvalid
+stream_harness.u_stream.m_axi_wr_wvalid
+stream_harness.u_stream.m_axil_mon_awvalid
+stream_harness.u_stream.m_axil_mon_wvalid
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.descriptor_engine_idle[7:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_scheduler_group_array.scheduler_idle[7:0]
+@200
+-read engine
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_outstanding_count[0][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_outstanding_count[1][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_outstanding_count[2][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_outstanding_count[3][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_outstanding_count[4][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_outstanding_count[5][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_outstanding_count[6][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_read_engine.r_outstanding_count[7][4:0]
+@200
+-wr engine
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_outstanding_count[0][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_outstanding_count[1][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_outstanding_count[2][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_outstanding_count[3][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_outstanding_count[4][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_outstanding_count[5][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_outstanding_count[6][4:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_axi_write_engine.r_outstanding_count[7][4:0]
+@200
+-sram
+@22
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_rd_alloc_space_free[0][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_rd_alloc_space_free[1][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_rd_alloc_space_free[2][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_rd_alloc_space_free[3][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_rd_alloc_space_free[4][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_rd_alloc_space_free[5][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_rd_alloc_space_free[6][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_rd_alloc_space_free[7][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_wr_drain_data_avail[0][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_wr_drain_data_avail[1][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_wr_drain_data_avail[2][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_wr_drain_data_avail[3][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_wr_drain_data_avail[4][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_wr_drain_data_avail[5][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_wr_drain_data_avail[6][9:0]
+stream_harness.u_stream.g_stream_core.u_stream_core.u_sram_controller.axi_wr_drain_data_avail[7][9:0]
+[pattern_trace] 1
+[pattern_trace] 0

@@ -107,7 +107,7 @@ localparam int RATIO_LOG2 = $clog2(RATIO);
 | Mode | Parameter | Behavior | Use Case |
 |------|-----------|----------|----------|
 | Concatenate | `SB_OR_MODE=0` | Pack N narrow sidebands | WSTRB packing |
-| OR | `SB_OR_MODE=1` | OR all narrow sidebands | Error aggregation |
+| Severity fold | `SB_OR_MODE=1` | Keep the numeric max of the narrow sidebands | RRESP worst-case fold |
 
 : Table 2.1: Upsize Sideband Modes
 

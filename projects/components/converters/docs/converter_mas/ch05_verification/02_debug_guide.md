@@ -78,7 +78,7 @@ narrow_/wide_ data     - compare input/output patterns
 
 **Debug Steps:**
 1. Check downstream ready signal behavior
-3. Look for backpressure stalls
+2. Look for backpressure stalls
 
 ### Protocol Converter Issues
 

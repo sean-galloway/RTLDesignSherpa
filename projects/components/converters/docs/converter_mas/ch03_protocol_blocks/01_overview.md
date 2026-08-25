@@ -116,16 +116,18 @@ Protocol converters bridge components that speak different bus protocols — the
 
 | Converter | Single-Beat | Burst (N) | Area |
 |-----------|-------------|-----------|------|
-| axi4_to_axil4 | 0 cycles | 2N cycles | ~450 LUTs |
+| axi4_to_axil4 | 0 cycles | slave-limited, ~N cycles best case (see 3.2.6) | ~450 LUTs |
 | axil4_to_axi4 | 0 cycles | N/A | ~110 LUTs |
-| axi4_to_apb4 | 3-5 cycles | (3-5)N cycles | ~150 LUTs (hand estimate; matches 3.4.10) |
+| axi4_to_apb4 | 3-5 cycles | ~2N+1 APB cycles sustained (see 3.4.11) | ~150 LUTs (hand estimate; matches 3.4.10) |
 
 : Table 3.5: Protocol Converter Performance
 
 ### Key Observations
 
 1. **Zero-overhead upgrade:** AXI4-Lite to AXI4 is purely combinational
-2. **Burst penalty:** AXI4 to AXI4-Lite doubles cycle count for bursts
+2. **Burst rate:** AXI4 to AXI4-Lite adds no wait state between beats —
+   decomposed requests stream at whatever rate the AXIL4 slave sustains
+   (a zero-wait-state slave is served one beat per cycle)
 3. **APB overhead:** 3-5 cycle minimum per APB transaction
 
 ## 3.1.5 Use Case Guidelines

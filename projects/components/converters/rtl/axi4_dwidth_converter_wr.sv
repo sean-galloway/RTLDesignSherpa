@@ -419,6 +419,20 @@ module axi4_dwidth_converter_wr #(
             assign m_axi_awuser   = int_awuser;
             assign m_axi_awvalid  = int_aw_valid;
             assign int_aw_ready   = m_axi_awready;
+
+`ifdef SIMULATION
+            // Upsize bursts must start wide-aligned: the W packer always
+            // begins filling at lane 0 (no mid-word entry), so an
+            // unaligned start silently lands data in the wrong byte lanes
+            // of the first wide beat (MAS 2.5.5). Fail loudly instead.
+            always_ff @(posedge aclk) begin
+                if (aresetn && int_aw_valid && int_aw_ready &&
+                    (int_awaddr[$clog2(M_STRB_WIDTH)-1:0] != '0)) begin
+                    $error("axi4_dwidth_converter_wr: upsize AW addr 0x%h is not aligned to the %0d-byte wide bus",
+                           int_awaddr, M_STRB_WIDTH);
+                end
+            end
+`endif
         end
     endgenerate
 

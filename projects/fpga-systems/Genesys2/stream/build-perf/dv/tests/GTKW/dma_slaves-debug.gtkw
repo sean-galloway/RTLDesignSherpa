@@ -1,0 +1,100 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Thu Aug 13 12:12:15 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/local_sim_build/ch3-hang.fst"
+[dumpfile_mtime] "Thu Aug 13 00:51:43 2026"
+[dumpfile_size] 41910886
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/stream/build-perf/dv/tests/GTKW/dma_slaves-debug.gtkw"
+[timestart] 6970569600
+[size] 3508 1683
+[pos] 24 1
+*-16.184757 6970840000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .stream_harness.
+[treeopen] .stream_harness.u_dma_slaves.
+[treeopen] .stream_harness.u_dma_slaves.u_dma_slaves.
+[sst_width] 465
+[signals_width] 393
+[sst_expanded] 1
+[sst_vpaned_height] 693
+@28
+stream_harness.aclk
+stream_harness.aresetn
+stream_harness.csr_soft_reset
+@200
+-stream-axi-rd
+@28
+stream_harness.u_stream.m_axi_rd_arvalid
+stream_harness.u_stream.m_axi_rd_arready
+@22
+stream_harness.u_stream.m_axi_rd_arid[7:0]
+@28
+stream_harness.u_stream.m_axi_rd_rvalid
+@22
+stream_harness.u_stream.m_axi_rd_rid[7:0]
+@28
+stream_harness.u_stream.m_axi_rd_rlast
+@200
+-dma-slaves-rd
+@28
+stream_harness.u_dma_slaves.s_axi_arvalid
+stream_harness.u_dma_slaves.s_axi_arready
+@22
+stream_harness.u_dma_slaves.s_axi_arid[7:0]
+@28
+stream_harness.u_dma_slaves.s_axi_rvalid
+stream_harness.u_dma_slaves.s_axi_rready
+@22
+stream_harness.u_dma_slaves.s_axi_rid[7:0]
+@28
+stream_harness.u_dma_slaves.s_axi_rlast
+@200
+-u-dma-slaves-u-dma-slaves
+@28
+stream_harness.u_dma_slaves.u_dma_slaves.s_axi_arvalid
+stream_harness.u_dma_slaves.u_dma_slaves.s_axi_arready
+@22
+stream_harness.u_dma_slaves.u_dma_slaves.s_axi_arid[7:0]
+@28
+stream_harness.u_dma_slaves.u_dma_slaves.s_axi_rvalid
+stream_harness.u_dma_slaves.u_dma_slaves.s_axi_rready
+@22
+stream_harness.u_dma_slaves.u_dma_slaves.s_axi_rid[7:0]
+@28
+stream_harness.u_dma_slaves.u_dma_slaves.s_axi_rlast
+@200
+-u-rd-pattern-gen
+@28
+stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.s_axi_arvalid
+stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.s_axi_arready
+@22
+stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.s_axi_arid[7:0]
+@28
+stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.s_axi_rvalid
+stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.s_axi_rready
+@22
+stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.s_axi_rid[7:0]
+@28
+stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.s_axi_rlast
+@200
+------>>>>> internals
+@29
+stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.aclk
+@100000028
+stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.r_rd_state[1:0]
+@c00022
+stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.r_rd_beats_remaining[7:0]
+@28
+(0)stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.r_rd_beats_remaining[7:0]
+(1)stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.r_rd_beats_remaining[7:0]
+(2)stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.r_rd_beats_remaining[7:0]
+(3)stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.r_rd_beats_remaining[7:0]
+(4)stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.r_rd_beats_remaining[7:0]
+(5)stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.r_rd_beats_remaining[7:0]
+(6)stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.r_rd_beats_remaining[7:0]
+(7)stream_harness.u_dma_slaves.u_dma_slaves.u_rd_pattern_gen.r_rd_beats_remaining[7:0]
+@1401200
+-group_end
+[pattern_trace] 1
+[pattern_trace] 0

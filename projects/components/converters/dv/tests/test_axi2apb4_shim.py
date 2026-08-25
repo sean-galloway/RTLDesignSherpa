@@ -205,9 +205,12 @@ class Axi2ApbTB(TBBase):
                     data_word |= (byte_val << (i * 8))
 
                 # Calculate proper size field for AXI
-                # size = log2(number of bytes being transferred)
+                # size = ceil(log2(bytes)): 1->0, 2->1, 4->2. The old
+                # `(n-1).bit_length()-1` gave size=1 for 4 bytes — the BFM
+                # used to paper over that with an (illegal) full-bus strobe;
+                # now that it drives strobes per AWSIZE, the size must be right.
                 actual_bytes = len(data_list)
-                size_field = (actual_bytes - 1).bit_length() - 1 if actual_bytes > 1 else 0
+                size_field = (actual_bytes - 1).bit_length()
 
                 self.log.debug(f"Single word write: data=0x{data_word:08X}, size={size_field}, bytes={actual_bytes}")
 

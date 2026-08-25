@@ -41,10 +41,7 @@ module axi4_to_axil4_rd #(
     parameter int AXI_ID_WIDTH      = 8,
     parameter int AXI_ADDR_WIDTH    = 32,
     parameter int AXI_DATA_WIDTH    = 32,
-    parameter int AXI_USER_WIDTH    = 1,
-
-    // Skid Buffer Depths (for timing closure)
-    parameter int SKID_DEPTH_R      = 4
+    parameter int AXI_USER_WIDTH    = 1
 ) (
     // Clock and Reset
     input  logic                        aclk,

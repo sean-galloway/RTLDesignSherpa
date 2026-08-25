@@ -164,8 +164,13 @@ last-beat-only case, where earlier beats cannot mask the loss. See
 
 ### Required State
 
+The listing below is the generic PATTERN, not the RTL's register names:
+the real modules split this state between separate read and write
+converters and count UP (`r_ar_beat_count`/`r_aw_beat_count` against a
+stored length) rather than down — grep for those names, not these.
+
 ```systemverilog
-// Burst tracking registers
+// Burst tracking registers (generic pattern)
 logic [ADDR_WIDTH-1:0] r_base_addr;
 logic [ADDR_WIDTH-1:0] r_current_addr;
 logic [7:0]            r_original_len;
@@ -213,11 +218,17 @@ the RTL does not have; nothing in the address path waits on responses.
 
 ### Pipeline Considerations
 
-Decomposition is inherently sequential:
-- Cannot issue next AR until previous R received (AXIL4)
-- Cannot issue next AW/W until previous B received (AXIL4)
+Decomposed requests are independent of responses (Table 4.6 above):
+- ARs issue at the downstream accept rate — nothing in the AR path
+  samples `m_axil_rvalid`
+- AW/W beats advance on their own handshakes; intermediate Bs are
+  absorbed (`m_axil_bready = s_axi_bready || !w_b_all_beats_done`)
+  without stalling issuance
 
-**Optimization:** Use response pipelining when downstream supports it.
+Against a pipelining AXIL4 slave, an N-beat burst costs N issue cycles
+plus one response latency — not N round trips. The only serialization
+the converter imposes is between whole bursts (the one-outstanding
+guard).
 
 ---
 

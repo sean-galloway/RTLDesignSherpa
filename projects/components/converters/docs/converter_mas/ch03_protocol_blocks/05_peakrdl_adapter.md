@@ -147,11 +147,17 @@ command, which is what a register block wants.
 ## 3.5.6 Resource Utilization
 
 ```
-State machine:  ~20 LUTs, ~10 regs
-Data paths:     ~10 LUTs, ~40 regs
-Control:        ~20 LUTs, ~5 regs
+FSM state:            3 regs (cmd_state 2b + rsp_state 1b)
+Command capture:      77 regs (pwrite 1 + paddr 12 + pwdata 32 + wr_biten 32)
+Response capture:     33 regs (prdata 32 + pslverr 1)
+Request replay muxes: ~77 LUTs (four 2:1 selects, 1+12+32+32 bits --
+                      IDLE-vs-registered request presentation)
+FSM + control decode: ~25 LUTs
 
-Total: ~50 LUTs, ~55 regs
+Total: ~113 regs, ~100 LUTs  (counted from the declarations at the
+documented defaults ADDR_WIDTH=12, DATA_WIDTH=32; all of it is live
+state -- the command capture replays the request out of
+CMD_STALLED/CMD_WAIT_ACK, and the response capture holds the rsp packet)
 ```
 
 ## 3.5.7 Use Cases

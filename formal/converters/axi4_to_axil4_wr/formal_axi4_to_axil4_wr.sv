@@ -9,10 +9,9 @@ module formal_axi4_to_axil4_wr #(
     parameter int AXI_ID_WIDTH   = 4,
     parameter int AXI_ADDR_WIDTH = 32,
     parameter int AXI_DATA_WIDTH = 32,
-    parameter int AXI_USER_WIDTH = 1,
-    parameter int SKID_DEPTH_AW  = 2,
-    parameter int SKID_DEPTH_W   = 4,
-    parameter int SKID_DEPTH_B   = 4
+    parameter int AXI_USER_WIDTH = 1
+    // SKID_DEPTH_AW/W/B removed: axi4_to_axil4_wr no longer declares any
+    // skid-depth parameters, so there is nothing for the harness to forward.
 ) (
     input logic aclk,
     input logic aresetn
@@ -80,10 +79,7 @@ module formal_axi4_to_axil4_wr #(
         .AXI_ID_WIDTH   (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
-        .AXI_USER_WIDTH (AXI_USER_WIDTH),
-        .SKID_DEPTH_AW  (SKID_DEPTH_AW),
-        .SKID_DEPTH_W   (SKID_DEPTH_W),
-        .SKID_DEPTH_B   (SKID_DEPTH_B)
+        .AXI_USER_WIDTH (AXI_USER_WIDTH)
     ) dut (
         .aclk            (aclk),
         .aresetn         (aresetn),

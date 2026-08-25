@@ -402,14 +402,93 @@ class CrossbarGenerator:
         # what made the port list reference a not-yet-elaborated name.
         lines.append("")
 
+        # W-follow wires are declared up front: the slave routing blocks
+        # consume them, but they are assigned by the per-path W destination
+        # FIFOs that are emitted after the slave blocks (they reference the
+        # per-slave addr-decode wires those blocks declare).
+        lines.extend(self._generate_w_follow_decls())
+
         # Route to each slave
         for slave_idx, slave in enumerate(self.slaves):
             lines.extend(self._generate_slave_routing(slave_idx, slave))
             lines.append("")
 
+        # Per-(master, width-path) W destination FIFOs
+        lines.extend(self._generate_w_dest_fifos())
+
         # Generate response MUXes (OR together responses from all slaves)
         lines.extend(self._generate_response_muxes())
 
+        return lines
+
+    def _wr_paths(self):
+        """Yield (master, suffix, connected wr-slaves of that width, in
+        slave-index order) for every write-capable (master, width path)."""
+        for master in self.masters:
+            if master.channels not in ("wr", "rw"):
+                continue
+            for width in self._get_connected_slave_widths(master):
+                slaves = [self.slaves[i] for i in sorted(master.slave_connections)
+                          if self.slaves[i].data_width == width]
+                if slaves:
+                    yield master, f"{width}b", slaves
+
+    def _generate_w_follow_decls(self) -> List[str]:
+        """Declare the W-follow wires assigned by _generate_w_dest_fifos
+        and the slave routing blocks."""
+        lines = ["    // W-follow declarations (assigned below)"]
+        for m, suffix, slaves in self._wr_paths():
+            for s in slaves:
+                lines.append(f"    logic {m.name}_{suffix}_w_to_{s.name};")
+                lines.append(f"    logic {m.name}_{suffix}_w_sel_{s.name};")
+        lines.append("")
+        return lines
+
+    def _generate_w_dest_fifos(self) -> List[str]:
+        """One FIFO per write-capable (master, width path): each accepted AW
+        pushes WHICH slave the burst targets; the head steers that path's W
+        beats. This preserves the master's own AW order ACROSS slaves --
+        the old per-(master,slave) occupancy FIFOs asserted w_to for every
+        slave with an outstanding burst simultaneously, interleaving one
+        master's W streams into two slaves at once."""
+        lines = []
+        lines.append("    // ================================================================")
+        lines.append("    // W destination FIFOs (per master width-path)")
+        lines.append("    // ================================================================")
+        for m, suffix, slaves in self._wr_paths():
+            base = f"{m.name}_{suffix}_wdest"
+            n = len(slaves)
+            j = max(1, (n - 1).bit_length())
+            lines.append(f"    // {m.name} {suffix} path -> {', '.join(s.name for s in slaves)}")
+            lines.append(f"    logic [{j-1}:0] {base}_mem [16];")
+            lines.append(f"    logic [4:0] {base}_wptr, {base}_rptr;")
+            enc = f"{j}'d0"
+            for code, s in reversed(list(enumerate(slaves))):
+                if code == 0:
+                    continue
+                enc = f"{m.name}_{suffix}_aw_to_{s.name} ? {j}'d{code} : {enc}"
+            lines.append(f"    wire [{j-1}:0] {base}_enc = {enc};")
+            lines.append(f"    wire {base}_push = {m.name}_{suffix}_awvalid && {m.name}_{suffix}_awready;")
+            lines.append(f"    wire {base}_pop  = {m.name}_{suffix}_wvalid && {m.name}_{suffix}_wready && {m.name}_{suffix}_w.last;")
+            lines.append(f"    always_ff @(posedge aclk or negedge aresetn) begin")
+            lines.append(f"        if (!aresetn) begin")
+            lines.append(f"            {base}_wptr <= '0;")
+            lines.append(f"            {base}_rptr <= '0;")
+            lines.append(f"        end else begin")
+            lines.append(f"            if ({base}_push) begin")
+            lines.append(f"                {base}_mem[{base}_wptr[3:0]] <= {base}_enc;")
+            lines.append(f"                {base}_wptr <= {base}_wptr + 1'b1;")
+            lines.append(f"            end")
+            lines.append(f"            if ({base}_pop) begin")
+            lines.append(f"                {base}_rptr <= {base}_rptr + 1'b1;")
+            lines.append(f"            end")
+            lines.append(f"        end")
+            lines.append(f"    end")
+            lines.append(f"    wire {base}_valid = ({base}_wptr != {base}_rptr);")
+            lines.append(f"    wire [{j-1}:0] {base}_head = {base}_mem[{base}_rptr[3:0]];")
+            for code, s in enumerate(slaves):
+                lines.append(f"    assign {m.name}_{suffix}_w_to_{s.name} = {base}_valid && ({base}_head == {j}'d{code});")
+            lines.append("")
         return lines
 
     def _generate_slave_routing(self, slave_idx: int, slave: SlaveInfo) -> List[str]:
@@ -467,11 +546,78 @@ class CrossbarGenerator:
 
         return lines
 
+    def _generate_arbiter(self, slave: SlaveInfo, suffix: str, prefix: str,
+                          channel: str, masters: List[MasterConfig]) -> List[str]:
+        """Per-slave request arbiter for one address channel (aw/ar):
+        round-robin pick among requesting masters, grant LOCKED until the
+        slave-side handshake completes (switching the mux mid-stall would
+        change the request payload under an asserted valid -- an AXI
+        violation, and exactly the OR-merge corruption this replaces).
+
+        Emits, per master m: `{m}_{suffix}_{channel}_gnt_{slave}` -- high
+        when m owns the slave's address channel this cycle. Field muxes
+        and the ready return are gated by it."""
+        lines = []
+        n = len(masters)
+        k = max(1, (n - 1).bit_length())
+        s = slave.name
+        arb = f"{s}_{channel}_arb"
+        ready = f"{prefix}{channel}ready"
+
+        lines.append(f"    // ---- {channel.upper()} arbiter for {s}: round-robin, lock until handshake ----")
+        req_bits = ", ".join(
+            f"{m.name}_{suffix}_{channel}_to_{s} && {m.name}_{suffix}_{channel}valid"
+            for m in reversed(masters))
+        lines.append(f"    logic [{n-1}:0] {arb}_req;")
+        lines.append(f"    assign {arb}_req = {{{req_bits}}};")
+        lines.append(f"    logic [{k-1}:0] {arb}_lock, {arb}_rr;")
+        lines.append(f"    logic {arb}_locked;")
+        # Round-robin pick, unrolled at generation time (n is small).
+        pick_cases = []
+        for r in range(n):
+            order = [(r + o) % n for o in range(n)]
+            expr = f"{k}'d{order[-1]}"
+            for idx in reversed(order[:-1]):
+                expr = f"{arb}_req[{idx}] ? {k}'d{idx} : {expr}"
+            pick_cases.append(expr)
+        if n == 1:
+            lines.append(f"    wire [{k-1}:0] {arb}_pick = {k}'d0;")
+        else:
+            expr = pick_cases[-1]
+            for r in range(n - 2, -1, -1):
+                expr = f"({arb}_rr == {k}'d{r}) ? ({pick_cases[r]}) : \n        {expr}"
+            lines.append(f"    wire [{k-1}:0] {arb}_pick = {expr};")
+        lines.append(f"    wire {arb}_gnt_valid = {arb}_locked || (|{arb}_req);")
+        lines.append(f"    wire [{k-1}:0] {arb}_gnt = {arb}_locked ? {arb}_lock : {arb}_pick;")
+        lines.append(f"    always_ff @(posedge aclk or negedge aresetn) begin")
+        lines.append(f"        if (!aresetn) begin")
+        lines.append(f"            {arb}_lock   <= '0;")
+        lines.append(f"            {arb}_rr     <= '0;")
+        lines.append(f"            {arb}_locked <= 1'b0;")
+        lines.append(f"        end else begin")
+        lines.append(f"            if ({prefix}{channel}valid && {ready}) begin")
+        lines.append(f"                {arb}_locked <= 1'b0;")
+        lines.append(f"                {arb}_rr <= ({arb}_gnt == {k}'d{n-1}) ? {k}'d0 : {arb}_gnt + 1'b1;")
+        lines.append(f"            end else if ({prefix}{channel}valid) begin")
+        lines.append(f"                {arb}_lock   <= {arb}_gnt;")
+        lines.append(f"                {arb}_locked <= 1'b1;")
+        lines.append(f"            end")
+        lines.append(f"        end")
+        lines.append(f"    end")
+        for i, m in enumerate(masters):
+            lines.append(f"    wire {m.name}_{suffix}_{channel}_gnt_{s} = "
+                         f"{arb}_gnt_valid && ({arb}_gnt == {k}'d{i}) && {arb}_req[{i}];")
+        lines.append("")
+        return lines
+
     def _generate_multi_master_routing(self, slave_idx: int, slave: SlaveInfo,
                                         masters: List[MasterConfig]) -> List[str]:
-        """OR-merge each master's request contribution onto the slave-side
-        request signals. Use the slave's bid_*/rid_* tracking to route the
-        response back through the correct master."""
+        """Arbitrated mux of each master's request contribution onto the
+        slave-side request signals. The mux keeps the OR-merge SHAPE, but
+        every term is gated by an arbiter grant, so exactly one master's
+        payload reaches the slave per cycle (the ungated OR let two
+        concurrent requests merge field-by-field: addr = A|B). Responses
+        route back by the slave's bid_*/rid_* tracking, unchanged."""
         lines = []
         suffix = f"{slave.data_width}b"
         prefix = f"{slave.name}_axi_"
@@ -485,8 +631,7 @@ class CrossbarGenerator:
         lines.append("")
 
         # Per-master address-decode signals. Defined once up-front and
-        # reused by every OR-merge below so we don't repeat the same
-        # comparison expression.
+        # reused by the arbiters and muxes below.
         for m in masters:
             if m.channels in ("wr", "rw"):
                 aw_dec = self._addr_decode_expr(m.name, suffix, "aw", slave)
@@ -496,38 +641,25 @@ class CrossbarGenerator:
                 lines.append(f"    wire {m.name}_{suffix}_ar_to_{slave.name} = {ar_dec};")
         lines.append("")
 
-        def _or_merge(out_sig: str, struct_field: str | None,
-                      master_sig_template: str, sel_array: str,
-                      master_subset: List[MasterConfig],
-                      valid_signal: str) -> str:
-            """Build an OR-merged assignment line.
-
-            Each OR-merged term is gated by `addr_decode && valid` so
-            an idle master with a stale fub_axi_*addr does NOT contribute.
-            Address decode happens on the converter/passthrough's m_axi
-            address bus (stable across the entire handshake), avoiding
-            the slave_select_* reverts-after-handshake bug.
-            """
+        def _gnt_merge(struct_field: str | None, master_sig_template: str,
+                       master_subset: List[MasterConfig],
+                       gate_template: str) -> str:
+            """OR-shaped mux where each term is gated by a one-hot grant
+            (arbiter gnt wires for AW/AR, w_sel for W) -- at most one term
+            is ever non-zero."""
             parts = []
             for m in master_subset:
                 base = master_sig_template.format(m=m.name, suffix=suffix)
                 lhs = f"{base}{struct_field}" if struct_field else base
-                sel = f"{m.name}_{suffix}_{sel_array}_to_{slave.name}"
-                vld = valid_signal.format(m=m.name, suffix=suffix)
-                parts.append(f"(({sel} && {vld}) ? {lhs} : '0)")
+                gate = gate_template.format(m=m.name, suffix=suffix)
+                parts.append(f"({gate} ? {lhs} : '0)")
             return " |\n        ".join(parts) if parts else "'0"
 
-        # Write side. Each OR-merge term is gated by `slave_select_aw &&
-        # awvalid` (or wvalid for W) so an idle master with a stale
-        # `fub_axi_awaddr` that happens to decode to slave_idx does NOT
-        # contribute. The W beats use the same `slave_select_aw` (which
-        # holds across the W phase), gated by wvalid for liveness.
-        aw_valid = "{m}_{suffix}_awvalid"
-        w_valid = "{m}_{suffix}_wvalid"
-        ar_valid = "{m}_{suffix}_arvalid"
-
         if wr_masters:
-            lines.append("    // AW channel (OR-merged across writing masters)")
+            lines.extend(self._generate_arbiter(slave, suffix, prefix, "aw", wr_masters))
+
+            aw_gate = f"{{m}}_{{suffix}}_aw_gnt_{slave.name}"
+            lines.append("    // AW channel (arbitrated mux across writing masters)")
             aw_pairs = [("awid", ".id"), ("awaddr", ".addr"), ("awlen", ".len"),
                         ("awsize", ".size"), ("awburst", ".burst"),
                         ("awlock", ".lock"), ("awcache", ".cache"),
@@ -535,53 +667,56 @@ class CrossbarGenerator:
             aw_pairs += [(base, f".{field}") for field, _w, _f, base
                          in self._sb_fields('aw', self._sb_slave_feats(slave))]
             for sig, fld in aw_pairs:
-                tmpl = "{m}_{suffix}_aw"
-                expr = _or_merge(sig, fld, tmpl, "aw", wr_masters, aw_valid)
+                expr = _gnt_merge(fld, "{m}_{suffix}_aw", wr_masters, aw_gate)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
-            tmpl = "{m}_{suffix}_awvalid"
-            lines.append(f"    assign {prefix}awvalid = {_or_merge('awvalid', None, tmpl, 'aw', wr_masters, aw_valid)};")
+            gnt_or = " || ".join(f"{m.name}_{suffix}_aw_gnt_{slave.name}" for m in wr_masters)
+            lines.append(f"    assign {prefix}awvalid = {gnt_or};")
             lines.append("")
 
-            # Per-(master,slave) AW->W tracking FIFO: capture which slave
-            # the AW was driven to so W beats follow even after the AW
-            # address moves on. Same pattern as single-master.
-            for m in wr_masters:
-                w_sig = f"{m.name}_{suffix}_w_to_{slave.name}"
-                aw_sig = f"{m.name}_{suffix}_aw_to_{slave.name}"
-                lines.append(f"    // AW->W tracking FIFO: {m.name} -> {slave.name}")
-                lines.append(f"    logic {w_sig};")
-                lines.append(f"    logic [3:0] {aw_sig}_w_wptr, {aw_sig}_w_rptr;")
-                lines.append(f"    logic {aw_sig}_w_mem [16];")
-                lines.append(f"    logic {aw_sig}_w_push, {aw_sig}_w_pop;")
-                lines.append(f"    assign {aw_sig}_w_push = {m.name}_{suffix}_awvalid && {m.name}_{suffix}_awready && {aw_sig};")
-                lines.append(f"    assign {aw_sig}_w_pop  = {m.name}_{suffix}_wvalid && {m.name}_{suffix}_wready && {m.name}_{suffix}_w.last && {w_sig};")
-                lines.append(f"    always_ff @(posedge aclk or negedge aresetn) begin")
-                lines.append(f"        if (!aresetn) begin")
-                lines.append(f"            {aw_sig}_w_wptr <= '0;")
-                lines.append(f"            {aw_sig}_w_rptr <= '0;")
-                lines.append(f"        end else begin")
-                lines.append(f"            if ({aw_sig}_w_push) begin")
-                lines.append(f"                {aw_sig}_w_mem[{aw_sig}_w_wptr] <= 1'b1;")
-                lines.append(f"                {aw_sig}_w_wptr <= {aw_sig}_w_wptr + 1'b1;")
-                lines.append(f"            end")
-                lines.append(f"            if ({aw_sig}_w_pop) begin")
-                lines.append(f"                {aw_sig}_w_rptr <= {aw_sig}_w_rptr + 1'b1;")
-                lines.append(f"            end")
-                lines.append(f"        end")
-                lines.append(f"    end")
-                lines.append(f"    assign {w_sig} = ({aw_sig}_w_wptr != {aw_sig}_w_rptr) ? {aw_sig}_w_mem[{aw_sig}_w_rptr] : 1'b0;")
-                lines.append("")
+            # W owner FIFO: W beats at this slave must follow the order its
+            # AWs were ACCEPTED (i.e. grant order), not whichever master
+            # happens to have data ready. Push the granted master index at
+            # each slave-side AW handshake; the head owns the W channel
+            # until its WLAST.
+            n = len(wr_masters)
+            k = max(1, (n - 1).bit_length())
+            own = f"{slave.name}_wowner"
+            lines.append(f"    // W owner FIFO: slave-side AW accept order owns the W channel")
+            lines.append(f"    logic [{k-1}:0] {own}_mem [16];")
+            lines.append(f"    logic [4:0] {own}_wptr, {own}_rptr;")
+            lines.append(f"    always_ff @(posedge aclk or negedge aresetn) begin")
+            lines.append(f"        if (!aresetn) begin")
+            lines.append(f"            {own}_wptr <= '0;")
+            lines.append(f"            {own}_rptr <= '0;")
+            lines.append(f"        end else begin")
+            lines.append(f"            if ({prefix}awvalid && {prefix}awready) begin")
+            lines.append(f"                {own}_mem[{own}_wptr[3:0]] <= {slave.name}_aw_arb_gnt;")
+            lines.append(f"                {own}_wptr <= {own}_wptr + 1'b1;")
+            lines.append(f"            end")
+            lines.append(f"            if ({prefix}wvalid && {prefix}wready && {prefix}wlast) begin")
+            lines.append(f"                {own}_rptr <= {own}_rptr + 1'b1;")
+            lines.append(f"            end")
+            lines.append(f"        end")
+            lines.append(f"    end")
+            lines.append(f"    wire {own}_valid = ({own}_wptr != {own}_rptr);")
+            lines.append(f"    wire [{k-1}:0] {own}_head = {own}_mem[{own}_rptr[3:0]];")
+            for i, m in enumerate(wr_masters):
+                lines.append(f"    assign {m.name}_{suffix}_w_sel_{slave.name} = "
+                             f"{own}_valid && ({own}_head == {k}'d{i}) && {m.name}_{suffix}_w_to_{slave.name};")
+            lines.append("")
 
-            lines.append("    // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)")
+            w_gate = f"({{m}}_{{suffix}}_w_sel_{slave.name} && {{m}}_{{suffix}}_wvalid)"
+            lines.append("    // W channel (owner-gated mux across writing masters)")
             w_pairs = [("wdata", ".data"), ("wstrb", ".strb"), ("wlast", ".last")]
             w_pairs += [(base, f".{field}") for field, _w, _f, base
                         in self._sb_fields('w', self._sb_slave_feats(slave))]
             for sig, fld in w_pairs:
-                tmpl = "{m}_{suffix}_w"
-                expr = _or_merge(sig, fld, tmpl, "w", wr_masters, w_valid)
+                expr = _gnt_merge(fld, "{m}_{suffix}_w", wr_masters, w_gate)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
-            tmpl = "{m}_{suffix}_wvalid"
-            lines.append(f"    assign {prefix}wvalid = {_or_merge('wvalid', None, tmpl, 'w', wr_masters, w_valid)};")
+            wv_or = " || ".join(
+                f"({m.name}_{suffix}_w_sel_{slave.name} && {m.name}_{suffix}_wvalid)"
+                for m in wr_masters)
+            lines.append(f"    assign {prefix}wvalid = {wv_or};")
             lines.append("")
 
             # bready: route back to whichever master owns this response
@@ -597,21 +732,22 @@ class CrossbarGenerator:
             lines.append(f"    assign {prefix}bready = " + " |\n        ".join(bready_terms) + ";")
             lines.append("")
 
-            # bridge_id_aw: which master originated this AW. Gate on
-            # addr-decode && awvalid (the address bus is stable across
-            # the AW handshake; slave_select_aw isn't).
-            lines.append("    // Bridge ID (writes) — picks the originating master's id")
+            # bridge_id_aw: which master originated this AW — the granted one.
+            lines.append("    // Bridge ID (writes) — the granted master's id")
             bid_terms = []
             for m in wr_masters:
                 bid_terms.append(
-                    f"(({m.name}_{suffix}_aw_to_{slave.name} && {m.name}_{suffix}_awvalid) ? {m.name}_bridge_id_aw : '0)"
+                    f"({m.name}_{suffix}_aw_gnt_{slave.name} ? {m.name}_bridge_id_aw : '0)"
                 )
             lines.append(f"    assign {prefix}bridge_id_aw = " + " |\n        ".join(bid_terms) + ";")
             lines.append("")
 
-        # Read side. Same `slave_select && arvalid` gating story.
+        # Read side: same arbitration story, no W-follow machinery.
         if rd_masters:
-            lines.append("    // AR channel (OR-merged across reading masters)")
+            lines.extend(self._generate_arbiter(slave, suffix, prefix, "ar", rd_masters))
+
+            ar_gate = f"{{m}}_{{suffix}}_ar_gnt_{slave.name}"
+            lines.append("    // AR channel (arbitrated mux across reading masters)")
             ar_pairs = [("arid", ".id"), ("araddr", ".addr"), ("arlen", ".len"),
                         ("arsize", ".size"), ("arburst", ".burst"),
                         ("arlock", ".lock"), ("arcache", ".cache"),
@@ -619,11 +755,10 @@ class CrossbarGenerator:
             ar_pairs += [(base, f".{field}") for field, _w, _f, base
                          in self._sb_fields('ar', self._sb_slave_feats(slave))]
             for sig, fld in ar_pairs:
-                tmpl = "{m}_{suffix}_ar"
-                expr = _or_merge(sig, fld, tmpl, "ar", rd_masters, ar_valid)
+                expr = _gnt_merge(fld, "{m}_{suffix}_ar", rd_masters, ar_gate)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
-            tmpl = "{m}_{suffix}_arvalid"
-            lines.append(f"    assign {prefix}arvalid = {_or_merge('arvalid', None, tmpl, 'ar', rd_masters, ar_valid)};")
+            gnt_or = " || ".join(f"{m.name}_{suffix}_ar_gnt_{slave.name}" for m in rd_masters)
+            lines.append(f"    assign {prefix}arvalid = {gnt_or};")
             lines.append("")
 
             lines.append("    // Rready (slave → owning master, by rid_bridge_id)")
@@ -636,11 +771,11 @@ class CrossbarGenerator:
             lines.append(f"    assign {prefix}rready = " + " |\n        ".join(rready_terms) + ";")
             lines.append("")
 
-            lines.append("    // Bridge ID (reads) — picks the originating master's id")
+            lines.append("    // Bridge ID (reads) — the granted master's id")
             rid_terms = []
             for m in rd_masters:
                 rid_terms.append(
-                    f"(({m.name}_{suffix}_ar_to_{slave.name} && {m.name}_{suffix}_arvalid) ? {m.name}_bridge_id_ar : '0)"
+                    f"({m.name}_{suffix}_ar_gnt_{slave.name} ? {m.name}_bridge_id_ar : '0)"
                 )
             lines.append(f"    assign {prefix}bridge_id_ar = " + " |\n        ".join(rid_terms) + ";")
             lines.append("")
@@ -732,6 +867,9 @@ class CrossbarGenerator:
         # AW channel (master → slave) - address-decode gating
         lines.append("    // AW channel (gated by address re-decode -- see _addr_decode_expr)")
         lines.append(f"    wire {sig_select} = {addr_dec};")
+        # Grant alias: single master needs no arbiter; the response muxes
+        # gate on _gnt_ uniformly for single- and multi-master slaves.
+        lines.append(f"    wire {master.name}_{suffix}_aw_gnt_{slave.name} = {sig_select};")
         lines.append(f"    assign {prefix}awid     = {sig_select} ? {master.name}_{suffix}_aw.id : '0;")
         lines.append(f"    assign {prefix}awaddr   = {sig_select} ? {master.name}_{suffix}_aw.addr : '0;")
         lines.append(f"    assign {prefix}awlen    = {sig_select} ? {master.name}_{suffix}_aw.len : '0;")
@@ -745,34 +883,14 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}awvalid  = {sig_select} && {master.name}_{suffix}_awvalid;")
         lines.append("")
 
-        # AW->W tracking FIFO so W beats follow the AW.
-        lines.append(f"    // AW->W tracking FIFO for this (master,slave) pair")
-        lines.append(f"    logic {w_sig};")
-        lines.append(f"    logic [3:0] {sig_select}_w_wptr, {sig_select}_w_rptr;")
-        lines.append(f"    logic {sig_select}_w_mem [16];")
-        lines.append(f"    logic {sig_select}_w_push, {sig_select}_w_pop;")
-        lines.append(f"    assign {sig_select}_w_push = {master.name}_{suffix}_awvalid && {master.name}_{suffix}_awready && {sig_select};")
-        lines.append(f"    assign {sig_select}_w_pop  = {master.name}_{suffix}_wvalid && {master.name}_{suffix}_wready && {master.name}_{suffix}_w.last && {w_sig};")
-        lines.append(f"    always_ff @(posedge aclk or negedge aresetn) begin")
-        lines.append(f"        if (!aresetn) begin")
-        lines.append(f"            {sig_select}_w_wptr <= '0;")
-        lines.append(f"            {sig_select}_w_rptr <= '0;")
-        lines.append(f"        end else begin")
-        lines.append(f"            if ({sig_select}_w_push) begin")
-        lines.append(f"                {sig_select}_w_mem[{sig_select}_w_wptr] <= 1'b1;")
-        lines.append(f"                {sig_select}_w_wptr <= {sig_select}_w_wptr + 1'b1;")
-        lines.append(f"            end")
-        lines.append(f"            if ({sig_select}_w_pop) begin")
-        lines.append(f"                {sig_select}_w_rptr <= {sig_select}_w_rptr + 1'b1;")
-        lines.append(f"            end")
-        lines.append(f"        end")
-        lines.append(f"    end")
-        lines.append(f"    assign {w_sig} = ({sig_select}_w_wptr != {sig_select}_w_rptr) ? {sig_select}_w_mem[{sig_select}_w_rptr] : 1'b0;")
-        lines.append("")
+        # W follows the AW via the per-path W destination FIFO (emitted in
+        # _generate_w_dest_fifos, which assigns {w_sig}). Single master →
+        # no owner arbitration; w_sel is just w_to.
+        lines.append(f"    assign {master.name}_{suffix}_w_sel_{slave.name} = {w_sig};")
         lines.append("")
 
         # W channel (master → slave)
-        lines.append("    // W channel (gated by aw_to_<slave> FIFO head)")
+        lines.append("    // W channel (gated by the W destination FIFO head)")
         lines.append(f"    assign {prefix}wdata  = {w_sig} ? {master.name}_{suffix}_w.data : '0;")
         lines.append(f"    assign {prefix}wstrb  = {w_sig} ? {master.name}_{suffix}_w.strb : '0;")
         lines.append(f"    assign {prefix}wlast  = {w_sig} ? {master.name}_{suffix}_w.last : '0;")
@@ -816,6 +934,8 @@ class CrossbarGenerator:
         # AR channel (master → slave) - address-decode gating
         lines.append("    // AR channel (gated by address re-decode -- see _addr_decode_expr)")
         lines.append(f"    wire {sig_select} = {addr_dec};")
+        # Grant alias: see _generate_write_channel_routing.
+        lines.append(f"    wire {master.name}_{suffix}_ar_gnt_{slave.name} = {sig_select};")
         lines.append(f"    assign {prefix}arid     = {sig_select} ? {master.name}_{suffix}_ar.id : '0;")
         lines.append(f"    assign {prefix}araddr   = {sig_select} ? {master.name}_{suffix}_ar.addr : '0;")
         lines.append(f"    assign {prefix}arlen    = {sig_select} ? {master.name}_{suffix}_ar.len : '0;")
@@ -908,22 +1028,25 @@ class CrossbarGenerator:
         # Get master index for bridge_id matching
         master_idx = self.masters.index(master)
 
-        # Generate awready MUX (gated by address re-decode -- same fix
-        # as the AW signal gating in _generate_*_channel_routing).
+        # Generate awready MUX -- gated by the arbiter grant (alias of the
+        # address decode for single-master slaves), so a master only sees
+        # ready when it actually owns the slave's AW channel.
         lines.append(f"    assign {master.name}_{suffix}_awready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_{suffix}_aw_to_{slave.name} ? {prefix}awready : '0)")
+            mux_terms.append(f"        ({master.name}_{suffix}_aw_gnt_{slave.name} ? {prefix}awready : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
-        # Generate wready MUX -- W beats follow the AW-to-slave FIFO head.
+        # Generate wready MUX -- W beats follow the destination FIFO head,
+        # gated by the slave's W-owner (w_sel) so only the owning master
+        # sees wready.
         lines.append(f"    assign {master.name}_{suffix}_wready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_{suffix}_w_to_{slave.name} ? {prefix}wready : '0)")
+            mux_terms.append(f"        ({master.name}_{suffix}_w_sel_{slave.name} ? {prefix}wready : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -989,13 +1112,13 @@ class CrossbarGenerator:
         # Get master index for bridge_id matching
         master_idx = self.masters.index(master)
 
-        # Generate arready MUX (gated by address re-decode -- same fix
-        # as the AR signal gating in _generate_*_channel_routing).
+        # Generate arready MUX -- gated by the arbiter grant (alias of the
+        # address decode for single-master slaves).
         lines.append(f"    assign {master.name}_{suffix}_arready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_{suffix}_ar_to_{slave.name} ? {prefix}arready : '0)")
+            mux_terms.append(f"        ({master.name}_{suffix}_ar_gnt_{slave.name} ? {prefix}arready : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 

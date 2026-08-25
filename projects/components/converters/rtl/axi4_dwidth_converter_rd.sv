@@ -367,6 +367,21 @@ module axi4_dwidth_converter_rd #(
             // burst is tracked (prevents overflow -> lost RLAST framing).
             assign m_axi_arvalid  = int_ar_valid && w_blen_wr_ready;
             assign int_ar_ready   = m_axi_arready && w_blen_wr_ready;
+
+`ifdef SIMULATION
+            // Upsize bursts must start wide-aligned: the issued address is
+            // aligned DOWN and the R slicer starts at lane 0, so a
+            // mid-word AR start silently returns data from the aligned
+            // address instead of the requested one (MAS 2.6.5). Fail
+            // loudly instead.
+            always_ff @(posedge aclk) begin
+                if (aresetn && int_ar_valid && int_ar_ready &&
+                    (int_araddr[ALIGN_BITS-1:0] != '0)) begin
+                    $error("axi4_dwidth_converter_rd: upsize AR addr 0x%h is not aligned to the %0d-byte wide bus",
+                           int_araddr, M_STRB_WIDTH);
+                end
+            end
+`endif
         end
     endgenerate
 

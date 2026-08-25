@@ -253,8 +253,7 @@ module stream_err_adapter
         .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1),
-        .SKID_DEPTH_R(2)
+        .AXI_USER_WIDTH(1)
     ) u_stream_err_axil_converter_rd (
         // Clocks and resets
         .aclk(aclk),
