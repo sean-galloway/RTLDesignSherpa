@@ -103,7 +103,7 @@ module axi5_master_rd_stub
     // AR interface
     input  logic                       fub_axi_arvalid,
     output logic                       fub_axi_arready,
-    output logic [2:0]                 fub_axi_ar_count,
+    output logic [3:0]                 fub_axi_ar_count,  // AR skid occupancy (was undriven [2:0] -- axi4/5 round_20 bug A)
     input  logic [ARSize-1:0]          fub_axi_ar_pkt,
 
     // R interface
@@ -128,7 +128,7 @@ module axi5_master_rd_stub
                                   m_axi_arunique, m_axi_archunken, m_axi_artagop}),
         /* verilator lint_off PINCONNECTEMPTY */
         .count                  (),
-        .rd_count               ()
+        .rd_count               (fub_axi_ar_count)
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

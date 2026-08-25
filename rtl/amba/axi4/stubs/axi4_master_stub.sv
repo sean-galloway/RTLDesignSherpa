@@ -121,7 +121,7 @@ module axi4_master_stub
     // AR interface
     input  logic                       fub_axi_arvalid,
     output logic                       fub_axi_arready,
-    output logic [2:0]                 fub_axi_ar_count,
+    output logic [3:0]                 fub_axi_ar_count,
     input  logic [ARSize-1:0]          fub_axi_ar_pkt,
 
     // R interface

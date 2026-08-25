@@ -128,7 +128,10 @@ module axi4_slave_wr_cg
     logic int_busy;
 
     // OR all user-side valid signals (slave receives from AXI, sends to backend)
-    assign user_valid = s_axi_awvalid || s_axi_wvalid || s_axi_bready || int_busy;
+    // Peer VALID, never peer READY, in the activity term (a consumer
+    // parking ready high while idle would pin the block awake and defeat
+    // gating entirely -- the mon_cg siblings' explicit rule; round_20 B/C).
+    assign user_valid = s_axi_awvalid || s_axi_wvalid || s_axi_bvalid || int_busy;
 
     // OR all AXI-side valid signals (backend sends, slave sends to AXI)
     assign axi_valid = fub_axi_awvalid || fub_axi_wvalid || fub_axi_bvalid || s_axi_bvalid;
@@ -158,6 +161,7 @@ module axi4_slave_wr_cg
         .AXI_ID_WIDTH             (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH           (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH           (AXI_DATA_WIDTH),
+        .AXI_WSTRB_WIDTH          (AXI_WSTRB_WIDTH),  // was unforwarded: explicit overrides silently mismatched (round_20 D)
         .AXI_USER_WIDTH           (AXI_USER_WIDTH),
         .SKID_DEPTH_AW            (SKID_DEPTH_AW),
         .SKID_DEPTH_W             (SKID_DEPTH_W),

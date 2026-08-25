@@ -167,7 +167,10 @@ module axi5_master_rd_cg
     logic int_busy;
 
     // OR all user-side valid signals
-    assign user_valid = fub_axi_arvalid || fub_axi_rready || int_busy;
+    // Peer VALID, never peer READY, in the activity term (a consumer
+    // parking ready high while idle would pin the block awake and defeat
+    // gating entirely -- the mon_cg siblings' explicit rule; round_20 B/C).
+    assign user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy;
 
     // OR all AXI-side valid signals
     assign axi_valid = m_axi_arvalid || m_axi_rvalid;
@@ -196,6 +199,7 @@ module axi5_master_rd_cg
         .AXI_ID_WIDTH        (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH      (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH      (AXI_DATA_WIDTH),
+        .AXI_WSTRB_WIDTH   (AXI_WSTRB_WIDTH),  // was unforwarded (round_20 D)
         .AXI_USER_WIDTH      (AXI_USER_WIDTH),
         .SKID_DEPTH_AR       (SKID_DEPTH_AR),
         .SKID_DEPTH_R        (SKID_DEPTH_R),

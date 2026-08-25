@@ -166,7 +166,10 @@ module axi5_slave_rd_cg
     logic int_rready;
     logic int_busy;
 
-    assign user_valid = s_axi_arvalid || s_axi_rready || int_busy;
+    // Peer VALID, never peer READY, in the activity term (a consumer
+    // parking ready high while idle would pin the block awake and defeat
+    // gating entirely -- the mon_cg siblings' explicit rule; round_20 B/C).
+    assign user_valid = s_axi_arvalid || s_axi_rvalid || int_busy;
     assign axi_valid = fub_axi_arvalid || fub_axi_rvalid;
 
     assign s_axi_arready = cg_gating ? 1'b0 : int_arready;
@@ -190,6 +193,7 @@ module axi5_slave_rd_cg
         .AXI_ID_WIDTH        (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH      (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH      (AXI_DATA_WIDTH),
+        .AXI_WSTRB_WIDTH   (AXI_WSTRB_WIDTH),  // was unforwarded (round_20 D)
         .AXI_USER_WIDTH      (AXI_USER_WIDTH),
         .SKID_DEPTH_AR       (SKID_DEPTH_AR),
         .SKID_DEPTH_R        (SKID_DEPTH_R),
