@@ -627,6 +627,57 @@ class AXI4DWidthConverterReadTB(TBBase):
                           f"the final beat")
         return ok
 
+
+    async def test_rresp_severity_fold(self):
+        """Mixed sub-beat responses must fold by SEVERITY, not bitwise OR.
+
+        A wide beat is assembled from WIDTH_RATIO narrow beats, each with
+        its own RRESP. With AXI encoding (OKAY=00, EXOKAY=01, SLVERR=10,
+        DECERR=11) a bitwise OR is not worst-case:
+
+            SLVERR | EXOKAY = 2'b10 | 2'b01 = 2'b11 = DECERR
+
+        so an exclusive-read beat mixed with a slave error inflates the
+        reported class. EXOKAY is reachable: ARLOCK passes through this
+        converter. The write side's B fold already uses numeric max; this
+        pins the read side to the same semantics (CONV-005).
+        """
+        if not self.DOWNSIZE:
+            return True
+
+        self.log.info("--- RRESP severity fold (CONV-005) ---")
+        addr = 0x50000
+        narrow_bytes = self.M_AXI_DATA_WIDTH // 8
+        # sub-beat 0 -> EXOKAY, sub-beat 1 -> SLVERR, rest OKAY
+        special = {addr: 1, addr + narrow_bytes: 2}
+        self.master_read_slave['interface'].resp_override = \
+            lambda a: special.get(a)
+        try:
+            data = await self.read_transaction(addr, 1)   # one wide beat
+        except TimeoutError:
+            self.log.error("  RRESP fold: read timed out")
+            self.errors += 1
+            return False
+        finally:
+            self.master_read_slave['interface'].resp_override = None
+
+        resps = [pkt['resp'] if isinstance(pkt, dict) else
+                 int(getattr(pkt, 'resp', 0)) for pkt in self.captured_r_packets]
+        if not resps:
+            self.log.error("  RRESP fold: no R beats captured")
+            self.errors += 1
+            return False
+        got = resps[0]
+        if got == 2:
+            self.log.info("  RRESP fold OK: EXOKAY+SLVERR sub-beats -> "
+                          "SLVERR (severity max)")
+            return True
+        name = {0: "OKAY", 1: "EXOKAY", 2: "SLVERR", 3: "DECERR"}.get(got, hex(got))
+        self.log.error(f"  RRESP fold WRONG: EXOKAY+SLVERR sub-beats -> "
+                       f"{name} -- bitwise OR inflates the error class")
+        self.errors += 1
+        return False
+
     async def run_medium_test(self):
         """
         Medium test - multiple transactions with different patterns.
@@ -702,6 +753,10 @@ class AXI4DWidthConverterReadTB(TBBase):
 
         # Test 2b: maximum-length bursts -- see test_max_length_burst
         if not await self.test_max_length_burst():
+            all_success = False
+
+        # Test 2c: response severity folding -- see test_rresp_severity_fold
+        if not await self.test_rresp_severity_fold():
             all_success = False
 
         # Test 3: Random addresses and burst lengths

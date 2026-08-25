@@ -185,7 +185,16 @@ module axi_data_upsize #(
     generate
         if (NARROW_SB_WIDTH > 0) begin : gen_sideband_accumulation
             if (SB_OR_MODE != 0) begin : gen_or_mode
-                // OR mode: for RRESP error propagation
+                // Fold mode: worst-case response propagation. This mode
+                // exists to fold per-sub-beat RRESP into one wide-beat
+                // response, and for that a bitwise OR is WRONG: with the
+                // AXI encoding (OKAY=00, EXOKAY=01, SLVERR=10, DECERR=11)
+                // SLVERR|EXOKAY = DECERR, inflating the error class the
+                // moment an exclusive-read beat mixes with a slave error
+                // (CONV-005). Numeric max IS severity order for RRESP, so
+                // the fold keeps the largest value instead. Sub-beats of
+                // one exclusive access should all carry the same response
+                // anyway; if they diverge, the worst one wins.
                 always_ff @(posedge aclk or negedge aresetn) begin
                     if (!aresetn) begin
                         r_sideband_accumulator <= '0;
@@ -193,8 +202,9 @@ module axi_data_upsize #(
                         if (narrow_valid && narrow_ready) begin
                             if (r_beat_ptr == '0) begin
                                 r_sideband_accumulator <= WIDE_SB_PORT_WIDTH'(narrow_sideband);
-                            end else begin
-                                r_sideband_accumulator <= r_sideband_accumulator | WIDE_SB_PORT_WIDTH'(narrow_sideband);
+                            end else if (WIDE_SB_PORT_WIDTH'(narrow_sideband)
+                                         > r_sideband_accumulator) begin
+                                r_sideband_accumulator <= WIDE_SB_PORT_WIDTH'(narrow_sideband);
                             end
                         end
                     end

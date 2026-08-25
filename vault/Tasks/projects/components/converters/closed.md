@@ -65,3 +65,23 @@ The first attempt (2026-08-23, reverted) and what it taught are in the
 task history above the work list; the single-counter W framing it tried
 is exactly what the split queue replaces.
 
+---
+
+## CONV-005 — dwidth rd RRESP fold used bitwise OR; SLVERR|EXOKAY inflated to DECERR
+**Status:** closed FIXED 2026-08-24 — severity-max fold, RED/GREEN
+
+Found by qc round_2, verified against the RTL (ARLOCK passes through, so
+EXOKAY is legal traffic), then reproduced: the new
+`test_rresp_severity_fold` scenario injects EXOKAY on one narrow
+sub-beat and SLVERR on another and asserts the wide RRESP. RED on all 4
+downsize configs (DECERR reported), GREEN after changing
+`axi_data_upsize`'s SB_OR_MODE fold from bitwise OR to numeric max --
+which IS severity order for RRESP. The mode's only instantiation is the
+rd converter's RRESP path, and its own comment declared response folding
+as its purpose, so the semantics change is a correction, not a break.
+The upsize TB's OR-based expectation was updated with the same
+rationale. AXI4SlaveRead gained `resp_override` (same convention as the
+AXIL4 slaves) to make the injection possible at all.
+
+Width family: 46 passed.
+

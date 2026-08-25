@@ -241,10 +241,13 @@ class AXIDataUpsizeTB(TBBase):
             # Verify sideband
             if self.narrow_sb_width > 0:
                 if self.sb_or_mode:
-                    # OR mode: expected is OR of all narrow sidebands
+                    # Fold mode: worst-case (numeric max), NOT bitwise OR.
+                    # The mode exists to fold RRESP, and OR inflates
+                    # SLVERR|EXOKAY to DECERR (CONV-005) -- the RTL now
+                    # keeps the largest value.
                     expected_sb = 0
                     for _, sb in narrow_beats:
-                        expected_sb |= sb
+                        expected_sb = max(expected_sb, sb)
                 else:
                     # Concatenate mode: pack sidebands
                     expected_sb = 0
