@@ -84,7 +84,7 @@ module scheduler #(
     // dma_address_gen run-base generators (read + write) so a transfer can be
     // strided / 2D-tiled / circular / reverse / transpose. Legacy descriptors
     // and the whole param=0 build keep linear address accumulation verbatim.
-    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1
 ) (
     // Clock and Reset
     input  logic                        clk,

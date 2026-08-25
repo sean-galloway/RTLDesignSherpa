@@ -27,7 +27,7 @@ module stream_harness #(
     parameter int UART_BAUD    = 115_200,
     parameter int DATA_WIDTH   = 128,
     parameter int ADDR_WIDTH   = 32,
-    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,  // TASK-101 STREAM Extended
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,  // TASK-101 STREAM Extended
     // ---- Observer transaction-table sizing (Vivado generics) --------------
     // OBS_MAX_TRANSACTIONS is the TOTAL slots per tap; the CAM is generated
     // OBS_NUM_BANKS times at OBS_MAX_TRANSACTIONS/OBS_NUM_BANKS each, because

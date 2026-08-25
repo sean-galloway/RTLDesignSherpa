@@ -68,7 +68,7 @@ module descriptor_engine #(
     // descriptor_addr + 0x20 to retrieve chunk 1 (addr-gen cfg), emitted on
     // descriptor_ext_packet. When 0 the second-fetch path is unreachable and
     // synthesizes away -> legacy 256-bit single-beat behavior verbatim.
-    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 0,
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,
     parameter int TIMEOUT_CYCLES = 1000,
     // Monitor Bus Parameters
     parameter logic [15:0] MON_AGENT_ID = 16'h0010,  // Descriptor Engine Agent ID
