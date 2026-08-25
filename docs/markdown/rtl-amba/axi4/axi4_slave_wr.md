@@ -428,9 +428,13 @@ memory_controller u_mem_ctrl (
 logic axi_clk_gated;
 
 clock_gate_ctrl u_cg (
-    .i_clk          (axi_clk),
-    .i_enable       (wr_slave_busy),
-    .o_clk_gated    (axi_clk_gated)
+    .clk_in            (axi_clk),
+    .aresetn           (axi_resetn),
+    .cfg_cg_enable     (1'b1),
+    .cfg_cg_idle_count (4'd8),
+    .wakeup            (wr_slave_busy),
+    .clk_out           (axi_clk_gated),
+    .gating            ()
 );
 
 // Connect module to gated clock
