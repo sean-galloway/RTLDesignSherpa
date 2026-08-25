@@ -1090,6 +1090,25 @@ independently.
 | Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
 | Open items | none for gaxi itself |
 
+### apb4 -- ARC COMPLETE 2026-08-25 (first-ever review + humanize); apb5 spillover integrated
+
+Rounds 17/18/19: 13 -> 10 -> 5, converged ('well above average in accuracy
+and candor'; round_19 independently re-derived every round_18 correction).
+Headline doc fixes: both stub pages' paddr/pwdata packing order (guaranteed
+integration failure), the slave's latency mis-model (>=4 wait states /
+6-cycle minimum through both registered skid rd_valids, not 2/4), README
+one-sided-reset claim, monitor page brought forward a generation. RTL fixed:
+STRB_WIDTH = 32/8 -> DATA_WIDTH/8 (slave + cg). RTL FILED with traces:
+TASK-066 (monitor slot leaks, +disabled-config trigger), TASK-067 (stub
+framing FIFO overflow), TASK-068 (P1 CONFIRMED master
+response-backpressure bus deadlock -- holds PENABLE forever), TASK-069
+(monitor protocol-check false positives on pipelined traffic + live-command
+event pairing + active_count drift). Humanize round_7: 10 pages, emoji
+38 -> 0, fourth consecutive round emitting the bracket-for-paren footer
+link (gate caught it). apb5 spillover (4 findings) integrated ca941b2b.
+Skid contract correction (2..8 inclusive, Sean) swept 24 pages + 3 guards
+mid-arc, 21c51b36.
+
 ### gaxi -- RE-SCRUB COMPLETE 2026-08-24 (post-drift confirmation)
 
 First review since the 08-10 humanize (the signal-prefix sweep and skid
