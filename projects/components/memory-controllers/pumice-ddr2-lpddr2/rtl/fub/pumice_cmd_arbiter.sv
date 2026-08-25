@@ -31,7 +31,8 @@
 //   5. precharge : oldest pending op whose bank is open on the WRONG row -> PRE.
 //
 // Page policy (page_policy_i): OPEN (ap=0, rows stay open) | CLOSE (ap=1, every
-// column op auto-precharges) | HAPPY_HYBRID (v1: treated as OPEN).
+// column op auto-precharges). Runtime adaptive policies override via
+// ap_mode_en_i/ap_close_i + the timeout-PRE request (pumice_page_policy).
 //
 // v1 scope: single-rank pick (rank 0). Documentation:
 // rtl/PUMICE_MEM_CMD_SCHEDULER_UARCH.md
@@ -222,7 +223,7 @@ module pumice_cmd_arbiter
     // writes landed on row 0, clobbering batch 1 -- 64 beats / 48 unique).
     // Guard the bank for the 2 cycles after a fired AP column, exactly as
     // r_guard0/1 do for ACT/PRE, so the next access must re-ACTivate.
-    // No-op when w_ap is low (OPEN / HAPPY_HYBRID): those columns leave the
+    // No-op when w_ap is low (OPEN): those columns leave the
     // row open and legitimately stream at tCCD.
     logic [NUM_BANKS-1:0] r_apguard0, r_apguard1;
     logic [NUM_BANKS-1:0] w_ap_col_guard;

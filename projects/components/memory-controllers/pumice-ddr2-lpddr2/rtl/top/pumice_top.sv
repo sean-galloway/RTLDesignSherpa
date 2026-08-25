@@ -151,8 +151,9 @@ module pumice_top
         unique case (hwif_out.REFRESH_TUNING.page_policy_or.value)
             2'd1:    w_page_policy = PAGE_POLICY_OPEN;
             2'd2:    w_page_policy = PAGE_POLICY_CLOSE;
-            2'd3:    w_page_policy = PAGE_POLICY_HAPPY_HYBRID;
-            default: w_page_policy = PAGE_POLICY_BUILD_DEFAULT;  // 0 = build default
+            // 2'd3 was HYBRID -- retired; maps to build default. The adaptive
+            // policies are PAGE_POLICY_CFG.policy_mode, not this legacy knob.
+            default: w_page_policy = PAGE_POLICY_BUILD_DEFAULT;  // 0/3 = build default
         endcase
     end
 

@@ -58,7 +58,6 @@ INIT_TEST = test_init_sequencer.py
 XT_TEST   = test_xbank_timers.py
 GT_TEST   = test_global_timers.py
 SCH_TEST  = test_scheduler.py
-PP_TEST   = test_page_predictor.py
 AM_TEST   = test_addr_mapper.py
 AIST_TEST = test_axi_id_side_table.py
 AI_TEST   = test_axi_intake.py

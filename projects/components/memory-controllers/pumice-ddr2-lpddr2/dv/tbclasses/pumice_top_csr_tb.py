@@ -241,14 +241,16 @@ class PumiceTopCsrTB:
         addr, lsb, mask = self._field_loc(register, field)
         return (await self._cpuif_read(addr) & mask) >> lsb
 
-    async def program_defaults(self, *, page_policy: int = 1,
+    async def program_defaults(self, *, page_policy: int = 2,
                                t_phy_wrlat: int = 1, t_rddata_en: int = 2,
                                mem_type: str = "DDR2", bank_lsb: int = 10,
                                hash_en: int = 0, hash_seed: int = 0,
                                t_refi: int = 0x0400) -> None:
         """Program the timing / PHY / policy CSRs (by name) to a fast-sim-safe
-        DDR2 config, then release init. page_policy is REFRESH_TUNING.page_policy_or,
-        used DIRECTLY as pumice_pkg::page_policy_e: 0=OPEN, 1=CLOSE, 2=HAPPY_HYBRID."""
+        DDR2 config, then release init. page_policy is REFRESH_TUNING.page_policy_or
+        in the SOFTWARE encoding: 0=build default(OPEN), 1=OPEN, 2=CLOSE,
+        3=reserved (was HYBRID -- retired; adaptive paging is
+        PAGE_POLICY_CFG.policy_mode)."""
         w = self.csr_write_field
         # JEDEC timings (small, sim-fast; DFISlavePHY runs relaxed violation)
         await w("TIMINGS_RC_RCD_RP_RAS", "tRC", 6)

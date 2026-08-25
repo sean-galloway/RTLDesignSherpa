@@ -241,8 +241,17 @@ class Pumice(Device):
 
     # ----- refresh ----------------------------------------------------------
     def set_page_policy(self, policy: int) -> None:
-        """REFRESH_TUNING.page_policy_or (0=param default,1=OPEN,2=CLOSE,3=HYBRID)."""
+        """REFRESH_TUNING.page_policy_or (0=build default(OPEN), 1=OPEN, 2=CLOSE;
+        3 is reserved -- was HYBRID, retired, maps to build default)."""
         self._wr("REFRESH_TUNING", page_policy_or=policy & 0x3)
+
+    def set_page_mode(self, mode: int, tr_init: Optional[int] = None) -> None:
+        """PAGE_POLICY_CFG.policy_mode (0=legacy, 1=static_open, 2=static_close,
+        3=fixed_open, 4=adapt_time; 5..7 reserved until their modes land) and,
+        optionally, PAGE_TIMEOUT_CFG.tr_init for the timeout policies."""
+        self.regs.write("PAGE_POLICY_CFG", policy_mode=mode & 0x7)
+        if tr_init is not None:
+            self.regs.write("PAGE_TIMEOUT_CFG", tr_init=tr_init & 0xFF)
 
     def set_refresh(self, *, refpb_policy: Optional[int] = None,
                     refresh_defer: Optional[int] = None,
@@ -265,7 +274,6 @@ class Pumice(Device):
     # ----- command scheduler ------------------------------------------------
     def set_scheduler(self, *, lookahead: Optional[int] = None,
                       force_inorder: Optional[bool] = None,
-                      happy_enable: Optional[bool] = None,
                       age_max: Optional[int] = None,
                       txn_high_water: Optional[int] = None) -> None:
         """SCHED_TUNING knobs; only supplied fields change (rmw)."""
@@ -274,8 +282,6 @@ class Pumice(Device):
             kw["lookahead_active"] = lookahead & 0xF
         if force_inorder is not None:
             kw["force_inorder"] = 1 if force_inorder else 0
-        if happy_enable is not None:
-            kw["happy_enable"] = 1 if happy_enable else 0
         if age_max is not None:
             kw["age_max_runtime"] = age_max & 0xFF
         if txn_high_water is not None:

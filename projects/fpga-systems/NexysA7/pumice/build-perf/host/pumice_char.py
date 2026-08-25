@@ -193,7 +193,8 @@ class ControllerConfig:
     page_policy:   Optional[int] = None     # dc.PAGE_POLICY_*
     lookahead:     Optional[int] = None     # reorder-window depth (0=off)
     force_inorder: Optional[bool] = None    # 1 = FIFO-only (no row-hit reorder)
-    happy_enable:  Optional[bool] = None    # HAPPY page predictor
+    page_mode:     Optional[int] = None     # PAGE_POLICY_CFG.policy_mode (0=legacy)
+    page_tr_init:  Optional[int] = None     # PAGE_TIMEOUT_CFG.tr_init
     rd_in_order:   bool = True              # R-channel return ordering (harness cfg)
     t_refi:        Optional[int] = None      # refresh interval (MC cycles)
     # PHY data timing: MUST match the board-validated bring-up tuple
@@ -226,14 +227,14 @@ class ControllerConfig:
             sched["lookahead"] = la
         if self.force_inorder is not None:
             sched["force_inorder"] = self.force_inorder
-        if self.happy_enable is not None:
-            sched["happy_enable"] = self.happy_enable
+        if self.page_mode is not None:
+            drv.set_page_mode(self.page_mode, tr_init=self.page_tr_init)
         if sched:
             drv.set_scheduler(**sched)
 
 
 # Presets -- each changes ONE main lever from `baseline` (except `reorder` /
-# `happy_hybrid`, the combined high-performance configs, and the *_refresh pair
+# `adapt_time`, the combined high-performance configs, and the *_refresh pair
 # which stress refresh bandwidth). XOR_HASH is omitted (not synthesized).
 CONFIGS: Dict[str, ControllerConfig] = {
     "baseline": ControllerConfig(
@@ -252,9 +253,11 @@ CONFIGS: Dict[str, ControllerConfig] = {
     "reorder": ControllerConfig(
         "reorder", scheme=dc.SCHEME_ROW_MAJOR, page_policy=dc.PAGE_POLICY_OPEN,
         lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
-    "happy_hybrid": ControllerConfig(
-        "happy_hybrid", scheme=dc.SCHEME_ROW_MAJOR,
-        page_policy=dc.PAGE_POLICY_HYBRID, happy_enable=True,
+    # (was "happy_hybrid" -- the HAPPY predictor is retired; its successor is
+    # the Happy Intel-adaptive timeout policy, PAGE_POLICY_CFG.policy_mode=4.)
+    "adapt_time": ControllerConfig(
+        "adapt_time", scheme=dc.SCHEME_ROW_MAJOR,
+        page_policy=dc.PAGE_POLICY_OPEN, page_mode=4, page_tr_init=24,
         lookahead=LOOKAHEAD_MAX, force_inorder=False, rd_in_order=False),
     "fast_refresh": ControllerConfig(
         "fast_refresh", scheme=dc.SCHEME_ROW_MAJOR,
@@ -659,7 +662,7 @@ RUN_PROFILES: Dict[str, dict] = {
     # one lever at a time vs the reorder failure
     "levers": dict(configs=["lever_lookahead", "lever_rdooo", "lever_open"],
                    level="basic", families=(FAM_COL_MAJOR,)),
-    # Everything: every preset (incl. refresh + happy) x the full grid.
+    # Everything: every preset (incl. refresh + adapt_time) x the full grid.
     "full": dict(configs="all", level="full", families=None),
 }
 

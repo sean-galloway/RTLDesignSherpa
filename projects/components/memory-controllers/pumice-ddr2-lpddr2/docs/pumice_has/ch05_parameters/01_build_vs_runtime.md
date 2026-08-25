@@ -57,7 +57,7 @@ Runtime CSR:   sched_tuning.lookahead_active [3:0]
                → scheduler peeks min(LOOKAHEAD_DEPTH_MAX, lookahead_active)
                  same-bank requests per cycle
 
-For debug:     Write lookahead_active = 0 to force pure HAPPY/page-policy mode
+For debug:     Write lookahead_active = 0 to force pure page-policy mode
                Write lookahead_active = 4 to use the full synthesized window
                No rebuild required.
 ```
@@ -71,9 +71,8 @@ For algorithmic choices where multiple alternatives have similar area cost, the 
 Concrete example for `PAGE_POLICY`:
 
 ```
-Build-time:    PAGE_POLICY = HAPPY_HYBRID
-               → synthesizes OPEN, CLOSE, and HAPPY decision logic
-                 (plus the HAPPY predictor table)
+Build-time:    (page policy has no build-time parameter -- the engine is
+                always present; a mode is a CSR value, not a build)
 
 Runtime CSR:   refresh_tuning.page_policy_or [1:0]
                00 = use build-time default (HAPPY_HYBRID here)

@@ -81,7 +81,6 @@ module pumice_csr (
         logic PASR_SEG_MASK_RANK0;
         logic TEMP_DERATE_RANK0;
         logic SCHED_TUNING;
-        logic PAGE_PRED_TUNING;
         logic REFRESH_TUNING;
         logic ADDR_MAP;
         logic INIT_TUNING;
@@ -109,7 +108,6 @@ module pumice_csr (
         logic OBS_REFRESH_DEFER_HIST_1;
         logic OBS_REFRESH_DEFER_HIST_2;
         logic OBS_REFRESH_DEFER_HIST_3;
-        logic OBS_PAGE_PRED_ACCURACY;
         logic OBS_AXI_R_LATENCY_AVG;
         logic OBS_AXI_R_LATENCY_P99;
         logic OBS_AXI_W_LATENCY_AVG;
@@ -149,7 +147,6 @@ module pumice_csr (
         decoded_reg_strb.PASR_SEG_MASK_RANK0 = cpuif_req_masked & (cpuif_addr == 12'h34);
         decoded_reg_strb.TEMP_DERATE_RANK0 = cpuif_req_masked & (cpuif_addr == 12'h38);
         decoded_reg_strb.SCHED_TUNING = cpuif_req_masked & (cpuif_addr == 12'h40);
-        decoded_reg_strb.PAGE_PRED_TUNING = cpuif_req_masked & (cpuif_addr == 12'h44);
         decoded_reg_strb.REFRESH_TUNING = cpuif_req_masked & (cpuif_addr == 12'h48);
         decoded_reg_strb.ADDR_MAP = cpuif_req_masked & (cpuif_addr == 12'h4c);
         decoded_reg_strb.INIT_TUNING = cpuif_req_masked & (cpuif_addr == 12'h50);
@@ -177,7 +174,6 @@ module pumice_csr (
         decoded_reg_strb.OBS_REFRESH_DEFER_HIST_1 = cpuif_req_masked & (cpuif_addr == 12'h110);
         decoded_reg_strb.OBS_REFRESH_DEFER_HIST_2 = cpuif_req_masked & (cpuif_addr == 12'h114);
         decoded_reg_strb.OBS_REFRESH_DEFER_HIST_3 = cpuif_req_masked & (cpuif_addr == 12'h118);
-        decoded_reg_strb.OBS_PAGE_PRED_ACCURACY = cpuif_req_masked & (cpuif_addr == 12'h120);
         decoded_reg_strb.OBS_AXI_R_LATENCY_AVG = cpuif_req_masked & (cpuif_addr == 12'h130);
         decoded_reg_strb.OBS_AXI_R_LATENCY_P99 = cpuif_req_masked & (cpuif_addr == 12'h134);
         decoded_reg_strb.OBS_AXI_W_LATENCY_AVG = cpuif_req_masked & (cpuif_addr == 12'h138);
@@ -346,10 +342,6 @@ module pumice_csr (
                 logic load_next;
             } force_inorder;
             struct {
-                logic next;
-                logic load_next;
-            } happy_enable;
-            struct {
                 logic [7:0] next;
                 logic load_next;
             } age_max_runtime;
@@ -358,16 +350,6 @@ module pumice_csr (
                 logic load_next;
             } txn_queue_high_water;
         } SCHED_TUNING;
-        struct {
-            struct {
-                logic [15:0] next;
-                logic load_next;
-            } warmup_cycles;
-            struct {
-                logic [7:0] next;
-                logic load_next;
-            } hysteresis;
-        } PAGE_PRED_TUNING;
         struct {
             struct {
                 logic [1:0] next;
@@ -747,23 +729,12 @@ module pumice_csr (
                 logic value;
             } force_inorder;
             struct {
-                logic value;
-            } happy_enable;
-            struct {
                 logic [7:0] value;
             } age_max_runtime;
             struct {
                 logic [7:0] value;
             } txn_queue_high_water;
         } SCHED_TUNING;
-        struct {
-            struct {
-                logic [15:0] value;
-            } warmup_cycles;
-            struct {
-                logic [7:0] value;
-            } hysteresis;
-        } PAGE_PRED_TUNING;
         struct {
             struct {
                 logic [1:0] value;
@@ -1644,29 +1615,6 @@ module pumice_csr (
         end
     end
     assign hwif_out.SCHED_TUNING.force_inorder.value = field_storage.SCHED_TUNING.force_inorder.value;
-    // Field: pumice_csr.SCHED_TUNING.happy_enable
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.SCHED_TUNING.happy_enable.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.SCHED_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_TUNING.happy_enable.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
-            load_next_c = '1;
-        end
-        field_combo.SCHED_TUNING.happy_enable.next = next_c;
-        field_combo.SCHED_TUNING.happy_enable.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.SCHED_TUNING.happy_enable.value <= 1'h1;
-        end else begin
-            if(field_combo.SCHED_TUNING.happy_enable.load_next) begin
-                field_storage.SCHED_TUNING.happy_enable.value <= field_combo.SCHED_TUNING.happy_enable.next;
-            end
-        end
-    end
-    assign hwif_out.SCHED_TUNING.happy_enable.value = field_storage.SCHED_TUNING.happy_enable.value;
     // Field: pumice_csr.SCHED_TUNING.age_max_runtime
     always_comb begin
         automatic logic [7:0] next_c;
@@ -1713,52 +1661,6 @@ module pumice_csr (
         end
     end
     assign hwif_out.SCHED_TUNING.txn_queue_high_water.value = field_storage.SCHED_TUNING.txn_queue_high_water.value;
-    // Field: pumice_csr.PAGE_PRED_TUNING.warmup_cycles
-    always_comb begin
-        automatic logic [15:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.PAGE_PRED_TUNING.warmup_cycles.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.PAGE_PRED_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.PAGE_PRED_TUNING.warmup_cycles.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
-            load_next_c = '1;
-        end
-        field_combo.PAGE_PRED_TUNING.warmup_cycles.next = next_c;
-        field_combo.PAGE_PRED_TUNING.warmup_cycles.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.PAGE_PRED_TUNING.warmup_cycles.value <= 16'h400;
-        end else begin
-            if(field_combo.PAGE_PRED_TUNING.warmup_cycles.load_next) begin
-                field_storage.PAGE_PRED_TUNING.warmup_cycles.value <= field_combo.PAGE_PRED_TUNING.warmup_cycles.next;
-            end
-        end
-    end
-    assign hwif_out.PAGE_PRED_TUNING.warmup_cycles.value = field_storage.PAGE_PRED_TUNING.warmup_cycles.value;
-    // Field: pumice_csr.PAGE_PRED_TUNING.hysteresis
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.PAGE_PRED_TUNING.hysteresis.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.PAGE_PRED_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.PAGE_PRED_TUNING.hysteresis.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
-            load_next_c = '1;
-        end
-        field_combo.PAGE_PRED_TUNING.hysteresis.next = next_c;
-        field_combo.PAGE_PRED_TUNING.hysteresis.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.PAGE_PRED_TUNING.hysteresis.value <= 8'h2;
-        end else begin
-            if(field_combo.PAGE_PRED_TUNING.hysteresis.load_next) begin
-                field_storage.PAGE_PRED_TUNING.hysteresis.value <= field_combo.PAGE_PRED_TUNING.hysteresis.next;
-            end
-        end
-    end
-    assign hwif_out.PAGE_PRED_TUNING.hysteresis.value = field_storage.PAGE_PRED_TUNING.hysteresis.value;
     // Field: pumice_csr.REFRESH_TUNING.refpb_policy_or
     always_comb begin
         automatic logic [1:0] next_c;
@@ -3090,7 +2992,7 @@ module pumice_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[76];
+    logic [31:0] readback_array[74];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -3140,124 +3042,120 @@ module pumice_csr (
     assign readback_array[13][31:2] = (decoded_reg_strb.TEMP_DERATE_RANK0 && !decoded_req_is_wr) ? 30'h0 : '0;
     assign readback_array[14][3:0] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? field_storage.SCHED_TUNING.lookahead_active.value : '0;
     assign readback_array[14][4:4] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? field_storage.SCHED_TUNING.force_inorder.value : '0;
-    assign readback_array[14][5:5] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? field_storage.SCHED_TUNING.happy_enable.value : '0;
+    assign readback_array[14][5:5] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? 1'h0 : '0;
     assign readback_array[14][7:6] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? 2'h0 : '0;
     assign readback_array[14][15:8] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? field_storage.SCHED_TUNING.age_max_runtime.value : '0;
     assign readback_array[14][23:16] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? field_storage.SCHED_TUNING.txn_queue_high_water.value : '0;
     assign readback_array[14][27:24] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? hwif_in.SCHED_TUNING.lookahead_max_obs.next : '0;
     assign readback_array[14][31:28] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[15][15:0] = (decoded_reg_strb.PAGE_PRED_TUNING && !decoded_req_is_wr) ? field_storage.PAGE_PRED_TUNING.warmup_cycles.value : '0;
-    assign readback_array[15][23:16] = (decoded_reg_strb.PAGE_PRED_TUNING && !decoded_req_is_wr) ? field_storage.PAGE_PRED_TUNING.hysteresis.value : '0;
-    assign readback_array[15][31:24] = (decoded_reg_strb.PAGE_PRED_TUNING && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[16][1:0] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.refpb_policy_or.value : '0;
-    assign readback_array[16][3:2] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.page_policy_or.value : '0;
-    assign readback_array[16][7:4] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.refresh_defer_active.value : '0;
-    assign readback_array[16][15:8] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[16][31:16] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.zqcs_freq_hz.value : '0;
-    assign readback_array[17][4:0] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.bank_lsb.value : '0;
-    assign readback_array[17][7:5] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 3'h0 : '0;
-    assign readback_array[17][8:8] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_en.value : '0;
-    assign readback_array[17][15:9] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 7'h0 : '0;
-    assign readback_array[17][23:16] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_seed.value : '0;
-    assign readback_array[17][31:24] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[18][3:0] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? field_storage.INIT_TUNING.zq_retries.value : '0;
-    assign readback_array[18][7:4] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[18][15:8] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? field_storage.INIT_TUNING.init_timeout_ms.value : '0;
-    assign readback_array[18][31:16] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[19][7:0] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? field_storage.TIMINGS_RTP_RTW.tRTP.value : '0;
-    assign readback_array[19][15:8] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? field_storage.TIMINGS_RTP_RTW.tRTW.value : '0;
-    assign readback_array[19][31:16] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[20][15:0] = (decoded_reg_strb.INIT_TIMING0 && !decoded_req_is_wr) ? field_storage.INIT_TIMING0.t_init_wait.value : '0;
-    assign readback_array[20][31:16] = (decoded_reg_strb.INIT_TIMING0 && !decoded_req_is_wr) ? field_storage.INIT_TIMING0.t_dll_wait.value : '0;
-    assign readback_array[21][7:0] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_mrd_wait.value : '0;
-    assign readback_array[21][15:8] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rp_wait.value : '0;
-    assign readback_array[21][23:16] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rfc_wait.value : '0;
-    assign readback_array[21][31:24] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[22][2:0] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.rd_phase.value : '0;
-    assign readback_array[22][3:3] = '0;
-    assign readback_array[22][6:4] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.wr_phase.value : '0;
-    assign readback_array[22][8:7] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.gear_ratio.value : '0;
-    assign readback_array[22][12:9] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.bl.value : '0;
-    assign readback_array[22][31:13] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 19'h0 : '0;
-    assign readback_array[23][7:0] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_phy_wrlat.value : '0;
-    assign readback_array[23][15:8] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_rddata_en.value : '0;
-    assign readback_array[23][16:16] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.memtype.value : '0;
-    assign readback_array[23][19:17] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 3'h0 : '0;
-    assign readback_array[23][23:20] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.refresh_burst.value : '0;
-    assign readback_array[23][31:24] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[24][1:0] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.order_mode.value : '0;
-    assign readback_array[24][3:2] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.prio_sub.value : '0;
-    assign readback_array[24][5:4] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.row_sel.value : '0;
-    assign readback_array[24][7:6] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.col_sel.value : '0;
-    assign readback_array[24][9:8] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.access_pref.value : '0;
-    assign readback_array[24][10:10] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.auto_precharge_en.value : '0;
-    assign readback_array[24][11:11] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.qos_en.value : '0;
-    assign readback_array[24][15:12] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[24][23:16] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.age_thresh.value : '0;
-    assign readback_array[24][31:24] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[25][7:0] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_high_wm.value : '0;
-    assign readback_array[25][15:8] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_low_wm.value : '0;
-    assign readback_array[25][31:16] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[26][2:0] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_mode.value : '0;
-    assign readback_array[26][3:3] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_scope.value : '0;
-    assign readback_array[26][5:4] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_width.value : '0;
-    assign readback_array[26][9:6] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_open_max.value : '0;
-    assign readback_array[26][13:10] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_init.value : '0;
-    assign readback_array[26][31:14] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 18'h0 : '0;
-    assign readback_array[27][7:0] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_init.value : '0;
-    assign readback_array[27][15:8] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_min.value : '0;
-    assign readback_array[27][23:16] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_max.value : '0;
-    assign readback_array[27][31:24] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_step.value : '0;
-    assign readback_array[28][3:0] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.mc_high_thr.value : '0;
-    assign readback_array[28][7:4] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.mc_low_thr.value : '0;
-    assign readback_array[28][11:8] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.mc_init.value : '0;
-    assign readback_array[28][15:12] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[28][31:16] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.check_interval.value : '0;
-    assign readback_array[29][7:0] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.miss_thresh.value : '0;
-    assign readback_array[29][9:8] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.ways.value : '0;
-    assign readback_array[29][13:10] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.sets.value : '0;
-    assign readback_array[29][15:14] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? 2'h0 : '0;
-    assign readback_array[29][31:16] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.reset_interval.value : '0;
+    assign readback_array[15][1:0] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.refpb_policy_or.value : '0;
+    assign readback_array[15][3:2] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.page_policy_or.value : '0;
+    assign readback_array[15][7:4] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.refresh_defer_active.value : '0;
+    assign readback_array[15][15:8] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[15][31:16] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.zqcs_freq_hz.value : '0;
+    assign readback_array[16][4:0] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.bank_lsb.value : '0;
+    assign readback_array[16][7:5] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 3'h0 : '0;
+    assign readback_array[16][8:8] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_en.value : '0;
+    assign readback_array[16][15:9] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 7'h0 : '0;
+    assign readback_array[16][23:16] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_seed.value : '0;
+    assign readback_array[16][31:24] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[17][3:0] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? field_storage.INIT_TUNING.zq_retries.value : '0;
+    assign readback_array[17][7:4] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[17][15:8] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? field_storage.INIT_TUNING.init_timeout_ms.value : '0;
+    assign readback_array[17][31:16] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[18][7:0] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? field_storage.TIMINGS_RTP_RTW.tRTP.value : '0;
+    assign readback_array[18][15:8] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? field_storage.TIMINGS_RTP_RTW.tRTW.value : '0;
+    assign readback_array[18][31:16] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[19][15:0] = (decoded_reg_strb.INIT_TIMING0 && !decoded_req_is_wr) ? field_storage.INIT_TIMING0.t_init_wait.value : '0;
+    assign readback_array[19][31:16] = (decoded_reg_strb.INIT_TIMING0 && !decoded_req_is_wr) ? field_storage.INIT_TIMING0.t_dll_wait.value : '0;
+    assign readback_array[20][7:0] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_mrd_wait.value : '0;
+    assign readback_array[20][15:8] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rp_wait.value : '0;
+    assign readback_array[20][23:16] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rfc_wait.value : '0;
+    assign readback_array[20][31:24] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[21][2:0] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.rd_phase.value : '0;
+    assign readback_array[21][3:3] = '0;
+    assign readback_array[21][6:4] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.wr_phase.value : '0;
+    assign readback_array[21][8:7] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.gear_ratio.value : '0;
+    assign readback_array[21][12:9] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.bl.value : '0;
+    assign readback_array[21][31:13] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 19'h0 : '0;
+    assign readback_array[22][7:0] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_phy_wrlat.value : '0;
+    assign readback_array[22][15:8] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_rddata_en.value : '0;
+    assign readback_array[22][16:16] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.memtype.value : '0;
+    assign readback_array[22][19:17] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 3'h0 : '0;
+    assign readback_array[22][23:20] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.refresh_burst.value : '0;
+    assign readback_array[22][31:24] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[23][1:0] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.order_mode.value : '0;
+    assign readback_array[23][3:2] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.prio_sub.value : '0;
+    assign readback_array[23][5:4] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.row_sel.value : '0;
+    assign readback_array[23][7:6] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.col_sel.value : '0;
+    assign readback_array[23][9:8] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.access_pref.value : '0;
+    assign readback_array[23][10:10] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.auto_precharge_en.value : '0;
+    assign readback_array[23][11:11] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.qos_en.value : '0;
+    assign readback_array[23][15:12] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[23][23:16] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.age_thresh.value : '0;
+    assign readback_array[23][31:24] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[24][7:0] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_high_wm.value : '0;
+    assign readback_array[24][15:8] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_low_wm.value : '0;
+    assign readback_array[24][31:16] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[25][2:0] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_mode.value : '0;
+    assign readback_array[25][3:3] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_scope.value : '0;
+    assign readback_array[25][5:4] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_width.value : '0;
+    assign readback_array[25][9:6] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_open_max.value : '0;
+    assign readback_array[25][13:10] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_init.value : '0;
+    assign readback_array[25][31:14] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 18'h0 : '0;
+    assign readback_array[26][7:0] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_init.value : '0;
+    assign readback_array[26][15:8] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_min.value : '0;
+    assign readback_array[26][23:16] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_max.value : '0;
+    assign readback_array[26][31:24] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_step.value : '0;
+    assign readback_array[27][3:0] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.mc_high_thr.value : '0;
+    assign readback_array[27][7:4] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.mc_low_thr.value : '0;
+    assign readback_array[27][11:8] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.mc_init.value : '0;
+    assign readback_array[27][15:12] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[27][31:16] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.check_interval.value : '0;
+    assign readback_array[28][7:0] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.miss_thresh.value : '0;
+    assign readback_array[28][9:8] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.ways.value : '0;
+    assign readback_array[28][13:10] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.sets.value : '0;
+    assign readback_array[28][15:14] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? 2'h0 : '0;
+    assign readback_array[28][31:16] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.reset_interval.value : '0;
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 30][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? field_storage.OBS_ROW_HIT[i0].ROW_HIT.VAL.value : '0;
+        assign readback_array[i0 * 1 + 29][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? field_storage.OBS_ROW_HIT[i0].ROW_HIT.VAL.value : '0;
     end
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 38][31:0] = (decoded_reg_strb.OBS_REF_LATENCY[i0].REF_LAT && !decoded_req_is_wr) ? hwif_in.OBS_REF_LATENCY[i0].REF_LAT.VAL.next : '0;
+        assign readback_array[i0 * 1 + 37][31:0] = (decoded_reg_strb.OBS_REF_LATENCY[i0].REF_LAT && !decoded_req_is_wr) ? hwif_in.OBS_REF_LATENCY[i0].REF_LAT.VAL.next : '0;
     end
-    assign readback_array[46][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_MAX && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_MAX.VAL.next : '0;
-    assign readback_array[47][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_AVG && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_AVG.VAL.next : '0;
-    assign readback_array[48][31:0] = (decoded_reg_strb.OBS_REFRESH_PENDING_MAX && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_PENDING_MAX.VAL.next : '0;
-    assign readback_array[49][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_0 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_0.VAL.next : '0;
-    assign readback_array[50][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_1 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_1.VAL.next : '0;
-    assign readback_array[51][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_2 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_2.VAL.next : '0;
-    assign readback_array[52][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_3 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_3.VAL.next : '0;
-    assign readback_array[53][31:0] = (decoded_reg_strb.OBS_PAGE_PRED_ACCURACY && !decoded_req_is_wr) ? hwif_in.OBS_PAGE_PRED_ACCURACY.VAL.next : '0;
-    assign readback_array[54][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_AVG.VAL.next : '0;
-    assign readback_array[55][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_P99 && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_P99.VAL.next : '0;
-    assign readback_array[56][31:0] = (decoded_reg_strb.OBS_AXI_W_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_W_LATENCY_AVG.VAL.next : '0;
-    assign readback_array[57][1:0] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.mode.value : '0;
-    assign readback_array[57][3:2] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
-    assign readback_array[57][7:4] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.postpone_limit.value : '0;
-    assign readback_array[57][11:8] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.pullin_limit.value : '0;
-    assign readback_array[57][12:12] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? hwif_in.REF_CTRL.perbank_supported.next : '0;
-    assign readback_array[57][31:13] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 19'h0 : '0;
-    assign readback_array[58][15:0] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trefi_pb.value : '0;
-    assign readback_array[58][23:16] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trfc_pb.value : '0;
-    assign readback_array[58][31:24] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[59][31:0] = (decoded_reg_strb.PAGE_STATS_HIT && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_HIT.count.next : '0;
-    assign readback_array[60][31:0] = (decoded_reg_strb.PAGE_STATS_MISS && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_MISS.count.next : '0;
-    assign readback_array[61][31:0] = (decoded_reg_strb.PAGE_STATS_EMPTY && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_EMPTY.count.next : '0;
-    assign readback_array[62][31:0] = (decoded_reg_strb.SCHED_STATS_ACT && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_ACT.count.next : '0;
-    assign readback_array[63][31:0] = (decoded_reg_strb.SCHED_STATS_PRE && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_PRE.count.next : '0;
-    assign readback_array[64][31:0] = (decoded_reg_strb.REF_STATS_REF && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF.count.next : '0;
+    assign readback_array[45][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_MAX && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_MAX.VAL.next : '0;
+    assign readback_array[46][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_AVG && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_AVG.VAL.next : '0;
+    assign readback_array[47][31:0] = (decoded_reg_strb.OBS_REFRESH_PENDING_MAX && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_PENDING_MAX.VAL.next : '0;
+    assign readback_array[48][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_0 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_0.VAL.next : '0;
+    assign readback_array[49][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_1 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_1.VAL.next : '0;
+    assign readback_array[50][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_2 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_2.VAL.next : '0;
+    assign readback_array[51][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_3 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_3.VAL.next : '0;
+    assign readback_array[52][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_AVG.VAL.next : '0;
+    assign readback_array[53][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_P99 && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_P99.VAL.next : '0;
+    assign readback_array[54][31:0] = (decoded_reg_strb.OBS_AXI_W_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_W_LATENCY_AVG.VAL.next : '0;
+    assign readback_array[55][1:0] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.mode.value : '0;
+    assign readback_array[55][3:2] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
+    assign readback_array[55][7:4] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.postpone_limit.value : '0;
+    assign readback_array[55][11:8] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.pullin_limit.value : '0;
+    assign readback_array[55][12:12] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? hwif_in.REF_CTRL.perbank_supported.next : '0;
+    assign readback_array[55][31:13] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 19'h0 : '0;
+    assign readback_array[56][15:0] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trefi_pb.value : '0;
+    assign readback_array[56][23:16] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trfc_pb.value : '0;
+    assign readback_array[56][31:24] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[57][31:0] = (decoded_reg_strb.PAGE_STATS_HIT && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_HIT.count.next : '0;
+    assign readback_array[58][31:0] = (decoded_reg_strb.PAGE_STATS_MISS && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_MISS.count.next : '0;
+    assign readback_array[59][31:0] = (decoded_reg_strb.PAGE_STATS_EMPTY && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_EMPTY.count.next : '0;
+    assign readback_array[60][31:0] = (decoded_reg_strb.SCHED_STATS_ACT && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_ACT.count.next : '0;
+    assign readback_array[61][31:0] = (decoded_reg_strb.SCHED_STATS_PRE && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_PRE.count.next : '0;
+    assign readback_array[62][31:0] = (decoded_reg_strb.REF_STATS_REF && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF.count.next : '0;
     for(genvar i0=0; i0<9; i0++) begin
-        assign readback_array[i0 * 1 + 65][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
+        assign readback_array[i0 * 1 + 63][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
     end
-    assign readback_array[74][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[74][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[74][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[74][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[75][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[72][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[72][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[72][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[72][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[73][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -3265,7 +3163,7 @@ module pumice_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<76; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<74; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

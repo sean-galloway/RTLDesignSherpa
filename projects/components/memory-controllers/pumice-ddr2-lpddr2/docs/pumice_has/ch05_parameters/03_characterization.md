@@ -97,7 +97,7 @@ The CSR exposes the following observation counters (described in §6.3):
 - `OBS_ROW_HIT[8]` — per-bank rolling row-hit count (clear-on-read).
 - `OBS_REF_LATENCY[8]` — per-bank average refresh-blocking cycles.
 - `OBS_TXN_QUEUE_DEPTH_MAX` / `OBS_TXN_QUEUE_DEPTH_AVG` — max and time-averaged transaction-queue depth.
-- `OBS_PAGE_PRED_ACCURACY` — HAPPY-mode rolling prediction accuracy (%).
+- `PAGE_STATS_HIT` / `PAGE_STATS_MISS` / `PAGE_STATS_EMPTY` — global page-outcome counters (replaced the retired `OBS_PAGE_PRED_ACCURACY`).
 - `OBS_REFRESH_DEFER_HIST_0..3` — refresh-deferral histogram bins (plus `OBS_REFRESH_PENDING_MAX` for the max `refresh_pending` observed).
 - `OBS_AXI_R_LATENCY_AVG` / `OBS_AXI_R_LATENCY_P99` / `OBS_AXI_W_LATENCY_AVG` — AXI read/write latency counters.
 

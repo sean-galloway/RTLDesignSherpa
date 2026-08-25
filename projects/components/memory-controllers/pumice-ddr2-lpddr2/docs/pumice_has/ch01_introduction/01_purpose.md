@@ -56,7 +56,7 @@ This controller is intended as a **characterization-first** design. Algorithmic 
 
 The principal characterization knobs, all programmed by name through the CSR block, are:
 
-- **Page policy** (`REFRESH_TUNING.page_policy_or`: OPEN / CLOSE / HAPPY_HYBRID) — where HAPPY_HYBRID is the address-bit-based page-closure predictor from Ghasempour et al. (2015). The open-page decision itself is inline in `pumice_cmd_arbiter`.
+- **Page policy** — static OPEN / CLOSE via `REFRESH_TUNING.page_policy_or`, plus the runtime page-policy engine (`pumice_page_policy`, selected by `PAGE_POLICY_CFG.policy_mode`): `fixed_open` idle-timeout close and `adapt_time`, the adapting-timeout scheme from Ghasempour et al. (2015). The former HAPPY_HYBRID address-hash predictor is retired — it was never wired into the rearchitected core. The open-page decision itself is inline in `pumice_cmd_arbiter`.
 - **Refresh policy** (`REFRESH_TUNING.refpb_policy_or`: ROUND_ROBIN / OLDEST_FIRST / DARP) — where DARP is the dynamic access refresh parallelization scheme from Chang et al. (HPCA 2014).
 - **Address map** (`ADDR_MAP.bank_lsb`, `hash_en`, `hash_seed`) — a single knob that slides the bank field within the word address, subsuming the classic ROW_MAJOR / BANK_INTERLEAVE schemes, with an optional bank XOR-hash.
 

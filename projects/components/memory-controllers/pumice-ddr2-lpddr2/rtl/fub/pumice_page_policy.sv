@@ -8,8 +8,9 @@
 // per-bank row state, and produces two things:
 //
 //   1. The auto-precharge decision, per bank (`ap_close_o` + `ap_mode_en_o`).
-//      With POLICY_MODE==0 the arbiter keeps its legacy flat w_ap
-//      (page_policy_i == CLOSE); any nonzero mode takes over:
+//      With POLICY_MODE==0 the arbiter keeps the legacy flat w_ap
+//      (page_policy_i == CLOSE; the retired HYBRID encoding maps to OPEN);
+//      any nonzero mode takes over:
 //        1 static_open   ap=0 everywhere
 //        2 static_close  ap=1 everywhere
 //        3 fixed_open    ap=0; rows close by IDLE TIMEOUT instead

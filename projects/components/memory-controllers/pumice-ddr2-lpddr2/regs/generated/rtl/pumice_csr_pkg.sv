@@ -146,14 +146,6 @@ package pumice_csr_pkg;
 
     typedef struct {
         logic [31:0] next;
-    } pumice_csr__OBS_PAGE_PRED_ACCURACY__VAL__in_t;
-
-    typedef struct {
-        pumice_csr__OBS_PAGE_PRED_ACCURACY__VAL__in_t VAL;
-    } pumice_csr__OBS_PAGE_PRED_ACCURACY__in_t;
-
-    typedef struct {
-        logic [31:0] next;
     } pumice_csr__OBS_AXI_R_LATENCY_AVG__VAL__in_t;
 
     typedef struct {
@@ -258,7 +250,6 @@ package pumice_csr_pkg;
         pumice_csr__OBS_REFRESH_DEFER_HIST_1__in_t OBS_REFRESH_DEFER_HIST_1;
         pumice_csr__OBS_REFRESH_DEFER_HIST_2__in_t OBS_REFRESH_DEFER_HIST_2;
         pumice_csr__OBS_REFRESH_DEFER_HIST_3__in_t OBS_REFRESH_DEFER_HIST_3;
-        pumice_csr__OBS_PAGE_PRED_ACCURACY__in_t OBS_PAGE_PRED_ACCURACY;
         pumice_csr__OBS_AXI_R_LATENCY_AVG__in_t OBS_AXI_R_LATENCY_AVG;
         pumice_csr__OBS_AXI_R_LATENCY_P99__in_t OBS_AXI_R_LATENCY_P99;
         pumice_csr__OBS_AXI_W_LATENCY_AVG__in_t OBS_AXI_W_LATENCY_AVG;
@@ -452,10 +443,6 @@ package pumice_csr_pkg;
     } pumice_csr__SCHED_TUNING__force_inorder__out_t;
 
     typedef struct {
-        logic value;
-    } pumice_csr__SCHED_TUNING__happy_enable__out_t;
-
-    typedef struct {
         logic [7:0] value;
     } pumice_csr__SCHED_TUNING__age_max_runtime__out_t;
 
@@ -466,23 +453,9 @@ package pumice_csr_pkg;
     typedef struct {
         pumice_csr__SCHED_TUNING__lookahead_active__out_t lookahead_active;
         pumice_csr__SCHED_TUNING__force_inorder__out_t force_inorder;
-        pumice_csr__SCHED_TUNING__happy_enable__out_t happy_enable;
         pumice_csr__SCHED_TUNING__age_max_runtime__out_t age_max_runtime;
         pumice_csr__SCHED_TUNING__txn_queue_high_water__out_t txn_queue_high_water;
     } pumice_csr__SCHED_TUNING__out_t;
-
-    typedef struct {
-        logic [15:0] value;
-    } pumice_csr__PAGE_PRED_TUNING__warmup_cycles__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } pumice_csr__PAGE_PRED_TUNING__hysteresis__out_t;
-
-    typedef struct {
-        pumice_csr__PAGE_PRED_TUNING__warmup_cycles__out_t warmup_cycles;
-        pumice_csr__PAGE_PRED_TUNING__hysteresis__out_t hysteresis;
-    } pumice_csr__PAGE_PRED_TUNING__out_t;
 
     typedef struct {
         logic [1:0] value;
@@ -825,7 +798,6 @@ package pumice_csr_pkg;
         pumice_csr__PASR_BANK_MASK_RANK0__out_t PASR_BANK_MASK_RANK0;
         pumice_csr__PASR_SEG_MASK_RANK0__out_t PASR_SEG_MASK_RANK0;
         pumice_csr__SCHED_TUNING__out_t SCHED_TUNING;
-        pumice_csr__PAGE_PRED_TUNING__out_t PAGE_PRED_TUNING;
         pumice_csr__REFRESH_TUNING__out_t REFRESH_TUNING;
         pumice_csr__ADDR_MAP__out_t ADDR_MAP;
         pumice_csr__INIT_TUNING__out_t INIT_TUNING;

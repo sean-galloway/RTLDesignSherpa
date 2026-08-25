@@ -45,7 +45,10 @@ Keeping `last_ref_age` per bank costs one counter per bank. For 8 banks this is 
 
 ### 5. HAPPY Predictor Hash Function
 
-Ghasempour 2015 suggests bank-XOR-low-row-bits as the hash function. **Confirm** with our typical workloads. If the workloads have systematic bank-row correlations, a different hash may be needed.
+RESOLVED (2026-08-25): the HAPPY address-hash predictor is retired — it was
+never wired into the rearchitected core. Its Ghasempour-2015 successors are
+runtime modes of `pumice_page_policy` (`adapt_time` landed; `adapt_access` is
+a later serial step), which need no address hash.
 
 ### 6. Self-Refresh Exit Latency
 

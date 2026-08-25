@@ -60,10 +60,10 @@ These select behavior at runtime and have no build-time parameter in this genera
 - `PHY_TIMING.memtype` (1-bit) — `0 = DDR2`, `1 = LPDDR2`. The core decodes `memtype_e` from this field (`pumice_top.sv` `w_memtype`); there is no build-time `MEMTYPE` string.
 - `DFI_PHASE.wr_phase` / `DFI_PHASE.rd_phase` (3-bit each, sliced to `PHW` downstream) — which DFI sub-phase carries the WRITE / READ command. Defaults 0/0. These replace the former build-time `WRPHASE` / `RDPHASE`.
 - `ADDR_MAP.bank_lsb` (5-bit, reset `0x0A` = `COL_WIDTH` = ROW_MAJOR), `ADDR_MAP.hash_en` (1-bit), `ADDR_MAP.hash_seed` (8-bit) — the single address-map placement knob (+ optional bank XOR-hash). The classic ROW_MAJOR / BANK_INTERLEAVE / XOR_HASH "schemes" are just settings of these fields; there is no `ADDR_MAP_SCHEMES_SYNTH` / `ADDR_MAP_SCHEME_DEFAULT` build parameter and no scheme mux. See `addr_mapper.sv`.
-- `REFRESH_TUNING.page_policy_or` (2-bit) — `00 = build-time default`, `01 = OPEN`, `10 = CLOSE`, `11 = HAPPY_HYBRID`.
+- `REFRESH_TUNING.page_policy_or` (2-bit) — `00 = build-time default`, `01 = OPEN`, `10 = CLOSE`, `11 = reserved` (was HYBRID — retired; maps to build default). Adaptive paging is `PAGE_POLICY_CFG.policy_mode`.
 - `REFRESH_TUNING.refpb_policy_or` (2-bit), `REFRESH_TUNING.refresh_defer_active` (4-bit), `REFRESH_TUNING.zqcs_freq_hz` (16-bit, reset 1 Hz).
-- `SCHED_TUNING.lookahead_active` (4-bit), `force_inorder` (1-bit), `happy_enable` (1-bit, reset 1), `age_max_runtime` (8-bit), `txn_queue_high_water` (8-bit); `lookahead_max_obs` (4-bit, RO echo of the build MAX).
-- `PAGE_PRED_TUNING.warmup_cycles` (16-bit, reset 1024), `hysteresis` (8-bit, reset 2).
+- `SCHED_TUNING.lookahead_active` (4-bit), `force_inorder` (1-bit), `age_max_runtime` (8-bit), `txn_queue_high_water` (8-bit); `lookahead_max_obs` (4-bit, RO echo of the build MAX).
+- `PAGE_POLICY_CFG.policy_mode` / `policy_scope`, `PAGE_TIMEOUT_CFG.tr_*`, `PAGE_ADAPT_CFG.mc_* / check_interval` — the runtime page-policy engine (replaced the retired `PAGE_PRED_TUNING`).
 - Timing CSRs — `TIMINGS_RC_RCD_RP_RAS` (tRC/tRCD/tRP/tRAS), `TIMINGS_RFC_REFI` (tRFC/tREFI), `TIMINGS_RRD_FAW_WTR_CCD` (tRRD/tFAW/tWTR/tCCD), `TIMINGS_CL_CWL_WR` (CL/CWL/tWR/tRFCpb), `TIMINGS_RTP_RTW` (tRTP/tRTW).
 - `PHY_TIMING.refresh_burst` (4-bit, 1..8), `PHY_TIMING.t_phy_wrlat` (8-bit), `PHY_TIMING.t_rddata_en` (8-bit).
 - Init timings — `INIT_TIMING0` (t_init_wait/t_dll_wait), `INIT_TIMING1` (t_mrd_wait/t_rp_wait/t_rfc_wait), `INIT_TUNING.zq_retries` (4-bit, reset 3), `INIT_TUNING.init_timeout_ms` (8-bit, reset 10).
@@ -97,4 +97,4 @@ These are configuration bugs that should be caught at boot time before traffic s
 | Bus widths       | `AXI_ID_WIDTH`, `AXI_ADDR_WIDTH`, `DRAM_BEAT_WIDTH`, `BYTE_OFFSET_WIDTH`, `HOST_AXI_DATA_WIDTH`; derived `DW`/`DFI_DATA_WIDTH` |
 | Gear / DFI       | `DFI_RATE`, `BL` (with runtime `DFI_PHASE.rd_phase` / `DFI_PHASE.wr_phase`)                         |
 | Capacity         | `NUM_ENTRIES`, `N_SRAM_SLOTS`, `AGE_WIDTH`                                                          |
-| Characterization | Runtime CSR knobs paired with the geometry above — `SCHED_TUNING.lookahead_active`, `REFRESH_TUNING.page_policy_or` / `refpb_policy_or` / `refresh_defer_active`, `PAGE_PRED_TUNING.*`, `ADDR_MAP.bank_lsb` / `hash_en` (see §5.3 and §6.3) |
+| Characterization | Runtime CSR knobs paired with the geometry above — `SCHED_TUNING.lookahead_active`, `REFRESH_TUNING.page_policy_or` / `refpb_policy_or` / `refresh_defer_active`, `PAGE_POLICY_CFG.*` / `PAGE_TIMEOUT_CFG.*` / `PAGE_ADAPT_CFG.*`, `ADDR_MAP.bank_lsb` / `hash_en` (see §5.3 and §6.3) |

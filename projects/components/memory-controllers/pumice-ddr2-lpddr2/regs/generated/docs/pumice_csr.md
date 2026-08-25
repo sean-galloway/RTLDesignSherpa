@@ -29,7 +29,6 @@ Don't override. Generated from: $root
 | 0x034|   PASR_SEG_MASK_RANK0  |        PASR Segment Mask Rank 0       |
 | 0x038|    TEMP_DERATE_RANK0   |       Temperature Derate Rank 0       |
 | 0x040|      SCHED_TUNING      |            Scheduler Tuning           |
-| 0x044|    PAGE_PRED_TUNING    |         Page Predictor Tuning         |
 | 0x048|     REFRESH_TUNING     |             Refresh Tuning            |
 | 0x04C|        ADDR_MAP        |              Address Map              |
 | 0x050|       INIT_TUNING      |              Init Tuning              |
@@ -67,7 +66,6 @@ Don't override. Generated from: $root
 | 0x110|OBS_REFRESH_DEFER_HIST_1|                   —                   |
 | 0x114|OBS_REFRESH_DEFER_HIST_2|                   —                   |
 | 0x118|OBS_REFRESH_DEFER_HIST_3|                   —                   |
-| 0x120| OBS_PAGE_PRED_ACCURACY |                   —                   |
 | 0x130|  OBS_AXI_R_LATENCY_AVG |                   —                   |
 | 0x134|  OBS_AXI_R_LATENCY_P99 |                   —                   |
 | 0x138|  OBS_AXI_W_LATENCY_AVG |                   —                   |
@@ -497,7 +495,7 @@ pulse CTRL.init_force_restart.</p>
 |-----|--------------------|------|-----|----|
 | 3:0 |  lookahead_active  |  rw  | 0x0 |  — |
 |  4  |    force_inorder   |  rw  | 0x0 |  — |
-|  5  |    happy_enable    |  rw  | 0x1 |  — |
+|  5  |       RSVD_5       |   r  | 0x0 |  — |
 | 7:6 |      RSVD_7_6      |   r  | 0x0 |  — |
 | 15:8|   age_max_runtime  |  rw  | 0x0 |  — |
 |23:16|txn_queue_high_water|  rw  | 0x0 |  — |
@@ -512,9 +510,9 @@ pulse CTRL.init_force_restart.</p>
 
 <p>1 = force first-ready FIFO (disable row-hit reordering)</p>
 
-#### happy_enable field
+#### RSVD_5 field
 
-<p>1 = HAPPY predictor active (only meaningful if synthesized)</p>
+<p>Reserved (was happy_enable; the HAPPY predictor is retired -- adaptive paging is PAGE_POLICY_CFG.policy_mode)</p>
 
 #### RSVD_7_6 field
 
@@ -533,32 +531,6 @@ pulse CTRL.init_force_restart.</p>
 <p>Echo of build-time LOOKAHEAD_DEPTH_MAX</p>
 
 #### RSVD_31_28 field
-
-<p>Reserved</p>
-
-### PAGE_PRED_TUNING register
-
-- Absolute Address: 0x44
-- Base Offset: 0x44
-- Size: 0x4
-
-<p>HAPPY-mode predictor knobs</p>
-
-| Bits|  Identifier |Access|Reset|Name|
-|-----|-------------|------|-----|----|
-| 15:0|warmup_cycles|  rw  |0x400|  — |
-|23:16|  hysteresis |  rw  | 0x2 |  — |
-|31:24|     RSVD    |   r  | 0x0 |  — |
-
-#### warmup_cycles field
-
-<p>Warmup cycles</p>
-
-#### hysteresis field
-
-<p>Hysteresis</p>
-
-#### RSVD field
 
 <p>Reserved</p>
 
@@ -584,7 +556,7 @@ pulse CTRL.init_force_restart.</p>
 
 #### page_policy_or field
 
-<p>00=build-time, 01=OPEN, 10=CLOSE, 11=HAPPY_HYBRID</p>
+<p>00=build-time, 01=OPEN, 10=CLOSE, 11=reserved (was HYBRID; maps to build default)</p>
 
 #### refresh_defer_active field
 
@@ -936,7 +908,7 @@ request. All hw-readable so they drive the controller core.</p>
 - Base Offset: 0x70
 - Size: 0x4
 
-<p>Axis 2 mode select + Happy-hybrid counter shape. 0 = build default.</p>
+<p>Axis 2 mode select + adapt_access counter shape. 0 = build default.</p>
 
 | Bits| Identifier |Access|Reset|Name|
 |-----|------------|------|-----|----|
@@ -1649,22 +1621,6 @@ request. All hw-readable so they drive the controller core.</p>
 #### VAL field
 
 <p>Bin 3 count</p>
-
-### OBS_PAGE_PRED_ACCURACY register
-
-- Absolute Address: 0x120
-- Base Offset: 0x120
-- Size: 0x4
-
-<p>HAPPY-mode rolling prediction accuracy (%)</p>
-
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|31:0|    VAL   |   r  |  —  |  — |
-
-#### VAL field
-
-<p>Accuracy %</p>
 
 ### OBS_AXI_R_LATENCY_AVG register
 

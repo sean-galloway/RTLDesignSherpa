@@ -44,7 +44,7 @@ The following features are explicitly within scope for this controller:
 - **DDR2 and LPDDR2 device support** selected at runtime by the `PHY_TIMING.memtype` CSR field
 - **DFI frequency ratio** of 1, 2, or 4 phases via the `DFI_RATE` parameter
 - **Multi-rank operation** — 1, 2, or 4 ranks via `NUM_RANKS` parameter; per-rank `CS_n`, `CKE`, `ODT`, and refresh tracking; rank-aware ODT cross-termination rules per JEDEC
-- **Page policies:** OPEN, CLOSE, HAPPY hybrid predictor (CSR-selected; open-page decision inline in `pumice_cmd_arbiter`)
+- **Page policies:** OPEN, CLOSE, plus the runtime page-policy engine (`fixed_open` idle-timeout and Ghasempour-2015 `adapt_time`; CSR-selected via `PAGE_POLICY_CFG.policy_mode`; open-page decision inline in `pumice_cmd_arbiter`)
 - **Per-bank refresh** for LPDDR2 with DARP-style scheduling (parameterized)
 - **All-bank refresh** for DDR2 (and as LPDDR2 fallback)
 - **Elastic refresh deferral** up to JEDEC ceiling of 8× tREFI (parameterized)
@@ -86,7 +86,7 @@ Explicitly **not** addressed in this controller version:
 | Sustained read bandwidth        | ≥ 70% peak on stream workloads            |
 | 99th-percentile read latency    | ≤ 200 ns (typical)                        |
 | Refresh blocking overhead       | < 5% (LPDDR2 with DARP); < 8% (DDR2)      |
-| Area                            | < 50K gates (excluding HAPPY predictor)   |
+| Area                            | < 50K gates                               |
 
 These are target envelopes for v1; not guarantees. They will be validated and refined during the characterization sweep.
 
@@ -106,12 +106,12 @@ This controller is informed by published memory-controller literature and the op
 
 5. **Two-stage page management** — exact lookahead first, history-based fallback second.
    - Stage 1: a lookahead window (`SCHED_TUNING.lookahead_active`, 0 disables) provides exact auto-precharge decisions when the next same-bank request is already visible to the arbiter.
-   - Stage 2: when lookahead is inconclusive (shallow queue or bursty traffic), the HAPPY hybrid page predictor (Ghasempour et al. 2015) uses address-bit-hashed saturating counters to predict the next access.
+   - Stage 2: when lookahead is inconclusive (shallow queue or bursty traffic), the adaptive-timeout page policy (Ghasempour et al. 2015) uses address-bit-hashed saturating counters to predict the next access.
    Open-source controllers typically have either lookahead OR a fixed page policy. The two-stage combination is original to this design.
 
 6. **Characterization-first parameterization.** Page policy, lookahead depth, refresh policy, refresh deferral, and address mapping are all runtime CSR fields with a defined sweep matrix (see §5 and §6.4). Most published controllers expose only a subset of these; few expose them all.
 
-7. **Closed-page policy as an explicit option.** `REFRESH_TUNING.page_policy_or ∈ {OPEN, CLOSE, HAPPY_HYBRID}`. Most open-source controllers expose only on/off auto-precharge (effectively OPEN with optional lookahead). The CLOSE option is useful for adversarial / security-sensitive workloads where row-state side channels matter.
+7. **Closed-page policy as an explicit option.** `REFRESH_TUNING.page_policy_or ∈ {OPEN, CLOSE}` (the HYBRID encoding is retired; adaptive policies are `PAGE_POLICY_CFG.policy_mode`). Most open-source controllers expose only on/off auto-precharge (effectively OPEN with optional lookahead). The CLOSE option is useful for adversarial / security-sensitive workloads where row-state side channels matter.
 
 8. **Single-knob address mapping.** `ADDR_MAP.bank_lsb` slides the bank field within the byte-offset-stripped word address; the column auto-splits below (`col_lo`) and above (`col_hi`) it while the row/rank positions stay invariant. The classic schemes are just settings of this one knob (`bank_lsb == COL_WIDTH` = ROW_MAJOR; `bank_lsb == log2(cols/burst)` = maximum bank interleave), and an optional bank XOR-hash (`ADDR_MAP.hash_en` / `hash_seed`) folds row bits into the bank index to defeat pathological row-conflict strides. There is no separate scheme selector.
 

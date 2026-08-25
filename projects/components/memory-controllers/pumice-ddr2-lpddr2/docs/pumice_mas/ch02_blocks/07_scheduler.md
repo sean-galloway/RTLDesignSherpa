@@ -49,7 +49,7 @@ the scheduler → DFI command interface. It is PHY/nphases-agnostic and
 single-issue; JEDEC timing is enforced by the per-bank (`pumice_bank_timers`) and
 global (`global_timers`) readiness inputs it consumes. Open-page vs auto-precharge
 is decided **inline** from `page_policy_i` — there is no standalone page
-predictor in the build (see [ch02/08](08_page_predictor.md)).
+runtime page-policy engine (see [ch02/08](08_page_policy.md)).
 
 The wider `pumice_mem_cmd_scheduler` wrapper wires the arbiter to those timers,
 the refresh controller, the init sequencer + mode-register shadow, and an output
@@ -103,10 +103,14 @@ WR if both exist.
 w_ap = (page_policy_i == PAGE_POLICY_CLOSE);
 ```
 
-A column op becomes `OP_RDA` / `OP_WRA` when `w_ap` is set, else `OP_RD` /
-`OP_WR`. `evt_ap_o = w_ap_out` tells the bank timers to model the auto-precharge.
-`PAGE_POLICY_OPEN` leaves rows open; `PAGE_POLICY_HAPPY_HYBRID` is treated as OPEN
-in v1 (the predictor hook is a TODO — see [ch02/08](08_page_predictor.md)).
+A column op becomes `OP_RDA` / `OP_WRA` when the auto-precharge decision is
+set, else `OP_RD` / `OP_WR`; `evt_ap_o` tells the bank timers to model the
+auto-precharge. The decision is the legacy flat `w_ap`
+(`page_policy_i == CLOSE`) unless the runtime page-policy engine is active,
+in which case it is per-bank (`ap_close[bank]`) and the engine may also
+request idle-timeout closes as the arbiter's lowest-priority pick — see
+[ch02/08](08_page_policy.md). (`PAGE_POLICY_HAPPY_HYBRID` was retired
+2026-08-25; the enum encoding maps to build default.)
 
 ## Per-bank ACT/PRE re-issue guard
 

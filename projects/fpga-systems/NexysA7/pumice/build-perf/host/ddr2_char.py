@@ -158,7 +158,8 @@ SCHEME_XOR_HASH        = 3
 PAGE_POLICY_DEFAULT = 0
 PAGE_POLICY_OPEN    = 1
 PAGE_POLICY_CLOSE   = 2
-PAGE_POLICY_HYBRID  = 3
+# 3 was PAGE_POLICY_HYBRID -- retired (maps to build default in RTL); the
+# adaptive policies are PAGE_POLICY_CFG.policy_mode via set_page_mode().
 # Per-bank/all-bank refresh policy (REFRESH_TUNING.refpb_policy_or).
 REFPB_DEFAULT = 0
 REFPB_RR      = 1
@@ -451,6 +452,9 @@ class DDR2CharDriver:
     def set_page_policy(self, policy: int) -> None:
         self.pumice.set_page_policy(policy)
 
+    def set_page_mode(self, mode: int, tr_init: Optional[int] = None) -> None:
+        self.pumice.set_page_mode(mode, tr_init=tr_init)
+
     def set_refresh(self, *, refpb_policy: Optional[int] = None,
                     refresh_defer: Optional[int] = None,
                     zqcs_freq_hz: Optional[int] = None) -> None:
@@ -463,11 +467,10 @@ class DDR2CharDriver:
 
     def set_scheduler(self, *, lookahead: Optional[int] = None,
                       force_inorder: Optional[bool] = None,
-                      happy_enable: Optional[bool] = None,
                       age_max: Optional[int] = None,
                       txn_high_water: Optional[int] = None) -> None:
         self.pumice.set_scheduler(lookahead=lookahead, force_inorder=force_inorder,
-                                  happy_enable=happy_enable, age_max=age_max,
+                                  age_max=age_max,
                                   txn_high_water=txn_high_water)
 
     def get_lookahead_max(self) -> int:

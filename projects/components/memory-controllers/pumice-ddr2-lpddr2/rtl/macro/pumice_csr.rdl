@@ -351,9 +351,9 @@ addrmap pumice_csr {
         } force_inorder = 1'b0;
 
         field {
-            sw = rw; hw = r;
-            desc = "1 = HAPPY predictor active (only meaningful if synthesized)";
-        } happy_enable = 1'b1;
+            sw = r; hw = na;
+            desc = "Reserved (was happy_enable; the HAPPY predictor is retired -- adaptive paging is PAGE_POLICY_CFG.policy_mode)";
+        } RSVD_5 = 1'b0;
 
         field { sw = r; hw = na; desc = "Reserved"; } RSVD_7_6[7:6] = 2'h0;
 
@@ -376,15 +376,9 @@ addrmap pumice_csr {
 
     } SCHED_TUNING @ 0x040;
 
-    reg {
-        name = "Page Predictor Tuning";
-        desc = "HAPPY-mode predictor knobs";
-
-        field { sw = rw; hw = r; desc = "Warmup cycles";   } warmup_cycles[15:0] = 16'd1024;
-        field { sw = rw; hw = r; desc = "Hysteresis";      } hysteresis[23:16]   = 8'd2;
-        field { sw = r;  hw = na; desc = "Reserved";        } RSVD[31:24] = 8'h0;
-
-    } PAGE_PRED_TUNING @ 0x044;
+    // 0x044 (was PAGE_PRED_TUNING) -- retired with the HAPPY predictor. The
+    // adaptive-paging knobs live in PAGE_POLICY_CFG / PAGE_TIMEOUT_CFG /
+    // PAGE_ADAPT_CFG. Address intentionally left unmapped.
 
     reg {
         name = "Refresh Tuning";
@@ -397,7 +391,7 @@ addrmap pumice_csr {
 
         field {
             sw = rw; hw = r;
-            desc = "00=build-time, 01=OPEN, 10=CLOSE, 11=HAPPY_HYBRID";
+            desc = "00=build-time, 01=OPEN, 10=CLOSE, 11=reserved (was HYBRID; maps to build default)";
         } page_policy_or[3:2] = 2'h0;
 
         field {
@@ -550,10 +544,8 @@ addrmap pumice_csr {
         field { sw = r; hw = w; desc = "Bin 3 count"; } VAL[31:0];
     } OBS_REFRESH_DEFER_HIST_3 @ 0x118;
 
-    reg {
-        desc = "HAPPY-mode rolling prediction accuracy (%)";
-        field { sw = r; hw = w; desc = "Accuracy %"; } VAL[31:0];
-    } OBS_PAGE_PRED_ACCURACY @ 0x120;
+    // 0x120 (was OBS_PAGE_PRED_ACCURACY) -- retired with the HAPPY predictor;
+    // page-outcome telemetry is PAGE_STATS_{HIT,MISS,EMPTY}.
 
     reg {
         desc = "Avg AXI read latency (cycles)";
@@ -674,7 +666,7 @@ addrmap pumice_csr {
 
     reg {
         name = "Page Policy Config";
-        desc = "Axis 2 mode select + Happy-hybrid counter shape. 0 = build default.";
+        desc = "Axis 2 mode select + adapt_access counter shape. 0 = build default.";
 
         field {
             sw = rw; hw = r;

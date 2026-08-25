@@ -123,14 +123,31 @@ async def cocotb_test_pumice_top(dut):
     seed = int(os.environ.get("SEED", "1"))
     rng = random.Random(seed)
 
-    if test_type in ("open_page_workload", "open_page_lpddr2"):
-        page_policy = 0        # OPEN
-    elif test_type == "happy_page_workload":
-        page_policy = 2        # HAPPY_HYBRID
+    # REFRESH_TUNING.page_policy_or SOFTWARE encoding: 0=build default(OPEN),
+    # 1=OPEN, 2=CLOSE, 3=reserved (was HYBRID -- retired). The old values here
+    # predated the fab57682 encoding fix: "CLOSE" tests were writing 1 =
+    # software-OPEN and the happy test 2 = software-CLOSE. Corrected to intent.
+    if test_type in ("open_page_workload", "open_page_lpddr2",
+                     "adapt_time_workload"):
+        page_policy = 1        # OPEN (adapt_time layers its mode on top)
     else:
-        page_policy = 1        # CLOSE
+        page_policy = 2        # CLOSE
 
     tb = await _bringup(dut, mem_type=mem_type, page_policy=page_policy)
+
+    if test_type == "adapt_time_workload":
+        # Successor of the retired HAPPY_HYBRID workload: the Happy
+        # Intel-adaptive timeout policy (PAGE_POLICY_CFG.policy_mode=4),
+        # short TR so closes actually happen inside this workload.
+        w = tb.csr_write_field
+        await w("PAGE_POLICY_CFG", "policy_mode", 4)
+        await w("PAGE_TIMEOUT_CFG", "tr_init", 24)
+        await w("PAGE_TIMEOUT_CFG", "tr_min", 8)
+        await w("PAGE_TIMEOUT_CFG", "tr_max", 96)
+        await w("PAGE_TIMEOUT_CFG", "tr_step", 8)
+        await w("PAGE_ADAPT_CFG", "mc_high_thr", 2)
+        await w("PAGE_ADAPT_CFG", "mc_low_thr", 1)
+        await w("PAGE_ADAPT_CFG", "check_interval", 256)
 
     def payload(bi, ki):
         return (rng.getrandbits(DW - 1) ^ ((bi << 8) | ki)) if False else \
@@ -256,7 +273,7 @@ async def cocotb_test_pumice_top(dut):
         return
 
     # ---- open/happy-page workloads (row hits + misses) ----
-    if test_type in ("open_page_workload", "happy_page_workload", "open_page_lpddr2"):
+    if test_type in ("open_page_workload", "adapt_time_workload", "open_page_lpddr2"):
         n = {"basic": 8, "medium": 20, "full": 40}.get(level, 8)
         addrs = [BASE + (k // 2) * 0x10000 + (k % NUM_BANKS) * 0x2000
                  + (k % 4) * (BL_WORDS * (DW // 8)) for k in range(n)]
@@ -265,7 +282,7 @@ async def cocotb_test_pumice_top(dut):
         wr, rd, exp = build_addr_pattern_sequences(
             burst_len=BL_WORDS, data_width=DW, addresses=addrs)
         await _wr_rd_check(tb, wr, rd)
-        tb.log.info(f"PASS {test_type}: open/happy-page hits+misses (BFM) vs golden")
+        tb.log.info(f"PASS {test_type}: open/adaptive-page hits+misses (BFM) vs golden")
         return
 
     raise AssertionError(f"unknown TEST_TYPE '{test_type}'")
@@ -281,7 +298,7 @@ async def cocotb_test_engine_mirror(dut):
     id_mode = os.environ.get("ENG_ID_MODE", "counter")
     id_fixed = int(os.environ.get("ENG_ID_FIXED", "0"))
     seed = int(os.environ.get("SEED", "1"))
-    tb = await _bringup(dut, page_policy=1, profile=profile)  # CLOSE
+    tb = await _bringup(dut, page_policy=2, profile=profile)  # CLOSE (software encoding)
 
     def wid(bi):
         if id_mode == "fixed":
@@ -368,7 +385,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
 _FUNC = ["smoke", "configure_via_csr", "axi_write_smoke", "wr_rd_roundtrip",
          "wr_rd_b2b_multi", "wr2rd_forward_burst", "wr_rd_bank_sweep",
          "fresh_read_each_bank", "row_hit_pattern", "workload_mix",
-         "wr_rd_ooo_multi_id", "open_page_workload", "happy_page_workload",
+         "wr_rd_ooo_multi_id", "open_page_workload", "adapt_time_workload",
          "smoke_lpddr2", "open_page_lpddr2", "workload_mix_lpddr2"]
 
 

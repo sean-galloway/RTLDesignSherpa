@@ -290,8 +290,13 @@ The column auto-precharge bit `ap` is set directly from `page_policy_i`
   rate. Best for locality; the per-bank `bank_timer` holds the row open on RD/WR.
 - **`CLOSE`** (`ap=1`) — every column op auto-precharges (issues `RDA`/`WRA`). Best
   for random access; no stale-row hazard.
-- **`HAPPY_HYBRID`** — v1 treats it as `OPEN`; `page_predictor.sv` exists as a
-  documented TODO hook, not wired into the default build.
+- **`HAPPY_HYBRID`** — RETIRED (2026-08-25). It was never wired into the
+  rearchitected core (treated as `OPEN`); `page_predictor.sv` and its CSR
+  collateral (`happy_enable`, `PAGE_PRED_TUNING`, `OBS_PAGE_PRED_ACCURACY`)
+  are deleted, and the `page_policy_or` encoding `11` maps to build default.
+  Its Ghasempour-2015 successors are `adapt_time` (IMPLEMENTED, mode 4 of
+  `PAGE_POLICY_CFG.policy_mode`, in `pumice_page_policy`) and `adapt_access`
+  (a later serial step).
 
 The "keep the row open" decision lives **inline** in the arbiter + per-bank
 `bank_timer`, not in a separate predictor/lookahead — consistent with the
@@ -401,9 +406,9 @@ per-bank precharge *request* that still respects tRAS/tRTP/tRP/tRC. All commodit
   locality (~68% of workloads, up to +18% vs close). Reset default.
 - **`static_close`** — always auto-precharge (`RDA`/`WRA`); enables precharge fusion on
   the last column op to a row. Best on random/low-locality (up to +18% vs open).
-- **`fixed_open`** — leave the row open, auto-precharge after an **idle timeout** of
+- **`fixed_open`** (IMPLEMENTED 2026-08-25, `pumice_page_policy`) — leave the row open, close after an **idle timeout** of
   `TR_INIT` clocks (paper used ≈ tRC). One per-bank timeout counter.
-- **`adapt_time` (Happy "Intel-adaptive", recommended adaptive)** — per **bank**: Timeout
+- **`adapt_time` (Happy "Intel-adaptive", recommended adaptive; IMPLEMENTED 2026-08-25, `pumice_page_policy`)** — per **bank**: Timeout
   Counter `TC`, Timeout Register `TR`, 4-bit Mistake Counter `MC`. Close the row when
   `TC==TR`. `MC`↑ on a premature-close mistake (page-empty reopening the just-closed row),
   `MC`↓ on held-too-long (a conflict that could have been an empty); every

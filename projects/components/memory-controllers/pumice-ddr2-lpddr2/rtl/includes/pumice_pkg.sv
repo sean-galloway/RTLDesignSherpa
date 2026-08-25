@@ -91,7 +91,11 @@ package pumice_pkg;
     typedef enum logic [1:0] {
         PAGE_POLICY_OPEN         = 2'h0,
         PAGE_POLICY_CLOSE        = 2'h1,
-        PAGE_POLICY_HAPPY_HYBRID = 2'h2,
+        // 2'h2 was PAGE_POLICY_HAPPY_HYBRID -- retired 2026-08-25. The HAPPY
+        // predictor was never wired into the rearchitected core (the arbiter
+        // treated HYBRID as OPEN), and its Happy-paper successors live in
+        // pumice_page_policy behind PAGE_POLICY_CFG.policy_mode (adapt_time /
+        // adapt_access).
         PAGE_POLICY_RSVD         = 2'h3
     } page_policy_e;
 

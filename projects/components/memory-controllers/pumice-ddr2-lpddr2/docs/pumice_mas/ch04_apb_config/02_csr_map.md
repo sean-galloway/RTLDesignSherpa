@@ -57,7 +57,7 @@ The register map is a SystemRDL source, `rtl/macro/pumice_csr.rdl`. It is compil
 | 0x034  | `PASR_SEG_MASK_RANK0`     | LPDDR2 PASR segment mask (rank 0)                         |
 | 0x038  | `TEMP_DERATE_RANK0`       | LPDDR2 MR4 temperature class (rank 0, RO)                 |
 | 0x040  | `SCHED_TUNING`            | Scheduler runtime knobs                                    |
-| 0x044  | `PAGE_PRED_TUNING`        | HAPPY-mode predictor knobs                                |
+| 0x044  | (unmapped)                | was `PAGE_PRED_TUNING` — retired with the HAPPY predictor |
 | 0x048  | `REFRESH_TUNING`          | Refresh policy + page-policy override + ZQCS interval     |
 | 0x04C  | `ADDR_MAP`                | Address-map: bank_lsb + XOR-hash (replaces ADDR_MAP_TUNING) |
 | 0x050  | `INIT_TUNING`             | ZQ retries + per-step init timeout                        |
@@ -170,7 +170,7 @@ All registers are 32-bit; unlisted bits are reserved (`RSVD`, `sw = r`). "Defaul
 |-------|------------------------|---------|--------|----------------------------------------------|
 | 3:0   | `lookahead_active`     | 0       | rw     | Active lookahead window (0 disables)         |
 | 4     | `force_inorder`        | 0       | rw     | 1 = force first-ready FIFO                    |
-| 5     | `happy_enable`         | 1       | rw     | HAPPY predictor active (if synthesized)      |
+| 5     | `RSVD_5`               | 0       | r      | Reserved (was `happy_enable` — retired)      |
 | 15:8  | `age_max_runtime`      | 0       | rw     | Runtime AGE_MAX override (0 = build default) |
 | 23:16 | `txn_queue_high_water` | 0       | rw     | Backpressure threshold                        |
 | 27:24 | `lookahead_max_obs`    | 0       | RO     | Echo of build-time LOOKAHEAD_DEPTH_MAX       |
@@ -187,7 +187,7 @@ All registers are 32-bit; unlisted bits are reserved (`RSVD`, `sw = r`). "Defaul
 | Bits  | Field                  | Default | Notes                                          |
 |-------|------------------------|---------|------------------------------------------------|
 | 1:0   | `refpb_policy_or`      | 0       | 00 build-time, 01 RR, 10 OLDEST_FIRST, 11 DARP |
-| 3:2   | `page_policy_or`       | 0       | 00 build-time, 01 OPEN, 10 CLOSE, 11 HAPPY_HYBRID |
+| 3:2   | `page_policy_or`       | 0       | 00 build-time, 01 OPEN, 10 CLOSE, 11 reserved (was HYBRID) |
 | 7:4   | `refresh_defer_active` | 1       | Active refresh deferral count                   |
 | 31:16 | `zqcs_freq_hz`         | 1       | Periodic ZQCS interval in Hz (0 disables)       |
 
@@ -258,7 +258,7 @@ Sliced to `clog2(DFI_RATE)` bits downstream; upper bits ignored when `DFI_RATE` 
 | 0x104        | `OBS_TXN_QUEUE_DEPTH_AVG` | `VAL`    | Time-averaged queue depth          |
 | 0x108        | `OBS_REFRESH_PENDING_MAX` | `VAL`    | Max refresh_pending observed       |
 | 0x10C..0x118 | `OBS_REFRESH_DEFER_HIST_0..3` | `VAL` | Refresh-deferral histogram bins    |
-| 0x120        | `OBS_PAGE_PRED_ACCURACY` | `VAL`    | HAPPY rolling prediction accuracy (%) |
+| 0x120        | (unmapped)               | —        | was `OBS_PAGE_PRED_ACCURACY` — retired; see `PAGE_STATS_*` |
 | 0x130        | `OBS_AXI_R_LATENCY_AVG`  | `VAL`    | Avg AXI read latency (cycles)      |
 | 0x134        | `OBS_AXI_R_LATENCY_P99`  | `VAL`    | 99th-pct AXI read latency          |
 | 0x138        | `OBS_AXI_W_LATENCY_AVG`  | `VAL`    | Avg AXI write latency              |

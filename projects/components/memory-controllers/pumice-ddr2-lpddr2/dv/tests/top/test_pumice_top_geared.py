@@ -45,7 +45,7 @@ async def cocotb_test_pumice_top_geared(dut):
                         host_axi_data_width=host_w)
     await tb.reset()
     tb.init_dfi_slave()
-    await tb.program_defaults(page_policy=1, mem_type="DDR2")   # CLOSE
+    await tb.program_defaults(page_policy=2, mem_type="DDR2")   # CLOSE (software encoding)
     await tb.wait_for_init_done()
     dut.s_axi_bready.value = 1
     dut.s_axi_rready.value = 1

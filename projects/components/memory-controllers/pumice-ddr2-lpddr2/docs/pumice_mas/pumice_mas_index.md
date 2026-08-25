@@ -72,7 +72,7 @@
 
 **Scheduling FUBs (`pumice_mem_cmd_scheduler`):**
 - [Command Arbiter (`pumice_cmd_arbiter`)](ch02_blocks/07_scheduler.md) — CLOSE/OPEN/HAPPY_HYBRID
-- [Open-page decision (inline in `pumice_cmd_arbiter`)](ch02_blocks/08_page_predictor.md)
+- [Page-policy engine (`pumice_page_policy`)](ch02_blocks/08_page_policy.md)
 - [Cross-bank Turnaround Timers (`global_timers`)](ch02_blocks/10_xbank_timers.md)
 - [Global Timers (`global_timers`)](ch02_blocks/19_global_timers.md)
 - [Refresh Controller (`refresh_ctrl`)](ch02_blocks/11_refresh_mgr.md)

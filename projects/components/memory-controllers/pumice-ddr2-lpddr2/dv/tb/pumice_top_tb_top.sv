@@ -38,7 +38,8 @@ module pumice_top_tb_top
     parameter int NUM_BANKS        = 8,
     parameter int ROW_WIDTH        = 14,
     parameter int COL_WIDTH        = 10,
-    // Page policy override: 0=OPEN, 1=CLOSE (default), 2=HAPPY_HYBRID.
+    // Page policy override (page_policy_e): 0=OPEN, 1=CLOSE (default);
+    // 2 reserved (was HAPPY_HYBRID -- retired).
     // Matches `pumice_pkg::page_policy_e`.
     parameter int PAGE_POLICY      = 1,
 
