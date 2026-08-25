@@ -331,6 +331,13 @@ def _run_stream_mon(request, profile=False):
         'AR_MAX_OUTSTANDING': os.environ.get('AR_MAX_OUTSTANDING', '2'),
         'AW_MAX_OUTSTANDING': os.environ.get('AW_MAX_OUTSTANDING', '2'),
         'RESP_DELAY_R_CAPACITY': '512', 'RESP_DELAY_B_CAPACITY': '512',
+        # stream_genesys2_top passes GEN_MON=0 to stream_harness, but the
+        # harness DEFAULTS it to 1 -- and this cosim's toplevel is the harness,
+        # so sim has been running a different config than the board: agents
+        # 16-23 (descriptor engines) and 48-55 (schedulers) exist here and are
+        # compiled out there. Overridable so the board config can be
+        # reproduced; default stays 1 to preserve existing coverage.
+        'GEN_MON': os.environ.get('GEN_MON', '1'),
     }
     if profile:
         rtl_parameters['MON_N_PROFILE'] = str(MON_N_PROFILE)
