@@ -38,6 +38,12 @@ Don't override. Generated from: $root
 | 0x05C|      INIT_TIMING1      |Init Timing 1: tMRD / tRP / tRFC (init)|
 | 0x060|        DFI_PHASE       |      DFI Command Phase Placement      |
 | 0x064|       PHY_TIMING       | PHY / DFI data timing + memory config |
+| 0x068|      SCHED_POLICY      |            Scheduler Policy           |
+| 0x06C|       SCHED_WR_WM      |       Scheduler Write Watermarks      |
+| 0x070|     PAGE_POLICY_CFG    |           Page Policy Config          |
+| 0x074|    PAGE_TIMEOUT_CFG    |          Page Timeout Config          |
+| 0x078|     PAGE_ADAPT_CFG     |          Page Adaptive Config         |
+| 0x07C|      PAGE_RBL_CFG      |            Page RBL Config            |
 | 0x080|     OBS_ROW_HIT[0]     |      Per-Bank Row Hit Observation     |
 | 0x084|     OBS_ROW_HIT[1]     |      Per-Bank Row Hit Observation     |
 | 0x088|     OBS_ROW_HIT[2]     |      Per-Bank Row Hit Observation     |
@@ -65,6 +71,14 @@ Don't override. Generated from: $root
 | 0x130|  OBS_AXI_R_LATENCY_AVG |                   —                   |
 | 0x134|  OBS_AXI_R_LATENCY_P99 |                   —                   |
 | 0x138|  OBS_AXI_W_LATENCY_AVG |                   —                   |
+| 0x140|        REF_CTRL        |          Refresh Mode Control         |
+| 0x144|      REF_TIMING_PB     |        Per-Bank Refresh Timing        |
+| 0x148|     PAGE_STATS_HIT     |            Page Stats: Hits           |
+| 0x14C|     PAGE_STATS_MISS    |           Page Stats: Misses          |
+| 0x150|    PAGE_STATS_EMPTY    |          Page Stats: Empties          |
+| 0x154|     SCHED_STATS_ACT    |         Sched Stats: Activates        |
+| 0x158|     SCHED_STATS_PRE    |        Sched Stats: Precharges        |
+| 0x15C|      REF_STATS_REF     |        Refresh Stats: Refreshes       |
 | 0x1C0|      OBS_WORDS[0]      |        Observation Word Harvest       |
 | 0x1C4|      OBS_WORDS[1]      |        Observation Word Harvest       |
 | 0x1C8|      OBS_WORDS[2]      |        Observation Word Harvest       |
@@ -829,6 +843,237 @@ request. All hw-readable so they drive the controller core.</p>
 
 <p>Reserved</p>
 
+### SCHED_POLICY register
+
+- Absolute Address: 0x68
+- Base Offset: 0x68
+- Size: 0x4
+
+<p>Axis 1 (Rixner FR-FCFS variants). All fields 0 = build default.</p>
+
+| Bits|    Identifier   |Access|Reset|Name|
+|-----|-----------------|------|-----|----|
+| 1:0 |    order_mode   |  rw  | 0x0 |  — |
+| 3:2 |     prio_sub    |  rw  | 0x0 |  — |
+| 5:4 |     row_sel     |  rw  | 0x0 |  — |
+| 7:6 |     col_sel     |  rw  | 0x0 |  — |
+| 9:8 |   access_pref   |  rw  | 0x0 |  — |
+|  10 |auto_precharge_en|  rw  | 0x0 |  — |
+|  11 |      qos_en     |  rw  | 0x0 |  — |
+|15:12|    RSVD_15_12   |   r  | 0x0 |  — |
+|23:16|    age_thresh   |  rw  | 0x0 |  — |
+|31:24|    RSVD_31_24   |   r  | 0x0 |  — |
+
+#### order_mode field
+
+<p>0=build default, 1=in_order, 2=fr_fcfs, 3=age_threshold</p>
+
+#### prio_sub field
+
+<p>Priority sub-policy: 0=default, 1=none, 2=load_over_store, 3=age_boost</p>
+
+#### row_sel field
+
+<p>Row-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending</p>
+
+#### col_sel field
+
+<p>Column-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending</p>
+
+#### access_pref field
+
+<p>Address-arbiter class preference: 0=default, 1=column_first, 2=row_first, 3=precharge_first</p>
+
+#### auto_precharge_en field
+
+<p>1 = fuse auto-precharge into the last column op of a row</p>
+
+#### qos_en field
+
+<p>1 = factor AxQOS into the pick (highest ready first, age tie-break)</p>
+
+#### RSVD_15_12 field
+
+<p>Reserved</p>
+
+#### age_thresh field
+
+<p>age_threshold mode: age (MC cycles/16) above which a reference is boosted</p>
+
+#### RSVD_31_24 field
+
+<p>Reserved</p>
+
+### SCHED_WR_WM register
+
+- Absolute Address: 0x6C
+- Base Offset: 0x6C
+- Size: 0x4
+
+<p>Write-batching drain hysteresis. 0/0 = build default (no batching).</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 |wr_high_wm|  rw  | 0x0 |  — |
+| 15:8| wr_low_wm|  rw  | 0x0 |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### wr_high_wm field
+
+<p>Start back-to-back write drain when the write buffer crosses this</p>
+
+#### wr_low_wm field
+
+<p>Stop the drain when occupancy falls to this</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### PAGE_POLICY_CFG register
+
+- Absolute Address: 0x70
+- Base Offset: 0x70
+- Size: 0x4
+
+<p>Axis 2 mode select + Happy-hybrid counter shape. 0 = build default.</p>
+
+| Bits| Identifier |Access|Reset|Name|
+|-----|------------|------|-----|----|
+| 2:0 | policy_mode|  rw  | 0x0 |  — |
+|  3  |policy_scope|  rw  | 0x0 |  — |
+| 5:4 |  ctr_width |  rw  | 0x0 |  — |
+| 9:6 |ctr_open_max|  rw  | 0x0 |  — |
+|13:10|  ctr_init  |  rw  | 0x0 |  — |
+|31:14|    RSVD    |   r  | 0x0 |  — |
+
+#### policy_mode field
+
+<p>0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access, 6=rbl_static, 7=rbl_dyn</p>
+
+#### policy_scope field
+
+<p>0 = per-bank decision state, 1 = global</p>
+
+#### ctr_width field
+
+<p>adapt_access counter width select (0=2-bit)</p>
+
+#### ctr_open_max field
+
+<p>adapt_access: counter value at/above which the row is CLOSED</p>
+
+#### ctr_init field
+
+<p>adapt_access: counter init value</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### PAGE_TIMEOUT_CFG register
+
+- Absolute Address: 0x74
+- Base Offset: 0x74
+- Size: 0x4
+
+<p>fixed_open / adapt_time timeout register bounds (MC cycles).</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 7:0 |  tr_init |  rw  | 0x0 |  — |
+| 15:8|  tr_min  |  rw  | 0x0 |  — |
+|23:16|  tr_max  |  rw  | 0x0 |  — |
+|31:24|  tr_step |  rw  | 0x0 |  — |
+
+#### tr_init field
+
+<p>TR init (fixed_open uses this alone; ~tRC)</p>
+
+#### tr_min field
+
+<p>adapt_time TR lower clamp</p>
+
+#### tr_max field
+
+<p>adapt_time TR upper clamp</p>
+
+#### tr_step field
+
+<p>adapt_time TR adjustment step</p>
+
+### PAGE_ADAPT_CFG register
+
+- Absolute Address: 0x78
+- Base Offset: 0x78
+- Size: 0x4
+
+<p>adapt_time (Happy Intel-adaptive) mistake-counter thresholds.</p>
+
+| Bits|  Identifier  |Access|Reset|Name|
+|-----|--------------|------|-----|----|
+| 3:0 |  mc_high_thr |  rw  | 0x0 |  — |
+| 7:4 |  mc_low_thr  |  rw  | 0x0 |  — |
+| 11:8|    mc_init   |  rw  | 0x0 |  — |
+|15:12|     RSVD     |   r  | 0x0 |  — |
+|31:16|check_interval|  rw  | 0x0 |  — |
+
+#### mc_high_thr field
+
+<p>MC high threshold (TR += step above)</p>
+
+#### mc_low_thr field
+
+<p>MC low threshold (TR -= step below)</p>
+
+#### mc_init field
+
+<p>MC init value</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+#### check_interval field
+
+<p>Cycles between MC evaluations</p>
+
+### PAGE_RBL_CFG register
+
+- Absolute Address: 0x7C
+- Base Offset: 0x7C
+- Size: 0x4
+
+<p>RBLA/Yoon miss-counter table shape. rbl_dyn hill-climb weights land with that mode.</p>
+
+| Bits|  Identifier  |Access|Reset|Name|
+|-----|--------------|------|-----|----|
+| 7:0 |  miss_thresh |  rw  | 0x0 |  — |
+| 9:8 |     ways     |  rw  | 0x0 |  — |
+|13:10|     sets     |  rw  | 0x0 |  — |
+|15:14|     RSVD     |   r  | 0x0 |  — |
+|31:16|reset_interval|  rw  | 0x0 |  — |
+
+#### miss_thresh field
+
+<p>Miss count above which a row is low-locality (auto-precharge)</p>
+
+#### ways field
+
+<p>log2 table ways</p>
+
+#### sets field
+
+<p>log2 table sets</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+#### reset_interval field
+
+<p>Epoch length: counters reset every N cycles (0=never)</p>
+
 ## OBS_ROW_HIT register file
 
 - Absolute Address: 0x80
@@ -1468,6 +1713,157 @@ request. All hw-readable so they drive the controller core.</p>
 #### VAL field
 
 <p>Avg cycles</p>
+
+### REF_CTRL register
+
+- Absolute Address: 0x140
+- Base Offset: 0x140
+- Size: 0x4
+
+<p>Axis 3 mode + JEDEC +-8 credit limits. tREFI/tRFCab live in TIMINGS_RFC_REFI (not duplicated).</p>
+
+| Bits|    Identifier   |Access|Reset|Name|
+|-----|-----------------|------|-----|----|
+| 1:0 |       mode      |  rw  | 0x0 |  — |
+| 3:2 |     RSVD_3_2    |   r  | 0x0 |  — |
+| 7:4 |  postpone_limit |  rw  | 0x0 |  — |
+| 11:8|   pullin_limit  |  rw  | 0x0 |  — |
+|  12 |perbank_supported|   r  |  —  |  — |
+|31:13|    RSVD_31_13   |   r  | 0x0 |  — |
+
+#### mode field
+
+<p>0=build default (REFab), 1=REFab, 2=REFpb round-robin (LPDDR2)</p>
+
+#### RSVD_3_2 field
+
+<p>Reserved</p>
+
+#### postpone_limit field
+
+<p>Max refreshes postponed under demand (0..8; 0 = strict)</p>
+
+#### pullin_limit field
+
+<p>Max refreshes pulled in on idle (0..8; 0 = strict)</p>
+
+#### perbank_supported field
+
+<p>Capability strap: 1 = the DRAM supports per-bank refresh</p>
+
+#### RSVD_31_13 field
+
+<p>Reserved</p>
+
+### REF_TIMING_PB register
+
+- Absolute Address: 0x144
+- Base Offset: 0x144
+- Size: 0x4
+
+<p>REFpb intervals (MC cycles). All-bank tREFI/tRFCab stay in TIMINGS_RFC_REFI.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0| trefi_pb |  rw  | 0x0 |  — |
+|23:16|  trfc_pb |  rw  | 0x0 |  — |
+|31:24|   RSVD   |   r  | 0x0 |  — |
+
+#### trefi_pb field
+
+<p>tREFIpb (~tREFI/8; 0 = derive from tREFI)</p>
+
+#### trfc_pb field
+
+<p>tRFCpb recovery</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### PAGE_STATS_HIT register
+
+- Absolute Address: 0x148
+- Base Offset: 0x148
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   count  |   r  |  —  |  — |
+
+#### count field
+
+<p>Column ops issued to an already-open row</p>
+
+### PAGE_STATS_MISS register
+
+- Absolute Address: 0x14C
+- Base Offset: 0x14C
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   count  |   r  |  —  |  — |
+
+#### count field
+
+<p>Column ops that required PRE+ACT (conflict)</p>
+
+### PAGE_STATS_EMPTY register
+
+- Absolute Address: 0x150
+- Base Offset: 0x150
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   count  |   r  |  —  |  — |
+
+#### count field
+
+<p>Column ops that required ACT only (bank closed)</p>
+
+### SCHED_STATS_ACT register
+
+- Absolute Address: 0x154
+- Base Offset: 0x154
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   count  |   r  |  —  |  — |
+
+#### count field
+
+<p>ACT commands issued</p>
+
+### SCHED_STATS_PRE register
+
+- Absolute Address: 0x158
+- Base Offset: 0x158
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   count  |   r  |  —  |  — |
+
+#### count field
+
+<p>PRE + PREA commands issued</p>
+
+### REF_STATS_REF register
+
+- Absolute Address: 0x15C
+- Base Offset: 0x15C
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   count  |   r  |  —  |  — |
+
+#### count field
+
+<p>REFab + REFpb commands issued</p>
 
 ## OBS_WORDS register file
 

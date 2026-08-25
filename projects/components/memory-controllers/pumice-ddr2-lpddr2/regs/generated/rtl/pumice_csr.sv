@@ -90,6 +90,12 @@ module pumice_csr (
         logic INIT_TIMING1;
         logic DFI_PHASE;
         logic PHY_TIMING;
+        logic SCHED_POLICY;
+        logic SCHED_WR_WM;
+        logic PAGE_POLICY_CFG;
+        logic PAGE_TIMEOUT_CFG;
+        logic PAGE_ADAPT_CFG;
+        logic PAGE_RBL_CFG;
         struct {
             logic ROW_HIT;
         } OBS_ROW_HIT[8];
@@ -107,6 +113,14 @@ module pumice_csr (
         logic OBS_AXI_R_LATENCY_AVG;
         logic OBS_AXI_R_LATENCY_P99;
         logic OBS_AXI_W_LATENCY_AVG;
+        logic REF_CTRL;
+        logic REF_TIMING_PB;
+        logic PAGE_STATS_HIT;
+        logic PAGE_STATS_MISS;
+        logic PAGE_STATS_EMPTY;
+        logic SCHED_STATS_ACT;
+        logic SCHED_STATS_PRE;
+        logic REF_STATS_REF;
         struct {
             logic WORD;
         } OBS_WORDS[9];
@@ -144,6 +158,12 @@ module pumice_csr (
         decoded_reg_strb.INIT_TIMING1 = cpuif_req_masked & (cpuif_addr == 12'h5c);
         decoded_reg_strb.DFI_PHASE = cpuif_req_masked & (cpuif_addr == 12'h60);
         decoded_reg_strb.PHY_TIMING = cpuif_req_masked & (cpuif_addr == 12'h64);
+        decoded_reg_strb.SCHED_POLICY = cpuif_req_masked & (cpuif_addr == 12'h68);
+        decoded_reg_strb.SCHED_WR_WM = cpuif_req_masked & (cpuif_addr == 12'h6c);
+        decoded_reg_strb.PAGE_POLICY_CFG = cpuif_req_masked & (cpuif_addr == 12'h70);
+        decoded_reg_strb.PAGE_TIMEOUT_CFG = cpuif_req_masked & (cpuif_addr == 12'h74);
+        decoded_reg_strb.PAGE_ADAPT_CFG = cpuif_req_masked & (cpuif_addr == 12'h78);
+        decoded_reg_strb.PAGE_RBL_CFG = cpuif_req_masked & (cpuif_addr == 12'h7c);
         for(int i0=0; i0<8; i0++) begin
             decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT = cpuif_req_masked & (cpuif_addr == 12'h80 + (12)'(i0) * 12'h4);
         end
@@ -161,6 +181,14 @@ module pumice_csr (
         decoded_reg_strb.OBS_AXI_R_LATENCY_AVG = cpuif_req_masked & (cpuif_addr == 12'h130);
         decoded_reg_strb.OBS_AXI_R_LATENCY_P99 = cpuif_req_masked & (cpuif_addr == 12'h134);
         decoded_reg_strb.OBS_AXI_W_LATENCY_AVG = cpuif_req_masked & (cpuif_addr == 12'h138);
+        decoded_reg_strb.REF_CTRL = cpuif_req_masked & (cpuif_addr == 12'h140);
+        decoded_reg_strb.REF_TIMING_PB = cpuif_req_masked & (cpuif_addr == 12'h144);
+        decoded_reg_strb.PAGE_STATS_HIT = cpuif_req_masked & (cpuif_addr == 12'h148);
+        decoded_reg_strb.PAGE_STATS_MISS = cpuif_req_masked & (cpuif_addr == 12'h14c);
+        decoded_reg_strb.PAGE_STATS_EMPTY = cpuif_req_masked & (cpuif_addr == 12'h150);
+        decoded_reg_strb.SCHED_STATS_ACT = cpuif_req_masked & (cpuif_addr == 12'h154);
+        decoded_reg_strb.SCHED_STATS_PRE = cpuif_req_masked & (cpuif_addr == 12'h158);
+        decoded_reg_strb.REF_STATS_REF = cpuif_req_masked & (cpuif_addr == 12'h15c);
         for(int i0=0; i0<9; i0++) begin
             decoded_reg_strb.OBS_WORDS[i0].WORD = cpuif_req_masked & (cpuif_addr == 12'h1c0 + (12)'(i0) * 12'h4);
         end
@@ -454,12 +482,156 @@ module pumice_csr (
         } PHY_TIMING;
         struct {
             struct {
+                logic [1:0] next;
+                logic load_next;
+            } order_mode;
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } prio_sub;
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } row_sel;
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } col_sel;
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } access_pref;
+            struct {
+                logic next;
+                logic load_next;
+            } auto_precharge_en;
+            struct {
+                logic next;
+                logic load_next;
+            } qos_en;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } age_thresh;
+        } SCHED_POLICY;
+        struct {
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } wr_high_wm;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } wr_low_wm;
+        } SCHED_WR_WM;
+        struct {
+            struct {
+                logic [2:0] next;
+                logic load_next;
+            } policy_mode;
+            struct {
+                logic next;
+                logic load_next;
+            } policy_scope;
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } ctr_width;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } ctr_open_max;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } ctr_init;
+        } PAGE_POLICY_CFG;
+        struct {
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } tr_init;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } tr_min;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } tr_max;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } tr_step;
+        } PAGE_TIMEOUT_CFG;
+        struct {
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } mc_high_thr;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } mc_low_thr;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } mc_init;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } check_interval;
+        } PAGE_ADAPT_CFG;
+        struct {
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } miss_thresh;
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } ways;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } sets;
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } reset_interval;
+        } PAGE_RBL_CFG;
+        struct {
+            struct {
                 struct {
                     logic [31:0] next;
                     logic load_next;
                 } VAL;
             } ROW_HIT;
         } OBS_ROW_HIT[8];
+        struct {
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } mode;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } postpone_limit;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } pullin_limit;
+        } REF_CTRL;
+        struct {
+            struct {
+                logic [15:0] next;
+                logic load_next;
+            } trefi_pb;
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } trfc_pb;
+        } REF_TIMING_PB;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -682,11 +854,123 @@ module pumice_csr (
         } PHY_TIMING;
         struct {
             struct {
+                logic [1:0] value;
+            } order_mode;
+            struct {
+                logic [1:0] value;
+            } prio_sub;
+            struct {
+                logic [1:0] value;
+            } row_sel;
+            struct {
+                logic [1:0] value;
+            } col_sel;
+            struct {
+                logic [1:0] value;
+            } access_pref;
+            struct {
+                logic value;
+            } auto_precharge_en;
+            struct {
+                logic value;
+            } qos_en;
+            struct {
+                logic [7:0] value;
+            } age_thresh;
+        } SCHED_POLICY;
+        struct {
+            struct {
+                logic [7:0] value;
+            } wr_high_wm;
+            struct {
+                logic [7:0] value;
+            } wr_low_wm;
+        } SCHED_WR_WM;
+        struct {
+            struct {
+                logic [2:0] value;
+            } policy_mode;
+            struct {
+                logic value;
+            } policy_scope;
+            struct {
+                logic [1:0] value;
+            } ctr_width;
+            struct {
+                logic [3:0] value;
+            } ctr_open_max;
+            struct {
+                logic [3:0] value;
+            } ctr_init;
+        } PAGE_POLICY_CFG;
+        struct {
+            struct {
+                logic [7:0] value;
+            } tr_init;
+            struct {
+                logic [7:0] value;
+            } tr_min;
+            struct {
+                logic [7:0] value;
+            } tr_max;
+            struct {
+                logic [7:0] value;
+            } tr_step;
+        } PAGE_TIMEOUT_CFG;
+        struct {
+            struct {
+                logic [3:0] value;
+            } mc_high_thr;
+            struct {
+                logic [3:0] value;
+            } mc_low_thr;
+            struct {
+                logic [3:0] value;
+            } mc_init;
+            struct {
+                logic [15:0] value;
+            } check_interval;
+        } PAGE_ADAPT_CFG;
+        struct {
+            struct {
+                logic [7:0] value;
+            } miss_thresh;
+            struct {
+                logic [1:0] value;
+            } ways;
+            struct {
+                logic [3:0] value;
+            } sets;
+            struct {
+                logic [15:0] value;
+            } reset_interval;
+        } PAGE_RBL_CFG;
+        struct {
+            struct {
                 struct {
                     logic [31:0] value;
                 } VAL;
             } ROW_HIT;
         } OBS_ROW_HIT[8];
+        struct {
+            struct {
+                logic [1:0] value;
+            } mode;
+            struct {
+                logic [3:0] value;
+            } postpone_limit;
+            struct {
+                logic [3:0] value;
+            } pullin_limit;
+        } REF_CTRL;
+        struct {
+            struct {
+                logic [15:0] value;
+            } trefi_pb;
+            struct {
+                logic [7:0] value;
+            } trfc_pb;
+        } REF_TIMING_PB;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -2027,6 +2311,627 @@ module pumice_csr (
         end
     end
     assign hwif_out.PHY_TIMING.refresh_burst.value = field_storage.PHY_TIMING.refresh_burst.value;
+    // Field: pumice_csr.SCHED_POLICY.order_mode
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_POLICY.order_mode.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_POLICY.order_mode.value & ~decoded_wr_biten[1:0]) | (decoded_wr_data[1:0] & decoded_wr_biten[1:0]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_POLICY.order_mode.next = next_c;
+        field_combo.SCHED_POLICY.order_mode.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_POLICY.order_mode.value <= 2'h0;
+        end else begin
+            if(field_combo.SCHED_POLICY.order_mode.load_next) begin
+                field_storage.SCHED_POLICY.order_mode.value <= field_combo.SCHED_POLICY.order_mode.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_POLICY.order_mode.value = field_storage.SCHED_POLICY.order_mode.value;
+    // Field: pumice_csr.SCHED_POLICY.prio_sub
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_POLICY.prio_sub.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_POLICY.prio_sub.value & ~decoded_wr_biten[3:2]) | (decoded_wr_data[3:2] & decoded_wr_biten[3:2]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_POLICY.prio_sub.next = next_c;
+        field_combo.SCHED_POLICY.prio_sub.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_POLICY.prio_sub.value <= 2'h0;
+        end else begin
+            if(field_combo.SCHED_POLICY.prio_sub.load_next) begin
+                field_storage.SCHED_POLICY.prio_sub.value <= field_combo.SCHED_POLICY.prio_sub.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_POLICY.prio_sub.value = field_storage.SCHED_POLICY.prio_sub.value;
+    // Field: pumice_csr.SCHED_POLICY.row_sel
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_POLICY.row_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_POLICY.row_sel.value & ~decoded_wr_biten[5:4]) | (decoded_wr_data[5:4] & decoded_wr_biten[5:4]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_POLICY.row_sel.next = next_c;
+        field_combo.SCHED_POLICY.row_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_POLICY.row_sel.value <= 2'h0;
+        end else begin
+            if(field_combo.SCHED_POLICY.row_sel.load_next) begin
+                field_storage.SCHED_POLICY.row_sel.value <= field_combo.SCHED_POLICY.row_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_POLICY.row_sel.value = field_storage.SCHED_POLICY.row_sel.value;
+    // Field: pumice_csr.SCHED_POLICY.col_sel
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_POLICY.col_sel.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_POLICY.col_sel.value & ~decoded_wr_biten[7:6]) | (decoded_wr_data[7:6] & decoded_wr_biten[7:6]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_POLICY.col_sel.next = next_c;
+        field_combo.SCHED_POLICY.col_sel.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_POLICY.col_sel.value <= 2'h0;
+        end else begin
+            if(field_combo.SCHED_POLICY.col_sel.load_next) begin
+                field_storage.SCHED_POLICY.col_sel.value <= field_combo.SCHED_POLICY.col_sel.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_POLICY.col_sel.value = field_storage.SCHED_POLICY.col_sel.value;
+    // Field: pumice_csr.SCHED_POLICY.access_pref
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_POLICY.access_pref.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_POLICY.access_pref.value & ~decoded_wr_biten[9:8]) | (decoded_wr_data[9:8] & decoded_wr_biten[9:8]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_POLICY.access_pref.next = next_c;
+        field_combo.SCHED_POLICY.access_pref.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_POLICY.access_pref.value <= 2'h0;
+        end else begin
+            if(field_combo.SCHED_POLICY.access_pref.load_next) begin
+                field_storage.SCHED_POLICY.access_pref.value <= field_combo.SCHED_POLICY.access_pref.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_POLICY.access_pref.value = field_storage.SCHED_POLICY.access_pref.value;
+    // Field: pumice_csr.SCHED_POLICY.auto_precharge_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_POLICY.auto_precharge_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_POLICY.auto_precharge_en.value & ~decoded_wr_biten[10:10]) | (decoded_wr_data[10:10] & decoded_wr_biten[10:10]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_POLICY.auto_precharge_en.next = next_c;
+        field_combo.SCHED_POLICY.auto_precharge_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_POLICY.auto_precharge_en.value <= 1'h0;
+        end else begin
+            if(field_combo.SCHED_POLICY.auto_precharge_en.load_next) begin
+                field_storage.SCHED_POLICY.auto_precharge_en.value <= field_combo.SCHED_POLICY.auto_precharge_en.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_POLICY.auto_precharge_en.value = field_storage.SCHED_POLICY.auto_precharge_en.value;
+    // Field: pumice_csr.SCHED_POLICY.qos_en
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_POLICY.qos_en.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_POLICY.qos_en.value & ~decoded_wr_biten[11:11]) | (decoded_wr_data[11:11] & decoded_wr_biten[11:11]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_POLICY.qos_en.next = next_c;
+        field_combo.SCHED_POLICY.qos_en.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_POLICY.qos_en.value <= 1'h0;
+        end else begin
+            if(field_combo.SCHED_POLICY.qos_en.load_next) begin
+                field_storage.SCHED_POLICY.qos_en.value <= field_combo.SCHED_POLICY.qos_en.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_POLICY.qos_en.value = field_storage.SCHED_POLICY.qos_en.value;
+    // Field: pumice_csr.SCHED_POLICY.age_thresh
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_POLICY.age_thresh.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_POLICY && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_POLICY.age_thresh.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_POLICY.age_thresh.next = next_c;
+        field_combo.SCHED_POLICY.age_thresh.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_POLICY.age_thresh.value <= 8'h0;
+        end else begin
+            if(field_combo.SCHED_POLICY.age_thresh.load_next) begin
+                field_storage.SCHED_POLICY.age_thresh.value <= field_combo.SCHED_POLICY.age_thresh.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_POLICY.age_thresh.value = field_storage.SCHED_POLICY.age_thresh.value;
+    // Field: pumice_csr.SCHED_WR_WM.wr_high_wm
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_WR_WM.wr_high_wm.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_WR_WM && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_WR_WM.wr_high_wm.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_WR_WM.wr_high_wm.next = next_c;
+        field_combo.SCHED_WR_WM.wr_high_wm.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_WR_WM.wr_high_wm.value <= 8'h0;
+        end else begin
+            if(field_combo.SCHED_WR_WM.wr_high_wm.load_next) begin
+                field_storage.SCHED_WR_WM.wr_high_wm.value <= field_combo.SCHED_WR_WM.wr_high_wm.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_WR_WM.wr_high_wm.value = field_storage.SCHED_WR_WM.wr_high_wm.value;
+    // Field: pumice_csr.SCHED_WR_WM.wr_low_wm
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.SCHED_WR_WM.wr_low_wm.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.SCHED_WR_WM && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.SCHED_WR_WM.wr_low_wm.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.SCHED_WR_WM.wr_low_wm.next = next_c;
+        field_combo.SCHED_WR_WM.wr_low_wm.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.SCHED_WR_WM.wr_low_wm.value <= 8'h0;
+        end else begin
+            if(field_combo.SCHED_WR_WM.wr_low_wm.load_next) begin
+                field_storage.SCHED_WR_WM.wr_low_wm.value <= field_combo.SCHED_WR_WM.wr_low_wm.next;
+            end
+        end
+    end
+    assign hwif_out.SCHED_WR_WM.wr_low_wm.value = field_storage.SCHED_WR_WM.wr_low_wm.value;
+    // Field: pumice_csr.PAGE_POLICY_CFG.policy_mode
+    always_comb begin
+        automatic logic [2:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_POLICY_CFG.policy_mode.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_POLICY_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_POLICY_CFG.policy_mode.value & ~decoded_wr_biten[2:0]) | (decoded_wr_data[2:0] & decoded_wr_biten[2:0]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_POLICY_CFG.policy_mode.next = next_c;
+        field_combo.PAGE_POLICY_CFG.policy_mode.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_POLICY_CFG.policy_mode.value <= 3'h0;
+        end else begin
+            if(field_combo.PAGE_POLICY_CFG.policy_mode.load_next) begin
+                field_storage.PAGE_POLICY_CFG.policy_mode.value <= field_combo.PAGE_POLICY_CFG.policy_mode.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_POLICY_CFG.policy_mode.value = field_storage.PAGE_POLICY_CFG.policy_mode.value;
+    // Field: pumice_csr.PAGE_POLICY_CFG.policy_scope
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_POLICY_CFG.policy_scope.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_POLICY_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_POLICY_CFG.policy_scope.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_POLICY_CFG.policy_scope.next = next_c;
+        field_combo.PAGE_POLICY_CFG.policy_scope.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_POLICY_CFG.policy_scope.value <= 1'h0;
+        end else begin
+            if(field_combo.PAGE_POLICY_CFG.policy_scope.load_next) begin
+                field_storage.PAGE_POLICY_CFG.policy_scope.value <= field_combo.PAGE_POLICY_CFG.policy_scope.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_POLICY_CFG.policy_scope.value = field_storage.PAGE_POLICY_CFG.policy_scope.value;
+    // Field: pumice_csr.PAGE_POLICY_CFG.ctr_width
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_POLICY_CFG.ctr_width.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_POLICY_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_POLICY_CFG.ctr_width.value & ~decoded_wr_biten[5:4]) | (decoded_wr_data[5:4] & decoded_wr_biten[5:4]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_POLICY_CFG.ctr_width.next = next_c;
+        field_combo.PAGE_POLICY_CFG.ctr_width.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_POLICY_CFG.ctr_width.value <= 2'h0;
+        end else begin
+            if(field_combo.PAGE_POLICY_CFG.ctr_width.load_next) begin
+                field_storage.PAGE_POLICY_CFG.ctr_width.value <= field_combo.PAGE_POLICY_CFG.ctr_width.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_POLICY_CFG.ctr_width.value = field_storage.PAGE_POLICY_CFG.ctr_width.value;
+    // Field: pumice_csr.PAGE_POLICY_CFG.ctr_open_max
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_POLICY_CFG.ctr_open_max.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_POLICY_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_POLICY_CFG.ctr_open_max.value & ~decoded_wr_biten[9:6]) | (decoded_wr_data[9:6] & decoded_wr_biten[9:6]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_POLICY_CFG.ctr_open_max.next = next_c;
+        field_combo.PAGE_POLICY_CFG.ctr_open_max.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_POLICY_CFG.ctr_open_max.value <= 4'h0;
+        end else begin
+            if(field_combo.PAGE_POLICY_CFG.ctr_open_max.load_next) begin
+                field_storage.PAGE_POLICY_CFG.ctr_open_max.value <= field_combo.PAGE_POLICY_CFG.ctr_open_max.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_POLICY_CFG.ctr_open_max.value = field_storage.PAGE_POLICY_CFG.ctr_open_max.value;
+    // Field: pumice_csr.PAGE_POLICY_CFG.ctr_init
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_POLICY_CFG.ctr_init.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_POLICY_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_POLICY_CFG.ctr_init.value & ~decoded_wr_biten[13:10]) | (decoded_wr_data[13:10] & decoded_wr_biten[13:10]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_POLICY_CFG.ctr_init.next = next_c;
+        field_combo.PAGE_POLICY_CFG.ctr_init.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_POLICY_CFG.ctr_init.value <= 4'h0;
+        end else begin
+            if(field_combo.PAGE_POLICY_CFG.ctr_init.load_next) begin
+                field_storage.PAGE_POLICY_CFG.ctr_init.value <= field_combo.PAGE_POLICY_CFG.ctr_init.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_POLICY_CFG.ctr_init.value = field_storage.PAGE_POLICY_CFG.ctr_init.value;
+    // Field: pumice_csr.PAGE_TIMEOUT_CFG.tr_init
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_TIMEOUT_CFG.tr_init.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_TIMEOUT_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_TIMEOUT_CFG.tr_init.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_TIMEOUT_CFG.tr_init.next = next_c;
+        field_combo.PAGE_TIMEOUT_CFG.tr_init.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_TIMEOUT_CFG.tr_init.value <= 8'h0;
+        end else begin
+            if(field_combo.PAGE_TIMEOUT_CFG.tr_init.load_next) begin
+                field_storage.PAGE_TIMEOUT_CFG.tr_init.value <= field_combo.PAGE_TIMEOUT_CFG.tr_init.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_TIMEOUT_CFG.tr_init.value = field_storage.PAGE_TIMEOUT_CFG.tr_init.value;
+    // Field: pumice_csr.PAGE_TIMEOUT_CFG.tr_min
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_TIMEOUT_CFG.tr_min.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_TIMEOUT_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_TIMEOUT_CFG.tr_min.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_TIMEOUT_CFG.tr_min.next = next_c;
+        field_combo.PAGE_TIMEOUT_CFG.tr_min.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_TIMEOUT_CFG.tr_min.value <= 8'h0;
+        end else begin
+            if(field_combo.PAGE_TIMEOUT_CFG.tr_min.load_next) begin
+                field_storage.PAGE_TIMEOUT_CFG.tr_min.value <= field_combo.PAGE_TIMEOUT_CFG.tr_min.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_TIMEOUT_CFG.tr_min.value = field_storage.PAGE_TIMEOUT_CFG.tr_min.value;
+    // Field: pumice_csr.PAGE_TIMEOUT_CFG.tr_max
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_TIMEOUT_CFG.tr_max.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_TIMEOUT_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_TIMEOUT_CFG.tr_max.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_TIMEOUT_CFG.tr_max.next = next_c;
+        field_combo.PAGE_TIMEOUT_CFG.tr_max.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_TIMEOUT_CFG.tr_max.value <= 8'h0;
+        end else begin
+            if(field_combo.PAGE_TIMEOUT_CFG.tr_max.load_next) begin
+                field_storage.PAGE_TIMEOUT_CFG.tr_max.value <= field_combo.PAGE_TIMEOUT_CFG.tr_max.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_TIMEOUT_CFG.tr_max.value = field_storage.PAGE_TIMEOUT_CFG.tr_max.value;
+    // Field: pumice_csr.PAGE_TIMEOUT_CFG.tr_step
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_TIMEOUT_CFG.tr_step.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_TIMEOUT_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_TIMEOUT_CFG.tr_step.value & ~decoded_wr_biten[31:24]) | (decoded_wr_data[31:24] & decoded_wr_biten[31:24]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_TIMEOUT_CFG.tr_step.next = next_c;
+        field_combo.PAGE_TIMEOUT_CFG.tr_step.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_TIMEOUT_CFG.tr_step.value <= 8'h0;
+        end else begin
+            if(field_combo.PAGE_TIMEOUT_CFG.tr_step.load_next) begin
+                field_storage.PAGE_TIMEOUT_CFG.tr_step.value <= field_combo.PAGE_TIMEOUT_CFG.tr_step.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_TIMEOUT_CFG.tr_step.value = field_storage.PAGE_TIMEOUT_CFG.tr_step.value;
+    // Field: pumice_csr.PAGE_ADAPT_CFG.mc_high_thr
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_ADAPT_CFG.mc_high_thr.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_ADAPT_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_ADAPT_CFG.mc_high_thr.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_ADAPT_CFG.mc_high_thr.next = next_c;
+        field_combo.PAGE_ADAPT_CFG.mc_high_thr.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_ADAPT_CFG.mc_high_thr.value <= 4'h0;
+        end else begin
+            if(field_combo.PAGE_ADAPT_CFG.mc_high_thr.load_next) begin
+                field_storage.PAGE_ADAPT_CFG.mc_high_thr.value <= field_combo.PAGE_ADAPT_CFG.mc_high_thr.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_ADAPT_CFG.mc_high_thr.value = field_storage.PAGE_ADAPT_CFG.mc_high_thr.value;
+    // Field: pumice_csr.PAGE_ADAPT_CFG.mc_low_thr
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_ADAPT_CFG.mc_low_thr.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_ADAPT_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_ADAPT_CFG.mc_low_thr.value & ~decoded_wr_biten[7:4]) | (decoded_wr_data[7:4] & decoded_wr_biten[7:4]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_ADAPT_CFG.mc_low_thr.next = next_c;
+        field_combo.PAGE_ADAPT_CFG.mc_low_thr.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_ADAPT_CFG.mc_low_thr.value <= 4'h0;
+        end else begin
+            if(field_combo.PAGE_ADAPT_CFG.mc_low_thr.load_next) begin
+                field_storage.PAGE_ADAPT_CFG.mc_low_thr.value <= field_combo.PAGE_ADAPT_CFG.mc_low_thr.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_ADAPT_CFG.mc_low_thr.value = field_storage.PAGE_ADAPT_CFG.mc_low_thr.value;
+    // Field: pumice_csr.PAGE_ADAPT_CFG.mc_init
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_ADAPT_CFG.mc_init.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_ADAPT_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_ADAPT_CFG.mc_init.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_ADAPT_CFG.mc_init.next = next_c;
+        field_combo.PAGE_ADAPT_CFG.mc_init.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_ADAPT_CFG.mc_init.value <= 4'h0;
+        end else begin
+            if(field_combo.PAGE_ADAPT_CFG.mc_init.load_next) begin
+                field_storage.PAGE_ADAPT_CFG.mc_init.value <= field_combo.PAGE_ADAPT_CFG.mc_init.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_ADAPT_CFG.mc_init.value = field_storage.PAGE_ADAPT_CFG.mc_init.value;
+    // Field: pumice_csr.PAGE_ADAPT_CFG.check_interval
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_ADAPT_CFG.check_interval.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_ADAPT_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_ADAPT_CFG.check_interval.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_ADAPT_CFG.check_interval.next = next_c;
+        field_combo.PAGE_ADAPT_CFG.check_interval.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_ADAPT_CFG.check_interval.value <= 16'h0;
+        end else begin
+            if(field_combo.PAGE_ADAPT_CFG.check_interval.load_next) begin
+                field_storage.PAGE_ADAPT_CFG.check_interval.value <= field_combo.PAGE_ADAPT_CFG.check_interval.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_ADAPT_CFG.check_interval.value = field_storage.PAGE_ADAPT_CFG.check_interval.value;
+    // Field: pumice_csr.PAGE_RBL_CFG.miss_thresh
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_RBL_CFG.miss_thresh.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_RBL_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_RBL_CFG.miss_thresh.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_RBL_CFG.miss_thresh.next = next_c;
+        field_combo.PAGE_RBL_CFG.miss_thresh.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_RBL_CFG.miss_thresh.value <= 8'h0;
+        end else begin
+            if(field_combo.PAGE_RBL_CFG.miss_thresh.load_next) begin
+                field_storage.PAGE_RBL_CFG.miss_thresh.value <= field_combo.PAGE_RBL_CFG.miss_thresh.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_RBL_CFG.miss_thresh.value = field_storage.PAGE_RBL_CFG.miss_thresh.value;
+    // Field: pumice_csr.PAGE_RBL_CFG.ways
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_RBL_CFG.ways.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_RBL_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_RBL_CFG.ways.value & ~decoded_wr_biten[9:8]) | (decoded_wr_data[9:8] & decoded_wr_biten[9:8]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_RBL_CFG.ways.next = next_c;
+        field_combo.PAGE_RBL_CFG.ways.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_RBL_CFG.ways.value <= 2'h0;
+        end else begin
+            if(field_combo.PAGE_RBL_CFG.ways.load_next) begin
+                field_storage.PAGE_RBL_CFG.ways.value <= field_combo.PAGE_RBL_CFG.ways.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_RBL_CFG.ways.value = field_storage.PAGE_RBL_CFG.ways.value;
+    // Field: pumice_csr.PAGE_RBL_CFG.sets
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_RBL_CFG.sets.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_RBL_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_RBL_CFG.sets.value & ~decoded_wr_biten[13:10]) | (decoded_wr_data[13:10] & decoded_wr_biten[13:10]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_RBL_CFG.sets.next = next_c;
+        field_combo.PAGE_RBL_CFG.sets.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_RBL_CFG.sets.value <= 4'h0;
+        end else begin
+            if(field_combo.PAGE_RBL_CFG.sets.load_next) begin
+                field_storage.PAGE_RBL_CFG.sets.value <= field_combo.PAGE_RBL_CFG.sets.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_RBL_CFG.sets.value = field_storage.PAGE_RBL_CFG.sets.value;
+    // Field: pumice_csr.PAGE_RBL_CFG.reset_interval
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.PAGE_RBL_CFG.reset_interval.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.PAGE_RBL_CFG && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.PAGE_RBL_CFG.reset_interval.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+            load_next_c = '1;
+        end
+        field_combo.PAGE_RBL_CFG.reset_interval.next = next_c;
+        field_combo.PAGE_RBL_CFG.reset_interval.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.PAGE_RBL_CFG.reset_interval.value <= 16'h0;
+        end else begin
+            if(field_combo.PAGE_RBL_CFG.reset_interval.load_next) begin
+                field_storage.PAGE_RBL_CFG.reset_interval.value <= field_combo.PAGE_RBL_CFG.reset_interval.next;
+            end
+        end
+    end
+    assign hwif_out.PAGE_RBL_CFG.reset_interval.value = field_storage.PAGE_RBL_CFG.reset_interval.value;
     for(genvar i0=0; i0<8; i0++) begin
         // Field: pumice_csr.OBS_ROW_HIT[].ROW_HIT.VAL
         always_comb begin
@@ -2053,6 +2958,121 @@ module pumice_csr (
             end
         end
     end
+    // Field: pumice_csr.REF_CTRL.mode
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_CTRL.mode.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_CTRL.mode.value & ~decoded_wr_biten[1:0]) | (decoded_wr_data[1:0] & decoded_wr_biten[1:0]);
+            load_next_c = '1;
+        end
+        field_combo.REF_CTRL.mode.next = next_c;
+        field_combo.REF_CTRL.mode.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_CTRL.mode.value <= 2'h0;
+        end else begin
+            if(field_combo.REF_CTRL.mode.load_next) begin
+                field_storage.REF_CTRL.mode.value <= field_combo.REF_CTRL.mode.next;
+            end
+        end
+    end
+    assign hwif_out.REF_CTRL.mode.value = field_storage.REF_CTRL.mode.value;
+    // Field: pumice_csr.REF_CTRL.postpone_limit
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_CTRL.postpone_limit.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_CTRL.postpone_limit.value & ~decoded_wr_biten[7:4]) | (decoded_wr_data[7:4] & decoded_wr_biten[7:4]);
+            load_next_c = '1;
+        end
+        field_combo.REF_CTRL.postpone_limit.next = next_c;
+        field_combo.REF_CTRL.postpone_limit.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_CTRL.postpone_limit.value <= 4'h0;
+        end else begin
+            if(field_combo.REF_CTRL.postpone_limit.load_next) begin
+                field_storage.REF_CTRL.postpone_limit.value <= field_combo.REF_CTRL.postpone_limit.next;
+            end
+        end
+    end
+    assign hwif_out.REF_CTRL.postpone_limit.value = field_storage.REF_CTRL.postpone_limit.value;
+    // Field: pumice_csr.REF_CTRL.pullin_limit
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_CTRL.pullin_limit.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_CTRL.pullin_limit.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.REF_CTRL.pullin_limit.next = next_c;
+        field_combo.REF_CTRL.pullin_limit.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_CTRL.pullin_limit.value <= 4'h0;
+        end else begin
+            if(field_combo.REF_CTRL.pullin_limit.load_next) begin
+                field_storage.REF_CTRL.pullin_limit.value <= field_combo.REF_CTRL.pullin_limit.next;
+            end
+        end
+    end
+    assign hwif_out.REF_CTRL.pullin_limit.value = field_storage.REF_CTRL.pullin_limit.value;
+    // Field: pumice_csr.REF_TIMING_PB.trefi_pb
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_TIMING_PB.trefi_pb.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_TIMING_PB && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_TIMING_PB.trefi_pb.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.REF_TIMING_PB.trefi_pb.next = next_c;
+        field_combo.REF_TIMING_PB.trefi_pb.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_TIMING_PB.trefi_pb.value <= 16'h0;
+        end else begin
+            if(field_combo.REF_TIMING_PB.trefi_pb.load_next) begin
+                field_storage.REF_TIMING_PB.trefi_pb.value <= field_combo.REF_TIMING_PB.trefi_pb.next;
+            end
+        end
+    end
+    assign hwif_out.REF_TIMING_PB.trefi_pb.value = field_storage.REF_TIMING_PB.trefi_pb.value;
+    // Field: pumice_csr.REF_TIMING_PB.trfc_pb
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.REF_TIMING_PB.trfc_pb.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.REF_TIMING_PB && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.REF_TIMING_PB.trfc_pb.value & ~decoded_wr_biten[23:16]) | (decoded_wr_data[23:16] & decoded_wr_biten[23:16]);
+            load_next_c = '1;
+        end
+        field_combo.REF_TIMING_PB.trfc_pb.next = next_c;
+        field_combo.REF_TIMING_PB.trfc_pb.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.REF_TIMING_PB.trfc_pb.value <= 8'h0;
+        end else begin
+            if(field_combo.REF_TIMING_PB.trfc_pb.load_next) begin
+                field_storage.REF_TIMING_PB.trfc_pb.value <= field_combo.REF_TIMING_PB.trfc_pb.next;
+            end
+        end
+    end
+    assign hwif_out.REF_TIMING_PB.trfc_pb.value = field_storage.REF_TIMING_PB.trfc_pb.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -2070,7 +3090,7 @@ module pumice_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[62];
+    logic [31:0] readback_array[76];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -2165,31 +3185,79 @@ module pumice_csr (
     assign readback_array[23][19:17] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 3'h0 : '0;
     assign readback_array[23][23:20] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.refresh_burst.value : '0;
     assign readback_array[23][31:24] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[24][1:0] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.order_mode.value : '0;
+    assign readback_array[24][3:2] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.prio_sub.value : '0;
+    assign readback_array[24][5:4] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.row_sel.value : '0;
+    assign readback_array[24][7:6] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.col_sel.value : '0;
+    assign readback_array[24][9:8] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.access_pref.value : '0;
+    assign readback_array[24][10:10] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.auto_precharge_en.value : '0;
+    assign readback_array[24][11:11] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.qos_en.value : '0;
+    assign readback_array[24][15:12] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[24][23:16] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.age_thresh.value : '0;
+    assign readback_array[24][31:24] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[25][7:0] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_high_wm.value : '0;
+    assign readback_array[25][15:8] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_low_wm.value : '0;
+    assign readback_array[25][31:16] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[26][2:0] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_mode.value : '0;
+    assign readback_array[26][3:3] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_scope.value : '0;
+    assign readback_array[26][5:4] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_width.value : '0;
+    assign readback_array[26][9:6] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_open_max.value : '0;
+    assign readback_array[26][13:10] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.ctr_init.value : '0;
+    assign readback_array[26][31:14] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 18'h0 : '0;
+    assign readback_array[27][7:0] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_init.value : '0;
+    assign readback_array[27][15:8] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_min.value : '0;
+    assign readback_array[27][23:16] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_max.value : '0;
+    assign readback_array[27][31:24] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_step.value : '0;
+    assign readback_array[28][3:0] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.mc_high_thr.value : '0;
+    assign readback_array[28][7:4] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.mc_low_thr.value : '0;
+    assign readback_array[28][11:8] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.mc_init.value : '0;
+    assign readback_array[28][15:12] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[28][31:16] = (decoded_reg_strb.PAGE_ADAPT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_ADAPT_CFG.check_interval.value : '0;
+    assign readback_array[29][7:0] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.miss_thresh.value : '0;
+    assign readback_array[29][9:8] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.ways.value : '0;
+    assign readback_array[29][13:10] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.sets.value : '0;
+    assign readback_array[29][15:14] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? 2'h0 : '0;
+    assign readback_array[29][31:16] = (decoded_reg_strb.PAGE_RBL_CFG && !decoded_req_is_wr) ? field_storage.PAGE_RBL_CFG.reset_interval.value : '0;
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 24][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? field_storage.OBS_ROW_HIT[i0].ROW_HIT.VAL.value : '0;
+        assign readback_array[i0 * 1 + 30][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? field_storage.OBS_ROW_HIT[i0].ROW_HIT.VAL.value : '0;
     end
     for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 32][31:0] = (decoded_reg_strb.OBS_REF_LATENCY[i0].REF_LAT && !decoded_req_is_wr) ? hwif_in.OBS_REF_LATENCY[i0].REF_LAT.VAL.next : '0;
+        assign readback_array[i0 * 1 + 38][31:0] = (decoded_reg_strb.OBS_REF_LATENCY[i0].REF_LAT && !decoded_req_is_wr) ? hwif_in.OBS_REF_LATENCY[i0].REF_LAT.VAL.next : '0;
     end
-    assign readback_array[40][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_MAX && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_MAX.VAL.next : '0;
-    assign readback_array[41][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_AVG && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_AVG.VAL.next : '0;
-    assign readback_array[42][31:0] = (decoded_reg_strb.OBS_REFRESH_PENDING_MAX && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_PENDING_MAX.VAL.next : '0;
-    assign readback_array[43][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_0 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_0.VAL.next : '0;
-    assign readback_array[44][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_1 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_1.VAL.next : '0;
-    assign readback_array[45][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_2 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_2.VAL.next : '0;
-    assign readback_array[46][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_3 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_3.VAL.next : '0;
-    assign readback_array[47][31:0] = (decoded_reg_strb.OBS_PAGE_PRED_ACCURACY && !decoded_req_is_wr) ? hwif_in.OBS_PAGE_PRED_ACCURACY.VAL.next : '0;
-    assign readback_array[48][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_AVG.VAL.next : '0;
-    assign readback_array[49][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_P99 && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_P99.VAL.next : '0;
-    assign readback_array[50][31:0] = (decoded_reg_strb.OBS_AXI_W_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_W_LATENCY_AVG.VAL.next : '0;
+    assign readback_array[46][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_MAX && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_MAX.VAL.next : '0;
+    assign readback_array[47][31:0] = (decoded_reg_strb.OBS_TXN_QUEUE_DEPTH_AVG && !decoded_req_is_wr) ? hwif_in.OBS_TXN_QUEUE_DEPTH_AVG.VAL.next : '0;
+    assign readback_array[48][31:0] = (decoded_reg_strb.OBS_REFRESH_PENDING_MAX && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_PENDING_MAX.VAL.next : '0;
+    assign readback_array[49][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_0 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_0.VAL.next : '0;
+    assign readback_array[50][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_1 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_1.VAL.next : '0;
+    assign readback_array[51][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_2 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_2.VAL.next : '0;
+    assign readback_array[52][31:0] = (decoded_reg_strb.OBS_REFRESH_DEFER_HIST_3 && !decoded_req_is_wr) ? hwif_in.OBS_REFRESH_DEFER_HIST_3.VAL.next : '0;
+    assign readback_array[53][31:0] = (decoded_reg_strb.OBS_PAGE_PRED_ACCURACY && !decoded_req_is_wr) ? hwif_in.OBS_PAGE_PRED_ACCURACY.VAL.next : '0;
+    assign readback_array[54][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_AVG.VAL.next : '0;
+    assign readback_array[55][31:0] = (decoded_reg_strb.OBS_AXI_R_LATENCY_P99 && !decoded_req_is_wr) ? hwif_in.OBS_AXI_R_LATENCY_P99.VAL.next : '0;
+    assign readback_array[56][31:0] = (decoded_reg_strb.OBS_AXI_W_LATENCY_AVG && !decoded_req_is_wr) ? hwif_in.OBS_AXI_W_LATENCY_AVG.VAL.next : '0;
+    assign readback_array[57][1:0] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.mode.value : '0;
+    assign readback_array[57][3:2] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
+    assign readback_array[57][7:4] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.postpone_limit.value : '0;
+    assign readback_array[57][11:8] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? field_storage.REF_CTRL.pullin_limit.value : '0;
+    assign readback_array[57][12:12] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? hwif_in.REF_CTRL.perbank_supported.next : '0;
+    assign readback_array[57][31:13] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 19'h0 : '0;
+    assign readback_array[58][15:0] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trefi_pb.value : '0;
+    assign readback_array[58][23:16] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trfc_pb.value : '0;
+    assign readback_array[58][31:24] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[59][31:0] = (decoded_reg_strb.PAGE_STATS_HIT && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_HIT.count.next : '0;
+    assign readback_array[60][31:0] = (decoded_reg_strb.PAGE_STATS_MISS && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_MISS.count.next : '0;
+    assign readback_array[61][31:0] = (decoded_reg_strb.PAGE_STATS_EMPTY && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_EMPTY.count.next : '0;
+    assign readback_array[62][31:0] = (decoded_reg_strb.SCHED_STATS_ACT && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_ACT.count.next : '0;
+    assign readback_array[63][31:0] = (decoded_reg_strb.SCHED_STATS_PRE && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_PRE.count.next : '0;
+    assign readback_array[64][31:0] = (decoded_reg_strb.REF_STATS_REF && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF.count.next : '0;
     for(genvar i0=0; i0<9; i0++) begin
-        assign readback_array[i0 * 1 + 51][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
+        assign readback_array[i0 * 1 + 65][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
     end
-    assign readback_array[60][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[60][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[60][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[60][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[61][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[74][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[74][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[74][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[74][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[75][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2197,7 +3265,7 @@ module pumice_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<62; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<76; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

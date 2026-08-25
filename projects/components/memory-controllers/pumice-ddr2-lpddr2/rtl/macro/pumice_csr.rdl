@@ -587,6 +587,238 @@ addrmap pumice_csr {
     } OBS_WORDS[9] @ 0x1C0 += 0x4;
 
     //=========================================================================
+    // Advanced-mode select CSRs (0x068 – 0x07C, 0x140 – 0x15C) — PUMICE-006
+    //
+    // The characterization surface from design-requirements.md "Advanced
+    // modes": every mechanism is a config-bit-selectable MODE, added serially
+    // behind its own enable, reset = the build default (bit-identical to the
+    // pre-PUMICE-006 controller). These registers land FIRST, before any
+    // consuming logic, so the software surface is stable while the modes
+    // arrive one red->green step at a time. Encodings with value 0 always
+    // mean "build default / current behavior".
+    //
+    // The legacy knobs (SCHED_TUNING.force_inorder / lookahead,
+    // REFRESH_TUNING.page_policy_or / refpb_policy_or / refresh_defer_active)
+    // remain live and authoritative until the corresponding mode consumes its
+    // NEW field here; each mode's landing commit retires or aliases the old
+    // knob explicitly. Until then hardware ignores these fields.
+    //=========================================================================
+
+    reg {
+        name = "Scheduler Policy";
+        desc = "Axis 1 (Rixner FR-FCFS variants). All fields 0 = build default.";
+
+        field {
+            sw = rw; hw = r;
+            desc = "0=build default, 1=in_order, 2=fr_fcfs, 3=age_threshold";
+        } order_mode[1:0] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Priority sub-policy: 0=default, 1=none, 2=load_over_store, 3=age_boost";
+        } prio_sub[3:2] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Row-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending";
+        } row_sel[5:4] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Column-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending";
+        } col_sel[7:6] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Address-arbiter class preference: 0=default, 1=column_first, 2=row_first, 3=precharge_first";
+        } access_pref[9:8] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "1 = fuse auto-precharge into the last column op of a row";
+        } auto_precharge_en[10:10] = 1'b0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "1 = factor AxQOS into the pick (highest ready first, age tie-break)";
+        } qos_en[11:11] = 1'b0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_15_12[15:12] = 4'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "age_threshold mode: age (MC cycles/16) above which a reference is boosted";
+        } age_thresh[23:16] = 8'h0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_24[31:24] = 8'h0;
+
+    } SCHED_POLICY @ 0x068;
+
+    reg {
+        name = "Scheduler Write Watermarks";
+        desc = "Write-batching drain hysteresis. 0/0 = build default (no batching).";
+
+        field {
+            sw = rw; hw = r;
+            desc = "Start back-to-back write drain when the write buffer crosses this";
+        } wr_high_wm[7:0] = 8'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Stop the drain when occupancy falls to this";
+        } wr_low_wm[15:8] = 8'h0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:16] = 16'h0;
+
+    } SCHED_WR_WM @ 0x06C;
+
+    reg {
+        name = "Page Policy Config";
+        desc = "Axis 2 mode select + Happy-hybrid counter shape. 0 = build default.";
+
+        field {
+            sw = rw; hw = r;
+            desc = "0=build default, 1=static_open, 2=static_close, 3=fixed_open, 4=adapt_time, 5=adapt_access, 6=rbl_static, 7=rbl_dyn";
+        } policy_mode[2:0] = 3'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "0 = per-bank decision state, 1 = global";
+        } policy_scope[3:3] = 1'b0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "adapt_access counter width select (0=2-bit)";
+        } ctr_width[5:4] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "adapt_access: counter value at/above which the row is CLOSED";
+        } ctr_open_max[9:6] = 4'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "adapt_access: counter init value";
+        } ctr_init[13:10] = 4'h0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:14] = 18'h0;
+
+    } PAGE_POLICY_CFG @ 0x070;
+
+    reg {
+        name = "Page Timeout Config";
+        desc = "fixed_open / adapt_time timeout register bounds (MC cycles).";
+
+        field { sw = rw; hw = r; desc = "TR init (fixed_open uses this alone; ~tRC)"; } tr_init[7:0]  = 8'h0;
+        field { sw = rw; hw = r; desc = "adapt_time TR lower clamp";                  } tr_min[15:8]  = 8'h0;
+        field { sw = rw; hw = r; desc = "adapt_time TR upper clamp";                  } tr_max[23:16] = 8'h0;
+        field { sw = rw; hw = r; desc = "adapt_time TR adjustment step";              } tr_step[31:24] = 8'h0;
+
+    } PAGE_TIMEOUT_CFG @ 0x074;
+
+    reg {
+        name = "Page Adaptive Config";
+        desc = "adapt_time (Happy Intel-adaptive) mistake-counter thresholds.";
+
+        field { sw = rw; hw = r; desc = "MC high threshold (TR += step above)";  } mc_high_thr[3:0]  = 4'h0;
+        field { sw = rw; hw = r; desc = "MC low threshold (TR -= step below)";   } mc_low_thr[7:4]   = 4'h0;
+        field { sw = rw; hw = r; desc = "MC init value";                          } mc_init[11:8]     = 4'h0;
+        field { sw = r; hw = na; desc = "Reserved";                               } RSVD[15:12] = 4'h0;
+        field { sw = rw; hw = r; desc = "Cycles between MC evaluations";          } check_interval[31:16] = 16'h0;
+
+    } PAGE_ADAPT_CFG @ 0x078;
+
+    reg {
+        name = "Page RBL Config";
+        desc = "RBLA/Yoon miss-counter table shape. rbl_dyn hill-climb weights land with that mode.";
+
+        field { sw = rw; hw = r; desc = "Miss count above which a row is low-locality (auto-precharge)"; } miss_thresh[7:0] = 8'h0;
+        field { sw = rw; hw = r; desc = "log2 table ways";                        } ways[9:8]   = 2'h0;
+        field { sw = rw; hw = r; desc = "log2 table sets";                        } sets[13:10] = 4'h0;
+        field { sw = r; hw = na; desc = "Reserved";                               } RSVD[15:14] = 2'h0;
+        field { sw = rw; hw = r; desc = "Epoch length: counters reset every N cycles (0=never)"; } reset_interval[31:16] = 16'h0;
+
+    } PAGE_RBL_CFG @ 0x07C;
+
+    reg {
+        name = "Refresh Mode Control";
+        desc = "Axis 3 mode + JEDEC +-8 credit limits. tREFI/tRFCab live in TIMINGS_RFC_REFI (not duplicated).";
+
+        field {
+            sw = rw; hw = r;
+            desc = "0=build default (REFab), 1=REFab, 2=REFpb round-robin (LPDDR2)";
+        } mode[1:0] = 2'h0;
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_3_2[3:2] = 2'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Max refreshes postponed under demand (0..8; 0 = strict)";
+        } postpone_limit[7:4] = 4'h0;
+
+        field {
+            sw = rw; hw = r;
+            desc = "Max refreshes pulled in on idle (0..8; 0 = strict)";
+        } pullin_limit[11:8] = 4'h0;
+
+        field {
+            sw = r; hw = w;
+            desc = "Capability strap: 1 = the DRAM supports per-bank refresh";
+        } perbank_supported[12:12];
+
+        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_13[31:13] = 19'h0;
+
+    } REF_CTRL @ 0x140;
+
+    reg {
+        name = "Per-Bank Refresh Timing";
+        desc = "REFpb intervals (MC cycles). All-bank tREFI/tRFCab stay in TIMINGS_RFC_REFI.";
+
+        field { sw = rw; hw = r; desc = "tREFIpb (~tREFI/8; 0 = derive from tREFI)"; } trefi_pb[15:0] = 16'h0;
+        field { sw = rw; hw = r; desc = "tRFCpb recovery";                            } trfc_pb[23:16] = 8'h0;
+        field { sw = r; hw = na; desc = "Reserved";                                   } RSVD[31:24] = 8'h0;
+
+    } REF_TIMING_PB @ 0x144;
+
+    //-------------------------------------------------------------------------
+    // Mode telemetry (read-only). Complements the existing OBS_* set:
+    // OBS_ROW_HIT[8] (per-bank hits) and OBS_REFRESH_DEFER_HIST_0..3 already
+    // exist; these add the GLOBAL page-outcome and command-class counters the
+    // in-system sweeps compare across modes. Per-bank TR readback lands with
+    // adapt_time. All are tied to 0 until the counting logic lands.
+    //-------------------------------------------------------------------------
+
+    reg {
+        name = "Page Stats: Hits";
+        field { sw = r; hw = w; desc = "Column ops issued to an already-open row"; } count[31:0];
+    } PAGE_STATS_HIT @ 0x148;
+
+    reg {
+        name = "Page Stats: Misses";
+        field { sw = r; hw = w; desc = "Column ops that required PRE+ACT (conflict)"; } count[31:0];
+    } PAGE_STATS_MISS @ 0x14C;
+
+    reg {
+        name = "Page Stats: Empties";
+        field { sw = r; hw = w; desc = "Column ops that required ACT only (bank closed)"; } count[31:0];
+    } PAGE_STATS_EMPTY @ 0x150;
+
+    reg {
+        name = "Sched Stats: Activates";
+        field { sw = r; hw = w; desc = "ACT commands issued"; } count[31:0];
+    } SCHED_STATS_ACT @ 0x154;
+
+    reg {
+        name = "Sched Stats: Precharges";
+        field { sw = r; hw = w; desc = "PRE + PREA commands issued"; } count[31:0];
+    } SCHED_STATS_PRE @ 0x158;
+
+    reg {
+        name = "Refresh Stats: Refreshes";
+        field { sw = r; hw = w; desc = "REFab + REFpb commands issued"; } count[31:0];
+    } REF_STATS_REF @ 0x15C;
+
+    //=========================================================================
     // Module Identification (0xFF0 – 0xFFC)
     //=========================================================================
 

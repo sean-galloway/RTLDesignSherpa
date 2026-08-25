@@ -177,6 +177,62 @@ package pumice_csr_pkg;
     } pumice_csr__OBS_AXI_W_LATENCY_AVG__in_t;
 
     typedef struct {
+        logic next;
+    } pumice_csr__REF_CTRL__perbank_supported__in_t;
+
+    typedef struct {
+        pumice_csr__REF_CTRL__perbank_supported__in_t perbank_supported;
+    } pumice_csr__REF_CTRL__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__PAGE_STATS_HIT__count__in_t;
+
+    typedef struct {
+        pumice_csr__PAGE_STATS_HIT__count__in_t count;
+    } pumice_csr__PAGE_STATS_HIT__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__PAGE_STATS_MISS__count__in_t;
+
+    typedef struct {
+        pumice_csr__PAGE_STATS_MISS__count__in_t count;
+    } pumice_csr__PAGE_STATS_MISS__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__PAGE_STATS_EMPTY__count__in_t;
+
+    typedef struct {
+        pumice_csr__PAGE_STATS_EMPTY__count__in_t count;
+    } pumice_csr__PAGE_STATS_EMPTY__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__SCHED_STATS_ACT__count__in_t;
+
+    typedef struct {
+        pumice_csr__SCHED_STATS_ACT__count__in_t count;
+    } pumice_csr__SCHED_STATS_ACT__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__SCHED_STATS_PRE__count__in_t;
+
+    typedef struct {
+        pumice_csr__SCHED_STATS_PRE__count__in_t count;
+    } pumice_csr__SCHED_STATS_PRE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__REF_STATS_REF__count__in_t;
+
+    typedef struct {
+        pumice_csr__REF_STATS_REF__count__in_t count;
+    } pumice_csr__REF_STATS_REF__in_t;
+
+    typedef struct {
         logic [31:0] next;
     } pumice_csr__OBS_WORDS__WORD__VAL__in_t;
 
@@ -206,6 +262,13 @@ package pumice_csr_pkg;
         pumice_csr__OBS_AXI_R_LATENCY_AVG__in_t OBS_AXI_R_LATENCY_AVG;
         pumice_csr__OBS_AXI_R_LATENCY_P99__in_t OBS_AXI_R_LATENCY_P99;
         pumice_csr__OBS_AXI_W_LATENCY_AVG__in_t OBS_AXI_W_LATENCY_AVG;
+        pumice_csr__REF_CTRL__in_t REF_CTRL;
+        pumice_csr__PAGE_STATS_HIT__in_t PAGE_STATS_HIT;
+        pumice_csr__PAGE_STATS_MISS__in_t PAGE_STATS_MISS;
+        pumice_csr__PAGE_STATS_EMPTY__in_t PAGE_STATS_EMPTY;
+        pumice_csr__SCHED_STATS_ACT__in_t SCHED_STATS_ACT;
+        pumice_csr__SCHED_STATS_PRE__in_t SCHED_STATS_PRE;
+        pumice_csr__REF_STATS_REF__in_t REF_STATS_REF;
         pumice_csr__OBS_WORDS__in_t OBS_WORDS[9];
     } pumice_csr__in_t;
 
@@ -566,6 +629,190 @@ package pumice_csr_pkg;
     } pumice_csr__PHY_TIMING__out_t;
 
     typedef struct {
+        logic [1:0] value;
+    } pumice_csr__SCHED_POLICY__order_mode__out_t;
+
+    typedef struct {
+        logic [1:0] value;
+    } pumice_csr__SCHED_POLICY__prio_sub__out_t;
+
+    typedef struct {
+        logic [1:0] value;
+    } pumice_csr__SCHED_POLICY__row_sel__out_t;
+
+    typedef struct {
+        logic [1:0] value;
+    } pumice_csr__SCHED_POLICY__col_sel__out_t;
+
+    typedef struct {
+        logic [1:0] value;
+    } pumice_csr__SCHED_POLICY__access_pref__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__SCHED_POLICY__auto_precharge_en__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__SCHED_POLICY__qos_en__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__SCHED_POLICY__age_thresh__out_t;
+
+    typedef struct {
+        pumice_csr__SCHED_POLICY__order_mode__out_t order_mode;
+        pumice_csr__SCHED_POLICY__prio_sub__out_t prio_sub;
+        pumice_csr__SCHED_POLICY__row_sel__out_t row_sel;
+        pumice_csr__SCHED_POLICY__col_sel__out_t col_sel;
+        pumice_csr__SCHED_POLICY__access_pref__out_t access_pref;
+        pumice_csr__SCHED_POLICY__auto_precharge_en__out_t auto_precharge_en;
+        pumice_csr__SCHED_POLICY__qos_en__out_t qos_en;
+        pumice_csr__SCHED_POLICY__age_thresh__out_t age_thresh;
+    } pumice_csr__SCHED_POLICY__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__SCHED_WR_WM__wr_high_wm__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__SCHED_WR_WM__wr_low_wm__out_t;
+
+    typedef struct {
+        pumice_csr__SCHED_WR_WM__wr_high_wm__out_t wr_high_wm;
+        pumice_csr__SCHED_WR_WM__wr_low_wm__out_t wr_low_wm;
+    } pumice_csr__SCHED_WR_WM__out_t;
+
+    typedef struct {
+        logic [2:0] value;
+    } pumice_csr__PAGE_POLICY_CFG__policy_mode__out_t;
+
+    typedef struct {
+        logic value;
+    } pumice_csr__PAGE_POLICY_CFG__policy_scope__out_t;
+
+    typedef struct {
+        logic [1:0] value;
+    } pumice_csr__PAGE_POLICY_CFG__ctr_width__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } pumice_csr__PAGE_POLICY_CFG__ctr_open_max__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } pumice_csr__PAGE_POLICY_CFG__ctr_init__out_t;
+
+    typedef struct {
+        pumice_csr__PAGE_POLICY_CFG__policy_mode__out_t policy_mode;
+        pumice_csr__PAGE_POLICY_CFG__policy_scope__out_t policy_scope;
+        pumice_csr__PAGE_POLICY_CFG__ctr_width__out_t ctr_width;
+        pumice_csr__PAGE_POLICY_CFG__ctr_open_max__out_t ctr_open_max;
+        pumice_csr__PAGE_POLICY_CFG__ctr_init__out_t ctr_init;
+    } pumice_csr__PAGE_POLICY_CFG__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__PAGE_TIMEOUT_CFG__tr_init__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__PAGE_TIMEOUT_CFG__tr_min__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__PAGE_TIMEOUT_CFG__tr_max__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__PAGE_TIMEOUT_CFG__tr_step__out_t;
+
+    typedef struct {
+        pumice_csr__PAGE_TIMEOUT_CFG__tr_init__out_t tr_init;
+        pumice_csr__PAGE_TIMEOUT_CFG__tr_min__out_t tr_min;
+        pumice_csr__PAGE_TIMEOUT_CFG__tr_max__out_t tr_max;
+        pumice_csr__PAGE_TIMEOUT_CFG__tr_step__out_t tr_step;
+    } pumice_csr__PAGE_TIMEOUT_CFG__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } pumice_csr__PAGE_ADAPT_CFG__mc_high_thr__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } pumice_csr__PAGE_ADAPT_CFG__mc_low_thr__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } pumice_csr__PAGE_ADAPT_CFG__mc_init__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__PAGE_ADAPT_CFG__check_interval__out_t;
+
+    typedef struct {
+        pumice_csr__PAGE_ADAPT_CFG__mc_high_thr__out_t mc_high_thr;
+        pumice_csr__PAGE_ADAPT_CFG__mc_low_thr__out_t mc_low_thr;
+        pumice_csr__PAGE_ADAPT_CFG__mc_init__out_t mc_init;
+        pumice_csr__PAGE_ADAPT_CFG__check_interval__out_t check_interval;
+    } pumice_csr__PAGE_ADAPT_CFG__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__PAGE_RBL_CFG__miss_thresh__out_t;
+
+    typedef struct {
+        logic [1:0] value;
+    } pumice_csr__PAGE_RBL_CFG__ways__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } pumice_csr__PAGE_RBL_CFG__sets__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__PAGE_RBL_CFG__reset_interval__out_t;
+
+    typedef struct {
+        pumice_csr__PAGE_RBL_CFG__miss_thresh__out_t miss_thresh;
+        pumice_csr__PAGE_RBL_CFG__ways__out_t ways;
+        pumice_csr__PAGE_RBL_CFG__sets__out_t sets;
+        pumice_csr__PAGE_RBL_CFG__reset_interval__out_t reset_interval;
+    } pumice_csr__PAGE_RBL_CFG__out_t;
+
+    typedef struct {
+        logic [1:0] value;
+    } pumice_csr__REF_CTRL__mode__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } pumice_csr__REF_CTRL__postpone_limit__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } pumice_csr__REF_CTRL__pullin_limit__out_t;
+
+    typedef struct {
+        pumice_csr__REF_CTRL__mode__out_t mode;
+        pumice_csr__REF_CTRL__postpone_limit__out_t postpone_limit;
+        pumice_csr__REF_CTRL__pullin_limit__out_t pullin_limit;
+    } pumice_csr__REF_CTRL__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } pumice_csr__REF_TIMING_PB__trefi_pb__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } pumice_csr__REF_TIMING_PB__trfc_pb__out_t;
+
+    typedef struct {
+        pumice_csr__REF_TIMING_PB__trefi_pb__out_t trefi_pb;
+        pumice_csr__REF_TIMING_PB__trfc_pb__out_t trfc_pb;
+    } pumice_csr__REF_TIMING_PB__out_t;
+
+    typedef struct {
         pumice_csr__CTRL__out_t CTRL;
         pumice_csr__TIMINGS_RC_RCD_RP_RAS__out_t TIMINGS_RC_RCD_RP_RAS;
         pumice_csr__TIMINGS_RFC_REFI__out_t TIMINGS_RFC_REFI;
@@ -587,5 +834,13 @@ package pumice_csr_pkg;
         pumice_csr__INIT_TIMING1__out_t INIT_TIMING1;
         pumice_csr__DFI_PHASE__out_t DFI_PHASE;
         pumice_csr__PHY_TIMING__out_t PHY_TIMING;
+        pumice_csr__SCHED_POLICY__out_t SCHED_POLICY;
+        pumice_csr__SCHED_WR_WM__out_t SCHED_WR_WM;
+        pumice_csr__PAGE_POLICY_CFG__out_t PAGE_POLICY_CFG;
+        pumice_csr__PAGE_TIMEOUT_CFG__out_t PAGE_TIMEOUT_CFG;
+        pumice_csr__PAGE_ADAPT_CFG__out_t PAGE_ADAPT_CFG;
+        pumice_csr__PAGE_RBL_CFG__out_t PAGE_RBL_CFG;
+        pumice_csr__REF_CTRL__out_t REF_CTRL;
+        pumice_csr__REF_TIMING_PB__out_t REF_TIMING_PB;
     } pumice_csr__out_t;
 endpackage
