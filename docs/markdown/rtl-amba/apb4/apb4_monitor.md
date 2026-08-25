@@ -415,11 +415,12 @@ gaxi_fifo_sync #(
 - Internal FIFO buffers monitor packets (depth = MONITOR_FIFO_DEPTH)
 - Backpressure on `monbus_ready` stops at the internal FIFO: packet
   generation fires purely from event conditions and does NOT consult the
-  FIFO's ready — a full FIFO silently DROPS the packet
-- Worse, a dropped completion/error packet never sets `event_reported`, so
-  the transaction-table slot is never freed; after MAX_TRANSACTIONS such
-  losses the monitor stops tracking anything until reset (filed as a task
-  in vault/Tasks/amba). Size MONITOR_FIFO_DEPTH and drain promptly
+  FIFO's ready — a full FIFO silently DROPS the packet (lossy-but-honest;
+  size MONITOR_FIFO_DEPTH and drain promptly if you need every event)
+- The slot is freed either way: terminal transaction-table entries retire
+  unconditionally, packet delivered or not (the historical
+  leak-until-wedged behavior was TASK-066, fixed and witnessed by
+  `apb4_monitor_slot_retire_test`)
 
 ### Performance Considerations
 

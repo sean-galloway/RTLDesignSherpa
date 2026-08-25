@@ -161,12 +161,12 @@ AXI4-to-APB bridge that manifested as `axi4_to_apb4_convert` never seeing
 `first=1` again in `RSP_IDLE`, hanging the FSM and surfacing as a timeout on the
 master AXI4 R channel.
 
-The side FIFO's depth mirrors the command buffer's, but it drains on the
-EXTERNAL response handshake — under response backpressure the accepted-not-
-yet-drained count can reach CMD_DEPTH + 1 + RSP_DEPTH, and `fl_in_ready` is
-never consulted, so the framing FIFO silently overflows and later responses
-pair with stale first/last framing (filed as TASK-067 in vault/Tasks/amba).
-Until fixed, drain responses promptly or keep pipelining shallow.
+The side FIFO drains on the EXTERNAL response handshake, so under response
+backpressure the accepted-not-yet-drained count can reach
+CMD_DEPTH + 1 + RSP_DEPTH — and the FIFO is sized for exactly that bound
+(`CMD_DEPTH + RSP_DEPTH + 2`), with a loud simulation `$error` tripwire
+should a future change break it. (The original CMD_DEPTH sizing silently
+dropped framing records under backpressure; that was TASK-067, fixed.)
 
 ### Packet Format Is Not Symmetric With `apb4_slave_stub`
 
