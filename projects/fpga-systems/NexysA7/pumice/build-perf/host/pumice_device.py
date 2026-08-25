@@ -212,7 +212,11 @@ class Pumice(Device):
         ROW_MAJOR = bank above the full column (bank_lsb=col_width);
         BANK_INTERLEAVE = bank at the LOWEST LEGAL boundary
         bank_lsb = log2(burst_cols), where burst_cols = one JEDEC DRAM burst
-        in pumice-beat column units (BL * DEVICE_WIDTH / BEAT_WIDTH). The
+        in COLUMN-ADDRESS units. The column address is DEVICE-WORD granular
+        (addr_mapper BYTE_OFFSET_WIDTH = clog2(DEVICE/8)), so burst_cols = BL
+        (JEDEC device beats), NOT BL*DEVICE/BEAT -- that older "pumice-beat
+        units" reading halved it on x16 and striped every burst (2026-08-25
+        board finding; sim repro test_ddr2_char_char_families_x16). The
         design note on ADDR_MAP is explicit: max interleave preserves burst
         locality via col_lo — bank_lsb=0 with burst_cols>1 STRIPES one DRAM
         burst across banks, violating the one-burst-one-bank contract (writes

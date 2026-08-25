@@ -4,6 +4,78 @@
 
 ---
 
+## PUMICE-001 — Runtime-config axes corrupt data (board + sim)
+**Status:** closed 2026-08-25 — board re-validated on the fresh bitstream; matrix 65/70 with the 5 residuals split to PUMICE-011 (observability only). Issue #42.
+
+**Fixes landed 2026-07-23 (commit fab57682):**
+- `pumice_cmd_arbiter`: auto-precharge column guard. Under CLOSE the xDA
+  precharges the bank as part of the access, but the generic guard deliberately
+  does not gate columns against columns and `r_bank_row_active` is a cycle
+  stale, so the next entry on the same bank+row still saw "row active" and
+  issued a second column into a bank already committed to precharge. On the
+  DRAM that column has no open row and the access lands wherever the device
+  last had one (batch-2 row-1 writes landed on row 0, clobbering batch 1 —
+  64 beats / 48 unique). Guards the bank for 2 cycles after a fired AP column,
+  exactly as `r_guard0/1` do for ACT/PRE. No-op under OPEN/HYBRID.
+- `pumice_top`: `REFRESH_TUNING.page_policy_or` carries the SOFTWARE encoding
+  (0=build default, 1=OPEN, 2=CLOSE, 3=HYBRID) while `page_policy_e` is
+  OPEN=0/CLOSE=1/HYBRID=2. The raw cast made software-OPEN run CLOSE and
+  software-CLOSE run HYBRID — the entire open_page/reorder config-axis
+  corruption keyed off this.
+
+Verified: `pumice_cmd_arbiter` FUB passes on a clean build; macro+top 54 passed
+(the 1 failure is PUMICE-002, pre-existing).
+
+**Still open:** board re-run of the config-axis families on a rebuilt bitstream.
+
+**Board baseline (2026-07-22, first rearch config-axis run):** baseline/inorder
+9/14 (col_major fails only at scale 1000); bank_interleave / open_page /
+reorder 0/14. multiid showed 7 EXTRA read returns (hist 64007 != 64000) —
+suspect rd-CAM duplicate issue under reorder. Correctness at the baseline
+config is SOLID (soak gate green); these are the runtime
+page-policy/scheme/reorder paths.
+
+Full map + signatures:
+`projects/NexysA7/ddr2-characterization/char_results/FINDINGS_pumice_board_2026-07-22.md`
+(+ `char_2026-07-22_wrapup.csv`). Tools: CMD_HISTORY_EN checker,
+dfi_rd_return_checker, ILA flow.
+
+**Sim repro available:** `test_ddr2_char_char_families` fails the
+bank_interleave family over the DFI loopback — the config-axis defect is
+digital and wave-debuggable in sim; start there, no board required.
+See PUMICE-003, same class.
+
+**Board re-validation (2026-08-25, bitstream 3159cd6b, unit 210292BFA3EE,
+releveled bitslip0/tap7/eye0..14):**
+- init + write_read integrity clean; smoke@1000 initially 4/6 — bank_interleave
+  32000/32000 beats mismatched, which root-caused to the HOST, not RTL: the
+  burst_cols formula counted pumice-beat units where ADDR_MAP.bank_lsb is
+  DEVICE-WORD granular, so x16 got bank_lsb=1 (needs 2) and every burst striped
+  across banks. Invisible at device==beat, which is why the sim families test
+  passed — new `test_ddr2_char_char_families_x16` reproduces it (RED 60 beats)
+  and pins the class; one-line fix (BOARD_BURST_COLS = BL) → sim GREEN, board
+  smoke 6/6, bank_interleave BW 33→65 MB/s (7.5–7.8x baseline).
+- matrix@1000 then 45/70: every col_major-family point failing on ALL configs —
+  proven a CHECKER ARTIFACT by exact arithmetic: the 64000-txn x 16 KiB walk is
+  1 GiB over a 128 MiB device; mismatched beats = 55808*BL mod 2^16 =
+  26624/53248/40960 at bl4/8/16, matching observation exactly. (This was also
+  July's "col_major fails only at scale 1000".) Fix: wrap the GENERATED address
+  at the device boundary (Geometry.device_bytes; wrap_mask for
+  col_major/col_interleave) so the address-hash stays cell-consistent —
+  DRAM-visible behaviour unchanged. Sim regression both families tests green.
+- matrix@1000 re-run: **65/70 — every family x config DATA-CLEAN.** The 5 flags
+  are the multiid 1:1 hist anomaly only (data clean) → split to PUMICE-011.
+- tREFI soak gate: **0/15 dirty** (default / tiny 0x40 / huge 0xFFFF) — the
+  PUMICE-004 refresh fix re-validated on the current bitstream.
+- Config-axis perf, all as designed: open_page/reorder 13–13.8x baseline on
+  inc/row_major; bank_interleave 7.8x on col_major; bank-recovery visible on
+  col_major_interleaved. July's 0/14 axes are fully recovered.
+
+Final accounting for issue #42 + the July cluster: every failure across
+PUMICE-001/002/003/004/007 was verification- or host-side. Zero RTL defects.
+CSVs: build-perf/results/char_2026-08-25_{smoke,matrix}_s1000*.csv.
+
+
 ## PUMICE-007 — Retire the deskew RTL + PHY_TIMING.deskew_lo/hi CSR
 **Status:** closed 2026-08-24 — already done by 38c8ae63 (Jul 22), the day before this page was stamped open
 

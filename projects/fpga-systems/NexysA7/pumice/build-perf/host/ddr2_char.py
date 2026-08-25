@@ -317,11 +317,17 @@ class DDR2CharDriver:
     BOARD_GEAR_RATIO = int(os.environ.get("TEST_GEAR_RATIO", "1"))   # log2(1:2)
     BOARD_DRAM_BL    = int(os.environ.get("TEST_DRAM_BL", "4"))      # JEDEC BL4
     BOARD_MR0        = int(os.environ.get("TEST_MR0", "0x0432"), 0)  # BL4/CL3/tWR3
-    # One JEDEC DRAM burst in pumice-beat column units (BL*DEVICE/BEAT) — the
-    # lowest LEGAL bank-interleave boundary (burst locality via col_lo).
-    BOARD_BURST_COLS = (BOARD_DRAM_BL
-                        * int(os.environ.get("TEST_DRAM_DEVICE_BYTES", "2"))
-                        // int(os.environ.get("TEST_DRAM_BEAT_BYTES", "4")))
+    # One JEDEC DRAM burst in COLUMN-ADDRESS units. The column address is
+    # DEVICE-WORD granular (addr_mapper BYTE_OFFSET_WIDTH = clog2(DEVICE/8),
+    # the x16 column-stride fix), so a burst spans exactly BL column units --
+    # BL is already counted in JEDEC device beats. The old formula here
+    # (BL*DEVICE/BEAT, "pumice-beat column units") halved this on the x16
+    # board: burst_cols=2 -> bank_lsb=1 put the bank field INSIDE the burst's
+    # column span, striping every BL4 burst across banks -- bank_interleave
+    # 32000/32000 beats mismatched on silicon (2026-08-25) while the
+    # device==beat sim passed, because there the two formulas coincide.
+    # Sim repro: test_ddr2_char_char_families_x16.
+    BOARD_BURST_COLS = BOARD_DRAM_BL
 
     def program_geometry(self, rd_phase: int = 0, wr_phase: int = 0,
                          restart_init: bool = True) -> None:

@@ -19,7 +19,11 @@ class NexysA7100T(Board):
         name="nexys_a7_100t",
         display_name="Nexys A7-100T",
         part="xc7a100tcsg324-1",
-        jtag_serial="210292B7D46F",
+        # Serial of the unit currently on the bench (2026-08-25). The lab has
+        # had two A7-100T units on this desk; the other is 210292B7D46F. If
+        # `make ports` reports nothing, check `udevadm info /dev/ttyUSB*` --
+        # a swapped unit shows up as exactly this symptom.
+        jtag_serial="210292BFA3EE",
         uart_serial=None,          # same FT2232HQ as JTAG
         uart_baud=115200,
         notes=(

@@ -96,6 +96,12 @@ class Geometry:
     beat_bytes:    int = 8          # AXI data bus = 64b -> 8 bytes/beat (axi_size=3)
 
     @property
+    def device_bytes(self) -> int:
+        """Whole-device span: 2^(col+bank+row) addressable words x word size."""
+        return (1 << (self.col_width + self.bank_width + self.row_width)) \
+               << self.byte_offset
+
+    @property
     def page_bytes(self) -> int:
         """Contiguous span within one open (bank, row) page."""
         return (1 << self.col_width) << self.byte_offset
@@ -401,11 +407,22 @@ def strides_for(sc: Scenario, geom: Geometry) -> Tuple[int, int]:
         # Contiguous, but wrapped inside one page -> every burst a page HIT.
         return bb, geom.page_bytes - 1
     if sc.family == FAM_COL_MAJOR:
-        # One row in the SAME bank per burst -> page MISS every burst.
-        return geom.row_stride_same_bank, 0
+        # One row in the SAME bank per burst -> page MISS every burst. Wrapped
+        # at the DEVICE boundary: at board scale (txn_scale ~1000) the walk is
+        # bigger than the device (64000 txn x 16 KiB = 1 GiB vs 128 MiB), and
+        # an UNwrapped generator address makes the address-hash checker lie --
+        # the DRAM wraps physically while the hash uses the pre-wrap address,
+        # so every pre-final pass "mismatches" (2026-08-25 matrix: 26624/
+        # 53248/40960 mismatched beats at bl4/8/16 == 55808*BL mod 2^16
+        # EXACTLY, all configs identically -- a checker artifact, not
+        # corruption; the same artifact was July's "col_major fails only at
+        # scale 1000"). Wrapping the GENERATED address keeps hash==cell
+        # while changing no DRAM-visible behaviour of the family.
+        return geom.row_stride_same_bank, geom.device_bytes - 1
     if sc.family == FAM_COL_INTERLEAVE:
-        # One bank per burst -> activates pipeline across banks.
-        return geom.bank_stride, 0
+        # One bank per burst -> activates pipeline across banks. Same
+        # device-boundary wrap rationale as col_major.
+        return geom.bank_stride, geom.device_bytes - 1
     raise ValueError(f"unknown access family: {sc.family!r}")
 
 

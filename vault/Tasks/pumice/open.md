@@ -130,3 +130,26 @@ was lost. File-scope reruns and a 10-seed `PUMICE_SEED` sweep (30 runs) all
 pass. Whatever fix lands for the lock should ALSO make the wrapper echo each
 test's SEED into the pytest summary line (or persist logs/ across clean-all
 until explicitly cleared) so a one-off failure is reproducible after the fact.
+
+## PUMICE-011 — multiid read-return accounting: hist total != txn_count (data clean)
+**Status:** open 2026-08-25 — deterministic, observability-only
+
+`col_major_bl8_multiid` (id_mode=LFSR) at medium@1000 reports a 1:1 violation:
+latency-hist total 168409 vs txn_count 64000 (EXTRA returns) — while the DATA
+integrity is clean (0 beats mismatched after the device-wrap fix). The value is
+byte-identical across all five controller configs, so it is deterministic and
+config-independent → an accounting behaviour of the LFSR-ID x chopped-burst
+path, not nondeterministic duplication. Sequencing in `measure()` is clean
+(clear_stats after programming, freeze before readback), so it is not
+cross-scenario accumulation.
+
+First suspect: `axi_perf_latency_hist` transaction-boundary tracking under
+many concurrent IDs — one AXI bl8 burst is 8 chopped BL4 DRAM commands, and
+per-ID RLAST collapse may be miscounted when IDs interleave. July's basic-scale
+run showed the small-N version (64007 vs 64000). Severity: harness
+observability only — the 1:1 check is doing its job of flagging it; data-path
+1:1 is separately proven by the CRC/mismatch counters.
+
+Repro: `pumice_master.py --char --char-configs baseline --char-level medium
+--char-scale 1000` and watch col_major_bl8_multiid; or in sim,
+TEST_CHAR_PROFILE with a multiid scenario over the loopback.

@@ -242,3 +242,17 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
 
 def test_ddr2_char_char_families(request):
     _run("cocotb_test_char_families")
+
+
+def test_ddr2_char_char_families_x16(request):
+    # The BOARD's geometry: 32b pumice beat over an x16 device. The column
+    # address is DEVICE-WORD granular (BYTE_OFFSET_WIDTH=clog2(DEVICE/8)), so a
+    # BL4 burst spans BL(=4) column units and the legal minimum bank_lsb for
+    # BANK_INTERLEAVE is 2 -- NOT BL*DEVICE/BEAT(=2)->lsb=1, which lands the
+    # bank field inside the burst's column span and stripes every burst across
+    # banks (the 2026-08-25 board signature: bank_interleave 32000/32000 beats
+    # mismatched while device==beat sim passed). At device==beat the wrong and
+    # right formulas coincide, which is exactly why the default-geometry
+    # families test above cannot catch this class.
+    _run("cocotb_test_char_families", dfi_rate=2, dram_beat_width=32,
+         dram_device_width=16)

@@ -4,21 +4,22 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 
 | State | Count |
 |---|---|
-| [active](active.md) | 1 |
-| [open](open.md) | 5 |
-| [closed](closed.md) | 9 |
+| [active](active.md) | 0 |
+| [open](open.md) | 6 |
+| [closed](closed.md) | 10 |
 | [dropped](dropped.md) | 1 |
 
 ## Active
 
-- **PUMICE-001** — runtime-config axes corrupt data (#42). Two RTL fixes landed
-  2026-07-23 (AP-column guard, page_policy encoding); board re-validation pending.
+(none — the correctness backlog is empty)
 
 ## Open shortlist
 
+- **PUMICE-006** — QoS + advanced scheduling. UNGATED as of 2026-08-25: the
+  board is clean (matrix 65/70 data-clean, tREFI soak 0/15 dirty).
+- **PUMICE-011** — multiid hist accounting anomaly (data clean; observability).
 - **PUMICE-010** — top-tier shared sim_build has no compile lock; clean
   parallel runs self-destruct (48/31 spurious fails). Serial = workaround.
-- **PUMICE-006** — QoS + advanced scheduling. Gated on a clean board.
 
 ## Reading order for someone picking this up
 
