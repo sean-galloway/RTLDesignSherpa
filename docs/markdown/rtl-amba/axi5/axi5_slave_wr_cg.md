@@ -216,9 +216,9 @@ Two consequences are worth designing around:
 
 ### Integration Caveat: `s_axi_bready` in the Activity Term
 
-The activity detector treats `s_axi_bready` as activity, not just the corresponding VALID. A master that ties `s_axi_bready` high permanently, which is a common and otherwise entirely correct style, holds `user_valid` asserted forever. The idle counter then never expires and the clock never gates.
+The activity detector uses the corresponding VALID (`s_axi_bvalid`), never the peer's READY. (Historically this term was `s_axi_bready`, which meant a peer parking its ready high -- a common and entirely correct style -- pinned the block permanently awake and defeated gating; that defect was fixed family-wide, matching the rule the mon_cg wrappers always carried.)
 
-If a clock-gated instance appears to save no power, check this first. To get gating with an always-ready consumer, either assert `s_axi_bready` only while a response is genuinely expected, or instantiate the non-gated base module and gate at a level where real idleness is visible.
+An always-ready consumer no longer prevents gating.
 
 ---
 

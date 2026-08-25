@@ -142,6 +142,8 @@ flowchart TB
 | **AGENT_ID** | int | 10 | Monitor agent identifier |
 | **MAX_TRANSACTIONS** | int | 16 | Transaction table size |
 | ACTIVE_TRANS_THRESHOLD | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when cfg_threshold_enable=1. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
+| **ACLK_MHZ** | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
+| **CFI_MIN_FREQ_MHZ** / **CFI_MAX_FREQ_MHZ** | int | -- | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
 | **ENABLE_FILTERING** | bit | 1 | Enable 3-level packet filtering |
 | **ADD_PIPELINE_STAGE** | bit | 0 | Add pipeline stage in monitor (latency vs. timing) |
 | **USE_MONITOR** | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
@@ -150,7 +152,7 @@ flowchart TB
 | **ENABLE_TIMEOUT_LOGIC** | bit | 1 | Compile-in the timeout cone and the `axi_monitor_timeout` instance. |
 | **ENABLE_COMPL_LOGIC** | bit | 1 | Compile-in the completion cone. |
 | **ENABLE_THRESHOLD_LOGIC** | bit | 1 | Compile-in the threshold cone. |
-| **ENABLE_PERF_LOGIC** | bit | 1 | Compile-in the perfmon measurement window and utilization/throughput counters. |
+| **ENABLE_PERF_LOGIC** | bit | 1 | Compile-in the REPORTER's legacy perf-packet cone and the two lifetime counters (error_count / transaction_count). The window FSM and the bucket/beat/byte/burst counters are UNCONDITIONAL module-level logic -- always compiled, always live. |
 | **ENABLE_DEBUG_LOGIC** | bit | 0 | Compile-in the debug cone (off by default). |
 
 > **Synthesis-cone note:** the six `ENABLE_*_LOGIC` parameters gate each detection cone at synthesis via generate-if, so unused logic drops to zero area (classic cones default on, debug off). Inside the wrapper's `axi_monitor_filtered` instance the perf/debug master switches are fixed (`ENABLE_PERF_PACKETS = 1`, `ENABLE_DEBUG_MODULE = 0`). The former `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters were removed — the transaction CAM is now always pipelined.
@@ -159,7 +161,7 @@ flowchart TB
 
 ## Monitor Backpressure (block_ready)
 
-`block_ready` is an internal flow-control net inside the wrapper -- it is not a port. It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `fub_axi_arready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
+`block_ready` is exported as the `debug_block_ready` output port -- the wrapper deliberately makes the gating contract observable (the `_mon_cg` wrapper ties it off rather than forwarding it). It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `fub_axi_arready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
 
 - **Where the stall lands**: the upstream `fub_axi_arready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
@@ -229,6 +231,7 @@ Same as `axi5_master_rd` - see [AXI5 Master Read](../axi5/axi5_master_rd.md) for
 | cfg_debug_enable | 1 | Input | Enable debug/trace packets (gates the debug cone — the 6th reporter sub-block) |
 | cfg_timeout_cycles | 16 | Input | Unified coarse timeout control, a MICROSECOND count passed through at FULL 16-bit width: 1..65535 us per phase; 0 = 16'hFFFF (~65 ms, effectively never). One value drives all three phase counts (addr/data/resp). The old 4-bit squash that saturated >= 16 at 15 us is retired |
 | cfg_latency_threshold | 32 | Input | Latency threshold for performance alerts |
+| cfg_freq_sel | 4 | Input | `counter_freq_invariant` LUT index scaling the 1 us timer tick |
 
 > **Detection-cone enables:** `cfg_compl_enable`, `cfg_threshold_enable`, and `cfg_debug_enable` turn on the completion, threshold, and debug reporter sub-blocks respectively. `cfg_debug_enable` gates the **debug cone** — the 6th reporter sub-block (`axi_monitor_reporter_debug`). In this wrapper the debug module's `cfg_debug_level` (4) and `cfg_debug_mask` (16) inputs are tied to `4'h0` / `16'h0`; `cfg_active_trans_threshold` is driven from the `ACTIVE_TRANS_THRESHOLD` parameter (default `MAX_TRANSACTIONS/2`). None are wrapper ports.
 
@@ -322,7 +325,7 @@ Average burst length is `perf_beat_count / perf_burst_count`.
 | perf_byte_count | 64 | Output | bytes transferred |
 | perf_burst_count | 32 | Output | AR address-phase handshakes |
 
-When `USE_MONITOR = 0` (or `ENABLE_PERF_LOGIC = 0`) all perfmon outputs are tied to 0.
+When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1` and `ENABLE_PERF_LOGIC = 0`, only error_count / transaction_count read 0 -- window_active, window_cycles and all bucket/throughput outputs remain LIVE.
 
 ---
 
@@ -355,18 +358,24 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 
 **Level 1: Packet Type Mask (cfg_axi_pkt_mask)**
 ```systemverilog
-cfg_axi_pkt_mask[0] = 1 → Enable ERROR packets
-cfg_axi_pkt_mask[1] = 1 → Enable COMPL packets
-cfg_axi_pkt_mask[2] = 1 → Enable TIMEOUT packets
-cfg_axi_pkt_mask[3] = 1 → Enable THRESH packets
-cfg_axi_pkt_mask[4] = 1 → Enable PERF packets
-cfg_axi_pkt_mask[5] = 1 → Enable ADDR packets
-cfg_axi_pkt_mask[6] = 1 → Enable DEBUG packets
+// SET BIT = DROP that packet type (pkt_drop = cfg_axi_pkt_mask[pkt_type]),
+// and bits index the NUMERIC packet type from the format table:
+cfg_axi_pkt_mask[0]  = 1 → DROP ERROR packets   (type 0x0)
+cfg_axi_pkt_mask[1]  = 1 → DROP COMPL packets   (type 0x1)
+cfg_axi_pkt_mask[2]  = 1 → DROP THRESH packets  (type 0x2)
+cfg_axi_pkt_mask[3]  = 1 → DROP TIMEOUT packets (type 0x3)
+cfg_axi_pkt_mask[4]  = 1 → DROP PERF packets    (type 0x4)
+cfg_axi_pkt_mask[8]  = 1 → DROP ADDR_MATCH packets (type 0x8)
+cfg_axi_pkt_mask[15] = 1 → DROP DEBUG packets   (type 0xF)
+// e.g. 16'hFFF4 passes only ERROR|COMPL|TIMEOUT -- matching this page's examples
 ```
 
-**Level 2: Error Routing (cfg_axi_err_select)**
+**Level 2: cfg_axi_err_select (reserved -- no routing exists)**
 
-Determines whether errors generate ERROR packets or COMPL packets with error status.
+Its ONLY use is the conflict check `cfg_conflict_error =
+|(cfg_axi_pkt_mask & cfg_axi_err_select)`; no error-routing logic exists
+anywhere in the monitor chain. Setting it to "reroute errors into
+completions" changes nothing except possibly tripping cfg_conflict_error.
 
 **Level 3: Event Masks (cfg_axi_*_mask)**
 
@@ -383,12 +392,12 @@ Fine-grained control over specific events within each packet type:
 
 The monitor detects and reports:
 
-**Protocol Errors:**
-- AR handshake violations
-- R handshake violations
-- ID width mismatches
-- Burst length violations
-- Unaligned addresses
+**Protocol Errors (implemented set):**
+- Response-before-data ordering (EVT_PROTOCOL in the transaction manager)
+- Orphaned responses (response with no tracked transaction)
+
+(Handshake-stability, ID-width, burst-length and address-alignment checks
+are NOT implemented -- nothing in the monitor chain inspects those.)
 
 **Response Errors:**
 - SLVERR (slave error response)
@@ -498,7 +507,7 @@ axi5_master_rd_mon #(
     .cfg_compl_enable   (1'b1),        // Enable completions
     .cfg_timeout_enable (1'b1),        // Enable timeouts
     .cfg_perf_enable    (1'b0),        // DISABLE (high traffic)
-    .cfg_timeout_cycles (16'd10),      // 10 timer ticks per phase (>15 saturates)
+    .cfg_timeout_cycles (16'd10),      // 10 microseconds per phase (full 16-bit range)
     .cfg_latency_threshold (32'd500),  // 500 cycle threshold
 
     // Level 1: Enable ERROR, COMPL, TIMEOUT packets
@@ -601,8 +610,11 @@ High packet volume can overwhelm monitor bus and cause backpressure.
 
 The monitor respects `monbus_ready` backpressure:
 - Packets buffered internally when `monbus_ready = 0`
-- Oldest packets dropped if buffer full
-- **Always add downstream FIFO** for robustness
+- A full internal FIFO RETRIES: the event stays unmarked in the
+  transaction table and re-presents every cycle until space frees --
+  nothing is dropped (upstream throttling via block_ready is the
+  relief valve, exactly as the backpressure section describes)
+- **Always add downstream FIFO** for latency absorption
 
 ---
 

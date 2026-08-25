@@ -274,9 +274,9 @@ Two consequences are worth designing around:
 
 ### Integration Caveat: `fub_axi_rready` in the Activity Term
 
-The activity detector treats `fub_axi_rready` as activity, not just the corresponding VALID. A FUB that ties `fub_axi_rready` high permanently, which is a common and otherwise entirely correct style, holds `user_valid` asserted forever. The idle counter then never expires and the clock never gates.
+The activity detector uses the corresponding VALID (`fub_axi_rvalid`), never the peer's READY. (Historically this term was `fub_axi_rready`, which meant a peer parking its ready high -- a common and entirely correct style -- pinned the block permanently awake and defeated gating; that defect was fixed family-wide, matching the rule the mon_cg wrappers always carried.)
 
-If a clock-gated instance appears to save no power, check this first. To get gating with an always-ready consumer, either assert `fub_axi_rready` only while a response is genuinely expected, or instantiate the non-gated base module and gate at a level where real idleness is visible.
+An always-ready consumer no longer prevents gating.
 
 ### Idle Counter Configuration
 

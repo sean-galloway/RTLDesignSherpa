@@ -749,6 +749,23 @@ correctly, there won't be data to drop", which reframed a documented
 
 ---
 
+### TASK-070: mon_cg wrappers -- monbus_valid held through gating can double-deliver to an ungated consumer
+**Priority:** P2 (axi5 qc round_20; SUSPECTED pending simulation, structure traced)
+
+All *_mon_cg wrappers (axi4 + axi5 families) clock the ENTIRE inner mon
+module (reporter incl.) on gated_aclk and pass monbus_valid/monbus_ready
+through unmasked; the activity terms carry no monitor state (int_busy is
+the CORE busy; the monitor instance's .busy() is unconnected). If a packet
+sits on the reporter output register when the bus idles past
+cfg_cg_idle_count, the flop cannot clear -- an ungated consumer holding
+monbus_ready high sees valid&&ready every gated cycle and accepts the SAME
+packet repeatedly until traffic wakes the block. Pending FIFO packets
+freeze rather than drain. Docs now warn (gate the consumer handshake with
+!cg_gating or drain before enabling cg). Fix candidates: OR the monitor
+busy / monbus_valid / fifo-nonempty into user_valid, or mask monbus_valid
+with !cg_gating. Directed test first: small idle count, complete one
+transaction, stall into gating with ready held high, count deliveries.
+
 ### TASK-062: `sdpram_slave_axil_axil` runs on the board with no simulation
 **Priority:** P2
 **Status:** 🔴 Not Started (found 2026-08-10)

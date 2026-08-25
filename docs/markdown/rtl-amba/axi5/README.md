@@ -160,7 +160,7 @@ Consult the per-module pages for the exact signal set each module carries.
 - **Integrated Monitors:** Combined master/slave + monitor modules
 - **Transaction Tracking:** Complete transaction lifecycle monitoring
 - **Performance Metrics:** Bandwidth, latency, and utilization
-- **64-bit Monitor Bus:** Standardized packet format
+- **128-bit Monitor Bus:** Standardized packet format (+ 64-bit side-band timestamp)
 
 ---
 
