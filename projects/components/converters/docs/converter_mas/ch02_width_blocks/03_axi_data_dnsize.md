@@ -150,19 +150,19 @@ the narrow side can carry. The shortfall is a constant 2-cycle pipeline
 fill, not a per-beat cost -- it does not grow with the run, which is how
 the earlier "one gap cycle per wide beat" model was ruled out.
 
-`TRACK_BURSTS=1` is not covered by these numbers: its replace condition
-excludes the final beat of a burst, so it is expected to give up a cycle
-at each burst boundary, and measuring it needs a framed-burst scenario
-that does not yet exist.
+`TRACK_BURSTS=1` gives up one cycle per BURST boundary (its replace
+condition excludes each burst's final beat) and measures 0.914-0.941
+beats/cycle over 8 framed bursts of 32 narrow beats -- the shortfall
+being the same fixed fill, paid once per burst
+(`measure_burst_throughput` in the dnsize TB).
 
-| Ratio | Cycles Active | Cycles Total | Throughput |
-|-------|---------------|--------------|------------|
-| 2:1 | 2 | 3 | 66.7% |
-| 4:1 | 4 | 5 | 80.0% |
-| 8:1 | 8 | 9 | 88.9% |
-| 16:1 | 16 | 17 | 94.1% |
+| Mode | Measured | Cost model |
+|------|----------|------------|
+| Simple, ratio 4 | 0.992 beats/cycle | fixed 2-cycle fill only |
+| Simple, ratio 2 | 0.985 beats/cycle | fixed 2-cycle fill only |
+| TRACK_BURSTS, ratio 4 | 0.914-0.941 | one bubble per burst boundary |
 
-: Table 2.8: Single-Buffer Throughput by Ratio
+: Table 2.8: Measured Throughput by Mode
 
 ## 2.3.5 Sideband Handling
 
@@ -214,20 +214,24 @@ When `TRACK_BURSTS=1`, the module generates `narrow_last` from the AXI4 burst le
 ### Operation
 
 ```systemverilog
-// Track narrow beats across burst
-logic [BURST_LEN_WIDTH+RATIO_LOG2-1:0] r_burst_beats_remaining;
+// from the RTL: burst_len is already in NARROW beats (the caller frames
+// the burst in output units -- ARLEN/AWLEN scaled by the instantiator),
+// so there is no xRATIO multiply here
+if (TRACK_BURSTS != 0 && burst_start && !r_burst_active) begin
+    r_slave_total_beats <= burst_len + 1'b1;
+    r_slave_beat_count  <= '0;
+    r_burst_active      <= 1'b1;
+end
 
-// Initialize on first beat
-if (first_beat)
-    r_burst_beats_remaining <= (burst_len + 1) * RATIO - 1;
-
-// Decrement on each output
-if (m_valid && m_ready)
-    r_burst_beats_remaining <= r_burst_beats_remaining - 1;
-
-// Generate LAST
-assign m_last = (r_burst_beats_remaining == 0);
+// count every narrow beat sent; LAST on the final one
+assign narrow_last = r_wide_buffered && r_burst_active &&
+                     (r_slave_beat_count + 1'b1 >= r_slave_total_beats);
 ```
+
+An earlier revision showed the module multiplying `burst_len` by RATIO
+internally. It never did -- the units contract is narrow beats in, and
+mis-framing in wide beats makes LAST fire `WIDTH_RATIO` times early
+(a real bug this exact confusion caused in the TB).
 
 **Example**: ARLEN=3 (4 beats), ratio 8:1
 ```
@@ -317,34 +321,36 @@ measured no faster.
 
 ## 2.3.9 Usage Example
 
-### 512-bit to 64-bit Read Data (High Performance)
+R-channel downsize (128 -> 32) with RRESP broadcast and burst tracking.
+`burst_start`/`burst_len` are NOT optional with `TRACK_BURSTS(1)`:
+`r_burst_active` only sets on a `burst_start` pulse, so leaving them
+unconnected silently produces framing with no LAST at all. `burst_len`
+is in NARROW beats minus one.
 
 ```systemverilog
 axi_data_dnsize #(
-    .WIDE_WIDTH(512),
-    .NARROW_WIDTH(64),
-    .WIDE_SB_WIDTH(2),       // RRESP
-    .NARROW_SB_WIDTH(2),
-    .SB_BROADCAST(1),        // Broadcast RRESP
-    .TRACK_BURSTS(1),        // Generate RLAST
-    .BURST_LEN_WIDTH(8)
-) u_rdata_dnsize (
-    .aclk       (aclk),
-    .aresetn    (aresetn),
-    .s_valid    (s_rvalid),
-    .s_ready    (s_rready),
-    .s_data     (s_rdata),
-    .s_sideband (s_rresp),
-    .s_last     (s_rlast),
-    .burst_len  (ar_len),
-    .m_valid    (m_rvalid),
-    .m_ready    (m_rready),
-    .m_data     (m_rdata),
-    .m_sideband (m_rresp),
-    .m_last     (m_rlast)
+    .WIDE_WIDTH      (128),
+    .NARROW_WIDTH    (32),
+    .WIDE_SB_WIDTH   (2),    // RRESP
+    .NARROW_SB_WIDTH (2),
+    .SB_BROADCAST    (1),
+    .TRACK_BURSTS    (1),
+    .BURST_LEN_WIDTH (8)
+) u_r_dnsize (
+    .aclk            (aclk),
+    .aresetn         (aresetn),
+    .burst_len       (8'(narrow_beats - 1)),  // narrow-beat units
+    .burst_start     (ar_accepted),
+    .wide_valid      (s_rvalid),
+    .wide_ready      (s_rready),
+    .wide_data       (s_rdata),
+    .wide_sideband   (s_rresp),
+    .wide_last       (1'b0),                  // counter drives LAST here
+    .narrow_valid    (m_rvalid),
+    .narrow_ready    (m_rready),
+    .narrow_data     (m_rdata),
+    .narrow_sideband (m_rresp),
+    .narrow_last     (m_rlast)
 );
 ```
 
----
-
-**Next:** [Dwidth Converter (write)](05_dwidth_converter_wr.md)

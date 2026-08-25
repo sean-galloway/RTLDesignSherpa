@@ -193,33 +193,44 @@ encoding requires it (see the parameter table above).
 
 ### States
 
+The convert core runs TWO state machines, and neither of them touches
+PSEL/PENABLE -- the APB setup/access phases belong to `apb4_master`, on
+the far side of the shim's CDC. The core's job is packetizing.
+
+**Command FSM** -- walks the accepted AXI burst and emits one APB
+command packet per APB-width beat into the cmd stream:
+
 ```systemverilog
 typedef enum logic [2:0] {
-    IDLE        = 3'b000,  // Wait for AXI4 transaction
-    APB_SETUP   = 3'b001,  // APB setup phase
-    APB_ACCESS  = 3'b010,  // APB access phase (wait PREADY)
-    AXI_RESP_B  = 3'b011,  // Send AXI4 B response
-    AXI_RESP_R  = 3'b100,  // Send AXI4 R response
-    BURST_NEXT  = 3'b101   // Next beat in burst
+    IDLE  = 3'b001,   // wait for an accepted AW+W pair or AR
+    READ  = 3'b010,   // emit one read command per beat
+    WRITE = 3'b100    // emit one write command per beat
 } apb_state_t;
 ```
 
-### Transitions
+Writes are preferred over reads when both are pending. Each command
+carries `first`/`last` flags; `last` is set on the final beat, which is
+also when the AXI address channel is released (`awready`/`arready`).
+A data pointer sub-divides each AXI beat into `AXI2APBRATIO` APB beats
+when the widths differ, and the next address comes from the shared
+`axi_gen_addr` (INCR/FIXED/WRAP per the AXI burst type).
 
-| Current State | Condition | Next State |
-|---------------|-----------|------------|
-| IDLE | s_awvalid | APB_SETUP (write) |
-| IDLE | s_arvalid | APB_SETUP (read) |
-| APB_SETUP | always | APB_ACCESS |
-| APB_ACCESS | pready && is_write | AXI_RESP_B |
-| APB_ACCESS | pready && is_read | AXI_RESP_R |
-| AXI_RESP_B | s_bready && !more_beats | IDLE |
-| AXI_RESP_B | s_bready && more_beats | BURST_NEXT |
-| AXI_RESP_R | s_rready && !more_beats | IDLE |
-| AXI_RESP_R | s_rready && more_beats | BURST_NEXT |
-| BURST_NEXT | always | APB_SETUP |
+**Response FSM** -- assembles returning rsp packets into AXI responses:
 
-: Table 3.17: FSM Transitions
+```systemverilog
+typedef enum logic [1:0] {
+    RSP_IDLE   = 2'b01,   // no response in flight
+    RSP_ACTIVE = 2'b10    // consuming rsp packets for one transaction
+} rsp_state_t;
+```
+
+Read data re-packs APB-width beats into AXI-width R beats; write
+responses collapse into the single B, worst response winning. The
+`first` flag in the command stream is what arms this FSM -- stamping it
+from transaction progress rather than the previous command state is the
+fix for a hang recorded in the RTL history (a `first=0` first command
+froze the response FSM in RSP_IDLE).
+
 
 ## 3.4.6 Burst Handling
 
@@ -239,17 +250,10 @@ APB sequence:
 
 ### Address Calculation
 
-```systemverilog
-// Calculate next address for INCR burst
-logic [APB_ADDR_WIDTH-1:0] r_current_addr;
-logic [2:0] r_awsize;
-
-always_ff @(posedge clk) begin
-    if (r_state == APB_ACCESS && pready) begin
-        r_current_addr <= r_current_addr + (1 << r_awsize);
-    end
-end
-```
+The per-beat address comes from the shared `axi_gen_addr` block, keyed
+on the AXI burst type (INCR/FIXED/WRAP) and size -- the convert core
+does not roll its own increment, and there is no APB-phase state here
+(PREADY pacing happens in `apb4_master` beyond the CDC; see 3.4.5).
 
 ## 3.4.7 Address Width Adaptation
 
@@ -274,92 +278,24 @@ wire w_addr_oor = |s_awaddr[AXI_ADDR_WIDTH-1:APB_ADDR_WIDTH];
 
 ### Error Aggregation
 
-```systemverilog
-// Track worst error in burst
-logic r_error_seen;
-
-always_ff @(posedge clk) begin
-    if (r_state == IDLE)
-        r_error_seen <= 1'b0;
-    else if (r_state == APB_ACCESS && pready && pslverr)
-        r_error_seen <= 1'b1;
-end
-
-// Final response
-assign s_bresp = r_error_seen ? 2'b10 : 2'b00;
-```
+Each rsp packet carries the APB `pslverr` for its beat. The response
+FSM accumulates across the transaction's packets and maps any error to
+SLVERR on the AXI side -- B for writes, per-beat RRESP for reads (the
+error lands on the beats it belongs to, not smeared across the burst).
+There is no APB-phase sampling here; `pslverr` is captured by
+`apb4_master` and travels back in the packet.
 
 ## 3.4.9 Implementation
 
-### Core FSM
-
-```systemverilog
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        r_state <= IDLE;
-        r_is_write <= 1'b0;
-    end else begin
-        case (r_state)
-            IDLE: begin
-                if (s_awvalid && s_wvalid) begin
-                    r_state <= APB_SETUP;
-                    r_is_write <= 1'b1;
-                    r_current_addr <= s_awaddr[APB_ADDR_WIDTH-1:0];
-                    r_beat_count <= '0;
-                    r_awlen <= s_awlen;
-                    r_awid <= s_awid;
-                end else if (s_arvalid) begin
-                    r_state <= APB_SETUP;
-                    r_is_write <= 1'b0;
-                    r_current_addr <= s_araddr[APB_ADDR_WIDTH-1:0];
-                    r_beat_count <= '0;
-                    r_arlen <= s_arlen;
-                    r_arid <= s_arid;
-                end
-            end
-
-            APB_SETUP: begin
-                r_state <= APB_ACCESS;
-            end
-
-            APB_ACCESS: begin
-                if (pready) begin
-                    r_rdata_saved <= prdata;
-                    r_error_seen <= r_error_seen || pslverr;
-                    if (r_is_write)
-                        r_state <= AXI_RESP_B;
-                    else
-                        r_state <= AXI_RESP_R;
-                end
-            end
-
-            AXI_RESP_B: begin
-                if (s_bready) begin
-                    if (r_beat_count == r_awlen)
-                        r_state <= IDLE;
-                    else
-                        r_state <= BURST_NEXT;
-                end
-            end
-
-            AXI_RESP_R: begin
-                if (s_rready) begin
-                    if (r_beat_count == r_arlen)
-                        r_state <= IDLE;
-                    else
-                        r_state <= BURST_NEXT;
-                end
-            end
-
-            BURST_NEXT: begin
-                r_beat_count <= r_beat_count + 1;
-                r_current_addr <= r_current_addr + (1 << r_size);
-                r_state <= APB_SETUP;
-            end
-        endcase
-    end
-end
-```
+The implementation is the two FSMs of 3.4.5 plus the packet plumbing:
+the shim skid-buffers each AXI channel, packs AW/W/AR into per-channel
+packets for the core, and carries the core's cmd/rsp streams through
+gray-pointer async FIFOs to `apb4_master`, which owns the actual APB
+setup/access phases. The full source is
+`projects/components/converters/rtl/axi4_to_apb4_convert.sv` (core) and
+`axi4_to_apb4_shim.sv` (integration); their headers document the packet
+formats. No separate simplified listing is maintained here -- an earlier
+one drifted into describing states the RTL never had.
 
 ## 3.4.10 Resource Utilization
 
@@ -392,34 +328,43 @@ Total: ~150 LUTs, ~150 regs
 
 ## 3.4.12 Usage Example
 
+Integrators instantiate the SHIM (the core's cmd/rsp packet ports are
+internal plumbing):
+
 ```systemverilog
-axi4_to_apb4_convert #(
-    .AXI_ADDR_WIDTH(64),
-    .AXI_DATA_WIDTH(32),
-    .AXI_ID_WIDTH(4),
-    .APB_ADDR_WIDTH(32),
-    .APB_DATA_WIDTH(32)
-) u_axi2apb4 (
-    .clk     (aclk),
-    .rst_n   (aresetn),
+axi4_to_apb4_shim #(
+    .AXI_ID_WIDTH     (8),
+    .AXI_ADDR_WIDTH   (32),
+    .AXI_DATA_WIDTH   (32),
+    .APB_ADDR_WIDTH   (32),
+    .APB_DATA_WIDTH   (32),
+    .APB_CMD_DEPTH    (4),
+    .APB_RSP_DEPTH    (4)
+) u_axi2apb (
+    // AXI side clock/reset
+    .aclk             (aclk),
+    .aresetn          (aresetn),
+    // APB side clock/reset -- this is a TWO-CLOCK block (see 3.4.4)
+    .pclk             (pclk),
+    .presetn          (presetn),
 
-    // AXI4 slave (from CPU)
-    .s_awvalid (cpu_awvalid),
-    .s_awready (cpu_awready),
-    // ... other AXI4 signals
+    // AXI4 slave interface: s_axi_aw*/w*/b*/ar*/r* (full signal list in
+    // the module header)
+    .s_axi_awvalid    (cpu_awvalid),
+    .s_axi_awready    (cpu_awready),
+    // ...
 
-    // APB master (to peripherals)
-    .psel    (uart_psel),
-    .penable (uart_penable),
-    .pwrite  (uart_pwrite),
-    .paddr   (uart_paddr),
-    .pwdata  (uart_pwdata),
-    .pready  (uart_pready),
-    .prdata  (uart_prdata),
-    .pslverr (uart_pslverr)
+    // APB master interface
+    .m_apb_PSEL       (periph_psel),
+    .m_apb_PENABLE    (periph_penable),
+    .m_apb_PADDR      (periph_paddr),
+    .m_apb_PWRITE     (periph_pwrite),
+    .m_apb_PWDATA     (periph_pwdata),
+    .m_apb_PSTRB      (periph_pstrb),
+    .m_apb_PPROT      (periph_pprot),
+    .m_apb_PRDATA     (periph_prdata),
+    .m_apb_PSLVERR    (periph_pslverr),
+    .m_apb_PREADY     (periph_pready)
 );
 ```
 
----
-
-**Next:** [PeakRDL Adapter](05_peakrdl_adapter.md)

@@ -118,7 +118,7 @@ Protocol converters bridge components that speak different bus protocols — the
 |-----------|-------------|-----------|------|
 | axi4_to_axil4 | 0 cycles | 2N cycles | ~450 LUTs |
 | axil4_to_axi4 | 0 cycles | N/A | ~110 LUTs |
-| axi4_to_apb4 | 3-5 cycles | (3-5)N cycles | ~300 LUTs |
+| axi4_to_apb4 | 3-5 cycles | (3-5)N cycles | ~150 LUTs (hand estimate; matches 3.4.10) |
 
 : Table 3.5: Protocol Converter Performance
 

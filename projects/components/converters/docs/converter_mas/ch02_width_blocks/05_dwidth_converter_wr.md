@@ -169,8 +169,9 @@ module axi4_dwidth_converter_wr #(
 localparam int RATIO = M_AXI_DATA_WIDTH / S_AXI_DATA_WIDTH;
 localparam int RATIO_LOG2 = $clog2(RATIO);
 
-// New AWLEN = (original AWLEN + 1) / RATIO - 1
-// = (AWLEN + 1) >> RATIO_LOG2 - 1
+// upsize: New AWLEN = ceil((AWLEN + 1) / RATIO) - 1  (round UP --
+// a floor divide underflows on non-multiples, see 2.5.5)
+// downsize: split into master bursts of <= 256 beats (see 2.5.5)
 ```
 
 ### Examples
@@ -246,8 +247,9 @@ master side at its own full width:
 assign m_axi_awsize = MASTER_SIZE[2:0];
 ```
 
-This converter performs no address-alignment check; the read converter
-aligns the address it issues (see 2.6.5).
+Neither converter checks address alignment on the downsize path. The
+read converter aligns the address it issues on its UPSIZE path only --
+a wide access cannot start mid-word (see 2.6.5).
 
 ### Skid Buffer for AW
 
@@ -295,12 +297,16 @@ axi_data_upsize #(
 
 ## 2.5.7 Response Channel
 
-### B Channel Passthrough
+### B Channel
 
-The response channel passes through unchanged:
+Upsize passes the response through unchanged. Downsize cannot: a split
+slave burst receives several master responses, and the slave expects
+ONE. Non-final responses are consumed immediately and folded worst-case-
+wins; the final one carries the folded result (see 2.5.5). The
+passthrough below is the UPSIZE branch:
 
 ```systemverilog
-// Simple passthrough (or via skid buffer)
+// gen_b_pass (upsize)
 assign s_bvalid = m_bvalid;
 assign m_bready = s_bready;
 assign s_bid    = m_bid;
@@ -372,31 +378,28 @@ in this converter.
 
 ```systemverilog
 axi4_dwidth_converter_wr #(
-    .S_AXI_DATA_WIDTH(32),
-    .M_AXI_DATA_WIDTH(128),
-    .ADDR_WIDTH(64),
-    .ID_WIDTH(4),
-    .SKID_DEPTH(2)
-) u_wr_converter (
-    .clk     (aclk),
-    .rst_n   (aresetn),
-
-    // 64-bit slave interface (from CPU)
-    .s_awvalid (cpu_awvalid),
-    .s_awready (cpu_awready),
-    .s_awaddr  (cpu_awaddr),
-    .s_awlen   (cpu_awlen),
-    // ... other s_* signals
-
-    // 512-bit master interface (to DDR)
-    .m_awvalid (ddr_awvalid),
-    .m_awready (ddr_awready),
-    .m_awaddr  (ddr_awaddr),
-    .m_awlen   (ddr_awlen),
-    // ... other m_* signals
+    .S_AXI_DATA_WIDTH (128),   // slave wide
+    .M_AXI_DATA_WIDTH (32),    // master narrow (downsize)
+    .AXI_ID_WIDTH     (8),
+    .AXI_ADDR_WIDTH   (32),
+    .SKID_DEPTH_AW    (2),
+    .SKID_DEPTH_W     (4),
+    .SKID_DEPTH_B     (2)
+) u_conv (
+    .aclk             (aclk),
+    .aresetn          (aresetn),
+    // slave side: s_axi_aw*/... (full AXI4 channel set)
+    .s_axi_awvalid   (cpu_awvalid),
+    .s_axi_awready   (cpu_awready),
+    // ...
+    // master side: m_axi_* toward the narrow fabric
+    .m_axi_awvalid   (mem_awvalid),
+    .m_axi_awready   (mem_awready)
+    // ...
 );
 ```
 
----
+All channel ports carry the `s_axi_`/`m_axi_` prefix; the full list is
+the module header. Skid depths are per channel -- there is no single
+`SKID_DEPTH`.
 
-**Next:** [axi4_dwidth_converter_rd](06_dwidth_converter_rd.md)

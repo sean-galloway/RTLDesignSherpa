@@ -174,8 +174,8 @@ input = OKAY (2'b00)
 beat is accepted as the current one finishes draining. With
 `TRACK_BURSTS=1` the replacement is suppressed at burst boundaries only.
 
-With two buffers, loading and draining overlap explicitly: while one
-buffer outputs, the other loads.
+(The former dual-buffer mode is deleted; the atomic replace above is
+the whole story.)
 
 ## 2.1.6 Resource Utilization
 
@@ -200,9 +200,6 @@ Sideband logic:       ~20 LEs
 Control logic:        ~50 LEs
 
 Total: ~70-100 LEs, ~520 registers
-```
-
-Total: ~140-180 LEs, ~1040 registers
 ```
 
 ## 2.1.7 Integration Guidelines

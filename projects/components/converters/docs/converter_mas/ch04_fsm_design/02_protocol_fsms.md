@@ -27,252 +27,64 @@ These are the state machines inside the protocol converters.
 
 ## 4.2.1 AXI4 to AXI4-Lite Read FSM
 
-### Figure 4.3: AXI4 to AXIL4 Read FSM
-
-![AXI4 to AXIL4 Read FSM](../assets/mermaid/axi4_to_axil4_rd_fsm.png)
-
-### States
-
-| State | Description |
-|-------|-------------|
-| IDLE | Waiting for AR transaction |
-| SINGLE | Single-beat passthrough |
-| DECOMPOSE | Issuing burst as single beats |
-| WAIT_R | Waiting for final R response |
-
-: Table 4.3: AXI4 to AXIL4 Read FSM States
-
-### Transitions
-
-```
-IDLE:
-  - s_arvalid && s_arlen == 0 → SINGLE (passthrough)
-  - s_arvalid && s_arlen > 0 → DECOMPOSE
-
-SINGLE:
-  - m_arready → forward AR, wait for R
-  - m_rvalid && m_rready → IDLE
-
-DECOMPOSE:
-  - m_arready → issue single AR
-  - increment address, decrement remaining
-  - remaining == 0 → WAIT_R
-
-WAIT_R:
-  - s_rvalid && s_rready && s_rlast → IDLE
-```
-
-### Implementation
+The real machine has THREE states, and none of them waits for R:
 
 ```systemverilog
 typedef enum logic [1:0] {
-    IDLE      = 2'b00,
-    SINGLE    = 2'b01,
-    DECOMPOSE = 2'b10,
-    WAIT_R    = 2'b11
+    RD_IDLE       = 2'b00,   // no burst in flight
+    RD_BURST      = 2'b01,   // issuing the AXIL4 reads of a burst
+    RD_LAST_BEAT  = 2'b10    // issuing the burst's final read
 } rd_state_t;
-
-rd_state_t r_state;
-logic [7:0] r_beats_remaining;
-logic [ADDR_WIDTH-1:0] r_current_addr;
-
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        r_state <= IDLE;
-    end else begin
-        case (r_state)
-            IDLE: begin
-                if (s_arvalid && s_arready) begin
-                    r_current_addr <= s_araddr;
-                    r_beats_remaining <= s_arlen;
-                    r_state <= (s_arlen == 0) ? SINGLE : DECOMPOSE;
-                end
-            end
-
-            SINGLE: begin
-                if (m_rvalid && s_rready)
-                    r_state <= IDLE;
-            end
-
-            DECOMPOSE: begin
-                if (m_arvalid && m_arready) begin
-                    r_current_addr <= r_current_addr + (1 << r_arsize);
-                    if (r_beats_remaining == 0)
-                        r_state <= WAIT_R;
-                    else
-                        r_beats_remaining <= r_beats_remaining - 1;
-                end
-            end
-
-            WAIT_R: begin
-                if (s_rvalid && s_rready && s_rlast)
-                    r_state <= IDLE;
-            end
-        endcase
-    end
-end
 ```
+
+Earlier revisions documented IDLE/SINGLE/DECOMPOSE/WAIT_R. Two of those
+never existed: a single-beat read (`ARLEN==0`) takes a passthrough leg
+and never leaves `RD_IDLE`, and there is no wait-for-R state at all --
+the address and data paths are decoupled, with the next AR issuing as
+the previous R returns (see 3.2). What serializes bursts is not an FSM
+state but the one-outstanding-burst guard: the burst-tracking registers
+(`r_r_id`/`r_r_len`/`r_r_beat_count`) hold exactly one burst, so
+`s_axi_arready` is held off until the in-flight burst delivers its last
+beat. Response aggregation is the live-beat worst-case fold of 4.3.3.
 
 ## 4.2.2 AXI4 to AXI4-Lite Write FSM
 
-### States
+Also three states (`WR_IDLE`/`WR_BURST`/`WR_LAST_BEAT`), same
+passthrough leg for `AWLEN==0`, same one-outstanding guard on the B
+side. There are no `r_aw_pending`/`r_w_pending` flags: W is gated
+directly against the state of the AW that owns it --
 
-| State | Description |
-|-------|-------------|
-| IDLE | Waiting for AW/W transactions |
-| SYNC_AW_W | Synchronizing AW and W channels |
-| DECOMPOSE | Issuing burst as single beats |
-| WAIT_B | Waiting for all B responses |
-| SEND_B | Sending aggregated B response |
+- during the burst-capture cycle W is held off (`w_burst_capture`), or
+  the first W beat of the next burst would slip out while the previous
+  burst is finishing and pair with the wrong address;
+- during a burst, W passes only once this burst's AW has been sent
+  (`r_aw_sent`) or is being sent in the same cycle;
+- single beats pass straight through.
 
-: Table 4.4: AXI4 to AXIL4 Write FSM States
+See 3.2's "W gated on the AW that owns it" for the exact equations.
 
-### AW/W Synchronization
+## 4.2.3 AXI4 to APB FSMs
 
-```systemverilog
-// Track which channels have been accepted
-logic r_aw_pending, r_w_pending;
-
-always_ff @(posedge clk) begin
-    // Accept AW
-    if (s_awvalid && s_awready && !r_aw_pending)
-        r_aw_pending <= 1'b1;
-
-    // Accept W
-    if (s_wvalid && s_wready && !r_w_pending)
-        r_w_pending <= 1'b1;
-
-    // Issue AXIL4 when both ready
-    if (w_issue_axil4) begin
-        r_aw_pending <= 1'b0;
-        r_w_pending <= 1'b0;
-    end
-end
-
-assign w_issue_axil4 = (r_aw_pending || s_awvalid) &&
-                       (r_w_pending || s_wvalid) &&
-                       m_awready && m_wready;
-```
-
-## 4.2.3 AXI4 to APB FSM
-
-### Figure 4.4: AXI4 to APB FSM
-
-![AXI4 to APB FSM](../assets/mermaid/axi4_to_apb4_fsm.png)
-
-### States
-
-| State | Description |
-|-------|-------------|
-| IDLE | Waiting for AXI4 transaction |
-| APB_SETUP | APB setup phase (PSEL=1, PENABLE=0) |
-| APB_ACCESS | APB access phase (PSEL=1, PENABLE=1) |
-| AXI_RESP | Sending AXI4 response |
-| BURST_NEXT | Preparing next beat in burst |
-
-: Table 4.5: AXI4 to APB FSM States
-
-### APB Protocol Phases
-
-```
-Setup Phase:
-  - PSEL = 1
-  - PENABLE = 0
-  - PADDR, PWDATA, PWRITE stable
-  - Duration: 1 cycle
-
-Access Phase:
-  - PSEL = 1
-  - PENABLE = 1
-  - Wait for PREADY
-  - Sample PRDATA (read) or complete write
-  - Duration: 1+ cycles (depends on PREADY)
-```
-
-### Implementation
-
-```systemverilog
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        r_state <= IDLE;
-        psel <= 1'b0;
-        penable <= 1'b0;
-    end else begin
-        case (r_state)
-            IDLE: begin
-                psel <= 1'b0;
-                penable <= 1'b0;
-                if (s_awvalid || s_arvalid) begin
-                    r_state <= APB_SETUP;
-                    psel <= 1'b1;
-                end
-            end
-
-            APB_SETUP: begin
-                r_state <= APB_ACCESS;
-                penable <= 1'b1;
-            end
-
-            APB_ACCESS: begin
-                if (pready) begin
-                    psel <= 1'b0;
-                    penable <= 1'b0;
-                    r_state <= AXI_RESP;
-                end
-            end
-
-            AXI_RESP: begin
-                if ((r_is_write && s_bready) ||
-                    (!r_is_write && s_rready)) begin
-                    if (r_beat_count == r_burst_len)
-                        r_state <= IDLE;
-                    else
-                        r_state <= BURST_NEXT;
-                end
-            end
-
-            BURST_NEXT: begin
-                r_beat_count <= r_beat_count + 1;
-                r_current_addr <= r_current_addr + (1 << r_size);
-                r_state <= APB_SETUP;
-                psel <= 1'b1;
-            end
-        endcase
-    end
-end
-```
+The convert core runs a command FSM (`IDLE`/`READ`/`WRITE`, writes
+preferred) that packetizes each burst into per-APB-beat commands, and a
+response FSM (`RSP_IDLE`/`RSP_ACTIVE`) that reassembles rsp packets
+into AXI responses. PSEL/PENABLE setup/access phases are NOT here --
+they belong to `apb4_master` on the far side of the shim's CDC. Full
+description in 3.4.5.
 
 ## 4.2.4 Timing Analysis
 
-### AXI4 to AXIL4 Timing
+**AXI4 to AXIL4.** A single-beat transfer is a combinational
+passthrough -- no converter-inserted wait state. In a burst the next
+AXIL4 request issues in the same cycle the previous response returns,
+so end-to-end duration is set by the AXIL4 slave's latency, not the
+converter; the old "2 cycles overhead / 2N cycles per burst" figures
+described a serialization the RTL does not have. Bursts do not overlap
+each other (the one-outstanding guard above); that is the only
+converter-imposed serialization.
 
-**Single-beat transaction:**
-```
-Cycle 0: AR accepted
-Cycle 1: AR forwarded to AXIL4
-Cycle 2: R received from AXIL4
-Cycle 3: R forwarded to AXI4
-Total: ~2 cycles overhead (can be pipelined)
-```
-
-**N-beat burst:**
-```
-Cycle 0: AR accepted
-Cycles 1-2N: Decomposed transactions
-Total: 2N cycles
-```
-
-### AXI4 to APB Timing
-
-**Single transfer:**
-```
-Cycle 0: AXI4 AR/AW accepted
-Cycle 1: APB setup phase
-Cycle 2+: APB access phase (wait PREADY)
-Cycle N: APB complete, AXI4 response
-Total: 3+ cycles (minimum)
-```
-
----
-
-**Next:** [Burst Decomposition](03_burst_decomposition.md)
+**AXI4 to APB.** Per APB beat: command packet -> CDC (2-flop gray
+crossing each way) -> APB setup + access (2 pclk minimum, plus
+PREADY stalls) -> response packet -> CDC back. Latency is dominated by
+the two clock crossings and the APB protocol itself; no measured
+characterization is published here.

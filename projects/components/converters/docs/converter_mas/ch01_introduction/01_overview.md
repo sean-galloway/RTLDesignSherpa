@@ -143,7 +143,7 @@ Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 |--------|-------------|-----------------|
 | axi_data_upsize | 0 cycles | N cycles to accumulate |
 | axi_data_dnsize (single) | 1 cycle | N cycles + gap |
-| axi4_to_axil4 | 0 cycles | 2xN cycles |
+| axi4_to_axil4 | 0 cycles | slave-limited (see 3.2.6) |
 | axil4_to_axi4 | 0 cycles | N/A (single only) |
 
 : Table 1.5: Latency Characteristics
@@ -153,8 +153,8 @@ Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 | Module | Configuration | Peak Throughput |
 |--------|--------------|-----------------|
 | axi_data_upsize | Single buffer | 1 beat/cycle |
-| axi_data_dnsize | Single buffer | 0.8 beats/cycle |
-| axi4_to_axil4 | Burst | 0.5 beats/cycle |
+| axi_data_dnsize | Single buffer | 0.992 beats/cycle (measured, ratio 4) |
+| axi4_to_axil4 | Burst | slave-limited; requests stream independently of responses |
 | axil4_to_axi4 | Any | 1 beat/cycle |
 
 : Table 1.6: Throughput Characteristics

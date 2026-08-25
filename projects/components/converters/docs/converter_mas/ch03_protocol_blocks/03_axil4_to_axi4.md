@@ -90,65 +90,72 @@ axil4_to_axi4.sv          # Full bidirectional wrapper
 
 ```systemverilog
 module axil4_to_axi4_rd #(
-    parameter int DATA_WIDTH = 32,
-    parameter int ADDR_WIDTH = 32,
-    parameter int ID_WIDTH   = 4,
-    parameter logic [ID_WIDTH-1:0] DEFAULT_ARID = '0
+    // Width Configuration
+    parameter int AXI_ID_WIDTH      = 8,
+    parameter int AXI_ADDR_WIDTH    = 32,
+    parameter int AXI_DATA_WIDTH    = 32,
+    parameter int AXI_USER_WIDTH    = 1,
+
+    // Default Values for AXI4-only Fields
+    parameter int DEFAULT_ID        = 0,
+    parameter int DEFAULT_REGION    = 0,
+    parameter int DEFAULT_QOS       = 0,
+
+    // Skid Buffer Depths (for timing closure)
+
+
+    // Calculated Parameters
+    localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8,
+    localparam int SIZE_VAL   = $clog2(STRB_WIDTH)  // ARSIZE for full width
 ) (
-    // AXI4-Lite slave interface (input)
-    input  logic                    s_arvalid,
-    output logic                    s_arready,
-    input  logic [ADDR_WIDTH-1:0]   s_araddr,
-    input  logic [2:0]              s_arprot,
+    // Clock and Reset
+    input  logic                        aclk,
+    input  logic                        aresetn,
 
-    output logic                    s_rvalid,
-    input  logic                    s_rready,
-    output logic [DATA_WIDTH-1:0]   s_rdata,
-    output logic [1:0]              s_rresp,
+    //==========================================================================
+    // Slave AXI4-Lite Read Interface (Input - Simplified Protocol)
+    //==========================================================================
 
-    // AXI4 master interface (output)
-    output logic                    m_arvalid,
-    input  logic                    m_arready,
-    output logic [ADDR_WIDTH-1:0]   m_araddr,
-    output logic [7:0]              m_arlen,
-    output logic [2:0]              m_arsize,
-    output logic [1:0]              m_arburst,
-    output logic                    m_arlock,
-    output logic [3:0]              m_arcache,
-    output logic [2:0]              m_arprot,
-    output logic [3:0]              m_arqos,
-    output logic [ID_WIDTH-1:0]     m_arid,
+    // Read Address Channel
+    input  logic [AXI_ADDR_WIDTH-1:0]   s_axil_araddr,
+    input  logic [2:0]                  s_axil_arprot,
+    input  logic                        s_axil_arvalid,
+    output logic                        s_axil_arready,
 
-    input  logic                    m_rvalid,
-    output logic                    m_rready,
-    input  logic [DATA_WIDTH-1:0]   m_rdata,
-    input  logic [1:0]              m_rresp,
-    input  logic                    m_rlast,
-    input  logic [ID_WIDTH-1:0]     m_rid
+    // Read Data Channel
+    output logic [AXI_DATA_WIDTH-1:0]   s_axil_rdata,
+    output logic [1:0]                  s_axil_rresp,
+    output logic                        s_axil_rvalid,
+    input  logic                        s_axil_rready,
+
+    //==========================================================================
+    // Master AXI4 Read Interface (Output - Full Protocol)
+    //==========================================================================
+
+    // Read Address Channel
+    output logic [AXI_ID_WIDTH-1:0]     m_axi_arid,
+    output logic [AXI_ADDR_WIDTH-1:0]   m_axi_araddr,
+    output logic [7:0]                  m_axi_arlen,
+    output logic [2:0]                  m_axi_arsize,
+    output logic [1:0]                  m_axi_arburst,
+    output logic                        m_axi_arlock,
+    output logic [3:0]                  m_axi_arcache,
+    output logic [2:0]                  m_axi_arprot,
+    output logic [3:0]                  m_axi_arqos,
+    output logic [3:0]                  m_axi_arregion,
+    output logic [AXI_USER_WIDTH-1:0]   m_axi_aruser,
+    output logic                        m_axi_arvalid,
+    input  logic                        m_axi_arready,
+
+    // Read Data Channel
+    input  logic [AXI_ID_WIDTH-1:0]     m_axi_rid,
+    input  logic [AXI_DATA_WIDTH-1:0]   m_axi_rdata,
+    input  logic [1:0]                  m_axi_rresp,
+    input  logic                        m_axi_rlast,
+    input  logic [AXI_USER_WIDTH-1:0]   m_axi_ruser,
+    input  logic                        m_axi_rvalid,
+    output logic                        m_axi_rready
 );
-
-    // AR channel - passthrough with defaults
-    assign m_arvalid = s_arvalid;
-    assign s_arready = m_arready;
-    assign m_araddr  = s_araddr;
-    assign m_arprot  = s_arprot;
-
-    // AXI4 burst defaults
-    assign m_arlen   = 8'h00;                    // Single beat
-    assign m_arsize  = $clog2(DATA_WIDTH/8);     // Full width
-    assign m_arburst = 2'b01;                    // INCR
-    assign m_arlock  = 1'b0;                     // Normal access
-    assign m_axi_arcache = 4'b0011;              // Bufferable
-    assign m_axi_arqos   = 4'(DEFAULT_QOS);      // Parameter, default 0
-    assign m_arid    = DEFAULT_ARID;             // Configurable ID
-
-    // R channel - passthrough (ignore RLAST and RID)
-    assign s_rvalid  = m_rvalid;
-    assign m_rready  = s_rready;
-    assign s_rdata   = m_rdata;
-    assign s_rresp   = m_rresp;
-
-endmodule
 ```
 
 **Key Points:**
@@ -309,28 +316,25 @@ endmodule
 ## 3.3.10 Usage Example
 
 ```systemverilog
-// Upgrade simple register block to AXI4 fabric
 axil4_to_axi4 #(
-    .DATA_WIDTH(32),
-    .ADDR_WIDTH(32),
-    .ID_WIDTH(4),
-    .DEFAULT_ID(4'h5)  // Unique ID for this IP
-) u_protocol_upgrade (
-    // Connect AXIL4 register block
-    .s_arvalid (reg_block_arvalid),
-    .s_arready (reg_block_arready),
-    .s_araddr  (reg_block_araddr),
-    // ... other AXIL4 signals
-
-    // Connect to AXI4 crossbar
-    .m_arvalid (xbar_arvalid),
-    .m_arready (xbar_arready),
-    .m_araddr  (xbar_araddr),
-    .m_arlen   (xbar_arlen),
-    // ... other AXI4 signals
+    .AXI_DATA_WIDTH (32),
+    .AXI_ADDR_WIDTH (32),
+    .AXI_ID_WIDTH   (8),
+    .DEFAULT_ID     (8'h05),
+    .DEFAULT_QOS    (0)
+) u_axil2axi (
+    .aclk           (aclk),
+    .aresetn        (aresetn),
+    // AXI4-Lite slave side: s_axil_*
+    .s_axil_arvalid (lite_arvalid),
+    .s_axil_arready (lite_arready),
+    .s_axil_araddr  (lite_araddr),
+    // ...
+    // AXI4 master side: m_axi_* (ID/len/size driven from parameters;
+    // the conversion is combinational, no internal pipelining)
+    .m_axi_arvalid  (fab_arvalid),
+    .m_axi_arready  (fab_arready)
+    // ...
 );
 ```
 
----
-
-**Next:** [AXI4 to APB](04_axi4_to_apb4.md)

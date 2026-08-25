@@ -66,10 +66,12 @@ Cycle 2:   R[1] received, AR[2] issued
            R[N-1] received (RLAST)
 ```
 
-The AR for the next beat is issued in the same cycle the previous beat's
-R returns -- the converter inserts no wait state of its own between them.
-End-to-end duration is therefore set by the AXIL4 slave's response
-latency and readiness, not by the converter.
+AR issue and R return are fully independent: the address FSM streams
+one AXIL4 AR per beat as fast as `m_axil_arready` accepts, with no
+reference to R at all -- nothing in the AR path looks at `m_axil_rvalid`.
+Against a slave with multi-cycle response latency the requests pipeline
+ahead of the data, and end-to-end duration is set by the slave, not the
+converter.
 
 Bursts do not overlap each other: AR is held off until the burst in
 flight has delivered its last beat, because the burst-tracking registers
@@ -162,11 +164,12 @@ Cycle 2N-1: B[N-1] received
            B[N-1] received
 ```
 
-As on the read path, the next beat's AW/W is issued as the previous
-beat's B returns; the converter adds no wait state between them. The
-single B the master receives is emitted once every decomposed write has
-responded. Bursts do not overlap: AW is held off until the write in
-flight has had its B accepted.
+As on the read path, AW/W issue is independent of B return -- the write
+FSM streams beats as fast as the AXIL4 slave accepts them, and mid-burst
+B responses are consumed immediately (`m_axil_bready = s_axi_bready ||
+!w_b_all_beats_done`). The single B the master receives is emitted once
+every decomposed write has responded. Bursts do not overlap each other:
+the next AW is held off until the burst in flight has its B accepted.
 
 ### AW/W Synchronization Challenge
 
@@ -214,19 +217,22 @@ survived the FUB tests and was caught by a bridge-level probe.
 ### Response Aggregation
 
 ```systemverilog
-// Track worst response in burst
-logic [1:0] r_worst_bresp;
-
-always_ff @(posedge clk) begin
-    if (r_state == IDLE)
-        r_worst_bresp <= 2'b00;  // OKAY
-    else if (m_bvalid && m_bready)
-        r_worst_bresp <= (m_bresp > r_worst_bresp) ? m_bresp : r_worst_bresp;
+// from the RTL: accumulate per response, reset on AW acceptance
+always_ff @(posedge aclk or negedge aresetn) begin
+    ...
+    if (s_axi_awvalid && s_axi_awready)
+        r_b_resp_accum <= 2'b00;
+    if (m_axil_bvalid && m_axil_bready)
+        if (m_axil_bresp > r_b_resp_accum)
+            r_b_resp_accum <= m_axil_bresp;
 end
 
-// Return worst response on final beat
-assign s_bresp = (r_beat_count == r_awlen_saved) ?
-                 ((m_bresp > r_worst_bresp) ? m_bresp : r_worst_bresp) :
+// live-beat fold at emission (see 4.3.3 for why the registered-only
+// form was a shipped bug)
+assign w_b_resp_worst = (m_axil_bresp > r_b_resp_accum) ? m_axil_bresp
+                                                        : r_b_resp_accum;
+assign s_axi_bresp = w_b_resp_worst;
+// (was:
                  r_worst_bresp;
 ```
 
@@ -281,7 +287,7 @@ endmodule
 | Transaction Type | Behaviour |
 |------------------|-----------|
 | Single-beat | Passthrough; no converter-inserted wait state |
-| N-beat burst | One AXIL4 access per beat, next request issued as the previous response returns |
+| N-beat burst | One AXIL4 access per beat; requests stream at the slave's accept rate, independent of responses |
 | Back-to-back bursts | Serialized: the next AR/AW waits for the previous burst's last beat |
 
 : Table 3.7: AXI4 to AXIL4 Throughput

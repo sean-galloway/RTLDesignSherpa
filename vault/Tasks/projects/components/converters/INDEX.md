@@ -6,10 +6,13 @@ upsize/downsize primitives and the dwidth converter wrappers.
 
 | State | Count |
 |---|---|
-| [open](open.md) | 1 |
+| [open](open.md) | 2 |
 | [closed](closed.md) | 2 |
 
 ## Open shortlist
+
+- **CONV-005** — dwidth rd RRESP folds with OR, so SLVERR|EXOKAY reads as
+  DECERR; write side uses max. Reachable via passed-through ARLOCK. P2.
 
 *(CONV-004 closed 2026-08-24: burst splitting on both dwidth paths;
 run-all-full-parallel 112/112.)*

@@ -43,9 +43,10 @@ Start here when a converter misbehaves.
 
 **Waveform Checkpoints:**
 ```
-r_count         - Should cycle 0 to RATIO-1
-r_data          - Check each slice is populated
-s_data/m_data   - Compare input/output patterns
+r_beat_ptr             - slot/slice pointer, cycles 0 to RATIO-1
+r_data_accumulator     - (upsize) each slot fills as narrow beats land
+r_data_buffer          - (dnsize) captured wide beat being sliced
+narrow_/wide_ data     - compare input/output patterns
 ```
 
 #### Issue: LAST Signal Incorrect
@@ -61,8 +62,12 @@ s_data/m_data   - Compare input/output patterns
 
 **Solution:**
 ```systemverilog
-// Verify LAST generation
-assign m_last = (r_count == RATIO - 1) || r_input_last_seen;
+// LAST is the buffered last flag AND the final beat -- from the RTL:
+//   upsize:  wide_last   = r_last_buffered && r_wide_valid;
+//   dnsize:  narrow_last = r_wide_buffered && r_last_buffered
+//                          && w_last_narrow_beat;
+// An OR of (final beat, saw-last) asserts LAST at the end of EVERY
+// group and truncates any burst spanning more than one wide beat.
 ```
 
 #### Issue: Throughput Lower Than Expected
@@ -91,7 +96,7 @@ assign m_last = (r_count == RATIO - 1) || r_input_last_seen;
 **Waveform Checkpoints:**
 ```
 r_current_addr  - Should increment by (1 << size)
-r_beat_count    - Should count to s_arlen/s_awlen
+r_ar_beat_count / r_aw_beat_count - count to arlen/awlen
 m_arvalid       - Should assert for each decomposed beat
 ```
 
@@ -149,9 +154,9 @@ set_property probe_count 10 [get_debug_cores u_ila]
 connect_debug_port u_ila/clk [get_nets aclk]
 
 # Key signals
-connect_debug_port u_ila/probe0 [get_nets r_state]
-connect_debug_port u_ila/probe1 [get_nets r_beat_count]
-connect_debug_port u_ila/probe2 [get_nets s_arvalid]
+connect_debug_port u_ila/probe0 [get_nets r_beat_ptr]
+connect_debug_port u_ila/probe1 [get_nets r_ar_beat_count]
+connect_debug_port u_ila/probe2 [get_nets s_axi_arvalid]
 connect_debug_port u_ila/probe3 [get_nets m_arvalid]
 ```
 
@@ -168,7 +173,7 @@ connect_debug_port u_ila/probe3 [get_nets m_arvalid]
    - m_valid, m_ready, m_data, m_last
 
 3. **Control:**
-   - r_state, r_count, r_burst_remaining
+   - r_beat_ptr, r_slave_beat_count, r_burst_active (tracked mode)
 
 4. **Sideband:**
    - s_wstrb/m_wstrb (write path)
@@ -225,10 +230,12 @@ assign m_wstrb = r_sideband;
 
 ```systemverilog
 // WRONG: LAST on wrong beat
-assign m_last = r_count == 0;  // First beat!
+assign narrow_last = (r_beat_ptr == 0);  // First slice!
 
 // CORRECT: LAST on final beat
-assign m_last = (r_count == RATIO - 1) || r_early_last;
+// AND of final-beat with the buffered last flag (see 5.2.1); the OR
+// form truncates multi-wide-beat bursts
+assign narrow_last = r_wide_buffered && r_last_buffered && w_last_narrow_beat;
 ```
 
 ### Mistake 4: Burst Length Calculation Error
@@ -238,7 +245,7 @@ assign m_last = (r_count == RATIO - 1) || r_early_last;
 assign m_awlen = s_awlen / RATIO;  // Wrong!
 
 // CORRECT: Account for LEN encoding
-assign m_awlen = ((s_awlen + 1) >> RATIO_LOG2) - 1;
+assign m_axi_awlen = ((int_awlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;  // round UP
 ```
 
 ## 5.2.5 Verification Checklist
@@ -280,7 +287,7 @@ async def measure_throughput(tb, transaction_count=1000):
 | Module | Mode | Expected |
 |--------|------|----------|
 | axi_data_upsize | Single | 1.0 trans/cycle |
-| axi_data_dnsize | Single | 0.8 trans/cycle |
+| axi_data_dnsize | Single | 0.992 narrow beats/cycle (measured) |
 | axi4_to_axil4 | Single-beat | 1.0 trans/cycle |
 | axi4_to_axil4 | Burst | 0.5 trans/cycle |
 

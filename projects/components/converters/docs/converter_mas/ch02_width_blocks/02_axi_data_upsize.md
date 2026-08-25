@@ -288,31 +288,28 @@ Total: ~600 flip-flops, ~50-70 LUTs
 
 ## 2.2.9 Usage Example
 
-### 64-bit to 512-bit Write Data
+W-channel upsize (32 -> 128) with WSTRB as the concatenated sideband:
 
 ```systemverilog
 axi_data_upsize #(
-    .NARROW_WIDTH(64),
-    .WIDE_WIDTH(512),
-    .NARROW_SB_WIDTH(8),    // WSTRB
-    .WIDE_SB_WIDTH(64),
-    .SB_OR_MODE(0)          // Concatenate WSTRB
+    .NARROW_WIDTH    (32),
+    .WIDE_WIDTH      (128),
+    .NARROW_SB_WIDTH (4),    // WSTRB, narrow side
+    .WIDE_SB_WIDTH   (16),   // WSTRB, wide side
+    .SB_OR_MODE      (0)     // concatenate strobes
 ) u_w_upsize (
-    .aclk       (aclk),
-    .aresetn    (aresetn),
-    .s_valid    (s_wvalid),
-    .s_ready    (s_wready),
-    .s_data     (s_wdata),
-    .s_sideband (s_wstrb),
-    .s_last     (s_wlast),
-    .m_valid    (m_wvalid),
-    .m_ready    (m_wready),
-    .m_data     (m_wdata),
-    .m_sideband (m_wstrb),
-    .m_last     (m_wlast)
+    .aclk            (aclk),
+    .aresetn         (aresetn),
+    .narrow_valid    (s_wvalid),
+    .narrow_ready    (s_wready),
+    .narrow_data     (s_wdata),
+    .narrow_sideband (s_wstrb),
+    .narrow_last     (s_wlast),
+    .wide_valid      (m_wvalid),
+    .wide_ready      (m_wready),
+    .wide_data       (m_wdata),
+    .wide_sideband   (m_wstrb),
+    .wide_last       (m_wlast)
 );
 ```
 
----
-
-**Next:** [axi_data_dnsize Module](03_axi_data_dnsize.md)

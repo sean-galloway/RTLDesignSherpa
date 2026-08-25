@@ -46,7 +46,7 @@ PeakRDL generates register blocks with an APB-style interface. This adapter sits
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| ADDR_WIDTH | int | 32 | Address width |
+| ADDR_WIDTH | int | 12 | Address width (register-block sized) |
 | DATA_WIDTH | int | 32 | Data width |
 
 : Table 3.20: PeakRDL Adapter Parameters
@@ -99,85 +99,50 @@ module peakrdl_to_cmdrsp #(
 
 ## 3.5.4 Operation
 
-### Write Transaction
+Direction: cmd/rsp -> PeakRDL. `cmd_*` arrive from upstream (e.g. the
+APB shim's packet stream); the adapter drives the register block's
+`regblk_*` request signals and returns its acks as rsp packets.
+
+### Write
 
 ```
-Cycle 0: reg_write asserted
-         cmd_valid = 1, cmd_write = 1
-Cycle 1: cmd_ready = 1 (downstream accepts)
-         Wait for response
-Cycle N: rsp_valid = 1
-         reg_ack = 1
-Cycle N+1: Transaction complete
+Cycle 0: cmd_valid, cmd_pwrite=1 accepted (cmd_ready high in CMD_IDLE);
+         regblk_req driven the same cycle, strobes converted to bit
+         enables
+Cycle N: regblk_wr_ack -> rsp queued (RSP_VALID), pslverr from
+         regblk_wr_err
+         (if regblk_req_stall_wr: state parks in CMD_STALLED and
+         retries when the stall clears)
+Cycle M: rsp_valid && rsp_ready -> back to idle
 ```
 
-### Read Transaction
+### Read
 
-```
-Cycle 0: reg_read asserted
-         cmd_valid = 1, cmd_write = 0
-Cycle 1: cmd_ready = 1 (downstream accepts)
-         Wait for response
-Cycle N: rsp_valid = 1
-         reg_rdata = rsp_rdata
-         reg_ack = 1
-Cycle N+1: Transaction complete
-```
+Same shape via `regblk_rd_ack`/`regblk_rd_data`/`regblk_rd_err`, with
+`rsp_prdata` carried in the response.
 
 ## 3.5.5 Implementation
 
+Two small FSMs, from the RTL:
+
 ```systemverilog
-// State machine
 typedef enum logic [1:0] {
-    IDLE    = 2'b00,
-    CMD     = 2'b01,
-    RSP     = 2'b10
-} state_t;
+    CMD_IDLE     = 2'b00,   // ready to accept a command
+    CMD_WAIT_ACK = 2'b01,   // register block has the request
+    CMD_STALLED  = 2'b10    // req_stall_* asserted; retry
+} cmd_state_t;
 
-state_t r_state;
-logic r_is_write;
-
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        r_state <= IDLE;
-    end else begin
-        case (r_state)
-            IDLE: begin
-                if (reg_write || reg_read) begin
-                    r_state <= CMD;
-                    r_is_write <= reg_write;
-                end
-            end
-
-            CMD: begin
-                if (cmd_ready) begin
-                    r_state <= RSP;
-                end
-            end
-
-            RSP: begin
-                if (rsp_valid) begin
-                    r_state <= IDLE;
-                end
-            end
-        endcase
-    end
-end
-
-// Command interface
-assign cmd_valid = (r_state == CMD);
-assign cmd_addr = reg_addr;
-assign cmd_wdata = reg_wdata;
-assign cmd_write = r_is_write;
-
-// Response interface
-assign rsp_ready = (r_state == RSP);
-
-// Register interface
-assign reg_rdata = rsp_rdata;
-assign reg_error = rsp_error;
-assign reg_ack = (r_state == RSP) && rsp_valid;
+typedef enum logic {
+    RSP_IDLE  = 1'b0,
+    RSP_VALID = 1'b1        // response held until rsp_ready
+} rsp_state_t;
 ```
+
+The command is registered on acceptance so the request can be replayed
+out of CMD_STALLED; in CMD_IDLE the request muxes straight from the
+live cmd inputs, so an unstalled single-cycle ack costs no extra
+latency. `cmd_ready = (cmd_state == CMD_IDLE)` gives one outstanding
+command, which is what a register block wants.
 
 ## 3.5.6 Resource Utilization
 
@@ -191,83 +156,61 @@ Total: ~50 LUTs, ~55 regs
 
 ## 3.5.7 Use Cases
 
-### 1. PeakRDL to Custom Control
+The adapter sits between a command/response packet stream and a
+PeakRDL-generated register block:
 
-```
-PeakRDL Registers → Adapter → Custom State Machine
-                            → Hardware Accelerator
-                            → Debug Controller
+```systemverilog
+peakrdl_to_cmdrsp #(
+    .ADDR_WIDTH (12),
+    .DATA_WIDTH (32)
+) u_adapter (
+    .aclk                (aclk),
+    .aresetn             (aresetn),
+
+    // command/response stream (e.g. from the APB shim's packet path)
+    .cmd_valid           (cmd_valid),
+    .cmd_ready           (cmd_ready),
+    .cmd_pwrite          (cmd_pwrite),
+    .cmd_paddr           (cmd_paddr),
+    .cmd_pwdata          (cmd_pwdata),
+    .cmd_pstrb           (cmd_pstrb),
+    .rsp_valid           (rsp_valid),
+    .rsp_ready           (rsp_ready),
+    .rsp_prdata          (rsp_prdata),
+    .rsp_pslverr         (rsp_pslverr),
+
+    // PeakRDL register block hookup
+    .regblk_req          (hwif_req),
+    .regblk_req_is_wr    (hwif_req_is_wr),
+    .regblk_addr         (hwif_addr),
+    .regblk_wr_data      (hwif_wr_data),
+    .regblk_wr_biten     (hwif_wr_biten),
+    .regblk_req_stall_wr (hwif_req_stall_wr),
+    .regblk_req_stall_rd (hwif_req_stall_rd),
+    .regblk_rd_ack       (hwif_rd_ack),
+    .regblk_rd_err       (hwif_rd_err),
+    .regblk_rd_data      (hwif_rd_data),
+    .regblk_wr_ack       (hwif_wr_ack),
+    .regblk_wr_err       (hwif_wr_err)
+);
 ```
 
-### 2. Register Access Logging
-
-```
-PeakRDL Registers → Adapter → Logger → Registers
-                            ↓
-                         Log Buffer
-```
-
-### 3. Pipeline Insertion
-
-```
-PeakRDL Registers → Adapter → Pipeline → Slow Registers
-                             (for timing)
-```
+Typical deployments: CSR blocks behind the APB shim (see 3.4), or any
+fabric whose endpoint speaks the cmd/rsp packet convention.
 
 ## 3.5.8 Integration Example
 
-```systemverilog
-// Instantiate PeakRDL-generated register block
-my_regs u_regs (
-    .clk        (clk),
-    .rst_n      (rst_n),
+The flow a real deployment uses (CSRs behind the APB shim):
 
-    // APB-style interface from CPU
-    .s_apb_psel    (apb_psel),
-    .s_apb_penable (apb_penable),
-    // ... other APB signals
-
-    // Register interface to adapter
-    .reg_addr   (reg_addr),
-    .reg_wdata  (reg_wdata),
-    .reg_write  (reg_write),
-    .reg_read   (reg_read),
-    .reg_rdata  (reg_rdata),
-    .reg_error  (reg_error),
-    .reg_ack    (reg_ack)
-);
-
-// Adapter to custom protocol
-peakrdl_to_cmdrsp #(
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32)
-) u_adapter (
-    .clk        (clk),
-    .rst_n      (rst_n),
-
-    // From PeakRDL registers
-    .reg_addr   (reg_addr),
-    .reg_wdata  (reg_wdata),
-    .reg_write  (reg_write),
-    .reg_read   (reg_read),
-    .reg_rdata  (reg_rdata),
-    .reg_error  (reg_error),
-    .reg_ack    (reg_ack),
-
-    // To custom control logic
-    .cmd_valid  (ctrl_cmd_valid),
-    .cmd_ready  (ctrl_cmd_ready),
-    .cmd_addr   (ctrl_cmd_addr),
-    .cmd_wdata  (ctrl_cmd_wdata),
-    .cmd_write  (ctrl_cmd_write),
-
-    .rsp_valid  (ctrl_rsp_valid),
-    .rsp_ready  (ctrl_rsp_ready),
-    .rsp_rdata  (ctrl_rsp_rdata),
-    .rsp_error  (ctrl_rsp_error)
-);
+```
+AXI4 master → axi4_to_apb4_shim → cmd/rsp packets → peakrdl_to_cmdrsp
+                                                        │
+                                              regblk_* request/ack
+                                                        ↓
+                                          PeakRDL-generated register block
 ```
 
----
-
-**Next:** [Chapter 4: FSM Design](../ch04_fsm_design/01_width_fsms.md)
+The wiring is exactly the instantiation in 3.5.7; the earlier example
+here showed the adapter hanging off a register block's APB port through
+`reg_*` signals that do not exist -- the reversed-direction reading this
+page used to make.

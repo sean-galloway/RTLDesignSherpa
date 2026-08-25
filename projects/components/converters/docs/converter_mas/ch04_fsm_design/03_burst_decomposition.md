@@ -32,7 +32,7 @@ Burst handling is where the two converter families diverge: width converters res
 When converting widths, burst length changes inversely with data width:
 
 ```
-M_AWLEN = (S_AWLEN + 1) / RATIO - 1
+M_AWLEN = ceil((S_AWLEN + 1) / RATIO) - 1  =  ((S_AWLEN + 1) + RATIO - 1) / RATIO - 1
 
 Example (64-bit to 512-bit, RATIO=8):
   S_AWLEN = 7 (8 beats × 64 bits = 512 bits)
@@ -52,7 +52,7 @@ When the burst length is not a multiple of the ratio:
 
 ```
 S_AWLEN = 5 (6 beats), RATIO = 8
-M_AWLEN = (5 + 1) / 8 - 1 = -1 → 0 (1 beat)
+M_AWLEN = ((5 + 1) + 7) / 8 - 1 = 0  (1 wide beat -- the ceiling term is what prevents the -1 a floor divide gives)
 
 The 6 narrow beats pack into 1 wide beat.
 Last 2 positions have WSTRB = 0 (no write).
@@ -113,55 +113,52 @@ endfunction
 
 ## 4.3.3 Response Aggregation
 
-### Read Response Aggregation
+Several downstream responses collapse into one upstream response, worst
+case winning (OKAY < EXOKAY < SLVERR < DECERR by numeric compare). The
+subtlety is WHERE the final beat's own response enters the result, and
+getting it wrong is not hypothetical: the converters shipped with the
+registered-only version below, and every single-beat error was reported
+upstream as OKAY.
 
-For burst reads decomposed into multiple single reads:
-
-```systemverilog
-// Track responses as they arrive
-logic [7:0] r_response_count;
-logic [1:0] r_worst_rresp;
-
-always_ff @(posedge clk) begin
-    if (start_new_burst) begin
-        r_response_count <= '0;
-        r_worst_rresp <= 2'b00;  // OKAY
-    end else if (m_rvalid && m_rready) begin
-        r_response_count <= r_response_count + 1;
-        // Keep worst response
-        if (m_rresp > r_worst_rresp)
-            r_worst_rresp <= m_rresp;
-    end
-end
-
-// Generate RLAST on final beat
-assign s_rlast = (r_response_count == r_original_arlen);
-
-// Forward individual responses or aggregate
-assign s_rresp = m_rresp;  // Forward each response
-// Or: assign s_rresp = r_worst_rresp; // Aggregate
-```
-
-### Write Response Aggregation
-
-For burst writes:
+**Wrong (the shipped bug).** Accumulate in a register and emit the
+register:
 
 ```systemverilog
-// Track worst response across burst
-logic [1:0] r_worst_bresp;
-logic r_all_beats_done;
-
-always_ff @(posedge clk) begin
-    if (start_new_burst)
-        r_worst_bresp <= 2'b00;
-    else if (m_bvalid && m_bready)
-        r_worst_bresp <= (m_bresp > r_worst_bresp) ? m_bresp : r_worst_bresp;
+always_ff @(posedge aclk or negedge aresetn) begin
+    ...
+    else if (m_axil_bvalid && m_axil_bready)
+        if (m_axil_bresp > r_b_resp_accum)
+            r_b_resp_accum <= m_axil_bresp;
 end
 
-// Send single aggregated B response
-assign s_bvalid = r_all_beats_done;
-assign s_bresp = r_worst_bresp;
+assign s_axi_bresp = r_b_resp_accum;   // WRONG
 ```
+
+The accumulator is a non-blocking assign: on the handshake that emits
+the response it does not yet contain THAT beat's `bresp`. For a
+single-beat transfer the only beat is the final one, so its error is
+exactly the one dropped.
+
+**Right (the current RTL).** Fold the live beat combinationally at the
+point of emission:
+
+```systemverilog
+assign w_b_resp_worst = (m_axil_bresp > r_b_resp_accum) ? m_axil_bresp
+                                                        : r_b_resp_accum;
+assign s_axi_bresp    = w_b_resp_worst;
+```
+
+The read path is the same shape, gated to the final beat:
+
+```systemverilog
+assign s_axi_rresp = (r_r_beat_count == r_r_len) ? w_r_resp_worst
+                                                 : m_axil_rresp;
+```
+
+Both were fixed with tests that inject SLVERR from the downstream slave
+and assert it reaches the upstream master -- including the
+last-beat-only case, where earlier beats cannot mask the loss. See
+`test_error_response` in the axi4_to_axil4 testbenches.
 
 ## 4.3.4 Burst Tracking Registers
 

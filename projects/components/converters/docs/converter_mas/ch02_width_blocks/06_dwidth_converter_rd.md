@@ -156,7 +156,8 @@ Same as write converter:
 localparam int RATIO = M_AXI_DATA_WIDTH / S_AXI_DATA_WIDTH;
 localparam int RATIO_LOG2 = $clog2(RATIO);
 
-// New ARLEN = (original ARLEN + 1) / RATIO - 1
+// upsize: New ARLEN = ceil((ARLEN + 1) / RATIO) - 1  (round UP)
+// downsize: split into master bursts of <= 256 beats (see 2.6.5)
 ```
 
 ### Examples
@@ -198,8 +199,10 @@ whole number of wide beats at every ratio, so a masked boundary can never
 land mid-accumulation. A one-bit flag queue, pushed per issued AR and
 popped per master RLAST, says which burst is final.
 
-On the downsize path the issued address is aligned down to the master
-data width, since a wide access cannot start mid-word:
+On the UPSIZE path the issued address is aligned down to the master
+data width, since a wide access cannot start mid-word (the downsize
+path issues narrow accesses and passes the address through the
+splitter unmodified apart from the per-burst advance):
 
 ```systemverilog
 localparam int ALIGN_BITS = $clog2(M_STRB_WIDTH);
@@ -334,7 +337,7 @@ Burst-length FIFO:   138 flip-flops (16 x 8b + two 5b pointers)
 Burst tracker:       ~30 flip-flops, ~20 LUTs
 Control logic:       ~80 LUTs
 
-Total: ~1500 flip-flops, ~200 LUTs
+Total: ~900 flip-flops, ~160 LUTs
 ```
 
 ### Single Buffer Version
@@ -360,43 +363,33 @@ Total: ~880 flip-flops, ~120 LUTs
 ### Throughput
 
 - AR channel: 1 transaction/cycle
-- R channel: the downsize accepts its next wide beat during the last narrow beat, measured at 0.992 beats/cycle
+- R channel: the downsize accepts its next wide beat during the last narrow beat -- 0.992 beats/cycle measured in simple mode (TRACK_BURSTS=1 pays one bubble per burst boundary and measures ~0.93; see 2.3)
 
 ## 2.6.11 Usage Example
 
 ```systemverilog
 axi4_dwidth_converter_rd #(
-    .S_AXI_DATA_WIDTH(32),
-    .M_AXI_DATA_WIDTH(128),
-    .ADDR_WIDTH(64),
-    .ID_WIDTH(4),
-    .SKID_DEPTH(2)
-) u_rd_converter (
-    .clk     (aclk),
-    .rst_n   (aresetn),
-
-    // 64-bit slave interface (to CPU)
-    .s_arvalid (cpu_arvalid),
-    .s_arready (cpu_arready),
-    .s_araddr  (cpu_araddr),
-    .s_arlen   (cpu_arlen),
-    .s_rvalid  (cpu_rvalid),
-    .s_rready  (cpu_rready),
-    .s_rdata   (cpu_rdata),
-    // ... other s_* signals
-
-    // 512-bit master interface (from DDR)
-    .m_arvalid (ddr_arvalid),
-    .m_arready (ddr_arready),
-    .m_araddr  (ddr_araddr),
-    .m_arlen   (ddr_arlen),
-    .m_rvalid  (ddr_rvalid),
-    .m_rready  (ddr_rready),
-    .m_rdata   (ddr_rdata),
-    // ... other m_* signals
+    .S_AXI_DATA_WIDTH (128),
+    .M_AXI_DATA_WIDTH (32),
+    .AXI_ID_WIDTH     (8),
+    .AXI_ADDR_WIDTH   (32),
+    .SKID_DEPTH_AR    (2),
+    .SKID_DEPTH_R     (4)
+) u_conv (
+    .aclk             (aclk),
+    .aresetn          (aresetn),
+    // slave side: s_axi_ar*/... (full AXI4 channel set)
+    .s_axi_arvalid   (cpu_arvalid),
+    .s_axi_arready   (cpu_arready),
+    // ...
+    // master side: m_axi_* toward the narrow fabric
+    .m_axi_arvalid   (mem_arvalid),
+    .m_axi_arready   (mem_arready)
+    // ...
 );
 ```
 
----
+All channel ports carry the `s_axi_`/`m_axi_` prefix; the full list is
+the module header. Skid depths are per channel -- there is no single
+`SKID_DEPTH`.
 
-**Next:** [Chapter 3: Protocol Converter Blocks](../ch03_protocol_blocks/01_overview.md)
