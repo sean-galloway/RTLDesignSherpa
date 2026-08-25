@@ -23,13 +23,22 @@
 
 # apb4_slave_stub
 
-A lightweight APB slave stub module that provides packed command/response interfaces for simplified testbench integration and system-level testing.
-
 ## Overview
 
-The `apb4_slave_stub` module acts as a simple APB slave that converts APB protocol signals to packed command/response packets. It's designed for testbench use where a simple APB slave is needed without the full functionality of the standard `apb4_slave` module. The packed interface simplifies integration with test responders and verification components.
+The `apb4_slave_stub` is a lightweight APB slave that converts APB protocol signals into packed command/response packets. It exists for testbench use — when you need a simple APB slave without the full functionality of the standard `apb4_slave` module. The packed interface simplifies integration with test responders and verification components.
 
-## Module Declaration
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| DEPTH | int | 4 | Skid-buffer depth in **entries** (not a log2 exponent); must be one of 2..8 inclusive |
+| DATA_WIDTH | int | 32 | APB data bus width |
+| ADDR_WIDTH | int | 32 | APB address bus width |
+| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+| CMD_PACKET_WIDTH | int | Calculated | Command packet width |
+| RESP_PACKET_WIDTH | int | Calculated | Response packet width |
+
+## Ports
 
 ```systemverilog
 module apb4_slave_stub #(
@@ -73,19 +82,6 @@ module apb4_slave_stub #(
     input  logic [RPW-1:0]              rsp_data
 );
 ```
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| DEPTH | int | 4 | Skid-buffer depth in **entries** (not a log2 exponent); must be one of 2..8 inclusive |
-| DATA_WIDTH | int | 32 | APB data bus width |
-| ADDR_WIDTH | int | 32 | APB address bus width |
-| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
-| CMD_PACKET_WIDTH | int | Calculated | Command packet width |
-| RESP_PACKET_WIDTH | int | Calculated | Response packet width |
-
-## Ports
 
 ### Clock and Reset
 
@@ -136,7 +132,7 @@ The stub uses packed interfaces to simplify testbench integration:
 - `pprot` (3 bits): Protection attributes
 - `pstrb` (SW bits): Write strobe
 - `paddr` (AW bits): Address
-- `pwdata` (DW bits): Write data -- the LSB field (paddr sits ABOVE pwdata, matching the comparison table below)
+- `pwdata` (DW bits): Write data — the LSB field (paddr sits ABOVE pwdata, matching the comparison table below)
 
 **Response Packet Format** (MSB to LSB):
 - `pslverr` (1 bit): Slave error
@@ -144,7 +140,7 @@ The stub uses packed interfaces to simplify testbench integration:
 
 ### Packet Format Is Not Symmetric With `apb4_master_stub`
 
-`apb4_master_stub` carries two extra bits in each direction -- `first` and `last`:
+`apb4_master_stub` carries two extra bits in each direction — `first` and `last`:
 
 | | `apb4_slave_stub` | `apb4_master_stub` |
 |---|---|---|
@@ -160,7 +156,7 @@ an APB slave has no burst to frame and so has no use for them.
 The two stubs are **never** connected packed-side to packed-side. They face each
 other across the APB bus, and the APB bus itself has no `first`/`last` signals,
 so no incompatibility arises. Do not attempt to wire `apb4_master_stub.cmd_data`
-directly into `apb4_slave_stub` -- the widths differ and the field alignment
+directly into `apb4_slave_stub` — the widths differ and the field alignment
 differs.
 
 ### Difference From `apb4_slave`

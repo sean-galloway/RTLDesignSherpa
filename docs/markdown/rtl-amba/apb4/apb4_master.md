@@ -23,17 +23,31 @@
 
 # apb4_master
 
-An Advanced Peripheral Bus (APB) master module that provides a high-performance interface for accessing APB slave devices with command/response buffering and full AMBA 4 APB (APB4) protocol compliance.
-
-**Protocol scope:** APB4 only. For `PWAKEUP`, the `P*USER` sidebands, or optional
-parity, use `apb5_master` from `rtl/amba/apb5/` -- see the
-[APB5 book](../apb5/apb5_master.md).
-
 ## Overview
 
-The `apb4_master` module implements a complete APB master interface with integrated command and response buffers for improved system performance. It supports all APB4 features including write strobes, protection attributes, and error responses while providing a simple command/response interface for system integration.
+The `apb4_master` is a full AMBA 4 APB (APB4) master with integrated command and response buffering. It gives you a high-performance interface for accessing APB slave devices behind a simple command/response handshake, and it supports every APB4 feature — write strobes, protection attributes, and error responses included.
 
-## Module Declaration
+**Protocol scope:** APB4 only. For `PWAKEUP`, the `P*USER` sidebands, or optional
+parity, use `apb5_master` from `rtl/amba/apb5/` — see the
+[APB5 book](../apb5/apb5_master.md).
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| ADDR_WIDTH | int | 32 | APB address bus width |
+| DATA_WIDTH | int | 32 | APB data bus width |
+| PROT_WIDTH | int | 3 | APB protection signal width |
+| CMD_DEPTH | int | 6 | Command buffer depth in **entries** (not a log2 exponent) |
+| RSP_DEPTH | int | 6 | Response buffer depth in **entries** (not a log2 exponent) |
+| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+
+**CMD_DEPTH and RSP_DEPTH are literal entry counts.** Both buffers are
+`gaxi_skid_buffer` instances, which store their payload in an unpacked array of
+`DEPTH` slots. The default of 6 means six entries, not sixty-four. Supported
+values are 2..8 inclusive.
+
+## Ports
 
 ```systemverilog
 module apb4_master #(
@@ -84,24 +98,6 @@ module apb4_master #(
 );
 ```
 
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| ADDR_WIDTH | int | 32 | APB address bus width |
-| DATA_WIDTH | int | 32 | APB data bus width |
-| PROT_WIDTH | int | 3 | APB protection signal width |
-| CMD_DEPTH | int | 6 | Command buffer depth in **entries** (not a log2 exponent) |
-| RSP_DEPTH | int | 6 | Response buffer depth in **entries** (not a log2 exponent) |
-| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
-
-**CMD_DEPTH and RSP_DEPTH are literal entry counts.** Both buffers are
-`gaxi_skid_buffer` instances, which store their payload in an unpacked array of
-`DEPTH` slots. The default of 6 means six entries, not sixty-four. Supported
-values are 2..8 inclusive.
-
-## Ports
-
 ### Clock and Reset
 
 | Port | Width | Direction | Description |
@@ -145,7 +141,7 @@ values are 2..8 inclusive.
 | rsp_prdata | DATA_WIDTH | Output | Response read data |
 | rsp_pslverr | 1 | Output | Response error status |
 
-## Functionality
+## Functional Description
 
 ### APB Protocol Implementation
 
@@ -170,7 +166,59 @@ Response Interface ← Response FIFO ← APB Response Processing
 - **Error Handling**: Proper PSLVERR propagation and handling
 - **Flow Control**: Ready/valid handshaking on all interfaces
 
-## Timing Characteristics
+### Protection Attributes (PPROT)
+
+The module passes APB protection attributes through unmodified. Per the AMBA APB
+specification each bit is independent:
+
+| Bit | 0 | 1 |
+|-----|---|---|
+| PPROT[0] | Normal access | Privileged access |
+| PPROT[1] | Secure access | Non-secure access |
+| PPROT[2] | Data access | Instruction access |
+
+Note the polarity of PPROT[1]: **0 means secure**, 1 means non-secure. The full
+encoding follows from the per-bit table:
+
+| PPROT[2:0] | Description |
+|------------|-------------|
+| 000 | Normal, Secure, Data |
+| 001 | Privileged, Secure, Data |
+| 010 | Normal, Non-secure, Data |
+| 011 | Privileged, Non-secure, Data |
+| 100 | Normal, Secure, Instruction |
+| 101 | Privileged, Secure, Instruction |
+| 110 | Normal, Non-secure, Instruction |
+| 111 | Privileged, Non-secure, Instruction |
+
+### Write Strobe Support
+
+Fine-grained byte-level write control:
+
+```systemverilog
+// Example: Write only upper 16 bits of 32-bit register
+cmd_pwdata <= {new_upper_data, 16'h0000};
+cmd_pstrb  <= 4'b1100;  // Only upper 2 bytes
+```
+
+### Error Handling
+
+Comprehensive error handling and reporting:
+
+```systemverilog
+always_ff @(posedge clk) begin
+    if (rsp_valid && rsp_ready) begin
+        if (rsp_pslverr) begin
+            // Log error details
+            error_count <= error_count + 1;
+            error_addr  <= last_cmd_addr;
+            error_type  <= last_cmd_write ? ERR_WRITE : ERR_READ;
+        end
+    end
+end
+```
+
+## Timing
 
 ### APB Transaction Timing
 
@@ -191,12 +239,12 @@ Response Interface ← Response FIFO ← APB Response Processing
 | Response Buffering | 6 responses | With default `RSP_DEPTH=6` |
 | Outstanding APB transfers | 1 | APB is non-pipelined |
 
-**On throughput:** APB is non-pipelined -- the FSM issues one transfer at a time
+**On throughput:** APB is non-pipelined — the FSM issues one transfer at a time
 and cannot start the next until `PREADY` for the current one. Buffering lets the
 command producer run ahead and lets responses drain lazily; it does not overlap
 bus transfers. Peak throughput is therefore
 `DATA_WIDTH / (transfer cycles × pclk period)`, with a minimum of two cycles
-(SETUP + one ACCESS cycle) per transfer against a zero-wait-state slave --
+(SETUP + one ACCESS cycle) per transfer against a zero-wait-state slave —
 back-to-back only; a cold (standalone) transfer takes THREE cycles, paying an
 extra PSEL cycle on the IDLE -> SETUP entry.
 
@@ -206,7 +254,7 @@ The following timing diagrams show comprehensive APB master behavior across 6 sc
 
 **Known diagram defect:** the WaveDrom generator stamps a fixed header string,
 `APB READ Transaction`, onto every scenario image regardless of direction. The
-signal traces themselves are correct -- read `PWRITE` in the trace, not the
+signal traces themselves are correct — read `PWRITE` in the trace, not the
 header, to determine transaction direction.
 
 ### Scenario 1: Basic Write Transaction
@@ -278,7 +326,7 @@ Shows APB write with command FIFO and response handling:
 
 ---
 
-## Usage Examples
+## Usage Example
 
 ### Basic APB Master Configuration
 
@@ -404,8 +452,6 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## Integration with APB Interconnect
-
 ### APB Crossbar Integration
 
 ```systemverilog
@@ -465,66 +511,12 @@ module apb_system (
 endmodule
 ```
 
-## Advanced Features
-
-### Protection Attributes (PPROT)
-
-The module passes APB protection attributes through unmodified. Per the AMBA APB
-specification each bit is independent:
-
-| Bit | 0 | 1 |
-|-----|---|---|
-| PPROT[0] | Normal access | Privileged access |
-| PPROT[1] | Secure access | Non-secure access |
-| PPROT[2] | Data access | Instruction access |
-
-Note the polarity of PPROT[1]: **0 means secure**, 1 means non-secure. The full
-encoding follows from the per-bit table:
-
-| PPROT[2:0] | Description |
-|------------|-------------|
-| 000 | Normal, Secure, Data |
-| 001 | Privileged, Secure, Data |
-| 010 | Normal, Non-secure, Data |
-| 011 | Privileged, Non-secure, Data |
-| 100 | Normal, Secure, Instruction |
-| 101 | Privileged, Secure, Instruction |
-| 110 | Normal, Non-secure, Instruction |
-| 111 | Privileged, Non-secure, Instruction |
-
-### Write Strobe Support
-
-Fine-grained byte-level write control:
-
-```systemverilog
-// Example: Write only upper 16 bits of 32-bit register
-cmd_pwdata <= {new_upper_data, 16'h0000};
-cmd_pstrb  <= 4'b1100;  // Only upper 2 bytes
-```
-
-### Error Handling
-
-Comprehensive error handling and reporting:
-
-```systemverilog
-always_ff @(posedge clk) begin
-    if (rsp_valid && rsp_ready) begin
-        if (rsp_pslverr) begin
-            // Log error details
-            error_count <= error_count + 1;
-            error_addr  <= last_cmd_addr;
-            error_type  <= last_cmd_write ? ERR_WRITE : ERR_READ;
-        end
-    end
-end
-```
-
-## Performance Optimization
+## Design Notes
 
 ### FIFO Depth Selection
 
 Depths are entry counts and must be one of 2..8 inclusive. Because APB is
-non-pipelined, deeper buffers do not increase bus throughput -- they only let the
+non-pipelined, deeper buffers do not increase bus throughput — they only let the
 command producer run further ahead of the bus and absorb bursty response
 draining.
 
@@ -562,24 +554,33 @@ apb4_master_cg #(
 
 See [apb4_master_cg.md](apb4_master_cg.md) for the full interface.
 
-## Synthesis Considerations
+### Synthesis Considerations
 
-### Area Optimization
+**Area:**
 - Reduce FIFO depths for area-constrained designs
 - Use synchronous reset for smaller area
 - Consider shared resources for multiple APB masters
 
-### Timing Optimization
+**Timing:**
 - Register all outputs for timing closure
 - Use appropriate FIFO depths to break critical paths
 - Consider skid buffers for high-frequency operation
 
-### Power Optimization
+**Power:**
 - Use clock gating variant when available
 - Implement power gating for inactive masters
 - Use appropriate FIFO depths to minimize switching
 
-## Verification Notes
+## Related Modules
+
+- **apb4_master_cg**: Clock-gated version for power optimization
+- **apb4_master_stub**: Packed-interface variant wrapping this module, adds first/last framing
+- **apb4_slave**: APB slave implementation
+- **apb5_master**: APB5 equivalent with `PWAKEUP`, `P*USER` and optional parity
+- **apbx_xbar_1to4 / apbx_xbar_2to4**: Generated APB crossbars for multi-slave systems
+- **apb4_monitor**: APB protocol monitor and analyzer
+
+## Testing
 
 ### Protocol Compliance
 - Verify APB setup and access phases
@@ -595,17 +596,6 @@ See [apb4_master_cg.md](apb4_master_cg.md) for the full interface.
 - Measure sustained throughput
 - Verify FIFO efficiency
 - Check latency under various loads
-
-## Related Modules
-
-- **apb4_master_cg**: Clock-gated version for power optimization
-- **apb4_master_stub**: Packed-interface variant wrapping this module, adds first/last framing
-- **apb4_slave**: APB slave implementation
-- **apb5_master**: APB5 equivalent with `PWAKEUP`, `P*USER` and optional parity
-- **apbx_xbar_1to4 / apbx_xbar_2to4**: Generated APB crossbars for multi-slave systems
-- **apb4_monitor**: APB protocol monitor and analyzer
-
-The `apb4_master` module provides a complete, high-performance solution for APB master functionality with advanced buffering, full protocol compliance, and comprehensive system integration capabilities.
 
 ---
 

@@ -23,13 +23,24 @@
 
 # apb4_monitor
 
-An Advanced Peripheral Bus (APB) transaction monitor that provides comprehensive error detection, performance tracking, and debug capabilities through a standardized monitor bus interface.
-
 ## Overview
 
-The `apb4_monitor` module monitors APB command/response interfaces to detect protocol violations, track performance metrics, and report events via the 128-bit monitor bus protocol (paired with a 64-bit side-band timestamp). It attaches to APB master cmd/rsp interfaces (timing-convenient proxies for APB signals) and generates standardized event packets for error detection, latency analysis, and transaction debugging.
+The `apb4_monitor` is an APB transaction monitor with comprehensive error detection, performance tracking, and debug capabilities, all reported through a standardized monitor bus interface. It attaches to APB master cmd/rsp interfaces (timing-convenient proxies for APB signals) and generates standardized event packets — 128-bit monitor bus protocol, paired with a 64-bit side-band timestamp — for error detection, latency analysis, and transaction debugging.
 
-## Module Declaration
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| ADDR_WIDTH | int | 32 | APB address bus width |
+| DATA_WIDTH | int | 32 | APB data bus width |
+| UNIT_ID | logic [7:0] | 8'h01 | 8-bit Unit identifier for monitor packets |
+| AGENT_ID | logic [15:0] | 16'h000A | 16-bit Agent identifier for monitor packets |
+| MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions (APB typically 1-4) |
+| N_ADDR_RANGES | int | 0 | Address-range checker ranges; 0 disables the checker |
+| MONITOR_FIFO_DEPTH | int | 8 | Internal FIFO depth for monitor packets |
+| USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
+
+## Ports
 
 ```systemverilog
 module apb4_monitor
@@ -113,21 +124,6 @@ module apb4_monitor
     output logic [31:0]              transaction_count        // Total transaction count
 );
 ```
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| ADDR_WIDTH | int | 32 | APB address bus width |
-| DATA_WIDTH | int | 32 | APB data bus width |
-| UNIT_ID | logic [7:0] | 8'h01 | 8-bit Unit identifier for monitor packets |
-| AGENT_ID | logic [15:0] | 16'h000A | 16-bit Agent identifier for monitor packets |
-| MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions (APB typically 1-4) |
-| N_ADDR_RANGES | int | 0 | Address-range checker ranges; 0 disables the checker |
-| MONITOR_FIFO_DEPTH | int | 8 | Internal FIFO depth for monitor packets |
-| USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
-
-## Ports
 
 ### Clock and Reset
 
@@ -239,7 +235,7 @@ The monitor generates standardized 128-bit packets (paired with 64-bit side-band
 - Timeout conditions (when cfg_timeout_enable = 1)
 
 **Performance Events** (when cfg_perf_enable = 1):
-- Latency threshold violations (`cfg_latency_threshold` compare -- the only
+- Latency threshold violations (`cfg_latency_threshold` compare — the only
   perf event the RTL generates)
 
 **Debug Events** (when cfg_debug_enable = 1):
@@ -273,7 +269,7 @@ Bits [71:64]   - Unit ID (8 bits, from UNIT_ID parameter)
 Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 ```
 
-## Configuration Strategies
+## Usage Example
 
 ### Functional Verification (Recommended)
 
@@ -311,7 +307,7 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 .cfg_perf_enable(1'b0)            // Reduce traffic
 ```
 
-## Usage Example
+### Full Integration
 
 ```systemverilog
 // APB Master with integrated monitor
@@ -419,7 +415,7 @@ gaxi_fifo_sync #(
 - Internal FIFO buffers monitor packets (depth = MONITOR_FIFO_DEPTH)
 - Backpressure on `monbus_ready` stops at the internal FIFO: packet
   generation fires purely from event conditions and does NOT consult the
-  FIFO's ready -- a full FIFO silently DROPS the packet
+  FIFO's ready — a full FIFO silently DROPS the packet
 - Worse, a dropped completion/error packet never sets `event_reported`, so
   the transaction-table slot is never freed; after MAX_TRANSACTIONS such
   losses the monitor stops tracking anything until reset (filed as a task

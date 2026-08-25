@@ -21,18 +21,23 @@
 
 <!-- End Header -->
 
-# APB Master Interface (Clock-Gated)
+# apb4_master_cg
 
 **Module:** `apb4_master_cg.sv`
 **Base Module:** [apb4_master](./apb4_master.md)
 **Location:** `rtl/amba/apb4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
-## Quick Reference
+## Overview
 
-This is the **clock-gated variant** of [apb4_master](./apb4_master.md).
+This is the **clock-gated variant** of [apb4_master](./apb4_master.md). It adds power optimization through activity-based clock gating, and it's a thin wrapper: an `amba_clock_gate_ctrl` instance produces `gated_pclk`, which feeds an otherwise unmodified `apb4_master`.
+
+- **Same Functionality:** 100% equivalent to base module
+- **Runtime Control:** Gating is enabled and tuned by input signals, not parameters
+- **Observable:** `apb_clock_gating` output reports when the clock is gated
+- **Bypassable:** Tie `cfg_cg_enable = 0` for behaviour identical to the base module
 
 **For the clock-gating architecture and the underlying gate cell, see:**
 
@@ -45,20 +50,7 @@ generic guide.
 
 ---
 
-## Summary
-
-The `apb4_master_cg` module adds power optimization to `apb4_master` through
-activity-based clock gating. It is a thin wrapper: an `amba_clock_gate_ctrl`
-instance produces `gated_pclk`, which feeds an otherwise unmodified `apb4_master`.
-
-- ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Runtime Control:** Gating is enabled and tuned by input signals, not parameters
-- ✅ **Observable:** `apb_clock_gating` output reports when the clock is gated
-- ✅ **Bypassable:** Tie `cfg_cg_enable = 0` for behaviour identical to the base module
-
----
-
-## Additional Parameters
+## Parameters
 
 In addition to all [apb4_master](./apb4_master.md) parameters:
 
@@ -67,10 +59,10 @@ In addition to all [apb4_master](./apb4_master.md) parameters:
 | `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of the idle countdown counter; bounds the maximum programmable idle threshold |
 
 There is no `ENABLE_CLOCK_GATING` parameter and no per-domain `CG_GATE_*`
-parameters on this module -- gating is controlled at runtime through the
+parameters on this module — gating is controlled at runtime through the
 configuration inputs below.
 
-## Additional Ports
+## Ports
 
 In addition to all [apb4_master](./apb4_master.md) ports:
 
@@ -79,6 +71,8 @@ In addition to all [apb4_master](./apb4_master.md) ports:
 | `cfg_cg_enable` | 1 | Input | Global clock-gate enable. 0 = never gate (identical to base module) |
 | `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles to count down before gating the clock |
 | `apb_clock_gating` | 1 | Output | Asserted while the internal clock is gated |
+
+## Functional Description
 
 ### Wake-Up Condition
 
@@ -105,7 +99,7 @@ therefore arrives **3 cycles** after activity asserts.
 
 ---
 
-## Quick Usage
+## Usage Example
 
 ```systemverilog
 apb4_master_cg #(
@@ -135,7 +129,7 @@ clock makes the internal state appear frozen and is easy to misread as a hang.
 
 ---
 
-## Documentation
+## Related Modules
 
 - **Base Module Functionality:** [apb4_master.md](./apb4_master.md)
 - **Clock Gating Guide:** [clock_gated_variants.md](../shared/clock_gated_variants.md)

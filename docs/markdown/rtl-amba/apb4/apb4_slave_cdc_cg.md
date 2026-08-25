@@ -82,14 +82,14 @@ and ignored**. There is no `ENABLE_CLOCK_GATING` parameter and no per-domain
 
 In addition to all [apb4_slave_cdc](./apb4_slave_cdc.md) ports:
 
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `cfg_cg_enable` | Input | 1 | Global clock-gate enable for both domains. 0 = never gate |
-| `cfg_cg_idle_count` | Input | CG_IDLE_COUNT_WIDTH | Idle cycles to count down before gating |
-| `pclk_cg_gating` | Output | 1 | Asserted while the `pclk` domain is gated |
-| `pclk_cg_idle` | Output | 1 | Asserted one cycle after the `pclk`-domain activity terms go low. **Not an occupancy flag** — see below |
-| `aclk_cg_gating` | Output | 1 | Asserted while the `aclk` domain is gated |
-| `aclk_cg_idle` | Output | 1 | Asserted one cycle after the `aclk`-domain activity terms go low. **Not an occupancy flag** — see below |
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| `cfg_cg_enable` | 1 | Input | Global clock-gate enable for both domains. 0 = never gate |
+| `cfg_cg_idle_count` | CG_IDLE_COUNT_WIDTH | Input | Idle cycles to count down before gating |
+| `pclk_cg_gating` | 1 | Output | Asserted while the `pclk` domain is gated |
+| `pclk_cg_idle` | 1 | Output | Asserted one cycle after the `pclk`-domain activity terms go low. **Not an occupancy flag** — see below |
+| `aclk_cg_gating` | 1 | Output | Asserted while the `aclk` domain is gated |
+| `aclk_cg_idle` | 1 | Output | Asserted one cycle after the `aclk`-domain activity terms go low. **Not an occupancy flag** — see below |
 
 > **`*_cg_idle` does not know whether the FIFOs are empty.** `amba_clock_gate_ctrl`
 > has no occupancy input at all — its whole idle logic is

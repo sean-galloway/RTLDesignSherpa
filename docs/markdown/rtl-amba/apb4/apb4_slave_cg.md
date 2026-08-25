@@ -21,12 +21,12 @@
 
 <!-- End Header -->
 
-# APB Slave Interface (Clock-Gated)
+# apb4_slave_cg
 
 **Module:** `apb4_slave_cg.sv`
 **Base Module:** [apb4_slave](./apb4_slave.md)
 **Location:** `rtl/amba/apb4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -36,21 +36,19 @@ The `apb4_slave_cg` module is a clock-gated variant of [apb4_slave](./apb4_slave
 
 ### Key Differences from Base Module
 
-- ✅ **Activity-Based Clock Gating:** Gates `pclk` when the interface has been idle
-- ✅ **Runtime Configuration:** Enable and idle threshold are input signals, not parameters
-- ✅ **Gating Status Output:** `apb_clock_gating` reports when the clock is gated
-- ✅ **Zero Functional Impact:** Maintains 100% functional equivalence with base module
+- **Activity-Based Clock Gating:** Gates `pclk` when the interface has been idle
+- **Runtime Configuration:** Enable and idle threshold are input signals, not parameters
+- **Gating Status Output:** `apb_clock_gating` reports when the clock is gated
+- **Zero Functional Impact:** Maintains 100% functional equivalence with base module
 
 The module is a thin wrapper: one `amba_clock_gate_ctrl` instance produces
 `gated_pclk`, which feeds an otherwise unmodified `apb4_slave`. There is a
-**single** gate cell -- there are no separate data-path and control-path gating
+**single** gate cell — there are no separate data-path and control-path gating
 domains.
 
 All other functionality is identical to the base module. See [apb4_slave.md](./apb4_slave.md) for complete functional specification.
 
----
-
-## When to Use Clock-Gated Variant
+### When to Use the Clock-Gated Variant
 
 **Use `apb4_slave_cg` when:**
 - Power consumption is a critical concern
@@ -58,7 +56,7 @@ All other functionality is identical to the base module. See [apb4_slave.md](./a
 - FPGA/ASIC has integrated clock gating support
 - Meeting power budgets for battery-operated systems
 
-**Use base module (`apb4_slave`) when:**
+**Use the base module (`apb4_slave`) when:**
 - Maximum performance with no power constraints
 - Continuous high-activity traffic
 - Simpler design with fewer configuration parameters
@@ -66,7 +64,7 @@ All other functionality is identical to the base module. See [apb4_slave.md](./a
 
 ---
 
-## Clock Gating Parameters
+## Parameters
 
 In addition to all parameters from [apb4_slave](./apb4_slave.md), this module adds:
 
@@ -75,9 +73,9 @@ In addition to all parameters from [apb4_slave](./apb4_slave.md), this module ad
 | `CG_IDLE_COUNT_WIDTH` | int | 4 | Width of the idle countdown counter; bounds the maximum programmable idle threshold |
 
 That is the only additional parameter. Gating is not parameterized on or off, and
-there are no per-domain gating parameters -- both are controlled at runtime.
+there are no per-domain gating parameters — both are controlled at runtime.
 
-## Clock Gating Ports
+## Ports
 
 In addition to all ports from [apb4_slave](./apb4_slave.md):
 
@@ -89,71 +87,7 @@ In addition to all ports from [apb4_slave](./apb4_slave.md):
 
 ---
 
-## Usage Examples
-
-### Example 1: Aggressive Gating (Bursty Traffic)
-
-```systemverilog
-apb4_slave_cg #(
-    // Base parameters (see apb4_slave.md)
-    .ADDR_WIDTH          (32),
-    .DATA_WIDTH          (32),
-    .DEPTH               (2),
-    .CG_IDLE_COUNT_WIDTH (4)
-) u_cg (
-    .pclk              (apb_clk),
-    .presetn           (apb_resetn),
-
-    .cfg_cg_enable     (1'b1),
-    .cfg_cg_idle_count (4'd4),   // gate quickly after 4 idle cycles
-    .apb_clock_gating  (cg_active),
-    // ... connect signals same as base module
-);
-```
-
-### Example 2: Conservative Gating
-
-```systemverilog
-apb4_slave_cg #(
-    .ADDR_WIDTH          (32),
-    .DATA_WIDTH          (32),
-    .CG_IDLE_COUNT_WIDTH (4)
-) u_cg (
-    .pclk              (apb_clk),
-    .presetn           (apb_resetn),
-
-    .cfg_cg_enable     (1'b1),
-    .cfg_cg_idle_count (4'd15),  // wait longer; fewer gate/ungate events
-    .apb_clock_gating  (cg_active),
-    // ... connect signals same as base module
-);
-```
-
-Note that `cfg_cg_idle_count` is bounded by `CG_IDLE_COUNT_WIDTH`. With the
-default width of 4, the largest usable threshold is 15 cycles; widen the
-parameter if a longer idle window is required.
-
-### Example 3: Clock Gating Disabled (Functional Verification)
-
-```systemverilog
-apb4_slave_cg #(
-    .ADDR_WIDTH          (32),
-    .DATA_WIDTH          (32)
-) u_cg (
-    .pclk              (apb_clk),
-    .presetn           (apb_resetn),
-
-    .cfg_cg_enable     (1'b0),   // never gate
-    .cfg_cg_idle_count (4'd0),
-    // ... connect signals same as base module
-);
-```
-
-**Note:** With `cfg_cg_enable = 0`, this module is functionally identical to the base module.
-
----
-
-## Clock Gating Architecture
+## Functional Description
 
 ### Single Gating Domain
 
@@ -207,12 +141,78 @@ therefore arrives **3 cycles** after activity asserts.
 rather than a further register stage.
 
 `cfg_cg_idle_count` controls how long the clock stays running *after* traffic
-stops, not how long wake-up takes -- a larger value means fewer gate/ungate
+stops, not how long wake-up takes — a larger value means fewer gate/ungate
 transitions, not slower wake-up.
 
 ---
 
-## Power Savings
+## Usage Example
+
+### Aggressive Gating (Bursty Traffic)
+
+```systemverilog
+apb4_slave_cg #(
+    // Base parameters (see apb4_slave.md)
+    .ADDR_WIDTH          (32),
+    .DATA_WIDTH          (32),
+    .DEPTH               (2),
+    .CG_IDLE_COUNT_WIDTH (4)
+) u_cg (
+    .pclk              (apb_clk),
+    .presetn           (apb_resetn),
+
+    .cfg_cg_enable     (1'b1),
+    .cfg_cg_idle_count (4'd4),   // gate quickly after 4 idle cycles
+    .apb_clock_gating  (cg_active),
+    // ... connect signals same as base module
+);
+```
+
+### Conservative Gating
+
+```systemverilog
+apb4_slave_cg #(
+    .ADDR_WIDTH          (32),
+    .DATA_WIDTH          (32),
+    .CG_IDLE_COUNT_WIDTH (4)
+) u_cg (
+    .pclk              (apb_clk),
+    .presetn           (apb_resetn),
+
+    .cfg_cg_enable     (1'b1),
+    .cfg_cg_idle_count (4'd15),  // wait longer; fewer gate/ungate events
+    .apb_clock_gating  (cg_active),
+    // ... connect signals same as base module
+);
+```
+
+Note that `cfg_cg_idle_count` is bounded by `CG_IDLE_COUNT_WIDTH`. With the
+default width of 4, the largest usable threshold is 15 cycles; widen the
+parameter if a longer idle window is required.
+
+### Clock Gating Disabled (Functional Verification)
+
+```systemverilog
+apb4_slave_cg #(
+    .ADDR_WIDTH          (32),
+    .DATA_WIDTH          (32)
+) u_cg (
+    .pclk              (apb_clk),
+    .presetn           (apb_resetn),
+
+    .cfg_cg_enable     (1'b0),   // never gate
+    .cfg_cg_idle_count (4'd0),
+    // ... connect signals same as base module
+);
+```
+
+**Note:** With `cfg_cg_enable = 0`, this module is functionally identical to the base module.
+
+---
+
+## Design Notes
+
+### Power Savings
 
 Clock gating removes the switching power of the wrapped `apb4_slave` during the
 gated window. The achievable saving is therefore bounded by the fraction of time
@@ -231,9 +231,43 @@ switching activity file (SAIF/VCD) and compare against `apb4_slave`.
 |--------|-------|-------------|
 | `apb_clock_gating` | 1 | Asserted while the internal clock is gated. Integrate over a window to measure the gated duty cycle |
 
+### Synthesis Considerations
+
+The gated clock is produced inside `amba_clock_gate_ctrl`. Whether it becomes a
+true gated clock or a fan-out of clock enables is a synthesis decision:
+
+**Xilinx:**
+- Vivado typically converts the enable into `BUFGCE` or into per-flop clock enables
+- Confirm which happened in the post-synthesis netlist before claiming power savings
+- Verify with post-implementation power analysis
+
+**Intel (Altera):**
+- Maps to `ALTCLKCTRL`; may need explicit vendor primitive instantiation
+- Check power reports for gating effectiveness
+
+**Lattice:**
+- Basic clock gating supported
+- May require manual instantiation of clock enables
+- Verify functionality in timing simulation
+
+**ASIC:**
+- Work with foundry to select appropriate clock gating cells
+- Integrated Clock Gating (ICG) cells provide best results
+- Consider hold-time implications of clock gating
+- Verify power intent with UPF (Unified Power Format)
+
 ---
 
-## Verification Considerations
+## Related Modules
+
+- **[apb4_slave](./apb4_slave.md)** - Base module (non-clock-gated)
+- **Power Optimization Guide:** `docs/POWER_OPTIMIZATION_GUIDE.md`
+- **Clock Gating Best Practices:** `docs/CLOCK_GATING_GUIDE.md`
+- **AMBA Subsystem Overview:** `docs/markdown/rtl-amba/overview.md`
+
+---
+
+## Testing
 
 ### Clock Gating in Simulation
 
@@ -259,50 +293,6 @@ For power-specific verification:
 2. **Monitor `apb_clock_gating`** to verify the expected gated duty cycle
 3. **Vary traffic patterns** to test gating effectiveness
 4. **Check wake-up timing** meets system requirements
-
----
-
-## Synthesis Considerations
-
-### FPGA Implementations
-
-The gated clock is produced inside `amba_clock_gate_ctrl`. Whether it becomes a
-true gated clock or a fan-out of clock enables is a synthesis decision:
-
-**Xilinx:**
-- Vivado typically converts the enable into `BUFGCE` or into per-flop clock enables
-- Confirm which happened in the post-synthesis netlist before claiming power savings
-- Verify with post-implementation power analysis
-
-**Intel (Altera):**
-- Maps to `ALTCLKCTRL`; may need explicit vendor primitive instantiation
-- Check power reports for gating effectiveness
-
-**Lattice:**
-- Basic clock gating supported
-- May require manual instantiation of clock enables
-- Verify functionality in timing simulation
-
-### ASIC Implementations
-
-- Work with foundry to select appropriate clock gating cells
-- Integrated Clock Gating (ICG) cells provide best results
-- Consider hold-time implications of clock gating
-- Verify power intent with UPF (Unified Power Format)
-
----
-
-## Related Modules
-
-- **[apb4_slave](./apb4_slave.md)** - Base module (non-clock-gated)
-
----
-
-## See Also
-
-- **Power Optimization Guide:** `docs/POWER_OPTIMIZATION_GUIDE.md`
-- **Clock Gating Best Practices:** `docs/CLOCK_GATING_GUIDE.md`
-- **AMBA Subsystem Overview:** `docs/markdown/rtl-amba/overview.md`
 
 ---
 

@@ -25,23 +25,21 @@
 
 **Location:** `rtl/amba/apb4/`
 **Test Location:** `val/amba/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The APB subsystem provides a complete implementation of the ARM AMBA 4 APB (Advanced Peripheral Bus) protocol, including masters, slaves, monitors, interconnect components, and testbench utilities.
-
-APB is a simple, low-power peripheral bus designed for connecting low-bandwidth peripherals to a system bus. It uses a simple two-cycle handshake protocol with minimal control signals.
+The APB subsystem provides a complete implementation of the ARM AMBA 4 APB (Advanced Peripheral Bus) protocol: masters, slaves, monitors, interconnect components, and testbench utilities. APB is the simple, low-power peripheral bus you hang low-bandwidth peripherals off a system bus with — a two-cycle handshake and a minimal set of control signals. That simplicity is the whole point.
 
 ### Protocol Scope: APB4, not APB5
 
 Every module in `rtl/amba/apb4/` implements **AMBA 4 APB (APB4)**: `PSEL`, `PENABLE`,
 `PREADY`, `PADDR`, `PWRITE`, `PWDATA`, `PSTRB`, `PPROT`, `PRDATA`, `PSLVERR`.
 
-The APB5 additions -- `PWAKEUP`, `PAUSER`/`PWUSER`/`PRUSER`/`PBUSER`, and the
-optional parity signals -- are **not** present on these modules. They live in a
+The APB5 additions — `PWAKEUP`, `PAUSER`/`PWUSER`/`PRUSER`/`PBUSER`, and the
+optional parity signals — are **not** present on these modules. They live in a
 separate module family:
 
 | Family | RTL | Documentation |
@@ -52,20 +50,18 @@ separate module family:
 Use `apb5_slave` / `apb5_master` (and their `_cg` / `_cdc` variants) when APB5
 signalling is required. The two families are otherwise architecturally identical.
 
----
-
-## Module Categories
+The modules in this book fall into four groups.
 
 ### Core Protocol Components
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **apb4_master** | Full-featured APB master with command/response interface | [apb4_master.md](apb4_master.md) | ✅ Documented |
-| **apb4_slave** | Complete APB slave with buffered cmd/rsp interface | [apb4_slave.md](apb4_slave.md) | ✅ Documented |
-| **apb4_slave_cdc** | APB slave with clock domain crossing support | [apb4_slave_cdc.md](apb4_slave_cdc.md) | ✅ Documented |
-| **apb4_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb4_monitor.md](apb4_monitor.md) | ✅ Documented |
+| **apb4_master** | Full-featured APB master with command/response interface | [apb4_master.md](apb4_master.md) | Documented |
+| **apb4_slave** | Complete APB slave with buffered cmd/rsp interface | [apb4_slave.md](apb4_slave.md) | Documented |
+| **apb4_slave_cdc** | APB slave with clock domain crossing support | [apb4_slave_cdc.md](apb4_slave_cdc.md) | Documented |
+| **apb4_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb4_monitor.md](apb4_monitor.md) | Documented |
 
-**Note:** `apb4_monitor.sv` lives HERE in `rtl/amba/apb4/` -- the protocol
+**Note:** `apb4_monitor.sv` lives HERE in `rtl/amba/apb4/` — the protocol
 monitors stay with the protocol they wrap; only the monitor CORE pieces
 live in `rtl/amba/monitor/`. Its specification is
 [apb4_monitor.md](apb4_monitor.md) in this book.
@@ -74,15 +70,15 @@ live in `rtl/amba/monitor/`. Its specification is
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **apb4_master_stub** | Lightweight APB master for testbench integration | [apb4_master_stub.md](apb4_master_stub.md) | ✅ Documented |
-| **apb4_slave_stub** | Lightweight APB slave for testbench integration | [apb4_slave_stub.md](apb4_slave_stub.md) | ✅ Documented |
+| **apb4_master_stub** | Lightweight APB master for testbench integration | [apb4_master_stub.md](apb4_master_stub.md) | Documented |
+| **apb4_slave_stub** | Lightweight APB slave for testbench integration | [apb4_slave_stub.md](apb4_slave_stub.md) | Documented |
 
 ### Interconnect Components
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **apbx_xbar_thin** | Fully parameterized M×S combinational crossbar with weighted round-robin | [../apbx/apbx_xbar_thin.md](../apbx/apbx_xbar_thin.md) | ✅ Documented |
-| **apbx_xbar_1to1** / **2to1** / **1to4** / **2to4** / **2to2_mixed** | Generated fixed-configuration crossbars | [../apbx/apbx_xbar_variants.md](../apbx/apbx_xbar_variants.md) | ✅ Documented |
+| **apbx_xbar_thin** | Fully parameterized M×S combinational crossbar with weighted round-robin | [../apbx/apbx_xbar_thin.md](../apbx/apbx_xbar_thin.md) | Documented |
+| **apbx_xbar_1to1** / **2to1** / **1to4** / **2to4** / **2to2_mixed** | Generated fixed-configuration crossbars | [../apbx/apbx_xbar_variants.md](../apbx/apbx_xbar_variants.md) | Documented |
 
 **Note:** The crossbar moved out of this directory (2026-08-13). It is no
 longer an APB4-only block: `apbx_xbar` carries per-port version masks and can
@@ -99,48 +95,80 @@ The RTL, generator, and testbenches live in the component area
 Each adds `cfg_cg_enable` / `cfg_cg_idle_count` inputs and gating/idle
 status outputs. `apb4_master_cg` and `apb4_slave_cg` wrap their base module
 in one `amba_clock_gate_ctrl` with an `apb_clock_gating` status output;
-`apb4_slave_cdc_cg` is a SIBLING of apb4_slave_cdc, not a wrapper -- it
+`apb4_slave_cdc_cg` is a SIBLING of apb4_slave_cdc, not a wrapper — it
 re-instantiates apb4_slave plus the two CDC FIFOs around TWO gate cells,
 with per-domain `pclk_cg_*` / `aclk_cg_*` status outputs.
 
 | Module | Base Module | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **apb4_master_cg** | `apb4_master` | [apb4_master_cg.md](apb4_master_cg.md) | ✅ Documented |
-| **apb4_slave_cg** | `apb4_slave` | [apb4_slave_cg.md](apb4_slave_cg.md) | ✅ Documented |
-| **apb4_slave_cdc_cg** | `apb4_slave_cdc` | [apb4_slave_cdc_cg.md](apb4_slave_cdc_cg.md) | ✅ Documented |
+| **apb4_master_cg** | `apb4_master` | [apb4_master_cg.md](apb4_master_cg.md) | Documented |
+| **apb4_slave_cg** | `apb4_slave` | [apb4_slave_cg.md](apb4_slave_cg.md) | Documented |
+| **apb4_slave_cdc_cg** | `apb4_slave_cdc` | [apb4_slave_cdc_cg.md](apb4_slave_cdc_cg.md) | Documented |
 
----
+### Key Features
 
-## Key Features
-
-### APB Protocol Support
-- ✅ **Full APB4 Compliance:** Complete AMBA 4 APB protocol implementation
-- ✅ **PSTRB Support:** Byte-lane strobes for partial writes
-- ✅ **PPROT Support:** Protection attributes for security-aware systems
-- ✅ **Error Handling:** PSLVERR support for error responses
-- ✅ **APB5 Available Separately:** See `rtl/amba/apb5/` for `PWAKEUP`, the
+**APB protocol support:**
+- **Full APB4 Compliance:** Complete AMBA 4 APB protocol implementation
+- **PSTRB Support:** Byte-lane strobes for partial writes
+- **PPROT Support:** Protection attributes for security-aware systems
+- **Error Handling:** PSLVERR support for error responses
+- **APB5 Available Separately:** See `rtl/amba/apb5/` for `PWAKEUP`, the
   `P*USER` sidebands, and optional parity
 
-### Clock Domain Crossing
-- ✅ **Dual-Clock Operation:** APB (pclk) and backend (aclk) domains
-- ✅ **Safe CDC:** Gray-pointer asynchronous FIFOs (`gaxi_fifo_async`) in both directions
-- ✅ **Independent Frequencies:** Backend can run faster or slower than APB
-- **Reset both domains together** across the CDC variants -- a one-sided reset is NOT safe (consumed entries replay / responses fabricate; see apb4_slave_cdc.md's reset analysis)
+**Clock domain crossing:**
+- **Dual-Clock Operation:** APB (pclk) and backend (aclk) domains
+- **Safe CDC:** Gray-pointer asynchronous FIFOs (`gaxi_fifo_async`) in both directions
+- **Independent Frequencies:** Backend can run faster or slower than APB
+- Caveat: **Reset both domains together** across the CDC variants — a one-sided reset is NOT safe (consumed entries replay / responses fabricate; see apb4_slave_cdc.md's reset analysis)
 
-### Monitoring and Debug
-- ✅ **Transaction Monitoring:** Real-time protocol monitoring
-- ✅ **128-bit Monitor Bus:** Standardized packet format plus a 64-bit side-band timestamp
-- ✅ **Error Detection:** Protocol violations, timeout detection
-- ✅ **Performance Tracking:** Transaction counting, latency measurement
+**Monitoring and debug:**
+- **Transaction Monitoring:** Real-time protocol monitoring
+- **128-bit Monitor Bus:** Standardized packet format plus a 64-bit side-band timestamp
+- **Error Detection:** Protocol violations, timeout detection
+- **Performance Tracking:** Transaction counting, latency measurement
 
-### Testbench Integration
-- ✅ **Packed Interfaces:** Simplified testbench connectivity
-- ✅ **Stub Modules:** Lightweight wrappers for CocoTB integration
-- ✅ **WaveDrom Support:** Automated waveform generation
+**Testbench integration:**
+- **Packed Interfaces:** Simplified testbench connectivity
+- **Stub Modules:** Lightweight wrappers for CocoTB integration
+- **WaveDrom Support:** Automated waveform generation
 
 ---
 
-## Quick Start
+## Functional Description
+
+### APB Transfer Phases
+
+APB uses a simple two-phase protocol:
+
+1. **SETUP Phase:** PSEL asserted, PENABLE low
+   - Master presents address, control signals, and write data (if write)
+   - Slave prepares for transfer
+
+2. **ACCESS Phase:** PSEL and PENABLE both asserted
+   - Slave completes transfer and asserts PREADY when ready
+   - For reads, slave presents PRDATA
+   - Slave may assert PSLVERR to signal error
+
+### Signal Descriptions
+
+| Signal | Direction | Description |
+|--------|-----------|-------------|
+| PCLK | Input | APB clock |
+| PRESETn | Input | Active-low reset |
+| PSEL | Master→Slave | Slave select |
+| PENABLE | Master→Slave | Enable (ACCESS phase indicator) |
+| PREADY | Slave→Master | Transfer complete |
+| PADDR | Master→Slave | Address bus |
+| PWRITE | Master→Slave | Write enable (1=write, 0=read) |
+| PWDATA | Master→Slave | Write data |
+| PSTRB | Master→Slave | Byte lane strobes |
+| PPROT | Master→Slave | Protection attributes |
+| PRDATA | Slave→Master | Read data |
+| PSLVERR | Slave→Master | Error response |
+
+---
+
+## Usage Example
 
 ### Using APB Master
 
@@ -223,6 +251,61 @@ apb4_slave #(
 
 ---
 
+## Design Notes
+
+### Command/Response Architecture
+
+All APB modules use a command/response interface pattern for backend integration:
+
+**Command Interface (Master → Backend or APB → Backend):**
+- `cmd_valid`, `cmd_ready` - Handshake signals
+- `cmd_pwrite` - Write/read direction
+- `cmd_paddr` - Transaction address
+- `cmd_pwdata` - Write data
+- `cmd_pstrb` - Byte strobes
+- `cmd_pprot` - Protection attributes
+
+**Response Interface (Backend → Master or Backend → APB):**
+- `rsp_valid`, `rsp_ready` - Handshake signals
+- `rsp_prdata` - Read data
+- `rsp_pslverr` - Error flag
+
+This separation buys you:
+- Clean clock domain crossing
+- Buffering and pipelining
+- Easy testbench integration
+- Backend processing flexibility
+
+### Monitor Bus Protocol
+
+The APB monitor outputs standardized 128-bit `monitor_packet_t` records, paired
+with a 64-bit side-band timestamp:
+
+```
+[127:124] - Packet Type    (4 bits)
+[123:109] - Reserved       (15 bits, forward-compat slack)
+[108:105] - Protocol       (4 bits)
+[104:97]  - Event Code     (8 bits)
+[96:88]   - Channel ID     (9 bits)
+[87:72]   - Agent ID       (16 bits)
+[71:64]   - Unit ID        (8 bits)
+[63:0]    - Event Data     (64 bits)
+```
+
+See [apb4_monitor.md](apb4_monitor.md) for detailed packet format.
+
+---
+
+## Related Modules
+
+- **[APB5 Modules](../apb5/README.md)** - APB5 family (`PWAKEUP`, `P*USER`, parity)
+- **[AXI4 Modules](../axi4/README.md)** - Full AXI4 protocol components
+- **[AXIL4 Modules](../axil4/README.md)** - AXI4-Lite components
+- **[AXIS4 Modules](../axis4/README.md)** - AXI4-Stream components
+- **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities
+
+---
+
 ## Testing
 
 All APB modules are verified using CocoTB-based testbenches located in `val/amba/`:
@@ -271,95 +354,6 @@ exist for the APB5 equivalents:
 Generated waveforms are stored in:
 - JSON format: `_wavedrom/`
 - SVG images: `_wavedrom_svg/`
-
----
-
-## Protocol Details
-
-### APB Transfer Phases
-
-APB uses a simple two-phase protocol:
-
-1. **SETUP Phase:** PSEL asserted, PENABLE low
-   - Master presents address, control signals, and write data (if write)
-   - Slave prepares for transfer
-
-2. **ACCESS Phase:** PSEL and PENABLE both asserted
-   - Slave completes transfer and asserts PREADY when ready
-   - For reads, slave presents PRDATA
-   - Slave may assert PSLVERR to signal error
-
-### Signal Descriptions
-
-| Signal | Direction | Description |
-|--------|-----------|-------------|
-| PCLK | Input | APB clock |
-| PRESETn | Input | Active-low reset |
-| PSEL | Master→Slave | Slave select |
-| PENABLE | Master→Slave | Enable (ACCESS phase indicator) |
-| PREADY | Slave→Master | Transfer complete |
-| PADDR | Master→Slave | Address bus |
-| PWRITE | Master→Slave | Write enable (1=write, 0=read) |
-| PWDATA | Master→Slave | Write data |
-| PSTRB | Master→Slave | Byte lane strobes |
-| PPROT | Master→Slave | Protection attributes |
-| PRDATA | Slave→Master | Read data |
-| PSLVERR | Slave→Master | Error response |
-
----
-
-## Design Notes
-
-### Command/Response Architecture
-
-All APB modules use a command/response interface pattern for backend integration:
-
-**Command Interface (Master → Backend or APB → Backend):**
-- `cmd_valid`, `cmd_ready` - Handshake signals
-- `cmd_pwrite` - Write/read direction
-- `cmd_paddr` - Transaction address
-- `cmd_pwdata` - Write data
-- `cmd_pstrb` - Byte strobes
-- `cmd_pprot` - Protection attributes
-
-**Response Interface (Backend → Master or Backend → APB):**
-- `rsp_valid`, `rsp_ready` - Handshake signals
-- `rsp_prdata` - Read data
-- `rsp_pslverr` - Error flag
-
-This separation enables:
-- Clean clock domain crossing
-- Buffering and pipelining
-- Easy testbench integration
-- Backend processing flexibility
-
-### Monitor Bus Protocol
-
-The APB monitor outputs standardized 128-bit `monitor_packet_t` records, paired
-with a 64-bit side-band timestamp:
-
-```
-[127:124] - Packet Type    (4 bits)
-[123:109] - Reserved       (15 bits, forward-compat slack)
-[108:105] - Protocol       (4 bits)
-[104:97]  - Event Code     (8 bits)
-[96:88]   - Channel ID     (9 bits)
-[87:72]   - Agent ID       (16 bits)
-[71:64]   - Unit ID        (8 bits)
-[63:0]    - Event Data     (64 bits)
-```
-
-See [apb4_monitor.md](apb4_monitor.md) for detailed packet format.
-
----
-
-## Related Documentation
-
-- **[APB5 Modules](../apb5/README.md)** - APB5 family (`PWAKEUP`, `P*USER`, parity)
-- **[AXI4 Modules](../axi4/README.md)** - Full AXI4 protocol components
-- **[AXIL4 Modules](../axil4/README.md)** - AXI4-Lite components
-- **[AXIS4 Modules](../axis4/README.md)** - AXI4-Stream components
-- **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities
 
 ---
 

@@ -23,13 +23,23 @@
 
 # apb4_master_stub
 
-A lightweight APB master stub module that provides packed command/response interfaces for simplified testbench integration and system-level testing.
-
 ## Overview
 
-The `apb4_master_stub` module acts as a simple APB master that accepts packed command packets and returns packed response packets. It's designed for testbench use where a simple APB master is needed without the full functionality of the standard `apb4_master` module. The packed interface simplifies integration with test drivers and verification components.
+The `apb4_master_stub` is a lightweight APB master that accepts packed command packets and returns packed response packets. It exists for testbench use — when you need a simple APB master without the full functionality of the standard `apb4_master` module. The packed interface simplifies integration with test drivers and verification components.
 
-## Module Declaration
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| CMD_DEPTH | int | 6 | Command buffer depth in **entries** (not a log2 exponent) |
+| RSP_DEPTH | int | 6 | Response buffer depth in **entries** (not a log2 exponent) |
+| DATA_WIDTH | int | 32 | APB data bus width |
+| ADDR_WIDTH | int | 32 | APB address bus width |
+| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+| CMD_PACKET_WIDTH | int | Calculated | Command packet width |
+| RESP_PACKET_WIDTH | int | Calculated | Response packet width |
+
+## Ports
 
 ```systemverilog
 module apb4_master_stub #(
@@ -75,20 +85,6 @@ module apb4_master_stub #(
     output logic [RESP_PACKET_WIDTH-1:0] rsp_data
 );
 ```
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| CMD_DEPTH | int | 6 | Command buffer depth in **entries** (not a log2 exponent) |
-| RSP_DEPTH | int | 6 | Response buffer depth in **entries** (not a log2 exponent) |
-| DATA_WIDTH | int | 32 | APB data bus width |
-| ADDR_WIDTH | int | 32 | APB address bus width |
-| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
-| CMD_PACKET_WIDTH | int | Calculated | Command packet width |
-| RESP_PACKET_WIDTH | int | Calculated | Response packet width |
-
-## Ports
 
 ### Clock and Reset
 
@@ -141,7 +137,7 @@ The stub uses packed interfaces to simplify testbench integration:
 - `pprot` (3 bits): Protection attributes
 - `pstrb` (SW bits): Write strobe
 - `paddr` (AW bits): Address
-- `pwdata` (DW bits): Write data -- the LSB field (paddr sits ABOVE pwdata)
+- `pwdata` (DW bits): Write data — the LSB field (paddr sits ABOVE pwdata)
 
 **Response Packet Format** (MSB to LSB):
 - `last` (1 bit): Last transfer indicator
@@ -159,14 +155,14 @@ dequeued on every response-side handshake.
 
 This pairing is essential when the upstream pipelines commands ahead of
 responses. Tapping `first`/`last` combinationally from the live `cmd_data` input
-instead -- as an earlier revision did -- pairs command N's response with command
+instead — as an earlier revision did — pairs command N's response with command
 N+1's framing bits as soon as the internal command FIFO accepts N+1. In the
 AXI4-to-APB bridge that manifested as `axi4_to_apb4_convert` never seeing
 `first=1` again in `RSP_IDLE`, hanging the FSM and surfacing as a timeout on the
 master AXI4 R channel.
 
 The side FIFO's depth mirrors the command buffer's, but it drains on the
-EXTERNAL response handshake -- under response backpressure the accepted-not-
+EXTERNAL response handshake — under response backpressure the accepted-not-
 yet-drained count can reach CMD_DEPTH + 1 + RSP_DEPTH, and `fl_in_ready` is
 never consulted, so the framing FIFO silently overflows and later responses
 pair with stale first/last framing (filed as TASK-067 in vault/Tasks/amba).
@@ -177,7 +173,7 @@ Until fixed, drain responses promptly or keep pipelining shallow.
 `apb4_slave_stub` omits `first` and `last` in both directions and is therefore
 two bits narrower per packet. The two stubs face each other across the APB bus,
 never packed-side to packed-side, so this asymmetry is intentional and causes no
-integration problem -- but the packed buses must not be wired together directly.
+integration problem — but the packed buses must not be wired together directly.
 See [apb4_slave_stub.md](apb4_slave_stub.md) for the side-by-side comparison.
 
 ### Operation

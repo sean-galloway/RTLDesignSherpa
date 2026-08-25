@@ -23,17 +23,32 @@
 
 # apb4_slave
 
-An Advanced Peripheral Bus (APB) slave module that provides a complete AMBA 4 APB (APB4) compliant interface with buffered command/response processing for high-performance peripheral integration.
-
-**Protocol scope:** APB4 only. For `PWAKEUP`, the `P*USER` sidebands, or optional
-parity, use `apb5_slave` from `rtl/amba/apb5/` -- see the
-[APB5 book](../apb5/apb5_slave.md).
-
 ## Overview
 
-The `apb4_slave` module implements a full APB slave interface with integrated command and response buffering using GAXI skid buffers. It provides seamless protocol translation between the APB interface and a simple command/response interface, enabling easy integration of custom peripherals and register blocks into APB-based systems.
+The `apb4_slave` is a complete AMBA 4 APB (APB4) compliant slave with integrated command and response buffering built on GAXI skid buffers. It translates between the APB interface and a simple command/response interface, so dropping a custom peripheral or register block onto an APB-based system is straightforward.
 
-## Module Declaration
+**Protocol scope:** APB4 only. For `PWAKEUP`, the `P*USER` sidebands, or optional
+parity, use `apb5_slave` from `rtl/amba/apb5/` — see the
+[APB5 book](../apb5/apb5_slave.md).
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| ADDR_WIDTH | int | 32 | APB address bus width |
+| DATA_WIDTH | int | 32 | APB data bus width |
+| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
+| PROT_WIDTH | int | 3 | APB protection signal width |
+| DEPTH | int | 2 | Skid buffer depth in **entries** (not a log2 exponent) |
+
+**DEPTH is a literal entry count.** `gaxi_skid_buffer` stores its payload in an
+unpacked array of `DEPTH` slots, so `DEPTH=2` gives two entries, not four.
+Supported values are 2..8 inclusive — ANY integer in that range (odd depths
+are legal); the shift-register storage is optimal at 2 and remains cheaper
+than a packed-vector implementation through 8. Values outside 2..8 fail
+elaboration.
+
+## Ports
 
 ```systemverilog
 module apb4_slave #(
@@ -83,25 +98,6 @@ module apb4_slave #(
 );
 ```
 
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| ADDR_WIDTH | int | 32 | APB address bus width |
-| DATA_WIDTH | int | 32 | APB data bus width |
-| STRB_WIDTH | int | DATA_WIDTH/8 | Write strobe width (calculated) |
-| PROT_WIDTH | int | 3 | APB protection signal width |
-| DEPTH | int | 2 | Skid buffer depth in **entries** (not a log2 exponent) |
-
-**DEPTH is a literal entry count.** `gaxi_skid_buffer` stores its payload in an
-unpacked array of `DEPTH` slots, so `DEPTH=2` gives two entries, not four.
-Supported values are 2..8 inclusive -- ANY integer in that range (odd depths
-are legal); the shift-register storage is optimal at 2 and remains cheaper
-than a packed-vector implementation through 8. Values outside 2..8 fail
-elaboration.
-
-## Ports
-
 ### Clock and Reset
 
 | Port | Width | Direction | Description |
@@ -145,7 +141,7 @@ elaboration.
 | rsp_prdata | DATA_WIDTH | Input | Response read data |
 | rsp_pslverr | 1 | Input | Response error status |
 
-## Functionality
+## Functional Description
 
 ### APB Protocol Implementation
 
@@ -159,7 +155,7 @@ observed transfer:
 
 1. **IDLE**: No transfer in flight. Waits for the SETUP-to-ACCESS edge (the cycle
    in which `PENABLE` first goes high while `PSEL` is high). Also drops any
-   orphan response -- see below.
+   orphan response — see below.
 2. **BUSY**: Command has been pushed to the backend; the bus is in its ACCESS
    phase with `PREADY` low (wait states). Waits for the backend response.
 3. **WAIT**: `PREADY`, `PRDATA` and `PSLVERR` are driven for exactly one cycle,
@@ -173,31 +169,6 @@ Mapping to the bus phases:
 | SETUP (`PSEL=1`, `PENABLE=0`) | IDLE | 0 |
 | ACCESS (`PSEL=1`, `PENABLE=1`), wait states | BUSY | 0 |
 | ACCESS, final cycle | WAIT | 1 |
-
-### Command/Response Flow
-
-```
-APB Master → APB Slave Interface → Command Buffer → Command Interface → Backend
-                    ↓                     ↓              ↓
-APB Master ← APB Slave Interface ← Response Buffer ← Response Interface ← Backend
-```
-
-### Buffering Architecture
-
-The module uses two GAXI skid buffers for decoupling:
-
-- **Command Buffer**: Stores incoming APB transactions
-- **Response Buffer**: Stores backend responses for APB return
-
-### Key Features
-
-- **APB4 Compliance**: Full protocol support including PSTRB and PPROT
-- **Buffered Operation**: Command and response skid buffers prevent blocking
-- **Flow Control**: Proper ready/valid handshaking on all interfaces
-- **Error Handling**: PSLVERR propagation from backend to APB
-- **Orphan-Response Guard**: Discards responses that arrive with no command outstanding
-
-## State Machine Operation
 
 ### State Transitions
 
@@ -228,7 +199,30 @@ happen in practice:
 - A backend that emits a duplicate response for a single command.
 - An `apb4_slave_cdc` whose two clock domains were reset independently. The
   current CDC uses gray-pointer FIFOs specifically so it cannot fabricate a
-  transfer this way -- see [apb4_slave_cdc.md](apb4_slave_cdc.md).
+  transfer this way — see [apb4_slave_cdc.md](apb4_slave_cdc.md).
+
+### Command/Response Flow
+
+```
+APB Master → APB Slave Interface → Command Buffer → Command Interface → Backend
+                    ↓                     ↓              ↓
+APB Master ← APB Slave Interface ← Response Buffer ← Response Interface ← Backend
+```
+
+### Buffering Architecture
+
+The module uses two GAXI skid buffers for decoupling:
+
+- **Command Buffer**: Stores incoming APB transactions
+- **Response Buffer**: Stores backend responses for APB return
+
+### Key Features
+
+- **APB4 Compliance**: Full protocol support including PSTRB and PPROT
+- **Buffered Operation**: Command and response skid buffers prevent blocking
+- **Flow Control**: Proper ready/valid handshaking on all interfaces
+- **Error Handling**: PSLVERR propagation from backend to APB
+- **Orphan-Response Guard**: Discards responses that arrive with no command outstanding
 
 ### APB Transaction Timing
 
@@ -238,13 +232,13 @@ happen in practice:
 | BUSY | PREADY=0 | Command issued, wait for backend response |
 | WAIT | PREADY=1, PRDATA/PSLVERR valid | Complete transaction |
 
-## Timing Characteristics
+## Timing
 
 ### Transaction Latency
 
 This slave is **not** a zero-wait-state slave. `PREADY` is registered and is
 asserted no earlier than FOUR `pclk` cycles after the edge on which `PENABLE`
-is first sampled high -- one cycle IDLE-to-BUSY, one through each skid
+is first sampled high — one cycle IDLE-to-BUSY, one through each skid
 buffer's registered `rd_valid` (command in, response out), one BUSY-to-WAIT.
 The ACCESS phase therefore always contains at least four wait states, and a
 complete APB transfer takes at least six `pclk` cycles end to end against an
@@ -278,7 +272,7 @@ The following timing diagrams show the comprehensive APB slave behavior across 7
 
 **Known diagram defect:** the WaveDrom generator stamps a fixed header string,
 `APB READ Transaction`, onto every scenario image regardless of direction. The
-signal traces themselves are correct -- read `PWRITE` in the trace, not the
+signal traces themselves are correct — read `PWRITE` in the trace, not the
 header, to determine transaction direction. This affects the images under
 `docs/markdown/assets/WAVES/apb4_slave/` and `.../apb4_master/`.
 
@@ -326,7 +320,7 @@ header, to determine transaction direction. This affects the images under
 
 ---
 
-## Usage Examples
+## Usage Example
 
 ### Basic Register Block Interface
 
@@ -477,8 +471,6 @@ memory_controller u_mem_ctrl (
 );
 ```
 
-## Advanced Integration Patterns
-
 ### Multi-Register Bank System
 
 ```systemverilog
@@ -605,12 +597,12 @@ module enhanced_register_block (
 endmodule
 ```
 
-## Performance Optimization
+## Design Notes
 
 ### Buffer Depth Selection
 
 `DEPTH` is an entry count and must be one of 2..8 inclusive. Because APB allows
-only one outstanding transfer, extra depth does **not** buy concurrency -- it only
+only one outstanding transfer, extra depth does **not** buy concurrency — it only
 absorbs jitter in a backend that returns responses unevenly. `DEPTH=2` is
 correct for almost every backend.
 
@@ -644,26 +636,35 @@ apb4_slave_cdc #(
 ```
 
 The CDC clock/reset ports are `pclk`/`presetn` (APB side) and `aclk`/`aresetn`
-(backend side) -- there is no `s_`/`m_` prefix on them.
+(backend side) — there is no `s_`/`m_` prefix on them.
 
-## Synthesis Considerations
+### Synthesis Considerations
 
-### Area Optimization
+**Area:**
 - Reduce DEPTH for area-constrained designs
 - Share skid buffers across multiple slaves when possible
 - Use synchronous reset for smaller area
 
-### Timing Optimization
+**Timing:**
 - Register all command/response outputs
 - Use appropriate buffer depths to meet timing
 - Consider pipeline stages for high-frequency operation
 
-### Power Optimization
+**Power:**
 - Use clock-gated variant (`apb4_slave_cg`) when available
 - Implement conditional clock enables for inactive slaves
 - Size buffers appropriately to minimize switching activity
 
-## Verification Notes
+## Related Modules
+
+- **apb4_slave_cg**: Clock-gated version for power optimization
+- **apb4_slave_cdc**: Clock domain crossing variant
+- **apb4_master**: Complementary APB master implementation
+- **apb5_slave**: APB5 equivalent with `PWAKEUP`, `P*USER` and optional parity
+- **gaxi_skid_buffer**: Underlying buffering infrastructure
+- **apbx_xbar_1to4 / apbx_xbar_2to4**: Generated APB crossbars for multi-slave systems
+
+## Testing
 
 ### Protocol Compliance
 - Verify APB setup and access phase timing
@@ -679,17 +680,6 @@ The CDC clock/reset ports are `pclk`/`presetn` (APB side) and `aclk`/`aresetn`
 - Test various backend response latencies
 - Verify error propagation and handling
 - Check concurrent transaction handling
-
-## Related Modules
-
-- **apb4_slave_cg**: Clock-gated version for power optimization
-- **apb4_slave_cdc**: Clock domain crossing variant
-- **apb4_master**: Complementary APB master implementation
-- **apb5_slave**: APB5 equivalent with `PWAKEUP`, `P*USER` and optional parity
-- **gaxi_skid_buffer**: Underlying buffering infrastructure
-- **apbx_xbar_1to4 / apbx_xbar_2to4**: Generated APB crossbars for multi-slave systems
-
-The `apb4_slave` module provides a complete, high-performance solution for APB slave functionality with advanced buffering, full protocol compliance, and flexible backend integration capabilities.
 
 ---
 

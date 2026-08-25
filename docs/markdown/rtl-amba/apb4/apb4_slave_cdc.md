@@ -170,19 +170,6 @@ Both are `gaxi_fifo_async` instances with:
 There is no separate metastability-hardening option — two-flop synchronization is
 fixed at instantiation.
 
-### Maximum Clock Ratio
-
-There is no maximum ratio between `pclk` and `aclk`. Gray-pointer FIFOs impose no
-relationship between the two clocks — either may be arbitrarily faster, slower,
-or phase-unrelated, and either may be stopped indefinitely. Stopping `aclk`
-simply stalls the command FIFO's read side; the APB side backpressures via
-`PREADY` held low and no data is lost.
-
-What the ratio affects is throughput, not correctness. Each transfer pays the
-usual two-flop synchronizer latency in each direction (roughly 2-3 destination
-clock edges per crossing), so a very slow `aclk` directly lengthens APB wait
-states.
-
 ### Reset Behavior
 
 `presetn` and `aresetn` are separate reset domains, but they must be asserted
@@ -229,6 +216,23 @@ single CSR eight times returned the previous register's value about three times
 before settling, while the non-CDC harness window was stable. The two mitigations
 now in place are the gray-pointer FIFOs described above and the orphan-response
 guard in `apb4_slave` — see [apb4_slave.md](apb4_slave.md).
+
+---
+
+## Timing
+
+### Maximum Clock Ratio
+
+There is no maximum ratio between `pclk` and `aclk`. Gray-pointer FIFOs impose no
+relationship between the two clocks — either may be arbitrarily faster, slower,
+or phase-unrelated, and either may be stopped indefinitely. Stopping `aclk`
+simply stalls the command FIFO's read side; the APB side backpressures via
+`PREADY` held low and no data is lost.
+
+What the ratio affects is throughput, not correctness. Each transfer pays the
+usual two-flop synchronizer latency in each direction (roughly 2-3 destination
+clock edges per crossing), so a very slow `aclk` directly lengthens APB wait
+states.
 
 ### Timing Constraints
 
