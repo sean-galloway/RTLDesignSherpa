@@ -331,6 +331,93 @@ async def cocotb_test_pumice_core_refresh_collide(dut):
     dut._log.info(f"PASS: {N} same-bank reads clean across {n_ref} refreshes (no collision)")
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_fixed_open(dut):
+    """PUMICE-006 Axis 2: fixed_open + adapt_time idle-timeout page close.
+
+    Self-checking in BOTH directions so the feature cannot pass vacuously:
+
+      arm A (mode OFF, red guard): OPEN policy, traffic to one bank, then a
+        long idle. The row must STAY open -- zero PREs during idle. If the
+        timeout engine ever leaks closes into mode 0, this arm fails.
+      arm B (fixed_open): same traffic, short tr_init. The row MUST close
+        during idle (PRE observed at the DFI with no demand present), and a
+        subsequent same-row read must reopen (new ACT) and return golden data.
+      arm C (adapt_time smoke): mode 4 with TR bounds behaves like a timeout
+        close at tr_init and data stays golden (the adaptive TR walk gets its
+        own directed test when its tuning matters; here it must not wedge).
+    """
+    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
+    _memory, slave = await _bring_up(dut, page_policy=0)   # OPEN
+
+    BANK, ROW = 2, 7
+    rng = random.Random(int(os.environ.get("SEED", "5")))
+
+    async def _wr_rd_one(col, rid):
+        addr = _mkaddr(BANK, ROW, col * BL)
+        data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+        await _aw(dut, addr, rid & 0xF)
+        await _w(dut, data)
+        for _ in range(400):
+            await RisingEdge(dut.aclk)
+            if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
+                break
+        got = []
+        cocotb.start_soon(_r_sink(dut, got))
+        await _ar(dut, addr, rid & 0xF)
+        for _ in range(800):
+            await RisingEdge(dut.aclk)
+            if len(got) >= BL_WORDS:
+                break
+        assert got[:BL_WORDS] == data, f"data mismatch @ col {col}"
+
+    async def _idle_pre_count(cycles):
+        before = slave.cmd_counts.get(_DC.PRE, 0)
+        await ClockCycles(dut.aclk, cycles)
+        return slave.cmd_counts.get(_DC.PRE, 0) - before
+
+    # ---- arm A: mode OFF -- the row must stay open across idle -------------
+    dut.page_mode_i.value = 0
+    await _wr_rd_one(0, 0)
+    pres = await _idle_pre_count(300)
+    assert pres == 0, (f"mode 0 leaked {pres} idle PRE(s) -- the timeout "
+                       f"engine must be inert at the default encoding")
+
+    # ---- arm B: fixed_open -- idle timeout closes the row ------------------
+    dut.page_mode_i.value = 3          # fixed_open
+    dut.page_tr_init_i.value = 16      # short idle fuse
+    await _wr_rd_one(1, 1)
+    pres = await _idle_pre_count(300)
+    assert pres >= 1, ("fixed_open: row never closed during idle -- timeout "
+                       "PRE did not issue")
+    acts_before = slave.cmd_counts.get(_DC.ACT, 0)
+    await _wr_rd_one(2, 2)             # same row again: must reopen + be clean
+    assert slave.cmd_counts.get(_DC.ACT, 0) > acts_before, (
+        "reopen after timeout close did not ACT -- row state inconsistent")
+
+    # ---- arm C: adapt_time smoke -------------------------------------------
+    dut.page_mode_i.value = 4          # adapt_time
+    dut.page_tr_min_i.value = 8
+    dut.page_tr_max_i.value = 64
+    dut.page_tr_step_i.value = 4
+    dut.page_mc_high_i.value = 2
+    dut.page_mc_low_i.value = 1
+    dut.page_mc_init_i.value = 0
+    dut.page_check_ivl_i.value = 128
+    await _wr_rd_one(3, 3)
+    pres = await _idle_pre_count(300)
+    assert pres >= 1, "adapt_time: no timeout close at TR=tr_init"
+    await _wr_rd_one(4, 4)             # still coherent after adaptive close
+
+    # ---- teardown: mode off, confirm inertness returns ---------------------
+    dut.page_mode_i.value = 0
+    await _wr_rd_one(5, 5)
+    pres = await _idle_pre_count(300)
+    assert pres == 0, "mode 0 after modes 3/4: timeout engine failed to disarm"
+    dut._log.info("PASS fixed_open/adapt_time: inert at 0, closes on idle "
+                  "timeout, clean reopen, disarms")
+
+
 @cocotb.test(timeout_time=20, timeout_unit="ms")
 async def cocotb_test_pumice_core_waw(dut):
     """WAW ordering + read-your-write: two writes to the SAME address, then read
@@ -434,6 +521,10 @@ def _run(request, testcase, params_over=None):
 
 
 def test_pumice_core_dfi(request):   _run(request, "cocotb_test_pumice_core_dfi")
+def test_pumice_core_fixed_open(request):
+    _run(request, "cocotb_test_pumice_core_fixed_open")
+
+
 def test_pumice_core_refresh_collide(request):
     # CMD_HISTORY_EN arms the scheduler's command-history scoreboard -- the
     # sequencing half of the PUMICE-004 detector. Without it the docstring's

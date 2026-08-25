@@ -52,6 +52,24 @@ module pumice_mem_cmd_scheduler
 
     // ---- config ----
     input  page_policy_e              page_policy_i,
+
+    // ---- runtime page-policy CSR fields + telemetry (PUMICE-006 Axis 2) ----
+    input  logic [2:0]                page_mode_i,        // PAGE_POLICY_CFG.policy_mode
+    input  logic                      page_scope_i,
+    input  logic [7:0]                page_tr_init_i,
+    input  logic [7:0]                page_tr_min_i,
+    input  logic [7:0]                page_tr_max_i,
+    input  logic [7:0]                page_tr_step_i,
+    input  logic [3:0]                page_mc_high_i,
+    input  logic [3:0]                page_mc_low_i,
+    input  logic [3:0]                page_mc_init_i,
+    input  logic [15:0]               page_check_ivl_i,
+    output logic [31:0]               stat_page_hit_o,
+    output logic [31:0]               stat_page_miss_o,
+    output logic [31:0]               stat_page_empty_o,
+    output logic [31:0]               stat_act_o,
+    output logic [31:0]               stat_pre_o,
+    output logic [31:0]               stat_ref_o,
     input  memtype_e                  memtype_i,
     input  logic [7:0]                t_rcd_i,
     input  logic [7:0]                t_rp_i,
@@ -235,12 +253,42 @@ module pumice_mem_cmd_scheduler
     // ======================================================================
     // pumice_cmd_arbiter — the pick core.
     // ======================================================================
+    // pumice_page_policy — runtime Axis-2 engine + telemetry. Watches the
+    // arbiter's issued stream (valid && ready, identical tap to the
+    // cmd-history checker) and the registered bank-state buses.
+    logic                  w_pp_ap_en;
+    logic [NUM_BANKS-1:0]  w_pp_ap_close;
+    logic                  w_pp_to_req;
+    logic [BKW-1:0]        w_pp_to_bank;
+
+    pumice_page_policy #(
+        .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH)
+    ) u_page_policy (
+        .aclk(aclk), .aresetn(aresetn),
+        .policy_mode_i(page_mode_i), .policy_scope_i(page_scope_i),
+        .tr_init_i(page_tr_init_i), .tr_min_i(page_tr_min_i),
+        .tr_max_i(page_tr_max_i), .tr_step_i(page_tr_step_i),
+        .mc_high_thr_i(page_mc_high_i), .mc_low_thr_i(page_mc_low_i),
+        .mc_init_i(page_mc_init_i), .check_interval_i(page_check_ivl_i),
+        .cmd_valid_i(cmd_valid_o && cmd_ready_i),
+        .cmd_op_i(cmd_op_o), .cmd_bank_i(cmd_bank_o), .cmd_row_i(cmd_row_o),
+        .bank_row_active_i(w_bank_row_active[0]),
+        .bank_open_row_i(w_bank_open_row[0]),
+        .ap_mode_en_o(w_pp_ap_en), .ap_close_o(w_pp_ap_close),
+        .timeout_pre_req_o(w_pp_to_req), .timeout_pre_bank_o(w_pp_to_bank),
+        .stat_page_hit_o(stat_page_hit_o), .stat_page_miss_o(stat_page_miss_o),
+        .stat_page_empty_o(stat_page_empty_o), .stat_act_o(stat_act_o),
+        .stat_pre_o(stat_pre_o), .stat_ref_o(stat_ref_o)
+    );
+
     pumice_cmd_arbiter #(
         .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH),
         .COL_WIDTH(COL_WIDTH), .AXI_ID_WIDTH(IW), .NUM_ENTRIES(NUM_ENTRIES),
         .AGE_WIDTH(AGE_WIDTH)
     ) u_arbiter (
         .aclk(aclk), .aresetn(aresetn), .page_policy_i(page_policy_i),
+        .ap_mode_en_i(w_pp_ap_en), .ap_close_i(w_pp_ap_close),
+        .timeout_pre_req_i(w_pp_to_req), .timeout_pre_bank_i(w_pp_to_bank),
         .init_done_i(init_done), .init_cmd_valid_i(init_cmd_valid),
         .init_cmd_op_i(init_cmd_op), .init_cmd_bank_i(init_cmd_bank), .init_cmd_row_i(init_cmd_row),
         .refresh_req_i(refresh_req), .refresh_drain_i(refresh_drain), .refresh_grant_o(refresh_grant),

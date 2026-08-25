@@ -58,6 +58,15 @@ module pumice_cmd_arbiter
     input  logic                      aresetn,
     input  page_policy_e              page_policy_i,
 
+    // ---- runtime page-policy engine (pumice_page_policy, PUMICE-006) ----
+    // ap_mode_en overrides the legacy flat w_ap with the per-bank ap_close
+    // mask; timeout_pre_req names an idle-expired open bank to close as the
+    // LOWEST-priority pick (JEDEC gating identical to the conflict-PRE path).
+    input  logic                      ap_mode_en_i,
+    input  logic [NUM_BANKS-1:0]      ap_close_i,
+    input  logic                      timeout_pre_req_i,
+    input  logic [BKW-1:0]            timeout_pre_bank_i,
+
     // ---- init passthrough (from init_sequencer) ----
     input  logic                      init_done_i,
     input  logic                      init_cmd_valid_i,
@@ -131,9 +140,14 @@ module pumice_cmd_arbiter
 
     localparam int RK0 = 0;   // v1 single-rank pick
 
-    // Column auto-precharge bit from the page policy.
+    // Column auto-precharge bit from the page policy. With the runtime
+    // page-policy engine active (ap_mode_en_i) the decision is per-bank.
     logic w_ap;
     assign w_ap = (page_policy_i == PAGE_POLICY_CLOSE);
+
+    function automatic logic f_ap (input logic [BKW-1:0] b);
+        return ap_mode_en_i ? ap_close_i[b] : w_ap;
+    endfunction
 
     // Per-bank ACT/PRE re-issue GUARD. The bank timers register their readiness
     // outputs (2-cycle latency from an evt to act/pre_ready dropping), so a
@@ -413,15 +427,16 @@ module pumice_cmd_arbiter
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
         end else if (rd_col_f) begin
-            // 3a. READ row-hit (read-priority).
-            w_valid = 1'b1; w_op = w_ap ? OP_RDA : OP_RD;
+            // 3a. READ row-hit (read-priority). ap is per-bank when the
+            // runtime page-policy engine is active.
             w_bank = f_bank(rd_sch_bank_i, rd_col_s); w_col = f_col(rd_sch_col_i, rd_col_s);
-            w_ap_out = w_ap; w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
+            w_valid = 1'b1; w_op = f_ap(w_bank) ? OP_RDA : OP_RD;
+            w_ap_out = f_ap(w_bank); w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
         end else if (wr_col_f) begin
             // 3b. WRITE row-hit.
-            w_valid = 1'b1; w_op = w_ap ? OP_WRA : OP_WR;
             w_bank = f_bank(wr_sch_bank_i, wr_col_s); w_col = f_col(wr_sch_col_i, wr_col_s);
-            w_ap_out = w_ap; w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
+            w_valid = 1'b1; w_op = f_ap(w_bank) ? OP_WRA : OP_WR;
+            w_ap_out = f_ap(w_bank); w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
         end else if (rd_act_f) begin
             // 4a. ACTIVATE the oldest pending READ's idle bank (bank-parallel).
             w_valid = 1'b1; w_op = OP_ACT;
@@ -439,6 +454,17 @@ module pumice_cmd_arbiter
         end else if (wr_pre_f) begin
             // 5b. PRECHARGE a bank open on the wrong row for a pending write.
             w_valid = 1'b1; w_op = OP_PRE; w_bank = f_bank(wr_sch_bank_i, wr_pre_s);
+            w_do_pre = 1'b1;
+        end else if (timeout_pre_req_i
+                     && r_bank_row_active[RK0][timeout_pre_bank_i]
+                     && r_bank_pre_ready[RK0][timeout_pre_bank_i]
+                     && !w_guarded[timeout_pre_bank_i]) begin
+            // 6. TIMEOUT PRECHARGE (fixed_open / adapt_time): close an
+            // idle-expired open row. Strictly lowest priority — any demand
+            // column/ACT/conflict-PRE and the whole refresh path outrank it —
+            // and gated identically to the conflict-PRE path (registered
+            // row-active + pre_ready + the 2-cycle re-issue guard).
+            w_valid = 1'b1; w_op = OP_PRE; w_bank = timeout_pre_bank_i;
             w_do_pre = 1'b1;
         end
     end

@@ -5,7 +5,22 @@
 ---
 
 ## PUMICE-006 — QoS + advanced scheduling (post-cleanup)
-**Status:** open 2026-07-23 — gated, do not start yet
+**Status:** active 2026-08-25 — ungated; CSR surface + paging modes 3/4 landed
+
+**Progress:**
+- Step 1 (e64c824b): full mode-select CSR surface + *_STATS telemetry
+  registers, defaults bit-identical.
+- Axis 2 partial: `pumice_page_policy` fub — modes 1/2 (static ap override),
+  3 `fixed_open` (per-bank idle-timeout close via a new lowest-priority
+  arbiter PRE branch, JEDEC-gated like the conflict-PRE path) and
+  4 `adapt_time` (Happy Intel-adaptive TR/MC walk) + the always-on page
+  hit/miss/empty + ACT/PRE/REF counters feeding the *_STATS CSRs.
+  Directed test `test_pumice_core_fixed_open` is self-checking both ways
+  (mode-0 inertness arms) and mutation-proven (w_timeout_on=0 → RED).
+  Remaining Axis 2: rbl_static/rbl_dyn (modes 6/7), adapt_access (mode 5).
+- Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
+  the new Happy-derived modes are its successors; docs to describe the
+  actual implementation.
 
 Once pumice is CLEAN (board reads validated at the bring-up tuple, refresh
 collision fixed + re-soaked on silicon, deskew fully retired, HAS/MAS in sync),

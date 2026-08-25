@@ -108,7 +108,21 @@ module pumice_top
     // ---- CSR register block (PeakRDL) ----
     pumice_csr_pkg::pumice_csr__in_t  hwif_in;
     pumice_csr_pkg::pumice_csr__out_t hwif_out;
-    assign hwif_in = '{default: '0};   // status/obs readback tied off (config-drive first)
+    // hwif_in: everything defaults to 0 (unwired status/obs readback), the
+    // live telemetry members are assigned below. always_comb so members can
+    // be overridden without a second driver on the struct.
+    logic [31:0] w_stat_page_hit, w_stat_page_miss, w_stat_page_empty;
+    logic [31:0] w_stat_act, w_stat_pre, w_stat_ref;
+    always_comb begin
+        hwif_in = '{default: '0};
+        hwif_in.PAGE_STATS_HIT.count.next    = w_stat_page_hit;
+        hwif_in.PAGE_STATS_MISS.count.next   = w_stat_page_miss;
+        hwif_in.PAGE_STATS_EMPTY.count.next  = w_stat_page_empty;
+        hwif_in.SCHED_STATS_ACT.count.next   = w_stat_act;
+        hwif_in.SCHED_STATS_PRE.count.next   = w_stat_pre;
+        hwif_in.REF_STATS_REF.count.next     = w_stat_ref;
+        // REF_CTRL.perbank_supported strap stays 0 until REFpb lands.
+    end
 
     pumice_csr u_csr (
         .clk(aclk), .rst(~aresetn),
@@ -152,6 +166,19 @@ module pumice_top
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(w_memtype), .page_policy_i(w_page_policy),
+        .page_mode_i(hwif_out.PAGE_POLICY_CFG.policy_mode.value),
+        .page_scope_i(hwif_out.PAGE_POLICY_CFG.policy_scope.value),
+        .page_tr_init_i(hwif_out.PAGE_TIMEOUT_CFG.tr_init.value),
+        .page_tr_min_i(hwif_out.PAGE_TIMEOUT_CFG.tr_min.value),
+        .page_tr_max_i(hwif_out.PAGE_TIMEOUT_CFG.tr_max.value),
+        .page_tr_step_i(hwif_out.PAGE_TIMEOUT_CFG.tr_step.value),
+        .page_mc_high_i(hwif_out.PAGE_ADAPT_CFG.mc_high_thr.value),
+        .page_mc_low_i(hwif_out.PAGE_ADAPT_CFG.mc_low_thr.value),
+        .page_mc_init_i(hwif_out.PAGE_ADAPT_CFG.mc_init.value),
+        .page_check_ivl_i(hwif_out.PAGE_ADAPT_CFG.check_interval.value),
+        .stat_page_hit_o(w_stat_page_hit), .stat_page_miss_o(w_stat_page_miss),
+        .stat_page_empty_o(w_stat_page_empty), .stat_act_o(w_stat_act),
+        .stat_pre_o(w_stat_pre), .stat_ref_o(w_stat_ref),
         .bank_lsb_i(hwif_out.ADDR_MAP.bank_lsb.value),
         .hash_en_i(hwif_out.ADDR_MAP.hash_en.value),
         .hash_seed_i(hwif_out.ADDR_MAP.hash_seed.value),

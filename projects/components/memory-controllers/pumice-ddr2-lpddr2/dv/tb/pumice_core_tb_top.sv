@@ -45,6 +45,17 @@ module pumice_core_tb_top
     // config
     input  memtype_e         memtype_i,
     input  page_policy_e     page_policy_i,
+    // Runtime page-policy pins (PUMICE-006); unconnected => 0 => legacy.
+    input  logic [2:0]       page_mode_i,
+    input  logic             page_scope_i,
+    input  logic [7:0]       page_tr_init_i,
+    input  logic [7:0]       page_tr_min_i,
+    input  logic [7:0]       page_tr_max_i,
+    input  logic [7:0]       page_tr_step_i,
+    input  logic [3:0]       page_mc_high_i,
+    input  logic [3:0]       page_mc_low_i,
+    input  logic [3:0]       page_mc_init_i,
+    input  logic [15:0]      page_check_ivl_i,
     input  logic [4:0]       bank_lsb_i,
     input  logic             hash_en_i,
     input  logic [7:0]       hash_seed_i,
@@ -137,6 +148,13 @@ module pumice_core_tb_top
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(memtype_i), .page_policy_i(page_policy_i),
+        .page_mode_i(page_mode_i), .page_scope_i(page_scope_i),
+        .page_tr_init_i(page_tr_init_i), .page_tr_min_i(page_tr_min_i),
+        .page_tr_max_i(page_tr_max_i), .page_tr_step_i(page_tr_step_i),
+        .page_mc_high_i(page_mc_high_i), .page_mc_low_i(page_mc_low_i),
+        .page_mc_init_i(page_mc_init_i), .page_check_ivl_i(page_check_ivl_i),
+        .stat_page_hit_o(), .stat_page_miss_o(), .stat_page_empty_o(),
+        .stat_act_o(), .stat_pre_o(), .stat_ref_o(),
         // CSR-backed MR values at their RDL resets (MR0 0x0433 = BL8/CL3/tWR3);
         // no runtime MR retune in this TB, init_restart tied off.
         .mr0_i(16'h0433), .mr1_i(16'h0000), .mr2_i(16'h0000), .mr3_i(16'h0000),
