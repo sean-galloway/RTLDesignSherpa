@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_ddr2_char_axil_pkg::*;
 
-module ddr2_apb_adapter #(
+module ddr2_apb_adapter
+    import bridge_ddr2_char_axil_pkg::*;
+#(
     parameter int ID_WIDTH = 8
 ) (
     input  logic aclk,
@@ -194,6 +195,7 @@ module ddr2_apb_adapter #(
         .SIDE_DEPTH(4),
         .APB_CMD_DEPTH(4),
         .APB_RSP_DEPTH(4),
+        .USE_JOHNSON(0),
         .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),

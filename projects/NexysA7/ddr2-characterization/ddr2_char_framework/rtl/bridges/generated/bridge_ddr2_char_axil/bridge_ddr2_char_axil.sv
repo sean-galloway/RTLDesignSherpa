@@ -14,9 +14,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_ddr2_char_axil_pkg::*;
 
-module bridge_ddr2_char_axil (
+module bridge_ddr2_char_axil
+    import bridge_ddr2_char_axil_pkg::*;
+(
     input  logic aclk,
     input  logic aresetn,
 

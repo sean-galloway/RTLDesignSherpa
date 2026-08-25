@@ -4,9 +4,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_ddr2_char_axil_pkg::*;
 
-module host_adapter #(
+module host_adapter
+    import bridge_ddr2_char_axil_pkg::*;
+#(
     parameter NUM_SLAVES = 4,
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,

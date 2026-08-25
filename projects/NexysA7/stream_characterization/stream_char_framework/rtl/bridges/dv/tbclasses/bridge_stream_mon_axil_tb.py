@@ -277,7 +277,7 @@ class BridgeStreamMonAxilTB(TBBase):
             master_width = self.master_data_width.get(master_idx, self.data_width)
             byte_count = master_width // 8
         offset = addr - base
-        if proto == 'apb':
+        if proto in ('apb', 'apb5'):
             apb = self.slave_apb[slave_idx]
             data_bytes = apb.mem.read(offset, byte_count)
         else:
@@ -319,26 +319,8 @@ class BridgeStreamMonAxilTB(TBBase):
             user_width=1,
             multi_sig=True,
         )
-        self.master_wr[1] = AXI4MasterWrite(
-            self.dut, self.clock,
-            prefix="stream_desc_",
-            log=self.log,
-            data_width=256,
-            addr_width=32,
-            id_width=8,
-            user_width=1,
-            multi_sig=True,
-        )
     def _setup_master_2_monbus_wr(self):
         """Set up protocol BFMs for master 2: monbus_wr (protocol: axil)"""
-        self.master_rd[2] = AXIL4MasterRead(
-            self.dut, self.clock,
-            prefix="monbus_wr_",
-            log=self.log,
-            data_width=64,
-            addr_width=32,
-            multi_sig=True,
-        )
         self.master_wr[2] = AXIL4MasterWrite(
             self.dut, self.clock,
             prefix="monbus_wr_",
@@ -349,14 +331,6 @@ class BridgeStreamMonAxilTB(TBBase):
         )
     def _setup_master_3_slave_monbus_wr(self):
         """Set up protocol BFMs for master 3: slave_monbus_wr (protocol: axil)"""
-        self.master_rd[3] = AXIL4MasterRead(
-            self.dut, self.clock,
-            prefix="slave_monbus_wr_",
-            log=self.log,
-            data_width=64,
-            addr_width=32,
-            multi_sig=True,
-        )
         self.master_wr[3] = AXIL4MasterWrite(
             self.dut, self.clock,
             prefix="slave_monbus_wr_",

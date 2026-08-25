@@ -228,10 +228,11 @@ class Axi4ToAxilShim:
             f"parameter int AXI_ID_WIDTH     = {self.id_width}, "
             f"parameter int AXI_ADDR_WIDTH   = {self.addr_width}, "
             f"parameter int AXI_DATA_WIDTH   = {self.data_width}, "
-            f"parameter int AXI_USER_WIDTH   = {self.axi_user_width}, "
-            f"parameter int SKID_DEPTH_AW    = {self._skid_depth_aw}, "
-            f"parameter int SKID_DEPTH_W     = {self._skid_depth_w}, "
-            f"parameter int SKID_DEPTH_B     = {self._skid_depth_b}"
+            f"parameter int AXI_USER_WIDTH   = {self.axi_user_width}"
+            # axi4_to_axil4_wr declares NO skid-depth parameters. It used to take
+            # SKID_DEPTH_AW/W/B; passing them now is an elaboration error in every
+            # generated bridge. The write path buffers internally, so there is
+            # nothing left to size from here.
         )
 
     def _format_param_str_rd(self) -> str:
@@ -240,7 +241,8 @@ class Axi4ToAxilShim:
             f"parameter int AXI_ADDR_WIDTH   = {self.addr_width}, "
             f"parameter int AXI_DATA_WIDTH   = {self.data_width}, "
             f"parameter int AXI_USER_WIDTH   = {self.axi_user_width}, "
-            f"parameter int SKID_DEPTH_AR    = {self._skid_depth_ar}, "
+            # SKID_DEPTH_AR is gone from axi4_to_axil4_rd; only the R-channel
+            # depth remains sizable from outside.
             f"parameter int SKID_DEPTH_R     = {self._skid_depth_r}"
         )
 

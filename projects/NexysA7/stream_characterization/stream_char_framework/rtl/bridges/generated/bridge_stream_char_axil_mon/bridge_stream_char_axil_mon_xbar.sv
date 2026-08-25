@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_char_axil_mon_pkg::*;
 
-module bridge_stream_char_axil_mon_xbar #(
+module bridge_stream_char_axil_mon_xbar
+    import bridge_stream_char_axil_mon_pkg::*;
+#(
     parameter int NUM_SLAVES = 6
 ) (
     input  logic aclk,
@@ -69,20 +70,9 @@ module bridge_stream_char_axil_mon_xbar #(
     input  logic         host_256b_rready,
 
     // stream_desc adapter outputs (multiple width paths)
-    input  logic [NUM_SLAVES-1:0] stream_desc_slave_select_aw,
-    input  logic [BRIDGE_ID_WIDTH-1:0] stream_desc_bridge_id_aw,
     input  logic [NUM_SLAVES-1:0] stream_desc_slave_select_ar,
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_desc_bridge_id_ar,
     // 256b path
-    input  axi4_aw_t     stream_desc_256b_aw,
-    input  logic         stream_desc_256b_awvalid,
-    output logic         stream_desc_256b_awready,
-    input  axi4_w_256b_t  stream_desc_256b_w,
-    input  logic         stream_desc_256b_wvalid,
-    output logic         stream_desc_256b_wready,
-    output axi4_b_t      stream_desc_256b_b,
-    output logic         stream_desc_256b_bvalid,
-    input  logic         stream_desc_256b_bready,
     input  axi4_ar_t     stream_desc_256b_ar,
     input  logic         stream_desc_256b_arvalid,
     output logic         stream_desc_256b_arready,
@@ -93,8 +83,6 @@ module bridge_stream_char_axil_mon_xbar #(
     // monbus_wr adapter outputs (multiple width paths)
     input  logic [NUM_SLAVES-1:0] monbus_wr_slave_select_aw,
     input  logic [BRIDGE_ID_WIDTH-1:0] monbus_wr_bridge_id_aw,
-    input  logic [NUM_SLAVES-1:0] monbus_wr_slave_select_ar,
-    input  logic [BRIDGE_ID_WIDTH-1:0] monbus_wr_bridge_id_ar,
     // 64b path
     input  axi4_aw_t     monbus_wr_64b_aw,
     input  logic         monbus_wr_64b_awvalid,
@@ -105,12 +93,6 @@ module bridge_stream_char_axil_mon_xbar #(
     output axi4_b_t      monbus_wr_64b_b,
     output logic         monbus_wr_64b_bvalid,
     input  logic         monbus_wr_64b_bready,
-    input  axi4_ar_t     monbus_wr_64b_ar,
-    input  logic         monbus_wr_64b_arvalid,
-    output logic         monbus_wr_64b_arready,
-    output axi4_r_64b_t  monbus_wr_64b_r,
-    output logic         monbus_wr_64b_rvalid,
-    input  logic         monbus_wr_64b_rready,
 
     // Slave 0: stream_apb
     output logic [BRIDGE_ID_WIDTH-1:0] stream_apb_axi_bridge_id_aw,
@@ -622,32 +604,22 @@ module bridge_stream_char_axil_mon_xbar #(
     // ================================================================
     // Multi-master (2 masters) → desc_ram
     //   - host (rw)
-    //   - stream_desc (rw)
+    //   - stream_desc (rd)
 
     wire host_256b_aw_to_desc_ram = ((host_256b_aw.addr >= 32'h00020000) && (host_256b_aw.addr <= 32'h0002ffff));
     wire host_256b_ar_to_desc_ram = ((host_256b_ar.addr >= 32'h00020000) && (host_256b_ar.addr <= 32'h0002ffff));
-    wire stream_desc_256b_aw_to_desc_ram = ((stream_desc_256b_aw.addr >= 32'h00020000) && (stream_desc_256b_aw.addr <= 32'h0002ffff));
     wire stream_desc_256b_ar_to_desc_ram = ((stream_desc_256b_ar.addr >= 32'h00020000) && (stream_desc_256b_ar.addr <= 32'h0002ffff));
 
     // AW channel (OR-merged across writing masters)
-    assign desc_ram_axi_awid = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.id : '0) |
-        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.id : '0);
-    assign desc_ram_axi_awaddr = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.addr : '0) |
-        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.addr : '0);
-    assign desc_ram_axi_awlen = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.len : '0) |
-        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.len : '0);
-    assign desc_ram_axi_awsize = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.size : '0) |
-        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.size : '0);
-    assign desc_ram_axi_awburst = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.burst : '0) |
-        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.burst : '0);
-    assign desc_ram_axi_awlock = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.lock : '0) |
-        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.lock : '0);
-    assign desc_ram_axi_awcache = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.cache : '0) |
-        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.cache : '0);
-    assign desc_ram_axi_awprot = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.prot : '0) |
-        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.prot : '0);
-    assign desc_ram_axi_awvalid = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_awvalid : '0) |
-        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_awvalid : '0);
+    assign desc_ram_axi_awid = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.id : '0);
+    assign desc_ram_axi_awaddr = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.addr : '0);
+    assign desc_ram_axi_awlen = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.len : '0);
+    assign desc_ram_axi_awsize = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.size : '0);
+    assign desc_ram_axi_awburst = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.burst : '0);
+    assign desc_ram_axi_awlock = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.lock : '0);
+    assign desc_ram_axi_awcache = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.cache : '0);
+    assign desc_ram_axi_awprot = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.prot : '0);
+    assign desc_ram_axi_awvalid = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_awvalid : '0);
 
     // AW->W tracking FIFO: host -> desc_ram
     logic host_256b_w_to_desc_ram;
@@ -672,46 +644,17 @@ module bridge_stream_char_axil_mon_xbar #(
     end
     assign host_256b_w_to_desc_ram = (host_256b_aw_to_desc_ram_w_wptr != host_256b_aw_to_desc_ram_w_rptr) ? host_256b_aw_to_desc_ram_w_mem[host_256b_aw_to_desc_ram_w_rptr] : 1'b0;
 
-    // AW->W tracking FIFO: stream_desc -> desc_ram
-    logic stream_desc_256b_w_to_desc_ram;
-    logic [3:0] stream_desc_256b_aw_to_desc_ram_w_wptr, stream_desc_256b_aw_to_desc_ram_w_rptr;
-    logic stream_desc_256b_aw_to_desc_ram_w_mem [16];
-    logic stream_desc_256b_aw_to_desc_ram_w_push, stream_desc_256b_aw_to_desc_ram_w_pop;
-    assign stream_desc_256b_aw_to_desc_ram_w_push = stream_desc_256b_awvalid && stream_desc_256b_awready && stream_desc_256b_aw_to_desc_ram;
-    assign stream_desc_256b_aw_to_desc_ram_w_pop  = stream_desc_256b_wvalid && stream_desc_256b_wready && stream_desc_256b_w.last && stream_desc_256b_w_to_desc_ram;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            stream_desc_256b_aw_to_desc_ram_w_wptr <= '0;
-            stream_desc_256b_aw_to_desc_ram_w_rptr <= '0;
-        end else begin
-            if (stream_desc_256b_aw_to_desc_ram_w_push) begin
-                stream_desc_256b_aw_to_desc_ram_w_mem[stream_desc_256b_aw_to_desc_ram_w_wptr] <= 1'b1;
-                stream_desc_256b_aw_to_desc_ram_w_wptr <= stream_desc_256b_aw_to_desc_ram_w_wptr + 1'b1;
-            end
-            if (stream_desc_256b_aw_to_desc_ram_w_pop) begin
-                stream_desc_256b_aw_to_desc_ram_w_rptr <= stream_desc_256b_aw_to_desc_ram_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign stream_desc_256b_w_to_desc_ram = (stream_desc_256b_aw_to_desc_ram_w_wptr != stream_desc_256b_aw_to_desc_ram_w_rptr) ? stream_desc_256b_aw_to_desc_ram_w_mem[stream_desc_256b_aw_to_desc_ram_w_rptr] : 1'b0;
-
     // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)
-    assign desc_ram_axi_wdata = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_w.data : '0) |
-        ((stream_desc_256b_w_to_desc_ram && stream_desc_256b_wvalid) ? stream_desc_256b_w.data : '0);
-    assign desc_ram_axi_wstrb = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_w.strb : '0) |
-        ((stream_desc_256b_w_to_desc_ram && stream_desc_256b_wvalid) ? stream_desc_256b_w.strb : '0);
-    assign desc_ram_axi_wlast = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_w.last : '0) |
-        ((stream_desc_256b_w_to_desc_ram && stream_desc_256b_wvalid) ? stream_desc_256b_w.last : '0);
-    assign desc_ram_axi_wvalid = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_wvalid : '0) |
-        ((stream_desc_256b_w_to_desc_ram && stream_desc_256b_wvalid) ? stream_desc_256b_wvalid : '0);
+    assign desc_ram_axi_wdata = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_w.data : '0);
+    assign desc_ram_axi_wstrb = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_w.strb : '0);
+    assign desc_ram_axi_wlast = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_w.last : '0);
+    assign desc_ram_axi_wvalid = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_wvalid : '0);
 
     // Bready (slave → owning master, by bid_bridge_id)
-    assign desc_ram_axi_bready = ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? host_256b_bready : '0) |
-        ((desc_ram_axi_bid_bridge_id == 1) && desc_ram_axi_bid_valid ? stream_desc_256b_bready : '0);
+    assign desc_ram_axi_bready = ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? host_256b_bready : '0);
 
     // Bridge ID (writes) — picks the originating master's id
-    assign desc_ram_axi_bridge_id_aw = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_bridge_id_aw : '0) |
-        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_bridge_id_aw : '0);
+    assign desc_ram_axi_bridge_id_aw = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_bridge_id_aw : '0);
 
     // AR channel (OR-merged across reading masters)
     assign desc_ram_axi_arid = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_256b_ar.id : '0) |
@@ -823,12 +766,11 @@ module bridge_stream_char_axil_mon_xbar #(
     // ================================================================
     // Multi-master (2 masters) → debug_sram
     //   - host (rw)
-    //   - monbus_wr (rw)
+    //   - monbus_wr (wr)
 
     wire host_64b_aw_to_debug_sram = ((host_64b_aw.addr >= 32'h00040000) && (host_64b_aw.addr <= 32'h0007ffff));
     wire host_64b_ar_to_debug_sram = ((host_64b_ar.addr >= 32'h00040000) && (host_64b_ar.addr <= 32'h0007ffff));
     wire monbus_wr_64b_aw_to_debug_sram = ((monbus_wr_64b_aw.addr >= 32'h00040000) && (monbus_wr_64b_aw.addr <= 32'h0007ffff));
-    wire monbus_wr_64b_ar_to_debug_sram = ((monbus_wr_64b_ar.addr >= 32'h00040000) && (monbus_wr_64b_ar.addr <= 32'h0007ffff));
 
     // AW channel (OR-merged across writing masters)
     assign debug_sram_axi_awid = ((host_64b_aw_to_debug_sram && host_64b_awvalid) ? host_64b_aw.id : '0) |
@@ -915,32 +857,21 @@ module bridge_stream_char_axil_mon_xbar #(
         ((monbus_wr_64b_aw_to_debug_sram && monbus_wr_64b_awvalid) ? monbus_wr_bridge_id_aw : '0);
 
     // AR channel (OR-merged across reading masters)
-    assign debug_sram_axi_arid = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.id : '0) |
-        ((monbus_wr_64b_ar_to_debug_sram && monbus_wr_64b_arvalid) ? monbus_wr_64b_ar.id : '0);
-    assign debug_sram_axi_araddr = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.addr : '0) |
-        ((monbus_wr_64b_ar_to_debug_sram && monbus_wr_64b_arvalid) ? monbus_wr_64b_ar.addr : '0);
-    assign debug_sram_axi_arlen = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.len : '0) |
-        ((monbus_wr_64b_ar_to_debug_sram && monbus_wr_64b_arvalid) ? monbus_wr_64b_ar.len : '0);
-    assign debug_sram_axi_arsize = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.size : '0) |
-        ((monbus_wr_64b_ar_to_debug_sram && monbus_wr_64b_arvalid) ? monbus_wr_64b_ar.size : '0);
-    assign debug_sram_axi_arburst = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.burst : '0) |
-        ((monbus_wr_64b_ar_to_debug_sram && monbus_wr_64b_arvalid) ? monbus_wr_64b_ar.burst : '0);
-    assign debug_sram_axi_arlock = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.lock : '0) |
-        ((monbus_wr_64b_ar_to_debug_sram && monbus_wr_64b_arvalid) ? monbus_wr_64b_ar.lock : '0);
-    assign debug_sram_axi_arcache = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.cache : '0) |
-        ((monbus_wr_64b_ar_to_debug_sram && monbus_wr_64b_arvalid) ? monbus_wr_64b_ar.cache : '0);
-    assign debug_sram_axi_arprot = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.prot : '0) |
-        ((monbus_wr_64b_ar_to_debug_sram && monbus_wr_64b_arvalid) ? monbus_wr_64b_ar.prot : '0);
-    assign debug_sram_axi_arvalid = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_arvalid : '0) |
-        ((monbus_wr_64b_ar_to_debug_sram && monbus_wr_64b_arvalid) ? monbus_wr_64b_arvalid : '0);
+    assign debug_sram_axi_arid = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.id : '0);
+    assign debug_sram_axi_araddr = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.addr : '0);
+    assign debug_sram_axi_arlen = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.len : '0);
+    assign debug_sram_axi_arsize = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.size : '0);
+    assign debug_sram_axi_arburst = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.burst : '0);
+    assign debug_sram_axi_arlock = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.lock : '0);
+    assign debug_sram_axi_arcache = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.cache : '0);
+    assign debug_sram_axi_arprot = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_ar.prot : '0);
+    assign debug_sram_axi_arvalid = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_64b_arvalid : '0);
 
     // Rready (slave → owning master, by rid_bridge_id)
-    assign debug_sram_axi_rready = ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? host_64b_rready : '0) |
-        ((debug_sram_axi_rid_bridge_id == 2) && debug_sram_axi_rid_valid ? monbus_wr_64b_rready : '0);
+    assign debug_sram_axi_rready = ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? host_64b_rready : '0);
 
     // Bridge ID (reads) — picks the originating master's id
-    assign debug_sram_axi_bridge_id_ar = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_bridge_id_ar : '0) |
-        ((monbus_wr_64b_ar_to_debug_sram && monbus_wr_64b_arvalid) ? monbus_wr_bridge_id_ar : '0);
+    assign debug_sram_axi_bridge_id_ar = ((host_64b_ar_to_debug_sram && host_64b_arvalid) ? host_bridge_id_ar : '0);
 
 
     // ================================================================
@@ -1162,21 +1093,6 @@ module bridge_stream_char_axil_mon_xbar #(
 
 
     // Master: stream_desc, Width path: 256b
-    assign stream_desc_256b_awready = 
-        (stream_desc_256b_aw_to_desc_ram ? desc_ram_axi_awready : '0);
-
-    assign stream_desc_256b_wready = 
-        (stream_desc_256b_w_to_desc_ram ? desc_ram_axi_wready : '0);
-
-    assign stream_desc_256b_b.id = 
-        ((desc_ram_axi_bid_bridge_id == 1) && desc_ram_axi_bid_valid ? desc_ram_axi_bid : '0);
-
-    assign stream_desc_256b_b.resp = 
-        ((desc_ram_axi_bid_bridge_id == 1) && desc_ram_axi_bid_valid ? desc_ram_axi_bresp : '0);
-
-    assign stream_desc_256b_bvalid = 
-        ((desc_ram_axi_bid_bridge_id == 1) && desc_ram_axi_bid_valid ? desc_ram_axi_bvalid : '0);
-
     assign stream_desc_256b_arready = 
         (stream_desc_256b_ar_to_desc_ram ? desc_ram_axi_arready : '0);
 
@@ -1211,24 +1127,6 @@ module bridge_stream_char_axil_mon_xbar #(
 
     assign monbus_wr_64b_bvalid = 
         ((debug_sram_axi_bid_bridge_id == 2) && debug_sram_axi_bid_valid ? debug_sram_axi_bvalid : '0);
-
-    assign monbus_wr_64b_arready = 
-        (monbus_wr_64b_ar_to_debug_sram ? debug_sram_axi_arready : '0);
-
-    assign monbus_wr_64b_r.id = 
-        ((debug_sram_axi_rid_bridge_id == 2) && debug_sram_axi_rid_valid ? debug_sram_axi_rid : '0);
-
-    assign monbus_wr_64b_r.data = 
-        ((debug_sram_axi_rid_bridge_id == 2) && debug_sram_axi_rid_valid ? debug_sram_axi_rdata : 64'b0);
-
-    assign monbus_wr_64b_r.resp = 
-        ((debug_sram_axi_rid_bridge_id == 2) && debug_sram_axi_rid_valid ? debug_sram_axi_rresp : '0);
-
-    assign monbus_wr_64b_r.last = 
-        ((debug_sram_axi_rid_bridge_id == 2) && debug_sram_axi_rid_valid ? debug_sram_axi_rlast : '0);
-
-    assign monbus_wr_64b_rvalid = 
-        ((debug_sram_axi_rid_bridge_id == 2) && debug_sram_axi_rid_valid ? debug_sram_axi_rvalid : '0);
 
 
 endmodule : bridge_stream_char_axil_mon_xbar

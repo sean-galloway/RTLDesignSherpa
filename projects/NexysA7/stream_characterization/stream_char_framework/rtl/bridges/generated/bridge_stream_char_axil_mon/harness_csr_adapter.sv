@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_char_axil_mon_pkg::*;
 
-module harness_csr_adapter #(
+module harness_csr_adapter
+    import bridge_stream_char_axil_mon_pkg::*;
+#(
     parameter int ID_WIDTH = 8
    ,parameter bit USE_MONITOR_WR = 1'b1
    ,parameter bit USE_MONITOR_RD = 1'b1
@@ -113,6 +114,7 @@ module harness_csr_adapter #(
     input  logic         cfg_wr_threshold_enable,
     input  logic         cfg_wr_debug_enable,
     input  logic [15:0] cfg_wr_timeout_cycles,
+    input  logic [3:0] cfg_wr_freq_sel,
     input  logic [31:0] cfg_wr_latency_threshold,
     input  logic [15:0] cfg_wr_axi_pkt_mask,
     input  logic [15:0] cfg_wr_axi_err_select,
@@ -138,6 +140,7 @@ module harness_csr_adapter #(
     input  logic         cfg_rd_threshold_enable,
     input  logic         cfg_rd_debug_enable,
     input  logic [15:0] cfg_rd_timeout_cycles,
+    input  logic [3:0] cfg_rd_freq_sel,
     input  logic [31:0] cfg_rd_latency_threshold,
     input  logic [15:0] cfg_rd_axi_pkt_mask,
     input  logic [15:0] cfg_rd_axi_err_select,
@@ -397,6 +400,7 @@ module harness_csr_adapter #(
         .cfg_threshold_enable(cfg_wr_threshold_enable),
         .cfg_debug_enable(cfg_wr_debug_enable),
         .cfg_timeout_cycles(cfg_wr_timeout_cycles),
+        .cfg_freq_sel(cfg_wr_freq_sel),
         .cfg_latency_threshold(cfg_wr_latency_threshold),
         .cfg_axi_pkt_mask(cfg_wr_axi_pkt_mask),
         .cfg_axi_err_select(cfg_wr_axi_err_select),
@@ -519,6 +523,7 @@ module harness_csr_adapter #(
         .cfg_threshold_enable(cfg_rd_threshold_enable),
         .cfg_debug_enable(cfg_rd_debug_enable),
         .cfg_timeout_cycles(cfg_rd_timeout_cycles),
+        .cfg_freq_sel(cfg_rd_freq_sel),
         .cfg_latency_threshold(cfg_rd_latency_threshold),
         .cfg_axi_pkt_mask(cfg_rd_axi_pkt_mask),
         .cfg_axi_err_select(cfg_rd_axi_err_select),
@@ -558,10 +563,7 @@ module harness_csr_adapter #(
         .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1),
-        .SKID_DEPTH_AW(2),
-        .SKID_DEPTH_W(4),
-        .SKID_DEPTH_B(2)
+        .AXI_USER_WIDTH(1)
     ) u_harness_csr_axil_converter_wr (
         // Clocks and resets
         .aclk(aclk),
@@ -612,7 +614,6 @@ module harness_csr_adapter #(
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
-        .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2)
     ) u_harness_csr_axil_converter_rd (
         // Clocks and resets

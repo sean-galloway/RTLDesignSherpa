@@ -6,9 +6,10 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_mon_axil_mon_pkg::*;
 
-module stream_apb_adapter #(
+module stream_apb_adapter
+    import bridge_stream_mon_axil_mon_pkg::*;
+#(
     parameter int ID_WIDTH = 8
    ,parameter bit USE_MONITOR_WR = 1'b1
    ,parameter bit USE_MONITOR_RD = 1'b1
@@ -100,6 +101,7 @@ module stream_apb_adapter #(
     input  logic         cfg_wr_threshold_enable,
     input  logic         cfg_wr_debug_enable,
     input  logic [15:0] cfg_wr_timeout_cycles,
+    input  logic [3:0] cfg_wr_freq_sel,
     input  logic [31:0] cfg_wr_latency_threshold,
     input  logic [15:0] cfg_wr_axi_pkt_mask,
     input  logic [15:0] cfg_wr_axi_err_select,
@@ -125,6 +127,7 @@ module stream_apb_adapter #(
     input  logic         cfg_rd_threshold_enable,
     input  logic         cfg_rd_debug_enable,
     input  logic [15:0] cfg_rd_timeout_cycles,
+    input  logic [3:0] cfg_rd_freq_sel,
     input  logic [31:0] cfg_rd_latency_threshold,
     input  logic [15:0] cfg_rd_axi_pkt_mask,
     input  logic [15:0] cfg_rd_axi_err_select,
@@ -384,6 +387,7 @@ module stream_apb_adapter #(
         .cfg_threshold_enable(cfg_wr_threshold_enable),
         .cfg_debug_enable(cfg_wr_debug_enable),
         .cfg_timeout_cycles(cfg_wr_timeout_cycles),
+        .cfg_freq_sel(cfg_wr_freq_sel),
         .cfg_latency_threshold(cfg_wr_latency_threshold),
         .cfg_axi_pkt_mask(cfg_wr_axi_pkt_mask),
         .cfg_axi_err_select(cfg_wr_axi_err_select),
@@ -506,6 +510,7 @@ module stream_apb_adapter #(
         .cfg_threshold_enable(cfg_rd_threshold_enable),
         .cfg_debug_enable(cfg_rd_debug_enable),
         .cfg_timeout_cycles(cfg_rd_timeout_cycles),
+        .cfg_freq_sel(cfg_rd_freq_sel),
         .cfg_latency_threshold(cfg_rd_latency_threshold),
         .cfg_axi_pkt_mask(cfg_rd_axi_pkt_mask),
         .cfg_axi_err_select(cfg_rd_axi_err_select),

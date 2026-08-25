@@ -6,9 +6,12 @@
 
 `timescale 1ns / 1ps
 
-import bridge_ddr2_char_axil_pkg::*;
 
-module bridge_ddr2_char_axil_xbar (
+module bridge_ddr2_char_axil_xbar
+    import bridge_ddr2_char_axil_pkg::*;
+#(
+    parameter int NUM_SLAVES = 4
+) (
     input  logic aclk,
     input  logic aresetn,
 
@@ -286,7 +289,6 @@ module bridge_ddr2_char_axil_xbar (
     // ================================================================
     // Crossbar Routing
     // ================================================================
-    localparam NUM_SLAVES = 4;
 
     // ================================================================
     // Slave 0: ddr2_apb (32b)

@@ -203,10 +203,7 @@ module doorbell_adapter
         .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1),
-        .SKID_DEPTH_AW(2),
-        .SKID_DEPTH_W(4),
-        .SKID_DEPTH_B(2)
+        .AXI_USER_WIDTH(1)
     ) u_doorbell_axil_converter_wr (
         // Clocks and resets
         .aclk(aclk),
@@ -257,7 +254,6 @@ module doorbell_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
-        .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2)
     ) u_doorbell_axil_converter_rd (
         // Clocks and resets

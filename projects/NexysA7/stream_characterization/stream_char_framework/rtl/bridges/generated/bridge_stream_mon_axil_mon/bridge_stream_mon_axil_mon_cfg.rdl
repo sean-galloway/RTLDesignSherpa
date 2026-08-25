@@ -12,7 +12,7 @@
 // list (single source of truth in axi4_timing_wrapper_component.py).
 // Per-direction register layout:
 //
-//   +0x00  CTRL     enables[6:0] + timeout_cycles[31:16]
+//   +0x00  CTRL     enables[6:0] + freq_sel[11:8] + timeout_cycles[31:16]
 //   +0x04  LATENCY  latency_threshold[31:0]
 //   +0x08  MASKS_A  axi_pkt_mask     + axi_err_select
 //   +0x0C  MASKS_B  axi_error_mask   + axi_timeout_mask
@@ -38,7 +38,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "host_0 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -46,6 +46,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } HOST_0_WR_CTRL;
 
@@ -99,7 +103,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "host_0 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -107,6 +111,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } HOST_0_RD_CTRL;
 
@@ -156,72 +164,11 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     } HOST_0_RD_WINDOW_CTRL;
 
     // ----------------------------------------------------------------
-    // stream_desc_1 WR direction
-    // ----------------------------------------------------------------
-    reg {
-        name = "stream_desc_1 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
-        field { reset = 1'h1; } monitor_enable[0:0];
-        field { reset = 1'h1; } error_enable[1:1];
-        field { reset = 1'h0; } timeout_enable[2:2];
-        field { reset = 1'h0; } perf_enable[3:3];
-        field { reset = 1'h0; } compl_enable[4:4];
-        field { reset = 1'h0; } threshold_enable[5:5];
-        field { reset = 1'h0; } debug_enable[6:6];
-        field { reset = 16'h0400; } timeout_cycles[31:16];
-    } STREAM_DESC_1_WR_CTRL;
-
-    reg {
-        name = "stream_desc_1 WR LATENCY";
-        field { reset = 32'h00000200; } latency_threshold[31:0];
-    } STREAM_DESC_1_WR_LATENCY;
-
-    reg {
-        name = "stream_desc_1 WR MASKS_A";
-        field { reset = 16'h0000; } axi_pkt_mask[15:0];
-        field { reset = 16'h0000; } axi_err_select[31:16];
-    } STREAM_DESC_1_WR_MASKS_A;
-
-    reg {
-        name = "stream_desc_1 WR MASKS_B";
-        field { reset = 16'h0000; } axi_error_mask[15:0];
-        field { reset = 16'h0000; } axi_timeout_mask[31:16];
-    } STREAM_DESC_1_WR_MASKS_B;
-
-    reg {
-        name = "stream_desc_1 WR MASKS_C";
-        field { reset = 16'h0000; } axi_compl_mask[15:0];
-        field { reset = 16'h0000; } axi_thresh_mask[31:16];
-    } STREAM_DESC_1_WR_MASKS_C;
-
-    reg {
-        name = "stream_desc_1 WR MASKS_D";
-        field { reset = 16'h0000; } axi_perf_mask[15:0];
-        field { reset = 16'h0000; } axi_addr_mask[31:16];
-    } STREAM_DESC_1_WR_MASKS_D;
-
-    reg {
-        name = "stream_desc_1 WR MASKS_E";
-        field { reset = 16'h0000; } axi_debug_mask[15:0];
-    } STREAM_DESC_1_WR_MASKS_E;
-
-    // Window cfg — present because the monitor enables the perf cone.
-    reg {
-        name = "stream_desc_1 WR WINDOW_CTRL";
-        desc = "Stage A window-trigger config.";
-        field { reset = 3'b111; } start_event_sel[2:0];   // never-fire
-        field { reset = 3'b111; } end_event_sel[5:3];     // never-fire
-        field { reset = 1'b0;   } start_trigger[6:6];
-        field { reset = 1'b0;   } end_trigger[7:7];
-        field { reset = 1'b0;   } window_force_close[8:8];
-    } STREAM_DESC_1_WR_WINDOW_CTRL;
-
-    // ----------------------------------------------------------------
     // stream_desc_1 RD direction
     // ----------------------------------------------------------------
     reg {
         name = "stream_desc_1 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -229,6 +176,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } STREAM_DESC_1_RD_CTRL;
 
@@ -282,7 +233,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "monbus_wr_2 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -290,6 +241,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } MONBUS_WR_2_WR_CTRL;
 
@@ -339,72 +294,11 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     } MONBUS_WR_2_WR_WINDOW_CTRL;
 
     // ----------------------------------------------------------------
-    // monbus_wr_2 RD direction
-    // ----------------------------------------------------------------
-    reg {
-        name = "monbus_wr_2 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
-        field { reset = 1'h1; } monitor_enable[0:0];
-        field { reset = 1'h1; } error_enable[1:1];
-        field { reset = 1'h0; } timeout_enable[2:2];
-        field { reset = 1'h0; } perf_enable[3:3];
-        field { reset = 1'h0; } compl_enable[4:4];
-        field { reset = 1'h0; } threshold_enable[5:5];
-        field { reset = 1'h0; } debug_enable[6:6];
-        field { reset = 16'h0400; } timeout_cycles[31:16];
-    } MONBUS_WR_2_RD_CTRL;
-
-    reg {
-        name = "monbus_wr_2 RD LATENCY";
-        field { reset = 32'h00000200; } latency_threshold[31:0];
-    } MONBUS_WR_2_RD_LATENCY;
-
-    reg {
-        name = "monbus_wr_2 RD MASKS_A";
-        field { reset = 16'h0000; } axi_pkt_mask[15:0];
-        field { reset = 16'h0000; } axi_err_select[31:16];
-    } MONBUS_WR_2_RD_MASKS_A;
-
-    reg {
-        name = "monbus_wr_2 RD MASKS_B";
-        field { reset = 16'h0000; } axi_error_mask[15:0];
-        field { reset = 16'h0000; } axi_timeout_mask[31:16];
-    } MONBUS_WR_2_RD_MASKS_B;
-
-    reg {
-        name = "monbus_wr_2 RD MASKS_C";
-        field { reset = 16'h0000; } axi_compl_mask[15:0];
-        field { reset = 16'h0000; } axi_thresh_mask[31:16];
-    } MONBUS_WR_2_RD_MASKS_C;
-
-    reg {
-        name = "monbus_wr_2 RD MASKS_D";
-        field { reset = 16'h0000; } axi_perf_mask[15:0];
-        field { reset = 16'h0000; } axi_addr_mask[31:16];
-    } MONBUS_WR_2_RD_MASKS_D;
-
-    reg {
-        name = "monbus_wr_2 RD MASKS_E";
-        field { reset = 16'h0000; } axi_debug_mask[15:0];
-    } MONBUS_WR_2_RD_MASKS_E;
-
-    // Window cfg — present because the monitor enables the perf cone.
-    reg {
-        name = "monbus_wr_2 RD WINDOW_CTRL";
-        desc = "Stage A window-trigger config.";
-        field { reset = 3'b111; } start_event_sel[2:0];   // never-fire
-        field { reset = 3'b111; } end_event_sel[5:3];     // never-fire
-        field { reset = 1'b0;   } start_trigger[6:6];
-        field { reset = 1'b0;   } end_trigger[7:7];
-        field { reset = 1'b0;   } window_force_close[8:8];
-    } MONBUS_WR_2_RD_WINDOW_CTRL;
-
-    // ----------------------------------------------------------------
     // slave_monbus_wr_3 WR direction
     // ----------------------------------------------------------------
     reg {
         name = "slave_monbus_wr_3 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -412,6 +306,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } SLAVE_MONBUS_WR_3_WR_CTRL;
 
@@ -461,72 +359,11 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     } SLAVE_MONBUS_WR_3_WR_WINDOW_CTRL;
 
     // ----------------------------------------------------------------
-    // slave_monbus_wr_3 RD direction
-    // ----------------------------------------------------------------
-    reg {
-        name = "slave_monbus_wr_3 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
-        field { reset = 1'h1; } monitor_enable[0:0];
-        field { reset = 1'h1; } error_enable[1:1];
-        field { reset = 1'h0; } timeout_enable[2:2];
-        field { reset = 1'h0; } perf_enable[3:3];
-        field { reset = 1'h0; } compl_enable[4:4];
-        field { reset = 1'h0; } threshold_enable[5:5];
-        field { reset = 1'h0; } debug_enable[6:6];
-        field { reset = 16'h0400; } timeout_cycles[31:16];
-    } SLAVE_MONBUS_WR_3_RD_CTRL;
-
-    reg {
-        name = "slave_monbus_wr_3 RD LATENCY";
-        field { reset = 32'h00000200; } latency_threshold[31:0];
-    } SLAVE_MONBUS_WR_3_RD_LATENCY;
-
-    reg {
-        name = "slave_monbus_wr_3 RD MASKS_A";
-        field { reset = 16'h0000; } axi_pkt_mask[15:0];
-        field { reset = 16'h0000; } axi_err_select[31:16];
-    } SLAVE_MONBUS_WR_3_RD_MASKS_A;
-
-    reg {
-        name = "slave_monbus_wr_3 RD MASKS_B";
-        field { reset = 16'h0000; } axi_error_mask[15:0];
-        field { reset = 16'h0000; } axi_timeout_mask[31:16];
-    } SLAVE_MONBUS_WR_3_RD_MASKS_B;
-
-    reg {
-        name = "slave_monbus_wr_3 RD MASKS_C";
-        field { reset = 16'h0000; } axi_compl_mask[15:0];
-        field { reset = 16'h0000; } axi_thresh_mask[31:16];
-    } SLAVE_MONBUS_WR_3_RD_MASKS_C;
-
-    reg {
-        name = "slave_monbus_wr_3 RD MASKS_D";
-        field { reset = 16'h0000; } axi_perf_mask[15:0];
-        field { reset = 16'h0000; } axi_addr_mask[31:16];
-    } SLAVE_MONBUS_WR_3_RD_MASKS_D;
-
-    reg {
-        name = "slave_monbus_wr_3 RD MASKS_E";
-        field { reset = 16'h0000; } axi_debug_mask[15:0];
-    } SLAVE_MONBUS_WR_3_RD_MASKS_E;
-
-    // Window cfg — present because the monitor enables the perf cone.
-    reg {
-        name = "slave_monbus_wr_3 RD WINDOW_CTRL";
-        desc = "Stage A window-trigger config.";
-        field { reset = 3'b111; } start_event_sel[2:0];   // never-fire
-        field { reset = 3'b111; } end_event_sel[5:3];     // never-fire
-        field { reset = 1'b0;   } start_trigger[6:6];
-        field { reset = 1'b0;   } end_trigger[7:7];
-        field { reset = 1'b0;   } window_force_close[8:8];
-    } SLAVE_MONBUS_WR_3_RD_WINDOW_CTRL;
-
-    // ----------------------------------------------------------------
     // stream_apb_0 WR direction
     // ----------------------------------------------------------------
     reg {
         name = "stream_apb_0 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -534,6 +371,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } STREAM_APB_0_WR_CTRL;
 
@@ -576,7 +417,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "stream_apb_0 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -584,6 +425,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } STREAM_APB_0_RD_CTRL;
 
@@ -626,7 +471,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "harness_csr_1 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -634,6 +479,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } HARNESS_CSR_1_WR_CTRL;
 
@@ -676,7 +525,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "harness_csr_1 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -684,6 +533,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } HARNESS_CSR_1_RD_CTRL;
 
@@ -726,7 +579,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "desc_ram_2 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -734,6 +587,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } DESC_RAM_2_WR_CTRL;
 
@@ -776,7 +633,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "desc_ram_2 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -784,6 +641,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } DESC_RAM_2_RD_CTRL;
 
@@ -826,7 +687,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "stream_err_3 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -834,6 +695,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } STREAM_ERR_3_WR_CTRL;
 
@@ -876,7 +741,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "stream_err_3 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -884,6 +749,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } STREAM_ERR_3_RD_CTRL;
 
@@ -926,7 +795,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "stream_tally_4 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -934,6 +803,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } STREAM_TALLY_4_WR_CTRL;
 
@@ -976,7 +849,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "stream_tally_4 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -984,6 +857,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } STREAM_TALLY_4_RD_CTRL;
 
@@ -1026,7 +903,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "dma_axil_5 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -1034,6 +911,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } DMA_AXIL_5_WR_CTRL;
 
@@ -1076,7 +957,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "dma_axil_5 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -1084,6 +965,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } DMA_AXIL_5_RD_CTRL;
 
@@ -1126,7 +1011,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "slave_err_6 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -1134,6 +1019,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } SLAVE_ERR_6_WR_CTRL;
 
@@ -1176,7 +1065,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "slave_err_6 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -1184,6 +1073,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } SLAVE_ERR_6_RD_CTRL;
 
@@ -1226,7 +1119,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "slave_tally_7 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -1234,6 +1127,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } SLAVE_TALLY_7_WR_CTRL;
 
@@ -1276,7 +1173,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "slave_tally_7 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -1284,6 +1181,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } SLAVE_TALLY_7_RD_CTRL;
 
@@ -1326,7 +1227,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "stream_tally_cfg_8 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -1334,6 +1235,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } STREAM_TALLY_CFG_8_WR_CTRL;
 
@@ -1376,7 +1281,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "stream_tally_cfg_8 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -1384,6 +1289,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } STREAM_TALLY_CFG_8_RD_CTRL;
 
@@ -1426,7 +1335,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "slave_tally_cfg_9 WR CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -1434,6 +1343,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } SLAVE_TALLY_CFG_9_WR_CTRL;
 
@@ -1476,7 +1389,7 @@ addrmap bridge_stream_mon_axil_mon_cfg {
     // ----------------------------------------------------------------
     reg {
         name = "slave_tally_cfg_9 RD CTRL";
-        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        desc = "Per-cone enables (bits [6:0]), freq_sel (bits [11:8]) and timeout_cycles (bits [31:16]).";
         field { reset = 1'h1; } monitor_enable[0:0];
         field { reset = 1'h1; } error_enable[1:1];
         field { reset = 1'h0; } timeout_enable[2:2];
@@ -1484,6 +1397,10 @@ addrmap bridge_stream_mon_axil_mon_cfg {
         field { reset = 1'h0; } compl_enable[4:4];
         field { reset = 1'h0; } threshold_enable[5:5];
         field { reset = 1'h0; } debug_enable[6:6];
+        // counter_freq_invariant LUT index. Reset 0 reproduces the value that
+        // used to be hardcoded inside the *_mon wrapper; with the wrapper's
+        // default degenerate LUT (every entry == ACLK_MHZ) any index is exact.
+        field { reset = 4'h0; } freq_sel[11:8];
         field { reset = 16'h0400; } timeout_cycles[31:16];
     } SLAVE_TALLY_CFG_9_RD_CTRL;
 

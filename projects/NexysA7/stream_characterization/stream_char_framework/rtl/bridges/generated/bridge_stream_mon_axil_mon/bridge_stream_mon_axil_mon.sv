@@ -14,18 +14,16 @@
 
 `timescale 1ns / 1ps
 
-import bridge_stream_mon_axil_mon_pkg::*;
 
-module bridge_stream_mon_axil_mon #(
+module bridge_stream_mon_axil_mon
+    import bridge_stream_mon_axil_mon_pkg::*;
+#(
     // Per-wrapper USE_MONITOR knobs (TOML defaults; override at instantiation)
     parameter bit USE_MONITOR_host_wr = 1'b1,
     parameter bit USE_MONITOR_host_rd = 1'b1,
-    parameter bit USE_MONITOR_stream_desc_wr = 1'b1,
     parameter bit USE_MONITOR_stream_desc_rd = 1'b1,
     parameter bit USE_MONITOR_monbus_wr_wr = 1'b1,
-    parameter bit USE_MONITOR_monbus_wr_rd = 1'b1,
     parameter bit USE_MONITOR_slave_monbus_wr_wr = 1'b1,
-    parameter bit USE_MONITOR_slave_monbus_wr_rd = 1'b1,
     parameter bit USE_MONITOR_stream_apb_wr = 1'b1,
     parameter bit USE_MONITOR_stream_apb_rd = 1'b1,
     parameter bit USE_MONITOR_harness_csr_wr = 1'b1,
@@ -75,35 +73,8 @@ module bridge_stream_mon_axil_mon #(
     output logic                  host_axi_rvalid,
     input  logic                  host_axi_rready,
 
-    // Master 1: stream_desc (rw)
-    // Master: stream_desc (axi4, rw)
-    input  logic [7:0]  stream_desc_awid,
-    input  logic [31:0]  stream_desc_awaddr,
-    input  logic [7:0]  stream_desc_awlen,
-    input  logic [2:0]  stream_desc_awsize,
-    input  logic [1:0]  stream_desc_awburst,
-    input  logic         stream_desc_awlock,
-    input  logic [3:0]  stream_desc_awcache,
-    input  logic [2:0]  stream_desc_awprot,
-    input  logic [3:0]  stream_desc_awqos,
-    input  logic [3:0]  stream_desc_awregion,
-    input  logic         stream_desc_awuser,
-    input  logic         stream_desc_awvalid,
-    output  logic         stream_desc_awready,
-
-    input  logic [255:0]  stream_desc_wdata,
-    input  logic [31:0]  stream_desc_wstrb,
-    input  logic         stream_desc_wlast,
-    input  logic         stream_desc_wuser,
-    input  logic         stream_desc_wvalid,
-    output  logic         stream_desc_wready,
-
-    output  logic [7:0]  stream_desc_bid,
-    output  logic [1:0]  stream_desc_bresp,
-    output  logic         stream_desc_buser,
-    output  logic         stream_desc_bvalid,
-    input  logic         stream_desc_bready,
-
+    // Master 1: stream_desc (rd)
+    // Master: stream_desc (axi4, rd)
     input  logic [7:0]  stream_desc_arid,
     input  logic [31:0]  stream_desc_araddr,
     input  logic [7:0]  stream_desc_arlen,
@@ -126,8 +97,8 @@ module bridge_stream_mon_axil_mon #(
     output  logic         stream_desc_rvalid,
     input  logic         stream_desc_rready,
 
-    // Master 2: monbus_wr (rw)
-    // Master: monbus_wr (axil, rw)
+    // Master 2: monbus_wr (wr)
+    // Master: monbus_wr (axil, wr)
     input  logic [31:0] monbus_wr_awaddr,
     input  logic [2:0]            monbus_wr_awprot,
     input  logic                  monbus_wr_awvalid,
@@ -139,17 +110,9 @@ module bridge_stream_mon_axil_mon #(
     output logic [1:0]            monbus_wr_bresp,
     output logic                  monbus_wr_bvalid,
     input  logic                  monbus_wr_bready,
-    input  logic [31:0] monbus_wr_araddr,
-    input  logic [2:0]            monbus_wr_arprot,
-    input  logic                  monbus_wr_arvalid,
-    output logic                  monbus_wr_arready,
-    output logic [63:0] monbus_wr_rdata,
-    output logic [1:0]            monbus_wr_rresp,
-    output logic                  monbus_wr_rvalid,
-    input  logic                  monbus_wr_rready,
 
-    // Master 3: slave_monbus_wr (rw)
-    // Master: slave_monbus_wr (axil, rw)
+    // Master 3: slave_monbus_wr (wr)
+    // Master: slave_monbus_wr (axil, wr)
     input  logic [31:0] slave_monbus_wr_awaddr,
     input  logic [2:0]            slave_monbus_wr_awprot,
     input  logic                  slave_monbus_wr_awvalid,
@@ -161,14 +124,6 @@ module bridge_stream_mon_axil_mon #(
     output logic [1:0]            slave_monbus_wr_bresp,
     output logic                  slave_monbus_wr_bvalid,
     input  logic                  slave_monbus_wr_bready,
-    input  logic [31:0] slave_monbus_wr_araddr,
-    input  logic [2:0]            slave_monbus_wr_arprot,
-    input  logic                  slave_monbus_wr_arvalid,
-    output logic                  slave_monbus_wr_arready,
-    output logic [63:0] slave_monbus_wr_rdata,
-    output logic [1:0]            slave_monbus_wr_rresp,
-    output logic                  slave_monbus_wr_rvalid,
-    input  logic                  slave_monbus_wr_rready,
 
     // Slave 0: stream_apb
     // APB Slave: stream_apb
@@ -470,12 +425,9 @@ module bridge_stream_mon_axil_mon #(
     // ============================================================
     localparam bit EFF_USE_MON_host_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_host_wr;
     localparam bit EFF_USE_MON_host_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_host_rd;
-    localparam bit EFF_USE_MON_stream_desc_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_stream_desc_wr;
     localparam bit EFF_USE_MON_stream_desc_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_stream_desc_rd;
     localparam bit EFF_USE_MON_monbus_wr_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_monbus_wr_wr;
-    localparam bit EFF_USE_MON_monbus_wr_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_monbus_wr_rd;
     localparam bit EFF_USE_MON_slave_monbus_wr_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_slave_monbus_wr_wr;
-    localparam bit EFF_USE_MON_slave_monbus_wr_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_slave_monbus_wr_rd;
     localparam bit EFF_USE_MON_stream_apb_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_stream_apb_wr;
     localparam bit EFF_USE_MON_stream_apb_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_stream_apb_rd;
     localparam bit EFF_USE_MON_harness_csr_wr = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_harness_csr_wr;
@@ -552,20 +504,9 @@ module bridge_stream_mon_axil_mon #(
     logic         host_256b_rready;
 
     // stream_desc Adapter outputs
-    logic [NUM_SLAVES-1:0] stream_desc_slave_select_aw;
-    logic [BRIDGE_ID_WIDTH-1:0] stream_desc_bridge_id_aw;
     logic [NUM_SLAVES-1:0] stream_desc_slave_select_ar;
     logic [BRIDGE_ID_WIDTH-1:0] stream_desc_bridge_id_ar;
     // 256b path
-    axi4_aw_t     stream_desc_256b_aw;
-    logic         stream_desc_256b_awvalid;
-    logic         stream_desc_256b_awready;
-    axi4_w_256b_t  stream_desc_256b_w;
-    logic         stream_desc_256b_wvalid;
-    logic         stream_desc_256b_wready;
-    axi4_b_t      stream_desc_256b_b;
-    logic         stream_desc_256b_bvalid;
-    logic         stream_desc_256b_bready;
     axi4_ar_t     stream_desc_256b_ar;
     logic         stream_desc_256b_arvalid;
     logic         stream_desc_256b_arready;
@@ -576,8 +517,6 @@ module bridge_stream_mon_axil_mon #(
     // monbus_wr Adapter outputs
     logic [NUM_SLAVES-1:0] monbus_wr_slave_select_aw;
     logic [BRIDGE_ID_WIDTH-1:0] monbus_wr_bridge_id_aw;
-    logic [NUM_SLAVES-1:0] monbus_wr_slave_select_ar;
-    logic [BRIDGE_ID_WIDTH-1:0] monbus_wr_bridge_id_ar;
     // 64b path
     axi4_aw_t     monbus_wr_64b_aw;
     logic         monbus_wr_64b_awvalid;
@@ -588,18 +527,10 @@ module bridge_stream_mon_axil_mon #(
     axi4_b_t      monbus_wr_64b_b;
     logic         monbus_wr_64b_bvalid;
     logic         monbus_wr_64b_bready;
-    axi4_ar_t     monbus_wr_64b_ar;
-    logic         monbus_wr_64b_arvalid;
-    logic         monbus_wr_64b_arready;
-    axi4_r_64b_t  monbus_wr_64b_r;
-    logic         monbus_wr_64b_rvalid;
-    logic         monbus_wr_64b_rready;
 
     // slave_monbus_wr Adapter outputs
     logic [NUM_SLAVES-1:0] slave_monbus_wr_slave_select_aw;
     logic [BRIDGE_ID_WIDTH-1:0] slave_monbus_wr_bridge_id_aw;
-    logic [NUM_SLAVES-1:0] slave_monbus_wr_slave_select_ar;
-    logic [BRIDGE_ID_WIDTH-1:0] slave_monbus_wr_bridge_id_ar;
     // 64b path
     axi4_aw_t     slave_monbus_wr_64b_aw;
     logic         slave_monbus_wr_64b_awvalid;
@@ -610,12 +541,6 @@ module bridge_stream_mon_axil_mon #(
     axi4_b_t      slave_monbus_wr_64b_b;
     logic         slave_monbus_wr_64b_bvalid;
     logic         slave_monbus_wr_64b_bready;
-    axi4_ar_t     slave_monbus_wr_64b_ar;
-    logic         slave_monbus_wr_64b_arvalid;
-    logic         slave_monbus_wr_64b_arready;
-    axi4_r_64b_t  slave_monbus_wr_64b_r;
-    logic         slave_monbus_wr_64b_rvalid;
-    logic         slave_monbus_wr_64b_rready;
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // stream_apb (APB, 32b AXI4 interface)
@@ -1152,10 +1077,6 @@ module bridge_stream_mon_axil_mon #(
     logic                                  monbus_host_0_rd_ready;
     monitor_common_pkg::monitor_packet_t   monbus_host_0_rd_packet;
     monitor_common_pkg::monbus_timestamp_t monbus_host_0_rd_timestamp;
-    logic                                  monbus_stream_desc_1_wr_valid;
-    logic                                  monbus_stream_desc_1_wr_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_stream_desc_1_wr_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_stream_desc_1_wr_timestamp;
     logic                                  monbus_stream_desc_1_rd_valid;
     logic                                  monbus_stream_desc_1_rd_ready;
     monitor_common_pkg::monitor_packet_t   monbus_stream_desc_1_rd_packet;
@@ -1164,18 +1085,10 @@ module bridge_stream_mon_axil_mon #(
     logic                                  monbus_monbus_wr_2_wr_ready;
     monitor_common_pkg::monitor_packet_t   monbus_monbus_wr_2_wr_packet;
     monitor_common_pkg::monbus_timestamp_t monbus_monbus_wr_2_wr_timestamp;
-    logic                                  monbus_monbus_wr_2_rd_valid;
-    logic                                  monbus_monbus_wr_2_rd_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_monbus_wr_2_rd_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_monbus_wr_2_rd_timestamp;
     logic                                  monbus_slave_monbus_wr_3_wr_valid;
     logic                                  monbus_slave_monbus_wr_3_wr_ready;
     monitor_common_pkg::monitor_packet_t   monbus_slave_monbus_wr_3_wr_packet;
     monitor_common_pkg::monbus_timestamp_t monbus_slave_monbus_wr_3_wr_timestamp;
-    logic                                  monbus_slave_monbus_wr_3_rd_valid;
-    logic                                  monbus_slave_monbus_wr_3_rd_ready;
-    monitor_common_pkg::monitor_packet_t   monbus_slave_monbus_wr_3_rd_packet;
-    monitor_common_pkg::monbus_timestamp_t monbus_slave_monbus_wr_3_rd_timestamp;
     logic                                  monbus_stream_apb_0_wr_valid;
     logic                                  monbus_stream_apb_0_wr_ready;
     monitor_common_pkg::monitor_packet_t   monbus_stream_apb_0_wr_packet;
@@ -1276,6 +1189,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_host_0_wr_threshold_enable;
     logic         cfg_host_0_wr_debug_enable;
     logic [15:0] cfg_host_0_wr_timeout_cycles;
+    logic [3:0] cfg_host_0_wr_freq_sel;
     logic [31:0] cfg_host_0_wr_latency_threshold;
     logic [15:0] cfg_host_0_wr_axi_pkt_mask;
     logic [15:0] cfg_host_0_wr_axi_err_select;
@@ -1296,6 +1210,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_host_0_rd_threshold_enable;
     logic         cfg_host_0_rd_debug_enable;
     logic [15:0] cfg_host_0_rd_timeout_cycles;
+    logic [3:0] cfg_host_0_rd_freq_sel;
     logic [31:0] cfg_host_0_rd_latency_threshold;
     logic [15:0] cfg_host_0_rd_axi_pkt_mask;
     logic [15:0] cfg_host_0_rd_axi_err_select;
@@ -1307,26 +1222,6 @@ module bridge_stream_mon_axil_mon #(
     logic [15:0] cfg_host_0_rd_axi_addr_mask;
     logic [15:0] cfg_host_0_rd_axi_debug_mask;
 
-    // cfg nets for master stream_desc (idx 1, wr)
-    logic         cfg_stream_desc_1_wr_monitor_enable;
-    logic         cfg_stream_desc_1_wr_error_enable;
-    logic         cfg_stream_desc_1_wr_timeout_enable;
-    logic         cfg_stream_desc_1_wr_perf_enable;
-    logic         cfg_stream_desc_1_wr_compl_enable;
-    logic         cfg_stream_desc_1_wr_threshold_enable;
-    logic         cfg_stream_desc_1_wr_debug_enable;
-    logic [15:0] cfg_stream_desc_1_wr_timeout_cycles;
-    logic [31:0] cfg_stream_desc_1_wr_latency_threshold;
-    logic [15:0] cfg_stream_desc_1_wr_axi_pkt_mask;
-    logic [15:0] cfg_stream_desc_1_wr_axi_err_select;
-    logic [15:0] cfg_stream_desc_1_wr_axi_error_mask;
-    logic [15:0] cfg_stream_desc_1_wr_axi_timeout_mask;
-    logic [15:0] cfg_stream_desc_1_wr_axi_compl_mask;
-    logic [15:0] cfg_stream_desc_1_wr_axi_thresh_mask;
-    logic [15:0] cfg_stream_desc_1_wr_axi_perf_mask;
-    logic [15:0] cfg_stream_desc_1_wr_axi_addr_mask;
-    logic [15:0] cfg_stream_desc_1_wr_axi_debug_mask;
-
     // cfg nets for master stream_desc (idx 1, rd)
     logic         cfg_stream_desc_1_rd_monitor_enable;
     logic         cfg_stream_desc_1_rd_error_enable;
@@ -1336,6 +1231,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_stream_desc_1_rd_threshold_enable;
     logic         cfg_stream_desc_1_rd_debug_enable;
     logic [15:0] cfg_stream_desc_1_rd_timeout_cycles;
+    logic [3:0] cfg_stream_desc_1_rd_freq_sel;
     logic [31:0] cfg_stream_desc_1_rd_latency_threshold;
     logic [15:0] cfg_stream_desc_1_rd_axi_pkt_mask;
     logic [15:0] cfg_stream_desc_1_rd_axi_err_select;
@@ -1356,6 +1252,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_monbus_wr_2_wr_threshold_enable;
     logic         cfg_monbus_wr_2_wr_debug_enable;
     logic [15:0] cfg_monbus_wr_2_wr_timeout_cycles;
+    logic [3:0] cfg_monbus_wr_2_wr_freq_sel;
     logic [31:0] cfg_monbus_wr_2_wr_latency_threshold;
     logic [15:0] cfg_monbus_wr_2_wr_axi_pkt_mask;
     logic [15:0] cfg_monbus_wr_2_wr_axi_err_select;
@@ -1367,26 +1264,6 @@ module bridge_stream_mon_axil_mon #(
     logic [15:0] cfg_monbus_wr_2_wr_axi_addr_mask;
     logic [15:0] cfg_monbus_wr_2_wr_axi_debug_mask;
 
-    // cfg nets for master monbus_wr (idx 2, rd)
-    logic         cfg_monbus_wr_2_rd_monitor_enable;
-    logic         cfg_monbus_wr_2_rd_error_enable;
-    logic         cfg_monbus_wr_2_rd_timeout_enable;
-    logic         cfg_monbus_wr_2_rd_perf_enable;
-    logic         cfg_monbus_wr_2_rd_compl_enable;
-    logic         cfg_monbus_wr_2_rd_threshold_enable;
-    logic         cfg_monbus_wr_2_rd_debug_enable;
-    logic [15:0] cfg_monbus_wr_2_rd_timeout_cycles;
-    logic [31:0] cfg_monbus_wr_2_rd_latency_threshold;
-    logic [15:0] cfg_monbus_wr_2_rd_axi_pkt_mask;
-    logic [15:0] cfg_monbus_wr_2_rd_axi_err_select;
-    logic [15:0] cfg_monbus_wr_2_rd_axi_error_mask;
-    logic [15:0] cfg_monbus_wr_2_rd_axi_timeout_mask;
-    logic [15:0] cfg_monbus_wr_2_rd_axi_compl_mask;
-    logic [15:0] cfg_monbus_wr_2_rd_axi_thresh_mask;
-    logic [15:0] cfg_monbus_wr_2_rd_axi_perf_mask;
-    logic [15:0] cfg_monbus_wr_2_rd_axi_addr_mask;
-    logic [15:0] cfg_monbus_wr_2_rd_axi_debug_mask;
-
     // cfg nets for master slave_monbus_wr (idx 3, wr)
     logic         cfg_slave_monbus_wr_3_wr_monitor_enable;
     logic         cfg_slave_monbus_wr_3_wr_error_enable;
@@ -1396,6 +1273,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_slave_monbus_wr_3_wr_threshold_enable;
     logic         cfg_slave_monbus_wr_3_wr_debug_enable;
     logic [15:0] cfg_slave_monbus_wr_3_wr_timeout_cycles;
+    logic [3:0] cfg_slave_monbus_wr_3_wr_freq_sel;
     logic [31:0] cfg_slave_monbus_wr_3_wr_latency_threshold;
     logic [15:0] cfg_slave_monbus_wr_3_wr_axi_pkt_mask;
     logic [15:0] cfg_slave_monbus_wr_3_wr_axi_err_select;
@@ -1407,26 +1285,6 @@ module bridge_stream_mon_axil_mon #(
     logic [15:0] cfg_slave_monbus_wr_3_wr_axi_addr_mask;
     logic [15:0] cfg_slave_monbus_wr_3_wr_axi_debug_mask;
 
-    // cfg nets for master slave_monbus_wr (idx 3, rd)
-    logic         cfg_slave_monbus_wr_3_rd_monitor_enable;
-    logic         cfg_slave_monbus_wr_3_rd_error_enable;
-    logic         cfg_slave_monbus_wr_3_rd_timeout_enable;
-    logic         cfg_slave_monbus_wr_3_rd_perf_enable;
-    logic         cfg_slave_monbus_wr_3_rd_compl_enable;
-    logic         cfg_slave_monbus_wr_3_rd_threshold_enable;
-    logic         cfg_slave_monbus_wr_3_rd_debug_enable;
-    logic [15:0] cfg_slave_monbus_wr_3_rd_timeout_cycles;
-    logic [31:0] cfg_slave_monbus_wr_3_rd_latency_threshold;
-    logic [15:0] cfg_slave_monbus_wr_3_rd_axi_pkt_mask;
-    logic [15:0] cfg_slave_monbus_wr_3_rd_axi_err_select;
-    logic [15:0] cfg_slave_monbus_wr_3_rd_axi_error_mask;
-    logic [15:0] cfg_slave_monbus_wr_3_rd_axi_timeout_mask;
-    logic [15:0] cfg_slave_monbus_wr_3_rd_axi_compl_mask;
-    logic [15:0] cfg_slave_monbus_wr_3_rd_axi_thresh_mask;
-    logic [15:0] cfg_slave_monbus_wr_3_rd_axi_perf_mask;
-    logic [15:0] cfg_slave_monbus_wr_3_rd_axi_addr_mask;
-    logic [15:0] cfg_slave_monbus_wr_3_rd_axi_debug_mask;
-
     // cfg nets for slave stream_apb (idx 0, wr)
     logic         cfg_stream_apb_0_wr_monitor_enable;
     logic         cfg_stream_apb_0_wr_error_enable;
@@ -1436,6 +1294,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_stream_apb_0_wr_threshold_enable;
     logic         cfg_stream_apb_0_wr_debug_enable;
     logic [15:0] cfg_stream_apb_0_wr_timeout_cycles;
+    logic [3:0] cfg_stream_apb_0_wr_freq_sel;
     logic [31:0] cfg_stream_apb_0_wr_latency_threshold;
     logic [15:0] cfg_stream_apb_0_wr_axi_pkt_mask;
     logic [15:0] cfg_stream_apb_0_wr_axi_err_select;
@@ -1456,6 +1315,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_stream_apb_0_rd_threshold_enable;
     logic         cfg_stream_apb_0_rd_debug_enable;
     logic [15:0] cfg_stream_apb_0_rd_timeout_cycles;
+    logic [3:0] cfg_stream_apb_0_rd_freq_sel;
     logic [31:0] cfg_stream_apb_0_rd_latency_threshold;
     logic [15:0] cfg_stream_apb_0_rd_axi_pkt_mask;
     logic [15:0] cfg_stream_apb_0_rd_axi_err_select;
@@ -1476,6 +1336,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_harness_csr_1_wr_threshold_enable;
     logic         cfg_harness_csr_1_wr_debug_enable;
     logic [15:0] cfg_harness_csr_1_wr_timeout_cycles;
+    logic [3:0] cfg_harness_csr_1_wr_freq_sel;
     logic [31:0] cfg_harness_csr_1_wr_latency_threshold;
     logic [15:0] cfg_harness_csr_1_wr_axi_pkt_mask;
     logic [15:0] cfg_harness_csr_1_wr_axi_err_select;
@@ -1496,6 +1357,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_harness_csr_1_rd_threshold_enable;
     logic         cfg_harness_csr_1_rd_debug_enable;
     logic [15:0] cfg_harness_csr_1_rd_timeout_cycles;
+    logic [3:0] cfg_harness_csr_1_rd_freq_sel;
     logic [31:0] cfg_harness_csr_1_rd_latency_threshold;
     logic [15:0] cfg_harness_csr_1_rd_axi_pkt_mask;
     logic [15:0] cfg_harness_csr_1_rd_axi_err_select;
@@ -1516,6 +1378,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_desc_ram_2_wr_threshold_enable;
     logic         cfg_desc_ram_2_wr_debug_enable;
     logic [15:0] cfg_desc_ram_2_wr_timeout_cycles;
+    logic [3:0] cfg_desc_ram_2_wr_freq_sel;
     logic [31:0] cfg_desc_ram_2_wr_latency_threshold;
     logic [15:0] cfg_desc_ram_2_wr_axi_pkt_mask;
     logic [15:0] cfg_desc_ram_2_wr_axi_err_select;
@@ -1536,6 +1399,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_desc_ram_2_rd_threshold_enable;
     logic         cfg_desc_ram_2_rd_debug_enable;
     logic [15:0] cfg_desc_ram_2_rd_timeout_cycles;
+    logic [3:0] cfg_desc_ram_2_rd_freq_sel;
     logic [31:0] cfg_desc_ram_2_rd_latency_threshold;
     logic [15:0] cfg_desc_ram_2_rd_axi_pkt_mask;
     logic [15:0] cfg_desc_ram_2_rd_axi_err_select;
@@ -1556,6 +1420,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_stream_err_3_wr_threshold_enable;
     logic         cfg_stream_err_3_wr_debug_enable;
     logic [15:0] cfg_stream_err_3_wr_timeout_cycles;
+    logic [3:0] cfg_stream_err_3_wr_freq_sel;
     logic [31:0] cfg_stream_err_3_wr_latency_threshold;
     logic [15:0] cfg_stream_err_3_wr_axi_pkt_mask;
     logic [15:0] cfg_stream_err_3_wr_axi_err_select;
@@ -1576,6 +1441,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_stream_err_3_rd_threshold_enable;
     logic         cfg_stream_err_3_rd_debug_enable;
     logic [15:0] cfg_stream_err_3_rd_timeout_cycles;
+    logic [3:0] cfg_stream_err_3_rd_freq_sel;
     logic [31:0] cfg_stream_err_3_rd_latency_threshold;
     logic [15:0] cfg_stream_err_3_rd_axi_pkt_mask;
     logic [15:0] cfg_stream_err_3_rd_axi_err_select;
@@ -1596,6 +1462,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_stream_tally_4_wr_threshold_enable;
     logic         cfg_stream_tally_4_wr_debug_enable;
     logic [15:0] cfg_stream_tally_4_wr_timeout_cycles;
+    logic [3:0] cfg_stream_tally_4_wr_freq_sel;
     logic [31:0] cfg_stream_tally_4_wr_latency_threshold;
     logic [15:0] cfg_stream_tally_4_wr_axi_pkt_mask;
     logic [15:0] cfg_stream_tally_4_wr_axi_err_select;
@@ -1616,6 +1483,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_stream_tally_4_rd_threshold_enable;
     logic         cfg_stream_tally_4_rd_debug_enable;
     logic [15:0] cfg_stream_tally_4_rd_timeout_cycles;
+    logic [3:0] cfg_stream_tally_4_rd_freq_sel;
     logic [31:0] cfg_stream_tally_4_rd_latency_threshold;
     logic [15:0] cfg_stream_tally_4_rd_axi_pkt_mask;
     logic [15:0] cfg_stream_tally_4_rd_axi_err_select;
@@ -1636,6 +1504,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_dma_axil_5_wr_threshold_enable;
     logic         cfg_dma_axil_5_wr_debug_enable;
     logic [15:0] cfg_dma_axil_5_wr_timeout_cycles;
+    logic [3:0] cfg_dma_axil_5_wr_freq_sel;
     logic [31:0] cfg_dma_axil_5_wr_latency_threshold;
     logic [15:0] cfg_dma_axil_5_wr_axi_pkt_mask;
     logic [15:0] cfg_dma_axil_5_wr_axi_err_select;
@@ -1656,6 +1525,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_dma_axil_5_rd_threshold_enable;
     logic         cfg_dma_axil_5_rd_debug_enable;
     logic [15:0] cfg_dma_axil_5_rd_timeout_cycles;
+    logic [3:0] cfg_dma_axil_5_rd_freq_sel;
     logic [31:0] cfg_dma_axil_5_rd_latency_threshold;
     logic [15:0] cfg_dma_axil_5_rd_axi_pkt_mask;
     logic [15:0] cfg_dma_axil_5_rd_axi_err_select;
@@ -1676,6 +1546,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_slave_err_6_wr_threshold_enable;
     logic         cfg_slave_err_6_wr_debug_enable;
     logic [15:0] cfg_slave_err_6_wr_timeout_cycles;
+    logic [3:0] cfg_slave_err_6_wr_freq_sel;
     logic [31:0] cfg_slave_err_6_wr_latency_threshold;
     logic [15:0] cfg_slave_err_6_wr_axi_pkt_mask;
     logic [15:0] cfg_slave_err_6_wr_axi_err_select;
@@ -1696,6 +1567,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_slave_err_6_rd_threshold_enable;
     logic         cfg_slave_err_6_rd_debug_enable;
     logic [15:0] cfg_slave_err_6_rd_timeout_cycles;
+    logic [3:0] cfg_slave_err_6_rd_freq_sel;
     logic [31:0] cfg_slave_err_6_rd_latency_threshold;
     logic [15:0] cfg_slave_err_6_rd_axi_pkt_mask;
     logic [15:0] cfg_slave_err_6_rd_axi_err_select;
@@ -1716,6 +1588,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_slave_tally_7_wr_threshold_enable;
     logic         cfg_slave_tally_7_wr_debug_enable;
     logic [15:0] cfg_slave_tally_7_wr_timeout_cycles;
+    logic [3:0] cfg_slave_tally_7_wr_freq_sel;
     logic [31:0] cfg_slave_tally_7_wr_latency_threshold;
     logic [15:0] cfg_slave_tally_7_wr_axi_pkt_mask;
     logic [15:0] cfg_slave_tally_7_wr_axi_err_select;
@@ -1736,6 +1609,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_slave_tally_7_rd_threshold_enable;
     logic         cfg_slave_tally_7_rd_debug_enable;
     logic [15:0] cfg_slave_tally_7_rd_timeout_cycles;
+    logic [3:0] cfg_slave_tally_7_rd_freq_sel;
     logic [31:0] cfg_slave_tally_7_rd_latency_threshold;
     logic [15:0] cfg_slave_tally_7_rd_axi_pkt_mask;
     logic [15:0] cfg_slave_tally_7_rd_axi_err_select;
@@ -1756,6 +1630,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_stream_tally_cfg_8_wr_threshold_enable;
     logic         cfg_stream_tally_cfg_8_wr_debug_enable;
     logic [15:0] cfg_stream_tally_cfg_8_wr_timeout_cycles;
+    logic [3:0] cfg_stream_tally_cfg_8_wr_freq_sel;
     logic [31:0] cfg_stream_tally_cfg_8_wr_latency_threshold;
     logic [15:0] cfg_stream_tally_cfg_8_wr_axi_pkt_mask;
     logic [15:0] cfg_stream_tally_cfg_8_wr_axi_err_select;
@@ -1776,6 +1651,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_stream_tally_cfg_8_rd_threshold_enable;
     logic         cfg_stream_tally_cfg_8_rd_debug_enable;
     logic [15:0] cfg_stream_tally_cfg_8_rd_timeout_cycles;
+    logic [3:0] cfg_stream_tally_cfg_8_rd_freq_sel;
     logic [31:0] cfg_stream_tally_cfg_8_rd_latency_threshold;
     logic [15:0] cfg_stream_tally_cfg_8_rd_axi_pkt_mask;
     logic [15:0] cfg_stream_tally_cfg_8_rd_axi_err_select;
@@ -1796,6 +1672,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_slave_tally_cfg_9_wr_threshold_enable;
     logic         cfg_slave_tally_cfg_9_wr_debug_enable;
     logic [15:0] cfg_slave_tally_cfg_9_wr_timeout_cycles;
+    logic [3:0] cfg_slave_tally_cfg_9_wr_freq_sel;
     logic [31:0] cfg_slave_tally_cfg_9_wr_latency_threshold;
     logic [15:0] cfg_slave_tally_cfg_9_wr_axi_pkt_mask;
     logic [15:0] cfg_slave_tally_cfg_9_wr_axi_err_select;
@@ -1816,6 +1693,7 @@ module bridge_stream_mon_axil_mon #(
     logic         cfg_slave_tally_cfg_9_rd_threshold_enable;
     logic         cfg_slave_tally_cfg_9_rd_debug_enable;
     logic [15:0] cfg_slave_tally_cfg_9_rd_timeout_cycles;
+    logic [3:0] cfg_slave_tally_cfg_9_rd_freq_sel;
     logic [31:0] cfg_slave_tally_cfg_9_rd_latency_threshold;
     logic [15:0] cfg_slave_tally_cfg_9_rd_axi_pkt_mask;
     logic [15:0] cfg_slave_tally_cfg_9_rd_axi_err_select;
@@ -1985,6 +1863,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_host_0_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_host_0_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_host_0_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_host_0_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_host_0_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_host_0_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_host_0_wr_axi_err_select),
@@ -2007,6 +1886,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_host_0_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_host_0_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_host_0_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_host_0_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_host_0_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_host_0_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_host_0_rd_axi_err_select),
@@ -2023,37 +1903,12 @@ module bridge_stream_mon_axil_mon #(
     // STREAM_DESC Adapter
     // ================================================================
     stream_desc_adapter #(
-        .USE_MONITOR_WR(EFF_USE_MON_stream_desc_wr),
         .USE_MONITOR_RD(EFF_USE_MON_stream_desc_rd)
     ) u_stream_desc_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
         // External interface
-        .stream_desc_awid(stream_desc_awid),
-        .stream_desc_awaddr(stream_desc_awaddr),
-        .stream_desc_awlen(stream_desc_awlen),
-        .stream_desc_awsize(stream_desc_awsize),
-        .stream_desc_awburst(stream_desc_awburst),
-        .stream_desc_awlock(stream_desc_awlock),
-        .stream_desc_awcache(stream_desc_awcache),
-        .stream_desc_awprot(stream_desc_awprot),
-        .stream_desc_awqos(stream_desc_awqos),
-        .stream_desc_awregion(stream_desc_awregion),
-        .stream_desc_awuser(stream_desc_awuser),
-        .stream_desc_awvalid(stream_desc_awvalid),
-        .stream_desc_awready(stream_desc_awready),
-        .stream_desc_wdata(stream_desc_wdata),
-        .stream_desc_wstrb(stream_desc_wstrb),
-        .stream_desc_wlast(stream_desc_wlast),
-        .stream_desc_wuser(stream_desc_wuser),
-        .stream_desc_wvalid(stream_desc_wvalid),
-        .stream_desc_wready(stream_desc_wready),
-        .stream_desc_bid(stream_desc_bid),
-        .stream_desc_bresp(stream_desc_bresp),
-        .stream_desc_buser(stream_desc_buser),
-        .stream_desc_bvalid(stream_desc_bvalid),
-        .stream_desc_bready(stream_desc_bready),
         .stream_desc_arid(stream_desc_arid),
         .stream_desc_araddr(stream_desc_araddr),
         .stream_desc_arlen(stream_desc_arlen),
@@ -2076,21 +1931,10 @@ module bridge_stream_mon_axil_mon #(
         .stream_desc_rready(stream_desc_rready),
 
         // Decode outputs
-        .slave_select_aw(stream_desc_slave_select_aw),
-        .bridge_id_aw(stream_desc_bridge_id_aw),
         .slave_select_ar(stream_desc_slave_select_ar),
         .bridge_id_ar(stream_desc_bridge_id_ar),
 
         // 256b path
-        .stream_desc_256b_aw(stream_desc_256b_aw),
-        .stream_desc_256b_awvalid(stream_desc_256b_awvalid),
-        .stream_desc_256b_awready(stream_desc_256b_awready),
-        .stream_desc_256b_w(stream_desc_256b_w),
-        .stream_desc_256b_wvalid(stream_desc_256b_wvalid),
-        .stream_desc_256b_wready(stream_desc_256b_wready),
-        .stream_desc_256b_b(stream_desc_256b_b),
-        .stream_desc_256b_bvalid(stream_desc_256b_bvalid),
-        .stream_desc_256b_bready(stream_desc_256b_bready),
         .stream_desc_256b_ar(stream_desc_256b_ar),
         .stream_desc_256b_arvalid(stream_desc_256b_arvalid),
         .stream_desc_256b_arready(stream_desc_256b_arready),
@@ -2100,28 +1944,6 @@ module bridge_stream_mon_axil_mon #(
 
         // Monitor side-band
         .i_mon_time(mon_time_w),
-        .monbus_wr_valid(monbus_stream_desc_1_wr_valid),
-        .monbus_wr_ready(monbus_stream_desc_1_wr_ready),
-        .monbus_wr_packet(monbus_stream_desc_1_wr_packet),
-        .monbus_wr_timestamp(monbus_stream_desc_1_wr_timestamp),
-        .cfg_wr_monitor_enable(cfg_stream_desc_1_wr_monitor_enable),
-        .cfg_wr_error_enable(cfg_stream_desc_1_wr_error_enable),
-        .cfg_wr_timeout_enable(cfg_stream_desc_1_wr_timeout_enable),
-        .cfg_wr_perf_enable(cfg_stream_desc_1_wr_perf_enable),
-        .cfg_wr_compl_enable(cfg_stream_desc_1_wr_compl_enable),
-        .cfg_wr_threshold_enable(cfg_stream_desc_1_wr_threshold_enable),
-        .cfg_wr_debug_enable(cfg_stream_desc_1_wr_debug_enable),
-        .cfg_wr_timeout_cycles(cfg_stream_desc_1_wr_timeout_cycles),
-        .cfg_wr_latency_threshold(cfg_stream_desc_1_wr_latency_threshold),
-        .cfg_wr_axi_pkt_mask(cfg_stream_desc_1_wr_axi_pkt_mask),
-        .cfg_wr_axi_err_select(cfg_stream_desc_1_wr_axi_err_select),
-        .cfg_wr_axi_error_mask(cfg_stream_desc_1_wr_axi_error_mask),
-        .cfg_wr_axi_timeout_mask(cfg_stream_desc_1_wr_axi_timeout_mask),
-        .cfg_wr_axi_compl_mask(cfg_stream_desc_1_wr_axi_compl_mask),
-        .cfg_wr_axi_thresh_mask(cfg_stream_desc_1_wr_axi_thresh_mask),
-        .cfg_wr_axi_perf_mask(cfg_stream_desc_1_wr_axi_perf_mask),
-        .cfg_wr_axi_addr_mask(cfg_stream_desc_1_wr_axi_addr_mask),
-        .cfg_wr_axi_debug_mask(cfg_stream_desc_1_wr_axi_debug_mask),
         .monbus_rd_valid(monbus_stream_desc_1_rd_valid),
         .monbus_rd_ready(monbus_stream_desc_1_rd_ready),
         .monbus_rd_packet(monbus_stream_desc_1_rd_packet),
@@ -2134,6 +1956,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_stream_desc_1_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_stream_desc_1_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_stream_desc_1_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_stream_desc_1_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_stream_desc_1_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_stream_desc_1_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_stream_desc_1_rd_axi_err_select),
@@ -2150,8 +1973,7 @@ module bridge_stream_mon_axil_mon #(
     // MONBUS_WR Adapter
     // ================================================================
     monbus_wr_adapter #(
-        .USE_MONITOR_WR(EFF_USE_MON_monbus_wr_wr),
-        .USE_MONITOR_RD(EFF_USE_MON_monbus_wr_rd)
+        .USE_MONITOR_WR(EFF_USE_MON_monbus_wr_wr)
     ) u_monbus_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -2181,32 +2003,10 @@ module bridge_stream_mon_axil_mon #(
         .monbus_wr_buser(),
         .monbus_wr_bvalid(monbus_wr_bvalid),
         .monbus_wr_bready(monbus_wr_bready),
-        .monbus_wr_arid(8'h0),
-        .monbus_wr_araddr(monbus_wr_araddr),
-        .monbus_wr_arlen(8'h0),
-        .monbus_wr_arsize(3'd3),
-        .monbus_wr_arburst(2'b01),
-        .monbus_wr_arlock(1'b0),
-        .monbus_wr_arcache(4'h0),
-        .monbus_wr_arprot(monbus_wr_arprot),
-        .monbus_wr_arqos(4'h0),
-        .monbus_wr_arregion(4'h0),
-        .monbus_wr_aruser(1'b0),
-        .monbus_wr_arvalid(monbus_wr_arvalid),
-        .monbus_wr_arready(monbus_wr_arready),
-        .monbus_wr_rid(),
-        .monbus_wr_rdata(monbus_wr_rdata),
-        .monbus_wr_rresp(monbus_wr_rresp),
-        .monbus_wr_rlast(),
-        .monbus_wr_ruser(),
-        .monbus_wr_rvalid(monbus_wr_rvalid),
-        .monbus_wr_rready(monbus_wr_rready),
 
         // Decode outputs
         .slave_select_aw(monbus_wr_slave_select_aw),
         .bridge_id_aw(monbus_wr_bridge_id_aw),
-        .slave_select_ar(monbus_wr_slave_select_ar),
-        .bridge_id_ar(monbus_wr_bridge_id_ar),
 
         // 64b path
         .monbus_wr_64b_aw(monbus_wr_64b_aw),
@@ -2218,12 +2018,6 @@ module bridge_stream_mon_axil_mon #(
         .monbus_wr_64b_b(monbus_wr_64b_b),
         .monbus_wr_64b_bvalid(monbus_wr_64b_bvalid),
         .monbus_wr_64b_bready(monbus_wr_64b_bready),
-        .monbus_wr_64b_ar(monbus_wr_64b_ar),
-        .monbus_wr_64b_arvalid(monbus_wr_64b_arvalid),
-        .monbus_wr_64b_arready(monbus_wr_64b_arready),
-        .monbus_wr_64b_r(monbus_wr_64b_r),
-        .monbus_wr_64b_rvalid(monbus_wr_64b_rvalid),
-        .monbus_wr_64b_rready(monbus_wr_64b_rready),
 
         // Monitor side-band
         .i_mon_time(mon_time_w),
@@ -2239,6 +2033,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_monbus_wr_2_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_monbus_wr_2_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_monbus_wr_2_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_monbus_wr_2_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_monbus_wr_2_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_monbus_wr_2_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_monbus_wr_2_wr_axi_err_select),
@@ -2248,37 +2043,14 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_axi_thresh_mask(cfg_monbus_wr_2_wr_axi_thresh_mask),
         .cfg_wr_axi_perf_mask(cfg_monbus_wr_2_wr_axi_perf_mask),
         .cfg_wr_axi_addr_mask(cfg_monbus_wr_2_wr_axi_addr_mask),
-        .cfg_wr_axi_debug_mask(cfg_monbus_wr_2_wr_axi_debug_mask),
-        .monbus_rd_valid(monbus_monbus_wr_2_rd_valid),
-        .monbus_rd_ready(monbus_monbus_wr_2_rd_ready),
-        .monbus_rd_packet(monbus_monbus_wr_2_rd_packet),
-        .monbus_rd_timestamp(monbus_monbus_wr_2_rd_timestamp),
-        .cfg_rd_monitor_enable(cfg_monbus_wr_2_rd_monitor_enable),
-        .cfg_rd_error_enable(cfg_monbus_wr_2_rd_error_enable),
-        .cfg_rd_timeout_enable(cfg_monbus_wr_2_rd_timeout_enable),
-        .cfg_rd_perf_enable(cfg_monbus_wr_2_rd_perf_enable),
-        .cfg_rd_compl_enable(cfg_monbus_wr_2_rd_compl_enable),
-        .cfg_rd_threshold_enable(cfg_monbus_wr_2_rd_threshold_enable),
-        .cfg_rd_debug_enable(cfg_monbus_wr_2_rd_debug_enable),
-        .cfg_rd_timeout_cycles(cfg_monbus_wr_2_rd_timeout_cycles),
-        .cfg_rd_latency_threshold(cfg_monbus_wr_2_rd_latency_threshold),
-        .cfg_rd_axi_pkt_mask(cfg_monbus_wr_2_rd_axi_pkt_mask),
-        .cfg_rd_axi_err_select(cfg_monbus_wr_2_rd_axi_err_select),
-        .cfg_rd_axi_error_mask(cfg_monbus_wr_2_rd_axi_error_mask),
-        .cfg_rd_axi_timeout_mask(cfg_monbus_wr_2_rd_axi_timeout_mask),
-        .cfg_rd_axi_compl_mask(cfg_monbus_wr_2_rd_axi_compl_mask),
-        .cfg_rd_axi_thresh_mask(cfg_monbus_wr_2_rd_axi_thresh_mask),
-        .cfg_rd_axi_perf_mask(cfg_monbus_wr_2_rd_axi_perf_mask),
-        .cfg_rd_axi_addr_mask(cfg_monbus_wr_2_rd_axi_addr_mask),
-        .cfg_rd_axi_debug_mask(cfg_monbus_wr_2_rd_axi_debug_mask)
+        .cfg_wr_axi_debug_mask(cfg_monbus_wr_2_wr_axi_debug_mask)
     );
 
     // ================================================================
     // SLAVE_MONBUS_WR Adapter
     // ================================================================
     slave_monbus_wr_adapter #(
-        .USE_MONITOR_WR(EFF_USE_MON_slave_monbus_wr_wr),
-        .USE_MONITOR_RD(EFF_USE_MON_slave_monbus_wr_rd)
+        .USE_MONITOR_WR(EFF_USE_MON_slave_monbus_wr_wr)
     ) u_slave_monbus_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -2308,32 +2080,10 @@ module bridge_stream_mon_axil_mon #(
         .slave_monbus_wr_buser(),
         .slave_monbus_wr_bvalid(slave_monbus_wr_bvalid),
         .slave_monbus_wr_bready(slave_monbus_wr_bready),
-        .slave_monbus_wr_arid(8'h0),
-        .slave_monbus_wr_araddr(slave_monbus_wr_araddr),
-        .slave_monbus_wr_arlen(8'h0),
-        .slave_monbus_wr_arsize(3'd3),
-        .slave_monbus_wr_arburst(2'b01),
-        .slave_monbus_wr_arlock(1'b0),
-        .slave_monbus_wr_arcache(4'h0),
-        .slave_monbus_wr_arprot(slave_monbus_wr_arprot),
-        .slave_monbus_wr_arqos(4'h0),
-        .slave_monbus_wr_arregion(4'h0),
-        .slave_monbus_wr_aruser(1'b0),
-        .slave_monbus_wr_arvalid(slave_monbus_wr_arvalid),
-        .slave_monbus_wr_arready(slave_monbus_wr_arready),
-        .slave_monbus_wr_rid(),
-        .slave_monbus_wr_rdata(slave_monbus_wr_rdata),
-        .slave_monbus_wr_rresp(slave_monbus_wr_rresp),
-        .slave_monbus_wr_rlast(),
-        .slave_monbus_wr_ruser(),
-        .slave_monbus_wr_rvalid(slave_monbus_wr_rvalid),
-        .slave_monbus_wr_rready(slave_monbus_wr_rready),
 
         // Decode outputs
         .slave_select_aw(slave_monbus_wr_slave_select_aw),
         .bridge_id_aw(slave_monbus_wr_bridge_id_aw),
-        .slave_select_ar(slave_monbus_wr_slave_select_ar),
-        .bridge_id_ar(slave_monbus_wr_bridge_id_ar),
 
         // 64b path
         .slave_monbus_wr_64b_aw(slave_monbus_wr_64b_aw),
@@ -2345,12 +2095,6 @@ module bridge_stream_mon_axil_mon #(
         .slave_monbus_wr_64b_b(slave_monbus_wr_64b_b),
         .slave_monbus_wr_64b_bvalid(slave_monbus_wr_64b_bvalid),
         .slave_monbus_wr_64b_bready(slave_monbus_wr_64b_bready),
-        .slave_monbus_wr_64b_ar(slave_monbus_wr_64b_ar),
-        .slave_monbus_wr_64b_arvalid(slave_monbus_wr_64b_arvalid),
-        .slave_monbus_wr_64b_arready(slave_monbus_wr_64b_arready),
-        .slave_monbus_wr_64b_r(slave_monbus_wr_64b_r),
-        .slave_monbus_wr_64b_rvalid(slave_monbus_wr_64b_rvalid),
-        .slave_monbus_wr_64b_rready(slave_monbus_wr_64b_rready),
 
         // Monitor side-band
         .i_mon_time(mon_time_w),
@@ -2366,6 +2110,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_slave_monbus_wr_3_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_slave_monbus_wr_3_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_slave_monbus_wr_3_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_slave_monbus_wr_3_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_slave_monbus_wr_3_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_slave_monbus_wr_3_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_slave_monbus_wr_3_wr_axi_err_select),
@@ -2375,29 +2120,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_axi_thresh_mask(cfg_slave_monbus_wr_3_wr_axi_thresh_mask),
         .cfg_wr_axi_perf_mask(cfg_slave_monbus_wr_3_wr_axi_perf_mask),
         .cfg_wr_axi_addr_mask(cfg_slave_monbus_wr_3_wr_axi_addr_mask),
-        .cfg_wr_axi_debug_mask(cfg_slave_monbus_wr_3_wr_axi_debug_mask),
-        .monbus_rd_valid(monbus_slave_monbus_wr_3_rd_valid),
-        .monbus_rd_ready(monbus_slave_monbus_wr_3_rd_ready),
-        .monbus_rd_packet(monbus_slave_monbus_wr_3_rd_packet),
-        .monbus_rd_timestamp(monbus_slave_monbus_wr_3_rd_timestamp),
-        .cfg_rd_monitor_enable(cfg_slave_monbus_wr_3_rd_monitor_enable),
-        .cfg_rd_error_enable(cfg_slave_monbus_wr_3_rd_error_enable),
-        .cfg_rd_timeout_enable(cfg_slave_monbus_wr_3_rd_timeout_enable),
-        .cfg_rd_perf_enable(cfg_slave_monbus_wr_3_rd_perf_enable),
-        .cfg_rd_compl_enable(cfg_slave_monbus_wr_3_rd_compl_enable),
-        .cfg_rd_threshold_enable(cfg_slave_monbus_wr_3_rd_threshold_enable),
-        .cfg_rd_debug_enable(cfg_slave_monbus_wr_3_rd_debug_enable),
-        .cfg_rd_timeout_cycles(cfg_slave_monbus_wr_3_rd_timeout_cycles),
-        .cfg_rd_latency_threshold(cfg_slave_monbus_wr_3_rd_latency_threshold),
-        .cfg_rd_axi_pkt_mask(cfg_slave_monbus_wr_3_rd_axi_pkt_mask),
-        .cfg_rd_axi_err_select(cfg_slave_monbus_wr_3_rd_axi_err_select),
-        .cfg_rd_axi_error_mask(cfg_slave_monbus_wr_3_rd_axi_error_mask),
-        .cfg_rd_axi_timeout_mask(cfg_slave_monbus_wr_3_rd_axi_timeout_mask),
-        .cfg_rd_axi_compl_mask(cfg_slave_monbus_wr_3_rd_axi_compl_mask),
-        .cfg_rd_axi_thresh_mask(cfg_slave_monbus_wr_3_rd_axi_thresh_mask),
-        .cfg_rd_axi_perf_mask(cfg_slave_monbus_wr_3_rd_axi_perf_mask),
-        .cfg_rd_axi_addr_mask(cfg_slave_monbus_wr_3_rd_axi_addr_mask),
-        .cfg_rd_axi_debug_mask(cfg_slave_monbus_wr_3_rd_axi_debug_mask)
+        .cfg_wr_axi_debug_mask(cfg_slave_monbus_wr_3_wr_axi_debug_mask)
     );
 
     // ================================================================
@@ -2462,20 +2185,9 @@ module bridge_stream_mon_axil_mon #(
         .host_256b_rready(host_256b_rready),
 
         // stream_desc adapter outputs
-        .stream_desc_slave_select_aw(stream_desc_slave_select_aw),
-        .stream_desc_bridge_id_aw(stream_desc_bridge_id_aw),
         .stream_desc_slave_select_ar(stream_desc_slave_select_ar),
         .stream_desc_bridge_id_ar(stream_desc_bridge_id_ar),
         // 256b path
-        .stream_desc_256b_aw(stream_desc_256b_aw),
-        .stream_desc_256b_awvalid(stream_desc_256b_awvalid),
-        .stream_desc_256b_awready(stream_desc_256b_awready),
-        .stream_desc_256b_w(stream_desc_256b_w),
-        .stream_desc_256b_wvalid(stream_desc_256b_wvalid),
-        .stream_desc_256b_wready(stream_desc_256b_wready),
-        .stream_desc_256b_b(stream_desc_256b_b),
-        .stream_desc_256b_bvalid(stream_desc_256b_bvalid),
-        .stream_desc_256b_bready(stream_desc_256b_bready),
         .stream_desc_256b_ar(stream_desc_256b_ar),
         .stream_desc_256b_arvalid(stream_desc_256b_arvalid),
         .stream_desc_256b_arready(stream_desc_256b_arready),
@@ -2486,8 +2198,6 @@ module bridge_stream_mon_axil_mon #(
         // monbus_wr adapter outputs
         .monbus_wr_slave_select_aw(monbus_wr_slave_select_aw),
         .monbus_wr_bridge_id_aw(monbus_wr_bridge_id_aw),
-        .monbus_wr_slave_select_ar(monbus_wr_slave_select_ar),
-        .monbus_wr_bridge_id_ar(monbus_wr_bridge_id_ar),
         // 64b path
         .monbus_wr_64b_aw(monbus_wr_64b_aw),
         .monbus_wr_64b_awvalid(monbus_wr_64b_awvalid),
@@ -2498,18 +2208,10 @@ module bridge_stream_mon_axil_mon #(
         .monbus_wr_64b_b(monbus_wr_64b_b),
         .monbus_wr_64b_bvalid(monbus_wr_64b_bvalid),
         .monbus_wr_64b_bready(monbus_wr_64b_bready),
-        .monbus_wr_64b_ar(monbus_wr_64b_ar),
-        .monbus_wr_64b_arvalid(monbus_wr_64b_arvalid),
-        .monbus_wr_64b_arready(monbus_wr_64b_arready),
-        .monbus_wr_64b_r(monbus_wr_64b_r),
-        .monbus_wr_64b_rvalid(monbus_wr_64b_rvalid),
-        .monbus_wr_64b_rready(monbus_wr_64b_rready),
 
         // slave_monbus_wr adapter outputs
         .slave_monbus_wr_slave_select_aw(slave_monbus_wr_slave_select_aw),
         .slave_monbus_wr_bridge_id_aw(slave_monbus_wr_bridge_id_aw),
-        .slave_monbus_wr_slave_select_ar(slave_monbus_wr_slave_select_ar),
-        .slave_monbus_wr_bridge_id_ar(slave_monbus_wr_bridge_id_ar),
         // 64b path
         .slave_monbus_wr_64b_aw(slave_monbus_wr_64b_aw),
         .slave_monbus_wr_64b_awvalid(slave_monbus_wr_64b_awvalid),
@@ -2520,12 +2222,6 @@ module bridge_stream_mon_axil_mon #(
         .slave_monbus_wr_64b_b(slave_monbus_wr_64b_b),
         .slave_monbus_wr_64b_bvalid(slave_monbus_wr_64b_bvalid),
         .slave_monbus_wr_64b_bready(slave_monbus_wr_64b_bready),
-        .slave_monbus_wr_64b_ar(slave_monbus_wr_64b_ar),
-        .slave_monbus_wr_64b_arvalid(slave_monbus_wr_64b_arvalid),
-        .slave_monbus_wr_64b_arready(slave_monbus_wr_64b_arready),
-        .slave_monbus_wr_64b_r(slave_monbus_wr_64b_r),
-        .slave_monbus_wr_64b_rvalid(slave_monbus_wr_64b_rvalid),
-        .slave_monbus_wr_64b_rready(slave_monbus_wr_64b_rready),
 
         // Slave 0: stream_apb
         .stream_apb_axi_awid(xbar_stream_apb_axi_awid),
@@ -3153,6 +2849,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_stream_apb_0_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_stream_apb_0_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_stream_apb_0_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_stream_apb_0_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_stream_apb_0_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_stream_apb_0_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_stream_apb_0_wr_axi_err_select),
@@ -3175,6 +2872,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_stream_apb_0_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_stream_apb_0_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_stream_apb_0_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_stream_apb_0_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_stream_apb_0_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_stream_apb_0_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_stream_apb_0_rd_axi_err_select),
@@ -3284,6 +2982,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_harness_csr_1_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_harness_csr_1_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_harness_csr_1_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_harness_csr_1_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_harness_csr_1_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_harness_csr_1_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_harness_csr_1_wr_axi_err_select),
@@ -3306,6 +3005,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_harness_csr_1_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_harness_csr_1_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_harness_csr_1_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_harness_csr_1_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_harness_csr_1_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_harness_csr_1_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_harness_csr_1_rd_axi_err_select),
@@ -3440,6 +3140,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_desc_ram_2_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_desc_ram_2_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_desc_ram_2_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_desc_ram_2_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_desc_ram_2_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_desc_ram_2_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_desc_ram_2_wr_axi_err_select),
@@ -3462,6 +3163,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_desc_ram_2_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_desc_ram_2_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_desc_ram_2_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_desc_ram_2_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_desc_ram_2_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_desc_ram_2_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_desc_ram_2_rd_axi_err_select),
@@ -3571,6 +3273,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_stream_err_3_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_stream_err_3_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_stream_err_3_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_stream_err_3_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_stream_err_3_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_stream_err_3_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_stream_err_3_wr_axi_err_select),
@@ -3593,6 +3296,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_stream_err_3_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_stream_err_3_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_stream_err_3_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_stream_err_3_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_stream_err_3_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_stream_err_3_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_stream_err_3_rd_axi_err_select),
@@ -3702,6 +3406,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_stream_tally_4_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_stream_tally_4_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_stream_tally_4_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_stream_tally_4_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_stream_tally_4_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_stream_tally_4_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_stream_tally_4_wr_axi_err_select),
@@ -3724,6 +3429,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_stream_tally_4_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_stream_tally_4_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_stream_tally_4_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_stream_tally_4_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_stream_tally_4_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_stream_tally_4_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_stream_tally_4_rd_axi_err_select),
@@ -3833,6 +3539,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_dma_axil_5_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_dma_axil_5_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_dma_axil_5_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_dma_axil_5_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_dma_axil_5_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_dma_axil_5_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_dma_axil_5_wr_axi_err_select),
@@ -3855,6 +3562,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_dma_axil_5_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_dma_axil_5_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_dma_axil_5_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_dma_axil_5_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_dma_axil_5_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_dma_axil_5_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_dma_axil_5_rd_axi_err_select),
@@ -3964,6 +3672,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_slave_err_6_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_slave_err_6_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_slave_err_6_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_slave_err_6_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_slave_err_6_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_slave_err_6_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_slave_err_6_wr_axi_err_select),
@@ -3986,6 +3695,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_slave_err_6_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_slave_err_6_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_slave_err_6_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_slave_err_6_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_slave_err_6_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_slave_err_6_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_slave_err_6_rd_axi_err_select),
@@ -4095,6 +3805,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_slave_tally_7_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_slave_tally_7_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_slave_tally_7_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_slave_tally_7_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_slave_tally_7_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_slave_tally_7_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_slave_tally_7_wr_axi_err_select),
@@ -4117,6 +3828,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_slave_tally_7_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_slave_tally_7_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_slave_tally_7_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_slave_tally_7_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_slave_tally_7_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_slave_tally_7_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_slave_tally_7_rd_axi_err_select),
@@ -4226,6 +3938,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_stream_tally_cfg_8_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_stream_tally_cfg_8_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_stream_tally_cfg_8_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_stream_tally_cfg_8_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_stream_tally_cfg_8_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_stream_tally_cfg_8_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_stream_tally_cfg_8_wr_axi_err_select),
@@ -4248,6 +3961,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_stream_tally_cfg_8_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_stream_tally_cfg_8_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_stream_tally_cfg_8_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_stream_tally_cfg_8_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_stream_tally_cfg_8_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_stream_tally_cfg_8_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_stream_tally_cfg_8_rd_axi_err_select),
@@ -4357,6 +4071,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_wr_threshold_enable(cfg_slave_tally_cfg_9_wr_threshold_enable),
         .cfg_wr_debug_enable(cfg_slave_tally_cfg_9_wr_debug_enable),
         .cfg_wr_timeout_cycles(cfg_slave_tally_cfg_9_wr_timeout_cycles),
+        .cfg_wr_freq_sel(cfg_slave_tally_cfg_9_wr_freq_sel),
         .cfg_wr_latency_threshold(cfg_slave_tally_cfg_9_wr_latency_threshold),
         .cfg_wr_axi_pkt_mask(cfg_slave_tally_cfg_9_wr_axi_pkt_mask),
         .cfg_wr_axi_err_select(cfg_slave_tally_cfg_9_wr_axi_err_select),
@@ -4379,6 +4094,7 @@ module bridge_stream_mon_axil_mon #(
         .cfg_rd_threshold_enable(cfg_slave_tally_cfg_9_rd_threshold_enable),
         .cfg_rd_debug_enable(cfg_slave_tally_cfg_9_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_slave_tally_cfg_9_rd_timeout_cycles),
+        .cfg_rd_freq_sel(cfg_slave_tally_cfg_9_rd_freq_sel),
         .cfg_rd_latency_threshold(cfg_slave_tally_cfg_9_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_slave_tally_cfg_9_rd_axi_pkt_mask),
         .cfg_rd_axi_err_select(cfg_slave_tally_cfg_9_rd_axi_err_select),
@@ -4430,6 +4146,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_host_0_wr_threshold_enable = hwif_out.HOST_0_WR_CTRL.threshold_enable.value;
     assign cfg_host_0_wr_debug_enable = hwif_out.HOST_0_WR_CTRL.debug_enable.value;
     assign cfg_host_0_wr_timeout_cycles = hwif_out.HOST_0_WR_CTRL.timeout_cycles.value;
+    assign cfg_host_0_wr_freq_sel = hwif_out.HOST_0_WR_CTRL.freq_sel.value;
     assign cfg_host_0_wr_latency_threshold = hwif_out.HOST_0_WR_LATENCY.latency_threshold.value;
     assign cfg_host_0_wr_axi_pkt_mask = hwif_out.HOST_0_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_host_0_wr_axi_err_select = hwif_out.HOST_0_WR_MASKS_A.axi_err_select.value;
@@ -4449,6 +4166,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_host_0_rd_threshold_enable = hwif_out.HOST_0_RD_CTRL.threshold_enable.value;
     assign cfg_host_0_rd_debug_enable = hwif_out.HOST_0_RD_CTRL.debug_enable.value;
     assign cfg_host_0_rd_timeout_cycles = hwif_out.HOST_0_RD_CTRL.timeout_cycles.value;
+    assign cfg_host_0_rd_freq_sel = hwif_out.HOST_0_RD_CTRL.freq_sel.value;
     assign cfg_host_0_rd_latency_threshold = hwif_out.HOST_0_RD_LATENCY.latency_threshold.value;
     assign cfg_host_0_rd_axi_pkt_mask = hwif_out.HOST_0_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_host_0_rd_axi_err_select = hwif_out.HOST_0_RD_MASKS_A.axi_err_select.value;
@@ -4460,25 +4178,6 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_host_0_rd_axi_addr_mask = hwif_out.HOST_0_RD_MASKS_D.axi_addr_mask.value;
     assign cfg_host_0_rd_axi_debug_mask = hwif_out.HOST_0_RD_MASKS_E.axi_debug_mask.value;
 
-    assign cfg_stream_desc_1_wr_monitor_enable = hwif_out.STREAM_DESC_1_WR_CTRL.monitor_enable.value;
-    assign cfg_stream_desc_1_wr_error_enable = hwif_out.STREAM_DESC_1_WR_CTRL.error_enable.value;
-    assign cfg_stream_desc_1_wr_timeout_enable = hwif_out.STREAM_DESC_1_WR_CTRL.timeout_enable.value;
-    assign cfg_stream_desc_1_wr_perf_enable = hwif_out.STREAM_DESC_1_WR_CTRL.perf_enable.value;
-    assign cfg_stream_desc_1_wr_compl_enable = hwif_out.STREAM_DESC_1_WR_CTRL.compl_enable.value;
-    assign cfg_stream_desc_1_wr_threshold_enable = hwif_out.STREAM_DESC_1_WR_CTRL.threshold_enable.value;
-    assign cfg_stream_desc_1_wr_debug_enable = hwif_out.STREAM_DESC_1_WR_CTRL.debug_enable.value;
-    assign cfg_stream_desc_1_wr_timeout_cycles = hwif_out.STREAM_DESC_1_WR_CTRL.timeout_cycles.value;
-    assign cfg_stream_desc_1_wr_latency_threshold = hwif_out.STREAM_DESC_1_WR_LATENCY.latency_threshold.value;
-    assign cfg_stream_desc_1_wr_axi_pkt_mask = hwif_out.STREAM_DESC_1_WR_MASKS_A.axi_pkt_mask.value;
-    assign cfg_stream_desc_1_wr_axi_err_select = hwif_out.STREAM_DESC_1_WR_MASKS_A.axi_err_select.value;
-    assign cfg_stream_desc_1_wr_axi_error_mask = hwif_out.STREAM_DESC_1_WR_MASKS_B.axi_error_mask.value;
-    assign cfg_stream_desc_1_wr_axi_timeout_mask = hwif_out.STREAM_DESC_1_WR_MASKS_B.axi_timeout_mask.value;
-    assign cfg_stream_desc_1_wr_axi_compl_mask = hwif_out.STREAM_DESC_1_WR_MASKS_C.axi_compl_mask.value;
-    assign cfg_stream_desc_1_wr_axi_thresh_mask = hwif_out.STREAM_DESC_1_WR_MASKS_C.axi_thresh_mask.value;
-    assign cfg_stream_desc_1_wr_axi_perf_mask = hwif_out.STREAM_DESC_1_WR_MASKS_D.axi_perf_mask.value;
-    assign cfg_stream_desc_1_wr_axi_addr_mask = hwif_out.STREAM_DESC_1_WR_MASKS_D.axi_addr_mask.value;
-    assign cfg_stream_desc_1_wr_axi_debug_mask = hwif_out.STREAM_DESC_1_WR_MASKS_E.axi_debug_mask.value;
-
     assign cfg_stream_desc_1_rd_monitor_enable = hwif_out.STREAM_DESC_1_RD_CTRL.monitor_enable.value;
     assign cfg_stream_desc_1_rd_error_enable = hwif_out.STREAM_DESC_1_RD_CTRL.error_enable.value;
     assign cfg_stream_desc_1_rd_timeout_enable = hwif_out.STREAM_DESC_1_RD_CTRL.timeout_enable.value;
@@ -4487,6 +4186,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_stream_desc_1_rd_threshold_enable = hwif_out.STREAM_DESC_1_RD_CTRL.threshold_enable.value;
     assign cfg_stream_desc_1_rd_debug_enable = hwif_out.STREAM_DESC_1_RD_CTRL.debug_enable.value;
     assign cfg_stream_desc_1_rd_timeout_cycles = hwif_out.STREAM_DESC_1_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_desc_1_rd_freq_sel = hwif_out.STREAM_DESC_1_RD_CTRL.freq_sel.value;
     assign cfg_stream_desc_1_rd_latency_threshold = hwif_out.STREAM_DESC_1_RD_LATENCY.latency_threshold.value;
     assign cfg_stream_desc_1_rd_axi_pkt_mask = hwif_out.STREAM_DESC_1_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_desc_1_rd_axi_err_select = hwif_out.STREAM_DESC_1_RD_MASKS_A.axi_err_select.value;
@@ -4506,6 +4206,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_monbus_wr_2_wr_threshold_enable = hwif_out.MONBUS_WR_2_WR_CTRL.threshold_enable.value;
     assign cfg_monbus_wr_2_wr_debug_enable = hwif_out.MONBUS_WR_2_WR_CTRL.debug_enable.value;
     assign cfg_monbus_wr_2_wr_timeout_cycles = hwif_out.MONBUS_WR_2_WR_CTRL.timeout_cycles.value;
+    assign cfg_monbus_wr_2_wr_freq_sel = hwif_out.MONBUS_WR_2_WR_CTRL.freq_sel.value;
     assign cfg_monbus_wr_2_wr_latency_threshold = hwif_out.MONBUS_WR_2_WR_LATENCY.latency_threshold.value;
     assign cfg_monbus_wr_2_wr_axi_pkt_mask = hwif_out.MONBUS_WR_2_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_monbus_wr_2_wr_axi_err_select = hwif_out.MONBUS_WR_2_WR_MASKS_A.axi_err_select.value;
@@ -4517,25 +4218,6 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_monbus_wr_2_wr_axi_addr_mask = hwif_out.MONBUS_WR_2_WR_MASKS_D.axi_addr_mask.value;
     assign cfg_monbus_wr_2_wr_axi_debug_mask = hwif_out.MONBUS_WR_2_WR_MASKS_E.axi_debug_mask.value;
 
-    assign cfg_monbus_wr_2_rd_monitor_enable = hwif_out.MONBUS_WR_2_RD_CTRL.monitor_enable.value;
-    assign cfg_monbus_wr_2_rd_error_enable = hwif_out.MONBUS_WR_2_RD_CTRL.error_enable.value;
-    assign cfg_monbus_wr_2_rd_timeout_enable = hwif_out.MONBUS_WR_2_RD_CTRL.timeout_enable.value;
-    assign cfg_monbus_wr_2_rd_perf_enable = hwif_out.MONBUS_WR_2_RD_CTRL.perf_enable.value;
-    assign cfg_monbus_wr_2_rd_compl_enable = hwif_out.MONBUS_WR_2_RD_CTRL.compl_enable.value;
-    assign cfg_monbus_wr_2_rd_threshold_enable = hwif_out.MONBUS_WR_2_RD_CTRL.threshold_enable.value;
-    assign cfg_monbus_wr_2_rd_debug_enable = hwif_out.MONBUS_WR_2_RD_CTRL.debug_enable.value;
-    assign cfg_monbus_wr_2_rd_timeout_cycles = hwif_out.MONBUS_WR_2_RD_CTRL.timeout_cycles.value;
-    assign cfg_monbus_wr_2_rd_latency_threshold = hwif_out.MONBUS_WR_2_RD_LATENCY.latency_threshold.value;
-    assign cfg_monbus_wr_2_rd_axi_pkt_mask = hwif_out.MONBUS_WR_2_RD_MASKS_A.axi_pkt_mask.value;
-    assign cfg_monbus_wr_2_rd_axi_err_select = hwif_out.MONBUS_WR_2_RD_MASKS_A.axi_err_select.value;
-    assign cfg_monbus_wr_2_rd_axi_error_mask = hwif_out.MONBUS_WR_2_RD_MASKS_B.axi_error_mask.value;
-    assign cfg_monbus_wr_2_rd_axi_timeout_mask = hwif_out.MONBUS_WR_2_RD_MASKS_B.axi_timeout_mask.value;
-    assign cfg_monbus_wr_2_rd_axi_compl_mask = hwif_out.MONBUS_WR_2_RD_MASKS_C.axi_compl_mask.value;
-    assign cfg_monbus_wr_2_rd_axi_thresh_mask = hwif_out.MONBUS_WR_2_RD_MASKS_C.axi_thresh_mask.value;
-    assign cfg_monbus_wr_2_rd_axi_perf_mask = hwif_out.MONBUS_WR_2_RD_MASKS_D.axi_perf_mask.value;
-    assign cfg_monbus_wr_2_rd_axi_addr_mask = hwif_out.MONBUS_WR_2_RD_MASKS_D.axi_addr_mask.value;
-    assign cfg_monbus_wr_2_rd_axi_debug_mask = hwif_out.MONBUS_WR_2_RD_MASKS_E.axi_debug_mask.value;
-
     assign cfg_slave_monbus_wr_3_wr_monitor_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.monitor_enable.value;
     assign cfg_slave_monbus_wr_3_wr_error_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.error_enable.value;
     assign cfg_slave_monbus_wr_3_wr_timeout_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.timeout_enable.value;
@@ -4544,6 +4226,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_slave_monbus_wr_3_wr_threshold_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.threshold_enable.value;
     assign cfg_slave_monbus_wr_3_wr_debug_enable = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.debug_enable.value;
     assign cfg_slave_monbus_wr_3_wr_timeout_cycles = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.timeout_cycles.value;
+    assign cfg_slave_monbus_wr_3_wr_freq_sel = hwif_out.SLAVE_MONBUS_WR_3_WR_CTRL.freq_sel.value;
     assign cfg_slave_monbus_wr_3_wr_latency_threshold = hwif_out.SLAVE_MONBUS_WR_3_WR_LATENCY.latency_threshold.value;
     assign cfg_slave_monbus_wr_3_wr_axi_pkt_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_slave_monbus_wr_3_wr_axi_err_select = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_A.axi_err_select.value;
@@ -4555,25 +4238,6 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_slave_monbus_wr_3_wr_axi_addr_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_D.axi_addr_mask.value;
     assign cfg_slave_monbus_wr_3_wr_axi_debug_mask = hwif_out.SLAVE_MONBUS_WR_3_WR_MASKS_E.axi_debug_mask.value;
 
-    assign cfg_slave_monbus_wr_3_rd_monitor_enable = hwif_out.SLAVE_MONBUS_WR_3_RD_CTRL.monitor_enable.value;
-    assign cfg_slave_monbus_wr_3_rd_error_enable = hwif_out.SLAVE_MONBUS_WR_3_RD_CTRL.error_enable.value;
-    assign cfg_slave_monbus_wr_3_rd_timeout_enable = hwif_out.SLAVE_MONBUS_WR_3_RD_CTRL.timeout_enable.value;
-    assign cfg_slave_monbus_wr_3_rd_perf_enable = hwif_out.SLAVE_MONBUS_WR_3_RD_CTRL.perf_enable.value;
-    assign cfg_slave_monbus_wr_3_rd_compl_enable = hwif_out.SLAVE_MONBUS_WR_3_RD_CTRL.compl_enable.value;
-    assign cfg_slave_monbus_wr_3_rd_threshold_enable = hwif_out.SLAVE_MONBUS_WR_3_RD_CTRL.threshold_enable.value;
-    assign cfg_slave_monbus_wr_3_rd_debug_enable = hwif_out.SLAVE_MONBUS_WR_3_RD_CTRL.debug_enable.value;
-    assign cfg_slave_monbus_wr_3_rd_timeout_cycles = hwif_out.SLAVE_MONBUS_WR_3_RD_CTRL.timeout_cycles.value;
-    assign cfg_slave_monbus_wr_3_rd_latency_threshold = hwif_out.SLAVE_MONBUS_WR_3_RD_LATENCY.latency_threshold.value;
-    assign cfg_slave_monbus_wr_3_rd_axi_pkt_mask = hwif_out.SLAVE_MONBUS_WR_3_RD_MASKS_A.axi_pkt_mask.value;
-    assign cfg_slave_monbus_wr_3_rd_axi_err_select = hwif_out.SLAVE_MONBUS_WR_3_RD_MASKS_A.axi_err_select.value;
-    assign cfg_slave_monbus_wr_3_rd_axi_error_mask = hwif_out.SLAVE_MONBUS_WR_3_RD_MASKS_B.axi_error_mask.value;
-    assign cfg_slave_monbus_wr_3_rd_axi_timeout_mask = hwif_out.SLAVE_MONBUS_WR_3_RD_MASKS_B.axi_timeout_mask.value;
-    assign cfg_slave_monbus_wr_3_rd_axi_compl_mask = hwif_out.SLAVE_MONBUS_WR_3_RD_MASKS_C.axi_compl_mask.value;
-    assign cfg_slave_monbus_wr_3_rd_axi_thresh_mask = hwif_out.SLAVE_MONBUS_WR_3_RD_MASKS_C.axi_thresh_mask.value;
-    assign cfg_slave_monbus_wr_3_rd_axi_perf_mask = hwif_out.SLAVE_MONBUS_WR_3_RD_MASKS_D.axi_perf_mask.value;
-    assign cfg_slave_monbus_wr_3_rd_axi_addr_mask = hwif_out.SLAVE_MONBUS_WR_3_RD_MASKS_D.axi_addr_mask.value;
-    assign cfg_slave_monbus_wr_3_rd_axi_debug_mask = hwif_out.SLAVE_MONBUS_WR_3_RD_MASKS_E.axi_debug_mask.value;
-
     assign cfg_stream_apb_0_wr_monitor_enable = hwif_out.STREAM_APB_0_WR_CTRL.monitor_enable.value;
     assign cfg_stream_apb_0_wr_error_enable = hwif_out.STREAM_APB_0_WR_CTRL.error_enable.value;
     assign cfg_stream_apb_0_wr_timeout_enable = hwif_out.STREAM_APB_0_WR_CTRL.timeout_enable.value;
@@ -4582,6 +4246,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_stream_apb_0_wr_threshold_enable = hwif_out.STREAM_APB_0_WR_CTRL.threshold_enable.value;
     assign cfg_stream_apb_0_wr_debug_enable = hwif_out.STREAM_APB_0_WR_CTRL.debug_enable.value;
     assign cfg_stream_apb_0_wr_timeout_cycles = hwif_out.STREAM_APB_0_WR_CTRL.timeout_cycles.value;
+    assign cfg_stream_apb_0_wr_freq_sel = hwif_out.STREAM_APB_0_WR_CTRL.freq_sel.value;
     assign cfg_stream_apb_0_wr_latency_threshold = hwif_out.STREAM_APB_0_WR_LATENCY.latency_threshold.value;
     assign cfg_stream_apb_0_wr_axi_pkt_mask = hwif_out.STREAM_APB_0_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_apb_0_wr_axi_err_select = hwif_out.STREAM_APB_0_WR_MASKS_A.axi_err_select.value;
@@ -4601,6 +4266,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_stream_apb_0_rd_threshold_enable = hwif_out.STREAM_APB_0_RD_CTRL.threshold_enable.value;
     assign cfg_stream_apb_0_rd_debug_enable = hwif_out.STREAM_APB_0_RD_CTRL.debug_enable.value;
     assign cfg_stream_apb_0_rd_timeout_cycles = hwif_out.STREAM_APB_0_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_apb_0_rd_freq_sel = hwif_out.STREAM_APB_0_RD_CTRL.freq_sel.value;
     assign cfg_stream_apb_0_rd_latency_threshold = hwif_out.STREAM_APB_0_RD_LATENCY.latency_threshold.value;
     assign cfg_stream_apb_0_rd_axi_pkt_mask = hwif_out.STREAM_APB_0_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_apb_0_rd_axi_err_select = hwif_out.STREAM_APB_0_RD_MASKS_A.axi_err_select.value;
@@ -4620,6 +4286,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_harness_csr_1_wr_threshold_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.threshold_enable.value;
     assign cfg_harness_csr_1_wr_debug_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.debug_enable.value;
     assign cfg_harness_csr_1_wr_timeout_cycles = hwif_out.HARNESS_CSR_1_WR_CTRL.timeout_cycles.value;
+    assign cfg_harness_csr_1_wr_freq_sel = hwif_out.HARNESS_CSR_1_WR_CTRL.freq_sel.value;
     assign cfg_harness_csr_1_wr_latency_threshold = hwif_out.HARNESS_CSR_1_WR_LATENCY.latency_threshold.value;
     assign cfg_harness_csr_1_wr_axi_pkt_mask = hwif_out.HARNESS_CSR_1_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_harness_csr_1_wr_axi_err_select = hwif_out.HARNESS_CSR_1_WR_MASKS_A.axi_err_select.value;
@@ -4639,6 +4306,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_harness_csr_1_rd_threshold_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.threshold_enable.value;
     assign cfg_harness_csr_1_rd_debug_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.debug_enable.value;
     assign cfg_harness_csr_1_rd_timeout_cycles = hwif_out.HARNESS_CSR_1_RD_CTRL.timeout_cycles.value;
+    assign cfg_harness_csr_1_rd_freq_sel = hwif_out.HARNESS_CSR_1_RD_CTRL.freq_sel.value;
     assign cfg_harness_csr_1_rd_latency_threshold = hwif_out.HARNESS_CSR_1_RD_LATENCY.latency_threshold.value;
     assign cfg_harness_csr_1_rd_axi_pkt_mask = hwif_out.HARNESS_CSR_1_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_harness_csr_1_rd_axi_err_select = hwif_out.HARNESS_CSR_1_RD_MASKS_A.axi_err_select.value;
@@ -4658,6 +4326,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_desc_ram_2_wr_threshold_enable = hwif_out.DESC_RAM_2_WR_CTRL.threshold_enable.value;
     assign cfg_desc_ram_2_wr_debug_enable = hwif_out.DESC_RAM_2_WR_CTRL.debug_enable.value;
     assign cfg_desc_ram_2_wr_timeout_cycles = hwif_out.DESC_RAM_2_WR_CTRL.timeout_cycles.value;
+    assign cfg_desc_ram_2_wr_freq_sel = hwif_out.DESC_RAM_2_WR_CTRL.freq_sel.value;
     assign cfg_desc_ram_2_wr_latency_threshold = hwif_out.DESC_RAM_2_WR_LATENCY.latency_threshold.value;
     assign cfg_desc_ram_2_wr_axi_pkt_mask = hwif_out.DESC_RAM_2_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_desc_ram_2_wr_axi_err_select = hwif_out.DESC_RAM_2_WR_MASKS_A.axi_err_select.value;
@@ -4677,6 +4346,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_desc_ram_2_rd_threshold_enable = hwif_out.DESC_RAM_2_RD_CTRL.threshold_enable.value;
     assign cfg_desc_ram_2_rd_debug_enable = hwif_out.DESC_RAM_2_RD_CTRL.debug_enable.value;
     assign cfg_desc_ram_2_rd_timeout_cycles = hwif_out.DESC_RAM_2_RD_CTRL.timeout_cycles.value;
+    assign cfg_desc_ram_2_rd_freq_sel = hwif_out.DESC_RAM_2_RD_CTRL.freq_sel.value;
     assign cfg_desc_ram_2_rd_latency_threshold = hwif_out.DESC_RAM_2_RD_LATENCY.latency_threshold.value;
     assign cfg_desc_ram_2_rd_axi_pkt_mask = hwif_out.DESC_RAM_2_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_desc_ram_2_rd_axi_err_select = hwif_out.DESC_RAM_2_RD_MASKS_A.axi_err_select.value;
@@ -4696,6 +4366,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_stream_err_3_wr_threshold_enable = hwif_out.STREAM_ERR_3_WR_CTRL.threshold_enable.value;
     assign cfg_stream_err_3_wr_debug_enable = hwif_out.STREAM_ERR_3_WR_CTRL.debug_enable.value;
     assign cfg_stream_err_3_wr_timeout_cycles = hwif_out.STREAM_ERR_3_WR_CTRL.timeout_cycles.value;
+    assign cfg_stream_err_3_wr_freq_sel = hwif_out.STREAM_ERR_3_WR_CTRL.freq_sel.value;
     assign cfg_stream_err_3_wr_latency_threshold = hwif_out.STREAM_ERR_3_WR_LATENCY.latency_threshold.value;
     assign cfg_stream_err_3_wr_axi_pkt_mask = hwif_out.STREAM_ERR_3_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_err_3_wr_axi_err_select = hwif_out.STREAM_ERR_3_WR_MASKS_A.axi_err_select.value;
@@ -4715,6 +4386,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_stream_err_3_rd_threshold_enable = hwif_out.STREAM_ERR_3_RD_CTRL.threshold_enable.value;
     assign cfg_stream_err_3_rd_debug_enable = hwif_out.STREAM_ERR_3_RD_CTRL.debug_enable.value;
     assign cfg_stream_err_3_rd_timeout_cycles = hwif_out.STREAM_ERR_3_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_err_3_rd_freq_sel = hwif_out.STREAM_ERR_3_RD_CTRL.freq_sel.value;
     assign cfg_stream_err_3_rd_latency_threshold = hwif_out.STREAM_ERR_3_RD_LATENCY.latency_threshold.value;
     assign cfg_stream_err_3_rd_axi_pkt_mask = hwif_out.STREAM_ERR_3_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_err_3_rd_axi_err_select = hwif_out.STREAM_ERR_3_RD_MASKS_A.axi_err_select.value;
@@ -4734,6 +4406,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_stream_tally_4_wr_threshold_enable = hwif_out.STREAM_TALLY_4_WR_CTRL.threshold_enable.value;
     assign cfg_stream_tally_4_wr_debug_enable = hwif_out.STREAM_TALLY_4_WR_CTRL.debug_enable.value;
     assign cfg_stream_tally_4_wr_timeout_cycles = hwif_out.STREAM_TALLY_4_WR_CTRL.timeout_cycles.value;
+    assign cfg_stream_tally_4_wr_freq_sel = hwif_out.STREAM_TALLY_4_WR_CTRL.freq_sel.value;
     assign cfg_stream_tally_4_wr_latency_threshold = hwif_out.STREAM_TALLY_4_WR_LATENCY.latency_threshold.value;
     assign cfg_stream_tally_4_wr_axi_pkt_mask = hwif_out.STREAM_TALLY_4_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_tally_4_wr_axi_err_select = hwif_out.STREAM_TALLY_4_WR_MASKS_A.axi_err_select.value;
@@ -4753,6 +4426,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_stream_tally_4_rd_threshold_enable = hwif_out.STREAM_TALLY_4_RD_CTRL.threshold_enable.value;
     assign cfg_stream_tally_4_rd_debug_enable = hwif_out.STREAM_TALLY_4_RD_CTRL.debug_enable.value;
     assign cfg_stream_tally_4_rd_timeout_cycles = hwif_out.STREAM_TALLY_4_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_tally_4_rd_freq_sel = hwif_out.STREAM_TALLY_4_RD_CTRL.freq_sel.value;
     assign cfg_stream_tally_4_rd_latency_threshold = hwif_out.STREAM_TALLY_4_RD_LATENCY.latency_threshold.value;
     assign cfg_stream_tally_4_rd_axi_pkt_mask = hwif_out.STREAM_TALLY_4_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_tally_4_rd_axi_err_select = hwif_out.STREAM_TALLY_4_RD_MASKS_A.axi_err_select.value;
@@ -4772,6 +4446,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_dma_axil_5_wr_threshold_enable = hwif_out.DMA_AXIL_5_WR_CTRL.threshold_enable.value;
     assign cfg_dma_axil_5_wr_debug_enable = hwif_out.DMA_AXIL_5_WR_CTRL.debug_enable.value;
     assign cfg_dma_axil_5_wr_timeout_cycles = hwif_out.DMA_AXIL_5_WR_CTRL.timeout_cycles.value;
+    assign cfg_dma_axil_5_wr_freq_sel = hwif_out.DMA_AXIL_5_WR_CTRL.freq_sel.value;
     assign cfg_dma_axil_5_wr_latency_threshold = hwif_out.DMA_AXIL_5_WR_LATENCY.latency_threshold.value;
     assign cfg_dma_axil_5_wr_axi_pkt_mask = hwif_out.DMA_AXIL_5_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_dma_axil_5_wr_axi_err_select = hwif_out.DMA_AXIL_5_WR_MASKS_A.axi_err_select.value;
@@ -4791,6 +4466,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_dma_axil_5_rd_threshold_enable = hwif_out.DMA_AXIL_5_RD_CTRL.threshold_enable.value;
     assign cfg_dma_axil_5_rd_debug_enable = hwif_out.DMA_AXIL_5_RD_CTRL.debug_enable.value;
     assign cfg_dma_axil_5_rd_timeout_cycles = hwif_out.DMA_AXIL_5_RD_CTRL.timeout_cycles.value;
+    assign cfg_dma_axil_5_rd_freq_sel = hwif_out.DMA_AXIL_5_RD_CTRL.freq_sel.value;
     assign cfg_dma_axil_5_rd_latency_threshold = hwif_out.DMA_AXIL_5_RD_LATENCY.latency_threshold.value;
     assign cfg_dma_axil_5_rd_axi_pkt_mask = hwif_out.DMA_AXIL_5_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_dma_axil_5_rd_axi_err_select = hwif_out.DMA_AXIL_5_RD_MASKS_A.axi_err_select.value;
@@ -4810,6 +4486,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_slave_err_6_wr_threshold_enable = hwif_out.SLAVE_ERR_6_WR_CTRL.threshold_enable.value;
     assign cfg_slave_err_6_wr_debug_enable = hwif_out.SLAVE_ERR_6_WR_CTRL.debug_enable.value;
     assign cfg_slave_err_6_wr_timeout_cycles = hwif_out.SLAVE_ERR_6_WR_CTRL.timeout_cycles.value;
+    assign cfg_slave_err_6_wr_freq_sel = hwif_out.SLAVE_ERR_6_WR_CTRL.freq_sel.value;
     assign cfg_slave_err_6_wr_latency_threshold = hwif_out.SLAVE_ERR_6_WR_LATENCY.latency_threshold.value;
     assign cfg_slave_err_6_wr_axi_pkt_mask = hwif_out.SLAVE_ERR_6_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_slave_err_6_wr_axi_err_select = hwif_out.SLAVE_ERR_6_WR_MASKS_A.axi_err_select.value;
@@ -4829,6 +4506,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_slave_err_6_rd_threshold_enable = hwif_out.SLAVE_ERR_6_RD_CTRL.threshold_enable.value;
     assign cfg_slave_err_6_rd_debug_enable = hwif_out.SLAVE_ERR_6_RD_CTRL.debug_enable.value;
     assign cfg_slave_err_6_rd_timeout_cycles = hwif_out.SLAVE_ERR_6_RD_CTRL.timeout_cycles.value;
+    assign cfg_slave_err_6_rd_freq_sel = hwif_out.SLAVE_ERR_6_RD_CTRL.freq_sel.value;
     assign cfg_slave_err_6_rd_latency_threshold = hwif_out.SLAVE_ERR_6_RD_LATENCY.latency_threshold.value;
     assign cfg_slave_err_6_rd_axi_pkt_mask = hwif_out.SLAVE_ERR_6_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_slave_err_6_rd_axi_err_select = hwif_out.SLAVE_ERR_6_RD_MASKS_A.axi_err_select.value;
@@ -4848,6 +4526,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_slave_tally_7_wr_threshold_enable = hwif_out.SLAVE_TALLY_7_WR_CTRL.threshold_enable.value;
     assign cfg_slave_tally_7_wr_debug_enable = hwif_out.SLAVE_TALLY_7_WR_CTRL.debug_enable.value;
     assign cfg_slave_tally_7_wr_timeout_cycles = hwif_out.SLAVE_TALLY_7_WR_CTRL.timeout_cycles.value;
+    assign cfg_slave_tally_7_wr_freq_sel = hwif_out.SLAVE_TALLY_7_WR_CTRL.freq_sel.value;
     assign cfg_slave_tally_7_wr_latency_threshold = hwif_out.SLAVE_TALLY_7_WR_LATENCY.latency_threshold.value;
     assign cfg_slave_tally_7_wr_axi_pkt_mask = hwif_out.SLAVE_TALLY_7_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_slave_tally_7_wr_axi_err_select = hwif_out.SLAVE_TALLY_7_WR_MASKS_A.axi_err_select.value;
@@ -4867,6 +4546,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_slave_tally_7_rd_threshold_enable = hwif_out.SLAVE_TALLY_7_RD_CTRL.threshold_enable.value;
     assign cfg_slave_tally_7_rd_debug_enable = hwif_out.SLAVE_TALLY_7_RD_CTRL.debug_enable.value;
     assign cfg_slave_tally_7_rd_timeout_cycles = hwif_out.SLAVE_TALLY_7_RD_CTRL.timeout_cycles.value;
+    assign cfg_slave_tally_7_rd_freq_sel = hwif_out.SLAVE_TALLY_7_RD_CTRL.freq_sel.value;
     assign cfg_slave_tally_7_rd_latency_threshold = hwif_out.SLAVE_TALLY_7_RD_LATENCY.latency_threshold.value;
     assign cfg_slave_tally_7_rd_axi_pkt_mask = hwif_out.SLAVE_TALLY_7_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_slave_tally_7_rd_axi_err_select = hwif_out.SLAVE_TALLY_7_RD_MASKS_A.axi_err_select.value;
@@ -4886,6 +4566,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_stream_tally_cfg_8_wr_threshold_enable = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.threshold_enable.value;
     assign cfg_stream_tally_cfg_8_wr_debug_enable = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.debug_enable.value;
     assign cfg_stream_tally_cfg_8_wr_timeout_cycles = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.timeout_cycles.value;
+    assign cfg_stream_tally_cfg_8_wr_freq_sel = hwif_out.STREAM_TALLY_CFG_8_WR_CTRL.freq_sel.value;
     assign cfg_stream_tally_cfg_8_wr_latency_threshold = hwif_out.STREAM_TALLY_CFG_8_WR_LATENCY.latency_threshold.value;
     assign cfg_stream_tally_cfg_8_wr_axi_pkt_mask = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_tally_cfg_8_wr_axi_err_select = hwif_out.STREAM_TALLY_CFG_8_WR_MASKS_A.axi_err_select.value;
@@ -4905,6 +4586,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_stream_tally_cfg_8_rd_threshold_enable = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.threshold_enable.value;
     assign cfg_stream_tally_cfg_8_rd_debug_enable = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.debug_enable.value;
     assign cfg_stream_tally_cfg_8_rd_timeout_cycles = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_tally_cfg_8_rd_freq_sel = hwif_out.STREAM_TALLY_CFG_8_RD_CTRL.freq_sel.value;
     assign cfg_stream_tally_cfg_8_rd_latency_threshold = hwif_out.STREAM_TALLY_CFG_8_RD_LATENCY.latency_threshold.value;
     assign cfg_stream_tally_cfg_8_rd_axi_pkt_mask = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_stream_tally_cfg_8_rd_axi_err_select = hwif_out.STREAM_TALLY_CFG_8_RD_MASKS_A.axi_err_select.value;
@@ -4924,6 +4606,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_slave_tally_cfg_9_wr_threshold_enable = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.threshold_enable.value;
     assign cfg_slave_tally_cfg_9_wr_debug_enable = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.debug_enable.value;
     assign cfg_slave_tally_cfg_9_wr_timeout_cycles = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.timeout_cycles.value;
+    assign cfg_slave_tally_cfg_9_wr_freq_sel = hwif_out.SLAVE_TALLY_CFG_9_WR_CTRL.freq_sel.value;
     assign cfg_slave_tally_cfg_9_wr_latency_threshold = hwif_out.SLAVE_TALLY_CFG_9_WR_LATENCY.latency_threshold.value;
     assign cfg_slave_tally_cfg_9_wr_axi_pkt_mask = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_pkt_mask.value;
     assign cfg_slave_tally_cfg_9_wr_axi_err_select = hwif_out.SLAVE_TALLY_CFG_9_WR_MASKS_A.axi_err_select.value;
@@ -4943,6 +4626,7 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_slave_tally_cfg_9_rd_threshold_enable = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.threshold_enable.value;
     assign cfg_slave_tally_cfg_9_rd_debug_enable = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.debug_enable.value;
     assign cfg_slave_tally_cfg_9_rd_timeout_cycles = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.timeout_cycles.value;
+    assign cfg_slave_tally_cfg_9_rd_freq_sel = hwif_out.SLAVE_TALLY_CFG_9_RD_CTRL.freq_sel.value;
     assign cfg_slave_tally_cfg_9_rd_latency_threshold = hwif_out.SLAVE_TALLY_CFG_9_RD_LATENCY.latency_threshold.value;
     assign cfg_slave_tally_cfg_9_rd_axi_pkt_mask = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_pkt_mask.value;
     assign cfg_slave_tally_cfg_9_rd_axi_err_select = hwif_out.SLAVE_TALLY_CFG_9_RD_MASKS_A.axi_err_select.value;
@@ -4986,12 +4670,12 @@ module bridge_stream_mon_axil_mon #(
     assign cfg_mon_group_compress_en = hwif_out.MON_GROUP_COMPRESS_EN.compress_en.value;
 
     // ============================================================
-    // Monitor aggregator -- 28 client(s) -> arbiter -> axil_group
+    // Monitor aggregator -- 25 client(s) -> arbiter -> axil_group
     // ============================================================
-    logic                                  mon_arb_monbus_valid_in     [28];
-    logic                                  mon_arb_monbus_ready_in     [28];
-    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [28];
-    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [28];
+    logic                                  mon_arb_monbus_valid_in     [25];
+    logic                                  mon_arb_monbus_ready_in     [25];
+    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [25];
+    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [25];
     assign mon_arb_monbus_valid_in[0]     = monbus_host_0_wr_valid;
     assign monbus_host_0_wr_ready = mon_arb_monbus_ready_in[0];
     assign mon_arb_monbus_packet_in[0]    = monbus_host_0_wr_packet;
@@ -5000,113 +4684,101 @@ module bridge_stream_mon_axil_mon #(
     assign monbus_host_0_rd_ready = mon_arb_monbus_ready_in[1];
     assign mon_arb_monbus_packet_in[1]    = monbus_host_0_rd_packet;
     assign mon_arb_monbus_timestamp_in[1] = monbus_host_0_rd_timestamp;
-    assign mon_arb_monbus_valid_in[2]     = monbus_stream_desc_1_wr_valid;
-    assign monbus_stream_desc_1_wr_ready = mon_arb_monbus_ready_in[2];
-    assign mon_arb_monbus_packet_in[2]    = monbus_stream_desc_1_wr_packet;
-    assign mon_arb_monbus_timestamp_in[2] = monbus_stream_desc_1_wr_timestamp;
-    assign mon_arb_monbus_valid_in[3]     = monbus_stream_desc_1_rd_valid;
-    assign monbus_stream_desc_1_rd_ready = mon_arb_monbus_ready_in[3];
-    assign mon_arb_monbus_packet_in[3]    = monbus_stream_desc_1_rd_packet;
-    assign mon_arb_monbus_timestamp_in[3] = monbus_stream_desc_1_rd_timestamp;
-    assign mon_arb_monbus_valid_in[4]     = monbus_monbus_wr_2_wr_valid;
-    assign monbus_monbus_wr_2_wr_ready = mon_arb_monbus_ready_in[4];
-    assign mon_arb_monbus_packet_in[4]    = monbus_monbus_wr_2_wr_packet;
-    assign mon_arb_monbus_timestamp_in[4] = monbus_monbus_wr_2_wr_timestamp;
-    assign mon_arb_monbus_valid_in[5]     = monbus_monbus_wr_2_rd_valid;
-    assign monbus_monbus_wr_2_rd_ready = mon_arb_monbus_ready_in[5];
-    assign mon_arb_monbus_packet_in[5]    = monbus_monbus_wr_2_rd_packet;
-    assign mon_arb_monbus_timestamp_in[5] = monbus_monbus_wr_2_rd_timestamp;
-    assign mon_arb_monbus_valid_in[6]     = monbus_slave_monbus_wr_3_wr_valid;
-    assign monbus_slave_monbus_wr_3_wr_ready = mon_arb_monbus_ready_in[6];
-    assign mon_arb_monbus_packet_in[6]    = monbus_slave_monbus_wr_3_wr_packet;
-    assign mon_arb_monbus_timestamp_in[6] = monbus_slave_monbus_wr_3_wr_timestamp;
-    assign mon_arb_monbus_valid_in[7]     = monbus_slave_monbus_wr_3_rd_valid;
-    assign monbus_slave_monbus_wr_3_rd_ready = mon_arb_monbus_ready_in[7];
-    assign mon_arb_monbus_packet_in[7]    = monbus_slave_monbus_wr_3_rd_packet;
-    assign mon_arb_monbus_timestamp_in[7] = monbus_slave_monbus_wr_3_rd_timestamp;
-    assign mon_arb_monbus_valid_in[8]     = monbus_stream_apb_0_wr_valid;
-    assign monbus_stream_apb_0_wr_ready = mon_arb_monbus_ready_in[8];
-    assign mon_arb_monbus_packet_in[8]    = monbus_stream_apb_0_wr_packet;
-    assign mon_arb_monbus_timestamp_in[8] = monbus_stream_apb_0_wr_timestamp;
-    assign mon_arb_monbus_valid_in[9]     = monbus_stream_apb_0_rd_valid;
-    assign monbus_stream_apb_0_rd_ready = mon_arb_monbus_ready_in[9];
-    assign mon_arb_monbus_packet_in[9]    = monbus_stream_apb_0_rd_packet;
-    assign mon_arb_monbus_timestamp_in[9] = monbus_stream_apb_0_rd_timestamp;
-    assign mon_arb_monbus_valid_in[10]     = monbus_harness_csr_1_wr_valid;
-    assign monbus_harness_csr_1_wr_ready = mon_arb_monbus_ready_in[10];
-    assign mon_arb_monbus_packet_in[10]    = monbus_harness_csr_1_wr_packet;
-    assign mon_arb_monbus_timestamp_in[10] = monbus_harness_csr_1_wr_timestamp;
-    assign mon_arb_monbus_valid_in[11]     = monbus_harness_csr_1_rd_valid;
-    assign monbus_harness_csr_1_rd_ready = mon_arb_monbus_ready_in[11];
-    assign mon_arb_monbus_packet_in[11]    = monbus_harness_csr_1_rd_packet;
-    assign mon_arb_monbus_timestamp_in[11] = monbus_harness_csr_1_rd_timestamp;
-    assign mon_arb_monbus_valid_in[12]     = monbus_desc_ram_2_wr_valid;
-    assign monbus_desc_ram_2_wr_ready = mon_arb_monbus_ready_in[12];
-    assign mon_arb_monbus_packet_in[12]    = monbus_desc_ram_2_wr_packet;
-    assign mon_arb_monbus_timestamp_in[12] = monbus_desc_ram_2_wr_timestamp;
-    assign mon_arb_monbus_valid_in[13]     = monbus_desc_ram_2_rd_valid;
-    assign monbus_desc_ram_2_rd_ready = mon_arb_monbus_ready_in[13];
-    assign mon_arb_monbus_packet_in[13]    = monbus_desc_ram_2_rd_packet;
-    assign mon_arb_monbus_timestamp_in[13] = monbus_desc_ram_2_rd_timestamp;
-    assign mon_arb_monbus_valid_in[14]     = monbus_stream_err_3_wr_valid;
-    assign monbus_stream_err_3_wr_ready = mon_arb_monbus_ready_in[14];
-    assign mon_arb_monbus_packet_in[14]    = monbus_stream_err_3_wr_packet;
-    assign mon_arb_monbus_timestamp_in[14] = monbus_stream_err_3_wr_timestamp;
-    assign mon_arb_monbus_valid_in[15]     = monbus_stream_err_3_rd_valid;
-    assign monbus_stream_err_3_rd_ready = mon_arb_monbus_ready_in[15];
-    assign mon_arb_monbus_packet_in[15]    = monbus_stream_err_3_rd_packet;
-    assign mon_arb_monbus_timestamp_in[15] = monbus_stream_err_3_rd_timestamp;
-    assign mon_arb_monbus_valid_in[16]     = monbus_stream_tally_4_wr_valid;
-    assign monbus_stream_tally_4_wr_ready = mon_arb_monbus_ready_in[16];
-    assign mon_arb_monbus_packet_in[16]    = monbus_stream_tally_4_wr_packet;
-    assign mon_arb_monbus_timestamp_in[16] = monbus_stream_tally_4_wr_timestamp;
-    assign mon_arb_monbus_valid_in[17]     = monbus_stream_tally_4_rd_valid;
-    assign monbus_stream_tally_4_rd_ready = mon_arb_monbus_ready_in[17];
-    assign mon_arb_monbus_packet_in[17]    = monbus_stream_tally_4_rd_packet;
-    assign mon_arb_monbus_timestamp_in[17] = monbus_stream_tally_4_rd_timestamp;
-    assign mon_arb_monbus_valid_in[18]     = monbus_dma_axil_5_wr_valid;
-    assign monbus_dma_axil_5_wr_ready = mon_arb_monbus_ready_in[18];
-    assign mon_arb_monbus_packet_in[18]    = monbus_dma_axil_5_wr_packet;
-    assign mon_arb_monbus_timestamp_in[18] = monbus_dma_axil_5_wr_timestamp;
-    assign mon_arb_monbus_valid_in[19]     = monbus_dma_axil_5_rd_valid;
-    assign monbus_dma_axil_5_rd_ready = mon_arb_monbus_ready_in[19];
-    assign mon_arb_monbus_packet_in[19]    = monbus_dma_axil_5_rd_packet;
-    assign mon_arb_monbus_timestamp_in[19] = monbus_dma_axil_5_rd_timestamp;
-    assign mon_arb_monbus_valid_in[20]     = monbus_slave_err_6_wr_valid;
-    assign monbus_slave_err_6_wr_ready = mon_arb_monbus_ready_in[20];
-    assign mon_arb_monbus_packet_in[20]    = monbus_slave_err_6_wr_packet;
-    assign mon_arb_monbus_timestamp_in[20] = monbus_slave_err_6_wr_timestamp;
-    assign mon_arb_monbus_valid_in[21]     = monbus_slave_err_6_rd_valid;
-    assign monbus_slave_err_6_rd_ready = mon_arb_monbus_ready_in[21];
-    assign mon_arb_monbus_packet_in[21]    = monbus_slave_err_6_rd_packet;
-    assign mon_arb_monbus_timestamp_in[21] = monbus_slave_err_6_rd_timestamp;
-    assign mon_arb_monbus_valid_in[22]     = monbus_slave_tally_7_wr_valid;
-    assign monbus_slave_tally_7_wr_ready = mon_arb_monbus_ready_in[22];
-    assign mon_arb_monbus_packet_in[22]    = monbus_slave_tally_7_wr_packet;
-    assign mon_arb_monbus_timestamp_in[22] = monbus_slave_tally_7_wr_timestamp;
-    assign mon_arb_monbus_valid_in[23]     = monbus_slave_tally_7_rd_valid;
-    assign monbus_slave_tally_7_rd_ready = mon_arb_monbus_ready_in[23];
-    assign mon_arb_monbus_packet_in[23]    = monbus_slave_tally_7_rd_packet;
-    assign mon_arb_monbus_timestamp_in[23] = monbus_slave_tally_7_rd_timestamp;
-    assign mon_arb_monbus_valid_in[24]     = monbus_stream_tally_cfg_8_wr_valid;
-    assign monbus_stream_tally_cfg_8_wr_ready = mon_arb_monbus_ready_in[24];
-    assign mon_arb_monbus_packet_in[24]    = monbus_stream_tally_cfg_8_wr_packet;
-    assign mon_arb_monbus_timestamp_in[24] = monbus_stream_tally_cfg_8_wr_timestamp;
-    assign mon_arb_monbus_valid_in[25]     = monbus_stream_tally_cfg_8_rd_valid;
-    assign monbus_stream_tally_cfg_8_rd_ready = mon_arb_monbus_ready_in[25];
-    assign mon_arb_monbus_packet_in[25]    = monbus_stream_tally_cfg_8_rd_packet;
-    assign mon_arb_monbus_timestamp_in[25] = monbus_stream_tally_cfg_8_rd_timestamp;
-    assign mon_arb_monbus_valid_in[26]     = monbus_slave_tally_cfg_9_wr_valid;
-    assign monbus_slave_tally_cfg_9_wr_ready = mon_arb_monbus_ready_in[26];
-    assign mon_arb_monbus_packet_in[26]    = monbus_slave_tally_cfg_9_wr_packet;
-    assign mon_arb_monbus_timestamp_in[26] = monbus_slave_tally_cfg_9_wr_timestamp;
-    assign mon_arb_monbus_valid_in[27]     = monbus_slave_tally_cfg_9_rd_valid;
-    assign monbus_slave_tally_cfg_9_rd_ready = mon_arb_monbus_ready_in[27];
-    assign mon_arb_monbus_packet_in[27]    = monbus_slave_tally_cfg_9_rd_packet;
-    assign mon_arb_monbus_timestamp_in[27] = monbus_slave_tally_cfg_9_rd_timestamp;
+    assign mon_arb_monbus_valid_in[2]     = monbus_stream_desc_1_rd_valid;
+    assign monbus_stream_desc_1_rd_ready = mon_arb_monbus_ready_in[2];
+    assign mon_arb_monbus_packet_in[2]    = monbus_stream_desc_1_rd_packet;
+    assign mon_arb_monbus_timestamp_in[2] = monbus_stream_desc_1_rd_timestamp;
+    assign mon_arb_monbus_valid_in[3]     = monbus_monbus_wr_2_wr_valid;
+    assign monbus_monbus_wr_2_wr_ready = mon_arb_monbus_ready_in[3];
+    assign mon_arb_monbus_packet_in[3]    = monbus_monbus_wr_2_wr_packet;
+    assign mon_arb_monbus_timestamp_in[3] = monbus_monbus_wr_2_wr_timestamp;
+    assign mon_arb_monbus_valid_in[4]     = monbus_slave_monbus_wr_3_wr_valid;
+    assign monbus_slave_monbus_wr_3_wr_ready = mon_arb_monbus_ready_in[4];
+    assign mon_arb_monbus_packet_in[4]    = monbus_slave_monbus_wr_3_wr_packet;
+    assign mon_arb_monbus_timestamp_in[4] = monbus_slave_monbus_wr_3_wr_timestamp;
+    assign mon_arb_monbus_valid_in[5]     = monbus_stream_apb_0_wr_valid;
+    assign monbus_stream_apb_0_wr_ready = mon_arb_monbus_ready_in[5];
+    assign mon_arb_monbus_packet_in[5]    = monbus_stream_apb_0_wr_packet;
+    assign mon_arb_monbus_timestamp_in[5] = monbus_stream_apb_0_wr_timestamp;
+    assign mon_arb_monbus_valid_in[6]     = monbus_stream_apb_0_rd_valid;
+    assign monbus_stream_apb_0_rd_ready = mon_arb_monbus_ready_in[6];
+    assign mon_arb_monbus_packet_in[6]    = monbus_stream_apb_0_rd_packet;
+    assign mon_arb_monbus_timestamp_in[6] = monbus_stream_apb_0_rd_timestamp;
+    assign mon_arb_monbus_valid_in[7]     = monbus_harness_csr_1_wr_valid;
+    assign monbus_harness_csr_1_wr_ready = mon_arb_monbus_ready_in[7];
+    assign mon_arb_monbus_packet_in[7]    = monbus_harness_csr_1_wr_packet;
+    assign mon_arb_monbus_timestamp_in[7] = monbus_harness_csr_1_wr_timestamp;
+    assign mon_arb_monbus_valid_in[8]     = monbus_harness_csr_1_rd_valid;
+    assign monbus_harness_csr_1_rd_ready = mon_arb_monbus_ready_in[8];
+    assign mon_arb_monbus_packet_in[8]    = monbus_harness_csr_1_rd_packet;
+    assign mon_arb_monbus_timestamp_in[8] = monbus_harness_csr_1_rd_timestamp;
+    assign mon_arb_monbus_valid_in[9]     = monbus_desc_ram_2_wr_valid;
+    assign monbus_desc_ram_2_wr_ready = mon_arb_monbus_ready_in[9];
+    assign mon_arb_monbus_packet_in[9]    = monbus_desc_ram_2_wr_packet;
+    assign mon_arb_monbus_timestamp_in[9] = monbus_desc_ram_2_wr_timestamp;
+    assign mon_arb_monbus_valid_in[10]     = monbus_desc_ram_2_rd_valid;
+    assign monbus_desc_ram_2_rd_ready = mon_arb_monbus_ready_in[10];
+    assign mon_arb_monbus_packet_in[10]    = monbus_desc_ram_2_rd_packet;
+    assign mon_arb_monbus_timestamp_in[10] = monbus_desc_ram_2_rd_timestamp;
+    assign mon_arb_monbus_valid_in[11]     = monbus_stream_err_3_wr_valid;
+    assign monbus_stream_err_3_wr_ready = mon_arb_monbus_ready_in[11];
+    assign mon_arb_monbus_packet_in[11]    = monbus_stream_err_3_wr_packet;
+    assign mon_arb_monbus_timestamp_in[11] = monbus_stream_err_3_wr_timestamp;
+    assign mon_arb_monbus_valid_in[12]     = monbus_stream_err_3_rd_valid;
+    assign monbus_stream_err_3_rd_ready = mon_arb_monbus_ready_in[12];
+    assign mon_arb_monbus_packet_in[12]    = monbus_stream_err_3_rd_packet;
+    assign mon_arb_monbus_timestamp_in[12] = monbus_stream_err_3_rd_timestamp;
+    assign mon_arb_monbus_valid_in[13]     = monbus_stream_tally_4_wr_valid;
+    assign monbus_stream_tally_4_wr_ready = mon_arb_monbus_ready_in[13];
+    assign mon_arb_monbus_packet_in[13]    = monbus_stream_tally_4_wr_packet;
+    assign mon_arb_monbus_timestamp_in[13] = monbus_stream_tally_4_wr_timestamp;
+    assign mon_arb_monbus_valid_in[14]     = monbus_stream_tally_4_rd_valid;
+    assign monbus_stream_tally_4_rd_ready = mon_arb_monbus_ready_in[14];
+    assign mon_arb_monbus_packet_in[14]    = monbus_stream_tally_4_rd_packet;
+    assign mon_arb_monbus_timestamp_in[14] = monbus_stream_tally_4_rd_timestamp;
+    assign mon_arb_monbus_valid_in[15]     = monbus_dma_axil_5_wr_valid;
+    assign monbus_dma_axil_5_wr_ready = mon_arb_monbus_ready_in[15];
+    assign mon_arb_monbus_packet_in[15]    = monbus_dma_axil_5_wr_packet;
+    assign mon_arb_monbus_timestamp_in[15] = monbus_dma_axil_5_wr_timestamp;
+    assign mon_arb_monbus_valid_in[16]     = monbus_dma_axil_5_rd_valid;
+    assign monbus_dma_axil_5_rd_ready = mon_arb_monbus_ready_in[16];
+    assign mon_arb_monbus_packet_in[16]    = monbus_dma_axil_5_rd_packet;
+    assign mon_arb_monbus_timestamp_in[16] = monbus_dma_axil_5_rd_timestamp;
+    assign mon_arb_monbus_valid_in[17]     = monbus_slave_err_6_wr_valid;
+    assign monbus_slave_err_6_wr_ready = mon_arb_monbus_ready_in[17];
+    assign mon_arb_monbus_packet_in[17]    = monbus_slave_err_6_wr_packet;
+    assign mon_arb_monbus_timestamp_in[17] = monbus_slave_err_6_wr_timestamp;
+    assign mon_arb_monbus_valid_in[18]     = monbus_slave_err_6_rd_valid;
+    assign monbus_slave_err_6_rd_ready = mon_arb_monbus_ready_in[18];
+    assign mon_arb_monbus_packet_in[18]    = monbus_slave_err_6_rd_packet;
+    assign mon_arb_monbus_timestamp_in[18] = monbus_slave_err_6_rd_timestamp;
+    assign mon_arb_monbus_valid_in[19]     = monbus_slave_tally_7_wr_valid;
+    assign monbus_slave_tally_7_wr_ready = mon_arb_monbus_ready_in[19];
+    assign mon_arb_monbus_packet_in[19]    = monbus_slave_tally_7_wr_packet;
+    assign mon_arb_monbus_timestamp_in[19] = monbus_slave_tally_7_wr_timestamp;
+    assign mon_arb_monbus_valid_in[20]     = monbus_slave_tally_7_rd_valid;
+    assign monbus_slave_tally_7_rd_ready = mon_arb_monbus_ready_in[20];
+    assign mon_arb_monbus_packet_in[20]    = monbus_slave_tally_7_rd_packet;
+    assign mon_arb_monbus_timestamp_in[20] = monbus_slave_tally_7_rd_timestamp;
+    assign mon_arb_monbus_valid_in[21]     = monbus_stream_tally_cfg_8_wr_valid;
+    assign monbus_stream_tally_cfg_8_wr_ready = mon_arb_monbus_ready_in[21];
+    assign mon_arb_monbus_packet_in[21]    = monbus_stream_tally_cfg_8_wr_packet;
+    assign mon_arb_monbus_timestamp_in[21] = monbus_stream_tally_cfg_8_wr_timestamp;
+    assign mon_arb_monbus_valid_in[22]     = monbus_stream_tally_cfg_8_rd_valid;
+    assign monbus_stream_tally_cfg_8_rd_ready = mon_arb_monbus_ready_in[22];
+    assign mon_arb_monbus_packet_in[22]    = monbus_stream_tally_cfg_8_rd_packet;
+    assign mon_arb_monbus_timestamp_in[22] = monbus_stream_tally_cfg_8_rd_timestamp;
+    assign mon_arb_monbus_valid_in[23]     = monbus_slave_tally_cfg_9_wr_valid;
+    assign monbus_slave_tally_cfg_9_wr_ready = mon_arb_monbus_ready_in[23];
+    assign mon_arb_monbus_packet_in[23]    = monbus_slave_tally_cfg_9_wr_packet;
+    assign mon_arb_monbus_timestamp_in[23] = monbus_slave_tally_cfg_9_wr_timestamp;
+    assign mon_arb_monbus_valid_in[24]     = monbus_slave_tally_cfg_9_rd_valid;
+    assign monbus_slave_tally_cfg_9_rd_ready = mon_arb_monbus_ready_in[24];
+    assign mon_arb_monbus_packet_in[24]    = monbus_slave_tally_cfg_9_rd_packet;
+    assign mon_arb_monbus_timestamp_in[24] = monbus_slave_tally_cfg_9_rd_timestamp;
 
     monbus_arbiter #(
-        .CLIENTS            (28),
+        .CLIENTS            (25),
         .INPUT_SKID_ENABLE  (1),
         .OUTPUT_SKID_ENABLE (1),
         .INPUT_SKID_DEPTH   (2),
