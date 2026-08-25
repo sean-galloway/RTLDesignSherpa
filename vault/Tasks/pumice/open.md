@@ -17,15 +17,6 @@ design-requirements doc (FR-FCFS variants, paging/refresh policy modes).
 
 **Entry gate:** tiny-tREFI soak 0-dirty on the rebuilt bitstream (PUMICE-004).
 
-## PUMICE-007 — Retire the deskew RTL + PHY_TIMING.deskew_lo/hi CSR
-**Status:** open 2026-07-23 — removal candidate, issue #39
-
-The deskew path was superseded (see PUMICE-008 in `dropped.md`): the board read
-fix was the PUMICE-005 bring-up tuple at deskew 0/0. The RTL and its CSR fields
-remain and cost area/timing. Delete rather than train — but only after the
-board is re-validated on a rebuilt bitstream so the removal is not entangled
-with an active bring-up.
-
 ---
 
 ## PUMICE-008 — adopt axi4_intf_master_observer (APB-configured) for perf observation

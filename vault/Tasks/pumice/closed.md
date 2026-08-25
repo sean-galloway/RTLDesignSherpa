@@ -4,6 +4,25 @@
 
 ---
 
+## PUMICE-007 — Retire the deskew RTL + PHY_TIMING.deskew_lo/hi CSR
+**Status:** closed 2026-08-24 — already done by 38c8ae63 (Jul 22), the day before this page was stamped open
+
+The deskew path was superseded (see PUMICE-008 in `dropped.md`): the board read
+fix was the PUMICE-005 bring-up tuple at deskew 0/0. The RTL and its CSR fields
+remain and cost area/timing. Delete rather than train — but only after the
+board is re-validated on a rebuilt bitstream so the removal is not entangled
+with an active bring-up.
+
+**Resolution (2026-08-24):** the fourth stale entry from the Jul 23 vault
+migration (with 002/003/004). `38c8ae63` had already retired the whole
+experiment — aligner delay-lines, DESKEW_W threading, PHY_TIMING.deskew_lo/hi
+(RDL regenerated), train_deskew/validate_reads, Makefile/ILA hooks — and the
+same commit closed board bring-up with reads working on the rebuilt bitstream,
+which was this task's stated precondition. Verified against the tree: zero
+deskew references in rtl/, the regmap, or the board area; the only survivor is
+the historical removal note in pumice_csr.rdl.
+
+
 ## PUMICE-004 — Refresh collides with an open row (arbiter registered-feedback hazard)
 **Status:** closed 2026-08-24 — fix landed 38c8ae63 (Jul 22, silicon-soaked); detector armed + mutation-proven
 
