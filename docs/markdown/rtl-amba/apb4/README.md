@@ -96,9 +96,12 @@ The RTL, generator, and testbenches live in the component area
 
 ### Clock-Gated Variants
 
-Each of these wraps its base module in `amba_clock_gate_ctrl` and is functionally
-identical to it. They add `cfg_cg_enable` / `cfg_cg_idle_count` inputs and an
-`apb_clock_gating` status output.
+Each adds `cfg_cg_enable` / `cfg_cg_idle_count` inputs and gating/idle
+status outputs. `apb4_master_cg` and `apb4_slave_cg` wrap their base module
+in one `amba_clock_gate_ctrl` with an `apb_clock_gating` status output;
+`apb4_slave_cdc_cg` is a SIBLING of apb4_slave_cdc, not a wrapper -- it
+re-instantiates apb4_slave plus the two CDC FIFOs around TWO gate cells,
+with per-domain `pclk_cg_*` / `aclk_cg_*` status outputs.
 
 | Module | Base Module | Documentation | Status |
 |--------|-------------|---------------|--------|
@@ -158,6 +161,7 @@ apb4_master #(
     .cmd_paddr      (cmd_paddr),
     .cmd_pwdata     (cmd_pwdata),
     .cmd_pstrb      (cmd_pstrb),
+    .cmd_pprot      (3'b000),      // floating this drives Z into the FIFO
 
     // Response interface
     .rsp_valid      (rsp_valid),
@@ -207,6 +211,7 @@ apb4_slave #(
     .cmd_paddr      (cmd_paddr),
     .cmd_pwdata     (cmd_pwdata),
     .cmd_pstrb      (cmd_pstrb),
+    .cmd_pprot      (3'b000),      // floating this drives Z into the FIFO
 
     // Response interface
     .rsp_valid      (rsp_valid),

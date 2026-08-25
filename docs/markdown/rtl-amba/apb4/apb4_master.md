@@ -426,7 +426,7 @@ module apb_system (
     apb4_master u_apb4_master (
         .pclk(clk),
         .presetn(resetn),
-        .m_apb_*(apb_m_*),
+        /* ... m_apb_* ports to apb_m_* ... */
         // CPU command interface
         .cmd_valid(cpu_valid),
         .cmd_ready(cpu_ready),
@@ -454,10 +454,10 @@ module apb_system (
         .pclk(clk),
         .presetn(resetn),
         // Master side: driven by the apb4_master above
-        .m0_apb_*(apb_m_*),
+        /* ... m0_apb_* ports ... */
         // Slave side: to the peripherals
-        .s0_apb_*(slave0_apb_*),
-        .s1_apb_*(slave1_apb_*),
+        /* ... s0_apb_* ports ... */
+        /* ... s1_apb_* ports ... */
         .s2_apb_*(slave2_apb_*),
         .s3_apb_*(slave3_apb_*)
     );

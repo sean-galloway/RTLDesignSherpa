@@ -95,9 +95,10 @@ module apb4_slave #(
 
 **DEPTH is a literal entry count.** `gaxi_skid_buffer` stores its payload in an
 unpacked array of `DEPTH` slots, so `DEPTH=2` gives two entries, not four.
-Supported values are 2..8 inclusive; the shift-register storage is optimal at 2
-and remains cheaper than a packed-vector implementation through 8. Odd values and
-values above 8 are not supported.
+Supported values are 2..8 inclusive -- ANY integer in that range (odd depths
+are legal); the shift-register storage is optimal at 2 and remains cheaper
+than a packed-vector implementation through 8. Values outside 2..8 fail
+elaboration.
 
 ## Ports
 
@@ -242,17 +243,19 @@ happen in practice:
 ### Transaction Latency
 
 This slave is **not** a zero-wait-state slave. `PREADY` is registered and is
-asserted no earlier than two `pclk` cycles after the edge on which `PENABLE` is
-first sampled high (one cycle IDLE-to-BUSY, one cycle BUSY-to-WAIT). The ACCESS
-phase therefore always contains at least two wait states, and a complete APB
-transfer takes at least four `pclk` cycles end to end. Backend response latency
+asserted no earlier than FOUR `pclk` cycles after the edge on which `PENABLE`
+is first sampled high -- one cycle IDLE-to-BUSY, one through each skid
+buffer's registered `rd_valid` (command in, response out), one BUSY-to-WAIT.
+The ACCESS phase therefore always contains at least four wait states, and a
+complete APB transfer takes at least six `pclk` cycles end to end against an
+ideal combinational backend. Backend response latency
 adds to this directly.
 
 | Characteristic | Value | Description |
 |----------------|-------|-------------|
-| PENABLE rise to PREADY | ≥2 clock cycles | Registered FSM path, best case |
-| Minimum ACCESS wait states | 2 | Inherent to the three-state FSM |
-| Minimum full transfer | ≥4 clock cycles | SETUP + ACCESS with wait states |
+| PENABLE rise to PREADY | ≥4 clock cycles | Registered FSM path AND both skid buffers register rd_valid, best case |
+| Minimum ACCESS wait states | 4 | FSM (2) plus one registered rd_valid in each skid buffer |
+| Minimum full transfer | ≥6 clock cycles | SETUP + ACCESS with 4 wait states, ideal combinational backend |
 | Response Processing | 1+ clock cycles | Backend processing time, additive |
 
 ### Performance Metrics
@@ -442,7 +445,7 @@ apb4_slave #(
     .presetn      (mem_resetn),
 
     // APB interface
-    .s_apb_*(apb_*),
+    .s_apb_PSEL(apb_psel), /* ... remaining s_apb_* ports ... */
 
     // Memory command interface
     .cmd_valid    (mem_cmd_valid),
@@ -466,11 +469,11 @@ memory_controller u_mem_ctrl (
     .resetn       (mem_resetn),
 
     // APB slave interface
-    .cmd_*(mem_cmd_*),
+    /* ... cmd_* ports to mem_cmd_* ... */
     .rsp_*(mem_rsp_*),
 
     // Physical memory interface
-    .mem_*(ddr_*)
+    /* ... mem_* ports to ddr_* ... */
 );
 ```
 
@@ -499,8 +502,8 @@ module multi_register_system (
     apb4_slave u_apb4_slave (
         .pclk(clk),
         .presetn(resetn),
-        .s_apb_*(apb_*),
-        .cmd_*(cmd_*),
+        .s_apb_PSEL(apb_psel), /* ... remaining s_apb_* ports ... */
+        /* ... cmd_* / rsp_* pass-through ... */
         .rsp_*(rsp_*)
     );
 
@@ -520,7 +523,7 @@ module multi_register_system (
             .resetn(resetn),
             .cmd_valid(bank_cmd_valid[i]),
             .cmd_ready(bank_cmd_ready[i]),
-            .cmd_*(cmd_*),
+            /* ... cmd_* / rsp_* pass-through ... */
             .rsp_valid(bank_rsp_valid[i]),
             .rsp_*(rsp_*)
         );
@@ -560,7 +563,7 @@ module enhanced_register_block (
     logic addr_error, prot_error, access_error;
 
     assign addr_error = (cmd_addr >= 16*4);                    // Out of range
-    assign prot_error = (cmd_prot[0] == 1'b1);                 // Instruction access
+    assign prot_error = (cmd_prot[0] == 1'b1);                 // Privileged access (PPROT[0]; PPROT[2] is the instruction/data bit)
     assign access_error = addr_error || prot_error;
 
     // Register access with error checking
@@ -630,7 +633,7 @@ apb4_slave_cdc #(
     // APB clock domain
     .pclk(apb_clk),
     .presetn(apb_resetn),
-    .s_apb_*(apb_*),
+    .s_apb_PSEL(apb_psel), /* ... remaining s_apb_* ports ... */
 
     // Backend clock domain
     .aclk(backend_clk),

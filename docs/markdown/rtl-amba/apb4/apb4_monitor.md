@@ -117,6 +117,8 @@ module apb4_monitor
 | UNIT_ID | logic [7:0] | 8'h01 | 8-bit Unit identifier for monitor packets |
 | AGENT_ID | logic [15:0] | 16'h000A | 16-bit Agent identifier for monitor packets |
 | MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions (APB typically 1-4) |
+| USE_MONITOR | bit | 1 | 0 = omit the monitor body entirely, tie outputs |
+| N_ADDR_RANGES | int | 0 | Address-range checker ranges; 0 disables the checker |
 | MONITOR_FIFO_DEPTH | int | 8 | Internal FIFO depth for monitor packets |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
 
@@ -438,6 +440,6 @@ gaxi_fifo_sync #(
 
 ## Navigation
 
-- **[← Back to APB Index](../_book_monitor_index.md)** (if exists, otherwise remove this line)
+- **[← Back to APB4 Book](README.md)**
 - **[← Back to rtl-amba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

@@ -117,7 +117,7 @@ apb4_slave_cdc_cg #(
     .ADDR_WIDTH          (32),
     .DATA_WIDTH          (32),
     .DEPTH               (2),
-    .USE_JOHNSON         (0),   // 0 = Gray (default), 1 = Johnson; DEPTH must be 2..8 inclusive (any integer) either way
+    .USE_JOHNSON         (0),   // 0 = Gray: DEPTH in {2,3,4,8} (floored max(DEPTH,4) must be pow2); 1 = Johnson: any DEPTH 2..8
 
     // Clock gating
     .CG_IDLE_COUNT_WIDTH (4)
