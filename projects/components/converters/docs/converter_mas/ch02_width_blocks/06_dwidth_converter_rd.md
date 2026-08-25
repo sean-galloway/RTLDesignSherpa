@@ -258,69 +258,58 @@ axi_data_dnsize #(
     .TRACK_BURSTS    (1),
     .BURST_LEN_WIDTH (8),
 ) u_r_dnsize (
-    .clk        (clk),
-    .rst_n      (rst_n),
-    .s_valid    (m_rvalid),
-    .s_ready    (m_rready),
-    .s_data     (m_rdata),
-    .s_sideband (m_rresp),
-    .s_last     (m_rlast),
-    .burst_len  (current_arlen),
-    .m_valid    (s_rvalid),
-    .m_ready    (s_rready),
-    .m_data     (s_rdata),
-    .m_sideband (s_rresp),
-    .m_last     (s_rlast)
+    .aclk            (aclk),
+    .aresetn         (aresetn),
+    // burst framing is MANDATORY with TRACK_BURSTS(1): burst_len is in
+    // NARROW beats - 1 and burst_start pulses per accepted AR; leaving
+    // them off silently produces framing with no LAST (see 2.3.9)
+    .burst_len       (w_blen_rd_data),
+    .burst_start     (w_blen_rd_valid),
+    .wide_valid      (m_axi_rvalid),
+    .wide_ready      (m_axi_rready),
+    .wide_data       (m_axi_rdata),
+    .wide_sideband   (m_axi_rresp),
+    .wide_last       (m_axi_rlast),
+    .narrow_valid    (int_r_valid),
+    .narrow_ready    (int_r_ready),
+    .narrow_data     (int_rdata),
+    .narrow_sideband (int_rresp),
+    .narrow_last     (int_rlast)
 );
 ```
 
 ## 2.6.7 RLAST Generation
 
-### Challenge
+There is no local RLAST tracker in the converter. The downsize block
+generates `narrow_last` itself in TRACK_BURSTS mode, framed by the
+burst-length FIFO of 2.6.5: each accepted AR pushes its narrow-beat
+length, the FIFO head drives `burst_len`/`burst_start`, and the dnsize
+counts narrow beats against it -- `int_rlast` comes out of the dnsize
+and passes to `s_axi_rlast` through the R skid.
 
-The wide interface generates RLAST based on M_ARLEN, but the narrow interface needs RLAST based on S_ARLEN:
-
-```
-Wide RLAST: Asserted on beat (M_ARLEN + 1)
-Narrow RLAST: Asserted on beat (S_ARLEN + 1) = (M_ARLEN + 1) * RATIO
-```
-
-### Solution: Burst Tracker
-
-```systemverilog
-// Track narrow beats within burst
-logic [15:0] r_beat_count;
-logic [7:0]  r_total_narrow_beats;
-
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        r_beat_count <= '0;
-        r_total_narrow_beats <= '0;
-    end else begin
-        if (new_burst_start) begin
-            r_beat_count <= '0;
-            r_total_narrow_beats <= (current_arlen + 1) * RATIO - 1;
-        end else if (s_rvalid && s_rready) begin
-            r_beat_count <= r_beat_count + 1;
-        end
-    end
-end
-
-assign s_rlast = (r_beat_count == r_total_narrow_beats);
-```
+(An earlier revision showed a standalone counter loading
+`(arlen + 1) * RATIO - 1`, the same xRATIO framing 2.3.4 calls out as
+the classic mis-framing bug. The multiplication happens where the FIFO
+is FILLED -- in converter code that knows the ratio -- not inside the
+tracker.)
 
 ## 2.6.8 RID Handling
 
 ### ID Passthrough
 
-RID passes through unchanged:
+RID is sampled from the master side and HELD:
 
 ```systemverilog
-// RID from wide interface propagates to all narrow beats
-assign s_rid = m_rid;
-
-// Or use tracked ID from FIFO
-assign s_rid = current_arid;
+// from the RTL: latch rid/ruser on every master R handshake; AXI4
+// keeps RID constant across a transaction's beats, so "most recent
+// rid" is correct for whatever aggregated beat is being emitted
+`ALWAYS_FF_RST(aclk, aresetn,
+    ... else if (m_axi_rvalid && m_axi_rready) begin
+        r_rid_held   <= m_axi_rid;
+        r_ruser_held <= m_axi_ruser;
+    end
+)
+assign int_rid = r_rid_held;
 ```
 
 ## 2.6.9 Resource Utilization
@@ -332,12 +321,12 @@ which is counted from its declaration.
 
 ```
 AR skid buffer:      ~150 flip-flops
-R downsize:          ~1200 flip-flops, ~100 LUTs
+R upsize data path:  ~600 flip-flops, ~60 LUTs
 Burst-length FIFO:   138 flip-flops (16 x 8b + two 5b pointers)
 Burst tracker:       ~30 flip-flops, ~20 LUTs
 Control logic:       ~80 LUTs
 
-Total: ~900 flip-flops, ~160 LUTs
+Total: ~920 flip-flops, ~160 LUTs (sum of the lines above)
 ```
 
 ### Single Buffer Version

@@ -167,7 +167,7 @@ peakrdl_to_cmdrsp #(
     .aclk                (aclk),
     .aresetn             (aresetn),
 
-    // command/response stream (e.g. from the APB shim's packet path)
+    // command/response stream (e.g. from apb4_slave_cdc's unpacker)
     .cmd_valid           (cmd_valid),
     .cmd_ready           (cmd_ready),
     .cmd_pwrite          (cmd_pwrite),
@@ -203,12 +203,20 @@ fabric whose endpoint speaks the cmd/rsp packet convention.
 The flow a real deployment uses (CSRs behind the APB shim):
 
 ```
-AXI4 master → axi4_to_apb4_shim → cmd/rsp packets → peakrdl_to_cmdrsp
+AXI4 master → axi4_to_apb4_shim → APB bus → apb4_to_peakrdl
+                                              ├─ apb4_slave_cdc  (APB -> cmd/rsp)
+                                              └─ peakrdl_to_cmdrsp
                                                         │
                                               regblk_* request/ack
                                                         ↓
                                           PeakRDL-generated register block
 ```
+
+The shim's own cmd/rsp stream is internal -- its external pins are APB.
+The block that turns a bus back into the cmd/rsp surface this adapter
+consumes is `apb4_to_peakrdl` (which wraps `apb4_slave_cdc` +
+`peakrdl_to_cmdrsp`); wire the adapter directly only when your fabric
+already speaks cmd/rsp packets.
 
 The wiring is exactly the instantiation in 3.5.7; the earlier example
 here showed the adapter hanging off a register block's APB port through

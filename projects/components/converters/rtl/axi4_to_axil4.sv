@@ -15,8 +15,9 @@
 //
 //   Key Features:
 //   - Burst decomposition: Multi-beat bursts → multiple single transactions
-//   - Purely combinational conversion; no internal pipelining.
-//     Add external skid buffers if timing needs them.
+//   - Single-beat traffic converts combinationally; bursts run a
+//     3-state decomposition FSM with tracking registers. No skid
+//     buffers -- add external ones if timing needs them.
 //   - Protocol compliant: Full AXI4 slave, AXI4-Lite master
 //   - Response aggregation: Collects responses and returns with original ID
 //   - Modular design: Instantiates standalone read/write converters

@@ -141,7 +141,7 @@ Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 
 | Module | Single-Beat | Burst (N beats) |
 |--------|-------------|-----------------|
-| axi_data_upsize | 0 cycles | N cycles to accumulate |
+| axi_data_upsize | 1 cycle (registered output) | RATIO narrow beats to fill a group |
 | axi_data_dnsize (single) | 1 cycle | N cycles + gap |
 | axi4_to_axil4 | 0 cycles | slave-limited (see 3.2.6) |
 | axil4_to_axi4 | 0 cycles | N/A (single only) |

@@ -253,18 +253,27 @@ a wide access cannot start mid-word (see 2.6.5).
 
 ### Skid Buffer for AW
 
+The channel buffers are `gaxi_skid_buffer` (there is no
+`axi_skid_buffer`), and they carry the UNMODIFIED slave fields -- the
+length rewrite happens after the skid, in the splitter:
+
 ```systemverilog
-axi_skid_buffer #(
-    .DATA_WIDTH(AW_CHANNEL_WIDTH)
-) u_aw_skid (
-    .clk     (clk),
-    .rst_n   (rst_n),
-    .s_valid (s_awvalid),
-    .s_ready (s_awready),
-    .s_data  ({s_awid, s_awaddr, w_adjusted_awlen, ...}),
-    .m_valid (m_awvalid),
-    .m_ready (m_awready),
-    .m_data  ({m_awid, m_awaddr, m_awlen, ...})
+gaxi_skid_buffer #(
+    .DEPTH(SKID_DEPTH_AW),
+    .DATA_WIDTH(AW_WIDTH)
+) aw_skid (
+    .axi_aclk   (aclk),
+    .axi_aresetn(aresetn),
+    .wr_valid   (s_axi_awvalid),
+    .wr_ready   (s_axi_awready),
+    .wr_data    ({s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize,
+                  s_axi_awburst, s_axi_awlock, s_axi_awcache, s_axi_awprot,
+                  s_axi_awqos, s_axi_awregion, s_axi_awuser}),
+    .rd_valid   (int_aw_valid),
+    .rd_ready   (int_aw_ready),
+    .rd_data    (int_aw_data),
+    .count      (),
+    .rd_count   ()
 );
 ```
 
@@ -280,18 +289,18 @@ axi_data_upsize #(
     .WIDE_SB_WIDTH   (M_STRB_WIDTH),
     .SB_OR_MODE      (0)               // Concatenate WSTRB
 ) u_w_upsize (
-    .clk        (clk),
-    .rst_n      (rst_n),
-    .s_valid    (s_wvalid),
-    .s_ready    (s_wready),
-    .s_data     (s_wdata),
-    .s_sideband (s_wstrb),
-    .s_last     (s_wlast),
-    .m_valid    (m_wvalid),
-    .m_ready    (m_wready),
-    .m_data     (m_wdata),
-    .m_sideband (m_wstrb),
-    .m_last     (m_wlast)
+    .aclk            (aclk),
+    .aresetn         (aresetn),
+    .narrow_valid    (int_w_valid),
+    .narrow_ready    (int_w_ready),
+    .narrow_data     (int_wdata),
+    .narrow_sideband (int_wstrb),
+    .narrow_last     (int_wlast),
+    .wide_valid      (m_axi_wvalid),
+    .wide_ready      (m_axi_wready),
+    .wide_data       (m_axi_wdata),
+    .wide_sideband   (m_axi_wstrb),
+    .wide_last       (m_axi_wlast)
 );
 ```
 

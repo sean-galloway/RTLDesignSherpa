@@ -245,51 +245,26 @@ Beat 31: m_last = 1
 ### Single-Buffer Core Logic
 
 ```systemverilog
-// Beat counter
-logic [$clog2(RATIO)-1:0] r_count;
-logic r_active;
+// from the RTL -- the whole point is that wide_ready re-asserts DURING
+// the last narrow beat (atomic replace), so there is NO
+// `s_ready = !r_active` style stall between wide beats:
+assign wide_ready = !gen_single_buffer.r_wide_buffered ||
+                    (narrow_ready && w_last_narrow_beat);
 
-// Data buffer
-logic [WIDE_WIDTH-1:0] r_data;
-logic [WIDE_SB_WIDTH-1:0] r_sideband;
-logic r_last_wide;
+// output slice selection
+assign narrow_data = gen_single_buffer.r_data_buffer
+                     [r_beat_ptr * NARROW_WIDTH +: NARROW_WIDTH];
+assign narrow_valid = gen_single_buffer.r_wide_buffered;
 
-// Load/output control
-always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        r_active <= 1'b0;
-        r_count <= '0;
-    end else begin
-        if (!r_active && s_valid) begin
-            // Load new wide beat
-            r_data <= s_data;
-            r_sideband <= s_sideband;
-            r_last_wide <= s_last;
-            r_active <= 1'b1;
-            r_count <= '0;
-        end else if (r_active && m_ready) begin
-            if (r_count == RATIO - 1) begin
-                r_active <= 1'b0;  // Done with this beat
-            end else begin
-                r_count <= r_count + 1'b1;
-            end
-        end
-    end
-end
-
-// Output data slice
-assign m_data = r_data[r_count * NARROW_WIDTH +: NARROW_WIDTH];
-
-// Sideband (slice or broadcast)
-assign m_sideband = SB_BROADCAST ?
-    r_sideband[NARROW_SB_WIDTH-1:0] :
-    r_sideband[r_count * NARROW_SB_WIDTH +: NARROW_SB_WIDTH];
-
-// Control signals
-assign m_valid = r_active;
-assign s_ready = !r_active;
-assign m_last = r_last_wide && (r_count == RATIO - 1);
+// simple mode: LAST = buffered wide_last AND final slice
+assign narrow_last = gen_single_buffer.r_wide_buffered &&
+                     gen_single_buffer.r_last_buffered &&
+                     w_last_narrow_beat;
 ```
+
+An earlier pseudocode block here used `s_ready = !r_active` -- the
+pre-fix behaviour that stalls one cycle per wide beat, which the
+measured 0.992 beats/cycle disproves.
 
 ## 2.3.8 Resource Utilization
 

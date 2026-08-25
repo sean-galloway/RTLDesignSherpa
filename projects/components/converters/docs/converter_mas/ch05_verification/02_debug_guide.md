@@ -95,9 +95,9 @@ narrow_/wide_ data     - compare input/output patterns
 
 **Waveform Checkpoints:**
 ```
-r_current_addr  - Should increment by (1 << size)
+r_ar_addr / r_aw_addr - walk by (1 << size) per issued beat
 r_ar_beat_count / r_aw_beat_count - count to arlen/awlen
-m_arvalid       - Should assert for each decomposed beat
+m_axil_arvalid  - asserts for each decomposed beat
 ```
 
 #### Issue: Response Aggregation Wrong
@@ -113,13 +113,21 @@ m_arvalid       - Should assert for each decomposed beat
 
 **Solution:**
 ```systemverilog
-// Proper error aggregation
-always_ff @(posedge clk) begin
-    if (new_burst)
-        r_worst_resp <= 2'b00;
-    else if (m_rvalid && m_rready)
-        r_worst_resp <= (m_rresp > r_worst_resp) ? m_rresp : r_worst_resp;
+// Accumulate per beat...
+always_ff @(posedge aclk or negedge aresetn) begin
+    ...
+    else if (m_axil_rvalid && m_axil_rready)
+        if (m_axil_rresp > r_r_resp_accum)
+            r_r_resp_accum <= m_axil_rresp;
 end
+
+// ...and ALWAYS fold the live beat in at emission. The accumulator
+// alone is the shipped bug (see 4.3.3): it does not yet contain the
+// final beat's own response, so a single-beat error reports OKAY.
+assign w_r_resp_worst = (m_axil_rresp > r_r_resp_accum) ? m_axil_rresp
+                                                        : r_r_resp_accum;
+assign s_axi_rresp = (r_r_beat_count == r_r_len) ? w_r_resp_worst
+                                                 : m_axil_rresp;
 ```
 
 ## 5.2.2 Debug Signals
@@ -288,7 +296,7 @@ async def measure_throughput(tb, transaction_count=1000):
 |--------|------|----------|
 | axi_data_upsize | Single | 1.0 trans/cycle |
 | axi_data_dnsize | Single | 0.992 narrow beats/cycle (measured) |
-| axi4_to_axil4 | Single-beat | 1.0 trans/cycle |
+| axi4_to_axil4 | Single-beat | 0.5 trans/cycle (one-outstanding guard) |
 | axi4_to_axil4 | Burst | 0.5 trans/cycle |
 
 : Table 5.5: Expected Throughput

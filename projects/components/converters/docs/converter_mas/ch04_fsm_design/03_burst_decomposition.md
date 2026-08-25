@@ -203,10 +203,13 @@ end
 | Transaction Type | Overhead |
 |------------------|----------|
 | Single-beat | 0 cycles (passthrough) |
-| 2-beat burst | 2 cycles (sequential) |
-| N-beat burst | 2N cycles (2 per beat) |
+| N-beat burst | none per beat -- requests stream at the downstream accept rate, independent of responses (see 4.2.4) |
+| Back-to-back bursts | serialized by the one-outstanding-burst guard |
 
 : Table 4.6: Decomposition Overhead
+
+The old "2 cycles per beat" figure described a request-response lockstep
+the RTL does not have; nothing in the address path waits on responses.
 
 ### Pipeline Considerations
 

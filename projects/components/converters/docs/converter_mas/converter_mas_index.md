@@ -134,7 +134,7 @@ All diagrams referenced in the documentation live in:
 | axi_data_upsize | Narrow-to-wide accumulator | 100% | 1x |
 | axi_data_dnsize | Wide-to-narrow splitter | 0.992 beats/cycle | 1x |
 | axi4_dwidth_converter_wr | Full write path | 100% | Standard |
-| axi4_dwidth_converter_rd | Full read path | 0.992 beats/cycle | 1x |
+| axi4_dwidth_converter_rd | Full read path | ~0.93 beats/cycle (tracked mode; see 2.3) | 1x |
 | axi4_to_axil4 | Burst decomposition | slave-limited (not characterized) | ~450 LUTs (hand estimate) |
 | axil4_to_axi4 | Protocol upgrade | 100% | ~110 LUTs |
 | axi4_to_apb4_convert | Full protocol bridge | Sequential | Medium |

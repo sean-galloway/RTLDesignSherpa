@@ -175,84 +175,91 @@ module axil4_to_axi4_rd #(
 
 ```systemverilog
 module axil4_to_axi4_wr #(
-    parameter int DATA_WIDTH = 32,
-    parameter int ADDR_WIDTH = 32,
-    parameter int ID_WIDTH   = 4,
-    parameter logic [ID_WIDTH-1:0] DEFAULT_AWID = '0
+    // Width Configuration
+    parameter int AXI_ID_WIDTH      = 8,
+    parameter int AXI_ADDR_WIDTH    = 32,
+    parameter int AXI_DATA_WIDTH    = 32,
+    parameter int AXI_USER_WIDTH    = 1,
+
+    // Default Values for AXI4-only Fields
+    parameter int DEFAULT_ID        = 0,
+    parameter int DEFAULT_REGION    = 0,
+    parameter int DEFAULT_QOS       = 0,
+
+    // Skid Buffer Depths (for timing closure)
+
+
+
+    // Calculated Parameters
+    localparam int STRB_WIDTH = AXI_DATA_WIDTH / 8,
+    localparam int SIZE_VAL   = $clog2(STRB_WIDTH)  // AWSIZE for full width
 ) (
-    // AXI4-Lite slave interface (input)
-    input  logic                    s_awvalid,
-    output logic                    s_awready,
-    input  logic [ADDR_WIDTH-1:0]   s_awaddr,
-    input  logic [2:0]              s_awprot,
+    // Clock and Reset
+    input  logic                        aclk,
+    input  logic                        aresetn,
 
-    input  logic                    s_wvalid,
-    output logic                    s_wready,
-    input  logic [DATA_WIDTH-1:0]   s_wdata,
-    input  logic [DATA_WIDTH/8-1:0] s_wstrb,
+    //==========================================================================
+    // Slave AXI4-Lite Write Interface (Input - Simplified Protocol)
+    //==========================================================================
 
-    output logic                    s_bvalid,
-    input  logic                    s_bready,
-    output logic [1:0]              s_bresp,
+    // Write Address Channel
+    input  logic [AXI_ADDR_WIDTH-1:0]   s_axil_awaddr,
+    input  logic [2:0]                  s_axil_awprot,
+    input  logic                        s_axil_awvalid,
+    output logic                        s_axil_awready,
 
-    // AXI4 master interface (output)
-    output logic                    m_awvalid,
-    input  logic                    m_awready,
-    output logic [ADDR_WIDTH-1:0]   m_awaddr,
-    output logic [7:0]              m_awlen,
-    output logic [2:0]              m_awsize,
-    output logic [1:0]              m_awburst,
-    output logic                    m_awlock,
-    output logic [3:0]              m_awcache,
-    output logic [2:0]              m_awprot,
-    output logic [3:0]              m_awqos,
-    output logic [ID_WIDTH-1:0]     m_awid,
+    // Write Data Channel
+    input  logic [AXI_DATA_WIDTH-1:0]   s_axil_wdata,
+    input  logic [STRB_WIDTH-1:0]       s_axil_wstrb,
+    input  logic                        s_axil_wvalid,
+    output logic                        s_axil_wready,
 
-    output logic                    m_wvalid,
-    input  logic                    m_wready,
-    output logic [DATA_WIDTH-1:0]   m_wdata,
-    output logic [DATA_WIDTH/8-1:0] m_wstrb,
-    output logic                    m_wlast,
+    // Write Response Channel
+    output logic [1:0]                  s_axil_bresp,
+    output logic                        s_axil_bvalid,
+    input  logic                        s_axil_bready,
 
-    input  logic                    m_bvalid,
-    output logic                    m_bready,
-    input  logic [1:0]              m_bresp,
-    input  logic [ID_WIDTH-1:0]     m_bid
+    //==========================================================================
+    // Master AXI4 Write Interface (Output - Full Protocol)
+    //==========================================================================
+
+    // Write Address Channel
+    output logic [AXI_ID_WIDTH-1:0]     m_axi_awid,
+    output logic [AXI_ADDR_WIDTH-1:0]   m_axi_awaddr,
+    output logic [7:0]                  m_axi_awlen,
+    output logic [2:0]                  m_axi_awsize,
+    output logic [1:0]                  m_axi_awburst,
+    output logic                        m_axi_awlock,
+    output logic [3:0]                  m_axi_awcache,
+    output logic [2:0]                  m_axi_awprot,
+    output logic [3:0]                  m_axi_awqos,
+    output logic [3:0]                  m_axi_awregion,
+    output logic [AXI_USER_WIDTH-1:0]   m_axi_awuser,
+    output logic                        m_axi_awvalid,
+    input  logic                        m_axi_awready,
+
+    // Write Data Channel
+    output logic [AXI_DATA_WIDTH-1:0]   m_axi_wdata,
+    output logic [STRB_WIDTH-1:0]       m_axi_wstrb,
+    output logic                        m_axi_wlast,
+    output logic [AXI_USER_WIDTH-1:0]   m_axi_wuser,
+    output logic                        m_axi_wvalid,
+    input  logic                        m_axi_wready,
+
+    // Write Response Channel
+    input  logic [AXI_ID_WIDTH-1:0]     m_axi_bid,
+    input  logic [1:0]                  m_axi_bresp,
+    input  logic [AXI_USER_WIDTH-1:0]   m_axi_buser,
+    input  logic                        m_axi_bvalid,
+    output logic                        m_axi_bready
 );
-
-    // AW channel
-    assign m_awvalid = s_awvalid;
-    assign s_awready = m_awready;
-    assign m_awaddr  = s_awaddr;
-    assign m_awprot  = s_awprot;
-    assign m_awlen   = 8'h00;
-    assign m_awsize  = $clog2(DATA_WIDTH/8);
-    assign m_awburst = 2'b01;
-    assign m_awlock  = 1'b0;
-    assign m_axi_awcache = 4'b0011;              // Bufferable
-    assign m_awqos   = 4'b0000;
-    assign m_awid    = DEFAULT_AWID;
-
-    // W channel
-    assign m_wvalid  = s_wvalid;
-    assign s_wready  = m_wready;
-    assign m_wdata   = s_wdata;
-    assign m_wstrb   = s_wstrb;
-    assign m_wlast   = 1'b1;  // Always last (single beat)
-
-    // B channel
-    assign s_bvalid  = m_bvalid;
-    assign m_bready  = s_bready;
-    assign s_bresp   = m_bresp;
-
-endmodule
 ```
 
 ## 3.3.6 Bidirectional Wrapper
 
 ```systemverilog
 module axil4_to_axi4 #(
-    parameter int DATA_WIDTH = 32,
+    parameter int AXI_DATA_WIDTH = 32,
     parameter int ADDR_WIDTH = 32,
     parameter int ID_WIDTH   = 4,
     parameter logic [ID_WIDTH-1:0] DEFAULT_ID = '0
@@ -264,14 +271,14 @@ module axil4_to_axi4 #(
         .DATA_WIDTH(DATA_WIDTH),
         .ADDR_WIDTH(ADDR_WIDTH),
         .ID_WIDTH(ID_WIDTH),
-        .DEFAULT_ARID(DEFAULT_ID)
+        .DEFAULT_ID(DEFAULT_ID)
     ) u_rd (/* connections */);
 
     axil4_to_axi4_wr #(
         .DATA_WIDTH(DATA_WIDTH),
         .ADDR_WIDTH(ADDR_WIDTH),
         .ID_WIDTH(ID_WIDTH),
-        .DEFAULT_AWID(DEFAULT_ID)
+        .DEFAULT_ID(DEFAULT_ID)
     ) u_wr (/* connections */);
 
 endmodule

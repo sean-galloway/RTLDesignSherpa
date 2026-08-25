@@ -314,9 +314,9 @@ Total: ~150 LUTs, ~150 regs
 
 | Operation | Cycles |
 |-----------|--------|
-| Single write | 3-4 (setup + access + B) |
+| Single write | 3-4 APB-side + ~2 pclk in + ~2 aclk out for the CDC crossings (see 3.4.4) |
 | Single read | 3-4 (setup + access + R) |
-| N-beat write burst | 3N + 1 |
+| N-beat write burst | ~3N APB-side + the same two CDC crossings, paid once per command run |
 | N-beat read burst | 3N + 1 |
 
 : Table 3.19: APB Converter Timing

@@ -35,13 +35,15 @@ very bubble the design avoids.
 
 The real structure:
 
-- `r_beat_count` walks slots as narrow beats land in the accumulator;
+- `r_beat_ptr` walks slots as narrow beats land in the accumulator;
 - a group completes on `WIDTH_RATIO` beats or an early `narrow_last`;
 - `r_wide_valid` presents the completed group on the wide side while
   the NEXT group starts accumulating -- when a wide handshake and a
-  completing narrow beat coincide, non-blocking last-write-wins
-  ordering keeps the freshly completed group (the RTL's header records
-  the drop bug this replaced);
+  completing narrow beat coincide, a single priority selection keeps
+  the freshly completed group. (Last-write-wins ordering across two
+  NBA blocks was the BUG here, not the fix -- the wide-accept block's
+  clear clobbered the fresh group's valid; the dnsize is the one that
+  legitimately relies on last-write-wins, for its atomic replace.)
 - `narrow_ready = !r_wide_valid || wide_ready`, so the narrow side
   stalls only when the wide side is holding a beat hostage.
 

@@ -160,7 +160,7 @@ Total: 0 extra cycles
 Cycle 0:   AW[0] + W[0] issued
 Cycle 1:   B[0] received, AW[1] + W[1] issued
 ...
-Cycle 2N-1: B[N-1] received
+           B[N-1] received (timing set by the AXIL4 slave)
            B[N-1] received
 ```
 
@@ -242,30 +242,27 @@ assign s_axi_bresp = w_b_resp_worst;
 
 ```systemverilog
 module axi4_to_axil4 #(
-    parameter int DATA_WIDTH = 32,
-    parameter int ADDR_WIDTH = 32,
-    parameter int ID_WIDTH   = 4
+    parameter int AXI_ID_WIDTH   = 8,
+    parameter int AXI_ADDR_WIDTH = 32,
+    parameter int AXI_DATA_WIDTH = 32,
+    parameter int AXI_USER_WIDTH = 1
 ) (
-    // ... ports
+    // aclk/aresetn + full s_axi_*/m_axil_* channel set
 );
 
-    // Instantiate read path
     axi4_to_axil4_rd #(
-        .DATA_WIDTH(DATA_WIDTH),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .ID_WIDTH(ID_WIDTH)
-    ) u_rd (
-        // ... read channel connections
-    );
+        .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH (AXI_USER_WIDTH)
+    ) u_rd_converter ( /* read channels */ );
 
-    // Instantiate write path
     axi4_to_axil4_wr #(
-        .DATA_WIDTH(DATA_WIDTH),
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .ID_WIDTH(ID_WIDTH)
-    ) u_wr (
-        // ... write channel connections
-    );
+        .AXI_ID_WIDTH   (AXI_ID_WIDTH),
+        .AXI_ADDR_WIDTH (AXI_ADDR_WIDTH),
+        .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
+        .AXI_USER_WIDTH (AXI_USER_WIDTH)
+    ) u_wr_converter ( /* write channels */ );
 
 endmodule
 ```
@@ -303,7 +300,7 @@ here.
 | Transaction Type | Latency |
 |------------------|---------|
 | Single-beat | 0 extra cycles |
-| N-beat burst | 2N - 1 cycles |
+| N-beat burst | slave-limited; requests stream independently of responses (see 3.2.6) |
 
 : Table 3.8: AXI4 to AXIL4 Latency
 

@@ -34,7 +34,7 @@ signals and completer-driven wakeup/user signals. So this block is a thin
 **pin-superset wrapper** over [`axi4_to_apb4_shim`](04_axi4_to_apb4.md):
 the entire protocol engine (CDC, cmd/rsp FIFOs, burst decomposition,
 response assembly) is the APB4 shim instantiated unchanged, with all 58
-ports and 16 parameters forwarded 1:1.
+ports and 18 parameters forwarded 1:1.
 
 The APB5 additions on the requester surface:
 
