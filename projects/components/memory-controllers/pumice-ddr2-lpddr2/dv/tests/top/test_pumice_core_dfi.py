@@ -129,7 +129,7 @@ async def _bring_up(dut, page_policy=0):
         if int(dut.init_done_o.value):
             break
     assert int(dut.init_done_o.value) == 1, "init never completed"
-    return memory
+    return memory, slave
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
@@ -275,7 +275,7 @@ async def cocotb_test_pumice_core_refresh_collide(dut):
         followed the refresh returns garbage).
     Expected RED on current RTL, GREEN after the arbiter refresh-sequencing fix.
     """
-    memory = await _bring_up(dut, page_policy=1)     # CLOSE / auto-precharge
+    _memory, slave = await _bring_up(dut, page_policy=1)  # CLOSE / auto-precharge
     dut.t_refi_i.value = 0x30                         # frequent refresh
     dut.t_rfc_i.value = 8
     BANK, ROW, N = 3, 5, 64
@@ -317,7 +317,18 @@ async def cocotb_test_pumice_core_refresh_collide(dut):
     assert bad == 0, (f"refresh collided with {bad}/{N} same-bank reads "
                       f"(golden data mismatch) — see CMD_HISTORY assertions for the "
                       f"REFab-while-row-open sequencing violation")
-    dut._log.info(f"PASS: {N} same-bank reads clean across refreshes (no collision)")
+
+    # ANTI-VACUITY: this test is only a refresh-collision test if refreshes
+    # actually happened during the traffic. The DFI slave decodes every REF
+    # off the wire; zero REFs means the scenario never armed (dead t_refi
+    # poke, gated refresh_ctrl, ...) and a green result proves nothing.
+    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
+    n_ref = slave.cmd_counts.get(_DC.REF, 0)
+    dut._log.info(f"refresh_collide: DFI slave decoded {n_ref} REF commands")
+    assert n_ref > 0, ("VACUOUS: zero REF commands reached the DFI during the "
+                       "run — tREFI poke dead or refresh gated; the collision "
+                       "scenario never armed")
+    dut._log.info(f"PASS: {N} same-bank reads clean across {n_ref} refreshes (no collision)")
 
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")
@@ -359,7 +370,7 @@ async def cocotb_test_pumice_core_b2b(dut):
     must be paced by pumice_dfi_cmd_path or the 2nd burst's wrdata collides and
     strands in the PHY (which then blocks all reads). Distinct addresses (no
     snarf) exercise the full write->DRAM->read path under tight issue."""
-    memory = await _bring_up(dut, page_policy=0)
+    memory, _slave = await _bring_up(dut, page_policy=0)
     rng = random.Random(int(os.environ.get("SEED", "4")))
     n = {"basic": 8, "medium": 24, "full": 48}.get(os.environ.get("TEST_LEVEL", "basic").lower(), 8)
     seen, reqs = set(), []
@@ -393,7 +404,7 @@ async def cocotb_test_pumice_core_b2b(dut):
     dut._log.info(f"PASS: back-to-back — {n} tightly-issued bursts round-trip vs golden (DQ pacing)")
 
 
-def _run(request, testcase):
+def _run(request, testcase, params_over=None):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_core_tb_top"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
@@ -405,6 +416,8 @@ def _run(request, testcase):
               "COL_WIDTH": str(COL_WIDTH), "DFI_RATE": str(DFI_RATE),
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "BL": str(BL),
               "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
+    if params_over:
+        params.update(params_over)
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
@@ -421,7 +434,14 @@ def _run(request, testcase):
 
 
 def test_pumice_core_dfi(request):   _run(request, "cocotb_test_pumice_core_dfi")
-def test_pumice_core_refresh_collide(request): _run(request, "cocotb_test_pumice_core_refresh_collide")
+def test_pumice_core_refresh_collide(request):
+    # CMD_HISTORY_EN arms the scheduler's command-history scoreboard -- the
+    # sequencing half of the PUMICE-004 detector. Without it the docstring's
+    # "expected RED" was vacuous: the generate block was off, and the loopback
+    # DFI slave serves golden data regardless, so the data compare alone
+    # cannot see a refresh-vs-open-row collision.
+    _run(request, "cocotb_test_pumice_core_refresh_collide",
+         params_over={"CMD_HISTORY_EN": "1"})
 def test_pumice_core_close(request): _run(request, "cocotb_test_pumice_core_close")
 def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw")
 def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")

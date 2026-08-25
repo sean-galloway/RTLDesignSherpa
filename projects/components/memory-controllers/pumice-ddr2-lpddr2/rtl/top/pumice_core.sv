@@ -45,6 +45,9 @@ module pumice_core
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
     parameter int AGE_WIDTH      = 16,
+    // DV knob: arm the scheduler's command-history scoreboard (JEDEC same-bank
+    // sequencing audit, $fatal on violation). 0 = generate-off, zero cost.
+    parameter int CMD_HISTORY_EN = 0,
 
     // Narrow-device derivations: addr_mapper column stride is the physical
     // device word (BYTE_OFFSET_WIDTH), and the JEDEC burst length scales down
@@ -304,7 +307,7 @@ module pumice_core
     pumice_mem_cmd_scheduler #(
         .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH),
         .COL_WIDTH(COL_WIDTH), .AXI_ID_WIDTH(IW), .NUM_ENTRIES(NUM_ENTRIES),
-        .AGE_WIDTH(AGE_WIDTH)
+        .AGE_WIDTH(AGE_WIDTH), .CMD_HISTORY_EN(CMD_HISTORY_EN)
     ) u_sched (
         .aclk(aclk), .aresetn(aresetn),
         .page_policy_i(page_policy_i), .memtype_i(memtype_i),

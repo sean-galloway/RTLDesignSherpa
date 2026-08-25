@@ -5,8 +5,8 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 | State | Count |
 |---|---|
 | [active](active.md) | 1 |
-| [open](open.md) | 8 |
-| [closed](closed.md) | 6 |
+| [open](open.md) | 6 |
+| [closed](closed.md) | 8 |
 | [dropped](dropped.md) | 1 |
 
 ## Active
@@ -16,11 +16,6 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 
 ## Open shortlist
 
-- **PUMICE-004** — refresh collides with an open row. The highest-value RTL
-  defect: confirmed on silicon as the residual row-sized corruption, instrument
-  already wired, fix not started. Gates PUMICE-006.
-- **PUMICE-003** — char-families `bank_interleave` integrity fail. Same class as
-  PUMICE-001; re-check after the landed fixes before debugging further.
 - **PUMICE-007** — retire the superseded deskew RTL + CSR (#39).
 - **PUMICE-010** — top-tier shared sim_build has no compile lock; clean
   parallel runs self-destruct (48/31 spurious fails). Serial = workaround.
@@ -28,12 +23,14 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 
 ## Reading order for someone picking this up
 
-PUMICE-001 and PUMICE-004 are the live correctness work and they interact:
-both are arbiter command-sequencing behaviour under a registered-feedback
-picker. PUMICE-003 is pre-existing from the window when the top/char sims were
-compile-broken by filelist drift (PUMICE-002, closed 2026-08-24, came from the
-same window — a hand-packed CSR write that rotted; check PUMICE-003 for the
-same class of stale-test cause before suspecting RTL).
+PUMICE-001 (board re-run) is the only live correctness item; everything else
+open is cleanup or gated features. The July task cluster is fully resolved:
+PUMICE-002 (stale hand-packed CSR write), PUMICE-003 (bank_lsb=0 striping,
+fixed fcafc435), and PUMICE-004 (refresh collision, fixed 38c8ae63 with the
+detector armed + mutation-proven 2026-08-24) all closed — the ledger had gone
+stale against landed fixes twice, so measure before debugging. PUMICE-006's
+entry gate is now the PUMICE-001 board trip + a tiny-tREFI re-soak on the
+08-16 bitstream.
 
 Practice and rationale live in the [handbook](../../handbook/INDEX.md);
 this directory tracks *work* only. `/GLOBAL_REQUIREMENTS.md` wins on conflict.

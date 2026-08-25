@@ -4,6 +4,124 @@
 
 ---
 
+## PUMICE-004 — Refresh collides with an open row (arbiter registered-feedback hazard)
+**Status:** closed 2026-08-24 — fix landed 38c8ae63 (Jul 22, silicon-soaked); detector armed + mutation-proven
+
+**Bug (#2, command-sequencing).** The arbiter (`pumice_cmd_arbiter`) can grant a
+`REFab` immediately after an `ACT` to the same bank WITHOUT a `PRE` in between —
+refreshing a row that is still open — and the following `RD` then returns
+garbage (zero) for that one read.
+
+Root: the per-bank "safe signals" (`pumice_bank_timers` readiness) are COARSE
+and REGISTERED (2-cycle event->ready latency, see the `r_guard` note in the
+arbiter), so the combinational picker issues the `ACT`, and the refresh path's
+precharge-before-REF check does not yet see the just-opened row -> REF fires
+with the row open.
+
+**Reproduced pre-silicon** in `engine_mirror[64]` (`test_pumice_top`),
+gear-2/BL8, sustained b2b: burst 25 shows `ACT@31920000 -> REF@31940000 (no PRE)
+-> RD@31980000` -> read returns `0x0` (golden `0x190000`); refresh cadence
+~10.25 us lands on one read. On the BOARD (gear-4, ILA
+`reports/ila_refresh_collide.csv`) the refresh is correctly sequenced
+(`RD->PRE->REF->ACT->RD`) — so this is not the board blocker, but it IS a real
+arbiter defect. Confirmed on silicon as the residual row-sized corruption in
+PUMICE-005.
+
+**Instrument (already wired):** `rtl/fub/pumice_cmd_history_checker.sv`
+(generate-gated by `CMD_HISTORY_EN` inside `rtl/macro/pumice_mem_cmd_scheduler.sv`)
+— a per-(rank,bank) command-history shift register (slot = cycles-since-issue)
+that binds to the arbiter's `cmd_valid/op/rank/bank` and audits JEDEC same-bank
+sequencing the coarse gate misses. Ships the refresh-collision assertion (no
+`REFab` with any bank row open) plus optional tRCD/tRP/tRAS positional checks.
+Coarse = *permission to issue* (forward, lossy); fine = *record of what issued*
+(backward, exact) — you need the fine one to audit the coarse one.
+
+**Plan:**
+1. `bind` the checker in the arbiter FUB (`test_pumice_cmd_arbiter`) and/or the
+   scheduler MACRO (`test_pumice_core_macro`) TBs; add `--assert` to the
+   verilator compile args.
+2. Reproduce as a directed pre-silicon test — small `tREFI` + sustained
+   same-bank reads -> the checker fires RED. **The test MUST also do DATA
+   checking** (golden read compare), not just the sequencing assertion.
+3. Fix the arbiter refresh sequencing: the precharge-before-REF logic must
+   account for a just-issued `ACT` (don't grant `REF`/`REFab` while any bank's
+   most-recent row-affecting op is an `ACT`), or block the `ACT` when a refresh
+   is being sequenced. Mirror the fix in `refresh_ctrl`/`pumice_cmd_arbiter`.
+4. Re-verify: checker GREEN, `engine_mirror[64]` burst-25 read == golden, macro
+   109 + gear2 + FUB stay green.
+5. Rebuild the bitstream (also picks up the APB CDC fix) and re-soak at tiny
+   tREFI as the regression gate.
+
+Scope note: this checker catches command-SEQUENCING bugs only.
+
+**Resolution (2026-08-24):** the same staleness as PUMICE-003 — the fix landed
+the day BEFORE this page was stamped open during the vault migration.
+`38c8ae63` (2026-07-22) added exactly what the plan's step 3 asks for:
+`w_ref_safe` (REF only with all rows closed in the registered view AND nothing
+row-affecting in flight or inside the 2-cycle guard AND tRFC met) plus a
+mission-mode tRFC down-counter with `t_rfc` threaded top→core→scheduler→
+arbiter. Silicon-validated then by the tiny-tREFI A/B soak: 4/4 dirty before,
+0-dirty after, on the rebuilt bitstream.
+
+**What was still missing — the plan's steps 1-2 — landed today:**
+- `CMD_HISTORY_EN` plumbed through `pumice_core` / `pumice_top` / both tb tops
+  (it stopped at the scheduler, so no top-level test could arm the checker).
+- `test_pumice_core_refresh_collide` now compiles with `-GCMD_HISTORY_EN=1`.
+  Before, its "expected RED" docstring was DOUBLY vacuous: the checker generate
+  was off, and the loopback DFI slave serves golden data regardless, so the
+  data compare could never see a collision either.
+- Anti-vacuity teeth: the test asserts the DFI slave decoded >0 REF commands
+  (72 in the directed run) — a scenario that never refreshes can't go green.
+- Mutation-checked per the formal discipline: gutting `w_ref_safe` to 1'b1
+  fires the checker with the exact bug signature ("REFab issued with rank0
+  bank3 ROW OPEN (ACT 2 cyc ago, no PRE)"); restoring it audits 72 REFabs
+  clean and the full core_dfi file passes 5/5.
+
+Diagnosis footnote: "zero DBG lines" from the checker was a pytest artifact —
+cocotb sim output rides Python logging, shown only on failure unless
+`--log-cli-level=INFO` is passed. The checker had been watching all along.
+
+**Residual (rides PUMICE-001's board trip):** re-soak tiny-tREFI on the
+2026-08-16 bitstream as the standing regression gate — the July soak was on the
+July rebuild. This is confirmation, not an open defect.
+
+
+## PUMICE-003 — test_ddr2_char_char_families integrity fail (bank_interleave/incremental_bl8)
+**Status:** closed 2026-08-24 — already fixed by fcafc435; the re-check just never ran
+
+`bank_interleave/incremental_bl8` fails integrity in the char-families sim
+("read engine did not complete", 42 beats mismatched).
+
+**Bisected 2026-07-22:** fails identically at HEAD (95c9490a) — predates the
+deskew removal, the refresh/tRFC arbiter change, and the no-rmw shadow writes.
+Same masked-regression window as PUMICE-002 (the top/char sims were
+compile-broken by the dv/tb filelist drift for a period).
+
+Suspect the config-switch path (ADDR_MAP `bank_lsb=0` preset) interacting with
+the read engine. Re-check whether the PUMICE-001 fixes move this before
+debugging further.
+
+**Resolution (2026-08-24):** the task's own advice ("re-check whether the
+PUMICE-001 fixes move this before debugging further") was correct. The July
+bisection pinned the failure at HEAD `95c9490a` (Jul 21) — one day BEFORE
+`fcafc435` (Jul 22) fixed exactly this: the bank_interleave preset programmed
+`bank_lsb=0`, striping one DRAM burst across banks (writes stripe, the read
+command fetches one bank's columns → the deterministic 42-beat corruption).
+The re-check never happened because the DV framework then broke (RDS-DV
+#69/#70) and the char sims were red for unrelated reasons until 0.6.5.
+
+Verified on cocotb-framework 0.6.5, clean build: the exact repro
+(`test_ddr2_char_char_families`, smoke profile = baseline/bank_interleave/
+reorder × incremental/col_major) passes in 504s. `set_addr_map_scheme` now
+derives the legal boundary `bank_lsb = log2(burst_cols)` with `burst_cols`
+computed from the TEST_DRAM_* geometry env the sim wrapper exports (sim
+64b-device: burst_cols=4 → lsb=2; board x16: burst_cols=2 → lsb=1).
+
+Same #42 family as PUMICE-001's board findings — this was the sim face of the
+scheme-axis corruption. The board re-run of the config-axis families
+(PUMICE-001) remains the silicon-side confirmation.
+
+
 ## PUMICE-002 — test_pumice_top_csr wr_rd roundtrip returns zero read beats
 **Status:** closed 2026-08-24 — TEST defect, not RTL: stale hand-packed DFI_PHASE
 
