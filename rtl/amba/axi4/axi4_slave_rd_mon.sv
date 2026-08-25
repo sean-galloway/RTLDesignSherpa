@@ -339,17 +339,11 @@ module axi4_slave_rd_mon
     // and block_ready is forced high at the wrapper gate below so a disabled
     // monitor can never stall the datapath. When 1: normal operation.
     //
-    // cfg_timeout_cycles -- unified coarse timeout control.
-    // The base monitor's real knobs are 4-bit per-phase TICK counts
-    // (cfg_addr/data/resp_cnt) measured in cfg_freq_sel-scaled timer ticks,
-    // not raw cycles. Chosen encoding:
-    //     16'h0     -> 4'hF   (legacy full-scale default, so integrations
-    //                          that tie this port low keep old behavior)
-    //     1..15     -> that many timer ticks per phase
-    //     >15       -> saturates at 4'hF
-    // All three phases share the value. This wrapper has no per-phase cnt
-    // ports; if per-phase ports are ever added they take precedence over
-    // this coarse control.
+    // cfg_timeout_cycles -- unified coarse timeout control: a MICROSECOND
+    // count passed through at FULL 16-bit width (see the assign below and
+    // its comment). The 4-bit saturating encoding this block once described
+    // is retired -- deleted here so the docs cannot be re-corrupted from it
+    // (axi4/axi5 qc round_20, RTL item C).
     // -------------------------------------------------------------------------
     logic        w_mon_cmd_valid;
     logic        w_mon_data_valid;

@@ -221,7 +221,13 @@ Forwarded perfmon ports (identical width and direction to the base module):
 - **Inputs:** `cfg_perf_enable`, `cfg_start_event_sel` (3), `cfg_end_event_sel` (3), `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
 - **Outputs:** `window_active`, `window_cycles` (32), `perf_prod_cycles` (32), `perf_bp_cycles` (32), `perf_starv_cycles` (32), `perf_idle_cycles` (32), `perf_beat_count` (32), `perf_byte_count` (64), `perf_burst_count` (32)
 
-The `perf_burst_count` output tracks AW (write address) handshakes. Clock gating never suppresses these paths: while a measurement window is open the monitor stays awake, so window cycle accounting remains exact regardless of the idle-count setting.
+The `perf_burst_count` output tracks AW (write address) handshakes.
+**WARNING:** an open measurement window is NOT a wake term -- the window
+FSM and all counters run on the gated clock, so if the bus idles past
+`cfg_cg_idle_count` mid-window the counters FREEZE while wall-clock time
+passes, and trigger pulses arriving while gated are DROPPED. For exact
+wall-clock windows hold `cfg_cg_enable` low around the measurement, or
+use the base module.
 
 Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_enable`, and `cfg_debug_enable` control inputs, plus the six `ENABLE_*_LOGIC` synthesis-cone parameters (see [Parameters](#parameters)), straight through to the base monitor.
 
@@ -299,7 +305,7 @@ axi5_slave_wr_mon_cg #(
     .cfg_error_enable   (1'b1),
     .cfg_timeout_enable (1'b1),
     .cfg_perf_enable    (1'b0),
-    .cfg_timeout_cycles (16'd10),   // 10 timer ticks per phase (>15 saturates)
+    .cfg_timeout_cycles (16'd10),   // 10 microseconds per phase (full 16-bit range)
     .cfg_latency_threshold (32'd500),
     .cfg_axi_pkt_mask   (16'hFFF4),  // set bit = DROP; pass ERROR|COMPL|TIMEOUT
 

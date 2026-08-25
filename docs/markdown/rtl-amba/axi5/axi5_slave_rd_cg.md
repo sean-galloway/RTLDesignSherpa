@@ -223,9 +223,9 @@ An always-ready consumer no longer prevents gating.
 | cfg_cg_idle_count | Idle Cycles | Use Case |
 |-------------------|-------------|----------|
 | 0 | 1 | Aggressive power saving, frequent gating |
-| 1-3 | 2-8 | Balanced, reduces gate churn |
-| 4-7 | 16-128 | Conservative, for bursty traffic |
-| 8+ | 256+ | Minimal gating, continuous operation |
+| 1-3 | 2-4 | Balanced, reduces gate churn |
+| 4-7 | 5-8 | Conservative, for bursty traffic |
+| 8-15 | 9-16 | Minimal gating (the 4-bit field maxes at 16 cycles -- the count is LITERAL, gating at count+1, not a power of two) |
 
 **Recommendations:**
 - **Streaming workloads:** Higher count (4-8) to avoid frequent gate/ungate
@@ -275,7 +275,7 @@ axi5_slave_rd_cg #(
 
     // Clock gating config
     .cfg_cg_enable      (1'b1),          // Enable gating
-    .cfg_cg_idle_count  (4'd3),          // Gate after 8 idle cycles
+    .cfg_cg_idle_count  (4'd3),          // Gate after 4 idle cycles (count+1; a LITERAL count, not a power of two)
 
     // Slave interface (from external master)
     .s_axi_arid         (s_axi_arid),

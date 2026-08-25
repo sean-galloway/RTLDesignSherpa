@@ -76,7 +76,7 @@ flowchart TB
 
     subgraph MONBUS["Monitor Bus"]
         mon_valid["monbus_valid"]
-        mon_packet["monbus_packet[63:0]"]
+        mon_packet["monbus_packet[127:0]"]
     end
 
     s_aw --> slave
@@ -126,6 +126,8 @@ flowchart TB
 | UNIT_ID | int | 1 | Monitoring unit identifier |
 | AGENT_ID | int | 13 | Agent identifier |
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
+| ACLK_MHZ | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
+| CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | -- | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
 | ACTIVE_TRANS_THRESHOLD | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when cfg_threshold_enable=1. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | ENABLE_FILTERING | bit | 1 | Enable packet filtering |
 | ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage for timing |
@@ -135,7 +137,7 @@ flowchart TB
 | ENABLE_TIMEOUT_LOGIC | bit | 1 | Compile-in the timeout cone and the `axi_monitor_timeout` instance. |
 | ENABLE_COMPL_LOGIC | bit | 1 | Compile-in the completion cone. |
 | ENABLE_THRESHOLD_LOGIC | bit | 1 | Compile-in the threshold cone. |
-| ENABLE_PERF_LOGIC | bit | 1 | Compile-in the perfmon measurement window and utilization/throughput counters. |
+| ENABLE_PERF_LOGIC | bit | 1 | Synthesis-cone enable for the REPORTER's legacy perf-packet cone and the two lifetime counters only -- the window FSM and bucket/beat/byte/burst counters are unconditional (always compiled, always live) |
 | ENABLE_DEBUG_LOGIC | bit | 0 | Compile-in the debug cone (off by default). |
 
 > **Synthesis-cone note:** the six `ENABLE_*_LOGIC` parameters gate each detection cone at synthesis via generate-if, so unused logic drops to zero area (classic cones default on, debug off). Inside the wrapper's `axi_monitor_filtered` instance the perf/debug master switches are fixed (`ENABLE_PERF_PACKETS = 1`, `ENABLE_DEBUG_MODULE = 0`). The former `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters were removed — the transaction CAM is now always pipelined.
@@ -144,7 +146,7 @@ flowchart TB
 
 ## Monitor Backpressure (block_ready)
 
-`block_ready` is an internal flow-control net inside the wrapper -- it is not a port. It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `s_axi_awready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
+`block_ready` is exported as the `debug_block_ready` output port -- the wrapper deliberately makes the gating contract observable (the `_mon_cg` wrapper ties it off rather than forwarding it). It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `s_axi_awready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
 
 - **Where the stall lands**: the upstream `s_axi_awready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
@@ -214,6 +216,7 @@ Same as `axi5_slave_wr` - see [AXI5 Slave Write](../axi5/axi5_slave_wr.md) for c
 | cfg_debug_enable | 1 | Input | Enable debug/trace packets (gates the debug cone — the 6th reporter sub-block) |
 | cfg_timeout_cycles | 16 | Input | Unified coarse timeout control, a MICROSECOND count passed through at FULL 16-bit width: 1..65535 us per phase; 0 = 16'hFFFF (~65 ms, effectively never). One value drives all three phase counts (addr/data/resp). The old 4-bit squash that saturated >= 16 at 15 us is retired |
 | cfg_latency_threshold | 32 | Input | High latency threshold (cycles) |
+| cfg_freq_sel | 4 | Input | `counter_freq_invariant` LUT index scaling the 1 us timer tick |
 | cfg_axi_pkt_mask | 16 | Input | Packet type filter mask |
 | cfg_axi_err_select | 16 | Input | Error selection mask |
 | cfg_axi_error_mask | 16 | Input | Error event filter |
@@ -270,7 +273,7 @@ Every cycle inside the window is classified by the **W** data channel's valid/re
 | `perf_starv_cycles` | 32 | `!wvalid && wready`  | starvation (sink ready, no data) |
 | `perf_idle_cycles`  | 32 | `!wvalid && !wready` | idle |
 
-The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / window_cycles`.
+The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); utilization = `perf_prod_cycles / window_cycles` is off by one count -- negligible for long windows, use `window_cycles - 1` for exactness.
 
 ### Throughput counters
 
@@ -302,7 +305,7 @@ Average burst length is `perf_beat_count / perf_burst_count`. (Transaction compl
 | perf_byte_count | 64 | Output | bytes transferred |
 | perf_burst_count | 32 | Output | AW address-phase handshakes |
 
-When `USE_MONITOR = 0` (or `ENABLE_PERF_LOGIC = 0`) all perfmon outputs are tied to 0.
+When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1` and `ENABLE_PERF_LOGIC = 0`, only error_count / transaction_count read 0 -- the window and bucket/throughput outputs remain LIVE.
 
 ---
 
@@ -341,9 +344,9 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 | 0x2 | DECERR response | Transaction ID, address[18:0] |
 | 0x3 | Orphan data | Transaction ID, beat count |
 | 0x4 | Protocol violation | Violation code |
-| 0x5 | Poison detected | Transaction ID, beat number |
-| 0x6 | Tag mismatch | Transaction ID, expected/actual tags |
-| 0x7 | Missing WLAST | Transaction ID, beat count |
+(Event codes 0x5 "poison", 0x6 "tag mismatch" and 0x7 "missing WLAST"
+were documented here but are NOT implemented -- no poison/tag/WLAST
+signal reaches the monitor; these codes are never emitted.)
 
 #### Completion Packets (Type=1)
 
@@ -351,7 +354,7 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 |------------|-------------|------------|
 | 0x0 | Write completion | Transaction ID, burst length, latency |
 
-#### Timeout Packets (Type=2)
+#### Timeout Packets (Type=3)
 
 | Event Code | Description | Event Data |
 |------------|-------------|------------|
@@ -380,7 +383,7 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 .cfg_compl_enable       (1'b1),  // Track completions
 .cfg_timeout_enable     (1'b1),  // Detect stalls
 .cfg_perf_enable        (1'b0),  // Disable (reduces traffic)
-.cfg_timeout_cycles     (16'd10),   // 10 timer ticks per phase (>15 saturates)
+.cfg_timeout_cycles     (16'd10),   // 10 microseconds per phase (full 16-bit range)
 .cfg_latency_threshold  (32'd500)
 ```
 
@@ -503,7 +506,7 @@ attribution; that defect is fixed.
 ### Write-Specific Monitoring
 
 **Poison Detection:**
-- WPOISON indicator tracked per beat
+- WPOISON is NOT tracked (transport-only signal; never reaches the monitor)
 - Generates error packet when poison detected
 - Critical for data integrity validation
 
@@ -513,7 +516,7 @@ attribution; that defect is fixed.
 - Monitors AW/W channel synchronization
 
 **Atomic Operations:**
-- Monitors AWATOP field when ENABLE_ATOMIC=1
+- AWATOP is NOT monitored (ENABLE_ATOMIC shapes the transport only)
 - Tracks atomic transaction latency
 - Detects atomic operation failures
 
@@ -524,7 +527,7 @@ attribution; that defect is fixed.
 - Transaction table size (MAX_TRANSACTIONS) must accommodate peak outstanding transactions
 - Performance packets can generate high traffic - use sparingly or with filtering
 - UNIT_ID and AGENT_ID identify this monitor in multi-agent systems
-- Error count saturates at max value (does not wrap)
+- Error count WRAPS at 16'hFFFF (plain increment, no saturation -- the perfmon BUCKET counters are the ones that saturate)
 
 ---
 

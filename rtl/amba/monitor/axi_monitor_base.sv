@@ -814,7 +814,9 @@ module axi_monitor_base
         end else if (r_win_state == WIN_ACTIVE_S) begin
             // Four mutually-exclusive cycle buckets on the data bus.
             //
-            // Sum of the four equals window_cycles by construction, UNTIL a
+            // Sum of the four equals window_cycles MINUS ONE by construction
+            // (the start cycle seeds window_cycles to 1 while the buckets
+            // reset to 0 -- doc identity corrected, qc round_20), UNTIL a
             // counter saturates. ISSUE #41: none of these counters used to
             // saturate at all, so on a long window they wrapped at 2^32
             // independently of r_window_cycles and the invariant broke
