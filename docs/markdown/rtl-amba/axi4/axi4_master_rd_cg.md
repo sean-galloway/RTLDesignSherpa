@@ -45,7 +45,7 @@ This is the **clock-gated variant** of [axi4_master_rd](./axi4_master_rd.md).
 The `axi4_master_rd_cg` module adds power optimization to `axi4_master_rd` through activity-based clock gating:
 
 - ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Power Savings:** 25-70% depending on traffic utilization
+- ✅ **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
 - ✅ **Configurable at runtime:** `cfg_cg_enable` / `cfg_cg_idle_count` inputs
 - ✅ **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate
 

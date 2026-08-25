@@ -45,25 +45,33 @@ This is the **clock-gated variant** of [axi4_slave_wr_mon](./axi4_slave_wr_mon.m
 The `axi4_slave_wr_mon_cg` module adds power optimization to `axi4_slave_wr_mon` through activity-based clock gating:
 
 - ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Power Savings:** 25-70% depending on traffic utilization
+- ✅ **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
 - ✅ **Configurable:** Idle threshold, gating domains, enable/disable
-- ✅ **Zero Overhead When Disabled:** `ENABLE_CLOCK_GATING=0` → identical to base
+- ✅ **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate at runtime
 
 ---
 
 ## Common Parameters
 
-In addition to all [axi4_slave_wr_mon](./axi4_slave_wr_mon.md) parameters (including `USE_MONITOR`):
+MOST [axi4_slave_wr_mon](./axi4_slave_wr_mon.md) parameters pass through -- with these NOT
+forwarded: `ACLK_MHZ`, `CFI_MIN_FREQ_MHZ`, `CFI_MAX_FREQ_MHZ`,
+`ADDR_RANGE_IS_ERROR`, `ACTIVE_TRANS_THRESHOLD`, `USE_WDATA_ORDER_Q`,
+`NUM_BANKS`, `ID_FILTER_ENABLE`, `ID_MATCH_BASE`, `ID_MATCH_COUNT` (use the
+base module for those knobs; setting them here fails elaboration).
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `ENABLE_CLOCK_GATING` | 1 | Master enable (0=disable, identical to base) |
-| `CG_IDLE_CYCLES` | 8 | Cycles before clock gating activates |
-| `CG_GATE_*` | 1 | Domain-specific gating enables |
+| `CG_IDLE_COUNT_WIDTH` | 4 | Width of the idle countdown, sizing `cfg_cg_idle_count` |
 | `USE_MONITOR` | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
 | `N_ADDR_RANGES` | 0 | Number of address-range comparators (forwarded to base module). |
 
-All base-module ports are forwarded unchanged, including the full performance-monitoring interface (see [Performance Monitoring](#performance-monitoring) below). The six `ENABLE_*_LOGIC` synthesis-cone parameters (`ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC`, `ENABLE_DEBUG_LOGIC`) and the `cfg_compl_enable` / `cfg_threshold_enable` / `cfg_debug_enable` control enables are also passed straight through.
+Gating is controlled by RUNTIME inputs `cfg_cg_enable` /
+`cfg_cg_idle_count` with status outputs `cg_gating` / `cg_idle`; ONE
+`amba_clock_gate_ctrl` gates the entire inner module. (The
+ENABLE_CLOCK_GATING / CG_IDLE_CYCLES / CG_GATE_* interface this page once
+documented never existed.)
+
+Base-module ports are forwarded EXCEPT `debug_block_ready`, which this wrapper ties off (use the base module for the backpressure tap) -- including the full performance-monitoring interface (see [Performance Monitoring](#performance-monitoring) below). The six `ENABLE_*_LOGIC` synthesis-cone parameters (`ENABLE_ERROR_LOGIC`, `ENABLE_TIMEOUT_LOGIC`, `ENABLE_COMPL_LOGIC`, `ENABLE_THRESHOLD_LOGIC`, `ENABLE_PERF_LOGIC`, `ENABLE_DEBUG_LOGIC`) and the `cfg_compl_enable` / `cfg_threshold_enable` / `cfg_debug_enable` control enables are also passed straight through.
 
 ---
 
@@ -76,7 +84,13 @@ Forwarded perfmon ports (identical width and direction to the base module):
 - **Inputs:** `cfg_perf_enable`, `cfg_start_event_sel` (3), `cfg_end_event_sel` (3), `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
 - **Outputs:** `window_active`, `window_cycles` (32), `perf_prod_cycles` (32), `perf_bp_cycles` (32), `perf_starv_cycles` (32), `perf_idle_cycles` (32), `perf_beat_count` (32), `perf_byte_count` (64), `perf_burst_count` (32)
 
-The `perf_burst_count` output tracks AW (write address) handshakes. Clock gating never suppresses these paths: while a measurement window is open the monitor stays awake, so window cycle accounting remains exact regardless of `CG_IDLE_CYCLES`.
+The `perf_burst_count` output tracks AW (write address) handshakes. **WARNING -- gating vs window accounting:** an open measurement window is
+NOT a wake term, and the entire inner monitor (window state machine and
+counters included) runs on the gated clock. If the bus idles past
+`cfg_cg_idle_count` with a window open, the counters FREEZE while
+wall-clock time passes, and trigger pulses arriving while gated are
+DROPPED. For exact wall-clock windows or idle-bus triggering, hold
+`cfg_cg_enable` low around the measurement, or use the base module.
 
 ---
 
@@ -89,13 +103,14 @@ axi4_slave_wr_mon_cg #(
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(64),
 
-    // Clock gating (see CG guide for details)
-    .ENABLE_CLOCK_GATING(1),
-    .CG_IDLE_CYCLES(8)
+    .CG_IDLE_COUNT_WIDTH(4)
 ) u_cg (
     .aclk(clk),
     .aresetn(rst_n),
-    // ... all other ports same as axi4_slave_wr_mon
+    .cfg_cg_enable(1'b1),
+    .cfg_cg_idle_count(4'd8),
+    .cg_gating(), .cg_idle(),
+    // ... all other ports same as axi4_slave_wr_mon (except debug_block_ready)
 );
 ```
 

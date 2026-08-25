@@ -198,7 +198,7 @@ flowchart LR
 |------|-------|-----------|-------------|
 | fub_axi_arvalid | 1 | Input | AR packet valid |
 | fub_axi_arready | 1 | Output | Ready to accept AR packet |
-| fub_axi_ar_count | 3 | Output | AR buffer occupancy |
+| fub_axi_ar_count | 4 | Output | AR skid occupancy (driven since the round_20 fix; was an undriven 3-bit port) |
 | fub_axi_ar_pkt | ARSize | Input | Packed AR packet data |
 | fub_axi_rvalid | 1 | Output | R packet valid |
 | fub_axi_rready | 1 | Input | Ready to accept R packet |

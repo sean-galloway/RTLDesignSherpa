@@ -45,9 +45,9 @@ This is the **clock-gated variant** of [axi4_slave_wr](./axi4_slave_wr.md).
 The `axi4_slave_wr_cg` module adds power optimization to `axi4_slave_wr` through activity-based clock gating:
 
 - ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Power Savings:** 25-70% depending on traffic utilization
-- ✅ **Configurable:** Idle threshold, gating domains, enable/disable
-- ✅ **Zero Overhead When Disabled:** `ENABLE_CLOCK_GATING=0` → identical to base
+- ✅ **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
+- ✅ **Configurable at runtime:** `cfg_cg_enable` / `cfg_cg_idle_count` inputs
+- ✅ **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate
 
 ---
 
@@ -57,9 +57,14 @@ In addition to all [axi4_slave_wr](./axi4_slave_wr.md) parameters:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `ENABLE_CLOCK_GATING` | 1 | Master enable (0=disable, identical to base) |
-| `CG_IDLE_CYCLES` | 8 | Cycles before clock gating activates |
-| `CG_GATE_*` | 1 | Domain-specific gating enables |
+| `CG_IDLE_COUNT_WIDTH` | 4 | Width of the idle countdown, sizing `cfg_cg_idle_count` |
+
+The gating controls are RUNTIME INPUTS, not parameters: `cfg_cg_enable`
+and `cfg_cg_idle_count`; status outputs `cg_gating` / `cg_idle`. One
+`amba_clock_gate_ctrl` gates the whole module -- no per-domain gates. The
+base module's `busy` output is NOT re-exported (consumed internally as a
+wake term). (The ENABLE_CLOCK_GATING / CG_IDLE_CYCLES / CG_GATE_*
+interface this page once documented never existed.)
 
 ---
 
@@ -72,13 +77,14 @@ axi4_slave_wr_cg #(
     .AXI_ADDR_WIDTH(32),
     .AXI_DATA_WIDTH(64),
 
-    // Clock gating (see CG guide for details)
-    .ENABLE_CLOCK_GATING(1),
-    .CG_IDLE_CYCLES(8)
+    .CG_IDLE_COUNT_WIDTH(4)
 ) u_cg (
     .aclk(clk),
     .aresetn(rst_n),
-    // ... all other ports same as axi4_slave_wr
+    .cfg_cg_enable(1'b1),
+    .cfg_cg_idle_count(4'd8),
+    .cg_gating(), .cg_idle(),
+    // ... all other ports same as axi4_slave_wr (except busy)
 );
 ```
 

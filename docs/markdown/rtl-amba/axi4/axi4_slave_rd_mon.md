@@ -103,6 +103,8 @@ The module instantiates two sub-modules:
 | `UNIT_ID` | logic [7:0] | 8'h02 | 8-bit unit identifier in monitor packets |
 | `AGENT_ID` | logic [15:0] | 16'h0014 | 16-bit agent identifier in monitor packets |
 | `MAX_TRANSACTIONS` | int | 16 | Maximum concurrent outstanding transactions |
+| `ACLK_MHZ` | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
+| `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | -- | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
 | `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
@@ -131,7 +133,7 @@ The transaction CAM is always pipelined.
 
 ## Monitor Backpressure (block_ready)
 
-`block_ready` is an internal flow-control net inside the wrapper -- it is not a port. It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `s_axi_arready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
+`block_ready` is exported as the `debug_block_ready` output port -- the wrapper deliberately makes the gating contract observable (the `_mon_cg` wrapper ties it off rather than forwarding it). It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `s_axi_arready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
 
 - **Where the stall lands**: the upstream `s_axi_arready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
@@ -246,10 +248,10 @@ Configuration ports are identical to other AXI4 monitors:
 - Basic enables: `cfg_monitor_enable` (master runtime gate: 0 = monitor inert, CAM held clear, never stalls the datapath), `cfg_error_enable`, `cfg_timeout_enable`, `cfg_perf_enable`, `cfg_compl_enable` (completion packets), `cfg_threshold_enable` (threshold-crossed packets), `cfg_debug_enable` (debug/trace cone — the 6th reporter sub-block)
 - Clear: `cam_clear` (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4])
 - Thresholds: `cfg_timeout_cycles` (unified coarse timeout, a MICROSECOND count at full 16-bit width: 1..65535 us per phase, 0 = 16'hFFFF ~ effectively never; drives all three phase counts), `cfg_latency_threshold`
-- Filtering: 7 mask signals (`cfg_axi_*_mask`)
+- Filtering: 8 mask signals (`cfg_axi_*_mask`: pkt, error, timeout, compl, thresh, perf, addr, debug) plus `cfg_axi_err_select`
 - Performance window control: `cfg_start_event_sel`, `cfg_end_event_sel`, `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close` (see [Performance Monitoring](#performance-monitoring))
 
-> The inner monitor's `cfg_debug_level` (tied to 0), `cfg_debug_mask` (0) and `cfg_active_trans_threshold` (8) are fixed inside the wrapper and are **not** top-level ports on this module.
+> The inner monitor's `cfg_debug_level` (tied to 0), `cfg_debug_mask` (0) are fixed inside the wrapper; `cfg_active_trans_threshold` is driven by the `ACTIVE_TRANS_THRESHOLD` parameter (default MAX_TRANSACTIONS/2), not hardwired to 8, and all three and are **not** top-level ports on this module.
 
 ### Monitor Bus Output
 
@@ -336,7 +338,7 @@ Variant read transaction with different timing from slave:
 .cfg_axi_perf_mask      (16'hFFFF),  // Drop performance
 
 // Timeouts
-.cfg_timeout_cycles     (16'd10),    // 10 timer ticks per phase (>15 saturates)  // Backend response timeout
+.cfg_timeout_cycles     (16'd10),    // 10 microseconds per phase (full 16-bit range)  // Backend response timeout
 .cfg_latency_threshold  (32'd500)
 ```
 
@@ -395,7 +397,7 @@ axi4_slave_rd_mon #(
     .cfg_error_enable       (1'b1),
     .cfg_timeout_enable     (1'b1),
     .cfg_perf_enable        (1'b0),
-    .cfg_timeout_cycles     (16'd15),    // Max ticks: allow memory latency
+    .cfg_timeout_cycles     (16'd15),    // 15 microseconds per phase: allow memory latency
     .cfg_latency_threshold  (32'd1000),
 
     .cfg_axi_pkt_mask       (16'hFFF6),  // Drop all but ERROR, TIMEOUT
