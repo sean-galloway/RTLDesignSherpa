@@ -1397,3 +1397,32 @@ dropped, PSTRB constant all-ones from a blocking-order guard in
    mask a double-access in every current test. Decide the contract, then fix
    RTL or re-document. Docs updated to state the held behavior meanwhile.
 
+---
+
+### TASK-068: apb4_master response-backpressure deadlock -- CLOSED (fixed + mutation-proven, 2026-08-25)
+
+Fix = LAUNCH-GATING: IDLE starts a transfer only when r_rsp_ready (the FSM
+is the response skid's only writer, so space at launch holds through
+completion); the back-to-back ACCESS->SETUP shortcut gates on
+post-enqueue occupancy (w_rsp_count <= RSP_DEPTH-2 -- r_rsp_ready alone is
+stale by one entry at the completion cycle); ACCESS completion is now
+unconditional. Witness (apb4_master_rsp_backpressure_test): stall
+rsp_ready past RSP_DEPTH, release, require n consumer receipts AND exactly
+n bus completions. Unfixed RTL: 164 bus completions for 10 commands
+against the re-firing BFM slave (duplicate write side effects); against a
+one-shot-PREADY slave (apb4_slave) the same hold is a permanent wedge.
+Fixed: 10/10 both counts. Original filing:
+
+### TASK-068: apb4_master deadlocks the bus when its response FIFO is full at completion
+**Priority:** P1 -- CONFIRMED by inspection (apb4 qc round_19, 2026-08-25)
+
+ACCESS state: `if (m_apb_PREADY) begin if (r_rsp_ready) ... else w_apb_next_state = ACCESS;`
+-- the completed transfer is dropped and the master holds PENABLE high forever
+(also an APB protocol violation). Paired with apb4_slave, PREADY is a
+one-cycle pulse and the slave's edge-detect never re-fires: permanent bus
+wedge whenever the consumer backpressures rsp_ready until RSP_DEPTH fills.
+No parameter prevents it. Fix direction: don't complete the bus transfer
+until r_rsp_ready (hold in SETUP/dont-assert-PENABLE), or reserve one rsp
+slot per in-flight ACCESS. Directed test: stall rsp_ready, run RSP_DEPTH+1
+transfers, expect either backpressure (fixed) or the wedge (RED).
+

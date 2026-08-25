@@ -749,19 +749,6 @@ correctly, there won't be data to drop", which reframed a documented
 
 ---
 
-### TASK-068: apb4_master deadlocks the bus when its response FIFO is full at completion
-**Priority:** P1 -- CONFIRMED by inspection (apb4 qc round_19, 2026-08-25)
-
-ACCESS state: `if (m_apb_PREADY) begin if (r_rsp_ready) ... else w_apb_next_state = ACCESS;`
--- the completed transfer is dropped and the master holds PENABLE high forever
-(also an APB protocol violation). Paired with apb4_slave, PREADY is a
-one-cycle pulse and the slave's edge-detect never re-fires: permanent bus
-wedge whenever the consumer backpressures rsp_ready until RSP_DEPTH fills.
-No parameter prevents it. Fix direction: don't complete the bus transfer
-until r_rsp_ready (hold in SETUP/dont-assert-PENABLE), or reserve one rsp
-slot per in-flight ACCESS. Directed test: stall rsp_ready, run RSP_DEPTH+1
-transfers, expect either backpressure (fixed) or the wedge (RED).
-
 ### TASK-069: apb4_monitor protocol-violation check false-positives on pipelined traffic; event data pairs with the LIVE command
 **Priority:** P2 (qc round_19 items C + E; D folds in)
 

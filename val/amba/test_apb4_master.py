@@ -950,6 +950,56 @@ async def apb4_master_wavedrom_test(dut):
     await tb.wait_clocks('pclk', 10)
 
 
+@cocotb.test(timeout_time=100, timeout_unit="us")
+async def apb4_master_rsp_backpressure_test(dut):
+    """TASK-068 witness: sustained rsp_ready backpressure must not wedge the bus.
+
+    The unfixed FSM completed the APB transfer (PSEL&PENABLE&PREADY sampled),
+    then held ACCESS with PENABLE high when the response skid was full. The
+    slave's PREADY is a one-shot pulse, so it never re-fires: permanent
+    deadlock, response lost, and holding PENABLE past completion is itself an
+    APB violation. Fixed RTL gates transfer LAUNCH on response space instead
+    (the FSM is the skid's only writer, so space at launch holds through
+    completion). This scenario stalls the response consumer past RSP_DEPTH,
+    releases it, and requires every response to arrive.
+    """
+    tb = APBMasterTB(dut)
+    random.seed(int(os.environ.get('SEED', '42')))
+    await tb.start_clock('pclk', 10, 'ns')
+    await tb.reset_dut()
+
+    # Stall the response consumer far longer than RSP_DEPTH can absorb.
+    tb.rsp_slave.set_randomizer(FlexRandomizer({'ready_delay': ([(500, 500)], [1])}))
+
+    n = tb.RSP_DEPTH + 4
+    for i in range(n):
+        await tb.send_gaxi_cmd(True, 0x100 + i * 4, data=0xA5A50000 + i)
+
+    # Release the consumer and give ample drain time.
+    await tb.wait_clocks('pclk', 100)
+    tb.rsp_slave.set_randomizer(FlexRandomizer(AXI_RANDOMIZER_CONFIGS['fixed']['slave']))
+    await tb.wait_clocks('pclk', 600)
+
+    # Count at the CONSUMER: the rsp_slave BFM's receive queue (the monitor's
+    # _recvQ is drained by the scoreboard callback and always reads empty).
+    got = len(tb.rsp_slave._recvQ)
+    assert got >= n, (
+        f"Only {got}/{n} responses after releasing rsp_ready backpressure -- "
+        f"bus wedged (PENABLE held past completion, PREADY never re-fires)")
+    # Against a slave that re-fires PREADY on held PENABLE (this BFM), the
+    # unfixed RTL shows up as DUPLICATE bus completions instead of a wedge:
+    # each re-fire re-executes the write at the slave. Exactly n transfers
+    # may appear on the bus.
+    bus_count = tb.apb4_slave.count
+    assert bus_count == n, (
+        f"{bus_count} bus completions for {n} commands -- the unfixed master "
+        f"holds PENABLE past PREADY while the response skid is full, and a "
+        f"re-firing slave re-executes the transfer (duplicate write side "
+        f"effects; protocol violation either way)")
+    tb.log.info(f"backpressure test PASSED: {got}/{n} responses, "
+                f"{bus_count} bus completions after stall")
+
+
 @cocotb.test(timeout_time=100, timeout_unit="us")  # Increased timeout
 async def apb4_master_test(dut):
     tb = APBMasterTB(dut)
