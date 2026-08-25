@@ -418,6 +418,95 @@ async def cocotb_test_pumice_core_fixed_open(dut):
                   "timeout, clean reopen, disarms")
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_rbl(dut):
+    """PUMICE-006 Axis 2: rbl_static / rbl_dyn -- RBLA miss-counter table.
+
+    A thrashing pattern (alternating rows A/B in ONE bank) makes every access
+    a row-buffer miss. Under OPEN (mode 0) each turn needs a conflict PRE +
+    ACT: PREs ~= turns. Under rbl_static, once a row's miss counter crosses
+    the threshold its columns auto-precharge, so the explicit-PRE path goes
+    quiet while ACT-per-turn continues. The contrast is the assertion:
+
+      arm A (mode 0 baseline): thrash N turns -> count PREs (expect ~N).
+      arm B (rbl_static, thresh=2): warm 4 turns, then thrash N turns ->
+        PREs must be < half the arm-A count, data golden throughout, and a
+        FRIENDLY row (a different bank, repeated hits) must stay open --
+        zero ACTs between its consecutive accesses.
+      arm C (rbl_dyn smoke): mode 7 with a short epoch; integrity holds and
+        the mode disarms cleanly (threshold adaptation quality gets its own
+        characterization on the board profiles).
+    """
+    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
+    _memory, slave = await _bring_up(dut, page_policy=0)   # OPEN base
+
+    BANK, ROW_A, ROW_B = 3, 5, 9
+    FR_BANK, FR_ROW = 6, 4                      # friendly-row control
+    rng = random.Random(int(os.environ.get("SEED", "7")))
+
+    async def _one(bank, row, col, rid):
+        addr = _mkaddr(bank, row, col * BL)
+        data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+        await _aw(dut, addr, rid & 0xF)
+        await _w(dut, data)
+        for _ in range(400):
+            await RisingEdge(dut.aclk)
+            if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
+                break
+        got = []
+        cocotb.start_soon(_r_sink(dut, got))
+        await _ar(dut, addr, rid & 0xF)
+        for _ in range(800):
+            await RisingEdge(dut.aclk)
+            if len(got) >= BL_WORDS:
+                break
+        assert got[:BL_WORDS] == data, f"data mismatch bank{bank} row{row}"
+
+    async def _thrash(n, col0):
+        before = slave.cmd_counts.get(_DC.PRE, 0)
+        for t in range(n):
+            await _one(BANK, ROW_A if (t & 1) == 0 else ROW_B, col0 + t, t)
+        return slave.cmd_counts.get(_DC.PRE, 0) - before
+
+    N = 12
+
+    # ---- arm A: OPEN baseline -- thrash costs a PRE per turn ---------------
+    dut.page_mode_i.value = 0
+    pres_open = await _thrash(N, 0)
+    assert pres_open >= N - 2, (f"baseline thrash produced only {pres_open} "
+                                f"PREs for {N} turns -- pattern not thrashing")
+
+    # ---- arm B: rbl_static -----------------------------------------------
+    dut.page_mode_i.value = 6
+    dut.page_rbl_thresh_i.value = 2
+    dut.page_rbl_ivl_i.value = 0                # no epochs: evidence persists
+    _ = await _thrash(4, 32)                    # warm the miss counters
+    pres_rbl = await _thrash(N, 48)
+    assert pres_rbl < pres_open // 2, (
+        f"rbl_static did not suppress conflict PREs: {pres_rbl} vs baseline "
+        f"{pres_open} -- low-locality rows are not auto-precharging")
+
+    # friendly row: repeated hits in another bank must NOT be closed.
+    await _one(FR_BANK, FR_ROW, 0, 8)           # opens the row (1 ACT)
+    acts_before = slave.cmd_counts.get(_DC.ACT, 0)
+    for k in range(4):
+        await _one(FR_BANK, FR_ROW, 1 + k, 9 + k)
+    acts_delta = slave.cmd_counts.get(_DC.ACT, 0) - acts_before
+    assert acts_delta == 0, (
+        f"friendly row re-activated {acts_delta}x under rbl -- a hit-served "
+        f"row accumulated miss evidence it should not have")
+
+    # ---- arm C: rbl_dyn smoke ---------------------------------------------
+    dut.page_mode_i.value = 7
+    dut.page_rbl_ivl_i.value = 256              # epochs on for the hill-climb
+    _ = await _thrash(8, 96)
+    dut.page_mode_i.value = 0
+    pres_off = await _thrash(4, 120)
+    assert pres_off >= 2, "mode 0 after rbl: auto-precharge failed to disarm"
+    dut._log.info(f"PASS rbl: baseline {pres_open} PREs/{N} turns, "
+                  f"rbl_static {pres_rbl}, friendly row stayed open, dyn+disarm ok")
+
+
 @cocotb.test(timeout_time=20, timeout_unit="ms")
 async def cocotb_test_pumice_core_waw(dut):
     """WAW ordering + read-your-write: two writes to the SAME address, then read
@@ -523,6 +612,10 @@ def _run(request, testcase, params_over=None):
 def test_pumice_core_dfi(request):   _run(request, "cocotb_test_pumice_core_dfi")
 def test_pumice_core_fixed_open(request):
     _run(request, "cocotb_test_pumice_core_fixed_open")
+
+
+def test_pumice_core_rbl(request):
+    _run(request, "cocotb_test_pumice_core_rbl")
 
 
 def test_pumice_core_refresh_collide(request):

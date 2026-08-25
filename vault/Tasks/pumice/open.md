@@ -17,7 +17,17 @@
   hit/miss/empty + ACT/PRE/REF counters feeding the *_STATS CSRs.
   Directed test `test_pumice_core_fixed_open` is self-checking both ways
   (mode-0 inertness arms) and mutation-proven (w_timeout_on=0 → RED).
-  Remaining Axis 2: rbl_static/rbl_dyn (modes 6/7), adapt_access (mode 5).
+- Axis 2, modes 6/7 `rbl_static`/`rbl_dyn` landed: new `pumice_rbl_table` fub
+  (per-set-associative row miss-counter table, tag=row, true-LRU, runtime
+  ways/sets shape from PAGE_RBL_CFG, epoch counter clears, mode-7 divider-free
+  hill-climb on hit fraction with direction memory). Verdict latched per bank
+  at ACT time → page_policy turns the mask into per-bank auto-precharge.
+  Directed `test_pumice_core_rbl`: arm A mode-0 thrash baseline, arm B
+  thresh=2 static (conflict-PRE suppression < half of baseline + friendly-row
+  zero-reACT check), arm C dyn smoke + disarm. Mutation-proven (verdict
+  forced 0 → arm B RED: 13 vs 11 PREs, no suppression). Gate tier after:
+  fub 40 / macro 3 / top 57.
+  Remaining Axis 2: adapt_access (mode 5) only.
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.

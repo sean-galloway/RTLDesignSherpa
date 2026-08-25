@@ -17,8 +17,11 @@
 //        4 adapt_time    ap=0; per-bank timeout register TR adapts (Happy
 //                        "Intel-adaptive": mistake counter MC, premature-close
 //                        vs held-too-long, TR += / -= step each check interval)
-//      (5 adapt_access and 6/7 rbl_* are later serial steps; until they land
-//       their encodings behave as static_open — ap=0, no timeout engine.)
+//        6 rbl_static    ap = per-bank low-locality verdict from the RBLA
+//                        miss-counter table (pumice_rbl_table)
+//        7 rbl_dyn       rbl_static + per-epoch threshold hill-climb
+//      (5 adapt_access is a later serial step; until it lands its encoding
+//       behaves as static_open — ap=0, no timeout engine.)
 //
 //   2. A background precharge REQUEST (`timeout_pre_req_o` / bank) for a row
 //      whose idle timer expired. The ARBITER issues the actual PRE as its
@@ -68,6 +71,10 @@ module pumice_page_policy
     input  logic [3:0]                 mc_low_thr_i,
     input  logic [3:0]                 mc_init_i,
     input  logic [15:0]                check_interval_i,
+    input  logic [7:0]                 rbl_miss_thresh_i, // PAGE_RBL_CFG
+    input  logic [1:0]                 rbl_ways_i,
+    input  logic [3:0]                 rbl_sets_i,
+    input  logic [15:0]                rbl_reset_ivl_i,
 
     // ---- issued command stream (arbiter output, single-issue) --------------
     input  logic                       cmd_valid_i,       // cmd_valid && cmd_ready
@@ -102,17 +109,39 @@ module pumice_page_policy
     localparam logic [2:0] MODE_STATIC_CLOSE = 3'd2;
     localparam logic [2:0] MODE_FIXED_OPEN   = 3'd3;
     localparam logic [2:0] MODE_ADAPT_TIME   = 3'd4;
+    localparam logic [2:0] MODE_RBL_STATIC   = 3'd6;
+    localparam logic [2:0] MODE_RBL_DYN      = 3'd7;
 
-    logic w_mode_on, w_timeout_on, w_adapt_on;
+    logic w_mode_on, w_timeout_on, w_adapt_on, w_rbl_on;
     assign w_mode_on    = (policy_mode_i != MODE_DEFAULT);
     assign w_timeout_on = (policy_mode_i == MODE_FIXED_OPEN)
                        || (policy_mode_i == MODE_ADAPT_TIME);
     assign w_adapt_on   = (policy_mode_i == MODE_ADAPT_TIME);
+    assign w_rbl_on     = (policy_mode_i == MODE_RBL_STATIC)
+                       || (policy_mode_i == MODE_RBL_DYN);
 
     // ---- auto-precharge decision -------------------------------------------
+    logic [NUM_BANKS-1:0] w_rbl_low_loc;
     assign ap_mode_en_o = w_mode_on;
     assign ap_close_o   = (policy_mode_i == MODE_STATIC_CLOSE) ? {NUM_BANKS{1'b1}}
-                                                               : '0;
+                        : w_rbl_on                              ? w_rbl_low_loc
+                                                                : '0;
+
+    // RBLA miss-counter table (modes 6/7): classifies the OPEN row of each
+    // bank as low-locality (thrashing -> auto-precharge) at ACT time.
+    pumice_rbl_table #(
+        .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH)
+    ) u_rbl (
+        .aclk(aclk), .aresetn(aresetn),
+        .enable_i(w_rbl_on),
+        .dyn_en_i(policy_mode_i == MODE_RBL_DYN),
+        .miss_thresh_i(rbl_miss_thresh_i),
+        .ways_log2_i(rbl_ways_i), .sets_log2_i(rbl_sets_i),
+        .reset_interval_i(rbl_reset_ivl_i),
+        .cmd_valid_i(cmd_valid_i), .cmd_op_i(cmd_op_i),
+        .cmd_bank_i(cmd_bank_i), .cmd_row_i(cmd_row_i),
+        .low_locality_o(w_rbl_low_loc)
+    );
 
     // ---- issued-stream decodes ---------------------------------------------
     logic w_is_col, w_is_act, w_is_pre, w_is_ref;
