@@ -44,6 +44,18 @@ What is asserted, per DUT:
       gate/ungate boundary must produce exactly one upstream handshake and
       exactly one downstream handshake per request - no drops, no duplicates.
 
+  Phase 5 - beat held inside the block under downstream back-pressure
+      While an accepted beat waits on downstream ready the block must stay
+      awake; gating here would strand the beat in a stopped clock domain.
+
+  Phase 6 - monitor-bus liveness (TASK-070)
+      A completion packet parked on ``monbus_valid`` behind a low
+      ``monbus_ready`` is outstanding work: the block must not gate under it,
+      and when the consumer raises ready each pending packet must be
+      delivered exactly once.  The un-fixed wrappers gated with valid frozen
+      high and re-delivered the same packet on every ungated cycle (measured:
+      30 accepts of one packet in 30 cycles).
+
 The gated clock is observed directly at ``dut.gated_aclk``; cocotb-test compiles
 Verilator with ``--public-flat-rw``, so wrapper-internal nets are visible.
 """
@@ -54,6 +66,7 @@ import cocotb
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, Edge, with_timeout
 from cocotb_test.simulator import run
 
+from TBClasses.monbus import parse
 from TBClasses.shared.utilities import get_paths
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
@@ -498,8 +511,114 @@ async def mon_cg_gating_test(dut):
         f'{name} [phase 4]: {up_hs} upstream / {down_hs} downstream handshakes '
         f'for {n_req} requests')
 
+    # ---------------------------------------------------------------- P6 ---
+    # Monitor-bus liveness (TASK-070).  Park a completion packet on
+    # ``monbus_valid`` by holding ``monbus_ready`` low, then let the AXI side
+    # go idle.  The pending packet is outstanding work and must hold the block
+    # awake.  A wrapper whose activity term ignores it gates with the packet
+    # parked: the reporter's clock stops with valid frozen high, and a
+    # consumer that later raises ready sees valid&&ready on every ungated
+    # cycle - the SAME packet accepted over and over until unrelated traffic
+    # happens to wake the block.
+
+    # Retire the phase-5 transaction so the block can genuinely idle.
+    _set(dut, tb.rsp_ready, 1)
+    tb.drive_response(4, True)
+    for _ in range(200):
+        await FallingEdge(dut.aclk)
+        if _get(dut, tb.d_rsp_valid) and _get(dut, tb.d_rsp_ready):
+            break
+    await FallingEdge(dut.aclk)
+    tb.drive_response(4, False)
+    for _ in range(40):
+        await RisingEdge(dut.aclk)
+    _set(dut, tb.rsp_ready, 0)
+    _set(dut, 'cam_clear', 1)
+    await RisingEdge(dut.aclk)
+    _set(dut, 'cam_clear', 0)
+    await tb.settle_to_gated(cycles=60)
+
+    # Back-pressure the monitor bus, then run one transaction to completion so
+    # the reporter emits exactly one completion packet it cannot deliver.
+    _set(dut, 'monbus_ready', 0)
+    counter = tb.start_handshake_counter(cycles=300)
+    tb.drive_request(0xA000, 5)
+    await counter.join()
+    tb.clear_request()
+    _set(dut, tb.rsp_ready, 1)
+    tb.drive_response(5, True)
+    for _ in range(200):
+        await FallingEdge(dut.aclk)
+        if _get(dut, tb.d_rsp_valid) and _get(dut, tb.d_rsp_ready):
+            break
+    await FallingEdge(dut.aclk)
+    tb.drive_response(5, False)
+    for _ in range(40):
+        await RisingEdge(dut.aclk)
+    _set(dut, tb.rsp_ready, 0)
+    _set(dut, 'cam_clear', 1)
+    await RisingEdge(dut.aclk)
+    _set(dut, 'cam_clear', 0)
+
+    # The completion packet must now be parked on the output register.  If it
+    # never appears the packet was stranded mid-reporter by the clock stopping
+    # before valid could assert - the freeze variant of the same defect.
+    for _ in range(100):
+        if _get(dut, 'monbus_valid'):
+            break
+        await RisingEdge(dut.aclk)
+    assert _get(dut, 'monbus_valid') == 1, (
+        f'{name} [phase 6]: no completion packet parked on monbus_valid with '
+        f'monbus_ready held low - the packet was emitted into a stopping clock '
+        f'domain and stranded (or never emitted at all)')
+
+    # Idle the bus with the packet still parked; the block must not gate.
+    gated_while_parked = 0
+    for _ in range(60):
+        await RisingEdge(dut.aclk)
+        if _get(dut, 'cg_gating') and _get(dut, 'monbus_valid'):
+            gated_while_parked += 1
+
+    # Release the consumer and record every delivery on the ungated clock.
+    # Sampling starts ON the falling edge where ready rises: valid&&ready seen
+    # at a falling edge is consummated by the following rising edge, so
+    # waiting a cycle before the first sample would miss the first delivery.
+    # Packet VALUES are recorded, not just a count: the defect signature is
+    # the same packet accepted on consecutive cycles off a frozen valid, and
+    # a plain count cannot tell one packet re-delivered N times from N
+    # distinct packets draining out of the reporter FIFO.
+    await FallingEdge(dut.aclk)
+    _set(dut, 'monbus_ready', 1)
+    delivered = []
+    for _ in range(30):
+        if _get(dut, 'monbus_valid'):
+            delivered.append(int(dut.monbus_packet.value))
+        await FallingEdge(dut.aclk)
+
+    for pkt in delivered:
+        dut._log.info(f'P6 delivery: {parse(pkt).get_packet_type_name()} '
+                      f'raw=0x{pkt:032x}')
+
+    duplicates = sum(1 for a, b in zip(delivered, delivered[1:]) if a == b)
+    assert duplicates == 0, (
+        f'{name} [phase 6]: the same monbus packet was accepted on '
+        f'{duplicates + 1} consecutive cycles - a frozen monbus_valid is '
+        f're-delivering one packet to the ungated consumer')
+    assert 1 <= len(delivered) <= 3, (
+        f'{name} [phase 6]: {len(delivered)} monbus deliveries for one '
+        f'transaction\'s pending packets (0 = packet lost, many = packets '
+        f'invented)')
+    assert gated_while_parked == 0, (
+        f'{name} [phase 6]: clock gated for {gated_while_parked} cycles with '
+        f'a packet parked on monbus_valid - pending monitor packets are '
+        f'outstanding work and must hold the block awake')
+
+    # Let the delivered packet's idle window expire so the block ends gated.
+    await tb.settle_to_gated(cycles=60)
+
     dut._log.info(f'{name}: clock gating verified (stops when idle, survives a '
-                  f'parked response-ready, wakes on activity, loses no transfers)')
+                  f'parked response-ready, wakes on activity, loses no '
+                  f'transfers, exactly-once monbus delivery)')
 
 
 # ---------------------------------------------------------------------------

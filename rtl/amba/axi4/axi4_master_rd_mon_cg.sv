@@ -224,9 +224,10 @@ module axi4_master_rd_mon_cg
     // stopping. val/amba/test_mon_cg_gating.py phase 5 asserts this directly.
     logic gated_aclk;
     logic user_valid, axi_valid;
+    logic w_monbus_valid;
     logic int_arready, int_rready, int_busy;
 
-    assign user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy;
+    assign user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy || w_monbus_valid;
     assign axi_valid  = m_axi_arvalid || m_axi_rvalid;
 
     assign fub_axi_arready  = cg_gating ? 1'b0 : int_arready;
@@ -349,7 +350,7 @@ module axi4_master_rd_mon_cg
         .cfg_addr_range_high     (cfg_addr_range_high),
 
         // Monitor Bus Output
-        .monbus_valid            (monbus_valid),
+        .monbus_valid            (w_monbus_valid),
         .monbus_ready            (monbus_ready),
         .monbus_packet           (monbus_packet),
         .monbus_timestamp        (monbus_timestamp),
@@ -383,9 +384,23 @@ module axi4_master_rd_mon_cg
         // which Verilator escalates to an error, and that is what kept the
         // four axil4 _cg builds from compiling at all. Left empty because
         // the _cg wrapper does not re-export it.
+        /* verilator lint_off PINCONNECTEMPTY */
         .debug_block_ready       ()
+        /* verilator lint_on PINCONNECTEMPTY */
 
     );
+
+    // A packet parked on the monitor bus is outstanding work: w_monbus_valid
+    // holds the block awake (and re-wakes it) so the reporter can retire the
+    // handshake. Without it the clock stops with valid frozen high and an
+    // ungated consumer re-accepts the SAME packet every cycle. The !cg_gating
+    // mask covers the one-cycle overlap where gating asserts on the same edge
+    // the packet arrives (wake takes a cycle): the consumer never sees valid
+    // until the reporter's clock is running to observe the accept. The mask
+    // only defers valid's rise, never truncates a visible valid, because once
+    // w_monbus_valid is high gating cannot engage.
+    // val/amba/test_mon_cg_gating.py phase 6 asserts exactly-once delivery.
+    assign monbus_valid = w_monbus_valid && !cg_gating;
 
     assign busy = int_busy;
 

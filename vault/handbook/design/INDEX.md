@@ -6,6 +6,7 @@ summary: RTL rules with the failures that taught them.
 # Design
 
 - [[reset-and-clocking]] - reset macros, aresetn, clock conventions
+- [[clock-gating-activity-terms]] - wake on peer VALIDs + pending output work, never peer READY; !gating mask; emission latency vs idle count
 - [[cdc]] - crossing rules, gray pointers, handshakes
 - [[valid-ready-contracts]] - stability rules; who may stall whom
 - [[observers-do-not-drive]] - a parallel snoop must not gate the bus it taps

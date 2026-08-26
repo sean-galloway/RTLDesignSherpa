@@ -36,7 +36,7 @@ The `axi4_master_rd_mon_cg` module is a clock-gated variant of [axi4_master_rd_m
 
 ### Key Differences from Base Module
 
-- **Activity-Based Clock Gating:** one gate for the whole module, woken by bus valids + core busy
+- **Activity-Based Clock Gating:** one gate for the whole module, woken by bus valids, core busy, and a pending monitor packet
 - **Runtime Control:** `cfg_cg_enable` / `cfg_cg_idle_count` (no per-domain policies)
 - **Gating Status:** `cg_gating` / `cg_idle` outputs (no built-in power statistics)
 - **Functional differences from base:** ten base parameters not forwarded, `debug_block_ready` tied off, and gated-clock caveats for windows/triggers (see the WARNING below) -- use the base module when those matter
@@ -104,11 +104,18 @@ Base-module ports are forwarded EXCEPT `debug_block_ready`, which the wrapper ti
 ### Clock Gating Architecture
 
 ONE `amba_clock_gate_ctrl` gates the whole inner monitor module. The wake
-term is bus activity only (`fub_axi_arvalid || fub_axi_rvalid || int_busy`
-on the user side, `m_axi_arvalid || m_axi_rvalid` on the AXI side); when
-both sides idle for `cfg_cg_idle_count` cycles, everything inside --
-transaction tracking, reporter, timers, perf counters -- stops together.
-There are no per-domain gates.
+term is bus activity plus pending monitor-bus work (`fub_axi_arvalid ||
+fub_axi_rvalid || int_busy || w_monbus_valid` on the user side,
+`m_axi_arvalid || m_axi_rvalid` on the AXI side); when both sides idle for
+`cfg_cg_idle_count` cycles with nothing pending on the monitor bus,
+everything inside -- transaction tracking, reporter, timers, perf counters
+-- stops together. There are no per-domain gates. The external
+`monbus_valid` is masked with `!cg_gating`, so monitor-bus delivery is
+exactly-once across gating (`val/amba/test_mon_cg_gating.py` phase 6): a
+packet pending delivery holds the block awake, and a packet emitted in the
+few-cycle reporter latency after the last transaction (possible only when
+`cfg_cg_idle_count` is smaller than that latency) parks in the reporter
+FIFO and delivers exactly once at the next wake.
 
 ### Gating State Machine
 
@@ -135,7 +142,8 @@ Forwarded perfmon ports (identical width and direction to the base module):
 - **Outputs:** `window_active`, `window_cycles` (32), `perf_prod_cycles` (32), `perf_bp_cycles` (32), `perf_starv_cycles` (32), `perf_idle_cycles` (32), `perf_beat_count` (32), `perf_byte_count` (64), `perf_burst_count` (32)
 
 **WARNING -- gating vs window accounting:** an open measurement window is
-NOT an activity term (`user_valid` is bus valids + busy only), and the
+NOT an activity term (`user_valid` is bus valids, busy, and pending
+monitor-bus work only), and the
 entire inner monitor -- window state machine and counters included -- runs
 on the gated clock. If the bus idles past the countdown while a window is
 open, the clock gates and `window_cycles` / perf counters FREEZE while

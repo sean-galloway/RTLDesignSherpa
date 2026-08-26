@@ -218,24 +218,31 @@ This module provides the best of both worlds:
 The clock gating logic considers monitor activity:
 
 ```systemverilog
-user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy;  // peer VALID, never peer READY
+user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy || w_monbus_valid;  // peer VALID, never peer READY
 axi_valid = m_axi_arvalid || m_axi_rvalid;
 
 // Clock remains active if:
 // - User interface active (AR or R channels)
 // - AXI interface active
 // - CORE busy (transactions in flight in the datapath)
-// NOTE: monitor state is NOT a wake term -- int_busy is the core's busy
-// only; the monitor instance's busy is unconnected.
+// - A monitor packet is pending on the monitor bus (w_monbus_valid)
+// NOTE: the monitor's TRACKING state is still not a wake term -- int_busy
+// is the core's busy only. Only a packet pending delivery wakes the block.
 ```
 
-**WARNING -- monitor state does not keep the clock alive.** Pending
-reporter packets FREEZE in place when the clock gates (nothing flushes
-them), and a packet already presented on `monbus_valid` is held asserted
-through the gated period -- an UNGATED consumer holding `monbus_ready`
-high can accept the same packet repeatedly until traffic wakes the block
-(filed as a task in vault/Tasks/amba). Gate the consumer handshake with
-`!cg_gating`, or hold `cfg_cg_enable` low while draining.
+**Monitor-bus delivery is exactly-once across gating.** A packet pending
+on the monitor bus is a wake term: the block stays awake (or re-wakes
+within a cycle) until the consumer accepts it, and the external
+`monbus_valid` is masked with `!cg_gating` so a consumer can never sample
+a valid that the reporter's stopped clock could not retire. One residual:
+the reporter takes a few cycles after a transaction retires to present
+its packet, so a `cfg_cg_idle_count` smaller than that latency can stop
+the clock before `monbus_valid` rises. The packet is not lost and never
+duplicates -- it parks in the reporter FIFO and delivers exactly once at
+the next wake -- but its delivery is deferred until traffic returns. Use
+`cfg_cg_idle_count >= 4` where trailing-packet latency matters.
+`val/amba/test_mon_cg_gating.py` phase 6 asserts the exactly-once
+contract.
 
 ### Ready Signal Control During Gating
 

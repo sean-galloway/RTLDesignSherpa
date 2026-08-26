@@ -223,7 +223,7 @@ This module stacks both jobs on the write path:
 The clock gating logic considers all three write channels plus monitor activity:
 
 ```systemverilog
-user_valid = fub_axi_awvalid || fub_axi_wvalid || fub_axi_bvalid || int_busy;  // peer VALID, never peer READY
+user_valid = fub_axi_awvalid || fub_axi_wvalid || fub_axi_bvalid || int_busy || w_monbus_valid;  // peer VALID, never peer READY
 axi_valid = m_axi_awvalid || m_axi_wvalid || m_axi_bvalid;
 
 // Clock remains active if:
@@ -231,10 +231,12 @@ axi_valid = m_axi_awvalid || m_axi_wvalid || m_axi_bvalid;
 // - W channel active (data phase)
 // - B channel active (response phase)
 // - Internal busy (transactions in flight)
-// // NOTE: monitor state is NOT in int_busy (core busy only)
+// - A monitor packet is pending on the monitor bus (w_monbus_valid)
+// NOTE: the monitor's TRACKING state is still not in int_busy (core busy
+// only); only a packet pending delivery wakes the block.
 ```
 
-The monitor continues operating during clock gating transitions, ensuring no write events are lost.
+The monitor continues operating during clock gating transitions, ensuring no write events are lost. A packet pending on the monitor bus holds the block awake until the consumer accepts it, and the external `monbus_valid` is masked with `!cg_gating`, so monitor-bus delivery is exactly-once across gating (asserted by `val/amba/test_mon_cg_gating.py` phase 6). A packet emitted in the few-cycle reporter latency after the last transaction can still see the clock stop before its valid rises when `cfg_cg_idle_count` is very small; it parks in the reporter FIFO and delivers exactly once at the next wake, so use `cfg_cg_idle_count >= 4` where trailing-packet latency matters.
 
 ### Ready Signal Control During Gating
 

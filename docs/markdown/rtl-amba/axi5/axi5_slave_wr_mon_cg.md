@@ -198,7 +198,7 @@ Identical to `axi5_slave_wr_mon` — see [AXI5 Slave Write Monitor](axi5_slave_w
 ### Clock Gating Behavior
 
 **Activity Detection:**
-- **user_valid:** Asserted when slave interface has activity (awvalid, wvalid, bvalid, or internal busy — peer VALID, never peer READY)
+- **user_valid:** Asserted when slave interface has activity (awvalid, wvalid, bvalid, internal busy, or a monitor packet pending on the monitor bus — peer VALID, never peer READY)
 - **axi_valid:** Asserted when FUB interface has activity (awvalid, wvalid, bvalid)
 
 **Key Points:**
@@ -207,7 +207,7 @@ Identical to `axi5_slave_wr_mon` — see [AXI5 Slave Write Monitor](axi5_slave_w
 - bready forced to 0 when gated (prevents accepting responses)
 - Gating only occurs after configured idle period
 - Any activity immediately ungates the clock
-- Monitor state FREEZES when gated (it runs on the gated clock and is not a wake term)
+- Monitor TRACKING state freezes when gated (it runs on the gated clock and is not a wake term), but a packet pending on the monitor bus IS a wake term: the block stays awake until the consumer accepts it, and the external `monbus_valid` is masked with `!cg_gating`, so monitor-bus delivery is exactly-once across gating (`val/amba/test_mon_cg_gating.py` phase 6)
 
 ### Performance Monitoring
 

@@ -749,22 +749,38 @@ correctly, there won't be data to drop", which reframed a documented
 
 ---
 
-### TASK-070: mon_cg wrappers -- monbus_valid held through gating can double-deliver to an ungated consumer
-**Priority:** P2 (axi5 qc round_20; SUSPECTED pending simulation, structure traced)
+### TASK-070: mon_cg monbus_valid held through gating -- FIXED 2026-08-26 (residual = deferred delivery at tiny idle counts)
+**Priority:** was P2 -- CONFIRMED then fixed; residual documented below
 
-All *_mon_cg wrappers (axi4 + axi5 families) clock the ENTIRE inner mon
-module (reporter incl.) on gated_aclk and pass monbus_valid/monbus_ready
-through unmasked; the activity terms carry no monitor state (int_busy is
-the CORE busy; the monitor instance's .busy() is unconnected). If a packet
-sits on the reporter output register when the bus idles past
-cfg_cg_idle_count, the flop cannot clear -- an ungated consumer holding
-monbus_ready high sees valid&&ready every gated cycle and accepts the SAME
-packet repeatedly until traffic wakes the block. Pending FIFO packets
-freeze rather than drain. Docs now warn (gate the consumer handshake with
-!cg_gating or drain before enabling cg). Fix candidates: OR the monitor
-busy / monbus_valid / fifo-nonempty into user_valid, or mask monbus_valid
-with !cg_gating. Directed test first: small idle count, complete one
-transaction, stall into gating with ready held high, count deliveries.
+CONFIRMED by directed test before the fix: park a completion packet
+(monbus_ready low), idle into gating, raise ready -- the ungated consumer
+accepted the SAME packet 30 times in 30 cycles off the frozen valid, at
+both idle counts. Fix (all 12 wrappers: axi4 + axi5 + axil4): (1)
+w_monbus_valid ORed into user_valid -- a pending packet is outstanding
+work, holds the block awake and re-wakes it within a cycle; (2) external
+monbus_valid masked with !cg_gating -- covers the knife-edge where gating
+asserts on the same edge the packet arrives (1-cycle wake), so a consumer
+can never sample a valid the reporter's stopped clock could not retire.
+The mask only defers valid's rise, never truncates a visible valid,
+because once w_monbus_valid is high gating cannot engage.
+
+Directed test = val/amba/test_mon_cg_gating.py phase 6 (park, watch
+gating, release, record packet VALUES -- a count cannot tell one packet
+re-delivered N times from N distinct packets draining). 24/24 gating +
+36/36 functional green after clean rebuild.
+
+RESIDUAL (empirically shown at idle_count=0): the reporter takes ~2-4
+cycles after CAM-retire to present a packet; an idle count smaller than
+that lets the clock stop before monbus_valid rises, and w_monbus_valid
+cannot wake what never rose. The packet is NOT lost and NEVER duplicates
+-- it parks in the reporter FIFO and delivered exactly-once at the next
+wake in the phase-6 run that exposed it -- but delivery defers until
+traffic returns. Docs now say: use cfg_cg_idle_count >= 4 where
+trailing-packet latency matters. Closing the residual needs the
+reporter's w_output_busy (monbus_valid || w_fifo_rd_valid, already
+computed at axi_monitor_reporter.sv:401) exported up through
+base/filtered/mon to the wrapper activity term -- a port change across
+the shared monitor stack, NOT made; flagged for scope decision.
 
 ### TASK-062: `sdpram_slave_axil_axil` runs on the board with no simulation
 **Priority:** P2
