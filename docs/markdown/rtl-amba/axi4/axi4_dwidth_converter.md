@@ -530,7 +530,7 @@ Master: AWLEN=15, AWSIZE=2 (4 bytes)  → 16 beats × 4 bytes = 64 bytes
 - Chapter 11: Data Width Conversion
 
 ### Source Code
-- RTL: `rtl/amba/axi4/axi4_dwidth_converter.sv`
+- RTL: none -- this page describes a PLANNED combined converter; the real modules are `projects/components/converters/rtl/axi4_dwidth_converter_{rd,wr}.sv`
 - Tests: `projects/components/converters/dv/tests/test_axi4_dwidth_converter_wr.py`
 - Framework: `bin/TBClasses/components/axi4/`
 

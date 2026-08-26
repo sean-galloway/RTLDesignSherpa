@@ -373,6 +373,7 @@ assign tb_w_pkt = {
 };
 
 // Parse B packet
+localparam int BSize = 8 + 2 + 4;   // IW + resp + UW
 wire [7:0] b_id   = tb_b_pkt[BSize-1:BSize-8];
 wire [1:0] b_resp = tb_b_pkt[5:4];
 wire [3:0] b_user = tb_b_pkt[3:0];

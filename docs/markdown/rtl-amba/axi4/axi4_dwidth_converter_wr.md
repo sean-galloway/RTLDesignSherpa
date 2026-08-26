@@ -450,7 +450,7 @@ raised.
 passes `AWADDR` through unmodified while promoting `AWSIZE` to the full master
 width. Supply an address already aligned to `M_AXI_DATA_WIDTH / 8`; a misaligned
 address combined with the promoted `AWSIZE` is not protocol-legal for an `INCR`
-burst and the module does not detect or correct it.
+burst; hardware does not correct it, but an `ifdef SIMULATION` assertion fires `$error` on misaligned upsize AW addresses, so it cannot slip through a simulated regression.
 
 See [axi4_dwidth_converter](axi4_dwidth_converter.md) for detailed examples.
 

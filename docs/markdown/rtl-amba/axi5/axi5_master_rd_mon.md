@@ -88,7 +88,7 @@ flowchart TB
     subgraph MONBUS["Monitor Bus"]
         direction LR
         pkt_valid["monbus_valid"]
-        pkt_data["monbus_packet<br/>[63:0]"]
+        pkt_data["monbus_packet<br/>[127:0]"]
         pkt_ready["monbus_ready"]
     end
 
@@ -293,7 +293,7 @@ Every cycle inside the window is classified by the **R** data channel's valid/re
 | `perf_starv_cycles` | 32 | `!rvalid && rready`  | starvation (sink ready, no data) |
 | `perf_idle_cycles`  | 32 | `!rvalid && !rready` | idle |
 
-The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / window_cycles`.
+The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); the one-count skew is negligible for long windows.
 
 ### Throughput counters
 

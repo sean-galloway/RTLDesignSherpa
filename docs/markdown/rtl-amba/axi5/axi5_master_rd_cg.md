@@ -241,7 +241,7 @@ The clock gating controller monitors activity on both user and AXI sides:
 
 **User-side activity detection:**
 ```systemverilog
-user_valid = fub_axi_arvalid || fub_axi_rready || int_busy
+user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy  // peer VALID (post-fix)
 ```
 
 **AXI-side activity detection:**
@@ -460,7 +460,7 @@ end
 **Low-Latency:**
 ```systemverilog
 .cfg_cg_enable      (1'b1),
-.cfg_cg_idle_count  (4'd7)   // Gate after 8 idle cycles
+.cfg_cg_idle_count  (4'd7)   // Gate after 4 idle cycles (count+1; a LITERAL count)
 ```
 
 **Disabled (Always-On):**

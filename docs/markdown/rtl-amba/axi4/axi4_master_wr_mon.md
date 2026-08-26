@@ -198,7 +198,7 @@ Every cycle inside the window is classified by the W channel's `wvalid` / `wread
 | `perf_starv_cycles` | 32 | !wvalid && wready  | starvation (sink ready, no data) |
 | `perf_idle_cycles`  | 32 | !wvalid && !wready | idle |
 
-The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / window_cycles`.
+The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); the one-count skew is negligible for long windows.
 
 ### Throughput Counters
 
@@ -473,14 +473,14 @@ axi4_master_wr_mon #(
 - Monitors AW channel for write address capture
 - Tracks W channel beats (WLAST detection)
 - Correlates B channel responses with AWID
-- Detects mismatched burst lengths (W beats vs AWLEN+1)
+- Completes write data on WLAST or the expected beat count -- there is NO mismatch event; a short-terminated or over-long burst is not flagged
 
 **Common Write Errors Detected:**
 - **SLVERR:** Slave error response (decode failure, access violation)
 - **DECERR:** Decode error (address not mapped)
 - **Orphan transactions:** AWID without matching BID
 - **Timeout:** Write address or response stuck beyond threshold
-- **Protocol violations:** Invalid WSTRB, missing WLAST
+- **Protocol violations:** response-before-data ordering only (WSTRB never reaches the monitor -- no strobe check exists; WLAST is used for completion, not validated)
 
 ### Performance Considerations
 

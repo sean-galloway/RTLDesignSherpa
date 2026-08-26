@@ -193,7 +193,7 @@ Same as `axi5_slave_rd_mon` - see [AXI5 Slave Read Monitor](axi5_slave_rd_mon.md
 ### Clock Gating Behavior
 
 **Activity Detection:**
-- **user_valid:** Asserted when slave interface has activity (arvalid, rready, or internal busy)
+- **user_valid:** Asserted when slave interface has activity (arvalid, rvalid, or internal busy -- peer VALID)
 - **axi_valid:** Asserted when FUB interface has activity (arvalid, rvalid)
 
 **Key Points:**

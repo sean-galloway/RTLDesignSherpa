@@ -173,7 +173,7 @@ flowchart TB
 - **Where the stall lands**: the upstream `fub_axi_awready` is forced low until the monitor drains.
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 - **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
-- **For axi5 slave variants** (only applies to axi5_slave_wr_mon): the monitor watches the FUB-side handshake, so there is a `SKID_DEPTH_AW` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
+- The monitor's command tap sits across the AW SKID from the block_ready gate (this master monitor mirrors the slave variant's structure), so there is a `SKID_DEPTH_AW` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
 
 Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
 
@@ -336,7 +336,7 @@ The monitor correlates three channels:
 
 **Protocol Errors (implemented set):**
 - Response-before-data ordering (EVT_PROTOCOL)
-- Orphaned data / orphaned responses
+- Orphaned responses (orphaned WRITE DATA cannot be detected on an AXI write monitor -- with IS_AXI=1 data never allocates a table entry, so an unmatched W burst is invisible)
 
 (Handshake-stability, WLAST, ID-width, burst-length, alignment and strobe
 checks are NOT implemented -- the monitor taps only cmd/data/resp
@@ -592,7 +592,7 @@ attribution; that defect is fixed.
 
 The transaction table tracks:
 - **AW phase:** Allocate entry, store address/control
-- **W phase:** Count beats, verify WLAST matches AWLEN
+- **W phase:** Count beats; completion is WLAST OR the expected count -- WLAST is not VERIFIED against AWLEN (no mismatch event)
 - **B phase:** Match BID to AWID, record response, deallocate entry
 
 **Outstanding write tracking:**

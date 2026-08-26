@@ -398,28 +398,30 @@ data-width boundary:
 m_axi_araddr = {s_axi_araddr[AXI_ADDR_WIDTH-1:$clog2(M_STRB_WIDTH)],
                 {$clog2(M_STRB_WIDTH){1'b0}}}
 ```
-A misaligned slave address is silently truncated. The module does not assert an
-error, stall, or split the transaction, so the caller is responsible for issuing
-addresses aligned to the wide side when the low-order bits are significant.
+A misaligned slave address is truncated in hardware, but SIMULATION catches
+it: an `ifdef SIMULATION` assertion fires `$error` on any upsize AR with
+nonzero low-order bits. Silicon neither stalls nor splits, so the caller is
+still responsible for wide-side alignment -- but a misaligned address will
+not get through a simulated regression unnoticed.
 
 See [axi4_dwidth_converter](axi4_dwidth_converter.md) for detailed examples.
 
 ### Buffer Depth Guidelines
 
-**AR Channel:**
-- Default: 4 entries (sufficient for most cases)
-- Increase for high address command rate
+The module has SKID buffers (2..8 entries), not channel FIFOs -- elasticity
+beyond depth 8 belongs in an external `gaxi_fifo_sync` stage.
 
-**R Channel:**
-- **Upsize:** R_FIFO_DEPTH ≥ WIDTH_RATIO × max_burst_length
-  - Need to buffer unpacked narrow beats
-- **Downsize:** R_FIFO_DEPTH ≥ WIDTH_RATIO × max_burst_length
-  - Need to accumulate narrow beats for packing
+**AR Channel (`SKID_DEPTH_AR`, default 2):** increase toward 8 for a high
+address command rate.
 
-**Example (32→128, max burst=16 narrow beats):**
+**R Channel (`SKID_DEPTH_R`, default 4):** increase toward 8 for burst
+absorption; the data-width primitives inside handle the pack/unpack
+accumulation, so the skid does not need to hold a whole burst.
+
+**Example (32→128):**
 ```systemverilog
-.AR_FIFO_DEPTH  (4),   // Address commands
-.R_FIFO_DEPTH   (16)   // Unpack 4 wide → 16 narrow beats
+.SKID_DEPTH_AR  (2),
+.SKID_DEPTH_R   (8)    // deepest available skid for burst traffic
 ```
 
 ### Performance Characteristics

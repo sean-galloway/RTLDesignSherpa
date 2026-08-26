@@ -336,7 +336,7 @@ Clock-gated variants (`*_cg`) add power management:
 
 ### Configuration and Integration
 - **[AXI Monitor Configuration Guide](../monitor/axi_monitor_base.md)** - Monitor setup strategies
-- **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 64-bit packet format
+- **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 128-bit packet format (+ 64-bit side-band timestamp)
 
 ### Source Code
 - RTL: `rtl/amba/axi4/`

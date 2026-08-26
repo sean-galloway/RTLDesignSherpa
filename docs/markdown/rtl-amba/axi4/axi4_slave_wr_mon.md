@@ -97,6 +97,7 @@ The module instantiates two sub-modules:
 | `AXI_ID_WIDTH` | int | 8 | Transaction ID width |
 | `AXI_ADDR_WIDTH` | int | 32 | Address bus width |
 | `AXI_DATA_WIDTH` | int | 32 | Data bus width |
+| AXI_WSTRB_WIDTH | int | AXI_DATA_WIDTH/8 | Write strobe width (transport only -- the monitor does not inspect strobes) |
 | `AXI_USER_WIDTH` | int | 1 | User signal width |
 
 ### Monitor Parameters
@@ -198,7 +199,7 @@ Every cycle inside the window is classified by the W channel's `wvalid` / `wread
 | `perf_starv_cycles` | 32 | !wvalid && wready  | starvation (sink ready, no data) |
 | `perf_idle_cycles`  | 32 | !wvalid && !wready | idle |
 
-The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / window_cycles`.
+The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); the one-count skew is negligible for long windows.
 
 ### Throughput Counters
 
@@ -404,7 +405,7 @@ axi4_slave_wr_mon #(
     .cfg_error_enable       (1'b1),
     .cfg_timeout_enable     (1'b1),
     .cfg_perf_enable        (1'b0),
-    .cfg_timeout_cycles     (16'd15),    // Max ticks: allow memory latency
+    .cfg_timeout_cycles     (16'd15),    // 15 microseconds per phase (full 16-bit range)
     .cfg_latency_threshold  (32'd1000),
 
     .cfg_axi_pkt_mask       (16'hFFF6),  // Drop all but ERROR, TIMEOUT
@@ -501,13 +502,13 @@ Same as [axi4_slave_wr](../axi4/axi4_slave_wr.md):
 - Monitors AW channel for address capture
 - Tracks W channel beats until WLAST
 - Correlates B channel response with AWID
-- Validates burst length (W beats == AWLEN+1)
-- Checks WSTRB validity per beat
+- Completes write data on WLAST or the expected count -- no burst-length mismatch event exists
+- (WSTRB is NOT checked -- no strobe signal reaches the monitor)
 
 **Performance Impact:**
 - Write bursts more efficient than single writes
 - Backend may buffer/pipeline write data
-- B response can occur before W completion (with reordering)
+- A B response before W completion is flagged as a protocol error (EVT_PROTOCOL) -- the monitor does not model response reordering
 - Monitor packets generated per transaction, not per beat
 
 ---

@@ -136,7 +136,7 @@ flowchart TB
 | ENABLE_TIMEOUT_LOGIC | bit | 1 | Synthesis-cone enable for timeout detection (forwarded to base module) |
 | ENABLE_COMPL_LOGIC | bit | 1 | Synthesis-cone enable for completion tracking (forwarded to base module) |
 | ENABLE_THRESHOLD_LOGIC | bit | 1 | Synthesis-cone enable for threshold detection (forwarded to base module) |
-| ENABLE_PERF_LOGIC | bit | 1 | Synthesis-cone enable for the perfmon window + counters (forwarded to base module) |
+| ENABLE_PERF_LOGIC | bit | 1 | Synthesis-cone enable for the REPORTER's legacy perf-packet cone and the two lifetime counters only -- window FSM and meters are unconditional |
 | ENABLE_DEBUG_LOGIC | bit | 0 | Synthesis-cone enable for the debug/trace cone (forwarded to base module) |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Clock gating idle counter width |
 
@@ -209,7 +209,7 @@ Same as `axi5_slave_wr_mon` - see [AXI5 Slave Write Monitor](axi5_slave_wr_mon.m
 - bready forced to 0 when gated (prevents accepting responses)
 - Gating only occurs after configured idle period
 - Any activity immediately ungates the clock
-- Monitor continues to track transactions even when gated
+- Monitor state FREEZES when gated (it runs on the gated clock and is not a wake term)
 
 ---
 
@@ -289,7 +289,7 @@ axi5_slave_wr_mon_cg #(
 
     // Clock gating config
     .cfg_cg_enable      (1'b1),          // Enable gating
-    .cfg_cg_idle_count  (4'd3),          // Gate after 8 idle cycles
+    .cfg_cg_idle_count  (4'd3),          // Gate after 4 idle cycles (count+1; a LITERAL count)
 
     // Slave interface (from external master)
     .s_axi_awid         (s_axi_awid),
@@ -370,7 +370,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 - Debug/validation builds with power budgets
 - Systems with sporadic write transaction patterns
 - SoC integration requiring both monitoring and power optimization
-- Data integrity validation (poison detection)
+- (NOT for poison detection -- WPOISON never reaches the monitor)
 
 **Avoid when:**
 - Interface is continuously active (minimal gating opportunities)
@@ -403,8 +403,8 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 .cfg_cg_idle_count  (4'd2),   // Balanced
 .cfg_error_enable   (1'b1),   // Catch all errors
 .cfg_monitor_enable (1'b1),   // Master gate: monitor active
-.ENABLE_POISON      (1),      // Enable poison detection
-.ENABLE_MTE         (1)       // Enable tag checking
+.ENABLE_POISON      (1),      // transport-only: carries WPOISON, no detection
+.ENABLE_MTE         (1)       // transport-only: carries tags, no checking
 ```
 
 ### Area and Timing Impact
@@ -417,7 +417,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 
 **Burst Handling:**
 - Monitor tracks AW/W synchronization
-- Detects missing WLAST errors
+- (Missing-WLAST detection is NOT implemented)
 - Burst latency includes all beats
 - Gating should not occur mid-burst
 

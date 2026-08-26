@@ -195,7 +195,7 @@ Every cycle inside the window is classified by the R channel's `rvalid` / `rread
 | `perf_starv_cycles` | 32 | !rvalid && rready  | starvation (sink ready, no data) |
 | `perf_idle_cycles`  | 32 | !rvalid && !rready | idle |
 
-The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / window_cycles`.
+The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); the one-count skew is negligible for long windows.
 
 ### Throughput Counters
 
@@ -454,13 +454,13 @@ memory_controller u_mem (
 - **Backend timeout:** AR accepted but R never returned
 - **SLVERR:** Slave error (access violation, parity error)
 - **DECERR:** Decode error (shouldn't occur at slave, but detected)
-- **Burst mismatch:** R beats don't match ARLEN+1
+- (Read burst-length mismatch is NOT checked: reads complete on RLAST or error RRESP; expected_beats is stored but never compared)
 - **ID corruption:** RID doesn't match tracked ARID
 
 ### Performance Considerations
 
 **Backend Latency Monitoring:**
-- Tracks AR → R first beat latency
+- Tracks AR -> R LAST-beat latency (data_timestamp is written on the final beat; there is no first-beat timestamp)
 - Configurable timeout threshold
 - Separate from master-side latency
 

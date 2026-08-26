@@ -287,7 +287,7 @@ axi4_master_rd_mon_cg dut (
 For power-specific verification:
 
 1. **Enable clock gating** with realistic parameters
-2. **Monitor gating signals** (`cg_*_gated`) to verify expected behavior
+2. **Monitor gating signals** (`cg_gating` / `cg_idle`) to verify expected behavior
 3. **Vary traffic patterns** to test gating effectiveness
 4. **Check wake-up timing** meets system requirements
 

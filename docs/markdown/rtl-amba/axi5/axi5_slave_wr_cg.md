@@ -171,7 +171,7 @@ Same as `axi5_slave_wr` - see [AXI5 Slave Write](axi5_slave_wr.md) for complete 
 ### Clock Gating Behavior
 
 **Activity Detection:**
-- **user_valid:** Asserted when slave interface has activity (awvalid, wvalid, bready, or internal busy)
+- **user_valid:** Asserted when slave interface has activity (awvalid, wvalid, bvalid, or internal busy -- peer VALID, post-fix)
 - **axi_valid:** Asserted when FUB interface has activity (awvalid, wvalid, bvalid)
 
 **Gating State Machine:**

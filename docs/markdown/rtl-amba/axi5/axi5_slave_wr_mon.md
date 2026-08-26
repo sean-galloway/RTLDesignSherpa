@@ -39,7 +39,7 @@ The AXI5 Slave Write Monitor module combines the `axi5_slave_wr` interface with 
 - **Integrated filtered monitoring** - no external monitor needed
 - All AXI5 extensions supported (ATOMIC, NSAID, TRACE, MPAM, MECID, UNIQUE, MTE, POISON)
 - Transaction tracking with configurable table size
-- Error detection (SLVERR, timeout, orphan transactions, poison data)
+- Error detection (SLVERR, timeout, orphan transactions -- poison is NOT observable by the monitor)
 - Performance metrics (latency, throughput)
 - Configurable packet filtering to reduce bandwidth
 - 128-bit monitor bus packet output paired with 64-bit side-band timestamp
@@ -340,7 +340,7 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 
 | Event Code | Description | Event Data |
 |------------|-------------|------------|
-| 0x1 | SLVERR response | Transaction ID, address[18:0] |
+| 0x1 | SLVERR response | Zero-extended 32-bit ADDRESS |
 | 0x2 | DECERR response | Transaction ID, address[18:0] |
 | 0x3 | Orphan data | Transaction ID, beat count |
 | 0x4 | Protocol violation | Violation code |
@@ -352,23 +352,27 @@ signal reaches the monitor; these codes are never emitted.)
 
 | Event Code | Description | Event Data |
 |------------|-------------|------------|
-| 0x0 | Write completion | Transaction ID, burst length, latency |
+| 0x0 | Write completion | Zero-extended 32-bit ADDRESS (the reporter cones carry address only -- no ID/length/latency in event_data) |
 
 #### Timeout Packets (Type=3)
 
 | Event Code | Description | Event Data |
 |------------|-------------|------------|
-| 0x1 | AW channel timeout | Transaction ID, cycles elapsed |
-| 0x2 | W channel timeout | Transaction ID, cycles elapsed |
-| 0x3 | B channel timeout | Transaction ID, cycles elapsed |
+| 0x1 | AW channel timeout | Zero-extended 32-bit ADDRESS (no ID/cycle count in event_data) |
+| 0x2 | W channel timeout | Zero-extended 32-bit ADDRESS |
+| 0x3 | B channel timeout | Zero-extended 32-bit ADDRESS |
 
 #### Performance Packets (Type=4)
 
 | Event Code | Description | Event Data |
 |------------|-------------|------------|
-| 0x1 | High latency | Transaction ID, latency (cycles) |
-| 0x2 | Bandwidth sample | Bytes transferred, time window |
-| 0x3 | Outstanding count | Max outstanding, average |
+| (only two exist) | AXI_PERF_COMPLETED_COUNT | 64'(completed-packet lifetime count) |
+| | AXI_PERF_ERROR_COUNT | 64'(error-packet lifetime count) |
+
+(High-latency / bandwidth-sample / outstanding-count packets were never
+implemented -- the reporter's own comment marks those states placeholders.
+Latency and utilization data come from the perfmon WINDOW outputs, not
+packets.)
 
 ---
 
@@ -512,13 +516,13 @@ attribution; that defect is fixed.
 
 **Burst Completions:**
 - Tracks AWLEN to verify complete bursts
-- Detects missing WLAST errors
+- (Missing-WLAST detection is NOT implemented -- WLAST drives completion, not validation)
 - Monitors AW/W channel synchronization
 
 **Atomic Operations:**
 - AWATOP is NOT monitored (ENABLE_ATOMIC shapes the transport only)
-- Tracks atomic transaction latency
-- Detects atomic operation failures
+- (Atomic latency is not separately tracked -- atomics time out / complete like ordinary writes)
+- (Atomic failures surface only as ordinary SLVERR/DECERR -- no ATOP-specific detection)
 
 ### Best Practices
 

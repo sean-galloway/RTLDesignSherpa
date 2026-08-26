@@ -105,6 +105,8 @@ The module instantiates two sub-modules:
 | `MAX_TRANSACTIONS` | int | 16 | Maximum concurrent outstanding transactions |
 | `ACLK_MHZ` | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
 | `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | -- | Bounds for the freq-invariant counter LUT (`cfg_freq_sel` indexes within them) |
+| `USE_WDATA_ORDER_Q` / `NUM_BANKS` | int | -- | Write-data ordering queue / banked-table shaping (write monitors) |
+| `ID_FILTER_ENABLE` / `ID_MATCH_BASE` / `ID_MATCH_COUNT` | int | 0/-- | Per-instance ID-slice filtering for parallel monitor snooping |
 | `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
@@ -195,7 +197,7 @@ Every cycle inside the window is classified by the R channel's `rvalid` / `rread
 | `perf_starv_cycles` | 32 | !rvalid && rready  | starvation (sink ready, no data) |
 | `perf_idle_cycles`  | 32 | !rvalid && !rready | idle |
 
-The four buckets sum to `window_cycles`, so utilization = `perf_prod_cycles / window_cycles`.
+The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); the one-count skew is negligible for long windows.
 
 ### Throughput Counters
 
@@ -460,7 +462,7 @@ Variant single-beat read with different timing:
 .cfg_axi_debug_mask     (16'hFFFF),  // Drop debug
 
 // Timeouts
-.cfg_timeout_cycles     (16'd10),    // 10 timer ticks per phase (>15 saturates)
+.cfg_timeout_cycles     (16'd10),    // 10 microseconds per phase (full 16-bit range)
 .cfg_latency_threshold  (32'd500)
 ```
 
@@ -592,7 +594,7 @@ axi4_master_rd_mon #(
     .cfg_error_enable       (1'b1),
     .cfg_timeout_enable     (1'b1),
     .cfg_perf_enable        (1'b0),
-    .cfg_timeout_cycles     (16'd10),    // 10 timer ticks per phase (>15 saturates)
+    .cfg_timeout_cycles     (16'd10),    // 10 microseconds per phase (full 16-bit range)
     .cfg_latency_threshold  (32'd500),
 
     .cfg_axi_pkt_mask       (16'hFFF6),  // Drop all but ERROR, TIMEOUT

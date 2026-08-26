@@ -263,7 +263,7 @@ The clock gating controller monitors activity on both user and AXI sides for all
 
 **User-side activity detection:**
 ```systemverilog
-user_valid = fub_axi_awvalid || fub_axi_wvalid || fub_axi_bready || int_busy
+user_valid = fub_axi_awvalid || fub_axi_wvalid || fub_axi_bvalid || int_busy  // peer VALID (post-fix)
 ```
 
 **AXI-side activity detection:**

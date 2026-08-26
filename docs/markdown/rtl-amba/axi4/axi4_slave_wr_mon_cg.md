@@ -46,7 +46,7 @@ The `axi4_slave_wr_mon_cg` module adds power optimization to `axi4_slave_wr_mon`
 
 - ✅ **Same Functionality:** 100% equivalent to base module
 - ✅ **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
-- ✅ **Configurable:** Idle threshold, gating domains, enable/disable
+- ✅ **Configurable at runtime:** `cfg_cg_enable` / `cfg_cg_idle_count` (one gate, no domains)
 - ✅ **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate at runtime
 
 ---

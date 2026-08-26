@@ -440,7 +440,7 @@ gaxi_fifo_sync #(
 
 1. **Monitor packets generated before gating:**
    - Monitor processes all events before idle state
-   - MonBus packets flushed before clock stops
+   - MonBus packets FREEZE when the clock stops (see the WARNING above -- nothing flushes them)
    - No events lost during gating transition
 
 2. **Wake latency includes monitor initialization:**

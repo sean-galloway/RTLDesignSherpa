@@ -418,6 +418,8 @@ assign tb_ar_pkt = {
 };
 
 // Parse responses
+localparam int BSize = 8 + 2 + 4;        // IW + resp + UW -- match your instance
+localparam int RSize = 8 + 64 + 2 + 1 + 4; // IW + DW + resp + last + UW
 wire [7:0] b_id   = tb_b_pkt[BSize-1:BSize-8];
 wire [1:0] b_resp = tb_b_pkt[5:4];
 
