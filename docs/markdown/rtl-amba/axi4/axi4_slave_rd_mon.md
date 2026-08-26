@@ -465,9 +465,10 @@ memory_controller u_mem (
 - Separate from master-side latency
 
 **Typical Timeout Values:**
-- SRAM backend: 100-500 cycles
-- DDR controller: 1000-5000 cycles
-- PCIe/external: 10000+ cycles
+- SRAM backend: 1-5 us
+- DDR controller: 10-50 us
+- PCIe/external: 100+ us
+(the knob is a MICROSECOND count, not clock cycles)
 
 ### Buffer Depth Guidelines
 

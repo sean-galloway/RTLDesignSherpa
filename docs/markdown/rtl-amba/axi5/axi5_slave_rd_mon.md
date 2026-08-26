@@ -334,8 +334,8 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 
 | Event Code | Description | Event Data |
 |------------|-------------|------------|
-| 0x1 | SLVERR response | Transaction ID, address[18:0] |
-| 0x2 | DECERR response | Transaction ID, address[18:0] |
+| 0x1 | SLVERR response | Zero-extended 32-bit ADDRESS (the reporter cones carry address only) |
+| 0x2 | DECERR response | Zero-extended 32-bit ADDRESS |
 | 0x3 | Orphan data | Transaction ID |
 | 0x4 | Protocol violation | Violation code |
 (Event codes 0x5 "poison" and 0x6 "tag mismatch" were documented here but
@@ -345,22 +345,24 @@ are NOT implemented -- no poison/tag signal reaches the monitor.)
 
 | Event Code | Description | Event Data |
 |------------|-------------|------------|
-| 0x0 | Read completion | Transaction ID, burst length, latency |
+| 0x0 | Read completion | Zero-extended 32-bit ADDRESS |
 
 #### Timeout Packets (Type=3)
 
 | Event Code | Description | Event Data |
 |------------|-------------|------------|
-| 0x1 | AR channel timeout | Transaction ID, cycles elapsed |
-| 0x2 | R channel timeout | Transaction ID, cycles elapsed |
+| 0x1 | AR channel timeout | Zero-extended 32-bit ADDRESS |
+| 0x2 | R channel timeout | Zero-extended 32-bit ADDRESS |
 
 #### Performance Packets (Type=4)
 
 | Event Code | Description | Event Data |
 |------------|-------------|------------|
-| 0x1 | High latency | Transaction ID, latency (cycles) |
-| 0x2 | Bandwidth sample | Bytes transferred, time window |
-| 0x3 | Outstanding count | Max outstanding, average |
+| (only two exist) | AXI_PERF_COMPLETED_COUNT | 64'(completed-packet lifetime count) |
+| | AXI_PERF_ERROR_COUNT | 64'(error-packet lifetime count) |
+
+(High-latency / bandwidth / outstanding packets were never implemented --
+window outputs carry that data, not packets.)
 
 ---
 

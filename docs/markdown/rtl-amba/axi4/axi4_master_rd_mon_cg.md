@@ -36,10 +36,10 @@ The `axi4_master_rd_mon_cg` module is a clock-gated variant of [axi4_master_rd_m
 
 ### Key Differences from Base Module
 
-- ✅ **Activity-Based Clock Gating:** Automatically gates clocks when subsystems are idle
-- ✅ **Configurable Policies:** Fine-grained control over what gets gated and when
-- ✅ **Power Monitoring:** Built-in statistics for clock gating effectiveness
-- ✅ **Zero Functional Impact:** Maintains 100% functional equivalence with base module
+- ✅ **Activity-Based Clock Gating:** one gate for the whole module, woken by bus valids + core busy
+- ✅ **Runtime Control:** `cfg_cg_enable` / `cfg_cg_idle_count` (no per-domain policies)
+- ✅ **Gating Status:** `cg_gating` / `cg_idle` outputs (no built-in power statistics)
+- **Functional differences from base:** ten base parameters not forwarded, `debug_block_ready` tied off, and gated-clock caveats for windows/triggers (see the WARNING below) -- use the base module when those matter
 
 All other functionality is identical to the base module. See [axi4_master_rd_mon.md](./axi4_master_rd_mon.md) for complete functional specification.
 

@@ -478,7 +478,7 @@ axi4_master_wr_mon #(
 **Common Write Errors Detected:**
 - **SLVERR:** Slave error response (decode failure, access violation)
 - **DECERR:** Decode error (address not mapped)
-- **Orphan transactions:** AWID without matching BID
+- **Orphan responses:** a B response (BID) arriving with NO matching tracked command -- the detection direction is response-side; an AW that never gets its B surfaces as a TIMEOUT, not an orphan
 - **Timeout:** Write address or response stuck beyond threshold
 - **Protocol violations:** response-before-data ordering only (WSTRB never reaches the monitor -- no strobe check exists; WLAST is used for completion, not validated)
 

@@ -139,6 +139,7 @@ module axi4_slave_wr #(
 | `AXI_ID_WIDTH` | int | 8 | Width of transaction ID signals (AWID, BID) |
 | `AXI_ADDR_WIDTH` | int | 32 | Width of address bus (AWADDR) |
 | `AXI_DATA_WIDTH` | int | 32 | Width of data bus (WDATA), must be 8, 16, 32, 64, 128, 256, 512, or 1024 |
+| AXI_WSTRB_WIDTH | int | AXI_DATA_WIDTH/8 | Write strobe width |
 | `AXI_USER_WIDTH` | int | 1 | Width of user-defined signals (AWUSER, WUSER, BUSER) |
 
 ---

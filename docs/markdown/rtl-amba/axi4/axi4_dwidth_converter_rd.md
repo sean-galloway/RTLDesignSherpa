@@ -352,7 +352,7 @@ axi4_dwidth_converter_rd #(
 - Read-heavy systems with dedicated write path
 
 **Resource Savings vs. Full Converter:**
-- No AW/W/B channel FIFOs (saves ~40% resources)
+- No AW/W/B channel logic at all (read-only path; savings unquantified -- there is no combined converter in-tree to measure against)
 - Simpler control logic
 - Lower latency (no write path dependencies)
 

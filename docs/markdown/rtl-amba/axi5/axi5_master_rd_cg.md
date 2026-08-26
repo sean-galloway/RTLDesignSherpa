@@ -460,7 +460,7 @@ end
 **Low-Latency:**
 ```systemverilog
 .cfg_cg_enable      (1'b1),
-.cfg_cg_idle_count  (4'd7)   // Gate after 4 idle cycles (count+1; a LITERAL count)
+.cfg_cg_idle_count  (4'd7)   // Gate after 8 idle cycles (count+1; a LITERAL count)
 ```
 
 **Disabled (Always-On):**

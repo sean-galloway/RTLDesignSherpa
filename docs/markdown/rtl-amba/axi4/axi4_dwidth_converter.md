@@ -450,7 +450,7 @@ axi4_dwidth_converter #(
 
 **Upsize:**
 ```
-Master AWLEN = (Slave AWLEN + 1) / WIDTH_RATIO - 1
+Master AWLEN = (Slave AWLEN + WIDTH_RATIO) / WIDTH_RATIO - 1   // ceiling divide, matching the shipped rd/wr converters
 Master AWSIZE = Slave AWSIZE + $clog2(WIDTH_RATIO)
 
 Example: 32→128 (WIDTH_RATIO=4)

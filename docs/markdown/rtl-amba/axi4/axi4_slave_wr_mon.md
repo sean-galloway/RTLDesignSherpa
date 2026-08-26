@@ -36,7 +36,7 @@ The AXI4 Slave Write Monitor module combines a functional AXI4 slave write inter
 ### Key Features
 
 - ✅ **Integrated Monitoring:** Combines `axi4_slave_wr` with `axi_monitor_filtered`
-- ✅ **3-Level Filtering:** Packet type masks, error routing, individual event masking
+- ✅ **2-Level Filtering:** Packet-type drop masks, individual event masking
 - ✅ **Error Detection:** Protocol violations, SLVERR, DECERR, orphan transactions
 - ✅ **Timeout Monitoring:** Configurable timeout detection for stuck transactions
 - ✅ **Performance Metrics:** Latency tracking, transaction counting, throughput analysis
@@ -108,6 +108,8 @@ The module instantiates two sub-modules:
 | `AGENT_ID` | logic [15:0] | 16'h0015 | 16-bit agent identifier in monitor packets |
 | `MAX_TRANSACTIONS` | int | 16 | Maximum concurrent outstanding transactions |
 | `ACLK_MHZ` | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
+| USE_WDATA_ORDER_Q / NUM_BANKS | int | -- | Write-data ordering queue / banked-table shaping |
+| ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT | int | 0/-- | Per-instance ID-slice filtering |
 | `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | -- | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
 | `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
@@ -126,7 +128,7 @@ Each detection cone can be compiled out to save area. The classic cones default 
 | `ENABLE_TIMEOUT_LOGIC`   | bit | 1 | Drop the timeout cone **and** the `axi_monitor_timeout` instance |
 | `ENABLE_COMPL_LOGIC`     | bit | 1 | Drop the completion cone |
 | `ENABLE_THRESHOLD_LOGIC` | bit | 1 | Drop the threshold cone |
-| `ENABLE_PERF_LOGIC`      | bit | 1 | Drop the perfmon window + counters |
+| `ENABLE_PERF_LOGIC`      | bit | 1 | Gates only the reporter's legacy perf-packet cone and the two lifetime counters -- the window FSM and meters are unconditional |
 | `ENABLE_DEBUG_LOGIC`     | bit | 0 | Drop the debug (trace) cone — the 6th reporter sub-block (off by default) |
 
 Internally the wrapper hardwires two master switches on its `axi_monitor_filtered` instance: `ENABLE_PERF_PACKETS = 1` (perf datapath present, so `ENABLE_PERF_LOGIC` alone gates the window/counters) and `ENABLE_DEBUG_MODULE = 0` (debug tracking module omitted). These are not top-level parameters of the wrapper.
@@ -465,9 +467,9 @@ memory_controller u_mem (
 - **Write data timeout:** AW accepted but W never completed
 - **SLVERR:** Slave error (access violation, parity error, write protection)
 - **DECERR:** Decode error (shouldn't occur at slave, but detected)
-- **Burst mismatch:** W beats don't match AWLEN+1
+- (Burst-length mismatch is NOT detected -- completion logic only)
 - **ID corruption:** BID doesn't match tracked AWID
-- **WSTRB protocol violations:** Invalid byte lane enables
+- (WSTRB violations are NOT detected -- no strobe reaches the monitor)
 
 ### Performance Considerations
 

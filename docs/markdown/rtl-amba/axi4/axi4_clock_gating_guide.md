@@ -49,7 +49,7 @@ All AXI4 modules in this subsystem have clock-gated (`_cg`) variants that add po
 
 - ✅ **Dynamic Clock Gating:** Automatic clock disable during idle periods
 - ✅ **Configurable Idle Threshold:** Programmable idle count before gating
-- ✅ **Full Functional Equivalence:** Identical functionality to base modules
+- ✅ **Functional Equivalence** for the plain _cg wrappers (minus the un-exported `busy`); the _mon_cg wrappers additionally drop ten base parameters and tie off `debug_block_ready` -- see their pages
 - ✅ **Status Monitoring:** Real-time gating and idle status outputs
 - ✅ **Test Mode Support:** Bypass capability for scan testing
 - ✅ **Low Ungating Overhead:** One register stage on the wake-up path; the first usable gated-clock edge arrives 2 cycles after activity is seen

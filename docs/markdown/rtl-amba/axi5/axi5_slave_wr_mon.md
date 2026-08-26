@@ -341,7 +341,7 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 | Event Code | Description | Event Data |
 |------------|-------------|------------|
 | 0x1 | SLVERR response | Zero-extended 32-bit ADDRESS |
-| 0x2 | DECERR response | Transaction ID, address[18:0] |
+| 0x2 | DECERR response | Zero-extended 32-bit ADDRESS |
 | 0x3 | Orphan data | Transaction ID, beat count |
 | 0x4 | Protocol violation | Violation code |
 (Event codes 0x5 "poison", 0x6 "tag mismatch" and 0x7 "missing WLAST"
@@ -509,10 +509,7 @@ attribution; that defect is fixed.
 
 ### Write-Specific Monitoring
 
-**Poison Detection:**
-- WPOISON is NOT tracked (transport-only signal; never reaches the monitor)
-- Generates error packet when poison detected
-- Critical for data integrity validation
+**Poison Detection:** NOT implemented -- WPOISON never reaches the monitor; no poison packet can be emitted.
 
 **Burst Completions:**
 - Tracks AWLEN to verify complete bursts

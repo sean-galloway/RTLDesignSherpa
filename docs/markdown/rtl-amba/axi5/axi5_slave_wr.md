@@ -90,9 +90,9 @@ flowchart LR
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| SKID_DEPTH_AW | int | 2 | AW channel SKID buffer depth |
-| SKID_DEPTH_W | int | 4 | W channel SKID buffer depth |
-| SKID_DEPTH_B | int | 2 | B channel SKID buffer depth |
+| SKID_DEPTH_AW | int | 2 | AW channel SKID buffer depth (legal range 2..8 inclusive, any integer) |
+| SKID_DEPTH_W | int | 4 | W channel SKID buffer depth (legal range 2..8 inclusive, any integer) |
+| SKID_DEPTH_B | int | 2 | B channel SKID buffer depth (legal range 2..8 inclusive, any integer) |
 | AXI_ID_WIDTH | int | 8 | Transaction ID width |
 | AXI_ADDR_WIDTH | int | 32 | Address bus width |
 | AXI_DATA_WIDTH | int | 32 | Data bus width |

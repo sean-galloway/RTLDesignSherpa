@@ -329,7 +329,7 @@ Clock-gated variants (`*_cg`) add power management:
 
 ### RTL Design Sherpa Documentation
 - **[rtl-amba Overview](../overview.md)** - Complete AMBA subsystem architecture
-- **[APB Modules](README.md)** - Advanced Peripheral Bus
+- **[APB Modules](../apb4/README.md)** - Advanced Peripheral Bus
 - **[AXIL4 Modules](../axil4/README.md)** - AXI4-Lite (simplified protocol)
 - **[AXIS4 Modules](../axis4/README.md)** - AXI4-Stream (streaming data)
 - **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities (buffers, FIFOs)

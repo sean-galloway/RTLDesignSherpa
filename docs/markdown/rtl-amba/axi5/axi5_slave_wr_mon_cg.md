@@ -239,7 +239,7 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 ### Power Optimization
 
 **Power Savings Estimation:**
-- Base slave logic: ~40% of total power
+- Base slave logic: ~40% of total power *(first-order estimates -- no power/area analysis has been run)*
 - Monitor logic: ~60% of total power
 - With gating at 50% duty cycle: ~50% dynamic power savings
 - Actual savings depend on traffic pattern and idle_count setting

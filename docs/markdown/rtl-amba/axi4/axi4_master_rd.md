@@ -234,7 +234,7 @@ flowchart LR
 - **Flow Control**: Independent buffering for address and data channels
 - **Clock Gating Support**: Busy signal for power optimization
 - **Burst Support**: Full burst transaction handling (1-256 beats)
-- **ID Preservation**: Transaction ID forwarding and matching
+- **ID Preservation**: Transaction ID forwarding (no matching -- IDs pass through unchecked, as the ID handling section states)
 - **Error Handling**: Proper error response propagation
 
 ## Functionality

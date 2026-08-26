@@ -458,7 +458,7 @@ gaxi_fifo_sync #(
 **Consider alternatives if:**
 - Continuous streaming writes (clock gating ineffective)
 - Ultra-low write latency requirements (avoid gating overhead)
-- Area-constrained designs (monitor + CG adds ~12% area)
+- Area-constrained designs (monitor + CG adds ~12% area) (first-order estimate -- no power/area analysis has been run)
 - Simple write-through caches (simpler monitoring sufficient)
 
 ### Write-Specific Configuration Strategy

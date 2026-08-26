@@ -391,7 +391,7 @@ axi4_dwidth_converter_wr #(
 - Write-only peripherals (configuration registers, command FIFOs)
 
 **Resource Savings vs. Full Converter:**
-- No AR/R channel buffers (saves ~40% resources)
+- No AR/R channel logic at all (write-only path; savings unquantified -- there is no combined converter in-tree to measure against)
 - Simpler control logic
 - Lower latency (no read path dependencies)
 
