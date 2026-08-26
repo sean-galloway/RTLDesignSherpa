@@ -1090,6 +1090,27 @@ independently.
 | Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
 | Open items | none for gaxi itself |
 
+### axi4 + axi5 -- ARC COMPLETE 2026-08-26 (first-ever reviews + double humanize)
+
+qc rounds 20-23: 74 -> 44 -> 24 -> class-closed (zero RTL findings after
+round_20; round_23's assessment: 'nothing that would send an integrator
+down a wrong design path'). The plateau at 24 taught the closure lesson:
+fix by CLASS exhaustively, not by citation -- per-citation fixes leave
+twins and create fresh inconsistencies. RTL fixed: 8 dead clock-gates
+(peer-READY activity terms, family-wide, mon_cg siblings' rule), undriven
+stub AR counts (both families, widened to [3:0]), WSTRB forwarding, stale
+4-bit timeout comment blocks deleted from all 8 mon wrappers (the doc
+corruption source), filtered.sv err_select routing myth, buckets identity
+comment. Headline doc classes: phantom CG interface (8 pages), phantom
+safety capabilities (poison/MTE/ATOP/WLAST/WSTRB/burst checks), inverted+
+mismapped filter masks, 4-bit->16-bit-us timeouts, stays-awake/flushed
+gating guarantees -> freeze/drop warnings, idle-count power-of-2 tables
+(16x sizing error), event_data payload truth (32-bit address only).
+Humanize round_8: 44 pages, gates clean (twelve bracket-links repaired --
+fifth consecutive round with the class). TASK-070 = remaining RTL
+follow-up. Incidents: two more staged-set sweeps by concurrent sessions
+(69d220e3 + one earlier), provenance commits pushed both times.
+
 ### apb4 -- ARC COMPLETE 2026-08-25 (first-ever review + humanize); apb5 spillover integrated
 
 Rounds 17/18/19: 13 -> 10 -> 5, converged ('well above average in accuracy
