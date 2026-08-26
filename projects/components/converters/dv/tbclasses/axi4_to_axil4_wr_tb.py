@@ -665,6 +665,100 @@ class AXI4ToAXIL4WriteTB(TBBase):
             await self.wait_clocks(self.clk_name, 5)
 
 
+    async def test_pending_w_blocked_by_waiting_burst_aw(self, label=""):
+        """A waiting burst AW must not block the outstanding write's W beat.
+
+        Sequence: a single-beat AW is accepted (its W deliberately late),
+        then a BURST AW (awlen>0) is presented and parks on the wire --
+        the one-outstanding guard holds awready low. `w_burst_capture`
+        gated only on `s_axi_awvalid && awlen>0`, so the PARKED burst AW
+        blocked the W path of the write already in flight: W never
+        forwarded, B never generated, outstanding never cleared, the
+        parked AW never accepted -- permanent deadlock. The gate needs
+        the `s_axi_awready` qualifier (capture only happens on the accept
+        cycle).
+
+        Found by the DV bridge parallel_storm: multi-master arbitration
+        presents the next master's burst AW while the previous master's
+        single-beat W is still crossing the fabric. A lone BFM serializes
+        AW+W, which is why the FUB tests never hit this window.
+
+        Driven on the raw AW/W channels (a write_transaction call
+        serializes AW+W and cannot park a second AW).
+        """
+        tag = f"[{label}] " if label else ""
+        size = (self.data_width // 8).bit_length() - 1
+        strb = (1 << (self.data_width // 8)) - 1
+        ok = True
+
+        for q in getattr(self.axi4_master, '_response_by_id', {}).values():
+            q.clear()
+
+        t_aw2 = None
+        t_w1 = None
+        try:
+            # Single-beat AW, id=3 -- accepted via passthrough.
+            aw1 = self.axi4_master.aw_channel.create_packet(
+                addr=0xE000, len=0, id=3, size=size, burst=1,
+                lock=0, cache=0, prot=0, qos=0, region=0)
+            await self.axi4_master.aw_channel.send(aw1)
+
+            # W deliberately late.
+            await self.wait_clocks(self.clk_name, 6)
+
+            # Burst AW, id=5 -- parks on the wire (outstanding guard).
+            aw2 = self.axi4_master.aw_channel.create_packet(
+                addr=0xE100, len=3, id=5, size=size, burst=1,
+                lock=0, cache=0, prot=0, qos=0, region=0)
+            t_aw2 = cocotb.start_soon(self.axi4_master.aw_channel.send(aw2))
+            await self.wait_clocks(self.clk_name, 4)
+
+            # Now the late W for the single-beat write.
+            w1 = self.axi4_master.w_channel.create_packet(
+                data=0xC0DE0003, last=1, strb=strb)
+            t_w1 = cocotb.start_soon(self.axi4_master.w_channel.send(w1))
+            await self.wait_clocks(self.clk_name, 60)
+
+            got = len(self.axi4_master._response_by_id.get(3) or ())
+            if got != 1:
+                self.log.error(
+                    f"@ {get_sim_time('ns')}ns: {tag}single-beat write id=3 "
+                    f"got {got} B responses -- its W beat was blocked by the "
+                    f"PARKED burst AW (w_burst_capture missing the awready "
+                    f"qualifier)")
+                self.stats['errors'] += 1
+                ok = False
+            else:
+                # Drain the burst so the DUT isn't left mid-transaction:
+                # its AW should now have been accepted; feed its 4 beats.
+                for i in range(4):
+                    w = self.axi4_master.w_channel.create_packet(
+                        data=0xC0DE0500 + i, last=1 if i == 3 else 0,
+                        strb=strb)
+                    await self.axi4_master.w_channel.send(w)
+                await self.wait_clocks(self.clk_name, 40)
+                got5 = len(self.axi4_master._response_by_id.get(5) or ())
+                if got5 != 1:
+                    self.log.error(
+                        f"@ {get_sim_time('ns')}ns: {tag}burst id=5 got "
+                        f"{got5} B responses after unblocking")
+                    self.stats['errors'] += 1
+                    ok = False
+            if ok:
+                self.log.info(f"@ {get_sim_time('ns')}ns: {tag}pending W "
+                              f"completed despite a waiting burst AW")
+            return ok
+        finally:
+            for t in (t_aw2, t_w1):
+                if t is not None and not t.done():
+                    t.kill()
+            for q in getattr(self.axi4_master, '_response_by_id', {}).values():
+                q.clear()
+            await self.assert_reset()
+            await self.wait_clocks(self.clk_name, 5)
+            await self.deassert_reset()
+            await self.wait_clocks(self.clk_name, 5)
+
     async def test_wrap_burst(self, address, beats, label=""):
         """A WRAP write must wrap inside its aligned window.
 
@@ -744,6 +838,12 @@ class AXI4ToAXIL4WriteTB(TBBase):
 
         # Outstanding-burst identity -- see test_pipelined_aw_identity.
         if not await self.test_pipelined_aw_identity(label='b2b-ids'):
+            success = False
+
+        # Waiting burst AW must not deadlock a pending W -- see
+        # test_pending_w_blocked_by_waiting_burst_aw.
+        if not await self.test_pending_w_blocked_by_waiting_burst_aw(
+                label='parked-aw'):
             success = False
 
         # WRAP bursts -- see test_wrap_burst.

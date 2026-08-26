@@ -321,7 +321,18 @@ module axi4_to_axil4_wr #(
     //      reaches this window, which is why this slipped through the
     //      FUB tests until the bridge boundary_probe stressed it).
     //
-    wire w_burst_capture = !r_aw_active && s_axi_awvalid && (s_axi_awlen > 0);
+    //      The `s_axi_awready` term restricts the block to the ACCEPT
+    //      cycle. Without it, a burst AW merely PARKED on the wire (held
+    //      off by the one-outstanding guard, awready=0) blocked the W
+    //      path of the write already in flight: that W never forwarded,
+    //      its B never generated, outstanding never cleared, and the
+    //      parked AW never accepted -- permanent deadlock. A lone BFM
+    //      serializes AW+W and never parks a second AW, which is why the
+    //      FUB tests missed it; the bridge's multi-master arbiter hit it
+    //      on the first storm (test_pending_w_blocked_by_waiting_burst_aw
+    //      is the pinned regression).
+    wire w_burst_capture = !r_aw_active && s_axi_awvalid && s_axi_awready &&
+                           (s_axi_awlen > 0);
 
     assign m_axil_wvalid = w_burst_capture ? 1'b0 :
                            r_aw_active     ? (s_axi_wvalid &&
