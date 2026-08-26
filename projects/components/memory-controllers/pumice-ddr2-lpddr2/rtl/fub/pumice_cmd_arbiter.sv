@@ -78,11 +78,17 @@ module pumice_cmd_arbiter
     // ---- refresh (from refresh_ctrl) ----
     input  logic                      refresh_req_i,
     input  logic                      refresh_drain_i,
+    // REFpb (LPDDR2 per-bank): kind selects the branch, bank names the
+    // DEVICE'S internal rotor bank that the next REFpb will hit — only that
+    // bank must be precharged; the other banks keep their rows.
+    input  logic                      refresh_kind_i,   // 0=REFab, 1=REFpb
+    input  logic [BKW-1:0]            refresh_bank_i,   // rotor mirror
     output logic                      refresh_grant_o,
     // REF -> next-command recovery (tRFC/tRFCab, MC cycles). Mission-mode REF
     // recovery is enforced HERE (init_sequencer separately waits t_rfc_wait for
     // its own init refreshes); no evt reaches the bank timers for REF.
     input  logic [15:0]               t_rfc_i,
+    input  logic [7:0]                t_rfc_pb_i,       // REFpb recovery; 0 = t_rfc_i
 
     // ---- per-bank readiness (from pumice_bank_timers) ----
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_i,
@@ -384,9 +390,29 @@ module pumice_cmd_arbiter
     // tRFC recovery elapsed (covers back-to-back drain REFs too). The guard
     // check costs at most 2 idle cycles after the last drain-PRE — which also
     // provides the PRE->REF tRP spacing.
+    // !r_grant term: the grant->refresh_req-drop round trip is 2 cycles, so
+    // without it the branch re-picks a SECOND REF while the first still sits
+    // in the output register (rfc_busy loads a cycle too late to stop it)
+    // and the refresh DOUBLE-ISSUES on the wire. For REFab that was a silent
+    // tRFC-between-REFs violation; for REFpb it is fatal — every command
+    // advances the DEVICE'S internal bank rotor, so a doubled REFpb
+    // desynchronizes the controller's rotor mirror and the controller then
+    // precharges the wrong bank ahead of each refresh (found via the DRAM
+    // model's refpb_with_open_row + the zero-data reads that follow).
     assign w_ref_safe = !w_any_active && !w_inflight_preact
                       && (r_guard0 == '0) && (r_guard1 == '0)
-                      && !w_rfc_busy;
+                      && !w_rfc_busy && !r_grant;
+
+    // REFpb safety: only the ROTOR bank must be closed (that is the whole
+    // point of per-bank refresh — the other banks keep serving row hits).
+    // The inflight/guard/rfc terms stay global: conservative, and the rank-
+    // wide ACT block during the (shorter) tRFCpb recovery also spaces
+    // consecutive REFpb commands by tRFCpb as JEDEC requires.
+    logic w_refpb_safe;
+    assign w_refpb_safe = !r_bank_row_active[RK0][refresh_bank_i]
+                        && !w_inflight_preact
+                        && (r_guard0 == '0) && (r_guard1 == '0)
+                        && !w_rfc_busy && !r_grant;
 
     // ========================================================================
     // Priority pick (combinational). Produces the abstract command + the
@@ -419,7 +445,20 @@ module pumice_cmd_arbiter
             // The REF itself only fires under w_ref_safe (no possibly-open row,
             // tRFC met); until then this branch idles rather than fall through
             // to column/ACT picks (a fall-through would starve the refresh).
-            if (w_any_active) begin
+            if (refresh_kind_i) begin
+                // 2b. REFpb — close ONLY the device's rotor bank, then issue
+                // the per-bank refresh; every other bank keeps its row.
+                if (r_bank_row_active[RK0][refresh_bank_i]) begin
+                    if (r_bank_pre_ready[RK0][refresh_bank_i]
+                        && !w_guarded[refresh_bank_i]) begin
+                        w_valid = 1'b1; w_op = OP_PRE; w_bank = refresh_bank_i;
+                        w_do_pre = 1'b1;
+                    end
+                end else if (w_refpb_safe) begin
+                    w_valid = 1'b1; w_op = OP_REFPB; w_bank = refresh_bank_i;
+                    w_grant = 1'b1;
+                end
+            end else if (w_any_active) begin
                 if (w_rfsh_pre_found) begin
                     w_valid = 1'b1; w_op = OP_PRE; w_bank = w_rfsh_pre_bank;
                     w_do_pre = 1'b1;
@@ -562,7 +601,9 @@ module pumice_cmd_arbiter
         if (`RST_ASSERTED(aresetn)) begin
             r_rfc_cnt <= '0;
         end else if (w_fire_out && r_grant) begin
-            r_rfc_cnt <= t_rfc_i;
+            // REFpb recovers in tRFCpb (< tRFCab); 0 falls back to tRFCab.
+            r_rfc_cnt <= (r_op == OP_REFPB && t_rfc_pb_i != 8'd0)
+                       ? {8'h0, t_rfc_pb_i} : t_rfc_i;
         end else if (w_rfc_busy) begin
             r_rfc_cnt <= r_rfc_cnt - 16'd1;
         end

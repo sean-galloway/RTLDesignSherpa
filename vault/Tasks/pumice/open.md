@@ -62,10 +62,41 @@
   zero-leak + forced ceiling + drain conservation, pull-in run-ahead +
   refresh-free demand window + golden readback, disarm. DOUBLE
   mutation-proven: postpone gutted -> arm B RED (6 leaked); pull-in
-  gutted -> arm C RED (tick-rate only). refpb_rr is next: needs RDS-DV
-  model work FIRST (dram_state.on_refresh is REFab-only and errors on any
-  open bank; LPDDR2 REFpb bank is the DEVICE'S internal counter, not a
-  controller choice).
+  gutted -> arm C RED (tick-rate only).
+- Axis 3 step 2: refpb_rr landed (REF_CTRL.mode=2, LPDDR2-only with DDR2
+  degrade + perbank_supported strap). RDS-DV model first (041ddc3):
+  dram_state.on_refresh_bank with device-internal rotor, per-bank tRFCpb
+  recovery, bank-aware cmd_during_refresh (other banks accessible), 6 unit
+  tests; slave routes decoded all_banks=False to it. RTL: arbiter 2b branch
+  (PRE rotor bank only -> OP_REFPB; rank-wide-ACT-block-during-tRFCpb
+  conservative v1), refresh_ctrl tREFIpb mux + rotor mirror.
+  TWO REAL BUGS found by the directed test's zero-data reads:
+  (1) LATENT DOUBLE-ISSUE: every refresh fired TWICE (grant->req-drop is
+  2 cycles; the 2nd command registers before rfc_busy loads). Benign-
+  looking for REFab (a silent tRFC-between-REFs violation, present in
+  every prior build INCLUDING board bitstreams) but fatal for REFpb —
+  each command advances the device rotor -> mirror desync -> wrong-bank
+  precharges -> rows silently closed -> no_act_before_rd zero reads.
+  Fix: !r_grant in w_ref_safe/w_refpb_safe.
+  (2) rotor-mirror sampling: grant fires at the arbiter's FIFO-PUSH, so
+  grant_was_pb must sample the ARBITER-side a_cmd_op, not cmd_op_o (the
+  FIFO HEAD = an older command; sampling it stalled the mirror).
+  LESSON: the fub arbiter test's refresh poll (2-edge settle stride) had
+  been passing BECAUSE of the double-issue — the bug kept REF visible for
+  two cycles and the sampler always caught the second one. Single-issue
+  made the 1-cycle REF invisible to the stride; the poll now samples
+  every edge. A test that samples slower than the event it checks can be
+  green only in the presence of the bug it should catch.
+  Directed test_pumice_top_refpb (LPDDR2 top TB): strap check, REFab
+  red-guard (refpb_total==0), full rotation >=8, BFM traffic golden
+  THROUGH the refpb stream, zero refresh-class model violations, disarm.
+  Mutation-proven: mode gate gutted -> arm B RED (0 REFpb).
+  AXIS 3 REMAINING: none in the commodity plan (per-bank ref_credit
+  steering + ACT-during-tRFCpb overlap are cataloged optimizations).
+  ALSO NOTE: the editable RDS-DV install was silently replaced by the
+  0.6.5 wheel at the release pin-bump — [[reference_dv_framework_repos]]
+  has the recovery (rm the site-packages copy, pip install -e, verify
+  __file__).
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.

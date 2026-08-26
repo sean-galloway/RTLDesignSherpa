@@ -93,6 +93,9 @@ module pumice_mem_cmd_scheduler
     input  logic [3:0]                refresh_burst_i,
     input  logic [3:0]                ref_postpone_i,   // REF_CTRL.postpone_limit
     input  logic [3:0]                ref_pullin_i,     // REF_CTRL.pullin_limit
+    input  logic [1:0]                ref_mode_i,       // REF_CTRL.mode (2=REFpb)
+    input  logic [15:0]               ref_trefi_pb_i,   // REF_TIMING_PB.trefi_pb
+    input  logic [7:0]                ref_trfc_pb_i,    // REF_TIMING_PB.trfc_pb
     // init timing
     input  logic [15:0]               t_init_wait_i,
     input  logic [15:0]               t_dll_wait_i,
@@ -214,17 +217,31 @@ module pumice_mem_cmd_scheduler
     // ======================================================================
     // refresh_ctrl — tREFI + 8-deep postpone; enabled after init.
     // ======================================================================
+    // REFpb is LPDDR2-only (DDR2 has no per-bank refresh command); an
+    // unsupported mode select degrades to REFab rather than emitting an
+    // illegal command.
+    logic            w_refpb_en;
+    logic            w_refresh_kind;
+    logic [BKW-1:0]  w_refresh_bank;
+    assign w_refpb_en = (ref_mode_i == 2'd2) && (memtype_i == MEMTYPE_LPDDR2);
+
     refresh_ctrl #(
         .NUM_BANKS(NUM_BANKS)
     ) u_refresh (
         .mc_clk(aclk), .mc_rst_n(aresetn),
-        .t_refi_i(t_refi_i), .refresh_burst_i(refresh_burst_i),
-        .refpb_mode_i(1'b0), .enable_i(init_done),
+        .t_refi_i(t_refi_i), .trefi_pb_i(ref_trefi_pb_i),
+        .refresh_burst_i(refresh_burst_i),
+        .refpb_mode_i(w_refpb_en), .enable_i(init_done),
         .postpone_limit_i(ref_postpone_i), .pullin_limit_i(ref_pullin_i),
         .demand_i(|rd_sch_valid_i || |wr_sch_valid_i),
         .refresh_req_o(refresh_req), .refresh_grant_i(refresh_grant),
+        // refresh_grant fires at the arbiter's FIFO-PUSH, so the granted op is
+        // the ARBITER-side a_cmd_op — cmd_op_o is the FIFO HEAD (an older
+        // command) and sampling it stalls the rotor mirror erratically.
+        .grant_was_pb_i(a_cmd_op == OP_REFPB),
         .pending_refreshes_o(),
-        .refresh_drain_active_o(refresh_drain), .refresh_kind_o(), .refresh_bank_o(),
+        .refresh_drain_active_o(refresh_drain),
+        .refresh_kind_o(w_refresh_kind), .refresh_bank_o(w_refresh_bank),
         .obs_refi_cnt_o(), .obs_drain_remaining_o(), .obs_bank_rotor_o(),
         .obs_grants_total_o(), .obs_pullin_credit_o()
     );
@@ -306,7 +323,8 @@ module pumice_mem_cmd_scheduler
         .init_done_i(init_done), .init_cmd_valid_i(init_cmd_valid),
         .init_cmd_op_i(init_cmd_op), .init_cmd_bank_i(init_cmd_bank), .init_cmd_row_i(init_cmd_row),
         .refresh_req_i(refresh_req), .refresh_drain_i(refresh_drain), .refresh_grant_o(refresh_grant),
-        .t_rfc_i(t_rfc_i),
+        .refresh_kind_i(w_refresh_kind), .refresh_bank_i(w_refresh_bank),
+        .t_rfc_i(t_rfc_i), .t_rfc_pb_i(ref_trfc_pb_i),
         .bank_act_ready_i(w_bank_act_ready), .bank_rdwr_ready_i(w_bank_rdwr_ready),
         .bank_pre_ready_i(w_bank_pre_ready), .bank_row_active_i(w_bank_row_active),
         .bank_open_row_i(w_bank_open_row),

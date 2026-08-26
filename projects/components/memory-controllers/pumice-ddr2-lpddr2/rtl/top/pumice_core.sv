@@ -145,6 +145,9 @@ module pumice_core
     input  logic [3:0]                 refresh_burst_i,
     input  logic [3:0]                 ref_postpone_i,
     input  logic [3:0]                 ref_pullin_i,
+    input  logic [1:0]                 ref_mode_i,
+    input  logic [15:0]                ref_trefi_pb_i,
+    input  logic [7:0]                 ref_trfc_pb_i,
     input  logic [15:0]                t_init_wait_i, t_dll_wait_i,
     input  logic [7:0]                 t_mrd_wait_i, t_rp_wait_i, t_rfc_wait_i,
     input  logic [15:0]                mr0_i, mr1_i, mr2_i, mr3_i,  // CSR MR0..MR3.VAL
@@ -353,6 +356,8 @@ module pumice_core
         .t_wtr_i(t_wtr_i), .t_rtw_i(t_rtw_i), .t_ccd_i(t_ccd_i),
         .t_refi_i(t_refi_i), .t_rfc_i(t_rfc_i), .refresh_burst_i(refresh_burst_i),
         .ref_postpone_i(ref_postpone_i), .ref_pullin_i(ref_pullin_i),
+        .ref_mode_i(ref_mode_i), .ref_trefi_pb_i(ref_trefi_pb_i),
+        .ref_trfc_pb_i(ref_trfc_pb_i),
         .t_init_wait_i(t_init_wait_i), .t_dll_wait_i(t_dll_wait_i),
         .t_mrd_wait_i(t_mrd_wait_i), .t_rp_wait_i(t_rp_wait_i), .t_rfc_wait_i(t_rfc_wait_i),
         .mr0_i(mr0_i), .mr1_i(mr1_i), .mr2_i(mr2_i), .mr3_i(mr3_i),

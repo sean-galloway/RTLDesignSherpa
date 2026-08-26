@@ -439,9 +439,17 @@ data-integrity budget every mode obeys.
 - **`refab` (DDR2 baseline, commodity)** — one command refreshes the whole rank
   (`tRFCab`), interval `tREFI`. Current default. Postpone up to 8 + drain batching
   (`refresh_burst`) already implemented.
-- **`refpb_rr` (LPDDR2, commodity)** — per-bank refresh via the DRAM's internal
-  **round-robin** counter, `tREFIpb = tREFI/8`, `tRFCpb < tRFCab`; other 7 banks stay
-  accessible.
+- **`refpb_rr` (LPDDR2, commodity; IMPLEMENTED 2026-08-26, `REF_CTRL.mode=2`)** —
+  per-bank refresh via the DRAM's internal **round-robin** counter (JESD209-2 6.6:
+  the command carries NO bank address; the controller keeps a rotor MIRROR that
+  advances exactly when an OP_REFPB is granted onto the wire). As built: the
+  arbiter's REFpb branch precharges only the rotor bank then issues REFPB;
+  `tREFIpb` from `REF_TIMING_PB.trefi_pb` (0 = derive tREFI/8), recovery
+  `trfc_pb` (< tRFCab). Conservative v1 interlock: the rank-wide ACT block during
+  the (shorter) tRFCpb also spaces consecutive REFpb commands; columns to
+  already-open rows in other banks flow throughout — the full ACT-during-tRFCpb
+  overlap is a later optimization. LPDDR2-only: the scheduler degrades mode 2 to
+  REFab on DDR2, and the `REF_CTRL.perbank_supported` strap advertises capability.
 - **Refresh pull-in / postpone scheduling (commodity; IMPLEMENTED 2026-08-25,
   `refresh_ctrl` v3)** — as built the credit is rank-scoped (REFab), split into the
   pending backlog (postponed refreshes, 0..8) and a pull-in credit (refreshes run

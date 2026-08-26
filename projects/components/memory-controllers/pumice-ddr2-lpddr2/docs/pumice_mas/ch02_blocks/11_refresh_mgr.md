@@ -159,11 +159,18 @@ per request cycle.
 
 ### 4. REFpb Bank Rotor (`r_bank_rotor`)
 
-Selects the target bank for LPDDR2 per-bank refresh.
+Mirrors the DEVICE'S internal per-bank refresh counter (JESD209-2 6.6 —
+the REFpb command carries no bank address; the device walks its own strict
+rotor and the controller can only track it).
 
-- On each accepted grant, if `refpb_mode_i` is set, the rotor increments and
-  wraps `0..NUM_BANKS-1`.
-- In REFab mode (`refpb_mode_i == 0`) it is held at 0.
+- The rotor advances exactly when a REFpb COMMAND is granted onto the wire
+  (`grant_was_pb_i`, driven by the scheduler from the ARBITER-side granted
+  op — not the output-FIFO head, which is an older command, and not
+  `refpb_mode_i`, which desynchronizes at every mode boundary).
+- It HOLDS through REFab mode: the device's counter persists across mode
+  changes, and clearing the mirror would desynchronize it.
+- In REFpb mode the tick interval switches to tREFIpb
+  (`REF_TIMING_PB.trefi_pb`, 0 = derive `t_refi_i >> 3`).
 - `refresh_bank_o` is the registered rotor value; it is only meaningful in
   REFpb mode.
 - `r_grants_total` (16-bit) counts total accepted grants for observability.

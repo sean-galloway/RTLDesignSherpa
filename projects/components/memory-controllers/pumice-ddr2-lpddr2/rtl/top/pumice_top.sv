@@ -121,7 +121,10 @@ module pumice_top
         hwif_in.SCHED_STATS_ACT.count.next   = w_stat_act;
         hwif_in.SCHED_STATS_PRE.count.next   = w_stat_pre;
         hwif_in.REF_STATS_REF.count.next     = w_stat_ref;
-        // REF_CTRL.perbank_supported strap stays 0 until REFpb lands.
+        // Capability strap: per-bank refresh exists on LPDDR2 only (DDR2 has
+        // no REFpb command). Software reads this before selecting mode 2.
+        hwif_in.REF_CTRL.perbank_supported.next =
+            (w_memtype == MEMTYPE_LPDDR2);
     end
 
     pumice_csr u_csr (
@@ -205,6 +208,9 @@ module pumice_top
         .refresh_burst_i(hwif_out.PHY_TIMING.refresh_burst.value),
         .ref_postpone_i(hwif_out.REF_CTRL.postpone_limit.value),
         .ref_pullin_i(hwif_out.REF_CTRL.pullin_limit.value),
+        .ref_mode_i(hwif_out.REF_CTRL.mode.value),
+        .ref_trefi_pb_i(hwif_out.REF_TIMING_PB.trefi_pb.value),
+        .ref_trfc_pb_i(hwif_out.REF_TIMING_PB.trfc_pb.value),
         .t_init_wait_i(hwif_out.INIT_TIMING0.t_init_wait.value),
         .t_dll_wait_i (hwif_out.INIT_TIMING0.t_dll_wait.value),
         .t_mrd_wait_i (hwif_out.INIT_TIMING1.t_mrd_wait.value),

@@ -57,11 +57,16 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     assert s['pre'] == 1 and s['grant'] == 0, f"expected PRE strobe, no grant yet: {s}"
     # now no active banks -> REF + grant. Not immediate any more: the just-fired
     # PRE holds its 2-cycle guard and w_ref_safe waits it out (which is also the
-    # PRE->REF tRP spacing) — poll a bounded window for the REF.
+    # PRE->REF tRP spacing). Poll EVERY edge: since the double-issue fix
+    # (!r_grant in w_ref_safe) the REF is on the wire for exactly ONE cycle,
+    # and the 2-edge settle() stride can straddle it — the old poll only ever
+    # caught the REF because the bug re-issued it a second time.
     tb.set_bank_bits(dut.bank_row_active_i, {})
+    from cocotb.triggers import Timer as _Timer
     got_ref = False
-    for _ in range(8):
-        await tb.settle()
+    for _ in range(16):
+        await RisingEdge(dut.aclk)
+        await _Timer(1, units='ns')
         p = tb.picked(); s = tb.strobes()
         if p['op'] == OP_REF and s['grant'] == 1:
             got_ref = True

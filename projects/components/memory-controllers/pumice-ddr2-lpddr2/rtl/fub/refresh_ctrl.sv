@@ -54,6 +54,7 @@ module refresh_ctrl
     input  logic        mc_rst_n,
 
     input  logic [15:0] t_refi_i,         // refresh interval (MC cycles)
+    input  logic [15:0] trefi_pb_i,       // REFpb interval; 0 = derive tREFI/8
     input  logic [3:0]  refresh_burst_i,  // 1..8 drain count per req cycle
     input  logic        refpb_mode_i,     // 0 = REFab, 1 = REFpb (LPDDR2)
     input  logic        enable_i,
@@ -65,6 +66,13 @@ module refresh_ctrl
 
     output logic        refresh_req_o,
     input  logic        refresh_grant_i,
+    // 1 = the granted command on the wire THIS cycle is OP_REFPB. The rotor
+    // mirrors the DEVICE'S internal counter, which advances per REFpb
+    // COMMAND — keying off refpb_mode_i instead desynchronizes the mirror
+    // at every mode boundary (a grant decided as REFab but counted as pb,
+    // or vice versa), after which the controller precharges the WRONG bank
+    // ahead of each device refresh.
+    input  logic        grant_was_pb_i,
     output logic [3:0]  pending_refreshes_o,
 
     // D: drain + REFpb
@@ -93,6 +101,14 @@ module refresh_ctrl
     logic w_refi_expired;
     assign w_refi_expired = (r_refi_cnt == 16'd0);
 
+    // Effective interval: REFpb refreshes one bank at a time, so it ticks at
+    // tREFIpb (~tREFI/8 per JESD209-2; REF_TIMING_PB.trefi_pb overrides,
+    // 0 = derive).
+    logic [15:0] w_refi_eff;
+    assign w_refi_eff = !refpb_mode_i        ? t_refi_i
+                      : (trefi_pb_i != 16'd0) ? trefi_pb_i
+                                              : (t_refi_i >> 3);
+
     // Credit limits, clamped: postpone <= 7 so the pending accumulator
     // (saturating at 8) can always exceed it and FORCE the refresh; pull-in
     // <= 8 per the JEDEC +-8 window.
@@ -117,9 +133,9 @@ module refresh_ctrl
         end else begin
             // tREFI countdown — only ticks when enabled (init done).
             if (!enable_i) begin
-                r_refi_cnt <= t_refi_i;
+                r_refi_cnt <= w_refi_eff;
             end else if (w_refi_expired) begin
-                r_refi_cnt <= t_refi_i;
+                r_refi_cnt <= w_refi_eff;
             end else begin
                 r_refi_cnt <= r_refi_cnt - 16'd1;
             end
@@ -193,14 +209,18 @@ module refresh_ctrl
             r_grants_total <= 16'd0;
         end else if (w_grant_accept || w_grant_early) begin
             r_grants_total <= r_grants_total + 16'd1;
-            if (refpb_mode_i) begin
+            // The rotor mirrors the DEVICE'S internal REFpb bank counter
+            // (JESD209-2 6.6 — the command carries no bank address). It
+            // advances exactly when a REFpb COMMAND is granted onto the
+            // wire (grant_was_pb_i) and HOLDS through REFab mode: the
+            // device's counter persists across mode changes, and clearing
+            // ours would desynchronize the mirror.
+            if (grant_was_pb_i) begin
                 if (r_bank_rotor == BA_W'(NUM_BANKS-1)) begin
                     r_bank_rotor <= '0;
                 end else begin
                     r_bank_rotor <= r_bank_rotor + BA_W'(1);
                 end
-            end else begin
-                r_bank_rotor <= '0;
             end
         end
     end)

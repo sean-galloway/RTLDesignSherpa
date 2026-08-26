@@ -330,6 +330,93 @@ async def cocotb_test_patho(dut):
     tb.log.info(f"PASS patho {kind} profile={profile} ({len(addrs)} bursts, BFM)")
 
 
+@cocotb.test(timeout_time=180, timeout_unit="ms")
+async def cocotb_test_refpb(dut):
+    """PUMICE-006 Axis 3: refpb_rr (REF_CTRL.mode=2, LPDDR2 per-bank refresh).
+
+    The DFI slave's DRAM model decodes REFpb off the CA bus (Table 60
+    CA3r=0) and enforces the JESD209-2 semantics: the DEVICE'S internal
+    rotor picks the bank, that bank must be precharged, the other banks
+    stay accessible. Observables: dram.refpb_total / refpb_rotor and the
+    model's violation counters (lenient policy COUNTS instead of raising —
+    the assertions below turn the counts into the oracle).
+
+      strap: REF_CTRL.perbank_supported must read 1 on the LPDDR2 build.
+      arm A (REFab red guard): mode 0 -> REFs tick, refpb_total stays 0.
+      arm B (mode 2): tREFIpb-paced REFpb commands -> refpb_total advances
+        through a full rotation (>= 8, strict device order by construction),
+        BFM write/read traffic across banks during the refpb stream stays
+        golden, and zero refresh-class violations are recorded.
+      arm C (disarm): mode 0 -> refpb_total freezes, REFab resumes.
+    """
+    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
+    tb = await _bringup(dut, mem_type="LPDDR2", page_policy=1, t_refi=0x400)
+    dram = tb.dfi_slave.dram
+    w = tb.csr_write_field
+
+    cap = await tb.csr_read_field("REF_CTRL", "perbank_supported")
+    assert cap == 1, "LPDDR2 build: REF_CTRL.perbank_supported strap reads 0"
+
+    def _refs():
+        return tb.dfi_slave.cmd_counts.get(_DC.REF, 0)
+
+    # Small tREFI for the whole test. The interval counter reloads on
+    # EXPIRY, so the stale bring-up period (0x400) must elapse once first.
+    await w("TIMINGS_RFC_REFI", "tREFI", 200)
+    await ClockCycles(dut.aclk, 0x400 + 100)
+
+    # ---- arm A: REFab baseline (red guard) --------------------------------
+    b = _refs()
+    await ClockCycles(dut.aclk, 1000)            # ~5 REFab ticks
+    assert _refs() - b >= 2, "REFab baseline: refresh not ticking"
+    assert dram.refpb_total == 0, (
+        f"{dram.refpb_total} REFpb decoded in REFab mode -- mode gate leaks")
+
+    # ---- arm B: refpb_rr ---------------------------------------------------
+    await w("REF_TIMING_PB", "trefi_pb", 64)
+    await w("REF_TIMING_PB", "trfc_pb", 8)
+    await w("REF_CTRL", "mode", 2)
+    pb0 = dram.refpb_total
+    # stale REFab interval drains once, then >= 8 tREFIpb ticks
+    await ClockCycles(dut.aclk, 200 + 64 * 10 + 300)
+    pb_rot = dram.refpb_total - pb0
+    assert pb_rot >= 8, (
+        f"refpb_rr: only {pb_rot} REFpb across ~10 tREFIpb ticks -- the "
+        f"per-bank command stream is not running (full rotation needs 8)")
+
+    # traffic THROUGH the refpb stream: every bank written+read, golden.
+    addrs = [BASE + bk * 0x2000 for bk in range(NUM_BANKS)]
+    wr_seq, rd_seq, _ = build_addr_pattern_sequences(
+        burst_len=BL_WORDS, data_width=DW, addresses=addrs,
+        rd_axid_fn=lambda bi: bi & 0xF)
+    try:
+        await _wr_rd_check(tb, wr_seq, rd_seq, drain=400)
+    except AssertionError:
+        tb.log.warning(f"DBGREFPB refpb_total={dram.refpb_total} "
+                       f"rotor={dram.refpb_rotor} "
+                       f"cmds={ {k.name: v for k, v in tb.dfi_slave.cmd_counts.items()} } "
+                       f"soft={dict(dram.policy._soft_counts)}")
+        raise
+
+    # the model recorded no refresh-class violations while all that ran
+    soft = dram.policy._soft_counts
+    for k in ("refpb_with_open_row", "cmd_during_refresh",
+              "ref_with_open_row"):
+        assert soft.get(k, 0) == 0, (
+            f"{soft.get(k, 0)}x {k} recorded during the refpb stream")
+
+    # ---- arm C: disarm -----------------------------------------------------
+    await w("REF_CTRL", "mode", 0)
+    await ClockCycles(dut.aclk, 300)             # let a queued REFpb finish
+    pb1 = dram.refpb_total
+    b = _refs()
+    await ClockCycles(dut.aclk, 1200)
+    assert dram.refpb_total == pb1, "REFpb still issuing after disarm"
+    assert _refs() - b >= 2, "REFab did not resume after disarm"
+    tb.log.info(f"PASS refpb_rr: strap ok, {pb_rot} REFpb (full rotation), "
+                f"traffic golden through the stream, zero violations, disarm ok")
+
+
 # ============================================================================
 # pytest wrappers
 # ============================================================================
@@ -443,3 +530,8 @@ def test_pumice_top_nr2(request):
     _run(request, "cocotb_test_pumice_top",
          extra_env={"TEST_TYPE": "workload_mix", "MEM_TYPE": "DDR2"},
          params_over={"NUM_RANKS": "2"})
+
+
+def test_pumice_top_refpb(request):
+    """PUMICE-006 Axis 3: LPDDR2 per-bank refresh round-robin."""
+    _run(request, "cocotb_test_refpb", extra_env={"MEM_TYPE": "LPDDR2"})

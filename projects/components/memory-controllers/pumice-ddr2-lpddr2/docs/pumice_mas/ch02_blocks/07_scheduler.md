@@ -75,7 +75,19 @@ all gated on the command sink accepting the push:
    tRFC** (`TIMINGS_RFC_REFI.tRFC` -> `t_rfc_i`) is enforced by an arbiter
    down-counter loaded on each fired REF; while non-zero, ACT picks and further
    REFs are blocked (init-time refreshes use `INIT_TIMING1.t_rfc_wait`
-   separately). The sequencing is audited by
+   separately). `w_ref_safe` also carries **`!r_grant`**: the grant-to-
+   request-drop round trip is 2 cycles, so without it the branch re-picked a
+   SECOND REF while the first still sat in the output register and the
+   refresh DOUBLE-ISSUED on the wire — a silent tRFC-between-REFs violation
+   for REFab (present in every build before 2026-08-26), fatal for REFpb
+   (each command advances the device's bank rotor). With `refresh_kind_i`
+   set (REFpb, LPDDR2 `REF_CTRL.mode=2`) the branch instead precharges ONLY
+   the device's rotor bank (`refresh_bank_i`, the controller's mirror of the
+   device-internal counter) and issues `OP_REFPB` under `w_refpb_safe`
+   (same terms, rotor-bank-scoped row check); the recovery counter loads
+   `trfc_pb` instead of tRFCab, and the rank-wide ACT block during that
+   (shorter) window also provides the JEDEC spacing between consecutive
+   REFpb commands. The sequencing is audited by
    `rtl/fub/pumice_cmd_history_checker.sv` (generate-gated by `CMD_HISTORY_EN`
    inside the scheduler macro, `$fatal` on violation).
 3. **COLUMN row-hit** — an issuable RD/WR to an open row.
