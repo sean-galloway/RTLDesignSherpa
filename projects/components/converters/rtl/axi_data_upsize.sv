@@ -61,6 +61,15 @@ module axi_data_upsize #(
     input  logic [NARROW_SB_PORT_WIDTH-1:0] narrow_sideband,  // Min width 1 to avoid [-1:0]
     input  logic                            narrow_last,
 
+    // Lane the FIRST narrow beat of a burst occupies inside the wide word
+    // (addr % wide_bytes / narrow_bytes). Sampled on that first beat; every
+    // later wide group of the burst starts at lane 0. Tie to '0 for the
+    // historical aligned-only behavior. This is what lets a narrow burst
+    // start mid-wide-word: the leading lanes stay zero in data AND
+    // sideband, so in WSTRB (concat) mode the untouched bytes are
+    // byte-disabled rather than clobbered (CONV-006).
+    input  logic [PTR_WIDTH-1:0]            start_lane,
+
     // Wide Output (to master or slave)
     output logic                            wide_valid,
     input  logic                            wide_ready,
@@ -93,6 +102,19 @@ module axi_data_upsize #(
     logic [PTR_WIDTH-1:0]           r_beat_ptr;
     logic                           r_wide_valid;
     logic                           r_last_buffered;
+    // High when the NEXT accepted narrow beat begins a new burst (after
+    // reset or a narrow_last beat) — that beat lands at start_lane; all
+    // later group-opening beats land at lane 0.
+    logic                           r_burst_fresh;
+
+    // Lane the current narrow beat occupies. r_beat_ptr=='0 marks a
+    // group-opening beat: for a fresh BURST it lands at start_lane, for
+    // later groups of the same burst at lane 0. Mid-group beats use the
+    // pointer as before.
+    logic [PTR_WIDTH-1:0]           w_lane;
+    assign w_lane = (r_beat_ptr == '0)
+                    ? (r_burst_fresh ? start_lane : '0)
+                    : r_beat_ptr;
 
     //==========================================================================
     // Accumulator State Machine
@@ -121,7 +143,7 @@ module axi_data_upsize #(
     // when they collide on the same cycle. Same goes for r_last_buffered.
     logic narrow_completes_group;
     assign narrow_completes_group = narrow_valid && narrow_ready &&
-                                    (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1) ||
+                                    (w_lane == PTR_WIDTH'(WIDTH_RATIO-1) ||
                                      narrow_last);
     logic wide_accept;
     assign wide_accept = r_wide_valid && wide_ready;
@@ -133,35 +155,43 @@ module axi_data_upsize #(
             r_beat_ptr <= '0;
             r_wide_valid <= 1'b0;
             r_last_buffered <= 1'b0;
+            r_burst_fresh <= 1'b1;
         end else begin
             // Accept narrow beat
             if (narrow_valid && narrow_ready) begin
-                // First narrow of a fresh accumulation: zero the whole
-                // accumulator and place narrow_data in slot 0 with a
-                // single whole-register assignment. This is critical
-                // when the accumulation early-terminates via narrow_last
-                // before reaching WIDTH_RATIO beats: the unfilled slots
-                // must be '0 in the emitted wide beat so the previous
-                // group's residual data/WSTRB doesn't leak through and
-                // cause stray downstream writes.
+                // Group-opening narrow beat: zero the whole accumulator
+                // and place narrow_data in its lane (start_lane for a
+                // fresh burst, 0 for later groups) with a single
+                // whole-register assignment. This is critical both when
+                // the accumulation early-terminates via narrow_last
+                // before reaching WIDTH_RATIO beats AND when a burst
+                // starts mid-word: every unfilled slot must be '0 in the
+                // emitted wide beat so residual data/WSTRB doesn't leak
+                // through and cause stray downstream writes.
                 //
                 // Subsequent narrows do a partial assignment to their
                 // slot. Two separate NBAs to the same register (whole
                 // then partial) compose unreliably across simulators,
                 // so we branch and emit one assignment per cycle.
                 if (r_beat_ptr == '0) begin
-                    r_data_accumulator <= {{(WIDE_WIDTH-NARROW_WIDTH){1'b0}}, narrow_data};
+                    r_data_accumulator <= {{(WIDE_WIDTH-NARROW_WIDTH){1'b0}}, narrow_data}
+                                          << (w_lane * NARROW_WIDTH);
                 end else begin
-                    r_data_accumulator[r_beat_ptr*NARROW_WIDTH +: NARROW_WIDTH] <= narrow_data;
+                    r_data_accumulator[w_lane*NARROW_WIDTH +: NARROW_WIDTH] <= narrow_data;
                 end
 
                 // Beat-pointer advance: rolls to 0 on group completion,
-                // otherwise increments. Doesn't race with wide-accept.
+                // otherwise tracks the lane just used + 1. Doesn't race
+                // with wide-accept.
                 if (narrow_completes_group) begin
                     r_beat_ptr <= '0;
                 end else begin
-                    r_beat_ptr <= r_beat_ptr + 1'b1;
+                    r_beat_ptr <= w_lane + 1'b1;
                 end
+
+                // A narrow_last beat closes the burst; the next accepted
+                // beat opens a new one at start_lane.
+                r_burst_fresh <= narrow_last;
             end
 
             // Single point of control for r_wide_valid / r_last_buffered.
@@ -222,10 +252,15 @@ module axi_data_upsize #(
                     end else begin
                         if (narrow_valid && narrow_ready) begin
                             if (r_beat_ptr == '0) begin
+                                // Lane-shifted like the data: a mid-word
+                                // burst start leaves the leading WSTRB
+                                // slots '0 -- those bytes are disabled,
+                                // not clobbered.
                                 r_sideband_accumulator <= {{(WIDE_SB_PORT_WIDTH-NARROW_SB_WIDTH){1'b0}},
-                                                           narrow_sideband[NARROW_SB_WIDTH-1:0]};
+                                                           narrow_sideband[NARROW_SB_WIDTH-1:0]}
+                                                          << (w_lane * NARROW_SB_WIDTH);
                             end else begin
-                                r_sideband_accumulator[r_beat_ptr*NARROW_SB_WIDTH +: NARROW_SB_WIDTH] <= narrow_sideband[NARROW_SB_WIDTH-1:0];
+                                r_sideband_accumulator[w_lane*NARROW_SB_WIDTH +: NARROW_SB_WIDTH] <= narrow_sideband[NARROW_SB_WIDTH-1:0];
                             end
                         end
                     end

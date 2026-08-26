@@ -61,6 +61,11 @@ module axi_data_dnsize #(
     // Burst Control (only if TRACK_BURSTS=1)
     input  logic [BURST_LEN_WIDTH-1:0]      burst_len,       // From address channel (ARLEN/AWLEN)
     input  logic                            burst_start,     // Pulse to start new burst
+    // Lane of the burst's FIRST narrow beat inside the first wide word
+    // (addr % wide_bytes / narrow_bytes). Sampled on the burst's first
+    // wide beat; later wide beats slice from lane 0. Tie '0 for the
+    // historical aligned-only behavior. TRACK_BURSTS=1 only.
+    input  logic [PTR_WIDTH-1:0]            start_lane,
 
     // Wide Input (from slave or master)
     input  logic                            wide_valid,
@@ -102,6 +107,11 @@ module axi_data_dnsize #(
     logic [BURST_LEN_WIDTH-1:0] r_slave_beat_count;
     logic [BURST_LEN_WIDTH-1:0] r_slave_total_beats;
     logic                       r_burst_active;
+    // The next wide beat accepted is the FIRST of its burst -- its slice
+    // pointer starts at start_lane instead of 0 (mid-word burst start).
+    logic                       r_first_wide_of_burst;
+    logic                       w_burst_opening;
+    assign w_burst_opening = (TRACK_BURSTS != 0) && burst_start && !r_burst_active;
 
     // Single-buffer mode registers
     generate
@@ -151,13 +161,15 @@ module axi_data_dnsize #(
                         r_slave_beat_count <= '0;
                         r_slave_total_beats <= '0;
                         r_burst_active <= 1'b0;
+                        r_first_wide_of_burst <= 1'b0;
                     end
                 end else begin
                     // Burst tracking logic
-                    if (TRACK_BURSTS != 0 && burst_start && !r_burst_active) begin
+                    if (w_burst_opening) begin
                         r_slave_total_beats <= burst_len + 1'b1;
                         r_slave_beat_count <= '0;
                         r_burst_active <= 1'b1;
+                        r_first_wide_of_burst <= 1'b1;
                     end
 
                     // Send narrow beat (may clear r_wide_buffered)
@@ -196,7 +208,19 @@ module axi_data_dnsize #(
                         gen_single_buffer.r_data_buffer <= wide_data;
                         gen_single_buffer.r_last_buffered <= wide_last;
                         gen_single_buffer.r_wide_buffered <= 1'b1;
-                        r_beat_ptr <= '0;
+                        // The burst's first wide word is sliced from
+                        // start_lane (mid-word burst start); every later
+                        // wide word from lane 0. w_burst_opening covers
+                        // the burst-start-and-first-wide-same-cycle case
+                        // (this NBA is textually after the opening branch,
+                        // so the flag clear wins -- the lane is consumed).
+                        if (TRACK_BURSTS != 0 &&
+                            (r_first_wide_of_burst || w_burst_opening)) begin
+                            r_beat_ptr <= start_lane;
+                            r_first_wide_of_burst <= 1'b0;
+                        end else begin
+                            r_beat_ptr <= '0;
+                        end
                     end
                 end
             )

@@ -315,6 +315,16 @@ class AXI4DWidthConverterWriteTB(TBBase):
 
         return data_list
 
+    def expected_wide_beats(self, addr, narrow_beats):
+        """Wide beats for an UPSIZE burst: ceil((start_lane + N) / RATIO).
+
+        A burst may start mid-wide-word (narrow-aligned address); the lane
+        offset eats into the first wide beat, so it counts toward the
+        total. DOWNSIZE callers don't use this.
+        """
+        lane = (addr % self.M_STRB_WIDTH) // self.S_STRB_WIDTH
+        return (lane + narrow_beats + self.WIDTH_RATIO - 1) // self.WIDTH_RATIO
+
     async def write_transaction(self, addr, data_list, awid=0, awsize=None, awburst=1):
         """
         Perform write transaction - just send data, don't verify here.
@@ -419,7 +429,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
         # (Callbacks capture packets as they arrive at master side)
         # Large timeout to handle worst-case backpressure scenarios
         timeout_cycles = 2000  # 2us @ 10ns period
-        expected_beats = len(data) * self.WIDTH_RATIO if self.DOWNSIZE else (len(data) + self.WIDTH_RATIO - 1) // self.WIDTH_RATIO
+        expected_beats = len(data) * self.WIDTH_RATIO if self.DOWNSIZE else self.expected_wide_beats(addr, len(data))
 
         self.log.info(f"Waiting for converted data (expecting {expected_beats} beats)")
 
@@ -453,6 +463,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
                 self.log.error(f"   Collected data: {[hex(d) for d in collected_data]}")
             self.errors += 1
 
+        # Mid-wide-word burst start (CONV-006) -- lane-correct data + WSTRB.
+        if not await self.test_unaligned_wide_start():
+            success = False
+
         return success
 
     async def do_write_and_verify(self, addr, data, debug=False):
@@ -468,7 +482,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
         await self.write_transaction(addr, data)
 
         # Calculate expected beats
-        expected_beats = len(data) * self.WIDTH_RATIO if self.DOWNSIZE else (len(data) + self.WIDTH_RATIO - 1) // self.WIDTH_RATIO
+        expected_beats = len(data) * self.WIDTH_RATIO if self.DOWNSIZE else self.expected_wide_beats(addr, len(data))
 
         if debug:
             self.log.info(f"   B response received at {cocotb.utils.get_sim_time('ns')}ns, captured {len(self.captured_w_packets)}/{expected_beats} packets")
@@ -538,7 +552,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
         # Calculate expected master-side beats
         if self.UPSIZE:
             # Upsize: Multiple slave beats → Single master beat
-            expected_master_beats = (len(slave_data_list) + self.WIDTH_RATIO - 1) // self.WIDTH_RATIO
+            expected_master_beats = self.expected_wide_beats(addr, len(slave_data_list))
         else:
             # Downsize: Single slave beat → Multiple master beats
             expected_master_beats = len(slave_data_list) * self.WIDTH_RATIO
@@ -588,6 +602,113 @@ class AXI4DWidthConverterWriteTB(TBBase):
         self.log.info(f"✅ Write verification passed: {len(slave_data_list)} slave beats → {expected_master_beats} master beats")
         return True
 
+
+    async def test_unaligned_wide_start(self):
+        """UPSIZE: a burst starting mid-wide-word packs into its ADDRESSED lanes.
+
+        AXI semantics for a narrow burst into a wider bus: the first wide
+        beat carries the narrow data in the byte lanes the ADDRESS selects,
+        with WSTRB covering only those lanes (leading lanes disabled). The
+        lane-0-always packer instead landed the data at the bottom of the
+        wide word -- wrong memory bytes, silently (CONV-006). This scenario
+        pins the correct behavior:
+
+          - m_axi_awaddr passes through unchanged (unaligned is legal AXI;
+            the first beat is partial within its size container)
+          - wide beat count = ceil((lane_offset + narrow_beats) / RATIO)
+          - first wide beat: data at lanes k..; WSTRB only on those lanes
+          - later wide beats (if any) continue from lane 0
+        """
+        if not self.UPSIZE:
+            return True  # downsize has no wide-side packing
+
+        ratio = self.WIDTH_RATIO
+        s_bytes = self.S_STRB_WIDTH
+        k = max(1, ratio // 2)          # narrow-lane offset inside the wide word
+        addr = 0xA000 + k * s_bytes     # narrow-aligned, wide-UNALIGNED
+        n_beats = 2 if ratio >= 2 else 1
+        data = [(0xD0000000 + i) & ((1 << self.S_AXI_DATA_WIDTH) - 1)
+                for i in range(n_beats)]
+        narrow_strb = (1 << s_bytes) - 1
+
+        self.captured_aw_packets.clear()
+        self.captured_w_packets.clear()
+
+        await self.write_transaction(addr, data)
+
+        exp_wide = (k + n_beats + ratio - 1) // ratio
+
+        # Wait for the wide beats to be captured
+        for _ in range(self.TIMEOUT_CYCLES):
+            if (len(self.captured_w_packets) >= exp_wide
+                    and int(getattr(self.captured_w_packets[-1], 'last', 0)) == 1):
+                break
+            await self.wait_clocks(self.aclk_name, 1)
+
+        ok = True
+        if len(self.captured_w_packets) != exp_wide:
+            self.log.error(
+                f"unaligned-start: expected {exp_wide} wide beats "
+                f"(lane offset {k} + {n_beats} narrow), got "
+                f"{len(self.captured_w_packets)}")
+            self.errors += 1
+            return False
+
+        aw = self.captured_aw_packets[0] if self.captured_aw_packets else None
+        if aw is not None:
+            if int(getattr(aw, 'addr', -1)) != addr:
+                self.log.error(
+                    f"unaligned-start: AWADDR 0x{int(aw.addr):X} != 0x{addr:X} "
+                    f"(must pass through unchanged)")
+                self.errors += 1
+                ok = False
+            if int(getattr(aw, 'len', -1)) != exp_wide - 1:
+                self.log.error(
+                    f"unaligned-start: AWLEN {int(aw.len)} != {exp_wide - 1} "
+                    f"(lane offset must count toward the wide beat total)")
+                self.errors += 1
+                ok = False
+
+        # Build expected wide words: narrow beat i occupies lane (k+i) % ratio
+        # of wide word (k+i) // ratio.
+        exp_data = [0] * exp_wide
+        exp_strb = [0] * exp_wide
+        for i, d in enumerate(data):
+            word = (k + i) // ratio
+            lane = (k + i) % ratio
+            exp_data[word] |= d << (lane * self.S_AXI_DATA_WIDTH)
+            exp_strb[word] |= narrow_strb << (lane * s_bytes)
+
+        for w_idx in range(exp_wide):
+            pkt = self.captured_w_packets[w_idx]
+            got_d = int(getattr(pkt, 'data', 0))
+            got_s = int(getattr(pkt, 'strb', 0))
+            # Only compare the strobed lanes' data -- unstrobed lanes are
+            # don't-care on the wire.
+            lane_mask = 0
+            for b in range(self.M_STRB_WIDTH):
+                if (exp_strb[w_idx] >> b) & 1:
+                    lane_mask |= 0xFF << (b * 8)
+            if (got_d & lane_mask) != (exp_data[w_idx] & lane_mask):
+                self.log.error(
+                    f"unaligned-start: wide beat {w_idx} data "
+                    f"0x{got_d:X} != expected 0x{exp_data[w_idx]:X} in the "
+                    f"addressed lanes (start lane {k})")
+                self.errors += 1
+                ok = False
+            if got_s != exp_strb[w_idx]:
+                self.log.error(
+                    f"unaligned-start: wide beat {w_idx} WSTRB 0x{got_s:X} != "
+                    f"0x{exp_strb[w_idx]:X} -- byte enables must select the "
+                    f"ADDRESSED lanes only")
+                self.errors += 1
+                ok = False
+
+        if ok:
+            self.log.info(
+                f"unaligned-start: {n_beats} narrow beats at lane {k} packed "
+                f"into {exp_wide} wide beat(s) with lane-correct data+WSTRB")
+        return ok
 
     async def test_max_length_burst(self):
         """A maximum-length slave burst must survive downsizing.
@@ -739,6 +860,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
 
         # Test 2b: maximum-length bursts -- see test_max_length_burst
         if not await self.test_max_length_burst():
+            all_success = False
+
+        # Test 2c: mid-wide-word burst starts -- see test_unaligned_wide_start
+        if not await self.test_unaligned_wide_start():
             all_success = False
 
         # Test 3: Random addresses and unique data

@@ -207,6 +207,13 @@ module axi4_dwidth_converter_wr #(
     logic       split_w_pop;     // W side: consumed this entry
     logic       split_b_final;   // head-of-B entry: last burst of its slave burst
     logic       split_b_pop;     // B side: consumed one response
+
+    // UPSIZE only (driven in gen_aw_upsize, consumed in gen_w_upsize):
+    // start lane of the burst the next W beats belong to, and the gate
+    // that holds W off until its AW has been accepted (the lane comes
+    // from AWADDR). Tied inert in DOWNSIZE.
+    logic [7:0] w_upsize_start_lane;
+    logic       w_upsize_w_gate;
     logic                      int_b_ready;
 
     logic [AXI_ID_WIDTH-1:0]   int_bid;
@@ -289,6 +296,10 @@ module axi4_dwidth_converter_wr #(
 
     generate
         if (DOWNSIZE) begin : gen_aw_downsize
+            // W runs free in DOWNSIZE; no lane offset on the narrow side.
+            assign w_upsize_start_lane = 8'd0;
+            assign w_upsize_w_gate     = 1'b1;
+
             // Downsize: slave (wide) → master (narrow). One wide beat
             // becomes WIDTH_RATIO narrow beats -- and that product does
             // not fit a burst. AXI4 allows 256 beats, so a full-length
@@ -398,17 +409,68 @@ module axi4_dwidth_converter_wr #(
 
         end else begin : gen_aw_upsize
             // Upsize: slave (narrow) → master (wide). Divide burst length
-            // by ratio (round up). Division can never overflow AWLEN, so
-            // no splitting is needed and the split queue is tied off.
+            // by ratio (round up), counting the start lane: an INCR burst
+            // may begin mid-wide-word, in which case its first wide beat
+            // is partial and the lane offset eats into the first group.
+            // Division can never overflow AWLEN, so no splitting is
+            // needed and the split queue is tied off.
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
+            localparam int LANE_W      = $clog2(WIDTH_RATIO);
 
             assign split_w_avail = 1'b0;
             assign split_w_beats = 9'd0;
             assign split_b_final = 1'b1;
 
+            // Narrow-lane offset of the burst start inside the wide word.
+            logic [LANE_W-1:0] w_aw_lane;
+            assign w_aw_lane = LANE_W'(int_awaddr[$clog2(M_STRB_WIDTH)-1:0]
+                                       >> $clog2(S_STRB_WIDTH));
+
+            // AW-lane queue: the W packer needs the start lane of the
+            // burst its FIRST W beat belongs to, and W may run ahead of
+            // or behind AW. One entry per accepted AW, popped when the
+            // wide burst's WLAST completes. W is held off while empty
+            // (deadlock-free: AW never depends on W). Same inline-queue
+            // pattern as the read converter's burst-length FIFO.
+            localparam int WLANE_DEPTH = 16;
+            localparam int WLANE_AW    = $clog2(WLANE_DEPTH);
+            logic [LANE_W-1:0]  wlane_mem [WLANE_DEPTH];
+            logic [WLANE_AW:0]  wlane_wptr, wlane_rptr;
+            logic               w_wlane_full, w_wlane_avail;
+            assign w_wlane_full  = (wlane_wptr[WLANE_AW] != wlane_rptr[WLANE_AW]) &&
+                                   (wlane_wptr[WLANE_AW-1:0] == wlane_rptr[WLANE_AW-1:0]);
+            assign w_wlane_avail = (wlane_wptr != wlane_rptr);
+
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    wlane_wptr <= '0;
+                    wlane_rptr <= '0;
+                end else begin
+                    if (int_aw_valid && int_aw_ready) begin
+                        wlane_mem[wlane_wptr[WLANE_AW-1:0]] <= w_aw_lane;
+                        wlane_wptr <= wlane_wptr + 1'b1;
+                    end
+                    // Pop on the NARROW side's last beat: the head must
+                    // track the burst the CURRENT narrow beat belongs to.
+                    // Popping on the wide WLAST raced back-to-back bursts:
+                    // burst B's first narrow beat can be accepted in the
+                    // same cycle as burst A's last wide handshake and
+                    // would sample A's stale lane.
+                    if (int_w_valid && int_w_ready && int_wlast) begin
+                        wlane_rptr <= wlane_rptr + 1'b1;
+                    end
+                end
+            )
+
+            assign w_upsize_start_lane = 8'(wlane_mem[wlane_rptr[WLANE_AW-1:0]]);
+            assign w_upsize_w_gate     = w_wlane_avail;
+
             assign m_axi_awid     = int_awid;
             assign m_axi_awaddr   = int_awaddr;
-            assign m_axi_awlen    = ((int_awlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
+            // Wide beats = ceil((lane + narrow_beats) / RATIO); 10-bit
+            // intermediate so lane + 255 + RATIO cannot wrap.
+            assign m_axi_awlen    = 8'(((10'(w_aw_lane) + 10'(int_awlen) + 10'(WIDTH_RATIO))
+                                        / 10'(WIDTH_RATIO)) - 10'd1);
             assign m_axi_awsize   = MASTER_SIZE[2:0];
             assign m_axi_awburst  = int_awburst;
             assign m_axi_awlock   = int_awlock;
@@ -417,18 +479,20 @@ module axi4_dwidth_converter_wr #(
             assign m_axi_awqos    = int_awqos;
             assign m_axi_awregion = int_awregion;
             assign m_axi_awuser   = int_awuser;
-            assign m_axi_awvalid  = int_aw_valid;
-            assign int_aw_ready   = m_axi_awready;
+            assign m_axi_awvalid  = int_aw_valid && !w_wlane_full;
+            assign int_aw_ready   = m_axi_awready && !w_wlane_full;
 
 `ifdef SIMULATION
-            // Upsize bursts must start wide-aligned: the W packer always
-            // begins filling at lane 0 (no mid-word entry), so an
-            // unaligned start silently lands data in the wrong byte lanes
-            // of the first wide beat (MAS 2.5.5). Fail loudly instead.
+            // Mid-word starts are supported for INCR (lane-placed data,
+            // leading strobes disabled). FIXED/WRAP keep the wide-aligned
+            // requirement -- their lane semantics through the packer are
+            // not defined here.
             always_ff @(posedge aclk) begin
                 if (aresetn && int_aw_valid && int_aw_ready &&
+                    (int_awburst != 2'b01) &&
                     (int_awaddr[$clog2(M_STRB_WIDTH)-1:0] != '0)) begin
-                    $error("axi4_dwidth_converter_wr: upsize AW addr 0x%h is not aligned to the %0d-byte wide bus",
+                    $error("axi4_dwidth_converter_wr: upsize %s AW addr 0x%h is not aligned to the %0d-byte wide bus",
+                           (int_awburst == 2'b00) ? "FIXED" : "WRAP",
                            int_awaddr, M_STRB_WIDTH);
                 end
             end
@@ -485,6 +549,7 @@ module axi4_dwidth_converter_wr #(
                 .aresetn         (aresetn),
                 .burst_len       (8'd0),
                 .burst_start     (1'b0),
+                .start_lane      ('0),  // untracked mode: port unused
                 .wide_valid      (int_w_valid),
                 .wide_ready      (int_w_ready),
                 .wide_data       (int_wdata),
@@ -538,6 +603,11 @@ module axi4_dwidth_converter_wr #(
             // narrow → wide. axi_data_upsize concatenates WSTRBs:
             // SB_OR_MODE=0. wlast on the narrow side terminates the
             // accumulation early (matches existing UPSIZE semantics).
+            // W is held off until its AW is queued: the packer's start
+            // lane comes from AWADDR (see the AW-lane queue above).
+            logic w_upz_nready;
+            assign int_w_ready = w_upz_nready && w_upsize_w_gate;
+
             axi_data_upsize #(
                 .NARROW_WIDTH    (S_AXI_DATA_WIDTH),
                 .WIDE_WIDTH      (M_AXI_DATA_WIDTH),
@@ -547,11 +617,12 @@ module axi4_dwidth_converter_wr #(
             ) u_w_upsize (
                 .aclk            (aclk),
                 .aresetn         (aresetn),
-                .narrow_valid    (int_w_valid),
-                .narrow_ready    (int_w_ready),
+                .narrow_valid    (int_w_valid && w_upsize_w_gate),
+                .narrow_ready    (w_upz_nready),
                 .narrow_data     (int_wdata),
                 .narrow_sideband (int_wstrb),
                 .narrow_last     (int_wlast),
+                .start_lane      (w_upsize_start_lane[$clog2(WIDTH_RATIO)-1:0]),
                 .wide_valid      (m_axi_wvalid),
                 .wide_ready      (m_axi_wready),
                 .wide_data       (m_axi_wdata),

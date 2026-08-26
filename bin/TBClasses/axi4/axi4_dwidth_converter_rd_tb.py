@@ -463,7 +463,80 @@ class AXI4DWidthConverterReadTB(TBBase):
                 self.log.error(f"   Read data: {[hex(d) for d in result]}")
             self.errors += 1
 
+        # Mid-wide-word burst start (CONV-006) -- addressed-lane data.
+        if not await self.test_unaligned_wide_start():
+            success = False
+
         return success
+
+    async def test_unaligned_wide_start(self):
+        """UPSIZE: a read burst starting mid-wide-word returns the ADDRESSED bytes.
+
+        The converter aligns the issued wide address DOWN (the slave
+        returns whole wide words); the R slicer must then start at the
+        addressed lane of the FIRST wide word, so the master receives
+        the bytes it asked for -- not the bytes at the aligned-down
+        address (CONV-006). Also checks the wide ARLEN counts the lane
+        offset: ceil((lane + narrow_beats) / RATIO) wide beats.
+
+        Drives a byte-addressed pattern memory behind the master-side
+        slave BFM so lane correctness is checkable by address.
+        """
+        if not self.UPSIZE:
+            return True  # downsize fetches from the exact addresses
+
+        ratio = self.WIDTH_RATIO
+        s_bytes = self.S_STRB_WIDTH
+        k = max(1, ratio // 2)
+        addr = 0xB000 + k * s_bytes      # narrow-aligned, wide-UNALIGNED
+        n_beats = 2 if ratio >= 2 else 1
+        exp_wide = (k + n_beats + ratio - 1) // ratio
+        span = 0xC000
+
+        pat = bytearray(((0x5A ^ o ^ (o >> 7)) & 0xFF) for o in range(span))
+        mm = MemoryModel(num_lines=span // self.M_STRB_WIDTH,
+                         bytes_per_line=self.M_STRB_WIDTH,
+                         preset_values=list(pat), log=self.log)
+        iface = self.master_read_slave['interface']
+        saved_mm = getattr(iface, 'memory_model', None)
+        iface.memory_model = mm
+
+        ok = True
+        try:
+            got = await self.read_transaction(addr, n_beats)
+
+            exp = [int.from_bytes(
+                       pat[addr + i * s_bytes: addr + (i + 1) * s_bytes],
+                       'little')
+                   for i in range(n_beats)]
+            for i, (g, e) in enumerate(zip(got, exp)):
+                if int(g) != e:
+                    self.log.error(
+                        f"unaligned-start: narrow beat {i} data 0x{int(g):X} "
+                        f"!= 0x{e:X} -- the slicer must start at lane {k} of "
+                        f"the first wide word (bytes of 0x{addr + i*s_bytes:X})")
+                    self.errors += 1
+                    ok = False
+
+            if self.captured_ar_packets:
+                ar = self.captured_ar_packets[0]
+                got_len = int(getattr(ar, 'len', -1))
+                if got_len != exp_wide - 1:
+                    self.log.error(
+                        f"unaligned-start: wide ARLEN {got_len} != "
+                        f"{exp_wide - 1} (lane offset must count toward the "
+                        f"wide beat total)")
+                    self.errors += 1
+                    ok = False
+
+            if ok:
+                self.log.info(
+                    f"unaligned-start: {n_beats} narrow beats from lane {k} "
+                    f"returned the addressed bytes across {exp_wide} wide "
+                    f"beat(s)")
+            return ok
+        finally:
+            iface.memory_model = saved_mm
 
     async def do_read_and_verify(self, addr, burst_len, debug=False):
         """Helper to read and verify using captured packets (like basic test)."""

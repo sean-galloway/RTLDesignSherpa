@@ -180,6 +180,7 @@ module axi4_dwidth_converter_rd #(
     logic                        w_blen_wr_ready;   // FIFO has room for a new AR
     logic                        w_blen_rd_valid;   // a pending burst length exists
     logic [7:0]                  w_blen_rd_data;    // head = current burst narrow len
+    logic [7:0]                  w_blen_rd_lane;    // head = burst start lane (mid-word starts)
 
     //==========================================================================
     // AR Channel Skid Buffer (Timing Closure)
@@ -349,7 +350,17 @@ module axi4_dwidth_converter_rd #(
             logic [7:0] master_arlen;
             logic [AXI_ADDR_WIDTH-1:0] aligned_araddr;
 
-            assign master_arlen   = 8'((int_arlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
+            // Narrow-lane offset of the burst start inside the wide word.
+            // The issued address stays aligned DOWN (the slave returns
+            // whole wide words); the R slicer starts at this lane for the
+            // burst's first wide word, so the master gets the bytes it
+            // actually addressed (mid-word burst starts, CONV-006).
+            logic [9:0] w_ar_lane;
+            assign w_ar_lane = 10'(int_araddr[ALIGN_BITS-1:0]) >> $clog2(S_STRB_WIDTH);
+            // Wide beats = ceil((lane + narrow_beats) / RATIO); 10-bit
+            // intermediate so lane + 255 + RATIO cannot wrap.
+            assign master_arlen   = 8'(((w_ar_lane + 10'(int_arlen) + 10'(WIDTH_RATIO))
+                                        / 10'(WIDTH_RATIO)) - 10'd1);
             assign aligned_araddr = {int_araddr[AXI_ADDR_WIDTH-1:ALIGN_BITS], {ALIGN_BITS{1'b0}}};
 
             assign m_axi_arid     = int_arid;
@@ -369,15 +380,16 @@ module axi4_dwidth_converter_rd #(
             assign int_ar_ready   = m_axi_arready && w_blen_wr_ready;
 
 `ifdef SIMULATION
-            // Upsize bursts must start wide-aligned: the issued address is
-            // aligned DOWN and the R slicer starts at lane 0, so a
-            // mid-word AR start silently returns data from the aligned
-            // address instead of the requested one (MAS 2.6.5). Fail
-            // loudly instead.
+            // Mid-word starts are supported for INCR (the slicer starts at
+            // the addressed lane). FIXED/WRAP keep the wide-aligned
+            // requirement -- their lane semantics through the slicer are
+            // not defined here.
             always_ff @(posedge aclk) begin
                 if (aresetn && int_ar_valid && int_ar_ready &&
+                    (int_arburst != 2'b01) &&
                     (int_araddr[ALIGN_BITS-1:0] != '0)) begin
-                    $error("axi4_dwidth_converter_rd: upsize AR addr 0x%h is not aligned to the %0d-byte wide bus",
+                    $error("axi4_dwidth_converter_rd: upsize %s AR addr 0x%h is not aligned to the %0d-byte wide bus",
+                           (int_arburst == 2'b00) ? "FIXED" : "WRAP",
                            int_araddr, M_STRB_WIDTH);
                 end
             end
@@ -444,6 +456,7 @@ module axi4_dwidth_converter_rd #(
                 // across the boundary, which is safe because 256 narrow
                 // beats is a whole number of wide beats at every ratio.
                 .narrow_last     (m_axi_rlast && arsplit_final),
+                .start_lane      ('0),  // narrow master fetches from the exact addresses
                 .wide_valid      (int_r_valid),
                 .wide_ready      (int_r_ready),
                 .wide_data       (int_rdata),
@@ -459,6 +472,7 @@ module axi4_dwidth_converter_rd #(
             assign w_blen_wr_ready = 1'b1;
             assign w_blen_rd_valid = 1'b0;
             assign w_blen_rd_data  = '0;
+            assign w_blen_rd_lane  = '0;
 
         end else begin : gen_r_upsize
             assign arsplit_pop = 1'b0;
@@ -483,7 +497,9 @@ module axi4_dwidth_converter_rd #(
             localparam int BLEN_FIFO_DEPTH = 16;
             localparam int BLEN_AW         = $clog2(BLEN_FIFO_DEPTH);
 
-            logic [7:0]         blen_mem [BLEN_FIFO_DEPTH];
+            localparam int R_LANE_W = $clog2(WIDTH_RATIO);
+            logic [7:0]         blen_mem  [BLEN_FIFO_DEPTH];
+            logic [R_LANE_W-1:0] blen_lane_mem [BLEN_FIFO_DEPTH];
             logic [BLEN_AW:0]   blen_wptr, blen_rptr;   // extra MSB for full/empty
             logic               w_blen_push, w_blen_pop;
 
@@ -496,6 +512,7 @@ module axi4_dwidth_converter_rd #(
                                        (blen_wptr[BLEN_AW]     != blen_rptr[BLEN_AW]));   // !full
             assign w_blen_rd_valid = (blen_wptr != blen_rptr);                            // !empty
             assign w_blen_rd_data  = blen_mem[blen_rptr[BLEN_AW-1:0]];
+            assign w_blen_rd_lane  = 8'(blen_lane_mem[blen_rptr[BLEN_AW-1:0]]);
 
             `ALWAYS_FF_RST(aclk, aresetn,
                 if (`RST_ASSERTED(aresetn)) begin
@@ -503,7 +520,10 @@ module axi4_dwidth_converter_rd #(
                     blen_rptr <= '0;
                 end else begin
                     if (w_blen_push) begin
-                        blen_mem[blen_wptr[BLEN_AW-1:0]] <= int_arlen;
+                        blen_mem[blen_wptr[BLEN_AW-1:0]]      <= int_arlen;
+                        blen_lane_mem[blen_wptr[BLEN_AW-1:0]] <=
+                            R_LANE_W'(int_araddr[$clog2(M_STRB_WIDTH)-1:0]
+                                      >> $clog2(S_STRB_WIDTH));
                         blen_wptr <= blen_wptr + 1'b1;
                     end
                     if (w_blen_pop) blen_rptr <= blen_rptr + 1'b1;
@@ -523,6 +543,7 @@ module axi4_dwidth_converter_rd #(
                 .aresetn         (aresetn),
                 .burst_len       (w_blen_rd_data),
                 .burst_start     (w_blen_rd_valid),
+                .start_lane      (w_blen_rd_lane[$clog2(WIDTH_RATIO)-1:0]),
                 .wide_valid      (m_axi_rvalid),
                 .wide_ready      (m_axi_rready),
                 .wide_data       (m_axi_rdata),
