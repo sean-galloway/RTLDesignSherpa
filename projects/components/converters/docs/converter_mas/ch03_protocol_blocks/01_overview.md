@@ -95,7 +95,7 @@ Protocol converters bridge components that speak different bus protocols — the
 
 **Strategy:**
 1. Pass through all AXI4-Lite signals
-2. Add default values for burst signals (LEN=0, SIZE=2, BURST=INCR)
+2. Add default values for burst signals (LEN=0, SIZE=$clog2(DATA_WIDTH/8), BURST=INCR)
 3. Add default IDs (configurable)
 
 **Complexity:** Very low (combinational only)

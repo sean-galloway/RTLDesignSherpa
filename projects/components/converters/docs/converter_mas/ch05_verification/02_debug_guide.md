@@ -165,27 +165,32 @@ connect_debug_port u_ila/clk [get_nets aclk]
 connect_debug_port u_ila/probe0 [get_nets r_beat_ptr]
 connect_debug_port u_ila/probe1 [get_nets r_ar_beat_count]
 connect_debug_port u_ila/probe2 [get_nets s_axi_arvalid]
-connect_debug_port u_ila/probe3 [get_nets m_arvalid]
+connect_debug_port u_ila/probe3 [get_nets m_axil_arvalid]
 ```
 
 ## 5.2.3 Simulation Debug
 
 ### Waveform Analysis
 
-**Key Signal Groups:**
+**Key Signal Groups** (real port names — the width primitives are
+named by WIDTH, not direction: `narrow_*` is the INPUT of the upsize
+but the OUTPUT of the dnsize):
 
-1. **Input Channel:**
-   - s_valid, s_ready, s_data, s_last
+1. **Narrow side:**
+   - narrow_valid, narrow_ready, narrow_data, narrow_sideband,
+     narrow_last (upsize input / dnsize output)
 
-2. **Output Channel:**
-   - m_valid, m_ready, m_data, m_last
+2. **Wide side:**
+   - wide_valid, wide_ready, wide_data, wide_sideband, wide_last
+     (upsize output / dnsize input)
 
 3. **Control:**
-   - r_beat_ptr, r_slave_beat_count, r_burst_active (tracked mode)
+   - r_beat_ptr, r_slave_beat_count, r_burst_active (tracked mode),
+     start_lane, burst_len/burst_start (dnsize tracked mode)
 
-4. **Sideband:**
-   - s_wstrb/m_wstrb (write path)
-   - s_rresp/m_rresp (read path)
+4. **Sideband contents:**
+   - WSTRB rides narrow_/wide_sideband on the write path
+   - RRESP rides narrow_/wide_sideband on the read path
 
 ### Timing Diagram Template
 

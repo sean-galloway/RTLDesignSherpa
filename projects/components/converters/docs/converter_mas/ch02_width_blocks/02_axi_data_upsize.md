@@ -221,7 +221,10 @@ always_ff @(posedge clk or negedge rst_n) begin
 
         // Handle sideband based on mode
         if (SB_OR_MODE)
-            r_sideband <= (r_count == 0) ? s_sideband : (r_sideband | s_sideband);
+            // severity fold: numeric max, NOT bitwise OR (CONV-005 --
+            // SLVERR | EXOKAY would fabricate DECERR)
+            r_sideband <= (r_count == 0) ? s_sideband :
+                          (s_sideband > r_sideband) ? s_sideband : r_sideband;
         else
             r_sideband[r_count * NARROW_SB_WIDTH +: NARROW_SB_WIDTH] <= s_sideband;
 
@@ -315,6 +318,9 @@ axi_data_upsize #(
     .narrow_data     (s_wdata),
     .narrow_sideband (s_wstrb),
     .narrow_last     (s_wlast),
+    // '0 = aligned-only; wire addr%wide_bytes/narrow_bytes for
+    // mid-word burst starts (see the wr converter's AW-lane queue)
+    .start_lane      ('0),
     .wide_valid      (m_wvalid),
     .wide_ready      (m_wready),
     .wide_data       (m_wdata),

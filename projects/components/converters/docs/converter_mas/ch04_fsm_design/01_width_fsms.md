@@ -35,8 +35,14 @@ very bubble the design avoids.
 
 The real structure:
 
-- `r_beat_ptr` walks slots as narrow beats land in the accumulator;
-- a group completes on `WIDTH_RATIO` beats or an early `narrow_last`;
+- `r_beat_ptr` walks slots as narrow beats land in the accumulator.
+  A fresh BURST's first beat lands at `start_lane` (mid-word INCR
+  starts, CONV-006), so the effective lane is
+  `w_lane = (ptr=='0) ? (burst_fresh ? start_lane : 0) : ptr`;
+- a group completes when the LANE reaches `WIDTH_RATIO-1` or on an
+  early `narrow_last` -- a mid-word burst's first wide group holds
+  `WIDTH_RATIO - start_lane` beats, not `WIDTH_RATIO`; later groups
+  start at lane 0 and hold the full count;
 - `r_wide_valid` presents the completed group on the wide side while
   the NEXT group starts accumulating -- when a wide handshake and a
   completing narrow beat coincide, a single priority selection keeps
@@ -67,8 +73,11 @@ assign wide_ready = !r_wide_buffered || (narrow_ready && w_last_narrow_beat);
 With `TRACK_BURSTS=1` the condition narrows to `mid_burst_replace`,
 which excludes each burst's final beat -- one bubble per burst
 boundary, not per beat. A beat pointer (`r_beat_ptr`) selects the slice
-driven onto the narrow side; `narrow_last` in tracked mode comes only
-from the beat counter reaching `burst_len + 1`.
+driven onto the narrow side; on the burst's FIRST wide word it starts
+at `start_lane` (mid-word INCR starts, CONV-006 -- the narrow master
+receives the bytes it addressed, not the aligned-down word's bytes),
+and at lane 0 for every later wide word. `narrow_last` in tracked mode
+comes only from the beat counter reaching `burst_len + 1`.
 
 ## 4.1.3 Full Converter FSMs
 

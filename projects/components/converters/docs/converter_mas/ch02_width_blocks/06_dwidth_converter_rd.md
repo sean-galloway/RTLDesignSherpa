@@ -153,10 +153,14 @@ module axi4_dwidth_converter_rd #(
 Same as write converter:
 
 ```systemverilog
-localparam int RATIO = M_AXI_DATA_WIDTH / S_AXI_DATA_WIDTH;
+// Direction-aware, same as the write converter (2.5.4)
+localparam int RATIO = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH)
+                       ? (M_AXI_DATA_WIDTH / S_AXI_DATA_WIDTH)
+                       : (S_AXI_DATA_WIDTH / M_AXI_DATA_WIDTH);
 localparam int RATIO_LOG2 = $clog2(RATIO);
 
-// upsize: New ARLEN = ceil((ARLEN + 1) / RATIO) - 1  (round UP)
+// upsize: New ARLEN = ceil((start_lane + ARLEN + 1) / RATIO) - 1
+// (round UP; the start lane counts for mid-word bursts, see 2.6.5)
 // downsize: split into master bursts of <= 256 beats (see 2.6.5)
 ```
 
@@ -178,8 +182,10 @@ Same two directions as the write converter (see 2.5.4 for why the upsize
 divide rounds up):
 
 ```systemverilog
-// narrow -> wide (upsize): beats combine, round up
-assign m_axi_arlen  = ((int_arlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
+// narrow -> wide (upsize): beats combine, round up; the start lane
+// counts toward the wide total for mid-word bursts
+assign m_axi_arlen  = 8'(((w_ar_lane + 10'(int_arlen) + 10'(WIDTH_RATIO))
+                          / 10'(WIDTH_RATIO)) - 10'd1);
 
 // wide -> narrow (downsize): each wide beat becomes RATIO narrow beats,
 // and the product can exceed both AWLEN's 8 bits and the 256-beat legal
@@ -232,16 +238,19 @@ so every burst is framed however they overlap.
 
 It is an inline circular buffer rather than a `fifo_sync` instance,
 deliberately: this converter is widely instantiated and a submodule here
-would add a filelist dependency to every consumer. It stores the length
-alone -- ID is carried on the AXI channels, not through this queue -- and
+would add a filelist dependency to every consumer. It stores the narrow
+length AND the burst's start lane (mid-word INCR starts, CONV-006) --
+ID is carried on the AXI channels, not through this queue -- and
 AR is back-pressured when full, so it cannot overflow.
 
 ```systemverilog
             localparam int BLEN_FIFO_DEPTH = 16;
             localparam int BLEN_AW         = $clog2(BLEN_FIFO_DEPTH);
 
-            logic [7:0]         blen_mem [BLEN_FIFO_DEPTH];
-            logic [BLEN_AW:0]   blen_wptr, blen_rptr;   // extra MSB for full/empty
+            localparam int R_LANE_W = $clog2(WIDTH_RATIO);
+            logic [7:0]          blen_mem      [BLEN_FIFO_DEPTH];
+            logic [R_LANE_W-1:0] blen_lane_mem [BLEN_FIFO_DEPTH];  // start lane
+            logic [BLEN_AW:0]    blen_wptr, blen_rptr;   // extra MSB for full/empty
             logic               w_blen_push, w_blen_pop;
 
             // AR accepted -> enqueue its narrow length. A slave-side (narrow)
@@ -277,6 +286,7 @@ axi_data_dnsize #(
     // produces framing with no LAST (see 2.3.9)
     .burst_len       (w_blen_rd_data),
     .burst_start     (w_blen_rd_valid),
+    .start_lane      (w_blen_rd_lane[$clog2(WIDTH_RATIO)-1:0]),
     .wide_valid      (m_axi_rvalid),
     .wide_ready      (m_axi_rready),
     .wide_data       (m_axi_rdata),
@@ -327,24 +337,28 @@ assign int_rid = r_rid_held;
 
 ## 2.6.9 Resource Utilization
 
-### Typical Resources (512→64, ID=4)
+### Typical Resources (64→512 UPSIZE, ratio 8, ID=4)
 
-Hand estimates, not synthesis results, except the burst-length FIFO,
-which is counted from its declaration.
+The burst-length FIFO exists only in the converter's UPSIZE mode (see
+2.6.5), so the configuration here is upsize -- an earlier revision
+labeled this table 512→64 (DOWNSIZE), a mode in which that FIFO is
+tied off and does not exist. Hand estimates, not synthesis results,
+except the FIFO, which is counted from its declarations.
 
 ```
 AR skid buffer:      ~150 flip-flops
-R upsize data path:  ~600 flip-flops, ~60 LUTs
-Burst-length FIFO:   138 flip-flops (16 x 8b + two 5b pointers)
-Burst tracker:       ~30 flip-flops, ~20 LUTs
+R dnsize data path:  ~600 flip-flops, ~50 LUTs  (single-buffer slicer)
+Burst-length FIFO:   186 flip-flops
+                     (16 x 8b length + 16 x 3b start lane + two 5b pointers)
 Control logic:       ~80 LUTs
 
-Total: ~920 flip-flops, ~160 LUTs (sum of the lines above)
+Total: ~940 flip-flops, ~130 LUTs (sum of the lines above)
 ```
 
-(The R data path in these figures is the single-buffer `axi_data_dnsize`
--- the only implementation; its ping-pong `DUAL_BUFFER` variant was
-removed, see 2.3.8.)
+There is no separate "burst tracker" block -- 2.6.7 explains RLAST
+comes from the dnsize's own counter, framed by the FIFO. The R data
+path is the single-buffer `axi_data_dnsize` -- the only implementation;
+its ping-pong `DUAL_BUFFER` variant was removed, see 2.3.8.
 
 ## 2.6.10 Timing Characteristics
 

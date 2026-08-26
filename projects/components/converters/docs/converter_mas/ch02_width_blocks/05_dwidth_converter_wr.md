@@ -166,7 +166,11 @@ module axi4_dwidth_converter_wr #(
 ### Ratio Calculation
 
 ```systemverilog
-localparam int RATIO = M_AXI_DATA_WIDTH / S_AXI_DATA_WIDTH;
+// Direction-aware: wider / narrower (a plain M/S divide evaluates to
+// 0 in DOWNSIZE mode and $clog2(0) is illegal)
+localparam int RATIO = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH)
+                       ? (M_AXI_DATA_WIDTH / S_AXI_DATA_WIDTH)
+                       : (S_AXI_DATA_WIDTH / M_AXI_DATA_WIDTH);
 localparam int RATIO_LOG2 = $clog2(RATIO);
 
 // upsize: New AWLEN = ceil((AWLEN + 1) / RATIO) - 1  (round UP --
@@ -364,10 +368,11 @@ AXI4 allows AW to arrive before, with, or after W data. The converter must handl
 
 ### Solution
 
-On the **upsize** path the write converter carries no AW information
-queue: AW is handled on the channel itself and the upsize block frames
-its output from the beats it is given, so there is nothing to stash
-between the address and its data.
+The **upsize** path carries an AW-lane queue (see 2.5.5): each
+accepted AW pushes its start lane, and W beats are held off until
+their AW is queued -- the packer's lane placement comes from AWADDR,
+so W genuinely cannot run ahead of its address. The entry pops on the
+narrow side's last beat.
 
 The **downsize** path does carry one — the split queue of 2.5.5. Each
 issued master burst pushes `{final-burst flag, beat count}`; the beat
@@ -391,8 +396,9 @@ Control logic:      ~100 LUTs
 
 Total: ~820 flip-flops, ~160 LUTs
 
-Hand estimates, not synthesis results. The only AW-derived storage is
-the downsize split queue (2.5.5); the upsize path has none.
+Hand estimates, not synthesis results. AW-derived storage: the
+downsize split queue, or the upsize AW-lane queue (16 x lane-width
+entries + two 5-bit pointers) -- see 2.5.5 for both.
 ```
 
 ## 2.5.10 Timing Characteristics

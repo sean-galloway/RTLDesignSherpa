@@ -195,7 +195,11 @@ AXIL4 slave ahead of its own address:
   together.
 
 ```systemverilog
-    wire w_burst_capture = !r_aw_active && s_axi_awvalid && (s_axi_awlen > 0);
+    // s_axi_awready restricts the block to the ACCEPT cycle. Without it
+    // a burst AW merely PARKED by the one-outstanding guard (awvalid=1,
+    // awready=0) deadlocked the write already in flight (CONV-007).
+    wire w_burst_capture = !r_aw_active && s_axi_awvalid && s_axi_awready &&
+                           (s_axi_awlen > 0);
 
     assign m_axil_wvalid = w_burst_capture ? 1'b0 :
                            r_aw_active     ? (s_axi_wvalid &&

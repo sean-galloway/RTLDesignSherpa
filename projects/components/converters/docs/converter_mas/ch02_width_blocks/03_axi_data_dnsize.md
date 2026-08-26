@@ -319,6 +319,9 @@ axi_data_dnsize #(
     .aresetn         (aresetn),
     .burst_len       (8'(narrow_beats - 1)),  // narrow-beat units
     .burst_start     (ar_accepted),
+    // '0 = aligned-only; wire addr%wide_bytes/narrow_bytes for
+    // mid-word burst starts (see the rd converter's length+lane FIFO)
+    .start_lane      ('0),
     .wide_valid      (s_rvalid),
     .wide_ready      (s_rready),
     .wide_data       (s_rdata),
