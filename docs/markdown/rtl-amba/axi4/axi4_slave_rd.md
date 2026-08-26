@@ -25,26 +25,41 @@
 
 **Module:** `axi4_slave_rd.sv`
 **Location:** `rtl/amba/axi4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXI4 Slave Read module provides a buffered AXI4 slave read interface with configurable depth skid buffers on the AR and R channels. This module serves as an elastic buffer between an AXI4 interconnect and a memory or backend processing element, decoupling timing and providing backpressure handling.
+The mirror image of the master-side buffers. The AXI4 Slave Read sits between an AXI4 interconnect and your memory or backend processing element, with configurable-depth skid buffers on the AR and R channels. The interconnect can present addresses whenever it likes, the backend can return data whenever it's ready, and neither one stalls the other — that's the entire job, and it's worth doing well.
 
 ### Key Features
 
-- ✅ **Full AXI4 Read Support:** Complete AR and R channel implementation
-- ✅ **Independent Channel Buffering:** Separate configurable depth buffers for each channel
-- ✅ **Elastic Buffering:** Decouples interconnect and backend timing domains
-- ✅ **Burst Support:** Full burst transaction handling with RLAST tracking
-- ✅ **User Signal Support:** Carries ARUSER and RUSER signals
-- ✅ **Clock Gating Support:** Busy signal for dynamic power management
+- **Full AXI4 Read Support:** Complete AR and R channel implementation
+- **Independent Channel Buffering:** Separate configurable depth buffers for each channel
+- **Elastic Buffering:** Decouples interconnect and backend timing domains
+- **Burst Support:** Full burst transaction handling with RLAST tracking
+- **User Signal Support:** Carries ARUSER and RUSER signals
+- **Clock Gating Support:** Busy signal for dynamic power management
 
 ---
 
-## Module Interface
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `SKID_DEPTH_AR` | int | 2 | Depth of read address (AR) channel skid buffer |
+| `SKID_DEPTH_R` | int | 4 | Depth of read data (R) channel skid buffer |
+| `AXI_ID_WIDTH` | int | 8 | Width of transaction ID signals (ARID, RID) |
+| `AXI_ADDR_WIDTH` | int | 32 | Width of address bus (ARADDR) |
+| `AXI_DATA_WIDTH` | int | 32 | Width of data bus (RDATA), must be 8, 16, 32, 64, 128, 256, 512, or 1024 |
+| `AXI_USER_WIDTH` | int | 1 | Width of user-defined signals (ARUSER, RUSER) |
+
+---
+
+## Ports
+
+The full port list, straight from the RTL:
 
 ```systemverilog
 module axi4_slave_rd #(
@@ -114,23 +129,6 @@ module axi4_slave_rd #(
 );
 ```
 
----
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `SKID_DEPTH_AR` | int | 2 | Depth of read address (AR) channel skid buffer |
-| `SKID_DEPTH_R` | int | 4 | Depth of read data (R) channel skid buffer |
-| `AXI_ID_WIDTH` | int | 8 | Width of transaction ID signals (ARID, RID) |
-| `AXI_ADDR_WIDTH` | int | 32 | Width of address bus (ARADDR) |
-| `AXI_DATA_WIDTH` | int | 32 | Width of data bus (RDATA), must be 8, 16, 32, 64, 128, 256, 512, or 1024 |
-| `AXI_USER_WIDTH` | int | 1 | Width of user-defined signals (ARUSER, RUSER) |
-
----
-
-## Port Groups
-
 ### Clock and Reset
 
 | Port | Direction | Width | Description |
@@ -186,7 +184,7 @@ Mirrors the slave interface but in the opposite direction (output on AR, input o
 
 ### Architecture
 
-The AXI4 Slave Read module uses two independent `gaxi_skid_buffer` instances to provide elastic buffering on each read channel:
+Two independent `gaxi_skid_buffer` instances provide the elastic buffering, one per read channel:
 
 ```mermaid
 flowchart LR
@@ -235,57 +233,6 @@ Use cases:
 - **Clock gating:** Disable clock when `busy` is low
 - **Power management:** Enter low-power mode when idle
 - **Synchronization:** Wait for idle before configuration changes
-
----
-
-## Configuration Guidelines
-
-### Buffer Depth Selection
-
-`SKID_DEPTH_*` is an entry count, not a log2 exponent. The underlying
-`gaxi_skid_buffer` allocates one register slot per entry and tracks occupancy
-with a 4-bit counter, so legal values are 2..8 inclusive (any integer). Values greater than 8
-overflow the occupancy counter and are not supported.
-
-**Read Address (SKID_DEPTH_AR):**
-- Default: 2 (sufficient for most cases)
-- Increase if:
-  - High-latency backend address processing
-  - Frequent address channel backpressure
-  - Multiple outstanding bursts needed
-
-**Read Data (SKID_DEPTH_R):**
-- Default: 4 (deeper than AR for burst data)
-- Increase if:
-  - Large burst sizes (ARLEN > 4)
-  - High-bandwidth streaming reads
-  - Variable backend read latency
-
-### Recommended Configurations
-
-**Low-Latency Memory (single outstanding read):**
-```systemverilog
-axi4_slave_rd #(
-    .SKID_DEPTH_AR(2),
-    .SKID_DEPTH_R(2)
-) u_slave_rd ( ... );
-```
-
-**High-Throughput Streaming (burst reads):**
-```systemverilog
-axi4_slave_rd #(
-    .SKID_DEPTH_AR(4),
-    .SKID_DEPTH_R(8)     // Deep for burst data
-) u_slave_rd ( ... );
-```
-
-**Variable Latency Backend:**
-```systemverilog
-axi4_slave_rd #(
-    .SKID_DEPTH_AR(8),
-    .SKID_DEPTH_R(8)
-) u_slave_rd ( ... );
-```
 
 ---
 
@@ -393,6 +340,53 @@ axi4_slave_rd #( ... ) u_slave_rd (
 ---
 
 ## Design Notes
+
+### Buffer Depth Selection
+
+`SKID_DEPTH_*` is an entry count, not a log2 exponent. The underlying
+`gaxi_skid_buffer` allocates one register slot per entry and tracks occupancy
+with a 4-bit counter, so legal values are 2..8 inclusive (any integer). Values greater than 8
+overflow the occupancy counter and are not supported.
+
+**Read Address (SKID_DEPTH_AR):**
+- Default: 2 (sufficient for most cases)
+- Increase if:
+  - High-latency backend address processing
+  - Frequent address channel backpressure
+  - Multiple outstanding bursts needed
+
+**Read Data (SKID_DEPTH_R):**
+- Default: 4 (deeper than AR for burst data)
+- Increase if:
+  - Large burst sizes (ARLEN > 4)
+  - High-bandwidth streaming reads
+  - Variable backend read latency
+
+### Recommended Configurations
+
+**Low-Latency Memory (single outstanding read):**
+```systemverilog
+axi4_slave_rd #(
+    .SKID_DEPTH_AR(2),
+    .SKID_DEPTH_R(2)
+) u_slave_rd ( ... );
+```
+
+**High-Throughput Streaming (burst reads):**
+```systemverilog
+axi4_slave_rd #(
+    .SKID_DEPTH_AR(4),
+    .SKID_DEPTH_R(8)     // Deep for burst data
+) u_slave_rd ( ... );
+```
+
+**Variable Latency Backend:**
+```systemverilog
+axi4_slave_rd #(
+    .SKID_DEPTH_AR(8),
+    .SKID_DEPTH_R(8)
+) u_slave_rd ( ... );
+```
 
 ### Buffer Independence
 

@@ -51,9 +51,7 @@ The AXI5 Slave Read module is the slave-side AR/R channel transport block. It re
 - SKID buffering for AR and R channels
 - Busy signal for power management
 
----
-
-## Module Architecture
+### Module Architecture
 
 ```mermaid
 flowchart LR
@@ -187,7 +185,7 @@ Same signals as slave interface but with `fub_axi_*` prefix and reversed directi
 
 ---
 
-## Functionality
+## Functional Description
 
 This slave module acts as an adapter between:
 - **External AXI5 master** (s_axi_* interface)
@@ -201,7 +199,7 @@ This slave module acts as an adapter between:
 
 ---
 
-## Timing Diagrams
+## Timing
 
 ### Basic Read Transaction
 
@@ -271,7 +269,7 @@ axi5_slave_rd #(
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Slave Write](axi5_slave_wr.md)** - Slave write interface
 - **[AXI5 Master Read](axi5_master_rd.md)** - Master read interface

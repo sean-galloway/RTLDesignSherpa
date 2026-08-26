@@ -25,74 +25,72 @@
 
 **Location:** `rtl/amba/axi4/`
 **Test Location:** `val/amba/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXI4 subsystem provides a complete implementation of the ARM AMBA AXI4 protocol, including masters, slaves, monitors, data width converters, and interconnect components. AXI4 is a high-performance, high-frequency protocol designed for multi-master, multi-slave systems with out-of-order transaction support.
+The AXI4 subsystem is a complete implementation of the ARM AMBA AXI4 protocol: masters, slaves, monitors, data width converters, and interconnect components. AXI4 is the high-performance, high-frequency protocol in the AMBA family, designed for multi-master, multi-slave systems with out-of-order transaction support. This page is the map — what exists, where it lives, and how the pieces fit together.
 
 ### Key Features
 
-- ✅ **Full AXI4 Protocol Support:** Complete implementation of read and write channels
-- ✅ **Burst Transactions:** Support for fixed, incrementing, and wrapping bursts
-- ✅ **Out-of-Order Transparent:** `AxID`/`RID`/`BID` are carried end-to-end, so out-of-order slaves are supported; the buffer modules themselves are ID-agnostic pass-throughs and do not reorder or track transactions
-- ✅ **Quality of Service (QoS):** Priority-based arbitration support
-- ✅ **Monitoring Infrastructure:** Comprehensive verification and debug capabilities
-- ✅ **Data Width Conversion:** Automatic upsizing and downsizing
-- ✅ **Clock Gating Variants:** Power-optimized versions with dynamic gating
+- **Full AXI4 Protocol Support:** Complete implementation of read and write channels
+- **Burst Transactions:** Support for fixed, incrementing, and wrapping bursts
+- **Out-of-Order Transparent:** `AxID`/`RID`/`BID` are carried end-to-end, so out-of-order slaves are supported; the buffer modules themselves are ID-agnostic pass-throughs and do not reorder or track transactions
+- **Quality of Service (QoS):** Priority-based arbitration support
+- **Monitoring Infrastructure:** Comprehensive verification and debug capabilities
+- **Data Width Conversion:** Automatic upsizing and downsizing
+- **Clock Gating Variants:** Power-optimized versions with dynamic gating
 
----
+### Module Categories
 
-## Module Categories
-
-### Core Master/Slave Modules
+#### Core Master/Slave Modules
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axi4_master_rd** | AXI4 read master with buffered channels | [axi4_master_rd.md](axi4_master_rd.md) | ✅ Documented |
-| **axi4_master_wr** | AXI4 write master with buffered channels | [axi4_master_wr.md](axi4_master_wr.md) | ✅ Documented |
-| **axi4_slave_rd** | AXI4 read slave with buffered channels | [axi4_slave_rd.md](axi4_slave_rd.md) | ✅ Documented |
-| **axi4_slave_wr** | AXI4 write slave with buffered channels | [axi4_slave_wr.md](axi4_slave_wr.md) | ✅ Documented |
+| **axi4_master_rd** | AXI4 read master with buffered channels | [axi4_master_rd.md](axi4_master_rd.md) | Documented |
+| **axi4_master_wr** | AXI4 write master with buffered channels | [axi4_master_wr.md](axi4_master_wr.md) | Documented |
+| **axi4_slave_rd** | AXI4 read slave with buffered channels | [axi4_slave_rd.md](axi4_slave_rd.md) | Documented |
+| **axi4_slave_wr** | AXI4 write slave with buffered channels | [axi4_slave_wr.md](axi4_slave_wr.md) | Documented |
 
-### Monitor Modules (Verification)
+#### Monitor Modules (Verification)
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **axi4_master_rd_mon** | Read master with integrated monitoring | [axi4_master_rd_mon.md](../axi4/axi4_master_rd_mon.md) | ✅ Documented |
-| **axi4_master_wr_mon** | Write master with integrated monitoring | [axi4_master_wr_mon.md](../axi4/axi4_master_wr_mon.md) | ✅ Documented |
-| **axi4_slave_rd_mon** | Read slave with integrated monitoring | [axi4_slave_rd_mon.md](../axi4/axi4_slave_rd_mon.md) | ✅ Documented |
-| **axi4_slave_wr_mon** | Write slave with integrated monitoring | [axi4_slave_wr_mon.md](../axi4/axi4_slave_wr_mon.md) | ✅ Documented |
+| **axi4_master_rd_mon** | Read master with integrated monitoring | [axi4_master_rd_mon.md](../axi4/axi4_master_rd_mon.md) | Documented |
+| **axi4_master_wr_mon** | Write master with integrated monitoring | [axi4_master_wr_mon.md](../axi4/axi4_master_wr_mon.md) | Documented |
+| **axi4_slave_rd_mon** | Read slave with integrated monitoring | [axi4_slave_rd_mon.md](../axi4/axi4_slave_rd_mon.md) | Documented |
+| **axi4_slave_wr_mon** | Write slave with integrated monitoring | [axi4_slave_wr_mon.md](../axi4/axi4_slave_wr_mon.md) | Documented |
 
-### Data Width Converters
+#### Data Width Converters
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
 | **axi4_dwidth_converter** | Bidirectional data width conversion | [axi4_dwidth_converter.md](axi4_dwidth_converter.md) | Planned - no RTL |
-| **axi4_dwidth_converter_rd** | Read-only data width conversion | [axi4_dwidth_converter_rd.md](axi4_dwidth_converter_rd.md) | ✅ Documented |
-| **axi4_dwidth_converter_wr** | Write-only data width conversion | [axi4_dwidth_converter_wr.md](axi4_dwidth_converter_wr.md) | ✅ Documented |
+| **axi4_dwidth_converter_rd** | Read-only data width conversion | [axi4_dwidth_converter_rd.md](axi4_dwidth_converter_rd.md) | Documented |
+| **axi4_dwidth_converter_wr** | Write-only data width conversion | [axi4_dwidth_converter_wr.md](axi4_dwidth_converter_wr.md) | Documented |
 
 The converters live in `projects/components/converters/rtl/`, not `rtl/amba/axi4/`.
 
-### Clock-Gated Variants
+#### Clock-Gated Variants
 
 **All clock-gated variants documented in:** [axi4_clock_gating_guide.md](axi4_clock_gating_guide.md)
 
 | Module | Base Module | Status |
 |--------|-------------|--------|
-| **axi4_master_rd_cg** | [axi4_master_rd](axi4_master_rd.md) | ✅ Documented |
-| **axi4_master_wr_cg** | [axi4_master_wr](axi4_master_wr.md) | ✅ Documented |
-| **axi4_slave_rd_cg** | [axi4_slave_rd](axi4_slave_rd.md) | ✅ Documented |
-| **axi4_slave_wr_cg** | [axi4_slave_wr](axi4_slave_wr.md) | ✅ Documented |
-| **axi4_master_rd_mon_cg** | [axi4_master_rd_mon](../axi4/axi4_master_rd_mon.md) | ✅ Documented |
-| **axi4_master_wr_mon_cg** | [axi4_master_wr_mon](../axi4/axi4_master_wr_mon.md) | ✅ Documented |
-| **axi4_slave_rd_mon_cg** | [axi4_slave_rd_mon](../axi4/axi4_slave_rd_mon.md) | ✅ Documented |
-| **axi4_slave_wr_mon_cg** | [axi4_slave_wr_mon](../axi4/axi4_slave_wr_mon.md) | ✅ Documented |
+| **axi4_master_rd_cg** | [axi4_master_rd](axi4_master_rd.md) | Documented |
+| **axi4_master_wr_cg** | [axi4_master_wr](axi4_master_wr.md) | Documented |
+| **axi4_slave_rd_cg** | [axi4_slave_rd](axi4_slave_rd.md) | Documented |
+| **axi4_slave_wr_cg** | [axi4_slave_wr](axi4_slave_wr.md) | Documented |
+| **axi4_master_rd_mon_cg** | [axi4_master_rd_mon](../axi4/axi4_master_rd_mon.md) | Documented |
+| **axi4_master_wr_mon_cg** | [axi4_master_wr_mon](../axi4/axi4_master_wr_mon.md) | Documented |
+| **axi4_slave_rd_mon_cg** | [axi4_slave_rd_mon](../axi4/axi4_slave_rd_mon.md) | Documented |
+| **axi4_slave_wr_mon_cg** | [axi4_slave_wr_mon](../axi4/axi4_slave_wr_mon.md) | Documented |
 
 ---
 
-## AXI4 Protocol Overview
+## Functional Description
 
 ### Channel Architecture
 
@@ -137,7 +135,35 @@ untouched; exclusive-access semantics must be provided by the endpoint slave.
 
 ---
 
-## Quick Start
+## Timing
+
+### Throughput
+
+| Configuration | Address CH | Data CH | Notes |
+|--------------|------------|---------|-------|
+| Single transaction | 1 txn/cycle | 1 beat/cycle | When buffers not stalled |
+| Burst (len=16) | 1 txn/16 cycles | 1 beat/cycle | Sustained |
+| Multiple outstanding | Up to MAX_TRANS | 1 beat/cycle | Out-of-order |
+
+### Latency
+
+| Path | Cycles | Notes |
+|------|--------|-------|
+| AR → R (single) | 2-3 | Minimum read latency |
+| AW → B (single) | 2-3 | Minimum write latency |
+| Buffer overhead | +1 per channel | Skid buffer latency |
+
+### Resource Usage
+
+| Module Type | LUTs | FFs | BRAM | Notes |
+|-------------|------|-----|------|-------|
+| Master/Slave (32-bit) | ~500 | ~600 | 0 | Per direction (rd/wr) |
+| Monitor (+mon) | +1000 | +800 | 0 | Additional overhead |
+| Clock-gated (+cg) | +50 | +30 | 0 | Clock gating logic |
+
+---
+
+## Usage Example
 
 ### Basic Read Master
 
@@ -242,31 +268,11 @@ axi4_master_rd_mon #(
 
 ---
 
-## Testing
+## Design Notes
 
-All AXI4 modules are verified using CocoTB-based testbenches:
+### Design Patterns
 
-```bash
-# Run all AXI4 tests
-pytest val/amba/test_axi4*.py -v
-
-# Run specific module tests
-pytest val/amba/test_axi4_master_rd.py -v
-pytest val/amba/test_axi4_slave_wr.py -v
-pytest val/amba/test_axi4_master_rd_mon.py -v
-
-# Run data width converter tests
-pytest val/amba/test_axi4_dwidth_converter*.py -v
-
-# Run with waveforms
-pytest val/amba/test_axi4_master_rd.py --vcd=waves.vcd -v
-```
-
----
-
-## Design Patterns
-
-### Pattern 1: Buffered Master/Slave
+#### Pattern 1: Buffered Master/Slave
 
 All core modules use `gaxi_skid_buffer` for elastic buffering:
 - Decouples frontend and backend timing
@@ -274,7 +280,7 @@ All core modules use `gaxi_skid_buffer` for elastic buffering:
 - Minimal latency overhead (1 cycle)
 - Full backpressure handling
 
-### Pattern 2: Monitor Integration
+#### Pattern 2: Monitor Integration
 
 Monitor modules combine functional core with verification:
 - Non-invasive monitoring (tap signals)
@@ -284,69 +290,12 @@ Monitor modules combine functional core with verification:
   documented in the [monitor bus group reference](../monitor/monbus_group.md))
 - Real-time error detection
 
-### Pattern 3: Clock Gating
+#### Pattern 3: Clock Gating
 
 Clock-gated variants (`*_cg`) add power management:
 - Dynamic clock gating based on busy signal
 - Test mode support for scan insertion
 - Minimal area overhead
-
----
-
-## Performance Characteristics
-
-### Throughput
-
-| Configuration | Address CH | Data CH | Notes |
-|--------------|------------|---------|-------|
-| Single transaction | 1 txn/cycle | 1 beat/cycle | When buffers not stalled |
-| Burst (len=16) | 1 txn/16 cycles | 1 beat/cycle | Sustained |
-| Multiple outstanding | Up to MAX_TRANS | 1 beat/cycle | Out-of-order |
-
-### Latency
-
-| Path | Cycles | Notes |
-|------|--------|-------|
-| AR → R (single) | 2-3 | Minimum read latency |
-| AW → B (single) | 2-3 | Minimum write latency |
-| Buffer overhead | +1 per channel | Skid buffer latency |
-
-### Resource Usage
-
-| Module Type | LUTs | FFs | BRAM | Notes |
-|-------------|------|-----|------|-------|
-| Master/Slave (32-bit) | ~500 | ~600 | 0 | Per direction (rd/wr) |
-| Monitor (+mon) | +1000 | +800 | 0 | Additional overhead |
-| Clock-gated (+cg) | +50 | +30 | 0 | Clock gating logic |
-
----
-
-## Related Documentation
-
-### Protocol Specifications
-- ARM IHI 0022E: AMBA AXI Protocol Specification (AXI4)
-- ARM IHI 0022D: AMBA AXI and ACE Protocol Specification (AXI3/AXI4/AXI5)
-
-### RTL Design Sherpa Documentation
-- **[rtl-amba Overview](../overview.md)** - Complete AMBA subsystem architecture
-- **[APB Modules](../apb4/README.md)** - Advanced Peripheral Bus
-- **[AXIL4 Modules](../axil4/README.md)** - AXI4-Lite (simplified protocol)
-- **[AXIS4 Modules](../axis4/README.md)** - AXI4-Stream (streaming data)
-- **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities (buffers, FIFOs)
-
-### Configuration and Integration
-- **[AXI Monitor Configuration Guide](../monitor/axi_monitor_base.md)** - Monitor setup strategies
-- **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 128-bit packet format (+ 64-bit side-band timestamp)
-
-### Source Code
-- RTL: `rtl/amba/axi4/`
-- Tests: `val/amba/test_axi4*.py`
-- Framework: `bin/TBClasses/components/axi4/`
-- Shared Infrastructure: `rtl/amba/shared/` (monitor base, transaction manager)
-
----
-
-## Design Notes
 
 ### ID Width Selection
 
@@ -386,6 +335,57 @@ Optimize burst parameters for efficiency:
 .ARSIZE   = 3'b011,        // 8 bytes per beat
 .ARBURST  = 2'b01          // INCR
 ```
+
+---
+
+## Related Modules
+
+### RTL Design Sherpa Documentation
+- **[rtl-amba Overview](../overview.md)** - Complete AMBA subsystem architecture
+- **[APB Modules](../apb4/README.md)** - Advanced Peripheral Bus
+- **[AXIL4 Modules](../axil4/README.md)** - AXI4-Lite (simplified protocol)
+- **[AXIS4 Modules](../axis4/README.md)** - AXI4-Stream (streaming data)
+- **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities (buffers, FIFOs)
+
+### Configuration and Integration
+- **[AXI Monitor Configuration Guide](../monitor/axi_monitor_base.md)** - Monitor setup strategies
+- **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 128-bit packet format (+ 64-bit side-band timestamp)
+
+### Source Code
+- RTL: `rtl/amba/axi4/`
+- Tests: `val/amba/test_axi4*.py`
+- Framework: `bin/TBClasses/components/axi4/`
+- Shared Infrastructure: `rtl/amba/shared/` (monitor base, transaction manager)
+
+---
+
+## Testing
+
+All AXI4 modules are verified using CocoTB-based testbenches:
+
+```bash
+# Run all AXI4 tests
+pytest val/amba/test_axi4*.py -v
+
+# Run specific module tests
+pytest val/amba/test_axi4_master_rd.py -v
+pytest val/amba/test_axi4_slave_wr.py -v
+pytest val/amba/test_axi4_master_rd_mon.py -v
+
+# Run data width converter tests
+pytest val/amba/test_axi4_dwidth_converter*.py -v
+
+# Run with waveforms
+pytest val/amba/test_axi4_master_rd.py --vcd=waves.vcd -v
+```
+
+---
+
+## References
+
+### Protocol Specifications
+- ARM IHI 0022E: AMBA AXI Protocol Specification (AXI4)
+- ARM IHI 0022D: AMBA AXI and ACE Protocol Specification (AXI3/AXI4/AXI5)
 
 ---
 

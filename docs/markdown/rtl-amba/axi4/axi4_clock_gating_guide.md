@@ -24,13 +24,13 @@
 # AXI4 Clock-Gated Variants Guide
 
 **Location:** `rtl/amba/axi4/*_cg.sv`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-All AXI4 modules in this subsystem have clock-gated (`_cg`) variants that add power management capabilities through dynamic clock gating. These modules automatically gate the clock when interfaces are idle for a configurable period, reducing dynamic power consumption in low-activity scenarios.
+Every AXI4 module in this subsystem ships with a clock-gated (`_cg`) variant that adds power management through dynamic clock gating. The idea is simple: when the interfaces go idle for a configurable stretch, the clock stops, and the dynamic power goes with it. When traffic shows up again, the clock restarts on its own.
 
 ### Available Clock-Gated Modules
 
@@ -47,16 +47,16 @@ All AXI4 modules in this subsystem have clock-gated (`_cg`) variants that add po
 
 ### Key Features
 
-- ✅ **Dynamic Clock Gating:** Automatic clock disable during idle periods
-- ✅ **Configurable Idle Threshold:** Programmable idle count before gating
-- ✅ **Functional Equivalence** for the plain _cg wrappers (minus the un-exported `busy`); the _mon_cg wrappers additionally drop ten base parameters and tie off `debug_block_ready` -- see their pages
-- ✅ **Status Monitoring:** Real-time gating and idle status outputs
-- ✅ **Test Mode Support:** Bypass capability for scan testing
-- ✅ **Low Ungating Overhead:** One register stage on the wake-up path; the first usable gated-clock edge arrives 2 cycles after activity is seen
+- **Dynamic Clock Gating:** Automatic clock disable during idle periods
+- **Configurable Idle Threshold:** Programmable idle count before gating
+- **Functional Equivalence** for the plain _cg wrappers (minus the un-exported `busy`); the _mon_cg wrappers additionally drop ten base parameters and tie off `debug_block_ready` -- see their pages
+- **Status Monitoring:** Real-time gating and idle status outputs
+- **Test Mode Support:** Bypass capability for scan testing
+- **Low Ungating Overhead:** One register stage on the wake-up path; the first usable gated-clock edge arrives 2 cycles after activity is seen
 
 ---
 
-## Additional Parameters (All _cg Modules)
+## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -66,7 +66,7 @@ All AXI4 modules in this subsystem have clock-gated (`_cg`) variants that add po
 
 ---
 
-## Additional Ports (All _cg Modules)
+## Ports
 
 ### Clock Gating Configuration Inputs
 
@@ -93,7 +93,7 @@ elaboration fails -- use the base module when you need them.
 
 ---
 
-## Clock Gating Behavior
+## Functional Description
 
 ### Gating Conditions (All Must Be True)
 
@@ -141,7 +141,39 @@ stateDiagram-v2
 
 ---
 
-## Usage Examples
+## Timing
+
+### Ungating Latency
+
+One register stage on the wake-up path; the first usable gated-clock
+edge arrives 2 cycles after activity asserts. `clock_gate_ctrl` adds no flop of its own —
+`w_gate_enable` is combinational from `wakeup` into the ICG enable, and its header comment
+"Wakeup: 1 clock from wakeup assertion to clock restoration" describes the resulting clock
+edge rather than a register stage.
+
+```
+Cycle N:   Interface idle, clock gated. ARVALID asserted; user_valid = 1
+           combinationally, ARREADY forced low so no handshake occurs.
+Cycle N+1: r_wakeup = 1 -> ICG enable released combinationally, cg_gating = 0.
+Cycle N+2: First usable gated-clock edge; transaction proceeds normally.
+```
+
+### Throughput Impact
+
+- Two cycles of added latency on the first transfer out of a gated period
+- No penalty on subsequent transfers while the interface stays active
+- Functionally equivalent to the non-gated module (AXI handshakes are not dropped,
+  only delayed by the wake-up cycles)
+
+### Sustained Throughput
+
+Identical to base module:
+- Gating only occurs during idle
+- Active transactions unaffected
+
+---
+
+## Usage Example
 
 ### Basic Clock Gating (Master Read)
 
@@ -245,7 +277,7 @@ wire [31:0] power_savings_percent = (total_gated_cycles * 50) / total_cycles;
 
 ---
 
-## Configuration Guidelines
+## Design Notes
 
 ### Idle Count Selection
 
@@ -275,13 +307,13 @@ wire [31:0] power_savings_percent = (total_gated_cycles * 50) / total_cycles;
 
 ### When to Use Clock Gating
 
-**✅ Recommended For:**
+**Recommended for:**
 - Burst traffic patterns (idle periods between bursts)
 - Low-duty-cycle interfaces (< 50% utilization)
 - Power-constrained systems (battery, thermal limits)
 - Variable workloads (idle states common)
 
-**❌ Not Recommended For:**
+**Not recommended for:**
 - 100% utilization scenarios (no idle time = no power benefit)
 - Ultra-low-latency requirements (gating overhead unacceptable)
 - Continuous streaming (no natural idle points)
@@ -302,11 +334,7 @@ Gating:  |                                             |
 Savings: ~0% (never idle long enough to gate)
 ```
 
----
-
-## Power Savings Estimates
-
-### Typical Power Savings
+### Power Savings Estimates
 
 | Traffic Pattern | Duty Cycle | Idle Count | Power Savings |
 |-----------------|------------|------------|---------------|
@@ -347,10 +375,6 @@ end
 assign power_savings_pct = (gated_cycles * 100) / total_cycles;
 ```
 
----
-
-## Design Notes
-
 ### Test Mode Support
 
 For scan testing, disable clock gating:
@@ -386,38 +410,7 @@ end
 
 ---
 
-## Performance Impact
-
-### Latency Analysis
-
-**Ungating Latency:** 1 register stage on the wake-up path; the first usable gated-clock
-edge arrives 2 cycles after activity asserts. `clock_gate_ctrl` adds no flop of its own —
-`w_gate_enable` is combinational from `wakeup` into the ICG enable, and its header comment
-"Wakeup: 1 clock from wakeup assertion to clock restoration" describes the resulting clock
-edge rather than a register stage.
-
-```
-Cycle N:   Interface idle, clock gated. ARVALID asserted; user_valid = 1
-           combinationally, ARREADY forced low so no handshake occurs.
-Cycle N+1: r_wakeup = 1 -> ICG enable released combinationally, cg_gating = 0.
-Cycle N+2: First usable gated-clock edge; transaction proceeds normally.
-```
-
-**Throughput Impact:**
-- Two cycles of added latency on the first transfer out of a gated period
-- No penalty on subsequent transfers while the interface stays active
-- Functionally equivalent to the non-gated module (AXI handshakes are not dropped,
-  only delayed by the wake-up cycles)
-
-### Throughput
-
-**Sustained Throughput:** Identical to base module
-- Gating only occurs during idle
-- Active transactions unaffected
-
----
-
-## Related Documentation
+## Related Modules
 
 ### Base Module Documentation
 - **[axi4_master_rd](axi4_master_rd.md)** - Base read master

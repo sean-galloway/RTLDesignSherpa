@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI5 Master Write with Monitor module combines the standard `axi5_master_wr` core with an integrated `axi_monitor_filtered` for comprehensive write transaction monitoring and error detection. This module provides real-time visibility into AXI5 write operations with configurable packet filtering.
+The AXI5 Master Write with Monitor module wraps the standard `axi5_master_wr` core with an integrated `axi_monitor_filtered`, so every write transaction crossing the core is also visible to the monitor in real time. You get write transaction monitoring, error detection, and configurable packet filtering in one block — no external monitor to wire up.
 
 ### Key Features
 
@@ -54,9 +54,7 @@ The AXI5 Master Write with Monitor module combines the standard `axi5_master_wr`
 - **MonBus output:** Standardized 128-bit monitor packet format paired with 64-bit side-band timestamp
 - **Configuration validation:** Detects filter conflicts
 
----
-
-## Module Architecture
+### Module Architecture
 
 ```mermaid
 flowchart TB
@@ -121,6 +119,8 @@ flowchart TB
 
 ## Parameters
 
+Transport sizing first, then the monitor knobs. The defaults are sane; `MAX_TRANSACTIONS` is the one to think about (see the backpressure section).
+
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | SKID_DEPTH_AW | int | 2 | AW channel SKID buffer depth |
@@ -170,47 +170,6 @@ flowchart TB
 
 ---
 
-## Monitor Backpressure (block_ready)
-
-`block_ready` is exported as the `debug_block_ready` output port -- the wrapper deliberately makes the gating contract observable (the `_mon_cg` wrapper ties it off rather than forwarding it). It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `fub_axi_awready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
-
-- **Where the stall lands**: the upstream `fub_axi_awready` is forced low until the monitor drains.
-- **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
-- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
-- The monitor's command tap sits across the AW SKID from the block_ready gate (this master monitor mirrors the slave variant's structure), so there is a `SKID_DEPTH_AW` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
-
-Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
-
-Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
-
----
-
-## Address-Range Checker
-
-With `N_ADDR_RANGES > 0` the wrapper instantiates the shared allowlist checker
-([`axi_monitor_addr_check`](../monitor/axi_monitor_addr_check.md)). Each range carries a
-DEBUG/ERROR flavor:
-
-- **DEBUG range** — a hit emits a `PktTypeAddrMatch` (`4'h8`) packet with event
-  code `AXI_ADDR_RANGE_MATCH` (`8'h01`), gated by `cfg_debug_enable`.
-- **ERROR range** — the enabled ERROR ranges form an allowlist; an address in
-  NONE of them emits a `PktTypeError` (`4'h0`) packet with event code
-  `AXI_ERR_ADDR_RANGE` (`8'h0D`), gated by `cfg_error_enable`.
-
-This wrapper does not expose `ADDR_RANGE_IS_ERROR`; all ranges default to the DEBUG (match) flavor.
-
-**Config inputs (active only when `N_ADDR_RANGES > 0`):**
-- `cfg_addr_check_enable` — master on/off for the checker.
-- `cfg_addr_range_enable[N-1:0]` — per-range enable bit.
-- `cfg_addr_range_low/high[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive bounds.
-
-**Event encoding:** `event_data[63:60]` = `range_index` (matching DEBUG range, or
-`4'hF` sentinel on an ERROR miss); `event_data[59:0]` = full address. **Filtering:**
-AddrMatch is dropped by `cfg_axi_addr_mask[1]`, the ADDR_RANGE error by
-`cfg_axi_error_mask[13]`. See the checker page for coalescing + formal properties.
-
----
-
 ## Ports
 
 ### Clock and Reset
@@ -257,65 +216,7 @@ The configuration set also includes the detection-cone enables `cfg_compl_enable
 
 ---
 
-## Performance Monitoring
-
-When performance tracking is compiled in (`ENABLE_PERF_LOGIC = 1`, the wrapper default, with `ENABLE_PERF_PACKETS` fixed to 1 inside the monitor instance) and `cfg_perf_enable` is asserted at runtime, the monitor runs a **measurement-window state machine** plus a bank of data-channel utilization counters. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows so the host can read a completed window's totals.
-
-### The measurement window
-
-A window is opened by a **start event** and closed by an **end event**. The event sources are selected by `cfg_start_event_sel` / `cfg_end_event_sel` (3-bit; e.g. `3'b010` selects the `cfg_perf_enable` edge) and can also be fired directly by the `cfg_start_trigger` / `cfg_end_trigger` pulses (from an engine or CSR write). `cfg_window_force_close` is a software override that closes the window immediately. While the window is open:
-
-- `window_active` is high.
-- `window_cycles` free-runs, counting every clock elapsed inside the window.
-
-### Utilization buckets (W data channel)
-
-Every cycle inside the window is classified by the **W** data channel's valid/ready handshake into exactly one of four buckets:
-
-| Output | Width | Condition | Meaning |
-|--------|:-----:|-----------|---------|
-| `perf_prod_cycles`  | 32 | `wvalid && wready`   | productive beat transferred |
-| `perf_bp_cycles`    | 32 | `wvalid && !wready`  | back-pressure (data offered, sink not ready) |
-| `perf_starv_cycles` | 32 | `!wvalid && wready`  | starvation (sink ready, no data) |
-| `perf_idle_cycles`  | 32 | `!wvalid && !wready` | idle |
-
-The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); utilization = `perf_prod_cycles / window_cycles` is off by one count -- negligible for long windows, use `window_cycles - 1` for exactness.
-
-### Throughput counters
-
-| Output | Width | Meaning |
-|--------|:-----:|---------|
-| `perf_beat_count`  | 32 | W data beats transferred (= `perf_prod_cycles`, 1 beat/cycle) |
-| `perf_byte_count`  | 64 | bytes transferred = beats x (1 << latched AWSIZE), using the AWSIZE captured at the most recent AW address phase |
-| `perf_burst_count` | 32 | AW address-phase handshakes |
-
-Average burst length is `perf_beat_count / perf_burst_count`. (Transaction completion is still tracked on the B channel; the throughput counters measure the W data phase.)
-
-### Performance Monitoring Ports
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| cfg_perf_enable | 1 | Input | Enable performance-metric packet generation (also listed under Monitor Configuration) |
-| cfg_start_event_sel | 3 | Input | Window **start** event source select |
-| cfg_end_event_sel | 3 | Input | Window **end** event source select |
-| cfg_start_trigger | 1 | Input | Pulse: open the measurement window |
-| cfg_end_trigger | 1 | Input | Pulse: close the measurement window |
-| cfg_window_force_close | 1 | Input | Software override: force the window closed |
-| window_active | 1 | Output | High while a measurement window is open |
-| window_cycles | 32 | Output | Cycles elapsed in the current window |
-| perf_prod_cycles | 32 | Output | `wvalid && wready` cycles |
-| perf_bp_cycles | 32 | Output | `wvalid && !wready` cycles (back-pressure) |
-| perf_starv_cycles | 32 | Output | `!wvalid && wready` cycles (starvation) |
-| perf_idle_cycles | 32 | Output | `!wvalid && !wready` cycles |
-| perf_beat_count | 32 | Output | W data beats transferred |
-| perf_byte_count | 64 | Output | bytes transferred |
-| perf_burst_count | 32 | Output | AW address-phase handshakes |
-
-When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1` and `ENABLE_PERF_LOGIC = 0`, only error_count / transaction_count read 0 -- the window and bucket/throughput outputs remain LIVE.
-
----
-
-## Functionality
+## Functional Description
 
 ### Monitor Bus Packet Format
 
@@ -379,9 +280,102 @@ ordinary SLVERR/DECERR events.
 
 Same as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 
+### Monitor Backpressure (block_ready)
+
+`block_ready` is exported as the `debug_block_ready` output port -- the wrapper deliberately makes the gating contract observable (the `_mon_cg` wrapper ties it off rather than forwarding it). It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `fub_axi_awready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
+
+- **Where the stall lands**: the upstream `fub_axi_awready` is forced low until the monitor drains.
+- **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
+- **When `cfg_monitor_enable=0`**: the wrapper gate forces the upstream ready open, so a runtime-disabled monitor can never stall the datapath (in-RTL formal property `ap_disabled_never_stalls`).
+- The monitor's command tap sits across the AW SKID from the block_ready gate (this master monitor mirrors the slave variant's structure), so there is a `SKID_DEPTH_AW` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
+
+Recovery is guaranteed by the **saturation-recovery contract**: command-originated table entries are capped at `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)` (reserve = 2 for tables of 16 or more, 0 below; the function lives in `monitor_common_pkg`), and `block_ready` re-asserts at occupancy `< MAX_TRANSACTIONS - (reserve - 1)` -- a threshold strictly ABOVE the command cap -- so a saturated table always drains back below the reopen point. Blocking throttles; it never deadlocks. Tables smaller than 16 keep full legacy allocation (small tables cannot spare slots) and trade the recovery guarantee for tracking capacity. The contract is verified by in-RTL formal properties (mutation-checked) and a 100-seed deliberately-undersized-table stream sweep; see [axi_monitor_base](../monitor/axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) for the canonical description.
+
+Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
+
+### Address-Range Checker
+
+With `N_ADDR_RANGES > 0` the wrapper instantiates the shared allowlist checker
+([`axi_monitor_addr_check`](../monitor/axi_monitor_addr_check.md)). Each range carries a
+DEBUG/ERROR flavor:
+
+- **DEBUG range** — a hit emits a `PktTypeAddrMatch` (`4'h8`) packet with event
+  code `AXI_ADDR_RANGE_MATCH` (`8'h01`), gated by `cfg_debug_enable`.
+- **ERROR range** — the enabled ERROR ranges form an allowlist; an address in
+  NONE of them emits a `PktTypeError` (`4'h0`) packet with event code
+  `AXI_ERR_ADDR_RANGE` (`8'h0D`), gated by `cfg_error_enable`.
+
+This wrapper does not expose `ADDR_RANGE_IS_ERROR`; all ranges default to the DEBUG (match) flavor.
+
+**Config inputs (active only when `N_ADDR_RANGES > 0`):**
+- `cfg_addr_check_enable` — master on/off for the checker.
+- `cfg_addr_range_enable[N-1:0]` — per-range enable bit.
+- `cfg_addr_range_low/high[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive bounds.
+
+**Event encoding:** `event_data[63:60]` = `range_index` (matching DEBUG range, or
+`4'hF` sentinel on an ERROR miss); `event_data[59:0]` = full address. **Filtering:**
+AddrMatch is dropped by `cfg_axi_addr_mask[1]`, the ADDR_RANGE error by
+`cfg_axi_error_mask[13]`. See the checker page for coalescing + formal properties.
+
+### Performance Monitoring
+
+When performance tracking is compiled in (`ENABLE_PERF_LOGIC = 1`, the wrapper default, with `ENABLE_PERF_PACKETS` fixed to 1 inside the monitor instance) and `cfg_perf_enable` is asserted at runtime, the monitor runs a **measurement-window state machine** plus a bank of data-channel utilization counters. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows so the host can read a completed window's totals.
+
+#### The measurement window
+
+A window is opened by a **start event** and closed by an **end event**. The event sources are selected by `cfg_start_event_sel` / `cfg_end_event_sel` (3-bit; e.g. `3'b010` selects the `cfg_perf_enable` edge) and can also be fired directly by the `cfg_start_trigger` / `cfg_end_trigger` pulses (from an engine or CSR write). `cfg_window_force_close` is a software override that closes the window immediately. While the window is open:
+
+- `window_active` is high.
+- `window_cycles` free-runs, counting every clock elapsed inside the window.
+
+#### Utilization buckets (W data channel)
+
+Every cycle inside the window is classified by the **W** data channel's valid/ready handshake into exactly one of four buckets:
+
+| Output | Width | Condition | Meaning |
+|--------|:-----:|-----------|---------|
+| `perf_prod_cycles`  | 32 | `wvalid && wready`   | productive beat transferred |
+| `perf_bp_cycles`    | 32 | `wvalid && !wready`  | back-pressure (data offered, sink not ready) |
+| `perf_starv_cycles` | 32 | `!wvalid && wready`  | starvation (sink ready, no data) |
+| `perf_idle_cycles`  | 32 | `!wvalid && !wready` | idle |
+
+The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); utilization = `perf_prod_cycles / window_cycles` is off by one count -- negligible for long windows, use `window_cycles - 1` for exactness.
+
+#### Throughput counters
+
+| Output | Width | Meaning |
+|--------|:-----:|---------|
+| `perf_beat_count`  | 32 | W data beats transferred (= `perf_prod_cycles`, 1 beat/cycle) |
+| `perf_byte_count`  | 64 | bytes transferred = beats x (1 << latched AWSIZE), using the AWSIZE captured at the most recent AW address phase |
+| `perf_burst_count` | 32 | AW address-phase handshakes |
+
+Average burst length is `perf_beat_count / perf_burst_count`. (Transaction completion is still tracked on the B channel; the throughput counters measure the W data phase.)
+
+#### Performance Monitoring Ports
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| cfg_perf_enable | 1 | Input | Enable performance-metric packet generation (also listed under Monitor Configuration) |
+| cfg_start_event_sel | 3 | Input | Window **start** event source select |
+| cfg_end_event_sel | 3 | Input | Window **end** event source select |
+| cfg_start_trigger | 1 | Input | Pulse: open the measurement window |
+| cfg_end_trigger | 1 | Input | Pulse: close the measurement window |
+| cfg_window_force_close | 1 | Input | Software override: force the window closed |
+| window_active | 1 | Output | High while a measurement window is open |
+| window_cycles | 32 | Output | Cycles elapsed in the current window |
+| perf_prod_cycles | 32 | Output | `wvalid && wready` cycles |
+| perf_bp_cycles | 32 | Output | `wvalid && !wready` cycles (back-pressure) |
+| perf_starv_cycles | 32 | Output | `!wvalid && wready` cycles (starvation) |
+| perf_idle_cycles | 32 | Output | `!wvalid && !wready` cycles |
+| perf_beat_count | 32 | Output | W data beats transferred |
+| perf_byte_count | 64 | Output | bytes transferred |
+| perf_burst_count | 32 | Output | AW address-phase handshakes |
+
+When `USE_MONITOR = 0` all perfmon outputs are tied to 0. With `USE_MONITOR = 1` and `ENABLE_PERF_LOGIC = 0`, only error_count / transaction_count read 0 -- the window and bucket/throughput outputs remain LIVE.
+
 ---
 
-## Timing Diagrams
+## Timing
 
 ### Monitored Write Burst with Error
 
@@ -624,7 +618,7 @@ Same as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Master Write](../axi5/axi5_master_wr.md)** - Base module without monitoring
 - **[AXI5 Master Write CG](../axi5/axi5_master_wr_cg.md)** - With clock gating only

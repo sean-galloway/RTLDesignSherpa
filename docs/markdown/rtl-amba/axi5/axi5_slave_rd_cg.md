@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI5 Slave Read with Clock Gating module wraps the standard `axi5_slave_rd` module with integrated clock gating for power optimization. It automatically gates the internal clock when the module is idle.
+The AXI5 Slave Read with Clock Gating module wraps the standard `axi5_slave_rd` module with integrated clock gating for power optimization. When the module sits idle, the internal clock gates itself off.
 
 **Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
@@ -45,9 +45,7 @@ The AXI5 Slave Read with Clock Gating module wraps the standard `axi5_slave_rd` 
 - Gating status outputs for system monitoring
 - SKID buffering for AR and R channels
 
----
-
-## Module Architecture
+### Module Architecture
 
 ```mermaid
 flowchart TB
@@ -161,7 +159,7 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](axi5_slave_rd.md) for complete p
 
 ---
 
-## Functionality
+## Functional Description
 
 ### Clock Gating Behavior
 
@@ -214,11 +212,9 @@ The activity detector uses the corresponding VALID (`s_axi_rvalid`), never the p
 
 An always-ready consumer no longer prevents gating.
 
----
+### Clock Gating Configuration
 
-## Clock Gating Configuration
-
-### Idle Count Selection
+#### Idle Count Selection
 
 | cfg_cg_idle_count | Idle Cycles | Use Case |
 |-------------------|-------------|----------|
@@ -234,7 +230,7 @@ An always-ready consumer no longer prevents gating.
 
 ---
 
-## Timing Diagrams
+## Timing
 
 ### Clock Gating Sequence
 
@@ -357,7 +353,7 @@ assign gating_efficiency = (gating_cycles * 100) / total_cycles;
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Slave Read](axi5_slave_rd.md)** - Non-clock-gated version
 - **[AXI5 Slave Write CG](axi5_slave_wr_cg.md)** - Clock-gated write variant

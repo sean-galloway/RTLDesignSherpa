@@ -21,13 +21,15 @@
 
 <!-- End Header -->
 
-# AXI4 Data Width Converter (Bidirectional)
+# axi4_dwidth_converter
 
 **Module:** `axi4_dwidth_converter.sv`
 **Location:** Not implemented
 **Status:** Planned - no RTL in this repository
 
 ---
+
+## Overview
 
 > **Implementation status:** There is no `axi4_dwidth_converter.sv` in the
 > repository. This page describes a planned bidirectional converter and its
@@ -43,26 +45,91 @@
 > Instantiate a `_rd` and a `_wr` converter side by side to obtain
 > full-duplex width conversion.
 
----
-
-## Overview
-
-The AXI4 Data Width Converter provides bidirectional data width conversion between AXI4 interfaces of different data widths while maintaining full protocol compliance. A single parameterized module handles both upsizing (narrow→wide) and downsizing (wide→narrow) operations, automatically recalculating burst parameters and managing data packing/unpacking.
+Read the blockquote above before you read anything else on this page — this module is a plan, not silicon. With that said, the design is worth documenting: the AXI4 Data Width Converter provides bidirectional data width conversion between AXI4 interfaces of different data widths while maintaining full protocol compliance. A single parameterized module handles both upsizing (narrow→wide) and downsizing (wide→narrow), automatically recalculating burst parameters and managing data packing/unpacking.
 
 ### Key Features
 
-- ✅ **Bidirectional Conversion:** Single module supports both upsize and downsize
-- ✅ **Full AXI4 Protocol:** All 5 channels (AW, W, B, AR, R) with complete signal support
-- ✅ **Burst Preservation:** Maintains burst semantics across width conversion
-- ✅ **Auto Burst Recalculation:** Adjusts AWLEN/ARLEN and AWSIZE/ARSIZE automatically
-- ✅ **Error Propagation:** Correctly forwards SLVERR/DECERR responses
-- ✅ **Elastic Buffering:** Configurable FIFO depths for each channel
-- ✅ **Status Outputs:** Busy signal and pending transaction counters
-- ✅ **Parameter Validation:** Compile-time checks for valid configurations
+- **Bidirectional Conversion:** Single module supports both upsize and downsize
+- **Full AXI4 Protocol:** All 5 channels (AW, W, B, AR, R) with complete signal support
+- **Burst Preservation:** Maintains burst semantics across width conversion
+- **Auto Burst Recalculation:** Adjusts AWLEN/ARLEN and AWSIZE/ARSIZE automatically
+- **Error Propagation:** Correctly forwards SLVERR/DECERR responses
+- **Elastic Buffering:** Configurable FIFO depths for each channel
+- **Status Outputs:** Busy signal and pending transaction counters
+- **Parameter Validation:** Compile-time checks for valid configurations
 
 ---
 
-## Module Architecture
+## Parameters
+
+### Width Configuration
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| `S_AXI_DATA_WIDTH` | int | 32 | 8-1024 | Slave interface data width (power of 2) |
+| `M_AXI_DATA_WIDTH` | int | 128 | 8-1024 | Master interface data width (power of 2) |
+| `AXI_ID_WIDTH` | int | 8 | 1-16 | Transaction ID width |
+| `AXI_ADDR_WIDTH` | int | 32 | 12-64 | Address bus width |
+| `AXI_USER_WIDTH` | int | 1 | 0-1024 | User signal width |
+
+### Buffer Depths
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `AW_FIFO_DEPTH` | int | 4 | Write address FIFO depth (power of 2) |
+| `W_FIFO_DEPTH` | int | 8 | Write data FIFO depth (power of 2) |
+| `B_FIFO_DEPTH` | int | 4 | Write response FIFO depth (power of 2) |
+| `AR_FIFO_DEPTH` | int | 4 | Read address FIFO depth (power of 2) |
+| `R_FIFO_DEPTH` | int | 8 | Read data FIFO depth (power of 2) |
+
+### Calculated Parameters (Auto)
+
+| Parameter | Calculation | Description |
+|-----------|-------------|-------------|
+| `S_STRB_WIDTH` | `S_AXI_DATA_WIDTH / 8` | Slave write strobe width |
+| `M_STRB_WIDTH` | `M_AXI_DATA_WIDTH / 8` | Master write strobe width |
+| `WIDTH_RATIO` | `MAX / MIN` | Data width ratio (2-16) |
+| `UPSIZE` | `S < M` | 1 if upsizing, 0 if downsizing |
+| `DOWNSIZE` | `S > M` | 1 if downsizing, 0 if upsizing |
+| `PTR_WIDTH` | `$clog2(WIDTH_RATIO)` | Beat pointer width |
+
+---
+
+## Ports
+
+### AXI4 Slave Interface
+
+**Write Channels:**
+- AW channel: `s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize, s_axi_awburst, s_axi_awlock, s_axi_awcache, s_axi_awprot, s_axi_awqos, s_axi_awregion, s_axi_awuser, s_axi_awvalid, s_axi_awready`
+- W channel: `s_axi_wdata[S_AXI_DATA_WIDTH], s_axi_wstrb[S_STRB_WIDTH], s_axi_wlast, s_axi_wuser, s_axi_wvalid, s_axi_wready`
+- B channel: `s_axi_bid, s_axi_bresp, s_axi_buser, s_axi_bvalid, s_axi_bready`
+
+**Read Channels:**
+- AR channel: `s_axi_arid, s_axi_araddr, s_axi_arlen, s_axi_arsize, s_axi_arburst, s_axi_arlock, s_axi_arcache, s_axi_arprot, s_axi_arqos, s_axi_arregion, s_axi_aruser, s_axi_arvalid, s_axi_arready`
+- R channel: `s_axi_rid, s_axi_rdata[S_AXI_DATA_WIDTH], s_axi_rresp, s_axi_rlast, s_axi_ruser, s_axi_rvalid, s_axi_rready`
+
+### AXI4 Master Interface
+
+**Write Channels:**
+- AW channel: `m_axi_awid, m_axi_awaddr, m_axi_awlen, m_axi_awsize, m_axi_awburst, m_axi_awlock, m_axi_awcache, m_axi_awprot, m_axi_awqos, m_axi_awregion, m_axi_awuser, m_axi_awvalid, m_axi_awready`
+- W channel: `m_axi_wdata[M_AXI_DATA_WIDTH], m_axi_wstrb[M_STRB_WIDTH], m_axi_wlast, m_axi_wuser, m_axi_wvalid, m_axi_wready`
+- B channel: `m_axi_bid, m_axi_bresp, m_axi_buser, m_axi_bvalid, m_axi_bready`
+
+**Read Channels:**
+- AR channel: `m_axi_arid, m_axi_araddr, m_axi_arlen, m_axi_arsize, m_axi_arburst, m_axi_arlock, m_axi_arcache, m_axi_arprot, m_axi_arqos, m_axi_arregion, m_axi_aruser, m_axi_arvalid, m_axi_arready`
+- R channel: `m_axi_rid, m_axi_rdata[M_AXI_DATA_WIDTH], m_axi_rresp, m_axi_rlast, m_axi_ruser, m_axi_rvalid, m_axi_rready`
+
+### Status/Debug Outputs
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `busy` | Output | 1 | Indicates active conversions in progress |
+| `wr_transactions_pending` | Output | 16 | Number of pending write transactions |
+| `rd_transactions_pending` | Output | 16 | Number of pending read transactions |
+
+---
+
+## Functional Description
 
 ### Upsize Mode (Narrow → Wide)
 
@@ -154,80 +221,9 @@ flowchart LR
 
 **WIDTH_RATIO = 4** (128/32): Burst 4 beats @ 128-bit → 16 beats @ 32-bit
 
----
+### Conversion Mechanics
 
-## Parameters
-
-### Width Configuration
-
-| Parameter | Type | Default | Range | Description |
-|-----------|------|---------|-------|-------------|
-| `S_AXI_DATA_WIDTH` | int | 32 | 8-1024 | Slave interface data width (power of 2) |
-| `M_AXI_DATA_WIDTH` | int | 128 | 8-1024 | Master interface data width (power of 2) |
-| `AXI_ID_WIDTH` | int | 8 | 1-16 | Transaction ID width |
-| `AXI_ADDR_WIDTH` | int | 32 | 12-64 | Address bus width |
-| `AXI_USER_WIDTH` | int | 1 | 0-1024 | User signal width |
-
-### Buffer Depths
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `AW_FIFO_DEPTH` | int | 4 | Write address FIFO depth (power of 2) |
-| `W_FIFO_DEPTH` | int | 8 | Write data FIFO depth (power of 2) |
-| `B_FIFO_DEPTH` | int | 4 | Write response FIFO depth (power of 2) |
-| `AR_FIFO_DEPTH` | int | 4 | Read address FIFO depth (power of 2) |
-| `R_FIFO_DEPTH` | int | 8 | Read data FIFO depth (power of 2) |
-
-### Calculated Parameters (Auto)
-
-| Parameter | Calculation | Description |
-|-----------|-------------|-------------|
-| `S_STRB_WIDTH` | `S_AXI_DATA_WIDTH / 8` | Slave write strobe width |
-| `M_STRB_WIDTH` | `M_AXI_DATA_WIDTH / 8` | Master write strobe width |
-| `WIDTH_RATIO` | `MAX / MIN` | Data width ratio (2-16) |
-| `UPSIZE` | `S < M` | 1 if upsizing, 0 if downsizing |
-| `DOWNSIZE` | `S > M` | 1 if downsizing, 0 if upsizing |
-| `PTR_WIDTH` | `$clog2(WIDTH_RATIO)` | Beat pointer width |
-
----
-
-## Port Groups
-
-### AXI4 Slave Interface
-
-**Write Channels:**
-- AW channel: `s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize, s_axi_awburst, s_axi_awlock, s_axi_awcache, s_axi_awprot, s_axi_awqos, s_axi_awregion, s_axi_awuser, s_axi_awvalid, s_axi_awready`
-- W channel: `s_axi_wdata[S_AXI_DATA_WIDTH], s_axi_wstrb[S_STRB_WIDTH], s_axi_wlast, s_axi_wuser, s_axi_wvalid, s_axi_wready`
-- B channel: `s_axi_bid, s_axi_bresp, s_axi_buser, s_axi_bvalid, s_axi_bready`
-
-**Read Channels:**
-- AR channel: `s_axi_arid, s_axi_araddr, s_axi_arlen, s_axi_arsize, s_axi_arburst, s_axi_arlock, s_axi_arcache, s_axi_arprot, s_axi_arqos, s_axi_arregion, s_axi_aruser, s_axi_arvalid, s_axi_arready`
-- R channel: `s_axi_rid, s_axi_rdata[S_AXI_DATA_WIDTH], s_axi_rresp, s_axi_rlast, s_axi_ruser, s_axi_rvalid, s_axi_rready`
-
-### AXI4 Master Interface
-
-**Write Channels:**
-- AW channel: `m_axi_awid, m_axi_awaddr, m_axi_awlen, m_axi_awsize, m_axi_awburst, m_axi_awlock, m_axi_awcache, m_axi_awprot, m_axi_awqos, m_axi_awregion, m_axi_awuser, m_axi_awvalid, m_axi_awready`
-- W channel: `m_axi_wdata[M_AXI_DATA_WIDTH], m_axi_wstrb[M_STRB_WIDTH], m_axi_wlast, m_axi_wuser, m_axi_wvalid, m_axi_wready`
-- B channel: `m_axi_bid, m_axi_bresp, m_axi_buser, m_axi_bvalid, m_axi_bready`
-
-**Read Channels:**
-- AR channel: `m_axi_arid, m_axi_araddr, m_axi_arlen, m_axi_arsize, m_axi_arburst, m_axi_arlock, m_axi_arcache, m_axi_arprot, m_axi_arqos, m_axi_arregion, m_axi_aruser, m_axi_arvalid, m_axi_arready`
-- R channel: `m_axi_rid, m_axi_rdata[M_AXI_DATA_WIDTH], m_axi_rresp, m_axi_rlast, m_axi_ruser, m_axi_rvalid, m_axi_rready`
-
-### Status/Debug Outputs
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `busy` | Output | 1 | Indicates active conversions in progress |
-| `wr_transactions_pending` | Output | 16 | Number of pending write transactions |
-| `rd_transactions_pending` | Output | 16 | Number of pending read transactions |
-
----
-
-## Conversion Mechanics
-
-### Upsize Conversion (Narrow → Wide)
+#### Upsize Conversion (Narrow → Wide)
 
 **Write Path:**
 ```
@@ -266,7 +262,7 @@ Beat 1: {127:0} ──────────► Beat 4-7: ...
 ... (4 beats total)        ... (16 beats total)
 ```
 
-### Downsize Conversion (Wide → Narrow)
+#### Downsize Conversion (Wide → Narrow)
 
 **Write Path:**
 ```
@@ -301,7 +297,7 @@ Beat 3: rdata[31:0]   ───┘
 ... (16 beats total)       ... (4 beats total)
 ```
 
-### WSTRB Handling
+#### WSTRB Handling
 
 **Upsize:** Packs narrow WSTRB beats into wide WSTRB
 ```
@@ -316,6 +312,25 @@ Beat 3: rdata[31:0]   ───┘
                     ↓
 32-bit WSTRB:    4'b0000, 4'b1111, 4'b0000, 4'b1111
 ```
+
+---
+
+## Timing
+
+### Performance Characteristics
+
+**Throughput (Upsize):**
+- Accumulation latency: WIDTH_RATIO-1 cycles per wide beat
+- Example (WIDTH_RATIO=4): 3-cycle latency to accumulate first wide beat
+
+**Throughput (Downsize):**
+- Unpacking latency: 1 cycle per narrow beat
+- Full wide beat can be unpacked in consecutive cycles
+
+**Backpressure Handling:**
+- FIFOs provide elastic buffering
+- Prevents deadlock during width mismatch scenarios
+- Slave can stall independently of master
 
 ---
 
@@ -438,10 +453,10 @@ axi4_dwidth_converter #(
 // Upsize 32→128 (WIDTH_RATIO=4, M_STRB_WIDTH=16)
 // Slave addresses must be 16-byte aligned (bottom 4 bits = 0)
 
-✅ VALID:   AWADDR = 0x1000 (aligned to 16 bytes)
-✅ VALID:   AWADDR = 0x2000
-❌ INVALID: AWADDR = 0x1004 (not 16-byte aligned)
-❌ INVALID: AWADDR = 0x2008 (not 16-byte aligned)
+VALID:   AWADDR = 0x1000 (aligned to 16 bytes)
+VALID:   AWADDR = 0x2000
+INVALID: AWADDR = 0x1004 (not 16-byte aligned)
+INVALID: AWADDR = 0x2008 (not 16-byte aligned)
 ```
 
 **Downsize:** No alignment restrictions (master can access any byte)
@@ -487,21 +502,6 @@ Master: AWLEN=15, AWSIZE=2 (4 bytes)  → 16 beats × 4 bytes = 64 bytes
 .W_FIFO_DEPTH  (16),  // Accumulate 16 narrow beats → 4 wide beats
 .R_FIFO_DEPTH  (16)   // Unpack 4 wide beats → 16 narrow beats
 ```
-
-### Performance Characteristics
-
-**Throughput (Upsize):**
-- Accumulation latency: WIDTH_RATIO-1 cycles per wide beat
-- Example (WIDTH_RATIO=4): 3-cycle latency to accumulate first wide beat
-
-**Throughput (Downsize):**
-- Unpacking latency: 1 cycle per narrow beat
-- Full wide beat can be unpacked in consecutive cycles
-
-**Backpressure Handling:**
-- FIFOs provide elastic buffering
-- Prevents deadlock during width mismatch scenarios
-- Slave can stall independently of master
 
 ---
 

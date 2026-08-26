@@ -31,19 +31,119 @@
 
 ## Overview
 
-The AXI4 Master Write Stub provides a simplified packed-data interface for driving AXI4 write transactions. It uses skid buffers to pack/unpack AXI4 AW (write address), W (write data), and B (write response) channels into simple packet interfaces, making it ideal for testbenches and integration scenarios where a simplified interface is preferred.
+The write-side counterpart to the read stub. The AXI4 Master Write Stub packs the AW (write address), W (write data), and B (write response) channels into simple packet interfaces through skid buffers, so your testbench drives one wide payload per channel instead of handshaking a dozen AXI signals. Ideal for testbenches and integration scenarios where a simplified interface is the whole point.
 
 ### Key Features
 
 - Packed packet interface for AW, W, and B channels
-- Configurable skid buffer depths for each channel
+- Configurable skid buffer depth on each channel
 - Full AXI4 write transaction support
-- Burst, ID, strobe, user signal support
+- Burst, ID, strobe, and user signal support
 - Parameterized data widths
 
 ---
 
-## Module Architecture
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| SKID_DEPTH_AW | int | 2 | AW channel skid buffer depth in entries (2..8 inclusive, any integer) |
+| SKID_DEPTH_W | int | 4 | W channel skid buffer depth in entries (2..8 inclusive, any integer) |
+| SKID_DEPTH_B | int | 2 | B channel skid buffer depth in entries (2..8 inclusive, any integer) |
+| AXI_ID_WIDTH | int | 8 | AXI transaction ID width |
+| AXI_ADDR_WIDTH | int | 32 | AXI address bus width |
+| AXI_DATA_WIDTH | int | 32 | AXI data bus width |
+| AXI_USER_WIDTH | int | 1 | AXI user signal width |
+| AXI_WSTRB_WIDTH | int | AXI_DATA_WIDTH/8 | Write strobe width |
+| AW | int | AXI_ADDR_WIDTH | Short alias for address width |
+| DW | int | AXI_DATA_WIDTH | Short alias for data width |
+| IW | int | AXI_ID_WIDTH | Short alias for ID width |
+| SW | int | AXI_WSTRB_WIDTH | Short alias for strobe width |
+| UW | int | AXI_USER_WIDTH | Short alias for user width |
+| AWSize | int | IW+AW+8+3+2+1+4+3+4+4+UW | AW packet size (calculated) |
+| WSize | int | DW+SW+1+UW | W packet size (calculated) |
+| BSize | int | IW+2+UW | B packet size (calculated) |
+
+---
+
+## Ports
+
+### Clock and Reset
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| aclk | Input | 1 | AXI clock |
+| aresetn | Input | 1 | AXI reset (active low) |
+
+### AXI4 Write Address Channel (AW)
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| m_axi_awid | Output | IW | Write address ID |
+| m_axi_awaddr | Output | AW | Write address |
+| m_axi_awlen | Output | 8 | Burst length |
+| m_axi_awsize | Output | 3 | Burst size |
+| m_axi_awburst | Output | 2 | Burst type |
+| m_axi_awlock | Output | 1 | Lock type |
+| m_axi_awcache | Output | 4 | Cache type |
+| m_axi_awprot | Output | 3 | Protection type |
+| m_axi_awqos | Output | 4 | Quality of service |
+| m_axi_awregion | Output | 4 | Region identifier |
+| m_axi_awuser | Output | UW | User signal |
+| m_axi_awvalid | Output | 1 | Write address valid |
+| m_axi_awready | Input | 1 | Write address ready |
+
+### AXI4 Write Data Channel (W)
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| m_axi_wdata | Output | DW | Write data |
+| m_axi_wstrb | Output | SW | Write strobes |
+| m_axi_wlast | Output | 1 | Write last |
+| m_axi_wuser | Output | UW | User signal |
+| m_axi_wvalid | Output | 1 | Write data valid |
+| m_axi_wready | Input | 1 | Write data ready |
+
+### AXI4 Write Response Channel (B)
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| m_axi_bid | Input | IW | Response ID |
+| m_axi_bresp | Input | 2 | Write response |
+| m_axi_buser | Input | UW | User signal |
+| m_axi_bvalid | Input | 1 | Write response valid |
+| m_axi_bready | Output | 1 | Write response ready |
+
+### AW Packet Interface
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| fub_axi_awvalid | Input | 1 | AW packet valid |
+| fub_axi_awready | Output | 1 | Ready to accept AW packet |
+| fub_axi_aw_count | Output | 4 | AW buffer occupancy |
+| fub_axi_aw_pkt | Input | AWSize | Packed AW packet data |
+
+### W Packet Interface
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| fub_axi_wvalid | Input | 1 | W packet valid |
+| fub_axi_wready | Output | 1 | Ready to accept W packet |
+| fub_axi_w_pkt | Input | WSize | Packed W packet data |
+
+### B Packet Interface
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| fub_axi_bvalid | Output | 1 | B packet valid |
+| fub_axi_bready | Input | 1 | Ready to accept B packet |
+| fub_axi_b_pkt | Output | BSize | Packed B packet data |
+
+---
+
+## Functional Description
+
+### Architecture
 
 ```mermaid
 flowchart LR
@@ -75,109 +175,11 @@ flowchart LR
     b_skid --> b_pkt
 ```
 
----
+### Packet Formats
 
-## Parameters
+Packets are packed MSB-to-LSB in AXI signal order — one concatenation per channel, no bit shuffling required on the testbench side.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| SKID_DEPTH_AW | int | 2 | AW channel skid buffer depth in entries (2..8 inclusive, any integer) |
-| SKID_DEPTH_W | int | 4 | W channel skid buffer depth in entries (2..8 inclusive, any integer) |
-| SKID_DEPTH_B | int | 2 | B channel skid buffer depth in entries (2..8 inclusive, any integer) |
-| AXI_ID_WIDTH | int | 8 | AXI transaction ID width |
-| AXI_ADDR_WIDTH | int | 32 | AXI address bus width |
-| AXI_DATA_WIDTH | int | 32 | AXI data bus width |
-| AXI_USER_WIDTH | int | 1 | AXI user signal width |
-| AXI_WSTRB_WIDTH | int | AXI_DATA_WIDTH/8 | Write strobe width |
-| AW | int | AXI_ADDR_WIDTH | Short alias for address width |
-| DW | int | AXI_DATA_WIDTH | Short alias for data width |
-| IW | int | AXI_ID_WIDTH | Short alias for ID width |
-| SW | int | AXI_WSTRB_WIDTH | Short alias for strobe width |
-| UW | int | AXI_USER_WIDTH | Short alias for user width |
-| AWSize | int | IW+AW+8+3+2+1+4+3+4+4+UW | AW packet size (calculated) |
-| WSize | int | DW+SW+1+UW | W packet size (calculated) |
-| BSize | int | IW+2+UW | B packet size (calculated) |
-
----
-
-## Ports
-
-### Clock and Reset
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| aclk | 1 | Input | AXI clock |
-| aresetn | 1 | Input | AXI reset (active low) |
-
-### AXI4 Write Address Channel (AW)
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| m_axi_awid | IW | Output | Write address ID |
-| m_axi_awaddr | AW | Output | Write address |
-| m_axi_awlen | 8 | Output | Burst length |
-| m_axi_awsize | 3 | Output | Burst size |
-| m_axi_awburst | 2 | Output | Burst type |
-| m_axi_awlock | 1 | Output | Lock type |
-| m_axi_awcache | 4 | Output | Cache type |
-| m_axi_awprot | 3 | Output | Protection type |
-| m_axi_awqos | 4 | Output | Quality of service |
-| m_axi_awregion | 4 | Output | Region identifier |
-| m_axi_awuser | UW | Output | User signal |
-| m_axi_awvalid | 1 | Output | Write address valid |
-| m_axi_awready | 1 | Input | Write address ready |
-
-### AXI4 Write Data Channel (W)
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| m_axi_wdata | DW | Output | Write data |
-| m_axi_wstrb | SW | Output | Write strobes |
-| m_axi_wlast | 1 | Output | Write last |
-| m_axi_wuser | UW | Output | User signal |
-| m_axi_wvalid | 1 | Output | Write data valid |
-| m_axi_wready | 1 | Input | Write data ready |
-
-### AXI4 Write Response Channel (B)
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| m_axi_bid | IW | Input | Response ID |
-| m_axi_bresp | 2 | Input | Write response |
-| m_axi_buser | UW | Input | User signal |
-| m_axi_bvalid | 1 | Input | Write response valid |
-| m_axi_bready | 1 | Output | Write response ready |
-
-### AW Packet Interface
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| fub_axi_awvalid | 1 | Input | AW packet valid |
-| fub_axi_awready | 1 | Output | Ready to accept AW packet |
-| fub_axi_aw_count | 4 | Output | AW buffer occupancy |
-| fub_axi_aw_pkt | AWSize | Input | Packed AW packet data |
-
-### W Packet Interface
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| fub_axi_wvalid | 1 | Input | W packet valid |
-| fub_axi_wready | 1 | Output | Ready to accept W packet |
-| fub_axi_w_pkt | WSize | Input | Packed W packet data |
-
-### B Packet Interface
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| fub_axi_bvalid | 1 | Output | B packet valid |
-| fub_axi_bready | 1 | Input | Ready to accept B packet |
-| fub_axi_b_pkt | BSize | Output | Packed B packet data |
-
----
-
-## Packet Formats
-
-### AW Packet Structure (Write Address)
+#### AW Packet Structure (Write Address)
 
 ```mermaid
 flowchart LR
@@ -203,7 +205,7 @@ fub_axi_aw_pkt = {awid, awaddr, awlen, awsize, awburst, awlock, awcache, awprot,
 Width = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + UW
 ```
 
-### W Packet Structure (Write Data)
+#### W Packet Structure (Write Data)
 
 ```mermaid
 flowchart LR
@@ -222,7 +224,7 @@ fub_axi_w_pkt = {wdata, wstrb, wlast, wuser}
 Width = DW + SW + 1 + UW
 ```
 
-### B Packet Structure (Write Response)
+#### B Packet Structure (Write Response)
 
 ```mermaid
 flowchart LR
@@ -240,11 +242,7 @@ fub_axi_b_pkt = {bid, bresp, buser}
 Width = IW + 2 + UW
 ```
 
----
-
-## Transaction Flow
-
-### Write Transaction
+### Transaction Flow
 
 ```mermaid
 sequenceDiagram
@@ -269,7 +267,9 @@ sequenceDiagram
     STUB-->>TB: fub_axi_bvalid, fub_axi_b_pkt
 ```
 
-### Timing
+---
+
+## Timing
 
 <!-- TODO: Add wavedrom timing diagram for stub transactions -->
 > **Timing diagram pending.** The signals and sequence this scenario
@@ -385,7 +385,8 @@ wire [3:0] b_user = tb_b_pkt[3:0];
 
 ### Skid Buffer Operation
 
-The stub uses `gaxi_skid_buffer` modules to:
+The stub is three `gaxi_skid_buffer` instances and nothing fancier. They:
+
 - Decouple timing between testbench and AXI bus
 - Provide configurable buffering depth per channel
 - Handle backpressure gracefully
@@ -421,7 +422,7 @@ All AXI protocol handling is done by the skid buffers and downstream modules.
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI4 Master Write](axi4_master_wr.md)** - Full AXI4 master write module (if wrapping one)
 - **[AXI4 Master Read Stub](axi4_master_rd_stub.md)** - Corresponding read stub
@@ -432,6 +433,6 @@ All AXI protocol handling is done by the skid buffers and downstream modules.
 
 ## Navigation
 
-- **[<- Back to AXI4 Index](README.md)**
-- **[<- Back to rtl-amba Index](../index.md)**
-- **[<- Back to Main Documentation Index](../../index.md)**
+- **[← Back to AXI4 Index](README.md)**
+- **[← Back to rtl-amba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

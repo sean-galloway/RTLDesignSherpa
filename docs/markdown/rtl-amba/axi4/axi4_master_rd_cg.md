@@ -21,37 +21,33 @@
 
 <!-- End Header -->
 
-# AXI4 Master Read Interface (Clock-Gated)
+# axi4_master_rd_cg
 
 **Module:** `axi4_master_rd_cg.sv`
 **Base Module:** [axi4_master_rd](./axi4_master_rd.md)
 **Location:** `rtl/amba/axi4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
-## Quick Reference
+## Overview
 
-This is the **clock-gated variant** of [axi4_master_rd](./axi4_master_rd.md).
+This is the **clock-gated variant** of [axi4_master_rd](./axi4_master_rd.md) — same datapath, with an activity-based clock gate wrapped around it for power optimization.
 
 **For complete clock-gating documentation, usage examples, and configuration guidelines, see:**
 
 **→ [Clock-Gated Variants Guide](../shared/clock_gated_variants.md)**
 
----
+What you get over the base module:
 
-## Summary
-
-The `axi4_master_rd_cg` module adds power optimization to `axi4_master_rd` through activity-based clock gating:
-
-- ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
-- ✅ **Configurable at runtime:** `cfg_cg_enable` / `cfg_cg_idle_count` inputs
-- ✅ **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate
+- **Same Functionality:** 100% equivalent to base module
+- **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
+- **Configurable at runtime:** `cfg_cg_enable` / `cfg_cg_idle_count` inputs
+- **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate
 
 ---
 
-## Common Parameters
+## Parameters
 
 In addition to the [axi4_master_rd](./axi4_master_rd.md) parameters (note:
 the base module's `busy` output is NOT re-exported by this wrapper -- it is
@@ -71,7 +67,7 @@ always the accurate reference.)
 
 ---
 
-## Quick Usage
+## Usage Example
 
 ```systemverilog
 axi4_master_rd_cg #(
@@ -93,7 +89,7 @@ axi4_master_rd_cg #(
 
 ---
 
-## Documentation
+## Related Modules
 
 - **Base Module Functionality:** [axi4_master_rd.md](./axi4_master_rd.md)
 - **Clock Gating Guide:** [clock_gated_variants.md](../shared/clock_gated_variants.md)

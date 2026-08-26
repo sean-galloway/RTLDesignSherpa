@@ -31,43 +31,15 @@
 
 ## Overview
 
-The AXI4 Slave Read Stub provides a simplified packed-data interface for receiving AXI4 read transactions from a master. It uses skid buffers to pack/unpack AXI4 AR (read address) and R (read data) channels into simple packet interfaces, making it ideal for testbenches and integration scenarios where a simplified slave interface is needed.
+The other end of the read transaction. The AXI4 Slave Read Stub receives AXI4 read transactions from a master and exposes them as simple packet interfaces — the AR channel arrives as one packed payload for your testbench to chew on, and you hand read data back the same way. Skid buffers do the pack/unpack work, which makes the stub ideal for testbenches and integration scenarios where a simplified slave interface is what you actually need.
 
 ### Key Features
 
 - Packed packet interface for AR and R channels
-- Configurable skid buffer depths for each channel
+- Configurable skid buffer depth on each channel
 - Full AXI4 read transaction support
-- Burst, ID, user signal support
+- Burst, ID, and user signal support
 - Parameterized data widths
-
----
-
-## Module Architecture
-
-```mermaid
-flowchart LR
-    subgraph AXI4["AXI4 Interface"]
-        s_ar["AXI4<br/>AR Channel"]
-        s_r["AXI4<br/>R Channel"]
-    end
-
-    subgraph STUB["AXI4 Slave Read Stub"]
-        ar_skid["AR Skid<br/>Buffer"]
-        r_skid["R Skid<br/>Buffer"]
-    end
-
-    subgraph PACKED["Packed Interface"]
-        ar_pkt["AR Packet<br/>(Address Request)"]
-        r_pkt["R Packet<br/>(Read Data)"]
-    end
-
-    s_ar --> ar_skid
-    ar_skid --> ar_pkt
-
-    r_pkt --> r_skid
-    r_skid --> s_r
-```
 
 ---
 
@@ -96,63 +68,93 @@ flowchart LR
 
 ### Clock and Reset
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| aclk | 1 | Input | AXI clock |
-| aresetn | 1 | Input | AXI reset (active low) |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| aclk | Input | 1 | AXI clock |
+| aresetn | Input | 1 | AXI reset (active low) |
 
 ### AXI4 Read Address Channel (AR)
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| s_axi_arid | IW | Input | Read address ID |
-| s_axi_araddr | AW | Input | Read address |
-| s_axi_arlen | 8 | Input | Burst length |
-| s_axi_arsize | 3 | Input | Burst size |
-| s_axi_arburst | 2 | Input | Burst type |
-| s_axi_arlock | 1 | Input | Lock type |
-| s_axi_arcache | 4 | Input | Cache type |
-| s_axi_arprot | 3 | Input | Protection type |
-| s_axi_arqos | 4 | Input | Quality of service |
-| s_axi_arregion | 4 | Input | Region identifier |
-| s_axi_aruser | UW | Input | User signal |
-| s_axi_arvalid | 1 | Input | Read address valid |
-| s_axi_arready | 1 | Output | Read address ready |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| s_axi_arid | Input | IW | Read address ID |
+| s_axi_araddr | Input | AW | Read address |
+| s_axi_arlen | Input | 8 | Burst length |
+| s_axi_arsize | Input | 3 | Burst size |
+| s_axi_arburst | Input | 2 | Burst type |
+| s_axi_arlock | Input | 1 | Lock type |
+| s_axi_arcache | Input | 4 | Cache type |
+| s_axi_arprot | Input | 3 | Protection type |
+| s_axi_arqos | Input | 4 | Quality of service |
+| s_axi_arregion | Input | 4 | Region identifier |
+| s_axi_aruser | Input | UW | User signal |
+| s_axi_arvalid | Input | 1 | Read address valid |
+| s_axi_arready | Output | 1 | Read address ready |
 
 ### AXI4 Read Data Channel (R)
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| s_axi_rid | IW | Output | Read data ID |
-| s_axi_rdata | DW | Output | Read data |
-| s_axi_rresp | 2 | Output | Read response |
-| s_axi_rlast | 1 | Output | Read last |
-| s_axi_ruser | UW | Output | User signal |
-| s_axi_rvalid | 1 | Output | Read data valid |
-| s_axi_rready | 1 | Input | Read data ready |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| s_axi_rid | Output | IW | Read data ID |
+| s_axi_rdata | Output | DW | Read data |
+| s_axi_rresp | Output | 2 | Read response |
+| s_axi_rlast | Output | 1 | Read last |
+| s_axi_ruser | Output | UW | User signal |
+| s_axi_rvalid | Output | 1 | Read data valid |
+| s_axi_rready | Input | 1 | Read data ready |
 
 ### AR Packet Interface
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| fub_axi_arvalid | 1 | Output | AR packet valid |
-| fub_axi_arready | 1 | Input | Ready to accept AR packet |
-| fub_axi_ar_count | 4 | Output | AR buffer occupancy |
-| fub_axi_ar_pkt | ARSize | Output | Packed AR packet data |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| fub_axi_arvalid | Output | 1 | AR packet valid |
+| fub_axi_arready | Input | 1 | Ready to accept AR packet |
+| fub_axi_ar_count | Output | 4 | AR buffer occupancy |
+| fub_axi_ar_pkt | Output | ARSize | Packed AR packet data |
 
 ### R Packet Interface
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| fub_axi_rvalid | 1 | Input | R packet valid |
-| fub_axi_rready | 1 | Output | Ready to accept R packet |
-| fub_axi_r_pkt | RSize | Input | Packed R packet data |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| fub_axi_rvalid | Input | 1 | R packet valid |
+| fub_axi_rready | Output | 1 | Ready to accept R packet |
+| fub_axi_r_pkt | Input | RSize | Packed R packet data |
 
 ---
 
-## Packet Formats
+## Functional Description
 
-### AR Packet Structure (Read Address)
+### Architecture
+
+```mermaid
+flowchart LR
+    subgraph AXI4["AXI4 Interface"]
+        s_ar["AXI4<br/>AR Channel"]
+        s_r["AXI4<br/>R Channel"]
+    end
+
+    subgraph STUB["AXI4 Slave Read Stub"]
+        ar_skid["AR Skid<br/>Buffer"]
+        r_skid["R Skid<br/>Buffer"]
+    end
+
+    subgraph PACKED["Packed Interface"]
+        ar_pkt["AR Packet<br/>(Address Request)"]
+        r_pkt["R Packet<br/>(Read Data)"]
+    end
+
+    s_ar --> ar_skid
+    ar_skid --> ar_pkt
+
+    r_pkt --> r_skid
+    r_skid --> s_r
+```
+
+### Packet Formats
+
+Packets are packed MSB-to-LSB in AXI signal order, so parsing one in the testbench is plain slicing.
+
+#### AR Packet Structure (Read Address)
 
 ```mermaid
 flowchart LR
@@ -178,7 +180,7 @@ fub_axi_ar_pkt = {arid, araddr, arlen, arsize, arburst, arlock, arcache, arprot,
 Width = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + UW
 ```
 
-### R Packet Structure (Read Data)
+#### R Packet Structure (Read Data)
 
 ```mermaid
 flowchart LR
@@ -198,11 +200,7 @@ fub_axi_r_pkt = {rid, rdata, rresp, rlast, ruser}
 Width = IW + DW + 2 + 1 + UW
 ```
 
----
-
-## Transaction Flow
-
-### Read Transaction
+### Transaction Flow
 
 ```mermaid
 sequenceDiagram
@@ -225,7 +223,9 @@ sequenceDiagram
     BUS->>MASTER: R channel data
 ```
 
-### Timing
+---
+
+## Timing
 
 <!-- TODO: Add wavedrom timing diagram for stub transactions -->
 > **Timing diagram pending.** The signals and sequence this scenario
@@ -316,7 +316,8 @@ assign tb_r_pkt = {
 
 ### Skid Buffer Operation
 
-The stub uses `gaxi_skid_buffer` modules to:
+The stub is two `gaxi_skid_buffer` instances, and they earn their keep. They:
+
 - Decouple timing between AXI bus and testbench
 - Provide configurable buffering depth per channel
 - Handle backpressure gracefully
@@ -343,7 +344,7 @@ All AXI protocol handling is done by the skid buffers and upstream modules.
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI4 Slave Read](axi4_slave_rd.md)** - Full AXI4 slave read module (if wrapping one)
 - **[AXI4 Slave Write Stub](axi4_slave_wr_stub.md)** - Corresponding write stub
@@ -354,6 +355,6 @@ All AXI protocol handling is done by the skid buffers and upstream modules.
 
 ## Navigation
 
-- **[<- Back to AXI4 Index](README.md)**
-- **[<- Back to rtl-amba Index](../index.md)**
-- **[<- Back to Main Documentation Index](../../index.md)**
+- **[← Back to AXI4 Index](README.md)**
+- **[← Back to rtl-amba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

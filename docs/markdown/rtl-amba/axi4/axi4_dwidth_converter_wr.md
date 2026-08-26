@@ -21,32 +21,90 @@
 
 <!-- End Header -->
 
-# AXI4 Write Data Width Converter
+# axi4_dwidth_converter_wr
 
 **Module:** `axi4_dwidth_converter_wr.sv`
 **Location:** `projects/components/converters/rtl/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXI4 Write Data Width Converter provides data width conversion for write-only AXI4 interfaces (AW, W, and B channels only). This specialized converter is optimized for unidirectional bridges where the read and write paths are separate, using skid buffers for timing closure and reducing resource usage compared to the full bidirectional converter.
+The AXI4 Write Data Width Converter handles data width conversion for write-only AXI4 interfaces — AW, W, and B channels only. Like its read-only sibling, it's built for unidirectional bridges where the read and write paths are separate. It uses skid buffers on every channel for timing closure, and it drops the read-path logic entirely to keep area down compared to a full bidirectional converter.
 
 ### Key Features
 
-- ✅ **Write-Only:** AW, W, and B channels only (no read channels)
-- ✅ **Bidirectional Conversion:** Supports both upsize and downsize
-- ✅ **Timing Closure:** Uses gaxi_skid_buffer on all channels
-- ✅ **Resource Optimized:** Smaller than bidirectional converter
-- ✅ **Burst Preservation:** Maintains burst semantics across conversion
-- ✅ **WSTRB Handling:** Correct packing/unpacking of write strobes
-- ✅ **Error Propagation:** Correctly forwards BRESP codes
-- ✅ **Elastic Buffering:** Configurable skid buffer depths
+- **Write-Only:** AW, W, and B channels only (no read channels)
+- **Bidirectional Conversion:** Supports both upsize and downsize
+- **Timing Closure:** Uses gaxi_skid_buffer on all channels
+- **Resource Optimized:** Smaller than bidirectional converter
+- **Burst Preservation:** Maintains burst semantics across conversion
+- **WSTRB Handling:** Correct packing/unpacking of write strobes
+- **Error Propagation:** Correctly forwards BRESP codes
+- **Elastic Buffering:** Configurable skid buffer depths
 
 ---
 
-## Module Architecture
+## Parameters
+
+### Width Configuration
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| `S_AXI_DATA_WIDTH` | int | 32 | 32-256 | Slave interface data width (power of 2) |
+| `M_AXI_DATA_WIDTH` | int | 128 | 32-256 | Master interface data width (power of 2) |
+| `AXI_ID_WIDTH` | int | 8 | 1-16 | Transaction ID width |
+| `AXI_ADDR_WIDTH` | int | 32 | 12-64 | Address bus width |
+| `AXI_USER_WIDTH` | int | 1 | 0-1024 | User signal width |
+
+### Skid Buffer Depths
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| `SKID_DEPTH_AW` | int | 2 | 2-8 | AW channel skid buffer depth |
+| `SKID_DEPTH_W` | int | 4 | 2-8 | W channel skid buffer depth |
+| `SKID_DEPTH_B` | int | 2 | 2-8 | B channel skid buffer depth |
+
+### Calculated Parameters (Auto)
+
+| Parameter | Calculation | Description |
+|-----------|-------------|-------------|
+| `S_STRB_WIDTH` | `S_AXI_DATA_WIDTH / 8` | Slave write strobe width |
+| `M_STRB_WIDTH` | `M_AXI_DATA_WIDTH / 8` | Master write strobe width |
+| `WIDTH_RATIO` | `MAX / MIN` | Data width ratio (2-16) |
+| `UPSIZE` | `S < M` | 1 if upsizing, 0 if downsizing |
+| `DOWNSIZE` | `S > M` | 1 if downsizing, 0 if upsizing |
+
+---
+
+## Ports
+
+### AXI4 Slave Write Interface
+
+**Write Address Channel (AW):**
+- `s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize, s_axi_awburst, s_axi_awlock, s_axi_awcache, s_axi_awprot, s_axi_awqos, s_axi_awregion, s_axi_awuser, s_axi_awvalid, s_axi_awready`
+
+**Write Data Channel (W):**
+- `s_axi_wdata[S_AXI_DATA_WIDTH], s_axi_wstrb[S_STRB_WIDTH], s_axi_wlast, s_axi_wuser, s_axi_wvalid, s_axi_wready`
+
+**Write Response Channel (B):**
+- `s_axi_bid, s_axi_bresp, s_axi_buser, s_axi_bvalid, s_axi_bready`
+
+### AXI4 Master Write Interface
+
+**Write Address Channel (AW):**
+- `m_axi_awid, m_axi_awaddr, m_axi_awlen, m_axi_awsize, m_axi_awburst, m_axi_awlock, m_axi_awcache, m_axi_awprot, m_axi_awqos, m_axi_awregion, m_axi_awuser, m_axi_awvalid, m_axi_awready`
+
+**Write Data Channel (W):**
+- `m_axi_wdata[M_AXI_DATA_WIDTH], m_axi_wstrb[M_STRB_WIDTH], m_axi_wlast, m_axi_wuser, m_axi_wvalid, m_axi_wready`
+
+**Write Response Channel (B):**
+- `m_axi_bid, m_axi_bresp, m_axi_buser, m_axi_bvalid, m_axi_bready`
+
+---
+
+## Functional Description
 
 ### Upsize Mode (Narrow → Wide Writes)
 
@@ -114,69 +172,9 @@ flowchart LR
 
 Example: 4 wide W beats (128-bit) → 16 narrow W beats (32-bit)
 
----
+### Write Conversion Mechanics
 
-## Parameters
-
-### Width Configuration
-
-| Parameter | Type | Default | Range | Description |
-|-----------|------|---------|-------|-------------|
-| `S_AXI_DATA_WIDTH` | int | 32 | 32-256 | Slave interface data width (power of 2) |
-| `M_AXI_DATA_WIDTH` | int | 128 | 32-256 | Master interface data width (power of 2) |
-| `AXI_ID_WIDTH` | int | 8 | 1-16 | Transaction ID width |
-| `AXI_ADDR_WIDTH` | int | 32 | 12-64 | Address bus width |
-| `AXI_USER_WIDTH` | int | 1 | 0-1024 | User signal width |
-
-### Skid Buffer Depths
-
-| Parameter | Type | Default | Range | Description |
-|-----------|------|---------|-------|-------------|
-| `SKID_DEPTH_AW` | int | 2 | 2-8 | AW channel skid buffer depth |
-| `SKID_DEPTH_W` | int | 4 | 2-8 | W channel skid buffer depth |
-| `SKID_DEPTH_B` | int | 2 | 2-8 | B channel skid buffer depth |
-
-### Calculated Parameters (Auto)
-
-| Parameter | Calculation | Description |
-|-----------|-------------|-------------|
-| `S_STRB_WIDTH` | `S_AXI_DATA_WIDTH / 8` | Slave write strobe width |
-| `M_STRB_WIDTH` | `M_AXI_DATA_WIDTH / 8` | Master write strobe width |
-| `WIDTH_RATIO` | `MAX / MIN` | Data width ratio (2-16) |
-| `UPSIZE` | `S < M` | 1 if upsizing, 0 if downsizing |
-| `DOWNSIZE` | `S > M` | 1 if downsizing, 0 if upsizing |
-
----
-
-## Port Groups
-
-### AXI4 Slave Write Interface
-
-**Write Address Channel (AW):**
-- `s_axi_awid, s_axi_awaddr, s_axi_awlen, s_axi_awsize, s_axi_awburst, s_axi_awlock, s_axi_awcache, s_axi_awprot, s_axi_awqos, s_axi_awregion, s_axi_awuser, s_axi_awvalid, s_axi_awready`
-
-**Write Data Channel (W):**
-- `s_axi_wdata[S_AXI_DATA_WIDTH], s_axi_wstrb[S_STRB_WIDTH], s_axi_wlast, s_axi_wuser, s_axi_wvalid, s_axi_wready`
-
-**Write Response Channel (B):**
-- `s_axi_bid, s_axi_bresp, s_axi_buser, s_axi_bvalid, s_axi_bready`
-
-### AXI4 Master Write Interface
-
-**Write Address Channel (AW):**
-- `m_axi_awid, m_axi_awaddr, m_axi_awlen, m_axi_awsize, m_axi_awburst, m_axi_awlock, m_axi_awcache, m_axi_awprot, m_axi_awqos, m_axi_awregion, m_axi_awuser, m_axi_awvalid, m_axi_awready`
-
-**Write Data Channel (W):**
-- `m_axi_wdata[M_AXI_DATA_WIDTH], m_axi_wstrb[M_STRB_WIDTH], m_axi_wlast, m_axi_wuser, m_axi_wvalid, m_axi_wready`
-
-**Write Response Channel (B):**
-- `m_axi_bid, m_axi_bresp, m_axi_buser, m_axi_bvalid, m_axi_bready`
-
----
-
-## Write Conversion Mechanics
-
-### Upsize Write (Narrow → Wide)
+#### Upsize Write (Narrow → Wide)
 
 ```
 Example: 32-bit → 128-bit (WIDTH_RATIO = 4)
@@ -206,7 +204,7 @@ Beat 12-15: ...        ───┘
 BRESP: Single response from master → slave
 ```
 
-### Downsize Write (Wide → Narrow)
+#### Downsize Write (Wide → Narrow)
 
 ```
 Example: 128-bit → 32-bit (WIDTH_RATIO = 4)
@@ -231,7 +229,7 @@ Beat 3: wdata[127:0],  ───────► Beat 12-15: ...
 BRESP: Single response from master → slave
 ```
 
-### WSTRB Handling
+#### WSTRB Handling
 
 **Upsize:** Packs narrow WSTRB beats into wide WSTRB
 ```
@@ -253,7 +251,7 @@ Beat 2: 4'b0000  (bits [11:8])
 Beat 3: 4'b1111  (bits [15:12])
 ```
 
-### BRESP Propagation
+#### BRESP Propagation
 
 **Both Modes:** the slave sees exactly ONE B response. When a downsize
 burst SPLITS, the master side returns several B responses and the
@@ -264,6 +262,25 @@ Master BRESP: OKAY → Slave BRESP: OKAY
 Master BRESP: SLVERR → Slave BRESP: SLVERR
 Master BRESP: DECERR → Slave BRESP: DECERR
 ```
+
+---
+
+## Timing
+
+### Performance Characteristics
+
+**Throughput (Upsize):**
+- Accumulation latency: WIDTH_RATIO-1 cycles per wide beat
+- Example (WIDTH_RATIO=4): 3-cycle latency for first wide W beat
+
+**Throughput (Downsize):**
+- Unpacking latency: 1 cycle per narrow beat
+- Full wide beat unpacked in consecutive cycles
+
+**Comparison to Full Converter:**
+- Lower latency and area than a combined converter would be (no
+  read-path logic) -- unquantified: the 'full converter' has no RTL in
+  this repository to measure against
 
 ---
 
@@ -453,21 +470,6 @@ address combined with the promoted `AWSIZE` is not protocol-legal for an `INCR`
 burst; hardware does not correct it, but an `ifdef SIMULATION` assertion fires `$error` on misaligned upsize AW addresses, so it cannot slip through a simulated regression.
 
 See [axi4_dwidth_converter](axi4_dwidth_converter.md) for detailed examples.
-
-### Performance Characteristics
-
-**Throughput (Upsize):**
-- Accumulation latency: WIDTH_RATIO-1 cycles per wide beat
-- Example (WIDTH_RATIO=4): 3-cycle latency for first wide W beat
-
-**Throughput (Downsize):**
-- Unpacking latency: 1 cycle per narrow beat
-- Full wide beat unpacked in consecutive cycles
-
-**Comparison to Full Converter:**
-- Lower latency and area than a combined converter would be (no
-  read-path logic) -- unquantified: the 'full converter' has no RTL in
-  this repository to measure against
 
 ### WSTRB Validation
 

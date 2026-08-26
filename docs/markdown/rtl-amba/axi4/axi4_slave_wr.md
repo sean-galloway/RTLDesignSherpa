@@ -25,26 +25,43 @@
 
 **Module:** `axi4_slave_wr.sv`
 **Location:** `rtl/amba/axi4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXI4 Slave Write module provides a buffered AXI4 slave write interface with configurable depth skid buffers on all three write channels (AW, W, B). This module serves as an elastic buffer between an AXI4 interconnect and a memory or backend processing element, decoupling timing and providing backpressure handling.
+The AXI4 Slave Write module is a buffered AXI4 slave write interface with configurable-depth skid buffers on all three write channels (AW, W, B). Think of it as an elastic buffer sitting between the AXI4 interconnect and your memory or backend processing element: it decouples the timing on the two sides and absorbs backpressure, so a sluggish backend doesn't stall the interconnect and an eager master doesn't overrun the backend.
 
 ### Key Features
 
-- ✅ **Full AXI4 Write Support:** Complete AW, W, and B channel implementation
-- ✅ **Independent Channel Buffering:** Separate configurable depth buffers for each channel
-- ✅ **Elastic Buffering:** Decouples interconnect and backend timing domains
-- ✅ **Burst Support:** Full burst transaction handling with WLAST tracking
-- ✅ **User Signal Support:** Carries AWUSER, WUSER, and BUSER signals
-- ✅ **Clock Gating Support:** Busy signal for dynamic power management
+- **Full AXI4 Write Support:** Complete AW, W, and B channel implementation
+- **Independent Channel Buffering:** Separate configurable depth buffers for each channel
+- **Elastic Buffering:** Decouples interconnect and backend timing domains
+- **Burst Support:** Full burst transaction handling with WLAST tracking
+- **User Signal Support:** Carries AWUSER, WUSER, and BUSER signals
+- **Clock Gating Support:** Busy signal for dynamic power management
 
 ---
 
-## Module Interface
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `SKID_DEPTH_AW` | int | 2 | Depth of write address (AW) channel skid buffer |
+| `SKID_DEPTH_W` | int | 4 | Depth of write data (W) channel skid buffer |
+| `SKID_DEPTH_B` | int | 2 | Depth of write response (B) channel skid buffer |
+| `AXI_ID_WIDTH` | int | 8 | Width of transaction ID signals (AWID, BID) |
+| `AXI_ADDR_WIDTH` | int | 32 | Width of address bus (AWADDR) |
+| `AXI_DATA_WIDTH` | int | 32 | Width of data bus (WDATA), must be 8, 16, 32, 64, 128, 256, 512, or 1024 |
+| `AXI_WSTRB_WIDTH` | int | AXI_DATA_WIDTH/8 | Write strobe width |
+| `AXI_USER_WIDTH` | int | 1 | Width of user-defined signals (AWUSER, WUSER, BUSER) |
+
+---
+
+## Ports
+
+Here's the full module declaration -- the tables below it break the ports down by group.
 
 ```systemverilog
 module axi4_slave_wr #(
@@ -127,25 +144,6 @@ module axi4_slave_wr #(
 );
 ```
 
----
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `SKID_DEPTH_AW` | int | 2 | Depth of write address (AW) channel skid buffer |
-| `SKID_DEPTH_W` | int | 4 | Depth of write data (W) channel skid buffer |
-| `SKID_DEPTH_B` | int | 2 | Depth of write response (B) channel skid buffer |
-| `AXI_ID_WIDTH` | int | 8 | Width of transaction ID signals (AWID, BID) |
-| `AXI_ADDR_WIDTH` | int | 32 | Width of address bus (AWADDR) |
-| `AXI_DATA_WIDTH` | int | 32 | Width of data bus (WDATA), must be 8, 16, 32, 64, 128, 256, 512, or 1024 |
-| AXI_WSTRB_WIDTH | int | AXI_DATA_WIDTH/8 | Write strobe width |
-| `AXI_USER_WIDTH` | int | 1 | Width of user-defined signals (AWUSER, WUSER, BUSER) |
-
----
-
-## Port Groups
-
 ### Clock and Reset
 
 | Port | Direction | Width | Description |
@@ -155,7 +153,7 @@ module axi4_slave_wr #(
 
 ### Slave AXI Interface (s_axi_*)
 
-**Write Address Channel (AW)**
+#### Write Address Channel (AW)
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -173,7 +171,7 @@ module axi4_slave_wr #(
 | `s_axi_awvalid` | Input | 1 | Write address valid |
 | `s_axi_awready` | Output | 1 | Write address ready |
 
-**Write Data Channel (W)**
+#### Write Data Channel (W)
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -184,7 +182,7 @@ module axi4_slave_wr #(
 | `s_axi_wvalid` | Input | 1 | Write data valid |
 | `s_axi_wready` | Output | 1 | Write data ready |
 
-**Write Response Channel (B)**
+#### Write Response Channel (B)
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
@@ -210,7 +208,7 @@ Mirrors the slave interface but in the opposite direction (output on AW/W, input
 
 ### Architecture
 
-The AXI4 Slave Write module uses three independent `gaxi_skid_buffer` instances to provide elastic buffering on each write channel:
+Three independent `gaxi_skid_buffer` instances do the heavy lifting, one per write channel:
 
 ```mermaid
 flowchart LR
@@ -269,67 +267,6 @@ Use cases:
 - **Clock gating:** Disable clock when `busy` is low
 - **Power management:** Enter low-power mode when idle
 - **Synchronization:** Wait for idle before configuration changes
-
----
-
-## Configuration Guidelines
-
-### Buffer Depth Selection
-
-`SKID_DEPTH_*` is an entry count, not a log2 exponent. The underlying
-`gaxi_skid_buffer` allocates one register slot per entry and tracks occupancy
-with a 4-bit counter, so legal values are 2..8 inclusive (any integer). Values greater than 8
-overflow the occupancy counter and are not supported.
-
-**Write Address (SKID_DEPTH_AW):**
-- Default: 2 (sufficient for most cases)
-- Increase if:
-  - High-latency backend address decode
-  - Frequent address channel backpressure
-  - Multiple outstanding bursts needed
-
-**Write Data (SKID_DEPTH_W):**
-- Default: 4 (deeper than AW for burst data)
-- Increase if:
-  - Large burst sizes (AWLEN > 4)
-  - High-bandwidth streaming writes
-  - Variable backend write latency
-
-**Write Response (SKID_DEPTH_B):**
-- Default: 2 (responses are typically single-beat)
-- Increase if:
-  - Master slow to accept responses
-  - Many concurrent outstanding writes
-  - Response channel backpressure observed
-
-### Recommended Configurations
-
-**Low-Latency Memory (single outstanding write):**
-```systemverilog
-axi4_slave_wr #(
-    .SKID_DEPTH_AW(2),
-    .SKID_DEPTH_W(2),
-    .SKID_DEPTH_B(2)
-) u_slave_wr ( ... );
-```
-
-**High-Throughput Streaming (burst writes):**
-```systemverilog
-axi4_slave_wr #(
-    .SKID_DEPTH_AW(4),
-    .SKID_DEPTH_W(8),    // Deep for burst data
-    .SKID_DEPTH_B(4)
-) u_slave_wr ( ... );
-```
-
-**Multiple Outstanding Writes:**
-```systemverilog
-axi4_slave_wr #(
-    .SKID_DEPTH_AW(8),
-    .SKID_DEPTH_W(8),
-    .SKID_DEPTH_B(8)
-) u_slave_wr ( ... );
-```
 
 ---
 
@@ -449,6 +386,63 @@ axi4_slave_wr #( ... ) u_slave_wr (
 
 ## Design Notes
 
+### Buffer Depth Selection
+
+`SKID_DEPTH_*` is an entry count, not a log2 exponent. The underlying
+`gaxi_skid_buffer` allocates one register slot per entry and tracks occupancy
+with a 4-bit counter, so legal values are 2..8 inclusive (any integer). Values greater than 8
+overflow the occupancy counter and are not supported.
+
+**Write Address (SKID_DEPTH_AW):**
+- Default: 2 (sufficient for most cases)
+- Increase if:
+  - High-latency backend address decode
+  - Frequent address channel backpressure
+  - Multiple outstanding bursts needed
+
+**Write Data (SKID_DEPTH_W):**
+- Default: 4 (deeper than AW for burst data)
+- Increase if:
+  - Large burst sizes (AWLEN > 4)
+  - High-bandwidth streaming writes
+  - Variable backend write latency
+
+**Write Response (SKID_DEPTH_B):**
+- Default: 2 (responses are typically single-beat)
+- Increase if:
+  - Master slow to accept responses
+  - Many concurrent outstanding writes
+  - Response channel backpressure observed
+
+### Recommended Configurations
+
+**Low-Latency Memory (single outstanding write):**
+```systemverilog
+axi4_slave_wr #(
+    .SKID_DEPTH_AW(2),
+    .SKID_DEPTH_W(2),
+    .SKID_DEPTH_B(2)
+) u_slave_wr ( ... );
+```
+
+**High-Throughput Streaming (burst writes):**
+```systemverilog
+axi4_slave_wr #(
+    .SKID_DEPTH_AW(4),
+    .SKID_DEPTH_W(8),    // Deep for burst data
+    .SKID_DEPTH_B(4)
+) u_slave_wr ( ... );
+```
+
+**Multiple Outstanding Writes:**
+```systemverilog
+axi4_slave_wr #(
+    .SKID_DEPTH_AW(8),
+    .SKID_DEPTH_W(8),
+    .SKID_DEPTH_B(8)
+) u_slave_wr ( ... );
+```
+
 ### Buffer Independence
 
 The three skid buffers operate independently:
@@ -472,7 +466,7 @@ Ready signals propagate backpressure:
 
 ### ID and Burst Handling
 
-This module is a pass-through buffer:
+This module is a pass-through buffer, and it's honest about it:
 - Does NOT track transaction IDs
 - Does NOT enforce burst ordering
 - Relies on backend to:
@@ -506,6 +500,12 @@ On `aresetn` assertion (active-low):
 
 ---
 
+## Testing
+
+The unit testbench lives at `val/amba/test_axi4_slave_wr.py`, built on the shared AXI4 test framework in `bin/TBClasses/components/axi4/`.
+
+---
+
 ## References
 
 ### Specifications
@@ -513,8 +513,6 @@ On `aresetn` assertion (active-low):
 
 ### Source Code
 - RTL: `rtl/amba/axi4/axi4_slave_wr.sv`
-- Tests: `val/amba/test_axi4_slave_wr.py`
-- Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation
 - Architecture: [rtl-amba Overview](../overview.md)
@@ -529,6 +527,6 @@ On `aresetn` assertion (active-low):
 
 ## Navigation
 
-- **[← Back to AXI4 Index](README.md)**
-- **[← Back to rtl-amba Index](../index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[<- Back to AXI4 Index](README.md)**
+- **[<- Back to rtl-amba Index](../index.md)**
+- **[<- Back to Main Documentation Index](../../index.md)**

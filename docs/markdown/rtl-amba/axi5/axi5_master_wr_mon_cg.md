@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI5 Master Write with Monitor and Clock Gating module combines `axi5_master_wr_mon` (AXI5 write master with integrated monitoring) with intelligent clock gating for power optimization. This provides comprehensive write transaction monitoring, error detection, and automatic power management.
+Take the monitored write master and add power management. This module combines `axi5_master_wr_mon` (AXI5 write master with integrated monitoring) with activity-driven clock gating, so the write path keeps its full transaction monitoring and error detection while the clock shuts itself off during idle stretches.
 
 ### Key Features
 
@@ -48,9 +48,7 @@ The AXI5 Master Write with Monitor and Clock Gating module combines `axi5_master
 - **Transparent operation** - no protocol changes
 - **Dual status outputs:** Monitor status + clock gating status
 
----
-
-## Module Architecture
+### Module Architecture
 
 ```mermaid
 flowchart TB
@@ -200,11 +198,11 @@ Same as `axi5_master_wr_mon` - see [AXI5 Master Write Monitor](axi5_master_wr_mo
 
 ---
 
-## Functionality
+## Functional Description
 
 ### Combined Write Monitoring and Power Management
 
-This module provides the ultimate combination for AXI5 write paths:
+This module stacks both jobs on the write path:
 
 **Monitoring (from axi5_master_wr_mon):**
 - Real-time write transaction monitoring (AW/W/B)
@@ -250,9 +248,7 @@ m_axi_bready = cg_gating ? 1'b0 : int_bready;
 
 This ensures protocol compliance during power management across all write phases.
 
----
-
-## Performance Monitoring
+### Performance Monitoring
 
 The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi5_master_wr_mon`. The measurement-window state machine, the four W-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi5_master_wr_mon](axi5_master_wr_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
 
@@ -273,7 +269,7 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 
 ---
 
-## Timing Diagrams
+## Timing
 
 ### Clock Gating with Write Burst and Monitoring
 
@@ -505,6 +501,39 @@ gaxi_fifo_sync #(
    - Write-specific gating saves 15-30% total power
    - Combined with read path CG: 40-60% total savings
 
+### Performance Analysis with Write Monitoring
+
+The monitor provides valuable write path metrics:
+
+```systemverilog
+// Extract write performance from monitor packets
+always_comb begin
+    write_bandwidth = (write_count * data_width) / elapsed_cycles;
+    write_efficiency = (active_write_cycles) / total_cycles;
+    avg_outstanding = total_outstanding_samples / sample_count;
+end
+
+// Compare with/without clock gating
+$display("Write Perf: BW=%d GB/s, Efficiency=%d%%, Power saved=%d%%",
+    write_bandwidth, write_efficiency,
+    (power_cycles_saved * 100) / total_cycles);
+```
+
+---
+
+## Related Modules
+
+- **[AXI5 Master Write](../axi5/axi5_master_wr.md)** - Base module
+- **[AXI5 Master Write CG](../axi5/axi5_master_wr_cg.md)** - Clock gating only
+- **[AXI5 Master Write Monitor](axi5_master_wr_mon.md)** - Monitor only
+- **[AXI5 Master Read Monitor CG](axi5_master_rd_mon_cg.md)** - Read variant
+- **[AXI Monitor Configuration Guide](../../../user-guides/AXI_Monitor_Configuration_Guide.md)** - Monitor setup
+- **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating details
+
+---
+
+## Testing
+
 ### Verification Recommendations for Write Path
 
 1. **Test write burst + gating:**
@@ -532,35 +561,6 @@ gaxi_fifo_sync #(
    wait_error_packet();
    check_gating_after_error_handled();
    ```
-
-### Performance Analysis with Write Monitoring
-
-The monitor provides valuable write path metrics:
-
-```systemverilog
-// Extract write performance from monitor packets
-always_comb begin
-    write_bandwidth = (write_count * data_width) / elapsed_cycles;
-    write_efficiency = (active_write_cycles) / total_cycles;
-    avg_outstanding = total_outstanding_samples / sample_count;
-end
-
-// Compare with/without clock gating
-$display("Write Perf: BW=%d GB/s, Efficiency=%d%%, Power saved=%d%%",
-    write_bandwidth, write_efficiency,
-    (power_cycles_saved * 100) / total_cycles);
-```
-
----
-
-## Related Documentation
-
-- **[AXI5 Master Write](../axi5/axi5_master_wr.md)** - Base module
-- **[AXI5 Master Write CG](../axi5/axi5_master_wr_cg.md)** - Clock gating only
-- **[AXI5 Master Write Monitor](axi5_master_wr_mon.md)** - Monitor only
-- **[AXI5 Master Read Monitor CG](axi5_master_rd_mon_cg.md)** - Read variant
-- **[AXI Monitor Configuration Guide](../../../user-guides/AXI_Monitor_Configuration_Guide.md)** - Monitor setup
-- **[AMBA Clock Gate Controller](../shared/amba_clock_gate_ctrl.md)** - Clock gating details
 
 ---
 

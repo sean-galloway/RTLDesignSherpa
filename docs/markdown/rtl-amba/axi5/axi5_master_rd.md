@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI5 Master Read module is the master-side AR/R channel transport block. It carries a full AXI5 read signal set, including the AXI5 sideband extensions, between a FUB (Functional Unit Block) interface and an external AXI5 master interface, with a configurable SKID buffer on each channel for timing closure and flow control.
+The AXI5 Master Read module is the master-side AR/R channel transport block. It carries a full AXI5 read signal set — including the AXI5 sideband extensions — between a FUB (Functional Unit Block) interface and an external AXI5 master interface, with a configurable SKID buffer on each channel for timing closure and flow control.
 
 **Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
@@ -52,46 +52,6 @@ The AXI5 Master Read module is the master-side AR/R channel transport block. It 
 - Configurable SKID buffer depths for AR and R channels
 - Busy signal for power management and clock gating
 - ARREGION not implemented (see *Design Notes*)
-
----
-
-## Module Architecture
-
-```mermaid
-flowchart LR
-    subgraph FUB["FUB Interface"]
-        direction TB
-        fub_ar["AR Channel<br/>Address/Control"]
-        fub_r["R Channel<br/>Read Data"]
-    end
-
-    subgraph SKID["SKID Buffers"]
-        direction TB
-        ar_skid["AR SKID<br/>Depth=2"]
-        r_skid["R SKID<br/>Depth=4"]
-    end
-
-    subgraph PACK["Signal Packing"]
-        direction TB
-        ar_pack["AR Packer<br/>Conditional AXI5"]
-        r_pack["R Unpacker<br/>Conditional AXI5"]
-    end
-
-    subgraph AXI["AXI5 Master"]
-        direction TB
-        m_ar["AR Channel<br/>NSAID/TRACE/MPAM<br/>MECID/UNIQUE<br/>CHUNKEN/TAGOP"]
-        m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/TAG"]
-    end
-
-    fub_ar --> ar_pack
-    ar_pack --> ar_skid
-    ar_skid --> m_ar
-
-    m_r --> r_skid
-    
-    r_skid --> r_unpack["R Unpacker"]
-    r_unpack --> fub_r
-```
 
 ---
 
@@ -213,7 +173,47 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 
 ---
 
-## Functionality
+## Functional Description
+
+### Architecture
+
+Two channels, two SKID buffers, conditional packing in between:
+
+```mermaid
+flowchart LR
+    subgraph FUB["FUB Interface"]
+        direction TB
+        fub_ar["AR Channel<br/>Address/Control"]
+        fub_r["R Channel<br/>Read Data"]
+    end
+
+    subgraph SKID["SKID Buffers"]
+        direction TB
+        ar_skid["AR SKID<br/>Depth=2"]
+        r_skid["R SKID<br/>Depth=4"]
+    end
+
+    subgraph PACK["Signal Packing"]
+        direction TB
+        ar_pack["AR Packer<br/>Conditional AXI5"]
+        r_pack["R Unpacker<br/>Conditional AXI5"]
+    end
+
+    subgraph AXI["AXI5 Master"]
+        direction TB
+        m_ar["AR Channel<br/>NSAID/TRACE/MPAM<br/>MECID/UNIQUE<br/>CHUNKEN/TAGOP"]
+        m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/TAG"]
+    end
+
+    fub_ar --> ar_pack
+    ar_pack --> ar_skid
+    ar_skid --> m_ar
+
+    m_r --> r_skid
+    
+    r_skid --> r_unpack["R Unpacker"]
+    r_unpack --> fub_r
+```
 
 ### AXI5 Enhancements Over AXI4
 
@@ -239,7 +239,7 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 
 ### Signal Packing Logic
 
-The module uses dynamic packing based on feature enables:
+Packing is dynamic, driven by the feature enables:
 
 ```systemverilog
 // AR channel packed conditionally
@@ -262,7 +262,7 @@ Disabled signals default to 0.
 
 ---
 
-## Timing Diagrams
+## Timing
 
 ### Basic Read Transaction
 
@@ -305,6 +305,8 @@ Disabled signals default to 0.
 ---
 
 ## Usage Example
+
+A full-featured instantiation with every AXI5 extension enabled:
 
 ```systemverilog
 axi5_master_rd #(
@@ -433,7 +435,7 @@ Disable unused features to reduce area:
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Master Write](axi5_master_wr.md)** - Master write interface
 - **[AXI5 Slave Read](axi5_slave_rd.md)** - Slave read interface

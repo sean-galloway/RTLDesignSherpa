@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_rd_mon` (AXI5 master with integrated monitoring) with intelligent clock gating for power optimization. This provides the ultimate combination: comprehensive transaction monitoring, error detection, and automatic power management.
+The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_rd_mon` (AXI5 master with integrated monitoring) with intelligent clock gating for power optimization. This is the everything variant: comprehensive transaction monitoring, error detection, and automatic power management in one instantiation.
 
 ### Key Features
 
@@ -50,7 +50,102 @@ The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_
 
 ---
 
-## Module Architecture
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| SKID_DEPTH_AR | int | 2 | AR channel SKID buffer depth |
+| SKID_DEPTH_R | int | 4 | R channel SKID buffer depth |
+| AXI_ID_WIDTH | int | 8 | Transaction ID width |
+| AXI_ADDR_WIDTH | int | 32 | Address bus width |
+| AXI_DATA_WIDTH | int | 32 | Data bus width |
+| AXI_USER_WIDTH | int | 1 | User signal width |
+| AXI_NSAID_WIDTH | int | 4 | Non-secure access ID width |
+| AXI_MPAM_WIDTH | int | 11 | MPAM width (PartID + PMG) |
+| AXI_MECID_WIDTH | int | 16 | Memory encryption context ID width |
+| AXI_TAG_WIDTH | int | 4 | Memory tag width per 16 bytes |
+| AXI_TAGOP_WIDTH | int | 2 | Tag operation width |
+| AXI_CHUNKNUM_WIDTH | int | 4 | Chunk number width |
+| ENABLE_NSAID | bit | 1 | Enable non-secure access ID |
+| ENABLE_TRACE | bit | 1 | Enable trace signals |
+| ENABLE_MPAM | bit | 1 | Enable memory partitioning |
+| ENABLE_MECID | bit | 1 | Enable memory encryption context |
+| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
+| ENABLE_CHUNKING | bit | 1 | Enable data chunking |
+| ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
+| ENABLE_POISON | bit | 1 | Enable poison indicator |
+| UNIT_ID | int | 1 | Monitor unit identifier |
+| AGENT_ID | int | 10 | Monitor agent identifier |
+| MAX_TRANSACTIONS | int | 16 | Transaction table size |
+| ENABLE_FILTERING | bit | 1 | Enable 3-level packet filtering |
+| ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage in monitor |
+| USE_MONITOR | bit | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
+| N_ADDR_RANGES | int | 0 | Number of address-range comparators (forwarded to base module). |
+| ENABLE_ERROR_LOGIC | bit | 1 | Synthesis-cone enable for error detection (forwarded to base module) |
+| ENABLE_TIMEOUT_LOGIC | bit | 1 | Synthesis-cone enable for timeout detection (forwarded to base module) |
+| ENABLE_COMPL_LOGIC | bit | 1 | Synthesis-cone enable for completion tracking (forwarded to base module) |
+| ENABLE_THRESHOLD_LOGIC | bit | 1 | Synthesis-cone enable for threshold detection (forwarded to base module) |
+| ENABLE_PERF_LOGIC | bit | 1 | Synthesis-cone enable for the REPORTER's legacy perf-packet cone and the two lifetime counters only -- the window FSM and bucket/beat/byte/burst counters are unconditional (always compiled, always live) |
+| ENABLE_DEBUG_LOGIC | bit | 0 | Synthesis-cone enable for the debug/trace cone (forwarded to base module) |
+| CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter (max 2^N-1 cycles) |
+
+---
+
+## Ports
+
+### Clock and Reset
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| aclk | 1 | Input | AXI clock (ungated) |
+| aresetn | 1 | Input | AXI active-low reset |
+
+### Clock Gating Configuration
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| cfg_cg_enable | 1 | Input | Clock gating enable (1=enable, 0=always active) |
+| cfg_cg_idle_count | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating activates |
+
+### FUB AXI5 Interface (Slave Side - Input)
+
+Same as `axi5_master_rd_mon` - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
+
+### Master AXI5 Interface (Output Side)
+
+Same as `axi5_master_rd_mon` - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
+
+### Monitor Configuration
+
+Same as `axi5_master_rd_mon` - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
+
+### Monitor Bus Output
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| monbus_valid | 1 | Output | Monitor packet valid |
+| monbus_ready | 1 | Input | Monitor packet ready (backpressure) |
+| monbus_packet | 128 | Output | `monitor_packet_t` (128-bit format) |
+| monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
+
+### Status Outputs
+
+| Port | Width | Direction | Description |
+|------|-------|-----------|-------------|
+| busy | 1 | Output | Core busy indicator |
+| active_transactions | 8 | Output | Number of outstanding transactions |
+| error_count | 16 | Output | Cumulative error count (live -- driven from the reporter's lifetime counter) |
+| transaction_count | 32 | Output | Total transaction count (live -- reporter lifetime counter, zero-extended) |
+| cfg_conflict_error | 1 | Output | Configuration conflict detected |
+| cg_gating | 1 | Output | Clock gating active (1=gated, 0=running) |
+| cg_idle | 1 | Output | Interface idle (1=no activity) |
+
+---
+
+## Functional Description
+
+### Architecture
 
 ```mermaid
 flowchart TB
@@ -100,103 +195,6 @@ flowchart TB
     axi5_core --> status
     gate_ctrl --> status
 ```
-
----
-
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| SKID_DEPTH_AR | int | 2 | AR channel SKID buffer depth |
-| SKID_DEPTH_R | int | 4 | R channel SKID buffer depth |
-| AXI_ID_WIDTH | int | 8 | Transaction ID width |
-| AXI_ADDR_WIDTH | int | 32 | Address bus width |
-| AXI_DATA_WIDTH | int | 32 | Data bus width |
-| AXI_USER_WIDTH | int | 1 | User signal width |
-| AXI_NSAID_WIDTH | int | 4 | Non-secure access ID width |
-| AXI_MPAM_WIDTH | int | 11 | MPAM width (PartID + PMG) |
-| AXI_MECID_WIDTH | int | 16 | Memory encryption context ID width |
-| AXI_TAG_WIDTH | int | 4 | Memory tag width per 16 bytes |
-| AXI_TAGOP_WIDTH | int | 2 | Tag operation width |
-| AXI_CHUNKNUM_WIDTH | int | 4 | Chunk number width |
-| ENABLE_NSAID | bit | 1 | Enable non-secure access ID |
-| ENABLE_TRACE | bit | 1 | Enable trace signals |
-| ENABLE_MPAM | bit | 1 | Enable memory partitioning |
-| ENABLE_MECID | bit | 1 | Enable memory encryption context |
-| ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
-| ENABLE_CHUNKING | bit | 1 | Enable data chunking |
-| ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
-| ENABLE_POISON | bit | 1 | Enable poison indicator |
-| UNIT_ID | int | 1 | Monitor unit identifier |
-| AGENT_ID | int | 10 | Monitor agent identifier |
-| MAX_TRANSACTIONS | int | 16 | Transaction table size |
-| ENABLE_FILTERING | bit | 1 | Enable 3-level packet filtering |
-| ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage in monitor |
-| USE_MONITOR | bit | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
-| N_ADDR_RANGES | int | 0 | Number of address-range comparators (forwarded to base module). |
-| ENABLE_ERROR_LOGIC | bit | 1 | Synthesis-cone enable for error detection (forwarded to base module) |
-| ENABLE_TIMEOUT_LOGIC | bit | 1 | Synthesis-cone enable for timeout detection (forwarded to base module) |
-| ENABLE_COMPL_LOGIC | bit | 1 | Synthesis-cone enable for completion tracking (forwarded to base module) |
-| ENABLE_THRESHOLD_LOGIC | bit | 1 | Synthesis-cone enable for threshold detection (forwarded to base module) |
-| ENABLE_PERF_LOGIC | bit | 1 | Synthesis-cone enable for the REPORTER's legacy perf-packet cone and the two lifetime counters only -- the window FSM and bucket/beat/byte/burst counters are unconditional (always compiled, always live) |
-| ENABLE_DEBUG_LOGIC | bit | 0 | Synthesis-cone enable for the debug/trace cone (forwarded to base module) |
-| **CG_IDLE_COUNT_WIDTH** | int | 4 | Width of idle counter (max 2^N-1 cycles) |
-
----
-
-## Ports
-
-### Clock and Reset
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| aclk | 1 | Input | AXI clock (ungated) |
-| aresetn | 1 | Input | AXI active-low reset |
-
-### Clock Gating Configuration
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| cfg_cg_enable | 1 | Input | Clock gating enable (1=enable, 0=always active) |
-| cfg_cg_idle_count | CG_IDLE_COUNT_WIDTH | Input | Idle cycles before gating activates |
-
-### FUB AXI5 Interface (Slave Side)
-
-Same as `axi5_master_rd_mon` - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
-
-### Master AXI5 Interface (Output Side)
-
-Same as `axi5_master_rd_mon` - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
-
-### Monitor Configuration
-
-Same as `axi5_master_rd_mon` - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
-
-### Monitor Bus Output
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| monbus_valid | 1 | Output | Monitor packet valid |
-| monbus_ready | 1 | Input | Monitor packet ready (backpressure) |
-| monbus_packet | 128 | Output | `monitor_packet_t` (128-bit format) |
-| monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
-| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
-
-### Status Outputs
-
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| busy | 1 | Output | Core busy indicator |
-| active_transactions | 8 | Output | Number of outstanding transactions |
-| error_count | 16 | Output | Cumulative error count (live -- driven from the reporter's lifetime counter) |
-| transaction_count | 32 | Output | Total transaction count (live -- reporter lifetime counter, zero-extended) |
-| cfg_conflict_error | 1 | Output | Configuration conflict detected |
-| **cg_gating** | 1 | Output | Clock gating active (1=gated, 0=running) |
-| **cg_idle** | 1 | Output | Interface idle (1=no activity) |
-
----
-
-## Functionality
 
 ### Combined Monitoring and Power Management
 
@@ -250,9 +248,7 @@ m_axi_rready = cg_gating ? 1'b0 : int_rready;
 
 This ensures protocol compliance during power management.
 
----
-
-## Performance Monitoring
+### Performance Monitoring
 
 The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi5_master_rd_mon`. The measurement-window state machine, the four R-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi5_master_rd_mon](axi5_master_rd_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
 
@@ -272,7 +268,7 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 
 ---
 
-## Timing Diagrams
+## Timing
 
 ### Clock Gating with Monitor Activity
 
@@ -483,7 +479,7 @@ gaxi_fifo_sync #(
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Master Read](../axi5/axi5_master_rd.md)** - Base module
 - **[AXI5 Master Read CG](../axi5/axi5_master_rd_cg.md)** - Clock gating only

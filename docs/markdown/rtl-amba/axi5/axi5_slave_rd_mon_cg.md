@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI5 Slave Read Monitor with Clock Gating module combines integrated transaction monitoring with automatic clock gating for power optimization. It wraps `axi5_slave_rd_mon` with clock gating logic.
+The AXI5 Slave Read Monitor with Clock Gating module puts both power management and observability on the slave read path: it wraps `axi5_slave_rd_mon` with clock gating logic, so transaction monitoring and automatic clock gating come in one block.
 
 ### Key Features
 
@@ -45,9 +45,7 @@ The AXI5 Slave Read Monitor with Clock Gating module combines integrated transac
 - Transparent gating - no protocol changes
 - Gating status outputs for system monitoring
 
----
-
-## Module Architecture
+### Module Architecture
 
 ```mermaid
 flowchart TB
@@ -188,7 +186,7 @@ Same as `axi5_slave_rd_mon` - see [AXI5 Slave Read Monitor](axi5_slave_rd_mon.md
 
 ---
 
-## Functionality
+## Functional Description
 
 ### Clock Gating Behavior
 
@@ -203,9 +201,7 @@ Same as `axi5_slave_rd_mon` - see [AXI5 Slave Read Monitor](axi5_slave_rd_mon.md
 - Any activity immediately ungates the clock
 - Monitor state FREEZES when gated (it runs on the gated clock and is not a wake term)
 
----
-
-## Performance Monitoring
+### Performance Monitoring
 
 The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi5_slave_rd_mon`. The measurement-window state machine, the four R-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi5_slave_rd_mon](axi5_slave_rd_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
 
@@ -223,27 +219,6 @@ wall-clock windows hold `cfg_cg_enable` low around the measurement, or
 use the base module.
 
 Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_enable`, and `cfg_debug_enable` control inputs, plus the six `ENABLE_*_LOGIC` synthesis-cone parameters (see [Parameters](#parameters)), straight through to the base monitor.
-
----
-
-## Combined Benefits
-
-### Power Optimization
-
-**Power Savings Estimation:**
-- Base slave logic: ~40% of total power *(first-order estimates -- no power/area analysis has been run)*
-- Monitor logic: ~60% of total power
-- With gating at 50% duty cycle: ~50% dynamic power savings
-- Actual savings depend on traffic pattern and idle_count setting
-
-### Observability
-
-**Monitoring Capabilities:**
-- Error detection (SLVERR, timeout, orphan)
-- Performance tracking (latency, throughput)
-- Transaction completion tracking
-- Protocol violation detection
-- All monitoring continues when ungated
 
 ---
 
@@ -332,6 +307,23 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 
 ## Design Notes
 
+### Power Optimization
+
+**Power Savings Estimation:**
+- Base slave logic: ~40% of total power *(first-order estimates -- no power/area analysis has been run)*
+- Monitor logic: ~60% of total power
+- With gating at 50% duty cycle: ~50% dynamic power savings
+- Actual savings depend on traffic pattern and idle_count setting
+
+### Observability
+
+**Monitoring Capabilities:**
+- Error detection (SLVERR, timeout, orphan)
+- Performance tracking (latency, throughput)
+- Transaction completion tracking
+- Protocol violation detection
+- All monitoring continues when ungated
+
 ### When to Use This Module
 
 **Ideal for:**
@@ -372,7 +364,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Slave Read](../axi5/axi5_slave_rd.md)** - Non-monitored, non-gated version
 - **[AXI5 Slave Read CG](../axi5/axi5_slave_rd_cg.md)** - Clock-gated without monitoring

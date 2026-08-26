@@ -21,12 +21,12 @@
 
 <!-- End Header -->
 
-# AXI4 Master Read Monitor (Clock-Gated)
+# axi4_master_rd_mon_cg
 
 **Module:** `axi4_master_rd_mon_cg.sv`
 **Base Module:** [axi4_master_rd_mon](./axi4_master_rd_mon.md)
 **Location:** `rtl/amba/axi4/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -36,16 +36,14 @@ The `axi4_master_rd_mon_cg` module is a clock-gated variant of [axi4_master_rd_m
 
 ### Key Differences from Base Module
 
-- ✅ **Activity-Based Clock Gating:** one gate for the whole module, woken by bus valids + core busy
-- ✅ **Runtime Control:** `cfg_cg_enable` / `cfg_cg_idle_count` (no per-domain policies)
-- ✅ **Gating Status:** `cg_gating` / `cg_idle` outputs (no built-in power statistics)
+- **Activity-Based Clock Gating:** one gate for the whole module, woken by bus valids + core busy
+- **Runtime Control:** `cfg_cg_enable` / `cfg_cg_idle_count` (no per-domain policies)
+- **Gating Status:** `cg_gating` / `cg_idle` outputs (no built-in power statistics)
 - **Functional differences from base:** ten base parameters not forwarded, `debug_block_ready` tied off, and gated-clock caveats for windows/triggers (see the WARNING below) -- use the base module when those matter
 
 All other functionality is identical to the base module. See [axi4_master_rd_mon.md](./axi4_master_rd_mon.md) for complete functional specification.
 
----
-
-## When to Use Clock-Gated Variant
+### When to Use the Clock-Gated Variant
 
 **Use `axi4_master_rd_mon_cg` when:**
 - Power consumption is a critical concern
@@ -61,7 +59,9 @@ All other functionality is identical to the base module. See [axi4_master_rd_mon
 
 ---
 
-## Clock Gating Parameters
+## Parameters
+
+### Clock Gating Parameters
 
 In addition to all parameters from [axi4_master_rd_mon](./axi4_master_rd_mon.md), this module adds:
 
@@ -99,7 +99,78 @@ Base-module ports are forwarded EXCEPT `debug_block_ready`, which the wrapper ti
 
 ---
 
-## Usage Examples
+## Functional Description
+
+### Clock Gating Architecture
+
+ONE `amba_clock_gate_ctrl` gates the whole inner monitor module. The wake
+term is bus activity only (`fub_axi_arvalid || fub_axi_rvalid || int_busy`
+on the user side, `m_axi_arvalid || m_axi_rvalid` on the AXI side); when
+both sides idle for `cfg_cg_idle_count` cycles, everything inside --
+transaction tracking, reporter, timers, perf counters -- stops together.
+There are no per-domain gates.
+
+### Gating State Machine
+
+```
+ACTIVE ───────► IDLE_COUNT ───────► GATED
+  ▲                                    │
+  │                                    │
+  └────────────────────────────────────┘
+        (Activity Detected)
+
+States:
+- ACTIVE: Clocks enabled, monitoring activity
+- IDLE_COUNT: Counting cfg_cg_idle_count before gating
+- GATED: Clocks disabled, waiting for activity
+```
+
+### Performance Monitoring
+
+The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi4_master_rd_mon`. The measurement-window state machine, the four R-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi4_master_rd_mon](./axi4_master_rd_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
+
+Forwarded perfmon ports (identical width and direction to the base module):
+
+- **Inputs:** `cfg_perf_enable`, `cfg_start_event_sel` (3), `cfg_end_event_sel` (3), `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
+- **Outputs:** `window_active`, `window_cycles` (32), `perf_prod_cycles` (32), `perf_bp_cycles` (32), `perf_starv_cycles` (32), `perf_idle_cycles` (32), `perf_beat_count` (32), `perf_byte_count` (64), `perf_burst_count` (32)
+
+**WARNING -- gating vs window accounting:** an open measurement window is
+NOT an activity term (`user_valid` is bus valids + busy only), and the
+entire inner monitor -- window state machine and counters included -- runs
+on the gated clock. If the bus idles past the countdown while a window is
+open, the clock gates and `window_cycles` / perf counters FREEZE while
+wall-clock time passes: the host reads an under-counted window. The same
+applies to configuration and trigger pulses (`cam_clear`,
+`cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`): they
+are sampled in the gated domain and a pulse arriving while gated is
+DROPPED. For exact wall-clock windows or reliable idle-bus triggering,
+hold `cfg_cg_enable` low around the measurement, or use the base module.
+
+---
+
+## Timing
+
+### Wake-Up and Gating Latency
+
+Wake-up latency does not depend on `cfg_cg_idle_count`. Activity is registered once
+(AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before
+reaching the ICG enable, which is combinational. This monitor wrapper drives the
+activity terms combinationally, so it has **1 register stage** and the first
+usable gated-clock edge arrives **2 clock cycles** after activity asserts.
+
+`cfg_cg_idle_count` sets the going-to-sleep delay only: gating engages
+`cfg_cg_idle_count + 1` clocks after the internal wakeup deasserts, which is
+`cfg_cg_idle_count + 2` clocks after the last bus activity.
+
+| Configuration | Clocks from last activity to gating | Use Case |
+|---------------|-------------------------------------|----------|
+| `cfg_cg_idle_count=4` | 6 clock cycles | Low-latency, frequent bursts |
+| `cfg_cg_idle_count=8` | 10 clock cycles | Balanced |
+| `cfg_cg_idle_count=15` | 17 clock cycles | Maximum power savings, infrequent traffic |
+
+---
+
+## Usage Example
 
 ### Example 1: Maximum Power Savings (Burst Traffic)
 
@@ -168,78 +239,9 @@ axi4_master_rd_mon_cg #(
 
 ---
 
-## Performance Monitoring
+## Design Notes
 
-The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi4_master_rd_mon`. The measurement-window state machine, the four R-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi4_master_rd_mon](./axi4_master_rd_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
-
-Forwarded perfmon ports (identical width and direction to the base module):
-
-- **Inputs:** `cfg_perf_enable`, `cfg_start_event_sel` (3), `cfg_end_event_sel` (3), `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`
-- **Outputs:** `window_active`, `window_cycles` (32), `perf_prod_cycles` (32), `perf_bp_cycles` (32), `perf_starv_cycles` (32), `perf_idle_cycles` (32), `perf_beat_count` (32), `perf_byte_count` (64), `perf_burst_count` (32)
-
-**WARNING -- gating vs window accounting:** an open measurement window is
-NOT an activity term (`user_valid` is bus valids + busy only), and the
-entire inner monitor -- window state machine and counters included -- runs
-on the gated clock. If the bus idles past the countdown while a window is
-open, the clock gates and `window_cycles` / perf counters FREEZE while
-wall-clock time passes: the host reads an under-counted window. The same
-applies to configuration and trigger pulses (`cam_clear`,
-`cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close`): they
-are sampled in the gated domain and a pulse arriving while gated is
-DROPPED. For exact wall-clock windows or reliable idle-bus triggering,
-hold `cfg_cg_enable` low around the measurement, or use the base module.
-
----
-
-## Clock Gating Architecture
-
-### Gating Structure
-
-ONE `amba_clock_gate_ctrl` gates the whole inner monitor module. The wake
-term is bus activity only (`fub_axi_arvalid || fub_axi_rvalid || int_busy`
-on the user side, `m_axi_arvalid || m_axi_rvalid` on the AXI side); when
-both sides idle for `cfg_cg_idle_count` cycles, everything inside --
-transaction tracking, reporter, timers, perf counters -- stops together.
-There are no per-domain gates.
-
-### Gating State Machine
-
-```
-ACTIVE ───────► IDLE_COUNT ───────► GATED
-  ▲                                    │
-  │                                    │
-  └────────────────────────────────────┘
-        (Activity Detected)
-
-States:
-- ACTIVE: Clocks enabled, monitoring activity
-- IDLE_COUNT: Counting cfg_cg_idle_count before gating
-- GATED: Clocks disabled, waiting for activity
-```
-
-### Wake-Up and Gating Latency
-
-Wake-up latency does not depend on `cfg_cg_idle_count`. Activity is registered once
-(AXI4, AXI5, AXI4-Lite, AXI4-Stream) or twice (APB, APB5, AXI5-Stream) before
-reaching the ICG enable, which is combinational. This monitor wrapper drives the
-activity terms combinationally, so it has **1 register stage** and the first
-usable gated-clock edge arrives **2 clock cycles** after activity asserts.
-
-`cfg_cg_idle_count` sets the going-to-sleep delay only: gating engages
-`cfg_cg_idle_count + 1` clocks after the internal wakeup deasserts, which is
-`cfg_cg_idle_count + 2` clocks after the last bus activity.
-
-| Configuration | Clocks from last activity to gating | Use Case |
-|---------------|-------------------------------------|----------|
-| `cfg_cg_idle_count=4` | 6 clock cycles | Low-latency, frequent bursts |
-| `cfg_cg_idle_count=8` | 10 clock cycles | Balanced |
-| `cfg_cg_idle_count=15` | 17 clock cycles | Maximum power savings, infrequent traffic |
-
----
-
-## Power Savings Analysis
-
-### Typical Power Reduction
+### Power Savings Analysis
 
 Based on representative workloads:
 
@@ -261,11 +263,7 @@ The module provides these status signals for power analysis:
 | `cg_gating` | 1 | The (single) gated clock is currently stopped |
 | `cg_idle` | 1 | No activity this cycle (`~r_wakeup` -- asserts one cycle after the interfaces go quiet; it does NOT wait for the countdown) |
 
----
-
-## Verification Considerations
-
-### Clock Gating in Simulation
+### Verification Considerations
 
 **Recommendation:** Disable clock gating during functional verification:
 
@@ -282,8 +280,6 @@ axi4_master_rd_mon_cg dut (
 - Faster simulation (no gating overhead)
 - Easier debug (no timing dependencies)
 
-### Power Analysis Verification
-
 For power-specific verification:
 
 1. **Enable clock gating** with realistic parameters
@@ -291,11 +287,9 @@ For power-specific verification:
 3. **Vary traffic patterns** to test gating effectiveness
 4. **Check wake-up timing** meets system requirements
 
----
+### Synthesis Considerations
 
-## Synthesis Considerations
-
-### FPGA Implementations
+**FPGA Implementations**
 
 **Xilinx:**
 - Drive `cfg_cg_enable=1` and let synthesis map the ICG to `BUFGCE` primitives
@@ -312,8 +306,7 @@ For power-specific verification:
 - May require manual instantiation of clock enables
 - Verify functionality in timing simulation
 
-### ASIC Implementations
-
+**ASIC Implementations:**
 - Work with foundry to select appropriate clock gating cells
 - Integrated Clock Gating (ICG) cells provide best results
 - Consider hold-time implications of clock gating
@@ -327,9 +320,7 @@ For power-specific verification:
 - **[axi_monitor_base](../monitor/axi_monitor_base.md)** - Core monitoring infrastructure
 - **[axi_monitor_filtered](../monitor/axi_monitor_filtered.md)** - Filtering capabilities
 
----
-
-## See Also
+### See Also
 
 - **Power Optimization Guide:** `docs/POWER_OPTIMIZATION_GUIDE.md`
 - **Clock Gating Best Practices:** `docs/CLOCK_GATING_GUIDE.md`

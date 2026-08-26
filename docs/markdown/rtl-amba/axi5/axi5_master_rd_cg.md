@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI5 Master Read with Clock Gating module wraps the standard `axi5_master_rd` core with intelligent clock gating for power optimization. It automatically gates the clock when no AXI activity is detected for a configurable number of idle cycles.
+The AXI5 Master Read with Clock Gating module wraps the standard `axi5_master_rd` core with intelligent clock gating for power optimization. When no AXI activity is detected for a configurable number of idle cycles, the clock gates off automatically — no software involvement, no protocol changes.
 
 **Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. It performs no MTE tag checking or `RTAGMATCH` generation, no chunk reassembly, no poison generation, and no outstanding-transaction tracking. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
@@ -54,56 +54,6 @@ The AXI5 Master Read with Clock Gating module wraps the standard `axi5_master_rd
 - **Power savings** during idle periods
 - **Transparent operation** - no protocol changes
 - **Status outputs** for clock gating state monitoring
-
----
-
-## Module Architecture
-
-```mermaid
-flowchart LR
-    subgraph FUB["FUB Interface"]
-        direction TB
-        fub_ar["AR Channel<br/>Address/Control"]
-        fub_r["R Channel<br/>Read Data"]
-    end
-
-    subgraph CG["Clock Gating Controller"]
-        direction TB
-        activity["Activity<br/>Detection"]
-        idle_cnt["Idle Counter<br/>(Configurable)"]
-        gate_ctrl["Clock<br/>Gate Control"]
-    end
-
-    subgraph CORE["AXI5 Master Read Core"]
-        direction TB
-        ar_skid["AR SKID<br/>Depth=2"]
-        r_skid["R SKID<br/>Depth=4"]
-        axi5_core["AXI5 Protocol<br/>Logic"]
-    end
-
-    subgraph AXI["AXI5 Master"]
-        direction TB
-        m_ar["AR Channel<br/>NSAID/TRACE/MPAM<br/>MECID/UNIQUE<br/>CHUNKEN/TAGOP"]
-        m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/TAG"]
-    end
-
-    fub_ar --> activity
-    fub_r --> activity
-    m_ar --> activity
-    m_r --> activity
-
-    activity --> idle_cnt
-    idle_cnt --> gate_ctrl
-    gate_ctrl -->|gated_aclk| axi5_core
-
-    fub_ar --> ar_pack
-    ar_skid --> axi5_core
-    axi5_core --> m_ar
-
-    m_r --> r_skid
-    r_skid --> r_unpack["R Unpacker"]
-    r_unpack --> fub_r
-```
 
 ---
 
@@ -132,7 +82,7 @@ flowchart LR
 | ENABLE_CHUNKING | bit | 1 | Enable data chunking |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
-| **CG_IDLE_COUNT_WIDTH** | int | 4 | Width of idle counter (max 2^N-1 cycles) |
+| CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter (max 2^N-1 cycles) |
 
 ### Derived Parameters
 
@@ -234,7 +184,55 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 
 ---
 
-## Functionality
+## Functional Description
+
+### Architecture
+
+```mermaid
+flowchart LR
+    subgraph FUB["FUB Interface"]
+        direction TB
+        fub_ar["AR Channel<br/>Address/Control"]
+        fub_r["R Channel<br/>Read Data"]
+    end
+
+    subgraph CG["Clock Gating Controller"]
+        direction TB
+        activity["Activity<br/>Detection"]
+        idle_cnt["Idle Counter<br/>(Configurable)"]
+        gate_ctrl["Clock<br/>Gate Control"]
+    end
+
+    subgraph CORE["AXI5 Master Read Core"]
+        direction TB
+        ar_skid["AR SKID<br/>Depth=2"]
+        r_skid["R SKID<br/>Depth=4"]
+        axi5_core["AXI5 Protocol<br/>Logic"]
+    end
+
+    subgraph AXI["AXI5 Master"]
+        direction TB
+        m_ar["AR Channel<br/>NSAID/TRACE/MPAM<br/>MECID/UNIQUE<br/>CHUNKEN/TAGOP"]
+        m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/TAG"]
+    end
+
+    fub_ar --> activity
+    fub_r --> activity
+    m_ar --> activity
+    m_r --> activity
+
+    activity --> idle_cnt
+    idle_cnt --> gate_ctrl
+    gate_ctrl -->|gated_aclk| axi5_core
+
+    fub_ar --> ar_pack
+    ar_skid --> axi5_core
+    axi5_core --> m_ar
+
+    m_r --> r_skid
+    r_skid --> r_unpack["R Unpacker"]
+    r_unpack --> fub_r
+```
 
 ### Clock Gating Operation
 
@@ -308,7 +306,7 @@ All power figures on this page are first-order estimates derived from duty cycle
 
 ---
 
-## Timing Diagrams
+## Timing
 
 ### Clock Gating Activation
 
@@ -498,7 +496,7 @@ When verifying clock-gated designs:
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Master Read](axi5_master_rd.md)** - Non-gated base module
 - **[AXI5 Master Write CG](axi5_master_wr_cg.md)** - Write with clock gating

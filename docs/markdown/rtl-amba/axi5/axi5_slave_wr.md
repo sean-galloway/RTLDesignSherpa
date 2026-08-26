@@ -52,9 +52,7 @@ The AXI5 Slave Write module implements a complete AMBA AXI5 slave write interfac
 - Busy signal for power management
 - AWREGION not implemented (see *Design Notes*)
 
----
-
-## Module Architecture
+### Module Architecture
 
 ```mermaid
 flowchart LR
@@ -202,7 +200,7 @@ Same signals as slave interface but with `fub_axi_*` prefix and reversed directi
 
 ---
 
-## Functionality
+## Functional Description
 
 This slave module acts as an adapter between:
 - **External AXI5 master** (s_axi_* interface)
@@ -219,7 +217,7 @@ This slave module acts as an adapter between:
 
 ---
 
-## Timing Diagrams
+## Timing
 
 ### Basic Write Transaction
 
@@ -309,7 +307,7 @@ axi5_slave_wr #(
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Slave Read](axi5_slave_rd.md)** - Slave read interface
 - **[AXI5 Master Write](axi5_master_wr.md)** - Master write interface

@@ -26,32 +26,26 @@
 **Module:** `axi4_slave_rd_mon_cg.sv`
 **Base Module:** [axi4_slave_rd_mon](./axi4_slave_rd_mon.md)
 **Location:** `rtl/amba/axi4/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
-## Quick Reference
+## Overview
 
-This is the **clock-gated variant** of [axi4_slave_rd_mon](./axi4_slave_rd_mon.md).
+This is the **clock-gated variant** of [axi4_slave_rd_mon](./axi4_slave_rd_mon.md) — the same monitored slave read, with activity-based clock gating wrapped around it.
 
-**For complete clock-gating documentation, usage examples, and configuration guidelines, see:**
+For complete clock-gating documentation, usage examples, and configuration guidelines, see the **[Clock-Gated Variants Guide](../shared/clock_gated_variants.md)**.
 
-**→ [Clock-Gated Variants Guide](../shared/clock_gated_variants.md)**
+What the wrapper buys you:
 
----
-
-## Summary
-
-The `axi4_slave_rd_mon_cg` module adds power optimization to `axi4_slave_rd_mon` through activity-based clock gating:
-
-- ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
-- ✅ **Configurable:** Idle threshold, gating domains, enable/disable
-- ✅ **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate at runtime
+- **Same Functionality:** 100% equivalent to base module
+- **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
+- **Configurable:** Idle threshold, gating domains, enable/disable
+- **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate at runtime
 
 ---
 
-## Common Parameters
+## Parameters
 
 MOST [axi4_slave_rd_mon](./axi4_slave_rd_mon.md) parameters pass through -- with these NOT
 forwarded: `ACLK_MHZ`, `CFI_MIN_FREQ_MHZ`, `CFI_MAX_FREQ_MHZ`,
@@ -75,7 +69,9 @@ Base-module ports are forwarded EXCEPT `debug_block_ready`, which this wrapper t
 
 ---
 
-## Performance Monitoring
+## Functional Description
+
+### Performance Monitoring
 
 The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi4_slave_rd_mon`. The measurement-window state machine, the four R-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi4_slave_rd_mon](./axi4_slave_rd_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
 
@@ -94,7 +90,7 @@ DROPPED. For exact wall-clock windows or idle-bus triggering, hold
 
 ---
 
-## Quick Usage
+## Usage Example
 
 ```systemverilog
 axi4_slave_rd_mon_cg #(
@@ -116,7 +112,7 @@ axi4_slave_rd_mon_cg #(
 
 ---
 
-## Documentation
+## Related Modules
 
 - **Base Module Functionality:** [axi4_slave_rd_mon.md](./axi4_slave_rd_mon.md)
 - **Clock Gating Guide:** [clock_gated_variants.md](../shared/clock_gated_variants.md)

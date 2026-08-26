@@ -26,32 +26,26 @@
 **Module:** `axi4_master_wr_cg.sv`
 **Base Module:** [axi4_master_wr](./axi4_master_wr.md)
 **Location:** `rtl/amba/axi4/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
-## Quick Reference
+## Overview
 
-This is the **clock-gated variant** of [axi4_master_wr](./axi4_master_wr.md).
+Same module, smaller power bill. This is the **clock-gated variant** of [axi4_master_wr](./axi4_master_wr.md): functionally identical, with activity-based clock gating wrapped around it.
 
-**For complete clock-gating documentation, usage examples, and configuration guidelines, see:**
+For complete clock-gating documentation, usage examples, and configuration guidelines, see the **[Clock-Gated Variants Guide](../shared/clock_gated_variants.md)**.
 
-**→ [Clock-Gated Variants Guide](../shared/clock_gated_variants.md)**
+What the wrapper buys you:
 
----
-
-## Summary
-
-The `axi4_master_wr_cg` module adds power optimization to `axi4_master_wr` through activity-based clock gating:
-
-- ✅ **Same Functionality:** 100% equivalent to base module
-- ✅ **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
-- ✅ **Configurable at runtime:** `cfg_cg_enable` / `cfg_cg_idle_count` inputs
-- ✅ **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate
+- **Same Functionality:** 100% equivalent to base module
+- **Power Savings:** traffic-dependent; unmeasured in this repo -- treat any percentage as a placeholder until characterized
+- **Configurable at runtime:** `cfg_cg_enable` / `cfg_cg_idle_count` inputs
+- **Zero Overhead When Disabled:** `cfg_cg_enable=0` bypasses the gate
 
 ---
 
-## Common Parameters
+## Parameters
 
 In addition to all [axi4_master_wr](./axi4_master_wr.md) parameters:
 
@@ -68,7 +62,7 @@ interface this page once documented never existed.)
 
 ---
 
-## Quick Usage
+## Usage Example
 
 ```systemverilog
 axi4_master_wr_cg #(
@@ -90,7 +84,7 @@ axi4_master_wr_cg #(
 
 ---
 
-## Documentation
+## Related Modules
 
 - **Base Module Functionality:** [axi4_master_wr.md](./axi4_master_wr.md)
 - **Clock Gating Guide:** [clock_gated_variants.md](../shared/clock_gated_variants.md)

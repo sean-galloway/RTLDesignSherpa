@@ -27,9 +27,23 @@ An AXI4 read master module that provides high-performance read transaction proce
 
 ## Overview
 
-The `axi4_master_rd` module implements a complete AXI4 read master interface with integrated address and data channel buffering using GAXI skid buffers. It acts as a bridge between upstream AXI4 read requestors and downstream AXI4 memory interfaces, providing transaction buffering, pipeline optimization, and flow control to maximize memory subsystem performance.
+The `axi4_master_rd` module implements a complete AXI4 read master interface with integrated address and data channel buffering using GAXI skid buffers. It acts as a bridge between upstream AXI4 read requestors and downstream AXI4 memory interfaces, providing transaction buffering, pipeline optimization, and flow control to maximize memory subsystem performance. It's a complete, high-performance read-master solution: advanced buffering, full protocol compliance, and the system integration hooks (busy status for clock gating, full sideband support) you'd expect.
 
-## Module Declaration
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| SKID_DEPTH_AR | int | 2 | Address channel skid buffer depth in entries (2..8 inclusive, any integer) |
+| SKID_DEPTH_R | int | 4 | Read data channel skid buffer depth in entries (2..8 inclusive, any integer) |
+| AXI_ID_WIDTH | int | 8 | AXI transaction ID width |
+| AXI_ADDR_WIDTH | int | 32 | AXI address bus width |
+| AXI_DATA_WIDTH | int | 32 | AXI data bus width |
+| AXI_USER_WIDTH | int | 1 | AXI user signal width |
+| AXI_WSTRB_WIDTH | int | AXI_DATA_WIDTH/8 | AXI write strobe width (calculated) |
+
+## Ports
+
+### Module Declaration
 
 ```systemverilog
 module axi4_master_rd #(
@@ -108,20 +122,6 @@ module axi4_master_rd #(
 );
 ```
 
-## Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| SKID_DEPTH_AR | int | 2 | Address channel skid buffer depth in entries (2..8 inclusive, any integer) |
-| SKID_DEPTH_R | int | 4 | Read data channel skid buffer depth in entries (2..8 inclusive, any integer) |
-| AXI_ID_WIDTH | int | 8 | AXI transaction ID width |
-| AXI_ADDR_WIDTH | int | 32 | AXI address bus width |
-| AXI_DATA_WIDTH | int | 32 | AXI data bus width |
-| AXI_USER_WIDTH | int | 1 | AXI user signal width |
-| AXI_WSTRB_WIDTH | int | AXI_DATA_WIDTH/8 | AXI write strobe width (calculated) |
-
-## Ports
-
 ### Clock and Reset
 
 | Port | Width | Direction | Description |
@@ -195,7 +195,7 @@ module axi4_master_rd #(
 |------|-------|-----------|-------------|
 | busy | 1 | Output | Module activity indicator for clock gating |
 
-## Architecture
+## Functional Description
 
 ### Dual Buffer Design
 
@@ -237,8 +237,6 @@ flowchart LR
 - **ID Preservation**: Transaction ID forwarding (no matching -- IDs pass through unchecked, as the ID handling section states)
 - **Error Handling**: Proper error response propagation
 
-## Functionality
-
 ### Address Channel Processing
 
 1. **Address Capture**: Incoming address transactions buffered in AR skid buffer
@@ -262,7 +260,7 @@ assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
                 fub_axi_arvalid || m_axi_rvalid;
 ```
 
-## Timing Characteristics
+## Timing
 
 ### Buffer Latency
 
@@ -288,7 +286,7 @@ assign busy = (int_ar_count > 0) || (int_r_count > 0) ||
 | Burst Read | 2+N cycles | Address + N data beats |
 | Back-to-back | 1 cycle/txn | Sustained rate with buffering |
 
-## Usage Examples
+## Usage Example
 
 ### Basic AXI4 Read Master Configuration
 
@@ -464,7 +462,7 @@ always_ff @(posedge axi_clk) begin
 end
 ```
 
-## Performance Optimization
+## Design Notes
 
 ### Buffer Depth Selection
 
@@ -514,8 +512,6 @@ always_comb begin
 end
 ```
 
-## Advanced Features
-
 ### Transaction Monitoring
 
 ```systemverilog
@@ -561,24 +557,32 @@ always_ff @(posedge axi_clk) begin
 end
 ```
 
-## Synthesis Considerations
+### Synthesis Considerations
 
-### Area Optimization
+**Area Optimization:**
 - Reduce buffer depths for area-constrained designs
 - Use smaller ID widths when possible
 - Share buffers across multiple masters if timing allows
 
-### Timing Optimization
+**Timing Optimization:**
 - Register all interface signals for timing closure
 - Use appropriate buffer depths to break critical paths
 - Consider pipeline stages for very high-frequency operation
 
-### Power Optimization
+**Power Optimization:**
 - Use clock gating variant (`axi4_master_rd_cg`) when available
 - Implement QoS-based power scaling
 - Size buffers appropriately to minimize switching activity
 
-## Verification Notes
+## Related Modules
+
+- **axi4_master_rd_cg**: Clock-gated version for power optimization
+- **axi4_master_wr**: Complementary AXI4 write master
+- **gaxi_skid_buffer**: Underlying buffer infrastructure
+- **axi4_interconnect**: AXI4 interconnect for multi-master systems
+- **axi_monitor_base**: AXI4 protocol monitoring and analysis
+
+## Testing
 
 ### Protocol Compliance
 - Verify AXI4 handshaking on all channels
@@ -594,16 +598,6 @@ end
 - Measure sustained throughput with various patterns
 - Verify buffer efficiency and utilization
 - Check latency under different loading conditions
-
-## Related Modules
-
-- **axi4_master_rd_cg**: Clock-gated version for power optimization
-- **axi4_master_wr**: Complementary AXI4 write master
-- **gaxi_skid_buffer**: Underlying buffer infrastructure
-- **axi4_interconnect**: AXI4 interconnect for multi-master systems
-- **axi_monitor_base**: AXI4 protocol monitoring and analysis
-
-The `axi4_master_rd` module provides a complete, high-performance solution for AXI4 read master functionality with advanced buffering, full protocol compliance, and comprehensive system integration capabilities.
 
 ---
 

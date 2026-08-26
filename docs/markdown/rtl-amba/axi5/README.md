@@ -31,15 +31,13 @@
 
 ## Overview
 
-The AXI5 subsystem provides read/write master and slave channel modules for the ARM AMBA 5 AXI (Advanced eXtensible Interface) protocol, plus clock-gated variants and combined module+monitor variants for efficient system integration. Read *Scope of This Implementation* below before treating these as a full AXI5 protocol stack.
+The AXI5 subsystem provides read/write master and slave channel modules for the ARM AMBA 5 AXI (Advanced eXtensible Interface) protocol, plus clock-gated variants and combined module+monitor variants for efficient system integration. Read *Scope of This Implementation* below before you treat these as a full AXI5 protocol stack — they aren't one, and that distinction will save you a redesign.
 
-AXI5 extends AXI4 with significant enhancements for modern high-performance SoC designs, including atomic transactions, memory tagging, memory partitioning, and data poisoning.
+AXI5 extends AXI4 with significant enhancements for modern high-performance SoC designs: atomic transactions, memory tagging, memory partitioning, and data poisoning.
 
----
+### Scope of This Implementation
 
-## Scope of This Implementation
-
-These modules are **channel-transport blocks**: they carry a full AXI5 signal set across configurable SKID buffers between a FUB (Functional Unit Block) interface and an external AXI5 interface. They are the AXI5 equivalents of the `axi4_master_*` / `axi4_slave_*` modules.
+These modules are **channel-transport blocks**: they carry a full AXI5 signal set across configurable SKID buffers between a FUB (Functional Unit Block) interface and an external AXI5 interface. They're the AXI5 equivalents of the `axi4_master_*` / `axi4_slave_*` modules — same job, wider signal set.
 
 **What the RTL does:**
 
@@ -164,7 +162,55 @@ Consult the per-module pages for the exact signal set each module carries.
 
 ---
 
-## Quick Start
+## Protocol Details
+
+### AXI5 Channel Overview
+
+AXI5 maintains the five-channel architecture from AXI4:
+
+| Channel | Direction | Purpose |
+|---------|-----------|---------|
+| AR (Address Read) | Master to Slave | Read address and control |
+| R (Read Data) | Slave to Master | Read data and response |
+| AW (Address Write) | Master to Slave | Write address and control |
+| W (Write Data) | Master to Slave | Write data |
+| B (Write Response) | Slave to Master | Write response |
+
+### AXI5 Sideband Signals Carried by These Modules
+
+| Signal | Channel | Description |
+|--------|---------|-------------|
+| AWATOP | AW | Atomic transaction type (see `axi5_master_wr.md` for the encoding) |
+| ARNSAID / AWNSAID | AR / AW | Non-secure access identifier |
+| ARTRACE / AWTRACE | AR / AW | Request trace marker |
+| ARMPAM / AWMPAM | AR / AW | Memory partitioning and monitoring (PartID + PMG) |
+| ARMECID / AWMECID | AR / AW | Memory encryption context identifier |
+| ARUNIQUE / AWUNIQUE | AR / AW | Unique access indicator |
+| ARCHUNKEN | AR | Read data chunking enable |
+| ARTAGOP / AWTAGOP | AR / AW | MTE tag operation |
+| AWTAG | AW | MTE address tags |
+| WPOISON | W | Write data poisoned indicator |
+| WTAG / WTAGUPDATE | W | MTE write data tags and update mask |
+| RPOISON | R | Read data poisoned indicator |
+| RTRACE / BTRACE | R / B | Response trace marker |
+| RCHUNKV / RCHUNKNUM / RCHUNKSTRB | R | Read chunk valid, number, and strobe |
+| RTAG / BTAG | R / B | MTE response tags |
+| RTAGMATCH / BTAGMATCH | R / B | MTE tag match result |
+
+Signals absent from this list (ARLOOP/AWLOOP, ARQOSACCEPT/AWQOSACCEPT, ARREGION/AWREGION, the SMMU `AxMMU*` group, and stash/CMO encodings) have no ports on these modules. See *AXI5 Features Not Implemented* above.
+
+### Burst Types
+
+| ARBURST/AWBURST | Type | Description |
+|-----------------|------|-------------|
+| 2'b00 | FIXED | Fixed address for FIFO access |
+| 2'b01 | INCR | Incrementing address burst |
+| 2'b10 | WRAP | Wrapping burst for cache line |
+| 2'b11 | Reserved | Not used |
+
+---
+
+## Usage Example
 
 The examples below are abbreviated: `.m_axi_ar*` style wildcards stand in for the full port list, and the AXI5 sideband ports are omitted for brevity. All AXI5 sideband ports exist on the module unconditionally — the `ENABLE_*` parameters control whether a signal is packed through the SKID buffer, not whether the port is present — so a real instantiation must connect or explicitly tie off every one of them. See the per-module pages for complete, connect-every-port examples.
 
@@ -286,71 +332,6 @@ axi5_master_rd_mon #(
 
 ---
 
-## Testing
-
-All AXI5 modules are verified using CocoTB-based testbenches located in `val/amba/`:
-
-```bash
-# Run all AXI5 tests
-pytest val/amba/test_axi5*.py -v
-
-# Run specific module tests
-pytest val/amba/test_axi5_master_rd.py -v
-pytest val/amba/test_axi5_master_wr.py -v
-pytest val/amba/test_axi5_slave_rd.py -v
-pytest val/amba/test_axi5_slave_wr.py -v
-```
-
----
-
-## Protocol Details
-
-### AXI5 Channel Overview
-
-AXI5 maintains the five-channel architecture from AXI4:
-
-| Channel | Direction | Purpose |
-|---------|-----------|---------|
-| AR (Address Read) | Master to Slave | Read address and control |
-| R (Read Data) | Slave to Master | Read data and response |
-| AW (Address Write) | Master to Slave | Write address and control |
-| W (Write Data) | Master to Slave | Write data |
-| B (Write Response) | Slave to Master | Write response |
-
-### AXI5 Sideband Signals Carried by These Modules
-
-| Signal | Channel | Description |
-|--------|---------|-------------|
-| AWATOP | AW | Atomic transaction type (see `axi5_master_wr.md` for the encoding) |
-| ARNSAID / AWNSAID | AR / AW | Non-secure access identifier |
-| ARTRACE / AWTRACE | AR / AW | Request trace marker |
-| ARMPAM / AWMPAM | AR / AW | Memory partitioning and monitoring (PartID + PMG) |
-| ARMECID / AWMECID | AR / AW | Memory encryption context identifier |
-| ARUNIQUE / AWUNIQUE | AR / AW | Unique access indicator |
-| ARCHUNKEN | AR | Read data chunking enable |
-| ARTAGOP / AWTAGOP | AR / AW | MTE tag operation |
-| AWTAG | AW | MTE address tags |
-| WPOISON | W | Write data poisoned indicator |
-| WTAG / WTAGUPDATE | W | MTE write data tags and update mask |
-| RPOISON | R | Read data poisoned indicator |
-| RTRACE / BTRACE | R / B | Response trace marker |
-| RCHUNKV / RCHUNKNUM / RCHUNKSTRB | R | Read chunk valid, number, and strobe |
-| RTAG / BTAG | R / B | MTE response tags |
-| RTAGMATCH / BTAGMATCH | R / B | MTE tag match result |
-
-Signals absent from this list (ARLOOP/AWLOOP, ARQOSACCEPT/AWQOSACCEPT, ARREGION/AWREGION, the SMMU `AxMMU*` group, and stash/CMO encodings) have no ports on these modules. See *AXI5 Features Not Implemented* above.
-
-### Burst Types
-
-| ARBURST/AWBURST | Type | Description |
-|-----------------|------|-------------|
-| 2'b00 | FIXED | Fixed address for FIFO access |
-| 2'b01 | INCR | Incrementing address burst |
-| 2'b10 | WRAP | Wrapping burst for cache line |
-| 2'b11 | Reserved | Not used |
-
----
-
 ## Design Notes
 
 ### FUB Interface Pattern
@@ -377,9 +358,7 @@ The `*_mon` variants combine master/slave with integrated monitor:
 - Monitor bus output for transaction visibility
 - Reduced resource usage vs. separate monitor instantiation
 
----
-
-## Performance Characteristics
+### Performance Characteristics
 
 These modules are SKID-buffer pipelines, so their cost is a small, fixed latency adder and their throughput ceiling is simply the bus bandwidth. No synthesis has been run against a specific ASIC node; the frequency figure below is an FPGA-oriented design target, not a signed-off characterization result.
 
@@ -393,13 +372,30 @@ These modules are SKID-buffer pipelines, so their cost is a small, fixed latency
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI4 Modules](../axi4/README.md)** - AXI4 protocol components
 - **[APB5 Modules](../apb5/README.md)** - APB5 protocol components
 - **[AXIS5 Modules](../axis5/README.md)** - AXI5-Stream components
 - **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities
 - **[Shared Infrastructure](../shared/README.md)** - Common components
+
+---
+
+## Testing
+
+All AXI5 modules are verified using CocoTB-based testbenches located in `val/amba/`:
+
+```bash
+# Run all AXI5 tests
+pytest val/amba/test_axi5*.py -v
+
+# Run specific module tests
+pytest val/amba/test_axi5_master_rd.py -v
+pytest val/amba/test_axi5_master_wr.py -v
+pytest val/amba/test_axi5_slave_rd.py -v
+pytest val/amba/test_axi5_slave_wr.py -v
+```
 
 ---
 

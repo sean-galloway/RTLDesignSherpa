@@ -31,23 +31,21 @@
 
 ## Overview
 
-The AXI5 Slave Write Monitor with Clock Gating module combines integrated transaction monitoring with automatic clock gating for power optimization. It wraps `axi5_slave_wr_mon` with clock gating logic.
+Same slave, same monitor — plus a clock gate. This module wraps `axi5_slave_wr_mon` with automatic clock gating logic, so you keep the integrated transaction monitoring and claw back dynamic power whenever the bus goes quiet.
 
 ### Key Features
 
 - Full AMBA AXI5 slave write protocol compliance
-- **Integrated filtered monitoring** - real-time transaction visibility
+- **Integrated filtered monitoring** — real-time transaction visibility
 - **Integrated clock gating** for dynamic power reduction
 - All AXI5 extensions supported (ATOMIC, NSAID, TRACE, MPAM, MECID, UNIQUE, MTE, POISON)
 - Configurable idle count before gating
 - Transaction tracking with error detection
 - Performance metrics and filtering
-- Transparent gating - no protocol changes
+- Transparent gating — no protocol changes
 - Gating status outputs for system monitoring
 
----
-
-## Module Architecture
+### Block Diagram
 
 ```mermaid
 flowchart TB
@@ -161,15 +159,15 @@ flowchart TB
 
 ### Slave AXI5 Interface
 
-Same as `axi5_slave_wr` - see [AXI5 Slave Write](../axi5/axi5_slave_wr.md) for complete port list.
+Identical to `axi5_slave_wr` — see [AXI5 Slave Write](../axi5/axi5_slave_wr.md) for the complete port list.
 
 ### FUB Interface
 
-Same as `axi5_slave_wr` - see [AXI5 Slave Write](../axi5/axi5_slave_wr.md) for complete port list.
+Identical to `axi5_slave_wr` — see [AXI5 Slave Write](../axi5/axi5_slave_wr.md) for the complete port list.
 
 ### Monitor Configuration
 
-Same as `axi5_slave_wr_mon` - see [AXI5 Slave Write Monitor](axi5_slave_wr_mon.md) for complete list.
+Identical to `axi5_slave_wr_mon` — see [AXI5 Slave Write Monitor](axi5_slave_wr_mon.md) for the complete list.
 
 ### Monitor Bus Output
 
@@ -195,12 +193,12 @@ Same as `axi5_slave_wr_mon` - see [AXI5 Slave Write Monitor](axi5_slave_wr_mon.m
 
 ---
 
-## Functionality
+## Functional Description
 
 ### Clock Gating Behavior
 
 **Activity Detection:**
-- **user_valid:** Asserted when slave interface has activity (awvalid, wvalid, bvalid, or internal busy -- peer VALID, never peer READY)
+- **user_valid:** Asserted when slave interface has activity (awvalid, wvalid, bvalid, or internal busy — peer VALID, never peer READY)
 - **axi_valid:** Asserted when FUB interface has activity (awvalid, wvalid, bvalid)
 
 **Key Points:**
@@ -211,9 +209,7 @@ Same as `axi5_slave_wr_mon` - see [AXI5 Slave Write Monitor](axi5_slave_wr_mon.m
 - Any activity immediately ungates the clock
 - Monitor state FREEZES when gated (it runs on the gated clock and is not a wake term)
 
----
-
-## Performance Monitoring
+### Performance Monitoring
 
 The clock-gated wrapper exposes the full perfmon interface of the base module and **forwards every port unchanged** to the inner `axi5_slave_wr_mon`. The measurement-window state machine, the four W-channel utilization buckets (productive / back-pressure / starvation / idle), and the beat/byte/burst throughput counters behave exactly as documented in the base module — see [Performance Monitoring in axi5_slave_wr_mon](axi5_slave_wr_mon.md#performance-monitoring) for the full narrative and per-bit semantics.
 
@@ -223,43 +219,15 @@ Forwarded perfmon ports (identical width and direction to the base module):
 - **Outputs:** `window_active`, `window_cycles` (32), `perf_prod_cycles` (32), `perf_bp_cycles` (32), `perf_starv_cycles` (32), `perf_idle_cycles` (32), `perf_beat_count` (32), `perf_byte_count` (64), `perf_burst_count` (32)
 
 The `perf_burst_count` output tracks AW (write address) handshakes.
-**WARNING:** an open measurement window is NOT a wake term -- the window
-FSM and all counters run on the gated clock, so if the bus idles past
-`cfg_cg_idle_count` mid-window the counters FREEZE while wall-clock time
-passes, and trigger pulses arriving while gated are DROPPED. For exact
-wall-clock windows hold `cfg_cg_enable` low around the measurement, or
-use the base module.
+
+> **Warning:** an open measurement window is NOT a wake term — the window
+> FSM and all counters run on the gated clock, so if the bus idles past
+> `cfg_cg_idle_count` mid-window the counters FREEZE while wall-clock time
+> passes, and trigger pulses arriving while gated are DROPPED. For exact
+> wall-clock windows hold `cfg_cg_enable` low around the measurement, or
+> use the base module.
 
 Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_enable`, and `cfg_debug_enable` control inputs, plus the six `ENABLE_*_LOGIC` synthesis-cone parameters (see [Parameters](#parameters)), straight through to the base monitor.
-
----
-
-## Combined Benefits
-
-### Power Optimization
-
-**Power Savings Estimation:**
-- Base slave logic: ~40% of total power *(first-order estimates -- no power/area analysis has been run)*
-- Monitor logic: ~60% of total power
-- With gating at 50% duty cycle: ~50% dynamic power savings
-- Actual savings depend on traffic pattern and idle_count setting
-
-**Write-Specific Power Considerations:**
-- Burst writes keep module active longer
-- W channel SKID buffering consumes additional power
-(No poison/tag checking exists -- there is no such overhead.)
-- Atomic operations may extend active periods
-
-### Observability
-
-**Monitoring Capabilities:**
-- Error detection (SLVERR, timeout, orphan -- poison is NOT observable; see below)
-- Performance tracking (latency, throughput)
-- Transaction completion tracking
-- Protocol violation detection
-- (Atomic operations are NOT monitored -- AWATOP never reaches the monitor)
-- (Tag-mismatch detection is NOT implemented -- ENABLE_MTE shapes the transport only)
-- All monitoring continues when ungated
 
 ---
 
@@ -370,7 +338,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 - Debug/validation builds with power budgets
 - Systems with sporadic write transaction patterns
 - SoC integration requiring both monitoring and power optimization
-- (NOT for poison detection -- WPOISON never reaches the monitor)
+- (NOT for poison detection — WPOISON never reaches the monitor)
 
 **Avoid when:**
 - Interface is continuously active (minimal gating opportunities)
@@ -380,7 +348,8 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 
 ### Configuration Recommendations
 
-**Low-Power Debug Mode:**
+#### Low-Power Debug Mode
+
 ```systemverilog
 .cfg_cg_enable      (1'b1),
 .cfg_cg_idle_count  (4'd1),   // Aggressive gating
@@ -389,7 +358,8 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 .cfg_perf_enable    (1'b0)    // Reduce packet traffic
 ```
 
-**Performance Analysis Mode:**
+#### Performance Analysis Mode
+
 ```systemverilog
 .cfg_cg_enable      (1'b1),
 .cfg_cg_idle_count  (4'd4),   // Conservative gating
@@ -397,7 +367,8 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 .cfg_perf_enable    (1'b1)    // Enable performance metrics
 ```
 
-**Data Integrity Validation:**
+#### Data Integrity Validation
+
 ```systemverilog
 .cfg_cg_enable      (1'b1),
 .cfg_cg_idle_count  (4'd2),   // Balanced
@@ -413,6 +384,31 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 - **Timing:** Clock gating adds <50ps, monitoring is off critical path
 - **Power:** Net savings depends on activity factor (typically 30-50% at 50% duty cycle)
 
+### Power Optimization
+
+**Power Savings Estimation:**
+- Base slave logic: ~40% of total power *(first-order estimates — no power/area analysis has been run)*
+- Monitor logic: ~60% of total power
+- With gating at 50% duty cycle: ~50% dynamic power savings
+- Actual savings depend on traffic pattern and idle_count setting
+
+**Write-Specific Power Considerations:**
+- Burst writes keep module active longer
+- W channel SKID buffering consumes additional power
+- (No poison/tag checking exists — there is no such overhead.)
+- Atomic operations may extend active periods
+
+### Observability
+
+**Monitoring Capabilities:**
+- Error detection (SLVERR, timeout, orphan — poison is NOT observable; see below)
+- Performance tracking (latency, throughput)
+- Transaction completion tracking
+- Protocol violation detection
+- (Atomic operations are NOT monitored — AWATOP never reaches the monitor)
+- (Tag-mismatch detection is NOT implemented — ENABLE_MTE shapes the transport only)
+- All monitoring continues when ungated
+
 ### Write-Specific Considerations
 
 **Burst Handling:**
@@ -427,13 +423,13 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(256)) u_mon_fifo (
 - Consider higher idle_count for atomic-heavy workloads
 
 **Poison Detection:** NOT implemented. WPOISON flows through the
-transport data plane and never reaches the monitor -- no poison event
+transport data plane and never reaches the monitor — no poison event
 packet can be emitted (the 8'h5 decode some examples showed can never
 match).
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Slave Write](../axi5/axi5_slave_wr.md)** - Non-monitored, non-gated version
 - **[AXI5 Slave Write CG](../axi5/axi5_slave_wr_cg.md)** - Clock-gated without monitoring

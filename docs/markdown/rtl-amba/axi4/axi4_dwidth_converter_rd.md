@@ -21,31 +21,84 @@
 
 <!-- End Header -->
 
-# AXI4 Read Data Width Converter
+# axi4_dwidth_converter_rd
 
 **Module:** `axi4_dwidth_converter_rd.sv`
 **Location:** `projects/components/converters/rtl/`
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXI4 Read Data Width Converter provides data width conversion for read-only AXI4 interfaces (AR and R channels only). This specialized converter is optimized for unidirectional bridges where the read and write paths are separate, reducing resource usage compared to the full bidirectional converter.
+The AXI4 Read Data Width Converter handles data width conversion for read-only AXI4 interfaces — AR and R channels only. It's the specialization you want for unidirectional bridges where the read and write paths are separate: you give up the write channels and get a smaller, simpler block than a full bidirectional converter would be.
 
 ### Key Features
 
-- ✅ **Read-Only:** AR and R channels only (no write channels)
-- ✅ **Bidirectional Conversion:** Supports both upsize and downsize
-- ✅ **Resource Optimized:** Smaller than bidirectional converter
-- ✅ **Burst Preservation:** Maintains burst semantics across conversion
-- ✅ **Error Propagation:** Correctly forwards RRESP error codes
-- ✅ **Elastic Buffering:** Configurable FIFO depths for AR and R channels
+- **Read-Only:** AR and R channels only (no write channels)
+- **Bidirectional Conversion:** Supports both upsize and downsize
+- **Resource Optimized:** Smaller than bidirectional converter
+- **Burst Preservation:** Maintains burst semantics across conversion
+- **Error Propagation:** Correctly forwards RRESP error codes
+- **Elastic Buffering:** Configurable FIFO depths for AR and R channels
 - **No status outputs** -- the port list ends at `m_axi_rready`
 
 ---
 
-## Module Architecture
+## Parameters
+
+### Width Configuration
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| `S_AXI_DATA_WIDTH` | int | 32 | 32-256 | Slave interface data width (power of 2; per the RTL header: 32, 64, 128, 256) |
+| `M_AXI_DATA_WIDTH` | int | 128 | 32-256 | Master interface data width (power of 2; per the RTL header: 32, 64, 128, 256) |
+| `AXI_ID_WIDTH` | int | 8 | 1-16 | Transaction ID width |
+| `AXI_ADDR_WIDTH` | int | 32 | 12-64 | Address bus width |
+| `AXI_USER_WIDTH` | int | 1 | 0-1024 | User signal width |
+
+### Buffer Depths
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `SKID_DEPTH_AR` | int | 2 | AR channel skid-buffer depth (2..8 inclusive) |
+| `SKID_DEPTH_R` | int | 4 | R channel skid-buffer depth (2..8 inclusive) -- the converters use SKID_DEPTH_* skid buffers, not channel FIFOs |
+
+### Calculated Parameters (Auto)
+
+| Parameter | Calculation | Description |
+|-----------|-------------|-------------|
+| `WIDTH_RATIO` | `MAX / MIN` | Data width ratio (2-16) |
+| `UPSIZE` | `S < M` | 1 if upsizing, 0 if downsizing |
+| `DOWNSIZE` | `S > M` | 1 if downsizing, 0 if upsizing |
+
+---
+
+## Ports
+
+### AXI4 Slave Read Interface
+
+**Read Address Channel (AR):**
+- `s_axi_arid, s_axi_araddr, s_axi_arlen, s_axi_arsize, s_axi_arburst, s_axi_arlock, s_axi_arcache, s_axi_arprot, s_axi_arqos, s_axi_arregion, s_axi_aruser, s_axi_arvalid, s_axi_arready`
+
+**Read Data Channel (R):**
+- `s_axi_rid, s_axi_rdata[S_AXI_DATA_WIDTH], s_axi_rresp, s_axi_rlast, s_axi_ruser, s_axi_rvalid, s_axi_rready`
+
+### AXI4 Master Read Interface
+
+**Read Address Channel (AR):**
+- `m_axi_arid, m_axi_araddr, m_axi_arlen, m_axi_arsize, m_axi_arburst, m_axi_arlock, m_axi_arcache, m_axi_arprot, m_axi_arqos, m_axi_arregion, m_axi_aruser, m_axi_arvalid, m_axi_arready`
+
+**Read Data Channel (R):**
+- `m_axi_rid, m_axi_rdata[M_AXI_DATA_WIDTH], m_axi_rresp, m_axi_rlast, m_axi_ruser, m_axi_rvalid, m_axi_rready`
+
+### Status/Debug Outputs
+
+The module has no status outputs; its port list ends at `m_axi_rready`.
+
+---
+
+## Functional Description
 
 ### Upsize Mode (Narrow → Wide Reads)
 
@@ -105,66 +158,9 @@ flowchart LR
 
 Example: 4 wide R beats (128-bit) ← 16 narrow R beats (32-bit)
 
----
+### Read Conversion Mechanics
 
-## Parameters
-
-### Width Configuration
-
-| Parameter | Type | Default | Range | Description |
-|-----------|------|---------|-------|-------------|
-| `S_AXI_DATA_WIDTH` | int | 32 | 32-256 | Slave interface data width (power of 2; per the RTL header: 32, 64, 128, 256) |
-| `M_AXI_DATA_WIDTH` | int | 128 | 32-256 | Master interface data width (power of 2; per the RTL header: 32, 64, 128, 256) |
-| `AXI_ID_WIDTH` | int | 8 | 1-16 | Transaction ID width |
-| `AXI_ADDR_WIDTH` | int | 32 | 12-64 | Address bus width |
-| `AXI_USER_WIDTH` | int | 1 | 0-1024 | User signal width |
-
-### Buffer Depths
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `SKID_DEPTH_AR` | int | 2 | AR channel skid-buffer depth (2..8 inclusive) |
-| `SKID_DEPTH_R` | int | 4 | R channel skid-buffer depth (2..8 inclusive) -- the converters use SKID_DEPTH_* skid buffers, not channel FIFOs |
-
-### Calculated Parameters (Auto)
-
-| Parameter | Calculation | Description |
-|-----------|-------------|-------------|
-| `WIDTH_RATIO` | `MAX / MIN` | Data width ratio (2-16) |
-| `UPSIZE` | `S < M` | 1 if upsizing, 0 if downsizing |
-| `DOWNSIZE` | `S > M` | 1 if downsizing, 0 if upsizing |
-
----
-
-## Port Groups
-
-### AXI4 Slave Read Interface
-
-**Read Address Channel (AR):**
-- `s_axi_arid, s_axi_araddr, s_axi_arlen, s_axi_arsize, s_axi_arburst, s_axi_arlock, s_axi_arcache, s_axi_arprot, s_axi_arqos, s_axi_arregion, s_axi_aruser, s_axi_arvalid, s_axi_arready`
-
-**Read Data Channel (R):**
-- `s_axi_rid, s_axi_rdata[S_AXI_DATA_WIDTH], s_axi_rresp, s_axi_rlast, s_axi_ruser, s_axi_rvalid, s_axi_rready`
-
-### AXI4 Master Read Interface
-
-**Read Address Channel (AR):**
-- `m_axi_arid, m_axi_araddr, m_axi_arlen, m_axi_arsize, m_axi_arburst, m_axi_arlock, m_axi_arcache, m_axi_arprot, m_axi_arqos, m_axi_arregion, m_axi_aruser, m_axi_arvalid, m_axi_arready`
-
-**Read Data Channel (R):**
-- `m_axi_rid, m_axi_rdata[M_AXI_DATA_WIDTH], m_axi_rresp, m_axi_rlast, m_axi_ruser, m_axi_rvalid, m_axi_rready`
-
-### Status/Debug Outputs
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| (none) | -- | -- | The module has no status outputs; its port list ends at `m_axi_rready` |
-
----
-
-## Read Conversion Mechanics
-
-### Upsize Read (Narrow → Wide)
+#### Upsize Read (Narrow → Wide)
 
 ```
 Example: 32-bit → 128-bit (WIDTH_RATIO = 4)
@@ -186,7 +182,7 @@ RRESP handling:
 Master: OKAY (all beats)        Slave: OKAY on each narrow beat
 ```
 
-### Downsize Read (Wide → Narrow)
+#### Downsize Read (Wide → Narrow)
 
 ```
 Example: 128-bit → 32-bit (WIDTH_RATIO = 4)
@@ -208,7 +204,7 @@ Master: OKAY, OKAY, SLVERR, OKAY
 Slave:  Beat 0 → SLVERR (worst-case RRESP propagation)
 ```
 
-### RRESP Error Propagation
+#### RRESP Error Propagation
 
 **Upsize:** Each narrow beat inherits RRESP from corresponding wide beat
 ```
@@ -223,6 +219,25 @@ Master R beats:         Slave R beat:
 Beat 0-2: RRESP=OKAY  ┐
 Beat 3: RRESP=SLVERR  ┼→ Beat 0: RRESP=SLVERR (worst-case)
 ```
+
+---
+
+## Timing
+
+### Performance Characteristics
+
+**Throughput (Upsize):**
+- Unpacking latency: 1 cycle per narrow beat
+- Full wide beat unpacked in consecutive cycles
+
+**Throughput (Downsize):**
+- Packing latency: WIDTH_RATIO-1 cycles per wide beat
+- Need to accumulate all narrow beats before forwarding
+
+**Comparison to Full Converter:**
+- Lower latency and area than a combined read+write converter would be
+  (no write-path logic) -- unquantified: the 'full converter' has no RTL
+  in this repository to measure against
 
 ---
 
@@ -423,21 +438,6 @@ accumulation, so the skid does not need to hold a whole burst.
 .SKID_DEPTH_AR  (2),
 .SKID_DEPTH_R   (8)    // deepest available skid for burst traffic
 ```
-
-### Performance Characteristics
-
-**Throughput (Upsize):**
-- Unpacking latency: 1 cycle per narrow beat
-- Full wide beat unpacked in consecutive cycles
-
-**Throughput (Downsize):**
-- Packing latency: WIDTH_RATIO-1 cycles per wide beat
-- Need to accumulate all narrow beats before forwarding
-
-**Comparison to Full Converter:**
-- Lower latency and area than a combined read+write converter would be
-  (no write-path logic) -- unquantified: the 'full converter' has no RTL
-  in this repository to measure against
 
 ---
 

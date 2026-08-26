@@ -31,43 +31,15 @@
 
 ## Overview
 
-The AXI4 Master Read Stub provides a simplified packed-data interface for driving AXI4 read transactions. It uses skid buffers to pack/unpack AXI4 AR (read address) and R (read data) channels into simple packet interfaces, making it ideal for testbenches and integration scenarios where a simplified interface is preferred.
+Drive AXI4 read transactions without writing an AXI4 master into your testbench. The AXI4 Master Read Stub packs the AR (read address) and R (read data) channels into single wide packet buses through skid buffers, so the stimulus side sees one valid/ready handshake and one concatenated payload per channel instead of a dozen individual signals. That makes it a natural fit for testbenches and integration scenarios where a simplified interface beats a protocol-faithful one.
 
 ### Key Features
 
 - Packed packet interface for AR and R channels
-- Configurable skid buffer depths for each channel
+- Configurable skid buffer depth on each channel
 - Full AXI4 read transaction support
-- Burst, ID, user signal support
+- Burst, ID, and user signal support
 - Parameterized data widths
-
----
-
-## Module Architecture
-
-```mermaid
-flowchart LR
-    subgraph PACKED["Packed Interface"]
-        ar_pkt["AR Packet<br/>(Address Request)"]
-        r_pkt["R Packet<br/>(Read Data)"]
-    end
-
-    subgraph STUB["AXI4 Master Read Stub"]
-        ar_skid["AR Skid<br/>Buffer"]
-        r_skid["R Skid<br/>Buffer"]
-    end
-
-    subgraph AXI4["AXI4 Interface"]
-        m_ar["AXI4<br/>AR Channel"]
-        m_r["AXI4<br/>R Channel"]
-    end
-
-    ar_pkt --> ar_skid
-    ar_skid --> m_ar
-
-    m_r --> r_skid
-    r_skid --> r_pkt
-```
 
 ---
 
@@ -96,63 +68,95 @@ flowchart LR
 
 ### Clock and Reset
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| aclk | 1 | Input | AXI clock |
-| aresetn | 1 | Input | AXI reset (active low) |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| aclk | Input | 1 | AXI clock |
+| aresetn | Input | 1 | AXI reset (active low) |
 
 ### AXI4 Read Address Channel (AR)
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| m_axi_arid | AXI_ID_WIDTH | Output | Read address ID |
-| m_axi_araddr | AXI_ADDR_WIDTH | Output | Read address |
-| m_axi_arlen | 8 | Output | Burst length |
-| m_axi_arsize | 3 | Output | Burst size |
-| m_axi_arburst | 2 | Output | Burst type |
-| m_axi_arlock | 1 | Output | Lock type |
-| m_axi_arcache | 4 | Output | Cache type |
-| m_axi_arprot | 3 | Output | Protection type |
-| m_axi_arqos | 4 | Output | Quality of service |
-| m_axi_arregion | 4 | Output | Region identifier |
-| m_axi_aruser | AXI_USER_WIDTH | Output | User signal |
-| m_axi_arvalid | 1 | Output | Read address valid |
-| m_axi_arready | 1 | Input | Read address ready |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| m_axi_arid | Output | AXI_ID_WIDTH | Read address ID |
+| m_axi_araddr | Output | AXI_ADDR_WIDTH | Read address |
+| m_axi_arlen | Output | 8 | Burst length |
+| m_axi_arsize | Output | 3 | Burst size |
+| m_axi_arburst | Output | 2 | Burst type |
+| m_axi_arlock | Output | 1 | Lock type |
+| m_axi_arcache | Output | 4 | Cache type |
+| m_axi_arprot | Output | 3 | Protection type |
+| m_axi_arqos | Output | 4 | Quality of service |
+| m_axi_arregion | Output | 4 | Region identifier |
+| m_axi_aruser | Output | AXI_USER_WIDTH | User signal |
+| m_axi_arvalid | Output | 1 | Read address valid |
+| m_axi_arready | Input | 1 | Read address ready |
 
 ### AXI4 Read Data Channel (R)
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| m_axi_rid | AXI_ID_WIDTH | Input | Read data ID |
-| m_axi_rdata | AXI_DATA_WIDTH | Input | Read data |
-| m_axi_rresp | 2 | Input | Read response |
-| m_axi_rlast | 1 | Input | Read last |
-| m_axi_ruser | AXI_USER_WIDTH | Input | User signal |
-| m_axi_rvalid | 1 | Input | Read data valid |
-| m_axi_rready | 1 | Output | Read data ready |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| m_axi_rid | Input | AXI_ID_WIDTH | Read data ID |
+| m_axi_rdata | Input | AXI_DATA_WIDTH | Read data |
+| m_axi_rresp | Input | 2 | Read response |
+| m_axi_rlast | Input | 1 | Read last |
+| m_axi_ruser | Input | AXI_USER_WIDTH | User signal |
+| m_axi_rvalid | Input | 1 | Read data valid |
+| m_axi_rready | Output | 1 | Read data ready |
 
 ### AR Packet Interface
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| fub_axi_arvalid | 1 | Input | AR packet valid |
-| fub_axi_arready | 1 | Output | Ready to accept AR packet |
-| fub_axi_ar_count | 4 | Output | AR skid occupancy (driven since the round_20 fix) |
-| fub_axi_ar_pkt | ARSize | Input | Packed AR packet data |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| fub_axi_arvalid | Input | 1 | AR packet valid |
+| fub_axi_arready | Output | 1 | Ready to accept AR packet |
+| fub_axi_ar_count | Output | 4 | AR skid occupancy (driven since the round_20 fix) |
+| fub_axi_ar_pkt | Input | ARSize | Packed AR packet data |
 
 ### R Packet Interface
 
-| Port | Width | Direction | Description |
-|------|-------|-----------|-------------|
-| fub_axi_rvalid | 1 | Output | R packet valid |
-| fub_axi_rready | 1 | Input | Ready to accept R packet |
-| fub_axi_r_pkt | RSize | Output | Packed R packet data |
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| fub_axi_rvalid | Output | 1 | R packet valid |
+| fub_axi_rready | Input | 1 | Ready to accept R packet |
+| fub_axi_r_pkt | Output | RSize | Packed R packet data |
 
 ---
 
-## Packet Formats
+## Functional Description
 
-### AR Packet Structure (Read Address)
+Two skid buffers do all the real work here. The AR buffer unpacks your packet onto the AXI4 AR channel; the R buffer packs the returning read data back into a packet. Everything else is wiring.
+
+### Architecture
+
+```mermaid
+flowchart LR
+    subgraph PACKED["Packed Interface"]
+        ar_pkt["AR Packet<br/>(Address Request)"]
+        r_pkt["R Packet<br/>(Read Data)"]
+    end
+
+    subgraph STUB["AXI4 Master Read Stub"]
+        ar_skid["AR Skid<br/>Buffer"]
+        r_skid["R Skid<br/>Buffer"]
+    end
+
+    subgraph AXI4["AXI4 Interface"]
+        m_ar["AXI4<br/>AR Channel"]
+        m_r["AXI4<br/>R Channel"]
+    end
+
+    ar_pkt --> ar_skid
+    ar_skid --> m_ar
+
+    m_r --> r_skid
+    r_skid --> r_pkt
+```
+
+### Packet Formats
+
+Packets are packed MSB-to-LSB in AXI signal order, so building one in the testbench is a single concatenation.
+
+#### AR Packet Structure (Read Address)
 
 ```mermaid
 flowchart LR
@@ -178,7 +182,7 @@ fub_axi_ar_pkt = {arid, araddr, arlen, arsize, arburst, arlock, arcache, arprot,
 Width = IW + AW + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + UW
 ```
 
-### R Packet Structure (Read Data)
+#### R Packet Structure (Read Data)
 
 ```mermaid
 flowchart LR
@@ -198,11 +202,7 @@ fub_axi_r_pkt = {rid, rdata, rresp, rlast, ruser}
 Width = IW + DW + 2 + 1 + UW
 ```
 
----
-
-## Transaction Flow
-
-### Read Transaction
+### Transaction Flow
 
 ```mermaid
 sequenceDiagram
@@ -225,7 +225,9 @@ sequenceDiagram
     STUB-->>TB: fub_axi_rvalid, fub_axi_r_pkt
 ```
 
-### Timing
+---
+
+## Timing
 
 <!-- TODO: Add wavedrom timing diagram for stub transactions -->
 > **Timing diagram pending.** The signals and sequence this scenario
@@ -321,7 +323,8 @@ wire [3:0]  r_user = tb_r_pkt[3:0];
 
 ### Skid Buffer Operation
 
-The stub uses `gaxi_skid_buffer` modules to:
+The stub is only as smart as its `gaxi_skid_buffer` instances, which is exactly the point. They:
+
 - Decouple timing between testbench and AXI bus
 - Provide configurable buffering depth per channel
 - Handle backpressure gracefully
@@ -334,6 +337,7 @@ The stub uses `gaxi_skid_buffer` modules to:
 ### Packet Packing Order
 
 AR and R packets are packed MSB-to-LSB following AXI signal order:
+
 - Simplifies testbench packet creation
 - Matches common concatenation order
 - Efficient for burst transaction handling
@@ -341,6 +345,7 @@ AR and R packets are packed MSB-to-LSB following AXI signal order:
 ### Internal Architecture
 
 The stub instantiates two `gaxi_skid_buffer` modules:
+
 - **AR Skid Buffer:** Unpacks AR packets to AXI AR channel
 - **R Skid Buffer:** Packs AXI R channel to R packets
 
@@ -348,7 +353,7 @@ All AXI protocol handling is done by the skid buffers and downstream modules.
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI4 Master Read](axi4_master_rd.md)** - Full AXI4 master read module (if wrapping one)
 - **[AXI4 Master Write Stub](axi4_master_wr_stub.md)** - Corresponding write stub
@@ -359,6 +364,6 @@ All AXI protocol handling is done by the skid buffers and downstream modules.
 
 ## Navigation
 
-- **[<- Back to AXI4 Index](README.md)**
-- **[<- Back to rtl-amba Index](../index.md)**
-- **[<- Back to Main Documentation Index](../../index.md)**
+- **[← Back to AXI4 Index](README.md)**
+- **[← Back to rtl-amba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

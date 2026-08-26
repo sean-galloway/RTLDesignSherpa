@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI5 Master Write module is the master-side AW/W/B channel transport block. It carries a full AXI5 write signal set, including `AWATOP` and the other AXI5 sideband extensions, between a FUB (Functional Unit Block) interface and an external AXI5 master interface, with a configurable SKID buffer on each of the AW, W, and B channels.
+The AXI5 Master Write module is the master-side AW/W/B channel transport block. It carries a full AXI5 write signal set — `AWATOP` and the other AXI5 sideband extensions included — between a FUB (Functional Unit Block) interface and an external AXI5 master interface, with a configurable SKID buffer on each of the AW, W, and B channels.
 
 **Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. `AWATOP` is carried through unmodified but no atomic read-modify-write is performed, no MTE tag checking or `BTAGMATCH` generation is performed, and no outstanding-transaction tracking is done. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
@@ -54,53 +54,6 @@ The AXI5 Master Write module is the master-side AW/W/B channel transport block. 
 - Configurable SKID buffer depths for AW, W, and B channels
 - Busy signal for power management and clock gating
 - AWREGION not implemented (see *Design Notes*)
-
----
-
-## Module Architecture
-
-```mermaid
-flowchart LR
-    subgraph FUB["FUB Interface"]
-        direction TB
-        fub_aw["AW Channel<br/>Address/Control"]
-        fub_w["W Channel<br/>Write Data"]
-        fub_b["B Channel<br/>Response"]
-    end
-
-    subgraph SKID["SKID Buffers"]
-        direction TB
-        aw_skid["AW SKID<br/>Depth=2"]
-        w_skid["W SKID<br/>Depth=4"]
-        b_skid["B SKID<br/>Depth=2"]
-    end
-
-    subgraph PACK["Signal Packing"]
-        direction TB
-        aw_pack["AW Packer<br/>ATOP/NSAID/TRACE<br/>MPAM/MECID<br/>UNIQUE/TAGOP"]
-        w_pack["W Packer<br/>POISON/TAG<br/>TAGUPDATE"]
-        b_unpack["B Unpacker<br/>TRACE/TAG<br/>TAGMATCH"]
-    end
-
-    subgraph AXI["AXI5 Master"]
-        direction TB
-        m_aw["AW Channel"]
-        m_w["W Channel"]
-        m_b["B Channel"]
-    end
-
-    fub_aw --> aw_skid
-    aw_skid --> aw_pack
-    aw_pack --> m_aw
-
-    fub_w --> w_skid
-    w_skid --> w_pack
-    w_pack --> m_w
-
-    m_b --> b_unpack
-    b_unpack --> b_skid
-    b_skid --> fub_b
-```
 
 ---
 
@@ -236,7 +189,52 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 
 ---
 
-## Functionality
+## Functional Description
+
+### Architecture
+
+```mermaid
+flowchart LR
+    subgraph FUB["FUB Interface"]
+        direction TB
+        fub_aw["AW Channel<br/>Address/Control"]
+        fub_w["W Channel<br/>Write Data"]
+        fub_b["B Channel<br/>Response"]
+    end
+
+    subgraph SKID["SKID Buffers"]
+        direction TB
+        aw_skid["AW SKID<br/>Depth=2"]
+        w_skid["W SKID<br/>Depth=4"]
+        b_skid["B SKID<br/>Depth=2"]
+    end
+
+    subgraph PACK["Signal Packing"]
+        direction TB
+        aw_pack["AW Packer<br/>ATOP/NSAID/TRACE<br/>MPAM/MECID<br/>UNIQUE/TAGOP"]
+        w_pack["W Packer<br/>POISON/TAG<br/>TAGUPDATE"]
+        b_unpack["B Unpacker<br/>TRACE/TAG<br/>TAGMATCH"]
+    end
+
+    subgraph AXI["AXI5 Master"]
+        direction TB
+        m_aw["AW Channel"]
+        m_w["W Channel"]
+        m_b["B Channel"]
+    end
+
+    fub_aw --> aw_skid
+    aw_skid --> aw_pack
+    aw_pack --> m_aw
+
+    fub_w --> w_skid
+    w_skid --> w_pack
+    w_pack --> m_w
+
+    m_b --> b_unpack
+    b_unpack --> b_skid
+    b_skid --> fub_b
+```
 
 ### AXI5 Enhancements Over AXI4
 
@@ -309,7 +307,7 @@ Set `ENABLE_ATOMIC = 0` to drop `AWATOP` from the AW SKID payload when atomics a
 
 ---
 
-## Timing Diagrams
+## Timing
 
 ### Basic Write Transaction
 
@@ -487,7 +485,7 @@ Disable unused features to reduce area:
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Master Read](axi5_master_rd.md)** - Master read interface
 - **[AXI5 Slave Write](axi5_slave_wr.md)** - Slave write interface

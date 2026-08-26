@@ -25,28 +25,128 @@
 
 **Module:** `axi4_slave_wr_mon.sv`
 **Location:** `rtl/amba/axi4/` (protocol monitors live with their protocol; only the monitor CORE pieces are in `rtl/amba/monitor/`)
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
 ## Overview
 
-The AXI4 Slave Write Monitor module combines a functional AXI4 slave write interface with comprehensive transaction monitoring and filtering capabilities. This module is essential for verification environments, providing real-time protocol checking, error detection, performance metrics, and configurable packet filtering for slave-side write transactions.
+The AXI4 Slave Write Monitor bolts a full transaction monitor onto a working AXI4 slave write interface. You get the buffered slave from `axi4_slave_wr` plus real-time protocol checking, error detection, performance metrics, and configurable packet filtering on slave-side write transactions -- everything a verification environment needs to know what the bus actually did, not just what it was supposed to do.
 
 ### Key Features
 
-- ✅ **Integrated Monitoring:** Combines `axi4_slave_wr` with `axi_monitor_filtered`
-- ✅ **2-Level Filtering:** Packet-type drop masks, individual event masking
-- ✅ **Error Detection:** Protocol violations, SLVERR, DECERR, orphan transactions
-- ✅ **Timeout Monitoring:** Configurable timeout detection for stuck transactions
-- ✅ **Performance Metrics:** Latency tracking, transaction counting, throughput analysis
-- ✅ **Monitor Bus Output:** 128-bit packets paired with 64-bit side-band timestamps
-- ✅ **Configuration Validation:** Detects conflicting configuration settings
-- ✅ **Clock Gating Support:** Busy signal for power management
+- **Integrated Monitoring:** Combines `axi4_slave_wr` with `axi_monitor_filtered`
+- **2-Level Filtering:** Packet-type drop masks, individual event masking
+- **Error Detection:** Protocol violations, SLVERR, DECERR, orphan transactions
+- **Timeout Monitoring:** Configurable timeout detection for stuck transactions
+- **Performance Metrics:** Latency tracking, transaction counting, throughput analysis
+- **Monitor Bus Output:** 128-bit packets paired with 64-bit side-band timestamps
+- **Configuration Validation:** Detects conflicting configuration settings
+- **Clock Gating Support:** Busy signal for power management
 
 ---
 
-## Module Architecture
+## Parameters
+
+### AXI4 Slave Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `SKID_DEPTH_AW` | int | 2 | AW channel skid buffer depth |
+| `SKID_DEPTH_W` | int | 4 | W channel skid buffer depth |
+| `SKID_DEPTH_B` | int | 2 | B channel skid buffer depth |
+| `AXI_ID_WIDTH` | int | 8 | Transaction ID width |
+| `AXI_ADDR_WIDTH` | int | 32 | Address bus width |
+| `AXI_DATA_WIDTH` | int | 32 | Data bus width |
+| `AXI_WSTRB_WIDTH` | int | AXI_DATA_WIDTH/8 | Write strobe width (transport only -- the monitor does not inspect strobes) |
+| `AXI_USER_WIDTH` | int | 1 | User signal width |
+
+### Monitor Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `UNIT_ID` | logic [7:0] | 8'h02 | 8-bit unit identifier in monitor packets |
+| `AGENT_ID` | logic [15:0] | 16'h0015 | 16-bit agent identifier in monitor packets |
+| `MAX_TRANSACTIONS` | int | 16 | Maximum concurrent outstanding transactions |
+| `ACLK_MHZ` | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
+| USE_WDATA_ORDER_Q / NUM_BANKS | int | -- | Write-data ordering queue / banked-table shaping |
+| ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT | int | 0/-- | Per-instance ID-slice filtering |
+| `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | = ACLK_MHZ | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
+| `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
+| `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
+| `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
+| `USE_MONITOR` | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
+| `N_ADDR_RANGES` | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; feeds the shared allowlist checker: a debug-range hit -> AddrMatch, an error-allowlist miss -> Error/ADDR_RANGE (see axi_monitor_addr_check.md). |
+| `ADDR_RANGE_IS_ERROR` | logic [N_ADDR_RANGES-1:0] | `'0` | Per-range flavor: bit i = 0 -> DEBUG range (hit -> AddrMatch), 1 -> ERROR range (allowlist miss -> Error/ADDR_RANGE). Default all-0 (feature inert). |
+
+### Synthesis-Cone Parameters
+
+Each detection cone can be compiled out to save area. The classic cones default on; the debug cone defaults off. Setting a bit to 0 drops the corresponding cone at synthesis via a `generate`-if inside `axi_monitor_reporter` -- the area saving is real.
+
+| Parameter | Type | Default | Effect when 0 |
+|-----------|------|:-------:|---------------|
+| `ENABLE_ERROR_LOGIC`     | bit | 1 | Drop the error-detection cone |
+| `ENABLE_TIMEOUT_LOGIC`   | bit | 1 | Drop the timeout cone **and** the `axi_monitor_timeout` instance |
+| `ENABLE_COMPL_LOGIC`     | bit | 1 | Drop the completion cone |
+| `ENABLE_THRESHOLD_LOGIC` | bit | 1 | Drop the threshold cone |
+| `ENABLE_PERF_LOGIC`      | bit | 1 | Gates only the reporter's legacy perf-packet cone and the two lifetime counters -- the window FSM and meters are unconditional |
+| `ENABLE_DEBUG_LOGIC`     | bit | 0 | Drop the debug (trace) cone -- the 6th reporter sub-block (off by default) |
+
+Internally the wrapper hardwires two master switches on its `axi_monitor_filtered` instance: `ENABLE_PERF_PACKETS = 1` (perf datapath present, so `ENABLE_PERF_LOGIC` alone gates the window/counters) and `ENABLE_DEBUG_MODULE = 0` (debug tracking module omitted). These are not top-level parameters of the wrapper.
+
+The transaction CAM is always pipelined.
+
+---
+
+## Ports
+
+### AXI4 Write Channels
+
+**Slave Interface (s_axi_*):**
+- AW channel: `awid, awaddr, awlen, awsize, awburst, awlock, awcache, awprot, awqos, awregion, awuser, awvalid, awready`
+- W channel: `wdata, wstrb, wlast, wuser, wvalid, wready`
+- B channel: `bid, bresp, buser, bvalid, bready`
+
+**Backend Interface (fub_axi_*):**
+- Same signals as slave, mirrored direction (to memory/backend)
+
+### Monitor Configuration
+
+Configuration ports are identical to other AXI4 monitors:
+- Basic enables: `cfg_monitor_enable` (master runtime gate: 0 = monitor inert, CAM held clear, never stalls the datapath), `cfg_error_enable`, `cfg_timeout_enable`, `cfg_perf_enable`, `cfg_compl_enable` (completion packets), `cfg_threshold_enable` (threshold-crossed packets), `cfg_debug_enable` (debug/trace cone -- the 6th reporter sub-block)
+- Clear: `cam_clear` (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4])
+- Thresholds: `cfg_timeout_cycles` (unified coarse timeout, a MICROSECOND count at full 16-bit width: 1..65535 us per phase, 0 = 16'hFFFF ~ effectively never; drives all three phase counts), `cfg_latency_threshold`
+- Filtering: 8 mask signals (`cfg_axi_*_mask`: pkt, error, timeout, compl, thresh, perf, addr, debug) plus `cfg_axi_err_select`
+- Performance window control: `cfg_start_event_sel`, `cfg_end_event_sel`, `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close` (see [Performance Monitoring](#performance-monitoring))
+
+> The inner monitor's `cfg_debug_level` (tied to 0), `cfg_debug_mask` (0) are fixed inside the wrapper; `cfg_active_trans_threshold` is driven by the `ACTIVE_TRANS_THRESHOLD` parameter (default MAX_TRANSACTIONS/2), not hardwired to 8, and all three are **not** top-level ports on this module.
+
+### Monitor Bus Output
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `monbus_valid` | Output | 1 | Monitor packet valid |
+| `monbus_ready` | Input | 1 | Downstream ready to accept packet |
+| `monbus_packet` | Output | 128 | `monitor_packet_t` (see format below) |
+| `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| `debug_block_ready` | Output | 1 | Observability tap for the block_ready gating net (drives nothing internally; leave unconnected if unused) |
+| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
+
+### Status Outputs
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `busy` | Output | 1 | Indicates active transactions (for clock gating) |
+| `active_transactions` | Output | 8 | Current number of outstanding transactions |
+| `error_count` | Output | 16 | Lifetime count of error+timeout packets actually emitted (reporter perf counter; reads 0 when `ENABLE_PERF_LOGIC=0` or `USE_MONITOR=0`) |
+| `transaction_count` | Output | 32 | Lifetime count of completion packets actually emitted (zero-extended 16-bit reporter perf counter; reads 0 when `ENABLE_PERF_LOGIC=0` or `USE_MONITOR=0`) |
+| `cfg_conflict_error` | Output | 1 | Configuration conflict detected |
+
+---
+
+## Functional Description
+
+### Architecture
 
 ```mermaid
 flowchart LR
@@ -83,61 +183,7 @@ The module instantiates two sub-modules:
 1. **axi4_slave_wr** - Core AXI4 slave write functionality with buffering
 2. **axi_monitor_filtered** - Transaction monitoring with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 
----
-
-## Parameters
-
-### AXI4 Slave Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `SKID_DEPTH_AW` | int | 2 | AW channel skid buffer depth |
-| `SKID_DEPTH_W` | int | 4 | W channel skid buffer depth |
-| `SKID_DEPTH_B` | int | 2 | B channel skid buffer depth |
-| `AXI_ID_WIDTH` | int | 8 | Transaction ID width |
-| `AXI_ADDR_WIDTH` | int | 32 | Address bus width |
-| `AXI_DATA_WIDTH` | int | 32 | Data bus width |
-| AXI_WSTRB_WIDTH | int | AXI_DATA_WIDTH/8 | Write strobe width (transport only -- the monitor does not inspect strobes) |
-| `AXI_USER_WIDTH` | int | 1 | User signal width |
-
-### Monitor Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `UNIT_ID` | logic [7:0] | 8'h02 | 8-bit unit identifier in monitor packets |
-| `AGENT_ID` | logic [15:0] | 16'h0015 | 16-bit agent identifier in monitor packets |
-| `MAX_TRANSACTIONS` | int | 16 | Maximum concurrent outstanding transactions |
-| `ACLK_MHZ` | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
-| USE_WDATA_ORDER_Q / NUM_BANKS | int | -- | Write-data ordering queue / banked-table shaping |
-| ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT | int | 0/-- | Per-instance ID-slice filtering |
-| `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | = ACLK_MHZ | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
-| `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
-| `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
-| `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
-| `USE_MONITOR` | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
-| `N_ADDR_RANGES` | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; feeds the shared allowlist checker: a debug-range hit -> AddrMatch, an error-allowlist miss -> Error/ADDR_RANGE (see axi_monitor_addr_check.md). |
-| `ADDR_RANGE_IS_ERROR` | logic [N_ADDR_RANGES-1:0] | `'0` | Per-range flavor: bit i = 0 -> DEBUG range (hit -> AddrMatch), 1 -> ERROR range (allowlist miss -> Error/ADDR_RANGE). Default all-0 (feature inert). |
-
-### Synthesis-Cone Parameters
-
-Each detection cone can be compiled out to save area. The classic cones default on; the debug cone defaults off. Setting a bit to 0 drops the corresponding cone at synthesis via a `generate`-if inside `axi_monitor_reporter` — the area saving is real.
-
-| Parameter | Type | Default | Effect when 0 |
-|-----------|------|:-------:|---------------|
-| `ENABLE_ERROR_LOGIC`     | bit | 1 | Drop the error-detection cone |
-| `ENABLE_TIMEOUT_LOGIC`   | bit | 1 | Drop the timeout cone **and** the `axi_monitor_timeout` instance |
-| `ENABLE_COMPL_LOGIC`     | bit | 1 | Drop the completion cone |
-| `ENABLE_THRESHOLD_LOGIC` | bit | 1 | Drop the threshold cone |
-| `ENABLE_PERF_LOGIC`      | bit | 1 | Gates only the reporter's legacy perf-packet cone and the two lifetime counters -- the window FSM and meters are unconditional |
-| `ENABLE_DEBUG_LOGIC`     | bit | 0 | Drop the debug (trace) cone — the 6th reporter sub-block (off by default) |
-
-Internally the wrapper hardwires two master switches on its `axi_monitor_filtered` instance: `ENABLE_PERF_PACKETS = 1` (perf datapath present, so `ENABLE_PERF_LOGIC` alone gates the window/counters) and `ENABLE_DEBUG_MODULE = 0` (debug tracking module omitted). These are not top-level parameters of the wrapper.
-
-The transaction CAM is always pipelined.
-
----
-
-## Monitor Backpressure (block_ready)
+### Monitor Backpressure (block_ready)
 
 `block_ready` is exported as the `debug_block_ready` output port -- the wrapper deliberately makes the gating contract observable (the `_mon_cg` wrapper ties it off rather than forwarding it). It goes low when the monitor's transaction-table occupancy reaches its blocking threshold (a function of `MAX_TRANSACTIONS`; the reporter FIFO depth `INTR_FIFO_DEPTH` has no path to it). The wrapper ANDs it into the upstream-facing `s_axi_awready` so a saturated monitor throttles new transactions at the handshake instead of dropping events.
 
@@ -149,39 +195,35 @@ Recovery is guaranteed by the **saturation-recovery contract**: command-originat
 
 Sizing note: a monitor on a bus shared by several channels/requesters must size `MAX_TRANSACTIONS` to cover `NUM_CHANNELS x per-channel outstanding` plus margin -- the per-channel limit alone makes the monitor throttle the shared master. Tables deeper than 64 also need Verilator's `--unroll-count` raised (default 64) in sim builds.
 
----
-
-## Address-Range Checker
+### Address-Range Checker
 
 With `N_ADDR_RANGES > 0` the wrapper instantiates the shared allowlist checker
 ([`axi_monitor_addr_check`](../monitor/axi_monitor_addr_check.md)). Each range carries a
 DEBUG/ERROR flavor:
 
-- **DEBUG range** — a hit emits a `PktTypeAddrMatch` (`4'h8`) packet with event
+- **DEBUG range** -- a hit emits a `PktTypeAddrMatch` (`4'h8`) packet with event
   code `AXI_ADDR_RANGE_MATCH` (`8'h01`), gated by `cfg_debug_enable`.
-- **ERROR range** — the enabled ERROR ranges form an allowlist; an address in
+- **ERROR range** -- the enabled ERROR ranges form an allowlist; an address in
   NONE of them emits a `PktTypeError` (`4'h0`) packet with event code
   `AXI_ERR_ADDR_RANGE` (`8'h0D`), gated by `cfg_error_enable`.
 
 This wrapper exposes **`ADDR_RANGE_IS_ERROR`** (per-range) as a parameter, so ranges can be assigned to either flavor.
 
 **Config inputs (active only when `N_ADDR_RANGES > 0`):**
-- `cfg_addr_check_enable` — master on/off for the checker.
-- `cfg_addr_range_enable[N-1:0]` — per-range enable bit.
-- `cfg_addr_range_low/high[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive bounds.
+- `cfg_addr_check_enable` -- master on/off for the checker.
+- `cfg_addr_range_enable[N-1:0]` -- per-range enable bit.
+- `cfg_addr_range_low/high[N-1:0][AXI_ADDR_WIDTH-1:0]` -- inclusive bounds.
 
 **Event encoding:** `event_data[63:60]` = `range_index` (matching DEBUG range, or
 `4'hF` sentinel on an ERROR miss); `event_data[59:0]` = full address. **Filtering:**
 AddrMatch is dropped by `cfg_axi_addr_mask[1]`, the ADDR_RANGE error by
 `cfg_axi_error_mask[13]`. See the checker page for coalescing + formal properties.
 
----
-
-## Performance Monitoring
+### Performance Monitoring
 
 The wrapper hardwires `ENABLE_PERF_PACKETS = 1` on its inner `axi_monitor_filtered`, so the perfmon datapath is present whenever `ENABLE_PERF_LOGIC = 1` (the default). It instantiates a **measurement-window state machine** plus a bank of W-data-channel utilization counters. All counters accumulate **only while a window is open** (`window_active = 1`) and hold their values between windows, so the host can read a completed window's totals.
 
-### The Measurement Window
+#### The Measurement Window
 
 A window is opened by a **start event** and closed by an **end event**. The event sources are selected by `cfg_start_event_sel` / `cfg_end_event_sel` (3-bit; e.g. `3'b010` selects the `cfg_perf_enable` edge) and can also be fired directly by the `cfg_start_trigger` / `cfg_end_trigger` pulses (from an engine or CSR). `cfg_window_force_close` is a software override that closes the window immediately. While the window is open:
 
@@ -190,7 +232,7 @@ A window is opened by a **start event** and closed by an **end event**. The even
 
 Sample the counters on the cycle `window_active` falls to 0 (drive `cfg_end_trigger`, or wait for the configured end event).
 
-### Utilization Counters (W Data Channel)
+#### Utilization Counters (W Data Channel)
 
 Every cycle inside the window is classified by the W channel's `wvalid` / `wready` into exactly one of four buckets:
 
@@ -203,17 +245,17 @@ Every cycle inside the window is classified by the W channel's `wvalid` / `wread
 
 The four buckets sum to `window_cycles - 1` (the start cycle seeds window_cycles to 1 while the buckets reset to 0); the one-count skew is negligible for long windows.
 
-### Throughput Counters
+#### Throughput Counters
 
 | Output | Width | Meaning |
 |--------|:-----:|---------|
 | `perf_beat_count`  | 32 | W data beats transferred (= `perf_prod_cycles`, 1 beat/cycle) |
-| `perf_byte_count`  | 64 | bytes transferred = beats × (1 << AWSIZE), using the AWSIZE captured at the most recent AW address phase (upper bound: counts full-width beats and does not subtract bytes masked off by `WSTRB` on unaligned or partial beats) |
+| `perf_byte_count`  | 64 | bytes transferred = beats x (1 << AWSIZE), using the AWSIZE captured at the most recent AW address phase (upper bound: counts full-width beats and does not subtract bytes masked off by `WSTRB` on unaligned or partial beats) |
 | `perf_burst_count` | 32 | AW address-phase handshakes |
 
 The integrator computes average burst length as `perf_beat_count / perf_burst_count`.
 
-### Performance Monitoring Ports
+#### Performance Monitoring Ports
 
 | Port | Direction | Width | Description |
 |------|-----------|:-----:|-------------|
@@ -235,61 +277,13 @@ The integrator computes average burst length as `perf_beat_count / perf_burst_co
 
 When `USE_MONITOR = 0`, every perfmon output is tied to 0 and the window never opens.
 
----
-
-## Port Groups
-
-### AXI4 Write Channels
-
-**Slave Interface (s_axi_*):**
-- AW channel: `awid, awaddr, awlen, awsize, awburst, awlock, awcache, awprot, awqos, awregion, awuser, awvalid, awready`
-- W channel: `wdata, wstrb, wlast, wuser, wvalid, wready`
-- B channel: `bid, bresp, buser, bvalid, bready`
-
-**Backend Interface (fub_axi_*):**
-- Same signals as slave, mirrored direction (to memory/backend)
-
-### Monitor Configuration
-
-Configuration ports are identical to other AXI4 monitors:
-- Basic enables: `cfg_monitor_enable` (master runtime gate: 0 = monitor inert, CAM held clear, never stalls the datapath), `cfg_error_enable`, `cfg_timeout_enable`, `cfg_perf_enable`, `cfg_compl_enable` (completion packets), `cfg_threshold_enable` (threshold-crossed packets), `cfg_debug_enable` (debug/trace cone — the 6th reporter sub-block)
-- Clear: `cam_clear` (Input, 1) - synchronous clear of the monitor transaction CAM (driven from the harness clear control bit, e.g. CTRL[4])
-- Thresholds: `cfg_timeout_cycles` (unified coarse timeout, a MICROSECOND count at full 16-bit width: 1..65535 us per phase, 0 = 16'hFFFF ~ effectively never; drives all three phase counts), `cfg_latency_threshold`
-- Filtering: 8 mask signals (`cfg_axi_*_mask`: pkt, error, timeout, compl, thresh, perf, addr, debug) plus `cfg_axi_err_select`
-- Performance window control: `cfg_start_event_sel`, `cfg_end_event_sel`, `cfg_start_trigger`, `cfg_end_trigger`, `cfg_window_force_close` (see [Performance Monitoring](#performance-monitoring))
-
-> The inner monitor's `cfg_debug_level` (tied to 0), `cfg_debug_mask` (0) are fixed inside the wrapper; `cfg_active_trans_threshold` is driven by the `ACTIVE_TRANS_THRESHOLD` parameter (default MAX_TRANSACTIONS/2), not hardwired to 8, and all three and are **not** top-level ports on this module.
-
-### Monitor Bus Output
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `monbus_valid` | Output | 1 | Monitor packet valid |
-| `monbus_ready` | Input | 1 | Downstream ready to accept packet |
-| `monbus_packet` | Output | 128 | `monitor_packet_t` (see format below) |
-| `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
-| debug_block_ready | 1 | Output | Observability tap for the block_ready gating net (drives nothing internally; leave unconnected if unused) |
-| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
-
-### Status Outputs
-
-| Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `busy` | Output | 1 | Indicates active transactions (for clock gating) |
-| `active_transactions` | Output | 8 | Current number of outstanding transactions |
-| `error_count` | Output | 16 | Lifetime count of error+timeout packets actually emitted (reporter perf counter; reads 0 when `ENABLE_PERF_LOGIC=0` or `USE_MONITOR=0`) |
-| `transaction_count` | Output | 32 | Lifetime count of completion packets actually emitted (zero-extended 16-bit reporter perf counter; reads 0 when `ENABLE_PERF_LOGIC=0` or `USE_MONITOR=0`) |
-| `cfg_conflict_error` | Output | 1 | Configuration conflict detected |
-
----
-
-## Monitor Packet Format
+### Monitor Packet Format
 
 Identical 128-bit format (with 64-bit side-band timestamp) as other AXI4 monitors. See [axi4_master_rd_mon](axi4_master_rd_mon.md) for complete specification.
 
 ---
 
-## Timing Diagrams
+## Waveforms
 
 The following waveforms show AXI4 slave write monitor behavior from the slave perspective:
 
@@ -324,51 +318,6 @@ Variant write transaction with different timing from slave:
 - BVALID generation timing
 - Slave latency monitoring
 - Error detection from slave side
-
----
-
-## Configuration Strategies
-
-### Strategy 1: Functional Verification (Recommended)
-
-**Goal:** Catch slave-side write errors
-
-```systemverilog
-// Enable configuration
-.cfg_monitor_enable     (1'b1),
-.cfg_error_enable       (1'b1),      // Detect SLVERR/DECERR from backend
-.cfg_timeout_enable     (1'b1),      // Detect backend timeouts
-.cfg_perf_enable        (1'b0),      // Disable (reduces traffic)
-
-// Filtering - pass error and timeout only
-.cfg_axi_pkt_mask       (16'hFFF6),  // Drop all but ERROR, TIMEOUT
-.cfg_axi_error_mask     (16'h0000),  // Pass all errors
-.cfg_axi_timeout_mask   (16'h0000),  // Pass all timeouts
-.cfg_axi_compl_mask     (16'hFFFF),  // Drop completions
-.cfg_axi_perf_mask      (16'hFFFF),  // Drop performance
-
-// Timeouts
-.cfg_timeout_cycles     (16'd15),    // 15 microseconds per phase: allow backend write latency
-.cfg_latency_threshold  (32'd1000)
-```
-
-### Strategy 2: Performance Analysis
-
-**Goal:** Analyze slave write performance
-
-```systemverilog
-// Enable configuration
-.cfg_monitor_enable     (1'b1),
-.cfg_error_enable       (1'b1),
-.cfg_timeout_enable     (1'b0),
-.cfg_perf_enable        (1'b1),      // Enable performance metrics
-
-// Filtering - pass error and performance only
-.cfg_axi_pkt_mask       (16'hFFEE),  // Drop all but ERROR, PERF (set bit = drop)
-.cfg_axi_error_mask     (16'h0000),  // Pass all errors
-.cfg_axi_perf_mask      (16'h0000),  // Pass all performance
-.cfg_axi_compl_mask     (16'hFFFF),  // Drop completions
-```
 
 ---
 
@@ -445,10 +394,53 @@ memory_controller u_mem (
 
 ## Design Notes
 
+### Configuration Strategies
+
+#### Strategy 1: Functional Verification (Recommended)
+
+**Goal:** Catch slave-side write errors
+
+```systemverilog
+// Enable configuration
+.cfg_monitor_enable     (1'b1),
+.cfg_error_enable       (1'b1),      // Detect SLVERR/DECERR from backend
+.cfg_timeout_enable     (1'b1),      // Detect backend timeouts
+.cfg_perf_enable        (1'b0),      // Disable (reduces traffic)
+
+// Filtering - pass error and timeout only
+.cfg_axi_pkt_mask       (16'hFFF6),  // Drop all but ERROR, TIMEOUT
+.cfg_axi_error_mask     (16'h0000),  // Pass all errors
+.cfg_axi_timeout_mask   (16'h0000),  // Pass all timeouts
+.cfg_axi_compl_mask     (16'hFFFF),  // Drop completions
+.cfg_axi_perf_mask      (16'hFFFF),  // Drop performance
+
+// Timeouts
+.cfg_timeout_cycles     (16'd15),    // 15 microseconds per phase: allow backend write latency
+.cfg_latency_threshold  (32'd1000)
+```
+
+#### Strategy 2: Performance Analysis
+
+**Goal:** Analyze slave write performance
+
+```systemverilog
+// Enable configuration
+.cfg_monitor_enable     (1'b1),
+.cfg_error_enable       (1'b1),
+.cfg_timeout_enable     (1'b0),
+.cfg_perf_enable        (1'b1),      // Enable performance metrics
+
+// Filtering - pass error and performance only
+.cfg_axi_pkt_mask       (16'hFFEE),  // Drop all but ERROR, PERF (set bit = drop)
+.cfg_axi_error_mask     (16'h0000),  // Pass all errors
+.cfg_axi_perf_mask      (16'h0000),  // Pass all performance
+.cfg_axi_compl_mask     (16'hFFFF),  // Drop completions
+```
+
 ### Slave-Side Monitoring
 
 **Key Differences from Master Monitors:**
-- Monitors from slave perspective (interconnect → backend)
+- Monitors from slave perspective (interconnect to backend)
 - Tracks backend write response latency
 - Detects backend timeout scenarios
 - Default UNIT_ID=2, AGENT_ID=21 (distinguishes from master)
@@ -475,7 +467,7 @@ memory_controller u_mem (
 ### Performance Considerations
 
 **Backend Latency Monitoring:**
-- Tracks AW → B response latency
+- Tracks AW-to-B response latency
 - Includes W channel completion time
 - Configurable timeout threshold
 - Separate from master-side latency
@@ -534,6 +526,12 @@ Same as [axi4_slave_wr](../axi4/axi4_slave_wr.md):
 
 ---
 
+## Testing
+
+The unit testbench lives at `val/amba/test_axi4_slave_wr_mon.py`, built on the shared AXI4 test framework in `bin/TBClasses/components/axi4/`.
+
+---
+
 ## References
 
 ### Specifications
@@ -542,8 +540,6 @@ Same as [axi4_slave_wr](../axi4/axi4_slave_wr.md):
 
 ### Source Code
 - RTL: `rtl/amba/axi4/axi4_slave_wr_mon.sv`
-- Tests: `val/amba/test_axi4_slave_wr_mon.py`
-- Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation
 - Configuration Guide: [AXI Monitor Base](../monitor/axi_monitor_base.md)
@@ -558,6 +554,6 @@ Same as [axi4_slave_wr](../axi4/axi4_slave_wr.md):
 
 ## Navigation
 
-- **[← Back to AXI4 Index](../_book_monitor_index.md)**
-- **[← Back to rtl-amba Index](../index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[<- Back to AXI4 Index](../_book_monitor_index.md)**
+- **[<- Back to rtl-amba Index](../index.md)**
+- **[<- Back to Main Documentation Index](../../index.md)**

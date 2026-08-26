@@ -31,7 +31,7 @@
 
 ## Overview
 
-The AXI5 Master Write with Clock Gating module wraps the standard `axi5_master_wr` core with intelligent clock gating for power optimization. It automatically gates the clock when no AXI write activity is detected for a configurable number of idle cycles.
+The AXI5 Master Write with Clock Gating module wraps the standard `axi5_master_wr` core with intelligent clock gating for power optimization. When no AXI write activity is detected for a configurable number of idle cycles, the clock gates off automatically.
 
 **Scope:** this module transports AXI5 signals; it does not implement AXI5 transaction semantics. `AWATOP` is carried through unmodified but no atomic read-modify-write is performed, no MTE tag checking or `BTAGMATCH` generation is performed, and no outstanding-transaction tracking is done. Those behaviors belong to the endpoints on either side. See [Scope of This Implementation](README.md) in the AXI5 index for the full coverage statement.
 
@@ -54,63 +54,6 @@ The AXI5 Master Write with Clock Gating module wraps the standard `axi5_master_w
 - **Power savings** during idle periods
 - **Transparent operation** - no protocol changes
 - **Status outputs** for clock gating state monitoring
-
----
-
-## Module Architecture
-
-```mermaid
-flowchart LR
-    subgraph FUB["FUB Interface"]
-        direction TB
-        fub_aw["AW Channel<br/>Address/Control"]
-        fub_w["W Channel<br/>Write Data"]
-        fub_b["B Channel<br/>Write Response"]
-    end
-
-    subgraph CG["Clock Gating Controller"]
-        direction TB
-        activity["Activity<br/>Detection"]
-        idle_cnt["Idle Counter<br/>(Configurable)"]
-        gate_ctrl["Clock<br/>Gate Control"]
-    end
-
-    subgraph CORE["AXI5 Master Write Core"]
-        direction TB
-        aw_skid["AW SKID<br/>Depth=2"]
-        w_skid["W SKID<br/>Depth=4"]
-        b_skid["B SKID<br/>Depth=2"]
-        axi5_core["AXI5 Protocol<br/>Logic"]
-    end
-
-    subgraph AXI["AXI5 Master"]
-        direction TB
-        m_aw["AW Channel<br/>ATOP/NSAID/TRACE<br/>MPAM/MECID<br/>UNIQUE/TAGOP/TAG"]
-        m_w["W Channel<br/>POISON/TAG<br/>TAGUPDATE"]
-        m_b["B Channel<br/>TRACE/TAG<br/>TAGMATCH"]
-    end
-
-    fub_aw --> activity
-    fub_w --> activity
-    fub_b --> activity
-    m_aw --> activity
-    m_w --> activity
-    m_b --> activity
-
-    activity --> idle_cnt
-    idle_cnt --> gate_ctrl
-    gate_ctrl -->|gated_aclk| axi5_core
-
-    fub_aw --> aw_skid
-    fub_w --> w_skid
-    aw_skid --> axi5_core
-    w_skid --> axi5_core
-    axi5_core --> m_aw
-    axi5_core --> m_w
-
-    m_b --> b_skid
-    b_skid --> fub_b
-```
 
 ---
 
@@ -140,7 +83,7 @@ flowchart LR
 | ENABLE_UNIQUE | bit | 1 | Enable unique ID indicator |
 | ENABLE_MTE | bit | 1 | Enable Memory Tagging Extension |
 | ENABLE_POISON | bit | 1 | Enable poison indicator |
-| **CG_IDLE_COUNT_WIDTH** | int | 4 | Width of idle counter (max 2^N-1 cycles) |
+| CG_IDLE_COUNT_WIDTH | int | 4 | Width of idle counter (max 2^N-1 cycles) |
 
 ### Derived Parameters
 
@@ -255,7 +198,62 @@ Same port list as FUB interface but with `m_axi_*` prefix and reversed direction
 
 ---
 
-## Functionality
+## Functional Description
+
+### Architecture
+
+```mermaid
+flowchart LR
+    subgraph FUB["FUB Interface"]
+        direction TB
+        fub_aw["AW Channel<br/>Address/Control"]
+        fub_w["W Channel<br/>Write Data"]
+        fub_b["B Channel<br/>Write Response"]
+    end
+
+    subgraph CG["Clock Gating Controller"]
+        direction TB
+        activity["Activity<br/>Detection"]
+        idle_cnt["Idle Counter<br/>(Configurable)"]
+        gate_ctrl["Clock<br/>Gate Control"]
+    end
+
+    subgraph CORE["AXI5 Master Write Core"]
+        direction TB
+        aw_skid["AW SKID<br/>Depth=2"]
+        w_skid["W SKID<br/>Depth=4"]
+        b_skid["B SKID<br/>Depth=2"]
+        axi5_core["AXI5 Protocol<br/>Logic"]
+    end
+
+    subgraph AXI["AXI5 Master"]
+        direction TB
+        m_aw["AW Channel<br/>ATOP/NSAID/TRACE<br/>MPAM/MECID<br/>UNIQUE/TAGOP/TAG"]
+        m_w["W Channel<br/>POISON/TAG<br/>TAGUPDATE"]
+        m_b["B Channel<br/>TRACE/TAG<br/>TAGMATCH"]
+    end
+
+    fub_aw --> activity
+    fub_w --> activity
+    fub_b --> activity
+    m_aw --> activity
+    m_w --> activity
+    m_b --> activity
+
+    activity --> idle_cnt
+    idle_cnt --> gate_ctrl
+    gate_ctrl -->|gated_aclk| axi5_core
+
+    fub_aw --> aw_skid
+    fub_w --> w_skid
+    aw_skid --> axi5_core
+    w_skid --> axi5_core
+    axi5_core --> m_aw
+    axi5_core --> m_w
+
+    m_b --> b_skid
+    b_skid --> fub_b
+```
 
 ### Clock Gating Operation
 
@@ -330,7 +328,7 @@ Same as read variant - see [AXI5 Master Read CG](axi5_master_rd_cg.md).
 
 ---
 
-## Timing Diagrams
+## Timing
 
 ### Clock Gating with Write Burst
 
@@ -497,7 +495,7 @@ end
 
 ---
 
-## Related Documentation
+## Related Modules
 
 - **[AXI5 Master Write](axi5_master_wr.md)** - Non-gated base module
 - **[AXI5 Master Read CG](axi5_master_rd_cg.md)** - Read with clock gating
