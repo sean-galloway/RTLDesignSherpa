@@ -122,7 +122,7 @@ stateDiagram-v2
     [*] --> RUNNING
 
     RUNNING --> IDLE : activity = 0<br/>(no valid signals)
-    IDLE --> RUNNING : idle_count < threshold
+    IDLE --> RUNNING : wakeup (activity) or !cfg_cg_enable
     IDLE --> GATED : count >= threshold<br/>&& cg_enable
     GATED --> RUNNING : activity detected<br/>(any valid signal)
 

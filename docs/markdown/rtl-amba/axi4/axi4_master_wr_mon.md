@@ -36,7 +36,7 @@ The AXI4 Master Write Monitor module combines a functional AXI4 master write int
 ### Key Features
 
 - ✅ **Integrated Monitoring:** Combines `axi4_master_wr` with `axi_monitor_filtered`
-- ✅ **3-Level Filtering:** Packet type masks, error routing, individual event masking
+- ✅ **2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 - ✅ **Error Detection:** Protocol violations, SLVERR, DECERR, orphan transactions
 - ✅ **Timeout Monitoring:** Configurable timeout detection for stuck transactions
 - ✅ **Performance Metrics:** Latency tracking, transaction counting, throughput analysis
@@ -81,7 +81,7 @@ flowchart LR
 
 The module instantiates two sub-modules:
 1. **axi4_master_wr** - Core AXI4 write functionality with buffering
-2. **axi_monitor_filtered** - Transaction monitoring with 3-level filtering
+2. **axi_monitor_filtered** - Transaction monitoring with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 
 ---
 
@@ -106,8 +106,12 @@ The module instantiates two sub-modules:
 | `UNIT_ID` | logic [7:0] | 8'h01 | 8-bit unit identifier in monitor packets |
 | `AGENT_ID` | logic [15:0] | 16'h000B | 16-bit agent identifier in monitor packets |
 | `MAX_TRANSACTIONS` | int | 16 | Maximum concurrent outstanding transactions |
+| ACLK_MHZ | int | 100 | Clock MHz -- keeps the 1 us tick exact |
+| CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | = ACLK_MHZ | Freq-invariant LUT bounds |
+| USE_WDATA_ORDER_Q / NUM_BANKS | int | -- | Ordering queue / banked tables |
+| ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT | int | 0/-- | Per-instance ID-slice filtering |
 | `ACLK_MHZ` | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
-| `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | -- | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
+| `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | = ACLK_MHZ | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
 | `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
@@ -265,6 +269,7 @@ Configuration ports are identical to [axi4_master_rd_mon](axi4_master_rd_mon.md)
 | `monbus_ready` | Input | 1 | Downstream ready to accept packet |
 | `monbus_packet` | Output | 128 | `monitor_packet_t` (see format below) |
 | `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| debug_block_ready | 1 | Output | Observability tap for the block_ready gating net (drives nothing internally; leave unconnected if unused) |
 | `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs

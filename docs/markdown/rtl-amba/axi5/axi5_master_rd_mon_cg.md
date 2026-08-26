@@ -37,7 +37,7 @@ The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_
 
 - Full AMBA AXI5 protocol compliance
 - **All AXI5 extensions:** NSAID, TRACE, MPAM, MECID, UNIQUE, CHUNKING, MTE, POISON
-- **Integrated AXI monitor** with 3-level filtering hierarchy
+- **Integrated AXI monitor** with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 - **Error detection:** Protocol violations, SLVERR, DECERR
 - **Timeout monitoring:** Stuck transactions, stalled channels
 - **Performance metrics:** Latency, throughput, outstanding transactions

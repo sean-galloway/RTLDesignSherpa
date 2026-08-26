@@ -2,6 +2,40 @@
 
 # bridge — closed
 
+## BRIDGE-005 — generated xbar had no request arbiter: concurrent multi-master traffic OR-merged
+**Status:** closed 2026-08-25 (opened 2026-08-25)
+**Priority:** was P1 — silent data/address corruption under contention
+
+The crossbar generator's multi-master routing OR-merged every master's
+request contribution per slave with no grant: two masters presenting
+AW/AR to one slave in the same cycle merged field-by-field (observed
+addr = A|B arriving at a slave neither master addressed), and both saw
+the ORed ready. Was a documented deferral in crossbar_generator.py.
+
+**Shipped (same day):**
+- Per-slave round-robin AW and AR arbiters, grant locked until the
+  handshake completes; one-hot gated field muxes; grant-gated readies.
+- Per-(master, width-path) W destination FIFO + per-slave W owner FIFO
+  (slave AW-accept order owns the W channel) — replaced the per-pair
+  occupancy FIFOs that also lost cross-slave W order.
+- Host adapters: response-side readies gated by the tracked response
+  head (unselected width paths used to handshake R/B into the void).
+- Single-outstanding-target per master (new AW/AR only while all
+  outstanding transactions hit the same slave) — the in-order response
+  heads otherwise deadlock across masters.
+- Shared struct ID width = max across masters (was first-master's; a
+  6-bit RID 0x14 returned as 0x04 and never matched its waiter).
+- Fallout fix in `axi4_to_axil4_wr`: `w_burst_capture` missing the
+  `s_axi_awready` qualifier — a burst AW PARKED by the one-outstanding
+  guard blocked the pending write's W forever (deadlock). Pinned by
+  `test_pending_w_blocked_by_waiting_burst_aw` (converters suite).
+
+**Gates:** DV bridge concurrency suite 8/8 (no xfails), the four killer
+RANDOM_SEEDs replay green, RDS bridge suite 38/38, converters
+run-all-full-parallel green.
+
+---
+
 ## BRIDGE-001 — Generator emits NUM_SLAVES as a body localparam used in the port list
 **Status:** closed 2026-08-08 (opened 2026-07-28)
 **Priority:** P1 — blocked clean commits of any regenerated bridge

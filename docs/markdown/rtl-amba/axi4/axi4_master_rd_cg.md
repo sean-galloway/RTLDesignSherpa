@@ -86,7 +86,7 @@ axi4_master_rd_cg #(
     .cfg_cg_enable(1'b1),
     .cfg_cg_idle_count(4'd8),
     .cg_gating(),           // status: clock currently gated
-    .cg_idle(),             // status: idle countdown expired
+    .cg_idle(),             // status: interfaces quiet (~r_wakeup)
     // ... all other ports same as axi4_master_rd (except busy)
 );
 ```

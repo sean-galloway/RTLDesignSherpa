@@ -259,7 +259,7 @@ The module provides these status signals for power analysis:
 | Signal | Width | Description |
 |--------|-------|-------------|
 | `cg_gating` | 1 | The (single) gated clock is currently stopped |
-| `cg_idle` | 1 | Idle countdown has expired |
+| `cg_idle` | 1 | No activity this cycle (`~r_wakeup` -- asserts one cycle after the interfaces go quiet; it does NOT wait for the countdown) |
 
 ---
 

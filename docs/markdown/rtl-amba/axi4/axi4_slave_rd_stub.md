@@ -291,6 +291,7 @@ axi4_slave_rd_stub #(
 );
 
 // Parse AR packet
+localparam int ARSize = 8+32+8+3+2+1+4+3+4+4+4;  // match your instance widths
 wire [7:0]  ar_id     = tb_ar_pkt[ARSize-1:ARSize-8];
 wire [31:0] ar_addr   = tb_ar_pkt[ARSize-9:ARSize-40];
 wire [7:0]  ar_len    = tb_ar_pkt[ARSize-41:ARSize-48];

@@ -23,7 +23,7 @@
  * filtering hierarchy:
  *
  * Level 1: Packet type masking (pkt_mask) - drop entire packet types
- * Level 2: Error routing (err_select) - route specific packet types to error handling
+ * Level 2: RESERVED (err_select feeds only the conflict check; no routing is implemented -- doc corruption source deleted, qc round_23)
  * Level 3: Event code masking - fine-grained filtering within packet types
  *
  * Features:

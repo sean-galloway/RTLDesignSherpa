@@ -96,12 +96,13 @@ flowchart LR
     idle_cnt --> gate_ctrl
     gate_ctrl -->|gated_aclk| axi5_core
 
-    fub_ar --> ar_skid
+    fub_ar --> ar_pack
     ar_skid --> axi5_core
     axi5_core --> m_ar
 
     m_r --> r_skid
-    r_skid --> fub_r
+    r_skid --> r_unpack["R Unpacker"]
+    r_unpack --> fub_r
 ```
 
 ---

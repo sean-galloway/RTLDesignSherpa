@@ -350,6 +350,7 @@ axi4_slave_wr_stub #(
 );
 
 // Parse AW packet
+localparam int AWSize = 8+32+8+3+2+1+4+3+4+4+4;  // match your instance widths
 wire [7:0]  aw_id     = tb_aw_pkt[AWSize-1:AWSize-8];
 wire [31:0] aw_addr   = tb_aw_pkt[AWSize-9:AWSize-40];
 wire [7:0]  aw_len    = tb_aw_pkt[AWSize-41:AWSize-48];
@@ -358,6 +359,7 @@ wire [1:0]  aw_burst  = tb_aw_pkt[AWSize-52:AWSize-53];
 // ... additional fields as needed
 
 // Parse W packet
+localparam int WSize = 64+8+1+4;  // match your instance widths
 wire [63:0] w_data = tb_w_pkt[WSize-1:WSize-64];
 wire [7:0]  w_strb = tb_w_pkt[WSize-65:WSize-72];
 wire        w_last = tb_w_pkt[WSize-73];

@@ -81,7 +81,7 @@ flowchart LR
 
 The module instantiates two sub-modules:
 1. **axi4_slave_wr** - Core AXI4 slave write functionality with buffering
-2. **axi_monitor_filtered** - Transaction monitoring with 3-level filtering
+2. **axi_monitor_filtered** - Transaction monitoring with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 
 ---
 
@@ -110,7 +110,7 @@ The module instantiates two sub-modules:
 | `ACLK_MHZ` | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
 | USE_WDATA_ORDER_Q / NUM_BANKS | int | -- | Write-data ordering queue / banked-table shaping |
 | ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT | int | 0/-- | Per-instance ID-slice filtering |
-| `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | -- | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
+| `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | = ACLK_MHZ | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
 | `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
@@ -268,6 +268,7 @@ Configuration ports are identical to other AXI4 monitors:
 | `monbus_ready` | Input | 1 | Downstream ready to accept packet |
 | `monbus_packet` | Output | 128 | `monitor_packet_t` (see format below) |
 | `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| debug_block_ready | 1 | Output | Observability tap for the block_ready gating net (drives nothing internally; leave unconnected if unused) |
 | `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs

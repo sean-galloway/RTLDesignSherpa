@@ -307,6 +307,7 @@ assign tb_ar_pkt = {
 };
 
 // Parse R packet
+localparam int RSize = 8+64+2+1+4;  // match your instance widths
 wire [7:0]  r_id   = tb_r_pkt[RSize-1:RSize-8];
 wire [63:0] r_data = tb_r_pkt[RSize-9:RSize-72];
 wire [1:0]  r_resp = tb_r_pkt[6:5];

@@ -187,7 +187,7 @@ Same as `axi5_slave_wr_mon` - see [AXI5 Slave Write Monitor](axi5_slave_wr_mon.m
 |------|-------|-----------|-------------|
 | busy | 1 | Output | Module busy indicator |
 | active_transactions | 8 | Output | Current outstanding transactions |
-| error_count | 16 | Output | Errors whose packets were actually EMITTED -- reads 0 with cfg_error_enable off or ENABLE_PERF_LOGIC=0 (auto-retired entries are deliberately not counted) |
+| error_count | 16 | Output | Errors whose packets were actually EMITTED -- counts error AND timeout packets emitted -- with cfg_error_enable off it still counts timeout packets; only ENABLE_PERF_LOGIC=0 (or USE_MONITOR=0) forces 0 |
 | transaction_count | 32 | Output | Completion packets actually EMITTED -- with cfg_compl_enable off (this page's own perf-mode recipe) it reads 0 while transactions complete normally |
 | cfg_conflict_error | 1 | Output | Configuration conflict detected |
 | cg_gating | 1 | Output | Clock is currently gated |
@@ -247,7 +247,7 @@ Alongside perfmon, the wrapper forwards the `cfg_compl_enable`, `cfg_threshold_e
 **Write-Specific Power Considerations:**
 - Burst writes keep module active longer
 - W channel SKID buffering consumes additional power
-- Poison/tag checking adds monitoring overhead
+(No poison/tag checking exists -- there is no such overhead.)
 - Atomic operations may extend active periods
 
 ### Observability

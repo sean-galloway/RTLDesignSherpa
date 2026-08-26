@@ -4,6 +4,32 @@
 
 ---
 
+## CONV-007 — axi4_to_axil4_wr: parked burst AW deadlocked a pending single-beat W
+**Status:** closed 2026-08-25 — found and fixed same day (RED → GREEN)
+**Priority:** was P0 — permanent write-path deadlock under multi-master arbitration
+
+`w_burst_capture = !r_aw_active && s_axi_awvalid && (s_axi_awlen > 0)`
+blocked the W path whenever a multi-beat AW was PRESENT, but the block is
+only meant for the cycle the burst AW is ACCEPTED. When a single-beat
+write was outstanding (its W still crossing the fabric) and a burst AW
+arrived and PARKED on the wire — held off by the one-outstanding guard,
+awready low — the parked AW blocked the outstanding write's W forever: W
+never forwarded → B never generated → outstanding never cleared → the
+parked AW never accepted. Fix: add the `s_axi_awready` qualifier.
+
+A lone BFM serializes AW+W and never parks a second AW, so the FUB tests
+could not hit the window; the DV bridge parallel_storm's multi-master
+arbiter hit it seed-dependently (4 of 6 seeds). Deterministic replay per
+(RANDOM_SEED, binary) + a post-mortem signal probe pinned it.
+
+Pinned regression: `test_pending_w_blocked_by_waiting_burst_aw`
+(axi4_to_axil4_wr_tb, runs in run_basic for every config) — RED on the
+old RTL across all gate configs, GREEN after. The rd shim has no
+analogous hazard (its capture is inside the accept branch and there is
+no upstream data channel to block).
+
+---
+
 ## CONV-003 — dnsize DUAL buffer: dropped beats and misplaced LAST
 **Status:** closed OBSOLETE 2026-08-23 — the mode was removed rather than fixed
 

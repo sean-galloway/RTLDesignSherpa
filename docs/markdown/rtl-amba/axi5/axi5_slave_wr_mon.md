@@ -126,8 +126,12 @@ flowchart TB
 | UNIT_ID | int | 1 | Monitoring unit identifier |
 | AGENT_ID | int | 13 | Agent identifier |
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
+| ACLK_MHZ | int | 100 | Clock MHz -- keeps the 1 us tick exact |
+| CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | = ACLK_MHZ | Freq-invariant LUT bounds |
+| USE_WDATA_ORDER_Q / NUM_BANKS | int | -- | Ordering queue / banked tables |
+| ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT | int | 0/-- | Per-instance ID-slice filtering |
 | ACLK_MHZ | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
-| CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | -- | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
+| CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | = ACLK_MHZ | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
 | ACTIVE_TRANS_THRESHOLD | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when cfg_threshold_enable=1. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
 | ENABLE_FILTERING | bit | 1 | Enable packet filtering |
 | ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage for timing |
@@ -237,6 +241,7 @@ Same as `axi5_slave_wr` - see [AXI5 Slave Write](../axi5/axi5_slave_wr.md) for c
 | monbus_ready | 1 | Input | Monitor packet ready |
 | monbus_packet | 128 | Output | `monitor_packet_t` (see format below) |
 | monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| debug_block_ready | 1 | Output | Observability tap for the block_ready gating net (drives nothing internally; leave unconnected if unused) |
 | i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
@@ -342,8 +347,8 @@ Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 |------------|-------------|------------|
 | 0x1 | SLVERR response | Zero-extended 32-bit ADDRESS |
 | 0x2 | DECERR response | Zero-extended 32-bit ADDRESS |
-| 0x3 | Orphan data | Transaction ID, beat count |
-| 0x4 | Protocol violation | Violation code |
+| 0x3 | Orphan data/response | Zero-extended 32-bit ADDRESS |
+| 0x4 | Protocol violation | Zero-extended 32-bit ADDRESS |
 (Event codes 0x5 "poison", 0x6 "tag mismatch" and 0x7 "missing WLAST"
 were documented here but are NOT implemented -- no poison/tag/WLAST
 signal reaches the monitor; these codes are never emitted.)

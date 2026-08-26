@@ -41,7 +41,7 @@ The AXI4 Read Data Width Converter provides data width conversion for read-only 
 - ✅ **Burst Preservation:** Maintains burst semantics across conversion
 - ✅ **Error Propagation:** Correctly forwards RRESP error codes
 - ✅ **Elastic Buffering:** Configurable FIFO depths for AR and R channels
-- ✅ **Status Outputs:** Busy signal and pending transaction counter
+- **No status outputs** -- the port list ends at `m_axi_rready`
 
 ---
 

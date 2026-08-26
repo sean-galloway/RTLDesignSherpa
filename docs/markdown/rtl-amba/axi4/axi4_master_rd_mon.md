@@ -36,7 +36,7 @@ The AXI4 Master Read Monitor module combines a functional AXI4 master read inter
 ### Key Features
 
 - ✅ **Integrated Monitoring:** Combines `axi4_master_rd` with `axi_monitor_filtered`
-- ✅ **3-Level Filtering:** Packet type masks, error routing, individual event masking
+- ✅ **2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 - ✅ **Error Detection:** Protocol violations, SLVERR, DECERR, orphan transactions
 - ✅ **Timeout Monitoring:** Configurable timeout detection for stuck transactions
 - ✅ **Performance Metrics:** Latency tracking, transaction counting, throughput analysis
@@ -79,7 +79,7 @@ flowchart LR
 
 The module instantiates two sub-modules:
 1. **axi4_master_rd** - Core AXI4 functionality with buffering
-2. **axi_monitor_filtered** - Transaction monitoring with 3-level filtering
+2. **axi_monitor_filtered** - Transaction monitoring with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 
 ---
 
@@ -104,7 +104,7 @@ The module instantiates two sub-modules:
 | `AGENT_ID` | logic [15:0] | 16'h000A | 16-bit agent identifier in monitor packets |
 | `MAX_TRANSACTIONS` | int | 16 | Maximum concurrent outstanding transactions |
 | `ACLK_MHZ` | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
-| `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | -- | Bounds for the freq-invariant counter LUT (`cfg_freq_sel` indexes within them) |
+| `CFI_MIN_FREQ_MHZ` / `CFI_MAX_FREQ_MHZ` | int | = ACLK_MHZ | Bounds for the freq-invariant counter LUT (`cfg_freq_sel` indexes within them) |
 | `USE_WDATA_ORDER_Q` / `NUM_BANKS` | int | -- | Write-data ordering queue / banked-table shaping (write monitors) |
 | `ID_FILTER_ENABLE` / `ID_MATCH_BASE` / `ID_MATCH_COUNT` | int | 0/-- | Per-instance ID-slice filtering for parallel monitor snooping |
 | `ACTIVE_TRANS_THRESHOLD` | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when `cfg_threshold_enable=1`. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
@@ -298,6 +298,7 @@ When `USE_MONITOR = 0`, every perfmon output is tied to 0 and the window never o
 | `monbus_ready` | Input | 1 | Downstream ready to accept packet |
 | `monbus_packet` | Output | 128 | `monitor_packet_t` (see format below) |
 | `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| debug_block_ready | 1 | Output | Observability tap for the block_ready gating net (drives nothing internally; leave unconnected if unused) |
 | `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
@@ -642,7 +643,7 @@ gaxi_fifo_sync #(
 
 ### Filtering Hierarchy
 
-The 3-level filtering provides flexible packet control:
+The 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 
 1. **Level 1 (cfg_axi_pkt_mask):** Coarse filtering by packet type
    - Bit per packet type (ERROR, TIMEOUT, COMPL, etc.)

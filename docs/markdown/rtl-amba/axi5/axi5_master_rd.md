@@ -83,13 +83,14 @@ flowchart LR
         m_r["R Channel<br/>TRACE/POISON<br/>CHUNK/TAG"]
     end
 
-    fub_ar --> ar_skid
-    ar_skid --> ar_pack
-    ar_pack --> m_ar
+    fub_ar --> ar_pack
+    ar_pack --> ar_skid
+    ar_skid --> m_ar
 
-    m_r --> r_pack
-    r_pack --> r_skid
-    r_skid --> fub_r
+    m_r --> r_skid
+    
+    r_skid --> r_unpack["R Unpacker"]
+    r_unpack --> fub_r
 ```
 
 ---

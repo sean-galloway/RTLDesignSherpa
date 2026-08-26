@@ -7,9 +7,14 @@ upsize/downsize primitives and the dwidth converter wrappers.
 | State | Count |
 |---|---|
 | [open](open.md) | 2 |
-| [closed](closed.md) | 3 |
+| [closed](closed.md) | 4 |
 
 ## Open shortlist
+
+*(CONV-007 closed 2026-08-25 same day: axi4_to_axil4_wr parked-burst-AW
+W-path deadlock — w_burst_capture missing the awready qualifier; found
+by the DV bridge parallel_storm, pinned by
+test_pending_w_blocked_by_waiting_burst_aw.)*
 
 - **CONV-006** — upsize paths require wide-aligned burst starts. Constraint
   now documented (MAS 2.5.5) and asserted in sim; lifting it (start-lane

@@ -47,7 +47,7 @@ The AXI5 Master Read with Monitor module combines the standard `axi5_master_rd` 
 - **RPOISON:** Data poison indicator for corrupted data detection
 - **RCHUNKV/RCHUNKNUM/RCHUNKSTRB:** Chunking control signals
 - **RTAG/RTAGMATCH:** Memory tags and tag match response (MTE)
-- **Integrated AXI monitor** with 3-level filtering hierarchy
+- **Integrated AXI monitor** with 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 - **Error detection:** Protocol violations, SLVERR, DECERR
 - **Timeout monitoring:** Stuck transactions, stalled channels
 - **Performance metrics:** Latency, throughput, outstanding transactions
@@ -92,8 +92,9 @@ flowchart TB
         pkt_ready["monbus_ready"]
     end
 
-    fub_ar --> ar_skid
-    r_skid --> fub_r
+    fub_ar --> ar_pack
+    r_skid --> r_unpack["R Unpacker"]
+    r_unpack --> fub_r
 
     axi5_logic -->|Monitor Taps| trans_mgr
 
@@ -142,8 +143,12 @@ flowchart TB
 | **AGENT_ID** | int | 10 | Monitor agent identifier |
 | **MAX_TRANSACTIONS** | int | 16 | Transaction table size |
 | ACTIVE_TRANS_THRESHOLD | int | MAX_TRANSACTIONS/2 | Active-transaction count that trips a threshold packet when cfg_threshold_enable=1. Replaces the former hardwired 8/4; threshold packets now scale with the table sizing |
+| ACLK_MHZ | int | 100 | Clock MHz -- keeps the 1 us tick exact |
+| CFI_MIN_FREQ_MHZ / CFI_MAX_FREQ_MHZ | int | = ACLK_MHZ | Freq-invariant LUT bounds |
+| USE_WDATA_ORDER_Q / NUM_BANKS | int | -- | Ordering queue / banked tables |
+| ID_FILTER_ENABLE / ID_MATCH_BASE / ID_MATCH_COUNT | int | 0/-- | Per-instance ID-slice filtering |
 | **ACLK_MHZ** | int | 100 | Clock frequency in MHz -- keeps the 1 us tick exact off-100MHz |
-| **CFI_MIN_FREQ_MHZ** / **CFI_MAX_FREQ_MHZ** | int | -- | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
+| **CFI_MIN_FREQ_MHZ** / **CFI_MAX_FREQ_MHZ** | int | = ACLK_MHZ | Freq-invariant counter LUT bounds (`cfg_freq_sel` indexes within them) |
 | **ENABLE_FILTERING** | bit | 1 | Enable 3-level packet filtering |
 | **ADD_PIPELINE_STAGE** | bit | 0 | Add pipeline stage in monitor (latency vs. timing) |
 | **USE_MONITOR** | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
@@ -257,6 +262,7 @@ Same as `axi5_master_rd` - see [AXI5 Master Read](../axi5/axi5_master_rd.md) for
 | monbus_ready | 1 | Input | Monitor packet ready (backpressure) |
 | monbus_packet | 128 | Output | `monitor_packet_t` (see format below) |
 | monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| debug_block_ready | 1 | Output | Observability tap for the block_ready gating net (drives nothing internally; leave unconnected if unused) |
 | i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
