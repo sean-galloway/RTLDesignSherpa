@@ -47,7 +47,15 @@ module pumice_dfi_layer
     parameter int BURST_WORDS    = (BL >= DFI_RATE) ? (BL / DFI_RATE) : 1,
     parameter int CMD_FIFO_DEPTH = 8,
     parameter int WD_FIFO_DEPTH  = 16,
-    parameter int RD_FIFO_DEPTH  = 16,
+    // Read-return FIFO. dfi_rddata_valid is FIRE-AND-FORGET (no PHY
+    // backpressure), so this FIFO must cover the WHOLE read-admission
+    // domain or beats are silently lost when it fills: total in-flight
+    // read beats anywhere <= rd-CAM depth x BL_WORDS (8 x 4 = 32 at the
+    // default build). Depth 16 dropped beats under a paced-but-adjacent
+    // burst schedule (found by test_pumice_core_sched_order: the aligner
+    // forwarded a beat into a full FIFO and the AR-order drain wedged
+    // behind the short burst forever).
+    parameter int RD_FIFO_DEPTH  = 32,
     parameter int N_FLOP_CROSS   = 2,
     // Async-FIFO pointer encoding, forwarded to pumice_dfi_cdc: 0 = Gray
     // (power-of-2 depths only), 1 = Johnson (any depth, DEPTH-bit pointers).

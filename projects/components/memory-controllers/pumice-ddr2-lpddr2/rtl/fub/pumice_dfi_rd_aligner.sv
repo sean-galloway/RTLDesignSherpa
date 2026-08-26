@@ -135,4 +135,19 @@ module pumice_dfi_rd_aligner #(
         end
     )
 
+    // dfi_rddata_valid carries no backpressure: a beat presented while the
+    // downstream FIFO is full is GONE, the burst framing goes short, and
+    // the AR-order drain wedges behind it. The sizing contract (return
+    // FIFO >= CAM depth x BL_WORDS) makes this unreachable; the assertion
+    // turns any future sizing break into a hard failure instead of a
+    // silent data drop.
+`ifndef SYNTHESIS
+    always @(posedge dfi_clk)
+        if (dfi_rstn) begin
+            assert (!(rd_valid_o && !rd_ready_i))
+              else $error("RD_ALIGNER @%0t: read beat LOST (return FIFO full; rcnt=%0d outst=%0d) -- return-path sizing contract broken",
+                          $time, r_rcnt, r_outstanding);
+        end
+`endif
+
 endmodule : pumice_dfi_rd_aligner

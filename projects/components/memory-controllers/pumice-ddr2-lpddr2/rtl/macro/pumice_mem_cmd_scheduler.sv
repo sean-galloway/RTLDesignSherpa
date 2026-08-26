@@ -54,6 +54,7 @@ module pumice_mem_cmd_scheduler
     input  page_policy_e              page_policy_i,
 
     // ---- runtime page-policy CSR fields + telemetry (PUMICE-006 Axis 2) ----
+    input  logic [1:0]                sched_order_mode_i, // SCHED_POLICY.order_mode
     input  logic [2:0]                page_mode_i,        // PAGE_POLICY_CFG.policy_mode
     input  logic                      page_scope_i,
     input  logic [7:0]                page_tr_init_i,
@@ -125,6 +126,8 @@ module pumice_mem_cmd_scheduler
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_i,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    wr_sch_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  wr_sch_older_i,
+    input  logic [NUM_ENTRIES-1:0]              wr_sch_age_exceed_i,
+    input  logic [15:0]                         wr_sch_head_rel_i,
     input  logic                                wr_commit_ready_i,
     output logic                                wr_commit_valid_o,
     output logic [PTRW-1:0]                     wr_commit_slot_o,
@@ -134,6 +137,8 @@ module pumice_mem_cmd_scheduler
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    rd_sch_row_i,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    rd_sch_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  rd_sch_older_i,
+    input  logic [NUM_ENTRIES-1:0]              rd_sch_age_exceed_i,
+    input  logic [15:0]                         rd_sch_head_rel_i,
     input  logic                                rd_issue_ready_i,
     output logic                                rd_issue_valid_o,
     output logic [PTRW-1:0]                     rd_issue_slot_o,
@@ -332,6 +337,9 @@ module pumice_mem_cmd_scheduler
         .trtw_ok_i(w_trtw_ok), .tccd_ok_i(w_tccd_ok),
         .wr_sch_valid_i(wr_sch_valid_i), .wr_sch_bank_i(wr_sch_bank_i), .wr_sch_row_i(wr_sch_row_i),
         .wr_sch_col_i(wr_sch_col_i), .wr_sch_older_i(wr_sch_older_i),
+        .sched_order_mode_i(sched_order_mode_i),
+        .wr_sch_age_exceed_i(wr_sch_age_exceed_i), .wr_sch_head_rel_i(wr_sch_head_rel_i),
+        .rd_sch_age_exceed_i(rd_sch_age_exceed_i), .rd_sch_head_rel_i(rd_sch_head_rel_i),
         .wr_commit_ready_i(wr_commit_ready_i),
         .wr_commit_valid_o(wr_commit_valid_o), .wr_commit_slot_o(wr_commit_slot_o),
         .rd_sch_valid_i(rd_sch_valid_i), .rd_sch_bank_i(rd_sch_bank_i), .rd_sch_row_i(rd_sch_row_i),

@@ -81,6 +81,15 @@ module pumice_rd_cmd_cam #(
     // age-order matrix (flattened): bit [i*NUM_ENTRIES + j] = entry i is OLDER
     // than entry j. 1-bit compares on the scheduler path (vs a 16-bit age key).
     output logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  sch_older_o,
+    // SCHED_POLICY.age_thresh (MC cycles / 16; 0 = off): per-entry flag that
+    // the entry's relative age crossed the threshold — the 1-bit "boost" key
+    // for the age_threshold order mode (numeric ages never leave the CAM).
+    input  logic [7:0]                          age_thresh_i,
+    output logic [NUM_ENTRIES-1:0]              sch_age_exceed_o,
+    // relative age of the oldest SCHEDULABLE entry (0 when none): the
+    // cross-CAM ordering key for the in_order mode. Comparable across CAMs
+    // because every CAM age counter free-runs from reset (same epoch).
+    output logic [AGE_WIDTH-1:0]                sch_head_rel_o,
 
     //=========================================================================
     // Oldest not-issued port (scheduler fallback)
@@ -264,7 +273,14 @@ module pumice_rd_cmd_cam #(
             sch_row_o  [i*ROW_WIDTH +: ROW_WIDTH] = r_row[i];
             sch_col_o  [i*COL_WIDTH +: COL_WIDTH] = r_col[i];
             sch_older_o[i*NUM_ENTRIES +: NUM_ENTRIES] = r_older[i];
+            sch_age_exceed_o[i] = r_valid[i] && !r_issued[i]
+                                && (age_thresh_i != 8'd0)
+                                && (w_rel[i] >= AGE_WIDTH'({age_thresh_i, 4'h0}));
         end
+        sch_head_rel_o = '0;
+        for (int i = 0; i < NUM_ENTRIES; i++)
+            if (r_valid[i] && !r_issued[i] && (w_rel[i] > sch_head_rel_o))
+                sch_head_rel_o = w_rel[i];
     end
 
     // ---- drain-side oldest valid (AR order) via the age-order matrix -------

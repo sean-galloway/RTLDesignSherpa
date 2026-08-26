@@ -373,13 +373,21 @@ DDR2/LPDDR2 project** and are tracked for the DDR3/DDR4 roadmap in
 Model each scheduler unit (precharge / row / column / address arbiters) as an independent
 field so any policy combination is reachable. All commodity-legal.
 
-- **`in_order`** — issue only what the single oldest reference requires; no lookahead. The
-  strict baseline (`ORDER_MODE=in_order`). Cheapest.
+- **`in_order` (IMPLEMENTED 2026-08-26, `SCHED_POLICY.order_mode=1`)** — issue only what
+  the single oldest not-issued reference requires; no lookahead. As built: an arbiter
+  overlay NARROWS the FR-FCFS class masks to the head-of-CAM entry (from the age-order
+  matrix); between CAMs the older head wins by relative-age compare (both CAM age
+  counters free-run from reset, same epoch; tie -> read).
 - **`fr_fcfs` (First-Ready, First-Come-First-Served)** — among *ready* references (DRAM
   timing + resources free), pick **row-hit-ready** first, oldest as tie-break. The current
-  default; a ready-check + age compare (cheap, ~+25% BW in the paper).
-- **`age_threshold`** — references older than `AGE_THRESH` get a priority boost → bounds
-  starvation while still reordering.
+  default (modes 0/2); a ready-check + age compare (cheap, ~+25% BW in the paper).
+- **`age_threshold` (IMPLEMENTED 2026-08-26, `order_mode=3` + `age_thresh`)** — references
+  older than `AGE_THRESH` (MC cycles/16; the CAMs export a per-entry 1-bit aged flag, so
+  numeric ages never leave the CAM) get a priority boost: while ANY aged entry exists,
+  every class narrows to aged entries — an aged reference's PRE outranks fresh row-hits,
+  bounding starvation. The boost triggers on the aged entry's EXISTENCE, not its momentary
+  candidacy (a guard-blocked PRE must still engage the narrowing, or the competing column
+  stream re-arms the guard forever).
 - **`ROW_SEL` / `COL_SEL` = `most_pending` / `fewest_pending`** — activate/serve the row
   with the most (drain the hottest row) or fewest (let low-demand rows precharge sooner)
   pending references. Needs per-row pending **population counters** — the only genuinely
@@ -408,7 +416,7 @@ per-bank precharge *request* that still respects tRAS/tRTP/tRP/tRC. All commodit
   the last column op to a row. Best on random/low-locality (up to +18% vs open).
 - **`fixed_open`** (IMPLEMENTED 2026-08-25, `pumice_page_policy`) — leave the row open, close after an **idle timeout** of
   `TR_INIT` clocks (paper used ≈ tRC). One per-bank timeout counter.
-- **`adapt_time` (Happy "Intel-adaptive", recommended adaptive; IMPLEMENTED 2026-08-25, `pumice_page_policy`)** — per **bank**: Timeout
+- **`adapt_time` (Happy adaptive-timeout, recommended adaptive; IMPLEMENTED 2026-08-25, `pumice_page_policy`)** — per **bank**: Timeout
   Counter `TC`, Timeout Register `TR`, 4-bit Mistake Counter `MC`. Close the row when
   `TC==TR`. `MC`↑ on a premature-close mistake (page-empty reopening the just-closed row),
   `MC`↓ on held-too-long (a conflict that could have been an empty); every

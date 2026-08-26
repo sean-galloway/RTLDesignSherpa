@@ -59,6 +59,14 @@ module pumice_cmd_arbiter
     input  logic                      aresetn,
     input  page_policy_e              page_policy_i,
 
+    // ---- SCHED_POLICY order mode (PUMICE-006 Axis 1) ----
+    // 0/2 = FR-FCFS (build default), 1 = in_order, 3 = age_threshold.
+    input  logic [1:0]                sched_order_mode_i,
+    input  logic [NUM_ENTRIES-1:0]    rd_sch_age_exceed_i, // per-entry age boost
+    input  logic [NUM_ENTRIES-1:0]    wr_sch_age_exceed_i,
+    input  logic [AGE_WIDTH-1:0]      rd_sch_head_rel_i,   // oldest entry's rel age
+    input  logic [AGE_WIDTH-1:0]      wr_sch_head_rel_i,
+
     // ---- runtime page-policy engine (pumice_page_policy, PUMICE-006) ----
     // ap_mode_en overrides the legacy flat w_ap with the per-bank ap_close
     // mask; timeout_pre_req names an idle-expired open bank to close as the
@@ -235,6 +243,15 @@ module pumice_cmd_arbiter
     logic [NUM_BANKS-1:0] w_ap_col_guard;
     assign w_ap_col_guard = r_apguard0 | r_apguard1;
 
+    // PRE-only column guard (see the column-mask comment). THREE stages:
+    // the registered bank image is up to 3 cycles stale end-to-end
+    // (bank_timer update + its output register + the arbiter's input
+    // register) — a 2-deep guard left a 1-cycle hole that still wedged
+    // the parked-victim pattern intermittently.
+    logic [NUM_BANKS-1:0] r_preguard0, r_preguard1, r_preguard2;
+    logic [NUM_BANKS-1:0] w_pre_col_guard;
+    assign w_pre_col_guard = r_preguard0 | r_preguard1 | r_preguard2;
+
     // ---- REF recovery (tRFC) -----------------------------------------------
     // Loaded when a REF fires; while nonzero the DRAM is refreshing internally
     // and no ACT (or further REF) may issue to the rank. Previously enforced by
@@ -306,9 +323,19 @@ module pumice_cmd_arbiter
             // don't touch the CAM, so they stay free -> the arbiter does other
             // work while the FIFO is full (no bubble).
             if (rd_sch_valid_i[e]) begin
+                // !w_pre_col_guard: a PRE fired on this bank within the
+                // last 3 cycles — the registered row image is STALE and a
+                // column picked against it lands on the just-closed row
+                // (the RD issues, its data never returns, and the AR-order
+                // drain wedges behind it forever). PRE-only on purpose:
+                // the general w_guarded also covers RD/WR fires and would
+                // throttle back-to-back same-bank columns. Found by the
+                // parked-victim pattern in test_pumice_core_sched_order;
+                // latent since the bank-parallel refactor.
                 rd_col_m[e] = rhit && r_bank_rdwr_ready[RK0][rb] && tccd_ok_i && twtr_ok_i
                               && rd_issue_ready_i && !w_inflight_col
-                              && !w_rd_turn_block && !w_ap_col_guard[rb];
+                              && !w_rd_turn_block && !w_ap_col_guard[rb]
+                              && !w_pre_col_guard[rb];
                 rd_act_m[e] = !r_bank_row_active[RK0][rb] && !w_guarded[rb]
                               && r_bank_act_ready[RK0][rb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
                               && !w_rfc_busy;
@@ -322,7 +349,8 @@ module pumice_cmd_arbiter
             if (wr_sch_valid_i[e]) begin
                 wr_col_m[e] = whit && r_bank_rdwr_ready[RK0][wb] && tccd_ok_i && trtw_ok_i
                               && wr_commit_ready_i && !w_inflight_col
-                              && !w_wr_turn_block && !w_ap_col_guard[wb];
+                              && !w_wr_turn_block && !w_ap_col_guard[wb]
+                              && !w_pre_col_guard[wb];
                 wr_act_m[e] = !r_bank_row_active[RK0][wb] && !w_guarded[wb]
                               && r_bank_act_ready[RK0][wb] && tfaw_ok_i[RK0] && trrd_ok_i[RK0]
                               && !w_rfc_busy;
@@ -358,15 +386,86 @@ module pumice_cmd_arbiter
         return {found, slot};
     endfunction
 
+    // ---- ORDER_MODE overlay (SCHED_POLICY.order_mode, PUMICE-006 Axis 1) ---
+    // The class masks above are FR-FCFS (modes 0/2, the build default). The
+    // overlay only NARROWS them — the branch chain below is untouched, so the
+    // column > activate > precharge preference and read-over-write priority
+    // hold within whatever survives the narrowing.
+    //   1 in_order      only the single oldest not-issued reference across
+    //                   both CAMs may drive picks (no lookahead). Head-of-CAM
+    //                   comes from the age-order matrix; between CAMs the
+    //                   older head wins by relative-age compare (both CAM age
+    //                   counters free-run from reset, so the values share an
+    //                   epoch; tie -> read).
+    //   3 age_threshold FR-FCFS until any CANDIDATE crosses
+    //                   SCHED_POLICY.age_thresh; then every class narrows to
+    //                   boosted entries — an aged reference's PRE outranks a
+    //                   fresh row-hit, bounding starvation.
+    localparam logic [1:0] ORDER_IN_ORDER = 2'd1;
+    localparam logic [1:0] ORDER_AGE_THR  = 2'd3;
+
+    logic [NUM_ENTRIES-1:0] w_rd_head, w_wr_head;
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            automatic logic older_rd = 1'b0;
+            automatic logic older_wr = 1'b0;
+            for (int j = 0; j < NUM_ENTRIES; j++) begin
+                if ((j != i) && rd_sch_valid_i[j]
+                    && rd_sch_older_i[j*NUM_ENTRIES + i]) older_rd = 1'b1;
+                if ((j != i) && wr_sch_valid_i[j]
+                    && wr_sch_older_i[j*NUM_ENTRIES + i]) older_wr = 1'b1;
+            end
+            w_rd_head[i] = rd_sch_valid_i[i] && !older_rd;
+            w_wr_head[i] = wr_sch_valid_i[i] && !older_wr;
+        end
+    end
+
+    logic w_rd_head_wins;
+    assign w_rd_head_wins = !(|wr_sch_valid_i)
+                          || ((|rd_sch_valid_i)
+                              && (rd_sch_head_rel_i >= wr_sch_head_rel_i));
+
+    // Boost triggers on a boosted entry's EXISTENCE (the CAM gates the flag
+    // on schedulability), NOT on its momentary candidacy: a boosted PRE
+    // blocked by its bank's 2-cycle guard would otherwise never engage the
+    // narrowing, while the competing un-boosted column keeps firing and
+    // re-arming that same guard — the aged entry starves forever on its own
+    // trigger condition.
+    logic w_boost_any;
+    assign w_boost_any = (|rd_sch_age_exceed_i) || (|wr_sch_age_exceed_i);
+
+    logic [NUM_ENTRIES-1:0] rd_col_me, rd_act_me, rd_pre_me;
+    logic [NUM_ENTRIES-1:0] wr_col_me, wr_act_me, wr_pre_me;
+    always_comb begin
+        rd_col_me = rd_col_m; rd_act_me = rd_act_m; rd_pre_me = rd_pre_m;
+        wr_col_me = wr_col_m; wr_act_me = wr_act_m; wr_pre_me = wr_pre_m;
+        if (sched_order_mode_i == ORDER_IN_ORDER) begin
+            if (w_rd_head_wins) begin
+                rd_col_me &= w_rd_head; rd_act_me &= w_rd_head;
+                rd_pre_me &= w_rd_head;
+                wr_col_me = '0; wr_act_me = '0; wr_pre_me = '0;
+            end else begin
+                wr_col_me &= w_wr_head; wr_act_me &= w_wr_head;
+                wr_pre_me &= w_wr_head;
+                rd_col_me = '0; rd_act_me = '0; rd_pre_me = '0;
+            end
+        end else if (sched_order_mode_i == ORDER_AGE_THR && w_boost_any) begin
+            rd_col_me &= rd_sch_age_exceed_i; rd_act_me &= rd_sch_age_exceed_i;
+            rd_pre_me &= rd_sch_age_exceed_i;
+            wr_col_me &= wr_sch_age_exceed_i; wr_act_me &= wr_sch_age_exceed_i;
+            wr_pre_me &= wr_sch_age_exceed_i;
+        end
+    end
+
     logic            rd_col_f, wr_col_f, rd_act_f, wr_act_f, rd_pre_f, wr_pre_f;
     logic [PTRW-1:0] rd_col_s, wr_col_s, rd_act_s, wr_act_s, rd_pre_s, wr_pre_s;
     always_comb begin
-        {rd_col_f, rd_col_s} = arg_oldest(rd_col_m, rd_sch_older_i);
-        {wr_col_f, wr_col_s} = arg_oldest(wr_col_m, wr_sch_older_i);
-        {rd_act_f, rd_act_s} = arg_oldest(rd_act_m, rd_sch_older_i);
-        {wr_act_f, wr_act_s} = arg_oldest(wr_act_m, wr_sch_older_i);
-        {rd_pre_f, rd_pre_s} = arg_oldest(rd_pre_m, rd_sch_older_i);
-        {wr_pre_f, wr_pre_s} = arg_oldest(wr_pre_m, wr_sch_older_i);
+        {rd_col_f, rd_col_s} = arg_oldest(rd_col_me, rd_sch_older_i);
+        {wr_col_f, wr_col_s} = arg_oldest(wr_col_me, wr_sch_older_i);
+        {rd_act_f, rd_act_s} = arg_oldest(rd_act_me, rd_sch_older_i);
+        {wr_act_f, wr_act_s} = arg_oldest(wr_act_me, wr_sch_older_i);
+        {rd_pre_f, rd_pre_s} = arg_oldest(rd_pre_me, rd_sch_older_i);
+        {wr_pre_f, wr_pre_s} = arg_oldest(wr_pre_me, wr_sch_older_i);
     end
 
     // ---- refresh: pick the lowest active bank that can precharge ------------
@@ -578,11 +677,16 @@ module pumice_cmd_arbiter
             r_wrfire0 <= 1'b0; r_wrfire1 <= 1'b0;
             r_rdfire0 <= 1'b0; r_rdfire1 <= 1'b0;
             r_apguard0 <= '0;  r_apguard1 <= '0;
+            r_preguard0 <= '0; r_preguard1 <= '0; r_preguard2 <= '0;
         end else begin
             r_guard1 <= r_guard0;
             r_guard0 <= '0;
             if (w_fire_out && (r_do_act || r_do_pre || r_do_rd || r_do_wr))
                 r_guard0 <= (NUM_BANKS'(1) << r_bank);
+            r_preguard2 <= r_preguard1;
+            r_preguard1 <= r_preguard0;
+            r_preguard0 <= (w_fire_out && r_do_pre)
+                         ? (NUM_BANKS'(1) << r_bank) : '0;
             // direction-turnaround guard shift (see w_rd/wr_turn_block)
             r_wrfire1 <= r_wrfire0;
             r_wrfire0 <= w_fire_out && r_do_wr;

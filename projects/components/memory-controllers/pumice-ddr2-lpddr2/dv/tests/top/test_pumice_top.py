@@ -137,7 +137,7 @@ async def cocotb_test_pumice_top(dut):
 
     if test_type == "adapt_time_workload":
         # Successor of the retired HAPPY_HYBRID workload: the Happy
-        # Intel-adaptive timeout policy (PAGE_POLICY_CFG.policy_mode=4),
+        # Happy adaptive-timeout policy (PAGE_POLICY_CFG.policy_mode=4),
         # short TR so closes actually happen inside this workload.
         w = tb.csr_write_field
         await w("PAGE_POLICY_CFG", "policy_mode", 4)

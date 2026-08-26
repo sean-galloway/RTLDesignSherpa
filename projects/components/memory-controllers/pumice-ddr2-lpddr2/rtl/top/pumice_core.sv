@@ -123,6 +123,8 @@ module pumice_core
     input  logic [3:0]                 page_mc_low_i,
     input  logic [3:0]                 page_mc_init_i,
     input  logic [15:0]                page_check_ivl_i,
+    input  logic [1:0]                 sched_order_mode_i,
+    input  logic [7:0]                 sched_age_thresh_i,
     input  logic [3:0]                 page_ctr_thresh_i,
     input  logic [3:0]                 page_ctr_init_i,
     input  logic [7:0]                 page_rbl_thresh_i,
@@ -252,6 +254,8 @@ module pumice_core
     logic [NUM_ENTRIES*ROW_WIDTH-1:0]   w_wr_sch_row,   w_rd_sch_row;
     logic [NUM_ENTRIES*COL_WIDTH-1:0]   w_wr_sch_col,   w_rd_sch_col;
     logic [NUM_ENTRIES*NUM_ENTRIES-1:0] w_wr_sch_older, w_rd_sch_older;
+    logic [NUM_ENTRIES-1:0]             w_wr_sch_agex,  w_rd_sch_agex;
+    logic [15:0]                        w_wr_sch_hrel,  w_rd_sch_hrel;
     logic                      w_wr_commit_v, w_wr_commit_rdy;
     logic [PTRW-1:0]           w_wr_commit_slot;
     logic                      w_rd_issue_v, w_rd_issue_rdy;
@@ -315,6 +319,9 @@ module pumice_core
         // wr CAM per-entry vectors + commit
         .wr_sch_valid_o(w_wr_sch_v), .wr_sch_bank_o(w_wr_sch_bank), .wr_sch_row_o(w_wr_sch_row),
         .wr_sch_col_o(w_wr_sch_col), .wr_sch_older_o(w_wr_sch_older),
+        .wr_sch_age_exceed_o(w_wr_sch_agex), .wr_sch_head_rel_o(w_wr_sch_hrel),
+        .rd_sch_age_exceed_o(w_rd_sch_agex), .rd_sch_head_rel_o(w_rd_sch_hrel),
+        .sched_age_thresh_i(sched_age_thresh_i),
         .wr_commit_valid_i(w_wr_commit_v), .wr_commit_ready_o(w_wr_commit_rdy),
         .wr_commit_slot_i(w_wr_commit_slot),
         .wr_cm_rd_valid_o(w_cm_v), .wr_cm_rd_ready_i(w_cm_rdy),
@@ -367,6 +374,9 @@ module pumice_core
         // wr CAM per-entry vectors + commit
         .wr_sch_valid_i(w_wr_sch_v), .wr_sch_bank_i(w_wr_sch_bank), .wr_sch_row_i(w_wr_sch_row),
         .wr_sch_col_i(w_wr_sch_col), .wr_sch_older_i(w_wr_sch_older),
+        .sched_order_mode_i(sched_order_mode_i),
+        .wr_sch_age_exceed_i(w_wr_sch_agex), .wr_sch_head_rel_i(w_wr_sch_hrel),
+        .rd_sch_age_exceed_i(w_rd_sch_agex), .rd_sch_head_rel_i(w_rd_sch_hrel),
         .wr_commit_ready_i(w_wr_commit_rdy),
         .wr_commit_valid_o(w_wr_commit_v), .wr_commit_slot_o(w_wr_commit_slot),
         // rd CAM per-entry vectors + issue

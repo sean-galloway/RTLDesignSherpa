@@ -15,7 +15,7 @@
 //        2 static_close  ap=1 everywhere
 //        3 fixed_open    ap=0; rows close by IDLE TIMEOUT instead
 //        4 adapt_time    ap=0; per-bank timeout register TR adapts (Happy
-//                        "Intel-adaptive": mistake counter MC, premature-close
+//                        adaptive-timeout: mistake counter MC, premature-close
 //                        vs held-too-long, TR += / -= step each check interval)
 //        5 adapt_access  ap = per-row 2-bit close predictor (Happy "Hybrid",
 //                        pumice_row_pred_table; knob-free)

@@ -189,9 +189,71 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     assert acts == [3, 2], \
         f"bank-parallel: ACT both idle banks, oldest(3) first: got {acts}"
 
+    # ===== 11. ORDER_MODE overlay (PUMICE-006 Axis 1) =====
+    # Bank 3 open @ row 5. Entry 0 = OLD conflict (row 7, needs PRE), entry 1
+    # = YOUNG row-hit (row 5). FR-FCFS serves the young hit; in_order narrows
+    # to the old head (PRE); age_threshold with entry 0 boosted narrows every
+    # class to the aged entry (PRE), and with no boost falls back to FR-FCFS.
+    # Poll EVERY edge, not settle()'s 2-edge stride: with static vectors the
+    # arbiter alternates picks (e.g. RD/ACT, period 2) and a 2-edge stride
+    # phase-locks onto the wrong cycle — the same sampling lesson as the
+    # refresh poll above.
+    from cocotb.triggers import Timer as _T2
+    async def _poll_for(op, tries=16):
+        for _ in range(tries):
+            await RisingEdge(dut.aclk)
+            await _T2(1, units='ns')
+            pp = tb.picked()
+            if pp['op'] == op:
+                return pp
+        return pp
+
+    tb._drive_idle(); dut.init_done_i.value = 1
+    tb.set_bank_bits(dut.bank_row_active_i, {3: 1})
+    tb.set_bank_bits(dut.bank_rdwr_ready_i, {3: 1})
+    tb.set_bank_bits(dut.bank_pre_ready_i, {3: 1})
+    tb.set_open_rows({3: 5})
+    tb.set_entries('rd', {0: (3, 7, 0x00, 90), 1: (3, 5, 0x10, 10)})
+
+    dut.sched_order_mode_i.value = 0            # fr_fcfs: young hit wins
+    p = await _poll_for(OP_RD)
+    assert p['op'] == OP_RD and p['col'] == 0x10, f"fr_fcfs pick: {p}"
+
+    dut.sched_order_mode_i.value = 1            # in_order: head's PRE only
+    dut.rd_sch_head_rel_i.value = 90
+    p = await _poll_for(OP_PRE)
+    assert p['op'] == OP_PRE and p['bank'] == 3, f"in_order pick: {p}"
+
+    dut.sched_order_mode_i.value = 3            # age_threshold, entry 0 boosted
+    dut.rd_sch_age_exceed_i.value = 0b0000_0001
+    p = await _poll_for(OP_PRE)
+    assert p['op'] == OP_PRE and p['bank'] == 3, f"age_threshold boosted pick: {p}"
+
+    # no boost -> fr_fcfs again. Re-drive with the old entry as an ACT
+    # candidate on an idle bank (no PRE candidate): with static vectors the
+    # picks alternate (RD / ACT / ...) and the probe showed the RD firing all
+    # along — the original polls just phase-locked past it, and a PRE-holding
+    # scenario adds guard churn that makes the cadence even less samplable.
+    # Unboosted fr_fcfs must serve the YOUNG hit column; a stuck narrowing
+    # (agex=0) would mask everything and pick nothing.
+    tb._drive_idle(); dut.init_done_i.value = 1
+    tb.set_bank_bits(dut.bank_row_active_i, {3: 1})
+    tb.set_bank_bits(dut.bank_rdwr_ready_i, {3: 1})
+    tb.set_bank_bits(dut.bank_act_ready_i, {4: 1})
+    tb.set_open_rows({3: 5})
+    tb.set_entries('rd', {0: (4, 7, 0x00, 90), 1: (3, 5, 0x10, 10)})
+    dut.sched_order_mode_i.value = 3
+    dut.rd_sch_age_exceed_i.value = 0
+    p = await _poll_for(OP_RD)
+    assert p['op'] == OP_RD and p['col'] == 0x10, f"age_threshold unboosted pick: {p}"
+
+    dut.sched_order_mode_i.value = 0
+    dut.rd_sch_head_rel_i.value = 0
+
     tb.log.info("PASS: init, refresh(PRE->REF+grant), read-priority, oldest "
                 "tie-break, write pick, CLOSE auto-PRE, ACT idle bank, backpressure, "
-                "columns oldest-first (pipelined), bank-parallel activate")
+                "columns oldest-first (pipelined), bank-parallel activate, "
+                "order-mode overlay (in_order / age_threshold)")
 
 
 def test_pumice_cmd_arbiter(request):

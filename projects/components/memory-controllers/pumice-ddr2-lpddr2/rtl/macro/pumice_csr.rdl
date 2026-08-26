@@ -710,7 +710,7 @@ addrmap pumice_csr {
 
     reg {
         name = "Page Adaptive Config";
-        desc = "adapt_time (Happy Intel-adaptive) mistake-counter thresholds.";
+        desc = "adapt_time (Happy adaptive-timeout) mistake-counter thresholds.";
 
         field { sw = rw; hw = r; desc = "MC high threshold (TR += step above)";  } mc_high_thr[3:0]  = 4'h0;
         field { sw = rw; hw = r; desc = "MC low threshold (TR -= step below)";   } mc_low_thr[7:4]   = 4'h0;

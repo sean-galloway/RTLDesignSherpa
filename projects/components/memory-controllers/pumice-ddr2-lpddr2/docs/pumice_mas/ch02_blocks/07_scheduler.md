@@ -75,7 +75,20 @@ all gated on the command sink accepting the push:
    tRFC** (`TIMINGS_RFC_REFI.tRFC` -> `t_rfc_i`) is enforced by an arbiter
    down-counter loaded on each fired REF; while non-zero, ACT picks and further
    REFs are blocked (init-time refreshes use `INIT_TIMING1.t_rfc_wait`
-   separately). `w_ref_safe` also carries **`!r_grant`**: the grant-to-
+   separately). Column picks also carry a **PRE-only 3-cycle bank guard**
+   (`w_pre_col_guard`): without it a conflict-PRE could fire in a
+   column-readiness gap and a column then pick against the stale
+   row-open image (up to 3 cycles end-to-end) — the RD lands on the just-closed row, its data never
+   returns, and the rd reorder CAM's AR-order drain wedges behind it
+   forever (found by the parked-victim pattern; latent since the
+   bank-parallel refactor; PRE-only because the general `w_guarded` also
+   covers RD/WR fires and would throttle same-bank column streaming).
+   The `SCHED_POLICY.order_mode` overlay (Axis 1) NARROWS the FR-FCFS
+   class masks before the pick: `1 in_order` keeps only the head-of-CAM
+   entry of the older CAM (relative-age compare across CAMs); `3
+   age_threshold` narrows every class to aged entries whenever any exist
+   (per-entry 1-bit flags from the CAMs at `SCHED_POLICY.age_thresh`).
+   `w_ref_safe` also carries **`!r_grant`**: the grant-to-
    request-drop round trip is 2 cycles, so without it the branch re-picked a
    SECOND REF while the first still sat in the output register and the
    refresh DOUBLE-ISSUED on the wire — a silent tRFC-between-REFs violation

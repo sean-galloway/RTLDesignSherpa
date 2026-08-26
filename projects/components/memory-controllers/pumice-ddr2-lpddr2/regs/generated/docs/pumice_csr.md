@@ -980,7 +980,7 @@ request. All hw-readable so they drive the controller core.</p>
 - Base Offset: 0x78
 - Size: 0x4
 
-<p>adapt_time (Happy Intel-adaptive) mistake-counter thresholds.</p>
+<p>adapt_time (Happy adaptive-timeout) mistake-counter thresholds.</p>
 
 | Bits|  Identifier  |Access|Reset|Name|
 |-----|--------------|------|-----|----|

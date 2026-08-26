@@ -14,7 +14,7 @@
 - Axis 2 partial: `pumice_page_policy` fub — modes 1/2 (static ap override),
   3 `fixed_open` (per-bank idle-timeout close via a new lowest-priority
   arbiter PRE branch, JEDEC-gated like the conflict-PRE path) and
-  4 `adapt_time` (Happy Intel-adaptive TR/MC walk) + the always-on page
+  4 `adapt_time` (Happy adaptive-timeout TR/MC walk) + the always-on page
   hit/miss/empty + ACT/PRE/REF counters feeding the *_STATS CSRs.
   Directed test `test_pumice_core_fixed_open` is self-checking both ways
   (mode-0 inertness arms) and mutation-proven (w_timeout_on=0 → RED).
@@ -86,7 +86,12 @@
   two cycles and the sampler always caught the second one. Single-issue
   made the 1-cycle REF invisible to the stride; the poll now samples
   every edge. A test that samples slower than the event it checks can be
-  green only in the presence of the bug it should catch.
+  green only in the presence of the bug it should catch. (The SAME
+  stride bit AGAIN in the Axis-1 fub arm: with static vectors the picks
+  alternate RD/ACT at period 2 and settle()'s 2-edge stride phase-locked
+  onto the non-RD cycle — hours chasing phantom "livelocks" before the
+  mask probe showed the RD firing all along. Order-mode polls are now
+  per-edge too.)
   Directed test_pumice_top_refpb (LPDDR2 top TB): strap check, REFab
   red-guard (refpb_total==0), full rotation >=8, BFM traffic golden
   THROUGH the refpb stream, zero refresh-class model violations, disarm.
@@ -97,6 +102,43 @@
   0.6.5 wheel at the release pin-bump — [[reference_dv_framework_repos]]
   has the recovery (rm the site-packages copy, pip install -e, verify
   __file__).
+- Axis 1 step 1: ORDER_MODE landed (SCHED_POLICY.order_mode 1=in_order /
+  3=age_threshold + age_thresh; 0/2 = FR-FCFS default). CAMs export a
+  per-entry 1-bit aged flag + head relative age (numeric ages never leave
+  the CAM); the arbiter overlay only NARROWS the FR-FCFS class masks.
+  A REAL PRE-EXISTING BUG found by the directed test's parked-victim
+  pattern (same-bank conflict read held while row-hits stream): a
+  conflict-PRE fires in a column-readiness gap, then a COLUMN picks
+  against the 2-cycle-stale row-open image and lands on the closed row —
+  its data never returns and the rd reorder CAM's AR-order drain WEDGES
+  forever (rd-return checker DROP). Reproduced on pristine HEAD RTL
+  (bisect harness), latent since the bank-parallel refactor. Fix =
+  PRE-only THREE-cycle column guard (w_pre_col_guard; PRE-only because
+  the general w_guarded also covers RD/WR fires and would throttle
+  same-bank column streaming — the first broad fix broke the fub
+  CLOSE->WRA arm; three deep because the bank image is up to 3 cycles
+  stale end-to-end and the 2-deep version still wedged).
+  A SECOND pre-existing bug behind the residual deterministic wedge: the
+  DFI READ-RETURN PATH SILENTLY DROPPED BEATS — dfi_rddata_valid is
+  fire-and-forget (no PHY backpressure) and the rd aligner forwarded
+  beats into the return CDC FIFO with ready gating only its capture
+  counter; a beat arriving while the 16-deep FIFO was full was simply
+  gone (probe: 4 beats lost), the burst went short, and the AR-order
+  drain wedged behind it. Fix = RD_FIFO_DEPTH 16 -> 32 (sizing contract:
+  the return FIFO must cover the whole admission domain = rd-CAM depth x
+  BL_WORDS = 32 beats) + a HARD ASSERTION in the aligner so any future
+  valid-with-full cycle is an $error, never silent data loss.
+  TWO design lessons: (a) the rd reorder CAM releases AXI reads in AR
+  order BY DESIGN, so completion order at the core level can NEVER show
+  scheduling differences — order-mode semantics are verified at the FUB
+  arbiter level (hand-driven vectors, scenario 11), the core test is the
+  wedge/integrity sentinel across modes; (b) age_threshold's boost must
+  trigger on the aged entry's EXISTENCE, not its candidacy — a
+  guard-blocked PRE never becomes a candidate while the competing column
+  keeps firing and re-arming that same guard (self-sustaining starvation
+  of the anti-starvation mechanism). Mutation-proven (overlay gutted ->
+  in_order arm RED). Remaining Axis 1: most/fewest_pending, ACCESS_PREF,
+  write batching (SCHED_WR_WM), prio_sub, QoS.
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.
@@ -247,3 +289,31 @@ observability only — the 1:1 check is doing its job of flagging it; data-path
 Repro: `pumice_master.py --char --char-configs baseline --char-level medium
 --char-scale 1000` and watch col_major_bl8_multiid; or in sim,
 TEST_CHAR_PROFILE with a multiid scenario over the loopback.
+
+## PUMICE-012 — greppable structure trackers (CAMs / page policy / refresh / scheduler)
+**Status:** open 2026-08-26 (Sean, mid-Axis-1 session)
+
+Add debug TRACKERS to the major stateful structures so a single sim log can
+be split into per-structure logs with grep and the decision flow followed
+across them. Sean's intent verbatim: "add trackers for things like the CAM,
+etc. I want to be able to use some greps and pull items out into separate
+logs, then look at the states of the separate structures to follow
+paging/refresh/sched decisions to investigate and understand the behaviors."
+
+Shape (proposal — refine when picked up):
+- `synthesis translate_off` $display trackers with STABLE one-word tags,
+  one tag per structure: `[TRK-CAMRD]`, `[TRK-CAMWR]`, `[TRK-ARB]`,
+  `[TRK-PAGEPOL]`, `[TRK-RBL]`, `[TRK-ROWPRED]`, `[TRK-REFCTL]`,
+  `[TRK-BANKTMR]`. Then `grep 'TRK-CAMRD' sim.log > camrd.log` etc.
+- Every line carries `t=%0t` plus the structure's decision-relevant state
+  (CAM: insert/issue/retire slot+bank+row+age; arbiter: pick + which
+  branch + the masks that lost; page policy: mode, ap mask changes,
+  timeout/verdict events; refresh: tick/pend/credit/grant/rotor).
+- Emit on EVENTS (state changes), not every cycle, so the logs stay
+  greppable at scale; a common `TRK_EN` plusarg or parameter gates them
+  all off by default.
+- The session's debug history is the motivation: the refpb rotor desync,
+  the refresh double-issue, and the sched_order wedge were each found by
+  hand-adding exactly these displays ad hoc, then deleting them. Make the
+  instrumentation permanent and selectable instead of rewriting it every
+  investigation.

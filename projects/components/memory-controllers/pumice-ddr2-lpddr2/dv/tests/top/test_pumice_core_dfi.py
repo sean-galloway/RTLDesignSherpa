@@ -620,6 +620,80 @@ async def cocotb_test_pumice_core_acc(dut):
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_sched_order(dut):
+    """PUMICE-006 Axis 1: SCHED_POLICY.order_mode integrity sweep + the
+    parked-victim WEDGE sentinel.
+
+    The pick-level semantics of in_order / age_threshold are verified in the
+    fub arbiter test (hand-driven vectors — deterministic); the rd reorder
+    CAM releases AXI reads in AR order BY DESIGN, so completion order at this
+    level cannot show scheduling differences. What this test pins:
+
+      * the parked-victim pattern (a same-bank CONFLICT read held in the CAM
+        while row-hits stream) completes with GOLDEN data under EVERY order
+        mode. Before the column-guard fix this pattern WEDGED the read path
+        at default FR-FCFS: a conflict-PRE fired in a column-readiness gap,
+        a column picked against the 2-cycle-stale row-open image landed on
+        the closed row, its data never returned, and the AR-order drain
+        blocked behind it forever (rd-return checker DROP).
+      * every mode drains the full pattern (no wedge, no data loss) and the
+        overlay disarms back to mode 0.
+    """
+    _memory, slave = await _bring_up(dut, page_policy=0)   # OPEN
+    rng = random.Random(int(os.environ.get("SEED", "13")))
+
+    BANK, ROW_H, ROW_V = 2, 3, 9
+    N = 12                                   # row-hit stream length
+    VICTIM_ID = 7
+
+    # ---- preload golden data (writes; hits row H cols 0..N-1, victim row V) --
+    hit_addr = [_mkaddr(BANK, ROW_H, c * BL) for c in range(N)]
+    vic_addr = _mkaddr(BANK, ROW_V, 0)
+    golden = {}
+    for addr in hit_addr + [_mkaddr(BANK, ROW_V, 0)]:
+        golden[addr] = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+        await _aw(dut, addr, 0)
+        await _w(dut, golden[addr])
+    await ClockCycles(dut.aclk, 300)         # drain all writes
+
+    async def _run_arm(mode, thresh):
+        dut.sched_order_mode_i.value = mode
+        dut.sched_age_thresh_i.value = thresh
+        done, vic_beats = [0], []
+
+        async def _collect():
+            while True:
+                await RisingEdge(dut.aclk)
+                if int(dut.s_axi_rvalid.value) and int(dut.s_axi_rready.value):
+                    if int(dut.s_axi_rid.value) == VICTIM_ID:
+                        vic_beats.append(int(dut.s_axi_rdata.value))
+                    if int(dut.s_axi_rlast.value):
+                        done[0] += 1
+
+        task = cocotb.start_soon(_collect())
+        await _ar(dut, hit_addr[0], 1)       # opens row H
+        await ClockCycles(dut.aclk, 4)
+        await _ar(dut, vic_addr, VICTIM_ID)  # the parked conflict victim
+        for c in range(1, N):
+            await _ar(dut, hit_addr[c], 1 + (c % 6))
+        for _ in range(4000):
+            await RisingEdge(dut.aclk)
+            if done[0] >= N + 1:
+                break
+        task.kill()
+        assert done[0] == N + 1, (
+            f"mode {mode}: only {done[0]}/{N+1} reads returned -- the "
+            f"parked-victim pattern wedged the read path")
+        assert vic_beats[:BL_WORDS] == golden[vic_addr], (
+            f"mode {mode}: victim data not golden")
+
+    for mode, thresh in ((0, 0), (3, 2), (1, 0), (0, 0)):
+        await _run_arm(mode, thresh)
+    dut._log.info(f"PASS sched_order: parked-victim pattern clean under "
+                  f"fr_fcfs / age_threshold / in_order / disarm")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
 async def cocotb_test_pumice_core_refresh_credit(dut):
     """PUMICE-006 Axis 3: REF_CTRL postpone/pullin JEDEC +-8 credits.
 
@@ -853,6 +927,10 @@ def test_pumice_core_acc(request):
 
 def test_pumice_core_refresh_credit(request):
     _run(request, "cocotb_test_pumice_core_refresh_credit")
+
+
+def test_pumice_core_sched_order(request):
+    _run(request, "cocotb_test_pumice_core_sched_order")
 
 
 def test_pumice_core_refresh_collide(request):
