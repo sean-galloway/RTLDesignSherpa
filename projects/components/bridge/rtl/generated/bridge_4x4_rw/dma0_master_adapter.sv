@@ -382,24 +382,38 @@ module dma0_master_adapter
     // ================================================================
 
     // Per-width path-active gates (see comment in adapter_generator.py).
+    logic aw_gate_ok;
+    logic ar_gate_ok;
     logic aw_path_active_32b;
-    assign aw_path_active_32b = comb_slave_select_aw[0];
+    assign aw_path_active_32b = (comb_slave_select_aw[0]) && aw_gate_ok;
     logic w_path_active_32b;
     assign w_path_active_32b = w_slave_select[0];
     logic ar_path_active_32b;
-    assign ar_path_active_32b = comb_slave_select_ar[0];
+    assign ar_path_active_32b = (comb_slave_select_ar[0]) && ar_gate_ok;
+    logic b_path_active_32b;
+    assign b_path_active_32b = b_slave_select[0];
+    logic r_path_active_32b;
+    assign r_path_active_32b = r_slave_select[0];
     logic aw_path_active_64b;
-    assign aw_path_active_64b = comb_slave_select_aw[1];
+    assign aw_path_active_64b = (comb_slave_select_aw[1]) && aw_gate_ok;
     logic w_path_active_64b;
     assign w_path_active_64b = w_slave_select[1];
     logic ar_path_active_64b;
-    assign ar_path_active_64b = comb_slave_select_ar[1];
+    assign ar_path_active_64b = (comb_slave_select_ar[1]) && ar_gate_ok;
+    logic b_path_active_64b;
+    assign b_path_active_64b = b_slave_select[1];
+    logic r_path_active_64b;
+    assign r_path_active_64b = r_slave_select[1];
     logic aw_path_active_128b;
-    assign aw_path_active_128b = comb_slave_select_aw[2];
+    assign aw_path_active_128b = (comb_slave_select_aw[2]) && aw_gate_ok;
     logic w_path_active_128b;
     assign w_path_active_128b = w_slave_select[2];
     logic ar_path_active_128b;
-    assign ar_path_active_128b = comb_slave_select_ar[2];
+    assign ar_path_active_128b = (comb_slave_select_ar[2]) && ar_gate_ok;
+    logic b_path_active_128b;
+    assign b_path_active_128b = b_slave_select[2];
+    logic r_path_active_128b;
+    assign r_path_active_128b = r_slave_select[2];
 
     // ================================================================
     // Direct passthrough: 32b → 32b (no converter)
@@ -431,7 +445,8 @@ module dma0_master_adapter
     // wready routed via MUX
 
     // B channel (response: output → MUX → fub)
-    assign dma0_master_32b_bready = fub_axi_bready;
+    // Ready gated by the response head — see b_path_active comment.
+    assign dma0_master_32b_bready = fub_axi_bready && b_path_active_32b;
     // bid, bresp, bvalid routed via MUX (user field ignored)
 
     // AR channel (request: fub → output)
@@ -450,7 +465,8 @@ module dma0_master_adapter
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
-    assign dma0_master_32b_rready = fub_axi_rready;
+    // Ready gated by the response head — see r_path_active comment.
+    assign dma0_master_32b_rready = fub_axi_rready && r_path_active_32b;
     // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
 
     // ================================================================
@@ -507,7 +523,7 @@ module dma0_master_adapter
         .s_axi_bresp(conv_64b_bresp),
         .s_axi_buser(),
         .s_axi_bvalid(conv_64b_bvalid),
-        .s_axi_bready(fub_axi_bready),
+        .s_axi_bready(fub_axi_bready && b_path_active_64b),
 
         // Master side (to crossbar)
         .m_axi_awid(dma0_master_64b_aw.id),
@@ -568,7 +584,7 @@ module dma0_master_adapter
         .s_axi_rlast(conv_64b_rlast),
         .s_axi_ruser(),
         .s_axi_rvalid(conv_64b_rvalid),
-        .s_axi_rready(fub_axi_rready),
+        .s_axi_rready(fub_axi_rready && r_path_active_64b),
 
         // Master side (to crossbar)
         .m_axi_arid(dma0_master_64b_ar.id),
@@ -647,7 +663,7 @@ module dma0_master_adapter
         .s_axi_bresp(conv_128b_bresp),
         .s_axi_buser(),
         .s_axi_bvalid(conv_128b_bvalid),
-        .s_axi_bready(fub_axi_bready),
+        .s_axi_bready(fub_axi_bready && b_path_active_128b),
 
         // Master side (to crossbar)
         .m_axi_awid(dma0_master_128b_aw.id),
@@ -708,7 +724,7 @@ module dma0_master_adapter
         .s_axi_rlast(conv_128b_rlast),
         .s_axi_ruser(),
         .s_axi_rvalid(conv_128b_rvalid),
-        .s_axi_rready(fub_axi_rready),
+        .s_axi_rready(fub_axi_rready && r_path_active_128b),
 
         // Master side (to crossbar)
         .m_axi_arid(dma0_master_128b_ar.id),
@@ -781,6 +797,23 @@ module dma0_master_adapter
                           ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
                           : '0;
 
+    // Single-outstanding-target (writes): only accept a new AW
+    // while every outstanding write targets the SAME slave. The
+    // B response mux replays responses in AW issue order; slaves
+    // respond in their own accept order, so cross-slave outstanding
+    // writes from several masters can deadlock the heads against
+    // each other. Same-slave pipelining is unaffected.
+    logic [NUM_SLAVES-1:0] r_aw_active_target;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_aw_active_target <= '0;
+        end else if (aw_trk_push) begin
+            r_aw_active_target <= comb_slave_select_aw;
+        end
+    end
+    assign aw_gate_ok = (aw_trk_wptr == aw_trk_rptr) ||
+                        (comb_slave_select_aw == r_aw_active_target);
+
     // -------- AW->W slave_select tracking FIFO --------
     // Same push as AW (records slave_select at handshake);
     // pops on wlast so W#2's path-active gating doesn't wait
@@ -845,6 +878,18 @@ module dma0_master_adapter
                           ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
                           : '0;
 
+    // Single-outstanding-target (reads) — see aw_gate_ok comment.
+    logic [NUM_SLAVES-1:0] r_ar_active_target;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_ar_active_target <= '0;
+        end else if (ar_trk_push) begin
+            r_ar_active_target <= comb_slave_select_ar;
+        end
+    end
+    assign ar_gate_ok = (ar_trk_wptr == ar_trk_rptr) ||
+                        (comb_slave_select_ar == r_ar_active_target);
+
     // AW-ready MUX (combinational comb_slave_select_aw — awaddr is live during awvalid)
     always_comb begin
         fub_axi_awready = 1'b0;
@@ -862,6 +907,9 @@ module dma0_master_adapter
                 // No slave selected
             end
         endcase
+        // Single-outstanding-target: hold off a new AW while writes
+        // to a different slave are in flight (see aw_gate_ok).
+        if (!aw_gate_ok) fub_axi_awready = 1'b0;
     end
 
     // W-ready MUX (FIFO-tracked w_slave_select — awaddr has already reverted by W phase)
@@ -928,6 +976,9 @@ module dma0_master_adapter
                 // No slave selected
             end
         endcase
+        // Single-outstanding-target: hold off a new AR while reads
+        // to a different slave are in flight (see ar_gate_ok).
+        if (!ar_gate_ok) fub_axi_arready = 1'b0;
     end
 
     // Read response MUX (R channel - uses r_slave_select FIFO head)

@@ -254,6 +254,18 @@ module bridge_mix_a_xbar
     // Crossbar Routing
     // ================================================================
 
+    // W-follow declarations (assigned below)
+    logic cpu_axi4_32b_w_to_axil_periph;
+    logic cpu_axi4_32b_w_sel_axil_periph;
+    logic cpu_axi4_32b_w_to_apb_periph;
+    logic cpu_axi4_32b_w_sel_apb_periph;
+    logic cpu_axi4_64b_w_to_ddr;
+    logic cpu_axi4_64b_w_sel_ddr;
+    logic host_axil_32b_w_to_axil_periph;
+    logic host_axil_32b_w_sel_axil_periph;
+    logic host_axil_32b_w_to_apb_periph;
+    logic host_axil_32b_w_sel_apb_periph;
+
     // ================================================================
     // Slave 0: ddr (64b)
     // ================================================================
@@ -263,6 +275,7 @@ module bridge_mix_a_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_axi4_64b_aw_to_ddr = (cpu_axi4_64b_aw.addr <= 32'h3fffffff);
+    wire cpu_axi4_64b_aw_gnt_ddr = cpu_axi4_64b_aw_to_ddr;
     assign ddr_axi_awid     = cpu_axi4_64b_aw_to_ddr ? cpu_axi4_64b_aw.id : '0;
     assign ddr_axi_awaddr   = cpu_axi4_64b_aw_to_ddr ? cpu_axi4_64b_aw.addr : '0;
     assign ddr_axi_awlen    = cpu_axi4_64b_aw_to_ddr ? cpu_axi4_64b_aw.len : '0;
@@ -273,31 +286,9 @@ module bridge_mix_a_xbar
     assign ddr_axi_awprot   = cpu_axi4_64b_aw_to_ddr ? cpu_axi4_64b_aw.prot : '0;
     assign ddr_axi_awvalid  = cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid;
 
-    // AW->W tracking FIFO for this (master,slave) pair
-    logic cpu_axi4_64b_w_to_ddr;
-    logic [3:0] cpu_axi4_64b_aw_to_ddr_w_wptr, cpu_axi4_64b_aw_to_ddr_w_rptr;
-    logic cpu_axi4_64b_aw_to_ddr_w_mem [16];
-    logic cpu_axi4_64b_aw_to_ddr_w_push, cpu_axi4_64b_aw_to_ddr_w_pop;
-    assign cpu_axi4_64b_aw_to_ddr_w_push = cpu_axi4_64b_awvalid && cpu_axi4_64b_awready && cpu_axi4_64b_aw_to_ddr;
-    assign cpu_axi4_64b_aw_to_ddr_w_pop  = cpu_axi4_64b_wvalid && cpu_axi4_64b_wready && cpu_axi4_64b_w.last && cpu_axi4_64b_w_to_ddr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            cpu_axi4_64b_aw_to_ddr_w_wptr <= '0;
-            cpu_axi4_64b_aw_to_ddr_w_rptr <= '0;
-        end else begin
-            if (cpu_axi4_64b_aw_to_ddr_w_push) begin
-                cpu_axi4_64b_aw_to_ddr_w_mem[cpu_axi4_64b_aw_to_ddr_w_wptr] <= 1'b1;
-                cpu_axi4_64b_aw_to_ddr_w_wptr <= cpu_axi4_64b_aw_to_ddr_w_wptr + 1'b1;
-            end
-            if (cpu_axi4_64b_aw_to_ddr_w_pop) begin
-                cpu_axi4_64b_aw_to_ddr_w_rptr <= cpu_axi4_64b_aw_to_ddr_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign cpu_axi4_64b_w_to_ddr = (cpu_axi4_64b_aw_to_ddr_w_wptr != cpu_axi4_64b_aw_to_ddr_w_rptr) ? cpu_axi4_64b_aw_to_ddr_w_mem[cpu_axi4_64b_aw_to_ddr_w_rptr] : 1'b0;
+    assign cpu_axi4_64b_w_sel_ddr = cpu_axi4_64b_w_to_ddr;
 
-
-    // W channel (gated by aw_to_<slave> FIFO head)
+    // W channel (gated by the W destination FIFO head)
     assign ddr_axi_wdata  = cpu_axi4_64b_w_to_ddr ? cpu_axi4_64b_w.data : '0;
     assign ddr_axi_wstrb  = cpu_axi4_64b_w_to_ddr ? cpu_axi4_64b_w.strb : '0;
     assign ddr_axi_wlast  = cpu_axi4_64b_w_to_ddr ? cpu_axi4_64b_w.last : '0;
@@ -312,6 +303,7 @@ module bridge_mix_a_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_axi4_64b_ar_to_ddr = (cpu_axi4_64b_ar.addr <= 32'h3fffffff);
+    wire cpu_axi4_64b_ar_gnt_ddr = cpu_axi4_64b_ar_to_ddr;
     assign ddr_axi_arid     = cpu_axi4_64b_ar_to_ddr ? cpu_axi4_64b_ar.id : '0;
     assign ddr_axi_araddr   = cpu_axi4_64b_ar_to_ddr ? cpu_axi4_64b_ar.addr : '0;
     assign ddr_axi_arlen    = cpu_axi4_64b_ar_to_ddr ? cpu_axi4_64b_ar.len : '0;
@@ -342,117 +334,144 @@ module bridge_mix_a_xbar
     wire host_axil_32b_aw_to_axil_periph = ((host_axil_32b_aw.addr >= 32'h40000000) && (host_axil_32b_aw.addr <= 32'h4000ffff));
     wire host_axil_32b_ar_to_axil_periph = ((host_axil_32b_ar.addr >= 32'h40000000) && (host_axil_32b_ar.addr <= 32'h4000ffff));
 
-    // AW channel (OR-merged across writing masters)
-    assign axil_periph_axi_awid = ((cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.id : '0) |
-        ((host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.id : '0);
-    assign axil_periph_axi_awaddr = ((cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.addr : '0) |
-        ((host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.addr : '0);
-    assign axil_periph_axi_awlen = ((cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.len : '0) |
-        ((host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.len : '0);
-    assign axil_periph_axi_awsize = ((cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.size : '0) |
-        ((host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.size : '0);
-    assign axil_periph_axi_awburst = ((cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.burst : '0) |
-        ((host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.burst : '0);
-    assign axil_periph_axi_awlock = ((cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.lock : '0) |
-        ((host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.lock : '0);
-    assign axil_periph_axi_awcache = ((cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.cache : '0) |
-        ((host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.cache : '0);
-    assign axil_periph_axi_awprot = ((cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.prot : '0) |
-        ((host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.prot : '0);
-    assign axil_periph_axi_awvalid = ((cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_awvalid : '0) |
-        ((host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid) ? host_axil_32b_awvalid : '0);
-
-    // AW->W tracking FIFO: cpu_axi4 -> axil_periph
-    logic cpu_axi4_32b_w_to_axil_periph;
-    logic [3:0] cpu_axi4_32b_aw_to_axil_periph_w_wptr, cpu_axi4_32b_aw_to_axil_periph_w_rptr;
-    logic cpu_axi4_32b_aw_to_axil_periph_w_mem [16];
-    logic cpu_axi4_32b_aw_to_axil_periph_w_push, cpu_axi4_32b_aw_to_axil_periph_w_pop;
-    assign cpu_axi4_32b_aw_to_axil_periph_w_push = cpu_axi4_32b_awvalid && cpu_axi4_32b_awready && cpu_axi4_32b_aw_to_axil_periph;
-    assign cpu_axi4_32b_aw_to_axil_periph_w_pop  = cpu_axi4_32b_wvalid && cpu_axi4_32b_wready && cpu_axi4_32b_w.last && cpu_axi4_32b_w_to_axil_periph;
+    // ---- AW arbiter for axil_periph: round-robin, lock until handshake ----
+    logic [1:0] axil_periph_aw_arb_req;
+    assign axil_periph_aw_arb_req = {host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid, cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid};
+    logic [0:0] axil_periph_aw_arb_lock, axil_periph_aw_arb_rr;
+    logic axil_periph_aw_arb_locked;
+    wire [0:0] axil_periph_aw_arb_pick = (axil_periph_aw_arb_rr == 1'd0) ? (axil_periph_aw_arb_req[0] ? 1'd0 : 1'd1) : 
+        axil_periph_aw_arb_req[1] ? 1'd1 : 1'd0;
+    wire axil_periph_aw_arb_gnt_valid = axil_periph_aw_arb_locked || (|axil_periph_aw_arb_req);
+    wire [0:0] axil_periph_aw_arb_gnt = axil_periph_aw_arb_locked ? axil_periph_aw_arb_lock : axil_periph_aw_arb_pick;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            cpu_axi4_32b_aw_to_axil_periph_w_wptr <= '0;
-            cpu_axi4_32b_aw_to_axil_periph_w_rptr <= '0;
+            axil_periph_aw_arb_lock   <= '0;
+            axil_periph_aw_arb_rr     <= '0;
+            axil_periph_aw_arb_locked <= 1'b0;
         end else begin
-            if (cpu_axi4_32b_aw_to_axil_periph_w_push) begin
-                cpu_axi4_32b_aw_to_axil_periph_w_mem[cpu_axi4_32b_aw_to_axil_periph_w_wptr] <= 1'b1;
-                cpu_axi4_32b_aw_to_axil_periph_w_wptr <= cpu_axi4_32b_aw_to_axil_periph_w_wptr + 1'b1;
-            end
-            if (cpu_axi4_32b_aw_to_axil_periph_w_pop) begin
-                cpu_axi4_32b_aw_to_axil_periph_w_rptr <= cpu_axi4_32b_aw_to_axil_periph_w_rptr + 1'b1;
+            if (axil_periph_axi_awvalid && axil_periph_axi_awready) begin
+                axil_periph_aw_arb_locked <= 1'b0;
+                axil_periph_aw_arb_rr <= (axil_periph_aw_arb_gnt == 1'd1) ? 1'd0 : axil_periph_aw_arb_gnt + 1'b1;
+            end else if (axil_periph_axi_awvalid) begin
+                axil_periph_aw_arb_lock   <= axil_periph_aw_arb_gnt;
+                axil_periph_aw_arb_locked <= 1'b1;
             end
         end
     end
-    assign cpu_axi4_32b_w_to_axil_periph = (cpu_axi4_32b_aw_to_axil_periph_w_wptr != cpu_axi4_32b_aw_to_axil_periph_w_rptr) ? cpu_axi4_32b_aw_to_axil_periph_w_mem[cpu_axi4_32b_aw_to_axil_periph_w_rptr] : 1'b0;
+    wire cpu_axi4_32b_aw_gnt_axil_periph = axil_periph_aw_arb_gnt_valid && (axil_periph_aw_arb_gnt == 1'd0) && axil_periph_aw_arb_req[0];
+    wire host_axil_32b_aw_gnt_axil_periph = axil_periph_aw_arb_gnt_valid && (axil_periph_aw_arb_gnt == 1'd1) && axil_periph_aw_arb_req[1];
 
-    // AW->W tracking FIFO: host_axil -> axil_periph
-    logic host_axil_32b_w_to_axil_periph;
-    logic [3:0] host_axil_32b_aw_to_axil_periph_w_wptr, host_axil_32b_aw_to_axil_periph_w_rptr;
-    logic host_axil_32b_aw_to_axil_periph_w_mem [16];
-    logic host_axil_32b_aw_to_axil_periph_w_push, host_axil_32b_aw_to_axil_periph_w_pop;
-    assign host_axil_32b_aw_to_axil_periph_w_push = host_axil_32b_awvalid && host_axil_32b_awready && host_axil_32b_aw_to_axil_periph;
-    assign host_axil_32b_aw_to_axil_periph_w_pop  = host_axil_32b_wvalid && host_axil_32b_wready && host_axil_32b_w.last && host_axil_32b_w_to_axil_periph;
+    // AW channel (arbitrated mux across writing masters)
+    assign axil_periph_axi_awid = (cpu_axi4_32b_aw_gnt_axil_periph ? cpu_axi4_32b_aw.id : '0) |
+        (host_axil_32b_aw_gnt_axil_periph ? host_axil_32b_aw.id : '0);
+    assign axil_periph_axi_awaddr = (cpu_axi4_32b_aw_gnt_axil_periph ? cpu_axi4_32b_aw.addr : '0) |
+        (host_axil_32b_aw_gnt_axil_periph ? host_axil_32b_aw.addr : '0);
+    assign axil_periph_axi_awlen = (cpu_axi4_32b_aw_gnt_axil_periph ? cpu_axi4_32b_aw.len : '0) |
+        (host_axil_32b_aw_gnt_axil_periph ? host_axil_32b_aw.len : '0);
+    assign axil_periph_axi_awsize = (cpu_axi4_32b_aw_gnt_axil_periph ? cpu_axi4_32b_aw.size : '0) |
+        (host_axil_32b_aw_gnt_axil_periph ? host_axil_32b_aw.size : '0);
+    assign axil_periph_axi_awburst = (cpu_axi4_32b_aw_gnt_axil_periph ? cpu_axi4_32b_aw.burst : '0) |
+        (host_axil_32b_aw_gnt_axil_periph ? host_axil_32b_aw.burst : '0);
+    assign axil_periph_axi_awlock = (cpu_axi4_32b_aw_gnt_axil_periph ? cpu_axi4_32b_aw.lock : '0) |
+        (host_axil_32b_aw_gnt_axil_periph ? host_axil_32b_aw.lock : '0);
+    assign axil_periph_axi_awcache = (cpu_axi4_32b_aw_gnt_axil_periph ? cpu_axi4_32b_aw.cache : '0) |
+        (host_axil_32b_aw_gnt_axil_periph ? host_axil_32b_aw.cache : '0);
+    assign axil_periph_axi_awprot = (cpu_axi4_32b_aw_gnt_axil_periph ? cpu_axi4_32b_aw.prot : '0) |
+        (host_axil_32b_aw_gnt_axil_periph ? host_axil_32b_aw.prot : '0);
+    assign axil_periph_axi_awvalid = cpu_axi4_32b_aw_gnt_axil_periph || host_axil_32b_aw_gnt_axil_periph;
+
+    // W owner FIFO: slave-side AW accept order owns the W channel
+    logic [0:0] axil_periph_wowner_mem [16];
+    logic [4:0] axil_periph_wowner_wptr, axil_periph_wowner_rptr;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            host_axil_32b_aw_to_axil_periph_w_wptr <= '0;
-            host_axil_32b_aw_to_axil_periph_w_rptr <= '0;
+            axil_periph_wowner_wptr <= '0;
+            axil_periph_wowner_rptr <= '0;
         end else begin
-            if (host_axil_32b_aw_to_axil_periph_w_push) begin
-                host_axil_32b_aw_to_axil_periph_w_mem[host_axil_32b_aw_to_axil_periph_w_wptr] <= 1'b1;
-                host_axil_32b_aw_to_axil_periph_w_wptr <= host_axil_32b_aw_to_axil_periph_w_wptr + 1'b1;
+            if (axil_periph_axi_awvalid && axil_periph_axi_awready) begin
+                axil_periph_wowner_mem[axil_periph_wowner_wptr[3:0]] <= axil_periph_aw_arb_gnt;
+                axil_periph_wowner_wptr <= axil_periph_wowner_wptr + 1'b1;
             end
-            if (host_axil_32b_aw_to_axil_periph_w_pop) begin
-                host_axil_32b_aw_to_axil_periph_w_rptr <= host_axil_32b_aw_to_axil_periph_w_rptr + 1'b1;
+            if (axil_periph_axi_wvalid && axil_periph_axi_wready && axil_periph_axi_wlast) begin
+                axil_periph_wowner_rptr <= axil_periph_wowner_rptr + 1'b1;
             end
         end
     end
-    assign host_axil_32b_w_to_axil_periph = (host_axil_32b_aw_to_axil_periph_w_wptr != host_axil_32b_aw_to_axil_periph_w_rptr) ? host_axil_32b_aw_to_axil_periph_w_mem[host_axil_32b_aw_to_axil_periph_w_rptr] : 1'b0;
+    wire axil_periph_wowner_valid = (axil_periph_wowner_wptr != axil_periph_wowner_rptr);
+    wire [0:0] axil_periph_wowner_head = axil_periph_wowner_mem[axil_periph_wowner_rptr[3:0]];
+    assign cpu_axi4_32b_w_sel_axil_periph = axil_periph_wowner_valid && (axil_periph_wowner_head == 1'd0) && cpu_axi4_32b_w_to_axil_periph;
+    assign host_axil_32b_w_sel_axil_periph = axil_periph_wowner_valid && (axil_periph_wowner_head == 1'd1) && host_axil_32b_w_to_axil_periph;
 
-    // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)
-    assign axil_periph_axi_wdata = ((cpu_axi4_32b_w_to_axil_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.data : '0) |
-        ((host_axil_32b_w_to_axil_periph && host_axil_32b_wvalid) ? host_axil_32b_w.data : '0);
-    assign axil_periph_axi_wstrb = ((cpu_axi4_32b_w_to_axil_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.strb : '0) |
-        ((host_axil_32b_w_to_axil_periph && host_axil_32b_wvalid) ? host_axil_32b_w.strb : '0);
-    assign axil_periph_axi_wlast = ((cpu_axi4_32b_w_to_axil_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.last : '0) |
-        ((host_axil_32b_w_to_axil_periph && host_axil_32b_wvalid) ? host_axil_32b_w.last : '0);
-    assign axil_periph_axi_wvalid = ((cpu_axi4_32b_w_to_axil_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_wvalid : '0) |
-        ((host_axil_32b_w_to_axil_periph && host_axil_32b_wvalid) ? host_axil_32b_wvalid : '0);
+    // W channel (owner-gated mux across writing masters)
+    assign axil_periph_axi_wdata = ((cpu_axi4_32b_w_sel_axil_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.data : '0) |
+        ((host_axil_32b_w_sel_axil_periph && host_axil_32b_wvalid) ? host_axil_32b_w.data : '0);
+    assign axil_periph_axi_wstrb = ((cpu_axi4_32b_w_sel_axil_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.strb : '0) |
+        ((host_axil_32b_w_sel_axil_periph && host_axil_32b_wvalid) ? host_axil_32b_w.strb : '0);
+    assign axil_periph_axi_wlast = ((cpu_axi4_32b_w_sel_axil_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.last : '0) |
+        ((host_axil_32b_w_sel_axil_periph && host_axil_32b_wvalid) ? host_axil_32b_w.last : '0);
+    assign axil_periph_axi_wvalid = (cpu_axi4_32b_w_sel_axil_periph && cpu_axi4_32b_wvalid) || (host_axil_32b_w_sel_axil_periph && host_axil_32b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
     assign axil_periph_axi_bready = ((axil_periph_axi_bid_bridge_id == 0) && axil_periph_axi_bid_valid ? cpu_axi4_32b_bready : '0) |
         ((axil_periph_axi_bid_bridge_id == 1) && axil_periph_axi_bid_valid ? host_axil_32b_bready : '0);
 
-    // Bridge ID (writes) — picks the originating master's id
-    assign axil_periph_axi_bridge_id_aw = ((cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_bridge_id_aw : '0) |
-        ((host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid) ? host_axil_bridge_id_aw : '0);
+    // Bridge ID (writes) — the granted master's id
+    assign axil_periph_axi_bridge_id_aw = (cpu_axi4_32b_aw_gnt_axil_periph ? cpu_axi4_bridge_id_aw : '0) |
+        (host_axil_32b_aw_gnt_axil_periph ? host_axil_bridge_id_aw : '0);
 
-    // AR channel (OR-merged across reading masters)
-    assign axil_periph_axi_arid = ((cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.id : '0) |
-        ((host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.id : '0);
-    assign axil_periph_axi_araddr = ((cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.addr : '0) |
-        ((host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.addr : '0);
-    assign axil_periph_axi_arlen = ((cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.len : '0) |
-        ((host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.len : '0);
-    assign axil_periph_axi_arsize = ((cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.size : '0) |
-        ((host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.size : '0);
-    assign axil_periph_axi_arburst = ((cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.burst : '0) |
-        ((host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.burst : '0);
-    assign axil_periph_axi_arlock = ((cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.lock : '0) |
-        ((host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.lock : '0);
-    assign axil_periph_axi_arcache = ((cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.cache : '0) |
-        ((host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.cache : '0);
-    assign axil_periph_axi_arprot = ((cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.prot : '0) |
-        ((host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.prot : '0);
-    assign axil_periph_axi_arvalid = ((cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_arvalid : '0) |
-        ((host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid) ? host_axil_32b_arvalid : '0);
+    // ---- AR arbiter for axil_periph: round-robin, lock until handshake ----
+    logic [1:0] axil_periph_ar_arb_req;
+    assign axil_periph_ar_arb_req = {host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid, cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid};
+    logic [0:0] axil_periph_ar_arb_lock, axil_periph_ar_arb_rr;
+    logic axil_periph_ar_arb_locked;
+    wire [0:0] axil_periph_ar_arb_pick = (axil_periph_ar_arb_rr == 1'd0) ? (axil_periph_ar_arb_req[0] ? 1'd0 : 1'd1) : 
+        axil_periph_ar_arb_req[1] ? 1'd1 : 1'd0;
+    wire axil_periph_ar_arb_gnt_valid = axil_periph_ar_arb_locked || (|axil_periph_ar_arb_req);
+    wire [0:0] axil_periph_ar_arb_gnt = axil_periph_ar_arb_locked ? axil_periph_ar_arb_lock : axil_periph_ar_arb_pick;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            axil_periph_ar_arb_lock   <= '0;
+            axil_periph_ar_arb_rr     <= '0;
+            axil_periph_ar_arb_locked <= 1'b0;
+        end else begin
+            if (axil_periph_axi_arvalid && axil_periph_axi_arready) begin
+                axil_periph_ar_arb_locked <= 1'b0;
+                axil_periph_ar_arb_rr <= (axil_periph_ar_arb_gnt == 1'd1) ? 1'd0 : axil_periph_ar_arb_gnt + 1'b1;
+            end else if (axil_periph_axi_arvalid) begin
+                axil_periph_ar_arb_lock   <= axil_periph_ar_arb_gnt;
+                axil_periph_ar_arb_locked <= 1'b1;
+            end
+        end
+    end
+    wire cpu_axi4_32b_ar_gnt_axil_periph = axil_periph_ar_arb_gnt_valid && (axil_periph_ar_arb_gnt == 1'd0) && axil_periph_ar_arb_req[0];
+    wire host_axil_32b_ar_gnt_axil_periph = axil_periph_ar_arb_gnt_valid && (axil_periph_ar_arb_gnt == 1'd1) && axil_periph_ar_arb_req[1];
+
+    // AR channel (arbitrated mux across reading masters)
+    assign axil_periph_axi_arid = (cpu_axi4_32b_ar_gnt_axil_periph ? cpu_axi4_32b_ar.id : '0) |
+        (host_axil_32b_ar_gnt_axil_periph ? host_axil_32b_ar.id : '0);
+    assign axil_periph_axi_araddr = (cpu_axi4_32b_ar_gnt_axil_periph ? cpu_axi4_32b_ar.addr : '0) |
+        (host_axil_32b_ar_gnt_axil_periph ? host_axil_32b_ar.addr : '0);
+    assign axil_periph_axi_arlen = (cpu_axi4_32b_ar_gnt_axil_periph ? cpu_axi4_32b_ar.len : '0) |
+        (host_axil_32b_ar_gnt_axil_periph ? host_axil_32b_ar.len : '0);
+    assign axil_periph_axi_arsize = (cpu_axi4_32b_ar_gnt_axil_periph ? cpu_axi4_32b_ar.size : '0) |
+        (host_axil_32b_ar_gnt_axil_periph ? host_axil_32b_ar.size : '0);
+    assign axil_periph_axi_arburst = (cpu_axi4_32b_ar_gnt_axil_periph ? cpu_axi4_32b_ar.burst : '0) |
+        (host_axil_32b_ar_gnt_axil_periph ? host_axil_32b_ar.burst : '0);
+    assign axil_periph_axi_arlock = (cpu_axi4_32b_ar_gnt_axil_periph ? cpu_axi4_32b_ar.lock : '0) |
+        (host_axil_32b_ar_gnt_axil_periph ? host_axil_32b_ar.lock : '0);
+    assign axil_periph_axi_arcache = (cpu_axi4_32b_ar_gnt_axil_periph ? cpu_axi4_32b_ar.cache : '0) |
+        (host_axil_32b_ar_gnt_axil_periph ? host_axil_32b_ar.cache : '0);
+    assign axil_periph_axi_arprot = (cpu_axi4_32b_ar_gnt_axil_periph ? cpu_axi4_32b_ar.prot : '0) |
+        (host_axil_32b_ar_gnt_axil_periph ? host_axil_32b_ar.prot : '0);
+    assign axil_periph_axi_arvalid = cpu_axi4_32b_ar_gnt_axil_periph || host_axil_32b_ar_gnt_axil_periph;
 
     // Rready (slave → owning master, by rid_bridge_id)
     assign axil_periph_axi_rready = ((axil_periph_axi_rid_bridge_id == 0) && axil_periph_axi_rid_valid ? cpu_axi4_32b_rready : '0) |
         ((axil_periph_axi_rid_bridge_id == 1) && axil_periph_axi_rid_valid ? host_axil_32b_rready : '0);
 
-    // Bridge ID (reads) — picks the originating master's id
-    assign axil_periph_axi_bridge_id_ar = ((cpu_axi4_32b_ar_to_axil_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_bridge_id_ar : '0) |
-        ((host_axil_32b_ar_to_axil_periph && host_axil_32b_arvalid) ? host_axil_bridge_id_ar : '0);
+    // Bridge ID (reads) — the granted master's id
+    assign axil_periph_axi_bridge_id_ar = (cpu_axi4_32b_ar_gnt_axil_periph ? cpu_axi4_bridge_id_ar : '0) |
+        (host_axil_32b_ar_gnt_axil_periph ? host_axil_bridge_id_ar : '0);
 
 
     // ================================================================
@@ -467,118 +486,222 @@ module bridge_mix_a_xbar
     wire host_axil_32b_aw_to_apb_periph = ((host_axil_32b_aw.addr >= 32'h40010000) && (host_axil_32b_aw.addr <= 32'h4001ffff));
     wire host_axil_32b_ar_to_apb_periph = ((host_axil_32b_ar.addr >= 32'h40010000) && (host_axil_32b_ar.addr <= 32'h4001ffff));
 
-    // AW channel (OR-merged across writing masters)
-    assign apb_periph_axi_awid = ((cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.id : '0) |
-        ((host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.id : '0);
-    assign apb_periph_axi_awaddr = ((cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.addr : '0) |
-        ((host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.addr : '0);
-    assign apb_periph_axi_awlen = ((cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.len : '0) |
-        ((host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.len : '0);
-    assign apb_periph_axi_awsize = ((cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.size : '0) |
-        ((host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.size : '0);
-    assign apb_periph_axi_awburst = ((cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.burst : '0) |
-        ((host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.burst : '0);
-    assign apb_periph_axi_awlock = ((cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.lock : '0) |
-        ((host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.lock : '0);
-    assign apb_periph_axi_awcache = ((cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.cache : '0) |
-        ((host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.cache : '0);
-    assign apb_periph_axi_awprot = ((cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.prot : '0) |
-        ((host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid) ? host_axil_32b_aw.prot : '0);
-    assign apb_periph_axi_awvalid = ((cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_awvalid : '0) |
-        ((host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid) ? host_axil_32b_awvalid : '0);
-
-    // AW->W tracking FIFO: cpu_axi4 -> apb_periph
-    logic cpu_axi4_32b_w_to_apb_periph;
-    logic [3:0] cpu_axi4_32b_aw_to_apb_periph_w_wptr, cpu_axi4_32b_aw_to_apb_periph_w_rptr;
-    logic cpu_axi4_32b_aw_to_apb_periph_w_mem [16];
-    logic cpu_axi4_32b_aw_to_apb_periph_w_push, cpu_axi4_32b_aw_to_apb_periph_w_pop;
-    assign cpu_axi4_32b_aw_to_apb_periph_w_push = cpu_axi4_32b_awvalid && cpu_axi4_32b_awready && cpu_axi4_32b_aw_to_apb_periph;
-    assign cpu_axi4_32b_aw_to_apb_periph_w_pop  = cpu_axi4_32b_wvalid && cpu_axi4_32b_wready && cpu_axi4_32b_w.last && cpu_axi4_32b_w_to_apb_periph;
+    // ---- AW arbiter for apb_periph: round-robin, lock until handshake ----
+    logic [1:0] apb_periph_aw_arb_req;
+    assign apb_periph_aw_arb_req = {host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid, cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid};
+    logic [0:0] apb_periph_aw_arb_lock, apb_periph_aw_arb_rr;
+    logic apb_periph_aw_arb_locked;
+    wire [0:0] apb_periph_aw_arb_pick = (apb_periph_aw_arb_rr == 1'd0) ? (apb_periph_aw_arb_req[0] ? 1'd0 : 1'd1) : 
+        apb_periph_aw_arb_req[1] ? 1'd1 : 1'd0;
+    wire apb_periph_aw_arb_gnt_valid = apb_periph_aw_arb_locked || (|apb_periph_aw_arb_req);
+    wire [0:0] apb_periph_aw_arb_gnt = apb_periph_aw_arb_locked ? apb_periph_aw_arb_lock : apb_periph_aw_arb_pick;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            cpu_axi4_32b_aw_to_apb_periph_w_wptr <= '0;
-            cpu_axi4_32b_aw_to_apb_periph_w_rptr <= '0;
+            apb_periph_aw_arb_lock   <= '0;
+            apb_periph_aw_arb_rr     <= '0;
+            apb_periph_aw_arb_locked <= 1'b0;
         end else begin
-            if (cpu_axi4_32b_aw_to_apb_periph_w_push) begin
-                cpu_axi4_32b_aw_to_apb_periph_w_mem[cpu_axi4_32b_aw_to_apb_periph_w_wptr] <= 1'b1;
-                cpu_axi4_32b_aw_to_apb_periph_w_wptr <= cpu_axi4_32b_aw_to_apb_periph_w_wptr + 1'b1;
-            end
-            if (cpu_axi4_32b_aw_to_apb_periph_w_pop) begin
-                cpu_axi4_32b_aw_to_apb_periph_w_rptr <= cpu_axi4_32b_aw_to_apb_periph_w_rptr + 1'b1;
+            if (apb_periph_axi_awvalid && apb_periph_axi_awready) begin
+                apb_periph_aw_arb_locked <= 1'b0;
+                apb_periph_aw_arb_rr <= (apb_periph_aw_arb_gnt == 1'd1) ? 1'd0 : apb_periph_aw_arb_gnt + 1'b1;
+            end else if (apb_periph_axi_awvalid) begin
+                apb_periph_aw_arb_lock   <= apb_periph_aw_arb_gnt;
+                apb_periph_aw_arb_locked <= 1'b1;
             end
         end
     end
-    assign cpu_axi4_32b_w_to_apb_periph = (cpu_axi4_32b_aw_to_apb_periph_w_wptr != cpu_axi4_32b_aw_to_apb_periph_w_rptr) ? cpu_axi4_32b_aw_to_apb_periph_w_mem[cpu_axi4_32b_aw_to_apb_periph_w_rptr] : 1'b0;
+    wire cpu_axi4_32b_aw_gnt_apb_periph = apb_periph_aw_arb_gnt_valid && (apb_periph_aw_arb_gnt == 1'd0) && apb_periph_aw_arb_req[0];
+    wire host_axil_32b_aw_gnt_apb_periph = apb_periph_aw_arb_gnt_valid && (apb_periph_aw_arb_gnt == 1'd1) && apb_periph_aw_arb_req[1];
 
-    // AW->W tracking FIFO: host_axil -> apb_periph
-    logic host_axil_32b_w_to_apb_periph;
-    logic [3:0] host_axil_32b_aw_to_apb_periph_w_wptr, host_axil_32b_aw_to_apb_periph_w_rptr;
-    logic host_axil_32b_aw_to_apb_periph_w_mem [16];
-    logic host_axil_32b_aw_to_apb_periph_w_push, host_axil_32b_aw_to_apb_periph_w_pop;
-    assign host_axil_32b_aw_to_apb_periph_w_push = host_axil_32b_awvalid && host_axil_32b_awready && host_axil_32b_aw_to_apb_periph;
-    assign host_axil_32b_aw_to_apb_periph_w_pop  = host_axil_32b_wvalid && host_axil_32b_wready && host_axil_32b_w.last && host_axil_32b_w_to_apb_periph;
+    // AW channel (arbitrated mux across writing masters)
+    assign apb_periph_axi_awid = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.id : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.id : '0);
+    assign apb_periph_axi_awaddr = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.addr : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.addr : '0);
+    assign apb_periph_axi_awlen = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.len : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.len : '0);
+    assign apb_periph_axi_awsize = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.size : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.size : '0);
+    assign apb_periph_axi_awburst = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.burst : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.burst : '0);
+    assign apb_periph_axi_awlock = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.lock : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.lock : '0);
+    assign apb_periph_axi_awcache = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.cache : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.cache : '0);
+    assign apb_periph_axi_awprot = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_32b_aw.prot : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_32b_aw.prot : '0);
+    assign apb_periph_axi_awvalid = cpu_axi4_32b_aw_gnt_apb_periph || host_axil_32b_aw_gnt_apb_periph;
+
+    // W owner FIFO: slave-side AW accept order owns the W channel
+    logic [0:0] apb_periph_wowner_mem [16];
+    logic [4:0] apb_periph_wowner_wptr, apb_periph_wowner_rptr;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            host_axil_32b_aw_to_apb_periph_w_wptr <= '0;
-            host_axil_32b_aw_to_apb_periph_w_rptr <= '0;
+            apb_periph_wowner_wptr <= '0;
+            apb_periph_wowner_rptr <= '0;
         end else begin
-            if (host_axil_32b_aw_to_apb_periph_w_push) begin
-                host_axil_32b_aw_to_apb_periph_w_mem[host_axil_32b_aw_to_apb_periph_w_wptr] <= 1'b1;
-                host_axil_32b_aw_to_apb_periph_w_wptr <= host_axil_32b_aw_to_apb_periph_w_wptr + 1'b1;
+            if (apb_periph_axi_awvalid && apb_periph_axi_awready) begin
+                apb_periph_wowner_mem[apb_periph_wowner_wptr[3:0]] <= apb_periph_aw_arb_gnt;
+                apb_periph_wowner_wptr <= apb_periph_wowner_wptr + 1'b1;
             end
-            if (host_axil_32b_aw_to_apb_periph_w_pop) begin
-                host_axil_32b_aw_to_apb_periph_w_rptr <= host_axil_32b_aw_to_apb_periph_w_rptr + 1'b1;
+            if (apb_periph_axi_wvalid && apb_periph_axi_wready && apb_periph_axi_wlast) begin
+                apb_periph_wowner_rptr <= apb_periph_wowner_rptr + 1'b1;
             end
         end
     end
-    assign host_axil_32b_w_to_apb_periph = (host_axil_32b_aw_to_apb_periph_w_wptr != host_axil_32b_aw_to_apb_periph_w_rptr) ? host_axil_32b_aw_to_apb_periph_w_mem[host_axil_32b_aw_to_apb_periph_w_rptr] : 1'b0;
+    wire apb_periph_wowner_valid = (apb_periph_wowner_wptr != apb_periph_wowner_rptr);
+    wire [0:0] apb_periph_wowner_head = apb_periph_wowner_mem[apb_periph_wowner_rptr[3:0]];
+    assign cpu_axi4_32b_w_sel_apb_periph = apb_periph_wowner_valid && (apb_periph_wowner_head == 1'd0) && cpu_axi4_32b_w_to_apb_periph;
+    assign host_axil_32b_w_sel_apb_periph = apb_periph_wowner_valid && (apb_periph_wowner_head == 1'd1) && host_axil_32b_w_to_apb_periph;
 
-    // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)
-    assign apb_periph_axi_wdata = ((cpu_axi4_32b_w_to_apb_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.data : '0) |
-        ((host_axil_32b_w_to_apb_periph && host_axil_32b_wvalid) ? host_axil_32b_w.data : '0);
-    assign apb_periph_axi_wstrb = ((cpu_axi4_32b_w_to_apb_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.strb : '0) |
-        ((host_axil_32b_w_to_apb_periph && host_axil_32b_wvalid) ? host_axil_32b_w.strb : '0);
-    assign apb_periph_axi_wlast = ((cpu_axi4_32b_w_to_apb_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.last : '0) |
-        ((host_axil_32b_w_to_apb_periph && host_axil_32b_wvalid) ? host_axil_32b_w.last : '0);
-    assign apb_periph_axi_wvalid = ((cpu_axi4_32b_w_to_apb_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_wvalid : '0) |
-        ((host_axil_32b_w_to_apb_periph && host_axil_32b_wvalid) ? host_axil_32b_wvalid : '0);
+    // W channel (owner-gated mux across writing masters)
+    assign apb_periph_axi_wdata = ((cpu_axi4_32b_w_sel_apb_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.data : '0) |
+        ((host_axil_32b_w_sel_apb_periph && host_axil_32b_wvalid) ? host_axil_32b_w.data : '0);
+    assign apb_periph_axi_wstrb = ((cpu_axi4_32b_w_sel_apb_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.strb : '0) |
+        ((host_axil_32b_w_sel_apb_periph && host_axil_32b_wvalid) ? host_axil_32b_w.strb : '0);
+    assign apb_periph_axi_wlast = ((cpu_axi4_32b_w_sel_apb_periph && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.last : '0) |
+        ((host_axil_32b_w_sel_apb_periph && host_axil_32b_wvalid) ? host_axil_32b_w.last : '0);
+    assign apb_periph_axi_wvalid = (cpu_axi4_32b_w_sel_apb_periph && cpu_axi4_32b_wvalid) || (host_axil_32b_w_sel_apb_periph && host_axil_32b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
     assign apb_periph_axi_bready = ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? cpu_axi4_32b_bready : '0) |
         ((apb_periph_axi_bid_bridge_id == 1) && apb_periph_axi_bid_valid ? host_axil_32b_bready : '0);
 
-    // Bridge ID (writes) — picks the originating master's id
-    assign apb_periph_axi_bridge_id_aw = ((cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid) ? cpu_axi4_bridge_id_aw : '0) |
-        ((host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid) ? host_axil_bridge_id_aw : '0);
+    // Bridge ID (writes) — the granted master's id
+    assign apb_periph_axi_bridge_id_aw = (cpu_axi4_32b_aw_gnt_apb_periph ? cpu_axi4_bridge_id_aw : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? host_axil_bridge_id_aw : '0);
 
-    // AR channel (OR-merged across reading masters)
-    assign apb_periph_axi_arid = ((cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.id : '0) |
-        ((host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.id : '0);
-    assign apb_periph_axi_araddr = ((cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.addr : '0) |
-        ((host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.addr : '0);
-    assign apb_periph_axi_arlen = ((cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.len : '0) |
-        ((host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.len : '0);
-    assign apb_periph_axi_arsize = ((cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.size : '0) |
-        ((host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.size : '0);
-    assign apb_periph_axi_arburst = ((cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.burst : '0) |
-        ((host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.burst : '0);
-    assign apb_periph_axi_arlock = ((cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.lock : '0) |
-        ((host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.lock : '0);
-    assign apb_periph_axi_arcache = ((cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.cache : '0) |
-        ((host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.cache : '0);
-    assign apb_periph_axi_arprot = ((cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.prot : '0) |
-        ((host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid) ? host_axil_32b_ar.prot : '0);
-    assign apb_periph_axi_arvalid = ((cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_arvalid : '0) |
-        ((host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid) ? host_axil_32b_arvalid : '0);
+    // ---- AR arbiter for apb_periph: round-robin, lock until handshake ----
+    logic [1:0] apb_periph_ar_arb_req;
+    assign apb_periph_ar_arb_req = {host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid, cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid};
+    logic [0:0] apb_periph_ar_arb_lock, apb_periph_ar_arb_rr;
+    logic apb_periph_ar_arb_locked;
+    wire [0:0] apb_periph_ar_arb_pick = (apb_periph_ar_arb_rr == 1'd0) ? (apb_periph_ar_arb_req[0] ? 1'd0 : 1'd1) : 
+        apb_periph_ar_arb_req[1] ? 1'd1 : 1'd0;
+    wire apb_periph_ar_arb_gnt_valid = apb_periph_ar_arb_locked || (|apb_periph_ar_arb_req);
+    wire [0:0] apb_periph_ar_arb_gnt = apb_periph_ar_arb_locked ? apb_periph_ar_arb_lock : apb_periph_ar_arb_pick;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            apb_periph_ar_arb_lock   <= '0;
+            apb_periph_ar_arb_rr     <= '0;
+            apb_periph_ar_arb_locked <= 1'b0;
+        end else begin
+            if (apb_periph_axi_arvalid && apb_periph_axi_arready) begin
+                apb_periph_ar_arb_locked <= 1'b0;
+                apb_periph_ar_arb_rr <= (apb_periph_ar_arb_gnt == 1'd1) ? 1'd0 : apb_periph_ar_arb_gnt + 1'b1;
+            end else if (apb_periph_axi_arvalid) begin
+                apb_periph_ar_arb_lock   <= apb_periph_ar_arb_gnt;
+                apb_periph_ar_arb_locked <= 1'b1;
+            end
+        end
+    end
+    wire cpu_axi4_32b_ar_gnt_apb_periph = apb_periph_ar_arb_gnt_valid && (apb_periph_ar_arb_gnt == 1'd0) && apb_periph_ar_arb_req[0];
+    wire host_axil_32b_ar_gnt_apb_periph = apb_periph_ar_arb_gnt_valid && (apb_periph_ar_arb_gnt == 1'd1) && apb_periph_ar_arb_req[1];
+
+    // AR channel (arbitrated mux across reading masters)
+    assign apb_periph_axi_arid = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.id : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.id : '0);
+    assign apb_periph_axi_araddr = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.addr : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.addr : '0);
+    assign apb_periph_axi_arlen = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.len : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.len : '0);
+    assign apb_periph_axi_arsize = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.size : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.size : '0);
+    assign apb_periph_axi_arburst = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.burst : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.burst : '0);
+    assign apb_periph_axi_arlock = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.lock : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.lock : '0);
+    assign apb_periph_axi_arcache = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.cache : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.cache : '0);
+    assign apb_periph_axi_arprot = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_32b_ar.prot : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_32b_ar.prot : '0);
+    assign apb_periph_axi_arvalid = cpu_axi4_32b_ar_gnt_apb_periph || host_axil_32b_ar_gnt_apb_periph;
 
     // Rready (slave → owning master, by rid_bridge_id)
     assign apb_periph_axi_rready = ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid ? cpu_axi4_32b_rready : '0) |
         ((apb_periph_axi_rid_bridge_id == 1) && apb_periph_axi_rid_valid ? host_axil_32b_rready : '0);
 
-    // Bridge ID (reads) — picks the originating master's id
-    assign apb_periph_axi_bridge_id_ar = ((cpu_axi4_32b_ar_to_apb_periph && cpu_axi4_32b_arvalid) ? cpu_axi4_bridge_id_ar : '0) |
-        ((host_axil_32b_ar_to_apb_periph && host_axil_32b_arvalid) ? host_axil_bridge_id_ar : '0);
+    // Bridge ID (reads) — the granted master's id
+    assign apb_periph_axi_bridge_id_ar = (cpu_axi4_32b_ar_gnt_apb_periph ? cpu_axi4_bridge_id_ar : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? host_axil_bridge_id_ar : '0);
 
+
+    // ================================================================
+    // W destination FIFOs (per master width-path)
+    // ================================================================
+    // cpu_axi4 32b path -> axil_periph, apb_periph
+    logic [0:0] cpu_axi4_32b_wdest_mem [16];
+    logic [4:0] cpu_axi4_32b_wdest_wptr, cpu_axi4_32b_wdest_rptr;
+    wire [0:0] cpu_axi4_32b_wdest_enc = cpu_axi4_32b_aw_to_apb_periph ? 1'd1 : 1'd0;
+    wire cpu_axi4_32b_wdest_push = cpu_axi4_32b_awvalid && cpu_axi4_32b_awready;
+    wire cpu_axi4_32b_wdest_pop  = cpu_axi4_32b_wvalid && cpu_axi4_32b_wready && cpu_axi4_32b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_axi4_32b_wdest_wptr <= '0;
+            cpu_axi4_32b_wdest_rptr <= '0;
+        end else begin
+            if (cpu_axi4_32b_wdest_push) begin
+                cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_wptr[3:0]] <= cpu_axi4_32b_wdest_enc;
+                cpu_axi4_32b_wdest_wptr <= cpu_axi4_32b_wdest_wptr + 1'b1;
+            end
+            if (cpu_axi4_32b_wdest_pop) begin
+                cpu_axi4_32b_wdest_rptr <= cpu_axi4_32b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire cpu_axi4_32b_wdest_valid = (cpu_axi4_32b_wdest_wptr != cpu_axi4_32b_wdest_rptr);
+    wire [0:0] cpu_axi4_32b_wdest_head = cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_rptr[3:0]];
+    assign cpu_axi4_32b_w_to_axil_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd0);
+    assign cpu_axi4_32b_w_to_apb_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd1);
+
+    // cpu_axi4 64b path -> ddr
+    logic [0:0] cpu_axi4_64b_wdest_mem [16];
+    logic [4:0] cpu_axi4_64b_wdest_wptr, cpu_axi4_64b_wdest_rptr;
+    wire [0:0] cpu_axi4_64b_wdest_enc = 1'd0;
+    wire cpu_axi4_64b_wdest_push = cpu_axi4_64b_awvalid && cpu_axi4_64b_awready;
+    wire cpu_axi4_64b_wdest_pop  = cpu_axi4_64b_wvalid && cpu_axi4_64b_wready && cpu_axi4_64b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_axi4_64b_wdest_wptr <= '0;
+            cpu_axi4_64b_wdest_rptr <= '0;
+        end else begin
+            if (cpu_axi4_64b_wdest_push) begin
+                cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_wptr[3:0]] <= cpu_axi4_64b_wdest_enc;
+                cpu_axi4_64b_wdest_wptr <= cpu_axi4_64b_wdest_wptr + 1'b1;
+            end
+            if (cpu_axi4_64b_wdest_pop) begin
+                cpu_axi4_64b_wdest_rptr <= cpu_axi4_64b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire cpu_axi4_64b_wdest_valid = (cpu_axi4_64b_wdest_wptr != cpu_axi4_64b_wdest_rptr);
+    wire [0:0] cpu_axi4_64b_wdest_head = cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_rptr[3:0]];
+    assign cpu_axi4_64b_w_to_ddr = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd0);
+
+    // host_axil 32b path -> axil_periph, apb_periph
+    logic [0:0] host_axil_32b_wdest_mem [16];
+    logic [4:0] host_axil_32b_wdest_wptr, host_axil_32b_wdest_rptr;
+    wire [0:0] host_axil_32b_wdest_enc = host_axil_32b_aw_to_apb_periph ? 1'd1 : 1'd0;
+    wire host_axil_32b_wdest_push = host_axil_32b_awvalid && host_axil_32b_awready;
+    wire host_axil_32b_wdest_pop  = host_axil_32b_wvalid && host_axil_32b_wready && host_axil_32b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_axil_32b_wdest_wptr <= '0;
+            host_axil_32b_wdest_rptr <= '0;
+        end else begin
+            if (host_axil_32b_wdest_push) begin
+                host_axil_32b_wdest_mem[host_axil_32b_wdest_wptr[3:0]] <= host_axil_32b_wdest_enc;
+                host_axil_32b_wdest_wptr <= host_axil_32b_wdest_wptr + 1'b1;
+            end
+            if (host_axil_32b_wdest_pop) begin
+                host_axil_32b_wdest_rptr <= host_axil_32b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire host_axil_32b_wdest_valid = (host_axil_32b_wdest_wptr != host_axil_32b_wdest_rptr);
+    wire [0:0] host_axil_32b_wdest_head = host_axil_32b_wdest_mem[host_axil_32b_wdest_rptr[3:0]];
+    assign host_axil_32b_w_to_axil_periph = host_axil_32b_wdest_valid && (host_axil_32b_wdest_head == 1'd0);
+    assign host_axil_32b_w_to_apb_periph = host_axil_32b_wdest_valid && (host_axil_32b_wdest_head == 1'd1);
 
     // ================================================================
     // Response MUXes (OR together all slave responses)
@@ -586,12 +709,12 @@ module bridge_mix_a_xbar
 
     // Master: cpu_axi4, Width path: 32b
     assign cpu_axi4_32b_awready = 
-        (cpu_axi4_32b_aw_to_axil_periph ? axil_periph_axi_awready : '0) |
-        (cpu_axi4_32b_aw_to_apb_periph ? apb_periph_axi_awready : '0);
+        (cpu_axi4_32b_aw_gnt_axil_periph ? axil_periph_axi_awready : '0) |
+        (cpu_axi4_32b_aw_gnt_apb_periph ? apb_periph_axi_awready : '0);
 
     assign cpu_axi4_32b_wready = 
-        (cpu_axi4_32b_w_to_axil_periph ? axil_periph_axi_wready : '0) |
-        (cpu_axi4_32b_w_to_apb_periph ? apb_periph_axi_wready : '0);
+        (cpu_axi4_32b_w_sel_axil_periph ? axil_periph_axi_wready : '0) |
+        (cpu_axi4_32b_w_sel_apb_periph ? apb_periph_axi_wready : '0);
 
     assign cpu_axi4_32b_b.id = 
         ((axil_periph_axi_bid_bridge_id == 0) && axil_periph_axi_bid_valid ? axil_periph_axi_bid : '0) |
@@ -606,8 +729,8 @@ module bridge_mix_a_xbar
         ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_bvalid : '0);
 
     assign cpu_axi4_32b_arready = 
-        (cpu_axi4_32b_ar_to_axil_periph ? axil_periph_axi_arready : '0) |
-        (cpu_axi4_32b_ar_to_apb_periph ? apb_periph_axi_arready : '0);
+        (cpu_axi4_32b_ar_gnt_axil_periph ? axil_periph_axi_arready : '0) |
+        (cpu_axi4_32b_ar_gnt_apb_periph ? apb_periph_axi_arready : '0);
 
     assign cpu_axi4_32b_r.id = 
         ((axil_periph_axi_rid_bridge_id == 0) && axil_periph_axi_rid_valid ? axil_periph_axi_rid : '0) |
@@ -632,10 +755,10 @@ module bridge_mix_a_xbar
 
     // Master: cpu_axi4, Width path: 64b
     assign cpu_axi4_64b_awready = 
-        (cpu_axi4_64b_aw_to_ddr ? ddr_axi_awready : '0);
+        (cpu_axi4_64b_aw_gnt_ddr ? ddr_axi_awready : '0);
 
     assign cpu_axi4_64b_wready = 
-        (cpu_axi4_64b_w_to_ddr ? ddr_axi_wready : '0);
+        (cpu_axi4_64b_w_sel_ddr ? ddr_axi_wready : '0);
 
     assign cpu_axi4_64b_b.id = 
         ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bid : '0);
@@ -647,7 +770,7 @@ module bridge_mix_a_xbar
         ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0);
 
     assign cpu_axi4_64b_arready = 
-        (cpu_axi4_64b_ar_to_ddr ? ddr_axi_arready : '0);
+        (cpu_axi4_64b_ar_gnt_ddr ? ddr_axi_arready : '0);
 
     assign cpu_axi4_64b_r.id = 
         ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rid : '0);
@@ -667,12 +790,12 @@ module bridge_mix_a_xbar
 
     // Master: host_axil, Width path: 32b
     assign host_axil_32b_awready = 
-        (host_axil_32b_aw_to_axil_periph ? axil_periph_axi_awready : '0) |
-        (host_axil_32b_aw_to_apb_periph ? apb_periph_axi_awready : '0);
+        (host_axil_32b_aw_gnt_axil_periph ? axil_periph_axi_awready : '0) |
+        (host_axil_32b_aw_gnt_apb_periph ? apb_periph_axi_awready : '0);
 
     assign host_axil_32b_wready = 
-        (host_axil_32b_w_to_axil_periph ? axil_periph_axi_wready : '0) |
-        (host_axil_32b_w_to_apb_periph ? apb_periph_axi_wready : '0);
+        (host_axil_32b_w_sel_axil_periph ? axil_periph_axi_wready : '0) |
+        (host_axil_32b_w_sel_apb_periph ? apb_periph_axi_wready : '0);
 
     assign host_axil_32b_b.id = 
         ((axil_periph_axi_bid_bridge_id == 1) && axil_periph_axi_bid_valid ? axil_periph_axi_bid : '0) |
@@ -687,8 +810,8 @@ module bridge_mix_a_xbar
         ((apb_periph_axi_bid_bridge_id == 1) && apb_periph_axi_bid_valid ? apb_periph_axi_bvalid : '0);
 
     assign host_axil_32b_arready = 
-        (host_axil_32b_ar_to_axil_periph ? axil_periph_axi_arready : '0) |
-        (host_axil_32b_ar_to_apb_periph ? apb_periph_axi_arready : '0);
+        (host_axil_32b_ar_gnt_axil_periph ? axil_periph_axi_arready : '0) |
+        (host_axil_32b_ar_gnt_apb_periph ? apb_periph_axi_arready : '0);
 
     assign host_axil_32b_r.id = 
         ((axil_periph_axi_rid_bridge_id == 1) && axil_periph_axi_rid_valid ? axil_periph_axi_rid : '0) |

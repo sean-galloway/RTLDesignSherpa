@@ -278,6 +278,8 @@ class Bridge1x2WrAxi5aTB(TBBase):
             id_width=4,
             user_width=1,
             multi_sig=True,
+            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
+            optional_fields=('region',),
         )
 
     # ----------------------------------------------------------------------
@@ -309,6 +311,8 @@ class Bridge1x2WrAxi5aTB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[0],
             base_addr=0x00000000,
+            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
+            optional_fields=('region',),
         )
     def _setup_slave_1_sram_wr(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 1: sram_wr (protocol: axi5)"""
@@ -335,6 +339,8 @@ class Bridge1x2WrAxi5aTB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[1],
             base_addr=0x80000000,
+            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
+            optional_fields=('region',),
         )
 
     # ----------------------------------------------------------------------

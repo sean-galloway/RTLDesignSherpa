@@ -198,12 +198,19 @@ module cpu_rd_adapter
     // ================================================================
 
     // Per-width path-active gates (see comment in adapter_generator.py).
+    logic ar_gate_ok;
     logic ar_path_active_32b;
-    assign ar_path_active_32b = comb_slave_select_ar[0] | comb_slave_select_ar[3];
+    assign ar_path_active_32b = (comb_slave_select_ar[0] | comb_slave_select_ar[3]) && ar_gate_ok;
+    logic r_path_active_32b;
+    assign r_path_active_32b = r_slave_select[0] | r_slave_select[3];
     logic ar_path_active_64b;
-    assign ar_path_active_64b = comb_slave_select_ar[1];
+    assign ar_path_active_64b = (comb_slave_select_ar[1]) && ar_gate_ok;
+    logic r_path_active_64b;
+    assign r_path_active_64b = r_slave_select[1];
     logic ar_path_active_128b;
-    assign ar_path_active_128b = comb_slave_select_ar[2];
+    assign ar_path_active_128b = (comb_slave_select_ar[2]) && ar_gate_ok;
+    logic r_path_active_128b;
+    assign r_path_active_128b = r_slave_select[2];
 
     // ================================================================
     // Width converter: 64b → 32b
@@ -249,7 +256,7 @@ module cpu_rd_adapter
         .s_axi_rlast(conv_32b_rlast),
         .s_axi_ruser(),
         .s_axi_rvalid(conv_32b_rvalid),
-        .s_axi_rready(fub_axi_rready),
+        .s_axi_rready(fub_axi_rready && r_path_active_32b),
 
         // Master side (to crossbar)
         .m_axi_arid(cpu_rd_32b_ar.id),
@@ -296,7 +303,8 @@ module cpu_rd_adapter
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
-    assign cpu_rd_64b_rready = fub_axi_rready;
+    // Ready gated by the response head — see r_path_active comment.
+    assign cpu_rd_64b_rready = fub_axi_rready && r_path_active_64b;
     // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
 
     // ================================================================
@@ -343,7 +351,7 @@ module cpu_rd_adapter
         .s_axi_rlast(conv_128b_rlast),
         .s_axi_ruser(),
         .s_axi_rvalid(conv_128b_rvalid),
-        .s_axi_rready(fub_axi_rready),
+        .s_axi_rready(fub_axi_rready && r_path_active_128b),
 
         // Master side (to crossbar)
         .m_axi_arid(cpu_rd_128b_ar.id),
@@ -416,6 +424,18 @@ module cpu_rd_adapter
                           ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
                           : '0;
 
+    // Single-outstanding-target (reads) — see aw_gate_ok comment.
+    logic [NUM_SLAVES-1:0] r_ar_active_target;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_ar_active_target <= '0;
+        end else if (ar_trk_push) begin
+            r_ar_active_target <= comb_slave_select_ar;
+        end
+    end
+    assign ar_gate_ok = (ar_trk_wptr == ar_trk_rptr) ||
+                        (comb_slave_select_ar == r_ar_active_target);
+
     // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
     always_comb begin
         fub_axi_arready = 1'b0;
@@ -436,6 +456,9 @@ module cpu_rd_adapter
                 // No slave selected
             end
         endcase
+        // Single-outstanding-target: hold off a new AR while reads
+        // to a different slave are in flight (see ar_gate_ok).
+        if (!ar_gate_ok) fub_axi_arready = 1'b0;
     end
 
     // Read response MUX (R channel - uses r_slave_select FIFO head)

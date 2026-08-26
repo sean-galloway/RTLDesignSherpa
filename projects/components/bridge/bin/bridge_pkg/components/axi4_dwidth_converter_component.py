@@ -88,7 +88,8 @@ class Axi4DwidthConverter:
                             fub_prefix: str,
                             aw_valid_gate: str,
                             w_valid_gate: str,
-                            b_intercept_prefix: str) -> None:
+                            b_intercept_prefix: str,
+                            bready_expr: str = "") -> None:
         """Wire the s_axi-side write channels.
         - AW/W signals come directly from `fub_prefix` (e.g. 'fub_axi_').
         - awvalid is gated by `aw_valid_gate` (an expression like
@@ -127,7 +128,10 @@ class Axi4DwidthConverter:
             ('s_axi_bresp', f'{b_intercept_prefix}_bresp'),
             ('s_axi_buser', ""),
             ('s_axi_bvalid', f'{b_intercept_prefix}_bvalid'),
-            ('s_axi_bready', f'{fub_prefix}bready'),
+            # bready must be gated by the adapter's response head (the
+            # MUX gates bvalid by b_slave_select; an unselected path fed
+            # the raw ready would handshake its B into the void).
+            ('s_axi_bready', bready_expr or f'{fub_prefix}bready'),
         ]
         self._sections.append((
             "Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO",
@@ -137,7 +141,8 @@ class Axi4DwidthConverter:
     def connect_s_axi_read(self,
                            fub_prefix: str,
                            ar_valid_gate: str,
-                           r_intercept_prefix: str) -> None:
+                           r_intercept_prefix: str,
+                           rready_expr: str = "") -> None:
         """Wire the s_axi-side read channels.
         AR signals come from `fub_prefix`; arvalid is gated by
         `ar_valid_gate`. Arready/R signals are pulled off into
@@ -167,7 +172,8 @@ class Axi4DwidthConverter:
             ('s_axi_rlast', f'{r_intercept_prefix}_rlast'),
             ('s_axi_ruser', ""),
             ('s_axi_rvalid', f'{r_intercept_prefix}_rvalid'),
-            ('s_axi_rready', f'{fub_prefix}rready'),
+            # rready gated by the response head — same reason as bready.
+            ('s_axi_rready', rready_expr or f'{fub_prefix}rready'),
         ]
         self._sections.append((
             "Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO",

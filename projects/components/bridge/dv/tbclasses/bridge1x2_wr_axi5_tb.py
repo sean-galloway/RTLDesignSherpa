@@ -278,6 +278,8 @@ class Bridge1x2WrAxi5TB(TBBase):
             id_width=4,
             user_width=1,
             multi_sig=True,
+            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
+            optional_fields=('region',),
         )
 
     # ----------------------------------------------------------------------

@@ -278,6 +278,8 @@ class Bridge1x2RdAxi5nMonTB(TBBase):
             id_width=4,
             user_width=1,
             multi_sig=True,
+            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
+            optional_fields=('region',),
         )
 
     # ----------------------------------------------------------------------
@@ -335,6 +337,8 @@ class Bridge1x2RdAxi5nMonTB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[1],
             base_addr=0x80000000,
+            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
+            optional_fields=('region',),
         )
 
     # ----------------------------------------------------------------------

@@ -983,6 +983,12 @@ class AdapterGenerator:
         # reads) so only the matching path sees the request.
         if slave_widths and (self.master.channels in ("wr", "rw") or self.master.channels in ("rd", "rw")):
             lines.append("    // Per-width path-active gates (see comment in adapter_generator.py).")
+            # Single-outstanding-target gates: declared here (before first
+            # use in the path actives), assigned in the tracking section.
+            if self.master.channels in ("wr", "rw"):
+                lines.append("    logic aw_gate_ok;")
+            if self.master.channels in ("rd", "rw"):
+                lines.append("    logic ar_gate_ok;")
             for slave_width in slave_widths:
                 slaves_at_w = [
                     si for si in self.master.slave_connections
@@ -994,7 +1000,7 @@ class AdapterGenerator:
                         f"    logic aw_path_active_{slave_width}b;"
                     )
                     lines.append(
-                        f"    assign aw_path_active_{slave_width}b = {aw_terms};"
+                        f"    assign aw_path_active_{slave_width}b = ({aw_terms}) && aw_gate_ok;"
                     )
                     # W beats arrive after AW; by then fub_axi_awaddr may
                     # have reverted (wrapper popped its skid) and the
@@ -1018,7 +1024,30 @@ class AdapterGenerator:
                         f"    logic ar_path_active_{slave_width}b;"
                     )
                     lines.append(
-                        f"    assign ar_path_active_{slave_width}b = {ar_terms};"
+                        f"    assign ar_path_active_{slave_width}b = ({ar_terms}) && ar_gate_ok;"
+                    )
+                # Response-side path actives. The response MUX gates
+                # rvalid/bvalid by the tracked r/b_slave_select head, but
+                # the per-path readies used to be the RAW fub ready — an
+                # unselected path holding a response beat saw ready high
+                # and handshook the beat into the void (dropped R/B under
+                # any cross-path concurrency). Gate each path's ready by
+                # the same head that gates its valid.
+                if self.master.channels in ("wr", "rw"):
+                    b_terms = " | ".join(f"b_slave_select[{si}]" for si in slaves_at_w)
+                    lines.append(
+                        f"    logic b_path_active_{slave_width}b;"
+                    )
+                    lines.append(
+                        f"    assign b_path_active_{slave_width}b = {b_terms};"
+                    )
+                if self.master.channels in ("rd", "rw"):
+                    r_terms = " | ".join(f"r_slave_select[{si}]" for si in slaves_at_w)
+                    lines.append(
+                        f"    logic r_path_active_{slave_width}b;"
+                    )
+                    lines.append(
+                        f"    assign r_path_active_{slave_width}b = {r_terms};"
                     )
             lines.append("")
 
@@ -1135,6 +1164,23 @@ class AdapterGenerator:
             lines.append("                          ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]")
             lines.append("                          : '0;")
             lines.append("")
+            lines.append("    // Single-outstanding-target (writes): only accept a new AW")
+            lines.append("    // while every outstanding write targets the SAME slave. The")
+            lines.append("    // B response mux replays responses in AW issue order; slaves")
+            lines.append("    // respond in their own accept order, so cross-slave outstanding")
+            lines.append("    // writes from several masters can deadlock the heads against")
+            lines.append("    // each other. Same-slave pipelining is unaffected.")
+            lines.append("    logic [NUM_SLAVES-1:0] r_aw_active_target;")
+            lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
+            lines.append("        if (!aresetn) begin")
+            lines.append("            r_aw_active_target <= '0;")
+            lines.append("        end else if (aw_trk_push) begin")
+            lines.append("            r_aw_active_target <= comb_slave_select_aw;")
+            lines.append("        end")
+            lines.append("    end")
+            lines.append("    assign aw_gate_ok = (aw_trk_wptr == aw_trk_rptr) ||")
+            lines.append("                        (comb_slave_select_aw == r_aw_active_target);")
+            lines.append("")
             lines.append("    // -------- AW->W slave_select tracking FIFO --------")
             lines.append("    // Same push as AW (records slave_select at handshake);")
             lines.append("    // pops on wlast so W#2's path-active gating doesn't wait")
@@ -1202,6 +1248,18 @@ class AdapterGenerator:
             lines.append("                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]")
             lines.append("                          : '0;")
             lines.append("")
+            lines.append("    // Single-outstanding-target (reads) — see aw_gate_ok comment.")
+            lines.append("    logic [NUM_SLAVES-1:0] r_ar_active_target;")
+            lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
+            lines.append("        if (!aresetn) begin")
+            lines.append("            r_ar_active_target <= '0;")
+            lines.append("        end else if (ar_trk_push) begin")
+            lines.append("            r_ar_active_target <= comb_slave_select_ar;")
+            lines.append("        end")
+            lines.append("    end")
+            lines.append("    assign ar_gate_ok = (ar_trk_wptr == ar_trk_rptr) ||")
+            lines.append("                        (comb_slave_select_ar == r_ar_active_target);")
+            lines.append("")
 
         # Write channel MUX
         if self.master.channels in ["wr", "rw"]:
@@ -1229,6 +1287,9 @@ class AdapterGenerator:
             lines.append("                // No slave selected")
             lines.append("            end")
             lines.append("        endcase")
+            lines.append("        // Single-outstanding-target: hold off a new AW while writes")
+            lines.append("        // to a different slave are in flight (see aw_gate_ok).")
+            lines.append("        if (!aw_gate_ok) fub_axi_awready = 1'b0;")
             lines.append("    end")
             lines.append("")
 
@@ -1339,6 +1400,9 @@ class AdapterGenerator:
             lines.append("                // No slave selected")
             lines.append("            end")
             lines.append("        endcase")
+            lines.append("        // Single-outstanding-target: hold off a new AR while reads")
+            lines.append("        // to a different slave are in flight (see ar_gate_ok).")
+            lines.append("        if (!ar_gate_ok) fub_axi_arready = 1'b0;")
             lines.append("    end")
             lines.append("")
 
@@ -1448,7 +1512,8 @@ class AdapterGenerator:
             lines.append("")
 
             lines.append("    // B channel (response: output → MUX → fub)")
-            lines.append(f"    assign {self.master.name}_{suffix}_bready = fub_axi_bready;")
+            lines.append("    // Ready gated by the response head — see b_path_active comment.")
+            lines.append(f"    assign {self.master.name}_{suffix}_bready = fub_axi_bready && b_path_active_{width}b;")
             lines.append("    // bid, bresp, bvalid routed via MUX (user field ignored)")
             lines.append("")
 
@@ -1474,7 +1539,8 @@ class AdapterGenerator:
             lines.append("")
 
             lines.append("    // R channel (response: output → MUX → fub)")
-            lines.append(f"    assign {self.master.name}_{suffix}_rready = fub_axi_rready;")
+            lines.append("    // Ready gated by the response head — see r_path_active comment.")
+            lines.append(f"    assign {self.master.name}_{suffix}_rready = fub_axi_rready && r_path_active_{width}b;")
             lines.append("    // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)")
             lines.append("")
 
@@ -1556,6 +1622,7 @@ class AdapterGenerator:
                     aw_valid_gate=f'fub_axi_awvalid && aw_path_active_{slave_width}b',
                     w_valid_gate=f'fub_axi_wvalid && w_path_active_{slave_width}b',
                     b_intercept_prefix=f'conv_{suffix}',
+                    bready_expr=f'fub_axi_bready && b_path_active_{slave_width}b',
                 )
                 conv_wr.connect_m_axi_write(
                     struct_prefix=struct_prefix,
@@ -1592,6 +1659,7 @@ class AdapterGenerator:
                     fub_prefix='fub_axi_',
                     ar_valid_gate=f'fub_axi_arvalid && ar_path_active_{slave_width}b',
                     r_intercept_prefix=f'conv_{suffix}',
+                    rready_expr=f'fub_axi_rready && r_path_active_{slave_width}b',
                 )
                 conv_rd.connect_m_axi_read(
                     struct_prefix=struct_prefix,
@@ -1660,7 +1728,7 @@ class AdapterGenerator:
         lines.append(f"        .s_axi_bresp(conv_{suffix}_bresp),")
         lines.append(f"        .s_axi_buser(),")
         lines.append(f"        .s_axi_bvalid(conv_{suffix}_bvalid),")
-        lines.append(f"        .s_axi_bready(fub_axi_bready),")
+        lines.append(f"        .s_axi_bready(fub_axi_bready && b_path_active_{suffix}),")  # head-gated: see b_path_active comment
         # Master side (to crossbar) — struct fields.
         lines.append(f"        .m_axi_awid({struct_prefix}_aw.id),")
         lines.append(f"        .m_axi_awaddr({struct_prefix}_aw.addr),")
@@ -1726,7 +1794,7 @@ class AdapterGenerator:
         lines.append(f"        .s_axi_rlast(conv_{suffix}_rlast),")
         lines.append(f"        .s_axi_ruser(),")
         lines.append(f"        .s_axi_rvalid(conv_{suffix}_rvalid),")
-        lines.append(f"        .s_axi_rready(fub_axi_rready),")
+        lines.append(f"        .s_axi_rready(fub_axi_rready && r_path_active_{suffix}),")  # head-gated: see r_path_active comment
         lines.append(f"        .m_axi_arid({struct_prefix}_ar.id),")
         lines.append(f"        .m_axi_araddr({struct_prefix}_ar.addr),")
         lines.append(f"        .m_axi_arlen({struct_prefix}_ar.len),")

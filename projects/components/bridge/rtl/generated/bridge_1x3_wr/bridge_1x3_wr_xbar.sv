@@ -150,6 +150,14 @@ module bridge_1x3_wr_xbar
     // Crossbar Routing
     // ================================================================
 
+    // W-follow declarations (assigned below)
+    logic cpu_wr_32b_w_to_periph_wr;
+    logic cpu_wr_32b_w_sel_periph_wr;
+    logic cpu_wr_64b_w_to_ddr_wr;
+    logic cpu_wr_64b_w_sel_ddr_wr;
+    logic cpu_wr_128b_w_to_hbm_wr;
+    logic cpu_wr_128b_w_sel_hbm_wr;
+
     // ================================================================
     // Slave 0: periph_wr (32b)
     // ================================================================
@@ -159,6 +167,7 @@ module bridge_1x3_wr_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_32b_aw_to_periph_wr = (cpu_wr_32b_aw.addr <= 32'h0fffffff);
+    wire cpu_wr_32b_aw_gnt_periph_wr = cpu_wr_32b_aw_to_periph_wr;
     assign periph_wr_axi_awid     = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.id : '0;
     assign periph_wr_axi_awaddr   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.addr : '0;
     assign periph_wr_axi_awlen    = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.len : '0;
@@ -169,31 +178,9 @@ module bridge_1x3_wr_xbar
     assign periph_wr_axi_awprot   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.prot : '0;
     assign periph_wr_axi_awvalid  = cpu_wr_32b_aw_to_periph_wr && cpu_wr_32b_awvalid;
 
-    // AW->W tracking FIFO for this (master,slave) pair
-    logic cpu_wr_32b_w_to_periph_wr;
-    logic [3:0] cpu_wr_32b_aw_to_periph_wr_w_wptr, cpu_wr_32b_aw_to_periph_wr_w_rptr;
-    logic cpu_wr_32b_aw_to_periph_wr_w_mem [16];
-    logic cpu_wr_32b_aw_to_periph_wr_w_push, cpu_wr_32b_aw_to_periph_wr_w_pop;
-    assign cpu_wr_32b_aw_to_periph_wr_w_push = cpu_wr_32b_awvalid && cpu_wr_32b_awready && cpu_wr_32b_aw_to_periph_wr;
-    assign cpu_wr_32b_aw_to_periph_wr_w_pop  = cpu_wr_32b_wvalid && cpu_wr_32b_wready && cpu_wr_32b_w.last && cpu_wr_32b_w_to_periph_wr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            cpu_wr_32b_aw_to_periph_wr_w_wptr <= '0;
-            cpu_wr_32b_aw_to_periph_wr_w_rptr <= '0;
-        end else begin
-            if (cpu_wr_32b_aw_to_periph_wr_w_push) begin
-                cpu_wr_32b_aw_to_periph_wr_w_mem[cpu_wr_32b_aw_to_periph_wr_w_wptr] <= 1'b1;
-                cpu_wr_32b_aw_to_periph_wr_w_wptr <= cpu_wr_32b_aw_to_periph_wr_w_wptr + 1'b1;
-            end
-            if (cpu_wr_32b_aw_to_periph_wr_w_pop) begin
-                cpu_wr_32b_aw_to_periph_wr_w_rptr <= cpu_wr_32b_aw_to_periph_wr_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign cpu_wr_32b_w_to_periph_wr = (cpu_wr_32b_aw_to_periph_wr_w_wptr != cpu_wr_32b_aw_to_periph_wr_w_rptr) ? cpu_wr_32b_aw_to_periph_wr_w_mem[cpu_wr_32b_aw_to_periph_wr_w_rptr] : 1'b0;
+    assign cpu_wr_32b_w_sel_periph_wr = cpu_wr_32b_w_to_periph_wr;
 
-
-    // W channel (gated by aw_to_<slave> FIFO head)
+    // W channel (gated by the W destination FIFO head)
     assign periph_wr_axi_wdata  = cpu_wr_32b_w_to_periph_wr ? cpu_wr_32b_w.data : '0;
     assign periph_wr_axi_wstrb  = cpu_wr_32b_w_to_periph_wr ? cpu_wr_32b_w.strb : '0;
     assign periph_wr_axi_wlast  = cpu_wr_32b_w_to_periph_wr ? cpu_wr_32b_w.last : '0;
@@ -216,6 +203,7 @@ module bridge_1x3_wr_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_64b_aw_to_ddr_wr = ((cpu_wr_64b_aw.addr >= 32'h10000000) && (cpu_wr_64b_aw.addr <= 32'h4fffffff));
+    wire cpu_wr_64b_aw_gnt_ddr_wr = cpu_wr_64b_aw_to_ddr_wr;
     assign ddr_wr_axi_awid     = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.id : '0;
     assign ddr_wr_axi_awaddr   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.addr : '0;
     assign ddr_wr_axi_awlen    = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.len : '0;
@@ -226,31 +214,9 @@ module bridge_1x3_wr_xbar
     assign ddr_wr_axi_awprot   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.prot : '0;
     assign ddr_wr_axi_awvalid  = cpu_wr_64b_aw_to_ddr_wr && cpu_wr_64b_awvalid;
 
-    // AW->W tracking FIFO for this (master,slave) pair
-    logic cpu_wr_64b_w_to_ddr_wr;
-    logic [3:0] cpu_wr_64b_aw_to_ddr_wr_w_wptr, cpu_wr_64b_aw_to_ddr_wr_w_rptr;
-    logic cpu_wr_64b_aw_to_ddr_wr_w_mem [16];
-    logic cpu_wr_64b_aw_to_ddr_wr_w_push, cpu_wr_64b_aw_to_ddr_wr_w_pop;
-    assign cpu_wr_64b_aw_to_ddr_wr_w_push = cpu_wr_64b_awvalid && cpu_wr_64b_awready && cpu_wr_64b_aw_to_ddr_wr;
-    assign cpu_wr_64b_aw_to_ddr_wr_w_pop  = cpu_wr_64b_wvalid && cpu_wr_64b_wready && cpu_wr_64b_w.last && cpu_wr_64b_w_to_ddr_wr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            cpu_wr_64b_aw_to_ddr_wr_w_wptr <= '0;
-            cpu_wr_64b_aw_to_ddr_wr_w_rptr <= '0;
-        end else begin
-            if (cpu_wr_64b_aw_to_ddr_wr_w_push) begin
-                cpu_wr_64b_aw_to_ddr_wr_w_mem[cpu_wr_64b_aw_to_ddr_wr_w_wptr] <= 1'b1;
-                cpu_wr_64b_aw_to_ddr_wr_w_wptr <= cpu_wr_64b_aw_to_ddr_wr_w_wptr + 1'b1;
-            end
-            if (cpu_wr_64b_aw_to_ddr_wr_w_pop) begin
-                cpu_wr_64b_aw_to_ddr_wr_w_rptr <= cpu_wr_64b_aw_to_ddr_wr_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign cpu_wr_64b_w_to_ddr_wr = (cpu_wr_64b_aw_to_ddr_wr_w_wptr != cpu_wr_64b_aw_to_ddr_wr_w_rptr) ? cpu_wr_64b_aw_to_ddr_wr_w_mem[cpu_wr_64b_aw_to_ddr_wr_w_rptr] : 1'b0;
+    assign cpu_wr_64b_w_sel_ddr_wr = cpu_wr_64b_w_to_ddr_wr;
 
-
-    // W channel (gated by aw_to_<slave> FIFO head)
+    // W channel (gated by the W destination FIFO head)
     assign ddr_wr_axi_wdata  = cpu_wr_64b_w_to_ddr_wr ? cpu_wr_64b_w.data : '0;
     assign ddr_wr_axi_wstrb  = cpu_wr_64b_w_to_ddr_wr ? cpu_wr_64b_w.strb : '0;
     assign ddr_wr_axi_wlast  = cpu_wr_64b_w_to_ddr_wr ? cpu_wr_64b_w.last : '0;
@@ -273,6 +239,7 @@ module bridge_1x3_wr_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_128b_aw_to_hbm_wr = ((cpu_wr_128b_aw.addr >= 32'h50000000) && (cpu_wr_128b_aw.addr <= 32'h7fffffff));
+    wire cpu_wr_128b_aw_gnt_hbm_wr = cpu_wr_128b_aw_to_hbm_wr;
     assign hbm_wr_axi_awid     = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.id : '0;
     assign hbm_wr_axi_awaddr   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.addr : '0;
     assign hbm_wr_axi_awlen    = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.len : '0;
@@ -283,31 +250,9 @@ module bridge_1x3_wr_xbar
     assign hbm_wr_axi_awprot   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.prot : '0;
     assign hbm_wr_axi_awvalid  = cpu_wr_128b_aw_to_hbm_wr && cpu_wr_128b_awvalid;
 
-    // AW->W tracking FIFO for this (master,slave) pair
-    logic cpu_wr_128b_w_to_hbm_wr;
-    logic [3:0] cpu_wr_128b_aw_to_hbm_wr_w_wptr, cpu_wr_128b_aw_to_hbm_wr_w_rptr;
-    logic cpu_wr_128b_aw_to_hbm_wr_w_mem [16];
-    logic cpu_wr_128b_aw_to_hbm_wr_w_push, cpu_wr_128b_aw_to_hbm_wr_w_pop;
-    assign cpu_wr_128b_aw_to_hbm_wr_w_push = cpu_wr_128b_awvalid && cpu_wr_128b_awready && cpu_wr_128b_aw_to_hbm_wr;
-    assign cpu_wr_128b_aw_to_hbm_wr_w_pop  = cpu_wr_128b_wvalid && cpu_wr_128b_wready && cpu_wr_128b_w.last && cpu_wr_128b_w_to_hbm_wr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            cpu_wr_128b_aw_to_hbm_wr_w_wptr <= '0;
-            cpu_wr_128b_aw_to_hbm_wr_w_rptr <= '0;
-        end else begin
-            if (cpu_wr_128b_aw_to_hbm_wr_w_push) begin
-                cpu_wr_128b_aw_to_hbm_wr_w_mem[cpu_wr_128b_aw_to_hbm_wr_w_wptr] <= 1'b1;
-                cpu_wr_128b_aw_to_hbm_wr_w_wptr <= cpu_wr_128b_aw_to_hbm_wr_w_wptr + 1'b1;
-            end
-            if (cpu_wr_128b_aw_to_hbm_wr_w_pop) begin
-                cpu_wr_128b_aw_to_hbm_wr_w_rptr <= cpu_wr_128b_aw_to_hbm_wr_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign cpu_wr_128b_w_to_hbm_wr = (cpu_wr_128b_aw_to_hbm_wr_w_wptr != cpu_wr_128b_aw_to_hbm_wr_w_rptr) ? cpu_wr_128b_aw_to_hbm_wr_w_mem[cpu_wr_128b_aw_to_hbm_wr_w_rptr] : 1'b0;
+    assign cpu_wr_128b_w_sel_hbm_wr = cpu_wr_128b_w_to_hbm_wr;
 
-
-    // W channel (gated by aw_to_<slave> FIFO head)
+    // W channel (gated by the W destination FIFO head)
     assign hbm_wr_axi_wdata  = cpu_wr_128b_w_to_hbm_wr ? cpu_wr_128b_w.data : '0;
     assign hbm_wr_axi_wstrb  = cpu_wr_128b_w_to_hbm_wr ? cpu_wr_128b_w.strb : '0;
     assign hbm_wr_axi_wlast  = cpu_wr_128b_w_to_hbm_wr ? cpu_wr_128b_w.last : '0;
@@ -322,15 +267,90 @@ module bridge_1x3_wr_xbar
 
 
     // ================================================================
+    // W destination FIFOs (per master width-path)
+    // ================================================================
+    // cpu_wr 32b path -> periph_wr
+    logic [0:0] cpu_wr_32b_wdest_mem [16];
+    logic [4:0] cpu_wr_32b_wdest_wptr, cpu_wr_32b_wdest_rptr;
+    wire [0:0] cpu_wr_32b_wdest_enc = 1'd0;
+    wire cpu_wr_32b_wdest_push = cpu_wr_32b_awvalid && cpu_wr_32b_awready;
+    wire cpu_wr_32b_wdest_pop  = cpu_wr_32b_wvalid && cpu_wr_32b_wready && cpu_wr_32b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_wr_32b_wdest_wptr <= '0;
+            cpu_wr_32b_wdest_rptr <= '0;
+        end else begin
+            if (cpu_wr_32b_wdest_push) begin
+                cpu_wr_32b_wdest_mem[cpu_wr_32b_wdest_wptr[3:0]] <= cpu_wr_32b_wdest_enc;
+                cpu_wr_32b_wdest_wptr <= cpu_wr_32b_wdest_wptr + 1'b1;
+            end
+            if (cpu_wr_32b_wdest_pop) begin
+                cpu_wr_32b_wdest_rptr <= cpu_wr_32b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire cpu_wr_32b_wdest_valid = (cpu_wr_32b_wdest_wptr != cpu_wr_32b_wdest_rptr);
+    wire [0:0] cpu_wr_32b_wdest_head = cpu_wr_32b_wdest_mem[cpu_wr_32b_wdest_rptr[3:0]];
+    assign cpu_wr_32b_w_to_periph_wr = cpu_wr_32b_wdest_valid && (cpu_wr_32b_wdest_head == 1'd0);
+
+    // cpu_wr 64b path -> ddr_wr
+    logic [0:0] cpu_wr_64b_wdest_mem [16];
+    logic [4:0] cpu_wr_64b_wdest_wptr, cpu_wr_64b_wdest_rptr;
+    wire [0:0] cpu_wr_64b_wdest_enc = 1'd0;
+    wire cpu_wr_64b_wdest_push = cpu_wr_64b_awvalid && cpu_wr_64b_awready;
+    wire cpu_wr_64b_wdest_pop  = cpu_wr_64b_wvalid && cpu_wr_64b_wready && cpu_wr_64b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_wr_64b_wdest_wptr <= '0;
+            cpu_wr_64b_wdest_rptr <= '0;
+        end else begin
+            if (cpu_wr_64b_wdest_push) begin
+                cpu_wr_64b_wdest_mem[cpu_wr_64b_wdest_wptr[3:0]] <= cpu_wr_64b_wdest_enc;
+                cpu_wr_64b_wdest_wptr <= cpu_wr_64b_wdest_wptr + 1'b1;
+            end
+            if (cpu_wr_64b_wdest_pop) begin
+                cpu_wr_64b_wdest_rptr <= cpu_wr_64b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire cpu_wr_64b_wdest_valid = (cpu_wr_64b_wdest_wptr != cpu_wr_64b_wdest_rptr);
+    wire [0:0] cpu_wr_64b_wdest_head = cpu_wr_64b_wdest_mem[cpu_wr_64b_wdest_rptr[3:0]];
+    assign cpu_wr_64b_w_to_ddr_wr = cpu_wr_64b_wdest_valid && (cpu_wr_64b_wdest_head == 1'd0);
+
+    // cpu_wr 128b path -> hbm_wr
+    logic [0:0] cpu_wr_128b_wdest_mem [16];
+    logic [4:0] cpu_wr_128b_wdest_wptr, cpu_wr_128b_wdest_rptr;
+    wire [0:0] cpu_wr_128b_wdest_enc = 1'd0;
+    wire cpu_wr_128b_wdest_push = cpu_wr_128b_awvalid && cpu_wr_128b_awready;
+    wire cpu_wr_128b_wdest_pop  = cpu_wr_128b_wvalid && cpu_wr_128b_wready && cpu_wr_128b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_wr_128b_wdest_wptr <= '0;
+            cpu_wr_128b_wdest_rptr <= '0;
+        end else begin
+            if (cpu_wr_128b_wdest_push) begin
+                cpu_wr_128b_wdest_mem[cpu_wr_128b_wdest_wptr[3:0]] <= cpu_wr_128b_wdest_enc;
+                cpu_wr_128b_wdest_wptr <= cpu_wr_128b_wdest_wptr + 1'b1;
+            end
+            if (cpu_wr_128b_wdest_pop) begin
+                cpu_wr_128b_wdest_rptr <= cpu_wr_128b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire cpu_wr_128b_wdest_valid = (cpu_wr_128b_wdest_wptr != cpu_wr_128b_wdest_rptr);
+    wire [0:0] cpu_wr_128b_wdest_head = cpu_wr_128b_wdest_mem[cpu_wr_128b_wdest_rptr[3:0]];
+    assign cpu_wr_128b_w_to_hbm_wr = cpu_wr_128b_wdest_valid && (cpu_wr_128b_wdest_head == 1'd0);
+
+    // ================================================================
     // Response MUXes (OR together all slave responses)
     // ================================================================
 
     // Master: cpu_wr, Width path: 32b
     assign cpu_wr_32b_awready = 
-        (cpu_wr_32b_aw_to_periph_wr ? periph_wr_axi_awready : '0);
+        (cpu_wr_32b_aw_gnt_periph_wr ? periph_wr_axi_awready : '0);
 
     assign cpu_wr_32b_wready = 
-        (cpu_wr_32b_w_to_periph_wr ? periph_wr_axi_wready : '0);
+        (cpu_wr_32b_w_sel_periph_wr ? periph_wr_axi_wready : '0);
 
     assign cpu_wr_32b_b.id = 
         ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid ? periph_wr_axi_bid : '0);
@@ -344,10 +364,10 @@ module bridge_1x3_wr_xbar
 
     // Master: cpu_wr, Width path: 64b
     assign cpu_wr_64b_awready = 
-        (cpu_wr_64b_aw_to_ddr_wr ? ddr_wr_axi_awready : '0);
+        (cpu_wr_64b_aw_gnt_ddr_wr ? ddr_wr_axi_awready : '0);
 
     assign cpu_wr_64b_wready = 
-        (cpu_wr_64b_w_to_ddr_wr ? ddr_wr_axi_wready : '0);
+        (cpu_wr_64b_w_sel_ddr_wr ? ddr_wr_axi_wready : '0);
 
     assign cpu_wr_64b_b.id = 
         ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_bid : '0);
@@ -361,10 +381,10 @@ module bridge_1x3_wr_xbar
 
     // Master: cpu_wr, Width path: 128b
     assign cpu_wr_128b_awready = 
-        (cpu_wr_128b_aw_to_hbm_wr ? hbm_wr_axi_awready : '0);
+        (cpu_wr_128b_aw_gnt_hbm_wr ? hbm_wr_axi_awready : '0);
 
     assign cpu_wr_128b_wready = 
-        (cpu_wr_128b_w_to_hbm_wr ? hbm_wr_axi_wready : '0);
+        (cpu_wr_128b_w_sel_hbm_wr ? hbm_wr_axi_wready : '0);
 
     assign cpu_wr_128b_b.id = 
         ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bid : '0);

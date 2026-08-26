@@ -85,6 +85,8 @@ module bridge_1x2_rd_mon_xbar
     // Crossbar Routing
     // ================================================================
 
+    // W-follow declarations (assigned below)
+
     // ================================================================
     // Slave 0: ddr_rd (32b)
     // ================================================================
@@ -94,6 +96,7 @@ module bridge_1x2_rd_mon_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_rd_32b_ar_to_ddr_rd = (cpu_rd_32b_ar.addr <= 32'h7fffffff);
+    wire cpu_rd_32b_ar_gnt_ddr_rd = cpu_rd_32b_ar_to_ddr_rd;
     assign ddr_rd_axi_arid     = cpu_rd_32b_ar_to_ddr_rd ? cpu_rd_32b_ar.id : '0;
     assign ddr_rd_axi_araddr   = cpu_rd_32b_ar_to_ddr_rd ? cpu_rd_32b_ar.addr : '0;
     assign ddr_rd_axi_arlen    = cpu_rd_32b_ar_to_ddr_rd ? cpu_rd_32b_ar.len : '0;
@@ -121,6 +124,7 @@ module bridge_1x2_rd_mon_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_rd_32b_ar_to_sram_rd = (cpu_rd_32b_ar.addr >= 32'h80000000);
+    wire cpu_rd_32b_ar_gnt_sram_rd = cpu_rd_32b_ar_to_sram_rd;
     assign sram_rd_axi_arid     = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.id : '0;
     assign sram_rd_axi_araddr   = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.addr : '0;
     assign sram_rd_axi_arlen    = cpu_rd_32b_ar_to_sram_rd ? cpu_rd_32b_ar.len : '0;
@@ -140,13 +144,16 @@ module bridge_1x2_rd_mon_xbar
 
 
     // ================================================================
+    // W destination FIFOs (per master width-path)
+    // ================================================================
+    // ================================================================
     // Response MUXes (OR together all slave responses)
     // ================================================================
 
     // Master: cpu_rd, Width path: 32b
     assign cpu_rd_32b_arready = 
-        (cpu_rd_32b_ar_to_ddr_rd ? ddr_rd_axi_arready : '0) |
-        (cpu_rd_32b_ar_to_sram_rd ? sram_rd_axi_arready : '0);
+        (cpu_rd_32b_ar_gnt_ddr_rd ? ddr_rd_axi_arready : '0) |
+        (cpu_rd_32b_ar_gnt_sram_rd ? sram_rd_axi_arready : '0);
 
     assign cpu_rd_32b_r.id = 
         ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rid : '0) |

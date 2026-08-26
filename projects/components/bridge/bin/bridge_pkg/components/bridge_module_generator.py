@@ -199,8 +199,15 @@ class BridgeModuleGenerator:
 
     def _generate_package(self) -> str:
         """Generate SystemVerilog package with AXI channel structs."""
-        # Collect unique ID width (use first master's)
-        id_width = self.masters[0].id_width if self.masters else 4
+        # Bridge-wide struct ID width: the MAX across masters, not the
+        # first master's. "First master wins" truncated every wider
+        # master's RID/BID in the shared channel structs (a 6-bit id 0x14
+        # came back as 0x04 and the response never matched its waiter).
+        # Same rationale as addr_width below. Floor of 1 so an all-AXIL
+        # bridge (id_width=0) doesn't declare a [-1:0] field.
+        id_width = max(
+            [max(1, m.id_width or 0) for m in self.masters] or [4]
+        )
 
         # One bridge-wide address width, taken from the CONFIG rather
         # than hardcoded — a TOML with addr_width=64 used to validate

@@ -180,6 +180,8 @@ module bridge_1x5_rd_xbar
     // Crossbar Routing
     // ================================================================
 
+    // W-follow declarations (assigned below)
+
     // ================================================================
     // Slave 0: periph_rd (32b)
     // ================================================================
@@ -189,6 +191,7 @@ module bridge_1x5_rd_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_rd_32b_ar_to_periph_rd = (cpu_rd_32b_ar.addr <= 32'h0fffffff);
+    wire cpu_rd_32b_ar_gnt_periph_rd = cpu_rd_32b_ar_to_periph_rd;
     assign periph_rd_axi_arid     = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.id : '0;
     assign periph_rd_axi_araddr   = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.addr : '0;
     assign periph_rd_axi_arlen    = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.len : '0;
@@ -216,6 +219,7 @@ module bridge_1x5_rd_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_rd_64b_ar_to_ddr_rd = ((cpu_rd_64b_ar.addr >= 32'h10000000) && (cpu_rd_64b_ar.addr <= 32'h4fffffff));
+    wire cpu_rd_64b_ar_gnt_ddr_rd = cpu_rd_64b_ar_to_ddr_rd;
     assign ddr_rd_axi_arid     = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.id : '0;
     assign ddr_rd_axi_araddr   = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.addr : '0;
     assign ddr_rd_axi_arlen    = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.len : '0;
@@ -243,6 +247,7 @@ module bridge_1x5_rd_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_rd_128b_ar_to_hbm_rd = ((cpu_rd_128b_ar.addr >= 32'h50000000) && (cpu_rd_128b_ar.addr <= 32'h7fffffff));
+    wire cpu_rd_128b_ar_gnt_hbm_rd = cpu_rd_128b_ar_to_hbm_rd;
     assign hbm_rd_axi_arid     = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.id : '0;
     assign hbm_rd_axi_araddr   = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.addr : '0;
     assign hbm_rd_axi_arlen    = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.len : '0;
@@ -270,6 +275,7 @@ module bridge_1x5_rd_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_rd_32b_ar_to_apb_periph = ((cpu_rd_32b_ar.addr >= 32'h80000000) && (cpu_rd_32b_ar.addr <= 32'h8000ffff));
+    wire cpu_rd_32b_ar_gnt_apb_periph = cpu_rd_32b_ar_to_apb_periph;
     assign apb_periph_axi_arid     = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.id : '0;
     assign apb_periph_axi_araddr   = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.addr : '0;
     assign apb_periph_axi_arlen    = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.len : '0;
@@ -297,6 +303,7 @@ module bridge_1x5_rd_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_rd_32b_ar_to_axil_periph = ((cpu_rd_32b_ar.addr >= 32'h90000000) && (cpu_rd_32b_ar.addr <= 32'h9000ffff));
+    wire cpu_rd_32b_ar_gnt_axil_periph = cpu_rd_32b_ar_to_axil_periph;
     assign axil_periph_axi_arid     = cpu_rd_32b_ar_to_axil_periph ? cpu_rd_32b_ar.id : '0;
     assign axil_periph_axi_araddr   = cpu_rd_32b_ar_to_axil_periph ? cpu_rd_32b_ar.addr : '0;
     assign axil_periph_axi_arlen    = cpu_rd_32b_ar_to_axil_periph ? cpu_rd_32b_ar.len : '0;
@@ -316,14 +323,17 @@ module bridge_1x5_rd_xbar
 
 
     // ================================================================
+    // W destination FIFOs (per master width-path)
+    // ================================================================
+    // ================================================================
     // Response MUXes (OR together all slave responses)
     // ================================================================
 
     // Master: cpu_rd, Width path: 32b
     assign cpu_rd_32b_arready = 
-        (cpu_rd_32b_ar_to_periph_rd ? periph_rd_axi_arready : '0) |
-        (cpu_rd_32b_ar_to_apb_periph ? apb_periph_axi_arready : '0) |
-        (cpu_rd_32b_ar_to_axil_periph ? axil_periph_axi_arready : '0);
+        (cpu_rd_32b_ar_gnt_periph_rd ? periph_rd_axi_arready : '0) |
+        (cpu_rd_32b_ar_gnt_apb_periph ? apb_periph_axi_arready : '0) |
+        (cpu_rd_32b_ar_gnt_axil_periph ? axil_periph_axi_arready : '0);
 
     assign cpu_rd_32b_r.id = 
         ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_rid : '0) |
@@ -353,7 +363,7 @@ module bridge_1x5_rd_xbar
 
     // Master: cpu_rd, Width path: 64b
     assign cpu_rd_64b_arready = 
-        (cpu_rd_64b_ar_to_ddr_rd ? ddr_rd_axi_arready : '0);
+        (cpu_rd_64b_ar_gnt_ddr_rd ? ddr_rd_axi_arready : '0);
 
     assign cpu_rd_64b_r.id = 
         ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rid : '0);
@@ -373,7 +383,7 @@ module bridge_1x5_rd_xbar
 
     // Master: cpu_rd, Width path: 128b
     assign cpu_rd_128b_arready = 
-        (cpu_rd_128b_ar_to_hbm_rd ? hbm_rd_axi_arready : '0);
+        (cpu_rd_128b_ar_gnt_hbm_rd ? hbm_rd_axi_arready : '0);
 
     assign cpu_rd_128b_r.id = 
         ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rid : '0);

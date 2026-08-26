@@ -270,6 +270,18 @@ module bridge_mix_d_mon_xbar
     // Crossbar Routing
     // ================================================================
 
+    // W-follow declarations (assigned below)
+    logic cpu_axi4_32b_w_to_doorbell;
+    logic cpu_axi4_32b_w_sel_doorbell;
+    logic cpu_axi4_32b_w_to_apb_periph;
+    logic cpu_axi4_32b_w_sel_apb_periph;
+    logic cpu_axi4_64b_w_to_ddr;
+    logic cpu_axi4_64b_w_sel_ddr;
+    logic trace_axil_32b_w_to_doorbell;
+    logic trace_axil_32b_w_sel_doorbell;
+    logic trace_axil_64b_w_to_ddr;
+    logic trace_axil_64b_w_sel_ddr;
+
     // ================================================================
     // Slave 0: ddr (64b)
     // ================================================================
@@ -282,117 +294,144 @@ module bridge_mix_d_mon_xbar
     wire trace_axil_64b_aw_to_ddr = (trace_axil_64b_aw.addr <= 32'h3fffffff);
     wire trace_axil_64b_ar_to_ddr = (trace_axil_64b_ar.addr <= 32'h3fffffff);
 
-    // AW channel (OR-merged across writing masters)
-    assign ddr_axi_awid = ((cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid) ? cpu_axi4_64b_aw.id : '0) |
-        ((trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid) ? trace_axil_64b_aw.id : '0);
-    assign ddr_axi_awaddr = ((cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid) ? cpu_axi4_64b_aw.addr : '0) |
-        ((trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid) ? trace_axil_64b_aw.addr : '0);
-    assign ddr_axi_awlen = ((cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid) ? cpu_axi4_64b_aw.len : '0) |
-        ((trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid) ? trace_axil_64b_aw.len : '0);
-    assign ddr_axi_awsize = ((cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid) ? cpu_axi4_64b_aw.size : '0) |
-        ((trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid) ? trace_axil_64b_aw.size : '0);
-    assign ddr_axi_awburst = ((cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid) ? cpu_axi4_64b_aw.burst : '0) |
-        ((trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid) ? trace_axil_64b_aw.burst : '0);
-    assign ddr_axi_awlock = ((cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid) ? cpu_axi4_64b_aw.lock : '0) |
-        ((trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid) ? trace_axil_64b_aw.lock : '0);
-    assign ddr_axi_awcache = ((cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid) ? cpu_axi4_64b_aw.cache : '0) |
-        ((trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid) ? trace_axil_64b_aw.cache : '0);
-    assign ddr_axi_awprot = ((cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid) ? cpu_axi4_64b_aw.prot : '0) |
-        ((trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid) ? trace_axil_64b_aw.prot : '0);
-    assign ddr_axi_awvalid = ((cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid) ? cpu_axi4_64b_awvalid : '0) |
-        ((trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid) ? trace_axil_64b_awvalid : '0);
-
-    // AW->W tracking FIFO: cpu_axi4 -> ddr
-    logic cpu_axi4_64b_w_to_ddr;
-    logic [3:0] cpu_axi4_64b_aw_to_ddr_w_wptr, cpu_axi4_64b_aw_to_ddr_w_rptr;
-    logic cpu_axi4_64b_aw_to_ddr_w_mem [16];
-    logic cpu_axi4_64b_aw_to_ddr_w_push, cpu_axi4_64b_aw_to_ddr_w_pop;
-    assign cpu_axi4_64b_aw_to_ddr_w_push = cpu_axi4_64b_awvalid && cpu_axi4_64b_awready && cpu_axi4_64b_aw_to_ddr;
-    assign cpu_axi4_64b_aw_to_ddr_w_pop  = cpu_axi4_64b_wvalid && cpu_axi4_64b_wready && cpu_axi4_64b_w.last && cpu_axi4_64b_w_to_ddr;
+    // ---- AW arbiter for ddr: round-robin, lock until handshake ----
+    logic [1:0] ddr_aw_arb_req;
+    assign ddr_aw_arb_req = {trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid, cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid};
+    logic [0:0] ddr_aw_arb_lock, ddr_aw_arb_rr;
+    logic ddr_aw_arb_locked;
+    wire [0:0] ddr_aw_arb_pick = (ddr_aw_arb_rr == 1'd0) ? (ddr_aw_arb_req[0] ? 1'd0 : 1'd1) : 
+        ddr_aw_arb_req[1] ? 1'd1 : 1'd0;
+    wire ddr_aw_arb_gnt_valid = ddr_aw_arb_locked || (|ddr_aw_arb_req);
+    wire [0:0] ddr_aw_arb_gnt = ddr_aw_arb_locked ? ddr_aw_arb_lock : ddr_aw_arb_pick;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            cpu_axi4_64b_aw_to_ddr_w_wptr <= '0;
-            cpu_axi4_64b_aw_to_ddr_w_rptr <= '0;
+            ddr_aw_arb_lock   <= '0;
+            ddr_aw_arb_rr     <= '0;
+            ddr_aw_arb_locked <= 1'b0;
         end else begin
-            if (cpu_axi4_64b_aw_to_ddr_w_push) begin
-                cpu_axi4_64b_aw_to_ddr_w_mem[cpu_axi4_64b_aw_to_ddr_w_wptr] <= 1'b1;
-                cpu_axi4_64b_aw_to_ddr_w_wptr <= cpu_axi4_64b_aw_to_ddr_w_wptr + 1'b1;
-            end
-            if (cpu_axi4_64b_aw_to_ddr_w_pop) begin
-                cpu_axi4_64b_aw_to_ddr_w_rptr <= cpu_axi4_64b_aw_to_ddr_w_rptr + 1'b1;
+            if (ddr_axi_awvalid && ddr_axi_awready) begin
+                ddr_aw_arb_locked <= 1'b0;
+                ddr_aw_arb_rr <= (ddr_aw_arb_gnt == 1'd1) ? 1'd0 : ddr_aw_arb_gnt + 1'b1;
+            end else if (ddr_axi_awvalid) begin
+                ddr_aw_arb_lock   <= ddr_aw_arb_gnt;
+                ddr_aw_arb_locked <= 1'b1;
             end
         end
     end
-    assign cpu_axi4_64b_w_to_ddr = (cpu_axi4_64b_aw_to_ddr_w_wptr != cpu_axi4_64b_aw_to_ddr_w_rptr) ? cpu_axi4_64b_aw_to_ddr_w_mem[cpu_axi4_64b_aw_to_ddr_w_rptr] : 1'b0;
+    wire cpu_axi4_64b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd0) && ddr_aw_arb_req[0];
+    wire trace_axil_64b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd1) && ddr_aw_arb_req[1];
 
-    // AW->W tracking FIFO: trace_axil -> ddr
-    logic trace_axil_64b_w_to_ddr;
-    logic [3:0] trace_axil_64b_aw_to_ddr_w_wptr, trace_axil_64b_aw_to_ddr_w_rptr;
-    logic trace_axil_64b_aw_to_ddr_w_mem [16];
-    logic trace_axil_64b_aw_to_ddr_w_push, trace_axil_64b_aw_to_ddr_w_pop;
-    assign trace_axil_64b_aw_to_ddr_w_push = trace_axil_64b_awvalid && trace_axil_64b_awready && trace_axil_64b_aw_to_ddr;
-    assign trace_axil_64b_aw_to_ddr_w_pop  = trace_axil_64b_wvalid && trace_axil_64b_wready && trace_axil_64b_w.last && trace_axil_64b_w_to_ddr;
+    // AW channel (arbitrated mux across writing masters)
+    assign ddr_axi_awid = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.id : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.id : '0);
+    assign ddr_axi_awaddr = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.addr : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.addr : '0);
+    assign ddr_axi_awlen = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.len : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.len : '0);
+    assign ddr_axi_awsize = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.size : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.size : '0);
+    assign ddr_axi_awburst = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.burst : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.burst : '0);
+    assign ddr_axi_awlock = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.lock : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.lock : '0);
+    assign ddr_axi_awcache = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.cache : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.cache : '0);
+    assign ddr_axi_awprot = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_64b_aw.prot : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_64b_aw.prot : '0);
+    assign ddr_axi_awvalid = cpu_axi4_64b_aw_gnt_ddr || trace_axil_64b_aw_gnt_ddr;
+
+    // W owner FIFO: slave-side AW accept order owns the W channel
+    logic [0:0] ddr_wowner_mem [16];
+    logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            trace_axil_64b_aw_to_ddr_w_wptr <= '0;
-            trace_axil_64b_aw_to_ddr_w_rptr <= '0;
+            ddr_wowner_wptr <= '0;
+            ddr_wowner_rptr <= '0;
         end else begin
-            if (trace_axil_64b_aw_to_ddr_w_push) begin
-                trace_axil_64b_aw_to_ddr_w_mem[trace_axil_64b_aw_to_ddr_w_wptr] <= 1'b1;
-                trace_axil_64b_aw_to_ddr_w_wptr <= trace_axil_64b_aw_to_ddr_w_wptr + 1'b1;
+            if (ddr_axi_awvalid && ddr_axi_awready) begin
+                ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
+                ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
             end
-            if (trace_axil_64b_aw_to_ddr_w_pop) begin
-                trace_axil_64b_aw_to_ddr_w_rptr <= trace_axil_64b_aw_to_ddr_w_rptr + 1'b1;
+            if (ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast) begin
+                ddr_wowner_rptr <= ddr_wowner_rptr + 1'b1;
             end
         end
     end
-    assign trace_axil_64b_w_to_ddr = (trace_axil_64b_aw_to_ddr_w_wptr != trace_axil_64b_aw_to_ddr_w_rptr) ? trace_axil_64b_aw_to_ddr_w_mem[trace_axil_64b_aw_to_ddr_w_rptr] : 1'b0;
+    wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
+    wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
+    assign cpu_axi4_64b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && cpu_axi4_64b_w_to_ddr;
+    assign trace_axil_64b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd1) && trace_axil_64b_w_to_ddr;
 
-    // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)
-    assign ddr_axi_wdata = ((cpu_axi4_64b_w_to_ddr && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.data : '0) |
-        ((trace_axil_64b_w_to_ddr && trace_axil_64b_wvalid) ? trace_axil_64b_w.data : '0);
-    assign ddr_axi_wstrb = ((cpu_axi4_64b_w_to_ddr && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.strb : '0) |
-        ((trace_axil_64b_w_to_ddr && trace_axil_64b_wvalid) ? trace_axil_64b_w.strb : '0);
-    assign ddr_axi_wlast = ((cpu_axi4_64b_w_to_ddr && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.last : '0) |
-        ((trace_axil_64b_w_to_ddr && trace_axil_64b_wvalid) ? trace_axil_64b_w.last : '0);
-    assign ddr_axi_wvalid = ((cpu_axi4_64b_w_to_ddr && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_wvalid : '0) |
-        ((trace_axil_64b_w_to_ddr && trace_axil_64b_wvalid) ? trace_axil_64b_wvalid : '0);
+    // W channel (owner-gated mux across writing masters)
+    assign ddr_axi_wdata = ((cpu_axi4_64b_w_sel_ddr && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.data : '0) |
+        ((trace_axil_64b_w_sel_ddr && trace_axil_64b_wvalid) ? trace_axil_64b_w.data : '0);
+    assign ddr_axi_wstrb = ((cpu_axi4_64b_w_sel_ddr && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.strb : '0) |
+        ((trace_axil_64b_w_sel_ddr && trace_axil_64b_wvalid) ? trace_axil_64b_w.strb : '0);
+    assign ddr_axi_wlast = ((cpu_axi4_64b_w_sel_ddr && cpu_axi4_64b_wvalid) ? cpu_axi4_64b_w.last : '0) |
+        ((trace_axil_64b_w_sel_ddr && trace_axil_64b_wvalid) ? trace_axil_64b_w.last : '0);
+    assign ddr_axi_wvalid = (cpu_axi4_64b_w_sel_ddr && cpu_axi4_64b_wvalid) || (trace_axil_64b_w_sel_ddr && trace_axil_64b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
     assign ddr_axi_bready = ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? cpu_axi4_64b_bready : '0) |
         ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? trace_axil_64b_bready : '0);
 
-    // Bridge ID (writes) — picks the originating master's id
-    assign ddr_axi_bridge_id_aw = ((cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid) ? cpu_axi4_bridge_id_aw : '0) |
-        ((trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid) ? trace_axil_bridge_id_aw : '0);
+    // Bridge ID (writes) — the granted master's id
+    assign ddr_axi_bridge_id_aw = (cpu_axi4_64b_aw_gnt_ddr ? cpu_axi4_bridge_id_aw : '0) |
+        (trace_axil_64b_aw_gnt_ddr ? trace_axil_bridge_id_aw : '0);
 
-    // AR channel (OR-merged across reading masters)
-    assign ddr_axi_arid = ((cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid) ? cpu_axi4_64b_ar.id : '0) |
-        ((trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid) ? trace_axil_64b_ar.id : '0);
-    assign ddr_axi_araddr = ((cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid) ? cpu_axi4_64b_ar.addr : '0) |
-        ((trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid) ? trace_axil_64b_ar.addr : '0);
-    assign ddr_axi_arlen = ((cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid) ? cpu_axi4_64b_ar.len : '0) |
-        ((trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid) ? trace_axil_64b_ar.len : '0);
-    assign ddr_axi_arsize = ((cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid) ? cpu_axi4_64b_ar.size : '0) |
-        ((trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid) ? trace_axil_64b_ar.size : '0);
-    assign ddr_axi_arburst = ((cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid) ? cpu_axi4_64b_ar.burst : '0) |
-        ((trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid) ? trace_axil_64b_ar.burst : '0);
-    assign ddr_axi_arlock = ((cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid) ? cpu_axi4_64b_ar.lock : '0) |
-        ((trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid) ? trace_axil_64b_ar.lock : '0);
-    assign ddr_axi_arcache = ((cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid) ? cpu_axi4_64b_ar.cache : '0) |
-        ((trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid) ? trace_axil_64b_ar.cache : '0);
-    assign ddr_axi_arprot = ((cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid) ? cpu_axi4_64b_ar.prot : '0) |
-        ((trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid) ? trace_axil_64b_ar.prot : '0);
-    assign ddr_axi_arvalid = ((cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid) ? cpu_axi4_64b_arvalid : '0) |
-        ((trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid) ? trace_axil_64b_arvalid : '0);
+    // ---- AR arbiter for ddr: round-robin, lock until handshake ----
+    logic [1:0] ddr_ar_arb_req;
+    assign ddr_ar_arb_req = {trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid, cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid};
+    logic [0:0] ddr_ar_arb_lock, ddr_ar_arb_rr;
+    logic ddr_ar_arb_locked;
+    wire [0:0] ddr_ar_arb_pick = (ddr_ar_arb_rr == 1'd0) ? (ddr_ar_arb_req[0] ? 1'd0 : 1'd1) : 
+        ddr_ar_arb_req[1] ? 1'd1 : 1'd0;
+    wire ddr_ar_arb_gnt_valid = ddr_ar_arb_locked || (|ddr_ar_arb_req);
+    wire [0:0] ddr_ar_arb_gnt = ddr_ar_arb_locked ? ddr_ar_arb_lock : ddr_ar_arb_pick;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            ddr_ar_arb_lock   <= '0;
+            ddr_ar_arb_rr     <= '0;
+            ddr_ar_arb_locked <= 1'b0;
+        end else begin
+            if (ddr_axi_arvalid && ddr_axi_arready) begin
+                ddr_ar_arb_locked <= 1'b0;
+                ddr_ar_arb_rr <= (ddr_ar_arb_gnt == 1'd1) ? 1'd0 : ddr_ar_arb_gnt + 1'b1;
+            end else if (ddr_axi_arvalid) begin
+                ddr_ar_arb_lock   <= ddr_ar_arb_gnt;
+                ddr_ar_arb_locked <= 1'b1;
+            end
+        end
+    end
+    wire cpu_axi4_64b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd0) && ddr_ar_arb_req[0];
+    wire trace_axil_64b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd1) && ddr_ar_arb_req[1];
+
+    // AR channel (arbitrated mux across reading masters)
+    assign ddr_axi_arid = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.id : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.id : '0);
+    assign ddr_axi_araddr = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.addr : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.addr : '0);
+    assign ddr_axi_arlen = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.len : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.len : '0);
+    assign ddr_axi_arsize = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.size : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.size : '0);
+    assign ddr_axi_arburst = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.burst : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.burst : '0);
+    assign ddr_axi_arlock = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.lock : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.lock : '0);
+    assign ddr_axi_arcache = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.cache : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.cache : '0);
+    assign ddr_axi_arprot = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_64b_ar.prot : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_64b_ar.prot : '0);
+    assign ddr_axi_arvalid = cpu_axi4_64b_ar_gnt_ddr || trace_axil_64b_ar_gnt_ddr;
 
     // Rready (slave → owning master, by rid_bridge_id)
     assign ddr_axi_rready = ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? cpu_axi4_64b_rready : '0) |
         ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? trace_axil_64b_rready : '0);
 
-    // Bridge ID (reads) — picks the originating master's id
-    assign ddr_axi_bridge_id_ar = ((cpu_axi4_64b_ar_to_ddr && cpu_axi4_64b_arvalid) ? cpu_axi4_bridge_id_ar : '0) |
-        ((trace_axil_64b_ar_to_ddr && trace_axil_64b_arvalid) ? trace_axil_bridge_id_ar : '0);
+    // Bridge ID (reads) — the granted master's id
+    assign ddr_axi_bridge_id_ar = (cpu_axi4_64b_ar_gnt_ddr ? cpu_axi4_bridge_id_ar : '0) |
+        (trace_axil_64b_ar_gnt_ddr ? trace_axil_bridge_id_ar : '0);
 
 
     // ================================================================
@@ -407,117 +446,144 @@ module bridge_mix_d_mon_xbar
     wire trace_axil_32b_aw_to_doorbell = ((trace_axil_32b_aw.addr >= 32'h40000000) && (trace_axil_32b_aw.addr <= 32'h40000fff));
     wire trace_axil_32b_ar_to_doorbell = ((trace_axil_32b_ar.addr >= 32'h40000000) && (trace_axil_32b_ar.addr <= 32'h40000fff));
 
-    // AW channel (OR-merged across writing masters)
-    assign doorbell_axi_awid = ((cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.id : '0) |
-        ((trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid) ? trace_axil_32b_aw.id : '0);
-    assign doorbell_axi_awaddr = ((cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.addr : '0) |
-        ((trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid) ? trace_axil_32b_aw.addr : '0);
-    assign doorbell_axi_awlen = ((cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.len : '0) |
-        ((trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid) ? trace_axil_32b_aw.len : '0);
-    assign doorbell_axi_awsize = ((cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.size : '0) |
-        ((trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid) ? trace_axil_32b_aw.size : '0);
-    assign doorbell_axi_awburst = ((cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.burst : '0) |
-        ((trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid) ? trace_axil_32b_aw.burst : '0);
-    assign doorbell_axi_awlock = ((cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.lock : '0) |
-        ((trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid) ? trace_axil_32b_aw.lock : '0);
-    assign doorbell_axi_awcache = ((cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.cache : '0) |
-        ((trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid) ? trace_axil_32b_aw.cache : '0);
-    assign doorbell_axi_awprot = ((cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_aw.prot : '0) |
-        ((trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid) ? trace_axil_32b_aw.prot : '0);
-    assign doorbell_axi_awvalid = ((cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid) ? cpu_axi4_32b_awvalid : '0) |
-        ((trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid) ? trace_axil_32b_awvalid : '0);
-
-    // AW->W tracking FIFO: cpu_axi4 -> doorbell
-    logic cpu_axi4_32b_w_to_doorbell;
-    logic [3:0] cpu_axi4_32b_aw_to_doorbell_w_wptr, cpu_axi4_32b_aw_to_doorbell_w_rptr;
-    logic cpu_axi4_32b_aw_to_doorbell_w_mem [16];
-    logic cpu_axi4_32b_aw_to_doorbell_w_push, cpu_axi4_32b_aw_to_doorbell_w_pop;
-    assign cpu_axi4_32b_aw_to_doorbell_w_push = cpu_axi4_32b_awvalid && cpu_axi4_32b_awready && cpu_axi4_32b_aw_to_doorbell;
-    assign cpu_axi4_32b_aw_to_doorbell_w_pop  = cpu_axi4_32b_wvalid && cpu_axi4_32b_wready && cpu_axi4_32b_w.last && cpu_axi4_32b_w_to_doorbell;
+    // ---- AW arbiter for doorbell: round-robin, lock until handshake ----
+    logic [1:0] doorbell_aw_arb_req;
+    assign doorbell_aw_arb_req = {trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid, cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid};
+    logic [0:0] doorbell_aw_arb_lock, doorbell_aw_arb_rr;
+    logic doorbell_aw_arb_locked;
+    wire [0:0] doorbell_aw_arb_pick = (doorbell_aw_arb_rr == 1'd0) ? (doorbell_aw_arb_req[0] ? 1'd0 : 1'd1) : 
+        doorbell_aw_arb_req[1] ? 1'd1 : 1'd0;
+    wire doorbell_aw_arb_gnt_valid = doorbell_aw_arb_locked || (|doorbell_aw_arb_req);
+    wire [0:0] doorbell_aw_arb_gnt = doorbell_aw_arb_locked ? doorbell_aw_arb_lock : doorbell_aw_arb_pick;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            cpu_axi4_32b_aw_to_doorbell_w_wptr <= '0;
-            cpu_axi4_32b_aw_to_doorbell_w_rptr <= '0;
+            doorbell_aw_arb_lock   <= '0;
+            doorbell_aw_arb_rr     <= '0;
+            doorbell_aw_arb_locked <= 1'b0;
         end else begin
-            if (cpu_axi4_32b_aw_to_doorbell_w_push) begin
-                cpu_axi4_32b_aw_to_doorbell_w_mem[cpu_axi4_32b_aw_to_doorbell_w_wptr] <= 1'b1;
-                cpu_axi4_32b_aw_to_doorbell_w_wptr <= cpu_axi4_32b_aw_to_doorbell_w_wptr + 1'b1;
-            end
-            if (cpu_axi4_32b_aw_to_doorbell_w_pop) begin
-                cpu_axi4_32b_aw_to_doorbell_w_rptr <= cpu_axi4_32b_aw_to_doorbell_w_rptr + 1'b1;
+            if (doorbell_axi_awvalid && doorbell_axi_awready) begin
+                doorbell_aw_arb_locked <= 1'b0;
+                doorbell_aw_arb_rr <= (doorbell_aw_arb_gnt == 1'd1) ? 1'd0 : doorbell_aw_arb_gnt + 1'b1;
+            end else if (doorbell_axi_awvalid) begin
+                doorbell_aw_arb_lock   <= doorbell_aw_arb_gnt;
+                doorbell_aw_arb_locked <= 1'b1;
             end
         end
     end
-    assign cpu_axi4_32b_w_to_doorbell = (cpu_axi4_32b_aw_to_doorbell_w_wptr != cpu_axi4_32b_aw_to_doorbell_w_rptr) ? cpu_axi4_32b_aw_to_doorbell_w_mem[cpu_axi4_32b_aw_to_doorbell_w_rptr] : 1'b0;
+    wire cpu_axi4_32b_aw_gnt_doorbell = doorbell_aw_arb_gnt_valid && (doorbell_aw_arb_gnt == 1'd0) && doorbell_aw_arb_req[0];
+    wire trace_axil_32b_aw_gnt_doorbell = doorbell_aw_arb_gnt_valid && (doorbell_aw_arb_gnt == 1'd1) && doorbell_aw_arb_req[1];
 
-    // AW->W tracking FIFO: trace_axil -> doorbell
-    logic trace_axil_32b_w_to_doorbell;
-    logic [3:0] trace_axil_32b_aw_to_doorbell_w_wptr, trace_axil_32b_aw_to_doorbell_w_rptr;
-    logic trace_axil_32b_aw_to_doorbell_w_mem [16];
-    logic trace_axil_32b_aw_to_doorbell_w_push, trace_axil_32b_aw_to_doorbell_w_pop;
-    assign trace_axil_32b_aw_to_doorbell_w_push = trace_axil_32b_awvalid && trace_axil_32b_awready && trace_axil_32b_aw_to_doorbell;
-    assign trace_axil_32b_aw_to_doorbell_w_pop  = trace_axil_32b_wvalid && trace_axil_32b_wready && trace_axil_32b_w.last && trace_axil_32b_w_to_doorbell;
+    // AW channel (arbitrated mux across writing masters)
+    assign doorbell_axi_awid = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.id : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.id : '0);
+    assign doorbell_axi_awaddr = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.addr : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.addr : '0);
+    assign doorbell_axi_awlen = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.len : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.len : '0);
+    assign doorbell_axi_awsize = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.size : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.size : '0);
+    assign doorbell_axi_awburst = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.burst : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.burst : '0);
+    assign doorbell_axi_awlock = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.lock : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.lock : '0);
+    assign doorbell_axi_awcache = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.cache : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.cache : '0);
+    assign doorbell_axi_awprot = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_32b_aw.prot : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_32b_aw.prot : '0);
+    assign doorbell_axi_awvalid = cpu_axi4_32b_aw_gnt_doorbell || trace_axil_32b_aw_gnt_doorbell;
+
+    // W owner FIFO: slave-side AW accept order owns the W channel
+    logic [0:0] doorbell_wowner_mem [16];
+    logic [4:0] doorbell_wowner_wptr, doorbell_wowner_rptr;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            trace_axil_32b_aw_to_doorbell_w_wptr <= '0;
-            trace_axil_32b_aw_to_doorbell_w_rptr <= '0;
+            doorbell_wowner_wptr <= '0;
+            doorbell_wowner_rptr <= '0;
         end else begin
-            if (trace_axil_32b_aw_to_doorbell_w_push) begin
-                trace_axil_32b_aw_to_doorbell_w_mem[trace_axil_32b_aw_to_doorbell_w_wptr] <= 1'b1;
-                trace_axil_32b_aw_to_doorbell_w_wptr <= trace_axil_32b_aw_to_doorbell_w_wptr + 1'b1;
+            if (doorbell_axi_awvalid && doorbell_axi_awready) begin
+                doorbell_wowner_mem[doorbell_wowner_wptr[3:0]] <= doorbell_aw_arb_gnt;
+                doorbell_wowner_wptr <= doorbell_wowner_wptr + 1'b1;
             end
-            if (trace_axil_32b_aw_to_doorbell_w_pop) begin
-                trace_axil_32b_aw_to_doorbell_w_rptr <= trace_axil_32b_aw_to_doorbell_w_rptr + 1'b1;
+            if (doorbell_axi_wvalid && doorbell_axi_wready && doorbell_axi_wlast) begin
+                doorbell_wowner_rptr <= doorbell_wowner_rptr + 1'b1;
             end
         end
     end
-    assign trace_axil_32b_w_to_doorbell = (trace_axil_32b_aw_to_doorbell_w_wptr != trace_axil_32b_aw_to_doorbell_w_rptr) ? trace_axil_32b_aw_to_doorbell_w_mem[trace_axil_32b_aw_to_doorbell_w_rptr] : 1'b0;
+    wire doorbell_wowner_valid = (doorbell_wowner_wptr != doorbell_wowner_rptr);
+    wire [0:0] doorbell_wowner_head = doorbell_wowner_mem[doorbell_wowner_rptr[3:0]];
+    assign cpu_axi4_32b_w_sel_doorbell = doorbell_wowner_valid && (doorbell_wowner_head == 1'd0) && cpu_axi4_32b_w_to_doorbell;
+    assign trace_axil_32b_w_sel_doorbell = doorbell_wowner_valid && (doorbell_wowner_head == 1'd1) && trace_axil_32b_w_to_doorbell;
 
-    // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)
-    assign doorbell_axi_wdata = ((cpu_axi4_32b_w_to_doorbell && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.data : '0) |
-        ((trace_axil_32b_w_to_doorbell && trace_axil_32b_wvalid) ? trace_axil_32b_w.data : '0);
-    assign doorbell_axi_wstrb = ((cpu_axi4_32b_w_to_doorbell && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.strb : '0) |
-        ((trace_axil_32b_w_to_doorbell && trace_axil_32b_wvalid) ? trace_axil_32b_w.strb : '0);
-    assign doorbell_axi_wlast = ((cpu_axi4_32b_w_to_doorbell && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.last : '0) |
-        ((trace_axil_32b_w_to_doorbell && trace_axil_32b_wvalid) ? trace_axil_32b_w.last : '0);
-    assign doorbell_axi_wvalid = ((cpu_axi4_32b_w_to_doorbell && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_wvalid : '0) |
-        ((trace_axil_32b_w_to_doorbell && trace_axil_32b_wvalid) ? trace_axil_32b_wvalid : '0);
+    // W channel (owner-gated mux across writing masters)
+    assign doorbell_axi_wdata = ((cpu_axi4_32b_w_sel_doorbell && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.data : '0) |
+        ((trace_axil_32b_w_sel_doorbell && trace_axil_32b_wvalid) ? trace_axil_32b_w.data : '0);
+    assign doorbell_axi_wstrb = ((cpu_axi4_32b_w_sel_doorbell && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.strb : '0) |
+        ((trace_axil_32b_w_sel_doorbell && trace_axil_32b_wvalid) ? trace_axil_32b_w.strb : '0);
+    assign doorbell_axi_wlast = ((cpu_axi4_32b_w_sel_doorbell && cpu_axi4_32b_wvalid) ? cpu_axi4_32b_w.last : '0) |
+        ((trace_axil_32b_w_sel_doorbell && trace_axil_32b_wvalid) ? trace_axil_32b_w.last : '0);
+    assign doorbell_axi_wvalid = (cpu_axi4_32b_w_sel_doorbell && cpu_axi4_32b_wvalid) || (trace_axil_32b_w_sel_doorbell && trace_axil_32b_wvalid);
 
     // Bready (slave → owning master, by bid_bridge_id)
     assign doorbell_axi_bready = ((doorbell_axi_bid_bridge_id == 0) && doorbell_axi_bid_valid ? cpu_axi4_32b_bready : '0) |
         ((doorbell_axi_bid_bridge_id == 1) && doorbell_axi_bid_valid ? trace_axil_32b_bready : '0);
 
-    // Bridge ID (writes) — picks the originating master's id
-    assign doorbell_axi_bridge_id_aw = ((cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid) ? cpu_axi4_bridge_id_aw : '0) |
-        ((trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid) ? trace_axil_bridge_id_aw : '0);
+    // Bridge ID (writes) — the granted master's id
+    assign doorbell_axi_bridge_id_aw = (cpu_axi4_32b_aw_gnt_doorbell ? cpu_axi4_bridge_id_aw : '0) |
+        (trace_axil_32b_aw_gnt_doorbell ? trace_axil_bridge_id_aw : '0);
 
-    // AR channel (OR-merged across reading masters)
-    assign doorbell_axi_arid = ((cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.id : '0) |
-        ((trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid) ? trace_axil_32b_ar.id : '0);
-    assign doorbell_axi_araddr = ((cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.addr : '0) |
-        ((trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid) ? trace_axil_32b_ar.addr : '0);
-    assign doorbell_axi_arlen = ((cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.len : '0) |
-        ((trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid) ? trace_axil_32b_ar.len : '0);
-    assign doorbell_axi_arsize = ((cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.size : '0) |
-        ((trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid) ? trace_axil_32b_ar.size : '0);
-    assign doorbell_axi_arburst = ((cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.burst : '0) |
-        ((trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid) ? trace_axil_32b_ar.burst : '0);
-    assign doorbell_axi_arlock = ((cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.lock : '0) |
-        ((trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid) ? trace_axil_32b_ar.lock : '0);
-    assign doorbell_axi_arcache = ((cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.cache : '0) |
-        ((trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid) ? trace_axil_32b_ar.cache : '0);
-    assign doorbell_axi_arprot = ((cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_ar.prot : '0) |
-        ((trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid) ? trace_axil_32b_ar.prot : '0);
-    assign doorbell_axi_arvalid = ((cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid) ? cpu_axi4_32b_arvalid : '0) |
-        ((trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid) ? trace_axil_32b_arvalid : '0);
+    // ---- AR arbiter for doorbell: round-robin, lock until handshake ----
+    logic [1:0] doorbell_ar_arb_req;
+    assign doorbell_ar_arb_req = {trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid, cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid};
+    logic [0:0] doorbell_ar_arb_lock, doorbell_ar_arb_rr;
+    logic doorbell_ar_arb_locked;
+    wire [0:0] doorbell_ar_arb_pick = (doorbell_ar_arb_rr == 1'd0) ? (doorbell_ar_arb_req[0] ? 1'd0 : 1'd1) : 
+        doorbell_ar_arb_req[1] ? 1'd1 : 1'd0;
+    wire doorbell_ar_arb_gnt_valid = doorbell_ar_arb_locked || (|doorbell_ar_arb_req);
+    wire [0:0] doorbell_ar_arb_gnt = doorbell_ar_arb_locked ? doorbell_ar_arb_lock : doorbell_ar_arb_pick;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            doorbell_ar_arb_lock   <= '0;
+            doorbell_ar_arb_rr     <= '0;
+            doorbell_ar_arb_locked <= 1'b0;
+        end else begin
+            if (doorbell_axi_arvalid && doorbell_axi_arready) begin
+                doorbell_ar_arb_locked <= 1'b0;
+                doorbell_ar_arb_rr <= (doorbell_ar_arb_gnt == 1'd1) ? 1'd0 : doorbell_ar_arb_gnt + 1'b1;
+            end else if (doorbell_axi_arvalid) begin
+                doorbell_ar_arb_lock   <= doorbell_ar_arb_gnt;
+                doorbell_ar_arb_locked <= 1'b1;
+            end
+        end
+    end
+    wire cpu_axi4_32b_ar_gnt_doorbell = doorbell_ar_arb_gnt_valid && (doorbell_ar_arb_gnt == 1'd0) && doorbell_ar_arb_req[0];
+    wire trace_axil_32b_ar_gnt_doorbell = doorbell_ar_arb_gnt_valid && (doorbell_ar_arb_gnt == 1'd1) && doorbell_ar_arb_req[1];
+
+    // AR channel (arbitrated mux across reading masters)
+    assign doorbell_axi_arid = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.id : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.id : '0);
+    assign doorbell_axi_araddr = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.addr : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.addr : '0);
+    assign doorbell_axi_arlen = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.len : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.len : '0);
+    assign doorbell_axi_arsize = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.size : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.size : '0);
+    assign doorbell_axi_arburst = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.burst : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.burst : '0);
+    assign doorbell_axi_arlock = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.lock : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.lock : '0);
+    assign doorbell_axi_arcache = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.cache : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.cache : '0);
+    assign doorbell_axi_arprot = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_32b_ar.prot : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_32b_ar.prot : '0);
+    assign doorbell_axi_arvalid = cpu_axi4_32b_ar_gnt_doorbell || trace_axil_32b_ar_gnt_doorbell;
 
     // Rready (slave → owning master, by rid_bridge_id)
     assign doorbell_axi_rready = ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid ? cpu_axi4_32b_rready : '0) |
         ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid ? trace_axil_32b_rready : '0);
 
-    // Bridge ID (reads) — picks the originating master's id
-    assign doorbell_axi_bridge_id_ar = ((cpu_axi4_32b_ar_to_doorbell && cpu_axi4_32b_arvalid) ? cpu_axi4_bridge_id_ar : '0) |
-        ((trace_axil_32b_ar_to_doorbell && trace_axil_32b_arvalid) ? trace_axil_bridge_id_ar : '0);
+    // Bridge ID (reads) — the granted master's id
+    assign doorbell_axi_bridge_id_ar = (cpu_axi4_32b_ar_gnt_doorbell ? cpu_axi4_bridge_id_ar : '0) |
+        (trace_axil_32b_ar_gnt_doorbell ? trace_axil_bridge_id_ar : '0);
 
 
     // ================================================================
@@ -529,6 +595,7 @@ module bridge_mix_d_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_axi4_32b_aw_to_apb_periph = ((cpu_axi4_32b_aw.addr >= 32'h40001000) && (cpu_axi4_32b_aw.addr <= 32'h40010fff));
+    wire cpu_axi4_32b_aw_gnt_apb_periph = cpu_axi4_32b_aw_to_apb_periph;
     assign apb_periph_axi_awid     = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.id : '0;
     assign apb_periph_axi_awaddr   = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.addr : '0;
     assign apb_periph_axi_awlen    = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.len : '0;
@@ -539,31 +606,9 @@ module bridge_mix_d_mon_xbar
     assign apb_periph_axi_awprot   = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.prot : '0;
     assign apb_periph_axi_awvalid  = cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid;
 
-    // AW->W tracking FIFO for this (master,slave) pair
-    logic cpu_axi4_32b_w_to_apb_periph;
-    logic [3:0] cpu_axi4_32b_aw_to_apb_periph_w_wptr, cpu_axi4_32b_aw_to_apb_periph_w_rptr;
-    logic cpu_axi4_32b_aw_to_apb_periph_w_mem [16];
-    logic cpu_axi4_32b_aw_to_apb_periph_w_push, cpu_axi4_32b_aw_to_apb_periph_w_pop;
-    assign cpu_axi4_32b_aw_to_apb_periph_w_push = cpu_axi4_32b_awvalid && cpu_axi4_32b_awready && cpu_axi4_32b_aw_to_apb_periph;
-    assign cpu_axi4_32b_aw_to_apb_periph_w_pop  = cpu_axi4_32b_wvalid && cpu_axi4_32b_wready && cpu_axi4_32b_w.last && cpu_axi4_32b_w_to_apb_periph;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            cpu_axi4_32b_aw_to_apb_periph_w_wptr <= '0;
-            cpu_axi4_32b_aw_to_apb_periph_w_rptr <= '0;
-        end else begin
-            if (cpu_axi4_32b_aw_to_apb_periph_w_push) begin
-                cpu_axi4_32b_aw_to_apb_periph_w_mem[cpu_axi4_32b_aw_to_apb_periph_w_wptr] <= 1'b1;
-                cpu_axi4_32b_aw_to_apb_periph_w_wptr <= cpu_axi4_32b_aw_to_apb_periph_w_wptr + 1'b1;
-            end
-            if (cpu_axi4_32b_aw_to_apb_periph_w_pop) begin
-                cpu_axi4_32b_aw_to_apb_periph_w_rptr <= cpu_axi4_32b_aw_to_apb_periph_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign cpu_axi4_32b_w_to_apb_periph = (cpu_axi4_32b_aw_to_apb_periph_w_wptr != cpu_axi4_32b_aw_to_apb_periph_w_rptr) ? cpu_axi4_32b_aw_to_apb_periph_w_mem[cpu_axi4_32b_aw_to_apb_periph_w_rptr] : 1'b0;
+    assign cpu_axi4_32b_w_sel_apb_periph = cpu_axi4_32b_w_to_apb_periph;
 
-
-    // W channel (gated by aw_to_<slave> FIFO head)
+    // W channel (gated by the W destination FIFO head)
     assign apb_periph_axi_wdata  = cpu_axi4_32b_w_to_apb_periph ? cpu_axi4_32b_w.data : '0;
     assign apb_periph_axi_wstrb  = cpu_axi4_32b_w_to_apb_periph ? cpu_axi4_32b_w.strb : '0;
     assign apb_periph_axi_wlast  = cpu_axi4_32b_w_to_apb_periph ? cpu_axi4_32b_w.last : '0;
@@ -578,6 +623,7 @@ module bridge_mix_d_mon_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_axi4_32b_ar_to_apb_periph = ((cpu_axi4_32b_ar.addr >= 32'h40001000) && (cpu_axi4_32b_ar.addr <= 32'h40010fff));
+    wire cpu_axi4_32b_ar_gnt_apb_periph = cpu_axi4_32b_ar_to_apb_periph;
     assign apb_periph_axi_arid     = cpu_axi4_32b_ar_to_apb_periph ? cpu_axi4_32b_ar.id : '0;
     assign apb_periph_axi_araddr   = cpu_axi4_32b_ar_to_apb_periph ? cpu_axi4_32b_ar.addr : '0;
     assign apb_periph_axi_arlen    = cpu_axi4_32b_ar_to_apb_periph ? cpu_axi4_32b_ar.len : '0;
@@ -597,17 +643,117 @@ module bridge_mix_d_mon_xbar
 
 
     // ================================================================
+    // W destination FIFOs (per master width-path)
+    // ================================================================
+    // cpu_axi4 32b path -> doorbell, apb_periph
+    logic [0:0] cpu_axi4_32b_wdest_mem [16];
+    logic [4:0] cpu_axi4_32b_wdest_wptr, cpu_axi4_32b_wdest_rptr;
+    wire [0:0] cpu_axi4_32b_wdest_enc = cpu_axi4_32b_aw_to_apb_periph ? 1'd1 : 1'd0;
+    wire cpu_axi4_32b_wdest_push = cpu_axi4_32b_awvalid && cpu_axi4_32b_awready;
+    wire cpu_axi4_32b_wdest_pop  = cpu_axi4_32b_wvalid && cpu_axi4_32b_wready && cpu_axi4_32b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_axi4_32b_wdest_wptr <= '0;
+            cpu_axi4_32b_wdest_rptr <= '0;
+        end else begin
+            if (cpu_axi4_32b_wdest_push) begin
+                cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_wptr[3:0]] <= cpu_axi4_32b_wdest_enc;
+                cpu_axi4_32b_wdest_wptr <= cpu_axi4_32b_wdest_wptr + 1'b1;
+            end
+            if (cpu_axi4_32b_wdest_pop) begin
+                cpu_axi4_32b_wdest_rptr <= cpu_axi4_32b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire cpu_axi4_32b_wdest_valid = (cpu_axi4_32b_wdest_wptr != cpu_axi4_32b_wdest_rptr);
+    wire [0:0] cpu_axi4_32b_wdest_head = cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_rptr[3:0]];
+    assign cpu_axi4_32b_w_to_doorbell = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd0);
+    assign cpu_axi4_32b_w_to_apb_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd1);
+
+    // cpu_axi4 64b path -> ddr
+    logic [0:0] cpu_axi4_64b_wdest_mem [16];
+    logic [4:0] cpu_axi4_64b_wdest_wptr, cpu_axi4_64b_wdest_rptr;
+    wire [0:0] cpu_axi4_64b_wdest_enc = 1'd0;
+    wire cpu_axi4_64b_wdest_push = cpu_axi4_64b_awvalid && cpu_axi4_64b_awready;
+    wire cpu_axi4_64b_wdest_pop  = cpu_axi4_64b_wvalid && cpu_axi4_64b_wready && cpu_axi4_64b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_axi4_64b_wdest_wptr <= '0;
+            cpu_axi4_64b_wdest_rptr <= '0;
+        end else begin
+            if (cpu_axi4_64b_wdest_push) begin
+                cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_wptr[3:0]] <= cpu_axi4_64b_wdest_enc;
+                cpu_axi4_64b_wdest_wptr <= cpu_axi4_64b_wdest_wptr + 1'b1;
+            end
+            if (cpu_axi4_64b_wdest_pop) begin
+                cpu_axi4_64b_wdest_rptr <= cpu_axi4_64b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire cpu_axi4_64b_wdest_valid = (cpu_axi4_64b_wdest_wptr != cpu_axi4_64b_wdest_rptr);
+    wire [0:0] cpu_axi4_64b_wdest_head = cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_rptr[3:0]];
+    assign cpu_axi4_64b_w_to_ddr = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd0);
+
+    // trace_axil 32b path -> doorbell
+    logic [0:0] trace_axil_32b_wdest_mem [16];
+    logic [4:0] trace_axil_32b_wdest_wptr, trace_axil_32b_wdest_rptr;
+    wire [0:0] trace_axil_32b_wdest_enc = 1'd0;
+    wire trace_axil_32b_wdest_push = trace_axil_32b_awvalid && trace_axil_32b_awready;
+    wire trace_axil_32b_wdest_pop  = trace_axil_32b_wvalid && trace_axil_32b_wready && trace_axil_32b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            trace_axil_32b_wdest_wptr <= '0;
+            trace_axil_32b_wdest_rptr <= '0;
+        end else begin
+            if (trace_axil_32b_wdest_push) begin
+                trace_axil_32b_wdest_mem[trace_axil_32b_wdest_wptr[3:0]] <= trace_axil_32b_wdest_enc;
+                trace_axil_32b_wdest_wptr <= trace_axil_32b_wdest_wptr + 1'b1;
+            end
+            if (trace_axil_32b_wdest_pop) begin
+                trace_axil_32b_wdest_rptr <= trace_axil_32b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire trace_axil_32b_wdest_valid = (trace_axil_32b_wdest_wptr != trace_axil_32b_wdest_rptr);
+    wire [0:0] trace_axil_32b_wdest_head = trace_axil_32b_wdest_mem[trace_axil_32b_wdest_rptr[3:0]];
+    assign trace_axil_32b_w_to_doorbell = trace_axil_32b_wdest_valid && (trace_axil_32b_wdest_head == 1'd0);
+
+    // trace_axil 64b path -> ddr
+    logic [0:0] trace_axil_64b_wdest_mem [16];
+    logic [4:0] trace_axil_64b_wdest_wptr, trace_axil_64b_wdest_rptr;
+    wire [0:0] trace_axil_64b_wdest_enc = 1'd0;
+    wire trace_axil_64b_wdest_push = trace_axil_64b_awvalid && trace_axil_64b_awready;
+    wire trace_axil_64b_wdest_pop  = trace_axil_64b_wvalid && trace_axil_64b_wready && trace_axil_64b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            trace_axil_64b_wdest_wptr <= '0;
+            trace_axil_64b_wdest_rptr <= '0;
+        end else begin
+            if (trace_axil_64b_wdest_push) begin
+                trace_axil_64b_wdest_mem[trace_axil_64b_wdest_wptr[3:0]] <= trace_axil_64b_wdest_enc;
+                trace_axil_64b_wdest_wptr <= trace_axil_64b_wdest_wptr + 1'b1;
+            end
+            if (trace_axil_64b_wdest_pop) begin
+                trace_axil_64b_wdest_rptr <= trace_axil_64b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire trace_axil_64b_wdest_valid = (trace_axil_64b_wdest_wptr != trace_axil_64b_wdest_rptr);
+    wire [0:0] trace_axil_64b_wdest_head = trace_axil_64b_wdest_mem[trace_axil_64b_wdest_rptr[3:0]];
+    assign trace_axil_64b_w_to_ddr = trace_axil_64b_wdest_valid && (trace_axil_64b_wdest_head == 1'd0);
+
+    // ================================================================
     // Response MUXes (OR together all slave responses)
     // ================================================================
 
     // Master: cpu_axi4, Width path: 32b
     assign cpu_axi4_32b_awready = 
-        (cpu_axi4_32b_aw_to_doorbell ? doorbell_axi_awready : '0) |
-        (cpu_axi4_32b_aw_to_apb_periph ? apb_periph_axi_awready : '0);
+        (cpu_axi4_32b_aw_gnt_doorbell ? doorbell_axi_awready : '0) |
+        (cpu_axi4_32b_aw_gnt_apb_periph ? apb_periph_axi_awready : '0);
 
     assign cpu_axi4_32b_wready = 
-        (cpu_axi4_32b_w_to_doorbell ? doorbell_axi_wready : '0) |
-        (cpu_axi4_32b_w_to_apb_periph ? apb_periph_axi_wready : '0);
+        (cpu_axi4_32b_w_sel_doorbell ? doorbell_axi_wready : '0) |
+        (cpu_axi4_32b_w_sel_apb_periph ? apb_periph_axi_wready : '0);
 
     assign cpu_axi4_32b_b.id = 
         ((doorbell_axi_bid_bridge_id == 0) && doorbell_axi_bid_valid ? doorbell_axi_bid : '0) |
@@ -622,8 +768,8 @@ module bridge_mix_d_mon_xbar
         ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid ? apb_periph_axi_bvalid : '0);
 
     assign cpu_axi4_32b_arready = 
-        (cpu_axi4_32b_ar_to_doorbell ? doorbell_axi_arready : '0) |
-        (cpu_axi4_32b_ar_to_apb_periph ? apb_periph_axi_arready : '0);
+        (cpu_axi4_32b_ar_gnt_doorbell ? doorbell_axi_arready : '0) |
+        (cpu_axi4_32b_ar_gnt_apb_periph ? apb_periph_axi_arready : '0);
 
     assign cpu_axi4_32b_r.id = 
         ((doorbell_axi_rid_bridge_id == 0) && doorbell_axi_rid_valid ? doorbell_axi_rid : '0) |
@@ -648,10 +794,10 @@ module bridge_mix_d_mon_xbar
 
     // Master: cpu_axi4, Width path: 64b
     assign cpu_axi4_64b_awready = 
-        (cpu_axi4_64b_aw_to_ddr ? ddr_axi_awready : '0);
+        (cpu_axi4_64b_aw_gnt_ddr ? ddr_axi_awready : '0);
 
     assign cpu_axi4_64b_wready = 
-        (cpu_axi4_64b_w_to_ddr ? ddr_axi_wready : '0);
+        (cpu_axi4_64b_w_sel_ddr ? ddr_axi_wready : '0);
 
     assign cpu_axi4_64b_b.id = 
         ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bid : '0);
@@ -663,7 +809,7 @@ module bridge_mix_d_mon_xbar
         ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0);
 
     assign cpu_axi4_64b_arready = 
-        (cpu_axi4_64b_ar_to_ddr ? ddr_axi_arready : '0);
+        (cpu_axi4_64b_ar_gnt_ddr ? ddr_axi_arready : '0);
 
     assign cpu_axi4_64b_r.id = 
         ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? ddr_axi_rid : '0);
@@ -683,10 +829,10 @@ module bridge_mix_d_mon_xbar
 
     // Master: trace_axil, Width path: 32b
     assign trace_axil_32b_awready = 
-        (trace_axil_32b_aw_to_doorbell ? doorbell_axi_awready : '0);
+        (trace_axil_32b_aw_gnt_doorbell ? doorbell_axi_awready : '0);
 
     assign trace_axil_32b_wready = 
-        (trace_axil_32b_w_to_doorbell ? doorbell_axi_wready : '0);
+        (trace_axil_32b_w_sel_doorbell ? doorbell_axi_wready : '0);
 
     assign trace_axil_32b_b.id = 
         ((doorbell_axi_bid_bridge_id == 1) && doorbell_axi_bid_valid ? doorbell_axi_bid : '0);
@@ -698,7 +844,7 @@ module bridge_mix_d_mon_xbar
         ((doorbell_axi_bid_bridge_id == 1) && doorbell_axi_bid_valid ? doorbell_axi_bvalid : '0);
 
     assign trace_axil_32b_arready = 
-        (trace_axil_32b_ar_to_doorbell ? doorbell_axi_arready : '0);
+        (trace_axil_32b_ar_gnt_doorbell ? doorbell_axi_arready : '0);
 
     assign trace_axil_32b_r.id = 
         ((doorbell_axi_rid_bridge_id == 1) && doorbell_axi_rid_valid ? doorbell_axi_rid : '0);
@@ -718,10 +864,10 @@ module bridge_mix_d_mon_xbar
 
     // Master: trace_axil, Width path: 64b
     assign trace_axil_64b_awready = 
-        (trace_axil_64b_aw_to_ddr ? ddr_axi_awready : '0);
+        (trace_axil_64b_aw_gnt_ddr ? ddr_axi_awready : '0);
 
     assign trace_axil_64b_wready = 
-        (trace_axil_64b_w_to_ddr ? ddr_axi_wready : '0);
+        (trace_axil_64b_w_sel_ddr ? ddr_axi_wready : '0);
 
     assign trace_axil_64b_b.id = 
         ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bid : '0);
@@ -733,7 +879,7 @@ module bridge_mix_d_mon_xbar
         ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? ddr_axi_bvalid : '0);
 
     assign trace_axil_64b_arready = 
-        (trace_axil_64b_ar_to_ddr ? ddr_axi_arready : '0);
+        (trace_axil_64b_ar_gnt_ddr ? ddr_axi_arready : '0);
 
     assign trace_axil_64b_r.id = 
         ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? ddr_axi_rid : '0);

@@ -312,6 +312,10 @@ class {{ tb_class_name }}(TBBase):
             id_width={{ 1 if master.id_width == 0 else master.id_width }},
             user_width=1,
             multi_sig=True,
+{% if master.protocol.lower().startswith('axi5') or master.protocol.lower() == 'axi5' %}
+            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
+            optional_fields=('region',),
+{% endif %}
         )
 {% endif %}
 {% if master.has_write_channels() %}
@@ -324,6 +328,10 @@ class {{ tb_class_name }}(TBBase):
             id_width={{ 1 if master.id_width == 0 else master.id_width }},
             user_width=1,
             multi_sig=True,
+{% if master.protocol.lower().startswith('axi5') or master.protocol.lower() == 'axi5' %}
+            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
+            optional_fields=('region',),
+{% endif %}
         )
 {% endif %}
 {% endif %}
@@ -415,6 +423,10 @@ class {{ tb_class_name }}(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[{{ loop.index0 }}],
             base_addr={{ '0x%08x' % slave.base_addr }},
+{% if slave.protocol.lower().startswith('axi5') %}
+            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
+            optional_fields=('region',),
+{% endif %}
         )
 {% endif %}
 {% if slave.has_write_channels() %}
@@ -429,6 +441,10 @@ class {{ tb_class_name }}(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[{{ loop.index0 }}],
             base_addr={{ '0x%08x' % slave.base_addr }},
+{% if slave.protocol.lower().startswith('axi5') %}
+            # AMBA5 removed AxREGION; declared fields otherwise bind fatally.
+            optional_fields=('region',),
+{% endif %}
         )
 {% endif %}
 {% endif %}
