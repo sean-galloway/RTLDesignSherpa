@@ -442,10 +442,16 @@ data-integrity budget every mode obeys.
 - **`refpb_rr` (LPDDR2, commodity)** — per-bank refresh via the DRAM's internal
   **round-robin** counter, `tREFIpb = tREFI/8`, `tRFCpb < tRFCab`; other 7 banks stay
   accessible.
-- **Refresh pull-in / postpone scheduling (commodity)** — defer a due refresh while its
-  bank has pending demand (`ref_credit[b]--`, ≥ −8); when no demand can issue, **pull in**
-  a refresh on an idle bank (`ref_credit[b]++`, ≤ +8). Steers refresh onto idle
-  banks/cycles. `POSTPONE_LIMIT`/`PULLIN_LIMIT` sweepable 0..8 (0 = strict baseline).
+- **Refresh pull-in / postpone scheduling (commodity; IMPLEMENTED 2026-08-25,
+  `refresh_ctrl` v3)** — as built the credit is rank-scoped (REFab), split into the
+  pending backlog (postponed refreshes, 0..8) and a pull-in credit (refreshes run
+  ahead, 0..8): under demand the request is withheld until the backlog exceeds
+  `REF_CTRL.postpone_limit` (clamped 7 so the JEDEC ceiling always forces);
+  on CONFIRMED idle (16-cycle hysteresis over CAM occupancy — micro-gaps between
+  bursts must not release postponed refreshes) refreshes run ahead up to
+  `pullin_limit`, and each later tREFI tick consumes a credit instead of adding
+  backlog. 0/0 = strict baseline, bit-identical. Per-bank `ref_credit[b]` steering
+  arrives with REFpb.
 - **Fallback caution:** on traffic that can't use other banks during a per-bank refresh
   window, REFpb's serialized commands can total ≈3.5× tRFCab — keep `refab` as the safe
   selectable fallback.

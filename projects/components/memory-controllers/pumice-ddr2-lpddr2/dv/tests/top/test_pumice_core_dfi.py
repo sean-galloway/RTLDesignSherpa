@@ -619,6 +619,123 @@ async def cocotb_test_pumice_core_acc(dut):
                   f"ctr_init=3 cold-table {pres_init3} PREs, disarm ok")
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_refresh_credit(dut):
+    """PUMICE-006 Axis 3: REF_CTRL postpone/pullin JEDEC +-8 credits.
+
+    tREFI is poked small (96 cyc) so a demand stretch of ~40 back-to-back
+    writes spans ~5 ticks. REF counts at the DFI slave are the observable.
+
+      arm A (strict, red guard): defaults -> refreshes interleave with the
+        demand stretch (>= 3 REFs). If postponement ever leaks into the
+        default encoding, this arm fails.
+      arm B (postpone=7): same stretch -> ZERO REFs (all postponed; backlog
+        5 <= 7). A second stretch pushes the backlog past the limit -> the
+        retention ceiling FORCES refreshes under demand (>= 1). Idle then
+        drains the backlog (conservation: >= 8 REFs across both stretches
+        plus drain).
+      arm C (pullin=8): confirmed idle -> refreshes run AHEAD (>= 8 extra
+        REFs banked as credit); the next demand stretch consumes credit
+        instead of refreshing -> ZERO REFs during demand. Data stays golden.
+      arm D (disarm): knobs back to 0 -> after leftover credits burn, strict
+        interleaving returns (>= 3 REFs across a longer stretch).
+    """
+    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
+    _memory, slave = await _bring_up(dut, page_policy=0)
+    dut.t_refi_i.value = 96
+    dut.t_rfc_i.value = 8
+    # The tREFI counter only reloads on expiry, so the poke takes effect after
+    # the STALE bring-up period (0x400) runs out once. Wait it out so every
+    # timed window below really spans ~cycles/96 ticks.
+    await ClockCycles(dut.aclk, 1100)
+    rng = random.Random(int(os.environ.get("SEED", "11")))
+    written = {}
+
+    def _refs():
+        return slave.cmd_counts.get(_DC.REF, 0)
+
+    async def _demand(cycles, tag):
+        """Sustained back-to-back writes for a TIMED window of `cycles` --
+        keeps CAM occupancy (demand) high; the write loop paces itself off
+        the AW/W handshakes and stops when the window elapses."""
+        state = {"done": False}
+
+        async def _window():
+            await ClockCycles(dut.aclk, cycles)
+            state["done"] = True
+
+        cocotb.start_soon(_window())
+        k = 0
+        while not state["done"]:
+            addr = _mkaddr((tag + k) % NUM_BANKS, (tag * 7 + k) & 0x3F,
+                           (k & 0x3F) * BL)
+            data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+            written[addr] = data
+            await _aw(dut, addr, k & 0xF)
+            await _w(dut, data)
+            k += 1
+
+    # ---- arm A: strict (red guard) -----------------------------------------
+    dut.ref_postpone_i.value = 0
+    dut.ref_pullin_i.value = 0
+    b = _refs()
+    await _demand(480, 1)                        # ~5 tREFI ticks
+    refs_a = _refs() - b
+    assert refs_a >= 3, (f"strict: only {refs_a} REFs across the demand "
+                         f"stretch -- tREFI poke dead or refresh gated")
+
+    # ---- arm B: postpone ----------------------------------------------------
+    dut.ref_postpone_i.value = 7
+    b = _refs()
+    await _demand(480, 9)                        # ~5 ticks, under the limit
+    refs_b1 = _refs() - b
+    assert refs_b1 == 0, (f"postpone=7 leaked {refs_b1} REFs into a demand "
+                          f"stretch of ~5 ticks (backlog below the limit)")
+    await _demand(640, 17)                       # backlog passes the limit
+    refs_b2 = _refs() - b
+    assert refs_b2 >= 1, ("postpone: retention ceiling never forced a REF "
+                          "with the backlog past the limit -- credit "
+                          "accumulator is unbounded")
+    await ClockCycles(dut.aclk, 1200)            # idle: drain the backlog
+    refs_b3 = _refs() - b
+    assert refs_b3 >= 8, (f"postpone: only {refs_b3} REFs after drain -- "
+                          f"postponed refreshes were LOST, not deferred")
+
+    # ---- arm C: pull-in -----------------------------------------------------
+    dut.ref_postpone_i.value = 0
+    dut.ref_pullin_i.value = 8
+    b = _refs()
+    await ClockCycles(dut.aclk, 400)             # confirmed idle: run ahead
+    refs_c1 = _refs() - b
+    assert refs_c1 >= 8, (f"pullin=8: only {refs_c1} REFs across a ~4-tick "
+                          f"idle window -- credit is not running ahead")
+    b = _refs()
+    await _demand(480, 33)                       # ~5 ticks vs 8 credits
+    refs_c2 = _refs() - b
+    assert refs_c2 == 0, (f"pullin: {refs_c2} REFs during demand despite "
+                          f"banked credit -- ticks are not consuming credit")
+    for addr in list(written)[-3:]:              # integrity spot-check
+        got = []
+        cocotb.start_soon(_r_sink(dut, got))
+        await _ar(dut, addr, 5)
+        for _ in range(800):
+            await RisingEdge(dut.aclk)
+            if len(got) >= BL_WORDS:
+                break
+        assert got[:BL_WORDS] == written[addr], f"data mismatch @ {addr:#x}"
+
+    # ---- arm D: disarm ------------------------------------------------------
+    dut.ref_pullin_i.value = 0
+    b = _refs()
+    await _demand(800, 41)                       # leftover credit burns first
+    refs_d = _refs() - b
+    assert refs_d >= 3, (f"disarm: only {refs_d} REFs -- strict behaviour "
+                         f"did not return after the credits burned")
+    dut._log.info(f"PASS refresh credits: strict {refs_a}, postpone 0/"
+                  f"forced>={refs_b2}/drained {refs_b3}, pullin ahead "
+                  f"{refs_c1}/demand {refs_c2}, disarm {refs_d}")
+
+
 @cocotb.test(timeout_time=20, timeout_unit="ms")
 async def cocotb_test_pumice_core_waw(dut):
     """WAW ordering + read-your-write: two writes to the SAME address, then read
@@ -732,6 +849,10 @@ def test_pumice_core_rbl(request):
 
 def test_pumice_core_acc(request):
     _run(request, "cocotb_test_pumice_core_acc")
+
+
+def test_pumice_core_refresh_credit(request):
+    _run(request, "cocotb_test_pumice_core_refresh_credit")
 
 
 def test_pumice_core_refresh_collide(request):

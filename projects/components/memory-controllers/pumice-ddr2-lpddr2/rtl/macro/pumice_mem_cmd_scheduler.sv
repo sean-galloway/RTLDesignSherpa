@@ -91,6 +91,8 @@ module pumice_mem_cmd_scheduler
     input  logic [15:0]               t_refi_i,
     input  logic [15:0]               t_rfc_i,          // mission-mode REF recovery (arbiter)
     input  logic [3:0]                refresh_burst_i,
+    input  logic [3:0]                ref_postpone_i,   // REF_CTRL.postpone_limit
+    input  logic [3:0]                ref_pullin_i,     // REF_CTRL.pullin_limit
     // init timing
     input  logic [15:0]               t_init_wait_i,
     input  logic [15:0]               t_dll_wait_i,
@@ -218,10 +220,13 @@ module pumice_mem_cmd_scheduler
         .mc_clk(aclk), .mc_rst_n(aresetn),
         .t_refi_i(t_refi_i), .refresh_burst_i(refresh_burst_i),
         .refpb_mode_i(1'b0), .enable_i(init_done),
+        .postpone_limit_i(ref_postpone_i), .pullin_limit_i(ref_pullin_i),
+        .demand_i(|rd_sch_valid_i || |wr_sch_valid_i),
         .refresh_req_o(refresh_req), .refresh_grant_i(refresh_grant),
         .pending_refreshes_o(),
         .refresh_drain_active_o(refresh_drain), .refresh_kind_o(), .refresh_bank_o(),
-        .obs_refi_cnt_o(), .obs_drain_remaining_o(), .obs_bank_rotor_o(), .obs_grants_total_o()
+        .obs_refi_cnt_o(), .obs_drain_remaining_o(), .obs_bank_rotor_o(),
+        .obs_grants_total_o(), .obs_pullin_credit_o()
     );
 
     // ======================================================================

@@ -60,7 +60,9 @@
 `refresh_ctrl` owns DRAM refresh scheduling. It produces:
 
 - `refresh_req_o` — a single request line that elevates refresh to highest
-  priority in the scheduler. It stays high while any refresh is pending.
+  priority in the scheduler. Strict default: high while any refresh is
+  pending; the v3 postpone/pull-in credits (section 2b) reshape when it
+  asserts.
 - `pending_refreshes_o` — the count of postponed refreshes (JEDEC max 8).
 - `refresh_drain_active_o` — a hint that the scheduler should keep granting
   REF back-to-back to work down a burst quota.
@@ -108,10 +110,32 @@ JEDEC ceiling of postponed refreshes).
 
 - A tREFI expiry (while enabled) adds 1, saturating at 8. At saturation the
   RTL comment flags a looming DRAM data-retention violation — the workload
-  has blocked refresh longer than JEDEC allows.
-- A grant (`w_grant_accept = refresh_grant_i && r_pending > 0`) subtracts 1.
+  has blocked refresh longer than JEDEC allows. With pull-in credit banked
+  (below), an expiry consumes a credit instead of adding to the backlog.
+- A grant retires a pending refresh if any (`w_grant_accept`); a grant with
+  no backlog banks a pull-in credit (`w_grant_early`).
 - A simultaneous expiry and grant net to zero change.
-- `refresh_req_o` is `(r_pending > 0)`, registered.
+
+### 2b. JEDEC +-8 Credits (`REF_CTRL.postpone_limit` / `pullin_limit`, v3)
+
+Two 4-bit CSR knobs shape when the request line asserts; 0/0 is the strict
+baseline (request the moment anything is pending), bit-identical to v2.
+
+- **Postpone** (`postpone_limit`, clamped to 7): while demand persists,
+  `refresh_req_o` is withheld until the backlog EXCEEDS the limit. The
+  clamp guarantees the saturating backlog (8) can always exceed it, so the
+  retention ceiling forces refresh even under unbroken demand.
+- **Pull-in** (`pullin_limit`, clamped to 8): once idle is confirmed,
+  refreshes run AHEAD of tREFI, banking up to the limit in `r_pullin`;
+  each later expiry consumes a credit, giving a following demand burst a
+  refresh-free window.
+- **Idle confirmation**: `demand_i` (scheduler CAM occupancy) blinks off
+  for a few cycles between bursts; a 16-cycle hysteresis counter
+  (`IDLE_CONFIRM`) keeps micro-gaps from releasing postponed refreshes or
+  triggering pull-ins mid-stream.
+- `refresh_req_o` is therefore
+  `idle ? (backlog > 0 || credit < pullin_limit) : (backlog > postpone_limit)`,
+  registered.
 
 ### 3. Drain Quota (`r_burst_remaining`)
 
@@ -123,9 +147,12 @@ back-to-back once refresh wins arbitration.
   `min(refresh_burst_i, r_pending)`. If that clamp evaluates to 0 it loads
   1 instead, so a burst always makes forward progress.
 - Each accepted grant decrements it.
-- `w_drain_active = (r_burst_remaining > 0) && (r_pending > 0)` is exported
-  as `refresh_drain_active_o`. While it is high, the scheduler should keep
-  granting REF back-to-back rather than yielding to reads/writes.
+- `w_drain_active = (r_burst_remaining > 0) && (r_pending > 0) &&
+  refresh_req_o` is exported as `refresh_drain_active_o`. While it is high,
+  the scheduler should keep granting REF back-to-back rather than yielding
+  to reads/writes. The `refresh_req_o` term is load-bearing: a postponed
+  backlog (request withheld) must not open the drain window, or the
+  arbiter's drain preemption would defeat the postpone credit entirely.
 
 `refresh_burst_i` is a 4-bit input (1..8) that sets the desired drain count
 per request cycle.
@@ -165,15 +192,18 @@ All final outputs are strict-flopped (registered) in a single output stage.
 | `refresh_burst_i` | 4     | Desired drain count per request cycle (1..8). Loads the burst quota.        |
 | `refpb_mode_i`    | 1     | 0 = REFab, 1 = REFpb (LPDDR2). Selects `refresh_kind_o` and enables the rotor. |
 | `enable_i`        | 1     | From `init_sequencer` (init done). Gates the tREFI counter and accumulation. |
+| `postpone_limit_i`| 4     | `REF_CTRL.postpone_limit` — defer under demand, clamped to 7. 0 = strict.    |
+| `pullin_limit_i`  | 4     | `REF_CTRL.pullin_limit` — run ahead on confirmed idle, clamped to 8. 0 = off. |
+| `demand_i`        | 1     | Scheduler CAM occupancy (any read/write waiting). Feeds the idle hysteresis. |
 | `refresh_grant_i` | 1     | Pulsed by the scheduler when it issues a REF on the DFI bus.                 |
 
 ### Outputs
 
 | Signal                   | Width   | Description                                                        |
 |--------------------------|---------|--------------------------------------------------------------------|
-| `refresh_req_o`          | 1       | Refresh pending: `(r_pending > 0)`, registered.                    |
+| `refresh_req_o`          | 1       | Credit-shaped request (see 2b), registered.                        |
 | `pending_refreshes_o`    | 4       | Current postponed-refresh count (0..8).                            |
-| `refresh_drain_active_o` | 1       | Burst quota still owed and pending nonzero — keep granting REF.     |
+| `refresh_drain_active_o` | 1       | Burst quota owed, pending nonzero AND request asserted — keep granting REF. |
 | `refresh_kind_o`         | 1       | Registered `refpb_mode_i` (0 = REFab, 1 = REFpb).                   |
 | `refresh_bank_o`         | `BA_W`  | REFpb target bank from the rotor (valid in REFpb mode).            |
 
@@ -185,6 +215,7 @@ All final outputs are strict-flopped (registered) in a single output stage.
 | `obs_drain_remaining_o` | 4      | Current `r_burst_remaining` value                 |
 | `obs_bank_rotor_o`      | `BA_W` | Current `r_bank_rotor` value                      |
 | `obs_grants_total_o`    | 16     | Total accepted grants (`r_grants_total`)          |
+| `obs_pullin_credit_o`   | 4      | Current pull-in credit (`r_pullin`)               |
 
 These are wired out for future CSR/telemetry hookup; no CSR block consumes
 them yet.

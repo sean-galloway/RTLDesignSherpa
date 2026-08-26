@@ -46,6 +46,26 @@
   proven (verdict forced 0 → arm B RED: 12 vs 11 PREs).
   MAS 08_page_policy / design-requirements / HAS open-issue 5 updated to the
   as-built modes 5/6/7.
+- Axis 3 step 1: REF_CTRL postpone/pullin JEDEC +-8 credits landed
+  (refresh_ctrl v3). Backlog + pull-in credit as one next-state evaluation;
+  postpone clamped to 7 so the saturating-8 backlog always forces under
+  demand; pull-in runs ahead only on CONFIRMED idle (16-cycle hysteresis
+  over scheduler CAM occupancy — micro-gaps must not release postponed
+  refreshes). TWO integration traps found and fixed in the same change:
+  (1) drain_active gated on refresh_req_o, else the arbiter's drain
+  preemption defeats postponement entirely; (2) the tREFI counter reloads
+  only on expiry, so a runtime t_refi poke takes effect after the STALE
+  period elapses once (test waits it out — this also bit the first test
+  run as a false "refresh gated" red).
+  Directed test_pumice_core_refresh_credit (timed demand windows, not
+  write counts — 40 b2b writes span <2 ticks): strict red-guard, postpone
+  zero-leak + forced ceiling + drain conservation, pull-in run-ahead +
+  refresh-free demand window + golden readback, disarm. DOUBLE
+  mutation-proven: postpone gutted -> arm B RED (6 leaked); pull-in
+  gutted -> arm C RED (tick-rate only). refpb_rr is next: needs RDS-DV
+  model work FIRST (dram_state.on_refresh is REFab-only and errors on any
+  open bank; LPDDR2 REFpb bank is the DEVICE'S internal counter, not a
+  controller choice).
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.

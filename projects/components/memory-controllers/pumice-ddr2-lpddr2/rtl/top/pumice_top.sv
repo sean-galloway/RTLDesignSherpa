@@ -203,6 +203,8 @@ module pumice_top
         .t_refi_i(hwif_out.TIMINGS_RFC_REFI.tREFI.value),
         .t_rfc_i(hwif_out.TIMINGS_RFC_REFI.tRFC.value),
         .refresh_burst_i(hwif_out.PHY_TIMING.refresh_burst.value),
+        .ref_postpone_i(hwif_out.REF_CTRL.postpone_limit.value),
+        .ref_pullin_i(hwif_out.REF_CTRL.pullin_limit.value),
         .t_init_wait_i(hwif_out.INIT_TIMING0.t_init_wait.value),
         .t_dll_wait_i (hwif_out.INIT_TIMING0.t_dll_wait.value),
         .t_mrd_wait_i (hwif_out.INIT_TIMING1.t_mrd_wait.value),
