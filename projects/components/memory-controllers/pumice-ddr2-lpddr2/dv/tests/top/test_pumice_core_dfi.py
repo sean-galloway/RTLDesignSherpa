@@ -507,6 +507,118 @@ async def cocotb_test_pumice_core_rbl(dut):
                   f"rbl_static {pres_rbl}, friendly row stayed open, dyn+disarm ok")
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_acc(dut):
+    """PUMICE-006 Axis 2: adapt_access (mode 5) -- per-row 2-bit predictor.
+
+    Happy's Hybrid counts ACCESSES PER ACTIVATION, so the thrash arm must be
+    single-access: one write burst per activation, alternating two rows in one
+    bank. Each conflict close then teaches "1 access -> close-friendly"
+    (2'b01 -> 2'b10), and the next visit auto-precharges. NOTE this differs
+    from the rbl test's thrash: a write+read pair is 2 accesses and would
+    (correctly) teach the predictor to keep the row OPEN.
+
+      arm A (mode 0 baseline): N single-write thrash turns -> PREs ~= N.
+      arm B (adapt_access): warm 4 turns (one taught close per row), then N
+        turns -> PREs < half of baseline; the written data reads back golden
+        afterwards; and a FRIENDLY row (write+read pairs = reuse) in another
+        bank stays open -- zero ACTs between consecutive accesses.
+      arm C (disarm): back to mode 0 -> thrash costs PREs again (mask released
+        and the table dropped).
+    """
+    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
+    _memory, slave = await _bring_up(dut, page_policy=0)   # OPEN base
+
+    BANK, ROW_A, ROW_B = 4, 6, 11
+    FR_BANK, FR_ROW = 1, 3                      # friendly-row control
+    rng = random.Random(int(os.environ.get("SEED", "9")))
+    written = {}                                # addr -> data, for readback
+
+    async def _wr_one(bank, row, col, rid):
+        addr = _mkaddr(bank, row, col * BL)
+        data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
+        written[addr] = data
+        await _aw(dut, addr, rid & 0xF)
+        await _w(dut, data)
+        for _ in range(400):
+            await RisingEdge(dut.aclk)
+            if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
+                break
+
+    async def _rd_check(addr, rid):
+        got = []
+        cocotb.start_soon(_r_sink(dut, got))
+        await _ar(dut, addr, rid & 0xF)
+        for _ in range(800):
+            await RisingEdge(dut.aclk)
+            if len(got) >= BL_WORDS:
+                break
+        assert got[:BL_WORDS] == written[addr], f"data mismatch @ {addr:#x}"
+
+    async def _thrash(n, col0):
+        before = slave.cmd_counts.get(_DC.PRE, 0)
+        for t in range(n):
+            await _wr_one(BANK, ROW_A if (t & 1) == 0 else ROW_B, col0 + t, t)
+            await ClockCycles(dut.aclk, 20)     # let the burst land + close
+        return slave.cmd_counts.get(_DC.PRE, 0) - before
+
+    N = 12
+
+    # ---- arm A: OPEN baseline -- single-access thrash costs a PRE/turn ----
+    dut.page_mode_i.value = 0
+    pres_open = await _thrash(N, 0)
+    assert pres_open >= N - 2, (f"baseline thrash produced only {pres_open} "
+                                f"PREs for {N} turns -- pattern not thrashing")
+
+    # ---- arm B: adapt_access ---------------------------------------------
+    dut.page_mode_i.value = 5
+    _ = await _thrash(4, 32)                    # teach: 1 close per row
+    pres_acc = await _thrash(N, 48)
+    assert pres_acc < pres_open // 2, (
+        f"adapt_access did not suppress conflict PREs: {pres_acc} vs baseline "
+        f"{pres_open} -- single-access rows are not auto-precharging")
+
+    # written data must read back golden (reads also re-teach; fine, counting
+    # windows are already closed).
+    for addr in list(written)[-4:]:
+        await _rd_check(addr, 5)
+
+    # friendly row: write+read pairs (2 accesses/activation) in another bank
+    # must stay open -- reuse teaches OPEN and the weak-open init never closes.
+    await _wr_one(FR_BANK, FR_ROW, 0, 8)
+    await _rd_check(_mkaddr(FR_BANK, FR_ROW, 0), 8)
+    acts_before = slave.cmd_counts.get(_DC.ACT, 0)
+    for k in range(3):
+        await _wr_one(FR_BANK, FR_ROW, 1 + k, 9 + k)
+        await _rd_check(_mkaddr(FR_BANK, FR_ROW, (1 + k) * BL), 9 + k)
+    acts_delta = slave.cmd_counts.get(_DC.ACT, 0) - acts_before
+    assert acts_delta == 0, (
+        f"friendly row re-activated {acts_delta}x under adapt_access -- a "
+        f"reuse-served row was classified close")
+
+    # ---- arm C: ctr_init knob ---------------------------------------------
+    # ctr_init=3 (strong close) is applied while the mode is off, so on entry
+    # EVERY fresh row predicts close at its first ACT: a cold-table thrash
+    # needs at most one conflict PRE (closing whatever the last arm left open).
+    dut.page_mode_i.value = 0
+    dut.page_ctr_init_i.value = 3
+    await ClockCycles(dut.aclk, 4)              # table re-inits while disabled
+    dut.page_mode_i.value = 5
+    pres_init3 = await _thrash(4, 80)
+    assert pres_init3 <= 1, (
+        f"ctr_init=3 cold table still cost {pres_init3} PREs in 4 turns -- "
+        f"the init knob is not reaching the predictor")
+    dut.page_ctr_init_i.value = 0
+
+    # ---- arm D: disarm ----------------------------------------------------
+    dut.page_mode_i.value = 0
+    pres_off = await _thrash(4, 96)
+    assert pres_off >= 2, "mode 0 after adapt_access: failed to disarm"
+    dut._log.info(f"PASS adapt_access: baseline {pres_open} PREs/{N} turns, "
+                  f"mode-5 {pres_acc}, friendly row stayed open, "
+                  f"ctr_init=3 cold-table {pres_init3} PREs, disarm ok")
+
+
 @cocotb.test(timeout_time=20, timeout_unit="ms")
 async def cocotb_test_pumice_core_waw(dut):
     """WAW ordering + read-your-write: two writes to the SAME address, then read
@@ -616,6 +728,10 @@ def test_pumice_core_fixed_open(request):
 
 def test_pumice_core_rbl(request):
     _run(request, "cocotb_test_pumice_core_rbl")
+
+
+def test_pumice_core_acc(request):
+    _run(request, "cocotb_test_pumice_core_acc")
 
 
 def test_pumice_core_refresh_collide(request):

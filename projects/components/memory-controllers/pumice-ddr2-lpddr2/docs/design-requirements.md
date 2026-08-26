@@ -294,9 +294,9 @@ The column auto-precharge bit `ap` is set directly from `page_policy_i`
   rearchitected core (treated as `OPEN`); `page_predictor.sv` and its CSR
   collateral (`happy_enable`, `PAGE_PRED_TUNING`, `OBS_PAGE_PRED_ACCURACY`)
   are deleted, and the `page_policy_or` encoding `11` maps to build default.
-  Its Ghasempour-2015 successors are `adapt_time` (IMPLEMENTED, mode 4 of
-  `PAGE_POLICY_CFG.policy_mode`, in `pumice_page_policy`) and `adapt_access`
-  (a later serial step).
+  Its Ghasempour-2015 successors are `adapt_time` (mode 4) and `adapt_access`
+  (mode 5) of `PAGE_POLICY_CFG.policy_mode` in `pumice_page_policy` — both
+  IMPLEMENTED 2026-08-25.
 
 The "keep the row open" decision lives **inline** in the arbiter + per-bank
 `bank_timer`, not in a separate predictor/lookahead — consistent with the
@@ -415,17 +415,21 @@ per-bank precharge *request* that still respects tRAS/tRTP/tRP/tRC. All commodit
   `CHECK_INTERVAL`, `MC>HIGH ⇒ TR+=STEP`, `MC<LOW ⇒ TR-=STEP` (clamped `TR_MIN..TR_MAX`).
   Best measured policy; ~16–32 small registers total + a last-closed-row latch/comparator
   per bank.
-- **`adapt_access` (Happy "Hybrid")** — per **row** 2-bit saturating counter (init 0):
-  `+1` on conflict, `−1` on hit; decision = counter MSB (0/1 open, 2/3 close). Per-row
-  state (~16–32 KB/rank → BRAM + read-modify-write in the command path); heavier than
-  `adapt_time`, only if access-based prediction wins on the traffic.
-- **`rbl_static` / `rbl_dyn` (RBLA / Yoon)** — count row-buffer **misses only, not
-  accesses** (a hit carries no signal). A small per-bank set-associative table of
-  saturating **miss** counters (tag = row addr, LRU, epoch reset); miss-count
-  `> MISS_THRESH` ⇒ low-locality row → auto-precharge. `rbl_dyn` hill-climbs `MISS_THRESH`
-  on a cost/benefit estimate. Separates hot-but-friendly from hot-and-thrashing rows that
-  frequency-based schemes conflate. (Only the miss-predictor is kept; the paper's
-  DRAM-cache migration machinery is dropped.)
+- **`adapt_access` (Happy "Hybrid"; IMPLEMENTED 2026-08-25, `pumice_row_pred_table`)** —
+  per **row** 2-bit saturating counter; decision = counter vs `ctr_open_max` (default 2)
+  at ACT time. As built: tagless direct-mapped, {bank, XOR-folded row} index (folding
+  replaces the paper's full per-row BRAM — aliasing blends history, acceptable for a
+  predictor), learning from accesses-per-activation at explicit PRE closes plus a
+  premature-reopen decrement for auto-precharge closes.
+- **`rbl_static` / `rbl_dyn` (RBLA / Yoon; IMPLEMENTED 2026-08-25, `pumice_rbl_table`)** —
+  count row-buffer **misses only, not accesses** (a hit carries no signal). A small
+  set-associative table of saturating **miss** counters (tag = row addr, true-LRU,
+  `PAGE_RBL_CFG` shapes ways/sets/threshold/epoch); miss-count `> MISS_THRESH` ⇒
+  low-locality row → auto-precharge. `rbl_dyn` hill-climbs `MISS_THRESH` per epoch on the
+  measured page-hit fraction (divider-free cross-multiplication, direction memory).
+  Separates hot-but-friendly from hot-and-thrashing rows that frequency-based schemes
+  conflate. (Only the miss-predictor is kept; the paper's DRAM-cache migration machinery
+  is dropped.)
 
 ### Axis 3 — Refresh (Chang DARP/DSARP 2014–16 + Nair pausing 2014 + JEDEC)
 

@@ -5,7 +5,8 @@
 ---
 
 ## PUMICE-006 — QoS + advanced scheduling (post-cleanup)
-**Status:** active 2026-08-25 — ungated; CSR surface + paging modes 3/4 landed
+**Status:** active 2026-08-25 — ungated; CSR surface + ALL Axis-2 paging modes
+(3/4/5/6/7) landed; next serial axis per Sean's "paging first" = scheduling
 
 **Progress:**
 - Step 1 (e64c824b): full mode-select CSR surface + *_STATS telemetry
@@ -27,7 +28,24 @@
   zero-reACT check), arm C dyn smoke + disarm. Mutation-proven (verdict
   forced 0 → arm B RED: 13 vs 11 PREs, no suppression). Gate tier after:
   fub 40 / macro 3 / top 57.
-  Remaining Axis 2: adapt_access (mode 5) only.
+- Axis 2, mode 5 `adapt_access` landed — AXIS 2 COMPLETE. New
+  `pumice_row_pred_table` fub (Happy "Hybrid"): tagless direct-mapped 2-bit
+  saturating counters, {bank, XOR-folded row} index; explicit-PRE closes teach
+  from accesses-per-activation (<=1 -> close-friendly, >=2 -> open-friendly),
+  auto-precharge closes are judged by same-row premature reopen (decrement).
+  PAGE_POLICY_CFG.ctr_open_max/ctr_init wired (0 = defaults 2 / weak-open 1;
+  init applies while the mode is disabled). LESSON captured in the RTL
+  comment: the scheduler's exported row-active bit clears at PICK time, a
+  cycle before the PRE issues — the first cut guarded PRE-learning on
+  row-active and learned NOTHING (found via $display trace, "PRE bank=4
+  act=0"); the open-row IMAGE stays valid, the active bit does not.
+  Directed `test_pumice_core_acc` (single-access thrash — a write+read pair
+  is 2 accesses and correctly teaches OPEN, so the rbl thrash pattern does
+  not transfer): mode-0 baseline, mode-5 suppression < half, golden readback,
+  friendly-row zero-reACT, ctr_init=3 cold-table <=1 PRE, disarm. Mutation-
+  proven (verdict forced 0 → arm B RED: 12 vs 11 PREs).
+  MAS 08_page_policy / design-requirements / HAS open-issue 5 updated to the
+  as-built modes 5/6/7.
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.

@@ -177,6 +177,8 @@ module pumice_top
         .page_mc_low_i(hwif_out.PAGE_ADAPT_CFG.mc_low_thr.value),
         .page_mc_init_i(hwif_out.PAGE_ADAPT_CFG.mc_init.value),
         .page_check_ivl_i(hwif_out.PAGE_ADAPT_CFG.check_interval.value),
+        .page_ctr_thresh_i(hwif_out.PAGE_POLICY_CFG.ctr_open_max.value),
+        .page_ctr_init_i(hwif_out.PAGE_POLICY_CFG.ctr_init.value),
         .page_rbl_thresh_i(hwif_out.PAGE_RBL_CFG.miss_thresh.value),
         .page_rbl_ways_i(hwif_out.PAGE_RBL_CFG.ways.value),
         .page_rbl_sets_i(hwif_out.PAGE_RBL_CFG.sets.value),

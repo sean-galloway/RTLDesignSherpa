@@ -17,11 +17,11 @@
 //        4 adapt_time    ap=0; per-bank timeout register TR adapts (Happy
 //                        "Intel-adaptive": mistake counter MC, premature-close
 //                        vs held-too-long, TR += / -= step each check interval)
+//        5 adapt_access  ap = per-row 2-bit close predictor (Happy "Hybrid",
+//                        pumice_row_pred_table; knob-free)
 //        6 rbl_static    ap = per-bank low-locality verdict from the RBLA
 //                        miss-counter table (pumice_rbl_table)
 //        7 rbl_dyn       rbl_static + per-epoch threshold hill-climb
-//      (5 adapt_access is a later serial step; until it lands its encoding
-//       behaves as static_open — ap=0, no timeout engine.)
 //
 //   2. A background precharge REQUEST (`timeout_pre_req_o` / bank) for a row
 //      whose idle timer expired. The ARBITER issues the actual PRE as its
@@ -63,6 +63,8 @@ module pumice_page_policy
     // ---- mode-select CSR fields (SCHED/PAGE_* registers) -------------------
     input  logic [2:0]                 policy_mode_i,     // PAGE_POLICY_CFG.policy_mode
     input  logic                       policy_scope_i,    // 0=per-bank TR, 1=global TR
+    input  logic [3:0]                 ctr_thresh_i,      // PAGE_POLICY_CFG.ctr_open_max
+    input  logic [3:0]                 ctr_init_i,        // PAGE_POLICY_CFG.ctr_init
     input  logic [7:0]                 tr_init_i,         // PAGE_TIMEOUT_CFG
     input  logic [7:0]                 tr_min_i,
     input  logic [7:0]                 tr_max_i,
@@ -101,31 +103,46 @@ module pumice_page_policy
     output logic [31:0]                stat_ref_o
 );
 
-    // Mode decodes. Unimplemented encodings (5..7) degrade to static_open —
-    // safe (rows just stay open, the baseline OPEN behaviour) and honest until
-    // their serial steps land.
     localparam logic [2:0] MODE_DEFAULT      = 3'd0;
     localparam logic [2:0] MODE_STATIC_OPEN  = 3'd1;
     localparam logic [2:0] MODE_STATIC_CLOSE = 3'd2;
     localparam logic [2:0] MODE_FIXED_OPEN   = 3'd3;
     localparam logic [2:0] MODE_ADAPT_TIME   = 3'd4;
+    localparam logic [2:0] MODE_ADAPT_ACCESS = 3'd5;
     localparam logic [2:0] MODE_RBL_STATIC   = 3'd6;
     localparam logic [2:0] MODE_RBL_DYN      = 3'd7;
 
-    logic w_mode_on, w_timeout_on, w_adapt_on, w_rbl_on;
+    logic w_mode_on, w_timeout_on, w_adapt_on, w_acc_on, w_rbl_on;
     assign w_mode_on    = (policy_mode_i != MODE_DEFAULT);
     assign w_timeout_on = (policy_mode_i == MODE_FIXED_OPEN)
                        || (policy_mode_i == MODE_ADAPT_TIME);
     assign w_adapt_on   = (policy_mode_i == MODE_ADAPT_TIME);
+    assign w_acc_on     = (policy_mode_i == MODE_ADAPT_ACCESS);
     assign w_rbl_on     = (policy_mode_i == MODE_RBL_STATIC)
                        || (policy_mode_i == MODE_RBL_DYN);
 
     // ---- auto-precharge decision -------------------------------------------
-    logic [NUM_BANKS-1:0] w_rbl_low_loc;
+    logic [NUM_BANKS-1:0] w_rbl_low_loc, w_acc_close;
     assign ap_mode_en_o = w_mode_on;
     assign ap_close_o   = (policy_mode_i == MODE_STATIC_CLOSE) ? {NUM_BANKS{1'b1}}
+                        : w_acc_on                              ? w_acc_close
                         : w_rbl_on                              ? w_rbl_low_loc
                                                                 : '0;
+
+    // Per-row close predictor (mode 5): 2-bit counters vote close for rows
+    // that historically saw a single access per activation.
+    pumice_row_pred_table #(
+        .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH)
+    ) u_row_pred (
+        .aclk(aclk), .aresetn(aresetn),
+        .enable_i(w_acc_on),
+        .ctr_thresh_i(ctr_thresh_i), .ctr_init_i(ctr_init_i),
+        .cmd_valid_i(cmd_valid_i), .cmd_op_i(cmd_op_i),
+        .cmd_bank_i(cmd_bank_i), .cmd_row_i(cmd_row_i),
+        .bank_row_active_i(bank_row_active_i),
+        .bank_open_row_i(bank_open_row_i),
+        .close_pred_o(w_acc_close)
+    );
 
     // RBLA miss-counter table (modes 6/7): classifies the OPEN row of each
     // bank as low-locality (thrashing -> auto-precharge) at ACT time.

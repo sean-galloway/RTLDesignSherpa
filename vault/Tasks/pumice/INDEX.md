@@ -16,7 +16,9 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 ## Open shortlist
 
 - **PUMICE-006** — QoS + advanced scheduling. UNGATED as of 2026-08-25: the
-  board is clean (matrix 65/70 data-clean, tREFI soak 0/15 dirty).
+  board is clean (matrix 65/70 data-clean, tREFI soak 0/15 dirty). Axis 2
+  (paging) COMPLETE — all modes 1..7 landed with mutation-proven directed
+  tests; scheduling (Axis 1) and refresh (Axis 3) remain.
 - **PUMICE-011** — multiid hist accounting anomaly (data clean; observability).
 - **PUMICE-010** — top-tier shared sim_build has no compile lock; clean
   parallel runs self-destruct (48/31 spurious fails). Serial = workaround.

@@ -47,8 +47,8 @@ Keeping `last_ref_age` per bank costs one counter per bank. For 8 banks this is 
 
 RESOLVED (2026-08-25): the HAPPY address-hash predictor is retired — it was
 never wired into the rearchitected core. Its Ghasempour-2015 successors are
-runtime modes of `pumice_page_policy` (`adapt_time` landed; `adapt_access` is
-a later serial step), which need no address hash.
+runtime modes of `pumice_page_policy` (`adapt_time` and `adapt_access` both
+landed), which need no address hash.
 
 ### 6. Self-Refresh Exit Latency
 
