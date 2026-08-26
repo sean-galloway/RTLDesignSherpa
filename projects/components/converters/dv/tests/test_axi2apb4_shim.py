@@ -252,10 +252,16 @@ class Axi2ApbTB(TBBase):
                     burst_type=1
                 )
 
-                # Convert word data back to bytes
+                # Convert word data back to bytes. A narrow read at an
+                # unaligned address returns its data in the ADDRESSED byte
+                # lanes (AXI lane semantics), not at bit 0 — extract from
+                # lane addr % bus_bytes. (Extracting from lane 0 used to
+                # work only because the old BFM drove illegal full-bus
+                # strobes that made writes land word-aligned.)
+                lane = addr % bytes_per_word
                 data_bytes = bytearray()
                 for i in range(length):
-                    data_bytes.append((data_word >> (i * 8)) & 0xFF)
+                    data_bytes.append((data_word >> ((lane + i) * 8)) & 0xFF)
 
                 class ReadResponse:
                     def __init__(self, data):
@@ -419,9 +425,15 @@ class Axi2ApbTB(TBBase):
         ]
 
         for i in range(48):
-            addr = base_addr + 0x200 + i
             pattern = random.choice(patterns)
             data = bytearray(pattern)
+            # AXI requires a size-N transfer to stay inside its aligned
+            # size container: a 2-byte single beat at an odd address is not
+            # expressible. Align the address to the transfer size. (The
+            # unaligned version only ever "passed" through the old BFM's
+            # illegal full-bus strobes, which silently word-aligned every
+            # access.)
+            addr = (base_addr + 0x200 + i) & ~(len(data) - 1)
             await self.single_write_read_test(addr, data, f"stress_mixed_{i}", quick_mode=True)
             operations += 1
 

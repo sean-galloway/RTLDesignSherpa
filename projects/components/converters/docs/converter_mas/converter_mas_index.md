@@ -125,7 +125,7 @@ All diagrams referenced in the documentation live in:
 - **Full AXI4 Converters:** Complete write path (AW+W+B) and read path (AR+R) modules
 - **Protocol Bridges:** AXI4-to-AXI4-Lite, AXI4-Lite-to-AXI4, and AXI4-to-APB conversion
 - **Downsize buffering:** a single buffer that accepts its replacement during the last narrow beat -- measured at 0.992 beats/cycle, so no second buffer is needed
-- **Flexible Sideband Handling:** Concatenate, broadcast, or OR modes
+- **Flexible Sideband Handling:** Concatenate, broadcast, or severity-fold modes
 
 ### Module Summary
 

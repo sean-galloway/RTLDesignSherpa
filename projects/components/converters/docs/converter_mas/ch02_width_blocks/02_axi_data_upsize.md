@@ -50,7 +50,7 @@ The upsize module does four things:
 | WIDE_WIDTH | int | 128 | Output data width (bits) |
 | NARROW_SB_WIDTH | int | 0 | Input sideband width (bits), 0 if unused |
 | WIDE_SB_WIDTH | int | 0 | Output sideband width, 0 if unused |
-| SB_OR_MODE | int | 0 | 0=concatenate, 1=OR sidebands |
+| SB_OR_MODE | int | 0 | 0=concatenate, 1=severity fold (numeric max) |
 
 : Table 2.4: axi_data_upsize Parameters
 
@@ -63,7 +63,7 @@ module axi_data_upsize #(
     parameter int WIDE_WIDTH      = 128,
     parameter int NARROW_SB_WIDTH = 0,        // Sideband width (0 if unused)
     parameter int WIDE_SB_WIDTH   = 0,        // Wide sideband width
-    parameter int SB_OR_MODE      = 0,        // 0=concatenate, 1=OR together
+    parameter int SB_OR_MODE      = 0,        // 0=concatenate, 1=severity fold (numeric max)
 
     // Calculated Parameters
     localparam int WIDTH_RATIO = WIDE_WIDTH / NARROW_WIDTH,
