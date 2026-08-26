@@ -174,41 +174,6 @@ vault/handbook/dv/seeds-and-determinism.md.
 
 ---
 
-## CONV-006 — upsize paths require wide-aligned burst starts (documented + asserted, not lifted)
-**Status:** open 2026-08-25 — constraint made loud; supporting unaligned starts is future work
-**Priority:** P2 — real limitation for bridge-class integrations; currently safe because it faults in sim and integrators align
-
-Found via the bridge concurrency suite (DV `tests/sim/bridges`): a 64-bit
-master writing a 256-bit slave at an address aligned only to the master
-width (0x10) landed its data in the wrong byte lanes — the memory held the
-seed at 0x10 and the data at the wrong offset.
-
-**Mechanism.** `axi_data_upsize` always begins packing at lane 0; there is
-no mid-word entry point. `axi4_dwidth_converter_wr` (upsize branch) passes
-AWADDR through unmodified, so a burst starting mid-wide-word packs from
-lane 0 while the address says otherwise. The read side has the mirror
-problem: `axi4_dwidth_converter_rd` (upsize) aligns the issued address DOWN
-and slices from lane 0, so a mid-word AR returns data from the aligned
-address, not the requested one.
-
-**Done 2026-08-25:**
-- MAS 2.5.5 states the constraint explicitly ("Upsize bursts must start
-  wide-aligned").
-- Both converters got `ifdef SIMULATION` assertions on the upsize AW/AR
-  handshake — unaligned starts now `$error` instead of corrupting silently.
-- The bridge TB aligns all generated addresses to
-  `max(master_width, slave_width)` (`access_stride`).
-
-**Work (future):**
-- [ ] Decide whether to support unaligned upsize starts. Requires a start-
-      lane input on `axi_data_upsize`/`axi_data_dnsize` (init the pack/slice
-      pointer from `addr % wide_bytes`) and leading-lane strobe zeroing on
-      the W path. Rough scope: both primitives + both wrapper branches +
-      RED tests at each ratio.
-- [ ] If supported, drop the assertions and the MAS constraint paragraph
-      together — they document each other.
-
----
 
 ---
 

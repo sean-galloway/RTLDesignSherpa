@@ -200,9 +200,16 @@ land mid-accumulation. A one-bit flag queue, pushed per issued AR and
 popped per master RLAST, says which burst is final.
 
 On the UPSIZE path the issued address is aligned down to the master
-data width, since a wide access cannot start mid-word (the downsize
-path issues narrow accesses and passes the address through the
-splitter unmodified apart from the per-burst advance):
+data width -- the slave returns whole wide words -- and mid-word INCR
+starts are handled by the R slicer: the burst-length FIFO carries the
+start lane alongside the narrow length, `m_axi_arlen` counts it
+(`ceil((start_lane + narrow_beats) / RATIO)` wide beats), and
+`axi_data_dnsize` slices the burst's FIRST wide word from that lane,
+so the narrow master receives the bytes it actually addressed. Later
+wide words slice from lane 0. FIXED/WRAP keep the wide-aligned
+requirement (asserted in simulation). The downsize path issues narrow
+accesses and passes the address through the splitter unmodified apart
+from the per-burst advance:
 
 ```systemverilog
 localparam int ALIGN_BITS = $clog2(M_STRB_WIDTH);

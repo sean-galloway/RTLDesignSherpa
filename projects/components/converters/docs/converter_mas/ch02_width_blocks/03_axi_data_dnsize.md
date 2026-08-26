@@ -81,6 +81,9 @@ module axi_data_dnsize #(
     // Burst Control (only if TRACK_BURSTS=1)
     input  logic [BURST_LEN_WIDTH-1:0]      burst_len,       // From address channel (ARLEN/AWLEN)
     input  logic                            burst_start,     // Pulse to start new burst
+    // TRACK_BURSTS only: lane the burst's first narrow beat occupies in
+    // the FIRST wide word; later wide words slice from lane 0.
+    input  logic [PTR_WIDTH-1:0]            start_lane,
 
     // Wide Input (from slave or master)
     input  logic                            wide_valid,

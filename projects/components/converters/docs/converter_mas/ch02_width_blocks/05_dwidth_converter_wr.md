@@ -251,13 +251,28 @@ Neither converter checks address alignment on the downsize path. The
 read converter aligns the address it issues on its UPSIZE path only --
 a wide access cannot start mid-word (see 2.6.5).
 
-**Upsize bursts must start wide-aligned.** The W-path packer
-(`axi_data_upsize`) always begins filling at lane 0 -- there is no
-mid-word entry point -- so a write burst whose start address is not a
-multiple of the wide width lands its data in the wrong byte lanes of
-the first wide beat. Nothing in the RTL checks or corrects this;
-integrators must align burst starts to the wider bus (the bridge
-testbenches do exactly that).
+**Upsize INCR bursts may start mid-wide-word.** The AXI-correct
+behavior: the first wide beat carries the narrow data in the byte
+lanes the ADDRESS selects, with WSTRB covering only those lanes
+(leading lanes byte-disabled, not clobbered). Three pieces cooperate:
+
+- `m_axi_awlen` counts the lane offset:
+  `ceil((start_lane + narrow_beats) / RATIO)` wide beats. AWADDR
+  passes through unchanged -- unaligned is legal AXI; the first beat
+  is partial within its size container.
+- an AW-lane queue (same inline pattern as the read converter's
+  burst-length FIFO) records each accepted AW's start lane; W beats
+  are held off until their AW is queued (the packer's lane comes from
+  AWADDR), and the entry pops on the NARROW side's last beat -- the
+  head must track the burst the CURRENT narrow beat belongs to, and a
+  wide-side pop raced back-to-back bursts.
+- `axi_data_upsize` takes a `start_lane` input: the first narrow beat
+  of a burst lands at that lane (data AND WSTRB shifted, leading
+  slots '0); later wide groups of the burst start at lane 0.
+
+FIXED and WRAP keep the wide-aligned requirement (asserted in
+simulation) -- their lane semantics through the packer are not
+defined.
 
 ### Skid Buffer for AW
 

@@ -82,6 +82,11 @@ module axi_data_upsize #(
     input  logic [NARROW_SB_PORT_WIDTH-1:0] narrow_sideband,  // Min width 1 to avoid [-1:0]
     input  logic                            narrow_last,
 
+    // Lane the FIRST narrow beat of a burst occupies inside the wide
+    // word (addr % wide_bytes / narrow_bytes); later groups start at
+    // lane 0. Tie '0 for aligned-only behavior.
+    input  logic [PTR_WIDTH-1:0]            start_lane,
+
     // Wide Output (to master or slave)
     output logic                            wide_valid,
     input  logic                            wide_ready,
