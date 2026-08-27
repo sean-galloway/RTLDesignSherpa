@@ -60,7 +60,7 @@ slave_index = ((PADDR - BASE_ADDR) >> 16)[$clog2(S)-1:0]
   response handshake
 - They do NOT overlap inside the fabric: `apb4_slave` is
   one-command-at-a-time, so sustained cadence equals single-transfer
-  latency, measured at ~10 pclk cycles (see 5.1/5.2)
+  latency, measured at ~9 pclk cycles (see 5.1/5.2)
 
 ### F5: Proven Building Blocks
 

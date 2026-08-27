@@ -3,7 +3,7 @@
 <tr>
 <td width="80">
   <a href="https://github.com/sean-galloway/RTLDesignSherpa">
-    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.svg" alt="RTL Design Sherpa" width="70">
   </a>
 </td>
 <td>
@@ -64,8 +64,8 @@ This directory contains visual documentation for the APB Crossbar component, inc
 
 | Diagram | Format | Description |
 |---------|--------|-------------|
-| [apbx_xbar_architecture](apbx_xbar_spec/assets/graphviz/apbx_xbar_architecture.gv) | Graphviz | 2x4 crossbar showing master-side slaves, arbitration, slave-side masters |
-| [address_decode_flow](apbx_xbar_spec/assets/graphviz/address_decode_flow.gv) | Graphviz | Step-by-step address decode example (0x10023456 → Slave 2) |
+| [apbx_xbar_architecture](apbx_xbar_mas/assets/graphviz/apbx_xbar_architecture.gv) | Graphviz | 2x4 crossbar showing master-side slaves, arbitration, slave-side masters |
+| [address_decode_flow](apbx_xbar_mas/assets/graphviz/address_decode_flow.gv) | Graphviz | Step-by-step address decode example (0x10023456 → Slave 2) |
 
 **Rendered Formats:**
 - PNG: `assets/svg/*.svg` (for markdown embedding)
@@ -75,7 +75,7 @@ This directory contains visual documentation for the APB Crossbar component, inc
 
 | Diagram | Format | Description |
 |---------|--------|-------------|
-| [arbitration_round_robin](apbx_xbar_spec/assets/wavedrom/arbitration_round_robin.json) | WaveJSON | 2 masters competing for Slave 0 with round-robin arbitration |
+| [arbitration_round_robin](apbx_xbar_mas/assets/wavedrom/arbitration_round_robin.json) | WaveJSON | 2 masters competing for Slave 0 with round-robin arbitration |
 
 **Rendered Format:**
 - PNG: `assets/svg/arbitration_round_robin.svg`
@@ -141,8 +141,8 @@ docs/apbx_xbar_mas/
     │   ├── apbx_xbar_architecture.svg
     │   └── address_decode_flow.svg
     └── png/                               ← Rendered PNG (embedded)
-        ├── apbx_xbar_architecture.png
-        └── address_decode_flow.png
+        ├── apbx_xbar_architecture.svg
+        └── address_decode_flow.svg
 ```
 
 ---
@@ -265,7 +265,7 @@ Transaction 4: M0, M1 request → M0 granted → Priority rotates to M1
 
 **Single Master:**
 - Back-to-back transactions without master-side gaps (no overlap
-  inside the fabric; ~10 pclk cycles each)
+  inside the fabric; ~9 pclk cycles each)
 - Limited only by slave PREADY response time
 
 **Multiple Masters (Same Slave):**

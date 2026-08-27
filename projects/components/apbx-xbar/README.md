@@ -249,7 +249,7 @@ pytest projects/components/apbx-xbar/dv/tests/ -v  # All variants
 ### Timing
 
 - **Back-to-back transactions**: supported with no master-side idle
-  cycles; they do not overlap inside the fabric (~10 pclk cycles each)
+  cycles; they do not overlap inside the fabric (~9 pclk cycles each)
 - **Single-cycle arbitration**: New grants issued the cycle AFTER the previous completion (the
 arbiter's grant is registered)
 - **Pipelined datapath**: Command and response phases overlap different transactions

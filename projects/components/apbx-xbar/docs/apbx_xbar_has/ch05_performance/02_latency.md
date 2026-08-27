@@ -31,12 +31,14 @@ When a master has exclusive access to a slave:
 
 | Phase | Cycles | Description |
 |-------|--------|-------------|
-| Master APB setup + access | 2 | PSEL, then PENABLE |
-| apb4_slave capture -> cmd skid | 2 | command registered out |
-| apb4_master IDLE -> SETUP -> ACCESS | 3 | downstream PSEL/PENABLE |
-| Slave response -> rsp skid | 2 | response registered back |
+| Master SETUP | 1 | PSEL high, PENABLE low |
+| apb4_slave capture + cmd skid | 2 | command registered out |
+| apb4_master IDLE-launch / SETUP / ACCESS | 3 | downstream PSEL then PENABLE |
+| Response + rsp skid | 1 | slave PREADY into the return skid |
 | apb4_slave BUSY -> PREADY | 1 | master-visible completion |
-| **Total** | **10** | **measured**, zero-wait-state slave |
+| **Total** | **9** | PSEL to PREADY (8 of them ACCESS to PREADY) |
+
+: Uncontended Transaction Latency
 
 : Uncontended Transaction Latency
 
@@ -45,7 +47,7 @@ transfer is NOT the 2-cycle APB minimum: the fabric converts APB to an
 internal cmd/rsp protocol through `apb4_slave` and back through
 `apb4_master`, and both directions cross REGISTERED skid buffers. A
 direct probe on `apbx_xbar_1to1` with an always-ready slave measures
-**10 pclk cycles** from PSEL to PREADY, and **10 cycles** sustained
+**9 pclk cycles** from PSEL to PREADY (8 of them ACCESS to PREADY), and **9 cycles** sustained
 back-to-back (the `apb4_slave` FSM is one-command-at-a-time: it cannot
 capture the next command until it returns to IDLE). Earlier revisions
 of this page claimed 2 cycles, which is the bare APB protocol minimum
@@ -104,7 +106,7 @@ Slave PREADY  _________|-----|___
                        ^
 Master PREADY _________|-----|___
                        ^
-              Total: 10 cycles (measured through the fabric)
+              Total: 9 cycles (PSEL to PREADY)
 ```
 
 ### Worst Case (Contention + Slave Wait States)
@@ -120,7 +122,7 @@ Slave PREADY  _____________________|------|___
                                    ^
 Master PREADY _____________________|------|___
                                    ^
-              Total: 10+ cycles (plus slave wait states and contention)
+              Total: 9+ cycles (plus slave wait states and contention)
 ```
 
 ## Latency Optimization

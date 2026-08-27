@@ -52,11 +52,20 @@ For each slave index `j` (0 to N-1):
 
 **PSEL:** Asserted when a transaction targets this slave. Remains high throughout the transaction.
 
-**PENABLE:** Follows standard APB timing:
+**PENABLE:** Follows standard APB timing, with one known deviation:
+`apb4_master`/`apb5_master` drive **two** setup cycles (PSEL high,
+PENABLE low) when launching out of IDLE, where APB defines one. Measured
+`[2,2,2]` at a downstream port. Back-to-back transfers taking the
+ACCESS->SETUP shortcut give the compliant single setup cycle. Tracked as
+AMBA TASK-071; tolerant slaves (sampling on PSEL && PENABLE && PREADY)
+are unaffected.
+
 - Low during setup phase
 - High during access phase
 
-**PADDR:** Contains the full address from the master. The local address within the 64KB region is in bits [15:0].
+**PADDR:** Contains the full address from the master. The local address within a 64KB region is `offset[15:0]` -- note this
+is the OFFSET's low bits, not PADDR's, so it only equals PADDR[15:0]
+when BASE_ADDR is 64KB-aligned (which is permitted but not required).
 
 **PWRITE, PWDATA, PSTRB, PPROT:** Passed through from the winning master without modification.
 

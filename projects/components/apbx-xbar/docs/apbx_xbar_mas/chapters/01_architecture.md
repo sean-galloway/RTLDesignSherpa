@@ -37,7 +37,7 @@ The APB Crossbar is a parametric interconnect that connects M APB masters to N A
 - Arbitrary MxN configuration (up to 16x16)
 - Automatic address decode (64KB per slave)
 - Round-robin arbitration per slave
-- Back-to-back transactions (no overlap; ~10 pclk cycles each)
+- Back-to-back transactions (no overlap; ~9 pclk cycles each)
 - Grant persistence through transaction completion
 
 ---
@@ -153,7 +153,7 @@ Internal Crossbar Logic → cmd/rsp bus → apb4_master → APB Slave
    - Response routed back to apb4_slave[0]
    - apb4_slave[0] returns PREADY to CPU
 
-**Total Latency:** ~10 cycles for uncontended access (measured; see 2.x -- the fabric's boundary IP and registered skid buffers dominate, not APB's 2-cycle protocol minimum)
+**Total Latency:** 9 cycles for uncontended access (measured; see 2.x -- the fabric's boundary IP and registered skid buffers dominate, not APB's 2-cycle protocol minimum)
 
 ---
 
@@ -168,7 +168,7 @@ thin core takes M and S as parameters.
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
-| `ADDR_WIDTH` | 8-64 | 32 | Address bus width |
+| `ADDR_WIDTH: 18-64 for the decoding variants (the slave-index part-select reads bit 17); 1-64 for 1to1/2to1 | 32 | Address bus width |
 | `DATA_WIDTH` | 8-64 | 32 | Data bus width |
 | `STRB_WIDTH` | derived | `DATA_WIDTH/8` | Write strobe width |
 | `BASE_ADDR` | Any | 0x10000000 | Base of the slave address map |
@@ -184,7 +184,7 @@ generator inputs, not parameters — see chapter 3.
 |-----------|-------|---------|-------------|
 | `M` | 1-16 | 2 | Number of APB masters |
 | `S` | 1-16 | 4 | Number of APB slaves |
-| `ADDR_WIDTH` | 8-64 | 32 | Address bus width |
+| `ADDR_WIDTH: 18-64 for the decoding variants (the slave-index part-select reads bit 17); 1-64 for 1to1/2to1 | 32 | Address bus width |
 | `DATA_WIDTH` | 8-64 | 32 | Data bus width |
 | `STRB_WIDTH` | derived | `DATA_WIDTH/8` | Write strobe width |
 | `MAX_THRESH` | ≥1 | 16 | Arbiter weight ceiling |
@@ -271,7 +271,7 @@ pass-through claim mean anything.
 **Predictability:**
 - Round-robin arbitration provides deterministic behavior
 - Fixed address map simplifies software integration
-- Deterministic transfer cost: ~10 pclk cycles, contention aside
+- Deterministic transfer cost: ~9 pclk cycles, contention aside
 
 ---
 

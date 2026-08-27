@@ -31,11 +31,11 @@ With a single master accessing any slave:
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| Cycles per transaction (uncontended) | 10 | measured, zero-wait slave (see 5.2) |
-| Sustained cycles per transaction | 10 | measured back-to-back, one master |
-| Maximum transactions per cycle | 0.1 | 1 transaction / 10 cycles |
-| Data throughput (32-bit @ 100MHz) | 40 MB/s | 4 B / 10 cycles |
-| Data throughput (32-bit @ 250MHz) | 100 MB/s | 4 B / 10 cycles |
+| Cycles per transaction (uncontended) | 9 (PSEL->PREADY); 8 fabric (ACCESS->PREADY) | measured, zero-wait slave (see 5.2) |
+| Sustained cycles per transaction | 9 | measured back-to-back, one master |
+| Maximum transactions per cycle | ~0.111 | 1 transaction / 9 cycles |
+| Data throughput (32-bit @ 100MHz) | ~44 MB/s | 4 B / 9 cycles |
+| Data throughput (32-bit @ 250MHz) | ~111 MB/s | 4 B / 9 cycles |
 
 : Single Master Throughput
 
@@ -80,7 +80,7 @@ earlier revisions. It described a pipeline this RTL does not have: the
 (IDLE -> BUSY -> WAIT), so the next command is not captured until the
 previous transaction completes. Because there is no overlap, sustained cadence EQUALS latency: a
 master holding PSEL high and starting the next SETUP the cycle after
-each PREADY measures **PREADY-to-PREADY = 10 pclk cycles**, the same
+each PREADY measures **PREADY-to-PREADY = 9 pclk cycles with optimal turnaround**, the same
 as a single transfer (see 5.2 for the cycle-by-cycle breakdown). There
 is no overlap between consecutive transactions to draw.
 

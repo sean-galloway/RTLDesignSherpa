@@ -283,17 +283,17 @@ WITH Grant Persistence:
 - 1 cycle: the grant is REGISTERED (`grant <= w_next_grant;` in
   `arbiter_round_robin`), so request → grant is never same-cycle
 - Fabric overhead is the dominant term, not APB's 2-cycle minimum:
-  a full transfer measures ~10 cycles (see "Transaction Latency" below)
+  a full transfer measures 9 cycles (see "Transaction Latency" below)
 
 **Worst Case (Maximum Contention):**
 - Wait for the masters ahead in the round-robin to complete FULL
   transactions -- the grant is held until the response handshake
-  (`WAIT_GNT_ACK(1)`), so each is ~10 cycles, not 1
+  (`WAIT_GNT_ACK(1)`), so each is ~9 cycles, not 1
 - Example: 2 masters, worst case ≈ one full transaction of wait
-- Example: 4 masters, worst case = 3 full transactions ~= 30 cycles
+- Example: 4 masters, worst case = 3 full transactions ~= 27 cycles
 
 **Average Case (Random Access Pattern):**
-- (M-1)/2 full transactions of average wait (~10 cycles each)
+- (M-1)/2 full transactions of average wait (~9 cycles each)
 - Statistical fairness over time
 
 ---
@@ -307,7 +307,7 @@ apbx_xbar_1to4 #(
     .BASE_ADDR(32'h1000_0000)
 ) u_periph_xbar (
     // Single master (CPU)
-    .m0_apb_* (cpu_apb_*),
+    // .m0_apb_PSEL(cpu_apb_PSEL), .m0_apb_PENABLE(...), ...  (elided)
 
     // 4 slaves (UART, GPIO, Timer, SPI)
     .s0_apb_* (uart_*),   // 0x1000_0000
@@ -329,8 +329,8 @@ apbx_xbar_2to4 #(
     .BASE_ADDR(32'h4000_0000)
 ) u_soc_xbar (
     // Two masters
-    .m0_apb_* (cpu_apb_*),
-    .m1_apb_* (dma_apb_*),
+    // .m0_apb_PSEL(cpu_apb_PSEL), .m0_apb_PENABLE(...), ...  (elided)
+    // .m1_apb_PSEL(dma_apb_PSEL), ...                        (elided)
 
     // 4 slaves
     .s0_apb_* (mem_ctrl_*),  // 0x4000_0000
@@ -356,7 +356,7 @@ apbx_xbar_2to4 #(
 - Back-to-back transactions supported, but NOT overlapped: `apb4_slave`
   is a one-command-at-a-time FSM, so the next command is captured only
   after the previous transaction completes
-- Measured sustained cadence: 1 transfer per 10 pclk cycles at an
+- Measured sustained cadence: 1 transfer per 9 pclk cycles at an
   always-ready slave -- identical to single-transfer latency, because
   nothing overlaps (an earlier "zero bubble" claim described a pipeline
   this RTL does not have)
@@ -383,12 +383,12 @@ apbx_xbar_2to4 #(
    skid, `apb4_slave` BUSY→PREADY
 5. **Slave Response:** Variable (adds to the above)
 
-**Total Minimum Latency: ~10 cycles** (uncontended, zero-wait slave --
+**Total Minimum Latency: 9 cycles** (8 of them ACCESS->PREADY) (uncontended, zero-wait slave --
 measured on `apbx_xbar_1to1`). APB's 2-cycle minimum applies to a
 directly-attached slave; it does not apply through this fabric, which
 converts APB→cmd/rsp→APB across registered buffers in both directions.
 
-**With Contention:** add one full transaction (~10 cycles) per master
+**With Contention:** add one full transaction (~9 cycles) per master
 ahead in the round-robin
 
 ---

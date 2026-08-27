@@ -55,7 +55,7 @@
 ```
 User needs crossbar?
 ├─ 1x1, 2x1, 1x4, 2x4? → Use pre-generated module
-├─ Thin/minimal? → Use apbx_xbar_thin
+├─ Thin/minimal? → Use apbx_xbar_thin   # RETIRED -- do not use
 └─ Custom MxN? → Run generator script
 ```
 
@@ -135,7 +135,7 @@ projects/components/apbx-xbar/
 │   ├── apbx_xbar_2to1.sv
 │   ├── apbx_xbar_1to4.sv
 │   ├── apbx_xbar_2to4.sv
-│   ├── apbx_xbar_thin.sv
+│   ├── apbx_xbar_thin.sv   # RETIRED -- do not use
 │   └── wrappers/               Pre-configured wrappers
 │       ├── apbx_xbar_1to1_wrap.sv
 │       ├── apbx_xbar_2to1_wrap.sv
@@ -143,7 +143,7 @@ projects/components/apbx-xbar/
 │       ├── apbx_xbar_2to4_wrap.sv
 │       ├── apbx_xbar_wrap.sv
 │       ├── apbx_xbar_wrap_m10_s10.sv
-│       └── apbx_xbar_thin_wrap_m10_s10.sv
+│       └── apbx_xbar_thin_wrap_m10_s10.sv   # RETIRED -- do not use
 ├── bin/
 │   └── generate_xbars.py       Generator script
 ├── dv/
@@ -304,7 +304,7 @@ Transaction 4: M0 and M1 request → M0 granted (rotated)
 - **Independent per slave:** Each slave arbitrates independently
 - **Fair:** No master can starve another
 - **Grant persistence:** Once granted, master holds slave until response completes
-- **Back-to-back:** supported, but not overlapped -- ~10 pclk cycles
+- **Back-to-back:** supported, but not overlapped -- ~9 pclk cycles
   per transfer (see HAS 5.1/5.2)
 
 **📖 See:** `PRD.md` Section 3.3
@@ -462,7 +462,7 @@ apbx_xbar_2to4 #(
 ```systemverilog
 // Top-level crossbar
 apbx_xbar_1to4 u_top_xbar (
-    .m0_apb_* (cpu_apb_*),
+    // .m0_apb_PSEL(cpu_apb_PSEL), .m0_apb_PENABLE(...), ...  (elided)
     .s0_apb_* (periph_bus0_*),  // To sub-crossbar 0
     .s1_apb_* (periph_bus1_*),  // To sub-crossbar 1
     .s2_apb_* (mem_ctrl_*),     // Direct to memory controller

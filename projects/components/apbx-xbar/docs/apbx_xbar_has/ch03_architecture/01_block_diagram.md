@@ -92,7 +92,7 @@ All data paths maintain consistent width:
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
-| ADDR_WIDTH | 32 | 8-64 | Address bus width |
+| ADDR_WIDTH: 18-64 for the decoding variants (the slave-index part-select reads bit 17); 1-64 for 1to1/2to1 | Address bus width |
 | DATA_WIDTH | 32 | 8-64 | Data bus width |
 | STRB_WIDTH | 4 | 1-8 | Byte strobe width (DATA_WIDTH/8) |
 

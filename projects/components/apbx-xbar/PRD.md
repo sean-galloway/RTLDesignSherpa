@@ -231,7 +231,7 @@ Pre-configured wrappers for common topologies:
 **Description:** Consecutive transactions are accepted with no
 master-side idle cycles required. They do NOT overlap inside the
 fabric -- `apb4_slave` is one-command-at-a-time, so sustained cadence
-equals single-transfer latency (~10 pclk cycles, HAS 5.1/5.2).
+equals single-transfer latency (~9 pclk cycles, HAS 5.1/5.2).
 
 **Verification:** Performance tests show consecutive transactions
 
@@ -338,9 +338,9 @@ Options:
 
 | Path | Latency | Notes |
 |------|---------|-------|
-| **Command path** | 7 cycles | master APB phases (2) + apb4_slave capture and cmd skid (2) + apb4_master IDLE/SETUP/ACCESS (3) |
+| **Command path** | 6 cycles | master APB phases (2) + apb4_slave capture and cmd skid (2) + apb4_master IDLE/SETUP/ACCESS (3) |
 | **Response path** | 3 cycles | slave response + rsp skid + apb4_slave BUSY→PREADY |
-| **Total** | **10 cycles** | measured, uncontended, zero-wait slave |
+| **Total** | **9 cycles** | PSEL->PREADY, uncontended, zero-wait slave (8 ACCESS->PREADY) |
 
 APB's 2-cycle minimum applies to a directly-attached slave, not through
 this fabric: the crossbar converts APB→cmd/rsp→APB across registered
@@ -352,7 +352,7 @@ breakdown and the measurement.
 - **Back-to-back transactions:** Supported, but not overlapped --
   `apb4_slave` is a one-command-at-a-time FSM, so the next command is
   captured only after the previous transaction completes
-- **Maximum rate:** ~1 transaction per 10 pclk cycles per master (no overlap, so cadence equals latency)
+- **Maximum rate:** ~1 transaction per 9 pclk cycles per master (no overlap, so cadence equals latency)
   (measured back-to-back at an always-ready slave)
 
 ### 9.3 Resource Utilization (Estimated)
