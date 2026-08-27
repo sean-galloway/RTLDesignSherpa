@@ -276,7 +276,7 @@ The five `SKID_DEPTH_*` parameters size the per-channel skid buffers in the leav
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
-- Group Core: `docs/markdown/rtl-amba/monbus_group_core.md`
+- Group Core: `docs/markdown/rtl-amba/monitor/monbus_group_core.md`
 - Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 
 ---

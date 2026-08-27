@@ -189,7 +189,7 @@ Correct single-reporting depends on the top reporter driving `event_reported` an
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
-- Monitor Base: `docs/markdown/rtl-amba/axi_monitor_base.md`
+- Monitor Base: `docs/markdown/rtl-amba/monitor/axi_monitor_base.md`
 - Known Issues: `rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md`
 - Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 

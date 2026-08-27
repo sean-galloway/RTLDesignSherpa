@@ -350,7 +350,7 @@ The burst is always sized so its last byte stays at or below `cfg_limit_addr` an
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
-- Compressor: `docs/markdown/rtl-amba/monbus_compressor.md`
+- Compressor: `docs/markdown/rtl-amba/monitor/monbus_compressor.md`
 - Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 
 ---

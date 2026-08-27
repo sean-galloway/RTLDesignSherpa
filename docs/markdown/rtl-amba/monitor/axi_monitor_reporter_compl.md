@@ -175,7 +175,7 @@ The strict first-match encoder emits at most one completion per cycle. Simultane
 
 ### Documentation
 - Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
-- Monitor base: `docs/markdown/rtl-amba/axi_monitor_base.md`
+- Monitor base: `docs/markdown/rtl-amba/monitor/axi_monitor_base.md`
 - Known issues: `rtl/amba/KNOWN_ISSUES/axi_monitor_reporter.md`
 
 ---

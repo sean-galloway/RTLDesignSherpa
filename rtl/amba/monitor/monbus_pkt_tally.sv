@@ -197,10 +197,26 @@ module monbus_pkt_tally #(
     )
 
     // ------------------------------------------------------------------------
-    // Accept path: consume a packet in ST_RUN when not frozen.
+    // Accept path: consume a packet in ST_RUN when not frozen AND no clear is
+    // requested or pending.
+    //
+    // The clear terms are REQUIRED for valid/ready correctness, not just
+    // tidiness. The ST_RUN branch below prioritises the clear over the accept
+    // (`if (i_clear || r_clear_pend) ... else if (w_accept)`), so on a cycle
+    // where a clear arrives while in_valid is high, an in_ready that ignored
+    // the clear would complete the handshake -- the producer sees its packet
+    // taken -- while the FSM jumps to ST_CLEAR without latching r_wr_bin and
+    // without ever performing the RMW. The packet is silently lost (qc
+    // round_25). The documented host protocol (freeze, sweep, then clear)
+    // hides this, because i_freeze already forces in_ready low; this makes the
+    // contract hold whether or not the host follows it.
+    //
+    // No deadlock: r_clear_pend is cleared once the FSM reaches ST_CLEAR, and
+    // ST_RUN always takes the clear branch when it is set, so in_ready
+    // re-asserts after the sweep completes.
     // ------------------------------------------------------------------------
     logic w_accept;
-    assign in_ready = (r_st == ST_RUN) && !i_freeze;
+    assign in_ready = (r_st == ST_RUN) && !i_freeze && !i_clear && !r_clear_pend;
     assign w_accept = in_valid && in_ready;
 
     // ------------------------------------------------------------------------

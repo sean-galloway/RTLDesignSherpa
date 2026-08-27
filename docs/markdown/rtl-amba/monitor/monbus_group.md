@@ -152,7 +152,7 @@ where at least one side is AXI4):
 | `NUM_PROTOCOLS` | 3 | Informational — AXI, AXIS, CORE filter configs are unconditional. |
 | `USE_COMPRESSION` | 0 | **Elaboration**: 0 omits the compressor entirely (raw-only build, minimum area); 1 elaborates the compressor so it can be selected at runtime via `cfg_compress_en`. The raw 3-beat-per-record path is always elaborated. |
 | `HALF_BEAT_EN` | 0 | **Elaboration**: pack two 30-bit half-slots per 64-bit beat downstream of the compressor (`monbus_halfbeat_packer`), pushing tier-1 bandwidth from 1 beat/record toward 0.5 beat/record. Requires `USE_COMPRESSION=1`; folds away when 0. |
-| `SKID_DEPTH_AR/R/AW/W/B` | 2/4/2/2/2 | Skid buffer depths for each channel. AXI4 wrappers default `SKID_DEPTH_W=4` to absorb burst W bursts. |
+| `SKID_DEPTH_AR/R/AW/W/B` | 2/4/2/2/2 (AXIL master) / 2/4/2/**4**/2 (AXI4 master) | Skid buffer depths per channel. `monbus_axi4_axi4_group` defaults `SKID_DEPTH_W=4` to absorb burst W traffic; the AXIL-master wrappers keep 2, since `MAX_BURST_BEATS=1` leaves no burst to absorb. |
 
 ### Runtime config
 
@@ -261,15 +261,23 @@ geometry** is now a **3-stage registered pipeline**:
 ```
 stage 1 (caps):           bytes_to_limit / bytes_to_4kb from r_wr_addr,
                           plus the rewind decision (geom_addr).
-stage 2 (planned):        min-cap tree + whole-record /3 rounding
-                          via u_mod3_geo (see "mod-3 rounding" below).
+stage 2 (planned):        min-cap tree ONLY (min of window / 4KB).
+                          u_mod3_geo is fed combinationally from this
+                          register and consumed by stage 3, so
+                          s2_beats_planned is NOT yet record-rounded.
 stage 3 (rounded + addr): r_plan_geo_units (address-feasible whole-
                           record count) + r_plan_addr (eff_addr).
 ```
 
-A `geom_valid` settle counter holds the plan invalid for the first
-few cycles after `r_wr_addr` moves so the pipeline can reflect the
-settled address before the FSM commits.
+A `geom_valid` settle counter holds the plan invalid for the first few cycles
+after the writer **leaves `WR_IDLE`**, so the pipeline reflects the settled
+address before the FSM commits. The counter resets on that state exit only --
+**not** when `r_wr_addr` moves *inside* `WR_IDLE`, which the rewind-snap and
+base-step-over branches below both do. On those paths `geom_valid` stays
+asserted and the FSM can act on a stale plan for a few cycles. That is
+tolerable rather than hazardous: a commit always consumes `r_plan_addr`, which
+travels through the pipeline with its own plan, so a stale plan can never be
+paired with a fresh address.
 
 #### Rewind-snap: in-window with no record-room left
 

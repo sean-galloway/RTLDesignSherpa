@@ -337,6 +337,49 @@ async def tally_test(dut):
         f"i_clear must be latched, not sampled only in the accept state.")
     tb.log.info("Phase6 OK: mid-RMW clear honoured")
 
+    # ---- Phase 7: a handshake on a clear cycle must not swallow a packet ----
+    # in_ready used to be (ST_RUN && !i_freeze) with no clear term, while the
+    # ST_RUN branch prioritises the clear over the accept. So if in_valid was
+    # high on the cycle a clear arrived, the producer saw valid && ready -- its
+    # packet taken -- while the FSM jumped to ST_CLEAR without latching the bin
+    # or doing the RMW. The packet vanished with a completed handshake behind
+    # it, which is a valid/ready contract violation, not just a lost count.
+    #
+    # The documented host protocol (freeze, sweep, clear) hides this because
+    # i_freeze already drops in_ready. This drives the collision directly, with
+    # no freeze, which is exactly the case the contract has to cover.
+    await tb.do_clear()
+    tb.golden.clear()
+    await tb.wait_clocks('clk', (1 << tb.ADDR_BITS) + 20)
+
+    ag, pr, pt, ec = legal[1]
+    b7 = tb.bin_of(ag, pr, pt, ec)
+    pkt7 = make_packet(pt, pr, ec, agent_id=ag)
+
+    dut.in_packet.value = pkt7
+    dut.in_ts.value = 0x1234
+    dut.in_valid.value = 1
+    dut.i_clear.value = 1
+    await ReadOnly()
+    took = int(dut.in_valid.value) and int(dut.in_ready.value)
+    await RisingEdge(dut.clk)
+    dut.i_clear.value = 0
+    dut.in_valid.value = 0
+
+    await tb.wait_clocks('clk', (1 << tb.ADDR_BITS) + 20)
+    assert int(dut.o_flush_busy.value) == 0, "phase7: clear walk never finished"
+    counted = await tb.read_bin(b7)
+
+    tb.log.info(f"Phase7: handshake_on_clear_cycle={took} bin={counted}")
+    assert not (took and counted == 0), (
+        "in_ready was HIGH on the cycle i_clear arrived, so the producer's "
+        "handshake completed -- but the packet was never counted (bin "
+        f"{b7} reads {counted}). The FSM takes the clear branch ahead of the "
+        "accept, so in_ready must also be gated on !i_clear && !r_clear_pend; "
+        "otherwise a packet is silently swallowed behind a completed "
+        "handshake.")
+    tb.log.info("Phase7 OK: no packet swallowed on a clear collision")
+
 
 # ----------------------------------------------------------------------------
 # Pytest wrapper

@@ -202,7 +202,7 @@ The 3-bit state codes follow `transaction_state_t` (`TRANS_IDLE=0`, `ADDR_PHASE=
 
 ### Documentation
 - Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
-- Monitor base: `docs/markdown/rtl-amba/axi_monitor_base.md`
+- Monitor base: `docs/markdown/rtl-amba/monitor/axi_monitor_base.md`
 - Configuration: `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 
 ---

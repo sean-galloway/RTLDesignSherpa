@@ -260,7 +260,7 @@ The error-drain path is byte-for-byte the same as the AXI4/AXI4 group — the re
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
-- Group Core: `docs/markdown/rtl-amba/monbus_group_core.md`
+- Group Core: `docs/markdown/rtl-amba/monitor/monbus_group_core.md`
 - Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 
 ---

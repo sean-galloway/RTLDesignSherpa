@@ -1090,6 +1090,82 @@ independently.
 | Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
 | Open items | none for gaxi itself |
 
+### monitor -- qc round_25 integrated 2026-08-27 (confirmation round)
+
+Findings 44 -> 24 across the four units (11->7, 13->5, 12->7, 8->5). The
+reviewer independently verified the round_24 work held, calling the
+arbiter pages "unusually honest" for disclosing the dead WEIGHTED_MODE
+parameter, the FIFO drop-on-full behavior and the cumulative fairness
+measurement. None of the three RTL defects or the wrong-module page came
+back.
+
+TWO NEW RTL FINDINGS, both real:
+* monbus_pkt_tally VALID/READY CONTRACT VIOLATION. in_ready was
+  (ST_RUN && !i_freeze) with no clear term, while the ST_RUN branch
+  prioritises the clear over the accept -- so a packet arriving on a
+  clear cycle saw its handshake COMPLETE while the FSM jumped to
+  ST_CLEAR without latching the bin or doing the RMW. Packet silently
+  swallowed behind a completed handshake. The documented host protocol
+  (freeze, sweep, clear) hides it because i_freeze already drops
+  in_ready -- which is why it survived. Fixed + phase 7 added:
+  RED reported handshake_on_clear_cycle=1 bin=0, GREEN after.
+* Two stale monbus_axil_axil_group.sv comments claiming the leaf R beat
+  is consumed on the HIGH half; drv_rready is PH_LOW only (verified at
+  line 296), with the high half replayed from r_hi_half.
+
+THE HEADLINE DOC FINDING was a genuine integration hazard:
+apb_monitor_addr_check.md claimed to be a "deliberate mirror" of the AXI
+checker whose "only intentional divergence is the preserved is_read
+bit". The two have INVERTED RANGE POLARITY -- APB errors on an in-range
+HIT (blocklist), AXI on an allowlist MISS. An integrator carrying the
+AXI convention across would flag every access inside their intended-legal
+window while real violations passed silently. Replaced with a six-row
+comparison table.
+
+HALF THE ROUND WAS AUDITING ME. Ten of the 24 findings were my own
+round_24 partial fixes -- the handbook's rule-6 prediction landing
+squarely:
+  * an INVERTED ARITHMETIC ERROR I introduced: I wrote the timer tick
+    period as f_clk/divisor when it is divisor/f_clk, so all three rows
+    of my new Configuration Strategy table had both the value and the
+    DIRECTION of the error wrong;
+  * two botched splices where I replaced the cited text and left the
+    surrounding clause -- "They **wrap** at 2^32 ... so a capture never
+    silently rolls back to 0" (mutually exclusive) and "Throughput stays
+    at **1 / 0.67 records/cycle**" (stale 1 left on the previous line);
+  * a second throughput claim in monbus_compressor.sv I never swept
+    (I fixed the top-of-file header, missed the pipeline-stage block);
+  * the alloc pseudocode where I added the mask to the addr and data
+    branches and not resp;
+  * a parameter table still describing the page's OLD subject after I
+    rewrote its overview; a dangling "see the note below" for a note I
+    never wrote; the ENABLE_PERF_LOGIC row on the filtered page after
+    fixing the base page; the 9 parameters I documented on base and not
+    on filtered; the bucket identity stated unconditionally when the RTL
+    qualifies it "until a counter saturates"; and a doc sentence still
+    promising the geom_valid interlock after I corrected the RTL comment.
+
+The lesson is not new but it is now measured: fixing the passage in front
+of you is not closing the class. This round's integration was done by
+sweeping each claim across all three surfaces (RTL comment, module page,
+sibling page) before moving on -- e.g. the broken repo-root reference
+paths turned out to be 13 across 12 files, not the 2 cited.
+
+Also fixed: reporter_perf documented pkt_taken as unused and "tied to an
+unused net" -- that is axi_monitor_reporter_debug; in perf it HOLDS THE
+FSM (tie it low and the FSM deadlocks); a phantom PerfWin/PerfHist
+emitter row; the ADDR_RANGE payload described as a range index when it is
+always the 4'hF no-range sentinel; ADDR_WIDTH>32 truncation and ID_WIDTH>8
+$error undocumented on trans_mgr; monbus_cam still presenting itself as
+the production CAM; and the N_ADDR_RANGES=0 zero-area claims, which
+describe the PARENT's generate guard (this module has no N==0 guard at
+all). Swept 32 check-mark emoji out while here -- axi4/axi5 were cleaned
+to zero last arc and these break the LaTeX PDF path.
+
+Clean-rebuild regression 65/65. Checkers: 0 emoji, 0 broken references
+(link checker extended to catch backticked repo-root paths, the class it
+had been blind to).
+
 ### monitor -- qc round_24 integrated 2026-08-27 (first-ever review of the book)
 
 32 pages, 4 units, ~44 doc findings + 10 RTL observations -- the largest

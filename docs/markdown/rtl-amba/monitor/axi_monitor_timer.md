@@ -254,11 +254,14 @@ threshold is then read directly in microseconds.
 
 | aclk | Default table (5-220 MHz, LINEAR) | Resulting tick |
 |------|-----------------------------------|----------------|
-| 100 MHz | `cfg_freq_sel = 4'd7` (105 MHz — nearest entry) | ~0.95 us |
-| 200 MHz | `cfg_freq_sel = 4'd14` (205 MHz) | ~0.98 us |
-| 50 MHz | `cfg_freq_sel = 4'd3` (48 MHz) | ~1.04 us |
+| 100 MHz | `cfg_freq_sel = 4'd7` (105 MHz — nearest entry) | 1.05 us (5% long) |
+| 200 MHz | `cfg_freq_sel = 4'd14` (205 MHz) | 1.025 us (2.5% long) |
+| 50 MHz | `cfg_freq_sel = 4'd3` (48 MHz) | 0.96 us (4% short) |
 
-The residual error is the gap between your clock and the nearest table entry;
+The tick period is **divisor / f_clk** — the selected entry is a cycle count, so
+a divisor above your real clock rate makes the tick (and every timeout built on
+it) run *long*, and one below makes it run *short*. The residual error is the
+gap between your clock and the nearest table entry;
 a table built for one exact frequency (`CFI_MIN = CFI_MAX = aclk_mhz`, which is
 what `axi_monitor_base` does at 100 MHz) has none.
 

@@ -380,8 +380,11 @@ compare → priority-encode → move-to-front sequence into two stages, and
 feeds the encoder through a credit-gated result skid (`SKID_DEPTH=2`).
 A `r_credit` counter tracks records in flight + skid occupancy so
 `cam_en` only fires when there is a slot to land the result, even
-under back-to-back compression bursts. Throughput stays at **1
-0.67 records/cycle** (the pipelined CAM's +1 cycle is absorbed; the limit is the credit round trip through the result skid, not the CAM); the single-cycle
+under back-to-back compression bursts. Sustained throughput is
+**0.67 records/cycle** (measured): the pipelined CAM's +1 cycle is absorbed,
+but the credit round trip through the result skid is the limiter -- with
+`SKID_DEPTH=2` credits against a ~2-cycle round trip, the input stalls one
+cycle in three. The single-cycle
 `monbus_cam.sv` is kept in-tree as the reference design (see its doc
 for the deprecation note).
 
@@ -461,16 +464,19 @@ Per input record (one cycle):
         depending on which overflow was the trigger, + stat_tier0.
 ```
 
-The format-selector logic is combinational on cycle 0; the slot emission
-and CAM state update happen on the same clock edge.
+These three things happen on **three different clock edges**, not one: the CAM
+commits at presentation (inside `monbus_cam_pipe`), the format select is
+registered into `q_*` at `enc_commit` the next cycle, and `out_valid = q_valid`
+drives the slot the cycle after that.
 
 ---
 
 ## Pipeline and Timing
 
-The encoder is split into **2 registered stages** (1 in, 1 register
-in the middle, 1 out — net latency 2 cycles). Throughput is unchanged
-from the original single-cycle design.
+The encoder is split into **three stages** (1, 2a, 2b in the table below),
+with a tier-1 record ~3 cycles in flight. Per-record slot counts are unchanged
+from the original single-cycle design, but the sustained input RATE is not:
+it is 2 records / 3 cycles (0.67/cycle, measured), not 1/cycle.
 
 | Stage | Logic |
 |---|---|
@@ -584,8 +590,10 @@ any compressor change merges.
 
 ## Statistics Counters
 
-Each output stat is a 32-bit registered counter. They **wrap** at 2³² (there is no saturation guard)
-at `0xFFFF_FFFF` so a long-running capture never silently rolls back to 0.
+Each output stat is a 32-bit registered counter with no saturation guard, so
+they **wrap** at 2³². A capture long enough to overflow one (2³² records of a
+single format) silently rolls that counter back through 0 -- read them as
+free-running counters, not as protected totals.
 
 | Counter | Increments when |
 |---|---|

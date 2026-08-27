@@ -81,12 +81,34 @@ The `axi_monitor_filtered` module is the core building block for:
 | `ENABLE_TIMEOUT_LOGIC` | bit | 1 | Timeout reporter (addr/data/resp timers). |
 | `ENABLE_COMPL_LOGIC` | bit | 1 | Completion reporter. |
 | `ENABLE_THRESHOLD_LOGIC` | bit | 1 | Threshold reporter (latency / active-count thresholds). |
-| `ENABLE_PERF_LOGIC` | bit | `ENABLE_PERF_PACKETS` | Perf reporter (the Stage B counters below). |
+| `ENABLE_PERF_LOGIC` | bit | `ENABLE_PERF_PACKETS` | Gates `axi_monitor_reporter_perf` only: two 16-bit lifetime counters plus the 5-state emit FSM. It does **not** gate the Stage B window counters below — those are unconditional `always_ff` blocks in `axi_monitor_base` and are live in every build. |
 | `ENABLE_DEBUG_LOGIC` | bit | 0 | Debug reporter. |
 | `ENABLE_FILTERING` | bit | 1 | Master enable for filtering. |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing. |
 | `N_ADDR_RANGES` | int | 0 | Number of address-range comparators in the [`axi_monitor_addr_check`](axi_monitor_addr_check.md) sub-block (0 = the comparator block is not synthesised at all). |
 | `ADDR_RANGE_IS_ERROR` | logic [N_ADDR_RANGES-1:0] | `'0` | Per-range flavor forwarded to the checker: 0 = DEBUG (hit → AddrMatch), 1 = ERROR (allowlist miss → Error/ADDR_RANGE). Default all-0. |
+
+### Forwarded to `axi_monitor_base` (pass-through)
+
+These are declared here and passed straight down; the base module's page is the
+authority on what each one does. They are listed so this wrapper's own page is a
+complete inventory.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `USE_WDATA_ORDER_Q` | bit | 0 | Write monitors: recover WID-less W-beat order with an AWID FIFO. **Required** when `NUM_BANKS > 1` on a write monitor — the combination without it refuses to elaborate |
+| `NUM_BANKS` | int | 1 | Bank the transaction table by low ID bits. Power of 2, must divide `MAX_TRANSACTIONS`; per-ID concurrency is capped by the **bank** depth |
+| `ID_FILTER_ENABLE` | bit | 0 | Track only a slice of the IDs on a shared bus |
+| `ID_MATCH_BASE` | int | 0 | First ID owned by this instance |
+| `ID_MATCH_COUNT` | int | 0 | How many IDs; 0 = all (no filter) |
+| `CFI_MIN_FREQ_MHZ` | int | 100 | Timer LUT lower bound (MHz) |
+| `CFI_MAX_FREQ_MHZ` | int | 100 | Timer LUT upper bound (MHz) |
+| `CFI_NUM_FREQ_ENTRIES` | int | 16 | Timer LUT entries (sizes `cfg_freq_sel`) |
+| `CFI_FREQ_STRATEGY` | int | 0 | 0 = LINEAR, 1 = POW2 |
+
+See [Transaction-Table Shaping, ID-Range Filter and Timer LUT Sizing in
+`axi_monitor_base`](axi_monitor_base.md#transaction-table-shaping) for the
+sizing rules and the elaboration error.
 
 ---
 
@@ -179,6 +201,8 @@ use perfmon.
 | `perf_beat_count` | Output | 32 | Beat handshakes accumulated this window. |
 | `perf_byte_count` | Output | 64 | Bytes transferred this window: productive beats x (1 << latched `cmd_size`). `cmd_len` is not involved. |
 | `perf_burst_count` | Output | 32 | Bursts (command handshakes) this window. |
+| `perf_completed_count` | Output | 16 | **Lifetime** completion count from `axi_monitor_reporter_perf` (not window-scoped). Reads 0 when `ENABLE_PERF_LOGIC = 0` |
+| `perf_error_count` | Output | 16 | **Lifetime** error/timeout count from the same block; 0 when `ENABLE_PERF_LOGIC = 0` |
 
 These counters latch on each `window_active` open and freeze on close;
 software reads them after the close edge.

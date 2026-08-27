@@ -194,8 +194,8 @@ The packer holds at most one pending half. It never accumulates more than two re
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
-- Compressor: `docs/markdown/rtl-amba/monbus_compressor.md`
-- Group Core: `docs/markdown/rtl-amba/monbus_group_core.md`
+- Compressor: `docs/markdown/rtl-amba/monitor/monbus_compressor.md`
+- Group Core: `docs/markdown/rtl-amba/monitor/monbus_group_core.md`
 
 ---
 

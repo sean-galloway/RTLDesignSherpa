@@ -454,7 +454,12 @@ The state machine has three states:
 Every cycle inside the window is classified by the data channel's `valid`/`ready`
 into exactly one of four mutually-exclusive buckets. The four buckets sum to
 `window_cycles - 1` by construction (the start cycle seeds `window_cycles` to 1
-while the buckets reset to 0), so utilization = `perf_prod_cycles / (window_cycles - 1)`.
+while the buckets reset to 0), so utilization = `perf_prod_cycles / (window_cycles - 1)`
+— **until a counter saturates.** `window_cycles` freezes at `32'hFFFF_FFFE` and
+each bucket sticks at `32'hFFFF_FFFF` rather than wrapping, so on a window longer
+than ~2^32 cycles (~43 s at 100 MHz) the identity and this formula both break. A
+reader seeing `32'hFFFF_FFFF`, or a bucket sum below `window_cycles - 1`, is
+looking at an overflowed window.
 
 | Counter | Condition | Meaning |
 |---------|-----------|---------|

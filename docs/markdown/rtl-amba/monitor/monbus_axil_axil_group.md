@@ -307,7 +307,7 @@ The `g_drain_2to1` path exists for 32-bit host crossbars. It is a careful 2:1 se
 - Tests: `val/amba/test_monbus_axil_axil_group.py`, `test_monbus_axil_axil_group_compressed.py`, `test_monbus_axil_axil_group_master_write.py`
 
 ### Documentation
-- Family spec: `docs/markdown/rtl-amba/monbus_group.md`
+- Family spec: `docs/markdown/rtl-amba/monitor/monbus_group.md`
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 

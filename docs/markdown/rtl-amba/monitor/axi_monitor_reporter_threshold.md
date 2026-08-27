@@ -214,7 +214,7 @@ The 16 × 32-bit latency registers plus 16 threshold flags are the reason disabl
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
-- Monitor Base: `docs/markdown/rtl-amba/axi_monitor_base.md`
+- Monitor Base: `docs/markdown/rtl-amba/monitor/axi_monitor_base.md`
 - Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 
 ---

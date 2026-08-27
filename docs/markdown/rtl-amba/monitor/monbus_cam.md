@@ -35,10 +35,14 @@
 > `monbus_cam_pipe.sv`, a 2-cycle pipelined variant that splits the
 > 49-bit compare → priority-encode → move-to-front chain into two
 > stages so the path closes at 100 MHz on Nexys A7 (`f909f01f` /
-> `0d1c0a1a`). The two CAMs are functionally identical (true-LRU, same
-> action set, same per-entry storage); the pipelined version adds a
-> 1-cycle latency and a credit-gated result skid but holds throughput at
-> 1 record/cycle. Both files are kept in tree: this single-cycle module
+> `0d1c0a1a`). The two share LRU semantics and per-entry storage, but they
+> are **not** interchangeable in interface: `monbus_cam_pipe` adds a cycle of
+> latency and has **no `ACTION_NONE`** — every `access_en` cycle is a commit,
+> with TOUCH/INSTALL derived from hit/miss, because the commit lands before
+> the tier decision exists. It also has **no skid and no credit logic**; the
+> credit-gated result skid (`u_res_skid` / `r_credit`) lives in
+> `monbus_compressor`, and it is what caps sustained tier-1 throughput at
+> 0.67 records/cycle. Both files are kept in tree: this single-cycle module
 > serves as the executable spec for the LRU semantics and the
 > compressor's CAM behavior, and is what the algorithmic tests
 > (`test_monbus_cam.py`) target. New code should instantiate
@@ -48,8 +52,11 @@
 
 ## Overview
 
-`monbus_cam` is a **true-LRU caching content-addressable memory** used by the
-[`monbus_compressor`](monbus_compressor.md) to assign 5-bit template indices
+`monbus_cam` is a **true-LRU caching content-addressable memory** that defines
+the template-index semantics the [`monbus_compressor`](monbus_compressor.md)
+depends on (the compressor instantiates the pipelined
+[`monbus_cam_pipe`](monbus_cam_pipe.md); this module is the executable spec).
+It assigns 5-bit template indices
 (`tmpl_idx`) to the 49-bit template keys it extracts from monitor packets.
 "True LRU" means the eviction victim is the least recently *accessed* entry
 (matched, touched, or installed) — not the least recently *inserted*. This
@@ -178,8 +185,9 @@ consumer — a **counting** cache such as [`monbus_pkt_tally`](monbus_pkt_tally.
 where the payload is a partial count that must survive eviction — needs to see
 the victim and to walk live entries. These ports were added **additively** for
 that use; they do not change the LRU behaviour the compressor golden depends on,
-and the compressor instantiation ties `dump_idx`/`soft_clear` low and leaves the
-new outputs open.
+and any instantiation that does not need them may tie `dump_idx`/`soft_clear`
+low and leave the new outputs open. (The compressor no longer instantiates
+*this* module -- it uses `monbus_cam_pipe`, which has neither port.)
 
 | Port | Dir | Meaning |
 |------|-----|---------|
@@ -246,7 +254,7 @@ On every clock edge:
 | Action | What happens to slot `i` |
 |---|---|
 | `NONE` or reserved | Unchanged. |
-| `TOUCH` matching slot `P` | Slots `0..P-1` shift down by 1, slot 0 becomes the (matched key, new_data), slot `P` and below are unchanged from their previous positions but written one slot earlier. |
+| `TOUCH` matching slot `P` | Slots `1..P` each take their predecessor's contents (slot `i` <= slot `i-1`), so the entries formerly at `0..P-1` shift down by one and the matched entry's old position `P` is overwritten. Slot 0 becomes the (matched key, new_data). Slots **above** `P` are untouched. |
 | `INSTALL` when `!cam_full` | Insertion position is `cam_count`. Slots `1..cam_count` shift down from `0..cam_count-1`. Slot 0 becomes the new entry. `cam_count++`. |
 | `INSTALL` when `cam_full` | Insertion position is `DEPTH-1` (overwriting the LRU). Slots `1..DEPTH-1` shift down from `0..DEPTH-2`. Slot 0 becomes the new entry. `evicted` pulses high. `cam_count` stays at `DEPTH`. |
 
@@ -359,6 +367,6 @@ REG_LEVEL parameter sweep (`gate` / `func` / `full`):
 
 | Module | Role |
 |---|---|
-| [`monbus_compressor`](monbus_compressor.md) | Sole consumer in the production design |
+| [`monbus_compressor`](monbus_compressor.md) | Consumer of the CAM *semantics* this module specifies — but it instantiates [`monbus_cam_pipe`](monbus_cam_pipe.md), not this module |
 | `bin/TBClasses/monbus/monbus_compressor.py` (`Cam` class) | Python golden mirror |
 | [`monitor_trans_cam`](monitor_trans_cam.md) | Sister CAM, different use case (AXI ID matching, multi-port, no LRU) |

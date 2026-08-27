@@ -36,7 +36,9 @@ module monbus_axil_axil_group
     // each slice is one beat (3 beats/record). With a 32-bit drain (for a
     // 32-bit host crossbar) a 2:1 read serializer splits each slice into a
     // low then high 32-bit beat (6 beats/record); the err-FIFO record is
-    // popped only after the high half of slice 2 is read.
+    // popped when the slice-2 LEAF beat is consumed, which in 32-bit mode
+    // happens on the LOW half of that slice (the high half is replayed from
+    // a held register, not a second leaf read).
     parameter int S_AXIL_DATA_WIDTH    = 64,
     parameter int FLUSH_TIMEOUT_CYCLES = 1024,
     parameter int NUM_PROTOCOLS        = 3,
@@ -190,7 +192,9 @@ module monbus_axil_axil_group
     // bus a phase counter splits each 64-bit beat into two reads (low then
     // high): the external AR is forwarded to the leaf only on the low beat, so
     // the leaf issues exactly one core read per PAIR and never prefetches; the
-    // leaf's R beat is held across both halves and consumed on the high beat.
+    // leaf's R beat is consumed on the LOW read (drv_rready is asserted only
+    // in PH_LOW) and its upper half is replayed from r_hi_half on the high
+    // read -- not held and consumed on the high beat.
     // ==================================================================
     logic                          drv_arvalid;   // external AR seen by the leaf
     logic                          drv_arready;

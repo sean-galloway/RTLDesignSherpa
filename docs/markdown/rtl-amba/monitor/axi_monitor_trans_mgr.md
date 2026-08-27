@@ -161,8 +161,8 @@ generate-loop storage) explicit and reusable.
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `MAX_TRANSACTIONS` | int | 16 | Transaction table depth |
-| `ADDR_WIDTH` | int | 32 | Width of address bus tracked |
-| `ID_WIDTH` | int | 8 | Width of AXI ID |
+| `ADDR_WIDTH` | int | 32 | Width of the address bus tracked. **Values above 32 truncate the REPORTED address:** `bus_transaction_t.addr` is a 32-bit field, so allocation stores `32'(cmd_addr)` and packets carry only the low 32 bits. Tracking itself is unaffected (the CAM keys on ID, not address), and `ADDR_WIDTH=64` is a supported, tested configuration — but a 64-bit integrator should not expect full addresses in monitor packets |
+| `ID_WIDTH` | int | 8 | Width of the AXI ID. **Hard maximum 8** — `bus_transaction_t.id` is 8 bits, so a wider key would disagree with the payload and mis-attribute transactions. `ID_WIDTH > 8` is refused at elaboration with an `$error`, deliberately: there is no safe degraded behaviour |
 | `IS_READ` | bit | 1 | 1 for read monitors, 0 for write |
 | `IS_AXI` | bit | 1 | 1 for AXI4, 0 for AXI-Lite |
 | `USE_WDATA_ORDER_Q` | bit | 0 | Write monitors: attribute W beats via an AWID FIFO instead of the table-wide state predicate. **Required when `NUM_BANKS > 1`** |

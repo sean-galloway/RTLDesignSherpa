@@ -84,7 +84,7 @@ Performance analysis of an AXI interface needs a periodic summary of how many tr
 |------|-----------|-------|-------------|
 | `cfg_perf_enable` | input | 1 | Enable performance packet generation (also gates the FSM) |
 | `output_busy` | input | 1 | Output path busy (FIFO has data or `monbus_valid` asserted); FSM stalls while high |
-| `pkt_taken` | input | 1 | Strobed by the top reporter when this block's packet is accepted (currently observational — see Design Notes) |
+| `pkt_taken` | input | 1 | Strobed by the top reporter when this block's packet is accepted. **Load-bearing** — it holds the emit FSM; see Design Notes |
 | `error_marked_mask` | input | MAX_TRANSACTIONS | Per-slot bit set the cycle an error event is marked-reported into the FIFO |
 | `compl_marked_mask` | input | MAX_TRANSACTIONS | Per-slot bit set the cycle a completion event is marked-reported into the FIFO |
 
@@ -180,13 +180,35 @@ Enabling both completion packets (`cfg_compl_enable`) and performance packets (`
 
 See `docs/user-guides/AXI_Monitor_Configuration_Guide.md`.
 
-### `pkt_taken` Is Currently Observational
+### `pkt_taken` Holds the Emit FSM — Do Not Tie It Off
 
-`pkt_taken` is on the port list but does not gate the counters today — they update from the mark masks unconditionally. The port is retained for future hooks such as back-pressure on packet bursts. The RTL ties it to an `unused` net to keep lint clean.
+`pkt_taken` does not gate the *counters* (those update from the mark masks
+unconditionally), but it **does** gate the FSM state register:
+
+```systemverilog
+// Hold the state whenever we are presenting a packet that was not
+// accepted (threshold beats perf in the top reporter's output mux).
+// Advancing regardless silently dropped the packet.
+if (!(pkt_valid && !pkt_taken)) begin
+    r_state <= w_next_state;
+end
+```
+
+The hold exists because threshold outranks perf in the top reporter's output
+mux: without it, a perf packet that lost that arbitration was generated, never
+emitted, and the FSM walked past it.
+
+So the port must be driven correctly. Tie it **low** and the FSM deadlocks the
+first time it presents a packet — the state holds forever. Tie it **high** and
+the silently-dropped-packet bug returns.
+
+(The "retained for a future hook, tied to an `unused` net" pattern this section
+used to describe belongs to `axi_monitor_reporter_debug`, a different module,
+whose own page documents it correctly.)
 
 ### Relationship to the Window-Bucket Perfmon
 
-This block emits the legacy `PktTypePerf` count-rollup packets that summarize completion/error counts over the monitor's lifetime. It runs in parallel with the Stage A/B window-bucket perfmon counters in `axi_monitor_base`, which emit `PktTypePerfWin` / `PktTypePerfHist` window-aggregate packets. The two mechanisms are complementary, not redundant.
+This block emits the legacy `PktTypePerf` count-rollup packets that summarize completion/error counts over the monitor's lifetime. It runs in parallel with the Stage A/B window-bucket perfmon counters in `axi_monitor_base`. Those buckets are **readable as counters only** — nothing packetizes them onto the MonBus yet, so no `PktTypePerfWin` / `PktTypePerfHist` packets are emitted by any module today. The two mechanisms are complementary, not redundant.
 
 ### Counter Wrap
 
@@ -220,7 +242,7 @@ Both counters are 16-bit and wrap on overflow. For very long runs the host shoul
 
 ### Documentation
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
-- Monitor Base: `docs/markdown/rtl-amba/axi_monitor_base.md`
+- Monitor Base: `docs/markdown/rtl-amba/monitor/axi_monitor_base.md`
 - Configuration: `docs/user-guides/AXI_Monitor_Configuration_Guide.md`
 - Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 

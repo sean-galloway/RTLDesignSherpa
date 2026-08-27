@@ -334,9 +334,11 @@ module monbus_compressor
     // update SEQUENCE is byte-for-byte identical to the original -- while
     // the heavy arithmetic (fits/fmt/pack) and the RAW beat expansion move
     // to stage 2. The emitted slot STREAM is bit-identical to the old
-    // module's, just delayed one cycle. Throughput is unchanged:
-    //   tier-1 : 1 record in -> 1 slot  out, 1 record/cycle
-    //   tier-0 : 1 record in -> 3 slots out, 1 record/3 cycles
+    // module's, just delayed one cycle. Per-record SLOT counts are
+    // unchanged (the input RATE is not -- see the measured figures in the
+    // header comment at the top of this file, which is the authority):
+    //   tier-1 : 1 record in -> 1 slot  out
+    //   tier-0 : 1 record in -> 3 slots out
     //
     // Why there is no CAM read-after-write hazard: stage 1 commits the CAM
     // the same cycle it accepts a record (the action depends only on

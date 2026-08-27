@@ -321,7 +321,7 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 - Tests: `val/amba/test_monbus_axil_axi4_group.py`
 
 ### Documentation
-- Family spec: `docs/markdown/rtl-amba/monbus_group.md`
+- Family spec: `docs/markdown/rtl-amba/monitor/monbus_group.md`
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 

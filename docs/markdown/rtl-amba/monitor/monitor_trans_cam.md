@@ -255,7 +255,7 @@ if data_wants_alloc:
     remaining_free &= ~data_alloc_oh
 
 if resp_wants_alloc:
-    resp_alloc_oh = lowest-set-bit(remaining_free)
+    resp_alloc_oh = lowest-set-bit(remaining_free & resp_alloc_mask)
     remaining_free &= ~resp_alloc_oh
 ```
 
