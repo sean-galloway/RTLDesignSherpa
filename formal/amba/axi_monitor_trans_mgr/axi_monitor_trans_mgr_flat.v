@@ -431,6 +431,7 @@ module axi_monitor_trans_mgr (
 				w_data_state_pred_oh[i] = ((cam_entry_valid[i] && ((cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h1) || (cam_entry_payload[(((N - 1) - i) * 285) + 277-:3] == 3'h2))) && cam_entry_payload[(((N - 1) - i) * 285) + 283]) && !cam_entry_payload[(((N - 1) - i) * 285) + 281];
 		end
 	end
+	reg [N - 1:0] w_freeing_oh;
 	localparam signed [31:0] SLOTW = (N > 1 ? $clog2(N) : 1);
 	localparam signed [31:0] WQW = (N > 1 ? $clog2(N + 1) : 1);
 	reg [IW - 1:0] r_widq [0:N - 1];
@@ -444,7 +445,6 @@ module axi_monitor_trans_mgr (
 	assign w_widq_push = ((!IS_READ && USE_WDATA_ORDER_Q) && cmd_valid) && cmd_ready;
 	assign w_widq_bypass = (r_widq_count == {WQW {1'sb0}}) && w_widq_push;
 	assign w_widq_head = (w_widq_bypass ? cmd_id : r_widq[0]);
-	reg [N - 1:0] w_freeing_oh;
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -566,7 +566,7 @@ module axi_monitor_trans_mgr (
 	assign data_hit_any = (IS_READ ? |data_match_oh : |w_data_state_pred_oh || |w_data_cmd_bypass_oh);
 	function automatic signed [31:0] monitor_common_pkg_cmd_entry_reserve;
 		input reg signed [31:0] max_transactions;
-		monitor_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 2 : 0);
+		monitor_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 4 : 0);
 	endfunction
 	localparam signed [31:0] CMD_ENTRY_RESERVE = monitor_common_pkg_cmd_entry_reserve(N);
 	reg [$clog2(N + 1) - 1:0] w_cmd_entry_count;

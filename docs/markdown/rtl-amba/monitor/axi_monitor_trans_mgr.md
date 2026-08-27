@@ -329,7 +329,7 @@ resp_wants_alloc = !IS_READ && resp_valid && resp_ready && !resp_hit_any;
 
 `w_cmd_headroom` is the command-entry cap: command-originated entries may
 occupy at most `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)`
-slots (reserve = 2 for tables of 16+, 0 below). A command seen while the cap
+slots (reserve = 4 for tables of 16+, 0 below). A command seen while the cap
 is reached is simply not tracked until a command entry retires. This cap is
 one half of the saturation-recovery contract; the other half is the
 `block_ready` reopen threshold in `axi_monitor_base` — see the canonical

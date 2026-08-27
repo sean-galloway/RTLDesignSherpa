@@ -237,9 +237,71 @@ async def latency_hist_test(dut):
     tb.log.info("axi_perf_latency_hist unit test PASSED")
 
 
+@cocotb.test(timeout_time=200, timeout_unit='us')
+async def latency_hist_ch1_odd_id_test(dut):
+    """NUM_CHANNELS=1 must count transactions of EVERY id, odd included.
+
+    CW floors at 1, so an unguarded channel decode of id[CW-1:0] indexes the
+    one-entry per-channel arrays with THE ID'S LOW BIT. Under Verilator the
+    resulting out-of-bounds accesses silently vanish, so every odd-id
+    transaction is simply not counted (an LFSR-id run counted exactly the
+    even-id subset, 33/64); in synthesis the index truncates instead and
+    odd/even ids alias onto the single entry, corrupting the occupancy count
+    (AMBA-HISTCH1, seen on the pumice board as PUMICE-011's extra returns).
+
+    Runs only on the NUM_CHANNELS=1 build; the multi-channel builds decode
+    real channel indices and are covered by the tests above.
+    """
+    if int(os.environ.get('NUM_CHANNELS', '8')) != 1:
+        dut._log.info("ch1_odd_id: NUM_CHANNELS != 1 build, nothing to check")
+        return
+
+    tb = AxiPerfLatencyHistTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.open_window()
+
+    # Odd ids only first: the broken decode counts NONE of these.
+    lat = 9
+    odd_ids = [1, 3, 5, 7]
+    for cid in odd_ids:
+        await tb.cmd(cid)
+        await tb.idle(lat - 1)
+        if tb.is_read:
+            await tb.rbeat(cid, last=1)
+        else:
+            await tb.bresp(cid)
+        await tb.idle(3)
+    await tb.idle(8)
+    total = await tb.read_total(0)
+    assert total == len(odd_ids), (
+        f"NUM_CHANNELS=1: {total} of {len(odd_ids)} odd-id transactions "
+        f"counted - the channel decode is indexing the one-entry arrays "
+        f"with id bit 0 instead of 0")
+
+    # Mixed odd/even in-order: all land on channel 0, all must count, and
+    # the per-id latencies must attribute correctly through the single FIFO.
+    await tb.open_window()
+    mixed = [(2, 6), (5, 12), (4, 24), (1, 48)]
+    exp = {}
+    for cid, mlat in mixed:
+        await tb.cmd(cid)
+        await tb.idle(mlat - 1)
+        if tb.is_read:
+            await tb.rbeat(cid, last=1)
+        else:
+            await tb.bresp(cid)
+        await tb.idle(3)
+        exp[expected_bin(mlat)] = exp.get(expected_bin(mlat), 0) + 1
+    await tb.idle(8)
+    assert await tb.read_total(0) == len(mixed), "mixed-id total wrong"
+    tb.check_hist(await tb.dump_hist(0), exp, "ch1 mixed-id")
+    tb.log.info("NUM_CHANNELS=1 odd-id decode OK")
+
+
+@pytest.mark.parametrize("num_channels", [8, 1])
 @pytest.mark.parametrize("is_read", [1, 0])
-def test_axi_perf_latency_hist(request, is_read):
-    """Pytest wrapper: build IS_READ=1 (reads) and IS_READ=0 (writes)."""
+def test_axi_perf_latency_hist(request, is_read, num_channels):
+    """Pytest wrapper: IS_READ x NUM_CHANNELS (8 = normal, 1 = HISTCH1 case)."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba_shared': 'rtl/amba/shared',
         'rtl_amba_includes': 'rtl/amba/includes',
@@ -255,7 +317,8 @@ def test_axi_perf_latency_hist(request, is_read):
     mode = 'rd' if is_read else 'wr'
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     test_level = os.environ.get('TEST_LEVEL', 'full').lower()
-    test_name_plus_params = f"test_axi_perf_latency_hist_{mode}_{reg_level}"
+    test_name_plus_params = (
+        f"test_axi_perf_latency_hist_{mode}_ch{num_channels}_{reg_level}")
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
@@ -269,7 +332,7 @@ def test_axi_perf_latency_hist(request, is_read):
 
     parameters = {
         'IS_READ':         str(is_read),
-        'NUM_CHANNELS':    '8',
+        'NUM_CHANNELS':    str(num_channels),
         'MAX_OUTSTANDING': '8',
         'NUM_BINS':        str(NUM_BINS),
     }
@@ -283,8 +346,10 @@ def test_axi_perf_latency_hist(request, is_read):
         'TEST_LEVEL': test_level,
         'IS_READ': str(is_read),
         # Mirrored from `parameters` so the overflow test knows how many
-        # timestamp slots the DUT was actually built with, rather than assuming.
+        # timestamp slots the DUT was actually built with, rather than
+        # assuming, and the ch1 test knows which build it is running on.
         'MAX_OUTSTANDING': parameters['MAX_OUTSTANDING'],
+        'NUM_CHANNELS':    parameters['NUM_CHANNELS'],
     }
 
     run(

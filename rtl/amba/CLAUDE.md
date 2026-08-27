@@ -435,7 +435,7 @@ gaxi_fifo_sync #(.DATA_WIDTH(128), .DEPTH(1024)) u_agg_fifo (
 **If too small (saturation-recovery contract, `cb29e226`):**
 - New commands are throttled at the upstream handshake via the internal
   `block_ready` gate (transaction-TABLE occupancy, not the reporter FIFO)
-- Tables of 16+ reserve `cmd_entry_reserve(MAX)=2` slots so `block_ready`
+- Tables of 16+ reserve `cmd_entry_reserve(MAX)=4` slots so `block_ready`
   always recovers — blocking throttles, never deadlocks; tables <16 keep
   full legacy allocation and trade the recovery guarantee for capacity
 - Commands seen while capped are simply not tracked (lossy-but-honest)

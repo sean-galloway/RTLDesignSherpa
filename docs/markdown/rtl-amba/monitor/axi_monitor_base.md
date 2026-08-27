@@ -278,7 +278,7 @@ The contract (single source of truth:
 
 - **Command-entry cap.** The transaction manager caps command-originated
   entries (allocated by AW/AR activity) at
-  `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)`. The reserve is 2
+  `MAX_TRANSACTIONS - cmd_entry_reserve(MAX_TRANSACTIONS)`. The reserve is 4
   for `MAX_TRANSACTIONS >= 16` and 0 below. Orphan entries (data/response
   beats with no matching command) may still use every slot commands are not
   entitled to; orphans always drain via error reporting, so they cannot pin
@@ -289,6 +289,18 @@ The contract (single source of truth:
   drains back below the reopen point: even if every command entry is
   permanently in flight, occupancy cannot reach the threshold once the orphan
   entries drain. Blocking therefore **throttles, never deadlocks**.
+- **The blocking margin covers all three allocators.** `active_count` is a
+  registered pop-count that lags true occupancy by one cycle, and three
+  independent allocators (address, data, response) can each take a slot in
+  that stale cycle. The derived margin (`cmd_entry_reserve - 1 = 3`) covers
+  all three, so a command can never be admitted against stale occupancy and
+  then find no free slot. The reserve of 4 is the only value that satisfies
+  both this and the reopen constraint above simultaneously; with the earlier
+  reserve of 2 the margin derived to 1, and commands admitted in the stale
+  cycle went untracked while their un-backpressureable data beats were
+  silently discarded (measured as an observer-vs-in-core burst-count gap of
+  4096 vs 3073). `val/amba/test_axi_mon_block_ready.py` asserts no command
+  is admitted without an allocation, on every wrapper.
 - **Overshoot is impossible.** The CAM allocates from its exact combinational
   free vector, so the table can never hold more than `MAX_TRANSACTIONS`
   entries. A command that handshakes while the cap is reached is simply not
@@ -444,9 +456,9 @@ axi4_master_rd_mon #(...) u_mon (...);
 | AXI4-Lite Slave | 4-8 | Simple protocol, fewer outstanding |
 | Shared master (multi-channel) | NUM_CHANNELS x per-channel outstanding + margin | Per-channel limit alone throttles the shared bus — see the sizing rule in [Flow Control and the Saturation-Recovery Contract](#flow-control-and-the-saturation-recovery-contract) |
 
-Tables of 16 or more slots reserve `cmd_entry_reserve(MAX) = 2` slots for
-orphan drain (the saturation-recovery guarantee); tables below 16 keep full
-legacy allocation. Tables deeper than 64 need `--unroll-count` raised above
+Tables of 16 or more slots reserve `cmd_entry_reserve(MAX) = 4` slots (the
+saturation-recovery guarantee plus a blocking margin wide enough for all
+three same-cycle allocators); tables below 16 keep full legacy allocation. Tables deeper than 64 need `--unroll-count` raised above
 Verilator's default of 64 in sim builds.
 
 ### Timeout Configuration

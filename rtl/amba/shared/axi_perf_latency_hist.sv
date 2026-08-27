@@ -125,9 +125,17 @@ module axi_perf_latency_hist #(
     // Decoded channels + handshakes
     logic [CW-1:0] w_ch_cmd, w_ch_dat, w_ch_resp;
     logic          w_cmd_hs, w_dat_hs, w_resp_hs;
-    assign w_ch_cmd  = cmd_id [CW-1:0];
-    assign w_ch_dat  = data_id[CW-1:0];
-    assign w_ch_resp = resp_id[CW-1:0];
+    // NUM_CHANNELS=1 must decode to channel 0, not id bit 0: CW floors at 1,
+    // so an unguarded id[CW-1:0] indexes a ONE-entry array with the id's low
+    // bit. Simulation silently dropped every odd-id transaction (out-of-bounds
+    // reads vanish under Verilator: an LFSR-id run counted only the 33/64
+    // even-id subset); synthesis truncates instead, so odd/even ids ALIAS
+    // onto the single entry and same-cycle push/pop corrupt the occupancy
+    // count (AMBA-HISTCH1, surfaced on the pumice board as PUMICE-011's
+    // extra-returns side). NUM_CHANNELS>1 decodes are unchanged.
+    assign w_ch_cmd  = (NUM_CHANNELS > 1) ? cmd_id [CW-1:0] : '0;
+    assign w_ch_dat  = (NUM_CHANNELS > 1) ? data_id[CW-1:0] : '0;
+    assign w_ch_resp = (NUM_CHANNELS > 1) ? resp_id[CW-1:0] : '0;
     assign w_cmd_hs  = cmd_valid  && cmd_ready;
     assign w_dat_hs  = IS_READ  && data_valid && data_ready;
     assign w_resp_hs = !IS_READ && resp_valid && resp_ready;

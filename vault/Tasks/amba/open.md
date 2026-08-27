@@ -570,8 +570,26 @@ transposition. Both files exist and both names are correct --
 `prep -top formal_cdc_handshake`) and `cdc_handshake_formal.sv` is the DUT copy.
 Confusing, but not wrong.
 
-## AMBA-MONTRACK — in-core monitor under-counts bursts when its table caps
-**Status:** open 2026-08-05  **Found:** STREAM Genesys 2 monitor cosim
+## AMBA-MONTRACK — CLOSED 2026-08-26 (root cause was [[AMBA-BLOCKMARGIN]], fixed + measured)
+**Status:** CLOSED  **Found:** STREAM Genesys 2 monitor cosim
+
+CLOSURE: the loss mechanism was never capping per se -- it was commands
+ADMITTED against stale occupancy with no free slot (the BLOCKMARGIN
+margin-of-1 defect), whose un-backpressureable data beats were then
+discarded. With cmd_entry_reserve=4 (margin 3, all three same-cycle
+allocators covered; landed 16e4c18b, verified 2026-08-26):
+  * unit level: test_axi_mon_block_ready asserts NO untracked
+    admissions on every wrapper (31/31 with trans_mgr suite);
+  * harness level: obs_equiv PASSES on today's tree -- in-core RD
+    prod=8192 = observer 8192, WR 8192 = 8192, all three histogram
+    totals match (rd firstR 511, rd RLAST 511, wr AW->B 512).
+The remaining open questions dissolve: a dropped-command counter is
+unnecessary when no command can be admitted untracked (block_ready now
+throttles honestly -- loss became flow control); the fewer-cones-per-
+bitstream idea is moot for completeness (still valid as a congestion
+knob, see monitor-configuration). The pipelined trans-CAM idea remains
+a real FUTURE scalability lever (depth >16 at 100 MHz) but is a feature,
+not a defect -- not tracked here. Original analysis kept below.
 
 The in-core `axi4_master_rd_mon` does not track every burst it sees. Measured on
 the STREAM harness, external observer vs in-core, same traffic, same window:
@@ -663,8 +681,25 @@ the monitored bus permanently -- live in the shipping monitor bitstream at
 4ch x AR=2 = 12 slots. `stream_core` now sizes
 `MAX(16, NUM_CHANNELS*Ax_MAX + MON_TRANS_MARGIN)`. See [[monitor-sizing]].
 
-## AMBA-BLOCKMARGIN — block_ready margin covers 1 allocator, not 3 (root cause of the tracking loss)
-**Status:** open 2026-08-08  **Supersedes the mechanism in** [[AMBA-MONTRACK]]
+## AMBA-BLOCKMARGIN — CLOSED 2026-08-26 (fix landed 2026-08-20 in 16e4c18b; verified + reconciled today)
+**Status:** CLOSED  **Supersedes the mechanism in** [[AMBA-MONTRACK]]
+
+CLOSURE: cmd_entry_reserve() returns 4 on tables >= 16 since 16e4c18b
+(2026-08-20), which makes the derived BLOCK_MARGIN exactly 3 -- covering
+all three allocators in the stale cycle while keeping the recovery
+contract (margin <= reserve-1). Verified 2026-08-26 on clean rebuilds:
+test_axi_monitor_trans_mgr + test_axi_mon_block_ready 31/31, which
+enforce BOTH requested invariants (assert_no_untracked_admissions -- no
+command admitted without an allocation -- and peak_occupancy <= depth);
+formal ap_cmd_entry_cap proves the command cap. The stale
+axi_monitor_base.sv comment block that still described reserve=2 as
+current and the fix as "left as is" (written before 16e4c18b, never
+reconciled) is rewritten to the post-fix truth -- that comment was the
+last place the pre-fix narrative survived, and the monitors doc book
+would have been re-corrupted from it. Cost accepted: 4 reserved slots
+per table >= 16 (12 usable command slots at depth 16, 60 at 64).
+
+Original analysis kept below for the record.
 
 `block_ready` is computed from `active_count`, a REGISTERED pop-count that lags
 true occupancy by one cycle (axi_monitor_trans_mgr.sv:1082, deliberately -- the
@@ -1132,9 +1167,23 @@ unconnected `debug_block_ready` for exactly this reason, hidden behind
 **Do this BEFORE the 8-channel build.** Two observers x 70 ports is also
 routing and area on a 325T that is already the reason build-mon is 4 channels.
 
-## AMBA-HISTCH1 — axi_perf_latency_hist NUM_CHANNELS=1 decodes id bit 0 as a channel index
-**Status:** open 2026-08-26 (found via pumice PUMICE-011; NOT fixed — the
-consumer path is being retired instead, per Sean's direction)
+## AMBA-HISTCH1 — CLOSED 2026-08-26: NUM_CHANNELS=1 channel decode guarded
+**Status:** CLOSED (fixed same day it was filed; the pumice consumer-path
+retirement proceeds independently -- this fix is defensive for every
+other NUM_CHANNELS=1 instantiation and cannot conflict with it)
+
+CLOSURE: the three channel decodes are now
+`(NUM_CHANNELS > 1) ? id[CW-1:0] : '0` -- exactly the fix the filing
+prescribed. Mutation-proven: new latency_hist_ch1_odd_id_test (odd-ids
+counted 0/4 on the unguarded RTL under Verilator; 4/4 fixed, plus a
+mixed-id bin-exact check) and a NUM_CHANNELS x IS_READ parametrization
+of val/amba/test_axi_perf_latency_hist.py (was ch8-only -- structurally
+blind to this). The old RTL also failed the pre-existing interleave
+phase on a ch1 build (cmd id=1's push vanished out-of-bounds), so the
+bug was reachable from existing stimulus, just never built at ch1.
+8/8 val cases green. The timestamp-FIFO sizing contract note below
+(MAX_OUTSTANDING vs consumer admission domain) remains true and stays
+documented in the module's o_cmd_block comment.
 
 `rtl/amba/shared/axi_perf_latency_hist.sv` derives
 `CW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1` and then indexes every

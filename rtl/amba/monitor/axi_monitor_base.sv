@@ -556,54 +556,35 @@ module axi_monitor_base
     //
     //     addr_wants_alloc    data_wants_alloc    resp_wants_alloc
     //
-    // The legacy flat margin of 3 covered exactly that. The saturation-recovery
-    // refactor replaced it with (CMD_ENTRY_RESERVE - 1) = 1 on every table >=
-    // 16 -- the very tables the reserve was added to protect -- so a command
-    // could be ADMITTED against stale occupancy and then find no free slot.
-    // An untracked command's data beats arrive later with nothing to match,
-    // and data/resp allocation cannot be backpressured (a monitor must never
-    // stall returning data), so those beats are silently discarded.
-    //
-    // Measured: obs_equiv observer 4096 vs in-core 3073, identical at 2,000 and
-    // 200,000 clocks of drain (so loss, not backlog); the trans_mgr saturation
-    // phase discarded all 32 unmatched beats it was given.
-    //
-    // WIDENING THE MARGIN BACK TO 3 IS NOT THE FIX -- IT WAS TRIED AND REVERTED.
-    // It reintroduces exactly the permanent stall described above: with the
-    // margin equal to the command occupancy at saturation the table parks AT
-    // the threshold and block_ready never re-asserts. Measured cost: the
-    // stream DMA sim stopped completing at all (SimTimeoutError, still failing
-    // at an 800 ms budget, against ~0.4 ms before). Trading a wedge for a
-    // packet loss is a bad trade -- the loss is bounded and reported, the
-    // wedge is not.
-    //
-    // The real fix is to remove the STALENESS, not to pad around it: derive
-    // block_ready from the combinational occupancy (the same exact free vector
-    // the CAM allocates from) instead of the registered pop-count, so there is
-    // no lag for any number of allocators to slip through and no margin is
-    // needed. Tracked as [[AMBA-BLOCKMARGIN]]; until then this is the
-    // documented lossy-but-honest degrade, and
-    // val/amba/test_axi_mon_block_ready.py measures the loss
-    // (admitted_while_full) on every wrapper rather than leaving it invisible.
-    // BLOCK_MARGIN: do NOT "just" raise this to 3 -- see [[AMBA-BLOCKMARGIN]].
-    //
-    // The margin has to satisfy TWO constraints at once and they conflict:
+    // The margin has to satisfy TWO constraints at once:
     //   (a) >= 3, because three allocators (addr/data/resp_wants_alloc) can
     //       fire in the single stale cycle of the registered w_active_count;
-    //   (b) <= CMD_ENTRY_RESERVE - 1, or block_ready can never RE-ASSERT.
-    // With CMD_ENTRY_RESERVE = 2 on tables >= 16 the two are unsatisfiable.
+    //   (b) <= CMD_ENTRY_RESERVE - 1, or block_ready can never RE-ASSERT
+    //       after saturation (recovery contract above).
+    // Both hold because cmd_entry_reserve() returns 4 on tables >= 16, making
+    // the derived margin exactly 3. That reserve value is NOT free -- it costs
+    // 4 slots of command capacity per table -- and it is the ONLY value that
+    // satisfies both constraints with this derivation, so neither side may be
+    // changed alone:
     //
-    // Setting it to 3 was tried (2026-08-17) and breaks (b): block_ready then
-    // needs active_count < 13 on a 16-slot table while the reserve only
-    // guarantees 2 free slots, so occupancy parks at 14 and the gate never
-    // recovers -- test_axi_monitor_trans_mgr reports "block_ready never
-    // re-asserted after traffic stopped (active_count stuck at 14/16)". That
-    // is the permanent wedge the reserve exists to prevent, which is worse
-    // than the tracking loss it was meant to fix.
+    //   * With the old reserve of 2 the margin derived to 1, and a command
+    //     could be ADMITTED against stale occupancy and then find no free
+    //     slot. Its data beats arrived with nothing to match, and data/resp
+    //     allocation cannot be backpressured (a monitor must never stall
+    //     returning data), so those beats were silently discarded. Measured:
+    //     obs_equiv observer 4096 vs in-core 3073, identical at 2,000 and
+    //     200,000 clocks of drain (loss, not backlog).
+    //   * Raising the MARGIN alone to 3 while the reserve stayed 2 was tried
+    //     (2026-08-17) and breaks (b): on a 16-slot table block_ready needs
+    //     active_count < 13 while the reserve only guarantees 2 free slots,
+    //     so occupancy parks at 14 and the gate never recovers -- the
+    //     permanent wedge the reserve exists to prevent, worse than the loss.
     //
-    // The real fix raises CMD_ENTRY_RESERVE to 4 (monitor_common_pkg) so both
-    // constraints can hold, and costs 4 slots of capacity per table. Left as
-    // is until that is taken deliberately.
+    // History and measurements in vault/Tasks/amba (AMBA-BLOCKMARGIN, closed).
+    // Enforced: val/amba/test_axi_mon_block_ready.py asserts no command is
+    // admitted without an allocation (assert_no_untracked_admissions) and
+    // that occupancy never exceeds the table depth, on every wrapper; the
+    // trans_mgr FORMAL block's ap_cmd_entry_cap proves the command cap.
     localparam int unsigned BLOCK_MARGIN =
         (CMD_ENTRY_RESERVE > 0) ? (CMD_ENTRY_RESERVE - 1) : 3;
     assign block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)
