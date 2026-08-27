@@ -828,9 +828,24 @@ class AXI4MasterWriteTB(TBBase):
     async def run_error_injection_tests(self):
         """
         Run error injection tests - simple implementation
+
+        These are PROBES, not pass/fail checks: each outcome is logged and
+        explicitly tolerated (the unaligned case says so in both branches).
+        They must therefore not count toward the aggregate write stats that
+        the top-level test asserts on -- the stats are snapshotted before the
+        phase and restored after, so a tolerated probe outcome cannot fail
+        the run. Before this, the unaligned probe's verify-miss landed in
+        stats['failed_writes'] and failed the whole test the moment the
+        slave BFM became AXI-correct about bus-aligned writes + wire strobes
+        (RDS-DV 55f9453): a single AWSIZE=2 beat at 0x1001 cannot cross the
+        4-byte boundary, so the memcpy-style readback the probe hopes for is
+        unreachable by construction.
         """
         self.log.info("Starting error injection tests...")
-        
+
+        # Snapshot the aggregate stats; probes below are informational only.
+        stats_before = dict(self.stats)
+
         # Test 1: Unaligned address (if your system cares about alignment)
         try:
             self.log.info("Testing unaligned address...")
@@ -862,6 +877,10 @@ class AXI4MasterWriteTB(TBBase):
                 self.log.info("✓ Zero address handled correctly")
         except Exception as e:
             self.log.info(f"ℹ Zero address test caused exception: {str(e)}")
+
+        # Restore the aggregate stats: this phase observes, it does not judge.
+        # (Every probe outcome above is logged; none is a test failure.)
+        self.stats = stats_before
 
     async def test_outstanding_transactions(self, count: int = 20) -> Tuple[bool, Dict[str, Any]]:
         """
