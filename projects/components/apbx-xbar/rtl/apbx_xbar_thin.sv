@@ -20,6 +20,20 @@
 
 `include "reset_defs.svh"
 
+// =============================================================
+// RETIRED 2026-08-27 -- not a supported part of this family.
+//
+// Kept in-tree for reference only. Do not instantiate in new work;
+// use the generated variants (apbx_xbar_1to1/2to1/1to4/2to4/
+// 2to2_mixed) or generate one with bin/generate_xbars.py.
+//
+// Known unfixed defect (APBX-006, dropped as moot on retirement):
+// the grant-gated strobe passthrough plus the weighted arbiter's
+// REGISTERED grant means downstream slaves see PSEL and PENABLE
+// assert together -- ZERO setup cycles, measured [0,0,0,0,0,0].
+// Slaves that latch PADDR during (PSEL && !PENABLE) will not work.
+// =============================================================
+
 module apbx_xbar_thin #(
     // Number of APB masters (from the master))
     parameter int M = 2,

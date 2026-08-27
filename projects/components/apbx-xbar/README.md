@@ -39,6 +39,12 @@ Internal:        Round-robin arbitration + address decoding
 Slave Side:      apb4_master / apb5_master convert cmd/rsp → APB interface
 ```
 
+> **`apbx_xbar_thin` is RETIRED (2026-08-27)** and is not a supported
+> part of this family. It remains in-tree for reference. Use the
+> generated variants instead. Everything below about thin describes a
+> retired module, including its known zero-setup-cycle APB deviation
+> (APBX-006).
+
 `apbx_xbar_thin` is a different architecture — a combinational passthrough
 with weighted round-robin and no cmd/rsp conversion. See
 [the docs](../../../docs/markdown/rtl-amba/apbx/README.md) for choosing

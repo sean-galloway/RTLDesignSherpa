@@ -6,14 +6,15 @@ port independently speaks APB4 or APB5.
 
 | State | Count |
 |---|---|
-| [open](open.md) | 1 |
+| [open](open.md) | 0 |
 | [closed](closed.md) | 5 |
+| [dropped](dropped.md) | 1 |
 
 ## Open shortlist
 
-- **APBX-006** — `apbx_xbar_thin` presents NO downstream setup phase
-  (PSEL+PENABLE together, measured `[0,0,0,0,0,0]`). Real APB violation;
-  needs a design decision because every fix re-opens the formal proofs.
+*(`apbx_xbar_thin` RETIRED 2026-08-27. APBX-006 — its zero-cycle
+downstream setup phase — dropped as moot. The generated variants
+1to1/2to1/1to4/2to4/2to2_mixed are unaffected and remain supported.)*
 
 *(APBX-004/005 closed 2026-08-27: raw-address decode rotated the slave map
 for non-span-aligned BASE_ADDR; out-of-range accesses wedged the master
