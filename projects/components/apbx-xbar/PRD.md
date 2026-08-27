@@ -178,7 +178,7 @@ Slave 1 accessed by M1, M1, M0 → Next grant goes to M0
 | **apbx_xbar_2to1** | 2 | 1 | Multi-master arbitration | ~400 LOC |
 | **apbx_xbar_1to4** | 1 | 4 | Address decode, simple SoC | ~500 LOC |
 | **apbx_xbar_2to4** | 2 | 4 | Full crossbar, typical SoC | ~1000 LOC |
-| **apbx_xbar_thin** | 1 | 1 | Minimal passthrough | ~150 LOC |
+| **apbx_xbar_thin** | `M` (dflt 2) | `S` (dflt 4) | Parameterized MxS, WEIGHTED RR, per-slave base/limit PORTS, APB5+parity | ~300 LOC |
 
 ### 4.2 Wrapper Modules
 
@@ -322,7 +322,6 @@ Options:
   --masters M       Number of masters (1-16)
   --slaves N        Number of slaves (1-16)
   --base-addr ADDR  Base address (default: 0x10000000)
-  --output FILE     Output file path
   --thin            Generate thin variant (minimal logic)
 ```
 
@@ -334,27 +333,30 @@ Options:
 
 | Path | Latency | Notes |
 |------|---------|-------|
-| **Command path** | 1 cycle | APB slave → decode → APB master |
-| **Response path** | 1 cycle | APB master → routing → APB slave |
-| **Total** | 2 cycles min | APB protocol overhead |
+| **Command path** | 5 cycles | master APB phases + apb4_slave capture + cmd skid + apb4_master IDLE/SETUP/ACCESS |
+| **Response path** | 3 cycles | slave response + rsp skid + apb4_slave BUSY→PREADY |
+| **Total** | **10 cycles** | measured, uncontended, zero-wait slave |
+
+APB's 2-cycle minimum applies to a directly-attached slave, not through
+this fabric: the crossbar converts APB→cmd/rsp→APB across registered
+skid buffers in both directions. See HAS 5.2 for the cycle-by-cycle
+breakdown and the measurement.
 
 ### 9.2 Throughput
 
-- **Back-to-back transactions:** Supported
-- **Zero-bubble overhead:** Yes (with grant persistence)
-- **Maximum rate:** 1 transaction per 2 APB cycles per master
+- **Back-to-back transactions:** Supported, but not overlapped --
+  `apb4_slave` is a one-command-at-a-time FSM, so the next command is
+  captured only after the previous transaction completes
+- **Maximum rate:** ~1 transaction per 12 pclk cycles per master
+  (measured back-to-back at an always-ready slave)
 
 ### 9.3 Resource Utilization (Estimated)
 
-| Configuration | LUTs | FFs | Notes |
-|---------------|------|-----|-------|
-| **1to1** | ~50 | ~20 | Passthrough |
-| **2to1** | ~150 | ~80 | Arbitration |
-| **1to4** | ~200 | ~100 | Address decode |
-| **2to4** | ~400 | ~200 | Full crossbar |
-| **10to10** | ~5K | ~2K | Large crossbar |
+See HAS ch05_performance/03_resources.md -- that table is the single
+source of truth. An earlier duplicate here quoted figures 2-3x smaller
+in every cell; both were unsourced hand estimates, so the duplicate is
+withdrawn rather than reconciled.
 
----
 
 ## 10. Verification Status
 
@@ -481,7 +483,7 @@ apbx_xbar_2to4 #(
 - **Slave enable/disable:** Dynamic slave activation
 - **Timeout detection:** Watchdog for hung slaves
 - **Transaction ordering:** Optional in-order completion
-- **Priority arbitration:** Weighted instead of round-robin
+- **Priority arbitration:** Weighted instead of round-robin  *(already implemented in `apbx_xbar_thin` via `THRESHOLDS`; this item covers the generated MtoN variants.)*
 
 ### 13.2 Generator Improvements
 

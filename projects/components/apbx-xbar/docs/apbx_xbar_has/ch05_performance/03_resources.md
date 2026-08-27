@@ -37,6 +37,12 @@ Estimated resource usage for common configurations (32-bit data width):
 | apbx_xbar_1to4 | ~400 | ~200 | 4 slaves, decode |
 | apbx_xbar_2to4 | ~800 | ~400 | Full 2x4 crossbar |
 
+**Hand estimates, not synthesis results, and the single source of truth
+for this component.** PRD §9.3 previously carried a second, different
+set of numbers (2-3x smaller in every cell); that table now refers here
+rather than competing with it. Nothing in the repo has been synthesized
+to confirm either set -- treat these as order-of-magnitude only.
+
 : FPGA Resource Estimates (32-bit)
 
 ### Scaling Factors

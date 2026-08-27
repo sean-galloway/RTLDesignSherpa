@@ -117,7 +117,9 @@ python apbx_xbar_generator.py --masters 2 --slaves 4 --output ../rtl/apbx_xbar_2
 
 ## Address Map
 
-All crossbars use a uniform address mapping (configurable via `BASE_ADDR` parameter):
+The GENERATED crossbars (1to1/2to1/1to4/2to4/2to2_mixed) use a uniform address map, configurable via the `BASE_ADDR` parameter. The slave index
+is decoded from the OFFSET (`PADDR - BASE_ADDR`), so `BASE_ADDR` needs no
+span alignment. `apbx_xbar_thin` is different -- see below.
 
 ```
 Slave 0: [BASE_ADDR + 0x0000_0000, BASE_ADDR + 0x0000_FFFF]  (64KB)
@@ -131,14 +133,33 @@ Slave 3: [BASE_ADDR + 0x0003_0000, BASE_ADDR + 0x0003_FFFF]  (64KB)
 
 ## Parameters
 
-All modules support these parameters:
+The GENERATED modules support these parameters:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `ADDR_WIDTH` | 32 | Address bus width |
 | `DATA_WIDTH` | 32 | Data bus width |
 | `STRB_WIDTH` | DATA_WIDTH/8 | Strobe width (auto-calculated) |
-| `BASE_ADDR` | 0x10000000 | Base address for slave address map |
+| `BASE_ADDR` | 0x10000000 | Base of the slave address map |
+
+**`apbx_xbar_thin` does NOT have `BASE_ADDR`.** Its address map is
+runtime-programmable through input ports, and it carries its own set of
+parameters:
+
+| Parameter / Port | Default | Description |
+|------------------|---------|-------------|
+| `M`, `S` (params) | 2, 4 | master / slave counts |
+| `MAX_THRESH` (param) | 16 | weighted-RR threshold range |
+| `MST_APB5`, `SLV_APB5` (params) | '0 | per-port APB5 masks |
+| `ENABLE_PARITY` (param) | 0 | end-to-end APB5 parity |
+| `SLAVE_ENABLE` (**port**) | — | per-slave enable, `[S-1:0]` |
+| `SLAVE_ADDR_BASE` (**port**) | — | per-slave window base |
+| `SLAVE_ADDR_LIMIT` (**port**) | — | per-slave window limit |
+| `THRESHOLDS` (**port**) | — | weighted-RR weights, `M x $clog2(MAX_THRESH)` |
+
+Its APB pins are packed arrays (`m_apb_psel[M-1:0]`), not the
+`m0_apb_PSEL` style of the generated variants. Leaving the four decode
+ports undriven means nothing routes.
 
 ## Usage Example
 
@@ -258,12 +279,22 @@ if M < 1 or M > 16:  # Change 16 to desired max
 
 ## Not implemented
 
-- **APB5 parity** (`PSELPARITY` and friends) is not carried across the fabric.
-  Boundary IP is instantiated with `ENABLE_PARITY=0` and the parity pins tied
-  off. Adding it is a separate change with its own protection-domain argument.
-- **Formal proofs cover the all-APB4 configuration only.** The harnesses were
-  updated for the new ports and still pass, but nothing yet proves the version
-  gating itself.
+- **APB5 parity across the GENERATED variants** (1to1/2to1/1to4/2to4).
+  Their boundary IP deconstructs each transfer into cmd/rsp, so parity
+  terminates there and is instantiated with `ENABLE_PARITY=0`.
+  `apbx_xbar_thin` is the exception: it passes parity END TO END
+  (APBX-003, `ENABLE_PARITY` parameter) because it is a combinational
+  mux that never modifies the payload. (There is no `PSELPARITY` signal
+  in this library -- the APB5 parity pins are `paddrparity`,
+  `pwdataparity`, `pctrlparity`, `prdataparity`, `preadyparity`,
+  `pslverrparity`.)
+- **Version gating IS formally proven** for the thin core:
+  `formal/apbx_xbar/apbx_xbar_thin_mixed` runs the mixed configuration
+  (m0=APB4, m1=APB5, s0=APB5, s1=APB4) with `ENABLE_PARITY=1` and
+  asserts that APB4 ports never see sideband or parity in either
+  direction. The sibling `apbx_xbar_thin` harness proves the all-APB4
+  build. What is NOT yet proven formally: the generated MtoN variants
+  beyond their existing all-APB4 harnesses.
 
 ---
 

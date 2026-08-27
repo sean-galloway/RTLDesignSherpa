@@ -69,7 +69,7 @@ Slave 2: BASE_ADDR + 0x0002_0000 → 0x0002_FFFF
 ...
 ```
 
-**Users CANNOT change per-slave size** (current limitation)
+**Users CANNOT change per-slave size** in the GENERATED variants (1to1/2to1/1to4/2to4 -- fixed 64KB windows). `apbx_xbar_thin` is the exception: its per-slave base/limit are input ports.
 
 **If user asks for different sizes:**
 ```
@@ -91,7 +91,7 @@ Slave 2: BASE_ADDR + 0x0002_0000 → 0x0002_FFFF
 | **apbx_xbar_2to1** | 2×1 | Arbitration | Multi-master to single peripheral |
 | **apbx_xbar_1to4** | 1×4 | Decode | Single CPU to multiple peripherals |
 | **apbx_xbar_2to4** | 2×4 | Full crossbar | CPU + DMA to peripherals |
-| **apbx_xbar_thin** | 1×1 | Minimal | Low-overhead passthrough |
+| **apbx_xbar_thin** | MxS (params) | Weighted RR, APB5+parity | Runtime-programmable windows |
 
 **Always suggest pre-generated first!**
 
@@ -108,8 +108,6 @@ python generate_xbars.py --masters 3 --slaves 6
 --masters M         Number of masters (1-16)
 --slaves N          Number of slaves (1-16)
 --base-addr ADDR    Base address (default: 0x10000000)
---output FILE       Output file path
---thin              Generate thin variant (minimal logic)
 ```
 
 **Example:**
@@ -118,7 +116,9 @@ python generate_xbars.py --masters 3 --slaves 6
 python generate_xbars.py --masters 3 --slaves 8 --base-addr 0x80000000
 
 # Generate thin 5x5 variant
-python generate_xbars.py --masters 5 --slaves 5 --thin
+python generate_xbars.py --masters 5 --slaves 5
+# (there is no --thin flag: apbx_xbar_thin is a hand-written
+#  parameterized core, not generator output)
 ```
 
 ---
@@ -364,10 +364,16 @@ gtkwave waves.vcd
 
 ```systemverilog
 apbx_xbar_thin #(
+    .M(2), .S(4),                 // parameterized MxS, NOT a 1x1 passthrough
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
 ) u_thin_xbar (
-    // ... 1×1 connection
+    // decode windows are INPUT PORTS (no BASE_ADDR parameter):
+    .SLAVE_ENABLE(slave_enable),
+    .SLAVE_ADDR_BASE(slave_base),
+    .SLAVE_ADDR_LIMIT(slave_limit),
+    .THRESHOLDS(arb_thresholds),  // weighted round-robin weights
+    // packed-array APB ports: m_apb_psel[M-1:0], s_apb_psel[S-1:0], ...
 );
 ```
 
@@ -380,8 +386,8 @@ apbx_xbar_thin #(
 **Difference from apbx_xbar_1to1:**
 - Fewer internal registers
 - Lower latency
-- Smaller area (~30% reduction)
-- No arbitration overhead
+- Smaller area than a generated variant of the SAME MxS shape (no cmd/rsp boundary IP); the old "~30% vs 1to1" figure compared a 2x4 crossbar against a 1x1 and is withdrawn
+- Weighted round-robin arbitration (THRESHOLDS)
 
 **📖 See:** `README.md` and `PRD.md` Section 4
 

@@ -64,19 +64,19 @@
 **Assertion (presetn goes low):**
 - All internal state cleared immediately
 - All output signals driven to safe values
-- Master ports: PREADY=1, PRDATA=0, PSLVERR=0
+- Master ports: PREADY=0, PRDATA=0, PSLVERR=0
 - Slave ports: PSEL=0, PENABLE=0, PADDR=0, etc.
 
 **Deassertion (presetn goes high):**
 - Internal state begins normal operation
-- Reset release synchronized to pclk internally
+- Reset release is NOT synchronized internally -- `presetn` is applied directly as an asynchronous reset (`ALWAYS_FF_RST`) in every module. The integrator must synchronize reset DEASSERTION to `pclk` externally (recovery/removal timing)
 - Ready to accept transactions immediately
 
 ### Reset Safe Values
 
 | Signal Group | Reset Value | Rationale |
 |--------------|-------------|-----------|
-| Master PREADY | 1 | No false wait states |
+| Master PREADY | 0 | apb4_slave asserts PREADY only in BUSY |
 | Master PRDATA | 0 | No false data |
 | Master PSLVERR | 0 | No false errors |
 | Slave PSEL | 0 | No false transactions |

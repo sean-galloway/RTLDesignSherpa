@@ -70,11 +70,12 @@ slave_index = (PADDR - BASE_ADDR) >> 16
 
 | Feature | apbx_xbar_1to1 | apbx_xbar_2to1 | apbx_xbar_1to4 | apbx_xbar_2to4 | apbx_xbar_thin |
 |---------|---------------|---------------|---------------|---------------|---------------|
-| Masters | 1 | 2 | 1 | 4 | 1 |
-| Slaves | 1 | 1 | 4 | 4 | 1 |
-| Arbitration | No | Yes | No | Yes | No |
-| Address Decode | No | No | Yes | Yes | No |
-| Approximate LOC | 200 | 400 | 500 | 1000 | 150 |
+| Masters | 1 | 2 | 1 | 2 | `M` parameter (default 2) |
+| Slaves | 1 | 1 | 4 | 4 | `S` parameter (default 4) |
+| Arbitration | No | Yes | No | Yes | Yes -- WEIGHTED round-robin (`THRESHOLDS`) |
+| Address Decode | No | No | Yes | Yes | Yes -- per-slave base/limit INPUT PORTS |
+| APB5 sideband | No | No | No | s0 only (mixed) | Yes -- per-port masks + parity |
+| Approximate LOC | 200 | 400 | 500 | 1000 | 300 |
 
 : Pre-Generated Variant Comparison
 

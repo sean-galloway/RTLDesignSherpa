@@ -50,7 +50,7 @@ projects/components/apbx-xbar/
 ├── bin/
 │   └── generate_xbars.py              ← Convenience wrapper script
 │
-└── (repo root)/bin/rtl_generators/amba/
+└── projects/components/apbx-xbar/bin/
     └── apbx_xbar_generator.py          ← Core generator engine
 ```
 
@@ -257,12 +257,12 @@ module apbx_xbar_3to6 #(
     apb4_slave #(
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
-    ) u_m0_slave (
+    ) u_apb4_slave_m0 (
         .pclk(pclk),
         .presetn(presetn),
         // APB interface
-        .apb_PSEL(m0_apb_PSEL),
-        .apb_PENABLE(m0_apb_PENABLE),
+        .s_apb_PSEL(m0_apb_PSEL),
+        .s_apb_PENABLE(m0_apb_PENABLE),
         // ... (full APB connections)
         // cmd/rsp interface
         .cmd_valid(m0_cmd_valid),
@@ -275,44 +275,39 @@ module apbx_xbar_3to6 #(
 
 5. **Address Decode Logic**
 ```systemverilog
-    // Address decode for each master
-    logic [M-1:0][N-1:0] m_to_s_req;  // Request matrix
+    // Per-master offset decode (verbatim shape of the real output --
+    // there is no request-matrix signal; per-slave cmd_valid terms are
+    // built directly from the decoded index)
+    logic [ADDR_WIDTH-1:0] m0_cmd_offset;
+    logic [1:0] m0_slave_sel;
+    logic m0_addr_in_range;
 
-    // Master 0 address decode
     always_comb begin
-        m_to_s_req[0] = '0;
-        if (m0_cmd_valid) begin
-            logic [ADDR_WIDTH-1:0] offset = m0_cmd_paddr - BASE_ADDR;
-            logic [3:0] slave_idx = offset[19:16];
-            case (slave_idx)
-                4'd0: m_to_s_req[0][0] = 1'b1;
-                4'd1: m_to_s_req[0][1] = 1'b1;
-                // ... (case for each slave)
-            endcase
-        end
+        m0_cmd_offset    = m0_cmd_paddr - BASE_ADDR;
+        m0_addr_in_range = (m0_cmd_paddr >= BASE_ADDR) &&
+                           (m0_cmd_paddr < (BASE_ADDR + 32'h00040000));
+        m0_slave_sel     = m0_cmd_offset[17:16];   // ceil(log2(S)) bits
     end
 
-    // Master 1, 2 address decode...
+    assign s0_cmd_valid = m0_cmd_valid && m0_addr_in_range && (m0_slave_sel == 2'd0);
+    assign s1_cmd_valid = m0_cmd_valid && m0_addr_in_range && (m0_slave_sel == 2'd1);
+    // ... one per slave; masters 1..M-1 repeat the block
 ```
 
 6. **Per-Slave Arbitration Logic**
 ```systemverilog
-    // Arbitration for each slave
-    logic [N-1:0][M-1:0] s_grant;  // Grant matrix
-    logic [N-1:0][$clog2(M)-1:0] s_arb_priority;  // Round-robin priority
-
-    // Slave 0 arbiter (round-robin among M masters)
-    always_ff @(posedge pclk or negedge presetn) begin
-        if (!presetn) begin
-            s_arb_priority[0] <= '0;
-            s_grant[0] <= '0;
-        end else begin
-            // Round-robin arbitration logic
-            // Priority rotation after each grant
-        end
-    end
-
-    // Slave 1-5 arbiters...
+    // One arbiter instance per slave (no hand-rolled priority
+    // counters in the output -- the generator instantiates the
+    // library arbiter):
+    arbiter_round_robin #(
+        .CLIENTS(2),          // = M
+        .WAIT_GNT_ACK(1)      // hold grant until the response handshake
+    ) u_s0_arbiter (
+        .clk(pclk), .rst_n(presetn), .block_arb(1'b0),
+        .request(s0_arb_request), .grant_ack(s0_arb_grant_ack),
+        .grant(s0_arb_grant),
+        .grant_valid(), .grant_id(), .last_grant()
+    );
 ```
 
 7. **Response Routing Logic**

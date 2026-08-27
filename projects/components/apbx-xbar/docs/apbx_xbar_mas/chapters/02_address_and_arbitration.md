@@ -65,6 +65,20 @@ offset = PADDR - BASE_ADDR
 slave_index = offset[19:16]  // Upper 4 bits of 20-bit offset
 ```
 
+### Out-of-Range Addresses
+
+An access outside `[BASE_ADDR, BASE_ADDR + N x 64KB)` is a **decode
+miss**. The crossbar accepts it and answers locally with **PSLVERR**;
+no slave sees the transfer, and the arbiters are not involved. The
+master's transaction completes normally (PREADY asserts) with the error
+flagged, so a bad pointer surfaces as an APB error response rather than
+a hang.
+
+Earlier RTL left `cmd_ready` low on a miss, which wedged the master in
+ACCESS with PREADY low and no error signature (APBX-002). Regression:
+the decode-miss scenarios in `test_apbx_xbar_1to4.py`,
+`test_apbx_xbar_2to4.py`, and `test_apbx_xbar_2to2_mixed.py`.
+
 **Why offset[19:16]?**
 - 64KB = 0x10000 = 2^16 bytes
 - Lower 16 bits (offset[15:0]) are byte address within slave
@@ -255,13 +269,16 @@ WITH Grant Persistence:
 ### Arbitration Latency
 
 **Best Case (No Contention):**
-- 0 cycles arbitration delay
-- Request → Grant in same cycle
-- APB protocol overhead: 2 cycles minimum (PSEL + PENABLE)
+- 1 cycle: the grant is REGISTERED (`grant <= w_next_grant;` in
+  `arbiter_round_robin`), so request → grant is never same-cycle
+- Fabric overhead is the dominant term, not APB's 2-cycle minimum:
+  a full transfer measures ~10 cycles (see "Transaction Latency" below)
 
 **Worst Case (Maximum Contention):**
-- M-1 cycles wait time (other masters ahead in round-robin)
-- Example: 2 masters, worst case = 1 cycle wait
+- Wait for the masters ahead in the round-robin to complete FULL
+  transactions -- the grant is held until the response handshake
+  (`WAIT_GNT_ACK(1)`), so each is ~10 cycles, not 1
+- Example: 2 masters, worst case ≈ one full transaction of wait
 - Example: 4 masters, worst case = 3 cycles wait
 
 **Average Case (Random Access Pattern):**
@@ -325,9 +342,12 @@ apbx_xbar_2to4 #(
 ### Throughput
 
 **Single Master:**
-- Back-to-back transactions supported
-- Zero bubble (no idle cycles between transactions)
-- Limited only by slave PREADY response time
+- Back-to-back transactions supported, but NOT overlapped: `apb4_slave`
+  is a one-command-at-a-time FSM, so the next command is captured only
+  after the previous transaction completes
+- Measured sustained cadence: ~1 transfer per 12 pclk cycles at an
+  always-ready slave (an earlier "zero bubble" claim described a
+  pipeline this RTL does not have)
 
 **Multiple Masters (Same Slave):**
 - Round-robin introduces fair sharing
@@ -344,13 +364,20 @@ apbx_xbar_2to4 #(
 **Components:**
 
 1. **Address Decode:** 0 cycles (combinational, parallel)
-2. **Arbitration Decision:** 0 cycles (combinational)
-3. **APB Protocol:** 2 cycles minimum (PSEL + PENABLE)
-4. **Slave Response:** Variable (depends on slave)
+2. **Arbitration Decision:** 1 cycle (grant is registered)
+3. **Master APB phases:** 2 cycles (PSEL, then PENABLE)
+4. **Boundary IP + skid buffers:** ~6 cycles -- `apb4_slave` capture,
+   registered cmd skid, `apb4_master` IDLE→SETUP→ACCESS, registered rsp
+   skid, `apb4_slave` BUSY→PREADY
+5. **Slave Response:** Variable (adds to the above)
 
-**Total Minimum Latency:** 2 cycles (uncontended access)
+**Total Minimum Latency: ~10 cycles** (uncontended, zero-wait slave --
+measured on `apbx_xbar_1to1`). APB's 2-cycle minimum applies to a
+directly-attached slave; it does not apply through this fabric, which
+converts APB→cmd/rsp→APB across registered buffers in both directions.
 
-**With Contention:** +1 to +(M-1) cycles arbitration wait time
+**With Contention:** add one full transaction (~10 cycles) per master
+ahead in the round-robin
 
 ---
 
@@ -403,8 +430,17 @@ expected_slave = slave_index  // Should match actual PSEL
 
 **Check:**
 1. Other masters continuously accessing same slave?
-2. Arbitration timeout monitoring enabled?
-3. Round-robin priority rotating correctly?
+2. Round-robin priority rotating correctly? (grant is released at the
+   RESPONSE handshake -- `grant_ack = grant && rsp_valid && rsp_ready`
+   with `WAIT_GNT_ACK(1)` -- so a master that never completes a
+   transaction holds its grant)
+3. Is the starved master's address actually decoding in range? An
+   out-of-range access completes locally with PSLVERR and never reaches
+   an arbiter.
+
+There is no timeout or monitoring knob to enable: `arbiter_round_robin`
+has no timeout logic, parameter, or port. An earlier revision of this
+checklist referenced one.
 
 **Expected Behavior:**
 - Each master should get grant within M transactions

@@ -102,7 +102,7 @@ The crossbar supports zero-bubble back-to-back transactions:
 
 1. Master can assert new PSEL immediately after PREADY
 2. Grant persistence eliminates re-arbitration overhead
-3. Maximum throughput: 1 transaction per 2 APB cycles
+3. Measured throughput: 1 transaction per ~12 pclk cycles (see 5.1/5.2)
 
 ---
 

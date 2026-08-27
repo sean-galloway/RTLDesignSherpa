@@ -31,11 +31,26 @@ When a master has exclusive access to a slave:
 
 | Phase | Cycles | Description |
 |-------|--------|-------------|
-| Setup | 1 | PSEL asserted, PENABLE low |
-| Access | 1+ | PENABLE high, wait for PREADY |
-| **Total** | **2+** | Minimum 2 cycles |
+| Master APB setup + access | 2 | PSEL, then PENABLE |
+| apb4_slave capture -> cmd skid | 2 | command registered out |
+| apb4_master IDLE -> SETUP -> ACCESS | 3 | downstream PSEL/PENABLE |
+| Slave response -> rsp skid | 2 | response registered back |
+| apb4_slave BUSY -> PREADY | 1 | master-visible completion |
+| **Total** | **10** | **measured**, zero-wait-state slave |
 
 : Uncontended Transaction Latency
+
+**These are measured numbers, not protocol minimums.** A crossbar
+transfer is NOT the 2-cycle APB minimum: the fabric converts APB to an
+internal cmd/rsp protocol through `apb4_slave` and back through
+`apb4_master`, and both directions cross REGISTERED skid buffers. A
+direct probe on `apbx_xbar_1to1` with an always-ready slave measures
+**10 pclk cycles** from PSEL to PREADY, and **12 cycles** sustained
+back-to-back (the `apb4_slave` FSM is one-command-at-a-time: it cannot
+capture the next command until it returns to IDLE). Earlier revisions
+of this page claimed 2 cycles, which is the bare APB protocol minimum
+for a directly-attached slave -- it does not apply through this
+fabric.
 
 ### Contended Access
 
@@ -43,9 +58,9 @@ When multiple masters compete for the same slave:
 
 | Scenario | Additional Latency | Description |
 |----------|-------------------|-------------|
-| Win arbitration | 0 cycles | No delay |
-| Lose to 1 master | 2+ cycles | Wait for one transaction |
-| Lose to N masters | 2N+ cycles | Wait for N transactions |
+| Win arbitration | 1 cycle | grant is REGISTERED in arbiter_round_robin |
+| Lose to 1 master | ~10+ cycles | wait one full transaction (see above) |
+| Lose to N masters | ~10N+ cycles | wait N transactions |
 
 : Arbitration Latency
 

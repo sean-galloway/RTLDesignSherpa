@@ -31,10 +31,11 @@ With a single master accessing any slave:
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| Minimum cycles per transaction | 2 | APB protocol minimum |
-| Maximum transactions per cycle | 0.5 | 1 transaction / 2 cycles |
-| Data throughput (32-bit @ 100MHz) | 200 MB/s | Theoretical maximum |
-| Data throughput (32-bit @ 250MHz) | 500 MB/s | Theoretical maximum |
+| Cycles per transaction (uncontended) | 10 | measured, zero-wait slave (see 5.2) |
+| Sustained cycles per transaction | 12 | measured back-to-back, one master |
+| Maximum transactions per cycle | ~0.083 | 1 transaction / 12 cycles |
+| Data throughput (32-bit @ 100MHz) | ~33 MB/s | 4 B / 12 cycles |
+| Data throughput (32-bit @ 250MHz) | ~83 MB/s | 4 B / 12 cycles |
 
 : Single Master Throughput
 
@@ -57,26 +58,30 @@ When masters compete for the same slave:
 
 : Contended Access Throughput
 
-## Zero-Bubble Operation
+## Arbitration Handoff
 
 ### Grant Persistence
 
 The crossbar implements grant persistence:
-- Once a master wins arbitration, it holds the grant
-- Grant released only when master releases PSEL
-- Enables back-to-back transactions without re-arbitration
+- A master holds the grant for the duration of ONE transaction
+- The grant is released at the RESPONSE handshake, not when PSEL drops
+  (`grant_ack = grant && rsp_valid && rsp_ready`, arbiter instantiated
+  with `WAIT_GNT_ACK(1)`), after which the round-robin mask rotates --
+  holding PSEL does not keep the grant if another master is requesting
+- A single master with no competitor re-wins immediately, so its
+  transactions still stream back-to-back -- at the fabric's own
+  cadence, not at APB's 2-cycle minimum
 
 ### Back-to-Back Timing
 
-```
-       Cycle 1    Cycle 2    Cycle 3    Cycle 4
-       |  T1 setup|  T1 data |  T2 setup|  T2 data|
-PSEL   --|--------|----------|----------|----------|--
-PENABLE--|________|----------|__________|----------|--
-PREADY  _|________|----------|__________|----------|__
-
-Transaction T1 and T2 are consecutive with no idle cycles.
-```
+A "zero-bubble" 4-cycle two-transaction diagram appeared here in
+earlier revisions. It described a pipeline this RTL does not have: the
+`apb4_slave` front end is a one-command-at-a-time FSM
+(IDLE -> BUSY -> WAIT), so the next command is not captured until the
+previous transaction completes. Measured cadence for one master
+streaming reads at an always-ready slave is **one transaction per 12
+pclk cycles** (see 5.2 for the cycle-by-cycle breakdown). There is no
+overlap between consecutive transactions to draw.
 
 ## Throughput Factors
 

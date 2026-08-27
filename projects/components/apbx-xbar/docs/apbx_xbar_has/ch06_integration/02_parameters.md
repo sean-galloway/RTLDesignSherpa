@@ -31,7 +31,7 @@
 |-----------|------|---------|-------|-------------|
 | ADDR_WIDTH | int | 32 | 8-64 | Address bus width in bits |
 | DATA_WIDTH | int | 32 | 8, 16, 32, 64 | Data bus width in bits |
-| BASE_ADDR | logic[31:0] | 0x10000000 | Any | Base address for slave map |
+| BASE_ADDR | logic[ADDR_WIDTH-1:0] | 0x10000000 | any address; the slave index is decoded from the OFFSET, so no span alignment is required | Base of the slave map |
 
 : Core Parameter Definition
 
