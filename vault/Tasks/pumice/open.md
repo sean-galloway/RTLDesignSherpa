@@ -147,8 +147,20 @@
   scenario 12 (hot-row-vs-lone-old vectors, per-edge polls) proves all
   three encodings both directions; mutation (selector forced to oldest)
   -> RED by drain-loop timeout. Core sentinel sweep extended with
-  most/most + fewest/fewest arms. Remaining Axis 1: ACCESS_PREF, write
-  batching (SCHED_WR_WM), prio_sub, QoS.
+  most/most + fewest/fewest arms.
+- Axis 1 step 3: ACCESS_PREF landed (SCHED_POLICY.access_pref: 0/1
+  column_first = legacy order bit-identical, 2 row_first, 3
+  precharge_first). Class chosen first from the (ORDER_MODE-narrowed)
+  per-class picks, read-over-write within. TESTING LESSON: the first fub
+  scenario (poll-for-op over static self-refilling vectors) PASSED ITS
+  OWN MUTATION -- fired picks arm guards, the preferred class blanks a
+  cycle, and every class appears in the alternation, so any op is
+  findable under any preference. Rewritten as ONE-SHOT candidates with
+  FIRE-ORDER asserts (deterministic total order per preference) + a
+  4-cycle inter-arm pipeline flush (registered picks straddle arm
+  boundaries and get booked to the wrong arm). Mutation now properly
+  RED (pref dead -> column-first order under the row_first arm).
+  Remaining Axis 1: write batching (SCHED_WR_WM), prio_sub, QoS.
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.

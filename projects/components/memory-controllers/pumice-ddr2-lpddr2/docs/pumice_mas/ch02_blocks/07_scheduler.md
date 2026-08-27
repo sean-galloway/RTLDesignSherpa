@@ -88,6 +88,10 @@ all gated on the command sink accepting the push:
    entry of the older CAM (relative-age compare across CAMs); `3
    age_threshold` narrows every class to aged entries whenever any exist
    (per-entry 1-bit flags from the CAMs at `SCHED_POLICY.age_thresh`).
+   `SCHED_POLICY.access_pref` reorders the demand-CLASS preference itself
+   (0/1 column_first = the legacy order, 2 row_first, 3 precharge_first);
+   the class is chosen from the possibly-narrowed per-class picks, then
+   read-over-write applies within it.
    `SCHED_POLICY.row_sel/col_sel` further steer the SELECTION within the
    (possibly narrowed) activate/column classes: population-first
    (most/fewest schedulable entries sharing the candidate's {bank,row},

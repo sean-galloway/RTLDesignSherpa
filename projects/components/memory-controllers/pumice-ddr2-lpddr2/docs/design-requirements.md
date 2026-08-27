@@ -395,8 +395,13 @@ field so any policy combination is reachable. All commodity-legal.
   8x8 same-{bank,row} match triangle per CAM; the pick is population-first with OLDEST
   tie-break, composing under the ORDER_MODE mask narrowing. row_sel steers ACTIVATE,
   col_sel steers COLUMN; precharge picks stay strictly oldest.
-- **`ACCESS_PREF` = `column_first` / `row_first` / `precharge_first`** — address-arbiter
-  class preference (latency-to-open-row vs bank parallelism). Static arbiter priority.
+- **`ACCESS_PREF` = `column_first` / `row_first` / `precharge_first` (IMPLEMENTED
+  2026-08-26, `SCHED_POLICY.access_pref`)** — address-arbiter class preference
+  (latency-to-open-row vs bank parallelism). As built: the arbiter picks the demand
+  CLASS first per the preference, then read-over-write within it; composes under the
+  ORDER_MODE narrowing (the overlay narrows WHO is a candidate, access_pref reorders
+  WHICH CLASS of the survivors is served). 0/1 = column_first = the legacy chain order,
+  bit-identical.
 - **`load_over_store` (`PRIO_SUB`)** — reads outrank writes (already the baseline); a
   1-bit priority key protecting latency-critical reads.
 - **Write batching (exotic)** — drain writes back-to-back once the write buffer crosses

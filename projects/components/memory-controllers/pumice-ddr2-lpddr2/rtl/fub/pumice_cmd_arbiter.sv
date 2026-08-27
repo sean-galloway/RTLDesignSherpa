@@ -69,6 +69,11 @@ module pumice_cmd_arbiter
     // schedulable entries sharing {bank,row}.
     input  logic [1:0]                sched_row_sel_i,
     input  logic [1:0]                sched_col_sel_i,
+    // Address-arbiter class preference (SCHED_POLICY.access_pref):
+    // 0/1 = column_first (default), 2 = row_first (bank parallelism:
+    // activates outrank row-hits), 3 = precharge_first (close wrong
+    // rows eagerly). Read-over-write priority holds WITHIN the class.
+    input  logic [1:0]                sched_access_pref_i,
     input  logic [NUM_ENTRIES-1:0]    rd_sch_age_exceed_i, // per-entry age boost
     input  logic [NUM_ENTRIES-1:0]    wr_sch_age_exceed_i,
     input  logic [AGE_WIDTH-1:0]      rd_sch_head_rel_i,   // oldest entry's rel age
@@ -525,6 +530,14 @@ module pumice_cmd_arbiter
         return {found, slot};
     endfunction
 
+    // ---- ACCESS_PREF: pick the demand CLASS first, then read-over-write
+    // within it. The class availability comes from the (possibly
+    // ORDER_MODE-narrowed) per-class picks, so in_order / age_threshold
+    // compose: they narrow WHO is a candidate, access_pref reorders WHICH
+    // CLASS of the survivors is served first. 0/1 = column_first (the
+    // legacy chain order), 2 = row_first, 3 = precharge_first.
+    typedef enum logic [1:0] {CL_NONE, CL_COL, CL_ACT, CL_PRE} pick_class_e;
+
     // col_sel steers columns, row_sel steers activates; precharge picks
     // stay strictly oldest (closing the "most pending" row would be
     // anti-productive, and PRE ordering is a correctness-adjacent path).
@@ -537,6 +550,25 @@ module pumice_cmd_arbiter
         {wr_act_f, wr_act_s} = arg_sel(sched_row_sel_i, wr_act_me, wr_sch_older_i, wr_pop);
         {rd_pre_f, rd_pre_s} = arg_oldest(rd_pre_me, rd_sch_older_i);
         {wr_pre_f, wr_pre_s} = arg_oldest(wr_pre_me, wr_sch_older_i);
+    end
+
+    logic w_c_col, w_c_act, w_c_pre;
+    pick_class_e w_pick_class;
+    always_comb begin
+        w_c_col = rd_col_f || wr_col_f;
+        w_c_act = rd_act_f || wr_act_f;
+        w_c_pre = rd_pre_f || wr_pre_f;
+        unique case (sched_access_pref_i)
+            2'd2:    w_pick_class = w_c_act ? CL_ACT
+                                  : w_c_col ? CL_COL
+                                  : w_c_pre ? CL_PRE : CL_NONE;  // row_first
+            2'd3:    w_pick_class = w_c_pre ? CL_PRE
+                                  : w_c_col ? CL_COL
+                                  : w_c_act ? CL_ACT : CL_NONE;  // precharge_first
+            default: w_pick_class = w_c_col ? CL_COL
+                                  : w_c_act ? CL_ACT
+                                  : w_c_pre ? CL_PRE : CL_NONE;  // column_first
+        endcase
     end
 
     // ---- refresh: pick the lowest active bank that can precharge ------------
@@ -636,32 +668,32 @@ module pumice_cmd_arbiter
             end else if (w_ref_safe) begin
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
-        end else if (rd_col_f) begin
+        end else if (w_pick_class == CL_COL && rd_col_f) begin
             // 3a. READ row-hit (read-priority). ap is per-bank when the
             // runtime page-policy engine is active.
             w_bank = f_bank(rd_sch_bank_i, rd_col_s); w_col = f_col(rd_sch_col_i, rd_col_s);
             w_valid = 1'b1; w_op = f_ap(w_bank) ? OP_RDA : OP_RD;
             w_ap_out = f_ap(w_bank); w_do_rd = 1'b1; w_rd_issue = 1'b1; w_issue_slot = rd_col_s;
-        end else if (wr_col_f) begin
+        end else if (w_pick_class == CL_COL && wr_col_f) begin
             // 3b. WRITE row-hit.
             w_bank = f_bank(wr_sch_bank_i, wr_col_s); w_col = f_col(wr_sch_col_i, wr_col_s);
             w_valid = 1'b1; w_op = f_ap(w_bank) ? OP_WRA : OP_WR;
             w_ap_out = f_ap(w_bank); w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
-        end else if (rd_act_f) begin
+        end else if (w_pick_class == CL_ACT && rd_act_f) begin
             // 4a. ACTIVATE the oldest pending READ's idle bank (bank-parallel).
             w_valid = 1'b1; w_op = OP_ACT;
             w_bank = f_bank(rd_sch_bank_i, rd_act_s); w_row = f_row(rd_sch_row_i, rd_act_s);
             w_do_act = 1'b1;
-        end else if (wr_act_f) begin
+        end else if (w_pick_class == CL_ACT && wr_act_f) begin
             // 4b. ACTIVATE the oldest pending WRITE's idle bank.
             w_valid = 1'b1; w_op = OP_ACT;
             w_bank = f_bank(wr_sch_bank_i, wr_act_s); w_row = f_row(wr_sch_row_i, wr_act_s);
             w_do_act = 1'b1;
-        end else if (rd_pre_f) begin
+        end else if (w_pick_class == CL_PRE && rd_pre_f) begin
             // 5a. PRECHARGE a bank open on the wrong row for a pending read.
             w_valid = 1'b1; w_op = OP_PRE; w_bank = f_bank(rd_sch_bank_i, rd_pre_s);
             w_do_pre = 1'b1;
-        end else if (wr_pre_f) begin
+        end else if (w_pick_class == CL_PRE && wr_pre_f) begin
             // 5b. PRECHARGE a bank open on the wrong row for a pending write.
             w_valid = 1'b1; w_op = OP_PRE; w_bank = f_bank(wr_sch_bank_i, wr_pre_s);
             w_do_pre = 1'b1;

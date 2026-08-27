@@ -298,6 +298,53 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
         f"row_sel most_pending ACT: {p}"
     dut.sched_row_sel_i.value = 0
 
+    # ===== 13. ACCESS_PREF: class preference (column/row/precharge first) ====
+    # ONE-SHOT candidates (retired on fire, like scenario 9): a row-hit
+    # COLUMN (bank 1), an idle-bank ACTIVATE (bank 2), and a wrong-row
+    # PRECHARGE (bank 6) all pending at once. The FIRE ORDER of the three
+    # ops is a deterministic total order per preference -- static
+    # self-refilling candidates would alternate through every class via the
+    # guard gaps and prove nothing (that version passed its own mutation).
+    async def _pref_order(pref):
+        tb._drive_idle(); dut.init_done_i.value = 1
+        # FLUSH the 2-stage pick pipeline: fires from the previous arm's
+        # registered picks straddle the arm boundary and would be booked
+        # as this arm's first events.
+        for _ in range(4):
+            await RisingEdge(dut.aclk)
+        tb.set_bank_bits(dut.bank_row_active_i, {1: 1, 6: 1})
+        tb.set_bank_bits(dut.bank_rdwr_ready_i, {1: 1})
+        tb.set_bank_bits(dut.bank_act_ready_i, {2: 1})
+        tb.set_bank_bits(dut.bank_pre_ready_i, {6: 1})
+        tb.set_open_rows({1: 0x11, 6: 0x66})
+        dut.sched_access_pref_i.value = pref
+        live = {1: (1, 0x11, 0x08, 20),    # column hit
+                2: (2, 0x22, 0x00, 30),    # activate
+                3: (6, 0x99, 0x00, 40)}    # conflict -> precharge
+        order = []
+        for _ in range(24):
+            tb.set_entries('rd', dict(live))
+            await RisingEdge(dut.aclk)
+            await _Timer(1, units='ns')
+            st = tb.strobes()
+            if st['rd'] and 1 in live:
+                order.append('RD');  live.pop(1)
+            elif st['act'] and 2 in live:
+                order.append('ACT'); live.pop(2)
+            elif st['pre'] and 3 in live:
+                order.append('PRE'); live.pop(3)
+            if not live:
+                break
+        dut.sched_access_pref_i.value = 0
+        return order
+
+    order = await _pref_order(0)
+    assert order[0] == 'RD', f"column_first fire order: {order}"
+    order = await _pref_order(2)
+    assert order[0] == 'ACT', f"row_first fire order: {order}"
+    order = await _pref_order(3)
+    assert order[0] == 'PRE', f"precharge_first fire order: {order}"
+
     tb.log.info("PASS: init, refresh(PRE->REF+grant), read-priority, oldest "
                 "tie-break, write pick, CLOSE auto-PRE, ACT idle bank, backpressure, "
                 "columns oldest-first (pipelined), bank-parallel activate, "
