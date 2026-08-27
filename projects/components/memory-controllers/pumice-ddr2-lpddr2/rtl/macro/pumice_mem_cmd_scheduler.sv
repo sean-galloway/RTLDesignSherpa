@@ -60,6 +60,7 @@ module pumice_mem_cmd_scheduler
     input  logic [1:0]                sched_access_pref_i,// SCHED_POLICY.access_pref
     input  logic [7:0]                sched_wr_high_wm_i, // SCHED_WR_WM.wr_high_wm
     input  logic [7:0]                sched_wr_low_wm_i,  // SCHED_WR_WM.wr_low_wm
+    input  logic [1:0]                sched_prio_sub_i,   // SCHED_POLICY.prio_sub
     input  logic [2:0]                page_mode_i,        // PAGE_POLICY_CFG.policy_mode
     input  logic                      page_scope_i,
     input  logic [7:0]                page_tr_init_i,
@@ -346,6 +347,7 @@ module pumice_mem_cmd_scheduler
         .sched_row_sel_i(sched_row_sel_i), .sched_col_sel_i(sched_col_sel_i),
         .sched_access_pref_i(sched_access_pref_i),
         .sched_wr_high_wm_i(sched_wr_high_wm_i), .sched_wr_low_wm_i(sched_wr_low_wm_i),
+        .sched_prio_sub_i(sched_prio_sub_i),
         .wr_sch_age_exceed_i(wr_sch_age_exceed_i), .wr_sch_head_rel_i(wr_sch_head_rel_i),
         .rd_sch_age_exceed_i(rd_sch_age_exceed_i), .rd_sch_head_rel_i(rd_sch_head_rel_i),
         .wr_commit_ready_i(wr_commit_ready_i),

@@ -385,6 +385,50 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     assert len(order) == 4 and order[0] == 'WR' and order[1] == 'WR', \
         f"wm 3/1 fire order (drain must front-run the read): {order}"
 
+    # ===== 15. PRIO_SUB (load_over_store / none / age_boost) =====
+    # Bank 4 open; one read hit + one write hit, both row-hit candidates.
+    #   0 load_over_store (default) -> RD first
+    #   1 none (fair alternate)     -> the direction toggles per fired op;
+    #                                  over 2 ops BOTH fire (no monopoly)
+    #   3 age_boost + the WRITE flagged aged, the read not -> WR first
+    async def _prio_order(prio, wr_aged=False):
+        tb._drive_idle(); dut.init_done_i.value = 1
+        for _ in range(4):                        # pipeline flush (see #13)
+            await RisingEdge(dut.aclk)
+        tb.set_bank_bits(dut.bank_row_active_i, {4: 1})
+        tb.set_bank_bits(dut.bank_rdwr_ready_i, {4: 1})
+        tb.set_open_rows({4: 0x44})
+        dut.sched_prio_sub_i.value = prio
+        dut.wr_sch_age_exceed_i.value = 0b0000_0010 if wr_aged else 0
+        dut.rd_sch_age_exceed_i.value = 0
+        rd_live = {0: (4, 0x44, 0x00, 50)}
+        wr_live = {1: (4, 0x44, 0x08, 40)}
+        order = []
+        for _ in range(40):
+            tb.set_entries('rd', dict(rd_live))
+            tb.set_entries('wr', dict(wr_live))
+            await RisingEdge(dut.aclk)
+            await _Timer(1, units='ns')
+            st = tb.strobes()
+            if st['rd'] and rd_live:
+                order.append('RD'); rd_live.clear()
+            elif st['wr'] and st['wr_commit_slot'] in wr_live:
+                order.append('WR'); wr_live.pop(st['wr_commit_slot'])
+            if not rd_live and not wr_live:
+                break
+        dut.sched_prio_sub_i.value = 0
+        dut.wr_sch_age_exceed_i.value = 0
+        return order
+
+    order = await _prio_order(0)
+    assert order and order[0] == 'RD', f"prio_sub load_over_store: {order}"
+    order = await _prio_order(1)
+    assert sorted(order) == ['RD', 'WR'], f"prio_sub none (both must fire): {order}"
+    order = await _prio_order(3, wr_aged=True)
+    assert order and order[0] == 'WR', f"prio_sub age_boost (aged WR first): {order}"
+    order = await _prio_order(3, wr_aged=False)
+    assert order and order[0] == 'RD', f"prio_sub age_boost unaged -> RD: {order}"
+
     tb.log.info("PASS: init, refresh(PRE->REF+grant), read-priority, oldest "
                 "tie-break, write pick, CLOSE auto-PRE, ACT idle bank, backpressure, "
                 "columns oldest-first (pipelined), bank-parallel activate, "

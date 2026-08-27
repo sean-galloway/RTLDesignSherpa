@@ -402,8 +402,13 @@ field so any policy combination is reachable. All commodity-legal.
   ORDER_MODE narrowing (the overlay narrows WHO is a candidate, access_pref reorders
   WHICH CLASS of the survivors is served). 0/1 = column_first = the legacy chain order,
   bit-identical.
-- **`load_over_store` (`PRIO_SUB`)** — reads outrank writes (already the baseline); a
-  1-bit priority key protecting latency-critical reads.
+- **`load_over_store` (`PRIO_SUB`; IMPLEMENTED 2026-08-27, `SCHED_POLICY.prio_sub`)** —
+  reads outrank writes (the baseline); a 1-bit priority key protecting latency-critical
+  reads. As built the field selects: 0/2 `load_over_store` (default, bit-identical),
+  1 `none` (fair — the direction alternates on every fired demand op, so neither
+  direction monopolizes), 3 `age_boost` (reads first UNLESS the write-class winner is
+  age-boosted and the read-class winner is not, so an aged write pierces read priority).
+  The write-batching drain overrides prio_sub while active.
 - **Write batching (IMPLEMENTED 2026-08-27, `SCHED_WR_WM.wr_high_wm/wr_low_wm`)** —
   drain writes back-to-back once the write buffer crosses `WR_HIGH_WM`, stopping at
   `WR_LOW_WM`, to amortize tWTR/bus turnaround instead of ping-ponging RD/WR. As built:

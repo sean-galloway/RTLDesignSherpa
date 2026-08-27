@@ -82,6 +82,13 @@ module pumice_cmd_arbiter
     // bit-identical read-priority).
     input  logic [7:0]                sched_wr_high_wm_i,
     input  logic [7:0]                sched_wr_low_wm_i,
+    // Priority sub-policy (SCHED_POLICY.prio_sub): 0/2 = load_over_store
+    // (reads first -- the build default), 1 = none (fair: the direction
+    // alternates on each fired demand op), 3 = age_boost (reads first
+    // UNLESS the write-class winner is age-boosted and the read-class
+    // winner is not -- aged writes pierce read priority). The write-
+    // batching drain overrides all of these while active.
+    input  logic [1:0]                sched_prio_sub_i,
     input  logic [NUM_ENTRIES-1:0]    rd_sch_age_exceed_i, // per-entry age boost
     input  logic [NUM_ENTRIES-1:0]    wr_sch_age_exceed_i,
     input  logic [AGE_WIDTH-1:0]      rd_sch_head_rel_i,   // oldest entry's rel age
@@ -569,6 +576,12 @@ module pumice_cmd_arbiter
             if (wr_sch_valid_i[i]) w_wr_occ = w_wr_occ + OCCW'(1);
     end
 
+    // Fair-alternation toggle for prio_sub == none: flips on every fired
+    // demand op so neither direction can monopolize the pick. The flop
+    // lives below the output stage (it needs w_fire_out); only the
+    // declaration is here, where the pick logic reads it.
+    logic r_dir_rr;
+
     logic r_wr_drain;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -581,6 +594,24 @@ module pumice_cmd_arbiter
             r_wr_drain <= 1'b1;                       // backlog: start drain
         end
     )
+
+    // Per-class "write goes first" decision: drain > prio_sub.
+    logic w_col_wrf, w_act_wrf, w_pre_wrf;
+    always_comb begin
+        automatic logic rr = (sched_prio_sub_i == 2'd1) && r_dir_rr;
+        w_col_wrf = r_wr_drain || rr
+                  || ((sched_prio_sub_i == 2'd3)
+                      && wr_sch_age_exceed_i[wr_col_s]
+                      && !rd_sch_age_exceed_i[rd_col_s]);
+        w_act_wrf = r_wr_drain || rr
+                  || ((sched_prio_sub_i == 2'd3)
+                      && wr_sch_age_exceed_i[wr_act_s]
+                      && !rd_sch_age_exceed_i[rd_act_s]);
+        w_pre_wrf = r_wr_drain || rr
+                  || ((sched_prio_sub_i == 2'd3)
+                      && wr_sch_age_exceed_i[wr_pre_s]
+                      && !rd_sch_age_exceed_i[rd_pre_s]);
+    end
 
     logic w_c_col, w_c_act, w_c_pre;
     pick_class_e w_pick_class;
@@ -699,7 +730,7 @@ module pumice_cmd_arbiter
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
         end else if (w_pick_class == CL_COL && rd_col_f
-                     && !(r_wr_drain && wr_col_f)) begin
+                     && !(w_col_wrf && wr_col_f)) begin
             // 3a. READ row-hit (read-priority). ap is per-bank when the
             // runtime page-policy engine is active.
             w_bank = f_bank(rd_sch_bank_i, rd_col_s); w_col = f_col(rd_sch_col_i, rd_col_s);
@@ -711,7 +742,7 @@ module pumice_cmd_arbiter
             w_valid = 1'b1; w_op = f_ap(w_bank) ? OP_WRA : OP_WR;
             w_ap_out = f_ap(w_bank); w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
         end else if (w_pick_class == CL_ACT && rd_act_f
-                     && !(r_wr_drain && wr_act_f)) begin
+                     && !(w_act_wrf && wr_act_f)) begin
             // 4a. ACTIVATE the oldest pending READ's idle bank (bank-parallel).
             w_valid = 1'b1; w_op = OP_ACT;
             w_bank = f_bank(rd_sch_bank_i, rd_act_s); w_row = f_row(rd_sch_row_i, rd_act_s);
@@ -722,7 +753,7 @@ module pumice_cmd_arbiter
             w_bank = f_bank(wr_sch_bank_i, wr_act_s); w_row = f_row(wr_sch_row_i, wr_act_s);
             w_do_act = 1'b1;
         end else if (w_pick_class == CL_PRE && rd_pre_f
-                     && !(r_wr_drain && wr_pre_f)) begin
+                     && !(w_pre_wrf && wr_pre_f)) begin
             // 5a. PRECHARGE a bank open on the wrong row for a pending read.
             w_valid = 1'b1; w_op = OP_PRE; w_bank = f_bank(rd_sch_bank_i, rd_pre_s);
             w_do_pre = 1'b1;
@@ -750,6 +781,14 @@ module pumice_cmd_arbiter
     logic w_out_ready, w_fire_out;
     assign w_out_ready = !r_pick_valid || cmd_ready_i;   // may capture a new pick
     assign w_fire_out  = r_pick_valid && cmd_ready_i;     // registered cmd accepted
+
+    // prio_sub == none fair-alternation toggle (declared above with the
+    // pick logic that reads it).
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_dir_rr <= 1'b0;
+        else if (w_fire_out && (r_do_rd || r_do_wr || r_do_act || r_do_pre))
+            r_dir_rr <= ~r_dir_rr;
+    )
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin

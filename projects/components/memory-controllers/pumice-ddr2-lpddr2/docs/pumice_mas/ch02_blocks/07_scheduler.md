@@ -88,6 +88,11 @@ all gated on the command sink accepting the push:
    entry of the older CAM (relative-age compare across CAMs); `3
    age_threshold` narrows every class to aged entries whenever any exist
    (per-entry 1-bit flags from the CAMs at `SCHED_POLICY.age_thresh`).
+   `SCHED_POLICY.prio_sub` selects the read-vs-write key WITHIN a class:
+   0/2 load_over_store (default), 1 none (alternating direction toggle,
+   flipped on each fired demand op), 3 age_boost (an age-boosted write
+   winner outranks a non-boosted read winner — the `age_thresh` flags
+   feed this directly).
    `SCHED_WR_WM` write batching: wr-CAM occupancy >= high_wm arms a
    registered drain in which WRITES outrank reads in every demand class,
    released at <= low_wm (high_wm = 0 disables — the default

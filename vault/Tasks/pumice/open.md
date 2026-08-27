@@ -165,7 +165,14 @@
   outrank reads in every class; 0 = disabled bit-identical). Fub
   scenario 14 (fire-order: wm off -> RD first; 3/1 -> two WRs front-run
   the read), mutation-proven (drain forced off -> RD-first RED).
-  Remaining Axis 1: prio_sub, QoS.
+- Axis 1 step 5: prio_sub landed (SCHED_POLICY.prio_sub: 0/2
+  load_over_store default bit-identical, 1 none = per-fire direction
+  toggle, 3 age_boost = an aged write winner pierces read priority via
+  the age_thresh flags). Per-class write-first decision with precedence
+  drain > prio_sub. Fub scenario 15 (fire order: default RD-first,
+  none = both fire, age_boost aged-WR-first + unaged RD-first),
+  mutation-proven (decode dead -> age_boost arm RED).
+  Remaining Axis 1: QoS (AxQOS-aware pick, QOS_EN).
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.
