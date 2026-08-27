@@ -75,6 +75,28 @@ table. Good acceptance checks:
 - **cross-tracker agreement** — the scheduler's `EVT_ACT` count should
   match the bank timers' `ROW_ACTIVE_SET` count.
 
+## Channel utilization is a different question — and a trap
+
+A handshake tracker (`AxiChanTracker` in pumice) buckets every cycle the
+way `rtl/amba/shared/axi_bus_meter.sv` does — productive / backpressure /
+starvation / idle — plus the RUN LENGTH of consecutive `valid && ready`.
+
+Read the buckets before believing a utilization number:
+
+- **high `starv%` (ready high, valid low) means the STIMULUS is the
+  bottleneck, not the DUT.** Pumice's tightest back-to-back core test
+  measures 8.6% data-channel utilization with 91% starvation and *zero*
+  backpressure — the controller was ready and waiting almost the whole
+  run. That number grades the testbench, not the design.
+- **high `bp%`** is the interesting one: the DUT stalling a master that
+  wants to send.
+- **`max_run`** answers "how long can the handshake hold". A data channel
+  that never exceeds one burst length is not bridging bursts — which may
+  be the design, the page policy, or (again) the stimulus.
+
+So: to grade a DUT's streaming ceiling you need a stimulus that keeps the
+request pipe full; otherwise you are measuring your own driver.
+
 ## Wiring
 
 `wire_trackers(dut, scope_paths={...})` takes a per-tracker instance path

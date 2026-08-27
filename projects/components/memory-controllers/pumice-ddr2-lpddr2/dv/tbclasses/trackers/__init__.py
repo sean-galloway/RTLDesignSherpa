@@ -17,6 +17,7 @@ Available trackers (9 total):
     BankTimersTracker       — per-(rank, bank) state, row open/close, residency
     PagePolicyTracker       — Axis-2 paging decisions (mode, ap mask, verdicts)
     CamTracker              — rd/wr CAM entry lifecycle + occupancy
+    AxiChanTracker          — per-AXI-channel utilization + handshake run lengths
     DfiCmdFormatterTracker  — JEDEC ras/cas/we_n decode + ODT/CKE changes
     PowerdownTracker        — pdn_req / per-rank CKE residency
     InitSequencerTracker    — init duration, MR-write log, ZQCL pulses
@@ -34,6 +35,7 @@ from .refresh_tracker          import RefreshTracker
 from .bank_timers_tracker      import BankTimersTracker
 from .page_policy_tracker      import PagePolicyTracker
 from .cam_tracker               import CamTracker
+from .axi_chan_tracker          import AxiChanTracker, wire_axi_channels
 from .dfi_cmd_formatter_tracker import DfiCmdFormatterTracker
 from .powerdown_tracker        import PowerdownTracker
 from .init_sequencer_tracker   import InitSequencerTracker
@@ -56,6 +58,7 @@ __all__ = [
     # trackers
     "SchedulerTracker", "RefreshTracker",
     "BankTimersTracker", "PagePolicyTracker", "CamTracker",
+    "AxiChanTracker", "wire_axi_channels",
     "DfiCmdFormatterTracker", "PowerdownTracker", "InitSequencerTracker",
     "WrBeatSequencerTracker", "RdClAlignerTracker",
     # divergence

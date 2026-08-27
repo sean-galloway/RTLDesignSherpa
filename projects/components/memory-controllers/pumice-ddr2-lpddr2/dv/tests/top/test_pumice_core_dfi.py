@@ -157,7 +157,12 @@ async def _bring_up(dut, page_policy=0):
             "wrbeat":  "u_core.u_dfi.u_wr",
             "rdalign": "u_core.u_dfi.u_rd",
         })
-        dut._log.info("PUMICE_TRACKERS=1: structure trackers wired")
+        # AXI-side utilization + handshake run lengths (DV-side only; the
+        # silicon equivalent is the external observer, PUMICE-008).
+        from tbclasses.trackers import wire_axi_channels
+        wire_axi_channels(dut, prefix="s_axi_", log=dut._log,
+                          clk_signal="aclk")   # writes axi_util.out at exit
+        dut._log.info("PUMICE_TRACKERS=1: structure + AXI channel trackers wired")
 
     return memory, slave
 

@@ -256,6 +256,27 @@ hit rate, ACT/PRE/REF counts per setting), recommended defaults per
 workload family (streaming / random / mixed / page-hostile), and any
 mechanism gaps found reported back to PUMICE-006 before it closes.
 
+**Stimulus + measurement that already exists (audited 2026-08-27):**
+- `pumice_char.py` families ARE the paging grade: `row_major` is
+  contiguous WRAPPED INSIDE A PAGE (every burst a HIT), `col_major` walks
+  rows in one bank (every burst a MISS), `incremental` marches
+  contiguously (hits until each row crossing). row_major reaches sim via
+  the `matrix`/`full` profiles; `smoke` only crosses incremental +
+  col_major, so the hit case is missing from the quick profile.
+- Sim tests have page-hit stimulus but do NOT grade it: `row_hit_pattern`
+  walks columns in one {bank,row} (all hits, 6/16/32 bursts, data-only
+  check); `engine_mirror` streams contiguous bursts but runs
+  page_policy=CLOSE by design, so it is a throughput test, not a paging
+  one. NOTHING reads PAGE_STATS -- `grep hit_rate` across all three
+  tiers is empty.
+- NEW: `AxiChanTracker` (PUMICE_TRACKERS=1) writes `axi_util.out` with
+  per-channel utilization in axi_bus_meter buckets + handshake run
+  lengths. FIRST MEASUREMENT (core b2b, 48 bursts): data channels
+  util 8.6%, max_run 4 = exactly one burst never bridged, ZERO
+  backpressure, starvation 91%. Read that carefully -- the DUT was ready
+  and idle most of the run, so the number grades the STIMULUS. Any
+  streaming-ceiling claim needs a driver that keeps the pipe full first.
+
 **Existing collateral to build on:** `pumice_char.py` (families,
 RUN_PROFILES, the `multiid_min` repro profile), `pumice_master.py --char`
 with `--char-configs` / `--char-level` / `--char-scale`, and the board
