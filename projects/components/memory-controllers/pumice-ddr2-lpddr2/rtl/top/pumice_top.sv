@@ -181,6 +181,8 @@ module pumice_top
         .page_mc_init_i(hwif_out.PAGE_ADAPT_CFG.mc_init.value),
         .page_check_ivl_i(hwif_out.PAGE_ADAPT_CFG.check_interval.value),
         .sched_order_mode_i(hwif_out.SCHED_POLICY.order_mode.value),
+        .sched_row_sel_i(hwif_out.SCHED_POLICY.row_sel.value),
+        .sched_col_sel_i(hwif_out.SCHED_POLICY.col_sel.value),
         .sched_age_thresh_i(hwif_out.SCHED_POLICY.age_thresh.value),
         .page_ctr_thresh_i(hwif_out.PAGE_POLICY_CFG.ctr_open_max.value),
         .page_ctr_init_i(hwif_out.PAGE_POLICY_CFG.ctr_init.value),

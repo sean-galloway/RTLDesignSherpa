@@ -656,9 +656,11 @@ async def cocotb_test_pumice_core_sched_order(dut):
         await _w(dut, golden[addr])
     await ClockCycles(dut.aclk, 300)         # drain all writes
 
-    async def _run_arm(mode, thresh):
+    async def _run_arm(mode, thresh, row_sel=0, col_sel=0):
         dut.sched_order_mode_i.value = mode
         dut.sched_age_thresh_i.value = thresh
+        dut.sched_row_sel_i.value = row_sel
+        dut.sched_col_sel_i.value = col_sel
         done, vic_beats = [0], []
 
         async def _collect():
@@ -687,10 +689,12 @@ async def cocotb_test_pumice_core_sched_order(dut):
         assert vic_beats[:BL_WORDS] == golden[vic_addr], (
             f"mode {mode}: victim data not golden")
 
-    for mode, thresh in ((0, 0), (3, 2), (1, 0), (0, 0)):
-        await _run_arm(mode, thresh)
+    for mode, thresh, rs, cs in ((0, 0, 0, 0), (3, 2, 0, 0), (1, 0, 0, 0),
+                                 (0, 0, 1, 1), (0, 0, 2, 2), (0, 0, 0, 0)):
+        await _run_arm(mode, thresh, rs, cs)
     dut._log.info(f"PASS sched_order: parked-victim pattern clean under "
-                  f"fr_fcfs / age_threshold / in_order / disarm")
+                  f"fr_fcfs / age_threshold / in_order / most_pending / "
+                  f"fewest_pending / disarm")
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")

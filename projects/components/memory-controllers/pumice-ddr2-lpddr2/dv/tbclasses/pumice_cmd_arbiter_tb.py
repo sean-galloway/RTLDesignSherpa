@@ -78,6 +78,8 @@ class PumiceCmdArbiterTB(TBBase):
         self.dut.t_rfc_i.value = 8       # REF recovery (mission-mode tRFC)
         self.dut.t_rfc_pb_i.value = 0
         self.dut.sched_order_mode_i.value = 0   # FR-FCFS build default
+        self.dut.sched_row_sel_i.value = 0      # oldest
+        self.dut.sched_col_sel_i.value = 0      # oldest
         self.dut.rd_sch_age_exceed_i.value = 0
         self.dut.wr_sch_age_exceed_i.value = 0
         self.dut.rd_sch_head_rel_i.value = 0

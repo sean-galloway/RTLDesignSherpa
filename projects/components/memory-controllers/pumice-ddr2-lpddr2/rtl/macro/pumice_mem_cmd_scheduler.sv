@@ -55,6 +55,8 @@ module pumice_mem_cmd_scheduler
 
     // ---- runtime page-policy CSR fields + telemetry (PUMICE-006 Axis 2) ----
     input  logic [1:0]                sched_order_mode_i, // SCHED_POLICY.order_mode
+    input  logic [1:0]                sched_row_sel_i,    // SCHED_POLICY.row_sel
+    input  logic [1:0]                sched_col_sel_i,    // SCHED_POLICY.col_sel
     input  logic [2:0]                page_mode_i,        // PAGE_POLICY_CFG.policy_mode
     input  logic                      page_scope_i,
     input  logic [7:0]                page_tr_init_i,
@@ -338,6 +340,7 @@ module pumice_mem_cmd_scheduler
         .wr_sch_valid_i(wr_sch_valid_i), .wr_sch_bank_i(wr_sch_bank_i), .wr_sch_row_i(wr_sch_row_i),
         .wr_sch_col_i(wr_sch_col_i), .wr_sch_older_i(wr_sch_older_i),
         .sched_order_mode_i(sched_order_mode_i),
+        .sched_row_sel_i(sched_row_sel_i), .sched_col_sel_i(sched_col_sel_i),
         .wr_sch_age_exceed_i(wr_sch_age_exceed_i), .wr_sch_head_rel_i(wr_sch_head_rel_i),
         .rd_sch_age_exceed_i(rd_sch_age_exceed_i), .rd_sch_head_rel_i(rd_sch_head_rel_i),
         .wr_commit_ready_i(wr_commit_ready_i),

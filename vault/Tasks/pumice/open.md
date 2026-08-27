@@ -137,8 +137,18 @@
   guard-blocked PRE never becomes a candidate while the competing column
   keeps firing and re-arming that same guard (self-sustaining starvation
   of the anti-starvation mechanism). Mutation-proven (overlay gutted ->
-  in_order arm RED). Remaining Axis 1: most/fewest_pending, ACCESS_PREF,
-  write batching (SCHED_WR_WM), prio_sub, QoS.
+  in_order arm RED).
+- Axis 1 step 2: ROW_SEL/COL_SEL most/fewest_pending landed
+  (SCHED_POLICY.row_sel/col_sel). Per-entry pending population = 8x8
+  same-{bank,row} match triangle per CAM (the paper's "expensive
+  counters" are trivial at CAM depth 8); arg_sel picks population-first
+  with OLDEST tie-break, composing under the ORDER_MODE narrowing;
+  row_sel steers ACT, col_sel steers COLUMN, PREs stay oldest. Fub
+  scenario 12 (hot-row-vs-lone-old vectors, per-edge polls) proves all
+  three encodings both directions; mutation (selector forced to oldest)
+  -> RED by drain-loop timeout. Core sentinel sweep extended with
+  most/most + fewest/fewest arms. Remaining Axis 1: ACCESS_PREF, write
+  batching (SCHED_WR_WM), prio_sub, QoS.
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.

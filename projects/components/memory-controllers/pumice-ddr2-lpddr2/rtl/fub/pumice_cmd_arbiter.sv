@@ -62,6 +62,13 @@ module pumice_cmd_arbiter
     // ---- SCHED_POLICY order mode (PUMICE-006 Axis 1) ----
     // 0/2 = FR-FCFS (build default), 1 = in_order, 3 = age_threshold.
     input  logic [1:0]                sched_order_mode_i,
+    // Row/column arbiter selects (SCHED_POLICY.row_sel / col_sel):
+    // 0 = default (oldest), 1 = most_pending, 2 = fewest_pending. row_sel
+    // steers the ACTIVATE pick, col_sel the COLUMN pick; tie-break is
+    // always oldest. Pending population is counted per CAM over its own
+    // schedulable entries sharing {bank,row}.
+    input  logic [1:0]                sched_row_sel_i,
+    input  logic [1:0]                sched_col_sel_i,
     input  logic [NUM_ENTRIES-1:0]    rd_sch_age_exceed_i, // per-entry age boost
     input  logic [NUM_ENTRIES-1:0]    wr_sch_age_exceed_i,
     input  logic [AGE_WIDTH-1:0]      rd_sch_head_rel_i,   // oldest entry's rel age
@@ -457,13 +464,77 @@ module pumice_cmd_arbiter
         end
     end
 
+    // ---- per-entry pending population (SCHED_POLICY.row_sel / col_sel) ----
+    // pop[i] = number of SCHEDULABLE entries in the SAME CAM sharing entry
+    // i's {bank,row} (including itself). At NUM_ENTRIES=8 this is a cheap
+    // 8x8 match triangle -- the paper's "expensive population counters"
+    // degenerate to a handful of 3-bit adders at this CAM depth.
+    localparam int POPW = $clog2(NUM_ENTRIES + 1);
+    logic [POPW-1:0] rd_pop [NUM_ENTRIES];
+    logic [POPW-1:0] wr_pop [NUM_ENTRIES];
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            rd_pop[i] = '0;
+            wr_pop[i] = '0;
+            for (int j = 0; j < NUM_ENTRIES; j++) begin
+                if (rd_sch_valid_i[j]
+                    && (f_bank(rd_sch_bank_i, PTRW'(j)) == f_bank(rd_sch_bank_i, PTRW'(i)))
+                    && (f_row(rd_sch_row_i, PTRW'(j))  == f_row(rd_sch_row_i, PTRW'(i))))
+                    rd_pop[i] = rd_pop[i] + POPW'(1);
+                if (wr_sch_valid_i[j]
+                    && (f_bank(wr_sch_bank_i, PTRW'(j)) == f_bank(wr_sch_bank_i, PTRW'(i)))
+                    && (f_row(wr_sch_row_i, PTRW'(j))  == f_row(wr_sch_row_i, PTRW'(i))))
+                    wr_pop[i] = wr_pop[i] + POPW'(1);
+            end
+        end
+    end
+
+    // ---- oldest-with-population-policy pick : returns {found, slot} ----
+    // sel 0 = oldest (pure age-order matrix, identical to arg_oldest);
+    // sel 1 = most_pending, sel 2 = fewest_pending -- population first,
+    // OLDEST as the tie-break. All compares are POPW-bit + the 1-bit
+    // older matrix; entry i wins iff no other masked entry beats it.
+    function automatic logic [PTRW:0] arg_sel(
+        input logic [1:0]                          sel,
+        input logic [NUM_ENTRIES-1:0]              mask,
+        input logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  older,
+        input logic [POPW-1:0]                     pops [NUM_ENTRIES]
+    );
+        logic                   found;
+        logic [PTRW-1:0]        slot;
+        logic [NUM_ENTRIES-1:0] is_best;
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            automatic logic [NUM_ENTRIES-1:0] orow = older[i*NUM_ENTRIES +: NUM_ENTRIES];
+            automatic logic best = 1'b1;
+            for (int j = 0; j < NUM_ENTRIES; j++) begin
+                if ((j != i) && mask[j]) begin
+                    automatic logic j_pop_wins =
+                        (sel == 2'd1) ? (pops[j] > pops[i]) :
+                        (sel == 2'd2) ? (pops[j] < pops[i]) : 1'b0;
+                    automatic logic pop_tie =
+                        (sel == 2'd0) || (pops[j] == pops[i]);
+                    if (j_pop_wins || (pop_tie && !orow[j])) best = 1'b0;
+                end
+            end
+            is_best[i] = mask[i] && best;
+        end
+        found = |is_best;
+        slot  = '0;
+        for (int i = NUM_ENTRIES-1; i >= 0; i--)
+            if (is_best[i]) slot = PTRW'(i);
+        return {found, slot};
+    endfunction
+
+    // col_sel steers columns, row_sel steers activates; precharge picks
+    // stay strictly oldest (closing the "most pending" row would be
+    // anti-productive, and PRE ordering is a correctness-adjacent path).
     logic            rd_col_f, wr_col_f, rd_act_f, wr_act_f, rd_pre_f, wr_pre_f;
     logic [PTRW-1:0] rd_col_s, wr_col_s, rd_act_s, wr_act_s, rd_pre_s, wr_pre_s;
     always_comb begin
-        {rd_col_f, rd_col_s} = arg_oldest(rd_col_me, rd_sch_older_i);
-        {wr_col_f, wr_col_s} = arg_oldest(wr_col_me, wr_sch_older_i);
-        {rd_act_f, rd_act_s} = arg_oldest(rd_act_me, rd_sch_older_i);
-        {wr_act_f, wr_act_s} = arg_oldest(wr_act_me, wr_sch_older_i);
+        {rd_col_f, rd_col_s} = arg_sel(sched_col_sel_i, rd_col_me, rd_sch_older_i, rd_pop);
+        {wr_col_f, wr_col_s} = arg_sel(sched_col_sel_i, wr_col_me, wr_sch_older_i, wr_pop);
+        {rd_act_f, rd_act_s} = arg_sel(sched_row_sel_i, rd_act_me, rd_sch_older_i, rd_pop);
+        {wr_act_f, wr_act_s} = arg_sel(sched_row_sel_i, wr_act_me, wr_sch_older_i, wr_pop);
         {rd_pre_f, rd_pre_s} = arg_oldest(rd_pre_me, rd_sch_older_i);
         {wr_pre_f, wr_pre_s} = arg_oldest(wr_pre_me, wr_sch_older_i);
     end

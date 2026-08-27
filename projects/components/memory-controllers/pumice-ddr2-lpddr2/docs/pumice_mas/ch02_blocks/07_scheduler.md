@@ -88,6 +88,11 @@ all gated on the command sink accepting the push:
    entry of the older CAM (relative-age compare across CAMs); `3
    age_threshold` narrows every class to aged entries whenever any exist
    (per-entry 1-bit flags from the CAMs at `SCHED_POLICY.age_thresh`).
+   `SCHED_POLICY.row_sel/col_sel` further steer the SELECTION within the
+   (possibly narrowed) activate/column classes: population-first
+   (most/fewest schedulable entries sharing the candidate's {bank,row},
+   an 8x8 match triangle per CAM) with oldest tie-break; 0 = pure oldest,
+   and precharge picks are always oldest.
    `w_ref_safe` also carries **`!r_grant`**: the grant-to-
    request-drop round trip is 2 cycles, so without it the branch re-picked a
    SECOND REF while the first still sat in the output register and the

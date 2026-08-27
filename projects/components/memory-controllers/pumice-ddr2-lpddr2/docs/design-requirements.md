@@ -388,10 +388,13 @@ field so any policy combination is reachable. All commodity-legal.
   bounding starvation. The boost triggers on the aged entry's EXISTENCE, not its momentary
   candidacy (a guard-blocked PRE must still engage the narrowing, or the competing column
   stream re-arms the guard forever).
-- **`ROW_SEL` / `COL_SEL` = `most_pending` / `fewest_pending`** — activate/serve the row
-  with the most (drain the hottest row) or fewest (let low-demand rows precharge sooner)
-  pending references. Needs per-row pending **population counters** — the only genuinely
-  expensive adders on this axis.
+- **`ROW_SEL` / `COL_SEL` = `most_pending` / `fewest_pending` (IMPLEMENTED 2026-08-26,
+  `SCHED_POLICY.row_sel/col_sel`)** — activate/serve the row with the most (drain the
+  hottest row) or fewest (let low-demand rows precharge sooner) pending references.
+  As built: the paper's "expensive population counters" degenerate at CAM depth 8 to an
+  8x8 same-{bank,row} match triangle per CAM; the pick is population-first with OLDEST
+  tie-break, composing under the ORDER_MODE mask narrowing. row_sel steers ACTIVATE,
+  col_sel steers COLUMN; precharge picks stay strictly oldest.
 - **`ACCESS_PREF` = `column_first` / `row_first` / `precharge_first`** — address-arbiter
   class preference (latency-to-open-row vs bank parallelism). Static arbiter priority.
 - **`load_over_store` (`PRIO_SUB`)** — reads outrank writes (already the baseline); a

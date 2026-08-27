@@ -250,6 +250,54 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     dut.sched_order_mode_i.value = 0
     dut.rd_sch_head_rel_i.value = 0
 
+    # ===== 12. ROW_SEL / COL_SEL (most/fewest pending) =====
+    # COLUMNS: banks 1 and 6 both open + hit; the OLDER candidate (slot 7,
+    # bank 6) is a lone reference, the YOUNGER (slot 2, bank 1) shares its
+    # {bank,row} with two more pending entries (slots 3,4 -> pop=3).
+    tb._drive_idle(); dut.init_done_i.value = 1
+    tb.set_bank_bits(dut.bank_row_active_i, {1: 1, 6: 1})
+    tb.set_bank_bits(dut.bank_rdwr_ready_i, {1: 1, 6: 1})
+    tb.set_open_rows({1: 0x11, 6: 0x66})
+    tb.set_entries('rd', {2: (1, 0x11, 0x08, 20), 3: (1, 0x11, 0x10, 15),
+                          4: (1, 0x11, 0x18, 10), 7: (6, 0x66, 0x09, 55)})
+
+    dut.sched_col_sel_i.value = 0            # oldest: lone slot 7 wins
+    p = await _poll_for(OP_RD)
+    assert p['op'] == OP_RD and p['bank'] == 6, f"col_sel oldest pick: {p}"
+
+    dut.sched_col_sel_i.value = 1            # most_pending: hot row (pop 3)
+    p = await _poll_for(OP_RD)
+    while p['op'] == OP_RD and p['bank'] == 6:   # drain the pipeline pick
+        p = await _poll_for(OP_RD)
+    assert p['op'] == OP_RD and p['bank'] == 1 and p['col'] == 0x08, \
+        f"col_sel most_pending pick (oldest of the hot row): {p}"
+
+    dut.sched_col_sel_i.value = 2            # fewest_pending: lone slot 7
+    p = await _poll_for(OP_RD)
+    while p['op'] == OP_RD and p['bank'] == 1:
+        p = await _poll_for(OP_RD)
+    assert p['op'] == OP_RD and p['bank'] == 6, f"col_sel fewest pick: {p}"
+    dut.sched_col_sel_i.value = 0
+
+    # ACTIVATES: banks 2 and 5 idle; the OLDER candidate (slot 0, bank 5)
+    # is lone, the YOUNGER row in bank 2 has pop=2 (slots 5,6).
+    tb._drive_idle(); dut.init_done_i.value = 1
+    tb.set_bank_bits(dut.bank_act_ready_i, {2: 1, 5: 1})
+    tb.set_entries('rd', {0: (5, 0x50, 0x00, 90), 5: (2, 0x22, 0x00, 30),
+                          6: (2, 0x22, 0x08, 25)})
+
+    dut.sched_row_sel_i.value = 0            # oldest: bank 5 first
+    p = await _poll_for(OP_ACT)
+    assert p['op'] == OP_ACT and p['bank'] == 5, f"row_sel oldest ACT: {p}"
+
+    dut.sched_row_sel_i.value = 1            # most_pending: bank 2 (pop 2)
+    p = await _poll_for(OP_ACT)
+    while p['op'] == OP_ACT and p['bank'] == 5:
+        p = await _poll_for(OP_ACT)
+    assert p['op'] == OP_ACT and p['bank'] == 2 and p['row'] == 0x22, \
+        f"row_sel most_pending ACT: {p}"
+    dut.sched_row_sel_i.value = 0
+
     tb.log.info("PASS: init, refresh(PRE->REF+grant), read-priority, oldest "
                 "tie-break, write pick, CLOSE auto-PRE, ACT idle bank, backpressure, "
                 "columns oldest-first (pipelined), bank-parallel activate, "
