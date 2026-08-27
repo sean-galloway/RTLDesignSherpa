@@ -134,6 +134,42 @@ Each one is here because ignoring it cost real work.
    `re.sub` no-ops), then grep the loose CONCEPT across the tree. A round costs
    an hour of serial dispatch and full re-review; a read-back costs seconds.
 
+   **Measured again, larger, on the monitor book (round_25, 2026-08-27):
+   TEN of 24 findings were my own round_24 fixes** -- not a tail, the single
+   biggest category in the round. The scale is the point: on a book with a
+   large first-round yield, expect roughly half of the confirmation round to
+   be your own work coming back, and budget the integration accordingly.
+
+   That round also showed the failure mode is not only "missed sibling".
+   Three distinct shapes, worth recognising separately:
+
+   - **Missed sibling** (the classic). Rewrote a page's Overview to say the
+     module snoops rather than arbitrates; left the PARAMETER TABLE still
+     describing the old subject. Fixed the passage I was reading, not the
+     claim.
+   - **Botched splice.** Replaced the cited span and left the rest of the
+     sentence, producing a self-contradiction that neither half had alone:
+     "They **wrap** at 2^32 (no saturation guard) ... so a long capture never
+     silently rolls back to 0", and "Throughput stays at **1 / 0.67
+     records/cycle**" with the stale `1` on the previous line. A reviewer
+     quotes a fragment; the fragment is not the unit of meaning. **Re-read the
+     whole sentence, and the one after it, after every replacement.**
+   - **New arithmetic, unchecked.** Correcting a wrong model means WRITING
+     NEW NUMBERS, and those are unverified the moment they land. I replaced a
+     fabricated power-of-2 tick table with a correct model and then inverted
+     the arithmetic in my own worked example (tick period is divisor/f_clk,
+     I wrote f_clk/divisor) -- so all three rows had the value and the
+     DIRECTION of the error wrong. Recompute every number you introduce, in
+     a shell, before committing; a fix is not exempt from rule 5 just because
+     it is a fix.
+
+   Corollary for the sweep: search the loose concept across ALL THREE
+   surfaces -- the RTL comment, the module page, and sibling pages -- because
+   docs get rewritten FROM the RTL comment, so leaving the comment reseeds the
+   error. In round_25 the "broken repo-root reference path" class the reviewer
+   cited twice was actually 13 instances across 12 files; the throughput claim
+   I thought I had fixed had a second copy in the same RTL file.
+
 7. **Integration status is MEASURED, never inferred from commit history.**
    Before claiming a round is integrated, check the findings against the tree.
    Cheap first pass: for every file a round implicates, has it been committed
