@@ -54,6 +54,7 @@ module pumice_wr_data_cam #(
     input  logic [ROW_WIDTH-1:0]          ins_row_i,
     input  logic [COL_WIDTH-1:0]          ins_col_i,
     input  logic [IW-1:0]                 ins_id_i,
+    input  logic [3:0]                    ins_qos_i,     // AxQOS (QOS_EN pick)
     input  logic                          ins_agg_i,   // part of a split burst
     input  logic                          ins_last_i,  // final sub of the burst
 
@@ -124,6 +125,8 @@ module pumice_wr_data_cam #(
     // for the age_threshold order mode (numeric ages never leave the CAM).
     input  logic [7:0]                          age_thresh_i,
     output logic [NUM_ENTRIES-1:0]              sch_age_exceed_o,
+    // per-entry AxQOS, flattened (QOS_EN arbiter key)
+    output logic [NUM_ENTRIES*4-1:0]            sch_qos_o,
     // relative age of the oldest SCHEDULABLE entry (0 when none): the
     // cross-CAM ordering key for the in_order mode. Comparable across CAMs
     // because every CAM age counter free-runs from reset (same epoch).
@@ -156,6 +159,7 @@ module pumice_wr_data_cam #(
     logic [ROW_WIDTH-1:0]    r_row   [NUM_ENTRIES];
     logic [COL_WIDTH-1:0]    r_col   [NUM_ENTRIES];
     logic [IW-1:0]           r_id    [NUM_ENTRIES];
+    logic [3:0]              r_qos   [NUM_ENTRIES];
     logic [AGE_WIDTH-1:0]    r_age   [NUM_ENTRIES];
     logic [SPTRW-1:0]        r_ptr   [NUM_ENTRIES];   // SRAM slot; set on 1st write
     logic                    r_pv    [NUM_ENTRIES];   // ptr_valid (1st beat filled)
@@ -355,6 +359,7 @@ module pumice_wr_data_cam #(
             sch_row_o  [i*ROW_WIDTH +: ROW_WIDTH] = r_row[i];
             sch_col_o  [i*COL_WIDTH +: COL_WIDTH] = r_col[i];
             sch_older_o[i*NUM_ENTRIES +: NUM_ENTRIES] = r_older[i];
+            sch_qos_o[i*4 +: 4] = r_qos[i];
             sch_age_exceed_o[i] = r_valid[i] && r_fdone[i] && !r_sched[i]
                                 && (age_thresh_i != 8'd0)
                                 && (w_rel[i] >= AGE_WIDTH'({age_thresh_i, 4'h0}));
@@ -482,6 +487,7 @@ module pumice_wr_data_cam #(
                 r_row  [w_free_slot] <= ins_row_i;
                 r_col  [w_free_slot] <= ins_col_i;
                 r_id   [w_free_slot] <= ins_id_i;
+                r_qos   [w_free_slot] <= ins_qos_i;
                 r_age  [w_free_slot] <= r_age_ctr;
                 r_fdone[w_free_slot] <= 1'b0;
                 r_agg  [w_free_slot] <= ins_agg_i;

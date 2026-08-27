@@ -415,8 +415,12 @@ field so any policy combination is reachable. All commodity-legal.
   wr-CAM schedulable occupancy drives a registered hysteresis; while draining, WRITES
   outrank reads in every demand class (the read-over-write flip, not a separate chain).
   high_wm=0 disables — bit-identical read-priority default.
-- **QoS-aware (exotic)** — factor `AxQOS` into the pick (highest-QoS ready first, age
-  tie-break) when `QOS_EN`.
+- **QoS-aware (IMPLEMENTED 2026-08-27, `SCHED_POLICY.qos_en`)** — factor `AxQOS` into
+  the pick (highest-QoS ready first, age tie-break) when `QOS_EN`. As built: AxQOS is
+  carried AR/AW -> intake -> CAM entry state -> the per-entry `sch_qos` vector; with
+  qos_en set each demand class narrows to its MAX-QoS candidates BEFORE the
+  population/oldest select, so QoS is the outer key and the existing selects break ties
+  inside the winning QoS level. qos_en = 0 is bit-identical (no QoS in the pick).
 - **Presets** (apples-to-apples): `in_order`, `first_ready`, `{col,row}_{open,close}`,
   `load_row_open`. Recommended default = `row_closed` + auto-precharge fusion +
   load-over-store.

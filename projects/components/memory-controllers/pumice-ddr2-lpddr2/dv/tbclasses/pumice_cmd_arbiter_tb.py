@@ -84,6 +84,9 @@ class PumiceCmdArbiterTB(TBBase):
         self.dut.sched_wr_high_wm_i.value = 0   # write batching off
         self.dut.sched_wr_low_wm_i.value = 0
         self.dut.sched_prio_sub_i.value = 0     # load_over_store default
+        self.dut.sched_qos_en_i.value = 0       # QoS pick off
+        self.dut.rd_sch_qos_i.value = 0
+        self.dut.wr_sch_qos_i.value = 0
         self.dut.rd_sch_age_exceed_i.value = 0
         self.dut.wr_sch_age_exceed_i.value = 0
         self.dut.rd_sch_head_rel_i.value = 0

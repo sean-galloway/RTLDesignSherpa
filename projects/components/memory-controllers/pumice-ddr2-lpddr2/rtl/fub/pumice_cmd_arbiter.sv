@@ -89,6 +89,14 @@ module pumice_cmd_arbiter
     // winner is not -- aged writes pierce read priority). The write-
     // batching drain overrides all of these while active.
     input  logic [1:0]                sched_prio_sub_i,
+    // QoS-aware pick (SCHED_POLICY.qos_en): when set, the per-class
+    // winner is the HIGHEST AxQOS ready candidate, oldest as tie-break
+    // (population selects still apply within an equal-QoS set only when
+    // qos_en is clear -- QoS is the outer key by design). qos_en=0 is
+    // the build default and bit-identical.
+    input  logic                      sched_qos_en_i,
+    input  logic [NUM_ENTRIES*4-1:0]  rd_sch_qos_i,
+    input  logic [NUM_ENTRIES*4-1:0]  wr_sch_qos_i,
     input  logic [NUM_ENTRIES-1:0]    rd_sch_age_exceed_i, // per-entry age boost
     input  logic [NUM_ENTRIES-1:0]    wr_sch_age_exceed_i,
     input  logic [AGE_WIDTH-1:0]      rd_sch_head_rel_i,   // oldest entry's rel age
@@ -556,15 +564,43 @@ module pumice_cmd_arbiter
     // col_sel steers columns, row_sel steers activates; precharge picks
     // stay strictly oldest (closing the "most pending" row would be
     // anti-productive, and PRE ordering is a correctness-adjacent path).
+    // QOS_EN: narrow each class to its MAX-QoS candidates before the
+    // population/oldest select runs, so QoS is the outer key and the
+    // existing selects break ties inside the winning QoS level.
+    function automatic logic [NUM_ENTRIES-1:0] qos_top(
+        input logic [NUM_ENTRIES-1:0]     mask,
+        input logic [NUM_ENTRIES*4-1:0]   qosv
+    );
+        logic [3:0] best;
+        logic [NUM_ENTRIES-1:0] out;
+        best = '0;
+        for (int i = 0; i < NUM_ENTRIES; i++)
+            if (mask[i] && (qosv[i*4 +: 4] > best)) best = qosv[i*4 +: 4];
+        for (int i = 0; i < NUM_ENTRIES; i++)
+            out[i] = mask[i] && (qosv[i*4 +: 4] == best);
+        return out;
+    endfunction
+
+    logic [NUM_ENTRIES-1:0] rd_col_q, rd_act_q, rd_pre_q;
+    logic [NUM_ENTRIES-1:0] wr_col_q, wr_act_q, wr_pre_q;
+    always_comb begin
+        rd_col_q = sched_qos_en_i ? qos_top(rd_col_me, rd_sch_qos_i) : rd_col_me;
+        rd_act_q = sched_qos_en_i ? qos_top(rd_act_me, rd_sch_qos_i) : rd_act_me;
+        rd_pre_q = sched_qos_en_i ? qos_top(rd_pre_me, rd_sch_qos_i) : rd_pre_me;
+        wr_col_q = sched_qos_en_i ? qos_top(wr_col_me, wr_sch_qos_i) : wr_col_me;
+        wr_act_q = sched_qos_en_i ? qos_top(wr_act_me, wr_sch_qos_i) : wr_act_me;
+        wr_pre_q = sched_qos_en_i ? qos_top(wr_pre_me, wr_sch_qos_i) : wr_pre_me;
+    end
+
     logic            rd_col_f, wr_col_f, rd_act_f, wr_act_f, rd_pre_f, wr_pre_f;
     logic [PTRW-1:0] rd_col_s, wr_col_s, rd_act_s, wr_act_s, rd_pre_s, wr_pre_s;
     always_comb begin
-        {rd_col_f, rd_col_s} = arg_sel(sched_col_sel_i, rd_col_me, rd_sch_older_i, rd_pop);
-        {wr_col_f, wr_col_s} = arg_sel(sched_col_sel_i, wr_col_me, wr_sch_older_i, wr_pop);
-        {rd_act_f, rd_act_s} = arg_sel(sched_row_sel_i, rd_act_me, rd_sch_older_i, rd_pop);
-        {wr_act_f, wr_act_s} = arg_sel(sched_row_sel_i, wr_act_me, wr_sch_older_i, wr_pop);
-        {rd_pre_f, rd_pre_s} = arg_oldest(rd_pre_me, rd_sch_older_i);
-        {wr_pre_f, wr_pre_s} = arg_oldest(wr_pre_me, wr_sch_older_i);
+        {rd_col_f, rd_col_s} = arg_sel(sched_col_sel_i, rd_col_q, rd_sch_older_i, rd_pop);
+        {wr_col_f, wr_col_s} = arg_sel(sched_col_sel_i, wr_col_q, wr_sch_older_i, wr_pop);
+        {rd_act_f, rd_act_s} = arg_sel(sched_row_sel_i, rd_act_q, rd_sch_older_i, rd_pop);
+        {wr_act_f, wr_act_s} = arg_sel(sched_row_sel_i, wr_act_q, wr_sch_older_i, wr_pop);
+        {rd_pre_f, rd_pre_s} = arg_oldest(rd_pre_q, rd_sch_older_i);
+        {wr_pre_f, wr_pre_s} = arg_oldest(wr_pre_q, wr_sch_older_i);
     end
 
     // ---- write-batching drain state (SCHED_WR_WM hysteresis) ----

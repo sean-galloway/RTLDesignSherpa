@@ -172,7 +172,18 @@
   drain > prio_sub. Fub scenario 15 (fire order: default RD-first,
   none = both fire, age_boost aged-WR-first + unaged RD-first),
   mutation-proven (decode dead -> age_boost arm RED).
-  Remaining Axis 1: QoS (AxQOS-aware pick, QOS_EN).
+- Axis 1 step 6: QoS landed (SCHED_POLICY.qos_en) — AXIS 1 COMPLETE.
+  AxQOS now carried AR/AW -> intake -> CAM entry -> per-entry sch_qos
+  vector (it previously died at the burst chopper); with qos_en each
+  class narrows to its max-QoS candidates BEFORE the population/oldest
+  select, making QoS the outer key with the existing selects as the
+  inner tie-break. Fub scenario 16: qos_en=0 picks the oldest (slot 5),
+  qos_en=1 picks the OLDEST OF THE MAX-QOS SET (slot 6, not the younger
+  slot 7) — proving both the outer key and the surviving age tie-break.
+  Mutation-proven (narrowing dead -> picks slot 5, RED).
+  ALL of PUMICE-006's three axes are now implemented: Axis 1
+  (scheduling), Axis 2 (paging), Axis 3 (refresh). What remains under
+  006 is characterization/tuning of the landed modes, not new features.
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.

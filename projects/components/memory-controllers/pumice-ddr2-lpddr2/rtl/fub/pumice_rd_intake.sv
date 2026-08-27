@@ -100,6 +100,7 @@ module pumice_rd_intake #(
     output logic [ROW_WIDTH-1:0]     ar_push_row_o,
     output logic [COL_WIDTH-1:0]     ar_push_col_o,
     output logic [IW-1:0]            ar_push_id_o,
+    output logic [3:0]               ar_push_qos_o,   // AxQOS -> CAM (QOS_EN pick)
 
     //=========================================================================
     // Snarf probe at the AR inlet (to the wr CAM). Combinational hit.
@@ -264,6 +265,7 @@ module pumice_rd_intake #(
     assign ar_push_row_o   = w_row;
     assign ar_push_col_o   = w_col;
     assign ar_push_id_o    = fub_arid;
+    assign ar_push_qos_o   = fub_arqos;
 
     gaxi_fifo_sync #(.DATA_WIDTH(ORD_W), .DEPTH(ORDER_FIFO_DEPTH)) u_order_fifo (
         .axi_aclk(aclk), .axi_aresetn(aresetn),

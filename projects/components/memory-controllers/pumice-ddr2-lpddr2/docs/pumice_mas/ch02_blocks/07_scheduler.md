@@ -88,6 +88,10 @@ all gated on the command sink accepting the push:
    entry of the older CAM (relative-age compare across CAMs); `3
    age_threshold` narrows every class to aged entries whenever any exist
    (per-entry 1-bit flags from the CAMs at `SCHED_POLICY.age_thresh`).
+   `SCHED_POLICY.qos_en` makes AxQOS the OUTER pick key: each class first
+   narrows to its max-QoS candidates (the CAMs carry AxQOS per entry from
+   the AR/AW handshake), then row_sel/col_sel and the oldest tie-break run
+   inside that set.
    `SCHED_POLICY.prio_sub` selects the read-vs-write key WITHIN a class:
    0/2 load_over_store (default), 1 none (alternating direction toggle,
    flipped on each fired demand op), 3 age_boost (an age-boosted write

@@ -110,6 +110,7 @@ module pumice_wr_intake #(
     output logic [ROW_WIDTH-1:0]     aw_push_row_o,
     output logic [COL_WIDTH-1:0]     aw_push_col_o,
     output logic [IW-1:0]            aw_push_id_o,
+    output logic [3:0]               aw_push_qos_o,   // AxQOS -> CAM (QOS_EN pick)
     output logic                     aw_push_err_o,   // ragged burst (illegal)
     output logic                     aw_push_agg_o,   // part of a split
     output logic                     aw_push_last_o,  // final sub of the burst
@@ -208,7 +209,7 @@ module pumice_wr_intake #(
     // ========================================================================
     // (2) AW-meta FIFO : {err, agg, last, id, addr}
     // ========================================================================
-    localparam int AWM_W = 3 + IW + AW;
+    localparam int AWM_W = 3 + 4 + IW + AW;   // {err,agg,last,QOS,id,addr}
 
     logic          w_aw_err;
     assign w_aw_err = ((32'(fub_awlen) + 32'd1) * GEAR != BL);
@@ -220,7 +221,8 @@ module pumice_wr_intake #(
 
     assign w_awm_wr_valid = fub_awvalid;
     assign fub_awready    = w_awm_wr_ready;
-    assign w_awm_wr_data  = {w_aw_err, w_side_agg, w_side_last, fub_awid, fub_awaddr};
+    assign w_awm_wr_data  = {w_aw_err, w_side_agg, w_side_last, fub_awqos,
+                             fub_awid, fub_awaddr};
 
     gaxi_fifo_sync #(.DATA_WIDTH(AWM_W), .DEPTH(AW_FIFO_DEPTH)) u_aw_meta_fifo (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
@@ -230,8 +232,10 @@ module pumice_wr_intake #(
 
     logic          w_head_err, w_head_agg, w_head_last;
     logic [IW-1:0] w_head_id;
+    logic [3:0]    w_head_qos;
     logic [AW-1:0] w_head_addr;
-    assign {w_head_err, w_head_agg, w_head_last, w_head_id, w_head_addr} = w_awm_rd_data;
+    assign {w_head_err, w_head_agg, w_head_last, w_head_qos,
+            w_head_id, w_head_addr} = w_awm_rd_data;
 
     // Decode the head burst's address to {rank,bank,row,col}
     logic [RKW-1:0]        w_rank;
@@ -255,6 +259,7 @@ module pumice_wr_intake #(
     assign aw_push_row_o   = w_row;
     assign aw_push_col_o   = w_col;
     assign aw_push_id_o    = w_head_id;
+    assign aw_push_qos_o   = w_head_qos;
     assign aw_push_err_o   = w_head_err;
     assign aw_push_agg_o   = w_head_agg;
     assign aw_push_last_o  = w_head_last;

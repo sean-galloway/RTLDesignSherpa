@@ -130,6 +130,7 @@ module pumice_core
     input  logic [7:0]                 sched_wr_high_wm_i,
     input  logic [7:0]                 sched_wr_low_wm_i,
     input  logic [1:0]                 sched_prio_sub_i,
+    input  logic                       sched_qos_en_i,
     input  logic [7:0]                 sched_age_thresh_i,
     input  logic [3:0]                 page_ctr_thresh_i,
     input  logic [3:0]                 page_ctr_init_i,
@@ -261,6 +262,7 @@ module pumice_core
     logic [NUM_ENTRIES*COL_WIDTH-1:0]   w_wr_sch_col,   w_rd_sch_col;
     logic [NUM_ENTRIES*NUM_ENTRIES-1:0] w_wr_sch_older, w_rd_sch_older;
     logic [NUM_ENTRIES-1:0]             w_wr_sch_agex,  w_rd_sch_agex;
+    logic [NUM_ENTRIES*4-1:0]           w_wr_sch_qos,   w_rd_sch_qos;
     logic [15:0]                        w_wr_sch_hrel,  w_rd_sch_hrel;
     logic                      w_wr_commit_v, w_wr_commit_rdy;
     logic [PTRW-1:0]           w_wr_commit_slot;
@@ -326,6 +328,7 @@ module pumice_core
         .wr_sch_valid_o(w_wr_sch_v), .wr_sch_bank_o(w_wr_sch_bank), .wr_sch_row_o(w_wr_sch_row),
         .wr_sch_col_o(w_wr_sch_col), .wr_sch_older_o(w_wr_sch_older),
         .wr_sch_age_exceed_o(w_wr_sch_agex), .wr_sch_head_rel_o(w_wr_sch_hrel),
+        .wr_sch_qos_o(w_wr_sch_qos), .rd_sch_qos_o(w_rd_sch_qos),
         .rd_sch_age_exceed_o(w_rd_sch_agex), .rd_sch_head_rel_o(w_rd_sch_hrel),
         .sched_age_thresh_i(sched_age_thresh_i),
         .wr_commit_valid_i(w_wr_commit_v), .wr_commit_ready_o(w_wr_commit_rdy),
@@ -384,7 +387,8 @@ module pumice_core
         .sched_row_sel_i(sched_row_sel_i), .sched_col_sel_i(sched_col_sel_i),
         .sched_access_pref_i(sched_access_pref_i),
         .sched_wr_high_wm_i(sched_wr_high_wm_i), .sched_wr_low_wm_i(sched_wr_low_wm_i),
-        .sched_prio_sub_i(sched_prio_sub_i),
+        .sched_prio_sub_i(sched_prio_sub_i), .sched_qos_en_i(sched_qos_en_i),
+        .rd_sch_qos_i(w_rd_sch_qos), .wr_sch_qos_i(w_wr_sch_qos),
         .wr_sch_age_exceed_i(w_wr_sch_agex), .wr_sch_head_rel_i(w_wr_sch_hrel),
         .rd_sch_age_exceed_i(w_rd_sch_agex), .rd_sch_head_rel_i(w_rd_sch_hrel),
         .wr_commit_ready_i(w_wr_commit_rdy),

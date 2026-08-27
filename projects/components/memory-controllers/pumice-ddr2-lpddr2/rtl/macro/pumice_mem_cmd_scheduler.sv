@@ -61,6 +61,7 @@ module pumice_mem_cmd_scheduler
     input  logic [7:0]                sched_wr_high_wm_i, // SCHED_WR_WM.wr_high_wm
     input  logic [7:0]                sched_wr_low_wm_i,  // SCHED_WR_WM.wr_low_wm
     input  logic [1:0]                sched_prio_sub_i,   // SCHED_POLICY.prio_sub
+    input  logic                      sched_qos_en_i,     // SCHED_POLICY.qos_en
     input  logic [2:0]                page_mode_i,        // PAGE_POLICY_CFG.policy_mode
     input  logic                      page_scope_i,
     input  logic [7:0]                page_tr_init_i,
@@ -133,6 +134,7 @@ module pumice_mem_cmd_scheduler
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    wr_sch_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  wr_sch_older_i,
     input  logic [NUM_ENTRIES-1:0]              wr_sch_age_exceed_i,
+    input  logic [NUM_ENTRIES*4-1:0]            wr_sch_qos_i,
     input  logic [15:0]                         wr_sch_head_rel_i,
     input  logic                                wr_commit_ready_i,
     output logic                                wr_commit_valid_o,
@@ -144,6 +146,7 @@ module pumice_mem_cmd_scheduler
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    rd_sch_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  rd_sch_older_i,
     input  logic [NUM_ENTRIES-1:0]              rd_sch_age_exceed_i,
+    input  logic [NUM_ENTRIES*4-1:0]            rd_sch_qos_i,
     input  logic [15:0]                         rd_sch_head_rel_i,
     input  logic                                rd_issue_ready_i,
     output logic                                rd_issue_valid_o,
@@ -347,7 +350,8 @@ module pumice_mem_cmd_scheduler
         .sched_row_sel_i(sched_row_sel_i), .sched_col_sel_i(sched_col_sel_i),
         .sched_access_pref_i(sched_access_pref_i),
         .sched_wr_high_wm_i(sched_wr_high_wm_i), .sched_wr_low_wm_i(sched_wr_low_wm_i),
-        .sched_prio_sub_i(sched_prio_sub_i),
+        .sched_prio_sub_i(sched_prio_sub_i), .sched_qos_en_i(sched_qos_en_i),
+        .rd_sch_qos_i(rd_sch_qos_i), .wr_sch_qos_i(wr_sch_qos_i),
         .wr_sch_age_exceed_i(wr_sch_age_exceed_i), .wr_sch_head_rel_i(wr_sch_head_rel_i),
         .rd_sch_age_exceed_i(rd_sch_age_exceed_i), .rd_sch_head_rel_i(rd_sch_head_rel_i),
         .wr_commit_ready_i(wr_commit_ready_i),

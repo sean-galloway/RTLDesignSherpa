@@ -429,6 +429,43 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     order = await _prio_order(3, wr_aged=False)
     assert order and order[0] == 'RD', f"prio_sub age_boost unaged -> RD: {order}"
 
+    # ===== 16. QOS_EN (AxQOS-aware pick, oldest tie-break) =====
+    # Bank 3 open; three read hits. Slot 5 is the OLDEST (age 90) at QoS 1;
+    # slots 6/7 are younger at QoS 7 (slot 6 older of the two). qos_en=0
+    # -> oldest (slot 5) wins. qos_en=1 -> the max-QoS set {6,7} wins and
+    # the OLDEST inside it (slot 6) is picked, proving QoS is the OUTER
+    # key and the age tie-break still runs inside it.
+    async def _qos_pick(en):
+        tb._drive_idle(); dut.init_done_i.value = 1
+        for _ in range(4):
+            await RisingEdge(dut.aclk)
+        tb.set_bank_bits(dut.bank_row_active_i, {3: 1})
+        tb.set_bank_bits(dut.bank_rdwr_ready_i, {3: 1})
+        tb.set_open_rows({3: 0x33})
+        tb.set_entries('rd', {5: (3, 0x33, 0x08, 90),
+                              6: (3, 0x33, 0x10, 60),
+                              7: (3, 0x33, 0x18, 30)})
+        # per-entry QoS nibbles: slot5=1, slot6=7, slot7=7
+        dut.rd_sch_qos_i.value = (1 << (5 * 4)) | (7 << (6 * 4)) | (7 << (7 * 4))
+        dut.sched_qos_en_i.value = en
+        for _ in range(16):
+            await RisingEdge(dut.aclk)
+            await _Timer(1, units='ns')
+            st = tb.strobes()
+            if st['rd']:
+                slot = st['rd_issue_slot']
+                dut.sched_qos_en_i.value = 0
+                dut.rd_sch_qos_i.value = 0
+                return slot
+        dut.sched_qos_en_i.value = 0
+        dut.rd_sch_qos_i.value = 0
+        return None
+
+    slot = await _qos_pick(0)
+    assert slot == 5, f"qos_en=0 must pick the OLDEST (slot 5), got {slot}"
+    slot = await _qos_pick(1)
+    assert slot == 6, f"qos_en=1 must pick oldest-of-max-QoS (slot 6), got {slot}"
+
     tb.log.info("PASS: init, refresh(PRE->REF+grant), read-priority, oldest "
                 "tie-break, write pick, CLOSE auto-PRE, ACT idle bank, backpressure, "
                 "columns oldest-first (pipelined), bank-parallel activate, "

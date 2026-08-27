@@ -95,6 +95,7 @@ module pumice_axi4_ifc #(
     output logic [NUM_ENTRIES*COL_WIDTH-1:0]    wr_sch_col_o,
     output logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  wr_sch_older_o,
     output logic [NUM_ENTRIES-1:0]              wr_sch_age_exceed_o,
+    output logic [NUM_ENTRIES*4-1:0]            wr_sch_qos_o,
     output logic [15:0]                         wr_sch_head_rel_o,
     input  logic                          wr_commit_valid_i,
     output logic                          wr_commit_ready_o,
@@ -114,6 +115,7 @@ module pumice_axi4_ifc #(
     output logic [NUM_ENTRIES*COL_WIDTH-1:0]    rd_sch_col_o,
     output logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  rd_sch_older_o,
     output logic [NUM_ENTRIES-1:0]              rd_sch_age_exceed_o,
+    output logic [NUM_ENTRIES*4-1:0]            rd_sch_qos_o,
     output logic [15:0]                         rd_sch_head_rel_o,
     // SCHED_POLICY.age_thresh -> both CAMs (MC cycles / 16; 0 = off)
     input  logic [7:0]                          sched_age_thresh_i,
@@ -225,6 +227,7 @@ module pumice_axi4_ifc #(
     logic                ar_push_valid, ar_push_ready;
     logic [BKW-1:0]      ar_push_bank;  logic [ROW_WIDTH-1:0] ar_push_row;
     logic [COL_WIDTH-1:0] ar_push_col;  logic [IW-1:0]        ar_push_id;
+    logic [3:0]           ar_push_qos;   logic [3:0]           aw_push_qos;
     logic                drain_valid, drain_ready, drain_last;
     logic [DW-1:0]       drain_data;    logic [1:0]           drain_resp;
 
@@ -252,7 +255,8 @@ module pumice_axi4_ifc #(
         .s_axi_bvalid(s_axi_bvalid), .s_axi_bready(s_axi_bready),
         .aw_push_valid_o(aw_push_valid), .aw_push_ready_i(aw_push_ready),
         .aw_push_rank_o(), .aw_push_bank_o(aw_push_bank), .aw_push_row_o(aw_push_row),
-        .aw_push_col_o(aw_push_col), .aw_push_id_o(aw_push_id), .aw_push_err_o(),
+        .aw_push_col_o(aw_push_col), .aw_push_id_o(aw_push_id),
+        .aw_push_qos_o(aw_push_qos), .aw_push_err_o(),
         .aw_push_agg_o(aw_push_agg), .aw_push_last_o(aw_push_last),
         .wdata_valid_o(wd_valid), .wdata_ready_i(wd_ready),
         .wdata_o(wd_data), .wstrb_o(wd_strb), .wlast_o(wd_last),
@@ -269,7 +273,7 @@ module pumice_axi4_ifc #(
         .aclk(aclk), .aresetn(aresetn),
         .ins_valid_i(aw_push_valid), .ins_ready_o(aw_push_ready),
         .ins_bank_i(aw_push_bank), .ins_row_i(aw_push_row),
-        .ins_col_i(aw_push_col), .ins_id_i(aw_push_id),
+        .ins_col_i(aw_push_col), .ins_id_i(aw_push_id), .ins_qos_i(aw_push_qos),
         .ins_agg_i(aw_push_agg), .ins_last_i(aw_push_last),
         .wd_valid_i(wd_valid), .wd_ready_o(wd_ready),
         .wd_data_i(wd_data), .wd_strb_i(wd_strb), .wd_last_i(wd_last),
@@ -290,6 +294,7 @@ module pumice_axi4_ifc #(
         .sch_valid_o(wr_sch_valid_o), .sch_bank_o(wr_sch_bank_o), .sch_row_o(wr_sch_row_o),
         .sch_col_o(wr_sch_col_o), .sch_older_o(wr_sch_older_o),
         .age_thresh_i(sched_age_thresh_i), .sch_age_exceed_o(wr_sch_age_exceed_o),
+        .sch_qos_o(wr_sch_qos_o),
         .sch_head_rel_o(wr_sch_head_rel_o),
         .commit_valid_i(wr_commit_valid_i), .commit_ready_o(wr_commit_ready_o),
         .commit_slot_i(wr_commit_slot_i),
@@ -322,6 +327,7 @@ module pumice_axi4_ifc #(
         .ar_push_valid_o(ar_push_valid), .ar_push_ready_i(ar_push_ready),
         .ar_push_rank_o(), .ar_push_bank_o(ar_push_bank), .ar_push_row_o(ar_push_row),
         .ar_push_col_o(ar_push_col), .ar_push_id_o(ar_push_id),
+        .ar_push_qos_o(ar_push_qos),
         .snarf_probe_valid_o(snarf_probe_valid), .snarf_probe_rank_o(),
         .snarf_probe_bank_o(snarf_bank), .snarf_probe_row_o(snarf_row),
         .snarf_probe_col_o(snarf_col),
@@ -344,7 +350,7 @@ module pumice_axi4_ifc #(
         .aclk(aclk), .aresetn(aresetn),
         .ins_valid_i(ar_push_valid), .ins_ready_o(ar_push_ready),
         .ins_bank_i(ar_push_bank), .ins_row_i(ar_push_row),
-        .ins_col_i(ar_push_col), .ins_id_i(ar_push_id),
+        .ins_col_i(ar_push_col), .ins_id_i(ar_push_id), .ins_qos_i(ar_push_qos),
         // legacy sched-lookup / oldest ports unused (scheduler reads sch_*).
         .sched_lu_valid_i('0), .sched_lu_bank_i('0), .sched_lu_row_i('0),
         .sched_lu_hit_o(), .sched_lu_slot_o(), .sched_lu_col_o(),
@@ -354,6 +360,7 @@ module pumice_axi4_ifc #(
         .sch_valid_o(rd_sch_valid_o), .sch_bank_o(rd_sch_bank_o), .sch_row_o(rd_sch_row_o),
         .sch_col_o(rd_sch_col_o), .sch_older_o(rd_sch_older_o),
         .age_thresh_i(sched_age_thresh_i), .sch_age_exceed_o(rd_sch_age_exceed_o),
+        .sch_qos_o(rd_sch_qos_o),
         .sch_head_rel_o(rd_sch_head_rel_o),
         .issue_valid_i(rd_issue_valid_i), .issue_ready_o(rd_issue_ready_o),
         .issue_slot_i(rd_issue_slot_i),
