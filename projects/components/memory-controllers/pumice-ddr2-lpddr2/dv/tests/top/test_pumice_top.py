@@ -439,23 +439,40 @@ def _run(request, testcase, extra_env=None, params_over=None):
     # Share one compiled sim across all tests with identical RTL params (the
     # cocotb testcase is selected at runtime), so the full suite compiles ~twice
     # (nr1 + nr2) instead of once per test — the run is otherwise recompile-bound.
-    build_key = "nr" + params["NUM_RANKS"]   # only NUM_RANKS varies across tests
+    #
+    # PUMICE-010: sharing is only safe WITHIN one process. cocotb_test's
+    # Verilator path re-runs `verilator -cc` + make UNCONDITIONALLY on every
+    # run() call (no staleness check), so two processes in one sim_build
+    # regenerate the sources under each other's compiles/sims and destroy the
+    # artifacts (the 48/31-spurious-FAIL clean-parallel tallies). Under
+    # pytest-xdist each WORKER runs its tests sequentially, so a per-worker
+    # suffix keeps the compile-sharing win inside a worker while removing all
+    # cross-process sharing. ccache absorbs the duplicate C++ compiles.
+    _worker = os.environ.get("PYTEST_XDIST_WORKER", "")
+    build_key = "nr" + params["NUM_RANKS"] + (f"_{_worker}" if _worker else "")
     sim_build = os.path.join(tests_dir, "local_sim_build", "shared_" + build_key)
     os.makedirs(sim_build, exist_ok=True)
+    # PUMICE-010: echo the per-test seed. pytest shows captured stdout for
+    # FAILING tests, so a one-off red is reproducible with PUMICE_SEED=<n>
+    # even after logs/ are cleaned.
+    seed = os.environ.get("PUMICE_SEED", str(random.randint(0, 100000)))
+    print(f"[seed] {tag} PUMICE_SEED={seed}")
     env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{tag}.log"),
            "COCOTB_LOG_LEVEL": "INFO",
            "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),
-           "SEED": os.environ.get("PUMICE_SEED", str(random.randint(0, 100000))),
+           "SEED": seed,
            "TEST_LEVEL": os.environ.get("TEST_LEVEL", "basic"),
            "DFI_RATE": params["DFI_RATE"], "DRAM_BEAT_WIDTH": params["DRAM_BEAT_WIDTH"],
            "BL": params["BL"], "NUM_RANKS": params["NUM_RANKS"]}
     if extra_env:
         env.update(extra_env)
     env.update(params)
-    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
-        toplevel=dut_name, module=module, testcase=testcase,
-        sim_build=sim_build, simulator="verilator", extra_env=env, parameters=params,
-        compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw", "-Wno-MULTIDRIVEN"],
+    run(python_search=[tests_dir], verilog_sources=verilog_sources,
+        includes=includes, toplevel=dut_name, module=module,
+        testcase=testcase, sim_build=sim_build, simulator="verilator",
+        extra_env=env, parameters=params,
+        compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw",
+                      "-Wno-MULTIDRIVEN"],
         waves=(os.environ.get("WAVES", "0") == "1"),
         # cocotb_test compiles --trace-fst under waves= but never passes the
         # RUNTIME --trace argv (cocotb's verilator.cpp only opens dump.fst when

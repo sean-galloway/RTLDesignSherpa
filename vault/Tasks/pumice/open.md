@@ -156,7 +156,17 @@ design-requirements doc (FR-FCFS variants, paging/refresh policy modes).
 ---
 
 ## PUMICE-008 — adopt axi4_intf_master_observer (APB-configured) for perf observation
-**Status:** open 2026-08-04
+**Status:** ACTIVE 2026-08-26 — now the DIRECTED path, not a nicety.
+Sean's direction: "don't have any monitor logic or perf logic inside
+pumice — I have an external block that does just this. However, keep
+tracking things like paging results and anything else that is easy but
+interesting." So: the char harness's hand-rolled bus meters + latency
+hists are to be RETIRED in favor of this observer (which also sidesteps
+the AMBA-HISTCH1 shared-primitive bug the bespoke path sits on — the
+observer instantiates the hist at NUM_CHANNELS=8); pumice keeps only the
+cheap counters (PAGE/SCHED/REF *_STATS, OBS_ROW_HIT, refresh-defer
+histograms). PUMICE-011 closed onto this task; the 1:1 accounting check
+moves to the observer path when it lands.
 
 pumice rolls its own perf observation: `perf_rd_prod/bp/starv/idle`,
 `perf_rd_hist_count/total`, `perf_clear`, `perf_freeze` wired out of the harness
@@ -231,64 +241,6 @@ produced silicon bugs:
 Each map must name the invariant that makes its unreachable cells unreachable --
 several of the above have "cannot happen" regions that are true only because of
 ordering guarantees elsewhere, and those guarantees belong in the citation.
-
-## PUMICE-010 — top-tier shared sim_build races under clean parallel runs
-**Status:** open 2026-08-23 — mechanism confirmed twice, serial run is the workaround
-
-`dv/tests/top/test_pumice_top.py::_run` shares one compiled sim per parameter
-set (`local_sim_build/shared_nr1` / `shared_nr2`) so the suite compiles ~twice
-instead of once per test — but there is NO LOCK around the compile. After
-`make clean-all`, `run-gate-parallel` (-n 48) sends dozens of concurrent
-Verilator/ccache compiles into the same directory and they destroy each
-other's artifacts (`Vtop__pch.h.fast: No such file`, invalid-PCH, missing .o).
-Measured 2026-08-23: two consecutive clean parallel runs reported 48 and 31
-spurious FAILs (126-144 reruns) on a suite that passes 53/55 serially — the
-reruns converge only once one compile survives, so the tally is garbage and
-the flake burns ~5 min anyway.
-
-`smoke`/warm-tree parallel runs are fine (nothing to compile). fub/macro use
-per-test build dirs and don't race.
-
-**Fix options:** a file lock around the cocotb_test `run()` compile (fcntl on
-`<sim_build>/.compile_lock`), or a cheap pre-compile step in the Makefile's
-parallel targets (run one test per shared build serially first, then fan out).
-Whichever lands, the parallel targets must give an honest tally after
-`clean-all` — that is the canonical regression recipe.
-
-Found while validating the RDS-DV#69 fix; the 2 real reds behind the noise are
-PUMICE-002 and the LPDDR2 decode regression RDS-DV#70.
-
-**Second finding (2026-08-24): failing seeds are unrecoverable.** One serial
-clean tier run showed geared[64/128/256] failing together; the per-test SEED is
-`random.randint(0,100000)` at wrapper level, printed nowhere in the summary, and
-the logs/ + results xml were wiped by the next `make clean-all` — so the repro
-was lost. File-scope reruns and a 10-seed `PUMICE_SEED` sweep (30 runs) all
-pass. Whatever fix lands for the lock should ALSO make the wrapper echo each
-test's SEED into the pytest summary line (or persist logs/ across clean-all
-until explicitly cleared) so a one-off failure is reproducible after the fact.
-
-## PUMICE-011 — multiid read-return accounting: hist total != txn_count (data clean)
-**Status:** open 2026-08-25 — deterministic, observability-only
-
-`col_major_bl8_multiid` (id_mode=LFSR) at medium@1000 reports a 1:1 violation:
-latency-hist total 168409 vs txn_count 64000 (EXTRA returns) — while the DATA
-integrity is clean (0 beats mismatched after the device-wrap fix). The value is
-byte-identical across all five controller configs, so it is deterministic and
-config-independent → an accounting behaviour of the LFSR-ID x chopped-burst
-path, not nondeterministic duplication. Sequencing in `measure()` is clean
-(clear_stats after programming, freeze before readback), so it is not
-cross-scenario accumulation.
-
-First suspect: `axi_perf_latency_hist` transaction-boundary tracking under
-many concurrent IDs — one AXI bl8 burst is 8 chopped BL4 DRAM commands, and
-per-ID RLAST collapse may be miscounted when IDs interleave. July's basic-scale
-run showed the small-N version (64007 vs 64000). Severity: harness
-observability only — the 1:1 check is doing its job of flagging it; data-path
-1:1 is separately proven by the CRC/mismatch counters.
-
-Repro: `pumice_master.py --char --char-configs baseline --char-level medium
---char-scale 1000` and watch col_major_bl8_multiid; or in sim,
-TEST_CHAR_PROFILE with a multiid scenario over the loopback.
 
 ## PUMICE-012 — greppable structure trackers (CAMs / page policy / refresh / scheduler)
 **Status:** open 2026-08-26 (Sean, mid-Axis-1 session)

@@ -662,6 +662,11 @@ RUN_PROFILES: Dict[str, dict] = {
     # one lever at a time vs the reorder failure
     "levers": dict(configs=["lever_lookahead", "lever_rdooo", "lever_open"],
                    level="basic", families=(FAM_COL_MAJOR,)),
+    # PUMICE-011 repro: the multiid (LFSR-id) scenario only — medium level is
+    # what adds col_major_bl8_multiid to the suite. baseline config; the 1:1
+    # hist-vs-txn_count check is the assertion under investigation.
+    "multiid_min": dict(configs=["baseline"], level="medium",
+                        families=(FAM_COL_MAJOR,)),
     # Everything: every preset (incl. refresh + adapt_time) x the full grid.
     "full": dict(configs="all", level="full", families=None),
 }

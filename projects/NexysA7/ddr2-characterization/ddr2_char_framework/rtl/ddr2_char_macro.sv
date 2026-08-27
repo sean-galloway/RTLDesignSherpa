@@ -669,10 +669,17 @@ module ddr2_char_macro
     );
 
     // Latency hist: WR side tracks AW -> B (single metric).
+    // MAX_OUTSTANDING sizes the timestamp FIFO. A command arriving at a
+    // full FIFO degrades SILENTLY (never timestamped, missing from
+    // o_hist_total -- see the o_cmd_block comment in the hist RTL), and
+    // with o_cmd_block unconsumed here the FIFO must cover the WHOLE
+    // engine-side admission domain: pumice CAM (8) + front skid stages +
+    // generator lookahead. Depth 8 lost up to 31/64 samples in the sim
+    // multiid_min profile (PUMICE-011 MISSING side); 32 covers it.
     axi_perf_latency_hist #(
         .ID_WIDTH        (IW),
         .NUM_CHANNELS    (1),
-        .MAX_OUTSTANDING (8),
+        .MAX_OUTSTANDING (32),
         .NUM_BINS        (16),
         .IS_READ         (1'b0)
     ) u_hist_wr (
@@ -699,10 +706,11 @@ module ddr2_char_macro
     );
 
     // Latency hist: RD side tracks AR -> firstR / RLAST (metric selects).
+    // MAX_OUTSTANDING: same sizing contract as the WR hist above.
     axi_perf_latency_hist #(
         .ID_WIDTH        (IW),
         .NUM_CHANNELS    (1),
-        .MAX_OUTSTANDING (8),
+        .MAX_OUTSTANDING (32),
         .NUM_BINS        (16),
         .IS_READ         (1'b1)
     ) u_hist_rd (

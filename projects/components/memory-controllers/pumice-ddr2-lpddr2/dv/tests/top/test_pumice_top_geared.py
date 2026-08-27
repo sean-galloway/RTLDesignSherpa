@@ -111,11 +111,16 @@ def test_pumice_top_geared(request, host_w):
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT),
               "BL": str(BL), "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
     sim_build = os.path.join(tests_dir, "local_sim_build", f"geared_h{host_w}")
+    # PUMICE-010: echo the seed so a one-off red is reproducible.
+    def _seed_echo(hw):
+        sd = os.environ.get("PUMICE_SEED", str(random.randint(0, 100000)))
+        print(f"[seed] geared_h{hw} PUMICE_SEED={sd}")
+        return sd
     os.makedirs(sim_build, exist_ok=True)
     env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{tag}.log"),
            "COCOTB_LOG_LEVEL": "INFO",
            "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml"),
-           "SEED": os.environ.get("PUMICE_SEED", str(random.randint(0, 100000))),
+           "SEED": _seed_echo(host_w),
            "HOST_AXI_DATA_WIDTH": str(host_w)}
     env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,

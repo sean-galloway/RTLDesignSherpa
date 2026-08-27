@@ -115,12 +115,12 @@ module pumice_top
     logic [31:0] w_stat_act, w_stat_pre, w_stat_ref;
     always_comb begin
         hwif_in = '{default: '0};
-        hwif_in.PAGE_STATS_HIT.count.next    = w_stat_page_hit;
-        hwif_in.PAGE_STATS_MISS.count.next   = w_stat_page_miss;
-        hwif_in.PAGE_STATS_EMPTY.count.next  = w_stat_page_empty;
-        hwif_in.SCHED_STATS_ACT.count.next   = w_stat_act;
-        hwif_in.SCHED_STATS_PRE.count.next   = w_stat_pre;
-        hwif_in.REF_STATS_REF.count.next     = w_stat_ref;
+        hwif_in.PAGE_STATS_HIT.VAL.next    = w_stat_page_hit;
+        hwif_in.PAGE_STATS_MISS.VAL.next   = w_stat_page_miss;
+        hwif_in.PAGE_STATS_EMPTY.VAL.next  = w_stat_page_empty;
+        hwif_in.SCHED_STATS_ACT.VAL.next   = w_stat_act;
+        hwif_in.SCHED_STATS_PRE.VAL.next   = w_stat_pre;
+        hwif_in.REF_STATS_REF.VAL.next     = w_stat_ref;
         // Capability strap: per-bank refresh exists on LPDDR2 only (DDR2 has
         // no REFpb command). Software reads this before selecting mode 2.
         hwif_in.REF_CTRL.perbank_supported.next =

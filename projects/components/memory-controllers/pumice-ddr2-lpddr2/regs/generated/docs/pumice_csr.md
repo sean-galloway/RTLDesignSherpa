@@ -1745,9 +1745,9 @@ request. All hw-readable so they drive the controller core.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|31:0|   count  |   r  |  —  |  — |
+|31:0|    VAL   |   r  |  —  |  — |
 
-#### count field
+#### VAL field
 
 <p>Column ops issued to an already-open row</p>
 
@@ -1759,9 +1759,9 @@ request. All hw-readable so they drive the controller core.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|31:0|   count  |   r  |  —  |  — |
+|31:0|    VAL   |   r  |  —  |  — |
 
-#### count field
+#### VAL field
 
 <p>Column ops that required PRE+ACT (conflict)</p>
 
@@ -1773,9 +1773,9 @@ request. All hw-readable so they drive the controller core.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|31:0|   count  |   r  |  —  |  — |
+|31:0|    VAL   |   r  |  —  |  — |
 
-#### count field
+#### VAL field
 
 <p>Column ops that required ACT only (bank closed)</p>
 
@@ -1787,9 +1787,9 @@ request. All hw-readable so they drive the controller core.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|31:0|   count  |   r  |  —  |  — |
+|31:0|    VAL   |   r  |  —  |  — |
 
-#### count field
+#### VAL field
 
 <p>ACT commands issued</p>
 
@@ -1801,9 +1801,9 @@ request. All hw-readable so they drive the controller core.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|31:0|   count  |   r  |  —  |  — |
+|31:0|    VAL   |   r  |  —  |  — |
 
-#### count field
+#### VAL field
 
 <p>PRE + PREA commands issued</p>
 
@@ -1815,9 +1815,9 @@ request. All hw-readable so they drive the controller core.</p>
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|31:0|   count  |   r  |  —  |  — |
+|31:0|    VAL   |   r  |  —  |  — |
 
-#### count field
+#### VAL field
 
 <p>REFab + REFpb commands issued</p>
 

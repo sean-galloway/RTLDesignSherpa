@@ -3142,12 +3142,12 @@ module pumice_csr (
     assign readback_array[56][15:0] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trefi_pb.value : '0;
     assign readback_array[56][23:16] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? field_storage.REF_TIMING_PB.trfc_pb.value : '0;
     assign readback_array[56][31:24] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[57][31:0] = (decoded_reg_strb.PAGE_STATS_HIT && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_HIT.count.next : '0;
-    assign readback_array[58][31:0] = (decoded_reg_strb.PAGE_STATS_MISS && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_MISS.count.next : '0;
-    assign readback_array[59][31:0] = (decoded_reg_strb.PAGE_STATS_EMPTY && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_EMPTY.count.next : '0;
-    assign readback_array[60][31:0] = (decoded_reg_strb.SCHED_STATS_ACT && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_ACT.count.next : '0;
-    assign readback_array[61][31:0] = (decoded_reg_strb.SCHED_STATS_PRE && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_PRE.count.next : '0;
-    assign readback_array[62][31:0] = (decoded_reg_strb.REF_STATS_REF && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF.count.next : '0;
+    assign readback_array[57][31:0] = (decoded_reg_strb.PAGE_STATS_HIT && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_HIT.VAL.next : '0;
+    assign readback_array[58][31:0] = (decoded_reg_strb.PAGE_STATS_MISS && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_MISS.VAL.next : '0;
+    assign readback_array[59][31:0] = (decoded_reg_strb.PAGE_STATS_EMPTY && !decoded_req_is_wr) ? hwif_in.PAGE_STATS_EMPTY.VAL.next : '0;
+    assign readback_array[60][31:0] = (decoded_reg_strb.SCHED_STATS_ACT && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_ACT.VAL.next : '0;
+    assign readback_array[61][31:0] = (decoded_reg_strb.SCHED_STATS_PRE && !decoded_req_is_wr) ? hwif_in.SCHED_STATS_PRE.VAL.next : '0;
+    assign readback_array[62][31:0] = (decoded_reg_strb.REF_STATS_REF && !decoded_req_is_wr) ? hwif_in.REF_STATS_REF.VAL.next : '0;
     for(genvar i0=0; i0<9; i0++) begin
         assign readback_array[i0 * 1 + 63][31:0] = (decoded_reg_strb.OBS_WORDS[i0].WORD && !decoded_req_is_wr) ? hwif_in.OBS_WORDS[i0].WORD.VAL.next : '0;
     end

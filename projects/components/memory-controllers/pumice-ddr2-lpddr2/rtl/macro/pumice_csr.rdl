@@ -782,32 +782,32 @@ addrmap pumice_csr {
 
     reg {
         name = "Page Stats: Hits";
-        field { sw = r; hw = w; desc = "Column ops issued to an already-open row"; } count[31:0];
+        field { sw = r; hw = w; desc = "Column ops issued to an already-open row"; } VAL[31:0];
     } PAGE_STATS_HIT @ 0x148;
 
     reg {
         name = "Page Stats: Misses";
-        field { sw = r; hw = w; desc = "Column ops that required PRE+ACT (conflict)"; } count[31:0];
+        field { sw = r; hw = w; desc = "Column ops that required PRE+ACT (conflict)"; } VAL[31:0];
     } PAGE_STATS_MISS @ 0x14C;
 
     reg {
         name = "Page Stats: Empties";
-        field { sw = r; hw = w; desc = "Column ops that required ACT only (bank closed)"; } count[31:0];
+        field { sw = r; hw = w; desc = "Column ops that required ACT only (bank closed)"; } VAL[31:0];
     } PAGE_STATS_EMPTY @ 0x150;
 
     reg {
         name = "Sched Stats: Activates";
-        field { sw = r; hw = w; desc = "ACT commands issued"; } count[31:0];
+        field { sw = r; hw = w; desc = "ACT commands issued"; } VAL[31:0];
     } SCHED_STATS_ACT @ 0x154;
 
     reg {
         name = "Sched Stats: Precharges";
-        field { sw = r; hw = w; desc = "PRE + PREA commands issued"; } count[31:0];
+        field { sw = r; hw = w; desc = "PRE + PREA commands issued"; } VAL[31:0];
     } SCHED_STATS_PRE @ 0x158;
 
     reg {
         name = "Refresh Stats: Refreshes";
-        field { sw = r; hw = w; desc = "REFab + REFpb commands issued"; } count[31:0];
+        field { sw = r; hw = w; desc = "REFab + REFpb commands issued"; } VAL[31:0];
     } REF_STATS_REF @ 0x15C;
 
     //=========================================================================

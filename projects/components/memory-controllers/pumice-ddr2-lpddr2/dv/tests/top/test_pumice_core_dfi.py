@@ -883,6 +883,14 @@ async def cocotb_test_pumice_core_b2b(dut):
     dut._log.info(f"PASS: back-to-back — {n} tightly-issued bursts round-trip vs golden (DQ pacing)")
 
 
+def _echo_seed(tag):
+    # PUMICE-010: pytest shows captured stdout for FAILING tests, so a
+    # one-off red is reproducible with SEED=<n> after the fact.
+    sd = os.environ.get('SEED', str(random.randint(0, 100000)))
+    print(f"[seed] {tag} SEED={sd}")
+    return sd
+
+
 def _run(request, testcase, params_over=None):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_core_tb_top"
@@ -900,7 +908,7 @@ def _run(request, testcase, params_over=None):
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
-                 "SEED": os.environ.get('SEED', str(random.randint(0, 100000))),
+                 "SEED": _echo_seed(testcase),
                  "TEST_LEVEL": os.environ.get("TEST_LEVEL", "basic")}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,

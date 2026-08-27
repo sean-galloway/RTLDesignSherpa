@@ -19,9 +19,11 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
   board is clean (matrix 65/70 data-clean, tREFI soak 0/15 dirty). Axis 2
   (paging) COMPLETE — all modes 1..7 landed with mutation-proven directed
   tests; scheduling (Axis 1) and refresh (Axis 3) remain.
-- **PUMICE-011** — multiid hist accounting anomaly (data clean; observability).
-- **PUMICE-010** — top-tier shared sim_build has no compile lock; clean
-  parallel runs self-destruct (48/31 spurious fails). Serial = workaround.
+- **PUMICE-008** — ACTIVE: adopt the external axi4_intf_master_observer and
+  retire the harness's hand-rolled meters/hists (Sean 2026-08-26: no
+  monitor/perf logic inside pumice; cheap interesting counters stay).
+  PUMICE-011 (root-caused: AMBA-HISTCH1 + FIFO sizing) and PUMICE-010
+  (per-worker sim_builds; clean parallel now 61/61) are CLOSED.
 
 ## Reading order for someone picking this up
 

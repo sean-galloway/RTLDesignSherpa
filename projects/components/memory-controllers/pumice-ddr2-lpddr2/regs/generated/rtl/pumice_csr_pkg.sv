@@ -178,50 +178,50 @@ package pumice_csr_pkg;
 
     typedef struct {
         logic [31:0] next;
-    } pumice_csr__PAGE_STATS_HIT__count__in_t;
+    } pumice_csr__PAGE_STATS_HIT__VAL__in_t;
 
     typedef struct {
-        pumice_csr__PAGE_STATS_HIT__count__in_t count;
+        pumice_csr__PAGE_STATS_HIT__VAL__in_t VAL;
     } pumice_csr__PAGE_STATS_HIT__in_t;
 
     typedef struct {
         logic [31:0] next;
-    } pumice_csr__PAGE_STATS_MISS__count__in_t;
+    } pumice_csr__PAGE_STATS_MISS__VAL__in_t;
 
     typedef struct {
-        pumice_csr__PAGE_STATS_MISS__count__in_t count;
+        pumice_csr__PAGE_STATS_MISS__VAL__in_t VAL;
     } pumice_csr__PAGE_STATS_MISS__in_t;
 
     typedef struct {
         logic [31:0] next;
-    } pumice_csr__PAGE_STATS_EMPTY__count__in_t;
+    } pumice_csr__PAGE_STATS_EMPTY__VAL__in_t;
 
     typedef struct {
-        pumice_csr__PAGE_STATS_EMPTY__count__in_t count;
+        pumice_csr__PAGE_STATS_EMPTY__VAL__in_t VAL;
     } pumice_csr__PAGE_STATS_EMPTY__in_t;
 
     typedef struct {
         logic [31:0] next;
-    } pumice_csr__SCHED_STATS_ACT__count__in_t;
+    } pumice_csr__SCHED_STATS_ACT__VAL__in_t;
 
     typedef struct {
-        pumice_csr__SCHED_STATS_ACT__count__in_t count;
+        pumice_csr__SCHED_STATS_ACT__VAL__in_t VAL;
     } pumice_csr__SCHED_STATS_ACT__in_t;
 
     typedef struct {
         logic [31:0] next;
-    } pumice_csr__SCHED_STATS_PRE__count__in_t;
+    } pumice_csr__SCHED_STATS_PRE__VAL__in_t;
 
     typedef struct {
-        pumice_csr__SCHED_STATS_PRE__count__in_t count;
+        pumice_csr__SCHED_STATS_PRE__VAL__in_t VAL;
     } pumice_csr__SCHED_STATS_PRE__in_t;
 
     typedef struct {
         logic [31:0] next;
-    } pumice_csr__REF_STATS_REF__count__in_t;
+    } pumice_csr__REF_STATS_REF__VAL__in_t;
 
     typedef struct {
-        pumice_csr__REF_STATS_REF__count__in_t count;
+        pumice_csr__REF_STATS_REF__VAL__in_t VAL;
     } pumice_csr__REF_STATS_REF__in_t;
 
     typedef struct {
