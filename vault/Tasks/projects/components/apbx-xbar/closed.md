@@ -4,6 +4,54 @@
 
 ---
 
+## APBX-004 — raw-address slave decode rotated the map for any non-span-aligned BASE_ADDR
+**Status:** closed 2026-08-27 (found and fixed same day)
+**Priority:** was P0 — silent misrouting
+
+The generated crossbars decoded the slave index from RAW address bits
+(`m0_cmd_paddr[17:16]`) while every document promised
+`slave_index = (PADDR - BASE_ADDR)[17:16]` and no page stated an alignment
+constraint. Any BASE_ADDR with nonzero index-field bits rotated the whole
+slave map: at BASE_ADDR=0x10010000 the four windows landed on slaves
+1,2,3,0. Loopback traffic cannot see it — write and read hit the same wrong
+slave — which is why the suite was green.
+
+Fixed in 1to4, 2to4, 2to2_mixed (1to1/2to1 have no decode). The subtraction
+constant-folds at elaboration since BASE_ADDR is a parameter.
+
+Pinned: APB-1TO4-19 / APB-2TO4-20 assert on WHICH PHYSICAL SLAVE holds the
+data, and 1to4/2to4 now also run a span-UNALIGNED BASE_ADDR configuration.
+(2to4's runner already had a `base` parameter but only ever passed the
+aligned value.)
+
+Found by qc round_7 — the first correctness round these books ever had.
+
+---
+
+## APBX-005 — out-of-range addresses wedged the master forever
+**Status:** closed 2026-08-27 (found and fixed same day)
+**Priority:** was P0 — permanent bus hang, no error signature
+
+A decode miss left `cmd_ready` low forever. The `apb4_slave` FSM then sat in
+BUSY waiting for a response that could never come, holding the external
+master in ACCESS with PREADY low: a bad pointer wedged the bus with nothing
+to observe. There was no PSLVERR path for decode errors and no timeout.
+
+A miss is now accepted and answered locally with PSLVERR (one pending flag
+per master; `apb4_slave` is one-outstanding), the slave-select register only
+captures in-range accepts, and each slave's `rsp_ready` is gated while its
+master's error response is outstanding.
+
+Pinned: APB-1TO4-20 / APB-2TO4-21 / the 2to2 decode-miss block assert that a
+miss COMPLETES with PSLVERR, leaks no transfer to any slave, and leaves the
+fabric alive. RED verified ("PREADY never asserted") before the fix.
+
+**Note on numbering:** commit d8d658fc calls these APBX-001/002 in its
+subject; APBX-001..003 were already taken by the APB5 work. The correct IDs
+are APBX-004 (decode) and APBX-005 (decode miss).
+
+---
+
 ## APBX-003 — APB5 parity across the fabric
 **Status:** closed 2026-08-16 — decc2110 (thin core) + 6491f7df (generator)
 
