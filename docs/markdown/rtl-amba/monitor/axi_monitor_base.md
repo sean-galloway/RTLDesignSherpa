@@ -26,7 +26,7 @@
 **Module:** `axi_monitor_base.sv`
 **Location:** `rtl/amba/monitor/`
 **Category:** Core Infrastructure
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -40,13 +40,13 @@ This is a **shared infrastructure module** used internally by AXI/AXIL monitors.
 
 ## Key Features
 
-- ✅ **Transaction-based tracking for AXI and AXI-Lite protocols:** Transaction-based tracking for AXI and AXI-Lite protocols
-- ✅ **Out-of-order transaction handling with ID-based tracking:** Out-of-order transaction handling with ID-based tracking
-- ✅ **Data-before-address support (slave-side scenarios):** Data-before-address support (slave-side scenarios)
-- ✅ **128-bit standardized monitor bus packet output + 64-bit side-band timestamp**
-- ✅ **Configurable performance metrics tracking:** Configurable performance metrics tracking
-- ✅ **Timeout detection and threshold monitoring:** Timeout detection and threshold monitoring
-- ✅ **Per-transaction state-change debug packets** (via `ENABLE_DEBUG_LOGIC` + `cfg_debug_enable`; the verbosity-level/mask interface is dead — see the parameter notes)
+- **Transaction-based tracking for AXI and AXI-Lite protocols:** Transaction-based tracking for AXI and AXI-Lite protocols
+- **Out-of-order transaction handling with ID-based tracking:** Out-of-order transaction handling with ID-based tracking
+- **Data-before-address support (slave-side scenarios):** Data-before-address support (slave-side scenarios)
+- **128-bit standardized monitor bus packet output + 64-bit side-band timestamp**
+- **Configurable performance metrics tracking:** Configurable performance metrics tracking
+- **Timeout detection and threshold monitoring:** Timeout detection and threshold monitoring
+- **Per-transaction state-change debug packets** (via `ENABLE_DEBUG_LOGIC` + `cfg_debug_enable`; the verbosity-level/mask interface is dead — see the parameter notes)
 
 ---
 

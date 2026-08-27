@@ -168,11 +168,18 @@ apb_monitor_addr_check #(
     .cmd_valid              (cmd_valid),
     .cmd_ready              (cmd_ready),
 
-    // Range config (range 0 = a window, range 1 = an exact watchpoint)
+    // Range config (range 0 = a window, range 1 = an exact watchpoint).
+    //
+    // cfg_addr_range_low/high are PACKED 2D arrays, so an assignment pattern
+    // fills left-to-right starting at the HIGHEST index -- exactly like a
+    // concatenation. The leftmost item is range 3, the rightmost is range 0.
+    // Getting this backwards silently programs the wrong ranges: the enable
+    // mask lights up ranges 0-1 while the intended bounds sit on 3-2.
+    //                            {  r3,       r2,       r1,              r0            }
     .cfg_addr_check_enable  (1'b1),
     .cfg_addr_range_enable  (4'b0011),
-    .cfg_addr_range_low     ('{32'h0000_1000, 32'h0000_2000, 32'h0, 32'h0}),
-    .cfg_addr_range_high    ('{32'h0000_1FFF, 32'h0000_2000, 32'h0, 32'h0}),
+    .cfg_addr_range_low     ('{32'h0, 32'h0, 32'h0000_2000, 32'h0000_1000}),
+    .cfg_addr_range_high    ('{32'h0, 32'h0, 32'h0000_2000, 32'h0000_1FFF}),
 
     // MonBus output (connect to the group's error-drain path)
     .addr_pkt_valid         (addr_pkt_valid),
@@ -188,7 +195,25 @@ apb_monitor_addr_check #(
 
 ### Mirror of the AXI Variant
 
-The block is a deliberate mirror of `axi_monitor_addr_check` so the two share timestamp handling, the pending-mask/priority-encoder emission structure, and the range-index/address packet layout. The only intentional divergence is the preserved `is_read` bit.
+The block shares `axi_monitor_addr_check`'s *structure* -- timestamp handling,
+the pending-mask/priority-encoder emission path, and the range-index/address
+packet layout -- but it is **not** a behavioural mirror. The differences are
+load-bearing:
+
+| | `apb_monitor_addr_check` | `axi_monitor_addr_check` |
+|---|---|---|
+| **Range meaning** | **Blocklist** — an in-range **hit** raises `APB_ERR_ADDR_RANGE` | **Allowlist** — a **miss** (outside every enabled error range) raises `AXI_ERR_ADDR_RANGE` |
+| Packet classes | Error only | Error *and* `PktTypeAddrMatch` |
+| Per-range flavor | none | `ADDR_RANGE_IS_ERROR` selects DEBUG vs ERROR per range |
+| Enable gating | `cfg_addr_check_enable` | plus `cfg_debug_enable` / `cfg_error_enable` per path |
+| Channel id | hardwired `9'h0` (APB has no ID) | from `cmd_id` |
+| `is_read` | preserved in the payload | dropped (recovered from `IS_READ` + unit/agent id) |
+
+> **The polarity inversion is the one that bites.** Programming the APB ranges
+> as if they were an allowlist — the AXI convention — flags every access
+> *inside* your intended-legal window as a violation and lets everything
+> outside it pass silently. On APB, a configured range is a region you want to
+> be told about.
 
 ### Backpressure Safety
 

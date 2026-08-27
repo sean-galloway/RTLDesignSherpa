@@ -26,7 +26,7 @@
 **Module:** `arbiter_monbus_common.sv`
 **Location:** `rtl/amba/monitor/`
 **Category:** Core Infrastructure
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -51,13 +51,13 @@ is no request/grant output, no data mux, and no client stream inputs.
 
 ## Key Features
 
-- ✅ **Snoops any arbiter** — RR or WRR, with or without the grant-ACK handshake
-- ✅ **Per-client ACK timeout tracking** with a configurable threshold
-- ✅ **Protocol violation detection** — multiple simultaneous grants, spurious ACKs, grant without request
-- ✅ **Starvation detection** with per-client timing
-- ✅ **Fairness deviation** measured against configured client weights
-- ✅ **Grant efficiency** tracking (grants issued vs. completed)
-- ✅ **128-bit monitor packets** emitted through an internal FIFO, plus a 64-bit side-band timestamp
+- **Snoops any arbiter** — RR or WRR, with or without the grant-ACK handshake
+- **Per-client ACK timeout tracking** with a configurable threshold
+- **Protocol violation detection** — multiple simultaneous grants, spurious ACKs, grant without request
+- **Starvation detection** with per-client timing
+- **Fairness deviation** measured against configured client weights
+- **Grant efficiency** tracking (grants issued vs. completed)
+- **128-bit monitor packets** emitted through an internal FIFO, plus a 64-bit side-band timestamp
 
 ---
 
@@ -77,14 +77,14 @@ The `arbiter_monbus_common` module exists to:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `CLIENTS` | int | 4 | Number of monitor sources to arbitrate |
+| `CLIENTS` | int | 4 | Width of the **snooped arbiter's** client vectors (`request`, `grant`, `grant_ack`). Nothing is arbitrated here -- this sizes what is observed |
 | `WAIT_GNT_ACK` | int | 0 | 1 = require a grant-ACK handshake |
 | `WEIGHTED_MODE` | int | 0 | **Dead** — declared but referenced by no logic. Fairness analysis always uses the `cfg_max_thresh` weights, and this module performs no arbitration for a mode switch to modulate. Setting it changes nothing |
 | `MON_AGENT_ID` | logic [15:0] | 16'h0010 | Monitor agent identifier (16-bit) |
 | `MON_UNIT_ID` | logic [7:0] | 8'h00 | Monitor unit identifier (8-bit) |
 | `MON_FIFO_DEPTH` | int | 8 | Monitor packet FIFO depth |
 | `MON_FIFO_ALMOST_MARGIN` | int | 1 | Almost-full margin for the monitor FIFO |
-| `FAIRNESS_REPORT_CYCLES` | int | 256 | How often the fairness deviation is **recomputed** (cycles). Not a sliding window — see the note under Fairness below |
+| `FAIRNESS_REPORT_CYCLES` | int | 256 | How often the fairness deviation is **recomputed** (cycles). **Not a sliding window:** `r_grant_counters` and `r_total_grants` are cleared on reset alone, so the deviation is always computed from grants accumulated since reset. `MIN_GRANTS_FOR_FAIRNESS` is likewise compared against the lifetime total. After a traffic-phase or weight change the figure converges toward the new distribution rather than snapping to it |
 | `MIN_GRANTS_FOR_FAIRNESS` | int | 100 | Minimum grants before a fairness report is valid |
 | `DEFAULT_ACK_TIMEOUT` | int | 64 | Default grant-ACK timeout (cycles) |
 

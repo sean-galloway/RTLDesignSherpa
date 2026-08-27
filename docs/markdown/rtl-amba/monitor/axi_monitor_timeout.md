@@ -26,7 +26,7 @@
 **Module:** `axi_monitor_timeout.sv`
 **Location:** `rtl/amba/monitor/`
 **Category:** Core Infrastructure
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -40,12 +40,12 @@ This is a **shared infrastructure module** used internally by AXI/AXIL monitors.
 
 ## Key Features
 
-- ✅ **Per-phase timeout detection (AR/AW, R/W, B):** Per-phase timeout detection (AR/AW, R/W, B)
-- ✅ **Configurable timeout thresholds:** Configurable timeout thresholds
-- ✅ **Frequency scaling for timeout counts:** Frequency scaling for timeout counts
-- ✅ **Timeout event reporting with transaction ID:** Timeout event reporting with transaction ID
-- ✅ **Active transaction tracking:** Active transaction tracking
-- ✅ **Timeout clear on transaction completion:** Timeout clear on transaction completion
+- **Per-phase timeout detection (AR/AW, R/W, B):** Per-phase timeout detection (AR/AW, R/W, B)
+- **Configurable timeout thresholds:** Configurable timeout thresholds
+- **Frequency scaling for timeout counts:** Frequency scaling for timeout counts
+- **Timeout event reporting with transaction ID:** Timeout event reporting with transaction ID
+- **Active transaction tracking:** Active transaction tracking
+- **Timeout clear on transaction completion:** Timeout clear on transaction completion
 
 ---
 

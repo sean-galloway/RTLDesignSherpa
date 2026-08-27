@@ -158,7 +158,7 @@ defines its own packing. The table below lists the most common shapes:
 
 | Producer | packet_type | event_code | event_data layout |
 |----------|-------------|------------|-------------------|
-| `axi_monitor_addr_check`  | Error  | `AXI_ERR_ADDR_RANGE` (8'h0D) | `[63:60]` = range_index (4b), `[59:0]` = full matched address |
+| `axi_monitor_addr_check`  | Error  | `AXI_ERR_ADDR_RANGE` (8'h0D) | `[63:60]` = `4'hF` **no-range sentinel** (this packet is the allowlist MISS, so no range matched), `[59:0]` = the offending **unmatched** address |
 | `apb_monitor_addr_check`  | Error  | `APB_ERR_ADDR_RANGE` (8'h08) | `[63:60]` = range_index (4b), `[59]` = is_read, `[58:0]` = address |
 | `axi_monitor_reporter`    | Error / Timeout / Completion | various | Full 64-bit address, or zero-extended ID / latency / counter |
 | `axi_monitor_reporter`    | Perf   | `AXI_PERF_*`        | Zero-extended counter value (completed/error counts, latencies) |
@@ -215,7 +215,8 @@ monitor_packet_t pkt = create_monitor_packet(
     .channel_id  ( 9'(cmd_id)                            ),
     .unit_id     ( UNIT_ID                               ),  // build-time
     .agent_id    ( AGENT_ID                              ),  // build-time
-    .event_data  ( {range_index[3:0], 60'(cmd_addr)}     )
+    // MISS packet: the nibble is the no-range sentinel, never a range index.
+    .event_data  ( {4'hF, 60'(cmd_addr)}                 )
 );
 ```
 

@@ -26,7 +26,7 @@
 **Module:** `axi_monitor_filtered.sv`
 **Location:** `rtl/amba/monitor/`
 **Category:** Core Infrastructure
-**Status:** ✅ Production Ready
+**Status:** Production Ready
 
 ---
 
@@ -45,13 +45,13 @@ This is a **shared infrastructure module** used internally by AXI/AXIL monitors.
 
 ## Key Features
 
-- ✅ **Wraps `axi_monitor_base`:** all transaction tracking, timeout, threshold, and perfmon logic lives in the base; this module only filters its output stream.
-- ✅ **Level 1 — packet-type drop mask** (`cfg_axi_pkt_mask`): drop entire packet types by index.
-- ✅ **Level 2 — error select** (`cfg_axi_err_select`): reserved for cross-routing; in the AXI wrapper it is used only for **configuration-conflict validation** (see `cfg_conflict_error`), not applied to the stream.
-- ✅ **Level 3 — per-event-code masking:** one 16-bit drop mask per packet type (`cfg_axi_error_mask`, `cfg_axi_timeout_mask`, `cfg_axi_compl_mask`, `cfg_axi_thresh_mask`, `cfg_axi_perf_mask`, `cfg_axi_addr_mask`, `cfg_axi_debug_mask`) indexed by the packet's event code.
-- ✅ **Configuration conflict detection:** `cfg_conflict_error` flags overlapping `cfg_axi_pkt_mask` / `cfg_axi_err_select` bits.
-- ✅ **Bypass mode:** `ENABLE_FILTERING=0` passes every packet straight through.
-- ✅ **Optional pipeline stage:** `ADD_PIPELINE_STAGE=1` registers the filtered output for timing closure.
+- **Wraps `axi_monitor_base`:** all transaction tracking, timeout, threshold, and perfmon logic lives in the base; this module only filters its output stream.
+- **Level 1 — packet-type drop mask** (`cfg_axi_pkt_mask`): drop entire packet types by index.
+- **Level 2 — error select** (`cfg_axi_err_select`): reserved for cross-routing; in the AXI wrapper it is used only for **configuration-conflict validation** (see `cfg_conflict_error`), not applied to the stream.
+- **Level 3 — per-event-code masking:** one 16-bit drop mask per packet type (`cfg_axi_error_mask`, `cfg_axi_timeout_mask`, `cfg_axi_compl_mask`, `cfg_axi_thresh_mask`, `cfg_axi_perf_mask`, `cfg_axi_addr_mask`, `cfg_axi_debug_mask`) indexed by the packet's event code.
+- **Configuration conflict detection:** `cfg_conflict_error` flags overlapping `cfg_axi_pkt_mask` / `cfg_axi_err_select` bits.
+- **Bypass mode:** `ENABLE_FILTERING=0` passes every packet straight through.
+- **Optional pipeline stage:** `ADD_PIPELINE_STAGE=1` registers the filtered output for timing closure.
 
 ---
 

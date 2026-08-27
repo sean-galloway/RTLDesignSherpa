@@ -374,7 +374,7 @@ each own one packet type:
 | `axi_monitor_reporter_timeout` | `PktTypeTimeout` | a transaction outlived its budget |
 | `axi_monitor_reporter_compl` | `PktTypeCompletion` | a transaction finished (and how long it took) |
 | `axi_monitor_reporter_threshold` | `PktTypeThreshold` | a watermark was crossed |
-| `axi_monitor_reporter_perf` | `PktTypePerf`, `PerfWin`, `PerfHist` | throughput and utilization |
+| `axi_monitor_reporter_perf` | `PktTypePerf` only | lifetime completion/error count rollups. **Not** PerfWin/PerfHist -- nothing packetizes the window buckets onto the MonBus yet (see Performance Monitoring below); they are readable as counters only |
 | `axi_monitor_reporter_debug` | `PktTypeDebug` | trace points |
 
 Each has an `ENABLE_*_LOGIC` parameter that removes its detection cone at

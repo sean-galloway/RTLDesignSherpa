@@ -26,7 +26,7 @@
 **Module:** `axi_monitor_addr_check.sv`
 **Location:** `rtl/amba/monitor/`
 **Category:** Core Infrastructure
-**Status:** ✅ Production Ready (Formally Verified)
+**Status:** Production Ready (Formally Verified)
 
 ---
 
@@ -50,7 +50,7 @@ The ERROR/allowlist path is the checker built into the monitor whenever `N_ADDR_
 - **Parallel Range Comparators:** N independent [low, high] inclusive range checkers
 - **Two flavors per range:** `ADDR_RANGE_IS_ERROR` selects DEBUG (match) vs ERROR (allowlist-miss) behavior per range; default all-0 leaves the ERROR/miss path inert (feature unused by default)
 - **Independent path enables:** `cfg_debug_enable` gates AddrMatch packets, `cfg_error_enable` gates Error packets; `cfg_addr_check_enable` is the master gate
-- **Zero-Area Synthesis:** When `N_ADDR_RANGES = 0`, module is completely omitted (no gates, no regs)
+- **Zero-Area Synthesis:** `N_ADDR_RANGES = 0` omits this module entirely (no gates, no regs) -- done by the **parent**, not here: `axi_monitor_base` wraps the instance in `if (N_ADDR_RANGES > 0) gen_addr_check` and ties the packet stream off in `gen_no_addr_check`
 - **Monbus Integration:** AddrMatch packets (`8'h8`/`8'h01`) and Error packets (`8'h0`/`8'h0D`)
 - **Coalescing:** per-range latched address for MATCH; a single latched slot for MISS; one packet per cycle (MISS has emit priority)
 - **Formal Verification:** all properties proven (prove + cover PASS)
@@ -274,7 +274,15 @@ The module is instantiated **inside** AXI monitor wrappers (`axi4_master_wr_mon`
 
 ### Synthesis Behavior
 
-- **`N_ADDR_RANGES = 0`:** Module is entirely synthesized away (zero area). All config inputs are tied off. Output packet valid is constant 0.
+- **`N_ADDR_RANGES = 0`:** handled by the **instantiating parent**. `axi_monitor_base`
+  generates the instance only under `N_ADDR_RANGES > 0`; its `gen_no_addr_check` branch
+  drives `addr_pkt_valid = 0` and a zeroed packet, so from the monitor's arbiter the
+  stream is constant 0 and the checker costs nothing.
+
+  This module itself has **no `N == 0` guard** and must not be instantiated directly with
+  0 -- its parameter is documented `>= 1`. At 0 the per-range vectors degenerate
+  (`logic [-1:0]`), the range loops are empty so the enable terms are never driven, and
+  `addr_pkt_valid` would be undriven (X in simulation) rather than a clean constant 0.
 - **`N_ADDR_RANGES > 0`:** Full comparator logic synthesized. Area scales with N.
 
 ### Downstream FIFO
