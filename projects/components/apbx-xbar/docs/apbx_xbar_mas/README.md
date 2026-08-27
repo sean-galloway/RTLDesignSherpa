@@ -174,7 +174,7 @@ Slave 2: BASE_ADDR + 0x20000 - 0x2FFFF
 **Decode Formula:**
 ```
 offset = PADDR - BASE_ADDR
-slave_index = offset[19:16]  // Divide by 64KB
+slave_index = offset[19:16]  // ceil(log2(S)) bits above the 64KB window ([17:16] for S=4)
 ```
 
 **See:** [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md#address-decode)
@@ -264,7 +264,8 @@ Transaction 4: M0, M1 request → M0 granted → Priority rotates to M1
 ### Q: What's the throughput?
 
 **Single Master:**
-- Zero-bubble (back-to-back transactions without gaps)
+- Back-to-back transactions without master-side gaps (no overlap
+  inside the fabric; ~10 pclk cycles each)
 - Limited only by slave PREADY response time
 
 **Multiple Masters (Same Slave):**

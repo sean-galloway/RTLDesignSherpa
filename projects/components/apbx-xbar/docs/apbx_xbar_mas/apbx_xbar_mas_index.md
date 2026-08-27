@@ -110,7 +110,9 @@ All diagrams referenced in the documentation are available in:
 - **Parametric MxN Configuration:** Any combination of M masters and N slaves (up to 16x16)
 - **Automatic Address Decode:** 64KB per slave, simple offset-based routing
 - **Round-Robin Arbitration:** Per-slave fair arbitration, no master starvation
-- **Zero-Bubble Throughput:** Back-to-back transactions without idle cycles
+- **Back-to-Back Transactions:** accepted without master-side idle
+  cycles, though they do not overlap inside the fabric (~10 pclk
+  cycles each)
 - **Grant Persistence:** Hold grant through transaction completion
 - **RTL Generation:** Python-based generator for custom configurations
 

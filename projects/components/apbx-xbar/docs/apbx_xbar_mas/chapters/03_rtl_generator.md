@@ -209,21 +209,23 @@ The generator creates a complete SystemVerilog module with:
 
 1. **Header with Address Map**
 ```systemverilog
-// 3-to-6 APB crossbar with address decoding and arbitration
-// 3 masters to 6 slaves using apb4_slave and apb4_master modules
+// 2-to-4 APB crossbar with address decoding and arbitration
+// 2 masters to 4 slaves using apb4_slave and apb4_master modules
+//
+// (This walkthrough shows the SHIPPED apbx_xbar_2to4 so every constant
+//  below is real. For a 3-to-6 the same shapes scale: 3-bit slave_sel,
+//  a 0x00060000 range bound, and CLIENTS(3) arbiters.)
 //
 // Address Map (same for all masters):
 //   Slave 0: [0x10000000, 0x1000FFFF]
 //   Slave 1: [0x10010000, 0x1001FFFF]
 //   Slave 2: [0x10020000, 0x1002FFFF]
 //   Slave 3: [0x10030000, 0x1003FFFF]
-//   Slave 4: [0x10040000, 0x1004FFFF]
-//   Slave 5: [0x10050000, 0x1005FFFF]
 ```
 
 2. **Module Declaration with Parameters**
 ```systemverilog
-module apbx_xbar_3to6 #(
+module apbx_xbar_2to4 #(
     parameter int ADDR_WIDTH = 32,
     parameter int DATA_WIDTH = 32,
     parameter int STRB_WIDTH = DATA_WIDTH / 8,
@@ -291,7 +293,13 @@ module apbx_xbar_3to6 #(
 
     assign s0_cmd_valid = m0_cmd_valid && m0_addr_in_range && (m0_slave_sel == 2'd0);
     assign s1_cmd_valid = m0_cmd_valid && m0_addr_in_range && (m0_slave_sel == 2'd1);
-    // ... one per slave; masters 1..M-1 repeat the block
+    // ... one per slave. For M>1 these terms are NOT repeated per
+    // master onto the same signal -- the per-slave arbiter grant
+    // selects which master drives it:
+    //   case (1'b1)
+    //     s0_arb_grant[0]: s0_cmd_valid = m0_cmd_valid && m0_addr_in_range && (m0_slave_sel == 2'd0);
+    //     s0_arb_grant[1]: s0_cmd_valid = m1_cmd_valid && m1_addr_in_range && (m1_slave_sel == 2'd0);
+    //   endcase
 ```
 
 6. **Per-Slave Arbitration Logic**
@@ -300,7 +308,7 @@ module apbx_xbar_3to6 #(
     // counters in the output -- the generator instantiates the
     // library arbiter):
     arbiter_round_robin #(
-        .CLIENTS(2),          // = M
+        .CLIENTS(2),          // = M (3 for a 3-to-6)
         .WAIT_GNT_ACK(1)      // hold grant until the response handshake
     ) u_s0_arbiter (
         .clk(pclk), .rst_n(presetn), .block_arb(1'b0),
@@ -343,7 +351,7 @@ module apbx_xbar_3to6 #(
 
 9. **Module End**
 ```systemverilog
-endmodule : apbx_xbar_3to6
+endmodule : apbx_xbar_2to4
 ```
 
 ---
@@ -692,7 +700,8 @@ gtkwave waves.vcd
 
 1. **Single Master Access** - Verify basic routing
 2. **Multi-Master Contention** - Verify arbitration
-3. **Back-to-Back Transactions** - Verify zero-bubble throughput
+3. **Back-to-Back Transactions** - Verify consecutive transfers complete
+   at the expected ~10-cycle cadence
 4. **Address Decode Boundary** - Verify slave selection at boundaries
 5. **Error Response Propagation** - Verify PSLVERR routing
 
@@ -769,7 +778,8 @@ python generate_xbars.py
 
 **Solution:**
 1. Check parameter ranges (1-16 for M and N)
-2. Verify base address alignment (should be aligned to 64KB × N)
+2. Any BASE_ADDR value is legal -- the slave index comes from the
+   OFFSET, so no span alignment is required (see the component README)
 3. Report bug with command that caused issue
 
 ### Issue: Generated Code Too Large

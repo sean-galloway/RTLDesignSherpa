@@ -2,7 +2,52 @@
 
 # AMBA tasks — open (not started)
 
-### TASK-026: Every module MUST have a filelist and a registry entry
+### TASK-071 — apb4_master/apb5_master drive a TWO-cycle APB setup phase out of IDLE
+**Status:** open 2026-08-27 (found by apbx-xbar qc round_8)
+**Priority:** P2 — spec deviation, works against tolerant slaves
+**Owner:** TBD
+
+AMBA APB defines the SETUP phase as exactly one cycle: PSEL asserted with
+PENABLE low, then ACCESS. `apb4_master` asserts PSEL in BOTH `IDLE` (on
+launch) and `SETUP`:
+
+```systemverilog
+IDLE:  if (r_cmd_valid && r_rsp_ready) begin m_apb_PSEL = 1'b1; w_apb_next_state = SETUP; end
+SETUP: begin m_apb_PSEL = 1'b1; w_apb_next_state = ACCESS; end
+```
+
+so every transaction launched from IDLE presents PSEL high / PENABLE low
+for **two** consecutive cycles. `apb5_master` has the identical structure.
+Back-to-back transfers taking the `ACCESS -> SETUP` shortcut are compliant.
+
+**Measured**, not inferred: a probe on `apbx_xbar_1to1`'s downstream port
+counted setup-phase lengths of `[2, 2, 2]` over three transfers against an
+always-ready slave.
+
+Tolerant slaves (which sample only on PSEL && PENABLE && PREADY) are
+unaffected, which is why nothing has failed; a strict protocol monitor or
+a third-party APB slave that counts setup cycles would flag it.
+
+**Why this is filed rather than fixed:** `apb4_master` is a shared
+dependency — the APB crossbars, the converters' `axi4_to_apb4` path, and
+the bridges' APB legs all instantiate it. Collapsing the extra cycle is a
+one-line FSM change (launch straight to ACCESS, or don't assert PSEL in
+IDLE) but it shifts timing for every APB consumer in the repo and wants
+its own regression sweep. It also removes one cycle from the crossbar's
+measured 10-cycle transfer, so the performance numbers just corrected in
+the APB crossbar books would need re-measuring.
+
+**Work:**
+- [ ] Decide: collapse to a single setup cycle, or document the deviation
+      as intentional.
+- [ ] If fixing: RED test asserting exactly one PSEL-high/PENABLE-low
+      cycle per transfer, then the FSM change, then re-run the APB
+      crossbar, converters, and bridge suites.
+- [ ] Re-measure APB crossbar latency afterwards (HAS 5.1/5.2, PRD 9.1/9.2).
+
+---
+
+## TASK-026: Every module MUST have a filelist and a registry entry
 **Priority:** P2
 **Status:** 🔴 Not Started
 **Owner:** TBD

@@ -21,7 +21,9 @@
 // 1 master to 1 slave using apb4_slave and apb4_master modules
 //
 // Address Map (same for all masters):
-//   Slave 0: [0x10000000, 0x1000FFFF] (64KB)
+//   Slave 0: the ONLY slave -- this variant does no address decode.
+//   BASE_ADDR is declared for interface uniformity but is UNUSED:
+//   every access is forwarded regardless of address.
 
 module apbx_xbar_1to1 #(
     parameter int ADDR_WIDTH = 32,

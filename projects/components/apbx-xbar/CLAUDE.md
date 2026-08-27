@@ -303,7 +303,8 @@ Transaction 4: M0 and M1 request → M0 granted (rotated)
 - **Independent per slave:** Each slave arbitrates independently
 - **Fair:** No master can starve another
 - **Grant persistence:** Once granted, master holds slave until response completes
-- **Zero-bubble:** Back-to-back transactions supported
+- **Back-to-back:** supported, but not overlapped -- ~10 pclk cycles
+  per transfer (see HAS 5.1/5.2)
 
 **📖 See:** `PRD.md` Section 3.3
 

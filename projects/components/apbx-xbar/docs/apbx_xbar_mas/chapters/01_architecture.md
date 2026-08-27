@@ -37,7 +37,7 @@ The APB Crossbar is a parametric interconnect that connects M APB masters to N A
 - Arbitrary MxN configuration (up to 16x16)
 - Automatic address decode (64KB per slave)
 - Round-robin arbitration per slave
-- Zero-bubble throughput
+- Back-to-back transactions (no overlap; ~10 pclk cycles each)
 - Grant persistence through transaction completion
 
 ---
@@ -87,7 +87,7 @@ APB Master → apb4_slave → cmd/rsp bus → Internal Crossbar Logic
 **Address Decode:**
 ```
 offset = PADDR - BASE_ADDR
-slave_index = offset[19:16]  // Upper 4 bits of 20-bit offset (64KB regions)
+slave_index = offset[19:16]  // ceil(log2(S)) bits above the 64KB window ([17:16] for S=4)
 ```
 
 **Arbitration:**
@@ -271,7 +271,7 @@ pass-through claim mean anything.
 **Predictability:**
 - Round-robin arbitration provides deterministic behavior
 - Fixed address map simplifies software integration
-- Zero-bubble design ensures maximum throughput
+- Deterministic transfer cost: ~10 pclk cycles, contention aside
 
 ---
 

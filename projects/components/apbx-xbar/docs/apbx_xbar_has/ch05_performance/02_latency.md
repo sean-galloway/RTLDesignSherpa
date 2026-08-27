@@ -45,7 +45,7 @@ transfer is NOT the 2-cycle APB minimum: the fabric converts APB to an
 internal cmd/rsp protocol through `apb4_slave` and back through
 `apb4_master`, and both directions cross REGISTERED skid buffers. A
 direct probe on `apbx_xbar_1to1` with an always-ready slave measures
-**10 pclk cycles** from PSEL to PREADY, and **12 cycles** sustained
+**10 pclk cycles** from PSEL to PREADY, and **10 cycles** sustained
 back-to-back (the `apb4_slave` FSM is one-command-at-a-time: it cannot
 capture the next command until it returns to IDLE). Earlier revisions
 of this page claimed 2 cycles, which is the bare APB protocol minimum
@@ -74,7 +74,7 @@ When multiple masters compete for the same slave:
 | Address decode | 0 cycles | Combinational |
 | Arbitration | 0-1 cycle | Combinational + wait |
 | apb4_master drive | 0-1 cycle | Registered |
-| **Typical Total** | **1-2 cycles** | From PSEL to slave PSEL |
+| **Typical Total** | **4 cycles** | master PSEL to downstream slave PSEL |
 
 : Forward Path Latency
 
@@ -86,7 +86,7 @@ When multiple masters compete for the same slave:
 | apb4_master capture | 0-1 cycle | Registered |
 | Response routing | 0 cycles | Combinational |
 | apb4_slave drive | 0-1 cycle | Registered |
-| **Typical Total** | **1-2 cycles** | From slave PREADY to master PREADY |
+| **Typical Total** | **3 cycles** | downstream PREADY to master PREADY |
 
 : Response Path Latency
 
@@ -104,7 +104,7 @@ Slave PREADY  _________|-----|___
                        ^
 Master PREADY _________|-----|___
                        ^
-              Total: 2 cycles (APB minimum)
+              Total: 10 cycles (measured through the fabric)
 ```
 
 ### Worst Case (Contention + Slave Wait States)
@@ -120,7 +120,7 @@ Slave PREADY  _____________________|------|___
                                    ^
 Master PREADY _____________________|------|___
                                    ^
-              Total: 5+ cycles (depends on contention + slave)
+              Total: 10+ cycles (plus slave wait states and contention)
 ```
 
 ## Latency Optimization

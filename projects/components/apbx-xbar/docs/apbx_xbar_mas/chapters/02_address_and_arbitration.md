@@ -62,13 +62,19 @@ The crossbar extracts the slave index from the upper bits of the address offset:
 
 ```systemverilog
 offset = PADDR - BASE_ADDR
-slave_index = offset[19:16]  // Upper 4 bits of 20-bit offset
+slave_index = offset[16 +: $clog2(S)]   // ceil(log2(S)) bits above the 64KB window
 ```
 
 ### Out-of-Range Addresses
 
-An access outside `[BASE_ADDR, BASE_ADDR + N x 64KB)` is a **decode
-miss**. The crossbar accepts it and answers locally with **PSLVERR**;
+This applies to the variants that DECODE -- `1to4`, `2to4`,
+`2to2_mixed`. In `1to1` and `2to1` there is a single slave, no address
+decode, and `BASE_ADDR` is unused: every access is forwarded to that
+slave whatever its address, and the slave's own response is returned.
+
+For the decoding variants, an access outside
+`[BASE_ADDR, BASE_ADDR + S x 64KB)` is a **decode miss**. The crossbar
+accepts it and answers locally with **PSLVERR**;
 no slave sees the transfer, and the arbiters are not involved. The
 master's transaction completes normally (PREADY asserts) with the error
 flagged, so a bad pointer surfaces as an APB error response rather than
@@ -79,11 +85,16 @@ ACCESS with PREADY low and no error signature (APBX-002). Regression:
 the decode-miss scenarios in `test_apbx_xbar_1to4.py`,
 `test_apbx_xbar_2to4.py`, and `test_apbx_xbar_2to2_mixed.py`.
 
-**Why offset[19:16]?**
+**Why bit 16 upward?**
 - 64KB = 0x10000 = 2^16 bytes
 - Lower 16 bits (offset[15:0]) are byte address within slave
-- Upper 4 bits (offset[19:16]) select which of 16 slaves
-- Supports up to 16 slaves (0x0 through 0xF)
+- `ceil(log2(S))` bits starting at bit 16 select the slave: [17:16]
+  for a 4-slave variant, [16] for 2 slaves. The shipped variants wire
+  exactly those bits -- `m0_slave_sel` is 2 bits wide on 1to4/2to4,
+  1 bit on 2to2_mixed, NOT a 4-bit index
+- The generator supports up to 16 slaves; bits above the index field
+  do not select a slave, they fail the range check and become a
+  decode miss
 
 ### Address Decode Flow Diagram
 
@@ -108,7 +119,7 @@ offset = PADDR - BASE_ADDR
 
 **Step 2: Extract Slave Index**
 ```
-slave_index = offset[19:16]
+slave_index = offset[17:16]        // S=4 -> 2 bits
             = 0x00023456 >> 16
             = 0x2
 ```
@@ -279,10 +290,10 @@ WITH Grant Persistence:
   transactions -- the grant is held until the response handshake
   (`WAIT_GNT_ACK(1)`), so each is ~10 cycles, not 1
 - Example: 2 masters, worst case ≈ one full transaction of wait
-- Example: 4 masters, worst case = 3 cycles wait
+- Example: 4 masters, worst case = 3 full transactions ~= 30 cycles
 
 **Average Case (Random Access Pattern):**
-- (M-1)/2 cycles average wait time
+- (M-1)/2 full transactions of average wait (~10 cycles each)
 - Statistical fairness over time
 
 ---
@@ -345,9 +356,10 @@ apbx_xbar_2to4 #(
 - Back-to-back transactions supported, but NOT overlapped: `apb4_slave`
   is a one-command-at-a-time FSM, so the next command is captured only
   after the previous transaction completes
-- Measured sustained cadence: ~1 transfer per 12 pclk cycles at an
-  always-ready slave (an earlier "zero bubble" claim described a
-  pipeline this RTL does not have)
+- Measured sustained cadence: 1 transfer per 10 pclk cycles at an
+  always-ready slave -- identical to single-transfer latency, because
+  nothing overlaps (an earlier "zero bubble" claim described a pipeline
+  this RTL does not have)
 
 **Multiple Masters (Same Slave):**
 - Round-robin introduces fair sharing

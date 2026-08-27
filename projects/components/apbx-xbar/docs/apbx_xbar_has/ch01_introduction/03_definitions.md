@@ -60,7 +60,7 @@
 | Slave | Device that responds to APB transactions (peripherals) |
 | Starvation | Condition where a requester is indefinitely denied access |
 | Transaction | Complete APB read or write operation including setup and data phases |
-| Zero-Bubble | No idle cycles inserted between consecutive transactions |
+| Back-to-Back | Consecutive transactions with no master-side idle cycles. Note this crossbar does not OVERLAP them: cadence equals latency (~10 pclk cycles) |
 
 : Term Definitions
 

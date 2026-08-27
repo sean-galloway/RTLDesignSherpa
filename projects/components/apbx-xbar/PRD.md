@@ -77,7 +77,7 @@ The **APB Crossbar** is a parametric APB interconnect generator that creates con
 |---------|--------|-----------|
 | **Arbitration** | Round-robin per slave | Fair, simple, predictable |
 | **Address Map** | 64KB per slave | Sufficient for most peripherals |
-| **Grant Persistence** | Hold through response | Zero-bubble throughput |
+| **Grant Persistence** | Hold through response | One transaction per grant; mask rotates after |
 | **Address Decode** | Parallel decode | Low latency, simple logic |
 
 ---
@@ -160,7 +160,9 @@ slave_index = (address - BASE_ADDR) >> 16  // Divide by 64KB (0x10000)
 **Example:**
 ```
 Slave 0 accessed by M0, M1, M0 → Next grant goes to M1
-Slave 1 accessed by M1, M1, M0 → Next grant goes to M0
+Slave 1 accessed by M1, M1, M0 → Next grant goes to M1
+  (the winner cannot immediately re-win: after an M0 grant the
+   mask leaves only M1 eligible)
 ```
 
 ![Round-Robin Arbitration Timing](docs/apbx_xbar_mas/assets/wavedrom/arbitration_round_robin.svg)
@@ -221,11 +223,14 @@ Pre-configured wrappers for common topologies:
 
 **Verification:** Address decode validation (200+ transactions for 1to4)
 
-### FR-4: Zero-Bubble Throughput
+### FR-4: Back-to-Back Transactions
 **Priority:** P1 (High)
 **Status:** ✅ Implemented and verified
 
-**Description:** Back-to-back transactions supported without idle cycles
+**Description:** Consecutive transactions are accepted with no
+master-side idle cycles required. They do NOT overlap inside the
+fabric -- `apb4_slave` is one-command-at-a-time, so sustained cadence
+equals single-transfer latency (~10 pclk cycles, HAS 5.1/5.2).
 
 **Verification:** Performance tests show consecutive transactions
 
@@ -281,10 +286,10 @@ input  logic                    s<j>_apb_PREADY
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| `ADDR_WIDTH` | int | 32 | 1-64 | Address bus width |
+| `ADDR_WIDTH` | int | 32 | 18-64 for multi-slave variants (the decode part-select needs bit 17); 1-64 for 1to1/2to1 | Address bus width |
 | `DATA_WIDTH` | int | 32 | 8,16,32,64 | Data bus width |
 | `STRB_WIDTH` | int | DATA_WIDTH/8 | - | Strobe width (auto-calc) |
-| `BASE_ADDR` | logic[31:0] | 0x10000000 | Any | Base address for slave map |
+| `BASE_ADDR` | logic [ADDR_WIDTH-1:0] | 0x10000000 | Any | Base address for slave map |
 
 ---
 
@@ -322,7 +327,6 @@ Options:
   --masters M       Number of masters (1-16)
   --slaves N        Number of slaves (1-16)
   --base-addr ADDR  Base address (default: 0x10000000)
-  --thin            Generate thin variant (minimal logic)
 ```
 
 ---
@@ -333,7 +337,7 @@ Options:
 
 | Path | Latency | Notes |
 |------|---------|-------|
-| **Command path** | 5 cycles | master APB phases + apb4_slave capture + cmd skid + apb4_master IDLE/SETUP/ACCESS |
+| **Command path** | 7 cycles | master APB phases (2) + apb4_slave capture and cmd skid (2) + apb4_master IDLE/SETUP/ACCESS (3) |
 | **Response path** | 3 cycles | slave response + rsp skid + apb4_slave BUSY→PREADY |
 | **Total** | **10 cycles** | measured, uncontended, zero-wait slave |
 
@@ -347,7 +351,7 @@ breakdown and the measurement.
 - **Back-to-back transactions:** Supported, but not overlapped --
   `apb4_slave` is a one-command-at-a-time FSM, so the next command is
   captured only after the previous transaction completes
-- **Maximum rate:** ~1 transaction per 12 pclk cycles per master
+- **Maximum rate:** ~1 transaction per 10 pclk cycles per master (no overlap, so cadence equals latency)
   (measured back-to-back at an always-ready slave)
 
 ### 9.3 Resource Utilization (Estimated)

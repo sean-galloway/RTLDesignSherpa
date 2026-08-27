@@ -235,7 +235,8 @@ pytest projects/components/apbx-xbar/dv/tests/ -v  # All variants
 
 ### Timing
 
-- **Zero bubble overhead**: Back-to-back transactions supported
+- **Back-to-back transactions**: supported with no master-side idle
+  cycles; they do not overlap inside the fabric (~10 pclk cycles each)
 - **Single-cycle arbitration**: New grants issued in same cycle as previous completion
 - **Pipelined datapath**: Command and response phases overlap different transactions
 

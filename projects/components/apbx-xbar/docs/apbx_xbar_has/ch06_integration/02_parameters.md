@@ -29,7 +29,7 @@
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| ADDR_WIDTH | int | 32 | 8-64 | Address bus width in bits |
+| ADDR_WIDTH | int | 32 | 18-64 (multi-slave: the decode part-select reads bit 17); 1-64 for 1to1/2to1 | Address bus width in bits |
 | DATA_WIDTH | int | 32 | 8, 16, 32, 64 | Data bus width in bits |
 | BASE_ADDR | logic[ADDR_WIDTH-1:0] | 0x10000000 | any address; the slave index is decoded from the OFFSET, so no span alignment is required | Base of the slave map |
 
@@ -143,7 +143,6 @@ python generate_xbars.py \
 | --slaves | Number of slave ports | Required |
 | --base-addr | Base address (hex) | 0x10000000 |
 | --output | Output file path | Auto-generated |
-| --thin | Generate minimal variant | False |
 
 : Generator Command Line Options
 

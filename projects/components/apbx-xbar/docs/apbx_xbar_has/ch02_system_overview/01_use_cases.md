@@ -58,7 +58,8 @@ An SoC where both CPU and DMA controller need access to shared peripherals.
 **Key Behavior:**
 - Round-robin arbitration when both masters access same peripheral
 - No master starvation guaranteed
-- Zero-bubble throughput on uncontended access
+- Back-to-back transactions on uncontended access (~10 pclk cycles
+  each; they do not overlap -- see 5.1)
 
 ### UC-3: Protocol Conversion (1x1)
 

@@ -38,7 +38,8 @@ The APB Crossbar is a parametric MxN interconnect fabric that connects multiple 
 
 - **Automatic address-based routing** to appropriate slave
 - **Fair round-robin arbitration** when multiple masters access the same slave
-- **Zero-bubble throughput** for back-to-back transactions
+- **Back-to-back transactions** with no master-side idle cycles
+  (they do not overlap inside the fabric -- ~10 pclk cycles each)
 - **Scalable configuration** from 1x1 to 16x16
 
 ## Document Scope

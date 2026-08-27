@@ -28,7 +28,7 @@
 **Document Number:** APB-XBAR-HAS-001
 **Version:** 1.0
 **Status:** Production Ready
-**Classification:** Open Source - Apache 2.0 License
+**Classification:** Open Source - MIT License (matches the SPDX tags on every RTL file)
 
 ---
 

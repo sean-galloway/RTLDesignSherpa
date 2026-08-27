@@ -53,12 +53,14 @@ slave_index = (PADDR - BASE_ADDR) >> 16
 - No master starvation guaranteed
 - Grant persistence through transaction completion
 
-### F4: Zero-Bubble Throughput
+### F4: Back-to-Back Transactions
 
-- Back-to-back transactions without idle cycles
-- Grant held during entire transaction
-- Immediate response routing
-- Maximum APB bandwidth utilization
+- Accepted with no master-side idle cycles required
+- Grant held for the duration of one transaction, released at the
+  response handshake
+- They do NOT overlap inside the fabric: `apb4_slave` is
+  one-command-at-a-time, so sustained cadence equals single-transfer
+  latency, measured at ~10 pclk cycles (see 5.1/5.2)
 
 ### F5: Proven Building Blocks
 
@@ -74,7 +76,7 @@ slave_index = (PADDR - BASE_ADDR) >> 16
 | Slaves | 1 | 1 | 4 | 4 | `S` parameter (default 4) |
 | Arbitration | No | Yes | No | Yes | Yes -- WEIGHTED round-robin (`THRESHOLDS`) |
 | Address Decode | No | No | Yes | Yes | Yes -- per-slave base/limit INPUT PORTS |
-| APB5 sideband | No | No | No | s0 only (mixed) | Yes -- per-port masks + parity |
+| APB5 sideband | No | No | No | No | Yes -- per-port masks + parity |
 | Approximate LOC | 200 | 400 | 500 | 1000 | 300 |
 
 : Pre-Generated Variant Comparison

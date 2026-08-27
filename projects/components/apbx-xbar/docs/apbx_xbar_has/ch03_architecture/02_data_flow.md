@@ -92,17 +92,21 @@ Read transactions follow the same flow with these differences:
 | Setup phase | 1 | PSEL asserted, PENABLE low |
 | Data phase | 1+ | PENABLE high, wait for PREADY |
 | Decode | 0 | Combinational (parallel decode) |
-| Arbitration | 0-1 | 0 if uncontended, 1 if contended |
+| Arbitration | 1 | grant is REGISTERED, so always 1 cycle even uncontended |
 
 : Transaction Timing Summary
 
 ## Back-to-Back Transactions
 
-The crossbar supports zero-bubble back-to-back transactions:
+The crossbar accepts back-to-back transactions -- but they do NOT
+overlap:
 
-1. Master can assert new PSEL immediately after PREADY
-2. Grant persistence eliminates re-arbitration overhead
-3. Measured throughput: 1 transaction per ~12 pclk cycles (see 5.1/5.2)
+1. A master may hold PSEL and start the next SETUP the cycle after
+   PREADY
+2. `apb4_slave` is one-command-at-a-time, so the next command is not
+   captured until the previous transaction completes
+3. Sustained cadence therefore EQUALS latency: measured
+   PREADY-to-PREADY = 10 pclk cycles (see 5.1/5.2)
 
 ---
 
