@@ -2,7 +2,13 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Passive tracker for the `wr_beat_sequencer` FUB.
+Passive tracker for the DFI write serializer (`pumice_dfi_wr_serializer`).
+
+RETARGETED 2026-08-27: the FUB was renamed `wr_beat_sequencer` ->
+`pumice_dfi_wr_serializer` in the DFI-layer rearchitecture (scope
+`u_dfi.u_wr`). Op admission is now the `wr_fire_i` strobe and the beat
+pull is the `wd_valid_i/wd_ready_o` handshake; the old B-completion tap
+moved to the write CAM (see CamTracker `camwr DONE`).
 
 Tracks per-op lifecycle through the v2 multi-outstanding pipeline so
 you can verify that PULL really overlaps DRIVE and measure latency
@@ -12,8 +18,9 @@ end-to-end per burst.
 
 | Signal observed                  | Event emitted | Notes                              |
 |----------------------------------|---------------|------------------------------------|
-| `op_valid_i` & `op_ready_o`      | `OP_ACCEPT`   | data=`slot=N len=N`                |
-| `beat_pull_strb_o` pulse         | `PULL_BEAT`   | data=`slot=N`                      |
+| `wr_fire_i` pulse                | `OP_ACCEPT`   | a write burst admitted to the PHY  |
+| `wd_valid_i` & `wd_ready_o`      | `PULL_BEAT`   | one beat pulled from the CAM       |
+| `wd_last_i` & handshake          | `PULL_LAST`   | final beat of the burst            |
 | `dfi_wrdata_en_o` pulse          | `DRIVE_CYC`   | One per DFI cycle of drive         |
 | `b_complete_strb_o` pulse        | `B_COMPLETE`  | Slot retired                       |
 
@@ -35,7 +42,7 @@ from typing import Deque, Dict, Optional
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register, tracker_clock
 
 
 _NBA_SETTLE_PS = 1
@@ -50,6 +57,7 @@ class WrBeatSequencerTracker:
                  output_dir: "Optional[str]" = None,
                  filename:   "Optional[str]" = None):
         self.dut = dut
+        self._clk_h = tracker_clock(dut, log)
         self.log = log
         self._cycle = 0
         self.events: Deque[TrackerEvent] = deque()
@@ -62,23 +70,21 @@ class WrBeatSequencerTracker:
 
     async def run(self) -> None:
         while True:
-            await RisingEdge(self.dut.mc_clk)
+            await RisingEdge(self._clk_h)
             await Timer(_NBA_SETTLE_PS, units='ps')
             self._cycle += 1
             self._sample()
 
     def _sample(self) -> None:
         # OP acceptance
-        if is_high(self.dut, 'op_valid_i') and is_high(self.dut, 'op_ready_o'):
-            slot = safe_int(self.dut, 'op_slot_i', 0)
-            ln   = safe_int(self.dut, 'op_len_i',  0)
-            self._push("OP_ACCEPT", slot=slot, data=f"len={ln}")
+        if is_high(self.dut, 'wr_fire_i'):
+            self._push("OP_ACCEPT", data="burst admitted to PHY")
 
         # Pull beat
-        pull = is_high(self.dut, 'beat_pull_strb_o')
+        pull = is_high(self.dut, 'wd_valid_i') and is_high(self.dut, 'wd_ready_o')
         if pull:
-            slot = safe_int(self.dut, 'beat_pull_slot_o', 0)
-            self._push("PULL_BEAT", slot=slot)
+            self._push("PULL_LAST" if is_high(self.dut, 'wd_last_i')
+                       else "PULL_BEAT")
             self._pull_active_cycles += 1
 
         # Drive cycle
@@ -92,9 +98,8 @@ class WrBeatSequencerTracker:
             self._overlap_cycles += 1
 
         # b_complete
-        if is_high(self.dut, 'b_complete_strb_o'):
-            slot = safe_int(self.dut, 'b_complete_slot_o', 0)
-            self._push("B_COMPLETE", slot=slot)
+        # B completion moved to the write CAM (CamTracker: camwr DONE).
+        return
 
     def _push(self, event: str, **kw) -> None:
         ev = TrackerEvent(

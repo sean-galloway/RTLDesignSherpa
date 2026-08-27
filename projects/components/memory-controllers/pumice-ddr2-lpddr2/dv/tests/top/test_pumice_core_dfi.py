@@ -39,6 +39,11 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "dv/tb/pumice_core_tb_top.f")
 
+# dv/ on sys.path so `tbclasses.trackers` resolves (PUMICE_TRACKERS hook)
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+
 NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
 DFI_RATE, DRAM_BEAT = 2, 64
 DW = DRAM_BEAT * DFI_RATE          # 128
@@ -129,6 +134,31 @@ async def _bring_up(dut, page_policy=0):
         if int(dut.init_done_o.value):
             break
     assert int(dut.init_done_o.value) == 1, "init never completed"
+
+    # PUMICE-012: opt-in structure trackers. PUMICE_TRACKERS=1 wires the
+    # passive per-FUB trackers and each writes <sim_build>/<short>.out at
+    # end of sim -- one greppable markdown table per structure, so a
+    # paging / refresh / scheduling decision can be followed across them:
+    #   grep '| pgpol' pgpol.out      # paging decisions
+    #   grep '| refr'  refr.out       # refresh credits + grants
+    #   grep '| camrd' camrd.out      # read CAM entry lifecycle
+    # Off by default: zero cost to the normal regression.
+    if os.environ.get("PUMICE_TRACKERS", "0") == "1":
+        from tbclasses.trackers import wire_trackers
+        wire_trackers(dut, log=dut._log, num_banks=NUM_BANKS, scope_paths={
+            "sched":   "u_core.u_sched.u_arbiter",
+            "btmr":    "u_core.u_sched.u_bank_timers",
+            "refr":    "u_core.u_sched.u_refresh",
+            "pgpol":   "u_core.u_sched.u_page_policy",
+            "init":    "u_core.u_sched.u_init",
+            "camrd":   "u_core.u_ifc.u_rd_cam",
+            "camwr":   "u_core.u_ifc.u_wr_cam",
+            "dficmd":  "u_core.u_dfi.u_cmd",
+            "wrbeat":  "u_core.u_dfi.u_wr",
+            "rdalign": "u_core.u_dfi.u_rd",
+        })
+        dut._log.info("PUMICE_TRACKERS=1: structure trackers wired")
+
     return memory, slave
 
 

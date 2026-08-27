@@ -2,7 +2,11 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Passive tracker for the `xbank_timers` FUB.
+Passive tracker for the per-bank timers (`pumice_bank_timers`).
+
+RENAMED 2026-08-27: the FUB is `pumice_bank_timers` (scope
+`u_sched.u_bank_timers`); `xbank_timers` was its pre-rearchitecture
+name. Its observed signals are unchanged, so only the naming moved.
 
 ## Signals → events table
 
@@ -28,11 +32,11 @@ from typing import Deque, Dict, List, Optional, Tuple
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register, tracker_clock
 
 
 _NBA_SETTLE_PS = 1
-_TRACKER_NAME  = "xbank"
+_TRACKER_NAME  = "btmr"
 
 _STATE_NAMES = {
     0: "IDLE", 1: "ACTIVATING", 2: "ACTIVE",
@@ -40,8 +44,8 @@ _STATE_NAMES = {
 }
 
 
-class XBankTimersTracker:
-    """Background tracker for xbank_timers per-(rank, bank) state."""
+class BankTimersTracker:
+    """Background tracker for pumice_bank_timers per-(rank, bank) state."""
     SHORT_NAME = _TRACKER_NAME
 
     def __init__(self, dut, log=None,
@@ -49,6 +53,7 @@ class XBankTimersTracker:
                  filename:   "Optional[str]" = None,
                  num_ranks: int = 1, num_banks: int = 8):
         self.dut = dut
+        self._clk_h = tracker_clock(dut, log)
         self.log = log
         self.NR = num_ranks
         self.NB = num_banks
@@ -65,7 +70,7 @@ class XBankTimersTracker:
 
     async def run(self) -> None:
         while True:
-            await RisingEdge(self.dut.mc_clk)
+            await RisingEdge(self._clk_h)
             await Timer(_NBA_SETTLE_PS, units='ps')
             self._cycle += 1
             self._sample()

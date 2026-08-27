@@ -27,7 +27,7 @@ from typing import Deque, Dict, List, Optional, Tuple
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register, tracker_clock
 
 
 _NBA_SETTLE_PS = 1
@@ -42,6 +42,7 @@ class InitSequencerTracker:
                  output_dir: "Optional[str]" = None,
                  filename:   "Optional[str]" = None):
         self.dut = dut
+        self._clk_h = tracker_clock(dut, log)
         self.log = log
         self._cycle = 0
         self.events: Deque[TrackerEvent] = deque()
@@ -55,7 +56,7 @@ class InitSequencerTracker:
 
     async def run(self) -> None:
         while True:
-            await RisingEdge(self.dut.mc_clk)
+            await RisingEdge(self._clk_h)
             await Timer(_NBA_SETTLE_PS, units='ps')
             self._cycle += 1
             self._sample()

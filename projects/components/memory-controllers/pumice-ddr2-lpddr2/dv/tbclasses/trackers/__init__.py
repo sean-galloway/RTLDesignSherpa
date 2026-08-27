@@ -14,8 +14,9 @@ Each tracker:
 Available trackers (9 total):
     SchedulerTracker        — issued cmd_* stream, evt_* bank events, grants
     RefreshTracker          — refresh req/grant/pending; JEDEC tREFI compliance
-    XBankTimersTracker      — per-(rank, bank) state, row open/close, residency
-    PagePredictorTracker    — predictor counter MSB transitions, ACT input log
+    BankTimersTracker       — per-(rank, bank) state, row open/close, residency
+    PagePolicyTracker       — Axis-2 paging decisions (mode, ap mask, verdicts)
+    CamTracker              — rd/wr CAM entry lifecycle + occupancy
     DfiCmdFormatterTracker  — JEDEC ras/cas/we_n decode + ODT/CKE changes
     PowerdownTracker        — pdn_req / per-rank CKE residency
     InitSequencerTracker    — init duration, MR-write log, ZQCL pulses
@@ -30,8 +31,9 @@ from ._base import (
 
 from .scheduler_tracker        import SchedulerTracker
 from .refresh_tracker          import RefreshTracker
-from .xbank_timers_tracker     import XBankTimersTracker
-from .page_predictor_tracker   import PagePredictorTracker
+from .bank_timers_tracker      import BankTimersTracker
+from .page_policy_tracker      import PagePolicyTracker
+from .cam_tracker               import CamTracker
 from .dfi_cmd_formatter_tracker import DfiCmdFormatterTracker
 from .powerdown_tracker        import PowerdownTracker
 from .init_sequencer_tracker   import InitSequencerTracker
@@ -53,7 +55,7 @@ __all__ = [
     "auto_dump_register", "wire_trackers",
     # trackers
     "SchedulerTracker", "RefreshTracker",
-    "XBankTimersTracker", "PagePredictorTracker",
+    "BankTimersTracker", "PagePolicyTracker", "CamTracker",
     "DfiCmdFormatterTracker", "PowerdownTracker", "InitSequencerTracker",
     "WrBeatSequencerTracker", "RdClAlignerTracker",
     # divergence

@@ -25,5 +25,6 @@ summary: Verification practice - frameworks, determinism, coverage, formal.
 - [[formal]] - sv2v/SBY flow, mutation rule, vacuity traps
 - [[cloud-sandbox]] - running sims off the workstation; the Verilator pin, the PyPI pin
 - [[silent-fallbacks]] - why almost every wrong DV conclusion is something that did not happen without saying so
+- [[structure-trackers]] - passive per-FUB monitors emitting one greppable table each, so a decision can be followed across structures; they rot silently on RTL renames, so validate content not existence
 - [[wavedrom-generators]] - the deliverable is the JSON, so empty = FAIL; the clock-group-name and add_interface-prefix traps; the gaxi reference
 - [[register-testing]] - walk every register before anything is programmed; if the registers do not work, nothing above them can

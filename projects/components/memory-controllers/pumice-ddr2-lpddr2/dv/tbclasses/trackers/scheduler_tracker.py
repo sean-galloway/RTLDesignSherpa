@@ -5,21 +5,32 @@
 # Purpose: Passive monitor for the scheduler FUB's external bus activity.
 
 """
-Passive tracker for the `scheduler` FUB.
+Passive tracker for the command arbiter (`pumice_cmd_arbiter`).
+
+RETARGETED 2026-08-27: the pre-rearchitecture `scheduler` FUB is gone; the
+pick core is now `pumice_cmd_arbiter` inside `pumice_mem_cmd_scheduler`
+(scope `u_sched.u_arbiter`). The command/event/grant taps carried over
+unchanged; the powerdown / MR / issued-strobe taps did not survive the
+rearchitecture and were dropped. Added: the PUMICE-006 Axis-1 policy
+state, so a pick can be explained and not just observed.
 
 ## Signals → events table
 
 | Signal observed                  | Event emitted    | Notes                              |
 |----------------------------------|------------------|------------------------------------|
 | `cmd_valid_o` & `cmd_ready_i`    | `CMD_<op_name>`  | One per accepted command           |
-| `evt_act_o` / `evt_rank/bank_o`  | `EVT_ACT`        | ACT issued to xbank_timers         |
+| `evt_act_o` / `evt_rank/bank_o`  | `EVT_ACT`        | ACT issued to the bank timers          |
 | `evt_rd_o` / `evt_ap_o`          | `EVT_RD` / `RDA` | AP suffix when evt_ap_o high       |
 | `evt_wr_o` / `evt_ap_o`          | `EVT_WR` / `WRA` | AP suffix when evt_ap_o high       |
 | `evt_pre_o`                      | `EVT_PRE`        | PRE issued (open-page row-miss)    |
-| `refresh_grant_o`                | `GRANT_REF`      | Scheduler granted refresh          |
-| `pdn_grant_o`                    | `GRANT_PDN`      | Scheduler granted powerdown        |
-| `mr_grant_o`                     | `GRANT_MR`       | Scheduler granted MR write         |
-| `wr_issued_we_o`                 | `ISSUED_WR`      | mark-issued to wr CAM              |
+| `refresh_grant_o`                | `GRANT_REF`      | Arbiter granted refresh            |
+| `sched_order_mode_i` change      | `ORDER_<n>`      | 1 in_order, 3 age_threshold        |
+| `sched_access_pref_i` change     | `PREF_<n>`       | 2 row_first, 3 precharge_first     |
+| `sched_row_sel_i`/`col_sel` chg  | `ROWSEL_<n>` /   | 1 most_pending, 2 fewest_pending   |
+|                                  | `COLSEL_<n>`     |                                    |
+| `sched_prio_sub_i` change        | `PRIO_<n>`       | 1 none(fair), 3 age_boost          |
+| `sched_qos_en_i` change          | `QOS_ON/OFF`     | AxQOS as the outer pick key        |
+| `r_wr_drain` edge                | `WRDRAIN_ON/OFF` | SCHED_WR_WM write-batch window     |
 | `rd_issued_we_o`                 | `ISSUED_RD`      | mark-issued to rd CAM              |
 
 ## Stats (`.stats()`)
@@ -41,7 +52,7 @@ from typing import Deque, Dict, Optional  # noqa: F401
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register, tracker_clock
 
 
 _NBA_SETTLE_PS = 1
@@ -64,8 +75,11 @@ class SchedulerTracker:
                  output_dir: Optional[str] = None,
                  filename:   Optional[str] = None):
         self.dut = dut
+        self._clk_h = tracker_clock(dut, log)
         self.log = log
         self._cycle = 0
+        # Axis-1 policy snapshot (emit-on-change).
+        self._last_policy: Dict[str, int] = {}
         # Unified event queue (the only one — all event types go here).
         self.events: Deque[TrackerEvent] = deque()
         # Register the end-of-sim atexit dump. Returns the resolved path.
@@ -74,14 +88,17 @@ class SchedulerTracker:
         )
 
     async def run(self) -> None:
+        # The arbiter runs on aclk; the pre-rearchitecture scheduler used
+        # mc_clk. Accept either so the tracker works at both scopes.
         while True:
-            await RisingEdge(self.dut.mc_clk)
+            await RisingEdge(self._clk_h)
             await Timer(_NBA_SETTLE_PS, units='ps')
             self._cycle += 1
             self._sample_cmd()
             self._sample_bank_events()
             self._sample_grants()
             self._sample_issued()
+            self._sample_policy()
 
     # ---------------- sub-samplers ----------------
 
@@ -127,18 +144,54 @@ class SchedulerTracker:
             self._push("EVT_PRE", rank=rank, bank=bank)
 
     def _sample_grants(self) -> None:
+        # The rearchitected arbiter grants ONLY refresh; powerdown and MR
+        # are handled outside it (their old taps were removed with the
+        # pre-rearchitecture scheduler).
         if is_high(self.dut, 'refresh_grant_o'):
             self._push("GRANT_REF")
-        if is_high(self.dut, 'pdn_grant_o'):
-            self._push("GRANT_PDN")
-        if is_high(self.dut, 'mr_grant_o'):
-            self._push("GRANT_MR")
 
     def _sample_issued(self) -> None:
-        if is_high(self.dut, 'wr_issued_we_o'):
-            self._push("ISSUED_WR", slot=safe_int(self.dut, 'wr_issued_slot_o', 0))
-        if is_high(self.dut, 'rd_issued_we_o'):
-            self._push("ISSUED_RD", slot=safe_int(self.dut, 'rd_issued_slot_o', 0))
+        # Slot-level issue/commit moved to the CAMs -- see CamTracker
+        # (camrd ISSUE / camwr COMMIT). Kept as a no-op hook so the run()
+        # loop shape stays stable for anyone reading the old flow.
+        return
+
+    def _sample_policy(self) -> None:
+        """PUMICE-006 Axis-1 policy state. Emitted on CHANGE only, so a
+        run's policy timeline is a handful of rows you can grep beside
+        the picks they explain."""
+        for sig, tag, names in (
+            ('sched_order_mode_i',  'ORDER',
+             {0: 'fr_fcfs', 1: 'in_order', 2: 'fr_fcfs', 3: 'age_threshold'}),
+            ('sched_access_pref_i', 'PREF',
+             {0: 'column_first', 1: 'column_first', 2: 'row_first',
+              3: 'precharge_first'}),
+            ('sched_row_sel_i',     'ROWSEL',
+             {0: 'oldest', 1: 'most_pending', 2: 'fewest_pending'}),
+            ('sched_col_sel_i',     'COLSEL',
+             {0: 'oldest', 1: 'most_pending', 2: 'fewest_pending'}),
+            ('sched_prio_sub_i',    'PRIO',
+             {0: 'load_over_store', 1: 'none', 2: 'load_over_store',
+              3: 'age_boost'}),
+        ):
+            cur = safe_int(self.dut, sig, 0)
+            if self._last_policy.get(sig) != cur:
+                self._push(f"{tag}_{cur}", data=f"name={names.get(cur, '?')}")
+                self._last_policy[sig] = cur
+
+        qos = 1 if is_high(self.dut, 'sched_qos_en_i') else 0
+        if self._last_policy.get('qos') != qos:
+            self._push("QOS_ON" if qos else "QOS_OFF")
+            self._last_policy['qos'] = qos
+
+        # write-batching drain window (internal reg; absent when the
+        # tracker is scoped somewhere without it)
+        drain = 1 if is_high(self.dut, 'r_wr_drain') else 0
+        if self._last_policy.get('drain') != drain:
+            self._push("WRDRAIN_ON" if drain else "WRDRAIN_OFF",
+                       data=f"high_wm={safe_int(self.dut, 'sched_wr_high_wm_i', 0)} "
+                            f"low_wm={safe_int(self.dut, 'sched_wr_low_wm_i', 0)}")
+            self._last_policy['drain'] = drain
 
     # ---------------- statistics ----------------
 

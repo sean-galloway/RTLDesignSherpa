@@ -30,7 +30,7 @@ from typing import Deque, Dict, Optional
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register, tracker_clock
 
 
 _NBA_SETTLE_PS = 1
@@ -46,6 +46,7 @@ class PowerdownTracker:
                  filename:   "Optional[str]" = None,
                  num_ranks: int = 1):
         self.dut = dut
+        self._clk_h = tracker_clock(dut, log)
         self.log = log
         self.NR = num_ranks
         self._cycle = 0
@@ -59,7 +60,7 @@ class PowerdownTracker:
 
     async def run(self) -> None:
         while True:
-            await RisingEdge(self.dut.mc_clk)
+            await RisingEdge(self._clk_h)
             await Timer(_NBA_SETTLE_PS, units='ps')
             self._cycle += 1
             self._sample()

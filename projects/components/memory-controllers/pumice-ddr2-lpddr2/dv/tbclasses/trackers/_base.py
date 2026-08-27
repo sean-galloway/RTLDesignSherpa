@@ -88,6 +88,41 @@ class TrackerEvent:
                 f"| {self.data} |")
 
 
+def tracker_clock(dut, log=None):
+    """Resolve a FUB's clock handle by NAME, tolerating the rearchitecture.
+
+    The pre-rearchitecture FUBs used `mc_clk`; the rearchitected ones use
+    `aclk` (and the DFI-domain blocks `dfi_clk`). Trackers must not
+    hard-code either -- a tracker that raises AttributeError takes the
+    whole TEST down with it, which is exactly backwards for passive
+    instrumentation (found 2026-08-27: every tracker hardcoded mc_clk and
+    none had been run against the rearchitected core).
+    """
+    for name in ('aclk', 'mc_clk', 'clk', 'dfi_clk'):
+        h = getattr(dut, name, None)
+        if h is not None:
+            return h
+    if log is not None:
+        log.warning("tracker_clock: no clock on %s", getattr(dut, '_name', dut))
+    return None
+
+
+def guard_run(coro_fn, short_name: str, log=None):
+    """Wrap a tracker's run() so a signal miss disables THAT tracker
+    instead of failing the test. Passive instrumentation must never be
+    able to turn a green run red."""
+    async def _wrapped():
+        try:
+            await coro_fn()
+        except Exception as e:                      # noqa: BLE001
+            msg = f"[tracker {short_name}] disabled after error: {e}"
+            if log is not None:
+                log.warning(msg)
+            else:
+                print(msg, file=sys.stderr)
+    return _wrapped
+
+
 def md_header() -> str:
     """Markdown table header. Emit once at the top of a dump file before
     concatenating tracker rows."""
@@ -217,20 +252,28 @@ def wire_trackers(dut, *, output_dir: Optional[str] = None,
     2. ``scope_paths`` (dict of short-name -> path): per-tracker scope.
        This is REQUIRED at integration TB scopes because each tracker
        actually monitors a different sub-module. Example for the
-       macro top env (where ``pumice_top`` lives at ``u_dut`` and
-       wraps ``pumice_core_macro`` at ``u_core``):
+       core TB env. CURRENT hierarchy (updated 2026-08-27 for the
+       rearchitected core: ``pumice_core`` instantiates ``u_sched``
+       (pumice_mem_cmd_scheduler), ``u_ifc`` (pumice_axi4_ifc) and
+       ``u_dfi`` (pumice_dfi_layer)):
 
            wire_trackers(dut, scope_paths={
-               "sched":   "u_dut.u_core.u_command_scheduler.u_scheduler",
-               "xbank":   "u_dut.u_core.u_command_scheduler.u_xbank_timers",
-               "refr":    "u_dut.u_core.u_command_scheduler.u_refresh_ctrl",
-               "pgpred":  "u_dut.u_core.u_command_scheduler.u_page_predictor",
-               "pdn":     "u_dut.u_core.u_command_scheduler.u_powerdown_ctrl",
-               "init":    "u_dut.u_core.u_command_scheduler.u_init_sequencer",
-               "dficmd":  "u_dut.u_core.u_dfi_v21_interface.u_dfi_cmd_formatter",
-               "wrbeat":  "u_dut.u_core.u_data_path.u_wr_beat_sequencer",
-               "rdalign": "u_dut.u_core.u_data_path.u_rd_cl_aligner",
+               "sched":   "u_core.u_sched.u_arbiter",
+               "btmr":    "u_core.u_sched.u_bank_timers",
+               "refr":    "u_core.u_sched.u_refresh",
+               "pgpol":   "u_core.u_sched.u_page_policy",
+               "init":    "u_core.u_sched.u_init",
+               "camrd":   "u_core.u_ifc.u_rd_cam",
+               "camwr":   "u_core.u_ifc.u_wr_cam",
+               "dficmd":  "u_core.u_dfi.u_cmd",
+               "wrbeat":  "u_core.u_dfi.u_wr",
+               "rdalign": "u_core.u_dfi.u_rd",
            })
+
+       (Prefix each path with ``u_dut.`` at the pumice_top TB scope.)
+       ``pdn`` is only present in builds that instantiate
+       ``powerdown_ctrl``; it is skipped when the handle does not
+       resolve.
 
        In per-FUB tests (where ``dut`` IS the specific FUB), omit
        both arguments — the trackers work as-is, just like before.
@@ -259,8 +302,9 @@ def wire_trackers(dut, *, output_dir: Optional[str] = None,
     # Local imports to avoid circular deps.
     from .scheduler_tracker         import SchedulerTracker
     from .refresh_tracker           import RefreshTracker
-    from .xbank_timers_tracker      import XBankTimersTracker
-    from .page_predictor_tracker    import PagePredictorTracker
+    from .bank_timers_tracker       import BankTimersTracker
+    from .page_policy_tracker        import PagePolicyTracker
+    from .cam_tracker                import CamTracker
     from .dfi_cmd_formatter_tracker import DfiCmdFormatterTracker
     from .powerdown_tracker         import PowerdownTracker
     from .init_sequencer_tracker    import InitSequencerTracker
@@ -293,21 +337,27 @@ def wire_trackers(dut, *, output_dir: Optional[str] = None,
 
     common = dict(output_dir=output_dir, log=log)
     trackers = {
-        'sched':   SchedulerTracker(_resolve('sched'),     **common),
-        'refr':    RefreshTracker(_resolve('refr'),         **common),
-        'xbank':   XBankTimersTracker(_resolve('xbank'),    num_ranks=num_ranks, num_banks=num_banks, **common),
-        'pgpred':  PagePredictorTracker(_resolve('pgpred'), num_ranks=num_ranks, num_banks=num_banks, **common),
+        'sched':   SchedulerTracker(_resolve('sched'),      **common),
+        'refr':    RefreshTracker(_resolve('refr'),          **common),
+        'btmr':    BankTimersTracker(_resolve('btmr'),       num_ranks=num_ranks, num_banks=num_banks, **common),
+        'pgpol':   PagePolicyTracker(_resolve('pgpol'),      num_banks=num_banks, **common),
+        'camrd':   CamTracker(_resolve('camrd'), kind='rd',  **common),
+        'camwr':   CamTracker(_resolve('camwr'), kind='wr',  **common),
         'dficmd':  DfiCmdFormatterTracker(_resolve('dficmd'), **common),
-        'pdn':     PowerdownTracker(_resolve('pdn'),        num_ranks=num_ranks, **common),
-        'init':    InitSequencerTracker(_resolve('init'),   **common),
+        'init':    InitSequencerTracker(_resolve('init'),    **common),
         'wrbeat':  WrBeatSequencerTracker(_resolve('wrbeat'), **common),
-        'rdalign': RdClAlignerTracker(_resolve('rdalign'),  **common),
+        'rdalign': RdClAlignerTracker(_resolve('rdalign'),   **common),
     }
+    # powerdown_ctrl is optional in the rearchitected core -- only wire
+    # its tracker when the instance actually resolves.
+    _pdn_scope = _resolve('pdn')
+    if _pdn_scope is not None and getattr(_pdn_scope, 'pdn_req_o', None) is not None:
+        trackers['pdn'] = PowerdownTracker(_pdn_scope, num_ranks=num_ranks, **common)
     if autostart:
         try:
             import cocotb
-            for t in trackers.values():
-                cocotb.start_soon(t.run())
+            for _short, t in trackers.items():
+                cocotb.start_soon(guard_run(t.run, _short, log)())
         except Exception as e:
             print(f"[wire_trackers] autostart failed (no cocotb?): {e}",
                   file=sys.stderr)
