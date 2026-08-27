@@ -178,7 +178,8 @@ thin core takes M and S as parameters.
 Port counts, per-slave window size and APB version per port are
 generator inputs, not parameters — see chapter 3.
 
-**Thin core** (`apbx_xbar_thin`):
+**Thin core** (`apbx_xbar_thin`) — **RETIRED 2026-08-27**, kept for
+reference only:
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
@@ -248,7 +249,7 @@ pass-through claim mean anything.
 | `apbx_xbar_1to4` | 1×4 | 384 | Simple SoC peripheral bus |
 | `apbx_xbar_2to4` | 2×4 | 751 | Typical SoC with CPU+DMA |
 | `apbx_xbar_2to2_mixed` | 2×2 | 570 | Mixed APB4/APB5 ports, version gating |
-| `apbx_xbar_thin` | M×S | 306 | Minimal overhead, parameterized ports |
+| `apbx_xbar_thin` *(RETIRED)* | M×S | 306 | Parameterized ports; weighted RR; not supported for new work |
 
 : Pre-Generated Crossbar Variants
 

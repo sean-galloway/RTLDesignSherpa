@@ -42,7 +42,7 @@ These are calculated automatically:
 | Parameter | Derivation | Description |
 |-----------|------------|-------------|
 | STRB_WIDTH | DATA_WIDTH / 8 | Byte strobe width |
-| (none) | — | The generated variants declare only the four parameters above; master/slave counts are baked into the module name and port list, NOT exposed as parameters. `apbx_xbar_thin` is the exception: it has real `M` and `S` parameters. |
+| (none) | — | The generated variants declare only the four parameters above; master/slave counts are baked into the module name and port list, NOT exposed as parameters. `apbx_xbar_thin` (RETIRED) was the exception: it has real `M` and `S` parameters. |
 
 
 : Derived Parameters

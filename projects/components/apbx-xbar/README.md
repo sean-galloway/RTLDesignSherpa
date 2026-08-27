@@ -45,7 +45,7 @@ Slave Side:      apb4_master / apb5_master convert cmd/rsp → APB interface
 > retired module, including its known zero-setup-cycle APB deviation
 > (APBX-006).
 
-`apbx_xbar_thin` is a different architecture — a combinational passthrough
+`apbx_xbar_thin` (RETIRED) is a different architecture — a combinational passthrough
 with weighted round-robin and no cmd/rsp conversion. See
 [the docs](../../../docs/markdown/rtl-amba/apbx/README.md) for choosing
 between them.
@@ -81,7 +81,7 @@ seen at the APB5 master. The thin core does route it.
 | `apbx_xbar_1to4.sv` | Address decode only | 1 | 4 | Single master to multi-slave |
 | `apbx_xbar_2to4.sv` | Full crossbar | 2 | 4 | Multi-master to multi-slave |
 | `apbx_xbar_2to2_mixed.sv` | Mixed APB4/APB5 | 2 | 2 | m0=APB4, m1=APB5, s0=APB5, s1=APB4 |
-| `apbx_xbar_thin.sv` | Parameterized core | M | S | Any topology; versions set by parameter |
+| `apbx_xbar_thin.sv` *(RETIRED)* | Parameterized core | M | S | Reference only — not supported for new work |
 
 ## Generating Crossbars
 

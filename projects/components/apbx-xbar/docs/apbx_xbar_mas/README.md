@@ -237,7 +237,7 @@ python generate_xbars.py --masters 2 --slaves 4 --base-addr 0x80000000
 
 ### Q: Can I change per-slave address sizes?
 
-**In the generated variants, no:** each slave is fixed at 64KB. **In `apbx_xbar_thin`, yes:** its per-slave windows arrive on the `SLAVE_ADDR_BASE` / `SLAVE_ADDR_LIMIT` / `SLAVE_ENABLE` input ports and are programmable at runtime.
+**In the generated variants, no:** each slave is fixed at 64KB. **In `apbx_xbar_thin` (RETIRED 2026-08-27), yes:** its per-slave windows arrive on the `SLAVE_ADDR_BASE` / `SLAVE_ADDR_LIMIT` / `SLAVE_ENABLE` input ports and are programmable at runtime.
 
 **Workarounds:**
 1. Use multiple crossbars with different BASE_ADDR
