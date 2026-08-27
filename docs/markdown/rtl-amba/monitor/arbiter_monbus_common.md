@@ -32,32 +32,44 @@
 
 ## Overview
 
-The `arbiter_monbus_common` module provides Base infrastructure for monitor bus arbitration.
+The `arbiter_monbus_common` module is the shared **telemetry block** that
+watches an arbiter and reports on it. It is instantiated inside
+`arbiter_rr_pwm_monbus` and `arbiter_wrr_pwm_monbus` as `u_monitor`.
 
-This is a **shared infrastructure module** used internally by AXI/AXIL monitors. It is not typically instantiated directly by users but is critical for understanding the monitor architecture.
+It performs **no arbitration of its own.** Every arbiter-facing signal
+(`request`, `grant_valid`, `grant`, `grant_id`, `grant_ack`, `block_arb`) is an
+**input**: the module snoops the decisions an external arbiter has already
+made, measures them, and emits 128-bit monitor packets about what it saw. There
+is no request/grant output, no data mux, and no client stream inputs.
+
+> **Looking for the N:1 monitor-bus merge?** That is a different module:
+> [`monbus_arbiter`](monbus_arbiter.md), which takes N `monbus_valid`/`packet`
+> streams and arbitrates them onto one. This page has described that module in
+> the past; it does not describe this one.
 
 ---
 
 ## Key Features
 
-- ✅ **Shared arbitration logic for multiple monitor sources:** Shared arbitration logic for multiple monitor sources
-- ✅ **Fair access to monitor bus bandwidth:** Fair access to monitor bus bandwidth
-- ✅ **Packet multiplexing with source identification:** Packet multiplexing with source identification
-- ✅ **Backpressure handling and flow control:** Backpressure handling and flow control
-- ✅ **Configurable arbitration policy support:** Configurable arbitration policy support
-- ✅ **Grant tracking and fairness enforcement:** Grant tracking and fairness enforcement
+- ✅ **Snoops any arbiter** — RR or WRR, with or without the grant-ACK handshake
+- ✅ **Per-client ACK timeout tracking** with a configurable threshold
+- ✅ **Protocol violation detection** — multiple simultaneous grants, spurious ACKs, grant without request
+- ✅ **Starvation detection** with per-client timing
+- ✅ **Fairness deviation** measured against configured client weights
+- ✅ **Grant efficiency** tracking (grants issued vs. completed)
+- ✅ **128-bit monitor packets** emitted through an internal FIFO, plus a 64-bit side-band timestamp
 
 ---
 
 ## Module Purpose
 
-The `arbiter_monbus_common` module is the core building block for:
+The `arbiter_monbus_common` module exists to:
 
-1. **Fair Arbitration:** Prevents starvation with round-robin or weighted policies
-2. **Source Multiplexing:** Combines multiple monitor streams
-3. **Backpressure Management:** Handles flow control from downstream
-4. **Grant Tracking:** Maintains fairness across arbitration cycles
-5. **Scalable Design:** Supports configurable number of sources
+1. **Observe:** sample the arbiter's request/grant/ACK activity without perturbing it
+2. **Detect:** identify starvation, ACK timeouts, protocol violations, and threshold crossings
+3. **Measure:** maintain fairness-deviation and grant-efficiency metrics
+4. **Report:** format findings as `monitor_packet_t` records and queue them for the monitor bus
+5. **Expose:** drive silicon-debug status outputs (`debug_*`) for direct observation
 
 ---
 
@@ -67,16 +79,26 @@ The `arbiter_monbus_common` module is the core building block for:
 |-----------|------|---------|-------------|
 | `CLIENTS` | int | 4 | Number of monitor sources to arbitrate |
 | `WAIT_GNT_ACK` | int | 0 | 1 = require a grant-ACK handshake |
-| `WEIGHTED_MODE` | int | 0 | 1 = weighted round-robin, 0 = plain round-robin |
+| `WEIGHTED_MODE` | int | 0 | **Dead** — declared but referenced by no logic. Fairness analysis always uses the `cfg_max_thresh` weights, and this module performs no arbitration for a mode switch to modulate. Setting it changes nothing |
 | `MON_AGENT_ID` | logic [15:0] | 16'h0010 | Monitor agent identifier (16-bit) |
 | `MON_UNIT_ID` | logic [7:0] | 8'h00 | Monitor unit identifier (8-bit) |
 | `MON_FIFO_DEPTH` | int | 8 | Monitor packet FIFO depth |
 | `MON_FIFO_ALMOST_MARGIN` | int | 1 | Almost-full margin for the monitor FIFO |
-| `FAIRNESS_REPORT_CYCLES` | int | 256 | Window (cycles) for fairness reporting |
+| `FAIRNESS_REPORT_CYCLES` | int | 256 | How often the fairness deviation is **recomputed** (cycles). Not a sliding window — see the note under Fairness below |
 | `MIN_GRANTS_FOR_FAIRNESS` | int | 100 | Minimum grants before a fairness report is valid |
 | `DEFAULT_ACK_TIMEOUT` | int | 64 | Default grant-ACK timeout (cycles) |
 
-`N` (`$clog2(CLIENTS)`), `MON_FIFO_COUNT_WIDTH`, and the weight-vector widths are derived localparams, not user-settable parameters.
+`MAX_LEVELS` (default 16) is an independent parameter, not a derived one: it
+sets the per-client weight resolution and therefore the width of the
+`cfg_max_thresh` port (`CXMTW = CLIENTS * $clog2(MAX_LEVELS)`).
+`arbiter_wrr_pwm_monbus` passes its own `MAX_LEVELS` down. Change it and the
+port width changes with it.
+
+`N` (`$clog2(CLIENTS)`), `MON_FIFO_COUNT_WIDTH`, `MAX_LEVELS_WIDTH` and the
+weight-vector widths are derived from the parameters above. They are declared
+with `parameter` rather than `localparam`, so they are overridable in
+principle — don't, since they must stay consistent with what they are derived
+from.
 
 ---
 
@@ -96,31 +118,30 @@ Key interface groups:
 
 ```mermaid
 flowchart LR
-    subgraph Inputs["Monitor Inputs"]
-        v0["mon_valid[0]"]
-        d0["mon_data[0]"]
-        v1["mon_valid[1]"]
-        d1["mon_data[1]"]
-        vn["mon_valid[N]"]
-        dn["mon_data[N]"]
+    subgraph Snoop["Arbiter signals (all INPUTS)"]
+        rq["request[CLIENTS-1:0]"]
+        gv["grant_valid"]
+        gr["grant[CLIENTS-1:0]"]
+        gid["grant_id"]
+        gack["grant_ack[CLIENTS-1:0]"]
+        blk["block_arb"]
     end
 
-    v0 --> arb["Arbiter<br/>Logic"]
-    d0 --> arb
-    v1 --> arb
-    d1 --> arb
-    vn --> arb
-    dn --> arb
+    rq --> det["Event detection<br/>starvation / ACK timeout<br/>protocol violation<br/>fairness / efficiency"]
+    gv --> det
+    gr --> det
+    gid --> det
+    gack --> det
+    blk --> det
 
-    arb --> mux["Mux"]
-    mux --> out["agg_valid/data"]
-    arb --> rdy["mon_ready[0..N]"]
+    det --> pkt["Packet format<br/>(monitor_packet_t)"]
+    pkt --> fifo["gaxi_fifo_sync<br/>MON_FIFO_DEPTH"]
+    fifo --> out["monbus_valid / monbus_packet<br/>+ monbus_timestamp"]
+    det --> dbg["debug_* status outputs"]
 ```
 
-Arbitration policies supported:
-- Round-robin (fair)
-- Weighted round-robin (QoS)
-- Priority-based (critical first)
+The single monitor-bus output carries this module's **own** event packets. It
+is not a merge of upstream streams — there are none.
 
 ---
 

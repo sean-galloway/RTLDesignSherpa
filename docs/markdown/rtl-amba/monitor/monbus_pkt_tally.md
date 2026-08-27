@@ -85,7 +85,7 @@ flowchart LR
     CAM -->|miss| UNX["UNEXPECTED bin<br/>(index N_PROFILE)"]
     BIN --> RMW["read-modify-write<br/>saturating increment"]
     UNX --> RMW
-    RMW --> SRAM["count SRAM<br/>(N_PROFILE+1) × COUNT_WIDTH"]
+    RMW --> SRAM["count SRAM<br/>SRAM_DEPTH x COUNT_WIDTH<br/>(N_PROFILE+1 used)"]
     SRAM --> RD["indexed readback<br/>rd_addr → rd_count (live)"]
     IN --> LATCH["first-event latch bank<br/>(watched pkt_types)"]
 ```
@@ -116,8 +116,10 @@ The **legal set** is loaded by the host over the config port (clear, then one
 `{key, index}` pair per entry). The 32-bit key is
 `{agent[15:0], protocol[3:0], pkt_type[3:0], event_code[7:0]}` — note it includes
 **agent**, so per-instance identity is resolved, not just the message class. Dense
-bins run `0..N_PROFILE-1` with `UNEXPECTED = N_PROFILE`, so the SRAM is only
-`N_PROFILE+1` deep regardless of how sparse the underlying tuple space is.
+bins run `0..N_PROFILE-1` with `UNEXPECTED = N_PROFILE`, so only `N_PROFILE+1`
+words are ever *used*, regardless of how sparse the underlying tuple space is.
+The SRAM itself is `SRAM_DEPTH = 1 << ADDR_BITS` words (128 at the default
+`ADDR_BITS = 7`), and the clear walk covers all of them.
 
 ---
 
@@ -128,7 +130,6 @@ module monbus_pkt_tally #(
     parameter int PKT_WIDTH   = 128,   // monitor_packet_t width (locked)
     parameter int TS_WIDTH    = 64,    // side-band timestamp width (locked)
     parameter int COUNT_WIDTH = 32,    // saturating bin count width
-    parameter int CACHE_DEPTH = 32,    // (unused; kept for interface compat)
     parameter int NUM_LATCH   = 4,     // first-event capture slots
     parameter int ADDR_BITS   = 7,     // bin address width (sizes the dense SRAM)
     parameter int N_PROFILE   = 64,    // legal-set entries; dense bins 0..N-1, UNEXPECTED = N
@@ -172,7 +173,6 @@ module monbus_pkt_tally #(
 | `PKT_WIDTH` | Monitor packet width | 128 | Locked by `monitor_common_pkg` |
 | `TS_WIDTH` | Side-band timestamp width | 64 | Locked |
 | `COUNT_WIDTH` | Saturating bin-count width | 32 | ≥ 1; sizes the SRAM word |
-| `CACHE_DEPTH` | Unused | 32 | Kept for interface compatibility; the cache was removed |
 | `NUM_LATCH` | First-event capture slots | 4 | ≥ 1 |
 | `ADDR_BITS` | Bin address width | 7 | `≥ clog2(N_PROFILE+1)` — sizes the dense count SRAM |
 | `N_PROFILE` | Legal-set entries (dense bins) | 64 | Dense bins `0..N-1`; `N` = `UNEXPECTED` |
@@ -278,7 +278,9 @@ The bank is cleared by `i_clear`.
 
 The acceptance criterion is an **exact** cross-check: after a freeze/flush, the
 hardware bin counts must equal a pure-Python golden count of the same accepted
-`(protocol, pkt_type, event_code)` stream. A lost increment through an eviction
-race shows up as a per-bin mismatch. Phases: random count + readback, eviction
-stress (5× more distinct bins than the cache, repeated eviction/re-install),
-saturation (a bin pegs and never wraps), first-event latch, and clear.
+`(protocol, pkt_type, event_code)` stream. A lost increment shows up as a per-bin mismatch.
+Phases: random count + readback, back-to-back same-bin accepts (the RMW hazard
+the two-cycle accept sequence exists to cover), saturation (a bin pegs and never
+wraps), first-event latch, and clear. (Earlier revisions of this section
+described eviction-stress phases against an LRU write-combining cache; that
+cache was removed -- every accept is now a direct SRAM read-modify-write.)

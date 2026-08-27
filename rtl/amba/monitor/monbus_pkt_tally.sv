@@ -6,8 +6,11 @@
 //
 // Module: monbus_pkt_tally
 // Purpose: On-chip packet-type coverage histogram. Counts accepted monbus
-//          packets into a direct-mapped count SRAM addressed by the message
-//          identity {protocol, pkt_type, event_code} (or, in PROFILE_MODE, a
+//          packets into a count SRAM addressed by a CSR-loaded legal-set
+//          dense index. (The direct-mapped {protocol, pkt_type, event_code}
+//          path and the PROFILE_MODE switch were REMOVED -- the legal-set CAM
+//          is always in the path. This banner described both for a while
+//          after they were deleted; qc round_24.) Formerly: a
 //          CSR-loaded legal-set dense index). This is the silicon twin of the
 //          sim-side packet-type coverage matrix (bin/monbus_coverage_report +
 //          TBClasses.monbus.parse): a bin count > 0 means "this message was
@@ -101,7 +104,8 @@ module monbus_pkt_tally #(
     output logic [TS_WIDTH-1:0]     latch_ts,
     output logic [LFILL_WIDTH-1:0]  latch_fill,
 
-    // === Profile (legal-set) load interface — PROFILE_MODE only, else tie 0 ===
+    // === Profile (legal-set) load interface — ALWAYS live (there is no
+    //     PROFILE_MODE switch; the legal-set CAM is unconditional) ===
     input  logic                    profile_clear,   // pulse: invalidate all entries
     input  logic                    profile_we,      // pulse: write one entry
     input  logic [PROF_IDX_W-1:0]   profile_waddr,   // entry index

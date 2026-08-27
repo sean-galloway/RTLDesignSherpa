@@ -371,8 +371,18 @@ async def arbiter_monbus_common_test(dut):
                 await RisingEdge(dut.clk)
 
         elif error_test == "protocol_violation_simulation":
+            # Grant-without-request is one of the three conditions
+            # w_protocol_violation_detected fires on, so this phase must move
+            # debug_protocol_violations. It is asserted rather than assumed:
+            # the counter register was DECLARED and exported but never written
+            # by any always block (qc round_24), so this output read as X in
+            # simulation and an arbitrary constant in synthesis. This phase
+            # already drove the violations; nothing looked at the count.
+            violations_before = int(dut.debug_protocol_violations.value)
+
             # Test unusual timing patterns
-            for violation in range(30):
+            n_violations = 30
+            for violation in range(n_violations):
                 # Grant without request (unusual but not invalid)
                 dut.grant.value = 0b00000001
                 dut.grant_id.value = 0
@@ -388,6 +398,22 @@ async def arbiter_monbus_common_test(dut):
                 dut.grant.value = 0
                 dut.grant_valid.value = 0
                 await ClockCycles(dut.clk, 5)
+
+            violations_after = int(dut.debug_protocol_violations.value)
+            counted = violations_after - violations_before
+            print(f"     debug_protocol_violations: {violations_before} -> "
+                  f"{violations_after} ({counted} counted for {n_violations} driven)")
+            assert counted > 0, (
+                f"debug_protocol_violations did not move ({violations_before} -> "
+                f"{violations_after}) across {n_violations} grant-without-request "
+                f"violations -- the counter has no driver")
+            # Edge-counted, not level-counted: each violation is one incident
+            # however many cycles it is held, so a per-cycle counter would
+            # report far more than the number driven.
+            assert counted <= n_violations, (
+                f"{counted} violations counted for {n_violations} driven -- the "
+                f"counter is incrementing per CYCLE the condition holds rather "
+                f"than per incident")
 
         end_count = int(dut.debug_packet_count.value)
         packets_this_error_test = end_count - start_count

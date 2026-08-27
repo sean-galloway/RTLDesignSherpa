@@ -30,7 +30,7 @@
 
 ---
 
-> ⚠ **Deprecation note.** `monbus_cam.sv` is the single-cycle reference
+> **Deprecation note.** `monbus_cam.sv` is the single-cycle reference
 > design. The in-production CAM inside `monbus_compressor` is now
 > `monbus_cam_pipe.sv`, a 2-cycle pipelined variant that splits the
 > 49-bit compare → priority-encode → move-to-front chain into two
@@ -250,8 +250,9 @@ On every clock edge:
 | `INSTALL` when `!cam_full` | Insertion position is `cam_count`. Slots `1..cam_count` shift down from `0..cam_count-1`. Slot 0 becomes the new entry. `cam_count++`. |
 | `INSTALL` when `cam_full` | Insertion position is `DEPTH-1` (overwriting the LRU). Slots `1..DEPTH-1` shift down from `0..DEPTH-2`. Slot 0 becomes the new entry. `evicted` pulses high. `cam_count` stays at `DEPTH`. |
 
-A per-slot `generate` loop generates `DEPTH` independent `always_ff` updates,
-each gated by `do_shift && (CNT_WIDTH'(i) <= shift_to)`. This compiles to
+A single `ALWAYS_FF_RST` block contains a `for` loop over slots 1..DEPTH-1,
+each iteration gated by `do_shift && (CNT_WIDTH'(i) <= shift_to)` (slot 0 is
+handled separately). Synthesis infers the same per-slot enables. This compiles to
 ~one LUT level per slot on the per-bit datapath — Vivado synthesises the
 whole shift as `DEPTH` parallel small update cones.
 

@@ -166,9 +166,13 @@ module axi_monitor_base
     input  logic                     cfg_perf_enable,     // Enable performance metric packets
     input  logic                     cfg_debug_enable,    // Enable debug/trace packets
 
-    // Debug configuration (only used when ENABLE_DEBUG_MODULE=1)
-    input  logic [3:0]               cfg_debug_level, // Debug verbosity level
-    input  logic [15:0]              cfg_debug_mask,  // Event type mask
+    // Debug configuration -- DEAD. Both are declared here and referenced by no
+    // logic in this module or below it; they were the interface to the debug
+    // sub-module that does not exist (see the tie-off comment further down).
+    // Kept only because the wrapper family plumbs them. Real debug packets come
+    // from the reporter's state-change emitter via cfg_debug_enable.
+    input  logic [3:0]               cfg_debug_level, // (inert)
+    input  logic [15:0]              cfg_debug_mask,  // (inert)
 
     // Threshold configuration
     input  logic [15:0]              cfg_active_trans_threshold, // Active transaction threshold
@@ -298,12 +302,27 @@ module axi_monitor_base
     monbus_timestamp_t        w_addr_pkt_timestamp;
     logic                     w_addr_pkt_ready;
 
-    // Default: debug monbus disabled when ENABLE_DEBUG_MODULE=0.
-    // Without this, the wires are undriven and formal tools see undefined values.
-    if (!ENABLE_DEBUG_MODULE) begin : gen_no_debug
-        assign w_debug_monbus_valid  = 1'b0;
-        assign w_debug_monbus_packet = '0;
-    end
+    // The debug-trace monbus source is TIED OFF UNCONDITIONALLY, because the
+    // debug sub-module it was meant to feed does not exist in this design.
+    //
+    // This tie-off used to be guarded by `if (!ENABLE_DEBUG_MODULE)`, with no
+    // matching gen_debug branch to instantiate anything -- so setting
+    // ENABLE_DEBUG_MODULE=1 removed the only driver of these two nets and left
+    // the monbus arbiter below evaluating an undriven `w_debug_monbus_valid`
+    // on every cycle the reporter was idle: X-propagation in simulation, an
+    // arbitrary tie in synthesis (qc round_24). Every instantiation in the
+    // repo passes 0, so the trap was latent rather than live, but a parameter
+    // whose only effect is to break the design is worse than one that does
+    // nothing.
+    //
+    // ENABLE_DEBUG_MODULE is therefore INERT and reserved: it is kept on the
+    // port list because 12 wrappers plumb it through, and removing it (along
+    // with the equally dead DEBUG_FIFO_DEPTH / cfg_debug_level /
+    // cfg_debug_mask) is an API change across the whole wrapper family rather
+    // than a fix. The LIVE debug path is the reporter's state-change emitter,
+    // gated by ENABLE_DEBUG_LOGIC + cfg_debug_enable.
+    assign w_debug_monbus_valid  = 1'b0;
+    assign w_debug_monbus_packet = '0;
 
     // -------------------------------------------------------------------------
     // Module Instantiations

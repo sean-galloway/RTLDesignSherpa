@@ -75,7 +75,7 @@ The `axi_monitor_filtered` module is the core building block for:
 | `ADDR_WIDTH` / `ID_WIDTH` | int | 32 / 8 | Address and AXI ID widths. |
 | `IS_READ` / `IS_AXI` | bit | 1 / 1 | Direction (read vs write) and protocol family (AXI4 vs AXIL). |
 | `ENABLE_PERF_PACKETS` | bit | 1 | Emit perf packets onto the monitor bus. |
-| `ENABLE_DEBUG_MODULE` | bit | 0 | Instantiate the debug reporter sub-block. |
+| `ENABLE_DEBUG_MODULE` | bit | 0 | **Inert / reserved** -- the debug-trace sub-module it names does not exist; forwarded to `axi_monitor_base` only because the wrapper family plumbs it. Real debug packets come from `ENABLE_DEBUG_LOGIC` + `cfg_debug_enable`. |
 | **Reporter sub-block enables** | | | Each gates one of the six reporter sub-blocks (`axi_monitor_reporter_*`) at elaboration time. Pass-through to `axi_monitor_base`. |
 | `ENABLE_ERROR_LOGIC` | bit | 1 | Error reporter (orphans, resp errors). |
 | `ENABLE_TIMEOUT_LOGIC` | bit | 1 | Timeout reporter (addr/data/resp timers). |
@@ -160,7 +160,7 @@ if `mask[event_code[3:0]]` is set.
 | `cfg_end_event_sel` | Input | 3 | Event selector that closes the perf window. |
 | `cfg_start_trigger` | Input | 1 | Software-driven open pulse (combines with `cfg_start_event_sel`). |
 | `cfg_end_trigger` | Input | 1 | Software-driven close pulse. |
-| `cfg_window_force_close` | Input | 1 | Asynchronous emergency close (drops any in-flight perf totals). |
+| `cfg_window_force_close` | Input | 1 | **Synchronous** software override: forces the measurement window closed on the next clock edge. Perf totals are **held**, not dropped -- the counters keep their values through `WIN_CLOSING`/`WIN_IDLE` so a host can read the forced window, and reset only at the next window start. |
 | `window_active` | Output | 1 | The perf window is currently open. |
 | `window_cycles` | Output | 32 | Number of cycles the current window has been open. |
 
@@ -177,7 +177,7 @@ use perfmon.
 | `perf_starv_cycles` | Output | 32 | Starvation cycles (valid low, ready high). |
 | `perf_idle_cycles` | Output | 32 | Idle cycles (both low). |
 | `perf_beat_count` | Output | 32 | Beat handshakes accumulated this window. |
-| `perf_byte_count` | Output | 64 | Bytes transferred this window (derived from `cmd_size`/`cmd_len`). |
+| `perf_byte_count` | Output | 64 | Bytes transferred this window: productive beats x (1 << latched `cmd_size`). `cmd_len` is not involved. |
 | `perf_burst_count` | Output | 32 | Bursts (command handshakes) this window. |
 
 These counters latch on each `window_active` open and freeze on close;

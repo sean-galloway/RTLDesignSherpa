@@ -40,7 +40,7 @@ The Monitor Bus Round-Robin Arbiter aggregates monitor bus packet streams from m
 - Optional input skid buffers per client (2, 4, 6, or 8 entry depth)
 - Optional output skid buffer (2, 4, 6, or 8 entry depth)
 - 128-bit packet + 64-bit side-band timestamp, carried atomically through a 192-bit skid
-- Parameterizable client count (1-64)
+- Parameterizable client count (2-64; 1 does not elaborate)
 - Zero-latency pass-through when skid buffers disabled
 
 ---
@@ -57,7 +57,7 @@ The ACK protocol ensures that granted clients can complete their packet transmis
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| CLIENTS | int | 4 | Number of monitor bus clients (1-64) |
+| CLIENTS | int | 4 | Number of monitor bus clients (**2**-64). `CLIENTS=1` does **not** elaborate: `N = $clog2(1) = 0` makes `grant_id` a `logic [-1:0]` and the priority encoder's generic branch does an illegal `i[-1:0]` part-select |
 | INPUT_SKID_ENABLE | int | 1 | Enable skid buffers on input interfaces |
 | OUTPUT_SKID_ENABLE | int | 1 | Enable skid buffer on output interface |
 | INPUT_SKID_DEPTH | int | 2 | Depth of input skid buffers (2, 4, 6, or 8) |
@@ -115,14 +115,21 @@ The ACK protocol ensures that granted clients can complete their packet transmis
 
 The module maps monitor bus protocol to arbiter protocol:
 
-**Request Mapping**: Each client's `monbus_valid_in[i]` becomes arbiter `request[i]`
+**Request Mapping**: each client's valid becomes an arbiter request —
+`request[i] = int_monbus_valid_in[i]`, i.e. the signal *after* the optional
+input skid, not the port itself.
 
-**Grant ACK Logic**: ACK occurs when both grant is asserted AND client has valid data:
+**Grant ACK Logic**: ACK occurs only when the beat is actually **consumed** —
+grant, valid, and downstream ready together:
 ```systemverilog
-grant_ack[i] = grant[i] && monbus_valid_in[i]
+grant_ack[i] = grant[i] && int_monbus_valid_in[i] && int_monbus_ready;
 ```
 
-This implements the "stick on grant until both request and grant ack are high" requirement, ensuring clients can complete their packet transmission.
+The `int_monbus_ready` term is load-bearing and must not be dropped. Without it
+(`grant[i] && int_monbus_valid_in[i]` alone) the ack fires on every cycle the
+sink is back-pressuring, so the grant rotates continuously while **zero**
+transfers take place — breaking the grant-hold contract. That was a real defect;
+`val/amba/test_monbus_arbiter_grant_hold.py` is the regression that pins it.
 
 ### Round-Robin Arbiter Instance
 
@@ -138,17 +145,25 @@ Each client's ready signal asserted when:
 2. Downstream (internal output) is ready to accept data
 
 ```systemverilog
-monbus_ready_in[i] = grant[i] && int_monbus_ready
+int_monbus_ready_in[i] = grant[i] && int_monbus_ready;
 ```
 
 This ensures only the granted client can transfer data, preventing collisions.
+
+> **With the default `INPUT_SKID_ENABLE=1`, this is not what the port does.**
+> The rule above governs the *internal* ready behind the skid buffer. The
+> actual port `monbus_ready_in[i]` is the skid's `wr_ready`, which asserts
+> whenever the skid has room — **independently of any grant**. A client can
+> therefore be accepted while ungranted; the skid holds the beat until its
+> grant comes. Only with `INPUT_SKID_ENABLE=0` do the port and the internal
+> signal coincide.
 
 ### Output Multiplexer
 
 Selects data from the granted client:
 ```systemverilog
 if (grant_valid)
-    int_monbus_packet = monbus_packet_in[grant_id];
+    int_monbus_packet = int_monbus_packet_in[grant_id];  // post-skid
 ```
 
 ### Optional Skid Buffers
@@ -227,7 +242,7 @@ The ACK mode ensures proper packet transfer:
 
 **Grant Assertion**: When arbiter selects a client, grant[i] asserts
 **Client Response**: Client's monbus_valid_in[i] must be high
-**Grant ACK**: grant_ack[i] = grant[i] && monbus_valid_in[i]
+**Grant ACK**: `grant_ack[i] = grant[i] && int_monbus_valid_in[i] && int_monbus_ready` — the ready term is required (see above)
 **Hold Grant**: Arbiter holds grant[i] until grant_ack[i] asserts
 **Next Client**: After ACK, arbiter moves to next requesting client
 

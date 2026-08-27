@@ -229,7 +229,7 @@ Accepted error packets are stored as 192-bit records `{timestamp, packet}` in `u
 - slice 1 = `packet[127:64]`
 - slice 2 = `packet[63:0]` (record is popped here)
 
-AR is accepted only at slice 0 with at least one record buffered; `rvalid` drops mid-burst if the FIFO underruns and resumes when a new record arrives; `rlast` asserts on the `(arlen+1)`-th beat. The CPU should size `arlen` as a multiple-of-3 minus one to land cleanly on record boundaries.
+AR is accepted whenever no burst is in flight (`fub_s_arready = !r_rd_in_burst`) -- there is no slice-position or FIFO-occupancy condition, so an AR on an empty FIFO is accepted and `rvalid` simply stalls until a record arrives; `rvalid` drops mid-burst if the FIFO underruns and resumes when a new record arrives; `rlast` asserts on the `(arlen+1)`-th beat. The CPU should size `arlen` as a multiple-of-3 minus one to land cleanly on record boundaries.
 
 ### Write Path — Raw Expander vs Compressor
 

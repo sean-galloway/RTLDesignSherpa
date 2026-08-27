@@ -822,6 +822,35 @@ from CAM entries, so both terms are needed. w_output_busy export NOT
 needed; nothing further owed here. Docs updated to the closed contract
 (no idle-count advisory).
 
+## AMBA-COMPTP — monbus_compressor sustains 2/3 records per cycle, not 1
+**Status:** open 2026-08-27 (found by qc round_24 on paper; MEASURED same day)
+**Priority:** P3 — performance headroom, not a correctness defect
+
+The compressor's Tier-1 input rate is **0.67 records/cycle**, not the
+1 record/cycle both the RTL header and monbus_compressor.md claimed.
+Measured, not argued: val/amba/test_monbus_compressor.py phase 4 holds
+in_valid high across a long same-template run and counts input
+handshakes -- 134 in 200 cycles, stable.
+
+MECHANISM. The CAM result path is credit-gated at SKID_DEPTH=2 while the
+credit round trip is ~2 cycles: present at T -> CAM result T+1 ->
+gaxi_skid_buffer rd_valid is REGISTERED so it appears T+2 -> pop T+2 ->
+credit decrement visible T+3. Two credits against a 2-cycle round trip
+stalls the input one cycle in three.
+
+WHY NOT JUST FIXED. Recovering 1/cycle needs either >=3 credits or a
+fall-through result interface, and that skid is exactly what keeps the
+65-bit format-C ed_delta path off the stage-1 commit path -- which was
+the 100 MHz critical path this design already fought once. Trading it
+back for a third more throughput is a timing decision that wants a
+synthesis run, not a one-line parameter bump.
+
+DONE MEANWHILE: both texts now state the measured 2/3, and phase 4
+asserts 0.60 <= rate <= 0.72 so the claim and the hardware cannot drift
+apart again. The UPPER bound is deliberate -- if a future change
+improves the credit round trip, the test fires and says to re-measure
+and update all three places together.
+
 ### TASK-062: `sdpram_slave_axil_axil` runs on the board with no simulation
 **Priority:** P2
 **Status:** 🔴 Not Started (found 2026-08-10)

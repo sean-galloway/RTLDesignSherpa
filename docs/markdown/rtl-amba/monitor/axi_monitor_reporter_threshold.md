@@ -96,7 +96,7 @@ Monitoring a bus for congestion and latency outliers requires two distinct check
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `output_busy` | input | 1 | Output bus busy (FIFO read or `monbus_valid`); threshold packets inject directly, so this prevents overwriting an in-flight one |
-| `pkt_taken` | input | 1 | Pulsed by the top reporter when this block's packet was accepted; clears the edge flag and arms the next detection |
+| `pkt_taken` | input | 1 | Pulsed by the top reporter when this block's packet was accepted; **sets** the edge-sticky flag so the same crossing cannot re-fire. The flag clears only when the underlying condition lifts |
 
 ### Packet Output
 
@@ -118,7 +118,7 @@ A combinational loop scans `trans_table` and counts slots that are `valid` and i
 
 ### Per-Slot Latency Pipeline
 
-For each slot, a registered pipeline computes latency from the live transaction table: `data_timestamp − addr_timestamp` for reads (`IS_READ=1`) or `resp_timestamp − addr_timestamp` for writes. The result is stored in `r_latency[idx]`, and a companion flag `r_latency_over_thresh[idx]` is set when the slot is valid, in `TRANS_COMPLETE` state, its latency exceeds `latency_threshold`, and the latency edge flag is not already set. Registering the subtract and compare splits what would otherwise be a 16-wide carry chain plus output mux across a clock cycle.
+For each slot, a registered pipeline computes latency from the live transaction table: `data_timestamp − addr_timestamp` for reads (`IS_READ=1`) or `resp_timestamp − addr_timestamp` for writes. The result is stored in `r_latency[idx]`, and a companion flag `r_latency_over_thresh[idx]` is set when the slot is valid, in `TRANS_COMPLETE` state, and its latency exceeds `latency_threshold`. It is deliberately **not** qualified by the latency edge flag -- folding the flag in here would make the condition self-clearing, since the flag would suppress the very term that keeps it set. `r_latency_crossed` gates only the output mux. Registering the subtract and compare splits what would otherwise be a 16-wide carry chain plus output mux across a clock cycle.
 
 ### Latency Event Selection
 

@@ -139,26 +139,39 @@ The timer tick provides consistent periodic signal across frequencies:
 - Combinational output (w_timer_tick)
 
 **Frequency Selection:**
-The cfg_freq_sel value selects from predefined frequency ratios:
 
-| cfg_freq_sel | Tick Period (cycles) | 100 MHz Period | 1 GHz Period |
-|--------------|---------------------|----------------|--------------|
-| 0 | 1 | 10 ns | 1 ns |
-| 1 | 2 | 20 ns | 2 ns |
-| 2 | 4 | 40 ns | 4 ns |
-| 3 | 8 | 80 ns | 8 ns |
-| 4 | 16 | 160 ns | 16 ns |
-| 5 | 32 | 320 ns | 32 ns |
-| 6 | 64 | 640 ns | 64 ns |
-| 7 | 128 | 1.28 us | 128 ns |
-| 8 | 256 | 2.56 us | 256 ns |
-| 9 | 512 | 5.12 us | 512 ns |
-| 10 | 1024 | 10.24 us | 1.024 us |
-| 11 | 2048 | 20.48 us | 2.048 us |
-| 12 | 4096 | 40.96 us | 4.096 us |
-| 13 | 8192 | 81.92 us | 8.192 us |
-| 14 | 16384 | 163.84 us | 16.384 us |
-| 15 | 32768 | 327.68 us | 32.768 us |
+`cfg_freq_sel` does **not** select a tick period. The tick rate is **fixed at
+1 MHz — one tick per microsecond** — and `cfg_freq_sel` indexes a lookup table
+of *clock frequencies in MHz* so the divider can produce that 1 us tick from
+whatever clock this instance actually runs on. That is the whole point of the
+"frequency-invariant" name: a timeout of N is N microseconds on every clock.
+
+The table is built at elaboration from `CFI_MIN_FREQ_MHZ`, `CFI_MAX_FREQ_MHZ`,
+`CFI_NUM_FREQ_ENTRIES` and `CFI_FREQ_STRATEGY`. With this module's defaults
+(5-220 MHz, 16 entries, LINEAR) the entries are
+`freq[i] = 5 + (220 - 5) * i / 15`:
+
+| cfg_freq_sel | Clock (MHz) | Divisor (cycles/tick) | cfg_freq_sel | Clock (MHz) | Divisor |
+|---|---|---|---|---|---|
+| 0 | 5 | 5 | 8 | 119 | 119 |
+| 1 | 19 | 19 | 9 | 134 | 134 |
+| 2 | 33 | 33 | 10 | 148 | 148 |
+| 3 | 48 | 48 | 11 | 162 | 162 |
+| 4 | 62 | 62 | 12 | 177 | 177 |
+| 5 | 76 | 76 | 13 | 191 | 191 |
+| 6 | 91 | 91 | 14 | 205 | 205 |
+| 7 | 105 | 105 | 15 | 220 | 220 |
+
+The divisor **is** the frequency in MHz, because dividing an F-MHz clock by F
+gives 1 MHz. So the rule for setting it is simply: **pick the entry closest to
+your actual `aclk` frequency.**
+
+> **Instantiated through `axi_monitor_base`, the table is flat.** The base
+> module defaults `CFI_MIN_FREQ_MHZ = CFI_MAX_FREQ_MHZ = 100`, so every entry
+> is 100 and the tick is exactly 1 us at 100 MHz *regardless of
+> `cfg_freq_sel`*. Override the CFI parameters only if the design changes
+> `aclk` at runtime. A monitor running at a clock the table cannot express
+> ticks at the wrong rate, and every timeout scales with it.
 
 **Purpose:**
 - Timeout detection timing base
@@ -179,30 +192,36 @@ The module instantiates counter_freq_invariant with specific configuration:
 **Instance Configuration:**
 ```systemverilog
 counter_freq_invariant #(
-    .COUNTER_WIDTH (1),        // Only need 1-bit counter (tick pulse)
-    .PRESCALER_MAX (65536)     // Maximum prescaler value
+    .COUNTER_WIDTH    (1),                    // Only need tick output
+    .MIN_FREQ_MHZ     (CFI_MIN_FREQ_MHZ),
+    .MAX_FREQ_MHZ     (CFI_MAX_FREQ_MHZ),
+    .NUM_FREQ_ENTRIES (CFI_NUM_FREQ_ENTRIES),
+    .FREQ_STRATEGY    (CFI_FREQ_STRATEGY)
 ) timer_counter (
     .clk         (aclk),
     .rst_n       (aresetn),
-    .sync_reset_n(1'b1),       // No sync reset
+    .sync_reset_n(1'b1),
     .freq_sel    (cfg_freq_sel),
     .tick        (w_timer_tick),
-    .counter     ()             // Counter output unused
+    .o_counter   ()                           // counter output unused
 );
 ```
 
 **Design Rationale:**
-- COUNTER_WIDTH=1: Only tick pulse needed, not counter value
-- PRESCALER_MAX=65536: Supports full frequency selection range
-- sync_reset_n tied high: No need for synchronous reset
-- counter output unused: Only tick signal required
+- `COUNTER_WIDTH=1`: only the tick pulse is needed, not the counter value
+- The CFI_* parameters are forwarded so the frequency table is sized by this
+  module's parameters rather than hard-coded
+- `sync_reset_n` tied high: no need for a synchronous reset
+- `o_counter` left open: only the tick matters (note the `o_` prefix — there
+  is no port named `counter`)
 
 **counter_freq_invariant Module:**
-- Located in rtl/common/counter_freq_invariant.sv
-- Implements programmable frequency divider
-- Uses binary counter with configurable threshold
-- Generates precise periodic pulses
-- See rtl/common/ documentation for detailed behavior
+- Located in `rtl/common/counter_freq_invariant.sv`
+- Divides an arbitrary clock down to a **1 MHz tick**
+- `freq_sel` indexes a table of clock frequencies in MHz; the entry is used
+  directly as the divisor
+- Supports LINEAR (uniform) and POW2 (doubling) table spacing
+- See `rtl/common/` documentation for detailed behavior
 
 ---
 
@@ -229,34 +248,30 @@ The Timer module provides fundamental timing services to the entire monitor infr
 
 ### Configuration Strategy
 
-**High-Frequency Systems (>500 MHz):**
-```systemverilog
-cfg_freq_sel = 4'd8;  // 256 cycles (~256ns @ 1GHz)
-```
-Provides fine timeout granularity without excessive tick rate.
+There is one rule: **set `cfg_freq_sel` to the table entry closest to your
+actual `aclk` frequency.** The tick is 1 us at that setting, and every timeout
+threshold is then read directly in microseconds.
 
-**Medium-Frequency Systems (100-500 MHz):**
-```systemverilog
-cfg_freq_sel = 4'd6;  // 64 cycles (~640ns @ 100MHz)
-```
-Balanced granularity and overhead.
+| aclk | Default table (5-220 MHz, LINEAR) | Resulting tick |
+|------|-----------------------------------|----------------|
+| 100 MHz | `cfg_freq_sel = 4'd7` (105 MHz — nearest entry) | ~0.95 us |
+| 200 MHz | `cfg_freq_sel = 4'd14` (205 MHz) | ~0.98 us |
+| 50 MHz | `cfg_freq_sel = 4'd3` (48 MHz) | ~1.04 us |
 
-**Low-Frequency Systems (<100 MHz):**
-```systemverilog
-cfg_freq_sel = 4'd4;  // 16 cycles (~160ns @ 100MHz)
-```
-Finer granularity needed due to lower clock frequency.
+The residual error is the gap between your clock and the nearest table entry;
+a table built for one exact frequency (`CFI_MIN = CFI_MAX = aclk_mhz`, which is
+what `axi_monitor_base` does at 100 MHz) has none.
 
-**General Guideline:**
-Select cfg_freq_sel such that:
+**Sizing timeouts.** Because the tick is 1 us, the timeout counts are
+microseconds directly — no cycle arithmetic:
+
 ```
-Tick Period = Target Timeout / (Max Threshold Value)
+cfg_addr_cnt = 100    // 100 us on the command phase
+cfg_data_cnt = 500    // 500 us on the data phase
 ```
-For example, 10us timeout with max threshold=10:
-```
-Tick Period = 10us / 10 = 1us
-@ 100MHz: 1us = 100 cycles -> cfg_freq_sel = 10 (1024 cycles ~ 10us)
-```
+
+The counts are 16-bit, so the range is 1..65535 us (~65 ms), and `16'hFFFF` is
+the conventional "effectively never" setting.
 
 ---
 
@@ -269,7 +284,7 @@ axi_monitor_timer u_timer (
     .aresetn      (axi_rst_n),
 
     // Frequency selection
-    .cfg_freq_sel (4'd6),  // 64 cycles per tick
+    .cfg_freq_sel (4'd7),  // 105 MHz table entry -> ~1 us tick @ 100 MHz
 
     // Timer outputs
     .timer_tick   (timer_tick),
@@ -301,19 +316,18 @@ axi_monitor_timeout #(
     // Timer tick input
     .timer_tick   (timer_tick),
 
-    // Timeout thresholds (in ticks)
-    .cfg_addr_cnt (4'd8),   // 8 ticks
-    .cfg_data_cnt (4'd12),  // 12 ticks
-    .cfg_resp_cnt (4'd8),   // 8 ticks
+    // Timeout thresholds -- 16-bit, one tick = one microsecond
+    .cfg_addr_cnt (16'd8),   // 8 us
+    .cfg_data_cnt (16'd12),  // 12 us
+    .cfg_resp_cnt (16'd8),   // 8 us
 
     // ... other connections
 );
 
-// Timeout duration calculation
-// At cfg_freq_sel=6 (64 cycles/tick):
-// addr timeout = 8 ticks * 64 cycles = 512 cycles
-// data timeout = 12 ticks * 64 cycles = 768 cycles
-// resp timeout = 8 ticks * 64 cycles = 512 cycles
+// Timeout durations need no arithmetic: the tick is 1 us at any clock the
+// table is built for, so the count IS the timeout in microseconds.
+//   addr timeout = 8 us      data timeout = 12 us     resp timeout = 8 us
+// Range is 1..65535 us (~65 ms); 16'hFFFF means "effectively never".
 ```
 
 ---
@@ -345,39 +359,35 @@ latency = 0x0000_0005 - 0xFFFF_FFFF = 0x0000_0006 (6 cycles)
 **Mitigation:**
 If longer-term timestamps needed, extend timestamp to 64 bits (requires parameter addition).
 
-### Frequency Selection Trade-offs
+### Frequency Selection Is Not a Granularity Trade-off
 
-Choosing cfg_freq_sel involves trade-offs:
+`cfg_freq_sel` is a **clock-matching** control, not a resolution control.
+Every valid setting produces the same 1 us tick; a setting that does not match
+`aclk` does not buy finer or coarser timeouts, it simply makes every timeout
+wrong by the ratio between the selected entry and the real clock. There is no
+power/precision trade-off to tune here.
 
-**Fine Granularity (Low cfg_freq_sel):**
-- Advantages: Precise timeout detection, responsive system
-- Disadvantages: High tick rate, more dynamic power
-- Use when: Fast timeout response required
-
-**Coarse Granularity (High cfg_freq_sel):**
-- Advantages: Lower tick rate, reduced power
-- Disadvantages: Coarse timeout resolution, slower detection
-- Use when: Power-sensitive or timeout precision less critical
-
-**Recommended Range:**
-cfg_freq_sel = 4-8 for most applications (16-256 cycles per tick)
+Timeout *resolution* is fixed at 1 us. If you need finer resolution than that,
+the lever is the CFI table (build it for a sub-multiple of the real clock so
+the tick is shorter), not `cfg_freq_sel`.
 
 ### Dynamic Frequency Scaling
 
-When system clock frequency changes (DFS), consider:
+When the system clock changes at runtime (DFS):
 
-**Timestamp Counter:**
-- Continues counting cycles
-- Latency measurements in cycles, not absolute time
-- Latency will vary with frequency changes
+**Timestamp counter:** keeps counting *cycles*, so latency measurements are in
+cycles and their absolute-time meaning shifts with the clock.
 
-**Timer Tick:**
-- Tick period in cycles remains constant
-- Tick period in absolute time changes
-- May need to adjust cfg_freq_sel to maintain desired timeout duration
+**Timer tick:** the divisor is whatever `cfg_freq_sel` selected, so after a
+clock change the tick is no longer 1 us — it is off by the ratio of the new
+clock to the selected table entry, and every timeout scales with it.
 
-**Recommendation:**
-If DFS used, adjust cfg_freq_sel proportionally to maintain consistent timeout durations in absolute time.
+**Recommendation:** re-point `cfg_freq_sel` at the table entry matching the new
+frequency whenever the clock changes; this is exactly the case the CFI table
+exists for, and it is why the default table spans 5-220 MHz rather than being
+built for a single frequency. (`axi_monitor_base` instantiates a flat 100 MHz
+table by default, which is correct for a fixed-clock design and wrong for a DFS
+one — override the CFI_* parameters there.)
 
 ### Zero Timestamp on Reset
 

@@ -180,6 +180,73 @@ async def monbus_compressor_test(dut):
     await RisingEdge(tb.dut.clk)
     tb.log.info("=== Phase 3 (CAM clear): PASS ===")
 
+    # ---- Phase 4: sustained Tier-1 input throughput ----
+    # MEASURED, not asserted from the pipeline diagram. Both the RTL header
+    # ("Throughput is unchanged: Tier-1 records: 1 record/cycle") and the doc
+    # claim one record per cycle; qc round_24 argued on paper that the
+    # credit-gated result skid caps it lower, because a credit is only
+    # returned when the registered skid output is popped:
+    #   present at T -> CAM result T+1 -> registered rd_valid T+2 -> pop T+2
+    #   -> credit visible T+3, with only SKID_DEPTH=2 credits in flight.
+    # This phase settles it by holding in_valid high across a long run of
+    # same-template records (all Tier-1 hits after the first) and counting
+    # actual input handshakes per cycle.
+    tb.log.info("=== Phase 4: sustained Tier-1 input rate ===")
+    await tb.reset_dut()
+    tb.dut.out_ready.value = 1
+
+    from TBClasses.monbus import (
+        create_monitor_packet, PktType, ProtocolType, AXIErrorCode,
+    )
+    p_hot = create_monitor_packet(
+        PktType.PktTypeError, ProtocolType.PROTOCOL_AXI,
+        AXIErrorCode.AXI_ERR_DATA_ORPHAN, 0, 2, 0x21, 0xBEEF,
+    )
+
+    # Warm the CAM so every measured record is a Tier-1 hit, not an install.
+    await tb.drive_record(p_hot, 1000)
+    await tb.wait_clocks('clk', 8)
+
+    N_CYCLES = 200
+    ts = 2000
+    handshakes = 0
+    tb.dut.in_packet.value = p_hot
+    tb.dut.in_source_ts.value = ts
+    tb.dut.in_valid.value = 1
+    for _ in range(N_CYCLES):
+        await ReadOnly()
+        took = int(tb.dut.in_ready.value) == 1
+        await RisingEdge(tb.dut.clk)
+        if took:
+            handshakes += 1
+            ts += 4                       # small delta -> stays Format A
+            tb.dut.in_source_ts.value = ts
+    tb.dut.in_valid.value = 0
+    await tb.wait_clocks('clk', 10)
+
+    rate = handshakes / N_CYCLES
+    tb.log.info(f"  sustained Tier-1 input rate: {handshakes}/{N_CYCLES} "
+                f"= {rate:.3f} records/cycle")
+
+    # MEASURED 2026-08-27: 134/200 = 0.670 -- two records every three cycles,
+    # NOT the 1/cycle the RTL header and docs claimed. Cause: SKID_DEPTH=2
+    # credits against a ~2-cycle credit round trip, so the input stalls one
+    # cycle in three. Both texts now state 2/3; this assertion pins the real
+    # number so the claim and the hardware cannot drift apart again.
+    #
+    # Bounds, not equality: the ratio is stable but the warm-up edge moves the
+    # last handshake by one. If a future change raises SKID_DEPTH or makes the
+    # result interface fall-through, this UPPER bound fires -- that is the
+    # intended signal to re-measure and update both texts upward (AMBA-COMPTP).
+    assert 0.60 <= rate <= 0.72, (
+        f"sustained Tier-1 input rate is {rate:.3f} records/cycle "
+        f"({handshakes} handshakes in {N_CYCLES} cycles); expected ~0.67 "
+        f"(two records per three cycles) for SKID_DEPTH=2. Below 0.60 is a "
+        f"throughput regression; above 0.72 means the credit round trip "
+        f"improved -- re-measure and update monbus_compressor.sv's header, "
+        f"monbus_compressor.md, and this bound together.")
+    tb.log.info(f"=== Phase 4: PASS (rate={rate:.3f}) ===")
+
     tb.log.info("=== ALL PHASES PASSED ===")
 
 

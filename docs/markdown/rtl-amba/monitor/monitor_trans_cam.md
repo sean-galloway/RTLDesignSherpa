@@ -160,6 +160,13 @@ module monitor_trans_cam #(
     input  logic                            addr_wants_alloc,
     input  logic                            data_wants_alloc,
     input  logic                            resp_wants_alloc,
+    // Per-phase allocation masks -- TIE ALL ONES for unrestricted behaviour.
+    // Every alloc loop gates on these; leaving them unconnected floats them
+    // (X in simulation) or ties them to 0 (synthesis), and allocation then
+    // never fires at all.
+    input  logic [DEPTH-1:0]                addr_alloc_mask,
+    input  logic [DEPTH-1:0]                data_alloc_mask,
+    input  logic [DEPTH-1:0]                resp_alloc_mask,
     output logic [DEPTH-1:0]                addr_alloc_oh,
     output logic [DEPTH-1:0]                data_alloc_oh,
     output logic [DEPTH-1:0]                resp_alloc_oh,
@@ -240,11 +247,11 @@ The encoder is purely combinational:
 remaining_free = free_oh
 
 if addr_wants_alloc:
-    addr_alloc_oh = lowest-set-bit(remaining_free)
+    addr_alloc_oh = lowest-set-bit(remaining_free & addr_alloc_mask)
     remaining_free &= ~addr_alloc_oh
 
 if data_wants_alloc:
-    data_alloc_oh = lowest-set-bit(remaining_free)
+    data_alloc_oh = lowest-set-bit(remaining_free & data_alloc_mask)
     remaining_free &= ~data_alloc_oh
 
 if resp_wants_alloc:

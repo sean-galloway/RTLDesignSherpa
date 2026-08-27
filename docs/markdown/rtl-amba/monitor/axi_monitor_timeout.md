@@ -97,7 +97,7 @@ flowchart TB
 
 Each transaction has 3 independent timeout counters for different phases. The
 timers are dedicated per-slot state owned by this module (`r_addr_timer` /
-`r_data_timer` / `r_resp_timer`, 8-bit each); the rest of the transaction
+`r_data_timer` / `r_resp_timer`, **16-bit** each -- `TIMER_W = 16`, sized to hold the full microsecond threshold); the rest of the transaction
 record is read live off `trans_table`. Timers count `timer_tick` events (from
 the frequency-invariant timer, scaled by `cfg_freq_sel`) while their phase is
 pending, and fire at `timer >= cfg_addr_cnt / cfg_data_cnt / cfg_resp_cnt`.

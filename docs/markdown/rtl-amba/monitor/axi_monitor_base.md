@@ -46,7 +46,7 @@ This is a **shared infrastructure module** used internally by AXI/AXIL monitors.
 - ✅ **128-bit standardized monitor bus packet output + 64-bit side-band timestamp**
 - ✅ **Configurable performance metrics tracking:** Configurable performance metrics tracking
 - ✅ **Timeout detection and threshold monitoring:** Timeout detection and threshold monitoring
-- ✅ **Debug trace support with verbosity levels:** Debug trace support with verbosity levels
+- ✅ **Per-transaction state-change debug packets** (via `ENABLE_DEBUG_LOGIC` + `cfg_debug_enable`; the verbosity-level/mask interface is dead — see the parameter notes)
 
 ---
 
@@ -73,11 +73,11 @@ The `axi_monitor_base` module is the core building block for:
 | `MAX_TRANSACTIONS` | int | 16 | Maximum outstanding transactions in the CAM |
 | `ADDR_WIDTH` | int | 32 | Address bus width |
 | `ID_WIDTH` | int | 8 | Transaction ID width (0 for AXIL) |
-| `ADDR_BITS_IN_PKT` | int | 38 | Number of address LSBs carried in an error/event packet (clamped to `ADDR_WIDTH`) |
+| `ADDR_BITS_IN_PKT` | int | 38 | **Inert.** Intended as the number of address LSBs carried in a packet, but the derived `ADDR_BITS` is never referenced: `bus_transaction_t.addr` is 32 bits, so packets carry the low **32** address bits regardless. With `ADDR_WIDTH > 32` the upper bits are lost at table-allocation time |
 | `IS_READ` | bit | 1 | 1=read monitor (R data channel, AR bursts), 0=write monitor (W data channel, AW bursts) |
 | `IS_AXI` | bit | 1 | 1=AXI protocol, 0=AXI-Lite |
 | `INTR_FIFO_DEPTH` | int | 8 | Depth of the reporter's outgoing interrupt/event FIFO |
-| `DEBUG_FIFO_DEPTH` | int | 8 | Depth of the debug-trace FIFO (used when the debug module is enabled) |
+| `DEBUG_FIFO_DEPTH` | int | 8 | **Dead.** No debug-trace FIFO is instantiated; referenced by no logic |
 | `N_ADDR_RANGES` | int | 0 | Number of address-range comparators. `0` removes the `axi_monitor_addr_check` block entirely (zero area) |
 | `ADDR_RANGE_IS_ERROR` | logic [N_ADDR_RANGES-1:0] | `'0` | Per-range flavor forwarded to `axi_monitor_addr_check`: bit i = 0 → DEBUG range (hit → AddrMatch, `cfg_debug_enable`); bit i = 1 → ERROR range (allowlist miss → Error/ADDR_RANGE, `cfg_error_enable`). Default all-0. |
 
@@ -85,8 +85,68 @@ The `axi_monitor_base` module is the core building block for:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `ENABLE_PERF_PACKETS` | bit | 0 | Master switch for performance tracking. Setting it also defaults `ENABLE_PERF_LOGIC` on, instantiating the measurement window + counters (see [Performance Monitoring](#performance-monitoring)) |
-| `ENABLE_DEBUG_MODULE` | bit | 0 | Master switch for the debug-trace reporter sub-module |
+| `ENABLE_PERF_PACKETS` | bit | 0 | Master switch for the reporter's legacy perf-rollup packets. Setting it also defaults `ENABLE_PERF_LOGIC` on (see [Performance Monitoring](#performance-monitoring)) |
+| `ENABLE_DEBUG_MODULE` | bit | 0 | **Inert / reserved.** The debug-trace sub-module it was meant to switch on does not exist in this design; the parameter is kept only because the wrapper family plumbs it. The live debug path is `ENABLE_DEBUG_LOGIC` + `cfg_debug_enable` (the reporter's state-change emitter) |
+
+### Transaction-Table Shaping
+
+These size and shape the transaction table. Defaults reproduce the classic
+single-bank, age-ranked behaviour exactly.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `USE_WDATA_ORDER_Q` | bit | 0 | **Write monitors only.** Recover AXI4's WID-less W-beat ordering with an AWID FIFO (push on the AW handshake, pop on W-last) instead of an O(N²) oldest-select over the whole table. Required for banking on a write monitor |
+| `NUM_BANKS` | int | 1 | Split the table into banks by low ID bits so the two O(N²) structures (oldest-select, rank update) are restricted to same-bank pairs. Must be a power of 2 and divide `MAX_TRANSACTIONS` |
+
+> **Sizing rule — this one bites.** Every transaction sharing an ID lands in the
+> *same* bank, so per-ID concurrency is capped by the **bank** depth, not by
+> `MAX_TRANSACTIONS`:
+> `MAX_TRANSACTIONS / NUM_BANKS >= (IDs per bank) x (outstanding per ID)`.
+> Undersize it and entries are refused rather than mis-tracked — which surfaces
+> three layers up as missing packets.
+>
+> **`NUM_BANKS > 1` on a write monitor requires `USE_WDATA_ORDER_Q = 1`.** The
+> combination without it refuses to elaborate (`$error` in
+> `axi_monitor_trans_mgr`): the WID-less fallback is a state predicate spanning
+> every bank, so the same-bank oldest-select returns one winner *per bank* and a
+> single W beat advances one transaction in each. There is no correct fallback,
+> so the build is refused rather than silently double-counting.
+
+### ID-Range Filter
+
+Lets several monitors snoop one ID-multiplexed bus, each owning a slice, so no
+single table has to hold the whole concurrency. Default OFF — bit-identical to
+an unfiltered build.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `ID_FILTER_ENABLE` | bit | 0 | Enable the filter |
+| `ID_MATCH_BASE` | int | 0 | First ID owned by this instance |
+| `ID_MATCH_COUNT` | int | 0 | How many IDs; `0` means all (no filter) |
+
+This gates the monitor's **observation** inputs only, never the datapath the
+wrapper drives, so a filtered instance stays transparent on the bus. All three
+channels filter on the same range deliberately: filtering the command alone
+would leave data/resp for other IDs arriving unmatched, and the unmatched path
+allocates orphans — the table would fill with other channels' traffic, which is
+the problem the filter exists to avoid.
+
+### Timer LUT Sizing (`CFI_*`)
+
+Forwarded to [`axi_monitor_timer`](axi_monitor_timer.md), which divides `aclk`
+down to a 1 us tick. The divisor **is** the clock frequency in MHz, so a table
+built for this design's clock gives an exact tick.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `CFI_MIN_FREQ_MHZ` | int | 100 | Lowest frequency in the LUT |
+| `CFI_MAX_FREQ_MHZ` | int | 100 | Highest frequency in the LUT |
+| `CFI_NUM_FREQ_ENTRIES` | int | 16 | LUT entries (sizes `cfg_freq_sel`) |
+| `CFI_FREQ_STRATEGY` | int | 0 | 0 = LINEAR spacing, 1 = POW2 |
+
+The defaults set **every entry to 100 MHz**, so the tick is exactly 1 us at
+100 MHz regardless of `cfg_freq_sel`. Override to a real MIN..MAX range only if
+the design changes `aclk` at runtime.
 
 ### Synthesis-Cone Enables (`ENABLE_*_LOGIC`)
 
@@ -98,7 +158,7 @@ Each detection cone can be compiled out to save area. These gate the **logic**, 
 | `ENABLE_TIMEOUT_LOGIC` | bit | 1 | Drop the timeout cone **and** the `axi_monitor_timeout` instance |
 | `ENABLE_COMPL_LOGIC` | bit | 1 | Drop the completion cone |
 | `ENABLE_THRESHOLD_LOGIC` | bit | 1 | Drop the threshold cone (latency / active-count thresholds) |
-| `ENABLE_PERF_LOGIC` | bit | = `ENABLE_PERF_PACKETS` | Drop the perfmon measurement window + counters |
+| `ENABLE_PERF_LOGIC` | bit | = `ENABLE_PERF_PACKETS` | Drop the reporter's **legacy perf-rollup cone** (`axi_monitor_reporter_perf`: two 16-bit lifetime counters + the 5-state emit FSM). It does **not** gate the perfmon measurement window or its bucket counters — those are unconditional (see below) |
 | `ENABLE_DEBUG_LOGIC` | bit | 0 | Drop the debug cone |
 
 > **Removed:** the former `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters no longer
@@ -150,9 +210,9 @@ Each detection cone can be compiled out to save area. These gate the **logic**, 
 |------|-----------|-------|-------------|
 | `clear` | Input | 1 | **Synchronous clear** — passes through to `axi_monitor_trans_mgr` to empty the transaction CAM and zero the active-count pipeline atomically, without a full `aresetn`. Pulse one cycle while the monitor is idle. |
 | `cfg_freq_sel` | Input | 4 | Frequency selection for timeout scaling |
-| `cfg_addr_cnt` | Input | 4 | Address phase timeout count |
-| `cfg_data_cnt` | Input | 4 | Data phase timeout count |
-| `cfg_resp_cnt` | Input | 4 | Response phase timeout count |
+| `cfg_addr_cnt` | Input | 16 | Address phase timeout, in **microseconds** (1 us tick) |
+| `cfg_data_cnt` | Input | 16 | Data phase timeout, in **microseconds** |
+| `cfg_resp_cnt` | Input | 16 | Response phase timeout, in **microseconds** |
 | `cfg_error_enable` | Input | 1 | Enable error event packets |
 | `cfg_compl_enable` | Input | 1 | Enable completion packets |
 | `cfg_threshold_enable` | Input | 1 | Enable threshold packets |
@@ -161,8 +221,8 @@ Each detection cone can be compiled out to save area. These gate the **logic**, 
 | `cfg_debug_enable` | Input | 1 | Enable debug/trace packets (feeds the debug reporter sub-block) |
 | `cfg_active_trans_threshold` | Input | 16 | Active-transaction count that triggers a threshold packet |
 | `cfg_latency_threshold` | Input | 32 | Latency value that triggers a threshold packet |
-| `cfg_debug_level` | Input | 4 | Debug verbosity level (only used when `ENABLE_DEBUG_MODULE=1`) |
-| `cfg_debug_mask` | Input | 16 | Debug event-type mask (only used when `ENABLE_DEBUG_MODULE=1`) |
+| `cfg_debug_level` | Input | 4 | **Dead** — referenced by no logic (interface to the absent debug sub-module) |
+| `cfg_debug_mask` | Input | 16 | **Dead** — referenced by no logic |
 
 ### Address-Range Checker Interface
 
@@ -352,11 +412,15 @@ generic, the data channel it measures is chosen by `IS_READ`: the **R** channel 
 **AR** bursts for read monitors, the **W** channel and **AW** bursts for write
 monitors.
 
-The perfmon logic is instantiated when `ENABLE_PERF_LOGIC=1` (which defaults from the
-`ENABLE_PERF_PACKETS` master switch). It consists of a **measurement-window state
-machine** plus a bank of data-channel utilization and throughput counters. All
-counters accumulate **only while a window is open** and hold their values between
-windows so the host can read a completed window's totals.
+The perfmon logic is **always instantiated**: the measurement-window state machine
+and the bank of data-channel utilization and throughput counters are plain
+`always_ff` blocks in this module with no generate guard, so they cost their area
+in every build. `ENABLE_PERF_LOGIC` gates only the reporter's legacy perf-rollup
+sub-block (`axi_monitor_reporter_perf`), which is a different thing: two 16-bit
+lifetime counters and the FSM that emits `PktTypePerf` rollup packets. Building
+with `ENABLE_PERF_PACKETS=0` therefore removes the rollup packets, not the window.
+All window counters accumulate **only while a window is open** and hold their
+values between windows so the host can read a completed window's totals.
 
 ### The Measurement Window
 
@@ -368,8 +432,8 @@ selectors:
 |------|-------------|-----------|
 | `3'b000` | `cfg_start_trigger` pulse (software/CSR) | `cfg_end_trigger` pulse |
 | `3'b001` | first command handshake (`cmd_valid && cmd_ready`) | last data (reads: `data_last` beat; writes: response handshake) |
-| `3'b010` | `cfg_perf_enable` rising edge | `window_cycles` saturation |
-| `3'b011` | first data handshake (`data_valid && data_ready`) | `cfg_perf_enable` falling edge |
+| `3'b010` | `cfg_perf_enable` rising edge | `cfg_perf_enable` falling edge |
+| `3'b011` | first data handshake (`data_valid && data_ready`) | `window_cycles` saturation |
 | `3'b100` | `cfg_start_trigger` pulse (external-trigger convention) | `cfg_end_trigger` pulse |
 | others | never fires (reserved) | never fires (reserved) |
 
@@ -389,7 +453,8 @@ The state machine has three states:
 
 Every cycle inside the window is classified by the data channel's `valid`/`ready`
 into exactly one of four mutually-exclusive buckets. The four buckets sum to
-`window_cycles` by construction, so utilization = `perf_prod_cycles / window_cycles`.
+`window_cycles - 1` by construction (the start cycle seeds `window_cycles` to 1
+while the buckets reset to 0), so utilization = `perf_prod_cycles / (window_cycles - 1)`.
 
 | Counter | Condition | Meaning |
 |---------|-----------|---------|
@@ -470,7 +535,8 @@ Verilator's default of 64 in sim builds.
 **Typical values:**
 - Burst traffic: `cfg_*_cnt = 4-8` (aggressive timeout)
 - Memory controllers: `cfg_*_cnt = 10-15` (allow latency)
-- External interfaces: `cfg_*_cnt = 15` (max tolerance)
+- External interfaces: a large `cfg_*_cnt` (the field is 16 bits, so up to
+  65535 us ~= 65 ms; `0xFFFF` is effectively "never time out")
 
 ---
 

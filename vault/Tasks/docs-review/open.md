@@ -1090,6 +1090,63 @@ independently.
 | Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
 | Open items | none for gaxi itself |
 
+### monitor -- qc round_24 integrated 2026-08-27 (first-ever review of the book)
+
+32 pages, 4 units, ~44 doc findings + 10 RTL observations -- the largest
+first-round yield of any book so far, and the RTL side was the valuable
+half. THREE REAL RTL DEFECTS, all confirmed against the source:
+
+1. `r_protocol_violation_count` (arbiter_monbus_common) was declared and
+   exported on debug_protocol_violations but NEVER WRITTEN -- an undriven
+   net, X in sim, arbitrary tie in synthesis. Detection existed; only the
+   tally was missing. Fixed (edge-counted, saturating -- a violation count
+   that wraps to 0 reads as "clean", the one wrong answer it must never
+   give). Mutation-proven: the test's protocol_violation phase already
+   drove 30 violations and asserted nothing; it now counts them
+   (0/30 RED before, 30/30 after).
+2. `ENABLE_DEBUG_MODULE=1` removed the ONLY driver of the debug monbus
+   nets -- an `if (!ENABLE_DEBUG_MODULE)` tie-off with no matching
+   gen_debug branch, so setting the parameter broke the design. Every
+   instantiation passes 0, so it was a latent trap. Tie-off made
+   unconditional; parameter documented as inert (removing it + the dead
+   DEBUG_FIFO_DEPTH / cfg_debug_level / cfg_debug_mask is an API change
+   across 13 files -- flagged, not taken).
+3. Compressor throughput: claimed 1 record/cycle in BOTH the RTL header
+   and the docs; MEASURED 0.67 (134/200). Reviewer called it on paper as
+   SUSPECTED; a new phase-4 measurement confirmed it exactly. Filed as
+   [[AMBA-COMPTP]] with a bounded regression assertion.
+
+Doc classes closed: a page describing an ENTIRELY DIFFERENT MODULE
+(arbiter_monbus_common.md documented an N:1 stream arbiter/mux; the RTL
+is a snooping telemetry block with no arbitration at all -- that is
+monbus_arbiter); the timer page's whole timing model (a fabricated
+power-of-2 cycle table -- cfg_freq_sel actually selects a CLOCK FREQUENCY
+IN MHz and the tick is always 1 us); the perf-window end-event selector
+still transposed the way the RTL explicitly un-transposed it; timeout
+widths 4-bit/8-bit vs the real 16-bit microseconds; phantom interfaces
+(CACHE_DEPTH parameter, a debug sub-module, ACTION_NONE/TOUCH/INSTALL CAM
+actions the pipelined CAM self-derives); a port list omitting three
+alloc_mask inputs whose omission makes the CAM never allocate; the
+compressor's halfway migration (headline sections describing the
+superseded global-r_last_ts design its own later sections correct).
+
+RULE-6 SOURCE DELETIONS (docs get rewritten from RTL comments, so the
+comment is the real fix): the 60-bit packet-layout banner in
+arbiter_monbus_common.sv, "at most one packet"/"mutually exclusive" in
+axi_monitor_addr_check.sv (per-range DEBUG/ERROR flavors make both fire),
+the slice-0-plus-buffered-record claim over fub_s_arready in
+monbus_group_core.sv (code is plain `!r_rd_in_burst` -- the doc was
+written FROM this comment), PROFILE_MODE/direct-mapped in
+monbus_pkt_tally.sv, the 1-record/cycle throughput claim, two 64-bit
+ASCII diagrams, and the r_geom_settle comment that promised a reset the
+code does not do (traced benign by two independent readings; comment now
+states the real invariant and why it is tolerable).
+
+Also documented the parameter gap the reviewer flagged as a class:
+USE_WDATA_ORDER_Q / NUM_BANKS (with the bank-sizing rule and the
+write-monitor elaboration error), the ID-range filter, and the CFI_*
+timer LUT -- all load-bearing, none previously in the docs.
+
 ### axi4 + axi5 -- ARC COMPLETE 2026-08-26 (first-ever reviews + double humanize)
 
 qc rounds 20-23: 74 -> 44 -> 24 -> class-closed (zero RTL findings after

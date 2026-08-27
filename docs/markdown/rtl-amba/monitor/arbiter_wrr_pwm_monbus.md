@@ -130,6 +130,13 @@ The PWM integration allows temporal control of arbiter availability, enabling TD
 | monbus_valid | output | 1 | Monitor bus packet valid |
 | monbus_ready | input | 1 | Monitor bus ready (from downstream) |
 | monbus_packet | output | 128 | `monitor_packet_t` event packet |
+| monbus_timestamp | output | 64 | Side-band timestamp sampled at packet emission, travelling with the packet |
+
+### Monitor Time Input
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_mon_time | input | 64 | Free-running monitor-time broadcast from the `monbus_*_group` family. **Must be connected** — leaving it open floats the timestamp every emitted packet carries |
 
 ### Enhanced Debug Outputs
 
@@ -165,11 +172,20 @@ cfg_arb_max_thresh = {weight[CLIENTS-1], ..., weight[1], weight[0]}
 ```
 Where each weight is $clog2(MAX_LEVELS) bits wide.
 
-**Arbitration Algorithm**:
-1. Identify all active requests
-2. Select highest weight among active requests
-3. Round-robin among clients with that weight
-4. Issue grant and update rotation pointer
+**Arbitration Algorithm** (`arbiter_round_robin_weighted`, credit-based):
+1. Each client's weight loads a per-client **credit counter** on replenish
+   (`w_credit_counter[i] = w_client_weight[i]`)
+2. A client is eligible while it has credit left
+   (`w_has_crd[i] = (r_credit_counter[i] > 0) && ...`)
+3. Selection among *eligible* clients is **plain round-robin** — no comparison
+   of weights picks a winner
+4. Granting spends a credit; when all requesting clients are out of credit the
+   counters replenish and the cycle repeats
+
+Weight therefore controls **how many grants** a client gets per replenishment
+round, not **which** client wins a given contest. A high-weight client does not
+lock out low-weight ones — they interleave, which is what makes the share
+figures below achievable.
 
 ### PWM Generator
 
@@ -181,7 +197,7 @@ Controls arbiter availability (same as RR variant):
 ### Monitor Bus Common
 
 Comprehensive monitoring with enhanced fairness tracking:
-- **WEIGHTED_MODE = 1** enables weight-aware fairness analysis
+- **WEIGHTED_MODE** is a **dead parameter** in `arbiter_monbus_common` — declared and never referenced. Fairness analysis is weight-aware unconditionally (it always uses `cfg_max_thresh`); setting or clearing this changes nothing
 - Compares actual vs expected grant distribution based on configured weights
 - Detects fairness violations when distribution deviates from weight ratios
 
@@ -194,7 +210,14 @@ Expected distribution:
   Client 2: (2/15) * 100 = 13.3%
   Client 3: (1/15) * 100 = 6.7%
 
-Actual distribution measured over 256-cycle window.
+Actual distribution is measured over **all grants since reset**, not over a
+sliding window: `r_grant_counters` and `r_total_grants` in
+`arbiter_monbus_common` are cleared only on reset. `FAIRNESS_REPORT_CYCLES`
+(256) paces how often the deviation is **recomputed** from those lifetime
+totals, and `MIN_GRANTS_FOR_FAIRNESS` is likewise compared against the lifetime
+total. After a traffic-phase or weight change the reported deviation therefore
+still reflects all prior history; it converges toward the new distribution
+rather than snapping to it.
 Deviation = |actual% - expected%| for each client.
 Event generated if max deviation > cfg_mon_fairness_thresh.
 ```
@@ -272,6 +295,10 @@ arbiter_wrr_pwm_monbus #(
     .monbus_valid            (mon_valid),
     .monbus_ready            (mon_ready),
     .monbus_packet           (mon_packet),
+    .monbus_timestamp        (mon_timestamp),
+
+    // Monitor time broadcast (from the monbus group) -- not optional
+    .i_mon_time              (mon_time),
 
     // Enhanced debug outputs
     .debug_fifo_count        (mon_fifo_level),
@@ -359,7 +386,7 @@ When WAIT_GNT_ACK=1, the arbiter waits for grant_ack before issuing next grant. 
 ### Uses
 - arbiter_round_robin_weighted.sv (core WRR arbiter)
 - pwm.sv (PWM generator)
-- arbiter_monbus_common.sv (monitoring with WEIGHTED_MODE=1)
+- arbiter_monbus_common.sv (monitoring; note WEIGHTED_MODE is inert)
 
 ### Related Modules
 - arbiter_rr_pwm_monbus.sv (equal-priority variant)

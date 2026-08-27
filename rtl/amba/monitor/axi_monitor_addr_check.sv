@@ -20,7 +20,9 @@
  * Watches the cmd_addr / cmd_valid / cmd_ready handshake already snooped by
  * axi_monitor_base. The N user-configured [low, high] inclusive ranges are
  * treated as an ALLOWLIST of expected addresses, and each accepted command
- * produces at most one packet on the shared addr_pkt_* stream:
+ * produces up to TWO packets on the shared addr_pkt_* stream (see the
+ * DEBUG/ERROR split note below -- this banner used to say "at most one",
+ * which predated per-range flavors and was the source the docs copied):
  *
  *   - MATCH  (address lands in >=1 enabled range), gated by cfg_debug_enable:
  *         packet_type = PktTypeAddrMatch   (4'h8)
@@ -36,8 +38,12 @@
  *         protocol          = PROTOCOL_AXI (4'h0)
  *         event_data[59: 0] = full cmd_addr (zero-padded if narrower)
  *
- * A command either hits or misses (mutually exclusive), so the two report
- * paths never fire for the same command; the single output stream suffices.
+ * MATCH and MISS are NOT mutually exclusive. Per-range flavors
+ * (ADDR_RANGE_IS_ERROR) evaluate the DEBUG watch-list and the ERROR allowlist
+ * independently, so one command can hit a debug range (MATCH) while falling
+ * outside every error range (MISS). Two pending slots hold both and the
+ * output stream serializes them -- see the detailed comment at the flavor
+ * split below, which is the authority.
  * The is_read flag is dropped from the encoding — read vs. write is recovered
  * from the IS_READ build parameter and the (unit_id, agent_id) of the
  * emitting monitor. Range index occupies 4 bits (up to 16 ranges); if

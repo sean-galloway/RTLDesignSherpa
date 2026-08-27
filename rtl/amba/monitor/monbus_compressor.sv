@@ -61,8 +61,15 @@
 //          path -- that fused path was the 100 MHz critical path.
 // Stage 2b (output): drive the slot(s); RAW (tier-0) beat expansion.
 //
-// Throughput is unchanged:
-//   Tier-1 records: 1 record/cycle (1 slot out).
+// Throughput (MEASURED, val/amba/test_monbus_compressor.py phase 4):
+//   Tier-1 records: 2 records / 3 cycles (0.67/cycle), 1 slot out each.
+//   NOT 1/cycle, which this comment claimed for a long time. The result
+//   skid is credit-gated at SKID_DEPTH=2 while the credit round trip is
+//   ~2 cycles (present T -> CAM result T+1 -> registered skid rd_valid and
+//   pop T+2 -> credit visible T+3), so the input stalls one cycle in three.
+//   Raising the credit depth or making the result interface fall-through
+//   would recover it -- deliberately not done here, since this skid is what
+//   keeps the 65-bit format-C path off the stage-1 critical path.
 //   Tier-0 records: 1 record / 3 cycles (3 slots out).
 // The extra encode register adds one cycle of latency only -- bandwidth is
 // preserved, and the slot stream is identical (just delayed).

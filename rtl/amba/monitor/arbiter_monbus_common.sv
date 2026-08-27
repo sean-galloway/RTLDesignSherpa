@@ -17,21 +17,25 @@
 
 /*
 ================================================================================
-Arbiter Monitor Bus Common - Silicon Debug Monitor (UPDATED FOR 3-BIT PROTOCOL)
+Arbiter Monitor Bus Common - Silicon Debug Monitor
 ================================================================================
 
 This arbiter monitor provides comprehensive monitoring and debug capabilities
 for both RR and WRR arbiters with optional ACK protocol support using the
-updated PROTOCOL_ARB event definitions.
+PROTOCOL_ARB event definitions.
 
-UPDATED FOR NEW MONITOR PACKAGE:
-- Protocol field INCREASED to 3 bits [59:57] (was 2 bits [59:58])
-- Event code at [56:53] (4 bits) (was [57:54])
-- Channel ID at [52:47] (6 bits) (unchanged)
-- Unit ID at [46:43] (4 bits) (unchanged)
-- Agent ID at [42:35] (8 bits) (unchanged)
-- Event data REDUCED to 35 bits [34:0] (was 36 bits [35:0])
-- Updated ARB event code names to match monitor_pkg.sv
+It SNOOPS an external arbiter (request / grant_valid / grant / grant_id /
+grant_ack / block_arb are all inputs) and emits its own telemetry packets --
+it performs NO arbitration and has no stream-merge inputs. The N:1 monitor-bus
+merge is a different module, monbus_arbiter.
+
+PACKET FORMAT: the emitted packet is monitor_common_pkg::monitor_packet_t --
+128 bits, plus a 64-bit side-band timestamp. The field positions are owned by
+that package (see monitor_package_spec.md); they are deliberately NOT restated
+here. This banner previously carried a hand-copied 60-bit layout
+(protocol [59:57], event code [56:53], event data [34:0]) that had been
+obsolete for two format revisions, and the docs were written from it -- so the
+layout lives in exactly one place now (qc round_24).
 
 Monitor Events Generated:
 1. ARB Error Events: Starvation, ACK timeout, protocol violations, etc.
@@ -932,6 +936,37 @@ module arbiter_monbus_common #(
     )
 
     assign debug_packet_count = r_debug_packet_count;
+
+    // Protocol-violation counter.
+    //
+    // This counter was DECLARED and read out on debug_protocol_violations but
+    // never written by any always block, so the export was an undriven net: X
+    // in simulation, an arbitrary tie in synthesis, and a debug output that
+    // could never report anything (qc round_24). Detection already existed
+    // (w_protocol_violation_detected: multiple grants, spurious ack, or grant
+    // without request) -- only the tally was missing.
+    //
+    // Counted on the RISING EDGE of the detect, not on every cycle it holds: a
+    // sustained violation (e.g. a grant parked against no request) is one
+    // event, and per-cycle counting would saturate the counter from a single
+    // stuck condition and drown out the count of distinct incidents.
+    // r_protocol_violation_event is the registered detect, so
+    // detect && !event is exactly that edge -- the same pair the event
+    // pipeline above already builds.
+    //
+    // SATURATES rather than wraps. A violation count is read as evidence of
+    // health, and a wrap to 0 reads as "clean" -- the one wrong answer this
+    // output must never give. (Sibling r_debug_packet_count wraps, which is
+    // correct for it: a packet tally rolling over is not a false all-clear.)
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_protocol_violation_count <= 16'h0;
+        end else if (w_protocol_violation_detected &&
+                     !r_protocol_violation_event &&
+                     (r_protocol_violation_count != 16'hFFFF)) begin
+            r_protocol_violation_count <= r_protocol_violation_count + 16'h1;
+        end
+    )
 
     // debug outputs
     assign debug_ack_timeout = r_ack_timeout_detected;

@@ -398,10 +398,15 @@ module monbus_group_core
     // (the slicer doesn't enforce this; misaligned bursts simply leave
     // the next AR pointing mid-record).
     //
-    // AR is accepted only when the slicer is at slice 0 AND the FIFO
-    // has at least one record buffered. rvalid drops mid-burst if the
-    // FIFO underruns (the slicer waits at slice 0 until a new record
-    // arrives, then resumes). rlast asserts on the (arlen+1)-th beat.
+    // AR is accepted whenever no burst is in flight (fub_s_arready =
+    // !r_rd_in_burst) -- NOT gated on slice position or FIFO occupancy.
+    // An AR on an empty FIFO is accepted and rvalid simply stalls until a
+    // record arrives; an AR after a misaligned burst is accepted with the
+    // slicer parked mid-record. rvalid drops mid-burst if the FIFO
+    // underruns (the slicer holds its slice until a new record arrives,
+    // then resumes). rlast asserts on the (arlen+1)-th beat.
+    // (This comment used to claim slice-0-plus-buffered-record gating; the
+    // docs were written from it, so both were wrong -- qc round_24.)
     // ==================================================================
 
     typedef enum logic [1:0] {
@@ -844,8 +849,11 @@ module monbus_group_core
     assign beats_in_fifo = {{(16-WRITE_FIFO_AW-1){1'b0}}, write_fifo_beat_count};
 
     // Pipeline reflects the settled r_wr_addr once it has been stable for
-    // the full pipeline depth (3 stages). r_geom_settle resets whenever
-    // the writer leaves WR_IDLE (r_wr_addr starts moving) in the FSM below.
+    // the full pipeline depth (3 stages). r_geom_settle resets when the
+    // writer leaves WR_IDLE -- but NOT when r_wr_addr moves *inside* WR_IDLE,
+    // which the rewind-snap and base-step-over branches both do. See the
+    // settle block in the FSM below for why that is tolerable rather than a
+    // bug (it costs a few cycles of oscillation, never a bad AW).
     assign geom_valid = (r_geom_settle == 2'd3);
 
     // 3-stage geometry pipeline. Each stage is a shallow slice of the old
@@ -1021,9 +1029,23 @@ module monbus_group_core
                 r_timeout_cnt <= r_timeout_cnt + 32'd1;
             end
 
-            // Geometry-pipeline settle: r_wr_addr only moves outside
-            // WR_IDLE, so hold the plan-valid flag low until it has been
-            // stable for the full pipeline depth.
+            // Geometry-pipeline settle: hold the plan-valid flag low until
+            // r_wr_addr has been stable for the full pipeline depth.
+            //
+            // NOTE: this resets on STATE EXIT only. It does not reset when
+            // r_wr_addr moves inside WR_IDLE, which the rewind-snap and
+            // base-step-over branches below both do -- so after a snap the
+            // FSM can act on a 3-cycle-stale plan while geom_valid is still
+            // asserted, and r_wr_addr may oscillate (base <-> next-4KB
+            // boundary) for a few cycles until the pipeline catches up.
+            //
+            // This is NOT a correctness hazard: a commit always consumes
+            // r_plan_addr, which travels through the pipeline WITH its plan,
+            // so a stale plan can never be paired with a fresh address. Both
+            // the base-has-room and base-is-a-stub cases were traced to a
+            // consistent drain address. Adding a settle reset on r_wr_addr
+            // change would remove the wasted cycles; deliberately not done
+            // without a waveform to measure it against (qc round_24).
             if (r_wr_state != WR_IDLE) begin
                 r_geom_settle <= 2'd0;
             end else if (r_geom_settle != 2'd3) begin

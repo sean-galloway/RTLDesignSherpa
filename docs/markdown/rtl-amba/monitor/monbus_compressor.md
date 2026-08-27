@@ -91,7 +91,7 @@ flowchart TB
 
     subgraph monbus_compressor["monbus_compressor"]
         KEY["Build 49-bit key:<br/>(pkt_type, protocol,<br/>event_code, channel_id,<br/>agent_id, unit_id)"]
-        DELTA["delta_ts =<br/>(in_source_ts - r_last_ts)<br/>mod 2^60"]
+        DELTA["delta_ts =<br/>(source_ts - cam_entry.last_ts)<br/>mod 2^24, per template"]
         CAM["monbus_cam<br/>(32-entry true LRU)<br/>access_hit / access_idx /<br/>access_old_data"]
         FMT_SEL["Format selector:<br/>A → B → C priority<br/>(width-tiered)"]
         FSM["3-state FSM<br/>IDLE / RAW1 / RAW2"]
@@ -226,18 +226,23 @@ is self-describing.
 
 ### 2. Delta-encoded timestamp
 
-Absolute timestamps need 60 bits to cover practical recording windows
-(2⁶⁰ cycles ≈ 117 days at 100 MHz). Deltas between consecutive events on the
-same monitor bus rarely exceed a few thousand cycles in the steady state, so
-the delta requires only 15 to 23 bits.
+Absolute timestamps are 60 bits, which covers any practical recording window
+(2⁶⁰ cycles at 100 MHz is roughly 365 years). Deltas between consecutive events
+on the same *template* rarely exceed a few thousand cycles in the steady state,
+so the delta needs only 15 to 23 bits.
+
+The delta is measured **per template**, against the matched CAM entry's stored
+24-bit timestamp — not against a single global last-timestamp:
 
 ```
-delta_ts = (current_source_ts - r_last_ts) & ((1 << 60) - 1)
+delta_ts = source_ts[23:0] - cam_entry.last_ts     // mod 2^24
 ```
 
-The 60-bit modulo handles natural wrap. `r_last_ts` is updated on **every**
-record encoded (Tier-0 and Tier-1 alike), so the decoder can rebuild the
-absolute timestamp from a chain of deltas without losing precision.
+Each CAM entry carries its own `last_ts`, updated when that entry is touched,
+so interleaved templates from different sources cannot corrupt each other's
+deltas. A decoder must therefore chain deltas **per template**, with 24-bit
+wrap. See [Per-template `delta_ts`](#per-template-delta_ts) for the full
+rationale and the history of the global-delta scheme this replaced.
 
 ### 3. Width-tiered Tier-1 formats
 
@@ -376,7 +381,7 @@ feeds the encoder through a credit-gated result skid (`SKID_DEPTH=2`).
 A `r_credit` counter tracks records in flight + skid occupancy so
 `cam_en` only fires when there is a slot to land the result, even
 under back-to-back compression bursts. Throughput stays at **1
-record/cycle** despite the +1 cycle of CAM latency; the single-cycle
+0.67 records/cycle** (the pipelined CAM's +1 cycle is absorbed; the limit is the credit round trip through the result skid, not the CAM); the single-cycle
 `monbus_cam.sv` is kept in-tree as the reference design (see its doc
 for the deprecation note).
 
@@ -387,22 +392,32 @@ for the deprecation note).
 | valid | 1 |
 | key (concatenated 6-tuple) | 49 |
 | last_event_data | 64 |
-| position rank | 5 |
-| **total per entry** | **119** |
+| last_ts (`r_ts`, 24-bit, per-template delta base) | 24 |
+| **total per entry** | **138** |
 
-**Total CAM storage:** 32 entries × 119 bits ≈ **3.8 Kb (~480 bytes)**.
+No rank is stored: the slot index **is** the recency rank (entries shift on
+move-to-front), so recency costs no bits.
 
-The CAM exposes three actions on its single access port:
+**Total CAM storage:** 32 entries × 138 bits = **4416 bits ≈ 4.3 Kb (552 bytes)**.
 
-| Action | Encoding | Effect |
+The production CAM (`monbus_cam_pipe`) has **no action input**. It derives the
+action itself, on every access, from whether the lookup hit:
+
+| Derived action | When | Effect |
 |---|---|---|
-| `ACTION_NONE` | `2'b00` | Lookup only, no state change |
-| `ACTION_TOUCH` | `2'b01` | Matched entry moves to MRU, `last_event_data` updated |
-| `ACTION_INSTALL` | `2'b10` | New entry installed at MRU (evicts LRU if full) |
+| `ACTION_TOUCH` | any hit | Matched entry moves to MRU; `last_event_data` and `last_ts` updated |
+| `ACTION_INSTALL` | any miss | New entry installed at MRU (evicts LRU if full) |
 
-The compressor's FSM issues `TOUCH` after Tier-1 hits, `INSTALL` after Tier-0
-escapes caused by a CAM miss, and `NONE` during the slot 1 / slot 2 of a
-Tier-0 RAW expansion.
+```systemverilog
+s1_action <= eff_hit ? ACTION_TOUCH : ACTION_INSTALL;   // on every access_en
+```
+
+This is a consequence of pipelining, not an oversight: the CAM commits at
+**presentation** time, one cycle before the tier/format decision exists, so the
+commit *cannot* depend on it. Every presented record commits — including a
+Tier-0 overflow escape, which still touches its matched entry. There is no
+`ACTION_NONE` path and no FSM-issued action; RAW beat expansion stalls the
+input through credit/skid backpressure instead.
 
 ---
 
@@ -413,34 +428,31 @@ Per input record (one cycle):
 ```text
 1. Build the 49-bit template key from in_packet.
    Compute event_data = in_packet[63:0] (the lower 64 bits).
-   Compute delta_ts = (in_source_ts - r_last_ts) & ((1 << 60) - 1).
+   (delta_ts is computed in step 2, against the matched entry's last_ts.)
 
-2. CAM lookup (combinational):
-   - MISS  → Tier-0 escape
-              Issue ACTION_INSTALL on the CAM (key, event_data).
+2. CAM lookup (pipelined, `monbus_cam_pipe`) — the CAM commits here, deriving
+   its own action from hit/miss, one cycle BEFORE the tier decision below:
+   - MISS  → CAM self-installs (key, event_data). Tier-0 escape.
               FSM enters S_RAW1 → S_RAW2; emits 3 slots over 3 cycles.
               Bump stat_cam_miss + stat_tier0.
 
-   - HIT(idx) → continue to step 3.
+   - HIT(idx) → CAM self-touches (moves to MRU, updates last_event_data and
+              last_ts). delta_ts = source_ts[23:0] - entry.last_ts (mod 2^24).
+              Continue to step 3.
 
 3. Try Tier-1 formats A → B → C in order:
 
    A. if delta_ts < 2¹⁵  AND  event_data < 2⁴⁰:
-        emit Format A slot, ACTION_TOUCH with new event_data.
-        Bump stat_tier1_a.
-        r_last_ts ← in_source_ts. Done.
+        emit Format A slot. Bump stat_tier1_a. Done.
+        (The CAM already touched the entry in step 2.)
 
    B. else if delta_ts < 2²³  AND  event_data < 2³²:
-        emit Format B slot, ACTION_TOUCH.
-        Bump stat_tier1_b.
-        r_last_ts ← in_source_ts. Done.
+        emit Format B slot. Bump stat_tier1_b. Done.
 
    C. else if delta_ts < 2¹⁵:
         ed_delta = event_data - CAM[idx].last_event_data    (signed)
         if -2³⁹ ≤ ed_delta < 2³⁹:
-            emit Format C slot, ACTION_TOUCH.
-            Bump stat_tier1_c.
-            r_last_ts ← in_source_ts. Done.
+            emit Format C slot. Bump stat_tier1_c. Done.
 
    else:
         Tier-0 escape (CAM hit but record didn't fit any Tier-1).
@@ -468,7 +480,7 @@ from the original single-cycle design.
 
 | Path | Latency | Throughput |
 |---|---|---|
-| Tier-1 record (CAM hit, Tier-1 fits) | 1 record → 1 slot, 2 cycles in flight | 1 record / cycle |
+| Tier-1 record (CAM hit, Tier-1 fits) | 1 record → 1 slot, ~3 cycles in flight | **2 records / 3 cycles** (0.67/cycle, measured) |
 | Tier-0 record (CAM miss, or all Tier-1 overflow) | 1 record → 3 slots, 2 cycles + 2 RAW beats | 1 record / 3 cycles |
 
 There is **no CAM read-after-write hazard**: the commit action depends
@@ -572,7 +584,7 @@ any compressor change merges.
 
 ## Statistics Counters
 
-Each output stat is a 32-bit registered counter. They saturate (do not wrap)
+Each output stat is a 32-bit registered counter. They **wrap** at 2³² (there is no saturation guard)
 at `0xFFFF_FFFF` so a long-running capture never silently rolls back to 0.
 
 | Counter | Increments when |

@@ -29,7 +29,7 @@
 - `axi_monitor_reporter_timeout.sv` — timeout-packet detection (combinational)
 - `axi_monitor_reporter_compl.sv` — completion-packet detection (combinational)
 - `axi_monitor_reporter_threshold.sv` — threshold-packet detection (16 latency flops + edge flags)
-- `axi_monitor_reporter_perf.sv` — performance-packet generation (counters + 5-state FSM)
+- `axi_monitor_reporter_perf.sv` — legacy perf-rollup packets (completion/error lifetime counters + 5-state FSM)
 - `axi_monitor_reporter_debug.sv` — debug-packet generation
 
 **Location:** `rtl/amba/monitor/`
@@ -80,7 +80,7 @@ for the unused detection cones.
 | `axi_monitor_reporter_timeout` | `ENABLE_TIMEOUT_LOGIC` | `PktTypeTimeout` | combinational |
 | `axi_monitor_reporter_compl` | `ENABLE_COMPL_LOGIC` | `PktTypeCompletion` | combinational |
 | `axi_monitor_reporter_threshold` | `ENABLE_THRESHOLD_LOGIC` | `PktTypeThreshold` | 16 latency flops + edge detect |
-| `axi_monitor_reporter_perf` | `ENABLE_PERF_LOGIC` (alias `ENABLE_PERF_PACKETS`) | `PktTypePerf` | window counters + 5-state FSM |
+| `axi_monitor_reporter_perf` | `ENABLE_PERF_LOGIC` (alias `ENABLE_PERF_PACKETS`) | `PktTypePerf` | two 16-bit lifetime counters + 5-state FSM (the perfmon *window* counters live in `axi_monitor_base` and are not gated by this parameter) |
 | `axi_monitor_reporter_debug` | `ENABLE_DEBUG_LOGIC` (default `0`) | `PktTypeDebug` | event-encoded debug points |
 
 Each sub-block presents the same "raise a request with packet payload"

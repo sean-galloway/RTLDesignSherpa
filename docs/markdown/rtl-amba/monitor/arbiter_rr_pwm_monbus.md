@@ -126,6 +126,13 @@ The standardized internal configurations (PWM width, FIFO depth, fairness interv
 | monbus_valid | output | 1 | Monitor bus packet valid |
 | monbus_ready | input | 1 | Monitor bus ready (from downstream) |
 | monbus_packet | output | 128 | `monitor_packet_t` event packet |
+| monbus_timestamp | output | 64 | Side-band timestamp sampled at packet emission, travelling with the packet |
+
+### Monitor Time Input
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| i_mon_time | input | 64 | Free-running monitor-time broadcast from the `monbus_*_group` family. **Must be connected** — leaving it open floats the timestamp every emitted packet carries |
 
 ### Debug Outputs
 
@@ -228,6 +235,10 @@ arbiter_rr_pwm_monbus #(
     .monbus_valid            (mon_valid),
     .monbus_ready            (mon_ready),
     .monbus_packet           (mon_packet),
+    .monbus_timestamp        (mon_timestamp),
+
+    // Monitor time broadcast (from the monbus group) -- not optional
+    .i_mon_time              (mon_time),
 
     // Debug
     .debug_fifo_count        (mon_fifo_level),
@@ -272,7 +283,11 @@ If different internal sizes are needed, create a new variant rather than paramet
 
 ### Fairness in Round-Robin Mode
 
-All clients have equal priority (weight = 1 in monitoring logic). Fairness deviation events generated if any client receives significantly more or fewer grants than expected over the FAIRNESS_REPORT_CYCLES window (256 cycles).
+All clients have equal priority (weight = 1 in monitoring logic). Fairness deviation events are generated if any client receives significantly
+more or fewer grants than expected. The measurement is **cumulative since
+reset**, not a sliding window: `FAIRNESS_REPORT_CYCLES` (256) only paces how
+often the deviation is recomputed from the lifetime grant counters, which are
+cleared on reset alone.
 
 Expected: Each client receives (1/CLIENTS) * 100% of grants
 Threshold: cfg_mon_fairness parameter (percent)
@@ -281,7 +296,11 @@ Threshold: cfg_mon_fairness parameter (percent)
 
 See arbiter_monbus_common.md for complete monitoring details. Key points:
 - Uses PROTOCOL_ARB (3'b011) event encoding
-- Fixed 16-entry FIFO prevents event loss
+- Fixed 16-entry FIFO absorbs bursts, but does **not** guarantee zero loss:
+  the event registers are overwritten every cycle and the FIFO write is not
+  held when full, so a one-cycle event (grant, completion) that fires while the
+  FIFO is full is dropped. Persistent conditions (starvation, thresholds)
+  re-present until accepted
 - Per-client latency and starvation tracking
 - Grant efficiency monitoring
 

@@ -31,9 +31,14 @@ For the universal packet layout, `protocol` / `packet_type` enums, and
 helper functions see
 [`monitor_package_spec.md`](./monitor_package_spec.md).
 
-Each enum is 8 bits wide. Slots `8'h0`–`8'hE` are reserved for predefined
-codes (with `_RESERVED_*` placeholders absorbing unused indices) and slot
-`8'hF` is always the `*_USER_DEFINED` escape hatch.
+Each **event-code** enum is 8 bits wide. Slots `8'h0`–`8'hE` are reserved for
+predefined codes (with `_RESERVED_*` placeholders absorbing unused indices) and
+slot `8'hF` is always the `*_USER_DEFINED` escape hatch.
+
+One exception: `axi_perfhist_select_t` is **4 bits**, not 8. It is not an event
+code — it is the `event_code[7:4]` *select nibble* that says which histogram a
+PerfHist packet carries, so its `AXI_PERFHIST_SEL_USER = 4'hF` escape hatch sits
+in a 4-bit space.
 
 ---
 
@@ -389,9 +394,11 @@ code in this section is `PROTOCOL_AXIS` (4'h1).
 ## Unified Event Code Union
 
 `monitor_amba4_pkg` also exports a `unified_event_code_t` packed union that
-overlays every enum in this document onto a single 8-bit field, plus a
-`raw` view for direct 8-bit access. Helper functions `create_axi_*_event`,
-`create_apb4_*_event`, and `create_axis_*_event` (one per enum) construct
+overlays the **8-bit event-code enums** in this document onto a single 8-bit
+field, plus a `raw` view for direct 8-bit access. The two perf-window enums
+(`axi_perfwin_code_t`, `axi_perfhist_select_t`) are **not** union members and
+have no `create_*` helper — pack those through the `raw` view. Helper functions
+`create_axi_*_event`, `create_apb4_*_event`, and `create_axis_*_event` construct
 the union from a typed enum value — use these from any wrapper that needs
 to publish a protocol-tagged event_code without manual bit packing.
 

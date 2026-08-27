@@ -159,7 +159,7 @@ defines its own packing. The table below lists the most common shapes:
 | Producer | packet_type | event_code | event_data layout |
 |----------|-------------|------------|-------------------|
 | `axi_monitor_addr_check`  | Error  | `AXI_ERR_ADDR_RANGE` (8'h0D) | `[63:60]` = range_index (4b), `[59:0]` = full matched address |
-| `apb_monitor_addr_check`  | Error  | `APB_ERR_ADDR_RANGE` (8'h0D) | `[63:60]` = range_index (4b), `[59]` = is_read, `[58:0]` = address |
+| `apb_monitor_addr_check`  | Error  | `APB_ERR_ADDR_RANGE` (8'h08) | `[63:60]` = range_index (4b), `[59]` = is_read, `[58:0]` = address |
 | `axi_monitor_reporter`    | Error / Timeout / Completion | various | Full 64-bit address, or zero-extended ID / latency / counter |
 | `axi_monitor_reporter`    | Perf   | `AXI_PERF_*`        | Zero-extended counter value (completed/error counts, latencies) |
 | `axi_monitor_reporter`    | Threshold | `AXI_THRESH_ACTIVE_COUNT` | Zero-extended active-transaction count |
@@ -263,12 +263,12 @@ Categories per protocol (each ~16-entry enum):
 
 | Package | Protocol | Categories |
 |---------|----------|------------|
-| `monitor_amba4_pkg` | AXI4  | error, timeout, completion, threshold, performance, addr_match, debug |
+| `monitor_amba4_pkg` | AXI4  | error, timeout, completion, threshold, performance, addr_match, debug, **perfwin**, **perfhist** (nine) |
 | `monitor_amba4_pkg` | APB4  | error, timeout, completion, threshold, performance, debug |
 | `monitor_amba4_pkg` | AXIS4 | error, timeout, completion, credit, channel, stream |
 | `monitor_amba5_pkg` | AXI5  | atomic, trace |
 | `monitor_amba5_pkg` | APB5  | wakeup, parity, user |
-| `monitor_amba5_pkg` | AXIS5 | wakeup, parity |
+| `monitor_amba5_pkg` | AXIS5 | wakeup, parity, **CRC** |
 | `monitor_arbiter_pkg` | ARB | error, timeout, completion, threshold, performance, debug |
 | `monitor_arbiter_pkg` | CORE | error, timeout, completion, threshold, performance, debug |
 

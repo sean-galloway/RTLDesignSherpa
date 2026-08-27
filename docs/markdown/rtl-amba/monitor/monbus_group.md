@@ -206,7 +206,8 @@ FIFO. Slot tags (bits `[63:60]`):
 4'h1 = Tier-1 format A
 4'h2 = Tier-1 format B
 4'h3 = Tier-1 format C
-4'h4..4'hF = reserved
+4'h4 = half-beat pair (TAG_HALF_PAIR, emitted when HALF_BEAT_EN=1)
+     4'h5..4'hF = reserved
 ```
 
 See [`monbus_compressor.md`](monbus_compressor.md) for the encoder's
@@ -278,10 +279,15 @@ produces `r_plan_ok=false` (units rounded down to zero) and the writer
 would otherwise wedge in `WR_IDLE`. The FSM detects this case
 (`do_flush && geom_valid && !r_plan_ok && r_wr_addr != cfg_base_addr`)
 and **snaps `r_wr_addr` to `cfg_base_addr`**, staying in `WR_IDLE` so
-the pipeline re-settles with fresh geometry. The next pipeline output
-(after the settle counter expires) has `r_plan_ok=true` provided
-`cfg_base_addr` itself has at least one whole record's worth of room
-before the next 4KB line — the host's responsibility.
+the pipeline re-settles with fresh geometry.
+
+A **second branch** covers the case where `cfg_base_addr` *itself* cannot host a
+whole record: `do_flush && geom_valid && !r_plan_ok && (r_wr_addr ==
+cfg_base_addr)` steps `r_wr_addr` over the short stub to the next 4KB boundary
+and drains there. So the host does **not** have to place `cfg_base_addr` with a
+record's worth of room before the next 4KB line — the hardware handles a base
+that lands in a stub. (The `!=`-only guard, without this second branch, wedged
+the writer; that is why it exists.)
 
 This case is hit by the AXIL/AXIL master_write stress in Phase 5,
 where `cfg_base_addr` is intentionally placed only a few beats below a
@@ -322,9 +328,11 @@ AXIL (`MAX_BURST_BEATS = 1`) and AXI4 masters in raw mode
   e.g. 24 beats = 8 records in a single AW + 24 × W + B. Throughput-
   optimal.
 - **AXIL master, raw mode:** one drain cycle = N single-beat
-  sub-bursts. Each record requires three AW + 1 × W + B handshakes at
+  sub-bursts. With `MAX_BURST_BEATS=1` the FSM runs one single-beat sub-burst per
+  beat, so a 3-beat raw record costs three AW + three W + three B handshakes --
+  the W and B counts scale too, not just the address channel -- at
   consecutive addresses. The memory image is identical to the AXI4
-  case; only the address-channel handshake count differs.
+  case; the handshake counts on all three channels differ.
 
 ### Address-window behavior: **wrap, not saturate**
 
@@ -401,7 +409,7 @@ dropped.
 | `monbus_cam_pipe` (transitive) | **Pipelined** 49-bit-key LRU CAM with per-template `last_ts`/`last_data`; replaces the unpipelined `monbus_cam` as the in-production CAM inside the compressor. See [`monbus_cam`](monbus_cam.md) for the deprecation note. |
 | `math_mod_3_compress` × 2 (`rtl/math/`) | Geometry / FIFO whole-record rounding (X − (X mod 3)) |
 | `math_adder_carry_save_nbit` (transitive) | 3:2 compressor primitive used by `math_mod_3_compress` |
-| `gaxi_skid_buffer` (inside compressor) | Input skid on the `(source_ts, packet)` feed; breaks the aggregator → CAM long route |
+| `gaxi_skid_buffer` (`u_comp_in_skid`, in `monbus_group_core`) | Input skid on the `(source_ts, packet)` feed into the compressor; breaks the aggregator → CAM long route. The compressor has a separate internal skid (`u_res_skid`) on the CAM-result path |
 
 ### Canonical filelist
 

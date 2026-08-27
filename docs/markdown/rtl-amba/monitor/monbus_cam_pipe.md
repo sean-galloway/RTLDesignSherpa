@@ -129,7 +129,7 @@ The two registered stages are:
 
 | Stage | Cycle | Work |
 |---|---|---|
-| 1 (compare) | T | 32-way 49-bit key compare against the **pre-commit** register array. Combinational priority encode picks the highest-numbered match (LRU side of the array, to keep the encoder ordering identical to the single-cycle module). |
+| 1 (compare) | T | 32-way 49-bit key compare against the **pre-commit** register array. Combinational priority encode picks the **lowest-numbered** match: the descending loop's last write wins, so slot 0 (the MRU end) takes priority -- identical to the single-cycle module, whose comment states the same rule. Functionally moot, since the match vector is at most one-hot by construction. |
 | 2 (commit) | T+1 | Apply the *pending* commit from the previous access (move-to-front shift). Register the **forward-corrected** result of cycle T's access. Capture cycle T+1's access as the next pending commit. |
 
 The cycle T+1 commit and the cycle T+1 result registration both
