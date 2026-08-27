@@ -155,24 +155,48 @@ module apbx_xbar_1to4 #(
         .rsp_pslverr    (m0_rsp_pslverr)
     );
 
-    // Address decode for each master
+    // Address decode for each master. The slave index comes from the
+    // OFFSET (PADDR - BASE_ADDR), not raw PADDR bits: with raw bits a
+    // BASE_ADDR whose bits [17:16] are nonzero silently rotated the
+    // whole slave map relative to the documented address map. The
+    // subtraction folds to constants at elaboration (BASE_ADDR is a
+    // parameter), so this costs nothing.
+    logic [ADDR_WIDTH-1:0] m0_cmd_offset;
     logic [1:0] m0_slave_sel;
     logic m0_addr_in_range;
     logic [1:0] r_m0_slave_sel;  // Registered for response routing
 
     always_comb begin
+        m0_cmd_offset    = m0_cmd_paddr - BASE_ADDR;
         m0_addr_in_range = (m0_cmd_paddr >= BASE_ADDR) &&
                           (m0_cmd_paddr < (BASE_ADDR + 32'h00040000));
-        m0_slave_sel = m0_cmd_paddr[17:16];
-
+        m0_slave_sel = m0_cmd_offset[17:16];
     end
+
+    // Decode miss: an out-of-range address must COMPLETE with PSLVERR,
+    // not leave cmd_ready low forever (which wedged the external master
+    // in ACCESS with PREADY low and no error signature). The apb4_slave
+    // runs one transaction at a time, so a single pending flag serves:
+    // accept the miss, hold a local error response until taken.
+    logic r_m0_decerr_pending;
+    `ALWAYS_FF_RST(pclk, presetn,
+        if (`RST_ASSERTED(presetn)) begin
+            r_m0_decerr_pending <= 1'b0;
+        end else begin
+            if (m0_cmd_valid && m0_cmd_ready && !m0_addr_in_range) begin
+                r_m0_decerr_pending <= 1'b1;
+            end else if (r_m0_decerr_pending && m0_rsp_ready) begin
+                r_m0_decerr_pending <= 1'b0;
+            end
+        end
+    )
 
     // Register slave selection for each master when command accepted
     `ALWAYS_FF_RST(pclk, presetn,
         if (`RST_ASSERTED(presetn)) begin
             r_m0_slave_sel <= 2'd0;
         end else begin
-            if (m0_cmd_valid && m0_cmd_ready) begin
+            if (m0_cmd_valid && m0_cmd_ready && m0_addr_in_range) begin
                 r_m0_slave_sel <= m0_slave_sel;
             end
         end
@@ -207,25 +231,35 @@ module apbx_xbar_1to4 #(
     assign s3_cmd_pstrb = m0_cmd_pstrb;
     assign s3_cmd_pprot = m0_cmd_pprot;
 
-    // Master ready when selected slave is ready
+    // Master ready when selected slave is ready; a decode miss is
+    // accepted immediately (one at a time) and answered locally.
     always_comb begin
         m0_cmd_ready = 1'b0;
-        if (m0_cmd_valid && m0_addr_in_range) begin
-            case (m0_slave_sel)
-                2'd0: m0_cmd_ready = s0_cmd_ready;
-                2'd1: m0_cmd_ready = s1_cmd_ready;
-                2'd2: m0_cmd_ready = s2_cmd_ready;
-                2'd3: m0_cmd_ready = s3_cmd_ready;
-            endcase
+        if (m0_cmd_valid) begin
+            if (!m0_addr_in_range) begin
+                m0_cmd_ready = !r_m0_decerr_pending;
+            end else begin
+                case (m0_slave_sel)
+                    2'd0: m0_cmd_ready = s0_cmd_ready;
+                    2'd1: m0_cmd_ready = s1_cmd_ready;
+                    2'd2: m0_cmd_ready = s2_cmd_ready;
+                    2'd3: m0_cmd_ready = s3_cmd_ready;
+                endcase
+            end
         end
     end
 
-    // Response routing based on registered slave selection
+    // Response routing based on registered slave selection. A pending
+    // decode-miss error response overrides (nothing can be in flight at
+    // a slave while it is pending -- the apb4_slave is one-outstanding).
     always_comb begin
         m0_rsp_valid = 1'b0;
         m0_rsp_prdata = '0;
         m0_rsp_pslverr = 1'b0;
-        case (r_m0_slave_sel)
+        if (r_m0_decerr_pending) begin
+            m0_rsp_valid = 1'b1;
+            m0_rsp_pslverr = 1'b1;
+        end else case (r_m0_slave_sel)
             2'd0: begin
                 m0_rsp_valid = s0_rsp_valid;
                 m0_rsp_prdata = s0_rsp_prdata;
@@ -249,10 +283,10 @@ module apbx_xbar_1to4 #(
         endcase
     end
 
-    assign s0_rsp_ready = (r_m0_slave_sel == 2'd0) ? m0_rsp_ready : 1'b0;
-    assign s1_rsp_ready = (r_m0_slave_sel == 2'd1) ? m0_rsp_ready : 1'b0;
-    assign s2_rsp_ready = (r_m0_slave_sel == 2'd2) ? m0_rsp_ready : 1'b0;
-    assign s3_rsp_ready = (r_m0_slave_sel == 2'd3) ? m0_rsp_ready : 1'b0;
+    assign s0_rsp_ready = (!r_m0_decerr_pending && r_m0_slave_sel == 2'd0) ? m0_rsp_ready : 1'b0;
+    assign s1_rsp_ready = (!r_m0_decerr_pending && r_m0_slave_sel == 2'd1) ? m0_rsp_ready : 1'b0;
+    assign s2_rsp_ready = (!r_m0_decerr_pending && r_m0_slave_sel == 2'd2) ? m0_rsp_ready : 1'b0;
+    assign s3_rsp_ready = (!r_m0_decerr_pending && r_m0_slave_sel == 2'd3) ? m0_rsp_ready : 1'b0;
     // APB Master 0 - converts cmd/rsp to slave 0 APB4
     apb4_master #(
         .ADDR_WIDTH (ADDR_WIDTH),

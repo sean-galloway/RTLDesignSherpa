@@ -48,10 +48,13 @@ async def _completer(dut, s, rdata, apb5=False):
             log.append(entry)
 
 
-async def _xfer(dut, m, addr, write, wdata=0, apb5_sideband=None, timeout=300):
+async def _xfer(dut, m, addr, write, wdata=0, apb5_sideband=None, timeout=300,
+                allow_timeout=False):
     """One APB transfer on master port m. apb5_sideband=(pauser,pwuser)
-    drives the APB5 master's request pins. Returns rdata + (for the
-    APB5 master) the completer sideband at the ready edge."""
+    drives the APB5 master's request pins. Returns rdata, pslverr, and
+    (for the APB5 master) the completer sideband at the ready edge.
+    allow_timeout=True returns None instead of asserting -- the
+    decode-miss scenario needs to tell a HANG from an error response."""
     if apb5_sideband is not None:
         dut.m1_apb_PAUSER.value = apb5_sideband[0]
         dut.m1_apb_PWUSER.value = apb5_sideband[1]
@@ -69,12 +72,14 @@ async def _xfer(dut, m, addr, write, wdata=0, apb5_sideband=None, timeout=300):
     for _ in range(timeout):
         await RisingEdge(dut.pclk)
         if int(getattr(dut, p + "PREADY").value):
-            got = {'prdata': int(getattr(dut, p + "PRDATA").value)}
+            got = {'prdata': int(getattr(dut, p + "PRDATA").value),
+                   'pslverr': int(getattr(dut, p + "PSLVERR").value)}
             if m == 1:
                 got['pruser'] = int(dut.m1_apb_PRUSER.value)
                 got['pbuser'] = int(dut.m1_apb_PBUSER.value)
             break
-    assert got is not None, f"master {m} transfer timed out"
+    if got is None and not allow_timeout:
+        assert False, f"master {m} transfer timed out"
     getattr(dut, p + "PSEL").value = 0
     getattr(dut, p + "PENABLE").value = 0
     await ClockCycles(dut.pclk, 3)
@@ -136,6 +141,30 @@ async def apbx_2to2_mixed_test(dut):
     assert len(dut._s1_log) >= 2, f"slave1 transfer count: {len(dut._s1_log)}"
     dut._log.info("apbx_xbar_2to2_mixed: all four pairings OK "
                   f"(s0={len(dut._s0_log)} xfers, s1={len(dut._s1_log)})")
+
+    # 5. APBX-002 (qc round_7): decode miss must COMPLETE with PSLVERR.
+    #    An out-of-range access used to leave cmd_ready low forever,
+    #    wedging that master with PREADY low and no error signature.
+    #    Run last: on the old RTL the first miss wedges the crossbar.
+    n_s0, n_s1 = len(dut._s0_log), len(dut._s1_log)
+    for m, bad_addr in ((0, S0_BASE - 4), (1, S1_BASE + 0x10000)):
+        got = await _xfer(dut, m, bad_addr, write=0, timeout=60,
+                          allow_timeout=True)
+        assert got is not None, (
+            f"decode miss m{m} at 0x{bad_addr:08X} HUNG: PREADY never "
+            f"asserted -- out-of-range access wedges that master")
+        assert got['pslverr'] == 1, (
+            f"decode miss m{m} at 0x{bad_addr:08X} completed without "
+            f"PSLVERR: {got}")
+    assert len(dut._s0_log) == n_s0 and len(dut._s1_log) == n_s1, \
+        "decode miss leaked a transfer to a slave"
+
+    # fabric must still work after the misses
+    got = await _xfer(dut, 0, S0_BASE + 0x50, write=1, wdata=0x600D0005)
+    assert got['pslverr'] == 0, f"m0 wedged after decode miss: {got}"
+    got = await _xfer(dut, 1, S1_BASE + 0x60, write=0)
+    assert got['pslverr'] == 0, f"m1 wedged after decode miss: {got}"
+    dut._log.info("apbx_xbar_2to2_mixed: decode misses PSLVERR'd, fabric alive")
 
 
 def test_apbx_xbar_2to2_mixed(request):

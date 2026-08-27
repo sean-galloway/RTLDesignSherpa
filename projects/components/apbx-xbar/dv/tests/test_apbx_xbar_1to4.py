@@ -188,7 +188,7 @@ async def apbx_xbar_1to4_test(dut):
         return rdata, pslverr
 
     # Test 1: Write to each slave and read back
-    BASE = 0x10000000
+    BASE = int(os.environ.get('TB_BASE_ADDR', '0x10000000'), 0)
 
     # Slave 0: BASE + 0x00000
     log.info("=== Scenario APB-1TO4-01: Write to slave 0 ===")
@@ -354,16 +354,76 @@ async def apbx_xbar_1to4_test(dut):
     log.info("  (Tested implicitly in all transactions)")
     await Timer(500, units="ns")
 
+    # ------------------------------------------------------------------
+    # Scenario APB-1TO4-19: OFFSET-based decode (qc round_7).
+    # The docs promise slave_index = (PADDR - BASE_ADDR)[17:16] with no
+    # BASE_ADDR alignment constraint; the RTL used RAW paddr[17:16], so
+    # any base with nonzero bits [17:16] silently rotated the slave map.
+    # Loopback reads can't see the rotation (write and read hit the same
+    # wrong slave) -- assert on WHICH physical slave holds the data.
+    # ------------------------------------------------------------------
+    log.info("=== Scenario APB-1TO4-19: offset-based decode ===")
+    for slave_id in range(4):
+        probe = BASE + (slave_id << 16) + 0x0BEC
+        await apb_write(probe, 0x0DEC0000 | slave_id)
+        assert probe in memory[slave_id], (
+            f"offset decode: write to BASE+0x{slave_id << 16:X} landed in "
+            f"{[i for i in range(4) if probe in memory[i]] or 'no'} "
+            f"slave memory, expected physical slave {slave_id} "
+            f"(BASE_ADDR=0x{BASE:08X} -- raw-bit decode rotates the map)")
+    log.info("  offset decode: all four windows hit their physical slaves")
+
+    # ------------------------------------------------------------------
+    # Scenario APB-1TO4-20: decode-miss returns PSLVERR (qc round_7).
+    # Out-of-range addresses used to leave cmd_ready low forever: the
+    # master wedged in ACCESS with PREADY low and no error signature.
+    # A miss must COMPLETE with PSLVERR. Run LAST: on the old RTL the
+    # first miss wedges the crossbar permanently.
+    # ------------------------------------------------------------------
+    log.info("=== Scenario APB-1TO4-20: decode-miss PSLVERR ===")
+    for bad_addr in (BASE - 4, BASE + 0x40000, BASE + 0x7FFFC):
+        await RisingEdge(dut.pclk)
+        dut.m_apb_PSEL.value = 1
+        dut.m_apb_PENABLE.value = 0
+        dut.m_apb_PADDR.value = bad_addr & 0xFFFFFFFF
+        dut.m_apb_PWRITE.value = 0
+        await RisingEdge(dut.pclk)
+        dut.m_apb_PENABLE.value = 1
+        completed = False
+        for _ in range(50):
+            await RisingEdge(dut.pclk)
+            if dut.m_apb_PREADY.value == 1:
+                completed = True
+                break
+        assert completed, (
+            f"decode miss at 0x{bad_addr & 0xFFFFFFFF:08X} HUNG: PREADY "
+            f"never asserted -- out-of-range access wedges the bus")
+        assert int(dut.m_apb_PSLVERR.value) == 1, (
+            f"decode miss at 0x{bad_addr & 0xFFFFFFFF:08X} completed "
+            f"without PSLVERR")
+        await RisingEdge(dut.pclk)
+        dut.m_apb_PSEL.value = 0
+        dut.m_apb_PENABLE.value = 0
+        await RisingEdge(dut.pclk)
+    # the fabric must still work after misses
+    await apb_write(BASE + 0x00040, 0xA11C1EA2)
+    rdata, pslverr = await apb_read(BASE + 0x00040)
+    assert rdata == 0xA11C1EA2 and pslverr == 0, "fabric wedged after decode miss"
+    log.info("  decode-miss: all three misses completed with PSLVERR; fabric alive")
+
     log.info("=" * 80)
     log.info("1-to-4 APB Crossbar Test PASSED")
     log.info(f"Total transactions: {len(transaction_log) + 80 + 80}")
     log.info("=" * 80)
 
 
-@pytest.mark.parametrize("aw,dw", [
-    (32, 32),
+@pytest.mark.parametrize("aw,dw,base", [
+    (32, 32, 0x10000000),
+    # span-UNaligned base: bits [17:16] nonzero -- pins the offset-based
+    # decode (raw-bit decode rotates the slave map, qc round_7)
+    (32, 32, 0x10010000),
 ])
-def test_apbx_xbar_1to4(request, aw, dw):
+def test_apbx_xbar_1to4(request, aw, dw, base):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for 1-to-4 crossbar test"""
 
@@ -377,7 +437,7 @@ def test_apbx_xbar_1to4(request, aw, dw):
     parameters = {
         'ADDR_WIDTH': aw,
         'DATA_WIDTH': dw,
-        'BASE_ADDR': 0x10000000,
+        'BASE_ADDR': base,
     }
 
     # Compile arguments
@@ -394,7 +454,7 @@ def test_apbx_xbar_1to4(request, aw, dw):
     log_dir = os.path.join(tests_dir, 'logs')
     os.makedirs(log_dir, exist_ok=True)
 
-    test_name = f'test_apbx_xbar_1to4_aw{aw:03d}_dw{dw:03d}'
+    test_name = f'test_apbx_xbar_1to4_aw{aw:03d}_dw{dw:03d}_b{base:08x}'
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)
@@ -405,6 +465,7 @@ def test_apbx_xbar_1to4(request, aw, dw):
         toplevel="apbx_xbar_1to4_wrap",
         module=module,
         parameters=parameters,
+        extra_env={'TB_BASE_ADDR': hex(base)},
         simulator="verilator",
         compile_args=compile_args,
         sim_build=sim_build,

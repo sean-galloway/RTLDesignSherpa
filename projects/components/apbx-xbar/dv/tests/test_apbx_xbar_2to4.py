@@ -207,7 +207,7 @@ async def apbx_xbar_2to4_test(dut):
 
     # Test 1: Each master writes to different slaves (no contention)
     log.info("=== Scenario APB-2TO4-05: Simultaneous M0/M1 different slaves ===")
-    base_addr = 0x10000000
+    base_addr = int(os.environ.get('TB_BASE_ADDR', '0x10000000'), 0)
 
     # Master 0 writes to slave 0
     log.info("=== Scenario APB-2TO4-01: M0 writes to each slave ===")
@@ -403,6 +403,65 @@ async def apbx_xbar_2to4_test(dut):
     log.info("  (Tested implicitly in all transactions)")
     await Timer(500, units="ns")
 
+    # ------------------------------------------------------------------
+    # Scenario APB-2TO4-20: OFFSET-based decode (qc round_7). Docs promise
+    # slave_index = (PADDR - BASE_ADDR)[17:16] with no alignment rule; the
+    # RTL used RAW paddr[17:16], rotating the map for any base with those
+    # bits set. Assert on WHICH physical slave holds the data.
+    # ------------------------------------------------------------------
+    log.info("=== Scenario APB-2TO4-20: offset-based decode ===")
+    for master_id in (0, 1):
+        for slave_id in range(4):
+            probe = base_addr + (slave_id << 16) + 0x0BE0 + (master_id * 4)
+            await apb_write(master_id, probe, 0x0DEC0000 | (master_id << 8) | slave_id)
+            assert probe in memories[slave_id], (
+                f"offset decode: M{master_id} write to BASE+0x{slave_id << 16:X} "
+                f"landed in {[i for i in range(4) if probe in memories[i]] or 0} "
+                f"slave memory, expected physical slave {slave_id} "
+                f"(BASE_ADDR=0x{base_addr:08X})")
+    log.info("  offset decode: both masters hit their physical slaves")
+
+    # ------------------------------------------------------------------
+    # Scenario APB-2TO4-21: decode-miss returns PSLVERR (qc round_7).
+    # An out-of-range access used to leave cmd_ready low forever, wedging
+    # that master. Run LAST: on the old RTL the first miss wedges it.
+    # ------------------------------------------------------------------
+    log.info("=== Scenario APB-2TO4-21: decode-miss PSLVERR ===")
+    for master_id in (0, 1):
+        for bad_addr in (base_addr - 4, base_addr + 0x40000):
+            await RisingEdge(dut.pclk)
+            mp = f"m{master_id}_apb"
+            getattr(dut, f"{mp}_PSEL").value = 1
+            getattr(dut, f"{mp}_PENABLE").value = 0
+            getattr(dut, f"{mp}_PADDR").value = bad_addr & 0xFFFFFFFF
+            getattr(dut, f"{mp}_PWRITE").value = 0
+            await RisingEdge(dut.pclk)
+            getattr(dut, f"{mp}_PENABLE").value = 1
+            completed = False
+            for _ in range(50):
+                await RisingEdge(dut.pclk)
+                if getattr(dut, f"{mp}_PREADY").value == 1:
+                    completed = True
+                    break
+            assert completed, (
+                f"M{master_id} decode miss at 0x{bad_addr & 0xFFFFFFFF:08X} "
+                f"HUNG: PREADY never asserted -- wedges that master")
+            assert int(getattr(dut, f"{mp}_PSLVERR").value) == 1, (
+                f"M{master_id} decode miss at 0x{bad_addr & 0xFFFFFFFF:08X} "
+                f"completed without PSLVERR")
+            await RisingEdge(dut.pclk)
+            getattr(dut, f"{mp}_PSEL").value = 0
+            getattr(dut, f"{mp}_PENABLE").value = 0
+            await RisingEdge(dut.pclk)
+    # both masters must still work after their misses
+    await apb_write(0, base_addr + 0x0044, 0xA11C1EA0)
+    await apb_write(1, base_addr + 0x10044, 0xA11C1EA1)
+    rd0, e0 = await apb_read(0, base_addr + 0x0044)
+    rd1, e1 = await apb_read(1, base_addr + 0x10044)
+    assert rd0 == 0xA11C1EA0 and e0 == 0, "M0 wedged after decode miss"
+    assert rd1 == 0xA11C1EA1 and e1 == 0, "M1 wedged after decode miss"
+    log.info("  decode-miss: all misses completed with PSLVERR; both masters alive")
+
     log.info("=" * 80)
     log.info("2-to-4 APB Crossbar Test PASSED")
     log.info(f"Total transactions: {len(transaction_log) + 100 + 80 + 40 + 30}")
@@ -411,6 +470,8 @@ async def apbx_xbar_2to4_test(dut):
 
 @pytest.mark.parametrize("aw,dw,base", [
     (32, 32, 0x10000000),
+    # span-UNaligned base: bits [17:16] nonzero -- pins offset decode
+    (32, 32, 0x10020000),
 ])
 def test_apbx_xbar_2to4(request, aw, dw, base):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -454,6 +515,7 @@ def test_apbx_xbar_2to4(request, aw, dw, base):
         toplevel="apbx_xbar_2to4_wrap",
         module=module,
         parameters=parameters,
+        extra_env={'TB_BASE_ADDR': hex(base)},
         simulator="verilator",
         compile_args=compile_args,
         sim_build=sim_build,

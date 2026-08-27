@@ -220,16 +220,43 @@ module apbx_xbar_2to4 #(
     logic m1_addr_in_range;
     logic [1:0] r_m1_slave_sel;  // Registered for response routing
 
+    // Slave index from the OFFSET (PADDR - BASE_ADDR), not raw PADDR
+    // bits: raw bits rotated the slave map for any BASE_ADDR with
+    // nonzero bits [17:16]. Constant-folds at elaboration.
+    logic [ADDR_WIDTH-1:0] m0_cmd_offset, m1_cmd_offset;
     always_comb begin
+        m0_cmd_offset    = m0_cmd_paddr - BASE_ADDR;
         m0_addr_in_range = (m0_cmd_paddr >= BASE_ADDR) &&
                           (m0_cmd_paddr < (BASE_ADDR + 32'h00040000));
-        m0_slave_sel = m0_cmd_paddr[17:16];
+        m0_slave_sel = m0_cmd_offset[17:16];
 
+        m1_cmd_offset    = m1_cmd_paddr - BASE_ADDR;
         m1_addr_in_range = (m1_cmd_paddr >= BASE_ADDR) &&
                           (m1_cmd_paddr < (BASE_ADDR + 32'h00040000));
-        m1_slave_sel = m1_cmd_paddr[17:16];
-
+        m1_slave_sel = m1_cmd_offset[17:16];
     end
+
+    // Decode miss: complete locally with PSLVERR instead of wedging the
+    // master (cmd_ready would otherwise never assert). One pending flag
+    // per master -- each apb4_slave is one-outstanding.
+    logic r_m0_decerr_pending, r_m1_decerr_pending;
+    `ALWAYS_FF_RST(pclk, presetn,
+        if (`RST_ASSERTED(presetn)) begin
+            r_m0_decerr_pending <= 1'b0;
+            r_m1_decerr_pending <= 1'b0;
+        end else begin
+            if (m0_cmd_valid && m0_cmd_ready && !m0_addr_in_range) begin
+                r_m0_decerr_pending <= 1'b1;
+            end else if (r_m0_decerr_pending && m0_rsp_ready) begin
+                r_m0_decerr_pending <= 1'b0;
+            end
+            if (m1_cmd_valid && m1_cmd_ready && !m1_addr_in_range) begin
+                r_m1_decerr_pending <= 1'b1;
+            end else if (r_m1_decerr_pending && m1_rsp_ready) begin
+                r_m1_decerr_pending <= 1'b0;
+            end
+        end
+    )
 
     // Register slave selection for each master when command accepted
     `ALWAYS_FF_RST(pclk, presetn,
@@ -237,10 +264,10 @@ module apbx_xbar_2to4 #(
             r_m0_slave_sel <= 2'd0;
             r_m1_slave_sel <= 2'd0;
         end else begin
-            if (m0_cmd_valid && m0_cmd_ready) begin
+            if (m0_cmd_valid && m0_cmd_ready && m0_addr_in_range) begin
                 r_m0_slave_sel <= m0_slave_sel;
             end
-            if (m1_cmd_valid && m1_cmd_ready) begin
+            if (m1_cmd_valid && m1_cmd_ready && m1_addr_in_range) begin
                 r_m1_slave_sel <= m1_slave_sel;
             end
         end
@@ -497,25 +524,33 @@ module apbx_xbar_2to4 #(
     // Master cmd_ready signals
     always_comb begin
         m0_cmd_ready = 1'b0;
-        if (m0_cmd_valid && m0_addr_in_range) begin
-            case (m0_slave_sel)
-                2'd0: m0_cmd_ready = s0_arb_grant[0] && s0_cmd_ready;
-                2'd1: m0_cmd_ready = s1_arb_grant[0] && s1_cmd_ready;
-                2'd2: m0_cmd_ready = s2_arb_grant[0] && s2_cmd_ready;
-                2'd3: m0_cmd_ready = s3_arb_grant[0] && s3_cmd_ready;
-            endcase
+        if (m0_cmd_valid) begin
+            if (!m0_addr_in_range) begin
+                m0_cmd_ready = !r_m0_decerr_pending;  // miss: accept, answer locally
+            end else begin
+                case (m0_slave_sel)
+                    2'd0: m0_cmd_ready = s0_arb_grant[0] && s0_cmd_ready;
+                    2'd1: m0_cmd_ready = s1_arb_grant[0] && s1_cmd_ready;
+                    2'd2: m0_cmd_ready = s2_arb_grant[0] && s2_cmd_ready;
+                    2'd3: m0_cmd_ready = s3_arb_grant[0] && s3_cmd_ready;
+                endcase
+            end
         end
     end
 
     always_comb begin
         m1_cmd_ready = 1'b0;
-        if (m1_cmd_valid && m1_addr_in_range) begin
-            case (m1_slave_sel)
-                2'd0: m1_cmd_ready = s0_arb_grant[1] && s0_cmd_ready;
-                2'd1: m1_cmd_ready = s1_arb_grant[1] && s1_cmd_ready;
-                2'd2: m1_cmd_ready = s2_arb_grant[1] && s2_cmd_ready;
-                2'd3: m1_cmd_ready = s3_arb_grant[1] && s3_cmd_ready;
-            endcase
+        if (m1_cmd_valid) begin
+            if (!m1_addr_in_range) begin
+                m1_cmd_ready = !r_m1_decerr_pending;  // miss: accept, answer locally
+            end else begin
+                case (m1_slave_sel)
+                    2'd0: m1_cmd_ready = s0_arb_grant[1] && s0_cmd_ready;
+                    2'd1: m1_cmd_ready = s1_arb_grant[1] && s1_cmd_ready;
+                    2'd2: m1_cmd_ready = s2_arb_grant[1] && s2_cmd_ready;
+                    2'd3: m1_cmd_ready = s3_arb_grant[1] && s3_cmd_ready;
+                endcase
+            end
         end
     end
 
@@ -524,7 +559,10 @@ module apbx_xbar_2to4 #(
         m0_rsp_valid = 1'b0;
         m0_rsp_prdata = '0;
         m0_rsp_pslverr = 1'b0;
-        case (r_m0_slave_sel)
+        if (r_m0_decerr_pending) begin
+            m0_rsp_valid = 1'b1;
+            m0_rsp_pslverr = 1'b1;
+        end else case (r_m0_slave_sel)
             2'd0: begin
                 if (s0_arb_grant[0]) begin
                     m0_rsp_valid = s0_rsp_valid;
@@ -560,7 +598,10 @@ module apbx_xbar_2to4 #(
         m1_rsp_valid = 1'b0;
         m1_rsp_prdata = '0;
         m1_rsp_pslverr = 1'b0;
-        case (r_m1_slave_sel)
+        if (r_m1_decerr_pending) begin
+            m1_rsp_valid = 1'b1;
+            m1_rsp_pslverr = 1'b1;
+        end else case (r_m1_slave_sel)
             2'd0: begin
                 if (s0_arb_grant[1]) begin
                     m1_rsp_valid = s0_rsp_valid;
@@ -595,29 +636,29 @@ module apbx_xbar_2to4 #(
     // Slave 0 rsp_ready
     always_comb begin
         s0_rsp_ready = 1'b0;
-        if (s0_arb_grant[0] && r_m0_slave_sel == 2'd0) s0_rsp_ready = m0_rsp_ready;
-        if (s0_arb_grant[1] && r_m1_slave_sel == 2'd0) s0_rsp_ready = m1_rsp_ready;
+        if (s0_arb_grant[0] && r_m0_slave_sel == 2'd0 && !r_m0_decerr_pending) s0_rsp_ready = m0_rsp_ready;
+        if (s0_arb_grant[1] && r_m1_slave_sel == 2'd0 && !r_m1_decerr_pending) s0_rsp_ready = m1_rsp_ready;
     end
 
     // Slave 1 rsp_ready
     always_comb begin
         s1_rsp_ready = 1'b0;
-        if (s1_arb_grant[0] && r_m0_slave_sel == 2'd1) s1_rsp_ready = m0_rsp_ready;
-        if (s1_arb_grant[1] && r_m1_slave_sel == 2'd1) s1_rsp_ready = m1_rsp_ready;
+        if (s1_arb_grant[0] && r_m0_slave_sel == 2'd1 && !r_m0_decerr_pending) s1_rsp_ready = m0_rsp_ready;
+        if (s1_arb_grant[1] && r_m1_slave_sel == 2'd1 && !r_m1_decerr_pending) s1_rsp_ready = m1_rsp_ready;
     end
 
     // Slave 2 rsp_ready
     always_comb begin
         s2_rsp_ready = 1'b0;
-        if (s2_arb_grant[0] && r_m0_slave_sel == 2'd2) s2_rsp_ready = m0_rsp_ready;
-        if (s2_arb_grant[1] && r_m1_slave_sel == 2'd2) s2_rsp_ready = m1_rsp_ready;
+        if (s2_arb_grant[0] && r_m0_slave_sel == 2'd2 && !r_m0_decerr_pending) s2_rsp_ready = m0_rsp_ready;
+        if (s2_arb_grant[1] && r_m1_slave_sel == 2'd2 && !r_m1_decerr_pending) s2_rsp_ready = m1_rsp_ready;
     end
 
     // Slave 3 rsp_ready
     always_comb begin
         s3_rsp_ready = 1'b0;
-        if (s3_arb_grant[0] && r_m0_slave_sel == 2'd3) s3_rsp_ready = m0_rsp_ready;
-        if (s3_arb_grant[1] && r_m1_slave_sel == 2'd3) s3_rsp_ready = m1_rsp_ready;
+        if (s3_arb_grant[0] && r_m0_slave_sel == 2'd3 && !r_m0_decerr_pending) s3_rsp_ready = m0_rsp_ready;
+        if (s3_arb_grant[1] && r_m1_slave_sel == 2'd3 && !r_m1_decerr_pending) s3_rsp_ready = m1_rsp_ready;
     end
 
     // APB Master 0 - converts cmd/rsp to slave 0 APB4
