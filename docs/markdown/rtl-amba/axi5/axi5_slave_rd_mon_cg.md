@@ -191,7 +191,7 @@ Same as `axi5_slave_rd_mon` - see [AXI5 Slave Read Monitor](axi5_slave_rd_mon.md
 ### Clock Gating Behavior
 
 **Activity Detection:**
-- **user_valid:** Asserted when slave interface has activity (arvalid, rvalid, internal busy, or a monitor packet pending on the monitor bus -- peer VALID)
+- **user_valid:** Asserted when slave interface has activity (arvalid, rvalid, internal busy, a monitor packet pending on the monitor bus, or monitor CAM entries still live -- peer VALID)
 - **axi_valid:** Asserted when FUB interface has activity (arvalid, rvalid)
 
 **Key Points:**
@@ -199,7 +199,7 @@ Same as `axi5_slave_rd_mon` - see [AXI5 Slave Read Monitor](axi5_slave_rd_mon.md
 - Ready signals forced to 0 when gated (prevents new transactions)
 - Gating only occurs after configured idle period
 - Any activity immediately ungates the clock
-- Monitor TRACKING state freezes when gated (it runs on the gated clock and is not a wake term), but a packet pending on the monitor bus IS a wake term: the block stays awake until the consumer accepts it, and the external `monbus_valid` is masked with `!cg_gating`, so monitor-bus delivery is exactly-once across gating (`val/amba/test_mon_cg_gating.py` phase 6)
+- Monitor state IS a wake term: both a packet pending on the monitor bus (`w_monbus_valid`) and live monitor CAM entries (`|active_transactions`, which covers the reporter's few-cycle emission window) hold the block awake, and the external `monbus_valid` is masked with `!cg_gating` -- so monitor-bus delivery is exactly-once across gating at any idle count (`val/amba/test_mon_cg_gating.py` phase 6)
 
 ### Performance Monitoring
 

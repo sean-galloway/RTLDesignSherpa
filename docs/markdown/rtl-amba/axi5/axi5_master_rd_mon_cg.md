@@ -218,7 +218,8 @@ This module provides the best of both worlds:
 The clock gating logic considers monitor activity:
 
 ```systemverilog
-user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy || w_monbus_valid;  // peer VALID, never peer READY
+user_valid = fub_axi_arvalid || fub_axi_rvalid || int_busy ||
+             w_monbus_valid || (|active_transactions);  // peer VALID, never peer READY
 axi_valid = m_axi_arvalid || m_axi_rvalid;
 
 // Clock remains active if:
@@ -226,23 +227,22 @@ axi_valid = m_axi_arvalid || m_axi_rvalid;
 // - AXI interface active
 // - CORE busy (transactions in flight in the datapath)
 // - A monitor packet is pending on the monitor bus (w_monbus_valid)
-// NOTE: the monitor's TRACKING state is still not a wake term -- int_busy
-// is the core's busy only. Only a packet pending delivery wakes the block.
+// - The monitor CAM still holds entries (|active_transactions) -- covers
+//   the reporter's retire -> FIFO -> output emission window
 ```
 
-**Monitor-bus delivery is exactly-once across gating.** A packet pending
-on the monitor bus is a wake term: the block stays awake (or re-wakes
-within a cycle) until the consumer accepts it, and the external
-`monbus_valid` is masked with `!cg_gating` so a consumer can never sample
-a valid that the reporter's stopped clock could not retire. One residual:
-the reporter takes a few cycles after a transaction retires to present
-its packet, so a `cfg_cg_idle_count` smaller than that latency can stop
-the clock before `monbus_valid` rises. The packet is not lost and never
-duplicates -- it parks in the reporter FIFO and delivers exactly once at
-the next wake -- but its delivery is deferred until traffic returns. Use
-`cfg_cg_idle_count >= 4` where trailing-packet latency matters.
-`val/amba/test_mon_cg_gating.py` phase 6 asserts the exactly-once
-contract.
+**Monitor-bus delivery is exactly-once across gating, at any idle count.**
+A packet pending on the monitor bus is a wake term: the block stays awake
+(or re-wakes within a cycle) until the consumer accepts it, and the
+external `monbus_valid` is masked with `!cg_gating` so a consumer can
+never sample a valid that the reporter's stopped clock could not retire.
+The monitor CAM's occupancy (`active_transactions`) is a wake term too: a
+tracked entry stays in the CAM until its packet is marked into the
+reporter FIFO, and the registered count lags one cycle past that, meeting
+`monbus_valid`'s assertion -- so the clock cannot stop inside the
+reporter's few-cycle emission window and strand a trailing packet, even
+at `cfg_cg_idle_count = 0`. `val/amba/test_mon_cg_gating.py` phase 6
+asserts exactly-once delivery of exactly the packets generated.
 
 ### Ready Signal Control During Gating
 

@@ -104,18 +104,19 @@ Base-module ports are forwarded EXCEPT `debug_block_ready`, which the wrapper ti
 ### Clock Gating Architecture
 
 ONE `amba_clock_gate_ctrl` gates the whole inner monitor module. The wake
-term is bus activity plus pending monitor-bus work (`fub_axi_arvalid ||
-fub_axi_rvalid || int_busy || w_monbus_valid` on the user side,
-`m_axi_arvalid || m_axi_rvalid` on the AXI side); when both sides idle for
-`cfg_cg_idle_count` cycles with nothing pending on the monitor bus,
-everything inside -- transaction tracking, reporter, timers, perf counters
--- stops together. There are no per-domain gates. The external
-`monbus_valid` is masked with `!cg_gating`, so monitor-bus delivery is
-exactly-once across gating (`val/amba/test_mon_cg_gating.py` phase 6): a
-packet pending delivery holds the block awake, and a packet emitted in the
-few-cycle reporter latency after the last transaction (possible only when
-`cfg_cg_idle_count` is smaller than that latency) parks in the reporter
-FIFO and delivers exactly once at the next wake.
+term is bus activity plus pending monitor work (`fub_axi_arvalid ||
+fub_axi_rvalid || int_busy || w_monbus_valid || (|active_transactions)`
+on the user side, `m_axi_arvalid || m_axi_rvalid` on the AXI side); when
+both sides idle for `cfg_cg_idle_count` cycles with nothing pending on
+the monitor bus and the monitor CAM empty, everything inside --
+transaction tracking, reporter, timers, perf counters -- stops together.
+There are no per-domain gates. The external `monbus_valid` is masked with
+`!cg_gating`, so monitor-bus delivery is exactly-once across gating at
+any idle count (`val/amba/test_mon_cg_gating.py` phase 6): a packet
+pending delivery holds the block awake, and the CAM-occupancy term covers
+the reporter's few-cycle retire -> FIFO -> output emission window, so a
+trailing packet cannot be stranded by the clock stopping before its valid
+rises -- even at `cfg_cg_idle_count = 0`.
 
 ### Gating State Machine
 

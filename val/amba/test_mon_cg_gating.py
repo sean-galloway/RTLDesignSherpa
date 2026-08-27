@@ -604,10 +604,13 @@ async def mon_cg_gating_test(dut):
         f'{name} [phase 6]: the same monbus packet was accepted on '
         f'{duplicates + 1} consecutive cycles - a frozen monbus_valid is '
         f're-delivering one packet to the ungated consumer')
-    assert 1 <= len(delivered) <= 3, (
-        f'{name} [phase 6]: {len(delivered)} monbus deliveries for one '
-        f'transaction\'s pending packets (0 = packet lost, many = packets '
-        f'invented)')
+    assert len(delivered) == 1, (
+        f'{name} [phase 6]: {len(delivered)} monbus deliveries for the one '
+        f'packet this phase generated (0 = packet lost; 2+ = an EARLIER '
+        f'phase\'s packet was stranded mid-reporter by the clock stopping '
+        f'inside the emission window and only surfaced now - the monitor\'s '
+        f'CAM occupancy must hold the block awake until the packet reaches '
+        f'monbus_valid)')
     assert gated_while_parked == 0, (
         f'{name} [phase 6]: clock gated for {gated_while_parked} cycles with '
         f'a packet parked on monbus_valid - pending monitor packets are '

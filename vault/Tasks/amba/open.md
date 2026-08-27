@@ -749,7 +749,7 @@ correctly, there won't be data to drop", which reframed a documented
 
 ---
 
-### TASK-070: mon_cg monbus_valid held through gating -- FIXED 2026-08-26 (residual = deferred delivery at tiny idle counts)
+### TASK-070: mon_cg monbus_valid held through gating -- FIXED 2026-08-26, residual CLOSED same day
 **Priority:** was P2 -- CONFIRMED then fixed; residual documented below
 
 CONFIRMED by directed test before the fix: park a completion packet
@@ -769,18 +769,23 @@ gating, release, record packet VALUES -- a count cannot tell one packet
 re-delivered N times from N distinct packets draining). 24/24 gating +
 36/36 functional green after clean rebuild.
 
-RESIDUAL (empirically shown at idle_count=0): the reporter takes ~2-4
-cycles after CAM-retire to present a packet; an idle count smaller than
-that lets the clock stop before monbus_valid rises, and w_monbus_valid
-cannot wake what never rose. The packet is NOT lost and NEVER duplicates
--- it parks in the reporter FIFO and delivered exactly-once at the next
-wake in the phase-6 run that exposed it -- but delivery defers until
-traffic returns. Docs now say: use cfg_cg_idle_count >= 4 where
-trailing-packet latency matters. Closing the residual needs the
-reporter's w_output_busy (monbus_valid || w_fifo_rd_valid, already
-computed at axi_monitor_reporter.sv:401) exported up through
-base/filtered/mon to the wrapper activity term -- a port change across
-the shared monitor stack, NOT made; flagged for scope decision.
+RESIDUAL CLOSED (same day, after the monitor-stack dive): no port
+export was needed. The wrappers already receive the CAM occupancy as
+active_transactions (filtered's active_count), and CAM entries stay
+valid until their packet is marked into the reporter FIFO -- the
+registered count then lags one cycle further, meeting monbus_valid's
+assertion. ORing (|active_transactions) into user_valid therefore covers
+the entire retire -> FIFO -> output emission window with an existing
+port. Phase 6 tightened to assert len(delivered) == 1 (was <= 3, which
+tolerated the stranded phase-5 packet surfacing in phase 6's drain);
+tightened test RED against the wrapper-only fix (2 deliveries: the
+0x8000 stranded packet + the 0xA000 phase packet), GREEN after the
+occupancy term: gating 24/24, functional 36/36, clean rebuilds. One
+sequencing subtlety: w_monbus_valid alone is NOT redundant with the
+occupancy term -- the threshold/perf/debug bypass packets never come
+from CAM entries, so both terms are needed. w_output_busy export NOT
+needed; nothing further owed here. Docs updated to the closed contract
+(no idle-count advisory).
 
 ### TASK-062: `sdpram_slave_axil_axil` runs on the board with no simulation
 **Priority:** P2
@@ -1126,3 +1131,30 @@ unconnected `debug_block_ready` for exactly this reason, hidden behind
 
 **Do this BEFORE the 8-channel build.** Two observers x 70 ports is also
 routing and area on a 325T that is already the reason build-mon is 4 channels.
+
+## AMBA-HISTCH1 — axi_perf_latency_hist NUM_CHANNELS=1 decodes id bit 0 as a channel index
+**Status:** open 2026-08-26 (found via pumice PUMICE-011; NOT fixed — the
+consumer path is being retired instead, per Sean's direction)
+
+`rtl/amba/shared/axi_perf_latency_hist.sv` derives
+`CW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1` and then indexes every
+per-channel array with `id[CW-1:0]`. At `NUM_CHANNELS=1` that makes the
+channel index ID BIT 0 into a ONE-entry array:
+
+- Simulation (Verilator): out-of-bounds accesses silently vanish — only
+  even-ID commands are counted. Deterministic: an LFSR-id run counted
+  33/64 transactions (the even-id subset), byte-identical across configs.
+- Synthesis: the index truncates instead, so odd/even ids ALIAS onto the
+  single entry — same-cycle push/pop hit the same registers, the occupancy
+  count corrupts, and `r_burst_active` churn produces multiple "first
+  beat" events per burst. This is the likely mechanism behind the pumice
+  board's EXTRA-returns side of PUMICE-011 (168409 vs 64000).
+
+Fix when touched: `w_ch_* = (NUM_CHANNELS > 1) ? id[CW-1:0] : '0;` for the
+cmd/data/resp decodes. NUM_CHANNELS>1 instantiations (the stream observers
+at 8) are unaffected. Also note the timestamp-FIFO sizing contract the same
+investigation surfaced: with `o_cmd_block` unconsumed, MAX_OUTSTANDING must
+cover the consumer's WHOLE admission domain or samples are silently lost
+(the module's own comment documents the degradation; the char macro ran at
+8 vs an ~10+ deep engine pipeline and lost up to 6/64 samples even with
+single-id traffic).

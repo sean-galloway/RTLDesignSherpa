@@ -31,14 +31,20 @@ sides of the block. Each rule below was paid for with a real bug in the
   defers the valid's rise - it never truncates a visible valid, because once
   the pending-work term is high, gating cannot engage.
 
-- **Know your emission latency vs the minimum idle count.** Work that takes
-  N cycles to become visible after its last covering term drops (e.g. the
-  reporter presents a packet ~2-4 cycles after CAM-retire) can be stranded
-  by an idle count < N: the clock stops before the pending flag rises, and
-  the flag cannot wake what never asserted. Either document the minimum
-  idle count (mon_cg docs say >= 4) or export a deeper busy signal that
-  covers the pipeline (the reporter's `w_output_busy` is computed but not
-  exported - the flagged full fix for TASK-070's residual).
+- **Cover the emission pipeline with an overlapping upstream term.** Work
+  that takes N cycles to become visible after its last covering term drops
+  (the reporter presents a packet ~2-4 cycles after CAM-retire) is stranded
+  by any idle count < N: the clock stops before the pending flag rises, and
+  the flag cannot wake what never asserted. The fix is a wake term that
+  stays high THROUGH the pipeline until the output flag is up - here the
+  monitor CAM's occupancy (`|active_transactions`): entries stay valid
+  until their packet is marked into the reporter FIFO, and the registered
+  count lags one cycle further, meeting `monbus_valid`. Prefer an existing
+  status output that already brackets the window over exporting a new port
+  (the `w_output_busy` export was flagged and turned out unnecessary).
+  Note the terms are NOT mutually redundant: bypass packets
+  (threshold/perf/debug) never come from CAM entries, so the output-valid
+  term is still required alongside the occupancy term.
 
 - **Prove liveness by identity, not by count.** A delivery counter cannot
   tell one packet re-delivered N times from N distinct packets draining

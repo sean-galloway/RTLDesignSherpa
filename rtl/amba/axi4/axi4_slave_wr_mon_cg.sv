@@ -240,7 +240,8 @@ module axi4_slave_wr_mon_cg
     logic w_monbus_valid;
     logic int_awready, int_wready, int_bready, int_busy;
 
-    assign user_valid = s_axi_awvalid || s_axi_wvalid || s_axi_bvalid || int_busy || w_monbus_valid;
+    assign user_valid = s_axi_awvalid || s_axi_wvalid || s_axi_bvalid || int_busy ||
+                        w_monbus_valid || (|active_transactions);
     assign axi_valid  = fub_axi_awvalid || fub_axi_wvalid || fub_axi_bvalid;
 
     assign s_axi_awready  = cg_gating ? 1'b0 : int_awready;
@@ -415,16 +416,27 @@ module axi4_slave_wr_mon_cg
 
     );
 
-    // A packet parked on the monitor bus is outstanding work: w_monbus_valid
-    // holds the block awake (and re-wakes it) so the reporter can retire the
-    // handshake. Without it the clock stops with valid frozen high and an
-    // ungated consumer re-accepts the SAME packet every cycle. The !cg_gating
-    // mask covers the one-cycle overlap where gating asserts on the same edge
-    // the packet arrives (wake takes a cycle): the consumer never sees valid
-    // until the reporter's clock is running to observe the accept. The mask
-    // only defers valid's rise, never truncates a visible valid, because once
-    // w_monbus_valid is high gating cannot engage.
-    // val/amba/test_mon_cg_gating.py phase 6 asserts exactly-once delivery.
+    // Monitor liveness terms (TASK-070):
+    //   w_monbus_valid -- a packet parked on the monitor bus is outstanding
+    //     work; it holds the block awake (and re-wakes it) so the reporter
+    //     can retire the handshake. Without it the clock stops with valid
+    //     frozen high and an ungated consumer re-accepts the SAME packet
+    //     every cycle.
+    //   |active_transactions -- the monitor CAM's occupancy. An entry stays
+    //     valid until its packet is marked into the reporter FIFO, and the
+    //     registered count lags one cycle past that, meeting monbus_valid's
+    //     assertion; without this term the clock can stop inside the
+    //     reporter's emission window (retire -> FIFO -> output register,
+    //     ~2-4 cycles) and the packet strands with valid never risen --
+    //     nothing left to wake the block until unrelated traffic.
+    //   The !cg_gating mask on the external valid covers the one-cycle
+    //     overlap where gating asserts on the same edge a packet arrives
+    //     (wake takes a cycle): the consumer never sees a valid the stopped
+    //     reporter could not retire. The mask only defers valid's rise,
+    //     never truncates a visible valid, because once the pending terms
+    //     are high gating cannot engage.
+    // val/amba/test_mon_cg_gating.py phase 6 asserts exactly-once delivery
+    // of exactly the packets generated -- no duplicates, no stranding.
     assign monbus_valid = w_monbus_valid && !cg_gating;
 
     assign busy = int_busy;
