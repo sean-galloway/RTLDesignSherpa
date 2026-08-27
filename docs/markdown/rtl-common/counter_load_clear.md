@@ -468,7 +468,6 @@ assert property (load_updates_match);
 
 - **Flip-Flops**: `$clog2(MAX)` for count + `$clog2(MAX)` for match = `2 × $clog2(MAX)`
 - **LUTs**: Increment logic, comparator, and control logic
-- **Typical**: 15-25 LUTs for 16-bit counter
 
 ### Timing Optimization
 

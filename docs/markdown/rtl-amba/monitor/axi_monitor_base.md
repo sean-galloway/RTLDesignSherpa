@@ -552,7 +552,6 @@ Verilator's default of 64 in sim builds.
 | Latency | 2-3 cycles | Event detection to packet output |
 | Throughput | 1 packet per 2 cycles | The reporter's registered output stage cannot load a new packet on the same cycle the previous one is accepted, so sustained rate is at most one packet every other cycle |
 | Table Lookup | 1 cycle | ID-based transaction lookup |
-| Resource Usage | ~500 LUTs | Depends on MAX_TRANSACTIONS |
 
 ---
 

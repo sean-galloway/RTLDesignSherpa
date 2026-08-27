@@ -427,12 +427,6 @@ The module includes a Verilator pragma:
 | 16-bit | ~48 | 0 (combinational) | Medium |
 | 32-bit | ~96 | 0 (combinational) | Large (consider alternatives) |
 
-**Area Breakdown (8-bit):**
-- P/G generation: 8 × 2 gates = 16 LUTs
-- Carry chain: 8 × 2 gates = 16 LUTs (OR + AND)
-- Sum calculation: 8 × 1 gate = 8 LUTs (XOR)
-- **Total**: ~24 LUTs (may optimize to fewer)
-
 **Comparison to Other Adders:**
 
 | Adder Type | Logic Depth | Area | Best Use Case |

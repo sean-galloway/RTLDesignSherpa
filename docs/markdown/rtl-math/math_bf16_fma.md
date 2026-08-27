@@ -309,7 +309,6 @@ end
 | Alignment shifter | ~100 |
 | Rounding logic | ~30 |
 | Special case MUX | ~50 |
-| **Total** | ~850-900 LUTs |
 
 ## Usage Example
 

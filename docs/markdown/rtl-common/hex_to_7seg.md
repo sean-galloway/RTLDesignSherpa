@@ -128,7 +128,6 @@ end
 ## Timing
 
 - **Combinational logic**: The case statement maps to a LUT
-- **Typical delay**: 1 LUT delay (sub-nanosecond)
 - **No clock dependency**: Immediate response to input changes
 
 On display update rate:

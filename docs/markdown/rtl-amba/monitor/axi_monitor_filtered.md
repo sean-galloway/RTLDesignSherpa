@@ -286,7 +286,6 @@ to `16'h0000` unless you need to suppress specific event codes.
 |--------|-------|-------|
 | Filtering Latency | 0-1 cycles | Combinatorial (0) or registered (1) |
 | Throughput | 1 packet per 2 cycles | Limited by the reporter's registered output stage; the filter itself introduces no additional backpressure |
-| Resource Usage | ~100 LUTs | Minimal overhead |
 
 ---
 

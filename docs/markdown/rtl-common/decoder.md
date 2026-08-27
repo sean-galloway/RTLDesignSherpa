@@ -86,7 +86,6 @@ endgenerate
 
 ## Timing
 
-- **Propagation delay**: Typically 1 LUT delay
 - **Setup/hold**: None (purely combinational)
 - **Output changes**: Follow the inputs immediately
 

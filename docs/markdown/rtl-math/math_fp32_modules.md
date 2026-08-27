@@ -111,7 +111,6 @@ module math_fp32_to_bf16 (
 | +Inf | 0x7F800000 | Positive infinity |
 | -Inf | 0xFF800000 | Negative infinity |
 | NaN | 0x7FC00000 | Canonical quiet NaN |
-| Max Normal | 0x7F7FFFFF | ~3.4e38 |
 | Min Normal | 0x00800000 | ~1.2e-38 |
 
 ## Usage Example

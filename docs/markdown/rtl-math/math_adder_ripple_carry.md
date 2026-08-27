@@ -397,10 +397,6 @@ math_adder_ripple_carry #(.N(8)) u_alu (
 | 16-bit | ~32 | 0 (combinational) | Medium (consider alternatives) |
 | 32-bit | ~64 | 0 (combinational) | Large (use faster adder) |
 
-**Area Breakdown (8-bit):**
-- 8 full adders: 8 × 2 gates = 16 LUTs (XOR + Carry logic)
-- **Total**: ~16 LUTs (absolute minimum for 8-bit adder)
-
 **Why It's Smallest:** No additional logic beyond full adders — just a direct carry chain.
 
 **Comparison to Other Adders:**

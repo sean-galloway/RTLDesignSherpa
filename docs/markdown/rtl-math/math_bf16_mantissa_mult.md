@@ -176,10 +176,6 @@ rounding decision that consumes these bits.
 
 | Component | Resource |
 |-----------|----------|
-| 8x8 Multiplier | ~120-140 LUTs |
-| Normalization MUX | ~14 LUTs |
-| Rounding logic | ~10 LUTs |
-| **Total** | ~140-165 LUTs |
 
 ## Usage Example
 

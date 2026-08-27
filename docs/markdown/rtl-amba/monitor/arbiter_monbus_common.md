@@ -172,7 +172,6 @@ Configuration is typically handled at the top-level monitor instantiation.
 |--------|-------|-------|
 | Latency | 1-2 cycles | Typical processing delay |
 | Throughput | 1 operation/cycle | Maximum rate |
-| Resource Usage | Varies | Depends on configuration |
 
 ---
 

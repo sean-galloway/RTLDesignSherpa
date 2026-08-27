@@ -456,17 +456,7 @@ my_regs u_regs (
 
 ### Synthesis Notes
 
-**Resource Usage (ADDR_WIDTH=12, DATA_WIDTH=32):**
-- ~50 LUTs
-- ~100 FFs
-- 0 BRAM
-
-**Components:**
-- Command FSM: ~20 LUTs, ~40 FFs
-- Response FSM: ~10 LUTs, ~35 FFs
-- Strobe conversion: ~20 LUTs (combinatorial)
-
-Fifty LUTs. This is one of the cheapest shims you'll ever instantiate — the register block behind it will dwarf it.
+This is one of the cheapest shims you'll ever instantiate — two small FSMs and a strobe conversion. The register block behind it will dwarf it.
 
 ### When to Use
 

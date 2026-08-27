@@ -429,11 +429,6 @@ The timer module has minimal resource cost:
 - Increment logic for timestamp
 - Frequency divider in counter_freq_invariant
 
-**Estimated Area:**
-- ~50 FFs (flip-flops)
-- ~100 LUTs (look-up tables)
-- Negligible relative to full monitor
-
 ### Multiple Timer Instances
 
 Each monitor instance can have its own timer if needed:

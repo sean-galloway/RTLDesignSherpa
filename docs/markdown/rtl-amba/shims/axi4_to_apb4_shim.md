@@ -448,10 +448,7 @@ axi4_to_apb4_shim #(
 | 64b/32b, deep | ~1500 | ~1100 | 0 | CDC + deep buffers |
 
 **Breakdown:**
-- axi4_slave_stub: ~300 LUTs, ~200 FFs (skid buffers)
-- axi4_to_apb4_convert: ~400 LUTs, ~300 FFs (FSMs, width logic)
 - 2× gaxi_fifo_async (depth 4): FIFO storage + gray-pointer synchronizers
-- apb4_master_stub: ~100 LUTs, ~100 FFs (APB protocol)
 
 **Critical Paths:**
 - AXI packet unpacking (combinatorial)

@@ -405,7 +405,6 @@ After CSA tree reduction, choose the final adder wisely — it sits on the criti
 **Comparison to Full Adder:**
 - **Logic**: Identical (both use XOR + Majority)
 - **Usage**: Different (parallel vs chained)
-- **Area**: Same (~2 LUTs per bit)
 
 **CSA vs Ripple Carry Adder (8-bit example):**
 

@@ -351,10 +351,6 @@ All modules support **1 transfer per clock cycle** when not applying backpressur
 
 | Module | Logic | Memory | Notes |
 |--------|-------|--------|-------|
-| gaxi_skid_buffer (D=4, DW=32) | ~50 LUTs | 128 FFs | Shift register |
-| gaxi_fifo_sync (D=16, DW=32) | ~100 LUTs | 512 FFs | + counters |
-| gaxi_fifo_async (D=16, DW=32) | ~150 LUTs | 512 FFs | + CDC logic |
-| gaxi_drop_fifo_sync (D=64, DW=32) | ~200 LUTs | 2048 FFs | + drop control |
 
 ---
 

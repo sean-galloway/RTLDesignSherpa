@@ -189,7 +189,6 @@ end
 | Comparators | ~10 |
 | Output MUX | ~8 |
 | Special case flags | ~4 |
-| **Total** | ~35-40 LUTs |
 
 ## Usage Example
 

@@ -221,7 +221,6 @@ output logic                          m_axil_rready
 - **DSP:** 0
 
 **Scaling:**
-- 64-bit data width adds ~50 LUTs, ~30 registers
 - Higher baud rates reduce counter width (saves ~10-20 registers)
 
 ### Verification Status

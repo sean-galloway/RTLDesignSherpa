@@ -417,11 +417,11 @@ Modern FPGAs have dedicated adder resources:
 
 ### Performance
 
-| Module | LUTs | Description |
-|--------|------|-------------|
-| Half Adder | 2 | 1 XOR + 1 AND |
-| Full Adder | 2 | Optimized to 2 LUTs on modern FPGAs |
-| N-bit Array | ~2N | N full adders |
+| Module | Structure |
+|--------|-----------|
+| Half Adder | 1 XOR + 1 AND |
+| Full Adder | 2 XOR + 2 AND + 1 OR |
+| N-bit Array | N full adders, carry rippling |
 
 **FPGA Note:** Modern FPGAs (Xilinx, Intel) have dedicated carry chain logic that implements full adders very efficiently — often faster than generic LUT logic.
 

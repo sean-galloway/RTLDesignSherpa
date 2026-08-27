@@ -414,8 +414,6 @@ Only Round-to-Nearest-Even (RNE) is supported. This is standard for BF16 in AI a
 | Rounding logic | ~20 |
 | Result MUX | ~30 |
 | Pipeline regs (per stage) | ~50 |
-| **Total (comb)** | ~230 LUTs |
-| **Total (4-stage)** | ~430 LUTs |
 
 ### Common Pitfalls
 

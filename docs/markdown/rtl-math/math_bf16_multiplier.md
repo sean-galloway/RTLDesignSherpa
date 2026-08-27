@@ -253,7 +253,6 @@ end
 | Exponent adder | ~40 |
 | Rounding logic | ~15 |
 | Result MUX | ~25 |
-| **Total** | ~270-300 LUTs |
 
 ## Usage Example
 

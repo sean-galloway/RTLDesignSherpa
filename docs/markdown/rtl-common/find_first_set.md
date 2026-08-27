@@ -125,7 +125,6 @@ index = i[N-1:0]; // Ensure correct bit width
 
 ### Propagation Delay
 
-- **Best case**: 1 LUT delay (bit 0 set)
 - **Worst case**: Multiple LUT delays (higher bits set)
 - **Average case**: Depends on typical input patterns
 

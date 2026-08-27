@@ -126,7 +126,6 @@ end
 
 ### Propagation Delay
 
-- **Best case**: 1 LUT delay (MSB set)
 - **Worst case**: Multiple LUT delays (LSB only set)
 - **Average case**: Depends on typical bit patterns
 

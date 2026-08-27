@@ -367,11 +367,6 @@ endmodule
 | 16-bit | ~34 | Linear scaling |
 | 32-bit | ~66 | Linear scaling |
 
-**Area Breakdown (8-bit):**
-- XOR gates: 8 LUTs
-- Full adders: 8 × 2 = 16 LUTs (optimized)
-- **Total**: ~18 LUTs
-
 **Comparison:**
 | Architecture | Area (relative) | Operations |
 |--------------|-----------------|-----------|

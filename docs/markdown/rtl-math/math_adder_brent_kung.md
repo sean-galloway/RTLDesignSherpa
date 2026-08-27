@@ -476,29 +476,16 @@ end
 
 ### Performance
 
-Cell counts below are exact (counted from the RTL); the LUT figures are estimates
-derived from them, not synthesis results.
+Cell counts below are exact, counted from the RTL.
 
-| Width | Black cells | Gray cells | LUTs (Est.) | FFs (Pipeline) |
-|-------|-------------|------------|-------------|----------------|
-| 8-bit | 4 | 8 | ~45 | 0 (combinational) |
-| 16-bit | 11 | 16 | ~100 | 0 (combinational) |
-| 32-bit | 26 | 32 | ~240 | 0 (combinational) |
-| 64-bit | 57 | 64 | ~510 | 0 (combinational) |
+| Width | Black cells | Gray cells | Pipeline FFs |
+|-------|-------------|------------|--------------|
+| 8-bit | 4 | 8 | 0 (combinational) |
+| 16-bit | 11 | 16 | 0 (combinational) |
+| 32-bit | 26 | 32 | 0 (combinational) |
+| 64-bit | 57 | 64 | 0 (combinational) |
 
-: Brent-Kung area, cell counts measured and LUTs estimated
-
-**Area Breakdown (32-bit):**
-- Bitwise PG: 32 x 2 gates = 64 LUTs
-- Black cells: 26 cells x 3 gates = 78 LUTs
-- Gray cells: 32 cells x 2 gates = 64 LUTs
-- Sum logic: 32 x 1 gate = 32 LUTs
-- **Total**: ~238 LUTs
-
-**Comparison (32-bit, estimated):**
-- **Ripple Carry**: ~32 LUTs (32 full adders)
-- **Brent-Kung**: ~240 LUTs (balanced)
-- **Kogge-Stone**: ~450 LUTs (maximum speed, maximum area)
+: Brent-Kung prefix-cell counts, measured from the RTL
 
 **Speed vs Area Trade-offs:**
 

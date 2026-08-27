@@ -324,7 +324,6 @@ APB → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 - APB serialization (no concurrent transactions)
 - Performance overhead (APB slower than AXI)
 - No AXI exclusive access support
-- Resource cost (~800-1500 LUTs)
 
 **Alternatives:**
 - Native APB masters (if no AXI required)
@@ -334,7 +333,6 @@ APB → apb4_slave_stub → peakrdl_to_cmdrsp → PeakRDL config_regs
 - Register automation
 - Standards-based (SystemRDL)
 - Documentation generation
-- Low overhead (~50 LUTs)
 
 **PeakRDL Adapter — Limitations:**
 - PeakRDL dependency

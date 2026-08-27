@@ -433,11 +433,6 @@ Components provide estimated resource usage in PRD.md:
 - **Memory (BRAM):** Block RAM utilization
 - **DSP:** DSP block usage (if applicable)
 
-**Example (HPET from Retro Legacy Blocks):**
-- 2-timer (no CDC): ~500 LUTs, ~300 FFs
-- 3-timer (no CDC): ~650 LUTs, ~400 FFs
-- 8-timer (CDC): ~1200 LUTs, ~800 FFs
-
 ### Timing Considerations
 
 - **Clock Domain Crossing:** Optional CDC adds latency

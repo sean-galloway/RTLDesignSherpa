@@ -52,8 +52,8 @@ gates each sub-block via an `ENABLE_*_LOGIC` parameter, so integrators
 can drop any combination at elaboration time and pay zero LUT/FF cost
 for the unused detection cones.
 
-> The bridge case (`ENABLE_ERROR_LOGIC=1`, all others `0`) drops
-> roughly 70% of the reporter's LUT/FF.
+> The bridge case (`ENABLE_ERROR_LOGIC=1`, all others `0`) synthesises away
+> the timeout, completion, threshold, perf and debug detection cones entirely.
 
 ---
 
@@ -248,7 +248,6 @@ Configuration is typically handled at the top-level monitor instantiation.
 |--------|-------|-------|
 | Latency | 1-2 cycles | Typical processing delay |
 | Throughput | 1 packet per 2 cycles | The registered output stage cannot reload on the same cycle its packet is accepted, so sustained output is at most one packet every other cycle even with the FIFO full |
-| Resource Usage | Varies | Depends on configuration |
 
 ---
 

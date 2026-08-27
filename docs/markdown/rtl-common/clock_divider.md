@@ -345,7 +345,6 @@ a separate domain -- see the warning under Synthesis Considerations.
   clamp comparator per output. On a 6-input LUT architecture a CW-to-1 bit mux
   costs about `ceil((CW-1)/5)` LUTs, so the mux cost scales with COUNTER_WIDTH
   -- it is not a fixed overhead.
-- **Example (N=4, COUNTER_WIDTH=16)**: ~20 FFs, ~12 LUTs for the muxes plus
   clamp logic. These are analytic estimates, not synthesis results.
 
 **Timing Optimization:**

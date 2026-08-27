@@ -304,7 +304,6 @@ gaxi_skid_buffer_struct #(
 ### Resource Usage
 
 Same as **gaxi_skid_buffer** with equivalent DATA_WIDTH:
-- Logic: ~50 LUTs (for DEPTH=4)
 - Storage: DEPTH × $bits(STRUCT_TYPE) flip-flops
 - No additional overhead from type parameter
 
