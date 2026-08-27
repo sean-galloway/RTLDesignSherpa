@@ -68,6 +68,30 @@ async def _bringup(dut, *, mem_type="DDR2", page_policy=2, profile="backtoback",
     dut.s_axi_rready.value = 1
     tb.init_axi_masters()
     tb.set_axi_timing_profile(profile)
+
+    # PUMICE-012/013: opt-in trackers. This is the MEANINGFUL place to
+    # measure AXI utilization -- the masters here are real BFMs at the
+    # 'backtoback' randomizer profile (zero inter-beat delay), so a low
+    # utilization number reflects the DUT, not a lazy driver. (The core
+    # TB hand-drives its stimulus and starves the bus by construction --
+    # 91% starvation / 0% backpressure there measures the testbench.)
+    if os.environ.get("PUMICE_TRACKERS", "0") == "1":
+        from tbclasses.trackers import wire_trackers, wire_axi_channels
+        wire_axi_channels(dut, prefix="s_axi_", log=tb.log, clk_signal="aclk")
+        wire_trackers(dut, log=tb.log, num_banks=NUM_BANKS, scope_paths={
+            "sched":   "u_top.u_core.u_sched.u_arbiter",
+            "btmr":    "u_top.u_core.u_sched.u_bank_timers",
+            "refr":    "u_top.u_core.u_sched.u_refresh",
+            "pgpol":   "u_top.u_core.u_sched.u_page_policy",
+            "init":    "u_top.u_core.u_sched.u_init",
+            "camrd":   "u_top.u_core.u_ifc.u_rd_cam",
+            "camwr":   "u_top.u_core.u_ifc.u_wr_cam",
+            "dficmd":  "u_top.u_core.u_dfi.u_cmd",
+            "wrbeat":  "u_top.u_core.u_dfi.u_wr",
+            "rdalign": "u_top.u_core.u_dfi.u_rd",
+        })
+        tb.log.info(f"PUMICE_TRACKERS=1: trackers wired (axi profile={profile})")
+
     return tb
 
 

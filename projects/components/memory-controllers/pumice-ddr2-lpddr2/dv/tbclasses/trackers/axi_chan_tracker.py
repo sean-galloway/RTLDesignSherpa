@@ -65,7 +65,7 @@ from __future__ import annotations
 from collections import Counter, deque
 from typing import Deque, Dict, Optional
 
-from cocotb.triggers import RisingEdge, Timer
+from cocotb.triggers import RisingEdge
 
 from ._base import (TrackerEvent, is_high, _sim_time_ns, auto_dump_register,
                     tracker_clock)
@@ -118,7 +118,20 @@ class AxiChanTracker:
     async def run(self) -> None:
         while True:
             await RisingEdge(self._clk_h)
-            await Timer(_NBA_SETTLE_PS, units='ps')
+            # SAMPLE IMMEDIATELY -- no Timer, no ReadOnly. This monitors
+            # TESTBENCH-driven signals (a BFM's *valid) as well as RTL ones,
+            # and the two need opposite treatment:
+            #   * an RTL output settles in NBA at the edge, so edge+1ps is fine;
+            #   * a cocotb DRIVER writes right after the edge it just consumed,
+            #     and that write lands before either Timer(1ps) or ReadOnly --
+            #     so any delayed sample reads the driver's NEXT intent (usually
+            #     valid already deasserted) instead of what was on the bus AT
+            #     the edge.
+            # Measured 2026-08-27: with a delayed sample, AW/W/AR read 0%
+            # utilization / 100% starvation on a run where the rd CAM tracker
+            # counted 1024 inserts -- i.e. the handshakes were invisible.
+            # Reading with no intervening await yields the pre-edge value,
+            # which is exactly what the DUT's flops sampled.
             self._cycle += 1
 
             v = is_high(self.dut, self._sig_v)

@@ -16,13 +16,27 @@ Layers, bottom up:
   `UartLink` satisfies the same `ByteChannel` protocol as `SerialChannel`, so it
   drops straight into `UARTAxiBridge(channel=...)`. Before this existed each flow
   grew its own `autodetect_port()` -- four near-identical copies. See [[boards]].
-- **Byte transport** -- `bin/TBClasses/harness/byte_channel.py`:
-  `SerialChannel(port, baudrate)` is the real pyserial transport; the cocotb
-  side swaps in a `cocotb.function` bridge. Same bytes either way.
-- **AXI-over-UART bridge** -- `projects/components/converters/bin/uart_axi_bridge.py`:
+- **Byte transport** -- `bin/TBClasses/harness/byte_channel.py`: the
+  `ByteChannel` protocol (`write` / `read_until` / `reset_*_buffer` / `close` /
+  `is_open`) plus two implementations. `SerialChannel(port, baudrate)` is the
+  real pyserial transport. `TracingChannel(inner)` wraps either side and
+  records the wire, which is how a sim run and a board run get diffed as
+  bytes -- the equivalence check [[uart-harness]] is named for.
+- **Sim byte transport** -- `bin/TBClasses/harness/cocotb_axil_bridge.py`:
+  `CocotbUartChannel` is a `ByteChannel` over a cocotb UARTMaster/Monitor, and
+  `make_uart_channel(dut, clock, clks_per_bit)` builds one to hand straight to
+  `UARTAxiBridge(channel=...)`. This is the sim half of the stack and it is
+  ALREADY WRITTEN -- see the anti-pattern in [[uart-harness]] before writing a
+  bridge class in a testbench.
+- **AXI-over-UART bridge** -- `projects/fpga-systems/bin/uart_axi_bridge.py`:
   `UARTAxiBridge(port, baudrate)` speaks the ASCII register protocol
   (`"W {addr:08X} {data:08X}\n"` -> `"OK"`, `"R {addr:08X}\n"` -> `"0x..."`) and
   exposes `write(addr, data)` / `read(addr)` / `write_verify(addr, data)`.
+  Pass `channel=` instead of `port=` and the identical byte stream is driven by
+  anything satisfying `ByteChannel` -- that one keyword is the whole sim/board
+  transport swap. `projects/components/converters/bin/uart_axi_bridge.py` is a
+  re-export shim for un-migrated `projects/NexysA7/` flows; never import
+  through it and never edit it.
 - **By-name register access** -- `UartRegisterMap`
   (`bin/TBClasses/harness/uart_register_map.py`): the UART-transport adaptation
   of the house `RegisterMap`. It reuses `bin/TBClasses/apb/register_map.py`

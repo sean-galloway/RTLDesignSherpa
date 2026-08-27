@@ -206,6 +206,43 @@ default and every mechanism mutation-proven at the fub level.
 
 ---
 
+## PUMICE-014 — retire ALL hand-poking of valid/ready interfaces in pumice DV
+**Status:** open 2026-08-27 — HARD RULE from Sean, stated emphatically:
+"None of the environments should EVER hand poke on any standard interface
+or valid ready interface." See [[feedback-always-use-axi4-bfms]].
+
+Hand-poking is not just a style violation: it skips the BFM's protocol
+timing (valid/ready randomization, per-channel profiles, outstanding and
+interleaved bursts), so it misses protocol/timing bugs AND poisons every
+performance measurement -- a hand-rolled driver starves the DUT, so the
+numbers grade the testbench. That is exactly why perf work had to move to
+the BFM top TB (see [[PUMICE-013]]).
+
+**Violations to port (pumice DV, `.value =` poke counts, 2026-08-27):**
+| File | ~pokes | Notes |
+|---|---|---|
+| `dv/tests/top/test_pumice_core_dfi.py` | 50 | the big one: local `_aw`/`_w`/`_ar`/`_r_sink` helpers drive every test in the file (~15 tests, incl. all the PUMICE-006 mode tests added this session) |
+| `dv/tests/top/test_pumice_core.py` | 33 | same pattern |
+| `dv/tbclasses/pumice_axi4_ifc_tb.py` | 35 | macro-level ifc TB |
+| `dv/tbclasses/pumice_wr_intake_tb.py` | 34 | fub TB |
+| `dv/tbclasses/pumice_rd_intake_tb.py` | 32 | fub TB |
+| `dv/tests/top/test_pumice_top_csr.py` | 22 | mostly CSR/cpuif, check which are AXI |
+| `test_pumice_top.py` / `test_pumice_top_geared.py` | 2 each | just the `bready`/`rready` tie-highs; low risk but should come from the BFM too |
+
+The top TB is already correct (`init_axi_masters()` +
+`set_axi_timing_profile()` + `run_sequence()`); the pattern to copy is
+there, and the sequence builders in `dv/tbclasses/pumice_sequences.py`
+are architecture-independent.
+
+**Also outside pumice (same rule, flagged not owned):**
+`projects/components/misc/dv/tbclasses/axi4_slave_wr_crc_check_tb.py`.
+
+**Rules going forward:** no NEW test may hand-poke; port a file when it is
+next touched for another reason. The fub-level intake TBs are the
+trickiest (they drive fub-internal handshakes, not a full AXI port) --
+decide per interface whether a BFM exists or whether the right answer is
+a small reusable driver component, but never inline pokes in the test.
+
 ## PUMICE-013 — characterize + tune the advanced modes (all three axes)
 **Status:** open 2026-08-27 (split out of PUMICE-006 at Sean's direction —
 "move characterization to its own task as that is a big one")
@@ -271,11 +308,29 @@ mechanism gaps found reported back to PUMICE-006 before it closes.
   tiers is empty.
 - NEW: `AxiChanTracker` (PUMICE_TRACKERS=1) writes `axi_util.out` with
   per-channel utilization in axi_bus_meter buckets + handshake run
-  lengths. FIRST MEASUREMENT (core b2b, 48 bursts): data channels
-  util 8.6%, max_run 4 = exactly one burst never bridged, ZERO
-  backpressure, starvation 91%. Read that carefully -- the DUT was ready
-  and idle most of the run, so the number grades the STIMULUS. Any
-  streaming-ceiling claim needs a driver that keeps the pipe full first.
+  lengths. MEASURE ON THE BFM TOP TB (masters at the `backtoback`
+  randomizer profile), never the hand-driven core TB -- Sean 2026-08-27:
+  "set the masters delay profile at b2b, this is the only meaningful way
+  to test this".
+  MEASUREMENT (top engine_mirror N=1024, backtoback, 62135 cycles):
+    chan   util%   bp%   starv%  max_run  runs
+    axiaw   1.65   0.0    98.35        1  1024 x1
+    axiw    6.59   0.0    93.41        1  4096 x1   <-- writes NEVER stream
+    axib    1.65   0.0     0.05        1  1024 x1
+    axiar   1.65   0.0    98.35        1  1024 x1
+    axir    6.59   0.0    50.36        4  1023 x4   <-- reads hold a full burst
+  Self-consistent (axiar 1024 == camrd 1024 INSERTs; axiw 4096 == 1024
+  bursts x 4 beats), so these are trustworthy.
+  TWO FINDINGS worth chasing in this task:
+  (a) the W channel's max_run is 1 -- write data beats never go
+      back-to-back even with a zero-delay master, while R sustains a
+      full 4-beat burst. Worth understanding before any write-side
+      perf claim.
+  (b) bp=0% everywhere with ~60 cycles/burst means the DUT never
+      stalled the master: the remaining limiter is OUTSTANDING DEPTH
+      (one burst in flight), not inter-beat delay. Fixing the delay
+      profile was necessary but not sufficient -- a driver that waits
+      for each completion still starves the DUT.
 
 **Existing collateral to build on:** `pumice_char.py` (families,
 RUN_PROFILES, the `multiid_min` repro profile), `pumice_master.py --char`

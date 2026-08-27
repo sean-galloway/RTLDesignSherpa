@@ -81,13 +81,39 @@ A handshake tracker (`AxiChanTracker` in pumice) buckets every cycle the
 way `rtl/amba/shared/axi_bus_meter.sv` does — productive / backpressure /
 starvation / idle — plus the RUN LENGTH of consecutive `valid && ready`.
 
+### Sampling: TB-driven signals need the opposite treatment to RTL ones
+
+A monitor watching only RTL outputs can sample at `edge + 1ps` (the NBA
+update has settled). A monitor watching a **testbench-driven** signal --
+any BFM's `*valid`, any driven `*ready` -- must NOT: a cocotb driver
+writes right after the edge it just consumed, and that write lands before
+either `Timer(1ps)` or `ReadOnly()`. A delayed sample therefore reads the
+driver's NEXT intent (usually valid already deasserted) instead of what
+was on the bus AT the edge.
+
+**Sample with no intervening await** -- read immediately after
+`await RisingEdge(clk)`. That yields the pre-edge value, which is exactly
+what the DUT's flops sampled.
+
+Measured 2026-08-27: with a delayed sample, pumice's AW/W/AR channels read
+**0% utilization / 100% starvation** on a run where the read CAM tracker
+counted 1024 inserts. The handshakes were simply invisible. The bug was
+caught only by cross-checking two trackers against each other -- which is
+the argument for always having a second, independent count.
+
 Read the buckets before believing a utilization number:
 
 - **high `starv%` (ready high, valid low) means the STIMULUS is the
-  bottleneck, not the DUT.** Pumice's tightest back-to-back core test
-  measures 8.6% data-channel utilization with 91% starvation and *zero*
-  backpressure — the controller was ready and waiting almost the whole
-  run. That number grades the testbench, not the design.
+  bottleneck, not the DUT.** And the fix has two independent levers,
+  which are easy to confuse:
+  - **inter-beat delay** — set the master randomizer profile to
+    `backtoback` (zero delay). Mandatory for any perf measurement.
+  - **outstanding depth** — how many requests the driver keeps in
+    flight. Pumice measured 1.65% AW utilization with `backtoback`
+    masters and *zero* backpressure over 1024 bursts: the delay profile
+    was already right, so what was left was one-burst-at-a-time issue.
+    A zero-delay driver that waits for each completion still starves the
+    DUT.
 - **high `bp%`** is the interesting one: the DUT stalling a master that
   wants to send.
 - **`max_run`** answers "how long can the handshake hold". A data channel

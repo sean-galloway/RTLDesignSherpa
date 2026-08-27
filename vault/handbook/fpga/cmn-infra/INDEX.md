@@ -10,9 +10,12 @@ board- or component-specific does NOT live here -- it nests under a board (see
 the [FPGA area](../INDEX.md) "Boards / components").
 
 ## Canonical patterns
-- [[uart-harness]] - one host program against sim and silicon
+- [[uart-harness]] - one host program against sim and silicon; includes the
+  anti-pattern (a private bridge class in a testbench) and what it cost
 - [[host-stack]] - the shared py transport stack that pattern is built on
   (board/port discovery -> UARTAxiBridge -> Device/DeviceBus, registers by name)
+- [[one-source-config]] - board and sim elaborate from ONE cfg package; a
+  restated literal is how they drift, silently and green
 - [[sequences]] - named, ordered, dependency-checked campaign steps
   (projects/fpga-systems/bin/sequence.py); one init, N tests, transport injected
 
