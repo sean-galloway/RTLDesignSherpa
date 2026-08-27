@@ -301,8 +301,8 @@ async def measure_throughput(tb, transaction_count=1000):
 |--------|------|----------|
 | axi_data_upsize | Single | 1.0 trans/cycle |
 | axi_data_dnsize | Single | 0.992 narrow beats/cycle (measured) |
-| axi4_to_axil4 | Single-beat | 0.5 trans/cycle (one-outstanding guard) |
-| axi4_to_axil4 | Burst | 0.5 trans/cycle |
+| axi4_to_axil4 | Single-beat | ~1/(2+slave latency) trans/cycle (one-outstanding guard) |
+| axi4_to_axil4 | Burst | ~N/(N+2) beats/cycle vs a pipelining slave (N issue cycles + one response latency, see 4.2.4); whole bursts serialize on the one-outstanding guard |
 
 : Table 5.5: Expected Throughput
 

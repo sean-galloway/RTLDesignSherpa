@@ -163,16 +163,19 @@ class AXI4MasterDriver:
     async def write(self, addr, data, burst_len=0):
         """Issue AXI4 write transaction."""
         # AW phase
-        self.dut.awvalid.value = 1
-        self.dut.awaddr.value = addr
-        self.dut.awlen.value = burst_len
+        # the DUT ports are prefixed (s_axi_awvalid, ...) -- resolve
+        # through the stored prefix or every access AttributeErrors
+        sig = lambda name: getattr(self.dut, f"{self.prefix}_{name}")
+        sig("awvalid").value = 1
+        sig("awaddr").value = addr
+        sig("awlen").value = burst_len
         await self._wait_ready("awready")
 
         # W phase
         for i, d in enumerate(data):
-            self.dut.wvalid.value = 1
-            self.dut.wdata.value = d
-            self.dut.wlast.value = (i == len(data) - 1)
+            sig("wvalid").value = 1
+            sig("wdata").value = d
+            sig("wlast").value = (i == len(data) - 1)
             await self._wait_ready("wready")
 
         # B phase
@@ -215,8 +218,8 @@ class ConverterCoverage:
 
 | Module | Line | Branch | FSM |
 |--------|------|--------|-----|
-| axi_data_upsize | 98% | 95% | 100% |
-| axi_data_dnsize | 97% | 93% | 100% |
+| axi_data_upsize | 98% | 95% | n/a (no FSM -- see 4.1.1) |
+| axi_data_dnsize | 97% | 93% | n/a (no FSM -- see 4.1.2) |
 | axi4_to_axil4_rd | 96% | 91% | 100% |
 | axi4_to_axil4_wr | 95% | 90% | 100% |
 

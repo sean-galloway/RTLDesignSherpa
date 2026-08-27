@@ -27,7 +27,10 @@ The **peakrdl_to_cmdrsp** module drives a PeakRDL-generated register block from 
 
 ## 3.5.1 Purpose
 
-PeakRDL generates register blocks with an APB-style interface. This adapter sits behind that interface and:
+PeakRDL generates register blocks with a selectable cpuif; this
+adapter mates with the **passthrough** cpuif (`regblk_req` /
+`req_is_wr` / `wr_biten` / stall / ack / err -- NOT the APB cpuif's
+PSEL/PENABLE pins). It:
 
 1. Decouples the register interface from the implementation
 2. Provides a clean handshake protocol
@@ -82,7 +85,7 @@ module peakrdl_to_cmdrsp #(
     // =========================================================================
     // PeakRDL Passthrough Interface
     // =========================================================================
-    output logic                    regblk_req,         // Request strobe
+    output logic                    regblk_req,         // Request -- HELD until ack
     output logic                    regblk_req_is_wr,   // Write flag
     output logic [ADDR_WIDTH-1:0]   regblk_addr,        // Address
     output logic [DATA_WIDTH-1:0]   regblk_wr_data,     // Write data
@@ -114,6 +117,13 @@ Cycle N: regblk_wr_ack -> rsp queued (RSP_VALID), pslverr from
          (if regblk_req_stall_wr: state parks in CMD_STALLED and
          retries when the stall clears)
 Cycle M: rsp_valid && rsp_ready -> back to idle
+
+`regblk_req` is HELD asserted from acceptance through the ack cycle
+(`(cmd_state == CMD_WAIT_ACK) || (CMD_IDLE && cmd_valid)`) -- it is
+not a one-cycle strobe. The generated passthrough regblock samples the
+request level and needs the hold; a consumer that starts a new access
+every cycle req is high would double-fire non-idempotent registers
+(TASK-064 records the earlier strobe mis-documentation).
 ```
 
 ### Read

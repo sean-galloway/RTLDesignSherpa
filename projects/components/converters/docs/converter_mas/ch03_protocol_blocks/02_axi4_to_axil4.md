@@ -236,8 +236,6 @@ end
 assign w_b_resp_worst = (m_axil_bresp > r_b_resp_accum) ? m_axil_bresp
                                                         : r_b_resp_accum;
 assign s_axi_bresp = w_b_resp_worst;
-// (was:
-                 r_worst_bresp;
 ```
 
 ## 3.2.4 Bidirectional Wrapper (axi4_to_axil4)
@@ -310,7 +308,9 @@ here.
 
 ## 3.2.7 Test Coverage
 
-**Test Suite:** 42 tests passing
+**Test Suite:** both directions green -- `test_axi4_to_axil4_{wr,rd}.py`,
+5 parametrized configurations each, every scenario suite asserted
+(the counts below are scenario groups within those runs)
 
 | Test Category | Tests | Status |
 |---------------|-------|--------|

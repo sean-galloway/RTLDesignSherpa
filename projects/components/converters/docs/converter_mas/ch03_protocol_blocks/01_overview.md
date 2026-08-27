@@ -31,8 +31,8 @@ Protocol converters bridge components that speak different bus protocols — the
 
 | Module | Function | Test Status |
 |--------|----------|-------------|
-| axi4_to_axil4_rd | Read burst decomposition | 14/14 passing |
-| axi4_to_axil4_wr | Write burst decomposition | 14/14 passing |
+| axi4_to_axil4_rd | Read burst decomposition | 5/5 configs passing |
+| axi4_to_axil4_wr | Write burst decomposition | 5/5 configs passing |
 | axi4_to_axil4 | Full bidirectional wrapper | Composed |
 
 : Table 3.1: AXI4 to AXI4-Lite Converters
