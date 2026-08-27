@@ -345,6 +345,46 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     order = await _pref_order(3)
     assert order[0] == 'PRE', f"precharge_first fire order: {order}"
 
+    # ===== 14. WRITE BATCHING (SCHED_WR_WM hysteresis) =====
+    # Bank 4 open; 1 read hit + 3 write hits pending (wr occupancy 3).
+    # Default (wm 0/0): read-priority -> RD fires first. With high=3/low=1:
+    # occupancy >= high arms the drain -> WRITES outrank the read until
+    # occupancy falls to low; the read then completes under read-priority.
+    async def _wm_order(high, low):
+        tb._drive_idle(); dut.init_done_i.value = 1
+        for _ in range(4):                        # pipeline flush (see #13)
+            await RisingEdge(dut.aclk)
+        tb.set_bank_bits(dut.bank_row_active_i, {4: 1})
+        tb.set_bank_bits(dut.bank_rdwr_ready_i, {4: 1})
+        tb.set_open_rows({4: 0x44})
+        dut.sched_wr_high_wm_i.value = high
+        dut.sched_wr_low_wm_i.value = low
+        rd_live = {0: (4, 0x44, 0x00, 50)}
+        wr_live = {1: (4, 0x44, 0x08, 40), 2: (4, 0x44, 0x10, 30),
+                   3: (4, 0x44, 0x18, 20)}
+        order = []
+        for _ in range(40):
+            tb.set_entries('rd', dict(rd_live))
+            tb.set_entries('wr', dict(wr_live))
+            await RisingEdge(dut.aclk)
+            await _Timer(1, units='ns')
+            st = tb.strobes()
+            if st['rd'] and rd_live:
+                order.append('RD'); rd_live.clear()
+            elif st['wr'] and st['wr_commit_slot'] in wr_live:
+                order.append('WR'); wr_live.pop(st['wr_commit_slot'])
+            if not rd_live and not wr_live:
+                break
+        dut.sched_wr_high_wm_i.value = 0
+        dut.sched_wr_low_wm_i.value = 0
+        return order
+
+    order = await _wm_order(0, 0)
+    assert order and order[0] == 'RD', f"wm off fire order: {order}"
+    order = await _wm_order(3, 1)
+    assert len(order) == 4 and order[0] == 'WR' and order[1] == 'WR', \
+        f"wm 3/1 fire order (drain must front-run the read): {order}"
+
     tb.log.info("PASS: init, refresh(PRE->REF+grant), read-priority, oldest "
                 "tie-break, write pick, CLOSE auto-PRE, ACT idle bank, backpressure, "
                 "columns oldest-first (pipelined), bank-parallel activate, "

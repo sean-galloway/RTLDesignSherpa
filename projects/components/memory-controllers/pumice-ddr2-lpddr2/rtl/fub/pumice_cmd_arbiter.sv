@@ -74,6 +74,14 @@ module pumice_cmd_arbiter
     // activates outrank row-hits), 3 = precharge_first (close wrong
     // rows eagerly). Read-over-write priority holds WITHIN the class.
     input  logic [1:0]                sched_access_pref_i,
+    // Write-batching watermarks (SCHED_WR_WM): once the wr CAM's
+    // schedulable occupancy crosses high_wm, WRITES outrank reads in
+    // every demand class until occupancy falls to low_wm -- back-to-back
+    // write drain amortizes the tWTR/tRTW bus turnaround instead of
+    // ping-ponging RD/WR. high_wm == 0 disables (build default,
+    // bit-identical read-priority).
+    input  logic [7:0]                sched_wr_high_wm_i,
+    input  logic [7:0]                sched_wr_low_wm_i,
     input  logic [NUM_ENTRIES-1:0]    rd_sch_age_exceed_i, // per-entry age boost
     input  logic [NUM_ENTRIES-1:0]    wr_sch_age_exceed_i,
     input  logic [AGE_WIDTH-1:0]      rd_sch_head_rel_i,   // oldest entry's rel age
@@ -552,6 +560,28 @@ module pumice_cmd_arbiter
         {wr_pre_f, wr_pre_s} = arg_oldest(wr_pre_me, wr_sch_older_i);
     end
 
+    // ---- write-batching drain state (SCHED_WR_WM hysteresis) ----
+    localparam int OCCW = $clog2(NUM_ENTRIES + 1);
+    logic [OCCW-1:0] w_wr_occ;
+    always_comb begin
+        w_wr_occ = '0;
+        for (int i = 0; i < NUM_ENTRIES; i++)
+            if (wr_sch_valid_i[i]) w_wr_occ = w_wr_occ + OCCW'(1);
+    end
+
+    logic r_wr_drain;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_wr_drain <= 1'b0;
+        end else if (sched_wr_high_wm_i == 8'd0) begin
+            r_wr_drain <= 1'b0;                       // batching disabled
+        end else if (8'(w_wr_occ) <= sched_wr_low_wm_i) begin
+            r_wr_drain <= 1'b0;                       // drained down: stop
+        end else if (8'(w_wr_occ) >= sched_wr_high_wm_i) begin
+            r_wr_drain <= 1'b1;                       // backlog: start drain
+        end
+    )
+
     logic w_c_col, w_c_act, w_c_pre;
     pick_class_e w_pick_class;
     always_comb begin
@@ -668,7 +698,8 @@ module pumice_cmd_arbiter
             end else if (w_ref_safe) begin
                 w_valid = 1'b1; w_op = OP_REF; w_grant = 1'b1;
             end
-        end else if (w_pick_class == CL_COL && rd_col_f) begin
+        end else if (w_pick_class == CL_COL && rd_col_f
+                     && !(r_wr_drain && wr_col_f)) begin
             // 3a. READ row-hit (read-priority). ap is per-bank when the
             // runtime page-policy engine is active.
             w_bank = f_bank(rd_sch_bank_i, rd_col_s); w_col = f_col(rd_sch_col_i, rd_col_s);
@@ -679,7 +710,8 @@ module pumice_cmd_arbiter
             w_bank = f_bank(wr_sch_bank_i, wr_col_s); w_col = f_col(wr_sch_col_i, wr_col_s);
             w_valid = 1'b1; w_op = f_ap(w_bank) ? OP_WRA : OP_WR;
             w_ap_out = f_ap(w_bank); w_do_wr = 1'b1; w_wr_commit = 1'b1; w_commit_slot = wr_col_s;
-        end else if (w_pick_class == CL_ACT && rd_act_f) begin
+        end else if (w_pick_class == CL_ACT && rd_act_f
+                     && !(r_wr_drain && wr_act_f)) begin
             // 4a. ACTIVATE the oldest pending READ's idle bank (bank-parallel).
             w_valid = 1'b1; w_op = OP_ACT;
             w_bank = f_bank(rd_sch_bank_i, rd_act_s); w_row = f_row(rd_sch_row_i, rd_act_s);
@@ -689,7 +721,8 @@ module pumice_cmd_arbiter
             w_valid = 1'b1; w_op = OP_ACT;
             w_bank = f_bank(wr_sch_bank_i, wr_act_s); w_row = f_row(wr_sch_row_i, wr_act_s);
             w_do_act = 1'b1;
-        end else if (w_pick_class == CL_PRE && rd_pre_f) begin
+        end else if (w_pick_class == CL_PRE && rd_pre_f
+                     && !(r_wr_drain && wr_pre_f)) begin
             // 5a. PRECHARGE a bank open on the wrong row for a pending read.
             w_valid = 1'b1; w_op = OP_PRE; w_bank = f_bank(rd_sch_bank_i, rd_pre_s);
             w_do_pre = 1'b1;

@@ -160,7 +160,12 @@
   4-cycle inter-arm pipeline flush (registered picks straddle arm
   boundaries and get booked to the wrong arm). Mutation now properly
   RED (pref dead -> column-first order under the row_first arm).
-  Remaining Axis 1: write batching (SCHED_WR_WM), prio_sub, QoS.
+- Axis 1 step 4: write batching landed (SCHED_WR_WM.wr_high_wm/wr_low_wm
+  hysteresis on wr-CAM schedulable occupancy; while draining, writes
+  outrank reads in every class; 0 = disabled bit-identical). Fub
+  scenario 14 (fire-order: wm off -> RD first; 3/1 -> two WRs front-run
+  the read), mutation-proven (drain forced off -> RD-first RED).
+  Remaining Axis 1: prio_sub, QoS.
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.

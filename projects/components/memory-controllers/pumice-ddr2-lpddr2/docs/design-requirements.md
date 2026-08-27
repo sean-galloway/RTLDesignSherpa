@@ -404,9 +404,12 @@ field so any policy combination is reachable. All commodity-legal.
   bit-identical.
 - **`load_over_store` (`PRIO_SUB`)** — reads outrank writes (already the baseline); a
   1-bit priority key protecting latency-critical reads.
-- **Write batching (exotic)** — drain writes back-to-back once the write buffer crosses
-  `WR_HIGH_WM`, stopping at `WR_LOW_WM`, to amortize tWTR/bus turnaround instead of
-  ping-ponging RD/WR. Watermark comparators.
+- **Write batching (IMPLEMENTED 2026-08-27, `SCHED_WR_WM.wr_high_wm/wr_low_wm`)** —
+  drain writes back-to-back once the write buffer crosses `WR_HIGH_WM`, stopping at
+  `WR_LOW_WM`, to amortize tWTR/bus turnaround instead of ping-ponging RD/WR. As built:
+  wr-CAM schedulable occupancy drives a registered hysteresis; while draining, WRITES
+  outrank reads in every demand class (the read-over-write flip, not a separate chain).
+  high_wm=0 disables — bit-identical read-priority default.
 - **QoS-aware (exotic)** — factor `AxQOS` into the pick (highest-QoS ready first, age
   tie-break) when `QOS_EN`.
 - **Presets** (apples-to-apples): `in_order`, `first_ready`, `{col,row}_{open,close}`,
