@@ -5,8 +5,10 @@
 ---
 
 ## PUMICE-006 — QoS + advanced scheduling (post-cleanup)
-**Status:** active 2026-08-25 — ungated; CSR surface + ALL Axis-2 paging modes
-(3/4/5/6/7) landed; next serial axis per Sean's "paging first" = scheduling
+**Status:** MECHANISMS COMPLETE 2026-08-27 — all three axes implemented
+(Axis 1 scheduling, Axis 2 paging, Axis 3 refresh), every mode OFF by
+default and mutation-proven. Characterization/tuning split to
+[[PUMICE-013]]. Holds open only for mechanism gaps 013 reports back.
 
 **Progress:**
 - Step 1 (e64c824b): full mode-select CSR surface + *_STATS telemetry
@@ -182,23 +184,84 @@
   slot 7) — proving both the outer key and the surviving age tie-break.
   Mutation-proven (narrowing dead -> picks slot 5, RED).
   ALL of PUMICE-006's three axes are now implemented: Axis 1
-  (scheduling), Axis 2 (paging), Axis 3 (refresh). What remains under
-  006 is characterization/tuning of the landed modes, not new features.
+  (scheduling), Axis 2 (paging), Axis 3 (refresh).
+  **MECHANISM WORK COMPLETE 2026-08-27.** Characterization and tuning of
+  the landed modes is a large body of work in its own right and moved to
+  [[PUMICE-013]] (Sean, 2026-08-27). 006 now covers only the RTL
+  mechanisms + their directed/mutation-proven mode tests; it closes when
+  013 has no mechanism gaps to report back.
 - Direction (Sean, 2026-08-25): RETIRE the legacy HAPPY_HYBRID predictor —
   the new Happy-derived modes are its successors; docs to describe the
   actual implementation.
 
-Once pumice is CLEAN (board reads validated at the bring-up tuple, refresh
-collision fixed + re-soaked on silicon, deskew fully retired, HAS/MAS in sync),
-layer in the more sophisticated features planned for the controller: QoS
-(per-master/per-ID priority classes into the arbiter pick, ageing/starvation
-bounds) and the other advanced-mode work already cataloged in
+The original framing ("once pumice is CLEAN, layer in the sophisticated
+features") is satisfied: the advanced-mode catalog in
 `projects/components/memory-controllers/ADVANCED_MODES_ROADMAP.md` and the
-design-requirements doc (FR-FCFS variants, paging/refresh policy modes).
+design-requirements doc (FR-FCFS variants, paging/refresh policy modes, QoS)
+is implemented end-to-end, each mode OFF by default with encoding 0 = build
+default and every mechanism mutation-proven at the fub level.
 
-**Entry gate:** tiny-tREFI soak 0-dirty on the rebuilt bitstream (PUMICE-004).
+**Entry gate (met):** tiny-tREFI soak 0-dirty on the rebuilt bitstream
+(PUMICE-004).
 
 ---
+
+## PUMICE-013 — characterize + tune the advanced modes (all three axes)
+**Status:** open 2026-08-27 (split out of PUMICE-006 at Sean's direction —
+"move characterization to its own task as that is a big one")
+
+PUMICE-006 delivered the MECHANISMS: every mode of all three axes is
+implemented, OFF by default (encoding 0 = build default, bit-identical),
+and mutation-proven at the fub level. What it deliberately did NOT do is
+answer *which settings are actually good* on real traffic. That is this
+task, and it is a large body of work: a mode-cross characterization
+campaign in sim and on the board, plus the tuning defaults that come out
+of it.
+
+**The surface to sweep** (all runtime CSR, no rebuilds):
+- **Axis 1 (scheduling)** — `SCHED_POLICY.order_mode` (in_order /
+  fr_fcfs / age_threshold + `age_thresh`), `row_sel` / `col_sel`
+  (oldest / most_pending / fewest_pending), `access_pref` (column /
+  row / precharge first), `prio_sub` (load_over_store / none /
+  age_boost), `qos_en`, and `SCHED_WR_WM.wr_high_wm/wr_low_wm`.
+- **Axis 2 (paging)** — `PAGE_POLICY_CFG.policy_mode` 1..7 with
+  `PAGE_TIMEOUT_CFG` (fixed_open/adapt_time TR bounds + step),
+  `PAGE_ADAPT_CFG` (MC thresholds, check interval),
+  `PAGE_POLICY_CFG.ctr_open_max/ctr_init` (adapt_access), and
+  `PAGE_RBL_CFG` (miss threshold, ways/sets, epoch).
+- **Axis 3 (refresh)** — `REF_CTRL.mode` (REFab / refpb_rr),
+  `postpone_limit` / `pullin_limit`, `REF_TIMING_PB` (tREFIpb, tRFCpb).
+
+**What makes this big (and why it is not just "run the matrix"):**
+1. The cross is combinatorially large — sweep one axis at a time against
+   a fixed baseline first, then the promising pairs; do NOT brute-force
+   the full product.
+2. The measurement path is changing underneath it: the bespoke harness
+   meters/hists are being retired for the external observer
+   ([[PUMICE-008]]), and the 1:1 accounting check moves with them. Land
+   008 first or the numbers carry the AMBA-HISTCH1 accounting error.
+3. The interesting telemetry already exists in-controller and should be
+   the primary signal per Sean's direction (cheap counters stay in
+   pumice): PAGE_STATS hit/miss/empty, SCHED_STATS act/pre,
+   REF_STATS_REF, OBS_ROW_HIT per bank, refresh-defer histograms.
+   [[PUMICE-012]] (greppable structure trackers) is the sim-side
+   companion for understanding *why* a setting wins.
+4. Board and sim disagree by construction — the DFI loopback models no
+   page timing, so ordering/paging wins only show up on silicon or
+   against a timing-faithful model. Sim runs prove mechanism + integrity;
+   the board run produces the numbers.
+
+**Deliverables:** a per-axis sweep report (BW, latency histogram, page
+hit rate, ACT/PRE/REF counts per setting), recommended defaults per
+workload family (streaming / random / mixed / page-hostile), and any
+mechanism gaps found reported back to PUMICE-006 before it closes.
+
+**Existing collateral to build on:** `pumice_char.py` (families,
+RUN_PROFILES, the `multiid_min` repro profile), `pumice_master.py --char`
+with `--char-configs` / `--char-level` / `--char-scale`, and the board
+recipe in [[project_pumice_board_perf_char]] (the runtime page-policy
+result — OPEN giving 8.8x on streaming, 12.7 -> 112 MB/s — is the
+template for what a good characterization finding looks like).
 
 ## PUMICE-008 — adopt axi4_intf_master_observer (APB-configured) for perf observation
 **Status:** ACTIVE 2026-08-26 — now the DIRECTED path, not a nicety.

@@ -15,10 +15,14 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 
 ## Open shortlist
 
-- **PUMICE-006** — QoS + advanced scheduling. UNGATED as of 2026-08-25: the
-  board is clean (matrix 65/70 data-clean, tREFI soak 0/15 dirty). Axis 2
-  (paging) COMPLETE — all modes 1..7 landed with mutation-proven directed
-  tests; scheduling (Axis 1) and refresh (Axis 3) remain.
+- **PUMICE-006** — advanced modes: MECHANISMS COMPLETE 2026-08-27. All
+  three axes landed (Axis 1 scheduling, Axis 2 paging, Axis 3 refresh),
+  every mode OFF by default with encoding 0 = build default and each
+  mechanism mutation-proven. Open only for gaps 013 reports back.
+- **PUMICE-013** — characterize + tune those modes (the big one: mode
+  sweeps in sim + on the board, recommended defaults per workload
+  family). Wants PUMICE-008 landed first so the numbers do not carry the
+  AMBA-HISTCH1 accounting error.
 - **PUMICE-008** — ACTIVE: adopt the external axi4_intf_master_observer and
   retire the harness's hand-rolled meters/hists (Sean 2026-08-26: no
   monitor/perf logic inside pumice; cheap interesting counters stay).
