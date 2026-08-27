@@ -51,7 +51,7 @@ The `apb4_slave` module converts to internal format:
 
 Parallel decode determines target slave:
 ```
-slave_index = (PADDR - BASE_ADDR) >> 16
+slave_index = ((PADDR - BASE_ADDR) >> 16) & (S-1)   // ceil(log2(S)) bits
 ```
 
 ### Stage 4: Arbitration (if needed)

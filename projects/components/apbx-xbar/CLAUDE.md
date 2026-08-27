@@ -91,6 +91,7 @@ Slave 2: BASE_ADDR + 0x0002_0000 → 0x0002_FFFF
 | **apbx_xbar_2to1** | 2×1 | Arbitration | Multi-master to single peripheral |
 | **apbx_xbar_1to4** | 1×4 | Decode | Single CPU to multiple peripherals |
 | **apbx_xbar_2to4** | 2×4 | Full crossbar | CPU + DMA to peripherals |
+| **apbx_xbar_2to2_mixed** | 2×2 | Mixed APB4/APB5 | APB5 peripheral alongside APB4 |
 | **apbx_xbar_thin** | MxS (params) | Weighted RR, APB5+parity | Runtime-programmable windows |
 
 **Always suggest pre-generated first!**

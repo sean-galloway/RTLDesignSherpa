@@ -12,7 +12,7 @@ flowchart LR
     end
 
     subgraph Decode["Address Decode"]
-        DEC["offset = PADDR - BASE_ADDR<br/>slave_idx = offset[19:16]"]
+        DEC["offset = PADDR - BASE_ADDR<br/>slave_idx = offset[17:16]"]
     end
 
     subgraph Slaves["Slave Ports"]

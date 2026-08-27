@@ -43,7 +43,7 @@ The APB Crossbar provides the following key features:
 
 **Address Calculation:**
 ```
-slave_index = (PADDR - BASE_ADDR) >> 16
+slave_index = ((PADDR - BASE_ADDR) >> 16)[$clog2(S)-1:0]
 ```
 
 ### F3: Round-Robin Arbitration
@@ -77,7 +77,7 @@ slave_index = (PADDR - BASE_ADDR) >> 16
 | Arbitration | No | Yes | No | Yes | Yes -- WEIGHTED round-robin (`THRESHOLDS`) |
 | Address Decode | No | No | Yes | Yes | Yes -- per-slave base/limit INPUT PORTS |
 | APB5 sideband | No | No | No | No | Yes -- per-port masks + parity |
-| Approximate LOC | 200 | 400 | 500 | 1000 | 300 |
+| Approximate LOC | 165 | 314 | 384 | 751 | 306 |
 
 : Pre-Generated Variant Comparison
 

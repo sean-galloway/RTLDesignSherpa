@@ -52,7 +52,8 @@ Each APB slave instance:
 **Components:**
 - **Address Decode** - Parallel decode logic
 - **Per-Slave Arbiters** - Round-robin arbiter per slave (N instances)
-- **Response Routing** - Registered response mux
+- **Response Routing** - Combinational response mux (the registers on
+  this path live in the boundary IP's skid buffers, not the mux)
 
 The crossbar fabric:
 1. Decodes transaction address to determine target slave

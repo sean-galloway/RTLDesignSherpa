@@ -14,7 +14,7 @@ digraph address_decode_flow {
     calc_offset [label="Calculate Offset\n\noffset = PADDR - BASE_ADDR\n= 0x10023456 - 0x10000000\n= 0x00023456", fillcolor=lightyellow];
 
     // Extract Slave Index
-    extract_idx [label="Extract Slave Index\n\nslave_idx = offset[19:16]\n= 0x00023456 >> 16\n= 0x2", fillcolor=lightcyan];
+    extract_idx [label="Extract Slave Index\n\nslave_idx = offset[17:16]\n= 0x00023456 >> 16\n= 0x2", fillcolor=lightcyan];
 
     // Slave Selection
     subgraph cluster_slaves {
@@ -57,7 +57,7 @@ digraph address_decode_flow {
     addr_map [label="Address Map (4 Slaves)\n\nSlave 0: 0x10000000 - 0x1000FFFF (64KB)\nSlave 1: 0x10010000 - 0x1001FFFF (64KB)\nSlave 2: 0x10020000 - 0x1002FFFF (64KB)\nSlave 3: 0x10030000 - 0x1003FFFF (64KB)\n\nTotal: 256KB (4 × 64KB)", shape=note, fillcolor=lightyellow];
 
     // Key Formulas
-    formulas [label="Key Formulas\n\noffset = PADDR - BASE_ADDR\nslave_idx = offset[19:16]\n= offset >> 16\n\nEach slave: 64KB = 0x10000 bytes\nMax slaves: 16 (idx 0x0..0xF)", shape=note, fillcolor=lightgray];
+    formulas [label="Key Formulas\n\noffset = PADDR - BASE_ADDR\nslave_idx = offset[17:16]\n= offset >> 16\n\nEach slave: 64KB = 0x10000 bytes\nIndex width: ceil(log2(S)) bits; max 16 slaves", shape=note, fillcolor=lightgray];
 
     addr_map -> calc_offset [style=dotted];
     formulas -> extract_idx [style=dotted];

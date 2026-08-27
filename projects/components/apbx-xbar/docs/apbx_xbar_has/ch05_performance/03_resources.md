@@ -105,7 +105,7 @@ Relative area comparison (normalized to apbx_xbar_1to1):
 
 | Variant | Relative Area |
 |---------|---------------|
-| apbx_xbar_thin | 0.3x |
+| apbx_xbar_thin | (withdrawn -- compared a 2x4 core against a 1x1; see CLAUDE.md) |
 | apbx_xbar_1to1 | 1.0x (baseline) |
 | apbx_xbar_2to1 | 2.0x |
 | apbx_xbar_1to4 | 2.5x |

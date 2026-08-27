@@ -48,7 +48,7 @@
 <title>extract_idx</title>
 <path fill="lightcyan" stroke="black" d="M574,-842.75C574,-842.75 404,-842.75 404,-842.75 398,-842.75 392,-836.75 392,-830.75 392,-830.75 392,-770.75 392,-770.75 392,-764.75 398,-758.75 404,-758.75 404,-758.75 574,-758.75 574,-758.75 580,-758.75 586,-764.75 586,-770.75 586,-770.75 586,-830.75 586,-830.75 586,-836.75 580,-842.75 574,-842.75"/>
 <text text-anchor="middle" x="489" y="-827.55" font-family="Times,serif" font-size="14.00">Extract Slave Index</text>
-<text text-anchor="middle" x="489" y="-796.55" font-family="Times,serif" font-size="14.00">slave_idx = offset[19:16]</text>
+<text text-anchor="middle" x="489" y="-796.55" font-family="Times,serif" font-size="14.00">slave_idx = offset[17:16]</text>
 <text text-anchor="middle" x="489" y="-781.55" font-family="Times,serif" font-size="14.00">= 0x00023456 &gt;&gt; 16</text>
 <text text-anchor="middle" x="489" y="-766.55" font-family="Times,serif" font-size="14.00">= 0x2</text>
 </g>
@@ -211,7 +211,7 @@
 <polyline fill="none" stroke="black" points="725,-1013.75 719,-1013.75 "/>
 <text text-anchor="middle" x="591" y="-1004.55" font-family="Times,serif" font-size="14.00">Key Formulas</text>
 <text text-anchor="middle" x="591" y="-973.55" font-family="Times,serif" font-size="14.00">offset = PADDR &#45; BASE_ADDR</text>
-<text text-anchor="middle" x="591" y="-958.55" font-family="Times,serif" font-size="14.00">slave_idx = offset[19:16]</text>
+<text text-anchor="middle" x="591" y="-958.55" font-family="Times,serif" font-size="14.00">slave_idx = offset[17:16]</text>
 <text text-anchor="middle" x="591" y="-943.55" font-family="Times,serif" font-size="14.00">= offset &gt;&gt; 16</text>
 <text text-anchor="middle" x="591" y="-912.55" font-family="Times,serif" font-size="14.00">Each slave: 64KB = 0x10000 bytes</text>
 <text text-anchor="middle" x="591" y="-897.55" font-family="Times,serif" font-size="14.00">Max slaves: 16 (idx 0x0..0xF)</text>

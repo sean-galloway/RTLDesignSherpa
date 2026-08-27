@@ -174,7 +174,7 @@ Slave 2: BASE_ADDR + 0x20000 - 0x2FFFF
 **Decode Formula:**
 ```
 offset = PADDR - BASE_ADDR
-slave_index = offset[19:16]  // ceil(log2(S)) bits above the 64KB window ([17:16] for S=4)
+slave_index = offset[16 +: $clog2(S)]  // [17:16] for S=4, [16] for S=2
 ```
 
 **See:** [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md#address-decode)
@@ -291,7 +291,7 @@ cd assets/graphviz/
 dot -Tsvg apbx_xbar_architecture.gv -o ../svg/apbx_xbar_architecture.svg
 dot -Tsvg address_decode_flow.gv -o ../svg/address_decode_flow.svg
 
-# Generate PNG
+# Generate SVG
 dot -Tsvg apbx_xbar_architecture.gv -o ../svg/apbx_xbar_architecture.svg
 dot -Tsvg address_decode_flow.gv -o ../svg/address_decode_flow.svg
 ```
@@ -301,7 +301,7 @@ dot -Tsvg address_decode_flow.gv -o ../svg/address_decode_flow.svg
 ```bash
 cd assets/wavedrom/
 
-# Generate PNG
+# Generate SVG
 wavedrom-cli -i arbitration_round_robin.json -s ../svg/arbitration_round_robin.svg
 ```
 

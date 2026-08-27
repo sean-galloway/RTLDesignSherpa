@@ -410,7 +410,7 @@ for m in range(M):
 for m in range(M):
     # For each master, decode address to slave index
     # offset = paddr - BASE_ADDR
-    # slave_idx = offset[19:16]  # Upper 4 bits
+    # slave_idx = offset[16 +: ceil(log2(S))]  # S-sized index above 64KB
     # Set m_to_s_req[m][slave_idx] = 1
 ```
 
@@ -778,8 +778,10 @@ python generate_xbars.py
 
 **Solution:**
 1. Check parameter ranges (1-16 for M and N)
-2. Any BASE_ADDR value is legal -- the slave index comes from the
-   OFFSET, so no span alignment is required (see the component README)
+2. No span alignment is required -- the slave index comes from the
+   OFFSET. The one illegal region is the top S x 64KB of the address
+   space, where `BASE_ADDR + S*64KB` wraps 32-bit and every access
+   becomes a decode miss
 3. Report bug with command that caused issue
 
 ### Issue: Generated Code Too Large

@@ -42,8 +42,8 @@ These are calculated automatically:
 | Parameter | Derivation | Description |
 |-----------|------------|-------------|
 | STRB_WIDTH | DATA_WIDTH / 8 | Byte strobe width |
-| NUM_MASTERS | Fixed per variant | Number of master ports |
-| NUM_SLAVES | Fixed per variant | Number of slave ports |
+| (none) | — | The generated variants declare only the four parameters above; master/slave counts are baked into the module name and port list, NOT exposed as parameters. `apbx_xbar_thin` is the exception: it has real `M` and `S` parameters. |
+
 
 : Derived Parameters
 
@@ -142,7 +142,6 @@ python generate_xbars.py \
 | --masters | Number of master ports | Required |
 | --slaves | Number of slave ports | Required |
 | --base-addr | Base address (hex) | 0x10000000 |
-| --output | Output file path | Auto-generated |
 
 : Generator Command Line Options
 

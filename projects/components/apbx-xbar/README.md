@@ -61,6 +61,11 @@ contributes `'0`, and an APB4 slave is never driven with nonzero sideband.
 Both gates are compile-time constants, so synthesis prunes any pairing that
 cannot occur, and an all-APB4 build is bit-identical to the pre-APB5 crossbar.
 
+One exception in the GENERATED mixed variant: `PWAKEUP` is dropped.
+Its boundary IP leaves `rsp_pwakeup` unconnected and ties
+`wakeup_request` to '0, so an APB5 slave asserting PWAKEUP is never
+seen at the APB5 master. The thin core does route it.
+
 ## Available Modules
 
 | Module | Description | Masters | Slaves | Use Case |
@@ -119,7 +124,9 @@ python apbx_xbar_generator.py --masters 2 --slaves 4 --output ../rtl/apbx_xbar_2
 
 The GENERATED crossbars (1to1/2to1/1to4/2to4/2to2_mixed) use a uniform address map, configurable via the `BASE_ADDR` parameter. The slave index
 is decoded from the OFFSET (`PADDR - BASE_ADDR`), so `BASE_ADDR` needs no
-span alignment. `apbx_xbar_thin` is different -- see below.
+span alignment (the one illegal region is the top S x 64KB of the
+address space, where `BASE_ADDR + S*64KB` wraps 32-bit and the range
+check can never pass). `apbx_xbar_thin` is different -- see below.
 
 ```
 Slave 0: [BASE_ADDR + 0x0000_0000, BASE_ADDR + 0x0000_FFFF]  (64KB)
@@ -237,7 +244,8 @@ pytest projects/components/apbx-xbar/dv/tests/ -v  # All variants
 
 - **Back-to-back transactions**: supported with no master-side idle
   cycles; they do not overlap inside the fabric (~10 pclk cycles each)
-- **Single-cycle arbitration**: New grants issued in same cycle as previous completion
+- **Single-cycle arbitration**: New grants issued the cycle AFTER the previous completion (the
+arbiter's grant is registered)
 - **Pipelined datapath**: Command and response phases overlap different transactions
 
 ## Known Limitations

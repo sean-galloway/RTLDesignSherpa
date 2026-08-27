@@ -38,7 +38,7 @@ The **APB Crossbar** is a parametric APB interconnect generator that creates con
 
 ### 1.1 Quick Stats
 
-- **Modules:** 5 pre-generated variants + generator for custom sizes
+- **Modules:** 6 pre-generated variants + generator for custom sizes
 - **Max Capacity:** Up to 16x16 (configurable)
 - **Architecture:** apb4_slave → arbitration + decode → apb4_master
 - **Status:** Production ready, all tests passing
@@ -180,6 +180,7 @@ Slave 1 accessed by M1, M1, M0 → Next grant goes to M1
 | **apbx_xbar_2to1** | 2 | 1 | Multi-master arbitration | ~400 LOC |
 | **apbx_xbar_1to4** | 1 | 4 | Address decode, simple SoC | ~500 LOC |
 | **apbx_xbar_2to4** | 2 | 4 | Full crossbar, typical SoC | ~1000 LOC |
+| **apbx_xbar_2to2_mixed** | 2 | 2 | Mixed APB4/APB5 (s0 is APB5) | ~570 LOC |
 | **apbx_xbar_thin** | `M` (dflt 2) | `S` (dflt 4) | Parameterized MxS, WEIGHTED RR, per-slave base/limit PORTS, APB5+parity | ~300 LOC |
 
 ### 4.2 Wrapper Modules

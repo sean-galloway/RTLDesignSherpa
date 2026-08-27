@@ -52,7 +52,7 @@ The target slave is determined by simple bit extraction:
 
 ```
 offset = PADDR - BASE_ADDR
-slave_index = offset[19:16]    // Bits 19:16 select slave (0-15)
+slave_index = offset[16 +: $clog2(S)]   // ceil(log2(S)) bits: [17:16] for S=4
 local_addr = offset[15:0]      // Bits 15:0 are local address within slave
 ```
 
@@ -63,7 +63,7 @@ For address `0x1002_3456` with `BASE_ADDR = 0x1000_0000`:
 | Step | Calculation | Result |
 |------|-------------|--------|
 | 1. Compute offset | 0x1002_3456 - 0x1000_0000 | 0x0002_3456 |
-| 2. Extract slave index | offset[19:16] | 0x2 (Slave 2) |
+| 2. Extract slave index | offset[17:16] (S=4) | 0x2 (Slave 2) |
 | 3. Extract local address | offset[15:0] | 0x3456 |
 
 : Address Decode Example

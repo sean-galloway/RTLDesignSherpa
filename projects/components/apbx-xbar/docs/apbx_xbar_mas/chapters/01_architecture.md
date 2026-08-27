@@ -87,7 +87,7 @@ APB Master → apb4_slave → cmd/rsp bus → Internal Crossbar Logic
 **Address Decode:**
 ```
 offset = PADDR - BASE_ADDR
-slave_index = offset[19:16]  // ceil(log2(S)) bits above the 64KB window ([17:16] for S=4)
+slave_index = offset[16 +: $clog2(S)]  // [17:16] for S=4, [16] for S=2
 ```
 
 **Arbitration:**
