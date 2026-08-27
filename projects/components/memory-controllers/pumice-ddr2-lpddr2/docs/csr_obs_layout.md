@@ -23,9 +23,19 @@
 
 # CSR obs_* readout layout
 
-Status: v2 plan (the CSR slave that exposes these words is F1, scheduled
-for the next milestone). The aggregator packing lives inside the two
-top-level macros today: `command_scheduler_macro.obs_words_o[6:0]` and
+Status (refreshed 2026-08-27): IMPLEMENTED. The obs_* window is live in
+the PeakRDL CSR at 0x1C0-0x1E3 (`rtl/macro/pumice_csr.rdl`, generated docs
+in `regs/generated/docs/`); this file remains the authority for what each
+word's BITS mean, which the register description cannot carry.
+
+NOTE: the packing text below still names the pre-rearchitecture macros
+(`command_scheduler_macro`, `axi_frontend_macro`). The equivalent sources
+today are `rtl/macro/pumice_mem_cmd_scheduler.sv` (u_sched: bank timers,
+refresh, init) and `rtl/macro/pumice_axi4_ifc.sv` (u_ifc: the CAMs).
+Re-verify a word's bit assignment against the RTL before trusting it.
+
+Historical framing (v2 plan) follows. The aggregator packing lived inside the
+two top-level macros: `command_scheduler_macro.obs_words_o[6:0]` and
 `axi_frontend_macro.obs_words_o[1:0]`. F1 will route them to APB via a
 read-only register block.
 
