@@ -25,12 +25,12 @@
 
 The **axi4_to_apb4_convert** module provides full protocol translation from AXI4 to APB, enabling AXI4 masters to access APB peripherals.
 
-## 3.4.1 Purpose
+## 3.4.1 Overview
 
 AXI4 and APB differ on just about every axis:
 
 | Aspect | AXI4 | APB |
-|--------|------|-----|
+| --- | --- | --- |
 | Channels | 5 (AW, W, B, AR, R) | 1 (combined) |
 | Phases | Pipelined | 2-phase (setup, access) |
 | Bursts | Up to 256 beats | Single transfer |
@@ -52,7 +52,7 @@ AXI4 and APB differ on just about every axis:
 **`axi4_to_apb4_convert`** — the conversion core:
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| --- | --- | --- | --- |
 | AXI_ADDR_WIDTH | int | 32 | AXI4 address width |
 | AXI_DATA_WIDTH | int | 32 | AXI4 data width |
 | AXI_ID_WIDTH | int | 8 | AXI4 ID width |
@@ -68,7 +68,7 @@ It adds the channel FIFOs around the core, and is what the bridge
 generator emits:
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| --- | --- | --- | --- |
 | DEPTH_AW / DEPTH_AR | int | 2 | Write/read address channel FIFO depth |
 | DEPTH_W / DEPTH_R | int | 4 | Write/read data channel FIFO depth |
 | DEPTH_B | int | 2 | Write response channel FIFO depth |
@@ -163,12 +163,12 @@ module axi4_to_apb4_convert #(
 
 The shim is a **two-clock** block. `aclk` runs the AXI side and `pclk`
 the APB side, with independent resets (`aresetn`, `presetn`). Commands
-cross aclk->pclk and responses pclk->aclk through gray-pointer
+cross aclk→pclk and responses pclk→aclk through gray-pointer
 asynchronous FIFOs (`gaxi_fifo_async`).
 
 The reset behaviour is the part worth knowing. Each domain resets its own
 pointer and its crossed copy of the remote pointer from its LOCAL reset,
-so resetting one side alone leaves that side self-consistent -- both
+so resetting one side alone leaves that side self-consistent — both
 pointers at 0, meaning empty. Because the pointers are absolute positions
 rather than toggle parity, an independent reset of one side cannot
 fabricate or swallow a transfer. The earlier 2-phase handshake could, and
@@ -194,10 +194,10 @@ encoding requires it (see the parameter table above).
 ### States
 
 The convert core runs TWO state machines, and neither of them touches
-PSEL/PENABLE -- the APB setup/access phases belong to `apb4_master`, on
+PSEL/PENABLE — the APB setup/access phases belong to `apb4_master`, on
 the far side of the shim's CDC. The core's job is packetizing.
 
-**Command FSM** -- walks the accepted AXI burst and emits one APB
+**Command FSM** — walks the accepted AXI burst and emits one APB
 command packet per APB-width beat into the cmd stream:
 
 ```systemverilog
@@ -215,7 +215,7 @@ A data pointer sub-divides each AXI beat into `AXI2APBRATIO` APB beats
 when the widths differ, and the next address comes from the shared
 `axi_gen_addr` (INCR/FIXED/WRAP per the AXI burst type).
 
-**Response FSM** -- assembles returning rsp packets into AXI responses:
+**Response FSM** — assembles returning rsp packets into AXI responses:
 
 ```systemverilog
 typedef enum logic [1:0] {
@@ -226,7 +226,7 @@ typedef enum logic [1:0] {
 
 Read data re-packs APB-width beats into AXI-width R beats; write
 responses collapse into the single B, worst response winning. The
-`first` flag in the command stream is what arms this FSM -- stamping it
+`first` flag in the command stream is what arms this FSM — stamping it
 from transaction progress rather than the previous command state is the
 fix for a hang recorded in the RTL history (a `first=0` first command
 froze the response FSM in RSP_IDLE).
@@ -251,7 +251,7 @@ APB sequence:
 ### Address Calculation
 
 The per-beat address comes from the shared `axi_gen_addr` block, keyed
-on the AXI burst type (INCR/FIXED/WRAP) and size -- the convert core
+on the AXI burst type (INCR/FIXED/WRAP) and size — the convert core
 does not roll its own increment, and there is no APB-phase state here
 (PREADY pacing happens in `apb4_master` beyond the CDC; see 3.4.5).
 
@@ -270,7 +270,7 @@ wire w_addr_oor = |s_awaddr[AXI_ADDR_WIDTH-1:APB_ADDR_WIDTH];
 ## 3.4.8 Error Response Mapping
 
 | APB Signal | AXI4 Response |
-|------------|---------------|
+| --- | --- |
 | PSLVERR = 0 | OKAY (2'b00) |
 | PSLVERR = 1 | SLVERR (2'b10) |
 
@@ -280,7 +280,7 @@ wire w_addr_oor = |s_awaddr[AXI_ADDR_WIDTH-1:APB_ADDR_WIDTH];
 
 Each rsp packet carries the APB `pslverr` for its beat. The response
 FSM accumulates across the transaction's packets and maps any error to
-SLVERR on the AXI side -- B for writes, per-beat RRESP for reads (the
+SLVERR on the AXI side — B for writes, per-beat RRESP for reads (the
 error lands on the beats it belongs to, not smeared across the burst).
 There is no APB-phase sampling here; `pslverr` is captured by
 `apb4_master` and travels back in the packet.
@@ -294,7 +294,7 @@ gray-pointer async FIFOs to `apb4_master`, which owns the actual APB
 setup/access phases. The full source is
 `projects/components/converters/rtl/axi4_to_apb4_convert.sv` (core) and
 `axi4_to_apb4_shim.sv` (integration); their headers document the packet
-formats. No separate simplified listing is maintained here -- an earlier
+formats. No separate simplified listing is maintained here — an earlier
 one drifted into describing states the RTL never had.
 
 ## 3.4.10 Resource Utilization
@@ -308,12 +308,12 @@ Control:              ~60 LUTs, ~20 regs
 Total: ~150 LUTs, ~150 regs
 ```
 
-## 3.4.11 Performance
+## 3.4.11 Timing
 
 ### Timing Analysis
 
 | Operation | Cycles |
-|-----------|--------|
+| --- | --- |
 | Single write | 3-4 APB-side + ~2 pclk in + ~2 aclk out for the CDC crossings (see 3.4.4) |
 | Single read | 3-4 (setup + access + R) |
 | N-beat write burst | ~2N+1 APB-side + the same two CDC crossings, paid once per command run |
@@ -374,3 +374,6 @@ axi4_to_apb4_shim #(
 );
 ```
 
+---
+
+**Next:** [AXI4 to APB5 Shim](06_axi4_to_apb5.md)

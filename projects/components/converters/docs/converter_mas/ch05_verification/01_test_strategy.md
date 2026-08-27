@@ -23,11 +23,13 @@
 
 # 5.1 Test Strategy
 
-The verification approach for the converter modules, from unit tests to system stress.
+## Overview
 
-## 5.1.1 Test Organization
+The verification approach for the converter modules, from unit tests to system stress. Three test levels, a coverage model, and the exact commands to run it all.
 
-### Test Hierarchy
+## Testing
+
+### 5.1.1 Test Organization
 
 ```
 projects/components/converters/dv/tests/
@@ -48,9 +50,9 @@ projects/components/converters/dv/tests/
     └── test_full_system.py
 ```
 
-## 5.1.2 Test Levels
+### 5.1.2 Test Levels
 
-### Level 1: Unit Tests
+#### Level 1: Unit Tests
 
 **Purpose:** Verify individual module functionality in isolation.
 
@@ -76,7 +78,7 @@ async def test_upsize_ratios(dut, narrow_width, wide_width):
     assert tb.scoreboard.check_passed()
 ```
 
-### Level 2: Integration Tests
+#### Level 2: Integration Tests
 
 **Purpose:** Verify module combinations work together.
 
@@ -85,7 +87,7 @@ async def test_upsize_ratios(dut, narrow_width, wide_width):
 - Back-to-back converters
 - Mixed traffic patterns
 
-### Level 3: System Tests
+#### Level 3: System Tests
 
 **Purpose:** Verify in realistic system context.
 
@@ -94,9 +96,9 @@ async def test_upsize_ratios(dut, narrow_width, wide_width):
 - Peripheral access paths
 - Full bandwidth stress
 
-## 5.1.3 Test Categories
+### 5.1.3 Test Categories
 
-### Functional Tests
+#### Functional Tests
 
 | Category | Description | Example |
 |----------|-------------|---------|
@@ -107,7 +109,7 @@ async def test_upsize_ratios(dut, narrow_width, wide_width):
 
 : Table 5.1: Functional Test Categories
 
-### Stress Tests
+#### Stress Tests
 
 | Category | Description | Duration |
 |----------|-------------|----------|
@@ -117,7 +119,7 @@ async def test_upsize_ratios(dut, narrow_width, wide_width):
 
 : Table 5.2: Stress Test Categories
 
-### Error Tests
+#### Error Tests
 
 | Category | Description | Expected Behavior |
 |----------|-------------|-------------------|
@@ -127,9 +129,9 @@ async def test_upsize_ratios(dut, narrow_width, wide_width):
 
 : Table 5.3: Error Test Categories
 
-## 5.1.4 Testbench Architecture
+### 5.1.4 Testbench Architecture
 
-### Components
+#### Components
 
 ```
 Testbench
@@ -151,7 +153,7 @@ Testbench
     └── Directed Sequence Generator
 ```
 
-### Driver Implementation
+#### Driver Implementation
 
 ```python
 class AXI4MasterDriver:
@@ -183,9 +185,9 @@ class AXI4MasterDriver:
         return self.dut.bresp.value
 ```
 
-## 5.1.5 Coverage Model
+### 5.1.5 Coverage Model
 
-### Functional Coverage
+#### Functional Coverage
 
 ```python
 @coverage
@@ -212,7 +214,7 @@ class ConverterCoverage:
     ratio_x_burst = cross(ratio_cp, burst_len_cp)
 ```
 
-### Code Coverage
+#### Code Coverage
 
 **Target:** >95% line coverage, >90% branch coverage
 
@@ -225,9 +227,9 @@ class ConverterCoverage:
 
 : Table 5.4: Coverage Targets
 
-## 5.1.6 Test Execution
+### 5.1.6 Test Execution
 
-### Running Tests
+#### Running Tests
 
 ```bash
 # Run all converter tests
@@ -244,7 +246,7 @@ pytest --cov=projects/components/converters/rtl -v
 pytest test_axi_data_upsize.py -v --waves
 ```
 
-### CI/CD Integration
+#### CI/CD Integration
 
 ```yaml
 converter_tests:
@@ -260,6 +262,6 @@ converter_tests:
       - htmlcov/
 ```
 
----
+## Navigation
 
 **Next:** [Debug Guide](02_debug_guide.md)

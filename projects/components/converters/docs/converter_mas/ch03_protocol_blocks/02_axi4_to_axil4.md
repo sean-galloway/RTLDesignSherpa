@@ -68,7 +68,7 @@ Cycle 2:   R[1] received, AR[2] issued
 
 AR issue and R return are fully independent: the address FSM streams
 one AXIL4 AR per beat as fast as `m_axil_arready` accepts, with no
-reference to R at all -- nothing in the AR path looks at `m_axil_rvalid`.
+reference to R at all — nothing in the AR path looks at `m_axil_rvalid`.
 Against a slave with multi-cycle response latency the requests pipeline
 ahead of the data, and end-to-end duration is set by the slave, not the
 converter.
@@ -164,7 +164,7 @@ Cycle 1:   B[0] received, AW[1] + W[1] issued
            B[N-1] received
 ```
 
-As on the read path, AW/W issue is independent of B return -- the write
+As on the read path, AW/W issue is independent of B return — the write
 FSM streams beats as fast as the AXIL4 slave accepts them, and mid-burst
 B responses are consumed immediately (`m_axil_bready = s_axi_bready ||
 !w_b_all_beats_done`). The single B the master receives is emitted once
@@ -213,10 +213,12 @@ AXIL4 slave ahead of its own address:
                                              m_axil_wready;
 ```
 
-The failure this guards against only appears back to back -- the next AW
+The failure this guards against only appears back to back — the next AW
 arriving the cycle after `WR_LAST_BEAT` completes. A sequential test with
 a cooldown between bursts never opens that window, which is why it
-survived the FUB tests and was caught by a bridge-level probe.
+survived the FUB tests and was caught by a bridge-level probe. Classic
+bring-up bug, in other words: it hides from every directed test and
+fires the moment real traffic shows up.
 
 ### Response Aggregation
 
@@ -272,19 +274,19 @@ endmodule
 ## 3.2.5 Resource Utilization
 
 | Module | Registers | LUTs | BRAM |
-|--------|-----------|------|------|
+| --- | --- | --- | --- |
 | axi4_to_axil4_rd | ~120 | ~180 | 0 |
 | axi4_to_axil4_wr | ~150 | ~220 | 0 |
 | axi4_to_axil4 (combined) | ~270 | ~400 | 0 |
 
 : Table 3.6: AXI4 to AXIL4 Resources
 
-## 3.2.6 Performance Analysis
+## 3.2.6 Timing
 
 ### Throughput
 
 | Transaction Type | Behaviour |
-|------------------|-----------|
+| --- | --- |
 | Single-beat | Passthrough; no converter-inserted wait state |
 | N-beat burst | One AXIL4 access per beat; requests stream at the slave's accept rate, independent of responses |
 | Back-to-back bursts | Serialized: the next AR/AW waits for the previous burst's last beat |
@@ -300,20 +302,20 @@ here.
 ### Latency
 
 | Transaction Type | Latency |
-|------------------|---------|
+| --- | --- |
 | Single-beat | 0 extra cycles |
 | N-beat burst | slave-limited; requests stream independently of responses (see 3.2.6) |
 
 : Table 3.8: AXI4 to AXIL4 Latency
 
-## 3.2.7 Test Coverage
+## 3.2.7 Testing
 
-**Test Suite:** both directions green -- `test_axi4_to_axil4_{wr,rd}.py`,
+**Test Suite:** both directions green — `test_axi4_to_axil4_{wr,rd}.py`,
 5 parametrized configurations each, every scenario suite asserted
 (the counts below are scenario groups within those runs)
 
 | Test Category | Tests | Status |
-|---------------|-------|--------|
+| --- | --- | --- |
 | Single-beat read | 4 | Pass |
 | Multi-beat read | 6 | Pass |
 | Single-beat write | 4 | Pass |

@@ -26,7 +26,7 @@
 ## Document Control
 
 | Field | Value |
-|-------|-------|
+| --- | --- |
 | Document Title | Converters Micro-Architecture Specification |
 | Document Version | 1.0 |
 | Component | Converters |
@@ -38,7 +38,7 @@
 
 ## Purpose
 
-This Micro-Architecture Specification (MAS) describes how the Converters component is implemented — the internal detail behind the feature set. It covers:
+This Micro-Architecture Specification (MAS) describes how the Converters component is actually built — the internal detail behind the feature set. It covers:
 
 - Internal block architectures
 - State machine designs
@@ -58,7 +58,7 @@ This document is for:
 ## Related Documents
 
 | Document | Purpose |
-|----------|---------|
+| --- | --- |
 | Bridge MAS | Related crossbar micro-architecture |
 | Stream MAS | Related datapath micro-architecture |
 
@@ -70,7 +70,7 @@ has no standalone PRD — this book is the authoritative document.)
 ## Revision History
 
 | Version | Date | Author | Description |
-|---------|------|--------|-------------|
+| --- | --- | --- | --- |
 | 1.0 | 2026-01-03 | RTL Design Sherpa | Initial MAS release |
 
 : Table 0.3: Revision History
@@ -91,7 +91,7 @@ All diagrams use Mermaid format rendered to PNG:
 
 ### Code Examples
 
-The SystemVerilog snippets are implementation guidance: they show the intended design pattern but may differ slightly from the actual RTL.
+Treat the SystemVerilog snippets as implementation guidance: they show the intended design pattern but may differ slightly from the actual RTL.
 
 ---
 

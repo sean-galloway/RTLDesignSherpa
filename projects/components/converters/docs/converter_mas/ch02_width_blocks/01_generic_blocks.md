@@ -57,7 +57,7 @@ They do **not** handle:
 - ID tracking
 - Protocol-specific signals (ARLEN, AWLEN, etc.)
 
-That separation buys:
+That separation buys you three things:
 - Reuse in multiple contexts
 - Simpler verification
 - Cleaner composition into full converters
@@ -105,7 +105,7 @@ localparam int RATIO_LOG2 = $clog2(RATIO);
 ### Upsize Sideband Modes
 
 | Mode | Parameter | Behavior | Use Case |
-|------|-----------|----------|----------|
+| --- | --- | --- | --- |
 | Concatenate | `SB_OR_MODE=0` | Pack N narrow sidebands | WSTRB packing |
 | Severity fold | `SB_OR_MODE=1` | Keep the numeric max of the narrow sidebands | RRESP worst-case fold |
 
@@ -132,7 +132,7 @@ localparam int RATIO_LOG2 = $clog2(RATIO);
 ### Downsize Sideband Modes
 
 | Mode | Parameter | Behavior | Use Case |
-|------|-----------|----------|----------|
+| --- | --- | --- | --- |
 | Slice | `SB_BROADCAST=0` | Extract slice per beat | WSTRB extraction |
 | Broadcast | `SB_BROADCAST=1` | Repeat full value | RRESP broadcast |
 
@@ -162,7 +162,7 @@ input = OKAY (2'b00)
 ![Performance Comparison](../assets/mermaid/performance_comparison.png)
 
 | Module | Mode | Throughput | Latency | Area |
-|--------|------|------------|---------|------|
+| --- | --- | --- | --- | --- |
 | axi_data_upsize | Single | 100% | N cycles | 1x |
 | axi_data_dnsize | Single | 0.992 beats/cycle | 1 cycle | 1x |
 

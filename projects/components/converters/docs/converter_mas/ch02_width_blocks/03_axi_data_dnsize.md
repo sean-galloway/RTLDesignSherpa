@@ -21,17 +21,17 @@
 
 <!-- End Header -->
 
-# 2.3 axi_data_dnsize Module
+# 2.3 axi_data_dnsize
 
 The **axi_data_dnsize** module splits 1 wide beat into N narrow beats. It accepts the next wide beat during the last narrow beat of the current one, so a steady stream costs no per-beat stall.
 
-## 2.3.1 Purpose and Function
+## 2.3.1 Overview
 
-The downsize module does four things:
+The downsize module does three things:
 
 1. **Data Splitting**: Extracts N narrow beats from one wide beat
 2. **Sideband Extraction**: Slices or broadcasts sideband signals
-4. **Burst Tracking**: Optional LAST signal generation based on burst length
+3. **Burst Tracking**: Optional LAST signal generation based on burst length
 
 ## 2.3.2 Block Diagram
 
@@ -44,7 +44,7 @@ The downsize module does four things:
 ### Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| --- | --- | --- | --- |
 | WIDE_WIDTH | int | 128 | Input data width (bits) |
 | NARROW_WIDTH | int | 32 | Output data width (bits) |
 | WIDE_SB_WIDTH | int | 0 | Input sideband width, 0 if unused |
@@ -137,30 +137,30 @@ the current beat finishes.
 
 `TRACK_BURSTS=1` is the exception. Its ready condition is
 `mid_burst_replace`, which excludes the final beat of a burst, so a
-cycle is given up at each burst boundary -- not at each wide beat.
+cycle is given up at each burst boundary — not at each wide beat.
 
 Measured on `axi_data_dnsize` with both sides driven by the shared
 `backtoback` randomizer profile, 64 wide beats per run, timing the drain
 only (see `measure_throughput` in the dnsize TB):
 
 | Configuration | Narrow beats | Cycles | Beats/cycle |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | ratio 4, single buffer | 256 | 258 | **0.992** |
 | ratio 2, single buffer | 128 | 130 | **0.985** |
 
 Both buffering modes sustain a narrow beat every cycle, which is the most
 the narrow side can carry. The shortfall is a constant 2-cycle pipeline
-fill, not a per-beat cost -- it does not grow with the run, which is how
+fill, not a per-beat cost — it does not grow with the run, which is how
 the earlier "one gap cycle per wide beat" model was ruled out.
 
 `TRACK_BURSTS=1` gives up one cycle per BURST boundary (its replace
 condition excludes each burst's final beat) and measures 0.914-0.941
-beats/cycle over 8 framed bursts of 32 narrow beats -- the shortfall
+beats/cycle over 8 framed bursts of 32 narrow beats — the shortfall
 being the same fixed fill, paid once per burst
 (`measure_burst_throughput` in the dnsize TB).
 
 | Mode | Measured | Cost model |
-|------|----------|------------|
+| --- | --- | --- |
 | Simple, ratio 4 | 0.992 beats/cycle | fixed 2-cycle fill only |
 | Simple, ratio 2 | 0.985 beats/cycle | fixed 2-cycle fill only |
 | TRACK_BURSTS, ratio 4 | 0.914-0.941 | one bubble per burst boundary |
@@ -232,7 +232,7 @@ assign narrow_last = r_wide_buffered && r_burst_active &&
 ```
 
 An earlier revision showed the module multiplying `burst_len` by RATIO
-internally. It never did -- the units contract is narrow beats in, and
+internally. It never did — the units contract is narrow beats in, and
 mis-framing in wide beats makes LAST fire `WIDTH_RATIO` times early
 (a real bug this exact confusion caused in the TB).
 
@@ -265,7 +265,7 @@ assign narrow_last = gen_single_buffer.r_wide_buffered &&
                      w_last_narrow_beat;
 ```
 
-An earlier pseudocode block here used `s_ready = !r_active` -- the
+An earlier pseudocode block here used `s_ready = !r_active` — the
 pre-fix behaviour that stalls one cycle per wide beat, which the
 measured 0.992 beats/cycle disproves.
 
@@ -286,7 +286,7 @@ Total: ~590 flip-flops, ~30-50 LUTs
 ### Measured Throughput
 
 | Registers | LUTs | Throughput |
-|-----------|------|------------|
+| --- | --- | --- |
 | 590 | 40 | 0.992 beats/cycle (ratio 4) |
 
 : Table 2.9: Resources and measured rate
@@ -294,12 +294,12 @@ Total: ~590 flip-flops, ~30-50 LUTs
 A narrow beat every cycle, so there is nothing left for a second buffer
 to recover. The ping-pong `DUAL_BUFFER` mode this table used to compare
 against was removed once the single buffer was fixed to accept its
-replacement during the last narrow beat -- nothing instantiated it and it
+replacement during the last narrow beat — nothing instantiated it and it
 measured no faster.
 
 ## 2.3.9 Usage Example
 
-R-channel downsize (128 -> 32) with RRESP broadcast and burst tracking.
+R-channel downsize (128 → 32) with RRESP broadcast and burst tracking.
 `burst_start`/`burst_len` are NOT optional with `TRACK_BURSTS(1)`:
 `r_burst_active` only sets on a `burst_start` pulse, so leaving them
 unconnected silently produces framing with no LAST at all. `burst_len`
@@ -335,3 +335,6 @@ axi_data_dnsize #(
 );
 ```
 
+---
+
+**Next:** [axi4_dwidth_converter_wr](05_dwidth_converter_wr.md)

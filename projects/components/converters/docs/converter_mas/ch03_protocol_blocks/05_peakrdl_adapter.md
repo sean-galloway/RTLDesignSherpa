@@ -23,29 +23,18 @@
 
 # 3.5 PeakRDL Adapter
 
-The **peakrdl_to_cmdrsp** module drives a PeakRDL-generated register block from a command/response stream. Data flows cmd/rsp -> PeakRDL: `cmd_*` are inputs and `regblk_*` request signals are outputs, with the register block's acks and read data coming back in. The name reads in the opposite order to the dataflow; the ports below are authoritative.
+The **peakrdl_to_cmdrsp** module drives a PeakRDL-generated register block from a command/response stream. Data flows cmd/rsp -> PeakRDL: `cmd_*` are inputs and `regblk_*` request signals are outputs, with the register block's acks and read data coming back in. Fair warning — the name reads in the opposite order to the dataflow. The ports below are authoritative.
 
-## 3.5.1 Purpose
+## Overview
 
-PeakRDL generates register blocks with a selectable cpuif; this
-adapter mates with the **passthrough** cpuif (`regblk_req` /
-`req_is_wr` / `wr_biten` / stall / ack / err -- NOT the APB cpuif's
-PSEL/PENABLE pins). It:
+PeakRDL generates register blocks with a selectable cpuif, and this adapter mates with the **passthrough** cpuif (`regblk_req` / `req_is_wr` / `wr_biten` / stall / ack / err — NOT the APB cpuif's PSEL/PENABLE pins, so if you came here looking for PSEL, back up). It:
 
 1. Decouples the register interface from the implementation
 2. Provides a clean handshake protocol
 3. Enables pipelined register access
 4. Supports custom control logic integration
 
-## 3.5.2 Block Diagram
-
-### Figure 3.8: PeakRDL Adapter
-
-![PeakRDL Adapter](../assets/mermaid/peakrdl_adapter.png)
-
-## 3.5.3 Interface Specification
-
-### Parameters
+## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -54,7 +43,9 @@ PSEL/PENABLE pins). It:
 
 : Table 3.20: PeakRDL Adapter Parameters
 
-### Ports
+## Ports
+
+The full port list, straight from the RTL:
 
 ```systemverilog
 module peakrdl_to_cmdrsp #(
@@ -100,11 +91,9 @@ module peakrdl_to_cmdrsp #(
 );
 ```
 
-## 3.5.4 Operation
+## Functional Description
 
-Direction: cmd/rsp -> PeakRDL. `cmd_*` arrive from upstream (e.g. the
-APB shim's packet stream); the adapter drives the register block's
-`regblk_*` request signals and returns its acks as rsp packets.
+Direction: cmd/rsp -> PeakRDL. `cmd_*` arrive from upstream (e.g. the APB shim's packet stream); the adapter drives the register block's `regblk_*` request signals and returns its acks as rsp packets.
 
 ### Write
 
@@ -131,9 +120,9 @@ every cycle req is high would double-fire non-idempotent registers
 Same shape via `regblk_rd_ack`/`regblk_rd_data`/`regblk_rd_err`, with
 `rsp_prdata` carried in the response.
 
-## 3.5.5 Implementation
+### 3.5.5 Implementation
 
-Two small FSMs, from the RTL:
+Two small FSMs do all the work, from the RTL:
 
 ```systemverilog
 typedef enum logic [1:0] {
@@ -154,7 +143,7 @@ live cmd inputs, so an unstalled single-cycle ack costs no extra
 latency. `cmd_ready = (cmd_state == CMD_IDLE)` gives one outstanding
 command, which is what a register block wants.
 
-## 3.5.6 Resource Utilization
+### 3.5.6 Resource Utilization
 
 ```
 FSM state:            3 regs (cmd_state 2b + rsp_state 1b)
@@ -170,7 +159,15 @@ state -- the command capture replays the request out of
 CMD_STALLED/CMD_WAIT_ACK, and the response capture holds the rsp packet)
 ```
 
-## 3.5.7 Use Cases
+## Waveforms
+
+### Figure 3.8: PeakRDL Adapter
+
+![PeakRDL Adapter](../assets/mermaid/peakrdl_adapter.png)
+
+## Usage Example
+
+### 3.5.7 Use Cases
 
 The adapter sits between a command/response packet stream and a
 PeakRDL-generated register block:
@@ -214,7 +211,7 @@ peakrdl_to_cmdrsp #(
 Typical deployments: CSR blocks behind the APB shim (see 3.4), or any
 fabric whose endpoint speaks the cmd/rsp packet convention.
 
-## 3.5.8 Integration Example
+### 3.5.8 Integration Example
 
 The flow a real deployment uses (CSRs behind the APB shim):
 
@@ -228,7 +225,7 @@ AXI4 master → axi4_to_apb4_shim → APB bus → apb4_to_peakrdl
                                           PeakRDL-generated register block
 ```
 
-The shim's own cmd/rsp stream is internal -- its external pins are APB.
+The shim's own cmd/rsp stream is internal — its external pins are APB.
 The block that turns a bus back into the cmd/rsp surface this adapter
 consumes is `apb4_to_peakrdl` (which wraps `apb4_slave_cdc` +
 `peakrdl_to_cmdrsp`); wire the adapter directly only when your fabric
@@ -236,5 +233,5 @@ already speaks cmd/rsp packets.
 
 The wiring is exactly the instantiation in 3.5.7; the earlier example
 here showed the adapter hanging off a register block's APB port through
-`reg_*` signals that do not exist -- the reversed-direction reading this
+`reg_*` signals that do not exist — the reversed-direction reading this
 page used to make.

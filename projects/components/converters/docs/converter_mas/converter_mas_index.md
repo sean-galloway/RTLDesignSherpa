@@ -32,7 +32,7 @@
 
 ## Document Organization
 
-This specification covers the Converters component: a collection of configurable data-width and protocol converters for connecting blocks with different data widths or communication protocols.
+This specification covers the Converters component — the configurable data-width and protocol converters you drop in when two blocks disagree about data width or bus protocol.
 
 ### Front Matter
 
@@ -91,7 +91,7 @@ This specification covers the Converters component: a collection of configurable
 
 ## Visual Assets
 
-All diagrams referenced in the documentation live in:
+Every diagram referenced in this book lives in two forms:
 
 - **Source Files:**
   - `assets/mermaid/*.mmd` - Mermaid source diagrams
@@ -124,13 +124,13 @@ All diagrams referenced in the documentation live in:
 - **Generic Building Blocks:** `axi_data_upsize` and `axi_data_dnsize` for any width ratio
 - **Full AXI4 Converters:** Complete write path (AW+W+B) and read path (AR+R) modules
 - **Protocol Bridges:** AXI4-to-AXI4-Lite, AXI4-Lite-to-AXI4, and AXI4-to-APB conversion
-- **Downsize buffering:** a single buffer that accepts its replacement during the last narrow beat -- measured at 0.992 beats/cycle, so no second buffer is needed
+- **Downsize buffering:** a single buffer that accepts its replacement during the last narrow beat — measured at 0.992 beats/cycle, so no second buffer is needed
 - **Flexible Sideband Handling:** Concatenate, broadcast, or severity-fold modes
 
 ### Module Summary
 
 | Module | Purpose | Throughput | Area |
-|--------|---------|------------|------|
+| --- | --- | --- | --- |
 | axi_data_upsize | Narrow-to-wide accumulator | 100% | 1x |
 | axi_data_dnsize | Wide-to-narrow splitter | 0.992 beats/cycle | 1x |
 | axi4_dwidth_converter_wr | Full write path | 100% | Standard |

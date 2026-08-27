@@ -23,13 +23,17 @@
 
 # 5.2 Debug Guide
 
-Start here when a converter misbehaves.
+## Overview
 
-## 5.2.1 Common Issues
+Start here when a converter misbehaves. Each entry runs symptoms, probe points, then fix — the order you want them in at the bench.
 
-### Width Converter Issues
+## Testing
 
-#### Issue: Data Corruption
+### 5.2.1 Common Issues
+
+#### Width Converter Issues
+
+##### Issue: Data Corruption
 
 **Symptoms:**
 - Output data doesn't match expected
@@ -49,7 +53,7 @@ r_data_buffer          - (dnsize) captured wide beat being sliced
 narrow_/wide_ data     - compare input/output patterns
 ```
 
-#### Issue: LAST Signal Incorrect
+##### Issue: LAST Signal Incorrect
 
 **Symptoms:**
 - Transaction ends early or late
@@ -70,7 +74,7 @@ narrow_/wide_ data     - compare input/output patterns
 // group and truncates any burst spanning more than one wide beat.
 ```
 
-#### Issue: Throughput Lower Than Expected
+##### Issue: Throughput Lower Than Expected
 
 **Symptoms:**
 - Gaps between output beats
@@ -80,9 +84,9 @@ narrow_/wide_ data     - compare input/output patterns
 1. Check downstream ready signal behavior
 2. Look for backpressure stalls
 
-### Protocol Converter Issues
+#### Protocol Converter Issues
 
-#### Issue: Burst Decomposition Incorrect
+##### Issue: Burst Decomposition Incorrect
 
 **Symptoms:**
 - Wrong number of single transactions
@@ -100,7 +104,7 @@ r_ar_beat_count / r_aw_beat_count - count to arlen/awlen
 m_axil_arvalid  - asserts for each decomposed beat
 ```
 
-#### Issue: Response Aggregation Wrong
+##### Issue: Response Aggregation Wrong
 
 **Symptoms:**
 - Wrong BRESP/RRESP value
@@ -130,9 +134,9 @@ assign s_axi_rresp = (r_r_beat_count == r_r_len) ? w_r_resp_worst
                                                  : m_axil_rresp;
 ```
 
-## 5.2.2 Debug Signals
+### 5.2.2 Debug Signals
 
-### Recommended Internal Signals
+#### Recommended Internal Signals
 
 For width converters:
 ```systemverilog
@@ -151,7 +155,7 @@ output logic [1:0]  dbg_worst_resp,
 output logic        dbg_in_burst
 ```
 
-### ILA Configuration
+#### ILA Configuration
 
 ```tcl
 # Create ILA for converter debug
@@ -168,9 +172,9 @@ connect_debug_port u_ila/probe2 [get_nets s_axi_arvalid]
 connect_debug_port u_ila/probe3 [get_nets m_axil_arvalid]
 ```
 
-## 5.2.3 Simulation Debug
+### 5.2.3 Simulation Debug
 
-### Waveform Analysis
+#### Waveform Analysis
 
 **Key Signal Groups** (real port names — the width primitives are
 named by WIDTH, not direction: `narrow_*` is the INPUT of the upsize
@@ -192,7 +196,7 @@ but the OUTPUT of the dnsize):
    - WSTRB rides narrow_/wide_sideband on the write path
    - RRESP rides narrow_/wide_sideband on the read path
 
-### Timing Diagram Template
+#### Timing Diagram Template
 
 ```
             ___     ___     ___     ___     ___
@@ -215,9 +219,9 @@ Check:
 3. Data packing is correct
 ```
 
-## 5.2.4 Common Mistakes
+### 5.2.4 Common Mistakes
 
-### Mistake 1: Wrong Width Ratio
+#### Mistake 1: Wrong Width Ratio
 
 ```systemverilog
 // WRONG: Manual ratio
@@ -227,7 +231,7 @@ localparam RATIO = 8;  // May not match actual widths
 localparam RATIO = WIDE_WIDTH / NARROW_WIDTH;
 ```
 
-### Mistake 2: Missing Sideband Handling
+#### Mistake 2: Missing Sideband Handling
 
 ```systemverilog
 // WRONG: Forgetting sideband
@@ -239,7 +243,7 @@ assign m_data = r_data;
 assign m_wstrb = r_sideband;
 ```
 
-### Mistake 3: Incorrect LAST Timing
+#### Mistake 3: Incorrect LAST Timing
 
 ```systemverilog
 // WRONG: LAST on wrong beat
@@ -251,7 +255,7 @@ assign narrow_last = (r_beat_ptr == 0);  // First slice!
 assign narrow_last = r_wide_buffered && r_last_buffered && w_last_narrow_beat;
 ```
 
-### Mistake 4: Burst Length Calculation Error
+#### Mistake 4: Burst Length Calculation Error
 
 ```systemverilog
 // WRONG: Off-by-one
@@ -261,7 +265,7 @@ assign m_awlen = s_awlen / RATIO;  // Wrong!
 assign m_axi_awlen = ((int_awlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;  // round UP
 ```
 
-## 5.2.5 Verification Checklist
+### 5.2.5 Verification Checklist
 
 Before signoff, verify:
 
@@ -275,9 +279,9 @@ Before signoff, verify:
 - [ ] Reset behavior verified
 - [ ] Coverage targets met
 
-## 5.2.6 Performance Validation
+### 5.2.6 Performance Validation
 
-### Throughput Measurement
+#### Throughput Measurement
 
 ```python
 async def measure_throughput(tb, transaction_count=1000):
@@ -295,7 +299,7 @@ async def measure_throughput(tb, transaction_count=1000):
     return throughput
 ```
 
-### Expected Throughput
+#### Expected Throughput
 
 | Module | Mode | Expected |
 |--------|------|----------|
@@ -306,6 +310,6 @@ async def measure_throughput(tb, transaction_count=1000):
 
 : Table 5.5: Expected Throughput
 
----
+## Navigation
 
 **End of Micro-Architecture Specification**

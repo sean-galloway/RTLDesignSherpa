@@ -34,7 +34,7 @@ SoC designs run into the same two integration problems over and over:
 ### 1.2.1 Data Width Mismatch
 
 | Component | Typical Data Width |
-|-----------|-------------------|
+| --- | --- |
 | CPU | 64-bit |
 | DDR Controller | 512-bit |
 | PCIe Endpoint | 128-bit |
@@ -47,7 +47,7 @@ SoC designs run into the same two integration problems over and over:
 ### 1.2.2 Protocol Incompatibility
 
 | Master Type | Protocol | Slave Type | Protocol |
-|-------------|----------|------------|----------|
+| --- | --- | --- | --- |
 | CPU | AXI4 | DDR | AXI4 |
 | DMA | AXI4 | UART | APB |
 | CPU | AXI4 | GPIO | APB |
@@ -115,20 +115,20 @@ Layer 3: Protocol Converters
 ### 1.4.2 Throughput vs. Area Trade-offs
 
 | Configuration | Throughput | Area | Use Case |
-|---------------|------------|------|----------|
+| --- | --- | --- | --- |
 | Upsize (single buffer) | 100% | 1x | All narrow-to-wide |
 | Downsize (single buffer) | 0.992 beats/cycle | 1x | Area-constrained |
 
 : Table 1.3: Throughput vs. Area Trade-offs
 
-**Design Decision:** One buffer per direction. The downsize accepts its next wide beat during the last narrow beat of the current one, measured at 0.992 beats/cycle, so a second buffer has nothing to recover. A ping-pong mode existed for this and was removed once the single buffer was fixed.
+**Design Decision:** One buffer per direction. The downsize accepts its next wide beat during the last narrow beat of the current one — measured at 0.992 beats/cycle — so a second buffer has nothing to recover. A ping-pong mode existed for this and was removed once the single buffer was fixed.
 
 ### 1.4.3 Sideband Signal Handling
 
 Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 
 | Mode | Upsize Behavior | Downsize Behavior |
-|------|-----------------|-------------------|
+| --- | --- | --- |
 | Concatenate | Pack narrow strobes | Slice wide strobes |
 | Broadcast | N/A | Repeat value |
 | Severity fold | Keep numeric max | N/A |
@@ -140,7 +140,7 @@ Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 ### 1.5.1 Latency
 
 | Module | Single-Beat | Burst (N beats) |
-|--------|-------------|-----------------|
+| --- | --- | --- |
 | axi_data_upsize | 1 cycle (registered output) | RATIO narrow beats to fill a group |
 | axi_data_dnsize (single) | 1 cycle | N cycles (replacement wide beat accepted during the last narrow beat — no gap) |
 | axi4_to_axil4 | 0 cycles | slave-limited (see 3.2.6) |
@@ -151,7 +151,7 @@ Sideband signals (WSTRB, RRESP, etc.) support three handling modes:
 ### 1.5.2 Throughput
 
 | Module | Configuration | Peak Throughput |
-|--------|--------------|-----------------|
+| --- | --- | --- |
 | axi_data_upsize | Single buffer | 1 beat/cycle |
 | axi_data_dnsize | Single buffer | 0.992 beats/cycle (measured, ratio 4) |
 | axi4_to_axil4 | Burst | slave-limited; requests stream independently of responses |

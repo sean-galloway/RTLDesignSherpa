@@ -30,7 +30,7 @@ Protocol converters bridge components that speak different bus protocols — the
 ### AXI4 to AXI4-Lite (Protocol Downgrade)
 
 | Module | Function | Test Status |
-|--------|----------|-------------|
+| --- | --- | --- |
 | axi4_to_axil4_rd | Read burst decomposition | 5/5 configs passing |
 | axi4_to_axil4_wr | Write burst decomposition | 5/5 configs passing |
 | axi4_to_axil4 | Full bidirectional wrapper | Composed |
@@ -40,7 +40,7 @@ Protocol converters bridge components that speak different bus protocols — the
 ### AXI4-Lite to AXI4 (Protocol Upgrade)
 
 | Module | Function | Test Status |
-|--------|----------|-------------|
+| --- | --- | --- |
 | axil4_to_axi4_rd | Read protocol upgrade | 7/7 passing |
 | axil4_to_axi4_wr | Write protocol upgrade | 7/7 passing |
 | axil4_to_axi4 | Full bidirectional wrapper | Composed |
@@ -50,7 +50,7 @@ Protocol converters bridge components that speak different bus protocols — the
 ### Other Protocol Converters
 
 | Module | Function | Status |
-|--------|----------|--------|
+| --- | --- | --- |
 | axi4_to_apb4_convert | Full AXI4-to-APB bridge | Production |
 | peakrdl_to_cmdrsp | Register interface adapter | Production |
 | uart_axil_bridge | UART to AXI4-Lite | Implemented (`rtl/uart_to_axil4/`, `dv/tests/test_uart_axil_bridge.py`) |
@@ -66,7 +66,7 @@ Protocol converters bridge components that speak different bus protocols — the
 ### Feature Matrix
 
 | Feature | AXI4 | AXI4-Lite | APB |
-|---------|------|-----------|-----|
+| --- | --- | --- | --- |
 | Channels | 5 (AW, W, B, AR, R) | 5 (simplified) | 1 (combined) |
 | Bursts | Up to 256 beats | Single beat only | Single beat |
 | Out-of-order | Yes (ID-based) | No | No |
@@ -115,7 +115,7 @@ Protocol converters bridge components that speak different bus protocols — the
 ## 3.1.4 Performance Characteristics
 
 | Converter | Single-Beat | Burst (N) | Area |
-|-----------|-------------|-----------|------|
+| --- | --- | --- | --- |
 | axi4_to_axil4 | 0 cycles | slave-limited, ~N cycles best case (see 3.2.6) | ~450 LUTs |
 | axil4_to_axi4 | 0 cycles | N/A | ~110 LUTs |
 | axi4_to_apb4 | 3-5 cycles | ~2N+1 APB cycles sustained (see 3.4.11) | ~150 LUTs (hand estimate; matches 3.4.10) |

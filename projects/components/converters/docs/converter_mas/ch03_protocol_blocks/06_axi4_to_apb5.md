@@ -26,7 +26,7 @@
 **Module:** `axi4_to_apb5_shim.sv`
 **Filelist:** `rtl/filelists/axi4_to_apb5_shim.f` (-f's the APB4 shim's closure)
 
-## Design
+## Overview
 
 APB5 keeps the APB4 transfer protocol — PSEL/PENABLE phases, PREADY,
 PSLVERR are unchanged — and adds only sideband: requester-driven user
@@ -39,7 +39,7 @@ ports and 18 parameters forwarded 1:1.
 The APB5 additions on the requester surface:
 
 | Signal | Dir | Handling |
-|---|---|---|
+| --- | --- | --- |
 | `m_apb_PAUSER[APB_AUSER_WIDTH-1:0]` | out | tied `'0` — nothing upstream sources it (AXI USER bits do not map onto APB user semantics) |
 | `m_apb_PWUSER[APB_WUSER_WIDTH-1:0]` | out | tied `'0` |
 | `m_apb_PWAKEUP` | in | accepted and terminated |
@@ -47,12 +47,12 @@ The APB5 additions on the requester surface:
 | `m_apb_PBUSER[APB_BUSER_WIDTH-1:0]` | in | accepted and terminated |
 
 User-signal widths default to 1. `rtl/amba/apb5/apb5_slave.sv` defaults
-its own to 4, so the two do NOT line up out of the box -- set
+its own to 4, so the two do NOT line up out of the box — set
 `APB_{A,W,R,B}USER_WIDTH` to match whatever completer you attach. The
 signal set is otherwise pin-for-pin with that slave, including the
 repo's convention that PWAKEUP rides completer→requester.
 
-## Rationale
+## Design Notes
 
 Deriving the wrapper from the APB4 shim's actual port surface (rather
 than reimplementing the conversion) means the APB4 engine's fixes and
@@ -61,7 +61,7 @@ filelist simply `-f`'s the APB4 shim's. When a future consumer needs
 real PAUSER/PWUSER sourcing or PWAKEUP-gated clocking, those grow here
 without touching the conversion core.
 
-## Consumers
+## Related Modules
 
 The bridge generator instantiates this shim for `protocol = "apb5"`
 slaves (BRIDGE-002 A5-3c) through the same component path as the APB4
@@ -69,3 +69,7 @@ shim — the `Axi4ToApbShim` component takes `protocol='apb5'` and wires
 the five extra pairs. Verified by
 `projects/components/bridge/dv/tests/test_bridge_1x2_rw_apb5.py`
 (APB4 BFM legally drives the port: same transfer protocol).
+
+---
+
+**Next:** [PeakRDL Adapter](05_peakrdl_adapter.md)

@@ -21,11 +21,11 @@
 
 <!-- End Header -->
 
-# 2.2 axi_data_upsize Module
+# 2.2 axi_data_upsize
 
-The **axi_data_upsize** module accumulates N narrow beats into 1 wide beat. It is the core building block for narrow-to-wide data width conversion.
+The **axi_data_upsize** module accumulates N narrow beats into 1 wide beat. It's the core building block for narrow-to-wide data width conversion.
 
-## 2.2.1 Purpose and Function
+## 2.2.1 Overview
 
 The upsize module does four things:
 
@@ -45,7 +45,7 @@ The upsize module does four things:
 ### Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| --- | --- | --- | --- |
 | NARROW_WIDTH | int | 32 | Input data width (bits) |
 | WIDE_WIDTH | int | 128 | Output data width (bits) |
 | NARROW_SB_WIDTH | int | 0 | Input sideband width (bits), 0 if unused |
@@ -248,12 +248,12 @@ assign m_sideband = r_sideband;
 assign m_last = r_last;
 ```
 
-## 2.2.7 Timing Characteristics
+## 2.2.7 Timing
 
 ### Latency
 
 | Scenario | Latency |
-|----------|---------|
+| --- | --- |
 | Full buffer (N beats) | N cycles |
 | Early LAST (M beats) | M cycles |
 | Output handshake | 0-1 cycles |
@@ -262,7 +262,7 @@ assign m_last = r_last;
 
 ### Throughput
 
-**100% throughput** - no gaps required between input beats.
+**100% throughput** — no gaps required between input beats.
 
 The accumulator accepts one beat per cycle, every cycle. When the output buffer completes its handshake, accumulation of the next wide beat starts immediately.
 
@@ -291,7 +291,7 @@ Total: ~600 flip-flops, ~50-70 LUTs
 ### Scaling
 
 | Configuration | Registers | LUTs |
-|---------------|-----------|------|
+| --- | --- | --- |
 | 32 → 128 (4:1) | ~170 | ~30 |
 | 64 → 256 (4:1) | ~330 | ~40 |
 | 64 → 512 (8:1) | ~600 | ~60 |
@@ -301,7 +301,7 @@ Total: ~600 flip-flops, ~50-70 LUTs
 
 ## 2.2.9 Usage Example
 
-W-channel upsize (32 -> 128) with WSTRB as the concatenated sideband:
+W-channel upsize (32 → 128) with WSTRB as the concatenated sideband:
 
 ```systemverilog
 axi_data_upsize #(
@@ -329,3 +329,6 @@ axi_data_upsize #(
 );
 ```
 
+---
+
+**Next:** [axi_data_dnsize Module](03_axi_data_dnsize.md)

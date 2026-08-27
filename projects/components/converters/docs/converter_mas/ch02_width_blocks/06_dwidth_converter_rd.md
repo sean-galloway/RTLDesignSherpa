@@ -25,7 +25,7 @@
 
 The **axi4_dwidth_converter_rd** module is the complete AXI4 read path — AR and R channels with burst length adjustment and burst-aware RLAST generation.
 
-## 2.6.1 Purpose and Function
+## 2.6.1 Overview
 
 The read converter combines the generic `axi_data_dnsize` with AXI4 protocol handling:
 
@@ -45,7 +45,7 @@ The read converter combines the generic `axi_data_dnsize` with AXI4 protocol han
 ### Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| --- | --- | --- | --- |
 | S_AXI_DATA_WIDTH | int | 32 | Slave-side data width |
 | M_AXI_DATA_WIDTH | int | 128 | Master-side data width |
 | AXI_ID_WIDTH | int | 8 | Transaction ID width |
@@ -167,7 +167,7 @@ localparam int RATIO_LOG2 = $clog2(RATIO);
 ### Examples
 
 | S_DATA | M_DATA | Ratio | S_ARLEN | S_beats | M_ARLEN | M_beats |
-|--------|--------|-------|---------|---------|---------|---------|
+| --- | --- | --- | --- | --- | --- | --- |
 | 64 | 512 | 8 | 7 | 8 | 0 | 1 |
 | 64 | 512 | 8 | 15 | 16 | 1 | 2 |
 | 64 | 512 | 8 | 31 | 32 | 3 | 4 |
@@ -200,13 +200,13 @@ assign m_axi_arsize = MASTER_SIZE[2:0];
 For a split read the slave must still see ONE burst: each master burst
 returns its own RLAST, and every one except the final master burst's is
 masked out of the upsize, whose accumulation simply continues across the
-boundary. The masking is safe by construction -- 256 narrow beats is a
+boundary. The masking is safe by construction — 256 narrow beats is a
 whole number of wide beats at every ratio, so a masked boundary can never
 land mid-accumulation. A one-bit flag queue, pushed per issued AR and
 popped per master RLAST, says which burst is final.
 
 On the UPSIZE path the issued address is aligned down to the master
-data width -- the slave returns whole wide words -- and mid-word INCR
+data width — the slave returns whole wide words — and mid-word INCR
 starts are handled by the R slicer: the burst-length FIFO carries the
 start lane alongside the narrow length, `m_axi_arlen` counts it
 (`ceil((start_lane + narrow_beats) / RATIO)` wide beats), and
@@ -226,12 +226,12 @@ assign m_axi_araddr   = aligned_araddr;
 
 ### Burst-Length FIFO
 
-Only the wide->narrow R data path needs one — that is the converter's
+Only the wide→narrow R data path needs one — that is the converter's
 **UPSIZE** mode (S narrower than M: wide master read data sliced down to
 narrow slave beats through `axi_data_dnsize`). The downsize block
 ignores a `burst_start` pulse while a burst is active and keeps no length
 queue of its own, so framing only the first burst would collapse N read
-bursts into one -- bursts 2..N would drain with `narrow_last` never
+bursts into one — bursts 2..N would drain with `narrow_last` never
 asserting. A small queue holds one narrow ARLEN per outstanding burst:
 its head feeds the downsize, and it pops as each narrow burst completes,
 so every burst is framed however they overlap.
@@ -239,8 +239,8 @@ so every burst is framed however they overlap.
 It is an inline circular buffer rather than a `fifo_sync` instance,
 deliberately: this converter is widely instantiated and a submodule here
 would add a filelist dependency to every consumer. It stores the narrow
-length AND the burst's start lane (mid-word INCR starts, CONV-006) --
-ID is carried on the AXI channels, not through this queue -- and
+length AND the burst's start lane (mid-word INCR starts, CONV-006) —
+ID is carried on the AXI channels, not through this queue — and
 AR is back-pressured when full, so it cannot overflow.
 
 ```systemverilog
@@ -259,7 +259,7 @@ AR is back-pressured when full, so it cannot overflow.
             assign w_blen_pop  = int_r_valid && int_r_ready && int_rlast;
 ```
 
-The narrow->wide R data path (the converter's DOWNSIZE mode) needs no
+The narrow→wide R data path (the converter's DOWNSIZE mode) needs no
 such queue; its generate branch ties the shared handshake wires off
 inert.
 
@@ -306,14 +306,14 @@ There is no local RLAST tracker in the converter. The downsize block
 generates `narrow_last` itself in TRACK_BURSTS mode, framed by the
 burst-length FIFO of 2.6.5: each accepted AR pushes its narrow-beat
 length, the FIFO head drives `burst_len`/`burst_start`, and the dnsize
-counts narrow beats against it -- `int_rlast` comes out of the dnsize
+counts narrow beats against it — `int_rlast` comes out of the dnsize
 and passes to `s_axi_rlast` through the R skid.
 
 (An earlier revision showed a standalone counter loading
 `(arlen + 1) * RATIO - 1`, the same xRATIO framing 2.3.4 calls out as
 the classic mis-framing bug. No such multiply exists anywhere in the
 converter: in UPSIZE mode the slave side is already narrow, so the
-ARLEN pushed into the FIFO is already in narrow-beat units --
+ARLEN pushed into the FIFO is already in narrow-beat units —
 `blen_mem[...] <= int_arlen;` stores it unchanged.)
 
 ## 2.6.8 RID Handling
@@ -340,7 +340,7 @@ assign int_rid = r_rid_held;
 ### Typical Resources (64→512 UPSIZE, ratio 8, ID=4)
 
 The burst-length FIFO exists only in the converter's UPSIZE mode (see
-2.6.5), so the configuration here is upsize -- an earlier revision
+2.6.5), so the configuration here is upsize — an earlier revision
 labeled this table 512→64 (DOWNSIZE), a mode in which that FIFO is
 tied off and does not exist. Hand estimates, not synthesis results,
 except the FIFO, which is counted from its declarations.
@@ -355,17 +355,17 @@ Control logic:       ~80 LUTs
 Total: ~940 flip-flops, ~130 LUTs (sum of the lines above)
 ```
 
-There is no separate "burst tracker" block -- 2.6.7 explains RLAST
+There is no separate "burst tracker" block — 2.6.7 explains RLAST
 comes from the dnsize's own counter, framed by the FIFO. The R data
-path is the single-buffer `axi_data_dnsize` -- the only implementation;
+path is the single-buffer `axi_data_dnsize` — the only implementation;
 its ping-pong `DUAL_BUFFER` variant was removed, see 2.3.8.
 
-## 2.6.10 Timing Characteristics
+## 2.6.10 Timing
 
 ### Latency
 
 | Path | Latency |
-|------|---------|
+| --- | --- |
 | AR passthrough | 1-2 cycles (skid) |
 | First R beat | 1 cycle (load buffer) |
 | Subsequent R beats | 1 beat/cycle |
@@ -375,7 +375,7 @@ its ping-pong `DUAL_BUFFER` variant was removed, see 2.3.8.
 ### Throughput
 
 - AR channel: 1 transaction/cycle
-- R channel: the downsize accepts its next wide beat during the last narrow beat -- 0.992 beats/cycle measured in simple mode (TRACK_BURSTS=1 pays one bubble per burst boundary and measures ~0.93; see 2.3)
+- R channel: the downsize accepts its next wide beat during the last narrow beat — 0.992 beats/cycle measured in simple mode (TRACK_BURSTS=1 pays one bubble per burst boundary and measures ~0.93; see 2.3)
 
 ## 2.6.11 Usage Example
 
@@ -402,6 +402,9 @@ axi4_dwidth_converter_rd #(
 ```
 
 All channel ports carry the `s_axi_`/`m_axi_` prefix; the full list is
-the module header. Skid depths are per channel -- there is no single
+the module header. Skid depths are per channel — there is no single
 `SKID_DEPTH`.
 
+---
+
+**Next:** [Protocol Conversion Overview](../ch03_protocol_blocks/01_overview.md)

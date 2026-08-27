@@ -50,7 +50,7 @@ axil4_to_axi4.sv          # Full bidirectional wrapper
 ### Address Channel Signals
 
 | AXI4-Lite Signal | AXI4 Signal | Default/Mapping |
-|------------------|-------------|-----------------|
+| --- | --- | --- |
 | ARADDR | ARADDR | Passthrough |
 | ARPROT | ARPROT | Passthrough |
 | ARVALID | ARVALID | Passthrough |
@@ -68,7 +68,7 @@ axil4_to_axi4.sv          # Full bidirectional wrapper
 ### Data Channel Signals
 
 | AXI4-Lite Signal | AXI4 Signal | Default/Mapping |
-|------------------|-------------|-----------------|
+| --- | --- | --- |
 | RDATA | RDATA | Passthrough |
 | RRESP | RRESP | Passthrough |
 | RVALID | RVALID | Passthrough |
@@ -296,31 +296,31 @@ endmodule
 ## 3.3.7 Resource Utilization
 
 | Module | Registers | LUTs |
-|--------|-----------|------|
+| --- | --- | --- |
 | axil4_to_axi4_rd | 0 | ~50 |
 | axil4_to_axi4_wr | 0 | ~60 |
 | axil4_to_axi4 (combined) | 0 | ~110 |
 
 : Table 3.12: AXIL4 to AXI4 Resources
 
-**Note:** Zero registers - purely combinational logic.
+**Note:** Zero registers — purely combinational logic.
 
-## 3.3.8 Performance
+## 3.3.8 Timing
 
 | Metric | Value |
-|--------|-------|
+| --- | --- |
 | Latency | 0 cycles |
 | Throughput | 100% |
 | Max frequency | Wire speed |
 
 : Table 3.13: AXIL4 to AXI4 Performance
 
-## 3.3.9 Test Coverage
+## 3.3.9 Testing
 
 **Test Suite:** 14 tests passing
 
 | Test Category | Tests | Status |
-|---------------|-------|--------|
+| --- | --- | --- |
 | Single-beat read | 3 | Pass |
 | Single-beat write | 3 | Pass |
 | Mixed traffic | 4 | Pass |
@@ -354,3 +354,6 @@ axil4_to_axi4 #(
 );
 ```
 
+---
+
+**Next:** [AXI4 to APB](04_axi4_to_apb4.md)

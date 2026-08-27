@@ -23,11 +23,15 @@
 
 # 4.3 Burst Decomposition
 
-Burst handling is where the two converter families diverge: width converters rescale the burst length, protocol converters split the burst into single beats.
+## Overview
 
-## 4.3.1 Width Converter Burst Handling
+Burst handling is where the two converter families diverge: width converters rescale the burst length, protocol converters split the burst into single beats. Same AXI burst in — two very different kinds of bookkeeping out.
 
-### Burst Length Adjustment
+## Functional Description
+
+### 4.3.1 Width Converter Burst Handling
+
+#### Burst Length Adjustment
 
 When converting widths, burst length changes inversely with data width:
 
@@ -42,11 +46,7 @@ Example (64-bit to 512-bit, RATIO=8):
   M_AWLEN = (15 + 1) / 8 - 1 = 1 (2 beats × 512 bits)
 ```
 
-### Figure 4.5: Width Burst Conversion
-
-![Width Burst Conversion](../assets/mermaid/width_burst_conversion.png)
-
-### Non-Aligned Bursts
+#### Non-Aligned Bursts
 
 When the burst length is not a multiple of the ratio:
 
@@ -58,9 +58,9 @@ The 6 narrow beats pack into 1 wide beat.
 Last 2 positions have WSTRB = 0 (no write).
 ```
 
-## 4.3.2 Protocol Converter Burst Handling
+### 4.3.2 Protocol Converter Burst Handling
 
-### AXI4 to AXI4-Lite Decomposition
+#### AXI4 to AXI4-Lite Decomposition
 
 AXI4-Lite only supports single-beat transactions, so all bursts must be decomposed:
 
@@ -77,7 +77,7 @@ AXIL4 Sequence:
   Transaction 3: ARADDR = 0x100C
 ```
 
-### Address Increment Calculation
+#### Address Increment Calculation
 
 ```systemverilog
 // Calculate address increment based on burst type and size
@@ -111,7 +111,7 @@ function automatic [ADDR_WIDTH-1:0] next_address(
 endfunction
 ```
 
-## 4.3.3 Response Aggregation
+### 4.3.3 Response Aggregation
 
 Several downstream responses collapse into one upstream response, worst
 case winning (OKAY < EXOKAY < SLVERR < DECERR by numeric compare). The
@@ -156,13 +156,13 @@ assign s_axi_rresp = (r_r_beat_count == r_r_len) ? w_r_resp_worst
 ```
 
 Both were fixed with tests that inject SLVERR from the downstream slave
-and assert it reaches the upstream master -- including the
+and assert it reaches the upstream master — including the
 last-beat-only case, where earlier beats cannot mask the loss. See
 `test_error_response` in the axi4_to_axil4 testbenches.
 
-## 4.3.4 Burst Tracking Registers
+### 4.3.4 Burst Tracking Registers
 
-### Required State
+#### Required State
 
 The listing below is the generic PATTERN, not the RTL's register names:
 the real modules split this state between separate read and write
@@ -181,7 +181,7 @@ logic [ID_WIDTH-1:0]   r_id;
 logic                  r_is_write;
 ```
 
-### Initialization
+#### Initialization
 
 ```systemverilog
 always_ff @(posedge clk) begin
@@ -201,9 +201,11 @@ always_ff @(posedge clk) begin
 end
 ```
 
-## 4.3.5 Timing Impact
+## Timing
 
-### Decomposition Overhead
+### 4.3.5 Timing Impact
+
+#### Decomposition Overhead
 
 | Transaction Type | Overhead |
 |------------------|----------|
@@ -216,7 +218,7 @@ end
 The old "2 cycles per beat" figure described a request-response lockstep
 the RTL does not have; nothing in the address path waits on responses.
 
-### Pipeline Considerations
+#### Pipeline Considerations
 
 Decomposed requests are independent of responses (Table 4.6 above):
 - ARs issue at the downstream accept rate — nothing in the AR path
@@ -230,6 +232,12 @@ plus one response latency — not N round trips. The only serialization
 the converter imposes is between whole bursts (the one-outstanding
 guard).
 
----
+## Waveforms
+
+### Figure 4.5: Width Burst Conversion
+
+![Width Burst Conversion](../assets/mermaid/width_burst_conversion.png)
+
+## Navigation
 
 **Next:** [Chapter 5: Verification](../ch05_verification/01_test_strategy.md)

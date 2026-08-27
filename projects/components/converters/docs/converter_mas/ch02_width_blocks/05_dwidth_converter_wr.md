@@ -25,7 +25,7 @@
 
 The **axi4_dwidth_converter_wr** module is the complete AXI4 write path — AW, W, and B channels with burst length adjustment for the new width.
 
-## 2.5.1 Purpose and Function
+## 2.5.1 Overview
 
 The write converter combines the generic `axi_data_upsize` with AXI4 protocol handling:
 
@@ -45,7 +45,7 @@ The write converter combines the generic `axi_data_upsize` with AXI4 protocol ha
 ### Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| --- | --- | --- | --- |
 | S_AXI_DATA_WIDTH | int | 32 | Slave-side data width |
 | M_AXI_DATA_WIDTH | int | 128 | Master-side data width |
 | AXI_ID_WIDTH | int | 8 | Transaction ID width |
@@ -181,7 +181,7 @@ localparam int RATIO_LOG2 = $clog2(RATIO);
 ### Examples
 
 | S_DATA | M_DATA | Ratio | S_AWLEN | S_beats | M_AWLEN | M_beats |
-|--------|--------|-------|---------|---------|---------|---------|
+| --- | --- | --- | --- | --- | --- | --- |
 | 64 | 512 | 8 | 7 | 8 | 0 | 1 |
 | 64 | 512 | 8 | 15 | 16 | 1 | 2 |
 | 64 | 256 | 4 | 3 | 4 | 0 | 1 |
@@ -207,7 +207,7 @@ Remaining 2 positions have WSTRB = 0 (no write).
 
 The rewrite differs by direction, so the RTL has two generate branches.
 
-**Narrow -> wide (upsize).** Beats combine, so the count divides -- and it
+**Narrow → wide (upsize).** Beats combine, so the count divides — and it
 must round UP, because a burst that is not a whole multiple of the ratio
 still needs a final partial wide beat:
 
@@ -215,8 +215,8 @@ still needs a final partial wide beat:
 assign m_axi_awlen = ((int_awlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
 ```
 
-**Wide -> narrow (downsize).** Each wide beat becomes RATIO narrow ones
--- and the product does not fit a burst. AXI4 allows 256 beats, so a
+**Wide → narrow (downsize).** Each wide beat becomes RATIO narrow ones
+— and the product does not fit a burst. AXI4 allows 256 beats, so a
 full-length slave burst needs up to `256 * WIDTH_RATIO` narrow beats,
 which is neither expressible in the 8-bit AWLEN nor a legal burst. One
 slave burst is therefore **split** into as many master bursts of <= 256
@@ -230,7 +230,7 @@ r_split_remaining <= (CNTW'(int_awlen) + CNTW'(1)) * CNTW'(WIDTH_RATIO);
 assign m_axi_awlen = 8'(w_this_beats - 9'd1);   // w_this_beats = min(remaining, 256)
 ```
 
-Each issued master burst is recorded in a split queue -- its beat count
+Each issued master burst is recorded in a split queue — its beat count
 frames that burst's WLAST on the W path, and a final-burst flag drives
 the B fold (several master responses collapse into one slave response,
 worst case wins). The address advances by `256 * M_STRB_WIDTH` per burst
@@ -241,7 +241,7 @@ issued.
 
 Rounding up is the whole point of the `+ WIDTH_RATIO` term. A floor
 divide underflows: AWLEN=5 (6 beats) at RATIO=8 gives `(6 >> 3) - 1`,
-which is -1 -- 8'hFF, a 256-beat burst -- where the correct answer is 0,
+which is -1 — 8'hFF, a 256-beat burst — where the correct answer is 0,
 one wide beat.
 
 **Size** is not derived from the incoming AWSIZE. Both branches drive the
@@ -252,7 +252,7 @@ assign m_axi_awsize = MASTER_SIZE[2:0];
 ```
 
 Neither converter checks address alignment on the downsize path. The
-read converter aligns the address it issues on its UPSIZE path only --
+read converter aligns the address it issues on its UPSIZE path only —
 a wide access cannot start mid-word (see 2.6.5).
 
 **Upsize INCR bursts may start mid-wide-word.** The AXI-correct
@@ -262,12 +262,12 @@ lanes the ADDRESS selects, with WSTRB covering only those lanes
 
 - `m_axi_awlen` counts the lane offset:
   `ceil((start_lane + narrow_beats) / RATIO)` wide beats. AWADDR
-  passes through unchanged -- unaligned is legal AXI; the first beat
+  passes through unchanged — unaligned is legal AXI; the first beat
   is partial within its size container.
 - an AW-lane queue (same inline pattern as the read converter's
   burst-length FIFO) records each accepted AW's start lane; W beats
   are held off until their AW is queued (the packer's lane comes from
-  AWADDR), and the entry pops on the NARROW side's last beat -- the
+  AWADDR), and the entry pops on the NARROW side's last beat — the
   head must track the burst the CURRENT narrow beat belongs to, and a
   wide-side pop raced back-to-back bursts.
 - `axi_data_upsize` takes a `start_lane` input: the first narrow beat
@@ -275,13 +275,13 @@ lanes the ADDRESS selects, with WSTRB covering only those lanes
   slots '0); later wide groups of the burst start at lane 0.
 
 FIXED and WRAP keep the wide-aligned requirement (asserted in
-simulation) -- their lane semantics through the packer are not
+simulation) — their lane semantics through the packer are not
 defined.
 
 ### Skid Buffer for AW
 
 The channel buffers are `gaxi_skid_buffer` (there is no
-`axi_skid_buffer`), and they carry the UNMODIFIED slave fields -- the
+`axi_skid_buffer`), and they carry the UNMODIFIED slave fields — the
 length rewrite happens after the skid, in the splitter:
 
 ```systemverilog
@@ -370,7 +370,7 @@ AXI4 allows AW to arrive before, with, or after W data. The converter must handl
 
 The **upsize** path carries an AW-lane queue (see 2.5.5): each
 accepted AW pushes its start lane, and W beats are held off until
-their AW is queued -- the packer's lane placement comes from AWADDR,
+their AW is queued — the packer's lane placement comes from AWADDR,
 so W genuinely cannot run ahead of its address. The entry pops on the
 narrow side's last beat.
 
@@ -401,12 +401,12 @@ downsize split queue, or the upsize AW-lane queue (16 x lane-width
 entries + two 5-bit pointers) -- see 2.5.5 for both.
 ```
 
-## 2.5.10 Timing Characteristics
+## 2.5.10 Timing
 
 ### Latency
 
 | Path | Latency |
-|------|---------|
+| --- | --- |
 | AW passthrough | 1-2 cycles (skid) |
 | W upsize | N cycles (accumulation) |
 | B passthrough | 1 cycle (skid) |
@@ -445,6 +445,9 @@ axi4_dwidth_converter_wr #(
 ```
 
 All channel ports carry the `s_axi_`/`m_axi_` prefix; the full list is
-the module header. Skid depths are per channel -- there is no single
+the module header. Skid depths are per channel — there is no single
 `SKID_DEPTH`.
 
+---
+
+**Next:** [axi4_dwidth_converter_rd](06_dwidth_converter_rd.md)
