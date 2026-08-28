@@ -934,10 +934,29 @@ The phase-4 assertion is now a LOWER bound only (>= 0.98). 1.0 is the
 handshake ceiling, so nothing can legitimately exceed it and any drop is
 a regression -- the two-sided bound had done its job by firing here.
 
-STILL OPEN, worth doing independently of throughput: skid_wr_ready is a
-connected-but-unread silent-drop path, safe today only because the credit
-invariant holds. An assertion `pipe_res_valid |-> skid_wr_ready` would
-turn a future guard change from lost packets into a loud failure.
+CLOSED TOO (2026-08-28): the credit invariant is now asserted.
+test_monbus_compressor.py phase 0 checks `pipe_res_valid |-> skid_wr_ready`
+every cycle -- a CAM result presented while the skid is full is a silently
+dropped record, and skid_wr_ready is connected but never consulted.
+
+An in-RTL `ifdef FORMAL` property was the obvious home and would have been
+DECORATION: there is no formal proof for the compressor, so it would never
+run. The check lives in the testbench, where monbus_compressor is the
+toplevel so its internals are reachable, and it fails loudly rather than
+skipping if they are not.
+
+Two things it took to make the check real, both worth remembering:
+  * IT RUNS FIRST. Breaking the invariant desyncs the slot stream, so the
+    golden comparison already caught it -- as a four-minute
+    SimTimeoutError with nothing pointing at the cause. Ordered before
+    phase 1, it names the cause in seconds.
+  * IT NEEDED CONSUMER BACK-PRESSURE. The first version drove with
+    out_ready high, so the skid drained as fast as it filled, the credit
+    never neared its ceiling, and it reported violations=0 against a
+    DELIBERATELY BROKEN guard -- stimulus that could not expose the bug.
+    Stalling the consumer backs the skid up. Mutation-verified after the
+    fix: ceiling raised above SKID_DEPTH gives peak credit 5 and 2
+    result-at-full-skid violations; the good RTL gives peak 3 and 0.
 
 The compressor's Tier-1 input rate is **0.67 records/cycle**, not the
 1 record/cycle both the RTL header and monbus_compressor.md claimed.

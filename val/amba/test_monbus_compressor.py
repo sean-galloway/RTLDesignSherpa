@@ -110,6 +110,86 @@ async def monbus_compressor_test(dut):
     await tb.start_clock('clk', 10, 'ns')
     await tb.reset_dut()
 
+    # ---- Phase 0: the credit invariant that prevents a silent drop ----
+    # monbus_cam_pipe has NO result_ready -- its result is autonomous -- and
+    # the compressor never consults skid_wr_ready. So the ONLY thing stopping
+    # a CAM result from arriving at a full skid and vanishing is the credit
+    # guard (cam_en requires r_credit < SKID_DEPTH). That invariant is load-
+    # bearing and invisible: if a future change raises the credit ceiling
+    # without deepening the skid, or deepens the pipeline so more results are
+    # in flight, packets are lost with nothing to report it.
+    #
+    # Assert it directly: whenever the CAM presents a result, the skid must
+    # have room for it, checked every cycle across a saturating run.
+    #
+    # RUNS FIRST, deliberately. Breaking the invariant desyncs the slot
+    # stream, so the golden comparison in phase 1 does catch it -- as a
+    # four-minute SimTimeoutError with nothing pointing at the cause.
+    # Verified by mutation: raising the credit ceiling above SKID_DEPTH
+    # hangs phase 1 if this runs after it, and reports the dropped result
+    # immediately if it runs before.
+    tb.log.info("=== Phase 0: skid always has room for a CAM result ===")
+    tb.dut.out_ready.value = 1
+
+    probes = {n: getattr(tb.dut, n, None)
+              for n in ('pipe_res_valid', 'skid_wr_ready', 'r_credit')}
+    if any(v is None for v in probes.values()):
+        missing = [n for n, v in probes.items() if v is None]
+        raise AssertionError(
+            f"phase 5 cannot run: internal signals not visible {missing}. "
+            f"This check must not silently skip -- a skipped assertion is "
+            f"decoration. Build with --public-flat-rw or move the invariant "
+            f"into an RTL assertion.")
+
+    from TBClasses.monbus import (create_monitor_packet, PktType,
+                                  ProtocolType, AXIErrorCode)
+    hot = create_monitor_packet(
+        PktType.PktTypeError, ProtocolType.PROTOCOL_AXI,
+        AXIErrorCode.AXI_ERR_DATA_ORPHAN, 0, 2, 0x21, 0xF00D)
+    await tb.drive_record(hot, 500)          # warm the CAM
+    await tb.wait_clocks('clk', 8)
+
+    # BACK-PRESSURE THE OUTPUT. With out_ready held high the skid drains as
+    # fast as it fills, the credit never approaches its ceiling, and the
+    # invariant is never stressed -- an earlier version of this phase ran that
+    # way and reported violations=0 even against a deliberately broken credit
+    # guard. Stalling the consumer is what backs the skid up and makes a
+    # mismatched ceiling produce a result with nowhere to land.
+    tb.dut.out_ready.value = 0
+
+    ts = 3000
+    tb.dut.in_packet.value = hot
+    tb.dut.in_source_ts.value = ts
+    tb.dut.in_valid.value = 1
+    violations = 0
+    max_credit = 0
+    for i in range(300):
+        # Occasional short drain windows, so the run keeps making progress
+        # instead of parking in one steady state.
+        tb.dut.out_ready.value = 1 if (i % 16) >= 13 else 0
+        await ReadOnly()
+        if int(tb.dut.pipe_res_valid.value) and not int(tb.dut.skid_wr_ready.value):
+            violations += 1
+        max_credit = max(max_credit, int(tb.dut.r_credit.value))
+        await RisingEdge(tb.dut.clk)
+        ts += 4
+        tb.dut.in_source_ts.value = ts
+    tb.dut.in_valid.value = 0
+    tb.dut.out_ready.value = 1
+    await tb.wait_clocks('clk', 10)
+
+    tb.log.info(f"  peak r_credit={max_credit}, result-at-full-skid={violations}")
+    assert violations == 0, (
+        f"a CAM result was presented on {violations} cycle(s) while the result "
+        f"skid was full. monbus_cam_pipe cannot be back-pressured and "
+        f"skid_wr_ready is not consulted, so each of those is a SILENTLY "
+        f"DROPPED record. The credit guard (r_credit < SKID_DEPTH) is what "
+        f"prevents this -- check that the credit ceiling still matches the "
+        f"skid depth.")
+    tb.log.info("=== Phase 0: PASS ===")
+
+    await tb.reset_dut()
+
     # ---- Phase 1: small synthesized stream ----
     tb.log.info("=== Phase 1: small synthesized stream ===")
     records = synth_small_stream()
