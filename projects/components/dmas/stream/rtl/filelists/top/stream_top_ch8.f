@@ -19,7 +19,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 
 # Package files
 $STREAM_ROOT/rtl/includes/stream_pkg.sv

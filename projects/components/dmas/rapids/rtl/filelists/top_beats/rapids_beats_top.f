@@ -33,7 +33,7 @@
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave.f
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 
 -f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
 

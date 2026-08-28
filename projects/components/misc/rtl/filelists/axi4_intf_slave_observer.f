@@ -35,6 +35,6 @@ $REPO_ROOT/projects/components/misc/rtl/regs/generated/rtl/obs_regs_top.sv
 -f $REPO_ROOT/rtl/amba/filelists/axi_perf_latency_hist.f
 -f $REPO_ROOT/rtl/amba/filelists/axi_bus_meter.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axi4_group.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axi4_group.f
 
 $REPO_ROOT/projects/components/misc/rtl/axi4_intf_slave_observer.sv

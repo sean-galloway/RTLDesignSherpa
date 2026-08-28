@@ -15,7 +15,7 @@
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_sync.f
 
 $REPO_ROOT/projects/components/dmas/rapids/rtl/includes/rapids_pkg.sv

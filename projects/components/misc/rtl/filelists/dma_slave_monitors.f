@@ -16,7 +16,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_mon.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 # The block's OWN config regblock and the APB->cmdrsp->passthrough chain behind
 # it (same chain stream_top_ch8 uses). These are part of dma_slave_monitors'
 # compile closure now, not the harness's.

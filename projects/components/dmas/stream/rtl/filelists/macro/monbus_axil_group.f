@@ -21,7 +21,7 @@
 # dependencies, and it silently rots when they change (missing reporter
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 
 # Package files
