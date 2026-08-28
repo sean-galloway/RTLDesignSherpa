@@ -13,6 +13,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
 
 ATOP_NONE = 0b000000
@@ -133,7 +134,11 @@ def test_axi5_atomic_filter(request):
     })
 
     dut_name = "axi5_atomic_filter"
-    verilog_sources = [os.path.join(rtl_dict['rtl_axi5'], f"{dut_name}.sv")]
+    # Sources come from the DUT's filelist rather than a private copy of its
+    # dependency list -- a hand-list is invisible to filelist_registry --check.
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path=f'rtl/amba/filelists/{dut_name}.f')
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
@@ -150,6 +155,7 @@ def test_axi5_atomic_filter(request):
     run(
         python_search=[tests_dir],
         verilog_sources=verilog_sources,
+        includes=includes,
         toplevel=dut_name,
         module=module,
         testcase="atomic_filter_test",

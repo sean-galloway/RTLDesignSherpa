@@ -34,6 +34,7 @@ and --audit are usable as CI gates.
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import re
@@ -653,13 +654,60 @@ def cmd_blindspots(reg: dict, ratchet: bool = False,
             print("    fix: add the containing dir to an area's filelist_dirs in filelists.toml")
             print()
     # 2. Tests that build their own source array instead of taking a filelist.
+    #
+    # The question is whether the test sources RTL from OUTSIDE a filelist --
+    # not whether the string "verilog_sources = [" appears. Matching on that
+    # flagged three tests that do the right thing: they call
+    # get_sources_from_filelist for each DUT, merge the results, and append
+    # their own tb_*.sv harness (or a wrapper generated into sim_build). That
+    # harness lives with the test and has no business in an RTL filelist, and
+    # `verilog_sources = []` as a merge accumulator is not a hand-list.
+    #
+    # Parsed with ast rather than matched with a regex, because proximity
+    # cannot tell `verilog_sources=verilog_sources` from the NEXT line's
+    # `includes=includes + [rtl_dict['rtl_common']]`. A line-based rule called
+    # 42 tests hand-listed when 9 were; adding an include directory is fine,
+    # picking library RTL out of the source tree is not. Only expressions that
+    # actually flow into verilog_sources are judged.
     hand: list[tuple[str, str]] = []
     for t in sorted(REPO_ROOT.glob("val/*/test_*.py")) + sorted(REPO_ROOT.glob("projects/**/dv/tests/test_*.py")):
         body = t.read_text(errors="ignore")
-        if re.search(r"^\s*verilog_sources\s*=\s*\[", body, re.M):
+        if "verilog_sources" not in body:
+            continue
+        try:
+            tree = ast.parse(body)
+        except SyntaxError:
+            continue
+
+        uses_filelist = any(
+            isinstance(n, ast.Call) and
+            getattr(n.func, "id", getattr(n.func, "attr", None)) == "get_sources_from_filelist"
+            for n in ast.walk(tree))
+
+        # Every expression that flows into verilog_sources: the assignment RHS
+        # (including tuple-unpack targets) and any .append/.extend argument.
+        feeds: list[ast.AST] = []
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Assign):
+                names = [x for tgt in n.targets for x in ast.walk(tgt)
+                         if isinstance(x, ast.Name)]
+                if any(x.id == "verilog_sources" for x in names):
+                    feeds.append(n.value)
+            elif (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                  and n.func.attr in ("append", "extend")
+                  and getattr(n.func.value, "id", None) == "verilog_sources"):
+                feeds.extend(n.args)
+
+        # rtl_dict is get_paths()'s map of raw source directories; reaching into
+        # it to build the source list is hand-picking RTL, filelist or not.
+        picks_raw_rtl = any(
+            isinstance(x, ast.Name) and x.id == "rtl_dict"
+            for f in feeds for x in ast.walk(f))
+
+        if not uses_filelist:
             hand.append((rel(t), "hand-listed verilog_sources"))
-        elif "verilog_sources.append" in body:
-            hand.append((rel(t), "appends to a filelist's sources"))
+        elif picks_raw_rtl:
+            hand.append((rel(t), "mixes a filelist with hand-picked RTL"))
     if hand:
         findings += len(hand)
         if detail:

@@ -44,6 +44,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 
 # Import the testbench
@@ -379,14 +380,14 @@ def test_axi5_slave_wr(request, stub, id_width, addr_width, data_width, user_wid
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict[dir_key], f"{dut_name}.sv"),
-    ]
-
-    for src in verilog_sources:
-        if not os.path.exists(src):
-            raise FileNotFoundError(f"RTL source not found: {src}")
+    # Sources come from the DUT's filelist, which owns the compile closure --
+    # this used to be a private two-entry copy of it (gaxi_skid_buffer + the
+    # DUT). A hand-list is invisible to filelist_registry --check, so it can
+    # drift from the filelist or keep a renamed path and still pass. dut_name
+    # already encodes the stub/non-stub choice, so the filelist follows it.
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path=f'rtl/amba/filelists/{dut_name}.f')
 
     wstrb_width = data_width // 8
 
@@ -464,7 +465,6 @@ def test_axi5_slave_wr(request, stub, id_width, addr_width, data_width, user_wid
         'AXI5_COMPLIANCE_CHECK': '1',
     }
 
-    includes = [rtl_dict['rtl_amba_includes']]
     compile_args = [
         "--trace",
         "--trace-depth", "99",
