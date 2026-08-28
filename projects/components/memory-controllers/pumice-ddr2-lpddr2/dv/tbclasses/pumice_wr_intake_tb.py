@@ -12,8 +12,18 @@ Contract under test (see rtl/PUMICE_AXI4_IFC_UARCH.md):
     wr_done — one B per burst, bid == awid.
   * Ragged burst ((awlen+1)*GEAR != BL) -> aw_push_err + bresp=SLVERR.
 
-The TB drives the AXI slave port directly and plays the downstream consumer:
-aw_push_ready / wdata_ready / bready held high; monitors capture each boundary.
+Everything is BFM-driven (PUMICE-014) -- the TB sets no interface signals:
+  * `s_axi_*` write channels: AXI4MasterWrite via PumiceAxiBfm (owns bready).
+  * `aw_push_*` / `wdata_*`: GAXI SLAVE BFMs. They drive `ready` with a real
+    randomizer profile instead of a hardwired 1, and capture the payload --
+    so the old hand-rolled monitor coroutines are gone with the hand
+    driving. Pass a backpressure profile to prove the DUT tolerates a
+    stalled downstream, which `ready = 1` never could.
+  * `wr_done_*` has NO ready -- it is a valid-only strobe, not a handshake,
+    so no BFM can pace it; it stays a small named method.
+  * B is observed by a read-only monitor: the AXI master owns bready, and
+    the sequence result does not carry bresp, which the SLVERR check needs.
+    Observing is not poking.
 """
 
 import os
@@ -31,6 +41,12 @@ if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
 from TBClasses.shared.tbbase import TBBase  # noqa: E402
+
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
+from tbclasses.pumice_fub_bfm import fub_consumer      # noqa: E402
 
 RESP_OKAY   = 0
 RESP_SLVERR = 2
@@ -57,18 +73,41 @@ class PumiceWrIntakeTB(TBBase):
         self.aw_push = []    # (rank,bank,row,col,id,err)
         self.wdata   = []    # (data,strb,last)
         self.bresp   = []    # (bid,bresp)
+        self._writes = []    # in-flight BFM write tasks (B is commit-driven)
 
     # ---- three mandatory methods --------------------------------------------
     async def setup_clocks_and_reset(self):
         await self.start_clock('aclk', freq=10, units='ns')
         self._drive_idle()
+        self._build_bfms()
         await self.assert_reset()
         await self.wait_clocks('aclk', 5)
         await self.deassert_reset()
         await self.wait_clocks('aclk', 5)
-        cocotb.start_soon(self._mon_aw_push())
-        cocotb.start_soon(self._mon_wdata())
+        cocotb.start_soon(self._drain_aw_push())
+        cocotb.start_soon(self._drain_wdata())
         cocotb.start_soon(self._mon_b())
+
+    def _build_bfms(self, profile="backtoback"):
+        """AXI4 write master on s_axi + GAXI slaves on the two fub outputs."""
+        self.axi = PumiceAxiBfm(self.dut, data_width=self.AXI_DATA_WIDTH,
+                                bl_words=self.EXP_BEATS, clock=self.dut.aclk,
+                                profile=profile, read=False, log=self.log)
+        self.aw_push_bfm = fub_consumer(
+            self.dut, "aw_push", self.dut.aclk, profile=profile, log=self.log,
+            valid="aw_push_valid_o", ready="aw_push_ready_i",
+            fields={'rank': ("aw_push_rank_o", max(1, (self.NUM_RANKS - 1).bit_length())),
+                    'bank': ("aw_push_bank_o", self.BKW),
+                    'row':  ("aw_push_row_o",  self.ROW_WIDTH),
+                    'col':  ("aw_push_col_o",  self.COL_WIDTH),
+                    'id':   ("aw_push_id_o",   8),
+                    'err':  ("aw_push_err_o",  1)})
+        self.wdata_bfm = fub_consumer(
+            self.dut, "wdata", self.dut.aclk, profile=profile, log=self.log,
+            valid="wdata_valid_o", ready="wdata_ready_i",
+            fields={'data': ("wdata_o", self.AXI_DATA_WIDTH),
+                    'strb': ("wstrb_o", self.SW),
+                    'last': ("wlast_o", 1)})
 
     async def assert_reset(self):
         self.dut.aresetn.value = 0
@@ -80,54 +119,31 @@ class PumiceWrIntakeTB(TBBase):
         self.dut.bank_lsb_i.value  = 10   # ROW_MAJOR (bank_lsb == COL_WIDTH)
         self.dut.hash_en_i.value   = 0
         self.dut.hash_seed_i.value = 0
-        self.dut.s_axi_awid.value = 0
-        self.dut.s_axi_awaddr.value = 0
-        self.dut.s_axi_awlen.value = 0
-        self.dut.s_axi_awsize.value = (self.AXI_DATA_WIDTH // 8).bit_length() - 1
-        self.dut.s_axi_awburst.value = BURST_INCR
-        self.dut.s_axi_awlock.value = 0
-        self.dut.s_axi_awcache.value = 0
-        self.dut.s_axi_awprot.value = 0
-        self.dut.s_axi_awqos.value = 0
-        self.dut.s_axi_awregion.value = 0
-        self.dut.s_axi_awuser.value = 0
-        self.dut.s_axi_awvalid.value = 0
-        self.dut.s_axi_wdata.value = 0
-        self.dut.s_axi_wstrb.value = 0
-        self.dut.s_axi_wlast.value = 0
-        self.dut.s_axi_wuser.value = 0
-        self.dut.s_axi_wvalid.value = 0
-        self.dut.s_axi_bready.value = 1
-        # downstream always ready
-        self.dut.aw_push_ready_i.value = 1
-        self.dut.wdata_ready_i.value = 1
+        # NO interface signals here. The AXI4 master owns every s_axi_*
+        # (bready included) and the GAXI slaves own aw_push_ready_i /
+        # wdata_ready_i. A second driver on a BFM-owned signal is a
+        # conflict, not a convenience.
         self.dut.wr_done_valid_i.value = 0
         self.dut.wr_done_id_i.value = 0
         self.dut.wr_done_resp_i.value = 0
 
     # ---- monitors -----------------------------------------------------------
-    async def _mon_aw_push(self):
+    # The two drains below only RESHAPE what the GAXI slaves already
+    # captured into the tuple form the tests assert on -- they read a BFM
+    # queue, they do not touch the bus.
+    async def _drain_aw_push(self):
         while True:
             await RisingEdge(self.dut.aclk)
-            if int(self.dut.aw_push_valid_o.value) and int(self.dut.aw_push_ready_i.value):
-                self.aw_push.append((
-                    int(self.dut.aw_push_rank_o.value),
-                    int(self.dut.aw_push_bank_o.value),
-                    int(self.dut.aw_push_row_o.value),
-                    int(self.dut.aw_push_col_o.value),
-                    int(self.dut.aw_push_id_o.value),
-                    int(self.dut.aw_push_err_o.value),
-                ))
+            while self.aw_push_bfm._recvQ:
+                p = self.aw_push_bfm._recvQ.popleft()
+                self.aw_push.append((p.rank, p.bank, p.row, p.col, p.id, p.err))
 
-    async def _mon_wdata(self):
+    async def _drain_wdata(self):
         while True:
             await RisingEdge(self.dut.aclk)
-            if int(self.dut.wdata_valid_o.value) and int(self.dut.wdata_ready_i.value):
-                self.wdata.append((
-                    int(self.dut.wdata_o.value),
-                    int(self.dut.wstrb_o.value),
-                    int(self.dut.wlast_o.value),
-                ))
+            while self.wdata_bfm._recvQ:
+                p = self.wdata_bfm._recvQ.popleft()
+                self.wdata.append((p.data, p.strb, p.last))
 
     async def _mon_b(self):
         while True:
@@ -151,29 +167,6 @@ class PumiceWrIntakeTB(TBBase):
         return (rank, bank, row, col)
 
     # ---- driver -------------------------------------------------------------
-    async def drive_aw(self, addr, wid, beats):
-        self.dut.s_axi_awid.value = wid
-        self.dut.s_axi_awaddr.value = addr
-        self.dut.s_axi_awlen.value = beats - 1
-        self.dut.s_axi_awvalid.value = 1
-        await RisingEdge(self.dut.aclk)
-        while int(self.dut.s_axi_awready.value) == 0:
-            await RisingEdge(self.dut.aclk)
-        self.dut.s_axi_awvalid.value = 0
-
-    async def drive_w(self, data_list, strb=None):
-        n = len(data_list)
-        for i, d in enumerate(data_list):
-            self.dut.s_axi_wdata.value = d
-            self.dut.s_axi_wstrb.value = (1 << self.SW) - 1 if strb is None else strb[i]
-            self.dut.s_axi_wlast.value = 1 if i == n - 1 else 0
-            self.dut.s_axi_wvalid.value = 1
-            await RisingEdge(self.dut.aclk)
-            while int(self.dut.s_axi_wready.value) == 0:
-                await RisingEdge(self.dut.aclk)
-        self.dut.s_axi_wvalid.value = 0
-        self.dut.s_axi_wlast.value = 0
-
     async def pulse_wr_done(self, wid, resp=RESP_OKAY):
         self.dut.wr_done_valid_i.value = 1
         self.dut.wr_done_id_i.value = wid
@@ -182,8 +175,26 @@ class PumiceWrIntakeTB(TBBase):
         self.dut.wr_done_valid_i.value = 0
 
     async def write_burst(self, addr, wid, data_list, strb=None):
-        """Drive AW then the W beats concurrently (AW held until accepted)."""
-        aw = cocotb.start_soon(self.drive_aw(addr, wid, len(data_list)))
-        w  = cocotb.start_soon(self.drive_w(data_list, strb))
-        await aw
-        await w
+        """Issue one AXI write burst through the master BFM.
+
+        Deliberately does NOT block through B: B is commit-driven here, so
+        it only appears after the caller pulses wr_done. Blocking on the
+        BFM write would deadlock against that. So the burst runs as a
+        background task and we return once the fub outputs show it landed
+        (one aw_push, then wdata quiescent) -- both read off the BFM
+        queues, not off the bus.
+        """
+        want_aw = len(self.aw_push) + 1
+        self._writes.append(cocotb.start_soon(self.axi.write(addr, data_list, wid)))
+        for _ in range(2000):
+            await RisingEdge(self.dut.aclk)
+            if len(self.aw_push) >= want_aw:
+                break
+        # let the W beats drain: settle until the count stops moving
+        stable, last = 0, len(self.wdata)
+        while stable < 5:
+            await RisingEdge(self.dut.aclk)
+            if len(self.wdata) == last:
+                stable += 1
+            else:
+                stable, last = 0, len(self.wdata)

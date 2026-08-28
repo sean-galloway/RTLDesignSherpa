@@ -34,6 +34,12 @@ if _repo_root not in sys.path:
 
 from TBClasses.shared.tbbase import TBBase  # noqa: E402
 
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_axi_bfm import PumiceAxiBfm                    # noqa: E402
+from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer      # noqa: E402
+
 BURST_INCR = 1
 
 
@@ -49,17 +55,49 @@ class PumiceAxi4IfcTB(TBBase):
         self.b_ids = deque()
         self.r_out = deque()    # completed R bursts: list of (rid,rdata,rlast,rresp)
         self.cm_out = deque()   # completed wr commit bursts: list of data
+        self._axi_tasks = []    # in-flight BFM bursts (B/R are commit-driven)
 
     async def setup_clocks_and_reset(self):
         await self.start_clock('aclk', freq=10, units='ns')
         self._drive_idle()
+        self._build_bfms()
         self.dut.aresetn.value = 0
         await self.wait_clocks('aclk', 6)
         self.dut.aresetn.value = 1
         await self.wait_clocks('aclk', 6)
         cocotb.start_soon(self._mon_b())
         cocotb.start_soon(self._mon_r())
-        cocotb.start_soon(self._mon_cm())
+        cocotb.start_soon(self._drain_cm())
+
+    def _build_bfms(self, profile="backtoback"):
+        """Every interface on this DUT comes from a BFM (PUMICE-014):
+        AXI4 masters on s_axi, GAXI masters on the two scheduler-side
+        request ports and the DFI return stream, and a GAXI slave on the
+        commit read-back. The BFMs drive valid/ready AND the payload."""
+        self.axi = PumiceAxiBfm(self.dut, data_width=self.AXI_DATA_WIDTH,
+                                bl_words=self.EXP_BEATS, clock=self.dut.aclk,
+                                profile=profile, log=self.log)
+        ptrw = max(1, len(self.dut.wr_commit_slot_i))
+        self.wr_commit_bfm = fub_producer(
+            self.dut, "wr_commit", self.dut.aclk, profile=profile, log=self.log,
+            valid="wr_commit_valid_i", ready="wr_commit_ready_o",
+            fields={'slot': ("wr_commit_slot_i", ptrw)})
+        self.rd_issue_bfm = fub_producer(
+            self.dut, "rd_issue", self.dut.aclk, profile=profile, log=self.log,
+            valid="rd_issue_valid_i", ready="rd_issue_ready_o",
+            fields={'slot': ("rd_issue_slot_i", max(1, len(self.dut.rd_issue_slot_i)))})
+        self.dfi_ret_bfm = fub_producer(
+            self.dut, "rd_dfi_ret", self.dut.aclk, profile=profile, log=self.log,
+            valid="rd_dfi_ret_valid_i", ready="rd_dfi_ret_ready_o",
+            fields={'data': ("rd_dfi_ret_data_i", self.AXI_DATA_WIDTH),
+                    'resp': ("rd_dfi_ret_resp_i", 2),
+                    'last': ("rd_dfi_ret_last_i", 1)})
+        self.cm_rd_bfm = fub_consumer(
+            self.dut, "wr_cm_rd", self.dut.aclk, profile=profile, log=self.log,
+            valid="wr_cm_rd_valid_o", ready="wr_cm_rd_ready_i",
+            fields={'data': ("wr_cm_rd_data_o", self.AXI_DATA_WIDTH),
+                    'strb': ("wr_cm_rd_strb_o", self.SW),
+                    'last': ("wr_cm_rd_last_o", 1)})
 
     async def assert_reset(self):
         self.dut.aresetn.value = 0
@@ -71,30 +109,13 @@ class PumiceAxi4IfcTB(TBBase):
         self.dut.bank_lsb_i.value  = 10   # ROW_MAJOR (bank_lsb == COL_WIDTH)
         self.dut.hash_en_i.value   = 0
         self.dut.hash_seed_i.value = 0
-        for s in ['awid', 'awaddr', 'awlen', 'awsize', 'awburst', 'awlock', 'awcache',
-                  'awprot', 'awqos', 'awregion', 'awuser', 'awvalid',
-                  'wdata', 'wstrb', 'wlast', 'wuser', 'wvalid',
-                  'arid', 'araddr', 'arlen', 'arsize', 'arburst', 'arlock', 'arcache',
-                  'arprot', 'arqos', 'arregion', 'aruser', 'arvalid']:
-            getattr(self.dut, f's_axi_{s}').value = 0
-        self.dut.s_axi_awsize.value = (self.SW).bit_length() - 1
-        self.dut.s_axi_arsize.value = (self.SW).bit_length() - 1
-        self.dut.s_axi_awburst.value = BURST_INCR
-        self.dut.s_axi_arburst.value = BURST_INCR
-        self.dut.s_axi_bready.value = 1
-        self.dut.s_axi_rready.value = 1
-        # scheduler / DFI idle
+        # NO interface signals here. Every valid/ready port on this DUT is
+        # BFM-owned: s_axi_* by the AXI masters (bready/rready included),
+        # wr_commit / rd_issue / rd_dfi_ret by GAXI masters, and
+        # wr_cm_rd_ready_i by a GAXI slave. A second driver on a BFM-owned
+        # signal is a conflict, not a convenience.
         # (the CAM lookup ports are internalized in pumice_axi4_ifc, tied to '0;
         #  the scheduler consumes the exported wr_sch_*_o / rd_sch_*_o vectors)
-        self.dut.wr_commit_valid_i.value = 0
-        self.dut.wr_commit_slot_i.value = 0
-        self.dut.wr_cm_rd_ready_i.value = 1
-        self.dut.rd_issue_valid_i.value = 0
-        self.dut.rd_issue_slot_i.value = 0
-        self.dut.rd_dfi_ret_valid_i.value = 0
-        self.dut.rd_dfi_ret_data_i.value = 0
-        self.dut.rd_dfi_ret_resp_i.value = 0
-        self.dut.rd_dfi_ret_last_i.value = 0
 
     # ---- monitors -----------------------------------------------------------
     async def _mon_b(self):
@@ -113,13 +134,16 @@ class PumiceAxi4IfcTB(TBBase):
                 if int(self.dut.s_axi_rlast.value):
                     self.r_out.append(cur); cur = []
 
-    async def _mon_cm(self):
+    # Reshapes what the GAXI slave captured into per-burst lists; reads a
+    # BFM queue, does not touch the bus.
+    async def _drain_cm(self):
         cur = []
         while True:
             await RisingEdge(self.dut.aclk)
-            if int(self.dut.wr_cm_rd_valid_o.value) and int(self.dut.wr_cm_rd_ready_i.value):
-                cur.append(int(self.dut.wr_cm_rd_data_o.value))
-                if int(self.dut.wr_cm_rd_last_o.value):
+            while self.cm_rd_bfm._recvQ:
+                p = self.cm_rd_bfm._recvQ.popleft()
+                cur.append(p.data)
+                if p.last:
                     self.cm_out.append(cur); cur = []
 
     # ---- host AXI driver ----------------------------------------------------
@@ -132,38 +156,21 @@ class PumiceAxi4IfcTB(TBBase):
                 return
         raise AssertionError(f"handshake stuck: {name} never asserted")
 
-    async def _drive_aw(self, addr, wid):
-        self.dut.s_axi_awid.value = wid
-        self.dut.s_axi_awaddr.value = addr
-        self.dut.s_axi_awlen.value = self.EXP_BEATS - 1
-        self.dut.s_axi_awvalid.value = 1
-        await self._wait_ready(self.dut.s_axi_awready, "s_axi_awready")
-        self.dut.s_axi_awvalid.value = 0
-
-    async def _drive_w(self, data):
-        n = len(data)
-        for i, d in enumerate(data):
-            self.dut.s_axi_wdata.value = d
-            self.dut.s_axi_wstrb.value = (1 << self.SW) - 1
-            self.dut.s_axi_wlast.value = 1 if i == n - 1 else 0
-            self.dut.s_axi_wvalid.value = 1
-            await self._wait_ready(self.dut.s_axi_wready, "s_axi_wready")
-        self.dut.s_axi_wvalid.value = 0
-        self.dut.s_axi_wlast.value = 0
-
     async def write(self, addr, wid, data):
-        aw = cocotb.start_soon(self._drive_aw(addr, wid))
-        w = cocotb.start_soon(self._drive_w(data))
-        await aw
-        await w
+        """One AXI write burst via the master BFM.
+
+        Runs as a background task: B here is commit-driven, so it only
+        appears after the caller drives wr_commit. Blocking on the BFM
+        write would deadlock against that.
+        """
+        self._axi_tasks.append(
+            cocotb.start_soon(self.axi.write(addr, data, wid)))
+        await self.wait_clocks('aclk', 2)
 
     async def read_ar(self, addr, rid):
-        self.dut.s_axi_arid.value = rid
-        self.dut.s_axi_araddr.value = addr
-        self.dut.s_axi_arlen.value = self.EXP_BEATS - 1
-        self.dut.s_axi_arvalid.value = 1
-        await self._wait_ready(self.dut.s_axi_arready, "s_axi_arready")
-        self.dut.s_axi_arvalid.value = 0
+        """Issue one AR via the master BFM; R arrives once service_rd runs."""
+        self._axi_tasks.append(cocotb.start_soon(self.axi.read(addr, rid)))
+        await self.wait_clocks('aclk', 2)
 
     # ---- scheduler / DFI roles ---------------------------------------------
     @staticmethod
@@ -196,12 +203,8 @@ class PumiceAxi4IfcTB(TBBase):
             if slot is not None:
                 break
             await RisingEdge(self.dut.aclk)
-        while int(self.dut.wr_commit_ready_o.value) == 0:
-            await RisingEdge(self.dut.aclk)
-        self.dut.wr_commit_slot_i.value = slot
-        self.dut.wr_commit_valid_i.value = 1
-        await RisingEdge(self.dut.aclk)
-        self.dut.wr_commit_valid_i.value = 0
+        await self.wr_commit_bfm.send(
+            self.wr_commit_bfm.create_packet(slot=slot))
         for _ in range(200):
             if self.cm_out:
                 return self.cm_out.popleft()
@@ -216,24 +219,14 @@ class PumiceAxi4IfcTB(TBBase):
             if slot is not None:
                 break
             await RisingEdge(self.dut.aclk)
-        while int(self.dut.rd_issue_ready_o.value) == 0:
-            await RisingEdge(self.dut.aclk)
-        self.dut.rd_issue_slot_i.value = slot
-        self.dut.rd_issue_valid_i.value = 1
-        await RisingEdge(self.dut.aclk)
-        self.dut.rd_issue_valid_i.value = 0
-        # DFI return stream
+        await self.rd_issue_bfm.send(
+            self.rd_issue_bfm.create_packet(slot=slot))
+        # DFI return stream -- one packet per beat; the BFM sets valid and
+        # every field and honours rd_dfi_ret_ready_o.
         n = len(data)
         for i, d in enumerate(data):
-            self.dut.rd_dfi_ret_data_i.value = d
-            self.dut.rd_dfi_ret_resp_i.value = resp
-            self.dut.rd_dfi_ret_last_i.value = 1 if i == n - 1 else 0
-            self.dut.rd_dfi_ret_valid_i.value = 1
-            await RisingEdge(self.dut.aclk)
-            while int(self.dut.rd_dfi_ret_ready_o.value) == 0:
-                await RisingEdge(self.dut.aclk)
-        self.dut.rd_dfi_ret_valid_i.value = 0
-        self.dut.rd_dfi_ret_last_i.value = 0
+            await self.dfi_ret_bfm.send(self.dfi_ret_bfm.create_packet(
+                data=d, resp=resp, last=1 if i == n - 1 else 0))
 
     async def wait_r(self, timeout=400):
         for _ in range(timeout):

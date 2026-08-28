@@ -30,6 +30,12 @@ if _repo_root not in sys.path:
 
 from TBClasses.shared.tbbase import TBBase  # noqa: E402
 
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_axi_bfm import PumiceAxiBfm                    # noqa: E402
+from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer      # noqa: E402
+
 RESP_OKAY = 0
 BURST_INCR = 1
 
@@ -54,10 +60,12 @@ class PumiceRdIntakeTB(TBBase):
         self.ar_push = []          # (rank,bank,row,col,id)
         self.r_beats = []          # (rid, rdata, rlast, rresp)
         self.hitset  = set()       # decoded keys the mock wr CAM holds (snarf hits)
+        self._reads  = []          # in-flight BFM read tasks
 
     async def setup_clocks_and_reset(self):
         await self.start_clock('aclk', freq=10, units='ns')
         self._drive_idle()
+        self._build_bfms()
         await self.assert_reset()
         await self.wait_clocks('aclk', 5)
         await self.deassert_reset()
@@ -65,8 +73,35 @@ class PumiceRdIntakeTB(TBBase):
         cocotb.start_soon(self._cam_model())
         cocotb.start_soon(self._snarf_server())
         cocotb.start_soon(self._dfi_server())
-        cocotb.start_soon(self._mon_ar_push())
+        cocotb.start_soon(self._drain_ar_push())
         cocotb.start_soon(self._mon_r())
+
+    def _build_bfms(self, profile="backtoback"):
+        """AXI4 read master on s_axi, a GAXI slave on the ar_push output and
+        GAXI masters on the two read-data sources. Nothing here is driven by
+        hand (PUMICE-014); the BFMs own valid/ready AND the payload."""
+        self.axi = PumiceAxiBfm(self.dut, data_width=self.AXI_DATA_WIDTH,
+                                bl_words=self.EXP_BEATS, clock=self.dut.aclk,
+                                profile=profile, write=False, log=self.log)
+        self.ar_push_bfm = fub_consumer(
+            self.dut, "ar_push", self.dut.aclk, profile=profile, log=self.log,
+            valid="ar_push_valid_o", ready="ar_push_ready_i",
+            fields={'rank': ("ar_push_rank_o", max(1, (self.NUM_RANKS - 1).bit_length())),
+                    'bank': ("ar_push_bank_o", self.BKW),
+                    'row':  ("ar_push_row_o",  self.ROW_WIDTH),
+                    'col':  ("ar_push_col_o",  self.COL_WIDTH),
+                    'id':   ("ar_push_id_o",   8)})
+        self.snarf_bfm = fub_producer(
+            self.dut, "snarf_rd", self.dut.aclk, profile=profile, log=self.log,
+            valid="snarf_rd_valid_i", ready="snarf_rd_ready_o",
+            fields={'data': ("snarf_rd_data_i", self.AXI_DATA_WIDTH),
+                    'last': ("snarf_rd_last_i", 1)})
+        self.dfi_bfm = fub_producer(
+            self.dut, "dfi_rd", self.dut.aclk, profile=profile, log=self.log,
+            valid="dfi_rd_valid_i", ready="dfi_rd_ready_o",
+            fields={'data': ("dfi_rd_data_i", self.AXI_DATA_WIDTH),
+                    'last': ("dfi_rd_last_i", 1),
+                    'resp': ("dfi_rd_resp_i", 2)})
 
     async def assert_reset(self):
         self.dut.aresetn.value = 0
@@ -78,28 +113,12 @@ class PumiceRdIntakeTB(TBBase):
         self.dut.bank_lsb_i.value  = 10   # ROW_MAJOR (bank_lsb == COL_WIDTH)
         self.dut.hash_en_i.value   = 0
         self.dut.hash_seed_i.value = 0
-        self.dut.s_axi_arid.value = 0
-        self.dut.s_axi_araddr.value = 0
-        self.dut.s_axi_arlen.value = 0
-        self.dut.s_axi_arsize.value = (self.AXI_DATA_WIDTH // 8).bit_length() - 1
-        self.dut.s_axi_arburst.value = BURST_INCR
-        self.dut.s_axi_arlock.value = 0
-        self.dut.s_axi_arcache.value = 0
-        self.dut.s_axi_arprot.value = 0
-        self.dut.s_axi_arqos.value = 0
-        self.dut.s_axi_arregion.value = 0
-        self.dut.s_axi_aruser.value = 0
-        self.dut.s_axi_arvalid.value = 0
-        self.dut.s_axi_rready.value = 1
+        # NO interface signals here: the AXI read master owns s_axi_* (rready
+        # included), the GAXI slave owns ar_push_ready_i, and the two GAXI
+        # masters own the snarf_rd_*/dfi_rd_* valid + payload. snarf_hit_i is
+        # NOT an interface -- it is the combinational answer to the intake's
+        # probe, so the CAM model below still drives it.
         self.dut.snarf_hit_i.value = 0
-        self.dut.snarf_rd_valid_i.value = 0
-        self.dut.snarf_rd_data_i.value = 0
-        self.dut.snarf_rd_last_i.value = 0
-        self.dut.dfi_rd_valid_i.value = 0
-        self.dut.dfi_rd_data_i.value = 0
-        self.dut.dfi_rd_last_i.value = 0
-        self.dut.dfi_rd_resp_i.value = 0
-        self.dut.ar_push_ready_i.value = 1
 
     def decode(self, addr):
         word = addr >> self.BYTE_OFFSET_WIDTH
@@ -141,48 +160,45 @@ class PumiceRdIntakeTB(TBBase):
             await First(*[Edge(s) for s in sigs])
 
     # ---- source servers -----------------------------------------------------
-    async def _stream(self, q, val_sig, data_sig, last_sig, rdy_sig, resp_sig=None):
+    async def _stream(self, q, bfm, with_resp=False):
+        """Stream queued bursts out of a GAXI master, one packet per beat.
+
+        The BFM sets valid and every payload field and honours the DUT's
+        ready, so the old hand-rolled beat loop (drive data/last/valid, then
+        spin on ready) is gone entirely.
+        """
         while True:
             while not q:
                 await RisingEdge(self.dut.aclk)
             item = q.popleft()
-            burst = item[0] if resp_sig is not None else item
-            resp = item[1] if resp_sig is not None else None
+            burst = item[0] if with_resp else item
+            resp = item[1] if with_resp else None
             n = len(burst)
             for i, d in enumerate(burst):
-                data_sig.value = d
-                last_sig.value = 1 if i == n - 1 else 0
-                if resp_sig is not None:
-                    resp_sig.value = resp
-                val_sig.value = 1
-                await RisingEdge(self.dut.aclk)
-                while int(rdy_sig.value) == 0:
-                    await RisingEdge(self.dut.aclk)
-            val_sig.value = 0
+                kw = {'data': d, 'last': 1 if i == n - 1 else 0}
+                if with_resp:
+                    kw['resp'] = resp
+                await bfm.send(bfm.create_packet(**kw))
 
     async def _snarf_server(self):
-        await self._stream(self.snarf_q, self.dut.snarf_rd_valid_i,
-                           self.dut.snarf_rd_data_i, self.dut.snarf_rd_last_i,
-                           self.dut.snarf_rd_ready_o)
+        await self._stream(self.snarf_q, self.snarf_bfm)
 
     async def _dfi_server(self):
-        await self._stream(self.dfi_q, self.dut.dfi_rd_valid_i,
-                           self.dut.dfi_rd_data_i, self.dut.dfi_rd_last_i,
-                           self.dut.dfi_rd_ready_o, resp_sig=self.dut.dfi_rd_resp_i)
+        await self._stream(self.dfi_q, self.dfi_bfm, with_resp=True)
 
     # ---- monitors -----------------------------------------------------------
-    async def _mon_ar_push(self):
+    # Reshapes what the GAXI slave already captured into the tuple form the
+    # tests assert on -- reads a BFM queue, does not touch the bus.
+    async def _drain_ar_push(self):
         while True:
             await RisingEdge(self.dut.aclk)
-            if int(self.dut.ar_push_valid_o.value) and int(self.dut.ar_push_ready_i.value):
-                self.ar_push.append((
-                    int(self.dut.ar_push_rank_o.value),
-                    int(self.dut.ar_push_bank_o.value),
-                    int(self.dut.ar_push_row_o.value),
-                    int(self.dut.ar_push_col_o.value),
-                    int(self.dut.ar_push_id_o.value),
-                ))
+            while self.ar_push_bfm._recvQ:
+                p = self.ar_push_bfm._recvQ.popleft()
+                self.ar_push.append((p.rank, p.bank, p.row, p.col, p.id))
 
+    # R is OBSERVED, not driven: the AXI read master owns rready, but the
+    # sequence result does not carry per-beat rid/rlast/rresp, which the
+    # tests check. Observing is not poking.
     async def _mon_r(self):
         while True:
             await RisingEdge(self.dut.aclk)
@@ -205,11 +221,14 @@ class PumiceRdIntakeTB(TBBase):
         else:
             self.dfi_q.append((list(data), resp))
 
-        self.dut.s_axi_arid.value = rid
-        self.dut.s_axi_araddr.value = addr
-        self.dut.s_axi_arlen.value = self.EXP_BEATS - 1
-        self.dut.s_axi_arvalid.value = 1
-        await RisingEdge(self.dut.aclk)
-        while int(self.dut.s_axi_arready.value) == 0:
+        # Issue the AR through the read master. It runs as a background task
+        # because the R data only appears once the snarf/dfi server streams
+        # it, and callers issue several ARs before checking; blocking here
+        # would serialise what the DUT is meant to overlap. Return once the
+        # decoded command shows up on ar_push -- read off the BFM queue.
+        want = len(self.ar_push) + 1
+        self._reads.append(cocotb.start_soon(self.axi.read(addr, rid)))
+        for _ in range(2000):
             await RisingEdge(self.dut.aclk)
-        self.dut.s_axi_arvalid.value = 0
+            if len(self.ar_push) >= want:
+                break
