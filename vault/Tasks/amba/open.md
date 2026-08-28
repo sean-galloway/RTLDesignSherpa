@@ -2,6 +2,93 @@
 
 # AMBA tasks — open (not started)
 
+## AMBA-MONRATE-INTERMITTENT — axi_monitor completion-RATE thresholds fail ~3/run under -n24
+**Status:** open 2026-08-28 — NOT root-caused. Filed for a fresh agent.
+**Priority:** P2 — blocks reading val/amba as a clean signal, so every shared
+DV-framework change has to be A/B'd instead of just run.
+**Related — READ BOTH FIRST, this is a THIRD distinct cause in the same
+family, and both known ones are already ruled out below:**
+* [[VAL-XDIST-INTERMITTENT]] (this page) — concurrent deletion of the shared
+  `val/amba/local_sim_build` root. Signature is
+  `FileNotFoundError: RTL source not found`.
+* AMBA-WAVEDROM-FLAKY (closed.md) — runners drawing a random per-run seed.
+
+### Symptom
+
+Full `val/amba` at `-n 24` reports a small, non-empty failure set that is
+NOT STABLE between runs. Observed across four full runs:
+
+| run | result | failing |
+|---|---|---|
+| 1 (seed unpinned) | 1 failed / 742 passed | `test_axi_monitor_trans_mgr_wr_bank[64-4-1]` |
+| 2 (seed unpinned) | 1 failed / 742 passed | `test_axi4_monitor[8-64-16-True-True-combined]` |
+| 3 (SEED=1234) | 3 failed / 740 passed | `test_axi4_monitor[8-64-16-True-True-combined]`, `test_axi_mon_block_ready[axi4_master_wr_mon-12]`, +1 |
+| 4 (SEED=1234) | 3 failed / 740 passed | `test_axi4_monitor[4-64-8-True-True-addr64]`, `test_axi_mon_block_ready[axi4_master_wr_mon-12]`, +1 |
+
+The assertion is a STATISTICAL THRESHOLD, not a functional check:
+
+    ❌ FAIL: Got 16 completions (16.0%), expected >= 20 (20%)
+
+`test_axi_mon_block_ready[axi4_master_wr_mon-12]` was stable across runs 3
+and 4; the `test_axi4_monitor` parameter MOVED. So at least part of the set
+is genuinely nondeterministic and part may be a real always-failing test
+that only shows up at `-n 24` — separating those two is step one.
+
+### Already ruled out — do not re-check these
+
+* **Random seed.** `val/amba/test_axi4_monitor.py:547` does
+  `'SEED': os.environ.get('SEED', str(random.randint(0, 100000)))`, so the
+  AMBA-WAVEDROM-FLAKY pattern is present and was the obvious suspect.
+  Pinning `SEED=1234` did NOT stabilise it: runs 3 and 4 above used the
+  same pinned seed and still disagreed on which parameter failed.
+* **sim_build collisions.** Names are fully unique — they carry both the
+  xdist worker id and every parameter, e.g.
+  `test_gw11_axi_monitor_combined_iw8_aw64_mt16_axi4_rd` and
+  `test_{worker_id}_axi_monitor_trans_mgr_wr_bank_mt{N}_nb{N}_wq{N}`.
+* **Concurrent deletion of `local_sim_build`** (the VAL-XDIST-INTERMITTENT
+  cause). Nothing deleted the build root during these runs, and the
+  signature is different — a threshold assertion, not `FileNotFoundError`.
+* **A shared-framework change.** These runs were the A/B for a GAXISlave
+  change (RDS-DV c220c19/aacb90d) that is provably inert here: nothing in
+  `val/` or `bin/TBClasses/` passes its `ready_policy` kwarg. Runs 3 and 4
+  are exactly that A/B — same counts with and without it.
+* **Serial execution.** `test_axi_monitor_trans_mgr_wr_bank` passes 5/5
+  serially from a clean build (367s wall, genuinely simulated), both with
+  and without the framework change. Only `-n 24` shows the failures.
+
+### Leads worth chasing
+
+1. **Resource pressure tripping a safety monitor.** The monitor TBs log
+   `Safety limits: {'max_test_duration_minutes': 30, 'max_memory_mb': 2048,
+   'progress_timeout_minutes': 5, 'max_cpu_percent': 95,
+   'enable_safety_monitoring': True, ...}`. At 24 workers CPU is pinned and
+   memory is contended, so a duration/progress/CPU guard aborting a run
+   would look exactly like a completion shortfall. Check whether an abort
+   path reduces the completion count rather than failing loudly, and sweep
+   `-n` (24 / 12 / 8 / 4) to see if the failure rate tracks worker count.
+2. **The threshold itself.** ">= 20% completions" with an observed 16% may
+   simply be too tight for a congested monitor — CLAUDE.md documents AXI
+   Monitor packet congestion, and warns never to enable `cfg_compl_enable`
+   and `cfg_perf_enable` together. Check what the failing configs enable.
+3. **Is the count a rate or a race?** 16 vs 20 completions is a small
+   absolute number; confirm whether the test drains completions for a fixed
+   wall/sim window that a loaded machine can shorten.
+
+### Definition of done
+
+Either a mechanism + fix that makes `val/amba -n 24` reproducibly clean, or
+a documented reason each affected test cannot be deterministic at that
+width plus a concrete guard (pinned seed, widened bound with rationale,
+serial marker, or reduced default `-n`). Silently loosening the threshold
+to make it pass is NOT acceptable — the point of the assertion is to catch
+monitor congestion regressions.
+
+Reproduce with:
+
+    source env_python
+    SEED=1234 python3 -m pytest val/amba/ -q --tb=short -n 24
+
+
 ## VAL-XDIST-INTERMITTENT — ROOT-CAUSED 2026-08-28: concurrent deletion of local_sim_build
 **Status:** root cause PROVEN; remaining item is the durable fix below
 **Related:** AMBA-WAVEDROM-FLAKY (closed same day) -- same *family*

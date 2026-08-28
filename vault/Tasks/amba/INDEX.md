@@ -8,7 +8,7 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
 | Page | Count | What |
 |---|---|---|
 | [active.md](active.md) | 1 | in progress right now |
-| [open.md](open.md) | 9 | accepted, not started |
+| [open.md](open.md) | 10 | accepted, not started |
 | [closed.md](closed.md) | 21 | done (kept for history) |
 | [dropped.md](dropped.md) | 0 | ended without completing (won't do / superseded) |
 
@@ -20,6 +20,16 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
   the `ENABLE_*_LOGIC=0` cone-drop configs.
 
 ## Open
+
+- **AMBA-MONRATE-INTERMITTENT** — `val/amba` at `-n 24` fails ~1-3 tests per
+  run and the failing set is NOT stable, on completion-RATE thresholds in the
+  axi_monitor family (`Got 16 completions (16.0%), expected >= 20 (20%)`).
+  NOT root-caused; filed for a fresh agent with the evidence and the leads.
+  A third distinct cause in the same family as VAL-XDIST-INTERMITTENT and the
+  closed AMBA-WAVEDROM-FLAKY — **both of those causes are already ruled out**
+  (seed pinning does not stabilise it; sim_build names are unique). Blocks
+  reading val/amba as a clean signal, so shared-framework changes currently
+  have to be A/B'd.
 
 - **TASK-026** — every module MUST have a filelist + registry entry. Coverage
   is already good; the gap is that **nothing enforces it**. Shared gate with
