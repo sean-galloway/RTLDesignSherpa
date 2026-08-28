@@ -14,7 +14,6 @@
 
 # ---- Include directories ----
 +incdir+$REPO_ROOT/rtl/amba/includes
-+incdir+$REPO_ROOT/rtl/common/includes
 +incdir+$REPO_ROOT/projects/components/dmas/rapids/rtl/includes
 +incdir+$REPO_ROOT/projects/components/dmas/stream/rtl/includes
 

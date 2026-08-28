@@ -17,7 +17,6 @@
 -f $REPO_ROOT/rtl/common/filelists/fifo_sync.f
 
 # Includes
-+incdir+$REPO_ROOT/rtl/common/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Per-channel unit module

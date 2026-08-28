@@ -4,7 +4,6 @@
 # Include directories
 +incdir+$REPO_ROOT/projects/components/dmas/rapids/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
-+incdir+$REPO_ROOT/rtl/common/includes
 
 # Package files (MUST be first, in dependency order)
 # Monitor packages - common first, then protocol-specific, then unified

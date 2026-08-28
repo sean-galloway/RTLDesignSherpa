@@ -4,7 +4,6 @@
 
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
-+incdir+$REPO_ROOT/rtl/common/includes
 
 # AMBA/common dependencies come in via each component's OWN filelist; this
 # file never hand-lists individual rtl/common or rtl/amba sources. A consumer
