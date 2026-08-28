@@ -153,27 +153,56 @@ module pumice_rd_intake #(
     logic          w_slave_busy;
 
     axi4_slave_rd #(
-        .SKID_DEPTH_AR(SKID_DEPTH_AR), .SKID_DEPTH_R(SKID_DEPTH_R),
-        .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW)
+        .SKID_DEPTH_AR (SKID_DEPTH_AR),
+        .SKID_DEPTH_R  (SKID_DEPTH_R),
+        .AXI_ID_WIDTH  (IW),
+        .AXI_ADDR_WIDTH(AW),
+        .AXI_DATA_WIDTH(DW),
+        .AXI_USER_WIDTH(UW)
     ) u_slave_rd (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axi_arid(s_axi_arid), .s_axi_araddr(s_axi_araddr), .s_axi_arlen(s_axi_arlen),
-        .s_axi_arsize(s_axi_arsize), .s_axi_arburst(s_axi_arburst), .s_axi_arlock(s_axi_arlock),
-        .s_axi_arcache(s_axi_arcache), .s_axi_arprot(s_axi_arprot), .s_axi_arqos(s_axi_arqos),
-        .s_axi_arregion(s_axi_arregion), .s_axi_aruser(s_axi_aruser),
-        .s_axi_arvalid(s_axi_arvalid), .s_axi_arready(s_axi_arready),
-        .s_axi_rid(s_axi_rid), .s_axi_rdata(s_axi_rdata), .s_axi_rresp(s_axi_rresp),
-        .s_axi_rlast(s_axi_rlast), .s_axi_ruser(s_axi_ruser),
-        .s_axi_rvalid(s_axi_rvalid), .s_axi_rready(s_axi_rready),
-        .fub_axi_arid(fub_arid), .fub_axi_araddr(fub_araddr), .fub_axi_arlen(fub_arlen),
-        .fub_axi_arsize(fub_arsize), .fub_axi_arburst(fub_arburst), .fub_axi_arlock(fub_arlock),
-        .fub_axi_arcache(fub_arcache), .fub_axi_arprot(fub_arprot), .fub_axi_arqos(fub_arqos),
-        .fub_axi_arregion(fub_arregion), .fub_axi_aruser(fub_aruser),
-        .fub_axi_arvalid(fub_arvalid), .fub_axi_arready(fub_arready),
-        .fub_axi_rid(fub_rid), .fub_axi_rdata(fub_rdata), .fub_axi_rresp(fub_rresp),
-        .fub_axi_rlast(fub_rlast), .fub_axi_ruser(fub_ruser),
-        .fub_axi_rvalid(fub_rvalid), .fub_axi_rready(fub_rready),
-        .busy(w_slave_busy)
+        .aclk            (aclk),
+        .aresetn         (aresetn),
+        .s_axi_arid      (s_axi_arid),
+        .s_axi_araddr    (s_axi_araddr),
+        .s_axi_arlen     (s_axi_arlen),
+        .s_axi_arsize    (s_axi_arsize),
+        .s_axi_arburst   (s_axi_arburst),
+        .s_axi_arlock    (s_axi_arlock),
+        .s_axi_arcache   (s_axi_arcache),
+        .s_axi_arprot    (s_axi_arprot),
+        .s_axi_arqos     (s_axi_arqos),
+        .s_axi_arregion  (s_axi_arregion),
+        .s_axi_aruser    (s_axi_aruser),
+        .s_axi_arvalid   (s_axi_arvalid),
+        .s_axi_arready   (s_axi_arready),
+        .s_axi_rid       (s_axi_rid),
+        .s_axi_rdata     (s_axi_rdata),
+        .s_axi_rresp     (s_axi_rresp),
+        .s_axi_rlast     (s_axi_rlast),
+        .s_axi_ruser     (s_axi_ruser),
+        .s_axi_rvalid    (s_axi_rvalid),
+        .s_axi_rready    (s_axi_rready),
+        .fub_axi_arid    (fub_arid),
+        .fub_axi_araddr  (fub_araddr),
+        .fub_axi_arlen   (fub_arlen),
+        .fub_axi_arsize  (fub_arsize),
+        .fub_axi_arburst (fub_arburst),
+        .fub_axi_arlock  (fub_arlock),
+        .fub_axi_arcache (fub_arcache),
+        .fub_axi_arprot  (fub_arprot),
+        .fub_axi_arqos   (fub_arqos),
+        .fub_axi_arregion(fub_arregion),
+        .fub_axi_aruser  (fub_aruser),
+        .fub_axi_arvalid (fub_arvalid),
+        .fub_axi_arready (fub_arready),
+        .fub_axi_rid     (fub_rid),
+        .fub_axi_rdata   (fub_rdata),
+        .fub_axi_rresp   (fub_rresp),
+        .fub_axi_rlast   (fub_rlast),
+        .fub_axi_ruser   (fub_ruser),
+        .fub_axi_rvalid  (fub_rvalid),
+        .fub_axi_rready  (fub_rready),
+        .busy            (w_slave_busy)
     );
 
     // ---- decode the AR at the inlet ----------------------------------------
@@ -183,12 +212,21 @@ module pumice_rd_intake #(
     logic [COL_WIDTH-1:0] w_col;
 
     addr_mapper #(
-        .AXI_ADDR_WIDTH(AW), .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH), .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH)
+        .AXI_ADDR_WIDTH   (AW),
+        .NUM_RANKS        (NUM_RANKS),
+        .NUM_BANKS        (NUM_BANKS),
+        .ROW_WIDTH        (ROW_WIDTH),
+        .COL_WIDTH        (COL_WIDTH),
+        .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH)
     ) u_addr_mapper (
-        .axi_addr_i(fub_araddr),
-        .bank_lsb_i(bank_lsb_i), .hash_en_i(hash_en_i), .hash_seed_i(hash_seed_i),
-        .rank_o(w_rank), .bank_o(w_bank), .row_o(w_row), .col_o(w_col)
+        .axi_addr_i (fub_araddr),
+        .bank_lsb_i (bank_lsb_i),
+        .hash_en_i  (hash_en_i),
+        .hash_seed_i(hash_seed_i),
+        .rank_o     (w_rank),
+        .bank_o     (w_bank),
+        .row_o      (w_row),
+        .col_o      (w_col)
     );
 
     // snarf probe = combinational lookup of the AR under inspection
@@ -215,11 +253,16 @@ module pumice_rd_intake #(
     assign w_side_wr_valid = s_axi_arvalid && s_axi_arready;
 
     gaxi_fifo_sync #(.DATA_WIDTH(2), .DEPTH(SKID_DEPTH_AR + AR_FIFO_DEPTH)) u_ar_side_fifo (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_side_wr_valid), .wr_data({ar_agg_i, ar_last_i}),
-        .rd_ready(w_side_rd_ready), .rd_valid(), .rd_data(w_side_data),
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_side_wr_valid),
+        .wr_data    ({ar_agg_i, ar_last_i}),
+        .rd_ready   (w_side_rd_ready),
+        .rd_valid   (),
+        .rd_data    (w_side_data),
         /* verilator lint_off PINCONNECTEMPTY */
-        .wr_ready(), .count()
+        .wr_ready(),
+        .count   ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
     assign {w_side_agg, w_side_last} = w_side_data;
@@ -268,9 +311,15 @@ module pumice_rd_intake #(
     assign ar_push_qos_o   = fub_arqos;
 
     gaxi_fifo_sync #(.DATA_WIDTH(ORD_W), .DEPTH(ORDER_FIFO_DEPTH)) u_order_fifo (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_ord_wr_valid), .wr_ready(w_ord_wr_ready), .wr_data(w_ord_wr_data),
-        .rd_ready(w_ord_rd_ready), .count(), .rd_valid(w_ord_rd_valid), .rd_data(w_ord_rd_data)
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_ord_wr_valid),
+        .wr_ready   (w_ord_wr_ready),
+        .wr_data    (w_ord_wr_data),
+        .rd_ready   (w_ord_rd_ready),
+        .count      (),
+        .rd_valid   (w_ord_rd_valid),
+        .rd_data    (w_ord_rd_data)
     );
 
     logic          w_head_agg, w_head_last, w_head_src;
@@ -326,9 +375,15 @@ module pumice_rd_intake #(
     assign w_ord_rd_ready = w_beat_fire && w_src_last;
 
     gaxi_fifo_sync #(.DATA_WIDTH(RD_W), .DEPTH(RD_FIFO_DEPTH)) u_rd_data_fifo (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_rd_wr_valid), .wr_ready(w_rd_wr_ready), .wr_data(w_rd_wr_data),
-        .rd_ready(w_rd_rd_ready), .count(), .rd_valid(w_rd_rd_valid), .rd_data(w_rd_rd_data)
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_rd_wr_valid),
+        .wr_ready   (w_rd_wr_ready),
+        .wr_data    (w_rd_wr_data),
+        .rd_ready   (w_rd_rd_ready),
+        .count      (),
+        .rd_valid   (w_rd_rd_valid),
+        .rd_data    (w_rd_rd_data)
     );
 
     assign {fub_rresp, fub_rlast, fub_rid, fub_rdata} = w_rd_rd_data;

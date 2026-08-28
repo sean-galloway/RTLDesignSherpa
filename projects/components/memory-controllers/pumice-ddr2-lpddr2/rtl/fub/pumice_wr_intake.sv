@@ -154,30 +154,65 @@ module pumice_wr_intake #(
     logic          w_slave_busy;
 
     axi4_slave_wr #(
-        .SKID_DEPTH_AW (SKID_DEPTH_AW), .SKID_DEPTH_W (SKID_DEPTH_W),
-        .SKID_DEPTH_B  (SKID_DEPTH_B),  .AXI_ID_WIDTH (IW),
-        .AXI_ADDR_WIDTH(AW), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW)
+        .SKID_DEPTH_AW (SKID_DEPTH_AW),
+        .SKID_DEPTH_W  (SKID_DEPTH_W),
+        .SKID_DEPTH_B  (SKID_DEPTH_B),
+        .AXI_ID_WIDTH  (IW),
+        .AXI_ADDR_WIDTH(AW),
+        .AXI_DATA_WIDTH(DW),
+        .AXI_USER_WIDTH(UW)
     ) u_slave_wr (
-        .aclk (aclk), .aresetn (aresetn),
-        .s_axi_awid(s_axi_awid), .s_axi_awaddr(s_axi_awaddr), .s_axi_awlen(s_axi_awlen),
-        .s_axi_awsize(s_axi_awsize), .s_axi_awburst(s_axi_awburst), .s_axi_awlock(s_axi_awlock),
-        .s_axi_awcache(s_axi_awcache), .s_axi_awprot(s_axi_awprot), .s_axi_awqos(s_axi_awqos),
-        .s_axi_awregion(s_axi_awregion), .s_axi_awuser(s_axi_awuser),
-        .s_axi_awvalid(s_axi_awvalid), .s_axi_awready(s_axi_awready),
-        .s_axi_wdata(s_axi_wdata), .s_axi_wstrb(s_axi_wstrb), .s_axi_wlast(s_axi_wlast),
-        .s_axi_wuser(s_axi_wuser), .s_axi_wvalid(s_axi_wvalid), .s_axi_wready(s_axi_wready),
-        .s_axi_bid(s_axi_bid), .s_axi_bresp(s_axi_bresp), .s_axi_buser(s_axi_buser),
-        .s_axi_bvalid(s_axi_bvalid), .s_axi_bready(s_axi_bready),
-        .fub_axi_awid(fub_awid), .fub_axi_awaddr(fub_awaddr), .fub_axi_awlen(fub_awlen),
-        .fub_axi_awsize(fub_awsize), .fub_axi_awburst(fub_awburst), .fub_axi_awlock(fub_awlock),
-        .fub_axi_awcache(fub_awcache), .fub_axi_awprot(fub_awprot), .fub_axi_awqos(fub_awqos),
-        .fub_axi_awregion(fub_awregion), .fub_axi_awuser(fub_awuser),
-        .fub_axi_awvalid(fub_awvalid), .fub_axi_awready(fub_awready),
-        .fub_axi_wdata(fub_wdata), .fub_axi_wstrb(fub_wstrb), .fub_axi_wlast(fub_wlast),
-        .fub_axi_wuser(fub_wuser), .fub_axi_wvalid(fub_wvalid), .fub_axi_wready(fub_wready),
-        .fub_axi_bid(fub_bid), .fub_axi_bresp(fub_bresp), .fub_axi_buser(fub_buser),
-        .fub_axi_bvalid(fub_bvalid), .fub_axi_bready(fub_bready),
-        .busy(w_slave_busy)
+        .aclk            (aclk),
+        .aresetn         (aresetn),
+        .s_axi_awid      (s_axi_awid),
+        .s_axi_awaddr    (s_axi_awaddr),
+        .s_axi_awlen     (s_axi_awlen),
+        .s_axi_awsize    (s_axi_awsize),
+        .s_axi_awburst   (s_axi_awburst),
+        .s_axi_awlock    (s_axi_awlock),
+        .s_axi_awcache   (s_axi_awcache),
+        .s_axi_awprot    (s_axi_awprot),
+        .s_axi_awqos     (s_axi_awqos),
+        .s_axi_awregion  (s_axi_awregion),
+        .s_axi_awuser    (s_axi_awuser),
+        .s_axi_awvalid   (s_axi_awvalid),
+        .s_axi_awready   (s_axi_awready),
+        .s_axi_wdata     (s_axi_wdata),
+        .s_axi_wstrb     (s_axi_wstrb),
+        .s_axi_wlast     (s_axi_wlast),
+        .s_axi_wuser     (s_axi_wuser),
+        .s_axi_wvalid    (s_axi_wvalid),
+        .s_axi_wready    (s_axi_wready),
+        .s_axi_bid       (s_axi_bid),
+        .s_axi_bresp     (s_axi_bresp),
+        .s_axi_buser     (s_axi_buser),
+        .s_axi_bvalid    (s_axi_bvalid),
+        .s_axi_bready    (s_axi_bready),
+        .fub_axi_awid    (fub_awid),
+        .fub_axi_awaddr  (fub_awaddr),
+        .fub_axi_awlen   (fub_awlen),
+        .fub_axi_awsize  (fub_awsize),
+        .fub_axi_awburst (fub_awburst),
+        .fub_axi_awlock  (fub_awlock),
+        .fub_axi_awcache (fub_awcache),
+        .fub_axi_awprot  (fub_awprot),
+        .fub_axi_awqos   (fub_awqos),
+        .fub_axi_awregion(fub_awregion),
+        .fub_axi_awuser  (fub_awuser),
+        .fub_axi_awvalid (fub_awvalid),
+        .fub_axi_awready (fub_awready),
+        .fub_axi_wdata   (fub_wdata),
+        .fub_axi_wstrb   (fub_wstrb),
+        .fub_axi_wlast   (fub_wlast),
+        .fub_axi_wuser   (fub_wuser),
+        .fub_axi_wvalid  (fub_wvalid),
+        .fub_axi_wready  (fub_wready),
+        .fub_axi_bid     (fub_bid),
+        .fub_axi_bresp   (fub_bresp),
+        .fub_axi_buser   (fub_buser),
+        .fub_axi_bvalid  (fub_bvalid),
+        .fub_axi_bready  (fub_bready),
+        .busy            (w_slave_busy)
     );
 
     // ========================================================================
@@ -195,11 +230,16 @@ module pumice_wr_intake #(
     assign w_side_wr_valid = s_axi_awvalid && s_axi_awready;
 
     gaxi_fifo_sync #(.DATA_WIDTH(2), .DEPTH(SKID_DEPTH_AW + AW_FIFO_DEPTH)) u_aw_side_fifo (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_side_wr_valid), .wr_data({aw_agg_i, aw_last_i}),
-        .rd_ready(w_side_rd_ready), .rd_valid(), .rd_data(w_side_rd_data),
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_side_wr_valid),
+        .wr_data    ({aw_agg_i, aw_last_i}),
+        .rd_ready   (w_side_rd_ready),
+        .rd_valid   (),
+        .rd_data    (w_side_rd_data),
         /* verilator lint_off PINCONNECTEMPTY */
-        .wr_ready(), .count()
+        .wr_ready(),
+        .count   ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
     assign {w_side_agg, w_side_last} = w_side_rd_data;
@@ -225,9 +265,15 @@ module pumice_wr_intake #(
                              fub_awid, fub_awaddr};
 
     gaxi_fifo_sync #(.DATA_WIDTH(AWM_W), .DEPTH(AW_FIFO_DEPTH)) u_aw_meta_fifo (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_awm_wr_valid), .wr_ready(w_awm_wr_ready), .wr_data(w_awm_wr_data),
-        .rd_ready(w_awm_rd_ready), .count(), .rd_valid(w_awm_rd_valid), .rd_data(w_awm_rd_data)
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_awm_wr_valid),
+        .wr_ready   (w_awm_wr_ready),
+        .wr_data    (w_awm_wr_data),
+        .rd_ready   (w_awm_rd_ready),
+        .count      (),
+        .rd_valid   (w_awm_rd_valid),
+        .rd_data    (w_awm_rd_data)
     );
 
     logic          w_head_err, w_head_agg, w_head_last;
@@ -244,12 +290,21 @@ module pumice_wr_intake #(
     logic [COL_WIDTH-1:0]  w_col;
 
     addr_mapper #(
-        .AXI_ADDR_WIDTH(AW), .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH), .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH)
+        .AXI_ADDR_WIDTH   (AW),
+        .NUM_RANKS        (NUM_RANKS),
+        .NUM_BANKS        (NUM_BANKS),
+        .ROW_WIDTH        (ROW_WIDTH),
+        .COL_WIDTH        (COL_WIDTH),
+        .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH)
     ) u_addr_mapper (
-        .axi_addr_i(w_head_addr),
-        .bank_lsb_i(bank_lsb_i), .hash_en_i(hash_en_i), .hash_seed_i(hash_seed_i),
-        .rank_o(w_rank), .bank_o(w_bank), .row_o(w_row), .col_o(w_col)
+        .axi_addr_i (w_head_addr),
+        .bank_lsb_i (bank_lsb_i),
+        .hash_en_i  (hash_en_i),
+        .hash_seed_i(hash_seed_i),
+        .rank_o     (w_rank),
+        .bank_o     (w_bank),
+        .row_o      (w_row),
+        .col_o      (w_col)
     );
 
     // aw_push = decoded head; pop the AW-meta FIFO on handshake.
@@ -280,9 +335,15 @@ module pumice_wr_intake #(
     assign w_wd_wr_data  = {fub_wlast, fub_wstrb, fub_wdata};
 
     gaxi_fifo_sync #(.DATA_WIDTH(WD_W), .DEPTH(WDATA_FIFO_DEPTH)) u_wr_data_fifo (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_wd_wr_valid), .wr_ready(w_wd_wr_ready), .wr_data(w_wd_wr_data),
-        .rd_ready(w_wd_rd_ready), .count(), .rd_valid(w_wd_rd_valid), .rd_data(w_wd_rd_data)
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_wd_wr_valid),
+        .wr_ready   (w_wd_wr_ready),
+        .wr_data    (w_wd_wr_data),
+        .rd_ready   (w_wd_rd_ready),
+        .count      (),
+        .rd_valid   (w_wd_rd_valid),
+        .rd_data    (w_wd_rd_data)
     );
 
     assign wdata_valid_o = w_wd_rd_valid;
@@ -314,9 +375,15 @@ module pumice_wr_intake #(
                                        : {wr_done_resp_i, wr_done_id_i};
 
     gaxi_fifo_sync #(.DATA_WIDTH(B_W), .DEPTH(B_FIFO_DEPTH)) u_b_fifo (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_b_wr_valid), .wr_ready(w_b_wr_ready), .wr_data(w_b_wr_data),
-        .rd_ready(w_b_rd_ready), .count(), .rd_valid(w_b_rd_valid), .rd_data(w_b_rd_data)
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_b_wr_valid),
+        .wr_ready   (w_b_wr_ready),
+        .wr_data    (w_b_wr_data),
+        .rd_ready   (w_b_rd_ready),
+        .count      (),
+        .rd_valid   (w_b_rd_valid),
+        .rd_data    (w_b_rd_data)
     );
 
     assign {fub_bresp, fub_bid} = w_b_rd_data;

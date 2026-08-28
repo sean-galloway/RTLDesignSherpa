@@ -233,9 +233,15 @@ module pumice_wr_data_cam #(
     assign w_fq_wr_slot  = w_free_slot;
 
     gaxi_fifo_sync #(.DATA_WIDTH(PTRW), .DEPTH(NUM_ENTRIES)) u_fill_q (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_fq_wr_valid), .wr_ready(w_fq_wr_ready), .wr_data(w_fq_wr_slot),
-        .rd_ready(w_fq_rd_ready), .count(), .rd_valid(w_fq_rd_valid), .rd_data(w_fq_rd_slot)
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_fq_wr_valid),
+        .wr_ready   (w_fq_wr_ready),
+        .wr_data    (w_fq_wr_slot),
+        .rd_ready   (w_fq_rd_ready),
+        .count      (),
+        .rd_valid   (w_fq_rd_valid),
+        .rd_data    (w_fq_rd_slot)
     );
 
     logic w_ins_fire;
@@ -378,9 +384,15 @@ module pumice_wr_data_cam #(
     assign w_sq_wr_valid = snarf_accept_i && snarf_hit_o;
 
     gaxi_fifo_sync #(.DATA_WIDTH(PTRW), .DEPTH(NUM_ENTRIES)) u_snarf_q (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_sq_wr_valid), .wr_ready(w_sq_wr_ready), .wr_data(w_sn_slot),
-        .rd_ready(w_sq_rd_ready), .count(), .rd_valid(w_sq_rd_valid), .rd_data(w_sq_rd_slot)
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_sq_wr_valid),
+        .wr_ready   (w_sq_wr_ready),
+        .wr_data    (w_sn_slot),
+        .rd_ready   (w_sq_rd_ready),
+        .count      (),
+        .rd_valid   (w_sq_rd_valid),
+        .rd_data    (w_sq_rd_slot)
     );
 
     // ---- commit (scheduled-slot) drain FIFO --------------------------------
@@ -397,9 +409,15 @@ module pumice_wr_data_cam #(
     assign w_dq_wr_valid  = commit_valid_i;
 
     gaxi_fifo_sync #(.DATA_WIDTH(PTRW), .DEPTH(NUM_ENTRIES)) u_drain_q (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_dq_wr_valid), .wr_ready(w_dq_wr_ready), .wr_data(commit_slot_i),
-        .rd_ready(w_dq_rd_ready), .count(), .rd_valid(w_dq_rd_valid), .rd_data(w_dq_rd_slot)
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_dq_wr_valid),
+        .wr_ready   (w_dq_wr_ready),
+        .wr_data    (commit_slot_i),
+        .rd_ready   (w_dq_rd_ready),
+        .count      (),
+        .rd_valid   (w_dq_rd_valid),
+        .rd_data    (w_dq_rd_slot)
     );
 
     // Fill target SRAM slot: allocate a free slot on the first beat, else reuse

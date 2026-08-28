@@ -203,21 +203,37 @@ module pumice_dfi_cmd_path
             // For a column op the base_phase IS rd/wr_phase, so passing sub_phase
             // as BOTH places the command correctly regardless of RD vs WR.
             dfi_cmd_formatter #(
-                .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH),
-                .COL_WIDTH(COL_WIDTH), .BURST_LEN_WIDTH(BURST_LEN_WIDTH),
-                .DFI_RATE(DFI_RATE), .DFI_ADDR_WIDTH(DFI_ADDR_WIDTH),
-                .DFI_BANK_WIDTH(DFI_BANK_WIDTH), .DFI_CTRL_WIDTH(DFI_CTRL_WIDTH),
-                .DFI_CS_WIDTH(DFI_CS_WIDTH)
+                .NUM_RANKS      (NUM_RANKS),
+                .NUM_BANKS      (NUM_BANKS),
+                .ROW_WIDTH      (ROW_WIDTH),
+                .COL_WIDTH      (COL_WIDTH),
+                .BURST_LEN_WIDTH(BURST_LEN_WIDTH),
+                .DFI_RATE       (DFI_RATE),
+                .DFI_ADDR_WIDTH (DFI_ADDR_WIDTH),
+                .DFI_BANK_WIDTH (DFI_BANK_WIDTH),
+                .DFI_CTRL_WIDTH (DFI_CTRL_WIDTH),
+                .DFI_CS_WIDTH   (DFI_CS_WIDTH)
             ) u_fmt (
-                .mc_clk(dfi_clk), .mc_rst_n(dfi_rstn), .memtype_i(memtype_i),
-                .cmd_valid_i(sub_active), .cmd_ready_o(w_sub_fmt_ready[gs]),
-                .cmd_op_i(w_op), .cmd_rank_i(w_rank), .cmd_bank_i(w_bank),
-                .cmd_row_i(w_row), .cmd_col_i(sub_col), .cmd_len_i('0),
-                .rd_phase_i(sub_phase), .wr_phase_i(sub_phase),
-                .dfi_address_o(w_sub_address[gs]), .dfi_bank_o(w_sub_bank[gs]),
-                .dfi_cas_n_o(w_sub_cas_n[gs]), .dfi_ras_n_o(w_sub_ras_n[gs]),
-                .dfi_we_n_o(w_sub_we_n[gs]),
-                .dfi_cs_n_o(w_sub_cs_n[gs]), .dfi_odt_o(w_sub_odt[gs])
+                .mc_clk       (dfi_clk),
+                .mc_rst_n     (dfi_rstn),
+                .memtype_i    (memtype_i),
+                .cmd_valid_i  (sub_active),
+                .cmd_ready_o  (w_sub_fmt_ready[gs]),
+                .cmd_op_i     (w_op),
+                .cmd_rank_i   (w_rank),
+                .cmd_bank_i   (w_bank),
+                .cmd_row_i    (w_row),
+                .cmd_col_i    (sub_col),
+                .cmd_len_i    ('0),
+                .rd_phase_i   (sub_phase),
+                .wr_phase_i   (sub_phase),
+                .dfi_address_o(w_sub_address[gs]),
+                .dfi_bank_o   (w_sub_bank[gs]),
+                .dfi_cas_n_o  (w_sub_cas_n[gs]),
+                .dfi_ras_n_o  (w_sub_ras_n[gs]),
+                .dfi_we_n_o   (w_sub_we_n[gs]),
+                .dfi_cs_n_o   (w_sub_cs_n[gs]),
+                .dfi_odt_o    (w_sub_odt[gs])
             );
         end
     endgenerate

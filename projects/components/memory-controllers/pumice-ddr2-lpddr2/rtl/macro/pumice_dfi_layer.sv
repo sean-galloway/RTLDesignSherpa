@@ -204,21 +204,40 @@ module pumice_dfi_layer
     // Single CDC (async gaxi FIFOs only)
     // ======================================================================
     pumice_dfi_cdc #(
-        .CMD_DW(CMD_DW), .WD_DW(WD_DW), .RD_DW(RD_DW),
-        .CMD_DEPTH(CMD_FIFO_DEPTH), .WD_DEPTH(WD_FIFO_DEPTH), .RD_DEPTH(RD_FIFO_DEPTH),
-        .N_FLOP_CROSS(N_FLOP_CROSS), .USE_JOHNSON(USE_JOHNSON)
+        .CMD_DW      (CMD_DW),
+        .WD_DW       (WD_DW),
+        .RD_DW       (RD_DW),
+        .CMD_DEPTH   (CMD_FIFO_DEPTH),
+        .WD_DEPTH    (WD_FIFO_DEPTH),
+        .RD_DEPTH    (RD_FIFO_DEPTH),
+        .N_FLOP_CROSS(N_FLOP_CROSS),
+        .USE_JOHNSON (USE_JOHNSON)
     ) u_cdc (
-        .ctl_clk(ctl_clk), .ctl_rstn(ctl_rstn),
-        .cmd_valid_i(cmd_valid_i), .cmd_ready_o(cmd_ready_o), .cmd_data_i(cmd_data_i),
-        .wd_valid_i(wd_valid_i), .wd_ready_o(wd_ready_o), .wd_data_i(wd_data_i),
-        .init_start_i(init_start_i),
-        .rd_valid_o(rd_valid_o), .rd_ready_i(rd_ready_i), .rd_data_o(rd_data_o),
-        .init_complete_o(init_complete_o),
-        .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
-        .pcmd_valid_o(pcmd_valid), .pcmd_ready_i(pcmd_ready), .pcmd_data_o(pcmd_data),
-        .pwd_valid_o(pwd_valid), .pwd_ready_i(pwd_ready), .pwd_data_o(pwd_data),
-        .pinit_start_o(pinit_start),
-        .prd_valid_i(prd_valid), .prd_ready_o(prd_ready), .prd_data_i(prd_data),
+        .ctl_clk         (ctl_clk),
+        .ctl_rstn        (ctl_rstn),
+        .cmd_valid_i     (cmd_valid_i),
+        .cmd_ready_o     (cmd_ready_o),
+        .cmd_data_i      (cmd_data_i),
+        .wd_valid_i      (wd_valid_i),
+        .wd_ready_o      (wd_ready_o),
+        .wd_data_i       (wd_data_i),
+        .init_start_i    (init_start_i),
+        .rd_valid_o      (rd_valid_o),
+        .rd_ready_i      (rd_ready_i),
+        .rd_data_o       (rd_data_o),
+        .init_complete_o (init_complete_o),
+        .dfi_clk         (dfi_clk),
+        .dfi_rstn        (dfi_rstn),
+        .pcmd_valid_o    (pcmd_valid),
+        .pcmd_ready_i    (pcmd_ready),
+        .pcmd_data_o     (pcmd_data),
+        .pwd_valid_o     (pwd_valid),
+        .pwd_ready_i     (pwd_ready),
+        .pwd_data_o      (pwd_data),
+        .pinit_start_o   (pinit_start),
+        .prd_valid_i     (prd_valid),
+        .prd_ready_o     (prd_ready),
+        .prd_data_i      (prd_data),
         .pinit_complete_i(dfi_init_complete_i)
     );
 
@@ -228,37 +247,62 @@ module pumice_dfi_layer
     // Command path (dfi_clk): cmd FIFO -> DFI command bus + fire strobes
     // ======================================================================
     pumice_dfi_cmd_path #(
-        .NUM_RANKS(NUM_RANKS), .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH),
-        .COL_WIDTH(COL_WIDTH), .DFI_RATE(DFI_RATE), .COL_BURST_CYC(BL_WORDS),
-        .N_SUBCMD(N_SUBCMD), .SUB_COL_STRIDE(SUB_COL_STRIDE),
+        .NUM_RANKS       (NUM_RANKS),
+        .NUM_BANKS       (NUM_BANKS),
+        .ROW_WIDTH       (ROW_WIDTH),
+        .COL_WIDTH       (COL_WIDTH),
+        .DFI_RATE        (DFI_RATE),
+        .COL_BURST_CYC   (BL_WORDS),
+        .N_SUBCMD        (N_SUBCMD),
+        .SUB_COL_STRIDE  (SUB_COL_STRIDE),
         .SUB_PHASE_STRIDE(SUB_PHASE_STRIDE),
-        .DFI_ADDR_WIDTH(DFI_ADDR_WIDTH),
-        .DFI_BANK_WIDTH(DFI_BANK_WIDTH), .DFI_CTRL_WIDTH(DFI_CTRL_WIDTH),
-        .DFI_CS_WIDTH(DFI_CS_WIDTH)
+        .DFI_ADDR_WIDTH  (DFI_ADDR_WIDTH),
+        .DFI_BANK_WIDTH  (DFI_BANK_WIDTH),
+        .DFI_CTRL_WIDTH  (DFI_CTRL_WIDTH),
+        .DFI_CS_WIDTH    (DFI_CS_WIDTH)
     ) u_cmd (
-        .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn), .memtype_i(memtype_i),
-        .rd_phase_i(rd_phase_i), .wr_phase_i(wr_phase_i),
-        .n_subcmd_i(n_subcmd_i), .sub_col_stride_i(sub_col_stride_i),
+        .dfi_clk           (dfi_clk),
+        .dfi_rstn          (dfi_rstn),
+        .memtype_i         (memtype_i),
+        .rd_phase_i        (rd_phase_i),
+        .wr_phase_i        (wr_phase_i),
+        .n_subcmd_i        (n_subcmd_i),
+        .sub_col_stride_i  (sub_col_stride_i),
         .sub_phase_stride_i(sub_phase_stride_i),
-        .cmd_valid_i(pcmd_valid), .cmd_ready_o(pcmd_ready), .cmd_data_i(pcmd_data),
-        .dfi_address_o(dfi_address_o), .dfi_bank_o(dfi_bank_o),
-        .dfi_cas_n_o(dfi_cas_n_o), .dfi_ras_n_o(dfi_ras_n_o), .dfi_we_n_o(dfi_we_n_o),
-        .dfi_cs_n_o(dfi_cs_n_o), .dfi_odt_o(dfi_odt_o),
-        .wr_fire_o(w_wr_fire), .rd_fire_o(w_rd_fire), .fire_rank_o(w_fire_rank),
-        .rd_op_ready_i(w_rd_op_ready)
+        .cmd_valid_i       (pcmd_valid),
+        .cmd_ready_o       (pcmd_ready),
+        .cmd_data_i        (pcmd_data),
+        .dfi_address_o     (dfi_address_o),
+        .dfi_bank_o        (dfi_bank_o),
+        .dfi_cas_n_o       (dfi_cas_n_o),
+        .dfi_ras_n_o       (dfi_ras_n_o),
+        .dfi_we_n_o        (dfi_we_n_o),
+        .dfi_cs_n_o        (dfi_cs_n_o),
+        .dfi_odt_o         (dfi_odt_o),
+        .wr_fire_o         (w_wr_fire),
+        .rd_fire_o         (w_rd_fire),
+        .fire_rank_o       (w_fire_rank),
+        .rd_op_ready_i     (w_rd_op_ready)
     );
 
     // ======================================================================
     // Write serializer (dfi_clk): wrdata FIFO -> dfi_wrdata at t_phy_wrlat
     // ======================================================================
     pumice_dfi_wr_serializer #(
-        .DFI_DATA_WIDTH(DFI_DATA_WIDTH), .DFI_RATE(DFI_RATE)
+        .DFI_DATA_WIDTH(DFI_DATA_WIDTH),
+        .DFI_RATE      (DFI_RATE)
     ) u_wr (
-        .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn), .t_phy_wrlat_i(t_phy_wrlat_i),
-        .wr_fire_i(w_wr_fire),
-        .wd_valid_i(pwd_valid), .wd_ready_o(pwd_ready),
-        .wd_data_i(w_wd_data), .wd_strb_i(w_wd_strb), .wd_last_i(w_wd_last),
-        .dfi_wrdata_o(dfi_wrdata_o), .dfi_wrdata_en_o(w_dfi_wrdata_en),
+        .dfi_clk          (dfi_clk),
+        .dfi_rstn         (dfi_rstn),
+        .t_phy_wrlat_i    (t_phy_wrlat_i),
+        .wr_fire_i        (w_wr_fire),
+        .wd_valid_i       (pwd_valid),
+        .wd_ready_o       (pwd_ready),
+        .wd_data_i        (w_wd_data),
+        .wd_strb_i        (w_wd_strb),
+        .wd_last_i        (w_wd_last),
+        .dfi_wrdata_o     (dfi_wrdata_o),
+        .dfi_wrdata_en_o  (w_dfi_wrdata_en),
         .dfi_wrdata_mask_o(dfi_wrdata_mask_o)
     );
 
@@ -266,16 +310,26 @@ module pumice_dfi_layer
     // Read aligner (dfi_clk): dfi_rddata -> rddata FIFO at t_rddata_en
     // ======================================================================
     pumice_dfi_rd_aligner #(
-        .DFI_DATA_WIDTH(DFI_DATA_WIDTH), .DFI_RATE(DFI_RATE),
-        .DFI_VALID_WIDTH(DFI_VALID_WIDTH), .BL_WORDS(BL_WORDS),
-        .EN_CYC(RD_EN_CYC), .MAX_OUTSTANDING(RD_MAX_OUTSTANDING)
+        .DFI_DATA_WIDTH (DFI_DATA_WIDTH),
+        .DFI_RATE       (DFI_RATE),
+        .DFI_VALID_WIDTH(DFI_VALID_WIDTH),
+        .BL_WORDS       (BL_WORDS),
+        .EN_CYC         (RD_EN_CYC),
+        .MAX_OUTSTANDING(RD_MAX_OUTSTANDING)
     ) u_rd (
-        .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn), .t_rddata_en_i(t_rddata_en_i),
-        .op_valid_i(w_rd_fire), .op_ready_o(w_rd_op_ready),
-        .dfi_rddata_en_o(w_dfi_rddata_en), .dfi_rddata_i(dfi_rddata_i),
+        .dfi_clk           (dfi_clk),
+        .dfi_rstn          (dfi_rstn),
+        .t_rddata_en_i     (t_rddata_en_i),
+        .op_valid_i        (w_rd_fire),
+        .op_ready_o        (w_rd_op_ready),
+        .dfi_rddata_en_o   (w_dfi_rddata_en),
+        .dfi_rddata_i      (dfi_rddata_i),
         .dfi_rddata_valid_i(dfi_rddata_valid_i),
-        .rd_valid_o(prd_valid), .rd_ready_i(prd_ready),
-        .rd_data_o(w_rd_data), .rd_resp_o(w_rd_resp), .rd_last_o(w_rd_last)
+        .rd_valid_o        (prd_valid),
+        .rd_ready_i        (prd_ready),
+        .rd_data_o         (w_rd_data),
+        .rd_resp_o         (w_rd_resp),
+        .rd_last_o         (w_rd_last)
     );
 
     wire unused = &{1'b0, w_fire_rank, 1'b0};

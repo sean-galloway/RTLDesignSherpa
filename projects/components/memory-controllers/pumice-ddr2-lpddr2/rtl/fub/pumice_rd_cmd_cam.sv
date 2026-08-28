@@ -204,9 +204,15 @@ module pumice_rd_cmd_cam #(
     assign w_iq_wr_valid = issue_valid_i;
 
     gaxi_fifo_sync #(.DATA_WIDTH(PTRW), .DEPTH(NUM_ENTRIES)) u_issue_q (
-        .axi_aclk(aclk), .axi_aresetn(aresetn),
-        .wr_valid(w_iq_wr_valid), .wr_ready(w_iq_wr_ready), .wr_data(issue_slot_i),
-        .rd_ready(w_iq_rd_ready), .count(), .rd_valid(w_iq_rd_valid), .rd_data(w_iq_rd_slot)
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_iq_wr_valid),
+        .wr_ready   (w_iq_wr_ready),
+        .wr_data    (issue_slot_i),
+        .rd_ready   (w_iq_rd_ready),
+        .count      (),
+        .rd_valid   (w_iq_rd_valid),
+        .rd_data    (w_iq_rd_slot)
     );
 
     logic w_issue_fire;

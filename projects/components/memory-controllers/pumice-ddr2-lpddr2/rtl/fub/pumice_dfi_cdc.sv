@@ -90,32 +90,59 @@ module pumice_dfi_cdc #(
 
     // ---- cmd : ctl -> phy ---------------------------------------------------
     gaxi_fifo_async #(
-        .DATA_WIDTH(CMD_DW), .DEPTH(CMD_DEPTH), .USE_JOHNSON(USE_JOHNSON), .N_FLOP_CROSS(N_FLOP_CROSS)
+        .DATA_WIDTH  (CMD_DW),
+        .DEPTH       (CMD_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_cmd_fifo (
-        .axi_wr_aclk(ctl_clk), .axi_wr_aresetn(ctl_rstn),
-        .axi_rd_aclk(dfi_clk), .axi_rd_aresetn(dfi_rstn),
-        .wr_valid(cmd_valid_i), .wr_ready(cmd_ready_o), .wr_data(cmd_data_i),
-        .rd_ready(pcmd_ready_i), .rd_valid(pcmd_valid_o), .rd_data(pcmd_data_o)
+        .axi_wr_aclk   (ctl_clk),
+        .axi_wr_aresetn(ctl_rstn),
+        .axi_rd_aclk   (dfi_clk),
+        .axi_rd_aresetn(dfi_rstn),
+        .wr_valid      (cmd_valid_i),
+        .wr_ready      (cmd_ready_o),
+        .wr_data       (cmd_data_i),
+        .rd_ready      (pcmd_ready_i),
+        .rd_valid      (pcmd_valid_o),
+        .rd_data       (pcmd_data_o)
     );
 
     // ---- wrdata : ctl -> phy ------------------------------------------------
     gaxi_fifo_async #(
-        .DATA_WIDTH(WD_DW), .DEPTH(WD_DEPTH), .USE_JOHNSON(USE_JOHNSON), .N_FLOP_CROSS(N_FLOP_CROSS)
+        .DATA_WIDTH  (WD_DW),
+        .DEPTH       (WD_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_wd_fifo (
-        .axi_wr_aclk(ctl_clk), .axi_wr_aresetn(ctl_rstn),
-        .axi_rd_aclk(dfi_clk), .axi_rd_aresetn(dfi_rstn),
-        .wr_valid(wd_valid_i), .wr_ready(wd_ready_o), .wr_data(wd_data_i),
-        .rd_ready(pwd_ready_i), .rd_valid(pwd_valid_o), .rd_data(pwd_data_o)
+        .axi_wr_aclk   (ctl_clk),
+        .axi_wr_aresetn(ctl_rstn),
+        .axi_rd_aclk   (dfi_clk),
+        .axi_rd_aresetn(dfi_rstn),
+        .wr_valid      (wd_valid_i),
+        .wr_ready      (wd_ready_o),
+        .wr_data       (wd_data_i),
+        .rd_ready      (pwd_ready_i),
+        .rd_valid      (pwd_valid_o),
+        .rd_data       (pwd_data_o)
     );
 
     // ---- rddata : phy -> ctl ------------------------------------------------
     gaxi_fifo_async #(
-        .DATA_WIDTH(RD_DW), .DEPTH(RD_DEPTH), .USE_JOHNSON(USE_JOHNSON), .N_FLOP_CROSS(N_FLOP_CROSS)
+        .DATA_WIDTH  (RD_DW),
+        .DEPTH       (RD_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_rd_fifo (
-        .axi_wr_aclk(dfi_clk), .axi_wr_aresetn(dfi_rstn),
-        .axi_rd_aclk(ctl_clk), .axi_rd_aresetn(ctl_rstn),
-        .wr_valid(prd_valid_i), .wr_ready(prd_ready_o), .wr_data(prd_data_i),
-        .rd_ready(rd_ready_i), .rd_valid(rd_valid_o), .rd_data(rd_data_o)
+        .axi_wr_aclk   (dfi_clk),
+        .axi_wr_aresetn(dfi_rstn),
+        .axi_rd_aclk   (ctl_clk),
+        .axi_rd_aresetn(ctl_rstn),
+        .wr_valid      (prd_valid_i),
+        .wr_ready      (prd_ready_o),
+        .wr_data       (prd_data_i),
+        .rd_ready      (rd_ready_i),
+        .rd_valid      (rd_valid_o),
+        .rd_data       (rd_data_o)
     );
 
     // ---- init_start : ctl -> phy (level -> token -> sticky latch) ----------
@@ -128,12 +155,21 @@ module pumice_dfi_cdc #(
 
     logic w_istok_valid;
     gaxi_fifo_async #(
-        .DATA_WIDTH(1), .DEPTH(TOK_DEPTH), .USE_JOHNSON(USE_JOHNSON), .N_FLOP_CROSS(N_FLOP_CROSS)
+        .DATA_WIDTH  (1),
+        .DEPTH       (TOK_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_istart_tok (
-        .axi_wr_aclk(ctl_clk), .axi_wr_aresetn(ctl_rstn),
-        .axi_rd_aclk(dfi_clk), .axi_rd_aresetn(dfi_rstn),
-        .wr_valid(w_istart_push), .wr_ready(), .wr_data(1'b1),
-        .rd_ready(1'b1), .rd_valid(w_istok_valid), .rd_data()
+        .axi_wr_aclk   (ctl_clk),
+        .axi_wr_aresetn(ctl_rstn),
+        .axi_rd_aclk   (dfi_clk),
+        .axi_rd_aresetn(dfi_rstn),
+        .wr_valid      (w_istart_push),
+        .wr_ready      (),
+        .wr_data       (1'b1),
+        .rd_ready      (1'b1),
+        .rd_valid      (w_istok_valid),
+        .rd_data       ()
     );
     `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
         if (`RST_ASSERTED(dfi_rstn)) pinit_start_o <= 1'b0;
@@ -150,12 +186,21 @@ module pumice_dfi_cdc #(
 
     logic w_icmptok_valid;
     gaxi_fifo_async #(
-        .DATA_WIDTH(1), .DEPTH(TOK_DEPTH), .USE_JOHNSON(USE_JOHNSON), .N_FLOP_CROSS(N_FLOP_CROSS)
+        .DATA_WIDTH  (1),
+        .DEPTH       (TOK_DEPTH),
+        .USE_JOHNSON (USE_JOHNSON),
+        .N_FLOP_CROSS(N_FLOP_CROSS)
     ) u_icmp_tok (
-        .axi_wr_aclk(dfi_clk), .axi_wr_aresetn(dfi_rstn),
-        .axi_rd_aclk(ctl_clk), .axi_rd_aresetn(ctl_rstn),
-        .wr_valid(w_icmp_push), .wr_ready(), .wr_data(1'b1),
-        .rd_ready(1'b1), .rd_valid(w_icmptok_valid), .rd_data()
+        .axi_wr_aclk   (dfi_clk),
+        .axi_wr_aresetn(dfi_rstn),
+        .axi_rd_aclk   (ctl_clk),
+        .axi_rd_aresetn(ctl_rstn),
+        .wr_valid      (w_icmp_push),
+        .wr_ready      (),
+        .wr_data       (1'b1),
+        .rd_ready      (1'b1),
+        .rd_valid      (w_icmptok_valid),
+        .rd_data       ()
     );
     `ALWAYS_FF_RST(ctl_clk, ctl_rstn,
         if (`RST_ASSERTED(ctl_rstn)) init_complete_o <= 1'b0;

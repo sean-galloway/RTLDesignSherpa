@@ -91,21 +91,42 @@ module pumice_wr_splitter #(
 
     // ---- AW: burst chopper -------------------------------------------------
     pumice_axi_burst_chopper #(
-        .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .AXI_USER_WIDTH(UW),
-        .STRB_BYTES(SW), .CHUNK_BEATS(CHUNK_BEATS)
+        .AXI_ID_WIDTH  (IW),
+        .AXI_ADDR_WIDTH(AW),
+        .AXI_USER_WIDTH(UW),
+        .STRB_BYTES    (SW),
+        .CHUNK_BEATS   (CHUNK_BEATS)
     ) u_aw_chop (
-        .aclk(aclk), .aresetn(aresetn),
-        .fub_axid(fub_awid), .fub_axaddr(fub_awaddr), .fub_axlen(fub_awlen),
-        .fub_axsize(fub_awsize), .fub_axburst(fub_awburst), .fub_axlock(fub_awlock),
-        .fub_axcache(fub_awcache), .fub_axprot(fub_awprot), .fub_axqos(fub_awqos),
-        .fub_axregion(fub_awregion), .fub_axuser(fub_awuser),
-        .fub_axvalid(fub_awvalid), .fub_axready(fub_awready),
-        .m_axid(m_awid), .m_axaddr(m_awaddr), .m_axlen(m_awlen),
-        .m_axsize(m_awsize), .m_axburst(m_awburst), .m_axlock(m_awlock),
-        .m_axcache(m_awcache), .m_axprot(m_awprot), .m_axqos(m_awqos),
-        .m_axregion(m_awregion), .m_axuser(m_awuser),
-        .m_axvalid(m_awvalid), .m_axready(m_awready),
-        .m_ax_agg(m_aw_agg), .m_ax_last(m_aw_last)
+        .aclk        (aclk),
+        .aresetn     (aresetn),
+        .fub_axid    (fub_awid),
+        .fub_axaddr  (fub_awaddr),
+        .fub_axlen   (fub_awlen),
+        .fub_axsize  (fub_awsize),
+        .fub_axburst (fub_awburst),
+        .fub_axlock  (fub_awlock),
+        .fub_axcache (fub_awcache),
+        .fub_axprot  (fub_awprot),
+        .fub_axqos   (fub_awqos),
+        .fub_axregion(fub_awregion),
+        .fub_axuser  (fub_awuser),
+        .fub_axvalid (fub_awvalid),
+        .fub_axready (fub_awready),
+        .m_axid      (m_awid),
+        .m_axaddr    (m_awaddr),
+        .m_axlen     (m_awlen),
+        .m_axsize    (m_awsize),
+        .m_axburst   (m_awburst),
+        .m_axlock    (m_awlock),
+        .m_axcache   (m_awcache),
+        .m_axprot    (m_awprot),
+        .m_axqos     (m_awqos),
+        .m_axregion  (m_awregion),
+        .m_axuser    (m_awuser),
+        .m_axvalid   (m_awvalid),
+        .m_axready   (m_awready),
+        .m_ax_agg    (m_aw_agg),
+        .m_ax_last   (m_aw_last)
     );
 
     // ---- W: pass data through, regenerate WLAST every CHUNK_BEATS beats -----

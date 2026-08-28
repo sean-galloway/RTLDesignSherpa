@@ -132,32 +132,42 @@ module pumice_page_policy
     // Per-row close predictor (mode 5): 2-bit counters vote close for rows
     // that historically saw a single access per activation.
     pumice_row_pred_table #(
-        .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH)
+        .NUM_BANKS(NUM_BANKS),
+        .ROW_WIDTH(ROW_WIDTH)
     ) u_row_pred (
-        .aclk(aclk), .aresetn(aresetn),
-        .enable_i(w_acc_on),
-        .ctr_thresh_i(ctr_thresh_i), .ctr_init_i(ctr_init_i),
-        .cmd_valid_i(cmd_valid_i), .cmd_op_i(cmd_op_i),
-        .cmd_bank_i(cmd_bank_i), .cmd_row_i(cmd_row_i),
+        .aclk             (aclk),
+        .aresetn          (aresetn),
+        .enable_i         (w_acc_on),
+        .ctr_thresh_i     (ctr_thresh_i),
+        .ctr_init_i       (ctr_init_i),
+        .cmd_valid_i      (cmd_valid_i),
+        .cmd_op_i         (cmd_op_i),
+        .cmd_bank_i       (cmd_bank_i),
+        .cmd_row_i        (cmd_row_i),
         .bank_row_active_i(bank_row_active_i),
-        .bank_open_row_i(bank_open_row_i),
-        .close_pred_o(w_acc_close)
+        .bank_open_row_i  (bank_open_row_i),
+        .close_pred_o     (w_acc_close)
     );
 
     // RBLA miss-counter table (modes 6/7): classifies the OPEN row of each
     // bank as low-locality (thrashing -> auto-precharge) at ACT time.
     pumice_rbl_table #(
-        .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH)
+        .NUM_BANKS(NUM_BANKS),
+        .ROW_WIDTH(ROW_WIDTH)
     ) u_rbl (
-        .aclk(aclk), .aresetn(aresetn),
-        .enable_i(w_rbl_on),
-        .dyn_en_i(policy_mode_i == MODE_RBL_DYN),
-        .miss_thresh_i(rbl_miss_thresh_i),
-        .ways_log2_i(rbl_ways_i), .sets_log2_i(rbl_sets_i),
+        .aclk            (aclk),
+        .aresetn         (aresetn),
+        .enable_i        (w_rbl_on),
+        .dyn_en_i        (policy_mode_i == MODE_RBL_DYN),
+        .miss_thresh_i   (rbl_miss_thresh_i),
+        .ways_log2_i     (rbl_ways_i),
+        .sets_log2_i     (rbl_sets_i),
         .reset_interval_i(rbl_reset_ivl_i),
-        .cmd_valid_i(cmd_valid_i), .cmd_op_i(cmd_op_i),
-        .cmd_bank_i(cmd_bank_i), .cmd_row_i(cmd_row_i),
-        .low_locality_o(w_rbl_low_loc)
+        .cmd_valid_i     (cmd_valid_i),
+        .cmd_op_i        (cmd_op_i),
+        .cmd_bank_i      (cmd_bank_i),
+        .cmd_row_i       (cmd_row_i),
+        .low_locality_o  (w_rbl_low_loc)
     );
 
     // ---- issued-stream decodes ---------------------------------------------
