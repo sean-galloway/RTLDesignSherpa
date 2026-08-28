@@ -2,6 +2,8 @@
 
 # Tooling tasks
 
+**Next ID: TOOL-015** — never recycle a number, even when its task closed.
+
 Repo tooling, scripts, and process work.
 
 | Page | Count | What |

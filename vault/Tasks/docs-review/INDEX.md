@@ -1,5 +1,7 @@
 # docs-review — task rollup
 
+**Next ID: DOCREV-018** — never recycle a number, even when its task closed.
+
 External documentation review (Kimi) and the humanization pass.
 Process and rationale: [kimi-review-rounds](../../handbook/authoring/kimi-review-rounds.md).
 

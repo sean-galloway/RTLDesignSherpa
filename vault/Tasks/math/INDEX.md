@@ -1,5 +1,7 @@
 # math — task rollup
 
+**Next ID: MATH-010** — never recycle a number, even when its task closed.
+
 Math library (rtl/math, val/math, docs/markdown/rtl-math) work.
 
 | State | Count |

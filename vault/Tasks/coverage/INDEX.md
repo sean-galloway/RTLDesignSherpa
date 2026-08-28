@@ -1,5 +1,7 @@
 # coverage — task rollup
 
+**Next ID: COV-002** — never recycle a number, even when its task closed.
+
 Verilator/functional coverage rollout across test areas. Migrated 2026-08-09
 from `val/COVERAGE_TODO.md` (dated 2026-03-20), classified against reality:
 most of that tracker had already landed via the shared `make/tests.mk` +

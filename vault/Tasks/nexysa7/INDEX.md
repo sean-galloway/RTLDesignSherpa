@@ -5,6 +5,8 @@ summary: Task rollup for the NexysA7 characterization flows (stream-char/perf, m
 
 # NexysA7 tasks
 
+**Next ID: NEXYSA7-001** — never recycle a number, even when its task closed.
+
 Board-campaign and characterization-flow tasks for
 `projects/NexysA7/` (stream characterization: `flows-stream-bridge` = perf/char,
 `flows-stream-monitor` = monitor coverage, plus `flows-idma-bridge`,

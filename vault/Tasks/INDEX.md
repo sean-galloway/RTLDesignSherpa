@@ -29,6 +29,40 @@ a consumer, which `open` kept misrepresenting as ready-to-start work).
 Areas create `deferred.md` when they first need it; an absent file means
 nothing is parked.
 
+## Task IDs are permanent — never recycle one
+
+Each area's `INDEX.md` carries a **`Next ID:`** line near the top. Take that
+number, use it, bump the line. **Never reuse a number because its task
+closed.** A task ID is a permanent handle: `[[PUMICE-011]]` in a handbook
+note, a commit message, or a session memory has to keep meaning one thing
+five months later.
+
+This is enforced, because it already went wrong. `PUMICE-010` and
+`PUMICE-011` each name TWO unrelated tasks (per-worker sim_builds vs a
+single-knob address map; HISTCH1 accounting vs LPDDR2 MR init), and
+`PUMICE-008` exists as both a dropped task and a live open one — so a bare
+link to any of them is ambiguous and has to be disambiguated by date. Six
+such collisions exist across four areas.
+
+`bin/check_task_ids.py` runs from the pre-commit hook whenever a
+`vault/Tasks/**.md` file is staged, and BLOCKS on:
+
+* a duplicate ID within an area (the six historical ones are grandfathered
+  in `KNOWN_COLLISIONS` — do NOT add to that list to silence a new clash,
+  renumber the new task instead);
+* a missing or stale `Next ID:` line (<= the highest ID already in use).
+
+It also WARNS, without blocking, when a task in `closed.md`/`dropped.md`
+still says `**Status:** open`. That one is a warning by design: deciding
+whether such a task is "closed with a stale line" or "still open and
+misfiled" needs someone who knows the work, and auto-flipping the text would
+launder open work into the closed pile. Eleven of those exist today — see
+[[COMMON-024]].
+
+    bin/check_task_ids.py                 # check everything
+    bin/check_task_ids.py --next pumice   # -> PUMICE-016
+
+
 ## The one rule
 
 **All task tracking lives here.** Do not create a `TASKS.md`, `TODO.md`, or

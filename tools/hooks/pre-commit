@@ -11,6 +11,24 @@
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 
+# --- task-tracker integrity (vault/Tasks/) ------------------------------------
+# Only when a task page is staged: catches duplicate IDs and a stale
+# "Next ID:" line before they enter history. Reusing an ID makes every
+# [[LINK]] to it ambiguous, which is how PUMICE-010/011 each ended up naming
+# two unrelated tasks.
+STAGED_TASKS=$(git diff --cached --name-only --diff-filter=ACM | grep '^vault/Tasks/.*\.md$' || true)
+if [ -n "$STAGED_TASKS" ]; then
+    echo "[pre-commit] Checking task-tracker IDs..."
+    if ! python3 "$REPO_ROOT/bin/check_task_ids.py"; then
+        echo ""
+        echo "[pre-commit] BLOCKED: task-tracker ID problem."
+        echo "  Next free ID:  bin/check_task_ids.py --next <area>"
+        echo "  Bypass with:   git commit --no-verify"
+        echo ""
+        exit 1
+    fi
+fi
+
 STAGED_SV=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sv$' || true)
 
 if [ -z "$STAGED_SV" ]; then

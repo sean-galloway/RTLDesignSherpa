@@ -2,6 +2,8 @@
 
 # AMBA tasks
 
+**Next ID: TASK-072** — never recycle a number, even when its task closed.
+
 Canonical task tracker for `rtl/amba/` (AXI4/AXI5, APB, AXI-Stream, the
 monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
 

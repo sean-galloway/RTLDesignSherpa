@@ -1,5 +1,7 @@
 # RLB — Retro Legacy Blocks
 
+**Next ID: RLB-006** — never recycle a number, even when its task closed.
+
 Task rollup for the retro legacy peripheral blocks (gpio, hpet, ioapic,
 pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
 `projects/components/retro_legacy_blocks/docs/<block>_mas/`; RTL under
