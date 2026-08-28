@@ -902,24 +902,29 @@ async def cocotb_test_pumice_core_b2b(dut):
     dut._log.info(f"PASS: back-to-back — {n} tightly-issued bursts round-trip vs golden (DQ pacing)")
 
 
-@cocotb.test(timeout_time=60, timeout_unit="ms")
-async def cocotb_test_pumice_core_perf_write_ceiling(dut):
-    """Artificially CLEAN write-throughput ceiling -- all maintenance off.
+# ---------------------------------------------------------------------------
+# Write-stream perf measurement (PUMICE-013)
+#
+# Two tests share ONE experiment and change ONE knob: the refresh interval.
+# That is the whole point -- a ceiling with nothing to compare it against
+# cannot tell you whether the measurement is even sensitive. The parked-
+# refresh run says "the datapath never stalls"; the frequent-refresh run
+# proves the instrument can SEE a stall, and prices refresh in the same
+# units. Neither claim is worth much without the other.
+# ---------------------------------------------------------------------------
 
-    The point of this test is that the only thing left that can deassert
-    `s_axi_wready` is the write datapath itself. Everything else that could
-    inject a command into the DRAM stream, or close a row behind us, is
-    disabled or parked:
+async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256):
+    """Run a clean write stream and account for every W-channel cycle.
 
-      * refresh OFF     -- t_refi_i parked at 0xFFFF, far past the window,
-                           and postpone/pullin credits at 0 so nothing runs
-                           ahead either. ref_mode_i=0 (no REFpb rotor).
+    Everything that could inject a command into the DRAM stream or close a
+    row behind us is parked, EXCEPT refresh, which is the independent
+    variable:
+
       * paging OPEN     -- page_policy_e OPEN (=0, NOT 1: that encoding is
                            CLOSE, and picking it re-activated on every burst
-                           -- 258 ACTs for 256 bursts). Rows stay open, and
-                           the Axis-2 mode stays at the build default, so
-                           there is no idle-timeout PRE and no adaptive
-                           predictor closing rows behind the stream.
+                           -- 258 ACTs for 256 bursts). The Axis-2 mode stays
+                           at the build default, so no idle-timeout PRE and
+                           no adaptive predictor closes rows behind us.
       * page HITS only  -- strictly incrementing columns inside ONE row per
                            bank, so after the opening ACT per bank there is
                            no ACT/PRE in steady state.
@@ -928,8 +933,12 @@ async def cocotb_test_pumice_core_perf_write_ceiling(dut):
                            inter-beat delay), issued through the ENGINE
                            runner so all AWs queue up front and the W
                            channel never waits on an address.
+      * refresh         -- t_refi_i = `t_refi`. Postpone/pullin credits at 0
+                           and ref_mode_i=0 so refresh is plain periodic:
+                           nothing defers a refresh out of the window or
+                           runs ahead to bank credit.
 
-    With that, perf is pure cycle accounting on the W channel:
+    Measurement:
 
       utilization = beats / cycles WVALID was high
 
@@ -942,37 +951,38 @@ async def cocotb_test_pumice_core_perf_write_ceiling(dut):
 
       wvalid && !wready -> DUT refusing data. The ONLY way to fall below 100%.
       !wvalid && wready -> testbench not keeping up. Excluded from the ratio,
-                           but asserted on: a starved window measures the
-                           driver, not the design, so a number taken from
-                           one would be a lie.
+                           but asserted on by callers: a starved window
+                           measures the driver, not the design.
+
+    Returns a dict of the accounting; callers assert on it.
     """
     from tbclasses.trackers import AxiChanTracker
     from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
 
     _memory, slave = await _bring_up(dut, page_policy=0)      # OPEN
 
-    # --- park every maintenance source -------------------------------------
-    dut.t_refi_i.value      = 0xFFFF     # refresh interval past the window
+    dut.t_refi_i.value       = t_refi
+    dut.t_rfc_i.value        = t_rfc
     dut.ref_postpone_i.value = 0
     dut.ref_pullin_i.value   = 0
     dut.ref_mode_i.value     = 0
-    # The tREFI counter only RELOADS on expiry, so parking t_refi_i does not
-    # cancel the interval already armed from bring-up (0x400). Wait it out,
-    # or one stale refresh lands mid-window and poisons the measurement --
-    # which is exactly what the REF guard below caught on the first run.
+    # The tREFI counter only RELOADS on expiry, so writing t_refi_i does not
+    # cancel the interval already armed from bring-up (0x400). Wait it out.
+    # Parked case: otherwise one stale refresh lands mid-window and poisons
+    # the ceiling -- exactly what the REF guard caught on the first run.
+    # Frequent case: otherwise the window opens on the tail of the OLD long
+    # interval and sees fewer refreshes than it configured.
     await ClockCycles(dut.aclk, 0x400 + 80)
 
-    # --- W-channel accounting ----------------------------------------------
     trk = AxiChanTracker(dut, 'w', valid="s_axi_wvalid", ready="s_axi_wready",
                          last="s_axi_wlast", log=dut._log)
     cocotb.start_soon(trk.run())
     base = (trk.prod, trk.bp, trk.starv, trk.idle)
+    ev0 = len(trk.events)
 
-    # --- one row per bank, strictly incrementing columns --------------------
-    N = 256
     rng = random.Random(int(os.environ.get("SEED", "7")))
     reqs = []
-    for k in range(N):
+    for k in range(n):
         addr = _mkaddr(k % NUM_BANKS, 0x11, (k // NUM_BANKS) * BL)
         reqs.append((addr, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]))
     ref0 = slave.cmd_counts.get(_DC.REF, 0)
@@ -980,68 +990,155 @@ async def cocotb_test_pumice_core_perf_write_ceiling(dut):
     await _write_many(dut, reqs)
     elapsed = (get_sim_time('ns') - t0) / 10.0
 
-    prod = trk.prod - base[0]
-    bp = trk.bp - base[1]
-    starv = trk.starv - base[2]
-    idle = trk.idle - base[3]
-    active = prod + bp + starv
-    valid_cycles = prod + bp            # cycles WVALID was high
-    beats = N * BL_WORDS
-    util = (prod / valid_cycles) if valid_cycles else 0.0
+    m = {
+        'label': label, 'title': title, 'bursts': n, 'beats': n * BL_WORDS,
+        't_refi': t_refi, 't_rfc': t_rfc, 'elapsed': elapsed,
+        'prod':  trk.prod  - base[0], 'bp':   trk.bp   - base[1],
+        'starv': trk.starv - base[2], 'idle': trk.idle - base[3],
+        'refs': slave.cmd_counts.get(_DC.REF, 0) - ref0,
+        'max_run': max(trk.max_run, trk._run), 'max_bp_run': trk.max_bp_run,
+    }
+    m['valid_cycles'] = m['prod'] + m['bp']
+    m['active'] = m['prod'] + m['bp'] + m['starv']
+    m['util'] = (m['prod'] / m['valid_cycles']) if m['valid_cycles'] else 0.0
+    # stall-run shape: one BP_<n> event per contiguous !wready stretch, so
+    # this is the bubble profile -- a refresh should show up as a run of
+    # roughly tRFC, not as scattered single cycles.
+    runs = [int(ev.event[3:]) for ev in list(trk.events)[ev0:]
+            if ev.event.startswith("BP_")]
+    hist = {}
+    for r in runs:
+        hist[r] = hist.get(r, 0) + 1
+    m['stall_runs'] = len(runs)
+    m['stall_hist'] = dict(sorted(hist.items()))
 
-    dut._log.info("=" * 62)
-    dut._log.info("WRITE CEILING (maintenance off, page-hit stream, b2b)")
-    dut._log.info("  bursts=%d beats=%d window=%.0f cyc", N, beats, elapsed)
-    dut._log.info("  W prod=%d  bp=%d  starv=%d  idle=%d", prod, bp, starv, idle)
+    dut._log.info("=" * 66)
+    dut._log.info("%s", title)
+    dut._log.info("  t_refi=%d t_rfc=%d  bursts=%d beats=%d window=%.0f cyc",
+                  t_refi, t_rfc, n, m['beats'], elapsed)
     dut._log.info("  UTILIZATION = %d beats / %d wvalid-cycles = %.2f%%",
-                  prod, valid_cycles, 100.0 * util)
-    dut._log.info("  max handshake run=%d   max stall run=%d",
-                  max(trk.max_run, trk._run), trk.max_bp_run)
-    dut._log.info("  REFs during window=%d (must be 0)",
-                  slave.cmd_counts.get(_DC.REF, 0) - ref0)
-    dut._log.info("=" * 62)
+                  m['prod'], m['valid_cycles'], 100.0 * m['util'])
+    dut._log.info("  W prod=%d bp=%d starv=%d idle=%d  REFs=%d",
+                  m['prod'], m['bp'], m['starv'], m['idle'], m['refs'])
+    dut._log.info("  max handshake run=%d  stall runs=%d (max %d) hist=%s",
+                  m['max_run'], m['stall_runs'], m['max_bp_run'],
+                  m['stall_hist'])
+    dut._log.info("=" * 66)
 
     # cocotb swallows stdout, so a printed number is invisible to whoever
     # runs this. Write the summary where the tracker's own .out files land.
     try:
-        with open("write_ceiling.out", "w") as f:
-            f.write("# pumice write-throughput ceiling -- maintenance parked\n")
-            f.write("# refresh OFF (t_refi parked + stale interval waited out),\n")
+        with open(f"{label}.out", "w") as f:
+            f.write(f"# {title}\n")
             f.write("# page policy OPEN, page-hit stream, writes only, AW+W b2b,\n")
-            f.write("# engine runner (AWs queued back-to-back).\n\n")
-            f.write(f"bursts            {N}\n")
-            f.write(f"beats             {beats}\n")
+            f.write("# engine runner (AWs queued back-to-back).\n")
             f.write("#\n# UTILIZATION = beats / cycles WVALID was high.\n")
             f.write("#   Cycles the master offered nothing are excluded --\n")
             f.write("#   they grade the testbench, not the DUT. So the only\n")
             f.write("#   way to fall below 100% is wvalid && !wready.\n\n")
-            f.write(f"wvalid_cycles     {valid_cycles}\n")
-            f.write(f"UTILIZATION       {100.0 * util:.2f}%   "
-                    f"({prod} beats / {valid_cycles} wvalid-cycles)\n\n")
+            f.write(f"t_refi            {t_refi}\n")
+            f.write(f"t_rfc             {t_rfc}\n")
+            f.write(f"bursts            {n}\n")
+            f.write(f"beats             {m['beats']}\n\n")
+            f.write(f"wvalid_cycles     {m['valid_cycles']}\n")
+            f.write(f"UTILIZATION       {100.0 * m['util']:.2f}%   "
+                    f"({m['prod']} beats / {m['valid_cycles']} wvalid-cycles)\n\n")
+            f.write(f"REFs_in_window    {m['refs']}\n")
             f.write(f"window_cycles     {elapsed:.0f}   # incl. TB gaps\n")
-            f.write(f"max_handshake_run {max(trk.max_run, trk._run)}\n")
-            f.write(f"max_stall_run     {trk.max_bp_run}\n")
-            f.write(f"W_productive      {prod}\n")
-            f.write(f"W_backpressure    {bp}   # wvalid && !wready -- DUT stall\n")
-            f.write(f"W_starvation      {starv}   # !wvalid && wready -- TB gap\n")
-            f.write(f"W_idle            {idle}\n")
-
+            f.write(f"max_handshake_run {m['max_run']}\n")
+            f.write(f"stall_runs        {m['stall_runs']}\n")
+            f.write(f"max_stall_run     {m['max_bp_run']}\n")
+            f.write(f"stall_run_hist    {m['stall_hist']}   # cycles:count\n\n")
+            f.write(f"W_productive      {m['prod']}\n")
+            f.write(f"W_backpressure    {m['bp']}   # wvalid && !wready -- DUT stall\n")
+            f.write(f"W_starvation      {m['starv']}   # !wvalid && wready -- TB gap\n")
+            f.write(f"W_idle            {m['idle']}\n")
     except Exception as e:                                    # noqa: BLE001
-        dut._log.warning("write_ceiling.out dump failed: %s", e)
+        dut._log.warning("%s.out dump failed: %s", label, e)
 
-    # --- guards: the window has to be clean for the number to mean anything -
-    assert slave.cmd_counts.get(_DC.REF, 0) - ref0 == 0, (
-        "refresh fired inside the ceiling window -- maintenance is not "
-        "actually parked, so the stall count is not purely datapath")
-    assert prod == beats, (f"W channel moved {prod} beats, expected {beats} -- "
-                           "accounting window does not cover the traffic")
-    assert active and starv <= active * 0.05, (
-        f"stimulus starved the DUT for {starv}/{active} active W cycles "
-        f"({100.0 * starv / max(active,1):.1f}%) -- this window measures the "
-        f"testbench, not the design; do not quote a ceiling from it")
+    return m
 
-    dut._log.info("PASS: write utilization %.2f%% (%d beats / %d wvalid-cycles), "
-                  "DUT stalled %d cycles", 100.0 * util, prod, valid_cycles, bp)
+
+def _assert_stream_sane(m):
+    """Checks that must hold for EITHER refresh setting."""
+    assert m['prod'] == m['beats'], (
+        f"W channel moved {m['prod']} beats, expected {m['beats']} -- the "
+        f"accounting window does not cover the traffic")
+    assert m['active'] and m['starv'] <= m['active'] * 0.05, (
+        f"stimulus starved the DUT for {m['starv']}/{m['active']} active W "
+        f"cycles ({100.0 * m['starv'] / max(m['active'], 1):.1f}%) -- this "
+        f"window measures the testbench, not the design; do not quote it")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_perf_write_ceiling(dut):
+    """Write-throughput CEILING: refresh parked, so nothing but the write
+    datapath can deassert wready. Establishes the reference the frequent-
+    refresh run is measured against."""
+    m = await _measure_write_stream(
+        dut, t_refi=0xFFFF, t_rfc=8, label="write_ceiling",
+        title="WRITE CEILING (refresh parked, page-hit stream, b2b)")
+    _assert_stream_sane(m)
+    assert m['refs'] == 0, (
+        f"{m['refs']} refreshes fired inside the ceiling window -- "
+        f"maintenance is not actually parked, so the stall count is not "
+        f"purely datapath")
+    assert m['bp'] == 0, (
+        f"DUT stalled the W channel for {m['bp']} cycles with NOTHING to do "
+        f"but move write data (max run {m['max_bp_run']}) -- the datapath "
+        f"itself cannot sustain the stream")
+    dut._log.info("PASS: ceiling %.2f%% utilization, zero DUT stall cycles",
+                  100.0 * m['util'])
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_perf_refresh_bubbles(dut):
+    """Same stream, refresh cranked up -- refresh should punch visible
+    bubbles into the write handshake.
+
+    This is the CEILING TEST'S POSITIVE CONTROL as much as it is a refresh
+    measurement. With maintenance parked the DUT never stalls, so
+    `assert bp == 0` passing proves nothing about whether the instrument
+    could see a stall at all. Here refresh is the only thing changed, and
+    the accounting has to register it: REFs appear, wready drops, and
+    utilization falls below the ceiling. If this test ever reports 100%,
+    the ceiling number is not trustworthy either.
+
+    tREFI is poked to 64 cycles (vs the JEDEC-scaled 0x400 used elsewhere)
+    purely to get many bubbles inside a short window -- this measures the
+    SHAPE of the refresh penalty, not a JEDEC-legal operating point.
+    """
+    T_REFI, T_RFC = 64, 8
+    m = await _measure_write_stream(
+        dut, t_refi=T_REFI, t_rfc=T_RFC, label="refresh_bubbles",
+        title=f"REFRESH BUBBLES (t_refi={T_REFI} t_rfc={T_RFC}, same stream)")
+    _assert_stream_sane(m)
+
+    # 1. the bubbles are actually there
+    assert m['refs'] > 0, (
+        f"no refresh fired in {m['elapsed']:.0f} cycles with t_refi={T_REFI} "
+        f"-- the tREFI poke did not take, so this run does not control "
+        f"anything")
+    # 2. the instrument SEES them -- this is what the ceiling test cannot prove
+    assert m['bp'] > 0, (
+        f"{m['refs']} refreshes fired but the W channel never stalled a "
+        f"single cycle. Either refresh is free (it is not) or the stall "
+        f"accounting is blind -- in which case the ceiling test's "
+        f"`bp == 0` is vacuous")
+    assert m['util'] < 1.0, (
+        f"utilization {100.0 * m['util']:.2f}% with {m['refs']} refreshes in "
+        f"the window -- refresh cannot be free")
+    # 3. the stalls look like refresh, not like scattered noise: each bubble
+    #    should be a contiguous run, and there should not be wildly more
+    #    bubbles than refreshes.
+    assert m['stall_runs'] <= m['refs'] * 3, (
+        f"{m['stall_runs']} separate stall runs for only {m['refs']} "
+        f"refreshes -- the bubbles are not attributable to refresh")
+
+    dut._log.info("PASS: %d refreshes cost %d W-stall cycles in %d stall runs "
+                  "(max %d) -- utilization %.2f%% vs 100%% parked",
+                  m['refs'], m['bp'], m['stall_runs'], m['max_bp_run'],
+                  100.0 * m['util'])
 
 
 def _echo_seed(tag):
@@ -1115,3 +1212,5 @@ def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw"
 def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")
 def test_pumice_core_perf_write_ceiling(request):
     _run(request, "cocotb_test_pumice_core_perf_write_ceiling")
+def test_pumice_core_perf_refresh_bubbles(request):
+    _run(request, "cocotb_test_pumice_core_perf_refresh_bubbles")
