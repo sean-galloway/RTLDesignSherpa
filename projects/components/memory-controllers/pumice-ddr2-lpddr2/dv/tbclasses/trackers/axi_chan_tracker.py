@@ -54,7 +54,11 @@ grep '| axiw    | BP_' run.md            # write-data stalls only
 
 ## Stats (`.stats()`)
 
-* `utilization` — productive / total cycles (the headline number)
+* `utilization` — **beats / cycles `valid` was high** (the headline number).
+  NOT beats per wall-clock cycle: the denominator is `prod + bp` only, so
+  cycles the master had nothing to offer are excluded. 100% means the DUT
+  accepted every beat the cycle it was offered.
+* `valid_cycles` — that denominator, exposed so a number can be re-derived
 * `max_run` / `run_histogram` — how long the handshake sustains
 * `max_bp_run` / `max_starv_run` — worst stall / worst starve
 * `bucket_pct` — prod/bp/starv/idle as percentages, matching axi_bus_meter
@@ -191,10 +195,22 @@ class AxiChanTracker:
         pct = (lambda n: round(100.0 * n / total, 2)) if total else (lambda n: None)
         # a run still open at end of sim still counts
         max_run = max(self.max_run, self._run)
+        # UTILIZATION IS BEATS PER VALID-CYCLE, not per wall-clock cycle.
+        # The denominator is only the cycles the master actually held `valid`
+        # high (prod + bp) -- which naturally ends when the last `ready`
+        # drops it. Cycles where the master had nothing to offer
+        # (starvation, idle) are the TESTBENCH's gaps and say nothing about
+        # the DUT, so including them just dilutes the number with stimulus
+        # quality. Defined this way, 100% means "every cycle data was
+        # offered, the DUT took it" -- the thing the design is answerable
+        # for. The four buckets below still divide by wall-clock cycles so
+        # they keep matching axi_bus_meter.sv.
+        valid_cycles = self.prod + self.bp
         return {
             'channel':        self.chan,
             'cycles':         total,
-            'utilization':    (self.prod / total) if total else None,
+            'valid_cycles':   valid_cycles,
+            'utilization':    (self.prod / valid_cycles) if valid_cycles else None,
             'bucket_pct':     {'prod': pct(self.prod), 'bp': pct(self.bp),
                                'starv': pct(self.starv), 'idle': pct(self.idle)},
             'max_run':        max_run,
@@ -210,7 +226,7 @@ class AxiChanTracker:
         """One-line human summary -- what to print at end of test."""
         s = self.stats()
         u = s['utilization']
-        return (f"{self._name}: util={u:.1%} " if u is not None
+        return (f"{self._name}: util={u:.1%} (beats/valid-cyc) " if u is not None
                 else f"{self._name}: util=n/a ") + (
                 f"max_run={s['max_run']} avg_run="
                 f"{s['avg_run']:.1f} " if s['avg_run'] else "max_run=0 ") + (
@@ -248,18 +264,24 @@ def wire_axi_channels(dut, *, prefix: str = "s_axi_", log=None,
         try:
             with open(_os.path.join(_dir, "axi_util.out"), "w") as f:
                 f.write("# AXI channel utilization + handshake run lengths\n")
-                f.write("# buckets match rtl/amba/shared/axi_bus_meter.sv\n\n")
-                f.write(f"| {'chan':<5} | {'cycles':>8} | {'util%':>7} "
+                f.write("# util% = beats / cycles VALID was high (prod+bp),\n")
+                f.write("#   i.e. how often the DUT took data it was offered.\n")
+                f.write("#   Cycles the master offered nothing are excluded.\n")
+                f.write("# bucket %s are over wall-clock cycles and match\n")
+                f.write("#   rtl/amba/shared/axi_bus_meter.sv\n\n")
+                f.write(f"| {'chan':<5} | {'cycles':>8} | {'vldcyc':>7} "
+                        f"| {'util%':>7} "
                         f"| {'prod%':>6} | {'bp%':>6} | {'starv%':>7} "
                         f"| {'idle%':>6} | {'max_run':>7} | {'avg_run':>7} "
                         f"| {'max_stall':>9} |\n")
-                f.write(f"|{'-'*7}|{'-'*10}|{'-'*9}|{'-'*8}|{'-'*8}|{'-'*9}"
+                f.write(f"|{'-'*7}|{'-'*10}|{'-'*9}|{'-'*9}|{'-'*8}|{'-'*8}|{'-'*9}"
                         f"|{'-'*8}|{'-'*9}|{'-'*9}|{'-'*11}|\n")
                 for ch, t in out.items():
                     st = t.stats()
                     b  = st['bucket_pct']
                     u  = st['utilization']
                     f.write(f"| {('axi'+ch):<5} | {st['cycles']:>8} "
+                            f"| {st['valid_cycles']:>7} "
                             f"| {(100*u if u is not None else 0):>7.2f} "
                             f"| {b['prod']:>6} | {b['bp']:>6} | {b['starv']:>7} "
                             f"| {b['idle']:>6} | {st['max_run']:>7} "

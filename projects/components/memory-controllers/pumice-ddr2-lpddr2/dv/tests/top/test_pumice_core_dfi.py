@@ -931,11 +931,20 @@ async def cocotb_test_pumice_core_perf_write_ceiling(dut):
 
     With that, perf is pure cycle accounting on the W channel:
 
-      bp%    = wvalid && !wready -> the DUT refusing data. THIS is the number.
-      starv% = !wvalid && wready -> the TESTBENCH failing to keep up.
+      utilization = beats / cycles WVALID was high
 
-    starv% is asserted on rather than reported: a starved window measures
-    the driver, not the design, so a number taken from one would be a lie.
+    The denominator is only the cycles the master actually held wvalid --
+    which naturally ends when the last wready drops it. Cycles where the
+    master had nothing to offer are the testbench's gaps and say nothing
+    about the DUT, so they are excluded rather than diluted into the
+    number. Defined this way 100% means "every cycle data was offered, the
+    DUT took it", which is the thing the design is answerable for:
+
+      wvalid && !wready -> DUT refusing data. The ONLY way to fall below 100%.
+      !wvalid && wready -> testbench not keeping up. Excluded from the ratio,
+                           but asserted on: a starved window measures the
+                           driver, not the design, so a number taken from
+                           one would be a lie.
     """
     from tbclasses.trackers import AxiChanTracker
     from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
@@ -976,18 +985,18 @@ async def cocotb_test_pumice_core_perf_write_ceiling(dut):
     starv = trk.starv - base[2]
     idle = trk.idle - base[3]
     active = prod + bp + starv
+    valid_cycles = prod + bp            # cycles WVALID was high
     beats = N * BL_WORDS
+    util = (prod / valid_cycles) if valid_cycles else 0.0
 
     dut._log.info("=" * 62)
     dut._log.info("WRITE CEILING (maintenance off, page-hit stream, b2b)")
     dut._log.info("  bursts=%d beats=%d window=%.0f cyc", N, beats, elapsed)
     dut._log.info("  W prod=%d  bp=%d  starv=%d  idle=%d", prod, bp, starv, idle)
-    if active:
-        dut._log.info("  of ACTIVE cycles: prod=%.1f%%  DUT-stall(bp)=%.1f%%  "
-                      "TB-stall(starv)=%.1f%%", 100.0 * prod / active,
-                      100.0 * bp / active, 100.0 * starv / active)
-    dut._log.info("  beats/cycle=%.3f   max handshake run=%d",
-                  beats / elapsed if elapsed else 0, max(trk.max_run, trk._run))
+    dut._log.info("  UTILIZATION = %d beats / %d wvalid-cycles = %.2f%%",
+                  prod, valid_cycles, 100.0 * util)
+    dut._log.info("  max handshake run=%d   max stall run=%d",
+                  max(trk.max_run, trk._run), trk.max_bp_run)
     dut._log.info("  REFs during window=%d (must be 0)",
                   slave.cmd_counts.get(_DC.REF, 0) - ref0)
     dut._log.info("=" * 62)
@@ -1002,20 +1011,21 @@ async def cocotb_test_pumice_core_perf_write_ceiling(dut):
             f.write("# engine runner (AWs queued back-to-back).\n\n")
             f.write(f"bursts            {N}\n")
             f.write(f"beats             {beats}\n")
-            f.write(f"window_cycles     {elapsed:.0f}\n")
-            f.write(f"beats_per_cycle   {beats / elapsed if elapsed else 0:.4f}\n")
+            f.write("#\n# UTILIZATION = beats / cycles WVALID was high.\n")
+            f.write("#   Cycles the master offered nothing are excluded --\n")
+            f.write("#   they grade the testbench, not the DUT. So the only\n")
+            f.write("#   way to fall below 100% is wvalid && !wready.\n\n")
+            f.write(f"wvalid_cycles     {valid_cycles}\n")
+            f.write(f"UTILIZATION       {100.0 * util:.2f}%   "
+                    f"({prod} beats / {valid_cycles} wvalid-cycles)\n\n")
+            f.write(f"window_cycles     {elapsed:.0f}   # incl. TB gaps\n")
             f.write(f"max_handshake_run {max(trk.max_run, trk._run)}\n")
+            f.write(f"max_stall_run     {trk.max_bp_run}\n")
             f.write(f"W_productive      {prod}\n")
             f.write(f"W_backpressure    {bp}   # wvalid && !wready -- DUT stall\n")
-            f.write(f"W_starvation      {starv}   # !wvalid && wready -- TB stall\n")
+            f.write(f"W_starvation      {starv}   # !wvalid && wready -- TB gap\n")
             f.write(f"W_idle            {idle}\n")
-            if active:
-                f.write(f"\nof ACTIVE W cycles ({active}):\n")
-                f.write(f"  productive      {100.0 * prod / active:.2f}%\n")
-                f.write(f"  DUT stall (bp)  {100.0 * bp / active:.2f}%\n")
-                f.write(f"  TB stall (starv){100.0 * starv / active:.2f}%\n")
-            f.write(f"\nstall_run_histogram (cycles:count) "
-                    f"max_stall={trk.max_bp_run}\n")
+
     except Exception as e:                                    # noqa: BLE001
         dut._log.warning("write_ceiling.out dump failed: %s", e)
 
@@ -1030,9 +1040,8 @@ async def cocotb_test_pumice_core_perf_write_ceiling(dut):
         f"({100.0 * starv / max(active,1):.1f}%) -- this window measures the "
         f"testbench, not the design; do not quote a ceiling from it")
 
-    dut._log.info("PASS: write ceiling %.3f beats/cycle, DUT stalled %.1f%% "
-                  "of active W cycles", beats / elapsed if elapsed else 0,
-                  100.0 * bp / active)
+    dut._log.info("PASS: write utilization %.2f%% (%d beats / %d wvalid-cycles), "
+                  "DUT stalled %d cycles", 100.0 * util, prod, valid_cycles, bp)
 
 
 def _echo_seed(tag):

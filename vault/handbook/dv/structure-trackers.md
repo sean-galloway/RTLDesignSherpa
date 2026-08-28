@@ -81,6 +81,28 @@ A handshake tracker (`AxiChanTracker` in pumice) buckets every cycle the
 way `rtl/amba/shared/axi_bus_meter.sv` does — productive / backpressure /
 starvation / idle — plus the RUN LENGTH of consecutive `valid && ready`.
 
+### Define utilization as beats per VALID-cycle, not per wall-clock cycle
+
+    utilization = beats / cycles `valid` was high        (= prod / (prod + bp))
+
+The denominator is only the cycles the master actually offered data —
+which naturally ends when the last `ready` drops `valid`. Cycles where
+the master had nothing to offer (starvation, idle) belong to the
+**testbench**, and folding them in silently blends stimulus quality into
+a number people will read as a design result.
+
+Defined this way the number is answerable: 100% means "every cycle data
+was offered, the DUT took it", and the *only* way to fall below it is
+`valid && !ready` — the DUT refusing. Pumice's write path measured 0.98
+beats per wall-clock cycle and 100.00% utilization on the same run; the
+2% gap was entirely the BFM's ramp, and quoting it as a design shortfall
+would have been wrong.
+
+Keep the four buckets divided by wall-clock cycles so they still match
+`axi_bus_meter.sv` — but report utilization separately, and report the
+starvation count next to it so a reader can see whether the window was
+clean enough to trust.
+
 ### Sampling: TB-driven signals need the opposite treatment to RTL ones
 
 A monitor watching only RTL outputs can sample at `edge + 1ps` (the NBA
