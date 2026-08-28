@@ -41,7 +41,7 @@ The Monitor Bus Round-Robin Arbiter aggregates monitor bus packet streams from m
 - Optional output skid buffer (2, 4, 6, or 8 entry depth)
 - 128-bit packet + 64-bit side-band timestamp, carried atomically through a 192-bit skid
 - Parameterizable client count (2-64; 1 does not elaborate)
-- Zero-latency pass-through when skid buffers disabled
+- Skid buffers optional (disabling them removes the skid registers; the arbitration cycle itself remains, since `grant_valid` is registered)
 
 ---
 
@@ -229,7 +229,8 @@ monbus_arbiter #(
 // Downstream consumer is typically the monbus_group family, which expects the
 // 128-bit packet on monbus_packet and the 64-bit timestamp on
 // monbus_timestamp. No additional FIFO is needed at this boundary —
-// the group has its own ingress skid.
+// raw-mode groups have no ingress skid of their own; only the
+// compressed build adds one (u_comp_in_skid in monbus_group_core).
 ```
 
 ---
@@ -269,7 +270,7 @@ Choose depth based on system characteristics:
 - Use when downstream has high variable latency
 - Higher area cost
 
-### Zero-Latency Configuration
+### Skid-Free Configuration
 
 For minimum latency:
 ```systemverilog
@@ -277,10 +278,13 @@ For minimum latency:
 .OUTPUT_SKID_ENABLE (0)
 ```
 
-This provides direct combinational paths:
-- monbus_valid_in[grant_id] -> monbus_valid (combinational)
-- monbus_packet_in[grant_id] -> monbus_packet (combinational)
-- monbus_ready -> monbus_ready_in[grant_id] (combinational)
+This removes the skid registers, but it does **not** make the valid path
+combinational. `monbus_valid` is driven from the arbiter's `grant_valid`,
+which is a REGISTERED output of `arbiter_round_robin`, so a request still
+takes an arbitration cycle to appear as a grant:
+- monbus_valid_in[i] -> request[i] -> (registered grant) -> monbus_valid
+- monbus_packet_in[grant_id] -> monbus_packet (combinational mux on grant_id)
+- monbus_ready -> monbus_ready_in[grant_id] (combinational, gated by grant)
 
 Use when:
 - Timing is not critical

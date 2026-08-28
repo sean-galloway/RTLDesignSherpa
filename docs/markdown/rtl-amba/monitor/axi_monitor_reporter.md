@@ -43,7 +43,8 @@
 The `axi_monitor_reporter` family generates Monitor-bus packets. The
 top-level `axi_monitor_reporter.sv` is a **thin dispatcher** that
 multiplexes one packet stream out of (up to) six packet-type-specific
-sub-blocks into the shared monbus FIFO and 128-bit output register. It
+sub-blocks onto the monbus output -- three classes through the shared FIFO,
+three straight into the 128-bit output register (see below). It
 also reports each emitted event back to `axi_monitor_trans_mgr` so the
 transaction table can release entries.
 
@@ -84,9 +85,20 @@ for the unused detection cones.
 | `axi_monitor_reporter_debug` | `ENABLE_DEBUG_LOGIC` (default `0`) | `PktTypeDebug` | event-encoded debug points |
 
 Each sub-block presents the same "raise a request with packet payload"
-contract to the dispatcher, which arbitrates and pipes the winner into
-the FIFO. None of them are intended to be instantiated directly by
-integrators — they are private to the reporter family.
+contract to the dispatcher, but the dispatcher routes them **two different
+ways**:
+
+- **Error, timeout and completion** contend for the FIFO write port, in that
+  priority order, and are queued.
+- **Threshold, perf and debug** never touch the FIFO. They load the 128-bit
+  output register directly, and only when it and the FIFO read port are both
+  idle (`!monbus_valid && !w_fifo_rd_valid`) -- which is what their
+  `output_busy` input tells them.
+
+That asymmetry is why a threshold/perf/debug packet is dropped rather than
+queued when the bus is congested, while an error is buffered. None of these
+sub-blocks are intended to be instantiated directly by integrators — they are
+private to the reporter family.
 
 ---
 
@@ -103,13 +115,16 @@ The reporter dispatcher provides:
 3. **Routing IDs** — inserts the static `UNIT_ID` / `AGENT_ID` so the
    downstream arbiter and the host can route packets back to their
    source.
-4. **Queuing** — buffers up to `INTR_FIFO_DEPTH` packets when the
-   downstream monbus is back-pressured. Note that this FIFO's fill level
-   has **no** path to the monitor's `block_ready` flow control — that is
-   driven purely by transaction-table occupancy.
+4. **Queuing** — buffers up to `INTR_FIFO_DEPTH` **error, timeout and
+   completion** packets when the downstream monbus is back-pressured.
+   Threshold, perf and debug packets bypass the queue entirely (see above).
+   Note that this FIFO's fill level has **no** path to the monitor's
+   `block_ready` flow control — that is driven purely by transaction-table
+   occupancy.
 5. **Event acknowledge** — drives `event_reported_*` back to
    `axi_monitor_trans_mgr` so the transaction table can release its
-   entry once the packet is in the FIFO.
+   entry once the packet is accepted into the FIFO (the queued classes are
+   the ones that mark entries reported).
 6. **Auto-retire** — releases terminal entries whose packet class cannot
    report (see below), so disabled classes never leak table slots.
 

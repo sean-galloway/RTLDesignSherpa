@@ -319,6 +319,63 @@ async def arbiter_rr_pwm_monbus_test(dut):
         print()
 
     # =========================================================================
+    # Phase 5b: ACK-monitoring reaches the monitor (WAIT_GNT_ACK builds only)
+    # =========================================================================
+    # The wrapper forwards WAIT_GNT_ACK to its ARBITER; it must also forward it
+    # to u_monitor. It did not (qc round_26): arbiter_monbus_common defaulted to
+    # WAIT_GNT_ACK=0 and compiled its gen_no_ack_monitoring branch, which ties
+    # ack-timeout and spurious-ack detection to 0 and counts completions on
+    # GRANT rather than grant_ack -- so an ACK-protocol build ran the ACK
+    # handshake on the arbiter while its monitor reported on a different
+    # protocol. The wrr wrapper always forwarded it, which is what made this an
+    # omission rather than a design choice.
+    #
+    # The wrapper hardcodes cfg_mon_ack_timeout_thresh and leaves
+    # debug_ack_timeout unconnected, so the effect is not visible at the ports.
+    # Probe the monitor's internal detection register instead (cocotb-test
+    # builds Verilator with --public-flat-rw, the same approach
+    # test_mon_cg_gating.py uses for dut.gated_aclk).
+    if test_wait_gnt_ack:
+        print("🔒 Phase 5b: ACK-timeout monitoring reaches the monitor...")
+        # Observed at the PORTS, not by internal probe: an unacked grant must
+        # produce a TIMEOUT packet carrying ARB_TIMEOUT_GRANT_ACK on the
+        # monitor bus. (The wrapper hardcodes cfg_mon_ack_timeout_thresh and
+        # leaves debug_ack_timeout unconnected, so the packet stream is the
+        # only port-visible evidence -- and it is the evidence a real consumer
+        # would use.)
+        PKT_TYPE_TIMEOUT = 0x3
+        ARB_TIMEOUT_GRANT_ACK = 0x0
+
+        dut.cfg_mon_enable.value = 1
+        dut.cfg_mon_pkt_type_enable.value = 0xFFFF
+        dut.monbus_ready.value = 1
+        dut.grant_ack.value = 0            # deliberately never ack
+        await ClockCycles(dut.clk, 5)
+
+        dut.request.value = 0b0001         # one client, held
+        saw_ack_timeout = False
+        for _ in range(600):               # wrapper hardcodes thresh 0x40
+            await RisingEdge(dut.clk)
+            if int(dut.monbus_valid.value) and int(dut.monbus_ready.value):
+                pkt = int(dut.monbus_packet.value)
+                if ((pkt >> 124) & 0xF) == PKT_TYPE_TIMEOUT and \
+                   ((pkt >> 97) & 0xFF) == ARB_TIMEOUT_GRANT_ACK:
+                    saw_ack_timeout = True
+                    break
+        dut.request.value = 0
+
+        print(f"   ARB ack-timeout packet seen = {saw_ack_timeout}")
+        assert saw_ack_timeout, (
+            "built with WAIT_GNT_ACK=1 and a grant was left unacked far longer "
+            "than the ACK timeout, but no TIMEOUT/ARB_TIMEOUT_GRANT_ACK packet "
+            "was ever emitted. The monitor is compiled with WAIT_GNT_ACK=0 -- "
+            "its gen_no_ack_monitoring branch ties detection to 0 -- so check "
+            "that the wrapper forwards .WAIT_GNT_ACK(WAIT_GNT_ACK) to "
+            "u_monitor, not just to the arbiter.")
+        await ClockCycles(dut.clk, 10)
+        print()
+
+    # =========================================================================
     # Phase 6: Final Validation and Report
     # =========================================================================
     print("📋 Phase 6: Final Integration Validation...")

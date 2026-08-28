@@ -304,7 +304,7 @@ format kicks in heavily.
 ### 5. Tier-0 RAW escape
 
 If none of the Tier-1 formats fit (CAM miss, or delta_ts > 8M cycles, or
-event_data > 2⁴⁰), the compressor falls back to a 3-beat RAW record:
+event_data >= 2⁴⁰), the compressor falls back to a 3-beat RAW record:
 
 ```
 beat 0 (tag = 0x0):  [63:60] = 0x0  | [59:0] = source_ts[59:0]
@@ -602,8 +602,8 @@ free-running counters, not as protected totals.
 | `stat_tier1_c` | Format C slot emitted |
 | `stat_tier0` | Tier-0 RAW escape emitted (3 slots) |
 | `stat_cam_miss` | Tier-0 escape caused by CAM miss |
-| `stat_delta_ts_ovf` | Tier-0 escape caused by delta_ts > 2²³ |
-| `stat_event_data_ovf` | Tier-0 escape caused by event_data > 2⁴⁰ (delta_ts fit) |
+| `stat_delta_ts_ovf` | Tier-0 escape caused by delta_ts >= 2²³ (the fit test is `< 2²³`, so 2²³ exactly does *not* fit) |
+| `stat_event_data_ovf` | Tier-0 escape caused by event_data >= 2⁴⁰ (delta_ts fit) |
 | `stat_ed_delta_ovf` | Tier-0 escape caused by ed_delta out of ±2³⁹ |
 
 The host firmware reads these via a configurable register block at the end

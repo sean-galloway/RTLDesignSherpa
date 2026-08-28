@@ -102,8 +102,9 @@ what it needs. Only the consumer is missing.
 ### Precedence decides how many protocols exist
 
 This is not a reporting preference. **Precedence determines whether `protocol`
-is a global namespace or a per-unit one, and that changes the ceiling by three
-orders of magnitude.**
+is a global namespace or a per-unit one, and that changes the ceiling by a
+factor of 256** -- 16 protocol identities against 256 x 16 = 4096, with the
+full message space scaling by the same 256x (see the table below).
 
 `protocol` is 4 bits. Read protocol-major -- `protocol / packet_type / unit` --
 and those 4 bits are a **global** namespace: 16 protocols for the entire SoC,

@@ -1090,6 +1090,71 @@ independently.
 | Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
 | Open items | none for gaxi itself |
 
+### monitor -- qc round_26 integrated 2026-08-27 (convergence round)
+
+44 -> 24 -> 15 findings. Character changed decisively: no wrong-module
+pages, no fabricated models, no self-contradicting migrations. What is
+left is narrow -- port-list gaps, off-by-one thresholds, and single
+sentences contradicting their own page.
+
+ONE REAL RTL DEFECT, and a good one: `arbiter_rr_pwm_monbus` forwards
+WAIT_GNT_ACK to its ARBITER but not to its MONITOR. The monitor
+therefore defaulted to WAIT_GNT_ACK=0 and compiled its
+gen_no_ack_monitoring branch, which ties ack-timeout and spurious-ack
+detection to 0 and counts completions on GRANT instead of grant_ack. So
+a wrapper built with WAIT_GNT_ACK=1 ran the ACK protocol on the arbiter
+while its monitor silently reported on a different protocol. The WRR
+wrapper always forwarded it, which is what made this an omission rather
+than a design choice. One-line fix.
+
+The TEST for it took three attempts, and the failures are the lesson:
+  1. probe cfg_mon_ack_timeout_thresh / debug_ack_timeout at the ports
+     -- IMPOSSIBLE: the wrapper hardcodes the threshold (16'h40) and
+     leaves debug_ack_timeout unconnected;
+  2. probe the monitor's internal r_ack_timeout_detected hierarchically
+     -- the path is not reachable in this build, so the check SKIPPED
+     and passed. A skipped assertion is decoration, exactly what the
+     handbook warns about; caught it because the log said "(internal
+     probe unavailable - skipped)" rather than reporting a value;
+  3. observe the MONBUS PACKET STREAM for a TIMEOUT packet carrying
+     ARB_TIMEOUT_GRANT_ACK -- port-visible, and the evidence a real
+     consumer would use. RED (seen=False) before the fix, GREEN after.
+The general point: when a signal is not at the ports, prefer the
+protocol-visible consequence over a hierarchical probe -- it survives
+build settings AND it is what the integrator actually sees.
+
+Doc findings closed: DEFAULT_ACK_TIMEOUT documented as live but dead
+(the real knob is the cfg_mon_ack_timeout_thresh PORT); the WRR page
+contradicting itself on the legal weight range (Key Features said 1..
+MAX_LEVELS, but the field is $clog2(MAX_LEVELS) bits so MAX_LEVELS
+itself truncates to 0 and DISABLES the client); the WRR Operation Flow
+still saying "grants highest-priority request" against its own
+credit-based algorithm section; "three orders of magnitude" for what the
+page's own table computes as 256x; base/filtered port tables missing
+five real outputs (perf_completed_count, perf_error_count, block_ready,
+busy, active_count); the reporter page claiming all six sub-blocks pipe
+into the FIFO when only error/timeout/compl are queued and
+threshold/perf/debug load the output register directly (which is WHY
+those three are dropped rather than buffered under congestion); the
+timer Key Features bullet still advertising a configurable tick period;
+CFI_NUM_FREQ_ENTRIES described as sizing cfg_freq_sel on base/filtered
+where it is a fixed 4-bit port; the undocumented ID_WIDTH <= 8
+elaboration limit; monbus_arbiter's "zero-latency combinational
+pass-through" when grant_valid is a REGISTERED arbiter output; the
+compressor's overflow thresholds off by one (doc ">", RTL ">="); and a
+"hit_any" signal in a timing sketch that the module does not have.
+
+Two were mine again, both from round_25 sweeps: the timer Key Features
+bullet contradicting the body I had just rewritten, and
+monbus_group_core still saying r_wr_addr "only moves in WR_W" after I
+documented the WR_IDLE moves on the sibling page.
+
+Clean-rebuild regression 65/65. Checkers clean.
+
+CONVERGENCE CALL: the RTL side is exhausted for this reviewer (three
+rounds, six defects, all fixed and witnessed) and the doc side is down
+to single sentences. Proceeding to humanize.
+
 ### monitor -- qc round_25 integrated 2026-08-27 (confirmation round)
 
 Findings 44 -> 24 across the four units (11->7, 13->5, 12->7, 8->5). The

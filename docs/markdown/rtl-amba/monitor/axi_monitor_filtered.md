@@ -72,7 +72,7 @@ The `axi_monitor_filtered` module is the core building block for:
 |-----------|------|---------|-------------|
 | `UNIT_ID` / `AGENT_ID` | logic | `8'h01` / `16'h000A` | Identity bits stamped into emitted monitor packets. |
 | `MAX_TRANSACTIONS` | int | 16 | Outstanding transaction table depth (passed to `axi_monitor_base` → `axi_monitor_trans_mgr`). |
-| `ADDR_WIDTH` / `ID_WIDTH` | int | 32 / 8 | Address and AXI ID widths. |
+| `ADDR_WIDTH` / `ID_WIDTH` | int | 32 / 8 | Address and AXI ID widths. `ID_WIDTH` has a **hard maximum of 8** (the transaction-table id field is 8 bits; wider is refused at elaboration with an `$error`). `ADDR_WIDTH > 32` is allowed but truncates the address carried in packets to the low 32 bits. |
 | `IS_READ` / `IS_AXI` | bit | 1 / 1 | Direction (read vs write) and protocol family (AXI4 vs AXIL). |
 | `ENABLE_PERF_PACKETS` | bit | 1 | Emit perf packets onto the monitor bus. |
 | `ENABLE_DEBUG_MODULE` | bit | 0 | **Inert / reserved** -- the debug-trace sub-module it names does not exist; forwarded to `axi_monitor_base` only because the wrapper family plumbs it. Real debug packets come from `ENABLE_DEBUG_LOGIC` + `cfg_debug_enable`. |
@@ -103,7 +103,7 @@ complete inventory.
 | `ID_MATCH_COUNT` | int | 0 | How many IDs; 0 = all (no filter) |
 | `CFI_MIN_FREQ_MHZ` | int | 100 | Timer LUT lower bound (MHz) |
 | `CFI_MAX_FREQ_MHZ` | int | 100 | Timer LUT upper bound (MHz) |
-| `CFI_NUM_FREQ_ENTRIES` | int | 16 | Timer LUT entries (sizes `cfg_freq_sel`) |
+| `CFI_NUM_FREQ_ENTRIES` | int | 16 | Timer LUT entries. Does **not** size this module's `cfg_freq_sel`, which is a fixed 4-bit port here |
 | `CFI_FREQ_STRATEGY` | int | 0 | 0 = LINEAR, 1 = POW2 |
 
 See [Transaction-Table Shaping, ID-Range Filter and Timer LUT Sizing in

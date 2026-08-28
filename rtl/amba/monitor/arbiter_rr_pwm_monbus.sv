@@ -193,6 +193,15 @@ module arbiter_rr_pwm_monbus #(
     if (USE_MONITOR) begin : gen_monitor
         arbiter_monbus_common #(
             .CLIENTS                 (CLIENTS),                    // User configurable
+            // MUST be forwarded: with the default 0 the monitor compiles its
+            // gen_no_ack_monitoring branch, which ties ack-timeout detection
+            // and spurious-ack detection to 0 and counts completions on GRANT
+            // instead of grant_ack. A wrapper built with WAIT_GNT_ACK=1 would
+            // then run the ACK protocol on the arbiter while its monitor
+            // silently reported on a different protocol (qc round_26; the WRR
+            // wrapper always forwarded it, which is what made the omission
+            // visible as a wiring bug rather than a choice).
+            .WAIT_GNT_ACK            (WAIT_GNT_ACK),              // ACK protocol support
             .MON_AGENT_ID            (MON_AGENT_ID),              // User configurable
             .MON_UNIT_ID             (MON_UNIT_ID),               // User configurable
             .MON_FIFO_DEPTH          (MON_FIFO_DEPTH),            // Standardized to 16

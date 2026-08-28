@@ -86,7 +86,7 @@ The `arbiter_monbus_common` module exists to:
 | `MON_FIFO_ALMOST_MARGIN` | int | 1 | Almost-full margin for the monitor FIFO |
 | `FAIRNESS_REPORT_CYCLES` | int | 256 | How often the fairness deviation is **recomputed** (cycles). **Not a sliding window:** `r_grant_counters` and `r_total_grants` are cleared on reset alone, so the deviation is always computed from grants accumulated since reset. `MIN_GRANTS_FOR_FAIRNESS` is likewise compared against the lifetime total. After a traffic-phase or weight change the figure converges toward the new distribution rather than snapping to it |
 | `MIN_GRANTS_FOR_FAIRNESS` | int | 100 | Minimum grants before a fairness report is valid |
-| `DEFAULT_ACK_TIMEOUT` | int | 64 | Default grant-ACK timeout (cycles) |
+| `DEFAULT_ACK_TIMEOUT` | int | 64 | **Dead** — declared and referenced by no logic. The effective threshold is whatever is driven on the `cfg_mon_ack_timeout_thresh` **port** (`arbiter_rr_pwm_monbus` hardwires `16'h40`; `arbiter_wrr_pwm_monbus` passes its own port through). Overriding this parameter changes nothing |
 
 `MAX_LEVELS` (default 16) is an independent parameter, not a derived one: it
 sets the per-client weight resolution and therefore the width of the

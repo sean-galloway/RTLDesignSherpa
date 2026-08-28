@@ -72,7 +72,7 @@ The `axi_monitor_base` module is the core building block for:
 | `AGENT_ID` | logic [15:0] | 16'h0063 | 16-bit agent identifier in monitor packets |
 | `MAX_TRANSACTIONS` | int | 16 | Maximum outstanding transactions in the CAM |
 | `ADDR_WIDTH` | int | 32 | Address bus width |
-| `ID_WIDTH` | int | 8 | Transaction ID width (0 for AXIL) |
+| `ID_WIDTH` | int | 8 | Transaction ID width (0 for AXIL). **Hard maximum 8** — `bus_transaction_t.id` is an 8-bit field, so a wider key would disagree with the payload and mis-attribute transactions; `axi_monitor_trans_mgr` refuses `ID_WIDTH > 8` at elaboration with an `$error` |
 | `ADDR_BITS_IN_PKT` | int | 38 | **Inert.** Intended as the number of address LSBs carried in a packet, but the derived `ADDR_BITS` is never referenced: `bus_transaction_t.addr` is 32 bits, so packets carry the low **32** address bits regardless. With `ADDR_WIDTH > 32` the upper bits are lost at table-allocation time |
 | `IS_READ` | bit | 1 | 1=read monitor (R data channel, AR bursts), 0=write monitor (W data channel, AW bursts) |
 | `IS_AXI` | bit | 1 | 1=AXI protocol, 0=AXI-Lite |
@@ -141,7 +141,7 @@ built for this design's clock gives an exact tick.
 |-----------|------|---------|-------------|
 | `CFI_MIN_FREQ_MHZ` | int | 100 | Lowest frequency in the LUT |
 | `CFI_MAX_FREQ_MHZ` | int | 100 | Highest frequency in the LUT |
-| `CFI_NUM_FREQ_ENTRIES` | int | 16 | LUT entries (sizes `cfg_freq_sel`) |
+| `CFI_NUM_FREQ_ENTRIES` | int | 16 | LUT entries. Note it does **not** size this module's `cfg_freq_sel`, which is a fixed 4-bit port here -- only `axi_monitor_timer` derives its select width from this |
 | `CFI_FREQ_STRATEGY` | int | 0 | 0 = LINEAR spacing, 1 = POW2 |
 
 The defaults set **every entry to 100 MHz**, so the tick is exactly 1 us at
@@ -254,6 +254,8 @@ are the lowest-priority source on the monitor bus (reporter > debug > addr_check
 | `block_ready` | Output | 1 | Flow control: 1 = upstream may proceed, 0 = transaction-table occupancy is at the blocking threshold. Derived from `active_count` vs `MAX_TRANSACTIONS`; the reporter's `INTR_FIFO_DEPTH` has **no** path to it. See [Flow Control and the Saturation-Recovery Contract](#flow-control-and-the-saturation-recovery-contract) |
 | `busy` | Output | 1 | Monitor is busy indicator (`active_count > 0`) |
 | `active_count` | Output | 8 | Number of live transaction-table entries (registered pop-count of CAM occupancy; lags true occupancy by 1 cycle) |
+| `perf_completed_count` | Output | 16 | **Lifetime** completion count from `axi_monitor_reporter_perf` -- packets actually emitted, not window-scoped. Reads 0 when `ENABLE_PERF_LOGIC = 0` |
+| `perf_error_count` | Output | 16 | **Lifetime** error/timeout count from the same block; 0 when `ENABLE_PERF_LOGIC = 0` |
 
 The base module multiplexes three internal sources onto the monbus output —
 reporter packets (highest priority), debug packets, and addr_check error

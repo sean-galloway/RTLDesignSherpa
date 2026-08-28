@@ -370,7 +370,8 @@ Key design choices to preserve the trans_mgr's 2026-04-23 WNS fix:
 
 The combinational depth from input port to CAM output is:
 ```
-lookup_id  →  match_oh  →  hit_any (one OR-tree)
+lookup_id  →  match_oh  (per-slot compare; the module exports the
+           one-hot vector, and the consumer ORs it if it needs a hit flag)
                        ↘
                         first_oh (priority encoder)
 ```

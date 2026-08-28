@@ -36,7 +36,7 @@ The Weighted Round-Robin Arbiter with PWM and Monitor Bus provides priority-base
 ### Key Features
 
 - Weighted round-robin arbitration with configurable priorities
-- Per-client weight thresholds (1 to MAX_LEVELS)
+- Per-client weight thresholds (1 to `MAX_LEVELS-1`; the field is `$clog2(MAX_LEVELS)` bits, so `MAX_LEVELS` itself is not representable — see Design Notes)
 - PWM-based arbiter blocking for periodic control
 - Standardized 16-bit PWM resolution
 - Comprehensive fairness deviation monitoring
@@ -227,7 +227,7 @@ Event generated if max deviation > cfg_mon_fairness_thresh.
 1. Configure per-client weights via cfg_arb_max_thresh
 2. Clients assert request signals
 3. PWM output modulates arbiter availability
-4. When active, weighted arbiter grants highest-priority request
+4. When active, the weighted arbiter grants a **credit-eligible** requester, chosen round-robin among those with credit remaining — weight budgets how many grants a client gets per replenishment round, it does not rank clients
 5. Monitor tracks grants and calculates fairness metrics
 6. Fairness violations reported if distribution deviates from weights
 

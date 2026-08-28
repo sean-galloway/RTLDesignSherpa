@@ -36,7 +36,7 @@ The AXI Monitor Timer provides frequency-invariant timing for the AXI monitor in
 ### Key Features
 
 - Frequency-invariant timer tick generation
-- Configurable tick frequency via 4-bit selection
+- Fixed 1 MHz (1 us) tick; the 4-bit `cfg_freq_sel` selects the **clock frequency** the divider is matched to, not the tick period
 - Global timestamp counter (32-bit cycle counter)
 - Uses counter_freq_invariant for portable timing
 - Zero-latency timestamp (combinational output)
