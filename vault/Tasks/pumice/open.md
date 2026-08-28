@@ -243,21 +243,46 @@ Shared collateral built for this, reuse it rather than re-rolling:
   auto-discovery, so these pass an explicit `signal_map`, which also
   fails loudly on a rename instead of binding to nothing.
 
-**STILL TO PORT (missed by the original audit, 2026-08-28 sweep):**
-| File | pokes | interfaces |
-|---|---|---|
-| `dv/tbclasses/pumice_wr_data_cam_tb.py` | 17 | ins/commit/wd/cm_rd/snarf_rd |
-| `dv/tbclasses/pumice_rd_cmd_cam_tb.py` | 13 | ins/issue/drain/dfi_ret |
-| `dv/tbclasses/pumice_dfi_cdc_tb.py` | 12 | cmd/wd/rd + pcmd/pwd/prd (both clock domains) |
-| `dv/tests/fub/test_pumice_dfi_cmd_path.py` | 8 | cmd, rd_op |
-| `dv/tbclasses/pumice_cmd_arbiter_tb.py` | 7 | cmd, bank_act/rdwr/pre, wr_commit, rd_issue |
-| `dv/tests/fub/test_pumice_dfi_wr_serializer.py` | 6 | wd |
-| `dv/tbclasses/wr_cmd_cam_tb.py` | 3 | push |
-| `dv/tbclasses/pumice_mem_cmd_scheduler_tb.py` | 3 | cmd, wr_commit, rd_issue |
-| `dv/tbclasses/dfi_cmd_formatter_tb.py` | 2 | cmd |
+**STILL TO PORT (missed by the original audit, 2026-08-28 sweep).**
+Counts below are RAW `.value =` sites; the "real" column excludes signals
+that are NOT valid/ready interfaces, which is most of the arbiter's:
 
-All of these are `fub_consumer`/`fub_producer` shaped — the pattern and
-the collateral now exist, so each is mechanical.
+| File | raw | real | genuine handshakes | tests backpressure? |
+|---|---|---|---|---|
+| `dv/tbclasses/pumice_wr_data_cam_tb.py` | 17 | ~13 | ins/commit/wd/cm_rd/snarf_rd | YES |
+| `dv/tbclasses/pumice_rd_cmd_cam_tb.py` | 13 | ~11 | ins/issue/drain/dfi_ret | YES |
+| `dv/tbclasses/pumice_dfi_cdc_tb.py` | 12 | 12 | cmd/wd/rd + pcmd/pwd/prd (both domains) | YES |
+| `dv/tests/fub/test_pumice_dfi_cmd_path.py` | 8 | 8 | cmd, rd_op | YES |
+| `dv/tests/fub/test_pumice_cmd_arbiter*` (tb) | 7 | 3 | cmd, wr_commit, rd_issue | no |
+| `dv/tests/fub/test_pumice_dfi_wr_serializer.py` | 6 | 6 | wd | YES |
+| `dv/tbclasses/wr_cmd_cam_tb.py` | 3 | 3 | push | YES |
+| `dv/tbclasses/pumice_mem_cmd_scheduler_tb.py` | 3 | 3 | cmd, wr_commit, rd_issue | no |
+| `dv/tbclasses/dfi_cmd_formatter_tb.py` | 2 | 2 | cmd | no (drives valid LOW) |
+
+NOT handshakes, correctly left alone (verified against the RTL port
+lists): `bank_act_ready_i` / `bank_rdwr_ready_i` / `bank_pre_ready_i` are
+per-bank PERMISSION VECTORS from the bank timers (NUM_RANKS x NUM_BANKS
+wide, no matching valid); `init_cmd_valid_i`, `sched_lu_valid_i`,
+`snarf_probe_valid_i` have no ready.
+
+**BLOCKER on most of the remainder -- needs a decision.** Seven of the nine
+assert on `ready` being LOW: they drive valid for one cycle and check the
+DUT backpressures (`wr_cmd_cam_tb.push(expect_ready=False)` pushes into a
+full CAM on purpose). A GAXI `send()` BLOCKS until ready, so porting those
+naively DELETES the coverage they exist for. Options:
+  (a) add a non-blocking / try-send primitive to the GAXI BFM in RDS-DV
+      (framework change, other repo) -- the clean fix;
+  (b) leave those specific negative-path drives as documented exceptions.
+`dfi_cmd_formatter_tb` has the mirror problem: it deliberately drives
+payload with valid LOW to prove the formatter ignores it, which a BFM
+cannot express because a BFM never drives payload while idle.
+
+There is also a REGRESSION RISK to weigh on `pumice_cmd_arbiter_tb` and
+`pumice_mem_cmd_scheduler_tb`, which are otherwise the two clean ones:
+they do cycle-exact accounting (the arbiter TB is what caught the refresh
+double-issue), and a GAXI slave that momentarily drops `ready` where the
+TB held a constant 1 would perturb exactly that timing. Port them with a
+before/after cycle comparison, not blind.
 
 **Deliberately NOT converted (documented in the code):** signals with NO
 `ready` are strobes, not handshakes, and there is nothing for a BFM to
