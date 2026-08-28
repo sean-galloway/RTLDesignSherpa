@@ -87,5 +87,5 @@ $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/br
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f
 # Monbus arbiter (always present in mon variant)
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
-# Monbus group (monbus_axil_axil_group)
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
+# Monbus group (monbus_axil4_axil4_group)
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f

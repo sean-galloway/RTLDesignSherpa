@@ -37,7 +37,7 @@
 # latency-hist + mon-tap deps are already pulled via stream_top_ch8.f above;
 # only the observer wrapper and its AXIL-read / AXI4-write monbus output stage
 # are new here.
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axi4_group.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axi4_group.f
 # axi4_dma_observer RETIRED 2026-08-14 (superseded by projects/components/misc/rtl/axi4_intf_master_observer.sv).
 # This tree is reference-only and no longer elaborates.
 

@@ -15,7 +15,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_crc_check.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_dma_slaves.f
 -f $STREAM_CHAR_ROOT/rtl/filelists/instrumentation_mon.f
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil_axil_group.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 # axi4_dma_observer RETIRED 2026-08-14 (superseded by projects/components/misc/rtl/axi4_intf_master_observer.sv).
 # This tree is reference-only and no longer elaborates.
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_rd_mon.f
