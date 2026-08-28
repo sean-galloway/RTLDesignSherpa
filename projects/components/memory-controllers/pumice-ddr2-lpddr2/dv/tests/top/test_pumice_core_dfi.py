@@ -21,12 +21,19 @@ import random
 
 import cocotb
 from cocotb.clock import Clock
+from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, ClockCycles
 
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
+from CocoTBFramework.components.axi4.axi4_interfaces import (
+    AXI4MasterRead, AXI4MasterWrite,
+)
+from CocoTBFramework.components.axi4.axi4_sequence import (
+    AXI4Sequence, run_axi4_sequence, run_axi4_sequence_engine,
+)
 from CocoTBFramework.components.dfi.dfi_base import DFIBase
 from CocoTBFramework.components.dfi.dfi_signals import DFIVersion, MemoryType
 from CocoTBFramework.components.dfi.dfi_slave_phy import DFISlavePHY
@@ -74,16 +81,11 @@ def _cfg(dut, page_policy=0):
     dut.wr_phase_i.value = 0
     dut.t_phy_wrlat_i.value = 1
     dut.t_rddata_en_i.value = 2
-    for s in ("awid", "awaddr", "awlen", "awsize", "awburst", "awlock", "awcache",
-              "awprot", "awqos", "awregion", "awuser", "awvalid",
-              "wdata", "wstrb", "wlast", "wuser", "wvalid",
-              "arid", "araddr", "arlen", "arsize", "arburst", "arlock", "arcache",
-              "arprot", "arqos", "arregion", "aruser", "arvalid"):
-        getattr(dut, f"s_axi_{s}").value = 0
-    dut.s_axi_awburst.value = BURST_INCR
-    dut.s_axi_arburst.value = BURST_INCR
-    dut.s_axi_bready.value = 1
-    dut.s_axi_rready.value = 1
+    # NOTE: the s_axi_* channels are deliberately NOT touched here. The
+    # AXI4 master BFMs own every one of them (including AWBURST/ARBURST
+    # and the B/R ready lines) -- driving them from the test as well
+    # would be a second driver on the same nets, and hand-poking a
+    # valid/ready interface is forbidden outright. See _masters_init().
 
 
 def _mkaddr(bank, row, col):
@@ -134,6 +136,13 @@ async def _bring_up(dut, page_policy=0):
         if int(dut.init_done_o.value):
             break
     assert int(dut.init_done_o.value) == 1, "init never completed"
+
+    # AXI4 master BFMs. HARD RULE (Sean 2026-08-27): no environment may
+    # hand-poke a standard/valid-ready interface -- all host traffic goes
+    # through the BFMs, whose randomizers model real protocol timing.
+    # 'backtoback' (zero inter-beat delay) is mandatory for perf work:
+    # a lazy driver starves the DUT and the numbers grade the testbench.
+    _masters_init(dut)
 
     # PUMICE-012: opt-in structure trackers. PUMICE_TRACKERS=1 wires the
     # passive per-FUB trackers and each writes <sim_build>/<short>.out at
@@ -193,77 +202,100 @@ async def cocotb_test_pumice_core_dfi(dut):
 
     # ---- write phase ----
     for k, (addr, data) in enumerate(reqs):
-        await _aw(dut, addr, k & 0xF)
-        await _w(dut, data)
-        for _ in range(400):
-            await RisingEdge(dut.aclk)
-            if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
-                break
+        await _write(dut, addr, data, k & 0xF)
 
     # ---- read phase (R backpressure on the odd reads) ----
+    # Backpressure comes from the BFM's R-channel randomizer profile, NOT
+    # from poking s_axi_rready: 'burst_pause' gives the R consumer real
+    # ready_delay gaps (0 mostly, 12-25 cycles occasionally).
     for k, (addr, data) in enumerate(reqs):
-        got = []
-        bp = (k % 2 == 1)
-        cocotb.start_soon(_r_sink(dut, got, throttle=bp))
-        await _ar(dut, addr, k & 0xF)
-        for _ in range(800):
-            await RisingEdge(dut.aclk)
-            if len(got) >= BL_WORDS:
-                break
+        _set_r_profile(dut, "burst_pause" if (k % 2) else "backtoback")
+        got = await _read(dut, addr, k & 0xF)
         assert got[:BL_WORDS] == data, (
             f"read {k} @ {addr:#x} mismatch:\n  got {[hex(x) for x in got[:BL_WORDS]]}"
             f"\n  exp {[hex(x) for x in data]}")
 
+    _set_r_profile(dut, "backtoback")
     dut._log.info(f"PASS: {n} bursts written+read-back vs DFISlavePHY golden "
-                  f"(multi-bank, refresh active, R backpressure)")
+                  f"(multi-bank, refresh active, R backpressure via BFM profile)")
 
 
-async def _r_sink(dut, out, throttle=False):
-    import random as _r
-    while len(out) < BL_WORDS:
-        if throttle:
-            dut.s_axi_rready.value = 0
-            await ClockCycles(dut.aclk, 2)
-            dut.s_axi_rready.value = 1
-        await RisingEdge(dut.aclk)
-        if int(dut.s_axi_rvalid.value) and int(dut.s_axi_rready.value):
-            out.append(int(dut.s_axi_rdata.value) & ((1 << DW) - 1))
-    dut.s_axi_rready.value = 1
+_MASTERS: dict = {}
 
 
-async def _aw(dut, addr, wid):
-    dut.s_axi_awid.value = wid
-    dut.s_axi_awaddr.value = addr
-    dut.s_axi_awlen.value = BL_WORDS - 1
-    dut.s_axi_awvalid.value = 1
-    await RisingEdge(dut.aclk)
-    while int(dut.s_axi_awready.value) == 0:
-        await RisingEdge(dut.aclk)
-    dut.s_axi_awvalid.value = 0
+def _masters_init(dut) -> None:
+    """Build the AXI4 write/read master BFMs and pin them to backtoback."""
+    from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+    from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+    wr = AXI4MasterWrite(dut, dut.aclk, prefix="s_axi",
+                         data_width=DW, id_width=8, addr_width=32, log=dut._log)
+    rd = AXI4MasterRead(dut, dut.aclk, prefix="s_axi",
+                        data_width=DW, id_width=8, addr_width=32, log=dut._log)
+    cfg = AXI_RANDOMIZER_CONFIGS[os.environ.get("AXI_PROFILE", "backtoback")]
+    wr.aw_channel.randomizer = FlexRandomizer(cfg["master"])
+    wr.w_channel.randomizer  = FlexRandomizer(cfg["master"])
+    rd.ar_channel.randomizer = FlexRandomizer(cfg["master"])
+    wr.b_channel.randomizer  = FlexRandomizer(cfg["slave"])
+    rd.r_channel.randomizer  = FlexRandomizer(cfg["slave"])
+    _MASTERS['wr'], _MASTERS['rd'] = wr, rd
 
 
-async def _w(dut, data):
-    for i, d in enumerate(data):
-        dut.s_axi_wdata.value = d
-        dut.s_axi_wstrb.value = (1 << SW) - 1
-        dut.s_axi_wlast.value = 1 if i == len(data) - 1 else 0
-        dut.s_axi_wvalid.value = 1
-        await RisingEdge(dut.aclk)
-        while int(dut.s_axi_wready.value) == 0:
-            await RisingEdge(dut.aclk)
-    dut.s_axi_wvalid.value = 0
-    dut.s_axi_wlast.value = 0
+def _set_r_profile(dut, profile: str) -> None:
+    """Retime the read master's R channel (consumer-side backpressure)."""
+    from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+    from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+    _MASTERS['rd'].r_channel.randomizer = FlexRandomizer(
+        AXI_RANDOMIZER_CONFIGS[profile]["slave"])
 
 
-async def _ar(dut, addr, rid):
-    dut.s_axi_arid.value = rid
-    dut.s_axi_araddr.value = addr
-    dut.s_axi_arlen.value = BL_WORDS - 1
-    dut.s_axi_arvalid.value = 1
-    await RisingEdge(dut.aclk)
-    while int(dut.s_axi_arready.value) == 0:
-        await RisingEdge(dut.aclk)
-    dut.s_axi_arvalid.value = 0
+async def _run_seq(dut, seq: AXI4Sequence, *, engine: bool = False):
+    """Run `seq` through the master BFMs.
+
+    `engine=True` selects the queue-and-go runner. The default
+    `run_axi4_sequence` takes a per-instance AW+W lock and awaits each B
+    response before the next burst, so consecutive AWs sit ~5-15 cycles
+    apart -- measured here at 34.5 cycles/burst, which leaves the command
+    CAM EMPTY between bursts. That matters beyond throughput: the
+    scheduler's `demand_i` is CAM occupancy, so a serial runner makes the
+    DUT look idle to the refresh credit logic and refreshes fire in the
+    gaps. Any multi-burst helper therefore uses the engine runner."""
+    runner = run_axi4_sequence_engine if engine else run_axi4_sequence
+    return await runner(seq, master_wr=_MASTERS['wr'],
+                        master_rd=_MASTERS['rd'], log=dut._log)
+
+
+async def _write(dut, addr, data, wid=0):
+    """One write burst via the write-master BFM (blocks through B)."""
+    seq = AXI4Sequence("w1", data_width=DW)
+    seq.add_write(addr, list(data), axid=wid & 0xF)
+    await _run_seq(dut, seq)
+
+
+async def _read(dut, addr, rid=0):
+    """One read burst via the read-master BFM; returns its beat list."""
+    seq = AXI4Sequence("r1", data_width=DW)
+    seq.add_read(addr, length=BL_WORDS, axid=rid & 0xF)
+    res = await _run_seq(dut, seq)
+    return list(res[0]["data"]) if res else []
+
+
+async def _write_many(dut, reqs):
+    """Multi-burst write through the engine runner, so AWs queue
+    back-to-back and the command CAM stays occupied."""
+    seq = AXI4Sequence("wN", data_width=DW)
+    for k, (addr, data) in enumerate(reqs):
+        seq.add_write(addr, list(data), axid=k & 0xF)
+    await _run_seq(dut, seq, engine=True)
+
+
+async def _read_many(dut, addrs, axid_fn=lambda k: k & 0xF):
+    """Multi-burst read through the engine runner; returns
+    [(addr, beats), ...] in burst order."""
+    seq = AXI4Sequence("rN", data_width=DW)
+    for k, a in enumerate(addrs):
+        seq.add_read(a, length=BL_WORDS, axid=axid_fn(k))
+    res = await _run_seq(dut, seq, engine=True)
+    return [(d["addr"], list(d["data"])) for d in res]
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
@@ -280,19 +312,13 @@ async def cocotb_test_pumice_core_close(dut):
         seen.add(a)
         reqs.append((a, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]))
     for k, (addr, data) in enumerate(reqs):
-        await _aw(dut, addr, k & 0xF); await _w(dut, data)
+        await _write(dut, addr, data, k & 0xF)
         for _ in range(400):
             await RisingEdge(dut.aclk)
             if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
                 break
     for k, (addr, data) in enumerate(reqs):
-        got = []
-        cocotb.start_soon(_r_sink(dut, got))
-        await _ar(dut, addr, k & 0xF)
-        for _ in range(800):
-            await RisingEdge(dut.aclk)
-            if len(got) >= BL_WORDS:
-                break
+        got = await _read(dut, addr, k & 0xF)
         assert got[:BL_WORDS] == data, f"CLOSE read {k} @ {addr:#x}: {got[:BL_WORDS]} != {data}"
     dut._log.info(f"PASS: CLOSE policy (auto-precharge) — {n} bursts round-trip vs golden")
 
@@ -320,33 +346,19 @@ async def cocotb_test_pumice_core_refresh_collide(dut):
         addr = _mkaddr(BANK, ROW, k * BL)
         data = [((k << 16) | (0xAB0 + i)) & ((1 << DW) - 1) for i in range(BL_WORDS)]
         exp.append((addr, data))
-        await _aw(dut, addr, k & 0xF)
-        await _w(dut, data)
+        await _write(dut, addr, data, k & 0xF)
     await ClockCycles(dut.aclk, 500)                 # drain writes into golden
 
-    got = []
-    async def _collect():
-        cur = []
-        while len(got) < N:
-            await RisingEdge(dut.aclk)
-            if int(dut.s_axi_rvalid.value) and int(dut.s_axi_rready.value):
-                cur.append(int(dut.s_axi_rdata.value) & ((1 << DW) - 1))
-                if int(dut.s_axi_rlast.value):
-                    got.append(cur); cur = []
-    dut.s_axi_rready.value = 1
-    cocotb.start_soon(_collect())
-
-    for k in range(N):                               # sustained same-bank reads
-        await _ar(dut, exp[k][0], k & 0xF)
-    for _ in range(6000):
-        if len(got) >= N:
-            break
-        await RisingEdge(dut.aclk)
+    # Sustained same-bank reads as ONE pipelined BFM sequence: the read
+    # master keeps AR busy, which is what makes a refresh land mid-burst.
+    results = await _read_many(dut, [a for a, _ in exp])
+    by_addr = {a: beats for a, beats in results}
 
     bad = 0
     for k, (addr, data) in enumerate(exp):
-        if k >= len(got) or got[k][:BL_WORDS] != data:
-            g = [hex(x) for x in got[k][:BL_WORDS]] if k < len(got) else "MISSING"
+        beats = by_addr.get(addr)
+        if beats is None or beats[:BL_WORDS] != data:
+            g = [hex(x) for x in beats[:BL_WORDS]] if beats else "MISSING"
             dut._log.info(f"read {k} @ {addr:#x}: {g} != {[hex(x) for x in data]}")
             bad += 1
     assert bad == 0, (f"refresh collided with {bad}/{N} same-bank reads "
@@ -391,19 +403,8 @@ async def cocotb_test_pumice_core_fixed_open(dut):
     async def _wr_rd_one(col, rid):
         addr = _mkaddr(BANK, ROW, col * BL)
         data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
-        await _aw(dut, addr, rid & 0xF)
-        await _w(dut, data)
-        for _ in range(400):
-            await RisingEdge(dut.aclk)
-            if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
-                break
-        got = []
-        cocotb.start_soon(_r_sink(dut, got))
-        await _ar(dut, addr, rid & 0xF)
-        for _ in range(800):
-            await RisingEdge(dut.aclk)
-            if len(got) >= BL_WORDS:
-                break
+        await _write(dut, addr, data, rid & 0xF)
+        got = await _read(dut, addr, rid & 0xF)
         assert got[:BL_WORDS] == data, f"data mismatch @ col {col}"
 
     async def _idle_pre_count(cycles):
@@ -482,19 +483,8 @@ async def cocotb_test_pumice_core_rbl(dut):
     async def _one(bank, row, col, rid):
         addr = _mkaddr(bank, row, col * BL)
         data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
-        await _aw(dut, addr, rid & 0xF)
-        await _w(dut, data)
-        for _ in range(400):
-            await RisingEdge(dut.aclk)
-            if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
-                break
-        got = []
-        cocotb.start_soon(_r_sink(dut, got))
-        await _ar(dut, addr, rid & 0xF)
-        for _ in range(800):
-            await RisingEdge(dut.aclk)
-            if len(got) >= BL_WORDS:
-                break
+        await _write(dut, addr, data, rid & 0xF)
+        got = await _read(dut, addr, rid & 0xF)
         assert got[:BL_WORDS] == data, f"data mismatch bank{bank} row{row}"
 
     async def _thrash(n, col0):
@@ -573,21 +563,10 @@ async def cocotb_test_pumice_core_acc(dut):
         addr = _mkaddr(bank, row, col * BL)
         data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
         written[addr] = data
-        await _aw(dut, addr, rid & 0xF)
-        await _w(dut, data)
-        for _ in range(400):
-            await RisingEdge(dut.aclk)
-            if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
-                break
+        await _write(dut, addr, data, rid & 0xF)
 
     async def _rd_check(addr, rid):
-        got = []
-        cocotb.start_soon(_r_sink(dut, got))
-        await _ar(dut, addr, rid & 0xF)
-        for _ in range(800):
-            await RisingEdge(dut.aclk)
-            if len(got) >= BL_WORDS:
-                break
+        got = await _read(dut, addr, rid & 0xF)
         assert got[:BL_WORDS] == written[addr], f"data mismatch @ {addr:#x}"
 
     async def _thrash(n, col0):
@@ -687,8 +666,7 @@ async def cocotb_test_pumice_core_sched_order(dut):
     golden = {}
     for addr in hit_addr + [_mkaddr(BANK, ROW_V, 0)]:
         golden[addr] = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
-        await _aw(dut, addr, 0)
-        await _w(dut, golden[addr])
+        await _write(dut, addr, golden[addr], 0)
     await ClockCycles(dut.aclk, 300)         # drain all writes
 
     async def _run_arm(mode, thresh, row_sel=0, col_sel=0):
@@ -696,32 +674,22 @@ async def cocotb_test_pumice_core_sched_order(dut):
         dut.sched_age_thresh_i.value = thresh
         dut.sched_row_sel_i.value = row_sel
         dut.sched_col_sel_i.value = col_sel
-        done, vic_beats = [0], []
-
-        async def _collect():
-            while True:
-                await RisingEdge(dut.aclk)
-                if int(dut.s_axi_rvalid.value) and int(dut.s_axi_rready.value):
-                    if int(dut.s_axi_rid.value) == VICTIM_ID:
-                        vic_beats.append(int(dut.s_axi_rdata.value))
-                    if int(dut.s_axi_rlast.value):
-                        done[0] += 1
-
-        task = cocotb.start_soon(_collect())
-        await _ar(dut, hit_addr[0], 1)       # opens row H
-        await ClockCycles(dut.aclk, 4)
-        await _ar(dut, vic_addr, VICTIM_ID)  # the parked conflict victim
+        # ONE ordered read sequence: row-H opener, then the parked
+        # conflict victim, then the rest of the row-H stream. The BFM
+        # issues them in order and reports every completion, so the
+        # wedge check is "did all N+1 come back" with no hand-driving.
+        seq = AXI4Sequence("parked_victim", data_width=DW)
+        seq.add_read(hit_addr[0], length=BL_WORDS, axid=1)
+        seq.add_read(vic_addr,    length=BL_WORDS, axid=VICTIM_ID)
         for c in range(1, N):
-            await _ar(dut, hit_addr[c], 1 + (c % 6))
-        for _ in range(4000):
-            await RisingEdge(dut.aclk)
-            if done[0] >= N + 1:
-                break
-        task.kill()
-        assert done[0] == N + 1, (
-            f"mode {mode}: only {done[0]}/{N+1} reads returned -- the "
+            seq.add_read(hit_addr[c], length=BL_WORDS, axid=1 + (c % 6))
+        res = await _run_seq(dut, seq)
+
+        assert len(res) == N + 1, (
+            f"mode {mode}: only {len(res)}/{N+1} reads returned -- the "
             f"parked-victim pattern wedged the read path")
-        assert vic_beats[:BL_WORDS] == golden[vic_addr], (
+        vic = [list(d["data"]) for d in res if d.get("addr") == vic_addr]
+        assert vic and vic[0][:BL_WORDS] == golden[vic_addr], (
             f"mode {mode}: victim data not golden")
 
     for mode, thresh, rs, cs in ((0, 0, 0, 0), (3, 2, 0, 0), (1, 0, 0, 0),
@@ -767,26 +735,57 @@ async def cocotb_test_pumice_core_refresh_credit(dut):
     def _refs():
         return slave.cmd_counts.get(_DC.REF, 0)
 
-    async def _demand(cycles, tag):
-        """Sustained back-to-back writes for a TIMED window of `cycles` --
-        keeps CAM occupancy (demand) high; the write loop paces itself off
-        the AW/W handshakes and stops when the window elapses."""
-        state = {"done": False}
-
-        async def _window():
-            await ClockCycles(dut.aclk, cycles)
-            state["done"] = True
-
-        cocotb.start_soon(_window())
-        k = 0
-        while not state["done"]:
+    async def _demand_n(n, tag):
+        """`n` back-to-back writes as ONE pipelined BFM sequence, so the CAM
+        stays occupied for the whole window -- that occupancy IS the
+        `demand_i` the credit logic keys off."""
+        reqs = []
+        for k in range(n):
             addr = _mkaddr((tag + k) % NUM_BANKS, (tag * 7 + k) & 0x3F,
                            (k & 0x3F) * BL)
             data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
             written[addr] = data
-            await _aw(dut, addr, k & 0xF)
-            await _w(dut, data)
+            reqs.append((addr, data))
+        await _write_many(dut, reqs)
+
+    # Every arm below asserts over a TIMED window -- arm B's whole claim is
+    # that nothing refreshes inside a stretch SHORTER than the postpone
+    # budget (7 backlogged refreshes x tREFI 96 = 672 cycles), and that a
+    # LONGER stretch does force one. Demand, however, is issued as WORK, and
+    # cycles-per-burst depends on profile, page policy and DFI rate.
+    #
+    # Estimating the burst count up front does not work, in either direction:
+    # two hardcoded guesses (10, then 50 cycles/burst) overshot and forced the
+    # refreshes arm B says are withheld; a measured one-shot calibration then
+    # UNDERSHOT, because an 8-burst sample carries sequence-setup overhead
+    # (9.4 cyc/burst) while steady state is ~5.5 -- so a 480-cycle request
+    # delivered 287 and the backlog never reached the limit.
+    #
+    # So close the loop on elapsed time instead of predicting it: issue small
+    # calibrated batches until the window has actually elapsed, refining the
+    # rate as we go. Batches are capped so the overshoot past `cycles` stays
+    # well inside the postpone budget.
+    _rate = [8.0]                       # cycles/burst, refined per batch
+    _BATCH_MAX = 16
+
+    def _elapsed(t0):
+        return (get_sim_time('ns') - t0) / 10.0
+
+    async def _demand(cycles, tag):
+        """Sustained demand for at least `cycles` cycles of real sim time."""
+        t0, r0 = get_sim_time('ns'), _refs()
+        k = 0
+        while _elapsed(t0) < cycles:
+            want = cycles - _elapsed(t0)
+            n = max(2, min(_BATCH_MAX, int(want / _rate[0])))
+            b0 = get_sim_time('ns')
+            await _demand_n(n, tag + k * _BATCH_MAX)
+            _rate[0] = max(1.0, (get_sim_time('ns') - b0) / 10.0 / n)
             k += 1
+        el = _elapsed(t0)
+        dut._log.info("demand(want=%d tag=%d): actual=%.0f cyc (%.1f tREFI "
+                      "ticks) in %d batches @%.1f cyc/burst, REFs=%d",
+                      cycles, tag, el, el / 96.0, k, _rate[0], _refs() - r0)
 
     # ---- arm A: strict (red guard) -----------------------------------------
     dut.ref_postpone_i.value = 0
@@ -828,13 +827,7 @@ async def cocotb_test_pumice_core_refresh_credit(dut):
     assert refs_c2 == 0, (f"pullin: {refs_c2} REFs during demand despite "
                           f"banked credit -- ticks are not consuming credit")
     for addr in list(written)[-3:]:              # integrity spot-check
-        got = []
-        cocotb.start_soon(_r_sink(dut, got))
-        await _ar(dut, addr, 5)
-        for _ in range(800):
-            await RisingEdge(dut.aclk)
-            if len(got) >= BL_WORDS:
-                break
+        got = await _read(dut, addr, 5)
         assert got[:BL_WORDS] == written[addr], f"data mismatch @ {addr:#x}"
 
     # ---- arm D: disarm ------------------------------------------------------
@@ -861,20 +854,14 @@ async def cocotb_test_pumice_core_waw(dut):
         a_data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
         b_data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
         # write A then B to the same address (B is younger)
-        await _aw(dut, addr, k & 0xF); await _w(dut, a_data)
-        await _aw(dut, addr, k & 0xF); await _w(dut, b_data)
+        await _write(dut, addr, a_data, k & 0xF)
+        await _write(dut, addr, b_data, k & 0xF)
         for _ in range(600):
             await RisingEdge(dut.aclk)
             if int(dut.s_axi_bvalid.value):
                 break
         await ClockCycles(dut.aclk, 200)  # let both writes fully commit+evict to golden
-        got = []
-        cocotb.start_soon(_r_sink(dut, got))
-        await _ar(dut, addr, k & 0xF)
-        for _ in range(800):
-            await RisingEdge(dut.aclk)
-            if len(got) >= BL_WORDS:
-                break
+        got = await _read(dut, addr, k & 0xF)
         assert got[:BL_WORDS] == b_data, \
             f"WAW read {k} @ {addr:#x} returned {got[:BL_WORDS]} != younger {b_data}"
     dut._log.info(f"PASS: WAW ordering — {n} same-address overwrites read back the younger write")
@@ -900,8 +887,7 @@ async def cocotb_test_pumice_core_b2b(dut):
         reqs.append((a, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]))
     # fire every AW/W with no wait for B between them (tight, back-to-back)
     for k, (addr, data) in enumerate(reqs):
-        await _aw(dut, addr, k & 0xF)
-        await _w(dut, data)
+        await _write(dut, addr, data, k & 0xF)
     # drain all B responses
     for _ in range(4000):
         await RisingEdge(dut.aclk)
@@ -910,16 +896,143 @@ async def cocotb_test_pumice_core_b2b(dut):
     await ClockCycles(dut.aclk, 300)
     # read every address back-to-back and check vs golden
     for k, (addr, data) in enumerate(reqs):
-        got = []
-        cocotb.start_soon(_r_sink(dut, got))
-        await _ar(dut, addr, k & 0xF)
-        for _ in range(1200):
-            await RisingEdge(dut.aclk)
-            if len(got) >= BL_WORDS:
-                break
+        got = await _read(dut, addr, k & 0xF)
         assert got[:BL_WORDS] == data, \
             f"B2B read {k} @ {addr:#x}: {[hex(x) for x in got[:BL_WORDS]]} != {[hex(x) for x in data]}"
     dut._log.info(f"PASS: back-to-back — {n} tightly-issued bursts round-trip vs golden (DQ pacing)")
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_core_perf_write_ceiling(dut):
+    """Artificially CLEAN write-throughput ceiling -- all maintenance off.
+
+    The point of this test is that the only thing left that can deassert
+    `s_axi_wready` is the write datapath itself. Everything else that could
+    inject a command into the DRAM stream, or close a row behind us, is
+    disabled or parked:
+
+      * refresh OFF     -- t_refi_i parked at 0xFFFF, far past the window,
+                           and postpone/pullin credits at 0 so nothing runs
+                           ahead either. ref_mode_i=0 (no REFpb rotor).
+      * paging OPEN     -- page_policy_e OPEN (=0, NOT 1: that encoding is
+                           CLOSE, and picking it re-activated on every burst
+                           -- 258 ACTs for 256 bursts). Rows stay open, and
+                           the Axis-2 mode stays at the build default, so
+                           there is no idle-timeout PRE and no adaptive
+                           predictor closing rows behind the stream.
+      * page HITS only  -- strictly incrementing columns inside ONE row per
+                           bank, so after the opening ACT per bank there is
+                           no ACT/PRE in steady state.
+      * writes only     -- no read turnaround (tWTR/tRTW) in the stream.
+      * b2b on BOTH     -- AW and W randomizers at `backtoback` (zero
+                           inter-beat delay), issued through the ENGINE
+                           runner so all AWs queue up front and the W
+                           channel never waits on an address.
+
+    With that, perf is pure cycle accounting on the W channel:
+
+      bp%    = wvalid && !wready -> the DUT refusing data. THIS is the number.
+      starv% = !wvalid && wready -> the TESTBENCH failing to keep up.
+
+    starv% is asserted on rather than reported: a starved window measures
+    the driver, not the design, so a number taken from one would be a lie.
+    """
+    from tbclasses.trackers import AxiChanTracker
+    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
+
+    _memory, slave = await _bring_up(dut, page_policy=0)      # OPEN
+
+    # --- park every maintenance source -------------------------------------
+    dut.t_refi_i.value      = 0xFFFF     # refresh interval past the window
+    dut.ref_postpone_i.value = 0
+    dut.ref_pullin_i.value   = 0
+    dut.ref_mode_i.value     = 0
+    # The tREFI counter only RELOADS on expiry, so parking t_refi_i does not
+    # cancel the interval already armed from bring-up (0x400). Wait it out,
+    # or one stale refresh lands mid-window and poisons the measurement --
+    # which is exactly what the REF guard below caught on the first run.
+    await ClockCycles(dut.aclk, 0x400 + 80)
+
+    # --- W-channel accounting ----------------------------------------------
+    trk = AxiChanTracker(dut, 'w', valid="s_axi_wvalid", ready="s_axi_wready",
+                         last="s_axi_wlast", log=dut._log)
+    cocotb.start_soon(trk.run())
+    base = (trk.prod, trk.bp, trk.starv, trk.idle)
+
+    # --- one row per bank, strictly incrementing columns --------------------
+    N = 256
+    rng = random.Random(int(os.environ.get("SEED", "7")))
+    reqs = []
+    for k in range(N):
+        addr = _mkaddr(k % NUM_BANKS, 0x11, (k // NUM_BANKS) * BL)
+        reqs.append((addr, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]))
+    ref0 = slave.cmd_counts.get(_DC.REF, 0)
+    t0 = get_sim_time('ns')
+    await _write_many(dut, reqs)
+    elapsed = (get_sim_time('ns') - t0) / 10.0
+
+    prod = trk.prod - base[0]
+    bp = trk.bp - base[1]
+    starv = trk.starv - base[2]
+    idle = trk.idle - base[3]
+    active = prod + bp + starv
+    beats = N * BL_WORDS
+
+    dut._log.info("=" * 62)
+    dut._log.info("WRITE CEILING (maintenance off, page-hit stream, b2b)")
+    dut._log.info("  bursts=%d beats=%d window=%.0f cyc", N, beats, elapsed)
+    dut._log.info("  W prod=%d  bp=%d  starv=%d  idle=%d", prod, bp, starv, idle)
+    if active:
+        dut._log.info("  of ACTIVE cycles: prod=%.1f%%  DUT-stall(bp)=%.1f%%  "
+                      "TB-stall(starv)=%.1f%%", 100.0 * prod / active,
+                      100.0 * bp / active, 100.0 * starv / active)
+    dut._log.info("  beats/cycle=%.3f   max handshake run=%d",
+                  beats / elapsed if elapsed else 0, max(trk.max_run, trk._run))
+    dut._log.info("  REFs during window=%d (must be 0)",
+                  slave.cmd_counts.get(_DC.REF, 0) - ref0)
+    dut._log.info("=" * 62)
+
+    # cocotb swallows stdout, so a printed number is invisible to whoever
+    # runs this. Write the summary where the tracker's own .out files land.
+    try:
+        with open("write_ceiling.out", "w") as f:
+            f.write("# pumice write-throughput ceiling -- maintenance parked\n")
+            f.write("# refresh OFF (t_refi parked + stale interval waited out),\n")
+            f.write("# page policy OPEN, page-hit stream, writes only, AW+W b2b,\n")
+            f.write("# engine runner (AWs queued back-to-back).\n\n")
+            f.write(f"bursts            {N}\n")
+            f.write(f"beats             {beats}\n")
+            f.write(f"window_cycles     {elapsed:.0f}\n")
+            f.write(f"beats_per_cycle   {beats / elapsed if elapsed else 0:.4f}\n")
+            f.write(f"max_handshake_run {max(trk.max_run, trk._run)}\n")
+            f.write(f"W_productive      {prod}\n")
+            f.write(f"W_backpressure    {bp}   # wvalid && !wready -- DUT stall\n")
+            f.write(f"W_starvation      {starv}   # !wvalid && wready -- TB stall\n")
+            f.write(f"W_idle            {idle}\n")
+            if active:
+                f.write(f"\nof ACTIVE W cycles ({active}):\n")
+                f.write(f"  productive      {100.0 * prod / active:.2f}%\n")
+                f.write(f"  DUT stall (bp)  {100.0 * bp / active:.2f}%\n")
+                f.write(f"  TB stall (starv){100.0 * starv / active:.2f}%\n")
+            f.write(f"\nstall_run_histogram (cycles:count) "
+                    f"max_stall={trk.max_bp_run}\n")
+    except Exception as e:                                    # noqa: BLE001
+        dut._log.warning("write_ceiling.out dump failed: %s", e)
+
+    # --- guards: the window has to be clean for the number to mean anything -
+    assert slave.cmd_counts.get(_DC.REF, 0) - ref0 == 0, (
+        "refresh fired inside the ceiling window -- maintenance is not "
+        "actually parked, so the stall count is not purely datapath")
+    assert prod == beats, (f"W channel moved {prod} beats, expected {beats} -- "
+                           "accounting window does not cover the traffic")
+    assert active and starv <= active * 0.05, (
+        f"stimulus starved the DUT for {starv}/{active} active W cycles "
+        f"({100.0 * starv / max(active,1):.1f}%) -- this window measures the "
+        f"testbench, not the design; do not quote a ceiling from it")
+
+    dut._log.info("PASS: write ceiling %.3f beats/cycle, DUT stalled %.1f%% "
+                  "of active W cycles", beats / elapsed if elapsed else 0,
+                  100.0 * bp / active)
 
 
 def _echo_seed(tag):
@@ -991,3 +1104,5 @@ def test_pumice_core_refresh_collide(request):
 def test_pumice_core_close(request): _run(request, "cocotb_test_pumice_core_close")
 def test_pumice_core_waw(request):   _run(request, "cocotb_test_pumice_core_waw")
 def test_pumice_core_b2b(request):   _run(request, "cocotb_test_pumice_core_b2b")
+def test_pumice_core_perf_write_ceiling(request):
+    _run(request, "cocotb_test_pumice_core_perf_write_ceiling")

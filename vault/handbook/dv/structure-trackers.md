@@ -114,6 +114,31 @@ Read the buckets before believing a utilization number:
     was already right, so what was left was one-burst-at-a-time issue.
     A zero-delay driver that waits for each completion still starves the
     DUT.
+
+    **The lever is which RUNNER you call, not which profile you set.**
+    `run_axi4_sequence` walks bursts sequentially — it takes a
+    per-instance AW+W lock and awaits each B response before the next
+    burst, so consecutive AWs land ~5-15 cycles apart (measured 34.5
+    cycles/burst on pumice's core). Building one big `AXI4Sequence` does
+    **not** change that; the sequence is a work list, not a pipeline.
+    `run_axi4_sequence_engine` is the queue-and-go runner: all AWs
+    queued back-to-back, B responses collected at the end. Use it for
+    any multi-burst helper.
+
+### Starvation is not only a perf artifact — it changes DUT behaviour
+
+The serial runner did more than depress a number. Pumice's scheduler
+derives `demand_i` (the input the refresh postpone/pull-in credit logic
+keys off) from command-CAM occupancy. With a serial runner the CAM
+*emptied between bursts*, the gaps outran the 16-cycle idle-confirm
+hysteresis, and the DUT correctly concluded it was idle — so refreshes
+fired inside a window the test asserted would be refresh-free. Three
+successive attempts to fix that by resizing the test window were
+chasing the wrong variable; the stimulus was intermittent, not too long.
+
+So when a timed assertion about DUT behaviour under load fails,
+check the stimulus is actually *sustained* before touching the
+assertion. A tracker on the occupancy signal answers it directly.
 - **high `bp%`** is the interesting one: the DUT stalling a master that
   wants to send.
 - **`max_run`** answers "how long can the handshake hold". A data channel
