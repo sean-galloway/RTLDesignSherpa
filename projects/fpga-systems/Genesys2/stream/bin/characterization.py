@@ -191,7 +191,7 @@ MON_ENABLE_COMPL_IRQ     = 0x0F
 #   bit[type] = 1  -> packet of that type goes to the err FIFO IRQ path
 #   bit[type] = 0  -> packet of that type goes to the bulk write FIFO,
 #                      which drains via m_mon_axil into debug_sram
-# Inside monbus_axil_axil_group these are *exclusive*:
+# Inside monbus_axil4_axil4_group these are *exclusive*:
 #   pkt_to_write_fifo = !pkt_drop && !pkt_to_err_fifo
 # so any type routed to the err FIFO is NOT also captured in debug_sram.
 #
@@ -795,7 +795,7 @@ class CharacterizationRunner:
         self.log(f"  --- Trace counters: wr_ptr={trace['wr_ptr']} "
                  f"overflow={trace['overflow']} ---")
 
-        # 3. Head / tail of the SRAM. The monbus_axil_axil_group writes 32-bit
+        # 3. Head / tail of the SRAM. The monbus_axil4_axil4_group writes 32-bit
         # words sequentially; wr_ptr counts WORDS (not bytes). Each
         # monitor record is 3 words: pkt[31:0], pkt[63:32], timestamp[31:0]
         # (plus another 3 for the 128-bit upper half + timestamp[63:32]
@@ -940,7 +940,20 @@ class CharacterizationRunner:
             completion = {'completed': True, 'elapsed_s': _diag_ms / 1000.0,
                           'error': False, 'diag_no_poll': True}
         else:
-            completion = self.poll_completion(timeout_s=120.0)
+            # 120 s is sized for the BOARD, where it is enormous: the
+            # largest scenario moves ~117 MB, about a second of real
+            # hardware. In simulation the same wall-clock budget buys almost
+            # no progress -- the harness runs orders of magnitude slower than
+            # real time, so this measures how fast the SIMULATOR is, not
+            # whether the DMA completed. 16desc_7ch failed on exactly that:
+            # 8desc_7ch finished in 93 s of the budget, and doubling the
+            # descriptors ran past 120 s with zero errors and every channel
+            # idle -- a harness limit wearing the costume of a DUT hang.
+            #
+            # Overridable so a sim run can buy the time it needs without
+            # changing what the board does. The default is unchanged.
+            _poll_s = float(os.environ.get('CHAR_POLL_TIMEOUT_S', '120'))
+            completion = self.poll_completion(timeout_s=_poll_s)
         result['dma_time_s'] = time.time() - t0
         result['completion'] = completion
 
