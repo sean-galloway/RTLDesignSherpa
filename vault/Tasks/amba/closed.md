@@ -1524,3 +1524,63 @@ To stop a fifth round of this, `dv/tests/test_apbx_xbar_timing.py` now
 asserts all three numbers against the RTL with the measurement
 convention written into the failure messages. The number is settled by
 the suite now, not by argument.
+
+---
+
+### AMBA-WAVEDROM-FLAKY — wavedrom runners handed themselves a random seed
+**Status:** CLOSED 2026-08-28 (opened same day while closing TASK-071)
+**Priority:** was P2 — a required test that was not deterministic
+
+`val/amba/test_apb4_master.py::test_apb4_master_wavedrom` failed roughly one
+run in three at file scope (4/10 before the TASK-071 RTL fix, 3/10 after --
+so unrelated to it), while passing 3/3 in isolation.
+
+**Cause, exactly as Sean called it: the seed was random, so the run did not
+always hit the scenarios the constraints ask for.** The seven scenarios are
+driven explicitly with fixed addresses and data, but the GAXI/APB
+randomizers still choose the valid/ready delays around them, and those
+delays decide whether a complete sequence fits inside the solver's capture
+window. The runner passed
+
+    'SEED': os.environ.get('SEED', str(random.randint(0, 100000)))
+
+so every run drew a different seed. Worse, the test never called
+`random.seed()` at all, so the seed it was handed was ignored and the RNG
+came up on OS entropy. That also explains the isolation-vs-file-scope
+split: running the sibling test first changed the module-level RNG state.
+
+**Fix.** Seed the RNG from `SEED` inside the test, and PIN the runner's
+default instead of randomising it. This is the pattern
+`test_apb4_slave_wavedrom.py` already used (`SEED: str(4347)`, with the
+random version commented out) -- the master test was the outlier.
+
+**The seed genuinely matters, which is the point.** Sweeping candidates on
+the fixed RTL:
+
+| seed | result |
+|---|---|
+| 42, 1, 7, 4347 | pass |
+| 1234, 99999 | FAIL |
+
+Two of six fail -- a ~1/3 rate matching the observed flakiness exactly.
+That confirms the diagnosis and confirms the check still has teeth: pinning
+did not make it vacuous, it made it repeatable. 12/12 clean file-scope runs
+after the change, against 4/10 failures before.
+
+**Swept the class, not just the instance.** Two more genuine wavedrom
+runners were handing themselves random seeds and are now pinned to the
+defaults their own tests document:
+
+- `val/cdc/test_gaxi_buffer_async.py:566` -> `'0'`
+- `val/cdc/test_fifo_async_wavedrom.py:471` -> `'12345'`
+
+Both verified passing at those seeds with no `SEED` in the environment.
+Four other `random.randint` seeds in `val/` were left alone deliberately --
+they belong to randomized stress runners, where a varying seed is the point.
+
+**Residual, worth knowing:** a third of seeds still cannot capture all seven
+scenarios. Pinning makes the suite deterministic, but the honest reading of
+a green run is "these scenarios are capturable at seed 42", not "always
+capturable". Tightening the constraints or the capture window so any seed
+works is a separate piece of work, not currently scheduled.
+

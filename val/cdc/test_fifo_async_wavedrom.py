@@ -468,7 +468,11 @@ def test_fifo_async_wavedrom(request, data_width, depth, wr_clk_period, rd_clk_p
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        # PINNED, not random: a wavedrom run must hit every scenario its
+        # constraints require, and the randomizers' valid/ready delays decide
+        # whether a complete sequence fits the capture window. A random seed
+        # makes that a coin flip (AMBA-WAVEDROM-FLAKY). Override with SEED=<n>.
+        'SEED': os.environ.get('SEED', '12345'),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_DEPTH': str(depth),
         'TEST_CLK_WR': str(wr_clk_period),
