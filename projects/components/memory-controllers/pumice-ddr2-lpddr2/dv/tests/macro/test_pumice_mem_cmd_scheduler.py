@@ -10,7 +10,7 @@ import random
 import cocotb
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
@@ -177,7 +177,7 @@ def test_pumice_mem_cmd_scheduler(request):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST
     )
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     log_path = os.path.join(log_dir, f"{test_name}.log")
     results_path = os.path.join(log_dir, f"results_{test_name}.xml")

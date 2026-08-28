@@ -24,10 +24,24 @@ from typing import Dict, Tuple, Optional, List
 
 
 def get_repo_root():
-    # Get repo root
-    repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
+    """Absolute path to the repository root.
 
-    return repo_root
+    Derived from THIS FILE's location, not from `git rev-parse` in the
+    process's cwd. The git form has a hidden cwd dependency: a simulator
+    runs with cwd set to its build directory, and the moment that directory
+    lives outside the repo (which SIM_BUILD_ROOT allows, and which is the
+    whole point of it) `git rev-parse --show-toplevel` exits 128 and every
+    caller dies with an empty results file. This module is always at
+    <repo>/bin/TBClasses/shared/utilities.py, so walking up is exact,
+    cwd-independent, and cheaper than a subprocess.
+
+    REPO_ROOT overrides it for anyone vendoring these classes elsewhere.
+    """
+    env = os.environ.get('REPO_ROOT')
+    if env:
+        return env
+    return os.path.abspath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
 
 
 # ---------------------------------------------------------------------------
@@ -86,10 +100,9 @@ def sim_build_root(tests_dir: str) -> str:
 
     tests_dir = os.path.abspath(tests_dir)
     try:
-        repo_root = subprocess.check_output(
-            ['git', 'rev-parse', '--show-toplevel'],
-            cwd=tests_dir, text=True, stderr=subprocess.DEVNULL).strip()
-        rel = os.path.relpath(tests_dir, repo_root)
+        rel = os.path.relpath(tests_dir, get_repo_root())
+        if rel.startswith('..'):          # outside the repo: no useful prefix
+            rel = os.path.basename(tests_dir)
     except Exception:
         rel = os.path.basename(tests_dir)
     return os.path.join(os.path.abspath(root), rel, 'local_sim_build')
@@ -184,7 +197,7 @@ def get_paths(dir_dict):
     module = os.path.splitext(os.path.basename(caller_file))[0]
 
     # Get repo root
-    repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
+    repo_root = get_repo_root()
 
     # Define common log directory
     log_dir = os.path.abspath(os.path.join(tests_dir, 'logs'))
@@ -553,7 +566,7 @@ def extract_struct_for_test_simple(struct_name: str, sim_build: str,
     # Auto-detect repo root if not provided
     if not repo_root:
         try:
-            repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
+            repo_root = get_repo_root()
         except subprocess.CalledProcessError:
             raise RuntimeError("Could not determine repository root and none provided")
 

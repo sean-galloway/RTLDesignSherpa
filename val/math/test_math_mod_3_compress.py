@@ -8,7 +8,7 @@ import cocotb
 from cocotb.triggers import Timer
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, get_repo_root
+from TBClasses.shared.utilities import get_paths, get_repo_root, sim_build_path
 from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.math.math_mod_3_compress_tb import MathMod3CompressTB
@@ -63,8 +63,7 @@ def test_math_mod_3_compress(request, test_level):
         # the build escaped both `make clean-all` AND the coverage merge glob
         # (**/local_sim_build/**/coverage.dat), so this module reported no
         # coverage at all while its stale .dat files accumulated.
-        sim_build=os.path.join(tests_dir, "local_sim_build",
-                               f"{dut_name}_{test_level}"),
+        sim_build=sim_build_path(tests_dir, f"{dut_name}_{test_level}"),
         extra_env={'TEST_LEVEL': test_level},
         timescale="1ns/1ps",
     )

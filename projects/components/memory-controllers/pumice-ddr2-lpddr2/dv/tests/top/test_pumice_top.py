@@ -25,7 +25,7 @@ import cocotb
 from cocotb.triggers import ClockCycles
 
 from cocotb_test.simulator import run
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
@@ -475,7 +475,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
     # cross-process sharing. ccache absorbs the duplicate C++ compiles.
     _worker = os.environ.get("PYTEST_XDIST_WORKER", "")
     build_key = "nr" + params["NUM_RANKS"] + (f"_{_worker}" if _worker else "")
-    sim_build = os.path.join(tests_dir, "local_sim_build", "shared_" + build_key)
+    sim_build = sim_build_path(tests_dir, "shared_" + build_key)
     os.makedirs(sim_build, exist_ok=True)
     # PUMICE-010: echo the per-test seed. pytest shows captured stdout for
     # FAILING tests, so a one-off red is reproducible with PUMICE_SEED=<n>

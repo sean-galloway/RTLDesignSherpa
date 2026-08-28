@@ -38,7 +38,7 @@ import pytest
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Reuse the controller's TB infrastructure for APB + DFI bring-up. The
@@ -515,7 +515,7 @@ def test_ddr2_char_macro(request, test_type):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -631,7 +631,7 @@ def test_ddr2_char_macro_pacing_sweep(request, wr_gap, rd_gap):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -741,7 +741,7 @@ def test_ddr2_char_macro_ooo_pacing_schmoo(
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

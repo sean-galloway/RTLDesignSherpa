@@ -40,7 +40,7 @@ import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
 
@@ -211,7 +211,7 @@ def test_axi4_master_rd_mon_fault_classes(case, txn_count):
     worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
     test_name = f"test_{worker_id}_{dut_name}_faultclass_{case}"
     log_path = os.path.join(log_dir, f"{test_name}.log")
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

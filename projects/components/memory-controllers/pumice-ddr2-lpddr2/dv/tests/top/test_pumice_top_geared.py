@@ -15,7 +15,7 @@ import random
 import cocotb
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
@@ -111,7 +111,7 @@ def test_pumice_top_geared(request, host_w):
               "ROW_WIDTH": str(ROW_WIDTH), "COL_WIDTH": str(COL_WIDTH),
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT),
               "BL": str(BL), "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
-    sim_build = os.path.join(tests_dir, "local_sim_build", f"geared_h{host_w}")
+    sim_build = sim_build_path(tests_dir, f"geared_h{host_w}")
     # PUMICE-010: echo the seed so a one-off red is reproducible.
     def _seed_echo(hw):
         sd = os.environ.get("PUMICE_SEED", str(random.randint(0, 100000)))

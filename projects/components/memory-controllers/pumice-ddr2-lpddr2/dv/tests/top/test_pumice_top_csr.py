@@ -18,7 +18,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 
 from cocotb_test.simulator import run
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 from CocoTBFramework.components.dfi.dfi_base import DFIBase
@@ -197,7 +197,7 @@ def test_pumice_top_csr(request):
     dut_name = "pumice_top_csr_tb_top"
     test_name = "cocotb_test_pumice_top_csr"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True); os.makedirs(log_dir, exist_ok=True)
     params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
               "NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH),

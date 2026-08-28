@@ -19,8 +19,13 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_fub_bfm import fub_producer      # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_dfi_wr_serializer.f")
@@ -37,10 +42,13 @@ async def cocotb_test_pumice_dfi_wr_serializer(dut):
     dut.dfi_rstn.value = 0
     dut.t_phy_wrlat_i.value = 0
     dut.wr_fire_i.value = 0
-    dut.wd_valid_i.value = 0
-    dut.wd_data_i.value = 0
-    dut.wd_strb_i.value = 0
-    dut.wd_last_i.value = 0
+    # wd_* is BFM-owned. wr_fire_i above is NOT a handshake -- it is the
+    # per-cycle fire strobe from the command path, no ready -- so it stays.
+    wd_bfm = fub_producer(dut, "wd", dut.dfi_clk, log=dut._log,
+                          valid="wd_valid_i", ready="wd_ready_o",
+                          fields={'data': ("wd_data_i", DFI_DW),
+                                  'strb': ("wd_strb_i", DFI_SW),
+                                  'last': ("wd_last_i", 1)})
     for _ in range(4):
         await RisingEdge(dut.dfi_clk)
     dut.dfi_rstn.value = 1
@@ -49,11 +57,11 @@ async def cocotb_test_pumice_dfi_wr_serializer(dut):
 
     # sweep t_phy_wrlat incl. 0 (a7ddrphy pre-pull board case) and 1
     for wrlat in (0, 1, 3, 5):
-        await _run_burst(dut, wrlat)
+        await _run_burst(dut, wd_bfm, wrlat)
     dut._log.info("PASS: bubble-free burst at t_phy_wrlat in {0,1,3,5}")
 
 
-async def _run_burst(dut, WRLAT):
+async def _run_burst(dut, wd_bfm, WRLAT):
     dut.t_phy_wrlat_i.value = WRLAT
     rng = random.Random((int(os.environ.get("SEED", "1")) << 4) ^ WRLAT)
     BL_WORDS = 4
@@ -62,34 +70,38 @@ async def _run_burst(dut, WRLAT):
 
     # FIFO source: always-valid, present head; advance on wd_ready. Runs in one
     # coroutine so latency counting is race-free.
-    q = deque(burst)
 
-    def present():
-        if q:
-            dut.wd_data_i.value = q[0]
-            dut.wd_strb_i.value = strb
-            dut.wd_last_i.value = 1 if len(q) == 1 else 0
-            dut.wd_valid_i.value = 1
-        else:
-            dut.wd_valid_i.value = 0
+    # The BFM IS the "always-valid FIFO source" this used to hand-roll: at
+    # backtoback it presents the head continuously and advances on
+    # wd_ready_o, holding valid until accepted. Queue the burst once and
+    # let it stream; the latency accounting below is unchanged because the
+    # presentation semantics are identical.
+    async def _stream_burst():
+        # QUEUE-AND-GO, not await-each. `send()` blocks until its packet is
+        # accepted, so awaiting per beat leaves a gap between beats -- the
+        # old hand-rolled present() re-presented the head EVERY cycle, i.e.
+        # always-valid. `_driver_send` appends to the transmit queue and
+        # returns, so the master's pipeline drives them back-to-back.
+        n_b = len(burst)
+        for i, d in enumerate(burst):
+            await wd_bfm._driver_send(wd_bfm.create_packet(
+                data=d, strb=strb, last=1 if i == n_b - 1 else 0))
 
     async def step():
-        # advance one clock, then pop if the DUT accepted a word
-        present()
         await RisingEdge(dut.dfi_clk)
-        if q and int(dut.wd_valid_i.value) and int(dut.wd_ready_o.value):
-            q.popleft()
+
+    # Start the source streaming, then let it settle so valid is presented
+    # before the fire pulse -- same precondition the old present() call gave.
+    cocotb.start_soon(_stream_burst())
+    await RisingEdge(dut.dfi_clk)
 
     # pulse fire (cycle index 0); sample en/data at each cycle from fire onward.
     samples = []   # (idx, en, data, mask), idx 0 = the fire cycle
-    present()
     dut.wr_fire_i.value = 1
     await RisingEdge(dut.dfi_clk)
     dut.wr_fire_i.value = 0
     samples.append((0, int(dut.dfi_wrdata_en_o.value), int(dut.dfi_wrdata_o.value),
                     int(dut.dfi_wrdata_mask_o.value)))
-    if q and int(dut.wd_ready_o.value):     # wrlat==0 drives on the fire cycle
-        q.popleft()
 
     for i in range(1, WRLAT + BL_WORDS + 8):
         await step()
@@ -126,10 +138,13 @@ async def cocotb_test_wr_serializer_tccd_paced(dut):
     dut.dfi_rstn.value = 0
     dut.t_phy_wrlat_i.value = 0
     dut.wr_fire_i.value = 0
-    dut.wd_valid_i.value = 0
-    dut.wd_data_i.value = 0
-    dut.wd_strb_i.value = 0
-    dut.wd_last_i.value = 0
+    # wd_* is BFM-owned. wr_fire_i above is NOT a handshake -- it is the
+    # per-cycle fire strobe from the command path, no ready -- so it stays.
+    wd_bfm = fub_producer(dut, "wd", dut.dfi_clk, log=dut._log,
+                          valid="wd_valid_i", ready="wd_ready_o",
+                          fields={'data': ("wd_data_i", DFI_DW),
+                                  'strb': ("wd_strb_i", DFI_SW),
+                                  'last': ("wd_last_i", 1)})
     for _ in range(4):
         await RisingEdge(dut.dfi_clk)
     dut.dfi_rstn.value = 1
@@ -139,23 +154,22 @@ async def cocotb_test_wr_serializer_tccd_paced(dut):
     WRLAT, TCCD, NWR = 3, 2, 3
     dut.t_phy_wrlat_i.value = WRLAT
     strb = (1 << DFI_SW) - 1
-    q = deque([0xA1, 0xB2, 0xC3])          # 3 single-word bursts
+    words = [0xA1, 0xB2, 0xC3]             # 3 single-word bursts
     fire_cycles = [i * TCCD for i in range(NWR)]   # 0, 2, 4 — tCCD-paced
     en_cycles = []
+    # Each word is its own single-word burst, so every packet carries last=1.
+    async def _stream_words():
+        for w in words:
+            await wd_bfm._driver_send(
+                wd_bfm.create_packet(data=w, strb=strb, last=1))
+    cocotb.start_soon(_stream_words())
+    await RisingEdge(dut.dfi_clk)
+
     for c in range(fire_cycles[-1] + WRLAT + 8):
-        if q:                               # present head; single word => last
-            dut.wd_data_i.value = q[0]
-            dut.wd_strb_i.value = strb
-            dut.wd_last_i.value = 1
-            dut.wd_valid_i.value = 1
-        else:
-            dut.wd_valid_i.value = 0
         dut.wr_fire_i.value = 1 if c in fire_cycles else 0
         await RisingEdge(dut.dfi_clk)
         if int(dut.dfi_wrdata_en_o.value) != 0:
             en_cycles.append(c)
-            if q and int(dut.wd_ready_o.value):
-                q.popleft()
     dut.wr_fire_i.value = 0
 
     assert len(en_cycles) == NWR, \
@@ -173,7 +187,7 @@ def _run_wr_fub(testcase: str):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_wr_serializer"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = os.path.join(tests_dir, "local_sim_build", testcase)
+    sim_build = sim_build_path(tests_dir, testcase)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"DFI_DATA_WIDTH": str(DFI_DW), "DFI_RATE": str(DFI_RATE)}

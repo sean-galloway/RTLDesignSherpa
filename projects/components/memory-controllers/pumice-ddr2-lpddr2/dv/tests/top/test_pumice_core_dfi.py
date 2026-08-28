@@ -25,7 +25,7 @@ from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, ClockCycles
 
 from cocotb_test.simulator import run
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 from CocoTBFramework.components.axi4.axi4_sequence import AXI4Sequence
@@ -1107,7 +1107,7 @@ def _run(request, testcase, params_over=None):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_core_tb_top"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = os.path.join(tests_dir, "local_sim_build", testcase)
+    sim_build = sim_build_path(tests_dir, testcase)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",

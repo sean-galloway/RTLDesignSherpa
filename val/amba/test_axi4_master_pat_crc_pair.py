@@ -27,7 +27,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -382,7 +382,7 @@ def test_axi4_master_pat_crc_pair(request, test_type):
     verilog_sources.append(os.path.join(repo_root, tests_dir,
                                          "tb_axi4_master_pat_crc_pair.sv"))
 
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

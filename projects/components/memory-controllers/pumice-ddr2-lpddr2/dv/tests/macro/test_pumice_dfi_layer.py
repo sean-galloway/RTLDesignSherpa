@@ -21,7 +21,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
@@ -171,7 +171,7 @@ def test_pumice_dfi_layer(request):
     dut_name = "pumice_dfi_layer"
     test_name = "cocotb_test_pumice_dfi_layer"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"NUM_RANKS": "1", "NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH),

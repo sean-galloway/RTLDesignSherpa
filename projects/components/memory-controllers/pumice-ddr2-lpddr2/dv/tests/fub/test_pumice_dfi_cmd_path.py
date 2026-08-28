@@ -13,8 +13,13 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_fub_bfm import fub_producer      # noqa: E402
 
 _repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode().strip()
 
@@ -52,8 +57,13 @@ async def cocotb_test_pumice_dfi_cmd_path(dut):
     dut.n_subcmd_i.value = 1
     dut.sub_col_stride_i.value = 0
     dut.sub_phase_stride_i.value = 0
-    dut.cmd_valid_i.value = 0
-    dut.cmd_data_i.value = 0
+    # cmd_* is BFM-owned. rd_op_ready_i above is NOT a handshake -- it has no
+    # matching valid, it is a credit ("rd aligner has a free slot"), same
+    # class as the arbiter's bank permission vectors -- so it stays set here.
+    cmd_bfm = fub_producer(dut, "cmd", dut.dfi_clk, log=dut._log,
+                           valid="cmd_valid_i", ready="cmd_ready_o",
+                           fields={'data': ("cmd_data_i",
+                                            max(1, len(dut.cmd_data_i)))})
     for _ in range(4):
         await RisingEdge(dut.dfi_clk)
     dut.dfi_rstn.value = 1
@@ -79,12 +89,8 @@ async def cocotb_test_pumice_dfi_cmd_path(dut):
 
     for op, bank, row, col in seq:
         ap = 1 if op in (OP_RDA, OP_WRA) else 0
-        dut.cmd_data_i.value = pack(op, 0, bank, row, col, ap)
-        dut.cmd_valid_i.value = 1
-        await RisingEdge(dut.dfi_clk)
-        while int(dut.cmd_ready_o.value) == 0:
-            await RisingEdge(dut.dfi_clk)
-    dut.cmd_valid_i.value = 0
+        await cmd_bfm.send(cmd_bfm.create_packet(
+            data=pack(op, 0, bank, row, col, ap)))
     for _ in range(6):
         await RisingEdge(dut.dfi_clk)
 
@@ -128,8 +134,13 @@ async def cocotb_test_pumice_dfi_cmd_path_pack(dut):
     dut.n_subcmd_i.value = 2
     dut.sub_col_stride_i.value = 4
     dut.sub_phase_stride_i.value = 2
-    dut.cmd_valid_i.value = 0
-    dut.cmd_data_i.value = 0
+    # cmd_* is BFM-owned. rd_op_ready_i above is NOT a handshake -- it has no
+    # matching valid, it is a credit ("rd aligner has a free slot"), same
+    # class as the arbiter's bank permission vectors -- so it stays set here.
+    cmd_bfm = fub_producer(dut, "cmd", dut.dfi_clk, log=dut._log,
+                           valid="cmd_valid_i", ready="cmd_ready_o",
+                           fields={'data': ("cmd_data_i",
+                                            max(1, len(dut.cmd_data_i)))})
     for _ in range(4):
         await RisingEdge(dut.dfi_clk)
     dut.dfi_rstn.value = 1
@@ -150,12 +161,8 @@ async def cocotb_test_pumice_dfi_cmd_path_pack(dut):
     cocotb.start_soon(mon())
 
     # One scheduled RD (bank 3, col 0x80).
-    dut.cmd_data_i.value = pack(OP_RD, 0, 3, 0, 0x80, 0)
-    dut.cmd_valid_i.value = 1
-    await RisingEdge(dut.dfi_clk)
-    while int(dut.cmd_ready_o.value) == 0:
-        await RisingEdge(dut.dfi_clk)
-    dut.cmd_valid_i.value = 0
+    await cmd_bfm.send(cmd_bfm.create_packet(
+        data=pack(OP_RD, 0, 3, 0, 0x80, 0)))
     for _ in range(8):
         await RisingEdge(dut.dfi_clk)
 
@@ -170,7 +177,7 @@ def _run_cmd_path(testcase, params, extra_params=None):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_cmd_path"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = os.path.join(tests_dir, "local_sim_build", testcase)
+    sim_build = sim_build_path(tests_dir, testcase)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     if extra_params:

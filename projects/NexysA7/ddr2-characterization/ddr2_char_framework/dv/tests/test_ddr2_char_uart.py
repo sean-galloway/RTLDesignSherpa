@@ -27,7 +27,7 @@ import cocotb
 from cocotb.triggers import ClockCycles
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 from CocoTBFramework.components.dfi.dfi_signals import DFIVersion, MemoryType
@@ -568,7 +568,7 @@ def _run(testcase: str, dfi_rate: int = 2, dram_beat_width: int = 64,
         repo_root=repo_root, filelist_path=filelist_path)
 
     tag = f"{testcase}_r{dfi_rate}"
-    sim_build = os.path.join(tests_dir, "local_sim_build", tag)
+    sim_build = sim_build_path(tests_dir, tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

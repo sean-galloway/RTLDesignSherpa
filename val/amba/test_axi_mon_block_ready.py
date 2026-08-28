@@ -42,7 +42,7 @@ from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.axi_monitor.block_ready_check import BlockReadyCheck
 from TBClasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
@@ -311,7 +311,7 @@ def test_axi_mon_block_ready(dut_name, max_trans):
     worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
     test_name = f"test_{worker_id}_{dut_name}_blockready_mt{max_trans}"
     log_path = os.path.join(log_dir, f"{test_name}.log")
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -446,7 +446,7 @@ def test_axi_mon_id_slice(ch_base):
     max_trans, count = 16, 2
     worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
     test_name = f"test_{worker_id}_{dut_name}_idslice_ch{ch_base}"
-    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

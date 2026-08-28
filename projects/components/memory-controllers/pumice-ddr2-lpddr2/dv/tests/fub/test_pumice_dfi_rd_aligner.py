@@ -18,7 +18,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
@@ -199,7 +199,7 @@ def _run_fub(testcase: str, bl_words: int, max_outstanding: int = 8):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_dfi_rd_aligner"
     verilog_sources, includes = get_sources_from_filelist(repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = os.path.join(tests_dir, "local_sim_build", testcase)
+    sim_build = sim_build_path(tests_dir, testcase)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"DFI_DATA_WIDTH": str(DFI_DW), "DFI_RATE": str(DFI_RATE),
