@@ -308,8 +308,8 @@ of it.
    the full product.
 2. The measurement path is changing underneath it: the bespoke harness
    meters/hists are being retired for the external observer
-   ([[PUMICE-008]]), and the 1:1 accounting check moves with them. Land
-   008 first or the numbers carry the AMBA-HISTCH1 accounting error.
+   ([[PUMICE-016]]), and the 1:1 accounting check moves with them. Land
+   016 first or the numbers carry the AMBA-HISTCH1 accounting error.
 3. The interesting telemetry already exists in-controller and should be
    the primary signal per Sean's direction (cheap counters stay in
    pumice): PAGE_STATS hit/miss/empty, SCHED_STATS act/pre,
@@ -372,7 +372,7 @@ recipe in [[project_pumice_board_perf_char]] (the runtime page-policy
 result — OPEN giving 8.8x on streaming, 12.7 -> 112 MB/s — is the
 template for what a good characterization finding looks like).
 
-## PUMICE-008 — adopt axi4_intf_master_observer (APB-configured) for perf observation
+## PUMICE-016 — adopt axi4_intf_master_observer (APB-configured) for perf observation
 **Status:** ACTIVE 2026-08-26 — now the DIRECTED path, not a nicety.
 Sean's direction: "don't have any monitor logic or perf logic inside
 pumice — I have an external block that does just this. However, keep

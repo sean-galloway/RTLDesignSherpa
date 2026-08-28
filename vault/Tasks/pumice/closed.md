@@ -507,7 +507,7 @@ aliases them (the board's EXTRA side, 168409 vs 64000). Sean's direction
 (2026-08-26): do NOT keep monitor/perf logic inside pumice — the external
 observer block (axi4_intf_master_observer) does this job; the shared-
 primitive fix is recorded as AMBA-HISTCH1 for when that module is next
-touched. PUMICE-008 (adopt the observer) is the vehicle; the 1:1 check
+touched. PUMICE-016 (adopt the observer) is the vehicle; the 1:1 check
 moves there. The cheap "interesting" counters STAY in pumice per the same
 direction: PAGE/SCHED/REF *_STATS, OBS_ROW_HIT, refresh-defer histograms.
 The sim repro profile (`multiid_min`) stays in pumice_char.py; its multiid

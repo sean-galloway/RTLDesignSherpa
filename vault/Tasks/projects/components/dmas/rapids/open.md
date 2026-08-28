@@ -70,7 +70,7 @@ per-direction split, where STREAM's shared master is aggregate-only. And one
 instrument across RAPIDS/STREAM/pumice means one definition of a stalled cycle,
 so the GB/s numbers in three different reports become comparable.
 
-Related: [[PUMICE-008]] is the same adoption for the memory controller.
+Related: [[PUMICE-016]] is the same adoption for the memory controller.
 
 ## RAPIDS-KMAP — RAPIDS-beats has NO contracts workbook at all
 **Status:** open 2026-08-06  **Blocked on:** [[TOOLING-KMAP]] items 1-4

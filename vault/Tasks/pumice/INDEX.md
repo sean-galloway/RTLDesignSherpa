@@ -1,6 +1,6 @@
 # pumice — task rollup
 
-**Next ID: PUMICE-016** — never recycle a number, even when its task closed.
+**Next ID: PUMICE-017** — never recycle a number, even when its task closed.
 
 DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-ddr2-lpddr2/`).
 
@@ -13,13 +13,13 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 
 ## Active
 
-(none — the correctness backlog is empty. PUMICE-008 is marked ACTIVE in its
+(none — the correctness backlog is empty. PUMICE-016 is marked ACTIVE in its
 body but its own scope note says do NOT run it standalone, so it is counted
 as open, not active. See the caveat under the shortlist.)
 
 ## Open shortlist
 
-- **PUMICE-008** — adopt the external `axi4_intf_master_observer` and retire
+- **PUMICE-016** — adopt the external `axi4_intf_master_observer` and retire
   the harness's hand-rolled meters/hists (Sean 2026-08-26: no monitor/perf
   logic inside pumice; cheap interesting counters stay). GATES PUMICE-013 —
   until it lands the perf numbers carry the AMBA-HISTCH1 accounting error.
@@ -57,9 +57,9 @@ never filed as their own entries and survive only as prose here and in
 session memory.
 
 So **a bare `[[PUMICE-010]]` / `[[PUMICE-011]]` link is ambiguous** — check
-the date and subject before trusting it. The trackers task was renumbered to
-**PUMICE-015** on 2026-08-28 and filed to closed.md; new tasks start at
-PUMICE-016. Do not recycle an ID just because its task closed.
+the date and subject before trusting it. Two renumbers on 2026-08-28: the trackers task 012 -> **PUMICE-015**
+(filed closed), and the live observer task 008 -> **PUMICE-016** so the only
+remaining PUMICE-008 is the dropped deskew task. Do not recycle an ID just because its task closed.
 
 ## Reading order for someone picking this up
 

@@ -1,6 +1,6 @@
 # site-audit — task rollup
 
-**Next ID: AUDIT-002** — never recycle a number, even when its task closed.
+**Next ID: AUDIT-003** — never recycle a number, even when its task closed.
 
 The site-wide audit: one umbrella effort to prove, area by area, that the
 RTL is correct, the docs match it, the docs read like a person wrote them,

@@ -45,7 +45,6 @@ KNOWN_COLLISIONS = {
     ("amba", "AMBA-INTEG"),
     ("common", "COMMON-021"),
     ("docs-review", "DOCREV-001"),
-    ("pumice", "PUMICE-008"),
     ("pumice", "PUMICE-010"),
     ("pumice", "PUMICE-011"),
 }

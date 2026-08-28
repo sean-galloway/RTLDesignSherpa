@@ -1109,7 +1109,7 @@ GREEN after):
      dropped.
   5. arbiter_rr_pwm_monbus never forwarded WAIT_GNT_ACK to its monitor,
      so an ACK-protocol build monitored a different protocol.
-  6. Two stale monbus_axil_axil_group comments (PH_LOW consume).
+  6. Two stale monbus_axil4_axil4_group comments (PH_LOW consume).
 
 WHAT THIS ARC TAUGHT, beyond the defects:
 
@@ -1221,7 +1221,7 @@ TWO NEW RTL FINDINGS, both real:
   (freeze, sweep, clear) hides it because i_freeze already drops
   in_ready -- which is why it survived. Fixed + phase 7 added:
   RED reported handshake_on_clear_cycle=1 bin=0, GREEN after.
-* Two stale monbus_axil_axil_group.sv comments claiming the leaf R beat
+* Two stale monbus_axil4_axil4_group.sv comments claiming the leaf R beat
   is consumed on the HIGH half; drv_rready is PH_LOW only (verified at
   line 296), with the high half replayed from r_hi_half.
 

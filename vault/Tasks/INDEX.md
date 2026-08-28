@@ -40,9 +40,10 @@ five months later.
 This is enforced, because it already went wrong. `PUMICE-010` and
 `PUMICE-011` each name TWO unrelated tasks (per-worker sim_builds vs a
 single-knob address map; HISTCH1 accounting vs LPDDR2 MR init), and
-`PUMICE-008` exists as both a dropped task and a live open one — so a bare
-link to any of them is ambiguous and has to be disambiguated by date. Six
-such collisions exist across four areas.
+`PUMICE-008` DID exist as both a dropped task and a live open one; the live
+one was renumbered to PUMICE-016 on 2026-08-28. The remaining collisions are
+historical (both sides terminal), so a bare link to them must be
+disambiguated by date. Five such collisions remain across four areas.
 
 `bin/check_task_ids.py` runs from the pre-commit hook whenever a
 `vault/Tasks/**.md` file is staged, and BLOCKS on:
@@ -56,8 +57,7 @@ It also WARNS, without blocking, when a task in `closed.md`/`dropped.md`
 still says `**Status:** open`. That one is a warning by design: deciding
 whether such a task is "closed with a stale line" or "still open and
 misfiled" needs someone who knows the work, and auto-flipping the text would
-launder open work into the closed pile. Eleven of those exist today — see
-[[COMMON-024]].
+launder open work into the closed pile. Eleven of those exist today — see [[AUDIT-002]].
 
     bin/check_task_ids.py                 # check everything
     bin/check_task_ids.py --next pumice   # -> PUMICE-016
