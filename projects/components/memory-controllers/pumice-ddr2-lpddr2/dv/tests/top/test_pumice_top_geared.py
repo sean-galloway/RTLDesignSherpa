@@ -47,8 +47,9 @@ async def cocotb_test_pumice_top_geared(dut):
     tb.init_dfi_slave()
     await tb.program_defaults(page_policy=2, mem_type="DDR2")   # CLOSE (software encoding)
     await tb.wait_for_init_done()
-    dut.s_axi_bready.value = 1
-    dut.s_axi_rready.value = 1
+    # bready/rready are NOT tied high here: init_axi_masters() builds the
+    # master BFMs, which own every signal on s_axi including the response
+    # readies. Poking them first only creates a second driver (PUMICE-014).
     tb.init_axi_masters()
     tb.set_axi_timing_profile("backtoback")
 

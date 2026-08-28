@@ -27,6 +27,13 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/top/pumice_core.f")
 
+# dv/ on sys.path so `tbclasses.*` resolves; import AFTER the insert.
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+
+from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
+
 DFI_RATE, DRAM_BEAT = 2, 64
 DW = DRAM_BEAT * DFI_RATE          # 128 (host AXI = DFI word)
 SW = DW // 8
@@ -49,6 +56,8 @@ async def cocotb_test_pumice_core(dut):
     for _ in range(6):
         await RisingEdge(dut.aclk)
 
+    bfm = _init_masters(dut)
+
     captured = []
     rmodel = {"cap": captured}
     cocotb.start_soon(_dfi_model(dut, rmodel))
@@ -64,23 +73,12 @@ async def cocotb_test_pumice_core(dut):
     data = [rng.randrange(1 << DW) for _ in range(BL_WORDS)]
     addr = 0x2000
 
-    # ---- AXI write burst ----
-    await _aw(dut, addr, wid=1)
-    await _w(dut, data)
-    # wait for B
-    for _ in range(300):
-        await RisingEdge(dut.aclk)
-        if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
-            break
-
-    # ---- AXI read burst (same address) ----
-    rd = []
-    cocotb.start_soon(_r_sink(dut, rd))
-    await _ar(dut, addr, rid=1)
-    for _ in range(600):
-        await RisingEdge(dut.aclk)
-        if len(rd) >= BL_WORDS:
-            break
+    # ---- AXI write burst, then read the same address back ----
+    # Both go through the master BFMs, which own the handshakes and block
+    # through B / collect R for us -- so the old poll-for-bvalid and
+    # background _r_sink loops are gone with the hand driving.
+    await bfm.write(addr, data, wid=1)
+    rd = await bfm.read(addr, rid=1)
 
     assert len(captured) >= BL_WORDS, f"only {len(captured)} words hit the DFI write bus"
     assert captured[:BL_WORDS] == data, \
@@ -111,16 +109,9 @@ def _idle(dut):
     dut.wr_phase_i.value = 0
     dut.t_phy_wrlat_i.value = 1
     dut.t_rddata_en_i.value = 1
-    for s in ("awid", "awaddr", "awlen", "awsize", "awburst", "awlock", "awcache",
-              "awprot", "awqos", "awregion", "awuser", "awvalid",
-              "wdata", "wstrb", "wlast", "wuser", "wvalid",
-              "arid", "araddr", "arlen", "arsize", "arburst", "arlock", "arcache",
-              "arprot", "arqos", "arregion", "aruser", "arvalid"):
-        getattr(dut, f"s_axi_{s}").value = 0
-    dut.s_axi_awburst.value = BURST_INCR
-    dut.s_axi_arburst.value = BURST_INCR
-    dut.s_axi_bready.value = 1
-    dut.s_axi_rready.value = 1
+    # NO s_axi_* here. The master BFMs own every signal on that port,
+    # including bready/rready -- a second driver on a BFM-owned signal is a
+    # conflict, not a convenience (PUMICE-014).
     dut.dfi_rddata_i.value = 0
     dut.dfi_rddata_valid_i.value = 0
     dut.dfi_init_complete_i.value = 0
@@ -155,46 +146,9 @@ async def _dfi_model(dut, m):
             dut.dfi_rddata_valid_i.value = 0
 
 
-async def _r_sink(dut, out):
-    while True:
-        await RisingEdge(dut.aclk)
-        if int(dut.s_axi_rvalid.value) and int(dut.s_axi_rready.value):
-            out.append(int(dut.s_axi_rdata.value) & ((1 << DW) - 1))
-
-
-async def _aw(dut, addr, wid):
-    dut.s_axi_awid.value = wid
-    dut.s_axi_awaddr.value = addr
-    dut.s_axi_awlen.value = BL_WORDS - 1
-    dut.s_axi_awvalid.value = 1
-    await RisingEdge(dut.aclk)
-    while int(dut.s_axi_awready.value) == 0:
-        await RisingEdge(dut.aclk)
-    dut.s_axi_awvalid.value = 0
-
-
-async def _w(dut, data):
-    for i, d in enumerate(data):
-        dut.s_axi_wdata.value = d
-        dut.s_axi_wstrb.value = (1 << SW) - 1
-        dut.s_axi_wlast.value = 1 if i == len(data) - 1 else 0
-        dut.s_axi_wvalid.value = 1
-        await RisingEdge(dut.aclk)
-        while int(dut.s_axi_wready.value) == 0:
-            await RisingEdge(dut.aclk)
-    dut.s_axi_wvalid.value = 0
-    dut.s_axi_wlast.value = 0
-
-
-async def _ar(dut, addr, rid):
-    dut.s_axi_arid.value = rid
-    dut.s_axi_araddr.value = addr
-    dut.s_axi_arlen.value = BL_WORDS - 1
-    dut.s_axi_arvalid.value = 1
-    await RisingEdge(dut.aclk)
-    while int(dut.s_axi_arready.value) == 0:
-        await RisingEdge(dut.aclk)
-    dut.s_axi_arvalid.value = 0
+def _init_masters(dut):
+    """AXI4 master BFMs on s_axi -- the ONLY thing that drives that port."""
+    return PumiceAxiBfm(dut, data_width=DW, bl_words=BL_WORDS)
 
 
 def test_pumice_core(request):

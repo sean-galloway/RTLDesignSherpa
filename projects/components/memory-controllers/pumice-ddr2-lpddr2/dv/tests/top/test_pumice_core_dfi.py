@@ -28,12 +28,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
-from CocoTBFramework.components.axi4.axi4_interfaces import (
-    AXI4MasterRead, AXI4MasterWrite,
-)
-from CocoTBFramework.components.axi4.axi4_sequence import (
-    AXI4Sequence, run_axi4_sequence, run_axi4_sequence_engine,
-)
+from CocoTBFramework.components.axi4.axi4_sequence import AXI4Sequence
 from CocoTBFramework.components.dfi.dfi_base import DFIBase
 from CocoTBFramework.components.dfi.dfi_signals import DFIVersion, MemoryType
 from CocoTBFramework.components.dfi.dfi_slave_phy import DFISlavePHY
@@ -46,10 +41,14 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "dv/tb/pumice_core_tb_top.f")
 
-# dv/ on sys.path so `tbclasses.trackers` resolves (PUMICE_TRACKERS hook)
+# dv/ on sys.path so `tbclasses.*` resolves (trackers + the shared AXI BFM).
+# This runs BELOW the import block, so anything under `tbclasses` has to be
+# imported after it -- that is why the tracker imports are function-local.
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
+
+from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
 
 NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
 DFI_RATE, DRAM_BEAT = 2, 64
@@ -220,82 +219,37 @@ async def cocotb_test_pumice_core_dfi(dut):
                   f"(multi-bank, refresh active, R backpressure via BFM profile)")
 
 
-_MASTERS: dict = {}
+_BFM: dict = {}
 
 
 def _masters_init(dut) -> None:
-    """Build the AXI4 write/read master BFMs and pin them to backtoback."""
-    from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
-    from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
-    wr = AXI4MasterWrite(dut, dut.aclk, prefix="s_axi",
-                         data_width=DW, id_width=8, addr_width=32, log=dut._log)
-    rd = AXI4MasterRead(dut, dut.aclk, prefix="s_axi",
-                        data_width=DW, id_width=8, addr_width=32, log=dut._log)
-    cfg = AXI_RANDOMIZER_CONFIGS[os.environ.get("AXI_PROFILE", "backtoback")]
-    wr.aw_channel.randomizer = FlexRandomizer(cfg["master"])
-    wr.w_channel.randomizer  = FlexRandomizer(cfg["master"])
-    rd.ar_channel.randomizer = FlexRandomizer(cfg["master"])
-    wr.b_channel.randomizer  = FlexRandomizer(cfg["slave"])
-    rd.r_channel.randomizer  = FlexRandomizer(cfg["slave"])
-    _MASTERS['wr'], _MASTERS['rd'] = wr, rd
+    """Build the shared AXI4 master BFMs (backtoback by default)."""
+    _BFM['b'] = PumiceAxiBfm(dut, data_width=DW, bl_words=BL_WORDS)
 
 
 def _set_r_profile(dut, profile: str) -> None:
-    """Retime the read master's R channel (consumer-side backpressure)."""
-    from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
-    from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
-    _MASTERS['rd'].r_channel.randomizer = FlexRandomizer(
-        AXI_RANDOMIZER_CONFIGS[profile]["slave"])
+    """Retime ONLY the read master's R channel (consumer backpressure)."""
+    _BFM['b'].set_profile(profile, channels=('r',))
 
 
-async def _run_seq(dut, seq: AXI4Sequence, *, engine: bool = False):
-    """Run `seq` through the master BFMs.
-
-    `engine=True` selects the queue-and-go runner. The default
-    `run_axi4_sequence` takes a per-instance AW+W lock and awaits each B
-    response before the next burst, so consecutive AWs sit ~5-15 cycles
-    apart -- measured here at 34.5 cycles/burst, which leaves the command
-    CAM EMPTY between bursts. That matters beyond throughput: the
-    scheduler's `demand_i` is CAM occupancy, so a serial runner makes the
-    DUT look idle to the refresh credit logic and refreshes fire in the
-    gaps. Any multi-burst helper therefore uses the engine runner."""
-    runner = run_axi4_sequence_engine if engine else run_axi4_sequence
-    return await runner(seq, master_wr=_MASTERS['wr'],
-                        master_rd=_MASTERS['rd'], log=dut._log)
+async def _run_seq(dut, seq, *, engine: bool = False):
+    return await _BFM['b'].run(seq, engine=engine)
 
 
 async def _write(dut, addr, data, wid=0):
-    """One write burst via the write-master BFM (blocks through B)."""
-    seq = AXI4Sequence("w1", data_width=DW)
-    seq.add_write(addr, list(data), axid=wid & 0xF)
-    await _run_seq(dut, seq)
+    await _BFM['b'].write(addr, data, wid)
 
 
 async def _read(dut, addr, rid=0):
-    """One read burst via the read-master BFM; returns its beat list."""
-    seq = AXI4Sequence("r1", data_width=DW)
-    seq.add_read(addr, length=BL_WORDS, axid=rid & 0xF)
-    res = await _run_seq(dut, seq)
-    return list(res[0]["data"]) if res else []
+    return await _BFM['b'].read(addr, rid)
 
 
 async def _write_many(dut, reqs):
-    """Multi-burst write through the engine runner, so AWs queue
-    back-to-back and the command CAM stays occupied."""
-    seq = AXI4Sequence("wN", data_width=DW)
-    for k, (addr, data) in enumerate(reqs):
-        seq.add_write(addr, list(data), axid=k & 0xF)
-    await _run_seq(dut, seq, engine=True)
+    await _BFM['b'].write_many(reqs)
 
 
 async def _read_many(dut, addrs, axid_fn=lambda k: k & 0xF):
-    """Multi-burst read through the engine runner; returns
-    [(addr, beats), ...] in burst order."""
-    seq = AXI4Sequence("rN", data_width=DW)
-    for k, a in enumerate(addrs):
-        seq.add_read(a, length=BL_WORDS, axid=axid_fn(k))
-    res = await _run_seq(dut, seq, engine=True)
-    return [(d["addr"], list(d["data"])) for d in res]
+    return await _BFM['b'].read_many(addrs, axid_fn)
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")

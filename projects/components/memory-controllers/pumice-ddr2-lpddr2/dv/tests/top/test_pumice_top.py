@@ -64,8 +64,9 @@ async def _bringup(dut, *, mem_type="DDR2", page_policy=2, profile="backtoback",
     tb.init_dfi_slave()
     await tb.program_defaults(page_policy=page_policy, mem_type=mem_type, t_refi=t_refi)
     await tb.wait_for_init_done()
-    dut.s_axi_bready.value = 1
-    dut.s_axi_rready.value = 1
+    # bready/rready are NOT tied high here: init_axi_masters() builds the
+    # master BFMs, which own every signal on s_axi including the response
+    # readies. Poking them first only creates a second driver (PUMICE-014).
     tb.init_axi_masters()
     tb.set_axi_timing_profile(profile)
 

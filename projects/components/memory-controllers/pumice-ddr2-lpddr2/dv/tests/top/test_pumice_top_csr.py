@@ -33,6 +33,13 @@ from CocoTBFramework.components.shared.memory_model import MemoryModel
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "dv/tb/pumice_top_csr_tb_top.f")
 
+# dv/ on sys.path so `tbclasses.*` resolves; import AFTER the insert.
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+
+from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
+
 NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
 DFI_RATE, DRAM_BEAT = 2, 64
 DW = DRAM_BEAT * DFI_RATE
@@ -86,13 +93,11 @@ async def cocotb_test_pumice_top_csr(dut):
     # idle
     dut.s_cpuif_req.value = 0; dut.s_cpuif_req_is_wr.value = 0
     dut.s_cpuif_addr.value = 0; dut.s_cpuif_wr_data.value = 0; dut.s_cpuif_wr_biten.value = 0
-    for s in ("awid","awaddr","awlen","awsize","awburst","awlock","awcache","awprot",
-              "awqos","awregion","awuser","awvalid","wdata","wstrb","wlast","wuser","wvalid",
-              "arid","araddr","arlen","arsize","arburst","arlock","arcache","arprot","arqos",
-              "arregion","aruser","arvalid"):
-        getattr(dut, f"s_axi_{s}").value = 0
-    dut.s_axi_awburst.value = BURST_INCR; dut.s_axi_arburst.value = BURST_INCR
-    dut.s_axi_bready.value = 1; dut.s_axi_rready.value = 1
+    # NO s_axi_* idle poking: the master BFMs own that whole port, bready and
+    # rready included. A second driver on a BFM-owned signal is a conflict
+    # (PUMICE-014). The cpuif above is a plain request/ack CSR port, not a
+    # valid/ready interface, so it stays hand-driven.
+    bfm = PumiceAxiBfm(dut, data_width=DW, bl_words=BL_WORDS)
     dut.aresetn.value = 0; dut.dfi_rstn.value = 0
     await ClockCycles(dut.aclk, 10)
     dut.aresetn.value = 1; dut.dfi_rstn.value = 1
@@ -173,60 +178,18 @@ async def cocotb_test_pumice_top_csr(dut):
         seen.add(addr)
         reqs.append((addr, [rng.randrange(1 << DW) for _ in range(BL_WORDS)]))
 
+    # Writes first (engine runner: AWs queue back-to-back), then read every
+    # address back and check against what was written. The BFMs own the
+    # handshakes, so the poll-for-bvalid and background _r_sink loops that
+    # used to be here are gone with the hand driving.
+    await bfm.write_many(reqs)
     for k, (addr, data) in enumerate(reqs):
-        await _aw(dut, addr, k & 0xF); await _w(dut, data)
-        for _ in range(400):
-            await RisingEdge(dut.aclk)
-            if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
-                break
-    for k, (addr, data) in enumerate(reqs):
-        got = []
-        cocotb.start_soon(_r_sink(dut, got))
-        await _ar(dut, addr, k & 0xF)
-        for _ in range(800):
-            await RisingEdge(dut.aclk)
-            if len(got) >= BL_WORDS:
-                break
+        got = await bfm.read(addr, k & 0xF)
         assert got[:BL_WORDS] == data, (f"read {k} @ {addr:#x}: got "
             f"{[hex(x) for x in got[:BL_WORDS]]} != {[hex(x) for x in data]}")
 
     dut._log.info(f"PASS: config PROGRAMMED VIA CSR (regblock hwif) -> init done -> "
                   f"{n} AXI bursts written+read-back vs DFISlavePHY golden")
-
-
-async def _r_sink(dut, out):
-    while len(out) < BL_WORDS:
-        await RisingEdge(dut.aclk)
-        if int(dut.s_axi_rvalid.value) and int(dut.s_axi_rready.value):
-            out.append(int(dut.s_axi_rdata.value) & ((1 << DW) - 1))
-
-
-async def _aw(dut, addr, wid):
-    dut.s_axi_awid.value = wid; dut.s_axi_awaddr.value = addr
-    dut.s_axi_awlen.value = BL_WORDS - 1; dut.s_axi_awvalid.value = 1
-    await RisingEdge(dut.aclk)
-    while int(dut.s_axi_awready.value) == 0:
-        await RisingEdge(dut.aclk)
-    dut.s_axi_awvalid.value = 0
-
-
-async def _w(dut, data):
-    for i, d in enumerate(data):
-        dut.s_axi_wdata.value = d; dut.s_axi_wstrb.value = (1 << SW) - 1
-        dut.s_axi_wlast.value = 1 if i == len(data) - 1 else 0; dut.s_axi_wvalid.value = 1
-        await RisingEdge(dut.aclk)
-        while int(dut.s_axi_wready.value) == 0:
-            await RisingEdge(dut.aclk)
-    dut.s_axi_wvalid.value = 0; dut.s_axi_wlast.value = 0
-
-
-async def _ar(dut, addr, rid):
-    dut.s_axi_arid.value = rid; dut.s_axi_araddr.value = addr
-    dut.s_axi_arlen.value = BL_WORDS - 1; dut.s_axi_arvalid.value = 1
-    await RisingEdge(dut.aclk)
-    while int(dut.s_axi_arready.value) == 0:
-        await RisingEdge(dut.aclk)
-    dut.s_axi_arvalid.value = 0
 
 
 def test_pumice_top_csr(request):
