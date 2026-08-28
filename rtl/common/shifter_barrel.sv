@@ -77,6 +77,9 @@ module shifter_barrel #(
             3'b001: // Logical Right Shift (no wrap)
                 data_out = data >> shift_amount;
 
+            3'b011: // Logical Right Shift with wrap
+                data_out = w_array_rs[w_shift_amount_mod];
+
             3'b010: // Arithmetic Right Shift (preserve sign)
                 // if/else, NOT a ternary: a ternary whose other branch is
                 // unsigned makes BOTH operands unsigned per the LRM, silently
@@ -86,9 +89,6 @@ module shifter_barrel #(
                     data_out = {WIDTH{data[WIDTH-1]}};
                 else
                     data_out = $signed(data) >>> shift_amount;
-
-            3'b011: // Logical Right Shift with wrap
-                data_out = w_array_rs[w_shift_amount_mod];
 
             3'b100: // Logical Left Shift (no wrap)
                 data_out = data << shift_amount;
