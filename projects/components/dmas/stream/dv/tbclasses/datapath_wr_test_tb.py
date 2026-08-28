@@ -142,6 +142,11 @@ class DatapathWrTestTB(TBBase):
             prefix='m_axi',
             memory_model=self.memory_model,
             response_delay=response_delay,
+            # No optional_fields opt-out here: this macro's AW channel omits
+            # the qualifier ports, and those are optional at the PROTOCOL-config
+            # level now (axi4_aw_master in signal_mapping_helper), so every
+            # AXI4 BFM tolerates their absence. A per-instance opt-out repeating
+            # that set would claim this DUT is special when it is ordinary.
             super_debug=True,
             log=self.log
         )
