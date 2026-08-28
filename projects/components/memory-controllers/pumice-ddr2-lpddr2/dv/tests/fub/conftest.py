@@ -5,8 +5,8 @@ Wires up the import paths so test modules can:
   * `from TBClasses.shared.utilities import get_paths` — needs $REPO_ROOT/bin
     on sys.path (TBClasses is vendored under bin/ in the main repo, and
     under tests/sim/ in the DV repo)
-  * `from tbclasses.wr_cmd_cam_tb import WrCmdCamTB` — needs the component
-    dv/ directory on sys.path
+  * `from tbclasses.pumice_rd_cmd_cam_tb import PumiceRdCmdCamTB` — needs the
+    component dv/ directory on sys.path
 """
 
 import os
