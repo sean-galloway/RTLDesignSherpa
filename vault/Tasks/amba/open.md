@@ -2,80 +2,55 @@
 
 # AMBA tasks — open (not started)
 
-### AMBA-WAVEDROM-FLAKY — test_apb4_master_wavedrom fails ~1 run in 3, at file scope only
-**Status:** open 2026-08-28 (quantified while closing TASK-071)
-**Priority:** P2 — a required test that is not deterministic; violates the
-100%-pass rule and will erode trust in the suite
-**Owner:** TBD
+## VAL-XDIST-INTERMITTENT — ROOT-CAUSED 2026-08-28: concurrent deletion of local_sim_build
+**Status:** root cause PROVEN; remaining item is the durable fix below
+**Related:** AMBA-WAVEDROM-FLAKY (closed same day) -- same *family*
+(nondeterministic val/amba result), DIFFERENT cause. That one was a random
+per-run seed; this one is not seed-related at all.
 
-`val/amba/test_apb4_master.py::test_apb4_master_wavedrom` is flaky. Measured
-over 10 clean-build runs of the whole file:
+CAUSE: `val/amba/local_sim_build/` is a single shared build root, and
+deleting from it while a run is in flight destroys that run's build.
 
-| RTL | fail runs / 10 |
-|---|---|
-| before the TASK-071 fix | 4 |
-| after | 3 |
+REPRODUCED ON THE FIRST ATTEMPT. Start the parallel set; 3 seconds in, run
+`rm -rf val/amba/local_sim_build/*monbus_axil4_axil4*`:
 
-So it is **pre-existing and unrelated to TASK-071** — the rates are within
-noise of each other. It also passes 3/3 when run in ISOLATION, so the
-trigger is state left by the sibling `test_apb4_master` running first
-(shared RNG seeding is the obvious suspect; the two use separate
-`sim_build` directories, so it is not a build collision).
+    1 failed, 17 passed
+    FAILED val/amba/test_monbus_axil4_axil4_group_compressed
+    raise FileNotFoundError(f"RTL source not found: {src}")
+    make: *** [.../Vtop___024root__DepSet_...o] Error 1
 
-The failure is always the same: `Failed constraints: ['apb_write_sequence',
-'apb_read_sequence']` — the solver cannot find a matching window. The
-constraints need a clean PSEL rising edge with the right PWRITE polarity
-inside the capture window, and with randomized back-to-back traffic the
-window sometimes lands where no such edge exists.
+Same test and same `FileNotFoundError: RTL source not found` signature as
+the 12-failure occurrence earlier that day.
 
-**Work:**
-- [ ] Determine whether the sibling test seeds the RNG and, if so, make the
-      wavedrom test seed independently.
-- [ ] Either widen the capture window / drive a deterministic
-      write-then-read pair before sampling, or mark the constraints
-      non-required and assert on what is actually guaranteed.
-- [ ] Do NOT paper over it with a retry — the constraint either describes
-      the waveform or it does not.
+NOT THE CAUSE -- each ruled out by experiment, recorded so nobody re-checks:
+  * seed nondeterminism. The compressed suite DOES draw a random seed
+    (`SEED: random.randint(...)`, exactly the AMBA-WAVEDROM-FLAKY pattern),
+    which made it the obvious suspect -- but a sweep of eight seeds
+    (1/42/1234/99999/7/4347/55555/31337) passes 8/8. Worth pinning for
+    reproducibility; it is not this bug.
+  * sim_build name collision between xdist workers. Both implicated tests
+    embed PYTEST_XDIST_WORKER in their build directory name.
+  * parallelism itself. Forty consecutive `-n 12` runs, each preceded by a
+    clean `rm -rf`, all passed.
+  * source mutation during a run. Touching the RTL mid-run changes nothing;
+    Verilator has already built.
 
----
+HOW THE THREE OCCURRENCES FIT:
+  1, 2 -- I had overlapping `rm -rf` globs and background pytest jobs in
+    flight (two killed with TaskStop mid-run). Directly matches the repro.
+  3 -- my own command was sequential (`rm -rf; pytest`), so the deleter was
+    NOT mine. This is a SHARED WORKTREE with concurrent sessions and the
+    build root has no per-session scoping, so another session running or
+    cleaning val/amba collides with mine.
 
-## VAL-XDIST-INTERMITTENT — val/amba tests fail under high -n and pass on rerun
-**Status:** open 2026-08-28  **Priority:** P3
-**Sibling:** [[AMBA-WAVEDROM-FLAKY]] — same family (nondeterministic
-val/amba result), different trigger: that one is file-scope, this one is
-parallel-scope.
+DURABLE FIX (not taken -- shared-infrastructure change, wants a decision):
+honour a `SIM_BUILD_ROOT` env var so concurrent sessions do not share one
+collision domain. `bin/TBClasses/shared/utilities.py:455` hardcodes
+`local_sim_build` and nothing overrides it.
 
-Three occurrences in one session, always the same shape: a parallel
-`pytest val/amba/... -q -n {10,12}` run reports a handful of failures,
-and the same tests pass individually AND the identical command passes on
-rerun.
-
-  1. 8 failures across the monitor suites (2026-08-27) -- clean on rerun.
-  2. 12 failures in the mon_cg functional suites (2026-08-27) -- clean on
-     rerun. I attributed that one at the time to my own overlapping
-     `rm -rf` globs across back-to-back runs, which fits case 2 but does
-     not explain the others.
-  3. test_monbus_axil4_axil4_group_compressed and
-     test_monbus_pkt_tally[8-16-4-100] (2026-08-28, immediately after the
-     monbus rename + bridge regeneration). Four subsequent attempts --
-     two at -n 10, two at -n 16, all preceded by `rm -rf` -- returned 21,
-     18, 18, 21, all passing. The failure text was NOT captured before it
-     stopped reproducing, which is the main thing to do differently.
-
-RULED OUT: sim_build name collision. Both implicated tests embed
-PYTEST_XDIST_WORKER in their build directory name, so two workers cannot
-share a build directory.
-
-STILL SUSPECT: resource contention during simultaneous cold Verilator
-builds (case 3 followed 28 freshly regenerated bridge files, so CPU and
-page cache were both loaded), or a race in the cocotb-test wrapper
-between build and launch.
-
-WHY IT IS TRACKED RATHER THAN SHRUGGED OFF: the repo rule is that an
-intermittent is a real bug in the runner, harness or RTL. This one has
-now been rerun-away three times, twice by me. Next step is to CAPTURE
-THE TEXT -- loop the parallel set redirecting per-run output until it
-reproduces -- rather than investigating after it has gone.
+INTERIM DISCIPLINE, free: never `rm -rf` a broad `local_sim_build/*` glob
+while anything might be running -- including another session -- and scope
+cleanups to the exact build directory the run will use.
 
 ## TASK-026: Every module MUST have a filelist and a registry entry
 **Priority:** P2
