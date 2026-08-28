@@ -52,6 +52,22 @@ INTERIM DISCIPLINE, free: never `rm -rf` a broad `local_sim_build/*` glob
 while anything might be running -- including another session -- and scope
 cleanups to the exact build directory the run will use.
 
+DONE 2026-08-28, the other half of the problem: TBBase now LOGS THE SEED
+for every TB. Most val/ runners default SEED to `random.randint(...)` --
+correct for a stress runner -- but the seed appeared nowhere, so a failure
+under a random seed could not be replayed: rerunning drew a NEW seed, the
+test passed, and a real bug read as flaky. That is precisely how these
+intermittents kept getting rerun away. One line in TBBase covers every
+TB-derived testbench; the log now carries
+`SEED=<n> (reproduce with: SEED=<n> pytest <test>)`, verified by replaying
+a logged seed and getting the same value back.
+
+The first version of that log line ALSO claimed a missing SEED meant "NOT
+reproducible", which was wrong -- most TBs default it themselves
+(axi_monitor_tb uses 42), so those runs are repeatable, just not
+steerable. Corrected: an alarming-but-inaccurate warning is one people
+learn to scroll past.
+
 ## TASK-026: Every module MUST have a filelist and a registry entry
 **Priority:** P2
 **Status:** 🔴 Not Started

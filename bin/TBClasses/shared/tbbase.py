@@ -113,6 +113,34 @@ class TBBase:
         self.log_count = 0
         self.log = self.configure_logging(level=TBBase.default_log_level)
 
+        # ALWAYS record the seed, first thing, for EVERY TB.
+        #
+        # Most val/ runners default SEED to random.randint(...) so each run
+        # explores different randomizer delays -- which is the point for a
+        # stress runner and should not be pinned away. But the seed was
+        # nowhere in the log, so a failure under a random seed could not be
+        # reproduced: rerunning drew a NEW seed, the test passed, and a real
+        # bug read as flaky. That is the exact shape that got three separate
+        # intermittents rerun-away in one session (VAL-XDIST-INTERMITTENT),
+        # and it is what made AMBA-WAVEDROM-FLAKY hard to pin down.
+        #
+        # One line here covers every TB-derived testbench, so no runner has
+        # to remember. To reproduce a failure: SEED=<logged value> pytest ...
+        self.seed = os.environ.get('SEED')
+        if self.seed is None:
+            # NOT necessarily nondeterministic: most TBs default SEED
+            # themselves (axi_monitor_tb uses '42'), so the run is repeatable
+            # -- it just always uses that one value and cannot be steered from
+            # the runner. Say exactly that; a warning that overstates the
+            # problem is one people learn to scroll past.
+            self.log.info(
+                f"{self.dut_name}: SEED not passed by the runner; this TB's "
+                f"own default applies. Pass SEED through extra_env to steer "
+                f"or replay a specific run.")
+        else:
+            self.log.info(f"{self.dut_name}: SEED={self.seed} "
+                          f"(reproduce with: SEED={self.seed} pytest <test>)")
+
         # Merge safety limits with defaults
         self.safety_limits = self.DEFAULT_SAFETY_LIMITS.copy()
         if safety_limits:
