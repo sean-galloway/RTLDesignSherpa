@@ -207,9 +207,13 @@ default and every mechanism mutation-proven at the fub level.
 ---
 
 ## PUMICE-014 — retire ALL hand-poking of valid/ready interfaces in pumice DV
-**Status:** open 2026-08-27 — HARD RULE from Sean, stated emphatically:
-"None of the environments should EVER hand poke on any standard interface
-or valid ready interface." See [[feedback-always-use-axi4-bfms]].
+**Status:** PARTIALLY DONE 2026-08-28 — every file on the original list is
+ported and green. The original audit was INCOMPLETE: nine more files carry
+genuine valid/ready pokes (table below). HARD RULE from Sean, stated
+emphatically: "None of the environments should EVER hand poke on any
+standard interface or valid ready interface", and "If there are bfms you
+don't need to set any signals" — i.e. the BFM drives the PAYLOAD too, not
+just the handshake. See [[feedback-always-use-axi4-bfms]].
 
 Hand-poking is not just a style violation: it skips the BFM's protocol
 timing (valid/ready randomization, per-channel profiles, outstanding and
@@ -218,30 +222,58 @@ performance measurement -- a hand-rolled driver starves the DUT, so the
 numbers grade the testbench. That is exactly why perf work had to move to
 the BFM top TB (see [[PUMICE-013]]).
 
-**Violations to port (pumice DV, `.value =` poke counts, 2026-08-27):**
-| File | ~pokes | Notes |
-|---|---|---|
-| `dv/tests/top/test_pumice_core_dfi.py` | 50 | the big one: local `_aw`/`_w`/`_ar`/`_r_sink` helpers drive every test in the file (~15 tests, incl. all the PUMICE-006 mode tests added this session) |
-| `dv/tests/top/test_pumice_core.py` | 33 | same pattern |
-| `dv/tbclasses/pumice_axi4_ifc_tb.py` | 35 | macro-level ifc TB |
-| `dv/tbclasses/pumice_wr_intake_tb.py` | 34 | fub TB |
-| `dv/tbclasses/pumice_rd_intake_tb.py` | 32 | fub TB |
-| `dv/tests/top/test_pumice_top_csr.py` | 22 | mostly CSR/cpuif, check which are AXI |
-| `test_pumice_top.py` / `test_pumice_top_geared.py` | 2 each | just the `bready`/`rready` tie-highs; low risk but should come from the BFM too |
+**DONE (all originally-listed files, 0 pokes remaining, all green):**
+| File | was | now | driven by |
+|---|---|---|---|
+| `dv/tests/top/test_pumice_core_dfi.py` | 50 | 0 | `PumiceAxiBfm` |
+| `dv/tbclasses/pumice_axi4_ifc_tb.py` | 35 | 0 | `PumiceAxiBfm` + GAXI x4 |
+| `dv/tbclasses/pumice_wr_intake_tb.py` | 34 | 0 | `PumiceAxiBfm` + GAXI x2 |
+| `dv/tests/top/test_pumice_core.py` | 33 | 0 | `PumiceAxiBfm` |
+| `dv/tbclasses/pumice_rd_intake_tb.py` | 32 | 0 | `PumiceAxiBfm` + GAXI x3 |
+| `dv/tests/top/test_pumice_top_csr.py` | 22 | 0 | `PumiceAxiBfm` |
+| `test_pumice_top.py` / `_geared.py` | 2 ea | 0 | `tb.init_axi_masters()` |
 
-The top TB is already correct (`init_axi_masters()` +
-`set_axi_timing_profile()` + `run_sequence()`); the pattern to copy is
-there, and the sequence builders in `dv/tbclasses/pumice_sequences.py`
-are architecture-independent.
+Shared collateral built for this, reuse it rather than re-rolling:
+* `dv/tbclasses/pumice_axi_bfm.py` — `PumiceAxiBfm`, the one place any
+  pumice DUT's `s_axi_*` gets driven. Takes `write=`/`read=` for ports
+  that only have one direction.
+* `dv/tbclasses/pumice_fub_bfm.py` — `fub_consumer()` / `fub_producer()`
+  over the GAXI BFMs, for fub-internal valid/ready ports. pumice's
+  direction-suffixed names (`aw_push_bank_o`) do not match GAXI
+  auto-discovery, so these pass an explicit `signal_map`, which also
+  fails loudly on a rename instead of binding to nothing.
+
+**STILL TO PORT (missed by the original audit, 2026-08-28 sweep):**
+| File | pokes | interfaces |
+|---|---|---|
+| `dv/tbclasses/pumice_wr_data_cam_tb.py` | 17 | ins/commit/wd/cm_rd/snarf_rd |
+| `dv/tbclasses/pumice_rd_cmd_cam_tb.py` | 13 | ins/issue/drain/dfi_ret |
+| `dv/tbclasses/pumice_dfi_cdc_tb.py` | 12 | cmd/wd/rd + pcmd/pwd/prd (both clock domains) |
+| `dv/tests/fub/test_pumice_dfi_cmd_path.py` | 8 | cmd, rd_op |
+| `dv/tbclasses/pumice_cmd_arbiter_tb.py` | 7 | cmd, bank_act/rdwr/pre, wr_commit, rd_issue |
+| `dv/tests/fub/test_pumice_dfi_wr_serializer.py` | 6 | wd |
+| `dv/tbclasses/wr_cmd_cam_tb.py` | 3 | push |
+| `dv/tbclasses/pumice_mem_cmd_scheduler_tb.py` | 3 | cmd, wr_commit, rd_issue |
+| `dv/tbclasses/dfi_cmd_formatter_tb.py` | 2 | cmd |
+
+All of these are `fub_consumer`/`fub_producer` shaped — the pattern and
+the collateral now exist, so each is mechanical.
+
+**Deliberately NOT converted (documented in the code):** signals with NO
+`ready` are strobes, not handshakes, and there is nothing for a BFM to
+pace against — `wr_done_valid_i` (+id/resp), `dfi_rddata_valid_i` (DFI
+read data is unconditional per spec), `snarf_hit_i` (combinational answer
+to a probe), and the `*_oldest_valid_o` / `snap_valid_o` status outputs.
+Read-only MONITORS also stay (`_mon_b`, `_mon_r`): the AXI master owns
+bready/rready, but the sequence result carries no per-beat
+rid/rlast/rresp/bresp, which the SLVERR and R-ordering checks need.
+Observing is not poking.
 
 **Also outside pumice (same rule, flagged not owned):**
 `projects/components/misc/dv/tbclasses/axi4_slave_wr_crc_check_tb.py`.
 
 **Rules going forward:** no NEW test may hand-poke; port a file when it is
-next touched for another reason. The fub-level intake TBs are the
-trickiest (they drive fub-internal handshakes, not a full AXI port) --
-decide per interface whether a BFM exists or whether the right answer is
-a small reusable driver component, but never inline pokes in the test.
+next touched for another reason.
 
 ## PUMICE-013 — characterize + tune the advanced modes (all three axes)
 **Status:** open 2026-08-27 (split out of PUMICE-006 at Sean's direction —
