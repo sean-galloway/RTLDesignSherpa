@@ -56,22 +56,35 @@ def generate_sdpram_axil_axil_params():
     mem_depth is held >=64 across all rows (see write-burst offsets in the
     other two wrapper tests -- this wrapper has no burst phase, but the
     depth is kept consistent for direct comparison across the family).
+
+    USE_WSTRB is an axis because it selects between sdpram_core's TWO write
+    implementations, and only this wrapper exposes it. USE_WSTRB=0 -- the
+    full-word write that block-RAM inference wants -- had never been built
+    by any test, so half the core's write path was unsimulated.
     """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
-        return [('gate', 64, 64)]
-    return [('gate', 64, 64), ('func', 64, 64), ('full', 256, 64)]
+        return [('gate', 64, 64, 1)]
+    return [('gate', 64, 64, 1), ('func', 64, 64, 1), ('full', 256, 64, 1),
+            # the previously-unbuilt branch
+            ('func', 64, 64, 0)]
 
 
-@pytest.mark.parametrize("test_level,data_width,mem_depth", generate_sdpram_axil_axil_params())
-def test_sdpram_slave_axil_axil(request, test_level, data_width, mem_depth):
+@pytest.mark.parametrize("test_level,data_width,mem_depth,use_wstrb",
+                         generate_sdpram_axil_axil_params())
+def test_sdpram_slave_axil_axil(request, test_level, data_width, mem_depth, use_wstrb):
     """Pytest wrapper -- exercises sdpram_slave_axil_axil (AXIL wr / AXIL rd)."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
 
     dut_name = "sdpram_slave_axil_axil"
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
-    tag = f"{worker_id}_{dut_name}_dw{data_width}_d{mem_depth}_{test_level}_{reg_level}"
+    # ws must be in the tag: the USE_WSTRB rows share dw/depth/level, so
+    # without it they collide in one sim_build and the second run would
+    # silently reuse the first build -- a different RTL configuration
+    # reporting a pass it never simulated.
+    tag = (f"{worker_id}_{dut_name}_dw{data_width}_d{mem_depth}"
+           f"_ws{use_wstrb}_{test_level}_{reg_level}")
     log_path = os.path.join(log_dir, f'test_{tag}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', f'test_{tag}')
     os.makedirs(sim_build, exist_ok=True)
@@ -86,12 +99,14 @@ def test_sdpram_slave_axil_axil(request, test_level, data_width, mem_depth):
         "ADDR_WIDTH": 32,
         "DATA_WIDTH": data_width,
         "MEM_DEPTH":  mem_depth,
+        "USE_WSTRB":  use_wstrb,
     }
 
     extra_env = {
         "DUT_DATA_WIDTH": str(data_width),
         "DUT_MEM_DEPTH":  str(mem_depth),
         "DUT_ADDR_WIDTH": "32",
+        "DUT_USE_WSTRB":  str(use_wstrb),
         "LOG_PATH":       log_path,
         "COCOTB_LOG_LEVEL": "INFO",
         "TEST_LEVEL":     test_level,

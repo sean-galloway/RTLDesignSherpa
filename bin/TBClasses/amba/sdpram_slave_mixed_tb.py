@@ -74,6 +74,12 @@ class SdpramSlaveMixedTB(TBBase):
         self.addr_width = self.convert_to_int(os.environ.get('DUT_ADDR_WIDTH', '32'))
         self.mem_depth = self.convert_to_int(os.environ.get('DUT_MEM_DEPTH', '64'))
         self.id_width = self.convert_to_int(os.environ.get('DUT_ID_WIDTH', '4'))
+        # Which of sdpram_core's TWO write implementations this build has.
+        # USE_WSTRB=1 is the byte-enable loop (honours fub_wstrb, infers
+        # distributed RAM); USE_WSTRB=0 is the full-word write that block-RAM
+        # inference wants and that IGNORES fub_wstrb by construction. The
+        # strobe phase below asserts the difference rather than assuming it.
+        self.use_wstrb = self.convert_to_int(os.environ.get('DUT_USE_WSTRB', '1'))
         self.seed = self.convert_to_int(os.environ.get('SEED', '0'))
         random.seed(self.seed)
 
@@ -88,7 +94,7 @@ class SdpramSlaveMixedTB(TBBase):
         self.log.info(
             f"SdpramSlaveMixedTB: WR={wr_protocol} RD={rd_protocol} "
             f"DATA_WIDTH={self.data_width} MEM_DEPTH={self.mem_depth} "
-            f"seed={self.seed}"
+            f"USE_WSTRB={self.use_wstrb} seed={self.seed}"
         )
 
         # -----------------------------------------------------------
@@ -451,6 +457,66 @@ class SdpramSlaveMixedTB(TBBase):
             if cycles > timeout_cycles:
                 raise TimeoutError("second clear request never completed")
 
+    async def phase_partial_strobe(self) -> None:
+        """Partial write strobes -- the behaviour USE_WSTRB exists to select.
+
+        Neither branch of sdpram_core's write path had ever been driven with
+        anything but all-ones strobes, so the byte-enable loop was unproven
+        and the full-word branch had never been built at all.
+
+        The two branches differ, deliberately, and this phase pins that:
+          USE_WSTRB=1 -- only the enabled bytes change; the rest of the word
+                         keeps its previous contents.
+          USE_WSTRB=0 -- fub_wstrb is ignored and the WHOLE word is written.
+                         That is not a bug; it is the price of the shape
+                         block-RAM inference requires, and a caller that needs
+                         byte enables must not build with USE_WSTRB=0.
+        """
+        addr = 8 * self.word_bytes
+        # Patterns must FILL the data width. Fixed 64-bit constants masked to
+        # a 256-bit word leave the upper bytes zero in BOTH the seed and the
+        # new value, so the masked-off region is identical either way and the
+        # check passes whether or not strobes are honoured -- the dw256 rows
+        # were silently vacuous until this was caught by reading the logged
+        # values rather than the pass/fail.
+        seed_word = int.from_bytes(b"\xa5" * self.word_bytes, "big") & self.mask
+        await self.write_single(addr, seed_word)
+        assert await self.read_single(addr) == seed_word, "strobe phase: seed write failed"
+
+        # Rewrite with only the low half of the byte lanes enabled.
+        half = self.word_bytes // 2
+        strb = (1 << half) - 1
+        new_word = int.from_bytes(b"\x5c" * self.word_bytes, "big") & self.mask
+        await self.write_single(addr, new_word, strb=strb)
+        got = await self.read_single(addr)
+
+        low_mask = (1 << (8 * half)) - 1
+        if self.use_wstrb:
+            expect = (seed_word & ~low_mask) | (new_word & low_mask)
+            why = ("byte enables were not honoured: the masked-off bytes "
+                   "changed, or the enabled ones did not")
+        else:
+            expect = new_word
+            why = ("the full-word branch must write the whole word and ignore "
+                   "fub_wstrb; a partial result means it is honouring strobes "
+                   "after all")
+        expect &= self.mask
+
+        # Guard against a vacuous run: if seed and new agree outside the
+        # strobed region there is nothing for the byte enables to protect, and
+        # a pass would mean nothing.
+        assert (seed_word & ~low_mask & self.mask) != (new_word & ~low_mask & self.mask), (
+            f"partial-strobe phase is vacuous at DATA_WIDTH={self.data_width}: "
+            f"seed and new values agree outside the strobed bytes, so the "
+            f"check cannot distinguish honoured strobes from ignored ones")
+
+        assert got == expect, (
+            f"partial-strobe write with USE_WSTRB={self.use_wstrb}: "
+            f"read 0x{got:x}, expected 0x{expect:x} (seed 0x{seed_word:x}, "
+            f"wrote 0x{new_word:x} with strb=0x{strb:x}) -- {why}")
+        self.log.info(f"  partial strobe (USE_WSTRB={self.use_wstrb}): "
+                      f"0x{got:x} as expected")
+
     async def run_standard_suite(self, test_level: str = "gate") -> None:
         """Orchestrates the phases above, scaled by TEST_LEVEL. Shared by
         all three thin per-wrapper test files."""
@@ -463,6 +529,7 @@ class SdpramSlaveMixedTB(TBBase):
         await self.phase_axi4_write_burst()
         await self.phase_axi4_read_burst()
         await self.phase_random_fill(count)
+        await self.phase_partial_strobe()
         await self.phase_bulk_clear()
 
         self.check_dbg_vr_clean()

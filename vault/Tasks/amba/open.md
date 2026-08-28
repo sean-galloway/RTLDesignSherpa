@@ -983,32 +983,55 @@ apart again. The UPPER bound is deliberate -- if a future change
 improves the credit round trip, the test fires and says to re-measure
 and update all three places together.
 
-### TASK-062: `sdpram_slave_axil_axil` runs on the board with no simulation
-**Priority:** P2
-**Status:** 🔴 Not Started (found 2026-08-10)
-**Owner:** TBD
+### TASK-062: CLOSED 2026-08-28 -- stale as filed; the real gap was inside sdpram_core
+**Status:** CLOSED
 
-`rtl/amba/shared/sdpram_slave_axil_axil.sv` is instantiated on hardware —
-`projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/stream_char_harness.sv:1229`
-(debug_sram, 64-bit AXIL write + AXIL read) plus the instrumentation filelists —
-and **no test references it**.
+AS FILED, stale. Tests for all three untested wrappers landed 2026-08-13,
+three days after the task was written (2026-08-10). Measured, not assumed:
+all four permutations build and pass (12 cases), and the shared suite in
+sdpram_slave_mixed_tb is substantive -- single beat, write burst, read
+burst, random fill, bulk clear, plus a valid/ready monitor.
 
-Of the four protocol-permutation wrappers only `sdpram_slave_axi4_axi4` has a
-test (`val/amba/test_sdpram_slave.py`). `sdpram_slave_axi4_axil` and
-`sdpram_slave_axil_axi4` are untested too, but neither is instantiated anywhere
-in the repo, so they are latent; this one is deployed.
+THE REAL GAP, found while checking Sean's "all sdpram modules should have
+tests": sdpram_core has FIVE modules' worth of coverage but a parameter
+that selects between TWO WRITE IMPLEMENTATIONS, and only one was ever
+built.
 
-The shared `sdpram_core` IS exercised through the axi4_axi4 wrapper, so the RAM
-itself has coverage. What is unverified is the wrapper glue — the AXI4↔AXIL
-handshake and width adaptation — which is exactly where a permutation wrapper
-goes wrong.
+  * `USE_WSTRB=1` -> `g_wstrb`, the byte-enable loop (infers distributed
+    RAM);
+  * `USE_WSTRB=0` -> `g_fullword`, the single full-word write that
+    block-RAM inference wants, which IGNORES fub_wstrb by construction.
 
-**Work:**
-- [ ] Test `sdpram_slave_axil_axil` at the width the board uses (64-bit).
-- [ ] Decide on the other two: test them, or drop them if nothing will consume
-      them ("no consumer yet" is a debt entry, not a permanent state — see
-      TASK-026).
+Only sdpram_slave_axil_axil even exposes the parameter; the other three
+wrappers take the default. So `g_fullword` had never been elaborated, let
+alone simulated -- and separately, NO test had ever driven a partial write
+strobe, so the byte-enable behaviour the parameter exists for was
+unproven in BOTH modes.
 
+Fixed: a phase_partial_strobe in the shared TB that asserts each branch's
+real contract (merge under USE_WSTRB=1, whole-word overwrite under 0), and
+a USE_WSTRB=0 row on the axil_axil test. Mutation-verified by forcing both
+configs down the byte-enable path: only the ws0 row fails, with the
+specific message. All 12 cases green.
+
+TWO TEST BUGS OF MINE, caught before commit and worth recording:
+  * the sim_build tag omitted the new axis, so the ws0 and ws1 rows at the
+    same dw/depth/level would have SHARED A BUILD DIR -- the second run
+    reusing the first build and reporting a pass for RTL it never
+    simulated;
+  * the phase was VACUOUS at DATA_WIDTH=256. Fixed 64-bit constants masked
+    into a 256-bit word leave the upper bytes zero in both the seed and the
+    new value, so the masked-off region was identical either way and the
+    check could not tell honoured strobes from ignored ones. Caught by
+    reading the LOGGED VALUES, not the pass/fail -- every dw256 row was
+    green and proving nothing. Patterns now fill the width, and an explicit
+    guard fails the phase if seed and new ever agree outside the strobed
+    bytes.
+
+NOT taken: exposing USE_WSTRB on the other three wrappers. That is an RTL
+API change, and the core's both branches are now covered through
+axil_axil. Raise it if a caller needs block-RAM inference on an AXI4
+write side.
 ### TASK-065: SPLIT axi4_intf_observer into master + slave versions; retire the original and dma_slave_monitors
 **Priority:** P1
 **Status:** 🔴 Not Started
