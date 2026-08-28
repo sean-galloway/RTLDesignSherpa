@@ -1090,6 +1090,53 @@ independently.
 | Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
 | Open items | none for gaxi itself |
 
+### monitor -- ARC COMPLETE 2026-08-27 (first-ever review + humanize)
+
+32 pages, 4 units. qc rounds 24/25/26: 44 -> 24 -> 15 findings, then
+humanize round_9 applied over 36 pages with 0 fatal.
+
+SIX RTL DEFECTS, all mutation-witnessed (RED against the unfixed RTL,
+GREEN after):
+  1. r_protocol_violation_count declared, exported, NEVER WRITTEN --
+     an undriven net on a debug output.
+  2. ENABLE_DEBUG_MODULE=1 removed the only driver of the debug monbus
+     nets (a tie-off with no matching gen branch) -- setting the
+     parameter broke the design.
+  3. Compressor throughput claimed 1 record/cycle in both the RTL header
+     and the docs; MEASURED 0.67. Filed as [[AMBA-COMPTP]].
+  4. monbus_pkt_tally valid/ready violation: a packet arriving on a
+     clear cycle saw its handshake COMPLETE and was then silently
+     dropped.
+  5. arbiter_rr_pwm_monbus never forwarded WAIT_GNT_ACK to its monitor,
+     so an ACK-protocol build monitored a different protocol.
+  6. Two stale monbus_axil_axil_group comments (PH_LOW consume).
+
+WHAT THIS ARC TAUGHT, beyond the defects:
+
+* HALF A CONFIRMATION ROUND CAN BE YOUR OWN WORK. Round_25 had 10 of 24
+  findings that were my round_24 fixes. Recorded in
+  [[kimi-review-rounds]] rule 6 with the three distinct shapes it
+  exposed: missed sibling, BOTCHED SPLICE (replace the cited span, leave
+  the rest of the sentence -- 'they wrap at 2^32 ... so a capture never
+  rolls back to 0'), and NEW ARITHMETIC UNCHECKED (I replaced a
+  fabricated tick table and inverted the arithmetic in my own worked
+  example).
+* PREFER THE PROTOCOL-VISIBLE CONSEQUENCE OVER A HIERARCHICAL PROBE.
+  The WAIT_GNT_ACK test took three attempts: ports impossible (values
+  hardcoded, output unconnected), internal probe SKIPPED silently (a
+  passing test that tested nothing), and finally the monbus packet
+  stream -- build-independent, and what a real consumer sees.
+* A FIX-SURVIVAL CHECK IS WORTH BUILDING once a book carries corrections
+  a voice pass could silently drop. Script kept at
+  scratchpad/fix_survival.py as the pattern; it needed two fixes of its
+  own (scope to returned units; don't ban 'LUT levels').
+
+Also swept during the arc, at Sean's direction: FABRICATED AREA AND
+GATE-COUNT ESTIMATES REMOVED REPO-WIDE (32 files, six books). Kept what
+is real -- LUT levels from actual xc7a100t runs, the CDC comparison
+derived from Xilinx primitive geometry, and countable structural gate
+counts. Watch for prose forms; one page opened 'Fifty LUTs.'
+
 ### monitor -- qc round_26 integrated 2026-08-27 (convergence round)
 
 44 -> 24 -> 15 findings. Character changed decisively: no wrong-module
