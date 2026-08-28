@@ -30,6 +30,11 @@ if _repo_root not in sys.path:
 
 from TBClasses.shared.tbbase import TBBase  # noqa: E402
 
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_fub_bfm import fub_consumer      # noqa: E402
+
 # dram_op_e
 OP_NOP, OP_ACT, OP_RD, OP_RDA, OP_WR, OP_WRA, OP_PRE, OP_PREA, OP_REF = \
     0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8
@@ -52,6 +57,7 @@ class PumiceCmdArbiterTB(TBBase):
 
     async def setup_clocks_and_reset(self):
         await self.start_clock('aclk', freq=10, units='ns')
+        self._build_bfms()
         self._drive_idle()
         self.dut.aresetn.value = 0
         await self.wait_clocks('aclk', 4)
@@ -107,9 +113,38 @@ class PumiceCmdArbiterTB(TBBase):
             getattr(self.dut, f'{pfx}_sch_row_i').value = 0
             getattr(self.dut, f'{pfx}_sch_col_i').value = 0
             getattr(self.dut, f'{pfx}_sch_older_i').value = 0
-        self.dut.cmd_ready_i.value = 1
-        self.dut.wr_commit_ready_i.value = 1   # CAM drain FIFO has room
-        self.dut.rd_issue_ready_i.value = 1    # CAM issue FIFO has room
+        # cmd / wr_commit / rd_issue readys are NOT set here -- GAXI slave
+        # BFMs own them (see _build_bfms). At the `backtoback` profile
+        # ready_delay is 0, so ready is continuously asserted exactly as the
+        # old hardwired 1 was; the cycle-exact accounting these tests do is
+        # unaffected.
+        #
+        # NOTE the three bank_*_ready_i vectors above are NOT handshake
+        # readys -- they are per-bank PERMISSION vectors from the bank
+        # timers (NUM_RANKS x NUM_BANKS wide, no matching valid), so they
+        # stay hand-driven. Same for init_cmd_valid_i, a strobe with no
+        # ready.
+
+    def _build_bfms(self, profile="backtoback"):
+        """GAXI slaves on the arbiter's three output handshakes."""
+        ptrw = max(1, len(self.dut.wr_commit_slot_o))
+        self.cmd_bfm = fub_consumer(
+            self.dut, "cmd", self.dut.aclk, profile=profile, log=self.log,
+            valid="cmd_valid_o", ready="cmd_ready_i",
+            fields={'op':   ("cmd_op_o",   max(1, len(self.dut.cmd_op_o))),
+                    'rank': ("cmd_rank_o", max(1, len(self.dut.cmd_rank_o))),
+                    'bank': ("cmd_bank_o", max(1, len(self.dut.cmd_bank_o))),
+                    'row':  ("cmd_row_o",  max(1, len(self.dut.cmd_row_o))),
+                    'col':  ("cmd_col_o",  max(1, len(self.dut.cmd_col_o))),
+                    'ap':   ("cmd_ap_o",   1)})
+        self.wr_commit_bfm = fub_consumer(
+            self.dut, "wr_commit", self.dut.aclk, profile=profile, log=self.log,
+            valid="wr_commit_valid_o", ready="wr_commit_ready_i",
+            fields={'slot': ("wr_commit_slot_o", ptrw)})
+        self.rd_issue_bfm = fub_consumer(
+            self.dut, "rd_issue", self.dut.aclk, profile=profile, log=self.log,
+            valid="rd_issue_valid_o", ready="rd_issue_ready_i",
+            fields={'slot': ("rd_issue_slot_o", max(1, len(self.dut.rd_issue_slot_o)))})
 
     # ---- helpers: pack per-bank vectors -------------------------------------
     def set_bank_bits(self, sig, bank_to_val):
@@ -163,6 +198,15 @@ class PumiceCmdArbiterTB(TBBase):
         await RisingEdge(self.dut.aclk)
         await RisingEdge(self.dut.aclk)
         await Timer(1, units='ns')
+
+    def set_cmd_ready(self, accepting: bool):
+        """Consumer-side backpressure through the BFM, not by poking ready.
+
+        A consumer deasserting ready is legal and is exactly what a full
+        downstream FIFO looks like; 'stall' models that deterministically,
+        which a randomized ready_delay cannot.
+        """
+        self.cmd_bfm.set_ready_policy('always' if accepting else 'stall')
 
     # ---- readback -----------------------------------------------------------
     def picked(self):

@@ -90,8 +90,21 @@ def _randomizer(profile: str, side: str) -> FlexRandomizer:
 
 def fub_consumer(dut, title: str, clock, *, valid: str, ready: str,
                  fields: Mapping[str, Tuple[str, int]],
-                 profile: str = DEFAULT_PROFILE, log=None):
+                 profile: str = DEFAULT_PROFILE,
+                 ready_policy: str = "always", log=None):
     """GAXISlave on a DUT-produces interface: the BFM drives `ready`.
+
+    `ready_policy` defaults to `"always"`: ready is asserted up front and
+    held, independent of valid, so valid and ready coincide on the same
+    cycle. That is what these TBs previously modelled with a constant 1,
+    and it matters -- GAXISlave's default `valid_first` policy waits for
+    valid on a CLOCKED loop, so ready lands one cycle LATE even at
+    ready_delay 0 (measured on pumice's cmd port as "10 11": valid alone
+    for a cycle, then the handshake). On a DUT that gates its next pick on
+    downstream ready, that extra cycle shifts every subsequent decision.
+
+    Pass `ready_policy="valid_first"` with a backpressure profile when the
+    point of the test IS to stall the producer.
 
     `fields` maps field name -> (dut_signal_name, width_bits).
 
@@ -110,6 +123,7 @@ def fub_consumer(dut, title: str, clock, *, valid: str, ready: str,
         signal_map=_signal_map(valid, ready,
                                {n: sig for n, (sig, _) in fields.items()}),
         randomizer=_randomizer(profile, "slave"),
+        ready_policy=ready_policy,
         log=log if log is not None else dut._log)
 
 

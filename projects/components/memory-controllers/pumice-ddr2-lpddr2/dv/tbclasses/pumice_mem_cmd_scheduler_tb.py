@@ -31,6 +31,11 @@ if _repo_root not in sys.path:
 
 from TBClasses.shared.tbbase import TBBase  # noqa: E402
 
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_fub_bfm import fub_consumer      # noqa: E402
+
 OP_NOP, OP_ACT, OP_RD, OP_RDA, OP_WR, OP_WRA, OP_PRE, OP_PREA, OP_REF, OP_REFPB, OP_MRS = range(11)
 PAGE_OPEN, PAGE_CLOSE = 0, 1
 MEMTYPE_DDR2 = 0
@@ -57,6 +62,7 @@ class PumiceMemCmdSchedulerTB(TBBase):
 
     async def setup_clocks_and_reset(self):
         await self.start_clock('aclk', freq=10, units='ns')
+        self._build_bfms()
         self._drive_idle()
         self.dut.aresetn.value = 0
         await self.wait_clocks('aclk', 6)
@@ -103,9 +109,29 @@ class PumiceMemCmdSchedulerTB(TBBase):
             getattr(self.dut, f'{pfx}_sch_row_i').value = 0
             getattr(self.dut, f'{pfx}_sch_col_i').value = 0
             getattr(self.dut, f'{pfx}_sch_older_i').value = 0
-        self.dut.cmd_ready_i.value = 1
-        self.dut.wr_commit_ready_i.value = 1
-        self.dut.rd_issue_ready_i.value = 1
+        # cmd / wr_commit / rd_issue readys come from GAXI slave BFMs, not
+        # a hardwired 1. `backtoback` is ready_delay 0, i.e. continuously
+        # asserted -- identical stimulus, but now protocol-driven.
+
+    def _build_bfms(self, profile="backtoback"):
+        """GAXI slaves on the scheduler's three output handshakes."""
+        self.cmd_bfm = fub_consumer(
+            self.dut, "cmd", self.dut.aclk, profile=profile, log=self.log,
+            valid="cmd_valid_o", ready="cmd_ready_i",
+            fields={'op':   ("cmd_op_o",   max(1, len(self.dut.cmd_op_o))),
+                    'rank': ("cmd_rank_o", max(1, len(self.dut.cmd_rank_o))),
+                    'bank': ("cmd_bank_o", max(1, len(self.dut.cmd_bank_o))),
+                    'row':  ("cmd_row_o",  max(1, len(self.dut.cmd_row_o))),
+                    'col':  ("cmd_col_o",  max(1, len(self.dut.cmd_col_o))),
+                    'ap':   ("cmd_ap_o",   1)})
+        self.wr_commit_bfm = fub_consumer(
+            self.dut, "wr_commit", self.dut.aclk, profile=profile, log=self.log,
+            valid="wr_commit_valid_o", ready="wr_commit_ready_i",
+            fields={'slot': ("wr_commit_slot_o", max(1, len(self.dut.wr_commit_slot_o)))})
+        self.rd_issue_bfm = fub_consumer(
+            self.dut, "rd_issue", self.dut.aclk, profile=profile, log=self.log,
+            valid="rd_issue_valid_o", ready="rd_issue_ready_i",
+            fields={'slot': ("rd_issue_slot_o", max(1, len(self.dut.rd_issue_slot_o)))})
 
     # ---- mock CAMs: expose wr_entry/rd_entry as per-entry vectors -----------
     # Model the real CAMs' scheduled/issued exclusion: the moment the arbiter

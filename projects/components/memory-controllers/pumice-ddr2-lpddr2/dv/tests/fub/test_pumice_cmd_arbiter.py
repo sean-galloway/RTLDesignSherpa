@@ -136,12 +136,12 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     assert s['act'] == 1, f"act strobe: {s}"
 
     # ===== 8. cmd_ready backpressure: pick shown, but NO side-effect strobes =====
-    dut.cmd_ready_i.value = 0
+    tb.set_cmd_ready(False)          # BFM models a full downstream
     await tb.settle()
     p = tb.picked(); s = tb.strobes()
     assert p['valid'] == 1 and p['op'] == OP_ACT, "pick still presented under backpressure"
     assert s['act'] == 0, "evt_act must NOT fire while cmd_ready low"
-    dut.cmd_ready_i.value = 1
+    tb.set_cmd_ready(True)
 
     # ===== 9. 1-CMD/CLOCK: columns issue on CONSECUTIVE cycles (no throttle) =====
     # Two RD hits on different banks; retire each as it issues (mocking the CAM's
@@ -153,7 +153,7 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     tb.set_bank_bits(dut.bank_row_active_i, {1: 1, 6: 1})
     tb.set_bank_bits(dut.bank_rdwr_ready_i, {1: 1, 6: 1})
     tb.set_open_rows({1: 0x11, 6: 0x66})
-    dut.cmd_ready_i.value = 1
+    tb.set_cmd_ready(True)
     fired = []
     live = {3: (1, 0x11, 0x08, 20), 7: (6, 0x66, 0x09, 55)}  # slot -> entry tuple
     for _ in range(8):
@@ -174,7 +174,7 @@ async def cocotb_test_pumice_cmd_arbiter(dut):
     tb._drive_idle(); dut.init_done_i.value = 1
     tb.set_bank_bits(dut.bank_act_ready_i, {2: 1, 3: 1})
     tb.set_entries('rd', {0: (2, 0x333, 0x00, 20), 1: (3, 0x444, 0x00, 55)})
-    dut.cmd_ready_i.value = 1
+    tb.set_cmd_ready(True)
     acts = []
     for _cyc in range(8):
         # Registered bank state: banks ACTed in prior cycles are row_active now.
