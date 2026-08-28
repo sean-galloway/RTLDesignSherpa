@@ -947,7 +947,7 @@ def _emit_bridge_variant(
         filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f")
         if getattr(config, 'internal_axil_group', True):
             mg = getattr(config, 'mon_group', None)
-            module_name = mg.module_name if mg else 'monbus_axil_axil_group'
+            module_name = mg.module_name if mg else 'monbus_axil4_axil4_group'
             filelist_lines.append(f"# Monbus group ({module_name})")
             # The monbus_<p1>_<p2>_group filelist is the component's own
             # complete closure: its leaf skids (axi4/axil4 slave_rd +

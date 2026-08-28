@@ -18,7 +18,7 @@
 """
 MonBus AXIL/AXIL Group testbench — covers the AXIL-slave-read +
 AXIL-master-write member of the monbus_<p1>_<p2>_group family
-(`rtl/amba/monitor/monbus_axil_axil_group.sv`). The other family
+(`rtl/amba/monitor/monbus_axil4_axil4_group.sv`). The other family
 members (axil_axi4, axi4_axil, axi4_axi4) have separate TBs / tests
 because their port surfaces differ.
 
@@ -231,7 +231,7 @@ class MonbusAxilAxilGroupTB(TBBase):
         path = self._monbus_capture_path
         ext = os.path.splitext(path)[1].lower()
         meta = {
-            "test": "test_monbus_axil_axil_group",
+            "test": "test_monbus_axil4_axil4_group",
             "fifo_depth_err":   self.TEST_FIFO_DEPTH_ERR,
             "fifo_depth_write": self.TEST_FIFO_DEPTH_WRITE,    # beats
             "addr_width":       self.TEST_ADDR_WIDTH,

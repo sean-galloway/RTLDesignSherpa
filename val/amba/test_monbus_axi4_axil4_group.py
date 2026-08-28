@@ -4,14 +4,14 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_monbus_axi4_axil_group
+# Module: test_monbus_axi4_axil4_group
 # Purpose: Coverage for the AXI4-slave + AXIL-master family member.
 #
 # Author: sean galloway
 # Created: 2026-06-11
 
 """
-Test for `rtl/amba/monitor/monbus_axi4_axil_group.sv` — the AXI4-burst
+Test for `rtl/amba/monitor/monbus_axi4_axil4_group.sv` — the AXI4-burst
 slave-read + AXIL master-write member of the family. This file member
 had no dedicated test before
 [MONBUS_GROUP_AXIL_MASTER_RAWMODE_FLUSH_BUG.md](../../MONBUS_GROUP_AXIL_MASTER_RAWMODE_FLUSH_BUG.md)
@@ -221,7 +221,7 @@ class MonbusAxi4AxilGroupTB(TBBase):
 # ----------------------------------------------------------------------------
 
 @cocotb.test(timeout_time=300, timeout_unit="ms")
-async def cocotb_test_monbus_axi4_axil_group(dut):
+async def cocotb_test_monbus_axi4_axil4_group(dut):
     tb = MonbusAxi4AxilGroupTB(dut)
     await tb.start_clock('axi_aclk', 10, 'ns')
 
@@ -268,7 +268,7 @@ async def cocotb_test_monbus_axi4_axil_group(dut):
 # Pytest wrapper
 # ----------------------------------------------------------------------------
 
-def test_monbus_axi4_axil_group(request):
+def test_monbus_axi4_axil4_group(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
@@ -279,7 +279,7 @@ def test_monbus_axi4_axil_group(request):
         'rtl_common':   'rtl/common',
     })
 
-    dut_name = "monbus_axi4_axil_group"
+    dut_name = "monbus_axi4_axil4_group"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     test_name = f"test_{worker_id}_{dut_name}"
 
@@ -291,7 +291,7 @@ def test_monbus_axi4_axil_group(request):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_axi4_axil_group.f")
+        filelist_path="rtl/amba/filelists/monbus_axi4_axil4_group.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
@@ -326,8 +326,8 @@ def test_monbus_axi4_axil_group(request):
             verilog_sources=verilog_sources,
             includes=includes + [rtl_dict['rtl_shared'], sim_build],
             toplevel=dut_name,
-            module='test_monbus_axi4_axil_group',
-            testcase="cocotb_test_monbus_axi4_axil_group",
+            module='test_monbus_axi4_axil4_group',
+            testcase="cocotb_test_monbus_axi4_axil4_group",
             sim_build=sim_build,
             extra_env=extra_env,
             parameters=parameters,
@@ -335,9 +335,9 @@ def test_monbus_axi4_axil_group(request):
             keep_files=True,
             compile_args=compile_args,
         )
-        print(f"✓ monbus_axi4_axil_group test PASSED! Logs: {log_path}")
+        print(f"✓ monbus_axi4_axil4_group test PASSED! Logs: {log_path}")
     except Exception as e:
-        print(f"✗ monbus_axi4_axil_group test FAILED: {e}")
+        print(f"✗ monbus_axi4_axil4_group test FAILED: {e}")
         print(f"Logs: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         raise

@@ -49,7 +49,7 @@ Sometimes you just need a lightweight memory shared between two AXIL agents — 
 **Use Cases:**
 - Lightweight scratch / mailbox RAM shared between two AXIL agents
 - Small semaphore RAM in a control-plane fabric
-- Memory-ring backend for the AXIL/AXIL monitor-bus capture master-write port (pairs with `monbus_axil_axil_group`)
+- Memory-ring backend for the AXIL/AXIL monitor-bus capture master-write port (pairs with `monbus_axil4_axil4_group`)
 - Any AXIL-only shared-memory test scaffold
 
 **Key Benefit:** A minimal AXIL-in / AXIL-out shared memory with all burst and clear complexity hidden in the shared core, and no spurious AXI4 fields on the external ports.
@@ -217,7 +217,7 @@ AXIL has no id / len / burst, so the wrapper feeds `sdpram_core` single-beat INC
 
 ### Monitor-Bus Pairing
 
-This wrapper is the canonical memory-ring backend for the AXIL/AXIL monitor-bus capture path: `monbus_axil_axil_group`'s master-write port streams records into an `sdpram_slave_axil_axil` acting as the dump ring.
+This wrapper is the canonical memory-ring backend for the AXIL/AXIL monitor-bus capture path: `monbus_axil4_axil4_group`'s master-write port streams records into an `sdpram_slave_axil_axil` acting as the dump ring.
 
 ### One Backend, Four Wrappers
 
@@ -228,7 +228,7 @@ This wrapper shares `sdpram_core` with the three other permutations. Each protoc
 ## Related Modules
 
 ### Used By
-- `monbus_axil_axil_group` master-write dump ring (memory-ring backend)
+- `monbus_axil4_axil4_group` master-write dump ring (memory-ring backend)
 - Lightweight AXIL-only shared-memory test scaffolds
 
 ### Uses
@@ -241,7 +241,7 @@ This wrapper shares `sdpram_core` with the three other permutations. Each protoc
 - **sdpram_slave_axi4_axi4.sv** — AXI4 write + AXI4 read variant
 - **sdpram_slave_axi4_axil.sv** — AXI4 write + AXIL read variant
 - **sdpram_slave_axil_axi4.sv** — AXIL write + AXI4 read variant
-- **monbus_axil_axil_group.sv** — Monitor-bus delivery wrapper this RAM backs
+- **monbus_axil4_axil4_group.sv** — Monitor-bus delivery wrapper this RAM backs
 
 ---
 

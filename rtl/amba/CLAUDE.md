@@ -278,9 +278,9 @@ All protocol-agnostic. The monitor core, monbus infrastructure and monbus arbite
 | `monbus_arbiter.sv` | Top-level monbus arbitration |
 | `monbus_group_core.sv` | Shared filter + FIFO core for all `monbus_*_*_group` wrappers (refactor introduced in `61edda71`) |
 | `monbus_axi4_axi4_group.sv` | AXI4↔AXI4 group |
-| `monbus_axi4_axil_group.sv` | AXI4↔AXIL group |
-| `monbus_axil_axi4_group.sv` | AXIL↔AXI4 group with 32-bit err-drain |
-| `monbus_axil_axil_group.sv` | AXIL↔AXIL group with 32-bit err-drain |
+| `monbus_axi4_axil4_group.sv` | AXI4↔AXIL group |
+| `monbus_axil4_axi4_group.sv` | AXIL↔AXI4 group with 32-bit err-drain |
+| `monbus_axil4_axil4_group.sv` | AXIL↔AXIL group with 32-bit err-drain |
 | `monbus_compressor.sv` | Optional packet compressor (mod-3 packing). Runtime enable via `cfg_compress_en` |
 | `monbus_halfbeat_packer.sv` | Half-beat packer pushing past the compressor's 66.7% ceiling |
 | `monbus_cam.sv` / `monbus_cam_pipe.sv` | Monbus CAM for packet matching/replay (and pipelined variant) |

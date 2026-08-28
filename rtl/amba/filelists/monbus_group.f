@@ -20,8 +20,8 @@
 #
 # The consumer still adds, AFTER the -f, the specific wrapper(s) it
 # instantiates:
-#   monbus_axil_axil_group.sv / monbus_axil_axi4_group.sv /
-#   monbus_axi4_axil_group.sv / monbus_axi4_axi4_group.sv
+#   monbus_axil4_axil4_group.sv / monbus_axil4_axi4_group.sv /
+#   monbus_axi4_axil4_group.sv / monbus_axi4_axi4_group.sv
 
 # Leaf dependencies the core instantiates directly. gaxi_fifo_sync.f and
 # gaxi_skid_buffer.f carry counter_bin and fifo_control themselves, so those

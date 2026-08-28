@@ -248,9 +248,9 @@ Infrastructure components used across all AMBA protocols.
 Path from in-flight monitor packets to host-visible memory + CPU IRQs.
 
 - **[monbus_group (family)](monitor/monbus_group.md)** - Protocol-agnostic core + four protocol-permutation wrappers:
-  - `monbus_axil_axil_group` (AXIL slave-read + AXIL master-write, replaces legacy `monbus_axil_group`)
-  - `monbus_axil_axi4_group` (AXIL slave-read + AXI4 burst master-write)
-  - `monbus_axi4_axil_group` (AXI4 burst slave-read + AXIL master-write)
+  - `monbus_axil4_axil4_group` (AXIL slave-read + AXIL master-write, replaces legacy `monbus_axil_group`)
+  - `monbus_axil4_axi4_group` (AXIL slave-read + AXI4 burst master-write)
+  - `monbus_axi4_axil4_group` (AXI4 burst slave-read + AXIL master-write)
   - `monbus_axi4_axi4_group` (burst on both sides)
 - **[monbus_compressor](monitor/monbus_compressor.md)** - Bulk-trace encoder, 2-stage pipeline, per-template `delta_ts`, bit-exact to Python golden (~2.6× ratio)
 - **[monbus_cam](monitor/monbus_cam.md)** - 32-entry LRU CAM with per-entry 24b `last_ts` (backs the compressor)

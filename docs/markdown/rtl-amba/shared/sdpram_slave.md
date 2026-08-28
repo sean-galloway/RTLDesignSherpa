@@ -46,7 +46,7 @@ specific wrappers that expose the exact port shape for their
 configuration.
 
 The most common deployment in this repo is the **monitor bus memory
-dump ring** — `monbus_axil_axil_group`'s `m_axil_*` master writes the
+dump ring** — `monbus_axil4_axil4_group`'s `m_axil_*` master writes the
 compressed (or raw) trace into a `sdpram_slave_axil_axil`, and the host
 CPU reads it back through the same slave's read port. Wide AXI4
 descriptor RAMs (e.g. `stream_char_harness::u_desc_ram`, 256-bit data,
@@ -197,7 +197,7 @@ the port list shape and signal names differ.
 ### Use in the Monitor System
 
 The `sdpram_slave_axil_axil` wrapper is the canonical SRAM-ring backend
-for the [`monbus_axil_axil_group`](../monitor/monbus_group.md) master writer —
+for the [`monbus_axil4_axil4_group`](../monitor/monbus_group.md) master writer —
 both sides AXIL, so no AXI4-only fields anywhere on the harness wiring.
 For details on the slot stream landing in the ring, see
 [`monbus_compressor.md`](../monitor/monbus_compressor.md) (the compressed case)
@@ -208,7 +208,7 @@ and the raw-record beat layout described in
 
 | Module | Role |
 |---|---|
-| [`monbus_axil_axil_group`](../monitor/monbus_group.md) | Most common consumer (memory-dump ring) |
+| [`monbus_axil4_axil4_group`](../monitor/monbus_group.md) | Most common consumer (memory-dump ring) |
 | [`monbus_compressor`](../monitor/monbus_compressor.md) | Source of the compressed slot stream landing in the ring |
 | `axi4_slave_wr` / `axi4_slave_rd` | AXI4-side skids instantiated by the WRAPPERS |
 | `axil4_slave_wr` / `axil4_slave_rd` | AXIL-side skids instantiated by the WRAPPERS |

@@ -4,14 +4,14 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_monbus_axil_axi4_group
-# Purpose: AXI4-burst master-write coverage for monbus_axil_axi4_group.
+# Module: test_monbus_axil4_axi4_group
+# Purpose: AXI4-burst master-write coverage for monbus_axil4_axi4_group.
 #
 # Author: sean galloway
 # Created: 2026-06-11
 
 """
-Burst-coverage test for `rtl/amba/monitor/monbus_axil_axi4_group.sv`.
+Burst-coverage test for `rtl/amba/monitor/monbus_axil4_axi4_group.sv`.
 
 The AXIL/AXIL family member exercises the master-write path one beat
 at a time, so it doesn't catch bugs in AXI4 burst behavior. This test
@@ -232,7 +232,7 @@ class MonbusAxilAxi4GroupTB(TBBase):
 # ----------------------------------------------------------------------------
 
 @cocotb.test(timeout_time=300, timeout_unit="ms")
-async def cocotb_test_monbus_axil_axi4_group(dut):
+async def cocotb_test_monbus_axil4_axi4_group(dut):
     tb = MonbusAxilAxi4GroupTB(dut)
     await tb.start_clock('axi_aclk', 10, 'ns')
 
@@ -369,12 +369,12 @@ async def cocotb_test_monbus_axil_axi4_group(dut):
 # ----------------------------------------------------------------------------
 
 @pytest.mark.parametrize("s_axil_data_width", [64, 32])
-def test_monbus_axil_axi4_group(request, s_axil_data_width):
+def test_monbus_axil4_axi4_group(request, s_axil_data_width):
     """Pytest wrapper for MonBus AXIL/AXI4 burst + err-drain coverage test.
 
     Swept over the err-FIFO drain AXIL data width: 64 (one beat/slice) and
     32 (2:1 read serializer, 6 beats/record) -- the latter is the config a
-    32-bit host crossbar uses (see monbus_axil_axil_group)."""
+    32-bit host crossbar uses (see monbus_axil4_axil4_group)."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
@@ -385,7 +385,7 @@ def test_monbus_axil_axi4_group(request, s_axil_data_width):
         'rtl_common':   'rtl/common',
     })
 
-    dut_name = "monbus_axil_axi4_group"
+    dut_name = "monbus_axil4_axi4_group"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     test_name = f"test_{worker_id}_{dut_name}_burst_sdw{s_axil_data_width:02d}"
 
@@ -397,7 +397,7 @@ def test_monbus_axil_axi4_group(request, s_axil_data_width):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_axil_axi4_group.f")
+        filelist_path="rtl/amba/filelists/monbus_axil4_axi4_group.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
@@ -439,8 +439,8 @@ def test_monbus_axil_axi4_group(request, s_axil_data_width):
             verilog_sources=verilog_sources,
             includes=includes + [rtl_dict['rtl_shared'], sim_build],
             toplevel=dut_name,
-            module='test_monbus_axil_axi4_group',
-            testcase="cocotb_test_monbus_axil_axi4_group",
+            module='test_monbus_axil4_axi4_group',
+            testcase="cocotb_test_monbus_axil4_axi4_group",
             sim_build=sim_build,
             extra_env=extra_env,
             parameters=parameters,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Module: monbus_axi4_axil_group
+// Module: monbus_axi4_axil4_group
 // Purpose: AXI4-slave-read + AXIL-master-write wrapper for monbus_group_core.
 //
 //   Slave-read leaf:   axi4_slave_rd  (burst). FUB is pass-through to
@@ -17,7 +17,7 @@
 
 `timescale 1ns / 1ps
 
-module monbus_axi4_axil_group
+module monbus_axi4_axil4_group
     import monitor_common_pkg::*;
 #(
     parameter int FIFO_DEPTH_ERR       = 64,
@@ -387,4 +387,4 @@ module monbus_axi4_axil_group
         .fub_s_rready  (axi_rd_fub_rready)
     );
 
-endmodule : monbus_axi4_axil_group
+endmodule : monbus_axi4_axil4_group

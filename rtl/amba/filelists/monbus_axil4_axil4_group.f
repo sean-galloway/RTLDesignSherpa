@@ -1,5 +1,5 @@
-# Filelist for monbus_axil_axil_group
-# Location: rtl/amba/filelists/monbus_axil_axil_group.f
+# Filelist for monbus_axil4_axil4_group
+# Location: rtl/amba/filelists/monbus_axil4_axil4_group.f
 #
 # Generated from the inline verilog_sources lists in val/amba.
 # Compile order is significant and preserved from the original tests.
@@ -27,4 +27,4 @@ $REPO_ROOT/rtl/amba/monitor/monbus_compressor.sv
 # does not reach it -- it must still be in this component's closure.
 $REPO_ROOT/rtl/amba/monitor/monbus_halfbeat_packer.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_group_core.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_axil_axil_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axil4_axil4_group.sv

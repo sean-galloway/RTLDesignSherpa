@@ -23,7 +23,7 @@
 
 # Monitor Bus Group — AXIL Slave-Read / AXIL Master-Write
 
-**Module:** `monbus_axil_axil_group.sv`
+**Module:** `monbus_axil4_axil4_group.sv`
 **Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
@@ -31,7 +31,7 @@
 
 ## Overview
 
-`monbus_axil_axil_group` is the all-AXI4-Lite wrapper of the monitor-bus
+`monbus_axil4_axil4_group` is the all-AXI4-Lite wrapper of the monitor-bus
 delivery family. It wraps the protocol-agnostic `monbus_group_core` with an
 **AXIL slave-read err-drain port** (for the CPU IRQ handler to pop error
 records) and an **AXIL single-beat master-write port** (to stream captured
@@ -221,7 +221,7 @@ When `USE_COMPRESSION=1`, `monbus_compressor` can be selected at runtime via `cf
 ## Usage Example
 
 ```systemverilog
-monbus_axil_axil_group #(
+monbus_axil4_axil4_group #(
     .FIFO_DEPTH_ERR       (64),
     .FIFO_DEPTH_WRITE     (96),    // beats (3x for raw mode)
     .ADDR_WIDTH           (32),
@@ -309,8 +309,8 @@ The `g_drain_2to1` path exists for 32-bit host crossbars. It is a careful 2:1 se
 
 **See also:**
 
-- **monbus_axil_axi4_group.sv** — Same drain, AXI4-burst master-write
-- **monbus_axi4_axil_group.sv** / **monbus_axi4_axi4_group.sv** — AXI4-burst slave-read variants
+- **monbus_axil4_axi4_group.sv** — Same drain, AXI4-burst master-write
+- **monbus_axi4_axil4_group.sv** / **monbus_axi4_axi4_group.sv** — AXI4-burst slave-read variants
 - **monbus_arbiter.sv** — Upstream multi-source merge (instantiate before this wrapper for N>1 sources)
 - **sdpram_slave_axil_axil.sv** — Canonical memory-ring backend for the master-write port
 
@@ -318,9 +318,9 @@ The `g_drain_2to1` path exists for 32-bit host crossbars. It is a careful 2:1 se
 
 ## Testing
 
-- `val/amba/test_monbus_axil_axil_group.py`
-- `val/amba/test_monbus_axil_axil_group_compressed.py`
-- `val/amba/test_monbus_axil_axil_group_master_write.py`
+- `val/amba/test_monbus_axil4_axil4_group.py`
+- `val/amba/test_monbus_axil4_axil4_group_compressed.py`
+- `val/amba/test_monbus_axil4_axil4_group_master_write.py`
 
 ---
 
@@ -328,7 +328,7 @@ The `g_drain_2to1` path exists for 32-bit host crossbars. It is a careful 2:1 se
 
 ### Source Code
 
-- RTL: `rtl/amba/monitor/monbus_axil_axil_group.sv`
+- RTL: `rtl/amba/monitor/monbus_axil4_axil4_group.sv`
 - Core: `rtl/amba/monitor/monbus_group_core.sv`
 
 ### Documentation

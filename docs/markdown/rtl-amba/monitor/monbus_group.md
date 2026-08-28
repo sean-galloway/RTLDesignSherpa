@@ -25,9 +25,9 @@
 
 **Modules:**
 - `monbus_group_core.sv` — protocol-agnostic backend (filter, FIFOs, watermark/timeout burst writer, slice-counter slave-read drain)
-- `monbus_axil_axil_group.sv` — wrapper: AXIL slave-read + AXIL master-write
-- `monbus_axil_axi4_group.sv` — wrapper: AXIL slave-read + AXI4-burst master-write
-- `monbus_axi4_axil_group.sv` — wrapper: AXI4-burst slave-read + AXIL master-write
+- `monbus_axil4_axil4_group.sv` — wrapper: AXIL slave-read + AXIL master-write
+- `monbus_axil4_axi4_group.sv` — wrapper: AXIL slave-read + AXI4-burst master-write
+- `monbus_axi4_axil4_group.sv` — wrapper: AXI4-burst slave-read + AXIL master-write
 - `monbus_axi4_axi4_group.sv` — wrapper: AXI4-burst slave-read + AXI4-burst master-write
 
 **Location:** `rtl/amba/monitor/`
@@ -111,7 +111,7 @@ flowchart TB
         MONBUS["monbus_valid/ready<br/>monbus_packet (128b)<br/>monbus_timestamp (64b)"]
     end
 
-    subgraph Wrapper["monbus_axil_axil_group (wrapper)"]
+    subgraph Wrapper["monbus_axil4_axil4_group (wrapper)"]
         subgraph Core["monbus_group_core (protocol-agnostic)"]
             FILTER["Per-protocol filter<br/>(drop / err / write)<br/>+ per-event masks"]
             ERR_FIFO["Err FIFO<br/>192-bit records"]
@@ -273,7 +273,7 @@ Per-event masks are 16 bits but only `event_code[3:0]` indexes; codes ≥ 16 are
 
 The legacy `monbus_axil_group.sv` module is gone. Migrate to the wrapper matching your fabric. The port-surface changes that matter:
 
-1. **`M_AXIL_DATA_WIDTH` dropped; `S_AXIL_DATA_WIDTH` retained** — the master-write data path is locked at 64 bits, so `M_AXIL_DATA_WIDTH` is gone. `S_AXIL_DATA_WIDTH` survives on the two AXIL-slave-read wrappers (`monbus_axil_axil_group`, `monbus_axil_axi4_group`) with a default of 64 (one beat per record slice); set it to 32 to enable the built-in 2:1 read serializer for a 32-bit host crossbar (6 beats per record). The AXI4-slave-read wrappers have no such parameter.
+1. **`M_AXIL_DATA_WIDTH` dropped; `S_AXIL_DATA_WIDTH` retained** — the master-write data path is locked at 64 bits, so `M_AXIL_DATA_WIDTH` is gone. `S_AXIL_DATA_WIDTH` survives on the two AXIL-slave-read wrappers (`monbus_axil4_axil4_group`, `monbus_axil4_axi4_group`) with a default of 64 (one beat per record slice); set it to 32 to enable the built-in 2:1 read serializer for a 32-bit host crossbar (6 beats per record). The AXI4-slave-read wrappers have no such parameter.
 2. **`cfg_flush_watermark[15:0]` is a new required input.** Set to 1 for the legacy "fire immediately" behavior; set higher to batch.
 3. **`err_fifo_count` and `write_fifo_count` are now 16 bits** (were 8).
 4. **`FIFO_DEPTH_WRITE` is in beats**, not records. 32 records of the legacy module = 96 beats in raw mode.
@@ -291,7 +291,7 @@ monbus_axil_group #(
 ) u_group (...);
 
 // New
-monbus_axil_axil_group #(
+monbus_axil4_axil4_group #(
     .FIFO_DEPTH_ERR       (64),
     .FIFO_DEPTH_WRITE     (96),   // beats (3x for raw mode)
     .FLUSH_TIMEOUT_CYCLES (1024),
@@ -302,7 +302,7 @@ monbus_axil_axil_group #(
 );
 ```
 
-For AXI4 burst capture — say the memory ring lives behind an AXI4 fabric and you want to bunch records into multi-beat bursts to amortize address-channel overhead — switch the wrapper to `monbus_axil_axi4_group` and pick `MAX_BURST_BEATS` to taste.
+For AXI4 burst capture — say the memory ring lives behind an AXI4 fabric and you want to bunch records into multi-beat bursts to amortize address-channel overhead — switch the wrapper to `monbus_axil4_axi4_group` and pick `MAX_BURST_BEATS` to taste.
 
 ---
 
@@ -317,9 +317,9 @@ SystemVerilog cannot conditionally include or exclude ports from a single module
 
 | Wrapper | Slave-read shape | Master-write shape | `MAX_BURST_BEATS` (default) |
 |---|---|---|---|
-| `monbus_axil_axil_group` | AXIL `s_axil_ar*/r*` | AXIL `m_axil_aw*/w*/b*` | 1 |
-| `monbus_axil_axi4_group` | AXIL `s_axil_ar*/r*` | AXI4 `m_axi_aw*/w*/b*` (full) | 64 |
-| `monbus_axi4_axil_group` | AXI4 `s_axi_ar*/r*` (full) | AXIL `m_axil_aw*/w*/b*` | 1 |
+| `monbus_axil4_axil4_group` | AXIL `s_axil_ar*/r*` | AXIL `m_axil_aw*/w*/b*` | 1 |
+| `monbus_axil4_axi4_group` | AXIL `s_axil_ar*/r*` | AXI4 `m_axi_aw*/w*/b*` (full) | 64 |
+| `monbus_axi4_axil4_group` | AXI4 `s_axi_ar*/r*` (full) | AXIL `m_axil_aw*/w*/b*` | 1 |
 | `monbus_axi4_axi4_group` | AXI4 `s_axi_ar*/r*` (full) | AXI4 `m_axi_aw*/w*/b*` (full) | 64 |
 
 Callers pick the wrapper module name matching their fabric. The bare `monbus_group_core` is not intended to be instantiated directly — its AXI4-shaped FUBs are an internal contract.
@@ -368,18 +368,18 @@ It lists `math_adder_carry_save_nbit` + `math_mod_3_compress` + `monbus_cam` + `
 
 Verification lives in `val/amba/`:
 
-- `test_monbus_axil_axil_group.py` — basic flow + err-FIFO drain on the AXIL/AXIL wrapper (slave-read coverage; master-write side is driven into a synthetic sink in this test).
-- `test_monbus_axil_axil_group_compressed.py` — byte-exact compressed slot stream comparison against the Python `Encoder` golden across three phases (small synth stream, real-silicon 682-record dataset, wrap-window).
-- `test_monbus_axil_axil_group_master_write.py` — raw-mode master-write coverage on the AXIL/AXIL wrapper. Three phases: watermark-driven flush (asserts `3*N` beats at 8-byte stride starting at `cfg_base_addr`), timeout-driven flush, window wrap-back. The test that would have caught the AXIL-master raw-mode flush deadlock fixed on 2026-06-11.
-- `test_monbus_axil_axi4_group.py` — AXI4 burst master-write coverage on the AXIL/AXI4 wrapper. Three phases: watermark-driven multi-beat burst, timeout-triggered flush, 4KB-boundary respect.
-- `test_monbus_axi4_axil_group.py` — dedicated AXI4-slave + AXIL-master coverage. Phase 1 covers the master-write raw-mode flush; Phase 2 covers the AXI4 burst slave-read drain (asserts `rlast` timing across a 6-beat AR with custom `arid`).
+- `test_monbus_axil4_axil4_group.py` — basic flow + err-FIFO drain on the AXIL/AXIL wrapper (slave-read coverage; master-write side is driven into a synthetic sink in this test).
+- `test_monbus_axil4_axil4_group_compressed.py` — byte-exact compressed slot stream comparison against the Python `Encoder` golden across three phases (small synth stream, real-silicon 682-record dataset, wrap-window).
+- `test_monbus_axil4_axil4_group_master_write.py` — raw-mode master-write coverage on the AXIL/AXIL wrapper. Three phases: watermark-driven flush (asserts `3*N` beats at 8-byte stride starting at `cfg_base_addr`), timeout-driven flush, window wrap-back. The test that would have caught the AXIL-master raw-mode flush deadlock fixed on 2026-06-11.
+- `test_monbus_axil4_axi4_group.py` — AXI4 burst master-write coverage on the AXIL/AXI4 wrapper. Three phases: watermark-driven multi-beat burst, timeout-triggered flush, 4KB-boundary respect.
+- `test_monbus_axi4_axil4_group.py` — dedicated AXI4-slave + AXIL-master coverage. Phase 1 covers the master-write raw-mode flush; Phase 2 covers the AXI4 burst slave-read drain (asserts `rlast` timing across a 6-beat AR with custom `arid`).
 
 ```bash
-pytest val/amba/test_monbus_axil_axil_group.py \
-       val/amba/test_monbus_axil_axil_group_compressed.py \
-       val/amba/test_monbus_axil_axil_group_master_write.py \
-       val/amba/test_monbus_axil_axi4_group.py \
-       val/amba/test_monbus_axi4_axil_group.py -v
+pytest val/amba/test_monbus_axil4_axil4_group.py \
+       val/amba/test_monbus_axil4_axil4_group_compressed.py \
+       val/amba/test_monbus_axil4_axil4_group_master_write.py \
+       val/amba/test_monbus_axil4_axi4_group.py \
+       val/amba/test_monbus_axi4_axil4_group.py -v
 ```
 
-`monbus_axi4_axi4_group` does not yet have a dedicated test; its master-write path is covered by `test_monbus_axil_axi4_group.py` (same master leaf) and its AXI4-burst slave-read drain is covered by `test_monbus_axi4_axil_group.py` Phase 2 (same slave leaf). Adding a direct test for the pure-AXI4 wrapper is a future-work item.
+`monbus_axi4_axi4_group` does not yet have a dedicated test; its master-write path is covered by `test_monbus_axil4_axi4_group.py` (same master leaf) and its AXI4-burst slave-read drain is covered by `test_monbus_axi4_axil4_group.py` Phase 2 (same slave leaf). Adding a direct test for the pure-AXI4 wrapper is a future-work item.

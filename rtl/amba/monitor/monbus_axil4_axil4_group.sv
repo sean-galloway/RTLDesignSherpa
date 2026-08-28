@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Module: monbus_axil_axil_group
+// Module: monbus_axil4_axil4_group
 // Purpose: AXIL-slave-read + AXIL-master-write wrapper for monbus_group_core.
 //
 //   Slave-read leaf:  axil4_slave_rd  (single-beat). Wrapper bridges its
@@ -25,7 +25,7 @@
 
 `include "reset_defs.svh"
 
-module monbus_axil_axil_group
+module monbus_axil4_axil4_group
     import monitor_common_pkg::*;
 #(
     parameter int FIFO_DEPTH_ERR       = 64,
@@ -485,4 +485,4 @@ module monbus_axil_axil_group
         .fub_s_rready  (axil_rd_fub_rready)
     );
 
-endmodule : monbus_axil_axil_group
+endmodule : monbus_axil4_axil4_group

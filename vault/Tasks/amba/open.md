@@ -39,6 +39,44 @@ window sometimes lands where no such edge exists.
 
 ---
 
+## VAL-XDIST-INTERMITTENT — val/amba tests fail under high -n and pass on rerun
+**Status:** open 2026-08-28  **Priority:** P3
+**Sibling:** [[AMBA-WAVEDROM-FLAKY]] — same family (nondeterministic
+val/amba result), different trigger: that one is file-scope, this one is
+parallel-scope.
+
+Three occurrences in one session, always the same shape: a parallel
+`pytest val/amba/... -q -n {10,12}` run reports a handful of failures,
+and the same tests pass individually AND the identical command passes on
+rerun.
+
+  1. 8 failures across the monitor suites (2026-08-27) -- clean on rerun.
+  2. 12 failures in the mon_cg functional suites (2026-08-27) -- clean on
+     rerun. I attributed that one at the time to my own overlapping
+     `rm -rf` globs across back-to-back runs, which fits case 2 but does
+     not explain the others.
+  3. test_monbus_axil4_axil4_group_compressed and
+     test_monbus_pkt_tally[8-16-4-100] (2026-08-28, immediately after the
+     monbus rename + bridge regeneration). Four subsequent attempts --
+     two at -n 10, two at -n 16, all preceded by `rm -rf` -- returned 21,
+     18, 18, 21, all passing. The failure text was NOT captured before it
+     stopped reproducing, which is the main thing to do differently.
+
+RULED OUT: sim_build name collision. Both implicated tests embed
+PYTEST_XDIST_WORKER in their build directory name, so two workers cannot
+share a build directory.
+
+STILL SUSPECT: resource contention during simultaneous cold Verilator
+builds (case 3 followed 28 freshly regenerated bridge files, so CPU and
+page cache were both loaded), or a race in the cocotb-test wrapper
+between build and launch.
+
+WHY IT IS TRACKED RATHER THAN SHRUGGED OFF: the repo rule is that an
+intermittent is a real bug in the runner, harness or RTL. This one has
+now been rerun-away three times, twice by me. Next step is to CAPTURE
+THE TEXT -- loop the parallel set redirecting per-run output until it
+reproduces -- rather than investigating after it has gone.
+
 ## TASK-026: Every module MUST have a filelist and a registry entry
 **Priority:** P2
 **Status:** 🔴 Not Started

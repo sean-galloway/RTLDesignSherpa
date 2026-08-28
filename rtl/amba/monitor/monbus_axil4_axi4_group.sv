@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Module: monbus_axil_axi4_group
+// Module: monbus_axil4_axi4_group
 // Purpose: AXIL-slave-read + AXI4-master-write wrapper for monbus_group_core.
 //
 //   Slave-read leaf:   axil4_slave_rd  (single-beat). Wrapper bridges its
@@ -23,7 +23,7 @@
 
 `include "reset_defs.svh"
 
-module monbus_axil_axi4_group
+module monbus_axil4_axi4_group
     import monitor_common_pkg::*;
 #(
     parameter int FIFO_DEPTH_ERR       = 64,
@@ -32,7 +32,7 @@ module monbus_axil_axi4_group
     // Err-FIFO drain (AXIL slave-read) data width. 64 = one beat per record
     // slice; 32 = a 2:1 read serializer presents each 64-bit slice as a low
     // then high beat (6 beats/record) for a 32-bit host crossbar. See
-    // monbus_axil_axil_group for the identical mechanism.
+    // monbus_axil4_axil4_group for the identical mechanism.
     parameter int S_AXIL_DATA_WIDTH    = 64,
     parameter int AXI_ID_WIDTH         = 8,    // master write id
     parameter int AXI_USER_WIDTH       = 1,
@@ -186,7 +186,7 @@ module monbus_axil_axi4_group
     // Err-FIFO drain: a 64-bit axil4_slave_rd leaf bridges the external AXIL
     // read onto the core's 64-bit read FUB. For a 32-bit external bus a phase
     // bit splits each 64-bit beat into a low then high external read (one core
-    // read per pair). Identical to monbus_axil_axil_group; see its comments.
+    // read per pair). Identical to monbus_axil4_axil4_group; see its comments.
     // ==================================================================
     logic                          drv_arvalid;
     logic                          drv_arready;
@@ -498,4 +498,4 @@ module monbus_axil_axi4_group
         .fub_s_rready  (axil_rd_fub_rready)
     );
 
-endmodule : monbus_axil_axi4_group
+endmodule : monbus_axil4_axi4_group

@@ -4,7 +4,7 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_monbus_axil_axil_group
+# Module: test_monbus_axil4_axil4_group
 # Purpose: MonBus AXIL/AXIL Group integration test (AXIL slave-read +
 #          AXIL master-write member of the monbus_<p1>_<p2>_group family).
 #
@@ -18,7 +18,7 @@
 """
 MonBus AXIL/AXIL Group Integration Test
 
-Test suite for `rtl/amba/monitor/monbus_axil_axil_group.sv` -- the
+Test suite for `rtl/amba/monitor/monbus_axil4_axil4_group.sv` -- the
 AXIL/AXIL member of the monbus_<p1>_<p2>_group family. Drives the
 single-input monitor bus, drains the error FIFO via the AXIL slave-read
 interface, and lets the master-write side flush into a synthetic sink
@@ -30,7 +30,7 @@ Test Types:
 - 'error_fifo': Error FIFO functionality tests
 
 The reusable TB class lives at
-  bin/TBClasses/amba/monbus_axil_axil_group/monbus_axil_axil_group_tb.py
+  bin/TBClasses/amba/monbus_axil4_axil4_group/monbus_axil4_axil4_group_tb.py
 
 STRUCTURE FOLLOWS REPOSITORY STANDARD:
   - Single CocoTB test function (dispatches based on TEST_TYPE)
@@ -53,8 +53,8 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import the shared TB from bin/TBClasses (colocated with the shared
-# rtl/amba/monitor/monbus_axil_axil_group.sv module the test targets).
-from TBClasses.amba.monbus_axil_axil_group.monbus_axil_axil_group_tb import MonbusAxilAxilGroupTB
+# rtl/amba/monitor/monbus_axil4_axil4_group.sv module the test targets).
+from TBClasses.amba.monbus_axil4_axil4_group.monbus_axil4_axil4_group_tb import MonbusAxilAxilGroupTB
 
 # Coverage integration - optional import. Lives in the STREAM project
 # area because that's where its instrumentation/scoreboards are tuned;
@@ -83,7 +83,7 @@ except ImportError:
 # ===========================================================================
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
-async def cocotb_test_monbus_axil_axil_group(dut):
+async def cocotb_test_monbus_axil4_axil4_group(dut):
     """Unified MonBus AXIL/AXIL Group test -- handles all test types via TEST_TYPE env var.
 
     Test Types:
@@ -121,7 +121,7 @@ async def cocotb_test_monbus_axil_axil_group(dut):
 # ===========================================================================
 
 def generate_monbus_axil_axil_test_params():
-    """Generate test parameters for monbus_axil_axil_group tests.
+    """Generate test parameters for monbus_axil4_axil4_group tests.
 
     Notes on the new family:
     - Data width is locked at 64 bits in the family (no more
@@ -162,7 +162,7 @@ monbus_axil_axil_params = generate_monbus_axil_axil_test_params()
 
 @pytest.mark.parametrize("test_type, fifo_depth_err, fifo_depth_write, addr_width, num_protocols, s_axil_data_width",
                          monbus_axil_axil_params)
-def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_write, addr_width, num_protocols, s_axil_data_width):
+def test_monbus_axil4_axil4_group(request, test_type, fifo_depth_err, fifo_depth_write, addr_width, num_protocols, s_axil_data_width):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for MonBus AXIL/AXIL Group tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -174,7 +174,7 @@ def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_w
         'rtl_common':   'rtl/common',
     })
 
-    dut_name = "monbus_axil_axil_group"
+    dut_name = "monbus_axil4_axil4_group"
 
     # Dependency tree for the AXIL/AXIL member of the
     # monbus_<p1>_<p2>_group family. Includes the optional compressor
@@ -182,7 +182,7 @@ def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_w
     # don't instantiate it).
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_axil_axil_group.f")
+        filelist_path="rtl/amba/filelists/monbus_axil4_axil4_group.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
@@ -226,7 +226,7 @@ def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_w
     coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
     extra_env.update(coverage_env)
 
-    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, 'test_monbus_axil_axil_group', test_name_plus_params)
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, 'test_monbus_axil4_axil4_group', test_name_plus_params)
 
     # Build args conditionally based on waves
     waves_enabled = False
@@ -246,8 +246,8 @@ def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_w
             verilog_sources=verilog_sources,
             includes=includes,
             toplevel=dut_name,
-            module='test_monbus_axil_axil_group',
-            testcase="cocotb_test_monbus_axil_axil_group",
+            module='test_monbus_axil4_axil4_group',
+            testcase="cocotb_test_monbus_axil4_axil4_group",
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,

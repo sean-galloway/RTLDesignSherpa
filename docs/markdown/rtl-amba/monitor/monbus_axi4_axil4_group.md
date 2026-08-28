@@ -23,7 +23,7 @@
 
 # MonBus Group — AXI4 / AXIL
 
-**Module:** `monbus_axi4_axil_group.sv`
+**Module:** `monbus_axi4_axil4_group.sv`
 **Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
@@ -31,7 +31,7 @@
 
 ## Overview
 
-`monbus_axi4_axil_group` is the AXI4-slave-read + AXIL-master-write wrapper
+`monbus_axi4_axil4_group` is the AXI4-slave-read + AXIL-master-write wrapper
 around `monbus_group_core`. It pairs a full AXI4 slave-read leaf (the
 burst-capable error/interrupt drain port) with a single-beat AXI4-Lite
 master-write leaf (the bulk-capture port). The slave-read FUB passes through
@@ -189,7 +189,7 @@ Filtering, FIFO sizing, address-window, watermark, timeout, and compression are 
 ## Usage Example
 
 ```systemverilog
-monbus_axi4_axil_group #(
+monbus_axi4_axil4_group #(
     .ADDR_WIDTH      (32),
     .AXI_ID_WIDTH    (8),
     .USE_COMPRESSION (0)
@@ -260,8 +260,8 @@ The error-drain path is byte-for-byte the same as the AXI4/AXI4 group — the re
 **See also:**
 
 - **monbus_axi4_axi4_group.sv** — AXI4 read + AXI4 write variant
-- **monbus_axil_axi4_group.sv** — AXIL read + AXI4 write variant
-- **monbus_axil_axil_group.sv** — AXIL read + AXIL write variant
+- **monbus_axil4_axi4_group.sv** — AXIL read + AXI4 write variant
+- **monbus_axil4_axil4_group.sv** — AXIL read + AXIL write variant
 - **monbus_arbiter.sv** — upstream aggregation
 
 ---
@@ -270,7 +270,7 @@ The error-drain path is byte-for-byte the same as the AXI4/AXI4 group — the re
 
 ### Source Code
 
-- RTL: `rtl/amba/monitor/monbus_axi4_axil_group.sv`
+- RTL: `rtl/amba/monitor/monbus_axi4_axil4_group.sv`
 - Core: `rtl/amba/monitor/monbus_group_core.sv`
 
 ### Documentation

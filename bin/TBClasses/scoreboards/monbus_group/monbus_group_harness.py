@@ -67,7 +67,7 @@ class MonbusGroupHarness:
         self.block_node = block_node
         self.data_width = data_width
         # The drain (err-FIFO read) port may be narrower than the 64-bit record
-        # slice. With a 32-bit drain (monbus_axil_axil_group S_AXIL_DATA_WIDTH=32)
+        # slice. With a 32-bit drain (monbus_axil4_axil4_group S_AXIL_DATA_WIDTH=32)
         # each 64-bit slice arrives as two beats, low half then high half, so a
         # record is 6 drain beats instead of 3. drain_subbeats captures that 1x/2x.
         self.drain_data_width = drain_data_width or data_width

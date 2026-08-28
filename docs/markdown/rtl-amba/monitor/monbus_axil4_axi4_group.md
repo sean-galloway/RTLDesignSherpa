@@ -23,7 +23,7 @@
 
 # Monitor Bus Group — AXIL Slave-Read / AXI4 Master-Write
 
-**Module:** `monbus_axil_axi4_group.sv`
+**Module:** `monbus_axil4_axi4_group.sv`
 **Location:** `rtl/amba/monitor/`
 **Status:** Production Ready
 
@@ -31,7 +31,7 @@
 
 ## Overview
 
-`monbus_axil_axi4_group` is the mixed-fabric wrapper of the monitor-bus
+`monbus_axil4_axi4_group` is the mixed-fabric wrapper of the monitor-bus
 delivery family. It wraps the protocol-agnostic `monbus_group_core` with an
 **AXIL slave-read err-drain port** (the CPU IRQ handler pops error records)
 and a **full AXI4 burst master-write port** (streams captured records into a
@@ -208,7 +208,7 @@ Three protocols (AXI, AXIS, CORE), each with a packet-type mask, an err-select m
 Each monbus err record is three 64-bit slices — `{tag, source_ts}`, `packet[127:64]`, `packet[63:0]`. A 64-bit `axil4_slave_rd` leaf bridges the external AXIL read onto the core's 64-bit read FUB, and the core's slice counter returns the three slices in sequence; the err-FIFO record is popped only after the packet-low slice is read.
 
 - **64-bit drain (`S_AXIL_DATA_WIDTH == 64`):** the leaf is wired straight through — 3 beats/record.
-- **32-bit drain (`S_AXIL_DATA_WIDTH == 32`):** a phase bit splits each 64-bit leaf beat into a low then high 32-bit external read — 6 beats/record. The AR is forwarded to the leaf only on the low phase (one core read per pair, no prefetch); the low read consumes the beat and latches its high half; the high read replays the latch, gating R on its own accepted AR (`r_hi_ar`) to honor AXIL AR-before-R ordering. This is the identical mechanism used in `monbus_axil_axil_group`.
+- **32-bit drain (`S_AXIL_DATA_WIDTH == 32`):** a phase bit splits each 64-bit leaf beat into a low then high 32-bit external read — 6 beats/record. The AR is forwarded to the leaf only on the low phase (one core read per pair, no prefetch); the low read consumes the beat and latches its high half; the high read replays the latch, gating R on its own accepted AR (`r_hi_ar`) to honor AXIL AR-before-R ordering. This is the identical mechanism used in `monbus_axil4_axil4_group`.
 
 ### M-Side Bulk-Capture Protocol (AXI4 Burst)
 
@@ -233,7 +233,7 @@ When `USE_COMPRESSION=1`, `monbus_compressor` is selectable at runtime via `cfg_
 ## Usage Example
 
 ```systemverilog
-monbus_axil_axi4_group #(
+monbus_axil4_axi4_group #(
     .FIFO_DEPTH_ERR       (64),
     .FIFO_DEPTH_WRITE     (96),    // beats (3x for raw mode)
     .ADDR_WIDTH           (32),
@@ -323,8 +323,8 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 
 **See also:**
 
-- **monbus_axil_axil_group.sv** — Same drain, AXIL single-beat master-write
-- **monbus_axi4_axil_group.sv** / **monbus_axi4_axi4_group.sv** — AXI4-burst slave-read variants
+- **monbus_axil4_axil4_group.sv** — Same drain, AXIL single-beat master-write
+- **monbus_axi4_axil4_group.sv** / **monbus_axi4_axi4_group.sv** — AXI4-burst slave-read variants
 - **monbus_arbiter.sv** — Upstream multi-source merge (instantiate before this wrapper for N>1 sources)
 - **axi4_intf_master_observer.sv** — Instantiates this wrapper as its central filter + err FIFO + dump writer (`projects/components/misc/rtl/`)
 
@@ -332,7 +332,7 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 
 ## Testing
 
-- `val/amba/test_monbus_axil_axi4_group.py`
+- `val/amba/test_monbus_axil4_axi4_group.py`
 
 ---
 
@@ -340,7 +340,7 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 
 ### Source Code
 
-- RTL: `rtl/amba/monitor/monbus_axil_axi4_group.sv`
+- RTL: `rtl/amba/monitor/monbus_axil4_axi4_group.sv`
 - Core: `rtl/amba/monitor/monbus_group_core.sv`
 
 ### Documentation

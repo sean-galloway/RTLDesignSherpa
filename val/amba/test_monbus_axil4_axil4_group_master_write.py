@@ -4,8 +4,8 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_monbus_axil_axil_group_master_write
-# Purpose: AXIL master-write raw-mode coverage for monbus_axil_axil_group.
+# Module: test_monbus_axil4_axil4_group_master_write
+# Purpose: AXIL master-write raw-mode coverage for monbus_axil4_axil4_group.
 #
 # Author: sean galloway
 # Created: 2026-06-11
@@ -13,7 +13,7 @@
 """
 AXIL/AXIL master-write coverage in raw mode (USE_COMPRESSION=0).
 
-The basic test_monbus_axil_axil_group.py treats the master-write side as
+The basic test_monbus_axil4_axil4_group.py treats the master-write side as
 a synthetic sink and never asserts that beats actually leave m_axil_w*.
 That gap let
 [MONBUS_GROUP_AXIL_MASTER_RAWMODE_FLUSH_BUG.md](../../MONBUS_GROUP_AXIL_MASTER_RAWMODE_FLUSH_BUG.md)
@@ -270,7 +270,7 @@ async def cocotb_test_monbus_axil_axil_master_write(dut):
 # Pytest wrapper
 # ----------------------------------------------------------------------------
 
-def test_monbus_axil_axil_group_master_write(request):
+def test_monbus_axil4_axil4_group_master_write(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
@@ -280,7 +280,7 @@ def test_monbus_axil_axil_group_master_write(request):
         'rtl_common':   'rtl/common',
     })
 
-    dut_name = "monbus_axil_axil_group"
+    dut_name = "monbus_axil4_axil4_group"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     test_name = f"test_{worker_id}_{dut_name}_master_write_raw"
 
@@ -292,7 +292,7 @@ def test_monbus_axil_axil_group_master_write(request):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_axil_axil_group.f")
+        filelist_path="rtl/amba/filelists/monbus_axil4_axil4_group.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
@@ -325,7 +325,7 @@ def test_monbus_axil_axil_group_master_write(request):
             verilog_sources=verilog_sources,
             includes=includes + [rtl_dict['rtl_shared'], sim_build],
             toplevel=dut_name,
-            module='test_monbus_axil_axil_group_master_write',
+            module='test_monbus_axil4_axil4_group_master_write',
             testcase="cocotb_test_monbus_axil_axil_master_write",
             sim_build=sim_build,
             extra_env=extra_env,

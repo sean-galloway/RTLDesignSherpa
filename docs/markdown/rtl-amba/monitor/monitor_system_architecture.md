@@ -416,8 +416,8 @@ drains from one `monbus_group_core`:
   wrap allow. This is the bulk-trace path.
 
 Four wrappers exist for the four combinations of interface width on those two
-ports: `monbus_axi4_axi4_group`, `monbus_axi4_axil_group`,
-`monbus_axil_axi4_group`, `monbus_axil_axil_group`. They are wrappers only --
+ports: `monbus_axi4_axi4_group`, `monbus_axi4_axil4_group`,
+`monbus_axil4_axi4_group`, `monbus_axil4_axil4_group`. They are wrappers only --
 the logic is in `monbus_group_core`.
 
 ---

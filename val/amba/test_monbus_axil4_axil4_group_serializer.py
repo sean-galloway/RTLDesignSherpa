@@ -4,7 +4,7 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_monbus_axil_axil_group_serializer
+# Module: test_monbus_axil4_axil4_group_serializer
 # Purpose: Regression coverage for the 32-bit err-drain 2:1 read serializer
 #          against differently-shaped but equally legal AXI4-Lite read
 #          masters (GitHub issue #41, defect 1).
@@ -19,8 +19,8 @@
 MonBus AXIL/AXIL Group -- 32-bit Err-Drain Serializer, Master-Shape Regression
 
 Targets the `g_drain_2to1` block in
-`rtl/amba/monitor/monbus_axil_axil_group.sv` (the identical construct in
-`monbus_axil_axi4_group.sv` is exercised by the same drivers when
+`rtl/amba/monitor/monbus_axil4_axil4_group.sv` (the identical construct in
+`monbus_axil4_axi4_group.sv` is exercised by the same drivers when
 TEST_DUT=axil_axi4).
 
 WHY THIS TEST EXISTS
@@ -304,7 +304,7 @@ class SerializerDrainTB(TBBase):
 # ===========================================================================
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
-async def cocotb_test_monbus_axil_axil_group_serializer(dut):
+async def cocotb_test_monbus_axil4_axil4_group_serializer(dut):
     """32-bit err-drain serializer vs. differently-shaped legal AXIL masters."""
     test_type = os.environ.get('TEST_TYPE', 'strict')
     nrecords = int(os.environ.get('TEST_NRECORDS', '2'))
@@ -411,7 +411,7 @@ serializer_params = generate_serializer_test_params()
     "test_type, fifo_depth_err, fifo_depth_write, addr_width, "
     "num_protocols, s_axil_data_width",
     serializer_params)
-def test_monbus_axil_axil_group_serializer(request, test_type, fifo_depth_err,
+def test_monbus_axil4_axil4_group_serializer(request, test_type, fifo_depth_err,
                                            fifo_depth_write, addr_width,
                                            num_protocols, s_axil_data_width):
     """Pytest wrapper for the 32-bit err-drain serializer regression."""
@@ -426,11 +426,11 @@ def test_monbus_axil_axil_group_serializer(request, test_type, fifo_depth_err,
         'rtl_common':   'rtl/common',
     })
 
-    dut_name = "monbus_axil_axil_group"
+    dut_name = "monbus_axil4_axil4_group"
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_axil_axil_group.f")
+        filelist_path="rtl/amba/filelists/monbus_axil4_axil4_group.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")
@@ -464,7 +464,7 @@ def test_monbus_axil_axil_group_serializer(request, test_type, fifo_depth_err,
     }
 
     create_view_cmd(log_dir, log_path, sim_build,
-                    'test_monbus_axil_axil_group_serializer',
+                    'test_monbus_axil4_axil4_group_serializer',
                     test_name_plus_params)
 
     compile_args = ["-Wno-TIMESCALEMOD", "-Wno-SELRANGE",
@@ -475,8 +475,8 @@ def test_monbus_axil_axil_group_serializer(request, test_type, fifo_depth_err,
         verilog_sources=verilog_sources,
         includes=includes,
         toplevel=dut_name,
-        module='test_monbus_axil_axil_group_serializer',
-        testcase="cocotb_test_monbus_axil_axil_group_serializer",
+        module='test_monbus_axil4_axil4_group_serializer',
+        testcase="cocotb_test_monbus_axil4_axil4_group_serializer",
         parameters=rtl_parameters,
         sim_build=sim_build,
         extra_env=extra_env,

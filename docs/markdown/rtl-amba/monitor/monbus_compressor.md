@@ -599,14 +599,14 @@ INFO  === ALL PHASES PASSED ===
 ### Integration-level (compressor + AXIL writer + base/limit wrap)
 
 ```bash
-pytest val/amba/test_monbus_axil_axil_group_compressed.py -v
+pytest val/amba/test_monbus_axil4_axil4_group_compressed.py -v
 ```
 
 Three phases:
 
 - Generous window (no wrap): 9 slots from the synthesized stream
 - Tight 8-slot window: forces a mid-stream wrap back to `cfg_base_addr`
-- Real-silicon dataset: 770 slots through the full `monbus_axil_axil_group`
+- Real-silicon dataset: 770 slots through the full `monbus_axil4_axil4_group`
   with `USE_COMPRESSION=1`
 
 Both layers run as part of the standard amba regression and must pass before
@@ -638,7 +638,7 @@ The dataset and acceptance recipe live at
 ### Test Suite Summary
 
 - **Acceptance (byte-identical vs golden):** `val/amba/test_monbus_compressor.py`
-- **End-to-end (with AXIL writer + wrap):** `val/amba/test_monbus_axil_axil_group_compressed.py`
+- **End-to-end (with AXIL writer + wrap):** `val/amba/test_monbus_axil4_axil4_group_compressed.py`
 - **CAM sub-module:** `val/amba/test_monbus_cam.py`
 
 Run all three:
@@ -646,7 +646,7 @@ Run all three:
 ```bash
 pytest val/amba/test_monbus_cam.py \
        val/amba/test_monbus_compressor.py \
-       val/amba/test_monbus_axil_axil_group_compressed.py -v
+       val/amba/test_monbus_axil4_axil4_group_compressed.py -v
 ```
 
 ---

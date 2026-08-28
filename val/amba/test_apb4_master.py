@@ -832,6 +832,14 @@ async def apb4_master_wavedrom_test(dut):
         dut._log.info("⏭️  WaveDrom disabled (ENABLE_WAVEDROM=0), skipping wavedrom test")
         return
 
+    # Wavedrom runs MUST be deterministic. The scenarios below are driven
+    # explicitly, but the GAXI/APB randomizers still choose the valid/ready
+    # delays around them, and those delays decide whether a complete
+    # sequence fits inside the solver's capture window. Left unseeded this
+    # test failed roughly one run in three (AMBA-WAVEDROM-FLAKY). Same
+    # pattern as test_apb4_slave_wavedrom.py.
+    random.seed(int(os.environ.get('SEED', '42')))
+
     dut._log.info("=== APB Master WaveDrom Test ===")
 
     # Setup testbench
@@ -1261,7 +1269,10 @@ def test_apb4_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_de
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
-        'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
+        # PINNED, not random: the constraint set requires every one of the 7
+        # scenarios to be capturable, and a random seed does not guarantee
+        # the delays cooperate. Override with SEED=<n> to explore.
+        'SEED': os.environ.get('SEED', '42'),
         'ENABLE_WAVEDROM': '1',  # Enable WaveDrom!
         'TEST_ADDR_WIDTH': str(addr_width),
         'TEST_DATA_WIDTH': str(data_width),

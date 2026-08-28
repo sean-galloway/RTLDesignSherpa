@@ -409,9 +409,9 @@ module bridge_mix_a_mon
     input  logic [15:0] cfg_apb_periph_2_rd_axi_debug_mask,
 
     // ============================================================
-    // monbus_axil_axil_group access ports + config + IRQ
+    // monbus_axil4_axil4_group access ports + config + IRQ
     // ============================================================
-    // Slave-read port (axil, IRQ-status reads, 64-bit data)
+    // Slave-read port (axil4, IRQ-status reads, 64-bit data)
     input  logic         s_mon_axil_arvalid,
     output logic         s_mon_axil_arready,
     input  logic [31:0] s_mon_axil_araddr,
@@ -421,7 +421,7 @@ module bridge_mix_a_mon
     output logic [63:0] s_mon_axil_rdata,
     output logic [1:0] s_mon_axil_rresp,
 
-    // Master-write port (axil, packet log writes)
+    // Master-write port (axil4, packet log writes)
     output logic         m_mon_axil_awvalid,
     input  logic         m_mon_axil_awready,
     output logic [31:0] m_mon_axil_awaddr,
@@ -1752,7 +1752,7 @@ module bridge_mix_a_mon
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
-    monbus_axil_axil_group #(
+    monbus_axil4_axil4_group #(
         // FIFO_DEPTH_WRITE is in BEATS in the monbus group family;
         // the master-write burst fires on cfg_flush_watermark or timeout.
         .FIFO_DEPTH_ERR      (64),
@@ -1771,7 +1771,7 @@ module bridge_mix_a_mon
         .monbus_timestamp  (mon_arb_monbus_timestamp),
         // Free-running timestamp shared with every wrapper's i_mon_time
         .mon_time_out      (mon_time_w),
-        // Slave-read port (axil)
+        // Slave-read port (axil4)
         .s_axil_arvalid (s_mon_axil_arvalid),
         .s_axil_arready (s_mon_axil_arready),
         .s_axil_araddr (s_mon_axil_araddr),
@@ -1780,7 +1780,7 @@ module bridge_mix_a_mon
         .s_axil_rready (s_mon_axil_rready),
         .s_axil_rdata (s_mon_axil_rdata),
         .s_axil_rresp (s_mon_axil_rresp),
-        // Master-write port (axil)
+        // Master-write port (axil4)
         .m_axil_awvalid (m_mon_axil_awvalid),
         .m_axil_awready (m_mon_axil_awready),
         .m_axil_awaddr (m_mon_axil_awaddr),

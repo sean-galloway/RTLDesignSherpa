@@ -320,9 +320,9 @@ The burst is always sized so its last byte stays at or below `cfg_limit_addr` an
 
 ### Used By
 - **monbus_axi4_axi4_group.sv** — AXI4 slave-read + AXI4 master-write wrapper
-- **monbus_axi4_axil_group.sv** — AXI4 slave-read + AXIL master-write wrapper
-- **monbus_axil_axi4_group.sv** — AXIL slave-read + AXI4 master-write wrapper
-- **monbus_axil_axil_group.sv** — AXIL slave-read + AXIL master-write wrapper
+- **monbus_axi4_axil4_group.sv** — AXI4 slave-read + AXIL master-write wrapper
+- **monbus_axil4_axi4_group.sv** — AXIL slave-read + AXI4 master-write wrapper
+- **monbus_axil4_axil4_group.sv** — AXIL slave-read + AXIL master-write wrapper
 
 ### Uses
 - **gaxi_fifo_sync.sv** — error FIFO and write FIFO

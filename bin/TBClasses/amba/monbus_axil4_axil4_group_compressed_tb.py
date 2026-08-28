@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Module: MonbusAxilAxilGroupTB
-# Purpose: Testbench for monbus_axil_axil_group_compressed
+# Purpose: Testbench for monbus_axil4_axil4_group_compressed
 # Subsystem: framework
 #
-# Extracted from val/amba/test_monbus_axil_axil_group_compressed.py so the runner holds only the parameter grid and the
+# Extracted from val/amba/test_monbus_axil4_axil4_group_compressed.py so the runner holds only the parameter grid and the
 # cocotb_test.run() call ([[tb-structure]]).
 
 import os

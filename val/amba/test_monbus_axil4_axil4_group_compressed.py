@@ -4,20 +4,20 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_monbus_axil_axil_group_compressed
-# Purpose: End-to-end acceptance test for monbus_axil_axil_group with
+# Module: test_monbus_axil4_axil4_group_compressed
+# Purpose: End-to-end acceptance test for monbus_axil4_axil4_group with
 #          USE_COMPRESSION=1. Drives monbus records in, captures the
 #          AXIL master write stream out, and asserts the captured slot
 #          sequence is byte-identical to the Python Encoder golden.
 #
 # Author: sean galloway
 # Created: 2026-06-07; retargeted 2026-06-10 for the family refactor
-#          (monbus_axil_group -> monbus_axil_axil_group; beat-granular
+#          (monbus_axil_group -> monbus_axil4_axil4_group; beat-granular
 #          write FIFO; cfg_flush_watermark = 1 keeps the per-slot
 #          drain shape identical to the legacy module).
 
 """
-End-to-end test for monbus_axil_axil_group's compressed write path.
+End-to-end test for monbus_axil4_axil4_group's compressed write path.
 
 The monbus_compressor sub-module is already byte-exact against the
 Python golden (val/amba/test_monbus_compressor.py). This test closes
@@ -49,7 +49,7 @@ from cocotb.triggers import RisingEdge, ReadOnly, Combine
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.amba.monbus_axil_axil_group_compressed_tb import MonbusAxilAxilGroupTB
+from TBClasses.amba.monbus_axil4_axil4_group_compressed_tb import MonbusAxilAxilGroupTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.monbus.monbus_compressor import Encoder
@@ -104,7 +104,7 @@ def synth_small_stream() -> List[Tuple[int, int]]:
 # ----------------------------------------------------------------------------
 
 @cocotb.test(timeout_time=300, timeout_unit="ms")
-async def monbus_axil_axil_group_compressed_test(dut):
+async def monbus_axil4_axil4_group_compressed_test(dut):
     tb = MonbusAxilAxilGroupTB(dut)
     await tb.start_clock('axi_aclk', 10, 'ns')
 
@@ -169,7 +169,7 @@ async def monbus_axil_axil_group_compressed_test(dut):
 # Pytest wrapper
 # ----------------------------------------------------------------------------
 
-def test_monbus_axil_axil_group_compressed(request):
+def test_monbus_axil4_axil4_group_compressed(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
         'rtl_monitor': 'rtl/amba/monitor',
@@ -179,7 +179,7 @@ def test_monbus_axil_axil_group_compressed(request):
         'rtl_common':   'rtl/common',
     })
 
-    dut_name = "monbus_axil_axil_group"
+    dut_name = "monbus_axil4_axil4_group"
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     test_name = f"test_{worker_id}_{dut_name}_compressed_{reg_level}"
@@ -192,7 +192,7 @@ def test_monbus_axil_axil_group_compressed(request):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="rtl/amba/filelists/monbus_axil_axil_group.f")
+        filelist_path="rtl/amba/filelists/monbus_axil4_axil4_group.f")
     for src in verilog_sources:
         if not os.path.exists(src):
             raise FileNotFoundError(f"RTL source not found: {src}")

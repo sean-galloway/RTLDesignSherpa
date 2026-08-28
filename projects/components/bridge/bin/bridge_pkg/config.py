@@ -29,21 +29,25 @@ class MonGroupConfig:
     (the IRQ-status / error-FIFO read port the SoC polls) and p2 =
     master-write protocol (the packet-log write port to memory). Each
     side is independently "axil" or "axi4", giving four permutations:
-      monbus_axil_axil_group  monbus_axil_axi4_group
-      monbus_axi4_axil_group  monbus_axi4_axi4_group
+      monbus_axil4_axil4_group  monbus_axil4_axi4_group
+      monbus_axi4_axil4_group  monbus_axi4_axi4_group
 
     Configured per-bridge via the TOML [bridge.mon_group] sub-table:
       [bridge.mon_group]
-      slave_protocol  = "axil"   # "axil" | "axi4"
-      master_protocol = "axi4"   # "axil" | "axi4"
+      slave_protocol  = "axil4"  # "axil4" | "axi4"
+      master_protocol = "axi4"   # "axil4" | "axi4"
       axi_id_width    = 8        # used when either side is axi4
       max_burst_beats = 64       # used when master is axi4
 
-    Defaults reproduce the legacy axil/axil group so configs that omit
-    the table keep their existing top-level surface and tests.
+    Defaults reproduce the axil4/axil4 group so configs that omit the
+    table keep their existing top-level surface and tests.
+
+    "axil" is accepted as a deprecated spelling and normalised to "axil4"
+    so pre-rename configs keep generating -- but it is normalised at
+    construction, not at use, so module_name can never emit the old name.
     """
-    slave_protocol: str = "axil"      # "axil" | "axi4" -- s_mon read port
-    master_protocol: str = "axil"     # "axil" | "axi4" -- m_mon write port
+    slave_protocol: str = "axil4"     # "axil4" | "axi4" -- s_mon read port
+    master_protocol: str = "axil4"    # "axil4" | "axi4" -- m_mon write port
     # Core sizing (passed as module parameters).
     fifo_depth_err: int = 64
     fifo_depth_write: int = 96        # beats (new family default)
@@ -54,9 +58,20 @@ class MonGroupConfig:
     axi_user_width: int = 1
     max_burst_beats: int = 64         # master-write burst cap (axi4 master)
 
-    _VALID_PROTOCOLS = ("axil", "axi4")
+    _VALID_PROTOCOLS = ("axil4", "axi4")
+    # Pre-rename spelling, normalised in __post_init__ (see class docstring).
+    _PROTOCOL_ALIASES = {"axil": "axil4"}
 
     def __post_init__(self):
+        # Normalise the deprecated spelling FIRST, so module_name is derived
+        # from the canonical protocol name and can never emit the pre-rename
+        # module. Normalising at use instead of construction is how the old
+        # name would leak back into generated RTL.
+        self.slave_protocol = self._PROTOCOL_ALIASES.get(
+            self.slave_protocol, self.slave_protocol)
+        self.master_protocol = self._PROTOCOL_ALIASES.get(
+            self.master_protocol, self.master_protocol)
+
         for label, p in (("slave_protocol", self.slave_protocol),
                          ("master_protocol", self.master_protocol)):
             if p not in self._VALID_PROTOCOLS:

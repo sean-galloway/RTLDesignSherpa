@@ -232,9 +232,9 @@ $REPO_ROOT/rtl/amba/axi5/axi5_slave_wr_mon.sv
 $REPO_ROOT/rtl/amba/axi5/axi5_slave_wr_mon_cg.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_addr_check.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_axi4_axi4_group.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_axi4_axil_group.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_axil_axi4_group.sv
-$REPO_ROOT/rtl/amba/monitor/monbus_axil_axil_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axi4_axil4_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axil4_axi4_group.sv
+$REPO_ROOT/rtl/amba/monitor/monbus_axil4_axil4_group.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_cam.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_cam_pipe.sv
 $REPO_ROOT/rtl/amba/monitor/monbus_compressor.sv

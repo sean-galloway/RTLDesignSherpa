@@ -273,9 +273,9 @@ The five `SKID_DEPTH_*` parameters size the per-channel skid buffers in the leav
 
 **See also:**
 
-- **monbus_axi4_axil_group.sv** — AXI4 read + AXIL write variant
-- **monbus_axil_axi4_group.sv** — AXIL read + AXI4 write variant
-- **monbus_axil_axil_group.sv** — AXIL read + AXIL write variant
+- **monbus_axi4_axil4_group.sv** — AXI4 read + AXIL write variant
+- **monbus_axil4_axi4_group.sv** — AXIL read + AXI4 write variant
+- **monbus_axil4_axil4_group.sv** — AXIL read + AXIL write variant
 - **monbus_arbiter.sv** — upstream aggregation
 
 ---

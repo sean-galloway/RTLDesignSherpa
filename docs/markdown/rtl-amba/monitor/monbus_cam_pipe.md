@@ -236,7 +236,7 @@ Additional coverage:
 - `test_monbus_compressor.py` — uses `monbus_cam_pipe` end-to-end
   inside the compressor and cross-checks the slot stream against the
   Python golden encoder.
-- `test_monbus_axil_axil_group_compressed.py` — same coverage at the
+- `test_monbus_axil4_axil4_group_compressed.py` — same coverage at the
   group-wrapper level, including window wrap.
 
 ---
