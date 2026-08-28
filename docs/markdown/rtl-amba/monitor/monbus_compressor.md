@@ -383,10 +383,11 @@ feeds the encoder through a credit-gated result skid (`SKID_DEPTH=2`).
 A `r_credit` counter tracks records in flight + skid occupancy so
 `cam_en` only fires when there is a slot to land the result, even
 under back-to-back compression bursts. Sustained throughput is
-**0.67 records/cycle** (measured): the pipelined CAM's +1 cycle is absorbed,
-but the credit round trip through the result skid is the limiter -- with
-`SKID_DEPTH=2` credits against a ~2-cycle round trip, the input stalls one
-cycle in three. The single-cycle
+**1 record/cycle** (measured): the pipelined CAM's +1 cycle is absorbed, and
+`SKID_DEPTH=3` gives three credits against the 3-cycle credit round trip
+(present → CAM result → registered skid pop → credit returned), which is
+exactly what the input handshake can consume. It was 2 for a long time, which
+is where the old 0.67/cycle came from. The single-cycle
 `monbus_cam.sv` is kept in-tree as the reference design (see its doc
 for the deprecation note).
 
@@ -498,8 +499,8 @@ hit rate; on the validation dataset it's 93.5 %.
 
 The encoder is split into **three stages** (1, 2a, 2b in the table below),
 with a tier-1 record ~3 cycles in flight. Per-record slot counts are unchanged
-from the original single-cycle design, but the sustained input RATE is not:
-it is 2 records / 3 cycles (0.67/cycle, measured), not 1/cycle.
+from the original single-cycle design, and so is the sustained input
+rate, at 1 record/cycle measured (SKID_DEPTH=3).
 
 | Stage | Logic |
 |---|---|
@@ -509,7 +510,7 @@ it is 2 records / 3 cycles (0.67/cycle, measured), not 1/cycle.
 
 | Path | Latency | Throughput |
 |---|---|---|
-| Tier-1 record (CAM hit, Tier-1 fits) | 1 record → 1 slot, ~3 cycles in flight | **2 records / 3 cycles** (0.67/cycle, measured) |
+| Tier-1 record (CAM hit, Tier-1 fits) | 1 record → 1 slot, ~3 cycles in flight | **1 record / cycle** (measured) |
 | Tier-0 record (CAM miss, or all Tier-1 overflow) | 1 record → 3 slots, 2 cycles + 2 RAW beats | 1 record / 3 cycles |
 
 There is **no CAM read-after-write hazard**: the commit action depends

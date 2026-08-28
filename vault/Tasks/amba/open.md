@@ -320,13 +320,7 @@ So the correct structure is to insert a bridge and tap it:
 `s_apb_psel`/`m_apb_psel`), which is why `apbx_xbar_monitored` had raw APB in
 hand and fed it straight to a monitor that stopped accepting it.
 
-### RESOLVED — option 1 was taken
-
-`rtl/integ_amba/` was deleted in `01d1c3e6`, and `apbx_xbar_thin` followed on
-2026-08-27. The orphaned `docs/markdown/rtl-integ-amba/apbx_xbar_monitored.md`
-was deleted with it. **Still orphaned and not yet dealt with:**
-`docs/markdown/rtl-integ-amba/` still documents `apb4_peripheral_subsystem`,
-whose RTL is also gone. The options below are kept as the record of the call.
+### Decide first, then do
 
 1. **Retire** — delete both and the area. They demonstrate an API that is gone
    and nothing uses them. Cheapest and honest.
@@ -903,9 +897,47 @@ from CAM entries, so both terms are needed. w_output_busy export NOT
 needed; nothing further owed here. Docs updated to the closed contract
 (no idle-count advisory).
 
-## AMBA-COMPTP — monbus_compressor sustains 2/3 records per cycle, not 1
-**Status:** open 2026-08-27 (found by qc round_24 on paper; MEASURED same day)
-**Priority:** P3 — performance headroom, not a correctness defect
+## AMBA-COMPTP — CLOSED 2026-08-27: SKID_DEPTH 2 -> 3 recovers 1 record/cycle
+**Status:** CLOSED (measured 0.670 -> 1.000; one localparam)
+**Priority:** was P3
+
+FIX: `localparam int SKID_DEPTH = 2` -> `3` in monbus_compressor.sv. That
+one line feeds both the credit guard and the skid instance, so nothing
+else changed. r_credit is [2:0] and w_skid_count is [3:0] (headroom), and
+gaxi_skid_buffer takes 2..8 inclusive, so 3 is legal -- see
+[[skid-depth-contract]].
+
+WHY 3 EXACTLY: the credit round trip is 3 cycles -- present at T, CAM
+result T+1, REGISTERED skid rd_valid and pop T+2, credit visible again
+T+3 -- so N credits sustain N/3 records/cycle. Depth 2 predicts 0.667 and
+phase 4 measured 0.670 (134/200); depth 3 predicts and measured exactly
+1.000 (200/200). Depth 4 would buy nothing: the input handshake caps at 1.
+
+WHY THE CREDIT CEILING COULD NOT BE RAISED ALONE (the constraint that
+made this a skid change rather than a guard change): monbus_cam_pipe has
+NO result_ready -- results are autonomous -- and skid_wr_ready is
+connected but never consulted. The credit guard is therefore the only
+thing guaranteeing a landing slot for every in-flight result. More
+credits than skid entries = a result arriving at a full skid, silently
+dropped.
+
+COST: one skid entry, P_W = 382 bits (hit + idx + old_data + delta_ts +
+event_data + src_ts60 + packet).
+
+TIMING: deepening the skid does NOT reopen the 65-bit format-C path the
+skid exists to break -- it adds an entry, it does not shorten a cone.
+Regression 61/61 clean. A synthesis run on the target part is still the
+honest confirmation for a design that fought for 100 MHz once; flagged
+rather than claimed.
+
+The phase-4 assertion is now a LOWER bound only (>= 0.98). 1.0 is the
+handshake ceiling, so nothing can legitimately exceed it and any drop is
+a regression -- the two-sided bound had done its job by firing here.
+
+STILL OPEN, worth doing independently of throughput: skid_wr_ready is a
+connected-but-unread silent-drop path, safe today only because the credit
+invariant holds. An assertion `pipe_res_valid |-> skid_wr_ready` would
+turn a future guard change from lost packets into a loud failure.
 
 The compressor's Tier-1 input rate is **0.67 records/cycle**, not the
 1 record/cycle both the RTL header and monbus_compressor.md claimed.

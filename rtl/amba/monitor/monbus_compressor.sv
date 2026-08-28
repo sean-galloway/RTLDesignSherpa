@@ -62,14 +62,14 @@
 // Stage 2b (output): drive the slot(s); RAW (tier-0) beat expansion.
 //
 // Throughput (MEASURED, val/amba/test_monbus_compressor.py phase 4):
-//   Tier-1 records: 2 records / 3 cycles (0.67/cycle), 1 slot out each.
-//   NOT 1/cycle, which this comment claimed for a long time. The result
-//   skid is credit-gated at SKID_DEPTH=2 while the credit round trip is
-//   ~2 cycles (present T -> CAM result T+1 -> registered skid rd_valid and
-//   pop T+2 -> credit visible T+3), so the input stalls one cycle in three.
-//   Raising the credit depth or making the result interface fall-through
-//   would recover it -- deliberately not done here, since this skid is what
-//   keeps the 65-bit format-C path off the stage-1 critical path.
+//   Tier-1 records: 1 record/cycle, 1 slot out each.
+//   The result skid is credit-gated, and the credit round trip is 3 cycles
+//   (present T -> CAM result T+1 -> registered skid rd_valid and pop T+2 ->
+//   credit visible T+3), so N credits sustain N/3 records/cycle. SKID_DEPTH
+//   was 2, which is where the long-standing 0.67/cycle came from while this
+//   comment claimed 1.0; it is now 3. Deepening the skid does NOT reopen the
+//   65-bit format-C path the skid was added to break -- it adds an entry, it
+//   does not shorten a cone.
 //   Tier-0 records: 1 record / 3 cycles (3 slots out).
 // The extra encode register adds one cycle of latency only -- bandwidth is
 // preserved, and the slot stream is identical (just delayed).
@@ -230,7 +230,21 @@ module monbus_compressor
     // 2-deep skid. p_* are driven combinationally from the skid output, so
     // stage 2 (q) is unchanged. A credit counter (in-flight + skid occupancy)
     // gates cam_en so every autonomous result has a slot.
-    localparam int SKID_DEPTH = 2;
+    // THREE, not two. The credit round trip is 3 cycles -- present at T,
+    // CAM result T+1, registered skid rd_valid and pop T+2, credit visible
+    // again T+3 -- so N credits sustain N/3 records per cycle. At 2 that is
+    // the 0.67/cycle this design measured for a long time while its comments
+    // claimed 1.0; at 3 it is exactly 1.0, which the input handshake caps
+    // anyway, so 4 would buy nothing.
+    //
+    // The credit ceiling CANNOT be raised without the skid depth. monbus_cam_pipe
+    // has no result_ready -- results are autonomous -- and skid_wr_ready is not
+    // consulted, so the credit guard is the only thing guaranteeing a landing
+    // slot for every in-flight result. Allow more credits than skid entries and
+    // a result arrives at a full skid and is silently dropped.
+    //
+    // Costs one more skid entry: P_W = 382 bits.
+    localparam int SKID_DEPTH = 3;
     // p_hit + p_idx + p_old_data + p_delta_ts + p_event_data + p_src_ts60 + p_packet
     localparam int P_W = 1 + TMPL_IDX_BITS + 64 + TS_BITS + 64 + TS_BITS + 128;
 

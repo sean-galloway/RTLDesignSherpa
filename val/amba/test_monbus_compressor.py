@@ -228,23 +228,26 @@ async def monbus_compressor_test(dut):
     tb.log.info(f"  sustained Tier-1 input rate: {handshakes}/{N_CYCLES} "
                 f"= {rate:.3f} records/cycle")
 
-    # MEASURED 2026-08-27: 134/200 = 0.670 -- two records every three cycles,
-    # NOT the 1/cycle the RTL header and docs claimed. Cause: SKID_DEPTH=2
-    # credits against a ~2-cycle credit round trip, so the input stalls one
-    # cycle in three. Both texts now state 2/3; this assertion pins the real
-    # number so the claim and the hardware cannot drift apart again.
+    # MEASURED 2026-08-27: 200/200 = 1.000 at SKID_DEPTH=3 (AMBA-COMPTP).
     #
-    # Bounds, not equality: the ratio is stable but the warm-up edge moves the
-    # last handshake by one. If a future change raises SKID_DEPTH or makes the
-    # result interface fall-through, this UPPER bound fires -- that is the
-    # intended signal to re-measure and update both texts upward (AMBA-COMPTP).
-    assert 0.60 <= rate <= 0.72, (
+    # History worth keeping, because it is what this assertion defends: the
+    # RTL header and docs claimed 1 record/cycle for a long time while the
+    # hardware did 0.67 (134/200). The credit round trip is 3 cycles --
+    # present T, CAM result T+1, registered skid rd_valid and pop T+2, credit
+    # visible T+3 -- so N credits sustain N/3 records/cycle. SKID_DEPTH was 2.
+    # Raising it to 3 gives exactly 1.0, and the input handshake caps it there.
+    #
+    # A LOWER bound only. There is no upper bound to trip now: 1.0 is the
+    # ceiling the handshake imposes, so anything below it is a regression and
+    # nothing can legitimately exceed it. If this ever drops, check
+    # SKID_DEPTH against the credit round trip before anything else.
+    assert rate >= 0.98, (
         f"sustained Tier-1 input rate is {rate:.3f} records/cycle "
-        f"({handshakes} handshakes in {N_CYCLES} cycles); expected ~0.67 "
-        f"(two records per three cycles) for SKID_DEPTH=2. Below 0.60 is a "
-        f"throughput regression; above 0.72 means the credit round trip "
-        f"improved -- re-measure and update monbus_compressor.sv's header, "
-        f"monbus_compressor.md, and this bound together.")
+        f"({handshakes} handshakes in {N_CYCLES} cycles); expected ~1.0 at "
+        f"SKID_DEPTH=3. N credits sustain N/3 records/cycle against the "
+        f"3-cycle credit round trip, so a drop here usually means SKID_DEPTH "
+        f"was reduced or the round trip grew. Update monbus_compressor.sv's "
+        f"header, monbus_compressor.md and this bound together.")
     tb.log.info(f"=== Phase 4: PASS (rate={rate:.3f}) ===")
 
     tb.log.info("=== ALL PHASES PASSED ===")
