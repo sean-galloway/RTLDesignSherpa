@@ -34,6 +34,7 @@ for _p in (os.path.join(_AREA, 'dv'), os.path.join(_AREA, 'bin')):
         sys.path.insert(0, _p)
 
 from tbclasses.stream_harness_tb import StreamHarnessTB, CSR_CTRL, compose  # noqa: E402
+from stream_cfg import cfg_int, num_channels, verilator_unroll_args  # noqa: E402  (reads stream_cfg_pkg.sv)
 
 # The tally exposes FOUR clean AXIL ports (2 wr, 2 rd). Count readback rides the
 # ingest window's READ channel (stream_tally@0x40000 / slave_tally@0xC0000);
@@ -50,7 +51,7 @@ BIN_COMPLETION0 = 0x0100              # {AXI, COMPLETION, evcode 0}
 CAM_CLEAR_OFF = 0x0100               # any write invalidates all CAM entries
 CAM_KEY_OFF   = 0x0108               # wdata[31:0] = key to load next
 CAM_LOAD_OFF  = 0x0110               # wdata = (1<<31 valid) | index -> load CAM_KEY
-MON_N_PROFILE = 64                   # legal-set size (matches MON_N_PROFILE)
+MON_N_PROFILE = cfg_int('CFG_MON_N_PROFILE')   # legal-set size, from the package
 
 
 def profile_key(agent, protocol, pkt_type, event_code):
@@ -321,30 +322,70 @@ def _run_stream_mon(request, profile=False):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
+    # ---- RTL parameters -----------------------------------------------------
+    # Geometry comes from stream_char_cfg_pkg via stream_harness's defaults --
+    # the SAME source stream_genesys2_top builds from. Do not restate a value
+    # here just to be explicit: a restated literal is exactly how this cosim
+    # ended up running RESP_DELAY_B=512 against a board built at 16, and
+    # build-perf characterizing AR/AW=16 against a board built at 2.
+    #
+    # Inherited from the package (NOT set here, on purpose):
+    #   DATA_WIDTH ADDR_WIDTH NUM_CHANNELS AR/AW_MAX_OUTSTANDING
+    #   RESP_DELAY_R/B_CAPACITY DESC_RAM_ENTRIES DEBUG_SRAM_WORDS
+    #   OBS_* MON_N_PROFILE USE_ROW_COL_MAJOR_ADDRESSING USE_MON_*
+    #
+    # Only deliberate deviations belong below, each with its reason.
     rtl_parameters = {
+        # Sim-only: the harness UART runs far faster than 115_200 so a cosim
+        # does not spend its whole runtime shifting bits.
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ), 'UART_BAUD': str(SIM_UART_BAUD),
+        # Per-BUILD flavor, not common geometry (build-mon=1, build-perf=0).
         'USE_AXI_MONITORS': use_mon,
-        'DATA_WIDTH': '128', 'ADDR_WIDTH': '32',
-        'SRAM_DEPTH': '512',
-        # Match the board build (=2). Also keeps the in-core timeout CAM loop small
-        # enough for Verilator to unroll (AR=16 tripped BLKLOOPINIT on axi_monitor_timeout).
-        'AR_MAX_OUTSTANDING': os.environ.get('AR_MAX_OUTSTANDING', '2'),
-        'AW_MAX_OUTSTANDING': os.environ.get('AW_MAX_OUTSTANDING', '2'),
-        'RESP_DELAY_R_CAPACITY': '512', 'RESP_DELAY_B_CAPACITY': '512',
-        # stream_genesys2_top passes GEN_MON=0 to stream_harness, but the
-        # harness DEFAULTS it to 1 -- and this cosim's toplevel is the harness,
-        # so sim has been running a different config than the board: agents
-        # 16-23 (descriptor engines) and 48-55 (schedulers) exist here and are
-        # compiled out there. Overridable so the board config can be
-        # reproduced; default stays 1 to preserve existing coverage.
+        # Passed explicitly so SIM_NUM_CHANNELS reaches the RTL and the
+        # testbench TOGETHER -- both call num_channels(), so the elaboration
+        # and the channel count the TB drives cannot disagree. With the env var
+        # unset this is just the package value.
+        'NUM_CHANNELS': str(num_channels()),
+        # SRAM_DEPTH is NOT set here. It is CFG_SRAM_DEPTH (256) -- the same
+        # depth the board builds. It used to be 512 here, which is the sizing
+        # for AR/AW=16; at the package's 8 the arithmetic gives 256
+        # (8 outstanding x 16-beat = 128 beats in flight, x2 headroom), so one
+        # value is correct for both and there is nothing to reconcile.
+        #
+        # A/B overrides are applied below. They exist so this cosim can be
+        # pinned to the config an EXISTING bitstream was built at -- the
+        # package is what the next build will use, which is not the same thing
+        # as what is programmed into the part right now.
+        # DEVIATION: the package (and the board) build GEN_MON=0. The cosim
+        # defaults to 1 because the per-channel descriptor-engine (agents
+        # 16-23) and scheduler (48-55) emitters only exist here -- turning
+        # them off removes monitor coverage that has no other home. Set
+        # GEN_MON=0 to reproduce the board exactly.
         'GEN_MON': os.environ.get('GEN_MON', '1'),
     }
+    # A/B overrides, present ONLY when set, so an unset run lands on the
+    # package (= what the next bitstream will be) and a pinned run can
+    # reproduce a bitstream already on the bench.
+    for _env, _param in (
+        ('SIM_AR_OUTSTANDING',    'AR_MAX_OUTSTANDING'),
+        ('SIM_AW_OUTSTANDING',    'AW_MAX_OUTSTANDING'),
+        ('SIM_SRAM_DEPTH',        'SRAM_DEPTH'),
+        ('SIM_RESP_DELAY_R_CAP',  'RESP_DELAY_R_CAPACITY'),
+        ('SIM_RESP_DELAY_B_CAP',  'RESP_DELAY_B_CAPACITY'),
+        ('SIM_DESC_RAM_ENTRIES',  'DESC_RAM_ENTRIES'),
+        ('SIM_DEBUG_SRAM_WORDS',  'DEBUG_SRAM_WORDS'),
+    ):
+        if _env in os.environ:
+            rtl_parameters[_param] = str(int(os.environ[_env]))
     if profile:
         rtl_parameters['MON_N_PROFILE'] = str(MON_N_PROFILE)
     extra_env = {
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ), 'UART_BAUD': str(SIM_UART_BAUD),
         'DUT': dut_name,
-        'NUM_CHANNELS': str(rtl_parameters.get('NUM_CHANNELS', 4)), 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO',
+        # From the package, NOT from rtl_parameters. This used to be
+        # rtl_parameters.get('NUM_CHANNELS', 4) against a dict that never held
+        # NUM_CHANNELS, so the TB drove 4 channels of an 8-channel elaboration.
+        'NUM_CHANNELS': str(num_channels()), 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{test_name}.xml'),
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
         'USE_MON': use_mon,
@@ -369,7 +410,14 @@ def _run_stream_mon(request, profile=False):
         # Monitor per-slot loops do delayed array assignment; Verilator must
         # unroll them (BLKLOOPINIT) — raise the unroll budget for the monitor
         # transaction tables (AMBA guide note).
-        "--unroll-count", "4096", "--unroll-stmts", "20000",
+        #
+        # 4096/20000 was sized for AR/AW=2. At the package value of 8 the
+        # trans_mgr / axi_monitor_timeout / monitor_trans_cam loops get deeper
+        # and 4096 leaves 6 BLKLOOPINIT errors; 16384/200000 compiles clean
+        # (measured 2026-08-25, monitors ON). This budget is what lets the
+        # cosim run the same outstanding depth as silicon instead of quietly
+        # dropping to 2 — do not lower it without re-checking at AR/AW=8.
+        *verilator_unroll_args(),   # shared budget -- see dv/stream_cfg.py
     ]
     # Tracing this whole harness every clock is ~1000x slower than the sim
     # itself — build/emit the FST ONLY when WAVES=1. Without it the monitors-on

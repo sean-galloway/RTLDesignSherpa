@@ -131,16 +131,33 @@ async def cocotb_test_stream_perf(dut):
                     f"compress_en={compress_en}, mon_err_cfg={mon_err_cfg}) ===")
         ok = await tb.run_ping_test()
         timeout_clocks = int(os.environ.get('DMA_TIMEOUT_CLOCKS', '50000'))
-        kw = dict(
-            num_channels=num_ch,
-            descriptors_per_channel=desc_per_ch,
-            transfer_bytes=xfer_bytes,
-            timeout_clocks=timeout_clocks,
-            compress_en=compress_en,
-        )
-        if mon_err_cfg is not None:
-            kw['mon_err_cfg'] = mon_err_cfg
-        ok &= await tb.run_dma_test(**kw)
+
+        # A plain DMA config -- no monitor instrumentation requested -- is
+        # EXACTLY what the board runs, so run the board's program: the shared
+        # CharacterizationRunner over the shared bridge. Reserve the tb's own
+        # orchestration (run_dma_test) for the monitor-validation knobs the
+        # runner has no notion of. Reimplementing the plain case is what let
+        # sim and silicon diverge without either side reporting it.
+        wants_mon_instrumentation = compress_en or (mon_err_cfg is not None)
+
+        if not wants_mon_instrumentation:
+            res = await tb.run_dma_via_runner(
+                num_channels=num_ch,
+                descriptors_per_channel=desc_per_ch,
+                transfer_bytes=xfer_bytes,
+            )
+            ok &= bool(res.get('pass'))   # key is 'pass' (characterization.py)
+        else:
+            kw = dict(
+                num_channels=num_ch,
+                descriptors_per_channel=desc_per_ch,
+                transfer_bytes=xfer_bytes,
+                timeout_clocks=timeout_clocks,
+                compress_en=compress_en,
+            )
+            if mon_err_cfg is not None:
+                kw['mon_err_cfg'] = mon_err_cfg
+            ok &= await tb.run_dma_test(**kw)
 
     elif test_type == 'desc_perf':
         # RFC Stage E: open the descriptor-monitor perf window, run a DMA

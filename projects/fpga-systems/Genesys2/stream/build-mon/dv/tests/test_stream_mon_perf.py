@@ -37,6 +37,8 @@ for _p in (os.path.join(_AREA, 'dv'), os.path.join(_AREA, 'bin')):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from stream_cfg import num_channels, verilator_unroll_args  # noqa: E402  (reads rtl/stream_cfg_pkg.sv)
+
 COCOTB_MODULE = 'cocotb_stream_harness'
 
 _BUILD_HOST = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -45,21 +47,27 @@ _BUILD_HOST = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__fil
 SIM_FPGA_CLK_HZ = 100_000_000
 SIM_UART_BAUD   = 12_500_000
 
-# Build-mon geometry. AR/AW=2 MATCHES THE BOARD BUILD -- this is not a sim
-# convenience: the monitor transaction table is sized NUM_CHANNELS*AR_MAX+4, and
-# the perf flow's AR=16 (chosen for bandwidth-delay-product reasons that apply
-# to the monitors-OFF datapath study) puts it at 68 slots, which Verilator will
-# not elaborate (BLKLOOPINIT in axi_monitor_timeout). Monitors-on runs at the
-# depth the monitors-on bitstream actually uses.
+# Geometry comes from stream_char_cfg_pkg via stream_harness's defaults -- the
+# SAME source stream_genesys2_top builds from. Only deviations are listed.
+#
+# AR/AW is the package's 8 and is no longer restated here. The old note said 2
+# "MATCHES THE BOARD BUILD"; it matched a board top that hardcoded 2, which was
+# itself the divergence from this package. The Verilator objection was real but
+# is a tooling limit, not a design one: the monitor transaction table is sized
+# NUM_CHANNELS*AR_MAX+4, and the deeper loops need a bigger unroll budget --
+# 16384/200000 elaborates clean at AR/AW=8 with monitors ON (measured
+# 2026-08-25), where 4096/20000 leaves 6 BLKLOOPINIT errors. The budget is set
+# in the run() compile_args below.
 MON_RTL_PARAMS = {
     'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
     'UART_BAUD':   str(SIM_UART_BAUD),
+    # Per-BUILD flavor, not common geometry.
     'USE_AXI_MONITORS': '1',
-    'DATA_WIDTH': '128', 'ADDR_WIDTH': '32', 'SRAM_DEPTH': '512',
-    'AR_MAX_OUTSTANDING': os.environ.get('AR_MAX_OUTSTANDING', '2'),
-    'AW_MAX_OUTSTANDING': os.environ.get('AW_MAX_OUTSTANDING', '2'),
-    'RESP_DELAY_R_CAPACITY': '512', 'RESP_DELAY_B_CAPACITY': '512',
-    'NUM_CHANNELS': os.environ.get('SIM_NUM_CHANNELS', '4'),
+    # SRAM_DEPTH is NOT set here -- it is CFG_SRAM_DEPTH (256), the same depth
+    # the board builds. The old 512 was AR/AW=16 sizing; at the package's 8 the
+    # arithmetic gives 256, so board and sim want the same number.
+    # From the package, so RTL and TB cannot disagree (see stream_cfg.py).
+    'NUM_CHANNELS': str(num_channels()),
 }
 
 
@@ -129,7 +137,11 @@ def test_stream_mon_perf(request, test_type):
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
         "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
         # Monitor trans-table loops are per-slot; raise the unroll budget.
-        "--unroll-count", "4096", "--unroll-stmts", "20000",
+        # 16384/200000, not 4096/20000: the package's AR/AW=8 deepens the
+        # trans_mgr / axi_monitor_timeout / monitor_trans_cam loops past what
+        # the smaller budget can unroll (6 BLKLOOPINIT errors). Do not lower
+        # without re-checking at AR/AW=8 with monitors ON.
+        *verilator_unroll_args(),   # shared budget -- see dv/stream_cfg.py
     ]
     if bool(int(os.environ.get('WAVES', '0'))):
         compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]

@@ -128,6 +128,32 @@ module stream_core #(
     parameter int WR_MON_MAX_TRANS = ((NUM_CHANNELS * AW_MAX_OUTSTANDING + MON_TRANS_MARGIN) < 16)
                                      ? 16 : (NUM_CHANNELS * AW_MAX_OUTSTANDING + MON_TRANS_MARGIN),
 
+    // ---- Monitor CAM banking -------------------------------------------
+    // axi_monitor_trans_mgr generates monitor_trans_cam NUM_BANKS times at
+    // MAX_TRANSACTIONS/NUM_BANKS slots each. Timing scales with the depth of
+    // ONE cam, not the total: 16 deep measured at WNS +1.018 ns, 40 deep at
+    // -25.183 ns. So a table that will not close flat closes as N shallow
+    // banks -- 64 as 4x16 rather than 1x64.
+    //
+    // This matters because RD/WR_MON_MAX_TRANS is DERIVED, not set: it is
+    // NUM_CHANNELS * Ax_MAX_OUTSTANDING + margin, so raising the engines'
+    // outstanding depth silently deepens the CAM. At 8 channels the table is
+    // 24 slots at AR/AW=2 and 72 at AR/AW=8 -- and until now those went to
+    // one flat CAM because this parameter did not exist and the monitors took
+    // trans_mgr's NUM_BANKS default of 1. The observers had been banked at
+    // 4 for exactly this reason; the in-core monitors were not.
+    //
+    // Default 1 keeps every existing build bit-identical. Set it where the
+    // table is deep enough to matter, and keep
+    //     MAX_TRANSACTIONS / NUM_BANKS  >=  IDs-per-bank * outstanding-per-ID
+    // or a bank runs out of slots while its neighbours sit idle.
+    parameter int MON_NUM_BANKS = 1,
+    // Mandatory once a WRITE monitor is banked: trans_mgr $errors out on
+    // (NUM_BANKS > 1 && !IS_READ && !USE_WDATA_ORDER_Q), because the WID-less
+    // fallback is not ID-matched and would double-count a W beat across banks.
+    // Defaulted from MON_NUM_BANKS so a banked build cannot forget it.
+    parameter bit MON_USE_WDATA_ORDER_Q = (MON_NUM_BANKS > 1),
+
     // Monitor Control
     parameter int USE_AXI_MONITORS = 1,      // 1 = Enable monitors, 0 = Disable monitors
     // 0 = omit the per-channel descriptor-engine/scheduler completion/error
@@ -1523,6 +1549,8 @@ module stream_core #(
         .UNIT_ID                (MON_UNIT_ID),
         .AGENT_ID               (RD_AXI_MON_AGENT_ID),
         .MAX_TRANSACTIONS       (RD_MON_MAX_TRANS),
+        // Banked CAM -- see MON_NUM_BANKS. Read side needs no wdata order Q.
+        .NUM_BANKS              (MON_NUM_BANKS),
         .ENABLE_FILTERING       (1),
         .ENABLE_ERROR_LOGIC     (DATA_MON_ENABLE_ERROR_LOGIC),
         .ENABLE_TIMEOUT_LOGIC   (DATA_MON_ENABLE_TIMEOUT_LOGIC),
@@ -1695,6 +1723,10 @@ module stream_core #(
         .UNIT_ID                (MON_UNIT_ID),
         .AGENT_ID               (WR_AXI_MON_AGENT_ID),
         .MAX_TRANSACTIONS       (WR_MON_MAX_TRANS),
+        // Banked CAM -- see MON_NUM_BANKS. The write side additionally needs
+        // USE_WDATA_ORDER_Q once banked, or trans_mgr refuses to elaborate.
+        .NUM_BANKS              (MON_NUM_BANKS),
+        .USE_WDATA_ORDER_Q      (MON_USE_WDATA_ORDER_Q),
         .ENABLE_FILTERING       (1),
         .ENABLE_ERROR_LOGIC     (DATA_MON_ENABLE_ERROR_LOGIC),
         .ENABLE_TIMEOUT_LOGIC   (DATA_MON_ENABLE_TIMEOUT_LOGIC),

@@ -22,12 +22,19 @@
 
 `include "reset_defs.svh"
 
+// Every geometry default below comes from stream_char_cfg_pkg -- ONE source,
+// shared with stream_genesys2_top. Do not write a literal here: a literal is
+// how sim and board drifted apart (build-perf characterized AR/AW=16 against a
+// board built at 2). Override at the instantiation if a test needs to deviate,
+// and say why there.
 module stream_harness #(
     parameter int FPGA_CLK_HZ  = 100_000_000,
     parameter int UART_BAUD    = 115_200,
-    parameter int DATA_WIDTH   = 128,
-    parameter int ADDR_WIDTH   = 32,
-    parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,  // TASK-101 STREAM Extended
+    parameter int DATA_WIDTH   = stream_char_cfg_pkg::CFG_DATA_WIDTH,
+    parameter int ADDR_WIDTH   = stream_char_cfg_pkg::CFG_ADDR_WIDTH,
+    // TASK-101 STREAM Extended addressing
+    parameter int USE_ROW_COL_MAJOR_ADDRESSING =
+                      stream_char_cfg_pkg::CFG_USE_ROW_COL_MAJOR_ADDRESSING,
     // ---- Observer transaction-table sizing (Vivado generics) --------------
     // OBS_MAX_TRANSACTIONS is the TOTAL slots per tap; the CAM is generated
     // OBS_NUM_BANKS times at OBS_MAX_TRANSACTIONS/OBS_NUM_BANKS each, because
@@ -37,29 +44,34 @@ module stream_harness #(
     // Banking is by ID, so per-ID concurrency is capped by the BANK depth:
     //     OBS_MAX_TRANSACTIONS/OBS_NUM_BANKS >= IDs-per-bank * outstanding-per-ID
     // 8 channels x 8 outstanding over 4 banks => 64/4 = 16 per bank.
-    parameter int OBS_MAX_TRANSACTIONS   = 64,
-    parameter int OBS_NUM_BANKS          = 4,
+    parameter int OBS_MAX_TRANSACTIONS   = stream_char_cfg_pkg::CFG_OBS_MAX_TRANSACTIONS,
+    parameter int OBS_NUM_BANKS          = stream_char_cfg_pkg::CFG_OBS_NUM_BANKS,
     // Mandatory once a WRITE monitor is banked: the WID-less select is not
     // ID-matched, and trans_mgr refuses to elaborate without this.
-    parameter bit OBS_USE_WDATA_ORDER_Q  = 1'b1,
+    parameter bit OBS_USE_WDATA_ORDER_Q  = stream_char_cfg_pkg::CFG_OBS_USE_WDATA_ORDER_Q,
     // Heavy in-core AXI monitors (CAM/reporter cones + latency histograms).
     // Default 0 = board build (area): the always-on bus meters still give
     // utilisation. Cosim monitor-validation tests (rw_perf hist tail, obs_equiv,
     // desc_perf) override to 1 to exercise the full monitor suite.
-    parameter int USE_AXI_MONITORS = 0,
-    parameter int SRAM_DEPTH   = 256,
+    parameter int USE_AXI_MONITORS = stream_char_cfg_pkg::CFG_USE_AXI_MONITORS,
+    // In-core AR/AW monitor CAM banking. From the package: ONE build, monitors
+    // on, CAMs banked. See CFG_MON_NUM_BANKS for the depth arithmetic.
+    parameter int MON_NUM_BANKS    = stream_char_cfg_pkg::CFG_MON_NUM_BANKS,
+    parameter int SRAM_DEPTH   = stream_char_cfg_pkg::CFG_SRAM_DEPTH,
     // NUM_CHANNELS is overridable so the FPGA target can build a 4-channel
     // configuration to fit the Artix-7 100T without changing the DUT's native
     // DATA_WIDTH. Valid values: any power of 2 that the DUT supports (1/2/4/8).
-    parameter int NUM_CHANNELS = 8,
+    parameter int NUM_CHANNELS = stream_char_cfg_pkg::CFG_NUM_CHANNELS,
 
-    // Harness-side memory sizing. Defaults match the big ASIC simulation
-    // target. The FPGA top overrides these to fit in Artix-7 BRAM: see
-    // rtl/stream_char_top.sv. Descriptor test traffic uses ~256 B; monitor
-    // trace depth is user-adjustable based on what the characterization
-    // campaign needs to capture.
-    parameter int DESC_RAM_ENTRIES = 2048,   // 2048 × 256 b  = 64 KB
-    parameter int DEBUG_SRAM_WORDS = 65536,  //  64K ×  32 b  = 256 KB
+    // Harness-side memory sizing. These used to default to a "big ASIC
+    // simulation target" (2048 / 65536) that no build ever used, so every
+    // cosim which did not override them ran 8x the descriptor RAM and 16x the
+    // trace depth of the board -- invisibly, because the divergence lived in a
+    // default rather than at a call site. Now they come from the package, i.e.
+    // from silicon. A test that genuinely needs a longer capture overrides at
+    // its own instantiation and says so.
+    parameter int DESC_RAM_ENTRIES = stream_char_cfg_pkg::CFG_DESC_RAM_ENTRIES,
+    parameter int DEBUG_SRAM_WORDS = stream_char_cfg_pkg::CFG_DEBUG_SRAM_WORDS,
 
     // axi_response_delay pipeline depths (in beats). Each delay block
     // models a real memory controller: every beat dwells exactly L cycles
@@ -70,33 +82,33 @@ module stream_harness #(
     //   B channel — AW_MAX_OUTSTANDING (one BRESP per AW)
     // Override these at the top level if you change the engines' AR/AW
     // outstanding parameters or push to longer bursts.
-    parameter int RESP_DELAY_R_CAPACITY = 256,
-    parameter int RESP_DELAY_B_CAPACITY = 16,
+    parameter int RESP_DELAY_R_CAPACITY = stream_char_cfg_pkg::CFG_RESP_DELAY_R_CAPACITY,
+    parameter int RESP_DELAY_B_CAPACITY = stream_char_cfg_pkg::CFG_RESP_DELAY_B_CAPACITY,
 
     // STREAM engine outstanding queue (side-Q) depths. These are the
     // values stream_core uses to size its AR/AW reorder/outstanding-
     // tracking queues — the levers for measuring how much memory latency
     // the engines can hide. Defaults match stream_core's historical
     // values so this parameter is invisible unless overridden.
-    parameter int AR_MAX_OUTSTANDING     = 8,
-    parameter int AW_MAX_OUTSTANDING     = 8,
+    parameter int AR_MAX_OUTSTANDING     = stream_char_cfg_pkg::CFG_AR_MAX_OUTSTANDING,
+    parameter int AW_MAX_OUTSTANDING     = stream_char_cfg_pkg::CFG_AW_MAX_OUTSTANDING,
     // MonBus bulk-trace compression. 1 for this project -- whenever the
     // monitors run, the compressor is in-path. The cocotb characterization
     // test overrides this to 0 to measure the uncompressed baseline.
-    parameter int USE_MON_COMPRESSION    = 1,
+    parameter int USE_MON_COMPRESSION    = stream_char_cfg_pkg::CFG_USE_MON_COMPRESSION,
     // Half-beat packing on the compressed bulk-trace path: two 30-bit slots
     // per 64-bit beat (~80% reduction vs the 66.7% one-slot ceiling). Only
     // meaningful with USE_MON_COMPRESSION=1 and runtime cfg_compress_en.
-    parameter int USE_MON_HALFBEAT       = 1,
+    parameter int USE_MON_HALFBEAT       = stream_char_cfg_pkg::CFG_USE_MON_HALFBEAT,
     // 0 = omit the per-channel completion/error MonBus emitters (descriptor_
     // engine/scheduler) for FPGA area. stream_char_top sets this 0 on the board
     // build; cosim leaves it 1 so the compression-trace tests keep working.
-    parameter bit GEN_MON                = 1'b1,
+    parameter bit GEN_MON                = stream_char_cfg_pkg::CFG_GEN_MON,
     // Agent-resolved tally legal-set size, for BOTH tally memories. The host
     // loads the legal set over each tally's cfg AXIL slave and bins become
     // dense per-agent indices, plus an UNEXPECTED bin at index MON_N_PROFILE.
     // (The CAM is unconditional -- there is no direct-mapped mode to select.)
-    parameter int MON_N_PROFILE          = 64,
+    parameter int MON_N_PROFILE          = stream_char_cfg_pkg::CFG_MON_N_PROFILE,
     // Monitor-validation DATAPATH-monitor cone selection:
     //   0 (default) = "all except error" -> completion/timeout/threshold/perf/debug
     //                 (+ AddrMatch). The error cone is compiled OUT for timing.
@@ -2443,6 +2455,7 @@ module stream_harness #(
         // TASK-101 extended addressing enabled they overflow the xc7a100t LUTs.
         // Removing them (param=0) reclaims the LUTs; the addr-gen logic stays.
         .USE_AXI_MONITORS   (USE_AXI_MONITORS),
+        .MON_NUM_BANKS      (MON_NUM_BANKS),
         // Monitor-validation harness: build the in-core address-range checker
         // (4 ranges per rd/wr monitor; ranges 2,3 = ERROR allowlist, 0,1 = DEBUG).
         // Harmless when USE_AXI_MONITORS=0 (the monitor wrapper omits the checker).

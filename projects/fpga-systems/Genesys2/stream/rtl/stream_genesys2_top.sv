@@ -57,7 +57,11 @@ module stream_genesys2_top #(
     // 90 MHz clock, and reading it as current is how a 4-channel bitstream got
     // built for an 8-channel campaign.
     parameter int NUM_CHANNELS     = 8,
-    parameter int USE_AXI_MONITORS = 1,
+    // ONE build: all monitors on, AR/AW monitor CAMs banked. Both from
+    // stream_char_cfg_pkg so the cosim elaborates the same thing. There is no
+    // monitors-off board flavor to keep in step any more.
+    parameter int USE_AXI_MONITORS = stream_char_cfg_pkg::CFG_USE_AXI_MONITORS,
+    parameter int MON_NUM_BANKS    = stream_char_cfg_pkg::CFG_MON_NUM_BANKS,
     // Agent-resolved tally legal-set size: the host loads a legal set over each
     // tally's cfg AXIL slave; bins become dense per-agent indices, plus an
     // UNEXPECTED bin at index MON_N_PROFILE.
@@ -186,49 +190,32 @@ module stream_genesys2_top #(
     logic       w_timer_done;
     logic       w_timer_pass;
 
+    // Geometry is NOT restated here. DATA/ADDR_WIDTH, SRAM_DEPTH,
+    // DESC_RAM_ENTRIES, DEBUG_SRAM_WORDS, AR/AW_MAX_OUTSTANDING,
+    // RESP_DELAY_*, GEN_MON and USE_ROW_COL_MAJOR_ADDRESSING all default from
+    // stream_char_cfg_pkg via stream_harness. This block used to hand-write
+    // them, which is how the board ended up building AR/AW=2 while build-perf
+    // characterized 16 and the package said 8 -- three answers, no single
+    // source. Only per-BUILD flavor and Vivado generics are passed below.
+    //
+    // AR/AW outstanding is 8 (the package value). It was 2 here, to keep the
+    // trans_mgr CAMs small enough to close timing with every packet-class cone
+    // compiled in -- stream_core sizes them at
+    //   RD/WR_MON_MAX_TRANS = MAX(16, NUM_CHANNELS*Ax_MAX + MON_TRANS_MARGIN)
+    // so 8 channels x 8 outstanding grows the table roughly 4x versus 2.
+    // If the all-cones build will not close, the monitor CAM banking is the
+    // knob to turn -- not the engine's latency hiding. Watch that timing arc.
     stream_harness #(
         .FPGA_CLK_HZ           (FPGA_CLK_HZ),
         .UART_BAUD             (UART_BAUD),
-        .DATA_WIDTH            (128),
-        .ADDR_WIDTH            (32),
-        .SRAM_DEPTH            (256),
         .NUM_CHANNELS          (NUM_CHANNELS),
         .OBS_MAX_TRANSACTIONS  (OBS_MAX_TRANSACTIONS),
         .OBS_NUM_BANKS         (OBS_NUM_BANKS),
         .OBS_USE_WDATA_ORDER_Q (OBS_USE_WDATA_ORDER_Q),
-        .DESC_RAM_ENTRIES      ( 256),   //  256 x 256 b =   8 KB (LUTRAM)
-        .DEBUG_SRAM_WORDS      (4096),   // 4096 x  32 b =  16 KB (~4 BRAM tiles)
-        // In-core rd/wr AXI monitors ON (the point of this bitstream).
-        // stream_core sizes their CAMs at
-        //   RD/WR_MON_MAX_TRANS = MAX(16, NUM_CHANNELS*Ax_MAX + MON_TRANS_MARGIN)
+        // In-core rd/wr AXI monitors ON, with banked CAMs (the point of this
+        // bitstream, and now the only configuration).
         .USE_AXI_MONITORS      (USE_AXI_MONITORS),
-        // AR/AW outstanding = 2 (vs the shared CFG's 8) so the trans_mgr CAMs
-        // stay small enough to meet timing with every packet-class cone built.
-        //
-        // This USED to imply a 12-slot table, and the note here said "light
-        // coverage traffic never needs more". That was wrong, and not because
-        // of traffic volume: a slot is freed when its packet is REPORTED, not
-        // when the transaction completes, and this bitstream compiles FIVE
-        // reporting cones. Occupancy pins at the 8-transaction ceiling under
-        // response delay, leaving 4 slots for reporting backlog -- and at 12
-        // (< 16) cmd_entry_reserve() gives NO recovery reservation, so the
-        // first overrun wedged the monitored bus permanently. Reproduced by
-        // dv/tests/test_stream_mon_perf.py::desc_perf.
-        //
-        // The floor now decouples the table from this knob: AR stays 2 for
-        // timing, the table is 16 for reporting. Watch the CAM timing arc when
-        // changing either.
-        .AR_MAX_OUTSTANDING    (2),
-        .AW_MAX_OUTSTANDING    (2),
-        .RESP_DELAY_R_CAPACITY (stream_char_cfg_pkg::CFG_RESP_DELAY_R_CAPACITY),
-        .RESP_DELAY_B_CAPACITY (stream_char_cfg_pkg::CFG_RESP_DELAY_B_CAPACITY),
-        // Match the A7 board build: per-channel completion/error MonBus
-        // emitters stay off (the harness hard-wires them off toward
-        // stream_top_ch8 regardless; kept explicit for documentation).
-        .GEN_MON               (1'b0),
-        // TASK-101 extended addressing on, same as the A7 bitstream, so this
-        // build runs both legacy contiguous and extended descriptors.
-        .USE_ROW_COL_MAJOR_ADDRESSING (1),
+        .MON_NUM_BANKS         (MON_NUM_BANKS),
         // Agent-resolved tally legal-set size (both tally memories).
         .MON_N_PROFILE          (MON_N_PROFILE),
         // Datapath-monitor cone selection (error-flavor build when 1).

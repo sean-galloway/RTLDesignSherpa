@@ -28,7 +28,13 @@ for _p in (os.path.join(_BUILD, "host"), os.path.join(_AREA, "bin")):
 
 import harness_kick as hk                 # noqa: E402
 import host_ext_char as ec              # noqa: E402
+from stream_addrs import A                # noqa: E402  (by-name STREAM regs)
 from stream_device import Stream          # noqa: E402
+
+# The launch register, by NAME. Never a literal offset -- see
+# [[registers-by-name]]; a pinned number is a test that fails the next time the
+# regmap legitimately moves.
+KICK_ENABLE = A("KICK_ENABLE")
 
 
 class RecordingBridge:
@@ -65,7 +71,13 @@ def test_scaling_defaults():
 
 @pytest.mark.parametrize("nch", [1, 2, 4, 8])
 def test_measure_scaling_kicks_all_channels_once(nch):
-    """N channels each get a descriptor, then ONE KICK_GO fires them together."""
+    """N channels each get a descriptor, then ONE KICK_ENABLE fires them together.
+
+    Was written against the harness KICK_GO CSR, which commits 9cdd860d /
+    c16b2041 retired when the kick moved inside STREAM. The guarantee is
+    unchanged -- one launch write, every channel's bit set, staged addresses
+    first -- so only the register it is asserted against moves.
+    """
     br = RecordingBridge()
     s = _stream(br)
     s.channel_state = lambda ch: CH_IDLE_VAL   # all idle -> _wait_all returns ok
@@ -75,14 +87,17 @@ def test_measure_scaling_kicks_all_channels_once(nch):
     assert rec["beats"] == nch * 8 * 8
     assert rec["ok"] and rec["reason"] == "idle"
 
-    # exactly one KICK_GO, with every channel's bit set, written after the addrs
-    go = [w for w in br.writes if w[0] == hk.CSR_KICK_GO]
+    # exactly one launch, with every channel's bit set, written after the addrs
+    go = [w for w in br.writes if w[0] == KICK_ENABLE]
     assert len(go) == 1
     expected_mask = sum(1 << ch for ch in range(nch))
-    assert go[0] == (hk.CSR_KICK_GO, expected_mask)
-    # each channel's kick-address shadow register was programmed
+    assert go[0] == (KICK_ENABLE, expected_mask)
+    # each channel's descriptor address was staged BEFORE the launch fired
+    launch_idx = [w[0] for w in br.writes].index(KICK_ENABLE)
     for ch in range(nch):
-        assert any(w[0] == hk.kick_addr_csr(ch) for w in br.writes), f"ch{ch} addr missing"
+        assert any(w[0] == hk.kick_addr_csr(ch)
+                   for w in br.writes[:launch_idx]), \
+            f"ch{ch} launched without its descriptor address staged first"
 
 
 def test_measure_scaling_reports_error_channel():

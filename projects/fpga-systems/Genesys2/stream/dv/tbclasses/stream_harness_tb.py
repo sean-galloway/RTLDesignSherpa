@@ -37,7 +37,17 @@ from TBClasses.shared.tbbase import TBBase
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
-from CocoTBFramework.components.uart import UARTMaster, UARTMonitor
+from CocoTBFramework.components.uart import UARTMaster, UARTMonitor  # noqa: F401
+# The SHARED sim half of the char harness. make_uart_channel builds the one
+# UARTMaster/UARTMonitor pair and presents it as a ByteChannel;
+# UARTAxiBridge(channel=...) speaks the W/R ASCII protocol over it -- the SAME
+# object the board's host programs drive through a serial port. See
+# bin/TBClasses/harness/CLAUDE.md: "Don't hand-roll W/R formatting in a
+# sim-only bridge -- reuse UARTAxiBridge via channel injection, or the byte
+# streams drift." This tb did exactly that for four campaigns; see
+# [[uart-harness]] in the vault for what it cost.
+from TBClasses.harness.cocotb_axil_bridge import make_uart_channel
+from TBClasses.harness.byte_channel import TracingChannel
 
 # The area's path authority puts bin/ (descriptor_builder, stream_addrs,
 # harness_addrs) on sys.path. This used to be a hand-built absolute path into
@@ -46,6 +56,9 @@ from CocoTBFramework.components.uart import UARTMaster, UARTMonitor
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 '..', '..', 'bin'))
 import stream_env  # noqa: F401  (import side effect: sys.path setup)
+# The SAME bridge class the board's host programs use (projects/fpga-systems/bin/).
+# stream_env put that dir on sys.path.
+from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 from descriptor_builder import DescriptorBuilder, CharConfig
 # STREAM register addresses resolved BY NAME from stream_regmap.py -- never
 # hardcode addresses (a hardcoded copy drifting from the regmap is exactly what
@@ -302,24 +315,44 @@ class StreamHarnessTB(TBBase):
         uart_baud = self.convert_to_int(os.environ.get('UART_BAUD', '12500000'))
         self.clks_per_bit = fpga_clk_hz // uart_baud
 
-        # UART BFMs
-        self.uart_master = UARTMaster(
-            entity=dut,
-            title="HOST_TX",
-            signal_name="i_uart_rx",
-            clock=self.clk,
-            clks_per_bit=self.clks_per_bit,
-            log=self.log,
+        # UART transport -- ONE pair of BFMs, owned by the shared channel.
+        # self.uart_master / self.uart_monitor are views onto that pair, kept
+        # so the ~129 in-tb async call sites and the harness probes still work.
+        # They are NOT a second pair: two UARTMasters on i_uart_rx would be a
+        # multi-driver conflict and two monitors would race for the same bytes.
+        self._raw_channel = make_uart_channel(
+            dut, self.clk, self.clks_per_bit,
+            rx_signal="i_uart_rx", tx_signal="o_uart_tx", log=self.log,
         )
-        self.uart_monitor = UARTMonitor(
-            entity=dut,
-            title="HOST_RX",
-            signal_name="o_uart_tx",
-            clock=self.clk,
-            clks_per_bit=self.clks_per_bit,
-            direction='RX',
-            log=self.log,
-        )
+        self.uart_master = self._raw_channel.master
+        self.uart_monitor = self._raw_channel.monitor
+
+        # TracingChannel records the wire. This is the equivalence check the
+        # whole abstraction exists for: the board can run the same program
+        # through a TracingChannel over pyserial and the two byte logs diff
+        # directly. Without it, "sim passes / board fails" has no shared
+        # artifact to compare -- which is exactly the position this flow was
+        # in while a board moved zero beats. Off by default (STREAM_UART_TRACE=1)
+        # because it retains every byte of a multi-hour run.
+        self.uart_trace = None
+        if os.environ.get('STREAM_UART_TRACE', '0') == '1':
+            self.uart_trace = TracingChannel(self._raw_channel)
+            self.channel = self.uart_trace
+            self.log.info("UART wire tracing ENABLED (STREAM_UART_TRACE=1)")
+        else:
+            self.channel = self._raw_channel
+
+        # THE bridge. Synchronous, and identical to what host_characterize.py
+        # constructs with port=... on silicon -- only the channel differs. Hand
+        # this to host programs under cocotb.external; never wrap tb.uart_write
+        # in a private shim class (that hooks in ABOVE the ASCII protocol, so
+        # the UART framing the board actually speaks goes untested).
+        self.bridge = UARTAxiBridge(channel=self.channel)
+
+        # THE campaign runner -- the same class the board's host_characterize.py
+        # constructs, over the same bridge. Built lazily via the `runner`
+        # property so importing this module costs nothing.
+        self._runner = None
 
         # Statistics
         self.writes_ok = 0
@@ -770,18 +803,7 @@ class StreamHarnessTB(TBBase):
 
         tb = self
 
-        class _Bridge:
-            def __init__(self):
-                self._w = cocotb.function(tb.uart_write)
-                self._r = cocotb.function(tb.uart_read)
-
-            def write(self, addr, val):
-                return bool(self._w(addr, val))
-
-            def read(self, addr):
-                return self._r(addr)
-
-        stream = Stream(_Bridge(), "stream0",
+        stream = Stream(tb.bridge, "stream0",
                         regs_base=STREAM_APB_BASE, desc_ram_base=DESC_RAM_BASE,
                         data_width=128)
 
@@ -818,18 +840,7 @@ class StreamHarnessTB(TBBase):
 
         tb = self
 
-        class _Bridge:
-            def __init__(self):
-                self._w = cocotb.function(tb.uart_write)
-                self._r = cocotb.function(tb.uart_read)
-
-            def write(self, addr, val):
-                return bool(self._w(addr, val))
-
-            def read(self, addr):
-                return self._r(addr)
-
-        stream = Stream(_Bridge(), "stream0",
+        stream = Stream(tb.bridge, "stream0",
                         regs_base=STREAM_APB_BASE, desc_ram_base=DESC_RAM_BASE,
                         data_width=128)
 
@@ -901,18 +912,7 @@ class StreamHarnessTB(TBBase):
         await self._configure_stream_for_ext()
         tb = self
 
-        class _Bridge:
-            def __init__(self):
-                self._w = cocotb.function(tb.uart_write)
-                self._r = cocotb.function(tb.uart_read)
-
-            def write(self, addr, val):
-                return bool(self._w(addr, val))
-
-            def read(self, addr):
-                return self._r(addr)
-
-        stream = Stream(_Bridge(), "stream0",
+        stream = Stream(tb.bridge, "stream0",
                         regs_base=STREAM_APB_BASE, desc_ram_base=DESC_RAM_BASE,
                         data_width=128)
         bs = stream.desc.bytes_per_beat
@@ -991,18 +991,7 @@ class StreamHarnessTB(TBBase):
         await self._configure_stream_for_ext()
         tb = self
 
-        class _Bridge:
-            def __init__(self):
-                self._w = cocotb.function(tb.uart_write)
-                self._r = cocotb.function(tb.uart_read)
-
-            def write(self, addr, val):
-                return bool(self._w(addr, val))
-
-            def read(self, addr):
-                return self._r(addr)
-
-        stream = Stream(_Bridge(), "stream0",
+        stream = Stream(tb.bridge, "stream0",
                         regs_base=STREAM_APB_BASE, desc_ram_base=DESC_RAM_BASE,
                         data_width=128)
         bs = stream.desc.bytes_per_beat
@@ -1115,6 +1104,73 @@ class StreamHarnessTB(TBBase):
             + "; ".join(tried)
             + ". Set tb.dma_slaves_path explicitly if the harness re-wrapped them."
         )
+
+    @property
+    def runner(self):
+        """`CharacterizationRunner` over the shared bridge -- the board's runner.
+
+        Not a sim variant: this is the identical class `host_characterize.py`
+        builds, given a bridge whose only difference is a cocotb ByteChannel
+        instead of a serial port.
+        """
+        if self._runner is None:
+            from characterization import CharacterizationRunner
+            self._runner = CharacterizationRunner(
+                self.bridge, data_width=128,
+                verbose=os.environ.get('CHAR_VERBOSE', '0') == '1')
+        return self._runner
+
+    async def run_dma_via_runner(self, num_channels: int,
+                                 descriptors_per_channel: int,
+                                 transfer_bytes: int,
+                                 name: str | None = None,
+                                 channels: list | None = None) -> dict:
+        """Run ONE characterization config through the board's own runner.
+
+        This is the equivalence path. `run_dma_test` below is the tb's older
+        hand-rolled orchestration of the same steps, kept because the
+        monitor-validation campaigns layer instrumentation (pkt_mask,
+        addr_range writes, perf-window snapshots) around the DMA that the
+        runner has no notion of. Anything that just wants "move the data the
+        way the board moves it" must come through HERE -- a second
+        orchestration is how sim stopped predicting silicon.
+
+        Synchronous runner in a worker thread via `cocotb.external`; the
+        channel's `cocotb.function` wrappers step the simulator. NOT a pump.
+        """
+        from descriptor_builder import CharConfig
+
+        cfg = CharConfig(
+            name=name or (f"{descriptors_per_channel}desc_{num_channels}ch_"
+                          f"{transfer_bytes // 1024}KB"),
+            num_channels=num_channels,
+            descriptors_per_channel=descriptors_per_channel,
+            transfer_bytes=transfer_bytes,
+            channels=channels,
+        )
+        runner = self.runner
+        # The runner reports with print(); route it into the cocotb log so a
+        # sim run and a board run produce the same narrative. Without this the
+        # runner's own account of the transfer lands in pytest's captured
+        # stdout and the cocotb log looks like nothing happened.
+        runner.log = lambda msg, _l=self.log: _l.info(f"  [runner] {msg}")
+
+        self.log.info(f"=== runner.run_config({cfg.name}) -- board's program ===")
+        result = await cocotb.external(lambda: runner.run_config(cfg))()
+
+        # NOTE the key is 'pass', not 'passed'. Getting this wrong reads as a
+        # DUT failure: .get('passed') is None, bool(None) is False, and the
+        # campaign fails while the hardware was fine.
+        ok = result.get('pass')
+        self.log.info(
+            f"  runner result: pass={ok} error={result.get('error')} "
+            f"crc={result.get('crc')} "
+            f"throughput_mbps={result.get('throughput_mbps')} "
+            f"dma_time_s={result.get('dma_time_s')}")
+        if ok is None:
+            self.log.error(
+                f"  runner returned no 'pass' key -- keys were {sorted(result)}")
+        return result
 
     async def run_dma_test(self, num_channels: int,
                            descriptors_per_channel: int,

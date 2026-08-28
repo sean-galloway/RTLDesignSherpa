@@ -93,6 +93,22 @@ class CocotbUartChannel:
     def is_open(self) -> bool:
         return True
 
+    # ----- BFM access (called from the cocotb side, not the worker thread) --
+    # A testbench that also needs coroutine-level UART access must drive THESE,
+    # not a second UARTMaster/UARTMonitor of its own: two masters on the same
+    # rx pin is a multi-driver conflict, and two monitors race for the same
+    # bytes. Exposing the pair is what lets a TB keep its own async helpers
+    # while there is still exactly one wire.
+    @property
+    def master(self):
+        """The UARTMaster driving the DUT's rx pin."""
+        return self._master
+
+    @property
+    def monitor(self):
+        """The UARTMonitor watching the DUT's tx pin."""
+        return self._monitor
+
 
 def make_uart_channel(dut, clock, clks_per_bit: int, **kwargs) -> CocotbUartChannel:
     """Build a CocotbUartChannel to hand to UARTAxiBridge(channel=...)."""

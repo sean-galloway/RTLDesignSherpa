@@ -32,6 +32,8 @@ for _p in (os.path.join(_AREA, 'dv'), os.path.join(_AREA, 'bin')):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from stream_cfg import num_channels, verilator_unroll_args  # noqa: E402  (reads rtl/stream_cfg_pkg.sv)
+
 # cocotb loads the dispatcher by module NAME; every run() below passes this.
 COCOTB_MODULE = 'cocotb_stream_harness'
 
@@ -76,52 +78,54 @@ _BUILD_HOST = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__fil
 SIM_FPGA_CLK_HZ = 100_000_000
 SIM_UART_BAUD   = 25_000_000   # CLKS_PER_BIT = 100 MHz / 25 MHz = 4
 
-# RTL parameters for the harness
+# RTL parameters for the harness.
+#
+# Geometry comes from stream_char_cfg_pkg via stream_harness's defaults -- the
+# SAME source stream_genesys2_top builds from. This dict used to restate most
+# of it, and the restatement drifted: it characterized AR/AW=16 against a board
+# built at 2, RESP_DELAY_B=32 against 16, SRAM_DEPTH 512 against 256. A perf
+# number measured at 8x the board's outstanding depth was never going to
+# predict the board, and nothing in the flow compared the two.
+#
+# On the sizing argument that justified 16: it is a good argument, and it still
+# holds -- it just has to be made in the package, where the board gets it too.
+# The rw_perf bubble study found the residual ~6% is RD starvation: with 16-beat
+# (256 B) bursts and AR->firstR of 64-127 cyc, AR=8 (8 x 16 = 128 cyc of
+# coverage) sits at the latency knife-edge. The per-channel read buffer is BRAM
+# and 7-series BRAM is pow-2 deep, so outstanding should fill a tile:
+#   AR=8  -> 8 x 16 = 128 beats in flight, x2 headroom = SRAM_DEPTH 256
+#   AR=16 -> 16 x 16 = 256 beats,          x2 headroom = SRAM_DEPTH 512
+# The package is coherent at 8 (256 depth, R cap 256 >= 128, B cap 16 >= 8).
+# Max outstanding is 8 per owner; if the knife-edge is worth buying out, raise
+# CFG_AR/AW_MAX_OUTSTANDING and the capacities together, in the package, and
+# the board build moves with it.
+#
+# SIM_AR_OUTSTANDING / SIM_AW_OUTSTANDING / SIM_SRAM_DEPTH /
+# SIM_RESP_DELAY_R_CAP / SIM_RESP_DELAY_B_CAP still override, for A/B runs.
 BASE_RTL_PARAMS = {
-    'DATA_WIDTH': 128,
-    'ADDR_WIDTH': 32,
-    # Bandwidth-delay-product sizing for the read datapath. The rw_perf bubble
-    # study showed the residual ~6% is 100% RD starvation (bp=0): with 16-beat
-    # (256 B) bursts and a measured AR->firstR latency of 64-127 cyc, the old
-    # AR_MAX_OUTSTANDING=8 (8 x 16 = 128 cyc coverage) sat right at the latency
-    # knife-edge, costing ~1 dead cycle per burst boundary.
-    #
-    # Sizing target = 16: the per-channel SRAM that buffers in-flight read data
-    # is BRAM, and 7-series BRAM is power-of-2 deep (512x72 / 1Kx36 / ... per
-    # primitive). A 128-bit-wide buffer packs onto 512-deep tiles, so any depth
-    # in (256, 512] costs the SAME BRAM as 512 -- a 384-deep SRAM just wastes
-    # entries 384-511. So size outstanding to fill the pow-2 tile: AR=AW=16 ->
-    # 16 x 16-beat = 256 beats in flight, x2 headroom = SRAM_DEPTH 512 (fully
-    # justified, no dead space) and 256 cyc of latency coverage (>> the 127 cyc
-    # worst case). Keeps bursts <= 1024 B (real-system QoS limit -- no long-burst
-    # masking). The R/B response-delay models scale with the in-flight count so
-    # the modeled memory never back-pressures and masks the engine. All
-    # env-overridable to A/B the old 8/256/256 baseline: SIM_AR_OUTSTANDING /
-    # SIM_AW_OUTSTANDING / SIM_SRAM_DEPTH / SIM_RESP_DELAY_R_CAP / _B_CAP.
-    'SRAM_DEPTH': int(os.environ.get('SIM_SRAM_DEPTH', '512')),
-    'AR_MAX_OUTSTANDING': int(os.environ.get('SIM_AR_OUTSTANDING', '16')),
-    'AW_MAX_OUTSTANDING': int(os.environ.get('SIM_AW_OUTSTANDING', '16')),
-    'RESP_DELAY_R_CAPACITY': int(os.environ.get('SIM_RESP_DELAY_R_CAP', '512')),
-    'RESP_DELAY_B_CAPACITY': int(os.environ.get('SIM_RESP_DELAY_B_CAP', '32')),
-    # NUM_CHANNELS shrunk from 8 to 4 to fit the Artix-7 100T BRAM budget.
-    # Keep in lockstep with rtl/stream_harness.sv. Override via
-    # SIM_NUM_CHANNELS env var when investigating bugs that may be tied
-    # to the 8-channel elab (e.g. the deep-chain hang first seen on the
-    # NUM_CHANNELS=8 FPGA build); Verilator doesn't care about BRAM
-    # tiles so bumping this for an investigation run is cheap.
-    'NUM_CHANNELS': int(os.environ.get('SIM_NUM_CHANNELS', '4')),
-    # Harness memories were the dominant BRAM consumers. Mirror the FPGA
-    # values so sim exercises the same sizes as silicon. Bump either when a
-    # test needs deeper descriptor chains or longer trace captures.
-    'DESC_RAM_ENTRIES': 128,    # 128 × 256 b =  4 KB
-    'DEBUG_SRAM_WORDS': 4096,   # 4K × 32 b   = 16 KB
-    # MonBus bulk-trace compression. Project default is 1 (compressor in
+    # From the package, so RTL and TB cannot disagree (see dv/stream_cfg.py).
+    'NUM_CHANNELS': num_channels(),
+    # MonBus bulk-trace compression. Package default is 1 (compressor in
     # path). Override with USE_MON_COMPRESSION=0 to build the uncompressed
     # baseline for the with/without compression characterization.
     'USE_MON_COMPRESSION': int(os.environ.get('USE_MON_COMPRESSION', '1')),
     # NOTE: the CAM pipeline is no longer a parameter -- the monbus compressor
     # CAM and the AXI monitor transaction CAM are ALWAYS pipelined in RTL.
 }
+
+# A/B overrides. Present only when the operator sets them, so an unset run is
+# bit-identical to the board geometry rather than to a sim-local default.
+for _env, _param in (
+    ('SIM_SRAM_DEPTH',        'SRAM_DEPTH'),
+    ('SIM_AR_OUTSTANDING',    'AR_MAX_OUTSTANDING'),
+    ('SIM_AW_OUTSTANDING',    'AW_MAX_OUTSTANDING'),
+    ('SIM_RESP_DELAY_R_CAP',  'RESP_DELAY_R_CAPACITY'),
+    ('SIM_RESP_DELAY_B_CAP',  'RESP_DELAY_B_CAPACITY'),
+    ('SIM_DESC_RAM_ENTRIES',  'DESC_RAM_ENTRIES'),
+    ('SIM_DEBUG_SRAM_WORDS',  'DEBUG_SRAM_WORDS'),
+):
+    if _env in os.environ:
+        BASE_RTL_PARAMS[_param] = int(os.environ[_env])
 
 
 def generate_stream_perf_params():
@@ -280,7 +284,7 @@ def test_stream_perf(request, test_type, test_level):
         # resulting warnings to an error ("Exiting due to N warnings"), which
         # reads as a compile failure rather than an unused-feature notice.
         "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
-        "--unroll-count", "4096", "--unroll-stmts", "20000",
+        *verilator_unroll_args(),   # shared budget -- see dv/stream_cfg.py
     ]
 
 
@@ -395,7 +399,7 @@ def test_stream_perf_ext_suite(request):
         # resulting warnings to an error ("Exiting due to N warnings"), which
         # reads as a compile failure rather than an unused-feature notice.
         "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
-        "--unroll-count", "4096", "--unroll-stmts", "20000",
+        *verilator_unroll_args(),   # shared budget -- see dv/stream_cfg.py
     ]
 
     # Keyed by elaboration inputs so cases sharing a model compile ONCE.
@@ -494,7 +498,7 @@ def test_stream_perf_ext_chain(request):
         # resulting warnings to an error ("Exiting due to N warnings"), which
         # reads as a compile failure rather than an unused-feature notice.
         "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
-        "--unroll-count", "4096", "--unroll-stmts", "20000",
+        *verilator_unroll_args(),   # shared budget -- see dv/stream_cfg.py
     ]
 
     # Keyed by elaboration inputs so cases sharing a model compile ONCE.
@@ -586,7 +590,7 @@ def test_stream_perf_ext_chain_soak(request):
         # resulting warnings to an error ("Exiting due to N warnings"), which
         # reads as a compile failure rather than an unused-feature notice.
         "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
-        "--unroll-count", "4096", "--unroll-stmts", "20000",
+        *verilator_unroll_args(),   # shared budget -- see dv/stream_cfg.py
     ]
 
     # Keyed by elaboration inputs so cases sharing a model compile ONCE.
@@ -681,7 +685,7 @@ def test_stream_perf_ext_char(request):
         # resulting warnings to an error ("Exiting due to N warnings"), which
         # reads as a compile failure rather than an unused-feature notice.
         "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
-        "--unroll-count", "4096", "--unroll-stmts", "20000",
+        *verilator_unroll_args(),   # shared budget -- see dv/stream_cfg.py
     ]
 
     # Keyed by elaboration inputs so cases sharing a model compile ONCE.

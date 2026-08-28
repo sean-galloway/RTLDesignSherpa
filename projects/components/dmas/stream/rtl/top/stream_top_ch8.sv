@@ -88,6 +88,15 @@ module stream_top_ch8 #(
     parameter int AR_MAX_OUTSTANDING = 8,
     parameter int AW_MAX_OUTSTANDING = 8,
 
+    // In-core rd/wr monitor CAM banking. Pass-through to stream_core, which
+    // sizes those CAMs as NUM_CHANNELS*Ax_MAX_OUTSTANDING + margin -- so the
+    // table deepens with the outstanding depth above, and a deep FLAT cam is
+    // what fails timing (16 deep +1.018 ns, 40 deep -25.183 ns). Banking
+    // splits it into MON_NUM_BANKS shallow cams instead. Only meaningful when
+    // USE_AXI_MONITORS=1; ignored otherwise. Default 1 leaves every existing
+    // build bit-identical.
+    parameter int MON_NUM_BANKS = 1,
+
     // Desc-bus monitor reporter sub-block enables. Pass-through to
     // stream_core → scheduler_group_array → axi4_master_rd_mon.
     // Defaults match the unit-level wrapper (5 cones on, debug on for
@@ -1386,6 +1395,7 @@ module stream_top_ch8 #(
                 .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
                 .AXI_ID_WIDTH(AXI_ID_WIDTH),
                 .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
+                .MON_NUM_BANKS(MON_NUM_BANKS),
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
                 .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
                 .USE_AXI_MONITORS(1),     // Enable monitors
@@ -1720,6 +1730,7 @@ module stream_top_ch8 #(
                 .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
                 .AXI_ID_WIDTH(AXI_ID_WIDTH),
                 .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
+                .MON_NUM_BANKS(MON_NUM_BANKS),
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
                 .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
                 .USE_AXI_MONITORS(0),     // Explicitly disable monitors
