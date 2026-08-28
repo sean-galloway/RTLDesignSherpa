@@ -179,7 +179,7 @@ Slave 1 accessed by M1, M1, M0 → Next grant goes to M1
 | **apbx_xbar_1to1** | 1 | 1 | Protocol conversion, testing | ~200 LOC |
 | **apbx_xbar_2to1** | 2 | 1 | Multi-master arbitration | ~400 LOC |
 | **apbx_xbar_1to4** | 1 | 4 | Address decode, simple SoC | ~500 LOC |
-| **apbx_xbar_2to4** | 2 | 4 | Full crossbar, typical SoC | ~1000 LOC |
+| **apbx_xbar_2to4** | 2 | 4 | Full crossbar, typical SoC | ~751 LOC |
 | **apbx_xbar_2to2_mixed** | 2 | 2 | Mixed APB4/APB5 (s0 is APB5) | ~570 LOC |
 | **apbx_xbar_thin** *(RETIRED 2026-08-27)* | `M` (dflt 2) | `S` (dflt 4) | Parameterized MxS, WEIGHTED RR, per-slave base/limit PORTS, APB5+parity | ~300 LOC |
 
@@ -193,8 +193,6 @@ Pre-configured wrappers for common topologies:
 | `apbx_xbar_2to1_wrap` | 2×1 | Dual-master arbitration |
 | `apbx_xbar_1to4_wrap` | 1×4 | Single-master decode |
 | `apbx_xbar_2to4_wrap` | 2×4 | Full SoC crossbar |
-| `apbx_xbar_wrap_m10_s10` | 10×10 | Large crossbar |
-| `apbx_xbar_thin_wrap_m10_s10` | 10×10 | Minimal version |
 
 ---
 
@@ -338,8 +336,8 @@ Options:
 
 | Path | Latency | Notes |
 |------|---------|-------|
-| **Command path** | 6 cycles | master APB phases (2) + apb4_slave capture and cmd skid (2) + apb4_master IDLE/SETUP/ACCESS (3) |
-| **Response path** | 3 cycles | slave response + rsp skid + apb4_slave BUSY→PREADY |
+| **Command path** | 6 cycles | master SETUP (1) + apb4_slave capture and cmd skid (2) + apb4_master IDLE-launch/SETUP/ACCESS (3) |
+| **Response path** | 3 cycles | response into rsp skid (2) + apb4_slave BUSY→PREADY (1) |
 | **Total** | **9 cycles** | PSEL->PREADY, uncontended, zero-wait slave (8 ACCESS->PREADY) |
 
 APB's 2-cycle minimum applies to a directly-attached slave, not through

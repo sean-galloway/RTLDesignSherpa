@@ -213,7 +213,7 @@ The generator creates a complete SystemVerilog module with:
 // 2 masters to 4 slaves using apb4_slave and apb4_master modules
 //
 // (This walkthrough shows the SHIPPED apbx_xbar_2to4 so every constant
-//  below is real. For a 3-to-6 the same shapes scale: 3-bit slave_sel,
+//  below is real (2to4). For a 3-to-6 the shapes scale: 3-bit slave_sel,
 //  a 0x00060000 range bound, and CLIENTS(3) arbiters.)
 //
 // Address Map (same for all masters):
@@ -765,7 +765,7 @@ for masters, slaves, base_addr in variants:
 **Solution:**
 ```bash
 # Verify generator exists
-ls -la bin/apbx_xbar_generator.py
+ls -la projects/components/apbx-xbar/bin/apbx_xbar_generator.py
 
 # Run from bin directory
 cd projects/components/apbx-xbar/bin/
@@ -790,7 +790,7 @@ python generate_xbars.py
 
 **Expected Behavior:**
 - 1x1: ~200 LOC
-- 2x4: ~1000 LOC
+- 2x4: ~751 LOC
 - 16x16: ~25,000 LOC (practical limit)
 
 **Solution:**

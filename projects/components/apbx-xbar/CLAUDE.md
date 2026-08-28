@@ -141,9 +141,10 @@ projects/components/apbx-xbar/
 │       ├── apbx_xbar_2to1_wrap.sv
 │       ├── apbx_xbar_1to4_wrap.sv
 │       ├── apbx_xbar_2to4_wrap.sv
-│       ├── apbx_xbar_wrap.sv
-│       ├── apbx_xbar_wrap_m10_s10.sv
-│       └── apbx_xbar_thin_wrap_m10_s10.sv   # RETIRED -- do not use
+│       ├── apbx_xbar_1to1_wrap.sv
+│       ├── apbx_xbar_1to4_wrap.sv
+│       ├── apbx_xbar_2to1_wrap.sv
+│       └── apbx_xbar_2to4_wrap.sv
 ├── bin/
 │   └── generate_xbars.py       Generator script
 ├── dv/
@@ -546,10 +547,11 @@ You: "Run the generator with --masters 10 --slaves 10"
 
 ✅ CORRECTED:
 "We have pre-configured wrappers in rtl/wrappers/:
-- apbx_xbar_wrap_m10_s10.sv (full version)
-- apbx_xbar_thin_wrap_m10_s10.sv (thin version)
+- apbx_xbar_1to1_wrap.sv, apbx_xbar_2to1_wrap.sv,
+  apbx_xbar_1to4_wrap.sv, apbx_xbar_2to4_wrap.sv
 
-Use those for faster integration!"
+Those are the four that exist. For any other MxS, generate one with
+bin/generate_xbars.py -- there is no m10_s10 wrapper in the tree."
 ```
 
 ---

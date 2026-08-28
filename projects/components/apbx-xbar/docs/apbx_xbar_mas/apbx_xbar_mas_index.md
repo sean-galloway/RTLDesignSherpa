@@ -57,16 +57,16 @@ This specification covers the APB Crossbar component - a parametric MxN intercon
 ### For New Users
 
 1. Start with [README.md](README.md) for overview and quick start
-2. Read [01_architecture.md](01_architecture.md) to understand the design
-3. Study [02_address_and_arbitration.md](02_address_and_arbitration.md) for operational details
-4. Reference [03_rtl_generator.md](03_rtl_generator.md) if custom configuration needed
+2. Read [01_architecture.md](chapters/01_architecture.md) to understand the design
+3. Study [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md) for operational details
+4. Reference [03_rtl_generator.md](chapters/03_rtl_generator.md) if custom configuration needed
 
 ### For Integration
 
-- **Pre-generated variants:** See [01_architecture.md](01_architecture.md) Section "Pre-Generated Variants"
-- **Custom generation:** See [03_rtl_generator.md](03_rtl_generator.md) Section "Quick Start"
-- **Address mapping:** See [02_address_and_arbitration.md](02_address_and_arbitration.md) Section "Address Decode"
-- **Arbitration behavior:** See [02_address_and_arbitration.md](02_address_and_arbitration.md) Section "Arbitration"
+- **Pre-generated variants:** See [01_architecture.md](chapters/01_architecture.md) Section "Pre-Generated Variants"
+- **Custom generation:** See [03_rtl_generator.md](chapters/03_rtl_generator.md) Section "Quick Start"
+- **Address mapping:** See [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md) Section "Address Decode"
+- **Arbitration behavior:** See [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md) Section "Arbitration"
 
 ### Common Questions
 

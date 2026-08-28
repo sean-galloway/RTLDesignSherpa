@@ -64,8 +64,8 @@ This directory contains visual documentation for the APB Crossbar component, inc
 
 | Diagram | Format | Description |
 |---------|--------|-------------|
-| [apbx_xbar_architecture](apbx_xbar_mas/assets/graphviz/apbx_xbar_architecture.gv) | Graphviz | 2x4 crossbar showing master-side slaves, arbitration, slave-side masters |
-| [address_decode_flow](apbx_xbar_mas/assets/graphviz/address_decode_flow.gv) | Graphviz | Step-by-step address decode example (0x10023456 → Slave 2) |
+| [apbx_xbar_architecture](assets/graphviz/apbx_xbar_architecture.gv) | Graphviz | 2x4 crossbar showing master-side slaves, arbitration, slave-side masters |
+| [address_decode_flow](assets/graphviz/address_decode_flow.gv) | Graphviz | Step-by-step address decode example (0x10023456 → Slave 2) |
 
 **Rendered Formats:**
 - PNG: `assets/svg/*.svg` (for markdown embedding)
@@ -75,7 +75,7 @@ This directory contains visual documentation for the APB Crossbar component, inc
 
 | Diagram | Format | Description |
 |---------|--------|-------------|
-| [arbitration_round_robin](apbx_xbar_mas/assets/wavedrom/arbitration_round_robin.json) | WaveJSON | 2 masters competing for Slave 0 with round-robin arbitration |
+| [arbitration_round_robin](assets/wavedrom/arbitration_round_robin.json) | WaveJSON | 2 masters competing for Slave 0 with round-robin arbitration |
 
 **Rendered Format:**
 - PNG: `assets/svg/arbitration_round_robin.svg`
@@ -244,7 +244,7 @@ python generate_xbars.py --masters 2 --slaves 4 --base-addr 0x80000000
 2. Modify generator's decode logic (advanced)
 3. Address translation in slaves
 
-**See:** [03_rtl_generator.md#limitations](03_rtl_generator.md#generator-limitations-and-future-work)
+**See:** [03_rtl_generator.md#limitations](chapters/03_rtl_generator.md#generator-limitations-and-future-work)
 
 ### Q: How does arbitration work with 3+ masters?
 
@@ -259,7 +259,7 @@ Transaction 4: M0, M1 request → M0 granted → Priority rotates to M1
 
 **Key:** Priority rotates after each grant, ensuring fairness.
 
-**See:** [02_address_and_arbitration.md#arbitration](02_address_and_arbitration.md#arbitration-example-walkthrough)
+**See:** [02_address_and_arbitration.md#arbitration](chapters/02_address_and_arbitration.md#arbitration-example-walkthrough)
 
 ### Q: What's the throughput?
 
@@ -276,7 +276,7 @@ Transaction 4: M0, M1 request → M0 granted → Priority rotates to M1
 - Full parallelism: Each master gets 100% of its target slave
 - Total system bandwidth = (number of slaves) × slave_bandwidth
 
-**See:** [02_address_and_arbitration.md#performance](02_address_and_arbitration.md#performance-characteristics)
+**See:** [02_address_and_arbitration.md#performance](chapters/02_address_and_arbitration.md#performance-characteristics)
 
 ---
 

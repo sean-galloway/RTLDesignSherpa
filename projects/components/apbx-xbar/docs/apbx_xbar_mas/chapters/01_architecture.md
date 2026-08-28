@@ -168,10 +168,10 @@ thin core takes M and S as parameters.
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
-| `ADDR_WIDTH: 18-64 for the decoding variants (the slave-index part-select reads bit 17); 1-64 for 1to1/2to1 | 32 | Address bus width |
+| `ADDR_WIDTH` | 18-64 (decoding variants); 1-64 (1to1/2to1) | 32 | Address bus width |
 | `DATA_WIDTH` | 8-64 | 32 | Data bus width |
 | `STRB_WIDTH` | derived | `DATA_WIDTH/8` | Write strobe width |
-| `BASE_ADDR` | Any | 0x10000000 | Base of the slave address map |
+| `BASE_ADDR` | any except the top S x 64KB (where BASE+span wraps 32-bit) | 0x10000000 | Base of the slave address map |
 
 : Generated-Variant Parameters
 
@@ -185,7 +185,7 @@ reference only:
 |-----------|-------|---------|-------------|
 | `M` | 1-16 | 2 | Number of APB masters |
 | `S` | 1-16 | 4 | Number of APB slaves |
-| `ADDR_WIDTH: 18-64 for the decoding variants (the slave-index part-select reads bit 17); 1-64 for 1to1/2to1 | 32 | Address bus width |
+| `ADDR_WIDTH` | 18-64 (decoding variants); 1-64 (1to1/2to1) | 32 | Address bus width |
 | `DATA_WIDTH` | 8-64 | 32 | Data bus width |
 | `STRB_WIDTH` | derived | `DATA_WIDTH/8` | Write strobe width |
 | `MAX_THRESH` | ≥1 | 16 | Arbiter weight ceiling |

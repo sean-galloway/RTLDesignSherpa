@@ -134,7 +134,7 @@ python generate_xbars.py \
     --masters 3 \
     --slaves 6 \
     --base-addr 0x80000000 \
-    --output apbx_xbar_3to6.sv
+   
 ```
 
 | Option | Description | Default |

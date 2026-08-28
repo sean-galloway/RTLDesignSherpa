@@ -252,7 +252,12 @@ pytest projects/components/apbx-xbar/dv/tests/ -v  # All variants
   cycles; they do not overlap inside the fabric (~9 pclk cycles each)
 - **Single-cycle arbitration**: New grants issued the cycle AFTER the previous completion (the
 arbiter's grant is registered)
-- **Pipelined datapath**: Command and response phases overlap different transactions
+- **No datapath pipelining across transactions**: `apb4_slave` is a
+  one-command-at-a-time FSM (IDLE->BUSY->WAIT) that captures the next
+  command only after the previous response is consumed, and the grant
+  is held to the response handshake (`WAIT_GNT_ACK(1)`), so a second
+  command never queues behind an executing one. Sustained cadence
+  equals full latency (~9 pclk cycles per transfer).
 
 ## Known Limitations
 

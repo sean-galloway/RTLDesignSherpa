@@ -34,7 +34,7 @@ When a master has exclusive access to a slave:
 | Master SETUP | 1 | PSEL high, PENABLE low |
 | apb4_slave capture + cmd skid | 2 | command registered out |
 | apb4_master IDLE-launch / SETUP / ACCESS | 3 | downstream PSEL then PENABLE |
-| Response + rsp skid | 1 | slave PREADY into the return skid |
+| Response + rsp skid | 2 | slave PREADY through the return skid |
 | apb4_slave BUSY -> PREADY | 1 | master-visible completion |
 | **Total** | **9** | PSEL to PREADY (8 of them ACCESS to PREADY) |
 

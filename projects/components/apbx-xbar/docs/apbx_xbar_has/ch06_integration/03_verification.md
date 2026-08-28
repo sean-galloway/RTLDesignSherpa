@@ -51,7 +51,7 @@ Tests for each variant include:
 For multi-slave variants:
 - Verify each slave selected by correct address range
 - Boundary address testing
-- Invalid address behavior
+- Invalid address behavior (decoding variants complete the access with PSLVERR; they do not hang -- see 4.1)
 
 ### Arbitration Testing
 
