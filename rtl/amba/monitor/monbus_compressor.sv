@@ -66,7 +66,7 @@
 //   The result skid is credit-gated, and the credit round trip is 3 cycles
 //   (present T -> CAM result T+1 -> registered skid rd_valid and pop T+2 ->
 //   credit visible T+3), so N credits sustain N/3 records/cycle. SKID_DEPTH
-//   was 2, which is where the long-standing 0.67/cycle came from while this
+//   was 2, which is where the measured 0.67/cycle came from while this
 //   comment claimed 1.0; it is now 3. Deepening the skid does NOT reopen the
 //   65-bit format-C path the skid was added to break -- it adds an entry, it
 //   does not shorten a cone.
@@ -233,9 +233,9 @@ module monbus_compressor
     // THREE, not two. The credit round trip is 3 cycles -- present at T,
     // CAM result T+1, registered skid rd_valid and pop T+2, credit visible
     // again T+3 -- so N credits sustain N/3 records per cycle. At 2 that is
-    // the 0.67/cycle this design measured for a long time while its comments
-    // claimed 1.0; at 3 it is exactly 1.0, which the input handshake caps
-    // anyway, so 4 would buy nothing.
+    // the 0.67/cycle measured at depth 2, against comments that claimed 1.0;
+    // at 3 it is exactly 1.0, which the input handshake caps anyway, so 4
+    // would buy nothing.
     //
     // The credit ceiling CANNOT be raised without the skid depth. monbus_cam_pipe
     // has no result_ready -- results are autonomous -- and skid_wr_ready is not

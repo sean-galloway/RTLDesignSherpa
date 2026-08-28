@@ -9,8 +9,8 @@
 //          packets into a count SRAM addressed by a CSR-loaded legal-set
 //          dense index. (The direct-mapped {protocol, pkt_type, event_code}
 //          path and the PROFILE_MODE switch were REMOVED -- the legal-set CAM
-//          is always in the path. This banner described both for a while
-//          after they were deleted; qc round_24.) Formerly: a
+//          is always in the path. This banner still described both after
+//          they were deleted; qc round_24.) Formerly: a
 //          CSR-loaded legal-set dense index). This is the silicon twin of the
 //          sim-side packet-type coverage matrix (bin/monbus_coverage_report +
 //          TBClasses.monbus.parse): a bin count > 0 means "this message was

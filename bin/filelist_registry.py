@@ -222,8 +222,8 @@ def cmd_check(reg: dict) -> int:
         # An area whose rtl_roots no longer exist reports "0 modules, 0
         # uncovered" and PASSES -- rglob on a missing directory yields nothing,
         # so a deleted area stays registered indefinitely and nothing notices.
-        # That is how integ_amba and integ_common outlived the RTL they
-        # described by a month (their code went in 01d1c3e6; the areas, the two
+        # That is how integ_amba and integ_common survived the deletion of the
+        # RTL they described (their code went in 01d1c3e6; the areas, the two
         # doc books and the index links did not). Same blind-spot class the
         # registry was built to close, one level up: a module can hide by
         # having too little, and an AREA can hide by not existing.

@@ -247,12 +247,12 @@ original text below)
 The RTL was deleted in `01d1c3e6` ("removed old integ_* code that was used for
 bfm development"), which took BOTH `rtl/integ_amba/` and `rtl/integ_common/`.
 Sean asked whether it was already gone; it was -- but the deletion left residue
-in four places and none of the tooling noticed for a month:
+in four places, and no tooling flagged any of it (deletion 2026-08-19, found 2026-08-27):
 
   * `bin/filelists.toml` still declared both areas, pointing at directories
     that no longer existed;
   * `docs/markdown/rtl-integ-amba/` and `rtl-integ-common/` -- two whole doc
-    books, 4 + 4 pages, documenting deleted modules;
+    books, 11 pages total, documenting deleted modules;
   * `docs/markdown/index.md` linked both books in two places, one of them
     still saying "2 modules -- currently not building, see
     AMBA-INTEG-EXAMPLES";

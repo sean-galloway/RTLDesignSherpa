@@ -386,8 +386,8 @@ under back-to-back compression bursts. Sustained throughput is
 **1 record/cycle** (measured): the pipelined CAM's +1 cycle is absorbed, and
 `SKID_DEPTH=3` gives three credits against the 3-cycle credit round trip
 (present → CAM result → registered skid pop → credit returned), which is
-exactly what the input handshake can consume. It was 2 for a long time, which
-is where the old 0.67/cycle came from. The single-cycle
+exactly what the input handshake can consume. At the previous depth of 2 the
+measured rate was 0.67/cycle. The single-cycle
 `monbus_cam.sv` is kept in-tree as the reference design (see its doc
 for the deprecation note).
 
