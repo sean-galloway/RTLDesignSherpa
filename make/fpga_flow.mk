@@ -442,9 +442,41 @@ timing:             ## Print the latest timing summary + failing hotspots
 	    head -20 $(REPORTS)/timing_failing_hotspots.txt; \
 	fi
 
+# ---- Keep --------------------------------------------------------------
+# `clean` treats the build dir as disposable, which is correct -- so nothing
+# worth keeping may live there. This promotes the current build into the area's
+# `stable/` sibling, which no clean target touches and which IS tracked.
+# One slot: it overwrites. See <area>/stable/MANIFEST.md.
+STABLE_DIR ?= $(SELF_DIR)/../stable
+
+.PHONY: keep
+keep:               ## Copy this build's bitstream + reports to ../stable/
+	@[ -f "$(BITSTREAM)" ] || \
+	    (echo "[keep] no bitstream at $(BITSTREAM) -- build first" && false)
+	@echo "[keep] $(FLOW) -> $(STABLE_DIR)"
+	@mkdir -p $(STABLE_DIR)/bitstream $(STABLE_DIR)/reports
+	@rm -f $(STABLE_DIR)/bitstream/* $(STABLE_DIR)/reports/*
+	@cp $(BITSTREAM) $(STABLE_DIR)/bitstream/
+	@[ -d "$(REPORTS)" ] && cp -r $(REPORTS)/. $(STABLE_DIR)/reports/ || true
+	@echo "[keep] copied. NOW UPDATE $(STABLE_DIR)/MANIFEST.md -- a stable"
+	@echo "[keep] artifact with a stale manifest is worse than none: it"
+	@echo "[keep] describes a build that is no longer there."
+
 # ---- Clean -----------------------------------------------------------------
+# Refuses to delete anything git is tracking. The build dirs are ignored (see
+# .gitignore, build-*/fpga/) so this should never trigger -- but it has cost a
+# verified bitstream more than once, and a guard that never fires is cheap.
 clean:              ## Remove Vivado artifacts, reports and the bitstream
 	@echo "[clean] $(FLOW)"
+	@tracked=$$(cd $(REPO_ROOT) && git ls-files --error-unmatch \
+	    $(BUILD_DIR) $(REPORTS) $(BITSTREAM) $(ILA_BITSTREAM) 2>/dev/null); \
+	 if [ -n "$$tracked" ]; then \
+	    echo "[clean] REFUSING -- these are tracked in git:"; \
+	    echo "$$tracked" | sed 's/^/  /'; \
+	    echo "[clean] A build dir must not hold tracked files. Move what is"; \
+	    echo "[clean] worth keeping to ../stable (make keep) and untrack these."; \
+	    exit 1; \
+	 fi
 	rm -rf $(BUILD_DIR) $(REPORTS) $(SELF_DIR)/.Xil
 	rm -f  $(BITSTREAM) $(ILA_BITSTREAM)
 	rm -f  $(SELF_DIR)/vivado.log $(SELF_DIR)/vivado.jou

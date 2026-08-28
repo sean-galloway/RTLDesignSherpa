@@ -302,6 +302,21 @@ vivado*
 !**/flows-*/bitstream/.gitkeep
 !**/flows-*/reports/.gitkeep
 
+# The same policy for the NEWER build-<flavor>/fpga/ layout (Genesys2 stream,
+# NexysA7 pumice, ...). These dirs already carried the .gitkeep placeholders
+# that belong to the rule above, but the `flows-*` patterns never matched them,
+# so 43 files / 21 MB of Vivado output ended up tracked against this policy --
+# and `make clean-all`, which correctly treats a build dir as disposable, then
+# deleted TRACKED files. That destroyed a verified bitstream more than once
+# (see Genesys2/stream/stable/MANIFEST.md).
+#
+# Anything worth keeping is COPIED to the area's `stable/` sibling, which is
+# outside every clean target's blast radius -- `make -C <build-dir> keep`.
+**/build-*/fpga/bitstream/*
+**/build-*/fpga/reports/*
+!**/build-*/fpga/bitstream/.gitkeep
+!**/build-*/fpga/reports/.gitkeep
+
 # Vivado scratch dirs (created anywhere a Vivado tool runs, including under
 # dv/tests/.../ when a sim picks up xsim or runs a Vivado helper).
 **/.Xil/
