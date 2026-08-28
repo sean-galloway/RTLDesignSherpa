@@ -46,7 +46,7 @@ from cocotb.triggers import RisingEdge, ReadOnly
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -412,7 +412,7 @@ def test_monbus_pkt_tally(request, addr_bits, count_width, num_latch, n_profile)
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     test_name = f"test_{worker_id}_{dut_name}_a{ab}_c{cw}_n{npf}_{reg_level}"
     log_path  = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

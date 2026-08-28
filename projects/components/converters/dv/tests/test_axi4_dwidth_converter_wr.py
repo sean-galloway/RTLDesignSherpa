@@ -31,7 +31,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 from TBClasses.axi4.axi4_dwidth_converter_wr_tb import AXI4DWidthConverterWriteTB
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -223,7 +223,7 @@ def test_axi4_dwidth_converter_wr(request, params):
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Simulation build directory
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
 
     # Results directory

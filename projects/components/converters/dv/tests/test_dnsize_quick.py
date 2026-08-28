@@ -10,7 +10,7 @@ import sys
 
 # Import testbench class from project area
 from projects.components.converters.dv.tbclasses.axi_data_dnsize_tb import AXIDataDnsizeTB
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -68,7 +68,7 @@ def test_axi_data_dnsize_quick(request, params):
 
 
     # Simulation build directory
-    sim_build = os.path.join(tests_dir, 'local_sim_build', f'test_dnsize_quick_{description}')
+    sim_build = sim_build_path(tests_dir, f'test_dnsize_quick_{description}')
     os.makedirs(sim_build, exist_ok=True)
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation

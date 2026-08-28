@@ -67,7 +67,7 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer, Edge, with_timeout
 from cocotb_test.simulator import run
 
 from TBClasses.monbus import parse
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -644,7 +644,7 @@ def test_mon_cg_gating(dut_key, idle_count):
 
     test_name = f'test_{worker_id}_mon_cg_gating_{dut_key}_ic{idle_count}'
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

@@ -19,7 +19,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, get_wave_config
+from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 S0_BASE = 0x1000_0000   # slave0 (APB5), 64KB window
@@ -184,7 +184,7 @@ def test_apbx_xbar_2to2_mixed(request):
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
+    sim_build = sim_build_path(tests_dir, sim_build_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

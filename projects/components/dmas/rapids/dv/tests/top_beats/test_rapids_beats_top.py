@@ -19,7 +19,7 @@ Datapath tests for rapids_beats_top (SPLIT core).
 Config is programmed BY NAME over the 13-bit APB register chain (two RegisterMap
 instances, SRC @ 0x0000 / SNK @ 0x1000); descriptors are kicked off through the
 per-half apb4todescr kick windows (SRC 0x000-0x03F, SNK 0x1000-0x103F). The
-merged MonBus stream is consumed by the always-present monbus_axil_axil_group,
+merged MonBus stream is consumed by the always-present monbus_axil4_axil4_group,
 whose bulk-capture master (m_axil_mon_*) is backed by a trivial always-accept
 write responder in the TB.
 
@@ -39,7 +39,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 repo_root = get_repo_root()
@@ -124,7 +124,7 @@ def _run_top(testcase, test_name):
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     results_path = os.path.join(log_dir, f'results_{test_name}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

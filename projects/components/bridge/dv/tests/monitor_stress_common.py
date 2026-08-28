@@ -32,7 +32,7 @@ import cocotb
 from cocotb.triggers import ClockCycles, RisingEdge
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_wave_config
+from TBClasses.shared.utilities import get_wave_config, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 from TBClasses.monbus import PktType, ProtocolType
@@ -526,7 +526,7 @@ def run_monitor_sim(*, module, repo_root, tests_dir, log_dir, dut_name, testcase
     sim_build_name = f"{testcase}{worker_suffix}"
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
+    sim_build = sim_build_path(tests_dir, sim_build_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

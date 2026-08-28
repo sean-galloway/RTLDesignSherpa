@@ -21,7 +21,7 @@ import pytest
 from cocotb_test.simulator import run
 
 from TBClasses.amba.cdc_open_loop import CDCOpenLoopTB
-from TBClasses.shared.utilities import create_view_cmd, get_paths
+from TBClasses.shared.utilities import create_view_cmd, get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -227,7 +227,7 @@ def test_cdc_open_loop(request, params):
     )
 
     log_path     = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build    = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build    = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

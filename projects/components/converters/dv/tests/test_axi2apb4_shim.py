@@ -34,7 +34,7 @@ from CocoTBFramework.components.axi4.axi4_factories import create_axi4_master_wr
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -706,7 +706,7 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
     test_name_plus_params = f"test_{dut_name}_aw{aw_str}_dw{dw_str}_uw{uw_str}_aaw{aaw_str}_adw{adw_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')

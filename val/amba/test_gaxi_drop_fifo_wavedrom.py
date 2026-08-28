@@ -55,7 +55,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     SignalTransition,
     TemporalRelation
 )
-from TBClasses.shared.utilities import get_wavejson_dir, get_paths
+from TBClasses.shared.utilities import get_wavejson_dir, get_paths, sim_build_path
 from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
@@ -436,7 +436,7 @@ def test_gaxi_drop_fifo_wavedrom(data_width, depth):
 
     test_name = f"test_{worker_id}_gaxi_drop_fifo_wavedrom_dw{data_width}_d{depth}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

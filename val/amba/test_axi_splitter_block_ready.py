@@ -41,7 +41,7 @@ import pytest
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 IS_WRITE = os.environ.get("SPLITTER_IS_WRITE", "0") == "1"
@@ -150,7 +150,7 @@ def test_axi_splitter_block_ready(is_write):
     dut_name = "axi_master_wr_splitter" if is_write else "axi_master_rd_splitter"
     test_name = f"test_{worker_id}_{dut_name}_block_ready"
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

@@ -19,6 +19,7 @@ import subprocess
 import inspect
 import logging
 import tempfile
+import time
 from typing import Dict, Tuple, Optional, List
 
 
@@ -27,6 +28,141 @@ def get_repo_root():
     repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
 
     return repo_root
+
+
+# ---------------------------------------------------------------------------
+# Simulation build root, and the busy semaphore that protects it.
+#
+# WHY THIS EXISTS. val/<area>/local_sim_build/ used to be a single shared
+# build root. Deleting from it while a run is in flight destroys that run's
+# build -- reproduced directly: start a parallel set, rm -rf one glob three
+# seconds in, and a test fails with
+# "FileNotFoundError: RTL source not found" plus a Verilator make error.
+# In a shared worktree with concurrent agent sessions, nobody can tell whose
+# build they are deleting, and the victim reads as a flaky test.
+# See VAL-XDIST-INTERMITTENT.
+#
+# Two independent protections, because either alone leaves a hole:
+#   SIM_BUILD_ROOT -- give each session its own root, so sessions never
+#                     share a collision domain in the first place.
+#   .sim_busy      -- a per-directory marker naming the owning session and
+#                     pid, so anything cleaning a SHARED root can tell an
+#                     in-flight build from an abandoned one.
+# ---------------------------------------------------------------------------
+
+SIM_BUSY_MARKER = '.sim_busy'
+
+
+def sim_session_id() -> str:
+    """Identity of the session that owns a build directory.
+
+    Explicit SIM_SESSION_ID wins. Otherwise derive one from SIM_BUILD_ROOT
+    (a session that set its own root has already declared itself), and fall
+    back to 'shared' for the legacy single-root behaviour.
+    """
+    sid = os.environ.get('SIM_SESSION_ID')
+    if sid:
+        return sid
+    root = os.environ.get('SIM_BUILD_ROOT')
+    if root:
+        return os.path.basename(os.path.normpath(root)) or 'shared'
+    return 'shared'
+
+
+def sim_build_root(tests_dir: str) -> str:
+    """Root under which this session's Verilator build trees live.
+
+    Unset SIM_BUILD_ROOT keeps the historical <tests_dir>/local_sim_build,
+    so nothing changes for anyone who does not opt in.
+
+    When SIM_BUILD_ROOT is set, the per-area structure is PRESERVED beneath
+    it (<root>/<area path>/local_sim_build) rather than flattened. Flattening
+    would trade a cross-session collision for a cross-area one, since build
+    directory names are only unique within an area.
+    """
+    root = os.environ.get('SIM_BUILD_ROOT')
+    if not root:
+        return os.path.join(tests_dir, 'local_sim_build')
+
+    tests_dir = os.path.abspath(tests_dir)
+    try:
+        repo_root = subprocess.check_output(
+            ['git', 'rev-parse', '--show-toplevel'],
+            cwd=tests_dir, text=True, stderr=subprocess.DEVNULL).strip()
+        rel = os.path.relpath(tests_dir, repo_root)
+    except Exception:
+        rel = os.path.basename(tests_dir)
+    return os.path.join(os.path.abspath(root), rel, 'local_sim_build')
+
+
+def sim_build_path(tests_dir: str, name: str, mark_busy: bool = True) -> str:
+    """Full build directory for one test, created and marked in use.
+
+    The marker records session, pid and start time. It is advisory: it does
+    not lock anything, it just lets a cleaner distinguish "another session is
+    building here right now" from "leftover from a run that ended", which is
+    the distinction that was missing when this bit us.
+    """
+    path = os.path.join(sim_build_root(tests_dir), name)
+    os.makedirs(path, exist_ok=True)
+    if mark_busy:
+        try:
+            with open(os.path.join(path, SIM_BUSY_MARKER), 'w') as fh:
+                fh.write(f"session={sim_session_id()}\n"
+                         f"pid={os.getpid()}\n"
+                         f"started={time.time():.0f}\n")
+        except OSError:
+            # Never fail a test because the advisory marker could not be
+            # written -- it is a cleanup aid, not a correctness mechanism.
+            pass
+    return path
+
+
+def sim_build_is_busy(path: str, max_age_s: int = 7200) -> Optional[dict]:
+    """Return the owner's marker if this directory is actively being built in.
+
+    LIVENESS IS THE TEST, NOT SESSION IDENTITY. An earlier version exempted
+    "my own session", reasoning that a session may clean up after itself.
+    That protected nobody: sim_session_id() is 'shared' for everyone who has
+    not set SIM_BUILD_ROOT or SIM_SESSION_ID, so the common case compared
+    'shared' to 'shared' and cleaned straight through live builds. Verified by
+    racing the cleaner against a live run -- 10 removed, 0 skipped, and the
+    original failure reproduced.
+
+    A directory is busy when its marker names a pid that is STILL ALIVE and is
+    not this process. Stale markers (dead owner, or older than max_age_s) are
+    reclaimable. Session id is recorded and reported for diagnosis, but it
+    never grants permission to delete.
+    """
+    marker = os.path.join(path, SIM_BUSY_MARKER)
+    if not os.path.isfile(marker):
+        return None
+    info = {}
+    try:
+        for line in open(marker):
+            if '=' in line:
+                k, v = line.strip().split('=', 1)
+                info[k] = v
+    except OSError:
+        return None
+
+    try:
+        if time.time() - float(info.get('started', 0)) > max_age_s:
+            return None                    # abandoned long ago
+    except (TypeError, ValueError):
+        return None                        # unparseable marker: do not block
+
+    pid = info.get('pid')
+    if not (pid and pid.isdigit()):
+        return None
+    pid = int(pid)
+    if pid == os.getpid():
+        return None                        # our own marker
+    try:
+        os.kill(pid, 0)                    # signal 0 = liveness probe only
+    except OSError:
+        return None                        # owner is gone; safe to reclaim
+    return info
 
 
 def get_paths(dir_dict):
@@ -452,7 +588,7 @@ def get_paths_with_struct(dir_dict: Dict[str, str], struct_name: str, sim_build:
 
     # Auto-generate sim_build if not provided
     if not sim_build:
-        sim_build = os.path.join(tests_dir, 'local_sim_build', f'{module}_{struct_name}')
+        sim_build = sim_build_path(tests_dir, f'{module}_{struct_name}')
 
     # Extract struct information
     try:

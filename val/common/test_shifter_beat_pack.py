@@ -22,7 +22,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.common.shifter_beat_pack_tb import ShifterBeatPackTB
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from cov_utils.conftest_coverage import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.field_config import FieldConfig
@@ -191,7 +191,7 @@ def test_shifter_beat_pack(request, test_type, chunk_bits, max_beat_bytes,
     if worker_id:
         test_name = f"{test_name}_{worker_id}"
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     log_path     = os.path.join(log_dir, f"{test_name}.log")
     results_path = os.path.join(log_dir, f"results_{test_name}.xml")
     os.makedirs(sim_build, exist_ok=True)

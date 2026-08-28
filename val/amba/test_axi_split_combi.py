@@ -41,7 +41,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.axi_split_combi_tb import RealisticAxiSplitTB
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -104,7 +104,7 @@ def test_axi_split_realistic(request, params):
 
     # Setup paths
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -207,7 +207,7 @@ def test_axi_split_realistic(request, params):
 
     # Setup paths
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))

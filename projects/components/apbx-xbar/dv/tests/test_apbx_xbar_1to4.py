@@ -32,7 +32,7 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.utilities import get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Add repo root to Python path using robust git-based method
@@ -456,7 +456,7 @@ def test_apbx_xbar_1to4(request, aw, dw, base):
 
     test_name = f'test_apbx_xbar_1to4_aw{aw:03d}_dw{dw:03d}_b{base:08x}'
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
 
     run(

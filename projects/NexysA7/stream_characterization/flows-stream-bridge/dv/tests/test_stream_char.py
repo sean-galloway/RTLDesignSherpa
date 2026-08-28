@@ -35,7 +35,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 repo_root = get_repo_root()
@@ -537,7 +537,7 @@ def test_stream_char(request, test_type, test_level):
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -659,7 +659,7 @@ def test_stream_char_ext_suite(request):
         test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -741,7 +741,7 @@ def test_stream_char_ext_chain(request):
         test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
     log_path = os.path.join(log_dir, f'test_{dut_name}_ext_chain.log')
     results_path = os.path.join(log_dir, f'results_test_{dut_name}_ext_chain.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -816,7 +816,7 @@ def test_stream_char_ext_chain_soak(request):
         test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
     log_path = os.path.join(log_dir, f'test_{dut_name}_ext_chain_soak.log')
     results_path = os.path.join(log_dir, f'results_test_{dut_name}_ext_chain_soak.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     rtl_parameters = {
@@ -889,7 +889,7 @@ def test_stream_char_ext_char(request):
         test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

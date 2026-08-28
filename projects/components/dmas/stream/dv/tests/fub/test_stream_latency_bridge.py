@@ -29,7 +29,7 @@ import cocotb
 from cocotb.triggers import RisingEdge, ReadOnly
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Add repo root to Python path using robust git-based method
@@ -236,7 +236,7 @@ def test_stream_latency_bridge(request, test_type, data_width, timing_profile):
         filelist_path='projects/components/dmas/stream/rtl/filelists/fub/stream_latency_bridge.f'
     )
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

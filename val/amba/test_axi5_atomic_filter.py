@@ -13,7 +13,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, get_wave_config
+from TBClasses.shared.utilities import get_paths, get_wave_config, sim_build_path
 
 ATOP_NONE = 0b000000
 ATOP_STORE = 0b010000   # AtomicStore: B-only response, forwards
@@ -141,7 +141,7 @@ def test_axi5_atomic_filter(request):
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
+    sim_build = sim_build_path(tests_dir, sim_build_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

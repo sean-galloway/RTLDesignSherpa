@@ -43,7 +43,7 @@ from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Add repo root to Python path using robust git-based method
@@ -518,7 +518,7 @@ def test_perf_profiler(request, test_type, num_channels, timestamp_width, fifo_d
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

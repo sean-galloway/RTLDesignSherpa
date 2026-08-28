@@ -14,7 +14,7 @@ from cocotb.triggers import ClockCycles
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 repo_root = get_repo_root()
@@ -81,7 +81,7 @@ def test_carry_chain(request, width, test_level):
         test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

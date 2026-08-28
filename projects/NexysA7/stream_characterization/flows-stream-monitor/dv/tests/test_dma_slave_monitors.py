@@ -21,7 +21,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -67,7 +67,7 @@ async def cocotb_test_dma_slave_monitors(dut):
     tb.log.info(f"[dma_slave_monitors] {len(pkts)} packets decoded, by type: {kinds}")
     assert pkts, (
         "no monbus packets on the bulk-trace port — the slave-monitor -> "
-        "monbus_arbiter -> monbus_axil_axil_group -> m_axil_* path emitted nothing")
+        "monbus_arbiter -> monbus_axil4_axil4_group -> m_axil_* path emitted nothing")
 
     # 3. Completions specifically: every burst that retires should report one.
     n_compl = sum(n for k, n in kinds.items()
@@ -89,7 +89,7 @@ def test_dma_slave_monitors(request):
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     test_name = f"test_{worker_id}_{dut_name}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

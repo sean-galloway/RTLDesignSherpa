@@ -48,7 +48,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.fifo.fifo_buffer import FifoBufferTB
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 
 @cocotb.test(timeout_time=4, timeout_unit="ms")  # Increased timeout for async complexity
 async def fifo_async_test(dut):
@@ -289,7 +289,7 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # use it in the simbuild path
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     # Make sim_build directory
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)

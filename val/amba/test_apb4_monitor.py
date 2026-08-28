@@ -40,7 +40,7 @@ import pytest
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.apb4_monitor_tb import SimpleAPBMonitorTB
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -93,7 +93,7 @@ def test_apb4_monitor():
     max_transactions = 4
 
     test_name = f"test_{worker_id}_apb4_monitor_basic"
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     log_path = os.path.join(log_dir, f'{test_name}.log')
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -427,7 +427,7 @@ def test_apb4_monitor_addr_range():
     unit_id, agent_id = 4, 8
 
     test_name = f"test_{worker_id}_apb4_monitor_addr_range"
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     log_path = os.path.join(log_dir, f'{test_name}.log')
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -508,7 +508,7 @@ def test_apb4_monitor_slot_retire():
     unit_id, agent_id = 4, 8
 
     test_name = f"test_{worker_id}_apb4_monitor_slot_retire"
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     log_path = os.path.join(log_dir, f'{test_name}.log')
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))

@@ -29,7 +29,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the testbench
@@ -272,7 +272,7 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     test_name_plus_params = f"test_{worker_id}_{dut_name}_a{aw_str}_d{dw_str}_ard{ard_str}_rd{rd_str}_{test_level}_{reg_level}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -411,7 +411,7 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     test_name_plus_params = f"test_{worker_id}_{dut_name}_a{aw_str}_d{dw_str}_ard{ard_str}_rd{rd_str}_{test_level}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

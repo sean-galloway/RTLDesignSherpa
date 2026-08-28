@@ -22,7 +22,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.common.fp_testing import (
     FPConversionTB, FORMATS
@@ -65,7 +65,7 @@ def test_math_fp32_to_fp8_e4m3(request, params):
         filelist_path='rtl/math/filelists/math_fp32_to_fp8_e4m3.f'
 
     )
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

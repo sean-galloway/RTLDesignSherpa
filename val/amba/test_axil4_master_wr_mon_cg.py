@@ -28,7 +28,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 from TBClasses.axil4.monitor.axil4_master_monitor_tb import AXIL4MasterMonitorTB
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -110,7 +110,7 @@ def test_axil4_master_wr_mon_cg(test_level):
     test_name = f"test_{worker_id}_{dut_name}_{test_level}_{reg_level}"
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

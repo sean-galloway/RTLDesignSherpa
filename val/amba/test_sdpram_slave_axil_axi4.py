@@ -25,7 +25,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.amba.sdpram_slave_mixed_tb import SdpramSlaveMixedTB
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
@@ -69,7 +69,7 @@ def test_sdpram_slave_axil_axi4(request, test_level, data_width, mem_depth):
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
     tag = f"{worker_id}_{dut_name}_dw{data_width}_d{mem_depth}_{test_level}_{reg_level}"
     log_path = os.path.join(log_dir, f'test_{tag}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', f'test_{tag}')
+    sim_build = sim_build_path(tests_dir, f'test_{tag}')
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

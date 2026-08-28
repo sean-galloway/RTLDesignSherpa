@@ -36,7 +36,7 @@ import cocotb
 from cocotb.triggers import Timer
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.math.math_bf16_fma_systematic_tb import BF16FMASystematicTB
 from TBClasses.shared.tbbase import TBBase
@@ -88,7 +88,7 @@ def test_math_bf16_fma_systematic(request, params):
 
     )
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 

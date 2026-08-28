@@ -50,7 +50,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.common.decoder_tb import DecoderTB
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from cov_utils.conftest_coverage import get_coverage_compile_args
 
 
@@ -134,7 +134,7 @@ def test_decoder(request, input_width, test_level):
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

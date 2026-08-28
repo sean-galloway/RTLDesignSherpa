@@ -4,7 +4,7 @@
 #
 # Monbus-group coverage for stream_top_ch8 (USE_AXI_MONITORS=1).
 #
-# stream_top_ch8 contains a monbus_axil_axil_group (u_monbus_axil_group) that
+# stream_top_ch8 contains a monbus_axil4_axil4_group (u_monbus_axil_group) that
 # the existing stream_top tests never exercise (they build with monitors off
 # and only sniff the raw pre-group mon bus). This test enables the AXI monitors
 # via CSR, drives real descriptor transfers, and attaches the shared
@@ -26,7 +26,7 @@ import os
 import sys
 import pytest
 
-from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.utilities import get_repo_root, sim_build_path
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -310,7 +310,7 @@ def test_stream_top_monbus(request, timing_profile):
     test_name = f"test_{dut_name}_monbus_{timing_profile}" + (f"_{worker_id}" if worker_id else "")
     log_path = os.path.join(log_dir, f'{test_name}.log')
     results_path = os.path.join(log_dir, f'results_{test_name}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

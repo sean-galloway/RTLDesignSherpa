@@ -46,7 +46,7 @@ import pytest
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.cdc.counter_johnson_wavedrom_tb import CounterJohnsonWaveDromTB
-from TBClasses.shared.utilities import get_wavejson_dir, get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_wavejson_dir, get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import WaveDrom components
@@ -214,7 +214,7 @@ def test_counter_johnson_wavedrom(request, wave_cfg):
     test_name = f"test_counter_johnson_wavedrom_w{width}"
 
     # Directories
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name + f'_w{wave_cfg}')
+    sim_build = sim_build_path(tests_dir, test_name + f'_w{wave_cfg}')
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

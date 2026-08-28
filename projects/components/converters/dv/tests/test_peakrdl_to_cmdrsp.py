@@ -32,7 +32,7 @@ import os
 import sys
 
 # Import utilities (PYTHONPATH configured in env_python)
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from cocotb_test.simulator import run
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
@@ -335,7 +335,7 @@ def test_peakrdl_to_cmdrsp():
         'rtl_converters': 'projects/components/converters/rtl',
     })
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', 'test_peakrdl_to_cmdrsp')
+    sim_build = sim_build_path(tests_dir, 'test_peakrdl_to_cmdrsp')
 
     os.makedirs(sim_build, exist_ok=True)
 

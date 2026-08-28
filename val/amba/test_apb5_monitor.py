@@ -32,7 +32,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.apb5_monitor_tb import APB5MonitorTB
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -434,7 +434,7 @@ def test_apb5_monitor(request, addr_width, data_width, auser_width, wuser_width,
     au_str = TBBase.format_dec(auser_width, 1)
     test_name_plus_params = f"test_{worker_id}_apb5_monitor_aw{aw_str}_dw{dw_str}_au{au_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
@@ -527,7 +527,7 @@ def test_apb5_monitor_timeout_edge(request):
 
     test_name_plus_params = f"test_{worker_id}_apb5_monitor_timeout_edge"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
@@ -612,7 +612,7 @@ def test_apb5_monitor_addr_range(request, addr_width, n_addr_ranges):
     nr_str = TBBase.format_dec(n_addr_ranges, 2)
     test_name_plus_params = f"test_{worker_id}_apb5_monitor_addr_range_aw{aw_str}_nr{nr_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)

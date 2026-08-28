@@ -60,7 +60,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.cdc.counter_bingray_tb import CounterBinGrayTB
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 
 
 @cocotb.test(timeout_time=30000, timeout_unit="us")
@@ -154,7 +154,7 @@ def test_counter_bingray(request, width, test_level):
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Setup directories
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

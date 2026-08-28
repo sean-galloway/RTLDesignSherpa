@@ -39,7 +39,7 @@ from TBClasses.amba.amba_random_configs import (
     APB_SLAVE_RANDOMIZER_CONFIGS,
     AXI_RANDOMIZER_CONFIGS
 )
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # WaveDrom support
@@ -424,7 +424,7 @@ def test_apb4_slave_cdc_robust(request, addr_width, data_width, depth):
     test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -536,7 +536,7 @@ def generate_apb4_slave_cdc_wavedrom_params():
     test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -663,7 +663,7 @@ def test_apb4_slave_cdc_wavedrom(request, addr_width, data_width, rsp_depth, cmd
     test_name_plus_params = f"test_{worker_id}_apb4_slave_cdc_aw{aw_str}_dw{dw_str}_rd{rd_str}_cd{cd_str}_wd"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

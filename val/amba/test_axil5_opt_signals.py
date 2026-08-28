@@ -43,7 +43,7 @@ from TBClasses.axil5.axil5_opt_slave_tb import (
 )
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
@@ -108,7 +108,7 @@ def test_axil5_opt_signals(request, addr_width, data_width, test_level):
                              f"_{test_level}_{reg_level}")
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')

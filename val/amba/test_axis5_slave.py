@@ -30,7 +30,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.axis5_slave_tb import AXIS5SlaveBasicTB
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -115,7 +115,7 @@ def test_axis5_slave(request, skid_depth, data_width, id_width, dest_width, user
     pr_str = 'pr' if enable_parity else 'np'
     test_name_plus_params = f"test_{worker_id}_axis5_slave_sd{sd_str}_dw{dw_str}_{wk_str}_{pr_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)

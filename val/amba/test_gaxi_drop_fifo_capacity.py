@@ -47,7 +47,7 @@ from cocotb.triggers import RisingEdge
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../bin'))
 from TBClasses.gaxi.gaxi_drop_fifo_sync_tb import GaxiDropFifoSyncTB
 from cocotb_test.simulator import run
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
@@ -155,7 +155,7 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
     test_name = f"test_{worker_id}_capacity_dw{data_width}_d{depth}_{mode_str}_{reg_level}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     mode_str = 'mux' if registered == 0 else 'flop'
     test_name = f"test_{worker_id}_capacity_dw{data_width}_d{depth}_{mode_str}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

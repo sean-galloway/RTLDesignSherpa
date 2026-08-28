@@ -51,7 +51,7 @@ from cocotb_test.simulator import run
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.fifo.fifo_buffer import FifoBufferTB
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from cov_utils.conftest_coverage import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.components.fifo.fifo_packet import FIFOPacket
@@ -474,7 +474,7 @@ def test_fifo_sync_wavedrom(request, data_width, depth, clk_period):
     test_name_plus_params = f"test_{dut_name}_wavedrom_w{w_str}_d{d_str}_cl{cl_str}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

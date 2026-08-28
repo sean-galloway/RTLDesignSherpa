@@ -30,7 +30,7 @@ import random
 from pathlib import Path
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, get_repo_root
+from TBClasses.shared.utilities import get_paths, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Add repo root to Python path using robust git-based method
@@ -758,7 +758,7 @@ def test_stream_core_single_channel(request, params):
     # Create log paths
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -881,7 +881,7 @@ def test_stream_core_multi_channel(request, params):
     # Create log paths
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -993,7 +993,7 @@ def test_stream_core_variable_sizes(request, params):
     # Create log paths
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -1146,7 +1146,7 @@ def test_stream_core_mon_backpressure(request, params):
     test_name_plus_params = f"{cfg_name}_seed{seed}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', cfg_name)
+    sim_build = sim_build_path(tests_dir, cfg_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -1463,7 +1463,7 @@ def _run_stream_core_mon_regression(request, label, testcase, n_addr_ranges):
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

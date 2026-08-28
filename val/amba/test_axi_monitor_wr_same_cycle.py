@@ -44,7 +44,7 @@ import pytest
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 RESP_OKAY = 0b00
@@ -241,7 +241,7 @@ def test_axi_monitor_wr_same_cycle(iw, aw, max_transactions, seed):
                  f"iw{iw}_aw{aw}_mt{max_transactions}"
                  f"_nb{num_banks}_wq{use_wq}_seed{seed}")
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

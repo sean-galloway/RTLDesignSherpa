@@ -51,7 +51,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
 from TBClasses.monbus.monbus_types import PktType
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -241,7 +241,7 @@ def test_axi4_master_rd_mon_cfg(id_width, addr_width, data_width, user_width,
     test_name = f"test_{worker_id}_{dut_name}_cfg_mt{max_trans}_{thresh_mode}_seed{seed}"
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

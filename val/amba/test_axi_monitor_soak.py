@@ -39,7 +39,7 @@ from cocotb.triggers import RisingEdge, ReadOnly
 
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Transaction states (mirror axi_monitor pkg encodings used by the DUT)
@@ -249,7 +249,7 @@ def test_axi_monitor_soak(request):
     soak = os.environ.get('SOAK_CYCLES', '2000000')
     test_name = f"test_{worker_id}_{dut_name}_soak{soak}"
     log_path  = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

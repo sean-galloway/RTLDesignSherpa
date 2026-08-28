@@ -36,7 +36,7 @@ from TBClasses.apb.apbgaxiconfig import APBGAXIConfig
 from CocoTBFramework.components.gaxi.gaxi_packet import GAXIPacket
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_random_configs import APB_SLAVE_RANDOMIZER_CONFIGS, AXI_RANDOMIZER_CONFIGS
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # WaveDrom support
@@ -1133,7 +1133,7 @@ def test_apb4_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # use it int he simbuild path
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
 
     # Make sim_build directory
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -1250,7 +1250,7 @@ def test_apb4_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_de
 
     test_name_plus_params = f"test_{worker_id}_apb4_master_aw{aw_str}_dw{dw_str}_cmd{cmd_str}_rsp{rsp_str}_wd"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

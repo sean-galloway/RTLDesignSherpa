@@ -40,7 +40,7 @@ from cocotb_test.simulator import run
 from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb.clock import Clock
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
@@ -496,7 +496,7 @@ def test_arbiter_wrr_pwm_monbus(request, clients, max_levels, wait_gnt_ack, agen
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
 
     # Make directories
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
@@ -626,7 +626,7 @@ if __name__ == "__main__":
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     # Use it in the simbuild path
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
 
     # Make directories
     enable_waves = bool(int(os.environ.get('WAVES', '0')))

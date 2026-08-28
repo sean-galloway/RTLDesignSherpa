@@ -18,7 +18,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # The reusable transport + its deps live in the perf flow's dv/ and host/ trees.
@@ -279,7 +279,7 @@ def _run_stream_mon(request, profile=False):
     use_mon  = '1' if profile else os.environ.get('USE_MON', '0')
     test_name = "test_stream_mon_profile" if profile else "test_stream_mon"
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

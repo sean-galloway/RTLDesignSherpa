@@ -59,7 +59,7 @@ from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Single source of truth for the packed-struct decode: it is width-checked
@@ -328,7 +328,7 @@ def test_axi_monitor_trans_mgr_wr_bank(max_transactions, num_banks, use_wq):
     test_name = (f"test_{worker_id}_axi_monitor_trans_mgr_wr_bank_"
                  f"mt{max_transactions}_nb{num_banks}_wq{use_wq}")
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -417,7 +417,7 @@ def test_banked_write_without_widq_is_refused():
 
     dut_name = "axi_monitor_base"
     test_name = f"test_{worker_id}_axi_monitor_trans_mgr_wr_bank_refused"
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

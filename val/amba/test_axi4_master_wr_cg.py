@@ -31,7 +31,7 @@ from cocotb_test.simulator import run
 from cocotb.triggers import RisingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 
@@ -400,7 +400,7 @@ def test_axi4_master_write_cg(id_width, addr_width, data_width, user_width, aw_d
     test_name_plus_params = f"test_{worker_id}_axi4_master_wr_cg_{id_str}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)

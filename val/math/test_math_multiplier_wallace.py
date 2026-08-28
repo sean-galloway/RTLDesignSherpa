@@ -26,7 +26,7 @@ from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 
 # Import the base MultiplierTB class
 from TBClasses.common.multiplier_testing import MultiplierTB
@@ -117,7 +117,7 @@ def test_math_multiplier_wallace_tree(request, params):
     )
 
     # Define simulation build and log paths
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 

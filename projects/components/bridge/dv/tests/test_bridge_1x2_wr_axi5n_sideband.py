@@ -19,7 +19,7 @@
 import os
 import sys
 
-from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.utilities import get_repo_root, sim_build_path
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -146,7 +146,7 @@ def test_bridge_1x2_wr_axi5n_sideband(request):
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
+    sim_build = sim_build_path(tests_dir, sim_build_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

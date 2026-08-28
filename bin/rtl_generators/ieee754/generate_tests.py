@@ -73,7 +73,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.common.fp_testing import (
     {imports}
 )
@@ -122,7 +122,7 @@ def test_{module_name}(request, params):
 {verilog_sources}
     ]
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, f'{{test_name_plus_params}}.log')
@@ -303,7 +303,7 @@ def test_{module_name}(request, params):
         test_name_plus_params = f"{{test_name_plus_params}}_{{worker_id}}"
 
     verilog_sources = [os.path.join(rtl_dict['rtl_cmn'], "{module_name}.sv")]
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, f'{{test_name_plus_params}}.log')
