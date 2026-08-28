@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# Monitor Transaction CAM
+# monitor_trans_cam
 
 **Module:** `monitor_trans_cam.sv`
 **Location:** `rtl/amba/monitor/`
@@ -32,15 +32,9 @@
 
 ## Overview
 
-`monitor_trans_cam` is a **multi-port ID CAM with opaque payload storage**
-used by the [`axi_monitor_trans_mgr`](axi_monitor_trans_mgr.md) to track
-outstanding AXI transactions by ID. It replaces the inline parallel-match
-logic that previously lived in `axi_monitor_trans_mgr` (2026-04-23 revision),
-moving the keying state and payload storage into a reusable shared module
-without changing the synthesis shape that closes 100 MHz on the
-xc7a100t-1 Artix-7.
+`monitor_trans_cam` is a **multi-port ID CAM with opaque payload storage** used by the [`axi_monitor_trans_mgr`](axi_monitor_trans_mgr.md) to track outstanding AXI transactions by ID. It replaces the inline parallel-match logic that previously lived in `axi_monitor_trans_mgr` (2026-04-23 revision), moving the keying state and payload storage into a reusable shared module without changing the synthesis shape that closes 100 MHz on the xc7a100t-1 Artix-7.
 
-The module is intentionally distinct from [`monbus_cam`](monbus_cam.md):
+Don't confuse it with [`monbus_cam`](monbus_cam.md) — the two solve different problems:
 
 | Feature | `monbus_cam` | `monitor_trans_cam` |
 |---|---|---|
@@ -51,85 +45,33 @@ The module is intentionally distinct from [`monbus_cam`](monbus_cam.md):
 | Default depth | 32 | 16 |
 | Match output | hit + idx + old_data | Three one-hot vectors |
 
----
-
-## Key Features
+### Key Features
 
 - 3 independent ID lookup ports per cycle (`addr` / `data` / `resp`)
-- One-hot match vectors (`*_match_oh`) plus a lowest-index "first" variant
-  (`data_match_first_oh`; provided by the CAM but left unconnected by the
-  current `axi_monitor_trans_mgr`, which resolves multi-match cases itself,
-  oldest-first)
-- Free-slot vector (`free_oh`) and priority-encoded **3-way mutex alloc**
-  (`addr_alloc_oh` / `data_alloc_oh` / `resp_alloc_oh`)
+- One-hot match vectors (`*_match_oh`) plus a lowest-index "first" variant (`data_match_first_oh`; provided by the CAM but left unconnected by the current `axi_monitor_trans_mgr`, which resolves multi-match cases itself, oldest-first)
+- Free-slot vector (`free_oh`) and priority-encoded **3-way mutex alloc** (`addr_alloc_oh` / `data_alloc_oh` / `resp_alloc_oh`)
 - Per-slot write port (one-hot enable, separate next-state inputs per slot)
 - Per-slot read port (registered current state) exposed for the caller
-- `(* keep = "true" *)` attributes on match/free vectors so synth can't
-  fuse them into downstream update cones (preserves the trans_mgr WNS fix)
+- `(* keep = "true" *)` attributes on match/free vectors so synth can't fuse them into downstream update cones (preserves the trans_mgr WNS fix)
 - Simulation-only protocol assertions on the caller
 
 ---
 
-## Architecture
+## Parameters
 
-![monitor_trans_cam block diagram](../../assets/rtl-amba/monitor_trans_cam.svg)
+| Parameter | Default | Notes |
+|---|---|---|
+| `DEPTH` | 16 | Maximum outstanding transactions. Asserts in TBs require `≥ 4`. |
+| `ID_WIDTH` | 8 | AXI ID width. Typically 4–8 for AXI4. |
+| `PAYLOAD_WIDTH` | 128 | Caller's opaque payload. trans_mgr uses `$bits(bus_transaction_t)` (~285 bits). |
 
-Source: [`monitor_trans_cam.mmd`](../../assets/rtl-amba/monitor_trans_cam.mmd)
-
-```mermaid
-%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
-flowchart TB
-    subgraph LookupPorts["Lookup Ports (combinational, 3-way parallel)"]
-        LU_AID["lookup_addr_id"]
-        LU_DID["lookup_data_id"]
-        LU_RID["lookup_resp_id"]
-    end
-
-    subgraph WritePort["Write Port (per-slot, one-hot)"]
-        WE["entry_we[DEPTH]"]
-        WVN["entry_valid_next[DEPTH]"]
-        WIN["entry_id_next[DEPTH]"]
-        WPN["entry_payload_next[DEPTH]"]
-    end
-
-    subgraph monitor_trans_cam["monitor_trans_cam"]
-        subgraph Storage["Registered Storage (generate-loop per slot)"]
-            R_VALID["r_valid[DEPTH]"]
-            R_ID["r_id[DEPTH]"]
-            R_PAYLOAD["r_payload[DEPTH]"]
-        end
-        MATCH["Parallel one-hot match<br/>(* keep = 'true' *)<br/>1 LUT/bit/port"]
-        FREE["free_oh = ~r_valid"]
-        ALLOC["3-way mutex<br/>priority encoder<br/>(addr → data → resp)"]
-    end
-
-    subgraph Outputs["Outputs"]
-        AMATCH["addr_match_oh / data_match_oh /<br/>resp_match_oh / data_match_first_oh"]
-        FREEOUT["free_oh"]
-        ALLOCOUT["addr_alloc_oh / data_alloc_oh /<br/>resp_alloc_oh"]
-        ENTRY["entry_valid / entry_id /<br/>entry_payload (per slot)"]
-    end
-
-    LU_AID --> MATCH
-    LU_DID --> MATCH
-    LU_RID --> MATCH
-    R_VALID --> MATCH
-    R_ID --> MATCH
-    R_VALID --> FREE
-    FREE --> ALLOC
-    MATCH --> AMATCH
-    FREE --> FREEOUT
-    ALLOC --> ALLOCOUT
-    Storage --> ENTRY
-    WE --> Storage
-    WVN --> Storage
-    WIN --> Storage
-    WPN --> Storage
-```
+The trans_mgr instantiates with `PAYLOAD_WIDTH = $bits(bus_transaction_t)`, storing the full struct (including the redundant `id` field — the CAM's `entry_id` and `payload.id` are written atomically so they always agree).
 
 ---
 
-## Top-level Interface
+## Ports
+
+The full interface, straight from the RTL:
 
 ```systemverilog
 module monitor_trans_cam #(
@@ -186,11 +128,68 @@ module monitor_trans_cam #(
 
 ---
 
-## Why Three Lookup Ports?
+## Functional Description
 
-The AXI monitor needs to match an arriving transaction beat against the
-outstanding transaction table along three independent channels in the same
-cycle:
+### Architecture
+
+![monitor_trans_cam block diagram](../../assets/rtl-amba/monitor_trans_cam.svg)
+
+Source: [`monitor_trans_cam.mmd`](../../assets/rtl-amba/monitor_trans_cam.mmd)
+
+```mermaid
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph LookupPorts["Lookup Ports (combinational, 3-way parallel)"]
+        LU_AID["lookup_addr_id"]
+        LU_DID["lookup_data_id"]
+        LU_RID["lookup_resp_id"]
+    end
+
+    subgraph WritePort["Write Port (per-slot, one-hot)"]
+        WE["entry_we[DEPTH]"]
+        WVN["entry_valid_next[DEPTH]"]
+        WIN["entry_id_next[DEPTH]"]
+        WPN["entry_payload_next[DEPTH]"]
+    end
+
+    subgraph monitor_trans_cam["monitor_trans_cam"]
+        subgraph Storage["Registered Storage (generate-loop per slot)"]
+            R_VALID["r_valid[DEPTH]"]
+            R_ID["r_id[DEPTH]"]
+            R_PAYLOAD["r_payload[DEPTH]"]
+        end
+        MATCH["Parallel one-hot match<br/>(* keep = 'true' *)<br/>1 LUT/bit/port"]
+        FREE["free_oh = ~r_valid"]
+        ALLOC["3-way mutex<br/>priority encoder<br/>(addr → data → resp)"]
+    end
+
+    subgraph Outputs["Outputs"]
+        AMATCH["addr_match_oh / data_match_oh /<br/>resp_match_oh / data_match_first_oh"]
+        FREEOUT["free_oh"]
+        ALLOCOUT["addr_alloc_oh / data_alloc_oh /<br/>resp_alloc_oh"]
+        ENTRY["entry_valid / entry_id /<br/>entry_payload (per slot)"]
+    end
+
+    LU_AID --> MATCH
+    LU_DID --> MATCH
+    LU_RID --> MATCH
+    R_VALID --> MATCH
+    R_ID --> MATCH
+    R_VALID --> FREE
+    FREE --> ALLOC
+    MATCH --> AMATCH
+    FREE --> FREEOUT
+    ALLOC --> ALLOCOUT
+    Storage --> ENTRY
+    WE --> Storage
+    WVN --> Storage
+    WIN --> Storage
+    WPN --> Storage
+```
+
+### Why Three Lookup Ports?
+
+The AXI monitor needs to match an arriving transaction beat against the outstanding transaction table along three independent channels in the same cycle:
 
 | Lookup port | Purpose |
 |---|---|
@@ -198,48 +197,19 @@ cycle:
 | `lookup_data_id` | Matches an arriving R beat (read) or detects orphan-data-without-AW (write, AXI-Lite only) |
 | `lookup_resp_id` | Matches an arriving B beat (write) to an in-flight transaction |
 
-All three lookups go in parallel. The CAM's internal storage feeds 3 one-hot
-match vectors, each a 1-LUT-per-bit `valid && (id == lookup_id)` test. With
-DEPTH=16 that's 16 small independent cones per port, no chained dependencies.
+All three lookups go in parallel. The CAM's internal storage feeds 3 one-hot match vectors, each a 1-LUT-per-bit `valid && (id == lookup_id)` test. With DEPTH=16 that's 16 small independent cones per port, no chained dependencies.
 
-The `(* keep = "true" *)` attribute on the match vectors prevents Vivado
-from fusing them into the downstream `axi_monitor_trans_mgr` update logic —
-without that, the 16 entries' update cones would fold together into one
-shared wide function, producing ~12 LUT levels and failing 100 MHz on
-the -1 part. With the attribute, each entry's update stays an independent
-small cone.
+The `(* keep = "true" *)` attribute on the match vectors prevents Vivado from fusing them into the downstream `axi_monitor_trans_mgr` update logic — without that, the 16 entries' update cones would fold together into one shared wide function, producing ~12 LUT levels and failing 100 MHz on the -1 part. With the attribute, each entry's update stays an independent small cone.
 
----
+### The "First-Match" Variant
 
-## The "First-Match" Variant
+For **AXI4 writes**, the data channel has no WID. The trans_mgr matches an arriving W beat to an outstanding write transaction by state predicate (`valid && state ∈ {ADDR_PHASE, DATA_PHASE} && cmd_received && !data_completed`), NOT by id. That state predicate is computed *outside* the CAM (it requires fields the CAM doesn't see, like `state` and `cmd_received`), and — because several entries can satisfy it — is resolved to the **oldest** candidate via the trans_mgr's rank-based `pick_oldest()` selector, matching AXI4's write-data ordering rule.
 
-For **AXI4 writes**, the data channel has no WID. The trans_mgr matches an
-arriving W beat to an outstanding write transaction by state predicate
-(`valid && state ∈ {ADDR_PHASE, DATA_PHASE} && cmd_received && !data_completed`),
-NOT by id. That state predicate is computed *outside* the CAM (it requires
-fields the CAM doesn't see, like `state` and `cmd_received`), and — because
-several entries can satisfy it — is resolved to the **oldest** candidate via
-the trans_mgr's rank-based `pick_oldest()` selector, matching AXI4's
-write-data ordering rule.
+The CAM also provides `data_match_first_oh`, the lowest-index bit of `data_match_oh` (the id-based match). The current `axi_monitor_trans_mgr` leaves this output **unconnected**: lowest-index is not issue order once slots are recycled, so for reads the trans_mgr feeds the raw `data_match_oh` candidates through `pick_oldest()` instead, and for writes it uses its own state-predicate vector as above. The port remains for callers that need a deterministic lowest-index pick. The two paths share the rest of the CAM machinery (free, alloc, write port) so the cost is minimal.
 
-The CAM also provides `data_match_first_oh`, the lowest-index bit of
-`data_match_oh` (the id-based match). The current `axi_monitor_trans_mgr`
-leaves this output **unconnected**: lowest-index is not issue order once
-slots are recycled, so for reads the trans_mgr feeds the raw `data_match_oh`
-candidates through `pick_oldest()` instead, and for writes it uses its own
-state-predicate vector as above. The port remains for callers that need a
-deterministic lowest-index pick. The two paths share the rest of the CAM
-machinery (free, alloc, write port) so the cost is minimal.
+### 3-Way Mutex Alloc Priority Encoder
 
----
-
-## 3-Way Mutex Alloc Priority Encoder
-
-When a new transaction arrives that doesn't match an existing entry, the
-trans_mgr needs to allocate a free slot for it. Up to three independent
-"want to alloc" requests can fire in the same cycle (addr, data, resp), and
-each needs a *different* slot — the priority encoder ensures no two phases
-ever claim the same free slot.
+When a new transaction arrives that doesn't match an existing entry, the trans_mgr needs to allocate a free slot for it. Up to three independent "want to alloc" requests can fire in the same cycle (addr, data, resp), and each needs a *different* slot — the priority encoder ensures no two phases ever claim the same free slot.
 
 The encoder is purely combinational:
 
@@ -259,20 +229,11 @@ if resp_wants_alloc:
     remaining_free &= ~resp_alloc_oh
 ```
 
-The three outputs are guaranteed to be disjoint (mutex assertion enforces
-this in simulation). If `wants_alloc` is asserted with no free slot, the
-corresponding `*_alloc_oh` is `'0` — the caller need not gate its
-wants_alloc requests on free-slot availability (the trans_mgr gates them on
-match suppression and its command-entry cap instead).
+The three outputs are guaranteed to be disjoint (mutex assertion enforces this in simulation). If `wants_alloc` is asserted with no free slot, the corresponding `*_alloc_oh` is `'0` — the caller need not gate its wants_alloc requests on free-slot availability (the trans_mgr gates them on match suppression and its command-entry cap instead).
 
-Priority order is `addr → data → resp`. AXI4 writes can have all three
-firing in the same cycle on a tight pipeline, and the order matches the
-phase order so the slot indices in the table grow in a reasonable
-chronological order.
+Priority order is `addr → data → resp`. AXI4 writes can have all three firing in the same cycle on a tight pipeline, and the order matches the phase order so the slot indices in the table grow in a reasonable chronological order.
 
----
-
-## Per-Slot Storage and Write Port
+### Per-Slot Storage and Write Port
 
 The CAM owns the registered storage:
 
@@ -291,21 +252,17 @@ The write port is one-hot per slot:
 //                r_payload[i] <= entry_payload_next[i];
 ```
 
-To clear a slot, drive `entry_we[i]=1` with `entry_valid_next[i]=0`. The
-payload and id get written too (with whatever the caller drives) but the
-valid bit determines whether subsequent lookups see the entry.
+To clear a slot, drive `entry_we[i]=1` with `entry_valid_next[i]=0`. The payload and id get written too (with whatever the caller drives) but the valid bit determines whether subsequent lookups see the entry.
 
-The per-slot updates live in a `generate` loop of independent `always_ff`
-blocks, one per slot. Each block depends only on local one-hot bits and
-shared inputs — synth cannot fuse them across slots. The result is `DEPTH`
-parallel small update cones rather than one giant shared one.
+The per-slot updates live in a `generate` loop of independent `always_ff` blocks, one per slot. Each block depends only on local one-hot bits and shared inputs — synth cannot fuse them across slots. The result is `DEPTH` parallel small update cones rather than one giant shared one.
 
 ---
 
-## Caller Pattern (axi_monitor_trans_mgr)
+## Usage Example
 
-The trans_mgr uses the CAM's outputs to compute per-slot next-state in a
-generate-loop `always_comb`, then drives the write port:
+### Caller Pattern (`axi_monitor_trans_mgr`)
+
+The trans_mgr uses the CAM's outputs to compute per-slot next-state in a generate-loop `always_comb`, then drives the write port:
 
 ```
 For each slot i (combinational):
@@ -337,27 +294,13 @@ For each slot i (combinational):
     Drive entry_we[i], entry_valid_next[i], entry_payload_next[i] for the CAM.
 ```
 
-The CAM's `entry_valid` output mirrors the payload's `.valid` field — the
-trans_mgr writes them in sync atomically. Lookups use `entry_valid` (the
-CAM's view) so the match logic stays tight.
+The CAM's `entry_valid` output mirrors the payload's `.valid` field — the trans_mgr writes them in sync atomically. Lookups use `entry_valid` (the CAM's view) so the match logic stays tight.
 
 ---
 
-## Configuration
+## Design Notes
 
-| Parameter | Default | Notes |
-|---|---|---|
-| `DEPTH` | 16 | Maximum outstanding transactions. Asserts in TBs require `≥ 4`. |
-| `ID_WIDTH` | 8 | AXI ID width. Typically 4–8 for AXI4. |
-| `PAYLOAD_WIDTH` | 128 | Caller's opaque payload. trans_mgr uses `$bits(bus_transaction_t)` (~285 bits). |
-
-The trans_mgr instantiates with `PAYLOAD_WIDTH = $bits(bus_transaction_t)`,
-storing the full struct (including the redundant `id` field — the CAM's
-`entry_id` and `payload.id` are written atomically so they always agree).
-
----
-
-## Synthesis Notes
+### Synthesis Notes
 
 Key design choices to preserve the trans_mgr's 2026-04-23 WNS fix:
 
@@ -375,12 +318,21 @@ lookup_id  →  match_oh  (per-slot compare; the module exports the
                        ↘
                         first_oh (priority encoder)
 ```
-That's ~3–4 LUT levels for DEPTH=16 — comfortably under the 100 MHz
-budget on the -1 part.
+That's ~3–4 LUT levels for DEPTH=16 — comfortably under the 100 MHz budget on the -1 part.
 
 ---
 
-## Test
+## Related Modules
+
+| Module | Role |
+|---|---|
+| [`axi_monitor_trans_mgr`](axi_monitor_trans_mgr.md) | Sole consumer — uses the CAM for ID tracking and per-slot storage |
+| [`monbus_cam`](monbus_cam.md) | Sister CAM for the bulk-trace compressor (LRU, single port, different design intent) |
+| `bin/TBClasses/shared/` | Test framework utilities |
+
+---
+
+## Testing
 
 `val/amba/test_monitor_trans_cam.py` runs 17 sub-tests covering:
 
@@ -404,10 +356,7 @@ budget on the -1 part.
 | 16 | ID collision tolerance — two valid slots with same id |
 | 17 | Random stress — random write/lookup/alloc mix vs Python model |
 
-The Python golden model mirrors the RTL state and combinational outputs
-exactly. At FULL `REG_LEVEL` the random stress runs 5000 ops per config,
-and every cycle cross-checks all 9 combinational outputs (3 `*_match_oh`,
-`first_oh`, `free_oh`, 3 `*_alloc_oh`, `entry_valid`) against the model.
+The Python golden model mirrors the RTL state and combinational outputs exactly. At FULL `REG_LEVEL` the random stress runs 5000 ops per config, and every cycle cross-checks all 9 combinational outputs (3 `*_match_oh`, `first_oh`, `free_oh`, 3 `*_alloc_oh`, `entry_valid`) against the model.
 
 ```bash
 pytest val/amba/test_monitor_trans_cam.py -v
@@ -417,13 +366,3 @@ REG_LEVEL parameter sweep:
 - **GATE:** 1 config (8/64/16)
 - **FUNC:** 2 configs (+ 4/32/8)
 - **FULL:** 7 configs (depth 4/8/16/32, id 4/6/8, payload 32/64/128/256)
-
----
-
-## Related Modules
-
-| Module | Role |
-|---|---|
-| [`axi_monitor_trans_mgr`](axi_monitor_trans_mgr.md) | Sole consumer — uses the CAM for ID tracking and per-slot storage |
-| [`monbus_cam`](monbus_cam.md) | Sister CAM for the bulk-trace compressor (LRU, single port, different design intent) |
-| `bin/TBClasses/shared/` | Test framework utilities |

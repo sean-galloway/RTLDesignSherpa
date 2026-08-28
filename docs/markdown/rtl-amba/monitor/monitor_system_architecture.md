@@ -597,7 +597,7 @@ Two that have bitten before:
 
 ---
 
-## Where to go next
+## Related
 
 | For | Read |
 |---|---|
@@ -612,5 +612,8 @@ Two that have bitten before:
 
 ---
 
-**[← Back to Monitor Index](../_book_monitor_index.md)**
-**[← Back to Main Documentation Index](../../index.md)**
+## Navigation
+
+- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
+- **[← Back to rtl-amba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# Monitor Bus Arbiter Common
+# arbiter_monbus_common
 
 **Module:** `arbiter_monbus_common.sv`
 **Location:** `rtl/amba/monitor/`
@@ -32,9 +32,9 @@
 
 ## Overview
 
-The `arbiter_monbus_common` module is the shared **telemetry block** that
-watches an arbiter and reports on it. It is instantiated inside
-`arbiter_rr_pwm_monbus` and `arbiter_wrr_pwm_monbus` as `u_monitor`.
+`arbiter_monbus_common` is the shared **telemetry block** that watches an
+arbiter and reports on it. It is instantiated inside `arbiter_rr_pwm_monbus`
+and `arbiter_wrr_pwm_monbus` as `u_monitor`.
 
 It performs **no arbitration of its own.** Every arbiter-facing signal
 (`request`, `grant_valid`, `grant`, `grant_id`, `grant_ack`, `block_arb`) is an
@@ -47,9 +47,15 @@ is no request/grant output, no data mux, and no client stream inputs.
 > streams and arbitrates them onto one. This page has described that module in
 > the past; it does not describe this one.
 
----
+What it does, in five verbs:
 
-## Key Features
+1. **Observe:** sample the arbiter's request/grant/ACK activity without perturbing it
+2. **Detect:** identify starvation, ACK timeouts, protocol violations, and threshold crossings
+3. **Measure:** maintain fairness-deviation and grant-efficiency metrics
+4. **Report:** format findings as `monitor_packet_t` records and queue them for the monitor bus
+5. **Expose:** drive silicon-debug status outputs (`debug_*`) for direct observation
+
+Feature summary:
 
 - **Snoops any arbiter** — RR or WRR, with or without the grant-ACK handshake
 - **Per-client ACK timeout tracking** with a configurable threshold
@@ -61,22 +67,10 @@ is no request/grant output, no data mux, and no client stream inputs.
 
 ---
 
-## Module Purpose
-
-The `arbiter_monbus_common` module exists to:
-
-1. **Observe:** sample the arbiter's request/grant/ACK activity without perturbing it
-2. **Detect:** identify starvation, ACK timeouts, protocol violations, and threshold crossings
-3. **Measure:** maintain fairness-deviation and grant-efficiency metrics
-4. **Report:** format findings as `monitor_packet_t` records and queue them for the monitor bus
-5. **Expose:** drive silicon-debug status outputs (`debug_*`) for direct observation
-
----
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | `CLIENTS` | int | 4 | Width of the **snooped arbiter's** client vectors (`request`, `grant`, `grant_ack`). Nothing is arbitrated here -- this sizes what is observed |
 | `WAIT_GNT_ACK` | int | 0 | 1 = require a grant-ACK handshake |
 | `WEIGHTED_MODE` | int | 0 | **Dead** — declared but referenced by no logic. Fairness analysis always uses the `cfg_max_thresh` weights, and this module performs no arbitration for a mode switch to modulate. Setting it changes nothing |
@@ -102,19 +96,19 @@ from.
 
 ---
 
-## Port Groups
+## Ports
 
-**See RTL source:** `rtl/amba/monitor/arbiter_monbus_common.sv` for complete port listing.
+**See RTL source:** `rtl/amba/monitor/arbiter_monbus_common.sv` for the complete
+port listing. The interface falls into four groups:
 
-Key interface groups:
 - Clock and reset
-- Input signals from monitored interface
+- Input signals from the monitored (snooped) arbiter
 - Configuration signals
-- Output signals to downstream logic
+- Output signals to downstream logic (monitor bus plus `debug_*` status)
 
 ---
 
-## Architecture
+## Functional Description
 
 ```mermaid
 flowchart LR
@@ -143,41 +137,33 @@ flowchart LR
 The single monitor-bus output carries this module's **own** event packets. It
 is not a merge of upstream streams — there are none.
 
----
-
-## Usage in Monitor System
-
-This module is used by:
-
-- **arbiter_rr_pwm_monbus**
-- **arbiter_wrr_pwm_monbus**
-
-### Internal Integration
-
-This module is instantiated automatically within higher-level monitor modules. Users configure behavior through top-level monitor parameters.
+This module is instantiated automatically within the higher-level monitor
+modules (`arbiter_rr_pwm_monbus`, `arbiter_wrr_pwm_monbus`); you configure its
+behavior through the top-level monitor parameters rather than instantiating it
+yourself. See the individual monitor pages for configuration examples.
 
 ---
 
-## Configuration Guidelines
-
-**See individual monitor documentation for configuration examples.**
-
-Configuration is typically handled at the top-level monitor instantiation.
-
----
-
-## Performance Characteristics
+## Timing
 
 | Metric | Value | Notes |
-|--------|-------|-------|
+|---|---|---|
 | Latency | 1-2 cycles | Typical processing delay |
 | Throughput | 1 operation/cycle | Maximum rate |
 
 ---
 
-## Verification Considerations
+## Related Modules
 
-### Test Coverage
+**Used by:** `arbiter_rr_pwm_monbus`, `arbiter_wrr_pwm_monbus` (as `u_monitor`).
+
+**See also:** [axi_monitor_reporter](./axi_monitor_reporter.md)
+
+---
+
+## Testing
+
+Coverage targets:
 
 - Functional correctness of core logic
 - Boundary conditions (min/max values)
@@ -188,13 +174,7 @@ Configuration is typically handled at the top-level monitor instantiation.
 
 ---
 
-## Related Modules
-
-- **[axi_monitor_reporter](./axi_monitor_reporter.md)**
-
----
-
-## See Also
+## References
 
 - **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
 - **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)

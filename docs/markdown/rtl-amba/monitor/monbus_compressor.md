@@ -49,9 +49,7 @@ and a real-silicon validation run on a Nexys A7. Once locked, the slot stream
 is *the* wire format — any RTL change here that diverges from the Python
 golden constitutes a regression.
 
----
-
-## Why Compress Monitor Traces?
+### Why Compress Monitor Traces?
 
 A 128-bit monitor packet plus a 64-bit timestamp is 24 bytes per event. At
 even modest event rates (a few million events/sec), an AXI4 monitor running
@@ -75,50 +73,20 @@ zero incremental hits on this workload. That's the design point.
 
 ---
 
-## Architecture
+## Parameters
 
-![monbus_compressor block diagram](../../assets/rtl-amba/monbus_compressor.svg)
+The 64-bit slot format and CAM size (32 entries × 49-bit key) are
+locked to match the Python golden. Only `HALF_BEAT_EN` is selectable:
+it gates an *additional* output port pair that feeds an optional
+downstream packer; the main `out_slot` stream is unchanged.
 
-Source: [`monbus_compressor.mmd`](../../assets/rtl-amba/monbus_compressor.mmd)
-
-```mermaid
-%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
-flowchart TB
-    subgraph Inputs["Inputs (one valid/ready handshake per record)"]
-        IN_PKT["in_packet[127:0]<br/>monitor_packet_t"]
-        IN_TS["in_source_ts[63:0]<br/>monbus_timestamp_t"]
-    end
-
-    subgraph monbus_compressor["monbus_compressor"]
-        KEY["Build 49-bit key:<br/>(pkt_type, protocol,<br/>event_code, channel_id,<br/>agent_id, unit_id)"]
-        DELTA["delta_ts =<br/>(source_ts - cam_entry.last_ts)<br/>mod 2^24, per template"]
-        CAM["monbus_cam<br/>(32-entry true LRU)<br/>access_hit / access_idx /<br/>access_old_data"]
-        FMT_SEL["Format selector:<br/>A → B → C priority<br/>(width-tiered)"]
-        FSM["3-state FSM<br/>IDLE / RAW1 / RAW2"]
-        PACK["Slot packer<br/>(4-bit tag + payload)"]
-        STATS["Statistics:<br/>tier1_a/b/c, tier0,<br/>cam_miss, *_ovf"]
-    end
-
-    subgraph Output["Output (1 slot/cycle Tier-1, 3 slots/cycle Tier-0)"]
-        OUT_SLOT["out_slot[63:0]<br/>4-bit tag + payload"]
-    end
-
-    IN_PKT --> KEY
-    IN_PKT --> CAM
-    IN_TS --> DELTA
-    KEY --> CAM
-    CAM --> FMT_SEL
-    DELTA --> FMT_SEL
-    FMT_SEL --> FSM
-    FSM --> PACK
-    CAM -.payload feedback.-> FMT_SEL
-    PACK --> OUT_SLOT
-    FSM --> STATS
-```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `HALF_BEAT_EN` | int | 0 | 0 = default; 64-bit-slot codec only (the committed, timing-closed path). 1 = also expose a 30-bit half-slot sideband (`out_half_*`) for the downstream `monbus_halfbeat_packer`. Folds away when 0. |
 
 ---
 
-## Top-level Interface
+## Ports
 
 ```systemverilog
 module monbus_compressor
@@ -164,12 +132,7 @@ module monbus_compressor
 );
 ```
 
-The 64-bit slot format and CAM size (32 entries × 49-bit key) are
-locked to match the Python golden. Only `HALF_BEAT_EN` is selectable:
-it gates an *additional* output port pair that feeds an optional
-downstream packer; the main `out_slot` stream is unchanged.
-
-### Synchronous CAM clear
+### Synchronous CAM Clear
 
 `clear` is a synchronous, level-sensitive input. Holding it for one
 cycle (while idle) invalidates every CAM entry — `r_valid`,
@@ -181,7 +144,50 @@ pipeline, FIFOs, and AXI skids). Drive it low at all other times.
 
 ---
 
-## Compression Techniques
+## Functional Description
+
+### Architecture
+
+![monbus_compressor block diagram](../../assets/rtl-amba/monbus_compressor.svg)
+
+Source: [`monbus_compressor.mmd`](../../assets/rtl-amba/monbus_compressor.mmd)
+
+```mermaid
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs["Inputs (one valid/ready handshake per record)"]
+        IN_PKT["in_packet[127:0]<br/>monitor_packet_t"]
+        IN_TS["in_source_ts[63:0]<br/>monbus_timestamp_t"]
+    end
+
+    subgraph monbus_compressor["monbus_compressor"]
+        KEY["Build 49-bit key:<br/>(pkt_type, protocol,<br/>event_code, channel_id,<br/>agent_id, unit_id)"]
+        DELTA["delta_ts =<br/>(source_ts - cam_entry.last_ts)<br/>mod 2^24, per template"]
+        CAM["monbus_cam<br/>(32-entry true LRU)<br/>access_hit / access_idx /<br/>access_old_data"]
+        FMT_SEL["Format selector:<br/>A → B → C priority<br/>(width-tiered)"]
+        FSM["3-state FSM<br/>IDLE / RAW1 / RAW2"]
+        PACK["Slot packer<br/>(4-bit tag + payload)"]
+        STATS["Statistics:<br/>tier1_a/b/c, tier0,<br/>cam_miss, *_ovf"]
+    end
+
+    subgraph Output["Output (1 slot/cycle Tier-1, 3 slots/cycle Tier-0)"]
+        OUT_SLOT["out_slot[63:0]<br/>4-bit tag + payload"]
+    end
+
+    IN_PKT --> KEY
+    IN_PKT --> CAM
+    IN_TS --> DELTA
+    KEY --> CAM
+    CAM --> FMT_SEL
+    DELTA --> FMT_SEL
+    FMT_SEL --> FSM
+    FSM --> PACK
+    CAM -.payload feedback.-> FMT_SEL
+    PACK --> OUT_SLOT
+    FSM --> STATS
+```
+
+### Compression Techniques
 
 The compressor combines four ideas, applied in priority order per record:
 
@@ -196,7 +202,7 @@ Each successful Tier-1 encoding squeezes 24 bytes (raw record) into 8 bytes
 (one slot) — that's the 3× upper bound. The 2.66× achieved ratio reflects
 the 6.5 % escape rate, plus the framing overhead in Tier-0.
 
-### 1. Template extraction
+#### 1. Template extraction
 
 The 128-bit monitor packet has six "low-entropy" fields that repeat
 heavily across events generated by the same logical agent:
@@ -224,7 +230,7 @@ the same CAM state, driven by identical (action, key, data) sequences derived
 from the slot stream. No out-of-band table sync is required — the slot stream
 is self-describing.
 
-### 2. Delta-encoded timestamp
+#### 2. Delta-encoded timestamp
 
 Absolute timestamps are 60 bits, which covers any practical recording window
 (2⁶⁰ cycles at 100 MHz is roughly 365 years). Deltas between consecutive events
@@ -244,7 +250,7 @@ deltas. A decoder must therefore chain deltas **per template**, with 24-bit
 wrap. See [Per-template `delta_ts`](#per-template-delta_ts) for the full
 rationale and the history of the global-delta scheme this replaced.
 
-### 3. Width-tiered Tier-1 formats
+#### 3. Width-tiered Tier-1 formats
 
 Three Tier-1 slot formats each cover a different `(delta_ts_width,
 event_data_width)` trade-off. The encoder picks the **first one that fits**
@@ -275,7 +281,7 @@ covers most addresses on 32-bit address spaces.
 
 **Format C** is the differential payload encoder, described next.
 
-### 4. Differential payload encoding (Format C)
+#### 4. Differential payload encoding (Format C)
 
 For monotonically increasing counters (transaction counts, accumulated
 byte totals, sequential addresses), absolute `event_data` may exceed 40 bits
@@ -301,7 +307,7 @@ The locked validation dataset has 0 Format C hits — descriptor-fetch traffic
 isn't monotonic enough. But for stream-data or descriptor-write traces, this
 format kicks in heavily.
 
-### 5. Tier-0 RAW escape
+#### 5. Tier-0 RAW escape
 
 If none of the Tier-1 formats fit (CAM miss, or delta_ts > 8M cycles, or
 event_data >= 2⁴⁰), the compressor falls back to a 3-beat RAW record:
@@ -323,9 +329,7 @@ the right `tmpl_idx`, and the escape is just a 3-beat fallback for the one
 unusually-large record. Statistics counters record which overflow reason
 caused each escape, so the host can tell the difference.
 
----
-
-## Slot Bit Layouts
+### Slot Bit Layouts
 
 The 64-bit slot is always self-describing through the 4-bit tag in `[63:60]`:
 
@@ -361,9 +365,7 @@ The decoder reads one 64-bit slot, inspects bits `[63:60]`, and knows
 immediately whether to read 0 more beats (Tier-1) or 2 more beats
 (Tier-0 RAW). No lookahead is required.
 
----
-
-## CAM Design
+### CAM Design
 
 The 32-entry caching CAM lives in
 [`rtl/amba/monitor/monbus_cam_pipe.sv`](monbus_cam_pipe.md). It is a **true LRU**
@@ -422,9 +424,7 @@ Tier-0 overflow escape, which still touches its matched entry. There is no
 `ACTION_NONE` path and no FSM-issued action; RAW beat expansion stalls the
 input through credit/skid backpressure instead.
 
----
-
-## Encoder Decision Tree
+### Encoder Decision Tree
 
 Per input record (one cycle):
 
@@ -469,9 +469,32 @@ commits at presentation (inside `monbus_cam_pipe`), the format select is
 registered into `q_*` at `enc_commit` the next cycle, and `out_valid = q_valid`
 drives the slot the cycle after that.
 
+### Statistics Counters
+
+Each output stat is a 32-bit registered counter with no saturation guard, so
+they **wrap** at 2³². A capture long enough to overflow one (2³² records of a
+single format) silently rolls that counter back through 0 -- read them as
+free-running counters, not as protected totals.
+
+| Counter | Increments when |
+|---|---|
+| `stat_tier1_a` | Format A slot emitted |
+| `stat_tier1_b` | Format B slot emitted |
+| `stat_tier1_c` | Format C slot emitted |
+| `stat_tier0` | Tier-0 RAW escape emitted (3 slots) |
+| `stat_cam_miss` | Tier-0 escape caused by CAM miss |
+| `stat_delta_ts_ovf` | Tier-0 escape caused by delta_ts >= 2²³ (the fit test is `< 2²³`, so 2²³ exactly does *not* fit) |
+| `stat_event_data_ovf` | Tier-0 escape caused by event_data >= 2⁴⁰ (delta_ts fit) |
+| `stat_ed_delta_ovf` | Tier-0 escape caused by ed_delta out of ±2³⁹ |
+
+The host firmware reads these via a configurable register block at the end
+of a capture run to characterize compression effectiveness per workload. The
+ratio `(stat_tier1_a + stat_tier1_b + stat_tier1_c) / total_records` is the
+hit rate; on the validation dataset it's 93.5 %.
+
 ---
 
-## Pipeline and Timing
+## Timing
 
 The encoder is split into **three stages** (1, 2a, 2b in the table below),
 with a tier-1 record ~3 cycles in flight. Per-record slot counts are unchanged
@@ -539,7 +562,7 @@ file and floorplan details.
 
 ---
 
-## Verification Methodology
+## Testing
 
 The acceptance criterion is **byte-identical equivalence** between the RTL
 slot stream and the Python golden encoder
@@ -548,13 +571,14 @@ sequence. There is no other golden — the Python class IS the spec.
 
 Two layers of validation:
 
-### 1. Unit-level (the compressor in isolation)
+### Unit-level (the compressor in isolation)
 
 ```bash
 pytest val/amba/test_monbus_compressor.py -v
 ```
 
 Two phases:
+
 - **Phase 1:** small synthesized stream that exercises all 4 slot tags and
   CAM eviction. ~9 slots, easy to debug.
 - **Phase 2:** the real-silicon dataset `desc_axi_16desc_8ch_1MB.json`
@@ -571,13 +595,14 @@ INFO  === Phase 2: PASS ===
 INFO  === ALL PHASES PASSED ===
 ```
 
-### 2. Integration-level (compressor + AXIL writer + base/limit wrap)
+### Integration-level (compressor + AXIL writer + base/limit wrap)
 
 ```bash
 pytest val/amba/test_monbus_axil_axil_group_compressed.py -v
 ```
 
 Three phases:
+
 - Generous window (no wrap): 9 slots from the synthesized stream
 - Tight 8-slot window: forces a mid-stream wrap back to `cfg_base_addr`
 - Real-silicon dataset: 770 slots through the full `monbus_axil_axil_group`
@@ -586,34 +611,7 @@ Three phases:
 Both layers run as part of the standard amba regression and must pass before
 any compressor change merges.
 
----
-
-## Statistics Counters
-
-Each output stat is a 32-bit registered counter with no saturation guard, so
-they **wrap** at 2³². A capture long enough to overflow one (2³² records of a
-single format) silently rolls that counter back through 0 -- read them as
-free-running counters, not as protected totals.
-
-| Counter | Increments when |
-|---|---|
-| `stat_tier1_a` | Format A slot emitted |
-| `stat_tier1_b` | Format B slot emitted |
-| `stat_tier1_c` | Format C slot emitted |
-| `stat_tier0` | Tier-0 RAW escape emitted (3 slots) |
-| `stat_cam_miss` | Tier-0 escape caused by CAM miss |
-| `stat_delta_ts_ovf` | Tier-0 escape caused by delta_ts >= 2²³ (the fit test is `< 2²³`, so 2²³ exactly does *not* fit) |
-| `stat_event_data_ovf` | Tier-0 escape caused by event_data >= 2⁴⁰ (delta_ts fit) |
-| `stat_ed_delta_ovf` | Tier-0 escape caused by ed_delta out of ±2³⁹ |
-
-The host firmware reads these via a configurable register block at the end
-of a capture run to characterize compression effectiveness per workload. The
-ratio `(stat_tier1_a + stat_tier1_b + stat_tier1_c) / total_records` is the
-hit rate; on the validation dataset it's 93.5 %.
-
----
-
-## Validation Numbers (locked dataset)
+### Validation Numbers (locked dataset)
 
 Workload: `desc_axi_16desc_8ch_1MB` — 8 channels × 16 descriptors × 1 MB
 DMA, descriptor-fetch monitor on a Nexys A7.
@@ -636,6 +634,20 @@ DMA, descriptor-fetch monitor on a Nexys A7.
 The dataset and acceptance recipe live at
 [`projects/NexysA7/stream_characterization/reports/compression_dataset/`](https://github.com/sean-galloway/RTLDesignSherpa/tree/main/projects/NexysA7/stream_characterization/reports/compression_dataset).
 
+### Test Suite Summary
+
+- **Acceptance (byte-identical vs golden):** `val/amba/test_monbus_compressor.py`
+- **End-to-end (with AXIL writer + wrap):** `val/amba/test_monbus_axil_axil_group_compressed.py`
+- **CAM sub-module:** `val/amba/test_monbus_cam.py`
+
+Run all three:
+
+```bash
+pytest val/amba/test_monbus_cam.py \
+       val/amba/test_monbus_compressor.py \
+       val/amba/test_monbus_axil_axil_group_compressed.py -v
+```
+
 ---
 
 ## Related Modules
@@ -651,16 +663,7 @@ The dataset and acceptance recipe live at
 
 ---
 
-## Test
+## Navigation
 
-- **Acceptance (byte-identical vs golden):** `val/amba/test_monbus_compressor.py`
-- **End-to-end (with AXIL writer + wrap):** `val/amba/test_monbus_axil_axil_group_compressed.py`
-- **CAM sub-module:** `val/amba/test_monbus_cam.py`
-
-Run all three:
-
-```bash
-pytest val/amba/test_monbus_cam.py \
-       val/amba/test_monbus_compressor.py \
-       val/amba/test_monbus_axil_axil_group_compressed.py -v
-```
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
+- [Back to rtl-amba Index](../index.md)

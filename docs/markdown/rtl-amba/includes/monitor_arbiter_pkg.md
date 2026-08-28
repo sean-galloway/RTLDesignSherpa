@@ -49,7 +49,7 @@ every code in this section is `PROTOCOL_ARB` (4'h3).
 **Packet context:** `packet_type = PktTypeError`, `protocol = PROTOCOL_ARB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `ARB_ERR_STARVATION`         | Client request starvation |
 | 8'h1      | `ARB_ERR_ACK_TIMEOUT`        | Grant ACK timeout |
 | 8'h2      | `ARB_ERR_PROTOCOL_VIOLATION` | ACK protocol violation |
@@ -71,7 +71,7 @@ every code in this section is `PROTOCOL_ARB` (4'h3).
 **Packet context:** `packet_type = PktTypeTimeout`, `protocol = PROTOCOL_ARB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `ARB_TIMEOUT_GRANT_ACK`     | Grant ACK timeout |
 | 8'h1      | `ARB_TIMEOUT_REQUEST_HOLD`  | Request held too long |
 | 8'h2      | `ARB_TIMEOUT_WEIGHT_UPDATE` | Weight update timeout |
@@ -86,7 +86,7 @@ every code in this section is `PROTOCOL_ARB` (4'h3).
 **Packet context:** `packet_type = PktTypeCompletion`, `protocol = PROTOCOL_ARB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `ARB_COMPL_GRANT_ISSUED`    | Grant successfully issued |
 | 8'h1      | `ARB_COMPL_ACK_RECEIVED`    | ACK successfully received |
 | 8'h2      | `ARB_COMPL_TRANSACTION`     | Complete transaction (grant+ack) |
@@ -102,7 +102,7 @@ every code in this section is `PROTOCOL_ARB` (4'h3).
 **Packet context:** `packet_type = PktTypeThreshold`, `protocol = PROTOCOL_ARB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `ARB_THRESH_REQUEST_LATENCY`  | Request-to-grant latency threshold |
 | 8'h1      | `ARB_THRESH_ACK_LATENCY`      | Grant-to-ACK latency threshold |
 | 8'h2      | `ARB_THRESH_FAIRNESS_DEV`     | Fairness deviation threshold |
@@ -120,7 +120,7 @@ every code in this section is `PROTOCOL_ARB` (4'h3).
 **Packet context:** `packet_type = PktTypePerf`, `protocol = PROTOCOL_ARB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `ARB_PERF_GRANT_ISSUED`       | Grant issued event |
 | 8'h1      | `ARB_PERF_ACK_RECEIVED`       | ACK received event |
 | 8'h2      | `ARB_PERF_GRANT_EFFICIENCY`   | Grant completion efficiency |
@@ -140,7 +140,7 @@ every code in this section is `PROTOCOL_ARB` (4'h3).
 **Packet context:** `packet_type = PktTypeDebug`, `protocol = PROTOCOL_ARB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `ARB_DEBUG_STATE_CHANGE`     | Arbiter state machine change |
 | 8'h1      | `ARB_DEBUG_MASK_UPDATE`      | Round-robin mask update |
 | 8'h2      | `ARB_DEBUG_WEIGHT_CHANGE`    | Weight configuration change |
@@ -171,7 +171,7 @@ read/write engines, credit-based flow control).
 **Packet context:** `packet_type = PktTypeError`, `protocol = PROTOCOL_CORE`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0 | `CORE_ERR_DESCRIPTOR_MALFORMED` | Missing magic number (0x900dc0de) |
 | 8'h1 | `CORE_ERR_DESCRIPTOR_BAD_ADDR`  | Invalid descriptor address |
 | 8'h2 | `CORE_ERR_DATA_BAD_ADDR`        | Invalid data address (fetch or runtime) |
@@ -194,7 +194,7 @@ read/write engines, credit-based flow control).
 **Packet context:** `packet_type = PktTypeTimeout`, `protocol = PROTOCOL_CORE`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `CORE_TIMEOUT_DESCRIPTOR_FETCH` | Descriptor fetch timeout |
 | 8'h1      | `CORE_TIMEOUT_CTRLRD_RETRY`     | Control read retry timeout |
 | 8'h2      | `CORE_TIMEOUT_CTRLWR_WRITE`     | Control write timeout |
@@ -211,7 +211,7 @@ read/write engines, credit-based flow control).
 **Packet context:** `packet_type = PktTypeCompletion`, `protocol = PROTOCOL_CORE`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `CORE_COMPL_DESCRIPTOR_LOADED` | Descriptor successfully loaded |
 | 8'h1      | `CORE_COMPL_DESCRIPTOR_CHAIN`  | Descriptor chain completed |
 | 8'h2      | `CORE_COMPL_CTRLRD_COMPLETED`  | Control read completed (with match) |
@@ -228,7 +228,7 @@ read/write engines, credit-based flow control).
 **Packet context:** `packet_type = PktTypeThreshold`, `protocol = PROTOCOL_CORE`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `CORE_THRESH_DESCRIPTOR_QUEUE` | Descriptor queue depth threshold |
 | 8'h1      | `CORE_THRESH_CREDIT_LOW`       | Credit low threshold |
 | 8'h2      | `CORE_THRESH_FLAG_RETRY_COUNT` | Flag retry count threshold |
@@ -246,7 +246,7 @@ read/write engines, credit-based flow control).
 **Packet context:** `packet_type = PktTypePerf`, `protocol = PROTOCOL_CORE`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `CORE_PERF_END_OF_DATA`        | Stream continuation signal |
 | 8'h1      | `CORE_PERF_END_OF_STREAM`      | Stream termination signal |
 | 8'h2      | `CORE_PERF_ENTERING_IDLE`      | FSM returning to idle |
@@ -268,7 +268,7 @@ read/write engines, credit-based flow control).
 **Packet context:** `packet_type = PktTypeDebug`, `protocol = PROTOCOL_CORE`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `CORE_DEBUG_FSM_STATE_CHANGE`    | Descriptor FSM state change |
 | 8'h1      | `CORE_DEBUG_DESCRIPTOR_CONTENT`  | Descriptor content trace |
 | 8'h2      | `CORE_DEBUG_CTRLRD_ENGINE_STATE` | Control read engine state trace |

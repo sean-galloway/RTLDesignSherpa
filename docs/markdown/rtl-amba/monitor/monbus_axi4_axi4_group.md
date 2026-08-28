@@ -31,9 +31,31 @@
 
 ## Overview
 
-The `monbus_axi4_axi4_group` module is the AXI4-slave-read + AXI4-master-write wrapper around `monbus_group_core`. It pairs a full AXI4 slave-read leaf (the error/interrupt drain port, supporting burst reads) with a full AXI4 master-write leaf (the bulk-capture port, emitting large write bursts). Both leaves are true AXI4, so their FUB interfaces pass straight through to the core's AXI4-shaped FUB ports; the wrapper only supplies safe constant defaults for the AXI4 sideband fields the core does not produce.
+`monbus_axi4_axi4_group` is the AXI4-slave-read + AXI4-master-write wrapper
+around `monbus_group_core`. It pairs a full AXI4 slave-read leaf (the
+error/interrupt drain port, supporting burst reads) with a full AXI4
+master-write leaf (the bulk-capture port, emitting large write bursts). Both
+leaves are true AXI4, so their FUB interfaces pass straight through to the
+core's AXI4-shaped FUB ports; the wrapper only supplies safe constant
+defaults for the AXI4 sideband fields the core does not produce.
 
-### Key Features
+An SoC monitoring subsystem needs to expose captured monitor packets to two
+AXI4 consumers: a CPU that reads error records over a slave port, and a
+DMA-style write path that dumps a bulk trace to memory. This wrapper wires
+the two AXI4 leaf protocol adapters (`axi4_slave_rd`, `axi4_master_wr`) to
+the shared capture core, giving you a drop-in AXI4/AXI4 capture block.
+
+Use it for:
+
+- AXI4-connected monitoring block where both the error-read and trace-write masters are AXI4
+- High-throughput trace capture that benefits from long master-write bursts
+- CPU IRQ handler reading error records via AXI4 burst reads
+
+The key benefit: true AXI4 on both sides with zero protocol translation
+loss — the leaves pass through to the core, so burst geometry, IDs, and
+full-size bursts are available end to end.
+
+Feature summary:
 
 - Full AXI4 on both the error-drain (slave read) and bulk-capture (master write) sides
 - Burst AR support on the slave-read drain (walk multiple error records per burst)
@@ -45,23 +67,10 @@ The `monbus_axi4_axi4_group` module is the AXI4-slave-read + AXI4-master-write w
 
 ---
 
-## Module Purpose
-
-An SoC monitoring subsystem needs to expose captured monitor packets to two AXI4 consumers: a CPU that reads error records over a slave port, and a DMA-style write path that dumps a bulk trace to memory. This wrapper wires the two AXI4 leaf protocol adapters (`axi4_slave_rd`, `axi4_master_wr`) to the shared capture core, giving a drop-in AXI4/AXI4 capture block.
-
-**Use Cases:**
-- AXI4-connected monitoring block where both the error-read and trace-write masters are AXI4
-- High-throughput trace capture that benefits from long master-write bursts
-- CPU IRQ handler reading error records via AXI4 burst reads
-
-**Key Benefit:** True AXI4 on both sides with zero protocol translation loss — the leaves pass through to the core, so burst geometry, IDs, and full-size bursts are available end to end.
-
----
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | `FIFO_DEPTH_ERR` | int | 64 | Error FIFO depth in 192-bit records |
 | `FIFO_DEPTH_WRITE` | int | 96 | Write FIFO depth in 64-bit beats |
 | `ADDR_WIDTH` | int | 32 | Address width for both AXI4 ports |
@@ -80,12 +89,12 @@ An SoC monitoring subsystem needs to expose captured monitor packets to two AXI4
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock, Reset, Clear
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `axi_aclk` | input | 1 | Clock |
 | `axi_aresetn` | input | 1 | Active-low asynchronous reset |
 | `cam_clear` | input | 1 | Synchronous compressor CAM + stats clear |
@@ -93,7 +102,7 @@ An SoC monitoring subsystem needs to expose captured monitor packets to two AXI4
 ### MonBus Ingress and Timestamp
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `monbus_valid` | input | 1 | Incoming packet valid |
 | `monbus_ready` | output | 1 | Ready to accept |
 | `monbus_packet` | input | `monitor_packet_t` (128) | Monitor packet |
@@ -103,7 +112,7 @@ An SoC monitoring subsystem needs to expose captured monitor packets to two AXI4
 ### S-Side — AXI4 Slave Read (error record drain)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `s_axi_arid` | input | AXI_ID_WIDTH_S | Read address ID |
 | `s_axi_araddr` | input | ADDR_WIDTH | Read address |
 | `s_axi_arlen` | input | 8 | Burst length (beats − 1) |
@@ -128,7 +137,7 @@ An SoC monitoring subsystem needs to expose captured monitor packets to two AXI4
 ### M-Side — AXI4 Master Write (bulk trace capture)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `m_axi_awid` | output | AXI_ID_WIDTH_M | Write address ID |
 | `m_axi_awaddr` | output | ADDR_WIDTH | Write address |
 | `m_axi_awlen` | output | 8 | Burst length (beats − 1) |
@@ -157,7 +166,7 @@ An SoC monitoring subsystem needs to expose captured monitor packets to two AXI4
 ### Status and Egress Configuration
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `irq_out` | output | 1 | Error FIFO non-empty |
 | `cfg_base_addr` | input | ADDR_WIDTH | Capture window base |
 | `cfg_limit_addr` | input | ADDR_WIDTH | Capture window limit |
@@ -251,16 +260,19 @@ The five `SKID_DEPTH_*` parameters size the per-channel skid buffers in the leav
 
 ## Related Modules
 
-### Used By
+**Used by:**
+
 - SoC monitoring subsystems requiring an AXI4/AXI4 MonBus capture block
 
-### Uses
+**Uses:**
+
 - **monbus_group_core.sv** — protocol-agnostic capture core (all logic)
 - **axi4_slave_rd.sv** — AXI4 slave-read leaf (error drain)
 - **axi4_master_wr.sv** — AXI4 master-write leaf (bulk capture)
 - **monitor_common_pkg** — packet and timestamp types
 
-### See Also
+**See also:**
+
 - **monbus_axi4_axil_group.sv** — AXI4 read + AXIL write variant
 - **monbus_axil_axi4_group.sv** — AXIL read + AXI4 write variant
 - **monbus_axil_axil_group.sv** — AXIL read + AXIL write variant
@@ -271,10 +283,12 @@ The five `SKID_DEPTH_*` parameters size the per-channel skid buffers in the leav
 ## References
 
 ### Source Code
+
 - RTL: `rtl/amba/monitor/monbus_axi4_axi4_group.sv`
 - Core: `rtl/amba/monitor/monbus_group_core.sv`
 
 ### Documentation
+
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Group Core: `docs/markdown/rtl-amba/monitor/monbus_group_core.md`
 - Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`

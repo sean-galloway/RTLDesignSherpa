@@ -48,34 +48,37 @@ which doubles as a spec-violation detector.
 
 ---
 
-## Top-level Interface
+## Parameters
 
-| Signal | Dir | Description |
-|--------|-----|-------------|
-| `clk` / `rst_n` | in | Clock, active-low async reset |
-| `load_clear` | in | Pulse: invalidate all entries |
-| `load_we` | in | Pulse: write one entry |
-| `load_addr` | in | `[IDX_WIDTH-1:0]` entry index to write |
-| `load_valid` | in | Entry valid bit written with the key |
-| `load_key` | in | `[KEY_WIDTH-1:0]` legal message-identity key |
-| `lookup_key` | in | `[KEY_WIDTH-1:0]` incoming identity to match |
-| `lookup_hit` | out | 1 when `lookup_key` matches a valid entry |
-| `lookup_idx` | out | `[IDX_WIDTH-1:0]` dense index of the match (valid on hit) |
-
-### Parameters
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `N_ENTRIES` | Legal-set capacity (dense bins `0..N-1`) | 64 |
-| `KEY_WIDTH` | Message-identity key width | 32 |
-| `IDX_WIDTH` | Derived: `clog2(N_ENTRIES)` | — |
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `N_ENTRIES` | int | 64 | Legal-set capacity (dense bins `0..N-1`) |
+| `KEY_WIDTH` | int | 32 | Message-identity key width |
+| `IDX_WIDTH` | int | derived | `clog2(N_ENTRIES)` |
 
 The tally builds the key as
 `{agent_id[15:0], protocol[3:0], pkt_type[3:0], event_code[7:0]}` (32 bits).
 
 ---
 
-## Implementation
+## Ports
+
+| Port | Direction | Width | Description |
+|---|---|---|---|
+| `clk` | input | 1 | Clock |
+| `rst_n` | input | 1 | Active-low asynchronous reset |
+| `load_clear` | input | 1 | Pulse: invalidate all entries |
+| `load_we` | input | 1 | Pulse: write one entry |
+| `load_addr` | input | IDX_WIDTH | Entry index to write |
+| `load_valid` | input | 1 | Entry valid bit written with the key |
+| `load_key` | input | KEY_WIDTH | Legal message-identity key |
+| `lookup_key` | input | KEY_WIDTH | Incoming identity to match |
+| `lookup_hit` | output | 1 | 1 when `lookup_key` matches a valid entry |
+| `lookup_idx` | output | IDX_WIDTH | Dense index of the match (valid on hit) |
+
+---
+
+## Functional Description
 
 - **Valid** is a packed `N_ENTRIES`-bit vector, so its reset is a single-shot
   assign — no per-element delayed-array loop (avoids Verilator `BLKLOOPINIT`).
@@ -86,6 +89,10 @@ The tally builds the key as
 - A hit drives `lookup_idx` = the entry index; a miss (`lookup_hit = 0`) is the
   caller's cue to use its UNEXPECTED bin.
 
+---
+
+## Design Notes
+
 Area scales with `N_ENTRIES × KEY_WIDTH` comparators. When the full legal set
 exceeds `N_ENTRIES`, the host loads a slice per run and reprograms for the next —
 the CAM is CSR-loadable at runtime.
@@ -95,7 +102,7 @@ the CAM is CSR-loadable at runtime.
 ## Related Modules
 
 | Module | Relationship |
-|--------|--------------|
+|---|---|
 | [`monbus_pkt_tally`](monbus_pkt_tally.md) | The sole consumer; instantiates this in `PROFILE_MODE`. |
 | [`monbus_cam`](monbus_cam.md) | The tally's separate LRU write-combining cache (unrelated role). |
 
@@ -103,9 +110,16 @@ Coverage design and the on-board scenario flow: `vault/handbook/fpga/Genesys2/st
 
 ---
 
-## Test
+## Testing
 
 Exercised through the tally's fub test (`val/amba/test_monbus_pkt_tally.py`,
 profile-mode config): a legal set is loaded, matching and deliberately-illegal
 packets are driven, and the dense bins + UNEXPECTED are cross-checked against a
 Python golden.
+
+---
+
+## Navigation
+
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
+- [Back to rtl-amba Index](../index.md)

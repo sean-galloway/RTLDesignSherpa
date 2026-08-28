@@ -39,11 +39,9 @@ data, and response channels, and then applies a configurable drop filter to the
 **not** take a monitor-bus input stream — it produces the monitor bus from the
 channels it observes.
 
-This is a **shared infrastructure module** used internally by AXI/AXIL monitors. It is not typically instantiated directly by users but is critical for understanding the monitor architecture.
+This is a **shared infrastructure module** used internally by the AXI/AXIL monitors. You won't instantiate it directly, but it's the piece that keeps monitor-bus traffic manageable, so it's worth understanding.
 
----
-
-## Key Features
+Key features:
 
 - **Wraps `axi_monitor_base`:** all transaction tracking, timeout, threshold, and perfmon logic lives in the base; this module only filters its output stream.
 - **Level 1 — packet-type drop mask** (`cfg_axi_pkt_mask`): drop entire packet types by index.
@@ -53,25 +51,21 @@ This is a **shared infrastructure module** used internally by AXI/AXIL monitors.
 - **Bypass mode:** `ENABLE_FILTERING=0` passes every packet straight through.
 - **Optional pipeline stage:** `ADD_PIPELINE_STAGE=1` registers the filtered output for timing closure.
 
----
+Four reasons this block exists:
 
-## Module Purpose
-
-The `axi_monitor_filtered` module is the core building block for:
-
-1. **Traffic Management:** Reduces monitor bus congestion by dropping unwanted packet types and event codes at the source.
-2. **Granular Control:** Supports per-packet-type (Level 1) and per-event-code (Level 3) drop masking.
-3. **Configuration Validation:** Flags conflicting mask settings via `cfg_conflict_error`.
-4. **Protocol Isolation:** Drops any non-AXI-protocol packet (protocol field ≠ `4'h0`), which should never occur inside an AXI monitor.
+1. **Traffic Management:** reduces monitor bus congestion by dropping unwanted packet types and event codes at the source.
+2. **Granular Control:** supports per-packet-type (Level 1) and per-event-code (Level 3) drop masking.
+3. **Configuration Validation:** flags conflicting mask settings via `cfg_conflict_error`.
+4. **Protocol Isolation:** drops any non-AXI-protocol packet (protocol field != `4'h0`), which should never occur inside an AXI monitor.
 
 ---
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | `UNIT_ID` / `AGENT_ID` | logic | `8'h01` / `16'h000A` | Identity bits stamped into emitted monitor packets. |
-| `MAX_TRANSACTIONS` | int | 16 | Outstanding transaction table depth (passed to `axi_monitor_base` → `axi_monitor_trans_mgr`). |
+| `MAX_TRANSACTIONS` | int | 16 | Outstanding transaction table depth (passed to `axi_monitor_base` -> `axi_monitor_trans_mgr`). |
 | `ADDR_WIDTH` / `ID_WIDTH` | int | 32 / 8 | Address and AXI ID widths. `ID_WIDTH` has a **hard maximum of 8** (the transaction-table id field is 8 bits; wider is refused at elaboration with an `$error`). `ADDR_WIDTH > 32` is allowed but truncates the address carried in packets to the low 32 bits. |
 | `IS_READ` / `IS_AXI` | bit | 1 / 1 | Direction (read vs write) and protocol family (AXI4 vs AXIL). |
 | `ENABLE_PERF_PACKETS` | bit | 1 | Emit perf packets onto the monitor bus. |
@@ -86,7 +80,7 @@ The `axi_monitor_filtered` module is the core building block for:
 | `ENABLE_FILTERING` | bit | 1 | Master enable for filtering. |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing. |
 | `N_ADDR_RANGES` | int | 0 | Number of address-range comparators in the [`axi_monitor_addr_check`](axi_monitor_addr_check.md) sub-block (0 = the comparator block is not synthesised at all). |
-| `ADDR_RANGE_IS_ERROR` | logic [N_ADDR_RANGES-1:0] | `'0` | Per-range flavor forwarded to the checker: 0 = DEBUG (hit → AddrMatch), 1 = ERROR (allowlist miss → Error/ADDR_RANGE). Default all-0. |
+| `ADDR_RANGE_IS_ERROR` | logic [N_ADDR_RANGES-1:0] | `'0` | Per-range flavor forwarded to the checker: 0 = DEBUG (hit -> AddrMatch), 1 = ERROR (allowlist miss -> Error/ADDR_RANGE). Default all-0. |
 
 ### Forwarded to `axi_monitor_base` (pass-through)
 
@@ -95,7 +89,7 @@ authority on what each one does. They are listed so this wrapper's own page is a
 complete inventory.
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | `USE_WDATA_ORDER_Q` | bit | 0 | Write monitors: recover WID-less W-beat order with an AWID FIFO. **Required** when `NUM_BANKS > 1` on a write monitor — the combination without it refuses to elaborate |
 | `NUM_BANKS` | int | 1 | Bank the transaction table by low ID bits. Power of 2, must divide `MAX_TRANSACTIONS`; per-ID concurrency is capped by the **bank** depth |
 | `ID_FILTER_ENABLE` | bit | 0 | Track only a slice of the IDs on a shared bus |
@@ -112,7 +106,7 @@ sizing rules and the elaboration error.
 
 ---
 
-## Port Groups
+## Ports
 
 ### Observed AXI/AXIL Channels (inputs to the wrapped base)
 
@@ -121,7 +115,7 @@ and response channels as `axi_monitor_base` and passes them through unchanged. S
 [`axi_monitor_base`](./axi_monitor_base.md) for full descriptions.
 
 | Group | Ports |
-|-------|-------|
+|---|---|
 | Command (AW/AR) | `cmd_addr`, `cmd_id`, `cmd_len`, `cmd_size`, `cmd_burst`, `cmd_valid`, `cmd_ready` |
 | Data (W/R) | `data_id`, `data_last`, `data_resp`, `data_valid`, `data_ready` |
 | Response (B) | `resp_id`, `resp_code`, `resp_valid`, `resp_ready` |
@@ -134,7 +128,7 @@ All of the above are passed through to the internal `axi_monitor_base` verbatim.
 ### Monitor Bus Output (filtered)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `monbus_valid` | Output | 1 | Filtered packet valid (base valid AND not dropped) |
 | `monbus_ready` | Input | 1 | Downstream ready |
 | `monbus_packet` | Output | 128 | Filtered `monitor_packet_t` (unmodified; only passed or dropped) |
@@ -143,9 +137,9 @@ All of the above are passed through to the internal `axi_monitor_base` verbatim.
 ### Reset and Synchronous Control
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `aclk` / `aresetn` | Input | 1 / 1 | Standard clock and active-low async reset. |
-| `clear` | Input | 1 | **Synchronous clear** — passes through to `axi_monitor_base` → `axi_monitor_trans_mgr` to empty the transaction CAM and zero the active-count pipeline without `aresetn`. Pulse one cycle while idle. |
+| `clear` | Input | 1 | **Synchronous clear** — passes through to `axi_monitor_base` -> `axi_monitor_trans_mgr` to empty the transaction CAM and zero the active-count pipeline without `aresetn`. Pulse one cycle while idle. |
 
 ### Filter Configuration
 
@@ -153,8 +147,8 @@ All filter masks use **drop semantics**: a set bit drops the corresponding packe
 type or event code. All masks are 16-bit.
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `cfg_axi_pkt_mask` | Input | 16 | **Level 1** packet-type drop mask. Bit `pkt_type` set → drop all packets of that type |
+|---|---|---|---|
+| `cfg_axi_pkt_mask` | Input | 16 | **Level 1** packet-type drop mask. Bit `pkt_type` set -> drop all packets of that type |
 | `cfg_axi_err_select` | Input | 16 | **Level 2** error-select. Reserved for cross-routing; in the AXI wrapper it is consumed only by the conflict check, not applied to the stream |
 | `cfg_axi_error_mask` | Input | 16 | **Level 3** per-event-code drop mask for Error packets |
 | `cfg_axi_timeout_mask` | Input | 16 | Level 3 drop mask for Timeout packets |
@@ -171,13 +165,13 @@ if `mask[event_code[3:0]]` is set.
 ### Configuration Status Output
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `cfg_conflict_error` | Output | 1 | Asserted when `cfg_axi_pkt_mask & cfg_axi_err_select` is non-zero (overlapping type is both dropped and error-selected) |
 
 ### Performance Window Control (Stage A of perfmon RFC)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `cfg_start_event_sel` | Input | 3 | Event selector that opens the perf window (e.g. command-handshake, first beat, software pulse). |
 | `cfg_end_event_sel` | Input | 3 | Event selector that closes the perf window. |
 | `cfg_start_trigger` | Input | 1 | Software-driven open pulse (combines with `cfg_start_event_sel`). |
@@ -193,7 +187,7 @@ use perfmon.
 ### Performance Counters (Stage B of perfmon RFC)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `perf_prod_cycles` | Output | 32 | Productive cycles (valid + ready both high). |
 | `perf_bp_cycles` | Output | 32 | Back-pressure cycles (valid high, ready low). |
 | `perf_starv_cycles` | Output | 32 | Starvation cycles (valid low, ready high). |
@@ -209,7 +203,9 @@ software reads them after the close edge.
 
 ---
 
-## Architecture
+## Functional Description
+
+### Architecture
 
 ```mermaid
 flowchart TB
@@ -230,22 +226,19 @@ validation-only input in this wrapper and is not shown in the drop path.
 
 ---
 
-## Usage in Monitor System
+## Timing
 
-This module is used by:
-
-- **axi4_master_rd_mon**
-- **axi4_master_wr_mon**
-- **axi4_slave_rd_mon**
-- **axi4_slave_wr_mon**
-
-### Internal Integration
-
-This module is instantiated automatically within higher-level monitor modules. Users configure behavior through top-level monitor parameters.
+| Metric | Value | Notes |
+|---|---|---|
+| Filtering Latency | 0-1 cycles | Combinatorial (0) or registered (1) |
+| Throughput | 1 packet per 2 cycles | Limited by the reporter's registered output stage; the filter itself introduces no additional backpressure |
 
 ---
 
-## Configuration Guidelines
+## Usage Example
+
+This module is instantiated automatically within higher-level monitor modules — users
+configure behavior through top-level monitor parameters.
 
 ### Filter Strategy
 
@@ -280,18 +273,28 @@ to `16'h0000` unless you need to suppress specific event codes.
 
 ---
 
-## Performance Characteristics
+## Related Modules
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| Filtering Latency | 0-1 cycles | Combinatorial (0) or registered (1) |
-| Throughput | 1 packet per 2 cycles | Limited by the reporter's registered output stage; the filter itself introduces no additional backpressure |
+- **[axi_monitor_base](./axi_monitor_base.md)**
+
+**Used by:**
+
+- **axi4_master_rd_mon**
+- **axi4_master_wr_mon**
+- **axi4_slave_rd_mon**
+- **axi4_slave_wr_mon**
+
+**See also:**
+
+- **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
+- **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
+- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 
 ---
 
-## Verification Considerations
+## Testing
 
-### Key Test Scenarios
+Key test scenarios:
 
 1. **Level 1 masking:**
    - Generate all packet types from the base
@@ -310,22 +313,8 @@ to `16'h0000` unless you need to suppress specific event codes.
 
 ---
 
-## Related Modules
-
-- **[axi_monitor_base](./axi_monitor_base.md)**
-
----
-
-## See Also
-
-- **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
-- **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
-- **Packet Format Specification:** `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
-
----
-
 ## Navigation
 
-- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
-- **[← Back to rtl-amba Index](../index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[Back to Shared Infrastructure Index](../_book_monitor_index.md)**
+- **[Back to rtl-amba Index](../index.md)**
+- **[Back to Main Documentation Index](../../index.md)**

@@ -33,7 +33,7 @@
 
 The AXI Monitor Reporter Completion Cone is the completion-packet detection sub-block of `axi_monitor_reporter`. It scans the outstanding-transaction table for slots that have reached the `TRANS_COMPLETE` state but have not yet been reported, priority-encodes the first such slot, and emits the fields for a `PktTypeCompletion` MonBus packet. It was split out of the monolithic reporter so integrators who do not need completion packets can drop it with `ENABLE_COMPL_LOGIC=0` and pay zero LUT cost for the per-slot scan and priority encoder. The block is purely combinational.
 
-### Key Features
+Key features:
 
 - Scans the shared transaction table for unreported `TRANS_COMPLETE` slots
 - First-match priority encoder selects one slot per cycle
@@ -42,50 +42,47 @@ The AXI Monitor Reporter Completion Cone is the completion-packet detection sub-
 - Reports the selected slot index (`sel_idx`) back to the top reporter for `event_reported` feedback
 - Pure combinational — all state (table, `event_reported`) lives in the top reporter
 
----
-
-## Module Purpose
-
 The transaction manager tracks every outstanding AXI transaction and marks a slot `TRANS_COMPLETE` when it finishes cleanly. Someone must turn those completions into MonBus packets exactly once each. This cone does the detect-and-select half of that job: it finds the completed-but-unreported slots, picks the first, and hands the packet fields plus the chosen slot index up to the top reporter, which pushes the packet into the shared MonBus FIFO and sets the slot's `event_reported` bit so it is not emitted again. Factoring it into its own module means the (non-trivial) MAX_TRANSACTIONS-wide scan and encoder synthesize only when completion reporting is actually wanted.
 
-**Use Cases:**
+**Use cases:**
+
 - Emitting one completion packet per successfully-finished AXI transaction
 - Completion-tracking test/verification configurations
 - Transaction-throughput accounting on the MonBus
 
-**Key Benefit:** Isolates the completion scan/encoder so it can be compiled out (`ENABLE_COMPL_LOGIC=0`) for zero area when completion packets are not needed.
+**Key benefit:** isolates the completion scan/encoder so it can be compiled out (`ENABLE_COMPL_LOGIC=0`) for zero area when completion packets are not needed.
 
 ---
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | MAX_TRANSACTIONS | int | 16 | Depth of the shared transaction table scanned |
 | IDX_W | int | `$clog2(MAX_TRANSACTIONS)` | Width of the selected-slot index |
 
 ---
 
-## Port Groups
+## Ports
 
 ### Inputs (shared monitor state)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| trans_table | input | bus_transaction_t × MAX_TRANSACTIONS | The outstanding-transaction table |
-| event_reported | input | MAX_TRANSACTIONS | Per-slot "already reported" mask (from the top reporter) |
-| cfg_compl_enable | input | 1 | Runtime enable for completion reporting |
+|---|---|---|---|
+| trans_table | Input | bus_transaction_t x MAX_TRANSACTIONS | The outstanding-transaction table |
+| event_reported | Input | MAX_TRANSACTIONS | Per-slot "already reported" mask (from the top reporter) |
+| cfg_compl_enable | Input | 1 | Runtime enable for completion reporting |
 
 ### Outputs (packet fields to the top reporter)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| pkt_valid | output | 1 | A completed-unreported slot was found this cycle |
-| pkt_type | output | 4 | Packet type = `PktTypeCompletion` |
-| pkt_event_code | output | 8 | Event code = `EVT_TRANS_COMPLETE` |
-| pkt_channel | output | 9 | Channel id `{3'b0, slot.channel[5:0]}` |
-| pkt_data | output | 64 | Slot address, zero-padded to 64 bits |
-| sel_idx | output | IDX_W | Index of the selected slot (for `event_reported` feedback) |
+|---|---|---|---|
+| pkt_valid | Output | 1 | A completed-unreported slot was found this cycle |
+| pkt_type | Output | 4 | Packet type = `PktTypeCompletion` |
+| pkt_event_code | Output | 8 | Event code = `EVT_TRANS_COMPLETE` |
+| pkt_channel | Output | 9 | Channel id `{3'b0, slot.channel[5:0]}` |
+| pkt_data | Output | 64 | Slot address, zero-padded to 64 bits |
+| sel_idx | Output | IDX_W | Index of the selected slot (for `event_reported` feedback) |
 
 ---
 
@@ -154,14 +151,17 @@ The strict first-match encoder emits at most one completion per cycle. Simultane
 
 ## Related Modules
 
-### Used By
+**Used by:**
+
 - **axi_monitor_reporter.sv** - Top reporter that pushes the packet into the MonBus FIFO and drives `event_reported`
 
-### Uses
+**Uses:**
+
 - **monitor_common_pkg** - `PktTypeCompletion`, `TRANS_COMPLETE`, `bus_transaction_t`
 - **monitor_amba4_pkg** - `EVT_TRANS_COMPLETE` event code
 
-### See Also
+**See also:**
+
 - **axi_monitor_reporter_error.sv** - Error/orphan detection cone (sibling sub-block)
 - **axi_monitor_reporter_debug.sv** - State-change debug emitter (sibling sub-block)
 - **axi_monitor_base.sv** - The monitor scaffold that houses trans_mgr + reporter
@@ -186,5 +186,5 @@ The strict first-match encoder emits at most one completion per cycle. Simultane
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
-- [Back to rtl-amba Index](../index.md)
+- **[Back to Shared Infrastructure Index](../_book_monitor_index.md)**
+- **[Back to rtl-amba Index](../index.md)**

@@ -35,7 +35,7 @@ The `axi_monitor_reporter_perf` module is the performance-packet emitter for the
 
 This block was split out of the original monolithic reporter so integrators who do not need performance counters can drop it (compile it out with `ENABLE_PERF_LOGIC=0` at the reporter level) and reclaim the counter area.
 
-### Key Features
+Key features:
 
 - Lifetime completion and error transaction counters (16-bit each)
 - Counters driven from mark-reported masks supplied by the top reporter
@@ -45,65 +45,62 @@ This block was split out of the original monolithic reporter so integrators who 
 - Emits `AXI_PERF_COMPLETED_COUNT` and `AXI_PERF_ERROR_COUNT` event codes
 - Counters exposed as ports for status / debug read-back
 
----
-
-## Module Purpose
-
 Performance analysis of an AXI interface needs a periodic summary of how many transactions have completed and how many ended in error over the life of the monitor. This block accumulates those two counts and, when the output path is idle, walks a fixed FSM that emits a completion-count packet followed by an error-count packet.
 
-**Use Cases:**
+**Use cases:**
+
 - Long-run throughput and error-rate characterization of an AXI/AXIL master or slave
 - Coarse "health" telemetry streamed to a host over the MonBus
 - Regression sanity: confirming the number of completions matches the stimulus
 - Cross-checking the window-bucket perfmon path (Stage A/B) against a lifetime rollup
 
-**Key Benefit:** Real area savings when disabled (the counters and FSM are removed), while providing a lightweight lifetime performance rollup that runs in parallel with the window-bucket perfmon counters in `axi_monitor_base`.
+**Key benefit:** real area savings when disabled (the counters and FSM are removed), while providing a lightweight lifetime performance rollup that runs in parallel with the window-bucket perfmon counters in `axi_monitor_base`.
 
 ---
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | `MAX_TRANSACTIONS` | int | 16 | Number of transaction slots; sets the width of the `error_marked_mask` / `compl_marked_mask` inputs |
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `aclk` | input | 1 | Monitor clock |
-| `aresetn` | input | 1 | Active-low asynchronous reset |
+|---|---|---|---|
+| `aclk` | Input | 1 | Monitor clock |
+| `aresetn` | Input | 1 | Active-low asynchronous reset |
 
 ### Control / Status Inputs
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `cfg_perf_enable` | input | 1 | Enable performance packet generation (also gates the FSM) |
-| `output_busy` | input | 1 | Output path busy (FIFO has data or `monbus_valid` asserted); FSM stalls while high |
-| `pkt_taken` | input | 1 | Strobed by the top reporter when this block's packet is accepted. **Load-bearing** — it holds the emit FSM; see Design Notes |
-| `error_marked_mask` | input | MAX_TRANSACTIONS | Per-slot bit set the cycle an error event is marked-reported into the FIFO |
-| `compl_marked_mask` | input | MAX_TRANSACTIONS | Per-slot bit set the cycle a completion event is marked-reported into the FIFO |
+|---|---|---|---|
+| `cfg_perf_enable` | Input | 1 | Enable performance packet generation (also gates the FSM) |
+| `output_busy` | Input | 1 | Output path busy (FIFO has data or `monbus_valid` asserted); FSM stalls while high |
+| `pkt_taken` | Input | 1 | Strobed by the top reporter when this block's packet is accepted. **Load-bearing** — it holds the emit FSM; see Design Notes |
+| `error_marked_mask` | Input | MAX_TRANSACTIONS | Per-slot bit set the cycle an error event is marked-reported into the FIFO |
+| `compl_marked_mask` | Input | MAX_TRANSACTIONS | Per-slot bit set the cycle a completion event is marked-reported into the FIFO |
 
 ### Packet Output
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `pkt_valid` | output | 1 | A performance packet is available this cycle |
-| `pkt_type` | output | 4 | Packet type — constant `PktTypePerf` (4'h4) |
-| `pkt_event_code` | output | 8 | Event code: `AXI_PERF_COMPLETED_COUNT` (8'h7) or `AXI_PERF_ERROR_COUNT` (8'h8) |
-| `pkt_channel` | output | 9 | Channel field (unused here — driven to 0) |
-| `pkt_data` | output | 64 | Zero-extended count value being reported |
+|---|---|---|---|
+| `pkt_valid` | Output | 1 | A performance packet is available this cycle |
+| `pkt_type` | Output | 4 | Packet type — constant `PktTypePerf` (4'h4) |
+| `pkt_event_code` | Output | 8 | Event code: `AXI_PERF_COMPLETED_COUNT` (8'h7) or `AXI_PERF_ERROR_COUNT` (8'h8) |
+| `pkt_channel` | Output | 9 | Channel field (unused here — driven to 0) |
+| `pkt_data` | Output | 64 | Zero-extended count value being reported |
 
 ### Lifetime Counters (Status / Debug)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `perf_completed_count` | output | 16 | Running total of completed transactions |
-| `perf_error_count` | output | 16 | Running total of error transactions |
+|---|---|---|---|
+| `perf_completed_count` | Output | 16 | Running total of completed transactions |
+| `perf_error_count` | Output | 16 | Running total of error transactions |
 
 ---
 
@@ -120,7 +117,7 @@ Both counters are exposed on the port list for status read-back, and — since c
 A 5-state counter (`r_state`) paces packet publication and matches the original monolithic reporter's behavior one-for-one. The FSM only advances while `cfg_perf_enable` is asserted and `output_busy` is low:
 
 | State | Name | Action |
-|-------|------|--------|
+|---|---|---|
 | 3'h0 | ADDR_LATENCY | No packet (placeholder state) |
 | 3'h1 | DATA_LATENCY | No packet (placeholder state) |
 | 3'h2 | TOTAL_LATENCY | No packet (placeholder state) |
@@ -218,16 +215,19 @@ Both counters are 16-bit and wrap on overflow. For very long runs the host shoul
 
 ## Related Modules
 
-### Used By
+**Used by:**
+
 - **axi_monitor_reporter.sv** — instantiates this block as its performance-packet sub-emitter
 - **axi_monitor_base.sv** — top-level monitor scaffold that wires the reporter into the MonBus
 
-### Uses
+**Uses:**
+
 - **monitor_common_pkg** — `PktTypePerf` and shared packet definitions
 - **monitor_amba4_pkg** — `AXI_PERF_COMPLETED_COUNT` / `AXI_PERF_ERROR_COUNT` event codes
 - **reset_defs.svh** — reset macros (`ALWAYS_FF_RST`, `RST_ASSERTED`)
 
-### See Also
+**See also:**
+
 - **axi_monitor_reporter_threshold.sv** — threshold-crossing packet emitter (sibling)
 - **axi_monitor_reporter_timeout.sv** — timeout packet emitter (sibling)
 
@@ -254,5 +254,5 @@ Both counters are 16-bit and wrap on overflow. For very long runs the host shoul
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
-- [Back to rtl-amba Index](../index.md)
+- **[Back to Shared Infrastructure Index](../_book_monitor_index.md)**
+- **[Back to rtl-amba Index](../index.md)**

@@ -50,7 +50,7 @@ QoS / trace events.
 **Packet context:** extends `axi_completion_code_t` semantics (`packet_type = PktTypeCompletion`, `protocol = PROTOCOL_AXI`) — used to report which AXI5 atomic primitive completed.
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXI5_ATOMIC_LOAD`         | Atomic load operation |
 | 8'h1      | `AXI5_ATOMIC_SWAP`         | Atomic swap operation |
 | 8'h2      | `AXI5_ATOMIC_COMPARE`      | Atomic compare operation |
@@ -70,7 +70,7 @@ QoS / trace events.
 **Packet context:** `packet_type = PktTypeDebug` (trace / QoS / poison / MPAM events), `protocol = PROTOCOL_AXI`.
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXI5_TRACE_START`      | Trace session start |
 | 8'h1      | `AXI5_TRACE_END`        | Trace session end |
 | 8'h2      | `AXI5_TRACE_DATA`       | Trace data packet |
@@ -95,7 +95,7 @@ and user signals (PUSER / PSUSER).
 **Packet context:** `packet_type = PktTypeDebug` (or producer-defined), `protocol = PROTOCOL_APB` — APB5 wake-up / sleep transitions.
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `APB5_WAKEUP_REQUEST`      | PWAKEUP asserted by slave |
 | 8'h1      | `APB5_WAKEUP_ACKNOWLEDGED` | Wake-up acknowledged |
 | 8'h2      | `APB5_WAKEUP_TIMEOUT`      | Wake-up request timeout |
@@ -110,7 +110,7 @@ and user signals (PUSER / PSUSER).
 **Packet context:** `packet_type = PktTypeError` (parity errors) or `PktTypeDebug` (status), `protocol = PROTOCOL_APB`.
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `APB5_PARITY_PWDATA_ERROR`   | PWDATA parity error (PPARITY) |
 | 8'h1      | `APB5_PARITY_PRDATA_ERROR`   | PRDATA parity error (PRDATAPARITY) |
 | 8'h2      | `APB5_PARITY_PREADY_ERROR`   | PREADY parity error (PREADYPARITY) |
@@ -127,7 +127,7 @@ and user signals (PUSER / PSUSER).
 **Packet context:** `packet_type = PktTypeDebug`, `protocol = PROTOCOL_APB` — APB5 PUSER / PSUSER side-band signal events.
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `APB5_USER_PUSER_VALID`     | PUSER valid on master |
 | 8'h1      | `APB5_USER_PSUSER_VALID`    | PSUSER valid on slave |
 | 8'h2      | `APB5_USER_SIGNAL_MISMATCH` | User signal mismatch |
@@ -146,7 +146,7 @@ parity (TPARITY), and CRC (TCRC_ERROR).
 **Packet context:** `packet_type = PktTypeDebug` (or producer-defined), `protocol = PROTOCOL_AXIS` — AXIS5 wake-up / sleep transitions.
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXIS5_WAKEUP_REQUEST`      | TWAKEUP asserted |
 | 8'h1      | `AXIS5_WAKEUP_ACKNOWLEDGED` | Wake-up acknowledged |
 | 8'h2      | `AXIS5_WAKEUP_TIMEOUT`      | Wake-up timeout |
@@ -161,7 +161,7 @@ parity (TPARITY), and CRC (TCRC_ERROR).
 **Packet context:** `packet_type = PktTypeError` (parity errors) or `PktTypeDebug` (status), `protocol = PROTOCOL_AXIS`.
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXIS5_PARITY_TDATA_ERROR`    | TDATA parity error (TPARITY) |
 | 8'h1      | `AXIS5_PARITY_CORRECTED`      | Parity error corrected |
 | 8'h2      | `AXIS5_PARITY_UNCORRECTED`    | Parity error uncorrectable |
@@ -175,7 +175,7 @@ parity (TPARITY), and CRC (TCRC_ERROR).
 **Packet context:** `packet_type = PktTypeError` (CRC failures) or `PktTypeDebug` (status), `protocol = PROTOCOL_AXIS` — optional CRC feature in AXIS5.
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXIS5_CRC_VALID`        | CRC check passed |
 | 8'h1      | `AXIS5_CRC_ERROR`        | CRC error detected (TCRC_ERROR) |
 | 8'h2      | `AXIS5_CRC_COMPUTED`     | CRC computed and sent |

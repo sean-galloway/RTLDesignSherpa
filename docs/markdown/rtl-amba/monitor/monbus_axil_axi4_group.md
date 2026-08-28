@@ -31,9 +31,38 @@
 
 ## Overview
 
-`monbus_axil_axi4_group` is the mixed-fabric wrapper of the monitor-bus delivery family. It wraps the protocol-agnostic `monbus_group_core` with an **AXIL slave-read err-drain port** (CPU IRQ handler pops error records) and a **full AXI4 burst master-write port** (streams captured records into a memory ring, bunching multiple records into multi-beat bursts to amortize address-channel overhead). It is the delivery block `stream_char` / `rapids_char` instantiate for MonBus egress when the drain fabric is AXIL but the memory ring lives behind an AXI4 fabric.
+`monbus_axil_axi4_group` is the mixed-fabric wrapper of the monitor-bus
+delivery family. It wraps the protocol-agnostic `monbus_group_core` with an
+**AXIL slave-read err-drain port** (the CPU IRQ handler pops error records)
+and a **full AXI4 burst master-write port** (streams captured records into a
+memory ring, bunching multiple records into multi-beat bursts to amortize
+address-channel overhead). It is the delivery block `stream_char` /
+`rapids_char` instantiate for MonBus egress when the drain fabric is AXIL
+but the memory ring lives behind an AXI4 fabric.
 
-### Key Features
+Like the AXIL/AXIL variant, this wrapper splits the arbitrated monitor-bus
+stream into a CPU-facing error drain and a memory-ring bulk dump. The
+difference is the dump side: a full AXI4 burst master lets the burst writer
+emit many records in a single AW + N × W + B, which is throughput-optimal
+when the ring sits behind an AXI4 fabric.
+
+The core's FUBs are AXI4-shaped internally. On the read side the wrapper
+bridges the AXIL leaf into the core's AXI4-shaped read FUB
+(`arid=0 / arlen=0 / arsize=3 / arburst=INCR`). On the write side the core
+drives most AXI4 fields directly; the fields the core does not produce
+(`awlock / awcache / awqos / awregion / awuser / wuser`) are tied to safe
+defaults at the AXI4 leaf boundary.
+
+Use it for:
+
+- MonBus egress for `stream_char` / `rapids_char` with an AXIL drain and an AXI4 ring fabric
+- CPU IRQ error drain plus high-throughput burst dump into memory
+- Trace capture where amortizing AXI4 address-channel overhead matters
+
+The key benefit: a lightweight AXIL CPU drain paired with a full AXI4 burst
+dump, so trace records land in memory with minimal address-channel overhead.
+
+Feature summary:
 
 - AXIL slave-read err-FIFO drain (CPU-facing IRQ path)
 - AXI4 burst master-write bulk-capture (`MAX_BURST_BEATS` up to 256, default 64)
@@ -45,25 +74,10 @@
 
 ---
 
-## Module Purpose
-
-Like the AXIL/AXIL variant, this wrapper splits the arbitrated monitor-bus stream into a CPU-facing error drain and a memory-ring bulk dump. The difference is the dump side: a full AXI4 burst master lets the burst writer emit many records in a single AW + N × W + B, which is throughput-optimal when the ring sits behind an AXI4 fabric.
-
-The core's FUBs are AXI4-shaped internally. On the read side the wrapper bridges the AXIL leaf into the core's AXI4-shaped read FUB (`arid=0 / arlen=0 / arsize=3 / arburst=INCR`). On the write side the core drives most AXI4 fields directly; the fields the core does not produce (`awlock / awcache / awqos / awregion / awuser / wuser`) are tied to safe defaults at the AXI4 leaf boundary.
-
-**Use Cases:**
-- MonBus egress for `stream_char` / `rapids_char` with an AXIL drain and an AXI4 ring fabric
-- CPU IRQ error drain plus high-throughput burst dump into memory
-- Trace capture where amortizing AXI4 address-channel overhead matters
-
-**Key Benefit:** A lightweight AXIL CPU drain paired with a full AXI4 burst dump, so trace records land in memory with minimal address-channel overhead.
-
----
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | FIFO_DEPTH_ERR | int | 64 | Error FIFO depth, in records |
 | FIFO_DEPTH_WRITE | int | 96 | Write FIFO depth, in beats (96 beats = 32 raw records) |
 | ADDR_WIDTH | int | 32 | Address width on the slave-read and master-write ports |
@@ -82,12 +96,12 @@ The core's FUBs are AXI4-shaped internally. On the read side the wrapper bridges
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock, Reset, and CAM Clear
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | axi_aclk | input | 1 | Clock |
 | axi_aresetn | input | 1 | Active-low asynchronous reset |
 | cam_clear | input | 1 | Synchronous clear of the compressor CAM + stat counters (tied off in raw-only builds) |
@@ -95,7 +109,7 @@ The core's FUBs are AXI4-shaped internally. On the read side the wrapper bridges
 ### Monitor-Bus Input + Timestamp
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | monbus_valid | input | 1 | Monitor-bus packet valid |
 | monbus_ready | output | 1 | Monitor-bus ready (backpressure to the arbiter) |
 | monbus_packet | input | `monitor_packet_t` | 128-bit monitor packet |
@@ -105,7 +119,7 @@ The core's FUBs are AXI4-shaped internally. On the read side the wrapper bridges
 ### AXIL Slave Read — Err-FIFO Drain
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | s_axil_arvalid | input | 1 | Read-address valid |
 | s_axil_arready | output | 1 | Read-address ready |
 | s_axil_araddr | input | ADDR_WIDTH | Read address |
@@ -118,7 +132,7 @@ The core's FUBs are AXI4-shaped internally. On the read side the wrapper bridges
 ### AXI4 Master Write — Burst Bulk Capture
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | m_axi_awid | output | AXI_ID_WIDTH | Write-address ID |
 | m_axi_awaddr | output | ADDR_WIDTH | Write burst base address (within the ring window) |
 | m_axi_awlen | output | 8 | Burst length minus 1 (`sub_burst_beats - 1`) |
@@ -147,13 +161,13 @@ The core's FUBs are AXI4-shaped internally. On the read side the wrapper bridges
 ### Interrupt
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | irq_out | output | 1 | Asserted whenever the err FIFO is non-empty |
 
 ### Configuration
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | cfg_base_addr | input | ADDR_WIDTH | Master-write ring base address |
 | cfg_limit_addr | input | ADDR_WIDTH | Master-write ring limit address (writer wraps, does not saturate) |
 | cfg_flush_watermark | input | 16 | Write-FIFO depth (beats) at which a flush fires |
@@ -164,7 +178,7 @@ The core's FUBs are AXI4-shaped internally. On the read side the wrapper bridges
 Three protocols (AXI, AXIS, CORE), each with a packet-type mask, an err-select mask, and per-event-category masks. All are 16-bit inputs — same shape as the AXIL/AXIL variant.
 
 | Port | Protocol | Role |
-|------|----------|------|
+|---|---|---|
 | cfg_axi_pkt_mask | AXI | Drop by packet type |
 | cfg_axi_err_select | AXI | Route to err FIFO by packet type |
 | cfg_axi_error_mask / cfg_axi_timeout_mask / cfg_axi_compl_mask / cfg_axi_thresh_mask / cfg_axi_perf_mask / cfg_axi_addr_mask / cfg_axi_debug_mask | AXI | Per-event-code drop masks |
@@ -178,7 +192,7 @@ Three protocols (AXI, AXIS, CORE), each with a packet-type mask, an err-select m
 ### Status / Debug
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | err_fifo_full | output | 1 | Err FIFO write port not ready |
 | write_fifo_full | output | 1 | Write FIFO write port not ready |
 | err_fifo_count | output | 16 | Err FIFO entry count (records) |
@@ -293,11 +307,13 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 
 ## Related Modules
 
-### Used By
+**Used by:**
+
 - `stream_char` / `rapids_char` MonBus egress (AXIL drain + AXI4 ring)
 - Trace-capture topologies needing high-throughput burst dump into AXI4 memory
 
-### Uses
+**Uses:**
+
 - **monbus_group_core.sv** — Protocol-agnostic filter + FIFO + burst-writer + drain
 - **axil4_slave_rd.sv** — Slave-read (err-drain) skid leaf
 - **axi4_master_wr.sv** — Master-write (burst bulk-capture) skid leaf
@@ -305,7 +321,8 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 - **monitor_common_pkg** — `monitor_packet_t` / `monbus_timestamp_t` types
 - **reset_defs.svh** — Reset macros
 
-### See Also
+**See also:**
+
 - **monbus_axil_axil_group.sv** — Same drain, AXIL single-beat master-write
 - **monbus_axi4_axil_group.sv** / **monbus_axi4_axi4_group.sv** — AXI4-burst slave-read variants
 - **monbus_arbiter.sv** — Upstream multi-source merge (instantiate before this wrapper for N>1 sources)
@@ -313,14 +330,21 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 
 ---
 
+## Testing
+
+- `val/amba/test_monbus_axil_axi4_group.py`
+
+---
+
 ## References
 
 ### Source Code
+
 - RTL: `rtl/amba/monitor/monbus_axil_axi4_group.sv`
 - Core: `rtl/amba/monitor/monbus_group_core.sv`
-- Tests: `val/amba/test_monbus_axil_axi4_group.py`
 
 ### Documentation
+
 - Family spec: `docs/markdown/rtl-amba/monitor/monbus_group.md`
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`

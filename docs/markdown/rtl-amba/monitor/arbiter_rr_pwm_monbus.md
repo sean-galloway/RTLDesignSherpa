@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# Round-Robin Arbiter with PWM and Monitor Bus
+# arbiter_rr_pwm_monbus
 
 **Module:** `arbiter_rr_pwm_monbus.sv`
 **Location:** `rtl/amba/monitor/`
@@ -31,9 +31,20 @@
 
 ## Overview
 
-The Round-Robin Arbiter with PWM and Monitor Bus combines fair round-robin arbitration with PWM-based flow control and comprehensive silicon debug monitoring. This standardized module uses fixed internal configurations for consistency while exposing only essential user-configurable parameters.
+Three blocks in one wrapper: a fair round-robin arbiter, a PWM generator that
+gates it, and the `arbiter_monbus_common` telemetry block watching the result.
+The internal sizing is fixed on purpose — 16-bit PWM resolution, 16-entry
+monitor FIFO, 256-cycle fairness reporting — so every instance behaves
+identically and there are fewer knobs to get wrong.
 
-### Key Features
+Use it where multiple masters need equal-priority access and you also want
+periodic arbitration windows: the PWM output drives the arbiter's `block_arb`
+input directly, so you get precise time-division control, while the monitor bus
+gives you real-time visibility into arbitration behavior, request latencies,
+and problems like starvation or protocol violations. The standardized internal
+configurations (PWM width, FIFO depth, fairness intervals) keep behavior
+consistent across instantiations, simplifying integration and reducing
+parameter proliferation.
 
 - Fair round-robin arbitration across N clients
 - PWM-based arbiter blocking for periodic control
@@ -46,18 +57,10 @@ The Round-Robin Arbiter with PWM and Monitor Bus combines fair round-robin arbit
 
 ---
 
-## Module Purpose
-
-This module provides a complete arbitration solution for multi-master systems where equal priority access is required. The integrated PWM generator enables precise timing control for periodic arbitration windows, while the monitor bus integration provides real-time visibility into arbitration behavior, request latencies, and potential issues like starvation or protocol violations.
-
-The standardized internal configurations (PWM width, FIFO depth, fairness intervals) ensure consistent behavior across all instantiations, simplifying integration and reducing parameter proliferation.
-
----
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | CLIENTS | int | 4 | Number of arbitration clients (1-64) |
 | WAIT_GNT_ACK | int | 0 | ACK protocol enable (0=disable, 1=enable) |
 | MON_AGENT_ID | logic [15:0] | 16'h0010 | Monitor agent identifier (16-bit per monitor bus protocol) |
@@ -67,7 +70,7 @@ The standardized internal configurations (PWM width, FIFO depth, fairness interv
 ### Fixed Internal Configurations (Not User-Configurable)
 
 | Configuration | Value | Rationale |
-|---------------|-------|-----------|
+|---|---|---|
 | PWM_WIDTH | 16 bits | Adequate resolution for most use cases |
 | MON_FIFO_DEPTH | 16 entries | Optimal for monitoring scenarios |
 | MON_FIFO_ALMOST_MARGIN | 2 entries | Safety margin for FIFO |
@@ -76,19 +79,19 @@ The standardized internal configurations (PWM width, FIFO depth, fairness interv
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | clk | input | 1 | Clock signal |
 | rst_n | input | 1 | Active-low asynchronous reset |
 
 ### Arbiter Interface
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | request | input | CLIENTS | Client request signals |
 | grant_valid | output | 1 | Grant is valid this cycle |
 | grant | output | CLIENTS | One-hot grant vector |
@@ -98,7 +101,7 @@ The standardized internal configurations (PWM width, FIFO depth, fairness interv
 ### PWM Configuration
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | cfg_pwm_sync_rst_n | input | 1 | PWM synchronous reset (active-low) |
 | cfg_pwm_start | input | 1 | Start PWM generation |
 | cfg_pwm_duty | input | 16 | Duty cycle value (0 to period-1) |
@@ -110,7 +113,7 @@ The standardized internal configurations (PWM width, FIFO depth, fairness interv
 ### Monitor Configuration
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | cfg_mon_enable | input | 1 | Global monitor enable |
 | cfg_mon_pkt_type_enable | input | 16 | Packet type enable mask |
 | cfg_mon_latency | input | 16 | Latency threshold (cycles) |
@@ -122,7 +125,7 @@ The standardized internal configurations (PWM width, FIFO depth, fairness interv
 ### Monitor Bus Output
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | monbus_valid | output | 1 | Monitor bus packet valid |
 | monbus_ready | input | 1 | Monitor bus ready (from downstream) |
 | monbus_packet | output | 128 | `monitor_packet_t` event packet |
@@ -131,13 +134,13 @@ The standardized internal configurations (PWM width, FIFO depth, fairness interv
 ### Monitor Time Input
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | i_mon_time | input | 64 | Free-running monitor-time broadcast from the `monbus_*_group` family. **Must be connected** — leaving it open floats the timestamp every emitted packet carries |
 
 ### Debug Outputs
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | debug_fifo_count | output | $clog2(17) | Monitor FIFO fill level (0-16) |
 | debug_packet_count | output | 16 | Total packets generated |
 
@@ -145,7 +148,7 @@ The standardized internal configurations (PWM width, FIFO depth, fairness interv
 
 ## Functional Description
 
-The module integrates three key components:
+The module integrates three key components.
 
 ### Round-Robin Arbiter
 
@@ -308,29 +311,18 @@ See arbiter_monbus_common.md for complete monitoring details. Key points:
 
 ## Related Modules
 
-### Used By
-- System arbitration hierarchies
-- Multi-master interconnects
-- TDMA scheduling systems
+**Used by:** system arbitration hierarchies, multi-master interconnects, TDMA scheduling systems.
 
-### Uses
-- arbiter_round_robin.sv (core RR arbiter)
-- pwm.sv (PWM generator)
-- arbiter_monbus_common.sv (monitoring infrastructure)
+**Uses:** `arbiter_round_robin.sv` (core RR arbiter); `pwm.sv` (PWM generator); `arbiter_monbus_common.sv` (monitoring infrastructure).
 
-### Related Modules
-- arbiter_wrr_pwm_monbus.sv (weighted variant)
-- monbus_arbiter.sv (aggregates monitor bus streams)
+**See also:** `arbiter_wrr_pwm_monbus.sv` (weighted variant); `monbus_arbiter.sv` (aggregates monitor bus streams).
 
 ---
 
 ## References
 
-### Specifications
 - Internal: docs/markdown/rtl-amba/index.md (AMBA subsystem requirements)
 - Internal: docs/markdown/rtl-amba/arbiter_monbus_common.md (monitoring details)
-
-### Source Code
 - RTL: `rtl/amba/monitor/arbiter_rr_pwm_monbus.sv`
 - Tests: `val/amba/test_arbiter_rr_pwm_monbus.py`
 
@@ -342,5 +334,6 @@ See arbiter_monbus_common.md for complete monitoring details. Key points:
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
-- [Back to rtl-amba Index](../index.md)
+- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
+- **[← Back to rtl-amba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

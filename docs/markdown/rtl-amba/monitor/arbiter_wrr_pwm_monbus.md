@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# Weighted Round-Robin Arbiter with PWM and Monitor Bus
+# arbiter_wrr_pwm_monbus
 
 **Module:** `arbiter_wrr_pwm_monbus.sv`
 **Location:** `rtl/amba/monitor/`
@@ -31,9 +31,17 @@
 
 ## Overview
 
-The Weighted Round-Robin Arbiter with PWM and Monitor Bus provides priority-based arbitration with configurable client weights, PWM flow control, and comprehensive silicon debug monitoring. This module extends round-robin arbitration with weight-based priority levels while maintaining the same monitoring infrastructure and standardized internal configurations.
+The weighted sibling of `arbiter_rr_pwm_monbus`: priority-based arbitration
+with configurable client weights, the same PWM flow control, and the same
+`arbiter_monbus_common` telemetry with standardized internal configurations.
+Higher-weight clients receive proportionally more grants while lower-weight
+clients still get guaranteed service — no starvation — and the monitoring
+infrastructure tracks whether the actual grant distribution matches the
+configured weights and reports fairness violations when it drifts.
 
-### Key Features
+The PWM integration adds temporal control of arbiter availability on top:
+TDMA windows or bandwidth reservation, with priority-based selection inside
+each active window.
 
 - Weighted round-robin arbitration with configurable priorities
 - Per-client weight thresholds (1 to `MAX_LEVELS-1`; the field is `$clog2(MAX_LEVELS)` bits, so `MAX_LEVELS` itself is not representable — see Design Notes)
@@ -46,18 +54,10 @@ The Weighted Round-Robin Arbiter with PWM and Monitor Bus provides priority-base
 
 ---
 
-## Module Purpose
-
-This module enables priority-based multi-master arbitration where different clients require different service levels. Higher-weight clients receive proportionally more grants while lower-weight clients still receive guaranteed service, preventing starvation. The integrated monitoring infrastructure tracks whether actual grant distribution matches configured weights and reports fairness violations.
-
-The PWM integration allows temporal control of arbiter availability, enabling TDMA windows or bandwidth reservation combined with priority-based selection within each active window.
-
----
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | MAX_LEVELS | int | 16 | Maximum weight levels per client (1-64) |
 | CLIENTS | int | 4 | Number of arbitration clients (1-64) |
 | WAIT_GNT_ACK | int | 0 | ACK protocol enable (0=disable, 1=enable) |
@@ -68,7 +68,7 @@ The PWM integration allows temporal control of arbiter availability, enabling TD
 ### Fixed Internal Configurations (Not User-Configurable)
 
 | Configuration | Value | Rationale |
-|---------------|-------|-----------|
+|---|---|---|
 | PWM_WIDTH | 16 bits | Adequate resolution for most use cases |
 | MON_FIFO_DEPTH | 16 entries | Optimal for monitoring scenarios |
 | MON_FIFO_ALMOST_MARGIN | 2 entries | Safety margin for FIFO |
@@ -77,19 +77,19 @@ The PWM integration allows temporal control of arbiter availability, enabling TD
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | clk | input | 1 | Clock signal |
 | rst_n | input | 1 | Active-low asynchronous reset |
 
 ### Arbiter Configuration and Interface
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | cfg_arb_max_thresh | input | CLIENTS * $clog2(MAX_LEVELS) | Per-client weight thresholds |
 | request | input | CLIENTS | Client request signals |
 | grant_valid | output | 1 | Grant is valid this cycle |
@@ -100,7 +100,7 @@ The PWM integration allows temporal control of arbiter availability, enabling TD
 ### PWM Configuration
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | cfg_pwm_sync_rst_n | input | 1 | PWM synchronous reset (active-low) |
 | cfg_pwm_start | input | 1 | Start PWM generation |
 | cfg_pwm_duty | input | 16 | Duty cycle value (0 to period-1) |
@@ -112,7 +112,7 @@ The PWM integration allows temporal control of arbiter availability, enabling TD
 ### Monitor Configuration
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | cfg_mon_enable | input | 1 | Global monitor enable |
 | cfg_mon_pkt_type_enable | input | 16 | Packet type enable mask |
 | cfg_mon_latency_thresh | input | 16 | Latency threshold (cycles) |
@@ -126,7 +126,7 @@ The PWM integration allows temporal control of arbiter availability, enabling TD
 ### Monitor Bus Output
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | monbus_valid | output | 1 | Monitor bus packet valid |
 | monbus_ready | input | 1 | Monitor bus ready (from downstream) |
 | monbus_packet | output | 128 | `monitor_packet_t` event packet |
@@ -135,13 +135,13 @@ The PWM integration allows temporal control of arbiter availability, enabling TD
 ### Monitor Time Input
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | i_mon_time | input | 64 | Free-running monitor-time broadcast from the `monbus_*_group` family. **Must be connected** — leaving it open floats the timestamp every emitted packet carries |
 
 ### Enhanced Debug Outputs
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | debug_fifo_count | output | $clog2(17) | Monitor FIFO fill level |
 | debug_packet_count | output | 16 | Total packets generated |
 | debug_ack_timeout | output | CLIENTS | Per-client ACK timeout status |
@@ -155,7 +155,7 @@ The PWM integration allows temporal control of arbiter availability, enabling TD
 
 ## Functional Description
 
-The module integrates four key components:
+The module integrates four key components.
 
 ### Weighted Round-Robin Arbiter
 
@@ -378,29 +378,18 @@ When WAIT_GNT_ACK=1, the arbiter waits for grant_ack before issuing next grant. 
 
 ## Related Modules
 
-### Used By
-- Priority-based interconnect arbiters
-- QoS-aware memory controllers
-- Multi-tier scheduling hierarchies
+**Used by:** priority-based interconnect arbiters, QoS-aware memory controllers, multi-tier scheduling hierarchies.
 
-### Uses
-- arbiter_round_robin_weighted.sv (core WRR arbiter)
-- pwm.sv (PWM generator)
-- arbiter_monbus_common.sv (monitoring; note WEIGHTED_MODE is inert)
+**Uses:** `arbiter_round_robin_weighted.sv` (core WRR arbiter); `pwm.sv` (PWM generator); `arbiter_monbus_common.sv` (monitoring; note WEIGHTED_MODE is inert).
 
-### Related Modules
-- arbiter_rr_pwm_monbus.sv (equal-priority variant)
-- monbus_arbiter.sv (aggregates monitor bus streams)
+**See also:** `arbiter_rr_pwm_monbus.sv` (equal-priority variant); `monbus_arbiter.sv` (aggregates monitor bus streams).
 
 ---
 
 ## References
 
-### Specifications
 - Internal: docs/markdown/rtl-amba/index.md (AMBA subsystem requirements)
 - Internal: docs/markdown/rtl-amba/arbiter_monbus_common.md (monitoring details)
-
-### Source Code
 - RTL: `rtl/amba/monitor/arbiter_wrr_pwm_monbus.sv`
 - Tests: `val/amba/test_arbiter_wrr_pwm_monbus.py`
 
@@ -412,5 +401,6 @@ When WAIT_GNT_ACK=1, the arbiter waits for grant_ack before issuing next grant. 
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
-- [Back to rtl-amba Index](../index.md)
+- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
+- **[← Back to rtl-amba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

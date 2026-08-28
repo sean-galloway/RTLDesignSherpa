@@ -33,7 +33,7 @@
 
 The AXI Monitor Timer provides frequency-invariant timing for the AXI monitor infrastructure by generating consistent timer ticks regardless of the system clock frequency. It combines a cycle-accurate global timestamp counter with a frequency-invariant timer tick generator to support both precise latency measurement and consistent timeout detection across different clock frequencies.
 
-### Key Features
+Key features:
 
 - Frequency-invariant timer tick generation
 - Fixed 1 MHz (1 us) tick; the 4-bit `cfg_freq_sel` selects the **clock frequency** the divider is matched to, not the tick period
@@ -44,11 +44,7 @@ The AXI Monitor Timer provides frequency-invariant timing for the AXI monitor in
 - Single clock domain operation
 - Minimal resource utilization
 
----
-
-## Module Purpose
-
-The Timer module solves a critical portability problem in monitor architectures: timeout thresholds specified in cycles become frequency-dependent, requiring reconfiguration when clock frequency changes. By using frequency-invariant timer ticks, timeout thresholds can be specified in abstract "ticks" that represent consistent time periods regardless of the underlying clock frequency.
+The Timer module solves a portability problem that bites every monitor architecture eventually: timeout thresholds specified in cycles become frequency-dependent, so they need reconfiguration every time the clock frequency changes. By using frequency-invariant timer ticks, timeout thresholds can be specified in abstract "ticks" that represent consistent time periods regardless of the underlying clock frequency.
 
 The global timestamp counter provides cycle-accurate timing for latency measurement and performance analysis, while the timer tick output enables timeout detection with configurable resolution.
 
@@ -59,7 +55,7 @@ The global timestamp counter provides cycle-accurate timing for latency measurem
 Runtime frequency selection is via `cfg_freq_sel`. The module also exposes elaboration parameters that size the clock-frequency-invariant (CFI) counter table:
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | `CFI_MIN_FREQ_MHZ` | int | 5 | Minimum frequency (MHz) in the CFI table |
 | `CFI_MAX_FREQ_MHZ` | int | 220 | Maximum frequency (MHz) in the CFI table |
 | `CFI_NUM_FREQ_ENTRIES` | int | 16 | Number of frequency entries |
@@ -69,27 +65,27 @@ Runtime frequency selection is via `cfg_freq_sel`. The module also exposes elabo
 
 ---
 
-## Port Groups
+## Ports
 
 ### Global Clock and Reset
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| aclk | input | 1 | Clock signal |
-| aresetn | input | 1 | Active-low asynchronous reset |
+|---|---|---|---|
+| aclk | Input | 1 | Clock signal |
+| aresetn | Input | 1 | Active-low asynchronous reset |
 
 ### Timer Configuration
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| cfg_freq_sel | input | 4 | Frequency selection for timer tick (0-15) |
+|---|---|---|---|
+| cfg_freq_sel | Input | 4 | Frequency selection for timer tick (0-15) |
 
 ### Timer Outputs
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| timer_tick | output | 1 | Timer tick signal (frequency-invariant) |
-| timestamp | output | 32 | Global timestamp counter (cycle count) |
+|---|---|---|---|
+| timer_tick | Output | 1 | Timer tick signal (frequency-invariant) |
+| timestamp | Output | 32 | Global timestamp counter (cycle count) |
 
 ---
 
@@ -102,18 +98,21 @@ The Timer module implements two independent timing functions that work together 
 The timestamp counter provides cycle-accurate time reference:
 
 **Implementation:**
+
 - 32-bit up-counter
 - Increments every clock cycle
 - Resets to zero on aresetn assertion
 - Registered output (r_timestamp)
 
 **Purpose:**
+
 - Transaction timestamp marking (addr_timestamp, data_timestamp, resp_timestamp)
 - Latency calculation (timestamp differences)
 - Performance metric computation
 - Event correlation across transactions
 
 **Range and Wraparound:**
+
 - Maximum count: 2^32 - 1 = 4,294,967,295 cycles
 - At 1 GHz: ~4.3 seconds before wraparound
 - At 100 MHz: ~43 seconds before wraparound
@@ -133,6 +132,7 @@ latency = data_timestamp - addr_timestamp;  // Handles wraparound
 The timer tick provides consistent periodic signal across frequencies:
 
 **Implementation:**
+
 - Uses counter_freq_invariant module from rtl/common/
 - Configured via cfg_freq_sel (4-bit selection: 0-15)
 - Generates single-cycle pulse (timer_tick) at configured interval
@@ -174,12 +174,14 @@ your actual `aclk` frequency.**
 > ticks at the wrong rate, and every timeout scales with it.
 
 **Purpose:**
+
 - Timeout detection timing base
 - Consistent timeout duration across frequencies
 - Periodic performance metric reporting
 - Threshold comparison timing
 
 **Tick Characteristics:**
+
 - Single cycle pulse (asserts high for 1 cycle)
 - Precise period (no jitter or drift)
 - Synchronous to aclk
@@ -208,6 +210,7 @@ counter_freq_invariant #(
 ```
 
 **Design Rationale:**
+
 - `COUNTER_WIDTH=1`: only the tick pulse is needed, not the counter value
 - The CFI_* parameters are forwarded so the frequency table is sized by this
   module's parameters rather than hard-coded
@@ -216,6 +219,7 @@ counter_freq_invariant #(
   is no port named `counter`)
 
 **counter_freq_invariant Module:**
+
 - Located in `rtl/common/counter_freq_invariant.sv`
 - Divides an arbitrary clock down to a **1 MHz tick**
 - `freq_sel` indexes a table of clock frequencies in MHz; the entry is used
@@ -223,37 +227,38 @@ counter_freq_invariant #(
 - Supports LINEAR (uniform) and POW2 (doubling) table spacing
 - See `rtl/common/` documentation for detailed behavior
 
----
-
-## Integration with Monitor Architecture
+### Integration with Monitor Architecture
 
 The Timer module provides fundamental timing services to the entire monitor infrastructure.
 
-### Output Integration
+#### Output Integration
 
 **To Transaction Manager (axi_monitor_trans_mgr):**
+
 - timestamp output provides time reference
 - Used to mark transaction phase completion times
 - Enables latency calculation in reporter
 
 **To Timeout Module (axi_monitor_timeout):**
+
 - timer_tick output drives timeout detection
 - Timeout module increments counters on each tick
 - Enables frequency-invariant timeout thresholds
 
 **To Reporter Module (axi_monitor_reporter):**
+
 - Indirect use via transaction table timestamps
 - Reporter calculates latencies from timestamp differences
 - Performance metrics derived from timestamp data
 
-### Configuration Strategy
+#### Configuration Strategy
 
 There is one rule: **set `cfg_freq_sel` to the table entry closest to your
 actual `aclk` frequency.** The tick is 1 us at that setting, and every timeout
 threshold is then read directly in microseconds.
 
 | aclk | Default table (5-220 MHz, LINEAR) | Resulting tick |
-|------|-----------------------------------|----------------|
+|---|---|---|
 | 100 MHz | `cfg_freq_sel = 4'd7` (105 MHz — nearest entry) | 1.05 us (5% long) |
 | 200 MHz | `cfg_freq_sel = 4'd14` (205 MHz) | 1.025 us (2.5% long) |
 | 50 MHz | `cfg_freq_sel = 4'd3` (48 MHz) | 0.96 us (4% short) |
@@ -355,6 +360,7 @@ latency = 0x0000_0005 - 0xFFFF_FFFF = 0x0000_0006 (6 cycles)
 ```
 
 **Limitations:**
+
 - Maximum measurable latency: 2^31 cycles (half of counter range)
 - Exceeding this causes incorrect results
 - In practice, transaction latencies << 2^31 cycles
@@ -397,6 +403,7 @@ one — override the CFI_* parameters there.)
 The timestamp counter resets to zero on aresetn assertion:
 
 **Implications:**
+
 - First transaction after reset has timestamp near zero
 - Timestamps from before reset invalid after reset
 - No timestamp preservation across resets
@@ -409,6 +416,7 @@ Reset all monitors simultaneously to ensure consistent timestamp domain across t
 The timer_tick output is a single-cycle pulse:
 
 **Characteristics:**
+
 - High for exactly 1 cycle
 - Low for (tick_period - 1) cycles
 - Duty cycle = 1 / tick_period
@@ -421,11 +429,13 @@ Modules should use timer_tick as an enable/trigger signal, not as a clock. It's 
 The timer module has minimal resource cost:
 
 **Registers:**
+
 - 32-bit timestamp counter
 - 1-bit counter in counter_freq_invariant
 - Prescaler state in counter_freq_invariant
 
 **Combinational Logic:**
+
 - Increment logic for timestamp
 - Frequency divider in counter_freq_invariant
 
@@ -434,11 +444,13 @@ The timer module has minimal resource cost:
 Each monitor instance can have its own timer if needed:
 
 **Advantages of Separate Timers:**
+
 - Independent frequency selection per monitor
 - No timing constraints between monitors
 - Simpler physical design (local timing)
 
 **Advantages of Shared Timer:**
+
 - Single timestamp domain across monitors
 - Easier event correlation
 - Reduced resource utilization
@@ -450,22 +462,26 @@ Use shared timer unless monitors operate at different frequencies or in differen
 
 ## Related Modules
 
-### Used By
+**Used by:**
+
 - axi_monitor_base.sv (primary user)
 - axi_monitor_filtered.sv (via axi_monitor_base)
 - All AXI/AXIL monitor variants
 
-### Uses
+**Uses:**
+
 - counter_freq_invariant.sv (from rtl/common/)
 - Provides frequency-invariant counting capability
 
-### Critical Interfaces
+**Critical interfaces:**
+
 - **To axi_monitor_trans_mgr:**
   - timestamp output (32-bit time reference)
 - **To axi_monitor_timeout:**
   - timer_tick output (timeout trigger)
 
-### Related Infrastructure
+**Related infrastructure:**
+
 - axi_monitor_trans_mgr.sv (timestamp consumer)
 - axi_monitor_timeout.sv (timer tick consumer)
 - axi_monitor_reporter.sv (indirect via timestamps)
@@ -497,7 +513,7 @@ Use shared timer unless monitors operate at different frequencies or in differen
 
 ## Navigation
 
-- [Back to axi_monitor_base](axi_monitor_base.md)
-- [Previous: axi_monitor_timeout](axi_monitor_timeout.md)
-- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
-- [Back to rtl-amba Index](../index.md)
+- **[Back to axi_monitor_base](axi_monitor_base.md)**
+- **[Previous: axi_monitor_timeout](axi_monitor_timeout.md)**
+- **[Back to Shared Infrastructure Index](../_book_monitor_index.md)**
+- **[Back to rtl-amba Index](../index.md)**

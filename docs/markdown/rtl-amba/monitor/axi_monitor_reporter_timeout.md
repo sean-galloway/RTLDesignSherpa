@@ -35,9 +35,9 @@ The `axi_monitor_reporter_timeout` module is the timeout-packet emitter for the 
 
 The block was split out of the original monolithic reporter so integrators can drop it (`ENABLE_TIMEOUT_LOGIC=0`).
 
-`timeout` is a **fault class** ([taxonomy](monitor_system_architecture.md#healthy-classes-vs-fault-classes)): it never fires in correct operation. Exercise it by **injecting a non-responsive slave** -- hold the R/B response beats past the configured timeout window so the transaction stays outstanding long enough for the timeout detector to flag it. Like all faults, this stalls the traffic; the cone's value is emitting `PktTypeTimeout` so the capture records *which* transaction hung.
+`timeout` is a **fault class** ([taxonomy](monitor_system_architecture.md#healthy-classes-vs-fault-classes)): it never fires in correct operation. Exercise it by **injecting a non-responsive slave** — hold the R/B response beats past the configured timeout window so the transaction stays outstanding long enough for the timeout detector to flag it. Like all faults, this stalls the traffic; the cone's value is emitting `PktTypeTimeout` so the capture records *which* transaction hung.
 
-### Key Features
+Key features:
 
 - Pure combinational detection (no internal state)
 - Scans for valid, unreported, error-state slots flagged as timed out
@@ -46,52 +46,49 @@ The block was split out of the original monolithic reporter so integrators can d
 - Exposes the selected slot index (`sel_idx`) for the top reporter's mark-reported feedback
 - Shares the `timeout_detected` vector with the error sub-block to avoid double-reporting
 
----
-
-## Module Purpose
-
 When a transaction stalls, the `axi_monitor_timeout` block asserts a per-slot `timeout_detected` bit and the transaction manager moves that slot into the `TRANS_ERROR` state. This reporter block turns that condition into a MonBus packet: it finds the first slot that is valid, in error, timed out, and not yet reported, and emits a timeout packet describing it (event code, channel, and address).
 
-**Use Cases:**
+**Use cases:**
+
 - Reporting stuck AXI transactions (missing R/B response, hung handshake)
 - Surfacing protocol hangs to a host IRQ handler for recovery
 - Regression detection of deadlock or backpressure faults
 - Correlating a timeout with the offending address and channel
 
-**Key Benefit:** Zero-state, low-cost detection that shares its `timeout_detected` and `event_reported` vectors with the error emitter, guaranteeing each stuck transaction is reported exactly once.
+**Key benefit:** zero-state, low-cost detection that shares its `timeout_detected` and `event_reported` vectors with the error emitter, guaranteeing each stuck transaction is reported exactly once.
 
 ---
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | `MAX_TRANSACTIONS` | int | 16 | Number of transaction slots scanned |
 | `IDX_W` | int | `$clog2(MAX_TRANSACTIONS)` | Derived width of the selected-slot index |
 
 ---
 
-## Port Groups
+## Ports
 
 ### Inputs
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `trans_table` | input | `bus_transaction_t [MAX_TRANSACTIONS]` | Live outstanding-transaction table (valid, state, event_code, channel, addr) |
-| `event_reported` | input | MAX_TRANSACTIONS | Per-slot bit indicating the slot's event was already emitted (suppresses re-reporting) |
-| `timeout_detected` | input | MAX_TRANSACTIONS | Per-slot timeout flags from `axi_monitor_timeout` |
-| `cfg_timeout_enable` | input | 1 | Enable timeout packet generation |
+|---|---|---|---|
+| `trans_table` | Input | `bus_transaction_t [MAX_TRANSACTIONS]` | Live outstanding-transaction table (valid, state, event_code, channel, addr) |
+| `event_reported` | Input | MAX_TRANSACTIONS | Per-slot bit indicating the slot's event was already emitted (suppresses re-reporting) |
+| `timeout_detected` | Input | MAX_TRANSACTIONS | Per-slot timeout flags from `axi_monitor_timeout` |
+| `cfg_timeout_enable` | Input | 1 | Enable timeout packet generation |
 
 ### Packet Output
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| `pkt_valid` | output | 1 | A timeout packet is available (a matching slot was found) |
-| `pkt_type` | output | 4 | Packet type — constant `PktTypeTimeout` (4'h3) |
-| `pkt_event_code` | output | 8 | Event code taken from the selected slot's `event_code.raw_code` |
-| `pkt_channel` | output | 9 | Channel of the selected slot (low 6 bits, zero-extended) |
-| `pkt_data` | output | 64 | Zero-extended address of the selected slot |
-| `sel_idx` | output | IDX_W | Index of the selected slot, returned to the top reporter for mark-reported feedback |
+|---|---|---|---|
+| `pkt_valid` | Output | 1 | A timeout packet is available (a matching slot was found) |
+| `pkt_type` | Output | 4 | Packet type — constant `PktTypeTimeout` (4'h3) |
+| `pkt_event_code` | Output | 8 | Event code taken from the selected slot's `event_code.raw_code` |
+| `pkt_channel` | Output | 9 | Channel of the selected slot (low 6 bits, zero-extended) |
+| `pkt_data` | Output | 64 | Zero-extended address of the selected slot |
+| `sel_idx` | Output | IDX_W | Index of the selected slot, returned to the top reporter for mark-reported feedback |
 
 ---
 
@@ -164,16 +161,19 @@ Correct single-reporting depends on the top reporter driving `event_reported` an
 
 ## Related Modules
 
-### Used By
+**Used by:**
+
 - **axi_monitor_reporter.sv** — instantiates this block as its timeout-packet sub-emitter
 - **axi_monitor_base.sv** — top-level monitor scaffold
 
-### Uses
+**Uses:**
+
 - **monitor_common_pkg** — `PktTypeTimeout`, `bus_transaction_t`, `TRANS_ERROR`
 - **monitor_amba4_pkg** — AMBA event-code definitions
 - (No sequential logic — no reset macros required)
 
-### See Also
+**See also:**
+
 - **axi_monitor_timeout.sv** — produces the `timeout_detected` vector consumed here
 - **axi_monitor_reporter_perf.sv** — performance packet emitter (sibling)
 - **axi_monitor_reporter_threshold.sv** — threshold packet emitter (sibling)
@@ -201,5 +201,5 @@ Correct single-reporting depends on the top reporter driving `event_reported` an
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
-- [Back to rtl-amba Index](../index.md)
+- **[Back to Shared Infrastructure Index](../_book_monitor_index.md)**
+- **[Back to rtl-amba Index](../index.md)**

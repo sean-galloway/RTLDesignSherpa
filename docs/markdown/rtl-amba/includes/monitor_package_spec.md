@@ -38,7 +38,7 @@ For per-protocol event-code enums see the three sibling docs:
 The RTL splits monitor type definitions across four SystemVerilog packages:
 
 | Package | File | Purpose |
-|---------|------|---------|
+|---|---|---|
 | `monitor_common_pkg`  | `rtl/amba/includes/monitor_common_pkg.sv`  | Universal types: packet structure, timestamp, protocol enum, packet-type enum, helper functions. **This doc.** |
 | `monitor_amba4_pkg`   | `rtl/amba/includes/monitor_amba4_pkg.sv`   | AXI4 / APB4 / AXIS4 event-code enums (error / timeout / completion / threshold / perf / addr-match / debug). |
 | `monitor_amba5_pkg`   | `rtl/amba/includes/monitor_amba5_pkg.sv`   | AXI5 / APB5 / AXIS5 extended event-code enums (atomic, trace, wakeup, parity, user). |
@@ -56,7 +56,7 @@ of the transport: a **128-bit packet** (`monbus_packet`) plus a **64-bit
 side-band timestamp** (`monbus_timestamp`). 192 bits total.
 
 | Wire | Bits | Width | Field | Owner | Notes |
-|------|------|------:|-------|-------|-------|
+|---|---|---|---|---|---|
 | `monbus_timestamp` | [63:0]    | 64 | timestamp     | system        | Free-running counter from `monbus_axil_group`, sampled at emission. Consumers treat it as an opaque ordering key. |
 | `monbus_packet`    | [127:124] |  4 | packet_type   | enum (fixed)  | See [Packet Type Enum](#packet-type-enum). |
 | `monbus_packet`    | [123:109] | 15 | reserved      | (slack)       | Currently emitted as zero. |
@@ -90,7 +90,7 @@ The 4-bit `protocol` field identifies which protocol family produced the
 event. The enum is defined in `monitor_common_pkg`:
 
 | Value | Name             | Description |
-|------:|------------------|-------------|
+|---|---|---|
 | 4'h0  | `PROTOCOL_AXI`   | AXI / AXI-Lite / AXI5 |
 | 4'h1  | `PROTOCOL_AXIS`  | AXI4-Stream |
 | 4'h2  | `PROTOCOL_APB`   | Advanced Peripheral Bus (APB4 / APB5) |
@@ -116,7 +116,7 @@ The 4-bit `packet_type` field classifies the event independent of protocol.
 The 16 codes are defined as localparams in `monitor_common_pkg`:
 
 | Value | Name               | Description |
-|------:|--------------------|-------------|
+|---|---|---|
 | 4'h0  | `PktTypeError`     | Protocol violation, SLVERR/DECERR, orphan, range violation |
 | 4'h1  | `PktTypeCompletion`| Transaction completed successfully |
 | 4'h2  | `PktTypeThreshold` | Threshold crossed (latency, queue depth, etc.) |
@@ -157,7 +157,7 @@ The 64-bit `event_data` field is interpreted in the context of
 defines its own packing. The table below lists the most common shapes:
 
 | Producer | packet_type | event_code | event_data layout |
-|----------|-------------|------------|-------------------|
+|---|---|---|---|
 | `axi_monitor_addr_check`  | Error  | `AXI_ERR_ADDR_RANGE` (8'h0D) | `[63:60]` = `4'hF` **no-range sentinel** (this packet is the allowlist MISS, so no range matched), `[59:0]` = the offending **unmatched** address |
 | `apb_monitor_addr_check`  | Error  | `APB_ERR_ADDR_RANGE` (8'h08) | `[63:60]` = range_index (4b), `[59]` = is_read, `[58:0]` = address |
 | `axi_monitor_reporter`    | Error / Timeout / Completion | various | Full 64-bit address, or zero-extended ID / latency / counter |
@@ -235,7 +235,7 @@ typedef logic [MONBUS_TS_WIDTH-1:0] monbus_timestamp_t;  // 64 bits
 ```
 
 | Stage | Wire | Notes |
-|-------|------|-------|
+|---|---|---|
 | Source | `i_mon_time` | A free-running counter generated in `monbus_axil_group` and broadcast to every wrapper via the shared `mon_time_w` net. |
 | Sampling | `addr_pkt_timestamp` / `monbus_timestamp` | Each producer (addr_check, reporter, debug) samples `i_mon_time` on the cycle its packet asserts valid. |
 | Transport | `monbus_arbiter` | The arbiter carries `(packet, timestamp)` atomically through a 192-bit skid so consumers never see a mismatched pair. |
@@ -263,7 +263,7 @@ event_code  =  enum value from
 Categories per protocol (each ~16-entry enum):
 
 | Package | Protocol | Categories |
-|---------|----------|------------|
+|---|---|---|
 | `monitor_amba4_pkg` | AXI4  | error, timeout, completion, threshold, performance, addr_match, debug, **perfwin**, **perfhist** (nine) |
 | `monitor_amba4_pkg` | APB4  | error, timeout, completion, threshold, performance, debug |
 | `monitor_amba4_pkg` | AXIS4 | error, timeout, completion, credit, channel, stream |
@@ -301,7 +301,7 @@ explicit at the file level.
 
 ---
 
-## Related Documentation
+## Related
 
 - **[The Monitor System](../monitor/monitor_system_architecture.md)** — architecture and capabilities: drain paths, capture strategies (bulk / compressed / counting), and the aggregation topology.
 - **[`../monitor/axi_monitor_base.md`](../monitor/axi_monitor_base.md)** — Core monitor that emits packets.

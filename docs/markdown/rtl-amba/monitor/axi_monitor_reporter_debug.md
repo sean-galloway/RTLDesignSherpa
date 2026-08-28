@@ -33,7 +33,7 @@
 
 The AXI Monitor Reporter Debug Emitter is the state-change (trace) sub-block of `axi_monitor_reporter` — the sixth cone alongside error, timeout, completion, threshold, and perf. It gives integrators (and the compression-analysis flow) a packet stream that mirrors the live transaction-table FSM: one `PktTypeDebug` packet per (slot, state-change) event. It holds a per-slot previous-state vector, compares it against the live state each cycle, priority-encodes the first slot that transitioned, and emits a packet carrying that slot's address plus the `(prev_state, new_state)` tuple. Unlike the combinational completion/error cones, this block is sequential (it flops the previous state).
 
-### Key Features
+Key features:
 
 - One `PktTypeDebug` packet per per-slot state transition, mirroring the trans_table FSM
 - Per-slot 3-bit `prev_state` vector, `MAX_TRANSACTIONS` deep, flopped every cycle
@@ -42,62 +42,59 @@ The AXI Monitor Reporter Debug Emitter is the state-change (trace) sub-block of 
 - Direct-inject path with an `output_busy` gate (bypasses the FIFO, like threshold/perf)
 - Runtime-gated by `cfg_debug_enable`; compile-time removable via the parent's `ENABLE_DEBUG_LOGIC`
 
----
+Deep debugging and compression research both benefit from a packet stream that reflects the internal monitor FSM rather than just terminal events. This block produces exactly that: whenever any transaction slot changes state, it emits a debug packet naming the slot's address and the state edge it took. Slot-free transitions are handled cleanly — when a slot is freed, its `prev_state` resets to `TRANS_IDLE` so the next allocation produces a fresh `IDLE -> ADDR_PHASE` edge rather than a spurious `IDLE -> IDLE`. The compression analysis can use either the state tuple or the address as its dictionary key, whichever carries more entropy.
 
-## Module Purpose
+**Use cases:**
 
-Deep debugging and compression research both benefit from a packet stream that reflects the internal monitor FSM rather than just terminal events. This block produces exactly that: whenever any transaction slot changes state, it emits a debug packet naming the slot's address and the state edge it took. Slot-free transitions are handled cleanly — when a slot is freed, its `prev_state` resets to `TRANS_IDLE` so the next allocation produces a fresh `IDLE → ADDR_PHASE` edge rather than a spurious `IDLE → IDLE`. The compression analysis can use either the state tuple or the address as its dictionary key, whichever carries more entropy.
-
-**Use Cases:**
 - FSM-level trace of the transaction table for deep debugging
 - Feeding the MonBus compression-analysis flow with a rich event stream
 - Correlating state transitions with observed protocol behavior during bring-up
 
-**Key Benefit:** Surfaces the live per-slot FSM as MonBus packets, giving debuggers and the compressor a per-transition trace that terminal-event cones cannot provide.
+**Key benefit:** surfaces the live per-slot FSM as MonBus packets, giving debuggers and the compressor a per-transition trace that terminal-event cones cannot provide.
 
 ---
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | MAX_TRANSACTIONS | int | 16 | Depth of the transaction table monitored |
 | IDX_W | int | `$clog2(MAX_TRANSACTIONS)` | Width of the internal selected-slot index |
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| aclk | input | 1 | Clock |
-| aresetn | input | 1 | Active-low asynchronous reset |
+|---|---|---|---|
+| aclk | Input | 1 | Clock |
+| aresetn | Input | 1 | Active-low asynchronous reset |
 
 ### Inputs (shared monitor state)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| trans_table | input | bus_transaction_t × MAX_TRANSACTIONS | The outstanding-transaction table |
-| cfg_debug_enable | input | 1 | Runtime enable / mask for debug packet emission |
+|---|---|---|---|
+| trans_table | Input | bus_transaction_t x MAX_TRANSACTIONS | The outstanding-transaction table |
+| cfg_debug_enable | Input | 1 | Runtime enable / mask for debug packet emission |
 
 ### Direct-Inject Handshake
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| output_busy | input | 1 | High when the shared MonBus output is occupied; gates `pkt_valid` |
-| pkt_taken | input | 1 | Pulsed when this block's packet is accepted (currently unused — see Design Notes) |
+|---|---|---|---|
+| output_busy | Input | 1 | High when the shared MonBus output is occupied; gates `pkt_valid` |
+| pkt_taken | Input | 1 | Pulsed when this block's packet is accepted (currently unused — see Design Notes) |
 
 ### Outputs (packet fields)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
-| pkt_valid | output | 1 | A state change was found and the output bus is free |
-| pkt_type | output | 4 | Packet type = `PktTypeDebug` |
-| pkt_event_code | output | 8 | Event code = `AXI_DEBUG_STATE_CHANGE` |
-| pkt_channel | output | 9 | Channel id `{3'b0, slot.channel[5:0]}` |
-| pkt_data | output | 64 | `{prev_state[2:0], new_state[2:0], 26'h0, addr[31:0]}` |
+|---|---|---|---|
+| pkt_valid | Output | 1 | A state change was found and the output bus is free |
+| pkt_type | Output | 4 | Packet type = `PktTypeDebug` |
+| pkt_event_code | Output | 8 | Event code = `AXI_DEBUG_STATE_CHANGE` |
+| pkt_channel | Output | 9 | Channel id `{3'b0, slot.channel[5:0]}` |
+| pkt_data | Output | 64 | `{prev_state[2:0], new_state[2:0], 26'h0, addr[31:0]}` |
 
 ---
 
@@ -109,7 +106,7 @@ When `cfg_debug_enable` is set, the block scans every slot: a slot is flagged ch
 
 ### Previous-State Flop
 
-Each cycle `r_prev_state[idx]` snapshots the slot's live state — **except** when the slot is not valid, in which case it resets to `TRANS_IDLE`. This is the mechanism that makes freed slots behave: an emptied slot returns to IDLE, so its next allocation registers as a real `IDLE → ADDR_PHASE` transition rather than an aliased `IDLE → IDLE` non-event.
+Each cycle `r_prev_state[idx]` snapshots the slot's live state — **except** when the slot is not valid, in which case it resets to `TRANS_IDLE`. This is the mechanism that makes freed slots behave: an emptied slot returns to IDLE, so its next allocation registers as a real `IDLE -> ADDR_PHASE` transition rather than an aliased `IDLE -> IDLE` non-event.
 
 ### Packet Assembly
 
@@ -180,15 +177,18 @@ The 3-bit state codes follow `transaction_state_t` (`TRANS_IDLE=0`, `ADDR_PHASE=
 
 ## Related Modules
 
-### Used By
+**Used by:**
+
 - **axi_monitor_reporter.sv** - Top reporter that arbitrates the direct-inject MonBus path
 
-### Uses
+**Uses:**
+
 - **monitor_common_pkg** - `PktTypeDebug`, `transaction_state_t`, `TRANS_IDLE`, `bus_transaction_t`
 - **monitor_amba4_pkg** - `AXI_DEBUG_STATE_CHANGE` event code
 - **reset_defs.svh** - `ALWAYS_FF_RST` / `RST_ASSERTED` reset macros
 
-### See Also
+**See also:**
+
 - **axi_monitor_reporter_compl.sv** - Completion detection cone (sibling sub-block)
 - **axi_monitor_reporter_error.sv** - Error/orphan detection cone (sibling sub-block)
 - **axi_monitor_base.sv** - The monitor scaffold that houses trans_mgr + reporter
@@ -213,5 +213,5 @@ The 3-bit state codes follow `transaction_state_t` (`TRANS_IDLE=0`, `ADDR_PHASE=
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
-- [Back to rtl-amba Index](../index.md)
+- **[Back to Shared Infrastructure Index](../_book_monitor_index.md)**
+- **[Back to rtl-amba Index](../index.md)**

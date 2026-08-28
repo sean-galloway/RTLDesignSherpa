@@ -31,11 +31,41 @@
 
 ## Overview
 
-`monbus_axil_axil_group` is the all-AXI4-Lite wrapper of the monitor-bus delivery family. It wraps the protocol-agnostic `monbus_group_core` with an **AXIL slave-read err-drain port** (for the CPU IRQ handler to pop error records) and an **AXIL single-beat master-write port** (to stream captured records into a memory ring). It is the delivery block that `stream_char` / `rapids_char` instantiate for MonBus egress when both the drain and dump fabrics are AXIL.
+`monbus_axil_axil_group` is the all-AXI4-Lite wrapper of the monitor-bus
+delivery family. It wraps the protocol-agnostic `monbus_group_core` with an
+**AXIL slave-read err-drain port** (for the CPU IRQ handler to pop error
+records) and an **AXIL single-beat master-write port** (to stream captured
+records into a memory ring). It is the delivery block that `stream_char` /
+`rapids_char` instantiate for MonBus egress when both the drain and dump
+fabrics are AXIL.
 
-This wrapper replaces the legacy `monbus_axil_group.sv`, which fused the core and the AXIL skids into one module.
+This wrapper replaces the legacy `monbus_axil_group.sv`, which fused the
+core and the AXIL skids into one module.
 
-### Key Features
+Here's the problem it solves. The monitor bus produces a single arbitrated
+stream of 128-bit packets plus a 64-bit timestamp. That stream has to be
+split into two destinations: error/interrupt records the CPU polls, and bulk
+trace records written into a memory ring for later offline analysis.
+`monbus_group_core` does the filtering, FIFOing, watermark/timeout
+burst-writing, and slave-read drain. This wrapper gives the core an exact
+AXIL port shape on both the CPU-facing (slave-read) and memory-facing
+(master-write) sides, so the caller ties off no spurious AXI4-only fields.
+
+The core's FUBs are AXI4-shaped internally; the wrapper bridges the AXIL
+leaves to those FUBs (supplying `arid=0 / arlen=0 / arsize=3 / arburst=INCR`
+on the read side and forcing `MAX_BURST_BEATS=1` on the write side).
+
+Use it for:
+
+- MonBus egress for `stream_char` / `rapids_char` on an AXIL fabric
+- CPU IRQ-driven error drain with a memory-mapped ring dump
+- Minimal-footprint monitor delivery where both fabrics are AXIL
+- 32-bit host crossbar drain via the built-in 2:1 read serializer
+
+The key benefit: exact AXIL port shape on both sides with no fake AXI4
+fields, plus a built-in 32-bit err-drain serializer for narrow host buses.
+
+Feature summary:
 
 - AXIL slave-read err-FIFO drain (CPU-facing IRQ path)
 - AXIL single-beat master-write bulk-capture (memory-ring egress)
@@ -47,26 +77,10 @@ This wrapper replaces the legacy `monbus_axil_group.sv`, which fused the core an
 
 ---
 
-## Module Purpose
-
-The monitor bus produces a single arbitrated stream of 128-bit packets plus a 64-bit timestamp. That stream has to be split into two destinations: error/interrupt records the CPU polls, and bulk trace records written into a memory ring for later offline analysis. `monbus_group_core` does the filtering, FIFOing, watermark/timeout burst-writing, and slave-read drain. This wrapper gives the core an exact AXIL port shape on both the CPU-facing (slave-read) and memory-facing (master-write) sides, so the caller ties off no spurious AXI4-only fields.
-
-The core's FUBs are AXI4-shaped internally; the wrapper bridges the AXIL leaves to those FUBs (supplying `arid=0 / arlen=0 / arsize=3 / arburst=INCR` on the read side and forcing `MAX_BURST_BEATS=1` on the write side).
-
-**Use Cases:**
-- MonBus egress for `stream_char` / `rapids_char` on an AXIL fabric
-- CPU IRQ-driven error drain with a memory-mapped ring dump
-- Minimal-footprint monitor delivery where both fabrics are AXIL
-- 32-bit host crossbar drain via the built-in 2:1 read serializer
-
-**Key Benefit:** Exact AXIL port shape on both sides with no fake AXI4 fields, plus a built-in 32-bit err-drain serializer for narrow host buses.
-
----
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | FIFO_DEPTH_ERR | int | 64 | Error FIFO depth, in records |
 | FIFO_DEPTH_WRITE | int | 96 | Write FIFO depth, in beats (96 beats = 32 raw records) |
 | ADDR_WIDTH | int | 32 | Address width on the slave-read and master-write ports |
@@ -85,12 +99,12 @@ The AXIL master forces `MAX_BURST_BEATS=1` in the core, so this wrapper has no `
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock, Reset, and CAM Clear
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | axi_aclk | input | 1 | Clock |
 | axi_aresetn | input | 1 | Active-low asynchronous reset |
 | cam_clear | input | 1 | Synchronous clear of the compressor CAM + stat counters (tied off in raw-only builds) |
@@ -98,7 +112,7 @@ The AXIL master forces `MAX_BURST_BEATS=1` in the core, so this wrapper has no `
 ### Monitor-Bus Input + Timestamp
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | monbus_valid | input | 1 | Monitor-bus packet valid |
 | monbus_ready | output | 1 | Monitor-bus ready (backpressure to the arbiter) |
 | monbus_packet | input | `monitor_packet_t` | 128-bit monitor packet |
@@ -108,7 +122,7 @@ The AXIL master forces `MAX_BURST_BEATS=1` in the core, so this wrapper has no `
 ### AXIL Slave Read — Err-FIFO Drain
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | s_axil_arvalid | input | 1 | Read-address valid |
 | s_axil_arready | output | 1 | Read-address ready |
 | s_axil_araddr | input | ADDR_WIDTH | Read address (record-slice index; address value not memory-mapped by the core) |
@@ -121,7 +135,7 @@ The AXIL master forces `MAX_BURST_BEATS=1` in the core, so this wrapper has no `
 ### AXIL Master Write — Bulk Capture
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | m_axil_awvalid | output | 1 | Write-address valid |
 | m_axil_awready | input | 1 | Write-address ready |
 | m_axil_awaddr | output | ADDR_WIDTH | Write address (within `[cfg_base_addr, cfg_limit_addr]`) |
@@ -137,13 +151,13 @@ The AXIL master forces `MAX_BURST_BEATS=1` in the core, so this wrapper has no `
 ### Interrupt
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | irq_out | output | 1 | Asserted whenever the err FIFO is non-empty |
 
 ### Configuration
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | cfg_base_addr | input | ADDR_WIDTH | Master-write ring base address |
 | cfg_limit_addr | input | ADDR_WIDTH | Master-write ring limit address (writer wraps, does not saturate) |
 | cfg_flush_watermark | input | 16 | Write-FIFO depth (beats) at which a flush fires |
@@ -154,7 +168,7 @@ The AXIL master forces `MAX_BURST_BEATS=1` in the core, so this wrapper has no `
 Three protocols (AXI, AXIS, CORE), each with a packet-type mask, an err-select mask, and per-event-category masks. All are 16-bit inputs.
 
 | Port | Protocol | Role |
-|------|----------|------|
+|---|---|---|
 | cfg_axi_pkt_mask | AXI | Drop by packet type |
 | cfg_axi_err_select | AXI | Route to err FIFO by packet type |
 | cfg_axi_error_mask / cfg_axi_timeout_mask / cfg_axi_compl_mask / cfg_axi_thresh_mask / cfg_axi_perf_mask / cfg_axi_addr_mask / cfg_axi_debug_mask | AXI | Per-event-code drop masks |
@@ -168,7 +182,7 @@ Three protocols (AXI, AXIS, CORE), each with a packet-type mask, an err-select m
 ### Status / Debug
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | err_fifo_full | output | 1 | Err FIFO write port not ready |
 | write_fifo_full | output | 1 | Write FIFO write port not ready |
 | err_fifo_count | output | 16 | Err FIFO entry count (records) |
@@ -279,11 +293,13 @@ The `g_drain_2to1` path exists for 32-bit host crossbars. It is a careful 2:1 se
 
 ## Related Modules
 
-### Used By
+**Used by:**
+
 - `stream_char` / `rapids_char` MonBus egress (AXIL fabric)
 - Any monitor-delivery topology with AXIL drain and AXIL dump fabrics
 
-### Uses
+**Uses:**
+
 - **monbus_group_core.sv** — Protocol-agnostic filter + FIFO + burst-writer + drain
 - **axil4_slave_rd.sv** — Slave-read (err-drain) skid leaf
 - **axil4_master_wr.sv** — Master-write (bulk-capture) skid leaf
@@ -291,7 +307,8 @@ The `g_drain_2to1` path exists for 32-bit host crossbars. It is a careful 2:1 se
 - **monitor_common_pkg** — `monitor_packet_t` / `monbus_timestamp_t` types
 - **reset_defs.svh** — Reset macros
 
-### See Also
+**See also:**
+
 - **monbus_axil_axi4_group.sv** — Same drain, AXI4-burst master-write
 - **monbus_axi4_axil_group.sv** / **monbus_axi4_axi4_group.sv** — AXI4-burst slave-read variants
 - **monbus_arbiter.sv** — Upstream multi-source merge (instantiate before this wrapper for N>1 sources)
@@ -299,14 +316,23 @@ The `g_drain_2to1` path exists for 32-bit host crossbars. It is a careful 2:1 se
 
 ---
 
+## Testing
+
+- `val/amba/test_monbus_axil_axil_group.py`
+- `val/amba/test_monbus_axil_axil_group_compressed.py`
+- `val/amba/test_monbus_axil_axil_group_master_write.py`
+
+---
+
 ## References
 
 ### Source Code
+
 - RTL: `rtl/amba/monitor/monbus_axil_axil_group.sv`
 - Core: `rtl/amba/monitor/monbus_group_core.sv`
-- Tests: `val/amba/test_monbus_axil_axil_group.py`, `test_monbus_axil_axil_group_compressed.py`, `test_monbus_axil_axil_group_master_write.py`
 
 ### Documentation
+
 - Family spec: `docs/markdown/rtl-amba/monitor/monbus_group.md`
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`

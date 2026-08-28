@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# MonBus Group Core
+# monbus_group_core
 
 **Module:** `monbus_group_core.sv`
 **Location:** `rtl/amba/monitor/`
@@ -31,9 +31,9 @@
 
 ## Overview
 
-The `monbus_group_core` module is the protocol-agnostic heart of the `monbus_*_*_group` family. It receives a single monitor-bus (MonBus) stream plus a side-band timestamp, applies per-protocol filter masks, and routes accepted packets into one of two destinations: a record-granular error/interrupt FIFO drained over an AXI4-shaped slave-read port, or a beat-granular write FIFO drained over an AXI4-shaped master-write port with watermark and timeout flushing.
+The `monbus_group_core` module is the protocol-agnostic heart of the `monbus_*_*_group` family. It receives a single monitor-bus (MonBus) stream plus a side-band timestamp, applies per-protocol filter masks, and routes each accepted packet into one of two destinations: a record-granular error/interrupt FIFO drained over an AXI4-shaped slave-read port, or a beat-granular write FIFO drained over an AXI4-shaped master-write port with watermark and timeout flushing.
 
-This module is the single source of truth for filtering, FIFO management, optional compression, and the burst writer/slicer state machines. The `monbus_<p1>_<p2>_group.sv` wrappers are pure structural adapters that bridge its two AXI4-shaped FUB ports into protocol-specific leaf skids.
+This core is the single source of truth for filtering, FIFO management, optional compression, and the burst writer/slicer state machines. The `monbus_<p1>_<p2>_group.sv` wrappers are pure structural adapters — they bridge its two AXI4-shaped FUB ports into protocol-specific leaf skids, and nothing more.
 
 ### Key Features
 
@@ -47,11 +47,7 @@ This module is the single source of truth for filtering, FIFO management, option
 - Raw mode emits complete 24-byte (3-beat) records; compressed mode emits self-tagged 8-byte slots
 - Timing-closed 3-stage geometry pipeline for burst planning at 100 MHz
 
----
-
-## Module Purpose
-
-Aggregated monitor packets must be delivered to two consumers with different needs: a CPU interrupt handler that walks recent error records, and a bulk-capture memory buffer that stores a long trace. This core splits the filtered stream between an error FIFO (read on demand by an IRQ handler) and a write FIFO (flushed to memory as AXI bursts), and handles all the address arithmetic, record framing, and optional compression in one place.
+Aggregated monitor packets have to serve two consumers with very different needs: a CPU interrupt handler that walks recent error records, and a bulk-capture memory buffer that stores a long trace. This core splits the filtered stream between an error FIFO (read on demand by an IRQ handler) and a write FIFO (flushed to memory as AXI bursts), and handles all the address arithmetic, record framing, and optional compression in one place.
 
 **Use Cases:**
 - Central MonBus capture block behind `monbus_arbiter` in an SoC monitoring subsystem
@@ -59,7 +55,7 @@ Aggregated monitor packets must be delivered to two consumers with different nee
 - Compressed trace capture to fit more monitor history in a fixed buffer
 - Building protocol-specific group wrappers (AXI4/AXI4, AXI4/AXIL, AXIL/AXI4, AXIL/AXIL) on a shared core
 
-**Key Benefit:** All the hard logic — filtering, dual-FIFO routing, burst geometry, compression — lives once in this core; the four protocol-pair wrappers reduce to thin structural adapters, so a bug fix or feature lands in one file for every group.
+**Key Benefit:** All the hard logic — filtering, dual-FIFO routing, burst geometry, compression — lives once in this core. The four protocol-pair wrappers reduce to thin structural adapters, so a bug fix or feature lands in one file for every group.
 
 ---
 
@@ -80,7 +76,7 @@ Aggregated monitor packets must be delivered to two consumers with different nee
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock, Reset, and Clear
 
@@ -209,7 +205,7 @@ Three protocol groups (AXI = protocol 0, AXIS = protocol 1, CORE = protocol 4), 
 
 ### Free-Running Timestamp
 
-A counter (`r_ts_counter`) increments every clock and is exposed as `mon_time_out`. Every monitor wrapper drives its `i_mon_time` from this output so all packets across the group share one time base.
+A counter (`r_ts_counter`) increments every clock and is exposed as `mon_time_out`. Every monitor wrapper drives its `i_mon_time` from this output, so all packets across the group share one time base.
 
 ### Packet Filtering
 
@@ -223,28 +219,28 @@ An unrecognized protocol drops the packet. The final routing decision is `pkt_to
 
 ### Error FIFO and Slave-Read Drain
 
-Accepted error packets are stored as 192-bit records `{timestamp, packet}` in `u_err_fifo`. `irq_out` asserts whenever the FIFO is non-empty. The slave-read drain presents each record as three 64-bit slices over a burst read:
+Accepted error packets are stored as 192-bit records `{timestamp, packet}` in `u_err_fifo`, and `irq_out` asserts whenever the FIFO is non-empty. The slave-read drain presents each record as three 64-bit slices over a burst read:
 
 - slice 0 = `{tag=4'h0, source_ts[59:0]}`
 - slice 1 = `packet[127:64]`
 - slice 2 = `packet[63:0]` (record is popped here)
 
-AR is accepted whenever no burst is in flight (`fub_s_arready = !r_rd_in_burst`) -- there is no slice-position or FIFO-occupancy condition, so an AR on an empty FIFO is accepted and `rvalid` simply stalls until a record arrives; `rvalid` drops mid-burst if the FIFO underruns and resumes when a new record arrives; `rlast` asserts on the `(arlen+1)`-th beat. The CPU should size `arlen` as a multiple-of-3 minus one to land cleanly on record boundaries.
+AR is accepted whenever no burst is in flight (`fub_s_arready = !r_rd_in_burst`) — there is no slice-position or FIFO-occupancy condition. That has two consequences worth knowing before you write the driver: an AR on an empty FIFO is accepted and `rvalid` simply stalls until a record arrives, and `rvalid` drops mid-burst if the FIFO underruns, resuming when a new record shows up. `rlast` asserts on the `(arlen+1)`-th beat. Size `arlen` as a multiple of 3 minus one so the burst lands cleanly on record boundaries.
 
 ### Write Path — Raw Expander vs Compressor
 
 Two producers feed the beat-granular write FIFO, selected at runtime by `w_use_comp = (USE_COMPRESSION != 0) && cfg_compress_en`:
 
-- **Raw expander** (always elaborated): a 3-state FSM (`EXP_TS`/`EXP_HI`/`EXP_LO`) pushes `{ts, pkt_hi, pkt_lo}` beats atomically — a record is never split across backpressure. Per-beat `wr_ready` is used rather than a "3 slots free" precheck to avoid a count → valid → count combinational loop.
+- **Raw expander** (always elaborated): a 3-state FSM (`EXP_TS`/`EXP_HI`/`EXP_LO`) pushes `{ts, pkt_hi, pkt_lo}` beats atomically — a record is never split across backpressure. It uses per-beat `wr_ready` rather than a "3 slots free" precheck, because the precheck would build a count → valid → count combinational loop.
 - **Compressor** (elaborated only when `USE_COMPRESSION==1`): `monbus_compressor` sits between the input and the FIFO, emitting one self-tagged 64-bit slot per record. A 2-deep input skid registers `(source_ts, packet)` right at the compressor boundary so the route-dominated aggregator → CAM path ends at a local flop (+1 cycle latency, throughput preserved, slot stream bit-exact). When `HALF_BEAT_EN==1`, `monbus_halfbeat_packer` packs two 30-bit half-slots per beat downstream of the compressor.
 
 Only one path is active at a time; the two FIFO-write outputs are muxed by `w_use_comp`. `monbus_ready` is driven by whichever path accepted the packet (drop, error-FIFO write ready, or write-path term).
 
 ### Master-Write Burst Writer
 
-The write FIFO is flushed to memory as AXI4 bursts. A flush is triggered when either the FIFO occupancy reaches `cfg_flush_watermark` or `FLUSH_TIMEOUT_CYCLES` elapse since the last accepted W beat — and at least one whole record (`BEATS_PER_UNIT`, 3 in raw mode, 1 compressed) is available.
+The write FIFO is flushed to memory as AXI4 bursts. A flush fires when either the FIFO occupancy reaches `cfg_flush_watermark` or `FLUSH_TIMEOUT_CYCLES` elapse since the last accepted W beat — and at least one whole record (`BEATS_PER_UNIT`, 3 in raw mode, 1 compressed) is available.
 
-Burst length is bounded by the minimum of FIFO occupancy, `MAX_BURST_BEATS`, distance to `cfg_limit_addr`, and distance to the next 4KB boundary, then rounded down to whole records. The address arithmetic is pipelined over 3 registered stages (the plan trails `r_wr_addr`, which moves in `WR_IDLE` -- at each drain commit and on the rewind-snap and base-step-over branches), keeping the wide window/4KB/round-to-record chain off the 100 MHz critical path. The fresh FIFO-occupancy cap is applied combinationally at commit so a stale count cannot short the burst. The mod-3 whole-record rounding uses `math_mod_3_compress` carry-save instances rather than a wide divider.
+Burst length is bounded by the minimum of FIFO occupancy, `MAX_BURST_BEATS`, distance to `cfg_limit_addr`, and distance to the next 4KB boundary, then rounded down to whole records. The address arithmetic is pipelined over 3 registered stages — the plan trails `r_wr_addr`, which moves in `WR_IDLE` (at each drain commit and on the rewind-snap and base-step-over branches) — keeping the wide window/4KB/round-to-record chain off the 100 MHz critical path. The fresh FIFO-occupancy cap is applied combinationally at commit, so a stale count cannot short the burst. The mod-3 whole-record rounding uses `math_mod_3_compress` carry-save instances rather than a wide divider.
 
 The writer FSM (`WR_IDLE` → `WR_AW` → `WR_W` → `WR_B`) emits as many AW + N×W + B sub-bursts as needed to drain the planned beat count, advancing the address one 8-byte beat per accepted W. When the current window/4KB region cannot fit a whole record, the writer rewinds `r_wr_addr` to `cfg_base_addr` and re-settles the geometry pipeline.
 
@@ -252,7 +248,7 @@ The writer FSM (`WR_IDLE` → `WR_AW` → `WR_W` → `WR_B`) emits as many AW + 
 
 ## Usage Example
 
-`monbus_group_core` is instantiated by the group wrappers, not directly. A wrapper connects the two AXI4-shaped FUBs to protocol leaves:
+You don't instantiate `monbus_group_core` directly — the group wrappers do. A wrapper connects the two AXI4-shaped FUBs to protocol leaves:
 
 ```systemverilog
 monbus_group_core #(
@@ -300,15 +296,15 @@ monbus_group_core #(
 
 ### Hold `cfg_compress_en` Stable
 
-`cfg_compress_en` changes both the record framing (raw 3-beat vs compressed 1-beat) and `BEATS_PER_UNIT`. Switching it mid-stream would mix formats in the write FIFO and corrupt burst sizing. Program it once before monitoring starts.
+`cfg_compress_en` changes both the record framing (raw 3-beat vs compressed 1-beat) and `BEATS_PER_UNIT`. Flip it mid-stream and you mix formats in the write FIFO, which corrupts burst sizing. Program it once before monitoring starts.
 
 ### AXIL Builds Use the Same Core
 
-AXIL group wrappers instantiate this same AXI4-shaped core with `MAX_BURST_BEATS=1` and ID widths of 1, supplying single-beat defaults (len=0, size=$clog2(8), INCR, id=0) at the leaf. The core does not need an AXIL-specific variant.
+AXIL group wrappers instantiate this same AXI4-shaped core with `MAX_BURST_BEATS=1` and ID widths of 1, supplying single-beat defaults (len=0, size=$clog2(8), INCR, id=0) at the leaf. There is no AXIL-specific variant of the core, and there doesn't need to be.
 
 ### FIFO Granularity Difference
 
-The error FIFO is record-granular (192-bit); the write FIFO is beat-granular (64-bit). `err_fifo_count` reports records while `write_fifo_count` reports beats — do not compare them directly.
+The error FIFO is record-granular (192-bit); the write FIFO is beat-granular (64-bit). `err_fifo_count` reports records while `write_fifo_count` reports beats — don't compare them directly.
 
 ### Timing-Motivated Structure
 

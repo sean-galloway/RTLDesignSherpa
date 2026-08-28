@@ -58,7 +58,21 @@ sequences identical to `monbus_cam`. Validated by
 
 ---
 
-## Top-level Interface
+## Parameters
+
+Same defaults as the single-cycle reference — and the same lock: these are
+what the compressor instantiates and what the format spec mandates.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `KEY_WIDTH` | int | 49 | Template key width |
+| `DATA_WIDTH` | int | 64 | Payload width |
+| `TS_WIDTH` | int | 24 | Per-entry timestamp width |
+| `DEPTH` | int | 32 | Entry capacity |
+
+---
+
+## Ports
 
 ```systemverilog
 module monbus_cam_pipe #(
@@ -94,24 +108,11 @@ module monbus_cam_pipe #(
 );
 ```
 
-Differences from `monbus_cam`:
-
-| Aspect | `monbus_cam` | `monbus_cam_pipe` |
-|---|---|---|
-| Latency | 0 (combinational lookup + commit) | 1 cycle |
-| Throughput | 1 access/cycle | 1 access/cycle |
-| Action selection | Caller drives `action[1:0]` | **Self-derived** from forwarded hit (TOUCH on hit, INSTALL on miss) |
-| `clear` input | (added in same commit) | yes — sync invalidate + pipe flush |
-
-The self-derived action drop matters: a pipelined caller cannot know
-the hit at present-cycle time (exposing a combinational hit would
-defeat the pipeline). The compressor always TOUCHes on hit and
-INSTALLs on miss, so the CAM derives this internally and removes the
-two action bits from its own port surface.
-
 ---
 
-## Pipeline Diagram
+## Functional Description
+
+### Pipeline Diagram
 
 ```mermaid
 %%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
@@ -136,9 +137,7 @@ The cycle T+1 commit and the cycle T+1 result registration both
 reference the same `r_*` snapshot, so the result reflects the array
 state *after* the in-flight move-to-front.
 
----
-
-## Forwarding (depth-1)
+### Forwarding (depth-1)
 
 When access **A** is compared at cycle T+1, the previous access **P**
 (captured at cycle T) is committing this same cycle. A's combinational
@@ -163,9 +162,7 @@ for any access trace is **byte-exact** with the single-cycle
 `monbus_cam` for the same input trace (modulo the +1-cycle latency).
 This is the property the equivalence test guards.
 
----
-
-## Self-Derived Action
+### Self-Derived Action
 
 The two-bit `access_action` port from `monbus_cam` is gone. Instead:
 
@@ -184,9 +181,7 @@ TOUCHes on hit and INSTALLs on a CAM miss; the previous CAM's
 needs lookups without commits, it would need a separate input port
 gating the commit (not present today).
 
----
-
-## Synchronous Clear
+### Synchronous Clear
 
 `clear` is a single-cycle synchronous reset:
 
@@ -205,7 +200,26 @@ through the monbus group wrapper.
 
 ---
 
-## Verification
+## Design Notes
+
+### How It Differs from `monbus_cam`
+
+| Aspect | `monbus_cam` | `monbus_cam_pipe` |
+|---|---|---|
+| Latency | 0 (combinational lookup + commit) | 1 cycle |
+| Throughput | 1 access/cycle | 1 access/cycle |
+| Action selection | Caller drives `action[1:0]` | **Self-derived** from forwarded hit (TOUCH on hit, INSTALL on miss) |
+| `clear` input | (added in same commit) | yes — sync invalidate + pipe flush |
+
+The self-derived action drop matters: a pipelined caller cannot know
+the hit at present-cycle time (exposing a combinational hit would
+defeat the pipeline). The compressor always TOUCHes on hit and
+INSTALLs on miss, so the CAM derives this internally and removes the
+two action bits from its own port surface.
+
+---
+
+## Testing
 
 ```bash
 pytest val/amba/test_monbus_cam_pipe.py -v
@@ -218,6 +232,7 @@ latency on the pipelined side). Both modules are fed from the same
 random key/data/ts stream so any divergence shows up immediately.
 
 Additional coverage:
+
 - `test_monbus_compressor.py` — uses `monbus_cam_pipe` end-to-end
   inside the compressor and cross-checks the slot stream against the
   Python golden encoder.
@@ -233,3 +248,10 @@ Additional coverage:
 | [`monbus_cam`](monbus_cam.md) | Single-cycle reference design — same LRU semantics, used by the unit-test oracle |
 | [`monbus_compressor`](monbus_compressor.md) | Production caller of this CAM |
 | [`monbus_group` family](monbus_group.md) | Host of the compressor + master writer |
+
+---
+
+## Navigation
+
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
+- [Back to rtl-amba Index](../index.md)

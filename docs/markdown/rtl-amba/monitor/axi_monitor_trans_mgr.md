@@ -37,19 +37,17 @@ addr → data → resp lifecycle. It exposes a registered table of in-flight
 transactions (`trans_table[N]`) for downstream consumers (reporter, debug,
 timeout) and feeds the monitor bus with state-change events.
 
-This is a **shared infrastructure module** used internally by every AXI4 /
-AXI5 / AXI-Lite monitor. Users don't instantiate it directly; they
-configure behaviour through the top-level monitor wrapper.
+This is shared infrastructure — every AXI4 / AXI5 / AXI-Lite monitor uses it
+internally. You don't instantiate it directly; you configure its behaviour
+through the top-level monitor wrapper.
 
-The current revision delegates per-transaction keying + storage to the
-shared [`monitor_trans_cam`](monitor_trans_cam.md) module. (The previous
-in-place revision, once parked in `mon_temp/`, was deleted in `d246a72d`
-along with its equivalence test and the `TRANS_MGR_VARIANT` rollback knob —
-there is no legacy variant anymore.)
+The current revision delegates per-transaction keying + storage to the shared
+[`monitor_trans_cam`](monitor_trans_cam.md) module. The previous in-place
+revision, once parked in `mon_temp/`, was deleted in `d246a72d` along with its
+equivalence test and the `TRANS_MGR_VARIANT` rollback knob — there is no
+legacy variant anymore. Don't go looking for the escape hatch; it isn't there.
 
----
-
-## Key Features
+What it does for you:
 
 - Tracks up to `MAX_TRANSACTIONS` outstanding (default 16)
 - 3 independent ID lookups per cycle (addr / data / resp) via CAM
@@ -67,92 +65,6 @@ there is no legacy variant anymore.)
 - Active-transaction counter (exact CAM occupancy, registered pop-count)
 - Cleanup-when-event-reported handshake with the reporter
 - AXI4 / AXI4-Lite / read / write variants via parameters
-
----
-
-## Architecture
-
-![axi_monitor_trans_mgr block diagram](../../assets/rtl-amba/axi_monitor_trans_mgr.svg)
-
-Source: [`axi_monitor_trans_mgr.mmd`](../../assets/rtl-amba/axi_monitor_trans_mgr.mmd)
-
-```mermaid
-%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
-flowchart TB
-    subgraph Inputs["Monitored Channel Inputs"]
-        CMD["cmd_valid/ready/id/<br/>addr/len/size/burst"]
-        DATA["data_valid/ready/id/<br/>last/resp"]
-        RESP["resp_valid/ready/id/<br/>code (writes only)"]
-        TS["timestamp[31:0]"]
-        EVT_FB["i_event_reported_flags<br/>(from reporter)"]
-        TO_FB["i_timeout_detected<br/>(from timeout block)"]
-    end
-
-    subgraph axi_monitor_trans_mgr["axi_monitor_trans_mgr (CAM-backed)"]
-        WID_MATCH["WID-less write<br/>data-channel match<br/>(state predicate, oldest-first)"]
-        AGE["Per-slot age ranks (r_age)<br/>+ pick_oldest"]
-        WANTS["wants_alloc derivation<br/>(hit suppression + cmd-entry cap)"]
-        CAM_INST["monitor_trans_cam<br/>(3 lookup + alloc + storage)"]
-        NEXT_STATE["Per-slot next-payload<br/>combinational<br/>(generate loop)"]
-        CLEANUP["Cleanup +<br/>event_reported feedback"]
-        COUNT_PIPE["active_count<br/>registered pop-count"]
-        STATE_CHG["state_change<br/>1-cycle compare"]
-    end
-
-    subgraph Outputs["Outputs"]
-        TT["trans_table[N]<br/>bus_transaction_t"]
-        AC["active_count[7:0]"]
-        SC["state_change[N-1:0]"]
-    end
-
-    CMD --> WANTS
-    DATA --> WANTS
-    RESP --> WANTS
-    CMD --> CAM_INST
-    DATA --> CAM_INST
-    RESP --> CAM_INST
-    WANTS --> CAM_INST
-    DATA --> WID_MATCH
-    CAM_INST --> WID_MATCH
-    AGE --> WID_MATCH
-    CAM_INST --> AGE
-    CAM_INST --> NEXT_STATE
-    WID_MATCH --> NEXT_STATE
-    CMD --> NEXT_STATE
-    DATA --> NEXT_STATE
-    RESP --> NEXT_STATE
-    TS --> NEXT_STATE
-    EVT_FB --> NEXT_STATE
-    TO_FB --> NEXT_STATE
-    CLEANUP --> NEXT_STATE
-    NEXT_STATE -.write port.-> CAM_INST
-    CAM_INST --> TT
-    CAM_INST --> COUNT_PIPE
-    COUNT_PIPE --> AC
-    TT --> STATE_CHG
-    STATE_CHG --> SC
-```
-
-The trans_mgr owns:
-- The **WID-less write data-channel match** (state predicate over the
-  payload, not an id match — the CAM only sees ids), resolved oldest-first.
-- The **per-slot age ranks** (`r_age`) and the `pick_oldest` selector that
-  attribute each data/response beat to the oldest matching entry.
-- The per-slot **next-payload computation** (the per-phase if/else chain
-  that says "what should slot i's bus_transaction_t look like next cycle").
-- The **wants_alloc** derivation (hit suppression + the command-entry cap;
-  see [Allocation and Same-ID Tracking](#allocation-and-same-id-tracking)).
-- Cleanup eligibility, event_reported feedback, the registered
-  `active_count` pop-count, state_change detection.
-
-The CAM owns:
-- Per-slot `(valid, id, payload)` storage.
-- The 3 parallel ID lookups (`addr_match_oh`, `data_match_oh`, `resp_match_oh`).
-- The free-slot vector and 3-way priority-encoded alloc one-hots.
-
-This split makes the parallel-match shape that closes 100 MHz on the
-xc7a100t-1 (`(* keep = "true" *)` per-bit match vectors, per-slot
-generate-loop storage) explicit and reusable.
 
 ---
 
@@ -174,7 +86,7 @@ prior revisions; they default to `ADDR_WIDTH` and `ID_WIDTH`.
 
 ---
 
-## Module Interface
+## Ports
 
 The module exports a registered `trans_table` of `bus_transaction_t`
 entries (see `monitor_amba4_pkg.sv`) plus aggregate status:
@@ -252,9 +164,97 @@ Total: 285 bits per entry. With `MAX_TRANSACTIONS=16`, the trans_table is
 
 ---
 
-## Transaction Lifecycle
+## Functional Description
 
-A typical AXI4 read transaction:
+### Architecture
+
+![axi_monitor_trans_mgr block diagram](../../assets/rtl-amba/axi_monitor_trans_mgr.svg)
+
+Source: [`axi_monitor_trans_mgr.mmd`](../../assets/rtl-amba/axi_monitor_trans_mgr.mmd)
+
+```mermaid
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs["Monitored Channel Inputs"]
+        CMD["cmd_valid/ready/id/<br/>addr/len/size/burst"]
+        DATA["data_valid/ready/id/<br/>last/resp"]
+        RESP["resp_valid/ready/id/<br/>code (writes only)"]
+        TS["timestamp[31:0]"]
+        EVT_FB["i_event_reported_flags<br/>(from reporter)"]
+        TO_FB["i_timeout_detected<br/>(from timeout block)"]
+    end
+
+    subgraph axi_monitor_trans_mgr["axi_monitor_trans_mgr (CAM-backed)"]
+        WID_MATCH["WID-less write<br/>data-channel match<br/>(state predicate, oldest-first)"]
+        AGE["Per-slot age ranks (r_age)<br/>+ pick_oldest"]
+        WANTS["wants_alloc derivation<br/>(hit suppression + cmd-entry cap)"]
+        CAM_INST["monitor_trans_cam<br/>(3 lookup + alloc + storage)"]
+        NEXT_STATE["Per-slot next-payload<br/>combinational<br/>(generate loop)"]
+        CLEANUP["Cleanup +<br/>event_reported feedback"]
+        COUNT_PIPE["active_count<br/>registered pop-count"]
+        STATE_CHG["state_change<br/>1-cycle compare"]
+    end
+
+    subgraph Outputs["Outputs"]
+        TT["trans_table[N]<br/>bus_transaction_t"]
+        AC["active_count[7:0]"]
+        SC["state_change[N-1:0]"]
+    end
+
+    CMD --> WANTS
+    DATA --> WANTS
+    RESP --> WANTS
+    CMD --> CAM_INST
+    DATA --> CAM_INST
+    RESP --> CAM_INST
+    WANTS --> CAM_INST
+    DATA --> WID_MATCH
+    CAM_INST --> WID_MATCH
+    AGE --> WID_MATCH
+    CAM_INST --> AGE
+    CAM_INST --> NEXT_STATE
+    WID_MATCH --> NEXT_STATE
+    CMD --> NEXT_STATE
+    DATA --> NEXT_STATE
+    RESP --> NEXT_STATE
+    TS --> NEXT_STATE
+    EVT_FB --> NEXT_STATE
+    TO_FB --> NEXT_STATE
+    CLEANUP --> NEXT_STATE
+    NEXT_STATE -.write port.-> CAM_INST
+    CAM_INST --> TT
+    CAM_INST --> COUNT_PIPE
+    COUNT_PIPE --> AC
+    TT --> STATE_CHG
+    STATE_CHG --> SC
+```
+
+The split of responsibilities is the whole story here. The trans_mgr owns:
+
+- The **WID-less write data-channel match** (state predicate over the
+  payload, not an id match — the CAM only sees ids), resolved oldest-first.
+- The **per-slot age ranks** (`r_age`) and the `pick_oldest` selector that
+  attribute each data/response beat to the oldest matching entry.
+- The per-slot **next-payload computation** (the per-phase if/else chain
+  that says "what should slot i's bus_transaction_t look like next cycle").
+- The **wants_alloc** derivation (hit suppression + the command-entry cap;
+  see [Allocation and Same-ID Tracking](#allocation-and-same-id-tracking)).
+- Cleanup eligibility, event_reported feedback, the registered
+  `active_count` pop-count, state_change detection.
+
+The CAM owns:
+
+- Per-slot `(valid, id, payload)` storage.
+- The 3 parallel ID lookups (`addr_match_oh`, `data_match_oh`, `resp_match_oh`).
+- The free-slot vector and 3-way priority-encoded alloc one-hots.
+
+This split makes the parallel-match shape that closes 100 MHz on the
+xc7a100t-1 (`(* keep = "true" *)` per-bit match vectors, per-slot
+generate-loop storage) explicit and reusable.
+
+### Transaction Lifecycle
+
+A typical AXI4 read transaction, walked phase by phase:
 
 ```
                               addr_alloc fires (free CAM slot picked)
@@ -302,11 +302,9 @@ moved to `TRANS_ERROR` with an event code derived from its progress:
 completed but the B response is outstanding, else `EVT_DATA_TIMEOUT`. This
 makes timed-out entries cleanup-eligible instead of leaking their slot.
 
----
+### Allocation and Same-ID Tracking
 
-## Allocation and Same-ID Tracking
-
-### Separate slot per same-ID transaction
+#### Separate slot per same-ID transaction
 
 The pre-CAM design merged a new command into any existing entry with the
 same ID. That was a **defect** (issue #41 defect 1, fixed): AXI4 permits
@@ -336,7 +334,7 @@ one half of the saturation-recovery contract; the other half is the
 description in
 [axi_monitor_base](./axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract).
 
-### Oldest-first (rank-based) attribution
+#### Oldest-first (rank-based) attribution
 
 Because same-ID entries coexist, an incoming beat can match several slots.
 AXI4 orders same-ID data/responses by issue order, so each beat belongs to
@@ -353,7 +351,7 @@ pre-fix behavior re-opened a terminal entry into an unclosable state — the
 production saturation-wedge mechanism, guarded by the in-RTL formal property
 `ap_no_reopened_complete`).
 
-### Write-data attribution by AWID FIFO (`USE_WDATA_ORDER_Q`)
+#### Write-data attribution by AWID FIFO (`USE_WDATA_ORDER_Q`)
 
 AXI4 W beats carry no WID, so the entry a beat belongs to cannot come from
 the beat. With `USE_WDATA_ORDER_Q=1` the manager records the **AWID** on each
@@ -378,7 +376,7 @@ treated as a stray. This is the restriction commercial VIPs commonly impose.
 Regression: `val/amba/test_axi_monitor_trans_mgr_wr_bank.py` (attribution at
 `NUM_BANKS` 1 and 4, plus the refusal of the illegal combination).
 
-### Same-cycle AW+W bypass (write monitors)
+#### Same-cycle AW+W bypass (write monitors)
 
 The WID-less write predicate runs over registered entries, so a W beat
 arriving in the **same cycle** as its AW used to match nothing and be
@@ -396,7 +394,24 @@ timeout coverage (formal property `ap_wr_data_phase_has_cmd`).
 
 ---
 
-## Synthesis Notes
+## Timing
+
+Everything downstream of the trans_mgr is registered, so the externally
+visible latencies are short and fixed:
+
+| Metric | Value | Notes |
+|---|---|---|
+| Throughput | 1 transaction-event/cycle | Per-phase handshake; up to 3 phases (addr / data / resp) can act per cycle |
+| `trans_table` latency | 1 cycle | Output is registered |
+| `active_count` latency | 1 cycle | Registered pop-count of CAM occupancy |
+| `state_change` latency | 1 cycle | Compared against prev cycle |
+| Resource | ~5 Kb storage | 16 × 285-bit struct, in the CAM |
+
+---
+
+## Design Notes
+
+### Synthesis Notes
 
 The CAM-backed revision preserves the 2026-04-23 WNS fix:
 
@@ -413,9 +428,7 @@ The combined effect is that no signal in the trans_mgr has more than ~6
 LUT levels between flops at typical configurations — closes 100 MHz on
 xc7a100t-1 with margin.
 
----
-
-## Formal Properties
+### Formal Properties
 
 The saturation-recovery and same-cycle-bypass contracts are encoded as
 in-RTL formal properties (under `ifdef FORMAL`, flattened into the
@@ -430,19 +443,25 @@ SymbiYosys proofs and mutation-checked):
 
 ---
 
-## Performance Characteristics
+## Related Modules
 
-| Metric | Value | Notes |
-|---|---|---|
-| Throughput | 1 transaction-event/cycle | Per-phase handshake; up to 3 phases (addr / data / resp) can act per cycle |
-| `trans_table` latency | 1 cycle | Output is registered |
-| `active_count` latency | 1 cycle | Registered pop-count of CAM occupancy |
-| `state_change` latency | 1 cycle | Compared against prev cycle |
-| Resource | ~5 Kb storage | 16 × 285-bit struct, in the CAM |
+| Module | Role |
+|---|---|
+| [`monitor_trans_cam`](monitor_trans_cam.md) | Per-slot keying + storage with 3 lookup ports and alloc priority encoder |
+| [`axi_monitor_base`](axi_monitor_base.md) | Top-level monitor wrapper that instantiates trans_mgr + timer + reporter |
+| [`axi_monitor_reporter`](axi_monitor_reporter.md) | Consumes `trans_table` + `state_change` to generate monbus packets |
+| [`axi_monitor_timeout`](axi_monitor_timeout.md) | Watches the per-phase timers in `trans_table` for timeout events |
+
+Further reading:
+
+- **Monitor Architecture:** [`docs/markdown/rtl-amba/overview.md`](../overview.md)
+- **Monitor Configuration Guide:** [`axi_monitor_base.md`](./axi_monitor_base.md)
+- **Packet Format Specification:** [`monitor_package_spec.md`](../includes/monitor_package_spec.md)
+- **Saturation-recovery contract:** [`axi_monitor_base.md`](./axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) and `monitor_common_pkg::cmd_entry_reserve()`
 
 ---
 
-## Verification
+## Testing
 
 | Test | Coverage |
 |---|---|
@@ -458,27 +477,7 @@ pytest val/amba/test_axi_monitor_trans_mgr.py -v
 
 ---
 
-## Related Modules
-
-| Module | Role |
-|---|---|
-| [`monitor_trans_cam`](monitor_trans_cam.md) | Per-slot keying + storage with 3 lookup ports and alloc priority encoder |
-| [`axi_monitor_base`](axi_monitor_base.md) | Top-level monitor wrapper that instantiates trans_mgr + timer + reporter |
-| [`axi_monitor_reporter`](axi_monitor_reporter.md) | Consumes `trans_table` + `state_change` to generate monbus packets |
-| [`axi_monitor_timeout`](axi_monitor_timeout.md) | Watches the per-phase timers in `trans_table` for timeout events |
-
----
-
-## See Also
-
-- **Monitor Architecture:** [`docs/markdown/rtl-amba/overview.md`](../overview.md)
-- **Monitor Configuration Guide:** [`axi_monitor_base.md`](./axi_monitor_base.md)
-- **Packet Format Specification:** [`monitor_package_spec.md`](../includes/monitor_package_spec.md)
-- **Saturation-recovery contract:** [`axi_monitor_base.md`](./axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) and `monitor_common_pkg::cmd_entry_reserve()`
-
----
-
 ## Navigation
 
-- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
-- **[← Back to rtl-amba Index](../index.md)**
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
+- [Back to rtl-amba Index](../index.md)

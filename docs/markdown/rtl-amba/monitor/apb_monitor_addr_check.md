@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# APB Monitor Address-Range Checker
+# apb_monitor_addr_check
 
 **Module:** `apb_monitor_addr_check.sv`
 **Location:** `rtl/amba/monitor/`
@@ -31,9 +31,19 @@
 
 ## Overview
 
-The APB Monitor Address-Range Checker is a configurable N-range address-violation filter for the APB monitor pipeline. It is the APB mirror of `axi_monitor_addr_check`: it watches the `cmd_valid`/`cmd_ready` handshake the `apb4_monitor` already snoops, and when an accepted command's `paddr` falls inside any of N configured `[low, high]` inclusive ranges it emits a `PktTypeError` MonBus packet with event code `APB_ERR_ADDR_RANGE` (`8'h08`).
+A configurable N-range address-violation filter for the APB monitor pipeline —
+the APB mirror of `axi_monitor_addr_check`. It watches the
+`cmd_valid`/`cmd_ready` handshake the `apb4_monitor` already snoops, and when an
+accepted command's `paddr` falls inside any of N configured `[low, high]`
+inclusive ranges it emits a `PktTypeError` MonBus packet with event code
+`APB_ERR_ADDR_RANGE` (`8'h08`).
 
-### Key Features
+APB peripherals tend to grow reserved or protected address windows that
+software must never touch, and flagging those accesses is the whole point of
+this block. It adds no logic to the APB datapath itself: it snoops the command
+handshake the monitor already observes, compares the accepted address against
+the programmed ranges, and reports which range was hit, the offending address,
+and whether the access was a read or a write.
 
 - Up to N configurable inclusive `[low, high]` address ranges (default 4, up to 16 usable via the 4-bit range index)
 - Per-range enable plus a global `cfg_addr_check_enable`
@@ -43,26 +53,19 @@ The APB Monitor Address-Range Checker is a configurable N-range address-violatio
 - Side-band timestamp captured from the broadcast free-running counter on emission
 - Exact-match support by setting a range's `low == high`
 
----
-
-## Module Purpose
-
-APB peripherals frequently have reserved or protected address windows that software must never touch. This checker gives the APB monitor an inexpensive, fully-configurable way to flag such accesses in-band on the MonBus, without adding logic to the APB datapath itself. It snoops the same command handshake the monitor already observes, compares the accepted address against a set of programmable ranges, and reports a violation packet identifying which range was hit, the offending address, and whether the access was a read or a write.
-
-**Use Cases:**
-- Flagging accesses to reserved/protected APB register windows
-- Security or safety guard-banding of peripheral address maps
-- Debug tripwires on unexpected address regions during bring-up
-- Exact-address watchpoints (set `low == high`)
-
-**Key Benefit:** Programmable, per-range address-violation reporting on the MonBus that mirrors the AXI variant while carrying the APB-specific read/write direction bit.
+Typical uses: flagging accesses to reserved/protected APB register windows,
+security or safety guard-banding of peripheral address maps, debug tripwires on
+unexpected address regions during bring-up, and exact-address watchpoints
+(`low == high`). In short: programmable, per-range address-violation reporting
+on the MonBus that mirrors the AXI variant while carrying the APB-specific
+read/write direction bit.
 
 ---
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | N_ADDR_RANGES | int | 4 | Number of configurable `[low, high]` ranges |
 | ADDR_WIDTH | int | 32 | APB address width |
 | UNIT_ID | logic [7:0] | 8'h00 | Unit id stamped into emitted packets |
@@ -71,25 +74,25 @@ APB peripherals frequently have reserved or protected address windows that softw
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | clk | input | 1 | Clock |
 | aresetn | input | 1 | Active-low asynchronous reset |
 
 ### Timestamp
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | i_mon_time | input | monbus_timestamp_t | Free-running counter broadcast by the monbus_group family; sampled on emission |
 
 ### Snooped APB Command Stream
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | cmd_paddr | input | M | Command address (APB `paddr`) |
 | cmd_pwrite | input | 1 | Command direction (1 = write, 0 = read) |
 | cmd_valid | input | 1 | Command valid (from the monitor's snoop of the APB handshake) |
@@ -98,7 +101,7 @@ APB peripherals frequently have reserved or protected address windows that softw
 ### Range Configuration
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | cfg_addr_check_enable | input | 1 | Global enable for the checker (also gates output valid) |
 | cfg_addr_range_enable | input | N_ADDR_RANGES | Per-range enable mask |
 | cfg_addr_range_low | input | N_ADDR_RANGES × M | Per-range inclusive lower bound |
@@ -107,7 +110,7 @@ APB peripherals frequently have reserved or protected address windows that softw
 ### Outgoing MonBus Packet
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | addr_pkt_valid | output | 1 | Packet valid (a pending violation is ready to emit) |
 | addr_pkt_ready | input | 1 | Downstream ready; `valid && ready` accepts the packet |
 | addr_pkt_data | output | monitor_packet_t | Assembled MonBus error packet |
@@ -231,26 +234,17 @@ Program `cfg_addr_range_low[i] == cfg_addr_range_high[i]` to turn a range into a
 
 ## Related Modules
 
-### Used By
-- `apb4_monitor` pipeline (address-range violation reporting)
+**Used by:** the `apb4_monitor` pipeline (address-range violation reporting).
 
-### Uses
-- **monitor_common_pkg** - `PktTypeError`, `PROTOCOL_APB`, `monbus_timestamp_t`, `create_monitor_packet`
-- **monitor_amba4_pkg** - `APB_ERR_ADDR_RANGE` event code
-- **reset_defs.svh** - `ALWAYS_FF_RST` / `RST_ASSERTED` reset macros
+**Uses:** `monitor_common_pkg` (`PktTypeError`, `PROTOCOL_APB`, `monbus_timestamp_t`, `create_monitor_packet`); `monitor_amba4_pkg` (`APB_ERR_ADDR_RANGE` event code); `reset_defs.svh` (`ALWAYS_FF_RST` / `RST_ASSERTED` reset macros).
 
-### See Also
-- **axi_monitor_addr_check.sv** - AXI-side equivalent (no `is_read` bit)
-- **apb4_monitor.sv** - The APB monitor this checker plugs into
+**See also:** `axi_monitor_addr_check.sv` (AXI-side equivalent, no `is_read` bit); `apb4_monitor.sv` (the APB monitor this checker plugs into).
 
 ---
 
 ## References
 
-### Source Code
 - RTL: `rtl/amba/monitor/apb_monitor_addr_check.sv`
-
-### Documentation
 - Packet format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Design Guide: `docs/markdown/rtl-amba/index.md`
@@ -263,5 +257,6 @@ Program `cfg_addr_range_low[i] == cfg_addr_range_high[i]` to turn a range into a
 
 ## Navigation
 
-- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
-- [Back to rtl-amba Index](../index.md)
+- **[← Back to Shared Infrastructure Index](../_book_monitor_index.md)**
+- **[← Back to rtl-amba Index](../index.md)**
+- **[← Back to Main Documentation Index](../../index.md)**

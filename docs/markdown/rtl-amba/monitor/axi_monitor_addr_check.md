@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# AXI Monitor Address-Range Checker
+# axi_monitor_addr_check
 
 **Module:** `axi_monitor_addr_check.sv`
 **Location:** `rtl/amba/monitor/`
@@ -32,20 +32,33 @@
 
 ## Overview
 
-The `axi_monitor_addr_check` module is a parallel address-range comparator instantiated within AXI monitor wrappers. It observes command-phase handshakes (AR/AW) and classifies each accepted address against N user-configured inclusive ranges `[low, high]`. Each range carries a **flavor** (`ADDR_RANGE_IS_ERROR[i]`) that selects one of two independent report paths:
+`axi_monitor_addr_check` is a parallel address-range comparator instantiated
+within AXI monitor wrappers. It observes command-phase handshakes (AR/AW) and
+classifies each accepted address against N user-configured inclusive ranges
+`[low, high]`. Each range carries a **flavor** (`ADDR_RANGE_IS_ERROR[i]`) that
+selects one of two independent report paths:
 
 - **DEBUG range** (`ADDR_RANGE_IS_ERROR[i] = 0`): a hit emits a `PktTypeAddrMatch` (`4'h8`) packet with event code `AXI_ADDR_RANGE_MATCH = 8'h01`, gated by `cfg_debug_enable`.
 - **ERROR range** (`ADDR_RANGE_IS_ERROR[i] = 1`): the enabled ERROR ranges form an **allowlist**; a command whose address is in NONE of them emits a `PktTypeError` (`4'h0`) packet with event code `AXI_ERR_ADDR_RANGE = 8'h0D`, gated by `cfg_error_enable`.
 
-DEBUG and ERROR ranges are evaluated independently, so a single command may produce both a match and a miss; two pending slots hold each and the output stream serialises them.
+DEBUG and ERROR ranges are evaluated independently, so a single command may
+produce both a match and a miss; two pending slots hold each and the output
+stream serialises them.
 
-This is a **shared infrastructure module** used internally by AXI4/AXIL4/AXI5 monitor wrappers when parameterized with `N_ADDR_RANGES > 0`. It is not typically instantiated directly by users but is critical for address-space validation (allowlist enforcement) and targeted debug tracing.
+This is a **shared infrastructure module** used internally by AXI4/AXIL4/AXI5
+monitor wrappers when parameterized with `N_ADDR_RANGES > 0`. It is not
+typically instantiated directly by users but is critical for address-space
+validation (allowlist enforcement) and targeted debug tracing. In practice it
+buys you four things:
+
+1. **Allowlist enforcement:** ERROR ranges declare the *expected* address space; any access outside it raises an Error/ADDR_RANGE packet.
+2. **Targeted debug tracing:** DEBUG ranges watch specific regions; a hit emits an AddrMatch packet without implying an error.
+3. **Independent debug/error regions:** the two flavors can cover different address sets, so "watch this region" and "everything must stay inside that region" are configured separately.
+4. **Design Verification:** verify address constraints in functional simulation and formal proof.
 
 The ERROR/allowlist path is the checker built into the monitor whenever `N_ADDR_RANGES > 0`, **independent of the error reporter cone** (`ENABLE_ERROR_LOGIC`). It is therefore the most controllable way to **deliberately inject an error** for coverage: point an enabled ERROR range at a region the legitimate traffic never touches, and every access becomes an allowlist miss that emits `PktTypeError`/`AXI_ERR_ADDR_RANGE`. Because an error is a fault condition, this injection is expected to hang the traffic that provoked it -- see [Healthy classes vs fault classes](monitor_system_architecture.md#healthy-classes-vs-fault-classes) for why that stall is the point, not a defect.
 
----
-
-## Key Features
+Feature summary:
 
 - **Parallel Range Comparators:** N independent [low, high] inclusive range checkers
 - **Two flavors per range:** `ADDR_RANGE_IS_ERROR` selects DEBUG (match) vs ERROR (allowlist-miss) behavior per range; default all-0 leaves the ERROR/miss path inert (feature unused by default)
@@ -57,21 +70,10 @@ The ERROR/allowlist path is the checker built into the monitor whenever `N_ADDR_
 
 ---
 
-## Module Purpose
-
-The `axi_monitor_addr_check` module enables:
-
-1. **Allowlist enforcement:** ERROR ranges declare the *expected* address space; any access outside it raises an Error/ADDR_RANGE packet.
-2. **Targeted debug tracing:** DEBUG ranges watch specific regions; a hit emits an AddrMatch packet without implying an error.
-3. **Independent debug/error regions:** the two flavors can cover different address sets, so "watch this region" and "everything must stay inside that region" are configured separately.
-4. **Design Verification:** verify address constraints in functional simulation and formal proof.
-
----
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | `N_ADDR_RANGES` | int | 4 | Number of address-range comparators (>= 1). Max 16 (4-bit range index). |
 | `ADDR_WIDTH` | int | 32 | Address bus width (matches AXI_ADDR_WIDTH of parent monitor). Must be <= 60 (fits the event_data address field). |
 | `ID_WIDTH` | int | 6 | Transaction ID width (clipped to 9 bits when copied into the packet's channel_id). |
@@ -82,25 +84,25 @@ The `axi_monitor_addr_check` module enables:
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `clk` | Input | 1 | AXI clock |
 | `aresetn` | Input | 1 | AXI active-low reset |
 
 ### Side-Band Timestamp
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `i_mon_time` | Input | 64 | Free-running counter from `monbus group`, broadcast to every wrapper via the shared `mon_time_w` net. Sampled when `addr_pkt_valid` asserts and driven out on `addr_pkt_timestamp`. |
 
 ### Command Interface (Snoop)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `cmd_valid` | Input | 1 | Command valid (AR or AW handshake) |
 | `cmd_ready` | Input | 1 | Command ready (slave accepting) |
 | `cmd_addr` | Input | ADDR_WIDTH | Command address (araddr or awaddr) |
@@ -109,7 +111,7 @@ The `axi_monitor_addr_check` module enables:
 ### Configuration Inputs
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `cfg_addr_check_enable` | Input | 1 | Master enable for all comparators. 0 = no packets generated. |
 | `cfg_debug_enable` | Input | 1 | Enables the MATCH path: DEBUG-range hits emit AddrMatch packets. |
 | `cfg_error_enable` | Input | 1 | Enables the MISS path: an address outside the ERROR allowlist emits an Error/ADDR_RANGE packet. |
@@ -120,7 +122,7 @@ The `axi_monitor_addr_check` module enables:
 ### Monitor Bus Output
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `addr_pkt_valid` | Output | 1 | Address-check packet valid (AddrMatch or Error) |
 | `addr_pkt_ready` | Input | 1 | Downstream ready to accept packet |
 | `addr_pkt_data` | Output | 128 | Monitor packet (`monitor_packet_t`, 128-bit format) |
@@ -128,7 +130,9 @@ The `axi_monitor_addr_check` module enables:
 
 ---
 
-## Internal Architecture
+## Functional Description
+
+### Internal Architecture
 
 The module instantiates N parallel comparators and splits them by flavor:
 
@@ -147,15 +151,13 @@ The module instantiates N parallel comparators and splits them by flavor:
 
 Because the two flavors are independent, a command that hits a DEBUG range and is also outside the ERROR allowlist sets BOTH pending slots; the two packets emit on successive cycles.
 
----
-
-## Event Encoding
+### Event Encoding
 
 Two packet types share the 128-bit `monitor_packet_t` layout; only
 `packet_type`, `event_code`, and the range-index nibble differ:
 
 | Field | MATCH (debug hit) | MISS (error allowlist) |
-|-------|-------------------|------------------------|
+|---|---|---|
 | `[127:124]` Packet Type | `4'h8` PktTypeAddrMatch | `4'h0` PktTypeError |
 | `[108:105]` Protocol | `4'h0` PROTOCOL_AXI | `4'h0` PROTOCOL_AXI |
 | `[104:97]` Event Code | `8'h01` AXI_ADDR_RANGE_MATCH | `8'h0D` AXI_ERR_ADDR_RANGE |
@@ -178,23 +180,7 @@ paired atomically with the packet through the arbiter and into
 
 ---
 
-## Formal Properties
-
-All properties proven via formal verification (see `formal/amba/axi_monitor_addr_check/formal_axi_monitor_addr_check.sv`):
-
-| Property | Description | Status |
-|----------|-------------|--------|
-| **P1: Reset quiet** | After reset, `addr_pkt_valid` is deasserted. | PASS |
-| **P2: Master gate** | When `cfg_addr_check_enable=0`, `addr_pkt_valid` stays low. | PASS |
-| **P3: Packet class** | An emitted packet is PROTOCOL_AXI and is either MATCH (AddrMatch/`0x01`) or MISS (Error/`0x0D`) — nothing else. | PASS |
-| **P4: MATCH validity** | A MATCH packet's range_index points to an enabled **DEBUG** range (`ADDR_RANGE_IS_ERROR=0`) and the address lies within its `[low, high]`. | PASS |
-| **P5: MISS validity** | A MISS packet carries the `0xF` sentinel, at least one ERROR range is enabled, and the address lies in **no** enabled ERROR range. | PASS |
-| **P6: Sticky valid** | Once `addr_pkt_valid` asserts it stays asserted until the consumer accepts. | PASS |
-| **cover** | Both emission and the emit+handshake are reachable (non-vacuous). | PASS |
-
----
-
-## Configuration Examples
+## Usage Example
 
 ### Example 1: Error allowlist (out-of-range → Error packet)
 
@@ -248,7 +234,9 @@ Detect accesses to a single debug address:
 
 ---
 
-## Filtering Integration
+## Design Notes
+
+### Filtering Integration
 
 The checker produces two packet classes, each filtered by the parent monitor's
 existing drop masks (`axi_monitor_filtered` / `monbus_group_core`):
@@ -263,10 +251,6 @@ per-class 16-bit masks.
 ```systemverilog
 .cfg_axi_error_mask(16'h2000)  // bit 13 high = drop ADDR_RANGE error packets
 ```
-
----
-
-## Integration Notes
 
 ### Instantiation Pattern
 
@@ -305,7 +289,23 @@ streams. A standalone FIFO on the addr_check output is normally not needed.
 
 ---
 
-## See Also
+## Testing
+
+All properties proven via formal verification (see `formal/amba/axi_monitor_addr_check/formal_axi_monitor_addr_check.sv`):
+
+| Property | Description | Status |
+|---|---|---|
+| **P1: Reset quiet** | After reset, `addr_pkt_valid` is deasserted. | PASS |
+| **P2: Master gate** | When `cfg_addr_check_enable=0`, `addr_pkt_valid` stays low. | PASS |
+| **P3: Packet class** | An emitted packet is PROTOCOL_AXI and is either MATCH (AddrMatch/`0x01`) or MISS (Error/`0x0D`) — nothing else. | PASS |
+| **P4: MATCH validity** | A MATCH packet's range_index points to an enabled **DEBUG** range (`ADDR_RANGE_IS_ERROR=0`) and the address lies within its `[low, high]`. | PASS |
+| **P5: MISS validity** | A MISS packet carries the `0xF` sentinel, at least one ERROR range is enabled, and the address lies in **no** enabled ERROR range. | PASS |
+| **P6: Sticky valid** | Once `addr_pkt_valid` asserts it stays asserted until the consumer accepts. | PASS |
+| **cover** | Both emission and the emit+handshake are reachable (non-vacuous). | PASS |
+
+---
+
+## References
 
 - **Monitor Architecture:** `docs/markdown/rtl-amba/overview.md`
 - **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)

@@ -57,7 +57,7 @@ package for the full perf-window / perf-histogram value tables. The
 **Packet context:** `packet_type = PktTypeError`, `protocol = PROTOCOL_AXI`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0 | `AXI_ERR_RESP_SLVERR`       | Slave error response |
 | 8'h1 | `AXI_ERR_RESP_DECERR`       | Decode error response |
 | 8'h2 | `AXI_ERR_DATA_ORPHAN`       | Data without command |
@@ -80,7 +80,7 @@ package for the full perf-window / perf-histogram value tables. The
 **Packet context:** `packet_type = PktTypeTimeout`, `protocol = PROTOCOL_AXI`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXI_TIMEOUT_CMD`          | Command/Address timeout |
 | 8'h1      | `AXI_TIMEOUT_DATA`         | Data timeout |
 | 8'h2      | `AXI_TIMEOUT_RESP`         | Response timeout |
@@ -95,7 +95,7 @@ package for the full perf-window / perf-histogram value tables. The
 **Packet context:** `packet_type = PktTypeCompletion`, `protocol = PROTOCOL_AXI`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXI_COMPL_TRANS_COMPLETE` | Transaction completed successfully |
 | 8'h1      | `AXI_COMPL_READ_COMPLETE`  | Read transaction complete |
 | 8'h2      | `AXI_COMPL_WRITE_COMPLETE` | Write transaction complete |
@@ -112,7 +112,7 @@ package for the full perf-window / perf-histogram value tables. The
 **Packet context:** `packet_type = PktTypeThreshold`, `protocol = PROTOCOL_AXI`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXI_THRESH_ACTIVE_COUNT` | Active transaction count threshold |
 | 8'h1      | `AXI_THRESH_LATENCY`      | Latency threshold |
 | 8'h2      | `AXI_THRESH_ERROR_RATE`   | Error rate threshold |
@@ -129,7 +129,7 @@ package for the full perf-window / perf-histogram value tables. The
 **Packet context:** `packet_type = PktTypePerf`, `protocol = PROTOCOL_AXI`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXI_PERF_ADDR_LATENCY`     | Address phase latency |
 | 8'h1      | `AXI_PERF_DATA_LATENCY`     | Data phase latency |
 | 8'h2      | `AXI_PERF_RESP_LATENCY`     | Response phase latency |
@@ -151,7 +151,7 @@ package for the full perf-window / perf-histogram value tables. The
 **Packet context:** `packet_type = PktTypeAddrMatch`, `protocol = PROTOCOL_AXI`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXI_ADDR_EXACT_MATCH`   | Exact address match |
 | 8'h1      | `AXI_ADDR_RANGE_MATCH`   | Address within range |
 | 8'h2      | `AXI_ADDR_MASK_MATCH`    | Address mask match |
@@ -168,7 +168,7 @@ package for the full perf-window / perf-histogram value tables. The
 **Packet context:** `packet_type = PktTypeDebug`, `protocol = PROTOCOL_AXI`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXI_DEBUG_STATE_CHANGE`   | AXI state machine change |
 | 8'h1      | `AXI_DEBUG_PIPELINE_STALL` | Pipeline stall event |
 | 8'h2      | `AXI_DEBUG_BACKPRESSURE`   | Backpressure event |
@@ -196,7 +196,7 @@ this section is `PROTOCOL_APB` (4'h2).
 **Packet context:** `packet_type = PktTypeError`, `protocol = PROTOCOL_APB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `APB_ERR_PSLVERR`          | Peripheral slave error |
 | 8'h1      | `APB_ERR_SETUP_VIOLATION`  | Setup phase protocol violation |
 | 8'h2      | `APB_ERR_ACCESS_VIOLATION` | Access phase protocol violation |
@@ -214,7 +214,7 @@ this section is `PROTOCOL_APB` (4'h2).
 **Packet context:** `packet_type = PktTypeTimeout`, `protocol = PROTOCOL_APB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `APB_TIMEOUT_SETUP`        | Setup phase timeout |
 | 8'h1      | `APB_TIMEOUT_ACCESS`       | Access phase timeout |
 | 8'h2      | `APB_TIMEOUT_ENABLE`       | Enable phase timeout (PREADY stuck) |
@@ -228,7 +228,7 @@ this section is `PROTOCOL_APB` (4'h2).
 **Packet context:** `packet_type = PktTypeCompletion`, `protocol = PROTOCOL_APB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `APB_COMPL_TRANS_COMPLETE` | Transaction completed |
 | 8'h1      | `APB_COMPL_READ_COMPLETE`  | Read transaction complete |
 | 8'h2      | `APB_COMPL_WRITE_COMPLETE` | Write transaction complete |
@@ -240,7 +240,7 @@ this section is `PROTOCOL_APB` (4'h2).
 **Packet context:** `packet_type = PktTypeThreshold`, `protocol = PROTOCOL_APB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `APB_THRESH_LATENCY`      | Transaction latency threshold |
 | 8'h1      | `APB_THRESH_ERROR_RATE`   | Error rate threshold |
 | 8'h2      | `APB_THRESH_ACTIVE_COUNT` | Active transaction count threshold |
@@ -253,7 +253,7 @@ this section is `PROTOCOL_APB` (4'h2).
 **Packet context:** `packet_type = PktTypePerf`, `protocol = PROTOCOL_APB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `APB_PERF_READ_LATENCY`    | Read transaction latency |
 | 8'h1      | `APB_PERF_WRITE_LATENCY`   | Write transaction latency |
 | 8'h2      | `APB_PERF_THROUGHPUT`      | Transaction throughput |
@@ -268,7 +268,7 @@ this section is `PROTOCOL_APB` (4'h2).
 **Packet context:** `packet_type = PktTypeDebug`, `protocol = PROTOCOL_APB`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `APB_DEBUG_STATE_CHANGE`  | APB state changed |
 | 8'h1      | `APB_DEBUG_SETUP_PHASE`   | Setup phase event |
 | 8'h2      | `APB_DEBUG_ACCESS_PHASE`  | Access phase event |
@@ -294,7 +294,7 @@ code in this section is `PROTOCOL_AXIS` (4'h1).
 **Packet context:** `packet_type = PktTypeError`, `protocol = PROTOCOL_AXIS`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXIS_ERR_PROTOCOL`       | Protocol violation |
 | 8'h1      | `AXIS_ERR_READY_TIMING`   | TREADY timing violation |
 | 8'h2      | `AXIS_ERR_VALID_TIMING`   | TVALID timing violation |
@@ -314,7 +314,7 @@ code in this section is `PROTOCOL_AXIS` (4'h1).
 **Packet context:** `packet_type = PktTypeTimeout`, `protocol = PROTOCOL_AXIS`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXIS_TIMEOUT_HANDSHAKE`    | TVALID/TREADY handshake timeout |
 | 8'h1      | `AXIS_TIMEOUT_STREAM`       | Stream completion timeout |
 | 8'h2      | `AXIS_TIMEOUT_PACKET`       | Packet timeout (TLAST) |
@@ -329,7 +329,7 @@ code in this section is `PROTOCOL_AXIS` (4'h1).
 **Packet context:** `packet_type = PktTypeCompletion`, `protocol = PROTOCOL_AXIS`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXIS_COMPL_STREAM_END`   | Stream completed (TLAST) |
 | 8'h1      | `AXIS_COMPL_PACKET_SENT`  | Packet sent successfully |
 | 8'h2      | `AXIS_COMPL_TRANSFER`     | Data transfer completed |
@@ -343,7 +343,7 @@ code in this section is `PROTOCOL_AXIS` (4'h1).
 **Packet context:** `packet_type = PktTypeCredit`, `protocol = PROTOCOL_AXIS`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXIS_CREDIT_READY_ASSERT`     | TREADY asserted |
 | 8'h1      | `AXIS_CREDIT_READY_DEASSERT`   | TREADY deasserted |
 | 8'h2      | `AXIS_CREDIT_BUFFER_AVAILABLE` | Buffer space available |
@@ -360,7 +360,7 @@ code in this section is `PROTOCOL_AXIS` (4'h1).
 **Packet context:** `packet_type = PktTypeChannel`, `protocol = PROTOCOL_AXIS`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXIS_CHAN_CONNECT`       | Channel connected |
 | 8'h1      | `AXIS_CHAN_DISCONNECT`    | Channel disconnected |
 | 8'h2      | `AXIS_CHAN_STALL`         | Channel stalled |
@@ -377,7 +377,7 @@ code in this section is `PROTOCOL_AXIS` (4'h1).
 **Packet context:** `packet_type = PktTypeStream`, `protocol = PROTOCOL_AXIS`
 
 | Value | Name | Description |
-|---:|------|-------------|
+|---|---|---|
 | 8'h0      | `AXIS_STREAM_START`        | Stream started |
 | 8'h1      | `AXIS_STREAM_END`          | Stream ended (TLAST) |
 | 8'h2      | `AXIS_STREAM_PAUSE`        | Stream paused |

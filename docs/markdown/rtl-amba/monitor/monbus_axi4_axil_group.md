@@ -31,9 +31,33 @@
 
 ## Overview
 
-The `monbus_axi4_axil_group` module is the AXI4-slave-read + AXIL-master-write wrapper around `monbus_group_core`. It pairs a full AXI4 slave-read leaf (the burst-capable error/interrupt drain port) with a single-beat AXI4-Lite master-write leaf (the bulk-capture port). The slave-read FUB passes through to the core's AXI4-shaped read FUB, while the master-write side forces `MAX_BURST_BEATS=1` so the core emits one beat per AW — matching AXIL's single-beat semantics.
+`monbus_axi4_axil_group` is the AXI4-slave-read + AXIL-master-write wrapper
+around `monbus_group_core`. It pairs a full AXI4 slave-read leaf (the
+burst-capable error/interrupt drain port) with a single-beat AXI4-Lite
+master-write leaf (the bulk-capture port). The slave-read FUB passes through
+to the core's AXI4-shaped read FUB, while the master-write side forces
+`MAX_BURST_BEATS=1` so the core emits one beat per AW — matching AXIL's
+single-beat semantics.
 
-### Key Features
+Some systems read error records over a high-throughput AXI4 port but write
+the bulk trace to a simple AXI4-Lite peripheral bus — a register-file-style
+capture sink, a low-cost bridge, or a control-plane fabric. This wrapper
+mixes the two: an `axi4_slave_rd` leaf for burst error reads and an
+`axil4_master_wr` leaf for single-beat trace writes, both driven by the
+shared capture core.
+
+Use it for:
+
+- Trace capture to an AXIL-only memory-mapped sink while reading errors over AXI4
+- Control-plane monitoring where the write path is a lightweight AXIL bus
+- Mixed-fabric SoCs pairing an AXI4 CPU read port with an AXIL capture port
+
+The key benefit: this reuses the exact same capture core as the all-AXI4
+variant — only `MAX_BURST_BEATS` and the master-write leaf differ — so
+behavior and configuration stay identical across the family, with the write
+side degrading gracefully to single beats.
+
+Feature summary:
 
 - AXI4 burst reads on the error-drain side (walk multiple records per burst)
 - AXIL single-beat writes on the bulk-capture side (`MAX_BURST_BEATS=1`)
@@ -45,23 +69,10 @@ The `monbus_axi4_axil_group` module is the AXI4-slave-read + AXIL-master-write w
 
 ---
 
-## Module Purpose
-
-Some systems read error records over a high-throughput AXI4 port but write the bulk trace to a simple AXI4-Lite peripheral bus (a register-file-style capture sink, a low-cost bridge, or a control-plane fabric). This wrapper mixes the two: an `axi4_slave_rd` leaf for burst error reads and an `axil4_master_wr` leaf for single-beat trace writes, both driven by the shared capture core.
-
-**Use Cases:**
-- Trace capture to an AXIL-only memory-mapped sink while reading errors over AXI4
-- Control-plane monitoring where the write path is a lightweight AXIL bus
-- Mixed-fabric SoCs pairing an AXI4 CPU read port with an AXIL capture port
-
-**Key Benefit:** Reuses the exact same capture core as the all-AXI4 variant — only `MAX_BURST_BEATS` and the master-write leaf differ — so behavior and configuration stay identical across the family, with the write side degrading gracefully to single beats.
-
----
-
 ## Parameters
 
 | Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+|---|---|---|---|
 | `FIFO_DEPTH_ERR` | int | 64 | Error FIFO depth in 192-bit records |
 | `FIFO_DEPTH_WRITE` | int | 96 | Write FIFO depth in 64-bit beats |
 | `ADDR_WIDTH` | int | 32 | Address width for both ports |
@@ -80,12 +91,12 @@ Internally, the core is instantiated with `AXI_ID_WIDTH_M=1`, `AXI_ID_WIDTH_S=AX
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock, Reset, Clear
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `axi_aclk` | input | 1 | Clock |
 | `axi_aresetn` | input | 1 | Active-low asynchronous reset |
 | `cam_clear` | input | 1 | Synchronous compressor CAM + stats clear |
@@ -93,7 +104,7 @@ Internally, the core is instantiated with `AXI_ID_WIDTH_M=1`, `AXI_ID_WIDTH_S=AX
 ### MonBus Ingress and Timestamp
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `monbus_valid` | input | 1 | Incoming packet valid |
 | `monbus_ready` | output | 1 | Ready to accept |
 | `monbus_packet` | input | `monitor_packet_t` (128) | Monitor packet |
@@ -103,7 +114,7 @@ Internally, the core is instantiated with `AXI_ID_WIDTH_M=1`, `AXI_ID_WIDTH_S=AX
 ### S-Side — AXI4 Slave Read (error record drain)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `s_axi_arid` | input | AXI_ID_WIDTH | Read address ID |
 | `s_axi_araddr` | input | ADDR_WIDTH | Read address |
 | `s_axi_arlen` | input | 8 | Burst length (beats − 1) |
@@ -128,7 +139,7 @@ Internally, the core is instantiated with `AXI_ID_WIDTH_M=1`, `AXI_ID_WIDTH_S=AX
 ### M-Side — AXIL Master Write (bulk trace capture)
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `m_axil_awvalid` | output | 1 | AW valid |
 | `m_axil_awready` | input | 1 | AW ready |
 | `m_axil_awaddr` | output | ADDR_WIDTH | Write address |
@@ -144,7 +155,7 @@ Internally, the core is instantiated with `AXI_ID_WIDTH_M=1`, `AXI_ID_WIDTH_S=AX
 ### Status and Egress Configuration
 
 | Port | Direction | Width | Description |
-|------|-----------|-------|-------------|
+|---|---|---|---|
 | `irq_out` | output | 1 | Error FIFO non-empty |
 | `cfg_base_addr` | input | ADDR_WIDTH | Capture window base |
 | `cfg_limit_addr` | input | ADDR_WIDTH | Capture window limit |
@@ -235,16 +246,19 @@ The error-drain path is byte-for-byte the same as the AXI4/AXI4 group — the re
 
 ## Related Modules
 
-### Used By
+**Used by:**
+
 - SoC monitoring subsystems reading errors over AXI4 but capturing the trace over AXIL
 
-### Uses
+**Uses:**
+
 - **monbus_group_core.sv** — protocol-agnostic capture core (all logic), `MAX_BURST_BEATS=1`
 - **axi4_slave_rd.sv** — AXI4 slave-read leaf (error drain)
 - **axil4_master_wr.sv** — AXIL master-write leaf (bulk capture)
 - **monitor_common_pkg** — packet and timestamp types
 
-### See Also
+**See also:**
+
 - **monbus_axi4_axi4_group.sv** — AXI4 read + AXI4 write variant
 - **monbus_axil_axi4_group.sv** — AXIL read + AXI4 write variant
 - **monbus_axil_axil_group.sv** — AXIL read + AXIL write variant
@@ -255,10 +269,12 @@ The error-drain path is byte-for-byte the same as the AXI4/AXI4 group — the re
 ## References
 
 ### Source Code
+
 - RTL: `rtl/amba/monitor/monbus_axi4_axil_group.sv`
 - Core: `rtl/amba/monitor/monbus_group_core.sv`
 
 ### Documentation
+
 - Architecture: `docs/markdown/rtl-amba/shared/README.md`
 - Group Core: `docs/markdown/rtl-amba/monitor/monbus_group_core.md`
 - Packet Format: `docs/markdown/rtl-amba/includes/monitor_package_spec.md`

@@ -30,6 +30,8 @@
 
 ---
 
+## Overview
+
 > **Deprecation note.** `monbus_cam.sv` is the single-cycle reference
 > design. The in-production CAM inside `monbus_compressor` is now
 > `monbus_cam_pipe.sv`, a 2-cycle pipelined variant that splits the
@@ -48,10 +50,6 @@
 > (`test_monbus_cam.py`) target. New code should instantiate
 > [`monbus_cam_pipe`](monbus_cam_pipe.md).
 
----
-
-## Overview
-
 `monbus_cam` is a **true-LRU caching content-addressable memory** that defines
 the template-index semantics the [`monbus_compressor`](monbus_compressor.md)
 depends on (the compressor instantiates the pipelined
@@ -68,9 +66,7 @@ The module is a **bit-exact mirror** of the Python `Cam` class in
 `bin/TBClasses/monbus/monbus_compressor.py`. Any divergence between the
 two implementations is a regression.
 
----
-
-## Key Features
+At a glance:
 
 - 32-entry capacity (locked by the bulk-trace format spec)
 - 49-bit key, 64-bit payload (both parameterizable)
@@ -85,7 +81,92 @@ two implementations is a regression.
 
 ---
 
-## Architecture
+## Parameters
+
+The default values (`KEY_WIDTH=49`, `DATA_WIDTH=64`, `DEPTH=32`) are what the
+compressor instantiates and what the locked format spec mandates. The
+parameters exist so the module can be reused in other contexts (e.g. a smaller
+on-chip event cache) but `monbus_compressor` itself doesn't override them.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `KEY_WIDTH` | int | 49 | Template key width (locked by the format spec) |
+| `DATA_WIDTH` | int | 64 | Payload width |
+| `TS_WIDTH` | int | 24 | Per-entry `last_ts` width (per-template `delta_ts`) |
+| `DEPTH` | int | 32 | Entry capacity (locked at 32 by the format spec) |
+| `IDX_WIDTH` | int | `(DEPTH > 1) ? $clog2(DEPTH) : 1` | Derived index width |
+| `CNT_WIDTH` | int | `$clog2(DEPTH + 1)` | Derived count width |
+
+If you change `DEPTH`, the corresponding change in the Python golden's
+`DEFAULT_CAM_SIZE` constant must happen in lockstep — otherwise the encoded
+slot stream will diverge.
+
+---
+
+## Ports
+
+```systemverilog
+module monbus_cam #(
+    parameter int KEY_WIDTH  = 49,
+    parameter int DATA_WIDTH = 64,
+    parameter int TS_WIDTH   = 24,   // per-entry last_ts width (per-template delta_ts)
+    parameter int DEPTH      = 32,
+    parameter int IDX_WIDTH  = (DEPTH > 1) ? $clog2(DEPTH) : 1,
+    parameter int CNT_WIDTH  = $clog2(DEPTH + 1)
+) (
+    input  logic                  clk,
+    input  logic                  rst_n,
+
+    // Access port (one combinational lookup + one commit per cycle)
+    input  logic [KEY_WIDTH-1:0]  access_key,
+    output logic                  access_hit,
+    output logic [IDX_WIDTH-1:0]  access_idx,       // position rank (only valid on hit)
+    output logic [DATA_WIDTH-1:0] access_old_data,  // pre-commit payload at access_idx
+    output logic [TS_WIDTH-1:0]   access_old_ts,    // pre-commit timestamp at access_idx
+
+    input  logic [1:0]            access_action,
+    input  logic [DATA_WIDTH-1:0] access_new_data,
+    input  logic [TS_WIDTH-1:0]   access_new_ts,    // timestamp to write on TOUCH / INSTALL
+
+    // Status
+    output logic                  cam_full,
+    output logic [CNT_WIDTH-1:0]  cam_count,
+    output logic                  evicted,          // pulses on full-CAM INSTALL
+
+    // Counting-consumer ports (additive; the compressor ties/ignores these)
+    output logic [KEY_WIDTH-1:0]  evict_key,        // victim key,  valid when evicted
+    output logic [DATA_WIDTH-1:0] evict_data,       // victim data, valid when evicted
+    input  logic [IDX_WIDTH-1:0]  dump_idx,         // position to observe
+    output logic                  dump_valid,       // entry at dump_idx is occupied
+    output logic [KEY_WIDTH-1:0]  dump_key,
+    output logic [DATA_WIDTH-1:0] dump_data,
+    input  logic                  soft_clear        // synchronous invalidate-all
+);
+```
+
+### Counting-Consumer Ports
+
+The compressor uses only the access port + `evicted`. A second class of
+consumer — a **counting** cache such as [`monbus_pkt_tally`](monbus_pkt_tally.md),
+where the payload is a partial count that must survive eviction — needs to see
+the victim and to walk live entries. These ports were added **additively** for
+that use; they do not change the LRU behaviour the compressor golden depends on,
+and any instantiation that does not need them may tie `dump_idx`/`soft_clear`
+low and leave the new outputs open. (The compressor no longer instantiates
+*this* module -- it uses `monbus_cam_pipe`, which has neither port.)
+
+| Port | Direction | Width | Description |
+|---|---|---|---|
+| `evict_key` / `evict_data` | output | KEY_WIDTH / DATA_WIDTH | The LRU victim (position `DEPTH-1`), combinational, valid the cycle `evicted` is high. A counting consumer folds `evict_data` back into its backing store before the entry is lost. |
+| `dump_idx` | input | IDX_WIDTH | Position to observe (for a freeze/flush walk over all entries). |
+| `dump_valid` / `dump_key` / `dump_data` | output | 1 / KEY_WIDTH / DATA_WIDTH | Occupancy + contents of `dump_idx`, purely observational (no state change). |
+| `soft_clear` | input | 1 | Synchronous invalidate-all (`cam_count → 0`) without an async reset pulse; re-arms the cache between capture windows. Takes priority over any concurrent `access_action`. |
+
+---
+
+## Functional Description
+
+### Architecture
 
 ![monbus_cam block diagram](../../assets/rtl-amba/monbus_cam.svg)
 
@@ -135,70 +216,7 @@ flowchart TB
     FULL --> EVICTED
 ```
 
----
-
-## Top-level Interface
-
-```systemverilog
-module monbus_cam #(
-    parameter int KEY_WIDTH  = 49,
-    parameter int DATA_WIDTH = 64,
-    parameter int TS_WIDTH   = 24,   // per-entry last_ts width (per-template delta_ts)
-    parameter int DEPTH      = 32,
-    parameter int IDX_WIDTH  = (DEPTH > 1) ? $clog2(DEPTH) : 1,
-    parameter int CNT_WIDTH  = $clog2(DEPTH + 1)
-) (
-    input  logic                  clk,
-    input  logic                  rst_n,
-
-    // Access port (one combinational lookup + one commit per cycle)
-    input  logic [KEY_WIDTH-1:0]  access_key,
-    output logic                  access_hit,
-    output logic [IDX_WIDTH-1:0]  access_idx,       // position rank (only valid on hit)
-    output logic [DATA_WIDTH-1:0] access_old_data,  // pre-commit payload at access_idx
-    output logic [TS_WIDTH-1:0]   access_old_ts,    // pre-commit timestamp at access_idx
-
-    input  logic [1:0]            access_action,
-    input  logic [DATA_WIDTH-1:0] access_new_data,
-    input  logic [TS_WIDTH-1:0]   access_new_ts,    // timestamp to write on TOUCH / INSTALL
-
-    // Status
-    output logic                  cam_full,
-    output logic [CNT_WIDTH-1:0]  cam_count,
-    output logic                  evicted,          // pulses on full-CAM INSTALL
-
-    // Counting-consumer ports (additive; the compressor ties/ignores these)
-    output logic [KEY_WIDTH-1:0]  evict_key,        // victim key,  valid when evicted
-    output logic [DATA_WIDTH-1:0] evict_data,       // victim data, valid when evicted
-    input  logic [IDX_WIDTH-1:0]  dump_idx,         // position to observe
-    output logic                  dump_valid,       // entry at dump_idx is occupied
-    output logic [KEY_WIDTH-1:0]  dump_key,
-    output logic [DATA_WIDTH-1:0] dump_data,
-    input  logic                  soft_clear        // synchronous invalidate-all
-);
-```
-
-### Counting-consumer ports
-
-The compressor uses only the access port + `evicted`. A second class of
-consumer — a **counting** cache such as [`monbus_pkt_tally`](monbus_pkt_tally.md),
-where the payload is a partial count that must survive eviction — needs to see
-the victim and to walk live entries. These ports were added **additively** for
-that use; they do not change the LRU behaviour the compressor golden depends on,
-and any instantiation that does not need them may tie `dump_idx`/`soft_clear`
-low and leave the new outputs open. (The compressor no longer instantiates
-*this* module -- it uses `monbus_cam_pipe`, which has neither port.)
-
-| Port | Dir | Meaning |
-|------|-----|---------|
-| `evict_key` / `evict_data` | out | The LRU victim (position `DEPTH-1`), combinational, valid the cycle `evicted` is high. A counting consumer folds `evict_data` back into its backing store before the entry is lost. |
-| `dump_idx` | in | Position to observe (for a freeze/flush walk over all entries). |
-| `dump_valid` / `dump_key` / `dump_data` | out | Occupancy + contents of `dump_idx`, purely observational (no state change). |
-| `soft_clear` | in | Synchronous invalidate-all (`cam_count → 0`) without an async reset pulse; re-arms the cache between capture windows. Takes priority over any concurrent `access_action`. |
-
----
-
-## Storage Model: Position-Indexed LRU
+### Storage Model: Position-Indexed LRU
 
 The fundamental design choice is that **the slot index IS the position rank**:
 
@@ -209,6 +227,7 @@ r_entry[count..DEPTH-1] = invalid (empty slots)
 ```
 
 This means:
+
 - The `access_idx` output on a hit is the entry's current position rank,
   which is exactly what `tmpl_idx` needs to be in the compressed slot stream.
 - On `TOUCH` or `INSTALL`, the matched/new entry moves to slot 0 and older
@@ -222,9 +241,7 @@ entries on a single clock edge. For `DEPTH=32` this is well within timing
 budget (parallel per-slot updates in a generate loop) but it's the reason
 the format spec locks the size at 32 and not 64 or 128.
 
----
-
-## Actions
+### Actions
 
 The caller drives exactly one action per cycle on the `access_action` port:
 
@@ -236,6 +253,7 @@ The caller drives exactly one action per cycle on the `access_action` port:
 | `2'b11` | reserved | — | Treated as NONE (no state change). |
 
 **Caller protocol enforcement** (simulation-only, via `$error`):
+
 - `TOUCH` without `access_hit` is illegal — the caller saw a miss but is
   claiming to be touching an existing entry.
 - `INSTALL` while `access_hit` is illegal — the key is already present and
@@ -245,9 +263,7 @@ The caller drives exactly one action per cycle on the `access_action` port:
 The natural compressor pattern is `TOUCH-on-hit / INSTALL-on-miss`, which
 satisfies all three constraints by construction.
 
----
-
-## Per-Slot Update Mechanics
+### Per-Slot Update Mechanics
 
 On every clock edge:
 
@@ -264,9 +280,7 @@ handled separately). Synthesis infers the same per-slot enables. This compiles t
 ~one LUT level per slot on the per-bit datapath — Vivado synthesises the
 whole shift as `DEPTH` parallel small update cones.
 
----
-
-## Per-Entry Timestamp Storage
+### Per-Entry Timestamp Storage
 
 Earlier revisions of the CAM stored only `(key, data)` per entry; the
 compressor measured `delta_ts` against a single global `r_last_ts`.
@@ -297,9 +311,7 @@ needs to drive `access_new_ts` along with `access_new_data` on every
 `TOUCH` / `INSTALL`. The compressor wires this directly from the
 incoming record's low 24 timestamp bits.
 
----
-
-## Match Logic
+### Match Logic
 
 The match vector is a parallel one-hot:
 
@@ -318,20 +330,7 @@ priority encoder feeding `access_idx` is then `DEPTH-1`-input.
 
 ---
 
-## Configuration
-
-The default values (`KEY_WIDTH=49`, `DATA_WIDTH=64`, `DEPTH=32`) are what the
-compressor instantiates and what the locked format spec mandates. The
-parameters exist so the module can be reused in other contexts (e.g. a smaller
-on-chip event cache) but `monbus_compressor` itself doesn't override them.
-
-If you change `DEPTH`, the corresponding change in the Python golden's
-`DEFAULT_CAM_SIZE` constant must happen in lockstep — otherwise the encoded
-slot stream will diverge.
-
----
-
-## Test
+## Testing
 
 `val/amba/test_monbus_cam.py` runs 10 sub-tests covering:
 
@@ -357,6 +356,7 @@ pytest val/amba/test_monbus_cam.py -v
 ```
 
 REG_LEVEL parameter sweep (`gate` / `func` / `full`):
+
 - **GATE:** 1 config (default 49/64/32)
 - **FUNC:** 2 configs (+ small DEPTH=8)
 - **FULL:** 6 configs (DEPTH 4/8/16/32, key 16/32/49/64, data 16/32/64)
@@ -370,3 +370,10 @@ REG_LEVEL parameter sweep (`gate` / `func` / `full`):
 | [`monbus_compressor`](monbus_compressor.md) | Consumer of the CAM *semantics* this module specifies — but it instantiates [`monbus_cam_pipe`](monbus_cam_pipe.md), not this module |
 | `bin/TBClasses/monbus/monbus_compressor.py` (`Cam` class) | Python golden mirror |
 | [`monitor_trans_cam`](monitor_trans_cam.md) | Sister CAM, different use case (AXI ID matching, multi-port, no LRU) |
+
+---
+
+## Navigation
+
+- [Back to Shared Infrastructure Index](../_book_monitor_index.md)
+- [Back to rtl-amba Index](../index.md)

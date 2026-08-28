@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-# MonBus Half-Beat Packer
+# monbus_halfbeat_packer
 
 **Module:** `monbus_halfbeat_packer.sv`
 **Location:** `rtl/amba/monitor/`
@@ -31,7 +31,7 @@
 
 ## Overview
 
-The `monbus_halfbeat_packer` module packs two 30-bit half-slots into a single 64-bit beat, sitting downstream of `monbus_compressor`. The compressor emits one 64-bit beat per tier-1 record (a 66.7% reduction ceiling — 1 beat per 3-beat raw record); by pairing two compatible records into one beat, this packer pushes the reduction to as much as 83.3% (0.5 beat per record). It is bit-exact to the Python golden model `Encoder(half_beat=True)`.
+The `monbus_halfbeat_packer` module packs two 30-bit half-slots into a single 64-bit beat, sitting downstream of `monbus_compressor`. The compressor emits one 64-bit beat per tier-1 record — a 66.7% reduction ceiling, 1 beat per 3-beat raw record. Pair two compatible records into one beat and this packer pushes the reduction to as much as 83.3% (0.5 beat per record). It is bit-exact to the Python golden model `Encoder(half_beat=True)`.
 
 ### Key Features
 
@@ -42,10 +42,6 @@ The `monbus_halfbeat_packer` module packs two 30-bit half-slots into a single 64
 - Forwards full 64-bit slots and raw-escape beats verbatim
 - Bit-exact to the compressor Python golden model for gap-free record streams
 - Simple valid/ready handshake on both ports
-
----
-
-## Module Purpose
 
 Trace-capture bandwidth is precious. The compressor already reduces most records to a single 64-bit beat, but records that also fit in 30 bits can be paired two-to-a-beat. This packer performs that pairing with a one-slot holding buffer, emitting a combined beat when a second eligible half arrives while preserving strict record order for everything that cannot be paired.
 
@@ -64,7 +60,7 @@ This module has no parameters.
 
 ---
 
-## Port Groups
+## Ports
 
 ### Clock and Reset
 
