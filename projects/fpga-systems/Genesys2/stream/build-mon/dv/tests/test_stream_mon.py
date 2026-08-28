@@ -18,7 +18,7 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # The reusable transport + its deps live in the perf flow's dv/ and host/ trees.
@@ -318,7 +318,7 @@ def _run_stream_mon(request, profile=False):
     use_mon  = '1' if profile else os.environ.get('USE_MON', '0')
     test_name = "test_stream_mon_profile" if profile else "test_stream_mon"
     log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    sim_build = sim_build_path(tests_dir, test_name)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -356,12 +356,15 @@ def _run_stream_mon(request, profile=False):
         # pinned to the config an EXISTING bitstream was built at -- the
         # package is what the next build will use, which is not the same thing
         # as what is programmed into the part right now.
-        # DEVIATION: the package (and the board) build GEN_MON=0. The cosim
-        # defaults to 1 because the per-channel descriptor-engine (agents
-        # 16-23) and scheduler (48-55) emitters only exist here -- turning
-        # them off removes monitor coverage that has no other home. Set
-        # GEN_MON=0 to reproduce the board exactly.
-        'GEN_MON': os.environ.get('GEN_MON', '1'),
+        # GEN_MON follows the BOARD by default (the package builds 1'b0).
+        # It used to default to 1 here so the cosim kept coverage of the
+        # per-channel descriptor-engine (agents 16-23) and scheduler (48-55)
+        # emitters, which exist only with GEN_MON=1. That is a real coverage
+        # argument, but it cannot be the DEFAULT: a cosim whose unset state
+        # differs from silicon is the thing this package exists to prevent,
+        # and the deviation has to be opt-IN and visible at the call site.
+        # The tests that need those agents set GEN_MON=1 explicitly.
+        'GEN_MON': os.environ.get('GEN_MON', '0'),
     }
     # A/B overrides, present ONLY when set, so an unset run lands on the
     # package (= what the next bitstream will be) and a pinned run can

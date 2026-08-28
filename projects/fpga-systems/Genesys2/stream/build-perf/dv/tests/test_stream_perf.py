@@ -4,10 +4,16 @@
 
 The cocotb tests themselves are COMPONENT level in
 `dv/cocotb_stream_harness.py`, shared with build-mon -- one harness, one set of
-cocotb behaviours. This file only decides, for the MONITORS-OFF build: which
-cases to run, at which parameters.
+cocotb behaviours. This file only decides, for the PERF flow: which cases to
+run, at which parameters.
 
-USE_AXI_MONITORS is fixed at 0 here. It is what makes this build-perf.
+What makes this build-perf is the CASES it runs (throughput, bubble analysis,
+the ext_* characterization families), not a distinct elaboration. It used to
+pin USE_AXI_MONITORS=0 and call that its identity, but the board runs ONE
+bitstream -- monitors ON -- serving both the perf and the monitor flow
+(stable/MANIFEST.md), so a monitors-off cosim was characterizing a design no
+bitstream builds. Geometry, monitors included, now comes from
+stream_char_cfg_pkg like everything else.
 """
 
 import hashlib
@@ -18,7 +24,7 @@ import random
 import pytest
 from cocotb_test.simulator import run
 
-from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 repo_root = get_repo_root()
@@ -40,8 +46,9 @@ COCOTB_MODULE = 'cocotb_stream_harness'
 def elab_sim_build(tests_dir, rtl_parameters, compile_args):
     """A sim_build directory keyed by what actually gets COMPILED.
 
-    Every case in this build elaborates the SAME harness at the SAME parameters
-    -- USE_AXI_MONITORS is fixed by the build, not the test -- so keying the
+    Every case in this build elaborates the SAME harness at the SAME
+    parameters -- all of them from the package, none from the test -- so
+    keying the
     build directory on the test NAME made each case recompile an identical
     model. Measured: ~220 s cold vs ~35 s warm, about 185 s of pure duplicate
     compile per case, ~30 min across a suite whose actual simulation is minutes.
@@ -58,7 +65,7 @@ def elab_sim_build(tests_dir, rtl_parameters, compile_args):
     digest = hashlib.sha1(key.encode()).hexdigest()[:12]
     worker = os.environ.get('PYTEST_XDIST_WORKER', '')
     name = f"elab_{digest}" + (f"_{worker}" if worker else "")
-    return os.path.join(tests_dir, 'local_sim_build', name)
+    return sim_build_path(tests_dir, name)
 
 
 # This build's host programs. On python_search because the shared TB imports
@@ -214,24 +221,25 @@ def test_stream_perf(request, test_type, test_level):
     # just before run(), once rtl_parameters and compile_args exist.
     os.makedirs(log_dir, exist_ok=True)
 
-    # USE_AXI_MONITORS is the BUILD's identity, not a per-test knob.
+    # USE_AXI_MONITORS comes from the package, like every other geometry
+    # value -- it is NOT pinned here.
     #
-    # There is ONE harness (rtl/stream_harness.sv); build-mon and build-perf are
-    # that same design at different parameters, and monitors-on/off IS the
-    # difference. A test in build-perf that flips it to 1 is not testing this
-    # build -- it is building build-mon's design inside build-perf's directory,
-    # at build-perf's parameters (AR_MAX_OUTSTANDING=16), a combination no
-    # bitstream uses and which Verilator cannot even elaborate (BLKLOOPINIT in
-    # axi_monitor_timeout).
+    # This used to hardcode 0, with a comment arguing that monitors-on/off IS
+    # the difference between build-mon and build-perf. That was true once and
+    # is not true now: the board runs ONE bitstream, monitors ON, and it serves
+    # both the perf and the monitor flow (stable/MANIFEST.md says so
+    # explicitly). A cosim pinned to 0 therefore characterizes a design no
+    # bitstream builds -- the same defect this package was introduced to kill,
+    # one level up, and it survived the first pass of that work.
     #
-    # That override is a leftover from when the perf flow had its OWN harness
-    # and could parameterize it freely. The three monitors-on test types it
-    # served -- rw_perf, desc_perf, obs_equiv -- read IN-CORE monitor windows,
-    # so they belong to the monitors-on build. See build-mon.
+    # The two reasons the old comment gave are both stale. AR_MAX_OUTSTANDING
+    # is 8 now, not 16. And monitors-on no longer fails to elaborate: the CAMs
+    # are banked (CFG_MON_NUM_BANKS=4), which is exactly what retired the
+    # BLKLOOPINIT in axi_monitor_timeout -- build-mon elaborates this
+    # configuration and passes 47 tests.
     rtl_parameters = {
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
         'UART_BAUD':   str(SIM_UART_BAUD),
-        'USE_AXI_MONITORS': '0',
         **{k: str(v) for k, v in BASE_RTL_PARAMS.items()},
     }
 
