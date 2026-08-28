@@ -207,110 +207,74 @@ default and every mechanism mutation-proven at the fub level.
 ---
 
 ## PUMICE-014 — retire ALL hand-poking of valid/ready interfaces in pumice DV
-**Status:** PARTIALLY DONE 2026-08-28 — all 8 originally-listed files plus
-2 of the 9 newly-found ones are ported and green (10 of 17). The original
-audit was INCOMPLETE; the remaining 7 are tabled below and are now
-unblocked (see the retired-blocker note). HARD RULE from Sean, stated
-emphatically: "None of the environments should EVER hand poke on any
-standard interface or valid ready interface", and "If there are bfms you
-don't need to set any signals" — i.e. the BFM drives the PAYLOAD too, not
-just the handshake. See [[feedback-always-use-axi4-bfms]].
+**Status:** 15 of 17 files DONE 2026-08-28. The two remaining are deliberate
+exclusions with reasons, not leftovers — see below. HARD RULE from Sean:
+"None of the environments should EVER hand poke on any standard interface
+or valid ready interface", and "If there are bfms you don't need to set any
+signals" — the BFM drives the PAYLOAD too, not just the handshake.
+See [[feedback-always-use-axi4-bfms]].
 
-Hand-poking is not just a style violation: it skips the BFM's protocol
-timing (valid/ready randomization, per-channel profiles, outstanding and
-interleaved bursts), so it misses protocol/timing bugs AND poisons every
-performance measurement -- a hand-rolled driver starves the DUT, so the
-numbers grade the testbench. That is exactly why perf work had to move to
-the BFM top TB (see [[PUMICE-013]]).
+**DONE (0 handshake pokes remaining; residual counts are non-handshakes):**
+top: `test_pumice_core_dfi` (50→0), `test_pumice_core` (33→0),
+`test_pumice_top_csr` (22→0), `test_pumice_top` / `_geared` (2 ea→0).
+fub/macro: `pumice_axi4_ifc_tb` (35→0), `pumice_wr_intake_tb` (34→0),
+`pumice_rd_intake_tb` (32→0), `pumice_wr_data_cam_tb` (17→6),
+`pumice_rd_cmd_cam_tb` (13→3), `pumice_dfi_cdc_tb` (12→0),
+`test_pumice_dfi_cmd_path` (8→2), `pumice_cmd_arbiter_tb` (7→0),
+`test_pumice_dfi_wr_serializer` (6→0), `pumice_mem_cmd_scheduler_tb` (3→0).
 
-**DONE (all originally-listed files, 0 pokes remaining, all green):**
-| File | was | now | driven by |
-|---|---|---|---|
-| `dv/tests/top/test_pumice_core_dfi.py` | 50 | 0 | `PumiceAxiBfm` |
-| `dv/tbclasses/pumice_axi4_ifc_tb.py` | 35 | 0 | `PumiceAxiBfm` + GAXI x4 |
-| `dv/tbclasses/pumice_wr_intake_tb.py` | 34 | 0 | `PumiceAxiBfm` + GAXI x2 |
-| `dv/tests/top/test_pumice_core.py` | 33 | 0 | `PumiceAxiBfm` |
-| `dv/tbclasses/pumice_rd_intake_tb.py` | 32 | 0 | `PumiceAxiBfm` + GAXI x3 |
-| `dv/tests/top/test_pumice_top_csr.py` | 22 | 0 | `PumiceAxiBfm` |
-| `test_pumice_top.py` / `_geared.py` | 2 ea | 0 | `tb.init_axi_masters()` |
-
-Shared collateral built for this, reuse it rather than re-rolling:
+**Collateral to reuse, do not re-roll:**
 * `dv/tbclasses/pumice_axi_bfm.py` — `PumiceAxiBfm`, the one place any
-  pumice DUT's `s_axi_*` gets driven. Takes `write=`/`read=` for ports
-  that only have one direction.
+  pumice `s_axi_*` is driven. `write=`/`read=` for single-direction ports.
 * `dv/tbclasses/pumice_fub_bfm.py` — `fub_consumer()` / `fub_producer()`
-  over the GAXI BFMs, for fub-internal valid/ready ports. pumice's
-  direction-suffixed names (`aw_push_bank_o`) do not match GAXI
-  auto-discovery, so these pass an explicit `signal_map`, which also
-  fails loudly on a rename instead of binding to nothing.
+  over the GAXI BFMs for fub-internal valid/ready ports, with an explicit
+  `signal_map` (pumice's `aw_push_bank_o` style names do not match GAXI
+  auto-discovery, and explicit fails loudly on a rename).
 
-**DONE since:** `pumice_cmd_arbiter_tb.py` and
-`pumice_mem_cmd_scheduler_tb.py` (GAXI consumers at ready_policy='always';
-the arbiter's backpressure case now uses set_ready_policy('stall')).
+**NOT DONE — 2 files, both deliberate:**
+* `dfi_cmd_formatter_tb.py` — ATTEMPTED AND REVERTED. Its check samples at
+  a fixed offset from when a command is PRESENTED and exhaustively verifies
+  per-op DFI encodings. A blocking `send()` consumes the accepting edge, so
+  the sample lands a cycle late (cs_n read 0x1/deselected); queue-and-go
+  still failed 8/10. Porting it needs the CHECK redesigned, not the driver
+  swapped — worth doing, but as its own task, not a mechanical port.
+* `wr_cmd_cam_tb.py` — DEAD CODE. Nothing imports `WrCmdCamTB` (only a
+  conftest docstring mentions it) and its DUT is gone: `push_valid_i`
+  appears nowhere in `rtl/`. **Delete it**, do not port it.
 
-**STILL TO PORT (missed by the original audit, 2026-08-28 sweep).**
-Counts below are RAW `.value =` sites; the "real" column excludes signals
-that are NOT valid/ready interfaces, which is most of the arbiter's:
+**Not handshakes — verified against the RTL port lists, leave hand-driven:**
+CREDITS with no matching valid — `rd_op_ready_i` ("rd aligner has a free
+slot"), `bank_act_ready_i` / `bank_rdwr_ready_i` / `bank_pre_ready_i`
+(per-bank permission vectors). STROBES with no ready — `wr_done_valid_i`,
+`dfi_rddata_valid_i` (DFI read data is unconditional per spec),
+`init_cmd_valid_i`, `sched_lu_valid_i`, `snarf_probe_valid_i`,
+`wr_fire_i`. Read-only MONITORS also stay (`_mon_b`, `_mon_r`): the AXI
+master owns bready/rready but the sequence result carries no per-beat
+rid/rlast/rresp/bresp. Observing is not poking.
 
-| File | raw | real | genuine handshakes | tests backpressure? |
-|---|---|---|---|---|
-| `dv/tbclasses/pumice_wr_data_cam_tb.py` | 17 | ~13 | ins/commit/wd/cm_rd/snarf_rd | YES |
-| `dv/tbclasses/pumice_rd_cmd_cam_tb.py` | 13 | ~11 | ins/issue/drain/dfi_ret | YES |
-| `dv/tbclasses/pumice_dfi_cdc_tb.py` | 12 | 12 | cmd/wd/rd + pcmd/pwd/prd (both domains) | YES |
-| `dv/tests/fub/test_pumice_dfi_cmd_path.py` | 8 | 8 | cmd, rd_op | YES |
-| `dv/tests/fub/test_pumice_dfi_wr_serializer.py` | 6 | 6 | wd | YES |
-| `dv/tbclasses/wr_cmd_cam_tb.py` | 3 | 3 | push | YES |
-| `dv/tbclasses/dfi_cmd_formatter_tb.py` | 2 | 2 | cmd | no (drives valid LOW) |
+**Two traps that cost real time — read before the next port:**
+1. **Queue-and-go vs blocking send.** `send()` blocks until its packet is
+   accepted, so awaiting per beat leaves a GAP between beats. A hand-rolled
+   "present the head every cycle" source is always-valid; to match it use
+   `_driver_send` (queues and returns). The wr-serializer tCCD test
+   measures gaps between `wrdata_en` pulses and read 3 where 2 was
+   required until this was fixed.
+2. **`ready_policy` is not the `backtoback` profile.** GAXISlave's default
+   `valid_first` waits for valid on a CLOCKED loop, so ready lands a cycle
+   LATE even at ready_delay 0. Use `ready_policy='always'` to model a TB
+   that used to tie ready to constant 1, and `'stall'` +
+   `set_ready_policy()` for deterministic consumer backpressure.
+   (RDS-DV c220c19 / aacb90d / 5fcf039.)
 
-NOT handshakes, correctly left alone (verified against the RTL port
-lists): `bank_act_ready_i` / `bank_rdwr_ready_i` / `bank_pre_ready_i` are
-per-bank PERMISSION VECTORS from the bank timers (NUM_RANKS x NUM_BANKS
-wide, no matching valid); `init_cmd_valid_i`, `sched_lu_valid_i`,
-`snarf_probe_valid_i` have no ready.
-
-**The "backpressure blocker" is RETIRED.** I had claimed seven of the nine
-could not be ported because they assert on `ready` being low and a GAXI
-`send()` blocks. That was wrong on both halves:
-
-* Driving valid for one cycle and then sampling ready is PROTOCOL-ILLEGAL
-  stimulus -- a producer must hold valid until ready. So those assertions
-  were not coverage worth preserving; a blocking `send()` is the correct
-  behaviour, not a limitation. Backpressure is OBSERVED (valid && !ready
-  cycles), not produced by withdrawing valid.
-* Consumer-side backpressure IS expressible through a BFM. RDS-DV c220c19
-  + aacb90d add `GAXISlave.ready_policy`:
-    - `'always'` — ready asserted up front and held, independent of valid,
-      so valid/ready coincide. This is what a TB means by tying a
-      downstream ready to constant 1. NOT the same as `backtoback`: the
-      default `valid_first` policy waits for valid on a CLOCKED loop, so
-      ready lands one cycle LATE (traced "10 11" on the arbiter cmd port),
-      which shifts any DUT that gates its next decision on ready.
-    - `'stall'` — ready held low, a consumer with no space, settable at
-      runtime via `set_ready_policy()` (which applies to the pin
-      immediately; assigning the attribute alone is up to a cycle late,
-      enough for an in-flight transfer to slip through).
-  `fub_consumer()` defaults to `'always'`; pass `'stall'` to backpressure.
-
-**Gotcha that cost a debug round:** CocoTBFramework is installed into the
-venv as a real DIRECTORY COPY, not an editable install. The simulator
-imports `venv/.../site-packages/CocoTBFramework/`, so an RDS-DV source
-edit does nothing until it is copied across. An interactive `python3 -c
-"import ..."` may resolve to the RDS-DV path and appear to confirm an edit
-the sim will never load. See [[reference-dv-framework-repos]].
-
-**Whenever GAXI changes, run all of val/amba** (Sean, 2026-08-28). Baseline
-for comparison: at `-n 24` with SEED pinned, val/amba is 740 passed /
-3 failed BOTH with and without a change that is provably inert -- and the
-failing set is not stable run to run. The unstable ones are completion-RATE
-threshold assertions ("Got 16 completions (16.0%), expected >= 20 (20%)")
-in the axi_monitor family, which vary even with a fixed seed. Do NOT read a
-single differing failure as a regression; A/B it.
+**Whenever GAXI changes, run all of val/amba** (Sean). Baseline for A/B:
+739-741 passed / 2-4 failed at `-n 24` with SEED pinned, and the failing
+set is NOT stable run to run — see [[AMBA-MONRATE-INTERMITTENT]]. Do not
+read a single differing failure as a regression.
 
 **Also outside pumice (same rule, flagged not owned):**
 `projects/components/misc/dv/tbclasses/axi4_slave_wr_crc_check_tb.py`.
 
-**Rules going forward:** no NEW test may hand-poke; port a file when it is
-next touched for another reason.
+**Rule going forward:** no NEW test may hand-poke a valid/ready interface.
 
 ## PUMICE-013 — characterize + tune the advanced modes (all three axes)
 **Status:** open 2026-08-27 (split out of PUMICE-006 at Sean's direction —
