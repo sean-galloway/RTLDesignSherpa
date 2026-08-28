@@ -28,20 +28,44 @@ Two kinds of sheets:
    the fix reference (commit or known_issues file); those rows are the ones a
    future reader needs most.
 
-2. K-MAP sheets — for each important combinational decision signal, a
-   Karnaugh map with the RTL expression quoted verbatim beside it and its
-   file:line cited. Gray order 00 01 11 10; more than 4 variables becomes one
-   4x4 grid per value of the extra (page) variables; 1-cells green, 0-cells
-   grey. Each map carries an "inspection check" note describing what a
-   healthy map looks like (e.g. "single contiguous block; a lone 1 in the
-   bottom row means the stale-view guard was dropped") so a bad future edit
-   is visible on sight.
+2. DECISION sheets — for each important combinational decision signal, a
+   CONTRACT TABLE (not a Gray grid). Canonical spec and rationale:
+   vault/handbook/design/signal-contracts-and-kmaps.md. Three parts, in
+   order:
+
+     a. TERM LIST — every signal/expression the decision depends on, with
+        its defining expression and file:line. The table's columns come from
+        this. No anonymous axes: a bare name like `w_can_issue` with no
+        equation is the exact failure this format replaced.
+     b. INVARIANTS — the strict relationships BETWEEN terms ("if `a==0`
+        then `b[1:0]` is always `2'b10`"), each cited, each stating which
+        rows it renders impossible.
+     c. TABLE — one row per combination of the terms. Rows the invariants
+        forbid are marked ILLEGAL and name WHICH invariant excludes them;
+        legal rows carry the resulting output. `x` means provably
+        don't-care, not unknown, and every `x` collapse is licensed by an
+        invariant.
+
+   Why not a grid: grid area is 2^n whether 8 combinations are reachable or
+   60, past 4 terms it pages (so Gray adjacency — the only reason to draw a
+   grid — holds only within a page), and it has nowhere to record an
+   inter-term relationship, so impossible states get rendered with real 0/1
+   values. Keep a grid ONLY for a small, dense decision; the handbook note
+   has the full argument.
+
+   Each sheet still carries an "inspection check" note describing what a
+   healthy result looks like (e.g. "rows 4-7 must all be ILLEGAL(I1); a
+   legal row there means the stale-view guard was dropped") so a bad future
+   edit is visible on sight.
 
 ## The rule that makes it trustworthy
 
-Maps are COMPUTED, never drawn. The generator holds a Python mirror of the
-exact RTL expression and evaluates it over all input combinations to fill
-the grid — so grid and RTL agree by construction. Two enforcement
+Tables are COMPUTED, never written by hand. The generator holds a Python
+mirror of the exact RTL expression and evaluates it over all input
+combinations to fill the rows — so table and RTL agree by construction. The
+invariants are evaluated too: a row an invariant calls impossible is checked
+to be unreachable, so a WRONG invariant fails the run instead of silently
+deleting a real case. Two enforcement
 mechanisms, both mandatory:
 
 - Citation registry: every quoted expression is registered with its
@@ -54,7 +78,7 @@ mechanisms, both mandatory:
   workbook.
 
 When the RTL changes: the citation check fails, you update the mirror AND
-the quote together, re-run, and diff the grid. A changed cell is a changed
+the quote together, re-run, and diff the table. A changed row is a changed
 behavior — which is exactly the review you wanted to have.
 
 ## Choosing signals

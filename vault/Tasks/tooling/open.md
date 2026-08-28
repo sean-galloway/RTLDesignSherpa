@@ -273,8 +273,30 @@ module X" (`--find MODULE`). The test names the module, the registry returns the
 + their `.f` + one toml area, and touched ZERO test files. It is the structural
 fix for the fragility [[filelists]] describes.
 
-## TOOLING-KMAP — make the K-map emitter produce proofs, not pictures
-**Status:** open 2026-08-06
+## TOOLING-KMAP — emit CONTRACT TABLES (proofs), not K-map pictures
+**Status:** open 2026-08-06; SCOPE CHANGED 2026-08-28 — the output FORM
+changes, not just its rigour. Sean, after reviewing the emitted maps: "all
+of the kmaps so far are unacceptable as there is no way to discern what
+signals map to what... it should list out the signals that have strict
+relationships (like if a=0 then b[1:0] is always 2'b10) then use these terms
+in a table going through each possible value, then marking the ones that are
+illegal, and marking the legal combinations with what the output should be.
+This isn't necessarily the form a traditional kmap is, but it works in the
+real world where more than 3-4 expressions are at play."
+
+So the deliverable is a THREE-PART CONTRACT TABLE (term list -> invariants ->
+decision table), spec and rationale in
+[[signal-contracts-and-kmaps]]. Items 1-4 below survive but are re-aimed:
+item 1 becomes the term list (structural, not a footnote), item 2's
+don't-cares now also cover ILLEGAL rows with the invariant that excludes
+them, item 3's sufficiency argument becomes the invariant list, and item 4
+(implicants) matters MORE, because the table deliberately gives up the
+grid's visual adjacency and mechanical derivation is what replaces it.
+
+NEW item 0, ahead of the rest: teach the emitter the table form and add an
+invariant checker -- evaluate each declared invariant over the full space and
+FAIL the run if a row it calls impossible is actually reachable. A wrong
+invariant must not silently delete a real case.
 
 Audit of both `gen_signal_contracts_kmaps.py` (stream, pumice): the grids are
 Gray-ordered and computed from cited RTL -- genuinely good -- but they stop
