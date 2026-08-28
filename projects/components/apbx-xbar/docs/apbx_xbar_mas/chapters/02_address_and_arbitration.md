@@ -283,17 +283,22 @@ WITH Grant Persistence:
 - 1 cycle: the grant is REGISTERED (`grant <= w_next_grant;` in
   `arbiter_round_robin`), so request → grant is never same-cycle
 - Fabric overhead is the dominant term, not APB's 2-cycle minimum:
-  a full transfer measures 9 cycles (see "Transaction Latency" below)
+  a full transfer measures 9 cycles SETUP-to-PREADY (see "Transaction
+  Latency" below)
 
 **Worst Case (Maximum Contention):**
 - Wait for the masters ahead in the round-robin to complete FULL
   transactions -- the grant is held until the response handshake
-  (`WAIT_GNT_ACK(1)`), so each is ~9 cycles, not 1
-- Example: 2 masters, worst case ≈ one full transaction of wait
-- Example: 4 masters, worst case = 3 full transactions ~= 27 cycles
+  (`WAIT_GNT_ACK(1)`), so each is a full transaction, not 1 cycle. The
+  right figure for a QUEUED transaction is the back-to-back period of
+  10 cycles, not the 9-cycle single-transfer latency -- a waiting master
+  inherits the same mandatory SETUP cycle that separates any two
+  consecutive transfers
+- Example: 2 masters, worst case ~= one full transaction (10 cycles) of wait
+- Example: 4 masters, worst case = 3 full transactions ~= 30 cycles
 
 **Average Case (Random Access Pattern):**
-- (M-1)/2 full transactions of average wait (~9 cycles each)
+- (M-1)/2 full transactions of average wait (~10 cycles each)
 - Statistical fairness over time
 
 ---
@@ -356,10 +361,13 @@ apbx_xbar_2to4 #(
 - Back-to-back transactions supported, but NOT overlapped: `apb4_slave`
   is a one-command-at-a-time FSM, so the next command is captured only
   after the previous transaction completes
-- Measured sustained cadence: 1 transfer per 9 pclk cycles at an
-  always-ready slave -- identical to single-transfer latency, because
-  nothing overlaps (an earlier "zero bubble" claim described a pipeline
-  this RTL does not have)
+- Measured sustained cadence: 1 transfer per 10 pclk cycles
+  (PREADY-to-PREADY) at an always-ready slave. That is one MORE than the
+  9-cycle SETUP-to-PREADY single-transfer latency: nothing overlaps, and
+  the next transfer's mandatory SETUP cycle cannot share a cycle with
+  the previous transfer's ACCESS. (An earlier "zero bubble" claim
+  described a pipeline this RTL does not have; a later "cadence equals
+  latency" claim dropped the SETUP cycle.)
 
 **Multiple Masters (Same Slave):**
 - Round-robin introduces fair sharing
@@ -383,12 +391,16 @@ apbx_xbar_2to4 #(
    skid, `apb4_slave` BUSY→PREADY
 5. **Slave Response:** Variable (adds to the above)
 
-**Total Minimum Latency: 9 cycles** (8 of them ACCESS->PREADY) (uncontended, zero-wait slave --
-measured on `apbx_xbar_1to1`). APB's 2-cycle minimum applies to a
-directly-attached slave; it does not apply through this fabric, which
-converts APB→cmd/rsp→APB across registered buffers in both directions.
+**Total Minimum Latency: 9 cycles** SETUP-to-PREADY (8 of them
+ACCESS->PREADY) (uncontended, zero-wait slave -- measured on
+`apbx_xbar_1to1`). APB's 2-cycle minimum applies to a directly-attached
+slave; it does not apply through this fabric, which converts
+APB→cmd/rsp→APB across registered buffers in both directions.
 
-**With Contention:** add one full transaction (~9 cycles) per master
+**Sustained cadence is 10 cycles**, PREADY-to-PREADY, not 9 -- see
+"Single Master" above and HAS 5.2 for why the two differ.
+
+**With Contention:** add one full transaction (~10 cycles) per master
 ahead in the round-robin
 
 ---

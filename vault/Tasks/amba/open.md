@@ -2,48 +2,40 @@
 
 # AMBA tasks — open (not started)
 
-### TASK-071 — apb4_master/apb5_master drive a TWO-cycle APB setup phase out of IDLE
-**Status:** open 2026-08-27 (found by apbx-xbar qc round_8)
-**Priority:** P2 — spec deviation, works against tolerant slaves
+### AMBA-WAVEDROM-FLAKY — test_apb4_master_wavedrom fails ~1 run in 3, at file scope only
+**Status:** open 2026-08-28 (quantified while closing TASK-071)
+**Priority:** P2 — a required test that is not deterministic; violates the
+100%-pass rule and will erode trust in the suite
 **Owner:** TBD
 
-AMBA APB defines the SETUP phase as exactly one cycle: PSEL asserted with
-PENABLE low, then ACCESS. `apb4_master` asserts PSEL in BOTH `IDLE` (on
-launch) and `SETUP`:
+`val/amba/test_apb4_master.py::test_apb4_master_wavedrom` is flaky. Measured
+over 10 clean-build runs of the whole file:
 
-```systemverilog
-IDLE:  if (r_cmd_valid && r_rsp_ready) begin m_apb_PSEL = 1'b1; w_apb_next_state = SETUP; end
-SETUP: begin m_apb_PSEL = 1'b1; w_apb_next_state = ACCESS; end
-```
+| RTL | fail runs / 10 |
+|---|---|
+| before the TASK-071 fix | 4 |
+| after | 3 |
 
-so every transaction launched from IDLE presents PSEL high / PENABLE low
-for **two** consecutive cycles. `apb5_master` has the identical structure.
-Back-to-back transfers taking the `ACCESS -> SETUP` shortcut are compliant.
+So it is **pre-existing and unrelated to TASK-071** — the rates are within
+noise of each other. It also passes 3/3 when run in ISOLATION, so the
+trigger is state left by the sibling `test_apb4_master` running first
+(shared RNG seeding is the obvious suspect; the two use separate
+`sim_build` directories, so it is not a build collision).
 
-**Measured**, not inferred: a probe on `apbx_xbar_1to1`'s downstream port
-counted setup-phase lengths of `[2, 2, 2]` over three transfers against an
-always-ready slave.
-
-Tolerant slaves (which sample only on PSEL && PENABLE && PREADY) are
-unaffected, which is why nothing has failed; a strict protocol monitor or
-a third-party APB slave that counts setup cycles would flag it.
-
-**Why this is filed rather than fixed:** `apb4_master` is a shared
-dependency — the APB crossbars, the converters' `axi4_to_apb4` path, and
-the bridges' APB legs all instantiate it. Collapsing the extra cycle is a
-one-line FSM change (launch straight to ACCESS, or don't assert PSEL in
-IDLE) but it shifts timing for every APB consumer in the repo and wants
-its own regression sweep. It also removes one cycle from the crossbar's
-measured 10-cycle transfer, so the performance numbers just corrected in
-the APB crossbar books would need re-measuring.
+The failure is always the same: `Failed constraints: ['apb_write_sequence',
+'apb_read_sequence']` — the solver cannot find a matching window. The
+constraints need a clean PSEL rising edge with the right PWRITE polarity
+inside the capture window, and with randomized back-to-back traffic the
+window sometimes lands where no such edge exists.
 
 **Work:**
-- [ ] Decide: collapse to a single setup cycle, or document the deviation
-      as intentional.
-- [ ] If fixing: RED test asserting exactly one PSEL-high/PENABLE-low
-      cycle per transfer, then the FSM change, then re-run the APB
-      crossbar, converters, and bridge suites.
-- [ ] Re-measure APB crossbar latency afterwards (HAS 5.1/5.2, PRD 9.1/9.2).
+- [ ] Determine whether the sibling test seeds the RNG and, if so, make the
+      wavedrom test seed independently.
+- [ ] Either widen the capture window / drive a deterministic
+      write-then-read pair before sampling, or mark the constraints
+      non-required and assert on what is actually guaranteed.
+- [ ] Do NOT paper over it with a retry — the constraint either describes
+      the waveform or it does not.
 
 ---
 
@@ -1156,8 +1148,8 @@ was watching. Nothing in `build-perf` even reads these monitors, and
       observer (confirmed against the harness 2026-08-16).** `stream_harness`
       wires the slave monbus path as `m_axil_*` (AXIL write master -> bridge
       master `slave_monbus_wr` -> `u_slave_tally`), which is what
-      `dma_slave_monitors` provides via `monbus_axil_axil_group`. Both new
-      observers inherit `monbus_axil_axi4_group` from the original, so they
+      `dma_slave_monitors` provides via `monbus_axil4_axil4_group`. Both new
+      observers inherit `monbus_axil4_axi4_group` from the original, so they
       expose `m_axi_*` (AXI4 burst master) instead. The slave observer cannot
       take `u_dma_slaves`' place until the group is parameter-selected:
       declare both port sets and generate-select so the port list is stable.

@@ -1454,3 +1454,73 @@ skid absorbs RSP_DEPTH more while the consumer stalls, silently dropping
 framing records), plus a loud sim \$error if a future change breaks the
 bound. Lint clean; no dedicated apb4 stub suite exists (coverage via
 harness integration) -- the assertion is the tripwire.
+
+---
+
+### TASK-071 — apb4_master/apb5_master drove a TWO-cycle APB setup phase out of IDLE
+**Status:** CLOSED 2026-08-28 (opened 2026-08-27 from apbx-xbar qc round_8)
+**Priority:** was P2 — spec deviation, worked against tolerant slaves
+
+AMBA APB defines the SETUP phase as exactly one cycle: PSEL asserted with
+PENABLE low, then ACCESS. Both masters asserted PSEL in BOTH `IDLE` (on
+launch) and `SETUP`, so every transaction launched from idle presented
+PSEL high / PENABLE low for **two** consecutive cycles. Back-to-back
+transfers taking the `ACCESS -> SETUP` shortcut were already compliant.
+
+**Fix.** Drop the `m_apb_PSEL = 1'b1` from the IDLE launch arm in
+`rtl/amba/apb4/apb4_master.sv` and `rtl/amba/apb5/apb5_master.sv`. The
+state sequence is untouched (IDLE -> SETUP -> ACCESS), so this costs
+**zero latency** — the earlier worry in this task that it would "remove
+one cycle from the crossbar's measured transfer" was wrong. Verified by
+running the identical probe against both RTLs: the crossbar's master
+port is cycle-for-cycle identical before and after. `_cg` and `_stub`
+variants wrap these two modules, so no other RTL needed touching.
+
+**RED then GREEN, measured both ways:**
+- `val/amba/test_apb_master_setup_phase.py` (new) — passive monitor over
+  the (PSEL && !PENABLE) run length on the APB port. Before: `[2,2,2,2]`
+  on both masters. After: `[1,1,1,1]`.
+- End to end through the fabric, downstream port of `apbx_xbar_1to1`:
+  before `[2,2,2,2,2]`, after `[1,1,1,1,1]`.
+
+**One test needed correcting, and it was the test that was wrong.**
+`test_apb4_master_wavedrom` failed on the fixed RTL. Root cause was in
+the DV framework, not the RTL: `TemporalRelation.SEQUENCE` forced
+strictly increasing cycles between ALL consecutive events, including
+`SignalStatic` level qualifiers. So the chain PSEL(0->1), PWRITE==1,
+PENABLE(0->1) silently demanded TWO cycles between PSEL and PENABLE —
+the constraint only matched the protocol-violating waveform. Fixed in
+`CocoTBFramework/components/wavedrom/constraint_solver.py`: a static
+qualifier may share a cycle with its neighbour, transitions still
+strictly advance. No change was needed to the APB constraint definitions
+themselves.
+
+**Regression sweep:** val/amba APB family 42/42 (all `apb4_*`/`apb5_*`
+master, slave, monitor, cdc, cg, stub, wavedrom), APB crossbar 8/8,
+converters 92/92.
+
+**Fallout, and it is the interesting part: the published cadence was
+wrong, and a reviewer had already said so.** Re-measuring produced a
+back-to-back period of **10** cycles, not the documented 9. The docs
+said "sustained cadence EQUALS latency" in ten places. It does not:
+
+    PREADY at cycle N -> bus is still in ACCESS that cycle
+    -> next SETUP cannot start before N+1
+    -> its ACCESS at N+2, its PREADY at N+2+8 = N+10
+
+A period of 9 would need a SETUP cycle overlapping the previous
+transfer's ACCESS, which is not a legal APB waveform. qc round_11 raised
+exactly this and traced a 10-cycle interval; it was dismissed as a false
+positive on the strength of a probe whose "earliest legal turnaround"
+was not actually legal. **The reviewer was right.** Corrected across the
+HAS, the MAS, the PRD and the README, including the derived throughput
+figures (~0.100 txn/cycle, ~40 MB/s @100MHz, ~100 MB/s @250MHz) and the
+contention math (a queued transaction occupies 10 cycles, so 4 masters
+worst case is 30, not 27). Note the fabric latency (8) and
+single-transfer latency (9) were always correct — only the period was
+wrong.
+
+To stop a fifth round of this, `dv/tests/test_apbx_xbar_timing.py` now
+asserts all three numbers against the RTL with the measurement
+convention written into the failure messages. The number is settled by
+the suite now, not by argument.

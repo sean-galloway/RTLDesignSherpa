@@ -270,15 +270,22 @@ module apb5_master #(
 
         casez (r_apb_state)
             IDLE: begin
-                // Start transaction if there's a valid command
+                // Start transaction if there's a valid command.
+                //
+                // PSEL stays LOW here: this cycle is still IDLE, and SETUP
+                // is the setup phase. Asserting it here too gave every
+                // launch-from-idle transfer a TWO-cycle setup phase where
+                // APB defines exactly one (TASK-071). The state sequence is
+                // unchanged, so this costs no latency.
                 if (r_cmd_valid) begin
-                    m_apb_PSEL = 1'b1;
                     w_apb_next_state = SETUP;
                 end
             end
 
             SETUP: begin
-                // Setup phase - assert PSEL without PENABLE
+                // Setup phase - assert PSEL without PENABLE. Exactly one
+                // cycle, reached from IDLE on launch or from ACCESS on the
+                // back-to-back shortcut.
                 m_apb_PSEL = 1'b1;
 
                 // Always move to ACCESS phase

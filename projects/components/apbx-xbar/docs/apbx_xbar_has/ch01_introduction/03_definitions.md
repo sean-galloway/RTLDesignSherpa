@@ -60,7 +60,7 @@
 | Slave | Device that responds to APB transactions (peripherals) |
 | Starvation | Condition where a requester is indefinitely denied access |
 | Transaction | Complete APB read or write operation including setup and data phases |
-| Back-to-Back | Consecutive transactions with no master-side idle cycles. Note this crossbar does not OVERLAP them: cadence equals latency (~9 pclk cycles) |
+| Back-to-Back | Consecutive transactions with no master-side idle cycles. Note this crossbar does not OVERLAP them, and cadence is one cycle longer than single-transfer latency: 10 pclk cycles PREADY-to-PREADY against 9 SETUP-to-PREADY (see 5.2) |
 
 : Term Definitions
 

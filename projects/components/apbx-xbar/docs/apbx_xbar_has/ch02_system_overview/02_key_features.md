@@ -59,8 +59,10 @@ slave_index = ((PADDR - BASE_ADDR) >> 16)[$clog2(S)-1:0]
 - Grant held for the duration of one transaction, released at the
   response handshake
 - They do NOT overlap inside the fabric: `apb4_slave` is
-  one-command-at-a-time, so sustained cadence equals single-transfer
-  latency, measured at ~9 pclk cycles (see 5.1/5.2)
+  one-command-at-a-time. Sustained cadence measures 10 pclk cycles
+  PREADY-to-PREADY, one more than the 9-cycle SETUP-to-PREADY single
+  transfer, the extra cycle being the next transfer's mandatory SETUP
+  phase (see 5.1/5.2)
 
 ### F5: Proven Building Blocks
 

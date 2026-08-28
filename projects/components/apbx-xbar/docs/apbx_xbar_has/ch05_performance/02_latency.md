@@ -45,14 +45,36 @@ When a master has exclusive access to a slave:
 **These are measured numbers, not protocol minimums.** A crossbar
 transfer is NOT the 2-cycle APB minimum: the fabric converts APB to an
 internal cmd/rsp protocol through `apb4_slave` and back through
-`apb4_master`, and both directions cross REGISTERED skid buffers. A
-direct probe on `apbx_xbar_1to1` with an always-ready slave measures
-**9 pclk cycles** from PSEL to PREADY (8 of them ACCESS to PREADY), and **9 cycles** sustained
-back-to-back (the `apb4_slave` FSM is one-command-at-a-time: it cannot
-capture the next command until it returns to IDLE). Earlier revisions
-of this page claimed 2 cycles, which is the bare APB protocol minimum
-for a directly-attached slave -- it does not apply through this
-fabric.
+`apb4_master`, and both directions cross REGISTERED skid buffers.
+
+**Measurement convention.** Every figure below counts rising `pclk`
+edges and names the two edges it spans. State the edges or the number
+means nothing -- this page has been wrong twice from not doing so.
+
+| Quantity | Cycles | Spans |
+|---|---|---|
+| Fabric latency | **8** | first ACCESS edge -> edge where PREADY is high |
+| Single-transfer latency | **9** | SETUP edge -> edge where PREADY is high (= 1 + 8) |
+| Back-to-back period | **10** | PREADY edge -> next PREADY edge |
+
+: Measured Timing, `apbx_xbar_1to1` With an Always-Ready Slave
+
+**The period is 10, not 9, and the difference is structural.** After
+PREADY at cycle N the bus is still in ACCESS for that cycle, so the next
+transfer's mandatory SETUP cycle cannot begin before N+1; its ACCESS
+follows at N+2 and its PREADY at N+2+8 = N+10. Reaching 9 would require
+a SETUP cycle overlapping the previous transfer's ACCESS, which is not a
+legal APB waveform. So sustained cadence does **not** equal
+single-transfer latency here -- it is exactly one cycle longer.
+
+Earlier revisions of this page claimed 2 cycles (the bare APB minimum
+for a directly-attached slave, which does not apply through this
+fabric), and later claimed a 9-cycle sustained cadence, which came from
+a probe whose turnaround was not legal APB. A qc reviewer flagged the
+9-cycle cadence and was told it was a false positive; the reviewer was
+right. `dv/tests/test_apbx_xbar_timing.py` now asserts all three numbers
+against the RTL so the question is settled by the suite rather than by
+argument.
 
 ### Contended Access
 
@@ -106,7 +128,7 @@ Slave PREADY  _________|-----|___
                        ^
 Master PREADY _________|-----|___
                        ^
-              Total: 9 cycles (PSEL to PREADY)
+              Total: 9 cycles (SETUP edge to PREADY edge)
 ```
 
 ### Worst Case (Contention + Slave Wait States)

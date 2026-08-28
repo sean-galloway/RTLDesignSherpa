@@ -168,14 +168,21 @@ module apb4_master #(
                 // re-fires -- permanent bus wedge (TASK-068). This FSM is the
                 // skid's only writer, so space at launch holds through
                 // completion.
+                //
+                // PSEL stays LOW here: this cycle is still IDLE, and SETUP
+                // is the setup phase. Asserting it here too gave every
+                // launch-from-idle transfer a TWO-cycle setup phase where
+                // APB defines exactly one (TASK-071). The state sequence is
+                // unchanged, so this costs no latency.
                 if (r_cmd_valid && r_rsp_ready) begin
-                    m_apb_PSEL = 1'b1;
                     w_apb_next_state = SETUP;
                 end
             end
 
             SETUP: begin
-                // Setup phase - assert PSEL without PENABLE
+                // Setup phase - assert PSEL without PENABLE. Exactly one
+                // cycle, reached from IDLE on launch or from ACCESS on the
+                // back-to-back shortcut.
                 m_apb_PSEL = 1'b1;
 
                 // Always move to ACCESS phase

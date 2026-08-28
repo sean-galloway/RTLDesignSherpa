@@ -227,8 +227,9 @@ Pre-configured wrappers for common topologies:
 
 **Description:** Consecutive transactions are accepted with no
 master-side idle cycles required. They do NOT overlap inside the
-fabric -- `apb4_slave` is one-command-at-a-time, so sustained cadence
-equals single-transfer latency (~9 pclk cycles, HAS 5.1/5.2).
+fabric -- `apb4_slave` is one-command-at-a-time. Sustained cadence is
+10 pclk cycles PREADY-to-PREADY, one more than the 9-cycle
+SETUP-to-PREADY single-transfer latency (HAS 5.1/5.2).
 
 **Verification:** Performance tests show consecutive transactions
 
@@ -349,7 +350,7 @@ breakdown and the measurement.
 - **Back-to-back transactions:** Supported, but not overlapped --
   `apb4_slave` is a one-command-at-a-time FSM, so the next command is
   captured only after the previous transaction completes
-- **Maximum rate:** ~1 transaction per 9 pclk cycles per master (no overlap, so cadence equals latency)
+- **Maximum rate:** ~1 transaction per 10 pclk cycles per master (no overlap, and cadence is one cycle longer than latency)
   (measured back-to-back at an always-ready slave)
 
 ### 9.3 Resource Utilization (Estimated)

@@ -105,8 +105,11 @@ overlap:
    PREADY
 2. `apb4_slave` is one-command-at-a-time, so the next command is not
    captured until the previous transaction completes
-3. Sustained cadence therefore EQUALS latency: measured
-   PREADY-to-PREADY = 9 pclk cycles with optimal turnaround (see 5.1/5.2)
+3. Sustained cadence is therefore one cycle LONGER than single-transfer
+   latency: measured PREADY-to-PREADY = 10 pclk cycles at the earliest
+   legal turnaround, against 9 cycles SETUP-to-PREADY for one transfer.
+   The extra cycle is the next transfer's mandatory SETUP phase, which
+   cannot overlap the previous ACCESS (see 5.1/5.2)
 
 ---
 

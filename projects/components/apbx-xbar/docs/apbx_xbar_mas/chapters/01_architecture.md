@@ -153,7 +153,7 @@ Internal Crossbar Logic → cmd/rsp bus → apb4_master → APB Slave
    - Response routed back to apb4_slave[0]
    - apb4_slave[0] returns PREADY to CPU
 
-**Total Latency:** 9 cycles for uncontended access (measured; see 2.x -- the fabric's boundary IP and registered skid buffers dominate, not APB's 2-cycle protocol minimum)
+**Total Latency:** 9 cycles SETUP-to-PREADY for uncontended access; sustained back-to-back cadence is 10 cycles PREADY-to-PREADY (measured; see 2.x -- the fabric's boundary IP and registered skid buffers dominate, not APB's 2-cycle protocol minimum)
 
 ---
 
