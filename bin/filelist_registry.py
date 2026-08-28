@@ -63,6 +63,14 @@ UNRESOLVED_VAR = re.compile(r"\$\{?[A-Z_][A-Z0-9_]*\}?")
 # Root variables, mirroring env_python and filelist_utils. All three lists must
 # agree: a variable used in a .f but missing from any one of them makes that
 # filelist resolvable in some contexts and broken in others.
+#
+# STREAM_CHAR_ROOT is deliberately NOT here, though env_python and
+# filelist_utils both define it. It is per-FLOW -- flows-stream-bridge,
+# flows-stream-monitor and Genesys2/stream each export it as their own
+# directory -- so any single value is wrong for the others. It used to be
+# pinned to flows-stream-bridge, which mis-resolved every monitor-flow filelist
+# and reported seven perfectly good references as broken. Flow variables are
+# handled by _scan_flow_roots(), which tries every real value.
 ROOT_VARS = {
     "REPO_ROOT": "",
     "APB_XBAR_ROOT": "projects/components/apbx-xbar",
@@ -74,7 +82,6 @@ ROOT_VARS = {
     "RAPIDS_ROOT": "projects/components/dmas/rapids",
     "RETRO_ROOT": "projects/components/retro_legacy_blocks",
     "STREAM_ROOT": "projects/components/dmas/stream",
-    "STREAM_CHAR_ROOT": "projects/NexysA7/stream_characterization/flows-stream-bridge",
     "STREAM_CHAR_FRAMEWORK_ROOT": "projects/NexysA7/stream_characterization/stream_char_framework",
     "DDR2_CHAR_FRAMEWORK_ROOT": "projects/NexysA7/ddr2-characterization/ddr2_char_framework",
     "TIMING_CHAR_ROOT": "projects/NexysA7/timing_characterization",
@@ -88,6 +95,131 @@ def _expand(token: str) -> str:
         target = str(REPO_ROOT / rel) if rel else str(REPO_ROOT)
         token = token.replace(f"${{{var}}}", target).replace(f"${var}", target)
     return token
+
+
+_IGNORED_CACHE: dict[str, bool] = {}
+
+
+def _git_ignored(path: Path) -> bool:
+    """True if git ignores this path -- i.e. something outside the repo puts it
+    there. flows-idma-bridge/external/ is gitignored and populated by `bender`
+    from third-party checkouts, so its include dirs are legitimately absent on a
+    clean tree. Reporting them as broken would make the gate permanently red for
+    a condition no commit can fix.
+    """
+    key = str(path)
+    if key not in _IGNORED_CACHE:
+        r = subprocess.run(["git", "check-ignore", "-q", key],
+                           cwd=REPO_ROOT, capture_output=True)
+        _IGNORED_CACHE[key] = (r.returncode == 0)
+    return _IGNORED_CACHE[key]
+
+
+# Variables whose value depends on WHICH FLOW is driving. Each flow Makefile
+# exports its own (`export STREAM_CHAR_ROOT := $(SELF_DIR)`), so there is no
+# single correct substitution -- flows-stream-bridge and flows-stream-monitor
+# both set STREAM_CHAR_ROOT to themselves. ROOT_VARS used to pin
+# STREAM_CHAR_ROOT to the bridge flow, which silently mis-resolved every
+# monitor-flow filelist and reported seven of its perfectly good references as
+# broken. Enumerate the real candidates instead and accept a reference that
+# resolves under ANY of them: that keeps a genuinely dangling path detectable
+# without inventing a value the build never uses.
+_FLOW_ROOT_CACHE: dict[str, list[Path]] | None = None
+
+
+def _scan_flow_roots() -> dict[str, list[Path]]:
+    """Harvest per-flow variable values from the Makefiles that export them.
+
+    Derived, not hardcoded, so adding a flow cannot silently un-cover it -- the
+    failure mode this whole gate exists to prevent. Handles the only forms the
+    flow Makefiles actually use:
+
+        SELF_DIR   := $(patsubst %/,%,$(dir $(abspath $(lastword ...))))
+        CHAR_ROOT  := $(REPO_ROOT)/projects/...
+        export FRAMEWORK_ROOT := $(CHAR_ROOT)/stream_char_framework
+        export FRAMEWORK_ROOT := $(SELF_DIR)/..
+
+    FRAMEWORK_ROOT alone has three distinct values across the tree (two NexysA7
+    framework dirs and Genesys2's own), which is exactly why pinning one value
+    in ROOT_VARS mis-resolved whole areas.
+    """
+    global _FLOW_ROOT_CACHE
+    if _FLOW_ROOT_CACHE is not None:
+        return _FLOW_ROOT_CACHE
+    out: dict[str, set[Path]] = {}
+    assign = re.compile(r"^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*:?=\s*(.+?)\s*$")
+    for mk in REPO_ROOT.glob("projects/**/Makefile"):
+        local = {"SELF_DIR": str(mk.parent), "REPO_ROOT": str(REPO_ROOT)}
+        for raw in mk.read_text(errors="ignore").splitlines():
+            if raw.startswith("\t"):
+                continue                      # recipe line, not an assignment
+            m = assign.match(raw)
+            if not m:
+                continue
+            var, val = m.group(1), m.group(2).split("#")[0].strip()
+            if " " in val or len(val) > 200:
+                continue                      # a command, not a path
+            if "$(patsubst" in val or "$(dir" in val:
+                continue                      # SELF_DIR idiom, already seeded
+            for k, v in local.items():
+                val = val.replace(f"$({k})", v).replace(f"${{{k}}}", v)
+            if "$(" in val or not val:
+                continue                      # depends on something unknown
+            local[var] = val
+            path = Path(val)
+            if not path.is_absolute():
+                path = REPO_ROOT / val
+            path = path.resolve()
+            if path.is_dir():
+                out.setdefault(var, set()).add(path)
+    _FLOW_ROOT_CACHE = {k: sorted(v) for k, v in out.items()}
+    return _FLOW_ROOT_CACHE
+
+
+def _flow_roots(var: str) -> list[Path]:
+    return _scan_flow_roots().get(var, [])
+
+
+def _flow_candidates(token: str) -> list[str]:
+    """Expand a token under every plausible value of the flow vars it uses.
+
+    Returns [] when the token uses a flow var we cannot enumerate, so the
+    caller falls back to treating it as flow-scoped rather than guessing.
+    """
+    vars_used = {m.strip("${}") for m in UNRESOLVED_VAR.findall(token)}
+    if not vars_used:
+        return [token]
+    out = [token]
+    for var in vars_used:
+        roots = _flow_roots(var)
+        if not roots:
+            return []
+        out = [t.replace(f"${{{var}}}", str(r)).replace(f"${var}", str(r))
+               for t in out for r in roots]
+    return out
+
+
+def _locate(token: str, here: Path, want_dir: bool = False) -> Path:
+    """Resolve a filelist token to a path, trying every base the build tools do.
+
+    A relative entry may be repo-relative, relative to the filelist's own
+    directory, or relative to its PARENT -- the last is common and was
+    previously unhandled: timing_characterization keeps char_top.f in
+    rtl/filelists/ and lists `common/foo.sv`, meaning rtl/common/foo.sv. Return
+    the first candidate that exists, else the repo-relative one so the caller
+    reports a sensible path.
+    """
+    p = Path(token)
+    if p.is_absolute():
+        return p
+    ok = Path.is_dir if want_dir else Path.is_file
+    candidates = [(here / token).resolve(),
+                  (here.parent / token).resolve(),
+                  (REPO_ROOT / token).resolve()]
+    for c in candidates:
+        if ok(c):
+            return c
+    return candidates[-1]
 
 
 def resolve(filelist: Path, _seen: set[Path] | None = None) -> tuple[list[Path], list[str]]:
@@ -113,7 +245,25 @@ def resolve(filelist: Path, _seen: set[Path] | None = None) -> tuple[list[Path],
         if not line or line.startswith("#") or line.startswith("//"):
             continue
         line = _expand(line)
-        if line.startswith("+"):  # +incdir+ and friends
+        if line.startswith("+incdir+"):
+            # Verify the search path exists. This used to be skipped with the
+            # rest of the "+" switches, so an include directory could rot
+            # indefinitely: ten filelists searched rtl/common/includes, a
+            # directory that never existed and never held a single .svh, and
+            # nothing noticed because --check only validated listed SOURCES.
+            target = line[len("+incdir+"):].strip()
+            if not target:
+                continue
+            cands = _flow_candidates(target)
+            if not cands:
+                continue                      # unenumerable flow var
+            if any(_locate(c, here, want_dir=True).is_dir() for c in cands):
+                continue
+            path = _locate(cands[0], here, want_dir=True)
+            if not _git_ignored(path):
+                problems.append(f"{rel(filelist)}: +incdir+ target not a directory: {rel(path)}")
+            continue
+        if line.startswith("+"):  # +define+ and friends
             continue
 
         if line.startswith("-f"):
@@ -121,13 +271,19 @@ def resolve(filelist: Path, _seen: set[Path] | None = None) -> tuple[list[Path],
             if not target:
                 problems.append(f"{rel(filelist)}: empty -f directive")
                 continue
-            path = Path(target)
-            if not path.is_absolute():
-                cand = (here / target).resolve()
-                path = cand if cand.exists() else (REPO_ROOT / target).resolve()
-            if not path.is_file():
-                problems.append(f"{rel(filelist)}: -f target not found: {rel(path)}")
+            cands = _flow_candidates(target)
+            if not cands:
+                # A flow variable we cannot enumerate: resolvable under `make`,
+                # not standalone. Flow-scoped, not broken.
+                flow_scoped.append(f"{rel(filelist)}: flow-scoped -f: {target}")
                 continue
+            hit = next((q for q in (_locate(c, here) for c in cands) if q.is_file()), None)
+            if hit is None:
+                path = _locate(cands[0], here)
+                if not _git_ignored(path):
+                    problems.append(f"{rel(filelist)}: -f target not found: {rel(path)}")
+                continue
+            path = hit
             sub_sources, sub_problems = resolve(path, seen)
             sources.extend(sub_sources)
             problems.extend(sub_problems)
@@ -136,23 +292,20 @@ def resolve(filelist: Path, _seen: set[Path] | None = None) -> tuple[list[Path],
         if line.startswith("-"):  # other tool switches
             continue
 
-        if UNRESOLVED_VAR.search(line):
-            # FRAMEWORK_ROOT / STREAM_CHAR_ROOT are exported by the per-flow
-            # Makefiles, not by filelist_utils, and FRAMEWORK_ROOT's value
-            # depends on which flow is driving. Such a line is resolvable under
-            # `make` but not standalone -- report it as flow-scoped rather than
-            # as a broken reference, or every board filelist looks broken.
+        cands = _flow_candidates(line)
+        if not cands:
+            # A flow variable with no enumerable value: resolvable under `make`
+            # but not standalone -- flow-scoped rather than a broken reference,
+            # or every board filelist reads as failing.
             flow_scoped.append(f"{rel(filelist)}: flow-scoped variable: {line}")
             continue
-
-        path = Path(line)
-        if not path.is_absolute():
-            cand = (here / line).resolve()
-            path = cand if cand.exists() else (REPO_ROOT / line).resolve()
-        if not path.is_file():
-            problems.append(f"{rel(filelist)}: source not found: {rel(path)}")
+        hit = next((q for q in (_locate(c, here) for c in cands) if q.is_file()), None)
+        if hit is None:
+            path = _locate(cands[0], here)
+            if not _git_ignored(path):
+                problems.append(f"{rel(filelist)}: source not found: {rel(path)}")
             continue
-        sources.append(path)
+        sources.append(hit)
 
     # de-duplicate, preserving order
     return list(dict.fromkeys(sources)), problems
@@ -217,6 +370,26 @@ def cmd_check(reg: dict) -> int:
     for area in reg.get("area", []):
         roots = area.get("rtl_roots", [])
         if not roots:
+            # No rtl_roots means module COVERAGE is meaningless here -- there is
+            # no library to be exhaustive about. Reference INTEGRITY still is,
+            # and skipping these areas entirely is what let a rename half-land:
+            # 35036222 renamed the monbus group filelists, eight consumers
+            # under NexysA7 and Genesys2 kept pointing at the old names, and
+            # --check walked straight past them because they declare no roots.
+            # Green CI meant the gate could not see them, not that they were
+            # right. Resolve them for broken refs; say plainly that coverage is
+            # not being judged.
+            problems = []
+            for fl in area_filelists(area):
+                _, probs = resolve(fl)
+                problems.extend(probs)
+            status = "OK  " if not problems else "FAIL"
+            if problems:
+                failures += 1
+            print(f"[{status}] {area['name']:<28} refs only (no rtl_roots), "
+                  f"{len(problems):>3} broken refs")
+            for p in dict.fromkeys(problems):
+                print(f"         {p}")
             continue
 
         # An area whose rtl_roots no longer exist reports "0 modules, 0
@@ -496,8 +669,19 @@ def cmd_blindspots(reg: dict, ratchet: bool = False,
             print("    fix: get_sources_from_filelist(repo_root=..., filelist_path=...)")
             print()
     # 3. Formal harnesses whose [files] entries do not resolve.
+    #
+    # TRACKED .sby only, for the same reason the .f scan is tracked-only, and
+    # it matters more here: SymbiYosys GENERATES a config.sby inside every
+    # <task>_prove/ and <task>_cover/ build directory. Walking those counted
+    # build output as source and made the number depend on whether you had run
+    # formal lately -- 1564 refs on a machine that had, 2 on a clean checkout,
+    # against a baseline of 387. So the ratchet reported a REGRESSION locally
+    # and a PASS in CI for identical commits, which is worse than not checking:
+    # it points away from whatever actually broke.
     dangling: list[tuple[str, str]] = []
-    for sby in sorted(REPO_ROOT.rglob("*.sby")):
+    tracked_sby = subprocess.run(["git", "ls-files", "*.sby"], cwd=REPO_ROOT,
+                                 capture_output=True, text=True).stdout.split()
+    for sby in sorted(REPO_ROOT / t for t in tracked_sby):
         base = sby.parent
         for raw in sby.read_text(errors="ignore").splitlines():
             for tok in re.findall(r"(\.\./[\w./-]+\.svh?)", raw):
