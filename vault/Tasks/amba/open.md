@@ -130,14 +130,45 @@ HOW THE THREE OCCURRENCES FIT:
     build root has no per-session scoping, so another session running or
     cleaning val/amba collides with mine.
 
-DURABLE FIX (not taken -- shared-infrastructure change, wants a decision):
-honour a `SIM_BUILD_ROOT` env var so concurrent sessions do not share one
-collision domain. `bin/TBClasses/shared/utilities.py:455` hardcodes
-`local_sim_build` and nothing overrides it.
+DURABLE FIX, DONE (was "not taken" here until 2026-08-28 -- the note went
+stale, and the stale note is how this nearly got re-solved):
+`bin/TBClasses/shared/utilities.py` no longer hardcodes the build root.
+
+  * `sim_build_root(tests_dir)` honours `SIM_BUILD_ROOT`. Unset keeps the
+    historical `<tests_dir>/local_sim_build`, so nobody is broken by
+    default; when set, the per-AREA structure is preserved beneath it
+    (`<root>/<area>/local_sim_build`) rather than flattened -- flattening
+    would trade a cross-session collision for a cross-area one, since
+    build-dir names are only unique within an area.
+  * `sim_build_path(tests_dir, name)` creates the dir and writes a
+    `.sim_busy` marker naming session, pid and start time.
+  * `sim_build_is_busy(path)` reads that marker, so a cleaner can tell
+    "another session is building here RIGHT NOW" from "leftover from a run
+    that ended" -- the distinction whose absence caused occurrences 1-3.
+
+WHAT REMAINS is adoption, and it is not automatic:
+
+  * Nothing sets `SIM_BUILD_ROOT`, so every session still lands in the
+    shared root by default. Markers written today read `session=shared`.
+    Defaulting it in `env_python` was considered and REJECTED: any
+    per-invocation key (`$$`) gives each shell a fresh root, so every run
+    recompiles from scratch -- test_stream_perf.py measures ~220 s cold vs
+    ~35 s warm, ~185 s of duplicate compile per case. The shared root is
+    correct for model reuse. Set `SIM_BUILD_ROOT` deliberately when two
+    agents must be fully isolated and the recompile is worth paying for.
+  * The markers are advisory. Nothing consults `sim_build_is_busy()` yet,
+    so a blunt `rm -rf` still ignores them.
 
 INTERIM DISCIPLINE, free: never `rm -rf` a broad `local_sim_build/*` glob
 while anything might be running -- including another session -- and scope
 cleanups to the exact build directory the run will use.
+
+That discipline was violated repeatedly on 2026-08-28 by an agent running
+the stream cosims: every run was launched as `rm -rf .../local_sim_build;
+make sim`, unconditionally, ignoring the markers. Which is the argument
+for not relying on discipline at all -- cleanup belongs in the make
+target, where it is written once and can consult the markers, rather than
+in whatever ad-hoc shell command each caller types. See CLEANUP-IN-MAKE.
 
 DONE 2026-08-28, the other half of the problem: TBBase now LOGS THE SEED
 for every TB. Most val/ runners default SEED to `random.randint(...)` --
@@ -154,6 +185,88 @@ reproducible", which was wrong -- most TBs default it themselves
 (axi_monitor_tb uses 42), so those runs are repeatable, just not
 steerable. Corrected: an alarming-but-inaccurate warning is one people
 learn to scroll past.
+
+### TOOL-014 — the filelist gate is blind outside registered areas, and to +incdir+
+**Status:** open 2026-08-28 (found by a clean-checkout sweep while debugging CI)
+**Priority:** P2 — CI was green with a half-finished rename on main
+**Owner:** TBD
+
+CI failed on `filelist_registry.py --check` with 7 broken `-f` targets: 35036222
+renamed `monbus_axil_*_group.f` -> `monbus_axil4_*_group.f` and committed the
+rename, but the consumers were fixed in the working tree only. Fixed in
+cd954548.
+
+**The general lesson is bigger than that bug.** The checks pass in a working
+tree that still holds the uncommitted fixes and fail only on a clean checkout,
+so "it's green locally" carries no information about CI. A clean-clone sweep
+of every reference in every TRACKED file then found three blind spots:
+
+1. **`--check` only walks REGISTERED areas.** `projects/NexysA7/**` and
+   `projects/fpga-systems/**` are not among them, so eight MORE dangling refs
+   to the old monbus names sat on main, invisible. Fixed in 7b1eac2b. Green CI
+   did not mean the rename was complete -- it meant the gate could not see
+   where it wasn't.
+2. **`--check` never verifies `+incdir+` targets.** Ten filelists searched
+   `rtl/common/includes`, a directory that does not exist and never held a
+   single .svh. Dead since whenever. Removed in 3873c812.
+3. **`--blindspots` counts build output.** It walks `formal/**/config.sby`,
+   which SymbiYosys GENERATES; none are tracked (0 of 658 on this machine).
+   Locally that reads `dead_harness_paths 387 -> 1564` and REGRESSED; on a
+   clean checkout it is `387 -> 2` and passes. A local failure of that shape
+   means you have run formal, nothing more -- and it actively points away from
+   the real failure.
+
+**Work:**
+- [ ] Register the board and fpga-system areas, or give `--check` a
+      whole-tree mode, so a rename cannot half-land again.
+- [ ] Verify `+incdir+` targets exist.
+- [ ] Make `--blindspots` skip generated `*_cover/`, `*_prove/` and any
+      untracked path, so local and CI runs agree.
+- [ ] Consider running the gate against `git stash`ed / clean state in a
+      pre-push hook -- the whole class is "committed half, kept the rest".
+
+---
+
+### NEXYSA7-STREAM-MON-SPLIT — flows-stream-monitor still points into flows-stream-bridge
+**Status:** open 2026-08-28 (found by the same sweep)
+**Priority:** P2 — these filelists cannot resolve on a clean checkout
+**Owner:** whoever is mid-migration -- NOT picked up, in-flight work
+
+`flows-stream-monitor` has its own copies (`rtl/stream_mon_harness.sv`,
+`rtl/filelists/stream_mon_harness.f`, ...), but its filelists still reference
+the `flows-stream-bridge` paths the files were moved FROM. Nine dangling refs
+on a clean checkout:
+
+    -f      flows-stream-bridge/rtl/filelists/instrumentation_mon.f
+    -f      flows-stream-bridge/rtl/filelists/stream_mon_harness.f
+    source  flows-stream-bridge/rtl/stream_mon_harness.sv
+    source  flows-stream-bridge/rtl/stream_mon_genesys2_top.sv
+    source  flows-stream-bridge/rtl/stream_mon_cfg_pkg.sv
+    source  flows-stream-bridge/rtl/monbus_tally_axil.sv
+    source  flows-stream-bridge/rtl/dma_slave_monitors.sv
+
+from `flows-stream-monitor/rtl/filelists/{stream_mon_harness,
+stream_mon_genesys2_top}.f`. Deliberately NOT fixed here: this is an
+unfinished move, not a mechanical rename, and the owning session has these
+files open. Left for them.
+
+---
+
+### FORMAL-INTEG-COMMON-ORPHANS — two harnesses for RTL deleted a month ago
+**Status:** open 2026-08-28 (found by the same sweep)
+**Priority:** P3 — cannot run; nothing depends on them
+**Owner:** TBD
+
+`formal/integ_common/fifo_sync_multi/fifo_sync_multi.sby` and
+`formal/integ_common/fifo_sync_multi_sigmap/fifo_sync_multi_sigmap.sby` list
+`../../../rtl/integ_common/*.sv`. `rtl/integ_common/` went with `rtl/integ_amba/`
+in 01d1c3e6. Same residue class as AMBA-INTEG-EXAMPLES, which was closed after
+cleaning the docs and filelists.toml -- these two harnesses were missed.
+
+**Work:**
+- [ ] Delete both, unless the modules are coming back.
+
+---
 
 ## TASK-026: Every module MUST have a filelist and a registry entry
 **Priority:** P2
