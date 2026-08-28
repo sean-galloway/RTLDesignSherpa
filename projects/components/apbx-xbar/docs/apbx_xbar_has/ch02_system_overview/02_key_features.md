@@ -70,26 +70,21 @@ slave_index = ((PADDR - BASE_ADDR) >> 16)[$clog2(S)-1:0]
 
 ## Feature Comparison
 
-| Feature | apbx_xbar_1to1 | apbx_xbar_2to1 | apbx_xbar_1to4 | apbx_xbar_2to4 | apbx_xbar_thin *(RETIRED)* |
+| Feature | apbx_xbar_1to1 | apbx_xbar_2to1 | apbx_xbar_1to4 | apbx_xbar_2to4 | apbx_xbar_2to2_mixed |
 |---------|---------------|---------------|---------------|---------------|---------------|
-| Masters | 1 | 2 | 1 | 2 | `M` parameter (default 2) |
-| Slaves | 1 | 1 | 4 | 4 | `S` parameter (default 4) |
-| Arbitration | No | Yes | No | Yes | Yes -- WEIGHTED round-robin (`THRESHOLDS`) |
-| Address Decode | No | No | Yes | Yes | Yes -- per-slave base/limit INPUT PORTS |
-| APB5 sideband | No | No | No | No | Yes -- per-port masks + parity |
-| Approximate LOC | 165 | 314 | 384 | 751 | 306 |
+| Masters | 1 | 2 | 1 | 2 | 2 |
+| Slaves | 1 | 1 | 4 | 4 | 2 |
+| Arbitration | No | Yes | No | Yes | Yes |
+| Address Decode | No | No | Yes | Yes | Yes |
+| APB5 sideband | No | No | No | No | Yes -- per-port version gating |
+| Approximate LOC | 165 | 314 | 384 | 751 | 570 |
 
 : Pre-Generated Variant Comparison
 
-**`apbx_xbar_thin` is RETIRED (2026-08-27)** and is not a supported part
-of this family; it stays in-tree for reference only. Its column is
-accurate -- it is a parameterized MxS core with weighted round-robin,
-per-slave base/limit INPUT PORTS (no `BASE_ADDR` parameter),
-packed-array pins, and end-to-end APB5 parity -- but do not build on it.
-It also carries an unfixed APB deviation: downstream slaves see PSEL and
-PENABLE assert together with no setup cycle (APBX-006, dropped as moot
-on retirement). Also note `2to2_mixed` is absent from this table; see
-the MAS index for the full six-variant inventory.
+All five are generator output. `apbx_xbar_thin`, a hand-written
+parameterized core that once occupied a sixth column here, was retired
+and deleted on 2026-08-27 along with its tests, formal harnesses and
+testplan; nothing in the tree depends on it.
 
 ## Design Philosophy
 

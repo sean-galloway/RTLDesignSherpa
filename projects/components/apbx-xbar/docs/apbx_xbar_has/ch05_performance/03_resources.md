@@ -31,7 +31,6 @@ Estimated resource usage for common configurations (32-bit data width):
 
 | Variant | LUTs | FFs | Description |
 |---------|------|-----|-------------|
-| apbx_xbar_thin *(RETIRED)* | — | — | Retired 2026-08-27; the old "~50/~20, minimal passthrough" figures described a 1x1 module that never existed (it is an MxS core) and are withdrawn |
 | apbx_xbar_1to1 | ~150 | ~80 | Full 1x1 with buffering |
 | apbx_xbar_2to1 | ~300 | ~150 | 2 masters, arbitration |
 | apbx_xbar_1to4 | ~400 | ~200 | 4 slaves, decode |
@@ -65,7 +64,6 @@ Source code metrics for pre-generated variants:
 
 | Variant | Lines of Code | Modules | Complexity |
 |---------|---------------|---------|------------|
-| apbx_xbar_thin *(RETIRED)* | — | — | — |
 | apbx_xbar_1to1 | ~200 | 3 | Low |
 | apbx_xbar_2to1 | ~400 | 5 | Medium |
 | apbx_xbar_1to4 | ~500 | 7 | Medium |
@@ -105,7 +103,6 @@ Relative area comparison (normalized to apbx_xbar_1to1):
 
 | Variant | Relative Area |
 |---------|---------------|
-| apbx_xbar_thin *(RETIRED)* | — (relative-area figure withdrawn: it compared a 2x4 core against a 1x1) |
 | apbx_xbar_1to1 | 1.0x (baseline) |
 | apbx_xbar_2to1 | 2.0x |
 | apbx_xbar_1to4 | 2.5x |

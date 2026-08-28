@@ -5,7 +5,12 @@
 ---
 
 ## APBX-006 — apbx_xbar_thin presents NO setup phase downstream (PSEL and PENABLE assert together)
-**Status:** open 2026-08-27 (found by qc round_9, measured)
+**Status:** DROPPED 2026-08-27 — `apbx_xbar_thin` was deleted from the
+tree the same day, so there is nothing left to fix. Kept as the record of
+a real, measured protocol violation. Note the sibling deviation TASK-071
+(two-cycle setup in `apb4_master`/`apb5_master`) is a DIFFERENT bug in
+different, still-shipping IP.
+**Found:** qc round_9, measured
 **Priority:** P1 — APB protocol violation; a compliant slave may never latch PADDR
 **Owner:** TBD — needs a design decision, see options
 

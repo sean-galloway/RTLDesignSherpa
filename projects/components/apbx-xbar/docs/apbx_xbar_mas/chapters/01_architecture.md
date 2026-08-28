@@ -159,12 +159,9 @@ Internal Crossbar Logic → cmd/rsp bus → apb4_master → APB Slave
 
 ## Parameter Configuration
 
-The two families parameterize differently, and the difference is not
-cosmetic: a generated variant has its M×N **baked in** by the generator,
-so there is no port-count parameter to override at elaboration. Only the
-thin core takes M and S as parameters.
-
-**Generated variants** (`apbx_xbar_2to4`, `apbx_xbar_2to2_mixed`, ...):
+Every variant has its M×N **baked in** by the generator, so there is no
+port-count parameter to override at elaboration — a different shape means
+regenerating, not re-elaborating. What remains parameterizable:
 
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
@@ -177,26 +174,6 @@ thin core takes M and S as parameters.
 
 Port counts, per-slave window size and APB version per port are
 generator inputs, not parameters — see chapter 3.
-
-**Thin core** (`apbx_xbar_thin`) — **RETIRED 2026-08-27**, kept for
-reference only:
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| `M` | 1-16 | 2 | Number of APB masters |
-| `S` | 1-16 | 4 | Number of APB slaves |
-| `ADDR_WIDTH` | 18-64 (decoding variants); 1-64 (1to1/2to1) | 32 | Address bus width |
-| `DATA_WIDTH` | 8-64 | 32 | Data bus width |
-| `STRB_WIDTH` | derived | `DATA_WIDTH/8` | Write strobe width |
-| `MAX_THRESH` | ≥1 | 16 | Arbiter weight ceiling |
-| `MST_APB5` | bitmask | `'0` | Bit *m* set ⇒ master *m* is APB5 |
-| `SLV_APB5` | bitmask | `'0` | Bit *s* set ⇒ slave *s* is APB5 |
-| `ENABLE_PARITY` | 0/1 | 0 | Carry APB5 parity end to end |
-| `AUW`/`WUW`/`RUW`/`BUW` | ≥1 | 1 | APB5 user-signal widths |
-
-: Thin-Core Parameters
-
-`ENABLE_PARITY` defaults to 0 so existing builds stay bit-identical.
 
 **Derived:**
 - Slave address range: 64KB (0x10000) per slave, as the shipped variants
@@ -211,32 +188,24 @@ Parity is carried only between two APB5 ports. A **mixed pairing ignores
 parity entirely**, gated by the same `MST_APB5`/`SLV_APB5` masks as the
 rest of the APB5 sideband — there is no separate policy knob.
 
-For an APB5→APB5 path the two families are forced apart by their own
-architectures; this is not a configuration choice:
-
-**Thin core — end-to-end pass-through.** It is a combinational mux that
-never modifies the payload, so the requester's parity is still correct
-at the completer. Parity rides the existing grant/demux muxes, which
-means it covers corruption *inside the mux* — precisely the fault a
-regenerating scheme cannot see, since a recomputed bit would be correct
-by construction and would mask it.
-
-**Generated variants — check and regenerate, unavoidably.** The boundary
-IP deconstructs each transfer into cmd/rsp, and the parity bits do not
-cross that interface: `apb5_slave` checks on the way in, `apb5_master`
-regenerates on the way out. The cmd/rsp fabric between them is therefore
-**outside the protected domain**. That span is documented rather than
-hidden, and because of it each port brings its `parity_error_*` flag out
-individually — a check whose result goes nowhere is not protection.
+On an APB5→APB5 path the fabric **checks and regenerates**, and its
+architecture leaves no alternative. The boundary IP deconstructs each
+transfer into cmd/rsp, and the parity bits do not cross that interface:
+`apb5_slave` checks on the way in, `apb5_master` regenerates on the way
+out. The cmd/rsp fabric between them is therefore **outside the
+protected domain** — corruption *inside* that span is invisible, because
+the regenerated bit is correct by construction and masks it. That span
+is documented rather than hidden, and because of it each port brings its
+`parity_error_*` flag out individually: a check whose result goes
+nowhere is not protection.
 
 The error flags are deliberately **not** folded into `PSLVERR`, which
 would make a fabric fault indistinguishable from the slave's own error
 response.
 
-Formal coverage: property **D** — an APB4 port never sees parity in
-either direction; property **E** — on an APB5→APB5 path the parity
-reaching the slave equals what the master drove, which is what makes the
-pass-through claim mean anything.
+Formal coverage of parity gating was carried by the retired thin core's
+harnesses and was deleted with them on 2026-08-27. The APB4-port
+never-sees-parity property is currently covered by simulation only.
 
 ---
 
@@ -249,7 +218,6 @@ pass-through claim mean anything.
 | `apbx_xbar_1to4` | 1×4 | 384 | Simple SoC peripheral bus |
 | `apbx_xbar_2to4` | 2×4 | 751 | Typical SoC with CPU+DMA |
 | `apbx_xbar_2to2_mixed` | 2×2 | 570 | Mixed APB4/APB5 ports, version gating |
-| `apbx_xbar_thin` *(RETIRED)* | M×S | 306 | Parameterized ports; weighted RR; not supported for new work |
 
 : Pre-Generated Crossbar Variants
 

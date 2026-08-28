@@ -38,7 +38,7 @@ The **APB Crossbar** is a parametric APB interconnect generator that creates con
 
 ### 1.1 Quick Stats
 
-- **Modules:** 6 pre-generated variants + generator for custom sizes
+- **Modules:** 5 pre-generated variants + generator for custom sizes
 - **Max Capacity:** Up to 16x16 (configurable)
 - **Architecture:** apb4_slave → arbitration + decode → apb4_master
 - **Status:** Production ready, all tests passing
@@ -63,7 +63,7 @@ The **APB Crossbar** is a parametric APB interconnect generator that creates con
 
 **Parametric Generation:**
 - Generator creates any MxN configuration
-- Pre-generated common variants (1to1, 2to1, 1to4, 2to4, thin)
+- Pre-generated common variants (1to1, 2to1, 1to4, 2to4, 2to2_mixed)
 - Custom variants generated on-demand
 
 **Clean Separation:**
@@ -181,7 +181,6 @@ Slave 1 accessed by M1, M1, M0 → Next grant goes to M1
 | **apbx_xbar_1to4** | 1 | 4 | Address decode, simple SoC | ~500 LOC |
 | **apbx_xbar_2to4** | 2 | 4 | Full crossbar, typical SoC | ~751 LOC |
 | **apbx_xbar_2to2_mixed** | 2 | 2 | Mixed APB4/APB5 (s0 is APB5) | ~570 LOC |
-| **apbx_xbar_thin** *(RETIRED 2026-08-27)* | `M` (dflt 2) | `S` (dflt 4) | Parameterized MxS, WEIGHTED RR, per-slave base/limit PORTS, APB5+parity | ~300 LOC |
 
 ### 4.2 Wrapper Modules
 
@@ -304,7 +303,7 @@ apbx_xbar_1to1.sv
 apbx_xbar_2to1.sv
 apbx_xbar_1to4.sv
 apbx_xbar_2to4.sv
-apbx_xbar_thin.sv
+apbx_xbar_2to2_mixed.sv
 ```
 
 ### 8.2 Custom Generation
@@ -486,7 +485,7 @@ apbx_xbar_2to4 #(
 - **Slave enable/disable:** Dynamic slave activation
 - **Timeout detection:** Watchdog for hung slaves
 - **Transaction ordering:** Optional in-order completion
-- **Priority arbitration:** Weighted instead of round-robin  *(already implemented in `apbx_xbar_thin` via `THRESHOLDS`; this item covers the generated MtoN variants.)*
+- **Priority arbitration:** Weighted instead of round-robin
 
 ### 13.2 Generator Improvements
 

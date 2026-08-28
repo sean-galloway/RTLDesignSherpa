@@ -44,7 +44,7 @@
 ### Rule #0: This is a GENERATOR, Not Just Modules
 
 **IMPORTANT:** APB Crossbar is both:
-1. **Pre-generated modules** (1to1, 2to1, 1to4, 2to4, thin) in `rtl/`
+1. **Pre-generated modules** (1to1, 2to1, 1to4, 2to4, 2to2_mixed) in `rtl/`
 2. **Python generator** (`bin/generate_xbars.py`) for custom configurations
 
 **When users ask for crossbar:**
@@ -55,7 +55,7 @@
 ```
 User needs crossbar?
 ├─ 1x1, 2x1, 1x4, 2x4? → Use pre-generated module
-├─ Thin/minimal? → Use apbx_xbar_thin   # RETIRED -- do not use
+├─ Mixed APB4/APB5 2x2? → Use apbx_xbar_2to2_mixed
 └─ Custom MxN? → Run generator script
 ```
 
@@ -69,7 +69,7 @@ Slave 2: BASE_ADDR + 0x0002_0000 → 0x0002_FFFF
 ...
 ```
 
-**Users CANNOT change per-slave size** in the GENERATED variants (1to1/2to1/1to4/2to4 -- fixed 64KB windows). `apbx_xbar_thin` is the exception: its per-slave base/limit are input ports.
+**Users CANNOT change per-slave size** -- every variant uses fixed 64KB windows. The map's origin is settable via `BASE_ADDR`; the window size is not a parameter.
 
 **If user asks for different sizes:**
 ```
@@ -92,7 +92,6 @@ Slave 2: BASE_ADDR + 0x0002_0000 → 0x0002_FFFF
 | **apbx_xbar_1to4** | 1×4 | Decode | Single CPU to multiple peripherals |
 | **apbx_xbar_2to4** | 2×4 | Full crossbar | CPU + DMA to peripherals |
 | **apbx_xbar_2to2_mixed** | 2×2 | Mixed APB4/APB5 | APB5 peripheral alongside APB4 |
-| **apbx_xbar_thin** *(RETIRED)* | MxS (params) | Weighted RR, APB5+parity | Runtime-programmable windows |
 
 **Always suggest pre-generated first!**
 
@@ -116,10 +115,8 @@ python generate_xbars.py --masters 3 --slaves 6
 # Generate 3x8 crossbar with custom base
 python generate_xbars.py --masters 3 --slaves 8 --base-addr 0x80000000
 
-# Generate thin 5x5 variant
+# Generate a 5x5 variant
 python generate_xbars.py --masters 5 --slaves 5
-# (there is no --thin flag: apbx_xbar_thin is a hand-written
-#  parameterized core, not generator output)
 ```
 
 ---
@@ -135,7 +132,6 @@ projects/components/apbx-xbar/
 │   ├── apbx_xbar_2to1.sv
 │   ├── apbx_xbar_1to4.sv
 │   ├── apbx_xbar_2to4.sv
-│   ├── apbx_xbar_thin.sv   # RETIRED -- do not use
 │   └── wrappers/               Pre-configured wrappers
 │       ├── apbx_xbar_1to1_wrap.sv
 │       ├── apbx_xbar_2to1_wrap.sv
@@ -360,39 +356,6 @@ gtkwave waves.vcd
 **All tests passing ✅**
 
 **📖 See:** `PRD.md` Section 10
-
-### Q: "What's the thin variant for?"
-
-**A: Minimal overhead passthrough:**
-
-```systemverilog
-apbx_xbar_thin #(
-    .M(2), .S(4),                 // parameterized MxS, NOT a 1x1 passthrough
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32)
-) u_thin_xbar (
-    // decode windows are INPUT PORTS (no BASE_ADDR parameter):
-    .SLAVE_ENABLE(slave_enable),
-    .SLAVE_ADDR_BASE(slave_base),
-    .SLAVE_ADDR_LIMIT(slave_limit),
-    .THRESHOLDS(arb_thresholds),  // weighted round-robin weights
-    // packed-array APB ports: m_apb_psel[M-1:0], s_apb_psel[S-1:0], ...
-);
-```
-
-**Use cases:**
-- Protocol conversion
-- Timing boundary
-- Clock domain crossing preparation
-- Testing/debugging
-
-**Difference from apbx_xbar_1to1:**
-- Fewer internal registers
-- Lower latency
-- Smaller area than a generated variant of the SAME MxS shape (no cmd/rsp boundary IP); the old "~30% vs 1to1" figure compared a 2x4 crossbar against a 1x1 and is withdrawn
-- Weighted round-robin arbitration (THRESHOLDS)
-
-**📖 See:** `README.md` and `PRD.md` Section 4
 
 ---
 

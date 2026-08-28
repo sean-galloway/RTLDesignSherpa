@@ -73,7 +73,7 @@ Python-based code generator producing parameterized APB crossbar RTL for connect
 
 **Key Features:**
 - Python code generation for custom M×N configurations
-- Pre-generated modules for common sizes (1×1, 2×1, 1×4, 2×4, thin variant)
+- Pre-generated modules for common sizes (1×1, 2×1, 1×4, 2×4, mixed 2×2)
 - Round-robin arbitration per slave with grant locking
 - Fixed 64KB address regions per slave
 - Configurable base address parameter
@@ -84,7 +84,7 @@ Python-based code generator producing parameterized APB crossbar RTL for connect
 - `apbx_xbar_2to1.sv` - Multi-master arbitration
 - `apbx_xbar_1to4.sv` - Address decode for peripherals
 - `apbx_xbar_2to4.sv` - Full crossbar (CPU + DMA)
-- `apbx_xbar_thin.sv` - Minimal overhead variant
+- `apbx_xbar_2to2_mixed.sv` - Mixed APB4/APB5 fabric
 
 **Address Map:**
 - Slave 0: BASE_ADDR + 0x0000_0000 (64KB)

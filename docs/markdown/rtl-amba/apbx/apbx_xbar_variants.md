@@ -166,11 +166,6 @@ apbx_xbar_MtoN
 | `apbx_xbar_1to4` | 1 | 4 | Address decode testing, simple bus | `projects/components/apbx-xbar/rtl/apbx_xbar_1to4.sv` |
 | `apbx_xbar_2to4` | 2 | 4 | Full crossbar with arbitration + decode | `projects/components/apbx-xbar/rtl/apbx_xbar_2to4.sv` |
 | `apbx_xbar_2to2_mixed` | 2 | 2 | Mixed APB4/APB5 fabric (m0=APB4, m1=APB5, s0=APB5, s1=APB4) | `projects/components/apbx-xbar/rtl/apbx_xbar_2to2_mixed.sv` |
-| `apbx_xbar_thin` | M | S | Fully parameterized combinational crossbar (different architecture) | `projects/components/apbx-xbar/rtl/apbx_xbar_thin.sv` |
-
-`apbx_xbar_thin` is **not** a generated variant and does not share this
-architecture -- it is a combinational passthrough with weighted round-robin and
-no cmd/rsp conversion. See [apbx_xbar_thin.md](apbx_xbar_thin.md).
 
 ### Feature Comparison
 
@@ -318,10 +313,9 @@ All crossbar modules support these parameters:
 
 Variants generated with APB5 ports additionally carry the user-signal widths
 (`AUW`, `WUW`, `RUW`, `BUW`, all defaulting to 1). There is no runtime version
-parameter here: unlike `apbx_xbar_thin`, which takes `MST_APB5`/`SLV_APB5` as
-parameters, a generated variant has its per-port versions **baked in at
-generation time** — the boundary IP instantiated on each port differs, so the
-choice is structural rather than a mask. See
+parameter here: a variant's per-port versions are **baked in at generation
+time** — the boundary IP instantiated on each port differs, so the choice is
+structural rather than a mask. See
 [Generating a Mixed Variant](#generating-a-mixed-variant).
 
 **Derived Parameters:**
@@ -459,49 +453,50 @@ addr_in_range = (cmd_paddr >= BASE_ADDR) &&
 slave_sel     = cmd_paddr[17:16];
 ```
 
-`BASE_ADDR` must therefore be aligned to the **total** decoded window
-(`num_slaves × 64 KB`; 256 KB for the 4-slave variants). An unaligned
-`BASE_ADDR` makes the range check and the index slice disagree, silently routing
-transfers to the wrong slave. The generator does not check this.
+This was true until APBX-004 (fixed 2026-08-27). The decode formerly sliced
+the slave index out of the **raw** `PADDR`, so an unaligned `BASE_ADDR` made
+the range check and the index slice disagree and silently routed transfers to
+the wrong slave. The index is now taken from the **offset**
+(`PADDR - BASE_ADDR`), so `BASE_ADDR` needs no span alignment. The one illegal
+placement left is the top `S × 64 KB` of the address space, where
+`BASE_ADDR + S × 64 KB` wraps 32-bit and the range check can never pass.
 
-### Decode Errors: Unmapped Addresses Stall
+### Decode Errors: Unmapped Addresses Return PSLVERR
 
-**There is no decode-error response.** The generated crossbars do not implement a
-default slave, and the following statements -- which appeared in earlier revisions
-of this document -- are **not** true of the RTL:
+An access that decodes outside the map **completes locally with
+`PSLVERR = 1`**. The crossbar has no default slave; the master's own port
+answers on its behalf, so no slave ever sees the transfer.
 
-- ~~`PSLVERR = 1` on unmapped access~~
-- ~~`PRDATA = 0xDEADBEEF` debug pattern~~
-- ~~`PREADY = 1` immediate response~~
+Until APBX-005 (fixed 2026-08-27) this hung. When `addr_in_range` was low, no
+`sN_cmd_valid` was asserted and `cmd_ready` back to the master's `apb4_slave`
+stayed low, so the command was never accepted, no response was ever produced,
+`PREADY` was never asserted, and the transfer wedged that master until reset --
+with no timeout to recover it. A CPU or debugger pointed at an arbitrary
+address could take the bus down.
 
-The string `DEADBEEF` does not appear anywhere in the crossbar RTL.
-
-What actually happens: when `addr_in_range` is low, no `sN_cmd_valid` is asserted
-and `cmd_ready` back to the master's `apb4_slave` stays low:
+The fix registers the miss and completes it:
 
 ```systemverilog
-always_comb begin
-    m0_cmd_ready = 1'b0;
-    if (m0_cmd_valid && m0_addr_in_range) begin
-        case (m0_slave_sel)
-            2'd0: m0_cmd_ready = s0_cmd_ready;
-            // ...
-        endcase
+`ALWAYS_FF_RST(pclk, presetn,
+    if (`RST_ASSERTED(presetn)) r_m0_decerr_pending <= 1'b0;
+    else begin
+        if (m0_cmd_valid && m0_cmd_ready && !m0_addr_in_range)
+            r_m0_decerr_pending <= 1'b1;
+        else if (r_m0_decerr_pending && m0_rsp_ready)
+            r_m0_decerr_pending <= 1'b0;
     end
-end
+)
 ```
 
-The command is never accepted, no response is ever produced, and `PREADY` is
-never asserted. **The APB transfer hangs indefinitely.** There is no timeout.
+`m0_cmd_ready` is asserted on a miss so the command is accepted rather than
+stalling, and the response mux drives `rsp_valid` with `pslverr` set while the
+flag is pending. Note `PRDATA` is not a debug pattern -- the string `DEADBEEF`
+does not appear anywhere in the crossbar RTL, and never did, despite earlier
+revisions of this document claiming it.
 
-**Integration requirement:** do not expose an unmapped address range to a master
-through these crossbars. Either constrain the master's address map to the decoded
-window, or place an address filter with a default error slave upstream. If a
-master can be pointed at an arbitrary address (a CPU, a debugger), an errant
-access will wedge the bus until reset.
-
-This is tracked as a limitation, not a bug in the current tests: the CocoTB
-testbenches exercise the mapped ranges only.
+Covered by `APB-1TO4-20`, `APB-2TO4-21` and the decode-miss block in
+`test_apbx_xbar_2to2_mixed.py`, each of which distinguishes a hang from an
+error response and then checks the fabric still works afterwards.
 
 ---
 
@@ -809,11 +804,10 @@ All crossbar modules have CocoTB testbenches in
 | `test_apbx_xbar_1to4` | Address decode, multiple slaves | ✅ PASS |
 | `test_apbx_xbar_2to4` | Full crossbar, arbitration + decode | ✅ PASS |
 | `test_apbx_xbar_2to2_mixed` | Mixed APB4/APB5: all four pairings, sideband value + leak | ✅ PASS |
-| `test_apbx_xbar_thin_mixed` | `apbx_xbar_thin` with mixed version masks | ✅ PASS |
 
 The four legacy tests drive a `*_wrap` wrapper
-(`rtl/wrappers/apbx_xbar_*_wrap.sv`) rather than the bare crossbar. The two
-mixed tests drive their DUT directly and have no wrapper — the wrappers are
+(`rtl/wrappers/apbx_xbar_*_wrap.sv`) rather than the bare crossbar. The
+mixed test drives its DUT directly and has no wrapper — the wrappers are
 hand-written testbench scaffolding, not generator output, so one is added only
 when a test needs it.
 
@@ -824,8 +818,10 @@ A fabric that quietly wired sideband everywhere would pass a value-only test.
 
 ### Formal Verification
 
-SymbiYosys proofs exist for all four generated variants plus `apbx_xbar_thin`
-under `formal/apbx_xbar/`, each with `prove` and `cover` tasks.
+SymbiYosys proofs exist for the four generated variants
+(`1to1`, `2to1`, `1to4`, `2to4`) under `formal/apbx_xbar/`, each with `prove`
+and `cover` tasks. The retired `apbx_xbar_thin` harnesses were deleted with it
+on 2026-08-27; they had been the only proof of version gating.
 
 The proofs cover the **all-APB4 configuration only**. They were updated when
 the sideband ports were added — the harnesses tie the inputs and leave the
@@ -847,8 +843,10 @@ Each test includes:
 
 Not covered:
 
-- ✗ Unmapped-address access -- would hang; see [Decode Errors](#decode-errors-unmapped-addresses-stall)
-- ✗ Unaligned `BASE_ADDR`
+- ✅ Unmapped-address access -- returns `PSLVERR`, fabric survives; see
+  [Decode Errors](#decode-errors-unmapped-addresses-return-pslverr)
+- ✅ Unaligned `BASE_ADDR` -- `1to4` and `2to4` are parametrized over
+  non-span-aligned bases and assert on which physical slave was reached
 
 ### Running Tests
 
@@ -903,15 +901,15 @@ test_apbx_xbar_2to4.py::test_apbx_xbar_2to4   PASSED  (350 transactions)
 4. **Round-Robin Only**
    - Fixed round-robin arbitration
    - No priority levels or quality-of-service
-   - **Workaround**: use `apbx_xbar_thin`, which has weighted round-robin, or an
-     external priority arbiter ahead of the crossbar
+   - **Workaround**: place an external priority arbiter ahead of the crossbar
 
-5. **Unmapped Addresses Hang the Bus**
-   - No default slave, no decode-error response, no timeout
-   - An access outside the decoded window never receives `PREADY`
-   - **Workaround**: constrain the master's address map, or place an address
-     filter with an error slave upstream
-   - See [Decode Errors](#decode-errors-unmapped-addresses-stall)
+5. **No Slave Timeout**
+   - An unmapped address is handled (`PSLVERR`, see below), but a *mapped*
+     slave that never asserts `PREADY` will still stall its master
+     indefinitely -- there is no watchdog
+   - **Workaround**: use slaves with bounded response time, or add a timeout
+     shim upstream
+   - See [Decode Errors](#decode-errors-unmapped-addresses-return-pslverr)
 
 ### Future Enhancements
 
@@ -923,10 +921,10 @@ test_apbx_xbar_2to4.py::test_apbx_xbar_2to4   PASSED  (350 transactions)
 
 ### Known Issues
 
-All generated crossbars pass their CocoTB and formal verification. The
-unmapped-address stall described above is a documented architectural limitation
-rather than a test failure -- the testbenches only drive mapped ranges, so it is
-not caught by the current suite.
+All generated crossbars pass their CocoTB and formal verification (8/8 at
+2026-08-27). The unmapped-address stall that this section previously described
+was a real bug, not an architectural limitation; it was fixed as APBX-005 and
+is now covered by the suite.
 
 ---
 

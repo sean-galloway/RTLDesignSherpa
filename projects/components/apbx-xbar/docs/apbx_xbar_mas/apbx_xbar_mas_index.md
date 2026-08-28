@@ -125,7 +125,6 @@ All diagrams referenced in the documentation are available in:
 | apbx_xbar_1to4 | 1×4 | Simple SoC peripheral bus |
 | apbx_xbar_2to4 | 2×4 | Typical SoC with CPU+DMA |
 | apbx_xbar_2to2_mixed | 2×2 | Mixed APB4/APB5 (s0 APB5) |
-| apbx_xbar_thin *(RETIRED)* | M×S (params) | Parameterized core: weighted RR, runtime per-slave windows, APB5+parity |
 
 ### Design Philosophy
 

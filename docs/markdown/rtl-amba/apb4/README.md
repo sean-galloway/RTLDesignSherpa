@@ -77,7 +77,6 @@ live in `rtl/amba/monitor/`. Its specification is
 
 | Module | Description | Documentation | Status |
 |--------|-------------|---------------|--------|
-| **apbx_xbar_thin** | Fully parameterized M×S combinational crossbar with weighted round-robin | [../apbx/apbx_xbar_thin.md](../apbx/apbx_xbar_thin.md) | Documented |
 | **apbx_xbar_1to1** / **2to1** / **1to4** / **2to4** / **2to2_mixed** | Generated fixed-configuration crossbars | [../apbx/apbx_xbar_variants.md](../apbx/apbx_xbar_variants.md) | Documented |
 
 **Note:** The crossbar moved out of this directory (2026-08-13). It is no

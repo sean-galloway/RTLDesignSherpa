@@ -29,27 +29,20 @@ independent version, so one fabric can be all-APB4, all-APB5, or a mix.
 
 | Page | Covers |
 |------|--------|
-| [apbx_xbar_thin.md](apbx_xbar_thin.md) | `apbx_xbar_thin` — the parameterized M×S combinational crossbar with weighted round-robin and runtime address decode |
 | [apbx_xbar_variants.md](apbx_xbar_variants.md) | The generated fixed-configuration crossbars (`1to1`, `2to1`, `1to4`, `2to4`, `2to2_mixed`) built from APB boundary IP |
 
-## Two families, one directory
+## One architecture
 
-They are genuinely different architectures and the choice matters:
+Every crossbar here is generator output with the same shape: APB → cmd/rsp
+→ APB across registered skid buffers, with the topology, per-slave window
+size and per-port APB version all **baked in at generation time**. Changing
+any of them means regenerating, not re-elaborating — the boundary IP
+instantiated on each port differs, so the version choice is structural
+rather than a parameter mask.
 
-| | `apbx_xbar_thin` | Generated variants |
-|---|---|---|
-| Topology | Any M×S, set by parameter | Fixed per generated file |
-| Version selection | `MST_APB5` / `SLV_APB5` parameters | Baked in at generation time |
-| Address map | Runtime inputs, per-slave base/limit/enable | Compile-time, uniform 64 KB regions |
-| Protocol conversion | None — combinational passthrough | APB → cmd/rsp → APB |
-| Added latency | Zero cycles | Multiple cycles |
-| Best for | Sparse or reprogrammable maps, latency-critical paths | Timing closure at higher frequency |
-
-The version story differs between them in a way worth stating plainly. The
-thin core takes the versions as **parameters**, so one netlist covers every
-combination and synthesis prunes what is unused. A generated variant instead
-instantiates different boundary IP per port, so its versions are **structural**
-and changing them means regenerating.
+A second family once lived here: `apbx_xbar_thin`, a hand-written
+combinational M×S core with weighted round-robin and runtime-programmable
+windows. It was retired and deleted on 2026-08-27.
 
 ## Where the code lives
 
@@ -62,7 +55,6 @@ projects/components/apbx-xbar/
 │   ├── apbx_xbar_generator.py
 │   └── generate_xbars.py
 ├── rtl/                    generator output (regenerate, do not hand-edit)
-│   ├── apbx_xbar_thin.sv
 │   ├── apbx_xbar_{1to1,2to1,1to4,2to4,2to2_mixed}.sv
 │   ├── filelists/
 │   └── wrappers/           hand-written testbench scaffolding

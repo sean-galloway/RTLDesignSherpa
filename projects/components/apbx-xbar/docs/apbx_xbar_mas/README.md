@@ -98,7 +98,7 @@ This directory contains visual documentation for the APB Crossbar component, inc
 
 3. **Generate Custom Crossbar (if needed)**
    - Read [03_rtl_generator.md](chapters/03_rtl_generator.md)
-   - Use pre-generated variants (1to1, 2to1, 1to4, 2to4) if possible
+   - Use pre-generated variants (1to1, 2to1, 1to4, 2to4, 2to2_mixed) if possible
    - Run generator for custom MxN configurations
 
 4. **Integrate Into Your Design**
@@ -237,7 +237,7 @@ python generate_xbars.py --masters 2 --slaves 4 --base-addr 0x80000000
 
 ### Q: Can I change per-slave address sizes?
 
-**In the generated variants, no:** each slave is fixed at 64KB. **In `apbx_xbar_thin` (RETIRED 2026-08-27), yes:** its per-slave windows arrive on the `SLAVE_ADDR_BASE` / `SLAVE_ADDR_LIMIT` / `SLAVE_ENABLE` input ports and are programmable at runtime.
+**No:** each slave is fixed at a 64KB window. Only the map's origin is settable, via the `BASE_ADDR` parameter.
 
 **Workarounds:**
 1. Use multiple crossbars with different BASE_ADDR

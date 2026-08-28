@@ -1,8 +1,8 @@
 # apbx-xbar — task rollup
 
-APB crossbar family (`projects/components/apbx-xbar/`): the parameterized
-`apbx_xbar_thin` core plus the generated fixed-configuration variants. Every
-port independently speaks APB4 or APB5.
+APB crossbar family (`projects/components/apbx-xbar/`): the generated
+fixed-configuration variants `1to1`, `2to1`, `1to4`, `2to4` and
+`2to2_mixed`. Every port independently speaks APB4 or APB5.
 
 | State | Count |
 |---|---|
@@ -12,9 +12,12 @@ port independently speaks APB4 or APB5.
 
 ## Open shortlist
 
-*(`apbx_xbar_thin` RETIRED 2026-08-27. APBX-006 — its zero-cycle
-downstream setup phase — dropped as moot. The generated variants
-1to1/2to1/1to4/2to4/2to2_mixed are unaffected and remain supported.)*
+*(`apbx_xbar_thin` RETIRED and DELETED 2026-08-27, along with its test,
+its two formal harnesses, its testplan and its doc page. APBX-006 — its
+zero-cycle downstream setup phase — dropped as moot. The generated
+variants are unaffected. One real cost: the thin harnesses carried the
+ONLY formal proof of APB4/APB5 version gating, so that gating is now
+covered by simulation alone.)*
 
 *(APBX-004/005 closed 2026-08-27: raw-address decode rotated the slave map
 for non-span-aligned BASE_ADDR; out-of-range accesses wedged the master
@@ -28,7 +31,8 @@ proof of the version gating) and APBX-003 (parity) are all closed.
 
 [closed.md](closed.md) APBX-001 is the whole story of the APB4→APBX
 generalization and records why mixing needs no converters; APBX-002 proved
-the version gating formally; APBX-003 added parity and records why the
-thin core and the generated variants necessarily protect different spans.
+the version gating formally (on the thin core, since deleted); APBX-003
+added parity and records why a check-and-regenerate fabric protects a
+narrower span than end-to-end pass-through did.
 
 Docs: [docs/markdown/rtl-amba/apbx/](../../../../../docs/markdown/rtl-amba/apbx/README.md)

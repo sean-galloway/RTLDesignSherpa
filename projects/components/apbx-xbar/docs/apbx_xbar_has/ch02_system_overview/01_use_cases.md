@@ -70,12 +70,12 @@ Insert APB crossbar as a timing stage or preparation for clock domain crossing.
 **Configuration:**
 - 1 Master
 - 1 Slave
-- Variant: `apbx_xbar_1to1` (`apbx_xbar_thin` is RETIRED)
+- Variant: `apbx_xbar_1to1`
 
 **Benefits:**
 - Isolates master from slave timing
 - Provides consistent transaction buffering
-- Minimal resource overhead (thin variant)
+- Lowest resource footprint of the family
 
 ## Variant Selection Guide
 
@@ -83,7 +83,7 @@ Insert APB crossbar as a timing stage or preparation for clock domain crossing.
 |----------|---------------------|-----------|
 | Simple peripheral bus | `apbx_xbar_1to4` | Most common SoC configuration |
 | CPU + DMA system | `apbx_xbar_2to4` | Fair access for both masters |
-| Timing isolation | `apbx_xbar_1to1` | `apbx_xbar_thin` was the old answer here; it is RETIRED and was never a 1x1 passthrough |
+| Timing isolation | `apbx_xbar_1to1` | Registered command and response paths on a single pairing |
 | Multi-master arbitration | `apbx_xbar_2to1` | Focus on arbitration only |
 | Custom topology | Generator | Any MxN configuration |
 

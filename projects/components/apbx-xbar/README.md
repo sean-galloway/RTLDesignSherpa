@@ -39,16 +39,8 @@ Internal:        Round-robin arbitration + address decoding
 Slave Side:      apb4_master / apb5_master convert cmd/rsp → APB interface
 ```
 
-> **`apbx_xbar_thin` is RETIRED (2026-08-27)** and is not a supported
-> part of this family. It remains in-tree for reference. Use the
-> generated variants instead. Everything below about thin describes a
-> retired module, including its known zero-setup-cycle APB deviation
-> (APBX-006).
-
-`apbx_xbar_thin` (RETIRED) is a different architecture — a combinational passthrough
-with weighted round-robin and no cmd/rsp conversion. See
-[the docs](../../../docs/markdown/rtl-amba/apbx/README.md) for choosing
-between them.
+Every variant in this family is generator output built on that structure;
+there is no hand-written alternative core.
 
 ### Key Features
 
@@ -67,10 +59,9 @@ contributes `'0`, and an APB4 slave is never driven with nonzero sideband.
 Both gates are compile-time constants, so synthesis prunes any pairing that
 cannot occur, and an all-APB4 build is bit-identical to the pre-APB5 crossbar.
 
-One exception in the GENERATED mixed variant: `PWAKEUP` is dropped.
-Its boundary IP leaves `rsp_pwakeup` unconnected and ties
-`wakeup_request` to '0, so an APB5 slave asserting PWAKEUP is never
-seen at the APB5 master. The thin core does route it.
+One exception in the mixed variant: `PWAKEUP` is dropped. Its boundary IP
+leaves `rsp_pwakeup` unconnected and ties `wakeup_request` to '0, so an
+APB5 slave asserting PWAKEUP is never seen at the APB5 master.
 
 ## Available Modules
 
@@ -81,7 +72,6 @@ seen at the APB5 master. The thin core does route it.
 | `apbx_xbar_1to4.sv` | Address decode only | 1 | 4 | Single master to multi-slave |
 | `apbx_xbar_2to4.sv` | Full crossbar | 2 | 4 | Multi-master to multi-slave |
 | `apbx_xbar_2to2_mixed.sv` | Mixed APB4/APB5 | 2 | 2 | m0=APB4, m1=APB5, s0=APB5, s1=APB4 |
-| `apbx_xbar_thin.sv` *(RETIRED)* | Parameterized core | M | S | Reference only — not supported for new work |
 
 ## Generating Crossbars
 
@@ -128,11 +118,11 @@ python apbx_xbar_generator.py --masters 2 --slaves 4 --output ../rtl/apbx_xbar_2
 
 ## Address Map
 
-The GENERATED crossbars (1to1/2to1/1to4/2to4/2to2_mixed) use a uniform address map, configurable via the `BASE_ADDR` parameter. The slave index
-is decoded from the OFFSET (`PADDR - BASE_ADDR`), so `BASE_ADDR` needs no
-span alignment (the one illegal region is the top S x 64KB of the
-address space, where `BASE_ADDR + S*64KB` wraps 32-bit and the range
-check can never pass). `apbx_xbar_thin` is different -- see below.
+The crossbars use a uniform address map, configurable via the `BASE_ADDR`
+parameter. The slave index is decoded from the OFFSET (`PADDR - BASE_ADDR`),
+so `BASE_ADDR` needs no span alignment (the one illegal region is the top
+S x 64KB of the address space, where `BASE_ADDR + S*64KB` wraps 32-bit and
+the range check can never pass).
 
 ```
 Slave 0: [BASE_ADDR + 0x0000_0000, BASE_ADDR + 0x0000_FFFF]  (64KB)
@@ -155,24 +145,9 @@ The GENERATED modules support these parameters:
 | `STRB_WIDTH` | DATA_WIDTH/8 | Strobe width (auto-calculated) |
 | `BASE_ADDR` | 0x10000000 | Base of the slave address map |
 
-**`apbx_xbar_thin` does NOT have `BASE_ADDR`.** Its address map is
-runtime-programmable through input ports, and it carries its own set of
-parameters:
-
-| Parameter / Port | Default | Description |
-|------------------|---------|-------------|
-| `M`, `S` (params) | 2, 4 | master / slave counts |
-| `MAX_THRESH` (param) | 16 | weighted-RR threshold range |
-| `MST_APB5`, `SLV_APB5` (params) | '0 | per-port APB5 masks |
-| `ENABLE_PARITY` (param) | 0 | end-to-end APB5 parity |
-| `SLAVE_ENABLE` (**port**) | — | per-slave enable, `[S-1:0]` |
-| `SLAVE_ADDR_BASE` (**port**) | — | per-slave window base |
-| `SLAVE_ADDR_LIMIT` (**port**) | — | per-slave window limit |
-| `THRESHOLDS` (**port**) | — | weighted-RR weights, `M x $clog2(MAX_THRESH)` |
-
-Its APB pins are packed arrays (`m_apb_psel[M-1:0]`), not the
-`m0_apb_PSEL` style of the generated variants. Leaving the four decode
-ports undriven means nothing routes.
+Per-slave window size is fixed at 64KB and is not a parameter. An access
+that decodes outside the map completes locally with `PSLVERR` rather than
+stalling the master.
 
 ## Usage Example
 
@@ -218,10 +193,8 @@ All generated crossbars have corresponding test files in `dv/tests/`:
 - `test_apbx_xbar_2to2_mixed.py` - all four version pairings on the generated
   mixed fabric: sideband value where both ends are APB5, no leak anywhere else,
   plus a structural check that APB4 ports carry no sideband pins
-- `test_apbx_xbar_thin_mixed.py` - the same pairing matrix against
-  `apbx_xbar_thin` with `MST_APB5`/`SLV_APB5` masks
 
-The mixed tests drive their DUT directly; the four legacy tests drive a
+The mixed test drives its DUT directly; the four legacy tests drive a
 `rtl/wrappers/*_wrap.sv` scaffold. Those wrappers are hand-written testbench
 scaffolding, not generator output, so a variant gets one only when a test
 needs it.
@@ -299,22 +272,22 @@ if M < 1 or M > 16:  # Change 16 to desired max
 
 ## Not implemented
 
-- **APB5 parity across the GENERATED variants** (1to1/2to1/1to4/2to4).
-  Their boundary IP deconstructs each transfer into cmd/rsp, so parity
-  terminates there and is instantiated with `ENABLE_PARITY=0`.
-  `apbx_xbar_thin` is the exception: it passes parity END TO END
-  (APBX-003, `ENABLE_PARITY` parameter) because it is a combinational
-  mux that never modifies the payload. (There is no `PSELPARITY` signal
-  in this library -- the APB5 parity pins are `paddrparity`,
-  `pwdataparity`, `pctrlparity`, `prdataparity`, `preadyparity`,
-  `pslverrparity`.)
-- **Version gating IS formally proven** for the thin core:
-  `formal/apbx_xbar/apbx_xbar_thin_mixed` runs the mixed configuration
-  (m0=APB4, m1=APB5, s0=APB5, s1=APB4) with `ENABLE_PARITY=1` and
-  asserts that APB4 ports never see sideband or parity in either
-  direction. The sibling `apbx_xbar_thin` harness proves the all-APB4
-  build. What is NOT yet proven formally: the generated MtoN variants
-  beyond their existing all-APB4 harnesses.
+- **End-to-end APB5 parity.** Every variant's boundary IP deconstructs
+  each transfer into cmd/rsp, so parity terminates there and the IP is
+  instantiated with `ENABLE_PARITY=0`. A variant built with
+  `enable_parity` CHECKS parity at the boundary and REGENERATES it on
+  the far side; the cmd/rsp fabric between the two is outside the
+  protected domain, which is why each port exposes its own
+  `parity_error_*` output. (There is no `PSELPARITY` signal in this
+  library -- the APB5 parity pins are `paddrparity`, `pwdataparity`,
+  `pctrlparity`, `prdataparity`, `preadyparity`, `pslverrparity`.)
+- **Formal proof of version gating.** The four formal harnesses
+  (`apbx_xbar_{1to1,2to1,1to4,2to4}`) all run all-APB4 configurations.
+  Mixed-version gating was previously proven only through the retired
+  thin core's harnesses, which were deleted with it on 2026-08-27, so
+  that proof no longer exists. Mixed gating is currently covered by
+  simulation alone (`test_apbx_xbar_2to2_mixed.py`), including the
+  structural check that APB4 ports carry no sideband pins.
 
 ---
 

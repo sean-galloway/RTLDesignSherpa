@@ -57,8 +57,7 @@ def generate_apbx_xbar(num_masters, num_slaves, base_addr=0x10000000,
         slave_size: Address space per slave (default 0x1000 = 4KB)
                     Common values: 0x1000 (4KB), 0x10000 (64KB)
         enable_parity: Carry APB5 parity on APB5 ports (APBX-003).
-                    Unlike apbx_xbar_thin, which passes parity through
-                    end to end, a generated variant CHECKS it at the
+                    A generated variant CHECKS parity at the
                     boundary and REGENERATES it on the far side -- the
                     boundary IP deconstructs the transfer into cmd/rsp
                     and the parity bits do not cross that interface.
