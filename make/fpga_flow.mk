@@ -483,7 +483,17 @@ clean:              ## Remove Vivado artifacts, reports and the bitstream
 	rm -f  $(SELF_DIR)/vivado_*.backup.log $(SELF_DIR)/vivado_*.backup.jou
 	rm -f  $(SELF_DIR)/vivado_pid*.str $(SELF_DIR)/hs_err_pid*.log
 
-clean-all: clean    ## clean + logs + Python bytecode
+# Verilator build trees for this area's cosims. fpga_flow.mk had NO target for
+# these -- `clean` only removes Vivado artifacts -- so anyone wanting a cold
+# cosim typed `rm -rf .../local_sim_build` by hand, which is precisely the
+# blunt recursive delete that has taken out other sessions' in-flight builds
+# (vault/Tasks/amba/open.md). Having the target exist is most of the fix: the
+# hand-rolled command was written because there was nothing to call.
+.PHONY: clean-build
+clean-build:        ## Remove cosim Verilator build trees (skips live runs)
+	@$(PYTHON) $(REPO_ROOT)/bin/clean_sim_builds.py $(SELF_DIR)
+
+clean-all: clean clean-build   ## clean + sim builds + logs + Python bytecode
 	@echo "[clean-all] $(FLOW)"
 	@find $(SELF_DIR) -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@find $(SELF_DIR) -type f -name "*.pyc" -delete 2>/dev/null || true

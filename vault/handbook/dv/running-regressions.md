@@ -104,5 +104,42 @@ it into a flat parallel sweep.
 lower than last time, tests did not run; that is a failure even when nothing
 is red.
 
+## A shared worktree makes "clean" a claim you have to check
+
+Two things bite here, and both are silent.
+
+**Cleanup can delete a run that is still going.** `clean-build` used to be
+`rm -rf` plus a recursive `find ... -exec rm -rf {} +` across the subtree, and
+`fpga_flow.mk` had no sim-build target at all, so anyone wanting a cold cosim
+typed the `rm -rf` by hand. Either way a concurrent session's in-flight build
+disappears, and the failure does not look like a deletion -- it surfaces as a
+missing file inside Verilator, or a model that finishes and is simply wrong.
+`vault/Tasks/amba/open.md` records three occurrences before the cause was
+found. Both targets now call `bin/clean_sim_builds.py`, which reads the
+`.sim_busy` marker `sim_build_path()` writes and skips directories whose owning
+pid is still alive, reporting what it skipped. Liveness is the test, not
+session identity: everyone who has not set `SIM_BUILD_ROOT` is `session=shared`,
+so an "is it mine?" check compares 'shared' to 'shared' and cleans straight
+through a live build.
+
+**The framework can move underneath a long run.** cocotb re-imports per test,
+so a mid-run edit to `CocoTBFramework` means early and late cases ran different
+code -- and the run still reports one number. Fingerprint it:
+
+    find <site-packages>/CocoTBFramework -name '*.py' | sort | xargs md5sum | md5sum
+
+before and after. It costs seconds. Measured 2026-08-28: two consecutive
+68-minute `build-perf` runs were BOTH caught this way, the second after
+deliberately waiting for the tree to settle. Without the check the second would
+have been reported as clean, with more confidence than the first.
+
+When the hashes differ, do not simply re-run -- a third attempt in a shared
+worktree is as likely to be dirty as the first two. Ask instead what actually
+moved and whether the suite touches it. Both those runs scored 36/36 under
+different `gaxi_slave` states, and nothing under `val/` or `bin/TBClasses/`
+passes `ready_policy`, so the churn was provably inert. Two agreeing runs
+under different framework states is stronger evidence than one pristine run,
+and it is evidence you can actually obtain.
+
 Related: [[seeds-and-determinism]] (a rerun that changes seeds is not a
 reproduction), [[bfm-usage]], [[coverage]].

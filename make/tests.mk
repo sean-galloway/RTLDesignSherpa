@@ -230,10 +230,16 @@ clean-pycache:
 	@find . -type f -name '*.pyc' -delete
 	@echo "cleaned: __pycache__"
 
+# Marker-aware: skips build dirs a LIVE run is using and says whose they are.
+# This used to be `rm -rf` plus a recursive find-and-destroy, which in a shared
+# worktree deleted other sessions' in-flight builds -- and the resulting
+# failure did not look like a deletion, it looked like a corrupt model or a
+# missing file somewhere inside Verilator. Three occurrences before the cause
+# was found (vault/Tasks/amba/open.md). Putting the check HERE means every
+# caller is safe without remembering a rule, including `clean-all`, which the
+# repo tells everyone to run before a regression.
 clean-build:
-	@rm -rf local_sim_build/ sim_build/
-	@find . -type d \( -name 'local_sim_build' -o -name 'sim_build' \) -exec rm -rf {} + 2>/dev/null || true
-	@echo "cleaned: sim build dirs"
+	@$(PYTHON) $(RDS_ROOT)/bin/clean_sim_builds.py $(CURDIR)
 
 clean-waves:
 	@find . -type f \( -name '*.vcd' -o -name '*.fst' \) -delete
@@ -255,6 +261,7 @@ clean: clean-all
 # Makefile.
 # ------------------------------------------------------------------------------
 RDS_ROOT       ?= $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel))
+PYTHON         ?= python3
 COV_REPORT_DIR ?= coverage_reports
 .PHONY: coverage-report
 coverage-report:
