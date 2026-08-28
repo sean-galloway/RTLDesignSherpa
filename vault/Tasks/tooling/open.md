@@ -2,43 +2,6 @@
 
 # Tooling tasks — open (not started)
 
-### TOOL-012: Burn down --blindspots, then make it a gate
-**Priority:** P2
-**Status:** open 2026-07-26 (measured at `0928fb0b`)
-
-`filelist_registry.py --blindspots` exists now and reports **516 findings**. The
-check is the easy part; this task is the backlog it revealed and the gate that
-keeps it at zero.
-
-| n | class | shape of the fix |
-|---|---|---|
-| 387 | `.sby` harnesses with dead source paths, across 149 files | nearly all math-split fallout. Generate `[script]`/`[files]` from the area's filelist, as the four `apb*_slave_cdc` harnesses now are (`6eab2377`) |
-| 128 | tests building their own `verilog_sources` array | swap to `get_sources_from_filelist`. Three of these were silently BROKEN when found, so treat each as suspect, not cosmetic |
-| 1 | unregistered filelist: `ddr2_char_macro.f` | one line in `filelists.toml`, same as `flows-stream-monitor` in `50e4335d`. It is a real module (wraps the AXI4 char engines + pumice controller) |
-
-**Why this matters more than the count suggests.** Every one of these is a place
-where `--check` and `--audit` report PASS over something they cannot see. That
-is exactly how `rtl/cdc` sat uncovered, how three wavedrom tests stayed broken
-for a day, and how four formal harnesses went without `gaxi_fifo_async` and its
-whole dependency tree.
-
-**Order:** the 128 tests first — they are the class that hides *broken* things,
-not merely uncovered ones. The 387 harness paths are one mechanical pass over
-`formal/common/math_*` once someone confirms where the math sources moved.
-
-**The gate is already in** (`9d0a0c60`), so this task is now burn-down only.
-`.github/workflows/filelist-checks.yml` runs on push to main and every PR:
-`--check` and `--audit` as hard gates, `--blindspots --ratchet` against
-`bin/blindspots_baseline.json`. A NEW violation fails the build today; the
-backlog below blocks nobody. `bin/hooks/pre-commit` is the optional local mirror
-(`ln -sf ../../bin/hooks/pre-commit .git/hooks/pre-commit`).
-
-**Lower the baseline as you burn down** --
-`python3 bin/filelist_registry.py --blindspots --update-baseline` -- so the
-count can never silently regrow. Do not raise it; the fix is to use a filelist.
-See [[filelists]].
-
----
 
 ### TOOL-002: Migrate the remaining method docs out of bin/ into the handbook
 **Priority:** P2
