@@ -28,6 +28,11 @@ if _repo_root not in sys.path:
 
 from TBClasses.shared.tbbase import TBBase  # noqa: E402
 
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
+
 
 class PumiceWrDataCamTB(TBBase):
     def __init__(self, dut):
@@ -49,16 +54,13 @@ class PumiceWrDataCamTB(TBBase):
     async def setup_clocks_and_reset(self):
         await self.start_clock('aclk', freq=10, units='ns')
         self._drive_idle()
+        self._build_bfms()
         await self.assert_reset()
         await self.wait_clocks('aclk', 5)
         await self.deassert_reset()
         await self.wait_clocks('aclk', 5)
-        cocotb.start_soon(self._mon_stream(self.dut.snarf_rd_valid_o, self.dut.snarf_rd_ready_i,
-                                           self.dut.snarf_rd_data_o, self.dut.snarf_rd_last_o,
-                                           self.snarf_out))
-        cocotb.start_soon(self._mon_stream(self.dut.cm_rd_valid_o, self.dut.cm_rd_ready_i,
-                                           self.dut.cm_rd_data_o, self.dut.cm_rd_last_o,
-                                           self.cm_out))
+        cocotb.start_soon(self._mon_stream(self.snarf_rd_bfm, self.snarf_out))
+        cocotb.start_soon(self._mon_stream(self.cm_rd_bfm, self.cm_out))
 
     async def assert_reset(self):
         self.dut.aresetn.value = 0
@@ -66,16 +68,48 @@ class PumiceWrDataCamTB(TBBase):
     async def deassert_reset(self):
         self.dut.aresetn.value = 1
 
+    def _build_bfms(self, profile="backtoback"):
+        """BFMs for the four real handshakes. snarf_probe_* and sched_lu_*
+        are NOT handshakes (valid with no ready -- combinational lookup
+        requests), so they stay hand-driven below."""
+        SW = self.AXI_DATA_WIDTH // 8
+        self.ins_bfm = fub_producer(
+            self.dut, "ins", self.dut.aclk, profile=profile, log=self.log,
+            valid="ins_valid_i", ready="ins_ready_o",
+            fields={'bank': ("ins_bank_i", max(1, len(self.dut.ins_bank_i))),
+                    'row':  ("ins_row_i",  max(1, len(self.dut.ins_row_i))),
+                    'col':  ("ins_col_i",  max(1, len(self.dut.ins_col_i))),
+                    'id':   ("ins_id_i",   max(1, len(self.dut.ins_id_i)))})
+        self.wd_bfm = fub_producer(
+            self.dut, "wd", self.dut.aclk, profile=profile, log=self.log,
+            valid="wd_valid_i", ready="wd_ready_o",
+            fields={'data': ("wd_data_i", self.AXI_DATA_WIDTH),
+                    'strb': ("wd_strb_i", SW),
+                    'last': ("wd_last_i", 1)})
+        self.commit_bfm = fub_producer(
+            self.dut, "commit", self.dut.aclk, profile=profile, log=self.log,
+            valid="commit_valid_i", ready="commit_ready_o",
+            fields={'slot': ("commit_slot_i", max(1, len(self.dut.commit_slot_i)))})
+        self.snarf_rd_bfm = fub_consumer(
+            self.dut, "snarf_rd", self.dut.aclk, profile=profile, log=self.log,
+            valid="snarf_rd_valid_o", ready="snarf_rd_ready_i",
+            fields={'data': ("snarf_rd_data_o", self.AXI_DATA_WIDTH),
+                    'last': ("snarf_rd_last_o", 1)})
+        self.cm_rd_bfm = fub_consumer(
+            self.dut, "cm_rd", self.dut.aclk, profile=profile, log=self.log,
+            valid="cm_rd_valid_o", ready="cm_rd_ready_i",
+            fields={'data': ("cm_rd_data_o", self.AXI_DATA_WIDTH),
+                    'strb': ("cm_rd_strb_o", SW),
+                    'last': ("cm_rd_last_o", 1)})
+
+    def set_snarf_rd_ready(self, accepting: bool):
+        self.snarf_rd_bfm.set_ready_policy('always' if accepting else 'stall')
+
+    def set_cm_rd_ready(self, accepting: bool):
+        self.cm_rd_bfm.set_ready_policy('always' if accepting else 'stall')
+
     def _drive_idle(self):
-        self.dut.ins_valid_i.value = 0
-        self.dut.ins_bank_i.value = 0
-        self.dut.ins_row_i.value = 0
-        self.dut.ins_col_i.value = 0
-        self.dut.ins_id_i.value = 0
-        self.dut.wd_valid_i.value = 0
-        self.dut.wd_data_i.value = 0
-        self.dut.wd_strb_i.value = (1 << (self.AXI_DATA_WIDTH // 8)) - 1
-        self.dut.wd_last_i.value = 0
+        # ins / wd / commit / snarf_rd / cm_rd are all BFM-owned.
         self.dut.snarf_probe_valid_i.value = 0
         self.dut.snarf_probe_bank_i.value = 0
         self.dut.snarf_probe_row_i.value = 0
@@ -83,47 +117,31 @@ class PumiceWrDataCamTB(TBBase):
         self.dut.snarf_probe_id_i.value = 0
         self.dut.snarf_probe_len_i.value = self.BL - 1   # matching burst length
         self.dut.snarf_accept_i.value = 0
-        self.dut.snarf_rd_ready_i.value = 1
         self.dut.sched_lu_valid_i.value = 0
         self.dut.sched_lu_bank_i.value = 0
         self.dut.sched_lu_row_i.value = 0
-        self.dut.commit_valid_i.value = 0
-        self.dut.commit_slot_i.value = 0
-        self.dut.cm_rd_ready_i.value = 1
 
-    async def _mon_stream(self, val, rdy, data, last, out):
+    async def _mon_stream(self, bfm, out):
+        """Reshape a consumer BFM's captures into per-burst lists."""
         cur = []
         while True:
             await RisingEdge(self.dut.aclk)
-            if int(val.value) and int(rdy.value):
-                cur.append(int(data.value))
-                if int(last.value):
+            while bfm._recvQ:
+                p = bfm._recvQ.popleft()
+                cur.append(p.data)
+                if p.last:
                     out.append(cur)
                     cur = []
 
     # ---- insert + fill ------------------------------------------------------
     async def write_entry(self, bank, row, col, wid, data):
-        # insert command
-        self.dut.ins_bank_i.value = bank
-        self.dut.ins_row_i.value = row
-        self.dut.ins_col_i.value = col
-        self.dut.ins_id_i.value = wid
-        self.dut.ins_valid_i.value = 1
-        await RisingEdge(self.dut.aclk)
-        while int(self.dut.ins_ready_o.value) == 0:
-            await RisingEdge(self.dut.aclk)
-        self.dut.ins_valid_i.value = 0
-        # fill data beats
+        SW = self.AXI_DATA_WIDTH // 8
+        await self.ins_bfm.send(self.ins_bfm.create_packet(
+            bank=bank, row=row, col=col, id=wid))
         n = len(data)
         for i, d in enumerate(data):
-            self.dut.wd_data_i.value = d
-            self.dut.wd_last_i.value = 1 if i == n - 1 else 0
-            self.dut.wd_valid_i.value = 1
-            await RisingEdge(self.dut.aclk)
-            while int(self.dut.wd_ready_o.value) == 0:
-                await RisingEdge(self.dut.aclk)
-        self.dut.wd_valid_i.value = 0
-        self.dut.wd_last_i.value = 0
+            await self.wd_bfm.send(self.wd_bfm.create_packet(
+                data=d, strb=(1 << SW) - 1, last=1 if i == n - 1 else 0))
 
     # ---- oldest port --------------------------------------------------------
     def oldest(self):
@@ -201,12 +219,7 @@ class PumiceWrDataCamTB(TBBase):
 
     # ---- commit -------------------------------------------------------------
     async def commit(self, slot):
-        while int(self.dut.commit_ready_o.value) == 0:
-            await RisingEdge(self.dut.aclk)
-        self.dut.commit_slot_i.value = slot
-        self.dut.commit_valid_i.value = 1
-        await RisingEdge(self.dut.aclk)
-        self.dut.commit_valid_i.value = 0
+        await self.commit_bfm.send(self.commit_bfm.create_packet(slot=slot))
         for _ in range(200):
             if self.cm_out:
                 return self.cm_out.popleft()

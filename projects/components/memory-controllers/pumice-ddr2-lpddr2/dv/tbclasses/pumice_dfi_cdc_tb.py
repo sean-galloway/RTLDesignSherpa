@@ -28,6 +28,11 @@ if _repo_root not in sys.path:
 
 from TBClasses.shared.tbbase import TBBase  # noqa: E402
 
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
+
 
 class PumiceDfiCdcTB(TBBase):
     def __init__(self, dut):
@@ -43,6 +48,7 @@ class PumiceDfiCdcTB(TBBase):
         # Two ASYNCHRONOUS clocks at different rates.
         cocotb.start_soon(Clock(self.dut.ctl_clk, ctl_ns, units='ns').start())
         cocotb.start_soon(Clock(self.dut.dfi_clk, dfi_ns, units='ns').start())
+        self._build_bfms()
         self._idle()
         self.dut.ctl_rstn.value = 0
         self.dut.dfi_rstn.value = 0
@@ -56,62 +62,72 @@ class PumiceDfiCdcTB(TBBase):
         cocotb.start_soon(self._phy_wd_sink())
         cocotb.start_soon(self._ctl_rd_sink())
 
+    def _build_bfms(self, profile="backtoback"):
+        """BFMs on both sides of the CDC. Each is bound to ITS OWN clock --
+        cmd/wd/rd are ctl_clk, pcmd/pwd/prd are dfi_clk. Getting that wrong
+        is the whole hazard this fub exists to test, so it is explicit.
+
+        init_start_i / pinit_complete_i are level handshake-free control
+        signals (no ready), so they stay hand-driven.
+        """
+        ctl, dfi = self.dut.ctl_clk, self.dut.dfi_clk
+        self.cmd_bfm = fub_producer(
+            self.dut, "cmd", ctl, profile=profile, log=self.log,
+            valid="cmd_valid_i", ready="cmd_ready_o",
+            fields={'data': ("cmd_data_i", max(1, len(self.dut.cmd_data_i)))})
+        self.wd_bfm = fub_producer(
+            self.dut, "wd", ctl, profile=profile, log=self.log,
+            valid="wd_valid_i", ready="wd_ready_o",
+            fields={'data': ("wd_data_i", max(1, len(self.dut.wd_data_i)))})
+        self.prd_bfm = fub_producer(
+            self.dut, "prd", dfi, profile=profile, log=self.log,
+            valid="prd_valid_i", ready="prd_ready_o",
+            fields={'data': ("prd_data_i", max(1, len(self.dut.prd_data_i)))})
+        self.rd_bfm = fub_consumer(
+            self.dut, "rd", ctl, profile=profile, log=self.log,
+            valid="rd_valid_o", ready="rd_ready_i",
+            fields={'data': ("rd_data_o", max(1, len(self.dut.rd_data_o)))})
+        self.pcmd_bfm = fub_consumer(
+            self.dut, "pcmd", dfi, profile=profile, log=self.log,
+            valid="pcmd_valid_o", ready="pcmd_ready_i",
+            fields={'data': ("pcmd_data_o", max(1, len(self.dut.pcmd_data_o)))})
+        self.pwd_bfm = fub_consumer(
+            self.dut, "pwd", dfi, profile=profile, log=self.log,
+            valid="pwd_valid_o", ready="pwd_ready_i",
+            fields={'data': ("pwd_data_o", max(1, len(self.dut.pwd_data_o)))})
+
     def _idle(self):
-        self.dut.cmd_valid_i.value = 0
-        self.dut.cmd_data_i.value = 0
-        self.dut.wd_valid_i.value = 0
-        self.dut.wd_data_i.value = 0
+        # Every valid/ready port is BFM-owned; only the two level controls
+        # remain.
         self.dut.init_start_i.value = 0
-        self.dut.rd_ready_i.value = 1
-        self.dut.pcmd_ready_i.value = 1
-        self.dut.pwd_ready_i.value = 1
-        self.dut.prd_valid_i.value = 0
-        self.dut.prd_data_i.value = 0
         self.dut.pinit_complete_i.value = 0
 
     # ---- sinks --------------------------------------------------------------
-    async def _phy_cmd_sink(self):
+    async def _sink(self, bfm, clk, out):
+        """Drain a consumer BFM's captures into `out`, in order."""
         while True:
-            await RisingEdge(self.dut.dfi_clk)
-            if int(self.dut.pcmd_valid_o.value) and int(self.dut.pcmd_ready_i.value):
-                self.cmd_seen.append(int(self.dut.pcmd_data_o.value))
+            await RisingEdge(clk)
+            while bfm._recvQ:
+                out.append(bfm._recvQ.popleft().data)
+
+    async def _phy_cmd_sink(self):
+        await self._sink(self.pcmd_bfm, self.dut.dfi_clk, self.cmd_seen)
 
     async def _phy_wd_sink(self):
-        while True:
-            await RisingEdge(self.dut.dfi_clk)
-            if int(self.dut.pwd_valid_o.value) and int(self.dut.pwd_ready_i.value):
-                self.wd_seen.append(int(self.dut.pwd_data_o.value))
+        await self._sink(self.pwd_bfm, self.dut.dfi_clk, self.wd_seen)
 
     async def _ctl_rd_sink(self):
-        while True:
-            await RisingEdge(self.dut.ctl_clk)
-            if int(self.dut.rd_valid_o.value) and int(self.dut.rd_ready_i.value):
-                self.rd_seen.append(int(self.dut.rd_data_o.value))
+        await self._sink(self.rd_bfm, self.dut.ctl_clk, self.rd_seen)
 
     # ---- drivers ------------------------------------------------------------
     async def push_cmd(self, vals):
         for v in vals:
-            self.dut.cmd_data_i.value = v
-            self.dut.cmd_valid_i.value = 1
-            await RisingEdge(self.dut.ctl_clk)
-            while int(self.dut.cmd_ready_o.value) == 0:
-                await RisingEdge(self.dut.ctl_clk)
-        self.dut.cmd_valid_i.value = 0
+            await self.cmd_bfm.send(self.cmd_bfm.create_packet(data=v))
 
     async def push_wd(self, vals):
         for v in vals:
-            self.dut.wd_data_i.value = v
-            self.dut.wd_valid_i.value = 1
-            await RisingEdge(self.dut.ctl_clk)
-            while int(self.dut.wd_ready_o.value) == 0:
-                await RisingEdge(self.dut.ctl_clk)
-        self.dut.wd_valid_i.value = 0
+            await self.wd_bfm.send(self.wd_bfm.create_packet(data=v))
 
     async def push_rd(self, vals):
         for v in vals:
-            self.dut.prd_data_i.value = v
-            self.dut.prd_valid_i.value = 1
-            await RisingEdge(self.dut.dfi_clk)
-            while int(self.dut.prd_ready_o.value) == 0:
-                await RisingEdge(self.dut.dfi_clk)
-        self.dut.prd_valid_i.value = 0
+            await self.prd_bfm.send(self.prd_bfm.create_packet(data=v))

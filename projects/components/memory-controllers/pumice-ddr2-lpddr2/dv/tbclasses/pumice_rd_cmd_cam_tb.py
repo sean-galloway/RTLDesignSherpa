@@ -25,6 +25,11 @@ if _repo_root not in sys.path:
 
 from TBClasses.shared.tbbase import TBBase  # noqa: E402
 
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
+
 
 class PumiceRdCmdCamTB(TBBase):
     def __init__(self, dut):
@@ -44,6 +49,7 @@ class PumiceRdCmdCamTB(TBBase):
     async def setup_clocks_and_reset(self):
         await self.start_clock('aclk', freq=10, units='ns')
         self._drive_idle()
+        self._build_bfms()
         await self.assert_reset()
         await self.wait_clocks('aclk', 5)
         await self.deassert_reset()
@@ -57,44 +63,60 @@ class PumiceRdCmdCamTB(TBBase):
         self.dut.aresetn.value = 1
 
     def _drive_idle(self):
-        self.dut.ins_valid_i.value = 0
-        self.dut.ins_bank_i.value = 0
-        self.dut.ins_row_i.value = 0
-        self.dut.ins_col_i.value = 0
-        self.dut.ins_id_i.value = 0
+        # ins / issue / dfi_ret / drain are BFM-owned (see _build_bfms).
+        # sched_lu_* is NOT a handshake -- sched_lu_valid_i has no matching
+        # ready, it is a combinational lookup request -- so it stays here.
         self.dut.sched_lu_valid_i.value = 0
         self.dut.sched_lu_bank_i.value = 0
         self.dut.sched_lu_row_i.value = 0
-        self.dut.issue_valid_i.value = 0
-        self.dut.issue_slot_i.value = 0
-        self.dut.dfi_ret_valid_i.value = 0
-        self.dut.dfi_ret_data_i.value = 0
-        self.dut.dfi_ret_resp_i.value = 0
-        self.dut.dfi_ret_last_i.value = 0
-        self.dut.drain_ready_i.value = 1
+
+    def _build_bfms(self, profile="backtoback"):
+        self.ins_bfm = fub_producer(
+            self.dut, "ins", self.dut.aclk, profile=profile, log=self.log,
+            valid="ins_valid_i", ready="ins_ready_o",
+            fields={'bank': ("ins_bank_i", max(1, len(self.dut.ins_bank_i))),
+                    'row':  ("ins_row_i",  max(1, len(self.dut.ins_row_i))),
+                    'col':  ("ins_col_i",  max(1, len(self.dut.ins_col_i))),
+                    'id':   ("ins_id_i",   max(1, len(self.dut.ins_id_i)))})
+        self.issue_bfm = fub_producer(
+            self.dut, "issue", self.dut.aclk, profile=profile, log=self.log,
+            valid="issue_valid_i", ready="issue_ready_o",
+            fields={'slot': ("issue_slot_i", max(1, len(self.dut.issue_slot_i)))})
+        self.dfi_ret_bfm = fub_producer(
+            self.dut, "dfi_ret", self.dut.aclk, profile=profile, log=self.log,
+            valid="dfi_ret_valid_i", ready="dfi_ret_ready_o",
+            fields={'data': ("dfi_ret_data_i", max(1, len(self.dut.dfi_ret_data_i))),
+                    'resp': ("dfi_ret_resp_i", 2),
+                    'last': ("dfi_ret_last_i", 1)})
+        self.drain_bfm = fub_consumer(
+            self.dut, "drain", self.dut.aclk, profile=profile, log=self.log,
+            valid="drain_valid_o", ready="drain_ready_i",
+            fields={'id':   ("drain_id_o",   max(1, len(self.dut.drain_id_o))),
+                    'data': ("drain_data_o", max(1, len(self.dut.drain_data_o))),
+                    'resp': ("drain_resp_o", 2),
+                    'last': ("drain_last_o", 1)})
+
+    def set_drain_ready(self, accepting: bool):
+        """Consumer-side backpressure on drain, through the BFM."""
+        self.drain_bfm.set_ready_policy('always' if accepting else 'stall')
 
     async def _mon_drain(self):
+        """Reshape the drain BFM's captures into per-burst lists."""
         cur = []
         while True:
             await RisingEdge(self.dut.aclk)
-            if int(self.dut.drain_valid_o.value) and int(self.dut.drain_ready_i.value):
-                cur.append((int(self.dut.drain_id_o.value),
-                            int(self.dut.drain_data_o.value),
-                            int(self.dut.drain_resp_o.value)))
-                if int(self.dut.drain_last_o.value):
+            while self.drain_bfm._recvQ:
+                p = self.drain_bfm._recvQ.popleft()
+                cur.append((p.id, p.data, p.resp))
+                if p.last:
                     self.drain_out.append(cur)
                     cur = []
 
     async def insert(self, bank, row, col, rid):
-        self.dut.ins_bank_i.value = bank
-        self.dut.ins_row_i.value = row
-        self.dut.ins_col_i.value = col
-        self.dut.ins_id_i.value = rid
-        self.dut.ins_valid_i.value = 1
-        await RisingEdge(self.dut.aclk)
-        while int(self.dut.ins_ready_o.value) == 0:
-            await RisingEdge(self.dut.aclk)
-        self.dut.ins_valid_i.value = 0
+        """Insert via the BFM, which holds valid until ins_ready_o -- what
+        the protocol requires of a producer."""
+        await self.ins_bfm.send(self.ins_bfm.create_packet(
+            bank=bank, row=row, col=col, id=rid))
 
     def oldest(self):
         return (int(self.dut.oldest_valid_o.value),
@@ -129,22 +151,10 @@ class PumiceRdCmdCamTB(TBBase):
         return out
 
     async def issue(self, slot):
-        while int(self.dut.issue_ready_o.value) == 0:
-            await RisingEdge(self.dut.aclk)
-        self.dut.issue_slot_i.value = slot
-        self.dut.issue_valid_i.value = 1
-        await RisingEdge(self.dut.aclk)
-        self.dut.issue_valid_i.value = 0
+        await self.issue_bfm.send(self.issue_bfm.create_packet(slot=slot))
 
     async def dfi_return(self, data, resp=0):
         n = len(data)
         for i, d in enumerate(data):
-            self.dut.dfi_ret_data_i.value = d
-            self.dut.dfi_ret_resp_i.value = resp
-            self.dut.dfi_ret_last_i.value = 1 if i == n - 1 else 0
-            self.dut.dfi_ret_valid_i.value = 1
-            await RisingEdge(self.dut.aclk)
-            while int(self.dut.dfi_ret_ready_o.value) == 0:
-                await RisingEdge(self.dut.aclk)
-        self.dut.dfi_ret_valid_i.value = 0
-        self.dut.dfi_ret_last_i.value = 0
+            await self.dfi_ret_bfm.send(self.dfi_ret_bfm.create_packet(
+                data=d, resp=resp, last=1 if i == n - 1 else 0))
