@@ -239,8 +239,6 @@ Clock Domain A (Fast)    Clock Domain B (Slow)
 - **APB Bridges** - Protocol conversion examples
 - **AXI Systems** - Multi-component integration
 
-**Tests:** [`val/integ_common/`](../../val/integ_common) | [`val/integ_amba/`](../../val/integ_amba)
-
 ---
 
 ### Level 4: Production Components
@@ -553,11 +551,7 @@ pytest projects/components/retro_legacy_blocks/dv/tests/test_apb4_hpet.py -v
 - [AMBA CLAUDE Guide](../../rtl/amba/CLAUDE.md) - Implementation patterns
 - [AMBA Tests](../../val/amba) - Protocol compliance tests
 
-**Level 3 - Integration:**
-- [Integration Examples](../../rtl/integ_amba) - Working multi-module designs
-- [Integration Tests](../../val/integ_amba) - System-level verification
-
-**Level 4 - Components:**
+**Level 3 - Components:**
 - [Component Index](projects/index.md) - All components
 - [Component Overview](projects/overview.md) - Design patterns
 - [Retro Legacy Blocks](../../projects/components/retro_legacy_blocks/README.md) - Legacy peripheral collection

@@ -67,11 +67,6 @@ Arithmetic, split out of rtl-common:
 
 *171 modules*
 
-#### **[RTL Integration Examples](rtl-integ-common/index.md)**
-Worked examples that wire library blocks together, rather than primitives:
-- **[rtl-integ-common](rtl-integ-common/index.md)**: multi-field FIFO wrappers over `fifo_sync` (2 modules)
-- **[rtl-integ-amba](rtl-integ-amba/index.md)**: monitored APB fabrics, showing where an `apb4_monitor` attaches (2 modules -- **currently not building**, see AMBA-INTEG-EXAMPLES)
-
 #### **[RTL Clock Domain Crossing](rtl-cdc/index.md)**
 Everything whose job is crossing a clock boundary:
 - **Synchronizer and handshakes**: `cdc_synchronizer`, 2-phase and 4-phase, open-loop
@@ -252,7 +247,6 @@ RTL Design Sherpa is built on solid technical foundations inspired by industry-l
 - **[RTL Common Modules](rtl-common/index.md)** - Fundamental digital design building blocks
 - **[RTL Math Library](rtl-math/index.md)** - Adders, multipliers, floating-point formats
 - **[RTL Clock Domain Crossing](rtl-cdc/index.md)** - Synchronizers, handshakes, async FIFOs
-- **[RTL Integration Examples](rtl-integ-common/index.md)** - Worked compositions of the libraries above
 - **[RTL AMBA Protocols](rtl-amba/index.md)** - Complete AMBA protocol implementation
 
 ### 🧪 **Verification and Testing**

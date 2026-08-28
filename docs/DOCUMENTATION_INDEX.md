@@ -97,11 +97,10 @@ Specs live WITH their components, not here:
    CDC, data integrity) and `rtl/math/` (integer + floating-point arithmetic)
 2. **AMBA protocol infrastructure** - `rtl/amba/` (APB, AXI4, AXI4-Lite,
    AXI-Stream, monitors, monbus)
-3. **Integration examples** - `rtl/integ_common/`, `rtl/integ_amba/`
-4. **Production components** - `projects/components/` (STREAM and RAPIDS
+3. **Production components** - `projects/components/` (STREAM and RAPIDS
    DMAs, Bridge, APB crossbars, Retro Legacy Blocks, pumice memory
    controller)
-5. **Complete FPGA projects** - `projects/NexysA7/` characterization
+4. **Complete FPGA projects** - `projects/NexysA7/` characterization
    campaigns (Nexys A7 and Genesys 2)
 
 ---

@@ -131,9 +131,9 @@ the three agree.
 - **[fifo_sync](fifo_sync.md)** - Synchronous FIFO with configurable depth
 
 `fifo_async` moved to `rtl/cdc/`. Two more wrappers are documented here but
-live in `rtl/integ_common/` — they're integration examples, not library
-modules: [fifo_sync_multi](../rtl-integ-common/fifo_sync_multi.md) and
-[fifo_sync_multi_sigmap](../rtl-integ-common/fifo_sync_multi_sigmap.md).
+lived in `rtl/integ_common/` — integration examples rather than library
+modules. That area was retired in `01d1c3e6` along with `rtl/integ_amba/`;
+the wrappers are recoverable from git history if the pattern is wanted again.
 - **[fifo_control](fifo_control.md)** - FIFO control logic
 
 #### Content Addressable Memory

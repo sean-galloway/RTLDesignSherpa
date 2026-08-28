@@ -141,20 +141,17 @@ Add optional filtering capabilities to reduce monitor packet traffic.
 **Status:** 🔴 Not Started
 **Owner:** TBD
 **Effort:** Medium (2-3 days)
-**Dependencies:** None (APB thin crossbar already works)
+**Dependencies:** None
 
 **Objective:** Get all APB crossbar variants working and tested
 
-**Background:**
-- APB thin crossbar (apbx_xbar_thin_wrap) is functional and tested
-- Buffered/full variants may have issues
-- Need comprehensive testing of all variants
+**Background (STALE — see note):** written when `apbx_xbar_thin` was the
+only proven variant. As of 2026-08-27 all five generated variants
+(1to1/2to1/1to4/2to4/2to2_mixed) pass 8/8 and lint clean, and thin has
+been deleted. **This task looks complete; it needs closing or rescoping
+rather than doing.**
 
 **Requirements:**
-
-1. **Verify Thin Variant (Complete)**
-   - ✅ test_apbx_xbar thin variant PASSED
-   - Works as baseline reference
 
 2. **Fix/Verify Buffered Variants**
    - Test apbx_xbar with buffering enabled
@@ -243,6 +240,39 @@ spine, here are the axes, here are the tweaks."
 
 ---
 
+## AMBA-INTEG-EXAMPLES — CLOSED 2026-08-27: resolved by deletion, plus the residue it left
+**Status:** CLOSED (option 1, "Retire", taken -- see the decision list in the
+original text below)
+
+The RTL was deleted in `01d1c3e6` ("removed old integ_* code that was used for
+bfm development"), which took BOTH `rtl/integ_amba/` and `rtl/integ_common/`.
+Sean asked whether it was already gone; it was -- but the deletion left residue
+in four places and none of the tooling noticed for a month:
+
+  * `bin/filelists.toml` still declared both areas, pointing at directories
+    that no longer existed;
+  * `docs/markdown/rtl-integ-amba/` and `rtl-integ-common/` -- two whole doc
+    books, 4 + 4 pages, documenting deleted modules;
+  * `docs/markdown/index.md` linked both books in two places, one of them
+    still saying "2 modules -- currently not building, see
+    AMBA-INTEG-EXAMPLES";
+  * `docs/DOCUMENTATION_INDEX.md` listed integration examples as repo
+    structure item 3.
+  The review pipeline was still bundling both books, so a future qc round
+  would have spent units reviewing docs for code that does not exist.
+
+ROOT CAUSE, and the reason this is worth reading: `filelist_registry.py
+--check` PASSED the whole time. `rglob("*.sv")` on a missing directory yields
+nothing, so a dead area reports "[OK] 0 modules, 0 uncovered" and passes
+forever. That is the SAME blind-spot class this registry was built to close,
+one level up -- the original task said "a module can hide by having too little,
+not just by being wrong"; it turns out an AREA can hide by not existing.
+Fixed: --check now fails on an rtl_root that is not a directory, mutation-
+verified with an injected ghost area (FAIL, exit 1) and the clean tree still
+PASS.
+
+Original analysis kept below for the record.
+
 ## AMBA-INTEG-EXAMPLES — the two rtl/integ_amba examples are nine months dead
 **Status:** open 2026-07-26
 **Priority:** P2 (nothing depends on them, but `make verilator` at rtl/ is RED)
@@ -286,11 +316,17 @@ So the correct structure is to insert a bridge and tap it:
     raw APB ──> apb4_slave ──cmd/rsp──> fabric
                      └── tap cmd_*/rsp_* ──> apb4_monitor ──> monbus
 
-`apbx_xbar_thin` is raw-APB on both sides (lowercase `s_apb_psel`/`m_apb_psel`),
-which is why `apbx_xbar_monitored` has raw APB in hand and feeds it straight to a
-monitor that stopped accepting it.
+`apbx_xbar_thin` was raw-APB on both sides (lowercase
+`s_apb_psel`/`m_apb_psel`), which is why `apbx_xbar_monitored` had raw APB in
+hand and fed it straight to a monitor that stopped accepting it.
 
-### Decide first, then do
+### RESOLVED — option 1 was taken
+
+`rtl/integ_amba/` was deleted in `01d1c3e6`, and `apbx_xbar_thin` followed on
+2026-08-27. The orphaned `docs/markdown/rtl-integ-amba/apbx_xbar_monitored.md`
+was deleted with it. **Still orphaned and not yet dealt with:**
+`docs/markdown/rtl-integ-amba/` still documents `apb4_peripheral_subsystem`,
+whose RTL is also gone. The options below are kept as the record of the call.
 
 1. **Retire** — delete both and the area. They demonstrate an API that is gone
    and nothing uses them. Cheapest and honest.

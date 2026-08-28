@@ -24,7 +24,7 @@
 # AMBA Protocol Shims
 
 **Location:** `projects/components/converters/rtl/`
-**Test Location:** `val/amba/`, `val/integ_amba/`
+**Test Location:** `val/amba/`
 **Status:** Production (see the module page history for review state)
 
 ---
@@ -497,7 +497,7 @@ pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py -v
 pytest projects/components/converters/dv/tests/test_peakrdl_to_cmdrsp.py -v
 
 # Run all shims tests
-pytest val/amba/test_*shim*.py val/integ_amba/test_*shim*.py -v
+pytest val/amba/test_*shim*.py -v
 
 # Generate waveforms
 pytest projects/components/converters/dv/tests/test_axi2apb4_shim.py --vcd=bridge.vcd -v
@@ -523,7 +523,7 @@ gtkwave bridge.vcd
 ### Source Code
 
 - RTL: `projects/components/converters/rtl/`
-- Tests: `val/amba/test_peakrdl*.py`, `val/integ_amba/test_axi2apb4*.py`
+- Tests: `val/amba/test_peakrdl*.py`
 - Framework: `bin/TBClasses/components/`
 
 ---
