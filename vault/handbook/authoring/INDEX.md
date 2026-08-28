@@ -15,3 +15,6 @@ summary: Documentation practice - external review rounds, voice, and the generat
   waveforms, caption encoding
 - [[module-doc-template]] - the standard section structure for a per-module
   docs/markdown/*.md page (moved out of the RTL tree 2026-07-24)
+- [[checkable-claims]] - every number and duration must be measurable or must
+  not be written; the area-estimate and "long-standing" sweeps, and why the
+  review rounds could not catch either
