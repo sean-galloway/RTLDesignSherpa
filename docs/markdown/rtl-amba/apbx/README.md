@@ -27,9 +27,19 @@ The APB crossbar family. It sits in its own directory rather than under
 `apb4/` or `apb5/` because it is not tied to either: every port carries an
 independent version, so one fabric can be all-APB4, all-APB5, or a mix.
 
-| Page | Covers |
+> **The component's own books are the source of truth.** This page is a
+> pointer, deliberately thin — it carries no parameter tables, timing
+> numbers or variant inventories, because a second copy of those only
+> drifts. A 971-line `apbx_xbar_variants.md` used to live here and did
+> exactly that: it was still documenting decode misses as bus hangs and
+> `BASE_ADDR` as needing span alignment months after both were fixed.
+> Retired 2026-08-28.
+
+| Book | Covers |
 |------|--------|
-| [apbx_xbar_variants.md](apbx_xbar_variants.md) | The generated fixed-configuration crossbars (`1to1`, `2to1`, `1to4`, `2to4`, `2to2_mixed`) built from APB boundary IP |
+| [Micro-Architecture Spec (MAS)](../../../../projects/components/apbx-xbar/docs/apbx_xbar_mas/apbx_xbar_mas_index.md) | Architecture, address decode and arbitration, the RTL generator |
+| [Hardware Architecture Spec (HAS)](../../../../projects/components/apbx-xbar/docs/apbx_xbar_has/) | Use cases, interfaces, performance, integration |
+| [Component README](../../../../projects/components/apbx-xbar/README.md) | Quick start, variant list, generation |
 
 ## One architecture
 
