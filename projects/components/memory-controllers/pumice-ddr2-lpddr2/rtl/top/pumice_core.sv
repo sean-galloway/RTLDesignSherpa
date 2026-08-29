@@ -150,6 +150,10 @@ module pumice_core
     input  logic [7:0]                 t_rcd_i, t_rp_i, t_ras_i, t_rc_i, t_wr_i, t_rtp_i,
     input  logic [7:0]                 t_faw_i, t_rrd_i, t_wtr_i, t_rtw_i, t_ccd_i,
     input  logic [15:0]                t_refi_i,
+    // DV/bring-up knob: pulse to reload the tREFI countdown immediately
+    // with the current t_refi_i (it otherwise reloads only on expiry).
+    // Tie to 0 in production -- no effect unless pulsed.
+    input  logic                       refi_reload_i,
     input  logic [15:0]                t_rfc_i,
     input  logic [3:0]                 refresh_burst_i,
     input  logic [3:0]                 ref_postpone_i,
@@ -453,6 +457,7 @@ module pumice_core
         .t_rtw_i            (t_rtw_i),
         .t_ccd_i            (t_ccd_i),
         .t_refi_i           (t_refi_i),
+        .refi_reload_i      (refi_reload_i),
         .t_rfc_i            (t_rfc_i),
         .refresh_burst_i    (refresh_burst_i),
         .ref_postpone_i     (ref_postpone_i),

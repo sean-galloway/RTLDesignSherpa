@@ -58,6 +58,15 @@ module refresh_ctrl
     input  logic [3:0]  refresh_burst_i,  // 1..8 drain count per req cycle
     input  logic        refpb_mode_i,     // 0 = REFab, 1 = REFpb (LPDDR2)
     input  logic        enable_i,
+    // DV/bring-up knob: pulse to reload the tREFI countdown IMMEDIATELY with
+    // the current t_refi_i. The counter otherwise only reloads on EXPIRY, so
+    // writing a new t_refi_i does not take effect until the already-armed
+    // interval finishes -- which means a test that parks tREFI still eats one
+    // stale refresh, and a test that shortens it waits out the old long one.
+    // That cost three separate debugging rounds (refresh_credit, the write
+    // ceiling, and the drain_burst gate check). Tie to 0 in production: it
+    // has no effect unless pulsed, so the default build is bit-identical.
+    input  logic        refi_reload_i,
 
     // REF_CTRL credits (0 = strict / off)
     input  logic [3:0]  postpone_limit_i, // defer under demand, max 7 effective
@@ -132,7 +141,7 @@ module refresh_ctrl
             r_pullin   <= 4'd0;
         end else begin
             // tREFI countdown — only ticks when enabled (init done).
-            if (!enable_i) begin
+            if (!enable_i || refi_reload_i) begin
                 r_refi_cnt <= w_refi_eff;
             end else if (w_refi_expired) begin
                 r_refi_cnt <= w_refi_eff;

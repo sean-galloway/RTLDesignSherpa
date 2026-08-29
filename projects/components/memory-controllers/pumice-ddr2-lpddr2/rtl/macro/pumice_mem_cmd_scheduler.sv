@@ -97,6 +97,10 @@ module pumice_mem_cmd_scheduler
     input  logic [7:0]                t_rtw_i,
     input  logic [7:0]                t_ccd_i,
     input  logic [15:0]               t_refi_i,
+    // DV/bring-up knob: pulse to reload the tREFI countdown immediately
+    // with the current t_refi_i (it otherwise reloads only on expiry).
+    // Tie to 0 in production -- no effect unless pulsed.
+    input  logic                      refi_reload_i,
     input  logic [15:0]               t_rfc_i,          // mission-mode REF recovery (arbiter)
     input  logic [3:0]                refresh_burst_i,
     input  logic [3:0]                ref_postpone_i,   // REF_CTRL.postpone_limit
@@ -274,6 +278,7 @@ module pumice_mem_cmd_scheduler
         .trefi_pb_i      (ref_trefi_pb_i),
         .refresh_burst_i (refresh_burst_i),
         .refpb_mode_i    (w_refpb_en),
+        .refi_reload_i (refi_reload_i),
         .enable_i        (init_done),
         .postpone_limit_i(ref_postpone_i),
         .pullin_limit_i  (ref_pullin_i),

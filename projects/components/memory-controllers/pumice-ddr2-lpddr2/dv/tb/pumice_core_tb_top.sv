@@ -82,6 +82,7 @@ module pumice_core_tb_top
     input  logic [7:0]       t_rcd_i, t_rp_i, t_ras_i, t_rc_i, t_wr_i, t_rtp_i,
     input  logic [7:0]       t_faw_i, t_rrd_i, t_wtr_i, t_rtw_i, t_ccd_i,
     input  logic [15:0]      t_refi_i,
+    input  logic             refi_reload_i,   // DV: force tREFI reload
     input  logic [15:0]      t_rfc_i,
     input  logic [3:0]       refresh_burst_i,
     input  logic [15:0]      t_init_wait_i, t_dll_wait_i,
@@ -192,7 +193,8 @@ module pumice_core_tb_top
         .t_rcd_i(t_rcd_i), .t_rp_i(t_rp_i), .t_ras_i(t_ras_i), .t_rc_i(t_rc_i),
         .t_wr_i(t_wr_i), .t_rtp_i(t_rtp_i), .t_faw_i(t_faw_i), .t_rrd_i(t_rrd_i),
         .t_wtr_i(t_wtr_i), .t_rtw_i(t_rtw_i), .t_ccd_i(t_ccd_i),
-        .t_refi_i(t_refi_i), .t_rfc_i(t_rfc_i), .refresh_burst_i(refresh_burst_i),
+        .t_refi_i(t_refi_i), .refi_reload_i(refi_reload_i),
+        .t_rfc_i(t_rfc_i), .refresh_burst_i(refresh_burst_i),
         .ref_postpone_i(ref_postpone_i), .ref_pullin_i(ref_pullin_i),
         .ref_mode_i(ref_mode_i), .ref_trefi_pb_i(ref_trefi_pb_i),
         .ref_trfc_pb_i(ref_trfc_pb_i),

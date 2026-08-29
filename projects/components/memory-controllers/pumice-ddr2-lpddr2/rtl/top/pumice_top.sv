@@ -233,6 +233,9 @@ module pumice_top
         .t_rtw_i            (hwif_out.TIMINGS_RTP_RTW.tRTW.value),
         .t_ccd_i            (hwif_out.TIMINGS_RRD_FAW_WTR_CCD.tCCD.value),
         .t_refi_i           (hwif_out.TIMINGS_RFC_REFI.tREFI.value),
+        // DV-only knob; the production build never pulses it, so the
+        // tREFI counter keeps its reload-on-expiry-only behaviour.
+        .refi_reload_i      (1'b0),
         .t_rfc_i            (hwif_out.TIMINGS_RFC_REFI.tRFC.value),
         .refresh_burst_i    (hwif_out.PHY_TIMING.refresh_burst.value),
         .ref_postpone_i     (hwif_out.REF_CTRL.postpone_limit.value),

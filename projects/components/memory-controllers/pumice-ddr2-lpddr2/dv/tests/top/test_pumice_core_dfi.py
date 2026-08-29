@@ -70,6 +70,7 @@ def _cfg(dut, page_policy=0):
                  ("t_wtr_i", 2), ("t_rtw_i", 2), ("t_ccd_i", 1)]:
         getattr(dut, t).value = v
     dut.t_refi_i.value = 0x0400          # periodic refresh during the run
+    dut.refi_reload_i.value = 0
     dut.t_rfc_i.value = 8
     dut.refresh_burst_i.value = 1
     for t in ("t_init_wait_i", "t_dll_wait_i"):
@@ -679,10 +680,14 @@ async def cocotb_test_pumice_core_refresh_credit(dut):
     _memory, slave = await _bring_up(dut, page_policy=0)
     dut.t_refi_i.value = 96
     dut.t_rfc_i.value = 8
-    # The tREFI counter only reloads on expiry, so the poke takes effect after
-    # the STALE bring-up period (0x400) runs out once. Wait it out so every
-    # timed window below really spans ~cycles/96 ticks.
-    await ClockCycles(dut.aclk, 1100)
+    # Force the tREFI counter to pick up the new interval NOW. It otherwise
+    # reloads only on expiry, so the already-armed interval from bring-up
+    # would run first -- which is why this used to burn ~1100 idle cycles and
+    # still leaked a stale refresh into the measurement window.
+    dut.refi_reload_i.value = 1
+    await ClockCycles(dut.aclk, 2)
+    dut.refi_reload_i.value = 0
+    await ClockCycles(dut.aclk, 2)
     rng = random.Random(int(os.environ.get("SEED", "11")))
     written = {}
 
@@ -928,13 +933,14 @@ async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256,
     dut.ref_postpone_i.value = 0
     dut.ref_pullin_i.value   = 0
     dut.ref_mode_i.value     = 0
-    # The tREFI counter only RELOADS on expiry, so writing t_refi_i does not
-    # cancel the interval already armed from bring-up (0x400). Wait it out.
-    # Parked case: otherwise one stale refresh lands mid-window and poisons
-    # the ceiling -- exactly what the REF guard caught on the first run.
-    # Frequent case: otherwise the window opens on the tail of the OLD long
-    # interval and sees fewer refreshes than it configured.
-    await ClockCycles(dut.aclk, 0x400 + 80)
+    # Force the tREFI counter to pick up the new interval NOW. It otherwise
+    # reloads only on expiry, so the already-armed interval from bring-up
+    # would run first -- which is why this used to burn ~1100 idle cycles and
+    # still leaked a stale refresh into the measurement window.
+    dut.refi_reload_i.value = 1
+    await ClockCycles(dut.aclk, 2)
+    dut.refi_reload_i.value = 0
+    await ClockCycles(dut.aclk, 2)
 
     trk = AxiChanTracker(dut, 'w', valid="s_axi_wvalid", ready="s_axi_wready",
                          last="s_axi_wlast", log=dut._log)
@@ -1169,7 +1175,14 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     dut.ref_postpone_i.value = 0
     dut.ref_pullin_i.value   = 0
     dut.ref_mode_i.value     = 0
-    await ClockCycles(dut.aclk, 0x400 + 80)   # wait out the armed interval
+    # Force the tREFI counter to pick up the new interval NOW. It otherwise
+    # reloads only on expiry, so the already-armed interval from bring-up
+    # would run first -- which is why this used to burn ~1100 idle cycles and
+    # still leaked a stale refresh into the measurement window.
+    dut.refi_reload_i.value = 1
+    await ClockCycles(dut.aclk, 2)
+    dut.refi_reload_i.value = 0
+    await ClockCycles(dut.aclk, 2)
 
     rows = []
     for tag, (mode, name) in enumerate(_PAGE_MODES):
