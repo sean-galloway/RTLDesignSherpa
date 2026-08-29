@@ -420,7 +420,7 @@ class AXI4MasterWriteTB(TBBase):
             # Prepare transaction parameters
             kwargs = {}
             if transaction_id is not None:
-                kwargs['transaction_id'] = transaction_id & self.MAX_ID
+                kwargs['id'] = transaction_id & self.MAX_ID
 
             # Perform the write transaction
             self.log.debug(f"Starting write: addr=0x{address:08X}, data=0x{data:08X}")
@@ -509,7 +509,7 @@ class AXI4MasterWriteTB(TBBase):
             # Prepare transaction parameters
             kwargs = {}
             if transaction_id is not None:
-                kwargs['transaction_id'] = transaction_id & self.MAX_ID
+                kwargs['id'] = transaction_id & self.MAX_ID
 
             # Calculate burst parameters
             burst_len = len(data_list)

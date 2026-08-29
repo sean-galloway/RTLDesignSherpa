@@ -277,7 +277,7 @@ class AXI4SlaveWriteTB(TBBase):
             # Prepare transaction parameters
             kwargs = {}
             if transaction_id is not None:
-                kwargs['transaction_id'] = transaction_id & self.MAX_ID
+                kwargs['id'] = transaction_id & self.MAX_ID
 
             # Send write transaction from test master side
             self.log.debug(f"Starting slave write test: addr=0x{address:08X}, data=0x{data:08X}")
@@ -364,7 +364,7 @@ class AXI4SlaveWriteTB(TBBase):
             # Prepare transaction parameters
             kwargs = {}
             if transaction_id is not None:
-                kwargs['transaction_id'] = transaction_id & self.MAX_ID
+                kwargs['id'] = transaction_id & self.MAX_ID
 
             # Calculate burst parameters
             burst_len = len(data_list)
