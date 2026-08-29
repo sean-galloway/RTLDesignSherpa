@@ -40,6 +40,7 @@ from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.monbus.monbus_slave import MonbusSlave
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from TBClasses.monbus.monbus_types import (
     MonitorPacket, PktType, ProtocolType, AXIErrorCode, AXITimeoutCode
 )
@@ -80,6 +81,13 @@ class AXI4MonitorTB(TBBase):
         config = stress_configs.get(stress_level, stress_configs['medium'])
         self.NUM_TXN = int(os.environ.get('NUM_TRANSACTIONS', str(config['num_txn'])))
         self.MAX_DELAY = int(os.environ.get('MAX_DELAY', str(config['max_delay'])))
+
+        # Seed the RNG, as the other TBs in this repo do. Without this the
+        # runner plumbed SEED through extra_env and TBBase logged "reproduce
+        # with: SEED=<n>", but nothing ever applied it -- so the replay
+        # command printed on a failure did not actually replay the run.
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.SEED)
 
         self.log.info(f"AXI4 Monitor TB: IW={self.IW}, AW={self.AW}, MAX_TRANS={self.MAX_TRANS}")
         self.log.info(f"Mode: {'READ' if self.IS_READ else 'WRITE'}, {'AXI4' if self.IS_AXI4 else 'AXI4-Lite'}")
@@ -132,6 +140,11 @@ class AXI4MonitorTB(TBBase):
         # Monitor bus
         self.dut.monbus_ready.value = 1
 
+        # Synchronous CAM clear, deasserted. Every other input is initialized
+        # here; leaving this one undriven only looked harmless because
+        # -Wno-UNDRIVEN is in the compile args.
+        self.dut.clear.value = 0
+
         # Configuration signals (enable packet types)
         self.dut.cfg_error_enable.value = 1
         self.dut.cfg_compl_enable.value = 1
@@ -156,7 +169,21 @@ class AXI4MonitorTB(TBBase):
 
         await RisingEdge(self.dut.aclk)
 
-        # Create MonbusSlave to collect packets
+        # Create MonbusSlave to collect packets.
+        #
+        # Hold monbus_ready asserted. Setting the signal above is not enough:
+        # GAXISlave drives ready itself from a FlexRandomizer, which draws
+        # from the global random module, so the consumer was inserting
+        # unrequested backpressure. The monitor frees a transaction slot only
+        # on an accepted monbus write, so that backpressure decided how many
+        # transactions got tracked at all -- the zero-delay phase scored
+        # anywhere from 4 to 33 completions out of 100 against a fixed floor
+        # of 20, and failed roughly one run in four.
+        #
+        # These phases are stressing the monitor, not its consumer. Consumer
+        # backpressure is worth covering, but as a phase that asserts on it
+        # deliberately rather than as an invisible default underneath every
+        # other measurement.
         self.mon_slave = MonbusSlave(
             dut=self.dut,
             title="MonBus",
@@ -164,7 +191,8 @@ class AXI4MonitorTB(TBBase):
             clock=self.dut.aclk,
             bus_name="monbus",
             pkt_prefix="",
-            log=self.log
+            log=self.log,
+            randomizer=FlexRandomizer({'ready_delay': ([(0, 0)], [1])}),
         )
 
     def get_stats(self):
