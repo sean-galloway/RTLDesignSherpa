@@ -64,6 +64,15 @@ class AXIL4MasterMonitorTB(TBBase):
         """
         super().__init__(dut)
 
+        # Seed the RNG, as the rest of the TBs here do. This one built its BFM
+        # components directly instead of going through a base TB, so nothing
+        # in its chain ever called random.seed() -- its ready-delay draws came
+        # from an unseeded global RNG and drifted run to run. A failure under
+        # a drifting RNG cannot be replayed, which is the whole point of the
+        # SEED that TBBase already logs.
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.SEED)
+
         self.is_write = is_write
         self.aclk = aclk if aclk else dut.aclk
         self.aresetn = aresetn if aresetn else dut.aresetn

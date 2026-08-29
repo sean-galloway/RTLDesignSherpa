@@ -30,6 +30,7 @@ Features:
 """
 
 import asyncio
+import os
 import random
 from typing import Dict, List, Optional, Any
 from collections import defaultdict, deque
@@ -116,6 +117,15 @@ class TBAXIMonitorConfig(TBBase):
             expected_agent_id: Expected agent ID for packet validation
         """
         super().__init__(dut, **kwargs)
+
+        # Seed the RNG, as the rest of the TBs here do. This one built its BFM
+        # components directly instead of going through a base TB, so nothing
+        # in its chain ever called random.seed() -- its ready-delay draws came
+        # from an unseeded global RNG and drifted run to run. A failure under
+        # a drifting RNG cannot be replayed, which is the whole point of the
+        # SEED that TBBase already logs.
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.SEED)
 
         # Initialize clock
         self.clock = None
