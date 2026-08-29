@@ -34,6 +34,7 @@
 #
 # See [[AMBA-BLOCKMARGIN]].
 
+import contextlib
 import os
 
 import pytest
@@ -62,6 +63,73 @@ WRAPPERS = [
 
 FILELIST_DIR = {"axi4": "rtl/amba/filelists", "axi5": "rtl/amba/filelists",
                 "axil": "rtl/amba/filelists"}
+
+
+# Seed control -- same model as test_axi_monitor_trans_mgr.py, for the same
+# reason: a run that cannot be replayed cannot be diagnosed.
+#
+# Pinned DELIBERATELY, and read from BLOCKREADY_SEED rather than SEED, so an
+# exported SEED aimed at another suite cannot perturb this one. Saturation
+# here has little margin, and an arbitrary seed silently turns the run into
+# one that proves nothing. Measured on axi4_master_wr_mon at
+# MAX_TRANSACTIONS=12, where block_ready asserts at depth - CMD_ENTRY_RESERVE
+# = 9:
+#
+#     12345 (default)  peak 9/12   block_ready low 69 cycles   -> saturates
+#     1234             peak 7/12   never blocked -> layer 1 fails
+#     42               peak 8/12   never blocked -> layer 1 fails
+#     7                peak 7/12   never blocked -> layer 1 fails
+#
+# Layer 1 is RIGHT to fail those three: the table never filled, so the run
+# proves nothing about the gate. The defect is in the premise, not the check.
+#
+# The write path cannot currently be pushed deeper to buy margin. It is capped
+# by the axi4 interface's single _aw_w_lock, held across (send AW, send all W
+# beats), which serialises writes whatever their ID -- measured with 1, 2, 8
+# and 32 distinct IDs, byte-identical results. Spreading IDs is therefore NOT
+# the fix it looks like; decoupling AW issuance from the W critical section is
+# an RDS-DV framework change. Depth 8 has real margin (block_ready low for
+# 850-2200 cycles at every seed tried), depth 12 sits on the edge, and both
+# are kept: 8 as the honest check, 12 because at the pinned seed it does
+# saturate and does exercise a deeper table.
+#
+# To sweep deliberately:
+#     BLOCKREADY_SEED=1234 pytest val/amba/test_axi_mon_block_ready.py
+DEFAULT_SEED = "12345"
+
+
+def _seed() -> str:
+    return os.environ.get("BLOCKREADY_SEED", DEFAULT_SEED)
+
+
+@contextlib.contextmanager
+def _pinned_seed():
+    """Pin SEED for the child simulation, overriding any exported value.
+
+    Passing "SEED" in extra_env is NOT enough, and this is worth stating
+    plainly because it is not obvious and it is repo-wide: cocotb_test's
+    Simulator.set_env() does
+
+        for e in os.environ:
+            self.env[e] = os.environ[e]
+
+    -- it copies the whole parent environment ON TOP of extra_env, so an
+    exported variable always wins over the extra_env entry of the same name.
+    A runner that "sets" SEED in extra_env is therefore only choosing the
+    default for when SEED is unset; export SEED and the runner's value is
+    silently discarded.
+
+    So pin it in os.environ, where set_env() will read it, and restore after.
+    """
+    prev = os.environ.get("SEED")
+    os.environ["SEED"] = _seed()
+    try:
+        yield
+    finally:
+        if prev is None:
+            os.environ.pop("SEED", None)
+        else:
+            os.environ["SEED"] = prev
 
 
 async def _wait_clocks(tb, n):
@@ -335,28 +403,29 @@ def test_axi_mon_block_ready(dut_name, max_trans):
             "MAX_TRANSACTIONS": str(max_trans),
         }
 
-    run(
-        python_search=[tests_dir],
-        verilog_sources=verilog_sources,
-        includes=includes,
-        toplevel=dut_name,
-        module=os.path.splitext(os.path.basename(__file__))[0],
-        testcase="cocotb_test_block_ready",
-        parameters=rtl_parameters,
-        sim_build=sim_build,
-        extra_env={
-            "DUT": dut_name,
-            "MAX_TRANSACTIONS": str(max_trans),
-            "TXN_COUNT": os.environ.get("TXN_COUNT", "1024" if "_wr_" in dut_name else "192"),
-            "LOG_PATH": log_path,
-            "COCOTB_LOG_LEVEL": "INFO",
-            "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
-            "SEED": os.environ.get("SEED", "12345"),
-        },
-        keep_files=True,
-        compile_args=["--public-flat-rw", "-Wno-fatal", "--timescale", "1ns/1ps",
-                      "--unroll-count", "4096", "--unroll-stmts", "20000"],
-    )
+    with _pinned_seed():
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=dut_name,
+            module=os.path.splitext(os.path.basename(__file__))[0],
+            testcase="cocotb_test_block_ready",
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env={
+                "DUT": dut_name,
+                "MAX_TRANSACTIONS": str(max_trans),
+                "TXN_COUNT": os.environ.get("TXN_COUNT", "1024" if "_wr_" in dut_name else "192"),
+                "LOG_PATH": log_path,
+                "COCOTB_LOG_LEVEL": "INFO",
+                "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                "SEED": _seed(),
+            },
+            keep_files=True,
+            compile_args=["--public-flat-rw", "-Wno-fatal", "--timescale", "1ns/1ps",
+                          "--unroll-count", "4096", "--unroll-stmts", "20000"],
+        )
 
 
 # =============================================================================
@@ -454,33 +523,34 @@ def test_axi_mon_id_slice(ch_base):
         repo_root=repo_root,
         filelist_path=f"rtl/amba/filelists/{dut_name}.f")
 
-    run(
-        python_search=[tests_dir],
-        verilog_sources=verilog_sources,
-        includes=includes,
-        toplevel=dut_name,
-        module=os.path.splitext(os.path.basename(__file__))[0],
-        testcase="cocotb_test_id_slice",
-        parameters={
-            "AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "AXI_DATA_WIDTH": "32",
-            "AXI_USER_WIDTH": "1",
-            "MAX_TRANSACTIONS": str(max_trans),
-            "ID_FILTER_ENABLE": "1",
-            "ID_MATCH_BASE": str(ch_base),
-            "ID_MATCH_COUNT": str(count),
-        },
-        sim_build=sim_build,
-        extra_env={
-            "DUT": dut_name,
-            "MAX_TRANSACTIONS": str(max_trans),
-            "ID_MATCH_BASE": str(ch_base),
-            "ID_MATCH_COUNT": str(count),
-            "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
-            "COCOTB_LOG_LEVEL": "INFO",
-            "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
-            "SEED": os.environ.get("SEED", "12345"),
-        },
-        keep_files=True,
-        compile_args=["--public-flat-rw", "-Wno-fatal", "--timescale", "1ns/1ps",
-                      "--unroll-count", "4096", "--unroll-stmts", "20000"],
-    )
+    with _pinned_seed():
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=dut_name,
+            module=os.path.splitext(os.path.basename(__file__))[0],
+            testcase="cocotb_test_id_slice",
+            parameters={
+                "AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "AXI_DATA_WIDTH": "32",
+                "AXI_USER_WIDTH": "1",
+                "MAX_TRANSACTIONS": str(max_trans),
+                "ID_FILTER_ENABLE": "1",
+                "ID_MATCH_BASE": str(ch_base),
+                "ID_MATCH_COUNT": str(count),
+            },
+            sim_build=sim_build,
+            extra_env={
+                "DUT": dut_name,
+                "MAX_TRANSACTIONS": str(max_trans),
+                "ID_MATCH_BASE": str(ch_base),
+                "ID_MATCH_COUNT": str(count),
+                "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+                "COCOTB_LOG_LEVEL": "INFO",
+                "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),
+                "SEED": _seed(),
+            },
+            keep_files=True,
+            compile_args=["--public-flat-rw", "-Wno-fatal", "--timescale", "1ns/1ps",
+                          "--unroll-count", "4096", "--unroll-stmts", "20000"],
+        )
