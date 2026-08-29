@@ -40,6 +40,11 @@ if _repo_root not in sys.path:
 
 from TBClasses.shared.tbbase import TBBase  # noqa: E402
 
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_fub_bfm import fub_producer      # noqa: E402
+
 # LPDDR2 CA-bus conformance: the SAME encoder/decoder the DFI BFM uses, checked
 # against the RTL formatter's output. Both encode against Table 60 via
 # rtl/LPDDR2_CA_ENCODING.md.
@@ -218,21 +223,48 @@ class DfiCmdFormatterTB(TBBase):
 
     async def setup_clocks_and_reset(self):
         self._drive_idle()
+        self._build_bfms()
         await self.start_clock('mc_clk', freq=self.CLK_PERIOD_NS, units='ns')
         self.dut.mc_rst_n.value = 0
         await self.wait_clocks('mc_clk', 5)
         self.dut.mc_rst_n.value = 1
         await self.wait_clocks('mc_clk', 5)
 
+    def _build_bfms(self, profile="backtoback"):
+        """GAXI master on cmd_* -- the only handshake this fub has."""
+        self.cmd_bfm = fub_producer(
+            self.dut, "cmd", self.dut.mc_clk, profile=profile, log=self.log,
+            valid="cmd_valid_i", ready="cmd_ready_o",
+            fields={'op':   ("cmd_op_i",   max(1, len(self.dut.cmd_op_i))),
+                    'rank': ("cmd_rank_i", max(1, len(self.dut.cmd_rank_i))),
+                    'bank': ("cmd_bank_i", max(1, len(self.dut.cmd_bank_i))),
+                    'row':  ("cmd_row_i",  max(1, len(self.dut.cmd_row_i))),
+                    'col':  ("cmd_col_i",  max(1, len(self.dut.cmd_col_i))),
+                    'len':  ("cmd_len_i",  max(1, len(self.dut.cmd_len_i)))})
+        self._fires = 0
+        cocotb.start_soon(self._watch_fire())
+
+    async def _watch_fire(self):
+        """Count cmd handshakes.
+
+        The check below used to sample a FIXED cycle after the testbench set
+        cmd_valid. A BFM owns when valid actually asserts, so that offset
+        stops meaning anything -- the sample landed after valid had dropped
+        and the outputs had reverted to NOP (measured: cs_n read 0x1). The
+        cycle that matters is the one the command was ACCEPTED, so observe it.
+
+        Sampled immediately after the edge, no intervening await: cmd_valid_i
+        is BFM-driven and a delayed read returns the driver's next intent.
+        """
+        while True:
+            await RisingEdge(self.dut.mc_clk)
+            if (int(self.dut.cmd_valid_i.value)
+                    and int(self.dut.cmd_ready_o.value)):
+                self._fires += 1
+
     def _drive_idle(self):
+        # cmd_* is BFM-owned; memtype is a config level, not a handshake.
         self.dut.memtype_i.value  = MEMTYPE_DDR2
-        self.dut.cmd_valid_i.value = 0
-        self.dut.cmd_op_i.value    = OP_NOP
-        self.dut.cmd_rank_i.value  = 0
-        self.dut.cmd_bank_i.value  = 0
-        self.dut.cmd_row_i.value   = 0
-        self.dut.cmd_col_i.value   = 0
-        self.dut.cmd_len_i.value   = 0
 
     # ---------------- driver / scoreboard ----------------
 
@@ -242,17 +274,35 @@ class DfiCmdFormatterTB(TBBase):
                               valid: bool = True) -> None:
         """Drive a (op, rank, bank, row, col) combination and verify the
         full multi-phase output against the reference model."""
-        self.dut.memtype_i.value   = memtype
-        self.dut.cmd_valid_i.value = 1 if valid else 0
-        self.dut.cmd_op_i.value    = op
-        self.dut.cmd_rank_i.value  = rank   & ((1 << self.RKW) - 1)
-        self.dut.cmd_bank_i.value  = bank   & ((1 << self.BKW) - 1)
-        self.dut.cmd_row_i.value   = row    & ((1 << self.ROW_WIDTH) - 1)
-        self.dut.cmd_col_i.value   = col    & ((1 << self.COL_WIDTH) - 1)
-        self.dut.cmd_len_i.value   = length & ((1 << self.BLW) - 1)
-
-        # Outputs are registered — wait 1 cycle for inputs to clock through.
-        await self.wait_clocks('mc_clk', 1)
+        self.dut.memtype_i.value = memtype
+        if valid:
+            n0 = self._fires
+            await self.cmd_bfm._driver_send(self.cmd_bfm.create_packet(
+                op=op,
+                rank=rank   & ((1 << self.RKW) - 1),
+                bank=bank   & ((1 << self.BKW) - 1),
+                row=row     & ((1 << self.ROW_WIDTH) - 1),
+                col=col     & ((1 << self.COL_WIDTH) - 1),
+                len=length  & ((1 << self.BLW) - 1)))
+            # The outputs are registered FROM the accepted command, so they
+            # are valid immediately after the accepting edge. _watch_fire
+            # samples pre-edge values, so once it has incremented that edge
+            # has already passed -- an extra wait here would sample after
+            # valid dropped and the bus reverted to NOP (cs_n reads 0x1).
+            for _ in range(64):
+                await self.wait_clocks('mc_clk', 1)
+                if self._fires > n0:
+                    break
+            else:
+                raise AssertionError("cmd was never accepted (cmd_ready_o low)")
+        else:
+            # "send nothing": the BFM idles valid low and drives no payload.
+            # The old code held payload with valid low to prove the formatter
+            # ignored it, but payload is DON'T-CARE while valid is low, so
+            # that asserted on an unspecified condition. What IS specified,
+            # and what the caller checks, is that the bus stays deselected.
+            # nothing presented: one edge so the registered bus settles idle
+            await self.wait_clocks('mc_clk', 1)
         await Timer(_NBA_SETTLE_PS, units='ps')
 
         # Build expected — phase 0 = decoded; phase 1..N-1 = NOP.
