@@ -55,16 +55,6 @@ description = "AMBA protocol modules (AXI4, APB, AXIS monitors)"
 directory = "val/amba"
 coverage = true
 
-[env.val-integ-common]
-description = "Integration tests for common modules"
-directory = "val/integ_common"
-coverage = true
-
-[env.val-integ-amba]
-description = "Integration tests for AMBA modules"
-directory = "val/integ_amba"
-coverage = true
-
 # ==============================================================================
 # projects/components/ environments
 # ==============================================================================

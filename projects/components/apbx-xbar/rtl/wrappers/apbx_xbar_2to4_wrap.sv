@@ -8,7 +8,7 @@
 // Purpose: Apb Xbar 2To4 Wrap module
 //
 // Documentation: PRD.md
-// Subsystem: integ_amba
+// Subsystem: amba
 //
 // Author: sean galloway
 // Created: 2025-10-18
