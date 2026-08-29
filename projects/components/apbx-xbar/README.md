@@ -270,7 +270,7 @@ if M < 1 or M > 16:  # Change 16 to desired max
 - Generator: `projects/components/apbx-xbar/bin/apbx_xbar_generator.py`
 - Base modules: `rtl/amba/apb4/apb4_{slave,master}.sv`,
   `rtl/amba/apb5/apb5_{slave,master}.sv`
-- Formal: `formal/apbx_xbar/` (all-APB4 configuration)
+- Formal: `formal/apbx_xbar/` -- four all-APB4 harnesses plus `apbx_xbar_2to2_mixed` for the mixed configuration
 - Tests: `dv/tests/test_apbx_xbar_*.py`
 
 ## Not implemented
@@ -284,13 +284,25 @@ if M < 1 or M > 16:  # Change 16 to desired max
   `parity_error_*` output. (There is no `PSELPARITY` signal in this
   library -- the APB5 parity pins are `paddrparity`, `pwdataparity`,
   `pctrlparity`, `prdataparity`, `preadyparity`, `pslverrparity`.)
-- **Formal proof of version gating.** The four formal harnesses
-  (`apbx_xbar_{1to1,2to1,1to4,2to4}`) all run all-APB4 configurations.
-  Mixed-version gating was previously proven only through the retired
-  thin core's harnesses, which were deleted with it on 2026-08-27, so
-  that proof no longer exists. Mixed gating is currently covered by
-  simulation alone (`test_apbx_xbar_2to2_mixed.py`), including the
-  structural check that APB4 ports carry no sideband pins.
+- **Formal proof of version gating (RESTORED 2026-08-29).** The four
+  all-APB4 harnesses (`apbx_xbar_{1to1,2to1,1to4,2to4}`) are joined by
+  `formal/apbx_xbar/apbx_xbar_2to2_mixed/`, which proves the mixed
+  configuration. It replaces the proof lost when the thin core was
+  deleted on 2026-08-27, but it does NOT restate that proof: the thin
+  core took versions as parameters, so every port had every sideband pin
+  and "an APB4 port never sees sideband" was the real content. Here the
+  versions are structural -- m0 and s1 have no sideband pins to see
+  anything with -- so those properties would pass vacuously and are
+  deliberately omitted. The port-list fact is checked structurally by
+  `test_apbx_xbar_2to2_mixed.py`'s `hasattr` sweep instead.
+
+  What is proven is the part structure does not give for free: the
+  fabric never injects sideband at the APB5 slave on the APB4 master's
+  behalf, never fabricates completer sideband no APB5 slave produced,
+  and drops `PWAKEUP` unconditionally (a documented limitation, now a
+  failing proof the day someone wires it up). Eight cover statements
+  show sideband really does flow both ways, so none of it passes
+  vacuously.
 
 ---
 

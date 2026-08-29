@@ -1,0 +1,37 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 20
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes gaxi_skid_buffer.sv
+read -formal -sv -Iincludes apb4_slave.sv
+read -formal -sv -Iincludes apb4_master.sv
+read -formal -sv -Iincludes apb5_slave.sv
+read -formal -sv -Iincludes apb5_master.sv
+read -formal -sv -Iincludes arbiter_priority_encoder.sv
+read -formal -sv -Iincludes arbiter_round_robin.sv
+read -formal -sv -Iincludes apbx_xbar_2to2_mixed.sv
+read -formal -sv -Iincludes formal_apbx_xbar_2to2_mixed.sv
+prep -top formal_apbx_xbar_2to2_mixed
+
+[files]
+gaxi_skid_buffer.sv ../../../rtl/amba/gaxi/gaxi_skid_buffer.sv
+apb4_slave.sv ../../../rtl/amba/apb4/apb4_slave.sv
+apb4_master.sv ../../../rtl/amba/apb4/apb4_master.sv
+apb5_slave.sv ../../../rtl/amba/apb5/apb5_slave.sv
+apb5_master.sv ../../../rtl/amba/apb5/apb5_master.sv
+arbiter_priority_encoder.sv ../../../rtl/common/arbiter_priority_encoder.sv
+arbiter_round_robin.sv ../../../rtl/common/arbiter_round_robin.sv
+apbx_xbar_2to2_mixed.sv ../../../projects/components/apbx-xbar/rtl/apbx_xbar_2to2_mixed.sv
+formal_apbx_xbar_2to2_mixed.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

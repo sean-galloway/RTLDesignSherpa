@@ -203,9 +203,13 @@ The error flags are deliberately **not** folded into `PSLVERR`, which
 would make a fabric fault indistinguishable from the slave's own error
 response.
 
-Formal coverage of parity gating was carried by the retired thin core's
-harnesses and was deleted with them on 2026-08-27. The APB4-port
-never-sees-parity property is currently covered by simulation only.
+Formal coverage: `formal/apbx_xbar/apbx_xbar_2to2_mixed/` proves the
+mixed configuration as of 2026-08-29, replacing the proof lost with the
+thin core on 2026-08-27. Note it proves the SIDEBAND gate, not a parity
+gate -- a mixed pairing carries no parity at all here, so there is no
+parity property left to state. The generated variants are instantiated
+with `ENABLE_PARITY=0`, and the APB4-port never-sees-parity question the
+thin core answered does not arise when the port has no parity pins.
 
 ---
 

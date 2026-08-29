@@ -15,9 +15,10 @@ fixed-configuration variants `1to1`, `2to1`, `1to4`, `2to4` and
 *(`apbx_xbar_thin` RETIRED and DELETED 2026-08-27, along with its test,
 its two formal harnesses, its testplan and its doc page. APBX-006 — its
 zero-cycle downstream setup phase — dropped as moot. The generated
-variants are unaffected. One real cost: the thin harnesses carried the
-ONLY formal proof of APB4/APB5 version gating, so that gating is now
-covered by simulation alone.)*
+variants are unaffected. The one real cost — the thin harnesses carried
+the ONLY formal proof of APB4/APB5 version gating — was repaid on
+2026-08-29 by `formal/apbx_xbar/apbx_xbar_2to2_mixed/`, which proves the
+mixed configuration directly.)*
 
 *(APBX-004/005 closed 2026-08-27: raw-address decode rotated the slave map
 for non-span-aligned BASE_ADDR; out-of-range accesses wedged the master
