@@ -99,17 +99,15 @@ async def cocotb_test_pumice_wr_data_cam(dut):
     # confirm it snarfs BEFORE being scheduled
     hit, _ = await tb.snarf(3, 30, 8, rid=0xE)
     assert hit == 1, "unscheduled fresh write should snarf"
-    tb.dut.cm_rd_ready_i.value = 0                 # freeze the drain
-    while int(tb.dut.commit_ready_o.value) == 0:
-        await tb.wait_clocks('aclk', 1)
-    tb.dut.commit_slot_i.value = eE_slot
-    tb.dut.commit_valid_i.value = 1
-    await tb.wait_clocks('aclk', 1)
-    tb.dut.commit_valid_i.value = 0
+    tb.set_cm_rd_ready(False)                      # freeze the drain (BFM)
+    # The BFM holds valid until commit_ready_o, so the spin-on-ready above
+    # is gone with the hand driving. commit_issue() does not wait for the
+    # drain burst, which cannot arrive while the drain is frozen.
+    await tb.commit_issue(eE_slot)
     await tb.wait_clocks('aclk', 2)                # r_sched set; entry still valid
     hit, _ = await tb.snarf(3, 30, 8, rid=0xE)
     assert hit == 0, "snarf must miss on a scheduled (committing) write"
-    tb.dut.cm_rd_ready_i.value = 1                 # release; let it drain/evict
+    tb.set_cm_rd_ready(True)                       # release; let it drain/evict
     for _ in range(200):
         await tb.wait_clocks('aclk', 1)
         if tb.cm_out:

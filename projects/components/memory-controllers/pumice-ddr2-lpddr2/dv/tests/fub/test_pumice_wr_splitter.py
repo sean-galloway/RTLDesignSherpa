@@ -38,6 +38,7 @@ if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
 from pumice_coverage import get_coverage_compile_args, get_coverage_env  # noqa: E402
+from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
 
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_wr_splitter.f")
@@ -46,65 +47,86 @@ CHUNK_BEATS = 4          # AXI beats per DRAM burst (must match the param below)
 
 
 async def _reset(dut):
+    """Reset, and build the BFMs that own both sides (PUMICE-014).
+
+    `fub_aw`/`fub_w` are AXI-SHAPED but this fub carries NO B channel -- one
+    B per ORIGINAL burst is emitted downstream by pumice_wr_data_cam
+    (`commit_done_valid_o` gated on agg && last) and driven onto the bus by
+    pumice_wr_intake. So the AXI4 write master, which needs a B channel to
+    complete a transaction, cannot bind here; these are driven as plain
+    valid/ready ports by GAXI producers.
+
+    `m_aw`/`m_w` are the DUT's master outputs -> GAXI consumers own their
+    readys at ready_policy='always', which is exactly what the old hardwired
+    `m_awready=1` / `m_wready=1` modelled.
+    """
     dut.aresetn.value = 0
-    for sig in ("fub_awvalid", "fub_wvalid", "fub_wlast", "m_awready",
-                "m_wready", "fub_awlen", "fub_wdata"):
-        if hasattr(dut, sig):
-            getattr(dut, sig).value = 0
-    dut.m_awready.value = 1          # sink always ready
-    dut.m_wready.value = 1
+    aw_src = fub_producer(
+        dut, "fub_aw", dut.aclk, log=dut._log,
+        valid="fub_awvalid", ready="fub_awready",
+        fields={'id':    ("fub_awid", 8),
+                'addr':  ("fub_awaddr", 32),
+                'len':   ("fub_awlen", 8),
+                'size':  ("fub_awsize", 3),
+                'burst': ("fub_awburst", 2)})
+    w_src = fub_producer(
+        dut, "fub_w", dut.aclk, log=dut._log,
+        valid="fub_wvalid", ready="fub_wready",
+        fields={'data': ("fub_wdata", 64),
+                'strb': ("fub_wstrb", 8),
+                'last': ("fub_wlast", 1)})
+    aw_sink = fub_consumer(
+        dut, "m_aw", dut.aclk, log=dut._log,
+        valid="m_awvalid", ready="m_awready",
+        fields={'len':  ("m_awlen", 8),
+                'agg':  ("m_aw_agg", 1),
+                'last': ("m_aw_last", 1)})
+    w_sink = fub_consumer(
+        dut, "m_w", dut.aclk, log=dut._log,
+        valid="m_wvalid", ready="m_wready",
+        fields={'last': ("m_wlast", 1)})
     for _ in range(5):
         await RisingEdge(dut.aclk)
     dut.aresetn.value = 1
     await RisingEdge(dut.aclk)
+    return aw_src, w_src, aw_sink, w_sink
 
 
-async def _drive_aw(dut, awlen):
-    """Present one AW; hold until accepted."""
-    dut.fub_awid.value = 3
-    dut.fub_awaddr.value = 0x1000
-    dut.fub_awlen.value = awlen
-    dut.fub_awsize.value = 3
-    dut.fub_awburst.value = 1
-    dut.fub_awvalid.value = 1
-    await RisingEdge(dut.aclk)
-    while dut.fub_awready.value == 0:
-        await RisingEdge(dut.aclk)
-    dut.fub_awvalid.value = 0
+async def _drive_burst(aw_src, w_src, awlen):
+    """One AW plus its W beats, through the GAXI producers.
+
+    QUEUE-AND-GO (`_driver_send`) rather than blocking `send()`: the old code
+    ran _drive_aw concurrently with _drive_w because the splitter accepts the
+    two independently, and awaiting each packet would serialise them and
+    insert gaps between W beats.
+    """
+    await aw_src._driver_send(aw_src.create_packet(
+        id=3, addr=0x1000, len=awlen, size=3, burst=1))
+    n = awlen + 1
+    for i in range(n):
+        await w_src._driver_send(w_src.create_packet(
+            data=0xA0 + i, strb=0xFF, last=1 if i == n - 1 else 0))
 
 
-async def _drive_w(dut, nbeats):
-    """Stream nbeats W beats, host WLAST on the final beat."""
-    for i in range(nbeats):
-        dut.fub_wdata.value = 0xA0 + i
-        dut.fub_wstrb.value = 0xFF          # AXI_DATA_WIDTH=64 -> SW=8
-        dut.fub_wlast.value = 1 if i == nbeats - 1 else 0
-        dut.fub_wvalid.value = 1
-        await RisingEdge(dut.aclk)
-        while dut.fub_wready.value == 0:
-            await RisingEdge(dut.aclk)
-    dut.fub_wvalid.value = 0
-    dut.fub_wlast.value = 0
-
-
-async def _collect(dut, n_subs_expected, n_wbeats_expected):
+async def _collect(dut, aw_sink, w_sink, n_subs_expected, n_wbeats_expected):
     """Run one burst; collect sub-commands (awlen, agg, last) + W-beat WLASTs."""
     subs = []
     wlasts = []
 
+    # Both sinks are GAXI consumers -- reshape what they captured rather
+    # than re-sampling the bus.
     async def mon_aw():
         while len(subs) < n_subs_expected:
             await RisingEdge(dut.aclk)
-            if dut.m_awvalid.value == 1 and dut.m_awready.value == 1:
-                subs.append((int(dut.m_awlen.value),
-                             int(dut.m_aw_agg.value),
-                             int(dut.m_aw_last.value)))
+            while aw_sink._recvQ:
+                q = aw_sink._recvQ.popleft()
+                subs.append((q.len, q.agg, q.last))
 
     async def mon_w():
         while len(wlasts) < n_wbeats_expected:
             await RisingEdge(dut.aclk)
-            if dut.m_wvalid.value == 1 and dut.m_wready.value == 1:
-                wlasts.append(int(dut.m_wlast.value))
+            while w_sink._recvQ:
+                wlasts.append(w_sink._recvQ.popleft().last)
 
     cocotb.start_soon(mon_aw())
     cocotb.start_soon(mon_w())
@@ -115,11 +137,10 @@ async def _collect(dut, n_subs_expected, n_wbeats_expected):
 async def cocotb_test_wr_splitter_single(dut):
     """AxLEN = CHUNK_BEATS-1 -> exactly one DRAM burst, no split."""
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
-    await _reset(dut)
+    aw_src, w_src, aw_sink, w_sink = await _reset(dut)
     nbeats = CHUNK_BEATS
-    subs, wlasts = await _collect(dut, 1, nbeats)
-    cocotb.start_soon(_drive_aw(dut, nbeats - 1))
-    await _drive_w(dut, nbeats)
+    subs, wlasts = await _collect(dut, aw_sink, w_sink, 1, nbeats)
+    await _drive_burst(aw_src, w_src, nbeats - 1)
     for _ in range(20):
         await RisingEdge(dut.aclk)
     assert len(subs) == 1, f"expected 1 sub-command, got {subs}"
@@ -136,11 +157,10 @@ async def cocotb_test_wr_splitter_single(dut):
 async def cocotb_test_wr_splitter_split(dut):
     """AxLEN = 2*CHUNK_BEATS-1 -> two DRAM bursts (integer multiple split)."""
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
-    await _reset(dut)
+    aw_src, w_src, aw_sink, w_sink = await _reset(dut)
     nbeats = 2 * CHUNK_BEATS
-    subs, wlasts = await _collect(dut, 2, nbeats)
-    cocotb.start_soon(_drive_aw(dut, nbeats - 1))
-    await _drive_w(dut, nbeats)
+    subs, wlasts = await _collect(dut, aw_sink, w_sink, 2, nbeats)
+    await _drive_burst(aw_src, w_src, nbeats - 1)
     for _ in range(20):
         await RisingEdge(dut.aclk)
     assert len(subs) == 2, f"expected 2 sub-commands, got {subs}"
@@ -158,11 +178,10 @@ async def cocotb_test_wr_splitter_split(dut):
 async def cocotb_test_wr_splitter_ragged(dut):
     """AxLEN not a multiple of CHUNK_BEATS -> full sub + ragged tail sub."""
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
-    await _reset(dut)
+    aw_src, w_src, aw_sink, w_sink = await _reset(dut)
     nbeats = CHUNK_BEATS + 2          # 6: one full (4) + ragged tail (2)
-    subs, wlasts = await _collect(dut, 2, nbeats)
-    cocotb.start_soon(_drive_aw(dut, nbeats - 1))
-    await _drive_w(dut, nbeats)
+    subs, wlasts = await _collect(dut, aw_sink, w_sink, 2, nbeats)
+    await _drive_burst(aw_src, w_src, nbeats - 1)
     for _ in range(20):
         await RisingEdge(dut.aclk)
     assert len(subs) == 2, f"expected 2 sub-commands (full+ragged), got {subs}"

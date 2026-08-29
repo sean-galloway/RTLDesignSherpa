@@ -867,7 +867,9 @@ async def cocotb_test_pumice_core_b2b(dut):
 # units. Neither claim is worth much without the other.
 # ---------------------------------------------------------------------------
 
-async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256):
+async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256,
+                                page_mode=0, page_policy=0, sched=None,
+                                dump=True):
     """Run a clean write stream and account for every W-channel cycle.
 
     Everything that could inject a command into the DRAM stream or close a
@@ -913,7 +915,13 @@ async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256):
     from tbclasses.trackers import AxiChanTracker
     from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
 
-    _memory, slave = await _bring_up(dut, page_policy=0)      # OPEN
+    _memory, slave = await _bring_up(dut, page_policy=page_policy)
+
+    # Axis-2 paging mode under test (0 = build default). Axis-1 scheduling
+    # knobs default to 0 = build default unless `sched` overrides them.
+    dut.page_mode_i.value = page_mode
+    for k, v in (sched or {}).items():
+        getattr(dut, k).value = v
 
     dut.t_refi_i.value       = t_refi
     dut.t_rfc_i.value        = t_rfc
@@ -981,6 +989,8 @@ async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256):
 
     # cocotb swallows stdout, so a printed number is invisible to whoever
     # runs this. Write the summary where the tracker's own .out files land.
+    if not dump:
+        return m
     try:
         with open(f"{label}.out", "w") as f:
             f.write(f"# {title}\n")
@@ -1095,6 +1105,109 @@ async def cocotb_test_pumice_core_perf_refresh_bubbles(dut):
                   100.0 * m['util'])
 
 
+# Axis-2 paging modes (pumice_page_policy.sv:106-113).
+_PAGE_MODES = [(0, "build_default"), (1, "static_open"), (2, "static_close"),
+               (3, "fixed_open"),    (4, "adapt_time"),  (5, "adapt_access"),
+               (6, "rbl_static"),    (7, "rbl_dyn")]
+
+
+async def _util_window(dut, slave, *, tag, n=192):
+    """One measured write window on the CURRENT mode settings.
+
+    Returns (utilization, backpressure_cycles, refs). Utilization is
+    beats / cycles WVALID was high -- cycles where the master had nothing to
+    offer are excluded, so the only way to fall below 100% is the DUT
+    refusing data. See [[structure-trackers]].
+
+    Each window uses its OWN address region (keyed off `tag`) so page state
+    from the previous mode cannot flatter or penalise the next one.
+    """
+    from tbclasses.trackers import AxiChanTracker
+    from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
+
+    trk = AxiChanTracker(dut, 'w', valid="s_axi_wvalid", ready="s_axi_wready",
+                         last="s_axi_wlast", log=dut._log)
+    task = cocotb.start_soon(trk.run())
+    base = (trk.prod, trk.bp)
+    ref0 = slave.cmd_counts.get(_DC.REF, 0)
+
+    rng = random.Random(0x5EED + tag)
+    reqs = [(_mkaddr(k % NUM_BANKS, 0x20 + tag, (k // NUM_BANKS) * BL),
+             [rng.randrange(1 << DW) for _ in range(BL_WORDS)])
+            for k in range(n)]
+    await _write_many(dut, reqs)
+    await ClockCycles(dut.aclk, 40)          # let the tail drain
+    task.kill()
+
+    prod, bp = trk.prod - base[0], trk.bp - base[1]
+    valid_cyc = prod + bp
+    return ((prod / valid_cyc) if valid_cyc else 0.0, bp,
+            slave.cmd_counts.get(_DC.REF, 0) - ref0)
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_pumice_core_perf_paging_sweep(dut):
+    """PUMICE-013: 100% write utilization under EVERY Axis-2 paging mode.
+
+    The goal (Sean, 2026-08-28): "ensure 100% utilization for all paging
+    programming." So this sweeps all 8 modes over an identical page-hit
+    stream with refresh parked, and reports utilization per mode.
+
+    One bring-up, then the mode is re-programmed between windows -- the
+    modes are runtime CSRs by design (that is what PUMICE-006 delivered),
+    and re-running bring-up per mode would restart the clocks.
+
+    A mode below 100% is not automatically a bug: static_close forces an
+    auto-precharge on every access, so whether the write channel still
+    sustains full rate depends on whether the controller overlaps ACT/PRE
+    across banks. That is exactly the number this test exists to report.
+    """
+    _memory, slave = await _bring_up(dut, page_policy=0)      # OPEN
+
+    # park refresh for the whole sweep -- isolate paging as the variable
+    dut.t_refi_i.value       = 0xFFFF
+    dut.ref_postpone_i.value = 0
+    dut.ref_pullin_i.value   = 0
+    dut.ref_mode_i.value     = 0
+    await ClockCycles(dut.aclk, 0x400 + 80)   # wait out the armed interval
+
+    rows = []
+    for tag, (mode, name) in enumerate(_PAGE_MODES):
+        dut.page_mode_i.value = mode
+        await ClockCycles(dut.aclk, 64)       # settle + drain before measuring
+        util, bp, refs = await _util_window(dut, slave, tag=tag)
+        rows.append((mode, name, util, bp, refs))
+        dut._log.info("paging mode %d (%-13s): util=%6.2f%%  DUT-stall=%d  REF=%d",
+                      mode, name, 100.0 * util, bp, refs)
+
+    try:
+        with open("paging_util_sweep.out", "w") as f:
+            f.write("# PUMICE-013: write utilization per Axis-2 paging mode\n")
+            f.write("# refresh parked, page-hit stream, writes only, AW+W b2b\n")
+            f.write("# util = beats / cycles WVALID high (100% = DUT never stalled)\n\n")
+            f.write(f"| {'mode':>4} | {'name':<13} | {'util%':>7} | "
+                    f"{'DUT stall':>9} | {'REF':>3} |\n")
+            f.write(f"|{'-'*6}|{'-'*15}|{'-'*9}|{'-'*11}|{'-'*5}|\n")
+            for mode, name, util, bp, refs in rows:
+                f.write(f"| {mode:>4} | {name:<13} | {100.0*util:>7.2f} | "
+                        f"{bp:>9} | {refs:>3} |\n")
+    except Exception as e:                                    # noqa: BLE001
+        dut._log.warning("paging_util_sweep.out dump failed: %s", e)
+
+    # refresh must not have leaked into ANY window, or the numbers are not
+    # attributable to paging.
+    leaked = [(n, r) for _, n, _, _, r in rows if r]
+    assert not leaked, f"refresh fired during paging windows: {leaked}"
+
+    short = [(n, round(100.0 * u, 2)) for _, n, u, _, _ in rows if u < 1.0]
+    assert not short, (
+        f"paging modes below 100% write utilization: {short}. "
+        f"Each is the DUT deasserting wready on a page-hit stream with "
+        f"refresh parked -- i.e. attributable to the paging mode itself.")
+    dut._log.info("PASS: all %d paging modes sustain 100%% write utilization",
+                  len(rows))
+
+
 def _echo_seed(tag):
     # PUMICE-010: pytest shows captured stdout for FAILING tests, so a
     # one-off red is reproducible with SEED=<n> after the fact.
@@ -1168,3 +1281,5 @@ def test_pumice_core_perf_write_ceiling(request):
     _run(request, "cocotb_test_pumice_core_perf_write_ceiling")
 def test_pumice_core_perf_refresh_bubbles(request):
     _run(request, "cocotb_test_pumice_core_perf_refresh_bubbles")
+def test_pumice_core_perf_paging_sweep(request):
+    _run(request, "cocotb_test_pumice_core_perf_paging_sweep")

@@ -149,6 +149,28 @@ def fub_producer(dut, title: str, clock, *, valid: str, ready: str,
         log=log if log is not None else dut._log)
 
 
+def fub_pulse_producer(dut, title: str, clock, *, valid: str, ready: str,
+                       profile: str = DEFAULT_PROFILE, log=None):
+    """GAXIMaster on a PAYLOAD-LESS valid/ready request port.
+
+    Some fub request ports are just `x_valid_i` / `x_ready_o` with no data
+    at all (pumice_dfi_rd_aligner's `op_*` is one: the aligner needs to know
+    a read was issued, nothing more). They are still handshakes -- the DUT
+    can backpressure -- so they are in scope for PUMICE-014, but there is no
+    payload to map.
+
+    Modelled as a single 1-bit field bound to the VALID signal itself. The
+    BFM drives valid, honours ready, and the field write is a harmless
+    re-assert of the bit the handshake already sets.
+    """
+    fc = make_field_config({'req': 1})
+    return create_gaxi_master(
+        dut, title, "", clock, field_config=fc, multi_sig=True,
+        signal_map=_signal_map(valid, ready, {'req': valid}),
+        randomizer=_randomizer(profile, "master"),
+        log=log if log is not None else dut._log)
+
+
 def set_profile(component, profile: str, side: str) -> None:
     """Retime a GAXI component. `side` is 'master' (valid_delay, a
     producer) or 'slave' (ready_delay, a consumer)."""

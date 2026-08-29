@@ -218,8 +218,18 @@ class PumiceWrDataCamTB(TBBase):
         return out
 
     # ---- commit -------------------------------------------------------------
-    async def commit(self, slot):
+    async def commit_issue(self, slot):
+        """Issue a commit and return WITHOUT waiting for the drain burst.
+
+        `commit()` waits for cm_out, which never arrives while the drain is
+        frozen (set_cm_rd_ready(False)) -- so a test holding an entry
+        mid-commit needs this form. The BFM still owns the handshake and
+        holds valid until commit_ready_o.
+        """
         await self.commit_bfm.send(self.commit_bfm.create_packet(slot=slot))
+
+    async def commit(self, slot):
+        await self.commit_issue(slot)
         for _ in range(200):
             if self.cm_out:
                 return self.cm_out.popleft()

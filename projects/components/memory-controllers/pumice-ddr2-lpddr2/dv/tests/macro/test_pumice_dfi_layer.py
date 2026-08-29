@@ -24,6 +24,11 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
+
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/macro/pumice_dfi_layer.f")
 
@@ -64,11 +69,20 @@ async def cocotb_test_pumice_dfi_layer(dut):
     cocotb.start_soon(Clock(dut.dfi_clk, 4, units='ns').start())
     dut.ctl_rstn.value = 0
     dut.dfi_rstn.value = 0
-    dut.cmd_valid_i.value = 0
+    # cmd/wd/rd are BFM-owned, all on ctl_clk (the controller side of the
+    # CDC -- dfi_clk is the PHY side). dfi_rddata_valid_i stays hand-driven:
+    # DFI read data has no ready, it is an unconditional strobe.
+    cmd_src = fub_producer(dut, "cmd", dut.ctl_clk, log=dut._log,
+                           valid="cmd_valid_i", ready="cmd_ready_o",
+                           fields={'data': ("cmd_data_i", len(dut.cmd_data_i))})
+    wd_src = fub_producer(dut, "wd", dut.ctl_clk, log=dut._log,
+                          valid="wd_valid_i", ready="wd_ready_o",
+                          fields={'data': ("wd_data_i", len(dut.wd_data_i))})
+    rd_sink = fub_consumer(dut, "rd", dut.ctl_clk, log=dut._log,
+                           valid="rd_valid_o", ready="rd_ready_i",
+                           fields={'data': ("rd_data_o", len(dut.rd_data_o))})
     dut.cmd_data_i.value = 0
-    dut.wd_valid_i.value = 0
     dut.wd_data_i.value = 0
-    dut.rd_ready_i.value = 1
     dut.init_start_i.value = 0
     dut.memtype_i.value = 0
     dut.rd_phase_i.value = 0
@@ -134,20 +148,16 @@ async def cocotb_test_pumice_dfi_layer(dut):
 
     # ---- push write data (fill the FIFO first so the drive is bubble-free) ----
     async def push_cmd(v):
-        dut.cmd_data_i.value = v
-        dut.cmd_valid_i.value = 1
-        await RisingEdge(dut.ctl_clk)
-        while int(dut.cmd_ready_o.value) == 0:
-            await RisingEdge(dut.ctl_clk)
-        dut.cmd_valid_i.value = 0
+        """The BFM holds valid until cmd_ready_o, so the spin-on-ready the
+        hand-rolled version needed is gone with the hand driving."""
+        await cmd_src.send(cmd_src.create_packet(data=v))
 
+    # Queue-and-go so the write-data drive stays BUBBLE-FREE, which is what
+    # the comment above this loop asks for: awaiting each beat would leave a
+    # gap between them.
     for i, w in enumerate(burst):
-        dut.wd_data_i.value = pack_wd(w, (1 << DFI_SW) - 1, 1 if i == BL_WORDS - 1 else 0)
-        dut.wd_valid_i.value = 1
-        await RisingEdge(dut.ctl_clk)
-        while int(dut.wd_ready_o.value) == 0:
-            await RisingEdge(dut.ctl_clk)
-    dut.wd_valid_i.value = 0
+        await wd_src._driver_send(wd_src.create_packet(
+            data=pack_wd(w, (1 << DFI_SW) - 1, 1 if i == BL_WORDS - 1 else 0)))
 
     await push_cmd(pack_cmd(OP_WR, bank=3, row=0x123, col=0x40))
     for _ in range(40):
