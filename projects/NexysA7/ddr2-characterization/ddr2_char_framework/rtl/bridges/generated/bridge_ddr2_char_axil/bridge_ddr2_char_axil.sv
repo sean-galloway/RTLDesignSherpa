@@ -120,10 +120,23 @@ module bridge_ddr2_char_axil
     input  logic [31:0] dfi_mon_ram_axi_rdata,
     input  logic [1:0]            dfi_mon_ram_axi_rresp,
     input  logic                  dfi_mon_ram_axi_rvalid,
-    output logic                  dfi_mon_ram_axi_rready
+    output logic                  dfi_mon_ram_axi_rready,
+
+    // Slave 4: obs_apb
+    // APB Slave: obs_apb
+    output  logic         obs_apb_PSEL,
+    output  logic [31:0]  obs_apb_PADDR,
+    output  logic         obs_apb_PENABLE,
+    output  logic         obs_apb_PWRITE,
+    output  logic [31:0]  obs_apb_PWDATA,
+    output  logic [3:0]  obs_apb_PSTRB,
+    output  logic [2:0]  obs_apb_PPROT,
+    input  logic [31:0]  obs_apb_PRDATA,
+    input  logic         obs_apb_PREADY,
+    input  logic         obs_apb_PSLVERR
 );
 
-    localparam NUM_SLAVES = 4;
+    localparam NUM_SLAVES = 5;
 
     // host Adapter outputs
     logic [NUM_SLAVES-1:0] host_slave_select_aw;
@@ -371,6 +384,58 @@ module bridge_ddr2_char_axil
     logic [BRIDGE_ID_WIDTH-1:0] dfi_mon_ram_axi_bridge_id_ar;
     logic [BRIDGE_ID_WIDTH-1:0] dfi_mon_ram_axi_rid_bridge_id;
     logic                       dfi_mon_ram_axi_rid_valid;
+
+    // obs_apb (APB, 32b AXI4 interface)
+    logic [7:0]            xbar_obs_apb_axi_awid;
+    logic [31:0]               xbar_obs_apb_axi_awaddr;
+    logic [7:0]                xbar_obs_apb_axi_awlen;
+    logic [2:0]                xbar_obs_apb_axi_awsize;
+    logic [1:0]                xbar_obs_apb_axi_awburst;
+    logic                      xbar_obs_apb_axi_awlock;
+    logic [3:0]                xbar_obs_apb_axi_awcache;
+    logic [2:0]                xbar_obs_apb_axi_awprot;
+    logic [3:0]                xbar_obs_apb_axi_awqos;
+    logic [3:0]                xbar_obs_apb_axi_awregion;
+    logic                      xbar_obs_apb_axi_awuser;
+    logic                      xbar_obs_apb_axi_awvalid;
+    logic                      xbar_obs_apb_axi_awready;
+    logic [31:0] xbar_obs_apb_axi_wdata;
+    logic [3:0] xbar_obs_apb_axi_wstrb;
+    logic                      xbar_obs_apb_axi_wlast;
+    logic                      xbar_obs_apb_axi_wuser;
+    logic                      xbar_obs_apb_axi_wvalid;
+    logic                      xbar_obs_apb_axi_wready;
+    logic [7:0]            xbar_obs_apb_axi_bid;
+    logic [1:0]                xbar_obs_apb_axi_bresp;
+    logic                      xbar_obs_apb_axi_buser;
+    logic                      xbar_obs_apb_axi_bvalid;
+    logic                      xbar_obs_apb_axi_bready;
+    logic [7:0]            xbar_obs_apb_axi_arid;
+    logic [31:0]               xbar_obs_apb_axi_araddr;
+    logic [7:0]                xbar_obs_apb_axi_arlen;
+    logic [2:0]                xbar_obs_apb_axi_arsize;
+    logic [1:0]                xbar_obs_apb_axi_arburst;
+    logic                      xbar_obs_apb_axi_arlock;
+    logic [3:0]                xbar_obs_apb_axi_arcache;
+    logic [2:0]                xbar_obs_apb_axi_arprot;
+    logic [3:0]                xbar_obs_apb_axi_arqos;
+    logic [3:0]                xbar_obs_apb_axi_arregion;
+    logic                      xbar_obs_apb_axi_aruser;
+    logic                      xbar_obs_apb_axi_arvalid;
+    logic                      xbar_obs_apb_axi_arready;
+    logic [7:0]            xbar_obs_apb_axi_rid;
+    logic [31:0] xbar_obs_apb_axi_rdata;
+    logic [1:0]                xbar_obs_apb_axi_rresp;
+    logic                      xbar_obs_apb_axi_rlast;
+    logic                      xbar_obs_apb_axi_ruser;
+    logic                      xbar_obs_apb_axi_rvalid;
+    logic                      xbar_obs_apb_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_bid_bridge_id;
+    logic                       obs_apb_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_rid_bridge_id;
+    logic                       obs_apb_axi_rid_valid;
 
     // ================================================================
     // HOST Adapter
@@ -721,7 +786,60 @@ module bridge_ddr2_char_axil
 
         .dfi_mon_ram_axi_bridge_id_ar(dfi_mon_ram_axi_bridge_id_ar),
         .dfi_mon_ram_axi_rid_bridge_id(dfi_mon_ram_axi_rid_bridge_id),
-        .dfi_mon_ram_axi_rid_valid(dfi_mon_ram_axi_rid_valid)
+        .dfi_mon_ram_axi_rid_valid(dfi_mon_ram_axi_rid_valid),
+
+        // Slave 4: obs_apb
+        .obs_apb_axi_awid(xbar_obs_apb_axi_awid),
+        .obs_apb_axi_awaddr(xbar_obs_apb_axi_awaddr),
+        .obs_apb_axi_awlen(xbar_obs_apb_axi_awlen),
+        .obs_apb_axi_awsize(xbar_obs_apb_axi_awsize),
+        .obs_apb_axi_awburst(xbar_obs_apb_axi_awburst),
+        .obs_apb_axi_awlock(xbar_obs_apb_axi_awlock),
+        .obs_apb_axi_awcache(xbar_obs_apb_axi_awcache),
+        .obs_apb_axi_awprot(xbar_obs_apb_axi_awprot),
+        .obs_apb_axi_awqos(xbar_obs_apb_axi_awqos),
+        .obs_apb_axi_awregion(xbar_obs_apb_axi_awregion),
+        .obs_apb_axi_awuser(xbar_obs_apb_axi_awuser),
+        .obs_apb_axi_awvalid(xbar_obs_apb_axi_awvalid),
+        .obs_apb_axi_awready(xbar_obs_apb_axi_awready),
+        .obs_apb_axi_wdata(xbar_obs_apb_axi_wdata),
+        .obs_apb_axi_wstrb(xbar_obs_apb_axi_wstrb),
+        .obs_apb_axi_wlast(xbar_obs_apb_axi_wlast),
+        .obs_apb_axi_wuser(xbar_obs_apb_axi_wuser),
+        .obs_apb_axi_wvalid(xbar_obs_apb_axi_wvalid),
+        .obs_apb_axi_wready(xbar_obs_apb_axi_wready),
+        .obs_apb_axi_bid(xbar_obs_apb_axi_bid),
+        .obs_apb_axi_bresp(xbar_obs_apb_axi_bresp),
+        .obs_apb_axi_buser(xbar_obs_apb_axi_buser),
+        .obs_apb_axi_bvalid(xbar_obs_apb_axi_bvalid),
+        .obs_apb_axi_bready(xbar_obs_apb_axi_bready),
+        .obs_apb_axi_arid(xbar_obs_apb_axi_arid),
+        .obs_apb_axi_araddr(xbar_obs_apb_axi_araddr),
+        .obs_apb_axi_arlen(xbar_obs_apb_axi_arlen),
+        .obs_apb_axi_arsize(xbar_obs_apb_axi_arsize),
+        .obs_apb_axi_arburst(xbar_obs_apb_axi_arburst),
+        .obs_apb_axi_arlock(xbar_obs_apb_axi_arlock),
+        .obs_apb_axi_arcache(xbar_obs_apb_axi_arcache),
+        .obs_apb_axi_arprot(xbar_obs_apb_axi_arprot),
+        .obs_apb_axi_arqos(xbar_obs_apb_axi_arqos),
+        .obs_apb_axi_arregion(xbar_obs_apb_axi_arregion),
+        .obs_apb_axi_aruser(xbar_obs_apb_axi_aruser),
+        .obs_apb_axi_arvalid(xbar_obs_apb_axi_arvalid),
+        .obs_apb_axi_arready(xbar_obs_apb_axi_arready),
+        .obs_apb_axi_rid(xbar_obs_apb_axi_rid),
+        .obs_apb_axi_rdata(xbar_obs_apb_axi_rdata),
+        .obs_apb_axi_rresp(xbar_obs_apb_axi_rresp),
+        .obs_apb_axi_rlast(xbar_obs_apb_axi_rlast),
+        .obs_apb_axi_ruser(xbar_obs_apb_axi_ruser),
+        .obs_apb_axi_rvalid(xbar_obs_apb_axi_rvalid),
+        .obs_apb_axi_rready(xbar_obs_apb_axi_rready),
+        .obs_apb_axi_bridge_id_aw(obs_apb_axi_bridge_id_aw),
+        .obs_apb_axi_bid_bridge_id(obs_apb_axi_bid_bridge_id),
+        .obs_apb_axi_bid_valid(obs_apb_axi_bid_valid),
+
+        .obs_apb_axi_bridge_id_ar(obs_apb_axi_bridge_id_ar),
+        .obs_apb_axi_rid_bridge_id(obs_apb_axi_rid_bridge_id),
+        .obs_apb_axi_rid_valid(obs_apb_axi_rid_valid)
     );
 
     // ================================================================
@@ -1044,6 +1162,78 @@ module bridge_ddr2_char_axil
         .xbar_bridge_id_ar(dfi_mon_ram_axi_bridge_id_ar),
         .rid_bridge_id(dfi_mon_ram_axi_rid_bridge_id),
         .rid_valid(dfi_mon_ram_axi_rid_valid)
+    );
+
+    // obs_apb adapter (APB, crossbar → external slave)
+    obs_apb_adapter u_obs_apb_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_obs_apb_axi_*)
+        .xbar_obs_apb_axi_awid(xbar_obs_apb_axi_awid),
+        .xbar_obs_apb_axi_awaddr(xbar_obs_apb_axi_awaddr),
+        .xbar_obs_apb_axi_awlen(xbar_obs_apb_axi_awlen),
+        .xbar_obs_apb_axi_awsize(xbar_obs_apb_axi_awsize),
+        .xbar_obs_apb_axi_awburst(xbar_obs_apb_axi_awburst),
+        .xbar_obs_apb_axi_awlock(xbar_obs_apb_axi_awlock),
+        .xbar_obs_apb_axi_awcache(xbar_obs_apb_axi_awcache),
+        .xbar_obs_apb_axi_awprot(xbar_obs_apb_axi_awprot),
+        .xbar_obs_apb_axi_awqos(xbar_obs_apb_axi_awqos),
+        .xbar_obs_apb_axi_awregion(xbar_obs_apb_axi_awregion),
+        .xbar_obs_apb_axi_awuser(xbar_obs_apb_axi_awuser),
+        .xbar_obs_apb_axi_awvalid(xbar_obs_apb_axi_awvalid),
+        .xbar_obs_apb_axi_awready(xbar_obs_apb_axi_awready),
+        .xbar_obs_apb_axi_wdata(xbar_obs_apb_axi_wdata),
+        .xbar_obs_apb_axi_wstrb(xbar_obs_apb_axi_wstrb),
+        .xbar_obs_apb_axi_wlast(xbar_obs_apb_axi_wlast),
+        .xbar_obs_apb_axi_wuser(xbar_obs_apb_axi_wuser),
+        .xbar_obs_apb_axi_wvalid(xbar_obs_apb_axi_wvalid),
+        .xbar_obs_apb_axi_wready(xbar_obs_apb_axi_wready),
+        .xbar_obs_apb_axi_bid(xbar_obs_apb_axi_bid),
+        .xbar_obs_apb_axi_bresp(xbar_obs_apb_axi_bresp),
+        .xbar_obs_apb_axi_buser(xbar_obs_apb_axi_buser),
+        .xbar_obs_apb_axi_bvalid(xbar_obs_apb_axi_bvalid),
+        .xbar_obs_apb_axi_bready(xbar_obs_apb_axi_bready),
+        .xbar_obs_apb_axi_arid(xbar_obs_apb_axi_arid),
+        .xbar_obs_apb_axi_araddr(xbar_obs_apb_axi_araddr),
+        .xbar_obs_apb_axi_arlen(xbar_obs_apb_axi_arlen),
+        .xbar_obs_apb_axi_arsize(xbar_obs_apb_axi_arsize),
+        .xbar_obs_apb_axi_arburst(xbar_obs_apb_axi_arburst),
+        .xbar_obs_apb_axi_arlock(xbar_obs_apb_axi_arlock),
+        .xbar_obs_apb_axi_arcache(xbar_obs_apb_axi_arcache),
+        .xbar_obs_apb_axi_arprot(xbar_obs_apb_axi_arprot),
+        .xbar_obs_apb_axi_arqos(xbar_obs_apb_axi_arqos),
+        .xbar_obs_apb_axi_arregion(xbar_obs_apb_axi_arregion),
+        .xbar_obs_apb_axi_aruser(xbar_obs_apb_axi_aruser),
+        .xbar_obs_apb_axi_arvalid(xbar_obs_apb_axi_arvalid),
+        .xbar_obs_apb_axi_arready(xbar_obs_apb_axi_arready),
+        .xbar_obs_apb_axi_rid(xbar_obs_apb_axi_rid),
+        .xbar_obs_apb_axi_rdata(xbar_obs_apb_axi_rdata),
+        .xbar_obs_apb_axi_rresp(xbar_obs_apb_axi_rresp),
+        .xbar_obs_apb_axi_rlast(xbar_obs_apb_axi_rlast),
+        .xbar_obs_apb_axi_ruser(xbar_obs_apb_axi_ruser),
+        .xbar_obs_apb_axi_rvalid(xbar_obs_apb_axi_rvalid),
+        .xbar_obs_apb_axi_rready(xbar_obs_apb_axi_rready),
+
+        // External APB interface (obs_apb_*)
+        .obs_apb_PADDR(obs_apb_PADDR),
+        .obs_apb_PSEL(obs_apb_PSEL),
+        .obs_apb_PENABLE(obs_apb_PENABLE),
+        .obs_apb_PWRITE(obs_apb_PWRITE),
+        .obs_apb_PWDATA(obs_apb_PWDATA),
+        .obs_apb_PSTRB(obs_apb_PSTRB),
+        .obs_apb_PPROT(obs_apb_PPROT),
+        .obs_apb_PRDATA(obs_apb_PRDATA),
+        .obs_apb_PSLVERR(obs_apb_PSLVERR),
+        .obs_apb_PREADY(obs_apb_PREADY),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(obs_apb_axi_bridge_id_aw),
+        .bid_bridge_id(obs_apb_axi_bid_bridge_id),
+        .bid_valid(obs_apb_axi_bid_valid),
+        .xbar_bridge_id_ar(obs_apb_axi_bridge_id_ar),
+        .rid_bridge_id(obs_apb_axi_rid_bridge_id),
+        .rid_valid(obs_apb_axi_rid_valid)
     );
 
 endmodule : bridge_ddr2_char_axil

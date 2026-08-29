@@ -10,7 +10,7 @@
 module bridge_ddr2_char_axil_xbar
     import bridge_ddr2_char_axil_pkg::*;
 #(
-    parameter int NUM_SLAVES = 4
+    parameter int NUM_SLAVES = 5
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -283,12 +283,82 @@ module bridge_ddr2_char_axil_xbar
     input  logic         dfi_mon_ram_axi_rlast,
     input  logic         dfi_mon_ram_axi_ruser,
     input  logic         dfi_mon_ram_axi_rvalid,
-    output  logic         dfi_mon_ram_axi_rready
+    output  logic         dfi_mon_ram_axi_rready,
+
+    // Slave 4: obs_apb
+    output logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_bid_bridge_id,
+    input  logic                       obs_apb_axi_bid_valid,
+
+    output logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_rid_bridge_id,
+    input  logic                       obs_apb_axi_rid_valid,
+
+    output  logic [7:0]  obs_apb_axi_awid,
+    output  logic [31:0]  obs_apb_axi_awaddr,
+    output  logic [7:0]  obs_apb_axi_awlen,
+    output  logic [2:0]  obs_apb_axi_awsize,
+    output  logic [1:0]  obs_apb_axi_awburst,
+    output  logic         obs_apb_axi_awlock,
+    output  logic [3:0]  obs_apb_axi_awcache,
+    output  logic [2:0]  obs_apb_axi_awprot,
+    output  logic [3:0]  obs_apb_axi_awqos,
+    output  logic [3:0]  obs_apb_axi_awregion,
+    output  logic         obs_apb_axi_awuser,
+    output  logic         obs_apb_axi_awvalid,
+    input  logic         obs_apb_axi_awready,
+
+    output  logic [31:0]  obs_apb_axi_wdata,
+    output  logic [3:0]  obs_apb_axi_wstrb,
+    output  logic         obs_apb_axi_wlast,
+    output  logic         obs_apb_axi_wuser,
+    output  logic         obs_apb_axi_wvalid,
+    input  logic         obs_apb_axi_wready,
+
+    input  logic [7:0]  obs_apb_axi_bid,
+    input  logic [1:0]  obs_apb_axi_bresp,
+    input  logic         obs_apb_axi_buser,
+    input  logic         obs_apb_axi_bvalid,
+    output  logic         obs_apb_axi_bready,
+
+    output  logic [7:0]  obs_apb_axi_arid,
+    output  logic [31:0]  obs_apb_axi_araddr,
+    output  logic [7:0]  obs_apb_axi_arlen,
+    output  logic [2:0]  obs_apb_axi_arsize,
+    output  logic [1:0]  obs_apb_axi_arburst,
+    output  logic         obs_apb_axi_arlock,
+    output  logic [3:0]  obs_apb_axi_arcache,
+    output  logic [2:0]  obs_apb_axi_arprot,
+    output  logic [3:0]  obs_apb_axi_arqos,
+    output  logic [3:0]  obs_apb_axi_arregion,
+    output  logic         obs_apb_axi_aruser,
+    output  logic         obs_apb_axi_arvalid,
+    input  logic         obs_apb_axi_arready,
+
+    input  logic [7:0]  obs_apb_axi_rid,
+    input  logic [31:0]  obs_apb_axi_rdata,
+    input  logic [1:0]  obs_apb_axi_rresp,
+    input  logic         obs_apb_axi_rlast,
+    input  logic         obs_apb_axi_ruser,
+    input  logic         obs_apb_axi_rvalid,
+    output  logic         obs_apb_axi_rready
 );
 
     // ================================================================
     // Crossbar Routing
     // ================================================================
+
+    // W-follow declarations (assigned below)
+    logic host_32b_w_to_ddr2_apb;
+    logic host_32b_w_sel_ddr2_apb;
+    logic host_32b_w_to_harness_csr;
+    logic host_32b_w_sel_harness_csr;
+    logic host_32b_w_to_dfi_mon_ram;
+    logic host_32b_w_sel_dfi_mon_ram;
+    logic host_32b_w_to_obs_apb;
+    logic host_32b_w_sel_obs_apb;
+    logic host_64b_w_to_debug_sram;
+    logic host_64b_w_sel_debug_sram;
 
     // ================================================================
     // Slave 0: ddr2_apb (32b)
@@ -299,6 +369,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_ddr2_apb = (host_32b_aw.addr <= 32'h00000fff);
+    wire host_32b_aw_gnt_ddr2_apb = host_32b_aw_to_ddr2_apb;
     assign ddr2_apb_axi_awid     = host_32b_aw_to_ddr2_apb ? host_32b_aw.id : '0;
     assign ddr2_apb_axi_awaddr   = host_32b_aw_to_ddr2_apb ? host_32b_aw.addr : '0;
     assign ddr2_apb_axi_awlen    = host_32b_aw_to_ddr2_apb ? host_32b_aw.len : '0;
@@ -309,31 +380,9 @@ module bridge_ddr2_char_axil_xbar
     assign ddr2_apb_axi_awprot   = host_32b_aw_to_ddr2_apb ? host_32b_aw.prot : '0;
     assign ddr2_apb_axi_awvalid  = host_32b_aw_to_ddr2_apb && host_32b_awvalid;
 
-    // AW->W tracking FIFO for this (master,slave) pair
-    logic host_32b_w_to_ddr2_apb;
-    logic [3:0] host_32b_aw_to_ddr2_apb_w_wptr, host_32b_aw_to_ddr2_apb_w_rptr;
-    logic host_32b_aw_to_ddr2_apb_w_mem [16];
-    logic host_32b_aw_to_ddr2_apb_w_push, host_32b_aw_to_ddr2_apb_w_pop;
-    assign host_32b_aw_to_ddr2_apb_w_push = host_32b_awvalid && host_32b_awready && host_32b_aw_to_ddr2_apb;
-    assign host_32b_aw_to_ddr2_apb_w_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last && host_32b_w_to_ddr2_apb;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            host_32b_aw_to_ddr2_apb_w_wptr <= '0;
-            host_32b_aw_to_ddr2_apb_w_rptr <= '0;
-        end else begin
-            if (host_32b_aw_to_ddr2_apb_w_push) begin
-                host_32b_aw_to_ddr2_apb_w_mem[host_32b_aw_to_ddr2_apb_w_wptr] <= 1'b1;
-                host_32b_aw_to_ddr2_apb_w_wptr <= host_32b_aw_to_ddr2_apb_w_wptr + 1'b1;
-            end
-            if (host_32b_aw_to_ddr2_apb_w_pop) begin
-                host_32b_aw_to_ddr2_apb_w_rptr <= host_32b_aw_to_ddr2_apb_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign host_32b_w_to_ddr2_apb = (host_32b_aw_to_ddr2_apb_w_wptr != host_32b_aw_to_ddr2_apb_w_rptr) ? host_32b_aw_to_ddr2_apb_w_mem[host_32b_aw_to_ddr2_apb_w_rptr] : 1'b0;
+    assign host_32b_w_sel_ddr2_apb = host_32b_w_to_ddr2_apb;
 
-
-    // W channel (gated by aw_to_<slave> FIFO head)
+    // W channel (gated by the W destination FIFO head)
     assign ddr2_apb_axi_wdata  = host_32b_w_to_ddr2_apb ? host_32b_w.data : '0;
     assign ddr2_apb_axi_wstrb  = host_32b_w_to_ddr2_apb ? host_32b_w.strb : '0;
     assign ddr2_apb_axi_wlast  = host_32b_w_to_ddr2_apb ? host_32b_w.last : '0;
@@ -348,6 +397,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_ar_to_ddr2_apb = (host_32b_ar.addr <= 32'h00000fff);
+    wire host_32b_ar_gnt_ddr2_apb = host_32b_ar_to_ddr2_apb;
     assign ddr2_apb_axi_arid     = host_32b_ar_to_ddr2_apb ? host_32b_ar.id : '0;
     assign ddr2_apb_axi_araddr   = host_32b_ar_to_ddr2_apb ? host_32b_ar.addr : '0;
     assign ddr2_apb_axi_arlen    = host_32b_ar_to_ddr2_apb ? host_32b_ar.len : '0;
@@ -375,6 +425,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_harness_csr = ((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff));
+    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr;
     assign harness_csr_axi_awid     = host_32b_aw_to_harness_csr ? host_32b_aw.id : '0;
     assign harness_csr_axi_awaddr   = host_32b_aw_to_harness_csr ? host_32b_aw.addr : '0;
     assign harness_csr_axi_awlen    = host_32b_aw_to_harness_csr ? host_32b_aw.len : '0;
@@ -385,31 +436,9 @@ module bridge_ddr2_char_axil_xbar
     assign harness_csr_axi_awprot   = host_32b_aw_to_harness_csr ? host_32b_aw.prot : '0;
     assign harness_csr_axi_awvalid  = host_32b_aw_to_harness_csr && host_32b_awvalid;
 
-    // AW->W tracking FIFO for this (master,slave) pair
-    logic host_32b_w_to_harness_csr;
-    logic [3:0] host_32b_aw_to_harness_csr_w_wptr, host_32b_aw_to_harness_csr_w_rptr;
-    logic host_32b_aw_to_harness_csr_w_mem [16];
-    logic host_32b_aw_to_harness_csr_w_push, host_32b_aw_to_harness_csr_w_pop;
-    assign host_32b_aw_to_harness_csr_w_push = host_32b_awvalid && host_32b_awready && host_32b_aw_to_harness_csr;
-    assign host_32b_aw_to_harness_csr_w_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last && host_32b_w_to_harness_csr;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            host_32b_aw_to_harness_csr_w_wptr <= '0;
-            host_32b_aw_to_harness_csr_w_rptr <= '0;
-        end else begin
-            if (host_32b_aw_to_harness_csr_w_push) begin
-                host_32b_aw_to_harness_csr_w_mem[host_32b_aw_to_harness_csr_w_wptr] <= 1'b1;
-                host_32b_aw_to_harness_csr_w_wptr <= host_32b_aw_to_harness_csr_w_wptr + 1'b1;
-            end
-            if (host_32b_aw_to_harness_csr_w_pop) begin
-                host_32b_aw_to_harness_csr_w_rptr <= host_32b_aw_to_harness_csr_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign host_32b_w_to_harness_csr = (host_32b_aw_to_harness_csr_w_wptr != host_32b_aw_to_harness_csr_w_rptr) ? host_32b_aw_to_harness_csr_w_mem[host_32b_aw_to_harness_csr_w_rptr] : 1'b0;
+    assign host_32b_w_sel_harness_csr = host_32b_w_to_harness_csr;
 
-
-    // W channel (gated by aw_to_<slave> FIFO head)
+    // W channel (gated by the W destination FIFO head)
     assign harness_csr_axi_wdata  = host_32b_w_to_harness_csr ? host_32b_w.data : '0;
     assign harness_csr_axi_wstrb  = host_32b_w_to_harness_csr ? host_32b_w.strb : '0;
     assign harness_csr_axi_wlast  = host_32b_w_to_harness_csr ? host_32b_w.last : '0;
@@ -424,6 +453,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_ar_to_harness_csr = ((host_32b_ar.addr >= 32'h00010000) && (host_32b_ar.addr <= 32'h00010fff));
+    wire host_32b_ar_gnt_harness_csr = host_32b_ar_to_harness_csr;
     assign harness_csr_axi_arid     = host_32b_ar_to_harness_csr ? host_32b_ar.id : '0;
     assign harness_csr_axi_araddr   = host_32b_ar_to_harness_csr ? host_32b_ar.addr : '0;
     assign harness_csr_axi_arlen    = host_32b_ar_to_harness_csr ? host_32b_ar.len : '0;
@@ -451,6 +481,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_aw_to_debug_sram = ((host_64b_aw.addr >= 32'h00040000) && (host_64b_aw.addr <= 32'h0007ffff));
+    wire host_64b_aw_gnt_debug_sram = host_64b_aw_to_debug_sram;
     assign debug_sram_axi_awid     = host_64b_aw_to_debug_sram ? host_64b_aw.id : '0;
     assign debug_sram_axi_awaddr   = host_64b_aw_to_debug_sram ? host_64b_aw.addr : '0;
     assign debug_sram_axi_awlen    = host_64b_aw_to_debug_sram ? host_64b_aw.len : '0;
@@ -461,31 +492,9 @@ module bridge_ddr2_char_axil_xbar
     assign debug_sram_axi_awprot   = host_64b_aw_to_debug_sram ? host_64b_aw.prot : '0;
     assign debug_sram_axi_awvalid  = host_64b_aw_to_debug_sram && host_64b_awvalid;
 
-    // AW->W tracking FIFO for this (master,slave) pair
-    logic host_64b_w_to_debug_sram;
-    logic [3:0] host_64b_aw_to_debug_sram_w_wptr, host_64b_aw_to_debug_sram_w_rptr;
-    logic host_64b_aw_to_debug_sram_w_mem [16];
-    logic host_64b_aw_to_debug_sram_w_push, host_64b_aw_to_debug_sram_w_pop;
-    assign host_64b_aw_to_debug_sram_w_push = host_64b_awvalid && host_64b_awready && host_64b_aw_to_debug_sram;
-    assign host_64b_aw_to_debug_sram_w_pop  = host_64b_wvalid && host_64b_wready && host_64b_w.last && host_64b_w_to_debug_sram;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            host_64b_aw_to_debug_sram_w_wptr <= '0;
-            host_64b_aw_to_debug_sram_w_rptr <= '0;
-        end else begin
-            if (host_64b_aw_to_debug_sram_w_push) begin
-                host_64b_aw_to_debug_sram_w_mem[host_64b_aw_to_debug_sram_w_wptr] <= 1'b1;
-                host_64b_aw_to_debug_sram_w_wptr <= host_64b_aw_to_debug_sram_w_wptr + 1'b1;
-            end
-            if (host_64b_aw_to_debug_sram_w_pop) begin
-                host_64b_aw_to_debug_sram_w_rptr <= host_64b_aw_to_debug_sram_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign host_64b_w_to_debug_sram = (host_64b_aw_to_debug_sram_w_wptr != host_64b_aw_to_debug_sram_w_rptr) ? host_64b_aw_to_debug_sram_w_mem[host_64b_aw_to_debug_sram_w_rptr] : 1'b0;
+    assign host_64b_w_sel_debug_sram = host_64b_w_to_debug_sram;
 
-
-    // W channel (gated by aw_to_<slave> FIFO head)
+    // W channel (gated by the W destination FIFO head)
     assign debug_sram_axi_wdata  = host_64b_w_to_debug_sram ? host_64b_w.data : '0;
     assign debug_sram_axi_wstrb  = host_64b_w_to_debug_sram ? host_64b_w.strb : '0;
     assign debug_sram_axi_wlast  = host_64b_w_to_debug_sram ? host_64b_w.last : '0;
@@ -500,6 +509,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_ar_to_debug_sram = ((host_64b_ar.addr >= 32'h00040000) && (host_64b_ar.addr <= 32'h0007ffff));
+    wire host_64b_ar_gnt_debug_sram = host_64b_ar_to_debug_sram;
     assign debug_sram_axi_arid     = host_64b_ar_to_debug_sram ? host_64b_ar.id : '0;
     assign debug_sram_axi_araddr   = host_64b_ar_to_debug_sram ? host_64b_ar.addr : '0;
     assign debug_sram_axi_arlen    = host_64b_ar_to_debug_sram ? host_64b_ar.len : '0;
@@ -527,6 +537,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_dfi_mon_ram = ((host_32b_aw.addr >= 32'h00080000) && (host_32b_aw.addr <= 32'h00080fff));
+    wire host_32b_aw_gnt_dfi_mon_ram = host_32b_aw_to_dfi_mon_ram;
     assign dfi_mon_ram_axi_awid     = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.id : '0;
     assign dfi_mon_ram_axi_awaddr   = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.addr : '0;
     assign dfi_mon_ram_axi_awlen    = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.len : '0;
@@ -537,31 +548,9 @@ module bridge_ddr2_char_axil_xbar
     assign dfi_mon_ram_axi_awprot   = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.prot : '0;
     assign dfi_mon_ram_axi_awvalid  = host_32b_aw_to_dfi_mon_ram && host_32b_awvalid;
 
-    // AW->W tracking FIFO for this (master,slave) pair
-    logic host_32b_w_to_dfi_mon_ram;
-    logic [3:0] host_32b_aw_to_dfi_mon_ram_w_wptr, host_32b_aw_to_dfi_mon_ram_w_rptr;
-    logic host_32b_aw_to_dfi_mon_ram_w_mem [16];
-    logic host_32b_aw_to_dfi_mon_ram_w_push, host_32b_aw_to_dfi_mon_ram_w_pop;
-    assign host_32b_aw_to_dfi_mon_ram_w_push = host_32b_awvalid && host_32b_awready && host_32b_aw_to_dfi_mon_ram;
-    assign host_32b_aw_to_dfi_mon_ram_w_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last && host_32b_w_to_dfi_mon_ram;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            host_32b_aw_to_dfi_mon_ram_w_wptr <= '0;
-            host_32b_aw_to_dfi_mon_ram_w_rptr <= '0;
-        end else begin
-            if (host_32b_aw_to_dfi_mon_ram_w_push) begin
-                host_32b_aw_to_dfi_mon_ram_w_mem[host_32b_aw_to_dfi_mon_ram_w_wptr] <= 1'b1;
-                host_32b_aw_to_dfi_mon_ram_w_wptr <= host_32b_aw_to_dfi_mon_ram_w_wptr + 1'b1;
-            end
-            if (host_32b_aw_to_dfi_mon_ram_w_pop) begin
-                host_32b_aw_to_dfi_mon_ram_w_rptr <= host_32b_aw_to_dfi_mon_ram_w_rptr + 1'b1;
-            end
-        end
-    end
-    assign host_32b_w_to_dfi_mon_ram = (host_32b_aw_to_dfi_mon_ram_w_wptr != host_32b_aw_to_dfi_mon_ram_w_rptr) ? host_32b_aw_to_dfi_mon_ram_w_mem[host_32b_aw_to_dfi_mon_ram_w_rptr] : 1'b0;
+    assign host_32b_w_sel_dfi_mon_ram = host_32b_w_to_dfi_mon_ram;
 
-
-    // W channel (gated by aw_to_<slave> FIFO head)
+    // W channel (gated by the W destination FIFO head)
     assign dfi_mon_ram_axi_wdata  = host_32b_w_to_dfi_mon_ram ? host_32b_w.data : '0;
     assign dfi_mon_ram_axi_wstrb  = host_32b_w_to_dfi_mon_ram ? host_32b_w.strb : '0;
     assign dfi_mon_ram_axi_wlast  = host_32b_w_to_dfi_mon_ram ? host_32b_w.last : '0;
@@ -576,6 +565,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_ar_to_dfi_mon_ram = ((host_32b_ar.addr >= 32'h00080000) && (host_32b_ar.addr <= 32'h00080fff));
+    wire host_32b_ar_gnt_dfi_mon_ram = host_32b_ar_to_dfi_mon_ram;
     assign dfi_mon_ram_axi_arid     = host_32b_ar_to_dfi_mon_ram ? host_32b_ar.id : '0;
     assign dfi_mon_ram_axi_araddr   = host_32b_ar_to_dfi_mon_ram ? host_32b_ar.addr : '0;
     assign dfi_mon_ram_axi_arlen    = host_32b_ar_to_dfi_mon_ram ? host_32b_ar.len : '0;
@@ -595,72 +585,193 @@ module bridge_ddr2_char_axil_xbar
 
 
     // ================================================================
+    // Slave 4: obs_apb (32b)
+    // ================================================================
+    // Single master: host → obs_apb
+    // Master width: 32b, Slave width: 32b
+    // Using 32b path from adapter (APB LCD width)
+
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_obs_apb = ((host_32b_aw.addr >= 32'h00090000) && (host_32b_aw.addr <= 32'h00090fff));
+    wire host_32b_aw_gnt_obs_apb = host_32b_aw_to_obs_apb;
+    assign obs_apb_axi_awid     = host_32b_aw_to_obs_apb ? host_32b_aw.id : '0;
+    assign obs_apb_axi_awaddr   = host_32b_aw_to_obs_apb ? host_32b_aw.addr : '0;
+    assign obs_apb_axi_awlen    = host_32b_aw_to_obs_apb ? host_32b_aw.len : '0;
+    assign obs_apb_axi_awsize   = host_32b_aw_to_obs_apb ? host_32b_aw.size : '0;
+    assign obs_apb_axi_awburst  = host_32b_aw_to_obs_apb ? host_32b_aw.burst : '0;
+    assign obs_apb_axi_awlock   = host_32b_aw_to_obs_apb ? host_32b_aw.lock : '0;
+    assign obs_apb_axi_awcache  = host_32b_aw_to_obs_apb ? host_32b_aw.cache : '0;
+    assign obs_apb_axi_awprot   = host_32b_aw_to_obs_apb ? host_32b_aw.prot : '0;
+    assign obs_apb_axi_awvalid  = host_32b_aw_to_obs_apb && host_32b_awvalid;
+
+    assign host_32b_w_sel_obs_apb = host_32b_w_to_obs_apb;
+
+    // W channel (gated by the W destination FIFO head)
+    assign obs_apb_axi_wdata  = host_32b_w_to_obs_apb ? host_32b_w.data : '0;
+    assign obs_apb_axi_wstrb  = host_32b_w_to_obs_apb ? host_32b_w.strb : '0;
+    assign obs_apb_axi_wlast  = host_32b_w_to_obs_apb ? host_32b_w.last : '0;
+    assign obs_apb_axi_wvalid = host_32b_w_to_obs_apb && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign obs_apb_axi_bready = ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid) ? host_32b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign obs_apb_axi_bridge_id_aw = host_32b_aw_to_obs_apb ? host_bridge_id_aw : '0;
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_obs_apb = ((host_32b_ar.addr >= 32'h00090000) && (host_32b_ar.addr <= 32'h00090fff));
+    wire host_32b_ar_gnt_obs_apb = host_32b_ar_to_obs_apb;
+    assign obs_apb_axi_arid     = host_32b_ar_to_obs_apb ? host_32b_ar.id : '0;
+    assign obs_apb_axi_araddr   = host_32b_ar_to_obs_apb ? host_32b_ar.addr : '0;
+    assign obs_apb_axi_arlen    = host_32b_ar_to_obs_apb ? host_32b_ar.len : '0;
+    assign obs_apb_axi_arsize   = host_32b_ar_to_obs_apb ? host_32b_ar.size : '0;
+    assign obs_apb_axi_arburst  = host_32b_ar_to_obs_apb ? host_32b_ar.burst : '0;
+    assign obs_apb_axi_arlock   = host_32b_ar_to_obs_apb ? host_32b_ar.lock : '0;
+    assign obs_apb_axi_arcache  = host_32b_ar_to_obs_apb ? host_32b_ar.cache : '0;
+    assign obs_apb_axi_arprot   = host_32b_ar_to_obs_apb ? host_32b_ar.prot : '0;
+    assign obs_apb_axi_arvalid  = host_32b_ar_to_obs_apb && host_32b_arvalid;
+
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign obs_apb_axi_rready = ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid) ? host_32b_rready : '0;
+
+    // Bridge ID (master → slave)
+    assign obs_apb_axi_bridge_id_ar = host_32b_ar_to_obs_apb ? host_bridge_id_ar : '0;
+
+
+    // ================================================================
+    // W destination FIFOs (per master width-path)
+    // ================================================================
+    // host 32b path -> ddr2_apb, harness_csr, dfi_mon_ram, obs_apb
+    logic [1:0] host_32b_wdest_mem [16];
+    logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
+    wire [1:0] host_32b_wdest_enc = host_32b_aw_to_harness_csr ? 2'd1 : host_32b_aw_to_dfi_mon_ram ? 2'd2 : host_32b_aw_to_obs_apb ? 2'd3 : 2'd0;
+    wire host_32b_wdest_push = host_32b_awvalid && host_32b_awready;
+    wire host_32b_wdest_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_32b_wdest_wptr <= '0;
+            host_32b_wdest_rptr <= '0;
+        end else begin
+            if (host_32b_wdest_push) begin
+                host_32b_wdest_mem[host_32b_wdest_wptr[3:0]] <= host_32b_wdest_enc;
+                host_32b_wdest_wptr <= host_32b_wdest_wptr + 1'b1;
+            end
+            if (host_32b_wdest_pop) begin
+                host_32b_wdest_rptr <= host_32b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
+    wire [1:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
+    assign host_32b_w_to_ddr2_apb = host_32b_wdest_valid && (host_32b_wdest_head == 2'd0);
+    assign host_32b_w_to_harness_csr = host_32b_wdest_valid && (host_32b_wdest_head == 2'd1);
+    assign host_32b_w_to_dfi_mon_ram = host_32b_wdest_valid && (host_32b_wdest_head == 2'd2);
+    assign host_32b_w_to_obs_apb = host_32b_wdest_valid && (host_32b_wdest_head == 2'd3);
+
+    // host 64b path -> debug_sram
+    logic [0:0] host_64b_wdest_mem [16];
+    logic [4:0] host_64b_wdest_wptr, host_64b_wdest_rptr;
+    wire [0:0] host_64b_wdest_enc = 1'd0;
+    wire host_64b_wdest_push = host_64b_awvalid && host_64b_awready;
+    wire host_64b_wdest_pop  = host_64b_wvalid && host_64b_wready && host_64b_w.last;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_64b_wdest_wptr <= '0;
+            host_64b_wdest_rptr <= '0;
+        end else begin
+            if (host_64b_wdest_push) begin
+                host_64b_wdest_mem[host_64b_wdest_wptr[3:0]] <= host_64b_wdest_enc;
+                host_64b_wdest_wptr <= host_64b_wdest_wptr + 1'b1;
+            end
+            if (host_64b_wdest_pop) begin
+                host_64b_wdest_rptr <= host_64b_wdest_rptr + 1'b1;
+            end
+        end
+    end
+    wire host_64b_wdest_valid = (host_64b_wdest_wptr != host_64b_wdest_rptr);
+    wire [0:0] host_64b_wdest_head = host_64b_wdest_mem[host_64b_wdest_rptr[3:0]];
+    assign host_64b_w_to_debug_sram = host_64b_wdest_valid && (host_64b_wdest_head == 1'd0);
+
+    // ================================================================
     // Response MUXes (OR together all slave responses)
     // ================================================================
 
     // Master: host, Width path: 32b
     assign host_32b_awready = 
-        (host_32b_aw_to_ddr2_apb ? ddr2_apb_axi_awready : '0) |
-        (host_32b_aw_to_harness_csr ? harness_csr_axi_awready : '0) |
-        (host_32b_aw_to_dfi_mon_ram ? dfi_mon_ram_axi_awready : '0);
+        (host_32b_aw_gnt_ddr2_apb ? ddr2_apb_axi_awready : '0) |
+        (host_32b_aw_gnt_harness_csr ? harness_csr_axi_awready : '0) |
+        (host_32b_aw_gnt_dfi_mon_ram ? dfi_mon_ram_axi_awready : '0) |
+        (host_32b_aw_gnt_obs_apb ? obs_apb_axi_awready : '0);
 
     assign host_32b_wready = 
-        (host_32b_w_to_ddr2_apb ? ddr2_apb_axi_wready : '0) |
-        (host_32b_w_to_harness_csr ? harness_csr_axi_wready : '0) |
-        (host_32b_w_to_dfi_mon_ram ? dfi_mon_ram_axi_wready : '0);
+        (host_32b_w_sel_ddr2_apb ? ddr2_apb_axi_wready : '0) |
+        (host_32b_w_sel_harness_csr ? harness_csr_axi_wready : '0) |
+        (host_32b_w_sel_dfi_mon_ram ? dfi_mon_ram_axi_wready : '0) |
+        (host_32b_w_sel_obs_apb ? obs_apb_axi_wready : '0);
 
     assign host_32b_b.id = 
         ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_bid : '0) |
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bid : '0) |
-        ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bid : '0);
+        ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bid : '0) |
+        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bid : '0);
 
     assign host_32b_b.resp = 
         ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_bresp : '0) |
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bresp : '0) |
-        ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bresp : '0);
+        ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bresp : '0) |
+        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bresp : '0);
 
     assign host_32b_bvalid = 
         ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_bvalid : '0) |
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bvalid : '0) |
-        ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bvalid : '0);
+        ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bvalid : '0) |
+        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bvalid : '0);
 
     assign host_32b_arready = 
-        (host_32b_ar_to_ddr2_apb ? ddr2_apb_axi_arready : '0) |
-        (host_32b_ar_to_harness_csr ? harness_csr_axi_arready : '0) |
-        (host_32b_ar_to_dfi_mon_ram ? dfi_mon_ram_axi_arready : '0);
+        (host_32b_ar_gnt_ddr2_apb ? ddr2_apb_axi_arready : '0) |
+        (host_32b_ar_gnt_harness_csr ? harness_csr_axi_arready : '0) |
+        (host_32b_ar_gnt_dfi_mon_ram ? dfi_mon_ram_axi_arready : '0) |
+        (host_32b_ar_gnt_obs_apb ? obs_apb_axi_arready : '0);
 
     assign host_32b_r.id = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rid : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rid : '0) |
-        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rid : '0);
+        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rid : '0) |
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rid : '0);
 
     assign host_32b_r.data = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rdata : 32'b0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rdata : 32'b0) |
-        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rdata : 32'b0);
+        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rdata : 32'b0) |
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rdata : 32'b0);
 
     assign host_32b_r.resp = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rresp : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rresp : '0) |
-        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rresp : '0);
+        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rresp : '0) |
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rresp : '0);
 
     assign host_32b_r.last = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rlast : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rlast : '0) |
-        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rlast : '0);
+        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rlast : '0) |
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rlast : '0);
 
     assign host_32b_rvalid = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rvalid : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rvalid : '0) |
-        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rvalid : '0);
+        ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rvalid : '0) |
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rvalid : '0);
 
 
     // Master: host, Width path: 64b
     assign host_64b_awready = 
-        (host_64b_aw_to_debug_sram ? debug_sram_axi_awready : '0);
+        (host_64b_aw_gnt_debug_sram ? debug_sram_axi_awready : '0);
 
     assign host_64b_wready = 
-        (host_64b_w_to_debug_sram ? debug_sram_axi_wready : '0);
+        (host_64b_w_sel_debug_sram ? debug_sram_axi_wready : '0);
 
     assign host_64b_b.id = 
         ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_bid : '0);
@@ -672,7 +783,7 @@ module bridge_ddr2_char_axil_xbar
         ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_bvalid : '0);
 
     assign host_64b_arready = 
-        (host_64b_ar_to_debug_sram ? debug_sram_axi_arready : '0);
+        (host_64b_ar_gnt_debug_sram ? debug_sram_axi_arready : '0);
 
     assign host_64b_r.id = 
         ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rid : '0);

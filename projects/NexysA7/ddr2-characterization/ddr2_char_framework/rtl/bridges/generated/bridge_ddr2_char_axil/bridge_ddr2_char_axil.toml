@@ -1,11 +1,11 @@
 #==============================================================================
 # bridge_ddr2_char_axil.toml
 #==============================================================================
-# 1-master x 4-slave AXI4-Lite/APB bridge for the ddr2-characterization
+# 1-master x 5-slave AXI4-Lite/APB bridge for the ddr2-characterization
 # harness. Sibling of stream_characterization's bridge_stream_char_axil,
 # stripped to what the DDR2 bring-up flow actually needs.
 #
-# The single master is the host's UART -> AXIL bridge. The four slaves:
+# The single master is the host's UART -> AXIL bridge. The five slaves:
 #
 #   ddr2_apb       0x00000000  4 KB    APB    pumice controller CSR slave
 #                                              (mode-registers, init sequence,
@@ -23,6 +23,20 @@
 #                                              Sits at 0x80000 so it doesn't
 #                                              overlap the 256-KB debug_sram
 #                                              window (0x40000-0x7FFFF).
+#   obs_apb        0x00090000  4 KB    APB    EXPANSION SLOT. Sized and typed
+#                                              for axi4_intf_master_observer's
+#                                              obs_regs block, whose slave port
+#                                              is APB with a 12-bit PADDR — so
+#                                              4 KB is exactly its window.
+#                                              Added 2026-08-28 so adopting the
+#                                              observer ([[PUMICE-016]]) is an
+#                                              instantiation rather than a
+#                                              bridge regen on the DDR2
+#                                              critical path.
+#                                              UNTIL THEN THE HARNESS MUST TIE
+#                                              IT OFF (PREADY=1, PRDATA=0,
+#                                              PSLVERR=0) or a stray access to
+#                                              0x90000 hangs the host bus.
 #
 # NB: desc_ram was in the original 1x5 layout as a placeholder for a
 # future dma_address_gen path. Removed because the pattern-gen engines
@@ -38,7 +52,7 @@
 
 [bridge]
 name = "bridge_ddr2_char_axil"
-description = "1xM AXIL bridge for ddr2-characterization harness (APB CSR + harness_csr + debug_sram + dfi_mon_ram)"
+description = "1xM AXIL bridge for ddr2-characterization harness (APB CSR + harness_csr + debug_sram + dfi_mon_ram + obs_apb expansion slot)"
 # Only the "no" variant for bring-up — the mon variant is available as
 # a follow-up if the DFI observability path needs per-adapter monitors.
 variants = ["no"]
@@ -119,4 +133,19 @@ addr_width  = 32
 data_width  = 32
 user_width  = 0
 base_addr   = "0x00080000"
+addr_range  = "0x00001000"     # 4 KB
+
+[[bridge.slaves]]
+name        = "obs_apb"
+# EXPANSION SLOT -- see the header. Typed APB/4 KB to match
+# axi4_intf_master_observer's obs_regs slave (12-bit PADDR) so the observer
+# can be dropped in without touching this file or regenerating the bridge.
+prefix      = "obs_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0       # APB has no IDs; validator forces this to 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00090000"
 addr_range  = "0x00001000"     # 4 KB

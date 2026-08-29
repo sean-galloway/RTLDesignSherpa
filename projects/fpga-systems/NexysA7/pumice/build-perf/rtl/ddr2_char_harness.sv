@@ -244,6 +244,24 @@ module ddr2_char_harness
     logic s3_awvalid, s3_awready, s3_wvalid, s3_wready, s3_bvalid, s3_bready;
     logic s3_arvalid, s3_arready, s3_rvalid, s3_rready;
 
+    // Slave 4 (obs_apb) — APB 32b, EXPANSION SLOT, currently UNUSED.
+    //
+    // Reserved at 0x00090000 for axi4_intf_master_observer's obs_regs block
+    // ([[PUMICE-016]]), whose APB slave has a 12-bit PADDR — so the bridge's
+    // 4 KB window is exactly its size. Wiring the slot now means adopting the
+    // observer is an instantiation, not a bridge regen on the DDR2 critical
+    // path.
+    //
+    // It MUST be terminated, not left dangling: the bridge drives PSEL/PENABLE
+    // at it on any access to 0x90000, and with PREADY tied low the host UART
+    // transaction never completes and the bus wedges. So answer immediately
+    // with zero data and no error -- a read of an empty slot returns 0 rather
+    // than hanging the board.
+    logic        obs_apb_PSEL, obs_apb_PENABLE, obs_apb_PWRITE;
+    logic [31:0] obs_apb_PADDR, obs_apb_PWDATA;
+    logic [3:0]  obs_apb_PSTRB;
+    logic [2:0]  obs_apb_PPROT;
+
     // =========================================================================
     // Generated 1 -> 5 bridge
     // =========================================================================
@@ -345,7 +363,19 @@ module ddr2_char_harness
         .dfi_mon_ram_axi_rdata   (s3_rdata),
         .dfi_mon_ram_axi_rresp   (s3_rresp),
         .dfi_mon_ram_axi_rvalid  (s3_rvalid),
-        .dfi_mon_ram_axi_rready  (s3_rready)
+        .dfi_mon_ram_axi_rready  (s3_rready),
+
+        // Slave 4: obs_apb (APB) — expansion slot, terminated below
+        .obs_apb_PSEL     (obs_apb_PSEL),
+        .obs_apb_PADDR    (obs_apb_PADDR),
+        .obs_apb_PENABLE  (obs_apb_PENABLE),
+        .obs_apb_PWRITE   (obs_apb_PWRITE),
+        .obs_apb_PWDATA   (obs_apb_PWDATA),
+        .obs_apb_PSTRB    (obs_apb_PSTRB),
+        .obs_apb_PPROT    (obs_apb_PPROT),
+        .obs_apb_PRDATA   (32'h0),
+        .obs_apb_PREADY   (1'b1),
+        .obs_apb_PSLVERR  (1'b0)
     );
 
     // =========================================================================

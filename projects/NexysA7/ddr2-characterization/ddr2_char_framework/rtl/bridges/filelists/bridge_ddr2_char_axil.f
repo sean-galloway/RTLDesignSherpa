@@ -10,6 +10,7 @@ $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridge
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_axil/debug_sram_adapter.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_axil/dfi_mon_ram_adapter.sv
 $REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_axil/harness_csr_adapter.sv
+$REPO_ROOT/projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/bridges/generated/bridge_ddr2_char_axil/obs_apb_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 #
