@@ -94,13 +94,32 @@ When multiple masters compete for the same slave:
 
 | Component | Latency | Type |
 |-----------|---------|------|
-| apb4_slave capture | 0-1 cycle | Registered |
+| apb4_slave capture | 1 cycle | Registered |
+| cmd skid buffer | 1 cycle | Registered |
 | Address decode | 0 cycles | Combinational |
-| Arbitration | 0-1 cycle | Combinational + wait |
-| apb4_master drive | 0-1 cycle | Registered |
-| **Typical Total** | **4 cycles** | master PSEL to downstream slave PSEL |
+| Arbitration | 1 cycle | Grant is registered |
+| apb4_master cmd skid | 1 cycle | Registered |
+| apb4_master IDLE -> SETUP | 1 cycle | FSM |
+| **Typical Total** | **5 cycles** | master SETUP edge to downstream PSEL edge |
 
 : Forward Path Latency
+
+**The three numbers on this page must sum, and now do:**
+
+    5  forward   master SETUP edge     -> downstream PSEL edge
+  + 1  downstream SETUP -> ACCESS
+  + 3  response  downstream PREADY edge -> master PREADY edge
+  = 9  SETUP-to-PREADY, the single-transfer latency above
+
+(With a zero-wait slave the downstream ACCESS and PREADY edges are the
+same cycle, which is why the response row can be read from either. A slave
+with wait states adds its own cycles between them and shifts the total.)
+
+This table read **4** until 2026-08-29, which could not be reconciled with
+the page's own 9-cycle total -- 4 + 3 left two cycles unaccounted for.
+Measured on `apbx_xbar_1to1` with an always-ready slave: master SETUP at
+cycle 1, downstream PSEL at cycle 6, downstream ACCESS at cycle 7, master
+PREADY at cycle 10.
 
 ### Response Path (Slave to Master)
 

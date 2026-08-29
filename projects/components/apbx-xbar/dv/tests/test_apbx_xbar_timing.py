@@ -41,11 +41,17 @@ BASE = 0x1000_0000
 FABRIC_ACCESS_TO_PREADY = 8
 SETUP_TO_PREADY = 9
 BACK_TO_BACK_PERIOD = 10
+# The latency-breakdown tables in ch05_performance/02_latency must SUM to
+# SETUP_TO_PREADY. They did not until 2026-08-29 (forward read 4, and 4 + 3
+# left two cycles unaccounted for), so the decomposition is asserted too --
+# a total that is right while its parts are wrong is how that survived.
+FORWARD_PATH = 5      # master SETUP edge     -> downstream PSEL edge
+RESPONSE_PATH = 3     # downstream PREADY edge -> master PREADY edge
 
 
 async def _sampler(dut, rec):
     cyc = 0
-    prev_psel = prev_access = 0
+    prev_psel = prev_access = prev_s_psel = 0
     dn_run = 0
     while True:
         await RisingEdge(dut.pclk)
@@ -62,6 +68,15 @@ async def _sampler(dut, rec):
         if access and pready:
             rec['ready'].append(cyc)
         prev_psel, prev_access = psel, access
+
+        # Forward path: downstream PSEL rise. Response path: measured from the
+        # downstream PREADY edge, which for a zero-wait slave is its ACCESS edge.
+        s_psel = int(dut.s0_apb_PSEL.value)
+        if s_psel and not prev_s_psel:
+            rec['s_psel_rise'].append(cyc)
+        prev_s_psel = s_psel
+        if s_psel and int(dut.s0_apb_PENABLE.value) and int(dut.s0_apb_PREADY.value):
+            rec['s_ready'].append(cyc)
 
         # Downstream setup-phase run length (TASK-071).
         if int(dut.s0_apb_PSEL.value) and not int(dut.s0_apb_PENABLE.value):
@@ -89,7 +104,8 @@ async def apbx_xbar_timing_test(dut):
     dut.presetn.value = 1
     await ClockCycles(dut.pclk, 5)
 
-    rec = {'psel_rise': [], 'access_rise': [], 'ready': [], 'dn_setup': []}
+    rec = {'psel_rise': [], 'access_rise': [], 'ready': [], 'dn_setup': [],
+           's_psel_rise': [], 's_ready': []}
     cocotb.start_soon(_sampler(dut, rec))
 
     n_xfers = 5
@@ -142,6 +158,20 @@ async def apbx_xbar_timing_test(dut):
         f"SETUP cycle cannot overlap the previous transfer's ACCESS. A "
         f"measurement of {SETUP_TO_PREADY} here means the turnaround being "
         f"driven is not legal APB.")
+
+    fwd = rec['s_psel_rise'][0] - rec['psel_rise'][0]
+    rsp = rec['ready'][0] - rec['s_ready'][0]
+    dut._log.info(f"forward path = {fwd}, response path = {rsp}")
+
+    assert fwd == FORWARD_PATH, (
+        f"forward path changed: master SETUP -> downstream PSEL = {fwd}, "
+        f"documented {FORWARD_PATH} (ch05_performance/02_latency)")
+    assert rsp == RESPONSE_PATH, (
+        f"response path changed: downstream PREADY -> master PREADY = {rsp}, "
+        f"documented {RESPONSE_PATH}")
+    assert FORWARD_PATH + 1 + RESPONSE_PATH == SETUP_TO_PREADY, (
+        f"the documented breakdown no longer sums: {FORWARD_PATH} + 1 + "
+        f"{RESPONSE_PATH} != {SETUP_TO_PREADY}")
 
     assert rec['dn_setup'] and all(v == 1 for v in rec['dn_setup']), (
         f"downstream setup phase must be exactly one cycle, saw "

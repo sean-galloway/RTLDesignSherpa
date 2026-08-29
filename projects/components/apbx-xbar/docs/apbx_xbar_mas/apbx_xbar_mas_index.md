@@ -111,8 +111,9 @@ All diagrams referenced in the documentation are available in:
 - **Automatic Address Decode:** 64KB per slave, simple offset-based routing
 - **Round-Robin Arbitration:** Per-slave fair arbitration, no master starvation
 - **Back-to-Back Transactions:** accepted without master-side idle
-  cycles, though they do not overlap inside the fabric (~9 pclk
-  cycles each)
+  cycles, though they do not overlap inside the fabric (10 pclk cycles
+  each, PREADY-to-PREADY -- one more than a single transfer's 9, see
+  HAS 5.2)
 - **Grant Persistence:** Hold grant through transaction completion
 - **RTL Generation:** Python-based generator for custom configurations
 

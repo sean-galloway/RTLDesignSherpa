@@ -265,7 +265,7 @@ Transaction 4: M0, M1 request → M0 granted → Priority rotates to M1
 
 **Single Master:**
 - Back-to-back transactions without master-side gaps (no overlap
-  inside the fabric; ~9 pclk cycles each)
+  inside the fabric; 10 pclk cycles each, PREADY-to-PREADY)
 - Limited only by slave PREADY response time
 
 **Multiple Masters (Same Slave):**

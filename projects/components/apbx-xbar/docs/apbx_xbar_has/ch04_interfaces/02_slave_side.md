@@ -52,13 +52,17 @@ For each slave index `j` (0 to N-1):
 
 **PSEL:** Asserted when a transaction targets this slave. Remains high throughout the transaction.
 
-**PENABLE:** Follows standard APB timing, with one known deviation:
-`apb4_master`/`apb5_master` drive **two** setup cycles (PSEL high,
-PENABLE low) when launching out of IDLE, where APB defines one. Measured
-`[2,2,2]` at a downstream port. Back-to-back transfers taking the
-ACCESS->SETUP shortcut give the compliant single setup cycle. Tracked as
-AMBA TASK-071; tolerant slaves (sampling on PSEL && PENABLE && PREADY)
-are unaffected.
+**PENABLE:** Follows standard APB timing -- exactly one setup cycle
+(PSEL high, PENABLE low) before ACCESS, on every transfer.
+
+Until 2026-08-28 `apb4_master`/`apb5_master` drove **two** setup cycles
+when launching out of IDLE, measured `[2,2,2]` at a downstream port;
+only back-to-back transfers taking the ACCESS->SETUP shortcut were
+compliant. Fixed as AMBA TASK-071 by not asserting PSEL in the IDLE
+launch cycle, which cost no latency because the state sequence was
+unchanged. Now measured `[1,1,1,1,1]` downstream, asserted by
+`val/amba/test_apb_master_setup_phase.py` and by the downstream check in
+`dv/tests/test_apbx_xbar_timing.py`.
 
 - Low during setup phase
 - High during access phase
