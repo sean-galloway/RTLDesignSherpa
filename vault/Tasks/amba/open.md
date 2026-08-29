@@ -186,22 +186,6 @@ reproducible", which was wrong -- most TBs default it themselves
 steerable. Corrected: an alarming-but-inaccurate warning is one people
 learn to scroll past.
 
-### FORMAL-INTEG-COMMON-ORPHANS — two harnesses for RTL deleted a month ago
-**Status:** open 2026-08-28 (found by the same sweep)
-**Priority:** P3 — cannot run; nothing depends on them
-**Owner:** TBD
-
-`formal/integ_common/fifo_sync_multi/fifo_sync_multi.sby` and
-`formal/integ_common/fifo_sync_multi_sigmap/fifo_sync_multi_sigmap.sby` list
-`../../../rtl/integ_common/*.sv`. `rtl/integ_common/` went with `rtl/integ_amba/`
-in 01d1c3e6. Same residue class as AMBA-INTEG-EXAMPLES, which was closed after
-cleaning the docs and filelists.toml -- these two harnesses were missed.
-
-**Work:**
-- [ ] Delete both, unless the modules are coming back.
-
----
-
 ## TASK-026: Every module MUST have a filelist and a registry entry
 **Priority:** P2
 **Status:** 🔴 Not Started
