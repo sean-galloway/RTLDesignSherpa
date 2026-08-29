@@ -7,8 +7,8 @@ DDR2/LPDDR2 memory controller (`projects/components/memory-controllers/pumice-dd
 | State | Count |
 |---|---|
 | [active](active.md) | 0 |
-| [open](open.md) | 6 |
-| [closed](closed.md) | 11 |
+| [open](open.md) | 5 |
+| [closed](closed.md) | 12 |
 | [dropped](dropped.md) | 1 |
 
 ## Active
@@ -31,11 +31,7 @@ as open, not active. See the caveat under the shortlist.)
 - **PUMICE-013** — characterize + tune the modes (the big one: sweeps in sim
   and on the board, recommended defaults per workload family). Wants 008
   first for the reason above.
-- **PUMICE-014** — 15 of 17 files done. The 2 remaining are deliberate:
-  `dfi_cmd_formatter_tb` needs its CHECK redesigned to be BFM-drivable (own
-  task, not a mechanical port), and `wr_cmd_cam_tb` was DELETED 2026-08-28
-  as dead code. Rule stands: no new test may hand-poke a valid/ready
-  interface.
+
 - **PUMICE-006** — mechanisms COMPLETE 2026-08-27, all three axes, every
   mode off by default and mutation-proven. Parked; reopens only if 013
   reports a gap.
