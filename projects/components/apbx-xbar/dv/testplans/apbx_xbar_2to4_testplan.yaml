@@ -389,7 +389,9 @@ notes: |
   - Address decode (64KB per slave, fixed offsets)
   - Response routing from selected slave to requesting master
   - Parallel operation when masters access different slaves
-  - Zero-bubble back-to-back to same slave from same master
+  - Back-to-back to the same slave from the same master with no master-side
+    idle cycles; they do NOT overlap (10 pclk cycles PREADY-to-PREADY, see
+    HAS 5.2)
 
   Address Map (same for both masters):
     Slave 0: [BASE_ADDR + 0x00000, BASE_ADDR + 0x0FFFF]

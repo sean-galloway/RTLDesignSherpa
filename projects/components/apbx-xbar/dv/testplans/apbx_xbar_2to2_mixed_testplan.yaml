@@ -1,0 +1,234 @@
+# Testplan for apbx_xbar_2to2_mixed
+# Maps functional test scenarios to Verilator coverage points
+
+module: apbx_xbar_2to2_mixed
+rtl_file: projects/components/apbx-xbar/rtl/apbx_xbar_2to2_mixed.sv
+test_file: projects/components/apbx-xbar/dv/tests/test_apbx_xbar_2to2_mixed.py
+formal: formal/apbx_xbar/apbx_xbar_2to2_mixed/
+
+# Module description:
+# 2x2 APB crossbar with MIXED per-port protocol versions:
+#   m0 = APB4, m1 = APB5, s0 = APB5, s1 = APB4
+# Uses apb4_slave + apb5_slave on the master side, apb4_master + apb5_master on
+# the slave side, over the same cmd/rsp fabric as the all-APB4 variants.
+#
+# Version selection is STRUCTURAL, not a parameter: the APB4 ports have no
+# sideband pins at all. That is what makes the "APB4 port never sees sideband"
+# question a port-list fact rather than a behavioural one, and it is checked as
+# such (scenario 08) rather than by driving stimulus at pins that do not exist.
+
+parameters:
+  - name: ADDR_WIDTH
+    default: 32
+    description: Address bus width (18 minimum -- the slave index is offset[16])
+  - name: DATA_WIDTH
+    default: 32
+    description: Data bus width
+  - name: STRB_WIDTH
+    default: DATA_WIDTH/8
+    description: Write strobe width (derived from DATA_WIDTH)
+  - name: BASE_ADDR
+    default: 0x10000000
+    description: >
+      Base of the slave map. The slave index comes from the OFFSET
+      (PADDR - BASE_ADDR), so no span alignment is required (APBX-004).
+
+# Coverage points
+coverage_points:
+  - line: 35
+    type: input_port
+    content: "input pclk"
+    covered: true
+
+  - line: 36
+    type: input_port
+    content: "input presetn"
+    covered: true
+
+  # Master 0 -- APB4, no sideband pins
+  - line: 39
+    type: input_port
+    content: "input m0_apb_PSEL"
+    covered: true
+
+  # Master 1 -- APB5
+  - line: 51
+    type: input_port
+    content: "input m1_apb_PSEL"
+    covered: true
+
+  - line: 62
+    type: input_port
+    content: "input m1_apb_PAUSER"
+    covered: true
+
+  - line: 63
+    type: input_port
+    content: "input m1_apb_PWUSER"
+    covered: true
+
+  # Slave 0 -- APB5
+  - line: 69
+    type: output_port
+    content: "output s0_apb_PSEL"
+    covered: true
+
+  - line: 80
+    type: output_port
+    content: "output s0_apb_PAUSER"
+    covered: true
+
+  - line: 81
+    type: output_port
+    content: "output s0_apb_PWUSER"
+    covered: true
+
+  # Slave 1 -- APB4, no sideband pins
+  - line: 87
+    type: output_port
+    content: "output s1_apb_PSEL"
+    covered: true
+
+functional_scenarios:
+  # ---- the four version pairings, which are the point of this variant ----
+  - id: APB-MIX-01
+    name: "APB5 m1 -> APB5 s0: sideband carried both ways"
+    description: >
+      Request sideband (PAUSER/PWUSER) driven by the APB5 master arrives at the
+      APB5 slave, and completer sideband (PRUSER/PBUSER) returns to the master.
+      This is the only pairing where sideband is expected to move at all, so it
+      is what stops every "sideband is '0" check from passing vacuously.
+    test_function: "apbx_2to2_mixed_test"
+    covers_lines: [51, 62, 63, 69, 80, 81]
+    priority: high
+    status: verified
+
+  - id: APB-MIX-02
+    name: "APB4 m0 -> APB5 s0: base transfer OK, sideband gated to '0"
+    description: >
+      The APB4 master has no sideband pins, so the fabric must present '0 at the
+      APB5 slave rather than forwarding whatever the previous master left. Also
+      proven formally (ap_gate_no_inject_pauser/pwuser).
+    test_function: "apbx_2to2_mixed_test"
+    covers_lines: [39, 69, 80, 81]
+    priority: high
+    status: verified
+
+  - id: APB-MIX-03
+    name: "APB5 m1 -> APB4 s1: no completer-sideband ghost"
+    description: >
+      The APB4 slave produces no sideband, so the APB5 master must read '0 on
+      PRUSER/PBUSER rather than a stale or fabricated value. Also proven
+      formally (ap_gate_no_fab_pruser/pbuser).
+    test_function: "apbx_2to2_mixed_test"
+    covers_lines: [51, 87]
+    priority: high
+    status: verified
+
+  - id: APB-MIX-04
+    name: "APB4 m0 -> APB4 s1: plain transfer"
+    description: The all-APB4 pairing behaves exactly as the non-mixed variants.
+    test_function: "apbx_2to2_mixed_test"
+    covers_lines: [39, 87]
+    priority: high
+    status: verified
+
+  # ---- decode ----
+  - id: APB-MIX-05
+    name: "Decode miss from m0 completes with PSLVERR"
+    description: >
+      An out-of-range access must COMPLETE with PSLVERR, not stall. Before
+      APBX-005 it left cmd_ready low forever and wedged that master with no
+      error signature and no timeout. The test distinguishes a hang from an
+      error response rather than only checking PSLVERR.
+    test_function: "apbx_2to2_mixed_test"
+    covers_lines: [39]
+    priority: high
+    status: verified
+
+  - id: APB-MIX-06
+    name: "Decode miss from m1 completes with PSLVERR"
+    description: Same as APB-MIX-05 for the APB5 master.
+    test_function: "apbx_2to2_mixed_test"
+    covers_lines: [51]
+    priority: high
+    status: verified
+
+  - id: APB-MIX-07
+    name: "Fabric survives decode misses"
+    description: >
+      Normal transfers on both masters still complete after the misses, and no
+      transfer leaked to a slave during them. A decode miss that quietly
+      consumed a slave-side transaction would pass a PSLVERR-only check.
+    test_function: "apbx_2to2_mixed_test"
+    covers_lines: [39, 51, 69, 87]
+    priority: high
+    status: verified
+
+  # ---- structural ----
+  - id: APB-MIX-08
+    name: "APB4 ports carry no sideband pins"
+    description: >
+      Structural assertion that m0 and s1 expose no PAUSER/PWUSER/PWAKEUP/
+      PRUSER/PBUSER. This is the strongest form of the version gate -- the pins
+      do not exist to be driven -- and it is why the formal harness deliberately
+      does NOT restate the thin core's "an APB4 port never sees sideband"
+      properties, which would pass vacuously here.
+    test_function: "apbx_2to2_mixed_test"
+    covers_lines: [39, 87]
+    priority: high
+    status: verified
+
+parameter_coverage:
+  - ADDR_WIDTH: 32
+    DATA_WIDTH: 32
+    BASE_ADDR: 0x10000000
+    test_level: basic
+    status: verified
+
+formal_coverage:
+  harness: formal/apbx_xbar/apbx_xbar_2to2_mixed/
+  status: passing
+  proves:
+    - reset clears master-side and slave-side outputs
+    - "APB protocol: PENABLE never without PSEL on the slave side"
+    - arbiter grants one-hot per slave
+    - "gate, no injection: the APB4 master cannot cause sideband at the APB5 slave"
+    - "gate, no fabrication: completer sideband can only come from the APB5 slave"
+    - "PWAKEUP is dropped unconditionally (a documented limitation, proven)"
+  does_not_prove:
+    - >
+      "an APB4 port never sees sideband" -- vacuous here, since those ports have
+      no such pins. Covered structurally by APB-MIX-08 instead.
+    - >
+      parity gating. A mixed pairing carries no parity at all, and the variant is
+      instantiated with ENABLE_PARITY=0, so there is no property to state.
+
+notes: |
+  Mixed-version 2x2 APB crossbar (m0=APB4, m1=APB5, s0=APB5, s1=APB4).
+  Architecture: apb4_slave/apb5_slave -> cmd/rsp fabric -> apb4_master/apb5_master
+
+  Why mixing needs no converters: APB5 is APB4's transfer protocol plus extra
+  sideband pins -- the handshake and phases are identical. Sideband rides the
+  same select/grant/demux muxes as PADDR, and version selection only gates
+  CONTRIBUTION. Both gates are compile-time constants, so synthesis prunes any
+  pairing that cannot occur.
+
+  Known behaviour, not a defect: PWAKEUP is dropped. The boundary IP leaves
+  rsp_pwakeup unconnected and ties wakeup_request to '0, so an APB5 slave
+  asserting PWAKEUP is never seen at the APB5 master. Proven, so wiring it up
+  later fails a proof rather than changing behaviour silently.
+
+  Address Map:
+    Slave 0: [BASE_ADDR + 0x00000, BASE_ADDR + 0x0FFFF]
+    Slave 1: [BASE_ADDR + 0x10000, BASE_ADDR + 0x1FFFF]
+
+  Timing: back-to-back transfers need no master-side idle cycles but do NOT
+  overlap -- apb4_slave/apb5_slave are one-command-at-a-time. Sustained cadence
+  is 10 pclk cycles PREADY-to-PREADY against a 9-cycle SETUP-to-PREADY single
+  transfer; the extra cycle is the next transfer's mandatory SETUP phase. See
+  HAS ch05_performance/02_latency and dv/tests/test_apbx_xbar_timing.py, which
+  asserts all three numbers.
+
+  This variant drives its DUT directly -- there is no rtl/wrappers/ scaffold for
+  it, because none is needed.

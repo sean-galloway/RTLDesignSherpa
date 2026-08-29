@@ -375,7 +375,8 @@ notes: |
   Key features:
   - Round-robin arbitration (fair access)
   - Grant persistence (holds until response)
-  - Zero-bubble back-to-back transactions
+  - Back-to-back transactions with no master-side idle cycles; they do NOT
+    overlap (10 pclk cycles PREADY-to-PREADY, see HAS 5.2)
   - Independent cmd/rsp routing per master
 
   Wrapper module (apbx_xbar_2to1_wrap.sv) is tested via core module.
