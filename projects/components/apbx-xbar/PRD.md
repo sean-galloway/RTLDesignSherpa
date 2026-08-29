@@ -105,7 +105,7 @@ APB Crossbar (M masters × N slaves)
 │  ┌──────▼──────┐  ┌──────────────┐  ┌────────────▼──┐          │
 │  │ Address     │  │ Arbitration  │  │ Response       │          │
 │  │ Decode      │  │ per Slave    │  │ Routing        │          │
-│  │ (parallel)  │  │ (round-robin)│  │ (registered)   │          │
+│  │ (parallel)  │  │ (round-robin)│  │(combinational) │          │
 │  └──────┬──────┘  └──────┬───────┘  └────────┬───────┘          │
 │         │                 │                   │                  │
 │         └─────────────────┴───────────────────┘                  │
@@ -174,24 +174,36 @@ Slave 1 accessed by M1, M1, M0 → Next grant goes to M1
 
 ### 4.1 Pre-Generated Modules
 
-| Module | Masters | Slaves | Use Case | File Size |
-|--------|---------|--------|----------|-----------|
-| **apbx_xbar_1to1** | 1 | 1 | Protocol conversion, testing | ~200 LOC |
-| **apbx_xbar_2to1** | 2 | 1 | Multi-master arbitration | ~400 LOC |
-| **apbx_xbar_1to4** | 1 | 4 | Address decode, simple SoC | ~500 LOC |
-| **apbx_xbar_2to4** | 2 | 4 | Full crossbar, typical SoC | ~751 LOC |
-| **apbx_xbar_2to2_mixed** | 2 | 2 | Mixed APB4/APB5 (s0 is APB5) | ~570 LOC |
+| Module | Masters | Slaves | Use Case |
+|--------|---------|--------|----------|
+| **apbx_xbar_1to1** | 1 | 1 | Protocol conversion, testing |
+| **apbx_xbar_2to1** | 2 | 1 | Multi-master arbitration |
+| **apbx_xbar_1to4** | 1 | 4 | Address decode, simple SoC |
+| **apbx_xbar_2to4** | 2 | 4 | Full crossbar, typical SoC |
+| **apbx_xbar_2to2_mixed** | 2 | 2 | Mixed APB4/APB5 (s0 is APB5) |
+
+LOC figures live in HAS ch05_performance/03_resources.md, which is the
+single source of truth for them. A duplicate column here disagreed with
+that table by up to 33%.
 
 ### 4.2 Wrapper Modules
 
-Pre-configured wrappers for common topologies:
+**These are TESTBENCH SCAFFOLDS, not integration building blocks.** Each
+exposes `pclk` and `presetn` and nothing else -- every APB signal is an
+internal net driven by the cocotb testbench. They exist because the four
+legacy tests drive a wrapper rather than the bare crossbar; a design
+cannot connect anything to one.
 
 | Wrapper | Configuration | Purpose |
 |---------|---------------|---------|
-| `apbx_xbar_1to1_wrap` | 1×1 | Simple connection |
-| `apbx_xbar_2to1_wrap` | 2×1 | Dual-master arbitration |
-| `apbx_xbar_1to4_wrap` | 1×4 | Single-master decode |
-| `apbx_xbar_2to4_wrap` | 2×4 | Full SoC crossbar |
+| `apbx_xbar_1to1_wrap` | 1×1 | Test scaffold for `test_apbx_xbar_1to1.py` |
+| `apbx_xbar_2to1_wrap` | 2×1 | Test scaffold for `test_apbx_xbar_2to1.py` |
+| `apbx_xbar_1to4_wrap` | 1×4 | Test scaffold for `test_apbx_xbar_1to4.py` |
+| `apbx_xbar_2to4_wrap` | 2×4 | Test scaffold for `test_apbx_xbar_2to4.py` |
+
+To integrate, instantiate the crossbar itself. `apbx_xbar_2to2_mixed` has
+no wrapper precisely because its test drives the DUT directly, which is
+the better pattern.
 
 ---
 

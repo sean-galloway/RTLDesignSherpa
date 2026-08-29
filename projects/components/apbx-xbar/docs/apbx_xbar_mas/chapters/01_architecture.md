@@ -215,13 +215,17 @@ thin core answered does not arise when the port has no parity pins.
 
 ## Pre-Generated Variants
 
-| Module | M×N | LOC | Use Case |
-|--------|-----|-----|----------|
-| `apbx_xbar_1to1` | 1×1 | 165 | Passthrough, protocol conversion |
-| `apbx_xbar_2to1` | 2×1 | 314 | Multi-master arbitration |
-| `apbx_xbar_1to4` | 1×4 | 384 | Simple SoC peripheral bus |
-| `apbx_xbar_2to4` | 2×4 | 751 | Typical SoC with CPU+DMA |
-| `apbx_xbar_2to2_mixed` | 2×2 | 570 | Mixed APB4/APB5 ports, version gating |
+| Module | M×N | Use Case |
+|--------|-----|----------|
+| `apbx_xbar_1to1` | 1×1 | Passthrough, protocol conversion |
+| `apbx_xbar_2to1` | 2×1 | Multi-master arbitration |
+| `apbx_xbar_1to4` | 1×4 | Simple SoC peripheral bus |
+| `apbx_xbar_2to4` | 2×4 | Typical SoC with CPU+DMA |
+| `apbx_xbar_2to2_mixed` | 2×2 | Mixed APB4/APB5 ports, version gating |
+
+LOC per variant is in HAS ch05_performance/03_resources.md, which is the
+single source of truth for it. The column that used to sit here went stale
+within two days of being reconciled.
 
 : Pre-Generated Crossbar Variants
 

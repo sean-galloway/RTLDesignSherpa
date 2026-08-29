@@ -31,7 +31,7 @@
 |-----------|------|---------|-------|-------------|
 | ADDR_WIDTH | int | 32 | 18-64 (multi-slave: the decode part-select reads bit 17); 1-64 for 1to1/2to1 | Address bus width in bits |
 | DATA_WIDTH | int | 32 | 8, 16, 32, 64 | Data bus width in bits |
-| BASE_ADDR | logic[ADDR_WIDTH-1:0] | 0x10000000 | any address; the slave index is decoded from the OFFSET, so no span alignment is required | Base of the slave map |
+| BASE_ADDR | logic[ADDR_WIDTH-1:0] | 0x10000000 | any address; the slave index is decoded from the OFFSET, so no span alignment is required | Base of the slave map. **UNUSED on `1to1` and `2to1`** -- they have a single slave and no decode, so the parameter is declared only for interface uniformity and setting it changes nothing (see those modules' RTL headers) |
 
 : Core Parameter Definition
 

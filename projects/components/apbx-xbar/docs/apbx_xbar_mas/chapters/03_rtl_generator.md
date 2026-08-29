@@ -58,7 +58,12 @@ projects/components/apbx-xbar/
 1. **Core Generator** (`apbx_xbar_generator.py`): Reusable library function
    - Can be imported by other scripts
    - Contains `generate_apbx_xbar()` function
-   - Located in central `bin/rtl_generators/` directory
+   - Located in the component's own `bin/` directory:
+     `projects/components/apbx-xbar/bin/apbx_xbar_generator.py`.
+     It is NOT under `bin/rtl_generators/` -- that path was claimed here
+     until 2026-08-29 and contradicted this chapter's own tree, its
+     troubleshooting section, the README and the PRD.
+     `bin/rtl_generators/amba/` contains only an `__init__.py`.
 
 2. **Convenience Wrapper** (`generate_xbars.py`): Project-specific script
    - Easy command-line interface
@@ -235,8 +240,8 @@ module apbx_xbar_2to4 #(
     input  logic                  pclk,
     input  logic                  presetn,
 
-    // Master 0-2 APB interfaces
-    // Slave 0-5 APB interfaces
+    // Master 0-1 APB interfaces
+    // Slave 0-3 APB interfaces
 );
 ```
 
@@ -272,7 +277,7 @@ module apbx_xbar_2to4 #(
         // ... (full cmd/rsp connections)
     );
 
-    // Master 1, 2 apb4_slave instances...
+    // Master 1 apb4_slave instance...
 ```
 
 5. **Address Decode Logic**
@@ -346,7 +351,7 @@ module apbx_xbar_2to4 #(
         // ... (full APB connections)
     );
 
-    // Slave 1-5 apb4_master instances...
+    // Slave 1-3 apb4_master instances...
 ```
 
 9. **Module End**
@@ -395,7 +400,10 @@ for s in range(N):
 - Slave cmd/rsp buses: N sets
 - Request matrix: [M][N]
 - Grant matrix: [N][M]
-- Priority counters: [N]
+
+(No priority counters are emitted. Rotation state lives inside the
+`arbiter_round_robin` instances the generator wires up, which is what the
+code sample further down says.)
 
 **6. Instantiate Master-Side Components**
 ```python
@@ -510,7 +518,8 @@ Slave 8:  0x10080000 - 0x1008FFFF (ADC)
 Slave 9:  0x10090000 - 0x1009FFFF (Watchdog)
 ```
 
-**LOC:** ~2500 lines (estimated)
+**LOC:** ~2500 lines (extrapolated, not generated and counted -- the
+measured anchors are in HAS ch05_performance/03_resources.md)
 
 ### Example 2: Multi-CPU System
 
@@ -528,7 +537,7 @@ python generate_xbars.py --masters 4 --slaves 4
 - Each slave independently arbitrated
 - Maximum throughput when CPUs access different slaves
 
-**LOC:** ~1600 lines (estimated)
+**LOC:** ~1600 lines (extrapolated, see above)
 
 ### Example 3: Memory-Mapped I/O Region
 
@@ -713,7 +722,9 @@ gtkwave waves.vcd
 
 ```python
 # Import generator function
-from bin.rtl_generators.amba.apbx_xbar_generator import generate_apbx_xbar
+# generator lives in the component's bin/, so put it on the path first
+import sys; sys.path.insert(0, 'projects/components/apbx-xbar/bin')
+from apbx_xbar_generator import generate_apbx_xbar
 
 # Generate crossbar programmatically
 code = generate_apbx_xbar(
@@ -789,9 +800,9 @@ python generate_xbars.py
 **Cause:** Very large MxN configuration (e.g., 16x16)
 
 **Expected Behavior:**
-- 1x1: ~200 LOC
-- 2x4: ~751 LOC
-- 16x16: ~25,000 LOC (practical limit)
+- 1x1: 167 LOC (measured)
+- 2x4: 792 LOC (measured)
+- 16x16: ~25,000 LOC (extrapolated; the practical limit)
 
 **Solution:**
 - Consider hierarchical approach (multiple smaller crossbars)

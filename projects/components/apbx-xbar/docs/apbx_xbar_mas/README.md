@@ -68,7 +68,7 @@ This directory contains visual documentation for the APB Crossbar component, inc
 | [address_decode_flow](assets/graphviz/address_decode_flow.gv) | Graphviz | Step-by-step address decode example (0x10023456 → Slave 2) |
 
 **Rendered Formats:**
-- PNG: `assets/svg/*.svg` (for markdown embedding)
+- PNG: `assets/png/*.png` (what the chapters embed)
 - SVG: `assets/svg/*.svg` (for web viewing, scalable)
 
 ### Timing Diagrams
@@ -78,7 +78,7 @@ This directory contains visual documentation for the APB Crossbar component, inc
 | [arbitration_round_robin](assets/wavedrom/arbitration_round_robin.json) | WaveJSON | 2 masters competing for Slave 0 with round-robin arbitration |
 
 **Rendered Format:**
-- PNG: `assets/svg/arbitration_round_robin.svg`
+- PNG: `assets/wavedrom/arbitration_round_robin.png`
 
 ---
 
@@ -291,9 +291,9 @@ cd assets/graphviz/
 dot -Tsvg apbx_xbar_architecture.gv -o ../svg/apbx_xbar_architecture.svg
 dot -Tsvg address_decode_flow.gv -o ../svg/address_decode_flow.svg
 
-# Generate SVG
-dot -Tsvg apbx_xbar_architecture.gv -o ../svg/apbx_xbar_architecture.svg
-dot -Tsvg address_decode_flow.gv -o ../svg/address_decode_flow.svg
+# Generate PNG (this is what the chapters embed)
+dot -Tpng apbx_xbar_architecture.gv -o ../png/apbx_xbar_architecture.png
+dot -Tpng address_decode_flow.gv -o ../png/address_decode_flow.png
 ```
 
 ### WaveJSON Diagrams (Timing)
@@ -301,8 +301,9 @@ dot -Tsvg address_decode_flow.gv -o ../svg/address_decode_flow.svg
 ```bash
 cd assets/wavedrom/
 
-# Generate SVG
+# Generate SVG, then PNG
 wavedrom-cli -i arbitration_round_robin.json -s ../svg/arbitration_round_robin.svg
+wavedrom-cli -i arbitration_round_robin.json -p arbitration_round_robin.png
 ```
 
 ---

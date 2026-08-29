@@ -513,8 +513,11 @@ You: "Run the generator with --masters 10 --slaves 10"
 - apbx_xbar_1to1_wrap.sv, apbx_xbar_2to1_wrap.sv,
   apbx_xbar_1to4_wrap.sv, apbx_xbar_2to4_wrap.sv
 
-Those are the four that exist. For any other MxS, generate one with
-bin/generate_xbars.py -- there is no m10_s10 wrapper in the tree."
+Those four are TESTBENCH SCAFFOLDS, not integration wrappers: each has only
+pclk and presetn, with every APB signal internal to the cocotb bench, so a
+design cannot connect to one. Instantiate the crossbar directly. For any
+other MxS, generate one with bin/generate_xbars.py -- and there is no
+m10_s10 wrapper in the tree."
 ```
 
 ---

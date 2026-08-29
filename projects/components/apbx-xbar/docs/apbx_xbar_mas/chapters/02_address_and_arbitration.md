@@ -192,42 +192,51 @@ The following timing diagram shows 2 masters (M0, M1) competing for access to Sl
 - Priority: M0 (M0 has priority initially)
 - Slave 0: IDLE
 
-**Transaction 1: M0 Requests Slave 0**
+This walkthrough shows the ORDER of arbitration events, not their timing.
+It is deliberately not cycle-numbered: a numbered version here showed a
+three-cycle transaction, which contradicted this chapter's own measured
+9-cycle SETUP-to-PREADY figure. `S0_PSEL` cannot assert in the grant cycle
+-- after the REGISTERED grant the command still crosses the `apb4_master`
+cmd skid, the FSM's IDLE launch and its SETUP state before the downstream
+PSEL appears. For real numbers see "Transaction Latency" below and
+`dv/tests/test_apbx_xbar_timing.py`.
+
+Note also that `M0_PENABLE` is driven by the external master during its own
+ACCESS phase; the arbiter does not assert it, and it is high before any
+grant exists.
+
+**Transaction 1: M0 requests Slave 0**
 ```
-Cycle 1: M0 asserts request (M0_PSEL, M0_PADDR=0x1000_0000)
-Cycle 2: Arbiter[0] grants to M0 (only requester)
-         M0_PENABLE asserted
-         S0_PSEL asserted to Slave 0
-Cycle 3: Slave 0 responds (S0_PREADY)
-         Transaction completes
-         Priority rotates: M1 now has priority
+  M0 asserts PSEL with PADDR=0x1000_0000
+  Arbiter[0] grants M0 (only requester)
+  ... command traverses the fabric ...
+  Slave 0 responds; transaction completes
+  Priority rotates: M1 now has priority
 ```
 
-**Transaction 2: M0 and M1 Both Request Slave 0**
+**Transaction 2: M0 and M1 both request Slave 0**
 ```
-Cycle 4: M0 asserts request (M0_PADDR=0x1000_0010)
-         M1 asserts request (M1_PADDR=0x1000_0000) -- CONFLICT!
-Cycle 5: Arbiter[0] grants to M1 (has priority)
-         M1_PENABLE asserted
-         S0_PSEL asserted to Slave 0
-         M0 blocked, waits
-Cycle 6: Slave 0 responds (S0_PREADY)
-         M1 transaction completes
-         Priority rotates: M0 now has priority
+  M0 asserts PSEL with PADDR=0x1000_0010
+  M1 asserts PSEL with PADDR=0x1000_0000   -- CONFLICT
+  Arbiter[0] grants M1 (has priority); M0 waits
+  ... command traverses the fabric ...
+  Slave 0 responds; M1's transaction completes
+  Priority rotates: M0 now has priority
 ```
 
-**Transaction 3: M0 Request (After Rotation)**
+**Transaction 3: M0 again, after rotation**
 ```
-Cycle 7: M0 still asserting request (was blocked)
-Cycle 8: Arbiter[0] grants to M0 (now has priority)
-         M0_PENABLE asserted
-         S0_PSEL asserted to Slave 0
-Cycle 9: Slave 0 responds (S0_PREADY)
-         Transaction completes
-         Priority rotates: M1 now has priority
+  M0 is still asserting (it was blocked)
+  Arbiter[0] grants M0 (now has priority)
+  ... command traverses the fabric ...
+  Slave 0 responds; transaction completes
+  Priority rotates: M1 now has priority
 ```
 
-**Result:** Fair access - each master gets served in turn when both request
+**Result:** Fair access -- each master is served in turn when both request.
+The grant is held from command acceptance to the response handshake
+(`WAIT_GNT_ACK(1)`), so a blocked master waits one full transaction, not
+one cycle.
 
 ### Multi-Slave Parallelism
 

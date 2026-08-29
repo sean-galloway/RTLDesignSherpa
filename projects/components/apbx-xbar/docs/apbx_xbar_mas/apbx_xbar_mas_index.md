@@ -166,7 +166,7 @@ All diagrams referenced in the documentation are available in:
 ### RTL
 
 - **Core Modules:** `../../rtl/apbx_xbar_*.sv` - Pre-generated crossbars
-- **Wrappers:** `../../rtl/wrappers/` - Pre-configured wrappers
+- **Wrappers:** `../../rtl/wrappers/` - testbench scaffolds (pclk/presetn only), not integration wrappers
 - **Generator:** `../../bin/generate_xbars.py` - Python generator script
 
 ---

@@ -107,7 +107,11 @@ Read data bus:
 Slave error response:
 - Sampled when PREADY and PENABLE both high
 - PSLVERR=1 indicates error condition
-- Propagated from downstream slave
+- Propagated from the downstream slave, **or generated locally by this
+  port** when the address decodes outside the map: on the decoding
+  variants a miss completes here with `PSLVERR=1` and never reaches a
+  slave (APBX-005). The `1to1` and `2to1` variants have no decode and so
+  never generate it locally.
 
 ### PREADY (Output)
 

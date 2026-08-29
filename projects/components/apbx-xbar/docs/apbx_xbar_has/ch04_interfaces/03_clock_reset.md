@@ -90,8 +90,12 @@
 ### Reset Assertion
 
 Reset can be asserted at any time:
-- Asynchronous assertion (immediate effect)
-- Synchronous or asynchronous deassertion
+- Asynchronous assertion (immediate effect) when the build defines
+  `USE_ASYNC_RESET`; synchronous assertion otherwise. Both come from
+  `ALWAYS_FF_RST` in `rtl/amba/includes/reset_defs.svh`.
+- **Deassertion must be synchronous to pclk** -- see "Reset Deassertion"
+  below. This bullet previously also permitted asynchronous deassertion,
+  contradicting that section three lines later.
 - All in-flight transactions aborted
 
 ### Reset Deassertion

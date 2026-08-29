@@ -29,8 +29,8 @@
 
 | Convention | Meaning | Example |
 |------------|---------|---------|
-| `m<i>_apb_*` | Master-side APB signals (input to crossbar) | `m0_apb_PSEL` |
-| `s<j>_apb_*` | Slave-side APB signals (output from crossbar) | `s2_apb_PREADY` |
+| `m<i>_apb_*` | Master-side APB port *i* -- BOTH directions: requests in (`PSEL`, `PADDR`, ...), responses out (`PRDATA`, `PREADY`, `PSLVERR`) | `m0_apb_PSEL` (in), `m0_apb_PREADY` (out) |
+| `s<j>_apb_*` | Slave-side APB port *j* -- BOTH directions: requests out, responses in | `s2_apb_PSEL` (out), `s2_apb_PREADY` (in) |
 | `P*` | APB protocol signal prefix | `PADDR`, `PWRITE`, `PRDATA` |
 | `<i>`, `<j>` | Master/slave index placeholder | m0, s3 |
 

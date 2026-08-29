@@ -62,14 +62,27 @@ Resource usage scales approximately as:
 
 Source code metrics for pre-generated variants:
 
-| Variant | Lines of Code | Modules | Complexity |
-|---------|---------------|---------|------------|
-| apbx_xbar_1to1 | ~200 | 3 | Low |
-| apbx_xbar_2to1 | ~400 | 5 | Medium |
-| apbx_xbar_1to4 | ~500 | 7 | Medium |
-| apbx_xbar_2to4 | ~1000 | 11 | Medium-High |
+| Variant | Lines of Code | Complexity |
+|---------|---------------|------------|
+| apbx_xbar_1to1 | 167 | Low |
+| apbx_xbar_2to1 | 316 | Medium |
+| apbx_xbar_1to4 | 418 | Medium |
+| apbx_xbar_2to2_mixed | 610 | Medium |
+| apbx_xbar_2to4 | 792 | Medium-High |
 
 : Source Code Metrics
+
+**This table is the single source of truth for LOC**, as it already is for
+the LUT/FF estimates above. Exact `wc -l` of `rtl/*.sv`, measured
+2026-08-29; the PRD and the key-features page point here rather than
+carrying their own copies.
+
+Three tables disagreed before that -- by up to 33% on the same file
+(2to4 as ~1000, ~751 and 751) -- because each was corrected on a different
+day. Even the most precise-looking set was stale: 165/314/384/751/570 was
+right when reconciled on 2026-08-27 and wrong two days later, once the
+APBX-005 decode-miss logic added lines. Numbers that must be hand-synced
+across three pages will desync; keeping one and pointing at it is the fix.
 
 ## Power Considerations
 

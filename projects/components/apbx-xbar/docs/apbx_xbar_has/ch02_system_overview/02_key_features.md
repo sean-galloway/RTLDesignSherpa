@@ -79,11 +79,13 @@ slave_index = ((PADDR - BASE_ADDR) >> 16)[$clog2(S)-1:0]
 | Arbitration | No | Yes | No | Yes | Yes |
 | Address Decode | No | No | Yes | Yes | Yes |
 | APB5 sideband | No | No | No | No | Yes -- per-port version gating |
-| Approximate LOC | 165 | 314 | 384 | 751 | 570 |
 
 : Pre-Generated Variant Comparison
 
-All five are generator output. `apbx_xbar_thin`, a hand-written
+All five are generator output. LOC per variant is in HAS
+ch05_performance/03_resources.md, the single source of truth for it -- the
+row that used to sit in this table drifted stale within two days of being
+reconciled. `apbx_xbar_thin`, a hand-written
 parameterized core that once occupied a sixth column here, was retired
 and deleted on 2026-08-27 along with its tests, formal harnesses and
 testplan; nothing in the tree depends on it.
