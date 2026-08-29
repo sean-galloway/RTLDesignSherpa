@@ -40,6 +40,7 @@ class RefTB(TBBase):
         self.dut.refpb_mode_i.value     = refpb_mode
         self.dut.enable_i.value         = 0
         self.dut.refresh_grant_i.value  = 0
+        self.dut.grant_was_pb_i.value   = 0
         await self.start_clock('mc_clk', freq=self.CLK, units='ns')
         self.dut.mc_rst_n.value = 0
         await self.wait_clocks('mc_clk', 5)
@@ -49,11 +50,24 @@ class RefTB(TBBase):
     async def enable(self):
         self.dut.enable_i.value = 1
 
-    async def grant_one(self):
+    async def grant_one(self, was_pb: bool = None):
+        """Grant one refresh.
+
+        `was_pb` mirrors what the scheduler actually put on the wire. The
+        rotor advances ONLY on grant_was_pb_i (refresh_ctrl.sv), because it
+        mirrors the DEVICE's internal REFpb bank counter -- the command
+        itself carries no bank address (JESD209-2 6.6). Defaults to the
+        configured refpb_mode, which is what a scheduler in that mode would
+        report.
+        """
+        if was_pb is None:
+            was_pb = bool(int(self.dut.refpb_mode_i.value))
+        self.dut.grant_was_pb_i.value = 1 if was_pb else 0
         self.dut.refresh_grant_i.value = 1
         await RisingEdge(self.dut.mc_clk)
         await Timer(1, units='ps')
         self.dut.refresh_grant_i.value = 0
+        self.dut.grant_was_pb_i.value = 0
 
     def req(self) -> bool:
         return bool(int(self.dut.refresh_req_o.value))
@@ -145,9 +159,38 @@ async def cocotb_test_refresh_ctrl(dut):
         await tb.enable()
         # Accumulate exactly enough pending for one burst.
         await tb.wait_clocks('mc_clk', 80)
-        # Stop tREFI from re-arming so we can fully drain.
-        tb.dut.enable_i.value = 0
-        await tb.wait_clocks('mc_clk', 2)
+        # --- v3 term: drain_active is ALSO gated on refresh_req_o ---------
+        # `w_drain_active = quota && pending && refresh_req_o`. Checked HERE,
+        # before tREFI is parked, because the counter only reloads on expiry
+        # -- once parked at 0xFFFF, restoring a short t_refi does nothing for
+        # 65535 cycles and pending never rebuilds.
+        # Without this phase the third term is UNCOVERED: removing it from
+        # the RTL still passed 10/10 (mutation-checked 2026-08-29).
+        assert tb.pending() > 0 and tb.drain_active(), \
+            f"gate-check setup: pending={tb.pending()} drain={tb.drain_active()}"
+        tb.dut.enable_i.value = 0          # init gate off -> req must drop
+        await tb.wait_clocks('mc_clk', 3)
+        assert tb.pending() > 0, "backlog must survive the gate, not be lost"
+        assert not tb.drain_active(), \
+            "drain_active must follow refresh_req_o: refresh is gated off " \
+            "but drain is still asserted"
+        tb.dut.enable_i.value = 1          # restore for the drain-through
+        await tb.wait_clocks('mc_clk', 3)
+
+        # Stop new arrivals WITHOUT abusing enable_i. That signal is the
+        # init_sequencer's gate -- "refresh is gated off until init
+        # completes" -- not a runtime pause. v3 correctly gates
+        # refresh_req_o on it, so dropping it kills the request and, with
+        # it, drain_active (which is `quota && pending && refresh_req_o`).
+        # A controller whose refresh is gated off must NOT be telling the
+        # scheduler to keep granting.
+        #
+        # Park tREFI instead, then let the ALREADY-ARMED interval expire
+        # once: the counter only reloads on expiry, so the long value does
+        # not take effect until then, and waiting it out here keeps a
+        # stray arrival from landing mid-drain.
+        tb.dut.t_refi_i.value = 0xFFFF
+        await tb.wait_clocks('mc_clk', 12)
         initial = tb.pending()
         assert initial >= 4, f"expected >=4 pending, got {initial}"
         assert tb.drain_active(), \
@@ -165,6 +208,7 @@ async def cocotb_test_refresh_ctrl(dut):
         assert not tb.drain_active(), \
             f"drain should clear after all pending drained " \
             f"(pending={tb.pending()})"
+
 
     elif test_type == "refpb_rotor":
         # D: REFpb mode — bank rotor walks 0..7 across grants.
