@@ -359,10 +359,41 @@ def _cases():
     a monitor defect, a depth the stimulus was never able to fill. Until the
     AXIL read stimulus can sustain >14 outstanding, a depth-16 AXIL read case
     is untestable rather than failing, so it is not claimed.
+
+    THE SAME RULE, APPLIED TO THE WRITE PATH AT DEPTH 12 (measured 2026-08-29,
+    BLOCKREADY_SEED swept; block_ready asserts at 12 - 3 = 9):
+
+        axi4_slave_wr_mon     peak 10   blocked 383-587 cyc   sustains
+        axil4_slave_wr_mon    peak 10   blocked  89-442 cyc   sustains
+        axil4_master_wr_mon   peak  9   blocked  88-451 cyc   sustains (7/7 seeds)
+        axi5_master_wr_mon    peak 8-9  FAILS at seed 3       does not sustain
+        axi5_slave_wr_mon     peak 8-9  FAILS at seed 3       does not sustain
+        axi4_master_wr_mon    peak 6-9  FAILS at 5 of 10      does not sustain
+
+    The last three are DROPPED at depth 12, for the same reason AXIL-16 was:
+    a depth the stimulus cannot sustain produces a run that proves nothing.
+    They are NOT dropped at depth 8, which every one of them fills with real
+    margin -- axi4_master_wr_mon blocks for 770-1033 cycles at 7/7 seeds
+    tried, versus 11-69 cycles on the rare depth-12 seed that reaches 9.
+
+    This replaces an earlier attempt that pinned a passing seed instead.
+    Pinning made the suite green while leaving axi4_master_wr_mon failing on
+    half the seed space -- it selected a winning coin toss rather than
+    reporting that the coin was being tossed. The seed pin is kept for
+    REPRODUCIBILITY, but it is no longer what makes these cases pass.
+
+    Buying depth-12 margin on the weak paths means letting more writes go
+    outstanding, which is blocked by the axi4 interface's single _aw_w_lock
+    (held across send-AW plus all W beats, so writes serialise whatever their
+    ID -- measured with 1, 2, 8 and 32 distinct IDs, byte-identical results).
+    That is an RDS-DV change; until then these are untestable, not failing.
     """
+    # Write wrappers whose stimulus cannot sustain depth 12 -- see above.
+    NO_DEPTH_12 = {"axi4_master_wr_mon", "axi5_master_wr_mon", "axi5_slave_wr_mon"}
+
     for w in WRAPPERS:
         if "_wr_" in w:
-            depths = [8, 12]
+            depths = [8] if w in NO_DEPTH_12 else [8, 12]
         elif w.startswith("axil4"):
             depths = [8, 12]        # see docstring: 16 is unreachable here
         else:
