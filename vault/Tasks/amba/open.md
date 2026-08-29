@@ -41,21 +41,34 @@ legitimately config-dependent and "require 100" would be wrong.
 
 ### Residual — SCOPE DECISION, do not sweep without deciding
 
-Eleven other TBs construct `MonbusSlave` with no randomizer, so they inherit
-the same random ready. Six of those ALSO never seed, which is the exact
-defect class fixed above:
+RESOLVED 2026-08-29 in c25a2b4c. An earlier version of this list claimed six
+unseeded TBs; that was WRONG and is corrected here, because the error is easy
+to repeat: it counted files with no local `random.seed()` call rather than
+files with no seeding PATH. The axi4 and axi5 monitor TBs delegate to base
+TBs (AXI4MasterWriteTB and friends) that already seed, so they were
+deterministic per seed the whole time.
 
-    unseeded + random ready : axi4/monitor/axi4_master_monitor_tb.py
-                              axi4/monitor/axi4_slave_monitor_tb.py
-                              axi4/monitor/axi_monitor_config_tb.py
-                              axil4/monitor/axil4_master_monitor_tb.py
-                              axil4/monitor/axil4_slave_monitor_tb.py
-                              axi5/monitor/axi5_master_monitor_tb.py
-                              axi5/monitor/axi5_slave_monitor_tb.py
-    seeded, still backpressure-sensitive :
-                              val/amba/test_axi_monitor_trans_mgr.py
-                              bin/TBClasses/axi_monitor/axi_monitor_tb.py
-                              amba/arbiter_monbus/arbiter_monbus_common_tb.py
+Only three genuinely had no seeding anywhere in the chain -- they build their
+BFM components directly instead of going through a base TB:
+
+    axil4/monitor/axil4_master_monitor_tb.py   seeded in c25a2b4c
+    axil4/monitor/axil4_slave_monitor_tb.py    seeded in c25a2b4c
+    axi4/monitor/axi_monitor_config_tb.py      DELETED -- no importers
+                                               anywhere in the tree; its
+                                               filter/cfg-enable coverage is
+                                               carried by
+                                               val/amba/test_axi4_master_rd_mon_enable_sweep.py
+
+Measured on test_axi_mon_block_ready[axil4_master_wr_mon-12], three
+consecutive runs: block_ready_low was 512, 507, 495 before and 451, 451, 451
+after.
+
+Still backpressure-sensitive, but seeded and therefore replayable, so not
+urgent:
+
+    val/amba/test_axi_monitor_trans_mgr.py
+    bin/TBClasses/axi_monitor/axi_monitor_tb.py
+    amba/arbiter_monbus/arbiter_monbus_common_tb.py
 
 `test_axi_monitor_trans_mgr_wr_bank[64-4-1]` is the run-1 failure in the
 table below, and it is in that list — likely the same mechanism, NOT yet
