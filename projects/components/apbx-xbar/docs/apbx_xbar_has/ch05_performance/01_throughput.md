@@ -52,7 +52,9 @@ figures unconditionally until 2026-08-29.
 When masters access different slaves:
 - Each master achieves single-master throughput
 - Aggregate throughput = M x single-master throughput
-- No arbitration overhead
+- No CONTENTION overhead -- but the registered grant still costs one
+  cycle on every M > 1 variant, contended or not (see 5.2). Only the
+  single-master variants have no arbiter at all.
 
 ### Multi-Master (Contended)
 

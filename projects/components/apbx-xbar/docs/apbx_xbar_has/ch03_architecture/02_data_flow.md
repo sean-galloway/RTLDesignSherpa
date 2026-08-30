@@ -57,7 +57,9 @@ slave_index = offset[16 +: $clog2(S)]      // offset = PADDR - BASE_ADDR
 A part-select, not a mask. `& (S-1)` appeared here until 2026-08-30 and is
 only equivalent when S is a power of two -- for a generated 3-slave variant
 the mask would make slave 1 unreachable. The generator emits a part-select
-(`slave_sel = m0_cmd_paddr[13:12]` for S = 3), and the sibling formulas in
+(`slave_sel = m0_cmd_offset[13:12]` for S = 3 at the generator's default
+4KB window; the shipped 64KB variants read `offset[16 +: $clog2(S)]`),
+and the sibling formulas in
 ch02/ch03 always did.
 
 ### Stage 4: Arbitration (if needed)

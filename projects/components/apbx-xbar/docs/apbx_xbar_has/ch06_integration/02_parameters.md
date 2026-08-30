@@ -29,7 +29,7 @@
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| ADDR_WIDTH | int | 32 | 18-64 (multi-slave: the decode part-select reads bit 17); 1-64 for 1to1/2to1 | Address bus width in bits |
+| ADDR_WIDTH | int | 32 | 18-64 for decoding variants; 1-64 for 1to1/2to1 | Address bus width in bits. The decode part-select reads bits `16 +: $clog2(S)`, so a 2-slave variant needs only bit 16 -- but the generator emits the range-check span as a fixed 32-bit constant (`paddr < BASE_ADDR + 32'h...`), so anything below 18 width-expands and fails a warnings-fatal build. 17 lints clean only with `-Wno-fatal`; it is not usable. |
 | DATA_WIDTH | int | 32 | 8, 16, 32, 64 | Data bus width in bits |
 | STRB_WIDTH | int | DATA_WIDTH/8 | derived | Write strobe width. Declared as a parameter, but it is computed from DATA_WIDTH and overriding it is not supported |
 | BASE_ADDR | logic[ADDR_WIDTH-1:0] | 0x10000000 | any address; the slave index is decoded from the OFFSET, so no span alignment is required | Base of the slave map. **UNUSED on `1to1` and `2to1`** -- they have a single slave and no decode, so the parameter is declared only for interface uniformity and setting it changes nothing (see those modules' RTL headers) |

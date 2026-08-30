@@ -347,11 +347,16 @@ Options:
 
 ### 9.1 Latency
 
-| Path | Latency | Notes |
-|------|---------|-------|
-| **Command path** | 6 cycles | master SETUP (1) + apb4_slave capture and cmd skid (2) + apb4_master IDLE-launch/SETUP/ACCESS (3) |
-| **Response path** | 3 cycles | response into rsp skid (2) + apb4_slave BUSY→PREADY (1) |
-| **Total** | **9 cycles** | PSEL->PREADY, uncontended, zero-wait slave (8 ACCESS->PREADY) |
+| Path | M = 1 | M > 1 | Notes |
+|------|-------|-------|-------|
+| **Command path** | 6 | 7 | master SETUP (1) + forward path (5, or 6 with a registered arbiter grant) |
+| **Response path** | 3 | 3 | arbitration is on the command side only |
+| **Total** | **9** | **10** | SETUP->PREADY, uncontended, zero-wait slave (8 / 9 ACCESS->PREADY) |
+
+M = 1 is `1to1` and `1to4`, which the generator emits with no arbiter at
+all. M > 1 is `2to1`, `2to4` and `2to2_mixed` -- including the 2x4 this
+document calls the typical SoC case. This table gave only the M = 1
+figures, unlabelled, until 2026-08-30.
 
 APB's 2-cycle minimum applies to a directly-attached slave, not through
 this fabric: the crossbar converts APB→cmd/rsp→APB across registered
@@ -387,7 +392,7 @@ withdrawn rather than reconciled.
 | **test_apbx_xbar_2to2_mixed** | 8 directed | ✅ Pass | All four APB4/APB5 pairings, sideband gating, decode miss, structural pin check |
 | **test_apbx_xbar_timing** | 2 variants | ✅ Pass | Published latency/cadence figures, both variant classes |
 
-**Overall:** 100% passing (8/8), >750 transactions plus the directed
+**Overall:** 100% passing (9/9), >750 transactions plus the directed
 mixed-version and timing checks. `2to2_mixed` also has a formal harness
 (`formal/apbx_xbar/apbx_xbar_2to2_mixed/`).
 

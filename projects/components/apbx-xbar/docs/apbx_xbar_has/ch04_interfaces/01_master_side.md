@@ -46,6 +46,36 @@ For each master index `i` (0 to M-1):
 
 : Master Port Signal Definition
 
+### APB5 Sideband (mixed-version variants only)
+
+An APB5 master port carries five additional pins. They exist ONLY on ports
+the generator was told are APB5 -- in the shipped `apbx_xbar_2to2_mixed`
+that is `m1` alone, and `m0` has none of them. That structural absence IS
+the version gate; there is no mask to set.
+
+| Signal | Width | Direction | Description |
+|--------|-------|-----------|-------------|
+| `m<i>_apb_PAUSER` | AUSER_WIDTH | Input | Request user attributes; forwarded only to an APB5 slave |
+| `m<i>_apb_PWUSER` | WUSER_WIDTH | Input | Write-data user attributes; likewise |
+| `m<i>_apb_PRUSER` | RUSER_WIDTH | Output | Completer read-data user attributes, from an APB5 slave |
+| `m<i>_apb_PBUSER` | BUSER_WIDTH | Output | Completer response user attributes, from an APB5 slave |
+| `m<i>_apb_PWAKEUP` | 1 | Output | Tied `'0` -- see below |
+
+: APB5 Master Sideband Signals
+
+Reading from an APB4 slave returns `'0` on `PRUSER`/`PBUSER` rather than a
+stale or fabricated value, and that is proven, not just tested
+(`formal/apbx_xbar/apbx_xbar_2to2_mixed/`, `ap_gate_no_fab_*`).
+
+**`PWAKEUP` is always `'0`.** The boundary IP leaves `rsp_pwakeup`
+unconnected and ties `wakeup_request` to `'0`, so an APB5 slave asserting
+PWAKEUP is never seen here. This is a known limitation rather than a
+guarantee, and it is asserted formally (`ap_pwakeup_dropped`) so that
+wiring it up later fails a proof instead of changing behaviour silently.
+
+Parity pins are absent entirely: every shipped variant is generated with
+parity off, and a mixed pairing carries no parity in any case.
+
 ## Signal Descriptions
 
 ### PSEL (Input)

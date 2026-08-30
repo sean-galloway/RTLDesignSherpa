@@ -94,7 +94,11 @@ The fixed 64KB per-slave allocation requires planning:
 
 When using multiple masters:
 
-1. **Arbitration overhead:** Expect 1-2 cycle delay on contended access
+1. **Arbitration overhead:** a contended access waits a FULL transaction,
+   not 1-2 cycles. The grant is held to the response handshake
+   (`WAIT_GNT_ACK(1)`), so each master ahead in the round-robin costs
+   ~11 cycles (the arbitrated back-to-back period). Uncontended, the
+   registered grant still costs exactly 1 cycle -- see HAS 5.2.
 2. **Priority:** All masters have equal priority (round-robin)
 3. **Bandwidth:** Shared access reduces per-master bandwidth
 
