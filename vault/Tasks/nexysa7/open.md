@@ -2,6 +2,42 @@
 
 # NexysA7 tasks — open (not started)
 
+### NEXYS-002: ddr2-char harness needs TWO bridges, 8 bank-targeted masters each
+
+**Priority:** Medium
+**Status:** [ ] Open (2026-08-30)
+**Source:** Sean, 2026-08-30 — "the harness will need two bridges, one for
+writes and one for reads. On each will be 8 masters each targeting a
+different bank."
+
+**Goal:** Restructure the DDR2 characterization harness so read and write
+traffic are generated independently and every bank is driven concurrently.
+
+- **Two bridges, split by direction** — one write, one read, rather than
+  today's single shared path. Independent direction pressure is what lets a
+  test hold one direction saturated while sweeping the other, and it stops
+  read/write turnaround from being an accidental variable in every number.
+- **8 masters per bridge, one per bank** — bank-parallel by construction, so
+  the stimulus exercises the concurrency the scheduler is built around.
+  Today's single-stream harness cannot reach the corner that separates the
+  paging modes: the sim sweep shows every mode reading 100% with 8-way
+  rotation and only `static_close`/`rbl_static` dropping (to 27.79%) once
+  traffic is confined to ONE bank. A per-bank master array makes that a
+  property of the harness rather than a hand-built address pattern.
+
+**Why it matters for the numbers:** the flat ~12.7 MB/s board result was
+traced to a fallback pinned on a single oldest bank (serialised ACT -> tRCD
+-> access). A harness that cannot drive banks concurrently cannot tell that
+apart from a controller that will not.
+
+**Relation to existing work:** the harness bridge is already generated
+(`bridge_ddr2_char_axil`, 1x5 after the obs_apb slot was added 2026-08-28) —
+see `ddr2_char_framework/rtl/bridges/configs/`. Splitting it in two is a
+config + regen job under CRITICAL RULE #0 (delete ALL generated output, then
+regenerate), plus the harness rewire. Pairs with [[PUMICE-013]]
+characterization and [[PUMICE-016]] (observer adoption) — decide whether
+each bridge gets its own observer instance before wiring.
+
 ### NEXYS-001: Consistent Makefiles across the stream characterization flows
 
 **Priority:** Medium
