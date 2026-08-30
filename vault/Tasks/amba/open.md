@@ -753,10 +753,52 @@ Already done, measured:
 * `val/amba/test_axi_monitor_addr_check.py` covers the flavor split.
 * `formal/amba/axi_monitor_addr_check/` covers it.
 
-**What is actually left:** only the "default range values as module params at
-the AXI* wrapper level" bullet. `cfg_addr_range_low/high` are input PORTS, so
-a consumer must drive them; they cannot be set purely by parameter. Everything
-else in the work list below is done or superseded.
+**What is actually left, and it is NOT the bullet as written.** The remaining
+work list item asks for "default range values as module params at the AXI*
+wrapper level ... so a consumer can set the allowlists purely by param".
+
+**REJECTED 2026-08-30, with reason.** Implementing that literally is a
+REGRESSION, not a completion:
+
+* `cfg_addr_range_{enable,low,high}` are input PORTS and are sampled
+  combinationally on each accepted command (`cmd_fire`). There is no stored
+  range state, so the ranges are ALREADY runtime-changeable: a write lands on
+  the next command, with no flush, no reprogramming hazard and nothing to
+  invalidate.
+* Setting them "purely by param" makes the allowlist static at elaboration
+  and DESTROYS that. The requirement is the opposite of what the task asks
+  for -- the addresses need to change over time.
+* `N_ADDR_RANGES` is already a per-wrapper parameter, so every consumer picks
+  its own count (wrappers default to 0 = checker off). A param array of
+  default VALUES would therefore be sized per-N and meaningless to any other
+  consumer, while still losing runtime updates.
+
+**The actual gap is that NOTHING DRIVES THE PORTS.** `obs_regs.rdl` has no
+range fields, and every `cfg_addr_range_*` in the tree is pass-through
+plumbing (the twelve wrappers, the `_cg` variants, `apb5_monitor`). The
+ranges are runtime-capable and currently unreachable. The work is RDL fields
+plus wiring, per block -- each block owns its own RDL here, so N is declared
+exactly, with no max-sized padding and no shared regmap to drift. Regenerate
+only via `bin/peakrdl_generate.py` ([[feedback_peakrdl_generate_bin]]).
+
+**Hard ceiling: 16 ranges.** The packet carries the matching range index in
+`event_data[63:60]` -- 4 bits. Past 16 the index field has to be widened by
+chopping address payload bits. Range 15 is SAFE despite
+`MISS_RANGE_SENTINEL = 4'hF`: a MISS is `PktTypeError` and a MATCH is
+`PktTypeAddrMatch`, so a decoder separates them on packet_type, not on the
+index. Do not "fix" that collision -- it is not one.
+
+**Do not confuse the two features' reprogramming behaviour:**
+* the CHECKER (this task) re-evaluates per command, so a window change
+  applies immediately to every command after it;
+* the FILTER ([[TASK-015]]) latches its verdict at ALLOCATION and holds it
+  for the slot's life, so widening the window mid-flight does not un-filter
+  entries already in the table. That asymmetry is deliberate: it is what
+  makes the filter safe to reprogram live, because an entry's fate is decided
+  when it is admitted and the retire accounting cannot be corrupted
+  afterwards.
+
+Everything else in the work list below is done or superseded.
 
 The integration bullet is also stale: `dma_slave_monitors.sv` was DELETED
 (2881006b). The remaining tie-offs are in `stream_core.sv` and
