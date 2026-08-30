@@ -285,10 +285,43 @@ mechanism gaps found reported back to PUMICE-006 before it closes.
   Self-consistent (axiar 1024 == camrd 1024 INSERTs; axiw 4096 == 1024
   bursts x 4 beats), so these are trustworthy.
   TWO FINDINGS worth chasing in this task:
-  (a) the W channel's max_run is 1 -- write data beats never go
-      back-to-back even with a zero-delay master, while R sustains a
-      full 4-beat burst. Worth understanding before any write-side
-      perf claim.
+  (a) FIXED 2026-08-30 (framework, RDS-DV). The W channel's max_run was
+      1 -- write beats never went back-to-back even at a zero-delay
+      master -- while R sustained a full 4-beat burst. Cause was the
+      BFM, NOT the RTL: `GAXIMaster.send()` waits for the transmit
+      pipeline to go IDLE before returning, and `AXI4MasterWrite`
+      looped `await w_channel.send(beat)` once per beat, so the pipeline
+      drained between beats, `_xmit_phase3` saw an empty queue and
+      dropped WVALID, and the next beat paid the pipeline's one-cycle
+      spin-up again. `_xmit_phase3` already had a zero-bubble branch
+      ("keep valid asserted if more beats are queued") that this caller
+      could never reach. R looked fine only because the DUT drives R.
+      Fix: new additive `GAXIMaster.send_burst(packets)` (enqueue all,
+      wait once) + the AXI4 W loop builds every beat then sends once.
+      `send()` untouched. Measured on top engine_mirror N=64:
+      axiw {1:256} -> {4:64}, max_run 1 -> 4, 4259 -> 3861 cycles.
+      Randomization NOT bypassed (phase1 still runs per beat):
+      backtoback {4:64}, burst_pause {1:15,2:11,3:13,4:45},
+      slow_producer {1:256}. Regression: pumice fub 90 + macro 3 +
+      top 65, val/amba AXI4 write 18.
+      NOTE the measurement table ABOVE this block is now stale --
+      it was taken with the one-beat-at-a-time driver.
+      `AXI5MasterWrite` had the identical beat-by-beat loop and got the
+      same fix (Sean 2026-08-30 "Apply it"): val/amba axi5 85 passed,
+      and an instrumented run proves the path is LIVE rather than dead
+      code -- 964 send_burst calls on test_axi5_master_wr, including
+      genuine 2/4/8/16-beat bursts. No run-length measurement was taken
+      on an AXI5 bus (those tests wire no channel meter); the contiguity
+      evidence is the AXI4 number above, via the shared GAXIMaster path.
+      AXIL4's W is single-beat, so it is unaffected by construction.
+      *** NOT COMMITTED as of 2026-08-30: the three framework files
+      (gaxi_master.py, axi4_interfaces.py, axi5_interfaces.py) are
+      MODIFIED-not-committed on `main` in the RTLDesignSherpa-DV
+      checkout, at Sean's direction ("leave it"), and were copied into
+      the venv by hand -- site-packages is NOT an editable install.
+      So the numbers above are reproducible on THIS box only. Before
+      trusting them elsewhere: land RDS-DV, then re-sync the venv.
+      MEASURE before assuming this is still in place.
   (b) bp=0% everywhere with ~60 cycles/burst means the DUT never
       stalled the master: the remaining limiter is OUTSTANDING DEPTH
       (one burst in flight), not inter-beat delay. Fixing the delay
