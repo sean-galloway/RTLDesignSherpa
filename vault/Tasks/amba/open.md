@@ -341,26 +341,34 @@ Characterize resource utilization and performance impact of monitors.
 
 ### TASK-015: Add Address Range and ID Filtering
 **Priority:** P3
-**Status:** 🟡 MOSTLY IMPLEMENTED (measured against the tree 2026-08-30; was
-"Not Started"). One feature genuinely missing, and it carries a design hazard
--- read the hazard before writing any RTL.
+**Status:** 🟢 COMPLETE 2026-08-30. All four features implemented, and the
+address filter is proven by a mutation-checked test, not just present.
+  * address-range filtering -- 9cfd06e8 (mechanism), 576c26c1 (gating on both
+    the packet AND retire paths), e3fa51e0 (test), 94e0eb72 (exposed on all
+    twelve wrappers)
+  * runtime ID filtering -- fd3b9646
+  * ID filtering, filter enable/disable -- already existed
+The hazard section below is kept: it is why the design filters at REPORT time
+rather than at admission, and anyone "simplifying" it will reintroduce the
+orphan-error and slot-leak failures.
 **Owner:** TBD
 
 **Description:**
 Add optional filtering capabilities to reduce monitor packet traffic.
 
 **Features:**
-- [ ] Address range filtering (monitor only specific regions) -- NOT
-      implemented. `axi_monitor_addr_check` REPORTS on ranges (match/miss
-      packets); nothing drops. See the hazard below.
+- [x] Address range filtering (monitor only specific regions) -- DONE.
+      Filters at report time; see the hazard below for why not at admission.
 - [x] Transaction ID filtering (monitor only specific masters) --
       `ID_FILTER_ENABLE` / `ID_MATCH_BASE` / `ID_MATCH_COUNT` in
       `axi_monitor_base`, gating cmd/data/resp valids into the trans_mgr
       (`id_owned()`), threaded up through `axi_monitor_filtered`.
 - [x] Configurable filter enable/disable -- packet-type mask (level 1) and
       event-code mask (level 3) in `axi_monitor_filtered`.
-- [ ] Runtime filter updates -- the masks are cfg-driven, but the ID filter is
-      COMPILE-TIME params only. Runtime ID filtering needs cfg_* ports.
+- [x] Runtime filter updates -- DONE (fd3b9646). cfg_id_filter_enable /
+      cfg_id_match_base / cfg_id_match_count override the params when
+      enabled; tied low the parameter path is bit-identical. AXI-Lite has no
+      IDs, so the four axil4 wrappers tie them off rather than expose them.
 
 **HAZARD -- why address filtering is not a mirror of the ID filter.**
 
