@@ -62,7 +62,8 @@ class DDR2LPDDR2TopTB:
                  axi_addr_width: int = 32,
                  dram_beat_width: int | None = None,
                  num_ranks: int = 1, num_banks: int = 8,
-                 row_width: int = 14, col_width: int = 10) -> None:
+                 row_width: int = 14, col_width: int = 10,
+                 dram_bl: int = 8) -> None:
         self.dut = dut
         self.log = logging.getLogger("pumice_top_tb")
         self.log.setLevel(logging.INFO)
@@ -118,7 +119,16 @@ class DDR2LPDDR2TopTB:
         #     number of pending writes per WR command
         # Both knobs MUST match; if they diverge the slave drops or
         # over-queues beats and writes get corrupted.
-        self.dram_bl = 4
+        # MUST match the RTL's DRAM_BL: it sizes the DFI model's burst
+        # (beats_per_burst below), so a mismatch makes the model return a
+        # different number of words than the controller's read CAM waits for
+        # and the read simply never completes -- an AR handshake with zero R
+        # beats and no error anywhere.
+        #
+        # This was hardcoded to 4 and went stale when commit 72a73fe2 moved
+        # DDR2 to BL8 for the on-silicon read fix. A constructor parameter is
+        # the point: the TB cannot track an RTL parameter it does not take.
+        self.dram_bl = dram_bl
         self.dfi_base = DFIBase(
             dfi_version=DFIVersion.V2_1,
             memory_type=MemoryType.DDR2,
@@ -660,17 +670,23 @@ class DDR2LPDDR2TopTB:
                                    value: int) -> None:
         """Use the RegisterMap to encode one field-write, send via APB.
 
-        RegisterMap's `write()` expects `value` already shifted to its
-        absolute bit position; we hide that here so callers pass the
-        natural field value (`page_policy_or=2`, not `2 << 2`).
+        `value` is the natural, right-justified field value
+        (`page_policy_or=2`, not `2 << 2`) -- which is exactly what
+        `RegisterMap.write()` wants: it shifts by the field's low bit
+        itself (register_map.py:258-261).
+
+        This method used to pre-shift by the field LSB as well. The double
+        shift pushed the value clear out of the field, so the masked write
+        stored ZERO and EVERY field write through here silently programmed
+        0 instead of the requested value. It was invisible because nothing
+        read the register back -- writing t_rp_wait=0x0B to INIT_TIMING1
+        (default 0x08) left 0x00 in the field. Do not "restore" the shift.
         """
         if self.reg_map is None:
             self.init_register_map()
         if self.apb4_master is None:
             raise RuntimeError("call init_apb4_master() first")
-        offset = self.reg_map.registers[register][field]["offset"]
-        lsb = int(offset.split(":")[-1])
-        self.reg_map.write(register, field, value << lsb)
+        self.reg_map.write(register, field, value)
         cycles = self.reg_map.generate_apb_cycles()
         for c in cycles:
             await self.apb4_master.busy_send(c)
@@ -686,6 +702,72 @@ class DDR2LPDDR2TopTB:
         await self.apb4_master.busy_send(packet)
         await RisingEdge(self.dut.pclk)
         return int(packet.fields.get("prdata", 0))
+
+    async def program_defaults(self, *, dfi_rate: int = 2, dram_bl: int = 8,
+                               page_policy: int = 2, t_phy_wrlat: int = 1,
+                               t_rddata_en: int = 2, mem_type: str = "DDR2",
+                               bank_lsb: int = 10,
+                               t_refi: int = 0x0400) -> None:
+        """Program the timing / PHY / policy CSRs by name, over APB.
+
+        This class previously programmed NOTHING -- every environment built on
+        it ran pumice on CSR RESET DEFAULTS. Two of those defaults are wrong
+        for a rate-2 sim and fail silently:
+
+          * DFI_PHASE.gear_ratio resets to 2 (= 1:4, right for the board's
+            fixed nphases=4). pumice computes active_rate = (RATEW'(1) <<
+            gear_i) with RATEW = clog2(DFI_RATE)+1 = 2 bits, so gear_i=2
+            OVERFLOWS to 0, every DFI phase reads inactive, and
+            dfi_wrdata_en_o is held low. Write data and mask still appear on
+            the DFI bus and the burst still returns B=OKAY -- the beats simply
+            never clock into the device. A write "succeeds" and memory stays
+            zero.
+          * PHY_TIMING.t_rddata_en / DFI_PHASE.rd_phase likewise gate the read
+            data window, and reads never return.
+
+        The values mirror pumice_top_csr_tb.program_defaults(), which is the
+        configuration the 73 passing top-level tests run under -- so an
+        environment using this class now starts from the same known-good
+        config instead of from whatever the RDL reset happens to be.
+        """
+        w = self.apb_program_register
+        await w("TIMINGS_RC_RCD_RP_RAS", "tRC", 6)
+        await w("TIMINGS_RC_RCD_RP_RAS", "tRCD", 3)
+        await w("TIMINGS_RC_RCD_RP_RAS", "tRP", 3)
+        await w("TIMINGS_RC_RCD_RP_RAS", "tRAS", 4)
+        await w("TIMINGS_RFC_REFI", "tRFC", 8)
+        await w("TIMINGS_RFC_REFI", "tREFI", t_refi)
+        await w("TIMINGS_RRD_FAW_WTR_CCD", "tRRD", 2)
+        await w("TIMINGS_RRD_FAW_WTR_CCD", "tFAW", 6)
+        await w("TIMINGS_RRD_FAW_WTR_CCD", "tWTR", 2)
+        await w("TIMINGS_RRD_FAW_WTR_CCD", "tCCD", 2)
+        await w("TIMINGS_CL_CWL_WR", "CL", 3)
+        await w("TIMINGS_CL_CWL_WR", "CWL", 2)
+        await w("TIMINGS_CL_CWL_WR", "tWR", 3)
+        await w("TIMINGS_RTP_RTW", "tRTP", 2)
+        await w("TIMINGS_RTP_RTW", "tRTW", 2)
+        await w("DFI_PHASE", "rd_phase", 0)
+        await w("DFI_PHASE", "wr_phase", 0)
+        await w("DFI_PHASE", "gear_ratio", dfi_rate.bit_length() - 1)
+        await w("DFI_PHASE", "bl", dram_bl)
+        await w("PHY_TIMING", "t_phy_wrlat", t_phy_wrlat)
+        await w("PHY_TIMING", "t_rddata_en", t_rddata_en)
+        await w("PHY_TIMING", "memtype", 1 if mem_type.upper() == "LPDDR2" else 0)
+        await w("PHY_TIMING", "refresh_burst", 1)
+        await w("REFRESH_TUNING", "page_policy_or", page_policy)
+        await w("ADDR_MAP", "bank_lsb", bank_lsb)
+
+        # Read gear_ratio back: it is the one field whose misprogramming is
+        # invisible from the AXI side (writes still get B=OKAY), so verify it
+        # at the source rather than discovering it as "memory stayed zero".
+        want = dfi_rate.bit_length() - 1
+        rb = await self.apb_read_register(
+            int(self.reg_map.registers["DFI_PHASE"]["address"], 16))
+        got = (rb >> 7) & 0x3
+        assert got == want, (
+            f"DFI_PHASE.gear_ratio readback {got} != {want} (raw {rb:#010x})")
+        self.log.info("program_defaults: gear_ratio=%d bl=%d t_rddata_en=%d",
+                      got, dram_bl, t_rddata_en)
 
     async def wait_for_init_done(self, timeout_cycles: int = 10_000) -> None:
         for _ in range(timeout_cycles):
