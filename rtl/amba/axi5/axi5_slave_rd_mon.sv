@@ -67,6 +67,11 @@ module axi5_slave_rd_mon
     parameter bit USE_WDATA_ORDER_Q      = 1'b0,
     parameter int NUM_BANKS              = 1,
     parameter bit ID_FILTER_ENABLE       = 1'b0,
+
+    // Address-range packet filter (TASK-015). Default 0 -> inert and the
+    // build is bit-identical. See axi_monitor_trans_mgr for why this filters
+    // at REPORT time rather than at admission.
+    parameter bit ADDR_FILTER_ENABLE     = 1'b0,
     parameter int ID_MATCH_BASE          = 0,
     parameter int ID_MATCH_COUNT         = 0,
     // Active-transaction threshold packet trip point (used when
@@ -199,6 +204,13 @@ module axi5_slave_rd_mon
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
+
+    // Address-range packet filter configuration (active when
+    // ADDR_FILTER_ENABLE=1). Inclusive [low, high]; a transaction whose
+    // command address falls OUTSIDE the range has its packets suppressed.
+    input  logic                                                   cfg_addr_filter_enable,
+    input  logic [AW-1:0]                                          cfg_addr_filter_low,
+    input  logic [AW-1:0]                                          cfg_addr_filter_high,
     // Free-running monitor-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
@@ -351,7 +363,7 @@ module axi5_slave_rd_mon
             .CFI_MAX_FREQ_MHZ        (CFI_MAX_FREQ_MHZ),
             .UNIT_ID(UNIT_ID), .AGENT_ID(AGENT_ID), .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
             .USE_WDATA_ORDER_Q(USE_WDATA_ORDER_Q), .NUM_BANKS(NUM_BANKS),
-            .ID_FILTER_ENABLE(ID_FILTER_ENABLE), .ID_MATCH_BASE(ID_MATCH_BASE), .ID_MATCH_COUNT(ID_MATCH_COUNT),
+            .ID_FILTER_ENABLE(ID_FILTER_ENABLE), .ADDR_FILTER_ENABLE(ADDR_FILTER_ENABLE), .ID_MATCH_BASE(ID_MATCH_BASE), .ID_MATCH_COUNT(ID_MATCH_COUNT),
             .ADDR_WIDTH(AW), .ID_WIDTH(IW), .IS_READ(1), .IS_AXI(1),
             .ENABLE_PERF_PACKETS(1), .ENABLE_DEBUG_MODULE(0),
             .ENABLE_ERROR_LOGIC(ENABLE_ERROR_LOGIC),
@@ -394,6 +406,9 @@ module axi5_slave_rd_mon
             .cfg_addr_range_enable(cfg_addr_range_enable),
             .cfg_addr_range_low(cfg_addr_range_low),
             .cfg_addr_range_high(cfg_addr_range_high),
+            .cfg_addr_filter_enable  (cfg_addr_filter_enable),
+            .cfg_addr_filter_low     (cfg_addr_filter_low),
+            .cfg_addr_filter_high    (cfg_addr_filter_high),
             .monbus_valid(monbus_valid), .monbus_ready(monbus_ready), .monbus_packet(monbus_packet),
             .monbus_timestamp(monbus_timestamp),
             // block_ready stalls new ARs at s_axi_arready when monitor FIFO is

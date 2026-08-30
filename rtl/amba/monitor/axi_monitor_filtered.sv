@@ -66,6 +66,11 @@ module axi_monitor_filtered
     parameter bit USE_WDATA_ORDER_Q      = 1'b0,
     parameter int NUM_BANKS              = 1,
     parameter bit ID_FILTER_ENABLE       = 1'b0,
+
+    // Address-range packet filter (TASK-015). Default 0 -> inert and the
+    // build is bit-identical. See axi_monitor_trans_mgr for why this filters
+    // at REPORT time rather than at admission.
+    parameter bit ADDR_FILTER_ENABLE     = 1'b0,
     parameter int ID_MATCH_BASE          = 0,
     parameter int ID_MATCH_COUNT         = 0,
     parameter int ADDR_WIDTH             = 32,
@@ -154,6 +159,13 @@ module axi_monitor_filtered
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][ADDR_WIDTH-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][ADDR_WIDTH-1:0] cfg_addr_range_high,
 
+
+    // Address-range packet filter configuration (active when
+    // ADDR_FILTER_ENABLE=1). Inclusive [low, high]; a transaction whose
+    // command address falls OUTSIDE the range has its packets suppressed.
+    input  logic                                                   cfg_addr_filter_enable,
+    input  logic [ADDR_WIDTH-1:0]                                  cfg_addr_filter_low,
+    input  logic [ADDR_WIDTH-1:0]                                  cfg_addr_filter_high,
     // Performance window control (Stage A of perfmon RFC). Wire to the
     // integrating block's perfmon CSR; tie 3'b111 + 1'b0 if perfmon is
     // unused at this instance.
@@ -249,6 +261,7 @@ module axi_monitor_filtered
             .USE_WDATA_ORDER_Q       (USE_WDATA_ORDER_Q),
             .NUM_BANKS               (NUM_BANKS),
             .ID_FILTER_ENABLE        (ID_FILTER_ENABLE),
+            .ADDR_FILTER_ENABLE      (ADDR_FILTER_ENABLE),
             .ID_MATCH_BASE           (ID_MATCH_BASE),
             .ID_MATCH_COUNT          (ID_MATCH_COUNT),
         .ADDR_WIDTH              (ADDR_WIDTH),
@@ -315,6 +328,9 @@ module axi_monitor_filtered
         .cfg_addr_range_low      (cfg_addr_range_low),
         .cfg_addr_range_high     (cfg_addr_range_high),
 
+        .cfg_addr_filter_enable  (cfg_addr_filter_enable),
+        .cfg_addr_filter_low     (cfg_addr_filter_low),
+        .cfg_addr_filter_high    (cfg_addr_filter_high),
         // Performance window control (Stage A of perfmon RFC)
         .cfg_start_event_sel     (cfg_start_event_sel),
         .cfg_end_event_sel       (cfg_end_event_sel),
