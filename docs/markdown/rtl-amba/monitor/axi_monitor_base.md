@@ -117,6 +117,21 @@ an unfiltered build.
 | `ID_FILTER_ENABLE` | bit | 0 | Enable the filter |
 | `ID_MATCH_BASE` | int | 0 | First ID owned by this instance |
 | `ID_MATCH_COUNT` | int | 0 | How many IDs; `0` means all (no filter) |
+| `ADDR_FILTER_ENABLE` | bit | 0 | Address-range packet filter, forwarded to `axi_monitor_trans_mgr`. 0 leaves it inert |
+
+The ID window can also be set **at runtime**, which matters because
+`ID_MATCH_BASE`/`ID_MATCH_COUNT` are elaboration constants — retargeting which
+master an instance watches otherwise means a rebuild:
+
+| Port | Description |
+|---|---|
+| `cfg_id_filter_enable` | High: use the `cfg_id_*` window below. Low: use the parameters, bit-identical to a build without this feature |
+| `cfg_id_match_base` | First ID owned, runtime |
+| `cfg_id_match_count` | How many; `0` means all, matching the parameter rule so a zeroed register block does not silently filter everything away |
+
+AXI-Lite has no transaction IDs, so the `axil4_*_mon` wrappers tie these off
+rather than exposing them — a filter keyed on a field the protocol lacks has
+nothing to match against.
 
 This gates the monitor's **observation** inputs only, never the datapath the
 wrapper drives, so a filtered instance stays transparent on the bus. All three

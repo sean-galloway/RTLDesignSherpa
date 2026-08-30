@@ -80,6 +80,7 @@ What it does for you:
 | `USE_WDATA_ORDER_Q` | bit | 0 | Write monitors: attribute W beats via an AWID FIFO instead of the table-wide state predicate. **Required when `NUM_BANKS > 1`** |
 | `NUM_BANKS` | int | 1 | Generate the CAM this many times, `MAX_TRANSACTIONS/NUM_BANKS` deep each. Power of 2, must divide the table |
 | `ENABLE_PERF_PACKETS` | bit | 0 | Reserved — perf packet generation hook |
+| `ADDR_FILTER_ENABLE` | bit | 0 | Address-range packet filter. 0 leaves `filtered_mask` permanently zero and the build bit-identical. See [Address filtering](#address-filtering) for why this suppresses packets rather than refusing admission |
 
 The `AW` and `IW` short-alias parameters are retained for API stability with
 prior revisions; they default to `ADDR_WIDTH` and `ID_WIDTH`.
@@ -142,11 +143,29 @@ module axi_monitor_trans_mgr
     // EVT_*_TIMEOUT code so it becomes cleanup-eligible instead of leaking.
     input  logic [MAX_TRANSACTIONS-1:0]   i_timeout_detected,
 
+    // Address-range packet filter (active when ADDR_FILTER_ENABLE=1).
+    // Inclusive [low, high]; a command whose address falls OUTSIDE the
+    // window has its packets suppressed. See "Address filtering".
+    input  logic                          cfg_addr_filter_enable,
+    input  logic [AW-1:0]                 cfg_addr_filter_low,
+    input  logic [AW-1:0]                 cfg_addr_filter_high,
+
+    // One bit per slot: 1 = suppress this entry's packets. Consumed by
+    // axi_monitor_reporter, which also retires filtered entries so they do
+    // not leak their slot.
+    output logic [MAX_TRANSACTIONS-1:0]   filtered_mask,
+
     output bus_transaction_t              trans_table[MAX_TRANSACTIONS],
     output logic [7:0]                    active_count,
     output logic [MAX_TRANSACTIONS-1:0]   state_change
 );
 ```
+
+`state_change` is currently **driven but unconsumed** — `axi_monitor_base`
+wires it to a net that nothing reads, and the reporters scan `trans_table`
+directly instead. Only the formal harness binds it, to assert it is zero after
+reset. Treat it as a hook, not a live signal, and do not reach for it as a
+reporting gate.
 
 The `bus_transaction_t` struct (defined in `monitor_amba4_pkg.sv`) contains:
 - State flags: `valid`, `cmd_received`, `data_started`, `data_completed`,
@@ -391,6 +410,46 @@ state-qualified to `TRANS_ADDR_PHASE` so orphan adoption keeps its legacy
 behavior. An entry whose AW has not yet handshaked is held in
 `TRANS_ADDR_PHASE` even after taking the beat, preserving address-phase
 timeout coverage (formal property `ap_wr_data_phase_has_cmd`).
+
+---
+
+### Address filtering
+
+`ADDR_FILTER_ENABLE` adds an address window,
+`cfg_addr_filter_low`..`cfg_addr_filter_high` inclusive, gated by
+`cfg_addr_filter_enable`. A command whose address falls **outside** the window
+sets that slot's bit in `filtered_mask`, and the reporter suppresses every
+packet for it.
+
+The verdict is taken **at allocation** and held for the life of the slot. It
+has to be: the address appears only on the command channel, so once the entry
+exists there is nothing left to re-test it against.
+
+The filter suppresses packets; it does **not** refuse admission. That looks
+like the weaker choice and is the correct one. Address exists only on the
+command channel, so refusing to allocate would leave that transaction's data
+and response beats arriving with no entry to match. Unmatched data is
+deliberately ungated — a monitor must never stall returning data — so those
+beats would be reported as orphan errors, and a filter meant to cut packet
+traffic would increase it.
+
+Cost of deciding here rather than at admission is `MAX_TRANSACTIONS` flops (16
+at the default). Admission filtering would need a counter per *possible* ID —
+`2**ID_WIDTH` counters, 1280 flops at `ID_WIDTH=8`/`MAX_TRANSACTIONS=16` —
+because one ID can hold several outstanding transactions whose addresses
+straddle the window, so a flag per ID is not enough.
+
+Because the verdict is latched, widening the window at runtime does not
+un-filter entries already in the table; only transactions admitted afterwards
+see the new window. That is what makes the window safe to reprogram live —
+an entry's fate is fixed when it is admitted, so the retire accounting cannot
+be corrupted underneath it.
+
+The consumer must retire filtered entries as well as silence them. A slot is
+freed only once `event_reported` is set, and the only producer of that flag is
+an accepted monbus write — so suppressing the packet without retiring the
+entry leaks the slot. `axi_monitor_reporter` handles this by folding filtered
+terminal entries into its auto-retire path.
 
 ---
 

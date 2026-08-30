@@ -202,6 +202,14 @@ monitored bus after roughly `MAX_TRANSACTIONS` transactions.
 
 The reporter now **auto-retires** such entries. The semantics:
 
+- An entry marked in `filtered_mask` (the address-range packet filter in
+  `axi_monitor_trans_mgr`) retires on the same rule the moment it is
+  terminal. A filtered entry will never be emitted, so nothing is owed for
+  it. Its packet is separately suppressed before the FIFO write mux, via
+  effective valids that drop a filtered slot — suppressing the packet
+  **without** this retire arm would leak the slot, which is the same failure
+  the disabled-class arms exist to prevent.
+
 - An entry in a terminal state (`TRANS_COMPLETE` / `TRANS_ERROR` /
   `TRANS_ORPHANED`) whose claiming packet class is unavailable — compiled
   out **or** runtime-disabled — is marked reported immediately, **without
