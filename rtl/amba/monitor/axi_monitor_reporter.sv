@@ -65,6 +65,11 @@ module axi_monitor_reporter
     input  bus_transaction_t         trans_table[MAX_TRANSACTIONS],
     input  logic [MAX_TRANSACTIONS-1:0] timeout_detected,
 
+    // Address-filtered slots (TASK-015). 1 = suppress this entry's packets.
+    // Tied 0 by axi_monitor_base when ADDR_FILTER_ENABLE=0, so the whole
+    // effect folds away in a default build.
+    input  logic [MAX_TRANSACTIONS-1:0] filtered_mask,
+
     input  logic                     cfg_error_enable,
     input  logic                     cfg_compl_enable,
     input  logic                     cfg_threshold_enable,
@@ -143,6 +148,13 @@ module axi_monitor_reporter
     // Sub-block outputs (tied to 0 when disabled by ENABLE_*).
     // -------------------------------------------------------------------------
     logic              err_valid,  to_valid,  compl_valid;
+
+    // Effective valids: a filtered slot never writes the FIFO and is never
+    // marked from a FIFO accept. It is retired instead by w_auto_retire
+    // below -- suppressing the packet WITHOUT retiring would leak the slot,
+    // because trans_mgr frees a terminal entry only once event_reported is
+    // set, and the sole producer of that flag is an accepted FIFO write.
+    logic              err_valid_f, to_valid_f, compl_valid_f;
     logic [3:0]        err_type,   to_type,   compl_type;
     logic [7:0]        err_code,   to_code,   compl_code;
     logic [8:0]        err_chan,   to_chan,   compl_chan;
@@ -226,22 +238,26 @@ module axi_monitor_reporter
     // -------------------------------------------------------------------------
     // FIFO write mux: priority error > timeout > compl (matches legacy).
     // -------------------------------------------------------------------------
+    assign err_valid_f   = err_valid   && !filtered_mask[err_idx];
+    assign to_valid_f    = to_valid    && !filtered_mask[to_idx];
+    assign compl_valid_f = compl_valid && !filtered_mask[compl_idx];
+
     always_comb begin
         w_fifo_wr_valid       = 1'b0;
         w_fifo_wr_data        = '{default: '0};
-        if (err_valid) begin
+        if (err_valid_f) begin
             w_fifo_wr_valid       = 1'b1;
             w_fifo_wr_data.packet_type = err_type;
             w_fifo_wr_data.event_code  = err_code;
             w_fifo_wr_data.channel     = err_chan;
             w_fifo_wr_data.data        = err_data;
-        end else if (to_valid) begin
+        end else if (to_valid_f) begin
             w_fifo_wr_valid       = 1'b1;
             w_fifo_wr_data.packet_type = to_type;
             w_fifo_wr_data.event_code  = to_code;
             w_fifo_wr_data.channel     = to_chan;
             w_fifo_wr_data.data        = to_data;
-        end else if (compl_valid) begin
+        end else if (compl_valid_f) begin
             w_fifo_wr_valid       = 1'b1;
             w_fifo_wr_data.packet_type = compl_type;
             w_fifo_wr_data.event_code  = compl_code;
@@ -291,13 +307,13 @@ module axi_monitor_reporter
         // Same priority as the FIFO write mux: error > timeout > compl.
         // Timeout slots sit in TRANS_ERROR, so they roll up as error events
         // for the perf counters (matches the legacy state-based split).
-        if (err_valid) begin
+        if (err_valid_f) begin
             w_mark_idx      = err_idx;
             w_mark_is_error = 1'b1;
-        end else if (to_valid) begin
+        end else if (to_valid_f) begin
             w_mark_idx      = to_idx;
             w_mark_is_error = 1'b1;
-        end else if (compl_valid) begin
+        end else if (compl_valid_f) begin
             w_mark_idx      = compl_idx;
             w_mark_is_compl = 1'b1;
         end
@@ -350,7 +366,16 @@ module axi_monitor_reporter
     always_comb begin
         w_auto_retire = '0;
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-            if (r_trans_table_local[idx].valid) begin
+            if (r_trans_table_local[idx].valid && filtered_mask[idx]) begin
+                // Address-filtered: no packet will ever be emitted for this
+                // entry, so retire it as soon as it is terminal. Same rule as
+                // the compiled-out/runtime-disabled classes below.
+                case (r_trans_table_local[idx].state)
+                    TRANS_COMPLETE, TRANS_ERROR, TRANS_ORPHANED:
+                        w_auto_retire[idx] = 1'b1;
+                    default: ;
+                endcase
+            end else if (r_trans_table_local[idx].valid) begin
                 case (r_trans_table_local[idx].state)
                     // Emitted by axi_monitor_reporter_compl.
                     TRANS_COMPLETE:

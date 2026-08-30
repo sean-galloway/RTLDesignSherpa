@@ -68,6 +68,11 @@ module axi_monitor_base
     parameter int ID_MATCH_BASE        = 0,      // first ID owned by this instance
     parameter int ID_MATCH_COUNT       = 0,      // how many; 0 = all (no filter)
 
+    // Address-range packet filter (TASK-015). Default 0 -> filtered_mask is
+    // always 0 and the build is bit-identical. See axi_monitor_trans_mgr for
+    // why this filters at REPORT time rather than at admission.
+    parameter bit ADDR_FILTER_ENABLE   = 1'b0,
+
     // General parameters
     // ---- Timer LUT sizing (counter_freq_invariant) -------------------------
     // The divisor IS the frequency in MHz, so a table built for THIS design's
@@ -129,6 +134,13 @@ module axi_monitor_base
     input  logic                     aclk,
     input  logic                     aresetn,
     input  logic                     clear,   // sync clear: empty the trans CAM + active_count
+
+    // Address-range packet filter configuration (active when
+    // ADDR_FILTER_ENABLE=1). Inclusive [low, high]; a transaction whose
+    // command address falls OUTSIDE the range has its packets suppressed.
+    input  logic                     cfg_addr_filter_enable,
+    input  logic [ADDR_WIDTH-1:0]    cfg_addr_filter_low,
+    input  logic [ADDR_WIDTH-1:0]    cfg_addr_filter_high,
 
     // Command phase (AW/AR)
     input  logic [AW-1:0]            cmd_addr,    // Address value
@@ -290,6 +302,7 @@ module axi_monitor_base
 
     // State change detection for debug module (combinational)
     logic [MAX_TRANSACTIONS-1:0] w_state_change_detected;
+    logic [MAX_TRANSACTIONS-1:0] w_filtered_mask;
     logic [MAX_TRANSACTIONS-1:0] w_timeout_detected;
 
     // Interrupt outputs from different modules (combinational)
@@ -351,7 +364,8 @@ module axi_monitor_base
         .IS_AXI             (IS_AXI),
         .USE_WDATA_ORDER_Q       (USE_WDATA_ORDER_Q),
         .NUM_BANKS               (NUM_BANKS),
-        .ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS)
+        .ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS),
+        .ADDR_FILTER_ENABLE (ADDR_FILTER_ENABLE)
     ) trans_mgr(
         .aclk               (aclk),
         .aresetn            (aresetn),
@@ -377,7 +391,11 @@ module axi_monitor_base
         .i_timeout_detected (w_timeout_detected),         // ISSUE #41: timeout -> terminal state
         .trans_table        (w_trans_table),
         .active_count       (w_active_count),
-        .state_change       (w_state_change_detected)
+        .state_change       (w_state_change_detected),
+        .cfg_addr_filter_enable(cfg_addr_filter_enable),
+        .cfg_addr_filter_low   (cfg_addr_filter_low),
+        .cfg_addr_filter_high  (cfg_addr_filter_high),
+        .filtered_mask         (w_filtered_mask)
     );
 
     // Invariant Timer using counter_freq_invariant
@@ -434,6 +452,7 @@ module axi_monitor_base
         .aclk                  (aclk),
         .aresetn               (aresetn),
         .trans_table           (w_trans_table),
+        .filtered_mask         (w_filtered_mask),
         .timeout_detected      (w_timeout_detected),  // Pass timeout flags
         .cfg_error_enable      (cfg_error_enable),
         .cfg_compl_enable      (cfg_compl_enable),
