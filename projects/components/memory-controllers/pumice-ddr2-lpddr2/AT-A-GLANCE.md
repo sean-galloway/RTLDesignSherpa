@@ -97,163 +97,297 @@ cross sweep moves one knob at a time instead of taking a 648-point product.
 
 ### Axis 1 — scheduling (`pumice_cmd_arbiter`, `SCHED_POLICY` @ 0x068)
 
-**`order_mode` — who is a candidate**
+#### `order_mode` — which references may drive a pick
 
-* **`fr_fcfs` (0/2, default)** — among references whose DRAM timing and
-  resources are free, row-hit-ready wins, oldest breaks the tie.
-  * A ready-check plus an age compare — no reorder machinery, and the paper's
-    ~+25% bandwidth over strict order.
-* **`in_order` (1)** — issue only what the single oldest un-issued reference
-  needs; no lookahead. The latency-floor / bandwidth-ceiling reference point.
-  * An overlay that NARROWS the FR-FCFS class masks to the head-of-CAM entry
-    taken from the age-order matrix.
-  * Between the read and write CAMs the older head wins on a relative-age
-    compare — both age counters free-run from reset (same epoch), tie to read.
-* **`age_threshold` (3, with `age_thresh`)** — a reference older than
-  `age_thresh` (MC cycles / 16) is boosted, which bounds starvation.
-  * While ANY aged entry exists every class narrows to aged entries, so an aged
-    reference's PRE outranks a fresh row-hit. The CAMs export a per-entry 1-bit
-    aged flag, so numeric ages never leave the CAM.
-  * The boost triggers on the aged entry's EXISTENCE, not its momentary
-    candidacy — a guard-blocked PRE must still engage the narrowing, or the
-    competing column stream re-arms the guard forever.
+**`fr_fcfs` — `order_mode` = 0 or 2 (build default)**
 
-**`row_sel` / `col_sel` — which candidate wins** (`row_sel` steers ACTIVATE,
-`col_sel` steers COLUMN; precharge picks stay strictly oldest in every mode)
+* Among references whose DRAM timing and resources are already free, a
+  row-hit-ready reference wins; oldest breaks the tie.
+* Costs a ready-check plus one age compare — no reorder machinery. It is what
+  the class masks compute natively, so it is the mask the other modes narrow.
+* The paper's baseline gain: roughly +25% bandwidth over strict arrival order.
 
-* **`oldest` (0, default)** — strict age order within whatever mask survived.
-  * Composes under any `order_mode`; it is the tie-break the other two selects
-    fall back on.
-* **`most_pending` (1)** — serve the row with the MOST pending references:
-  drain the hottest row, maximizing accesses per activation.
-  * At CAM depth 8 the paper's "expensive population counters" degenerate to an
-    8x8 same-{bank,row} match triangle per CAM — population first, oldest tie.
-* **`fewest_pending` (2)** — the opposite bias: let low-demand rows finish and
-  precharge sooner, freeing banks.
-  * Same triangle, inverted compare. Wins when bank parallelism rather than row
-    locality is the bottleneck.
+**`in_order` — `order_mode` = 1**
 
-**`access_pref` — which command class the address arbiter prefers**
+* Only the single oldest un-issued reference across both CAMs may drive any
+  pick. No lookahead, so a row miss stalls everything queued behind it.
+* Implemented as a mask AND rather than a second chain: head-of-CAM comes from
+  the age-order matrix, and the losing CAM's three class masks are zeroed.
+* Between the CAMs the older head wins on a relative-age compare — both CAM age
+  counters free-run from reset so the values share an epoch, tie goes to read.
+  Use it as the latency-floor reference point in a sweep, not as a policy.
 
-* **`column_first` (0/1, default)** — columns, then activates, then precharges:
-  the legacy chain order, bit-identical. Lowest latency to an open row.
-* **`row_first` (2)** — activates outrank columns, opening more banks sooner.
-  * Trades page-hit latency for bank parallelism; pairs with `most_pending`.
-* **`precharge_first` (3)** — retire rows first, for when the precharge queue
-  is the constraint (close-page and RBL paging).
-  * The preference reorders WHICH CLASS of the `order_mode` survivors is
-    served; read-over-write is then applied inside the winning class.
+**`age_threshold` — `order_mode` = 3 (with `SCHED_POLICY.age_thresh`)**
 
-**`prio_sub` — read versus write priority**
+* FR-FCFS until any candidate's age crosses `age_thresh` (MC cycles / 16);
+  from then on every class narrows to boosted entries, so an aged reference's
+  PRE outranks a fresh row-hit and starvation is bounded.
+* The CAMs export a per-entry 1-bit aged flag, so numeric ages never cross the
+  CAM boundary — the arbiter only ever compares single bits.
+* The boost keys off a boosted entry's EXISTENCE, not its momentary candidacy:
+  a boosted PRE stuck behind its bank's 2-cycle guard must still engage the
+  narrowing, or the competing column stream re-arms that guard forever and the
+  aged entry starves on its own trigger condition.
 
-* **`load_over_store` (0/2, default)** — reads outrank writes; a 1-bit key
-  protecting latency-critical loads.
-* **`none` (1)** — fair: direction alternates on every fired demand op, so
-  neither direction can monopolize.
-* **`age_boost` (3)** — reads first UNLESS the write-class winner is age-boosted
-  and the read-class winner is not, so an aged write pierces read priority.
+#### `row_sel` / `col_sel` — which candidate wins inside a class
 
-**Standalone scheduling knobs**
+`row_sel` steers the ACTIVATE pick, `col_sel` the COLUMN pick; both take the
+same three values, and precharge picks stay strictly oldest in every mode.
 
-* **Write batching (`SCHED_WR_WM.wr_high_wm` / `wr_low_wm`)** — drain writes
-  back-to-back once write-CAM schedulable occupancy crosses the high watermark,
-  stopping at the low one, to amortize tWTR and bus turnaround.
-  * Implemented as registered hysteresis that FLIPS the read-over-write bit in
-    every demand class — not a separate chain — and it overrides `prio_sub`
-    while active. `wr_high_wm = 0` disables it, bit-identical.
-* **QoS (`qos_en`)** — `AxQOS` rides AR/AW into the intake, into CAM entry
-  state, out as the per-entry `sch_qos` vector.
-  * Each demand class narrows to its MAX-QoS candidates BEFORE the
-    population/oldest select, making QoS the outer key and leaving the existing
-    selects to break ties inside the winning QoS level.
-* **`auto_precharge_en`** — CSR field is allocated but NOT yet consumed by RTL;
-  auto-precharge today comes entirely from the Axis-2 paging decision.
+**`oldest` — `row_sel` / `col_sel` = 0 (build default)**
+
+* Pure age-order matrix: an entry wins iff no other masked entry is older.
+  Identical to the pre-mode `arg_oldest` pick, bit for bit.
+* The population compare is bypassed rather than tied, so this is also the
+  cheapest of the three selects.
+* It stays the tie-break underneath the other two, so age order never fully
+  leaves the pick.
+
+**`most_pending` — `row_sel` / `col_sel` = 1**
+
+* Picks the candidate whose {bank,row} has the MOST schedulable entries pending
+  in its own CAM: drain the hottest row, maximizing accesses per activation.
+* `pop[i]` is an 8x8 same-{bank,row} match triangle at CAM depth 8 — the
+  paper's "expensive population counters" fall out as a few 3-bit adders.
+* Population is the outer key and oldest the tie-break, so equal-population
+  rows still retire in age order.
+
+**`fewest_pending` — `row_sel` / `col_sel` = 2**
+
+* The inverted compare on the same triangle: serve the row with the FEWEST
+  pending references, so low-demand rows finish and free their bank sooner.
+* Biases toward bank parallelism rather than row locality — the useful
+  direction when activates, not column bandwidth, are the constraint.
+* Costs exactly what `most_pending` costs (one compare direction) and keeps the
+  same oldest tie-break.
+
+#### `access_pref` — which command class is served first
+
+**`column_first` — `access_pref` = 0 or 1 (build default)**
+
+* Columns, then activates, then precharges: the legacy chain order,
+  bit-identical.
+* Lowest latency to an already-open row — a page hit never waits behind an
+  activate for some other bank.
+* The read/write decision (`prio_sub`) is then applied INSIDE the winning
+  class, not across classes.
+
+**`row_first` — `access_pref` = 2**
+
+* Activates outrank columns, so more banks open sooner and more rows are
+  available to hit later.
+* Trades page-hit latency for bank parallelism; the natural partner for
+  `most_pending` on scattered traffic.
+* Only the class ORDER changes — `order_mode` still decides who is a candidate,
+  which is why the two compose instead of fighting.
+
+**`precharge_first` — `access_pref` = 3**
+
+* Retires rows first: precharge, then columns, then activates.
+* For configurations where the precharge queue is the constraint — close-page
+  and the RBL paging modes, where nearly every access ends in a close.
+* Precharge candidates are still picked strictly oldest, so this changes WHEN
+  precharges are served, never WHICH one.
+
+#### `prio_sub` — read versus write priority
+
+**`load_over_store` — `prio_sub` = 0 or 2 (build default)**
+
+* Reads outrank writes in every demand class: a 1-bit priority key protecting
+  latency-critical loads.
+* Writes still progress in the gaps, but a sustained read stream can hold them
+  off — the write-batching watermarks exist to bound exactly that.
+* Bit-identical to the pre-mode arbiter.
+
+**`none` — `prio_sub` = 1**
+
+* Fair alternation: a direction toggle flips on every FIRED demand op, so reads
+  and writes take turns and neither direction can monopolize the pick.
+* The toggle is a single flop below the output stage (it needs the fire
+  signal), read by all three class decisions in the same cycle.
+* Use it when measuring a mixed stream where read priority would otherwise mask
+  write-path behavior.
+
+**`age_boost` — `prio_sub` = 3**
+
+* Reads first, UNLESS the write-class winner carries the aged flag and the
+  read-class winner does not — an aged write then pierces read priority.
+* Evaluated per class on the ALREADY-SELECTED winners, so it reorders two
+  candidates rather than re-running the select.
+* Pairs with `order_mode = age_threshold`, which is what sets the aged flags in
+  the first place.
+
+#### Standalone scheduling knobs
+
+**Write batching — `SCHED_WR_WM.wr_high_wm` / `wr_low_wm` (0/0 = off, default)**
+
+* Once write-CAM schedulable occupancy reaches `wr_high_wm`, writes drain
+  back-to-back until occupancy falls to `wr_low_wm`, amortizing tWTR and bus
+  turnaround instead of ping-ponging direction.
+* Registered hysteresis, one flop: while draining it FLIPS the read-over-write
+  bit in every demand class rather than adding a separate chain, and it
+  OVERRIDES `prio_sub` for as long as it is active.
+* `wr_high_wm = 0` disables it entirely — the bit-identical default.
+
+**QoS — `SCHED_POLICY.qos_en` (0 = off, default)**
+
+* `AxQOS` rides AR/AW into the intake, into CAM entry state, and back out as
+  the per-entry `sch_qos` vector.
+* Set, each class mask is first narrowed to its MAX-QoS candidates and the
+  population/oldest select then runs inside that: QoS is the outer key, the
+  existing selects break ties within a QoS level.
+* Clear, the qos vector is never read, so the pick is bit-identical to a build
+  with no QoS at all.
+
+**`auto_precharge_en` — `SCHED_POLICY` bit 10**
+
+* Allocated in the CSR map but NOT consumed by the RTL — nothing reads it
+  today, so setting it changes nothing.
+* Auto-precharge comes entirely from the Axis-2 paging decision
+  (`ap_mode_en_o` / `ap_close_o`).
+* Listed here so a characterization sweep does not spend a dimension on it.
 
 ### Axis 2 — paging (`pumice_page_policy`, `PAGE_POLICY_CFG` @ 0x070)
 
-Every mode resolves to (a) the column command's auto-precharge bit and (b) a
-background per-bank precharge REQUEST that still respects tRAS/tRTP/tRP/tRC.
+Every mode resolves to (a) the auto-precharge bit on the column command and
+(b) a background per-bank precharge REQUEST that still respects
+tRAS/tRTP/tRP/tRC. Telemetry: `PAGE_STATS_HIT` / `_MISS` / `_EMPTY`.
 
-* **`build_default` (0)** — defer to the legacy flat `PAGE_POLICY` CSR
-  (OPEN or CLOSE) exactly as before the mode engine existed.
-  * `ap_mode_en_o` stays low, so the arbiter uses its own `w_ap`. This is the
-    bit-identical escape hatch, and it is still runtime-switchable OPEN/CLOSE —
-    that switch alone was worth 8.8x on streaming traffic on silicon.
-* **`static_open` (1)** — never auto-precharge; the bank timer holds the row
-  open until something else evicts it.
-  * Best on high locality (about 68% of workloads, up to +18% versus close);
-    pays tRP on every conflict miss.
-* **`static_close` (2)** — always auto-precharge (RDA/WRA), so a row never
-  outlives its column op.
-  * Fuses the precharge into the last column command instead of spending a
-    separate PRE slot; best on random / low-locality streams (up to +18%).
-* **`fixed_open` (3, `PAGE_TIMEOUT_CFG.tr_init`)** — leave the row open, close
-  it after an idle timeout of `tr_init` clocks (the paper used about tRC).
-  * One timeout counter per bank; the cheapest thing that is not static.
-* **`adapt_time` (4, Happy adaptive-timeout, the recommended adaptive one)** —
-  per bank a Timeout Counter TC, Timeout Register TR and 4-bit Mistake Counter
-  MC; the row closes when TC reaches TR.
-  * MC counts up on a premature close (page-empty reopening the row just
-    closed) and down on held-too-long (a conflict that could have been empty);
-    every `check_interval`, MC above `mc_high_thr` grows TR by `tr_step`, MC
-    below `mc_low_thr` shrinks it, clamped to `tr_min`..`tr_max`.
-  * Best measured policy for roughly 16-32 small registers plus a last-closed
-    row latch and comparator per bank. `policy_scope` makes TR global instead
-    of per-bank.
-* **`adapt_access` (5, Happy "Hybrid", `pumice_row_pred_table`)** — a per-row
-  2-bit saturating counter, compared against `ctr_open_max` at ACT time.
-  * Tagless direct-mapped on {bank, XOR-folded row}: the fold replaces the
-    paper's full per-row BRAM, so aliasing blends history — acceptable in a
-    predictor, and the reason it is a predictor and not a cache.
-  * Learns from accesses-per-activation at explicit PRE closes, plus a
-    premature-reopen decrement on auto-precharge closes.
-* **`rbl_static` (6, RBLA / Yoon, `pumice_rbl_table`)** — count row-buffer
-  MISSES only, never accesses: a hit carries no signal about locality.
-  * A small set-associative table of saturating miss counters (tag = row
-    address, true LRU; `PAGE_RBL_CFG` sets ways/sets/threshold/epoch); a row
-    over `miss_thresh` is low-locality and gets auto-precharge.
-  * Separates hot-but-friendly rows from hot-and-thrashing ones, which
-    frequency-based schemes conflate. Only the miss predictor is kept — the
-    paper's DRAM-cache migration machinery is dropped.
-* **`rbl_dyn` (7)** — same table, but `miss_thresh` hill-climbs once per epoch
-  against the measured page-hit fraction.
-  * Divider-free: the comparison is a cross-multiplication, with direction
-    memory so the climb keeps walking the way that last helped.
+**`build_default` — `policy_mode` = 0**
+
+* Defers to the legacy flat `PAGE_POLICY` CSR (OPEN or CLOSE): `ap_mode_en_o`
+  stays low, so the arbiter uses its own `w_ap` and the mode engine is
+  invisible.
+* The bit-identical escape hatch — what every other mode is diffed against.
+* Still runtime-switchable OPEN/CLOSE, and that switch alone was worth 8.8x on
+  streaming traffic on silicon (12.7 -> 112 MB/s).
+
+**`static_open` — `policy_mode` = 1**
+
+* Never auto-precharge: a row stays open until another row in that bank forces
+  the close.
+* Best on high locality — about 68% of the paper's workloads, up to +18% over
+  close.
+* Pays a full tRP on every conflict miss, making it the worst case on random
+  traffic.
+
+**`static_close` — `policy_mode` = 2**
+
+* Always auto-precharge (RDA/WRA): a row never outlives the column op that
+  used it.
+* The precharge rides inside the column command instead of consuming a separate
+  PRE slot on the bus.
+* Best on random / low-locality streams (up to +18% over open); throws away
+  whatever locality the stream does have.
+
+**`fixed_open` — `policy_mode` = 3 (`PAGE_TIMEOUT_CFG.tr_init`)**
+
+* Leave the row open, then close it after an idle timeout of `tr_init` MC
+  clocks (the paper used about tRC).
+* One timeout counter per bank — the cheapest thing here that is not static.
+* One constant serves every bank and every phase of the workload, so it can
+  only ever be tuned for the average.
+
+**`adapt_time` — `policy_mode` = 4 (Happy adaptive-timeout; recommended)**
+
+* Per bank: a Timeout Counter TC, a Timeout Register TR and a 4-bit Mistake
+  Counter MC. The row closes when TC reaches TR.
+* MC counts UP on a premature close (a page-empty that reopens the row just
+  closed) and DOWN on held-too-long (a conflict that could have been an empty).
+  Every `check_interval`, MC above `mc_high_thr` grows TR by `tr_step`, MC
+  below `mc_low_thr` shrinks it, clamped to `tr_min`..`tr_max`.
+* Best measured policy for about 16-32 small registers plus a last-closed-row
+  latch and comparator per bank; `policy_scope = 1` makes TR global rather than
+  per-bank.
+
+**`adapt_access` — `policy_mode` = 5 (Happy "Hybrid", `pumice_row_pred_table`)**
+
+* A per-row 2-bit saturating counter, compared against `ctr_open_max`
+  (default 2) at ACT time to decide open-or-close for that row.
+* Tagless direct-mapped on {bank, XOR-folded row}: the fold replaces the
+  paper's full per-row BRAM, so aliasing blends history between rows —
+  acceptable in a predictor, and the reason it is a predictor and not a cache.
+* Learns from accesses-per-activation at explicit PRE closes plus a
+  premature-reopen decrement on auto-precharge closes. (`ctr_width` is
+  CSR-allocated but unwired; the counter is 2-bit.)
+
+**`rbl_static` — `policy_mode` = 6 (RBLA / Yoon, `pumice_rbl_table`)**
+
+* Counts row-buffer MISSES only, never accesses — a hit carries no signal about
+  whether a row deserves to stay open.
+* A small set-associative table of saturating miss counters (tag = row address,
+  true LRU); `PAGE_RBL_CFG` shapes ways, sets, `miss_thresh` and the epoch. A
+  row over `miss_thresh` is low-locality and gets auto-precharge.
+* Separates hot-but-friendly rows from hot-and-thrashing ones, which
+  frequency-based schemes conflate. Only the miss predictor is kept; the
+  paper's DRAM-cache migration machinery is dropped.
+
+**`rbl_dyn` — `policy_mode` = 7**
+
+* The same table, except `miss_thresh` hill-climbs once per epoch against the
+  measured page-hit fraction instead of staying where software put it.
+* Divider-free: the hit-fraction comparison is a cross-multiplication, with
+  direction memory so the climb keeps walking whichever way last helped.
+* `PAGE_RBL_CFG.reset_interval` sets the epoch (0 = counters never reset),
+  which is also what decides how fast it can react to a phase change.
 
 ### Axis 3 — refresh (`refresh_ctrl`, `REF_CTRL` @ 0x140)
 
 The JEDEC **+-8 postpone/pull-in credit** is the hard data-integrity budget
 every mode obeys; tREFI and tRFCab live in `TIMINGS_RFC_REFI`, not here.
 
-* **`refab` (0/1, default, DDR2 + LPDDR2)** — one command refreshes the whole
-  rank at tRFCab, on a tREFI interval.
-  * The safe fallback in every configuration, and the mode the scheduler
-    silently degrades to when a per-bank request lands on DDR2.
-* **`refpb_rr` (2, LPDDR2 only)** — per-bank refresh driven by the DRAM's own
-  internal round-robin counter.
-  * JESD209-2 6.6: the command carries NO bank address, so the controller keeps
-    a rotor MIRROR that advances exactly when an OP_REFPB is granted onto the
-    wire. The arbiter precharges only the rotor bank, then issues REFPB;
-    `REF_TIMING_PB.trefi_pb` sets the interval (0 derives tREFI/8) and
-    `trfc_pb` the recovery. `REF_CTRL.perbank_supported` straps capability.
-  * Conservative v1 interlock: the rank-wide ACT block during the shorter
-    tRFCpb also spaces consecutive REFpb commands. Columns to already-open rows
-    in other banks flow throughout; full ACT-during-tRFCpb overlap is a later
-    optimization.
-  * Caution: on traffic that cannot use the other banks during a per-bank
-    window, REFpb's serialized commands can total about 3.5x tRFCab — keep
-    `refab` selectable.
-* **Postpone / pull-in credits (`postpone_limit` / `pullin_limit`, 0..8)** —
-  rank-scoped credit split into a pending backlog and a run-ahead credit.
-  * Under demand the request is withheld until the backlog exceeds
-    `postpone_limit` (clamped at 7, so the JEDEC ceiling always forces); on
-    CONFIRMED idle — 16-cycle hysteresis over CAM occupancy, because micro-gaps
-    between bursts must not release postponed refreshes — refreshes run ahead
-    up to `pullin_limit`, and each later tREFI tick then consumes a credit
-    instead of adding backlog.
-  * 0/0 is the strict, bit-identical baseline. Per-bank `ref_credit[b]` steering
-    arrives with REFpb. Measured cost with credits parked: exactly 5 stall
-    cycles per refresh, no scatter (`perf_refresh_bubbles`).
+**`refab` — `REF_CTRL.mode` = 0 or 1 (build default; DDR2 and LPDDR2)**
+
+* One command refreshes the whole rank at tRFCab on a tREFI interval; every
+  bank must be precharged first.
+* An 8-deep accumulator does the tracking: each tREFI tick increments, each
+  grant decrements, and the request stays high while it is non-zero.
+* The safe fallback in every configuration, and what the scheduler silently
+  degrades to when a per-bank request lands on DDR2.
+
+**`refpb_rr` — `REF_CTRL.mode` = 2 (LPDDR2 only)**
+
+* Per-bank refresh driven by the DRAM's own internal round-robin counter — per
+  JESD209-2 6.6 the command carries NO bank address. The arbiter precharges
+  only the rotor bank, then issues REFPB.
+* The controller keeps a rotor MIRROR advanced by the GRANTED OP_REFPB on the
+  wire; keying it off the mode bit instead desynchronizes the mirror from the
+  device. `REF_TIMING_PB.trefi_pb` sets the interval (0 derives tREFI/8),
+  `trfc_pb` the recovery, and `perbank_supported` straps capability.
+* Conservative v1 interlock: the rank-wide ACT block during the shorter tRFCpb
+  also spaces consecutive REFpb commands. On traffic that cannot use the other
+  banks meanwhile, the serialized commands can total about 3.5x tRFCab — keep
+  `refab` selectable.
+
+**Postpone credit — `REF_CTRL.postpone_limit` (0..8; 0 = strict, default)**
+
+* While demand is high the refresh request is WITHHELD until the pending
+  backlog exceeds the limit, so a burst is not interrupted by a refresh that
+  could legally have been deferred.
+* Effectively clamped at 7, so the JEDEC 8-postponed ceiling can always force
+  the issue no matter what software programmed.
+* 0 requests the moment anything is pending — the strict, bit-identical
+  baseline.
+
+**Pull-in credit — `REF_CTRL.pullin_limit` (0..8; 0 = never, default)**
+
+* On CONFIRMED idle, refreshes run AHEAD of tREFI and bank up to the limit as
+  credit, so a demand burst that follows sees a refresh-free window.
+* Each later tREFI tick then CONSUMES a credit instead of adding a pending
+  refresh.
+* "Confirmed" is a 16-cycle hysteresis over CAM occupancy — micro-gaps between
+  bursts must not read as idle and release the run-ahead.
+
+**Drain burst — `refresh_burst` (1..8)**
+
+* When the request asserts it loads a drain counter and raises
+  `refresh_drain_active`, telling the scheduler to grant REF back-to-back
+  without yielding to reads or writes.
+* Turns N postponed refreshes into ONE contiguous bubble instead of N scattered
+  ones: the same total cost, concentrated where it can be measured and
+  scheduled around.
+* Measured cost with credits parked: exactly 5 stall cycles per refresh, no
+  scatter (`perf_refresh_bubbles`).
 
 ---
 
