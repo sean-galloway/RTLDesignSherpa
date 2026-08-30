@@ -407,8 +407,14 @@ module {module_name} #(
     # Generate address decode logic for each master
     if N > 1:
         slave_sel_width = slave_addr_bits
-        code += "    // Address decode for each master\n"
+        code += "    // Address decode for each master. The slave index comes from the\n"
+        code += "    // OFFSET (PADDR - BASE_ADDR), not raw PADDR bits: with raw bits a\n"
+        code += "    // BASE_ADDR whose select bits are nonzero silently rotated the\n"
+        code += "    // whole slave map relative to the documented address map. The\n"
+        code += "    // subtraction folds to constants at elaboration (BASE_ADDR is a\n"
+        code += "    // parameter), so this costs nothing.\n"
         for m in range(M):
+            code += f"    logic [ADDR_WIDTH-1:0] m{m}_cmd_offset;\n"
             code += f"    logic [{slave_sel_width-1}:0] m{m}_slave_sel;\n"
             code += f"    logic m{m}_addr_in_range;\n"
             code += f"    logic [{slave_sel_width-1}:0] r_m{m}_slave_sel;  // Registered for response routing\n"
@@ -423,9 +429,16 @@ module {module_name} #(
             slave_offset_bits = int(math.log2(slave_size))
             slave_sel_high = slave_offset_bits + slave_sel_width - 1
             slave_sel_low = slave_offset_bits
+            # APBX-004: the slave index comes from the OFFSET (PADDR - BASE_ADDR),
+            # not from raw PADDR. Slicing raw PADDR rotates the whole slave map
+            # whenever BASE_ADDR is not span-aligned -- e.g. with BASE_ADDR
+            # 0x10010000 and 64KB slaves, an access to slave 0 decoded as slave 1.
+            # Emitting the raw-PADDR form here is what put that bug in every
+            # generated variant in the first place.
+            code += f"        m{m}_cmd_offset    = m{m}_cmd_paddr - BASE_ADDR;\n"
             code += f"        m{m}_addr_in_range = (m{m}_cmd_paddr >= BASE_ADDR) &&\n"
             code += f"                          (m{m}_cmd_paddr < (BASE_ADDR + {addr_width}'h{addr_range_size:08X}));\n"
-            code += f"        m{m}_slave_sel = m{m}_cmd_paddr[{slave_sel_high}:{slave_sel_low}];\n\n"
+            code += f"        m{m}_slave_sel = m{m}_cmd_offset[{slave_sel_high}:{slave_sel_low}];\n\n"
         code += "    end\n\n"
 
         code += "    // Register slave selection for each master when command accepted\n"
@@ -435,7 +448,7 @@ module {module_name} #(
             code += f"            r_m{m}_slave_sel <= {slave_sel_width}'d0;\n"
         code += "        end else begin\n"
         for m in range(M):
-            code += f"            if (m{m}_cmd_valid && m{m}_cmd_ready) begin\n"
+            code += f"            if (m{m}_cmd_valid && m{m}_cmd_ready && m{m}_addr_in_range) begin\n"
             code += f"                r_m{m}_slave_sel <= m{m}_slave_sel;\n"
             code += f"            end\n"
         code += "        end\n"
@@ -520,15 +533,40 @@ module {module_name} #(
 
         # Master cmd_ready signals
         code += "    // Master cmd_ready signals\n"
+        # APBX-005 for the multi-master path. Same rule as the 1toN branch: an
+        # out-of-range access must COMPLETE with PSLVERR rather than hold
+        # cmd_ready low forever and wedge that master with no timeout.
+        if N > 1:
+            for m in range(M):
+                code += f"    // Decode miss on master {m}: complete locally with PSLVERR\n"
+                code += f"    // rather than leaving cmd_ready low forever, which wedged the\n"
+                code += f"    // external master in ACCESS with no error signature.\n"
+                code += f"    logic r_m{m}_decerr_pending;\n"
+                code += f"    `ALWAYS_FF_RST(pclk, presetn,\n"
+                code += f"        if (`RST_ASSERTED(presetn)) begin\n"
+                code += f"            r_m{m}_decerr_pending <= 1'b0;\n"
+                code += f"        end else begin\n"
+                code += f"            if (m{m}_cmd_valid && m{m}_cmd_ready && !m{m}_addr_in_range) begin\n"
+                code += f"                r_m{m}_decerr_pending <= 1'b1;\n"
+                code += f"            end else if (r_m{m}_decerr_pending && m{m}_rsp_ready) begin\n"
+                code += f"                r_m{m}_decerr_pending <= 1'b0;\n"
+                code += f"            end\n"
+                code += f"        end\n"
+                code += f"    )\n\n"
+
         for m in range(M):
             code += f"    always_comb begin\n"
             code += f"        m{m}_cmd_ready = 1'b0;\n"
             if N > 1:
-                code += f"        if (m{m}_cmd_valid && m{m}_addr_in_range) begin\n"
-                code += f"            case (m{m}_slave_sel)\n"
+                code += f"        if (m{m}_cmd_valid) begin\n"
+                code += f"            if (!m{m}_addr_in_range) begin\n"
+                code += f"                m{m}_cmd_ready = !r_m{m}_decerr_pending;\n"
+                code += f"            end else begin\n"
+                code += f"                case (m{m}_slave_sel)\n"
                 for s in range(N):
-                    code += f"                {slave_sel_width}'d{s}: m{m}_cmd_ready = s{s}_arb_grant[{m}] && s{s}_cmd_ready;\n"
-                code += f"            endcase\n"
+                    code += f"                    {slave_sel_width}'d{s}: m{m}_cmd_ready = s{s}_arb_grant[{m}] && s{s}_cmd_ready;\n"
+                code += f"                endcase\n"
+                code += f"            end\n"
                 code += f"        end\n"
             else:
                 code += f"        m{m}_cmd_ready = s0_arb_grant[{m}] && s0_cmd_ready;\n"
@@ -545,7 +583,10 @@ module {module_name} #(
                 code += f"        m{m}_rsp_pruser = 1'b0;\n"
                 code += f"        m{m}_rsp_pbuser = 1'b0;\n"
             if N > 1:
-                code += f"        case (r_m{m}_slave_sel)\n"
+                code += f"        if (r_m{m}_decerr_pending) begin\n"
+                code += f"            m{m}_rsp_valid = 1'b1;\n"
+                code += f"            m{m}_rsp_pslverr = 1'b1;\n"
+                code += f"        end else case (r_m{m}_slave_sel)\n"
                 for s in range(N):
                     code += f"            {slave_sel_width}'d{s}: begin\n"
                     code += f"                if (s{s}_arb_grant[{m}]) begin\n"
@@ -577,7 +618,7 @@ module {module_name} #(
             for m in range(M):
                 code += f"        if (s{s}_arb_grant[{m}]"
                 if N > 1:
-                    code += f" && r_m{m}_slave_sel == {slave_sel_width}'d{s}"
+                    code += f" && !r_m{m}_decerr_pending && r_m{m}_slave_sel == {slave_sel_width}'d{s}"
                 code += f") s{s}_rsp_ready = m{m}_rsp_ready;\n"
             code += f"    end\n\n"
 
@@ -601,14 +642,43 @@ module {module_name} #(
                         code += f"    assign s{s}_cmd_pwuser = 1'b0;\n"
                 code += "\n"
 
-            code += "    // Master ready when selected slave is ready\n"
+
+            # APBX-005: an out-of-range address must COMPLETE with PSLVERR.
+            # Leaving cmd_ready low forever wedged the external master in
+            # ACCESS with PREADY low, no error signature and no timeout --
+            # recoverable only by reset. Emitting the decode without this is
+            # what shipped that bug in every decoding variant.
+            code += "    // Decode miss: an out-of-range address must COMPLETE with PSLVERR,\n"
+            code += "    // not leave cmd_ready low forever (which wedged the external master\n"
+            code += "    // in ACCESS with PREADY low and no error signature). The apb4_slave\n"
+            code += "    // runs one transaction at a time, so a single pending flag serves:\n"
+            code += "    // accept the miss, hold a local error response until taken.\n"
+            code += "    logic r_m0_decerr_pending;\n"
+            code += "    `ALWAYS_FF_RST(pclk, presetn,\n"
+            code += "        if (`RST_ASSERTED(presetn)) begin\n"
+            code += "            r_m0_decerr_pending <= 1'b0;\n"
+            code += "        end else begin\n"
+            code += "            if (m0_cmd_valid && m0_cmd_ready && !m0_addr_in_range) begin\n"
+            code += "                r_m0_decerr_pending <= 1'b1;\n"
+            code += "            end else if (r_m0_decerr_pending && m0_rsp_ready) begin\n"
+            code += "                r_m0_decerr_pending <= 1'b0;\n"
+            code += "            end\n"
+            code += "        end\n"
+            code += "    )\n\n"
+
+            code += "    // Master ready when selected slave is ready; a decode miss is\n"
+            code += "    // accepted immediately (one at a time) and answered locally.\n"
             code += "    always_comb begin\n"
             code += "        m0_cmd_ready = 1'b0;\n"
-            code += "        if (m0_cmd_valid && m0_addr_in_range) begin\n"
-            code += "            case (m0_slave_sel)\n"
+            code += "        if (m0_cmd_valid) begin\n"
+            code += "            if (!m0_addr_in_range) begin\n"
+            code += "                m0_cmd_ready = !r_m0_decerr_pending;\n"
+            code += "            end else begin\n"
+            code += "                case (m0_slave_sel)\n"
             for s in range(N):
-                code += f"                {slave_sel_width}'d{s}: m0_cmd_ready = s{s}_cmd_ready;\n"
-            code += "            endcase\n"
+                code += f"                    {slave_sel_width}'d{s}: m0_cmd_ready = s{s}_cmd_ready;\n"
+            code += "                endcase\n"
+            code += "            end\n"
             code += "        end\n"
             code += "    end\n\n"
 
@@ -620,7 +690,10 @@ module {module_name} #(
             if m5[0]:
                 code += "        m0_rsp_pruser = 1'b0;\n"
                 code += "        m0_rsp_pbuser = 1'b0;\n"
-            code += "        case (r_m0_slave_sel)\n"
+            code += "        if (r_m0_decerr_pending) begin\n"
+            code += "            m0_rsp_valid = 1'b1;\n"
+            code += "            m0_rsp_pslverr = 1'b1;\n"
+            code += "        end else case (r_m0_slave_sel)\n"
             for s in range(N):
                 code += f"            {slave_sel_width}'d{s}: begin\n"
                 code += f"                m0_rsp_valid = s{s}_rsp_valid;\n"
@@ -634,7 +707,7 @@ module {module_name} #(
             code += "    end\n\n"
 
             for s in range(N):
-                code += f"    assign s{s}_rsp_ready = (r_m0_slave_sel == {slave_sel_width}'d{s}) ? m0_rsp_ready : 1'b0;\n"
+                code += f"    assign s{s}_rsp_ready = (!r_m0_decerr_pending && r_m0_slave_sel == {slave_sel_width}'d{s}) ? m0_rsp_ready : 1'b0;\n"
 
         else:  # M == 1, N == 1 (simple passthrough)
             code += "    // Simple 1-to-1 passthrough\n"

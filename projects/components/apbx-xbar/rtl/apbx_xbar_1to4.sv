@@ -157,7 +157,7 @@ module apbx_xbar_1to4 #(
 
     // Address decode for each master. The slave index comes from the
     // OFFSET (PADDR - BASE_ADDR), not raw PADDR bits: with raw bits a
-    // BASE_ADDR whose bits [17:16] are nonzero silently rotated the
+    // BASE_ADDR whose select bits are nonzero silently rotated the
     // whole slave map relative to the documented address map. The
     // subtraction folds to constants at elaboration (BASE_ADDR is a
     // parameter), so this costs nothing.
@@ -171,25 +171,8 @@ module apbx_xbar_1to4 #(
         m0_addr_in_range = (m0_cmd_paddr >= BASE_ADDR) &&
                           (m0_cmd_paddr < (BASE_ADDR + 32'h00040000));
         m0_slave_sel = m0_cmd_offset[17:16];
-    end
 
-    // Decode miss: an out-of-range address must COMPLETE with PSLVERR,
-    // not leave cmd_ready low forever (which wedged the external master
-    // in ACCESS with PREADY low and no error signature). The apb4_slave
-    // runs one transaction at a time, so a single pending flag serves:
-    // accept the miss, hold a local error response until taken.
-    logic r_m0_decerr_pending;
-    `ALWAYS_FF_RST(pclk, presetn,
-        if (`RST_ASSERTED(presetn)) begin
-            r_m0_decerr_pending <= 1'b0;
-        end else begin
-            if (m0_cmd_valid && m0_cmd_ready && !m0_addr_in_range) begin
-                r_m0_decerr_pending <= 1'b1;
-            end else if (r_m0_decerr_pending && m0_rsp_ready) begin
-                r_m0_decerr_pending <= 1'b0;
-            end
-        end
-    )
+    end
 
     // Register slave selection for each master when command accepted
     `ALWAYS_FF_RST(pclk, presetn,
@@ -231,6 +214,24 @@ module apbx_xbar_1to4 #(
     assign s3_cmd_pstrb = m0_cmd_pstrb;
     assign s3_cmd_pprot = m0_cmd_pprot;
 
+    // Decode miss: an out-of-range address must COMPLETE with PSLVERR,
+    // not leave cmd_ready low forever (which wedged the external master
+    // in ACCESS with PREADY low and no error signature). The apb4_slave
+    // runs one transaction at a time, so a single pending flag serves:
+    // accept the miss, hold a local error response until taken.
+    logic r_m0_decerr_pending;
+    `ALWAYS_FF_RST(pclk, presetn,
+        if (`RST_ASSERTED(presetn)) begin
+            r_m0_decerr_pending <= 1'b0;
+        end else begin
+            if (m0_cmd_valid && m0_cmd_ready && !m0_addr_in_range) begin
+                r_m0_decerr_pending <= 1'b1;
+            end else if (r_m0_decerr_pending && m0_rsp_ready) begin
+                r_m0_decerr_pending <= 1'b0;
+            end
+        end
+    )
+
     // Master ready when selected slave is ready; a decode miss is
     // accepted immediately (one at a time) and answered locally.
     always_comb begin
@@ -249,9 +250,7 @@ module apbx_xbar_1to4 #(
         end
     end
 
-    // Response routing based on registered slave selection. A pending
-    // decode-miss error response overrides (nothing can be in flight at
-    // a slave while it is pending -- the apb4_slave is one-outstanding).
+    // Response routing based on registered slave selection
     always_comb begin
         m0_rsp_valid = 1'b0;
         m0_rsp_prdata = '0;
