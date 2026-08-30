@@ -123,7 +123,26 @@ module axi_monitor_trans_mgr
 
     // Short params (kept for API compatibility with the production module)
     parameter int AW                  = ADDR_WIDTH,
-    parameter int IW                  = ID_WIDTH
+    parameter int IW                  = ID_WIDTH,
+
+    // Address-range packet filter (TASK-015).
+    //
+    // Filters at REPORT time, not at admission. A filtered transaction is
+    // still allocated and tracked exactly as before -- only its packets are
+    // suppressed. That is deliberate: address exists ONLY on the command
+    // channel, so refusing the ALLOCATION would leave the transaction's data
+    // and resp beats arriving with no entry to match, landing in the
+    // deliberately-ungated unmatched-data path and emitting ORPHAN ERRORS.
+    // Filtering to reduce packet traffic would then increase it.
+    //
+    // Cost of doing it here instead: MAX_TRANSACTIONS flops. Doing it at
+    // admission would need a counter per POSSIBLE id (2**ID_WIDTH counters,
+    // 1280 flops at ID_WIDTH=8/MAX_TRANSACTIONS=16, ~20k at ID_WIDTH=12),
+    // because one id can hold several outstanding transactions straddling the
+    // range so a flag per id is not enough.
+    //
+    // Default 0 -> filtered_mask is always 0 and the build is bit-identical.
+    parameter bit ADDR_FILTER_ENABLE  = 1'b0
 )
 (
     // Global Clock and Reset
@@ -169,6 +188,17 @@ module axi_monitor_trans_mgr
     // transaction-table-exhaustion path. trans_mgr consumes it here and
     // performs the state transition in the real table.
     input  logic [MAX_TRANSACTIONS-1:0] i_timeout_detected,
+
+    // Address-range packet filter configuration (see ADDR_FILTER_ENABLE).
+    // Inclusive [low, high]. An allocated command whose address falls OUTSIDE
+    // the range is marked filtered; the reporters suppress its packets.
+    input  logic                        cfg_addr_filter_enable,
+    input  logic [AW-1:0]               cfg_addr_filter_low,
+    input  logic [AW-1:0]               cfg_addr_filter_high,
+
+    // One bit per table slot: 1 = this entry's packets are suppressed.
+    // Consumed by the reporters, which already scan trans_table.
+    output logic [MAX_TRANSACTIONS-1:0] filtered_mask,
 
     // Transaction table output
     output bus_transaction_t            trans_table[MAX_TRANSACTIONS],
@@ -269,6 +299,35 @@ module axi_monitor_trans_mgr
     logic [N-1:0]                 addr_alloc_oh;
     logic [N-1:0]                 data_alloc_oh;
     logic [N-1:0]                 resp_alloc_oh;
+
+    // ------------------------------------------------------------------------
+    // Address-range packet filter (TASK-015). See ADDR_FILTER_ENABLE.
+    // ------------------------------------------------------------------------
+    // Decided at ALLOCATION, from the command address, and held for the life
+    // of the slot -- the address is not available again on the data or resp
+    // channels, so it cannot be re-derived later.
+    logic w_addr_filtered;
+    assign w_addr_filtered = ADDR_FILTER_ENABLE && cfg_addr_filter_enable &&
+                             !((cmd_addr >= cfg_addr_filter_low) &&
+                               (cmd_addr <= cfg_addr_filter_high));
+
+    logic [N-1:0] r_filtered;
+    assign filtered_mask = r_filtered;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_filtered <= '0;
+        end else if (clear) begin
+            r_filtered <= '0;
+        end else begin
+            // Written only on allocation. A slot that is not being allocated
+            // keeps its verdict; a reused slot is overwritten by the next
+            // allocation, so no explicit free-side clear is needed.
+            for (int i = 0; i < N; i++) begin
+                if (addr_alloc_oh[i]) r_filtered[i] <= w_addr_filtered;
+            end
+        end
+    )
 
     logic [N-1:0]                 cam_entry_valid;
     bus_transaction_t             cam_entry_payload [N];
