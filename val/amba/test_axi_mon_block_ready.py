@@ -69,29 +69,35 @@ FILELIST_DIR = {"axi4": "rtl/amba/filelists", "axi5": "rtl/amba/filelists",
 # reason: a run that cannot be replayed cannot be diagnosed.
 #
 # Pinned DELIBERATELY, and read from BLOCKREADY_SEED rather than SEED, so an
-# exported SEED aimed at another suite cannot perturb this one. Saturation
-# here has little margin, and an arbitrary seed silently turns the run into
-# one that proves nothing. Measured on axi4_master_wr_mon at
-# MAX_TRANSACTIONS=12, where block_ready asserts at depth - CMD_ENTRY_RESERVE
-# = 9:
+# exported SEED aimed at another suite cannot perturb this one. The pin buys
+# REPRODUCIBILITY only -- it is deliberately not what makes anything pass.
 #
-#     12345 (default)  peak 9/12   block_ready low 69 cycles   -> saturates
-#     1234             peak 7/12   never blocked -> layer 1 fails
-#     42               peak 8/12   never blocked -> layer 1 fails
-#     7                peak 7/12   never blocked -> layer 1 fails
+# It used to be. The write path was capped near the block threshold, and on
+# axi4_master_wr_mon at MAX_TRANSACTIONS=12 (block_ready asserts at
+# depth - CMD_ENTRY_RESERVE = 9) peak occupancy NEVER EXCEEDED 9 at any seed:
 #
-# Layer 1 is RIGHT to fail those three: the table never filled, so the run
-# proves nothing about the gate. The defect is in the premise, not the check.
+#     seed      1    2    3    7   42   99  1234  4347  12345  99999
+#     peak      9    9    6    7    8    9     7     9      9      7
+#     result   ok   ok FAIL FAIL FAIL   ok  FAIL    ok     ok   FAIL
 #
-# The write path cannot currently be pushed deeper to buy margin. It is capped
-# by the axi4 interface's single _aw_w_lock, held across (send AW, send all W
-# beats), which serialises writes whatever their ID -- measured with 1, 2, 8
-# and 32 distinct IDs, byte-identical results. Spreading IDs is therefore NOT
-# the fix it looks like; decoupling AW issuance from the W critical section is
-# an RDS-DV framework change. Depth 8 has real margin (block_ready low for
-# 850-2200 cycles at every seed tried), depth 12 sits on the edge, and both
-# are kept: 8 as the honest check, 12 because at the pinned seed it does
-# saturate and does exercise a deeper table.
+# Five of ten. The run only "saturated" when it landed exactly on the
+# ceiling, so passing was luck, and pinning a good seed only hid that.
+#
+# The cap was the DV framework, not the RTL: the axi4/axi5 master-write
+# interfaces held one lock across (send AW, send all W beats), so a
+# transaction could not issue its AW until the previous one had streamed
+# every W beat -- roughly one write outstanding regardless of how many
+# callers ran concurrently, and regardless of their IDs (measured with 1, 2,
+# 8 and 32 distinct IDs: byte-identical results, which is why spreading IDs
+# looked like the fix and was not). AW issuance is now decoupled from the W
+# stream, which stays in AW order and contiguous. Same wrapper and depth,
+# after:
+#
+#     seed      3   42  1234  99999
+#     peak     10   10    10     10     blocked 925-1377 cycles, all pass
+#
+# So every write wrapper now sustains depth 12 on its own merits, and layer 1
+# is doing its job rather than being steered around.
 #
 # To sweep deliberately:
 #     BLOCKREADY_SEED=1234 pytest val/amba/test_axi_mon_block_ready.py
@@ -360,40 +366,37 @@ def _cases():
     AXIL read stimulus can sustain >14 outstanding, a depth-16 AXIL read case
     is untestable rather than failing, so it is not claimed.
 
-    THE SAME RULE, APPLIED TO THE WRITE PATH AT DEPTH 12 (measured 2026-08-29,
-    BLOCKREADY_SEED swept; block_ready asserts at 12 - 3 = 9):
+    THE SAME RULE, APPLIED TO THE WRITE PATH AT DEPTH 12. Three wrappers
+    could not sustain it and were briefly dropped here; the cause turned out
+    to be a DV-framework cap rather than anything about the depth, and with
+    that fixed all six sustain it. Measured 2026-08-29, block_ready asserts
+    at 12 - 3 = 9, BLOCKREADY_SEED swept over {3, 42, 1234, 99999}:
 
-        axi4_slave_wr_mon     peak 10   blocked 383-587 cyc   sustains
-        axil4_slave_wr_mon    peak 10   blocked  89-442 cyc   sustains
-        axil4_master_wr_mon   peak  9   blocked  88-451 cyc   sustains (7/7 seeds)
-        axi5_master_wr_mon    peak 8-9  FAILS at seed 3       does not sustain
-        axi5_slave_wr_mon     peak 8-9  FAILS at seed 3       does not sustain
-        axi4_master_wr_mon    peak 6-9  FAILS at 5 of 10      does not sustain
+                              before (one AW+W lock)   after (AW decoupled)
+        axi4_master_wr_mon    peak 6-9  FAILS 5 of 10  peak 10, 925-1377 cyc
+        axi5_master_wr_mon    peak 8-9  FAILS at seed 3 peak 10, 1048-1587 cyc
+        axi5_slave_wr_mon     peak 8-9  FAILS at seed 3 peak 10, 1048-1587 cyc
+        axi4_slave_wr_mon     peak 10   383-587 cyc     unchanged, sustains
+        axil4_master_wr_mon   peak  9    88-451 cyc     unchanged, sustains
+        axil4_slave_wr_mon    peak 10    89-442 cyc     unchanged, sustains
 
-    The last three are DROPPED at depth 12, for the same reason AXIL-16 was:
-    a depth the stimulus cannot sustain produces a run that proves nothing.
-    They are NOT dropped at depth 8, which every one of them fills with real
-    margin -- axi4_master_wr_mon blocks for 770-1033 cycles at 7/7 seeds
-    tried, versus 11-69 cycles on the rare depth-12 seed that reaches 9.
+    The master-write interfaces used to hold ONE lock across (send AW, send
+    all W beats), so a transaction could not issue its AW until the previous
+    one had streamed every W beat -- about one write outstanding no matter
+    how many callers ran concurrently, and independent of their IDs. AW
+    issuance is now decoupled from the W stream (which stays in AW order and
+    contiguous), so the table fills on merit at every seed.
 
-    This replaces an earlier attempt that pinned a passing seed instead.
-    Pinning made the suite green while leaving axi4_master_wr_mon failing on
-    half the seed space -- it selected a winning coin toss rather than
-    reporting that the coin was being tossed. The seed pin is kept for
-    REPRODUCIBILITY, but it is no longer what makes these cases pass.
-
-    Buying depth-12 margin on the weak paths means letting more writes go
-    outstanding, which is blocked by the axi4 interface's single _aw_w_lock
-    (held across send-AW plus all W beats, so writes serialise whatever their
-    ID -- measured with 1, 2, 8 and 32 distinct IDs, byte-identical results).
-    That is an RDS-DV change; until then these are untestable, not failing.
+    Two earlier attempts at this are worth NOT repeating. Spreading traffic
+    over 8 IDs does nothing: writes serialised on that lock whatever their ID
+    (1, 2, 8 and 32 distinct IDs gave byte-identical results). And pinning a
+    passing seed made the suite green while leaving axi4_master_wr_mon
+    failing on half the seed space -- it selected a winning coin toss instead
+    of reporting that a coin was being tossed.
     """
-    # Write wrappers whose stimulus cannot sustain depth 12 -- see above.
-    NO_DEPTH_12 = {"axi4_master_wr_mon", "axi5_master_wr_mon", "axi5_slave_wr_mon"}
-
     for w in WRAPPERS:
         if "_wr_" in w:
-            depths = [8] if w in NO_DEPTH_12 else [8, 12]
+            depths = [8, 12]
         elif w.startswith("axil4"):
             depths = [8, 12]        # see docstring: 16 is unreachable here
         else:
