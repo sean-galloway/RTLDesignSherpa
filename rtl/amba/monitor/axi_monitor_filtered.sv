@@ -163,6 +163,13 @@ module axi_monitor_filtered
     // Address-range packet filter configuration (active when
     // ADDR_FILTER_ENABLE=1). Inclusive [low, high]; a transaction whose
     // command address falls OUTSIDE the range has its packets suppressed.
+
+    // Runtime ID filter (TASK-015). Overrides ID_MATCH_BASE/COUNT while
+    // cfg_id_filter_enable is high; tied low it is bit-identical to the
+    // parameter-only behaviour.
+    input  logic                                                   cfg_id_filter_enable,
+    input  logic [ID_WIDTH-1:0]                                          cfg_id_match_base,
+    input  logic [ID_WIDTH:0]                                            cfg_id_match_count,
     input  logic                                                   cfg_addr_filter_enable,
     input  logic [ADDR_WIDTH-1:0]                                  cfg_addr_filter_low,
     input  logic [ADDR_WIDTH-1:0]                                  cfg_addr_filter_high,
@@ -327,6 +334,12 @@ module axi_monitor_filtered
         .cfg_addr_range_enable   (cfg_addr_range_enable),
         .cfg_addr_range_low      (cfg_addr_range_low),
         .cfg_addr_range_high     (cfg_addr_range_high),
+
+        .cfg_id_filter_enable    (cfg_id_filter_enable),
+
+        .cfg_id_match_base       (cfg_id_match_base),
+
+        .cfg_id_match_count      (cfg_id_match_count),
 
         .cfg_addr_filter_enable  (cfg_addr_filter_enable),
         .cfg_addr_filter_low     (cfg_addr_filter_low),

@@ -438,6 +438,16 @@ module axil4_slave_wr_mon
             .cfg_addr_range_low      (cfg_addr_range_low),
             .cfg_addr_range_high     (cfg_addr_range_high),
 
+            // AXI-Lite has no transaction IDs, so the runtime ID filter is
+
+            // meaningless here and is tied off rather than exposed.
+
+            .cfg_id_filter_enable    (1'b0),
+
+            .cfg_id_match_base       ('0),
+
+            .cfg_id_match_count      ('0),
+
             .cfg_addr_filter_enable  (cfg_addr_filter_enable),
             .cfg_addr_filter_low     (cfg_addr_filter_low),
             .cfg_addr_filter_high    (cfg_addr_filter_high),

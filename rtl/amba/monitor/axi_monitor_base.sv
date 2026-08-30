@@ -138,6 +138,16 @@ module axi_monitor_base
     // Address-range packet filter configuration (active when
     // ADDR_FILTER_ENABLE=1). Inclusive [low, high]; a transaction whose
     // command address falls OUTSIDE the range has its packets suppressed.
+    // Runtime ID filter (TASK-015 "runtime filter updates"). The ID filter
+    // was compile-time only: ID_MATCH_BASE/COUNT are elaboration constants,
+    // so an integrator could not retarget which master is watched without a
+    // rebuild. These take over WHEN cfg_id_filter_enable is high; with it low
+    // the parameter behaviour is used unchanged, so existing consumers that
+    // set the params and leave this tied off are bit-identical.
+    input  logic                     cfg_id_filter_enable,
+    input  logic [ID_WIDTH-1:0]      cfg_id_match_base,
+    input  logic [ID_WIDTH:0]        cfg_id_match_count,   // 0 = all (no filter)
+
     input  logic                     cfg_addr_filter_enable,
     input  logic [ADDR_WIDTH-1:0]    cfg_addr_filter_low,
     input  logic [ADDR_WIDTH-1:0]    cfg_addr_filter_high,
@@ -345,9 +355,18 @@ module axi_monitor_base
     // Combinational match per channel. ID_MATCH_COUNT=0 or ID_FILTER_ENABLE=0
     // leaves every valid untouched, so the default build is unchanged.
     function automatic logic id_owned(input logic [IW-1:0] id);
-        if (!ID_FILTER_ENABLE || (ID_MATCH_COUNT == 0)) id_owned = 1'b1;
-        else id_owned = (int'(id) >= ID_MATCH_BASE) &&
-                        (int'(id) <  ID_MATCH_BASE + ID_MATCH_COUNT);
+        if (cfg_id_filter_enable) begin
+            // Runtime window. count==0 means "all", matching the parameter
+            // rule, so a zeroed CSR block does not silently filter everything.
+            if (cfg_id_match_count == 0) id_owned = 1'b1;
+            else id_owned = (int'(id) >= int'(cfg_id_match_base)) &&
+                            (int'(id) <  int'(cfg_id_match_base) + int'(cfg_id_match_count));
+        end else if (!ID_FILTER_ENABLE || (ID_MATCH_COUNT == 0)) begin
+            id_owned = 1'b1;
+        end else begin
+            id_owned = (int'(id) >= ID_MATCH_BASE) &&
+                       (int'(id) <  ID_MATCH_BASE + ID_MATCH_COUNT);
+        end
     endfunction
 
     logic w_cmd_valid_f, w_data_valid_f, w_resp_valid_f;
