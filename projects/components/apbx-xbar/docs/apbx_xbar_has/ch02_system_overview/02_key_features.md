@@ -30,9 +30,14 @@ The APB Crossbar provides the following key features:
 ### F1: Parametric MxN Configuration
 
 - Support for any combination of M masters and N slaves
-- Pre-generated variants for common configurations (1x1, 2x1, 1x4, 2x4)
+- Pre-generated variants for common configurations (1x1, 2x1, 1x4, 2x4, and
+  the mixed-version 2x2)
 - Python generator for custom configurations up to 16x16
-- Single RTL source serves all configurations
+- A single GENERATOR serves all configurations -- not a single RTL source.
+  Each variant is a distinct file with its M×N baked into the module name and
+  port list; only ADDR_WIDTH, DATA_WIDTH, STRB_WIDTH and BASE_ADDR are
+  elaboration parameters (see 6.2). The parameterized-core reading was true of
+  the retired `apbx_xbar_thin` and has not been true since 2026-08-27.
 
 ### F2: Automatic Address-Based Routing
 

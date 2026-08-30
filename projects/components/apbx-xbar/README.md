@@ -222,18 +222,23 @@ pytest projects/components/apbx-xbar/dv/tests/ -v  # All variants
 ### Timing
 
 - **Back-to-back transactions**: supported with no master-side idle
-  cycles; they do not overlap inside the fabric (10 pclk cycles per
-  transfer, PREADY-to-PREADY)
-- **Single-cycle arbitration**: New grants issued the cycle AFTER the previous completion (the
-arbiter's grant is registered)
+  cycles; they do not overlap inside the fabric. 10 pclk cycles per
+  transfer (PREADY-to-PREADY) on `1to1`/`1to4`; **11 on the arbitrated
+  variants** `2to1`, `2to4` and `2to2_mixed`
+- **Single-cycle arbitration**: on multi-master variants, new grants are
+  issued the cycle AFTER the previous completion (the arbiter's grant is
+  registered). `1to1` and `1to4` have no arbiter.
 - **No datapath pipelining across transactions**: `apb4_slave` is a
   one-command-at-a-time FSM (IDLE->BUSY->WAIT) that captures the next
   command only after the previous response is consumed, and the grant
   is held to the response handshake (`WAIT_GNT_ACK(1)`), so a second
   command never queues behind an executing one. Sustained cadence is
-  10 pclk cycles PREADY-to-PREADY -- one MORE than the 9-cycle
-  SETUP-to-PREADY single-transfer latency, because the next transfer's
+  10 pclk cycles PREADY-to-PREADY against a 9-cycle SETUP-to-PREADY
+  single transfer with one master, and 11 against 10 when arbitrated --
+  in each case one MORE than the latency, because the next transfer's
   mandatory SETUP cycle cannot overlap the previous transfer's ACCESS.
+  The generator emits no arbiter at all when M = 1, which is the whole
+  difference between the two classes (HAS 5.2).
 
 ## Known Limitations
 

@@ -146,6 +146,8 @@ projects/components/apbx-xbar/
 │       ├── test_apbx_xbar_2to1.py
 │       ├── test_apbx_xbar_1to4.py
 │       ├── test_apbx_xbar_2to4.py
+│       ├── test_apbx_xbar_2to2_mixed.py
+│       ├── test_apbx_xbar_timing.py     published latency/cadence figures
 │       └── GTKW/                Waveform configs
 ├── PRD.md                       Complete specification
 ├── CLAUDE.md                    This file
@@ -350,8 +352,13 @@ gtkwave waves.vcd
 - **test_apbx_xbar_2to1**: 130+ transactions (arbitration)
 - **test_apbx_xbar_1to4**: 200+ transactions (address decode)
 - **test_apbx_xbar_2to4**: 350+ transactions (full stress)
+- **test_apbx_xbar_2to2_mixed**: 8 directed -- all four APB4/APB5 pairings,
+  sideband gating, decode miss, structural pin check
+- **test_apbx_xbar_timing**: both variant classes -- asserts the published
+  latency, cadence and per-path breakdown so the numbers cannot drift
 
-**All tests passing ✅**
+**All tests passing (9/9) ✅** -- and `2to2_mixed` additionally has a formal
+harness at `formal/apbx_xbar/apbx_xbar_2to2_mixed/`.
 
 **📖 See:** `PRD.md` Section 10
 
@@ -425,28 +432,28 @@ apbx_xbar_2to4 #(
 // Top-level crossbar
 apbx_xbar_1to4 u_top_xbar (
     // .m0_apb_PSEL(cpu_apb_PSEL), .m0_apb_PENABLE(...), ...  (elided)
-    .s0_apb_* (periph_bus0_*),  // To sub-crossbar 0
-    .s1_apb_* (periph_bus1_*),  // To sub-crossbar 1
-    .s2_apb_* (mem_ctrl_*),     // Direct to memory controller
-    .s3_apb_* (dma_ctrl_*)      // Direct to DMA
+    .s0_apb_PSEL(periph_bus0_PSEL), /* ...rest of the port... */  // To sub-crossbar 0
+    .s1_apb_PSEL(periph_bus1_PSEL), /* ...rest of the port... */  // To sub-crossbar 1
+    .s2_apb_PSEL(mem_ctrl_PSEL), /* ...rest of the port... */     // Direct to memory controller
+    .s3_apb_PSEL(dma_ctrl_PSEL), /* ...rest of the port... */      // Direct to DMA
 );
 
 // Sub-crossbar 0 for low-speed peripherals
 apbx_xbar_1to4 u_periph_xbar0 (
-    .m0_apb_* (periph_bus0_*),
-    .s0_apb_* (uart0_*),
-    .s1_apb_* (gpio0_*),
-    .s2_apb_* (i2c0_*),
-    .s3_apb_* (spi0_*)
+    .m0_apb_PSEL(periph_bus0_PSEL), /* ...rest of the port... */
+    .s0_apb_PSEL(uart0_PSEL), /* ...rest of the port... */
+    .s1_apb_PSEL(gpio0_PSEL), /* ...rest of the port... */
+    .s2_apb_PSEL(i2c0_PSEL), /* ...rest of the port... */
+    .s3_apb_PSEL(spi0_PSEL), /* ...rest of the port... */
 );
 
 // Sub-crossbar 1 for high-speed peripherals
 apbx_xbar_1to4 u_periph_xbar1 (
-    .m0_apb_* (periph_bus1_*),
-    .s0_apb_* (uart1_*),
-    .s1_apb_* (timer_*),
-    .s2_apb_* (pwm_*),
-    .s3_apb_* (adc_*)
+    .m0_apb_PSEL(periph_bus1_PSEL), /* ...rest of the port... */
+    .s0_apb_PSEL(uart1_PSEL), /* ...rest of the port... */
+    .s1_apb_PSEL(timer_PSEL), /* ...rest of the port... */
+    .s2_apb_PSEL(pwm_PSEL), /* ...rest of the port... */
+    .s3_apb_PSEL(adc_PSEL), /* ...rest of the port... */
 );
 ```
 
@@ -606,7 +613,7 @@ cat projects/components/apbx-xbar/README.md
 3. ⚖️ **Fair arbitration** - Round-robin per slave
 4. 🔗 **Complete connections** - All APB signals must be wired
 5. ✅ **Tests available** - 100% passing, comprehensive coverage
-6. 📚 **Wrappers exist** - Check rtl/wrappers/ for common configs
+6. 📚 **Wrappers are TEST SCAFFOLDS** - `rtl/wrappers/` carries only pclk/presetn; instantiate the crossbar directly (see Anti-Pattern 4)
 7. 🎯 **Generator limits** - Up to 16×16 (configurable)
 
 ---

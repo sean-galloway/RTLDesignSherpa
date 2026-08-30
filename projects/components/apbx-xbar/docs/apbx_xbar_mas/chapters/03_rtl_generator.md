@@ -91,8 +91,10 @@ Generating 1-to-4 crossbar...
   ✅ apbx_xbar_1to4.sv
 Generating 2-to-4 crossbar...
   ✅ apbx_xbar_2to4.sv
+Generating 2-to-2_mixed crossbar...
+  ✅ apbx_xbar_2to2_mixed.sv
 
-✅ Generated 4 crossbar variants
+✅ Generated 5 crossbar variants
 ```
 
 ### Generate Custom Variant
@@ -347,9 +349,10 @@ module apbx_xbar_2to4 #(
         .cmd_valid(s0_cmd_valid),
         .cmd_ready(s0_cmd_ready),
         // ... (full cmd/rsp connections)
-        // APB interface
-        .apb_PSEL(s0_apb_PSEL),
-        .apb_PENABLE(s0_apb_PENABLE),
+        // APB interface -- apb4_master's ports are m_apb_*, so the
+        // slave-side port sN_apb_* connects to m_apb_* on the instance
+        .m_apb_PSEL     (s0_apb_PSEL),
+        .m_apb_PENABLE  (s0_apb_PENABLE),
         // ... (full APB connections)
     );
 

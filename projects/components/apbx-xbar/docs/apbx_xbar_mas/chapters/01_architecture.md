@@ -196,13 +196,22 @@ transfer into cmd/rsp, and the parity bits do not cross that interface:
 out. The cmd/rsp fabric between them is therefore **outside the
 protected domain** — corruption *inside* that span is invisible, because
 the regenerated bit is correct by construction and masks it. That span
-is documented rather than hidden, and because of it each port brings its
-`parity_error_*` flag out individually: a check whose result goes
+is documented rather than hidden, and because of it each APB5 port brings
+its `parity_error_*` flag out individually: a check whose result goes
 nowhere is not protection.
 
 The error flags are deliberately **not** folded into `PSLVERR`, which
 would make a fabric fault indistinguishable from the slave's own error
 response.
+
+**None of this is present in the SHIPPED variants.** All of the above
+describes a variant generated with `enable_parity=True`. Every crossbar
+in `rtl/` is generated with parity OFF: `apbx_xbar_2to2_mixed` declares
+no parity ports at all on its module boundary, ties the boundary IP's
+parity inputs to `'0` and leaves its `parity_error_*` outputs
+unconnected. So there is nothing to connect and nothing to monitor
+unless you generate your own variant with the flag set -- and a mixed
+APB4/APB5 pairing carries no parity in any case.
 
 Formal coverage: `formal/apbx_xbar/apbx_xbar_2to2_mixed/` proves the
 mixed configuration as of 2026-08-29, replacing the proof lost with the

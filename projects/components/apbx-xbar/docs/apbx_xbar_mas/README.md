@@ -141,8 +141,8 @@ docs/apbx_xbar_mas/
     │   ├── apbx_xbar_architecture.svg
     │   └── address_decode_flow.svg
     └── png/                               ← Rendered PNG (embedded)
-        ├── apbx_xbar_architecture.svg
-        └── address_decode_flow.svg
+        ├── apbx_xbar_architecture.png
+        └── address_decode_flow.png
 ```
 
 ---

@@ -51,8 +51,14 @@ The `apb4_slave` module converts to internal format:
 
 Parallel decode determines target slave:
 ```
-slave_index = ((PADDR - BASE_ADDR) >> 16) & (S-1)   // ceil(log2(S)) bits
+slave_index = offset[16 +: $clog2(S)]      // offset = PADDR - BASE_ADDR
 ```
+
+A part-select, not a mask. `& (S-1)` appeared here until 2026-08-30 and is
+only equivalent when S is a power of two -- for a generated 3-slave variant
+the mask would make slave 1 unreachable. The generator emits a part-select
+(`slave_sel = m0_cmd_paddr[13:12]` for S = 3), and the sibling formulas in
+ch02/ch03 always did.
 
 ### Stage 4: Arbitration (if needed)
 
@@ -92,7 +98,7 @@ Read transactions follow the same flow with these differences:
 | Setup phase | 1 | PSEL asserted, PENABLE low |
 | Data phase | 1+ | PENABLE high, wait for PREADY |
 | Decode | 0 | Combinational (parallel decode) |
-| Arbitration | 1 | grant is REGISTERED, so always 1 cycle even uncontended |
+| Arbitration | 0 or 1 | 0 when M = 1 -- the generator emits no arbiter at all. 1 when M > 1, even uncontended, because the grant is REGISTERED |
 
 : Transaction Timing Summary
 
