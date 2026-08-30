@@ -278,7 +278,7 @@ module bridge_stream_char_axil_mon
     output logic [1:0]  s_cfg_axil_rresp,
 
     // ============================================================
-    // monbus_axil_axil_group access ports + config + IRQ
+    // monbus_axil4_axil4_group access ports + config + IRQ
     // ============================================================
     // Slave-read port (axil, IRQ-status reads, 64-bit data)
     input  logic         s_mon_axil_arvalid,
@@ -3185,7 +3185,7 @@ module bridge_stream_char_axil_mon
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
-    monbus_axil_axil_group #(
+    monbus_axil4_axil4_group #(
         // FIFO_DEPTH_WRITE is in BEATS in the monbus group family;
         // the master-write burst fires on cfg_flush_watermark or timeout.
         .FIFO_DEPTH_ERR      (64),

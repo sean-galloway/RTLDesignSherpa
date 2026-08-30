@@ -47,7 +47,7 @@
 // i_watch_pkttype_mask, so a nonzero error bin on silicon yields the
 // offending packet, not just a count.
 //
-// Documentation: projects/NexysA7/stream_characterization/
+// Documentation: projects/fpga-systems/Genesys2/stream/
 //                vault/handbook/fpga/Genesys2/stream-mon/monitor-board-coverage.md
 // Subsystem: amba
 // Author: sean galloway

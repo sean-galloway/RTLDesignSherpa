@@ -19,8 +19,8 @@
 # ---- Board status helpers: LED bank + 7-seg (+ their deps) ----
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
 -f $REPO_ROOT/rtl/common/filelists/hex_to_7seg.f
-$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/led_status_driver.sv
-$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/seven_seg_4digit.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/led_status_driver.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/stream/rtl/seven_seg_4digit.sv
 
 # ---- Verilator-only Xilinx primitive stub (BUFG); guarded by `ifdef VERILATOR
 #      so Vivado ignores it and uses the real unisim BUFG at synthesis ----

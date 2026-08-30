@@ -146,14 +146,6 @@ filelist_dirs = [
 # ---------------------------------------------------------------------------
 
 [[area]]
-name = "nexys_stream_char_bridges"
-kind = "board"
-generated = true
-regen = "projects/NexysA7/stream_characterization/stream_char_framework/bin/regen_bridges.sh"
-rtl_roots = []
-filelist_dirs = ["projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/filelists"]
-
-[[area]]
 name = "nexys_ddr2_char_bridges"
 kind = "board"
 generated = true
@@ -175,17 +167,16 @@ kind = "board"
 rtl_roots = []
 filelist_dirs = ["projects/fpga-systems/Genesys2/stream/rtl/filelists"]
 
-[[area]]
-name = "nexys_stream_char"
-kind = "board"
-rtl_roots = []
-filelist_dirs = [
-    "projects/NexysA7/stream_characterization/stream_char_framework/rtl/filelists",
-    "projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/filelists",
-    "projects/NexysA7/stream_characterization/flows-vivado-mcdma/rtl/filelists",
-    "projects/NexysA7/stream_characterization/flows-idma-bridge/flists",
-    "projects/NexysA7/stream_characterization/flows-stream-monitor/rtl/filelists",
-]
+# REMOVED 2026-08-30: the two "nexys_stream_char" areas registered
+# projects/NexysA7/stream_characterization, which is being deleted. Their
+# successors are already registered above -- "genesys2_stream_bridges" and
+# "genesys2_stream" -- and the perf scripts, report datasets and the
+# stream_char_guide doc book were consolidated into
+# projects/fpga-systems/Genesys2/stream/ before removal.
+#
+# nexys_stream_char was already FAILING --check with 2 broken refs, so this
+# also retires a known-bad entry rather than a working one. The DDR2 areas
+# (nexys_ddr2_char*) point at a DIFFERENT NexysA7 project and stay.
 
 [[area]]
 name = "nexys_ddr2_char"

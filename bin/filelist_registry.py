@@ -83,7 +83,10 @@ ROOT_VARS = {
     "RAPIDS_ROOT": "projects/components/dmas/rapids",
     "RETRO_ROOT": "projects/components/retro_legacy_blocks",
     "STREAM_ROOT": "projects/components/dmas/stream",
-    "STREAM_CHAR_FRAMEWORK_ROOT": "projects/NexysA7/stream_characterization/stream_char_framework",
+    # The Nexys stream_characterization area was deleted 2026-08-30 and its
+    # collateral consolidated into the Genesys 2 flow, which is where every
+    # consumer of this variable now lives.
+    "STREAM_CHAR_FRAMEWORK_ROOT": "projects/fpga-systems/Genesys2/stream",
     "DDR2_CHAR_FRAMEWORK_ROOT": "projects/NexysA7/ddr2-characterization/ddr2_char_framework",
     "TIMING_CHAR_ROOT": "projects/NexysA7/timing_characterization",
 }

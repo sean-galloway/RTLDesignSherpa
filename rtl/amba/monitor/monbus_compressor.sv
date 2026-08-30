@@ -11,7 +11,7 @@
 //          opts in via USE_COMPRESSION.
 //
 // Documentation:
-//   projects/NexysA7/stream_characterization/reports/compression_dataset/
+//   projects/fpga-systems/Genesys2/stream/reports/compression_dataset/
 //     README_COMPRESSION_DATASET.md  -- format spec, dataset, acceptance test
 //   bin/TBClasses/monbus/monbus_compressor.py  -- bit-exact Python golden
 //

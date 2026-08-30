@@ -69,7 +69,7 @@ addr_width  = 32
 data_width  = 64
 user_width  = 0
 
-# dma_slave_monitors' monbus_axil_axil_group m_axil_* -> slave_tally SRAM.
+# dma_slave_monitors' monbus_axil4_axil4_group m_axil_* -> slave_tally SRAM.
 [[bridge.masters]]
 name        = "slave_monbus_wr"
 prefix      = "slave_monbus_wr_"

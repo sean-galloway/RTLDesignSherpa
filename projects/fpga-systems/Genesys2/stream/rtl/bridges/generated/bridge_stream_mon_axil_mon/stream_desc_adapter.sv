@@ -263,8 +263,11 @@ module stream_desc_adapter
     // ================================================================
 
     // Per-width path-active gates (see comment in adapter_generator.py).
+    logic ar_gate_ok;
     logic ar_path_active_256b;
-    assign ar_path_active_256b = comb_slave_select_ar[4];
+    assign ar_path_active_256b = (comb_slave_select_ar[4]) && ar_gate_ok;
+    logic r_path_active_256b;
+    assign r_path_active_256b = r_slave_select[4];
 
     // ================================================================
     // Direct passthrough: 256b → 256b (no converter)
@@ -288,7 +291,8 @@ module stream_desc_adapter
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
-    assign stream_desc_256b_rready = fub_axi_rready;
+    // Ready gated by the response head — see r_path_active comment.
+    assign stream_desc_256b_rready = fub_axi_rready && r_path_active_256b;
     // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
 
     // ================================================================
@@ -339,6 +343,18 @@ module stream_desc_adapter
                           ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
                           : '0;
 
+    // Single-outstanding-target (reads) — see aw_gate_ok comment.
+    logic [NUM_SLAVES-1:0] r_ar_active_target;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_ar_active_target <= '0;
+        end else if (ar_trk_push) begin
+            r_ar_active_target <= comb_slave_select_ar;
+        end
+    end
+    assign ar_gate_ok = (ar_trk_wptr == ar_trk_rptr) ||
+                        (comb_slave_select_ar == r_ar_active_target);
+
     // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
     always_comb begin
         fub_axi_arready = 1'b0;
@@ -350,6 +366,9 @@ module stream_desc_adapter
                 // No slave selected
             end
         endcase
+        // Single-outstanding-target: hold off a new AR while reads
+        // to a different slave are in flight (see ar_gate_ok).
+        if (!ar_gate_ok) fub_axi_arready = 1'b0;
     end
 
     // Read response MUX (R channel - uses r_slave_select FIFO head)

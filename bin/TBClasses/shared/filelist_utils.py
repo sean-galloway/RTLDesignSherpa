@@ -100,6 +100,8 @@ def get_sources_from_filelist(repo_root, filelist_path):
     stream_char = os.path.join(nexys_root, 'stream_characterization')
     ddr2_char = os.path.join(nexys_root, 'ddr2-characterization')
 
+    genesys2_stream = os.path.join(repo_root, 'projects', 'fpga-systems', 'Genesys2', 'stream')
+
     defaults = {
         'APB_XBAR_ROOT': os.path.join(components_root, 'apbx_xbar'),
         'BCH_ROOT': os.path.join(components_root, 'bch'),
@@ -110,8 +112,10 @@ def get_sources_from_filelist(repo_root, filelist_path):
         'RAPIDS_ROOT': os.path.join(components_root, 'dmas', 'rapids'),
         'RETRO_ROOT': os.path.join(components_root, 'retro_legacy_blocks'),
         'STREAM_ROOT': os.path.join(components_root, 'dmas', 'stream'),
-        'STREAM_CHAR_ROOT': os.path.join(stream_char, 'flows-stream-bridge'),
-        'STREAM_CHAR_FRAMEWORK_ROOT': os.path.join(stream_char, 'stream_char_framework'),
+        # Nexys stream_characterization deleted 2026-08-30; both now point at
+        # the Genesys 2 flow that absorbed the collateral.
+        'STREAM_CHAR_ROOT': genesys2_stream,
+        'STREAM_CHAR_FRAMEWORK_ROOT': genesys2_stream,
         'DDR2_CHAR_FRAMEWORK_ROOT': os.path.join(ddr2_char, 'ddr2_char_framework'),
         'TIMING_CHAR_ROOT': os.path.join(nexys_root, 'timing_characterization'),
     }
