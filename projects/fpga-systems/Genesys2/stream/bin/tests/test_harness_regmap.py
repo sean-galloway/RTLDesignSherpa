@@ -30,7 +30,7 @@ _REPO = os.environ.get("REPO_ROOT")
 if not _REPO:
     pytest.skip("REPO_ROOT not set (source env_python)", allow_module_level=True)
 
-_FW = os.path.join(_REPO, "projects/NexysA7/stream_characterization/stream_char_framework")
+_FW = os.path.join(_REPO, "projects/fpga-systems/Genesys2/stream")
 _SV = os.path.join(_FW, "rtl/harness_csr.sv")
 _REGMAP = os.path.join(_FW, "rtl/harness_csr_regmap.py")
 

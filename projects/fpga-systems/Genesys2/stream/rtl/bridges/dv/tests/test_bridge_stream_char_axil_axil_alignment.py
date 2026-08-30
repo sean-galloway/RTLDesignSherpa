@@ -155,7 +155,7 @@ def test_bridge_stream_char_axil_axil_narrow_to_wide_alignment(request):
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/filelists/bridge_stream_char_axil.f'
+        filelist_path='projects/fpga-systems/Genesys2/stream/rtl/bridges/filelists/bridge_stream_char_axil.f'
     )
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

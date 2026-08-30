@@ -19,7 +19,7 @@ sys.path.insert(0, str(HERE))
 
 # dump_monbus.py imports from bin/TBClasses; mirror that here so the
 # imports resolve when pytest runs from anywhere.
-_repo_root = HERE.parents[4]  # repo/projects/NexysA7/stream_characterization/flows-stream-bridge/host
+_repo_root = HERE.parents[5]  # repo/projects/fpga-systems/Genesys2/stream/bin/tests
 sys.path.insert(0, str(_repo_root / "bin"))
 sys.path.insert(0, str(_repo_root / "projects/components/converters/bin"))
 os.environ.setdefault("REPO_ROOT", str(_repo_root))

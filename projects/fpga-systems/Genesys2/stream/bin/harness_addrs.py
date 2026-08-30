@@ -34,24 +34,20 @@ def _default_regmap() -> str:
     env = os.environ.get("HARNESS_REGMAP")
     if env:
         return env
-    # THIS component's regmap, next to the generator that writes it. The search
-    # used to walk upward for the PRE-MIGRATION path
-    # (projects/NexysA7/.../stream_char_framework/rtl/harness_csr_regmap.py),
-    # so after the component moved, every by-name lookup silently resolved
-    # against the old tree's copy -- and registers added here were "unknown".
+    # THIS component's regmap, next to the generator that writes it. There used
+    # to be a fallback that walked upward looking for the pre-migration copy
+    # under projects/NexysA7/.../stream_char_framework/. That fallback was worse
+    # than no fallback: after the component moved, every by-name lookup silently
+    # resolved against the OLD tree's regmap, so registers added here read back
+    # as "unknown" with no error. The old tree is deleted; resolve locally only,
+    # and fail loudly rather than resolving against some other copy.
     local = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                          "rtl", "harness_csr_regmap.py")
     if os.path.isfile(local):
         return local
-    # Fall back to the pre-migration copy while the old tree still exists.
-    d = os.path.dirname(os.path.abspath(__file__))
-    rel = "projects/NexysA7/stream_characterization/stream_char_framework/rtl/harness_csr_regmap.py"
-    for _ in range(12):
-        cand = os.path.join(d, rel)
-        if os.path.isfile(cand):
-            return cand
-        d = os.path.dirname(d)
-    raise FileNotFoundError("harness_csr_regmap.py not found; set HARNESS_REGMAP")
+    raise FileNotFoundError(
+        f"harness_csr_regmap.py not found at {local}; regenerate it with "
+        f"bin/gen_harness_regmap.py, or set HARNESS_REGMAP")
 
 
 @lru_cache(maxsize=1)

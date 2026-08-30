@@ -55,8 +55,8 @@ from TBClasses.monbus.sniffer import load_capture
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DATASET_PATH = (REPO_ROOT
-                / "projects/NexysA7/stream_characterization"
-                / "reports/compression_dataset/desc_axi_16desc_8ch_1MB.json")
+                / "projects/fpga-systems/Genesys2/stream/reports/compression/json"
+                / "desc_axi_16desc_8ch_1MB.json")
 
 
 def synth_small_stream() -> List[Tuple[int, int]]:
