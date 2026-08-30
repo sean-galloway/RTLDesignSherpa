@@ -341,17 +341,41 @@ Characterize resource utilization and performance impact of monitors.
 
 ### TASK-015: Add Address Range and ID Filtering
 **Priority:** P3
-**Status:** 🔴 Not Started
+**Status:** 🟡 MOSTLY IMPLEMENTED (measured against the tree 2026-08-30; was
+"Not Started"). One feature genuinely missing, and it carries a design hazard
+-- read the hazard before writing any RTL.
 **Owner:** TBD
 
 **Description:**
 Add optional filtering capabilities to reduce monitor packet traffic.
 
 **Features:**
-- [ ] Address range filtering (monitor only specific regions)
-- [ ] Transaction ID filtering (monitor only specific masters)
-- [ ] Configurable filter enable/disable
-- [ ] Runtime filter updates
+- [ ] Address range filtering (monitor only specific regions) -- NOT
+      implemented. `axi_monitor_addr_check` REPORTS on ranges (match/miss
+      packets); nothing drops. See the hazard below.
+- [x] Transaction ID filtering (monitor only specific masters) --
+      `ID_FILTER_ENABLE` / `ID_MATCH_BASE` / `ID_MATCH_COUNT` in
+      `axi_monitor_base`, gating cmd/data/resp valids into the trans_mgr
+      (`id_owned()`), threaded up through `axi_monitor_filtered`.
+- [x] Configurable filter enable/disable -- packet-type mask (level 1) and
+      event-code mask (level 3) in `axi_monitor_filtered`.
+- [ ] Runtime filter updates -- the masks are cfg-driven, but the ID filter is
+      COMPILE-TIME params only. Runtime ID filtering needs cfg_* ports.
+
+**HAZARD -- why address filtering is not a mirror of the ID filter.**
+
+The ID filter works because ALL THREE channels carry an ID, so cmd, data and
+resp filter consistently. ADDRESS EXISTS ONLY ON THE COMMAND CHANNEL. Gating
+`cmd_valid` on address would admit no command while that transaction's data
+and resp beats still arrive, landing in the monitor's unmatched-data path --
+which is DELIBERATELY ungated (a monitor must never stall returning data, see
+axi_monitor_base) and emits orphan errors. The result would be MORE packet
+traffic, which is the opposite of this task's purpose.
+
+Doing it correctly needs per-ID admitted state so data/resp filter the same
+way the command did. Note a single bit per ID is not sufficient: one ID can
+have multiple outstanding transactions whose addresses straddle the range, so
+it is a per-ID count, not a flag. Decide that before implementing.
 
 **Use Case:**
 - Reduce packet congestion in high-traffic systems
@@ -660,8 +684,43 @@ waits behind the RTL-area work (cdc reorg, amba cleanup). Re-check with
 
 ### TASK-027: Split the address-range checker into independent DEBUG and ERROR range sets
 **Priority:** P3
-**Status:** 🔴 Not Started
+**Status:** 🟢 GOAL ACHIEVED by a different mechanism than this task specifies
+(measured against the tree 2026-08-30; was "Not Started"). One bullet genuinely
+open -- see "What is actually left" at the end of this entry.
 **Owner:** TBD
+
+**READ THIS BEFORE THE WORK LIST BELOW -- the work list is superseded.** The
+task asks for two separate range-set parameter groups
+(`N_DEBUG_ADDR_RANGES` / `N_ERROR_ADDR_RANGES` with their own cfg ports). The
+RTL solved the same problem a different and cheaper way: a PER-RANGE FLAVOR
+selector, `ADDR_RANGE_IS_ERROR[i]`, over ONE comparator array.
+
+    0 = DEBUG range -> a hit emits AddrMatch  (gated by cfg_debug_enable)
+    1 = ERROR range -> enabled ERROR ranges form an allowlist; an address in
+                       NONE of them emits Error/ADDR_RANGE (cfg_error_enable)
+
+The decoupling this task wanted is present: debug and error sets are
+evaluated independently, and one command can hit a debug range (MATCH) while
+falling outside every error range (MISS) -- two pending slots hold both and
+the output serialises them. One comparator array instead of two is strictly
+better than the requested shape, so this is NOT to be "fixed" back.
+
+Already done, measured:
+* `axi_monitor_addr_check.sv` -- flavor split implemented.
+* Threaded to the wrapper level: `axi4_slave_rd_mon` (and siblings) carry
+  `N_ADDR_RANGES` + `ADDR_RANGE_IS_ERROR` params and the
+  `cfg_addr_range_{enable,low,high}` ports.
+* `val/amba/test_axi_monitor_addr_check.py` covers the flavor split.
+* `formal/amba/axi_monitor_addr_check/` covers it.
+
+**What is actually left:** only the "default range values as module params at
+the AXI* wrapper level" bullet. `cfg_addr_range_low/high` are input PORTS, so
+a consumer must drive them; they cannot be set purely by parameter. Everything
+else in the work list below is done or superseded.
+
+The integration bullet is also stale: `dma_slave_monitors.sv` was DELETED
+(2881006b). The remaining tie-offs are in `stream_core.sv` and
+`scheduler_group_array.sv`, which are project code, not monitor code.
 
 **Context — what shipped first.** `axi_monitor_addr_check` was reworked from a
 single-polarity violation checker into an ALLOWLIST checker with two report
