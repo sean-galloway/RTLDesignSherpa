@@ -121,6 +121,12 @@ module pumice_top
         hwif_in.SCHED_STATS_ACT.VAL.next   = w_stat_act;
         hwif_in.SCHED_STATS_PRE.VAL.next   = w_stat_pre;
         hwif_in.REF_STATS_REF.VAL.next     = w_stat_ref;
+        // Init status. STATUS.init_done is the ONLY way software can tell
+        // that bring-up finished -- and it was never driven, so it read 0
+        // forever while the sequencer sat in S_DONE with init_done_o = 1.
+        // Every host and testbench that polls STATUS for init_done hung
+        // until its timeout.
+        hwif_in.STATUS.init_done.next      = init_done_o;
         // Capability strap: per-bank refresh exists on LPDDR2 only (DDR2 has
         // no REFpb command). Software reads this before selecting mode 2.
         hwif_in.REF_CTRL.perbank_supported.next =
