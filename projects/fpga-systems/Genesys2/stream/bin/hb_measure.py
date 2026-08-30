@@ -65,14 +65,21 @@ def main():
             hr.CTRL.write(clear_stats=1)                # 0x02 clear_stats / trace ptr
             time.sleep(0.15)
 
-    # Run the compressed workload (run_characterization clears the trace ptr at
+    # Run the compressed workload (characterization.py clears the trace ptr at
     # start and sets WRMON.COMPRESS_EN for --compression on).
-    cmd = [sys.executable, "host/run_characterization.py", "--port", args.port,
+    #
+    # This used to shell out to host/run_characterization.py under
+    # projects/NexysA7/stream_characterization/flows-stream-bridge, which no
+    # longer exists. bin/characterization.py is its successor and takes the
+    # same flags used here (--port/--compression/--mon-config/--size/
+    # --channels/--configs).
+    _AREA = Path(__file__).resolve().parents[1]
+    cmd = [sys.executable, str(_AREA / "bin" / "characterization.py"),
+           "--port", args.port,
            "--compression", "on", "--mon-config", args.mon_config,
            "--size", args.size, "--channels", str(args.channels),
            "--configs", args.config]
-    r = subprocess.run(cmd, cwd=f"{REPO}/projects/NexysA7/stream_characterization/flows-stream-bridge",
-                       capture_output=True, text=True)
+    r = subprocess.run(cmd, cwd=str(_AREA), capture_output=True, text=True)
     crc_ok = "CRC MATCH" in r.stdout
 
     from uart_axi_bridge import UARTAxiBridge

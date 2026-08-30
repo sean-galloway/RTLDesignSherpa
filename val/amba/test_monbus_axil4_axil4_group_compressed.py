@@ -59,8 +59,8 @@ from TBClasses.scoreboards.monbus_group import MonbusGroupHarness
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DATASET_PATH = (REPO_ROOT
-                / "projects/NexysA7/stream_characterization"
-                / "reports/compression_dataset/desc_axi_16desc_8ch_1MB.json")
+                / "projects/fpga-systems/Genesys2/stream/reports/compression/json"
+                / "desc_axi_16desc_8ch_1MB.json")
 
 
 # ----------------------------------------------------------------------------
