@@ -22,7 +22,7 @@ import sys
 import random
 
 import cocotb
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ClockCycles, RisingEdge
 
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -33,6 +33,9 @@ if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
 from tbclasses.pumice_top_csr_tb import PumiceTopCsrTB  # noqa: E402
+from CocoTBFramework.components.axi4.axi4_sequence import (  # noqa: E402
+    AXI4Sequence,
+)
 from tbclasses.pumice_sequences import (  # noqa: E402
     build_b2b_wr_rd_sequences, build_addr_pattern_sequences,
     build_patho_addresses,
@@ -137,6 +140,217 @@ async def _wr_rd_check(tb, wr_seq, rd_seq, *, drain=300):
                 f"READ path: R @ {byte_addr:#x} = {val & _mask():#x} != golden {g:#x} (id={d.get('axid')})"
 
 
+
+# ===========================================================================
+# Partial-WSTRB writes
+# ===========================================================================
+# A masked byte must be PRESERVED, not zeroed. That is the whole contract:
+# WSTRB=0 on a lane means "do not write this byte", and pumice turns it into
+# DRAM DM=1 (pumice_dfi_wr_serializer: dfi_wrdata_mask_o = ~wd_strb_i). If a
+# masked lane instead lands as 0x00, a read-modify-write anywhere above the
+# controller silently corrupts the neighbouring bytes -- and no full-strobe
+# test can see it, because every lane is written every time.
+#
+# Nothing here covered that: every existing sequence writes full strobes
+# (AXI4Sequence.add_write hardcodes strb = all-ones). Partial strobes reach
+# pumice in two ways that are NOT the generator's doing:
+#   * a narrow host write (a CPU storing one word), and
+#   * the 64->128 down-gear converter, which turns ONE 64-bit host beat into
+#     one 128-bit core beat with half the lanes masked.
+# The second is how the ddr2-char harness produces them.
+
+_STRB_PATTERNS = [
+    ("low_half",    lambda n: (1 << (n // 2)) - 1),          # 0x00FF @16B
+    ("high_half",   lambda n: ((1 << (n // 2)) - 1) << (n // 2)),
+    ("first_byte",  lambda n: 0x1),
+    ("last_byte",   lambda n: 1 << (n - 1)),
+    ("alternating", lambda n: int("01" * (n // 2), 2)),
+    ("sparse",      lambda n: (1 << (n - 1)) | 0x1),
+    ("none",        lambda n: 0x0),                          # legal: writes nothing
+    ("all",         lambda n: (1 << n) - 1),                 # control
+]
+
+
+def _apply_strb(seq, mask):
+    for b in seq.bursts:
+        if getattr(b, "is_write", True):
+            b.strb = mask
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_top_partial_strb(dut):
+    """Masked bytes must survive a partial-strobe write untouched."""
+    pattern = os.environ.get("STRB_PATTERN", "low_half")
+    blen    = int(os.environ.get("BURST_LEN", "1"))
+    nbytes  = DW // 8
+    mask    = dict(_STRB_PATTERNS)[pattern](nbytes)
+
+    tb = await _bringup(dut, mem_type="DDR2", page_policy=2)
+
+    # 1. Preload with a known non-zero pattern, FULL strobes. If a later masked
+    #    lane comes back as 0x00 we can tell it apart from "never written".
+    pre, _, _ = build_b2b_wr_rd_sequences(
+        n_bursts=1, burst_len=blen, base_addr=BASE, data_width=DW,
+        payload_fn=lambda bi, ki: 0xA5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5 & _mask())
+    await tb.run_writes(pre, drain_cycles=300)
+
+    before = [bytes(tb.peek_memory(BASE + k * nbytes, nbytes)) for k in range(blen)]
+    for k, b in enumerate(before):
+        assert any(b), f"preload beat {k} never landed ({b.hex()}) -- test setup"
+
+    # 2. Overwrite the SAME addresses with a partial strobe.
+    wr, _, _ = build_b2b_wr_rd_sequences(
+        n_bursts=1, burst_len=blen, base_addr=BASE, data_width=DW,
+        payload_fn=lambda bi, ki: 0x5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C & _mask())
+    _apply_strb(wr, mask)
+    await tb.run_writes(wr, drain_cycles=300)
+
+    # 3. Byte-granular check: strobed lanes take the new value, masked lanes
+    #    keep the old one.
+    newv = (0x5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C & _mask()).to_bytes(nbytes, "little")
+    bad = []
+    for k in range(blen):
+        got = bytes(tb.peek_memory(BASE + k * nbytes, nbytes))
+        for i in range(nbytes):
+            want = newv[i] if (mask >> i) & 1 else before[k][i]
+            if got[i] != want:
+                bad.append((k, i, got[i], want, bool((mask >> i) & 1)))
+    assert not bad, (
+        f"strb={pattern}({mask:#06x}) blen={blen}: {len(bad)} byte(s) wrong in "
+        f"MEMORY. First 6 (beat, byte, got, want, was_strobed): {bad[:6]}. "
+        f"A masked byte that came back 0x00 means the strobe was dropped and "
+        f"the lane was written with zero instead of left alone.")
+
+    # 4. Now read the SAME bytes back over AXI. Step 3 checked the write path
+    #    against the memory model; this checks the READ path returns what is
+    #    actually in memory -- including the half-written words a partial
+    #    strobe leaves behind, which is the case the read beat-budget has to
+    #    frame correctly.
+    rd = AXI4Sequence(name="partial_rd", data_width=DW)
+    rd.add_read(BASE, blen)
+    rd_dicts = await tb.run_sequence(rd)
+    assert len(rd_dicts) == 1, f"expected 1 read burst, got {len(rd_dicts)}"
+    got_beats = rd_dicts[0].get("data")
+    assert got_beats is not None, f"read returned no data: {rd_dicts[0]}"
+    assert len(got_beats) == blen, (
+        f"read {len(got_beats)} beats, asked for {blen} -- the read path is "
+        f"not framing a sub-DRAM-burst read to the requested length")
+    rbad = []
+    for k in range(blen):
+        want = int.from_bytes(bytes(tb.peek_memory(BASE + k * nbytes, nbytes)),
+                              "little")
+        if (got_beats[k] & _mask()) != want:
+            rbad.append((k, hex(got_beats[k] & _mask()), hex(want)))
+    assert not rbad, (
+        f"strb={pattern} blen={blen}: AXI read disagrees with memory at "
+        f"beat(s) {rbad} -- write path was correct, read path is not")
+
+    tb.log.info("PASS partial_strb %s (%#06x) blen=%d: %d bytes verified "
+                "in memory AND through the AXI read path",
+                pattern, mask, blen, blen * nbytes)
+
+
+
+
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def cocotb_test_pumice_top_partial_rd(dut):
+    """Sub-DRAM-burst READS at every length and every offset in the burst.
+
+    A DRAM burst always returns BL_WORDS beats; the host may ask for fewer,
+    and may start part-way in. pumice_rd_intake carries a per-sub beat budget
+    so the surplus beats are consumed from the CAM and dropped instead of
+    being pushed at the host. This is the suite for that budget: nothing else
+    exercises "asked for 1, DRAM returned 4".
+
+    Checks all three things that can go wrong independently:
+      * BEAT COUNT   -- surplus beats leaking onto R (or beats going missing)
+      * DATA         -- the wrong beats forwarded (an offset error)
+      * COMPLETION   -- the burst framing/RLAST, caught as a hang or a
+                        never-completing read
+    """
+    nbeats = int(os.environ.get("RD_BEATS", "1"))
+    offset = int(os.environ.get("RD_OFFSET", "0"))
+    nbytes = DW // 8
+    # Keep the read inside ONE DRAM burst so each case is a pure partial read
+    # rather than a split across two bursts (that is the burst_len sweep's job).
+    if offset + nbeats > BL_WORDS:
+        nbeats = BL_WORDS - offset
+    if nbeats < 1:
+        raise cocotb.result.TestSuccess(
+            f"offset {offset} leaves no room in a {BL_WORDS}-beat burst")
+
+    tb = await _bringup(dut, mem_type="DDR2", page_policy=2)
+
+    # Fill one whole DRAM burst with per-beat-distinguishable data, so a beat
+    # forwarded from the wrong position is caught by VALUE, not just by count.
+    span = BL_WORDS
+    pre, _, _ = build_b2b_wr_rd_sequences(
+        n_bursts=1, burst_len=span, base_addr=BASE, data_width=DW,
+        payload_fn=lambda bi, ki: (0xBEEF0000 + ki) & _mask())
+    await tb.run_writes(pre, drain_cycles=300)
+
+    # SEVERAL consecutive short reads, not one. A single short read cannot
+    # detect surplus beats: the master stops collecting at RLAST, so beats the
+    # DRAM returned beyond the request are simply never looked at. They leak
+    # into the NEXT burst's data instead -- so the bug only becomes visible
+    # once a second read follows. (Verified: with the beat budget disabled, a
+    # single-burst version of this test passes clean.)
+    N_RD = 4
+    addr0 = BASE + offset * nbytes
+
+    # COUNT R BEATS ON THE BUS. A data check alone cannot see surplus beats:
+    # they carry the burst's own RID and arrive AFTER its RLAST, so the master
+    # BFM discards them and every value still matches. The damage is a
+    # PROTOCOL violation (beats past RLAST) plus R bandwidth burned fetching
+    # data nobody asked for. Only a bus-level count exposes it -- verified by
+    # mutation: with the beat budget disabled, the data checks all pass and
+    # this counter is what fails.
+    r_beats = 0
+
+    async def _count_r():
+        nonlocal r_beats
+        while True:
+            await RisingEdge(dut.aclk)
+            try:
+                if int(dut.s_axi_rvalid.value) and int(dut.s_axi_rready.value):
+                    r_beats += 1
+            except ValueError:
+                pass
+    counter = cocotb.start_soon(_count_r())
+    rd = AXI4Sequence(name="sub_rd", data_width=DW)
+    for i in range(N_RD):
+        rd.add_read(addr0, nbeats, axid=i & 0x7)
+    rd_dicts = await tb.run_sequence(rd)
+
+    assert len(rd_dicts) == N_RD, (
+        f"expected {N_RD} read bursts, got {len(rd_dicts)}")
+    for bi, d in enumerate(rd_dicts):
+        data = d.get("data")
+        assert data is not None, f"read {bi} @ {addr0:#x} no data: {d}"
+        assert len(data) == nbeats, (
+            f"read {bi} @ {addr0:#x} asked for {nbeats} beat(s), got "
+            f"{len(data)} -- a DRAM burst is {span} beats, so surplus beats "
+            f"are leaking onto R")
+        for k in range(nbeats):
+            want = int.from_bytes(
+                bytes(tb.peek_memory(addr0 + k * nbytes, nbytes)), "little")
+            assert (data[k] & _mask()) == want, (
+                f"read {bi} @ {addr0:#x} beat {k} = {data[k] & _mask():#x} "
+                f"!= {want:#x} -- wrong beat forwarded (offset {offset}, "
+                f"len {nbeats}); a surplus beat from the previous burst "
+                f"shifts every following beat")
+    await ClockCycles(dut.aclk, 200)      # let any surplus beats drain out
+    counter.kill()
+    assert r_beats == N_RD * nbeats, (
+        f"{r_beats} R beats on the bus, expected {N_RD * nbeats} "
+        f"({N_RD} bursts x {nbeats}). A DRAM burst returns {span} beats; the "
+        f"beats past each request must be dropped inside the controller, not "
+        f"driven onto R after RLAST.")
+    tb.log.info("PASS partial_rd: %d x %d beat(s) at offset %d of a %d-beat "
+                "DRAM burst, %d R beats on the bus (exact)",
+                N_RD, nbeats, offset, span, r_beats)
+
+
 # ============================================================================
 # Dispatching cocotb test (TEST_TYPE env selects the scenario)
 # ============================================================================
@@ -224,6 +438,27 @@ async def cocotb_test_pumice_top(dut):
             n_bursts=n, burst_len=BL_WORDS, base_addr=BASE, data_width=DW)
         await _wr_rd_check(tb, wr, rd)
         tb.log.info(f"PASS {test_type}: {n} back-to-back bursts (BFM) vs golden")
+        return
+
+    # ---- burst-length coverage: EVERY legal AxLEN must work ----
+    # A DRAM burst is BL_WORDS AXI beats. A host burst may be ANY legal AxLEN,
+    # including shorter than that: pumice_wr_splitter pads the write out to a
+    # whole DRAM burst with zero-strobe filler beats (strb=0 -> DM=1, the device
+    # writes nothing) and pumice_rd_intake forwards only the beats the host
+    # actually asked for out of the full burst the DRAM returns.
+    #
+    # This is the end-to-end proof of that: golden-memory check on the WRITE
+    # side catches a filler beat that wrongly wrote (it would clobber the
+    # neighbouring words), and the READ side catches surplus/short R framing.
+    # Unit tests on the splitter cannot see either failure mode.
+    if test_type == "burst_len":
+        blen = int(os.environ.get("BURST_LEN", "1"))
+        n = {"basic": 4, "medium": 8, "full": 16}.get(level, 4)
+        wr, rd, exp = build_b2b_wr_rd_sequences(
+            n_bursts=n, burst_len=blen, base_addr=BASE, data_width=DW)
+        await _wr_rd_check(tb, wr, rd)
+        tb.log.info("PASS burst_len=%d: %d bursts write+read vs golden "
+                    "(DRAM burst = %d beats)", blen, n, BL_WORDS)
         return
 
     # ---- write+read each bank ----
@@ -523,6 +758,45 @@ def test_pumice_top(request, test_type):
     mem = "LPDDR2" if test_type.endswith("lpddr2") else "DDR2"
     _run(request, "cocotb_test_pumice_top",
          extra_env={"TEST_TYPE": test_type, "MEM_TYPE": mem})
+
+# Every legal AxLEN must work -- a compliant master may issue any of these, and
+# a CPU storing one word issues AxLEN=0 routinely. 1 and 2 beats get the full
+# treatment because they are the sub-DRAM-burst cases the padding exists for
+# (at BL_WORDS=4 they are entirely filler-completed); 3 is the remaining
+# sub-burst length; 4 is the exactly-aligned case; 5 and 7 are ragged
+# multi-burst (a whole burst plus a remainder); 8 and 16 are whole multiples.
+# Together they cover under / exact / over / ragged without a 256-wide sweep.
+_BURST_LENS = [1, 2, 3, 4, 5, 7, 8, 16]
+
+
+@pytest.mark.parametrize("blen", _BURST_LENS)
+def test_pumice_top_burst_len(request, blen):
+    _run(request, "cocotb_test_pumice_top",
+         extra_env={"TEST_TYPE": "burst_len", "MEM_TYPE": "DDR2",
+                    "BURST_LEN": str(blen)})
+
+# Partial-WSTRB suite: every strobe shape x short burst lengths. `none` (all
+# lanes masked) is legal AXI and must be a no-op, not a zero-fill; `all` is the
+# control that must behave exactly like an ordinary write.
+@pytest.mark.parametrize("blen", [1, 2, 4])
+@pytest.mark.parametrize("pattern", [p for p, _ in _STRB_PATTERNS])
+def test_pumice_top_partial_strb(request, pattern, blen):
+    _run(request, "cocotb_test_pumice_top_partial_strb",
+         extra_env={"STRB_PATTERN": pattern, "BURST_LEN": str(blen),
+                    "MEM_TYPE": "DDR2"})
+
+# Sub-burst READS: every length 1..BL_WORDS crossed with every start offset in
+# the DRAM burst. offset+len is clamped in the test body to stay inside one
+# burst, so each case is a pure "partial read of one DRAM burst".
+@pytest.mark.parametrize("offset", [0, 1, 2, 3])
+@pytest.mark.parametrize("nbeats", [1, 2, 3, 4])
+def test_pumice_top_partial_rd(request, nbeats, offset):
+    _run(request, "cocotb_test_pumice_top_partial_rd",
+         extra_env={"RD_BEATS": str(nbeats), "RD_OFFSET": str(offset),
+                    "MEM_TYPE": "DDR2"})
+
+
+
 
 
 # Sustained same-bank back-to-back traffic (engine_mirror N up to 1024, patho
