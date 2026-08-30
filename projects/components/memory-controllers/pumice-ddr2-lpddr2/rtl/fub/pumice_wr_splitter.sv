@@ -95,7 +95,8 @@ module pumice_wr_splitter #(
         .AXI_ADDR_WIDTH(AW),
         .AXI_USER_WIDTH(UW),
         .STRB_BYTES    (SW),
-        .CHUNK_BEATS   (CHUNK_BEATS)
+        .CHUNK_BEATS   (CHUNK_BEATS),
+        .PAD_TO_CHUNK  (1)
     ) u_aw_chop (
         .aclk        (aclk),
         .aresetn     (aresetn),
@@ -130,25 +131,58 @@ module pumice_wr_splitter #(
     );
 
     // ---- W: pass data through, regenerate WLAST every CHUNK_BEATS beats -----
+    // A DRAM burst is indivisible: the device always transfers BL beats. So a
+    // host burst that does NOT fill a whole DRAM burst is completed here with
+    // zero-strobe FILLER beats rather than rejected. strb=0 becomes DM=1 in
+    // pumice_dfi_wr_serializer (dfi_wrdata_mask_o = ~wd_strb_i), so the device
+    // clocks the beat and writes nothing -- which is exactly what DDR2's data
+    // mask is for. That makes EVERY legal AxLEN work, including AxLEN=0.
+    //
+    // Before this, a short or ragged burst reached pumice_wr_intake with
+    // (awlen+1)*GEAR != BL and was answered with SLVERR and dropped, so a
+    // compliant master issuing a single-beat write silently lost it.
     logic [8:0] r_wcnt;   // beats until the next re-framed WLAST (down-counter)
+    logic [8:0] r_pad;    // filler beats still owed on the current chunk
+    logic       w_padding;
     logic       w_wacc;
+    logic       w_short_last;
 
-    assign m_wdata  = fub_wdata;
-    assign m_wstrb  = fub_wstrb;
-    assign m_wuser  = fub_wuser;
-    assign m_wvalid = fub_wvalid;
-    assign fub_wready = m_wready;
-    // WLAST at the CHUNK boundary; also honour the host's own final beat so a
-    // ragged tail still closes cleanly.
-    assign m_wlast  = fub_wlast || (r_wcnt == 9'd0);
+    assign w_padding = (r_pad != 9'd0);
+
+    // While padding the host is held off (fub_wready low) and the filler beats
+    // are generated locally; data/user are don't-care because strb is zero.
+    assign m_wdata    = w_padding ? '0   : fub_wdata;
+    assign m_wstrb    = w_padding ? '0   : fub_wstrb;
+    assign m_wuser    = w_padding ? '0   : fub_wuser;
+    assign m_wvalid   = w_padding ? 1'b1 : fub_wvalid;
+    assign fub_wready = w_padding ? 1'b0 : m_wready;
+
+    // WLAST closes a chunk ONLY at the CHUNK boundary now. The host's own
+    // wlast no longer terminates a short chunk -- it starts the padding.
+    assign m_wlast = w_padding ? (r_pad == 9'd1) : (r_wcnt == 9'd0);
 
     assign w_wacc = m_wvalid && m_wready;
+
+
+    // Host ended its burst mid-chunk: owe (r_wcnt) filler beats.
+    assign w_short_last = fub_wlast && (r_wcnt != 9'd0);
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_wcnt <= 9'(CHUNK_BEATS - 1);
+            r_pad  <= 9'd0;
         end else if (w_wacc) begin
-            r_wcnt <= m_wlast ? 9'(CHUNK_BEATS - 1) : (r_wcnt - 9'd1);
+            if (w_padding) begin
+                r_pad  <= r_pad - 9'd1;
+                // last filler closes the chunk and rearms the counter
+                r_wcnt <= (r_pad == 9'd1) ? 9'(CHUNK_BEATS - 1)
+                                          : (r_wcnt - 9'd1);
+            end else if (w_short_last) begin
+                r_pad  <= r_wcnt;
+                r_wcnt <= r_wcnt - 9'd1;
+            end else begin
+                r_wcnt <= m_wlast ? 9'(CHUNK_BEATS - 1) : (r_wcnt - 9'd1);
+            end
         end
     )
 

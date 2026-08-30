@@ -289,6 +289,23 @@ module pumice_wr_intake #(
     logic [ROW_WIDTH-1:0]  w_row;
     logic [COL_WIDTH-1:0]  w_col;
 
+    // Align the mapped address DOWN to the AXI BEAT. addr_mapper indexes at
+    // DEVICE-word granularity (BYTE_OFFSET_WIDTH = log2(DRAM_DEVICE_WIDTH/8)),
+    // which is FINER than one AXI beat whenever a beat spans several device
+    // words -- e.g. a 128-bit beat over a 64-bit device word. The byte lanes
+    // inside a beat are already carried by WSTRB, so an unaligned start
+    // address must NOT also shift the column: doing both counts the offset
+    // twice and the write lands a beat further on, leaving the requested
+    // address untouched. AXI4 requires exactly this: an unaligned first beat
+    // keeps the aligned address and narrows the strobes.
+    //
+    // Aligned traffic is bit-identical (the low bits are already zero). The
+    // 64->128 dwidth converter is what produces unaligned beats here, by
+    // turning one narrow host beat into a wide beat in its lane.
+    localparam int BEAT_BO = $clog2(DW / 8);
+    logic [AW-1:0] w_map_addr_wr;
+    assign w_map_addr_wr = {w_head_addr[AW-1:BEAT_BO], {BEAT_BO{1'b0}}};
+
     addr_mapper #(
         .AXI_ADDR_WIDTH   (AW),
         .NUM_RANKS        (NUM_RANKS),
@@ -297,7 +314,7 @@ module pumice_wr_intake #(
         .COL_WIDTH        (COL_WIDTH),
         .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH)
     ) u_addr_mapper (
-        .axi_addr_i (w_head_addr),
+        .axi_addr_i (w_map_addr_wr),
         .bank_lsb_i (bank_lsb_i),
         .hash_en_i  (hash_en_i),
         .hash_seed_i(hash_seed_i),

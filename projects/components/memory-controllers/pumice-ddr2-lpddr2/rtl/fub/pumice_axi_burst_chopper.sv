@@ -47,6 +47,16 @@ module pumice_axi_burst_chopper #(
     parameter int AXI_USER_WIDTH = 1,
     parameter int STRB_BYTES     = 8,   // bytes per AXI beat (AXI_DATA_WIDTH/8)
     parameter int CHUNK_BEATS    = 1,   // AXI beats per DFI burst (power of 2)
+    // 1 = always DECLARE a full CHUNK_BEATS sub-command, even when the host
+    // burst leaves a short tail. The write path sets this: the splitter pads
+    // the W stream out to the chunk with zero-strobe filler beats, so the
+    // sub-command really is CHUNK_BEATS long on the wire and the intake's
+    // "one AXI burst == one DFI burst" contract holds for ANY host AxLEN.
+    // Internal remaining-beat accounting still uses the REAL beat count, so
+    // the address stepping and last-sub detection are unchanged.
+    // Reads leave this 0: a short read needs no padding (the R framing
+    // follows the AR), so the read side stays bit-identical.
+    parameter int PAD_TO_CHUNK   = 0,
     // Derived
     parameter int IW = AXI_ID_WIDTH,
     parameter int AW = AXI_ADDR_WIDTH,
@@ -127,7 +137,8 @@ module pumice_axi_burst_chopper #(
     assign w_last_sub = (w_rem <= 9'(CHUNK_BEATS));
 
     assign m_axaddr   = w_addr;
-    assign m_axlen    = 8'(w_this - 9'd1);
+    assign m_axlen    = (PAD_TO_CHUNK != 0) ? 8'(CHUNK_BEATS - 1)
+                                            : 8'(w_this - 9'd1);
     assign m_axid     = w_first ? fub_axid     : r_id;
     assign m_axsize   = w_first ? fub_axsize   : r_size;
     assign m_axburst  = w_first ? fub_axburst  : r_burst;
