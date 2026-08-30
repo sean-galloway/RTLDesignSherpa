@@ -94,10 +94,21 @@ A host burst is reconciled to that in three ways, none of which the host sees:
 Accepted is not the same as free. **A partial DRAM burst still costs the
 device a full ACT/CAS cycle**, because the DRAM always transfers `BL` beats.
 A workload issuing half-bursts reports roughly half the throughput the
-controller can actually sustain, and nothing about it is an error -- it just
-looks slow. So for characterization, keep every generator burst a whole
-number of DRAM bursts; correctness of the short-burst path is proven by the
-suites below rather than by the perf shapes.
+controller can actually sustain.
+
+So the two sides have different rules, and the distinction matters:
+
+* **The controller accepts any legal AxLEN.** That is a hard requirement --
+  a compliant master may issue `AxLEN=0` at any time.
+* **A half burst is ILLEGAL in the characterization generators.** Not
+  discouraged, illegal: `_check_full_burst()` in
+  `dv/tests/test_ddr2_char_macro.py` rejects any `burst_len` that is not a
+  whole multiple of one DFI BL8 transaction. Behaviour observed under a
+  sub-burst generator shape is void -- an illegal stimulus, not a defect to
+  investigate.
+
+Short-burst CORRECTNESS is proven by the controller-level suites below, not
+by the perf shapes.
 
 Covered by, all mutation-verified:
 `test_pumice_top_partial_strb` (8 strobe patterns x 3 lengths, byte-exact

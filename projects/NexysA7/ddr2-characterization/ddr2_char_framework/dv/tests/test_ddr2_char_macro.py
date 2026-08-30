@@ -108,14 +108,21 @@ async def _drive_engine_idle(dut) -> None:
 
 
 def _check_full_burst(burst_len: int, who: str) -> None:
-    """Every generator burst must be a whole number of DFI BL8 transactions.
+    """A half burst is ILLEGAL in the generators. Reject it here.
+
+    Not a warning and not a perf hint: a generator burst that is not a whole
+    number of DFI BL8 transactions is an invalid configuration of this
+    environment. Any behaviour observed under one says nothing about the
+    design -- it is an illegal stimulus, so results from it are void rather
+    than a bug to chase.
 
     Checked HERE rather than by the RTL's BURST_LEN_MULTIPLE assertion: the
-    guard belongs in the environment that chooses the value, not baked into
-    the design. A partial DRAM burst still costs the device a full ACT/CAS
-    cycle, so a sub-burst shape reports throughput well below what the
-    controller sustains -- and it stays silent, because nothing about it is an
-    error, just a slow workload.
+    constraint belongs to the environment that picks the value, not to the
+    design. The controller itself accepts ANY legal AxLEN (see
+    test_pumice_top_partial_strb / ..._partial_rd / ..._burst_len); it is the
+    perf generators that are restricted, because a partial DRAM burst still
+    costs the device a full ACT/CAS cycle and so reports throughput well
+    below what the controller sustains.
 
     This exists because three separate places held a stale BL4-era burst
     length after DDR2 moved to BL8 (the shape table, and BURST = 4 in both the
@@ -123,12 +130,13 @@ def _check_full_burst(burst_len: int, who: str) -> None:
     """
     if burst_len % DRAM_BURST_BEATS:
         raise AssertionError(
-            f"{who}: burst_len={burst_len} is not a multiple of "
-            f"DRAM_BURST_BEATS={DRAM_BURST_BEATS} (one full DFI BL8 "
-            f"transaction). Perf numbers from a partial DRAM burst are not "
-            f"meaningful. Sub-burst handling is covered at the controller "
-            f"level -- see test_pumice_top.py::test_pumice_top_partial_strb "
-            f"and ..._partial_rd.")
+            f"{who}: burst_len={burst_len} is ILLEGAL -- generator bursts "
+            f"must be whole multiples of DRAM_BURST_BEATS="
+            f"{DRAM_BURST_BEATS} (one full DFI BL8 transaction). This is an "
+            f"invalid configuration, not a slow one: fix the shape. The "
+            f"controller's own sub-burst handling is covered at the "
+            f"controller level -- test_pumice_top.py::"
+            f"test_pumice_top_partial_strb and ..._partial_rd.")
 
 
 async def _program_writer(dut, *, start_addr: int, stride_0: int,
