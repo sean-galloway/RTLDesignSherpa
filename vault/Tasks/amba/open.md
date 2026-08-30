@@ -375,7 +375,47 @@ traffic, which is the opposite of this task's purpose.
 Doing it correctly needs per-ID admitted state so data/resp filter the same
 way the command did. Note a single bit per ID is not sufficient: one ID can
 have multiple outstanding transactions whose addresses straddle the range, so
-it is a per-ID count, not a flag. Decide that before implementing.
+it is a per-ID count, not a flag.
+
+**DECIDED 2026-08-30: filter at REPORT time, not at admission.** The costing
+is what settles it. Admission filtering needs a counter per POSSIBLE id --
+`2**ID_WIDTH` counters of `clog2(MAX_TRANSACTIONS+1)` bits, so 256 x 5 =
+1280 flops at the common ID_WIDTH=8/MAX_TRANSACTIONS=16, scaling as 2**IW
+(~20k flops at ID_WIDTH=12). And it duplicates state the monitor already
+holds: `bus_transaction_t` latches `.addr` per entry
+(`next.addr = 32'(cmd_addr)` in trans_mgr).
+
+Report-time filtering instead: let the command allocate normally, so data and
+resp still match their entry and the orphan hazard above disappears entirely;
+carry one "filtered" bit per TABLE ENTRY, set at allocation from the address
+compare; suppress emission for entries carrying it. Cost is
+`MAX_TRANSACTIONS` flops -- 16 at default, ~80x smaller, and it scales with
+table depth rather than exponentially with ID width. The tradeoff is narrow
+and acceptable: it cuts PACKETS but not CAM occupancy, and packets are what
+this task is about ("reduce monitor packet traffic").
+
+**Implementation plan, pinned against the RTL:**
+
+1. Do NOT widen `bus_transaction_t`. It is shared across every monitor, and
+   every producer would have to set the new field or it reads X.
+2. Do NOT gate `state_change`. It looks like the natural hook and is NOT:
+   `axi_monitor_base` drives `w_state_change_detected` from trans_mgr at
+   line 380 and NOTHING CONSUMES IT -- a dead output. (Only
+   `formal/amba/axi_monitor_trans_mgr_banked` binds it, to assert it is zero
+   after reset. The apb4/apb5 `w_state_change` signals are unrelated locals.)
+   Worth deleting or wiring on its own account.
+3. Add a `logic [MAX_TRANSACTIONS-1:0] filtered_mask` OUTPUT from trans_mgr,
+   set per entry at allocation, and take it as an INPUT on the reporters,
+   which already receive `trans_table` and scan it themselves. Gate their
+   emit decision with `!filtered_mask[i]`.
+4. New knobs: `ADDR_FILTER_ENABLE` param (default 0 -> bit-identical build)
+   plus runtime `cfg_addr_filter_{enable,low,high}`, threaded
+   base -> filtered -> the axi4_*_mon wrappers the same way `N_ADDR_RANGES`
+   already is.
+
+NOT STARTED as RTL. This spans trans_mgr + base + the reporters + the twelve
+wrappers + cocotb + formal, and a half-applied version of it is worse than
+none -- it would silently drop packets.
 
 **Use Case:**
 - Reduce packet congestion in high-traffic systems
