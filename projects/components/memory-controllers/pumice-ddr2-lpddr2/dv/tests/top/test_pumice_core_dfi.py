@@ -1120,10 +1120,18 @@ _PAGE_MODES = [(0, "build_default"), (1, "static_open"), (2, "static_close"),
 async def _util_window(dut, slave, *, tag, n=192, banks=None):
     """One measured write window on the CURRENT mode settings.
 
-    Returns (utilization, backpressure_cycles, refs). Utilization is
-    beats / cycles WVALID was high -- cycles where the master had nothing to
-    offer are excluded, so the only way to fall below 100% is the DUT
-    refusing data. See [[structure-trackers]].
+    Returns (utilization, backpressure_cycles, refs, max_run, beats).
+
+    Utilization is beats / cycles WVALID was high -- cycles where the master
+    had nothing to offer are excluded, so the only way to fall below 100% is
+    the DUT refusing data.
+
+    `max_run` is the LONGER claim and the one that matters for streaming:
+    the longest unbroken stretch of `wvalid && wready`. 100% utilization
+    only says the DUT never refused; it does NOT say the beats arrived
+    contiguously -- a stream chopped into many short runs still reads 100%.
+    W must give data BACK TO BACK, so callers compare max_run against the
+    beat count. See [[structure-trackers]].
 
     Each window uses its OWN address region (keyed off `tag`) so page state
     from the previous mode cannot flatter or penalise the next one.
@@ -1151,8 +1159,10 @@ async def _util_window(dut, slave, *, tag, n=192, banks=None):
 
     prod, bp = trk.prod - base[0], trk.bp - base[1]
     valid_cyc = prod + bp
+    max_run = max(trk.max_run, trk._run)
     return ((prod / valid_cyc) if valid_cyc else 0.0, bp,
-            slave.cmd_counts.get(_DC.REF, 0) - ref0)
+            slave.cmd_counts.get(_DC.REF, 0) - ref0,
+            max_run, n * BL_WORDS)
 
 
 @cocotb.test(timeout_time=120, timeout_unit="ms")
@@ -1197,10 +1207,10 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     for tag, (mode, name) in enumerate(_PAGE_MODES):
         dut.page_mode_i.value = mode
         await ClockCycles(dut.aclk, 64)       # settle + drain before measuring
-        u8, bp8, r8 = await _util_window(dut, slave, tag=tag)
+        u8, bp8, r8, run8, beats8 = await _util_window(dut, slave, tag=tag)
         await ClockCycles(dut.aclk, 64)
-        u1, bp1, r1 = await _util_window(dut, slave, tag=tag + 64, banks=1)
-        rows.append((mode, name, u8, bp8, u1, bp1, r8 + r1))
+        u1, bp1, r1, run1, _ = await _util_window(dut, slave, tag=tag + 64, banks=1)
+        rows.append((mode, name, u8, bp8, u1, bp1, r8 + r1, run8, beats8))
         dut._log.info("paging mode %d (%-13s): 8bank=%6.2f%% (stall %d)  "
                       "1bank=%6.2f%% (stall %d)  REF=%d",
                       mode, name, 100.0 * u8, bp8, 100.0 * u1, bp1, r8 + r1)
@@ -1215,18 +1225,25 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
             f.write(f"| {'mode':>4} | {'name':<13} | {'8bank%':>7} | {'stall':>6} "
                     f"| {'1bank%':>7} | {'stall':>6} | {'REF':>3} |\n")
             f.write(f"|{'-'*6}|{'-'*15}|{'-'*9}|{'-'*8}|{'-'*9}|{'-'*8}|{'-'*5}|\n")
-            for mode, name, u8, bp8, u1, bp1, refs in rows:
+            for mode, name, u8, bp8, u1, bp1, refs, _, _ in rows:
                 f.write(f"| {mode:>4} | {name:<13} | {100.0*u8:>7.2f} | {bp8:>6} "
                         f"| {100.0*u1:>7.2f} | {bp1:>6} | {refs:>3} |\n")
+            f.write("\n# back-to-back check: longest unbroken wvalid&&wready run\n")
+            f.write("# vs total beats, 8-bank spread (equal = one contiguous stream)\n")
+            for _, name, _, _, _, _, _, run, beats in rows:
+                f.write(f"{name:<13} max_run={run:<6} beats={beats}\n")
     except Exception as e:                                    # noqa: BLE001
-        dut._log.warning("paging_util_sweep.out dump failed: %s", e)
+        # LOUD on purpose: a swallowed unpack error here once emptied the
+        # table body while the test still reported PASS. The dump is the
+        # deliverable, so a broken dump is a failure, not a warning.
+        raise AssertionError(f"paging_util_sweep.out dump failed: {e!r}") from e
 
     # refresh must not have leaked into ANY window, or the numbers are not
     # attributable to paging.
-    leaked = [(n, r) for _, n, _, _, _, _, r in rows if r]
+    leaked = [(n, r) for _, n, _, _, _, _, r, _, _ in rows if r]
     assert not leaked, f"refresh fired during paging windows: {leaked}"
 
-    short8 = [(n, round(100.0 * u, 2)) for _, n, u, _, _, _, _ in rows if u < 1.0]
+    short8 = [(n, round(100.0 * u, 2)) for _, n, u, _, _, _, _, _, _ in rows if u < 1.0]
     assert not short8, (
         f"paging modes below 100% write utilization WITH bank parallelism: "
         f"{short8}. With 8-way rotation and refresh parked nothing should "
@@ -1237,13 +1254,23 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     # guard catches a collapse far worse than the known ~28%, which would
     # mean something beyond the extra ACT/PRE.
     FLOOR = 0.20
-    bad1 = [(n, round(100.0 * u, 2)) for _, n, _, _, u, _, _ in rows if u < FLOOR]
+    bad1 = [(n, round(100.0 * u, 2)) for _, n, _, _, u, _, _, _, _ in rows if u < FLOOR]
     assert not bad1, (
         f"paging modes below {FLOOR:.0%} even for single-bank traffic: {bad1}. "
         f"Per-access precharge explains ~28%; anything under {FLOOR:.0%} is a "
         f"different problem.")
+    # W MUST GIVE DATA BACK TO BACK. 100% utilization only says the DUT never
+    # refused a beat; it does not say the beats were contiguous. With bank
+    # parallelism the whole burst stream should land as ONE unbroken run.
+    chopped = [(n, run, beats) for _, n, _, _, _, _, _, run, beats in rows
+               if run < beats]
+    assert not chopped, (
+        f"W data not back-to-back with bank parallelism (mode, max_run, "
+        f"beats): {chopped}. A stream chopped into short runs can still read "
+        f"100% utilization -- max_run is the claim that catches it.")
+
     spread = [(n, round(100.0 * u8, 1), round(100.0 * u1, 1))
-              for _, n, u8, _, u1, _, _ in rows if u1 < 0.99]
+              for _, n, u8, _, u1, _, _, _, _ in rows if u1 < 0.99]
     dut._log.info("PASS: all %d modes 100%% with bank parallelism; modes that "
                   "pay for single-bank traffic (mode, 8bank%%, 1bank%%): %s",
                   len(rows), spread)
@@ -1312,8 +1339,9 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
                 getattr(dut, k).value = v
             await ClockCycles(dut.aclk, 64)
             tag += 1
-            util, bp, refs = await _util_window(dut, slave, tag=tag, n=96)
-            rows.append((pname, sname, util, bp, refs))
+            util, bp, refs, run, beats = await _util_window(
+                dut, slave, tag=tag, n=96)
+            rows.append((pname, sname, util, bp, refs, run, beats))
             if util < 1.0 or refs:
                 dut._log.warning("%-13s x %-14s: util=%6.2f%% stall=%d REF=%d",
                                  pname, sname, 100.0 * util, bp, refs)
@@ -1327,13 +1355,13 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
                 "paging", "scheduling", "util%", "stall", "REF"))
             f.write("|{}|{}|{}|{}|{}|\n".format(
                 "-" * 15, "-" * 16, "-" * 9, "-" * 8, "-" * 5))
-            for pn, sn, u, bp, r in rows:
+            for pn, sn, u, bp, r, _, _ in rows:
                 f.write("| {:<13} | {:<14} | {:>7.2f} | {:>6} | {:>3} |\n".format(
                     pn, sn, 100.0 * u, bp, r))
     except Exception as e:                                    # noqa: BLE001
         dut._log.warning("paging_sched_cross.out dump failed: %s", e)
 
-    leaked = [(p_, s_, r) for p_, s_, _, _, r in rows if r]
+    leaked = [(p_, s_, r) for p_, s_, _, _, r, _, _ in rows if r]
     assert not leaked, "refresh fired during cross windows: {}".format(leaked[:5])
 
     # order_in_order is EXPECTED to cost throughput and is excluded from the
@@ -1347,7 +1375,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
     # fall furthest. EVERY other setting is 100% under EVERY paging mode.
     ORDERED = "order_in_order"
     short = [(p_, s_, round(100.0 * u, 2))
-             for p_, s_, u, _, _ in rows if u < 1.0 and s_ != ORDERED]
+             for p_, s_, u, _, _, _, _ in rows if u < 1.0 and s_ != ORDERED]
     assert not short, (
         "{} of {} paging x scheduling combinations below 100% write "
         "utilization: {}. With bank parallelism and refresh parked, no "
@@ -1357,7 +1385,7 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
     # ...but in_order must still be REPORTED and floored, so a regression that
     # tanks it further is caught rather than excused by the exemption.
     IN_ORDER_FLOOR = 0.45
-    io = [(p_, round(100.0 * u, 2)) for p_, s_, u, _, _ in rows if s_ == ORDERED]
+    io = [(p_, round(100.0 * u, 2)) for p_, s_, u, _, _, _, _ in rows if s_ == ORDERED]
     assert io, "in_order rows missing -- the exemption would hide everything"
     low = [x for x in io if x[1] / 100.0 < IN_ORDER_FLOOR]
     assert not low, (
