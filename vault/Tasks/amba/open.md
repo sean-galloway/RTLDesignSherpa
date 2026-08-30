@@ -1258,8 +1258,43 @@ axil_axil. Raise it if a caller needs block-RAM inference on an AXI4
 write side.
 ### TASK-065: SPLIT axi4_intf_observer into master + slave versions; retire the original and dma_slave_monitors
 **Priority:** P1
-**Status:** 🔴 Not Started
+**Status:** 🟡 SPLIT DONE, RETIREMENT OUTSTANDING (measured against the tree
+2026-08-30; was "Not Started", which the tree had already overtaken)
 **Owner:** TBD
+
+**Measured state -- read this before planning, the label was stale:**
+
+DONE, the split half:
+
+* `projects/components/misc/rtl/axi4_intf_master_observer.sv` and
+  `axi4_intf_slave_observer.sv` both exist.
+* The original `axi4_intf_observer.sv` is GONE from the tree.
+* The new observers are adopted in three harnesses:
+  `Genesys2/stream/rtl/stream_harness.sv`, `.../harness_csr.sv`, and
+  `NexysA7/pumice/build-perf/rtl/ddr2_char_harness.sv`.
+
+NOT DONE, the retirement half. `dma_slave_monitors` is live in TWO
+independent places, so it cannot simply be deleted:
+
+1. `NexysA7/stream_characterization/flows-stream-monitor/rtl/stream_mon_harness.sv:1622`
+   instantiates it -- the one remaining RTL instantiation, to be converted to
+   the slave observer.
+2. Genesys2 `build-mon` has an ACTIVE FUB test,
+   `build-mon/dv/tests/test_dma_slave_monitors.py`, which compiles
+   `projects/components/misc/rtl/filelists/dma_slave_monitors.f`. So the
+   misc/rtl copy is not dead code -- it is what that test builds. Decide
+   whether the test is retargeted at the slave observer or retired with the
+   module.
+
+Then the duplication goes: TWO copies of `dma_slave_monitors.sv` (misc/rtl
+and flows-stream-monitor/rtl), TWO copies of `dma_slave_monitors_tb.py`
+(Genesys2 build-mon and NexysA7 flows-stream-monitor), and two filelists.
+
+**COORDINATE BEFORE EDITING.** As of 2026-08-30 `stream_mon_harness.sv` and
+both `dma_slave_monitors_tb.py` copies are modified in the shared worktree by
+another session, on branch `feat/stream-observer-monitor-instrumentation` --
+which is plausibly this very work in flight. Check that before starting, or
+two sessions will convert the same harness.
 
 **GOAL — say it first, because it sets every sizing decision:** exercise ALL
 FOUR axi4 monitor flavours in the **stream `build-mon` configuration**:
