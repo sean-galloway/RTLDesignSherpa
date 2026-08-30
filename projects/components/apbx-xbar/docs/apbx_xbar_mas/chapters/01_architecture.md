@@ -37,7 +37,8 @@ The APB Crossbar is a parametric interconnect that connects M APB masters to N A
 - Arbitrary MxN configuration (up to 16x16)
 - Automatic address decode (64KB per slave)
 - Round-robin arbitration per slave
-- Back-to-back transactions (no overlap; 10 pclk cycles each, PREADY-to-PREADY)
+- Back-to-back transactions (no overlap; 10 pclk cycles each for M = 1,
+  11 when arbitrated)
 - Grant persistence through transaction completion
 
 ---
@@ -153,7 +154,7 @@ Internal Crossbar Logic → cmd/rsp bus → apb4_master → APB Slave
    - Response routed back to apb4_slave[0]
    - apb4_slave[0] returns PREADY to CPU
 
-**Total Latency:** 9 cycles SETUP-to-PREADY for uncontended access; sustained back-to-back cadence is 10 cycles PREADY-to-PREADY (measured; see 2.x -- the fabric's boundary IP and registered skid buffers dominate, not APB's 2-cycle protocol minimum)
+**Total Latency:** 9 cycles SETUP-to-PREADY uncontended on a single-master variant, 10 when arbitrated; sustained back-to-back cadence is 10 and 11 respectively (measured; see 2.x -- the fabric's boundary IP and registered skid buffers dominate, not APB's 2-cycle protocol minimum)
 
 ---
 
@@ -248,8 +249,8 @@ within two days of being reconciled.
 **Predictability:**
 - Round-robin arbitration provides deterministic behavior
 - Fixed address map simplifies software integration
-- Deterministic transfer cost: 9 pclk cycles SETUP-to-PREADY, or 10
-  per transfer back-to-back, contention aside
+- Deterministic transfer cost: 9 pclk cycles SETUP-to-PREADY (10 back-to-
+  back) with one master, 10 (11 back-to-back) when arbitrated
 
 ---
 

@@ -31,7 +31,7 @@
 
 ## Overview
 
-The APB Crossbar uses **parametric RTL generation** to create custom MxN configurations. While several pre-generated variants exist (1to1, 2to1, 1to4, 2to4, thin), the Python-based generator enables creation of any arbitrary MxN crossbar up to 16x16.
+The APB Crossbar uses **parametric RTL generation** to create custom MxN configurations. While five pre-generated variants exist (1to1, 2to1, 1to4, 2to4, 2to2_mixed), the Python-based generator enables creation of any arbitrary MxN crossbar up to 16x16.
 
 **Philosophy:**
 - Pre-generated variants for common use cases (fast integration)
@@ -163,7 +163,7 @@ take per-port lists rather than scalars:
 
 : Python API Arguments
 
-**`enable_parity` behaves differently here than in the thin core.** A
+**`enable_parity` checks and regenerates; it does not pass through.** A
 generated variant **checks** parity at the ingress boundary and
 **regenerates** it on the far side, because the parity bits do not cross
 the cmd/rsp interface the boundary IP deconstructs each transfer into.
@@ -173,9 +173,11 @@ with `enable_parity=True` each **APB5** port exposes its own
 `s0_parity_error_rdata`, ...) — a check whose result goes nowhere is not
 protection. APB4 ports get none, and the shipped `apbx_xbar_2to2_mixed`
 is generated with parity off, so there the boundary IP's flags are tied
-off internally. The thin core instead
-passes parity through end to end — see chapter 1. A mixed APB4/APB5
-pairing carries no parity in either family.
+off internally. A mixed APB4/APB5 pairing carries no parity at all.
+
+(The retired `apbx_xbar_thin` passed parity through end to end instead,
+which is why this distinction used to be drawn against it. It was deleted
+on 2026-08-27; there is no other family to contrast with now.)
 
 **Rules:**
 - If neither `--masters` nor `--slaves` specified → Generate all standard variants
@@ -247,12 +249,12 @@ module apbx_xbar_2to4 #(
 
 3. **Internal Signal Declarations**
 ```systemverilog
-    // Command/Response interfaces for master 0-2 apb4_slave
+    // Command/Response interfaces for master 0-1 apb4_slave
     logic m0_cmd_valid, m0_cmd_ready, m0_cmd_pwrite;
     logic [ADDR_WIDTH-1:0] m0_cmd_paddr;
     // ... (full cmd/rsp bus for each master)
 
-    // Command/Response interfaces for slave 0-5 apb4_master
+    // Command/Response interfaces for slave 0-3 apb4_master
     logic s0_cmd_valid, s0_cmd_ready, s0_cmd_pwrite;
     logic [ADDR_WIDTH-1:0] s0_cmd_paddr;
     // ... (full cmd/rsp bus for each slave)

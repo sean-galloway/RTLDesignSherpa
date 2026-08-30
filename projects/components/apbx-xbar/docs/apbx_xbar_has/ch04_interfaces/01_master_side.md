@@ -123,7 +123,8 @@ Transfer ready signal:
 ## Transaction Timing
 
 ### Uncontended Write (No Arbitration Wait) -- PHASE SHAPE ONLY, not to scale:
-a real transfer is 9 pclk cycles PSEL-to-PREADY through this fabric (see 5.2)
+a real transfer is 9 pclk cycles SETUP-to-PREADY on a single-master
+variant, 10 on an arbitrated one (see 5.2)
 
 ```
        Cycle 1    Cycle 2    Cycle 3

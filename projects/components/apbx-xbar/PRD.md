@@ -240,8 +240,9 @@ the better pattern.
 **Description:** Consecutive transactions are accepted with no
 master-side idle cycles required. They do NOT overlap inside the
 fabric -- `apb4_slave` is one-command-at-a-time. Sustained cadence is
-10 pclk cycles PREADY-to-PREADY, one more than the 9-cycle
-SETUP-to-PREADY single-transfer latency (HAS 5.1/5.2).
+10 pclk cycles PREADY-to-PREADY for a single-master variant and 11 for
+an arbitrated one, in each case one more than that variant's
+SETUP-to-PREADY latency of 9 or 10 (HAS 5.1/5.2).
 
 **Verification:** Performance tests show consecutive transactions
 
@@ -300,7 +301,7 @@ input  logic                    s<j>_apb_PREADY
 | `ADDR_WIDTH` | int | 32 | 18-64 for multi-slave variants (the decode part-select needs bit 17); 1-64 for 1to1/2to1 | Address bus width |
 | `DATA_WIDTH` | int | 32 | 8,16,32,64 | Data bus width |
 | `STRB_WIDTH` | int | DATA_WIDTH/8 | - | Strobe width (auto-calc) |
-| `BASE_ADDR` | logic [ADDR_WIDTH-1:0] | 0x10000000 | Any | Base address for slave map |
+| `BASE_ADDR` | logic [ADDR_WIDTH-1:0] | 0x10000000 | Any except the top S x 64KB, where BASE_ADDR + span wraps and the range check can never pass | Base address for slave map. Inert on 1to1/2to1 (no decode) |
 
 ---
 
@@ -362,7 +363,7 @@ breakdown and the measurement.
 - **Back-to-back transactions:** Supported, but not overlapped --
   `apb4_slave` is a one-command-at-a-time FSM, so the next command is
   captured only after the previous transaction completes
-- **Maximum rate:** ~1 transaction per 10 pclk cycles per master (no overlap, and cadence is one cycle longer than latency)
+- **Maximum rate:** ~1 transaction per 10 pclk cycles (1to1, 1to4) or 11 (2to1, 2to4, 2to2_mixed) per master
   (measured back-to-back at an always-ready slave)
 
 ### 9.3 Resource Utilization (Estimated)
@@ -383,8 +384,12 @@ withdrawn rather than reconciled.
 | **test_apbx_xbar_2to1** | 130+ | ✅ Pass | Arbitration stress |
 | **test_apbx_xbar_1to4** | 200+ | ✅ Pass | Address decode |
 | **test_apbx_xbar_2to4** | 350+ | ✅ Pass | Full crossbar stress |
+| **test_apbx_xbar_2to2_mixed** | 8 directed | ✅ Pass | All four APB4/APB5 pairings, sideband gating, decode miss, structural pin check |
+| **test_apbx_xbar_timing** | 2 variants | ✅ Pass | Published latency/cadence figures, both variant classes |
 
-**Overall:** 100% passing, >750 total transactions tested
+**Overall:** 100% passing (8/8), >750 transactions plus the directed
+mixed-version and timing checks. `2to2_mixed` also has a formal harness
+(`formal/apbx_xbar/apbx_xbar_2to2_mixed/`).
 
 ### 10.2 Test Methodology
 

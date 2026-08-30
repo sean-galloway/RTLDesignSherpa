@@ -132,14 +132,11 @@ projects/components/apbx-xbar/
 │   ├── apbx_xbar_2to1.sv
 │   ├── apbx_xbar_1to4.sv
 │   ├── apbx_xbar_2to4.sv
-│   └── wrappers/               Pre-configured wrappers
+│   ├── apbx_xbar_2to2_mixed.sv  (m0=APB4, m1=APB5, s0=APB5, s1=APB4)
+│   └── wrappers/               testbench scaffolds, not integration wrappers
 │       ├── apbx_xbar_1to1_wrap.sv
 │       ├── apbx_xbar_2to1_wrap.sv
 │       ├── apbx_xbar_1to4_wrap.sv
-│       ├── apbx_xbar_2to4_wrap.sv
-│       ├── apbx_xbar_1to1_wrap.sv
-│       ├── apbx_xbar_1to4_wrap.sv
-│       ├── apbx_xbar_2to1_wrap.sv
 │       └── apbx_xbar_2to4_wrap.sv
 ├── bin/
 │   └── generate_xbars.py       Generator script
@@ -301,8 +298,9 @@ Transaction 4: M0 and M1 request → M0 granted (rotated)
 - **Independent per slave:** Each slave arbitrates independently
 - **Fair:** No master can starve another
 - **Grant persistence:** Once granted, master holds slave until response completes
-- **Back-to-back:** supported, but not overlapped -- 10 pclk cycles
-  per transfer, PREADY-to-PREADY (see HAS 5.1/5.2)
+- **Back-to-back:** supported, but not overlapped -- 10 pclk cycles per
+  transfer for 1to1/1to4, 11 for the arbitrated variants (2to1, 2to4,
+  2to2_mixed), PREADY-to-PREADY (see HAS 5.1/5.2)
 
 **📖 See:** `PRD.md` Section 3.3
 

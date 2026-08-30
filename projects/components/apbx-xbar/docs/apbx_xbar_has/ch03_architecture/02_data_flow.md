@@ -107,7 +107,8 @@ overlap:
    captured until the previous transaction completes
 3. Sustained cadence is therefore one cycle LONGER than single-transfer
    latency: measured PREADY-to-PREADY = 10 pclk cycles at the earliest
-   legal turnaround, against 9 cycles SETUP-to-PREADY for one transfer.
+   legal turnaround, against 9 cycles SETUP-to-PREADY for one transfer
+   (M = 1; 11 and 10 on an arbitrated variant).
    The extra cycle is the next transfer's mandatory SETUP phase, which
    cannot overlap the previous ACCESS (see 5.1/5.2)
 

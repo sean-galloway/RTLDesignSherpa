@@ -51,13 +51,29 @@ internal cmd/rsp protocol through `apb4_slave` and back through
 edges and names the two edges it spans. State the edges or the number
 means nothing -- this page has been wrong twice from not doing so.
 
-| Quantity | Cycles | Spans |
-|---|---|---|
-| Fabric latency | **8** | first ACCESS edge -> edge where PREADY is high |
-| Single-transfer latency | **9** | SETUP edge -> edge where PREADY is high (= 1 + 8) |
-| Back-to-back period | **10** | PREADY edge -> next PREADY edge |
+**The numbers depend on whether the variant has an arbiter, and the
+generator only emits one when there is more than one master.** A
+single-master variant has no `arbiter_round_robin` at all; a multi-master
+variant has one per slave, and its grant is a flop (`grant <= w_next_grant`),
+which costs exactly one cycle on every quantity below.
 
-: Measured Timing, `apbx_xbar_1to1` With an Always-Ready Slave
+| Quantity | M = 1 | M > 1 | Spans |
+|---|---|---|---|
+| Fabric latency | **8** | **9** | first ACCESS edge -> edge where PREADY is high |
+| Single-transfer latency | **9** | **10** | SETUP edge -> edge where PREADY is high |
+| Back-to-back period | **10** | **11** | PREADY edge -> next PREADY edge |
+
+: Measured Timing, Always-Ready Slave
+
+M = 1 is `apbx_xbar_1to1` and `apbx_xbar_1to4` (0 arbiters). M > 1 is
+`apbx_xbar_2to1`, `apbx_xbar_2to4` and `apbx_xbar_2to2_mixed` (1, 4 and 2
+arbiters). All six columns are measured, not derived -- see
+`dv/tests/test_apbx_xbar_timing.py`, which asserts both classes.
+
+Until 2026-08-29 this page published the M = 1 numbers unconditionally,
+under the heading "Uncontended Access", having measured only
+`apbx_xbar_1to1`. They were one cycle optimistic for every arbitrated
+variant -- including the 2x4 that the PRD calls the typical SoC case.
 
 **The period is 10, not 9, and the difference is structural.** After
 PREADY at cycle N the bus is still in ACCESS for that cycle, so the next
@@ -92,24 +108,32 @@ When multiple masters compete for the same slave:
 
 ### Forward Path (Master to Slave)
 
-| Component | Latency | Type |
-|-----------|---------|------|
-| apb4_slave capture | 1 cycle | Registered |
-| cmd skid buffer | 1 cycle | Registered |
-| Address decode | 0 cycles | Combinational |
-| Arbitration | 1 cycle | Grant is registered |
-| apb4_master cmd skid | 1 cycle | Registered |
-| apb4_master IDLE -> SETUP | 1 cycle | FSM |
-| **Typical Total** | **5 cycles** | master SETUP edge to downstream PSEL edge |
+| Component | M = 1 | M > 1 | Type |
+|-----------|-------|-------|------|
+| apb4_slave capture | 1 | 1 | Registered |
+| apb4_slave cmd skid out | 1 | 1 | Registered |
+| Address decode | 0 | 0 | Combinational |
+| Arbitration | **0** | **1** | No arbiter is emitted when M = 1; when one is, its grant is a flop |
+| apb4_master cmd skid in | 1 | 1 | Registered |
+| apb4_master cmd skid out | 1 | 1 | Registered |
+| apb4_master IDLE -> SETUP | 1 | 1 | FSM |
+| **Total** | **5** | **6** | master SETUP edge to downstream PSEL edge |
 
 : Forward Path Latency
 
+Both columns measured: 5 on `apbx_xbar_1to1`, 6 on `apbx_xbar_2to1`. The
+arbitration row is the whole difference between the two variant classes.
+This table carried a single unconditional column with a 1-cycle
+arbitration row and a 5-cycle total until 2026-08-29 -- which cannot both
+be true, since the 5 was measured on the variant that has no arbiter.
+
 **The three numbers on this page must sum, and now do:**
 
-    5  forward   master SETUP edge     -> downstream PSEL edge
-  + 1  downstream SETUP -> ACCESS
-  + 3  response  downstream PREADY edge -> master PREADY edge
-  = 9  SETUP-to-PREADY, the single-transfer latency above
+  M = 1                                M > 1
+    5  forward                            6  forward
+  + 1  downstream SETUP -> ACCESS       + 1  downstream SETUP -> ACCESS
+  + 3  response                         + 3  response
+  = 9  SETUP-to-PREADY                  = 10 SETUP-to-PREADY
 
 (With a zero-wait slave the downstream ACCESS and PREADY edges are the
 same cycle, which is why the response row can be read from either. A slave
@@ -123,15 +147,19 @@ PREADY at cycle 10.
 
 ### Response Path (Slave to Master)
 
-| Component | Latency | Type |
-|-----------|---------|------|
-| Slave response | Variable | PREADY timing |
-| apb4_master capture | 0-1 cycle | Registered |
-| Response routing | 0 cycles | Combinational |
-| apb4_slave drive | 0-1 cycle | Registered |
-| **Typical Total** | **3 cycles** | downstream PREADY to master PREADY |
+| Component | Cycles | Type |
+|-----------|--------|------|
+| Slave response | Variable | The slave's own PREADY timing, excluded below |
+| apb4_master captures into rsp skid | 1 | Registered |
+| rsp skid out, through the response mux | 1 | Skid registered; the mux itself is combinational |
+| apb4_slave drives PREADY | 1 | Registered |
+| **Total** | **3** | downstream PREADY edge to master PREADY edge |
 
 : Response Path Latency
+
+Same on both variant classes -- arbitration is on the command path only.
+The rows read "0-1 cycle" each until 2026-08-29, which could not sum to
+the stated 3.
 
 ## Latency Timing Diagram
 

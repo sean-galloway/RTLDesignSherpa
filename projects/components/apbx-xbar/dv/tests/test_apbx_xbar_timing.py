@@ -35,17 +35,32 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 BASE = 0x1000_0000
 
-FABRIC_ACCESS_TO_PREADY = 8
-SETUP_TO_PREADY = 9
-BACK_TO_BACK_PERIOD = 10
-# The latency-breakdown tables in ch05_performance/02_latency must SUM to
-# SETUP_TO_PREADY. They did not until 2026-08-29 (forward read 4, and 4 + 3
-# left two cycles unaccounted for), so the decomposition is asserted too --
-# a total that is right while its parts are wrong is how that survived.
-FORWARD_PATH = 5      # master SETUP edge     -> downstream PSEL edge
+# Indexed by whether the variant has an arbiter. The generator emits
+# arbiter_round_robin ONLY when M > 1, and its grant is a flop
+# (`grant <= w_next_grant`), which costs exactly one cycle on every figure.
+# Publishing the M=1 numbers unconditionally -- measured on apbx_xbar_1to1,
+# the one variant with no arbiter -- made every arbitrated variant's
+# published latency one cycle optimistic, including the 2x4 the PRD calls
+# the typical SoC case. Both classes are asserted here now.
+TIMING = {
+    #            ACCESS->PREADY, SETUP->PREADY, PREADY->PREADY
+    'arbitrated':      (9, 10, 11),
+    'single_master':   (8,  9, 10),
+}
+# The latency-breakdown tables in ch05_performance/02_latency must SUM to the
+# SETUP->PREADY total, and they did not until 2026-08-29: forward read 4 (4 + 3
+# could not reach 9), then read 5 unconditionally while carrying a 1-cycle
+# arbitration row -- impossible, since the 5 was measured on the one variant
+# with no arbiter. A total that is right while its parts are wrong is how both
+# survived, so the decomposition is asserted per class too.
+#
+# The forward path differs by that arbitration cycle; the response path does
+# not, because arbitration is on the command side only. Both measured.
+FORWARD_PATH = {'single_master': 5, 'arbitrated': 6}
 RESPONSE_PATH = 3     # downstream PREADY edge -> master PREADY edge
 
 
@@ -89,6 +104,12 @@ async def _sampler(dut, rec):
 
 @cocotb.test(timeout_time=50, timeout_unit="ms")
 async def apbx_xbar_timing_test(dut):
+    klass = os.environ.get('TIMING_CLASS', 'single_master')
+    fabric, setup_to_pready, period = TIMING[klass]
+    dut._log.info(f"variant class = {klass}: expecting "
+                  f"ACCESS->PREADY {fabric}, SETUP->PREADY {setup_to_pready}, "
+                  f"PREADY->PREADY {period}")
+
     cocotb.start_soon(Clock(dut.pclk, 10, units="ns").start())
 
     dut.s0_apb_PREADY.value = 1
@@ -98,6 +119,8 @@ async def apbx_xbar_timing_test(dut):
     for sig, val in (("PSEL", 0), ("PENABLE", 0), ("PWRITE", 0), ("PADDR", 0),
                      ("PWDATA", 0), ("PSTRB", 0), ("PPROT", 0)):
         getattr(dut, f"m0_apb_{sig}").value = val
+        if hasattr(dut, f"m1_apb_{sig}"):
+            getattr(dut, f"m1_apb_{sig}").value = val
 
     dut.presetn.value = 0
     await ClockCycles(dut.pclk, 5)
@@ -131,6 +154,7 @@ async def apbx_xbar_timing_test(dut):
 
     access_to_ready = [r - a for a, r in zip(rec['access_rise'], rec['ready'])]
     setup_to_ready = [r - p for p, r in zip(rec['psel_rise'], rec['ready'])]
+    period_expected = period
     period = [b - a for a, b in zip(rec['ready'], rec['ready'][1:])]
 
     dut._log.info(f"ACCESS->PREADY  = {access_to_ready}")
@@ -141,37 +165,38 @@ async def apbx_xbar_timing_test(dut):
     assert len(rec['ready']) == n_xfers, \
         f"expected {n_xfers} completions, saw {len(rec['ready'])}: {rec['ready']}"
 
-    assert all(v == FABRIC_ACCESS_TO_PREADY for v in access_to_ready), (
+    assert all(v == fabric for v in access_to_ready), (
         f"fabric latency changed: ACCESS->PREADY = {access_to_ready}, "
-        f"documented {FABRIC_ACCESS_TO_PREADY} "
+        f"documented {fabric} for a {klass} variant "
         f"(ch05_performance/02_latency). Update the docs WITH the measurement, "
         f"or find what regressed.")
 
-    assert setup_to_ready[0] == SETUP_TO_PREADY, (
+    assert setup_to_ready[0] == setup_to_pready, (
         f"single-transfer latency changed: SETUP->PREADY = {setup_to_ready[0]}, "
-        f"documented {SETUP_TO_PREADY}")
+        f"documented {setup_to_pready} for a {klass} variant")
 
-    assert all(v == BACK_TO_BACK_PERIOD for v in period), (
+    assert all(v == period_expected for v in period), (
         f"back-to-back period changed: PREADY->PREADY = {period}, documented "
-        f"{BACK_TO_BACK_PERIOD}. Note this is deliberately ONE MORE than the "
-        f"{SETUP_TO_PREADY}-cycle single-transfer latency -- the mandatory "
+        f"{period_expected}. Note this is deliberately ONE MORE than the "
+        f"{setup_to_pready}-cycle single-transfer latency -- the mandatory "
         f"SETUP cycle cannot overlap the previous transfer's ACCESS. A "
-        f"measurement of {SETUP_TO_PREADY} here means the turnaround being "
+        f"measurement of {setup_to_pready} here means the turnaround being "
         f"driven is not legal APB.")
 
     fwd = rec['s_psel_rise'][0] - rec['psel_rise'][0]
     rsp = rec['ready'][0] - rec['s_ready'][0]
     dut._log.info(f"forward path = {fwd}, response path = {rsp}")
 
-    assert fwd == FORWARD_PATH, (
+    assert fwd == FORWARD_PATH[klass], (
         f"forward path changed: master SETUP -> downstream PSEL = {fwd}, "
-        f"documented {FORWARD_PATH} (ch05_performance/02_latency)")
+        f"documented {FORWARD_PATH[klass]} for a {klass} variant "
+        f"(ch05_performance/02_latency)")
     assert rsp == RESPONSE_PATH, (
         f"response path changed: downstream PREADY -> master PREADY = {rsp}, "
         f"documented {RESPONSE_PATH}")
-    assert FORWARD_PATH + 1 + RESPONSE_PATH == SETUP_TO_PREADY, (
-        f"the documented breakdown no longer sums: {FORWARD_PATH} + 1 + "
-        f"{RESPONSE_PATH} != {SETUP_TO_PREADY}")
+    assert FORWARD_PATH[klass] + 1 + RESPONSE_PATH == setup_to_pready, (
+        f"the documented breakdown no longer sums for {klass}: "
+        f"{FORWARD_PATH[klass]} + 1 + {RESPONSE_PATH} != {setup_to_pready}")
 
     assert rec['dn_setup'] and all(v == 1 for v in rec['dn_setup']), (
         f"downstream setup phase must be exactly one cycle, saw "
@@ -180,18 +205,27 @@ async def apbx_xbar_timing_test(dut):
     dut._log.info("all published timing numbers hold")
 
 
-def test_apbx_xbar_timing(request):
+import pytest
+
+
+@pytest.mark.parametrize("dut_name,klass", [
+    ("apbx_xbar_1to1", "single_master"),
+    ("apbx_xbar_2to1", "arbitrated"),
+])
+def test_apbx_xbar_timing(request, dut_name, klass):
+    """Both variant classes. Testing only the single-master one is how the
+    published numbers came to be a cycle optimistic for every arbitrated
+    variant -- apbx_xbar_1to1 is the only variant with no arbiter at all."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_xbar': 'projects/components/apbx-xbar/rtl'})
 
-    dut_name = "apbx_xbar_1to1"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/apbx-xbar/rtl/filelists/core/apbx_xbar_1to1.f')
+        filelist_path=f'projects/components/apbx-xbar/rtl/filelists/core/{dut_name}.f')
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    sim_build_name = f"test_apbx_xbar_timing{worker_suffix}"
+    sim_build_name = f"test_{dut_name}_timing{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
@@ -213,5 +247,6 @@ def test_apbx_xbar_timing(request):
             'COCOTB_LOG_LEVEL': 'INFO',
             'LOG_PATH': log_path,
             'COCOTB_RESULTS_FILE': results_path,
+            'TIMING_CLASS': klass,
         },
     )

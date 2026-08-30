@@ -112,8 +112,8 @@ All diagrams referenced in the documentation are available in:
 - **Round-Robin Arbitration:** Per-slave fair arbitration, no master starvation
 - **Back-to-Back Transactions:** accepted without master-side idle
   cycles, though they do not overlap inside the fabric (10 pclk cycles
-  each, PREADY-to-PREADY -- one more than a single transfer's 9, see
-  HAS 5.2)
+  each for M = 1, 11 for arbitrated variants; one more than that
+  variant's single-transfer latency -- see HAS 5.2)
 - **Grant Persistence:** Hold grant through transaction completion
 - **RTL Generation:** Python-based generator for custom configurations
 

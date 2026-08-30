@@ -29,15 +29,23 @@
 
 With a single master accessing any slave:
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| Cycles per transaction (uncontended) | 9 (PSEL->PREADY); 8 fabric (ACCESS->PREADY) | measured, zero-wait slave (see 5.2) |
-| Sustained cycles per transaction | 10 (PREADY->PREADY) | measured back-to-back, one master |
-| Maximum transactions per cycle | ~0.100 | 1 transaction / 10 cycles |
-| Data throughput (32-bit @ 100MHz) | ~40 MB/s | 4 B / 10 cycles |
-| Data throughput (32-bit @ 250MHz) | ~100 MB/s | 4 B / 10 cycles |
+Split by arbiter presence -- the generator emits one only when M > 1, and
+its registered grant costs a cycle on every figure. See 5.2.
 
-: Single Master Throughput
+| Metric | M = 1 | M > 1 | Notes |
+|--------|-------|-------|-------|
+| Cycles per transaction (uncontended) | 9 SETUP->PREADY; 8 fabric | 10 SETUP->PREADY; 9 fabric | measured, zero-wait slave |
+| Sustained cycles per transaction | 10 (PREADY->PREADY) | 11 (PREADY->PREADY) | measured back-to-back, one active master |
+| Maximum transactions per cycle | ~0.100 | ~0.091 | 1 transaction / 10 or 11 cycles |
+| Data throughput (32-bit @ 100MHz) | ~40 MB/s | ~36 MB/s | 4 B per period |
+| Data throughput (32-bit @ 250MHz) | ~100 MB/s | ~91 MB/s | 4 B per period |
+
+: Single-Master-Active Throughput, by Variant Class
+
+M = 1: `apbx_xbar_1to1`, `apbx_xbar_1to4`. M > 1: `apbx_xbar_2to1`,
+`apbx_xbar_2to4`, `apbx_xbar_2to2_mixed` -- so the 2x4 the PRD calls the
+typical SoC case is the slower column. This table published the M = 1
+figures unconditionally until 2026-08-29.
 
 ### Multi-Master (Uncontended)
 
