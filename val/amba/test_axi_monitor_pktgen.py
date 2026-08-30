@@ -189,6 +189,24 @@ async def idle(dut, cycles):
 # ============================================================================
 # DEFECT 1 -- marking must be per-index
 # ============================================================================
+def _apply_seed():
+    """Consume the runner's SEED even though this TB does not derive from
+    TBBase, which is where every other testbench gets seeded.
+
+    Nothing here randomizes today. That is exactly why it is worth doing: a
+    randomizer added later would be silently irreproducible, and the runner
+    already advertises "SEED=<n>" as if it meant something.
+    """
+    seed = os.environ.get('SEED')
+    if seed is None:
+        seed = str(random.randrange(2**31))
+        print(f"SEED not passed; drew {seed} (reproduce with: SEED={seed})")
+    try:
+        random.seed(int(seed))
+    except (TypeError, ValueError):
+        random.seed(seed)
+
+
 @cocotb.test(timeout_time=20, timeout_unit="ms")
 async def cocotb_test_per_index_marking(dut):
     """Three slots reach a terminal state in the SAME cycle.
@@ -200,6 +218,7 @@ async def cocotb_test_per_index_marking(dut):
     Pre-fix behaviour: the mark loop set every eligible slot on any accepted
     FIFO write -- one packet out, all three slots marked and freed.
     """
+    _apply_seed()
     tbl = await setup_dut(dut, compl_en=1, error_en=1)
     captured = []
     start_capture(dut, captured)
@@ -247,6 +266,7 @@ async def cocotb_test_single_mark_per_write(dut):
     the drained total, so a fix that merely re-emits later still fails here if
     it marks more than one slot per write.
     """
+    _apply_seed()
     tbl = await setup_dut(dut, compl_en=1, error_en=1, ready=0)
     for i, a in ((0, 0xA0), (1, 0xA1), (2, 0xA2)):
         tbl.set(i, valid=1, state=TRANS_COMPLETE, addr=a, channel=i)
@@ -295,6 +315,7 @@ async def cocotb_test_disabled_class_not_marked(dut):
       * event_count must count only packets actually emitted (an
         auto-retired slot bumps nothing).
     """
+    _apply_seed()
     tbl = await setup_dut(dut, error_en=0, compl_en=1)
     captured = []
     start_capture(dut, captured)
@@ -369,6 +390,7 @@ async def cocotb_test_no_packet_lost_under_backpressure(dut):
     Exactly one completion is queued here, so this isolates the pop/load
     disagreement from the per-index marking defect.
     """
+    _apply_seed()
     tbl = await setup_dut(dut, threshold_en=1, active_thresh=0,
                           compl_en=1, error_en=1, ready=0)
     captured = []
@@ -434,6 +456,7 @@ async def cocotb_test_timeout_fires(dut):
     implement. Everything downstream of it (timeout packet generation, marking,
     cleanup eligibility) is the code under test here.
     """
+    _apply_seed()
     ADDR_CNT = 5          # deliberately > 1: the pre-fix pinned timer cannot reach it
     tbl = await setup_dut(dut, timeout_en=1, error_en=1, compl_en=1,
                           addr_cnt=ADDR_CNT, data_cnt=0xF, resp_cnt=0xF)
@@ -514,6 +537,7 @@ async def cocotb_test_timeout_enable_gates_detection(dut):
     It was declared on axi_monitor_timeout and never referenced -- detection
     ran unconditionally.
     """
+    _apply_seed()
     tbl = await setup_dut(dut, timeout_en=0, addr_cnt=2,
                           data_cnt=0xF, resp_cnt=0xF)
 

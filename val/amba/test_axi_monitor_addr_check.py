@@ -67,9 +67,28 @@ def decode_monbus(pkt):
 # ============================================================================
 # Cocotb test
 # ============================================================================
+def _apply_seed():
+    """Consume the runner's SEED even though this TB does not derive from
+    TBBase, which is where every other testbench gets seeded.
+
+    Nothing here randomizes today. That is exactly why it is worth doing: a
+    randomizer added later would be silently irreproducible, and the runner
+    already advertises "SEED=<n>" as if it meant something.
+    """
+    seed = os.environ.get('SEED')
+    if seed is None:
+        seed = str(random.randrange(2**31))
+        print(f"SEED not passed; drew {seed} (reproduce with: SEED={seed})")
+    try:
+        random.seed(int(seed))
+    except (TypeError, ValueError):
+        random.seed(seed)
+
+
 @cocotb.test(timeout_time=30, timeout_unit="ms")
 async def axi_monitor_addr_check_test(dut):
     """Smoke test: drive ARs that hit/miss configured ranges, check monbus."""
+    _apply_seed()
 
     # --- Clock + reset -----------------------------------------------------
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())

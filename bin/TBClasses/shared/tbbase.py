@@ -24,6 +24,7 @@ Added comprehensive safety features:
 - Deadlock detection
 """
 import os
+import random
 import logging
 import time
 import psutil
@@ -126,20 +127,48 @@ class TBBase:
         #
         # One line here covers every TB-derived testbench, so no runner has
         # to remember. To reproduce a failure: SEED=<logged value> pytest ...
+        # APPLY it, do not merely log it. Logging alone was worse than
+        # nothing: the message below says "reproduce with: SEED=<n>", and for
+        # any TB that did not seed itself that instruction did not work --
+        # nothing consumed the value. AMBA-MONRATE-INTERMITTENT records an
+        # experiment wrecked by exactly this: pinning SEED=1234 failed to
+        # stabilise a test, the seed was "ruled out" on that evidence, and the
+        # real cause was randomness after all. The experiment was inert.
+        #
+        # Seeding HERE is what reaches the collateral. GAXI/APB BFM components
+        # and FlexRandomizer draw from the GLOBAL `random` module and never see
+        # a seed of their own, so a per-TB fix cannot cover them -- that is the
+        # unrequested monbus backpressure that made completion counts swing
+        # 4-33 against a fixed floor of 20. One seed here, set before any TB
+        # builds its components, makes those draws repeatable.
+        #
+        # Exploration is preserved: runners that default SEED to a fresh
+        # random.randint() still explore a different trajectory every run. The
+        # difference is that the trajectory can now be replayed.
+        # ALWAYS seed, even when the runner passed nothing. A TB that does not
+        # randomize today may randomize tomorrow, and 33 val/ runners pass no
+        # SEED at all -- leaving those on OS entropy means the first randomized
+        # thing added to them is silently irreproducible. Draw one and say so,
+        # so every run is replayable whether or not the runner remembered.
         self.seed = os.environ.get('SEED')
-        if self.seed is None:
-            # NOT necessarily nondeterministic: most TBs default SEED
-            # themselves (axi_monitor_tb uses '42'), so the run is repeatable
-            # -- it just always uses that one value and cannot be steered from
-            # the runner. Say exactly that; a warning that overstates the
-            # problem is one people learn to scroll past.
+        _drawn = self.seed is None
+        if _drawn:
+            self.seed = str(random.randrange(2**31))
+        try:
+            random.seed(int(self.seed))
+        except (TypeError, ValueError):
+            # Non-integer seeds are still usable -- seed on the string rather
+            # than silently leaving the RNG unseeded.
+            random.seed(self.seed)
+
+        if _drawn:
             self.log.info(
-                f"{self.dut_name}: SEED not passed by the runner; this TB's "
-                f"own default applies. Pass SEED through extra_env to steer "
-                f"or replay a specific run.")
+                f"{self.dut_name}: SEED not passed by the runner; drew "
+                f"{self.seed} and applied it "
+                f"(reproduce with: SEED={self.seed} pytest <test>)")
         else:
-            self.log.info(f"{self.dut_name}: SEED={self.seed} "
-                          f"(reproduce with: SEED={self.seed} pytest <test>)")
+            self.log.info(f"{self.dut_name}: SEED={self.seed} applied to "
+                          f"random (reproduce with: SEED={self.seed} pytest <test>)")
 
         # Merge safety limits with defaults
         self.safety_limits = self.DEFAULT_SAFETY_LIMITS.copy()
