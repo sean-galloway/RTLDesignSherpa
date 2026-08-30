@@ -65,7 +65,7 @@ set_false_path -from [get_pins -hier -filter {NAME =~ r_rst_sync_reg/C}]
 ##==============================================================================
 create_generated_clock -name led_slow_clk \
     -source [get_pins -hier -filter {NAME =~ *u_led_status_driver/r_div_count_reg[0]/C}] \
-    -divide_by 900000 \
+    -divide_by 1000000 \
     [get_pins -hier -filter {NAME =~ *u_led_status_driver/u_slow_bufg/O}]
 
 set_clock_groups -asynchronous \

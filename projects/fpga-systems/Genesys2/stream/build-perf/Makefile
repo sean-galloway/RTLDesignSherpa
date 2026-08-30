@@ -43,9 +43,17 @@ export STREAM_BUILD ?= perf
 # ---- Build geometry: the perf flavor --------------------------------------
 # Monitors OFF. The observer is not gated by this and still meters the bus.
 export USE_AXI_MONITORS    ?= 0
-export STREAM_NUM_CHANNELS ?= 8      # no monitor CAMs to fit, so all 8 channels
+# NOTE: no trailing comments on these lines. Make keeps the whitespace BEFORE a
+# trailing '#', so `?= 8      # comment` sets the variable to "8      ". That
+# value reaches create_project.tcl, which braces it to preserve the spaces, and
+# Vivado is handed the generic {NUM_CHANNELS=8      }. Its elaborator then spins
+# at 100% CPU forever -- which is why this build has NEVER produced a bitstream
+# while build-mon, whose exports carry no inline comments, always has.
+# no monitor CAMs to fit, so all 8 channels
+export STREAM_NUM_CHANNELS ?= 8
 export MON_N_PROFILE       ?= 64
-export MON_ERROR_FLAVOR    ?= 0      # irrelevant with monitors off; kept explicit
+# irrelevant with monitors off; kept explicit
+export MON_ERROR_FLAVOR    ?= 0
 
 PREBUILD := bash $(FRAMEWORK_ROOT)/bin/regen_bridges.sh bridge_stream_mon_axil
 

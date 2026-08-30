@@ -101,6 +101,13 @@ if {[info exists ::env(STREAM_CLKOUT0_DIVIDE)]}   { lappend generics "CLKOUT0_DI
 if {[info exists ::env(STREAM_NUM_CHANNELS)]}      { lappend generics "NUM_CHANNELS=$::env(STREAM_NUM_CHANNELS)" }
 if {[info exists ::env(MON_N_PROFILE)]}            { lappend generics "MON_N_PROFILE=$::env(MON_N_PROFILE)" }
 if {[info exists ::env(MON_ERROR_FLAVOR)]}         { lappend generics "MON_ERROR_FLAVOR=$::env(MON_ERROR_FLAVOR)" }
+# In-core rd/wr datapath monitors in stream_core. This was MISSING: build-perf
+# exports USE_AXI_MONITORS=0 and always has, but with no generic to carry it
+# the value never reached Vivado and the top took its default of 1. Every
+# Genesys 2 bitstream ever built from this flow therefore carried the full
+# monitor CAMs, including the "monitors-off" perf build, whose own Makefile
+# comment reads "no monitor CAMs to fit, so all 8 channels".
+if {[info exists ::env(USE_AXI_MONITORS)]}         { lappend generics "USE_AXI_MONITORS=$::env(USE_AXI_MONITORS)" }
 # Observer transaction-table sizing. OBS_MAX_TRANSACTIONS is the TOTAL slots
 # per tap; the CAM is generated OBS_NUM_BANKS times at TOTAL/BANKS each,
 # because timing scales with the depth of ONE cam. 64/4 = four 16-deep CAMs.

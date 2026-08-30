@@ -221,25 +221,22 @@ def test_stream_perf(request, test_type, test_level):
     # just before run(), once rtl_parameters and compile_args exist.
     os.makedirs(log_dir, exist_ok=True)
 
-    # USE_AXI_MONITORS comes from the package, like every other geometry
-    # value -- it is NOT pinned here.
+    # USE_AXI_MONITORS = 0. This is the PERF build, and it builds its own
+    # bitstream that way (build-perf/Makefile: USE_AXI_MONITORS ?= 0), so the
+    # cosim elaborates what this flow actually ships.
     #
-    # This used to hardcode 0, with a comment arguing that monitors-on/off IS
-    # the difference between build-mon and build-perf. That was true once and
-    # is not true now: the board runs ONE bitstream, monitors ON, and it serves
-    # both the perf and the monitor flow (stable/MANIFEST.md says so
-    # explicitly). A cosim pinned to 0 therefore characterizes a design no
-    # bitstream builds -- the same defect this package was introduced to kill,
-    # one level up, and it survived the first pass of that work.
-    #
-    # The two reasons the old comment gave are both stale. AR_MAX_OUTSTANDING
-    # is 8 now, not 16. And monitors-on no longer fails to elaborate: the CAMs
-    # are banked (CFG_MON_NUM_BANKS=4), which is exactly what retired the
-    # BLKLOOPINIT in axi_monitor_timeout -- build-mon elaborates this
-    # configuration and passes 47 tests.
+    # I had changed this to inherit from the package (=1) on the argument that
+    # the board runs ONE bitstream serving both flows. That was wrong twice
+    # over: build-perf builds its own monitors-off bitstream, so the cosim was
+    # elaborating a design this flow never produces; and monitors-on is
+    # actively harmful to a perf measurement. An armed monitor gates the DMA's
+    # ready at MAX_TRANSACTIONS, so the instrument becomes the bottleneck and
+    # reports its own limit as the engine's throughput -- the numbers this
+    # build exists to produce would be measuring the monitor.
     rtl_parameters = {
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
         'UART_BAUD':   str(SIM_UART_BAUD),
+        'USE_AXI_MONITORS': '0',
         **{k: str(v) for k, v in BASE_RTL_PARAMS.items()},
     }
 

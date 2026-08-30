@@ -135,7 +135,20 @@ package stream_char_cfg_pkg;
     // 8 channels over 4 banks = 2 IDs/bank x 8 outstanding = 16 <= 18. OK.
     // Raising CFG_AR/AW_MAX_OUTSTANDING deepens the table, so re-check this
     // inequality when you touch either.
-    parameter int CFG_MON_NUM_BANKS = 4;
+    // 8, not 4. At AR/AW=8 the table is 72 slots, so 4 banks is 18 deep and
+    // the routed build came in at WNS -4.150 ns with every top failing-path
+    // hotspot inside trans_mgr/g_cam_bank -- the CAM is the critical path,
+    // and CAM timing scales with the depth of ONE bank (16 deep measured
+    // +1.018 ns, 40 deep -25.183 ns). 8 banks makes it 9 deep, under the
+    // depth that measured positive.
+    //
+    // The constraint still holds: table/banks >= IDs-per-bank x
+    // outstanding-per-ID, i.e. 9 >= (8ch/8banks) x 8 = 8.
+    //
+    // This spends AREA to buy TIME, which is the right direction here --
+    // measurement-only observers freed ~50k LUTs, so the build sits at 73.9%
+    // with a quarter of the device unused, while timing is the thing short.
+    parameter int CFG_MON_NUM_BANKS = 8;
 
     // -------------------------------------------------------------------------
     // Observer transaction-table sizing

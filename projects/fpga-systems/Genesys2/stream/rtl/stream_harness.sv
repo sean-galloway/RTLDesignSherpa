@@ -57,6 +57,28 @@ module stream_harness #(
     // In-core AR/AW monitor CAM banking. From the package: ONE build, monitors
     // on, CAMs banked. See CFG_MON_NUM_BANKS for the depth arithmetic.
     parameter int MON_NUM_BANKS    = stream_char_cfg_pkg::CFG_MON_NUM_BANKS,
+    // Observer monitor TAPS -- deliberately NOT the same decision as
+    // USE_AXI_MONITORS. That knob builds the in-core rd/wr datapath monitors
+    // inside stream_core; this one arms the per-transaction CAM inside the
+    // two interface OBSERVERS, and the two were welded together.
+    //
+    // A measurement build wants them apart. The bus meters and latency
+    // histograms live OUTSIDE this gate and keep counting either way, so every
+    // number this harness characterizes with is unaffected. What the tap adds
+    // is error/timeout/completion attribution -- which this build does not
+    // consume, since the tap's reporter cones are compiled out
+    // (TAP_ENABLE_ERROR/TIMEOUT/COMPL_LOGIC default 0) and cfg_perf_enable is
+    // tied low.
+    //
+    // It is not free to leave armed. An enabled tap gates the DMA's ready
+    //     ready = core_ready & (block_ready | ~cfg_monitor_enable)
+    // so it back-pressures at MAX_TRANSACTIONS: the instrument becomes the
+    // bottleneck and reports its own limit as the engine's throughput.
+    //
+    // Default 0 = measurement-only. Set 1 when the error/completion monbus
+    // stream is genuinely wanted, and size OBS_MAX_TRANSACTIONS for the real
+    // concurrency if you do.
+    parameter bit OBS_ENABLE_MON_TAPS = 1'b0,
     parameter int SRAM_DEPTH   = stream_char_cfg_pkg::CFG_SRAM_DEPTH,
     // NUM_CHANNELS is overridable so the FPGA target can build a 4-channel
     // configuration to fit the Artix-7 100T without changing the DUT's native
@@ -1873,6 +1895,41 @@ module stream_harness #(
         .busy_rd       (),
         .busy_wr       ()
     );
+    // MOVED: this was declared ~160 lines BELOW its first use at the
+    // slave-observer instantiation. Vivado flagged it (Synth 8-6901,
+    // 'used before its declaration') and build-perf's synthesis stalls
+    // immediately after that warning. The repo's decl-order CI check
+    // only covers SIGNALS (implicit 1-bit nets), so a localparam used
+    // ahead of its declaration passes 144 files clean.
+    // =========================================================================
+    // axi4_intf_master_observer (RFC Stage E option 2): snoop-only meter.
+    //
+    // Sits transparently between STREAM's rd_*/wr_* data masters and the
+    // axi4_dma_slaves + axi_response_delay fabric (f_rd_*/f_wr_*). Both the
+    // in-core STREAM monitors (USE_AXI_MONITORS=1, unchanged) and this observer
+    // run simultaneously so a cosim can prove they meter equivalently.
+    //
+    // The observer's monbus dump/IRQ path is NOT used here — its err/write
+    // FIFOs are left undrained and all central-filter cfg masks are 0. The AXI
+    // taps are pure pass-through, so AXI traffic flows regardless of monbus
+    // back-pressure. Only the bus-meter + latency-histogram outputs are read.
+    // =========================================================================
+    // The observer's channel count is FIXED at 8, independent of how many
+    // channels this build actually runs.
+    //
+    // Every per-channel readback array below is sized by it, and those arrays
+    // are what the CSR block exposes -- so letting it track NUM_CHANNELS makes
+    // the register LAYOUT change with the build. The host reads these by name
+    // from a generated map, and a layout that moves under it is exactly how the
+    // perf counters silently read zero once before (monitor 0x1000 relocation).
+    // Fixing it at 8 costs a few unused per-channel counters in a 4-channel
+    // build -- they simply read 0 -- and buys one register map for every build.
+    //
+    // 8 is also the design ceiling: stream_top_ch8, and PERF_CH_SEL.CH_SEL is a
+    // 3-bit field, so no build can exceed it.
+    localparam int OBS_NUM_CHANNELS = 8;
+
+
 
     // SLAVE-ROLE observer on the DMA SLAVES' port (f_rd_*/f_wr_*). Pure snoop: every AXI4
     // port below is an INPUT, so unlike the block it replaces it cannot gate
@@ -1893,7 +1950,7 @@ module stream_harness #(
         .ACLK_MHZ            (OBS_ACLK_MHZ),
         // AXIL egress: the harness tally path consumes m_axil_*.
         .EGRESS_AXIL         (1'b1),
-        .ENABLE_MON_TAPS     (USE_AXI_MONITORS != 0),
+        .ENABLE_MON_TAPS     (OBS_ENABLE_MON_TAPS),
         .ENABLE_BUS_METER    (0),
         .ENABLE_LATENCY_HIST (0),
         .NUM_CHANNELS        (OBS_NUM_CHANNELS),
@@ -2030,33 +2087,6 @@ module stream_harness #(
         .m_ready       (f_wr_bready)
     );
 
-    // =========================================================================
-    // axi4_intf_master_observer (RFC Stage E option 2): snoop-only meter.
-    //
-    // Sits transparently between STREAM's rd_*/wr_* data masters and the
-    // axi4_dma_slaves + axi_response_delay fabric (f_rd_*/f_wr_*). Both the
-    // in-core STREAM monitors (USE_AXI_MONITORS=1, unchanged) and this observer
-    // run simultaneously so a cosim can prove they meter equivalently.
-    //
-    // The observer's monbus dump/IRQ path is NOT used here — its err/write
-    // FIFOs are left undrained and all central-filter cfg masks are 0. The AXI
-    // taps are pure pass-through, so AXI traffic flows regardless of monbus
-    // back-pressure. Only the bus-meter + latency-histogram outputs are read.
-    // =========================================================================
-    // The observer's channel count is FIXED at 8, independent of how many
-    // channels this build actually runs.
-    //
-    // Every per-channel readback array below is sized by it, and those arrays
-    // are what the CSR block exposes -- so letting it track NUM_CHANNELS makes
-    // the register LAYOUT change with the build. The host reads these by name
-    // from a generated map, and a layout that moves under it is exactly how the
-    // perf counters silently read zero once before (monitor 0x1000 relocation).
-    // Fixing it at 8 costs a few unused per-channel counters in a 4-channel
-    // build -- they simply read 0 -- and buys one register map for every build.
-    //
-    // 8 is also the design ceiling: stream_top_ch8, and PERF_CH_SEL.CH_SEL is a
-    // 3-bit field, so no build can exceed it.
-    localparam int OBS_NUM_CHANNELS = 8;
 
     // Must follow the OBSERVER's channel count, not the build's: it sizes
     // obs_wr_active_ch_id, which connects to a port whose width the observer
@@ -2269,7 +2299,7 @@ module stream_harness #(
         // stream_harness.sv and build-mon still wants the observer's monbus
         // stream. USE_AXI_MONITORS=0 (build-perf) => taps off, no gate, no
         // throttle. USE_AXI_MONITORS=1 (build-mon) => taps on, as before.
-        .ENABLE_MON_TAPS     (USE_AXI_MONITORS != 0),
+        .ENABLE_MON_TAPS     (OBS_ENABLE_MON_TAPS),
         .MAX_TRANSACTIONS    (OBS_MAX_TRANSACTIONS),
         .NUM_BANKS           (OBS_NUM_BANKS),
         .USE_WDATA_ORDER_Q   (OBS_USE_WDATA_ORDER_Q),
