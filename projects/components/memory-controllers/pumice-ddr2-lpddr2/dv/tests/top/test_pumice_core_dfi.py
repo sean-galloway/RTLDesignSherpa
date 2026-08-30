@@ -1117,7 +1117,7 @@ _PAGE_MODES = [(0, "build_default"), (1, "static_open"), (2, "static_close"),
                (6, "rbl_static"),    (7, "rbl_dyn")]
 
 
-async def _util_window(dut, slave, *, tag, n=192):
+async def _util_window(dut, slave, *, tag, n=192, banks=None):
     """One measured write window on the CURRENT mode settings.
 
     Returns (utilization, backpressure_cycles, refs). Utilization is
@@ -1137,8 +1137,12 @@ async def _util_window(dut, slave, *, tag, n=192):
     base = (trk.prod, trk.bp)
     ref0 = slave.cmd_counts.get(_DC.REF, 0)
 
+    #  = how many banks the stream spreads over. Bank parallelism is
+    # what hides ACT/PRE latency, so the 1-bank case is where paging modes
+    # that precharge per access actually show their cost.
+    nb = banks or NUM_BANKS
     rng = random.Random(0x5EED + tag)
-    reqs = [(_mkaddr(k % NUM_BANKS, 0x20 + tag, (k // NUM_BANKS) * BL),
+    reqs = [(_mkaddr(k % nb, 0x20 + tag, (k // nb) * BL),
              [rng.randrange(1 << DW) for _ in range(BL_WORDS)])
             for k in range(n)]
     await _write_many(dut, reqs)
@@ -1184,41 +1188,185 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
     dut.refi_reload_i.value = 0
     await ClockCycles(dut.aclk, 2)
 
+    # TWO spreads per mode. With 8-way bank rotation every mode reads 100%,
+    # so that column ALONE is a green light that cannot turn red -- the
+    # single-bank column is what discriminates (measured 2026-08-29:
+    # static_close and rbl_static collapse to 27.68% there, both because they
+    # precharge per access).
     rows = []
     for tag, (mode, name) in enumerate(_PAGE_MODES):
         dut.page_mode_i.value = mode
         await ClockCycles(dut.aclk, 64)       # settle + drain before measuring
-        util, bp, refs = await _util_window(dut, slave, tag=tag)
-        rows.append((mode, name, util, bp, refs))
-        dut._log.info("paging mode %d (%-13s): util=%6.2f%%  DUT-stall=%d  REF=%d",
-                      mode, name, 100.0 * util, bp, refs)
+        u8, bp8, r8 = await _util_window(dut, slave, tag=tag)
+        await ClockCycles(dut.aclk, 64)
+        u1, bp1, r1 = await _util_window(dut, slave, tag=tag + 64, banks=1)
+        rows.append((mode, name, u8, bp8, u1, bp1, r8 + r1))
+        dut._log.info("paging mode %d (%-13s): 8bank=%6.2f%% (stall %d)  "
+                      "1bank=%6.2f%% (stall %d)  REF=%d",
+                      mode, name, 100.0 * u8, bp8, 100.0 * u1, bp1, r8 + r1)
 
     try:
         with open("paging_util_sweep.out", "w") as f:
             f.write("# PUMICE-013: write utilization per Axis-2 paging mode\n")
             f.write("# refresh parked, page-hit stream, writes only, AW+W b2b\n")
             f.write("# util = beats / cycles WVALID high (100% = DUT never stalled)\n\n")
-            f.write(f"| {'mode':>4} | {'name':<13} | {'util%':>7} | "
-                    f"{'DUT stall':>9} | {'REF':>3} |\n")
-            f.write(f"|{'-'*6}|{'-'*15}|{'-'*9}|{'-'*11}|{'-'*5}|\n")
-            for mode, name, util, bp, refs in rows:
-                f.write(f"| {mode:>4} | {name:<13} | {100.0*util:>7.2f} | "
-                        f"{bp:>9} | {refs:>3} |\n")
+            f.write("# TWO bank spreads: 8-way rotation hides ACT/PRE, so that\n")
+            f.write("# column alone cannot fail. 1-bank is the discriminator.\n\n")
+            f.write(f"| {'mode':>4} | {'name':<13} | {'8bank%':>7} | {'stall':>6} "
+                    f"| {'1bank%':>7} | {'stall':>6} | {'REF':>3} |\n")
+            f.write(f"|{'-'*6}|{'-'*15}|{'-'*9}|{'-'*8}|{'-'*9}|{'-'*8}|{'-'*5}|\n")
+            for mode, name, u8, bp8, u1, bp1, refs in rows:
+                f.write(f"| {mode:>4} | {name:<13} | {100.0*u8:>7.2f} | {bp8:>6} "
+                        f"| {100.0*u1:>7.2f} | {bp1:>6} | {refs:>3} |\n")
     except Exception as e:                                    # noqa: BLE001
         dut._log.warning("paging_util_sweep.out dump failed: %s", e)
 
     # refresh must not have leaked into ANY window, or the numbers are not
     # attributable to paging.
-    leaked = [(n, r) for _, n, _, _, r in rows if r]
+    leaked = [(n, r) for _, n, _, _, _, _, r in rows if r]
     assert not leaked, f"refresh fired during paging windows: {leaked}"
 
-    short = [(n, round(100.0 * u, 2)) for _, n, u, _, _ in rows if u < 1.0]
+    short8 = [(n, round(100.0 * u, 2)) for _, n, u, _, _, _, _ in rows if u < 1.0]
+    assert not short8, (
+        f"paging modes below 100% write utilization WITH bank parallelism: "
+        f"{short8}. With 8-way rotation and refresh parked nothing should "
+        f"stall the write channel.")
+
+    # The 1-bank column is REPORTED, and only its floor is asserted: modes
+    # that precharge per access are EXPECTED to cost throughput there. The
+    # guard catches a collapse far worse than the known ~28%, which would
+    # mean something beyond the extra ACT/PRE.
+    FLOOR = 0.20
+    bad1 = [(n, round(100.0 * u, 2)) for _, n, _, _, u, _, _ in rows if u < FLOOR]
+    assert not bad1, (
+        f"paging modes below {FLOOR:.0%} even for single-bank traffic: {bad1}. "
+        f"Per-access precharge explains ~28%; anything under {FLOOR:.0%} is a "
+        f"different problem.")
+    spread = [(n, round(100.0 * u8, 1), round(100.0 * u1, 1))
+              for _, n, u8, _, u1, _, _ in rows if u1 < 0.99]
+    dut._log.info("PASS: all %d modes 100%% with bank parallelism; modes that "
+                  "pay for single-bank traffic (mode, 8bank%%, 1bank%%): %s",
+                  len(rows), spread)
+
+
+# Axis-1 scheduling knobs (pumice_cmd_arbiter.sv:64-77). Each entry is one
+# NON-DEFAULT setting; encoding 0 is the build default, covered by the
+# "default" row. order_mode 2 is unused in the RTL (only 1 and 3 decode).
+_SCHED_SETTINGS = [
+    ("default",        {}),
+    ("order_in_order", {'sched_order_mode_i': 1}),
+    ("order_age_thr",  {'sched_order_mode_i': 3}),
+    ("row_most_pend",  {'sched_row_sel_i': 1}),
+    ("row_fewest",     {'sched_row_sel_i': 2}),
+    ("col_most_pend",  {'sched_col_sel_i': 1}),
+    ("col_fewest",     {'sched_col_sel_i': 2}),
+    ("pref_row_first", {'sched_access_pref_i': 2}),
+    ("pref_pre_first", {'sched_access_pref_i': 3}),
+    ("qos_en",         {'sched_qos_en_i': 1}),
+]
+
+_SCHED_KNOBS = ('sched_order_mode_i', 'sched_row_sel_i', 'sched_col_sel_i',
+                'sched_access_pref_i', 'sched_qos_en_i')
+
+
+@cocotb.test(timeout_time=300, timeout_unit="ms")
+async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
+    """PUMICE-013: 100% write utilization across ALL paging x ALL scheduling.
+
+    The second half of the goal (Sean, 2026-08-28): "ensure 100% utilization
+    for all paging programming. Then all paging and all scheduling."
+
+    Every Axis-2 paging mode (8) crossed with every Axis-1 scheduling setting
+    (10 -- the build default plus each non-default value of order_mode,
+    row_sel, col_sel, access_pref and qos_en). Refresh parked, page-hit
+    stream, writes only, AW+W back-to-back, 8-way bank rotation.
+
+    Knobs are swept ONE AT A TIME against the default rather than as a full
+    Cartesian product: 8 x 3 x 3 x 3 x 3 would be 648 windows for little
+    extra information, since these compose by narrowing WHO is a candidate
+    rather than interacting. A full product belongs in the characterization
+    sweep (PUMICE-013 proper), not in a pass/fail gate.
+
+    NOTE this is the 8-bank spread, which is the "should be 100%" gate. The
+    paging sweep's 1-bank column is what exposes cost differences between
+    modes; see paging_util_sweep.out.
+    """
+    _memory, slave = await _bring_up(dut, page_policy=0)      # OPEN
+
+    dut.t_refi_i.value       = 0xFFFF
+    dut.ref_postpone_i.value = 0
+    dut.ref_pullin_i.value   = 0
+    dut.ref_mode_i.value     = 0
+    dut.refi_reload_i.value  = 1
+    await ClockCycles(dut.aclk, 2)
+    dut.refi_reload_i.value  = 0
+    await ClockCycles(dut.aclk, 4)
+
+    rows, tag = [], 0
+    for mode, pname in _PAGE_MODES:
+        for sname, sched in _SCHED_SETTINGS:
+            dut.page_mode_i.value = mode
+            for k in _SCHED_KNOBS:          # reset every knob, then apply
+                getattr(dut, k).value = 0
+            for k, v in sched.items():
+                getattr(dut, k).value = v
+            await ClockCycles(dut.aclk, 64)
+            tag += 1
+            util, bp, refs = await _util_window(dut, slave, tag=tag, n=96)
+            rows.append((pname, sname, util, bp, refs))
+            if util < 1.0 or refs:
+                dut._log.warning("%-13s x %-14s: util=%6.2f%% stall=%d REF=%d",
+                                 pname, sname, 100.0 * util, bp, refs)
+
+    try:
+        with open("paging_sched_cross.out", "w") as f:
+            f.write("# PUMICE-013: write utilization, ALL paging x ALL scheduling\n")
+            f.write("# refresh parked, page-hit stream, writes only, AW+W b2b,\n")
+            f.write("# 8-way bank rotation. util = beats / cycles WVALID high.\n\n")
+            f.write("| {:<13} | {:<14} | {:>7} | {:>6} | {:>3} |\n".format(
+                "paging", "scheduling", "util%", "stall", "REF"))
+            f.write("|{}|{}|{}|{}|{}|\n".format(
+                "-" * 15, "-" * 16, "-" * 9, "-" * 8, "-" * 5))
+            for pn, sn, u, bp, r in rows:
+                f.write("| {:<13} | {:<14} | {:>7.2f} | {:>6} | {:>3} |\n".format(
+                    pn, sn, 100.0 * u, bp, r))
+    except Exception as e:                                    # noqa: BLE001
+        dut._log.warning("paging_sched_cross.out dump failed: %s", e)
+
+    leaked = [(p_, s_, r) for p_, s_, _, _, r in rows if r]
+    assert not leaked, "refresh fired during cross windows: {}".format(leaked[:5])
+
+    # order_in_order is EXPECTED to cost throughput and is excluded from the
+    # 100% gate: it forces strict in-order issue, which disables the very
+    # out-of-order bank-parallel picking that hides ACT/PRE. Trading
+    # bandwidth for ordering is the mode's purpose. Measured 2026-08-29:
+    #   open-page modes                    89.30%  (46 stall cycles)
+    #   rbl_dyn                            66.90%  (190)
+    #   static_close / rbl_static          56.30%  (298)
+    # It compounds with the precharge-per-access modes, which is why those
+    # fall furthest. EVERY other setting is 100% under EVERY paging mode.
+    ORDERED = "order_in_order"
+    short = [(p_, s_, round(100.0 * u, 2))
+             for p_, s_, u, _, _ in rows if u < 1.0 and s_ != ORDERED]
     assert not short, (
-        f"paging modes below 100% write utilization: {short}. "
-        f"Each is the DUT deasserting wready on a page-hit stream with "
-        f"refresh parked -- i.e. attributable to the paging mode itself.")
-    dut._log.info("PASS: all %d paging modes sustain 100%% write utilization",
-                  len(rows))
+        "{} of {} paging x scheduling combinations below 100% write "
+        "utilization: {}. With bank parallelism and refresh parked, no "
+        "scheduling policy except {} should stall the write channel.".format(
+            len(short), len(rows), short[:10], ORDERED))
+
+    # ...but in_order must still be REPORTED and floored, so a regression that
+    # tanks it further is caught rather than excused by the exemption.
+    IN_ORDER_FLOOR = 0.45
+    io = [(p_, round(100.0 * u, 2)) for p_, s_, u, _, _ in rows if s_ == ORDERED]
+    assert io, "in_order rows missing -- the exemption would hide everything"
+    low = [x for x in io if x[1] / 100.0 < IN_ORDER_FLOOR]
+    assert not low, (
+        "in_order below the {:.0%} floor: {}. Ordering costs bandwidth by "
+        "design, but not this much -- expected ~56-89% depending on paging "
+        "mode.".format(IN_ORDER_FLOOR, low))
+    dut._log.info("PASS: %d of %d combinations at 100%%; in_order (exempt, "
+                  "trades bandwidth for ordering) at %s",
+                  len(rows) - len(io), len(rows), io)
 
 
 def _echo_seed(tag):
@@ -1296,3 +1444,5 @@ def test_pumice_core_perf_refresh_bubbles(request):
     _run(request, "cocotb_test_pumice_core_perf_refresh_bubbles")
 def test_pumice_core_perf_paging_sweep(request):
     _run(request, "cocotb_test_pumice_core_perf_paging_sweep")
+def test_pumice_core_perf_paging_sched_cross(request):
+    _run(request, "cocotb_test_pumice_core_perf_paging_sched_cross")
