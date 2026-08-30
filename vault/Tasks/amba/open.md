@@ -1710,9 +1710,30 @@ slot(s), expected 4" at N=8/B=4, and passes at N=16/B=4.
 (110 signals across the three SRAM pointer pairs and both engines) against the
 pinned `local_sim_build/ch3-hang.fst`.
 
-## OBS-PORTS — the observers fan telemetry out as ports instead of owning it
+## OBS-PORTS — DONE on the monitor side (measured 2026-08-30); residue is board code
 
-**Status:** open 2026-08-16 (found while wiring both observers into stream_harness)
+**Status:** 🟢 the telemetry ports are GONE and the regblock owns them. Landed
+in f1847268, "feat(observers): both roles in the harness, telemetry behind the
+regblock". Was: open 2026-08-16.
+
+**Measured against the tree, because the description below is now false:**
+
+* `axi4_intf_slave_observer` declares 33 outputs -- EXACTLY the "real
+  interface" count this task asked to be left (APB slave response, AXIL slave
+  read, dump master, irq). Zero outputs match meter/hist/perf/fifo/compress.
+  (106 total ports, but 73 of those are inputs; do not read the total as the
+  problem -- an earlier summary did and it made the task look untouched.)
+* `obs_regs.rdl` carries the status fields: HIST_DATA, HIST_METRIC,
+  HIST_SAMPLE_LOST, COMPRESS_EN, compression/Compressor and FIFO fields.
+* `projects/fpga-systems/Genesys2/stream/bin/obs_addrs.py` exists, so the host
+  reads them by name ([[feedback_registers_by_name]]).
+
+**The one bullet still open is NOT monitor code.** "Repoint the readers" is
+partly undone: `Genesys2/stream/rtl/harness_csr.sv` still carries its "RFC
+Stage E external axi4_intf_master_observer perf readback" mirror (around lines
+279-284 and 688), so the host can still read perf from the harness CSR space
+rather than the observer's own APB window. That is board/harness code, tracked
+here only so the trail is not lost -- it does not belong to the monitors.
 
 `axi4_intf_{master,slave}_observer` each declare 60 outputs, and only 33 are a
 real interface (APB slave response, AXIL slave read, the dump master, irq).
