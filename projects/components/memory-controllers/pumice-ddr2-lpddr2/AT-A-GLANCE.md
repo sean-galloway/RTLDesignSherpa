@@ -171,7 +171,7 @@ Spec: `rtl/PUMICE_DFI_LAYER_UARCH.md`
 
 ---
 
-## Runtime modes — three independent axes (PUMICE-006)
+## Runtime modes — three independent axes
 
 All CSR-selectable, all **encoding 0 = build default and bit-identical**, each
 mutation-proven. Catalogued in `docs/design-requirements.md`.
@@ -257,7 +257,7 @@ Practice: `vault/handbook/dv/` — especially [[structure-trackers]].
   22 TB classes in `dv/tbclasses/`. 210 tests at FULL
   (`make clean-all && make run-all-full-parallel`); a bare `pytest` runs the
   FUNC subset only and under-reports.
-* **Everything is BFM-driven** (PUMICE-014). No test hand-pokes a standard
+* **Everything is BFM-driven.** No test hand-pokes a standard
   interface or valid/ready handshake. `pumice_axi_bfm.py` owns every
   `s_axi_*`; `pumice_fub_bfm.py` wraps GAXI for fub-internal handshakes.
   Timing profiles come from `TBClasses.amba.amba_random_configs`.
@@ -304,7 +304,38 @@ Practice: `vault/handbook/dv/` — especially [[structure-trackers]].
 
 ## Status
 
-* Board-validated on the Nexys A7 (reads and writes clean); the correctness
-  backlog is empty.
-* Open work is tracked in `vault/Tasks/pumice/` — see its INDEX for the
-  shortlist and the next free task ID.
+**Working.** Board-validated on the Nexys A7 — reads and writes clean, 0/3072
+beats in error — and the correctness backlog is empty. In simulation the whole
+suite is green: 210 controller tests at FULL, plus the DDR2 characterization
+harness (macro, UART and access-pattern families).
+
+**What is known to be true:**
+
+* Every legal AXI burst length works, including `AxLEN=0`, and any `WSTRB`
+  pattern including all-zero. Proven byte-exact against a golden memory model,
+  and each check mutation-verified.
+* Write utilization reaches 100% with zero backpressure in the clean-room
+  ceiling case, across all 8 paging modes and 10 scheduling settings
+  (72 of 80 combinations at 100%; only strict in-order ordering costs
+  throughput, which is by design).
+* Refresh costs exactly 5 cycles per event, deterministically.
+
+**What is not done:**
+
+* **Board bandwidth is the open question.** The measured ~12.7 MB/s was traced
+  to the arbiter falling back to a single bank; the bank-parallel scheduler
+  that fixes it is in and green in simulation, but has not been re-measured on
+  silicon. Runtime page-policy selection gave 8.8x on streaming (12.7 -> 112
+  MB/s) when validated on the board, so the ceiling is not the DRAM.
+* **The characterization harness drives one stream at a time.** It cannot
+  produce concurrent read+write traffic or drive banks in parallel, so
+  read/write turnaround (tWTR/tRTW) is never paid and bank concurrency is
+  never provoked. Planned: two direction-split bridges with 8 bank-targeted
+  generators each, then a read/write mix sweep. Until then the numbers
+  describe a single-stream workload, not a realistic one.
+* **No observer is instantiated on the pumice AXI interface yet** — the bridge
+  slot exists and is tied off.
+* **Device width is still modelled as the beat width** (64-bit) rather than
+  the board's x16 part, everywhere except the x16 characterization sweep.
+
+Detailed work items live in `vault/Tasks/pumice/` and `vault/Tasks/nexysa7/`.

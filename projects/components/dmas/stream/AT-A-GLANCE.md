@@ -62,7 +62,7 @@ data path:
 
 * Wraps one `dma_address_gen` plus a base FIFO, producing the address
   sequence the scheduler consumes. Gated by
-  `USE_ROW_COL_MAJOR_ADDRESSING` (TASK-101).
+  `USE_ROW_COL_MAJOR_ADDRESSING`.
 * **RUN-CONTIGUOUS** (`per_beat=0`, `stride_0 == beat_size`): transfers are
   runs of `inner_count` contiguous beats; the AXI engine bursts within a run.
   Covers linear, 2D-tiled contiguous, circular and reverse copies.
