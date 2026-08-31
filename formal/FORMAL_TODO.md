@@ -342,9 +342,9 @@ These have prove PASS but no cover task defined, or cover not yet run:
 | fifo_sync_multi_sigmap | integ_common | **RESOLVED 2026-08-09: dir moved to formal/integ_common/; fresh prove+cover PASS, all 4 covers reached** |
 | math_fp8_e4m3_fma | math | **RESOLVED 2026-08-09: path-fixed (rtl/math), prove+cover PASS, 5 covers reached** |
 | math_fp8_e5m2_fma | math | **RESOLVED 2026-08-09: path-fixed (rtl/math), prove+cover PASS, 5 covers reached** |
-| axi_monitor_base | amba | prove_boundary+prove_low8 PASS, no cover |
-| axi_monitor_filtered | amba | prove_boundary+prove_low8 PASS, no cover |
-| axi_monitor_trans_mgr | amba | prove_boundary+prove_low8 PASS, no cover |
+| axi_monitor_base | amba | prove PASS + cover PASS (harness un-vacuumed 2026-08-31) |
+| axi_monitor_filtered | amba | prove PASS + cover PASS (harness un-vacuumed 2026-08-31) |
+| axi_monitor_trans_mgr | amba | prove PASS + cover PASS (harness un-vacuumed 2026-08-31) |
 | axi_read_engine | stream | prove_boundary+prove_low8 PASS, no cover |
 | axi_read_engine_beats | rapids | prove_boundary+prove_low8 PASS, no cover |
 | axi_write_engine | stream | prove_boundary+prove_low8 PASS, no cover |

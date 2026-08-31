@@ -103,6 +103,26 @@ module formal_axi_monitor_base (
         .aclk                      (clk),
         .aresetn                   (rst_n),
         .i_mon_time                (i_mon_time),
+        // Inputs added to the DUT after this harness was written. An
+        // UNCONNECTED input is the documented vacuity trap: yosys models it as
+        // undriven, and `clear` in particular zeroes active_count every cycle.
+        // Tied inert here so the properties run against a design that works.
+        .clear                     (1'b0),
+        .cfg_id_filter_enable      (1'b0),
+        .cfg_id_match_base         ('0),
+        .cfg_id_match_count        ('0),
+        .cfg_addr_filter_enable    (1'b0),
+        .cfg_addr_filter_low       ('0),
+        .cfg_addr_filter_high      ('0),
+        .cfg_addr_check_enable     (1'b0),
+        .cfg_addr_range_enable     ('0),
+        .cfg_addr_range_low        ('0),
+        .cfg_addr_range_high       ('0),
+        .cfg_start_event_sel       ('0),
+        .cfg_end_event_sel         ('0),
+        .cfg_start_trigger         (1'b0),
+        .cfg_end_trigger           (1'b0),
+        .cfg_window_force_close    (1'b0),
         .cmd_addr                  (cmd_addr),
         .cmd_id                    (cmd_id),
         .cmd_len                   (cmd_len),

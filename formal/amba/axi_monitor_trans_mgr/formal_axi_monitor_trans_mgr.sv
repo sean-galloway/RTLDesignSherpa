@@ -83,6 +83,13 @@ module formal_axi_monitor_trans_mgr (
         .resp_ready            (resp_ready),
         .resp_id               (resp_id),
         .resp_code             (resp_code),
+        // See the note in axi_monitor_base's harness: an unconnected input
+        // is a vacuity trap. i_timeout_detected in particular decides whether
+        // a stalled entry can reach a terminal state at all.
+        .i_timeout_detected    ('0),
+        .cfg_addr_filter_enable(1'b0),
+        .cfg_addr_filter_low   ('0),
+        .cfg_addr_filter_high  ('0),
         .timestamp             (timestamp),
         .i_event_reported_flags(i_event_reported_flags),
         .active_count          (active_count_o)

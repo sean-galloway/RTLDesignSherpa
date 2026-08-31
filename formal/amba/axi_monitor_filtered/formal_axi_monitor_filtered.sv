@@ -107,6 +107,28 @@ module formal_axi_monitor_filtered (
         .aclk                       (clk),
         .aresetn                    (rst_n),
         .i_mon_time                 (i_mon_time),
+        // Inputs added to axi_monitor_filtered after this harness was written.
+        // An UNCONNECTED input is the documented vacuity trap -- yosys models it
+        // as undriven, and `clear` in particular zeroes active_count every cycle,
+        // which silently made every property here vacuous: no transaction could
+        // ever allocate, so busy/active_count/monbus_valid were all unreachable
+        // and the assertions rode on top of a design that never did anything.
+        .clear                      (1'b0),
+        .cfg_addr_check_enable      (1'b0),
+        .cfg_addr_range_enable      ('0),
+        .cfg_addr_range_low         ('0),
+        .cfg_addr_range_high        ('0),
+        .cfg_id_filter_enable       (1'b0),
+        .cfg_id_match_base          ('0),
+        .cfg_id_match_count         ('0),
+        .cfg_addr_filter_enable     (1'b0),
+        .cfg_addr_filter_low        ('0),
+        .cfg_addr_filter_high       ('0),
+        .cfg_start_event_sel        ('0),
+        .cfg_end_event_sel          ('0),
+        .cfg_start_trigger          (1'b0),
+        .cfg_end_trigger            (1'b0),
+        .cfg_window_force_close     (1'b0),
         .cmd_addr                   (cmd_addr),
         .cmd_id                     (cmd_id),
         .cmd_len                    (cmd_len),
@@ -232,6 +254,14 @@ module formal_axi_monitor_filtered (
     // =========================================================================
     always @(posedge clk) begin
         if (rst_n) begin
+            // Anti-vacuity ladder. These exist because this harness silently
+            // proved NOTHING for as long as `clear` was left unconnected: a
+            // command could fire but no entry ever allocated, so every
+            // property below rode on a design that did nothing. Keep both --
+            // cmd_fire alone passing while active stays unreachable is the
+            // exact signature of that failure.
+            cp_cmd_fire:        cover (cmd_valid && cmd_ready);
+            cp_active:          cover (active_count > 0);
             cp_monbus_valid:    cover (monbus_valid);
             cp_monbus_handshake: cover (monbus_valid && monbus_ready);
             cp_busy:            cover (busy);
