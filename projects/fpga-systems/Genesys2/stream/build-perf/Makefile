@@ -57,4 +57,7 @@ export MON_ERROR_FLAVOR    ?= 0
 
 PREBUILD := bash $(FRAMEWORK_ROOT)/bin/regen_bridges.sh bridge_stream_mon_axil
 
+# Settings shared by every build in this component (see stream.mk).
+include $(FRAMEWORK_ROOT)/stream.mk
+
 include $(RDS_ROOT)/make/fpga_flow.mk

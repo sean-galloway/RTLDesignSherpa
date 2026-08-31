@@ -46,6 +46,7 @@ variable in the shared file instead. The three that exist:
 | `PREBUILD` | a command that must run before `project`/`synth`/`bitstream` -- regenerating a bridge from its `.toml`, a regblock from its `.rdl` | empty (a clean no-op) |
 | `FPGA_BITSTREAM` | exported to the tcl so the artifact name has ONE authority | `$(FPGA_DIR)/bitstream/$(FLOW).bit` |
 | `LINT_WAIVERS` | board-integration warning noise | includes `-Wno-PINMISSING`: a board top routinely leaves a submodule's optional status outputs open, and that is an integration choice, not a defect |
+| `LINT_UNROLL` | Verilator's loop-unroll budget, when the design's deepest loop exceeds the stock one | empty -- a flow that does not need it must not pay for it |
 
 `FPGA_BITSTREAM` earns its keep when a build has more than one flavor. The
 stream monitor build compiles either the error cone or all the others, and with
@@ -57,6 +58,34 @@ waiting to disagree.
 
 **A recipe appearing in a build Makefile is a signal the shared flow is missing
 a hook, not that this build is special.**
+
+### PREBUILD may only write files nobody edits
+
+`PREBUILD` runs on every `project`/`synth`/`bitstream`, so whatever it writes is
+rewritten every time anyone builds. Point it at generated RTL and filelists and
+nothing else. The moment it also writes test collateral, building a bitstream
+becomes a way to silently revert work.
+
+Genesys 2 stream did exactly that: `regen_bridges.sh` passed `--generate-tests`,
+so `make bitstream` regenerated `rtl/bridges/dv/`. Three separate rounds of
+committed fixes were undone that way (33ac787e, 90bca4c1, bd79af49). The
+regeneration was worse than stale, too -- the generator derived a dotted import
+from the output directory, and `projects/fpga-systems/` contains a hyphen, so
+`from projects.fpga-systems.Genesys2... import X` is a SyntaxError. The five
+bridge tests were therefore not failing; they could not be COLLECTED, which in a
+report is indistinguishable from a suite that passed.
+
+Two rules fall out of it:
+
+- **A generated file that keeps getting hand-fixed is telling you the fix
+  belongs in the generator, or that the file is not generated any more.** Decide
+  which; leaving it as "generated, but we patch it" guarantees the patch is lost.
+  Area-specific content -- a TEST_LEVEL budget, a waiver the local CSR needs --
+  a shared generator cannot know, and is the honest signal for the second answer.
+- **Check idempotence, not output.** Run the PREBUILD on a clean tree and look at
+  `git status`. If it dirties anything, that is the blast radius of every future
+  `make bitstream`. `Genesys2/stream/bin/tests/test_bridge_dv_not_generated.py`
+  makes that check mechanical for this flow.
 
 ## Flow notes
 
@@ -72,7 +101,17 @@ a hook, not that this build is special.**
 - Filelists resolve standalone (source env_python first); flow Makefiles
   may add flow-scoped vars but the .f files must not require them.
 - Verilator sim of board tops: deep monitor tables need --unroll-count
-  (default 64) - see [[timing-closure]] sibling gotchas.
+  (default 64) - see [[timing-closure]] sibling gotchas. **The lint gate needs
+  the same budget, from the same source.** It did not have it, and the result
+  was not a noisy gate but a blind one: `make lint` on stream build-mon exited
+  22 BLKLOOPINIT errors -- Verilator refusing to elaborate the monitor's
+  per-slot delayed array assignments -- over RTL that every cocotb `run()`
+  compiled clean, because those seven call sites passed the budget and the gate
+  did not. BLKLOOPINIT is not a style warning to waive; it means the tool never
+  looked at the design. Set `LINT_UNROLL` by DERIVING it from whatever the
+  area's tests read (Genesys 2 stream: `dv/stream_cfg.py::verilator_unroll_args`,
+  wired through `stream.mk`), never by retyping the number - that number has
+  already been copy-pasted into seven places once and raised in only some.
 
 ## Bring-up order: registers before anything else
 

@@ -197,6 +197,22 @@ LINT_WAIVERS ?= -Wno-MULTIDRIVEN -Wno-UNUSED -Wno-UNDRIVEN -Wno-WIDTH \
                 -Wno-UNUSEDSIGNAL -Wno-VARHIDDEN -Wno-IMPLICIT \
                 -Wno-CASEOVERLAP -Wno-MODDUP -Wno-PINMISSING
 
+# Verilator's loop-unroll budget, when this build's RTL needs more than the
+# default. NOT a waiver: BLKLOOPINIT is Verilator refusing to elaborate a
+# delayed array assignment it could not unroll, so the gate does not fail on a
+# style rule -- it fails to look at the design at all.
+#
+# Empty by default: a flow whose deepest loop fits the stock budget must not pay
+# for a bigger one. A flow that needs it sets LINT_UNROLL from the SAME source
+# its cocotb tests read, so the gate and the simulator elaborate one budget.
+# Genesys 2 stream is the worked example (build-mon/Makefile).
+#
+# The failure this closes: `make lint` on stream build-mon exited 22 errors,
+# every one BLKLOOPINIT in the monitor's per-slot loops, while all seven cocotb
+# run() calls over the same RTL compiled clean -- they passed the budget and the
+# gate did not. A gate that cannot elaborate the design cannot gate it.
+LINT_UNROLL ?=
+
 include $(RDS_ROOT)/make/fpga_board.mk
 
 .DEFAULT_GOAL := help
@@ -323,7 +339,7 @@ lint: lint-decl-order   ## verilator --lint-only of the whole harness (fast, pre
 	@[ -f "$(FILELIST)" ] || (echo "FILELIST not found: $(FILELIST)" && false)
 	@echo "[lint] $(TOP) $(if $(strip $(LINT_GENERICS)),[$(strip $(LINT_GENERICS))],[RTL defaults])"
 	@$(VERILATOR) --lint-only --top-module $(TOP) -f $(FILELIST) \
-	    $(LINT_GENERICS) $(LINT_DEFINES) $(LINT_WAIVERS)
+	    $(LINT_GENERICS) $(LINT_DEFINES) $(LINT_WAIVERS) $(LINT_UNROLL)
 
 lint-decl-order:    ## signals must be declared before use (implicit 1-bit nets)
 	@[ -f "$(DECL_ORDER_CHECK)" ] || (echo "missing $(DECL_ORDER_CHECK)" && false)
