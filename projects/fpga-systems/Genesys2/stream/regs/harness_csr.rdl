@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Genesys 2 STREAM characterization HARNESS CSR -- PeakRDL source.
+//
+// SINGLE SOURCE for the register MAP. bin/peakrdl_generate.py turns this into
+// rtl/harness_csr_regmap.py, which harness_addrs.H() and every host tool read.
+// This replaces bin/gen_harness_regmap.py, a hand-maintained Python table.
+//
+// The RTL is NOT generated from this file. harness_csr.sv stays hand-written:
+// it has self-clearing pulse bits, a soft-reset latch and a 9-bit decode that
+// PeakRDL regblock cannot express. Those few one-offs are deliberate.
+//
+// What binds the two is a TEST, not good intentions:
+//   bin/tests/test_harness_regmap.py::test_every_regmap_register_is_actually_decoded
+// parses the case labels out of harness_csr.sv and asserts every register here
+// has one. The previous guard compared this map to a COMMENT TABLE in the same
+// .sv -- both drifted together, both passed, and three host tools read ten
+// undecoded registers as zeros off a running board.
+//
+// Regenerate:
+//   cd $REPO_ROOT && source env_python
+//   python3 bin/peakrdl_generate.py \
+//       projects/fpga-systems/Genesys2/stream/regs/harness_csr.rdl \
+//       --regmap --regmap-output projects/fpga-systems/Genesys2/stream/rtl/harness_csr_regmap.py
+//
+// Offsets are relative to the harness CSR base 0x0001_0000.
+
+addrmap harness_csr {
+    name = "Genesys 2 STREAM Characterization Harness CSR";
+    desc = "Control/status/timer/CRC/observability registers for the char harness";
+
+    default regwidth = 32;
+    default accesswidth = 32;
+    default alignment = 4;
+
+    reg word_ro_t { desc = "32-bit read-only word";
+        field { sw = r;  hw = w; } VALUE[31:0] = 0; };
+    reg word_rw_t { desc = "32-bit read-write word";
+        field { sw = rw; hw = r; } VALUE[31:0] = 0; };
+
+    reg {
+        field { sw = rw; hw = r; } START[0:0] = 0;
+        field { sw = rw; hw = r; } CLEAR_STATS[1:1] = 0;
+        field { sw = rw; hw = r; } FREEZE_TRACE[2:2] = 0;
+        field { sw = rw; hw = r; } SOFT_RESET[3:3] = 0;
+        field { sw = rw; hw = r; } CAM_CLEAR[4:4] = 0;
+    } CTRL @ 0x000;
+    reg {
+        field { sw = r; hw = w; } STREAM_IRQ[0:0] = 0;
+        field { sw = r; hw = w; } ANY_ERROR[1:1] = 0;
+        field { sw = r; hw = w; } TRACE_OVERFLOW[2:2] = 0;
+        field { sw = r; hw = w; } CLEAR_BUSY[3:3] = 0;
+    } STATUS @ 0x004;
+    word_ro_t DBG_WR_PTR @ 0x008;
+    word_ro_t DBG_OVERFLOW @ 0x00C;
+    word_ro_t CRC_RD_EXPECTED @ 0x010;
+    word_ro_t CRC_WR_EXPECTED @ 0x014;
+    word_ro_t CRC_WR_COMPUTED @ 0x018;
+    reg {
+        field { sw = r; hw = w; } MATCH[0:0] = 0;
+        field { sw = r; hw = w; } VALID[1:1] = 0;
+    } CRC_MATCH @ 0x01C;
+    word_rw_t SCRATCH @ 0x020;
+    word_ro_t BUILD_ID @ 0x024;
+    reg {
+        field { sw = rw; hw = r; } CLEAR[0:0] = 0;
+    } TIMER_CTRL @ 0x028;
+    reg {
+        field { sw = r; hw = w; } DONE[0:0] = 0;
+        field { sw = r; hw = w; } RUNNING[1:1] = 0;
+        field { sw = r; hw = w; } PASS[2:2] = 0;
+    } TIMER_STATUS @ 0x02C;
+    word_ro_t TIMER_CYCLES_LO @ 0x030;
+    word_ro_t TIMER_CYCLES_HI @ 0x034;
+    word_rw_t TIMER_EXPECTED_BEATS @ 0x038;
+    reg {
+        field { sw = rw; hw = r; } RD_DELAY[15:0] = 0;
+        field { sw = rw; hw = r; } WR_DELAY[31:16] = 0;
+    } RESP_DELAY @ 0x03C;
+    word_ro_t TIMER_R_FIRST_LO @ 0x040;
+    word_ro_t TIMER_R_FIRST_HI @ 0x044;
+    word_ro_t TIMER_R_LAST_LO @ 0x048;
+    word_ro_t TIMER_R_LAST_HI @ 0x04C;
+    word_ro_t TIMER_W_FIRST_LO @ 0x050;
+    word_ro_t TIMER_W_FIRST_HI @ 0x054;
+    word_ro_t TIMER_W_LAST_LO @ 0x058;
+    word_ro_t TIMER_W_LAST_HI @ 0x05C;
+    word_ro_t CRC_RD_PER_CH0 @ 0x060;
+    word_ro_t CRC_RD_PER_CH1 @ 0x064;
+    word_ro_t CRC_RD_PER_CH2 @ 0x068;
+    word_ro_t CRC_RD_PER_CH3 @ 0x06C;
+    word_ro_t CRC_RD_PER_CH4 @ 0x070;
+    word_ro_t CRC_RD_PER_CH5 @ 0x074;
+    word_ro_t CRC_RD_PER_CH6 @ 0x078;
+    word_ro_t CRC_RD_PER_CH7 @ 0x07C;
+    word_ro_t CRC_WR_PER_CH0 @ 0x080;
+    word_ro_t CRC_WR_PER_CH1 @ 0x084;
+    word_ro_t CRC_WR_PER_CH2 @ 0x088;
+    word_ro_t CRC_WR_PER_CH3 @ 0x08C;
+    word_ro_t CRC_WR_PER_CH4 @ 0x090;
+    word_ro_t CRC_WR_PER_CH5 @ 0x094;
+    word_ro_t CRC_WR_PER_CH6 @ 0x098;
+    word_ro_t CRC_WR_PER_CH7 @ 0x09C;
+    word_ro_t CRC_VALID_MASK @ 0x0A0;
+    word_ro_t CRC_MATCH_MASK @ 0x0A4;
+    word_ro_t DESC_SRAM_AR_HS @ 0x0D4;
+    word_ro_t DESC_SRAM_R_HS @ 0x0D8;
+    word_ro_t DESC_AR_HS @ 0x0E0;
+    word_ro_t DESC_AR_STALL @ 0x0E4;
+    word_ro_t DESC_R_HS @ 0x0E8;
+    word_ro_t DESC_R_STALL @ 0x0EC;
+    word_ro_t DESC_AW_HS @ 0x0F0;
+    word_ro_t DESC_W_HS @ 0x0F4;
+    word_ro_t DESC_B_HS @ 0x0F8;
+    word_ro_t DESC_VR_LIVE @ 0x0FC;
+    reg {
+        field { sw = rw; hw = r; } BUS[0:0] = 0;
+        field { sw = rw; hw = r; } METRIC[1:1] = 0;
+        field { sw = rw; hw = r; } BIN[5:2] = 0;
+    } OBS_HIST_SEL @ 0x120;
+    word_ro_t BUILD_VERSION @ 0x1D0;
+    reg {
+        field { sw = r; hw = w; } NUM_CHANNELS[4:0] = 0;
+        field { sw = r; hw = w; } ERROR_FLAVOR[5:5] = 0;
+        field { sw = r; hw = w; } USE_MONITORS[6:6] = 0;
+        field { sw = r; hw = w; } GEN_MON[7:7] = 0;
+        field { sw = r; hw = w; } DATA_WIDTH_B[15:8] = 0;
+        field { sw = r; hw = w; } MAIN_CONES[16:16] = 0;
+    } BUILD_CONFIG @ 0x1D4;
+    word_ro_t BUILD_N_PROFILE @ 0x1D8;
+    word_ro_t BUILD_CLK_HZ @ 0x1DC;
+    word_ro_t COMP_TIER1_A @ 0x1E0;
+    word_ro_t COMP_TIER1_B @ 0x1E4;
+    word_ro_t COMP_TIER1_C @ 0x1E8;
+    word_ro_t COMP_TIER0 @ 0x1EC;
+    word_ro_t COMP_CAM_MISS @ 0x1F0;
+    word_ro_t COMP_DELTA_TS_OVF @ 0x1F4;
+    word_ro_t COMP_EVENT_DATA_OVF @ 0x1F8;
+    word_ro_t COMP_ED_DELTA_OVF @ 0x1FC;
+};
