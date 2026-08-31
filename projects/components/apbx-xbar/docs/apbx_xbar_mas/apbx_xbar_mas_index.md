@@ -32,7 +32,7 @@
 
 ## Document Organization
 
-This specification covers the APB Crossbar component - a parametric MxN interconnect for connecting multiple APB masters to multiple APB slaves with automatic address-based routing and round-robin arbitration.
+This specification covers the APB Crossbar: a parametric MxN interconnect that connects multiple APB masters to multiple APB slaves with automatic address-based routing and round-robin arbitration.
 
 ### Main Documentation
 
@@ -59,7 +59,7 @@ This specification covers the APB Crossbar component - a parametric MxN intercon
 1. Start with [README.md](README.md) for overview and quick start
 2. Read [01_architecture.md](chapters/01_architecture.md) to understand the design
 3. Study [02_address_and_arbitration.md](chapters/02_address_and_arbitration.md) for operational details
-4. Reference [03_rtl_generator.md](chapters/03_rtl_generator.md) if custom configuration needed
+4. Reference [03_rtl_generator.md](chapters/03_rtl_generator.md) if you need a custom configuration
 
 ### For Integration
 
@@ -76,7 +76,7 @@ All answered in [README.md](README.md) Section "Common Questions"
 
 ## Visual Assets
 
-All diagrams referenced in the documentation are available in:
+Every diagram in this specification is checked in as both source and rendered output:
 
 - **Source Files:**
   - `assets/graphviz/*.gv` - Graphviz source diagrams
@@ -110,11 +110,11 @@ All diagrams referenced in the documentation are available in:
 - **Parametric MxN Configuration:** Any combination of M masters and N slaves (up to 16x16)
 - **Automatic Address Decode:** 64KB per slave, simple offset-based routing
 - **Round-Robin Arbitration:** Per-slave fair arbitration, no master starvation
-- **Back-to-Back Transactions:** accepted without master-side idle
+- **Back-to-Back Transactions:** Accepted without master-side idle
   cycles, though they do not overlap inside the fabric (10 pclk cycles
   each for M = 1, 11 for arbitrated variants; one more than that
   variant's single-transfer latency -- see HAS 5.2)
-- **Grant Persistence:** Hold grant through transaction completion
+- **Grant Persistence:** Grant held through transaction completion
 - **RTL Generation:** Python-based generator for custom configurations
 
 ### Pre-Generated Variants
@@ -176,7 +176,7 @@ All diagrams referenced in the documentation are available in:
 **Version 1.0 (2025-10-25):**
 - Initial specification release
 - Complete visual documentation (3 diagrams)
-- Comprehensive generator documentation
+- Generator documentation
 - All pre-generated variants verified (100% passing)
 
 ---

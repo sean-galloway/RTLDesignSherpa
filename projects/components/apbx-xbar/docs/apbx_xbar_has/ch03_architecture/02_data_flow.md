@@ -31,7 +31,7 @@
 
 ## Write Transaction Flow
 
-A write transaction flows through the following stages:
+A write transaction passes through six stages:
 
 ### Stage 1: Master Request
 
@@ -71,7 +71,7 @@ If multiple masters target the same slave:
 
 ### Stage 5: Protocol Conversion (Slave-Side)
 
-The `apb4_master` module generates APB transaction:
+The `apb4_master` module generates the APB transaction:
 1. Asserts PSEL to selected slave
 2. Provides PADDR, PWRITE, PWDATA
 3. Asserts PENABLE next cycle
@@ -79,7 +79,7 @@ The `apb4_master` module generates APB transaction:
 
 ### Stage 6: Response Return
 
-Response flows back to originating master:
+The response flows back to the originating master:
 1. Slave asserts PREADY (with optional PSLVERR)
 2. `apb4_master` captures response
 3. Response routed to correct `apb4_slave`

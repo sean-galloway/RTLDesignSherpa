@@ -25,7 +25,7 @@
 
 ## Interface Overview
 
-Each master port provides a complete APB slave interface to accept transactions from an external APB master (CPU, DMA, etc.).
+Each master port presents a complete APB slave interface, accepting transactions from an external APB master (CPU, DMA, etc.).
 
 ## Signal Definition
 
@@ -81,7 +81,7 @@ parity off, and a mixed pairing carries no parity in any case.
 ### PSEL (Input)
 
 Peripheral select signal. When asserted:
-- Indicates master wants to access the crossbar
+- Indicates the master wants to access the crossbar
 - Must remain asserted throughout the transaction
 - Combined with PADDR determines target slave
 
@@ -146,15 +146,14 @@ Slave error response:
 ### PREADY (Output)
 
 Transfer ready signal:
-- PREADY=1 allows transaction to complete
+- PREADY=1 allows the transaction to complete
 - PREADY=0 inserts wait states
 - Reflects downstream slave PREADY (or arbitration wait)
 
 ## Transaction Timing
 
 ### Uncontended Write (No Arbitration Wait) -- PHASE SHAPE ONLY, not to scale:
-a real transfer is 9 pclk cycles SETUP-to-PREADY on a single-master
-variant, 10 on an arbitrated one (see 5.2)
+a real transfer is 9 pclk cycles SETUP-to-PREADY on a single-master variant, 10 on an arbitrated one (see 5.2)
 
 ```
        Cycle 1    Cycle 2    Cycle 3

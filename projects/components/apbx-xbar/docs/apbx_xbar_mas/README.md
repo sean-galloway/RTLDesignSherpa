@@ -32,7 +32,7 @@
 
 ## Overview
 
-This directory contains visual documentation for the APB Crossbar component, including architecture diagrams, timing waveforms, and generator documentation.
+This directory holds the visual documentation for the APB Crossbar component: architecture diagrams, timing waveforms, and the generator guide.
 
 **Component Purpose:** Parametric MxN APB interconnect connecting multiple masters to multiple slaves with automatic address-based routing and round-robin arbitration.
 

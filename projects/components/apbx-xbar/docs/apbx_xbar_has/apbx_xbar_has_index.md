@@ -31,7 +31,7 @@
 
 ## Document Organization
 
-**Note:** All chapters linked below for automated document generation.
+**Note:** All chapters are linked below; this index doubles as the manifest for automated document generation.
 
 ### Front Matter
 

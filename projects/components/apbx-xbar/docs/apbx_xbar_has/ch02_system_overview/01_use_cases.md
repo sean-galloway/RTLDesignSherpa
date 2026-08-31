@@ -29,7 +29,7 @@
 
 **Scenario:** Single CPU accessing multiple peripherals
 
-A microcontroller needs to access UART, GPIO, Timer, and SPI peripherals through a single APB master interface.
+A microcontroller needs to reach UART, GPIO, Timer, and SPI peripherals through a single APB master interface.
 
 **Configuration:**
 - 1 Master (CPU)
@@ -48,7 +48,7 @@ A microcontroller needs to access UART, GPIO, Timer, and SPI peripherals through
 
 **Scenario:** CPU and DMA both accessing peripherals
 
-An SoC where both CPU and DMA controller need access to shared peripherals.
+An SoC where both the CPU and a DMA controller need access to shared peripherals.
 
 **Configuration:**
 - 2 Masters (CPU, DMA)
@@ -65,7 +65,7 @@ An SoC where both CPU and DMA controller need access to shared peripherals.
 
 **Scenario:** APB timing boundary or clock domain preparation
 
-Insert APB crossbar as a timing stage or preparation for clock domain crossing.
+Insert the APB crossbar as a timing stage, or as preparation for clock domain crossing.
 
 **Configuration:**
 - 1 Master
@@ -74,7 +74,7 @@ Insert APB crossbar as a timing stage or preparation for clock domain crossing.
 
 **Benefits:**
 - Isolates master from slave timing
-- Provides consistent transaction buffering
+- Consistent transaction buffering
 - Lowest resource footprint of the family
 
 ## Variant Selection Guide

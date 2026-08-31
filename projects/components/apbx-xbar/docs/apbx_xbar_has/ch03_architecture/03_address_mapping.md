@@ -48,7 +48,7 @@ With default `BASE_ADDR = 0x1000_0000`:
 
 ## Address Decode Logic
 
-The target slave is determined by simple bit extraction:
+The target slave comes from simple bit extraction:
 
 ```
 offset = PADDR - BASE_ADDR

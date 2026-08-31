@@ -25,11 +25,9 @@
 
 ## Feature Summary
 
-The APB Crossbar provides the following key features:
-
 ### F1: Parametric MxN Configuration
 
-- Support for any combination of M masters and N slaves
+- Any combination of M masters and N slaves
 - Pre-generated variants for common configurations (1x1, 2x1, 1x4, 2x4, and
   the mixed-version 2x2)
 - Python generator for custom configurations up to 16x16
@@ -99,7 +97,7 @@ testplan; nothing in the tree depends on it.
 
 ### Composition Over Complexity
 
-The crossbar is built by composing well-tested building blocks:
+The crossbar is a composition of well-tested building blocks:
 
 1. **APB Slaves** (M instances) - Convert incoming APB to internal cmd/rsp
 2. **Arbiters** (N instances) - Select winning master per slave

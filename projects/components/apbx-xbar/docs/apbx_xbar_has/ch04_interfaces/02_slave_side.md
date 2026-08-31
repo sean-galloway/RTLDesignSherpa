@@ -25,7 +25,7 @@
 
 ## Interface Overview
 
-Each slave port provides a complete APB master interface to drive transactions to an external APB slave (peripheral).
+Each slave port presents a complete APB master interface, driving transactions to an external APB slave (peripheral).
 
 ## Signal Definition
 

@@ -89,8 +89,8 @@ Software must be configured with the correct address map:
 
 ### Transaction Constraints
 
-| Constraint | Description |
-|------------|-------------|
+| Constraint | Value | Notes |
+|------------|-------|-------|
 | Outstanding transactions | 1 per master | APB protocol limit |
 | Transaction interleaving | Not supported | APB is non-pipelined |
 | Burst transactions | Not supported | APB single-beat only |
