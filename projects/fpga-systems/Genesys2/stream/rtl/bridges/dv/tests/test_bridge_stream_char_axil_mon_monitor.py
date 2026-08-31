@@ -69,4 +69,10 @@ def test_bridge_stream_char_axil_mon_monitor(request):
         dut_name="bridge_stream_char_axil_mon",
         testcase="cocotb_test_bridge_stream_char_axil_mon_monitor",
         filelist='projects/fpga-systems/Genesys2/stream/rtl/bridges/filelists/bridge_stream_char_axil_mon.f',
+        # The generated PeakRDL CSR (*_mon_cfg.sv) drives one 'field_combo'
+        # struct from many always_comb blocks, each writing a DIFFERENT
+        # member. Verilator's MULTIDRIVEN fires on the aggregate, so these
+        # are false positives -- and there are enough of them to trip the
+        # warning-count limit and fail the COMPILE, not the assertions.
+        extra_no_warn=('-Wno-MULTIDRIVEN',),
     )

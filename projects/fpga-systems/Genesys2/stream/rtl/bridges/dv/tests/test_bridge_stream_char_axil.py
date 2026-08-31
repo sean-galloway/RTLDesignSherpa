@@ -574,7 +574,17 @@ def test_bridge_stream_char_axil_basic_connectivity(request):
     # Waveforms via the canonical helper in TBClasses.shared.utilities.
     waves = get_wave_config(sim_build)
 
-    extra_args = ['--assert', '--coverage'] + waves['extra_args']
+    extra_args = ['--assert', '--coverage',
+                  # The generated PeakRDL CSR (*_cfg.sv) drives one
+                  # 'field_combo' struct from many always_comb blocks,
+                  # each writing a DIFFERENT member. Verilator's
+                  # MULTIDRIVEN fires on the aggregate, not per member,
+                  # so this is a false positive -- 1988 of them, which
+                  # tripped '--Wall as error' and failed the COMPILE.
+                  # Every other test in the repo that builds this
+                  # generated code suppresses it the same way.
+                  '-Wno-MULTIDRIVEN',
+                  ] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
@@ -626,7 +636,17 @@ def test_bridge_stream_char_axil_boundary_probe(request):
 
     waves = get_wave_config(sim_build)
 
-    extra_args = ['--assert', '--coverage'] + waves['extra_args']
+    extra_args = ['--assert', '--coverage',
+                  # The generated PeakRDL CSR (*_cfg.sv) drives one
+                  # 'field_combo' struct from many always_comb blocks,
+                  # each writing a DIFFERENT member. Verilator's
+                  # MULTIDRIVEN fires on the aggregate, not per member,
+                  # so this is a false positive -- 1988 of them, which
+                  # tripped '--Wall as error' and failed the COMPILE.
+                  # Every other test in the repo that builds this
+                  # generated code suppresses it the same way.
+                  '-Wno-MULTIDRIVEN',
+                  ] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
@@ -676,7 +696,17 @@ def test_bridge_stream_char_axil_arbitration(request):
 
     waves = get_wave_config(sim_build)
 
-    extra_args = ['--assert', '--coverage'] + waves['extra_args']
+    extra_args = ['--assert', '--coverage',
+                  # The generated PeakRDL CSR (*_cfg.sv) drives one
+                  # 'field_combo' struct from many always_comb blocks,
+                  # each writing a DIFFERENT member. Verilator's
+                  # MULTIDRIVEN fires on the aggregate, not per member,
+                  # so this is a false positive -- 1988 of them, which
+                  # tripped '--Wall as error' and failed the COMPILE.
+                  # Every other test in the repo that builds this
+                  # generated code suppresses it the same way.
+                  '-Wno-MULTIDRIVEN',
+                  ] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
