@@ -28,7 +28,7 @@ for one call are pre-split into `parts/part_NN`. Results land in
 `<results>/<mode>-<model>/round_N/` as `<unit>.md` + `<unit>.meta.json`,
 with the inputs snapshotted into `_bundle_snapshot/`.
 
-## The ten rules
+## The eleven rules
 
 Each one is here because ignoring it cost real work.
 
@@ -162,6 +162,21 @@ Each one is here because ignoring it cost real work.
      DIRECTION of the error wrong. Recompute every number you introduce, in
      a shell, before committing; a fix is not exempt from rule 5 just because
      it is a fix.
+
+   **The amplification is measurable, and it is large.** Monitor round_27
+   (2026-08-31) cited four claims; every one was under-counted, and the RTL
+   header comment was the seed twice:
+
+   | cited | actual | claim |
+   |---|---|---|
+   | 1 | **20** across 16 files | a stale module name after a rename |
+   | 1, as a passing "observation" | **9** across 4 files | a parameter's legal range |
+   | 1 | **6** in one file | a signal deleted from the RTL |
+   | 1 | **3** across 3 files | a throughput/encoding claim |
+
+   Budget for roughly an order of magnitude, and note that the one the
+   reviewer did NOT even file as a finding still hid nine instances -- so
+   sweep the observations too, not just the findings.
 
    Corollary for the sweep: search the loose concept across ALL THREE
    surfaces -- the RTL comment, the module page, and sibling pages -- because
@@ -351,6 +366,35 @@ Each one is here because ignoring it cost real work.
     whether its UPHELD/UNCERTAIN split saves triage time, not by how many
     findings it removes -- on this corpus the honest answer is that it removes
     none safely.
+
+11. **An arc is complete as of a COMMIT, not forever.** "ARC COMPLETE" means
+    the book was correct and voiced at that SHA. Anything merged afterwards is
+    un-reviewed by construction, and it is the most dangerous content in the
+    book precisely because the page around it carries the credibility of a
+    finished review.
+
+    *Case: the monitor book was declared complete 2026-08-27 after qc rounds
+    24-26 and humanize round_9. TASK-015's address and ID filters landed after
+    that, docs included. Round_27 found the address filter undocumented
+    end-to-end -- the parameter documented on one page with none of the three
+    runtime ports that arm it, and a "complete inventory" page missing that
+    parameter plus nine real ports. Five RTL defects came out of the same
+    round, three of them in a class an earlier commit had declared closed.*
+
+    Two cheap habits close it: when a feature lands in a reviewed area, note
+    the area's last round SHA in the feature's task entry; and before
+    declaring a book done, run `git log <last-round-sha>..HEAD -- <doc dir>
+    <rtl dir>` and review whatever comes back. A feature commit that also
+    touches docs is not a substitute for a round -- the docs and the RTL were
+    written by the same hand in the same hour.
+
+    The related trap is the CLASS claim. `ae61c9f1` called its fix the "second
+    and LAST instance" of a protocol violation; it was the second of five. A
+    claim about a class needs a SWEEP -- grep the shape across every module on
+    that bus -- not an inspection of the instance in front of you. And when
+    fixing a "mirror" module is deferred, the mirror is where the next
+    instance lives: the APB twin of the fixed AXI checker had the identical
+    defect and no test of its own.
 
 ## Endpoint
 
