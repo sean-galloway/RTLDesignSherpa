@@ -63,7 +63,7 @@ class PumiceWrIntakeTB(TBBase):
         self.ROW_WIDTH   = self.convert_to_int(os.environ.get('ROW_WIDTH', '14'))
         self.COL_WIDTH   = self.convert_to_int(os.environ.get('COL_WIDTH', '10'))
         self.BYTE_OFFSET_WIDTH = self.convert_to_int(os.environ.get('BYTE_OFFSET_WIDTH', '3'))
-        self.BL          = self.convert_to_int(os.environ.get('BL', '4'))
+        self.BL          = self.convert_to_int(os.environ.get('AXI_BEATS_PER_BURST', '4'))
         self.SW          = self.AXI_DATA_WIDTH // 8
         self.GEAR        = self.AXI_DATA_WIDTH // self.DRAM_BEAT_WIDTH
         self.EXP_BEATS   = self.BL // self.GEAR

@@ -38,11 +38,103 @@ Spec: `rtl/PUMICE_AXI4_IFC_UARCH.md`
   an SRAM and gates B on `agg && last` (one response per *original* burst);
   the read CAM reorders returns into AR order and collapses `RLAST`.
 * **`pumice_axi_burst_chopper` + `pumice_wr_splitter`** — split a host burst
-  into fixed-BL sub-commands with no FSM. The splitter carries no B channel
-  by design; aggregation is the CAM's job.
+  into fixed-BL sub-commands with no FSM, and pad a short or ragged one out
+  to a whole DRAM burst with zero-strobe filler beats (see *Legal AXI
+  transaction shapes*). The splitter carries no B channel by design;
+  aggregation is the CAM's job.
+  NOTE the ragged-burst `$error` + SLVERR still present in
+  `pumice_wr_intake` is now UNREACHABLE: the splitter guarantees a full
+  chunk, so `w_aw_err` can no longer assert. It is dead code kept for
+  history, not a live guard.
 * **`addr_mapper`** — flat AXI address to `{rank,bank,row,col}` under ONE
   knob, `ADDR_MAP.bank_lsb`. Row/rank positions are invariant; only the bank
   field slides (ROW_MAJOR / INTERLEAVE / XOR-hash are settings, not schemes).
+
+## Legal AXI transaction shapes
+
+**Every legal AXI4 write and read is accepted.** There is no burst length,
+strobe pattern or alignment the host has to avoid. A compliant master issues
+`AxLEN=0` routinely (a CPU storing one word), and silently losing that write
+was a real failure mode here, so the rule is deliberately unconditional.
+
+| dimension | accepted |
+|---|---|
+| `AxLEN` | 1-256 beats (INCR). `AxLEN=0` is a normal single-beat burst |
+| burst type | INCR any length; WRAP 2/4/8/16; FIXED 1-16 |
+| `AxSIZE` | 1 byte up to the full bus width |
+| `WSTRB` | any pattern, including sparse and all-zero (a legal no-op) |
+| start address | any, including part-way into a DRAM burst |
+
+### Names — one concept, several spellings
+
+The tree grew multiple names per quantity. They are the SAME number; this is
+the mapping so nobody invents a sixth:
+
+| concept | canonical | also spelled |
+|---|---|---|
+| JEDEC burst length, in DEVICE beats | `DRAM_BL` | `BL` (core/ifc/intake), `dram_bl` (TB), `DFI_PHASE.bl` (CSR), `BEATS_PER_BURST` (char suite) |
+| the same, scaled to pumice beats | `BL_PUMICE` | — |
+| AXI beats in one DRAM burst | `BURST_LEN_MULTIPLE` | `CHUNK_BEATS` (chopper/splitter), `BURST_WORDS` (core), `EXP_AXI_BEATS` (wr_intake) |
+| DFI phases per controller clock | `DFI_RATE` | `gear_ratio` is its LOG2, not the rate |
+
+`gear_ratio` is the trap in that list: it is `log2(DFI_RATE)`, so rate-2 is 1
+and rate-4 is 2. Writing the rate where the log belongs makes
+`(RATEW'(1) << gear_i)` overflow to zero, every DFI phase goes inactive and
+writes vanish with `B=OKAY`.
+
+### How a burst maps to DRAM
+
+One DRAM burst is `BURST_WORDS` AXI beats, derived from the build parameters:
+
+    BL_SHIFT    = clog2(DRAM_BEAT_WIDTH / DRAM_DEVICE_WIDTH)   // 0 if beat <= device
+    BL_PUMICE   = BL >> BL_SHIFT
+    BURST_WORDS = (BL_PUMICE >= DFI_RATE) ? BL_PUMICE / DFI_RATE : 1
+
+A host burst is reconciled to that in three ways, none of which the host sees:
+
+* **Longer** — `pumice_axi_burst_chopper` splits it into `BURST_WORDS`-sized
+  sub-commands, each on its own DRAM-burst boundary.
+* **Shorter or ragged** — `pumice_wr_splitter` completes the DRAM burst with
+  zero-strobe FILLER beats. `strb=0` becomes `DM=1` in
+  `pumice_dfi_wr_serializer` (`dfi_wrdata_mask_o = ~wd_strb_i`), so the device
+  clocks the beat and writes nothing. That is what DDR2's data mask is for.
+  Reads need no padding: the DRAM returns the whole burst and
+  `pumice_rd_intake`'s per-sub beat budget forwards only the beats the host
+  asked for, dropping the rest before the R channel.
+* **Unaligned** — the address handed to `addr_mapper` is aligned down to the
+  AXI beat and `WSTRB` selects the bytes, exactly as AXI4 specifies. Applying
+  BOTH the column offset and the strobes counted the offset twice and landed
+  the write a beat further on.
+
+### Performance caveat (this is the one that bites)
+
+Accepted is not the same as free. **A partial DRAM burst still costs the
+device a full ACT/CAS cycle**, because the DRAM always transfers `BL` beats.
+A workload issuing half-bursts reports roughly half the throughput the
+controller can actually sustain.
+
+So the two sides have different rules, and the distinction matters:
+
+* **The controller accepts any legal AxLEN.** That is a hard requirement --
+  a compliant master may issue `AxLEN=0` at any time.
+* **A half burst is ILLEGAL in the characterization generators.** Not
+  discouraged, illegal: `_check_full_burst()` in
+  `dv/tests/test_ddr2_char_macro.py` rejects any `burst_len` that is not a
+  whole multiple of one DFI BL8 transaction. Behaviour observed under a
+  sub-burst generator shape is void -- an illegal stimulus, not a defect to
+  investigate.
+
+Short-burst CORRECTNESS is proven by the controller-level suites below, not
+by the perf shapes.
+
+Covered by, all mutation-verified:
+`test_pumice_top_partial_strb` (8 strobe patterns x 3 lengths, byte-exact
+against the golden model AND through an AXI read-back),
+`test_pumice_top_partial_rd` (4 lengths x 4 offsets, counting R beats on the
+bus -- surplus beats carry the burst's own RID and are invisible to a data
+check), `test_pumice_top_burst_len` (AxLEN 1,2,3,4,5,7,8,16) and
+`test_pumice_top_geared_short_burst` (down-gear, where the 64->128 converter
+manufactures a half-strobed beat).
 
 ## Layer 2 — command scheduler (`rtl/macro/pumice_mem_cmd_scheduler.sv`)
 
@@ -104,7 +196,9 @@ Practice: `vault/handbook/dv/` — especially [[structure-trackers]].
 
 * **Tiers** — `dv/tests/fub` (21 files), `dv/tests/macro` (4),
   `dv/tests/top` (5), plus PHY-facing checks at the root of `dv/tests`.
-  22 TB classes in `dv/tbclasses/`.
+  22 TB classes in `dv/tbclasses/`. 210 tests at FULL
+  (`make clean-all && make run-all-full-parallel`); a bare `pytest` runs the
+  FUNC subset only and under-reports.
 * **Everything is BFM-driven** (PUMICE-014). No test hand-pokes a standard
   interface or valid/ready handshake. `pumice_axi_bfm.py` owns every
   `s_axi_*`; `pumice_fub_bfm.py` wraps GAXI for fub-internal handshakes.

@@ -103,7 +103,7 @@ def test_pumice_axi4_ifc(request):
         "ROW_WIDTH":      "14",
         "COL_WIDTH":      "10",
         "BYTE_OFFSET_WIDTH": "3",
-        "BL":             "4",
+        "AXI_BEATS_PER_BURST":             "4",
         "NUM_ENTRIES":    "8",
         "N_SRAM_SLOTS":   "8",
         "N_SCHED_LU":     "4",

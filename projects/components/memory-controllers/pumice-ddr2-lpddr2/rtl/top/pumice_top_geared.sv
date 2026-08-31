@@ -23,7 +23,7 @@
 //          builds are bit-identical (no converter, no added latency).
 //
 //          Burst geometry: the core still requires one AXI burst == one DRAM
-//          burst at its DW side ((awlen+1)*DFI_RATE == BL). The host issues
+//          burst at its DW side ((awlen+1)*DFI_RATE == DRAM_BL). The host issues
 //          bursts at HOST width; the converter translates them to DW-width
 //          bursts of that geometry (host burst sizing is the host's contract,
 //          same spirit as the core's ragged-burst check).
@@ -40,7 +40,7 @@
 //   WHY (and it is exactly what LiteDRAM does): the DFI word is the atomic
 //   memory-side transfer, so one AXI beat must be a WHOLE power-of-two number
 //   of DFI words (or vice versa). Any other ratio yields partial words /
-//   fractional CHUNK_BEATS / ragged bursts. LiteDRAM enforces the identical
+//   fractional AXI_BEATS_PER_BURST / ragged bursts. LiteDRAM enforces the identical
 //   rule: its AXI frontend is 1:1 with its native port (frontend/axi.py:
 //   `assert axi.data_width == port.data_width`) and ALL width change goes
 //   through a dedicated stride converter that requires exact divisibility +
@@ -72,7 +72,7 @@ module pumice_top_geared
     parameter int DFI_RATE        = 2,
     parameter int DRAM_BEAT_WIDTH = 64,
     parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,  // physical device word (x16 => 16)
-    parameter int BL              = 8,
+    parameter int DRAM_BL              = 8,
     parameter int NUM_ENTRIES     = 8,
     parameter int N_SRAM_SLOTS    = 8,
 
@@ -157,7 +157,7 @@ module pumice_top_geared
     // HOST_AXI_DATA_WIDTH : DFI word DW must be an EXACT POWER-OF-TWO ratio
     // (AXI:DFI = G:1 or 1:G). Anything else -> partial words / ragged bursts.
     // This $fatal fires at ELABORATION/SYNTH (proven: same idiom as
-    // pumice_axi_burst_chopper's CHUNK_BEATS check errored in Vivado synth),
+    // pumice_axi_burst_chopper's AXI_BEATS_PER_BURST check errored in Vivado synth),
     // so a bad width pairing is a compile error, not a silent broken build.
     // Mirrors LiteDRAM (axi frontend 1:1 + power-of-2 stride converter).
     // ===================================================================
@@ -340,7 +340,7 @@ module pumice_top_geared
         .DFI_RATE         (DFI_RATE),
         .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
-        .BL               (BL),
+        .DRAM_BL               (DRAM_BL),
         .NUM_ENTRIES      (NUM_ENTRIES),
         .N_SRAM_SLOTS     (N_SRAM_SLOTS)
     ) u_core (

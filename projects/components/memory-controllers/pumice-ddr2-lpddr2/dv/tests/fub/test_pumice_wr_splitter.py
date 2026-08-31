@@ -6,17 +6,17 @@ Pattern-B runner for `pumice_wr_splitter` (write-side burst splitter).
 
 Directly exercises the AxLEN -> DRAM-burst mapping — the "one AXI burst maps to
 an integer number of DRAM bursts" contract that was previously untested. The
-splitter chops the host AW into CHUNK_BEATS-sized sub-commands (CHUNK_BEATS =
-AXI beats per DRAM burst) and re-frames WLAST every CHUNK_BEATS beats.
+splitter chops the host AW into AXI_BEATS_PER_BURST-sized sub-commands (AXI_BEATS_PER_BURST =
+AXI beats per DRAM burst) and re-frames WLAST every AXI_BEATS_PER_BURST beats.
 
-  cocotb_test_wr_splitter_single  - AxLEN == CHUNK_BEATS-1  -> ONE sub-command,
+  cocotb_test_wr_splitter_single  - AxLEN == AXI_BEATS_PER_BURST-1  -> ONE sub-command,
                                     agg=0, last=1, one re-framed WLAST.
-  cocotb_test_wr_splitter_split   - AxLEN == 2*CHUNK_BEATS-1 -> TWO sub-commands
-                                    of CHUNK_BEATS, agg=1 on both, last only on
-                                    the 2nd; WLAST re-framed every CHUNK_BEATS.
-  cocotb_test_wr_splitter_ragged  - AxLEN not a multiple of CHUNK_BEATS -> a full
+  cocotb_test_wr_splitter_split   - AxLEN == 2*AXI_BEATS_PER_BURST-1 -> TWO sub-commands
+                                    of AXI_BEATS_PER_BURST, agg=1 on both, last only on
+                                    the 2nd; WLAST re-framed every AXI_BEATS_PER_BURST.
+  cocotb_test_wr_splitter_ragged  - AxLEN not a multiple of AXI_BEATS_PER_BURST -> a full
                                     sub-command + a RAGGED tail sub-command
-                                    (< CHUNK_BEATS); the tail's WLAST is the
+                                    (< AXI_BEATS_PER_BURST); the tail's WLAST is the
                                     host's own final beat. (The tail then SLVERRs
                                     at pumice_wr_intake — see that test.)
 """
@@ -43,7 +43,7 @@ from tbclasses.pumice_fub_bfm import fub_consumer, fub_producer   # noqa: E402
 _FILELIST = ("projects/components/memory-controllers/pumice-ddr2-lpddr2/"
              "rtl/filelists/fub/pumice_wr_splitter.f")
 
-CHUNK_BEATS = 4          # AXI beats per DRAM burst (must match the param below)
+AXI_BEATS_PER_BURST = 4          # AXI beats per DRAM burst (must match the param below)
 
 
 async def _reset(dut):
@@ -84,7 +84,8 @@ async def _reset(dut):
     w_sink = fub_consumer(
         dut, "m_w", dut.aclk, log=dut._log,
         valid="m_wvalid", ready="m_wready",
-        fields={'last': ("m_wlast", 1)})
+        fields={'last': ("m_wlast", 1),
+                'strb': ("m_wstrb", 8)})
     for _ in range(5):
         await RisingEdge(dut.aclk)
     dut.aresetn.value = 1
@@ -112,6 +113,7 @@ async def _collect(dut, aw_sink, w_sink, n_subs_expected, n_wbeats_expected):
     """Run one burst; collect sub-commands (awlen, agg, last) + W-beat WLASTs."""
     subs = []
     wlasts = []
+    wstrbs = []          # per-beat m_wstrb, so filler beats can be checked
 
     # Both sinks are GAXI consumers -- reshape what they captured rather
     # than re-sampling the bus.
@@ -126,26 +128,28 @@ async def _collect(dut, aw_sink, w_sink, n_subs_expected, n_wbeats_expected):
         while len(wlasts) < n_wbeats_expected:
             await RisingEdge(dut.aclk)
             while w_sink._recvQ:
-                wlasts.append(w_sink._recvQ.popleft().last)
+                q = w_sink._recvQ.popleft()
+                wlasts.append(q.last)
+                wstrbs.append(int(q.strb))
 
     cocotb.start_soon(mon_aw())
     cocotb.start_soon(mon_w())
-    return subs, wlasts
+    return subs, wlasts, wstrbs
 
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
 async def cocotb_test_wr_splitter_single(dut):
-    """AxLEN = CHUNK_BEATS-1 -> exactly one DRAM burst, no split."""
+    """AxLEN = AXI_BEATS_PER_BURST-1 -> exactly one DRAM burst, no split."""
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
     aw_src, w_src, aw_sink, w_sink = await _reset(dut)
-    nbeats = CHUNK_BEATS
-    subs, wlasts = await _collect(dut, aw_sink, w_sink, 1, nbeats)
+    nbeats = AXI_BEATS_PER_BURST
+    subs, wlasts, _ = await _collect(dut, aw_sink, w_sink, 1, nbeats)
     await _drive_burst(aw_src, w_src, nbeats - 1)
     for _ in range(20):
         await RisingEdge(dut.aclk)
     assert len(subs) == 1, f"expected 1 sub-command, got {subs}"
     awlen, agg, last = subs[0]
-    assert awlen == CHUNK_BEATS - 1, f"sub awlen {awlen} != {CHUNK_BEATS-1}"
+    assert awlen == AXI_BEATS_PER_BURST - 1, f"sub awlen {awlen} != {AXI_BEATS_PER_BURST-1}"
     assert agg == 0, "single (unsplit) burst must NOT set agg"
     assert last == 1, "single burst must set last"
     assert wlasts.count(1) == 1 and wlasts[-1] == 1, \
@@ -155,45 +159,89 @@ async def cocotb_test_wr_splitter_single(dut):
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
 async def cocotb_test_wr_splitter_split(dut):
-    """AxLEN = 2*CHUNK_BEATS-1 -> two DRAM bursts (integer multiple split)."""
+    """AxLEN = 2*AXI_BEATS_PER_BURST-1 -> two DRAM bursts (integer multiple split)."""
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
     aw_src, w_src, aw_sink, w_sink = await _reset(dut)
-    nbeats = 2 * CHUNK_BEATS
-    subs, wlasts = await _collect(dut, aw_sink, w_sink, 2, nbeats)
+    nbeats = 2 * AXI_BEATS_PER_BURST
+    subs, wlasts, _ = await _collect(dut, aw_sink, w_sink, 2, nbeats)
     await _drive_burst(aw_src, w_src, nbeats - 1)
     for _ in range(20):
         await RisingEdge(dut.aclk)
     assert len(subs) == 2, f"expected 2 sub-commands, got {subs}"
     for i, (awlen, agg, last) in enumerate(subs):
-        assert awlen == CHUNK_BEATS - 1, f"sub{i} awlen {awlen} != {CHUNK_BEATS-1}"
+        assert awlen == AXI_BEATS_PER_BURST - 1, f"sub{i} awlen {awlen} != {AXI_BEATS_PER_BURST-1}"
         assert agg == 1, f"sub{i} of a split must set agg"
         assert last == (1 if i == 1 else 0), f"sub{i} last wrong: {last}"
-    # WLAST re-framed every CHUNK_BEATS: at beat CHUNK_BEATS-1 and 2*CHUNK_BEATS-1
-    want = [1 if (j + 1) % CHUNK_BEATS == 0 else 0 for j in range(nbeats)]
+    # WLAST re-framed every AXI_BEATS_PER_BURST: at beat AXI_BEATS_PER_BURST-1 and 2*AXI_BEATS_PER_BURST-1
+    want = [1 if (j + 1) % AXI_BEATS_PER_BURST == 0 else 0 for j in range(nbeats)]
     assert wlasts == want, f"WLAST re-framing {wlasts} != {want}"
     dut._log.info("PASS: AxLEN=%d -> 2 DRAM bursts (split)", nbeats - 1)
 
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
 async def cocotb_test_wr_splitter_ragged(dut):
-    """AxLEN not a multiple of CHUNK_BEATS -> full sub + ragged tail sub."""
+    """A host burst that does NOT fill a DRAM burst is PADDED, not rejected.
+
+    A DRAM burst is indivisible -- the device always transfers BL beats. So a
+    ragged tail is completed with zero-strobe filler beats (strb=0 -> DM=1 ->
+    the device writes nothing), and every sub-command leaves here exactly
+    AXI_BEATS_PER_BURST long. That is what lets pumice accept ANY legal AxLEN.
+
+    This test previously asserted the opposite: that the tail went out SHORT
+    and pumice_wr_intake answered it with SLVERR. That behaviour silently
+    dropped a compliant master's write, so the contract changed and this test
+    changed with it.
+    """
     cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
     aw_src, w_src, aw_sink, w_sink = await _reset(dut)
-    nbeats = CHUNK_BEATS + 2          # 6: one full (4) + ragged tail (2)
-    subs, wlasts = await _collect(dut, aw_sink, w_sink, 2, nbeats)
+    nbeats = AXI_BEATS_PER_BURST + 2          # 6: one full (4) + ragged tail (2)
+    npadded = 2 * AXI_BEATS_PER_BURST         # 8: the tail is filled out to a burst
+    subs, lasts, strbs = await _collect(dut, aw_sink, w_sink, 2, npadded)
     await _drive_burst(aw_src, w_src, nbeats - 1)
-    for _ in range(20):
+    for _ in range(40):
         await RisingEdge(dut.aclk)
-    assert len(subs) == 2, f"expected 2 sub-commands (full+ragged), got {subs}"
-    assert subs[0][0] == CHUNK_BEATS - 1, f"full sub awlen {subs[0][0]}"
-    assert subs[1][0] == (nbeats - CHUNK_BEATS) - 1, \
-        f"ragged tail awlen {subs[1][0]} != {(nbeats-CHUNK_BEATS)-1}"
-    # tail is SHORTER than CHUNK_BEATS -> intake will SLVERR it (see wr_intake).
-    want = [1 if (j + 1) % CHUNK_BEATS == 0 or j == nbeats - 1 else 0
-            for j in range(nbeats)]
-    assert wlasts == want, f"ragged WLAST {wlasts} != {want}"
-    dut._log.info("PASS: AxLEN=%d -> full + ragged tail (intake SLVERRs tail)",
-                  nbeats - 1)
+
+    assert len(subs) == 2, f"expected 2 sub-commands, got {subs}"
+    for i, sub in enumerate(subs):
+        assert sub[0] == AXI_BEATS_PER_BURST - 1, (
+            f"sub {i} awlen {sub[0]} != {AXI_BEATS_PER_BURST - 1}: every sub-command "
+            f"must be a WHOLE DRAM burst once padding is on")
+
+    want = [1 if (j + 1) % AXI_BEATS_PER_BURST == 0 else 0 for j in range(npadded)]
+    assert lasts == want, f"WLAST {lasts} != {want}"
+
+    # The two filler beats must be fully masked, and the real beats must not.
+    assert all(v == 0xFF for v in strbs[:nbeats]), \
+        f"real beats must keep their strobes: {strbs}"
+    assert all(v == 0x00 for v in strbs[nbeats:]), \
+        f"filler beats must be zero-strobe (DM=1), got {strbs[nbeats:]}"
+    dut._log.info("PASS: ragged tail padded %d -> %d beats, filler masked",
+                  nbeats, npadded)
+
+
+@cocotb.test(timeout_time=2, timeout_unit="ms")
+async def cocotb_test_wr_splitter_single_beat(dut):
+    """AxLEN=0 -- the smallest legal AXI burst -- must work.
+
+    This is the case that used to SLVERR: one beat against a AXI_BEATS_PER_BURST=4
+    DRAM burst. It is not exotic; a CPU storing a word emits exactly this.
+    """
+    cocotb.start_soon(Clock(dut.aclk, 10, units="ns").start())
+    aw_src, w_src, aw_sink, w_sink = await _reset(dut)
+    subs, lasts, strbs = await _collect(dut, aw_sink, w_sink, 1, AXI_BEATS_PER_BURST)
+    await _drive_burst(aw_src, w_src, 0)          # AxLEN=0 -> 1 beat
+    for _ in range(40):
+        await RisingEdge(dut.aclk)
+
+    assert len(subs) == 1, f"expected 1 sub-command, got {subs}"
+    assert subs[0][0] == AXI_BEATS_PER_BURST - 1, (
+        f"single-beat burst must be padded to a full DRAM burst: "
+        f"awlen {subs[0][0]} != {AXI_BEATS_PER_BURST - 1}")
+    assert lasts == [0] * (AXI_BEATS_PER_BURST - 1) + [1], f"WLAST {lasts}"
+    assert strbs[0] == 0xFF and all(v == 0 for v in strbs[1:]), \
+        f"only the real beat may be unmasked: {strbs}"
+    dut._log.info("PASS: AxLEN=0 padded to a full %d-beat DRAM burst",
+                  AXI_BEATS_PER_BURST)
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +261,7 @@ def _run(request, testcase):
 
     params = {
         "AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "AXI_DATA_WIDTH": "64",
-        "AXI_USER_WIDTH": "1", "CHUNK_BEATS": str(CHUNK_BEATS),
+        "AXI_USER_WIDTH": "1", "AXI_BEATS_PER_BURST": str(AXI_BEATS_PER_BURST),
     }
     extra_env = {
         "DUT": dut_name,
@@ -242,3 +290,7 @@ def test_pumice_wr_splitter_split(request):
 
 def test_pumice_wr_splitter_ragged(request):
     _run(request, "cocotb_test_wr_splitter_ragged")
+
+
+def test_pumice_wr_splitter_single_beat(request):
+    _run(request, "cocotb_test_wr_splitter_single_beat")

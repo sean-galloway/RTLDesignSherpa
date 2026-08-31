@@ -22,7 +22,7 @@ module pumice_core_tb_top
     parameter int COL_WIDTH      = 10,
     parameter int DFI_RATE       = 2,
     parameter int DRAM_BEAT_WIDTH = 64,
-    parameter int BL             = 8,
+    parameter int DRAM_BL             = 8,
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
     parameter int CMD_HISTORY_EN = 0,  // -G from DV: arm the history scoreboard
@@ -163,7 +163,7 @@ module pumice_core_tb_top
     pumice_core #(
         .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(AW), .NUM_RANKS(NUM_RANKS),
         .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
-        .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .BL(BL),
+        .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .DRAM_BL(DRAM_BL),
         .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS),
         .CMD_HISTORY_EN(CMD_HISTORY_EN)
     ) u_core (
@@ -204,10 +204,10 @@ module pumice_core_tb_top
         .t_phy_wrlat_i(t_phy_wrlat_i), .t_rddata_en_i(t_rddata_en_i),
         // gear_i = log2(DFI_RATE) so the ACTIVE DFI rate == the build DFI_RATE
         // (full rate, all phases active) — bit-identical to the pre-gear
-        // behavior. bl_i = build BL so the runtime sub-DFI-word framing matches
+        // behavior. bl_i = build DRAM_BL so the runtime sub-DFI-word framing matches
         // the compile geometry.
         .gear_i(2'($clog2(DFI_RATE))),
-        .bl_i(4'(BL)),
+        .bl_i(4'(DRAM_BL)),
         .cl_o(cl_o), .cwl_o(cwl_o), .bl_o(bl_o), .init_done_o(init_done_o),
         .s_axi_awid(s_axi_awid), .s_axi_awaddr(s_axi_awaddr), .s_axi_awlen(s_axi_awlen),
         .s_axi_awsize(s_axi_awsize), .s_axi_awburst(s_axi_awburst), .s_axi_awlock(s_axi_awlock),

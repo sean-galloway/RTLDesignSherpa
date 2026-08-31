@@ -106,7 +106,7 @@ def test_pumice_rd_cmd_cam(request):
         "COL_WIDTH":     "10",
         "AXI_ID_WIDTH":  "8",
         "AXI_DATA_WIDTH": "64",
-        "BL":            "4",
+        "AXI_BEATS_PER_BURST":            "4",
     }
     extra_env = {
         "DUT": dut_name,

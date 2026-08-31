@@ -62,6 +62,35 @@ _NBA_SETTLE_PS = 100
 # ---------------------------------------------------------------------------
 
 
+# NAMES. One concept, one name -- the tree already had several for each and
+# this file is not adding more:
+#   DRAM_BL            JEDEC burst length in DEVICE beats (CSR DFI_PHASE.bl,
+#                      RTL DRAM_BL/BL). Scaled to pumice beats as BL_PUMICE.
+#   BURST_LEN_MULTIPLE AXI beats in one DRAM burst. Same quantity the RTL
+#                      calls CHUNK_BEATS (ifc/chopper/splitter), BURST_WORDS
+#                      (pumice_core) and EXP_AXI_BEATS (wr_intake).
+#   DFI_RATE           DFI phases per controller clock.
+# All three are passed to the RTL explicitly; none is inherited from a
+# parameter default, because a default is what silently went stale at BL8.
+DFI_RATE = 2        # must track ddr2_char_macro_tb_top's DFI_RATE
+
+# AXI beats in ONE full DRAM burst, for THIS build:
+#     DRAM_BL * DRAM_DEVICE_WIDTH / AXI_DATA_WIDTH = 8 * 64 / 64 = 8
+# Every generator shape below is expressed as a whole number of these, so each
+# AXI burst maps to an integer number of DFI BL8 transactions. Perf numbers are
+# only meaningful that way: a burst that does not fill a DRAM burst still costs
+# a whole ACT/CAS/precharge cycle at the device, so a short burst reports
+# throughput far below what the controller can actually sustain, and a ragged
+# one additionally drags in the masked-write path.
+#
+# The shapes used to say burst=1/2/4 from when DRAM_BL was 4 and the comment
+# below read "Burst len = BL=4 so each AXI burst maps 1-to-1 to a DRAM BL
+# burst". Commit 72a73fe2 moved DDR2 to BL8 for the on-silicon read fix and did
+# not update them, so every shape has been a sub-burst ever since.
+DRAM_BL = 8         # must track ddr2_char_macro_tb_top's DRAM_BL
+BURST_LEN_MULTIPLE = 8
+
+
 async def _drive_engine_idle(dut) -> None:
     """Idle all writer + reader cfg surfaces so the engines stay in
     S_IDLE until we explicitly pulse cfg_*_start."""
@@ -88,10 +117,43 @@ async def _drive_engine_idle(dut) -> None:
     dut.cfg_rd_start.value = 0
 
 
+def _check_full_burst(burst_len: int, who: str) -> None:
+    """A half burst is ILLEGAL in the generators. Reject it here.
+
+    Not a warning and not a perf hint: a generator burst that is not a whole
+    number of DFI BL8 transactions is an invalid configuration of this
+    environment. Any behaviour observed under one says nothing about the
+    design -- it is an illegal stimulus, so results from it are void rather
+    than a bug to chase.
+
+    Checked HERE rather than by the RTL's BURST_LEN_MULTIPLE assertion: the
+    constraint belongs to the environment that picks the value, not to the
+    design. The controller itself accepts ANY legal AxLEN (see
+    test_pumice_top_partial_strb / ..._partial_rd / ..._burst_len); it is the
+    perf generators that are restricted, because a partial DRAM burst still
+    costs the device a full ACT/CAS cycle and so reports throughput well
+    below what the controller sustains.
+
+    This exists because three separate places held a stale BL4-era burst
+    length after DDR2 moved to BL8 (the shape table, and BURST = 4 in both the
+    pacing-sweep and ooo-schmoo suites). All were invisible until checked.
+    """
+    if burst_len % BURST_LEN_MULTIPLE:
+        raise AssertionError(
+            f"{who}: burst_len={burst_len} is ILLEGAL -- generator bursts "
+            f"must be whole multiples of BURST_LEN_MULTIPLE="
+            f"{BURST_LEN_MULTIPLE} (one full DFI BL8 transaction). This is an "
+            f"invalid configuration, not a slow one: fix the shape. The "
+            f"controller's own sub-burst handling is covered at the "
+            f"controller level -- test_pumice_top.py::"
+            f"test_pumice_top_partial_strb and ..._partial_rd.")
+
+
 async def _program_writer(dut, *, start_addr: int, stride_0: int,
                           burst_len: int, txn_count: int,
                           axi_id: int = 0, axi_size: int = 3,
                           lfsr_seed: int = 0, id_mode: int = 0) -> None:
+    _check_full_burst(burst_len, "writer")
     dut.cfg_wr_start_addr.value    = start_addr
     dut.cfg_wr_addr_stride_0.value = stride_0
     dut.cfg_wr_burst_len.value     = burst_len
@@ -108,6 +170,7 @@ async def _program_reader(dut, *, start_addr: int, stride_0: int,
                           burst_len: int, txn_count: int,
                           axi_id: int = 0, axi_size: int = 3,
                           lfsr_seed: int = 0, id_mode: int = 0) -> None:
+    _check_full_burst(burst_len, "reader")
     dut.cfg_rd_start_addr.value    = start_addr
     dut.cfg_rd_addr_stride_0.value = stride_0
     dut.cfg_rd_burst_len.value     = burst_len
@@ -149,7 +212,7 @@ async def cocotb_test_ddr2_char_macro(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     mem_type  = os.environ.get("MEM_TYPE", "DDR2").upper()
 
-    tb = DDR2LPDDR2TopTB(dut, num_ranks=1)
+    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL)
     await _drive_engine_idle(dut)
     # Drain the reader-engine debug FIFO via the framework's GAXISlave.
     # Each received packet carries (actual, expected, mismatch) for one
@@ -188,6 +251,7 @@ async def cocotb_test_ddr2_char_macro(dut):
     tb.init_apb4_master()
     await tb.apb4_master.reset_bus()
     tb.init_dfi_slave()
+    await tb.program_defaults(dfi_rate=DFI_RATE, dram_bl=DRAM_BL)
     tb.init_dfi_monitor()        # capture DFI cmd/wr-data/rd-data queues
     tb.start_axi_wr_snoop()      # snoop AXI WR side as WR-path ground truth
     tb.start_axi_rd_snoop()      # snoop AXI RD side for RD-path verify
@@ -195,34 +259,38 @@ async def cocotb_test_ddr2_char_macro(dut):
 
     # 1x1 known-good; 1x2 isolates multi-beat-in-burst; 2x1 isolates
     # multi-burst; 2x2 was the original failing config.
+    _B = BURST_LEN_MULTIPLE          # one full DFI BL8 transaction
     SHAPES = {
-        "smoke":     dict(burst=1, n=1,    base=0x0000_2000),
-        "smoke_1x2": dict(burst=2, n=1,    base=0x0000_2040),
-        "smoke_2x1": dict(burst=1, n=2,    base=0x0000_2080),
-        "smoke_2x2": dict(burst=2, n=2,    base=0x0000_20C0),
-        # Scaled workloads. Burst len = BL=4 so each AXI burst maps 1-to-1
-        # to a DRAM BL burst. Reader walks the same descriptor + per-beat
-        # compares against the local LFSR.
-        "kb_4burst":  dict(burst=4, n=4,    base=0x0001_0000),
-        "kb_16burst": dict(burst=4, n=16,   base=0x0001_0000),
-        "kb_17burst": dict(burst=4, n=17,   base=0x0001_0000),
-        "kb_20burst": dict(burst=4, n=20,   base=0x0001_0000),
-        "kb_24burst": dict(burst=4, n=24,   base=0x0001_0000),
-        "kb1":       dict(burst=4, n=32,   base=0x0001_0000),
-        "kb4":       dict(burst=4, n=128,  base=0x0001_0000),
-        "kb32":      dict(burst=4, n=1024, base=0x0001_0000),
-        # BL variations — exercise the controller's AXI BL handling at
-        # the engine env. BL=1/2 are below the DRAM BL (=4) so each AXI
-        # burst gets padded; BL=8 is above and currently triggers the
-        # wr_beat_sequencer stray-wrdata bug (see issue: AXI BL > DRAM
-        # BL needs intake-side split). BL=8 entries are xfailed until
-        # that lands.
-        "bl1_kb1":   dict(burst=1, n=32,   base=0x0002_0000),
-        "bl1_kb4":   dict(burst=1, n=128,  base=0x0002_0000),
-        "bl2_kb1":   dict(burst=2, n=32,   base=0x0003_0000),
-        "bl2_kb4":   dict(burst=2, n=128,  base=0x0003_0000),
-        "bl8_kb1":   dict(burst=8, n=32,   base=0x0004_0000),
-        "bl8_kb4":   dict(burst=8, n=128,  base=0x0004_0000),
+        # <k DRAM bursts per AXI burst> x <n AXI bursts>. Every entry is a
+        # whole number of DRAM bursts (see BURST_LEN_MULTIPLE).
+        "smoke":     dict(burst=1 * _B, n=1,    base=0x0000_2000),
+        "smoke_1x2": dict(burst=2 * _B, n=1,    base=0x0000_2040),
+        "smoke_2x1": dict(burst=1 * _B, n=2,    base=0x0000_2080),
+        "smoke_2x2": dict(burst=2 * _B, n=2,    base=0x0000_20C0),
+        # Scaled workloads: one DRAM burst per AXI burst. Reader walks the
+        # same descriptor + per-beat compares against the local LFSR.
+        "kb_4burst":  dict(burst=1 * _B, n=4,    base=0x0001_0000),
+        "kb_16burst": dict(burst=1 * _B, n=16,   base=0x0001_0000),
+        "kb_17burst": dict(burst=1 * _B, n=17,   base=0x0001_0000),
+        "kb_20burst": dict(burst=1 * _B, n=20,   base=0x0001_0000),
+        "kb_24burst": dict(burst=1 * _B, n=24,   base=0x0001_0000),
+        "kb1":       dict(burst=1 * _B, n=32,   base=0x0001_0000),
+        "kb4":       dict(burst=1 * _B, n=128,  base=0x0001_0000),
+        "kb32":      dict(burst=1 * _B, n=1024, base=0x0001_0000),
+        # The bl1_/bl2_ (sub-burst) and bl8_ shapes were retired here. The
+        # generators are fixed to INTEGER MULTIPLES of one DFI BL8
+        # transaction, so a sub-burst shape can no longer be expressed and
+        # bl8_* had become a duplicate of kb1/kb4 at a different base.
+        #
+        # Sub-DRAM-burst handling is still covered, and covered better, at the
+        # controller level where a byte-exact golden model is available:
+        #   test_pumice_top.py  test_pumice_top_partial_strb  (24 cases)
+        #   test_pumice_top.py  test_pumice_top_partial_rd    (16 cases)
+        #   test_pumice_top.py  test_pumice_top_burst_len     (8 lengths)
+        #   test_pumice_top_geared.py  ..._short_burst        (down-gear)
+        # Those check every byte and are mutation-verified; the engine
+        # generators can only check an LFSR mirror, which is what made a
+        # sub-burst failure here read as an opaque phase offset.
     }
     if test_type == "ooo_pacing_schmoo":
         # Combined OOO + pacing + schmoo sweep.
@@ -254,7 +322,7 @@ async def cocotb_test_ddr2_char_macro(dut):
             axi_id_base, id_mode, wr_gap, rd_gap, rd_start_delay,
         )
 
-        BURST = 4
+        BURST = BURST_LEN_MULTIPLE   # one full DFI BL8 transaction
         N = 17  # past RD_CAM_DEPTH=16 — exercises slot reuse
         BASE = 0x0001_0000
         BYTES_PER_BEAT = 8
@@ -322,7 +390,7 @@ async def cocotb_test_ddr2_char_macro(dut):
         rd_gap = int(os.environ.get("RD_GAP", "0"))
         tb.log.info("pacing_sweep_b2b: wr_gap=%d rd_gap=%d", wr_gap, rd_gap)
 
-        BURST = 4
+        BURST = BURST_LEN_MULTIPLE   # one full DFI BL8 transaction
         N = 17  # past RD_CAM_DEPTH=16 — exercises slot reuse + same-id
         BASE = 0x0001_0000
         BYTES_PER_BEAT = 8
@@ -471,12 +539,13 @@ async def cocotb_test_ddr2_char_macro(dut):
 # Pytest matrix
 # ---------------------------------------------------------------------------
 
+# Every entry is an integer number of full DFI BL8 transactions (see
+# BURST_LEN_MULTIPLE). Keep it that way: a shape that is not a whole DRAM burst
+# makes the perf numbers meaningless (a partial burst still costs the device a
+# full ACT/CAS cycle) and is rejected by BURST_LEN_MULTIPLE in the RTL.
 _ALL_TYPES = ["smoke", "smoke_1x2", "smoke_2x1", "smoke_2x2",
               "kb_4burst", "kb_16burst", "kb_17burst",
-              "kb_20burst", "kb_24burst", "kb1", "kb4", "kb32",
-              "bl1_kb1", "bl1_kb4",
-              "bl2_kb1", "bl2_kb4",
-              "bl8_kb1", "bl8_kb4"]
+              "kb_20burst", "kb_24burst", "kb1", "kb4", "kb32"]
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = _ALL_TYPES   # GATE == FUNC == FULL for now
 
@@ -782,6 +851,289 @@ def test_ddr2_char_macro_ooo_pacing_schmoo(
         verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module,
         testcase="cocotb_test_ddr2_char_macro",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ---------------------------------------------------------------------------
+# CSR probe -- debug 101
+# ---------------------------------------------------------------------------
+# The full smoke test polls STATUS 10,000 times and dies 20 minutes later with
+# "init_done never asserted". Waves showed WHY: init_done_o asserts in the RTL
+# at 6.545us, but s_apb_PRDATA at the TB top never leaves 0 on ANY of the
+# 10,000 reads. The controller is fine; the CSR READ path through
+# apb4_to_peakrdl is dead.
+#
+# This test is the minimum instrument that shows that: bring up, one CSR
+# write, read it back, read STATUS. It runs in seconds, not 20 minutes, and it
+# fails on the read path instead of on a downstream symptom.
+
+
+@cocotb.test(timeout_time=100, timeout_unit="us")
+async def cocotb_test_ddr2_char_csr_probe(dut):
+    """Program, 1 write, 1 read. Isolates the CSR path from the DRAM path."""
+    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL)
+    await _drive_engine_idle(dut)
+    await tb.reset(mem_type="DDR2", init_complete_delay=20)
+    tb.init_register_map()
+    tb.init_apb4_master()
+    await tb.apb4_master.reset_bus()
+    tb.init_dfi_slave()
+
+    # 1. WRITE a CSR with a value distinguishable from both 0 and reset.
+    #    t_rp_wait is a plain rw field with no hardware side effects, so a
+    #    readback mismatch can only be the CSR path itself.
+    await tb.apb_program_register("INIT_TIMING1", "t_rp_wait", 0x0B)
+
+    # 2. READ IT BACK. This is the whole experiment: a write we just made,
+    #    read through the same window, with nothing else in the way.
+    rd = await tb.apb_read_register(
+        int(tb.reg_map.registers["INIT_TIMING1"]["address"], 16))
+    tb.log.info("CSR readback: INIT_TIMING1 = 0x%08X", rd)
+
+    # 3. Read STATUS a handful of times while init runs (init reaches S_DONE
+    #    at ~6.5us, so a few hundred cycles is ample). Log every sample -- a
+    #    stuck-at-0 column IS the finding.
+    seen = []
+    for i in range(12):
+        val = await tb.apb_read_register(0x004)
+        seen.append(val)
+        tb.log.info("STATUS[%2d] = 0x%08X (init_done=%d)", i, val, val & 1)
+        await ClockCycles(dut.pclk, 50)
+
+    rtl_done = int(dut.u_dut.u_ctrl.init_done_o.value)
+    tb.log.info("RTL init_done_o = %d", rtl_done)
+
+    # The write is the first thing to check: if a value we just wrote does
+    # not read back, nothing downstream of the CSR means anything.
+    wrote = (rd >> 8) & 0xFF
+    assert wrote == 0x0B, (
+        "CSR WRITE did not land: wrote t_rp_wait=0x0B to INIT_TIMING1, read "
+        "back 0x%08X (t_rp_wait=0x%02X, the reset default). Reads work -- the "
+        "readback returned real defaults, not zeros -- so the failure is the "
+        "WRITE path through apb4_to_peakrdl, not the read path." % (rd, wrote))
+
+    assert any(seen), (
+        "CSR read path is dead: wrote t_rp_wait=0x0B, read back 0x%08X, and "
+        "all %d STATUS reads returned 0 while the RTL's own init_done_o = %d. "
+        "PREADY returns, so the APB handshake completes and only the read "
+        "DATA is lost -- look at apb4_to_peakrdl's rd_data return across the "
+        "pclk/aclk crossing, not at pumice." % (rd, len(seen), rtl_done))
+
+
+def test_ddr2_char_csr_probe(request):
+    """Minimal CSR read/write probe -- seconds, not the 20-minute smoke."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_char_macro_tb_top"
+    test_name = "test_ddr2_char_csr_probe"
+
+    filelist_path = ("projects/NexysA7/ddr2-characterization/"
+                     "ddr2_char_framework/dv/filelists/"
+                     "ddr2_char_macro_tb_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "MEM_TYPE": "DDR2",
+        "SEED": os.environ.get('SEED', "12345"),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1",
+                  "RD_DBG_FIFO_DEPTH": "32"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args = []
+    plus_args = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_char_csr_probe",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env, parameters=parameters,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
+
+
+# ---------------------------------------------------------------------------
+# 1wr / 1rd master probe -- debug 101, with waves
+# ---------------------------------------------------------------------------
+# The smoke test is already a 1x1 shape, but it waits 500,000 cycles for
+# cfg_rd_done and so takes ~3.5 ms of sim (minutes of wall clock) to tell you
+# nothing. This runs the SAME single write and single read with short timeouts
+# and a live watch on the engine<->pumice AXI handshakes, so a failure names
+# which master stalled instead of just timing out.
+#
+# It exists because the harness's own WR localizer reports "every snooped AXI
+# WR beat matches MemoryModel state" even when ZERO beats were snooped -- it
+# cannot tell "clean" from "nothing happened". This test can: it counts the
+# handshakes directly.
+
+
+async def _watch_axi(dut, counts):
+    """Count AW/W/B and AR/R handshakes on the engine<->pumice AXI buses."""
+    m = dut.u_dut
+    while True:
+        await RisingEdge(dut.mc_clk)
+        await Timer(_NBA_SETTLE_PS, units="ps")
+        for tag, v, r in (("aw", m.wr_awvalid, m.wr_awready),
+                          ("w",  m.wr_wvalid,  m.wr_wready),
+                          ("b",  m.wr_bvalid,  m.wr_bready),
+                          ("ar", m.rd_arvalid, m.rd_arready),
+                          ("r",  m.rd_rvalid,  m.rd_rready)):
+            try:
+                if int(v.value) and int(r.value):
+                    counts[tag] += 1
+                if int(v.value):
+                    counts[tag + "_v"] += 1
+            except ValueError:
+                pass          # X during reset
+
+
+@cocotb.test(timeout_time=100, timeout_unit="us")
+async def cocotb_test_ddr2_char_1wr1rd(dut):
+    """Program, then ONE write burst and ONE read burst, watching the masters."""
+    import collections
+    tb = DDR2LPDDR2TopTB(dut, num_ranks=1, dram_bl=DRAM_BL)
+    await _drive_engine_idle(dut)
+    await tb.reset(mem_type="DDR2", init_complete_delay=20)
+    tb.init_register_map()
+    tb.init_apb4_master()
+    await tb.apb4_master.reset_bus()
+    tb.init_dfi_slave()
+    await tb.program_defaults(dfi_rate=DFI_RATE, dram_bl=DRAM_BL)
+    await tb.wait_for_init_done()
+
+    counts = collections.Counter()
+    cocotb.start_soon(_watch_axi(dut, counts))
+
+    BASE, SEED = 0x0000_2000, 0xDEAD_BEEF
+
+    def report(phase):
+        tb.log.info(
+            "%s: AW %d/%d  W %d/%d  B %d/%d  AR %d/%d  R %d/%d "
+            "(handshakes/valid-cycles)", phase,
+            counts["aw"], counts["aw_v"], counts["w"], counts["w_v"],
+            counts["b"], counts["b_v"], counts["ar"], counts["ar_v"],
+            counts["r"], counts["r_v"])
+
+    # ---- one write burst ----
+    await _program_writer(dut, start_addr=BASE, stride_0=8,
+                          burst_len=BURST_LEN_MULTIPLE, txn_count=1, lfsr_seed=SEED)
+    await RisingEdge(dut.mc_clk)
+    await _pulse(dut, "cfg_wr_start")
+    try:
+        await _wait_done(dut, "cfg_wr_done", timeout=4000)
+    except TimeoutError:
+        report("WR TIMEOUT")
+        raise
+    report("after 1 write")
+
+    # B is COMMIT-driven, not DRAM-landed: pumice answers B when the burst
+    # commits in the write CAM, several cycles before the DFI write actually
+    # clocks into the device. Peeking memory the cycle after B therefore reads
+    # stale data. pumice's own _wr_rd_check drains 300 cycles for this reason.
+    await ClockCycles(dut.mc_clk, 400)
+
+    assert counts["aw"] == 1, (
+        f"expected exactly 1 AW handshake, saw {counts['aw']} "
+        f"(valid-cycles {counts['aw_v']}). cfg_wr_done asserted anyway, which "
+        f"is why the WR localizer passed vacuously.")
+    assert counts["w"] == BURST_LEN_MULTIPLE, (
+        f"expected {BURST_LEN_MULTIPLE} W beats (one full DFI BL8 transaction), saw {counts['w']}")
+    assert counts["b"] == 1, f"expected 1 B, saw {counts['b']}"
+
+    mem = int.from_bytes(bytes(tb.peek_memory(BASE, 8)), "little")
+    tb.log.info("memory @ 0x%04X = 0x%016X", BASE, mem)
+    assert mem != 0, (
+        f"write completed ({counts['aw']} AW, {counts['w']} W, {counts['b']} B) "
+        f"but memory @ {BASE:#x} is still zero -- the beats reached pumice's "
+        f"AXI port and did not reach the DRAM model.")
+
+    # ---- one read burst ----
+    await _program_reader(dut, start_addr=BASE, stride_0=8,
+                          burst_len=BURST_LEN_MULTIPLE, txn_count=1, lfsr_seed=SEED)
+    await RisingEdge(dut.mc_clk)
+    await _pulse(dut, "cfg_rd_start")
+    try:
+        await _wait_done(dut, "cfg_rd_done", timeout=4000)
+    except TimeoutError:
+        report("RD TIMEOUT")
+        raise
+    report("after 1 read")
+
+    assert counts["ar"] == 1, f"expected 1 AR, saw {counts['ar']}"
+    assert counts["r"] >= 1, f"no R beats returned: {dict(counts)}"
+    assert int(dut.o_data_error.value) == 0, "read data mismatch"
+    tb.log.info("PASS 1wr/1rd: %s", dict(counts))
+
+
+def test_ddr2_char_1wr1rd(request):
+    """Minimal 1-write / 1-read master probe. Run with WAVES=1 to debug."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "ddr2_char_macro_tb_top"
+    test_name = "test_ddr2_char_1wr1rd"
+
+    filelist_path = ("projects/NexysA7/ddr2-characterization/"
+                     "ddr2_char_framework/dv/filelists/"
+                     "ddr2_char_macro_tb_top.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = sim_build_path(tests_dir, test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name, "MEM_TYPE": "DDR2",
+        "SEED": os.environ.get('SEED', "12345"),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+    parameters = {"NUM_RANKS": "1", "PAGE_POLICY": "1",
+                  "RD_DBG_FIFO_DEPTH": "32"}
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = [
+        "+define+USE_ASYNC_RESET",
+        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
+        "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
+        "-Wno-CASEOVERLAP",
+    ]
+    sim_args, plus_args = [], []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_ddr2_char_1wr1rd",
         sim_build=sim_build, simulator="verilator",
         extra_env=extra_env, parameters=parameters,
         compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,

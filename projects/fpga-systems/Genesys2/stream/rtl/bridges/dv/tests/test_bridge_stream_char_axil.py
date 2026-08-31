@@ -28,8 +28,15 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
-# Import generated testbench class
-from projects.fpga-systems.Genesys2.stream.rtl.bridges.dv.tbclasses.bridge_stream_char_axil_tb import BridgeStreamCharAxilTB
+# Import the testbench class. NOT as a dotted package path: the area
+# lives under projects/fpga-systems/, and 'fpga-systems' contains a
+# hyphen, which is not a legal Python identifier -- 'from
+# projects.fpga-systems....' is a SyntaxError, so these five test files
+# could not even be collected. Put the tbclasses dir on sys.path and
+# import the module by its own name instead.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                os.pardir, 'tbclasses'))
+from bridge_stream_char_axil_tb import BridgeStreamCharAxilTB  # noqa: E402
 
 
 # ============================================================================
@@ -567,7 +574,17 @@ def test_bridge_stream_char_axil_basic_connectivity(request):
     # Waveforms via the canonical helper in TBClasses.shared.utilities.
     waves = get_wave_config(sim_build)
 
-    extra_args = ['--assert', '--coverage'] + waves['extra_args']
+    extra_args = ['--assert', '--coverage',
+                  # The generated PeakRDL CSR (*_cfg.sv) drives one
+                  # 'field_combo' struct from many always_comb blocks,
+                  # each writing a DIFFERENT member. Verilator's
+                  # MULTIDRIVEN fires on the aggregate, not per member,
+                  # so this is a false positive -- 1988 of them, which
+                  # tripped '--Wall as error' and failed the COMPILE.
+                  # Every other test in the repo that builds this
+                  # generated code suppresses it the same way.
+                  '-Wno-MULTIDRIVEN',
+                  ] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
@@ -619,7 +636,17 @@ def test_bridge_stream_char_axil_boundary_probe(request):
 
     waves = get_wave_config(sim_build)
 
-    extra_args = ['--assert', '--coverage'] + waves['extra_args']
+    extra_args = ['--assert', '--coverage',
+                  # The generated PeakRDL CSR (*_cfg.sv) drives one
+                  # 'field_combo' struct from many always_comb blocks,
+                  # each writing a DIFFERENT member. Verilator's
+                  # MULTIDRIVEN fires on the aggregate, not per member,
+                  # so this is a false positive -- 1988 of them, which
+                  # tripped '--Wall as error' and failed the COMPILE.
+                  # Every other test in the repo that builds this
+                  # generated code suppresses it the same way.
+                  '-Wno-MULTIDRIVEN',
+                  ] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,
@@ -669,7 +696,17 @@ def test_bridge_stream_char_axil_arbitration(request):
 
     waves = get_wave_config(sim_build)
 
-    extra_args = ['--assert', '--coverage'] + waves['extra_args']
+    extra_args = ['--assert', '--coverage',
+                  # The generated PeakRDL CSR (*_cfg.sv) drives one
+                  # 'field_combo' struct from many always_comb blocks,
+                  # each writing a DIFFERENT member. Verilator's
+                  # MULTIDRIVEN fires on the aggregate, not per member,
+                  # so this is a false positive -- 1988 of them, which
+                  # tripped '--Wall as error' and failed the COMPILE.
+                  # Every other test in the repo that builds this
+                  # generated code suppresses it the same way.
+                  '-Wno-MULTIDRIVEN',
+                  ] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,

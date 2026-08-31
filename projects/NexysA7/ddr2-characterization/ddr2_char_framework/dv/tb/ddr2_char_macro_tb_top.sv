@@ -32,6 +32,13 @@ module ddr2_char_macro_tb_top
     parameter int PAGE_POLICY      = 1,
 
     parameter int DFI_RATE         = 2,
+    // Physical DRAM device x-width. The Nexys A7 carries an MT47H64M16 (x16),
+    // and matching it here is what makes the sim's burst framing identical to
+    // the board's: it sets BL_SHIFT/BYTE_OFFSET_WIDTH inside pumice, and hence
+    // how many AXI beats make one DRAM burst. Left at the 64-bit default the
+    // sim silently models a device the board does not have.
+    parameter int DRAM_DEVICE_WIDTH = 64,
+    parameter int DRAM_BL          = 8,
     parameter int DFI_DATA_WIDTH   = AXI_DATA_WIDTH * DFI_RATE,
     parameter int DFI_STRB_WIDTH   = AXI_STRB_WIDTH * DFI_RATE,
     parameter int DFI_EN_WIDTH     = DFI_RATE,
@@ -105,6 +112,11 @@ module ddr2_char_macro_tb_top
     output logic                          o_actual_crc_valid,
     output logic                          o_data_error,
     output logic                          o_rresp_error,
+    // 1:1 accounting: extra R beats are an error too (added with the DUT
+    // port in 5eacef37; this TB top was never updated, which the make target
+    // caught as PINMISSING because it builds warnings-as-errors -- bare
+    // pytest passes -Wno-PINMISSING and hid it).
+    output logic                          o_stray_beat_error,
     output logic [TXN_COUNT_WIDTH-1:0]    o_beats_mismatched,
 
     // -------- APB CSR (BFM-driven) -------------------------------------
@@ -191,6 +203,8 @@ module ddr2_char_macro_tb_top
         .ROW_WIDTH       (ROW_WIDTH),
         .COL_WIDTH       (COL_WIDTH),
         .DFI_RATE        (DFI_RATE),
+        .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
+        .DRAM_BL         (DRAM_BL),
         .PAGE_POLICY     (PAGE_POLICY),
         .TXN_COUNT_WIDTH (TXN_COUNT_WIDTH),
         .INDEX_WIDTH     (INDEX_WIDTH),
@@ -250,6 +264,7 @@ module ddr2_char_macro_tb_top
         .o_actual_crc_valid      (o_actual_crc_valid),
         .o_data_error            (o_data_error),
         .o_rresp_error           (o_rresp_error),
+        .o_stray_beat_error      (o_stray_beat_error),
         .o_beats_mismatched      (o_beats_mismatched),
 
         // APB passthrough

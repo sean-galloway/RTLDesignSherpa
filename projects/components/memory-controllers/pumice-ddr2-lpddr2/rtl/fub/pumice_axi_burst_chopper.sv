@@ -7,9 +7,9 @@
 // Module: pumice_axi_burst_chopper
 // Purpose: FSM-free AXI address-channel burst chopper. Takes one host AXI
 //          address-channel command (AW or AR - the field set is identical) and
-//          emits it as N sub-commands, each spanning at most CHUNK_BEATS AXI
+//          emits it as N sub-commands, each spanning at most AXI_BEATS_PER_BURST AXI
 //          beats (= one DFI/DRAM burst). Sub-command addresses step by
-//          CHUNK_BYTES so each lands on its own DRAM-burst boundary. The pumice
+//          AXI_BURST_BYTES so each lands on its own DRAM-burst boundary. The pumice
 //          intakes require "one AXI sub-burst == one DFI burst"; this chopper is
 //          what guarantees that framing on the request side.
 //
@@ -23,9 +23,9 @@
 //          fully drains.
 //
 //          Regular split: for the pumice-aligned case (host burst is a whole
-//          multiple of CHUNK_BEATS and CHUNK-aligned) every sub-command is
-//          exactly CHUNK_BEATS beats. A ragged final chunk is handled too (its
-//          length is min(remaining, CHUNK_BEATS)) so the module is robust to any
+//          multiple of AXI_BEATS_PER_BURST and CHUNK-aligned) every sub-command is
+//          exactly AXI_BEATS_PER_BURST beats. A ragged final chunk is handled too (its
+//          length is min(remaining, AXI_BEATS_PER_BURST)) so the module is robust to any
 //          burst shape, though pumice never issues one.
 //
 //          Aggregation sideband: each sub-command carries m_ax_agg (=1 when its
@@ -46,12 +46,22 @@ module pumice_axi_burst_chopper #(
     parameter int AXI_ADDR_WIDTH = 32,
     parameter int AXI_USER_WIDTH = 1,
     parameter int STRB_BYTES     = 8,   // bytes per AXI beat (AXI_DATA_WIDTH/8)
-    parameter int CHUNK_BEATS    = 1,   // AXI beats per DFI burst (power of 2)
+    parameter int AXI_BEATS_PER_BURST    = 1,   // AXI beats per DFI burst (power of 2)
+    // 1 = always DECLARE a full AXI_BEATS_PER_BURST sub-command, even when the host
+    // burst leaves a short tail. The write path sets this: the splitter pads
+    // the W stream out to the chunk with zero-strobe filler beats, so the
+    // sub-command really is AXI_BEATS_PER_BURST long on the wire and the intake's
+    // "one AXI burst == one DFI burst" contract holds for ANY host AxLEN.
+    // Internal remaining-beat accounting still uses the REAL beat count, so
+    // the address stepping and last-sub detection are unchanged.
+    // Reads leave this 0: a short read needs no padding (the R framing
+    // follows the AR), so the read side stays bit-identical.
+    parameter int PAD_TO_CHUNK   = 0,
     // Derived
     parameter int IW = AXI_ID_WIDTH,
     parameter int AW = AXI_ADDR_WIDTH,
     parameter int UW = AXI_USER_WIDTH,
-    parameter int CHUNK_BYTES = CHUNK_BEATS * STRB_BYTES
+    parameter int AXI_BURST_BYTES = AXI_BEATS_PER_BURST * STRB_BYTES
 ) (
     input  logic              aclk,
     input  logic              aresetn,
@@ -92,8 +102,8 @@ module pumice_axi_burst_chopper #(
 );
 
     initial begin
-        assert (CHUNK_BEATS >= 1 && (CHUNK_BEATS == (1 << $clog2(CHUNK_BEATS)))) else
-            $fatal(1, "pumice_axi_burst_chopper: CHUNK_BEATS must be a power of 2");
+        assert (AXI_BEATS_PER_BURST >= 1 && (AXI_BEATS_PER_BURST == (1 << $clog2(AXI_BEATS_PER_BURST)))) else
+            $fatal(1, "pumice_axi_burst_chopper: AXI_BEATS_PER_BURST must be a power of 2");
     end
 
     // ---- latched host command (valid only while r_active) ------------------
@@ -122,12 +132,13 @@ module pumice_axi_burst_chopper #(
     assign w_first = !r_active;
     assign w_total = {1'b0, fub_axlen} + 9'd1;
     assign w_rem   = w_first ? w_total : r_rem;
-    assign w_this  = (w_rem > 9'(CHUNK_BEATS)) ? 9'(CHUNK_BEATS) : w_rem;
+    assign w_this  = (w_rem > 9'(AXI_BEATS_PER_BURST)) ? 9'(AXI_BEATS_PER_BURST) : w_rem;
     assign w_addr  = w_first ? fub_axaddr : r_addr;
-    assign w_last_sub = (w_rem <= 9'(CHUNK_BEATS));
+    assign w_last_sub = (w_rem <= 9'(AXI_BEATS_PER_BURST));
 
     assign m_axaddr   = w_addr;
-    assign m_axlen    = 8'(w_this - 9'd1);
+    assign m_axlen    = (PAD_TO_CHUNK != 0) ? 8'(AXI_BEATS_PER_BURST - 1)
+                                            : 8'(w_this - 9'd1);
     assign m_axid     = w_first ? fub_axid     : r_id;
     assign m_axsize   = w_first ? fub_axsize   : r_size;
     assign m_axburst  = w_first ? fub_axburst  : r_burst;
@@ -145,7 +156,7 @@ module pumice_axi_burst_chopper #(
     // Aggregation sideband: agg=1 when the host command has >1 sub (on the first
     // sub that's total>CHUNK; on continuation subs it is by definition a split).
     // last=1 on the final sub. Single-sub command => agg=0, last=1.
-    assign m_ax_agg    = w_first ? (w_total > 9'(CHUNK_BEATS)) : 1'b1;
+    assign m_ax_agg    = w_first ? (w_total > 9'(AXI_BEATS_PER_BURST)) : 1'b1;
     assign m_ax_last   = w_last_sub;
     // Accept the host command as its first sub launches; hold ready low while a
     // command is still draining so the next one waits.
@@ -169,7 +180,7 @@ module pumice_axi_burst_chopper #(
                 // (latch matters only on the transition out of the first sub).
                 r_active <= 1'b1;
                 r_rem    <= w_rem - w_this;
-                r_addr   <= w_addr + AW'(CHUNK_BYTES);
+                r_addr   <= w_addr + AW'(AXI_BURST_BYTES);
                 if (w_first) begin
                     r_id     <= fub_axid;
                     r_size   <= fub_axsize;

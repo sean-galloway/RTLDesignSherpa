@@ -33,7 +33,7 @@ module pumice_dfi_layer
     parameter int COL_WIDTH      = 10,
     parameter int DFI_RATE       = 2,
     parameter int DRAM_BEAT_WIDTH = 64,
-    parameter int BL             = 8,     // DRAM beats per burst (BL_PUMICE)
+    parameter int DFI_BEATS_PER_BURST             = 8,     // DRAM beats per burst (BL_PUMICE)
     // Sub-DFI-word burst framing (task #146). N_SUBCMD DRAM column commands are
     // issued per DFI word when a burst is smaller than one DFI word (gear 1:4 +
     // x16 BL4 => N_SUBCMD=2); SUB_COL_STRIDE (device-word col units) separates
@@ -44,7 +44,7 @@ module pumice_dfi_layer
     // Compile MAX DFI-phase stride between packed sub-bursts (= BL_PUMICE).
     parameter int SUB_PHASE_STRIDE = (N_SUBCMD > 1) ? (DFI_RATE / N_SUBCMD) : 1,
     parameter int SUBW_MAX       = $clog2(N_SUBCMD + 1),
-    parameter int BURST_WORDS    = (BL >= DFI_RATE) ? (BL / DFI_RATE) : 1,
+    parameter int BURST_WORDS    = (DFI_BEATS_PER_BURST >= DFI_RATE) ? (DFI_BEATS_PER_BURST / DFI_RATE) : 1,
     parameter int CMD_FIFO_DEPTH = 8,
     parameter int WD_FIFO_DEPTH  = 16,
     // Read-return FIFO. dfi_rddata_valid is FIRE-AND-FORGET (no PHY
@@ -79,7 +79,7 @@ module pumice_dfi_layer
     parameter int BKW = $clog2(NUM_BANKS),
     parameter int PHW = (DFI_RATE > 1) ? $clog2(DFI_RATE) : 1,
     // DFI words captured/driven per burst-group. Clamped to >=1 so the
-    // sub-DFI-word regime (BL/DFI_RATE < 1) frames exactly one DFI word.
+    // sub-DFI-word regime (DFI_BEATS_PER_BURST/DFI_RATE < 1) frames exactly one DFI word.
     parameter int BL_WORDS = BURST_WORDS,
     // Read aligner outstanding-read tracking depth (exposed). Size >= the read
     // CAM depth so op_ready never deasserts in steady state; the valid/ready

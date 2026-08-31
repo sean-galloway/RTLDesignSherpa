@@ -7,19 +7,19 @@
 // Module: pumice_wr_splitter
 // Purpose: FSM-free write-side splitter. Chops the host AW burst into DFI-burst
 //          sized sub-commands (via pumice_axi_burst_chopper) and re-frames the W
-//          stream so each sub-command sees exactly one WLAST at its CHUNK_BEATS
+//          stream so each sub-command sees exactly one WLAST at its AXI_BEATS_PER_BURST
 //          boundary. This is the request-side transform only: the B channel is
 //          NOT here - sub-burst B responses are consolidated to one host B by
 //          pumice_wr_aggregator on the return path.
 //
 //          The WLAST re-frame is the key correctness point. It is driven purely
-//          off the W handshake (a CHUNK_BEATS down-counter), NOT off the AW
+//          off the W handshake (a AXI_BEATS_PER_BURST down-counter), NOT off the AW
 //          side. The old shared axi_master_wr_splitter tied WLAST to a beat
 //          budget set by its AW FSM, which desynced from the W stream when a
 //          host burst split into many single-beat DRAM bursts (e.g. x16), so
 //          most sub-bursts never got a WLAST and the write-data CAM never
 //          delimited them. Counting the W stream directly makes the framing
-//          exact for any CHUNK_BEATS, including 1.
+//          exact for any AXI_BEATS_PER_BURST, including 1.
 //
 // Documentation: rtl/PUMICE_AXI4_IFC_UARCH.md
 `timescale 1ns / 1ps
@@ -31,7 +31,7 @@ module pumice_wr_splitter #(
     parameter int AXI_ADDR_WIDTH = 32,
     parameter int AXI_DATA_WIDTH = 64,
     parameter int AXI_USER_WIDTH = 1,
-    parameter int CHUNK_BEATS    = 1,   // AXI beats per DFI burst (power of 2)
+    parameter int AXI_BEATS_PER_BURST    = 1,   // AXI beats per DFI burst (power of 2)
     // Derived
     parameter int IW = AXI_ID_WIDTH,
     parameter int AW = AXI_ADDR_WIDTH,
@@ -95,7 +95,8 @@ module pumice_wr_splitter #(
         .AXI_ADDR_WIDTH(AW),
         .AXI_USER_WIDTH(UW),
         .STRB_BYTES    (SW),
-        .CHUNK_BEATS   (CHUNK_BEATS)
+        .AXI_BEATS_PER_BURST   (AXI_BEATS_PER_BURST),
+        .PAD_TO_CHUNK  (1)
     ) u_aw_chop (
         .aclk        (aclk),
         .aresetn     (aresetn),
@@ -129,26 +130,59 @@ module pumice_wr_splitter #(
         .m_ax_last   (m_aw_last)
     );
 
-    // ---- W: pass data through, regenerate WLAST every CHUNK_BEATS beats -----
+    // ---- W: pass data through, regenerate WLAST every AXI_BEATS_PER_BURST beats -----
+    // A DRAM burst is indivisible: the device always transfers BL beats. So a
+    // host burst that does NOT fill a whole DRAM burst is completed here with
+    // zero-strobe FILLER beats rather than rejected. strb=0 becomes DM=1 in
+    // pumice_dfi_wr_serializer (dfi_wrdata_mask_o = ~wd_strb_i), so the device
+    // clocks the beat and writes nothing -- which is exactly what DDR2's data
+    // mask is for. That makes EVERY legal AxLEN work, including AxLEN=0.
+    //
+    // Before this, a short or ragged burst reached pumice_wr_intake with
+    // (awlen+1)*GEAR != BL and was answered with SLVERR and dropped, so a
+    // compliant master issuing a single-beat write silently lost it.
     logic [8:0] r_wcnt;   // beats until the next re-framed WLAST (down-counter)
+    logic [8:0] r_pad;    // filler beats still owed on the current chunk
+    logic       w_padding;
     logic       w_wacc;
+    logic       w_short_last;
 
-    assign m_wdata  = fub_wdata;
-    assign m_wstrb  = fub_wstrb;
-    assign m_wuser  = fub_wuser;
-    assign m_wvalid = fub_wvalid;
-    assign fub_wready = m_wready;
-    // WLAST at the CHUNK boundary; also honour the host's own final beat so a
-    // ragged tail still closes cleanly.
-    assign m_wlast  = fub_wlast || (r_wcnt == 9'd0);
+    assign w_padding = (r_pad != 9'd0);
+
+    // While padding the host is held off (fub_wready low) and the filler beats
+    // are generated locally; data/user are don't-care because strb is zero.
+    assign m_wdata    = w_padding ? '0   : fub_wdata;
+    assign m_wstrb    = w_padding ? '0   : fub_wstrb;
+    assign m_wuser    = w_padding ? '0   : fub_wuser;
+    assign m_wvalid   = w_padding ? 1'b1 : fub_wvalid;
+    assign fub_wready = w_padding ? 1'b0 : m_wready;
+
+    // WLAST closes a chunk ONLY at the CHUNK boundary now. The host's own
+    // wlast no longer terminates a short chunk -- it starts the padding.
+    assign m_wlast = w_padding ? (r_pad == 9'd1) : (r_wcnt == 9'd0);
 
     assign w_wacc = m_wvalid && m_wready;
 
+
+    // Host ended its burst mid-chunk: owe (r_wcnt) filler beats.
+    assign w_short_last = fub_wlast && (r_wcnt != 9'd0);
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_wcnt <= 9'(CHUNK_BEATS - 1);
+            r_wcnt <= 9'(AXI_BEATS_PER_BURST - 1);
+            r_pad  <= 9'd0;
         end else if (w_wacc) begin
-            r_wcnt <= m_wlast ? 9'(CHUNK_BEATS - 1) : (r_wcnt - 9'd1);
+            if (w_padding) begin
+                r_pad  <= r_pad - 9'd1;
+                // last filler closes the chunk and rearms the counter
+                r_wcnt <= (r_pad == 9'd1) ? 9'(AXI_BEATS_PER_BURST - 1)
+                                          : (r_wcnt - 9'd1);
+            end else if (w_short_last) begin
+                r_pad  <= r_wcnt;
+                r_wcnt <= r_wcnt - 9'd1;
+            end else begin
+                r_wcnt <= m_wlast ? 9'(AXI_BEATS_PER_BURST - 1) : (r_wcnt - 9'd1);
+            end
         end
     )
 

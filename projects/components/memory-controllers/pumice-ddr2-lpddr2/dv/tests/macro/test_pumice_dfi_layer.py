@@ -186,7 +186,7 @@ def test_pumice_dfi_layer(request):
     os.makedirs(log_dir, exist_ok=True)
     params = {"NUM_RANKS": "1", "NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH),
               "COL_WIDTH": str(COL_WIDTH), "DFI_RATE": str(DFI_RATE),
-              "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "BL": str(BL)}
+              "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DFI_BEATS_PER_BURST": str(BL)}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml"),

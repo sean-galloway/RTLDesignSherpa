@@ -38,7 +38,7 @@ module pumice_rd_intake #(
     parameter int ROW_WIDTH         = 14,
     parameter int COL_WIDTH         = 10,
     parameter int BYTE_OFFSET_WIDTH = 3,
-    parameter int BL                = 4,
+    parameter int AXI_BEATS_PER_BURST                = 4,
     parameter int AR_FIFO_DEPTH     = 4,
     parameter int ORDER_FIFO_DEPTH  = 8,
     parameter int RD_FIFO_DEPTH     = 16,
@@ -211,6 +211,23 @@ module pumice_rd_intake #(
     logic [ROW_WIDTH-1:0] w_row;
     logic [COL_WIDTH-1:0] w_col;
 
+    // Align the mapped address DOWN to the AXI BEAT. addr_mapper indexes at
+    // DEVICE-word granularity (BYTE_OFFSET_WIDTH = log2(DRAM_DEVICE_WIDTH/8)),
+    // which is FINER than one AXI beat whenever a beat spans several device
+    // words -- e.g. a 128-bit beat over a 64-bit device word. The byte lanes
+    // inside a beat are already carried by WSTRB, so an unaligned start
+    // address must NOT also shift the column: doing both counts the offset
+    // twice and the write lands a beat further on, leaving the requested
+    // address untouched. AXI4 requires exactly this: an unaligned first beat
+    // keeps the aligned address and narrows the strobes.
+    //
+    // Aligned traffic is bit-identical (the low bits are already zero). The
+    // 64->128 dwidth converter is what produces unaligned beats here, by
+    // turning one narrow host beat into a wide beat in its lane.
+    localparam int BEAT_BO = $clog2(DW / 8);
+    logic [AW-1:0] w_map_addr_rd;
+    assign w_map_addr_rd = {fub_araddr[AW-1:BEAT_BO], {BEAT_BO{1'b0}}};
+
     addr_mapper #(
         .AXI_ADDR_WIDTH   (AW),
         .NUM_RANKS        (NUM_RANKS),
@@ -219,7 +236,7 @@ module pumice_rd_intake #(
         .COL_WIDTH        (COL_WIDTH),
         .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH)
     ) u_addr_mapper (
-        .axi_addr_i (fub_araddr),
+        .axi_addr_i (w_map_addr_rd),
         .bank_lsb_i (bank_lsb_i),
         .hash_en_i  (hash_en_i),
         .hash_seed_i(hash_seed_i),
@@ -267,8 +284,13 @@ module pumice_rd_intake #(
     );
     assign {w_side_agg, w_side_last} = w_side_data;
 
-    // ---- order FIFO : {orig_agg, orig_last, source, id} --------------------
-    localparam int ORD_W = 3 + IW;
+    // ---- order FIFO : {orig_agg, orig_last, source, len, id} ---------------
+    // `len` is the sub-command's AxLEN. A DRAM burst always returns AXI_BEATS_PER_BURST beats,
+    // but the host may have asked for FEWER (any legal AxLEN, down to a single
+    // beat). The beats past the request are drained from the CAM and DROPPED
+    // here rather than pushed at the host -- without this a 1-beat read got AXI_BEATS_PER_BURST
+    // R beats and the read never framed correctly.
+    localparam int ORD_W = 3 + 8 + IW;
 
     logic             w_ord_wr_valid, w_ord_wr_ready;
     logic [ORD_W-1:0] w_ord_wr_data;
@@ -296,7 +318,8 @@ module pumice_rd_intake #(
     assign w_ord_wr_valid = w_admit;
     // pop the sideband in lockstep with the order-FIFO write (fub_ar admit)
     assign w_side_rd_ready = w_ord_wr_valid;
-    assign w_ord_wr_data  = {w_side_agg, w_side_last, w_hit /*SRC_SNARF=1*/, fub_arid};
+    assign w_ord_wr_data  = {w_side_agg, w_side_last, w_hit /*SRC_SNARF=1*/,
+                             fub_arlen, fub_arid};
 
     // snarf accept = this AR was admitted as a snarf hit
     assign snarf_accept_o = w_admit && w_hit;
@@ -324,7 +347,9 @@ module pumice_rd_intake #(
 
     logic          w_head_agg, w_head_last, w_head_src;
     logic [IW-1:0] w_head_id;
-    assign {w_head_agg, w_head_last, w_head_src, w_head_id} = w_ord_rd_data;
+    logic [7:0]    w_head_len;
+    assign {w_head_agg, w_head_last, w_head_src,
+            w_head_len, w_head_id} = w_ord_rd_data;
 
     // ---- source arbiter : select snarf/DFI by the order-FIFO head ----------
     logic          w_src_valid, w_src_last;
@@ -355,24 +380,44 @@ module pumice_rd_intake #(
 
     // A source beat is consumed when the head is valid, the source has a beat,
     // and the rd-data FIFO has room.
-    logic w_beat_fire;
-    assign w_beat_fire   = w_ord_rd_valid && w_src_valid && w_rd_wr_ready;
+    // Beats the host actually asked for are FORWARDED; the remainder of the
+    // DRAM burst is consumed from the source and dropped. A dropped beat needs
+    // no room in the rd-data FIFO, so it must not wait on w_rd_wr_ready.
+    logic       w_fwd_beat, w_sub_last;
+    logic [7:0] r_fwd;                 // beats forwarded so far, this sub
+    assign w_fwd_beat = (r_fwd <= w_head_len);
+    assign w_sub_last = (r_fwd == w_head_len);
 
-    assign w_rd_wr_valid = w_ord_rd_valid && w_src_valid;
+    logic w_beat_fire;
+    assign w_beat_fire   = w_ord_rd_valid && w_src_valid
+                           && (!w_fwd_beat || w_rd_wr_ready);
+
+    assign w_rd_wr_valid = w_ord_rd_valid && w_src_valid && w_fwd_beat;
     // Collapse per-sub RLAST: for a split (agg=1) the host sees RLAST only on
     // the final beat of the final sub (w_head_last); a non-split read (agg=0)
     // passes RLAST per sub unchanged. The order FIFO still pops per sub (on
     // w_src_last) to advance through the burst's sub-commands.
+    // RLAST rides the last REQUESTED beat, not the last beat the DRAM burst
+    // happened to return (w_src_last), which may be several beats later.
     assign w_rd_wr_data  = {w_src_resp,
-                            w_src_last && (!w_head_agg || w_head_last),
+                            w_sub_last && (!w_head_agg || w_head_last),
                             w_head_id, w_src_data};
 
     // Ready back to whichever source the head selects.
-    assign snarf_rd_ready_o = w_ord_rd_valid && (w_head_src == SRC_SNARF) && w_rd_wr_ready;
-    assign dfi_rd_ready_o   = w_ord_rd_valid && (w_head_src == SRC_DFI)   && w_rd_wr_ready;
+    assign snarf_rd_ready_o = w_ord_rd_valid && (w_head_src == SRC_SNARF)
+                              && (!w_fwd_beat || w_rd_wr_ready);
+    assign dfi_rd_ready_o   = w_ord_rd_valid && (w_head_src == SRC_DFI)
+                              && (!w_fwd_beat || w_rd_wr_ready);
 
     // Pop the order FIFO when the last beat of the burst is accepted.
     assign w_ord_rd_ready = w_beat_fire && w_src_last;
+
+    // Forward counter: advances per consumed beat, rearms when the DRAM burst
+    // ends (which is also when the order FIFO pops to the next sub-command).
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))  r_fwd <= 8'd0;
+        else if (w_beat_fire)        r_fwd <= w_src_last ? 8'd0 : (r_fwd + 8'd1);
+    )
 
     gaxi_fifo_sync #(.DATA_WIDTH(RD_W), .DEPTH(RD_FIFO_DEPTH)) u_rd_data_fifo (
         .axi_aclk   (aclk),

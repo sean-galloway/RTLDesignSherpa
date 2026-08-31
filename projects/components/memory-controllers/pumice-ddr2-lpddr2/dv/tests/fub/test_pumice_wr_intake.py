@@ -133,7 +133,7 @@ def _run(request, testcase, ragged_assert, bl=4):
         "ROW_WIDTH":       "14",
         "COL_WIDTH":       "10",
         "BYTE_OFFSET_WIDTH": "3",
-        "BL":              str(bl),
+        "AXI_BEATS_PER_BURST":              str(bl),
         "RAGGED_ASSERT":   str(ragged_assert),
     }
     extra_env = {

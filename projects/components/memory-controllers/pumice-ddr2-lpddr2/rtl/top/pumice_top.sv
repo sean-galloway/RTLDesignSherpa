@@ -26,7 +26,7 @@ module pumice_top
     parameter int DFI_RATE       = 2,
     parameter int DRAM_BEAT_WIDTH = 64,
     parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,  // physical device word (x16 => 16)
-    parameter int BL             = 8,
+    parameter int DRAM_BL             = 8,
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
     parameter int CMD_HISTORY_EN = 0,  // DV: arm the scheduler's history scoreboard
@@ -121,6 +121,12 @@ module pumice_top
         hwif_in.SCHED_STATS_ACT.VAL.next   = w_stat_act;
         hwif_in.SCHED_STATS_PRE.VAL.next   = w_stat_pre;
         hwif_in.REF_STATS_REF.VAL.next     = w_stat_ref;
+        // Init status. STATUS.init_done is the ONLY way software can tell
+        // that bring-up finished -- and it was never driven, so it read 0
+        // forever while the sequencer sat in S_DONE with init_done_o = 1.
+        // Every host and testbench that polls STATUS for init_done hung
+        // until its timeout.
+        hwif_in.STATUS.init_done.next      = init_done_o;
         // Capability strap: per-bank refresh exists on LPDDR2 only (DDR2 has
         // no REFpb command). Software reads this before selecting mode 2.
         hwif_in.REF_CTRL.perbank_supported.next =
@@ -176,7 +182,7 @@ module pumice_top
         .DFI_RATE         (DFI_RATE),
         .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
-        .BL               (BL),
+        .DRAM_BL               (DRAM_BL),
         .NUM_ENTRIES      (NUM_ENTRIES),
         .N_SRAM_SLOTS     (N_SRAM_SLOTS),
         .CMD_HISTORY_EN   (CMD_HISTORY_EN)

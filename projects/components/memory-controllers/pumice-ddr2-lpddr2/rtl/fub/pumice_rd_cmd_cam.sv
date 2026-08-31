@@ -33,7 +33,7 @@ module pumice_rd_cmd_cam #(
     parameter int COL_WIDTH       = 10,
     parameter int AXI_ID_WIDTH    = 8,
     parameter int AXI_DATA_WIDTH  = 64,
-    parameter int BL              = 4,
+    parameter int AXI_BEATS_PER_BURST              = 4,
     parameter int AGE_WIDTH       = 16,
     parameter int N_SRAM_SLOTS    = NUM_ENTRIES,
 
@@ -42,7 +42,7 @@ module pumice_rd_cmd_cam #(
     parameter int BKW   = $clog2(NUM_BANKS),
     parameter int PTRW  = $clog2(NUM_ENTRIES),
     parameter int SPTRW = $clog2(N_SRAM_SLOTS),
-    parameter int BCW   = (BL > 1) ? $clog2(BL) : 1   // beat-counter width (BL=1 => 1b)
+    parameter int BCW   = (AXI_BEATS_PER_BURST > 1) ? $clog2(AXI_BEATS_PER_BURST) : 1   // beat-counter width (AXI_BEATS_PER_BURST=1 => 1b)
 ) (
     input  logic                          aclk,
     input  logic                          aresetn,
@@ -177,7 +177,7 @@ module pumice_rd_cmd_cam #(
     end
 
     (* ram_style = "distributed" *)
-    logic [DW-1:0] r_sram [N_SRAM_SLOTS*BL];
+    logic [DW-1:0] r_sram [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
 
     // ---- free-slot allocation ----------------------------------------------
     logic            w_have_free;
@@ -231,7 +231,7 @@ module pumice_rd_cmd_cam #(
     assign w_iq_rd_ready  = w_ret_fire && dfi_ret_last_i;
 
     logic [31:0] w_ret_idx;
-    assign w_ret_idx = 32'(w_ret_slot) * 32'(BL) + 32'(r_ret_beat);
+    assign w_ret_idx = 32'(w_ret_slot) * 32'(AXI_BEATS_PER_BURST) + 32'(r_ret_beat);
 
     // ---- issue-side oldest NOT-ISSUED (max rel among valid && !issued) -----
     logic            w_old_found;
@@ -323,13 +323,13 @@ module pumice_rd_cmd_cam #(
     logic            w_dr_go;
     logic [31:0]     w_dr_idx;
     assign w_dr_go  = w_dro_found && r_ready[w_dro_slot];   // oldest + data staged
-    assign w_dr_idx = 32'(r_ptr[w_dro_slot]) * 32'(BL) + 32'(r_dr_beat);
+    assign w_dr_idx = 32'(r_ptr[w_dro_slot]) * 32'(AXI_BEATS_PER_BURST) + 32'(r_dr_beat);
 
     assign drain_valid_o = w_dr_go;
     assign drain_data_o  = r_sram[w_dr_idx];
     assign drain_id_o    = r_id[w_dro_slot];
     assign drain_resp_o  = r_resp[w_dro_slot];
-    assign drain_last_o  = (r_dr_beat == BCW'(BL-1));
+    assign drain_last_o  = (r_dr_beat == BCW'(AXI_BEATS_PER_BURST-1));
 
     logic w_dr_fire;
     assign w_dr_fire = drain_valid_o && drain_ready_i;
