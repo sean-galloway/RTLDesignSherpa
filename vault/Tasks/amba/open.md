@@ -787,13 +787,44 @@ REGRESSION, not a completion:
   default VALUES would therefore be sized per-N and meaningless to any other
   consumer, while still losing runtime updates.
 
-**The actual gap is that NOTHING DRIVES THE PORTS.** `obs_regs.rdl` has no
-range fields, and every `cfg_addr_range_*` in the tree is pass-through
-plumbing (the twelve wrappers, the `_cg` variants, `apb5_monitor`). The
-ranges are runtime-capable and currently unreachable. The work is RDL fields
-plus wiring, per block -- each block owns its own RDL here, so N is declared
-exactly, with no max-sized padding and no shared regmap to drift. Regenerate
-only via `bin/peakrdl_generate.py` ([[feedback_peakrdl_generate_bin]]).
+**The actual gap is that NOTHING DRIVES THE PORTS.** Every `cfg_addr_range_*`
+in the tree is pass-through plumbing (the twelve wrappers, the `_cg` variants,
+`apb5_monitor`). The ranges are runtime-capable and currently unreachable.
+
+**BUT `obs_regs` IS NOT THE BLOCK. Rejected 2026-08-31 (Sean): "the stream
+observer doesn't check addresses, only BW and latency."** An earlier version
+of this entry named `obs_regs.rdl` as the place to add the fields. That was
+wrong on the block's own terms, independent of any tooling problem: the
+observer is a MEASUREMENT block -- bandwidth, latency, occupancy -- and
+address-range violation checking is not its job. It is also the block whose
+measurement-only character is what makes the Genesys2 8-channel design close
+timing, so it is the last place to spend comparators.
+
+An implementation against `obs_regs` was written and REVERTED the same day. It
+is worth recording why it was a bad idea twice over:
+
+* **On the merits (the reason that matters):** wrong block, per above.
+* **On the mechanics:** adding nine registers grew the generated regblock from
+  `'h88` to `'hb4`, which pushed `obs_regs_top` past Verilator's inlining
+  threshold. Un-inlined, Verilator failed to unify the
+  `obs_regs_top__out_t` typedef across the two observer instances and emitted
+  the struct PORT as `VL_OUT8(hwif_out,0,0)` -- one bit -- breaking C++ codegen
+  for the Genesys2 harness build. `verilator --lint-only` passes CLEAN through
+  all of this; only the C++ compile fails, so **a lint gate cannot catch this
+  class.** Proven by building the harness closure at both regblock sizes.
+  The underlying typedef bug is Verilator's and is PRE-EXISTING -- at `'h88`
+  the same closure still fails to compile with the inlined face
+  (`__out_t__struct__1` vs `__struct__0`) -- but the size change is what
+  selected the visible face. Filed with the stream-genesys session.
+
+**So the remaining work is a DESIGN QUESTION, not a wiring job:** which block
+should own runtime address ranges? Candidates are the blocks that actually
+police addresses rather than measure throughput. Decide that before writing
+any RDL. Whatever the answer, regenerate only via `bin/peakrdl_generate.py`
+([[feedback_peakrdl_generate_bin]]), and generate into the directory the
+FILELIST consumes -- `projects/components/misc/rtl/generated/` is an orphan
+copy that nothing references and that had already diverged from
+`rtl/regs/generated/`; it silently caught the first regen attempt.
 
 **Hard ceiling: 16 ranges.** The packet carries the matching range index in
 `event_data[63:60]` -- 4 bits. Past 16 the index field has to be widened by
