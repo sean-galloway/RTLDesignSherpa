@@ -801,6 +801,82 @@ def cmd_blindspots(reg: dict, ratchet: bool = False,
     return 0
 
 
+def cmd_dupes(reg: dict, top: int = 10) -> int:
+    """Report filelists whose resolved source list contains the SAME file twice.
+
+    Filelists compose with `-f`, and the same component is reached down several
+    paths, so a resolved list carries duplicates. Every consumer that goes
+    through `get_sources_from_filelist()` or `bin/flatten_filelist.py` dedupes,
+    so the real build never sees them -- which is exactly why this rots
+    unnoticed.
+
+    It stops being invisible the moment someone hands a raw `-f` to a tool.
+    Verilator does not dedupe: compile a package twice and it mints two distinct
+    C++ types for one typedef, and struct assignments across a module boundary
+    then fail with `__struct__0` vs `__struct__1`. Add `-Wno-fatal` and it
+    marches past that and emits a degraded one-bit struct port instead. Both
+    look exactly like RTL defects, and a standalone verilator invocation is the
+    first thing a debugging session reaches for. That cost two sessions most of
+    a day on 2026-08-31; see [[generated-rtl-discipline]].
+
+    This is a REPORT, not a gate. Redundancy is harmless where dedupe happens,
+    so the number is a hygiene signal and a pointer at the worst offenders --
+    not something to fail CI over.
+    """
+    # NOTE: this deliberately does NOT use resolve(). resolve() carries a
+    # `_seen` set, so it expands each filelist at most once -- that models the
+    # HELPER, which dedupes, and reports zero by construction. Verilator has no
+    # such set: it expands every `-f` every time it meets one. To measure the
+    # raw-`-f` exposure the expansion has to mirror the tool being warned about.
+    # A per-path stack still guards genuine cycles (verilator would error).
+    def expand(fl: Path, stack: tuple[Path, ...] = ()) -> list[Path]:
+        fl = fl.resolve()
+        if fl in stack or len(stack) > 40 or not fl.is_file():
+            return []
+        out: list[Path] = []
+        for raw in fl.read_text(errors="replace").splitlines():
+            line = raw.split("#")[0].split("//")[0].strip()
+            if not line:
+                continue
+            if line.startswith("-f "):
+                nxt = _locate(_expand(line[3:].strip()), fl.parent)
+                if nxt and Path(nxt).is_file():
+                    out += expand(Path(nxt), stack + (fl,))
+            elif line.endswith((".sv", ".v")):
+                tgt = _locate(_expand(line), fl.parent)
+                if tgt and Path(tgt).is_file():
+                    out.append(Path(tgt).resolve())
+        return out
+
+    rows: list[tuple[int, int, Path]] = []
+    scanned = 0
+    for area in reg.get("area", []):
+        for fl in area_filelists(area):
+            srcs = expand(fl)
+            if not srcs:
+                continue
+            scanned += 1
+            counts: dict[Path, int] = {}
+            for x in srcs:
+                counts[x] = counts.get(x, 0) + 1
+            dup = sum(v - 1 for v in counts.values() if v > 1)
+            if dup:
+                rows.append((dup, len(srcs), fl))
+
+    rows.sort(reverse=True, key=lambda r: r[0])
+    total = sum(r[0] for r in rows)
+    print(f"filelists resolved: {scanned}   carrying duplicates: {len(rows)}   "
+          f"redundant entries: {total}")
+    if rows:
+        print(f"\nworst {min(top, len(rows))}:")
+        for dup, n, fl in rows[:top]:
+            print(f"  {dup:5} redundant of {n:5}   {rel(fl)}")
+        print("\nHarmless through get_sources_from_filelist() or "
+              "bin/flatten_filelist.py, which dedupe.")
+        print("NEVER hand one of these to verilator as a raw -f past --lint-only.")
+    return 0
+
+
 def cmd_resolve(path: str) -> int:
     fl = Path(path)
     if not fl.is_absolute():
@@ -825,6 +901,9 @@ def main() -> int:
     g.add_argument("--blindspots", action="store_true",
                    help="find what --check/--audit cannot see: unregistered filelists, "
                         "hand-listed tests, dead formal-harness paths")
+    g.add_argument("--check-dup", action="store_true", dest="check_dup",
+                   help="report filelists whose resolved list repeats a source "
+                        "(harmless where the consumer dedupes; fatal on a raw -f)")
     g.add_argument("--find", metavar="MODULE", help="show which filelist provides a module")
     g.add_argument("--resolve", metavar="FILELIST", help="expand a filelist to its source list")
     ap.add_argument("--ratchet", action="store_true",
@@ -847,6 +926,8 @@ def main() -> int:
         return cmd_unrolled(reg)
     if args.blindspots:
         return cmd_blindspots(reg, args.ratchet, args.update_baseline)
+    if args.check_dup:
+        return cmd_dupes(reg)
     if args.find:
         return cmd_find(reg, args.find)
     return 0

@@ -70,7 +70,16 @@ verilator: ## Verilator lint over the area's master filelist
 	fi
 	@mkdir -p $(VERILATOR_DIR)
 	@echo "=== $(AREA): Verilator lint ($(SV_COUNT) files) ==="
-	@if $(VERILATOR) $(VERILATOR_FLAGS) -f $(MASTER_FILELIST) > $(VERILATOR_DIR)/$(AREA)_all.log 2>&1; then \
+	@# Flatten + dedupe before linting. These filelists compose with -f and reach
+	@# the same component down several paths, so a raw -f hands verilator the same
+	@# source several times: 39 spurious MODDUP warnings on rtl/amba alone, and
+	@# every one of them is noise that trains people to ignore the log. Worse in a
+	@# --cc build, where a twice-compiled package mints two C++ types for one
+	@# typedef. bin/flatten_filelist.py is the repo's one flatten-and-unique;
+	@# see [[generated-rtl-discipline]].
+	@python3 $(RDS_ROOT)/bin/flatten_filelist.py $(MASTER_FILELIST) \
+	    --resolve-env --absolute-paths -o $(VERILATOR_DIR)/$(AREA)_flat.f >/dev/null
+	@if $(VERILATOR) $(VERILATOR_FLAGS) -f $(VERILATOR_DIR)/$(AREA)_flat.f > $(VERILATOR_DIR)/$(AREA)_all.log 2>&1; then \
 	    echo -e "$(GREEN)PASS $(AREA): Verilator lint$(RESET)"; \
 	else \
 	    echo -e "$(RED)FAIL $(AREA): Verilator lint$(RESET)"; \
