@@ -161,7 +161,7 @@ def test_pumice_core(request):
     os.makedirs(log_dir, exist_ok=True)
     params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
               "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
-              "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "BL": str(BL),
+              "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL),
               "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",

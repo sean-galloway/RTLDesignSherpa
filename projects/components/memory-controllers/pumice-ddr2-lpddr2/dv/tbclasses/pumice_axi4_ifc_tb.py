@@ -48,7 +48,7 @@ class PumiceAxi4IfcTB(TBBase):
         super().__init__(dut)
         self.AXI_DATA_WIDTH = self.convert_to_int(os.environ.get('AXI_DATA_WIDTH', '64'))
         self.DRAM_BEAT_WIDTH = self.convert_to_int(os.environ.get('DRAM_BEAT_WIDTH', '64'))
-        self.BL = self.convert_to_int(os.environ.get('BL', '4'))
+        self.BL = self.convert_to_int(os.environ.get('AXI_BEATS_PER_BURST', '4'))
         self.SW = self.AXI_DATA_WIDTH // 8
         self.GEAR = self.AXI_DATA_WIDTH // self.DRAM_BEAT_WIDTH
         self.EXP_BEATS = self.BL // self.GEAR

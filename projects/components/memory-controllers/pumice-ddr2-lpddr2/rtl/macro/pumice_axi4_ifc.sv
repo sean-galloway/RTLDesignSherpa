@@ -33,7 +33,13 @@ module pumice_axi4_ifc #(
     parameter int ROW_WIDTH         = 14,
     parameter int COL_WIDTH         = 10,
     parameter int BYTE_OFFSET_WIDTH = 3,
-    parameter int BL              = 4,
+    // AXI beats in one DRAM burst. This is what pumice_core passes as
+    // BURST_WORDS -- NOT the JEDEC burst length, despite having been called
+    // AXI_BEATS_PER_BURST here and documented as "DRAM beats" downstream. Same identifier,
+    // three different quantities across the design (JEDEC device beats in
+    // pumice_core, pumice beats in pumice_dfi_layer, AXI beats here), which
+    // is how a ragged-burst check got derived against the wrong units.
+    parameter int AXI_BEATS_PER_BURST = 4,
     parameter int NUM_ENTRIES     = 8,
     parameter int N_SRAM_SLOTS    = 8,
     parameter int N_SCHED_LU      = 4,
@@ -49,7 +55,7 @@ module pumice_axi4_ifc #(
     parameter int PTRW = $clog2(NUM_ENTRIES),
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     // Split each host burst at DRAM-burst-byte boundaries -> 1 DRAM burst each.
-    parameter int DRAM_BURST_BYTES = BL * (DRAM_BEAT_WIDTH / 8)
+    parameter int DRAM_BURST_BYTES = AXI_BEATS_PER_BURST * (DRAM_BEAT_WIDTH / 8)
 ) (
     input  logic                     aclk,
     input  logic                     aresetn,
@@ -135,7 +141,11 @@ module pumice_axi4_ifc #(
 
     // AXI beats per DFI burst: the chop granularity. Each sub-command spans one
     // DRAM burst, so the intake sees "one AXI sub-burst == one DFI burst".
-    localparam int CHUNK_BEATS = DRAM_BURST_BYTES / SW;
+    // (was: localparam AXI_BEATS_PER_BURST = DRAM_BURST_BYTES / SW -- the
+    //  same number derived a second way. The ifc is instantiated with
+    //  DRAM_BEAT_WIDTH == the AXI data width, so SW == DRAM_BEAT_WIDTH/8 and
+    //  it reduced to the parameter itself. Two derivations of one quantity
+    //  is a mismatch waiting to happen.)
 
     // ======================================================================
     // Split -> intake AXI nets
@@ -166,7 +176,7 @@ module pumice_axi4_ifc #(
         .AXI_ADDR_WIDTH(AW),
         .AXI_DATA_WIDTH(DW),
         .AXI_USER_WIDTH(UW),
-        .CHUNK_BEATS   (CHUNK_BEATS)
+        .AXI_BEATS_PER_BURST   (AXI_BEATS_PER_BURST)
     ) u_wr_split (
         .aclk        (aclk),
         .aresetn     (aresetn),
@@ -221,7 +231,7 @@ module pumice_axi4_ifc #(
         .AXI_ADDR_WIDTH(AW),
         .AXI_USER_WIDTH(UW),
         .STRB_BYTES    (SW),
-        .CHUNK_BEATS   (CHUNK_BEATS)
+        .AXI_BEATS_PER_BURST   (AXI_BEATS_PER_BURST)
     ) u_rd_split (
         .aclk        (aclk),
         .aresetn     (aresetn),
@@ -295,7 +305,7 @@ module pumice_axi4_ifc #(
         .ROW_WIDTH        (ROW_WIDTH),
         .COL_WIDTH        (COL_WIDTH),
         .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .BL               (BL)
+        .AXI_BEATS_PER_BURST               (AXI_BEATS_PER_BURST)
     ) u_wr_intake (
         .aclk          (aclk),
         .aresetn       (aresetn),
@@ -360,7 +370,7 @@ module pumice_axi4_ifc #(
         .COL_WIDTH     (COL_WIDTH),
         .AXI_ID_WIDTH  (IW),
         .AXI_DATA_WIDTH(DW),
-        .BL            (BL),
+        .AXI_BEATS_PER_BURST            (AXI_BEATS_PER_BURST),
         .AGE_WIDTH     (AGE_WIDTH),
         .N_SRAM_SLOTS  (N_SRAM_SLOTS)
     ) u_wr_cam (
@@ -443,7 +453,7 @@ module pumice_axi4_ifc #(
         .ROW_WIDTH        (ROW_WIDTH),
         .COL_WIDTH        (COL_WIDTH),
         .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .BL               (BL)
+        .AXI_BEATS_PER_BURST               (AXI_BEATS_PER_BURST)
     ) u_rd_intake (
         .aclk          (aclk),
         .aresetn       (aresetn),
@@ -511,7 +521,7 @@ module pumice_axi4_ifc #(
         .COL_WIDTH     (COL_WIDTH),
         .AXI_ID_WIDTH  (IW),
         .AXI_DATA_WIDTH(DW),
-        .BL            (BL),
+        .AXI_BEATS_PER_BURST            (AXI_BEATS_PER_BURST),
         .AGE_WIDTH     (AGE_WIDTH),
         .N_SRAM_SLOTS  (N_SRAM_SLOTS)
     ) u_rd_cam (

@@ -38,7 +38,7 @@ module pumice_rd_intake #(
     parameter int ROW_WIDTH         = 14,
     parameter int COL_WIDTH         = 10,
     parameter int BYTE_OFFSET_WIDTH = 3,
-    parameter int BL                = 4,
+    parameter int AXI_BEATS_PER_BURST                = 4,
     parameter int AR_FIFO_DEPTH     = 4,
     parameter int ORDER_FIFO_DEPTH  = 8,
     parameter int RD_FIFO_DEPTH     = 16,
@@ -285,10 +285,10 @@ module pumice_rd_intake #(
     assign {w_side_agg, w_side_last} = w_side_data;
 
     // ---- order FIFO : {orig_agg, orig_last, source, len, id} ---------------
-    // `len` is the sub-command's AxLEN. A DRAM burst always returns BL beats,
+    // `len` is the sub-command's AxLEN. A DRAM burst always returns AXI_BEATS_PER_BURST beats,
     // but the host may have asked for FEWER (any legal AxLEN, down to a single
     // beat). The beats past the request are drained from the CAM and DROPPED
-    // here rather than pushed at the host -- without this a 1-beat read got BL
+    // here rather than pushed at the host -- without this a 1-beat read got AXI_BEATS_PER_BURST
     // R beats and the read never framed correctly.
     localparam int ORD_W = 3 + 8 + IW;
 

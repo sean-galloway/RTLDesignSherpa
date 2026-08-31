@@ -26,7 +26,7 @@ module pumice_top
     parameter int DFI_RATE       = 2,
     parameter int DRAM_BEAT_WIDTH = 64,
     parameter int DRAM_DEVICE_WIDTH = DRAM_BEAT_WIDTH,  // physical device word (x16 => 16)
-    parameter int BL             = 8,
+    parameter int DRAM_BL             = 8,
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = 8,
     parameter int CMD_HISTORY_EN = 0,  // DV: arm the scheduler's history scoreboard
@@ -182,7 +182,7 @@ module pumice_top
         .DFI_RATE         (DFI_RATE),
         .DRAM_BEAT_WIDTH  (DRAM_BEAT_WIDTH),
         .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
-        .BL               (BL),
+        .DRAM_BL               (DRAM_BL),
         .NUM_ENTRIES      (NUM_ENTRIES),
         .N_SRAM_SLOTS     (N_SRAM_SLOTS),
         .CMD_HISTORY_EN   (CMD_HISTORY_EN)

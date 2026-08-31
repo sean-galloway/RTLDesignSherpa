@@ -692,7 +692,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
     params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
               "NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH),
               "COL_WIDTH": str(COL_WIDTH), "DFI_RATE": "2",
-              "DRAM_BEAT_WIDTH": "64", "BL": "8",
+              "DRAM_BEAT_WIDTH": "64", "DRAM_BL": "8",
               "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
     if params_over:
         params.update(params_over)
@@ -723,7 +723,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
            "SEED": seed,
            "TEST_LEVEL": os.environ.get("TEST_LEVEL", "basic"),
            "DFI_RATE": params["DFI_RATE"], "DRAM_BEAT_WIDTH": params["DRAM_BEAT_WIDTH"],
-           "BL": params["BL"], "NUM_RANKS": params["NUM_RANKS"]}
+           "DRAM_BL": params["DRAM_BL"], "NUM_RANKS": params["NUM_RANKS"]}
     if extra_env:
         env.update(extra_env)
     env.update(params)

@@ -44,7 +44,7 @@ class PumiceWrDataCamTB(TBBase):
         self.COL_WIDTH   = self.convert_to_int(os.environ.get('COL_WIDTH', '10'))
         self.AXI_ID_WIDTH = self.convert_to_int(os.environ.get('AXI_ID_WIDTH', '8'))
         self.AXI_DATA_WIDTH = self.convert_to_int(os.environ.get('AXI_DATA_WIDTH', '64'))
-        self.BL = self.convert_to_int(os.environ.get('BL', '4'))
+        self.BL = self.convert_to_int(os.environ.get('AXI_BEATS_PER_BURST', '4'))
         self.BKW = max(1, (self.NUM_BANKS - 1).bit_length())
         self.PTRW = max(1, (self.NUM_ENTRIES - 1).bit_length())
 

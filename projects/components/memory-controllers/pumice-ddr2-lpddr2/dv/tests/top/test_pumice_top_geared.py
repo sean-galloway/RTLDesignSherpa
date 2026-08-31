@@ -116,7 +116,7 @@ def _run_geared(request, host_w, extra=None):
               "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1", "NUM_BANKS": str(NUM_BANKS),
               "ROW_WIDTH": str(ROW_WIDTH), "COL_WIDTH": str(COL_WIDTH),
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT),
-              "BL": str(BL), "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
+              "DRAM_BL": str(BL), "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
     # Distinct sim_build per burst length: same RTL params, but PUMICE-010
     # says one sim_build per process only.
     _bb = (extra or {}).get("GEARED_BURST_BEATS", "full")

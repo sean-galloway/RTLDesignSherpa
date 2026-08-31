@@ -1415,7 +1415,7 @@ def _run(request, testcase, params_over=None):
     params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
               "NUM_BANKS": str(NUM_BANKS), "ROW_WIDTH": str(ROW_WIDTH),
               "COL_WIDTH": str(COL_WIDTH), "DFI_RATE": str(DFI_RATE),
-              "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "BL": str(BL),
+              "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL),
               "NUM_ENTRIES": "8", "N_SRAM_SLOTS": "8"}
     if params_over:
         params.update(params_over)

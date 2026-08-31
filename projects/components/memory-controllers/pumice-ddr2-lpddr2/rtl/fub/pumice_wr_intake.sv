@@ -6,7 +6,7 @@
 //
 // Module: pumice_wr_intake
 // Purpose: Dumb AXI4 write intake. One AXI burst == one DFI burst (the host or
-//          the front splitter guarantees (awlen+1)*GEAR == BL). No pointer, no
+//          the front splitter guarantees (awlen+1)*GEAR == AXI_BEATS_PER_BURST). No pointer, no
 //          CAM, no forwarding — that lives downstream in the wr-data CAM.
 //
 // Structure (exactly three things, per the locked uArch spec):
@@ -20,7 +20,7 @@
 //   - aw_push_* : decoded write command to the wr-data CAM (drained in order)
 //   - wdata_*   : write-data pop to wr_beat_sequencer (commit order)
 //   - wr_done_* : downstream commit completion -> B (commit-driven B)
-//   - ragged burst ((awlen+1)*GEAR != BL): sim assertion + aw_push_err_o +
+//   - ragged burst ((awlen+1)*GEAR != AXI_BEATS_PER_BURST): sim assertion + aw_push_err_o +
 //     bresp=SLVERR (the intake self-generates the error B; downstream drops it).
 //
 // Documentation: rtl/PUMICE_AXI4_IFC_UARCH.md
@@ -40,7 +40,11 @@ module pumice_wr_intake #(
     parameter int COL_WIDTH         = 10,
     parameter int BYTE_OFFSET_WIDTH = 3,
     parameter int RAGGED_ASSERT     = 1,    // 0 disables the ragged-burst $error (SLVERR test)
-    parameter int BL                = 4,    // DRAM burst length, in DRAM beats
+    // AXI beats in one DRAM burst. This comment used to read "DRAM burst
+    // length, in DRAM beats" while the port was fed BURST_WORDS (AXI
+    // beats) -- a units lie that made the ragged check below read as a
+    // device-beat comparison when it is an AXI-beat one.
+    parameter int AXI_BEATS_PER_BURST = 4,
     parameter int AW_FIFO_DEPTH     = 4,
     parameter int WDATA_FIFO_DEPTH  = 16,
     parameter int B_FIFO_DEPTH      = 4,
@@ -55,7 +59,9 @@ module pumice_wr_intake #(
     parameter int UW  = AXI_USER_WIDTH,
     parameter int SW  = AXI_DATA_WIDTH / 8,
     parameter int GEAR         = AXI_DATA_WIDTH / DRAM_BEAT_WIDTH,
-    parameter int EXP_AXI_BEATS = BL / GEAR,   // AXI beats that make one DRAM burst
+    // (was: EXP_AXI_BEATS = BL / GEAR -- the same number again. The ifc
+    //  forces DRAM_BEAT_WIDTH == the AXI width so GEAR is always 1 here,
+    //  and this reduced to the parameter itself.)   // AXI beats that make one DRAM burst
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW = $clog2(NUM_BANKS)
 ) (
@@ -252,7 +258,7 @@ module pumice_wr_intake #(
     localparam int AWM_W = 3 + 4 + IW + AW;   // {err,agg,last,QOS,id,addr}
 
     logic          w_aw_err;
-    assign w_aw_err = ((32'(fub_awlen) + 32'd1) * GEAR != BL);
+    assign w_aw_err = ((32'(fub_awlen) + 32'd1) * GEAR != AXI_BEATS_PER_BURST);
 
     logic             w_awm_wr_valid, w_awm_wr_ready;
     logic [AWM_W-1:0] w_awm_wr_data;
@@ -415,8 +421,8 @@ module pumice_wr_intake #(
     always_ff @(posedge aclk) begin
         if (aresetn) begin
             if ((RAGGED_ASSERT != 0) && w_awm_wr_valid && w_awm_wr_ready && w_aw_err)
-                $error("pumice_wr_intake: ragged burst awlen+1=%0d GEAR=%0d BL=%0d (must satisfy (awlen+1)*GEAR==BL)",
-                       fub_awlen + 8'd1, GEAR, BL);
+                $error("pumice_wr_intake: ragged burst awlen+1=%0d GEAR=%0d AXI_BEATS_PER_BURST=%0d (must satisfy (awlen+1)*GEAR==AXI_BEATS_PER_BURST)",
+                       fub_awlen + 8'd1, GEAR, AXI_BEATS_PER_BURST);
             if (w_err_b_fire && wr_done_valid_i)
                 $error("pumice_wr_intake: B push collision (err + wr_done same cycle)");
         end

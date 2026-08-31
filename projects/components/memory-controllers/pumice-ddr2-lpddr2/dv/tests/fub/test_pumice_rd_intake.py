@@ -112,7 +112,7 @@ def test_pumice_rd_intake(request):
         "ROW_WIDTH":       "14",
         "COL_WIDTH":       "10",
         "BYTE_OFFSET_WIDTH": "3",
-        "BL":              "4",
+        "AXI_BEATS_PER_BURST":              "4",
     }
     extra_env = {
         "DUT": dut_name,

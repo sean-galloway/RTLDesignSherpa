@@ -29,7 +29,7 @@ module pumice_wr_data_cam #(
     parameter int COL_WIDTH       = 10,
     parameter int AXI_ID_WIDTH    = 8,
     parameter int AXI_DATA_WIDTH  = 64,
-    parameter int BL              = 4,
+    parameter int AXI_BEATS_PER_BURST              = 4,
     parameter int AGE_WIDTH       = 16,
     parameter int N_SRAM_SLOTS    = NUM_ENTRIES,  // may be < NUM_ENTRIES
 
@@ -40,7 +40,7 @@ module pumice_wr_data_cam #(
     parameter int BKW   = $clog2(NUM_BANKS),
     parameter int PTRW  = $clog2(NUM_ENTRIES),
     parameter int SPTRW = $clog2(N_SRAM_SLOTS),
-    parameter int BCW   = (BL > 1) ? $clog2(BL) : 1   // beat-counter width (BL=1 => 1b)
+    parameter int BCW   = (AXI_BEATS_PER_BURST > 1) ? $clog2(AXI_BEATS_PER_BURST) : 1   // beat-counter width (AXI_BEATS_PER_BURST=1 => 1b)
 ) (
     input  logic                          aclk,
     input  logic                          aresetn,
@@ -206,10 +206,10 @@ module pumice_wr_data_cam #(
         for (int i = 0; i < NUM_ENTRIES; i++)
             w_rel[i] = r_age_ctr - r_age[i];
 
-    // ---- SRAM (NUM_ENTRIES * BL beats) -------------------------------------
+    // ---- SRAM (NUM_ENTRIES * AXI_BEATS_PER_BURST beats) -------------------------------------
     (* ram_style = "distributed" *)
-    logic [DW-1:0] r_sram  [N_SRAM_SLOTS*BL];
-    logic [SW-1:0] r_strb  [N_SRAM_SLOTS*BL];
+    logic [DW-1:0] r_sram  [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
+    logic [SW-1:0] r_strb  [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
 
     // ---- free-slot allocation ----------------------------------------------
     logic            w_have_free;
@@ -264,9 +264,9 @@ module pumice_wr_data_cam #(
     //       where the read is REQUIRED to see the write (cross-id has no ordering
     //       guarantee, so the read takes the DRAM path instead);
     //   (3) the read's burst length equals the write's. Every admitted write is
-    //       exactly BL beats (ragged bursts are rejected in pumice_wr_intake), so
-    //       this reduces to arlen == BL-1 — a short/long read must not snarf a
-    //       full-BL write.
+    //       exactly AXI_BEATS_PER_BURST beats (ragged bursts are rejected in pumice_wr_intake), so
+    //       this reduces to arlen == AXI_BEATS_PER_BURST-1 — a short/long read must not snarf a
+    //       full-AXI_BEATS_PER_BURST write.
     // The probe from pumice_rd_intake is REGISTERED here (r_sp_*) before the
     // associative compare, so the rd_intake->wr_cam cross-module route (the
     // worst w_sys_i path) gets a full cycle. Youngest match uses the age-order
@@ -284,7 +284,7 @@ module pumice_wr_data_cam #(
     logic            w_sn_found;
     logic [PTRW-1:0] w_sn_slot;
     logic            w_sn_len_ok;
-    assign w_sn_len_ok = (r_sp_len == 8'(BL - 1));
+    assign w_sn_len_ok = (r_sp_len == 8'(AXI_BEATS_PER_BURST - 1));
     always_comb begin
         automatic logic [NUM_ENTRIES-1:0] is_young;
         for (int i = 0; i < NUM_ENTRIES; i++)
@@ -437,20 +437,20 @@ module pumice_wr_data_cam #(
 
     // SRAM flat-index helpers (index by the FIFO-head slot's ptr; 32-bit width)
     logic [31:0] w_sn_idx, w_cm_idx, w_fill_idx;
-    assign w_sn_idx   = 32'(r_ptr[w_sq_rd_slot]) * 32'(BL) + 32'(r_sn_beat);
-    assign w_cm_idx   = 32'(r_ptr[w_dq_rd_slot]) * 32'(BL) + 32'(r_cm_beat);
-    assign w_fill_idx = 32'(w_fill_slot)         * 32'(BL) + 32'(r_fill_beat);
+    assign w_sn_idx   = 32'(r_ptr[w_sq_rd_slot]) * 32'(AXI_BEATS_PER_BURST) + 32'(r_sn_beat);
+    assign w_cm_idx   = 32'(r_ptr[w_dq_rd_slot]) * 32'(AXI_BEATS_PER_BURST) + 32'(r_cm_beat);
+    assign w_fill_idx = 32'(w_fill_slot)         * 32'(AXI_BEATS_PER_BURST) + 32'(r_fill_beat);
 
     // ---- snarf read engine (FIFO-fed, beat-counter only) -------------------
     assign snarf_rd_valid_o = w_sq_rd_valid;                 // a slot is queued
     assign snarf_rd_data_o  = r_sram[w_sn_idx];
-    assign snarf_rd_last_o  = (r_sn_beat == BCW'(BL-1));
+    assign snarf_rd_last_o  = (r_sn_beat == BCW'(AXI_BEATS_PER_BURST-1));
 
     // ---- commit drain read-engine + evict (FIFO-fed, beat-counter only) ----
     assign cm_rd_valid_o  = w_dq_rd_valid;                   // a slot is queued
     assign cm_rd_data_o   = r_sram[w_cm_idx];
     assign cm_rd_strb_o   = r_strb[w_cm_idx];
-    assign cm_rd_last_o   = (r_cm_beat == BCW'(BL-1));
+    assign cm_rd_last_o   = (r_cm_beat == BCW'(AXI_BEATS_PER_BURST-1));
 
     logic w_sn_fire, w_cm_fire;
     assign w_sn_fire = snarf_rd_valid_o && snarf_rd_ready_i;
