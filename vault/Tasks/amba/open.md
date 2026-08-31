@@ -2,6 +2,55 @@
 
 # AMBA tasks — open (not started)
 
+## AMBA-MONBUS-STABILITY — monbus payload could change during valid && !ready
+
+**Status:** 🟢 FIXED 2026-08-30, same day it was found. Kept open-page until
+the fix has run a full val/amba sweep; move to closed.md after that.
+**Priority:** P2 — no data loss, but it breaks a bus rule the rest of the
+design keeps, and the failure it enables is silent.
+
+**Found by** the round_16 monitor qc pass (kimi-k2), which was run to review
+NEW doc prose and surfaced this pre-existing RTL defect instead. Worth noting
+for the review-rounds practice: the finding arrived under "POSSIBLE RTL BUGS"
+in a documentation review, which is exactly why those sections are read in
+full rather than triaged by headline.
+
+**The defect.** `axi_monitor_base`'s monbus output is a combinational priority
+mux (reporter > debug > addr_check). Back-pressure to addr_check was
+
+    assign w_addr_pkt_ready = monbus_ready && !w_reporter_monbus_valid
+                              && !w_debug_monbus_valid;
+
+so an addr_check packet could be presented with `monbus_valid` high while
+`monbus_ready` was low, and then be REPLACED in the mux the moment the
+reporter's registered valid rose — `monbus_packet` changing during
+`valid && !ready`.
+
+Nothing was lost: addr_check holds its pending slot until its own accept, and
+a sink that samples only on `valid && ready` never observes the change. But a
+sink that latches on `valid` alone captures a torn packet, and the monitor bus
+otherwise honours payload stability.
+
+**The fix.** Once addr_check has been presented AND stalled it owns the bus
+until its beat is accepted (`r_addr_hold`). addr_check is the only displaceable
+source — the reporter already has top priority and the debug source is tied
+off. Two couplings had to move with it, and either one left alone would have
+turned a cosmetic wart into a real bug:
+
+* `w_addr_pkt_ready` must stop being gated on the reporter while the hold is
+  active, or a held beat could never be accepted once the reporter went
+  busy — deadlock.
+* The reporter was handed `monbus_ready` DIRECTLY, which was only safe because
+  it had unconditional priority. With the hold in place an unqualified ready
+  would look to the reporter like an accept of its packet while the mux was
+  presenting addr_check's — silently dropping a reporter packet. It is now
+  `monbus_ready && !r_addr_hold`.
+
+**Still owed:** a directed test that stalls monbus_ready with an addr_check
+packet pending and asserts monbus_packet is stable until accepted. The
+existing suites regress the fix but do not target this corner, so today it is
+verified as "not broken", not as "proven fixed".
+
 ## AMBA-MONRATE-INTERMITTENT — ROOT-CAUSED + PRIMARY FIX LANDED 2026-08-28
 **Status:** root-caused 2026-08-28; fix for `test_axi4_monitor` landed in
 68e66676. Residual is a SCOPE DECISION on six sibling TBs — see "Residual"

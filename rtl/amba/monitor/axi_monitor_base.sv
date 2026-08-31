@@ -320,6 +320,9 @@ module axi_monitor_base
     monitor_packet_t          w_reporter_monbus_packet;
     logic                     w_debug_monbus_valid;
     monitor_packet_t          w_debug_monbus_packet;
+    // addr_check owns the monbus mux once it has been presented and
+    // stalled; see the selection-hold comment at the mux below.
+    logic                     r_addr_hold;
     logic                     w_addr_pkt_valid;
     monitor_packet_t          w_addr_pkt_data;
     monbus_timestamp_t        w_addr_pkt_timestamp;
@@ -479,7 +482,10 @@ module axi_monitor_base
         .cfg_timeout_enable    (cfg_timeout_enable),
         .cfg_perf_enable       (cfg_perf_enable),
         .cfg_debug_enable      (cfg_debug_enable),
-        .monbus_ready          (monbus_ready),
+        // NOT monbus_ready directly: while addr_check holds the bus the mux
+        // presents ITS packet, so an unqualified ready here would look like
+        // an accept of the reporter's packet and silently drop it.
+        .monbus_ready          (monbus_ready && !r_addr_hold),
         .monbus_valid          (w_reporter_monbus_valid),
         .monbus_packet         (w_reporter_monbus_packet),
         .event_count           (w_event_count),
@@ -537,8 +543,39 @@ module axi_monitor_base
     // Reporter handles existing error/timeout/compl/perf events; debug is for
     // trace; addr_check is a slow-rate violation stream that can wait.
     // All branches sample the same broadcast i_mon_time on emission cycle.
+    // Selection hold. The mux below is a combinational priority select, so
+    // without this an addr_check packet presented while monbus_ready is low
+    // would be REPLACED by the reporter's the moment the reporter's
+    // (registered) valid rises -- monbus_packet changing while monbus_valid
+    // is high and monbus_ready is still low. Nothing is lost, because
+    // addr_check holds its pending slot until its own accept and a sink that
+    // samples on valid && ready never sees it; but it violates the
+    // valid/ready payload-stability rule this bus otherwise keeps, and a sink
+    // that latches on valid alone would capture a torn packet.
+    //
+    // So once addr_check has been presented and stalled, it OWNS the bus
+    // until its beat is accepted. addr_check is the only source that can be
+    // displaced: the reporter already has top priority, and the debug source
+    // is tied off above.
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_addr_hold <= 1'b0;
+        end else if (!r_addr_hold) begin
+            // Latch ownership only when the beat is actually stalled; an
+            // addr packet accepted in its first cycle never needs the hold.
+            r_addr_hold <= w_addr_pkt_valid && !w_reporter_monbus_valid
+                           && !w_debug_monbus_valid && !monbus_ready;
+        end else if (monbus_ready) begin
+            r_addr_hold <= 1'b0;
+        end
+    )
+
     always_comb begin
-        if (w_reporter_monbus_valid) begin
+        if (r_addr_hold) begin
+            monbus_valid     = w_addr_pkt_valid;
+            monbus_packet    = w_addr_pkt_data;
+            monbus_timestamp = w_addr_pkt_timestamp;
+        end else if (w_reporter_monbus_valid) begin
             monbus_valid     = w_reporter_monbus_valid;
             monbus_packet    = w_reporter_monbus_packet;
             monbus_timestamp = i_mon_time;
@@ -559,7 +596,12 @@ module axi_monitor_base
 
     // Back-pressure into addr_check: only accept when reporter/debug are quiet
     // AND the downstream consumer is ready.
-    assign w_addr_pkt_ready = monbus_ready && !w_reporter_monbus_valid && !w_debug_monbus_valid;
+    // While addr_check owns the bus its ready must NOT stay gated on the
+    // reporter, or the held beat could never be accepted and the bus would
+    // deadlock the moment the reporter went permanently busy.
+    assign w_addr_pkt_ready = monbus_ready &&
+                              (r_addr_hold ||
+                               (!w_reporter_monbus_valid && !w_debug_monbus_valid));
 
     // -------------------------------------------------------------------------
     // Flow Control Logic
