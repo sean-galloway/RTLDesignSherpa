@@ -235,8 +235,6 @@ module arbiter_monbus_common #(
 
     // Fairness tracking
     logic [15:0]                          r_fairness_timer;
-    logic [15:0]                          r_expected_weights [CLIENTS];
-    logic [15:0]                          r_actual_weights [CLIENTS];
     logic [15:0]                          r_max_fairness_deviation;
 
     // ACK timeout tracking (per-client)
@@ -550,10 +548,6 @@ module arbiter_monbus_common #(
         if (`RST_ASSERTED(rst_n)) begin
             r_fairness_timer <= 16'h0;
             r_max_fairness_deviation <= 16'h0;
-            for (int i = 0; i < CLIENTS; i++) begin
-                r_expected_weights[i] <= 16'(client_weight[i]);
-                r_actual_weights[i] <= 16'h0;
-            end
         end else begin
             r_fairness_timer <= r_fairness_timer + 16'h1;
 
@@ -561,24 +555,19 @@ module arbiter_monbus_common #(
                 // Calculate fairness metrics
                 r_fairness_timer <= 16'h0;
 
-                // Update expected weights from current configuration
-                for (int i = 0; i < CLIENTS; i++) begin
-                    r_expected_weights[i] <= 16'(client_weight[i]);
-                end
-
-                // Calculate actual weights based on grant distribution
+                // Fairness is measured as the maximum deviation between each
+                // client's expected share of grants and its actual share. Only
+                // r_max_fairness_deviation escapes this block -- it drives
+                // w_fairness_violation_detected and the ARB fairness packet.
+                //
+                // There used to be r_expected_weights[] and r_actual_weights[]
+                // here as well. Both were WRITE-ONLY: nothing in this module or
+                // anywhere else ever read them, so they were CLIENTS x 2 x 16
+                // bits of registers computing a number no one could see. The
+                // second copy was written twice per report, because this `if`
+                // was nested inside an identical one and recomputed the same
+                // loop. Removed; the deviation math below is unchanged.
                 if (r_total_grants >= 16'(MIN_GRANTS_FOR_FAIRNESS)) begin
-                    for (int i = 0; i < CLIENTS; i++) begin
-                        r_actual_weights[i] <= (r_grant_counters[i] * 16) / r_total_grants;
-                    end
-
-                    // Calculate maximum deviation
-                    if (r_total_grants >= 16'(MIN_GRANTS_FOR_FAIRNESS)) begin
-                        // Calculate actual weights based on grant distribution
-                        for (int i = 0; i < CLIENTS; i++) begin
-                            r_actual_weights[i] <= (r_grant_counters[i] * 16) / r_total_grants;
-                        end
-
                         // Calculate maximum fairness deviation
                         max_deviation_temp = 16'h0;
                         total_weight = 16'h0;
@@ -618,7 +607,6 @@ module arbiter_monbus_common #(
                         end
 
                         r_max_fairness_deviation <= max_deviation_temp;
-                    end
                 end
             end
         end

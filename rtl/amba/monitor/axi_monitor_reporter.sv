@@ -75,7 +75,7 @@ module axi_monitor_reporter
     input  logic                     cfg_threshold_enable,
     input  logic                     cfg_timeout_enable,
     input  logic                     cfg_perf_enable,
-    input  logic                     cfg_debug_enable,    // reserved — debug emitter is future work
+    input  logic                     cfg_debug_enable,    // runtime mask for the debug emitter (live when ENABLE_DEBUG_LOGIC=1)
 
     input  logic                              monbus_ready,
     output logic                              monbus_valid,
@@ -102,7 +102,17 @@ module axi_monitor_reporter
     assign event_reported_flags = r_event_reported;
     assign event_count          = r_event_count;
 
-    // Reserved-for-future debug input.
+    // cfg_debug_enable is CONSUMED -- g_debug passes it to
+    // axi_monitor_reporter_debug as that block's runtime mask. It is unused
+    // only in the ENABLE_DEBUG_LOGIC=0 build, where g_debug is not
+    // elaborated, and this sink exists for exactly that build.
+    //
+    // The comment here used to read "reserved for future debug input", which
+    // was left over from before the debug emitter existed. Read together with
+    // the sink it said the port was dead, and it is not -- a reviewer flagged
+    // the pair as a dead port with a redundant sink. Deleting the sink on that
+    // reading would break lint at ENABLE_DEBUG_LOGIC=0: the sink is right, the
+    // comment was wrong.
     /* verilator lint_off UNUSED */
     logic unused_cfg_debug_enable;
     assign unused_cfg_debug_enable = cfg_debug_enable;
