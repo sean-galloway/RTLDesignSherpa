@@ -156,6 +156,11 @@ module axi_monitor_pktgen_dut
         .aresetn               (aresetn),
         .trans_table           (w_trans_table),
         .timeout_detected      (timeout_detected),
+        // This DUT drives trans_table itself and exercises no address filter,
+        // so no slot is suppressed. Tied off explicitly rather than left
+        // unconnected: an omitted input reads as 0 and gives the same answer
+        // by accident, which is how this pin went missing unnoticed.
+        .filtered_mask         ('0),
         .cfg_error_enable      (cfg_error_enable),
         .cfg_compl_enable      (cfg_compl_enable),
         .cfg_threshold_enable  (cfg_threshold_enable),

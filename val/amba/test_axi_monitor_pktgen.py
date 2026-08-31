@@ -618,7 +618,7 @@ def _run_pktgen(request, testcase):
     compile_args = [
         "--trace-fst", "--trace-structs",
         "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME",
-        "-Wno-PINMISSING", "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND",
+        "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE",
         "-Wno-TIMESCALEMOD",
     ]
