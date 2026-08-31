@@ -193,7 +193,6 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
         '-Wall', '-Wno-SYNCASYNCNET',
         '-Wno-UNUSED',
         '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
         '-Wno-UNDRIVEN',
         '-Wno-WIDTHEXPAND',
         '-Wno-WIDTHTRUNC',

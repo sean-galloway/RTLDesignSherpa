@@ -45,6 +45,10 @@ module axi4_master_rd_mon_cg
     // Monitor parameters
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
+    parameter bit ADDR_FILTER_ENABLE = 1'b0,  // 0 = address filter inert
+    parameter bit ID_FILTER_ENABLE   = 1'b0,  // 0 = ID filter inert
+    parameter int ID_MATCH_BASE      = 0,
+    parameter int ID_MATCH_COUNT     = 0,     // 0 = all IDs
     parameter logic [7:0]  UNIT_ID  = 8'h01,     // 8-bit Unit ID for monitor packets
     parameter logic [15:0] AGENT_ID = 16'h000A,    // 16-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to monitor
@@ -161,6 +165,20 @@ module axi4_master_rd_mon_cg
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
+    // Address-range packet filter (active when ADDR_FILTER_ENABLE=1).
+    // Inclusive [low, high]; a transaction whose command address falls
+    // OUTSIDE the range has its packets suppressed.
+    input  logic                                                       cfg_addr_filter_enable,
+    input  logic [AW-1:0]                                              cfg_addr_filter_low,
+    input  logic [AW-1:0]                                              cfg_addr_filter_high,
+
+    // Runtime ID filter. Overrides ID_MATCH_BASE/COUNT while
+    // cfg_id_filter_enable is high; tied low it is bit-identical
+    // to the parameter-only build.
+    input  logic                                                       cfg_id_filter_enable,
+    input  logic [IW-1:0]                                              cfg_id_match_base,
+    input  logic [IW:0]                                                cfg_id_match_count,
+
     // Free-running monitor-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
@@ -268,6 +286,10 @@ module axi4_master_rd_mon_cg
         .ENABLE_THRESHOLD_LOGIC  (ENABLE_THRESHOLD_LOGIC),
         .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
         .ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
+        .ADDR_FILTER_ENABLE      (ADDR_FILTER_ENABLE),
+        .ID_FILTER_ENABLE        (ID_FILTER_ENABLE),
+        .ID_MATCH_BASE           (ID_MATCH_BASE),
+        .ID_MATCH_COUNT          (ID_MATCH_COUNT),
         .N_ADDR_RANGES           (N_ADDR_RANGES)
     ) axi4_master_rd_mon_inst (
         .aclk                    (gated_aclk),
@@ -349,6 +371,12 @@ module axi4_master_rd_mon_cg
         .cfg_addr_range_enable   (cfg_addr_range_enable),
         .cfg_addr_range_low      (cfg_addr_range_low),
         .cfg_addr_range_high     (cfg_addr_range_high),
+        .cfg_addr_filter_enable  (cfg_addr_filter_enable),
+        .cfg_addr_filter_low     (cfg_addr_filter_low),
+        .cfg_addr_filter_high    (cfg_addr_filter_high),
+        .cfg_id_filter_enable    (cfg_id_filter_enable),
+        .cfg_id_match_base       (cfg_id_match_base),
+        .cfg_id_match_count      (cfg_id_match_count),
 
         // Monitor Bus Output
         .monbus_valid            (w_monbus_valid),

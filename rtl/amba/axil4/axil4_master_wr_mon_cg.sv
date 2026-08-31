@@ -43,6 +43,7 @@ module axil4_master_wr_mon_cg
     // Monitor parameters
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
+    parameter bit ADDR_FILTER_ENABLE = 1'b0,  // 0 = address filter inert
     parameter logic [7:0]  UNIT_ID  = 8'h01,     // 8-bit Unit ID for monitor packets
     parameter logic [15:0] AGENT_ID = 16'h000B,    // 16-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 8,     // Maximum outstanding transactions (reduced for AXIL)
@@ -141,6 +142,13 @@ module axil4_master_wr_mon_cg
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]         cfg_addr_range_enable,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
+
+    // Address-range packet filter (active when ADDR_FILTER_ENABLE=1).
+    // Inclusive [low, high]; a transaction whose command address falls
+    // OUTSIDE the range has its packets suppressed.
+    input  logic                                                       cfg_addr_filter_enable,
+    input  logic [AW-1:0]                                              cfg_addr_filter_low,
+    input  logic [AW-1:0]                                              cfg_addr_filter_high,
 
     // Free-running monitor-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
@@ -247,6 +255,7 @@ module axil4_master_wr_mon_cg
         .ENABLE_THRESHOLD_LOGIC  (ENABLE_THRESHOLD_LOGIC),
         .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
         .ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
+        .ADDR_FILTER_ENABLE      (ADDR_FILTER_ENABLE),
         .N_ADDR_RANGES           (N_ADDR_RANGES)
     ) axil4_master_wr_mon_inst (
         .aclk                    (gated_aclk),
@@ -312,6 +321,9 @@ module axil4_master_wr_mon_cg
         .cfg_addr_range_enable   (cfg_addr_range_enable),
         .cfg_addr_range_low      (cfg_addr_range_low),
         .cfg_addr_range_high     (cfg_addr_range_high),
+        .cfg_addr_filter_enable  (cfg_addr_filter_enable),
+        .cfg_addr_filter_low     (cfg_addr_filter_low),
+        .cfg_addr_filter_high    (cfg_addr_filter_high),
 
         // Monitor Bus
         .monbus_valid            (w_monbus_valid),
