@@ -1,0 +1,44 @@
+# stream_perf board sweep 2026-08-31
+# bitstream sha256 c49a1b7691ba638d861f1f9da0f95da9161a92ef02f96549253754fda7a336e1
+# WNS +1.582 ns, 0 failing endpoints; Genesys 2 xc7k325t, 100 MHz, USE_AXI_MONITORS=0, 8ch
+  1desc_1ch_1MB              1ch   1d         1MB       65583 cyc      655.8 us  tot= 1524.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  1desc_2ch_1MB              2ch   1d         2MB      131119 cyc     1311.2 us  tot= 1525.3  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  1desc_3ch_1MB              3ch   1d         3MB      196655 cyc     1966.6 us  tot= 1525.5  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  1desc_4ch_1MB              4ch   1d         4MB      262191 cyc     2621.9 us  tot= 1525.6  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  1desc_5ch_1MB              5ch   1d         5MB      327727 cyc     3277.3 us  tot= 1525.7  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  1desc_6ch_1MB              6ch   1d         6MB      393263 cyc     3932.6 us  tot= 1525.7  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  1desc_7ch_1MB              7ch   1d         7MB      458799 cyc     4588.0 us  tot= 1525.7  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  1desc_8ch_1MB              8ch   1d         8MB      524335 cyc     5243.4 us  tot= 1525.7  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  2desc_1ch_1MB              1ch   2d         2MB      131119 cyc     1311.2 us  tot= 1525.3  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  2desc_2ch_1MB              2ch   2d         4MB      262191 cyc     2621.9 us  tot= 1525.6  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  2desc_3ch_1MB              3ch   2d         6MB      393263 cyc     3932.6 us  tot= 1525.7  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  2desc_4ch_1MB              4ch   2d         8MB      524335 cyc     5243.4 us  tot= 1525.7  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  2desc_5ch_1MB              5ch   2d        10MB      655407 cyc     6554.1 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  2desc_6ch_1MB              6ch   2d        12MB      786479 cyc     7864.8 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  2desc_7ch_1MB              7ch   2d        14MB      917551 cyc     9175.5 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  2desc_8ch_1MB              8ch   2d        16MB     1048623 cyc    10486.2 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  4desc_1ch_1MB              1ch   4d         4MB      262191 cyc     2621.9 us  tot= 1525.6  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  4desc_2ch_1MB              2ch   4d         8MB      524335 cyc     5243.4 us  tot= 1525.7  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  4desc_3ch_1MB              3ch   4d        12MB      786479 cyc     7864.8 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  4desc_4ch_1MB              4ch   4d        16MB     1048623 cyc    10486.2 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  4desc_5ch_1MB              5ch   4d        20MB     1310767 cyc    13107.7 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  4desc_6ch_1MB              6ch   4d        24MB     1572911 cyc    15729.1 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  4desc_7ch_1MB              7ch   4d        28MB     1835055 cyc    18350.5 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  4desc_8ch_1MB              8ch   4d        32MB     2097199 cyc    20972.0 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  8desc_1ch_1MB              1ch   8d         8MB      524335 cyc     5243.4 us  tot= 1525.7  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  8desc_2ch_1MB              2ch   8d        16MB     1048623 cyc    10486.2 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  8desc_3ch_1MB              3ch   8d        24MB     1572911 cyc    15729.1 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  8desc_4ch_1MB              4ch   8d        32MB     2097199 cyc    20972.0 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  8desc_5ch_1MB              5ch   8d        40MB     2621487 cyc    26214.9 us  tot= 1525.9  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  8desc_6ch_1MB              6ch   8d        48MB     3145775 cyc    31457.8 us  tot= 1525.9  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  8desc_7ch_1MB              7ch   8d        56MB     3670063 cyc    36700.6 us  tot= 1525.9  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  8desc_8ch_1MB              8ch   8d        64MB     4194351 cyc    41943.5 us  tot= 1525.9  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  16desc_1ch_1MB             1ch  16d        16MB     1048623 cyc    10486.2 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  16desc_2ch_1MB             2ch  16d        32MB     2097199 cyc    20972.0 us  tot= 1525.8  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  16desc_3ch_1MB             3ch  16d        48MB     3145775 cyc    31457.8 us  tot= 1525.9  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  16desc_4ch_1MB             4ch  16d        64MB     4194351 cyc    41943.5 us  tot= 1525.9  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  16desc_5ch_1MB             5ch  16d        80MB     5242927 cyc    52429.3 us  tot= 1525.9  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  16desc_6ch_1MB             6ch  16d        96MB     6291503 cyc    62915.0 us  tot= 1525.9  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  16desc_7ch_1MB             7ch  16d       112MB     7340079 cyc    73400.8 us  tot= 1525.9  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+  16desc_8ch_1MB             8ch  16d       128MB     8388655 cyc    83886.6 us  tot= 1525.9  r2r= 1525.9  w2w= 1525.9 MB/s  PASS
+Summary: 40 passed, 0 failed, 40 total

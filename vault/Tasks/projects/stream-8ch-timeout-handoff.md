@@ -1,4 +1,36 @@
-# STREAM 7–8 channel board timeout — handoff
+# STREAM 7-8 channel board timeout — handoff
+
+> **UPDATE 2026-08-31: does NOT reproduce on the dedicated perf build.**
+> A `build-perf` bitstream (USE_AXI_MONITORS=0, 8ch, 100 MHz, WNS +1.582 ns,
+> sha256 c49a1b76...) sweeps **40 of 40 scenarios PASS**, all five former
+> failures included, at full rate:
+>
+> | scenario | data | cycles | MB/s |
+> |---|---|---|---|
+> | 4desc_8ch_1MB | 32 MB | 2,097,199 | 1525.8 |
+> | 8desc_7ch_1MB | 56 MB | 3,670,063 | 1525.9 |
+> | 8desc_8ch_1MB | 64 MB | 4,194,351 | 1525.9 |
+> | 16desc_7ch_1MB | 112 MB | 7,340,079 | 1525.9 |
+> | 16desc_8ch_1MB | 128 MB | 8,388,655 | 1525.9 |
+>
+> Whole sweep in 2m49s, throughput flat at 1524.8-1525.9 MB/s across every
+> channel count 1-8. Raw log: `build-perf/results/perf_sweep_2026-08-31.txt`.
+>
+> **This is NOT a like-for-like retest and must not be read as "fixed".** The
+> failures above were measured on the union MONITOR bitstream (all cones,
+> 90 MHz); this is the monitors-off perf build at 100 MHz. Two variables moved
+> at once, plus a week of tree churn. What it does do is put weight behind the
+> one theory this page could not kill: the failure is monitor-side, not
+> datapath-side. The descriptor-fetch monitor's transaction table is flat at 16
+> and SHARED by every channel, which is the only structure here that scales with
+> channel count -- and the staircase below (16desc_6ch passes at 96 MB while
+> 8desc_8ch fails at 67 MB) is contention-shaped, not capacity-shaped.
+>
+> To actually settle it, rerun the sweep on a monitor bitstream from today's
+> tree. If the five fail there and pass here, the monitors are the difference
+> and DESC_MON_MAX_TRANS is the next thing to size. If they pass there too, the
+> cause was something that landed in the tree since 2026-08-25 and this page is
+> closable.
 
 **The kick refactor is DONE and validated. This is a separate, pre-existing-looking
 regression found by the board perf sweep. Reproduce it in SIM first — the cosim has
