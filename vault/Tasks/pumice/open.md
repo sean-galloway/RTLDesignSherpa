@@ -388,3 +388,79 @@ produced silicon bugs:
 Each map must name the invariant that makes its unreachable cells unreachable --
 several of the above have "cannot happen" regions that are true only because of
 ordering guarantees elsewhere, and those guarantees belong in the citation.
+
+## PUMICE-017 — the CAM->arbiter pick cone does not close timing; PUMICE-006 was never synthesized
+**Status:** open 2026-08-31 **Priority:** P0 — blocks every board build
+**Found by:** the first bitstream attempt since the stable build of 2026-08-24.
+
+**The measurement** (Nexys A7, XC7A100T, ddr2-char harness at 4 write + 4 read
+generators, post-route):
+
+    WNS                 -48.861 ns   against a 15.000 ns period (66.67 MHz)
+    Failing endpoints      8939 / 122545
+    Worst path    u_ifc/u_rd_cam/r_age_ctr_reg[3]/C
+               -> u_sched/u_arbiter/r_row_reg[8]/D
+    Data path delay     63.588 ns   (logic 17.825 / route 45.763)
+    Logic levels           89       (CARRY4=30 LUT6=16 LUT5=19 LUT4=12 LUT3=9)
+
+**LOGIC DELAY ALONE IS 17.825 ns AGAINST A 15 ns PERIOD.** That is the number
+that matters. Even with zero routing delay this path fails, so no amount of
+placement effort, floorplanning, `phys_opt` or directive sweeping can recover
+it. It is depth, and it needs registers.
+
+**Where the failures actually are** — post-route endpoint counts by instance:
+
+    1455  u_ifc/u_rd_cam          <- the CAMs, not the arbiter
+     400  u_ifc/u_wr_cam
+      74  u_sched/u_arbiter
+      20  u_ifc/u_wr_intake
+
+Post-SYNTH reported 44 endpoints all inside `u_arbiter`, which was misleading;
+the routed picture above is the accurate one. The arbiter consumes per-entry
+vectors, the CAMs compute them, and it is the computing side that blew up.
+
+**Why this is PUMICE-006 and not the harness.** The path never leaves pumice.
+The stable bitstream that closed at WNS +0.050 ns was built 2026-08-24 and
+predates every one of the thirteen scheduler/arbiter commits since, including
+all six Axis-1 steps. Those added, into one cone with no pipeline stage
+anywhere (`pumice_cmd_arbiter.sv` has 11 `always_comb` and ZERO `always_ff`):
+
+- step 1 ORDER_MODE — CAMs export a per-entry aged flag and head-relative age
+  (this is the `r_age_ctr` that sources the worst path);
+- step 2 ROW_SEL/COL_SEL — per-entry pending population as an 8x8
+  same-{bank,row} match triangle PER CAM (the 30 CARRY4s);
+- step 3 ACCESS_PREF, step 4 write-batching hysteresis, step 5 prio_sub,
+  step 6 QoS narrowing — each composing serially into the same pick.
+
+The bank-parallel refactor had this cone at -0.214 ns @ 75 MHz *before* any of
+them landed. Every mode is encoding-0-default and therefore behaviourally
+inert, but the LOGIC is unconditionally synthesized, so the cost is paid in
+every build whether or not a mode is ever enabled. Nothing caught it because
+nothing had been synthesized since.
+
+**The harness is not blameless, but it is not the cause.** Route is 72% of the
+delay, and the generator array raised utilization from 33% to 77%, which
+spreads the cone across the die. That makes a broken path worse; it did not
+break it. A 33%-utilization build of the same RTL would still fail on the
+17.8 ns of logic.
+
+**What NOT to do.** Gating the advanced modes out behind a build-time parameter
+would close timing immediately and is the wrong answer: [[PUMICE-013]] exists
+specifically to characterize those modes ON SILICON, and a board build that
+cannot enable them makes that task impossible. The modes have to survive.
+
+**Direction:** pipeline the CAM-side vector export and the pick. The
+per-entry population/age computation is a natural register boundary -- it is a
+function of CAM state that changes on insert/retire, not something that must be
+recomputed combinationally in the same cycle it is consumed. Whatever shape it
+takes, it interacts with the arbiter's registered-feedback hazards: two
+double-issue bugs were previously caught only by the MACRO test because of that
+latency ([[PUMICE-KMAP]] flags this exact block for the same reason), so adding
+a stage without re-proving the issue qualification is how a third one lands.
+
+**Regression gate:** `make synth` in
+`projects/fpga-systems/NexysA7/pumice/build-perf` reports WNS in ~6 minutes.
+It should have been run after every Axis-1 step, and was not. Run it before
+any further pumice merge, and treat the 210-test FULL suite as necessary but
+not sufficient -- a functional pass says nothing about whether the result can
+be built.

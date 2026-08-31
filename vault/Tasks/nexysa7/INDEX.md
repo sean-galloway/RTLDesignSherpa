@@ -5,7 +5,7 @@ summary: Task rollup for the NexysA7 characterization flows (stream-char/perf, m
 
 # NexysA7 tasks
 
-**Next ID: NEXYS-006** — never recycle a number, even when its task closed.
+**Next ID: NEXYS-007** — never recycle a number, even when its task closed.
 
 Board-campaign and characterization-flow tasks for
 `projects/NexysA7/` (stream characterization: `flows-stream-bridge` = perf/char,
@@ -26,6 +26,14 @@ Convention: [Tasks](../INDEX.md). Related handbook:
   `projects/fpga-systems/bin/` board/UART layer + global `make/fpga_flow.mk` (pumice done as the
   proof); fill the `projects/fpga-systems/NexysA7/pumice/` scaffold. New board
   areas sit under `projects/fpga-systems/`, agreeing with NEXYS-002.
+- **NEXYS-004** (Medium) — two direction-split bridges with per-bank traffic
+  generators. RTL/DV/host LANDED 2026-08-31 at 4+4 (8+8 did not fit the
+  XC7A100T); the read/write mix sweep it exists for is still open.
+- **NEXYS-005** (Medium) — one name per quantity: BYTES_PER_AXI_BEAT /
+  BYTES_PER_DFI_BEAT / BYTES_PER_DEVICE_WORD / DRAM_BL / DFI_RATE.
+- **NEXYS-006** (Medium) — RISC-V SoC on pumice running memory-controller
+  stress benchmarks (STREAM, GUPS, pointer chase), and the pumice-vs-LiteDRAM
+  A/B with identical binaries.
 
 ## Active (in progress)
 - _(none yet)_

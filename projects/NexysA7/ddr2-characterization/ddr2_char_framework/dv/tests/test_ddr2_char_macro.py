@@ -176,7 +176,8 @@ async def _program_writer(dut, *, start_addr: int, stride_0: int,
                           burst_len: int, txn_count: int,
                           axi_id: int = 0, axi_size: int = 3,
                           lfsr_seed: int = 0, id_mode: int = 0,
-                          gap: int = 0, gen: int = 0) -> None:
+                          gap: int = 0, gen: int = 0,
+                          wrap_mask_0: int = 0, wrap_mask_1: int = 0) -> None:
     """Stage write generator `gen` over APB. Does NOT start it.
 
     Staging and launching are separate on purpose: GO starts every selected
@@ -190,6 +191,7 @@ async def _program_writer(dut, *, start_addr: int, stride_0: int,
         gen, start_addr=start_addr, stride_0=stride_0, burst_len=burst_len,
         txn_count=txn_count, axi_id=axi_id, id_mode=id_mode,
         axi_size=axi_size, lfsr_seed=lfsr_seed, gap=gap,
+        wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
     )
 
 
@@ -197,13 +199,15 @@ async def _program_reader(dut, *, start_addr: int, stride_0: int,
                           burst_len: int, txn_count: int,
                           axi_id: int = 0, axi_size: int = 3,
                           lfsr_seed: int = 0, id_mode: int = 0,
-                          gap: int = 0, gen: int = 0) -> None:
+                          gap: int = 0, gen: int = 0,
+                          wrap_mask_0: int = 0, wrap_mask_1: int = 0) -> None:
     """Stage read generator `gen` over APB. Does NOT start it."""
     _check_full_burst(burst_len, "reader")
     await _chargen(dut).program_reader(
         gen, start_addr=start_addr, stride_0=stride_0, burst_len=burst_len,
         txn_count=txn_count, axi_id=axi_id, id_mode=id_mode,
         axi_size=axi_size, lfsr_seed=lfsr_seed, gap=gap,
+        wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
     )
 
 
@@ -442,52 +446,75 @@ async def cocotb_test_ddr2_char_macro(dut):
         # nothing. Eight streams interleaving in the CAMs, the arbiter and the
         # read-return path is a real integrity test regardless.
         BURST = BURST_LEN_MULTIPLE
-        N = 8
         BYTES_PER_BEAT = 8
-        STRIDE = BURST * BYTES_PER_BEAT
+        STRIDE = BURST * BYTES_PER_BEAT          # 64 B per burst
 
-        # Bank-strided bases. The bank field's position is pumice's runtime
-        # ADDR_MAP.bank_lsb, so this is the HOST's model of the map it
-        # programmed -- nothing in hardware forces generator g onto bank g.
-        # program_defaults() leaves bank_lsb at its default; the stride below
-        # matches it. If the map changes, this changes with it, and the RTL
-        # will not complain -- it will just quietly measure something else.
-        BANK_LSB = 10
-        BANK_STRIDE = 1 << BANK_LSB
-        BASE = 0x0002_0000
+        # EACH GENERATOR SPANS TWO BANKS, so four generators keep all eight
+        # busy. There are only four per direction (8+8 did not fit the part),
+        # and one generator per bank would have left half the device idle --
+        # which is the corner the whole array exists to provoke.
+        #
+        # The address generator computes base + ((index * stride) & wrap_mask),
+        # so a wrap_mask of (window - 1) is a circular window of that size.
+        # With pumice's ADDR_MAP.bank_lsb at 10, a contiguous 1024 B run stays
+        # in one bank and the next 1024 B lands in the next -- so a 2048 B
+        # window walks bank 2g, then bank 2g+1, then wraps.
+        #
+        # This is the HOST's model of the map it programmed; nothing in the RTL
+        # forces it. Get bank_lsb wrong and this still runs, it just measures
+        # something other than bank concurrency, which is why the mapping is
+        # asserted rather than assumed.
+        BANK_LSB    = 10
+        BANK_STRIDE = 1 << BANK_LSB              # 1024 B per bank at this map
+        BANKS_PER_GEN = 2
+        WINDOW      = BANK_STRIDE * BANKS_PER_GEN
+        WRAP_MASK   = WINDOW - 1
+        N           = WINDOW // STRIDE           # cover the window exactly once
+        BASE        = 0x0002_0000
 
         drv = _chargen(dut, log=tb.log)
 
         shape = await drv.gen_config()
-        assert shape["num_wr_gen"] == shape["num_banks"] == 8, (
-            f"this bitstream was built with {shape} -- the test assumes one "
-            f"generator per bank on an 8-bank device")
+        NUM_GEN  = shape["num_wr_gen"]
+        GEN_MASK = (1 << NUM_GEN) - 1
+        assert NUM_GEN == shape["num_rd_gen"], f"asymmetric array: {shape}"
+        assert shape["num_banks"] % NUM_GEN == 0, (
+            f"{shape} -- banks must divide evenly across generators or the "
+            f"span-per-generator is not uniform and some banks see more "
+            f"traffic than others purely by arithmetic")
+        assert shape["num_banks"] // NUM_GEN == BANKS_PER_GEN, (
+            f"{shape} implies {shape['num_banks'] // NUM_GEN} banks per "
+            f"generator, but the address window above is built for "
+            f"{BANKS_PER_GEN}")
 
-        # Stage all sixteen first. Distinct seeds per bank so a stream landing
-        # on the wrong bank shows up as a CRC mismatch rather than as data that
-        # happens to be right for the wrong reason.
-        for g in range(8):
-            await _program_writer(dut, gen=g, start_addr=BASE + g * BANK_STRIDE,
-                                  stride_0=STRIDE, burst_len=BURST,
-                                  txn_count=N, axi_id=g,
+        # Stage every generator first, then launch. Distinct seeds per
+        # generator so a stream landing in the wrong window shows up as a CRC
+        # mismatch rather than as data that happens to be right for the wrong
+        # reason.
+        for g in range(NUM_GEN):
+            await _program_writer(dut, gen=g,
+                                  start_addr=BASE + g * WINDOW,
+                                  stride_0=STRIDE, wrap_mask_0=WRAP_MASK,
+                                  burst_len=BURST, txn_count=N, axi_id=g,
                                   lfsr_seed=0xA5A5_0000 + g)
-        await _start_writers(dut, mask=0xFF)
+        await _start_writers(dut, mask=GEN_MASK)
         await _wait_done(dut, "gen_wr_done", timeout=2_000_000)
 
-        for g in range(8):
-            await _program_reader(dut, gen=g, start_addr=BASE + g * BANK_STRIDE,
-                                  stride_0=STRIDE, burst_len=BURST,
-                                  txn_count=N, axi_id=g,
+        for g in range(NUM_GEN):
+            await _program_reader(dut, gen=g,
+                                  start_addr=BASE + g * WINDOW,
+                                  stride_0=STRIDE, wrap_mask_0=WRAP_MASK,
+                                  burst_len=BURST, txn_count=N, axi_id=g,
                                   lfsr_seed=0xA5A5_0000 + g)
-        await _start_readers(dut, mask=0xFF)
+        await _start_readers(dut, mask=GEN_MASK)
         await _wait_done(dut, "gen_rd_done", timeout=2_000_000)
 
         # Every generator, not just the ones that happened to finish first.
         wr_done, rd_done = await drv.done()
-        assert wr_done == 0xFF, f"writers still running: done=0x{wr_done:02X}"
-        assert rd_done == 0xFF, f"readers still running: done=0x{rd_done:02X}"
+        assert wr_done == GEN_MASK, f"writers still running: done=0x{wr_done:02X}"
+        assert rd_done == GEN_MASK, f"readers still running: done=0x{rd_done:02X}"
 
-        for g in range(8):
+        for g in range(NUM_GEN):
             await _assert_engines_clean(dut, gen=g, context=f"bank {g}")
             await _assert_crc_match(dut, gen=g, context=f"bank {g}")
 
@@ -500,7 +527,10 @@ async def cocotb_test_ddr2_char_macro(dut):
             "did not -- gen_crc_match's launched-pair mask is wrong")
         assert int(dut.gen_any_error.value) == 0, "aggregate error bit set"
 
-        tb.log.info("bank_parallel OK: 8 writers + 8 readers, %d bursts each", N)
+        tb.log.info("bank_parallel OK: %d writers + %d readers, %d bursts each, "
+                    "%d banks per generator (%d banks covered)",
+                    NUM_GEN, NUM_GEN, N, BANKS_PER_GEN,
+                    NUM_GEN * BANKS_PER_GEN)
 
     elif test_type == "pacing_sweep_b2b":
         # Engine-PACING sweep — NOT an AXI random-profile sweep.

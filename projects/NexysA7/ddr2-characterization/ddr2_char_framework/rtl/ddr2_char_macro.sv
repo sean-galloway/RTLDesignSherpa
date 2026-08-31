@@ -118,13 +118,24 @@ module ddr2_char_macro
     parameter int BURST_LEN_MULTIPLE = 1,
 
     // ---- Generator array ----
-    // One generator per DRAM bank, per direction. Fixed at NUM_BANKS rather
-    // than independently settable: the whole point of the array is that bank
-    // concurrency is a property of the stimulus, and a count that does not
-    // match the device silently measures something else. An elaboration
-    // assertion below enforces the equality instead of trusting it, and the
-    // host reads the compiled count back from GEN_CONFIG.
-    parameter int NUM_GEN          = NUM_BANKS,
+    // Concurrent traffic generators per direction. FOUR, not one per bank:
+    // eight of each was the intent and does not fit the XC7A100T (66470 LUTs
+    // against 63400; placement short by 1469 slices). Four fits with routing
+    // and timing margin and still provokes bank concurrency, which one stream
+    // never could.
+    //
+    // NUM_GEN <= NUM_BANKS is the invariant, not equality. Each generator is
+    // expected to SPAN NUM_BANKS/NUM_GEN banks -- two, here -- so four
+    // generators keep all eight banks busy. One generator per bank would have
+    // left half the device idle, which is the corner the array exists to
+    // provoke in the first place.
+    //
+    // The span is an ADDRESS PATTERN, not hardware: the host gives each
+    // generator a wrap window covering that many banks. Nothing here can
+    // enforce it, because the bank field's position is pumice's runtime
+    // ADDR_MAP.bank_lsb, so the host asserts the mapping and reads the
+    // compiled count back from GEN_CONFIG.
+    parameter int NUM_GEN          = 4,
 
     // ---- Engine workload ranges ----
     parameter int TXN_COUNT_WIDTH  = 16,
@@ -322,14 +333,14 @@ module ddr2_char_macro
     //=========================================================================
     // Elaboration check: the array shape must match the device
     //=========================================================================
-    // NUM_GEN != NUM_BANKS is not a smaller test, it is a different one --
-    // fewer generators than banks leaves banks idle and understates
-    // concurrency; more puts two streams on one bank and manufactures
-    // conflicts. Either way the number that comes out is not the number the
-    // sweep thinks it is, so fail at elaboration rather than at interpretation.
+    // More generators than banks would put two streams on one bank and
+    // manufacture conflicts the device would not otherwise see, so the number
+    // coming out would not be the number the sweep thinks it is. Fewer is a
+    // deliberate area trade (see the parameter comment) and is allowed -- the
+    // host spreads them.
     initial begin
-        if (NUM_GEN != NUM_BANKS) begin
-            $error("ddr2_char_macro: NUM_GEN (%0d) must equal NUM_BANKS (%0d) -- one generator per bank",
+        if (NUM_GEN > NUM_BANKS) begin
+            $error("ddr2_char_macro: NUM_GEN (%0d) exceeds NUM_BANKS (%0d) -- two streams would share a bank",
                    NUM_GEN, NUM_BANKS);
             $finish;
         end
@@ -408,8 +419,8 @@ module ddr2_char_macro
     // however long it took the host to program generator 15, and that skew is
     // what produced meaningless zero-utilization windows on rapids.
     logic [NUM_GEN-1:0] w_wr_go, w_rd_go;
-    assign w_wr_go = {cg_out.GO.wr_go7.value, cg_out.GO.wr_go6.value, cg_out.GO.wr_go5.value, cg_out.GO.wr_go4.value, cg_out.GO.wr_go3.value, cg_out.GO.wr_go2.value, cg_out.GO.wr_go1.value, cg_out.GO.wr_go0.value};
-    assign w_rd_go = {cg_out.GO.rd_go7.value, cg_out.GO.rd_go6.value, cg_out.GO.rd_go5.value, cg_out.GO.rd_go4.value, cg_out.GO.rd_go3.value, cg_out.GO.rd_go2.value, cg_out.GO.rd_go1.value, cg_out.GO.rd_go0.value};
+    assign w_wr_go = {cg_out.GO.wr_go3.value, cg_out.GO.wr_go2.value, cg_out.GO.wr_go1.value, cg_out.GO.wr_go0.value};
+    assign w_rd_go = {cg_out.GO.rd_go3.value, cg_out.GO.rd_go2.value, cg_out.GO.rd_go1.value, cg_out.GO.rd_go0.value};
 
     //=========================================================================
     // Per-generator AXI nets
@@ -710,12 +721,12 @@ module ddr2_char_macro
         end
 
         // Roll-ups: a poll costs one read instead of sixteen.
-        cg_in.DONE.wr_done.next = w_wr_done;
-        cg_in.DONE.rd_done.next = w_rd_done;
+        cg_in.DONE.wr_done.next = 8'(w_wr_done);
+        cg_in.DONE.rd_done.next = 8'(w_rd_done);
 
-        cg_in.ERRORS.wr_bresp_error.next = w_wr_bresp_err;
+        cg_in.ERRORS.wr_bresp_error.next = 8'(w_wr_bresp_err);
         // Any read-side error at all -- the per-generator STATUS says which.
-        cg_in.ERRORS.rd_any_error.next   = w_rd_data_err | w_rd_rresp_err | w_rd_stray_err;
+        cg_in.ERRORS.rd_any_error.next   = 8'(w_rd_data_err | w_rd_rresp_err | w_rd_stray_err);
 
         // Identity, from this instance's own parameters, so the count the host
         // programs cannot drift from the count that was compiled.
@@ -841,109 +852,9 @@ module ddr2_char_macro
         .wrgen3_axi_bvalid   (gw_bvalid[3]),
         .wrgen3_axi_bready   (gw_bready[3]),
 
-        // Generator 4 -> bank 4
-        .wrgen4_axi_awid     (gw_awid[4]),
-        .wrgen4_axi_awaddr   (gw_awaddr[4]),
-        .wrgen4_axi_awlen    (gw_awlen[4]),
-        .wrgen4_axi_awsize   (gw_awsize[4]),
-        .wrgen4_axi_awburst  (gw_awburst[4]),
-        .wrgen4_axi_awlock   (gw_awlock[4]),
-        .wrgen4_axi_awcache  (gw_awcache[4]),
-        .wrgen4_axi_awprot   (gw_awprot[4]),
-        .wrgen4_axi_awqos    (gw_awqos[4]),
-        .wrgen4_axi_awregion (gw_awregion[4]),
-        .wrgen4_axi_awuser   (gw_awuser[4][0]),
-        .wrgen4_axi_awvalid  (gw_awvalid[4]),
-        .wrgen4_axi_awready  (gw_awready[4]),
-        .wrgen4_axi_wdata    (gw_wdata[4]),
-        .wrgen4_axi_wstrb    (gw_wstrb[4]),
-        .wrgen4_axi_wlast    (gw_wlast[4]),
-        .wrgen4_axi_wuser    (gw_wuser[4][0]),
-        .wrgen4_axi_wvalid   (gw_wvalid[4]),
-        .wrgen4_axi_wready   (gw_wready[4]),
-        .wrgen4_axi_bid      (gw_bid[4]),
-        .wrgen4_axi_bresp    (gw_bresp[4]),
-        .wrgen4_axi_buser    (gw_buser[4]),
-        .wrgen4_axi_bvalid   (gw_bvalid[4]),
-        .wrgen4_axi_bready   (gw_bready[4]),
 
-        // Generator 5 -> bank 5
-        .wrgen5_axi_awid     (gw_awid[5]),
-        .wrgen5_axi_awaddr   (gw_awaddr[5]),
-        .wrgen5_axi_awlen    (gw_awlen[5]),
-        .wrgen5_axi_awsize   (gw_awsize[5]),
-        .wrgen5_axi_awburst  (gw_awburst[5]),
-        .wrgen5_axi_awlock   (gw_awlock[5]),
-        .wrgen5_axi_awcache  (gw_awcache[5]),
-        .wrgen5_axi_awprot   (gw_awprot[5]),
-        .wrgen5_axi_awqos    (gw_awqos[5]),
-        .wrgen5_axi_awregion (gw_awregion[5]),
-        .wrgen5_axi_awuser   (gw_awuser[5][0]),
-        .wrgen5_axi_awvalid  (gw_awvalid[5]),
-        .wrgen5_axi_awready  (gw_awready[5]),
-        .wrgen5_axi_wdata    (gw_wdata[5]),
-        .wrgen5_axi_wstrb    (gw_wstrb[5]),
-        .wrgen5_axi_wlast    (gw_wlast[5]),
-        .wrgen5_axi_wuser    (gw_wuser[5][0]),
-        .wrgen5_axi_wvalid   (gw_wvalid[5]),
-        .wrgen5_axi_wready   (gw_wready[5]),
-        .wrgen5_axi_bid      (gw_bid[5]),
-        .wrgen5_axi_bresp    (gw_bresp[5]),
-        .wrgen5_axi_buser    (gw_buser[5]),
-        .wrgen5_axi_bvalid   (gw_bvalid[5]),
-        .wrgen5_axi_bready   (gw_bready[5]),
 
-        // Generator 6 -> bank 6
-        .wrgen6_axi_awid     (gw_awid[6]),
-        .wrgen6_axi_awaddr   (gw_awaddr[6]),
-        .wrgen6_axi_awlen    (gw_awlen[6]),
-        .wrgen6_axi_awsize   (gw_awsize[6]),
-        .wrgen6_axi_awburst  (gw_awburst[6]),
-        .wrgen6_axi_awlock   (gw_awlock[6]),
-        .wrgen6_axi_awcache  (gw_awcache[6]),
-        .wrgen6_axi_awprot   (gw_awprot[6]),
-        .wrgen6_axi_awqos    (gw_awqos[6]),
-        .wrgen6_axi_awregion (gw_awregion[6]),
-        .wrgen6_axi_awuser   (gw_awuser[6][0]),
-        .wrgen6_axi_awvalid  (gw_awvalid[6]),
-        .wrgen6_axi_awready  (gw_awready[6]),
-        .wrgen6_axi_wdata    (gw_wdata[6]),
-        .wrgen6_axi_wstrb    (gw_wstrb[6]),
-        .wrgen6_axi_wlast    (gw_wlast[6]),
-        .wrgen6_axi_wuser    (gw_wuser[6][0]),
-        .wrgen6_axi_wvalid   (gw_wvalid[6]),
-        .wrgen6_axi_wready   (gw_wready[6]),
-        .wrgen6_axi_bid      (gw_bid[6]),
-        .wrgen6_axi_bresp    (gw_bresp[6]),
-        .wrgen6_axi_buser    (gw_buser[6]),
-        .wrgen6_axi_bvalid   (gw_bvalid[6]),
-        .wrgen6_axi_bready   (gw_bready[6]),
 
-        // Generator 7 -> bank 7
-        .wrgen7_axi_awid     (gw_awid[7]),
-        .wrgen7_axi_awaddr   (gw_awaddr[7]),
-        .wrgen7_axi_awlen    (gw_awlen[7]),
-        .wrgen7_axi_awsize   (gw_awsize[7]),
-        .wrgen7_axi_awburst  (gw_awburst[7]),
-        .wrgen7_axi_awlock   (gw_awlock[7]),
-        .wrgen7_axi_awcache  (gw_awcache[7]),
-        .wrgen7_axi_awprot   (gw_awprot[7]),
-        .wrgen7_axi_awqos    (gw_awqos[7]),
-        .wrgen7_axi_awregion (gw_awregion[7]),
-        .wrgen7_axi_awuser   (gw_awuser[7][0]),
-        .wrgen7_axi_awvalid  (gw_awvalid[7]),
-        .wrgen7_axi_awready  (gw_awready[7]),
-        .wrgen7_axi_wdata    (gw_wdata[7]),
-        .wrgen7_axi_wstrb    (gw_wstrb[7]),
-        .wrgen7_axi_wlast    (gw_wlast[7]),
-        .wrgen7_axi_wuser    (gw_wuser[7][0]),
-        .wrgen7_axi_wvalid   (gw_wvalid[7]),
-        .wrgen7_axi_wready   (gw_wready[7]),
-        .wrgen7_axi_bid      (gw_bid[7]),
-        .wrgen7_axi_bresp    (gw_bresp[7]),
-        .wrgen7_axi_buser    (gw_buser[7]),
-        .wrgen7_axi_bvalid   (gw_bvalid[7]),
-        .wrgen7_axi_bready   (gw_bready[7]),
 
         // Slave: pumice's write half
         .pumice_wr_axi_awid    (wr_awid),
@@ -1071,93 +982,9 @@ module ddr2_char_macro
         .rdgen3_axi_rvalid   (gr_rvalid[3]),
         .rdgen3_axi_rready   (gr_rready[3]),
 
-        // Generator 4 -> bank 4
-        .rdgen4_axi_arid     (gr_arid[4]),
-        .rdgen4_axi_araddr   (gr_araddr[4]),
-        .rdgen4_axi_arlen    (gr_arlen[4]),
-        .rdgen4_axi_arsize   (gr_arsize[4]),
-        .rdgen4_axi_arburst  (gr_arburst[4]),
-        .rdgen4_axi_arlock   (gr_arlock[4]),
-        .rdgen4_axi_arcache  (gr_arcache[4]),
-        .rdgen4_axi_arprot   (gr_arprot[4]),
-        .rdgen4_axi_arqos    (gr_arqos[4]),
-        .rdgen4_axi_arregion (gr_arregion[4]),
-        .rdgen4_axi_aruser   (gr_aruser[4][0]),
-        .rdgen4_axi_arvalid  (gr_arvalid[4]),
-        .rdgen4_axi_arready  (gr_arready[4]),
-        .rdgen4_axi_rid      (gr_rid[4]),
-        .rdgen4_axi_rdata    (gr_rdata[4]),
-        .rdgen4_axi_rresp    (gr_rresp[4]),
-        .rdgen4_axi_rlast    (gr_rlast[4]),
-        .rdgen4_axi_ruser    (gr_ruser[4]),
-        .rdgen4_axi_rvalid   (gr_rvalid[4]),
-        .rdgen4_axi_rready   (gr_rready[4]),
 
-        // Generator 5 -> bank 5
-        .rdgen5_axi_arid     (gr_arid[5]),
-        .rdgen5_axi_araddr   (gr_araddr[5]),
-        .rdgen5_axi_arlen    (gr_arlen[5]),
-        .rdgen5_axi_arsize   (gr_arsize[5]),
-        .rdgen5_axi_arburst  (gr_arburst[5]),
-        .rdgen5_axi_arlock   (gr_arlock[5]),
-        .rdgen5_axi_arcache  (gr_arcache[5]),
-        .rdgen5_axi_arprot   (gr_arprot[5]),
-        .rdgen5_axi_arqos    (gr_arqos[5]),
-        .rdgen5_axi_arregion (gr_arregion[5]),
-        .rdgen5_axi_aruser   (gr_aruser[5][0]),
-        .rdgen5_axi_arvalid  (gr_arvalid[5]),
-        .rdgen5_axi_arready  (gr_arready[5]),
-        .rdgen5_axi_rid      (gr_rid[5]),
-        .rdgen5_axi_rdata    (gr_rdata[5]),
-        .rdgen5_axi_rresp    (gr_rresp[5]),
-        .rdgen5_axi_rlast    (gr_rlast[5]),
-        .rdgen5_axi_ruser    (gr_ruser[5]),
-        .rdgen5_axi_rvalid   (gr_rvalid[5]),
-        .rdgen5_axi_rready   (gr_rready[5]),
 
-        // Generator 6 -> bank 6
-        .rdgen6_axi_arid     (gr_arid[6]),
-        .rdgen6_axi_araddr   (gr_araddr[6]),
-        .rdgen6_axi_arlen    (gr_arlen[6]),
-        .rdgen6_axi_arsize   (gr_arsize[6]),
-        .rdgen6_axi_arburst  (gr_arburst[6]),
-        .rdgen6_axi_arlock   (gr_arlock[6]),
-        .rdgen6_axi_arcache  (gr_arcache[6]),
-        .rdgen6_axi_arprot   (gr_arprot[6]),
-        .rdgen6_axi_arqos    (gr_arqos[6]),
-        .rdgen6_axi_arregion (gr_arregion[6]),
-        .rdgen6_axi_aruser   (gr_aruser[6][0]),
-        .rdgen6_axi_arvalid  (gr_arvalid[6]),
-        .rdgen6_axi_arready  (gr_arready[6]),
-        .rdgen6_axi_rid      (gr_rid[6]),
-        .rdgen6_axi_rdata    (gr_rdata[6]),
-        .rdgen6_axi_rresp    (gr_rresp[6]),
-        .rdgen6_axi_rlast    (gr_rlast[6]),
-        .rdgen6_axi_ruser    (gr_ruser[6]),
-        .rdgen6_axi_rvalid   (gr_rvalid[6]),
-        .rdgen6_axi_rready   (gr_rready[6]),
 
-        // Generator 7 -> bank 7
-        .rdgen7_axi_arid     (gr_arid[7]),
-        .rdgen7_axi_araddr   (gr_araddr[7]),
-        .rdgen7_axi_arlen    (gr_arlen[7]),
-        .rdgen7_axi_arsize   (gr_arsize[7]),
-        .rdgen7_axi_arburst  (gr_arburst[7]),
-        .rdgen7_axi_arlock   (gr_arlock[7]),
-        .rdgen7_axi_arcache  (gr_arcache[7]),
-        .rdgen7_axi_arprot   (gr_arprot[7]),
-        .rdgen7_axi_arqos    (gr_arqos[7]),
-        .rdgen7_axi_arregion (gr_arregion[7]),
-        .rdgen7_axi_aruser   (gr_aruser[7][0]),
-        .rdgen7_axi_arvalid  (gr_arvalid[7]),
-        .rdgen7_axi_arready  (gr_arready[7]),
-        .rdgen7_axi_rid      (gr_rid[7]),
-        .rdgen7_axi_rdata    (gr_rdata[7]),
-        .rdgen7_axi_rresp    (gr_rresp[7]),
-        .rdgen7_axi_rlast    (gr_rlast[7]),
-        .rdgen7_axi_ruser    (gr_ruser[7]),
-        .rdgen7_axi_rvalid   (gr_rvalid[7]),
-        .rdgen7_axi_rready   (gr_rready[7]),
 
         // Slave: pumice's read half
         .pumice_rd_axi_arid    (rd_arid),

@@ -1,7 +1,7 @@
 #==============================================================================
 # bridge_ddr2_char_wr.toml
 #==============================================================================
-# 8-master x 1-slave AXI4 write bridge for the DDR2 characterization
+# 4-master x 1-slave AXI4 write bridge for the DDR2 characterization
 # harness: the write half of the per-bank generator array, arbitrated down to
 # pumice's single AXI4 slave port.
 #
@@ -18,9 +18,20 @@
 # costs nothing at the controller: this bridge drives AW/W/B, its read sibling
 # drives AR/R, and neither knows about the other.
 #
-# WHY EIGHT MASTERS
-# -----------------
-# One generator per DRAM bank. The flat ~12.7 MB/s board result was traced to
+# WHY FOUR MASTERS, AND NOT EIGHT
+# -------------------------------
+# Eight -- one per DRAM bank -- was the intent and does not fit: at 8+8 the
+# harness synthesises to 66470 LUTs against the XC7A100T's 63400, and placement
+# fails needing 13840 slices against 12371 available. Four per direction fits
+# with routing and timing margin.
+#
+# Four concurrent streams still provoke bank concurrency and still support the
+# read/write mix sweep, which one stream never could; what is lost is having
+# all eight banks busy at once. The host spreads the four generators across the
+# eight banks (stride NUM_BANKS/NUM_GEN) rather than leaving half the device
+# untouched, so bank-conflict behaviour is still exercised across the array.
+#
+# Originally, one generator per DRAM bank. The flat ~12.7 MB/s board result was traced to
 # the arbiter falling back to a single oldest bank (serialised ACT -> tRCD ->
 # access) -- but a harness driving ONE address stream cannot tell that apart
 # from a controller that refuses to go bank-parallel. Eight independently
@@ -41,7 +52,7 @@
 
 [bridge]
 name = "bridge_ddr2_char_wr"
-description = "8x1 AXI4 write bridge -- per-bank write generators into pumice s_axi"
+description = "4x1 AXI4 write bridge -- per-bank write generators into pumice s_axi"
 # Bring-up variant only. The monitored variant is available if the generator
 # array ever needs per-master monbus observation, but the perf path here is
 # PUMICE-016's external observer on the pumice interface, not per-master
@@ -102,50 +113,6 @@ user_width  = 1
 # Generator 3 -- by convention drives DRAM bank 3; see the header.
 name        = "wrgen3"
 prefix      = "wrgen3_axi_"
-protocol    = "axi4"
-channels    = "wr"
-id_width    = 8
-addr_width  = 32
-data_width  = 64
-user_width  = 1
-
-[[bridge.masters]]
-# Generator 4 -- by convention drives DRAM bank 4; see the header.
-name        = "wrgen4"
-prefix      = "wrgen4_axi_"
-protocol    = "axi4"
-channels    = "wr"
-id_width    = 8
-addr_width  = 32
-data_width  = 64
-user_width  = 1
-
-[[bridge.masters]]
-# Generator 5 -- by convention drives DRAM bank 5; see the header.
-name        = "wrgen5"
-prefix      = "wrgen5_axi_"
-protocol    = "axi4"
-channels    = "wr"
-id_width    = 8
-addr_width  = 32
-data_width  = 64
-user_width  = 1
-
-[[bridge.masters]]
-# Generator 6 -- by convention drives DRAM bank 6; see the header.
-name        = "wrgen6"
-prefix      = "wrgen6_axi_"
-protocol    = "axi4"
-channels    = "wr"
-id_width    = 8
-addr_width  = 32
-data_width  = 64
-user_width  = 1
-
-[[bridge.masters]]
-# Generator 7 -- by convention drives DRAM bank 7; see the header.
-name        = "wrgen7"
-prefix      = "wrgen7_axi_"
 protocol    = "axi4"
 channels    = "wr"
 id_width    = 8

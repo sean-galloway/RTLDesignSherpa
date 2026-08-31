@@ -10,7 +10,7 @@ module wrgen1_adapter
 #(
     parameter NUM_SLAVES = 1,
     parameter BRIDGE_ID = 1,  // Unique ID for this master
-    parameter BRIDGE_ID_WIDTH = 3,
+    parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AW = 2,
     parameter SKID_DEPTH_W = 4,
     parameter SKID_DEPTH_B = 2

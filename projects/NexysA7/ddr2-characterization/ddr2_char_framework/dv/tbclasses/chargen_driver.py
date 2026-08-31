@@ -22,12 +22,12 @@ gives an index and this class builds the name.
 Usage:
 
     cg = ChargenDriver(dut, clock=dut.pclk, prefix="s_chargen_apb", log=log)
-    for bank in range(8):
+    for bank in range(4):
         await cg.program_writer(bank, start_addr=bank_base(bank),
                                 burst_len=4, txn_count=64, axi_id=bank)
         await cg.program_reader(bank, start_addr=bank_base(bank),
                                 burst_len=4, txn_count=64, axi_id=bank)
-    await cg.go(wr_mask=0xFF, rd_mask=0xFF)      # all sixteen, one cycle
+    await cg.go(wr_mask=0xF, rd_mask=0xF)        # all eight, one cycle
     await cg.wait_done(timeout=1_000_000)
 """
 
@@ -58,7 +58,10 @@ _WR_FIELDS = ("START_ADDR", "STRIDE_0", "STRIDE_1", "WRAP_MASK_0",
 class ChargenDriver:
     """APB-by-name access to chargen_regs."""
 
-    NUM_GEN = 8
+    #: Generators per direction as BUILT. Four, not eight: 8+8 did not fit the
+    #: XC7A100T (see chargen_regs.rdl). Read gen_config() to confirm against
+    #: the bitstream rather than trusting this constant.
+    NUM_GEN = 4
 
     def __init__(self, dut, clock, prefix: str = "s_chargen_apb",
                  addr_width: int = 12, log=None):

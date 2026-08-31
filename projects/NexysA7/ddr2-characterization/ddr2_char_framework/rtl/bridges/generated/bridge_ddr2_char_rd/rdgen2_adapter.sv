@@ -10,7 +10,7 @@ module rdgen2_adapter
 #(
     parameter NUM_SLAVES = 1,
     parameter BRIDGE_ID = 2,  // Unique ID for this master
-    parameter BRIDGE_ID_WIDTH = 3,
+    parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AR = 2,
     parameter SKID_DEPTH_R = 2
 ) (

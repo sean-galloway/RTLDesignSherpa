@@ -7,8 +7,8 @@
 package bridge_ddr2_char_rd_pkg;
 
     // Bridge Configuration Parameters
-    localparam int NUM_MASTERS = 8;
-    localparam int BRIDGE_ID_WIDTH = 3;  // $clog2(NUM_MASTERS)
+    localparam int NUM_MASTERS = 4;
+    localparam int BRIDGE_ID_WIDTH = 2;  // $clog2(NUM_MASTERS)
 
     // AXI4 Write Address Channel (width-independent)
     // Note: ID width is 8-bit for this bridge

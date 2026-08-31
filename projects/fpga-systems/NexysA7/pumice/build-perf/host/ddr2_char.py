@@ -266,10 +266,11 @@ class DDR2CharDriver:
                               regs_base=CHARGEN_APB_BASE,
                               regmap_file=CHARGEN_REGMAP)
         #: How many generators this bitstream was built with, per direction.
-        #: Read from the hardware by :meth:`gen_config` rather than assumed --
-        #: a host that programs more generators than exist silently measures
-        #: something other than what it reports.
-        self.num_gen = 8
+        #: FOUR, not eight -- 8+8 did not fit the XC7A100T. Read from the
+        #: hardware by :meth:`gen_config` rather than assumed: a host that
+        #: programs more generators than exist silently measures something
+        #: other than what it reports.
+        self.num_gen = 4
 
     # ----- Low-level helpers (by name via the register map) ----------------
     def _rd64(self, lo_name: str, hi_name: str) -> int:
