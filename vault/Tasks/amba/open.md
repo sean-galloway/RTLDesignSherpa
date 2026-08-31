@@ -51,6 +51,28 @@ packet pending and asserts monbus_packet is stable until accepted. The
 existing suites regress the fix but do not target this corner, so today it is
 verified as "not broken", not as "proven fixed".
 
+**BUILD IT ON THE BFMs.** A first attempt hand-drove monbus_ready and poked
+cmd_valid/data_valid directly, on the reasoning that "the stall IS the
+stimulus so a BFM will not build it". That reasoning is WRONG and the file was
+deleted rather than committed. Every custom interface in this repo is
+valid/ready by construction, so the GAXI infrastructure binds to all of them
+even when several signals form the packet:
+
+* cmd and data taps -- `create_gaxi_master(..., bus_name='cmd', multi_sig=True)`
+  with a field config over addr/id/len/size/burst (and the data equivalent).
+  The monitor SNOOPS these, so a master driving them is the right shape.
+* monbus -- `MonbusSlave` is already a GAXI slave; backpressure comes from a
+  FlexRandomizer with a LONG ready_delay profile. That is the supported way to
+  produce the stall, and it is the same knob used with a zero-delay profile
+  elsewhere to hold ready asserted.
+
+**Related debt:** `val/amba/test_axi_monitor_addr_filter.py` (committed in
+e3fa51e0) has the same defect -- its `send_read()` pokes cmd_valid/data_valid
+by hand. It passes and is mutation-checked, so it is not wrong about the
+filter, but it cannot see timing or protocol faults on that path. Rebuild it
+on GAXI masters when this directed test is written; the two want the same
+scaffolding.
+
 ## AMBA-MONRATE-INTERMITTENT — ROOT-CAUSED + PRIMARY FIX LANDED 2026-08-28
 **Status:** root-caused 2026-08-28; fix for `test_axi4_monitor` landed in
 68e66676. Residual is a SCOPE DECISION on six sibling TBs — see "Residual"
