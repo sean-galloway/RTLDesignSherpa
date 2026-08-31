@@ -133,6 +133,22 @@ AXI-Lite has no transaction IDs, so the `axil4_*_mon` wrappers tie these off
 rather than exposing them — a filter keyed on a field the protocol lacks has
 nothing to match against.
 
+The **address** filter is driven the same way. `ADDR_FILTER_ENABLE` only builds
+the logic; without these three ports driven it stays inert, which is the
+failure a reader hits when the parameter is the only thing documented:
+
+| Port | Width | Description |
+|---|---|---|
+| `cfg_addr_filter_enable` | 1 | High: suppress packets for transactions outside the window. Low: filter inert, regardless of the parameter |
+| `cfg_addr_filter_low` | `ADDR_WIDTH` | Window base, inclusive |
+| `cfg_addr_filter_high` | `ADDR_WIDTH` | Window limit, inclusive |
+
+The filter is live only when `ADDR_FILTER_ENABLE && cfg_addr_filter_enable`.
+The verdict is latched per table entry at ALLOCATION (`filtered_mask`), not
+re-evaluated at emission, so a transaction is judged once on its command
+address and its data and response beats follow that verdict — see
+[`axi_monitor_trans_mgr`](axi_monitor_trans_mgr.md).
+
 This gates the monitor's **observation** inputs only, never the datapath the
 wrapper drives, so a filtered instance stays transparent on the bus. All three
 channels filter on the same range deliberately: filtering the command alone

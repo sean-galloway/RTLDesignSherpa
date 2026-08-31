@@ -116,7 +116,7 @@ module apb4_monitor
     input  logic                     monbus_ready,            // Monitor bus ready
     output logic [127:0]             monbus_packet,           // Consolidated monitor packet (monitor_packet_t)
     output logic [63:0]              monbus_timestamp,        // Side-band timestamp (monbus_timestamp_t)
-    input  logic [63:0]              i_mon_time,              // Free-running counter from monbus_axil_group
+    input  logic [63:0]              i_mon_time,              // Free-running counter from monbus_group_core
 
     // Status outputs
     output logic [7:0]               active_count,            // Number of active transactions
@@ -199,7 +199,7 @@ module apb4_monitor
 | monbus_ready | 1 | Input | Monitor packet ready (backpressure) |
 | monbus_packet | 128 | Output | Consolidated `monitor_packet_t` (see format below) |
 | monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
-| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
+| i_mon_time | 64 | Input | Free-running counter from `monbus_group_core`, sampled at packet emission |
 
 ### Status Outputs
 

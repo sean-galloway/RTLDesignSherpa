@@ -94,47 +94,39 @@ AMBA Protocol Family
 ### Implementation Architecture
 
 ```
-RTL AMBA Library Architecture (86+ modules)
-├── AMBA 4 Protocol Implementations (47 modules)
-│   ├── APB4 (9 modules)
-│   │   ├── Masters & Slaves
-│   │   ├── Clock Gating Variants
-│   │   ├── Clock Domain Crossing
-│   │   └── Test Stubs
-│   ├── AXI4 (14 modules)
-│   │   ├── Read/Write Masters & Slaves
-│   │   ├── Clock Gating Variants
-│   │   └── Test Stubs
-│   ├── AXI4-Lite (8 modules)
-│   │   ├── Read/Write Masters & Slaves
-│   │   └── Clock Gating Variants
-│   └── AXI4-Stream (4 modules)
-│       ├── Masters & Slaves
-│       └── Clock Gating Variants
+RTL AMBA Library Architecture (131 modules under rtl/amba/)
+├── AMBA 4 Protocol Implementations (45 modules)
+│   ├── APB4 (9 modules) -- rtl/amba/apb4/
+│   │   Masters, slaves, clock-gating and CDC variants, test stubs
+│   ├── AXI4 (16 modules) -- rtl/amba/axi4/
+│   │   Read/write masters and slaves, clock-gating and monitored variants
+│   ├── AXI4-Lite (16 modules) -- rtl/amba/axil4/
+│   │   Read/write masters and slaves, clock-gating and monitored variants
+│   └── AXI4-Stream (4 modules) -- rtl/amba/axis4/
+│       Masters and slaves, clock-gating variants
 │
-├── AMBA 5 Protocol Implementations (29 modules)
-│   ├── APB5 (9 modules)
-│   │   ├── Masters & Slaves
-│   │   ├── Clock Gating Variants
-│   │   ├── Clock Domain Crossing
-│   │   └── Test Stubs
-│   ├── AXI5 (16 modules)
-│   │   ├── Read/Write Masters & Slaves
-│   │   ├── Clock Gating Variants
-│   │   └── Integrated Monitor Variants
-│   └── AXI5-Stream (4 modules)
-│       ├── Masters & Slaves
-│       └── Clock Gating Variants
+├── AMBA 5 Protocol Implementations (30 modules)
+│   ├── APB5 (9 modules) -- rtl/amba/apb5/
+│   ├── AXI5 (17 modules) -- rtl/amba/axi5/
+│   └── AXI5-Stream (4 modules) -- rtl/amba/axis5/
 │
-├── Shared Infrastructure (22 modules)
-│   ├── GAXI Generic Components (5 modules)
-│   ├── Monitoring & Debug (10 modules)
-│   ├── Clock Domain Crossing (2 modules)
-│   └── Arbitration Logic (5 modules)
-│
-└── Protocol Bridges (2 modules)
-    └── AXI4 to APB Conversion
+└── Shared Infrastructure (56 modules)
+    ├── Monitor subsystem (30 modules) -- rtl/amba/monitor/
+    │   Transaction monitors, the six reporter sub-blocks, the monbus
+    │   CAM/compressor/group path, and the monbus-instrumented arbiters
+    ├── Shared datapath (20 modules) -- rtl/amba/shared/
+    │   Splitters, bus meters, pattern generators, CRC checkers, SDPRAM slaves
+    └── GAXI generic components (6 modules) -- rtl/amba/gaxi/
+        Skid buffers, sync and drop FIFOs, register slice
 ```
+
+Counts are per directory and re-derivable with `ls rtl/amba/<dir>/*.sv` -- one
+module per file throughout. A further 5 modules under `rtl/amba/testcode/` are
+verification collateral, not library blocks, and are excluded above.
+
+The AXI4-to-APB protocol shims are **not** in this library. They live with the
+other converters, in `projects/components/converters/rtl/`
+(`axi4_to_apb4_shim`, `axi4_to_apb4_convert`, `axi4_to_apb5_shim`).
 
 ---
 

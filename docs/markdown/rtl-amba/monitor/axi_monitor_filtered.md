@@ -95,6 +95,7 @@ complete inventory.
 | `ID_FILTER_ENABLE` | bit | 0 | Track only a slice of the IDs on a shared bus |
 | `ID_MATCH_BASE` | int | 0 | First ID owned by this instance |
 | `ID_MATCH_COUNT` | int | 0 | How many IDs; 0 = all (no filter) |
+| `ADDR_FILTER_ENABLE` | bit | 0 | Address-range packet filter. Builds the logic only; the `cfg_addr_filter_*` ports below arm it |
 | `CFI_MIN_FREQ_MHZ` | int | 100 | Timer LUT lower bound (MHz) |
 | `CFI_MAX_FREQ_MHZ` | int | 100 | Timer LUT upper bound (MHz) |
 | `CFI_NUM_FREQ_ENTRIES` | int | 16 | Timer LUT entries. Does **not** size this module's `cfg_freq_sel`, which is a fixed 4-bit port here |
@@ -103,6 +104,27 @@ complete inventory.
 See [Transaction-Table Shaping, ID-Range Filter and Timer LUT Sizing in
 `axi_monitor_base`](axi_monitor_base.md#transaction-table-shaping) for the
 sizing rules and the elaboration error.
+
+### Filter configuration and status (pass-through)
+
+Also declared here and passed straight down. The two filters are inert unless
+their `cfg_*_enable` is driven, whatever the parameters say:
+
+| Port | Dir | Width | Description |
+|---|---|---|---|
+| `cfg_id_filter_enable` | input | 1 | Use the runtime ID window instead of `ID_MATCH_BASE`/`COUNT` |
+| `cfg_id_match_base` | input | `ID_WIDTH` | First ID owned, runtime |
+| `cfg_id_match_count` | input | `ID_WIDTH+1` | How many; 0 = all |
+| `cfg_addr_filter_enable` | input | 1 | Arm the address-range packet filter |
+| `cfg_addr_filter_low` | input | `ADDR_WIDTH` | Window base, inclusive |
+| `cfg_addr_filter_high` | input | `ADDR_WIDTH` | Window limit, inclusive |
+| `block_ready` | output | 1 | Table near capacity: stop admitting new commands |
+| `busy` | output | 1 | At least one transaction is being tracked |
+| `active_count` | output | 8 | Registered count of occupied table entries |
+
+`block_ready`, `busy` and `active_count` are real outputs and must be
+connected or explicitly left open; they are how an integrator sees the
+monitor's own backpressure and occupancy.
 
 ---
 

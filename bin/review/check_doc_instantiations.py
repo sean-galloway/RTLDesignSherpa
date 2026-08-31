@@ -78,8 +78,14 @@ def declared(sv_path):
     params = set()
     pm = re.search(r'#\s*\((.*?)\)\s*\(', head, re.S)
     if pm:
+        # Drop packed dimensions first, exactly as the port scan below does.
+        # Without this, `parameter logic [7:0] UNIT_ID = ...` is invisible to
+        # the name regex, so every vector-typed parameter reads as undeclared
+        # -- and a doc that MISNAMES one is indistinguishable from a doc that
+        # gets it right. 8 such false positives in the monitor book alone.
+        ptext = re.sub(r'\[[^\]]*\]', ' ', pm.group(1))
         params = set(re.findall(r'parameter\s+(?:type\s+)?(?:\w+\s+)*?(\w+)\s*=',
-                                pm.group(1)))
+                                ptext))
         head = head[pm.end():]
     else:
         # No parameter list: `module name (` leaves the opening paren in `head`,

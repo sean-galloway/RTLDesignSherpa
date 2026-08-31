@@ -182,7 +182,7 @@ Same as `axi5_master_wr_mon` - see [AXI5 Master Write Monitor](axi5_master_wr_mo
 | monbus_ready | 1 | Input | Monitor packet ready (backpressure) |
 | monbus_packet | 128 | Output | `monitor_packet_t` (128-bit format) |
 | monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
-| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
+| i_mon_time | 64 | Input | Free-running counter from `monbus_group_core`, sampled at packet emission |
 
 ### Status Outputs
 

@@ -130,7 +130,7 @@ Configuration ports are identical to other AXI4 monitors:
 | `monbus_packet` | Output | 128 | `monitor_packet_t` (see format below) |
 | `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
 | `debug_block_ready` | Output | 1 | Observability tap for the block_ready gating net (drives nothing internally; leave unconnected if unused) |
-| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
+| `i_mon_time` | Input | 64 | Free-running counter from `monbus_group_core`, sampled at packet emission |
 
 ### Status Outputs
 

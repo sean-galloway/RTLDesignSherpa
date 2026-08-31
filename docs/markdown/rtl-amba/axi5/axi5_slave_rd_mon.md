@@ -193,7 +193,7 @@ Same as `axi5_slave_rd` - see [AXI5 Slave Read](../axi5/axi5_slave_rd.md) for co
 | monbus_packet | 128 | Output | `monitor_packet_t` (see format below) |
 | monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
 | debug_block_ready | 1 | Output | Observability tap for the block_ready gating net (drives nothing internally; leave unconnected if unused) |
-| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
+| i_mon_time | 64 | Input | Free-running counter from `monbus_group_core`, sampled at packet emission |
 
 ### Status Outputs
 

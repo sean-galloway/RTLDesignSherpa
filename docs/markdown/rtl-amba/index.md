@@ -41,22 +41,22 @@ AMBA 4 modules provide the foundation for high-performance SoC interconnect, wid
 
 Simple, low-power peripheral bus for control registers and low-bandwidth devices.
 
-**[APB4 Module Documentation](apb/README.md)**
+**[APB4 Module Documentation](apb4/README.md)**
 
 #### Core Components
-- **[apb4_master](apb/apb4_master.md)** - APB master with command/response interfaces and FIFO buffering
-- **[apb4_master_cg](apb/apb4_master_cg.md)** - Clock-gated APB master for power optimization
-- **[apb4_slave](apb/apb4_slave.md)** - APB slave with configurable address decoding and response generation
-- **[apb4_slave_cg](apb/apb4_slave_cg.md)** - Clock-gated APB slave for power optimization
-- **[apb4_monitor](apb/apb4_monitor.md)** - APB protocol monitor for verification and debugging
+- **[apb4_master](apb4/apb4_master.md)** - APB master with command/response interfaces and FIFO buffering
+- **[apb4_master_cg](apb4/apb4_master_cg.md)** - Clock-gated APB master for power optimization
+- **[apb4_slave](apb4/apb4_slave.md)** - APB slave with configurable address decoding and response generation
+- **[apb4_slave_cg](apb4/apb4_slave_cg.md)** - Clock-gated APB slave for power optimization
+- **[apb4_monitor](apb4/apb4_monitor.md)** - APB protocol monitor for verification and debugging
 
 #### Clock Domain Crossing
-- **[apb4_slave_cdc](apb/apb4_slave_cdc.md)** - APB slave with clock domain crossing support
-- **[apb4_slave_cdc_cg](apb/apb4_slave_cdc_cg.md)** - Clock-gated CDC APB slave
+- **[apb4_slave_cdc](apb4/apb4_slave_cdc.md)** - APB slave with clock domain crossing support
+- **[apb4_slave_cdc_cg](apb4/apb4_slave_cdc_cg.md)** - Clock-gated CDC APB slave
 
 #### Test and Development
-- **[apb4_master_stub](apb/apb4_master_stub.md)** - APB master stub for testing and simulation
-- **[apb4_slave_stub](apb/apb4_slave_stub.md)** - APB slave stub for testing and simulation
+- **[apb4_master_stub](apb4/apb4_master_stub.md)** - APB master stub for testing and simulation
+- **[apb4_slave_stub](apb4/apb4_slave_stub.md)** - APB slave stub for testing and simulation
 
 ---
 

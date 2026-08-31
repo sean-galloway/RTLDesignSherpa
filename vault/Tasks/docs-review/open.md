@@ -1090,6 +1090,86 @@ independently.
 | Humanize | round_1 applied: 8 pages, 84 links resolving, 0 emoji | bf63573c |
 | Open items | none for gaxi itself |
 
+### monitor -- round_27 2026-08-31 (post-arc round; the arc was called early)
+
+The 2026-08-27 "ARC COMPLETE" was premature -- not because the rounds were
+wrong, but because FEATURE WORK LANDED AFTER THE VOICE PASS and nothing swept
+it. TASK-015's address filter and runtime ID filter (9cfd06e8, 576c26c1,
+94e0eb72, fd3b9646) plus their docs (63153b1b) all postdate humanize round_9.
+That is the DOCREV-017 failure shape appearing inside a book that had just
+been declared finished: **an arc is complete as of a COMMIT, not forever, and
+anything merged after the voice pass is un-reviewed by construction.**
+
+Round_27 (4 units, parts 1-4 rebuilt from the current tree) confirmed it. Both
+completed units escalated 32768 -> 65536 on the budget ladder and finished
+`finish=stop`.
+
+**FIVE RTL DEFECTS, three of them one class the previous round had declared
+closed.** `ae61c9f1` called its fix the "second and LAST instance" of
+AMBA-MONBUS-STABILITY. It was the second of five:
+
+  3. `apb_monitor_addr_check` had the identical unguarded payload overwrite.
+     The AXI fix was never propagated to the module its own page calls a
+     "deliberate mirror", and the module had NO test of its own at all.
+  4. BOTH checkers let the emit SELECTION move under a held valid (first-match
+     pick; in the AXI variant a MISS also preempts a MATCH), changing the
+     packet's identity rather than its payload.
+  5. `axi_monitor_addr_check`'s MISS slot kept its unconditional write --
+     `ae61c9f1` shadowed the MATCH ranges only.
+
+Defect 5 was found by the new directed test, not by the reviewer. Defect 4 was
+raised by the reviewer under "POSSIBLE RTL BUGS" and explicitly deferred "for
+the author's judgment"; it was real and reachable -- 7 violations in a
+two-range run.
+
+**A formal property now covers the class.** `formal_axi_monitor_addr_check`
+proved P6 (valid is sticky) and passed through all five instances, because
+sticky VALID is not sticky PAYLOAD. Added P7 (`ap_payload_stable`) plus a
+held-beat cover; it FAILS at step 5 against the unfixed RTL and passes with
+the fix. That is the durable fix -- the directed tests catch these two
+modules, P7 catches the class.
+
+**A separate, larger defect the round did not find, the regression did.**
+`94e0eb72` "expose cfg_addr_filter_* on all twelve wrappers" missed the twelve
+`*_mon_cg` clock-gated wrappers that instantiate them. Four failed to compile;
+the other eight PASSED because their tests carry `-Wno-PINMISSING`, so they
+built with the filter inputs floating (read as 0 = filter off). The same flag
+hid the same class in `axi_monitor_pktgen_dut`. Threaded both filters through
+all twelve and removed the flag from those tests. **A suppressed warning is a
+defect detector someone switched off; the AXI4/AXI5 side looked green for a
+week.** 61 files in val/amba still carry `-Wno-PINMISSING` -- unswept.
+
+**Doc findings, all integrated.** The addr filter was undocumented end-to-end:
+`axi_monitor_base.md` documented the parameter but none of the three runtime
+ports that arm it; `axi_monitor_filtered.md` claimed to be "a complete
+inventory" while omitting `ADDR_FILTER_ENABLE` and nine real ports including
+`block_ready`/`busy`/`active_count`. `axi_monitor_reporter.md` said
+threshold/perf/debug packets are "dropped rather than queued" -- only debug is
+lossy; perf and threshold DEFER, and the perf page said so, so the two pages
+contradicted each other. `apb_monitor_addr_check.md` claimed no violation is
+lost under backpressure when repeat hits on one range coalesce newest-wins.
+
+**Rule 6, measured again:** the reviewer cited ONE stale `monbus_axil_group`
+reference; there were 20 across 16 files (leftovers of the 35036222 rename).
+And fixing them mechanically CORRUPTED a page -- `monbus_group.md`'s migration
+section legitimately names the old module under a `// Old` heading, and the
+sweep renamed it. `check_doc_instantiations.py` caught that, which is the
+argument for running the checkers after a sweep rather than trusting it.
+
+**Two tooling defects fixed on the way:**
+  * `check_doc_instantiations.py` could not see `parameter logic [7:0] NAME`
+    -- its regex missed packed dimensions, so EVERY vector-typed parameter
+    read as undeclared and a doc that misnamed one was indistinguishable from
+    one that got it right. 8 false positives in the monitor book; 96 -> 48
+    reported names repo-wide. Mutation-checked.
+  * Rule 9 again, and it is the highest-yield rule in the list: the two docs
+    the bundle NEVER sees were both wrong. `rtl-amba/overview.md` claimed "86+
+    modules" with AXI4-Lite at 8 (really 16) and monitoring at 10 (really 30),
+    and listed AXI4-to-APB shims that moved to `projects/components/converters`
+    entirely; `rtl-amba/index.md` had 10 links pointing at `apb/` instead of
+    `apb4/`. **rtl-amba is now at zero broken links.** No reviewer would ever
+    have found either -- they are not in any bundle.
+
 ### monitor -- ARC COMPLETE 2026-08-27 (first-ever review + humanize)
 
 32 pages, 4 units. qc rounds 24/25/26: 44 -> 24 -> 15 findings, then

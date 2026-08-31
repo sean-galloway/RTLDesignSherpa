@@ -183,10 +183,23 @@ ways**:
   idle (`!monbus_valid && !w_fifo_rd_valid`) — which is what their
   `output_busy` input tells them.
 
-That asymmetry is why a threshold/perf/debug packet is dropped rather than
-queued when the bus is congested, while an error is buffered. None of these
-sub-blocks are intended to be instantiated directly by integrators — they are
-private to the reporter family.
+That asymmetry is why an error is buffered while the other three are not. It
+does not mean all three are lossy — they differ, and the difference matters
+when you are reading a capture:
+
+- **Perf** DEFERS. Its FSM holds while its packet is unaccepted
+  (`if (!(pkt_valid && !pkt_taken)) r_state <= w_next_state;`), so a rollup
+  that loses arbitration is emitted later carrying the then-current counts.
+  Nothing is lost, but the timestamp is the emission, not the event.
+- **Threshold** also defers while the crossing persists — the crossed flags
+  latch on `pkt_taken`, not on detection. A crossing that lifts during
+  congestion is the only case that goes unreported.
+- **Debug** is genuinely lossy. `r_prev_state` advances every cycle regardless
+  of acceptance (`pkt_taken` is unused in that block), so a state change that
+  cannot be emitted is gone.
+
+None of these sub-blocks are intended to be instantiated directly by
+integrators — they are private to the reporter family.
 
 ### Auto-Retire: Disabled Classes Never Leak Slots
 

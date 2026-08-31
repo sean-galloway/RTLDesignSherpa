@@ -221,7 +221,7 @@ There is no `cfg_axi_full_mask` port.
 | `monbus_ready` | Input | 1 | Downstream ready |
 | `monbus_packet` | Output | 128 | `monitor_packet_t` (128-bit format) |
 | `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
-| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
+| `i_mon_time` | Input | 64 | Free-running counter from `monbus_group_core`, sampled at packet emission |
 
 ### Status
 | Port | Direction | Width | Description |
