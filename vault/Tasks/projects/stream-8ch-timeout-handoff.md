@@ -31,6 +31,33 @@
 > and DESC_MON_MAX_TRANS is the next thing to size. If they pass there too, the
 > cause was something that landed in the tree since 2026-08-25 and this page is
 > closable.
+>
+> **ATTEMPTED 2026-08-31, BLOCKED: build-mon does not close timing.** Built from
+> ef17c6ad+ (8ch, all cones, 90 MHz, clean-all, 45 min):
+>
+>     WNS -1.733 ns   TNS -9241.753   7597 failing endpoints of 326977
+>     vs stable Aug-24: WNS +0.040, 0 failing of 263545
+>
+> 7182 of the 7597 failing destinations are inside `trans_mgr`'s banked CAM;
+> worst path is CROSS-BANK, `g_cam_bank[1]` -> `g_cam_bank[2]`, 12.299 ns against
+> an 11.111 ns requirement and 67.5% of that is ROUTE. Congestion, not deep logic.
+> Fewer LUTs than stable (126628 vs 138996) but 24% more endpoints.
+>
+> Not programmed. A design missing setup by 1.7 ns produces arbitrary behaviour,
+> so a sweep on it would yield numbers that mean nothing -- which is exactly the
+> trap this page already fell into once.
+>
+> NOT the bank count (7b4cabca, 4 -> 8): stream_cfg_pkg.sv records 4 banks
+> measuring -4.150 ns with the same hotspots, so 8 was already a mitigation.
+> The likelier driver is AR/AW_MAX_OUTSTANDING 2 -> 8 -- stable closed with a
+> 24-slot table, the package now asks for 72. Reported to the monitor owner.
+>
+> **So the like-for-like retest is still owed**, and it now needs one of:
+> (a) build-mon timing fixed, or (b) build-mon rebuilt at a clock where it
+> closes (-1.733 ns at 11.111 ns implies about 78 MHz). Option (b) still
+> isolates monitors-vs-not at a VALID operating point, which is what the
+> question needs -- the timeout is a functional failure, not a frequency one.
+
 
 **The kick refactor is DONE and validated. This is a separate, pre-existing-looking
 regression found by the board perf sweep. Reproduce it in SIM first — the cosim has
