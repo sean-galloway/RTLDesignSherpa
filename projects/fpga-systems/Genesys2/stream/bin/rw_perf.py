@@ -211,6 +211,21 @@ def format_snapshot(s: RwPerfSnapshot, file=sys.stdout) -> None:
           f"(productive / window length)", file=file)
 
 
+
+def _monitors_built(bridge) -> bool:
+    """Did this bitstream build the in-core monitors? BUILD_CONFIG.USE_MONITORS.
+
+    Read by name, and FAIL OPEN: if the field cannot be read for any reason we
+    return True and print nothing, because a wrong "these are structural zeros"
+    banner over real data would be worse than no banner at all.
+    """
+    try:
+        from harness_addrs import H
+        return bool((bridge.read(H("BUILD_CONFIG")) >> 6) & 1)
+    except Exception:
+        return True
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         description="Read the STREAM data-read/data-write datapath monitor "
@@ -235,6 +250,24 @@ def main(argv=None) -> int:
             return 0
         if args.close:
             close_windows(bridge)
+        # These CSRs belong to the IN-CORE datapath monitors, which build-perf
+        # compiles out (USE_AXI_MONITORS=0). On that flavour they are a
+        # structural zero, not a measurement -- and a clean table of zeros reads
+        # exactly like "the DMA moved nothing", which has cost real debugging
+        # time here before. The build reports its own flavour in
+        # BUILD_CONFIG.USE_MONITORS, so say so rather than let the operator
+        # infer it.
+        if not _monitors_built(bridge):
+            print("# NOTE: this bitstream has USE_AXI_MONITORS=0 "
+                  "(BUILD_CONFIG.USE_MONITORS=0).", file=sys.stderr)
+            print("#       The in-core RDMON/WRMON windows below are COMPILED "
+                  "OUT, so every value is a", file=sys.stderr)
+            print("#       structural zero -- this is not a measurement of an "
+                  "idle bus.", file=sys.stderr)
+            print("#       For datapath utilisation on this build use "
+                  "`make host-bus_meters`, which reads", file=sys.stderr)
+            print("#       the external observer and is live on both flavours.",
+                  file=sys.stderr)
         snaps = read_rw_perf(bridge)
         per_ch = read_rw_perf_channels(bridge, args.channels) if args.channels else None
     format_snapshot(snaps['r'])
