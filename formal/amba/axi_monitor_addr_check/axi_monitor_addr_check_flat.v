@@ -94,10 +94,26 @@ module axi_monitor_addr_check (
 	reg r_miss_pending;
 	reg [M - 1:0] r_miss_addr;
 	reg [IW - 1:0] r_miss_id;
-	reg [N_ADDR_RANGES - 1:0] match_emit_oh;
+	wire [N_ADDR_RANGES - 1:0] match_emit_oh;
 	wire match_emit_any;
 	reg [3:0] match_emit_idx;
 	assign match_emit_any = |r_match_pending;
+	reg [N_ADDR_RANGES - 1:0] w_match_pick;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_match_pick = 1'sb0;
+		begin : sv2v_autoblock_4
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				if (r_match_pending[i] && (w_match_pick == {N_ADDR_RANGES {1'sb0}}))
+					w_match_pick[i] = 1'b1;
+		end
+	end
+	reg [N_ADDR_RANGES - 1:0] r_emit_hold;
+	reg r_emit_hold_miss;
+	reg r_emit_held;
+	assign match_emit_oh = (r_emit_held ? r_emit_hold : w_match_pick);
 	function automatic signed [3:0] sv2v_cast_4_signed;
 		input reg signed [3:0] inp;
 		sv2v_cast_4_signed = inp;
@@ -105,55 +121,130 @@ module axi_monitor_addr_check (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		match_emit_oh = 1'sb0;
 		match_emit_idx = 4'h0;
-		begin : sv2v_autoblock_4
+		begin : sv2v_autoblock_5
 			reg signed [31:0] i;
 			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				if (r_match_pending[i] && (match_emit_oh == {N_ADDR_RANGES {1'sb0}})) begin
-					match_emit_oh[i] = 1'b1;
+				if (match_emit_oh[i])
 					match_emit_idx = sv2v_cast_4_signed(i);
-				end
 		end
 	end
+	reg [N_ADDR_RANGES - 1:0] r_shadow_valid;
+	reg [(N_ADDR_RANGES * M) - 1:0] r_shadow_addr;
+	reg [(N_ADDR_RANGES * IW) - 1:0] r_shadow_id;
+	reg r_miss_shadow_valid;
+	reg [M - 1:0] r_miss_shadow_addr;
+	reg [IW - 1:0] r_miss_shadow_id;
 	wire emit_is_miss;
-	assign emit_is_miss = r_miss_pending;
+	assign emit_is_miss = (r_emit_held ? r_emit_hold_miss : r_miss_pending);
 	assign addr_pkt_valid = (r_miss_pending || match_emit_any) && cfg_addr_check_enable;
 	wire accept;
 	assign accept = addr_pkt_valid && addr_pkt_ready;
+	wire w_miss_presented;
+	wire w_miss_accept;
+	assign w_miss_presented = addr_pkt_valid && emit_is_miss;
+	assign w_miss_accept = accept && emit_is_miss;
+	reg [N_ADDR_RANGES - 1:0] w_presented;
+	reg [N_ADDR_RANGES - 1:0] w_range_accept;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_6
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				begin
+					w_presented[i] = (addr_pkt_valid && !emit_is_miss) && match_emit_oh[i];
+					w_range_accept[i] = (accept && !emit_is_miss) && match_emit_oh[i];
+				end
+		end
+	end
 	always @(posedge clk)
 		if (!aresetn) begin
 			r_match_pending <= 1'sb0;
+			r_emit_hold <= 1'sb0;
+			r_emit_hold_miss <= 1'b0;
+			r_emit_held <= 1'b0;
+			r_shadow_valid <= 1'sb0;
+			r_shadow_addr <= 1'sb0;
+			r_shadow_id <= 1'sb0;
 			r_match_addr <= 1'sb0;
 			r_match_id <= 1'sb0;
 			r_miss_pending <= 1'b0;
 			r_miss_addr <= 1'sb0;
 			r_miss_id <= 1'sb0;
+			r_miss_shadow_valid <= 1'b0;
+			r_miss_shadow_addr <= 1'sb0;
+			r_miss_shadow_id <= 1'sb0;
 		end
 		else begin
-			begin : sv2v_autoblock_5
+			if (accept)
+				r_emit_held <= 1'b0;
+			else if (addr_pkt_valid && !addr_pkt_ready) begin
+				r_emit_held <= 1'b1;
+				r_emit_hold <= match_emit_oh;
+				r_emit_hold_miss <= emit_is_miss;
+			end
+			begin : sv2v_autoblock_7
 				reg signed [31:0] i;
 				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-					if (match_set[i]) begin
+					if (w_range_accept[i]) begin
+						if (match_set[i]) begin
+							r_match_addr[i * M+:M] <= cmd_addr;
+							r_match_id[i * IW+:IW] <= cmd_id;
+						end
+						else if (r_shadow_valid[i]) begin
+							r_match_addr[i * M+:M] <= r_shadow_addr[i * M+:M];
+							r_match_id[i * IW+:IW] <= r_shadow_id[i * IW+:IW];
+						end
+					end
+					else if (match_set[i] && !w_presented[i]) begin
 						r_match_addr[i * M+:M] <= cmd_addr;
 						r_match_id[i * IW+:IW] <= cmd_id;
 					end
 			end
-			begin : sv2v_autoblock_6
+			begin : sv2v_autoblock_8
+				reg signed [31:0] i;
+				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+					if (w_range_accept[i])
+						r_shadow_valid[i] <= 1'b0;
+					else if (match_set[i] && w_presented[i]) begin
+						r_shadow_valid[i] <= 1'b1;
+						r_shadow_addr[i * M+:M] <= cmd_addr;
+						r_shadow_id[i * IW+:IW] <= cmd_id;
+					end
+			end
+			begin : sv2v_autoblock_9
 				reg signed [31:0] i;
 				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
 					if (match_set[i])
 						r_match_pending[i] <= 1'b1;
-					else if ((accept && !emit_is_miss) && match_emit_oh[i])
-						r_match_pending[i] <= 1'b0;
+					else if (w_range_accept[i])
+						r_match_pending[i] <= r_shadow_valid[i];
 			end
-			if (miss_set) begin
+			if (w_miss_accept) begin
+				if (miss_set) begin
+					r_miss_addr <= cmd_addr;
+					r_miss_id <= cmd_id;
+				end
+				else if (r_miss_shadow_valid) begin
+					r_miss_addr <= r_miss_shadow_addr;
+					r_miss_id <= r_miss_shadow_id;
+				end
+			end
+			else if (miss_set && !w_miss_presented) begin
 				r_miss_addr <= cmd_addr;
 				r_miss_id <= cmd_id;
 			end
+			if (w_miss_accept)
+				r_miss_shadow_valid <= 1'b0;
+			else if (miss_set && w_miss_presented) begin
+				r_miss_shadow_valid <= 1'b1;
+				r_miss_shadow_addr <= cmd_addr;
+				r_miss_shadow_id <= cmd_id;
+			end
 			if (miss_set)
 				r_miss_pending <= 1'b1;
-			else if (accept && emit_is_miss)
+			else if (w_miss_accept && !r_miss_shadow_valid)
 				r_miss_pending <= 1'b0;
 		end
 	localparam [3:0] MISS_RANGE_SENTINEL = 4'hf;
@@ -183,7 +274,7 @@ module axi_monitor_addr_check (
 			emit_idx = match_emit_idx;
 			emit_addr = 1'sb0;
 			emit_id = 1'sb0;
-			begin : sv2v_autoblock_7
+			begin : sv2v_autoblock_10
 				reg signed [31:0] i;
 				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
 					if (match_emit_oh[i]) begin

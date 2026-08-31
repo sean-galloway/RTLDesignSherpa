@@ -4,8 +4,39 @@
 
 ## AMBA-MONBUS-STABILITY — monbus payload could change during valid && !ready
 
-**Status:** 🟢 FIXED 2026-08-30, same day it was found. Kept open-page until
-the fix has run a full val/amba sweep; move to closed.md after that.
+**Status:** 🟠 REOPENED 2026-08-31. The 2026-08-30 fixes were real but the
+class was declared closed three instances early. `ae61c9f1` called its fix
+"second and LAST instance"; round_27 and a directed test found three more.
+FIVE instances total, all now fixed and each mutation-witnessed:
+
+  1. base mux displacing addr_check (cdf52ed2) -- 2026-08-30
+  2. axi_monitor_addr_check MATCH payload overwrite (ae61c9f1) -- 2026-08-30
+  3. **apb_monitor_addr_check MATCH payload overwrite** -- the AXI fix was
+     never propagated to the module its own page calls a "deliberate mirror",
+     and that module had NO test of its own, which is why it survived.
+  4. **Both checkers: emit SELECTION swapped mid-stall.** The pick is
+     first-match over the pending mask, so a lower-index range going pending
+     (or, in the AXI variant, a MISS preempting a MATCH) replaced the beat on
+     the wire -- changing the packet's identity rather than its payload.
+     Selection is now frozen while a beat is presented and released on accept.
+  5. **axi_monitor_addr_check MISS slot payload overwrite.** `ae61c9f1`
+     shadowed the MATCH ranges only; `r_miss_addr` kept its unconditional
+     write. Found by the new AXI directed test, not by the reviewer.
+
+LESSON, for [[kimi-review-rounds]] rule 6: "last instance" is a claim about
+a class, and a class claim needs a SWEEP, not an inspection of the instance
+in front of you. The cheap check that would have caught 3, 4 and 5 is
+grepping for the shape (an unguarded `<=` into a latch feeding a valid/ready
+payload) across every module on that bus, then asking of each pick and each
+latch: can this change while a beat is held?
+
+The two new directed tests are `val/amba/test_apb_monitor_addr_check.py` and
+`val/amba/test_axi_monitor_addr_check_stability.py`, both BFM-driven per the
+rule below, both two-range (a single-range version passes against defect 4 and
+proves nothing), both anti-vacuity guarded on stalled-valid cycles.
+
+Kept open-page until the fix has run a full val/amba sweep; move to closed.md
+after that.
 **Priority:** P2 — no data loss, but it breaks a bus rule the rest of the
 design keeps, and the failure it enables is silent.
 
@@ -477,12 +508,18 @@ this task is about ("reduce monitor packet traffic").
 
 1. Do NOT widen `bus_transaction_t`. It is shared across every monitor, and
    every producer would have to set the new field or it reads X.
-2. Do NOT gate `state_change`. It looks like the natural hook and is NOT:
-   `axi_monitor_base` drives `w_state_change_detected` from trans_mgr at
-   line 380 and NOTHING CONSUMES IT -- a dead output. (Only
-   `formal/amba/axi_monitor_trans_mgr_banked` binds it, to assert it is zero
-   after reset. The apb4/apb5 `w_state_change` signals are unrelated locals.)
-   Worth deleting or wiring on its own account.
+2. Do NOT gate `state_change`. It looked like the natural hook and was NOT:
+   `axi_monitor_base` drove `w_state_change_detected` from trans_mgr and
+   NOTHING CONSUMED IT -- a dead output. (Only the two
+   `formal/amba/axi_monitor_trans_mgr*` harnesses bound it, to assert it is
+   zero after reset. The apb4/apb5 `w_state_change` signals are unrelated
+   locals.) **DELETED 2026-08-31** on its own account, per this bullet: the
+   output, its `r_trans_table_prev`/`r_state_change` flops, the base-level
+   net, both formal harness bindings (P3 + cp_state_change), and the six
+   places `axi_monitor_trans_mgr.md` still described it -- including a
+   Related-Modules row claiming the REPORTER consumed it, which was never
+   true. Proofs re-run PASS with 4 covers still reached; monitor suite 20/20
+   at FULL.
 3. Add a `logic [MAX_TRANSACTIONS-1:0] filtered_mask` OUTPUT from trans_mgr,
    set per entry at allocation, and take it as an INPUT on the reporters,
    which already receive `trans_table` and scan it themselves. Gate their

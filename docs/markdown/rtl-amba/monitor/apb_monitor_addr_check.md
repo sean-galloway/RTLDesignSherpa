@@ -49,7 +49,7 @@ and whether the access was a read or a write.
 - Per-range enable plus a global `cfg_addr_check_enable`
 - Emits a standard MonBus error packet with the offending address, range index, and direction
 - Preserves an `is_read` bit (APB has no separate AR/AW channels, so direction must be carried explicitly)
-- Per-range pending mask latches hits and drains them one packet at a time under backpressure
+- Per-range pending mask latches hits and drains them one packet at a time under backpressure; repeat hits on one range coalesce newest-wins (see Operation)
 - Side-band timestamp captured from the broadcast free-running counter on emission
 - Exact-match support by setting a range's `low == high`
 
@@ -126,7 +126,7 @@ A command "fires" when `cmd_valid && cmd_ready && cfg_addr_check_enable`. For ea
 
 ### Pending Mask and Latched Snapshot
 
-Each range has a pending bit. On a hit, the range's pending bit sets and its address and direction are latched (`r_lat_addr[i] = cmd_paddr`, `r_lat_is_read[i] = !cmd_pwrite`). This decouples detection from emission so a violation is not lost while the MonBus is backpressured. A first-match priority encoder over `r_pending` selects the range to emit (`emit_oh` / `emit_idx`); `addr_pkt_valid` asserts when any range is pending and the checker is enabled. When the packet is accepted (`addr_pkt_valid && addr_pkt_ready`), the emitted range's pending bit clears. If a fresh hit and an accept collide on the same range in one cycle, the hit wins (the pending bit stays set), so a back-to-back violation is not dropped.
+Each range has a pending bit. On a hit, the range's pending bit sets and its address and direction are latched (`r_lat_addr[i] = cmd_paddr`, `r_lat_is_read[i] = !cmd_pwrite`). This decouples detection from emission so a range with a pending violation keeps its slot while the MonBus is backpressured. It does NOT preserve every violation: there is one latch per range, so repeated hits on the SAME range coalesce and the newest address wins. Two hits on range 0 during a stall yield one packet carrying the second address; the first address is not reported. This is the same lossy-but-honest behaviour the AXI sibling documents for its DEBUG ranges. Distinct ranges do not coalesce with each other. A first-match priority encoder over `r_pending` selects the range to emit (`emit_oh` / `emit_idx`); `addr_pkt_valid` asserts when any range is pending and the checker is enabled. When the packet is accepted (`addr_pkt_valid && addr_pkt_ready`), the emitted range's pending bit clears. If a fresh hit and an accept collide on the same range in one cycle, the hit wins (the pending bit stays set), so a back-to-back violation is not dropped.
 
 ### Packet Encoding
 
@@ -220,7 +220,9 @@ load-bearing:
 
 ### Backpressure Safety
 
-Detection latches into `r_pending` and emission drains one range per accepted packet, so violations survive downstream backpressure. The hit-versus-accept collision rule keeps the pending bit set when a new hit lands on a range being drained the same cycle.
+Detection latches into `r_pending` and emission drains one range per accepted packet, so a pending RANGE survives downstream backpressure -- though repeat hits on that range coalesce to the newest address, so the count of packets is not the count of violations. The hit-versus-accept collision rule keeps the pending bit set when a new hit lands on a range being drained the same cycle.
+
+A hit landing on a range whose beat is already being presented goes to a per-range **shadow slot** rather than overwriting the latched payload, and is installed when that beat is accepted. Rewriting a beat already on the bus would change the payload under a held valid, which the MonBus valid/ready contract forbids; the shadow keeps newest-wins for every beat except the one on the wire. The AXI sibling carries the same guard for the same reason.
 
 ### Address Field Width
 

@@ -106,37 +106,114 @@ module apb_monitor_addr_check
     logic                      emit_any;
     logic [3:0]                emit_idx;
     assign emit_any = |r_pending;
+
+    // First-match pick over the pending mask.
+    logic [N_ADDR_RANGES-1:0]  w_emit_pick;
     always_comb begin
-        emit_oh  = '0;
-        emit_idx = 4'h0;
+        w_emit_pick = '0;
         for (int i = 0; i < N_ADDR_RANGES; i++) begin
-            if (r_pending[i] && emit_oh == '0) begin
-                emit_oh[i] = 1'b1;
-                emit_idx   = 4'(i);
-            end
+            if (r_pending[i] && w_emit_pick == '0)
+                w_emit_pick[i] = 1'b1;
         end
     end
+
+    // Hold the SELECTION across a stalled beat. The pick is first-match, so a
+    // lower-index range going pending mid-stall would otherwise displace the
+    // beat already on the wire -- changing the packet's identity (range index
+    // AND address) under a held valid. That is the same valid/ready violation
+    // as the payload overwrite below, by a different route: there the chosen
+    // range's payload changed, here the chosen range does. Nothing is delayed
+    // indefinitely -- a pending bit only clears when its own beat is accepted,
+    // so the displaced range is picked on the next free cycle.
+    logic [N_ADDR_RANGES-1:0] r_emit_hold;
+    logic                     r_emit_held;
+
+    assign emit_oh = r_emit_held ? r_emit_hold : w_emit_pick;
+
+    always_comb begin
+        emit_idx = 4'h0;
+        for (int i = 0; i < N_ADDR_RANGES; i++) begin
+            if (emit_oh[i]) emit_idx = 4'(i);
+        end
+    end
+
+    // Per-range shadow slot. A hit arriving while THAT range's packet is
+    // already on the bus must not rewrite the beat being presented: the monbus
+    // is valid/ready, so the payload has to hold until the beat is accepted.
+    // The newer hit is buffered here and installed on accept, which keeps
+    // "newest wins" for every beat except the one already on the wire.
+    // Mirrors the axi_monitor_addr_check fix (AMBA-MONBUS-STABILITY); this
+    // module is the same structure and had the same defect.
+    logic [N_ADDR_RANGES-1:0]        r_shadow_valid;
+    logic [N_ADDR_RANGES-1:0][M-1:0] r_shadow_addr;
+    logic [N_ADDR_RANGES-1:0]        r_shadow_is_read;
 
     assign addr_pkt_valid = emit_any && cfg_addr_check_enable;
     logic accept;
     assign accept = addr_pkt_valid && addr_pkt_ready;
 
+    // This range's packet is on the bus right now / is accepted this cycle.
+    logic [N_ADDR_RANGES-1:0] w_presented, w_range_accept;
+    always_comb begin
+        for (int i = 0; i < N_ADDR_RANGES; i++) begin
+            w_presented[i]    = addr_pkt_valid && emit_oh[i];
+            w_range_accept[i] = accept         && emit_oh[i];
+        end
+    end
+
     `ALWAYS_FF_RST(clk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_pending     <= '0;
-            r_lat_addr    <= '0;
-            r_lat_is_read <= '0;
+            r_pending        <= '0;
+            r_lat_addr       <= '0;
+            r_lat_is_read    <= '0;
+            r_shadow_valid   <= '0;
+            r_shadow_addr    <= '0;
+            r_shadow_is_read <= '0;
+            r_emit_hold      <= '0;
+            r_emit_held      <= 1'b0;
         end else begin
+            // 0) Freeze the selection while a beat is presented and unaccepted;
+            //    release it on accept so the next range can be picked.
+            if (accept)
+                r_emit_held <= 1'b0;
+            else if (addr_pkt_valid && !addr_pkt_ready) begin
+                r_emit_held <= 1'b1;
+                r_emit_hold <= emit_oh;
+            end
+            // 1) Latched payload. A fresh hit updates it ONLY when that
+            //    range's beat is not currently presented; otherwise the hit
+            //    goes to the shadow and is installed on accept, newest first
+            //    (a hit in the accept cycle beats an older shadow).
             for (int i = 0; i < N_ADDR_RANGES; i++) begin
-                if (hit_oh[i]) begin
+                if (w_range_accept[i]) begin
+                    if (hit_oh[i]) begin
+                        r_lat_addr   [i] <= cmd_paddr;
+                        r_lat_is_read[i] <= !cmd_pwrite;
+                    end else if (r_shadow_valid[i]) begin
+                        r_lat_addr   [i] <= r_shadow_addr   [i];
+                        r_lat_is_read[i] <= r_shadow_is_read[i];
+                    end
+                end else if (hit_oh[i] && !w_presented[i]) begin
                     r_lat_addr   [i] <= cmd_paddr;
                     r_lat_is_read[i] <= !cmd_pwrite;   // 1 = read
                 end
             end
+            // 2) Shadow slot: filled by a hit landing on a presented beat,
+            //    emptied when that beat is accepted (value installed above).
+            for (int i = 0; i < N_ADDR_RANGES; i++) begin
+                if (w_range_accept[i]) begin
+                    r_shadow_valid[i] <= 1'b0;
+                end else if (hit_oh[i] && w_presented[i]) begin
+                    r_shadow_valid  [i] <= 1'b1;
+                    r_shadow_addr   [i] <= cmd_paddr;
+                    r_shadow_is_read[i] <= !cmd_pwrite;
+                end
+            end
+            // 3) Pending clears on accept only when nothing queued behind it.
             for (int i = 0; i < N_ADDR_RANGES; i++) begin
                 if (hit_oh[i])
                     r_pending[i] <= 1'b1;
-                else if (accept && emit_oh[i])
+                else if (w_range_accept[i] && !r_shadow_valid[i])
                     r_pending[i] <= 1'b0;
             end
         end

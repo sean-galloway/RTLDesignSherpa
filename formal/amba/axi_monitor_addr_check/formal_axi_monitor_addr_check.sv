@@ -15,6 +15,10 @@
 //       address falls within NO enabled range.
 //   P6: addr_pkt_valid is sticky — once asserted it stays asserted until
 //       accepted.
+//   P7: addr_pkt_data is sticky too. P6 alone proves the BEAT persists, not
+//       that it is the SAME beat -- which is why this harness passed through
+//       all five AMBA-MONBUS-STABILITY instances. Payload stability is the
+//       half of the valid/ready contract that was actually being broken.
 
 module formal_axi_monitor_addr_check (
     input wire clk,
@@ -198,6 +202,27 @@ module formal_axi_monitor_addr_check (
     always @(posedge clk) begin
         if (rst_n && r_prev_valid && !r_prev_ready)
             ap_valid_sticky: assert (addr_pkt_valid);
+    end
+
+    // =========================================================================
+    // P7: addr_pkt_data is stable across a held beat (AMBA-MONBUS-STABILITY).
+    //     A stalled beat must not change payload OR identity -- neither by a
+    //     fresh hit rewriting the latched address, nor by the emit selection
+    //     moving to another range or to the MISS slot.
+    // =========================================================================
+    reg [127:0] r_prev_data;
+    always @(posedge clk)
+        r_prev_data <= addr_pkt_data;
+
+    always @(posedge clk) begin
+        if (rst_n && r_prev_valid && !r_prev_ready && addr_pkt_valid)
+            ap_payload_stable: assert (addr_pkt_data == r_prev_data);
+    end
+
+    // The property is only meaningful if held beats occur at all.
+    always @(posedge clk) begin
+        if (rst_n && addr_pkt_valid && !addr_pkt_ready)
+            cp_beat_held: cover (1'b1);
     end
 
     // =========================================================================

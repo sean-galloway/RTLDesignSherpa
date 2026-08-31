@@ -180,14 +180,34 @@ module axi_monitor_addr_check
     logic                     match_emit_any;
     logic [3:0]               match_emit_idx;
     assign match_emit_any = |r_match_pending;
+
+    logic [N_ADDR_RANGES-1:0] w_match_pick;
     always_comb begin
-        match_emit_oh  = '0;
+        w_match_pick = '0;
+        for (int i = 0; i < N_ADDR_RANGES; i++) begin
+            if (r_match_pending[i] && w_match_pick == '0)
+                w_match_pick[i] = 1'b1;
+        end
+    end
+
+    // Hold the SELECTION across a stalled beat. Both arbitration inputs can
+    // change while a beat is presented: a MISS arriving preempts a MATCH
+    // (emit_is_miss), and a lower-index range going pending displaces a
+    // higher-index one (first-match pick). Either changes the packet's
+    // identity under a held valid -- the same valid/ready violation as the
+    // payload overwrite the shadow slots below fix, reached a different way.
+    // Nothing is starved: a pending bit clears only when its own beat is
+    // accepted, so a displaced source is picked on the next free cycle.
+    logic [N_ADDR_RANGES-1:0] r_emit_hold;
+    logic                     r_emit_hold_miss;
+    logic                     r_emit_held;
+
+    assign match_emit_oh = r_emit_held ? r_emit_hold : w_match_pick;
+
+    always_comb begin
         match_emit_idx = 4'h0;
         for (int i = 0; i < N_ADDR_RANGES; i++) begin
-            if (r_match_pending[i] && match_emit_oh == '0) begin
-                match_emit_oh[i] = 1'b1;
-                match_emit_idx   = 4'(i);
-            end
+            if (match_emit_oh[i]) match_emit_idx = 4'(i);
         end
     end
 
@@ -200,14 +220,25 @@ module axi_monitor_addr_check
     logic [N_ADDR_RANGES-1:0][M-1:0]  r_shadow_addr;
     logic [N_ADDR_RANGES-1:0][IW-1:0] r_shadow_id;
 
+    // The MISS slot needs the same shadow for the same reason. The original
+    // shadow fix covered only the MATCH ranges, so a fresh miss landing on a
+    // presented MISS beat still rewrote the address under a held valid.
+    logic                             r_miss_shadow_valid;
+    logic [M-1:0]                     r_miss_shadow_addr;
+    logic [IW-1:0]                    r_miss_shadow_id;
+
     logic emit_is_miss;                       // 1 = emit the MISS/error slot this cycle
-    assign emit_is_miss = r_miss_pending;
+    assign emit_is_miss = r_emit_held ? r_emit_hold_miss : r_miss_pending;
 
     assign addr_pkt_valid = (r_miss_pending || match_emit_any) && cfg_addr_check_enable;
     logic accept;
     assign accept = addr_pkt_valid && addr_pkt_ready;
 
     // This range's packet is on the bus right now / is accepted this cycle.
+    logic w_miss_presented, w_miss_accept;
+    assign w_miss_presented = addr_pkt_valid && emit_is_miss;
+    assign w_miss_accept    = accept         && emit_is_miss;
+
     logic [N_ADDR_RANGES-1:0] w_presented, w_range_accept;
     always_comb begin
         for (int i = 0; i < N_ADDR_RANGES; i++) begin
@@ -218,7 +249,10 @@ module axi_monitor_addr_check
 
     `ALWAYS_FF_RST(clk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_match_pending <= '0;
+            r_match_pending  <= '0;
+            r_emit_hold      <= '0;
+            r_emit_hold_miss <= 1'b0;
+            r_emit_held      <= 1'b0;
             r_shadow_valid  <= '0;
             r_shadow_addr   <= '0;
             r_shadow_id     <= '0;
@@ -227,7 +261,19 @@ module axi_monitor_addr_check
             r_miss_pending  <= 1'b0;
             r_miss_addr     <= '0;
             r_miss_id       <= '0;
+            r_miss_shadow_valid <= 1'b0;
+            r_miss_shadow_addr  <= '0;
+            r_miss_shadow_id    <= '0;
         end else begin
+            // 0) Freeze the selection while a beat is presented and unaccepted;
+            //    release on accept so the next source can be picked.
+            if (accept)
+                r_emit_held <= 1'b0;
+            else if (addr_pkt_valid && !addr_pkt_ready) begin
+                r_emit_held      <= 1'b1;
+                r_emit_hold      <= match_emit_oh;
+                r_emit_hold_miss <= emit_is_miss;
+            end
             // 1) MATCH payload. A fresh hit updates the latched address ONLY
             //    when that range's beat is not currently being presented --
             //    rewriting a beat already on the bus would change the payload
@@ -272,15 +318,34 @@ module axi_monitor_addr_check
                     r_match_pending[i] <= r_shadow_valid[i];
             end
 
-            // 3) MISS slot: latch address on new miss; set/clear pending
-            //    (set wins on collision with an emit of the miss slot).
-            if (miss_set) begin
+            // 3) MISS slot: same presented-guard + shadow as the MATCH
+            //    ranges above. A miss landing while the MISS beat is on the
+            //    bus is buffered and installed on accept, so the payload
+            //    cannot change under a held valid.
+            if (w_miss_accept) begin
+                if (miss_set) begin
+                    r_miss_addr <= cmd_addr;
+                    r_miss_id   <= cmd_id;
+                end else if (r_miss_shadow_valid) begin
+                    r_miss_addr <= r_miss_shadow_addr;
+                    r_miss_id   <= r_miss_shadow_id;
+                end
+            end else if (miss_set && !w_miss_presented) begin
                 r_miss_addr <= cmd_addr;
                 r_miss_id   <= cmd_id;
             end
+
+            if (w_miss_accept)
+                r_miss_shadow_valid <= 1'b0;
+            else if (miss_set && w_miss_presented) begin
+                r_miss_shadow_valid <= 1'b1;
+                r_miss_shadow_addr  <= cmd_addr;
+                r_miss_shadow_id    <= cmd_id;
+            end
+
             if (miss_set)
                 r_miss_pending <= 1'b1;
-            else if (accept && emit_is_miss)
+            else if (w_miss_accept && !r_miss_shadow_valid)
                 r_miss_pending <= 1'b0;
         end
     )
