@@ -10,10 +10,14 @@ follows automatically. Kept SEPARATE from stream_addrs.A() (STREAM IP registers)
 so the two regmaps never leak into each other.
 
     from harness_addrs import H
-    bridge.write(H("RUN_CTRL"), val)
+    bridge.write(H("CTRL"), val)
     cyc = bridge.read(H("TIMER_CYCLES_LO"))
-    prod = bridge.read(H("OBS_RD_PROD"))
-    addr = H("CH5_KICK_ADDR")            # kick-addr shadow regs, split around 0xC0
+    cfg  = bridge.read(H("BUILD_CONFIG"))   # which flavour this bitstream is
+
+Examples use LIVE registers only. They used to show OBS_RD_PROD and
+CH5_KICK_ADDR, both long retired -- copying them gets you a KeyError or, worse,
+a plausible address that reads back 0. Observer telemetry lives in the
+observer's own window now: see bin/obs_addrs.py.
 """
 
 from __future__ import annotations
@@ -139,13 +143,13 @@ def harness_regs(bridge, base: int = HARNESS_CSR_BASE):
 
         regs = harness_regs(bridge)
         regs.CTRL.write(start_wr=1)             # self-clearing pulse
-        regs.KICK_GO.write_word(mask)           # whole-word write
+        regs.TIMER_EXPECTED_BEATS.write_word(n)  # whole-word write
         if regs.STATUS.init_done: ...           # read one field
         regs.OBS_HIST_SEL.bin = 3               # read-modify-write one field
-        prod = regs.OBS_RD_PROD.read()          # whole-word read
+        cyc = regs.TIMER_CYCLES_LO.read()       # whole-word read
 
-    For a raw absolute address (e.g. per-channel CH{n}_KICK_ADDR in a loop) use
-    `regs.addr("CH5_KICK_ADDR")` or the module-level `H("CH5_KICK_ADDR")`.
+    For a raw absolute address (e.g. building a loop over a register family) use
+    `regs.addr("TIMER_CYCLES_LO")` or the module-level `H("TIMER_CYCLES_LO")`.
     """
     from TBClasses.harness.uart_register_map import UartRegisterMap
     return UartRegisterMap(bridge, start_address=base,

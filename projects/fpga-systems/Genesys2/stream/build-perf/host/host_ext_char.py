@@ -30,13 +30,19 @@ import stream_env  # noqa: F401,E402  (import side effect: sys.path setup)
 
 from harness_kick import HARNESS_CSR_BASE, batch_kick
 from harness_addrs import H, harness_regs  # noqa: E402  (by-name harness CSR access)
-from bus_meters import read_meter, R_METER_BASE, W_METER_BASE  # noqa: E402
+from bus_meters import read_meter, read_obs_stat, R_METER_BASE, W_METER_BASE  # noqa: E402
 from stream_ext_suite import CASES, CH_ERROR, CH_IDLE, program_case, wait_done  # noqa: E402
 
-# Observer histogram CSRs (burst counts) -- mirrors stream_harness_tb.py.
-CSR_OBS_HIST_SEL   = H("OBS_HIST_SEL")
-CSR_OBS_HIST_DATA  = H("OBS_HIST_DATA")
-CSR_OBS_HIST_TOTAL = H("OBS_HIST_TOTAL")
+# Observer histogram totals come from the OBSERVER's own telemetry window
+# (OBS_STAT_SEL / OBS_STAT_DATA), same as bus_meters and StreamHarnessTB.
+#
+# This used to read harness_csr OBS_HIST_SEL/DATA/TOTAL at 0x120/0x124/0x128.
+# Only 0x120 is still decoded -- harness_csr.sv retired the readback pair when
+# the observer grew its own regblock, but harness_csr_regmap.py still declares
+# all three, so H() answered and every burst count came back 0. The write to
+# 0x120 even succeeded, which made it look like the selector was working.
+# METRIC 10 = histogram total; hist_metric picks WHICH latency metric.
+_STAT_HIST_TOTAL = 10
 
 # Default sweep: throughput-vs-size per mode. row modes burst; col modes are
 # single-beat, so col/col at the large sizes dominates board runtime.
@@ -46,8 +52,8 @@ def _obs_burst_count(bridge, bus: int, metric: int) -> int:
     """Observer per-metric transaction (burst) total. bus 0=read, 1=write;
     metric read 1=AR->RLAST, write 0=AW->B. The TOTAL counts completed
     transactions = bursts on that side (bin index is don't-care for the total)."""
-    bridge.write(CSR_OBS_HIST_SEL, ((metric & 1) << 1) | (bus & 1))
-    return bridge.read(CSR_OBS_HIST_TOTAL) & 0xFFFF_FFFF
+    return read_obs_stat(bridge, _STAT_HIST_TOTAL, is_write=bus,
+                         hist_metric=metric)
 
 
 def _read_obs(stream) -> tuple:

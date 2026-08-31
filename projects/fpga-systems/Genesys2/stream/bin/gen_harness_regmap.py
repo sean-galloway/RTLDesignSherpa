@@ -41,10 +41,24 @@ reg(0xE0, 'DESC_AR_HS'); reg(0xE4, 'DESC_AR_STALL')
 reg(0xE8, 'DESC_R_HS');  reg(0xEC, 'DESC_R_STALL')
 reg(0xF0, 'DESC_AW_HS'); reg(0xF4, 'DESC_W_HS')
 reg(0xF8, 'DESC_B_HS');  reg(0xFC, 'DESC_VR_LIVE')
-# External DMA observer aggregate buckets + histogram
-for i,n in enumerate(['OBS_RD_PROD','OBS_RD_BP','OBS_RD_STARV','OBS_RD_IDLE',
-                      'OBS_WR_PROD','OBS_WR_BP','OBS_WR_STARV','OBS_WR_IDLE']):
-    reg(0x100 + 4*i, n)
+# The observer's flat telemetry window at 0x100..0x11C, and the histogram
+# readback pair at 0x124/0x128, are GONE. They are not declared here, and must
+# not come back.
+#
+# The observer grew its own regblock and took its telemetry with it: address a
+# counter by writing OBS_STAT_SEL, read OBS_STAT_DATA, both in the observer's
+# own window (see bin/obs_addrs.py). harness_csr.sv kept only 0x120, the legacy
+# selector, and decodes nothing else in that range.
+#
+# This generator kept emitting all eleven. Nothing failed -- H() answered with a
+# plausible address, the bridge answered, the decoder returned its default of 0,
+# and bus_meters, ext_char and everything importing their readers printed clean,
+# complete, entirely zero measurements of a DMA moving 1.5 GB/s. Found on
+# silicon 2026-08-31.
+#
+# bin/tests/test_harness_regmap.py::test_every_regmap_register_is_actually_decoded
+# now asserts every register here has a case label in harness_csr.sv, so a
+# register that the RTL does not implement cannot be declared again.
 # OBS_HIST_SEL is SIX bits in hardware, not 32. harness_csr.sv:295 declares
 # `output logic [5:0] o_obs_hist_sel`, the write takes int_wdata[5:0] (line 586)
 # and the read zero-extends (line 737), with the encoding documented at line 291:
@@ -58,7 +72,7 @@ reg(0x120, 'OBS_HIST_SEL', 'rw', fields=[
     ('METRIC', 1, 1, 'rw'),      # which metric
     ('BIN',    5, 2, 'rw'),      # histogram bin index 0..15
 ])
-reg(0x124, 'OBS_HIST_DATA'); reg(0x128, 'OBS_HIST_TOTAL')
+# 0x124 / 0x128 (OBS_HIST_DATA / OBS_HIST_TOTAL): retired with the above.
 # Build identity: what BITSTREAM this is, not just which harness family.
 # These are read-only elaboration constants; without them in the regmap a host
 # has to reach them by computed offset, which is exactly the hardcoding the

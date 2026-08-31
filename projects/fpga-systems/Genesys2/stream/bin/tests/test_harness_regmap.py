@@ -129,3 +129,49 @@ def test_no_hardcoded_harness_offsets_in_host_tools():
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# ---------------------------------------------------------------------------
+# The guard that actually matters: does the RTL DECODE what the map promises?
+# ---------------------------------------------------------------------------
+
+def _sv_decode_offsets() -> set:
+    """Every offset harness_csr.sv has a case label for, read or write path.
+
+    Labels are written both 8'hXX (0x000-0x0FF) and 9'hXXX (the 0x100+ meter
+    region), so normalise on the hex value rather than the width.
+    """
+    out = set()
+    with open(_SV) as f:
+        for m in re.finditer(r"\d'h([0-9A-Fa-f]+)\s*:", f.read()):
+            out.add(int(m.group(1), 16))
+    return out
+
+
+def test_every_regmap_register_is_actually_decoded():
+    """A register in the map that the RTL does not decode reads back as the
+    decoder default -- zero -- with no bus error.
+
+    This is not hypothetical. harness_csr.sv retired the observer's flat
+    telemetry window when the observer grew its own regblock, keeping only
+    0x120 (the histogram selector). harness_csr_regmap.py kept declaring all
+    eleven OBS_* registers. So H("OBS_RD_PROD") answered, the bridge answered,
+    the decoder returned 0, and THREE host tools -- bus_meters, ext_char and
+    every consumer of their readers -- reported clean, complete, entirely zero
+    measurements of a DMA that was moving 1.5 GB/s. Found on silicon
+    2026-08-31, not in any test.
+
+    The pre-existing drift guard could not catch it: it compares the regmap to
+    the SV HEADER COMMENT table. Both were updated together and both were
+    wrong; only the decode was right. Comparing two documents to each other
+    passes happily while the hardware disagrees with both.
+    """
+    regmap = _regmap_offsets()
+    decoded = _sv_decode_offsets()
+    assert decoded, "parsed no case labels from harness_csr.sv -- format drift?"
+    orphans = {n: hex(off) for n, off in regmap.items() if off not in decoded}
+    assert not orphans, (
+        "declared in harness_csr_regmap.py but NOT decoded by harness_csr.sv -- "
+        "these read back 0 with no error:\n  " +
+        "\n  ".join(f"{n} @ {o}" for n, o in sorted(orphans.items(),
+                                                    key=lambda kv: kv[1])))
