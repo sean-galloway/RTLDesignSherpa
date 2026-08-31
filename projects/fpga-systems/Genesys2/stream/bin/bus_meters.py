@@ -50,9 +50,48 @@ import stream_env  # noqa: F401,E402  (import side effect: sys.path setup)
 from harness_kick import HARNESS_CSR_BASE  # noqa: E402  (single source of the base)
 from harness_addrs import H  # noqa: E402  (by-name harness CSR access)
 
-CSR_OBS_RD_BASE = H("OBS_RD_PROD") # rd prod/bp/starv/idle at +0/4/8/C
-CSR_OBS_WR_BASE = H("OBS_WR_PROD") # wr prod/bp/starv/idle at +0/4/8/C
-OFF_PROD, OFF_BP, OFF_STARV, OFF_IDLE = 0x0, 0x4, 0x8, 0xC
+# The observer OWNS its telemetry, in its own register window. It is addressed
+# by a selector/data pair, not by one flat register per counter:
+#
+#     write OBS_STAT_SEL = {tap, channel, metric, is_write, bin, hist_metric}
+#     read  OBS_STAT_DATA
+#
+# SEL layout: TAP[7:0] CHANNEL[15:8] METRIC[23:16] IS_WRITE[24] BIN[30:25]
+#             HIST_METRIC[31].  METRIC 0..3 are the aggregate meter buckets.
+#
+# This module used to read harness_csr 0x100..0x11C by name --
+# H("OBS_RD_PROD") and friends. Those registers were RETIRED when the observer
+# grew its own APB slave: harness_csr.sv now decodes exactly one address in
+# that range (0x120, the histogram selector), so every bucket read returned the
+# decoder default of 0. The names still resolve, because harness_csr_regmap.py
+# still declares them -- so H() answered, the bridge answered, and the host
+# printed a clean, complete, entirely zero measurement.
+#
+# That is what it looked like on silicon 2026-08-31: a 16 MB DMA at 1525.8 MB/s
+# and "Aggregate over 0 cycles". Not an error anywhere. The cosim never caught
+# it because StreamHarnessTB._read_observer_perf had already moved to the
+# selector scheme; only the host half was left behind.
+#
+# Read the observer where the observer is. Same lesson as the slvmon window:
+# a host map that no longer describes the block behind it fails silently.
+_STAT_METRIC = {'productive': 0, 'backpressure': 1, 'starvation': 2, 'idle': 3}
+
+
+def _stat_sel(metric: int, is_write: int = 0, tap: int = 0, channel: int = 0,
+              bin_idx: int = 0, hist_metric: int = 0) -> int:
+    """Pack OBS_STAT_SEL. Mirrors StreamHarnessTB._read_observer_perf exactly --
+    if this packing and that one ever disagree, sim and board measure different
+    counters and nothing says so."""
+    return ((tap & 0xFF) | ((channel & 0xFF) << 8) |
+            ((metric & 0xFF) << 16) | ((is_write & 1) << 24) |
+            ((bin_idx & 0x3F) << 25) | ((hist_metric & 1) << 31))
+
+
+def read_obs_stat(bridge, metric: int, is_write: int = 0, **kw) -> int:
+    """One observer counter, through the selector/data pair."""
+    from obs_addrs import O
+    bridge.write(O("OBS_STAT_SEL"), _stat_sel(metric, is_write, **kw))
+    return (bridge.read(O("OBS_STAT_DATA")) or 0) & 0xFFFF_FFFF
 
 # Sentinels: run_characterization passes these to read_meter() to pick R vs W.
 R_METER_BASE = 'R'
@@ -105,7 +144,7 @@ class MeterSnapshot:
 
 
 # ---------------------------------------------------------------------------
-# Reader (in-core CSRs, legacy API)
+# Reader (observer's own telemetry window; MeterSnapshot API unchanged)
 # ---------------------------------------------------------------------------
 
 def read_meter(bridge, which: str, num_channels: int, name: str) -> MeterSnapshot:
@@ -115,13 +154,12 @@ def read_meter(bridge, which: str, num_channels: int, name: str) -> MeterSnapsho
     there is no per-channel breakdown at a shared-bus tap, so per_channel is empty.
     `num_channels` is accepted for API compatibility and ignored."""
     is_read = (which == R_METER_BASE) or (name.upper().startswith('R'))
-    base = CSR_OBS_RD_BASE if is_read else CSR_OBS_WR_BASE
-    r = lambda a: bridge.read(a) & 0xFFFF_FFFF
+    is_write = 0 if is_read else 1
     agg = BucketCounts(
-        productive   = r(base + OFF_PROD),
-        backpressure = r(base + OFF_BP),
-        starvation   = r(base + OFF_STARV),
-        idle         = r(base + OFF_IDLE),
+        productive   = read_obs_stat(bridge, _STAT_METRIC['productive'],   is_write),
+        backpressure = read_obs_stat(bridge, _STAT_METRIC['backpressure'], is_write),
+        starvation   = read_obs_stat(bridge, _STAT_METRIC['starvation'],   is_write),
+        idle         = read_obs_stat(bridge, _STAT_METRIC['idle'],         is_write),
     )
     return MeterSnapshot(name=name, aggregate=agg, per_channel=[])
 
