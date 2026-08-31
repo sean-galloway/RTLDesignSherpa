@@ -16,7 +16,7 @@ import pytest
 import logging
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.utilities import get_repo_root, sim_build_path
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -299,8 +299,12 @@ def test_{{ rtl_module_name }}_basic_connectivity(request):
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
-    os.makedirs(sim_build, exist_ok=True)
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
+    sim_build = sim_build_path(tests_dir, sim_build_name)
     os.makedirs(log_dir, exist_ok=True)
 
     # Waveforms via the canonical helper in TBClasses.shared.utilities.
@@ -352,8 +356,12 @@ def test_{{ rtl_module_name }}_boundary_probe(request):
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
-    os.makedirs(sim_build, exist_ok=True)
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
+    sim_build = sim_build_path(tests_dir, sim_build_name)
     os.makedirs(log_dir, exist_ok=True)
 
     waves = get_wave_config(sim_build)
@@ -406,8 +414,12 @@ def test_{{ rtl_module_name }}_arbitration(request):
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
     results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
-    os.makedirs(sim_build, exist_ok=True)
+    # sim_build_path(), not a hand-built join: it honours SIM_BUILD_ROOT so
+    # concurrent sessions do not share one build tree, and drops an advisory
+    # busy marker so a cleaner can tell "being built in right now" from
+    # "leftover". Hand-joining tests_dir/local_sim_build puts every session
+    # back in the same directory, which is what f01853fe was written to stop.
+    sim_build = sim_build_path(tests_dir, sim_build_name)
     os.makedirs(log_dir, exist_ok=True)
 
     waves = get_wave_config(sim_build)

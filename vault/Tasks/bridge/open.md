@@ -3,48 +3,6 @@
 # bridge — open
 
 
-## BRIDGE-006 — the test generator reverts hand-fixes to its own output
-**Status:** open 2026-08-31
-**Priority:** P2
-**Owner:** TBD
-
-`bridge_generator.py --generate-tests` overwrites `dv/tests/` and
-`dv/tbclasses/`, so any fix made in the generated files is reverted the next
-time anyone regenerates. That is working as designed for generated code; the
-defect is that real fixes keep landing in the output instead of the template,
-and nothing detects the reversion.
-
-**Found how.** The Genesys 2 stream area ran `regen_bridges.sh` as the PREBUILD
-for `make bitstream`, so building a bitstream regenerated the tests. Three
-rounds of committed fixes were silently reverted (33ac787e, 90bca4c1,
-bd79af49). That area is fixed: the generator no longer emits an import that is
-a SyntaxError on a path containing `fpga-systems`, and `regen_bridges.sh` no
-longer writes DV at all (guarded by
-`Genesys2/stream/bin/tests/test_bridge_dv_not_generated.py`).
-
-**What is still open, in this component.** `projects/components/bridge/dv/tests/`
-has the same shape of drift. Diffing a fresh generation against the committed
-files, every `test_bridge_*.py` differs in two lines:
-
-```
-committed:  from TBClasses.shared.utilities import get_repo_root, sim_build_path
-            sim_build = sim_build_path(tests_dir, sim_build_name)
-generator:  from TBClasses.shared.utilities import get_repo_root
-            sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
-```
-
-That is the per-session `SIM_BUILD_ROOT` work from f01853fe, applied to the
-output and not to `jinja_templates/bridge_test_file.py.j2`. A regeneration of
-this component today reverts it and puts every bridge test back on a shared
-build directory — the concurrency hazard f01853fe was written to remove. The TB
-classes are clean; only the test runners drifted.
-
-**Done looks like:** the template emits `sim_build_path`, every bridge tree is
-deleted and regenerated per CRITICAL RULE #0, the suite is green, and a fresh
-generation diffs clean against the committed files. The last clause is the one
-that matters — it is the check that was never being run.
-
-
 ## BRIDGE-002 — AMBA5 bridge support (AXI5 ports alongside AXI4)
 **Status:** open 2026-08-08
 **Priority:** P1
