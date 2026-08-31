@@ -1127,7 +1127,7 @@ test_axi_splitter_block_ready.py; docs synced in qc round_12.
 
 Original filing follows for the record:
 
-### TASK-061: splitter `block_ready` duplicates transactions instead of blocking them
+### Original filing: splitter `block_ready` duplicates transactions instead of blocking them
 **Priority:** P2
 **Status:** 🔴 Not Started (found 2026-08-09, doc qc round_1)
 **Owner:** TBD
@@ -1186,7 +1186,7 @@ illegal repo-wide — the fix enforces the rule.
 
 Original filing follows for the record:
 
-### TASK-063: splitter defect cluster round 2 — BRESP consolidation, RLAST pass-through, silent split-FIFO drop
+### Original filing: splitter defect cluster round 2 — BRESP consolidation, RLAST pass-through, silent split-FIFO drop
 
 **STATE 2026-08-16 (start here after a context clear).**
 
@@ -1327,7 +1327,7 @@ the standalone converter suite, whose idempotent register masks it.
 
 Original filing follows for the record:
 
-### TASK-064: converter read-path PSLVERR loss + peakrdl held-req contract
+### Original filing: converter read-path PSLVERR loss + peakrdl held-req contract
 
 **RESOLVED 2026-08-17. Both RTL fixes landed and BOTH are mutation-proven.**
 
@@ -1413,7 +1413,7 @@ against the re-firing BFM slave (duplicate write side effects); against a
 one-shot-PREADY slave (apb4_slave) the same hold is a permanent wedge.
 Fixed: 10/10 both counts. Original filing:
 
-### TASK-068: apb4_master deadlocks the bus when its response FIFO is full at completion
+### Original filing: apb4_master deadlocks the bus when its response FIFO is full at completion
 **Priority:** P1 -- CONFIRMED by inspection (apb4 qc round_19, 2026-08-25)
 
 ACCESS state: `if (m_apb_PREADY) begin if (r_rsp_ready) ... else w_apb_next_state = ACCESS;`
