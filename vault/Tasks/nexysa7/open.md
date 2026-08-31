@@ -5,7 +5,43 @@
 ### NEXYS-004: ddr2-char harness needs TWO bridges, 8 bank-targeted masters each
 
 **Priority:** Medium
-**Status:** [ ] Open (2026-08-30)
+**Status:** [x] RTL + DV + host LANDED 2026-08-31; read/write mix sweep still open
+
+**What landed (2026-08-31):**
+- `chargen_regs` -- a GENERATED PeakRDL block (229 registers) holding all
+  sixteen generators' config: `WR_GEN[8]` / `RD_GEN[8]` on a 0x40 stride, plus
+  a global `GO` (sixteen singlepulse bits, so one write starts any subset on
+  one cycle), `DONE` / `ERRORS` roll-ups and a `GEN_CONFIG` identity register
+  driven from the harness's own parameters.
+- `chargen_apb` slave at 0x000A0000; the config bridge regenerated 1x5 -> 1x6.
+- `bridge_ddr2_char_wr` / `bridge_ddr2_char_rd` -- 8x1 AXI4 each, feeding
+  pumice's AW/W/B and AR/R channel groups respectively.
+- `ddr2_char_macro` rebuilt around a generate loop of 8 writers + 8 readers,
+  both bridges, and run-level aggregates (`gen_wr_done` over LAUNCHED
+  generators only, `gen_any_error`, `gen_crc_match` over launched pairs).
+- `harness_csr`'s single-engine `WR_*`/`RD_*` window (0x100..0x1AF), its CTRL
+  start bits, and the single CRC pair are RETIRED; the hole reads 0 and is
+  deliberately not re-used.
+- DV: `ChargenDriver` (dv/tbclasses) programs by register name over APB --
+  the same path the board uses, so the register decode is now exercised in
+  simulation instead of being bypassed by poked ports. New `bank_parallel`
+  test drives all sixteen concurrently.
+- Host: `DDR2CharDriver` gained a `chargen` Device and a `go(wr_mask, rd_mask)`;
+  `program_wr_engine` / `start_wr` / `crc` kept their signatures with `gen=0`
+  defaults, so the nine bring-up scripts were untouched.
+
+**Two reserved-name traps found, both worth knowing before the next RDL:**
+an RDL field named `value` generates `REG.value.value`, which the
+declaration-order gate reports as use-before-declaration; a field named
+`count` collides with RegisterMap's array-count metadata key and makes the
+whole regmap fail to construct. Neither is caught by review -- the first
+by `make lint`, the second only by loading the generated regmap.
+
+**Still open:** the read/write mix sweep described below (the measurement the
+split exists for), and the synthesis/timing check -- the previous build closed
+at WNS +0.050 ns and this adds sixteen generators plus two crossbars.
+
+**Original description follows.**
 **Source:** Sean, 2026-08-30 — "the harness will need two bridges, one for
 writes and one for reads. On each will be 8 masters each targeting a
 different bank."

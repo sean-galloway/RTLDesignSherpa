@@ -327,15 +327,24 @@ harness (macro, UART and access-pattern families).
   that fixes it is in and green in simulation, but has not been re-measured on
   silicon. Runtime page-policy selection gave 8.8x on streaming (12.7 -> 112
   MB/s) when validated on the board, so the ceiling is not the DRAM.
-* **The characterization harness drives one stream at a time.** It cannot
-  produce concurrent read+write traffic or drive banks in parallel, so
-  read/write turnaround (tWTR/tRTW) is never paid and bank concurrency is
-  never provoked. Planned: two direction-split bridges with 8 bank-targeted
-  generators each, then a read/write mix sweep. Until then the numbers
-  describe a single-stream workload, not a realistic one.
+* **The read/write mix has not been swept yet.** The harness now drives
+  sixteen generators -- eight writers and eight readers, one per bank, on two
+  direction-split bridges into pumice's write and read channel groups -- so
+  bank concurrency and independent direction pressure are finally available.
+  What has not been done is the measurement they exist for: the direction mix
+  from 100% write to 100% read in 5% steps, where read/write turnaround
+  (tWTR/tRTW) actually shows up. Until that runs, the published numbers still
+  describe a single-stream workload.
 * **No observer is instantiated on the pumice AXI interface yet** — the bridge
   slot exists and is tied off.
 * **Device width is still modelled as the beat width** (64-bit) rather than
-  the board's x16 part, everywhere except the x16 characterization sweep.
+  the board's x16 part, everywhere except the x16 characterization sweep and
+  the macro harness.
+
+* **The generator array has not been synthesized.** The last Nexys A7 build
+  closed at WNS +0.050 ns with 33% LUT use; sixteen pattern generators and two
+  8-master crossbars are a substantial addition on top of that. Simulation is
+  green, but whether it closes timing at 100 MHz is unknown until a synthesis
+  run says so.
 
 Detailed work items live in `vault/Tasks/pumice/` and `vault/Tasks/nexysa7/`.

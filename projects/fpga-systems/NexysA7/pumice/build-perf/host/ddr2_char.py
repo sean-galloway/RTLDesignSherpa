@@ -81,14 +81,25 @@ PUMICE_REGMAP = os.path.join(
     _REPO_ROOT, "projects/components/memory-controllers/"
     "pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py")
 
+# PeakRDL-generated regmap for the traffic generators (chargen_regs, APB slave
+# at 0x000A0000). Sixteen generators -- eight writers and eight readers, one per
+# DRAM bank -- each with its own config block. This used to live in harness_csr
+# as a single WR_*/RD_* window; that window configured ONE writer and ONE
+# reader and is retired.
+CHARGEN_REGMAP = os.path.join(
+    _REPO_ROOT, "projects/NexysA7/ddr2-characterization/"
+    "ddr2_char_framework/dv/tbclasses/chargen_regs_regmap.py")
+
 
 # =============================================================================
-# Bridge address map (bridge_ddr2_char_axil.toml). 1 master x 4 slaves.
+# Bridge address map (bridge_ddr2_char_axil.toml). 1 master x 6 slaves.
 # =============================================================================
 DDR2_APB_BASE     = 0x00000000  # pumice controller CSR (APB)
-HARNESS_CSR_BASE  = 0x00010000  # this driver targets these regs
+HARNESS_CSR_BASE  = 0x00010000  # harness control / timer / perf / identity
 DEBUG_SRAM_BASE   = 0x00040000  # MonBus/DFI trace ring (256 KB @ AXIL64)
 DFI_MON_RAM_BASE  = 0x00080000  # DFI cmd-only observability (4 KB)
+OBS_APB_BASE      = 0x00090000  # reserved for the external AXI observer
+CHARGEN_APB_BASE  = 0x000A0000  # traffic-generator config (chargen_regs)
 
 
 # =============================================================================
@@ -247,6 +258,18 @@ class DDR2CharDriver:
         # name; the driver methods below delegate to it. 12-bit APB addr, 32b data.
         self.pumice = Pumice(self.bridge, "pumice", regs_base=DDR2_APB_BASE,
                              regmap_file=PUMICE_REGMAP)
+        # Traffic generators as their own named Device. Sixteen of them -- see
+        # CHARGEN_REGMAP. Register names carry the index (WR_GEN3_START_ADDR),
+        # so the driver builds the name from a generator argument and nothing
+        # here computes an offset.
+        self.chargen = Device(self.bridge, "chargen",
+                              regs_base=CHARGEN_APB_BASE,
+                              regmap_file=CHARGEN_REGMAP)
+        #: How many generators this bitstream was built with, per direction.
+        #: Read from the hardware by :meth:`gen_config` rather than assumed --
+        #: a host that programs more generators than exist silently measures
+        #: something other than what it reports.
+        self.num_gen = 8
 
     # ----- Low-level helpers (by name via the register map) ----------------
     def _rd64(self, lo_name: str, hi_name: str) -> int:
@@ -494,8 +517,21 @@ class DDR2CharDriver:
     def _program_engine(self, pfx: str, *, start_addr, stride_0, stride_1,
                         wrap_mask_0, wrap_mask_1, burst_len, txn_count, gap,
                         axi_id, id_mode, axi_size, axi_burst, data_mode,
-                        lfsr_seed, hash_seed0, hash_seed1, hash_seed2) -> None:
-        """Program one pattern engine's cfg registers by name (pfx = WR|RD)."""
+                        lfsr_seed, hash_seed0, hash_seed1, hash_seed2,
+                        gen: int = 0) -> None:
+        """Stage one generator's config by name (pfx = WR|RD, gen = 0..7).
+
+        Staging only -- this does NOT start anything. Launch is :meth:`go`,
+        which starts every selected generator on one cycle. The two are
+        separate because staging takes many bus transactions and launching
+        must not: a per-generator start would leave generator 0 running for
+        however long it took to program generator 7.
+        """
+        if not 0 <= gen < self.num_gen:
+            raise IndexError(
+                f"generator {gen} out of range 0..{self.num_gen - 1}. The "
+                f"array is sized to the device's bank count; read gen_config() "
+                f"to see what this bitstream was actually built with.")
         q = getattr(self, "burst_len_multiple", 1)
         if q > 1 and (burst_len == 0 or burst_len % q != 0):
             raise ValueError(
@@ -504,20 +540,21 @@ class DDR2CharDriver:
                 f"must map to an integer number of DRAM bursts, else the HW "
                 f"SLVERRs / partial-transfers. Use a multiple of {q}, or set "
                 f"driver.burst_len_multiple=1 to disable this guard.")
-        r = self.regs
-        r.write_word(f"{pfx}_START_ADDR",  start_addr)
-        r.write_word(f"{pfx}_STRIDE_0",    stride_0 & 0xFFFFFFFF)
-        r.write_word(f"{pfx}_STRIDE_1",    stride_1 & 0xFFFFFFFF)
-        r.write_word(f"{pfx}_WRAP_MASK_0", wrap_mask_0)
-        r.write_word(f"{pfx}_WRAP_MASK_1", wrap_mask_1)
-        r.write(f"{pfx}_BLEN_TXN", burst_len=burst_len, txn_count=txn_count, gap=gap)
-        r.write(f"{pfx}_AXI_ATTR", axi_id=axi_id, id_mode=id_mode,
+        r = self.chargen
+        n = f"{pfx}_GEN{gen}"
+        r.write_word(f"{n}_START_ADDR",  start_addr)
+        r.write_word(f"{n}_STRIDE_0",    stride_0 & 0xFFFFFF)
+        r.write_word(f"{n}_STRIDE_1",    stride_1 & 0xFFFFFF)
+        r.write_word(f"{n}_WRAP_MASK_0", wrap_mask_0)
+        r.write_word(f"{n}_WRAP_MASK_1", wrap_mask_1)
+        r.write(f"{n}_BLEN_TXN", burst_len=burst_len, txn_count=txn_count, gap=gap)
+        r.write(f"{n}_AXI_ATTR", axi_id=axi_id, id_mode=id_mode,
                 axi_size=axi_size, axi_burst=axi_burst,
                 data_mode=1 if data_mode else 0)
-        r.write_word(f"{pfx}_LFSR_SEED",  lfsr_seed)
-        r.write_word(f"{pfx}_HASH_SEED0", hash_seed0)
-        r.write_word(f"{pfx}_HASH_SEED1", hash_seed1)
-        r.write_word(f"{pfx}_HASH_SEED2", hash_seed2)
+        r.write_word(f"{n}_LFSR_SEED",  lfsr_seed)
+        r.write_word(f"{n}_HASH_SEED0", hash_seed0)
+        r.write_word(f"{n}_HASH_SEED1", hash_seed1)
+        r.write_word(f"{n}_HASH_SEED2", hash_seed2)
 
     def program_wr_engine(self, *,
                           start_addr:    int,
@@ -536,9 +573,11 @@ class DDR2CharDriver:
                           lfsr_seed:     int = 0xDEADBEEF,
                           hash_seed0:    int = 0,
                           hash_seed1:    int = 0,
-                          hash_seed2:    int = 0) -> None:
+                          hash_seed2:    int = 0,
+                          gen:           int = 0) -> None:
         self._program_engine(
-            "WR", start_addr=start_addr, stride_0=stride_0, stride_1=stride_1,
+            "WR", gen=gen,
+            start_addr=start_addr, stride_0=stride_0, stride_1=stride_1,
             wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
             burst_len=burst_len, txn_count=txn_count, gap=gap,
             axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
@@ -562,9 +601,11 @@ class DDR2CharDriver:
                           lfsr_seed:     int = 0xDEADBEEF,
                           hash_seed0:    int = 0,
                           hash_seed1:    int = 0,
-                          hash_seed2:    int = 0) -> None:
+                          hash_seed2:    int = 0,
+                          gen:           int = 0) -> None:
         self._program_engine(
-            "RD", start_addr=start_addr, stride_0=stride_0, stride_1=stride_1,
+            "RD", gen=gen,
+            start_addr=start_addr, stride_0=stride_0, stride_1=stride_1,
             wrap_mask_0=wrap_mask_0, wrap_mask_1=wrap_mask_1,
             burst_len=burst_len, txn_count=txn_count, gap=gap,
             axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
@@ -572,14 +613,73 @@ class DDR2CharDriver:
             hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2)
 
     # ----- Run control -----------------------------------------------------
-    def start_wr(self) -> None:
-        self.regs.write("CTRL", start_wr=1)
+    # Launch is one write to GO in chargen_regs, not the harness CTRL bits
+    # (which are retired). Every generator selected in that write starts on the
+    # same cycle. The single-generator methods keep their old names and shape so
+    # existing bring-up scripts read unchanged; they simply select generator 0.
 
-    def start_rd(self) -> None:
-        self.regs.write("CTRL", start_rd=1)
+    def go(self, wr_mask: int = 0, rd_mask: int = 0) -> None:
+        """Start the selected generators -- one write, one start edge.
 
-    def start_both(self) -> None:
-        self.regs.write("CTRL", start_wr=1, start_rd=1)
+        Masks are bit-per-generator: 0x01 is generator 0, 0xFF is all eight.
+        Staging every generator first and then launching them together is the
+        whole reason GO exists as one register; a per-generator start puts the
+        first generator minutes ahead of the last over a UART, which is how a
+        measurement window ends up describing mostly idle time.
+        """
+        limit = 1 << self.num_gen
+        if not 0 <= wr_mask < limit:
+            raise ValueError(f"wr_mask 0x{wr_mask:X} exceeds {self.num_gen} generators")
+        if not 0 <= rd_mask < limit:
+            raise ValueError(f"rd_mask 0x{rd_mask:X} exceeds {self.num_gen} generators")
+        fields = {}
+        for i in range(self.num_gen):
+            if wr_mask >> i & 1:
+                fields[f"wr_go{i}"] = 1
+            if rd_mask >> i & 1:
+                fields[f"rd_go{i}"] = 1
+        if not fields:
+            return
+        # One register write: the bits are separate FIELDS only because
+        # singlepulse must be one bit wide, not because they are separate
+        # events.
+        self.chargen.write("GO", **fields)
+
+    def start_wr(self, mask: int = 0x01) -> None:
+        self.go(wr_mask=mask)
+
+    def start_rd(self, mask: int = 0x01) -> None:
+        self.go(rd_mask=mask)
+
+    def start_both(self, wr_mask: int = 0x01, rd_mask: int = 0x01) -> None:
+        self.go(wr_mask=wr_mask, rd_mask=rd_mask)
+
+    def gen_config(self) -> Dict[str, int]:
+        """Generator array shape as BUILT, read from the board.
+
+        Worth reading rather than assuming: the count the host programs and the
+        count that was synthesized are different numbers, and when they
+        disagree the run measures something other than what it reports.
+        """
+        v = self.chargen.read("GEN_CONFIG")
+        f = self.chargen.field
+        return {
+            "num_wr_gen": f("GEN_CONFIG", "num_wr_gen", v),
+            "num_rd_gen": f("GEN_CONFIG", "num_rd_gen", v),
+            "num_banks":  f("GEN_CONFIG", "num_banks",  v),
+        }
+
+    def gen_done(self) -> Tuple[int, int]:
+        """(wr_done_mask, rd_done_mask) -- one read instead of sixteen."""
+        v = self.chargen.read("DONE")
+        f = self.chargen.field
+        return f("DONE", "wr_done", v), f("DONE", "rd_done", v)
+
+    def gen_errors(self) -> Tuple[int, int]:
+        """(writer bresp-error mask, reader any-error mask)."""
+        v = self.chargen.read("ERRORS")
+        f = self.chargen.field
+        return f("ERRORS", "wr_bresp_error", v), f("ERRORS", "rd_any_error", v)
 
     def status(self) -> Status:
         f = self.regs.field
@@ -615,18 +715,48 @@ class DDR2CharDriver:
         )
 
     # ----- Result readback -------------------------------------------------
-    def crc(self) -> Tuple[int, int, bool, bool]:
-        """Return (expected, actual, match, both_valid)."""
-        exp = self.regs.read("CRC_EXPECTED")
-        act = self.regs.read("CRC_ACTUAL")
-        m   = self.regs.read("CRC_MATCH")
-        match = bool(self.regs.field("CRC_MATCH", "match", m))
-        valid = bool(self.regs.field("CRC_MATCH", "exp_valid", m)
-                     and self.regs.field("CRC_MATCH", "act_valid", m))
-        return exp, act, match, valid
+    def crc(self, gen: int = 0) -> Tuple[int, int, bool, bool]:
+        """Return (expected, actual, match, both_valid) for one matched pair.
 
-    def beats_mismatched(self) -> int:
-        return self.regs.read("BEATS_MISM")
+        Reads the pair's own CRC registers in chargen_regs. harness_csr's old
+        CRC_EXPECTED / CRC_ACTUAL are retired and read 0 -- with eight pairs a
+        single pair of registers described nothing.
+        """
+        exp = self.chargen.read(f"WR_GEN{gen}_EXPECTED_CRC")
+        act = self.chargen.read(f"RD_GEN{gen}_ACTUAL_CRC")
+        wr_st = self.chargen.read(f"WR_GEN{gen}_STATUS")
+        rd_st = self.chargen.read(f"RD_GEN{gen}_STATUS")
+        valid = bool(self.chargen.field(f"WR_GEN{gen}_STATUS", "crc_valid", wr_st)
+                     and self.chargen.field(f"RD_GEN{gen}_STATUS", "crc_valid", rd_st))
+        return exp, act, (exp == act and valid), valid
+
+    def crc_all(self) -> Dict[int, Tuple[int, int, bool, bool]]:
+        """Every pair's CRC, keyed by generator index.
+
+        The single-pair `crc()` cannot answer "did the run pass" once more than
+        one pair is launched, and a caller that checks only pair 0 will report
+        a clean run while seven others corrupted.
+        """
+        return {g: self.crc(g) for g in range(self.num_gen)}
+
+    def run_crc_match(self) -> bool:
+        """Whole-run integrity, as the hardware itself computes it.
+
+        This is harness_csr's CRC_MATCH bit, which the macro drives from a
+        comparison of every LAUNCHED pair -- so it covers the pairs that
+        actually ran and no others, and it does not depend on the host
+        knowing which those were.
+        """
+        m = self.regs.read("CRC_MATCH")
+        return bool(self.regs.field("CRC_MATCH", "match", m))
+
+    def beats_mismatched(self, gen: int = 0) -> int:
+        """Mismatching R beats counted by reader `gen`."""
+        return self.chargen.read(f"RD_GEN{gen}_BEATS_MISM")
+
+    def stray_beats(self, gen: int = 0) -> int:
+        """Extra R beats (no outstanding AR) counted by reader `gen`."""
+        return self.chargen.read(f"RD_GEN{gen}_STRAY_BEATS")
 
     # ----- Timer -----------------------------------------------------------
     def timer_clear(self) -> None:

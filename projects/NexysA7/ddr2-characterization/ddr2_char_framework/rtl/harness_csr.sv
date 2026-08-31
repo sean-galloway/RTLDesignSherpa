@@ -17,28 +17,29 @@
 // Register map (byte offsets from harness_csr base = 0x0001_0000):
 //
 // -- Harness control / status --------------------------------------------
-//   0x00  CTRL              RW  [0]  start_wr     (self-clearing pulse)
-//                                [1]  start_rd     (self-clearing pulse)
+//   0x00  CTRL              RW  [0]  RETIRED (was start_wr) -- launch is
+//                                     chargen_regs.GO, which starts any subset
+//                                     of the sixteen generators on one cycle
+//                                [1]  RETIRED (was start_rd), same reason
 //                                [2]  clear_stats  (self-clearing pulse)
 //                                [3]  freeze_trace (latch; stops debug_sram)
 //                                [4]  soft_reset   (self-clearing pulse)
-//   0x04  STATUS            R   [0]  wr_done       (from engine)
-//                                [1]  rd_done       (from engine)
-//                                [2]  wr_error      (bresp / sticky)
-//                                [3]  rd_error      (rresp / data / sticky)
+//   0x04  STATUS            R   [0]  wr_done   (all LAUNCHED writers done)
+//                                [1]  rd_done   (all LAUNCHED readers done)
+//                                [2]  wr_error      (bresp / sticky, any writer)
+//                                [3]  rd_error      (rresp / data / sticky, any reader)
 //                                [4]  any_error     (any of the above)
 //                                [5]  dbg_clear_busy
 //                                [6]  init_done     (controller init sequence)
 //                                [7]  init_fail
 //   0x08  DBG_WR_PTR        R   words written to debug_sram
 //   0x0C  DBG_OVERFLOW      R   sticky trace-overflow flag
-//   0x10  CRC_EXPECTED      R   from WR engine (o_expected_crc)
-//   0x14  CRC_ACTUAL        R   from RD engine (o_actual_crc)
-//   0x18  CRC_MATCH         R   [0]match [1]exp_valid [2]act_valid
-//                                [3] beats_mismatched != 0
+//   0x10  CRC_EXPECTED      R   RETIRED, reads 0 (per-generator, chargen_regs)
+//   0x14  CRC_ACTUAL        R   RETIRED, reads 0 (per-generator, chargen_regs)
+//   0x18  CRC_MATCH         R   [0] every LAUNCHED wr/rd pair agreed
 //   0x1C  SCRATCH           RW  host bring-up ping
 //   0x20  BUILD_ID          R   parameter-driven build ID (default "DDR2")
-//   0x24  BEATS_MISM        R   o_beats_mismatched (RD engine)
+//   0x24  BEATS_MISM        R   RETIRED, reads 0 (per-generator, chargen_regs)
 //
 // -- Characterization timer ----------------------------------------------
 //   0x28  TIMER_CTRL        W   [0] clear-pulse (resets done/cycles/pass)
@@ -67,38 +68,20 @@
 //   0x68  DFI_TUNING        RW  [3:0]   cmd_delay (DFI cmd->data align, dflt 1; pre-pull + pipe trim)
 //                                       [7:4]   rddata_delay (realign PHY rddata to late rddata_valid; dflt 0=passthru, set ~read_latency)
 //
-// -- WR engine cfg (0x100..0x12F) ----------------------------------------
-//   0x100  WR_START_ADDR    RW
-//   0x104  WR_STRIDE_0      RW  (signed, STRIDE_WIDTH-bit sign-extended in RTL)
-//   0x108  WR_STRIDE_1      RW
-//   0x10C  WR_WRAP_MASK_0   RW
-//   0x110  WR_WRAP_MASK_1   RW
-//   0x114  WR_BLEN_TXN      RW  [7:0]burst_len  [23:8]txn_count  [31:24]gap[3:0]
-//   0x118  WR_AXI_ATTR      RW  [7:0]axi_id  [9:8]id_mode  [12:10]axi_size
-//                                 [14:13]axi_burst  [15]data_mode
-//   0x11C  WR_LFSR_SEED     RW
-//   0x120  WR_HASH_SEED0    RW
-//   0x124  WR_HASH_SEED1    RW
-//   0x128  WR_HASH_SEED2    RW
+// -- Engine cfg (0x100..0x1AF) -- RETIRED --------------------------------
+//   The WR_* and RD_* blocks that lived here configured ONE writer and ONE
+//   reader. There are sixteen engines now -- eight of each, one per DRAM bank
+//   -- and their config lives in chargen_regs, a generated PeakRDL block on its
+//   own APB slave at 0x000A0000 (see ddr2_char_framework/rtl/chargen_regs.rdl).
 //
-// -- RD engine cfg (0x180..0x1AF) — mirror of WR ------------------------
-//   0x180  RD_START_ADDR    RW
-//   0x184  RD_STRIDE_0      RW
-//   0x188  RD_STRIDE_1      RW
-//   0x18C  RD_WRAP_MASK_0   RW
-//   0x190  RD_WRAP_MASK_1   RW
-//   0x194  RD_BLEN_TXN      RW
-//   0x198  RD_AXI_ATTR      RW
-//   0x19C  RD_LFSR_SEED     RW
-//   0x1A0  RD_HASH_SEED0    RW
-//   0x1A4  RD_HASH_SEED1    RW
-//   0x1A8  RD_HASH_SEED2    RW
+//   Reads of 0x100..0x1AF return 0. They are not re-used for anything: leaving
+//   the hole is how a host that was never migrated fails visibly, at the
+//   register it expected, instead of finding whatever moved in underneath it.
 //
 // -- Perf readback (from axi_bus_meter + axi_perf_latency_hist tapped ---
 //   inside ddr2_char_macro). All 32b, clear on CTRL.clear_stats via the
 //   perf_clear pulse; freeze via CTRL.freeze_trace via perf_freeze.
-//   Sits at 0x1C0..0x1E8 (after RD engine cfg) so it doesn't collide
-//   with the 0x100/0x180 engine-cfg blocks.
+//   Sits at 0x1C0..0x1E8, clear of the retired 0x100/0x180 hole.
 //
 //   0x1C0  OBS_RD_PROD       R  RD data-channel meter: productive cycles
 //   0x1C4  OBS_RD_BP         R                          backpressure
@@ -209,8 +192,11 @@ module harness_csr
     // =====================================================================
     // Harness control outputs
     // =====================================================================
-    output logic            o_start_wr_pulse,
-    output logic            o_start_rd_pulse,
+    // NOTE: the CTRL start bits are GONE. Launch is chargen_regs.GO, which
+    // starts any subset of the sixteen generators on a single cycle. Two launch
+    // paths to the same hardware is the drift this restructure exists to
+    // remove, and the skew a per-direction start introduced is exactly what
+    // made the old single-stream numbers hard to trust.
     output logic            o_clear_stats_pulse,
     output logic            o_freeze_trace,
     output logic            o_soft_reset_pulse,
@@ -228,11 +214,12 @@ module harness_csr
     input  logic            i_dbg_overflow,
     input  logic            i_dbg_clear_busy,
 
-    input  logic [31:0]     i_crc_expected,
-    input  logic [31:0]     i_crc_actual,
-    input  logic            i_crc_exp_valid,
-    input  logic            i_crc_act_valid,
-    input  logic [TXN_COUNT_WIDTH-1:0] i_beats_mismatched,
+    // Data integrity for the whole run, in one bit. With eight writer/reader
+    // pairs a single CRC_EXPECTED/CRC_ACTUAL pair describes nothing, so the
+    // macro compares every launched pair and reports the AND. The individual
+    // CRCs and per-generator mismatch counts are read from chargen_regs, which
+    // is where a failure gets localised.
+    input  logic            i_crc_match,
 
     // =====================================================================
     // Timer interface
@@ -296,49 +283,7 @@ module harness_csr
     output logic [9:0]      o_phy_csr_adr,
     output logic            o_phy_csr_we,
     output logic [31:0]     o_phy_csr_dat_w,
-    input  logic [31:0]     i_phy_csr_dat_r,
-
-    // =====================================================================
-    // WR-engine cfg outputs (drive ddr2_char_macro cfg_wr_* inputs)
-    // =====================================================================
-    output logic [AW-1:0]                       o_cfg_wr_start_addr,
-    output logic signed [STRIDE_WIDTH-1:0]      o_cfg_wr_stride_0,
-    output logic signed [STRIDE_WIDTH-1:0]      o_cfg_wr_stride_1,
-    output logic [AW-1:0]                       o_cfg_wr_wrap_mask_0,
-    output logic [AW-1:0]                       o_cfg_wr_wrap_mask_1,
-    output logic [BURST_LEN_WIDTH-1:0]          o_cfg_wr_burst_len,
-    output logic [TXN_COUNT_WIDTH-1:0]          o_cfg_wr_txn_count,
-    output logic [AXI_ID_WIDTH-1:0]             o_cfg_wr_axi_id,
-    output logic [1:0]                          o_cfg_wr_id_mode,
-    output logic [2:0]                          o_cfg_wr_axi_size,
-    output logic [1:0]                          o_cfg_wr_axi_burst,
-    output logic [3:0]                          o_cfg_wr_gap,
-    output logic                                o_cfg_wr_data_mode,
-    output logic [31:0]                         o_cfg_wr_lfsr_seed,
-    output logic [31:0]                         o_cfg_wr_hash_seed0,
-    output logic [31:0]                         o_cfg_wr_hash_seed1,
-    output logic [31:0]                         o_cfg_wr_hash_seed2,
-
-    // =====================================================================
-    // RD-engine cfg outputs (drive ddr2_char_macro cfg_rd_* inputs)
-    // =====================================================================
-    output logic [AW-1:0]                       o_cfg_rd_start_addr,
-    output logic signed [STRIDE_WIDTH-1:0]      o_cfg_rd_stride_0,
-    output logic signed [STRIDE_WIDTH-1:0]      o_cfg_rd_stride_1,
-    output logic [AW-1:0]                       o_cfg_rd_wrap_mask_0,
-    output logic [AW-1:0]                       o_cfg_rd_wrap_mask_1,
-    output logic [BURST_LEN_WIDTH-1:0]          o_cfg_rd_burst_len,
-    output logic [TXN_COUNT_WIDTH-1:0]          o_cfg_rd_txn_count,
-    output logic [AXI_ID_WIDTH-1:0]             o_cfg_rd_axi_id,
-    output logic [1:0]                          o_cfg_rd_id_mode,
-    output logic [2:0]                          o_cfg_rd_axi_size,
-    output logic [1:0]                          o_cfg_rd_axi_burst,
-    output logic [3:0]                          o_cfg_rd_gap,
-    output logic                                o_cfg_rd_data_mode,
-    output logic [31:0]                         o_cfg_rd_lfsr_seed,
-    output logic [31:0]                         o_cfg_rd_hash_seed0,
-    output logic [31:0]                         o_cfg_rd_hash_seed1,
-    output logic [31:0]                         o_cfg_rd_hash_seed2
+    input  logic [31:0]     i_phy_csr_dat_r
 );
 
     // Packed widths for the skid buffers
@@ -443,8 +388,6 @@ module harness_csr
     // =========================================================================
     // Harness control latches / pulses
     logic        r_freeze_trace;
-    logic        r_start_wr_pulse;
-    logic        r_start_rd_pulse;
     logic        r_clear_stats_pulse;
     logic        r_soft_reset_pulse;
 
@@ -471,32 +414,6 @@ module harness_csr
     logic [31:0] r_ctrlr_cap;   // {24'd0, cap_synth_mask, cap_lookahead_max}
     logic [31:0] r_dfi_tuning;  // [3:0]cmd_delay [7:4]rddata_delay — DFI cmd/read alignment
 
-    // WR engine cfg
-    logic [31:0] r_wr_start_addr;
-    logic [31:0] r_wr_stride_0;
-    logic [31:0] r_wr_stride_1;
-    logic [31:0] r_wr_wrap_mask_0;
-    logic [31:0] r_wr_wrap_mask_1;
-    logic [31:0] r_wr_blen_txn;   // [7:0]burst_len [23:8]txn_count [27:24]gap
-    logic [31:0] r_wr_axi_attr;   // [7:0]axi_id [9:8]id_mode [12:10]axi_size [14:13]axi_burst [15]data_mode
-    logic [31:0] r_wr_lfsr_seed;
-    logic [31:0] r_wr_hash_seed0;
-    logic [31:0] r_wr_hash_seed1;
-    logic [31:0] r_wr_hash_seed2;
-
-    // RD engine cfg (mirror)
-    logic [31:0] r_rd_start_addr;
-    logic [31:0] r_rd_stride_0;
-    logic [31:0] r_rd_stride_1;
-    logic [31:0] r_rd_wrap_mask_0;
-    logic [31:0] r_rd_wrap_mask_1;
-    logic [31:0] r_rd_blen_txn;
-    logic [31:0] r_rd_axi_attr;
-    logic [31:0] r_rd_lfsr_seed;
-    logic [31:0] r_rd_hash_seed0;
-    logic [31:0] r_rd_hash_seed1;
-    logic [31:0] r_rd_hash_seed2;
-
     // Perf hist selector: {bin[5:2], metric[1], bus[0]}.
     logic [5:0]  r_obs_hist_sel;
 
@@ -518,8 +435,6 @@ module harness_csr
         if (`RST_ASSERTED(aresetn)) begin
             r_wstate               <= W_IDLE;
             r_freeze_trace         <= 1'b0;
-            r_start_wr_pulse       <= 1'b0;
-            r_start_rd_pulse       <= 1'b0;
             r_clear_stats_pulse    <= 1'b0;
             r_soft_reset_pulse     <= 1'b0;
             r_scratch              <= '0;
@@ -531,38 +446,12 @@ module harness_csr
             r_ctrlr_cap            <= '0;
             r_dfi_tuning           <= 32'd1;   // cmd_delay=1: pre-pull + 1-cyc pipeline trim
                                                // makes wrdata concurrent natively
-
-            r_wr_start_addr        <= '0;
-            r_wr_stride_0          <= '0;
-            r_wr_stride_1          <= '0;
-            r_wr_wrap_mask_0       <= '0;
-            r_wr_wrap_mask_1       <= '0;
-            r_wr_blen_txn          <= '0;
-            r_wr_axi_attr          <= '0;
-            r_wr_lfsr_seed         <= '0;
-            r_wr_hash_seed0        <= '0;
-            r_wr_hash_seed1        <= '0;
-            r_wr_hash_seed2        <= '0;
-
-            r_rd_start_addr        <= '0;
-            r_rd_stride_0          <= '0;
-            r_rd_stride_1          <= '0;
-            r_rd_wrap_mask_0       <= '0;
-            r_rd_wrap_mask_1       <= '0;
-            r_rd_blen_txn          <= '0;
-            r_rd_axi_attr          <= '0;
-            r_rd_lfsr_seed         <= '0;
-            r_rd_hash_seed0        <= '0;
-            r_rd_hash_seed1        <= '0;
-            r_rd_hash_seed2        <= '0;
             r_obs_hist_sel         <= '0;
             r_phy_csr_addr         <= '0;
             r_phy_csr_wdata        <= '0;
             r_phy_csr_we_pulse     <= 1'b0;
         end else begin
             // Default: pulses auto-clear each cycle
-            r_start_wr_pulse       <= 1'b0;
-            r_start_rd_pulse       <= 1'b0;
             r_clear_stats_pulse    <= 1'b0;
             r_soft_reset_pulse     <= 1'b0;
             r_timer_clear_pulse    <= 1'b0;
@@ -573,8 +462,12 @@ module harness_csr
                     if (int_awvalid && int_wvalid) begin
                         case (w_waddr)
                             9'h000: begin
-                                r_start_wr_pulse    <= int_wdata[0];
-                                r_start_rd_pulse    <= int_wdata[1];
+                                // CTRL bits 0/1 (start_wr / start_rd) are
+                                // RETIRED. Launch is chargen_regs.GO, which
+                                // starts any subset of the sixteen generators
+                                // on one cycle; a second launch path here would
+                                // start whichever engines it knew about and
+                                // silently leave the rest idle.
                                 r_clear_stats_pulse <= int_wdata[2];
                                 r_freeze_trace      <= int_wdata[3];
                                 r_soft_reset_pulse  <= int_wdata[4];
@@ -594,32 +487,6 @@ module harness_csr
                             9'h080: r_phy_csr_addr     <= int_wdata[9:0];
                             9'h084: r_phy_csr_wdata    <= int_wdata;
                             9'h088: r_phy_csr_we_pulse <= int_wdata[0];
-
-                            // WR engine cfg
-                            9'h100: r_wr_start_addr  <= int_wdata;
-                            9'h104: r_wr_stride_0    <= int_wdata;
-                            9'h108: r_wr_stride_1    <= int_wdata;
-                            9'h10C: r_wr_wrap_mask_0 <= int_wdata;
-                            9'h110: r_wr_wrap_mask_1 <= int_wdata;
-                            9'h114: r_wr_blen_txn    <= int_wdata;
-                            9'h118: r_wr_axi_attr    <= int_wdata;
-                            9'h11C: r_wr_lfsr_seed   <= int_wdata;
-                            9'h120: r_wr_hash_seed0  <= int_wdata;
-                            9'h124: r_wr_hash_seed1  <= int_wdata;
-                            9'h128: r_wr_hash_seed2  <= int_wdata;
-
-                            // RD engine cfg
-                            9'h180: r_rd_start_addr  <= int_wdata;
-                            9'h184: r_rd_stride_0    <= int_wdata;
-                            9'h188: r_rd_stride_1    <= int_wdata;
-                            9'h18C: r_rd_wrap_mask_0 <= int_wdata;
-                            9'h190: r_rd_wrap_mask_1 <= int_wdata;
-                            9'h194: r_rd_blen_txn    <= int_wdata;
-                            9'h198: r_rd_axi_attr    <= int_wdata;
-                            9'h19C: r_rd_lfsr_seed   <= int_wdata;
-                            9'h1A0: r_rd_hash_seed0  <= int_wdata;
-                            9'h1A4: r_rd_hash_seed1  <= int_wdata;
-                            9'h1A8: r_rd_hash_seed2  <= int_wdata;
 
                             // Perf hist selector (only RW perf reg)
                             9'h1E0: r_obs_hist_sel <= int_wdata[5:0];
@@ -688,14 +555,15 @@ module harness_csr
         w_status[7] = i_init_fail;
     end
 
+    // CRC_MATCH is now a single bit: every LAUNCHED writer/reader pair agreed.
+    // The old bits 1-3 (exp_valid / act_valid / any-mismatch) described one
+    // engine pair and have no sixteen-engine meaning -- read the per-generator
+    // STATUS and BEATS_MISM registers in chargen_regs instead, which say WHICH
+    // pair disagreed rather than only that one did.
     logic [31:0] w_crc_match;
     always_comb begin
-        w_crc_match = '0;
-        w_crc_match[0] = (i_crc_expected == i_crc_actual)
-                         && i_crc_exp_valid && i_crc_act_valid;
-        w_crc_match[1] = i_crc_exp_valid;
-        w_crc_match[2] = i_crc_act_valid;
-        w_crc_match[3] = |i_beats_mismatched;
+        w_crc_match    = '0;
+        w_crc_match[0] = i_crc_match;
     end
 
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -711,12 +579,19 @@ module harness_csr
                             9'h004: r_rdata <= w_status;
                             9'h008: r_rdata <= i_dbg_wr_ptr;
                             9'h00C: r_rdata <= {31'd0, i_dbg_overflow};
-                            9'h010: r_rdata <= i_crc_expected;
-                            9'h014: r_rdata <= i_crc_actual;
+                            // 0x010 / 0x014 (CRC_EXPECTED / CRC_ACTUAL) are
+                            // RETIRED -- per-generator CRCs live in
+                            // chargen_regs. Reads return 0 rather than
+                            // SLVERR so an old host script degrades to an
+                            // obviously-wrong zero instead of a bus error.
+                            9'h010: r_rdata <= 32'h0;
+                            9'h014: r_rdata <= 32'h0;
                             9'h018: r_rdata <= w_crc_match;
                             9'h01C: r_rdata <= r_scratch;
                             9'h020: r_rdata <= BUILD_ID;
-                            9'h024: r_rdata <= {{(32-TXN_COUNT_WIDTH){1'b0}}, i_beats_mismatched};
+                            // 0x024 (BEATS_MISM) RETIRED -- per-generator
+                            // counts are in chargen_regs.
+                            9'h024: r_rdata <= 32'h0;
 
                             9'h028: r_rdata <= 32'h0;  // TIMER_CTRL is W-only
                             9'h02C: r_rdata <= {29'd0, i_timer_pass,
@@ -743,30 +618,6 @@ module harness_csr
                             9'h080: r_rdata <= {22'd0, r_phy_csr_addr};
                             9'h084: r_rdata <= r_phy_csr_wdata;
                             9'h08C: r_rdata <= i_phy_csr_dat_r;
-
-                            9'h100: r_rdata <= r_wr_start_addr;
-                            9'h104: r_rdata <= r_wr_stride_0;
-                            9'h108: r_rdata <= r_wr_stride_1;
-                            9'h10C: r_rdata <= r_wr_wrap_mask_0;
-                            9'h110: r_rdata <= r_wr_wrap_mask_1;
-                            9'h114: r_rdata <= r_wr_blen_txn;
-                            9'h118: r_rdata <= r_wr_axi_attr;
-                            9'h11C: r_rdata <= r_wr_lfsr_seed;
-                            9'h120: r_rdata <= r_wr_hash_seed0;
-                            9'h124: r_rdata <= r_wr_hash_seed1;
-                            9'h128: r_rdata <= r_wr_hash_seed2;
-
-                            9'h180: r_rdata <= r_rd_start_addr;
-                            9'h184: r_rdata <= r_rd_stride_0;
-                            9'h188: r_rdata <= r_rd_stride_1;
-                            9'h18C: r_rdata <= r_rd_wrap_mask_0;
-                            9'h190: r_rdata <= r_rd_wrap_mask_1;
-                            9'h194: r_rdata <= r_rd_blen_txn;
-                            9'h198: r_rdata <= r_rd_axi_attr;
-                            9'h19C: r_rdata <= r_rd_lfsr_seed;
-                            9'h1A0: r_rdata <= r_rd_hash_seed0;
-                            9'h1A4: r_rdata <= r_rd_hash_seed1;
-                            9'h1A8: r_rdata <= r_rd_hash_seed2;
 
                             // Perf: bus-meter readback (RD then WR)
                             9'h1C0: r_rdata <= i_obs_rd_prod;
@@ -825,8 +676,6 @@ module harness_csr
     // =========================================================================
     // Output assignment
     // =========================================================================
-    assign o_start_wr_pulse    = r_start_wr_pulse;
-    assign o_start_rd_pulse    = r_start_rd_pulse;
     assign o_clear_stats_pulse = r_clear_stats_pulse;
     assign o_freeze_trace      = r_freeze_trace;
     assign o_soft_reset_pulse  = r_soft_reset_pulse;
@@ -861,44 +710,6 @@ module harness_csr
     assign o_cap_synth_mask    = r_ctrlr_cap[7:4];
     assign o_cmd_delay         = r_dfi_tuning[3:0];
     assign o_rddata_delay      = r_dfi_tuning[7:4];
-
-    // WR-engine cfg unpack
-    assign o_cfg_wr_start_addr  = r_wr_start_addr[AW-1:0];
-    assign o_cfg_wr_stride_0    = r_wr_stride_0[STRIDE_WIDTH-1:0];
-    assign o_cfg_wr_stride_1    = r_wr_stride_1[STRIDE_WIDTH-1:0];
-    assign o_cfg_wr_wrap_mask_0 = r_wr_wrap_mask_0[AW-1:0];
-    assign o_cfg_wr_wrap_mask_1 = r_wr_wrap_mask_1[AW-1:0];
-    assign o_cfg_wr_burst_len   = r_wr_blen_txn[BURST_LEN_WIDTH-1:0];
-    assign o_cfg_wr_txn_count   = r_wr_blen_txn[TXN_COUNT_WIDTH+7:8];
-    assign o_cfg_wr_gap         = r_wr_blen_txn[27:24];
-    assign o_cfg_wr_axi_id      = r_wr_axi_attr[AXI_ID_WIDTH-1:0];
-    assign o_cfg_wr_id_mode     = r_wr_axi_attr[9:8];
-    assign o_cfg_wr_axi_size    = r_wr_axi_attr[12:10];
-    assign o_cfg_wr_axi_burst   = r_wr_axi_attr[14:13];
-    assign o_cfg_wr_data_mode   = r_wr_axi_attr[15];
-    assign o_cfg_wr_lfsr_seed   = r_wr_lfsr_seed;
-    assign o_cfg_wr_hash_seed0  = r_wr_hash_seed0;
-    assign o_cfg_wr_hash_seed1  = r_wr_hash_seed1;
-    assign o_cfg_wr_hash_seed2  = r_wr_hash_seed2;
-
-    // RD-engine cfg unpack
-    assign o_cfg_rd_start_addr  = r_rd_start_addr[AW-1:0];
-    assign o_cfg_rd_stride_0    = r_rd_stride_0[STRIDE_WIDTH-1:0];
-    assign o_cfg_rd_stride_1    = r_rd_stride_1[STRIDE_WIDTH-1:0];
-    assign o_cfg_rd_wrap_mask_0 = r_rd_wrap_mask_0[AW-1:0];
-    assign o_cfg_rd_wrap_mask_1 = r_rd_wrap_mask_1[AW-1:0];
-    assign o_cfg_rd_burst_len   = r_rd_blen_txn[BURST_LEN_WIDTH-1:0];
-    assign o_cfg_rd_txn_count   = r_rd_blen_txn[TXN_COUNT_WIDTH+7:8];
-    assign o_cfg_rd_gap         = r_rd_blen_txn[27:24];
-    assign o_cfg_rd_axi_id      = r_rd_axi_attr[AXI_ID_WIDTH-1:0];
-    assign o_cfg_rd_id_mode     = r_rd_axi_attr[9:8];
-    assign o_cfg_rd_axi_size    = r_rd_axi_attr[12:10];
-    assign o_cfg_rd_axi_burst   = r_rd_axi_attr[14:13];
-    assign o_cfg_rd_data_mode   = r_rd_axi_attr[15];
-    assign o_cfg_rd_lfsr_seed   = r_rd_lfsr_seed;
-    assign o_cfg_rd_hash_seed0  = r_rd_hash_seed0;
-    assign o_cfg_rd_hash_seed1  = r_rd_hash_seed1;
-    assign o_cfg_rd_hash_seed2  = r_rd_hash_seed2;
 
     // Prevent unused signal warnings
     /* verilator lint_off UNUSED */

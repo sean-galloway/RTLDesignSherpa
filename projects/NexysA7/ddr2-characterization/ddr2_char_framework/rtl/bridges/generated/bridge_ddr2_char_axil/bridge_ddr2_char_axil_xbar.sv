@@ -10,7 +10,7 @@
 module bridge_ddr2_char_axil_xbar
     import bridge_ddr2_char_axil_pkg::*;
 #(
-    parameter int NUM_SLAVES = 5
+    parameter int NUM_SLAVES = 6
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -341,7 +341,65 @@ module bridge_ddr2_char_axil_xbar
     input  logic         obs_apb_axi_rlast,
     input  logic         obs_apb_axi_ruser,
     input  logic         obs_apb_axi_rvalid,
-    output  logic         obs_apb_axi_rready
+    output  logic         obs_apb_axi_rready,
+
+    // Slave 5: chargen_apb
+    output logic [BRIDGE_ID_WIDTH-1:0] chargen_apb_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] chargen_apb_axi_bid_bridge_id,
+    input  logic                       chargen_apb_axi_bid_valid,
+
+    output logic [BRIDGE_ID_WIDTH-1:0] chargen_apb_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] chargen_apb_axi_rid_bridge_id,
+    input  logic                       chargen_apb_axi_rid_valid,
+
+    output  logic [7:0]  chargen_apb_axi_awid,
+    output  logic [31:0]  chargen_apb_axi_awaddr,
+    output  logic [7:0]  chargen_apb_axi_awlen,
+    output  logic [2:0]  chargen_apb_axi_awsize,
+    output  logic [1:0]  chargen_apb_axi_awburst,
+    output  logic         chargen_apb_axi_awlock,
+    output  logic [3:0]  chargen_apb_axi_awcache,
+    output  logic [2:0]  chargen_apb_axi_awprot,
+    output  logic [3:0]  chargen_apb_axi_awqos,
+    output  logic [3:0]  chargen_apb_axi_awregion,
+    output  logic         chargen_apb_axi_awuser,
+    output  logic         chargen_apb_axi_awvalid,
+    input  logic         chargen_apb_axi_awready,
+
+    output  logic [31:0]  chargen_apb_axi_wdata,
+    output  logic [3:0]  chargen_apb_axi_wstrb,
+    output  logic         chargen_apb_axi_wlast,
+    output  logic         chargen_apb_axi_wuser,
+    output  logic         chargen_apb_axi_wvalid,
+    input  logic         chargen_apb_axi_wready,
+
+    input  logic [7:0]  chargen_apb_axi_bid,
+    input  logic [1:0]  chargen_apb_axi_bresp,
+    input  logic         chargen_apb_axi_buser,
+    input  logic         chargen_apb_axi_bvalid,
+    output  logic         chargen_apb_axi_bready,
+
+    output  logic [7:0]  chargen_apb_axi_arid,
+    output  logic [31:0]  chargen_apb_axi_araddr,
+    output  logic [7:0]  chargen_apb_axi_arlen,
+    output  logic [2:0]  chargen_apb_axi_arsize,
+    output  logic [1:0]  chargen_apb_axi_arburst,
+    output  logic         chargen_apb_axi_arlock,
+    output  logic [3:0]  chargen_apb_axi_arcache,
+    output  logic [2:0]  chargen_apb_axi_arprot,
+    output  logic [3:0]  chargen_apb_axi_arqos,
+    output  logic [3:0]  chargen_apb_axi_arregion,
+    output  logic         chargen_apb_axi_aruser,
+    output  logic         chargen_apb_axi_arvalid,
+    input  logic         chargen_apb_axi_arready,
+
+    input  logic [7:0]  chargen_apb_axi_rid,
+    input  logic [31:0]  chargen_apb_axi_rdata,
+    input  logic [1:0]  chargen_apb_axi_rresp,
+    input  logic         chargen_apb_axi_rlast,
+    input  logic         chargen_apb_axi_ruser,
+    input  logic         chargen_apb_axi_rvalid,
+    output  logic         chargen_apb_axi_rready
 );
 
     // ================================================================
@@ -357,6 +415,8 @@ module bridge_ddr2_char_axil_xbar
     logic host_32b_w_sel_dfi_mon_ram;
     logic host_32b_w_to_obs_apb;
     logic host_32b_w_sel_obs_apb;
+    logic host_32b_w_to_chargen_apb;
+    logic host_32b_w_sel_chargen_apb;
     logic host_64b_w_to_debug_sram;
     logic host_64b_w_sel_debug_sram;
 
@@ -641,12 +701,68 @@ module bridge_ddr2_char_axil_xbar
 
 
     // ================================================================
+    // Slave 5: chargen_apb (32b)
+    // ================================================================
+    // Single master: host → chargen_apb
+    // Master width: 32b, Slave width: 32b
+    // Using 32b path from adapter (APB LCD width)
+
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_chargen_apb = ((host_32b_aw.addr >= 32'h000a0000) && (host_32b_aw.addr <= 32'h000a0fff));
+    wire host_32b_aw_gnt_chargen_apb = host_32b_aw_to_chargen_apb;
+    assign chargen_apb_axi_awid     = host_32b_aw_to_chargen_apb ? host_32b_aw.id : '0;
+    assign chargen_apb_axi_awaddr   = host_32b_aw_to_chargen_apb ? host_32b_aw.addr : '0;
+    assign chargen_apb_axi_awlen    = host_32b_aw_to_chargen_apb ? host_32b_aw.len : '0;
+    assign chargen_apb_axi_awsize   = host_32b_aw_to_chargen_apb ? host_32b_aw.size : '0;
+    assign chargen_apb_axi_awburst  = host_32b_aw_to_chargen_apb ? host_32b_aw.burst : '0;
+    assign chargen_apb_axi_awlock   = host_32b_aw_to_chargen_apb ? host_32b_aw.lock : '0;
+    assign chargen_apb_axi_awcache  = host_32b_aw_to_chargen_apb ? host_32b_aw.cache : '0;
+    assign chargen_apb_axi_awprot   = host_32b_aw_to_chargen_apb ? host_32b_aw.prot : '0;
+    assign chargen_apb_axi_awvalid  = host_32b_aw_to_chargen_apb && host_32b_awvalid;
+
+    assign host_32b_w_sel_chargen_apb = host_32b_w_to_chargen_apb;
+
+    // W channel (gated by the W destination FIFO head)
+    assign chargen_apb_axi_wdata  = host_32b_w_to_chargen_apb ? host_32b_w.data : '0;
+    assign chargen_apb_axi_wstrb  = host_32b_w_to_chargen_apb ? host_32b_w.strb : '0;
+    assign chargen_apb_axi_wlast  = host_32b_w_to_chargen_apb ? host_32b_w.last : '0;
+    assign chargen_apb_axi_wvalid = host_32b_w_to_chargen_apb && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign chargen_apb_axi_bready = ((chargen_apb_axi_bid_bridge_id == 0) && chargen_apb_axi_bid_valid) ? host_32b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign chargen_apb_axi_bridge_id_aw = host_32b_aw_to_chargen_apb ? host_bridge_id_aw : '0;
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_chargen_apb = ((host_32b_ar.addr >= 32'h000a0000) && (host_32b_ar.addr <= 32'h000a0fff));
+    wire host_32b_ar_gnt_chargen_apb = host_32b_ar_to_chargen_apb;
+    assign chargen_apb_axi_arid     = host_32b_ar_to_chargen_apb ? host_32b_ar.id : '0;
+    assign chargen_apb_axi_araddr   = host_32b_ar_to_chargen_apb ? host_32b_ar.addr : '0;
+    assign chargen_apb_axi_arlen    = host_32b_ar_to_chargen_apb ? host_32b_ar.len : '0;
+    assign chargen_apb_axi_arsize   = host_32b_ar_to_chargen_apb ? host_32b_ar.size : '0;
+    assign chargen_apb_axi_arburst  = host_32b_ar_to_chargen_apb ? host_32b_ar.burst : '0;
+    assign chargen_apb_axi_arlock   = host_32b_ar_to_chargen_apb ? host_32b_ar.lock : '0;
+    assign chargen_apb_axi_arcache  = host_32b_ar_to_chargen_apb ? host_32b_ar.cache : '0;
+    assign chargen_apb_axi_arprot   = host_32b_ar_to_chargen_apb ? host_32b_ar.prot : '0;
+    assign chargen_apb_axi_arvalid  = host_32b_ar_to_chargen_apb && host_32b_arvalid;
+
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign chargen_apb_axi_rready = ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid) ? host_32b_rready : '0;
+
+    // Bridge ID (master → slave)
+    assign chargen_apb_axi_bridge_id_ar = host_32b_ar_to_chargen_apb ? host_bridge_id_ar : '0;
+
+
+    // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // host 32b path -> ddr2_apb, harness_csr, dfi_mon_ram, obs_apb
-    logic [1:0] host_32b_wdest_mem [16];
+    // host 32b path -> ddr2_apb, harness_csr, dfi_mon_ram, obs_apb, chargen_apb
+    logic [2:0] host_32b_wdest_mem [16];
     logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
-    wire [1:0] host_32b_wdest_enc = host_32b_aw_to_harness_csr ? 2'd1 : host_32b_aw_to_dfi_mon_ram ? 2'd2 : host_32b_aw_to_obs_apb ? 2'd3 : 2'd0;
+    wire [2:0] host_32b_wdest_enc = host_32b_aw_to_harness_csr ? 3'd1 : host_32b_aw_to_dfi_mon_ram ? 3'd2 : host_32b_aw_to_obs_apb ? 3'd3 : host_32b_aw_to_chargen_apb ? 3'd4 : 3'd0;
     wire host_32b_wdest_push = host_32b_awvalid && host_32b_awready;
     wire host_32b_wdest_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last;
     always_ff @(posedge aclk or negedge aresetn) begin
@@ -664,11 +780,12 @@ module bridge_ddr2_char_axil_xbar
         end
     end
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
-    wire [1:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
-    assign host_32b_w_to_ddr2_apb = host_32b_wdest_valid && (host_32b_wdest_head == 2'd0);
-    assign host_32b_w_to_harness_csr = host_32b_wdest_valid && (host_32b_wdest_head == 2'd1);
-    assign host_32b_w_to_dfi_mon_ram = host_32b_wdest_valid && (host_32b_wdest_head == 2'd2);
-    assign host_32b_w_to_obs_apb = host_32b_wdest_valid && (host_32b_wdest_head == 2'd3);
+    wire [2:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
+    assign host_32b_w_to_ddr2_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd0);
+    assign host_32b_w_to_harness_csr = host_32b_wdest_valid && (host_32b_wdest_head == 3'd1);
+    assign host_32b_w_to_dfi_mon_ram = host_32b_wdest_valid && (host_32b_wdest_head == 3'd2);
+    assign host_32b_w_to_obs_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd3);
+    assign host_32b_w_to_chargen_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd4);
 
     // host 64b path -> debug_sram
     logic [0:0] host_64b_wdest_mem [16];
@@ -703,67 +820,78 @@ module bridge_ddr2_char_axil_xbar
         (host_32b_aw_gnt_ddr2_apb ? ddr2_apb_axi_awready : '0) |
         (host_32b_aw_gnt_harness_csr ? harness_csr_axi_awready : '0) |
         (host_32b_aw_gnt_dfi_mon_ram ? dfi_mon_ram_axi_awready : '0) |
-        (host_32b_aw_gnt_obs_apb ? obs_apb_axi_awready : '0);
+        (host_32b_aw_gnt_obs_apb ? obs_apb_axi_awready : '0) |
+        (host_32b_aw_gnt_chargen_apb ? chargen_apb_axi_awready : '0);
 
     assign host_32b_wready = 
         (host_32b_w_sel_ddr2_apb ? ddr2_apb_axi_wready : '0) |
         (host_32b_w_sel_harness_csr ? harness_csr_axi_wready : '0) |
         (host_32b_w_sel_dfi_mon_ram ? dfi_mon_ram_axi_wready : '0) |
-        (host_32b_w_sel_obs_apb ? obs_apb_axi_wready : '0);
+        (host_32b_w_sel_obs_apb ? obs_apb_axi_wready : '0) |
+        (host_32b_w_sel_chargen_apb ? chargen_apb_axi_wready : '0);
 
     assign host_32b_b.id = 
         ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_bid : '0) |
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bid : '0) |
         ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bid : '0) |
-        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bid : '0);
+        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bid : '0) |
+        ((chargen_apb_axi_bid_bridge_id == 0) && chargen_apb_axi_bid_valid ? chargen_apb_axi_bid : '0);
 
     assign host_32b_b.resp = 
         ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_bresp : '0) |
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bresp : '0) |
         ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bresp : '0) |
-        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bresp : '0);
+        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bresp : '0) |
+        ((chargen_apb_axi_bid_bridge_id == 0) && chargen_apb_axi_bid_valid ? chargen_apb_axi_bresp : '0);
 
     assign host_32b_bvalid = 
         ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid ? ddr2_apb_axi_bvalid : '0) |
         ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid ? harness_csr_axi_bvalid : '0) |
         ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid ? dfi_mon_ram_axi_bvalid : '0) |
-        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bvalid : '0);
+        ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid ? obs_apb_axi_bvalid : '0) |
+        ((chargen_apb_axi_bid_bridge_id == 0) && chargen_apb_axi_bid_valid ? chargen_apb_axi_bvalid : '0);
 
     assign host_32b_arready = 
         (host_32b_ar_gnt_ddr2_apb ? ddr2_apb_axi_arready : '0) |
         (host_32b_ar_gnt_harness_csr ? harness_csr_axi_arready : '0) |
         (host_32b_ar_gnt_dfi_mon_ram ? dfi_mon_ram_axi_arready : '0) |
-        (host_32b_ar_gnt_obs_apb ? obs_apb_axi_arready : '0);
+        (host_32b_ar_gnt_obs_apb ? obs_apb_axi_arready : '0) |
+        (host_32b_ar_gnt_chargen_apb ? chargen_apb_axi_arready : '0);
 
     assign host_32b_r.id = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rid : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rid : '0) |
         ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rid : '0) |
-        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rid : '0);
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rid : '0) |
+        ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid ? chargen_apb_axi_rid : '0);
 
     assign host_32b_r.data = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rdata : 32'b0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rdata : 32'b0) |
         ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rdata : 32'b0) |
-        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rdata : 32'b0);
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rdata : 32'b0) |
+        ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid ? chargen_apb_axi_rdata : 32'b0);
 
     assign host_32b_r.resp = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rresp : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rresp : '0) |
         ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rresp : '0) |
-        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rresp : '0);
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rresp : '0) |
+        ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid ? chargen_apb_axi_rresp : '0);
 
     assign host_32b_r.last = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rlast : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rlast : '0) |
         ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rlast : '0) |
-        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rlast : '0);
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rlast : '0) |
+        ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid ? chargen_apb_axi_rlast : '0);
 
     assign host_32b_rvalid = 
         ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid ? ddr2_apb_axi_rvalid : '0) |
         ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid ? harness_csr_axi_rvalid : '0) |
         ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid ? dfi_mon_ram_axi_rvalid : '0) |
-        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rvalid : '0);
+        ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid ? obs_apb_axi_rvalid : '0) |
+        ((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid ? chargen_apb_axi_rvalid : '0);
 
 
     // Master: host, Width path: 64b

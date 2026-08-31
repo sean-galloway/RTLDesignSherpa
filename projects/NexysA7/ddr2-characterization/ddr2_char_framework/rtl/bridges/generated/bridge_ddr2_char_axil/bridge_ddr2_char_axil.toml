@@ -38,6 +38,30 @@
 #                                              PSLVERR=0) or a stray access to
 #                                              0x90000 hangs the host bus.
 #
+#   chargen_apb    0x000A0000  4 KB    APB    Traffic-generator config
+#                                              (chargen_regs, generated from
+#                                              ddr2_char_framework/rtl/
+#                                              chargen_regs.rdl). Sixteen
+#                                              per-bank pattern generators --
+#                                              eight write, eight read -- each
+#                                              with an eleven-register config
+#                                              plus status, on a 0x40 stride,
+#                                              and a shared GO register that
+#                                              launches any subset on one cycle.
+#                                              Occupies 0x000..0x417, so 4 KB is
+#                                              the window with room to grow.
+#
+#                                              SEPARATE FROM harness_csr on
+#                                              purpose: harness_csr describes the
+#                                              BOARD and is hand-written for its
+#                                              pulses and PHY indirection; this
+#                                              describes the WORKLOAD and is pure
+#                                              array, so it is generated. Folding
+#                                              sixteen generators into
+#                                              harness_csr would triple its
+#                                              register count with state the
+#                                              harness never reads.
+#
 # NB: desc_ram was in the original 1x5 layout as a placeholder for a
 # future dma_address_gen path. Removed because the pattern-gen engines
 # (axi4_master_wr_pattern_gen + axi4_master_rd_crc_check) have their own
@@ -148,4 +172,18 @@ addr_width  = 32
 data_width  = 32
 user_width  = 0
 base_addr   = "0x00090000"
+addr_range  = "0x00001000"     # 4 KB
+
+[[bridge.slaves]]
+name        = "chargen_apb"
+# The generated chargen_regs block behind the harness's apb4_to_peakrdl shim.
+# APB/4 KB like obs_apb -- same shape, same reason.
+prefix      = "chargen_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0       # APB has no IDs; validator forces this to 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x000A0000"
 addr_range  = "0x00001000"     # 4 KB

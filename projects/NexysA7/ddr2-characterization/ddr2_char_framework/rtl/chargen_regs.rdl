@@ -1,0 +1,271 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// DDR2/LPDDR2 characterization TRAFFIC-GENERATOR configuration — PeakRDL source
+//
+// UNLIKE harness_csr.rdl, THIS ONE GENERATES ITS RTL. harness_csr.sv is hand
+// written because it carries self-clearing pulses, latches and the a7ddrphy
+// indirect window that PeakRDL cannot express; the generator config is plain
+// staged state plus one launch pulse, so there is no reason to hand-write 176
+// registers. Regenerate with bin/peakrdl_generate.py (never `peakrdl regblock`
+// directly — the wrapper emits RTL, docs and the Python regmap in lockstep):
+//
+//   cd $REPO_ROOT && source env_python
+//   python3 bin/peakrdl_generate.py \
+//       projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/chargen_regs.rdl \
+//       -o projects/NexysA7/ddr2-characterization/ddr2_char_framework/rtl/generated/chargen_regs \
+//       --regmap-output projects/NexysA7/ddr2-characterization/ddr2_char_framework/dv/tbclasses/chargen_regs_regmap.py
+//
+//=============================================================================
+// WHY THIS IS A SEPARATE BLOCK FROM harness_csr
+//=============================================================================
+// The harness owns harness_csr and always will: build identity, the DFI tuning
+// tuple, the timer, the trace ring, the PHY window. Those describe THE BOARD.
+//
+// The generators describe THE WORKLOAD, and there are now sixteen of them —
+// eight writers and eight readers, one per DRAM bank. Folding sixteen copies of
+// an eleven-register config into harness_csr would triple that file's register
+// count with state the harness itself never reads, and would put a
+// hand-maintained map in front of a surface that is pure array. So the
+// generators get their own regblock behind their own APB slave, and the harness
+// is reduced to instantiation — the same argument obs_regs made for the
+// observer, and it applies here for the same reason.
+//
+//=============================================================================
+// WHY EIGHT OF EACH
+//=============================================================================
+// One generator per bank. The flat ~12.7 MB/s board result was traced to the
+// arbiter falling back to a single oldest bank (serialised ACT -> tRCD ->
+// access) — but a harness that drives ONE address stream cannot tell that apart
+// from a controller that refuses to go bank-parallel. Eight independently
+// addressed generators make bank concurrency a property of the stimulus rather
+// than of a hand-built address pattern, so the measurement can distinguish the
+// two. NUM_GEN is fixed at 8 to match NUM_BANKS on the MT47H64M16; the harness
+// asserts the two agree rather than trusting them to.
+//
+// Splitting read from write is the other half of the same argument: with the
+// directions on separate bridges the mix is a knob, so read/write turnaround
+// (tWTR/tRTW) can be swept instead of being an accidental constant in every
+// number.
+//
+//=============================================================================
+// LAUNCH IS GLOBAL, ON PURPOSE
+//=============================================================================
+// Every generator is STAGED first (write its config, in any order, over as many
+// bus transactions as it takes), then all sixteen start on one cycle from a
+// single write to GO. Staging and launching are separate because a per-
+// generator start bit means the first generator has been running for however
+// many microseconds it took the host to program the last one — on the rapids
+// characterization that skew was enough to produce 0%-utilization windows and a
+// meaningless number. One write, one start edge, one measurement window.
+//
+// Address space: 4 KB APB window (12-bit PADDR), matching the bridge slot.
+//   0x000..0x1FF   WR_GEN[0..7]   0x40 stride
+//   0x200..0x3FF   RD_GEN[0..7]   0x40 stride
+//   0x400..        global launch / status / identity
+//=============================================================================
+
+addrmap chargen_regs {
+    name = "DDR2 characterization traffic-generator configuration";
+    desc = "Per-bank AXI4 write/read pattern-generator config, staged then launched together";
+
+    default regwidth    = 32;
+    default accesswidth = 32;
+    default alignment   = 4;
+
+    //=========================================================================
+    // Shared config register types
+    //
+    // Field widths are the ENGINE's widths, not 32 rounded up. STRIDE_WIDTH is
+    // 24 and TXN_COUNT_WIDTH is 16 on both engines; declaring them at their
+    // true width makes an over-wide host write read back as what the hardware
+    // will actually use, instead of silently dropping the top bits somewhere
+    // downstream. That distinction is not academic here — a truncation nobody
+    // could see is how the BL4/BL8 geometry mismatch survived six weeks.
+    //=========================================================================
+    // NOTE ON FIELD NAMES: none of these is called `value`. PeakRDL emits the
+    // field as a struct member under the register, so a field named `value`
+    // produces `START_ADDR.value.value` -- two identifiers of the same name at
+    // adjacent nesting levels, which the repo's declaration-order gate
+    // (bin/check_sv_decl_order.py) reports as a use-before-declaration. It is a
+    // false positive, but every other generated regblock here (obs_regs,
+    // pumice_csr) already avoids the name, so this one does too rather than
+    // teach the checker about a shape only this file has. Descriptive names are
+    // better anyway: `.addr` says what it is and `.value` does not.
+    reg addr_t {  desc = "32-bit address";
+        field { sw = rw; hw = r; } addr[31:0]  = 0; };
+    reg mask_t {  desc = "32-bit address wrap mask";
+        field { sw = rw; hw = r; } mask[31:0]  = 0; };
+    reg seed_t {  desc = "32-bit generator seed";
+        field { sw = rw; hw = r; } seed[31:0]  = 0; };
+    reg crc_t {   desc = "32-bit CRC, computed by the engine";
+        field { sw = r;  hw = w; } crc[31:0]   = 0; };
+    reg count_t { desc = "32-bit event count, computed by the engine";
+        // NOT `count`: TBClasses/apb/register_map.py reserves that key for a
+        // register array's element count, so a field of that name makes
+        // RegisterMap read a dict where it expects an int and the whole map
+        // fails to construct. Same class of collision as `value` above, found
+        // the same way -- by loading the generated regmap before trusting it.
+        field { sw = r;  hw = w; } beats[31:0] = 0; };
+
+    reg stride_t {
+        desc = "Signed address stride, STRIDE_WIDTH=24 (two's complement)";
+        field { sw = rw; hw = r; } stride[23:0] = 0;
+    };
+
+    reg blen_txn_t {
+        desc = "Burst length / transaction count / inter-burst gap";
+        // burst_len is in BEATS (1..256); the engine emits AxLEN = burst_len-1.
+        // It must stay a whole DRAM burst: a half burst is ILLEGAL in the
+        // generators, not merely slow, and the harness checks it.
+        field { sw = rw; hw = r; } burst_len[7:0]   = 0;
+        field { sw = rw; hw = r; } txn_count[23:8]  = 0;
+        field { sw = rw; hw = r; } gap[27:24]       = 0;
+    };
+
+    reg axi_attr_t {
+        desc = "AXI id / id_mode / size / burst / data_mode";
+        field { sw = rw; hw = r; } axi_id[7:0]     = 0;
+        field { sw = rw; hw = r; } id_mode[9:8]    = 0;
+        field { sw = rw; hw = r; } axi_size[12:10] = 0;
+        field { sw = rw; hw = r; } axi_burst[14:13]= 0;
+        field { sw = rw; hw = r; } data_mode[15:15]= 0;
+    };
+
+    //=========================================================================
+    // One write generator (axi4_master_wr_pattern_gen)
+    //
+    // Config occupies 0x00..0x28 in exactly the order and layout harness_csr
+    // used for the single-engine build, so host code that programmed the old
+    // WR_* block ports across unchanged — only the base address moves.
+    //=========================================================================
+    regfile wr_gen_t {
+        addr_t     START_ADDR   @ 0x00;
+        stride_t   STRIDE_0     @ 0x04;
+        stride_t   STRIDE_1     @ 0x08;
+        mask_t     WRAP_MASK_0  @ 0x0C;
+        mask_t     WRAP_MASK_1  @ 0x10;
+        blen_txn_t BLEN_TXN     @ 0x14;
+        axi_attr_t AXI_ATTR     @ 0x18;
+        seed_t     LFSR_SEED    @ 0x1C;
+        seed_t     HASH_SEED0   @ 0x20;
+        seed_t     HASH_SEED1   @ 0x24;
+        seed_t     HASH_SEED2   @ 0x28;
+
+        reg {
+            desc = "Per-generator completion and sticky error status";
+            field { sw = r; hw = w; } done[0:0]        = 0;  // all B responses received
+            field { sw = r; hw = w; } crc_valid[1:1]   = 0;  // asserted with done
+            field { sw = r; hw = w; } bresp_error[2:2] = 0;  // sticky, any non-OKAY BRESP
+        } STATUS @ 0x30;
+
+        // The pattern this generator wrote, as the writer computed it. The
+        // reader on the same bank recomputes it independently; the host
+        // compares. Neither side is told the answer.
+        crc_t      EXPECTED_CRC @ 0x34;
+    };
+
+    //=========================================================================
+    // One read generator (axi4_master_rd_crc_check)
+    //
+    // Same config layout as the writer -- deliberately, so a host can program
+    // a matched pair from one routine -- with a wider status because the reader
+    // is the checking side.
+    //=========================================================================
+    regfile rd_gen_t {
+        addr_t     START_ADDR   @ 0x00;
+        stride_t   STRIDE_0     @ 0x04;
+        stride_t   STRIDE_1     @ 0x08;
+        mask_t     WRAP_MASK_0  @ 0x0C;
+        mask_t     WRAP_MASK_1  @ 0x10;
+        blen_txn_t BLEN_TXN     @ 0x14;
+        axi_attr_t AXI_ATTR     @ 0x18;
+        seed_t     LFSR_SEED    @ 0x1C;
+        seed_t     HASH_SEED0   @ 0x20;
+        seed_t     HASH_SEED1   @ 0x24;
+        seed_t     HASH_SEED2   @ 0x28;
+
+        reg {
+            desc = "Per-generator completion and sticky error status";
+            field { sw = r; hw = w; } done[0:0]              = 0;
+            field { sw = r; hw = w; } crc_valid[1:1]         = 0;
+            field { sw = r; hw = w; } data_error[2:2]        = 0;  // sticky, R beat mismatch
+            field { sw = r; hw = w; } rresp_error[3:3]       = 0;  // sticky, non-OKAY R beat
+            field { sw = r; hw = w; } stray_beat_error[4:4]  = 0;  // sticky, beat with no outstanding AR
+        } STATUS @ 0x30;
+
+        crc_t      ACTUAL_CRC   @ 0x34;
+
+        // Counts, not just flags. "Some beats were wrong" and "one beat in
+        // three thousand was wrong" call for different investigations, and the
+        // sticky bit cannot tell them apart.
+        count_t    BEATS_MISM   @ 0x38;
+        count_t    STRAY_BEATS  @ 0x3C;
+    };
+
+    //=========================================================================
+    // The arrays. Index == DRAM bank, by convention the host is expected to
+    // honour -- nothing in hardware forces generator N onto bank N, because
+    // the bank field's position is pumice's ADDR_MAP.bank_lsb and therefore
+    // runtime state. The host computes each START_ADDR from the map it
+    // programmed. Getting this wrong does not fail; it silently measures
+    // something other than bank concurrency, so the host asserts the mapping.
+    //=========================================================================
+    wr_gen_t WR_GEN[8] @ 0x000 += 0x40;
+    rd_gen_t RD_GEN[8] @ 0x200 += 0x40;
+
+    //=========================================================================
+    // Global launch and roll-up (0x400..)
+    //=========================================================================
+    reg {
+        desc = "Launch. Writing a 1 starts that generator; bits are self-clearing, so one write starts any subset on a single cycle.";
+        // singlepulse is defined per FIELD and a field must be one bit wide, so
+        // the mask is written out bit by bit. It is still one register and one
+        // write: every bit set in that write pulses on the same cycle.
+        field { sw = w; hw = r; singlepulse; } wr_go0[0:0] = 0;
+        field { sw = w; hw = r; singlepulse; } wr_go1[1:1] = 0;
+        field { sw = w; hw = r; singlepulse; } wr_go2[2:2] = 0;
+        field { sw = w; hw = r; singlepulse; } wr_go3[3:3] = 0;
+        field { sw = w; hw = r; singlepulse; } wr_go4[4:4] = 0;
+        field { sw = w; hw = r; singlepulse; } wr_go5[5:5] = 0;
+        field { sw = w; hw = r; singlepulse; } wr_go6[6:6] = 0;
+        field { sw = w; hw = r; singlepulse; } wr_go7[7:7] = 0;
+        field { sw = w; hw = r; singlepulse; } rd_go0[8:8] = 0;
+        field { sw = w; hw = r; singlepulse; } rd_go1[9:9] = 0;
+        field { sw = w; hw = r; singlepulse; } rd_go2[10:10] = 0;
+        field { sw = w; hw = r; singlepulse; } rd_go3[11:11] = 0;
+        field { sw = w; hw = r; singlepulse; } rd_go4[12:12] = 0;
+        field { sw = w; hw = r; singlepulse; } rd_go5[13:13] = 0;
+        field { sw = w; hw = r; singlepulse; } rd_go6[14:14] = 0;
+        field { sw = w; hw = r; singlepulse; } rd_go7[15:15] = 0;
+    } GO @ 0x400;
+
+    reg {
+        desc = "Per-generator done, gathered so a poll costs one read instead of sixteen";
+        field { sw = r; hw = w; } wr_done[7:0]  = 0;
+        field { sw = r; hw = w; } rd_done[15:8] = 0;
+    } DONE @ 0x404;
+
+    reg {
+        desc = "Sticky error roll-up across all generators; read STATUS per generator to localise";
+        field { sw = r; hw = w; } wr_bresp_error[7:0] = 0;
+        field { sw = r; hw = w; } rd_any_error[15:8]  = 0;
+    } ERRORS @ 0x408;
+
+    //=========================================================================
+    // Identity. Driven from the harness's own parameters so the count the host
+    // programs cannot drift from the count that was compiled -- the same
+    // argument BUILD_CONFIG makes in harness_csr, and made for the same reason:
+    // a geometry assumption that is wrong shows up as garbage data, not as a
+    // mismatch anyone can see.
+    //=========================================================================
+    reg {
+        desc = "Compile-time generator array shape";
+        field { sw = r; hw = w; } num_wr_gen[7:0]  = 8;
+        field { sw = r; hw = w; } num_rd_gen[15:8] = 8;
+        field { sw = r; hw = w; } num_banks[23:16] = 8;
+    } GEN_CONFIG @ 0x410;
+
+    reg { desc = "Block identity (ASCII CGEN)";
+        field { sw = r; hw = w; } id[31:0] = 0x4347454E; } BLOCK_ID @ 0x414;
+};

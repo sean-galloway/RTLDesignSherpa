@@ -19,7 +19,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(__file__))
 import ddr2_char as dc
-from ddr2_char import DDR2CharDriver, HARNESS_CSR_BASE, HARNESS_REGMAP
+from ddr2_char import (DDR2CharDriver, HARNESS_CSR_BASE, HARNESS_REGMAP,
+                       CHARGEN_APB_BASE, CHARGEN_REGMAP)
 from TBClasses.harness.uart_register_map import UartRegisterMap
 import pumice_master as pm
 
@@ -73,6 +74,12 @@ class MockBridge:
         self._rm = UartRegisterMap(self, HARNESS_CSR_BASE,
                                    regmap_file=HARNESS_REGMAP)
         self._name = {self._rm.addr(rn): rn for rn in self._rm.registers}
+        # The generators moved to their own block at CHARGEN_APB_BASE, so the
+        # mock has to decode that window too or every staging write lands
+        # nowhere and the model reports a clean run it never performed.
+        self._cg = UartRegisterMap(self, CHARGEN_APB_BASE,
+                                   regmap_file=CHARGEN_REGMAP)
+        self._name.update({self._cg.addr(rn): rn for rn in self._cg.registers})
 
     def _reg(self, addr):
         return self._name.get(addr)
@@ -87,20 +94,41 @@ class MockBridge:
             self.dev.phy_wdata = val
         elif name == "PHY_CSR_CTRL" and (val & 1):
             self.dev.apply_phy(self.dev.phy_addr, self.dev.phy_wdata)
-        elif name == "CTRL":
-            if val & (1 << 0):                       # start_wr
+        elif name == "GO":
+            # Launch. Bits 7:0 are the write generators, 15:8 the readers; a
+            # single write can start any subset, which is the behaviour the
+            # model has to reproduce for a multi-generator run to mean anything.
+            wr_mask = val & 0xFF
+            rd_mask = (val >> 8) & 0xFF
+            if wr_mask:
                 self.regs["STATUS"] = self.regs.get("STATUS", 0) | (1 << 0)
-            if val & (1 << 1):                       # start_rd
+                done = self.regs.get("DONE", 0) | wr_mask
+                self.regs["DONE"] = done
+                for g in range(8):
+                    if wr_mask >> g & 1:
+                        self.regs[f"WR_GEN{g}_STATUS"] = 0b011   # done, crc_valid
+                        self.regs[f"WR_GEN{g}_EXPECTED_CRC"] = 0xABCD
+            if rd_mask:
                 self.regs["STATUS"] = self.regs.get("STATUS", 0) | (1 << 1)
                 ok = self.dev.read_ok()
-                self.regs["CRC_MATCH"]    = 0b111 if ok else 0b110  # valid; match=ok
-                self.regs["CRC_EXPECTED"] = 0xABCD
-                self.regs["CRC_ACTUAL"]   = 0xABCD if ok else 0xDEAD
-                self.regs["BEATS_MISM"]   = 0 if ok else 4
+                self.regs["DONE"] = self.regs.get("DONE", 0) | (rd_mask << 8)
+                self.regs["CRC_MATCH"] = 1 if ok else 0
+                self.regs["ERRORS"] = 0 if ok else (rd_mask << 8)
+                for g in range(8):
+                    if rd_mask >> g & 1:
+                        self.regs[f"RD_GEN{g}_STATUS"] = 0b011 if ok else 0b111
+                        self.regs[f"RD_GEN{g}_ACTUAL_CRC"] = 0xABCD if ok else 0xDEAD
+                        self.regs[f"RD_GEN{g}_BEATS_MISM"] = 0 if ok else 4
+        elif name == "CTRL":
+            # start_wr / start_rd (bits 0/1) are RETIRED -- launch is GO above.
             if val & (1 << 2):                       # clear_stats
                 self.regs["STATUS"] = 0
+                self.regs["DONE"] = 0
+                self.regs["ERRORS"] = 0
             if val & (1 << 4):                       # soft_reset
                 self.regs["STATUS"] = 0
+                self.regs["DONE"] = 0
+                self.regs["ERRORS"] = 0
         return True
 
     def read(self, addr):

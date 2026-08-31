@@ -52,13 +52,27 @@ if _CTRL_DV_DIR not in sys.path:
 
 from tbclasses.pumice_top_tb import DDR2LPDDR2TopTB  # noqa: E402
 
+# The generators are programmed over APB, by register name, exactly as the host
+# programs them on the board -- see chargen_driver for why that equivalence is
+# the point rather than a nicety.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "tbclasses"))
+from chargen_driver import ChargenDriver  # noqa: E402
+
 
 _NBA_SETTLE_PS = 100
 
 
 # ---------------------------------------------------------------------------
-# Engine cfg helpers — drive the cfg ports directly. The macro's cfg surface
-# is just SV input ports, so a plain `dut.cfg_*.value = ...` is enough.
+# Engine cfg helpers -- program over APB, by register name.
+#
+# These used to poke `dut.cfg_*.value` directly, which was possible when the
+# macro exported one writer's and one reader's config as flat ports. It is gone
+# for two reasons. There are sixteen engines now, so the flat surface would be
+# some six hundred wires. And more importantly, poking ports meant the register
+# decode those values arrive through was never exercised in simulation -- a
+# register that decoded to the wrong address could only be found on silicon.
+# Programming over APB makes the sim drive the same path the board does.
 # ---------------------------------------------------------------------------
 
 
@@ -97,30 +111,33 @@ DRAM_BEAT_BYTES   = 4   # 32-bit pumice DRAM beat
 BURST_LEN_MULTIPLE = 8
 
 
+def _chargen(dut, log=None) -> ChargenDriver:
+    """The generator-config driver for this dut, created once.
+
+    Cached on the dut because the helpers below are module-level functions
+    that only receive `dut` -- threading a driver through every call site
+    would be a bigger edit than the behaviour warrants.
+    """
+    drv = getattr(dut, "_chargen_driver", None)
+    if drv is None:
+        drv = ChargenDriver(dut, clock=dut.pclk, prefix="s_chargen_apb",
+                            addr_width=12, log=log)
+        dut._chargen_driver = drv
+    return drv
+
+
 async def _drive_engine_idle(dut) -> None:
-    """Idle all writer + reader cfg surfaces so the engines stay in
-    S_IDLE until we explicitly pulse cfg_*_start."""
-    for prefix in ("cfg_wr", "cfg_rd"):
-        getattr(dut, f"{prefix}_start_addr").value       = 0
-        getattr(dut, f"{prefix}_addr_stride_0").value    = 0
-        getattr(dut, f"{prefix}_addr_stride_1").value    = 0
-        getattr(dut, f"{prefix}_addr_wrap_mask_0").value = 0
-        getattr(dut, f"{prefix}_addr_wrap_mask_1").value = 0
-        getattr(dut, f"{prefix}_burst_len").value        = 1
-        getattr(dut, f"{prefix}_txn_count").value        = 0
-        getattr(dut, f"{prefix}_axi_id").value           = 0
-        getattr(dut, f"{prefix}_id_mode").value          = 0
-        getattr(dut, f"{prefix}_axi_size").value         = 3
-        getattr(dut, f"{prefix}_axi_burst").value        = 1
-        getattr(dut, f"{prefix}_lfsr_seed").value        = 0
-        getattr(dut, f"{prefix}_data_mode").value        = 0
-        getattr(dut, f"{prefix}_hash_seed0").value       = 0
-        getattr(dut, f"{prefix}_hash_seed1").value       = 0
-        getattr(dut, f"{prefix}_hash_seed2").value       = 0
-    dut.cfg_wr_gap.value   = 0
-    dut.cfg_rd_gap.value   = 0
-    dut.cfg_wr_start.value = 0
-    dut.cfg_rd_start.value = 0
+    """Put the generator config in its idle state.
+
+    There is nothing to drive any more. Every chargen_regs field resets to 0,
+    which means txn_count = 0 and no GO pulse, so all sixteen engines sit in
+    S_IDLE out of reset by construction rather than because the bench held
+    their ports low. Resetting the APB bus is the whole job.
+
+    Kept as a named step because the call sites read better for it, and
+    because "the engines are idle here" is worth being able to point at.
+    """
+    await _chargen(dut).reset()
 
 
 def _check_full_burst(burst_len: int, who: str) -> None:
@@ -158,42 +175,45 @@ def _check_full_burst(burst_len: int, who: str) -> None:
 async def _program_writer(dut, *, start_addr: int, stride_0: int,
                           burst_len: int, txn_count: int,
                           axi_id: int = 0, axi_size: int = 3,
-                          lfsr_seed: int = 0, id_mode: int = 0) -> None:
+                          lfsr_seed: int = 0, id_mode: int = 0,
+                          gap: int = 0, gen: int = 0) -> None:
+    """Stage write generator `gen` over APB. Does NOT start it.
+
+    Staging and launching are separate on purpose: GO starts every selected
+    generator on one cycle, and that is only meaningful if the staging is
+    already done. `gap` is programmed here too -- it used to be poked
+    separately at the call site, between programming and the start pulse,
+    which worked only because there was one engine to poke.
+    """
     _check_full_burst(burst_len, "writer")
-    dut.cfg_wr_start_addr.value    = start_addr
-    dut.cfg_wr_addr_stride_0.value = stride_0
-    dut.cfg_wr_burst_len.value     = burst_len
-    dut.cfg_wr_txn_count.value     = txn_count
-    dut.cfg_wr_axi_id.value        = axi_id
-    dut.cfg_wr_id_mode.value       = id_mode
-    dut.cfg_wr_axi_size.value      = axi_size
-    dut.cfg_wr_lfsr_seed.value     = lfsr_seed
-    await RisingEdge(dut.mc_clk)
-    await Timer(_NBA_SETTLE_PS, units="ps")
+    await _chargen(dut).program_writer(
+        gen, start_addr=start_addr, stride_0=stride_0, burst_len=burst_len,
+        txn_count=txn_count, axi_id=axi_id, id_mode=id_mode,
+        axi_size=axi_size, lfsr_seed=lfsr_seed, gap=gap,
+    )
 
 
 async def _program_reader(dut, *, start_addr: int, stride_0: int,
                           burst_len: int, txn_count: int,
                           axi_id: int = 0, axi_size: int = 3,
-                          lfsr_seed: int = 0, id_mode: int = 0) -> None:
+                          lfsr_seed: int = 0, id_mode: int = 0,
+                          gap: int = 0, gen: int = 0) -> None:
+    """Stage read generator `gen` over APB. Does NOT start it."""
     _check_full_burst(burst_len, "reader")
-    dut.cfg_rd_start_addr.value    = start_addr
-    dut.cfg_rd_addr_stride_0.value = stride_0
-    dut.cfg_rd_burst_len.value     = burst_len
-    dut.cfg_rd_txn_count.value     = txn_count
-    dut.cfg_rd_axi_id.value        = axi_id
-    dut.cfg_rd_id_mode.value       = id_mode
-    dut.cfg_rd_axi_size.value      = axi_size
-    dut.cfg_rd_lfsr_seed.value     = lfsr_seed
-    await RisingEdge(dut.mc_clk)
-    await Timer(_NBA_SETTLE_PS, units="ps")
+    await _chargen(dut).program_reader(
+        gen, start_addr=start_addr, stride_0=stride_0, burst_len=burst_len,
+        txn_count=txn_count, axi_id=axi_id, id_mode=id_mode,
+        axi_size=axi_size, lfsr_seed=lfsr_seed, gap=gap,
+    )
 
 
-async def _pulse(dut, port_name: str) -> None:
-    getattr(dut, port_name).value = 1
-    await RisingEdge(dut.mc_clk)
-    await Timer(_NBA_SETTLE_PS, units="ps")
-    getattr(dut, port_name).value = 0
+async def _start_writers(dut, mask: int = 0x01) -> None:
+    """Launch the selected write generators -- one write, one start edge."""
+    await _chargen(dut).go(wr_mask=mask)
+
+
+async def _start_readers(dut, mask: int = 0x01) -> None:
+    await _chargen(dut).go(rd_mask=mask)
 
 
 async def _wait_done(dut, done_signal: str, timeout: int = 500_000) -> None:
@@ -206,6 +226,41 @@ async def _wait_done(dut, done_signal: str, timeout: int = 500_000) -> None:
     raise TimeoutError(
         f"{done_signal} did not assert within {timeout} cycles"
     )
+
+
+async def _assert_engines_clean(dut, gen: int = 0, context: str = "") -> None:
+    """Assert generator `gen` finished with no protocol or data errors.
+
+    Reads the per-generator STATUS register rather than a pin, because with
+    sixteen engines "an error happened" is not useful on its own -- the failure
+    message has to say WHICH generator, and the register is what knows.
+    """
+    drv = _chargen(dut)
+    st = await drv.reader_status(gen)
+    wr_err, rd_err = await drv.errors()
+
+    assert not (wr_err >> gen) & 1, (
+        f"writer {gen} latched a BRESP error{' ' + context if context else ''}")
+    assert not st["rresp_error"], (
+        f"reader {gen} latched an RRESP error{' ' + context if context else ''}")
+    assert not st["data_error"], (
+        f"reader {gen} data error{' ' + context if context else ''}")
+    assert not st["stray_beat_error"], (
+        f"reader {gen} saw stray R beats ({st['stray_beats']}) "
+        f"{context}".rstrip())
+    assert st["beats_mismatched"] == 0, (
+        f"reader {gen} mismatched {st['beats_mismatched']} beats "
+        f"{context}".rstrip())
+
+
+async def _assert_crc_match(dut, gen: int = 0, context: str = "") -> None:
+    """Assert the writer/reader pair on `gen` computed the same CRC."""
+    exp, act = await _chargen(dut).crc_pair(gen)
+    assert exp == act, (
+        f"CRC mismatch on pair {gen}"
+        f"{' (' + context + ')' if context else ''}: "
+        f"exp=0x{exp:08X} act=0x{act:08X}")
+
 
 
 # ---------------------------------------------------------------------------
@@ -258,6 +313,9 @@ async def cocotb_test_ddr2_char_macro(dut):
     tb.init_register_map()
     tb.init_apb4_master()
     await tb.apb4_master.reset_bus()
+    # Second APB window: the generator config block. Created here so the log
+    # goes to the same place, and reset before anything is staged.
+    await _chargen(dut, log=tb.log).reset()
     tb.init_dfi_slave()
     await tb.program_defaults(dfi_rate=DFI_RATE, dram_bl=DRAM_BL)
     tb.init_dfi_monitor()        # capture DFI cmd/wr-data/rd-data queues
@@ -341,11 +399,9 @@ async def cocotb_test_ddr2_char_macro(dut):
         await _program_writer(dut, start_addr=BASE, stride_0=STRIDE,
                               burst_len=BURST, txn_count=N,
                               axi_id=axi_id_base, id_mode=id_mode,
-                              lfsr_seed=SEED)
-        dut.cfg_wr_gap.value = wr_gap
-        await RisingEdge(dut.mc_clk)
-        await _pulse(dut, "cfg_wr_start")
-        await _wait_done(dut, "cfg_wr_done", timeout=1_000_000)
+                              lfsr_seed=SEED, gap=wr_gap)
+        await _start_writers(dut)
+        await _wait_done(dut, "gen_wr_done", timeout=1_000_000)
 
         # --- Schmoo: delay before reads kick off ---
         if rd_start_delay > 0:
@@ -355,33 +411,96 @@ async def cocotb_test_ddr2_char_macro(dut):
         await _program_reader(dut, start_addr=BASE, stride_0=STRIDE,
                               burst_len=BURST, txn_count=N,
                               axi_id=axi_id_base, id_mode=id_mode,
-                              lfsr_seed=SEED)
-        dut.cfg_rd_gap.value = rd_gap
-        await RisingEdge(dut.mc_clk)
-        await _pulse(dut, "cfg_rd_start")
-        await _wait_done(dut, "cfg_rd_done", timeout=1_000_000)
+                              lfsr_seed=SEED, gap=rd_gap)
+        await _start_readers(dut)
+        await _wait_done(dut, "gen_rd_done", timeout=1_000_000)
 
-        assert int(dut.o_bresp_error.value) == 0
-        assert int(dut.o_rresp_error.value) == 0
-        assert int(dut.o_data_error.value) == 0, (
-            f"data error (axi_id={axi_id_base} id_mode={id_mode} "
-            f"wr_gap={wr_gap} rd_gap={rd_gap} "
-            f"rd_start_delay={rd_start_delay})"
-        )
-        assert int(dut.o_beats_mismatched.value) == 0
-        exp = int(dut.o_expected_crc.value)
-        act = int(dut.o_actual_crc.value)
-        assert exp == act, (
-            f"CRC mismatch (axi_id={axi_id_base} id_mode={id_mode} "
-            f"wr_gap={wr_gap} rd_gap={rd_gap} "
-            f"rd_start_delay={rd_start_delay}): "
-            f"exp=0x{exp:08X} act=0x{act:08X}"
-        )
+        ctx = (f"axi_id={axi_id_base} id_mode={id_mode} "
+               f"wr_gap={wr_gap} rd_gap={rd_gap} "
+               f"rd_start_delay={rd_start_delay}")
+        await _assert_engines_clean(dut, context=ctx)
+        await _assert_crc_match(dut, context=ctx)
         tb.log.info(
             "ooo_pacing_schmoo OK axi_id=%d id_mode=%d "
             "wr_gap=%d rd_gap=%d rd_start_delay=%d",
             axi_id_base, id_mode, wr_gap, rd_gap, rd_start_delay,
         )
+
+    elif test_type == "bank_parallel":
+        # THE reason the generator array exists: eight writers and eight
+        # readers running CONCURRENTLY, one per DRAM bank.
+        #
+        # Every other test in this file drives generator 0 and therefore one
+        # address stream, which cannot distinguish a controller that refuses to
+        # go bank-parallel from a harness that never asked it to. The flat
+        # ~12.7 MB/s board result was eventually traced to the arbiter falling
+        # back to a single oldest bank, and a single-stream bench could not have
+        # told the difference.
+        #
+        # What this checks is CORRECTNESS under concurrency, not throughput: the
+        # DFI loopback models no page timing, so bandwidth measured here means
+        # nothing. Eight streams interleaving in the CAMs, the arbiter and the
+        # read-return path is a real integrity test regardless.
+        BURST = BURST_LEN_MULTIPLE
+        N = 8
+        BYTES_PER_BEAT = 8
+        STRIDE = BURST * BYTES_PER_BEAT
+
+        # Bank-strided bases. The bank field's position is pumice's runtime
+        # ADDR_MAP.bank_lsb, so this is the HOST's model of the map it
+        # programmed -- nothing in hardware forces generator g onto bank g.
+        # program_defaults() leaves bank_lsb at its default; the stride below
+        # matches it. If the map changes, this changes with it, and the RTL
+        # will not complain -- it will just quietly measure something else.
+        BANK_LSB = 10
+        BANK_STRIDE = 1 << BANK_LSB
+        BASE = 0x0002_0000
+
+        drv = _chargen(dut, log=tb.log)
+
+        shape = await drv.gen_config()
+        assert shape["num_wr_gen"] == shape["num_banks"] == 8, (
+            f"this bitstream was built with {shape} -- the test assumes one "
+            f"generator per bank on an 8-bank device")
+
+        # Stage all sixteen first. Distinct seeds per bank so a stream landing
+        # on the wrong bank shows up as a CRC mismatch rather than as data that
+        # happens to be right for the wrong reason.
+        for g in range(8):
+            await _program_writer(dut, gen=g, start_addr=BASE + g * BANK_STRIDE,
+                                  stride_0=STRIDE, burst_len=BURST,
+                                  txn_count=N, axi_id=g,
+                                  lfsr_seed=0xA5A5_0000 + g)
+        await _start_writers(dut, mask=0xFF)
+        await _wait_done(dut, "gen_wr_done", timeout=2_000_000)
+
+        for g in range(8):
+            await _program_reader(dut, gen=g, start_addr=BASE + g * BANK_STRIDE,
+                                  stride_0=STRIDE, burst_len=BURST,
+                                  txn_count=N, axi_id=g,
+                                  lfsr_seed=0xA5A5_0000 + g)
+        await _start_readers(dut, mask=0xFF)
+        await _wait_done(dut, "gen_rd_done", timeout=2_000_000)
+
+        # Every generator, not just the ones that happened to finish first.
+        wr_done, rd_done = await drv.done()
+        assert wr_done == 0xFF, f"writers still running: done=0x{wr_done:02X}"
+        assert rd_done == 0xFF, f"readers still running: done=0x{rd_done:02X}"
+
+        for g in range(8):
+            await _assert_engines_clean(dut, gen=g, context=f"bank {g}")
+            await _assert_crc_match(dut, gen=g, context=f"bank {g}")
+
+        # And the hardware's own whole-run verdict, which is what the board
+        # reports. Checking it here is what keeps the aggregate honest: it is
+        # computed over LAUNCHED pairs, and a bug that made it ignore pairs
+        # would pass every per-generator check above.
+        assert int(dut.gen_crc_match.value) == 1, (
+            "per-pair CRCs all matched but the hardware aggregate says they "
+            "did not -- gen_crc_match's launched-pair mask is wrong")
+        assert int(dut.gen_any_error.value) == 0, "aggregate error bit set"
+
+        tb.log.info("bank_parallel OK: 8 writers + 8 readers, %d bursts each", N)
 
     elif test_type == "pacing_sweep_b2b":
         # Engine-PACING sweep — NOT an AXI random-profile sweep.
@@ -406,30 +525,20 @@ async def cocotb_test_ddr2_char_macro(dut):
         SEED = 0xDEAD_BEEF
 
         await _program_writer(dut, start_addr=BASE, stride_0=STRIDE,
-                              burst_len=BURST, txn_count=N, lfsr_seed=SEED)
+                              burst_len=BURST, txn_count=N, lfsr_seed=SEED,
+                              gap=wr_gap)
         await _program_reader(dut, start_addr=BASE, stride_0=STRIDE,
-                              burst_len=BURST, txn_count=N, lfsr_seed=SEED)
-        dut.cfg_wr_gap.value = wr_gap
-        dut.cfg_rd_gap.value = rd_gap
-        await RisingEdge(dut.mc_clk)
+                              burst_len=BURST, txn_count=N, lfsr_seed=SEED,
+                              gap=rd_gap)
 
-        await _pulse(dut, "cfg_wr_start")
-        await _wait_done(dut, "cfg_wr_done", timeout=1_000_000)
-        await _pulse(dut, "cfg_rd_start")
-        await _wait_done(dut, "cfg_rd_done", timeout=1_000_000)
+        await _start_writers(dut)
+        await _wait_done(dut, "gen_wr_done", timeout=1_000_000)
+        await _start_readers(dut)
+        await _wait_done(dut, "gen_rd_done", timeout=1_000_000)
 
-        assert int(dut.o_bresp_error.value) == 0
-        assert int(dut.o_rresp_error.value) == 0
-        assert int(dut.o_data_error.value) == 0, (
-            f"data error (wr_gap={wr_gap} rd_gap={rd_gap})"
-        )
-        assert int(dut.o_beats_mismatched.value) == 0
-        exp = int(dut.o_expected_crc.value)
-        act = int(dut.o_actual_crc.value)
-        assert exp == act, (
-            f"CRC mismatch (wr_gap={wr_gap} rd_gap={rd_gap}): "
-            f"exp=0x{exp:08X} act=0x{act:08X}"
-        )
+        ctx = f"wr_gap={wr_gap} rd_gap={rd_gap}"
+        await _assert_engines_clean(dut, context=ctx)
+        await _assert_crc_match(dut, context=ctx)
         tb.log.info(
             "pacing_sweep_b2b OK wr_gap=%d rd_gap=%d", wr_gap, rd_gap,
         )
@@ -452,8 +561,8 @@ async def cocotb_test_ddr2_char_macro(dut):
 
         # Fire the writer first; let all B's drain before the reader
         # starts walking the same descriptor.
-        await _pulse(dut, "cfg_wr_start")
-        await _wait_done(dut, "cfg_wr_done")
+        await _start_writers(dut)
+        await _wait_done(dut, "gen_wr_done")
 
         # Let any in-flight DFI WR data finish landing in memory.
         await ClockCycles(dut.mc_clk, 200)
@@ -496,8 +605,8 @@ async def cocotb_test_ddr2_char_macro(dut):
             f"Memory holds 0x{wr_bad[2]:016X}"
         )
 
-        await _pulse(dut, "cfg_rd_start")
-        await _wait_done(dut, "cfg_rd_done")
+        await _start_readers(dut)
+        await _wait_done(dut, "gen_rd_done")
 
         # === RD-PATH LOCALIZER ===
         # For every AXI R beat returned, compare against MemoryModel
@@ -518,8 +627,10 @@ async def cocotb_test_ddr2_char_macro(dut):
 
         # Integrity contract — clean DFI loopback should produce zero
         # protocol errors and matching CRCs.
-        assert int(dut.o_bresp_error.value) == 0, "BRESP error latched"
-        assert int(dut.o_rresp_error.value) == 0, "RRESP error latched"
+        wr_err, _ = await _chargen(dut).errors()
+        assert not wr_err, f"BRESP error latched by writers {wr_err:#04x}"
+        assert not (await _chargen(dut).reader_status(0))["rresp_error"], \
+            "RRESP error latched"
         # Localizer assert lives BEFORE engine's o_data_error so the
         # log lead with WHICH side broke before the generic "bad LFSR".
         assert rd_bad is None, (
@@ -527,17 +638,17 @@ async def cocotb_test_ddr2_char_macro(dut):
             f"Memory holds 0x{rd_bad[1]:016X}, "
             f"AXI R returned 0x{rd_bad[2]:016X}"
         )
-        assert int(dut.o_data_error.value) == 0, (
-            "o_data_error latched — readback data didn't match LFSR"
-        )
-        assert int(dut.o_beats_mismatched.value) == 0
-        assert int(dut.o_expected_crc_valid.value) == 1
-        assert int(dut.o_actual_crc_valid.value) == 1
-        exp = int(dut.o_expected_crc.value)
-        act = int(dut.o_actual_crc.value)
-        assert exp == act, (
-            f"CRC mismatch: expected=0x{exp:08X}, actual=0x{act:08X}"
-        )
+        await _assert_engines_clean(dut)
+
+        # Both CRCs must be VALID, not merely equal: two engines that never
+        # ran also agree, and a comparison that passes on an empty run is
+        # worse than no comparison.
+        drv = _chargen(dut)
+        rd_st = await drv.reader_status(0)
+        wr_st = await drv.read("WR_GEN0_STATUS")
+        assert wr_st & 0x2, "writer 0 never asserted crc_valid"
+        assert rd_st["crc_valid"], "reader 0 never asserted crc_valid"
+        await _assert_crc_match(dut)
 
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -553,7 +664,11 @@ async def cocotb_test_ddr2_char_macro(dut):
 # full ACT/CAS cycle) and is rejected by BURST_LEN_MULTIPLE in the RTL.
 _ALL_TYPES = ["smoke", "smoke_1x2", "smoke_2x1", "smoke_2x2",
               "kb_4burst", "kb_16burst", "kb_17burst",
-              "kb_20burst", "kb_24burst", "kb1", "kb4", "kb32"]
+              "kb_20burst", "kb_24burst", "kb1", "kb4", "kb32",
+              # Eight writers + eight readers concurrently, one per bank.
+              # The only entry here that exercises the generator ARRAY;
+              # every other one drives generator 0.
+              "bank_parallel"]
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = _ALL_TYPES   # GATE == FUNC == FULL for now
 
@@ -890,6 +1005,9 @@ async def cocotb_test_ddr2_char_csr_probe(dut):
     tb.init_register_map()
     tb.init_apb4_master()
     await tb.apb4_master.reset_bus()
+    # Second APB window: the generator config block. Created here so the log
+    # goes to the same place, and reset before anything is staged.
+    await _chargen(dut, log=tb.log).reset()
     tb.init_dfi_slave()
 
     # 1. WRITE a CSR with a value distinguishable from both 0 and reset.
@@ -1033,6 +1151,9 @@ async def cocotb_test_ddr2_char_1wr1rd(dut):
     tb.init_register_map()
     tb.init_apb4_master()
     await tb.apb4_master.reset_bus()
+    # Second APB window: the generator config block. Created here so the log
+    # goes to the same place, and reset before anything is staged.
+    await _chargen(dut, log=tb.log).reset()
     tb.init_dfi_slave()
     await tb.program_defaults(dfi_rate=DFI_RATE, dram_bl=DRAM_BL)
     await tb.wait_for_init_done()
@@ -1054,9 +1175,9 @@ async def cocotb_test_ddr2_char_1wr1rd(dut):
     await _program_writer(dut, start_addr=BASE, stride_0=8,
                           burst_len=BURST_LEN_MULTIPLE, txn_count=1, lfsr_seed=SEED)
     await RisingEdge(dut.mc_clk)
-    await _pulse(dut, "cfg_wr_start")
+    await _start_writers(dut)
     try:
-        await _wait_done(dut, "cfg_wr_done", timeout=4000)
+        await _wait_done(dut, "gen_wr_done", timeout=4000)
     except TimeoutError:
         report("WR TIMEOUT")
         raise
@@ -1096,9 +1217,9 @@ async def cocotb_test_ddr2_char_1wr1rd(dut):
     await _program_reader(dut, start_addr=BASE, stride_0=8,
                           burst_len=BURST_LEN_MULTIPLE, txn_count=1, lfsr_seed=SEED)
     await RisingEdge(dut.mc_clk)
-    await _pulse(dut, "cfg_rd_start")
+    await _start_readers(dut)
     try:
-        await _wait_done(dut, "cfg_rd_done", timeout=4000)
+        await _wait_done(dut, "gen_rd_done", timeout=4000)
     except TimeoutError:
         report("RD TIMEOUT")
         raise
@@ -1106,7 +1227,8 @@ async def cocotb_test_ddr2_char_1wr1rd(dut):
 
     assert counts["ar"] == 1, f"expected 1 AR, saw {counts['ar']}"
     assert counts["r"] >= 1, f"no R beats returned: {dict(counts)}"
-    assert int(dut.o_data_error.value) == 0, "read data mismatch"
+    rd_st = await _chargen(dut).reader_status(0)
+    assert not rd_st["data_error"], "read data mismatch"
     tb.log.info("PASS 1wr/1rd: %s", dict(counts))
 
 

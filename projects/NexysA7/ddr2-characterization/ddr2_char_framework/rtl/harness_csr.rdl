@@ -82,8 +82,11 @@ addrmap harness_csr {
     word_ro_t DBG_WR_PTR   @ 0x08;
     reg { desc = "Sticky trace-overflow flag";
         field { sw = r; hw = w; } overflow[0:0] = 0; } DBG_OVERFLOW @ 0x0C;
-    word_ro_t CRC_EXPECTED @ 0x10;
-    word_ro_t CRC_ACTUAL   @ 0x14;
+    // 0x10 / 0x14 (CRC_EXPECTED / CRC_ACTUAL) are RETIRED and read 0. With
+    // eight writer/reader pairs a single pair described nothing; the per-
+    // generator CRCs are in chargen_regs, which is where a failure is localised.
+    word_ro_t CRC_EXPECTED @ 0x10;   // retired, reads 0
+    word_ro_t CRC_ACTUAL   @ 0x14;   // retired, reads 0
     reg {
         desc = "CRC comparison result";
         field { sw = r; hw = w; } match[0:0]         = 0;
@@ -94,6 +97,7 @@ addrmap harness_csr {
     word_rw_t SCRATCH  @ 0x1C;
     reg { desc = "Parameter-driven build ID (ASCII DDR2)";
         field { sw = r; hw = w; } value[31:0] = 0x44445232; } BUILD_ID @ 0x20;
+    // Retired, reads 0 -- per-generator counts live in chargen_regs.
     word_ro_t BEATS_MISM @ 0x24;
 
     //=========================================================================
@@ -164,34 +168,17 @@ addrmap harness_csr {
     word_ro_t PHY_CSR_RDATA @ 0x8C;
 
     //=========================================================================
-    // WR engine cfg (0x100..0x128)
+    // Engine cfg (0x100..0x1AF) -- RETIRED
     //=========================================================================
-    word_rw_t  WR_START_ADDR  @ 0x100;
-    word_rw_t  WR_STRIDE_0     @ 0x104;
-    word_rw_t  WR_STRIDE_1     @ 0x108;
-    word_rw_t  WR_WRAP_MASK_0  @ 0x10C;
-    word_rw_t  WR_WRAP_MASK_1  @ 0x110;
-    blen_txn_t WR_BLEN_TXN     @ 0x114;
-    axi_attr_t WR_AXI_ATTR     @ 0x118;
-    word_rw_t  WR_LFSR_SEED    @ 0x11C;
-    word_rw_t  WR_HASH_SEED0   @ 0x120;
-    word_rw_t  WR_HASH_SEED1   @ 0x124;
-    word_rw_t  WR_HASH_SEED2   @ 0x128;
-
+    // The WR_* and RD_* blocks that lived here configured ONE writer and ONE
+    // reader. There are sixteen engines now -- eight of each, one per DRAM bank
+    // -- and their config lives in chargen_regs, a GENERATED PeakRDL block on
+    // its own APB slave at 0x000A0000 (rtl/chargen_regs.rdl).
+    //
+    // The hole is deliberately left empty rather than re-used. A host that was
+    // never migrated then fails at the register it expected, reading zero,
+    // instead of finding some unrelated new register underneath it.
     //=========================================================================
-    // RD engine cfg (0x180..0x1A8) — mirror of WR
-    //=========================================================================
-    word_rw_t  RD_START_ADDR  @ 0x180;
-    word_rw_t  RD_STRIDE_0     @ 0x184;
-    word_rw_t  RD_STRIDE_1     @ 0x188;
-    word_rw_t  RD_WRAP_MASK_0  @ 0x18C;
-    word_rw_t  RD_WRAP_MASK_1  @ 0x190;
-    blen_txn_t RD_BLEN_TXN     @ 0x194;
-    axi_attr_t RD_AXI_ATTR     @ 0x198;
-    word_rw_t  RD_LFSR_SEED    @ 0x19C;
-    word_rw_t  RD_HASH_SEED0   @ 0x1A0;
-    word_rw_t  RD_HASH_SEED1   @ 0x1A4;
-    word_rw_t  RD_HASH_SEED2   @ 0x1A8;
 
     //=========================================================================
     // Perf observability (0x1C0..0x1E8)

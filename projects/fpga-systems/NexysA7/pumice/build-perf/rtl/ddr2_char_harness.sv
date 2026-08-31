@@ -262,8 +262,19 @@ module ddr2_char_harness
     logic [3:0]  obs_apb_PSTRB;
     logic [2:0]  obs_apb_PPROT;
 
+    // Slave 5 (chargen_apb) — APB 32b at 0x000A0000, the generator config
+    // block. Routed straight into ddr2_char_macro, which owns chargen_regs and
+    // the sixteen pattern generators behind it. Unlike obs_apb this slot is
+    // live, so PREADY comes back from the block rather than from a tie-off.
+    logic        chargen_apb_PSEL, chargen_apb_PENABLE, chargen_apb_PWRITE;
+    logic [31:0] chargen_apb_PADDR, chargen_apb_PWDATA;
+    logic [3:0]  chargen_apb_PSTRB;
+    logic [2:0]  chargen_apb_PPROT;
+    logic [31:0] chargen_apb_PRDATA;
+    logic        chargen_apb_PREADY, chargen_apb_PSLVERR;
+
     // =========================================================================
-    // Generated 1 -> 5 bridge
+    // Generated 1 -> 6 bridge
     // =========================================================================
     bridge_ddr2_char_axil u_bridge (
         .aclk    (aclk),
@@ -375,7 +386,19 @@ module ddr2_char_harness
         .obs_apb_PPROT    (obs_apb_PPROT),
         .obs_apb_PRDATA   (32'h0),
         .obs_apb_PREADY   (1'b1),
-        .obs_apb_PSLVERR  (1'b0)
+        .obs_apb_PSLVERR  (1'b0),
+
+        // Slave 5: chargen_apb (APB) — reserved slot, terminated below
+        .chargen_apb_PSEL     (chargen_apb_PSEL),
+        .chargen_apb_PADDR    (chargen_apb_PADDR),
+        .chargen_apb_PENABLE  (chargen_apb_PENABLE),
+        .chargen_apb_PWRITE   (chargen_apb_PWRITE),
+        .chargen_apb_PWDATA   (chargen_apb_PWDATA),
+        .chargen_apb_PSTRB    (chargen_apb_PSTRB),
+        .chargen_apb_PPROT    (chargen_apb_PPROT),
+        .chargen_apb_PRDATA   (chargen_apb_PRDATA),
+        .chargen_apb_PREADY   (chargen_apb_PREADY),
+        .chargen_apb_PSLVERR  (chargen_apb_PSLVERR)
     );
 
     // =========================================================================
@@ -385,14 +408,14 @@ module ddr2_char_harness
     logic         w_clear_stats_pulse, w_freeze_trace, w_soft_reset_pulse;
     logic         w_wr_done, w_rd_done;
     logic         w_wr_error, w_rd_error;
-    logic         w_stray_beat_error;   // 1:1 accounting: extra R beats
     logic         w_init_done, w_init_fail;
     logic [31:0]  w_dbg_wr_ptr;
     logic         w_dbg_overflow, w_dbg_clear_busy;
 
-    logic [31:0]  w_crc_expected, w_crc_actual;
-    logic         w_crc_exp_valid, w_crc_act_valid;
-    logic [TXN_COUNT_WIDTH-1:0] w_beats_mismatched;
+    // Run-level aggregates out of ddr2_char_macro. Per-generator CRCs, mismatch
+    // counts and error flags are read from chargen_regs by the host; what the
+    // harness needs is one integrity bit and one error bit.
+    logic         w_gen_any_error, w_gen_crc_match;
 
     logic         w_timer_clear_pulse;
     logic [31:0]  w_timer_expected_beats;
@@ -420,35 +443,6 @@ module ddr2_char_harness
     logic [3:0]   w_rddata_delay_sel;// DFI_TUNING.rddata_delay (runtime, from CSR)
     (* mark_debug = "true" *) logic [DFI_DATA_WIDTH-1:0] w_dfi_rddata_dly; // PHY rddata realigned to valid (ILA-probed vs raw + valid)
 
-    // WR engine cfg
-    logic [AXI_ADDR_WIDTH-1:0]        w_cfg_wr_start_addr;
-    logic signed [STRIDE_WIDTH-1:0]   w_cfg_wr_stride_0, w_cfg_wr_stride_1;
-    logic [AXI_ADDR_WIDTH-1:0]        w_cfg_wr_wrap_mask_0, w_cfg_wr_wrap_mask_1;
-    logic [BURST_LEN_WIDTH-1:0]       w_cfg_wr_burst_len;
-    logic [TXN_COUNT_WIDTH-1:0]       w_cfg_wr_txn_count;
-    logic [AXI_ID_WIDTH-1:0]          w_cfg_wr_axi_id;
-    logic [1:0]                       w_cfg_wr_id_mode;
-    logic [2:0]                       w_cfg_wr_axi_size;
-    logic [1:0]                       w_cfg_wr_axi_burst;
-    logic [3:0]                       w_cfg_wr_gap;
-    logic                             w_cfg_wr_data_mode;
-    logic [31:0]                      w_cfg_wr_lfsr_seed;
-    logic [31:0]                      w_cfg_wr_hash_seed0, w_cfg_wr_hash_seed1, w_cfg_wr_hash_seed2;
-
-    // RD engine cfg
-    logic [AXI_ADDR_WIDTH-1:0]        w_cfg_rd_start_addr;
-    logic signed [STRIDE_WIDTH-1:0]   w_cfg_rd_stride_0, w_cfg_rd_stride_1;
-    logic [AXI_ADDR_WIDTH-1:0]        w_cfg_rd_wrap_mask_0, w_cfg_rd_wrap_mask_1;
-    logic [BURST_LEN_WIDTH-1:0]       w_cfg_rd_burst_len;
-    logic [TXN_COUNT_WIDTH-1:0]       w_cfg_rd_txn_count;
-    logic [AXI_ID_WIDTH-1:0]          w_cfg_rd_axi_id;
-    logic [1:0]                       w_cfg_rd_id_mode;
-    logic [2:0]                       w_cfg_rd_axi_size;
-    logic [1:0]                       w_cfg_rd_axi_burst;
-    logic [3:0]                       w_cfg_rd_gap;
-    logic                             w_cfg_rd_data_mode;
-    logic [31:0]                      w_cfg_rd_lfsr_seed;
-    logic [31:0]                      w_cfg_rd_hash_seed0, w_cfg_rd_hash_seed1, w_cfg_rd_hash_seed2;
 
     harness_csr #(
         .AW              (32),
@@ -485,8 +479,8 @@ module ddr2_char_harness
         .s_rvalid  (s1_rvalid),  .s_rready (s1_rready),
 
         // Ctrl outputs
-        .o_start_wr_pulse    (w_start_wr_pulse),
-        .o_start_rd_pulse    (w_start_rd_pulse),
+        // No start pulses: launch is chargen_regs.GO inside the macro, and
+        // the macro reports back through gen_wr_started / gen_rd_started.
         .o_clear_stats_pulse (w_clear_stats_pulse),
         .o_freeze_trace      (w_freeze_trace),
         .o_soft_reset_pulse  (w_soft_reset_pulse),
@@ -502,11 +496,7 @@ module ddr2_char_harness
         .i_dbg_overflow    (w_dbg_overflow),
         .i_dbg_clear_busy  (w_dbg_clear_busy),
 
-        .i_crc_expected    (w_crc_expected),
-        .i_crc_actual      (w_crc_actual),
-        .i_crc_exp_valid   (w_crc_exp_valid),
-        .i_crc_act_valid   (w_crc_act_valid),
-        .i_beats_mismatched(w_beats_mismatched),
+        .i_crc_match       (w_gen_crc_match),
 
         // Timer
         .o_timer_clear_pulse    (w_timer_clear_pulse),
@@ -558,45 +548,7 @@ module ddr2_char_harness
         .o_phy_csr_adr       (o_phy_csr_adr),
         .o_phy_csr_we        (o_phy_csr_we),
         .o_phy_csr_dat_w     (o_phy_csr_dat_w),
-        .i_phy_csr_dat_r     (i_phy_csr_dat_r),
-
-        // WR engine cfg
-        .o_cfg_wr_start_addr  (w_cfg_wr_start_addr),
-        .o_cfg_wr_stride_0    (w_cfg_wr_stride_0),
-        .o_cfg_wr_stride_1    (w_cfg_wr_stride_1),
-        .o_cfg_wr_wrap_mask_0 (w_cfg_wr_wrap_mask_0),
-        .o_cfg_wr_wrap_mask_1 (w_cfg_wr_wrap_mask_1),
-        .o_cfg_wr_burst_len   (w_cfg_wr_burst_len),
-        .o_cfg_wr_txn_count   (w_cfg_wr_txn_count),
-        .o_cfg_wr_axi_id      (w_cfg_wr_axi_id),
-        .o_cfg_wr_id_mode     (w_cfg_wr_id_mode),
-        .o_cfg_wr_axi_size    (w_cfg_wr_axi_size),
-        .o_cfg_wr_axi_burst   (w_cfg_wr_axi_burst),
-        .o_cfg_wr_gap         (w_cfg_wr_gap),
-        .o_cfg_wr_data_mode   (w_cfg_wr_data_mode),
-        .o_cfg_wr_lfsr_seed   (w_cfg_wr_lfsr_seed),
-        .o_cfg_wr_hash_seed0  (w_cfg_wr_hash_seed0),
-        .o_cfg_wr_hash_seed1  (w_cfg_wr_hash_seed1),
-        .o_cfg_wr_hash_seed2  (w_cfg_wr_hash_seed2),
-
-        // RD engine cfg
-        .o_cfg_rd_start_addr  (w_cfg_rd_start_addr),
-        .o_cfg_rd_stride_0    (w_cfg_rd_stride_0),
-        .o_cfg_rd_stride_1    (w_cfg_rd_stride_1),
-        .o_cfg_rd_wrap_mask_0 (w_cfg_rd_wrap_mask_0),
-        .o_cfg_rd_wrap_mask_1 (w_cfg_rd_wrap_mask_1),
-        .o_cfg_rd_burst_len   (w_cfg_rd_burst_len),
-        .o_cfg_rd_txn_count   (w_cfg_rd_txn_count),
-        .o_cfg_rd_axi_id      (w_cfg_rd_axi_id),
-        .o_cfg_rd_id_mode     (w_cfg_rd_id_mode),
-        .o_cfg_rd_axi_size    (w_cfg_rd_axi_size),
-        .o_cfg_rd_axi_burst   (w_cfg_rd_axi_burst),
-        .o_cfg_rd_gap         (w_cfg_rd_gap),
-        .o_cfg_rd_data_mode   (w_cfg_rd_data_mode),
-        .o_cfg_rd_lfsr_seed   (w_cfg_rd_lfsr_seed),
-        .o_cfg_rd_hash_seed0  (w_cfg_rd_hash_seed0),
-        .o_cfg_rd_hash_seed1  (w_cfg_rd_hash_seed1),
-        .o_cfg_rd_hash_seed2  (w_cfg_rd_hash_seed2)
+        .i_phy_csr_dat_r     (i_phy_csr_dat_r)
     );
 
     // =========================================================================
@@ -693,7 +645,6 @@ module ddr2_char_harness
     // =========================================================================
     // ddr2_char_macro — the DUT (writer + reader + controller top)
     // =========================================================================
-    logic w_bresp_error, w_rresp_error, w_data_error;
     logic w_rd_dbg_valid, w_rd_dbg_ready, w_rd_dbg_mismatch;
     logic [AXI_DATA_WIDTH-1:0] w_rd_dbg_actual, w_rd_dbg_expected;
 
@@ -729,55 +680,35 @@ module ddr2_char_harness
         .presetn  (unit_aresetn),
 
         // WR engine cfg
-        .cfg_wr_start_addr     (w_cfg_wr_start_addr),
-        .cfg_wr_addr_stride_0  (w_cfg_wr_stride_0),
-        .cfg_wr_addr_stride_1  (w_cfg_wr_stride_1),
-        .cfg_wr_addr_wrap_mask_0(w_cfg_wr_wrap_mask_0),
-        .cfg_wr_addr_wrap_mask_1(w_cfg_wr_wrap_mask_1),
-        .cfg_wr_burst_len      (w_cfg_wr_burst_len),
-        .cfg_wr_txn_count      (w_cfg_wr_txn_count),
-        .cfg_wr_axi_id         (w_cfg_wr_axi_id),
-        .cfg_wr_id_mode        (w_cfg_wr_id_mode),
-        .cfg_wr_axi_size       (w_cfg_wr_axi_size),
-        .cfg_wr_axi_burst      (w_cfg_wr_axi_burst),
-        .cfg_wr_lfsr_seed      (w_cfg_wr_lfsr_seed),
-        .cfg_wr_data_mode      (w_cfg_wr_data_mode),
-        .cfg_wr_hash_seed0     (w_cfg_wr_hash_seed0),
-        .cfg_wr_hash_seed1     (w_cfg_wr_hash_seed1),
-        .cfg_wr_hash_seed2     (w_cfg_wr_hash_seed2),
-        .cfg_wr_gap            (w_cfg_wr_gap),
-        .cfg_wr_start          (w_start_wr_pulse),
-        .cfg_wr_done           (w_wr_done),
-        .o_expected_crc        (w_crc_expected),
-        .o_expected_crc_valid  (w_crc_exp_valid),
-        .o_bresp_error         (w_bresp_error),
+        // ---------------------------------------------------------------
+        // Generator config: one APB window, not ~600 cfg wires
+        // ---------------------------------------------------------------
+        // The engines' cfg_* ports are gone. There are sixteen engines now and
+        // their config lives in chargen_regs inside the macro, reached through
+        // the bridge's chargen_apb slave at 0x000A0000. The harness routes the
+        // window and knows nothing about what is behind it.
+        .s_chargen_apb_PSEL    (chargen_apb_PSEL),
+        .s_chargen_apb_PENABLE (chargen_apb_PENABLE),
+        .s_chargen_apb_PREADY  (chargen_apb_PREADY),
+        .s_chargen_apb_PADDR   (chargen_apb_PADDR[APB_ADDR_WIDTH-1:0]),
+        .s_chargen_apb_PWRITE  (chargen_apb_PWRITE),
+        .s_chargen_apb_PWDATA  (chargen_apb_PWDATA),
+        .s_chargen_apb_PSTRB   (chargen_apb_PSTRB[APB_STRB_WIDTH-1:0]),
+        .s_chargen_apb_PPROT   (chargen_apb_PPROT[APB_PROT_WIDTH-1:0]),
+        .s_chargen_apb_PRDATA  (chargen_apb_PRDATA),
+        .s_chargen_apb_PSLVERR (chargen_apb_PSLVERR),
 
-        // RD engine cfg
-        .cfg_rd_start_addr     (w_cfg_rd_start_addr),
-        .cfg_rd_addr_stride_0  (w_cfg_rd_stride_0),
-        .cfg_rd_addr_stride_1  (w_cfg_rd_stride_1),
-        .cfg_rd_addr_wrap_mask_0(w_cfg_rd_wrap_mask_0),
-        .cfg_rd_addr_wrap_mask_1(w_cfg_rd_wrap_mask_1),
-        .cfg_rd_burst_len      (w_cfg_rd_burst_len),
-        .cfg_rd_txn_count      (w_cfg_rd_txn_count),
-        .cfg_rd_axi_id         (w_cfg_rd_axi_id),
-        .cfg_rd_id_mode        (w_cfg_rd_id_mode),
-        .cfg_rd_axi_size       (w_cfg_rd_axi_size),
-        .cfg_rd_axi_burst      (w_cfg_rd_axi_burst),
-        .cfg_rd_lfsr_seed      (w_cfg_rd_lfsr_seed),
-        .cfg_rd_data_mode      (w_cfg_rd_data_mode),
-        .cfg_rd_hash_seed0     (w_cfg_rd_hash_seed0),
-        .cfg_rd_hash_seed1     (w_cfg_rd_hash_seed1),
-        .cfg_rd_hash_seed2     (w_cfg_rd_hash_seed2),
-        .cfg_rd_gap            (w_cfg_rd_gap),
-        .cfg_rd_start          (w_start_rd_pulse),
-        .cfg_rd_done           (w_rd_done),
-        .o_actual_crc          (w_crc_actual),
-        .o_actual_crc_valid    (w_crc_act_valid),
-        .o_data_error          (w_data_error),
-        .o_rresp_error         (w_rresp_error),
-        .o_stray_beat_error    (w_stray_beat_error),
-        .o_beats_mismatched    (w_beats_mismatched),
+        // ---------------------------------------------------------------
+        // Run-level aggregates -- what the timer and the LEDs need
+        // ---------------------------------------------------------------
+        // Per-generator detail is read from chargen_regs by the host. These
+        // five are the whole of what the harness itself has to know.
+        .gen_wr_started        (w_start_wr_pulse),
+        .gen_rd_started        (w_start_rd_pulse),
+        .gen_wr_done           (w_wr_done),
+        .gen_rd_done           (w_rd_done),
+        .gen_any_error         (w_gen_any_error),
+        .gen_crc_match         (w_gen_crc_match),
 
         // APB CSR (from bridge). ddr2_char_macro takes APB_ADDR_WIDTH bits;
         // slice apb_paddr_full down to that width.
@@ -900,11 +831,14 @@ module ddr2_char_harness
     );
 
     assign w_rd_dbg_ready = 1'b1;   // always accept
-    assign w_wr_error     = w_bresp_error;
-    // 1:1 accounting: too few (data/rresp/mismatch) AND too many (stray /
-    // late / duplicate R beats, drained + latched by the engine) are errors.
-    assign w_rd_error     = w_rresp_error | w_data_error | w_rd_dbg_mismatch
-                          | w_stray_beat_error;
+    // The macro rolls up all sixteen engines into one error bit. The old split
+    // into wr_error / rd_error is kept because STATUS reports both, but with an
+    // array the interesting question is WHICH generator failed, and that is a
+    // per-generator STATUS read from chargen_regs -- not something two bits
+    // here can answer. 1:1 accounting (too few beats from data/rresp/mismatch,
+    // too many from stray/late/duplicate R beats) is inside gen_any_error.
+    assign w_wr_error     = w_gen_any_error;
+    assign w_rd_error     = w_gen_any_error | w_rd_dbg_mismatch;
     // Placeholder: no in-harness init sequencer yet — surface CSR-side sticky.
     assign w_init_done    = 1'b1;
     assign w_init_fail    = 1'b0;
@@ -1009,7 +943,7 @@ module ddr2_char_harness
     // pass = done AND no errors AND CRC match latched (checked by host).
     assign w_timer_pass     = r_done
                              & ~w_wr_error & ~w_rd_error
-                             & (w_crc_expected == w_crc_actual);
+                             & w_gen_crc_match;
     assign w_timer_w_first  = r_w_first;
     assign w_timer_w_last   = r_w_last;
     assign w_timer_r_first  = r_r_first;
@@ -1029,8 +963,10 @@ module ddr2_char_harness
         w_led_status[5]     = w_timer_running;
         w_led_status[6]     = w_wr_done;
         w_led_status[7]     = w_rd_done;
-        w_led_status[8]     = w_crc_exp_valid;
-        w_led_status[9]     = w_crc_act_valid;
+        // Was exp_valid / act_valid for the single engine pair. Now: every
+        // launched pair's CRC agreed, and any generator reported an error.
+        w_led_status[8]     = w_gen_crc_match;
+        w_led_status[9]     = w_gen_any_error;
         w_led_status[10]    = w_dbg_clear_busy;
         // 15:11 reserved
     end

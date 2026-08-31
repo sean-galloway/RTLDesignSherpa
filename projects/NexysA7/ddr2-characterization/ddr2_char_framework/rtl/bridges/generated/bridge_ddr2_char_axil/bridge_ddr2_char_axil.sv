@@ -133,10 +133,23 @@ module bridge_ddr2_char_axil
     output  logic [2:0]  obs_apb_PPROT,
     input  logic [31:0]  obs_apb_PRDATA,
     input  logic         obs_apb_PREADY,
-    input  logic         obs_apb_PSLVERR
+    input  logic         obs_apb_PSLVERR,
+
+    // Slave 5: chargen_apb
+    // APB Slave: chargen_apb
+    output  logic         chargen_apb_PSEL,
+    output  logic [31:0]  chargen_apb_PADDR,
+    output  logic         chargen_apb_PENABLE,
+    output  logic         chargen_apb_PWRITE,
+    output  logic [31:0]  chargen_apb_PWDATA,
+    output  logic [3:0]  chargen_apb_PSTRB,
+    output  logic [2:0]  chargen_apb_PPROT,
+    input  logic [31:0]  chargen_apb_PRDATA,
+    input  logic         chargen_apb_PREADY,
+    input  logic         chargen_apb_PSLVERR
 );
 
-    localparam NUM_SLAVES = 5;
+    localparam NUM_SLAVES = 6;
 
     // host Adapter outputs
     logic [NUM_SLAVES-1:0] host_slave_select_aw;
@@ -436,6 +449,58 @@ module bridge_ddr2_char_axil
     logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_bridge_id_ar;
     logic [BRIDGE_ID_WIDTH-1:0] obs_apb_axi_rid_bridge_id;
     logic                       obs_apb_axi_rid_valid;
+
+    // chargen_apb (APB, 32b AXI4 interface)
+    logic [7:0]            xbar_chargen_apb_axi_awid;
+    logic [31:0]               xbar_chargen_apb_axi_awaddr;
+    logic [7:0]                xbar_chargen_apb_axi_awlen;
+    logic [2:0]                xbar_chargen_apb_axi_awsize;
+    logic [1:0]                xbar_chargen_apb_axi_awburst;
+    logic                      xbar_chargen_apb_axi_awlock;
+    logic [3:0]                xbar_chargen_apb_axi_awcache;
+    logic [2:0]                xbar_chargen_apb_axi_awprot;
+    logic [3:0]                xbar_chargen_apb_axi_awqos;
+    logic [3:0]                xbar_chargen_apb_axi_awregion;
+    logic                      xbar_chargen_apb_axi_awuser;
+    logic                      xbar_chargen_apb_axi_awvalid;
+    logic                      xbar_chargen_apb_axi_awready;
+    logic [31:0] xbar_chargen_apb_axi_wdata;
+    logic [3:0] xbar_chargen_apb_axi_wstrb;
+    logic                      xbar_chargen_apb_axi_wlast;
+    logic                      xbar_chargen_apb_axi_wuser;
+    logic                      xbar_chargen_apb_axi_wvalid;
+    logic                      xbar_chargen_apb_axi_wready;
+    logic [7:0]            xbar_chargen_apb_axi_bid;
+    logic [1:0]                xbar_chargen_apb_axi_bresp;
+    logic                      xbar_chargen_apb_axi_buser;
+    logic                      xbar_chargen_apb_axi_bvalid;
+    logic                      xbar_chargen_apb_axi_bready;
+    logic [7:0]            xbar_chargen_apb_axi_arid;
+    logic [31:0]               xbar_chargen_apb_axi_araddr;
+    logic [7:0]                xbar_chargen_apb_axi_arlen;
+    logic [2:0]                xbar_chargen_apb_axi_arsize;
+    logic [1:0]                xbar_chargen_apb_axi_arburst;
+    logic                      xbar_chargen_apb_axi_arlock;
+    logic [3:0]                xbar_chargen_apb_axi_arcache;
+    logic [2:0]                xbar_chargen_apb_axi_arprot;
+    logic [3:0]                xbar_chargen_apb_axi_arqos;
+    logic [3:0]                xbar_chargen_apb_axi_arregion;
+    logic                      xbar_chargen_apb_axi_aruser;
+    logic                      xbar_chargen_apb_axi_arvalid;
+    logic                      xbar_chargen_apb_axi_arready;
+    logic [7:0]            xbar_chargen_apb_axi_rid;
+    logic [31:0] xbar_chargen_apb_axi_rdata;
+    logic [1:0]                xbar_chargen_apb_axi_rresp;
+    logic                      xbar_chargen_apb_axi_rlast;
+    logic                      xbar_chargen_apb_axi_ruser;
+    logic                      xbar_chargen_apb_axi_rvalid;
+    logic                      xbar_chargen_apb_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] chargen_apb_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] chargen_apb_axi_bid_bridge_id;
+    logic                       chargen_apb_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] chargen_apb_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] chargen_apb_axi_rid_bridge_id;
+    logic                       chargen_apb_axi_rid_valid;
 
     // ================================================================
     // HOST Adapter
@@ -839,7 +904,60 @@ module bridge_ddr2_char_axil
 
         .obs_apb_axi_bridge_id_ar(obs_apb_axi_bridge_id_ar),
         .obs_apb_axi_rid_bridge_id(obs_apb_axi_rid_bridge_id),
-        .obs_apb_axi_rid_valid(obs_apb_axi_rid_valid)
+        .obs_apb_axi_rid_valid(obs_apb_axi_rid_valid),
+
+        // Slave 5: chargen_apb
+        .chargen_apb_axi_awid(xbar_chargen_apb_axi_awid),
+        .chargen_apb_axi_awaddr(xbar_chargen_apb_axi_awaddr),
+        .chargen_apb_axi_awlen(xbar_chargen_apb_axi_awlen),
+        .chargen_apb_axi_awsize(xbar_chargen_apb_axi_awsize),
+        .chargen_apb_axi_awburst(xbar_chargen_apb_axi_awburst),
+        .chargen_apb_axi_awlock(xbar_chargen_apb_axi_awlock),
+        .chargen_apb_axi_awcache(xbar_chargen_apb_axi_awcache),
+        .chargen_apb_axi_awprot(xbar_chargen_apb_axi_awprot),
+        .chargen_apb_axi_awqos(xbar_chargen_apb_axi_awqos),
+        .chargen_apb_axi_awregion(xbar_chargen_apb_axi_awregion),
+        .chargen_apb_axi_awuser(xbar_chargen_apb_axi_awuser),
+        .chargen_apb_axi_awvalid(xbar_chargen_apb_axi_awvalid),
+        .chargen_apb_axi_awready(xbar_chargen_apb_axi_awready),
+        .chargen_apb_axi_wdata(xbar_chargen_apb_axi_wdata),
+        .chargen_apb_axi_wstrb(xbar_chargen_apb_axi_wstrb),
+        .chargen_apb_axi_wlast(xbar_chargen_apb_axi_wlast),
+        .chargen_apb_axi_wuser(xbar_chargen_apb_axi_wuser),
+        .chargen_apb_axi_wvalid(xbar_chargen_apb_axi_wvalid),
+        .chargen_apb_axi_wready(xbar_chargen_apb_axi_wready),
+        .chargen_apb_axi_bid(xbar_chargen_apb_axi_bid),
+        .chargen_apb_axi_bresp(xbar_chargen_apb_axi_bresp),
+        .chargen_apb_axi_buser(xbar_chargen_apb_axi_buser),
+        .chargen_apb_axi_bvalid(xbar_chargen_apb_axi_bvalid),
+        .chargen_apb_axi_bready(xbar_chargen_apb_axi_bready),
+        .chargen_apb_axi_arid(xbar_chargen_apb_axi_arid),
+        .chargen_apb_axi_araddr(xbar_chargen_apb_axi_araddr),
+        .chargen_apb_axi_arlen(xbar_chargen_apb_axi_arlen),
+        .chargen_apb_axi_arsize(xbar_chargen_apb_axi_arsize),
+        .chargen_apb_axi_arburst(xbar_chargen_apb_axi_arburst),
+        .chargen_apb_axi_arlock(xbar_chargen_apb_axi_arlock),
+        .chargen_apb_axi_arcache(xbar_chargen_apb_axi_arcache),
+        .chargen_apb_axi_arprot(xbar_chargen_apb_axi_arprot),
+        .chargen_apb_axi_arqos(xbar_chargen_apb_axi_arqos),
+        .chargen_apb_axi_arregion(xbar_chargen_apb_axi_arregion),
+        .chargen_apb_axi_aruser(xbar_chargen_apb_axi_aruser),
+        .chargen_apb_axi_arvalid(xbar_chargen_apb_axi_arvalid),
+        .chargen_apb_axi_arready(xbar_chargen_apb_axi_arready),
+        .chargen_apb_axi_rid(xbar_chargen_apb_axi_rid),
+        .chargen_apb_axi_rdata(xbar_chargen_apb_axi_rdata),
+        .chargen_apb_axi_rresp(xbar_chargen_apb_axi_rresp),
+        .chargen_apb_axi_rlast(xbar_chargen_apb_axi_rlast),
+        .chargen_apb_axi_ruser(xbar_chargen_apb_axi_ruser),
+        .chargen_apb_axi_rvalid(xbar_chargen_apb_axi_rvalid),
+        .chargen_apb_axi_rready(xbar_chargen_apb_axi_rready),
+        .chargen_apb_axi_bridge_id_aw(chargen_apb_axi_bridge_id_aw),
+        .chargen_apb_axi_bid_bridge_id(chargen_apb_axi_bid_bridge_id),
+        .chargen_apb_axi_bid_valid(chargen_apb_axi_bid_valid),
+
+        .chargen_apb_axi_bridge_id_ar(chargen_apb_axi_bridge_id_ar),
+        .chargen_apb_axi_rid_bridge_id(chargen_apb_axi_rid_bridge_id),
+        .chargen_apb_axi_rid_valid(chargen_apb_axi_rid_valid)
     );
 
     // ================================================================
@@ -1234,6 +1352,78 @@ module bridge_ddr2_char_axil
         .xbar_bridge_id_ar(obs_apb_axi_bridge_id_ar),
         .rid_bridge_id(obs_apb_axi_rid_bridge_id),
         .rid_valid(obs_apb_axi_rid_valid)
+    );
+
+    // chargen_apb adapter (APB, crossbar → external slave)
+    chargen_apb_adapter u_chargen_apb_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_chargen_apb_axi_*)
+        .xbar_chargen_apb_axi_awid(xbar_chargen_apb_axi_awid),
+        .xbar_chargen_apb_axi_awaddr(xbar_chargen_apb_axi_awaddr),
+        .xbar_chargen_apb_axi_awlen(xbar_chargen_apb_axi_awlen),
+        .xbar_chargen_apb_axi_awsize(xbar_chargen_apb_axi_awsize),
+        .xbar_chargen_apb_axi_awburst(xbar_chargen_apb_axi_awburst),
+        .xbar_chargen_apb_axi_awlock(xbar_chargen_apb_axi_awlock),
+        .xbar_chargen_apb_axi_awcache(xbar_chargen_apb_axi_awcache),
+        .xbar_chargen_apb_axi_awprot(xbar_chargen_apb_axi_awprot),
+        .xbar_chargen_apb_axi_awqos(xbar_chargen_apb_axi_awqos),
+        .xbar_chargen_apb_axi_awregion(xbar_chargen_apb_axi_awregion),
+        .xbar_chargen_apb_axi_awuser(xbar_chargen_apb_axi_awuser),
+        .xbar_chargen_apb_axi_awvalid(xbar_chargen_apb_axi_awvalid),
+        .xbar_chargen_apb_axi_awready(xbar_chargen_apb_axi_awready),
+        .xbar_chargen_apb_axi_wdata(xbar_chargen_apb_axi_wdata),
+        .xbar_chargen_apb_axi_wstrb(xbar_chargen_apb_axi_wstrb),
+        .xbar_chargen_apb_axi_wlast(xbar_chargen_apb_axi_wlast),
+        .xbar_chargen_apb_axi_wuser(xbar_chargen_apb_axi_wuser),
+        .xbar_chargen_apb_axi_wvalid(xbar_chargen_apb_axi_wvalid),
+        .xbar_chargen_apb_axi_wready(xbar_chargen_apb_axi_wready),
+        .xbar_chargen_apb_axi_bid(xbar_chargen_apb_axi_bid),
+        .xbar_chargen_apb_axi_bresp(xbar_chargen_apb_axi_bresp),
+        .xbar_chargen_apb_axi_buser(xbar_chargen_apb_axi_buser),
+        .xbar_chargen_apb_axi_bvalid(xbar_chargen_apb_axi_bvalid),
+        .xbar_chargen_apb_axi_bready(xbar_chargen_apb_axi_bready),
+        .xbar_chargen_apb_axi_arid(xbar_chargen_apb_axi_arid),
+        .xbar_chargen_apb_axi_araddr(xbar_chargen_apb_axi_araddr),
+        .xbar_chargen_apb_axi_arlen(xbar_chargen_apb_axi_arlen),
+        .xbar_chargen_apb_axi_arsize(xbar_chargen_apb_axi_arsize),
+        .xbar_chargen_apb_axi_arburst(xbar_chargen_apb_axi_arburst),
+        .xbar_chargen_apb_axi_arlock(xbar_chargen_apb_axi_arlock),
+        .xbar_chargen_apb_axi_arcache(xbar_chargen_apb_axi_arcache),
+        .xbar_chargen_apb_axi_arprot(xbar_chargen_apb_axi_arprot),
+        .xbar_chargen_apb_axi_arqos(xbar_chargen_apb_axi_arqos),
+        .xbar_chargen_apb_axi_arregion(xbar_chargen_apb_axi_arregion),
+        .xbar_chargen_apb_axi_aruser(xbar_chargen_apb_axi_aruser),
+        .xbar_chargen_apb_axi_arvalid(xbar_chargen_apb_axi_arvalid),
+        .xbar_chargen_apb_axi_arready(xbar_chargen_apb_axi_arready),
+        .xbar_chargen_apb_axi_rid(xbar_chargen_apb_axi_rid),
+        .xbar_chargen_apb_axi_rdata(xbar_chargen_apb_axi_rdata),
+        .xbar_chargen_apb_axi_rresp(xbar_chargen_apb_axi_rresp),
+        .xbar_chargen_apb_axi_rlast(xbar_chargen_apb_axi_rlast),
+        .xbar_chargen_apb_axi_ruser(xbar_chargen_apb_axi_ruser),
+        .xbar_chargen_apb_axi_rvalid(xbar_chargen_apb_axi_rvalid),
+        .xbar_chargen_apb_axi_rready(xbar_chargen_apb_axi_rready),
+
+        // External APB interface (chargen_apb_*)
+        .chargen_apb_PADDR(chargen_apb_PADDR),
+        .chargen_apb_PSEL(chargen_apb_PSEL),
+        .chargen_apb_PENABLE(chargen_apb_PENABLE),
+        .chargen_apb_PWRITE(chargen_apb_PWRITE),
+        .chargen_apb_PWDATA(chargen_apb_PWDATA),
+        .chargen_apb_PSTRB(chargen_apb_PSTRB),
+        .chargen_apb_PPROT(chargen_apb_PPROT),
+        .chargen_apb_PRDATA(chargen_apb_PRDATA),
+        .chargen_apb_PSLVERR(chargen_apb_PSLVERR),
+        .chargen_apb_PREADY(chargen_apb_PREADY),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(chargen_apb_axi_bridge_id_aw),
+        .bid_bridge_id(chargen_apb_axi_bid_bridge_id),
+        .bid_valid(chargen_apb_axi_bid_valid),
+        .xbar_bridge_id_ar(chargen_apb_axi_bridge_id_ar),
+        .rid_bridge_id(chargen_apb_axi_rid_bridge_id),
+        .rid_valid(chargen_apb_axi_rid_valid)
     );
 
 endmodule : bridge_ddr2_char_axil
