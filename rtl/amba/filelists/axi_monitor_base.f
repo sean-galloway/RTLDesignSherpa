@@ -28,4 +28,12 @@ $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_threshold.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_perf.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter_debug.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_reporter.sv
+# axi_monitor_base instantiates axi_monitor_addr_check under
+# `if (N_ADDR_RANGES > 0)`. A generate-gated submodule is INVISIBLE to
+# default-parameter elaboration, so this list looked complete while the
+# default build (N_ADDR_RANGES=0) was the only one anyone built from it --
+# and any consumer setting N_ADDR_RANGES>0 failed with "Cannot find file
+# containing module: 'axi_monitor_addr_check'". Listed here so the filelist
+# covers the module's configurations, not just its default one.
+$REPO_ROOT/rtl/amba/monitor/axi_monitor_addr_check.sv
 $REPO_ROOT/rtl/amba/monitor/axi_monitor_base.sv

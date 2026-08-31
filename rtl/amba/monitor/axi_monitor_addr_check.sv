@@ -191,6 +191,15 @@ module axi_monitor_addr_check
         end
     end
 
+    // Per-range shadow slot. A MATCH hit arriving while THAT range's packet is
+    // already on the bus must not rewrite the beat being presented: the monbus
+    // is valid/ready, so the payload has to hold until the beat is accepted.
+    // The newer hit is buffered here and installed on accept, which keeps
+    // "newest wins" for every beat except the one already on the wire.
+    logic [N_ADDR_RANGES-1:0]         r_shadow_valid;
+    logic [N_ADDR_RANGES-1:0][M-1:0]  r_shadow_addr;
+    logic [N_ADDR_RANGES-1:0][IW-1:0] r_shadow_id;
+
     logic emit_is_miss;                       // 1 = emit the MISS/error slot this cycle
     assign emit_is_miss = r_miss_pending;
 
@@ -198,31 +207,69 @@ module axi_monitor_addr_check
     logic accept;
     assign accept = addr_pkt_valid && addr_pkt_ready;
 
+    // This range's packet is on the bus right now / is accepted this cycle.
+    logic [N_ADDR_RANGES-1:0] w_presented, w_range_accept;
+    always_comb begin
+        for (int i = 0; i < N_ADDR_RANGES; i++) begin
+            w_presented[i]    = addr_pkt_valid && !emit_is_miss && match_emit_oh[i];
+            w_range_accept[i] = accept        && !emit_is_miss && match_emit_oh[i];
+        end
+    end
+
     `ALWAYS_FF_RST(clk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_match_pending <= '0;
+            r_shadow_valid  <= '0;
+            r_shadow_addr   <= '0;
+            r_shadow_id     <= '0;
             r_match_addr    <= '0;
             r_match_id      <= '0;
             r_miss_pending  <= 1'b0;
             r_miss_addr     <= '0;
             r_miss_id       <= '0;
         end else begin
-            // 1) Latch new MATCH hits (per range). A fresh hit overwrites the
-            //    latched address even if that range is being emitted this cycle
-            //    (so the consumer never misses the newest address).
+            // 1) MATCH payload. A fresh hit updates the latched address ONLY
+            //    when that range's beat is not currently being presented --
+            //    rewriting a beat already on the bus would change the payload
+            //    under a held valid, which the monbus valid/ready contract
+            //    forbids. While presented, the hit goes to the shadow slot and
+            //    is installed when the beat is accepted, so "newest wins"
+            //    still holds for every beat except the one on the wire.
             for (int i = 0; i < N_ADDR_RANGES; i++) begin
-                if (match_set[i]) begin
+                if (w_range_accept[i]) begin
+                    // Beat consumed: install whatever queued behind it, newest
+                    // first (a hit this cycle beats an older shadow).
+                    if (match_set[i]) begin
+                        r_match_addr[i] <= cmd_addr;
+                        r_match_id  [i] <= cmd_id;
+                    end else if (r_shadow_valid[i]) begin
+                        r_match_addr[i] <= r_shadow_addr[i];
+                        r_match_id  [i] <= r_shadow_id  [i];
+                    end
+                end else if (match_set[i] && !w_presented[i]) begin
                     r_match_addr[i] <= cmd_addr;
                     r_match_id  [i] <= cmd_id;
                 end
             end
-            // 2) MATCH pending bits: set on hit, clear on accept of that range.
-            //    Set wins on collision.
+            // 2) Shadow slot: filled by a hit that lands while the beat is
+            //    presented, emptied when that beat is accepted (its value
+            //    having just been installed above).
+            for (int i = 0; i < N_ADDR_RANGES; i++) begin
+                if (w_range_accept[i]) begin
+                    r_shadow_valid[i] <= 1'b0;
+                end else if (match_set[i] && w_presented[i]) begin
+                    r_shadow_valid[i] <= 1'b1;
+                    r_shadow_addr [i] <= cmd_addr;
+                    r_shadow_id   [i] <= cmd_id;
+                end
+            end
+            // 3) MATCH pending bits: set on hit; on accept stay pending only
+            //    if a buffered hit remains to be emitted. Set wins on collision.
             for (int i = 0; i < N_ADDR_RANGES; i++) begin
                 if (match_set[i])
                     r_match_pending[i] <= 1'b1;
-                else if (accept && !emit_is_miss && match_emit_oh[i])
-                    r_match_pending[i] <= 1'b0;
+                else if (w_range_accept[i])
+                    r_match_pending[i] <= r_shadow_valid[i];
             end
 
             // 3) MISS slot: latch address on new miss; set/clear pending
