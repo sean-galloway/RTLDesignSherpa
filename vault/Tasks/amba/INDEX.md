@@ -2,7 +2,7 @@
 
 # AMBA tasks
 
-**Next ID: TASK-072** — never recycle a number, even when its task closed.
+**Next ID: TASK-073** — never recycle a number, even when its task closed.
 
 Canonical task tracker for `rtl/amba/` (AXI4/AXI5, APB, AXI-Stream, the
 monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
@@ -33,13 +33,21 @@ monitor subsystem, monbus). Migrated 2026-07-22 from `rtl/amba/PRD/TASKS.md`.
   reading val/amba as a clean signal, so shared-framework changes currently
   have to be A/B'd.
 
+- **TASK-072** — lighten the gate-heavy monitor modules. Scoped 2026-08-31:
+  `bus_transaction_t`'s three 32-bit phase TIMERS are write-only repo-wide
+  (96 bits x N of dead flops; the real timing lives in `axi_monitor_timeout`),
+  the three timestamps are read only as differences, and `addr_hit_any` is a
+  global OR that couples every CAM bank to every other -- which is what
+  Genesys2 `build-mon` is failing setup on.
+- **TASK-027** — CLOSED 2026-08-31: the monitors own the mechanism, the
+  customer owns the policy (how ranges are defined is the integrator's call).
+- **TASK-065** — CLOSED 2026-08-31: nothing left to delete; exposed a
+  host/RTL regmap mismatch on the `slvmon_apb` window instead.
 - **TASK-026** — every module MUST have a filelist + registry entry. Coverage
   is already good; the gap is that **nothing enforces it**. Shared gate with
   COMMON-010.
 - **TASK-014** — Performance characterization
 - **TASK-015** — Address range + ID filtering
-- **TASK-027** — Split the address-range checker into independent DEBUG and
-  ERROR range sets, with params at the monitor + AXI\* wrapper module level
 - **TASK-022** — Make APB crossbar variants functional
 - **TASK-024** — Monitor system whitepaper (P3)
 - **TASK-060** — CLOSED 2026-08-21: module deleted with the observer rework (successors in misc); `o_cmd_block`
