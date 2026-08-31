@@ -26,9 +26,6 @@ $REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 # Protocol packages
-$REPO_ROOT/rtl/amba/includes/axi_pkg.sv
-$REPO_ROOT/rtl/amba/includes/apb4_pkg.sv
-$REPO_ROOT/rtl/amba/includes/apb5_pkg.sv
 
 # =============================================================================
 # SHARED INFRASTRUCTURE (Base modules used by multiple protocols)

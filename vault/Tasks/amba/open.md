@@ -934,57 +934,6 @@ trusting the regenerated output.
 
 ---
 
-## AMBA-MONITOR-PKG-PAGES — five packages have RTL but no doc page
-**Status:** open 2026-07-28 (found while reorganizing rtl/amba/monitor)
-**Priority:** P3
-
-`docs/markdown/rtl-amba/index.md` listed four package pages -- `apb4_pkg.md`,
-`axi_pkg.md`, `monitor_pkg.md`, `monitor_network_pkg.md` -- none of which have
-ever existed. That section is rebuilt: it now links the four real package pages
-and names the packages whose RTL exists with no page.
-
-Still to write, if wanted:
-
-    rtl/amba/includes/apb4_pkg.sv
-    rtl/amba/includes/apb5_pkg.sv
-    rtl/amba/includes/axi_pkg.sv
-    rtl/amba/includes/monitor_pkg.sv
-    rtl/amba/includes/monitor_common_pkg.sv
-
-`monitor_network_pkg` has NO RTL either -- it is a phantom. Do not write it.
-
-### Resolved: the whitepaper references, and the replacement
-
-**A new architecture document now exists:**
-`docs/markdown/rtl-amba/monitor/monitor_system_architecture.md` -- written
-2026-07-28 at Sean's request. It covers the overarching architecture and
-capabilities: the 128-bit packet as the single currency, the four-stage
-detect/shape/filter/transport pipeline, error/debug/perf packet production for
-protocols AND for custom blocks (the arbiters are the worked example, with a
-step-by-step for instrumenting your own block via PROTOCOL_CORE), the three
-capture strategies compared (bulk trace / compressed trace via monbus_compressor
-/ on-chip counting via monbus_pkt_tally), and the perfmon window buckets. Every
-number in it was checked against the RTL.
-
-It is NOT a restoration of the deleted whitepaper -- see below.
-
-Four pages (`monitor_amba4_pkg.md`, `monitor_amba5_pkg.md`,
-`monitor_arbiter_pkg.md`, `monitor_package_spec.md`) linked
-`../monitor_system_whitepaper.md`. That file was **deliberately deleted** on
-2026-07-18 in `ca8e12cd`: *"Remove the dated MonitorSystem whitepaper
-(superseded by the full monitor docs + the forthcoming RTL library PDFs)."*
-The `.md`, a `.docx`, a `.pdf`, its style yaml and its generator script all went
-with it.
-
-So the links were leftovers from an intentional removal, not a page waiting to
-be written. They are gone; the four pages no longer promise it. **Nothing to
-restore -- do not re-add the whitepaper.** If a design-surface view (identity
-allocation, timestamp policy, drain paths, aggregation topology) turns out to be
-missing from the per-module docs, it belongs in `monitor_package_spec.md`, which
-is what superseded it.
-
----
-
 ## CDC-FORMAL-STALE — the 4-phase handshake formal proof runs against a pre-rename DUT copy
 **Status:** open 2026-07-28 (found by kimi round 10, verified)
 **Priority:** P2

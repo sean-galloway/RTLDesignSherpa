@@ -37,7 +37,53 @@ module axi_monitor_base
     parameter logic [7:0]  UNIT_ID    = 8'h09,    // 8-bit Unit ID
     parameter logic [15:0] AGENT_ID   = 16'h0063, // 16-bit Agent ID
 
+    // ---- ID-range filter: track a SUBSET of the IDs on a shared bus --------
+    // Default OFF, so every existing instantiation is bit-identical.
+    //
+    // When several monitors snoop one bus that carries many channels
+    // multiplexed by AXI ID, each one otherwise allocates a table entry for
+    // EVERY transaction -- so N monitors each need the full concurrency and N
+    // instances buy nothing. Filtering allocation by ID lets each instance own
+    // a slice: 8 channels x 8 outstanding needs a 72-entry table in one
+    // monitor, which does not close timing here (measured 16 entries at
+    // WNS +1.018 ns, 40 entries at WNS -25.183 ns), while four monitors of two
+    // channels each need 16 -- the size that is known to close.
+    //
+    // This gates the MONITOR's observation inputs only. cmd_valid/data_valid/
+    // resp_valid here are observation feeds, separate from the datapath the
+    // wrapper's core drives, so filtering changes what is TRACKED and never
+    // what flows. A filtered instance is transparent on the bus, which is what
+    // makes parallel snooping possible.
+    //
+    // All three channels are filtered on the same range. Filtering the command
+    // alone would leave data/resp for other IDs arriving unmatched, and the
+    // unmatched path allocates orphan entries -- the table would fill with
+    // other channels' traffic, which is the problem this exists to avoid.
+    // Transaction-table shaping, forwarded to axi_monitor_trans_mgr.
+    // Defaults reproduce today's behaviour exactly; see that module for the
+    // AW-order queue and the bank sizing rule.
+    parameter bit USE_WDATA_ORDER_Q      = 1'b0,
+    parameter int NUM_BANKS              = 1,
+    parameter bit ID_FILTER_ENABLE     = 1'b0,
+    parameter int ID_MATCH_BASE        = 0,      // first ID owned by this instance
+    parameter int ID_MATCH_COUNT       = 0,      // how many; 0 = all (no filter)
+
+    // Address-range packet filter (TASK-015). Default 0 -> filtered_mask is
+    // always 0 and the build is bit-identical. See axi_monitor_trans_mgr for
+    // why this filters at REPORT time rather than at admission.
+    parameter bit ADDR_FILTER_ENABLE   = 1'b0,
+
     // General parameters
+    // ---- Timer LUT sizing (counter_freq_invariant) -------------------------
+    // The divisor IS the frequency in MHz, so a table built for THIS design's
+    // clock gives an exact 1 us tick -- which is the unit monitor timeouts are
+    // expressed in. Defaults below set every entry to ACLK_MHZ, so the tick is
+    // exact regardless of cfg_freq_sel. Override to a real MIN..MAX range only
+    // if the design switches aclk at runtime.
+    parameter int CFI_MIN_FREQ_MHZ     = 100,
+    parameter int CFI_MAX_FREQ_MHZ     = 100,
+    parameter int CFI_NUM_FREQ_ENTRIES = 16,
+    parameter int CFI_FREQ_STRATEGY    = 0,
     parameter int MAX_TRANSACTIONS    = 16,    // Maximum outstanding transactions
     parameter int ADDR_WIDTH          = 32,    // Width of address bus
     parameter int ID_WIDTH            = 8,     // Width of ID bus (0 for AXIL)
@@ -72,6 +118,9 @@ module axi_monitor_base
     // Address-range check
     // N_ADDR_RANGES = 0 disables the address-range checker entirely (zero area).
     parameter int N_ADDR_RANGES       = 0,
+    // Per-range flavor: 0 = DEBUG (hit -> AddrMatch), 1 = ERROR (allowlist miss
+    // -> Error/ADDR_RANGE). Default all-0 keeps the ERROR/miss path inert.
+    parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0,
 
     // Short params
     parameter int AW                 = ADDR_WIDTH,
@@ -85,6 +134,23 @@ module axi_monitor_base
     input  logic                     aclk,
     input  logic                     aresetn,
     input  logic                     clear,   // sync clear: empty the trans CAM + active_count
+
+    // Address-range packet filter configuration (active when
+    // ADDR_FILTER_ENABLE=1). Inclusive [low, high]; a transaction whose
+    // command address falls OUTSIDE the range has its packets suppressed.
+    // Runtime ID filter (TASK-015 "runtime filter updates"). The ID filter
+    // was compile-time only: ID_MATCH_BASE/COUNT are elaboration constants,
+    // so an integrator could not retarget which master is watched without a
+    // rebuild. These take over WHEN cfg_id_filter_enable is high; with it low
+    // the parameter behaviour is used unchanged, so existing consumers that
+    // set the params and leave this tied off are bit-identical.
+    input  logic                     cfg_id_filter_enable,
+    input  logic [ID_WIDTH-1:0]      cfg_id_match_base,
+    input  logic [ID_WIDTH:0]        cfg_id_match_count,   // 0 = all (no filter)
+
+    input  logic                     cfg_addr_filter_enable,
+    input  logic [ADDR_WIDTH-1:0]    cfg_addr_filter_low,
+    input  logic [ADDR_WIDTH-1:0]    cfg_addr_filter_high,
 
     // Command phase (AW/AR)
     input  logic [AW-1:0]            cmd_addr,    // Address value
@@ -110,9 +176,9 @@ module axi_monitor_base
 
     // Timer configs
     input  logic [3:0]               cfg_freq_sel, // Frequency selection (configurable)
-    input  logic [3:0]               cfg_addr_cnt, // ADDR match for a timeout
-    input  logic [3:0]               cfg_data_cnt, // DATA match for a timeout
-    input  logic [3:0]               cfg_resp_cnt, // RESP match for a timeout
+    input  logic [15:0]              cfg_addr_cnt, // ADDR match for a timeout
+    input  logic [15:0]              cfg_data_cnt, // DATA match for a timeout
+    input  logic [15:0]              cfg_resp_cnt, // RESP match for a timeout
 
     // Packet type enables
     input  logic                     cfg_error_enable,    // Enable error event packets
@@ -122,9 +188,13 @@ module axi_monitor_base
     input  logic                     cfg_perf_enable,     // Enable performance metric packets
     input  logic                     cfg_debug_enable,    // Enable debug/trace packets
 
-    // Debug configuration (only used when ENABLE_DEBUG_MODULE=1)
-    input  logic [3:0]               cfg_debug_level, // Debug verbosity level
-    input  logic [15:0]              cfg_debug_mask,  // Event type mask
+    // Debug configuration -- DEAD. Both are declared here and referenced by no
+    // logic in this module or below it; they were the interface to the debug
+    // sub-module that does not exist (see the tie-off comment further down).
+    // Kept only because the wrapper family plumbs them. Real debug packets come
+    // from the reporter's state-change emitter via cfg_debug_enable.
+    input  logic [3:0]               cfg_debug_level, // (inert)
+    input  logic [15:0]              cfg_debug_mask,  // (inert)
 
     // Threshold configuration
     input  logic [15:0]              cfg_active_trans_threshold, // Active transaction threshold
@@ -137,7 +207,7 @@ module axi_monitor_base
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
     // Performance window control (Stage A of perfmon RFC).
-    //   See rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md for the full
+    //   See docs/markdown/rtl-amba/index.md for the full
     //   start/end-event encoding. Stage B will wire the four cycle bucket
     //   counters to gate on window_active; Stage D wires the latency
     //   histograms. Stage A only manages the lifecycle.
@@ -203,7 +273,16 @@ module axi_monitor_base
     output logic [31:0]              perf_idle_cycles,   // !data valid && !ready
     output logic [31:0]              perf_beat_count,    // = perf_prod_cycles (1 beat/cycle)
     output logic [63:0]              perf_byte_count,    // beats x (1<<axsize_latched)
-    output logic [31:0]              perf_burst_count    // AR/AW handshake count
+    output logic [31:0]              perf_burst_count,   // AR/AW handshake count
+
+    // Lifetime reporter counters (axi_monitor_reporter_perf). These count
+    // packets actually EMITTED (marked into the reporter FIFO): completions
+    // when compl packets are enabled, errors/timeouts when their classes
+    // are. Tied to 0 when ENABLE_PERF_LOGIC=0 (the counters live in the
+    // perf sub-block). Exposed so wrappers can drive their error_count /
+    // transaction_count status outputs from the truth instead of 0.
+    output logic [15:0]              perf_completed_count,
+    output logic [15:0]              perf_error_count
 );
 
     // Import standard monitor types and constants
@@ -231,8 +310,8 @@ module axi_monitor_base
     // Timestamp counter for transaction timing (flopped)
     logic [31:0] r_timestamp;
 
-    // State change detection for debug module (combinational)
-    logic [MAX_TRANSACTIONS-1:0] w_state_change_detected;
+    // Per-slot verdicts from the transaction manager (combinational)
+    logic [MAX_TRANSACTIONS-1:0] w_filtered_mask;
     logic [MAX_TRANSACTIONS-1:0] w_timeout_detected;
 
     // Interrupt outputs from different modules (combinational)
@@ -240,25 +319,62 @@ module axi_monitor_base
     monitor_packet_t          w_reporter_monbus_packet;
     logic                     w_debug_monbus_valid;
     monitor_packet_t          w_debug_monbus_packet;
+    // addr_check owns the monbus mux once it has been presented and
+    // stalled; see the selection-hold comment at the mux below.
+    logic                     r_addr_hold;
     logic                     w_addr_pkt_valid;
     monitor_packet_t          w_addr_pkt_data;
     monbus_timestamp_t        w_addr_pkt_timestamp;
     logic                     w_addr_pkt_ready;
 
-    // Default: debug monbus disabled when ENABLE_DEBUG_MODULE=0.
-    // Without this, the wires are undriven and formal tools see undefined values.
-    if (!ENABLE_DEBUG_MODULE) begin : gen_no_debug
-        assign w_debug_monbus_valid  = 1'b0;
-        assign w_debug_monbus_packet = '0;
-    end
-
-    // Performance metrics registers (only used when ENABLE_PERF_PACKETS=1) (flopped)
-    logic [15:0] r_perf_completed_count;
-    logic [15:0] r_perf_error_count;
+    // The debug-trace monbus source is TIED OFF UNCONDITIONALLY, because the
+    // debug sub-module it was meant to feed does not exist in this design.
+    //
+    // This tie-off used to be guarded by `if (!ENABLE_DEBUG_MODULE)`, with no
+    // matching gen_debug branch to instantiate anything -- so setting
+    // ENABLE_DEBUG_MODULE=1 removed the only driver of these two nets and left
+    // the monbus arbiter below evaluating an undriven `w_debug_monbus_valid`
+    // on every cycle the reporter was idle: X-propagation in simulation, an
+    // arbitrary tie in synthesis (qc round_24). Every instantiation in the
+    // repo passes 0, so the trap was latent rather than live, but a parameter
+    // whose only effect is to break the design is worse than one that does
+    // nothing.
+    //
+    // ENABLE_DEBUG_MODULE is therefore INERT and reserved: it is kept on the
+    // port list because 12 wrappers plumb it through, and removing it (along
+    // with the equally dead DEBUG_FIFO_DEPTH / cfg_debug_level /
+    // cfg_debug_mask) is an API change across the whole wrapper family rather
+    // than a fix. The LIVE debug path is the reporter's state-change emitter,
+    // gated by ENABLE_DEBUG_LOGIC + cfg_debug_enable.
+    assign w_debug_monbus_valid  = 1'b0;
+    assign w_debug_monbus_packet = '0;
 
     // -------------------------------------------------------------------------
     // Module Instantiations
     // -------------------------------------------------------------------------
+
+    // ---- ID-range filter (see the parameter block) --------------------------
+    // Combinational match per channel. ID_MATCH_COUNT=0 or ID_FILTER_ENABLE=0
+    // leaves every valid untouched, so the default build is unchanged.
+    function automatic logic id_owned(input logic [IW-1:0] id);
+        if (cfg_id_filter_enable) begin
+            // Runtime window. count==0 means "all", matching the parameter
+            // rule, so a zeroed CSR block does not silently filter everything.
+            if (cfg_id_match_count == 0) id_owned = 1'b1;
+            else id_owned = (int'(id) >= int'(cfg_id_match_base)) &&
+                            (int'(id) <  int'(cfg_id_match_base) + int'(cfg_id_match_count));
+        end else if (!ID_FILTER_ENABLE || (ID_MATCH_COUNT == 0)) begin
+            id_owned = 1'b1;
+        end else begin
+            id_owned = (int'(id) >= ID_MATCH_BASE) &&
+                       (int'(id) <  ID_MATCH_BASE + ID_MATCH_COUNT);
+        end
+    endfunction
+
+    logic w_cmd_valid_f, w_data_valid_f, w_resp_valid_f;
+    assign w_cmd_valid_f  = cmd_valid  && id_owned(cmd_id);
+    assign w_data_valid_f = data_valid && id_owned(data_id);
+    assign w_resp_valid_f = resp_valid && id_owned(resp_id);
 
     // Transaction Table Manager
     axi_monitor_trans_mgr #(
@@ -267,36 +383,48 @@ module axi_monitor_base
         .ID_WIDTH           (ID_WIDTH),
         .IS_READ            (IS_READ),
         .IS_AXI             (IS_AXI),
-        .ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS)
+        .USE_WDATA_ORDER_Q       (USE_WDATA_ORDER_Q),
+        .NUM_BANKS               (NUM_BANKS),
+        .ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS),
+        .ADDR_FILTER_ENABLE (ADDR_FILTER_ENABLE)
     ) trans_mgr(
         .aclk               (aclk),
         .aresetn            (aresetn),
         .clear              (clear),
-        .cmd_valid          (cmd_valid),
+        .cmd_valid          (w_cmd_valid_f),
         .cmd_ready          (cmd_ready),
         .cmd_id             (cmd_id),
         .cmd_addr           (cmd_addr),
         .cmd_len            (cmd_len),
         .cmd_size           (cmd_size),
         .cmd_burst          (cmd_burst),
-        .data_valid         (data_valid),
+        .data_valid         (w_data_valid_f),
         .data_ready         (data_ready),
         .data_id            (data_id),
         .data_last          (data_last),
         .data_resp          (data_resp),
-        .resp_valid         (resp_valid),
+        .resp_valid         (w_resp_valid_f),
         .resp_ready         (resp_ready),
         .resp_id            (resp_id),
         .resp_code          (resp_code),
         .timestamp          (r_timestamp),
         .i_event_reported_flags(w_event_reported_flags),  // FIX-001: Feedback from reporter
+        .i_timeout_detected (w_timeout_detected),         // ISSUE #41: timeout -> terminal state
         .trans_table        (w_trans_table),
         .active_count       (w_active_count),
-        .state_change       (w_state_change_detected)
+        .cfg_addr_filter_enable(cfg_addr_filter_enable),
+        .cfg_addr_filter_low   (cfg_addr_filter_low),
+        .cfg_addr_filter_high  (cfg_addr_filter_high),
+        .filtered_mask         (w_filtered_mask)
     );
 
     // Invariant Timer using counter_freq_invariant
-    axi_monitor_timer timer (
+    axi_monitor_timer #(
+        .CFI_MIN_FREQ_MHZ     (CFI_MIN_FREQ_MHZ),
+        .CFI_MAX_FREQ_MHZ     (CFI_MAX_FREQ_MHZ),
+        .CFI_NUM_FREQ_ENTRIES (CFI_NUM_FREQ_ENTRIES),
+        .CFI_FREQ_STRATEGY    (CFI_FREQ_STRATEGY)
+    ) timer (
         .aclk          (aclk),
         .aresetn       (aresetn),
         .cfg_freq_sel(cfg_freq_sel),
@@ -344,6 +472,7 @@ module axi_monitor_base
         .aclk                  (aclk),
         .aresetn               (aresetn),
         .trans_table           (w_trans_table),
+        .filtered_mask         (w_filtered_mask),
         .timeout_detected      (w_timeout_detected),  // Pass timeout flags
         .cfg_error_enable      (cfg_error_enable),
         .cfg_compl_enable      (cfg_compl_enable),
@@ -351,12 +480,15 @@ module axi_monitor_base
         .cfg_timeout_enable    (cfg_timeout_enable),
         .cfg_perf_enable       (cfg_perf_enable),
         .cfg_debug_enable      (cfg_debug_enable),
-        .monbus_ready          (monbus_ready),
+        // NOT monbus_ready directly: while addr_check holds the bus the mux
+        // presents ITS packet, so an unqualified ready here would look like
+        // an accept of the reporter's packet and silently drop it.
+        .monbus_ready          (monbus_ready && !r_addr_hold),
         .monbus_valid          (w_reporter_monbus_valid),
         .monbus_packet         (w_reporter_monbus_packet),
         .event_count           (w_event_count),
-        .perf_completed_count  (r_perf_completed_count),
-        .perf_error_count      (r_perf_error_count),
+        .perf_completed_count  (perf_completed_count),
+        .perf_error_count      (perf_error_count),
         .active_trans_threshold(cfg_active_trans_threshold),
         .latency_threshold     (cfg_latency_threshold),
         .event_reported_flags  (w_event_reported_flags)  // TASK-001: Feedback to trans_mgr
@@ -374,16 +506,19 @@ module axi_monitor_base
             .ID_WIDTH      (ID_WIDTH > 0 ? ID_WIDTH : 1),
             .UNIT_ID       (UNIT_ID),
             .AGENT_ID      (AGENT_ID),
-            .IS_READ       (IS_READ)
+            .IS_READ       (IS_READ),
+            .ADDR_RANGE_IS_ERROR (ADDR_RANGE_IS_ERROR)
         ) addr_check (
             .clk                   (aclk),
             .aresetn               (aresetn),
             .i_mon_time            (i_mon_time),
             .cmd_addr              (cmd_addr),
             .cmd_id                (cmd_id),
-            .cmd_valid             (cmd_valid),
+            .cmd_valid             (w_cmd_valid_f),
             .cmd_ready             (cmd_ready),
             .cfg_addr_check_enable (cfg_addr_check_enable),
+            .cfg_debug_enable      (cfg_debug_enable),
+            .cfg_error_enable      (cfg_error_enable),
             .cfg_addr_range_enable (cfg_addr_range_enable),
             .cfg_addr_range_low    (cfg_addr_range_low),
             .cfg_addr_range_high   (cfg_addr_range_high),
@@ -406,8 +541,39 @@ module axi_monitor_base
     // Reporter handles existing error/timeout/compl/perf events; debug is for
     // trace; addr_check is a slow-rate violation stream that can wait.
     // All branches sample the same broadcast i_mon_time on emission cycle.
+    // Selection hold. The mux below is a combinational priority select, so
+    // without this an addr_check packet presented while monbus_ready is low
+    // would be REPLACED by the reporter's the moment the reporter's
+    // (registered) valid rises -- monbus_packet changing while monbus_valid
+    // is high and monbus_ready is still low. Nothing is lost, because
+    // addr_check holds its pending slot until its own accept and a sink that
+    // samples on valid && ready never sees it; but it violates the
+    // valid/ready payload-stability rule this bus otherwise keeps, and a sink
+    // that latches on valid alone would capture a torn packet.
+    //
+    // So once addr_check has been presented and stalled, it OWNS the bus
+    // until its beat is accepted. addr_check is the only source that can be
+    // displaced: the reporter already has top priority, and the debug source
+    // is tied off above.
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_addr_hold <= 1'b0;
+        end else if (!r_addr_hold) begin
+            // Latch ownership only when the beat is actually stalled; an
+            // addr packet accepted in its first cycle never needs the hold.
+            r_addr_hold <= w_addr_pkt_valid && !w_reporter_monbus_valid
+                           && !w_debug_monbus_valid && !monbus_ready;
+        end else if (monbus_ready) begin
+            r_addr_hold <= 1'b0;
+        end
+    )
+
     always_comb begin
-        if (w_reporter_monbus_valid) begin
+        if (r_addr_hold) begin
+            monbus_valid     = w_addr_pkt_valid;
+            monbus_packet    = w_addr_pkt_data;
+            monbus_timestamp = w_addr_pkt_timestamp;
+        end else if (w_reporter_monbus_valid) begin
             monbus_valid     = w_reporter_monbus_valid;
             monbus_packet    = w_reporter_monbus_packet;
             monbus_timestamp = i_mon_time;
@@ -428,7 +594,12 @@ module axi_monitor_base
 
     // Back-pressure into addr_check: only accept when reporter/debug are quiet
     // AND the downstream consumer is ready.
-    assign w_addr_pkt_ready = monbus_ready && !w_reporter_monbus_valid && !w_debug_monbus_valid;
+    // While addr_check owns the bus its ready must NOT stay gated on the
+    // reporter, or the held beat could never be accepted and the bus would
+    // deadlock the moment the reporter went permanently busy.
+    assign w_addr_pkt_ready = monbus_ready &&
+                              (r_addr_hold ||
+                               (!w_reporter_monbus_valid && !w_debug_monbus_valid));
 
     // -------------------------------------------------------------------------
     // Flow Control Logic
@@ -445,9 +616,74 @@ module axi_monitor_base
     // The bridge monitored-mode smoke test caught this; formal P6/P7
     // missed it because the assertion was tautological vs. the assign.
     // The trans CAM is ALWAYS pipelined (one extra cycle of active_count
-    // latency), so block_ready uses a MAX-3 margin -- the monitor still never
-    // accepts past MAX_TRANSACTIONS even with the pipeline delay.
-    localparam int unsigned BLOCK_MARGIN = 3;
+    // latency), so block_ready keeps a margin below MAX_TRANSACTIONS.
+    //
+    // SATURATION-RECOVERY CONTRACT (keep in sync with CMD_ENTRY_RESERVE in
+    // axi_monitor_trans_mgr.sv): the trans_mgr caps COMMAND-originated
+    // entries at MAX - CMD_ENTRY_RESERVE slots. This margin is
+    // CMD_ENTRY_RESERVE - 1, so block_ready re-asserts at
+    // active_count < MAX - (CMD_ENTRY_RESERVE - 1) -- STRICTLY ABOVE the
+    // command cap. Therefore even a table whose command entries are all
+    // permanently in flight recovers block_ready as soon as the ungated
+    // data/resp (orphan) entries drain -- orphans always drain via error
+    // reporting, so only command entries can be durable occupants. With the
+    // old flat MAX-3 margin equal to the effective command occupancy at
+    // saturation, the table parked exactly AT the threshold and block_ready
+    // never re-asserted: the monitor stalled the monitored command channel
+    // for ever (stream_core multi-channel wedge; reproduced by
+    // val/amba/test_axi_monitor_trans_mgr.py phase_saturation_recovers).
+    //
+    // Overshoot past MAX is impossible regardless of this margin: the CAM
+    // allocates from its exact combinational free vector, so the table can
+    // never hold more than MAX entries. Commands that handshake while the
+    // cap is reached (count register lag + skid drain) are simply not
+    // tracked -- lossy-but-honest degrade instead of a permanent stall.
+    // Tables without the cap (MAX < 16) keep the legacy flat margin of 3 --
+    // their behavior is exactly pre-fix, cap included (CMD_ENTRY_RESERVE=0
+    // in trans_mgr).
+    localparam int unsigned CMD_ENTRY_RESERVE =
+        unsigned'(cmd_entry_reserve(MAX_TRANSACTIONS));
+    // BLOCK_MARGIN must cover every allocation that can happen while
+    // active_count is stale, NOT just the command one.
+    //
+    // active_count is a REGISTERED pop-count and lags true occupancy by one
+    // cycle (axi_monitor_trans_mgr.sv -- deliberate: the old accumulator could
+    // underflow to 0xFF). In that one cycle THREE independent allocators can
+    // fire, each with its own one-hot out of monitor_trans_cam:
+    //
+    //     addr_wants_alloc    data_wants_alloc    resp_wants_alloc
+    //
+    // The margin has to satisfy TWO constraints at once:
+    //   (a) >= 3, because three allocators (addr/data/resp_wants_alloc) can
+    //       fire in the single stale cycle of the registered w_active_count;
+    //   (b) <= CMD_ENTRY_RESERVE - 1, or block_ready can never RE-ASSERT
+    //       after saturation (recovery contract above).
+    // Both hold because cmd_entry_reserve() returns 4 on tables >= 16, making
+    // the derived margin exactly 3. That reserve value is NOT free -- it costs
+    // 4 slots of command capacity per table -- and it is the ONLY value that
+    // satisfies both constraints with this derivation, so neither side may be
+    // changed alone:
+    //
+    //   * With the old reserve of 2 the margin derived to 1, and a command
+    //     could be ADMITTED against stale occupancy and then find no free
+    //     slot. Its data beats arrived with nothing to match, and data/resp
+    //     allocation cannot be backpressured (a monitor must never stall
+    //     returning data), so those beats were silently discarded. Measured:
+    //     obs_equiv observer 4096 vs in-core 3073, identical at 2,000 and
+    //     200,000 clocks of drain (loss, not backlog).
+    //   * Raising the MARGIN alone to 3 while the reserve stayed 2 was tried
+    //     (2026-08-17) and breaks (b): on a 16-slot table block_ready needs
+    //     active_count < 13 while the reserve only guarantees 2 free slots,
+    //     so occupancy parks at 14 and the gate never recovers -- the
+    //     permanent wedge the reserve exists to prevent, worse than the loss.
+    //
+    // History and measurements in vault/Tasks/amba (AMBA-BLOCKMARGIN, closed).
+    // Enforced: val/amba/test_axi_mon_block_ready.py asserts no command is
+    // admitted without an allocation (assert_no_untracked_admissions) and
+    // that occupancy never exceeds the table depth, on every wrapper; the
+    // trans_mgr FORMAL block's ap_cmd_entry_cap proves the command cap.
+    localparam int unsigned BLOCK_MARGIN =
+        (CMD_ENTRY_RESERVE > 0) ? (CMD_ENTRY_RESERVE - 1) : 3;
     assign block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)
                        ? ({24'h0, w_active_count} < (MAX_TRANSACTIONS - BLOCK_MARGIN))
                        : 1'b1;
@@ -527,13 +763,22 @@ module axi_monitor_base
 
     // End-event mux. For mode 3'b001 the "last data" semantic differs by
     // direction: reads end at RLAST handshake, writes end at B handshake.
+    //
+    // ISSUE #41: 3'b010 and 3'b011 used to be TRANSPOSED with respect to
+    // both the port-declaration header above and the start-event mux
+    // (which has always had 3'b010 = perf-enable edge, 3'b011 = the
+    // "productive" event). These selectors are software-programmed CSR
+    // fields, so an integrator following the documented encoding got the
+    // wrong window-close event. The header is authoritative -- it is the
+    // published contract and the start mux already agreed with it -- so
+    // the END mux is corrected to match rather than the other way round.
     always_comb begin
         case (cfg_end_event_sel)
             3'b000:  w_end_event = cfg_end_trigger;
             3'b001:  w_end_event = IS_READ ? (w_data_handshake && data_last)
                                            :  w_resp_handshake;
-            3'b010:  w_end_event = w_window_saturate;
-            3'b011:  w_end_event = w_perf_enable_falling;
+            3'b010:  w_end_event = w_perf_enable_falling;  // perf-enable edge
+            3'b011:  w_end_event = w_window_saturate;      // counter saturate
             3'b100:  w_end_event = cfg_end_trigger;
             default: w_end_event = 1'b0;
         endcase
@@ -554,7 +799,14 @@ module axi_monitor_base
                     end
                 end
                 WIN_ACTIVE_S: begin
-                    r_window_cycles <= r_window_cycles + 32'h1;
+                    // ISSUE #41: saturate UNCONDITIONALLY. w_window_saturate
+                    // used to be consumed only by cfg_end_event_sel==3'b010,
+                    // so under every other selector this counter incremented
+                    // regardless and wrapped through 0 at 2^32 -- silently
+                    // restarting the window measurement on any long window.
+                    if (!w_window_saturate) begin
+                        r_window_cycles <= r_window_cycles + 32'h1;
+                    end
                     if (w_end_event || cfg_window_force_close) begin
                         r_win_state <= WIN_CLOSING_S;
                     end
@@ -562,8 +814,14 @@ module axi_monitor_base
                 WIN_CLOSING_S: begin
                     // Stage A: immediate transition. Stage B will hold here
                     // until the reporter ACKs draining the window packets.
-                    r_win_state     <= WIN_IDLE_S;
-                    r_window_cycles <= 32'h0;
+                    //
+                    // ISSUE #41: r_window_cycles is NOT zeroed here. It used
+                    // to be, which left it readable for exactly the one
+                    // WIN_CLOSING cycle while the bucket counters held --
+                    // contradicting the "all counters hold into WIN_IDLE"
+                    // contract documented at the bucket block below. It is
+                    // re-initialised at the next window start instead.
+                    r_win_state <= WIN_IDLE_S;
                 end
                 default: begin
                     r_win_state <= WIN_IDLE_S;
@@ -633,28 +891,47 @@ module axi_monitor_base
             r_byte_count   <= 64'h0;
         end else if (r_win_state == WIN_ACTIVE_S) begin
             // Four mutually-exclusive cycle buckets on the data bus.
-            // Sum of the four equals window_cycles by construction.
+            //
+            // Sum of the four equals window_cycles MINUS ONE by construction
+            // (the start cycle seeds window_cycles to 1 while the buckets
+            // reset to 0 -- doc identity corrected, qc round_20), UNTIL a
+            // counter saturates. ISSUE #41: none of these counters used to
+            // saturate at all, so on a long window they wrapped at 2^32
+            // independently of r_window_cycles and the invariant broke
+            // silently. They now stick at max; a reader seeing 32'hFFFF_FFFF
+            // (or a sum below window_cycles) knows the window overflowed
+            // rather than being handed a wrapped value that looks plausible.
             if (data_valid && data_ready) begin
-                r_prod_cycles <= r_prod_cycles + 32'h1;
+                if (r_prod_cycles != 32'hFFFF_FFFF)
+                    r_prod_cycles <= r_prod_cycles + 32'h1;
                 // Byte count: one beat moves (1<<axsize) bytes. Explicit
                 // parens — verilog + has higher precedence than <<.
-                r_byte_count  <= r_byte_count + (64'h1 << r_axsize_latched);
+                if (r_byte_count < (64'hFFFF_FFFF_FFFF_FFFF - (64'h1 << r_axsize_latched)))
+                    r_byte_count <= r_byte_count + (64'h1 << r_axsize_latched);
+                else
+                    r_byte_count <= 64'hFFFF_FFFF_FFFF_FFFF;
             end else if (data_valid && !data_ready) begin
-                r_bp_cycles    <= r_bp_cycles    + 32'h1;
+                if (r_bp_cycles != 32'hFFFF_FFFF)
+                    r_bp_cycles <= r_bp_cycles + 32'h1;
             end else if (!data_valid && data_ready) begin
-                r_starv_cycles <= r_starv_cycles + 32'h1;
+                if (r_starv_cycles != 32'hFFFF_FFFF)
+                    r_starv_cycles <= r_starv_cycles + 32'h1;
             end else begin
-                r_idle_cycles  <= r_idle_cycles  + 32'h1;
+                if (r_idle_cycles != 32'hFFFF_FFFF)
+                    r_idle_cycles <= r_idle_cycles + 32'h1;
             end
 
             // Burst count = address-phase handshakes inside the window.
-            if (w_cmd_handshake) begin
+            if (w_cmd_handshake && (r_burst_count != 32'hFFFF_FFFF)) begin
                 r_burst_count <= r_burst_count + 32'h1;
             end
         end
         // In WIN_CLOSING and WIN_IDLE the counters hold their values so
         // the integrating block can sample them after seeing
-        // window_active deassert.
+        // window_active deassert. As of the issue #41 fix this is true of
+        // r_window_cycles as well (it used to be zeroed in WIN_CLOSING,
+        // leaving it readable for a single cycle while these held), so the
+        // whole counter set stays coherent until the next window opens.
     end
 
     assign perf_prod_cycles  = r_prod_cycles;

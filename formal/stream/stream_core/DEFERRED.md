@@ -22,6 +22,29 @@ previous committed flat predated this and was stale. The properties below are
 unaffected (perf meters are passive/additive). The block remains DEFERRED by the
 blocker below.
 
+## Inputs were STALE for five weeks (found + fixed 2026-08-31)
+
+Worth reading before trusting anything this proof said. The prep pattern rule
+sourced the monitor files from `rtl/amba/shared/%.sv`, but the monitors moved
+to `rtl/amba/monitor/` -- `MON_ORIG` was updated for that move and the PATTERN
+RULE that actually rebuilds the copies was not. Half a migration.
+
+Nothing complained, because the tracked `.sv2v_prep/*.sv` snapshots already
+existed and make treated them as up to date. So the flatten kept consuming
+2026-07-26 copies of the monitor RTL while the real modules moved on --
+`axi_monitor_filtered` had gained `ADDR_FILTER_ENABLE` and eight other
+parameters that the snapshot knew nothing about. The breakage only surfaced
+when the prep directory was deleted and make had to rebuild it.
+
+Fixed by repointing the pattern rule at `rtl/amba/monitor/%.sv` and
+regenerating; the flatten now tracks current RTL. The blocker below is
+unchanged and unrelated.
+
+**Lesson:** a checked-in generated artifact plus a broken rule that would
+regenerate it is silent staleness -- the artifact satisfies the dependency, so
+nothing ever runs the rule that would fail. `make clean && make` is the only
+thing that tests the rule.
+
 ## Remaining Blocker: yosys flatten name collision
 
 After the above fixes, sv2v and yosys `prep` succeed through hierarchy/proc/opt,

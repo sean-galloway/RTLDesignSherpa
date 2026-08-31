@@ -21,7 +21,6 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/monitor_common_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba4_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_amba5_pkg.sv \
         $(REPO_ROOT)/rtl/amba/includes/monitor_arbiter_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/axi_pkg.sv \
         $(REPO_ROOT)/projects/components/dmas/stream/rtl/includes/stream_pkg.sv
 
 # Common primitives
@@ -81,7 +80,7 @@ cover: stream_core_flat.v
 $(TMPDIR):
 	mkdir -p $(TMPDIR)
 
-$(TMPDIR)/%.sv: $(REPO_ROOT)/rtl/amba/shared/%.sv | $(TMPDIR)
+$(TMPDIR)/%.sv: $(REPO_ROOT)/rtl/amba/monitor/%.sv | $(TMPDIR)
 	sed -e 's/import monitor_pkg::\*;/import monitor_common_pkg::*; import monitor_amba4_pkg::*; import monitor_amba5_pkg::*; import monitor_arbiter_pkg::*;/g' \
 	    -e 's/monitor_pkg::/monitor_common_pkg::/g' $< > $@
 

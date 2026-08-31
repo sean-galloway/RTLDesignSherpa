@@ -300,12 +300,27 @@ on-chip counting).
 - **[monitor_arbiter_pkg](includes/monitor_arbiter_pkg.md)** - Monitor-bus arbitration types
 - **[monitor_package_spec](includes/monitor_package_spec.md)** - The package family, specified
 
-### Packages with no page yet
-`rtl/amba/includes/` also carries `apb4_pkg.sv`, `apb5_pkg.sv`, `axi_pkg.sv`,
-`monitor_pkg.sv` and `monitor_common_pkg.sv`. Read the source directly until
-these are written. (This list previously linked to `apb4_pkg.md`, `axi_pkg.md`,
-`monitor_pkg.md` and `monitor_network_pkg.md`, none of which have ever existed;
-`monitor_network_pkg` has no RTL either.)
+### The other two packages are documented, just not under their own names
+
+`monitor_common_pkg` and `monitor_pkg` have no same-named page and do not need
+one -- [monitor_package_spec](includes/monitor_package_spec.md) IS their page:
+
+- **`monitor_common_pkg`** (165 importers, the workhorse) is the subject of
+  that whole document -- the 128-bit record, the protocol and packet-type
+  enums, the type aliases, the helper functions, the side-band timestamp.
+- **`monitor_pkg`** (30 importers) defines nothing of its own. It is a
+  backward-compatibility shim that re-exports the four split packages, and it
+  is covered by that page's *Backward Compatibility* section.
+
+A second page per package would be a second copy of the same content, which is
+how documentation rots. Measured 2026-08-31; do not re-raise this as a gap on
+the strength of a filename search.
+
+`apb4_pkg.sv`, `apb5_pkg.sv`, `axi_pkg.sv` and `bus_types.svh` were DELETED the
+same day -- all four had zero importers (`apb4_pkg` was imported only by
+`apb5_pkg`, and `bus_types.svh`, which `include`d two of them, was included by
+nothing). They were a vestigial type library, not undocumented code.
+(`monitor_network_pkg` never had RTL at all -- it was always a phantom.)
 
 ---
 

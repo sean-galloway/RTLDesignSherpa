@@ -23,7 +23,7 @@
  * filtering hierarchy:
  *
  * Level 1: Packet type masking (pkt_mask) - drop entire packet types
- * Level 2: Error routing (err_select) - route specific packet types to error handling
+ * Level 2: RESERVED (err_select feeds only the conflict check; no routing is implemented -- doc corruption source deleted, qc round_23)
  * Level 3: Event code masking - fine-grained filtering within packet types
  *
  * Features:
@@ -45,7 +45,34 @@ module axi_monitor_filtered
     // Monitor parameters (passed through to axi_monitor_base)
     parameter logic [7:0]  UNIT_ID       = 8'h01,
     parameter logic [15:0] AGENT_ID      = 16'h000A,
+    // ---- Timer LUT sizing (counter_freq_invariant) -------------------------
+    // The divisor IS the frequency in MHz, so a table built for THIS design's
+    // clock gives an exact 1 us tick -- which is the unit monitor timeouts are
+    // expressed in. Defaults below set every entry to ACLK_MHZ, so the tick is
+    // exact regardless of cfg_freq_sel. Override to a real MIN..MAX range only
+    // if the design switches aclk at runtime.
+    parameter int CFI_MIN_FREQ_MHZ     = 100,
+    parameter int CFI_MAX_FREQ_MHZ     = 100,
+    parameter int CFI_NUM_FREQ_ENTRIES = 16,
+    parameter int CFI_FREQ_STRATEGY    = 0,
     parameter int MAX_TRANSACTIONS       = 16,
+    // ID-range filter, passed through to axi_monitor_base. Default OFF ->
+    // bit-identical to before. See axi_monitor_base for why this exists:
+    // several monitors snooping one ID-multiplexed bus, each owning a slice,
+    // so no single transaction table has to hold the whole concurrency.
+    // Transaction-table shaping, forwarded to axi_monitor_trans_mgr.
+    // Defaults reproduce today's behaviour exactly; see that module for the
+    // AW-order queue and the bank sizing rule.
+    parameter bit USE_WDATA_ORDER_Q      = 1'b0,
+    parameter int NUM_BANKS              = 1,
+    parameter bit ID_FILTER_ENABLE       = 1'b0,
+
+    // Address-range packet filter (TASK-015). Default 0 -> inert and the
+    // build is bit-identical. See axi_monitor_trans_mgr for why this filters
+    // at REPORT time rather than at admission.
+    parameter bit ADDR_FILTER_ENABLE     = 1'b0,
+    parameter int ID_MATCH_BASE          = 0,
+    parameter int ID_MATCH_COUNT         = 0,
     parameter int ADDR_WIDTH             = 32,
     parameter int ID_WIDTH               = 8,
     parameter bit IS_READ                = 1'b1,
@@ -67,7 +94,9 @@ module axi_monitor_filtered
     parameter bit ADD_PIPELINE_STAGE     = 0,     // Add register stage for timing
 
     // Address-range check (0 = disabled, no comparator synthesised)
-    parameter int N_ADDR_RANGES          = 0
+    parameter int N_ADDR_RANGES          = 0,
+    // Per-range flavor (0 = DEBUG/match, 1 = ERROR/allowlist-miss); default 0.
+    parameter logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0] ADDR_RANGE_IS_ERROR = '0
 )
 (
     // Clock and Reset
@@ -99,9 +128,9 @@ module axi_monitor_filtered
 
     // Configuration (passed through to base monitor)
     input  logic [3:0]                  cfg_freq_sel,
-    input  logic [3:0]                  cfg_addr_cnt,
-    input  logic [3:0]                  cfg_data_cnt,
-    input  logic [3:0]                  cfg_resp_cnt,
+    input  logic [15:0]              cfg_addr_cnt,
+    input  logic [15:0]              cfg_data_cnt,
+    input  logic [15:0]              cfg_resp_cnt,
     input  logic                        cfg_error_enable,
     input  logic                        cfg_compl_enable,
     input  logic                        cfg_threshold_enable,
@@ -130,6 +159,20 @@ module axi_monitor_filtered
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][ADDR_WIDTH-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][ADDR_WIDTH-1:0] cfg_addr_range_high,
 
+
+    // Address-range packet filter configuration (active when
+    // ADDR_FILTER_ENABLE=1). Inclusive [low, high]; a transaction whose
+    // command address falls OUTSIDE the range has its packets suppressed.
+
+    // Runtime ID filter (TASK-015). Overrides ID_MATCH_BASE/COUNT while
+    // cfg_id_filter_enable is high; tied low it is bit-identical to the
+    // parameter-only behaviour.
+    input  logic                                                   cfg_id_filter_enable,
+    input  logic [ID_WIDTH-1:0]                                          cfg_id_match_base,
+    input  logic [ID_WIDTH:0]                                            cfg_id_match_count,
+    input  logic                                                   cfg_addr_filter_enable,
+    input  logic [ADDR_WIDTH-1:0]                                  cfg_addr_filter_low,
+    input  logic [ADDR_WIDTH-1:0]                                  cfg_addr_filter_high,
     // Performance window control (Stage A of perfmon RFC). Wire to the
     // integrating block's perfmon CSR; tie 3'b111 + 1'b0 if perfmon is
     // unused at this instance.
@@ -165,6 +208,12 @@ module axi_monitor_filtered
     output logic [31:0]                 perf_beat_count,
     output logic [63:0]                 perf_byte_count,
     output logic [31:0]                 perf_burst_count,
+
+    // Lifetime reporter counters (pass-through from axi_monitor_base; see
+    // its port comment for semantics -- emitted-packet counts, 0 when
+    // ENABLE_PERF_LOGIC=0).
+    output logic [15:0]                 perf_completed_count,
+    output logic [15:0]                 perf_error_count,
 
     // Configuration error flags
     output logic                        cfg_conflict_error     // Configuration conflict detected
@@ -209,9 +258,19 @@ module axi_monitor_filtered
     // =========================================================================
 
     axi_monitor_base #(
+        .CFI_MIN_FREQ_MHZ     (CFI_MIN_FREQ_MHZ),
+        .CFI_MAX_FREQ_MHZ     (CFI_MAX_FREQ_MHZ),
+        .CFI_NUM_FREQ_ENTRIES (CFI_NUM_FREQ_ENTRIES),
+        .CFI_FREQ_STRATEGY    (CFI_FREQ_STRATEGY),
         .UNIT_ID                 (UNIT_ID),
         .AGENT_ID                (AGENT_ID),
         .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
+            .USE_WDATA_ORDER_Q       (USE_WDATA_ORDER_Q),
+            .NUM_BANKS               (NUM_BANKS),
+            .ID_FILTER_ENABLE        (ID_FILTER_ENABLE),
+            .ADDR_FILTER_ENABLE      (ADDR_FILTER_ENABLE),
+            .ID_MATCH_BASE           (ID_MATCH_BASE),
+            .ID_MATCH_COUNT          (ID_MATCH_COUNT),
         .ADDR_WIDTH              (ADDR_WIDTH),
         .ID_WIDTH                (ID_WIDTH),
         .IS_READ                 (IS_READ),
@@ -224,7 +283,8 @@ module axi_monitor_filtered
         .ENABLE_THRESHOLD_LOGIC  (ENABLE_THRESHOLD_LOGIC),
         .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
         .ENABLE_DEBUG_LOGIC      (ENABLE_DEBUG_LOGIC),
-        .N_ADDR_RANGES           (N_ADDR_RANGES)
+        .N_ADDR_RANGES           (N_ADDR_RANGES),
+        .ADDR_RANGE_IS_ERROR     (ADDR_RANGE_IS_ERROR)
     ) u_axi_monitor_base (
         .aclk                    (aclk),
         .aresetn                 (aresetn),
@@ -275,6 +335,15 @@ module axi_monitor_filtered
         .cfg_addr_range_low      (cfg_addr_range_low),
         .cfg_addr_range_high     (cfg_addr_range_high),
 
+        .cfg_id_filter_enable    (cfg_id_filter_enable),
+
+        .cfg_id_match_base       (cfg_id_match_base),
+
+        .cfg_id_match_count      (cfg_id_match_count),
+
+        .cfg_addr_filter_enable  (cfg_addr_filter_enable),
+        .cfg_addr_filter_low     (cfg_addr_filter_low),
+        .cfg_addr_filter_high    (cfg_addr_filter_high),
         // Performance window control (Stage A of perfmon RFC)
         .cfg_start_event_sel     (cfg_start_event_sel),
         .cfg_end_event_sel       (cfg_end_event_sel),
@@ -304,7 +373,11 @@ module axi_monitor_filtered
         .perf_idle_cycles        (perf_idle_cycles),
         .perf_beat_count         (perf_beat_count),
         .perf_byte_count         (perf_byte_count),
-        .perf_burst_count        (perf_burst_count)
+        .perf_burst_count        (perf_burst_count),
+
+        // Lifetime reporter counters
+        .perf_completed_count    (perf_completed_count),
+        .perf_error_count        (perf_error_count)
     );
 
     // =========================================================================
